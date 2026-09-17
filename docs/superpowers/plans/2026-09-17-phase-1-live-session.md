@@ -18,7 +18,8 @@
 - Kata pods **must** declare explicit CPU and memory requests and limits — the guest VM is sized from the sum, and under-requesting causes guest OOM.
 - Kata pods **must not** use host networking; it is unsupported.
 - No secrets in source. Local development reads `PANACEA_APP_*` environment variables.
-- Every Go package has tests. `go test ./...` must pass before any commit.
+- Every Go package has tests. **`go test ./sandboxd/... ./control-plane/...` must pass before any commit.** Note: `./...` is invalid at a Go workspace root — the root is not itself a module, so the pattern resolves to nothing and errors. Always use explicit module patterns.
+- The `go` directive in both `go.mod` files and in `go.work` must read `go 1.23`, matching the CI pin. A higher directive makes a pinned 1.23 agent attempt a toolchain download, which fails on a network-restricted build agent.
 - Terraform targets the **dev** estate only in this phase. Never run against `deploy/main.tf` in the Panacea repo — that is the live cluster.
 
 ---
@@ -89,8 +90,11 @@ func main() {
 
 - [ ] **Step 3: Verify the workspace builds**
 
-Run: `go build ./...`
+Run: `go build ./sandboxd/... ./control-plane/...`
 Expected: exits 0, no output.
+
+Do **not** use `go build ./...` here. At a Go workspace root there is no enclosing module, so the pattern
+fails with `directory prefix . does not contain modules listed in go.work`.
 
 - [ ] **Step 4: Add `.gitignore`**
 
@@ -121,11 +125,12 @@ steps:
   - task: GoTool@0
     inputs:
       version: '1.23'
-  - script: go build ./...
+  # Explicit module patterns: ./... is invalid at a Go workspace root.
+  - script: go build ./sandboxd/... ./control-plane/...
     displayName: Build
-  - script: go test ./... -race -count=1
+  - script: go test ./sandboxd/... ./control-plane/... -race -count=1
     displayName: Test
-  - script: go vet ./...
+  - script: go vet ./sandboxd/... ./control-plane/...
     displayName: Vet
 ```
 
