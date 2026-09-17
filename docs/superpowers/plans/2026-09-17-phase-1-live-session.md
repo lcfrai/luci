@@ -1224,9 +1224,22 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (string, error) {
 				Effect:   corev1.TaintEffectNoSchedule,
 			}},
 			NodeSelector: map[string]string{"panacea-app/role": "sandbox"},
+			// The root filesystem is read-only, so every path the agent writes
+			// to must be an explicit volume. The image's home directory is
+			// /home/dev (uid 1001) and tooling writes to /tmp. Without these
+			// two mounts the container starts and then fails on the first
+			// write — git clone, npm, shell history, the agent's own state.
+			Volumes: []corev1.Volume{
+				{Name: "home", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+				{Name: "tmp", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+			},
 			Containers: []corev1.Container{{
 				Name:  "sandbox",
 				Image: spec.Image,
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: "home", MountPath: "/home/dev"},
+					{Name: "tmp", MountPath: "/tmp"},
+				},
 				Env: []corev1.EnvVar{
 					{Name: "PANACEA_APP_COMMAND", Value: spec.Command},
 				},
