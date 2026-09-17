@@ -73,3 +73,38 @@ func TestDeleteRemovesThePod(t *testing.T) {
 		t.Fatal("pod still present after Delete")
 	}
 }
+
+func TestCreateMountsWritablePathsUnderReadOnlyRoot(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	m := sandbox.NewManager(client, "panacea-app")
+	name, err := m.Create(context.Background(), sandbox.Spec{
+		ID: "vols", Image: "x:y", Command: "/bin/bash", CPU: "500m", Memory: "1Gi",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	pod, err := client.CoreV1().Pods("panacea-app").Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	c := pod.Spec.Containers[0]
+	if c.SecurityContext == nil || c.SecurityContext.ReadOnlyRootFilesystem == nil || !*c.SecurityContext.ReadOnlyRootFilesystem {
+		t.Fatal("root filesystem must stay read-only")
+	}
+	// Every writable path the image needs must be mounted, or the container
+	// fails on its first write at runtime.
+	want := map[string]bool{"/home/dev": false, "/tmp": false}
+	for _, vm := range c.VolumeMounts {
+		if _, ok := want[vm.MountPath]; ok {
+			want[vm.MountPath] = true
+		}
+	}
+	for path, mounted := range want {
+		if !mounted {
+			t.Errorf("no volume mounted at %s; writes there will fail under a read-only root", path)
+		}
+	}
+	if len(pod.Spec.Volumes) < 2 {
+		t.Errorf("got %d volumes, want at least 2", len(pod.Spec.Volumes))
+	}
+}
