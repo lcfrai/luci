@@ -959,14 +959,22 @@ Create `infra/terraform/kata.tf`:
 
 ```hcl
 # Pod Sandboxing (Kata Containers) requires Azure Linux, a Gen2
-# nested-virtualisation-capable SKU, and workload_runtime KataMshvVmIsolation.
+# nested-virtualisation-capable SKU, and the Kata workload runtime.
+#
+# THREE DIFFERENT IDENTIFIERS, NONE INTERCHANGEABLE — this is a real trap:
+#   Terraform azurerm workload_runtime : "KataVmIsolation"
+#   az aks CLI --workload-runtime      : "KataMshvVmIsolation"
+#   Kubernetes runtimeClassName        : "kata-mshv-vm-isolation"
+# Verified empirically against azurerm v4.81.0, whose validator rejects
+# KataMshvVmIsolation with: expected workload_runtime to be one of
+# ["KataVmIsolation" "OCIContainer" "WasmWasi"].
 resource "azurerm_kubernetes_cluster_node_pool" "kata" {
   name                  = "katapool"
   kubernetes_cluster_id = var.aks_cluster_id
   vm_size               = var.vm_size
   os_sku                = "AzureLinux"
   os_type               = "Linux"
-  workload_runtime      = "KataMshvVmIsolation"
+  workload_runtime      = "KataVmIsolation"
 
   auto_scaling_enabled = true
   node_count           = var.node_count
