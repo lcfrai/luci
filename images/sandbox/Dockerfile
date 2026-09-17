@@ -10,8 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git ca-certificates curl ripgrep procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Agent harnesses. Pinned so a sandbox image is reproducible.
-RUN npm install -g @anthropic-ai/claude-code@latest
+# Agent harnesses. Pinned so a sandbox image is reproducible. Version
+# observed via `npm view @anthropic-ai/claude-code version` on 2026-09-17.
+RUN npm install -g @anthropic-ai/claude-code@2.1.274
 
 RUN useradd -m -u 1001 -s /bin/bash dev
 COPY --from=build /out/sandboxd /usr/local/bin/sandboxd

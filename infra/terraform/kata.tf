@@ -1,5 +1,6 @@
 # Pod Sandboxing (Kata Containers) requires Azure Linux, a Gen2
-# nested-virtualisation-capable SKU, and workload_runtime KataMshvVmIsolation.
+# nested-virtualisation-capable SKU, and workload_runtime KataVmIsolation
+# (see the NOTE below on this field).
 resource "azurerm_kubernetes_cluster_node_pool" "kata" {
   name                  = "katapool"
   kubernetes_cluster_id = var.aks_cluster_id
@@ -33,7 +34,9 @@ resource "azurerm_kubernetes_cluster_node_pool" "kata" {
   }
 
   lifecycle {
-    # Node pools rotate nodes on os_disk or zone changes; make that explicit.
+    # auto_scaling_enabled lets the cluster autoscaler change node_count
+    # outside Terraform; without ignore_changes, Terraform would fight the
+    # autoscaler on every plan.
     ignore_changes = [node_count]
   }
 }
