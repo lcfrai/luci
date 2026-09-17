@@ -18,6 +18,48 @@ Each phase produces working, testable software and gets its own plan in `docs/su
 | Identity | EntraID via the existing oauth2-proxy → Keycloak chain |
 | Execution | Subagent-driven, orchestrated, with review gates per task |
 
+## Local-first: Azure is a deployment target, not a dependency
+
+**Decided 2026-09-17, after Phase 1 proved the pipe works against plain Docker.**
+
+Everything that can be built and proven on a laptop is built and proven on a laptop before any Azure spend. This is not only about cost — it is a much faster development loop, and Phase 1 demonstrated the point: a real Claude Code session was driven end to end through Docker with no cluster involved.
+
+**The architectural consequence, and it is the important one: the sandbox backend becomes an interface with two implementations.**
+
+```
+type Backend interface {
+    Create(ctx, Spec) (Sandbox, error)
+    Attach(ctx, id) (io.ReadWriteCloser, error)
+    Destroy(ctx, id) error
+    List(ctx) ([]Sandbox, error)
+}
+```
+
+- **`docker`** — local development and the product's genuine "local machine" feature
+- **`kata`** — Azure AKS pod sandboxing, what Phase 1 already built
+
+This is not scaffolding to throw away. The product ships a **local machine** alongside cloud machines; the Docker backend *is* that feature. Building it first means the whole product runs on a laptop, and Azure work becomes a swap of one implementation rather than a prerequisite for anything.
+
+It also means every later phase can be developed, demonstrated and reviewed with zero cloud cost.
+
+## Revised phase order
+
+Phases are now ordered by **how much can be proven without spending money**, while keeping risk-first ordering within that constraint.
+
+| # | Phase | Needs Azure? |
+|---|---|---|
+| 1 | Live session — walking skeleton | ✅ **DONE** (proven on Docker) |
+| 2 | Sandbox backend interface + the cockpit | No |
+| 3 | Git, worktrees, coordination and convergence | No |
+| 4 | Discover | No |
+| 5 | Design canvas | No |
+| 6 | Capacity and credential rotation | Partly — engine is local, real limits need accounts |
+| 7 | Deploy connector | Needs the Panacea API, not Azure directly |
+| 8 | Kata backend + Terraform + warm pools | **Yes** — the first real spend |
+| 9 | Enterprise hardening and distribution | Yes |
+
+The Kata work from Phase 1 (Terraform, the pod manager, the read-only-root volume fix) is already written and unit-tested. It sits dormant behind the backend interface until Phase 8 turns it on.
+
 ## Phases
 
 ### Phase 1 — One live session, end to end
