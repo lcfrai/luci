@@ -1,0 +1,9 @@
+node_modules/
+dist/
+target/
+*.exe
+.env
+.terraform/
+*.tfstate
+*.tfstate.backup
+main/
