@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panacea App</title>
+<style>
+:root{
+  --page:#0a0908; --canvas:#0e0c0b; --surface:#141210; --inset:#1a1715; --hover:#1f1c19;
+  --ink:#f2ede7; --ink-2:#a79f97; --ink-3:#6c645d; --ink-4:#453f39;
+  --line:rgba(255,248,240,.075); --line-strong:rgba(255,248,240,.15); --line-soft:rgba(255,248,240,.04);
+  --accent:#2fb3bd; --accent-hi:#74d9e0; --accent-tint:rgba(47,179,189,.11);
+  --run:#43b95e; --need:#e2a33c; --fail:#ef5f45; --drift:#c98ae0;
+  --thread:rgba(255,241,224,.16);
+  --t-fg:#d6d0c8; --t-dim:#6f6862; --t-sel:#e8e2da;
+  --t-add-fg:#b5e8bf; --t-add-bg:rgba(46,160,67,.16);
+  --t-del-fg:#ffb4a6; --t-del-bg:rgba(248,81,73,.13);
+  --t-cyan:#5ec8d0; --t-mag:#c98ae0; --t-grn:#5cc46e;
+  --r-ctl:7px; --r-card:9px;
+  --e-hair:0 0 0 1px var(--line);
+  --ease:cubic-bezier(.23,1,.32,1);
+  --mono:"Cascadia Mono",ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+  --sans:"Segoe UI Variable Text","Segoe UI",-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font:13.5px/1.45 var(--sans);
+  -webkit-font-smoothing:antialiased;overflow:hidden;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea,select{font:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:3px}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:rgba(255,248,240,.07);border:3px solid transparent;border-radius:8px;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,248,240,.15);background-clip:padding-box}
+@keyframes beat{0%,100%{opacity:.45}50%{opacity:1}}
+@keyframes fadein{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+.live{animation:beat 2.4s var(--ease) infinite}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+.app{display:flex;height:100vh}
+
+/* RAIL */
+.rail{width:256px;flex:0 0 256px;background:var(--canvas);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.mchip{display:flex;align-items:center;gap:8px;padding:9px 11px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.mchip:hover{background:var(--hover)}
+.mark{width:22px;height:22px;border-radius:6px;background:var(--ink);color:var(--page);
+  display:grid;place-items:center;font-weight:800;font-size:11.5px;flex:0 0 auto}
+.mchip .mn{flex:1;min-width:0}
+.mchip .m1{font-size:11.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mchip .m2{font-size:9.5px;color:var(--ink-4);font-family:var(--mono)}
+.rs{flex:1;overflow:auto;padding:4px 6px 12px}
+.mhd{padding:9px 7px 4px;font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--ink-4)}
+.prow{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:var(--r-ctl);cursor:pointer}
+.prow:hover{background:var(--hover)}
+.prow.sel{background:var(--inset);box-shadow:var(--e-hair)}
+.pini{width:19px;height:19px;border-radius:5px;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--ink-2);flex:0 0 auto}
+.prow.sel .pini{background:var(--accent);color:#04201f}
+.pnm{flex:1;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chev{color:var(--ink-4);font-size:8px;width:9px;text-align:center}
+.chev.shut{transform:rotate(-90deg);display:inline-block}
+.kids{padding-left:9px;margin-left:9px;border-left:1px solid var(--thread)}
+.brow,.wrow,.srow{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:5px;cursor:pointer;position:relative}
+.brow::before,.wrow::before,.srow::before{content:"";position:absolute;left:-9px;top:50%;width:6px;height:1px;background:var(--thread)}
+.brow:hover,.wrow:hover,.srow:hover{background:var(--hover)}
+.brow.sel{background:var(--accent-tint);box-shadow:inset 0 0 0 1px rgba(47,179,189,.28)}
+.bnm{flex:1;font-family:var(--mono);font-size:10.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow.sel .bnm{color:var(--ink)}
+.wrow{font-size:11px;color:var(--ink-3)} .wrow .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow{font-size:10.5px;color:var(--ink-4)} .srow .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow.sel{color:var(--ink);background:var(--hover);box-shadow:inset 2px 0 0 var(--accent)}
+.sd{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
+.sd.run{background:var(--run)} .sd.need{background:var(--need)} .sd.idle{background:var(--ink-4)}
+.sd.drift{background:var(--drift)} .sd.done{background:var(--ink-3)} .sd.shell{background:var(--accent)}
+.addr{display:flex;align-items:center;gap:6px;padding:3px 7px;color:var(--ink-4);font-size:10.5px;cursor:pointer;border-radius:5px}
+.addr:hover{color:var(--accent);background:var(--accent-tint)}
+.rfoot{border-top:1px solid var(--line);padding:7px 9px;display:flex;align-items:center;gap:8px}
+.me{width:22px;height:22px;border-radius:50%;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--ink-2)}
+.rfoot .who{flex:1;font-size:11px;color:var(--ink-3);cursor:pointer}
+.rfoot .who:hover{color:var(--ink)}
+.kbd{font-family:var(--mono);font-size:9.5px;padding:1px 5px;border-radius:4px;background:var(--inset);
+  box-shadow:var(--e-hair);color:var(--ink-4);cursor:pointer}
+.kbd:hover{color:var(--ink-2)}
+
+/* SUB-RAIL */
+.sub{width:0;flex:0 0 0;overflow:hidden;background:var(--canvas);border-right:1px solid var(--line);
+  transition:width .2s var(--ease),flex-basis .2s var(--ease);display:flex;flex-direction:column}
+.app.deep .sub{width:182px;flex-basis:182px}
+.stop{padding:10px 11px 9px;border-bottom:1px solid var(--line-soft)}
+.sbk{color:var(--ink-3);font-size:10.5px;cursor:pointer;margin-bottom:6px}
+.sbk:hover{color:var(--ink)}
+.sbr{font-family:var(--mono);font-size:11.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spurpose{font-size:10px;color:var(--ink-3);margin-top:4px;line-height:1.4;cursor:pointer}
+.spurpose:hover{color:var(--ink-2)}
+.spurpose .pl{color:var(--accent);font-size:9px}
+.mods{padding:7px 6px;display:flex;flex-direction:column;gap:1px}
+.mod{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:var(--r-ctl);cursor:pointer;color:var(--ink-2)}
+.mod:hover{background:var(--hover);color:var(--ink)}
+.mod.sel{background:var(--inset);box-shadow:var(--e-hair);color:var(--ink)}
+.mod .n{flex:1;font-size:12px} .mod.sel .n{font-weight:650}
+.mi{width:12px;text-align:center;font-size:10.5px;color:var(--ink-4)} .mod.sel .mi{color:var(--accent)}
+
+/* MAIN */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--page)}
+.top{min-height:38px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.top .ttl{font-size:12px;font-weight:650} .top .sub2{font-size:11px;color:var(--ink-3)} .top .sp{flex:1}
+.seg{display:flex;gap:1px;background:var(--surface);box-shadow:var(--e-hair);border-radius:var(--r-ctl);padding:2px}
+.seg button{padding:3px 10px;border-radius:5px;font-size:11px;color:var(--ink-3)}
+.seg button:hover{color:var(--ink)} .seg button.on{background:var(--inset);color:var(--ink);font-weight:600}
+.btn{padding:4px 10px;border-radius:var(--r-ctl);font-size:11px;font-weight:600;background:var(--surface);box-shadow:var(--e-hair)}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);color:#04201f;box-shadow:none} .btn.pri:hover{filter:brightness(1.08)}
+.btn.need{background:var(--need);color:#241802;box-shadow:none}
+.btn.ghost{background:none;box-shadow:none;color:var(--ink-3)} .btn.ghost:hover{color:var(--ink);background:var(--hover)}
+.btn[disabled]{opacity:.35;cursor:default}
+.split{display:flex;align-items:stretch}
+.split .a{border-radius:var(--r-ctl) 0 0 var(--r-ctl);padding-right:8px}
+.split .b{border-radius:0 var(--r-ctl) var(--r-ctl) 0;padding:4px 7px;margin-left:1px;background:var(--accent);color:#04201f;box-shadow:none}
+.split .b:hover{filter:brightness(1.08)}
+.body{flex:1;overflow:auto;padding:20px 22px} .inner{max-width:900px}
+.sech{font-size:9px;font-weight:700;letter-spacing:.11em;color:var(--ink-4);margin:0 0 9px;display:flex;align-items:center;gap:9px}
+.sech::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+.card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-hair);padding:12px 14px;margin-bottom:8px}
+.card.click{cursor:pointer} .card.click:hover{box-shadow:0 0 0 1px var(--line-strong)}
+.card .t1{font-size:12.5px} .card .t2{font-size:11px;color:var(--ink-3);margin-top:3px}
+.card .t2 b{color:var(--ink-2);font-weight:600}
+.row{display:flex;align-items:center;gap:11px} .row .sp{flex:1}
+.empty{padding:36px 4px;max-width:520px}
+.empty h3{font-size:16px;font-weight:600;margin-bottom:8px}
+.empty p{font-size:12.5px;color:var(--ink-3);line-height:1.6;margin-bottom:16px}
+.attn{color:var(--need);cursor:pointer;font-weight:600}
+.attn:hover{text-decoration:underline}
+
+/* COLUMNS */
+.cols{flex:1;display:flex;min-height:0;overflow-x:auto}
+.col{flex:1 1 0;min-width:420px;display:flex;flex-direction:column;border-right:1px solid var(--line);min-height:0}
+.col:last-child{border-right:0}
+.col.focus{box-shadow:inset 0 2px 0 var(--accent)}
+.ch{display:flex;align-items:center;gap:7px;padding:6px 11px;flex:0 0 auto;border-bottom:1px solid var(--line-soft)}
+.ch .nm{font-size:11.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch .hn{font-family:var(--mono);font-size:9.5px;color:var(--ink-4);white-space:nowrap}
+.ch .sp{flex:1} .ch .x{color:var(--ink-4);font-size:11px;cursor:pointer;padding:0 3px} .ch .x:hover{color:var(--ink)}
+.lock{font-family:var(--mono);font-size:9.5px;color:var(--need);background:rgba(226,163,60,.1);padding:1px 6px;border-radius:4px;white-space:nowrap}
+.ctxchip{font-family:var(--mono);font-size:9.5px;color:var(--accent-hi);background:var(--accent-tint);
+  padding:1px 6px;border-radius:4px;cursor:pointer;white-space:nowrap}
+.tty{flex:1;overflow:auto;padding:10px 12px 4px;font-family:var(--mono);font-size:11.5px;line-height:1.55;
+  color:var(--t-fg);white-space:pre-wrap;word-break:break-word}
+.tty .dim{color:var(--t-dim)} .tty .u{color:var(--t-sel)}
+.tty .cy{color:var(--t-cyan)} .tty .mg{color:var(--t-mag)} .tty .gn{color:var(--t-grn)}
+.tty .tool{color:var(--t-sel);font-weight:600}
+.tty .add{color:var(--t-add-fg);background:var(--t-add-bg);display:inline-block;width:100%}
+.tty .del{color:var(--t-del-fg);background:var(--t-del-bg);display:inline-block;width:100%}
+.tty .ln{color:var(--t-dim)} .tty .box{color:var(--t-dim)} .tty .sel{color:var(--t-cyan)}
+.cursor{display:inline-block;width:6.5px;height:13px;background:var(--t-fg);vertical-align:-2px;animation:beat 2.4s steps(2) infinite}
+.wm{color:var(--accent-hi);opacity:.8} .faded{opacity:.36}
+.permopt{cursor:pointer;display:block} .permopt:hover{color:var(--t-cyan)}
+.cc-in{flex:0 0 auto;padding:2px 12px 8px;font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--t-dim)}
+.cc-in .fieldrow{display:flex;align-items:center}
+.cc-in input{background:none;border:0;outline:none;color:var(--t-fg);font:inherit;flex:1;padding:0 4px}
+.cc-mode{color:var(--t-dim);font-size:11px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.cc-mode b{color:var(--need);font-weight:400} .cc-mode:hover b{color:var(--t-cyan)}
+.cc-mode .allow{color:var(--t-dim);font-size:10px}
+.cf{padding:4px 11px;border-top:1px solid var(--line-soft);display:flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:9.5px;color:var(--ink-4);flex:0 0 auto}
+.cf .sp{flex:1}
+.ctxdots{display:flex;gap:2px;align-items:center}
+.ctxdots i{width:3px;height:3px;border-radius:50%;background:var(--ink-4)}
+.ctxdots i.f{background:var(--ink-3)} .ctxdots.near i.f{background:var(--need)}
+.acct{cursor:pointer} .acct:hover{color:var(--ink-2)}
+
+/* CANVAS */
+.canvas{flex:1;position:relative;overflow:auto;
+  background:radial-gradient(circle at 1px 1px,rgba(255,248,240,.045) 1px,transparent 0) 0 0/24px 24px,var(--canvas)}
+.cvin{position:relative;width:2400px;height:1600px}
+.tile{position:absolute;background:var(--page);border-radius:var(--r-card);display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 0 0 1px var(--line-strong),0 14px 36px rgba(0,0,0,.55)}
+.tile .ch{cursor:grab}
+.rs-h{position:absolute;right:0;bottom:0;width:15px;height:15px;cursor:nwse-resize;
+  background:linear-gradient(135deg,transparent 50%,var(--line-strong) 50%)}
+
+/* DISCOVER / DESIGN / MERGE / DEPLOY / FILES */
+.disc{max-width:620px;padding:24px 4px}
+.disc .step{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-bottom:9px}
+.disc h2{font-size:19px;line-height:1.3;letter-spacing:-.02em;font-weight:650;margin-bottom:8px}
+.disc p.q{font-size:12.5px;color:var(--ink-2);line-height:1.6;margin-bottom:15px}
+.pick{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-card);
+  background:var(--surface);box-shadow:var(--e-hair);cursor:pointer;margin-bottom:6px}
+.pick:hover{box-shadow:0 0 0 1px var(--accent)} .pick.on{box-shadow:0 0 0 1px var(--accent);background:var(--accent-tint)}
+.pick .k{width:17px;height:17px;border-radius:4px;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-family:var(--mono);font-size:9px;color:var(--ink-3);flex:0 0 auto}
+.pick.on .k{background:var(--accent);color:#04201f}
+.pick .tx{flex:1;font-size:12px} .pick .tx small{display:block;color:var(--ink-3);font-size:10.5px;margin-top:2px}
+.ff{display:flex;gap:8px;align-items:flex-end;background:var(--surface);box-shadow:var(--e-hair);
+  border-radius:var(--r-card);padding:10px 12px;margin-top:12px}
+.ff textarea{flex:1;background:none;border:0;color:var(--ink);resize:none;font-size:12.5px;outline:none}
+.go{width:26px;height:26px;border-radius:var(--r-ctl);background:var(--accent);color:#04201f;display:grid;place-items:center;font-weight:800;flex:0 0 auto}
+.ans{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:12px}
+.ans .q{color:var(--ink-3);width:180px;flex:0 0 auto} .ans .a{color:var(--ink);flex:1}
+.ans .ed{color:var(--ink-4);font-size:10.5px;cursor:pointer} .ans .ed:hover{color:var(--accent)}
+.dsplit{display:flex;flex:1;min-height:0}
+.dcv{flex:1;position:relative;overflow:hidden;
+  background:radial-gradient(circle at 1px 1px,rgba(255,248,240,.04) 1px,transparent 0) 0 0/22px 22px,var(--canvas)}
+.frame{position:absolute;background:#fff;border-radius:var(--r-ctl);overflow:hidden;cursor:grab;
+  box-shadow:0 0 0 1px var(--line-strong),0 14px 34px rgba(0,0,0,.5)}
+.frame.on{box-shadow:0 0 0 2px var(--accent),0 14px 34px rgba(0,0,0,.55)}
+.frame .fl{position:absolute;top:-17px;left:1px;font-size:10px;color:var(--ink-3);white-space:nowrap}
+.frame iframe{width:100%;height:100%;border:0;pointer-events:none}
+.dside{width:252px;flex:0 0 252px;border-left:1px solid var(--line);background:var(--canvas);display:flex;flex-direction:column}
+.dside .h{padding:9px 12px;border-bottom:1px solid var(--line-soft);font-size:11.5px;font-weight:650}
+.dside .b{flex:1;overflow:auto;padding:12px;font-size:11.5px;color:var(--ink-2);line-height:1.6}
+.dside .f{padding:9px 10px;border-top:1px solid var(--line-soft);display:flex;gap:6px}
+.dside input{flex:1;background:var(--inset);box-shadow:var(--e-hair);border-radius:var(--r-ctl);padding:6px 9px;color:var(--ink);font-size:11.5px;outline:none}
+.msg{margin-bottom:10px;font-size:11.5px;line-height:1.55}
+.msg.me{color:var(--ink);background:var(--accent-tint);padding:7px 9px;border-radius:var(--r-ctl)}
+.mg{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-hair);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.mg.conflict{box-shadow:0 0 0 1px rgba(226,163,60,.4)}
+.mg.landed{opacity:.55}
+.mg .ord{width:20px;height:20px;border-radius:5px;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-family:var(--mono);font-size:10px;color:var(--ink-3);flex:0 0 auto}
+.mg .tx{flex:1} .mg .t1{font-size:12.5px;font-weight:600} .mg .t2{font-size:11px;color:var(--ink-3);margin-top:3px}
+.mg .t2 b{color:var(--need)}
+.advice{background:var(--surface);border-radius:var(--r-card);box-shadow:0 0 0 1px rgba(47,179,189,.25);
+  padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--ink-2);line-height:1.6}
+.advice .h{font-size:9px;font-weight:700;letter-spacing:.11em;color:var(--ink-3);margin-bottom:6px}
+.advice b{color:var(--ink)}
+.dod{display:flex;gap:9px;padding:6px 0;font-size:12px;color:var(--ink-2)}
+.dod .m{color:var(--run)} .dod .n{color:var(--ink-4)}
+.ftree{font-family:var(--mono);font-size:11.5px}
+.frow{display:flex;align-items:center;gap:8px;padding:3px 8px;border-radius:5px;cursor:pointer;color:var(--ink-2)}
+.frow:hover{background:var(--hover);color:var(--ink)}
+.frow .d{color:var(--ink-4);font-size:10px}
+.fview{background:#0a0908;border-radius:var(--r-card);box-shadow:var(--e-hair);padding:12px 14px;
+  font-family:var(--mono);font-size:11.5px;line-height:1.6;color:var(--t-fg);white-space:pre-wrap;overflow:auto;max-height:60vh}
+
+/* MODAL / MENU / TOAST */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;align-items:flex-start;justify-content:center;padding-top:11vh}
+.scrim.on{display:flex}
+.modal{background:var(--surface);border-radius:12px;box-shadow:0 0 0 1px var(--line-strong),0 30px 70px rgba(0,0,0,.7);
+  width:540px;max-width:92vw;overflow:hidden;animation:fadein .16s var(--ease)}
+.modal .mh{padding:14px 16px 10px;font-size:13px;font-weight:650}
+.modal .mb{padding:0 16px 14px;max-height:62vh;overflow:auto}
+.modal .mf{padding:11px 16px;border-top:1px solid var(--line-soft);display:flex;gap:8px;align-items:center}
+.modal .mf .sp{flex:1}
+.fld{width:100%;background:var(--inset);box-shadow:var(--e-hair);border-radius:var(--r-ctl);
+  padding:9px 11px;color:var(--ink);font-size:13px;outline:none;margin-bottom:9px}
+.fld:focus{box-shadow:0 0 0 1px var(--accent)} .fld.mono{font-family:var(--mono);font-size:12px}
+.hint{font-size:11px;color:var(--ink-3);margin-bottom:10px}
+.pal input{width:100%;background:none;border:0;outline:none;color:var(--ink);font-size:15px;padding:15px 16px}
+.palist{max-height:340px;overflow:auto;border-top:1px solid var(--line-soft)}
+.pitem{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;font-size:12.5px}
+.pitem.on{background:var(--hover);box-shadow:inset 2px 0 0 var(--accent)}
+.pitem .ic{width:15px;color:var(--ink-4);font-size:11px;text-align:center}
+.pitem .sp{flex:1} .pitem .meta{font-size:10.5px;color:var(--ink-4);font-family:var(--mono)}
+.menu{position:fixed;z-index:250;background:var(--surface);border-radius:var(--r-card);
+  box-shadow:0 0 0 1px var(--line-strong),0 14px 34px rgba(0,0,0,.6);padding:4px;min-width:170px;display:none}
+.menu.on{display:block}
+.menu button{display:block;width:100%;text-align:left;padding:6px 10px;border-radius:5px;font-size:12px;color:var(--ink-2)}
+.menu button:hover{background:var(--hover);color:var(--ink)}
+.menu .sep{height:1px;background:var(--line-soft);margin:4px 2px}
+.menu .dz{color:var(--fail)}
+.toasts{position:fixed;right:14px;bottom:14px;z-index:300;display:flex;flex-direction:column;gap:7px;align-items:flex-end}
+.toast{background:var(--surface);box-shadow:0 0 0 1px var(--line-strong),0 10px 26px rgba(0,0,0,.6);
+  border-radius:var(--r-ctl);padding:9px 13px;font-size:12px;color:var(--ink-2);animation:fadein .18s var(--ease);
+  max-width:360px;display:flex;align-items:center;gap:10px}
+.toast b{color:var(--ink)} .toast .undo{color:var(--accent-hi);cursor:pointer;font-weight:600}
+.grid7{display:grid;grid-template-columns:1fr repeat(4,72px);gap:2px;align-items:center;font-size:11.5px}
+.grid7 .hd{font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--ink-4);text-align:center;padding-bottom:5px}
+.grid7 .rl{color:var(--ink-2);padding:5px 0}
+.lv{height:20px;border-radius:5px;background:var(--inset);box-shadow:var(--e-hair);cursor:pointer}
+.lv:hover{box-shadow:0 0 0 1px var(--accent)}
+.lv.on{background:var(--accent);box-shadow:none}
+.lv.inh{background:rgba(255,248,240,.06)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <nav class="rail">
+    <div class="mchip" onclick="A.machines()">
+      <div class="mark">P</div>
+      <div class="mn"><div class="m1" id="mcName">aue-kata-01</div><div class="m2" id="mcState">running · 8 vCPU</div></div>
+      <span class="chev">▾</span>
+    </div>
+    <div class="rs" id="rail"></div>
+    <div class="rfoot"><div class="me">DM</div>
+      <span class="who" onclick="A.capacity()">Dylan Mackie</span>
+      <span class="kbd" onclick="A.palette()">⌘K</span></div>
+  </nav>
+  <aside class="sub" id="sub"></aside>
+  <main class="main" id="main"></main>
+</div>
+<div class="scrim" id="scrim" onclick="A.closeModal(event)"><div id="modalHost"></div></div>
+<div class="menu" id="menu"></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* ============================ STATE ============================ */
+let _n=0; const uid=p=>p+'-'+(++_n).toString(36);
+const T={user:s=>({t:'user',s}),text:s=>({t:'text',s}),
+  tool:(n,a,r)=>({t:'tool',name:n,arg:a,result:r}),
+  edit:(f,s,h)=>({t:'edit',file:f,summary:s,hunks:h}),
+  bash:(c,o,e)=>({t:'bash',cmd:c,out:o,err:!!e}),
+  todos:i=>({t:'todos',items:i}), task:(n,r)=>({t:'task',name:n,result:r}),
+  think:(s,x)=>({t:'think',s,sec:x}), perm:(k,c,d,o)=>({t:'perm',kind:k,cmd:c,desc:d,opts:o}),
+  mark:()=>({t:'mark'}), note:s=>({t:'note',s}), sh:s=>({t:'sh',s})};
+
+const HARNESS={
+  claude:{label:'Claude Code',cmd:'claude',models:['Opus 5','Sonnet 5','Haiku 4.5'],effort:true},
+  codex:{label:'Codex CLI',cmd:'codex',models:['GPT-5','GPT-5-mini'],effort:false},
+  opencode:{label:'OpenCode',cmd:'opencode',models:['Opus 5','GPT-5','Llama 4'],effort:false},
+  gemini:{label:'Gemini CLI',cmd:'gemini',models:['Gemini 3 Pro'],effort:false},
+  shell:{label:'Shell',cmd:'bash',models:[],effort:false}
+};
+const MODES=['bypass','ask','plan'];
+const modeLabel=m=>m==='bypass'?'bypass permissions on':m==='ask'?'ask before running commands':'plan mode on';
+
+function sess(o){return Object.assign({id:uid('s'),kind:'agent',harness:'claude',model:'Opus 5',effort:'high',
+  mode:'bypass',status:'run',ctx:5,cost:'$0.00',elapsed:'just now',allow:[],tty:[],draft:'',
+  acct:'Max · A',x:null,y:null,w:460,h:320},o);}
+
+const SEED=()=>({
+  machines:[
+    {id:'m1',name:'aue-kata-01',kind:'cloud',state:'running',size:'8 vCPU · 32 GB',disk:'41 / 200 GB',cost:'$0.31/hr'},
+    {id:'m2',name:'this computer',kind:'local',state:'idle',size:'local',disk:'—',cost:'—'}
+  ],
+  capacity:[
+    {id:'c1',label:'Max · A',kind:'sub',used:88,resets:'in 1h 12m',state:'near'},
+    {id:'c2',label:'Max · B',kind:'sub',used:24,resets:'in 4h 40m',state:'ok'},
+    {id:'c3',label:'API · Bedrock',kind:'api',used:0,resets:'metered',state:'standby'}
+  ],
+  projects:[{
+    id:'ct',name:'Control Testing',ini:'CT',open:true,machine:'m1',
+    brief:'Track control testing across audit engagements. Leads assign controls, testers upload evidence, reviewers sign off. Every evidence file carries a data classification. Identity is KPMG EntraID.',
+    branches:[
+      {id:'ct-main',name:'main',open:false,env:'production',url:'ctt.panacea.kpmg',access:'Locked — reviewers only',
+       version:'v1.4.2',deployedAgo:'2 days ago',auto:false,authority:null,
+       discover:{done:true,answers:[{q:'Purpose of this branch',a:'The released product. Only reviewed merges land here.'}]},
+       screens:[],design:[],worktrees:[],landed:[]},
+
+      {id:'ct-ev',name:'feature/evidence-upload',open:true,env:'client-preview',url:'client-preview.ctt.panacea.kpmg',
+       access:'Harbourline reviewers + project team',version:'v1.5.0-rc3',deployedAgo:'14 minutes ago',auto:true,authority:null,
+       discover:{done:true,answers:[
+         {q:'Purpose of this branch',a:'Let testers attach evidence to a control without leaving the control page.'},
+         {q:'Who it is for',a:'Testers first, reviewers second.'},
+         {q:'Done when',a:'Evidence is virus-scanned before storage, and every upload carries a data classification.'}]},
+       screens:[
+         {id:'sc1',name:'Control detail',x:66,y:36,w:246,h:300,html:"<div style='height:38px;border-bottom:1px solid #eee;display:flex;align-items:center;padding:0 12px;font-weight:700'>Access review</div><div style='padding:12px'><div style='font-size:10px;color:#6d655e'>Evidence</div><div style='border:2px dashed #ddd;border-radius:8px;padding:16px;text-align:center;color:#a8a099;font-size:11px;margin-top:5px'>Drop files</div><div style='margin-top:9px;font-size:10px;color:#6d655e'>Classification</div><div style='border:1px solid #e3e3e3;border-radius:6px;padding:6px 8px;font-size:11px;margin-top:3px'>Client confidential</div></div>"},
+         {id:'sc2',name:'Scanning',x:344,y:36,w:246,h:300,html:"<div style='padding:12px'><div style='border:1px solid #e3e3e3;border-radius:8px;padding:10px'><b style='font-size:11px'>evidence-q3.pdf</b><div style='height:4px;background:#eee;border-radius:3px;margin:8px 0'><div style='height:100%;width:62%;background:#2fa0aa;border-radius:3px'></div></div><div style='font-size:10px;color:#6d655e'>Scanning…</div></div></div>"}],
+       design:[{who:'ai',s:'Drafted two screens from Discover. Drag them, or tell me what to change.'}],
+       landed:[],
+       worktrees:[
+         {id:'w1',name:'upload handler',path:'~/wt/evidence-a',ready:false,
+          files:['services/api/scanner.go','services/api/upload.go','services/api/routes.go'],
+          sessions:[
+            sess({id:'s1',harness:'claude',model:'Opus 5',status:'run',ctx:38,cost:'$9.20',elapsed:'41m',acct:'Max · B',
+             tty:[T.user('add virus scanning before anything is persisted'),
+              T.text("I'll wire clamav into the upload path and quarantine anything that fails."),
+              T.tool('Read','services/api/upload.go','Read 142 lines (ctrl+o to expand)'),
+              T.mark(),
+              T.todos([{d:1,s:'Read the existing upload handler'},{d:1,s:'Add the Scanner interface'},
+                {d:0,s:'Wire clamav into the upload path'},{d:0,s:'Quarantine infected files'},{d:0,s:'Update the API docs'}]),
+              T.edit('services/api/scanner.go','Updated services/api/scanner.go with 9 additions and 1 removal',[
+                {n:33,op:' ',s:'  // Check streams the reader past clamav before the caller persists it.'},
+                {n:34,op:' ',s:'  func (s *Scanner) Check(ctx context.Context, r io.Reader) error {'},
+                {n:35,op:'-',s:'    return nil'},
+                {n:35,op:'+',s:'    res, err := s.clam.Scan(ctx, r)'},
+                {n:36,op:'+',s:'    if err != nil {'},
+                {n:37,op:'+',s:'      return fmt.Errorf("scan: %w", err)'},
+                {n:38,op:'+',s:'    }'},
+                {n:39,op:'+',s:'    if res.Infected {'},
+                {n:40,op:'+',s:'      return ErrInfected'},
+                {n:41,op:'+',s:'    }'},
+                {n:42,op:' ',s:'    return nil'},{n:43,op:' ',s:'  }'}]),
+              T.bash('go test ./services/api/scanner/...',['ok      services/api/scanner    1.204s']),
+              T.task('Wire the MinIO client','Done (14 tool uses · 32.1k tokens · 2m 14s)'),
+              T.text('routes.go is held by the test harness worktree, so I have left the handler wiring for now\nand moved to the quarantine notification.'),
+              T.think('Deliberating',18)]}),
+            sess({id:'s1b',kind:'shell',harness:'shell',model:'',status:'idle',ctx:0,cost:'—',elapsed:'open',
+             tty:[T.sh('$ git status --short\n M services/api/scanner.go\n?? services/api/quarantine.go\n\n$ ls services/api\nrouter.go  routes.go  scanner.go  upload.go  quarantine.go\n\n$ ')]})
+          ]},
+
+         {id:'w2',name:'test harness',path:'~/wt/evidence-b',ready:false,
+          files:['services/api/routes.go','services/api/upload_test.go'],
+          sessions:[
+            sess({id:'s2',harness:'claude',model:'Opus 5',status:'need',mode:'ask',ctx:71,cost:'$14.80',elapsed:'1h 06m',acct:'Max · A',
+             tty:[T.edit('services/api/routes.go','Updated services/api/routes.go with 1 addition',[
+                {n:204,op:' ',s:'  api.GET("/controls/:id", h.GetControl)'},
+                {n:205,op:'+',s:'  api.POST("/controls/:id/evidence", h.UploadEvidence)'}]),
+              T.bash('docker compose up -d minio clamav',['✔ Container ctt-minio   Started','✔ Container ctt-clamav  Started']),
+              T.bash('go test ./services/api/...',['Error: exit status 1','--- FAIL: TestUploadEvidence (0.08s)','    pq: relation "evidence" does not exist','FAIL    services/api    0.882s'],true),
+              T.text('The table does not exist yet. I need to run the migration.'),
+              T.perm('Bash command','panacea migrate up --project control-testing','Create the evidence table and its indexes',
+                ['Yes',"Yes, and don't ask again for panacea migrate commands",'No, and tell Claude what to do differently (esc)']),
+              T.note('waiting 5h 51m · two worktrees on this branch are idle behind it')]})
+          ]},
+
+         {id:'w3',name:'docs',path:'~/wt/evidence-c',ready:true,
+          files:['docs/api/upload.md','docs/evidence.md'],
+          sessions:[
+            sess({id:'s3',harness:'codex',model:'GPT-5',status:'done',ctx:22,cost:'$2.10',elapsed:'idle 12m',acct:'API · Bedrock',
+             tty:[T.edit('docs/api/upload.md','Updated docs/api/upload.md with 24 additions and 4 removals',[
+                {n:12,op:' ',s:'  ## Uploading evidence'},
+                {n:13,op:'-',s:'  Files are stored directly.'},
+                {n:13,op:'+',s:'  Evidence is scanned before it is stored. Infected files are'},
+                {n:14,op:'+',s:'  quarantined and the engagement lead is notified.'}]),
+              T.bash('npm run doc-lint',['✔ 0 problems']),
+              T.todos([{d:1,s:'Document the scan step'},{d:1,s:'Document quarantine behaviour'},{d:1,s:'Run the doc linter'}]),
+              T.text('Done. 4 files changed, +128 −16.\n\nI renamed the public field classification → dataClass to match Verity Serum.\nNothing else referenced it, but it is a breaking change to a published API, so flagging it.'),
+              T.note('ready to merge into feature/evidence-upload')]})
+          ]}
+       ]},
+
+      {id:'ct-cp',name:'client-preview',open:false,env:'demo',url:'demo.ctt.panacea.kpmg',access:'Client reviewers only',
+       version:'v1.4.9',deployedAgo:'6 days ago',auto:false,authority:null,
+       discover:{done:true,answers:[{q:'Purpose of this branch',a:'Cut for the Harbourline walkthrough.'}]},
+       screens:[],design:[],landed:[],worktrees:[]}
+    ]},
+    {id:'vs',name:'Verity Serum',ini:'VS',open:false,machine:'m1',
+     brief:'Grounded retrieval and citation. Every answer carries a verifiable source span.',
+     branches:[{id:'vs-main',name:'main',open:false,env:'production',url:'verity.panacea.kpmg',access:'Internal',
+      version:'v0.9.4',deployedAgo:'9 days ago',auto:true,authority:null,
+      discover:{done:true,answers:[{q:'Purpose of this branch',a:'Retrieval with provenance.'}]},
+      screens:[],design:[],landed:[],
+      worktrees:[{id:'w5',name:'refactor-auth',path:'~/wt/vs-auth',ready:false,
+        files:['internal/auth/session.go','internal/auth/session_test.go'],
+        sessions:[sess({id:'s5',status:'drift',ctx:63,cost:'$18.40',elapsed:'2h 14m',acct:'Max · A',
+          tty:[T.user('keep the public interface stable, do not change signatures'),T.mark(),
+            T.bash('go test ./internal/auth/...',['--- FAIL: TestSessionExpiry','FAIL    internal/auth   0.418s'],true),
+            T.bash('go test ./internal/auth/...',['--- FAIL: TestSessionExpiry','FAIL    internal/auth   0.402s'],true),
+            T.edit('internal/auth/session_test.go','Updated internal/auth/session_test.go with 1 addition and 1 removal',[
+              {n:41,op:'-',s:'  want := time.Minute * 15'},{n:41,op:'+',s:'  want := time.Minute * 20'}]),
+            T.note('third attempt on the same test · the last edit changed the test, not the implementation'),
+            T.think('Running tests again',6)]})]}]}]},
+    {id:'mf',name:'Manifold',ini:'MF',open:false,machine:'m1',brief:'Live scenario platform for exercise delivery.',
+     branches:[{id:'mf-main',name:'main',open:false,env:'production',url:'manifold.panacea.kpmg',access:'Internal',
+      version:'v2.1.0',deployedAgo:'3 weeks ago',auto:false,authority:null,
+      discover:{done:true,answers:[]},screens:[],design:[],landed:[],worktrees:[]}]}
+  ],
+  ui:{view:'home',pid:null,bid:null,sid:null,mod:'develop',layout:'cols',file:null}
+});
+
+let S=SEED();
+const $=(s,r)=>(r||document).querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const proj=id=>S.projects.find(p=>p.id===id);
+const brOf=(pid,bid)=>(proj(pid)||{branches:[]}).branches.find(b=>b.id===bid);
+const curP=()=>proj(S.ui.pid), curB=()=>S.ui.pid&&S.ui.bid?brOf(S.ui.pid,S.ui.bid):null;
+const allSess=()=>S.projects.flatMap(p=>p.branches.flatMap(b=>b.worktrees.flatMap(w=>w.sessions.map(s=>({p,b,w,s})))));
+const needList=()=>allSess().filter(x=>x.s.status==='need');
+const wtStatus=w=>{const ss=w.sessions.map(s=>s.status);
+  return ss.includes('need')?'need':ss.includes('drift')?'drift':ss.includes('run')?'run':w.ready?'done':'idle';};
+const brStatus=b=>{const ws=b.worktrees.map(wtStatus);
+  return ws.includes('need')?'need':ws.includes('drift')?'drift':ws.includes('run')?'run':'idle';};
+function collisions(b){const m={};
+  b.worktrees.forEach(w=>(w.files||[]).forEach(f=>{(m[f]=m[f]||[]).push(w)}));
+  const hit=Object.entries(m).find(([f,ws])=>ws.length>1);
+  return hit?{file:hit[0],holder:hit[1][0],waiter:hit[1][1]}:null;}
+function lockFor(b,w){const c=collisions(b); if(!c)return null;
+  if(c.waiter.id===w.id)return{file:c.file,by:c.holder.name}; return null;}
+
+/* ============================ ACTIONS ============================ */
+const A={
+goHome(){S.ui.view='home';S.ui.pid=S.ui.bid=null;render()},
+machines(){S.ui.view='machines';render()},
+capacity(){S.ui.view='capacity';render()},
+openProject(pid){const p=proj(pid);p.open=true;S.ui.view='project';S.ui.pid=pid;S.ui.bid=null;render()},
+openBranch(pid,bid,mod){const p=proj(pid);p.open=true;const b=brOf(pid,bid);b.open=true;
+  S.ui.view='branch';S.ui.pid=pid;S.ui.bid=bid;
+  S.ui.mod=mod||(b.discover.done?'develop':'discover');render()},
+openSession(pid,bid,sid){A.openBranch(pid,bid,'develop');S.ui.sid=sid;render();
+  const el=document.querySelector('.col[data-sid="'+sid+'"]');
+  if(el)el.scrollIntoView({inline:'center',behavior:'smooth'})},
+setMod(m){S.ui.mod=m;S.ui.file=null;render()},
+setLayout(l){S.ui.layout=l;render()},
+toggle(o,e){e.stopPropagation();o.open=!o.open;render()},
+
+/* ---- sessions ---- */
+newSession(opts){const b=curB();if(!b)return;
+  let w=b.worktrees.find(x=>x.id===(opts&&opts.wid));
+  if(!w){ // no worktree chosen: make one
+    w={id:uid('w'),name:(opts&&opts.name)||'work '+(b.worktrees.length+1),
+       path:'~/wt/'+b.name.replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-'+(b.worktrees.length+1),
+       ready:false,files:[],sessions:[]};
+    b.worktrees.push(w);}
+  const h=(opts&&opts.harness)||'claude';
+  const s=sess({kind:h==='shell'?'shell':'agent',harness:h,
+    model:(opts&&opts.model)||(HARNESS[h].models[0]||''),
+    mode:(opts&&opts.mode)||'bypass',effort:(opts&&opts.effort)||'high',
+    status:h==='shell'?'idle':'run',
+    tty: h==='shell' ? [T.sh('$ ')] :
+      [ ...(opts&&opts.prompt?[T.user(opts.prompt)]:[]),
+        T.text('Reading the branch context first.'),
+        T.tool('Read','CLAUDE.md','Read '+(b.discover.answers.length*9+24)+' lines'),
+        T.think('Planning',2)]});
+  w.sessions.push(s); S.ui.mod='develop'; S.ui.sid=s.id; render();
+  const el=document.querySelector('.col[data-sid="'+s.id+'"]');
+  if(el)el.scrollIntoView({inline:'center',behavior:'smooth'});
+  toast(HARNESS[h].label+' started in <b>'+esc(w.name)+'</b>');},
+newSessionDialog(wid){const b=curB();if(!b)return;
+  const wopts=b.worktrees.map(w=>`<option value="${w.id}">${esc(w.name)}</option>`).join('');
+  A.modal(`<div class="mh">New session on ${esc(b.name)}</div><div class="mb">
+    <div class="hint">Defaults come from the project. Change only what you need.</div>
+    <div class="row" style="gap:8px;margin-bottom:9px">
+      <select class="fld mono" id="nsH" style="margin:0" onchange="A.syncModels()">
+        ${Object.entries(HARNESS).map(([k,v])=>`<option value="${k}"${k==='claude'?' selected':''}>${esc(v.label)}</option>`).join('')}
+      </select>
+      <select class="fld mono" id="nsM" style="margin:0"></select>
+    </div>
+    <div class="row" style="gap:8px;margin-bottom:9px">
+      <select class="fld mono" id="nsMode" style="margin:0">
+        ${MODES.map(m=>`<option value="${m}">${esc(modeLabel(m))}</option>`).join('')}</select>
+      <select class="fld mono" id="nsW" style="margin:0">
+        <option value="">＋ new worktree</option>${wopts}</select>
+    </div>
+    <textarea class="fld" id="nsP" rows="2" placeholder="Opening prompt (optional — blank just opens the session)"></textarea>
+  </div><div class="mf"><button class="btn ghost" onclick="A.closeModal()">Cancel</button><div class="sp"></div>
+    <button class="btn pri" onclick="A.startFromDialog()">Start</button></div>`);
+  setTimeout(()=>{A.syncModels(); if(wid)$('#nsW').value=wid; $('#nsP').focus();},40);},
+syncModels(){const h=$('#nsH').value, sel=$('#nsM');
+  sel.innerHTML=(HARNESS[h].models.length?HARNESS[h].models:['—']).map(m=>`<option>${esc(m)}</option>`).join('');
+  sel.disabled=!HARNESS[h].models.length;},
+startFromDialog(){const h=$('#nsH').value;
+  A.closeModal();
+  A.newSession({harness:h,model:$('#nsM').value,mode:$('#nsMode').value,wid:$('#nsW').value||null,prompt:($('#nsP').value||'').trim()});},
+sessionMenu(pid,bid,sid,e){e.stopPropagation();
+  const {w,s}=findSess(pid,bid,sid);
+  showMenu(e,[
+    ['Resume with context',`A.sessAct('${pid}','${bid}','${sid}','resume')`],
+    ['Fork into a new worktree',`A.sessAct('${pid}','${bid}','${sid}','fork')`],
+    ['Restart clean',`A.sessAct('${pid}','${bid}','${sid}','restart')`],
+    ['Rename…',`A.sessAct('${pid}','${bid}','${sid}','rename')`],
+    ['-'],
+    ['Open a shell here',`A.newSession({harness:'shell',wid:'${w.id}'})`],
+    ['Mark worktree ready',`A.markReady('${pid}','${bid}','${w.id}')`],
+    ['-'],
+    ['Kill session',`A.sessAct('${pid}','${bid}','${sid}','kill')`,'dz']
+  ]);},
+sessAct(pid,bid,sid,act){hideMenu();
+  const {b,w,s}=findSess(pid,bid,sid); if(!s)return;
+  if(act==='kill'){const i=w.sessions.indexOf(s);w.sessions.splice(i,1);
+    if(!w.sessions.length)b.worktrees.splice(b.worktrees.indexOf(w),1);
+    render();toast('Killed <b>'+esc(w.name)+'</b> session');return;}
+  if(act==='restart'){s.tty=[T.text('Restarted. Context cleared, same configuration.'),T.think('Planning',1)];
+    s.ctx=3;s.status='run';render();toast('Restarted');return;}
+  if(act==='resume'){s.tty.push(T.text('Resumed — replaying 41 messages of prior context.'));
+    s.tty.push(T.think('Catching up',4));s.status='run';render();toast('Resumed with context');return;}
+  if(act==='fork'){const nw={id:uid('w'),name:w.name+' (fork)',path:w.path+'-fork',ready:false,files:[...w.files],
+      sessions:[sess({harness:s.harness,model:s.model,mode:s.mode,status:'run',ctx:s.ctx,
+        tty:[...s.tty.filter(l=>l.t!=='perm'&&l.t!=='think'),T.note('forked from '+w.name),T.think('Continuing',2)]})]};
+    b.worktrees.push(nw);render();toast('Forked into <b>'+esc(nw.name)+'</b>');return;}
+  if(act==='rename'){A.modal(`<div class="mh">Rename worktree</div><div class="mb">
+      <input class="fld mono" id="rnV" value="${esc(w.name)}" onkeydown="if(event.key==='Enter')A.doRename('${pid}','${bid}','${w.id}')"/></div>
+    <div class="mf"><button class="btn ghost" onclick="A.closeModal()">Cancel</button><div class="sp"></div>
+      <button class="btn pri" onclick="A.doRename('${pid}','${bid}','${w.id}')">Rename</button></div>`);
+    setTimeout(()=>{const v=$('#rnV');v.focus();v.select();},40);}},
+doRename(pid,bid,wid){const b=brOf(pid,bid);const w=b.worktrees.find(x=>x.id===wid);
+  w.name=($('#rnV').value||w.name).trim()||w.name;A.closeModal();render();},
+markReady(pid,bid,wid){hideMenu();const b=brOf(pid,bid);const w=b.worktrees.find(x=>x.id===wid);
+  w.ready=true;w.sessions.forEach(s=>{if(s.status==='run')s.status='done'});
+  render();toast('<b>'+esc(w.name)+'</b> marked ready to merge');},
+
+answerPerm(pid,bid,sid,idx,choice){
+  const {s}=findSess(pid,bid,sid); if(!s)return;
+  const line=s.tty[idx]; if(!line||line.t!=='perm')return;
+  s.tty.splice(idx,1);
+  const ni=s.tty.findIndex(l=>l.t==='note'&&/waiting/.test(l.s)); if(ni>-1)s.tty.splice(ni,1);
+  if(choice===2){s.tty.push(T.text('Understood — I will not run that. Tell me what to do instead.'));
+    s.status='idle';render();toast('Denied — type below to redirect it');return;}
+  if(choice===1){s.allow.push('panacea migrate');}
+  s.tty.push(T.bash(line.cmd,['Applying 3 migrations…','  create table evidence','  create index evidence_control_id','ok  3 migrations applied']));
+  s.tty.push(T.bash('go test ./services/api/...',['ok      services/api    2.418s']));
+  s.tty.push(T.todos([{d:1,s:'Add the upload route'},{d:1,s:'Bring up minio and clamav'},{d:1,s:'Run the migration'},{d:0,s:'Assert the quarantine path'}]));
+  s.tty.push(T.think('Writing the quarantine assertion',2));
+  s.status='run';render();
+  toast(choice===1?'Approved — and I will not ask again for <b>panacea migrate</b> here':'Approved');},
+
+sendTo(pid,bid,sid,el){const v=(el.value||'').trim();if(!v)return;
+  const {s}=findSess(pid,bid,sid);if(!s)return; el.value='';s.draft='';
+  if(s.kind==='shell'){
+    const last=s.tty[s.tty.length-1];
+    const out = /^ls/.test(v)?'router.go  routes.go  scanner.go  upload.go'
+      : /^git status/.test(v)?' M services/api/scanner.go'
+      : /^pwd/.test(v)?'/home/dev/wt/evidence-a'
+      : /^docker/.test(v)?'CONTAINER ID   IMAGE     STATUS\n9f2a1c   minio     Up 4 minutes'
+      : v+': command not found';
+    last.s=last.s+v+'\n'+out+'\n$ '; render(); return;}
+  s.tty=s.tty.filter(l=>l.t!=='think'); s.tty.push(T.user(v));
+  if(/^\//.test(v)){
+    if(/^\/rc/.test(v)){s.tty.push(T.bash('git diff --stat',['4 files changed, 128 insertions(+), 16 deletions(-)']))}
+    else if(/^\/clear/.test(v)){s.tty=[T.text('Context cleared.')];s.ctx=2}
+    else if(/^\/model/.test(v)){s.tty.push(T.text('Model: '+s.model+'. Use the session menu to change it.'))}
+    else if(/^\/help/.test(v)){s.tty.push(T.text('/clear  /rc  /model  /help — everything the harness supports works here.'))}
+    else s.tty.push(T.text('Unknown command. Try /help.'));
+  } else {s.tty.push(T.text('Understood. Picking that up now.'));s.tty.push(T.think('Working',1));s.status='run';}
+  s.ctx=Math.min(96,s.ctx+2); render();
+  focusSession(sid);},
+cycleMode(pid,bid,sid){const {s}=findSess(pid,bid,sid);if(!s)return;
+  s.mode=MODES[(MODES.indexOf(s.mode)+1)%MODES.length];render();focusSession(sid);
+  toast('Mode: <b>'+modeLabel(s.mode)+'</b>');},
+
+/* ---- creation ---- */
+newProject(){A.modal(`<div class="mh">New project</div><div class="mb">
+    <div class="hint">Discover turns this into the context every agent inherits.</div>
+    <input class="fld" id="npName" placeholder="Project name" onkeydown="if(event.key==='Enter')A.createProject()"/>
+    <textarea class="fld" id="npIdea" rows="3" placeholder="A tool for audit teams to…"></textarea></div>
+  <div class="mf"><button class="btn ghost" onclick="A.closeModal()">Cancel</button><div class="sp"></div>
+    <button class="btn" onclick="A.importRepo()">I have a repo</button>
+    <button class="btn pri" onclick="A.createProject()">Create</button></div>`);
+  setTimeout(()=>$('#npName').focus(),40);},
+createProject(){const name=($('#npName').value||'').trim()||'Untitled project';
+  const idea=($('#npIdea').value||'').trim();const id=uid('p'),bid=uid('b');
+  S.projects.push({id,name,ini:name.slice(0,2).toUpperCase(),open:true,machine:'m1',brief:idea||'Not described yet.',
+    branches:[{id:bid,name:'main',open:true,env:null,url:null,access:null,version:null,deployedAgo:null,auto:false,
+      authority:null,discover:{done:false,answers:[],idea},screens:[],design:[],landed:[],worktrees:[]}]});
+  A.closeModal();A.openBranch(id,bid,'discover');toast('Created <b>'+esc(name)+'</b>');},
+importRepo(){A.modal(`<div class="mh">Bring in a repo</div><div class="mb">
+    <div class="hint">We read the code first, then Discover drafts a brief you can correct.</div>
+    ${[['kpmg-au-emu/engagement-portal','Go · TypeScript · 2d ago'],['kpmg-au-emu/audit-intake','Python · 3w ago']]
+      .map(([n,m])=>`<div class="card click" onclick="A.analyse('${esc(n)}')"><div class="row">
+        <div><div class="t1" style="font-family:var(--mono)">${esc(n)}</div><div class="t2">${esc(m)}</div></div></div></div>`).join('')}
+  </div><div class="mf"><button class="btn ghost" onclick="A.closeModal()">Cancel</button></div>`);},
+analyse(name){A._start='discover';
+  A.modal(`<div class="mh">${esc(name)}</div><div class="mb">
+    <div class="hint">What we found</div>
+    <div class="card"><div class="t2" style="color:var(--ink-2);line-height:1.8">
+      ✓ 41 endpoints, 26 components<br/>✓ Dockerfile and compose stack — runs locally immediately<br/>
+      ✓ Branches: <span style="font-family:var(--mono)">main, staging</span><br/>
+      <span style="color:var(--need)">— No spec or design files</span></div></div>
+    <div class="hint" style="margin-top:12px">Where do you want to start?</div>
+    ${[['Confirm a brief first','Discover reads the code and drafts what it thinks this is.','discover'],
+       ['Brief, then design','Also draft the current screens so you can change them first.','design'],
+       ['Straight to Develop','Sessions open immediately. Run Discover later.','develop']]
+      .map(([t,d,k],i)=>`<div class="pick${i===0?' on':''}" onclick="A.pickStart(this,'${k}')">
+        <span class="k">${i+1}</span><span class="tx">${esc(t)}<small>${esc(d)}</small></span></div>`).join('')}
+  </div><div class="mf"><button class="btn ghost" onclick="A.closeModal()">Cancel</button><div class="sp"></div>
+    <button class="btn pri" onclick="A.doImport('${esc(name)}')">Bring it in</button></div>`);},
+pickStart(el,k){el.parentElement.querySelectorAll('.pick').forEach(x=>x.classList.remove('on'));el.classList.add('on');A._start=k;},
+doImport(name){const id=uid('p'),b1=uid('b'),b2=uid('b');
+  const pretty=name.split('/').pop().replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  const st=A._start||'discover';
+  S.projects.push({id,name:pretty,ini:pretty.slice(0,2).toUpperCase(),open:true,machine:'m1',
+    brief:'Imported from '+name+'.',branches:[
+      {id:b1,name:'main',open:true,env:null,url:null,access:null,version:null,deployedAgo:null,auto:false,authority:null,
+       discover:{done:st!=='discover',answers:st==='discover'?[]:[{q:'Read from the code',a:'An engagement portal with 41 endpoints.'}]},
+       screens:[],design:[],landed:[],worktrees:[]},
+      {id:b2,name:'staging',open:false,env:'staging',url:'staging.'+pretty.toLowerCase().replace(/\s+/g,'')+'.panacea.kpmg',
+       access:'Team',version:'v0.4.1',deployedAgo:'2 days ago',auto:true,authority:null,
+       discover:{done:true,answers:[]},screens:[],design:[],landed:[],worktrees:[]}]});
+  A.closeModal();A.openBranch(id,b1,st);toast('Imported <b>'+esc(pretty)+'</b>');},
+newBranch(){const p=curP();if(!p)return;
+  A.modal(`<div class="mh">New branch in ${esc(p.name)}</div><div class="mb">
+    <div class="hint">Discover asks what this branch is for; every agent started here inherits the answer.</div>
+    <input class="fld mono" id="nbName" placeholder="feature/…" onkeydown="if(event.key==='Enter')A.createBranch()"/></div>
+  <div class="mf"><button class="btn ghost" onclick="A.closeModal()">Cancel</button><div class="sp"></div>
+    <button class="btn pri" onclick="A.createBranch()">Create</button></div>`);
+  setTimeout(()=>$('#nbName').focus(),40);},
+createBranch(){const p=curP();const name=($('#nbName').value||'').trim()||'feature/new';const bid=uid('b');
+  p.branches.push({id:bid,name,open:true,env:null,url:null,access:null,version:null,deployedAgo:null,auto:false,
+    authority:null,discover:{done:false,answers:[]},screens:[],design:[],landed:[],worktrees:[]});
+  A.closeModal();A.openBranch(p.id,bid,'discover');toast('Branch <b>'+esc(name)+'</b> created');},
+
+/* ---- discover ---- */
+QUESTIONS:[{q:'What is this branch for?',help:'One sentence. The first thing every agent here reads.',
+   opts:['Add a capability we do not have yet','Fix something broken','Change how something works','Try an idea we might throw away']},
+  {q:'Who is it for?',help:'Agents make different choices for an internal tool than a client-facing one.',
+   opts:['Our own team','KPMG staff broadly','Client users','Nobody yet — a spike']},
+  {q:'What has to be true before this branch can merge?',help:'This becomes the definition of done, shown again at merge.',
+   opts:['It has tests that pass','It does not break the published API','It works on mobile','Someone else has reviewed it']}],
+answerDiscover(text){const b=curB();if(!b)return;
+  if(b._editing!=null){b.discover.answers[b._editing].a=text;b._editing=null;b.discover.done=true;render();return;}
+  const Q=A.QUESTIONS[b.discover.answers.length];if(!Q)return;
+  b.discover.answers.push({q:Q.q,a:text});
+  if(b.discover.answers.length>=A.QUESTIONS.length){b.discover.done=true;render();
+    toast('Discover complete — written to <b>CLAUDE.md</b> on this branch');}
+  else render();},
+discoverFree(el){const v=(el.value||'').trim();if(!v)return;el.value='';A.answerDiscover(v)},
+editAnswer(i){const b=curB();b._editing=i;b.discover.done=false;render();
+  setTimeout(()=>{const t=document.querySelector('.ff textarea');if(t){t.value=b.discover.answers[i].a;t.focus()}},40)},
+skipDiscover(){curB().discover.done=true;render();toast('Skipped — come back any time')},
+
+/* ---- design ---- */
+addScreen(){const b=curB();const n=b.screens.length;
+  b.screens.push({id:uid('sc'),name:'Screen '+(n+1),x:66+(n*40)%300,y:36+(n*30)%160,w:246,h:300,
+    html:"<div style='padding:14px;font-size:12px;color:#6d655e'>New frame — drag it, or talk to it.</div>"});render()},
+designSend(el){const v=(el.value||'').trim();if(!v)return;el.value='';
+  const b=curB();b.design=b.design||[];b.design.push({who:'me',s:v});
+  b.design.push({who:'ai',s:'Added a frame for that, keeping the existing type scale.'});
+  const n=b.screens.length;
+  b.screens.push({id:uid('sc'),name:v.length>22?v.slice(0,22)+'…':v,x:66+(n*40)%300,y:36+(n*30)%160,w:246,h:300,
+    html:"<div style='padding:14px'><b style='font-size:12px'>"+esc(v)+"</b><div style='margin-top:9px;font-size:11px;color:#6d655e'>Generated frame — real HTML, editable.</div></div>"});
+  render()},
+handToDevelop(){S.ui.mod='develop';render();toast('Design exported — tokens, components and screens handed to agents')},
+
+/* ---- deploy ---- */
+setEnv(v){const b=curB();const nv=(v||'').trim()||null;
+  if(nv!==b.env){b.env=nv;
+    b.url=nv?nv+'.'+curP().name.toLowerCase().replace(/\s+/g,'')+'.panacea.kpmg':null;}
+  requestAnimationFrame(()=>render());},
+deployNow(){const b=curB();if(!b.env){toast('Name the environment first');return}
+  b.version=b.version?bump(b.version):'v0.1.0';b.deployedAgo='just now';
+  b.shipped={spec:b.discover.answers.map(a=>a.a),worktrees:(b.landed||[]).map(l=>l.name)};
+  render();toast('Deployed <b>'+esc(b.name)+'</b> → <b>'+esc(b.env)+'</b>')},
+toggleAuto(){const b=curB();b.auto=!b.auto;render()},
+rollback(){const b=curB();if(!b.env||!b.version)return;
+  const m=b.version.match(/v(\d+)\.(\d+)\.(\d+)/);
+  if(m)b.version='v'+m[1]+'.'+m[2]+'.'+Math.max(0,parseInt(m[3])-1);
+  b.deployedAgo='just now';render();toast('Rolled <b>'+esc(b.env)+'</b> back to '+esc(b.version))},
+access(){const b=curB();
+  A.modal(`<div class="mh">Who can reach ${esc(b.env||b.name)}</div><div class="mb">
+    ${['Anyone in KPMG','Project team only','Named client reviewers','Locked — reviewers only']
+      .map((o,i)=>`<div class="pick${b.access===o?' on':''}" onclick="A.setAccess('${esc(o)}')">
+        <span class="k">${i+1}</span><span class="tx">${esc(o)}</span></div>`).join('')}
+    <div class="hint" style="margin-top:10px">Enforced by Panacea through EntraID groups on this branch's ingress.</div>
+  </div><div class="mf"><div class="sp"></div><button class="btn pri" onclick="A.closeModal()">Done</button></div>`)},
+setAccess(o){curB().access=o;A.closeModal();render();toast('Access updated')},
+
+/* ---- merge ---- */
+readyList(){const b=curB();return b.worktrees.filter(w=>w.ready)},
+mergeOne(wid,silent){const b=curB();const w=b.worktrees.find(x=>x.id===wid);if(!w)return;
+  const snapshot=JSON.parse(JSON.stringify(w));
+  b.worktrees=b.worktrees.filter(x=>x.id!==wid);
+  b.landed=b.landed||[];b.landed.push({name:w.name,files:w.files,at:'just now'});
+  render();
+  if(!silent)toastUndo('Merged <b>'+esc(w.name)+'</b> into '+esc(b.name),()=>{
+    b.worktrees.push(snapshot);b.landed=b.landed.filter(l=>l.name!==w.name);render();})},
+mergeAll(){const b=curB();const list=A.readyList().slice();
+  if(!list.length)return; list.forEach(w=>A.mergeOne(w.id,true));
+  toast('Landed <b>'+list.length+'</b> worktrees in order')},
+reorder(wid,dir){const b=curB();const ready=A.readyList();
+  const k=ready.findIndex(w=>w.id===wid);const t=k+dir;if(k<0||t<0||t>=ready.length)return;
+  const i=b.worktrees.indexOf(ready[k]),j=b.worktrees.indexOf(ready[t]);
+  const tmp=b.worktrees[i];b.worktrees[i]=b.worktrees[j];b.worktrees[j]=tmp;render()},
+reviewDiff(wid){const b=curB();const w=b.worktrees.find(x=>x.id===wid)||{files:[],name:''};
+  A.modal(`<div class="mh">${esc(w.name)} — changes</div><div class="mb">
+    <div class="hint">Each hunk links back to the moment an agent wrote it.</div>
+    <div class="fview"><span style="color:var(--t-dim)">docs/api/upload.md</span>
+<span style="color:var(--t-del-fg);background:var(--t-del-bg);display:inline-block;width:100%">-  Files are stored directly.</span>
+<span style="color:var(--t-add-fg);background:var(--t-add-bg);display:inline-block;width:100%">+  Evidence is scanned before it is stored. Infected files are</span>
+<span style="color:var(--t-add-fg);background:var(--t-add-bg);display:inline-block;width:100%">+  quarantined and the engagement lead is notified.</span></div>
+  </div><div class="mf"><button class="btn ghost" onclick="A.closeModal()">Close</button><div class="sp"></div>
+    <button class="btn pri" onclick="A.closeModal();A.mergeOne('${wid}')">Merge</button></div>`)},
+
+/* ---- authority ---- */
+AUTH_ROWS:['Read anything','Edit inside its own worktree','Edit outside its worktree','Run tests',
+  'Add a dependency','Run a migration','Deploy this branch'],
+AUTH_LV:['ask','wait','tell','full'],
+authority(){const b=curB();
+  if(!b.authority)b.authority=[3,2,0,3,1,0,0];
+  A.modal(`<div class="mh">What agents may do on ${esc(b.name)} without asking</div><div class="mb">
+    <div class="grid7"><div></div>${A.AUTH_LV.map(l=>`<div class="hd">${l.toUpperCase()}</div>`).join('')}
+    ${A.AUTH_ROWS.map((r,i)=>`<div class="rl">${esc(r)}</div>`+
+      A.AUTH_LV.map((l,j)=>`<div class="lv${b.authority[i]===j?' on':''}" onclick="A.setAuth(${i},${j})"></div>`).join('')).join('')}
+    </div>
+    <div class="hint" style="margin-top:12px" id="authNote"></div>
+  </div><div class="mf"><div class="sp"></div><button class="btn pri" onclick="A.closeModal()">Done</button></div>`);
+  A.authNote();},
+setAuth(i,j){const b=curB();b.authority[i]=j;
+  document.querySelectorAll('.grid7 .lv').forEach((el,k)=>{
+    el.classList.toggle('on', Math.floor(k/4)===i ? (k%4)===j : el.classList.contains('on'));});
+  A.authority();},
+authNote(){const b=curB();const asks=b.authority.filter(v=>v===0).length;
+  const el=$('#authNote');if(el)el.innerHTML=`At this level, expect about <b style="color:var(--ink-2)">${asks*2}
+    interruptions an hour</b>. Blast radius: ${b.authority[2]>1?'<b style="color:var(--need)">beyond its own worktree</b>':'its own worktree only'}.`},
+
+/* ---- misc ---- */
+runLocally(){toast('<b>docker compose up</b> running in the microVM — preview on :3000')},
+openFile(f){S.ui.file=f;render()},
+modal(h){$('#modalHost').innerHTML='<div class="modal" onclick="event.stopPropagation()">'+h+'</div>';$('#scrim').classList.add('on')},
+closeModal(e){if(e&&e.target&&e.target.id!=='scrim')return;$('#scrim').classList.remove('on');$('#modalHost').innerHTML=''},
+palette(){const items=[];
+  items.push({ic:'＋',s:'New session here',fn:()=>A.newSessionDialog()});
+  items.push({ic:'＋',s:'New project',fn:()=>A.newProject()});
+  items.push({ic:'⇣',s:'Bring in a repo',fn:()=>A.importRepo()});
+  if(curP())items.push({ic:'⑂',s:'New branch in '+curP().name,fn:()=>A.newBranch()});
+  items.push({ic:'▤',s:'Machines',fn:()=>A.machines()});
+  items.push({ic:'◉',s:'Capacity',fn:()=>A.capacity()});
+  allSess().forEach(x=>items.push({ic:'▸',s:x.w.name+(x.s.kind==='shell'?' · shell':''),
+    meta:x.p.name+' / '+x.b.name,fn:()=>A.openSession(x.p.id,x.b.id,x.s.id)}));
+  S.projects.forEach(p=>items.push({ic:'▪',s:p.name,meta:'project',fn:()=>A.openProject(p.id)}));
+  A._pal=items;
+  A.modal('<div class="pal"><input id="palIn" placeholder="Jump to anything…" autocomplete="off"/></div>'+
+    '<div class="palist" id="palList">'+items.map((it,i)=>
+      `<div class="pitem${i?'':' on'}" data-i="${i}"><span class="ic">${it.ic}</span><span>${esc(it.s)}</span>
+       <span class="sp"></span><span class="meta">${esc(it.meta||'')}</span></div>`).join('')+'</div>');
+  const list=$('#palList');
+  list.querySelectorAll('.pitem').forEach(el=>el.onclick=()=>{A.closeModal();A._pal[+el.dataset.i].fn()});
+  const inp=$('#palIn');
+  const vis=()=>[...list.querySelectorAll('.pitem')].filter(e=>e.style.display!=='none');
+  const mark=n=>{const v=vis();if(!v.length)return;v.forEach(e=>e.classList.remove('on'));
+    const k=Math.max(0,Math.min(v.length-1,n));v[k].classList.add('on');v[k].scrollIntoView({block:'nearest'})};
+  setTimeout(()=>{inp.focus();
+    inp.oninput=()=>{const q=inp.value.toLowerCase();
+      list.querySelectorAll('.pitem').forEach(e=>{e.style.display=e.textContent.toLowerCase().includes(q)?'':'none'});
+      mark(0)};
+    inp.onkeydown=e=>{const v=vis();const cur=v.findIndex(x=>x.classList.contains('on'));
+      if(e.key==='ArrowDown'){e.preventDefault();mark(cur+1)}
+      else if(e.key==='ArrowUp'){e.preventDefault();mark(cur-1)}
+      else if(e.key==='Enter'){const el=v[cur]||v[0];if(el){A.closeModal();A._pal[+el.dataset.i].fn()}}};},40)}
+};
+function findSess(pid,bid,sid){const b=brOf(pid,bid)||{worktrees:[]};
+  for(const w of b.worktrees){const s=w.sessions.find(x=>x.id===sid);if(s)return{b,w,s}}
+  return{b,w:null,s:null}}
+function focusSession(sid){setTimeout(()=>{const el=document.querySelector('.col[data-sid="'+sid+'"] .cc-in input');
+  if(el)el.focus()},0)}
+function bump(v){const m=v.match(/v(\d+)\.(\d+)\.(\d+)/);return m?'v'+m[1]+'.'+m[2]+'.'+(+m[3]+1):v}
+function toast(h){const el=document.createElement('div');el.className='toast';el.innerHTML=h;
+  $('#toasts').appendChild(el);setTimeout(()=>{el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300)},3200)}
+function toastUndo(h,fn){const el=document.createElement('div');el.className='toast';
+  el.innerHTML=h+' <span class="undo">Undo</span>';$('#toasts').appendChild(el);
+  el.querySelector('.undo').onclick=()=>{fn();el.remove()};
+  setTimeout(()=>{el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300)},6000)}
+function showMenu(e,items){const m=$('#menu');
+  m.innerHTML=items.map(it=>it[0]==='-'?'<div class="sep"></div>':
+    `<button class="${it[2]||''}" onclick="hideMenu();${it[1]}">${esc(it[0])}</button>`).join('');
+  m.style.left=Math.min(e.clientX,innerWidth-190)+'px';m.style.top=Math.min(e.clientY,innerHeight-240)+'px';
+  m.classList.add('on')}
+function hideMenu(){$('#menu').classList.remove('on')}
+addEventListener('click',e=>{if(!e.target.closest('#menu'))hideMenu()});
+
+/* ============================ RENDER ============================ */
+function render(){
+  const act=document.activeElement;
+  const keep=act&&act.tagName==='INPUT'&&act.closest('.cc-in')?
+    {sid:act.closest('.col')?.dataset.sid,val:act.value,pos:act.selectionStart}:null;
+  const stick={};document.querySelectorAll('.tty').forEach(t=>{
+    if(t.id)stick[t.id]=t.scrollTop+t.clientHeight>=t.scrollHeight-24});
+  renderRail();renderSub();renderMain(stick);
+  $('#app').classList.toggle('deep',S.ui.view==='branch');
+  const m=S.machines?null:null;
+  const mc=S.machines&&S.machines[0];
+  if(keep&&keep.sid){const el=document.querySelector('.col[data-sid="'+keep.sid+'"] .cc-in input');
+    if(el){el.value=keep.val;el.focus();try{el.setSelectionRange(keep.pos,keep.pos)}catch(_){}}}
+}
+function renderRail(){
+  const mach=S.machines[0];
+  $('#mcName').textContent=mach.name;$('#mcState').textContent=mach.state+' · '+mach.size;
+  let h='';
+  S.projects.forEach(p=>{
+    const sel=S.ui.pid===p.id&&S.ui.view==='project';
+    h+=`<div><div class="prow${sel?' sel':''}" onclick="A.openProject('${p.id}')">
+      <span class="pini">${esc(p.ini)}</span><span class="pnm">${esc(p.name)}</span>
+      <span class="chev${p.open?'':' shut'}" onclick="A.toggle(proj('${p.id}'),event)">▾</span></div>`;
+    if(p.open){h+='<div class="kids">';
+      p.branches.forEach(b=>{const st=brStatus(b);
+        const bsel=S.ui.bid===b.id&&S.ui.view==='branch';
+        h+=`<div class="brow${bsel?' sel':''}" onclick="A.openBranch('${p.id}','${b.id}')">
+          <span class="sd ${st}${st==='run'?' live':''}"></span><span class="bnm">${esc(b.name)}</span>
+          <span class="chev${b.open?'':' shut'}" onclick="A.toggle(brOf('${p.id}','${b.id}'),event)">▾</span></div>`;
+        if(b.open){h+='<div class="kids">';
+          b.worktrees.forEach(w=>{const ws=wtStatus(w);
+            h+=`<div class="wrow" onclick="A.openBranch('${p.id}','${b.id}','develop')">
+              <span class="sd ${ws}${ws==='run'?' live':''}"></span><span class="t">${esc(w.name)}</span></div>
+              <div class="kids">`;
+            w.sessions.forEach(s=>{
+              h+=`<div class="srow${S.ui.sid===s.id?' sel':''}" onclick="A.openSession('${p.id}','${b.id}','${s.id}')">
+                <span class="sd ${s.kind==='shell'?'shell':s.status}${s.status==='run'?' live':''}"></span>
+                <span class="t">${esc(s.kind==='shell'?'shell':HARNESS[s.harness].cmd)}</span></div>`});
+            h+='</div>'});
+          h+=`<div class="addr" onclick="A.openBranch('${p.id}','${b.id}','develop');A.newSessionDialog()">＋ session</div></div>`}
+      });
+      h+=`<div class="addr" onclick="A.openProject('${p.id}');A.newBranch()">＋ branch</div></div>`}
+    h+='</div>'});
+  h+='<div class="addr" style="margin-top:6px" onclick="A.newProject()">＋ New project</div>';
+  $('#rail').innerHTML=h;
+}
+function renderSub(){const sub=$('#sub');
+  if(S.ui.view!=='branch'){sub.innerHTML='';return}
+  const p=curP(),b=curB();if(!b){sub.innerHTML='';return}
+  const purpose=(b.discover.answers[0]||{}).a;
+  const mods=[['discover','◇','Discover'],['design','◈','Design'],['develop','◆','Develop'],
+    ['files','▤','Files'],['merge','⑂','Merge'],['deploy','▲','Deploy']];
+  sub.innerHTML=`<div class="stop"><div class="sbk" onclick="A.openProject('${p.id}')">← ${esc(p.name)}</div>
+      <div class="sbr">${esc(b.name)}</div>
+      ${purpose?`<div class="spurpose" onclick="A.setMod('discover')"><span class="pl">◇</span> ${esc(purpose)}</div>`
+        :`<div class="spurpose" onclick="A.setMod('discover')"><span class="pl">◇</span> No purpose set — run Discover</div>`}</div>
+    <div class="mods">${mods.map(([k,i,n])=>`<div class="mod${S.ui.mod===k?' sel':''}" onclick="A.setMod('${k}')">
+      <span class="mi">${i}</span><span class="n">${n}</span></div>`).join('')}</div>`}
+
+function renderMain(stick){const main=$('#main');
+  const v=S.ui.view;
+  if(v==='home')return void(main.innerHTML=viewHome());
+  if(v==='machines')return void(main.innerHTML=viewMachines());
+  if(v==='capacity')return void(main.innerHTML=viewCapacity());
+  if(v==='project')return void(main.innerHTML=viewProject());
+  const b=curB();if(!b)return void(main.innerHTML=viewHome());
+  const m=S.ui.mod;
+  main.innerHTML= m==='discover'?viewDiscover():m==='design'?viewDesign():m==='files'?viewFiles()
+    :m==='merge'?viewMerge():m==='deploy'?viewDeploy():viewDevelop();
+  if(m==='develop')afterDevelop(stick||{});
+  if(m==='design')afterDesign();}
+
+function viewHome(){const need=needList();
+  return `<div class="top"><span class="ttl">Your projects</span>
+      <span class="sub2">${S.projects.length} project${S.projects.length!==1?'s':''}</span><div class="sp"></div>
+      <button class="btn" onclick="A.importRepo()">Bring in a repo</button>
+      <button class="btn pri" onclick="A.newProject()">＋ New project</button></div>
+    <div class="body"><div class="inner">
+    ${need.length?`<div class="sech">WAITING ON YOU</div>
+      ${need.map(x=>`<div class="card click" onclick="A.openSession('${x.p.id}','${x.b.id}','${x.s.id}')">
+        <div class="row"><span class="sd need"></span><div style="flex:1">
+          <div class="t1">${esc(x.w.name)} <span style="color:var(--ink-3);font-weight:400">needs a decision</span></div>
+          <div class="t2">${esc(x.p.name)} / ${esc(x.b.name)} · waiting 5h 51m</div></div>
+        <button class="btn ghost">Open</button></div></div>`).join('')}<div style="height:18px"></div>`:''}
+    <div class="sech">PROJECTS</div>
+    ${S.projects.map(p=>{const ss=p.branches.flatMap(b=>b.worktrees.flatMap(w=>w.sessions));
+      const run=ss.filter(s=>s.status==='run').length,dep=p.branches.filter(b=>b.env).length;
+      return `<div class="card click" onclick="A.openProject('${p.id}')">
+        <div class="row"><span class="pini">${esc(p.ini)}</span><div style="flex:1">
+        <div class="t1" style="font-size:14px;font-weight:650">${esc(p.name)}</div>
+        <div class="t2">${esc(p.brief.slice(0,108))}${p.brief.length>108?'…':''}</div></div></div>
+        <div class="t2" style="margin-top:9px;display:flex;gap:16px">
+          <span>${p.branches.length} branch${p.branches.length!==1?'es':''}</span>
+          ${dep?`<span>${dep} deployed</span>`:''}
+          ${run?`<span style="color:var(--run)">${run} running</span>`:'<span>idle</span>'}</div></div>`}).join('')}
+    </div></div>`}
+
+function viewMachines(){
+  return `<div class="top"><span class="ttl">Machines</span><div class="sp"></div>
+      <button class="btn">＋ Machine</button></div>
+    <div class="body"><div class="inner">
+    ${S.machines.map(m=>`<div class="card"><div class="row">
+      <span class="sd ${m.state==='running'?'run live':'idle'}"></span>
+      <div style="flex:1"><div class="t1">${esc(m.name)} ${m.kind==='local'?'<span class="kbd">unsandboxed</span>':''}</div>
+        <div class="t2">${esc(m.state)} · ${esc(m.size)} · disk ${esc(m.disk)} · ${esc(m.cost)}</div></div>
+      <button class="btn ghost">Files</button>
+      <button class="btn ghost">${m.state==='running'?'Sleep':'Wake'}</button></div></div>`).join('')}
+    <div class="hint" style="margin-top:14px">Your first machine was claimed from a warm pool at sign-in — you were never asked to size it.
+      Agents run in per-session microVMs on it. The local machine has no sandbox boundary, so agent authority there is
+      bounded by your OS user.</div>
+    </div></div>`}
+
+function viewCapacity(){
+  return `<div class="top"><span class="ttl">Capacity</span>
+      <span class="sub2">· your own accounts, rotated as each window fills</span><div class="sp"></div>
+      <button class="btn">＋ Add account</button></div>
+    <div class="body"><div class="inner">
+    ${S.capacity.map(c=>{const on=allSess().filter(x=>x.s.acct===c.label).length;
+      return `<div class="card"><div class="row">
+      <span class="sd ${c.state==='near'?'need':c.state==='ok'?'run':'idle'}"></span>
+      <div style="flex:1"><div class="t1">${esc(c.label)}</div>
+        <div class="t2">${c.kind==='sub'?esc(c.used+'% of this window used · resets '+c.resets):'metered · always available'}
+          ${on?' · <b>'+on+' session'+(on>1?'s':'')+'</b> on it now':''}</div></div>
+      ${c.state==='near'?'<span class="kbd" style="color:var(--need)">rotating soon</span>':''}
+      <button class="btn ghost">Details</button></div></div>`}).join('')}
+    <div class="hint" style="margin-top:14px">Sessions spend <b>your</b> subscriptions and roll to the next when a
+      5-hour or weekly window fills, with metered API as the backstop. Capacity is never pooled across users.</div>
+    </div></div>`}
+
+function viewProject(){const p=curP();
+  return `<div class="top"><span class="ttl">${esc(p.name)}</span>
+      <span class="sub2">${p.branches.length} branch${p.branches.length!==1?'es':''}</span><div class="sp"></div>
+      <button class="btn pri" onclick="A.newBranch()">＋ New branch</button></div>
+    <div class="body"><div class="inner"><div class="sech">BRANCHES</div>
+    ${p.branches.map(b=>{const st=brStatus(b);const nd=b.worktrees.filter(w=>wtStatus(w)==='need').length;
+      return `<div class="card click" onclick="A.openBranch('${p.id}','${b.id}')"><div class="row">
+        <span class="sd ${st}${st==='run'?' live':''}"></span><div style="flex:1">
+        <div class="t1" style="font-family:var(--mono)">${esc(b.name)}</div>
+        <div class="t2">${b.env?`live at <b>${esc(b.env)}</b> · ${esc(b.version||'')} · ${esc(b.access||'')}`:'not deployed'}
+          ${b.worktrees.length?' · '+b.worktrees.length+' worktree'+(b.worktrees.length>1?'s':''):''}
+          ${nd?` · <b style="color:var(--need)">${nd} waiting</b>`:''}</div></div></div></div>`}).join('')}
+    <div class="sech" style="margin-top:20px">WHAT THIS PROJECT IS</div>
+    <div class="card"><div class="t2" style="color:var(--ink-2);line-height:1.65">${esc(p.brief)}</div></div>
+    </div></div>`}
+
+function viewDiscover(){const b=curB();
+  const editing=b._editing!=null;
+  const idx=editing?b._editing:b.discover.answers.length;
+  const Q=editing?{q:b.discover.answers[idx].q,help:'Edit your answer.',opts:[]}:A.QUESTIONS[idx];
+  const settled=b.discover.answers.length?`<div style="margin-top:24px"><div class="sech">SETTLED</div>
+    ${b.discover.answers.map((a,i)=>`<div class="ans"><span class="q">${esc(a.q)}</span>
+      <span class="a">${esc(a.a)}</span><span class="ed" onclick="A.editAnswer(${i})">edit</span></div>`).join('')}</div>`:'';
+  const inner=(b.discover.done||!Q)
+    ? `<div class="disc"><div class="step">COMPLETE</div><h2>This branch has its context.</h2>
+        <p class="q">Written to <span style="font-family:var(--mono);font-size:11.5px">CLAUDE.md</span> on ${esc(b.name)}.
+        Every session started here reads it first.</p>
+        <button class="btn pri" onclick="A.setMod('develop')">Start building</button>${settled}</div>`
+    : `<div class="disc"><div class="step">${editing?'EDITING':'QUESTION '+(idx+1)+' OF '+A.QUESTIONS.length}</div>
+        <h2>${esc(Q.q)}</h2><p class="q">${esc(Q.help)}</p>
+        ${Q.opts.map((o,i)=>`<div class="pick" data-opt="${esc(o)}"><span class="k">${i+1}</span><span class="tx">${esc(o)}</span></div>`).join('')}
+        <div class="ff"><textarea rows="1" placeholder="or say it your own way…"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();A.discoverFree(this)}"></textarea>
+          <button class="go" onclick="A.discoverFree(this.previousElementSibling)">↑</button></div>${settled}</div>`;
+  setTimeout(()=>document.querySelectorAll('.pick[data-opt]').forEach(el=>
+    el.onclick=()=>A.answerDiscover(el.dataset.opt)),0);
+  return `<div class="top"><span class="ttl">Discover</span>
+      <span class="sub2">· becomes CLAUDE.md for every session on ${esc(b.name)}</span><div class="sp"></div>
+      ${b.discover.done?'':'<button class="btn ghost" onclick="A.skipDiscover()">Skip</button>'}</div>
+    <div class="body">${inner}</div>`}
+
+function viewDesign(){const b=curB();
+  const chat=(b.design||[]).map(m=>`<div class="msg ${m.who}">${esc(m.s)}</div>`).join('');
+  return `<div class="top"><span class="ttl">Design</span>
+      <span class="sub2">· ${b.screens.length} screen${b.screens.length!==1?'s':''}</span><div class="sp"></div>
+      <button class="btn ghost" onclick="A.addScreen()">＋ Frame</button>
+      <button class="btn pri" onclick="A.handToDevelop()">Hand to Develop</button></div>
+    <div class="dsplit"><div class="dcv" id="dcv">
+      ${b.screens.map(s=>`<div class="frame" data-id="${s.id}" style="left:${s.x}px;top:${s.y}px;width:${s.w}px;height:${s.h}px">
+        <div class="fl">${esc(s.name)}</div>
+        <iframe srcdoc="${esc("<html><body style='margin:0;font:12px Segoe UI,system-ui;color:#191614'>"+s.html+"</body></html>")}"></iframe></div>`).join('')}
+      ${b.screens.length?'':'<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-4);font-size:12.5px">No frames yet — add one, or describe a screen.</div>'}
+    </div>
+    <aside class="dside"><div class="h">Change it by talking</div>
+      <div class="b">${chat||'<div class="msg ai">Real HTML frames. Drag them, or describe a screen and I will add it.</div>'}</div>
+      <div class="f"><input placeholder="describe a change…" onkeydown="if(event.key==='Enter')A.designSend(this)"/>
+        <button class="btn pri" onclick="A.designSend(this.previousElementSibling)">Send</button></div></aside></div>`}
+function afterDesign(){const host=$('#dcv');if(!host)return;
+  host.querySelectorAll('.frame').forEach(f=>{f.onpointerdown=e=>{
+    if(e.target.tagName==='IFRAME')return;
+    host.querySelectorAll('.frame').forEach(x=>x.classList.remove('on'));f.classList.add('on');
+    const sx=e.clientX,sy=e.clientY,ox=f.offsetLeft,oy=f.offsetTop;f.style.zIndex=50;
+    const mv=ev=>{f.style.left=(ox+ev.clientX-sx)+'px';f.style.top=(oy+ev.clientY-sy)+'px'};
+    const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);
+      const s=curB().screens.find(x=>x.id===f.dataset.id);if(s){s.x=f.offsetLeft;s.y=f.offsetTop}};
+    addEventListener('pointermove',mv);addEventListener('pointerup',up)}})}
+
+function viewFiles(){const b=curB();
+  const files=['services/api/scanner.go','services/api/routes.go','services/api/upload.go',
+    'docs/api/upload.md','CLAUDE.md','docker-compose.yml'];
+  const sel=S.ui.file;
+  const body=sel==='CLAUDE.md'
+    ? '# '+b.name+'\n\n'+b.discover.answers.map(a=>'## '+a.q+'\n'+a.a).join('\n\n')+
+      '\n\n_Generated by Discover. Every session on this branch reads this first._'
+    : sel? '// '+sel+'\n\npackage api\n\nfunc (s *Scanner) Check(ctx context.Context, r io.Reader) error {\n  res, err := s.clam.Scan(ctx, r)\n  if err != nil {\n    return fmt.Errorf("scan: %w", err)\n  }\n  if res.Infected {\n    return ErrInfected\n  }\n  return nil\n}' : '';
+  return `<div class="top"><span class="ttl">Files</span><span class="sub2">· ${esc(b.name)}</span><div class="sp"></div>
+      <button class="btn ghost" onclick="A.newSession({harness:'shell'})">Open a shell</button></div>
+    <div class="dsplit"><aside class="dside" style="border-left:0;border-right:1px solid var(--line);width:270px;flex-basis:270px">
+      <div class="h">Worktree files</div><div class="b ftree">
+      ${files.map(f=>`<div class="frow" onclick="A.openFile('${esc(f)}')">
+        <span class="d">${f.endsWith('.md')?'▤':f.endsWith('.yml')?'▣':'◧'}</span><span>${esc(f)}</span></div>`).join('')}
+      </div></aside>
+      <div class="body">${sel?`<div class="sech">${esc(sel)}</div><div class="fview">${esc(body)}</div>`
+        :'<div class="empty"><h3>Pick a file.</h3><p>Everything here is the real worktree on the machine. Agents and you are editing the same tree.</p></div>'}</div></div>`}
+
+/* ---------- DEVELOP ---------- */
+function viewDevelop(){const p=curP(),b=curB();
+  const cols=[];b.worktrees.forEach(w=>w.sessions.forEach(s=>cols.push({w,s})));
+  const c=collisions(b);
+  const top=`<div class="top">
+      <div class="seg"><button class="${S.ui.layout==='cols'?'on':''}" onclick="A.setLayout('cols')">Columns</button>
+        <button class="${S.ui.layout==='canvas'?'on':''}" onclick="A.setLayout('canvas')">Canvas</button></div>
+      <div class="sp"></div>
+      <button class="btn ghost" onclick="A.authority()">Authority</button>
+      <button class="btn ghost" onclick="A.runLocally()">Run locally</button>
+      <div class="split"><button class="btn pri a" onclick="A.newSession({})">＋ Claude Code</button>
+        <button class="b" onclick="A.newSessionDialog()" title="Choose harness">▾</button></div></div>
+    ${c?`<div class="top" style="min-height:0;padding:6px 12px;font-size:11.5px;color:var(--ink-3)">
+      <span style="color:var(--need)">⚠ two worktrees want <span style="font-family:var(--mono)">${esc(c.file)}</span></span>
+      <span>— <b style="color:var(--ink-2)">${esc(c.holder.name)}</b> holds it, <b style="color:var(--ink-2)">${esc(c.waiter.name)}</b> was told to wait</span>
+      <div class="sp"></div><button class="btn ghost" onclick="A.setMod('merge')">Resolve at merge</button></div>`:''}`;
+  if(!cols.length)return top+`<div class="body"><div class="empty">
+    <h3>Nothing running on ${esc(b.name)}.</h3>
+    <p>A session is a real CLI — Claude Code, Codex, OpenCode, or a plain shell — running in its own worktree
+       on the machine. Start as many as you like.</p>
+    <div class="row"><button class="btn pri" onclick="A.newSession({})">＋ Claude Code</button>
+      <button class="btn" onclick="A.newSession({harness:'shell'})">Open a shell</button>
+      <button class="btn ghost" onclick="A.newSessionDialog()">Choose…</button></div></div></div>`;
+  if(S.ui.layout==='canvas'){
+    return top+`<div class="canvas"><div class="cvin">${cols.map((cc,i)=>{
+      const x=cc.s.x??(30+(i%2)*490),y=cc.s.y??(24+Math.floor(i/2)*350);
+      return `<div class="tile" data-sid="${cc.s.id}" style="left:${x}px;top:${y}px;width:${cc.s.w}px;height:${cc.s.h}px">
+        ${colHead(p,b,cc.w,cc.s)}<div class="tty" id="tty-${cc.s.id}">${renderTty(cc.s,p,b)}</div>
+        ${ccIn(p,b,cc.s)}${colFoot(cc.s)}<div class="rs-h"></div></div>`}).join('')}</div></div>`}
+  return top+`<div class="cols">${cols.map(cc=>`
+    <div class="col${S.ui.sid===cc.s.id?' focus':''}" data-sid="${cc.s.id}">
+      ${colHead(p,b,cc.w,cc.s)}<div class="tty" id="tty-${cc.s.id}">${renderTty(cc.s,p,b)}</div>
+      ${ccIn(p,b,cc.s)}${colFoot(cc.s)}</div>`).join('')}</div>`}
+
+function colHead(p,b,w,s){const lk=lockFor(b,w);
+  return `<div class="ch"><span class="sd ${s.kind==='shell'?'shell':s.status}${s.status==='run'?' live':''}"></span>
+    <span class="nm">${esc(w.name)}</span>
+    <span class="hn">${esc(s.kind==='shell'?'bash':HARNESS[s.harness].cmd)}</span>
+    ${lk?`<span class="lock" title="held by ${esc(lk.by)}">🔒 ${esc(lk.file.split('/').pop())}</span>`:''}
+    ${b.discover.answers.length?`<span class="ctxchip" onclick="A.setMod('discover')">◇ ctx</span>`:''}
+    <div class="sp"></div>
+    <span class="x" onclick="A.sessionMenu('${p.id}','${b.id}','${s.id}',event)">⋯</span></div>`}
+function colFoot(s){
+  const dots=Array.from({length:10},(_,i)=>`<i class="${i<Math.round(s.ctx/10)?'f':''}"></i>`).join('');
+  return `<div class="cf"><span>${esc(s.kind==='shell'?'bash':HARNESS[s.harness].cmd)}</span>
+    ${s.model?`<span>${esc(s.model)}</span>`:''}
+    ${s.kind==='shell'?'':`<span class="ctxdots${s.ctx>65?' near':''}" title="context used">${dots}</span>`}
+    <div class="sp"></div>${s.kind==='shell'?'':`<span class="acct" onclick="A.capacity()">${esc(s.acct)}</span>`}
+    <span>${esc(s.cost)}</span><span>${esc(s.elapsed)}</span></div>`}
+function ccIn(p,b,s){
+  if(s.kind==='shell')return `<div class="cc-in"><div class="fieldrow"><span>$&nbsp;</span>
+    <input value="${esc(s.draft)}" oninput="findSess('${p.id}','${b.id}','${s.id}').s.draft=this.value"
+      onkeydown="if(event.key==='Enter')A.sendTo('${p.id}','${b.id}','${s.id}',this)"/></div></div>`;
+  return `<div class="cc-in">
+    <div class="box">╭────────────────────────────────────────────────────────────╮</div>
+    <div class="fieldrow"><span>│ &gt; </span>
+      <input value="${esc(s.draft)}" oninput="findSess('${p.id}','${b.id}','${s.id}').s.draft=this.value"
+        onkeydown="if(event.key==='Enter')A.sendTo('${p.id}','${b.id}','${s.id}',this)"/><span>│</span></div>
+    <div class="box">╰────────────────────────────────────────────────────────────╯</div>
+    <div class="cc-mode" onclick="A.cycleMode('${p.id}','${b.id}','${s.id}')">&nbsp;⏵⏵ <b>${modeLabel(s.mode)}</b>
+      <span class="allow">(shift+tab)</span>
+      ${s.allow.length?`<span class="allow">· always: ${esc(s.allow.join(', '))}</span>`:''}</div></div>`}
+
+function renderTty(s,p,b){let out='',seen=false;const hasMark=s.tty.some(l=>l.t==='mark');
+  s.tty.forEach((l,i)=>{const faded=hasMark&&!seen&&l.t!=='mark';let x='';
+    switch(l.t){
+      case 'sh': x=esc(l.s); break;
+      case 'user': x=`<span class="u">&gt;</span> ${esc(l.s)}\n\n`;break;
+      case 'text': x=`<span class="tool">⏺</span> ${esc(l.s)}\n\n`;break;
+      case 'tool': x=`<span class="tool">⏺</span> ${esc(l.name)}(<span class="cy">${esc(l.arg)}</span>)\n  <span class="dim">⎿  ${esc(l.result)}</span>\n\n`;break;
+      case 'edit': x=`<span class="tool">⏺</span> Update(<span class="cy">${esc(l.file)}</span>)\n  <span class="dim">⎿  ${esc(l.summary)}</span>\n`;
+        l.hunks.forEach(h=>{const cls=h.op==='+'?'add':h.op==='-'?'del':'';
+          x+=`<span class="${cls}"><span class="ln">${String(h.n).padStart(9,' ')}</span> ${h.op} ${esc(h.s)}</span>\n`});
+        x+='\n';break;
+      case 'bash': x=`<span class="tool">⏺</span> Bash(<span class="cy">${esc(l.cmd)}</span>)\n  <span class="dim">⎿  ${esc(l.out[0]||'')}</span>\n`;
+        l.out.slice(1).forEach(o=>x+=`     <span class="dim">${esc(o)}</span>\n`);x+='\n';break;
+      case 'todos': x=`<span class="tool">⏺</span> Update Todos\n  <span class="dim">⎿</span>  `+
+        l.items.map((it,j)=>(j?'     ':'')+(it.d?`<span class="gn">☒</span> <span class="dim">${esc(it.s)}</span>`:`☐ ${esc(it.s)}`)).join('\n')+'\n\n';break;
+      case 'task': x=`<span class="tool">⏺</span> Task(<span class="cy">${esc(l.name)}</span>)\n  <span class="dim">⎿  ${esc(l.result)}</span>\n\n`;break;
+      case 'think': x=`<span class="mg">✻</span> <span class="dim">${esc(l.s)}… (esc to interrupt · ${l.sec}s)</span>\n`;break;
+      case 'note': x=`<span class="dim">  ${esc(l.s)}</span>\n\n`;break;
+      case 'mark': seen=true;x=`<span class="wm">─── you were last here · 6h 12m ago ───</span>\n\n`;break;
+      case 'perm':
+        x=`<span class="box">╭────────────────────────────────────────────────────────────╮</span>\n<span class="box">│</span> <span class="u">${esc(l.kind)}</span>\n<span class="box">│</span>\n`;
+        x+=`<span class="box">│</span>   <span class="cy">${esc(l.cmd)}</span>\n<span class="box">│</span>   <span class="dim">${esc(l.desc)}</span>\n<span class="box">│</span>\n`;
+        x+=`<span class="box">│</span> <span class="u">Do you want to proceed?</span>\n`;
+        l.opts.forEach((o,j)=>{const on=j===(s.permSel||0);
+          x+=`<span class="box">│</span> <span class="permopt${on?' sel':''}" onclick="A.answerPerm('${p.id}','${b.id}','${s.id}',${i},${j})">${on?'❯':' '} ${j+1}. ${esc(o)}</span>\n`});
+        x+=`<span class="box">╰────────────────────────────────────────────────────────────╯</span>\n\n`;break;}
+    out+=faded?`<span class="faded">${x}</span>`:x});
+  if(s.status==='run')out+='<span class="cursor"></span>';
+  return out}
+function afterDevelop(stick){
+  document.querySelectorAll('.tty').forEach(t=>{if(stick[t.id]!==false)t.scrollTop=t.scrollHeight});
+  document.querySelectorAll('.tile').forEach(t=>{
+    const sid=t.dataset.sid;const h=t.querySelector('.ch');
+    if(h)h.onpointerdown=e=>{if(e.target.closest('.x,.btn'))return;
+      const sx=e.clientX,sy=e.clientY,ox=t.offsetLeft,oy=t.offsetTop;t.style.zIndex=50;
+      const mv=ev=>{t.style.left=(ox+ev.clientX-sx)+'px';t.style.top=(oy+ev.clientY-sy)+'px'};
+      const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);
+        const f=allSess().find(x=>x.s.id===sid);if(f){f.s.x=t.offsetLeft;f.s.y=t.offsetTop}};
+      addEventListener('pointermove',mv);addEventListener('pointerup',up)};
+    const rh=t.querySelector('.rs-h');
+    if(rh)rh.onpointerdown=e=>{e.stopPropagation();
+      const sx=e.clientX,sy=e.clientY,ow=t.offsetWidth,oh=t.offsetHeight;
+      const mv=ev=>{t.style.width=Math.max(300,ow+ev.clientX-sx)+'px';t.style.height=Math.max(180,oh+ev.clientY-sy)+'px'};
+      const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);
+        const f=allSess().find(x=>x.s.id===sid);if(f){f.s.w=t.offsetWidth;f.s.h=t.offsetHeight}};
+      addEventListener('pointermove',mv);addEventListener('pointerup',up)}});
+  const sel=document.querySelector('.col.focus');if(sel)sel.scrollIntoView({inline:'nearest',block:'nearest'})}
+
+function viewMerge(){const b=curB();const ready=A.readyList();
+  const notReady=b.worktrees.filter(w=>!w.ready);const c=collisions(b);
+  const dod=b.discover.answers.filter(a=>/done|merge|true/i.test(a.q));
+  return `<div class="top"><span class="ttl">Merge into ${esc(b.name)}</span>
+      <span class="sub2">· ${ready.length} ready</span><div class="sp"></div>
+      <button class="btn pri" ${ready.length?'':'disabled'} onclick="A.mergeAll()">Land all in order</button></div>
+    <div class="body"><div class="inner">
+    ${dod.length?`<div class="sech">DEFINITION OF DONE · from Discover</div>
+      ${dod.map(a=>`<div class="card"><div class="dod"><span class="${b.landed&&b.landed.length?'m':'n'}">${b.landed&&b.landed.length?'✓':'○'}</span>
+        <span>${esc(a.a)}</span></div></div>`).join('')}<div style="height:16px"></div>`:''}
+    ${c?`<div class="advice"><div class="h">REPO AGENT</div>
+      Both <b>${esc(c.holder.name)}</b> and <b>${esc(c.waiter.name)}</b> touch
+      <span style="font-family:var(--mono);font-size:11px">${esc(c.file)}</span>.
+      Land <b>${esc(c.holder.name)}</b> first, then rebase the other — I can queue that.</div>`:''}
+    <div class="sech">READY TO MERGE</div>
+    ${ready.length?ready.map((w,i)=>{const conf=c&&(c.holder.id===w.id||c.waiter.id===w.id);
+      return `<div class="mg${conf?' conflict':''}"><span class="ord">${i+1}</span>
+      <div class="tx"><div class="t1">${esc(w.name)}</div>
+        <div class="t2">${esc((w.files||[]).join(', ')||'no files')}${conf?' · <b>overlaps another worktree</b>':' · no overlap'}</div></div>
+      <button class="btn ghost" onclick="A.reorder('${w.id}',-1)" ${i===0?'disabled':''}>↑</button>
+      <button class="btn ghost" onclick="A.reorder('${w.id}',1)" ${i===ready.length-1?'disabled':''}>↓</button>
+      <button class="btn ghost" onclick="A.reviewDiff('${w.id}')">Review diff</button>
+      <button class="btn pri" onclick="A.mergeOne('${w.id}')">Merge</button></div>`}).join('')
+      :'<div class="card"><div class="t2">Nothing is finished yet. Use a session menu → Mark worktree ready.</div></div>'}
+    ${(b.landed||[]).length?`<div class="sech" style="margin-top:20px">LANDED</div>
+      ${b.landed.map(l=>`<div class="mg landed"><span class="ord">✓</span><div class="tx">
+        <div class="t1">${esc(l.name)}</div><div class="t2">${esc((l.files||[]).join(', '))} · ${esc(l.at)}</div></div></div>`).join('')}`:''}
+    ${notReady.length?`<div class="sech" style="margin-top:20px">STILL WORKING</div>
+      ${notReady.map(w=>{const st=wtStatus(w);return `<div class="card"><div class="row">
+        <span class="sd ${st}${st==='run'?' live':''}"></span><div style="flex:1">
+        <div class="t1">${esc(w.name)}</div><div class="t2">${st==='need'?'waiting on you':st==='drift'?'drifting':'running'}</div></div>
+        <button class="btn ghost" onclick="A.setMod('develop')">Open</button></div></div>`}).join('')}`:''}
+    </div></div>`}
+
+function viewDeploy(){const p=curP(),b=curB();const others=p.branches.filter(x=>x.id!==b.id);
+  return `<div class="top"><span class="ttl">Deploy</span><span class="sub2">· ${esc(b.name)}</span><div class="sp"></div>
+      <button class="btn ghost" ${b.env&&b.version?'':'disabled'} onclick="A.rollback()">Rollback</button>
+      <button class="btn pri" onclick="A.deployNow()">${b.env?'Deploy now':'Deploy this branch'}</button></div>
+    <div class="body"><div class="inner"><div class="sech">THIS BRANCH</div>
+    <div class="card"><div class="row"><span class="sd ${b.env?'run live':'idle'}"></span>
+      <div style="flex:1"><div class="t1">Environment name</div>
+      <div class="t2">Any name you like — it is just this branch's deployment.</div></div>
+      <input class="fld mono" style="width:190px;margin:0" value="${esc(b.env||'')}" placeholder="e.g. client-preview"
+        onchange="A.setEnv(this.value)"/></div></div>
+    ${b.env?`<div class="card"><div class="row"><div style="flex:1"><div class="t1">URL</div>
+        <div class="t2" style="font-family:var(--mono)">${esc(b.url||'')}</div></div></div></div>
+      <div class="card"><div class="row"><div style="flex:1"><div class="t1">Version</div>
+        <div class="t2">${esc(b.version||'not built')} · deployed ${esc(b.deployedAgo||'never')}</div></div></div></div>
+      <div class="card"><div class="row"><div style="flex:1"><div class="t1">Who can reach it</div>
+        <div class="t2">${esc(b.access||'Not set')}</div></div>
+        <button class="btn ghost" onclick="A.access()">Change access</button></div></div>
+      <div class="card"><div class="row"><div style="flex:1"><div class="t1">Deploy automatically when this branch changes</div>
+        <div class="t2">${b.auto?'On':'Off'}</div></div>
+        <button class="btn" onclick="A.toggleAuto()">${b.auto?'Turn off':'Turn on'}</button></div></div>
+      ${b.discover.answers.length?`<div class="sech" style="margin-top:20px">WHAT SHIPPED</div>
+        <div class="card"><div class="t2" style="color:var(--ink-2);line-height:1.7">
+          <b>${esc(b.version||'')}</b> carries: ${esc(b.discover.answers.map(a=>a.a).join(' '))}
+          ${(b.landed||[]).length?'<br/><br/>Landed: '+esc(b.landed.map(l=>l.name).join(', ')):''}</div></div>`:''}`
+      :'<div class="card"><div class="t2">Not deployed. Name an environment above, then deploy.</div></div>'}
+    ${others.length?`<div class="sech" style="margin-top:20px">OTHER BRANCHES</div>
+      ${others.map(o=>`<div class="card click" onclick="A.openBranch('${p.id}','${o.id}','deploy')"><div class="row">
+        <span class="sd ${o.env?'run live':'idle'}"></span><div style="flex:1">
+        <div class="t1" style="font-family:var(--mono)">${esc(o.name)}</div>
+        <div class="t2">${o.env?`live at <b>${esc(o.env)}</b> · ${esc(o.version||'')} · ${esc(o.access||'')}`:'not deployed'}</div></div></div></div>`).join('')}`:''}
+    </div></div>`}
+
+/* ============================ LIVE TICK ============================ */
+const CHAT=[()=>T.bash('go build ./...',['ok']),
+  ()=>T.tool('Read','internal/store/blob.go','Read 96 lines'),
+  ()=>T.text('Adding the quarantine notification path.'),
+  ()=>T.bash('npm run lint',['✔ 0 problems']),
+  ()=>T.tool('Grep','func Upload','7 matches across 3 files')];
+let tick=0;
+setInterval(()=>{tick++;
+  let touched=[];
+  allSess().forEach(({s})=>{if(s.status!=='run'||s.kind==='shell')return;
+    if(tick%6===0){s.tty=s.tty.filter(l=>l.t!=='think');
+      s.tty.push(CHAT[(tick/6+s.id.length)%CHAT.length|0]());
+      s.tty.push(T.think('Working',2));s.ctx=Math.min(96,s.ctx+1);touched.push(s)}});
+  if(!touched.length)return;
+  if(S.ui.view==='branch'&&S.ui.mod==='develop'){
+    const p=curP(),b=curB();
+    touched.forEach(s=>{const el=document.getElementById('tty-'+s.id);
+      if(!el)return;const atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-24;
+      el.innerHTML=renderTty(s,p,b);if(atBottom)el.scrollTop=el.scrollHeight});
+  }},1400);
+
+/* ============================ KEYBOARD ============================ */
+addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();A.palette();return}
+  if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();if(curB())A.newSession({});return}
+  if((e.metaKey||e.ctrlKey)&&e.shiftKey&&e.key.toLowerCase()==='m'){e.preventDefault();A.machines();return}
+  if(e.key==='Escape'){
+    if($('#scrim').classList.contains('on')){A.closeModal({target:{id:'scrim'}});return}
+    const col=document.activeElement&&document.activeElement.closest('.col,.tile');
+    if(col){const f=allSess().find(x=>x.s.id===col.dataset.sid);
+      if(f&&f.s.status==='run'){f.s.tty=f.s.tty.filter(l=>l.t!=='think');
+        f.s.tty.push(T.note('interrupted by you'));f.s.status='idle';render();toast('Interrupted')}}
+    return}
+  if(e.key==='Tab'&&e.shiftKey){
+    const col=document.activeElement&&document.activeElement.closest('.col,.tile');
+    if(col&&curB()){e.preventDefault();A.cycleMode(S.ui.pid,S.ui.bid,col.dataset.sid)}}
+  // 1/2/3 answer a visible permission prompt in the focused session
+  if(/^[123]$/.test(e.key)&&document.activeElement&&document.activeElement.tagName!=='INPUT'
+     &&document.activeElement.tagName!=='TEXTAREA'){
+    const col=document.querySelector('.col.focus')||document.querySelector('.col');
+    if(col&&curB()){const f=allSess().find(x=>x.s.id===col.dataset.sid);
+      if(f){const i=f.s.tty.findIndex(l=>l.t==='perm');
+        if(i>-1){A.answerPerm(S.ui.pid,S.ui.bid,f.s.id,i,+e.key-1)}}}}
+});
+render();
+</script>
+</body>
+</html>

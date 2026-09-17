@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panacea App</title>
+<style>
+:root{
+  --page:#0b0a09; --canvas:#100e0c; --surface:#161412; --inset:#1c1917;
+  --hover:#221f1c; --field:#1a1715;
+  --ink:#f4efe9; --ink-2:#a8a099; --ink-3:#6d655e; --ink-4:#47413c;
+  --line-soft:rgba(255,248,240,.045); --line:rgba(255,248,240,.085); --line-strong:rgba(255,248,240,.16);
+  --accent:#2fb3bd; --accent-hi:#6fd6dd; --accent-tint:rgba(47,179,189,.12);
+  --run:#43b95e; --need:#e2a33c; --fail:#ef5f45;
+  --thread:rgba(255,241,224,.18);
+  --r-chip:6px; --r-ctl:8px; --r-card:10px; --r-win:14px;
+  --e-hair:0 0 0 1px var(--line);
+  --e-card:0 0 0 1px var(--line), 0 1px 2px rgba(0,0,0,.35), 0 6px 16px rgba(0,0,0,.22);
+  --e-over:0 0 0 1px var(--line-strong), 0 10px 26px rgba(0,0,0,.6), 0 36px 70px rgba(0,0,0,.45);
+  --ease:cubic-bezier(.23,1,.32,1);
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+  --sans:"Segoe UI Variable Text","Segoe UI",-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font:14px/1.5 var(--sans);
+  -webkit-font-smoothing:antialiased;overflow:hidden;font-variant-numeric:tabular-nums}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.025;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>")}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:rgba(255,248,240,.07);border:3px solid transparent;border-radius:9px;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,248,240,.15);background-clip:padding-box}
+@keyframes beat{0%,100%{opacity:.42}50%{opacity:1}}
+@keyframes sweep{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
+.live{animation:beat 2.4s var(--ease) infinite}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.app{display:flex;height:100vh}
+
+/* ===== RAIL : projects > branches > worktrees ===== */
+.rail{width:258px;flex:0 0 258px;background:var(--canvas);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;transition:flex-basis .26s var(--ease),width .26s var(--ease)}
+.app.deep .rail{width:56px;flex-basis:56px}
+.rail-top{display:flex;align-items:center;gap:9px;padding:12px 13px 10px}
+.mark{width:26px;height:26px;border-radius:8px;background:var(--ink);color:var(--page);
+  display:grid;place-items:center;font-weight:800;font-size:13px;flex:0 0 auto}
+.rail-top .nm{font-size:13px;font-weight:650;letter-spacing:-.01em;white-space:nowrap}
+.app.deep .rail-top .nm,.app.deep .collapsible{display:none}
+.rail-scroll{flex:1;overflow:auto;padding:4px 8px 12px}
+.app.deep .rail-scroll{padding:4px 6px}
+
+.pj{margin-bottom:2px}
+.pj-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--r-ctl);cursor:pointer;transition:background .14s var(--ease)}
+.pj-row:hover{background:var(--hover)}
+.pj-row.sel{background:var(--inset);box-shadow:var(--e-hair)}
+.pj-ini{width:22px;height:22px;border-radius:var(--r-chip);background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--ink-2);flex:0 0 auto}
+.pj-row.sel .pj-ini{background:var(--accent);color:#04201f}
+.pj-nm{flex:1;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pj-chev{color:var(--ink-4);font-size:9px;transition:transform .16s var(--ease)}
+.pj.shut .pj-chev{transform:rotate(-90deg)}
+.pj.shut .pj-kids{display:none}
+.app.deep .pj-nm,.app.deep .pj-chev,.app.deep .dotset{display:none}
+.app.deep .pj-row{justify-content:center;padding:7px 0}
+.app.deep .pj-kids{display:none}
+.dotset{display:flex;gap:3px;align-items:center}
+.d{width:6px;height:6px;border-radius:50%}
+.d.run{background:var(--run)} .d.need{background:var(--need)} .d.idle{background:var(--ink-4)} .d.fail{background:var(--fail)}
+
+.pj-kids{padding-left:11px;margin-left:10px;border-left:1px solid var(--thread)}
+.br-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--r-chip);cursor:pointer;position:relative;transition:background .14s var(--ease)}
+.br-row::before{content:"";position:absolute;left:-11px;top:50%;width:7px;height:1px;background:var(--thread)}
+.br-row:hover{background:var(--hover)}
+.br-row.sel{background:var(--accent-tint);box-shadow:inset 0 0 0 1px rgba(47,179,189,.3)}
+.br-nm{flex:1;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.br-row.sel .br-nm{color:var(--ink)}
+.wt-kids{padding-left:11px;margin-left:10px;border-left:1px solid var(--thread)}
+.wt-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:var(--r-chip);cursor:pointer;position:relative;font-size:11.5px;color:var(--ink-3)}
+.wt-row::before{content:"";position:absolute;left:-11px;top:50%;width:7px;height:1px;background:var(--thread)}
+.wt-row:hover{background:var(--hover);color:var(--ink-2)}
+.wt-row .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.addrow{display:flex;align-items:center;gap:7px;padding:4px 8px;color:var(--ink-4);font-size:11.5px;cursor:pointer;border-radius:var(--r-chip)}
+.addrow:hover{color:var(--accent);background:var(--accent-tint)}
+
+.rail-foot{border-top:1px solid var(--line);padding:9px 10px;display:flex;align-items:center;gap:9px}
+.app.deep .rail-foot{flex-direction:column;padding:9px 6px}
+.inbox{display:flex;align-items:center;gap:8px;flex:1;padding:6px 8px;border-radius:var(--r-ctl);cursor:pointer;font-size:12.5px}
+.inbox:hover{background:var(--hover)}
+.app.deep .inbox{flex:0;justify-content:center;padding:6px}
+.app.deep .inbox .lbl{display:none}
+.cnt{min-width:17px;height:17px;padding:0 5px;border-radius:9px;background:var(--need);color:#241802;
+  font-size:10px;font-weight:800;display:grid;place-items:center}
+.me{width:25px;height:25px;border-radius:50%;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--ink-2)}
+
+/* ===== SUB-RAIL : the four modules, scoped to a branch ===== */
+.sub{width:0;flex:0 0 0;overflow:hidden;background:var(--canvas);border-right:1px solid var(--line);
+  transition:flex-basis .26s var(--ease),width .26s var(--ease);display:flex;flex-direction:column}
+.app.deep .sub{width:206px;flex-basis:206px}
+.sub-top{padding:13px 13px 11px;border-bottom:1px solid var(--line-soft)}
+.sub-back{display:flex;align-items:center;gap:7px;color:var(--ink-3);font-size:11.5px;cursor:pointer;margin-bottom:9px}
+.sub-back:hover{color:var(--ink)}
+.sub-br{font-family:var(--mono);font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub-meta{font-size:11px;color:var(--ink-3);margin-top:3px}
+.mods{padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.mod{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-ctl);
+  cursor:pointer;color:var(--ink-2);transition:background .14s var(--ease),color .14s var(--ease)}
+.mod:hover{background:var(--hover);color:var(--ink)}
+.mod.sel{background:var(--inset);box-shadow:var(--e-hair);color:var(--ink)}
+.mod.sel .mod-nm{font-weight:650}
+.mod .mod-nm{flex:1;font-size:13px}
+.mod .mod-st{font-size:10.5px;color:var(--ink-4);font-family:var(--mono)}
+.mod.locked{opacity:.45}
+.mod-i{width:16px;text-align:center;font-size:12px;color:var(--ink-3)}
+.mod.sel .mod-i{color:var(--accent)}
+.sub-sec{margin-top:6px;padding:11px 14px 4px;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-4);font-weight:700}
+.sub-list{padding:0 8px 14px}
+
+/* ===== MAIN ===== */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--page)}
+.bar{height:50px;display:flex;align-items:center;gap:11px;padding:0 20px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.bar h1{font-size:15px;font-weight:650;letter-spacing:-.015em}
+.bar .sp{flex:1}
+.crumb{font-size:12.5px;color:var(--ink-3)}
+.crumb b{color:var(--ink);font-weight:600}
+.btn{padding:6px 13px;border-radius:var(--r-ctl);font-size:12.5px;font-weight:600;
+  background:var(--surface);box-shadow:var(--e-hair);transition:background .14s var(--ease)}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);color:#04201f;box-shadow:none}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.sm{padding:4px 10px;font-size:11.5px}
+.btn.need{background:var(--need);color:#241802;box-shadow:none}
+.body{flex:1;overflow:auto;min-height:0}
+.wrap{padding:26px 28px;max-width:1100px}
+.wrap.wide{max-width:none}
+
+h2.sec{font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-4);margin:0 0 13px}
+.lede{font-size:15px;line-height:1.6;color:var(--ink-2);max-width:620px}
+
+/* project overview : branch cards */
+.brief{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:18px 20px;margin-bottom:30px}
+.brief .bh{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.brief .bh .t{font-size:12.5px;font-weight:650}
+.brief .bh .sp{flex:1}
+.brief p{font-size:13.5px;line-height:1.62;color:var(--ink-2);max-width:640px}
+
+.blist{display:flex;flex-direction:column;gap:10px;margin-bottom:30px}
+.bc{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:15px 18px;
+  cursor:pointer;transition:box-shadow .18s var(--ease),transform .18s var(--ease)}
+.bc:hover{box-shadow:var(--e-over);transform:translateY(-1px)}
+.bc.att{box-shadow:0 0 0 1px var(--need),0 1px 2px rgba(0,0,0,.35),0 6px 16px rgba(0,0,0,.22)}
+.bc-top{display:flex;align-items:center;gap:11px}
+.bc-nm{font-family:var(--mono);font-size:13.5px;color:var(--ink);font-weight:500}
+.bc-tag{font-size:10.5px;padding:2px 8px;border-radius:20px;background:var(--inset);color:var(--ink-3);box-shadow:var(--e-hair)}
+.bc-tag.dep{color:var(--run);background:rgba(67,185,94,.1);box-shadow:0 0 0 1px rgba(67,185,94,.25)}
+.bc-top .sp{flex:1}
+.bc-sum{font-size:12.5px;color:var(--ink-3);margin-top:6px}
+.bc-line{display:flex;align-items:center;gap:16px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line-soft);
+  font-size:12px;color:var(--ink-3)}
+.bc-line .it{display:flex;align-items:center;gap:7px}
+.bc-line .it b{color:var(--ink-2);font-weight:600}
+.attn{color:var(--need);font-weight:600}
+
+/* module content shells */
+.mod-bar{height:46px;display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.mod-bar .t{font-size:13px;font-weight:650}
+.mod-bar .sp{flex:1}
+.hint{font-size:11.5px;color:var(--ink-4)}
+
+/* DISCOVER */
+.disc{max-width:720px;margin:0 auto;padding:34px 26px}
+.disc .step{font-family:var(--mono);font-size:11px;color:var(--accent-hi);margin-bottom:12px}
+.disc h2{font-size:23px;line-height:1.28;letter-spacing:-.022em;font-weight:660;margin-bottom:11px}
+.disc p.q{font-size:14px;color:var(--ink-2);line-height:1.62;margin-bottom:20px}
+.picks{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.pick{display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:var(--r-card);
+  background:var(--surface);box-shadow:var(--e-hair);cursor:pointer;transition:box-shadow .15s var(--ease)}
+.pick:hover{box-shadow:0 0 0 1px var(--accent)}
+.pick.on{box-shadow:0 0 0 1px var(--accent);background:var(--accent-tint)}
+.pick .k{width:20px;height:20px;border-radius:5px;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-family:var(--mono);font-size:10px;color:var(--ink-3);flex:0 0 auto}
+.pick.on .k{background:var(--accent);color:#04201f}
+.pick .tx{flex:1;font-size:13.5px}
+.pick .tx small{display:block;color:var(--ink-3);font-size:11.5px;margin-top:2px}
+.freeform{display:flex;gap:9px;align-items:flex-end;background:var(--surface);box-shadow:var(--e-card);
+  border-radius:var(--r-win);padding:11px 13px}
+.freeform textarea{flex:1;background:none;border:0;color:var(--ink);resize:none;font:inherit;font-size:13.5px;outline:none}
+.go{width:30px;height:30px;border-radius:var(--r-ctl);background:var(--accent);color:#04201f;display:grid;place-items:center;font-weight:800;flex:0 0 auto}
+.answered{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line-soft);font-size:13px}
+.answered .qq{color:var(--ink-3);width:190px;flex:0 0 auto}
+.answered .aa{color:var(--ink);flex:1}
+.answered .ed{color:var(--ink-4);font-size:11.5px;cursor:pointer}
+.answered .ed:hover{color:var(--accent)}
+
+/* DESIGN */
+.dsplit{display:flex;flex:1;min-height:0}
+.dcanvas{flex:1;position:relative;overflow:hidden;
+  background:radial-gradient(circle at 1px 1px,rgba(255,248,240,.045) 1px,transparent 0) 0 0/22px 22px,var(--canvas)}
+.frame{position:absolute;background:#fff;border-radius:var(--r-ctl);overflow:hidden;cursor:grab;
+  box-shadow:0 0 0 1px var(--line-strong),0 16px 40px rgba(0,0,0,.5)}
+.frame.on{box-shadow:0 0 0 2px var(--accent),0 16px 40px rgba(0,0,0,.55)}
+.frame .fl{position:absolute;top:-19px;left:1px;font-size:11px;color:var(--ink-3)}
+.frame iframe{width:100%;height:100%;border:0;pointer-events:none}
+.dside{width:290px;flex:0 0 290px;border-left:1px solid var(--line);background:var(--canvas);display:flex;flex-direction:column}
+.dside .h{padding:12px 14px;border-bottom:1px solid var(--line-soft);font-size:12.5px;font-weight:650}
+.dside .b{flex:1;overflow:auto;padding:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--accent-hi);
+  background:var(--accent-tint);padding:4px 9px;border-radius:var(--r-chip);margin:0 4px 5px 0}
+.talk{padding:11px 12px;border-top:1px solid var(--line-soft);display:flex;gap:8px}
+.talk input{flex:1;background:var(--field);box-shadow:var(--e-hair);border-radius:var(--r-ctl);
+  padding:8px 11px;color:var(--ink);font:inherit;font-size:12.5px;outline:none}
+.talk input:focus{box-shadow:0 0 0 1px var(--accent)}
+
+/* DEVELOP : cube-style worktree columns, CLI is the content */
+.coord{display:flex;align-items:center;gap:10px;padding:7px 18px;background:var(--canvas);
+  border-bottom:1px solid var(--line);font-size:11.5px;color:var(--ink-3);flex:0 0 auto}
+.coord .w{color:var(--need);display:flex;align-items:center;gap:7px}
+.coord .sp{flex:1}
+.coord code{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.cols{flex:1;display:flex;min-height:0;overflow-x:auto}
+.col{flex:1 1 0;min-width:360px;display:flex;flex-direction:column;border-right:1px solid var(--line);min-height:0}
+.col:last-child{border-right:0}
+.col-h{display:flex;align-items:center;gap:9px;padding:10px 14px;border-bottom:1px solid var(--line-soft);flex:0 0 auto}
+.col-h .nm{flex:1;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.col-h .x{color:var(--ink-4);font-size:12px;cursor:pointer}
+.col-h .x:hover{color:var(--ink)}
+.cli{flex:1;overflow:auto;padding:13px 15px;font-family:var(--mono);font-size:11.5px;line-height:1.66;color:#cfc8c1}
+.cli .dim{color:var(--ink-3)} .cli .f{color:var(--accent-hi)} .cli .ok{color:var(--run)}
+.cli .warn{color:var(--need)}
+.cli .add{color:#8ee0a0;background:rgba(67,185,94,.07);display:block;padding:0 5px;border-left:2px solid rgba(67,185,94,.4)}
+.cli .del{color:#ffab9c;background:rgba(239,95,69,.06);display:block;padding:0 5px;border-left:2px solid rgba(239,95,69,.4)}
+.cli h6{font-family:var(--sans);font-size:11.5px;color:var(--ink);font-weight:650;margin:11px 0 4px}
+.cur{display:inline-block;width:6px;height:12px;background:var(--run);vertical-align:-2px;animation:beat 1.1s steps(2) infinite}
+.col-f{padding:7px 14px;border-top:1px solid var(--line-soft);display:flex;align-items:center;gap:11px;
+  font-family:var(--mono);font-size:10.5px;color:var(--ink-4);flex:0 0 auto}
+.col-f .sp{flex:1}
+.ask{padding:9px 14px;border-top:1px solid var(--line-soft);flex:0 0 auto}
+.ask input{width:100%;background:var(--field);box-shadow:var(--e-hair);border-radius:var(--r-ctl);
+  padding:7px 11px;color:var(--ink);font-family:var(--mono);font-size:11.5px;outline:none}
+.ask input:focus{box-shadow:0 0 0 1px var(--accent)}
+.blockcard{margin:10px 15px;padding:11px 13px;border-radius:var(--r-card);background:rgba(226,163,60,.07);
+  box-shadow:0 0 0 1px rgba(226,163,60,.3)}
+.blockcard .t{font-size:12px;color:var(--need);font-weight:600;margin-bottom:6px}
+.blockcard code{display:block;font-family:var(--mono);font-size:11px;color:var(--ink-2);background:var(--inset);
+  padding:7px 9px;border-radius:var(--r-chip);margin-bottom:9px;overflow:auto}
+.blockcard .r{display:flex;gap:7px}
+
+/* DEPLOY */
+.dep{display:flex;flex-direction:column;gap:12px;margin-bottom:26px}
+.depcard{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:16px 18px}
+.depcard .t{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.depcard .t .n{font-size:13.5px;font-weight:650}
+.depcard .t .sp{flex:1}
+.kv{display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-top:1px solid var(--line-soft)}
+.kv:first-of-type{border-top:0}
+.kv .k{color:var(--ink-3)} .kv .v{font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+.envname{display:flex;align-items:center;gap:8px}
+.envname input{background:var(--field);box-shadow:var(--e-hair);border-radius:var(--r-chip);padding:3px 8px;
+  color:var(--ink);font-family:var(--mono);font-size:11.5px;outline:none;width:130px}
+
+/* projects home */
+.pgrid{display:flex;flex-direction:column;gap:10px}
+.pcard{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:16px 18px;cursor:pointer;
+  transition:box-shadow .18s var(--ease),transform .18s var(--ease)}
+.pcard:hover{box-shadow:var(--e-over);transform:translateY(-1px)}
+.pcard .h{display:flex;align-items:center;gap:11px}
+.pcard .h .n{font-size:14.5px;font-weight:650;letter-spacing:-.01em}
+.pcard .h .sp{flex:1}
+.pcard .d{font-size:12.5px;color:var(--ink-3);margin-top:5px;max-width:560px}
+.pcard .f{display:flex;gap:16px;margin-top:12px;padding-top:11px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink-3)}
+.pcard .f .it{display:flex;align-items:center;gap:7px}
+.startcard{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:20px;margin-bottom:22px}
+.startcard textarea{width:100%;background:none;border:0;color:var(--ink);font:inherit;font-size:14.5px;resize:none;outline:none;min-height:52px}
+.startcard .r{display:flex;align-items:center;gap:9px;margin-top:10px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.startcard .r .sp{flex:1}
+
+/* import */
+.imp{max-width:660px;margin:0 auto;padding:36px 26px}
+.replist{display:flex;flex-direction:column;gap:7px;margin:16px 0 22px}
+.rep{display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:var(--r-card);
+  background:var(--surface);box-shadow:var(--e-hair);cursor:pointer}
+.rep:hover{box-shadow:0 0 0 1px var(--accent)}
+.rep .n{flex:1;font-family:var(--mono);font-size:12.5px}
+.rep .m{font-size:11.5px;color:var(--ink-4)}
+.analysis{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:17px 19px;margin-bottom:18px}
+.analysis .l{display:flex;gap:10px;padding:6px 0;font-size:13px;color:var(--ink-2)}
+.analysis .l .ok{color:var(--run)}
+
+.view{display:none;flex-direction:column;flex:1;min-height:0}
+.view.on{display:flex}
+.demo{position:fixed;right:13px;bottom:13px;z-index:99;display:flex;align-items:center;gap:5px;
+  background:var(--surface);box-shadow:var(--e-over);border-radius:20px;padding:5px 7px 5px 12px}
+.demo .l{font-size:9.5px;font-family:var(--mono);color:var(--ink-4);letter-spacing:.07em}
+.demo button{padding:4px 9px;border-radius:13px;font-size:11px;color:var(--ink-3)}
+.demo button:hover{color:var(--ink);background:var(--hover)}
+.demo button.on{background:var(--ink);color:var(--page);font-weight:600}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ================= RAIL ================= -->
+  <nav class="rail">
+    <div class="rail-top"><div class="mark">P</div><div class="nm">Panacea App</div></div>
+    <div class="rail-scroll">
+
+      <div class="pj">
+        <div class="pj-row sel" onclick="goProject()"><span class="pj-ini">CT</span><span class="pj-nm">Control Testing</span>
+          <span class="dotset"><i class="d run live"></i><i class="d need"></i></span><span class="pj-chev">▾</span></div>
+        <div class="pj-kids">
+          <div class="br-row" onclick="goBranch('main')"><span class="d idle"></span><span class="br-nm">main</span></div>
+
+          <div class="br-row sel" onclick="goBranch('feature/evidence-upload')"><span class="d run live"></span><span class="br-nm">feature/evidence-upload</span></div>
+          <div class="wt-kids">
+            <div class="wt-row"><span class="d run live"></span><span class="t">upload handler</span></div>
+            <div class="wt-row"><span class="d need"></span><span class="t">test harness</span></div>
+            <div class="wt-row"><span class="d idle"></span><span class="t">docs</span></div>
+            <div class="addrow">＋ worktree</div>
+          </div>
+
+          <div class="br-row" onclick="goBranch('client-preview')"><span class="d run live"></span><span class="br-nm">client-preview</span></div>
+          <div class="addrow">＋ branch</div>
+        </div>
+      </div>
+
+      <div class="pj shut">
+        <div class="pj-row"><span class="pj-ini">VS</span><span class="pj-nm">Verity Serum</span>
+          <span class="dotset"><i class="d run live"></i></span><span class="pj-chev">▾</span></div>
+        <div class="pj-kids"><div class="br-row"><span class="d run live"></span><span class="br-nm">main</span></div><div class="addrow">＋ branch</div></div>
+      </div>
+
+      <div class="pj shut">
+        <div class="pj-row"><span class="pj-ini">MF</span><span class="pj-nm">Manifold</span>
+          <span class="dotset"><i class="d idle"></i></span><span class="pj-chev">▾</span></div>
+        <div class="pj-kids"><div class="br-row"><span class="d idle"></span><span class="br-nm">main</span></div><div class="addrow">＋ branch</div></div>
+      </div>
+
+      <div class="addrow collapsible" style="margin-top:8px" onclick="show('projects')">＋ New project</div>
+    </div>
+    <div class="rail-foot">
+      <div class="inbox" onclick="show('projects')">☰ <span class="lbl">Needs you</span><span class="cnt">4</span></div>
+      <div class="me">DM</div>
+    </div>
+  </nav>
+
+  <!-- ================= SUB-RAIL (branch modules) ================= -->
+  <aside class="sub">
+    <div class="sub-top">
+      <div class="sub-back" onclick="goProject()">← Control Testing</div>
+      <div class="sub-br" id="subBr">feature/evidence-upload</div>
+      <div class="sub-meta" id="subMeta">3 worktrees · deployed to <b style="color:var(--ink-2)">client-preview</b></div>
+    </div>
+    <div class="mods">
+      <div class="mod" data-m="discover" onclick="mod('discover')"><span class="mod-i">◇</span><span class="mod-nm">Discover</span><span class="mod-st">done</span></div>
+      <div class="mod" data-m="design" onclick="mod('design')"><span class="mod-i">◈</span><span class="mod-nm">Design</span><span class="mod-st">3</span></div>
+      <div class="mod sel" data-m="develop" onclick="mod('develop')"><span class="mod-i">◆</span><span class="mod-nm">Develop</span><span class="mod-st">3</span></div>
+      <div class="mod" data-m="deploy" onclick="mod('deploy')"><span class="mod-i">▲</span><span class="mod-nm">Deploy</span><span class="mod-st">live</span></div>
+    </div>
+    <div class="sub-sec">Worktrees</div>
+    <div class="sub-list">
+      <div class="wt-row" style="padding-left:6px"><span class="d run live"></span><span class="t">upload handler</span></div>
+      <div class="wt-row" style="padding-left:6px"><span class="d need"></span><span class="t">test harness</span></div>
+      <div class="wt-row" style="padding-left:6px"><span class="d idle"></span><span class="t">docs</span></div>
+      <div class="addrow" style="padding-left:6px">＋ worktree</div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main class="main">
+
+    <!-- ---------- ALL PROJECTS ---------- -->
+    <section class="view" data-v="projects">
+      <div class="bar"><h1>Your projects</h1><div class="sp"></div>
+        <button class="btn sm" onclick="show('import')">Bring in a repo</button></div>
+      <div class="body"><div class="wrap">
+        <div class="startcard">
+          <textarea rows="2" placeholder="Describe something you want to build…"></textarea>
+          <div class="r"><span class="hint">Starts a project and opens Discover</span><div class="sp"></div>
+            <button class="btn sm" onclick="show('import')">I have a repo</button>
+            <button class="btn sm pri" onclick="goDiscoverNew()">Start</button></div>
+        </div>
+
+        <h2 class="sec">In progress</h2>
+        <div class="pgrid">
+          <div class="pcard" onclick="goProject()">
+            <div class="h"><span class="n">Control Testing Tracker</span><div class="sp"></div>
+              <span class="bc-tag dep">2 branches deployed</span></div>
+            <div class="d">Track control testing across audit engagements — evidence upload, assignment, reviewer sign-off.</div>
+            <div class="f">
+              <span class="it"><i class="d run live"></i> 3 agents working</span>
+              <span class="it attn"><i class="d need"></i> 2 need you</span>
+              <span class="it">3 branches</span>
+            </div>
+          </div>
+          <div class="pcard">
+            <div class="h"><span class="n">Verity Serum</span><div class="sp"></div><span class="bc-tag dep">1 branch deployed</span></div>
+            <div class="d">Grounded retrieval and citation service.</div>
+            <div class="f"><span class="it"><i class="d run live"></i> 1 agent working</span><span class="it">1 branch</span></div>
+          </div>
+          <div class="pcard">
+            <div class="h"><span class="n">Manifold</span><div class="sp"></div></div>
+            <div class="d">Live scenario platform.</div>
+            <div class="f"><span class="it"><i class="d idle"></i> idle</span><span class="it">1 branch</span></div>
+          </div>
+        </div>
+      </div></div>
+    </section>
+
+    <!-- ---------- PROJECT OVERVIEW ---------- -->
+    <section class="view" data-v="project">
+      <div class="bar"><h1>Control Testing Tracker</h1><div class="sp"></div>
+        <button class="btn sm">Settings</button><button class="btn sm pri">＋ New branch</button></div>
+      <div class="body"><div class="wrap">
+
+        <div class="brief">
+          <div class="bh"><span class="mod-i" style="color:var(--accent)">◇</span><span class="t">What this project is</span>
+            <div class="sp"></div><button class="btn sm">Open Discover</button></div>
+          <p>Track control testing across audit engagements. Engagement leads assign controls to testers, testers
+             upload evidence, reviewers sign off or return for rework. Every evidence file carries a data
+             classification. Identity is KPMG EntraID.</p>
+        </div>
+
+        <h2 class="sec">Branches</h2>
+        <div class="blist">
+
+          <div class="bc" onclick="goBranch('main')">
+            <div class="bc-top"><span class="bc-nm">main</span><span class="bc-tag dep">deployed · production</span>
+              <div class="sp"></div><span class="bc-tag">v1.4.2</span></div>
+            <div class="bc-sum">The released product. Locked down — only reviewers can reach it.</div>
+            <div class="bc-line"><span class="it"><i class="d idle"></i> no agents</span>
+              <span class="it">last merge <b>2 days ago</b></span></div>
+          </div>
+
+          <div class="bc att" onclick="goBranch('feature/evidence-upload')">
+            <div class="bc-top"><span class="bc-nm">feature/evidence-upload</span>
+              <span class="bc-tag dep">deployed · client-preview</span><div class="sp"></div><span class="bc-tag">v1.5.0-rc3</span></div>
+            <div class="bc-sum">Evidence upload with virus scanning and per-control attachment.</div>
+            <div class="bc-line"><span class="it"><i class="d run live"></i> <b>3 worktrees</b>, 2 agents working</span>
+              <span class="it attn"><i class="d need"></i> 2 need you</span>
+              <span class="it">1 ready to merge</span></div>
+          </div>
+
+          <div class="bc" onclick="goBranch('client-preview')">
+            <div class="bc-top"><span class="bc-nm">client-preview</span><span class="bc-tag dep">deployed · demo</span>
+              <div class="sp"></div><span class="bc-tag">v1.4.9</span></div>
+            <div class="bc-sum">Cut for the Harbourline walkthrough. Open to the client's reviewers only.</div>
+            <div class="bc-line"><span class="it"><i class="d run live"></i> 1 agent working</span>
+              <span class="it">branched from main <b>6 days ago</b></span></div>
+          </div>
+        </div>
+      </div></div>
+    </section>
+
+    <!-- ---------- DISCOVER ---------- -->
+    <section class="view" data-v="discover">
+      <div class="mod-bar"><span class="t">Discover</span>
+        <span class="crumb">· <b id="discBr">feature/evidence-upload</b></span><div class="sp"></div>
+        <span class="hint">Building context this branch's agents will inherit</span></div>
+      <div class="body"><div class="disc">
+        <div class="step">QUESTION 3 OF 5</div>
+        <h2>What has to be true before this branch can merge?</h2>
+        <p class="q">This becomes the branch's definition of done. Agents will check their work against it, and it
+           shows up on the merge review.</p>
+        <div class="picks">
+          <div class="pick on" onclick="this.classList.toggle('on')"><span class="k">1</span>
+            <span class="tx">Evidence files are virus-scanned before they are stored<small>Adds a scanning step and a quarantine path</small></span></div>
+          <div class="pick on" onclick="this.classList.toggle('on')"><span class="k">2</span>
+            <span class="tx">Every upload carries a data classification<small>Carried down from the project brief</small></span></div>
+          <div class="pick" onclick="this.classList.toggle('on')"><span class="k">3</span>
+            <span class="tx">Uploads work on mobile<small>Testers often work on site with a tablet</small></span></div>
+          <div class="pick" onclick="this.classList.toggle('on')"><span class="k">4</span>
+            <span class="tx">Files over 100 MB are supported<small>Changes the storage approach — chunked uploads</small></span></div>
+        </div>
+        <div class="freeform"><textarea rows="1" placeholder="Or say it in your own words…"></textarea><button class="go">↑</button></div>
+
+        <div style="margin-top:30px">
+          <h2 class="sec">Settled so far</h2>
+          <div class="answered"><span class="qq">Purpose of this branch</span>
+            <span class="aa">Let testers attach evidence to a control without leaving the control page.</span><span class="ed">edit</span></div>
+          <div class="answered"><span class="qq">Who it is for</span>
+            <span class="aa">Testers first, reviewers second.</span><span class="ed">edit</span></div>
+        </div>
+      </div></div>
+    </section>
+
+    <!-- ---------- DESIGN ---------- -->
+    <section class="view" data-v="design">
+      <div class="mod-bar"><span class="t">Design</span>
+        <span class="crumb">· <b>feature/evidence-upload</b></span><div class="sp"></div>
+        <button class="btn sm">Skip design</button><button class="btn sm pri">Hand to Develop</button></div>
+      <div class="dsplit">
+        <div class="dcanvas" id="dc">
+          <div class="frame on" style="left:90px;top:48px;width:264px;height:330px"><div class="fl">Control detail — with upload</div>
+            <iframe srcdoc="<html><body style='margin:0;font:13px Segoe UI,system-ui;color:#191614'><div style='height:44px;border-bottom:1px solid #eee;display:flex;align-items:center;padding:0 14px;font-weight:700'>Access review</div><div style=padding:14px><div style=font-size:11px;color:#6d655e>Assigned</div><div style='margin:3px 0 12px;font-weight:600'>A. Tester</div><div style=font-size:11px;color:#6d655e;margin-bottom:5px>Evidence</div><div style='border:2px dashed #ddd;border-radius:9px;padding:20px;text-align:center;color:#a8a099;font-size:12px'>Drop files</div><div style='margin-top:10px;font-size:11px;color:#6d655e'>Classification</div><div style='border:1px solid #e3e3e3;border-radius:7px;padding:7px 9px;font-size:12px;margin-top:4px'>Client confidential ▾</div></div></body></html>"></iframe></div>
+          <div class="frame" style="left:396px;top:48px;width:264px;height:330px"><div class="fl">Scanning state</div>
+            <iframe srcdoc="<html><body style='margin:0;font:13px Segoe UI,system-ui;color:#191614'><div style='height:44px;border-bottom:1px solid #eee;display:flex;align-items:center;padding:0 14px;font-weight:700'>Access review</div><div style=padding:14px><div style='border:1px solid #e3e3e3;border-radius:9px;padding:12px'><div style='font-size:12px;font-weight:600'>evidence-q3.pdf</div><div style='height:4px;background:#eee;border-radius:3px;margin:9px 0'><div style='height:100%;width:62%;background:#2fa0aa;border-radius:3px'></div></div><div style='font-size:11px;color:#6d655e'>Scanning for viruses…</div></div></div></body></html>"></iframe></div>
+          <div class="frame" style="left:700px;top:96px;width:200px;height:120px;background:#faf8f5"><div class="fl">✎ Quarantine — sketch</div>
+            <div style="padding:12px;font-family:var(--mono);color:#48423d;font-size:10.5px;line-height:1.8">[ blocked ]<br/>file failed scan<br/>▭ notify lead</div></div>
+        </div>
+        <aside class="dside">
+          <div class="h">Change it by talking</div>
+          <div class="b">
+            <p style="font-size:12.5px;color:var(--ink-2);line-height:1.6;margin-bottom:14px">
+              Drafted from Discover. Drag anything, or tell me what to change — I edit the real HTML, so what
+              you approve is what gets built.</p>
+            <div style="margin-bottom:16px">
+              <button class="btn sm" style="margin:0 5px 6px 0">Add the quarantine screen</button>
+              <button class="btn sm" style="margin:0 5px 6px 0">Make classification required</button>
+            </div>
+            <h2 class="sec" style="margin-bottom:8px">Goes to Develop as</h2>
+            <span class="chip">tokens.json</span><span class="chip">components.json</span><span class="chip">screens/*.html</span>
+          </div>
+          <div class="talk"><input placeholder="Describe a change…" /><button class="btn sm pri">Send</button></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ---------- DEVELOP (cube-style) ---------- -->
+    <section class="view on" data-v="develop">
+      <div class="mod-bar"><span class="t">Develop</span>
+        <span class="crumb">· <b>feature/evidence-upload</b></span><div class="sp"></div>
+        <button class="btn sm">Run locally</button>
+        <button class="btn sm">Columns ▾</button>
+        <button class="btn sm pri">＋ New worktree</button></div>
+
+      <div class="coord">
+        <span class="w">⚠ two agents want <code>services/api/routes.go</code></span>
+        <span>— <b style="color:var(--ink-2)">test harness</b> is holding it; <b style="color:var(--ink-2)">upload handler</b> was told to wait and is working on the scanner instead.</span>
+        <div class="sp"></div><button class="btn sm">Change who has it</button>
+      </div>
+
+      <div class="cols">
+        <div class="col">
+          <div class="col-h"><i class="d run live"></i><span class="nm">upload handler</span><span class="x">⤢</span><span class="x">×</span></div>
+          <div class="cli">
+            <span class="dim">$ claude</span><br/>
+            <span class="dim">● Add virus scanning before persist</span><br/><br/>
+            <span class="dim">⏺ Read</span> <span class="f">services/api/upload.go</span><br/>
+            <span class="dim">⏺ Edit</span> <span class="f">services/api/scanner.go</span><br/>
+            <span class="add">+ func (s *Scanner) Check(ctx context.Context, r io.Reader) error {</span>
+            <span class="add">+   res, err := s.clam.Scan(ctx, r)</span>
+            <span class="del">- // TODO: scan before we write to the bucket</span><br/>
+            <span class="dim">3 edits applied</span><br/><br/>
+            <span class="warn">⏸ routes.go is held by "test harness" — skipping for now</span><br/><br/>
+            <span class="dim">⏺ Bash</span> go test ./services/api/scanner<br/>
+            <span class="ok">ok</span> <span class="dim">services/api/scanner  1.204s</span><br/><br/>
+            <h6>Sub-agents</h6>
+            <span class="dim">├─ </span><span class="ok">✓</span> quarantine path <span class="dim">· done</span><br/>
+            <span class="dim">└─ </span><span class="ok">◐</span> bucket wiring <span class="dim">· running</span><br/><br/>
+            <span class="dim">Writing the quarantine notification…</span> <span class="cur"></span>
+          </div>
+          <div class="col-f"><span>Claude Code</span><span>Opus 5</span><div class="sp"></div><span>41m</span></div>
+          <div class="ask"><input placeholder="Type to this agent…" /></div>
+        </div>
+
+        <div class="col">
+          <div class="col-h"><i class="d need"></i><span class="nm">test harness</span><span class="x">⤢</span><span class="x">×</span></div>
+          <div class="cli">
+            <span class="dim">● Build the upload test harness</span><br/><br/>
+            <span class="dim">⏺ Edit</span> <span class="f">services/api/routes.go</span> <span class="dim">(holding)</span><br/>
+            <span class="add">+ api.POST("/controls/:id/evidence", h.UploadEvidence)</span><br/><br/>
+            <span class="dim">⏺ Bash</span> docker compose up -d minio clamav<br/>
+            <span class="ok">✓</span> <span class="dim">minio started on :9000</span><br/>
+            <span class="ok">✓</span> <span class="dim">clamav started on :3310</span><br/>
+          </div>
+          <div class="blockcard">
+            <div class="t">Waiting on you — wants to run a command</div>
+            <code>panacea migrate up --project control-testing</code>
+            <div class="r"><button class="btn sm need">Approve</button><button class="btn sm">Always allow migrations</button><button class="btn sm">Deny</button></div>
+          </div>
+          <div class="col-f"><span>Claude Code</span><span>Opus 5</span><div class="sp"></div><span>blocked 4m</span></div>
+          <div class="ask"><input placeholder="Type to this agent…" /></div>
+        </div>
+
+        <div class="col">
+          <div class="col-h"><i class="d idle"></i><span class="nm">docs</span><span class="x">⤢</span><span class="x">×</span></div>
+          <div class="cli">
+            <span class="dim">● Update the evidence docs</span><br/><br/>
+            <span class="ok">✓ finished</span> <span class="dim">— 4 files changed</span><br/><br/>
+            <span class="dim">Nothing conflicts with the other two worktrees.</span><br/>
+            <span class="dim">Ready to merge into feature/evidence-upload.</span>
+          </div>
+          <div style="padding:10px 15px"><button class="btn sm pri" style="width:100%">Review and merge</button></div>
+          <div class="col-f"><span>Codex</span><div class="sp"></div><span>done 12m ago</span></div>
+          <div class="ask"><input placeholder="Type to this agent…" /></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- DEPLOY ---------- -->
+    <section class="view" data-v="deploy">
+      <div class="mod-bar"><span class="t">Deploy</span>
+        <span class="crumb">· <b>feature/evidence-upload</b></span><div class="sp"></div>
+        <button class="btn sm">History</button><button class="btn sm pri">Deploy now</button></div>
+      <div class="body"><div class="wrap">
+
+        <div class="depcard" style="margin-bottom:22px">
+          <div class="t"><i class="d run live"></i><span class="n">This branch is live</span><div class="sp"></div>
+            <span class="bc-tag dep">v1.5.0-rc3</span></div>
+          <div class="kv"><span class="k">Environment name</span><span class="envname"><input value="client-preview" /></span></div>
+          <div class="kv"><span class="k">URL</span><span class="v">client-preview.ctt.panacea.kpmg</span></div>
+          <div class="kv"><span class="k">Who can reach it</span><span class="v">Harbourline reviewers + project team</span></div>
+          <div class="kv"><span class="k">Deployed</span><span class="v">14 minutes ago, from worktree "docs"</span></div>
+          <div style="display:flex;gap:7px;margin-top:13px">
+            <button class="btn sm">Logs</button><button class="btn sm">Access</button>
+            <button class="btn sm">Rollback</button><div class="sp"></div>
+            <button class="btn sm">Promote into another branch…</button></div>
+        </div>
+
+        <h2 class="sec">Before it deploys</h2>
+        <div class="depcard" style="margin-bottom:22px">
+          <div class="kv"><span class="k">Build</span><span class="v" style="color:var(--run)">passing</span></div>
+          <div class="kv"><span class="k">Security scans</span><span class="v">11 on · 4 off</span></div>
+          <div class="kv"><span class="k">Auto-deploy on merge</span><span class="v">on</span></div>
+          <div class="kv"><span class="k">Definition of done</span><span class="v">2 of 4 met — from Discover</span></div>
+        </div>
+
+        <h2 class="sec">Other branches of this project</h2>
+        <div class="dep">
+          <div class="depcard"><div class="t"><i class="d idle"></i><span class="n">main</span>
+            <span class="bc-tag dep">production</span><div class="sp"></div><span class="bc-tag">v1.4.2</span></div>
+            <div class="kv"><span class="k">Who can reach it</span><span class="v">Locked — reviewers only</span></div></div>
+          <div class="depcard"><div class="t"><i class="d run live"></i><span class="n">client-preview</span>
+            <span class="bc-tag dep">demo</span><div class="sp"></div><span class="bc-tag">v1.4.9</span></div>
+            <div class="kv"><span class="k">Who can reach it</span><span class="v">Client reviewers only</span></div></div>
+        </div>
+      </div></div>
+    </section>
+
+    <!-- ---------- IMPORT ---------- -->
+    <section class="view" data-v="import">
+      <div class="bar"><h1>Bring in a repo</h1><div class="sp"></div><button class="btn sm" onclick="show('projects')">Cancel</button></div>
+      <div class="body"><div class="imp">
+        <h2 class="sec">Pick a repository</h2>
+        <div class="replist">
+          <div class="rep"><span class="n">kpmg-au-emu/engagement-portal</span><span class="m">Go · TypeScript · updated 2d ago</span></div>
+          <div class="rep"><span class="n">kpmg-au-emu/audit-intake</span><span class="m">Python · updated 3w ago</span></div>
+        </div>
+
+        <h2 class="sec">What we found</h2>
+        <div class="analysis">
+          <div class="l"><span class="ok">✓</span> Go API with a Postgres schema and 41 endpoints</div>
+          <div class="l"><span class="ok">✓</span> React front end, Tailwind, 26 components</div>
+          <div class="l"><span class="ok">✓</span> Dockerfile and compose stack — can run locally straight away</div>
+          <div class="l"><span class="ok">✓</span> Three branches: <span style="font-family:var(--mono);font-size:12px">main, staging, spike/search</span></div>
+          <div class="l" style="color:var(--need)">— No spec or design files. Discover can write a brief from the code.</div>
+        </div>
+
+        <h2 class="sec">Where do you want to start?</h2>
+        <div class="picks">
+          <div class="pick on"><span class="k">1</span><span class="tx">Confirm a brief first
+            <small>Discover reads the code, drafts what it thinks this is, you correct it. Everything after inherits that context.</small></span></div>
+          <div class="pick"><span class="k">2</span><span class="tx">Brief, then design
+            <small>Also draft the current screens on the canvas so you can change them before any code is written.</small></span></div>
+          <div class="pick"><span class="k">3</span><span class="tx">Straight to Develop
+            <small>Skip both. Worktrees and agents open immediately. You can run Discover later at any time.</small></span></div>
+        </div>
+        <div style="display:flex;gap:9px;margin-top:20px"><div class="sp" style="flex:1"></div>
+          <button class="btn pri" onclick="goProject()">Bring it in</button></div>
+      </div></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="demo">
+  <span class="l">PROTOTYPE</span>
+  <button onclick="show('projects')">Projects</button>
+  <button onclick="goProject()">Project</button>
+  <button onclick="goBranch('feature/evidence-upload');mod('discover')">Discover</button>
+  <button onclick="goBranch('feature/evidence-upload');mod('design')">Design</button>
+  <button class="on" onclick="goBranch('feature/evidence-upload');mod('develop')">Develop</button>
+  <button onclick="goBranch('feature/evidence-upload');mod('deploy')">Deploy</button>
+  <button onclick="show('import')">Import</button>
+</div>
+
+<script>
+const app=document.getElementById('app');
+const views=[...document.querySelectorAll('.view')];
+function show(v){
+  const go=()=>views.forEach(s=>s.classList.toggle('on',s.dataset.v===v));
+  document.startViewTransition?document.startViewTransition(go):go();
+  [...document.querySelectorAll('.demo button')].forEach(b=>b.classList.remove('on'));
+}
+function goProject(){ app.classList.remove('deep'); show('project'); }
+function goBranch(name){
+  app.classList.add('deep');
+  document.getElementById('subBr').textContent=name;
+  document.getElementById('discBr').textContent=name;
+  const isNew = name==='client-preview';
+  document.getElementById('subMeta').textContent = isNew
+    ? '1 worktree · deployed to demo' : '3 worktrees · deployed to client-preview';
+  mod(document.querySelector('.mod.sel')?.dataset.m || 'develop');
+}
+function goDiscoverNew(){
+  app.classList.add('deep');
+  document.getElementById('subBr').textContent='main';
+  document.getElementById('discBr').textContent='main';
+  document.getElementById('subMeta').textContent='new project · nothing built yet';
+  // a brand-new branch only offers Discover
+  document.querySelectorAll('.mod').forEach(m=>m.classList.toggle('locked',m.dataset.m!=='discover'));
+  mod('discover');
+}
+function mod(m){
+  document.querySelectorAll('.mod').forEach(x=>x.classList.toggle('sel',x.dataset.m===m));
+  show(m);
+}
+document.querySelectorAll('.pj-row').forEach(r=>{
+  r.addEventListener('click',e=>{
+    if(e.target.closest('.pj-chev')){ r.parentElement.classList.toggle('shut'); e.stopPropagation(); return; }
+    document.querySelectorAll('.pj-row').forEach(x=>x.classList.remove('sel'));
+    r.classList.add('sel'); r.parentElement.classList.remove('shut');
+  });
+});
+document.querySelectorAll('.br-row').forEach(r=>{
+  r.addEventListener('click',e=>{ e.stopPropagation();
+    document.querySelectorAll('.br-row').forEach(x=>x.classList.remove('sel')); r.classList.add('sel'); });
+});
+document.querySelectorAll('#dc .frame').forEach(f=>{
+  f.onpointerdown=e=>{
+    document.querySelectorAll('#dc .frame').forEach(x=>x.classList.remove('on')); f.classList.add('on');
+    const sx=e.clientX,sy=e.clientY,ox=f.offsetLeft,oy=f.offsetTop; f.style.zIndex=40;
+    const mv=ev=>{f.style.left=(ox+ev.clientX-sx)+'px';f.style.top=(oy+ev.clientY-sy)+'px';};
+    const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);};
+    addEventListener('pointermove',mv);addEventListener('pointerup',up);
+  };
+});
+document.querySelectorAll('.blockcard .btn').forEach(b=>{
+  b.onclick=()=>{const c=b.closest('.blockcard');
+    c.style.transition='opacity .2s var(--ease)';c.style.opacity='0';setTimeout(()=>c.remove(),210);};
+});
+app.classList.add('deep');
+</script>
+</body>
+</html>

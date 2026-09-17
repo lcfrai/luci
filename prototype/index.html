@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panacea App — prototype</title>
+<style>
+  :root{
+    --bg:#0a0b0e; --bg-2:#0c0e12; --panel:#0d0f14; --sidebar:#0b0c10;
+    --surface:#12151b; --surface-2:#171b22; --surface-3:#1d2229;
+    --border:rgba(255,255,255,.07); --border-2:rgba(255,255,255,.12);
+    --text:#e7e9ee; --muted:#8b93a1; --dim:#5b6270; --faint:#3a3f49;
+    --accent:#5b8cff; --accent-2:#7c6cff; --accent-ink:#bcd0ff;
+    --green:#3fb950; --amber:#e0a53a; --red:#f0603a; --purple:#b57cff; --cyan:#4fd0e0;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --r:10px; --r-sm:7px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:var(--sans); background:var(--bg); color:var(--text);
+    font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.09);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.16);background-clip:padding-box}
+  button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none}
+  .mono{font-family:var(--mono)}
+
+  /* ---------- prototype chrome ---------- */
+  .proto-bar{
+    height:44px; display:flex; align-items:center; gap:14px; padding:0 14px;
+    background:linear-gradient(180deg,#111319,#0b0c10); border-bottom:1px solid var(--border);
+  }
+  .proto-brand{display:flex;align-items:center;gap:9px;font-weight:650;letter-spacing:-.01em;font-size:13.5px}
+  .logo{width:22px;height:22px;border-radius:6px;background:
+      radial-gradient(120% 120% at 20% 10%,var(--accent),var(--accent-2) 70%);
+      box-shadow:0 0 0 1px rgba(255,255,255,.12) inset,0 2px 8px rgba(91,140,255,.35);
+      display:grid;place-items:center;color:#fff;font-weight:800;font-size:12px}
+  .proto-brand small{color:var(--dim);font-weight:500;margin-left:2px}
+  .proto-nav{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:3px}
+  .proto-nav button{padding:5px 11px;border-radius:6px;color:var(--muted);font-size:12.5px;font-weight:550;white-space:nowrap}
+  .proto-nav button:hover{color:var(--text)}
+  .proto-nav button.active{background:var(--surface-3);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.4)}
+  .proto-hint{margin-left:auto;color:var(--dim);font-size:11.5px}
+  .proto-hint b{color:var(--muted);font-weight:600}
+
+  .stage{height:calc(100vh - 44px);position:relative;overflow:hidden}
+  .screen{position:absolute;inset:0;display:none;animation:fade .28s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+  /* ---------- app window ---------- */
+  .app{height:100%;display:flex;flex-direction:column;background:
+      radial-gradient(90% 60% at 85% -8%,rgba(124,108,255,.10),transparent 60%),
+      radial-gradient(70% 50% at 0% 0%,rgba(91,140,255,.09),transparent 55%),
+      var(--bg)}
+  .titlebar{height:38px;display:flex;align-items:center;gap:12px;padding:0 12px;border-bottom:1px solid var(--border);
+      background:rgba(255,255,255,.012)}
+  .lights{display:flex;gap:8px}
+  .lights i{width:12px;height:12px;border-radius:50%;display:block}
+  .lights i:nth-child(1){background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+  .tb-tabs{display:flex;gap:2px;margin-left:6px}
+  .tb-tabs button{display:flex;align-items:center;gap:7px;padding:5px 12px;border-radius:7px;color:var(--muted);font-size:12.5px;font-weight:550}
+  .tb-tabs button .ic{opacity:.8}
+  .tb-tabs button:hover{color:var(--text);background:rgba(255,255,255,.04)}
+  .tb-tabs button.active{background:var(--surface-2);color:var(--text);border:1px solid var(--border)}
+  .tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .tb-search{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--dim);font-size:12px;min-width:190px}
+  .tb-icon{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--muted)}
+  .tb-icon:hover{background:rgba(255,255,255,.05);color:var(--text)}
+  .avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#5b8cff,#7c6cff);display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff}
+
+  .body{flex:1;display:flex;min-height:0}
+
+  /* ---------- sidebar ---------- */
+  .sidebar{width:288px;flex:0 0 288px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+  .side-scroll{flex:1;overflow:auto;padding:8px 8px 16px}
+  .machine-hd{display:flex;align-items:center;gap:8px;padding:9px 8px 7px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .machine-hd .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green)}
+  .machine-hd .spacer{flex:1}
+  .machine-hd .plus{color:var(--dim);font-size:15px;width:20px;height:20px;border-radius:5px;display:grid;place-items:center}
+  .machine-hd .plus:hover{background:rgba(255,255,255,.06);color:var(--text)}
+
+  .repo{margin:1px 0}
+  .repo-row{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;cursor:pointer;color:var(--text);font-size:13px}
+  .repo-row:hover{background:rgba(255,255,255,.04)}
+  .repo-row .chev{color:var(--dim);font-size:10px;width:12px;transition:transform .15s}
+  .repo.collapsed .chev{transform:rotate(-90deg)}
+  .repo.collapsed .repo-children{display:none}
+  .repo-row .rname{font-weight:600;letter-spacing:-.01em}
+  .branch{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:2px 7px;border-radius:20px;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10.5px;max-width:130px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .branch svg{opacity:.7}
+
+  .repo-children{padding-left:8px;margin-left:9px;border-left:1px solid var(--border)}
+  .wt-row{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;color:var(--muted);font-size:12.5px;cursor:pointer}
+  .wt-row:hover{background:rgba(255,255,255,.03);color:var(--text)}
+  .wt-row .wt-ic{opacity:.65}
+  .agent{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:6px;cursor:pointer;color:var(--text);font-size:12.5px}
+  .agent:hover{background:rgba(255,255,255,.04)}
+  .agent.sel{background:linear-gradient(90deg,rgba(91,140,255,.16),rgba(91,140,255,.03));box-shadow:inset 2px 0 0 var(--accent)}
+  .agent .star{color:var(--accent);font-size:12px;flex:0 0 auto}
+  .agent .atext{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .st{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .st.work{background:var(--green);box-shadow:0 0 0 0 rgba(63,185,80,.6);animation:pulse 1.6s infinite}
+  .st.wait{background:var(--amber)}
+  .st.done{background:var(--dim)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,80,.55)}70%{box-shadow:0 0 0 6px rgba(63,185,80,0)}100%{box-shadow:0 0 0 0 rgba(63,185,80,0)}}
+  .newagent{display:flex;align-items:center;gap:7px;padding:6px 8px;margin-top:1px;border-radius:6px;color:var(--dim);font-size:12px;cursor:pointer;border:1px dashed transparent}
+  .newagent:hover{color:var(--accent);border-color:var(--border-2);background:rgba(91,140,255,.05)}
+
+  .side-foot{border-top:1px solid var(--border);padding:9px 12px;display:flex;align-items:center;gap:9px}
+  .side-foot .avatar{width:24px;height:24px}
+  .side-foot .who{font-size:12.5px;font-weight:600}
+  .side-foot .who small{display:block;color:var(--dim);font-weight:500;font-size:10.5px}
+  .side-foot .gear{margin-left:auto;color:var(--dim)}
+
+  /* ---------- workspace / columns ---------- */
+  .workspace{flex:1;min-width:0;display:flex;flex-direction:column}
+  .ws-topline{height:34px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--border);color:var(--dim);font-size:11.5px}
+  .ws-topline .crumb{color:var(--muted)}
+  .ws-topline .crumb b{color:var(--text);font-weight:600}
+  .cols{flex:1;display:flex;gap:0;min-height:0;overflow-x:auto}
+  .col{flex:1 1 0;min-width:340px;display:flex;flex-direction:column;border-right:1px solid var(--border);min-height:0}
+  .col:last-child{border-right:0}
+  .col-hd{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.015)}
+  .col-hd .star{color:var(--accent);font-size:12px}
+  .col-hd .ctitle{font-size:12.5px;font-weight:600;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .col-hd .cbtn{color:var(--dim);width:22px;height:22px;border-radius:5px;display:grid;place-items:center;font-size:12px}
+  .col-hd .cbtn:hover{background:rgba(255,255,255,.06);color:var(--text)}
+  .term{flex:1;overflow:auto;padding:12px 14px;font-family:var(--mono);font-size:12px;line-height:1.55;color:#c9d1d9;background:
+      linear-gradient(180deg,rgba(255,255,255,.01),transparent 120px)}
+  .term .u{color:var(--accent-ink)}
+  .term .g{color:var(--green)} .term .r{color:var(--red)} .term .a{color:var(--amber)}
+  .term .p{color:var(--purple)} .term .c{color:var(--cyan)} .term .dim{color:var(--dim)}
+  .term .tool{color:var(--muted)}
+  .term .add{color:#7ee787;background:rgba(63,185,80,.09);display:block;padding:0 4px;border-left:2px solid rgba(63,185,80,.5)}
+  .term .del{color:#ffa198;background:rgba(240,96,58,.08);display:block;padding:0 4px;border-left:2px solid rgba(240,96,58,.5)}
+  .term .box{border:1px solid var(--border);border-radius:6px;padding:7px 9px;margin:7px 0;color:var(--muted)}
+  .term .cursor{display:inline-block;width:7px;height:14px;background:var(--green);vertical-align:-2px;animation:blink 1.1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .term h4{color:var(--text);font-weight:600;font-size:12px;margin:9px 0 3px;font-family:var(--sans)}
+
+  .col-foot{border-top:1px solid var(--border);padding:6px 12px;display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10.5px;color:var(--dim);background:rgba(0,0,0,.15)}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border-radius:5px;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+  .chip.model{color:var(--accent-ink);border-color:rgba(91,140,255,.3);background:rgba(91,140,255,.08)}
+  .meter{width:74px;height:6px;border-radius:4px;background:var(--surface-3);overflow:hidden;position:relative}
+  .meter i{display:block;height:100%;background:linear-gradient(90deg,var(--green),#59d06a)}
+  .meter.hot i{background:linear-gradient(90deg,var(--amber),#f0c04a)}
+  .foot-r{margin-left:auto;display:flex;align-items:center;gap:9px}
+  .perm{color:var(--dim)} .perm b{color:var(--amber);font-weight:600}
+
+  /* ---------- canvas view ---------- */
+  .canvas{flex:1;position:relative;overflow:hidden;background:
+      radial-gradient(circle at 1px 1px,rgba(255,255,255,.05) 1px,transparent 0) 0 0/26px 26px,
+      var(--bg-2)}
+  .tile{position:absolute;background:var(--panel);border:1px solid var(--border-2);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.5);display:flex;flex-direction:column;overflow:hidden}
+  .tile .col-hd{cursor:grab}
+  .tile .col-hd:active{cursor:grabbing}
+  .tile.artifact .art{flex:1;background:#fff;overflow:hidden}
+  .art-frame{width:100%;height:100%;border:0;background:#fff}
+
+  /* ---------- generic panels used by phase 2 ---------- */
+  .flow{height:100%;display:flex;min-height:0}
+  .flow-main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .steps{display:flex;align-items:center;gap:6px;padding:12px 20px;border-bottom:1px solid var(--border);font-size:12px}
+  .step{display:flex;align-items:center;gap:7px;color:var(--dim)}
+  .step .n{width:20px;height:20px;border-radius:50%;border:1px solid var(--border-2);display:grid;place-items:center;font-size:11px;font-weight:600}
+  .step.done{color:var(--muted)} .step.done .n{background:var(--green);border-color:var(--green);color:#06210c}
+  .step.on{color:var(--text)} .step.on .n{background:var(--accent);border-color:var(--accent);color:#04122e}
+  .step .arm{width:22px;height:1px;background:var(--border-2)}
+
+  /* idea chat */
+  .chat{flex:1;overflow:auto;padding:26px 0}
+  .chat-inner{max-width:760px;margin:0 auto;padding:0 24px;display:flex;flex-direction:column;gap:18px}
+  .msg{display:flex;gap:12px}
+  .msg .bub-ava{width:28px;height:28px;border-radius:8px;flex:0 0 auto;display:grid;place-items:center;font-size:12px;font-weight:700}
+  .msg.ai .bub-ava{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff}
+  .msg.me .bub-ava{background:var(--surface-3);color:var(--muted)}
+  .bub{border-radius:12px;padding:12px 15px;font-size:13.5px;line-height:1.6}
+  .msg.ai .bub{background:var(--surface);border:1px solid var(--border)}
+  .msg.me .bub{background:rgba(91,140,255,.09);border:1px solid rgba(91,140,255,.2)}
+  .bub b{color:var(--text)} .bub .q{color:var(--accent-ink)}
+  .bub ul{margin:7px 0 0 18px;color:var(--muted)} .bub li{margin:3px 0}
+  .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .pills button{padding:6px 12px;border-radius:20px;border:1px solid var(--border-2);background:var(--surface);color:var(--muted);font-size:12.5px}
+  .pills button:hover{border-color:var(--accent);color:var(--text)}
+  .composer{border-top:1px solid var(--border);padding:14px 24px}
+  .composer-inner{max-width:760px;margin:0 auto;display:flex;gap:10px;align-items:flex-end;background:var(--surface);border:1px solid var(--border-2);border-radius:14px;padding:10px 12px}
+  .composer textarea{flex:1;background:none;border:0;color:var(--text);resize:none;font-family:inherit;font-size:13.5px;outline:none;max-height:120px}
+  .send{width:34px;height:34px;border-radius:9px;background:var(--accent);color:#04122e;display:grid;place-items:center;font-weight:700}
+  .send:hover{background:#6f9bff}
+
+  /* spec side panel */
+  .spec{width:340px;flex:0 0 340px;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+  .spec-hd{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-weight:650;font-size:13px}
+  .spec-hd .tag{margin-left:auto;font-size:10px;font-family:var(--mono);color:var(--green);background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);padding:2px 7px;border-radius:20px}
+  .spec-body{flex:1;overflow:auto;padding:16px;font-size:12.5px}
+  .spec-body h5{color:var(--dim);text-transform:uppercase;letter-spacing:.07em;font-size:10.5px;margin:16px 0 7px}
+  .spec-body h5:first-child{margin-top:0}
+  .spec-body p{color:var(--muted);margin-bottom:6px}
+  .spec-body .k{color:var(--text);font-weight:600}
+  .filechip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--accent-ink);background:rgba(91,140,255,.08);border:1px solid rgba(91,140,255,.2);border-radius:6px;padding:3px 8px;margin:3px 4px 0 0}
+
+  /* design canvas (paper.design style) */
+  .dcanvas{flex:1;position:relative;overflow:hidden;background:
+      radial-gradient(circle at 1px 1px,rgba(255,255,255,.045) 1px,transparent 0) 0 0/24px 24px,#0b0d11}
+  .dc-tools{position:absolute;left:16px;top:16px;z-index:5;display:flex;flex-direction:column;gap:4px;background:var(--panel);border:1px solid var(--border-2);border-radius:12px;padding:6px;box-shadow:0 12px 30px rgba(0,0,0,.5)}
+  .dc-tools button{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;color:var(--muted);font-size:15px}
+  .dc-tools button:hover{background:var(--surface-2);color:var(--text)}
+  .dc-tools button.on{background:var(--accent);color:#04122e}
+  .dc-tools .sep{height:1px;background:var(--border);margin:3px 2px}
+  .frame{position:absolute;background:#fff;border-radius:8px;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 22px 55px rgba(0,0,0,.55);overflow:hidden}
+  .frame.sel{box-shadow:0 0 0 2px var(--accent),0 22px 55px rgba(0,0,0,.6)}
+  .frame-label{position:absolute;top:-22px;left:2px;font-size:11px;color:var(--muted);font-weight:600}
+  .frame iframe{width:100%;height:100%;border:0}
+  .presence{position:absolute;z-index:6;pointer-events:none;display:flex;align-items:center;gap:5px;font-size:11px}
+  .presence .cur{width:0;height:0;border-left:7px solid var(--accent-2);border-bottom:11px solid transparent;transform:rotate(-8deg)}
+  .presence .nm{background:var(--accent-2);color:#fff;padding:1px 7px;border-radius:10px;font-weight:600}
+
+  /* deploy / connector */
+  .deploy{height:100%;overflow:auto;padding:22px 26px}
+  .dep-head{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .dep-head h2{font-size:19px;font-weight:700;letter-spacing:-.02em}
+  .connected{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--green);background:rgba(63,185,80,.09);border:1px solid rgba(63,185,80,.28);padding:4px 11px;border-radius:20px}
+  .dep-sub{color:var(--muted);margin-bottom:20px;font-size:13px}
+  .env-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+  .env{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .env .etop{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+  .env .ename{font-weight:650;font-size:14px}
+  .env .badge{margin-left:auto;font-size:10.5px;font-family:var(--mono);padding:2px 8px;border-radius:20px}
+  .badge.live{color:var(--green);background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3)}
+  .badge.build{color:var(--amber);background:rgba(224,165,58,.1);border:1px solid rgba(224,165,58,.3)}
+  .badge.idle{color:var(--dim);background:var(--surface);border:1px solid var(--border)}
+  .env .row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:4px 0;border-top:1px solid var(--border)}
+  .env .row:first-of-type{border-top:0}
+  .env .row .v{color:var(--text);font-family:var(--mono);font-size:11.5px}
+  .env .actions{display:flex;gap:7px;margin-top:12px}
+  .btn{padding:7px 12px;border-radius:8px;font-size:12.5px;font-weight:600;border:1px solid var(--border-2);background:var(--surface);color:var(--text)}
+  .btn:hover{background:var(--surface-3)}
+  .btn.pri{background:var(--accent);border-color:var(--accent);color:#04122e}
+  .btn.pri:hover{background:#6f9bff}
+  .btn.sm{padding:5px 10px;font-size:12px}
+
+  .panel-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
+  .pc-hd{padding:13px 16px;border-bottom:1px solid var(--border);font-weight:650;font-size:13.5px;display:flex;align-items:center;gap:9px}
+  .pc-hd .sm{margin-left:auto}
+  table.br{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.br th{text-align:left;color:var(--dim);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;padding:9px 16px;border-bottom:1px solid var(--border)}
+  table.br td{padding:11px 16px;border-bottom:1px solid var(--border);color:var(--muted)}
+  table.br tr:last-child td{border-bottom:0}
+  table.br tr:hover td{background:rgba(255,255,255,.017)}
+  .bname{color:var(--text);font-family:var(--mono);font-size:12px;display:flex;align-items:center;gap:7px}
+  .tag2{font-size:10px;font-family:var(--mono);padding:1px 7px;border-radius:20px;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+  .tag2.primary{color:var(--accent-ink);border-color:rgba(91,140,255,.3);background:rgba(91,140,255,.08)}
+
+  /* landing */
+  .land{height:100%;overflow:auto;background:
+     radial-gradient(80% 55% at 80% -10%,rgba(124,108,255,.16),transparent 55%),
+     radial-gradient(60% 45% at 5% 0%,rgba(91,140,255,.13),transparent 50%),var(--bg)}
+  .land-nav{display:flex;align-items:center;gap:14px;padding:20px 40px}
+  .land-nav .links{margin-left:auto;display:flex;gap:26px;color:var(--muted);font-size:13.5px}
+  .land-nav .links span:hover{color:var(--text);cursor:pointer}
+  .hero{max-width:1080px;margin:0 auto;padding:70px 40px 40px;text-align:center}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--accent-ink);background:rgba(91,140,255,.08);border:1px solid rgba(91,140,255,.22);padding:6px 14px;border-radius:20px;margin-bottom:26px}
+  .hero h1{font-size:58px;line-height:1.03;letter-spacing:-.035em;font-weight:730;margin-bottom:22px}
+  .hero h1 .grad{background:linear-gradient(120deg,#9db8ff,#c3b6ff 60%,#7c6cff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{font-size:18px;color:var(--muted);max-width:640px;margin:0 auto 34px;line-height:1.55}
+  .hero .cta{display:flex;gap:12px;justify-content:center}
+  .btn.lg{padding:12px 22px;font-size:15px;border-radius:11px}
+  .metrics{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:54px auto 0;max-width:920px}
+  .mcard{flex:1;min-width:200px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;text-align:left}
+  .mcard .ic{width:34px;height:34px;border-radius:9px;background:var(--surface-2);display:grid;place-items:center;margin-bottom:12px;color:var(--accent-ink)}
+  .mcard h4{font-size:14.5px;margin-bottom:5px}
+  .mcard p{font-size:12.5px;color:var(--dim);line-height:1.5;margin:0}
+  .heroshot{max-width:1080px;margin:56px auto 60px;padding:0 40px}
+  .heroshot .frameimg{border:1px solid var(--border-2);border-radius:16px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.6);background:var(--panel)}
+  .heroshot .fake{height:56px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--border)}
+  .heroshot .fake .strip{flex:1;height:8px;border-radius:6px;background:var(--surface-2);margin-left:12px}
+
+  .empty-note{color:var(--dim);font-size:12px;text-align:center;padding:20px}
+  .kbd{font-family:var(--mono);font-size:10.5px;background:var(--surface);border:1px solid var(--border-2);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- ============ PROTOTYPE NAV ============ -->
+<div class="proto-bar">
+  <div class="proto-brand"><span class="logo">P</span> Panacea&nbsp;App <small>· prototype</small></div>
+  <div class="proto-nav" id="pnav">
+    <button data-s="landing">Landing</button>
+    <button data-s="cockpit" class="active">Cockpit · Columns</button>
+    <button data-s="canvas">Cockpit · Canvas</button>
+    <button data-s="idea">New Project · Idea</button>
+    <button data-s="design">Design Canvas</button>
+    <button data-s="deploy">Panacea Deploy</button>
+  </div>
+  <div class="proto-hint">Feel prototype — click the tabs. Not wired to a backend.</div>
+</div>
+
+<div class="stage">
+
+<!-- ============ 1. LANDING ============ -->
+<section class="screen" data-screen="landing">
+  <div class="land">
+    <div class="land-nav">
+      <div class="proto-brand"><span class="logo">P</span> Panacea App</div>
+      <div class="links"><span>Product</span><span>Enterprise</span><span>Docs</span><span>Pricing</span></div>
+      <button class="btn" style="margin-left:18px">Sign in with Microsoft</button>
+    </div>
+    <div class="hero">
+      <div class="kicker">◆ Your cloud computer for coding agents — on your Azure</div>
+      <h1>Run a <span class="grad">fleet of agents</span>,<br/>not one at a time.</h1>
+      <p>Panacea App gives every engineer a fleet of isolated cloud machines that run coding agents in parallel — each in its own git worktree, streaming back to one cockpit. Hosted on your enterprise Azure, wired to Panacea for deploy.</p>
+      <div class="cta">
+        <button class="btn pri lg">Sign in with Microsoft &nbsp;→</button>
+        <button class="btn lg">Watch the 2-min tour</button>
+      </div>
+      <div class="metrics">
+        <div class="mcard"><div class="ic">▦</div><h4>Isolated microVMs</h4><p>Every agent runs in a Kata microVM with its own kernel and worktree. Real isolation, not a shared container.</p></div>
+        <div class="mcard"><div class="ic">⟳</div><h4>Never hit a wall</h4><p>Rotates across your own Claude subscriptions as each maxes out, with API capacity as backstop.</p></div>
+        <div class="mcard"><div class="ic">◈</div><h4>Idea → shipped</h4><p>Flesh out an idea in chat, shape it on a design canvas, then hand the whole context to your agents.</p></div>
+        <div class="mcard"><div class="ic">☁</div><h4>Deploy on Panacea</h4><p>One EntraID sign-in connects the app to Panacea for branches, versions and deploys.</p></div>
+      </div>
+    </div>
+    <div class="heroshot">
+      <div class="frameimg">
+        <div class="fake"><div class="lights" style="gap:7px"><i></i><i></i><i></i></div><div class="strip"></div></div>
+        <div style="padding:20px;color:var(--dim);font-size:12px;text-align:center">↑ the cockpit — open the <b style="color:var(--muted)">Cockpit · Columns</b> tab above to explore it live</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. COCKPIT · COLUMNS ============ -->
+<section class="screen active" data-screen="cockpit">
+  <div class="app">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="tb-tabs">
+        <button class="active"><span class="ic">▚</span> Columns</button>
+        <button onclick="go('canvas')"><span class="ic">◈</span> Canvas</button>
+        <button><span class="ic">▭</span> Screens</button>
+      </div>
+      <div class="tb-right">
+        <div class="tb-search">⌕ Search projects, agents…</div>
+        <button class="tb-icon">⌘N</button>
+        <div class="avatar">DM</div>
+      </div>
+    </div>
+    <div class="body">
+      <!-- sidebar -->
+      <aside class="sidebar">
+        <div class="side-scroll" id="tree">
+          <div class="machine-hd"><span class="dot"></span> Cloud Machine <span class="spacer"></span><span class="plus">+</span></div>
+
+          <div class="repo">
+            <div class="repo-row"><span class="chev">▾</span><span class="rname">panacea-app</span>
+              <span class="branch">⑂ feat/cockpit-ui</span></div>
+            <div class="repo-children">
+              <div class="agent sel"><span class="star">✦</span><span class="atext">Build the agent cockpit shell</span><span class="st work"></span></div>
+              <div class="agent"><span class="star">✦</span><span class="atext">Wire worktree tree to the API</span><span class="st wait"></span></div>
+              <div class="agent"><span class="star">✦</span><span class="atext">Kata sandbox provisioner + warm pool</span><span class="st done"></span></div>
+              <div class="newagent">+ New agent</div>
+            </div>
+          </div>
+
+          <div class="repo">
+            <div class="repo-row"><span class="chev">▾</span><span class="rname">verity-serum</span>
+              <span class="branch">⑂ main</span></div>
+            <div class="repo-children">
+              <div class="agent"><span class="star">✦</span><span class="atext">Context embeddings rederive</span><span class="st work"></span></div>
+              <div class="newagent">+ New agent</div>
+            </div>
+          </div>
+
+          <div class="repo collapsed">
+            <div class="repo-row"><span class="chev">▾</span><span class="rname">manifold</span>
+              <span class="branch">⑂ feat/redesign</span></div>
+            <div class="repo-children">
+              <div class="newagent">+ New agent</div>
+            </div>
+          </div>
+
+          <div class="repo collapsed">
+            <div class="repo-row"><span class="chev">▾</span><span class="rname">raptr-dynamic</span>
+              <span class="branch">⑂ SP1</span></div>
+            <div class="repo-children"><div class="newagent">+ New agent</div></div>
+          </div>
+
+          <div class="machine-hd" style="margin-top:8px"><span class="dot"></span> Local Machine <span class="spacer"></span><span class="plus">+</span></div>
+          <div class="repo">
+            <div class="repo-row"><span class="chev">▾</span><span class="rname">panacea-app</span><span class="branch">⑂ main</span></div>
+            <div class="repo-children">
+              <div class="agent"><span class="star">✦</span><span class="atext">Prototype polish pass</span><span class="st done"></span></div>
+              <div class="newagent">+ New agent</div>
+            </div>
+          </div>
+        </div>
+        <div class="side-foot">
+          <div class="avatar">DM</div>
+          <div class="who">Dylan Mackie<small>KPMG · SuperAdmin</small></div>
+          <div class="gear">⚙</div>
+        </div>
+      </aside>
+
+      <!-- columns -->
+      <div class="workspace">
+        <div class="ws-topline"><span class="crumb">panacea-app / <b>feat/cockpit-ui</b> / 3 agents</span></div>
+        <div class="cols">
+          <!-- col 1 -->
+          <div class="col">
+            <div class="col-hd"><span class="star">✦</span><span class="ctitle">Build the agent cockpit shell</span><span class="cbtn">⤢</span><span class="cbtn">×</span></div>
+            <div class="term">
+              <span class="dim">● Write the sidebar tree component</span><br/><br/>
+              <span class="tool">⏺ Edit</span> <span class="c">src/cockpit/Sidebar.tsx</span><br/>
+              <span class="add">+ export function MachineTree({ machines }: Props) {</span>
+              <span class="add">+   return machines.map((m) =&gt; &lt;MachineSection key={m.id} {...m} /&gt;)</span>
+              <span class="del">- // TODO: render the tree</span><br/>
+              <span class="dim">Applied 2 edits to Sidebar.tsx</span><br/><br/>
+              <h4>Committed</h4>
+              <span class="p">▸ 42ac09d</span> feat(cockpit): machine → repo → worktree tree<br/>
+              <span class="dim">Pushed to feat/cockpit-ui, ran 1 shell command</span><br/><br/>
+              <span class="dim">Now wiring the branch pills to live git status…</span><br/>
+              <span class="cursor"></span>
+            </div>
+            <div class="col-foot">
+              <span class="chip model">Opus 4.8</span>
+              <span class="mono">feat/cockpit-ui</span>
+              <div class="meter"><i style="width:41%"></i></div><span>41%</span>
+              <div class="foot-r"><span>$12.40</span><span>1h 14m</span><span class="perm">bypass <b>on</b></span></div>
+            </div>
+          </div>
+          <!-- col 2 -->
+          <div class="col">
+            <div class="col-hd"><span class="star">✦</span><span class="ctitle">Wire worktree tree to the API</span><span class="cbtn">⤢</span><span class="cbtn">×</span></div>
+            <div class="term">
+              <span class="a">⏸ Waiting for your approval</span><br/><br/>
+              <span class="tool">⏺ Bash</span> — run database migration<br/>
+              <div class="box"><span class="c">$ panacea migrate up --project panacea-app</span><br/><span class="dim">This will apply 3 pending migrations to the dev database.</span></div>
+              <span class="dim">Allow this command?</span><br/>
+              <div class="pills" style="margin-top:6px">
+                <button>Yes</button><button>Yes, and don't ask again</button><button>No, tell the agent what to do</button>
+              </div>
+            </div>
+            <div class="col-foot">
+              <span class="chip model">Sonnet 5</span>
+              <span class="mono">feat/cockpit-ui</span>
+              <div class="meter"><i style="width:18%"></i></div><span>18%</span>
+              <div class="foot-r"><span>$3.90</span><span>22m</span><span class="perm">approve <b>each</b></span></div>
+            </div>
+          </div>
+          <!-- col 3 -->
+          <div class="col">
+            <div class="col-hd"><span class="star">✦</span><span class="ctitle">Kata sandbox provisioner + warm pool</span><span class="cbtn">⤢</span><span class="cbtn">×</span></div>
+            <div class="term">
+              <h4>Done</h4>
+              <span class="dim">Provisioner reconciles a warm pool of Kata microVMs and hands one to each new agent.</span><br/><br/>
+              <span class="g">✓</span> SandboxWarmPool CRD + controller<br/>
+              <span class="g">✓</span> RuntimeClass kata-vm-isolation wired<br/>
+              <span class="g">✓</span> deny-all egress + in-cluster mirror<br/>
+              <span class="g">✓</span> 18s p50 claim latency (warm)<br/><br/>
+              <h4>Recap</h4>
+              <span class="a dim">Added a 5-VM warm buffer so a new agent gets a booted microVM in &lt;1s p50; cold path falls back to ~18s. Next: per-user cap + Spot pool for burst.</span><br/><br/>
+              <span class="dim">⧉ agent finished · </span><span class="c">/rc</span><span class="dim"> to review the diff</span>
+            </div>
+            <div class="col-foot">
+              <span class="chip model">Opus 4.8</span>
+              <span class="mono">feat/cockpit-ui</span>
+              <div class="meter hot"><i style="width:86%"></i></div><span>86%</span>
+              <div class="foot-r"><span>$28.10</span><span>2h 03m</span><span class="perm">bypass <b>on</b></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. COCKPIT · CANVAS ============ -->
+<section class="screen" data-screen="canvas">
+  <div class="app">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="tb-tabs">
+        <button onclick="go('cockpit')"><span class="ic">▚</span> Columns</button>
+        <button class="active"><span class="ic">◈</span> Canvas</button>
+        <button><span class="ic">▭</span> Screens</button>
+      </div>
+      <div class="tb-right">
+        <div class="tb-search">⌕ Search projects, agents…</div>
+        <div class="avatar">DM</div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="canvas" id="cockCanvas">
+        <!-- draggable tiles -->
+        <div class="tile" style="left:40px;top:36px;width:380px;height:300px">
+          <div class="col-hd"><span class="star">✦</span><span class="ctitle">Build the agent cockpit shell</span><span class="st work" style="margin-left:auto"></span></div>
+          <div class="term" style="font-size:11px">
+            <span class="tool">⏺ Edit</span> <span class="c">src/cockpit/Sidebar.tsx</span><br/>
+            <span class="add">+ export function MachineTree({ machines }) {</span>
+            <span class="dim">Applied 2 edits · committed 42ac09d</span><br/>
+            <span class="dim">wiring branch pills…</span> <span class="cursor"></span>
+          </div>
+          <div class="col-foot"><span class="chip model">Opus 4.8</span><div class="meter"><i style="width:41%"></i></div><span>41%</span><div class="foot-r"><span>$12.40</span></div></div>
+        </div>
+
+        <div class="tile artifact" style="left:452px;top:36px;width:430px;height:330px">
+          <div class="col-hd"><span class="ic" style="color:var(--purple)">◱</span><span class="ctitle">artifact · onboarding-mockup.html</span><span class="cbtn">↗</span><span class="cbtn">⧉</span></div>
+          <div class="art">
+            <iframe class="art-frame" srcdoc="<html><body style='margin:0;font-family:Inter,system-ui;background:linear-gradient(135deg,#eef2ff,#f8f5ff);height:100%;display:flex;align-items:center;justify-content:center'><div style='text-align:center;padding:24px'><div style='width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#5b8cff,#7c6cff);margin:0 auto 16px'></div><h2 style='margin:0 0 8px;color:#1a1d29'>Welcome to your workspace</h2><p style='color:#5b6270;margin:0 0 18px'>Connect a repo to spin up your first agent.</p><button style='background:#5b8cff;color:#fff;border:0;padding:10px 20px;border-radius:9px;font-weight:600'>Connect GitHub</button></div></div></body></html>"></iframe>
+          </div>
+        </div>
+
+        <div class="tile" style="left:130px;top:360px;width:360px;height:230px">
+          <div class="col-hd"><span class="ic" style="color:var(--cyan)">▤</span><span class="ctitle">files · src/cockpit</span></div>
+          <div class="term" style="font-size:11px;color:var(--muted)">
+            ▸ <span class="c">Sidebar.tsx</span> <span class="dim">· edited 2m ago</span><br/>
+            ▸ <span class="c">MachineTree.tsx</span><br/>
+            ▸ <span class="c">AgentColumn.tsx</span><br/>
+            ▸ <span class="c">CanvasView.tsx</span> <span class="g dim">· new</span><br/>
+            ▸ <span class="c">tokens.css</span>
+          </div>
+        </div>
+
+        <div class="tile" style="left:520px;top:388px;width:360px;height:200px">
+          <div class="col-hd"><span class="ic" style="color:var(--green)">◐</span><span class="ctitle">dev server · localhost:3000</span><span class="cbtn">↗</span></div>
+          <div class="term" style="font-size:11px">
+            <span class="g">✓ ready in 812ms</span><br/>
+            <span class="dim">➜ Local:   http://localhost:3000</span><br/>
+            <span class="dim">➜ preview streamed to cockpit</span><br/><br/>
+            <span class="pills"><button style="font-size:11px">Open in Panacea App</button><button style="font-size:11px">Open in browser</button></span>
+          </div>
+        </div>
+
+        <div class="presence" style="left:610px;top:150px"><span class="cur"></span><span class="nm">agent · Opus</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. NEW PROJECT · IDEA CHAT ============ -->
+<section class="screen" data-screen="idea">
+  <div class="app">
+    <div class="steps">
+      <div class="step on"><span class="n">1</span> Flesh out the idea</div><span class="arm"></span>
+      <div class="step"><span class="n">2</span> Design canvas</div><span class="arm"></span>
+      <div class="step"><span class="n">3</span> Spin up agents</div><span class="arm"></span>
+      <div class="step"><span class="n">4</span> Deploy on Panacea</div>
+    </div>
+    <div class="flow">
+      <div class="flow-main">
+        <div class="chat">
+          <div class="chat-inner">
+            <div class="msg ai"><div class="bub-ava">P</div><div class="bub">
+              Let's shape your idea before any code gets written. In a sentence or two — <b>what do you want to build, and who is it for?</b>
+            </div></div>
+            <div class="msg me"><div class="bub-ava">DM</div><div class="bub">
+              An internal tool for our audit teams to track control testing across engagements — upload evidence, assign testers, see status at a glance.
+            </div></div>
+            <div class="msg ai"><div class="bub-ava">P</div><div class="bub">
+              Good — a <b>control-testing tracker</b> for audit engagements. A few things I want to pin down so the agents build the right thing:
+              <ul>
+                <li><span class="q">Who are the roles?</span> Sounds like at least <b>engagement lead</b>, <b>tester</b>, and maybe <b>reviewer</b>. Any others?</li>
+                <li><span class="q">What's the unit of work</span> — a control, a test, or an evidence item?</li>
+                <li><span class="q">Where does identity come from?</span> I'd default to <b>KPMG EntraID SSO</b> so no separate logins.</li>
+              </ul>
+              <div class="pills">
+                <button>Lead / Tester / Reviewer</button>
+                <button>Unit = control</button>
+                <button>Yes — EntraID SSO</button>
+                <button>Let me type it</button>
+              </div>
+            </div></div>
+            <div class="msg me"><div class="bub-ava">DM</div><div class="bub">
+              Those three roles are right. Unit of work is a control. Yes, EntraID.
+            </div></div>
+            <div class="msg ai"><div class="bub-ava">P</div><div class="bub">
+              Locked. I've drafted the brief on the right → <span class="q">review it</span>. When it looks right, hit <b>Continue to design</b> and I'll draft the first screens on the canvas.
+            </div></div>
+          </div>
+        </div>
+        <div class="composer"><div class="composer-inner">
+          <textarea rows="1" placeholder="Reply, or refine any part of the brief…"></textarea>
+          <button class="send">↑</button>
+        </div></div>
+      </div>
+
+      <!-- live spec -->
+      <aside class="spec">
+        <div class="spec-hd">◈ Project brief <span class="tag">live · spec.md</span></div>
+        <div class="spec-body">
+          <h5>Product</h5>
+          <p><span class="k">Control Testing Tracker</span> — track control testing across audit engagements.</p>
+          <h5>Users & roles</h5>
+          <p>• <span class="k">Engagement lead</span> — owns the engagement, assigns work<br/>• <span class="k">Tester</span> — tests controls, uploads evidence<br/>• <span class="k">Reviewer</span> — signs off results</p>
+          <h5>Core objects</h5>
+          <p>Engagement › <span class="k">Control</span> › Test › Evidence</p>
+          <h5>Key features</h5>
+          <p>• Evidence upload per control<br/>• Assignment + status at a glance<br/>• Review / sign-off workflow</p>
+          <h5>Identity</h5>
+          <p><span class="k">KPMG EntraID SSO</span> (no separate logins)</p>
+          <h5>Seeds the agents</h5>
+          <span class="filechip">◆ spec.md</span><span class="filechip">◆ plan.md</span><span class="filechip">◆ CLAUDE.md</span>
+          <div style="margin-top:22px;display:flex;gap:8px">
+            <button class="btn pri" style="flex:1" onclick="go('design')">Continue to design →</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. DESIGN CANVAS ============ -->
+<section class="screen" data-screen="design">
+  <div class="app">
+    <div class="steps">
+      <div class="step done"><span class="n">✓</span> Flesh out the idea</div><span class="arm"></span>
+      <div class="step on"><span class="n">2</span> Design canvas</div><span class="arm"></span>
+      <div class="step"><span class="n">3</span> Spin up agents</div><span class="arm"></span>
+      <div class="step"><span class="n">4</span> Deploy on Panacea</div>
+    </div>
+    <div class="flow">
+      <div class="flow-main">
+        <div class="dcanvas" id="designCanvas">
+          <div class="dc-tools">
+            <button class="on" title="Select">⌖</button>
+            <button title="Frame">▢</button>
+            <button title="Sketch (Excalidraw mode)">✎</button>
+            <button title="Text">T</button>
+            <div class="sep"></div>
+            <button title="Make real">✦</button>
+            <button title="Comment">◌</button>
+          </div>
+
+          <div class="frame sel" style="left:70px;top:60px;width:300px;height:400px">
+            <div class="frame-label">Dashboard — controls at a glance</div>
+            <iframe srcdoc="<html><body style='margin:0;font-family:Inter,system-ui;color:#1a1d29'><div style='height:52px;border-bottom:1px solid #eee;display:flex;align-items:center;padding:0 16px;font-weight:700'>Controls</div><div style='padding:14px'><div style='display:flex;gap:8px;margin-bottom:12px'><div style='flex:1;background:#f1f5ff;border-radius:8px;padding:10px'><div style=font-size:11px;color:#5b6270>Open</div><div style=font-size:22px;font-weight:700>24</div></div><div style='flex:1;background:#eafaf0;border-radius:8px;padding:10px'><div style=font-size:11px;color:#5b6270>Passed</div><div style=font-size:22px;font-weight:700;color:#2fa84f>61</div></div></div><div style=font-size:12px;color:#5b6270;margin-bottom:6px>Controls</div><div style='border:1px solid #eee;border-radius:8px'><div style='padding:10px;border-bottom:1px solid #f2f2f2;display:flex;justify-content:space-between'>Access review <span style=color:#e0a53a>Testing</span></div><div style='padding:10px;border-bottom:1px solid #f2f2f2;display:flex;justify-content:space-between'>Change mgmt <span style=color:#2fa84f>Passed</span></div><div style='padding:10px;display:flex;justify-content:space-between'>Backups <span style=color:#5b6270>Open</span></div></div></div></body></html>"></iframe>
+          </div>
+
+          <div class="frame" style="left:410px;top:60px;width:300px;height:400px">
+            <div class="frame-label">Control detail — evidence + sign-off</div>
+            <iframe srcdoc="<html><body style='margin:0;font-family:Inter,system-ui;color:#1a1d29'><div style='height:52px;border-bottom:1px solid #eee;display:flex;align-items:center;padding:0 16px;font-weight:700'>Access review</div><div style='padding:16px'><div style=font-size:12px;color:#5b6270>Assigned to</div><div style='margin:4px 0 14px;font-weight:600'>A. Tester</div><div style=font-size:12px;color:#5b6270;margin-bottom:6px>Evidence</div><div style='border:2px dashed #d7ddea;border-radius:10px;padding:20px;text-align:center;color:#8b93a1;font-size:13px'>Drop evidence here</div><button style='width:100%;margin-top:16px;background:#5b8cff;color:#fff;border:0;padding:11px;border-radius:9px;font-weight:600'>Submit for review</button></div></body></html>"></iframe>
+          </div>
+
+          <div class="frame" style="left:750px;top:120px;width:240px;height:150px;background:#fbfbfd">
+            <div class="frame-label">✎ sketch — reviewer queue (low-fi)</div>
+            <div style="padding:14px;font-family:var(--mono);color:#3a3f49;font-size:11px;line-height:1.7">
+              [ queue ]<br/>□ access review → me<br/>□ backups → me<br/>▭▭▭ approve / return
+            </div>
+          </div>
+
+          <div class="presence" style="left:340px;top:250px"><span class="cur"></span><span class="nm">Panacea agent</span></div>
+        </div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-hd">✦ Talk to the canvas</div>
+        <div class="spec-body">
+          <div class="msg ai" style="margin-bottom:14px"><div class="bub-ava" style="width:24px;height:24px">P</div><div class="bub" style="font-size:12.5px">Drafted 2 screens from your brief. Move anything by hand, or tell me what to change.</div></div>
+          <div class="pills" style="margin-bottom:16px">
+            <button>Make the dashboard match KPMG blue</button>
+            <button>Add a reviewer queue screen</button>
+            <button>Tighten the evidence card</button>
+          </div>
+          <h5>On approve, I export</h5>
+          <span class="filechip">◆ design/tokens.json</span>
+          <span class="filechip">◆ design/components.json</span>
+          <span class="filechip">◆ design/screens/*.html</span>
+          <p style="margin-top:10px;font-size:11.5px">…so the coding agents build inside this exact visual language on the first pass.</p>
+          <div style="margin-top:18px;display:flex;gap:8px">
+            <button class="btn" style="flex:1" onclick="go('idea')">← Back</button>
+            <button class="btn pri" style="flex:1.4" onclick="go('cockpit')">Approve → spin up agents</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. PANACEA DEPLOY ============ -->
+<section class="screen" data-screen="deploy">
+  <div class="app">
+    <div class="deploy">
+      <div class="dep-head">
+        <h2>Control Testing Tracker</h2>
+        <span class="connected">● Connected to Panacea · EntraID</span>
+      </div>
+      <div class="dep-sub">Branches, versions and deploys — driven straight from the cockpit through the Panacea connector.</div>
+
+      <div class="env-grid">
+        <div class="env">
+          <div class="etop"><span class="ename">Production</span><span class="badge live">live</span></div>
+          <div class="row"><span>Version</span><span class="v">v1.4.2</span></div>
+          <div class="row"><span>Branch</span><span class="v">main</span></div>
+          <div class="row"><span>Deployed</span><span class="v">2d ago</span></div>
+          <div class="row"><span>URL</span><span class="v">ctt.panacea.kpmg</span></div>
+          <div class="actions"><button class="btn sm">Logs</button><button class="btn sm">Rollback</button></div>
+        </div>
+        <div class="env">
+          <div class="etop"><span class="ename">Staging</span><span class="badge build">building</span></div>
+          <div class="row"><span>Version</span><span class="v">v1.5.0-rc1</span></div>
+          <div class="row"><span>Branch</span><span class="v">feat/cockpit-ui</span></div>
+          <div class="row"><span>Pipeline</span><span class="v">scanners 7/15</span></div>
+          <div class="row"><span>URL</span><span class="v">ctt-staging.panacea.kpmg</span></div>
+          <div class="actions"><button class="btn sm">Watch build</button><button class="btn sm">Cancel</button></div>
+        </div>
+        <div class="env">
+          <div class="etop"><span class="ename">Preview · PR 128</span><span class="badge idle">idle</span></div>
+          <div class="row"><span>Version</span><span class="v">—</span></div>
+          <div class="row"><span>Branch</span><span class="v">feat/reviewer-queue</span></div>
+          <div class="row"><span>Last</span><span class="v">never</span></div>
+          <div class="actions"><button class="btn sm pri">Deploy preview</button></div>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="pc-hd">Branches <button class="btn sm">+ New branch</button></div>
+        <table class="br">
+          <thead><tr><th>Branch</th><th>Agents</th><th>Environment</th><th>Version</th><th>Access</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="bname">⑂ main <span class="tag2 primary">primary</span></span></td>
+              <td>—</td><td>Production</td><td>v1.4.2</td><td>Org</td>
+              <td style="text-align:right"><button class="btn sm">Manage</button></td>
+            </tr>
+            <tr>
+              <td><span class="bname">⑂ feat/cockpit-ui</span></td>
+              <td>3 running</td><td>Staging</td><td>v1.5.0-rc1</td><td>Team</td>
+              <td style="text-align:right"><button class="btn sm pri">Promote</button></td>
+            </tr>
+            <tr>
+              <td><span class="bname">⑂ feat/reviewer-queue</span></td>
+              <td>1 running</td><td>Preview</td><td>—</td><td>Team</td>
+              <td style="text-align:right"><button class="btn sm">Deploy</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel-card">
+        <div class="pc-hd">Claude capacity <span class="tag2" style="margin-left:10px">per-user rotation</span> <button class="btn sm">Manage</button></div>
+        <table class="br">
+          <thead><tr><th>Subscription</th><th>Window</th><th>Used</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><span class="bname">◆ Max sub · A (yours)</span></td><td>5h</td><td>
+              <span style="display:inline-flex;align-items:center;gap:8px"><span class="meter hot" style="width:90px"><i style="width:88%"></i></span>88%</span></td>
+              <td><span class="tag2" style="color:var(--amber)">rotating soon</span></td></tr>
+            <tr><td><span class="bname">◆ Max sub · B (yours)</span></td><td>5h</td><td>
+              <span style="display:inline-flex;align-items:center;gap:8px"><span class="meter" style="width:90px"><i style="width:24%"></i></span>24%</span></td>
+              <td><span class="tag2 primary">active</span></td></tr>
+            <tr><td><span class="bname">◆ API · Bedrock backstop</span></td><td>metered</td><td>—</td>
+              <td><span class="tag2" style="color:var(--green)">standby</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+  const screens = document.querySelectorAll('.screen');
+  const navBtns = document.querySelectorAll('#pnav button');
+  function go(s){
+    screens.forEach(el=>el.classList.toggle('active', el.dataset.screen===s));
+    navBtns.forEach(b=>b.classList.toggle('active', b.dataset.s===s));
+  }
+  navBtns.forEach(b=>b.addEventListener('click',()=>go(b.dataset.s)));
+
+  // collapse repos
+  document.querySelectorAll('.repo-row').forEach(r=>{
+    r.addEventListener('click',()=>r.parentElement.classList.toggle('collapsed'));
+  });
+  // select agent
+  document.querySelectorAll('.agent').forEach(a=>{
+    a.addEventListener('click',e=>{e.stopPropagation();
+      document.querySelectorAll('.agent').forEach(x=>x.classList.remove('sel'));
+      a.classList.add('sel');});
+  });
+
+  // draggable tiles (canvas + design frames)
+  function makeDraggable(handleSel, moveSel){
+    document.querySelectorAll(handleSel).forEach(h=>{
+      const tile = h.closest(moveSel);
+      h.addEventListener('pointerdown',e=>{
+        if(e.target.closest('.cbtn,.pills,button')) return;
+        const sx=e.clientX, sy=e.clientY, ox=tile.offsetLeft, oy=tile.offsetTop;
+        tile.style.zIndex=50;
+        const mv=ev=>{tile.style.left=(ox+ev.clientX-sx)+'px';tile.style.top=(oy+ev.clientY-sy)+'px';};
+        const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);};
+        document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);
+      });
+    });
+  }
+  makeDraggable('#cockCanvas .tile .col-hd','.tile');
+  // design frames: drag by label
+  document.querySelectorAll('#designCanvas .frame').forEach(f=>{
+    f.addEventListener('pointerdown',e=>{
+      if(e.target.tagName==='IFRAME') return;
+      document.querySelectorAll('#designCanvas .frame').forEach(x=>x.classList.remove('sel'));
+      f.classList.add('sel');
+      const sx=e.clientX,sy=e.clientY,ox=f.offsetLeft,oy=f.offsetTop; f.style.zIndex=40;
+      const mv=ev=>{f.style.left=(ox+ev.clientX-sx)+'px';f.style.top=(oy+ev.clientY-sy)+'px';};
+      const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);};
+      document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);
+    });
+  });
+  // design tool switch
+  document.querySelectorAll('.dc-tools button').forEach(b=>{
+    b.addEventListener('click',()=>{document.querySelectorAll('.dc-tools button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+  });
+</script>
+</body>
+</html>

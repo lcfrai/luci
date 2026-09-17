@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panacea App</title>
+<style>
+:root{
+  --page:#0a0908; --canvas:#0e0c0b; --surface:#141210; --inset:#1a1715; --hover:#1f1c19;
+  --ink:#f2ede7; --ink-2:#a79f97; --ink-3:#6c645d; --ink-4:#453f39;
+  --line:rgba(255,248,240,.075); --line-strong:rgba(255,248,240,.15);
+  --accent:#2fb3bd; --accent-hi:#74d9e0; --accent-tint:rgba(47,179,189,.11);
+  --run:#43b95e; --need:#e2a33c; --fail:#ef5f45; --drift:#c98ae0;
+  --thread:rgba(255,241,224,.16);
+  /* terminal palette — Claude Code's own */
+  --t-fg:#d6d0c8; --t-dim:#6f6862; --t-sel:#e8e2da;
+  --t-add-fg:#b5e8bf; --t-add-bg:rgba(46,160,67,.16);
+  --t-del-fg:#ffb4a6; --t-del-bg:rgba(248,81,73,.13);
+  --t-tool:#e8e2da; --t-cyan:#5ec8d0; --t-mag:#c98ae0; --t-yel:#e2a33c; --t-grn:#5cc46e;
+  --r-ctl:7px; --r-card:9px;
+  --e-hair:0 0 0 1px var(--line);
+  --ease:cubic-bezier(.23,1,.32,1);
+  --mono:"Cascadia Mono",ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+  --sans:"Segoe UI Variable Text","Segoe UI",-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font:13.5px/1.45 var(--sans);
+  -webkit-font-smoothing:antialiased;overflow:hidden;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:rgba(255,248,240,.07);border:3px solid transparent;border-radius:8px;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,248,240,.15);background-clip:padding-box}
+@keyframes beat{0%,100%{opacity:.45}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.live{animation:beat 2.4s var(--ease) infinite}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+
+.app{display:flex;height:100vh}
+
+/* ============ RAIL — orchestration only ============ */
+/* the rail never collapses — it is the map of everything running */
+.rail{width:252px;flex:0 0 252px;background:var(--canvas);border-right:1px solid var(--line);
+  display:flex;flex-direction:column}
+.rtop{display:flex;align-items:center;gap:9px;padding:10px 11px 8px}
+.mark{width:22px;height:22px;border-radius:6px;background:var(--ink);color:var(--page);
+  display:grid;place-items:center;font-weight:800;font-size:11.5px;flex:0 0 auto}
+.rtop .nm{font-size:12px;font-weight:650;white-space:nowrap}
+.rs{flex:1;overflow:auto;padding:2px 6px 12px}
+.mhd{padding:10px 7px 4px;font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--ink-4);display:flex;align-items:center;gap:6px}
+.mhd .dot{width:5px;height:5px;border-radius:50%;background:var(--run)}
+.prow{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:var(--r-ctl);cursor:pointer}
+.prow:hover{background:var(--hover)}
+.prow.sel{background:var(--inset);box-shadow:var(--e-hair)}
+.pini{width:19px;height:19px;border-radius:5px;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--ink-2);flex:0 0 auto}
+.prow.sel .pini{background:var(--accent);color:#04201f}
+.pnm{flex:1;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chev{color:var(--ink-4);font-size:8px;transition:transform .16s var(--ease)}
+.shut .chev{transform:rotate(-90deg)} .shut .kids{display:none}
+.kids{padding-left:9px;margin-left:9px;border-left:1px solid var(--thread)}
+.brow,.wrow{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:5px;cursor:pointer;position:relative}
+.brow::before,.wrow::before{content:"";position:absolute;left:-9px;top:50%;width:6px;height:1px;background:var(--thread)}
+.brow:hover,.wrow:hover{background:var(--hover)}
+.brow.sel{background:var(--accent-tint);box-shadow:inset 0 0 0 1px rgba(47,179,189,.28)}
+.bnm{flex:1;font-family:var(--mono);font-size:10.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow.sel .bnm{color:var(--ink)}
+.wrow{font-size:11px;color:var(--ink-3)}
+.wrow.sel{color:var(--ink);background:var(--hover)}
+.wrow .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sd{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
+.sd.run{background:var(--run)} .sd.need{background:var(--need)}
+.sd.idle{background:var(--ink-4)} .sd.drift{background:var(--drift)}
+.addr{display:flex;align-items:center;gap:6px;padding:3px 7px;color:var(--ink-4);font-size:10.5px;cursor:pointer;border-radius:5px}
+.addr:hover{color:var(--accent);background:var(--accent-tint)}
+.rfoot{border-top:1px solid var(--line);padding:7px 9px;display:flex;align-items:center;gap:8px}
+.me{width:22px;height:22px;border-radius:50%;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--ink-2)}
+.rfoot .who{flex:1;font-size:11px;color:var(--ink-3);white-space:nowrap}
+
+/* ============ SUB-RAIL ============ */
+.sub{width:0;flex:0 0 0;overflow:hidden;background:var(--canvas);border-right:1px solid var(--line);
+  transition:width .22s var(--ease),flex-basis .22s var(--ease);display:flex;flex-direction:column}
+.app.deep .sub{width:170px;flex-basis:170px}
+.stop{padding:10px 11px 9px;border-bottom:1px solid rgba(255,248,240,.04)}
+.sbk{color:var(--ink-3);font-size:10.5px;cursor:pointer;margin-bottom:6px}
+.sbk:hover{color:var(--ink)}
+.sbr{font-family:var(--mono);font-size:11.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.smeta{font-size:10px;color:var(--ink-3);margin-top:2px}
+.mods{padding:7px 6px;display:flex;flex-direction:column;gap:1px}
+.mod{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:var(--r-ctl);cursor:pointer;color:var(--ink-2)}
+.mod:hover{background:var(--hover);color:var(--ink)}
+.mod.sel{background:var(--inset);box-shadow:var(--e-hair);color:var(--ink)}
+.mod .n{flex:1;font-size:12px}
+.mod.sel .n{font-weight:650}
+.mi{width:12px;text-align:center;font-size:10.5px;color:var(--ink-4)}
+.mod.sel .mi{color:var(--accent)}
+
+/* ============ MAIN ============ */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--page)}
+.top{height:38px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.seg{display:flex;gap:1px;background:var(--surface);box-shadow:var(--e-hair);border-radius:var(--r-ctl);padding:2px}
+.seg button{padding:3px 10px;border-radius:5px;font-size:11px;color:var(--ink-3)}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:var(--inset);color:var(--ink);font-weight:600}
+.top .sp{flex:1}
+.btn{padding:4px 10px;border-radius:var(--r-ctl);font-size:11px;font-weight:600;background:var(--surface);box-shadow:var(--e-hair)}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);color:#04201f;box-shadow:none}
+.btn.ghost{background:none;box-shadow:none;color:var(--ink-3)}
+.btn.ghost:hover{color:var(--ink);background:var(--hover)}
+
+/* ============ COLUMNS — each is a streamed Claude Code session ============ */
+.cols{flex:1;display:flex;min-height:0;overflow-x:auto}
+.col{flex:1 1 0;min-width:430px;display:flex;flex-direction:column;border-right:1px solid var(--line);min-height:0;background:var(--page)}
+.col:last-child{border-right:0}
+/* Panacea chrome: one thin bar. Everything below it is the real session. */
+.ch{display:flex;align-items:center;gap:7px;padding:6px 11px;flex:0 0 auto;
+  border-bottom:1px solid rgba(255,248,240,.04)}
+.ch .nm{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
+.ch .wt{font-family:var(--mono);font-size:10px;color:var(--ink-4)}
+.ch .sp{flex:1}
+.ch .x{color:var(--ink-4);font-size:11px;cursor:pointer;padding:0 2px}
+.ch .x:hover{color:var(--ink)}
+
+/* the terminal: faithful Claude Code */
+.tty{flex:1;overflow:auto;padding:10px 12px 4px;background:var(--page);
+  font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--t-fg);white-space:pre-wrap;word-break:break-word}
+.tty .dim{color:var(--t-dim)}
+.tty .u{color:var(--t-sel)}
+.tty .cy{color:var(--t-cyan)} .tty .mg{color:var(--t-mag)} .tty .yl{color:var(--t-yel)} .tty .gn{color:var(--t-grn)}
+.tty .tool{color:var(--t-tool);font-weight:600}
+.tty .add{color:var(--t-add-fg);background:var(--t-add-bg);display:inline-block;width:100%}
+.tty .del{color:var(--t-del-fg);background:var(--t-del-bg);display:inline-block;width:100%}
+.tty .ln{color:var(--t-dim)}
+.tty .box{color:var(--t-dim)}
+.tty .sel{color:var(--t-cyan)}
+.tty .cursor{display:inline-block;width:6.5px;height:13px;background:var(--t-fg);vertical-align:-2px;animation:beat 1.05s steps(2) infinite}
+.spin{display:inline-block;color:var(--t-mag)}
+.wm{color:var(--accent-hi);opacity:.85}
+.faded{opacity:.38}
+
+/* Claude Code's own input area, streamed through */
+.cc-in{flex:0 0 auto;padding:2px 12px 8px;font-family:var(--mono);font-size:11.5px;line-height:1.55;
+  color:var(--t-dim);background:var(--page)}
+.cc-in .field{color:var(--t-fg)}
+.cc-in input{background:none;border:0;outline:none;color:var(--t-fg);font:inherit;width:calc(100% - 60px)}
+.cc-mode{color:var(--t-dim);font-size:11px}
+.cc-mode b{color:var(--t-yel);font-weight:400}
+
+/* Panacea's thin footer, the only thing it adds below the session */
+.cf{padding:4px 11px;border-top:1px solid rgba(255,248,240,.04);display:flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:9.5px;color:var(--ink-4);flex:0 0 auto}
+.cf .sp{flex:1}
+.meter{width:42px;height:3px;border-radius:2px;background:var(--inset);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--run)}
+.meter.hot i{background:var(--need)}
+
+/* canvas */
+.canvas{flex:1;position:relative;overflow:hidden;
+  background:radial-gradient(circle at 1px 1px,rgba(255,248,240,.045) 1px,transparent 0) 0 0/24px 24px,var(--canvas)}
+.tile{position:absolute;background:var(--page);border-radius:var(--r-card);display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 0 0 1px var(--line-strong),0 14px 36px rgba(0,0,0,.55)}
+.tile .ch{cursor:grab}
+
+/* other modules */
+.body{flex:1;overflow:auto;padding:20px 22px}
+.inner{max-width:860px}
+.sech{font-size:9px;font-weight:700;letter-spacing:.11em;color:var(--ink-4);margin:0 0 9px;display:flex;align-items:center;gap:9px}
+.sech::after{content:"";flex:1;height:1px;background:rgba(255,248,240,.04)}
+.card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-hair);padding:12px 14px;margin-bottom:8px}
+.card .t1{font-size:12.5px} .card .t2{font-size:11px;color:var(--ink-3);margin-top:3px}
+.card .t2 b{color:var(--ink-2);font-weight:600}
+.row{display:flex;align-items:center;gap:11px} .row .sp{flex:1}
+.disc{max-width:620px;padding:26px 4px}
+.disc .step{font-family:var(--mono);font-size:10px;color:var(--accent-hi);margin-bottom:9px}
+.disc h2{font-size:19px;line-height:1.3;letter-spacing:-.02em;font-weight:650;margin-bottom:8px}
+.disc p{font-size:12.5px;color:var(--ink-2);line-height:1.6;margin-bottom:15px}
+.pick{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-card);
+  background:var(--surface);box-shadow:var(--e-hair);cursor:pointer;margin-bottom:6px}
+.pick:hover{box-shadow:0 0 0 1px var(--accent)}
+.pick.on{box-shadow:0 0 0 1px var(--accent);background:var(--accent-tint)}
+.pick .k{width:17px;height:17px;border-radius:4px;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-family:var(--mono);font-size:9px;color:var(--ink-3);flex:0 0 auto}
+.pick.on .k{background:var(--accent);color:#04201f}
+.pick .tx{flex:1;font-size:12px}
+.pick .tx small{display:block;color:var(--ink-3);font-size:10.5px;margin-top:2px}
+.dsplit{display:flex;flex:1;min-height:0}
+.dcv{flex:1;position:relative;overflow:hidden;
+  background:radial-gradient(circle at 1px 1px,rgba(255,248,240,.04) 1px,transparent 0) 0 0/22px 22px,var(--canvas)}
+.frame{position:absolute;background:#fff;border-radius:var(--r-ctl);overflow:hidden;cursor:grab;
+  box-shadow:0 0 0 1px var(--line-strong),0 14px 34px rgba(0,0,0,.5)}
+.frame.on{box-shadow:0 0 0 2px var(--accent),0 14px 34px rgba(0,0,0,.55)}
+.frame .fl{position:absolute;top:-17px;left:1px;font-size:10px;color:var(--ink-3)}
+.frame iframe{width:100%;height:100%;border:0;pointer-events:none}
+.dside{width:250px;flex:0 0 250px;border-left:1px solid var(--line);background:var(--canvas);display:flex;flex-direction:column}
+.dside .h{padding:9px 12px;border-bottom:1px solid rgba(255,248,240,.04);font-size:11.5px;font-weight:650}
+.dside .b{flex:1;overflow:auto;padding:12px;font-size:11.5px;color:var(--ink-2);line-height:1.6}
+.dside .f{padding:9px 10px;border-top:1px solid rgba(255,248,240,.04);display:flex;gap:6px}
+.dside input{flex:1;background:var(--inset);box-shadow:var(--e-hair);border-radius:var(--r-ctl);
+  padding:6px 9px;color:var(--ink);font:inherit;font-size:11.5px;outline:none}
+
+.view{display:none;flex:1;flex-direction:column;min-height:0}
+.view.on{display:flex}
+.demo{position:fixed;right:12px;bottom:12px;z-index:99;display:flex;align-items:center;gap:4px;
+  background:var(--surface);box-shadow:0 0 0 1px var(--line-strong),0 10px 24px rgba(0,0,0,.6);border-radius:18px;padding:4px 6px 4px 11px}
+.demo .l{font-size:9px;font-family:var(--mono);color:var(--ink-4);letter-spacing:.07em}
+.demo button{padding:3px 8px;border-radius:12px;font-size:10.5px;color:var(--ink-3)}
+.demo button:hover{color:var(--ink);background:var(--hover)}
+.demo button.on{background:var(--ink);color:var(--page);font-weight:600}
+</style>
+</head>
+<body>
+<div class="app deep" id="app">
+
+  <!-- ============ RAIL ============ -->
+  <nav class="rail">
+    <div class="rtop"><div class="mark">P</div><div class="nm">Panacea App</div></div>
+    <div class="rs">
+      <div class="mhd hd"><span class="dot live"></span> CLOUD · aue-kata-01</div>
+      <div class="pj">
+        <div class="prow sel" onclick="project()"><span class="pini">CT</span><span class="pnm">Control Testing</span><span class="chev">▾</span></div>
+        <div class="kids">
+          <div class="brow" onclick="branch('main',event)"><span class="sd idle"></span><span class="bnm">main</span></div>
+          <div class="brow sel" onclick="branch('evidence-upload',event)"><span class="sd run live"></span><span class="bnm">evidence-upload</span></div>
+          <div class="kids">
+            <div class="wrow sel"><span class="sd run live"></span><span class="t">upload handler</span></div>
+            <div class="wrow"><span class="sd need"></span><span class="t">test harness</span></div>
+            <div class="wrow"><span class="sd idle"></span><span class="t">docs</span></div>
+            <div class="addr">＋ worktree</div>
+          </div>
+          <div class="brow" onclick="branch('client-preview',event)"><span class="sd run live"></span><span class="bnm">client-preview</span></div>
+          <div class="addr">＋ branch</div>
+        </div>
+      </div>
+      <div class="pj shut">
+        <div class="prow"><span class="pini">VS</span><span class="pnm">Verity Serum</span><span class="chev">▾</span></div>
+        <div class="kids"><div class="brow"><span class="sd drift"></span><span class="bnm">main</span></div>
+          <div class="kids"><div class="wrow"><span class="sd drift"></span><span class="t">refactor-auth</span></div></div></div>
+      </div>
+      <div class="pj shut">
+        <div class="prow"><span class="pini">MF</span><span class="pnm">Manifold</span><span class="chev">▾</span></div>
+        <div class="kids"><div class="brow"><span class="sd idle"></span><span class="bnm">main</span></div></div>
+      </div>
+      <div class="mhd hd"><span class="dot" style="background:var(--ink-4)"></span> LOCAL · this Mac</div>
+      <div class="pj shut hd">
+        <div class="prow"><span class="pini">CT</span><span class="pnm">Control Testing</span><span class="chev">▾</span></div>
+        <div class="kids"><div class="brow"><span class="sd idle"></span><span class="bnm">main</span></div></div>
+      </div>
+      <div class="addr hd" style="margin-top:6px">＋ New project</div>
+    </div>
+    <div class="rfoot"><div class="me">DM</div><span class="who hd">Dylan Mackie</span></div>
+  </nav>
+
+  <!-- ============ SUB-RAIL ============ -->
+  <aside class="sub">
+    <div class="stop"><div class="sbk" onclick="project()">← Control Testing</div>
+      <div class="sbr" id="sbr">evidence-upload</div>
+      <div class="smeta" id="smeta">3 worktrees · live at client-preview</div></div>
+    <div class="mods">
+      <div class="mod" data-m="discover" onclick="mod('discover')"><span class="mi">◇</span><span class="n">Discover</span></div>
+      <div class="mod" data-m="design" onclick="mod('design')"><span class="mi">◈</span><span class="n">Design</span></div>
+      <div class="mod sel" data-m="develop" onclick="mod('develop')"><span class="mi">◆</span><span class="n">Develop</span></div>
+      <div class="mod" data-m="deploy" onclick="mod('deploy')"><span class="mi">▲</span><span class="n">Deploy</span></div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+
+    <!-- ---------- DEVELOP ---------- -->
+    <section class="view on" data-v="develop">
+      <div class="top">
+        <div class="seg"><button class="on" onclick="vw('cols',this)">Columns</button>
+          <button onclick="vw('canvas',this)">Canvas</button><button>Screens</button></div>
+        <div class="sp"></div>
+        <button class="btn ghost">Run locally</button>
+        <button class="btn pri">＋ New worktree</button>
+      </div>
+
+      <div class="cols" id="colsView">
+
+        <!-- ============ SESSION 1 : working ============ -->
+        <div class="col">
+          <div class="ch"><span class="sd run live"></span><span class="nm">upload handler</span>
+            <span class="wt">~/wt/evidence-upload-a</span><div class="sp"></div><span class="x">⤢</span><span class="x">×</span></div>
+
+          <div class="tty">
+<span class="faded"><span class="u">&gt;</span> add virus scanning before anything is persisted
+
+<span class="tool">⏺</span> I'll wire clamav into the upload path and quarantine anything that fails.
+
+<span class="tool">⏺</span> Read(<span class="cy">services/api/upload.go</span>)
+  <span class="dim">⎿  Read 142 lines (ctrl+o to expand)</span>
+</span>
+<span class="wm">─── you were last here · 6h 12m ago ───</span>
+
+<span class="tool">⏺</span> Update Todos
+  <span class="dim">⎿</span>  <span class="gn">☒</span> <span class="dim">Read the existing upload handler</span>
+     <span class="gn">☒</span> <span class="dim">Add the Scanner interface</span>
+     ☐ Wire clamav into the upload path
+     ☐ Quarantine infected files and notify the lead
+     ☐ Update the API docs
+
+<span class="tool">⏺</span> Update(<span class="cy">services/api/scanner.go</span>)
+  <span class="dim">⎿  Updated services/api/scanner.go with 9 additions and 1 removal</span>
+<span class="ln">       33</span>    <span class="dim">// Check streams the reader past clamav before the caller persists it.</span>
+<span class="ln">       34</span>    func (s *Scanner) Check(ctx context.Context, r io.Reader) error {
+<span class="del"><span class="ln">       35</span> -    return nil</span>
+<span class="add"><span class="ln">       35</span> +    res, err := s.clam.Scan(ctx, r)</span>
+<span class="add"><span class="ln">       36</span> +    if err != nil {</span>
+<span class="add"><span class="ln">       37</span> +      return fmt.Errorf("scan: %w", err)</span>
+<span class="add"><span class="ln">       38</span> +    }</span>
+<span class="add"><span class="ln">       39</span> +    if res.Infected {</span>
+<span class="add"><span class="ln">       40</span> +      return ErrInfected</span>
+<span class="add"><span class="ln">       41</span> +    }</span>
+<span class="add"><span class="ln">       42</span> +    return nil</span>
+<span class="ln">       43</span>    }
+
+<span class="tool">⏺</span> Bash(<span class="cy">go test ./services/api/scanner/...</span>)
+  <span class="dim">⎿  ok      services/api/scanner    1.204s</span>
+
+<span class="tool">⏺</span> Task(<span class="cy">Wire the MinIO client</span>)
+  <span class="dim">⎿  Done (14 tool uses · 32.1k tokens · 2m 14s)</span>
+
+<span class="tool">⏺</span> routes.go is locked by another worktree on this branch, so I've left the
+  handler wiring for now and moved to the quarantine notification.
+
+<span class="spin">✻</span> <span class="dim">Deliberating… (esc to interrupt · 18s · ↑ 2.4k tokens)</span>
+          </div>
+
+          <div class="cc-in">
+            <div class="box">╭────────────────────────────────────────────────────────────╮</div>
+            <div class="box">│ <span class="field">&gt; <input placeholder="" /></span><span class="cursor"></span></div>
+            <div class="box">╰────────────────────────────────────────────────────────────╯</div>
+            <div class="cc-mode">  ⏵⏵ <b>bypass permissions on</b> (shift+tab to cycle)</div>
+          </div>
+
+          <div class="cf"><span>claude</span><span>Opus 5</span><div class="meter"><i style="width:38%"></i></div><span>38%</span>
+            <div class="sp"></div><span>$9.20</span><span>41m</span></div>
+        </div>
+
+        <!-- ============ SESSION 2 : Claude Code's own permission prompt ============ -->
+        <div class="col">
+          <div class="ch"><span class="sd need"></span><span class="nm">test harness</span>
+            <span class="wt">~/wt/evidence-upload-b</span><div class="sp"></div><span class="x">⤢</span><span class="x">×</span></div>
+
+          <div class="tty">
+<span class="tool">⏺</span> Update(<span class="cy">services/api/routes.go</span>)
+  <span class="dim">⎿  Updated services/api/routes.go with 1 addition</span>
+<span class="ln">      204</span>    api.GET("/controls/:id", h.GetControl)
+<span class="add"><span class="ln">      205</span> +  api.POST("/controls/:id/evidence", h.UploadEvidence)</span>
+
+<span class="tool">⏺</span> Bash(<span class="cy">docker compose up -d minio clamav</span>)
+  <span class="dim">⎿  ✔ Container ctt-minio   Started</span>
+     <span class="dim">✔ Container ctt-clamav  Started</span>
+
+<span class="tool">⏺</span> Bash(<span class="cy">go test ./services/api/...</span>)
+  <span class="dim">⎿  Error: exit status 1</span>
+     <span class="dim">--- FAIL: TestUploadEvidence (0.08s)</span>
+         <span class="dim">pq: relation "evidence" does not exist</span>
+     <span class="dim">FAIL    services/api    0.882s</span>
+
+<span class="tool">⏺</span> The table doesn't exist yet. I need to run the migration.
+
+<span class="box">╭────────────────────────────────────────────────────────────╮</span>
+<span class="box">│</span> <span class="u">Bash command</span>                                               <span class="box">│</span>
+<span class="box">│</span>                                                            <span class="box">│</span>
+<span class="box">│</span>   <span class="cy">panacea migrate up --project control-testing</span>              <span class="box">│</span>
+<span class="box">│</span>   <span class="dim">Create the evidence table and its indexes</span>                 <span class="box">│</span>
+<span class="box">│</span>                                                            <span class="box">│</span>
+<span class="box">│</span> <span class="u">Do you want to proceed?</span>                                    <span class="box">│</span>
+<span class="box">│</span> <span class="sel">❯ 1. Yes</span>                                                   <span class="box">│</span>
+<span class="box">│</span>   2. Yes, and don't ask again for panacea migrate commands  <span class="box">│</span>
+<span class="box">│</span>   3. No, and tell Claude what to do differently (esc)       <span class="box">│</span>
+<span class="box">╰────────────────────────────────────────────────────────────╯</span>
+
+<span class="dim">  waiting 5h 51m · two worktrees on this branch are idle behind it</span>
+          </div>
+
+          <div class="cc-in">
+            <div class="cc-mode">  ⏵⏵ <b>ask before running commands</b> (shift+tab to cycle)</div>
+          </div>
+
+          <div class="cf"><span>claude</span><span>Opus 5</span><div class="meter hot"><i style="width:71%"></i></div><span>71%</span>
+            <div class="sp"></div><span>$14.80</span><span>1h 06m</span></div>
+        </div>
+
+        <!-- ============ SESSION 3 : idle, waiting for input ============ -->
+        <div class="col">
+          <div class="ch"><span class="sd idle"></span><span class="nm">docs</span>
+            <span class="wt">~/wt/evidence-upload-c</span><div class="sp"></div><span class="x">⤢</span><span class="x">×</span></div>
+
+          <div class="tty">
+<span class="tool">⏺</span> Update(<span class="cy">docs/api/upload.md</span>)
+  <span class="dim">⎿  Updated docs/api/upload.md with 24 additions and 4 removals</span>
+<span class="ln">       12</span>    ## Uploading evidence
+<span class="del"><span class="ln">       13</span> -  Files are stored directly.</span>
+<span class="add"><span class="ln">       13</span> +  Evidence is scanned before it is stored. Infected files are</span>
+<span class="add"><span class="ln">       14</span> +  quarantined and the engagement lead is notified.</span>
+
+<span class="tool">⏺</span> Bash(<span class="cy">npm run doc-lint</span>)
+  <span class="dim">⎿  ✔ 0 problems</span>
+
+<span class="tool">⏺</span> Update Todos
+  <span class="dim">⎿</span>  <span class="gn">☒</span> <span class="dim">Document the scan step</span>
+     <span class="gn">☒</span> <span class="dim">Document quarantine behaviour</span>
+     <span class="gn">☒</span> <span class="dim">Update the field reference</span>
+     <span class="gn">☒</span> <span class="dim">Run the doc linter</span>
+
+<span class="tool">⏺</span> Done. 4 files changed, +128 −16.
+
+  I renamed the public field <span class="cy">classification</span> → <span class="cy">dataClass</span> to match the schema
+  Verity Serum already uses. Nothing else referenced it, but it is a breaking
+  change to a published API, so flagging it rather than assuming.
+
+  Nothing here conflicts with the other two worktrees on this branch.
+
+<span class="dim">  ⎿  ready to merge into evidence-upload</span>
+          </div>
+
+          <div class="cc-in">
+            <div class="box">╭────────────────────────────────────────────────────────────╮</div>
+            <div class="box">│ <span class="field">&gt; <input placeholder="" /></span><span class="cursor"></span></div>
+            <div class="box">╰────────────────────────────────────────────────────────────╯</div>
+            <div class="cc-mode">  ⏵⏵ <b>bypass permissions on</b> (shift+tab to cycle)   <span style="float:right">/rc to review</span></div>
+          </div>
+
+          <div class="cf"><span>codex</span><div class="meter"><i style="width:22%"></i></div><span>22%</span>
+            <div class="sp"></div><span>$2.10</span><span>idle 12m</span></div>
+        </div>
+      </div>
+
+      <!-- CANVAS -->
+      <div class="canvas" id="canvasView" style="display:none">
+        <div class="tile" style="left:30px;top:24px;width:440px;height:310px">
+          <div class="ch"><span class="sd run live"></span><span class="nm">upload handler</span><div class="sp"></div><span class="x">×</span></div>
+          <div class="tty" style="font-size:11px">
+<span class="tool">⏺</span> Update(<span class="cy">services/api/scanner.go</span>)
+  <span class="dim">⎿  Updated with 9 additions and 1 removal</span>
+<span class="add"><span class="ln">       39</span> +    if res.Infected {</span>
+<span class="add"><span class="ln">       40</span> +      return ErrInfected</span>
+
+<span class="tool">⏺</span> Bash(<span class="cy">go test ./services/api/scanner/...</span>)
+  <span class="dim">⎿  ok      services/api/scanner    1.204s</span>
+
+<span class="spin">✻</span> <span class="dim">Deliberating… (esc to interrupt · 18s)</span>
+          </div>
+          <div class="cf"><span>Opus 5</span><div class="sp"></div><span>41m</span></div>
+        </div>
+
+        <div class="tile" style="left:492px;top:24px;width:440px;height:250px">
+          <div class="ch"><span class="sd need"></span><span class="nm">test harness</span><div class="sp"></div><span class="x">×</span></div>
+          <div class="tty" style="font-size:11px">
+<span class="dim">--- FAIL: TestUploadEvidence  pq: relation "evidence" does not exist</span>
+
+<span class="box">╭──────────────────────────────────────────────╮</span>
+<span class="box">│</span> <span class="u">Bash command</span>                                 <span class="box">│</span>
+<span class="box">│</span>   <span class="cy">panacea migrate up</span>                         <span class="box">│</span>
+<span class="box">│</span> <span class="u">Do you want to proceed?</span>                      <span class="box">│</span>
+<span class="box">│</span> <span class="sel">❯ 1. Yes</span>                                     <span class="box">│</span>
+<span class="box">│</span>   2. Yes, and don't ask again                <span class="box">│</span>
+<span class="box">│</span>   3. No, tell Claude what to do differently   <span class="box">│</span>
+<span class="box">╰──────────────────────────────────────────────╯</span>
+          </div>
+        </div>
+
+        <div class="tile" style="left:200px;top:352px;width:400px;height:190px">
+          <div class="ch"><span class="sd idle"></span><span class="nm">docs</span><div class="sp"></div><span class="x">×</span></div>
+          <div class="tty" style="font-size:11px">
+<span class="tool">⏺</span> Done. 4 files changed, +128 −16.
+<span class="dim">  ⎿  ready to merge into evidence-upload</span>
+          </div>
+        </div>
+
+        <div class="tile" style="left:620px;top:300px;width:320px;height:240px;background:#fff">
+          <div class="ch" style="background:var(--page)"><span class="nm">upload-flow.html</span><div class="sp"></div><span class="x">×</span></div>
+          <iframe style="flex:1;border:0" srcdoc="<html><body style='margin:0;font:12px Segoe UI,system-ui;color:#191614;padding:14px'><b>Upload flow</b><div style='margin-top:9px;font-size:11px;color:#6d655e'>client → presigned URL → S3 → clamav → quarantine or store</div><div style='margin-top:11px;border:1px solid #eee;border-radius:8px;padding:9px;font-size:11px'>Infected files never reach the bucket.</div></body></html>"></iframe>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- DISCOVER ---------- -->
+    <section class="view" data-v="discover">
+      <div class="top"><span style="font-size:12px;font-weight:650">Discover</span>
+        <span style="font-size:11px;color:var(--ink-3)">· becomes CLAUDE.md for every worktree on this branch</span>
+        <div class="sp"></div><button class="btn ghost">Skip</button></div>
+      <div class="body"><div class="disc">
+        <div class="step">QUESTION 3 OF 5</div>
+        <h2>What has to be true before this branch can merge?</h2>
+        <p>This is written into the branch's CLAUDE.md, so every agent started here inherits it.</p>
+        <div class="pick on" onclick="this.classList.toggle('on')"><span class="k">1</span>
+          <span class="tx">Evidence is virus-scanned before it is stored<small>Adds a scanning step and a quarantine path</small></span></div>
+        <div class="pick on" onclick="this.classList.toggle('on')"><span class="k">2</span>
+          <span class="tx">Every upload carries a data classification<small>Inherited from the project brief</small></span></div>
+        <div class="pick" onclick="this.classList.toggle('on')"><span class="k">3</span>
+          <span class="tx">Uploads work on mobile<small>Testers work on site with tablets</small></span></div>
+        <div class="pick" onclick="this.classList.toggle('on')"><span class="k">4</span>
+          <span class="tx">Files over 100&nbsp;MB are supported<small>Changes the storage approach</small></span></div>
+      </div></div>
+    </section>
+
+    <!-- ---------- DESIGN ---------- -->
+    <section class="view" data-v="design">
+      <div class="top"><span style="font-size:12px;font-weight:650">Design</span>
+        <div class="sp"></div><button class="btn ghost">Skip</button><button class="btn pri">Hand to Develop</button></div>
+      <div class="dsplit">
+        <div class="dcv" id="dcv">
+          <div class="frame on" style="left:66px;top:36px;width:246px;height:300px"><div class="fl">Control detail</div>
+            <iframe srcdoc="<html><body style='margin:0;font:12px Segoe UI,system-ui;color:#191614'><div style='height:38px;border-bottom:1px solid #eee;display:flex;align-items:center;padding:0 12px;font-weight:700'>Access review</div><div style=padding:12px><div style=font-size:10px;color:#6d655e>Evidence</div><div style='border:2px dashed #ddd;border-radius:8px;padding:16px;text-align:center;color:#a8a099;font-size:11px;margin-top:5px'>Drop files</div><div style='margin-top:9px;font-size:10px;color:#6d655e'>Classification</div><div style='border:1px solid #e3e3e3;border-radius:6px;padding:6px 8px;font-size:11px;margin-top:3px'>Client confidential</div></div></body></html>"></iframe></div>
+          <div class="frame" style="left:344px;top:36px;width:246px;height:300px"><div class="fl">Scanning</div>
+            <iframe srcdoc="<html><body style='margin:0;font:12px Segoe UI,system-ui;color:#191614;padding:12px'><div style='border:1px solid #e3e3e3;border-radius:8px;padding:10px'><b style=font-size:11px>evidence-q3.pdf</b><div style='height:4px;background:#eee;border-radius:3px;margin:8px 0'><div style='height:100%;width:62%;background:#2fa0aa;border-radius:3px'></div></div><div style='font-size:10px;color:#6d655e'>Scanning…</div></div></body></html>"></iframe></div>
+        </div>
+        <aside class="dside"><div class="h">Change it by talking</div>
+          <div class="b">Real HTML frames. Drag them, or say what to change — what you approve is what the
+            agents get handed.</div>
+          <div class="f"><input placeholder="describe a change…" /><button class="btn pri">Send</button></div></aside>
+      </div>
+    </section>
+
+    <!-- ---------- DEPLOY ---------- -->
+    <section class="view" data-v="deploy">
+      <div class="top"><span style="font-size:12px;font-weight:650">Deploy</span>
+        <div class="sp"></div><button class="btn ghost">History</button><button class="btn pri">Deploy now</button></div>
+      <div class="body"><div class="inner">
+        <div class="sech">THIS BRANCH</div>
+        <div class="card"><div class="row"><span class="sd run live"></span>
+          <div><div class="t1">Live at <b style="font-family:var(--mono)">client-preview</b></div>
+            <div class="t2">client-preview.ctt.panacea.kpmg · v1.5.0-rc3 · deployed 14m ago</div></div>
+          <div class="sp"></div><button class="btn ghost">Logs</button><button class="btn ghost">Rollback</button></div></div>
+        <div class="card"><div class="row"><div><div class="t1">Who can reach it</div>
+          <div class="t2">Harbourline reviewers + project team · <b>not public</b></div></div>
+          <div class="sp"></div><button class="btn ghost">Change access</button></div></div>
+        <div class="sech" style="margin-top:20px">OTHER BRANCHES</div>
+        <div class="card"><div class="row"><span class="sd idle"></span>
+          <div><div class="t1" style="font-family:var(--mono)">main</div>
+            <div class="t2">live at <b>production</b> · locked to reviewers · v1.4.2</div></div>
+          <div class="sp"></div><button class="btn ghost">Open</button></div></div>
+        <div class="card"><div class="row"><span class="sd run live"></span>
+          <div><div class="t1" style="font-family:var(--mono)">client-preview</div>
+            <div class="t2">live at <b>demo</b> · client reviewers only · v1.4.9</div></div>
+          <div class="sp"></div><button class="btn ghost">Open</button></div></div>
+      </div></div>
+    </section>
+
+    <!-- ---------- PROJECT ---------- -->
+    <section class="view" data-v="project">
+      <div class="top"><span style="font-size:12px;font-weight:650">Control Testing</span>
+        <div class="sp"></div><button class="btn ghost">Discover</button><button class="btn pri">＋ New branch</button></div>
+      <div class="body"><div class="inner">
+        <div class="sech">BRANCHES</div>
+        <div class="card"><div class="row"><span class="sd idle"></span>
+          <div><div class="t1" style="font-family:var(--mono)">main</div>
+            <div class="t2">live at <b>production</b> · v1.4.2 · no agents</div></div>
+          <div class="sp"></div><button class="btn ghost" onclick="branch('main',event)">Open</button></div></div>
+        <div class="card"><div class="row"><span class="sd need"></span>
+          <div><div class="t1" style="font-family:var(--mono)">evidence-upload</div>
+            <div class="t2">live at <b>client-preview</b> · 3 worktrees · <b style="color:var(--need)">one waiting on you 5h 51m</b></div></div>
+          <div class="sp"></div><button class="btn ghost" onclick="branch('evidence-upload',event)">Open</button></div></div>
+        <div class="card"><div class="row"><span class="sd run live"></span>
+          <div><div class="t1" style="font-family:var(--mono)">client-preview</div>
+            <div class="t2">live at <b>demo</b> · 1 worktree</div></div>
+          <div class="sp"></div><button class="btn ghost" onclick="branch('client-preview',event)">Open</button></div></div>
+        <div class="sech" style="margin-top:20px">WHAT THIS PROJECT IS</div>
+        <div class="card"><div class="t1">Track control testing across audit engagements.</div>
+          <div class="t2">Leads assign controls, testers upload evidence, reviewers sign off or return for rework.
+            Every evidence file carries a data classification. Identity is KPMG EntraID.</div></div>
+      </div></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="demo">
+  <span class="l">PROTOTYPE</span>
+  <button class="on" onclick="mod('develop')">Develop</button>
+  <button onclick="mod('discover')">Discover</button>
+  <button onclick="mod('design')">Design</button>
+  <button onclick="mod('deploy')">Deploy</button>
+  <button onclick="project()">Project</button>
+</div>
+
+<script>
+const app=document.getElementById('app');
+const views=[...document.querySelectorAll('.view')];
+function show(v){const f=()=>views.forEach(s=>s.classList.toggle('on',s.dataset.v===v));
+  document.startViewTransition?document.startViewTransition(f):f();}
+function project(){app.classList.remove('deep');show('project');
+  document.querySelectorAll('.demo button').forEach(b=>b.classList.remove('on'));}
+function branch(n,e){if(e)e.stopPropagation();app.classList.add('deep');
+  document.getElementById('sbr').textContent=n;
+  document.getElementById('smeta').textContent = n==='main'?'1 worktree · live at production'
+    : n==='client-preview'?'1 worktree · live at demo':'3 worktrees · live at client-preview';
+  document.querySelectorAll('.brow').forEach(x=>x.classList.remove('sel'));
+  if(e&&e.currentTarget.classList&&e.currentTarget.classList.contains('brow'))e.currentTarget.classList.add('sel');
+  mod('develop');}
+function mod(m){app.classList.add('deep');
+  document.querySelectorAll('.mod').forEach(x=>x.classList.toggle('sel',x.dataset.m===m));show(m);
+  document.querySelectorAll('.demo button').forEach(b=>b.classList.remove('on'));}
+function vw(w,el){document.getElementById('colsView').style.display=w==='cols'?'flex':'none';
+  document.getElementById('canvasView').style.display=w==='canvas'?'block':'none';
+  el.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
+document.querySelectorAll('.prow').forEach(r=>r.addEventListener('click',e=>{
+  if(e.target.closest('.chev')){r.parentElement.classList.toggle('shut');e.stopPropagation();return;}
+  document.querySelectorAll('.prow').forEach(x=>x.classList.remove('sel'));
+  r.classList.add('sel');r.parentElement.classList.remove('shut');}));
+document.querySelectorAll('.wrow').forEach(r=>r.addEventListener('click',e=>{e.stopPropagation();
+  document.querySelectorAll('.wrow').forEach(x=>x.classList.remove('sel'));r.classList.add('sel');}));
+function drag(sel,handle){document.querySelectorAll(sel).forEach(t=>{
+  const h=handle?t.querySelector(handle):t;if(!h)return;
+  h.onpointerdown=e=>{if(e.target.closest('.x,.btn,input'))return;
+    if(t.classList.contains('frame')){document.querySelectorAll('.frame').forEach(x=>x.classList.remove('on'));t.classList.add('on');}
+    const sx=e.clientX,sy=e.clientY,ox=t.offsetLeft,oy=t.offsetTop;t.style.zIndex=50;
+    const mv=ev=>{t.style.left=(ox+ev.clientX-sx)+'px';t.style.top=(oy+ev.clientY-sy)+'px';};
+    const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);};
+    addEventListener('pointermove',mv);addEventListener('pointerup',up);};});}
+drag('.tile','.ch');drag('.frame',null);
+/* clicking a column focuses its real input, like taking the keyboard in that session */
+document.querySelectorAll('.col').forEach(c=>c.addEventListener('click',e=>{
+  if(e.target.closest('.x'))return; const i=c.querySelector('.cc-in input'); if(i)i.focus();}));
+</script>
+</body>
+</html>
