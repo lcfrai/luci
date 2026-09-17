@@ -1094,11 +1094,11 @@ func TestCreateProducesAKataPodWithExplicitResources(t *testing.T) {
 	c := pod.Spec.Containers[0]
 	// Kata sizes the guest VM from the sum of requests and limits. Missing
 	// values cause guest OOM, so both must be present.
-	for _, key := range []string{"cpu", "memory"} {
-		if _, ok := c.Resources.Requests[corev1ResourceName(key)]; !ok {
+	for _, key := range []corev1.ResourceName{corev1.ResourceCPU, corev1.ResourceMemory} {
+		if _, ok := c.Resources.Requests[key]; !ok {
 			t.Errorf("missing resource request %q", key)
 		}
-		if _, ok := c.Resources.Limits[corev1ResourceName(key)]; !ok {
+		if _, ok := c.Resources.Limits[key]; !ok {
 			t.Errorf("missing resource limit %q", key)
 		}
 	}
@@ -1129,18 +1129,10 @@ func TestDeleteRemovesThePod(t *testing.T) {
 }
 ```
 
-Add the small helper at the bottom of the same file:
+The test file's import block must therefore include, alongside the others:
 
 ```go
-func corev1ResourceName(s string) corev1ResourceNameType { return corev1ResourceNameType(s) }
-```
-
-and at the top of the file add the import alias:
-
-```go
-import corev1 "k8s.io/api/core/v1"
-
-type corev1ResourceNameType = corev1.ResourceName
+corev1 "k8s.io/api/core/v1"
 ```
 
 - [ ] **Step 3: Run the tests to verify they fail**
