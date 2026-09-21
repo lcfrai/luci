@@ -13,11 +13,20 @@ import (
 // parseArgs resolves the process arguments. argsJSON wins when present: the
 // CSV form cannot carry an opening prompt containing a comma, which is the
 // common case the moment a user types one.
+//
+// A JSON "null" is rejected rather than quietly treated as no arguments.
+// json.Unmarshal accepts it into a []string without error, leaving the slice
+// nil, so a caller that meant to pass arguments and serialised them wrongly
+// would get a silently argument-less agent. An empty array is the way to say
+// "no arguments", and it still parses.
 func parseArgs(argsCSV, argsJSON string) ([]string, error) {
 	if strings.TrimSpace(argsJSON) != "" {
 		var out []string
 		if err := json.Unmarshal([]byte(argsJSON), &out); err != nil {
 			return nil, fmt.Errorf("args-json must be a JSON array of strings: %w", err)
+		}
+		if out == nil {
+			return nil, fmt.Errorf("args-json must be a JSON array of strings, got %q", argsJSON)
 		}
 		return out, nil
 	}
@@ -34,6 +43,8 @@ func main() {
 	argsJSON := flag.String("args-json", "", "arguments as a JSON array of strings")
 	token := flag.String("attach-token", os.Getenv("PANACEA_APP_ATTACH_TOKEN"),
 		"shared secret required on /attach")
+	allowUnauthenticated := flag.Bool("allow-unauthenticated", false,
+		"run without an attach token; local development only")
 	flag.Parse()
 
 	argv, err := parseArgs(*argsCSV, *argsJSON)
@@ -42,14 +53,16 @@ func main() {
 		os.Exit(2)
 	}
 
-	srv, err := newServer(*command, argv, *token)
+	srv, err := newServer(*command, argv, *token, *allowUnauthenticated)
 	if err != nil {
 		slog.Error("could not start the session", "err", err)
 		os.Exit(1)
 	}
 
-	slog.Info("sandboxd listening", "addr", *addr, "command", *command, "args", argv,
-		"authenticated", *token != "")
+	// args_count, not args: argv routinely carries the user's opening prompt,
+	// which has no business in container logs.
+	slog.Info("sandboxd listening", "addr", *addr, "command", *command, "args_count", len(argv),
+		"authenticated", *token != "", "allow_unauthenticated", *allowUnauthenticated)
 	if err := http.ListenAndServe(*addr, srv); err != nil {
 		slog.Error("server exited", "err", err)
 		os.Exit(1)

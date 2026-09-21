@@ -5,7 +5,9 @@
 package server
 
 import (
+	"context"
 	"crypto/subtle"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -30,10 +32,18 @@ type Config struct {
 
 	// AttachToken is a shared secret the control plane must present on
 	// /attach. On a developer laptop the sandbox port is published to
-	// 127.0.0.1, which every local process can reach — the origin check in the
-	// control plane does not protect this hop, so this token does.
-	// An empty token disables the check and is only acceptable in tests.
+	// 127.0.0.1, which every local process can reach — the origin check in
+	// the control plane does not protect this hop, so this token does. New
+	// refuses to start with this empty unless AllowUnauthenticated is also
+	// set: a security property must not depend on every caller remembering
+	// to supply it.
 	AttachToken string
+
+	// AllowUnauthenticated opts out of the AttachToken requirement. Local
+	// development and ad hoc testing only — the production image never sets
+	// this, so a sandbox container always requires a token unless someone
+	// deliberately chose not to.
+	AllowUnauthenticated bool
 
 	// Scrollback is the replay buffer size in bytes; 0 uses the hub default.
 	Scrollback int
@@ -49,7 +59,19 @@ type Server struct {
 // New starts the PTY and returns a Server serving /attach and /healthz. The
 // PTY starts here, once, rather than per connection: a session must outlive
 // the client that is looking at it.
+//
+// New fails closed: with no AttachToken and no explicit AllowUnauthenticated,
+// it refuses to start rather than silently serving an unauthenticated
+// /attach. A published loopback port is reachable by every process on a
+// developer laptop, so absence of a token must be a visible, deliberate
+// choice — never a default that a forgotten environment variable falls back
+// to.
 func New(cfg Config) (*Server, error) {
+	if cfg.AttachToken == "" && !cfg.AllowUnauthenticated {
+		return nil, errors.New("sandboxd: no attach token configured; " +
+			"set AttachToken (PANACEA_APP_ATTACH_TOKEN / -attach-token) or " +
+			"pass -allow-unauthenticated to run without one")
+	}
 	h, err := hub.Start(hub.Config{
 		Command:    cfg.Command,
 		Args:       cfg.Args,
@@ -69,14 +91,27 @@ func New(cfg Config) (*Server, error) {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.mux.ServeHTTP(w, r) }
 
-// Close stops the underlying process. Only the entrypoint calls this.
+// Close stops the underlying process. The entrypoint holds only the
+// http.Handler New returns, which erases *Server — so in practice only tests,
+// which call New directly, can reach this.
 func (s *Server) Close() error { return s.h.Close() }
 
+// authorised checks the bearer token. New guarantees AttachToken is non-empty
+// here unless AllowUnauthenticated was set, so an empty token at this point
+// means auth was deliberately disabled. ConstantTimeCompare avoids leaking
+// the token's content through timing; it still returns early on a length
+// mismatch, which leaks length, but the token's length is not itself a
+// secret.
 func (s *Server) authorised(r *http.Request) bool {
 	if s.cfg.AttachToken == "" {
 		return true
 	}
-	got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	const scheme = "Bearer "
+	auth := r.Header.Get("Authorization")
+	if !strings.HasPrefix(auth, scheme) {
+		return false
+	}
+	got := strings.TrimPrefix(auth, scheme)
 	return subtle.ConstantTimeCompare([]byte(got), []byte(s.cfg.AttachToken)) == 1
 }
 
@@ -92,6 +127,39 @@ func exitFrame(h *hub.Hub) (frame []byte, send bool) {
 		return wire.Encode(wire.Exit, []byte(h.ExitReason())), true
 	default:
 		return nil, false
+	}
+}
+
+// wsConn is the minimal surface fanOut needs from a *websocket.Conn.
+// Extracting it lets a test drive the real production fan-out loop —
+// including the exitFrame decision — against a recording fake, with no live
+// network connection and nothing timing-dependent to observe.
+type wsConn interface {
+	Write(ctx context.Context, typ websocket.MessageType, p []byte) error
+	Close(code websocket.StatusCode, reason string) error
+}
+
+// fanOut relays hub output to conn until out closes or ctx is done. This is
+// the exact decision the exitFrame amendment protects: whether a closed out
+// means the process exited (send an Exit frame) or the client merely
+// detached (send nothing beyond a normal close).
+func fanOut(ctx context.Context, conn wsConn, h *hub.Hub, out <-chan []byte) {
+	for {
+		select {
+		case chunk, ok := <-out:
+			if !ok {
+				if frame, send := exitFrame(h); send {
+					_ = conn.Write(ctx, websocket.MessageBinary, frame)
+				}
+				conn.Close(websocket.StatusNormalClosure, "session ended")
+				return
+			}
+			if err := conn.Write(ctx, websocket.MessageBinary, wire.Encode(wire.Stdout, chunk)); err != nil {
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
@@ -125,25 +193,7 @@ func (s *Server) attach(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	go func() {
-		for {
-			select {
-			case chunk, ok := <-out:
-				if !ok {
-					if frame, send := exitFrame(s.h); send {
-						_ = conn.Write(ctx, websocket.MessageBinary, frame)
-					}
-					conn.Close(websocket.StatusNormalClosure, "session ended")
-					return
-				}
-				if err := conn.Write(ctx, websocket.MessageBinary, wire.Encode(wire.Stdout, chunk)); err != nil {
-					return
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	go fanOut(ctx, conn, s.h, out)
 
 	for {
 		_, data, err := conn.Read(ctx)

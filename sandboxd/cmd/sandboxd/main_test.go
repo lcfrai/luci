@@ -48,3 +48,23 @@ func TestParseArgsRejectsNonArrayJSON(t *testing.T) {
 		t.Fatal("expected an error for a JSON object, got nil")
 	}
 }
+
+// json.Unmarshal accepts null into a []string and leaves it nil, so without
+// an explicit check a mis-serialised argv would start an agent with no
+// arguments and no complaint.
+func TestParseArgsRejectsJSONNull(t *testing.T) {
+	if _, err := parseArgs("", "null"); err == nil {
+		t.Fatal("expected an error for a JSON null, got nil")
+	}
+}
+
+// The empty array is how a caller says "no arguments" and must still parse.
+func TestParseArgsAcceptsEmptyJSONArray(t *testing.T) {
+	got, err := parseArgs("ignored,csv", "[]")
+	if err != nil {
+		t.Fatalf("parseArgs: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("got %#v, want no arguments", got)
+	}
+}

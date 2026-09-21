@@ -114,6 +114,21 @@ func TestAttachWithWrongTokenIsRejected(t *testing.T) {
 	}
 }
 
+func TestAttachWithBareTokenAndNoBearerSchemeIsRejected(t *testing.T) {
+	srv := newServer(t, server.Config{Command: "/bin/sh", AttachToken: testToken})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	opts := &websocket.DialOptions{HTTPHeader: http.Header{}}
+	opts.HTTPHeader.Set("Authorization", testToken) // no "Bearer " scheme
+	_, resp, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/attach", opts)
+	if err == nil {
+		t.Fatal("expected the handshake to fail without the Bearer scheme")
+	}
+	if resp == nil || resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %v, want 401", resp)
+	}
+}
+
 func TestStreamsStdoutAndAcceptsStdin(t *testing.T) {
 	srv := newServer(t, server.Config{Command: "/bin/sh", AttachToken: testToken})
 	c, ctx := dial(t, srv, testToken)
@@ -133,7 +148,11 @@ func TestAppliesResize(t *testing.T) {
 	if err := c.Write(ctx, websocket.MessageBinary, wire.Encode(wire.Resize, rp)); err != nil {
 		t.Fatalf("Write resize: %v", err)
 	}
-	time.Sleep(200 * time.Millisecond)
+	// No sleep between the two frames. The handler reads this connection on
+	// one goroutine in message order, and hub.Resize is a synchronous
+	// TIOCSWINSZ on the PTY master, so the new winsize is already in place
+	// before the stty bytes are written to it. Task 2 relies on the same
+	// ordering in ptysession's session_test.go.
 	if err := c.Write(ctx, websocket.MessageBinary,
 		wire.Encode(wire.Stdin, []byte("stty size\n"))); err != nil {
 		t.Fatalf("Write stty: %v", err)
@@ -208,4 +227,33 @@ func TestExitFrameIsSentWhenTheProcessEnds(t *testing.T) {
 		}
 	}
 	t.Fatal("no Exit frame within 10s of the process exiting")
+}
+
+// The three states New's fail-closed check cares about: a token configured
+// (covered above by every test that sets AttachToken), no token and no
+// opt-out (must refuse to start), and no token with an explicit opt-out
+// (must start and serve unauthenticated).
+
+func TestNewFailsWithoutAttachTokenOrOptOut(t *testing.T) {
+	s, err := server.New(server.Config{Command: "/bin/sh"})
+	if err == nil {
+		t.Fatal("expected New to fail with no AttachToken and no AllowUnauthenticated")
+	}
+	// Nothing was started, so there is nothing to Close: a non-nil Server
+	// here would mean a PTY leaked behind a returned error.
+	if s != nil {
+		s.Close()
+		t.Fatal("New returned a Server alongside its error")
+	}
+}
+
+func TestNewAllowsNoTokenWhenExplicitlyUnauthenticated(t *testing.T) {
+	srv := newServer(t, server.Config{Command: "/bin/sh", AllowUnauthenticated: true})
+	c, ctx := dial(t, srv, "") // no Authorization header at all
+
+	if err := c.Write(ctx, websocket.MessageBinary,
+		wire.Encode(wire.Stdin, []byte("echo insecure-ok\n"))); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	readUntil(t, c, ctx, []byte("insecure-ok"), 10*time.Second)
 }

@@ -110,29 +110,35 @@ func (h *Hub) reapExitReason() string {
 
 func (h *Hub) finish(reason string) {
 	h.doneOnce.Do(func() {
+		// done is closed inside the same critical section that sets closed,
+		// so the two can never be observed out of step. A Subscribe that
+		// sees closed hands back a pre-closed channel and will never deliver
+		// a live chunk; if done were closed in a later critical section,
+		// that client could check Done, still read it as open, and report
+		// the exit as a plain detach — no Exit frame for a process that has
+		// already gone. Holding mu across the close is safe because close
+		// never blocks and nothing waits on done under mu.
+		//
+		// The subscriber channels are detached from the map under the lock
+		// but closed after it. Detaching under the lock is what keeps that
+		// safe: a concurrent publish only ever ranges over the new empty
+		// map, so it cannot send on a channel about to close, and cancel's
+		// h.subs[id] lookup misses, so it cannot close one twice. Closing
+		// them here, after close(h.done), also orders the two for a reader:
+		// close(ch) synchronizes-before the receive that observes it closed,
+		// so by transitivity that reader's non-blocking Done check sees done
+		// closed.
 		h.mu.Lock()
 		h.exitReason = reason
 		h.closed = true
-		h.mu.Unlock()
-
-		// Close done before the subscriber channels, not after. A caller that
-		// reacts to a subscriber channel closing (its own cancel or this exit)
-		// often needs to tell the two apart by checking Done — closing done
-		// first means that check happens-before-transitively via program
-		// order plus the subscriber channel's own close-before-receive rule,
-		// so it reliably sees Done already closed. Closing them in the other
-		// order gives no such guarantee: the two channels are independently
-		// synchronized, so a reader could observe the subscriber channel
-		// closed while done still reads as open, and wrongly conclude the
-		// process is still running.
 		close(h.done)
-
-		h.mu.Lock()
-		for id, ch := range h.subs {
-			close(ch)
-			delete(h.subs, id)
-		}
+		subs := h.subs
+		h.subs = map[int]chan []byte{}
 		h.mu.Unlock()
+
+		for _, ch := range subs {
+			close(ch)
+		}
 	})
 }
 

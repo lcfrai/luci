@@ -8,6 +8,11 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/server"
 )
 
-func newServer(command string, argv []string, token string) (http.Handler, error) {
-	return server.New(server.Config{Command: command, Args: argv, AttachToken: token})
+func newServer(command string, argv []string, token string, allowUnauthenticated bool) (http.Handler, error) {
+	return server.New(server.Config{
+		Command:              command,
+		Args:                 argv,
+		AttachToken:          token,
+		AllowUnauthenticated: allowUnauthenticated,
+	})
 }
