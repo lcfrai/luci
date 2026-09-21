@@ -6,7 +6,6 @@
 package hub
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/ptysession"
@@ -69,19 +68,23 @@ func (h *Hub) pump() {
 		if n > 0 {
 			chunk := make([]byte, n)
 			copy(chunk, buf[:n])
-			h.buf.Write(chunk)
-			h.broadcast(chunk)
+			h.publish(chunk)
 		}
 		if err != nil {
-			h.finish(fmt.Sprintf("session ended: %v", err))
+			h.finish(h.reapExitReason())
 			return
 		}
 	}
 }
 
-func (h *Hub) broadcast(chunk []byte) {
+// publish appends chunk to the scrollback and fans it out to subscribers
+// under one lock. Splitting those into two acquisitions would let a Subscribe
+// land between them and see the chunk twice — once in its replay, once live
+// — or, symmetrically, miss it from both.
+func (h *Hub) publish(chunk []byte) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.buf.Write(chunk)
 	for _, ch := range h.subs {
 		select {
 		case ch <- chunk:
@@ -91,6 +94,18 @@ func (h *Hub) broadcast(chunk []byte) {
 			// the ring on its next attach.
 		}
 	}
+}
+
+// reapExitReason waits for the child so it never lingers as a zombie in the
+// sandbox, and turns its own exit status into the sentence a client renders
+// in an Exit frame. The read error that got us here is not that sentence —
+// it is the PTY closing, which reads as a plain I/O error and says nothing
+// about how the process actually ended.
+func (h *Hub) reapExitReason() string {
+	if err := h.sess.Wait(); err != nil {
+		return err.Error()
+	}
+	return "exit status 0"
 }
 
 func (h *Hub) finish(reason string) {

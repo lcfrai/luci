@@ -171,23 +171,36 @@ func TestCancelIsIdempotent(t *testing.T) {
 	cancel() // must not panic or close a closed channel
 }
 
-func TestSlowSubscriberDoesNotStallTheHub(t *testing.T) {
-	h, err := hub.Start(hub.Config{Command: "/bin/sh"})
+// TestSlowSubscriberDoesNotStallTheHub lives in hub_internal_test.go: making
+// it actually overflow a subscriber's buffer needs white-box access to the
+// fan-out method and the buffer size constant.
+
+func TestSubscribeAfterProcessExitReturnsReplayAndAClosedChannel(t *testing.T) {
+	h, err := hub.Start(hub.Config{Command: "/bin/sh", Args: []string{"-c", "echo already-done; exit 0"}})
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	defer h.Close()
 
-	// A subscriber that never reads.
-	_, _, stuck := h.Subscribe()
-	defer stuck()
+	select {
+	case <-h.Done():
+	case <-time.After(8 * time.Second):
+		t.Fatal("Done() was not closed within 8s of the process exiting")
+	}
 
-	// A subscriber that does read must still get output.
 	replay, out, cancel := h.Subscribe()
 	defer cancel()
 
-	if _, err := h.Write([]byte("for i in 1 2 3 4 5; do echo line-$i; done; echo tail-marker\n")); err != nil {
-		t.Fatalf("Write: %v", err)
+	if !bytes.Contains(replay, []byte("already-done")) {
+		t.Fatalf("replay after exit = %q, want it to contain %q", replay, "already-done")
 	}
-	collect(t, replay, out, []byte("tail-marker"), 10*time.Second)
+
+	select {
+	case _, ok := <-out:
+		if ok {
+			t.Fatal("Subscribe after exit returned a channel with a live value; want it already closed")
+		}
+	default:
+		t.Fatal("Subscribe after exit returned a channel that would block; want it already closed")
+	}
 }
