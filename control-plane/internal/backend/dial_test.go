@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -239,5 +240,57 @@ func TestWaitReadyStopsWhenTheContextIsCancelled(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 3*time.Second {
 		t.Fatalf("WaitReady took %s to notice a cancelled context", elapsed)
+	}
+}
+
+// Cancelling a request's context aborts its in-flight body read — a
+// documented net/http hazard — so M7's drain must complete BEFORE cancel, not
+// after (fix round 2, item 1). This is observed directly with httptrace
+// rather than merely trusting io.Copy ran: the first /healthz answers 503
+// with a body dripped out in slow chunks, so it cannot possibly finish
+// draining before a premature cancel would fire. If the drain really
+// happened first, the connection is idle and clean when the second poll
+// starts, and net/http reuses it; if cancel fired first, the aborted read
+// leaves the connection unusable and net/http opens a new one.
+func TestWaitReadyDrainsBeforeCancellingSoTheConnectionIsReused(t *testing.T) {
+	var calls atomic.Int32
+	mux := http.NewServeMux()
+	mux.HandleFunc(backend.HealthPath, func(w http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			flusher := w.(http.Flusher)
+			for i := 0; i < 10; i++ {
+				w.Write([]byte("not ready yet....."))
+				flusher.Flush()
+				time.Sleep(50 * time.Millisecond)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	endpoint := strings.TrimPrefix(srv.URL, "http://")
+
+	var gotConns atomic.Int32
+	var secondConnReused atomic.Bool
+	trace := &httptrace.ClientTrace{
+		GotConn: func(info httptrace.GotConnInfo) {
+			if gotConns.Add(1) == 2 {
+				secondConnReused.Store(info.Reused)
+			}
+		},
+	}
+	ctx := httptrace.WithClientTrace(context.Background(), trace)
+
+	if err := backend.WaitReady(ctx, endpoint, 5*time.Second); err != nil {
+		t.Fatalf("WaitReady: %v", err)
+	}
+	if gotConns.Load() < 2 {
+		t.Fatalf("saw %d GotConn events, want at least 2 (one per poll)", gotConns.Load())
+	}
+	if !secondConnReused.Load() {
+		t.Fatalf("second poll opened a new connection instead of reusing the first: " +
+			"the slow 503 body was not fully drained before its context was cancelled")
 	}
 }

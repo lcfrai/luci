@@ -98,28 +98,37 @@ func WaitReady(ctx context.Context, endpoint string, timeout time.Duration) erro
 			return err
 		}
 		resp, err := client.Do(req)
-		cancel()
-		if err == nil {
-			if resp.StatusCode == http.StatusOK {
-				resp.Body.Close()
-				return nil
-			}
-			// Drain before Close so the connection can be reused for the next
-			// poll; an undrained body forces a fresh TCP connection per poll,
-			// up to ~240 of them across a 60s ReadyTimeout.
+		switch {
+		case err != nil:
+			cancel()
+			last = err
+		case resp.StatusCode == http.StatusOK:
+			resp.Body.Close()
+			cancel()
+			return nil
+		default:
+			// Drain and close BEFORE cancelling attemptCtx: cancelling a
+			// request's context aborts its in-flight body read (a documented
+			// net/http hazard), so draining after cancel would fail
+			// intermittently and silently undo the keep-alive fix below on
+			// those iterations. Draining lets the connection be reused for
+			// the next poll; an undrained body forces a fresh TCP connection
+			// per poll, up to ~240 of them across a 60s ReadyTimeout.
 			io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
+			cancel()
 			last = fmt.Errorf("healthz returned %d", resp.StatusCode)
-		} else {
-			last = err
 		}
 
 		// A plain time.Sleep here would keep polling a sandbox nobody is
-		// waiting for any more, for up to one interval past the cancel.
+		// waiting for any more, for up to one interval past the cancel. The
+		// wait itself is also capped by what is left of the deadline, so a
+		// failed attempt right before the deadline does not add a full
+		// readyPollInterval on top of it.
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(readyPollInterval):
+		case <-time.After(min(readyPollInterval, time.Until(deadline))):
 		}
 	}
 	return fmt.Errorf("sandbox %s never became ready (last: %v): %w", endpoint, last, ErrNotRunning)

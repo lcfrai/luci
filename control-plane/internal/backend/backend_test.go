@@ -121,6 +121,20 @@ func TestValidateSpecAcceptsAGoodSpec(t *testing.T) {
 	}
 }
 
+// The positive side of M8a (fix round 2, item 2): a real absolute WorkDir and
+// a real absolute-both-sides Mount must pass, so a future over-tightening of
+// that validation is caught here rather than silently rejecting good Specs.
+func TestValidateSpecAcceptsAValidWorkDirAndMount(t *testing.T) {
+	s := validSpec()
+	s.WorkDir = "/workspace"
+	s.Mounts = []backend.Mount{
+		{HostPath: t.TempDir(), ContainerPath: "/workspace", ReadOnly: false},
+	}
+	if err := backend.ValidateSpec(s); err != nil {
+		t.Fatalf("ValidateSpec(valid WorkDir+Mounts) = %v, want nil", err)
+	}
+}
+
 // A caller that could set PANACEA_APP_ATTACH_TOKEN through Spec.Env could
 // replace the sandbox's secret with one it chose.
 func TestValidateSpecRejectsAReservedEnvKey(t *testing.T) {
