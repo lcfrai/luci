@@ -45,17 +45,32 @@ func (r *Ring) Write(p []byte) (int, error) {
 	if total > c {
 		p = p[total-c:]
 	}
-	for _, b := range p {
-		end := (r.start + r.size) % c
-		r.buf[end] = b
-		if r.full {
-			r.start = (r.start + 1) % c
-		} else {
-			r.size++
-			if r.size == c {
-				r.full = true
-			}
-		}
+	n := len(p)
+
+	// p lands across at most two contiguous runs: from the write cursor to
+	// the end of the backing array, then (if it wraps) from the start. Two
+	// copies do what a per-byte loop did, without a modulo per byte.
+	end := (r.start + r.size) % c
+	head := copy(r.buf[end:], p)
+	if head < n {
+		copy(r.buf, p[head:])
+	}
+
+	if r.full {
+		// Every byte just written overwrote a live one, so the oldest
+		// surviving byte moves forward by the same count.
+		r.start = (r.start + n) % c
+		return total, nil
+	}
+	r.size += n
+	if r.size >= c {
+		// This write pushed size past capacity: the excess overwrote the
+		// oldest bytes, so size caps at capacity and start advances past
+		// what it overwrote.
+		overflow := r.size - c
+		r.size = c
+		r.full = true
+		r.start = (r.start + overflow) % c
 	}
 	return total, nil
 }
@@ -66,9 +81,11 @@ func (r *Ring) Snapshot() []byte {
 	defer r.mu.Unlock()
 
 	out := make([]byte, r.size)
-	c := len(r.buf)
-	for i := 0; i < r.size; i++ {
-		out[i] = r.buf[(r.start+i)%c]
+	// The retained bytes may wrap the backing array once; copy the run up
+	// to its end, then whatever spilled back around to the start.
+	head := copy(out, r.buf[r.start:])
+	if head < r.size {
+		copy(out[head:], r.buf[:r.size-head])
 	}
 	return out
 }
