@@ -148,8 +148,9 @@ writing one file guarantees three subagents colliding in the same region.
 | `control-plane/internal/sandbox/manager.go` | Unchanged pod creation; `Spec` grows args/env/token/session id, plus `Get` and `List` | modified | 6 |
 | `control-plane/internal/statepath/statepath.go` | Where on-disk state lives, per OS. One ladder, shared with Phase 4. | new | 7 |
 | `control-plane/internal/registry/session.go` | The `Session` record and its four-member `Status` | new | 7 |
-| `control-plane/internal/registry/registry.go` | `Store`, the in-memory index, `Update` as the only mutation primitive | new | 7 |
-| `control-plane/internal/registry/filestore.go` | Single-document JSON persistence, `schemaVersion: 1`, worktree flags, the Windows-safe atomic replace | new | 7 |
+| `control-plane/internal/registry/registry.go` | The declarations only: the `Store` interface with `Update` as its sole mutation primitive, `WorktreeFlagStore`, the sentinels, `DefaultPath` | new | 7 |
+| `control-plane/internal/registry/filestore.go` | `FileStore` and all five `Store` methods, single-document JSON persistence, `schemaVersion: 1`, worktree flags, the Windows-safe atomic replace. Each method mutates the in-memory index *and* persists, so splitting them from the struct by "index" versus "persistence" would be an artificial seam. | new | 7 |
+| `control-plane/internal/registry/registrytest/registrytest.go` | The behaviour suite every `Store` implementation must pass. A normal package importing `testing`, not a `_test.go` file, because an external test package cannot be imported and task 11's in-memory double has to run this same suite — the shape `net/http/httptest` and `testing/fstest` have, for the same reason | new | 7 |
 | `control-plane/internal/harness/harness.go` | The catalogue: which harnesses exist, which are installed, which options each accepts | new | 8 |
 | `control-plane/internal/harness/argv.go` | `Build` — harness + model + effort + permission mode + prompt → `(command, argv)` | new | 8 |
 | `control-plane/internal/worktree/worktree.go` | **Seam for Phase 3.** `Provider` + the `Static` implementation Phase 2 ships | new | 8 |
