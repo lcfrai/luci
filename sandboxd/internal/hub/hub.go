@@ -113,12 +113,26 @@ func (h *Hub) finish(reason string) {
 		h.mu.Lock()
 		h.exitReason = reason
 		h.closed = true
+		h.mu.Unlock()
+
+		// Close done before the subscriber channels, not after. A caller that
+		// reacts to a subscriber channel closing (its own cancel or this exit)
+		// often needs to tell the two apart by checking Done — closing done
+		// first means that check happens-before-transitively via program
+		// order plus the subscriber channel's own close-before-receive rule,
+		// so it reliably sees Done already closed. Closing them in the other
+		// order gives no such guarantee: the two channels are independently
+		// synchronized, so a reader could observe the subscriber channel
+		// closed while done still reads as open, and wrongly conclude the
+		// process is still running.
+		close(h.done)
+
+		h.mu.Lock()
 		for id, ch := range h.subs {
 			close(ch)
 			delete(h.subs, id)
 		}
 		h.mu.Unlock()
-		close(h.done)
 	})
 }
 
