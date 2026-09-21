@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -133,7 +134,7 @@ type Mount struct {
 // Spec describes one sandbox to create. Every field is set by the caller; a
 // backend never defaults anything except where documented.
 type Spec struct {
-	ID          string            // caller-chosen, unique, matches ^[a-z0-9-]{1,40}$
+	ID          string            // caller-chosen, unique, matches ^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$
 	SessionID   string            // for the label only; a backend never reads it back
 	Image       string            // e.g. "panacea-app/sandbox:dev"
 	Command     string            // becomes PANACEA_APP_COMMAND
@@ -174,6 +175,13 @@ func (s Spec) ArgsJSON() string {
 // PANACEA_APP_* variables first, then every Spec.Env key sorted. The order is
 // fixed so both backends produce identical environments and a test can assert
 // on a slice instead of a set.
+//
+// ValidateSpec is the loud check: it rejects a Spec carrying a reserved
+// PANACEA_APP_* key in Env, with an error a caller sees before anything runs.
+// This function is the backstop: it silently drops any reserved key that
+// reaches it anyway, so a backend that forgot to call ValidateSpec first still
+// cannot have a caller-chosen value shadow the real attach token. Neither is
+// redundant with the other — one is the message, one is the guarantee.
 func (s Spec) EnvEntries() []EnvEntry {
 	out := make([]EnvEntry, 0, 3+len(s.Env))
 	out = append(out,
@@ -187,15 +195,20 @@ func (s Spec) EnvEntries() []EnvEntry {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
+		if strings.HasPrefix(k, envReservedPrefix) {
+			continue // backstop: see the doc comment above.
+		}
 		out = append(out, EnvEntry{Name: k, Value: s.Env[k]})
 	}
 	return out
 }
 
-// idPattern is the sandbox id both backends accept. Docker container names and
-// Kubernetes object names are both built from it, and both are stricter than a
-// free-text string.
-var idPattern = regexp.MustCompile(`^[a-z0-9-]{1,40}$`)
+// idPattern is the sandbox id both backends accept. Docker container names
+// must start with an alphanumeric; RFC 1123 requires a Kubernetes object name
+// to start AND end alphanumeric. This pattern is the intersection of both, so
+// a Spec that passes here cannot be the thing that turns "docker accepted it"
+// into "kata rejected it" — a bare hyphen or a leading/trailing one would.
+var idPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$`)
 
 // ValidateSpec rejects a Spec no backend can honour. Both implementations call
 // it as the first statement of Create, so "docker accepted it and kata did not"
@@ -203,7 +216,7 @@ var idPattern = regexp.MustCompile(`^[a-z0-9-]{1,40}$`)
 // to 400.
 func ValidateSpec(spec Spec) error {
 	if !idPattern.MatchString(spec.ID) {
-		return fmt.Errorf("spec.ID %q must match ^[a-z0-9-]{1,40}$: %w", spec.ID, ErrUnsupported)
+		return fmt.Errorf("spec.ID %q must match ^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$: %w", spec.ID, ErrUnsupported)
 	}
 	if strings.TrimSpace(spec.Image) == "" {
 		return fmt.Errorf("spec.Image is empty: %w", ErrUnsupported)
@@ -221,6 +234,17 @@ func ValidateSpec(spec Spec) error {
 	}
 	if spec.Resources.CPUMillis <= 0 || spec.Resources.MemoryMiB <= 0 {
 		return fmt.Errorf("spec.Resources must be positive, got %d millicpu and %d MiB: %w", spec.Resources.CPUMillis, spec.Resources.MemoryMiB, ErrUnsupported)
+	}
+	if spec.WorkDir != "" && !strings.HasPrefix(spec.WorkDir, "/") {
+		return fmt.Errorf("spec.WorkDir %q is not an absolute container path: %w", spec.WorkDir, ErrUnsupported)
+	}
+	for i, m := range spec.Mounts {
+		if !strings.HasPrefix(m.ContainerPath, "/") {
+			return fmt.Errorf("spec.Mounts[%d].ContainerPath %q is not an absolute container path: %w", i, m.ContainerPath, ErrUnsupported)
+		}
+		if !filepath.IsAbs(m.HostPath) {
+			return fmt.Errorf("spec.Mounts[%d].HostPath %q is not an absolute host path: %w", i, m.HostPath, ErrUnsupported)
+		}
 	}
 	return nil
 }

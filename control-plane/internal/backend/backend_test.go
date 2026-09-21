@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
 )
 
 func validSpec() backend.Spec {
@@ -93,6 +94,27 @@ func TestEnvEntriesPutsTheContractFirstAndSortsTheRest(t *testing.T) {
 	}
 }
 
+// The backstop half of the reserved-key rule (fix round 1, I1): EnvEntries
+// must not render a caller-chosen PANACEA_APP_ATTACH_TOKEN even when
+// ValidateSpec was never called. Calling ValidateSpec first would not
+// exercise this path at all.
+func TestEnvEntriesDropsAReservedKeyEvenWithoutValidateSpec(t *testing.T) {
+	s := validSpec()
+	s.Env = map[string]string{"PANACEA_APP_ATTACH_TOKEN": "attacker-chosen"}
+	got := s.EnvEntries()
+
+	var tokenEntries []backend.EnvEntry
+	for _, e := range got {
+		if e.Name == backend.EnvToken {
+			tokenEntries = append(tokenEntries, e)
+		}
+	}
+	if len(tokenEntries) != 1 || tokenEntries[0].Value != s.AttachToken {
+		t.Fatalf("EnvEntries() carries %#v for %s, want exactly one entry with value %q",
+			tokenEntries, backend.EnvToken, s.AttachToken)
+	}
+}
+
 func TestValidateSpecAcceptsAGoodSpec(t *testing.T) {
 	if err := backend.ValidateSpec(validSpec()); err != nil {
 		t.Fatalf("ValidateSpec(valid) = %v, want nil", err)
@@ -111,22 +133,46 @@ func TestValidateSpecRejectsAReservedEnvKey(t *testing.T) {
 }
 
 func TestValidateSpecRejectsUnusableFields(t *testing.T) {
+	// A real absolute path for the host OS, used where only ContainerPath is
+	// under test and HostPath just needs to not itself be the failure.
+	absHostPath := t.TempDir()
+
 	cases := map[string]func(*backend.Spec){
-		"empty id":        func(s *backend.Spec) { s.ID = "" },
-		"uppercase id":    func(s *backend.Spec) { s.ID = "S-3F2A91C0" },
-		"id with a slash": func(s *backend.Spec) { s.ID = "s-3f2a/91c0" },
-		"over-long id":    func(s *backend.Spec) { s.ID = "s-000000000000000000000000000000000000000000" },
-		"empty image":     func(s *backend.Spec) { s.Image = "" },
-		"empty command":   func(s *backend.Spec) { s.Command = " " },
-		"empty token":     func(s *backend.Spec) { s.AttachToken = "" },
-		"zero cpu":        func(s *backend.Spec) { s.Resources.CPUMillis = 0 },
-		"negative memory": func(s *backend.Spec) { s.Resources.MemoryMiB = -1 },
+		"empty id":         func(s *backend.Spec) { s.ID = "" },
+		"uppercase id":     func(s *backend.Spec) { s.ID = "S-3F2A91C0" },
+		"id with a slash":  func(s *backend.Spec) { s.ID = "s-3f2a/91c0" },
+		"over-long id":     func(s *backend.Spec) { s.ID = "s-000000000000000000000000000000000000000000" },
+		"empty image":      func(s *backend.Spec) { s.Image = "" },
+		"empty command":    func(s *backend.Spec) { s.Command = " " },
+		"empty token":      func(s *backend.Spec) { s.AttachToken = "" },
+		"zero cpu":         func(s *backend.Spec) { s.Resources.CPUMillis = 0 },
+		"negative memory":  func(s *backend.Spec) { s.Resources.MemoryMiB = -1 },
+		"relative workdir": func(s *backend.Spec) { s.WorkDir = "relative" },
+		"mount with empty container path": func(s *backend.Spec) {
+			s.Mounts = []backend.Mount{{HostPath: absHostPath, ContainerPath: ""}}
+		},
+		"mount with relative host path": func(s *backend.Spec) {
+			s.Mounts = []backend.Mount{{HostPath: "relative/path", ContainerPath: "/workspace"}}
+		},
 	}
 	for name, mangle := range cases {
 		s := validSpec()
 		mangle(&s)
 		if err := backend.ValidateSpec(s); !errors.Is(err, backend.ErrUnsupported) {
 			t.Errorf("%s: ValidateSpec = %v, want an error wrapping ErrUnsupported", name, err)
+		}
+	}
+}
+
+// idPattern must admit every id ids.New actually produces, for every
+// documented prefix (fix round 1, M4): tightening the pattern to match Docker
+// and Kubernetes naming rules must not reject a real session id.
+func TestValidateSpecAcceptsEveryIDsNewPrefix(t *testing.T) {
+	for _, prefix := range []string{"s", "p", "b", "w", "m"} {
+		s := validSpec()
+		s.ID = ids.New(prefix)
+		if err := backend.ValidateSpec(s); err != nil {
+			t.Errorf("ValidateSpec(ID=%q) = %v, want nil", s.ID, err)
 		}
 	}
 }

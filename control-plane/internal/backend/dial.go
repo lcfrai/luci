@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"time"
@@ -45,8 +46,14 @@ func Dial(ctx context.Context, endpoint, token string) (*websocket.Conn, error) 
 
 	conn, resp, err := websocket.Dial(dialCtx, "ws://"+endpoint+AttachPath, opts)
 	if err != nil {
-		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
-			return nil, fmt.Errorf("dial %s: %w", endpoint, ErrUnauthorized)
+		// Any non-101 handshake response — not just 401 — must map to a
+		// sentinel the API layer can switch on with errors.Is: a sandbox
+		// mid-startup can answer 404, 500 or 503 before /attach exists at all.
+		if resp != nil && resp.StatusCode != http.StatusSwitchingProtocols {
+			if resp.StatusCode == http.StatusUnauthorized {
+				return nil, fmt.Errorf("dial %s: %w", endpoint, ErrUnauthorized)
+			}
+			return nil, fmt.Errorf("dial %s: handshake returned %d: %w", endpoint, resp.StatusCode, ErrNotRunning)
 		}
 		var opErr *net.OpError
 		if errors.As(err, &opErr) {
@@ -67,21 +74,41 @@ func Dial(ctx context.Context, endpoint, token string) (*websocket.Conn, error) 
 // connection-refused that looks, in the UI, exactly like a crashed agent.
 func WaitReady(ctx context.Context, endpoint string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := &http.Client{}
 	url := "http://" + endpoint + HealthPath
 
 	var last error
-	for time.Now().Before(deadline) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		// Bound each attempt by whatever is left of timeout, not by a flat 2s:
+		// otherwise one slow attempt against a sandbox that accepts the TCP
+		// connection and then hangs can run past the caller's own deadline —
+		// a 700ms WaitReady call blocking for ~2.7s.
+		attemptTimeout := 2 * time.Second
+		if remaining < attemptTimeout {
+			attemptTimeout = remaining
+		}
+		attemptCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
+		req, err := http.NewRequestWithContext(attemptCtx, http.MethodGet, url, nil)
 		if err != nil {
+			cancel()
 			return err
 		}
 		resp, err := client.Do(req)
+		cancel()
 		if err == nil {
-			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
+				resp.Body.Close()
 				return nil
 			}
+			// Drain before Close so the connection can be reused for the next
+			// poll; an undrained body forces a fresh TCP connection per poll,
+			// up to ~240 of them across a 60s ReadyTimeout.
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
 			last = fmt.Errorf("healthz returned %d", resp.StatusCode)
 		} else {
 			last = err
