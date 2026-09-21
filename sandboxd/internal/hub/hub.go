@@ -1,0 +1,165 @@
+//go:build linux || darwin
+
+// Package hub owns a single PTY for the lifetime of the sandbox and fans its
+// output out to zero or more attached clients. Detaching does not stop the
+// process — that is the whole point: a session you can leave and come back to.
+package hub
+
+import (
+	"fmt"
+	"sync"
+
+	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/ptysession"
+	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/ring"
+)
+
+// subscriberBuffer is how many chunks a slow client may fall behind before the
+// hub starts dropping its chunks. The hub must never block on a client: one
+// stalled WebSocket would freeze the agent's terminal.
+const subscriberBuffer = 256
+
+// Config describes the process the hub runs.
+type Config struct {
+	Command    string
+	Args       []string
+	Env        []string
+	Scrollback int // bytes retained for replay; 0 means ring.DefaultCapacity
+}
+
+// Hub is one PTY plus its scrollback and subscribers.
+type Hub struct {
+	sess *ptysession.Session
+	buf  *ring.Ring
+
+	mu     sync.Mutex
+	subs   map[int]chan []byte
+	nextID int
+	closed bool
+
+	done       chan struct{}
+	doneOnce   sync.Once
+	exitReason string
+}
+
+// Start launches the command in a PTY and begins pumping its output into the
+// scrollback and to any subscribers.
+func Start(cfg Config) (*Hub, error) {
+	capacity := cfg.Scrollback
+	if capacity <= 0 {
+		capacity = ring.DefaultCapacity
+	}
+	sess, err := ptysession.Start(cfg.Command, cfg.Args, cfg.Env)
+	if err != nil {
+		return nil, err
+	}
+	h := &Hub{
+		sess: sess,
+		buf:  ring.New(capacity),
+		subs: make(map[int]chan []byte),
+		done: make(chan struct{}),
+	}
+	go h.pump()
+	return h, nil
+}
+
+func (h *Hub) pump() {
+	buf := make([]byte, 32*1024)
+	for {
+		n, err := h.sess.Read(buf)
+		if n > 0 {
+			chunk := make([]byte, n)
+			copy(chunk, buf[:n])
+			h.buf.Write(chunk)
+			h.broadcast(chunk)
+		}
+		if err != nil {
+			h.finish(fmt.Sprintf("session ended: %v", err))
+			return
+		}
+	}
+}
+
+func (h *Hub) broadcast(chunk []byte) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, ch := range h.subs {
+		select {
+		case ch <- chunk:
+		default:
+			// Subscriber is not keeping up. Drop this chunk for that client
+			// rather than stalling the PTY for everyone. The client still has
+			// the ring on its next attach.
+		}
+	}
+}
+
+func (h *Hub) finish(reason string) {
+	h.doneOnce.Do(func() {
+		h.mu.Lock()
+		h.exitReason = reason
+		h.closed = true
+		for id, ch := range h.subs {
+			close(ch)
+			delete(h.subs, id)
+		}
+		h.mu.Unlock()
+		close(h.done)
+	})
+}
+
+// Subscribe registers a client. It returns the scrollback to replay first, a
+// channel of live chunks, and a cancel function that detaches without stopping
+// the process. The channel is closed when the process exits.
+//
+// The replay is captured under the same lock that registers the subscriber, so
+// no chunk can slip between the two and be lost or duplicated out of order.
+func (h *Hub) Subscribe() (replay []byte, out <-chan []byte, cancel func()) {
+	h.mu.Lock()
+	snapshot := h.buf.Snapshot()
+	ch := make(chan []byte, subscriberBuffer)
+	if h.closed {
+		h.mu.Unlock()
+		close(ch)
+		return snapshot, ch, func() {}
+	}
+	id := h.nextID
+	h.nextID++
+	h.subs[id] = ch
+	h.mu.Unlock()
+
+	var once sync.Once
+	return snapshot, ch, func() {
+		once.Do(func() {
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			if c, ok := h.subs[id]; ok {
+				delete(h.subs, id)
+				close(c)
+			}
+		})
+	}
+}
+
+// Write sends bytes to the process as if typed.
+func (h *Hub) Write(p []byte) (int, error) { return h.sess.Write(p) }
+
+// Resize informs the process that its terminal dimensions changed.
+func (h *Hub) Resize(cols, rows uint16) error { return h.sess.Resize(cols, rows) }
+
+// Done is closed when the process exits.
+func (h *Hub) Done() <-chan struct{} { return h.done }
+
+// ExitReason describes why the process ended. Empty until Done is closed.
+func (h *Hub) ExitReason() string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.exitReason
+}
+
+// Close kills the process and releases the PTY. Only the process entrypoint
+// calls this — an attach handler must call its subscription's cancel instead.
+func (h *Hub) Close() error {
+	err := h.sess.Close()
+	h.finish("closed")
+	return err
+}
