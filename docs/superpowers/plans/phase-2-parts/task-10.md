@@ -15,6 +15,10 @@ The tests use a **real `*registry.FileStore`** in `t.TempDir()` for both `Deps.S
 - `control-plane/internal/api/api_test.go` — the router contract, `New`'s dependency validation, and the test doubles both files share (new)
 - `control-plane/internal/api/catalog.go` — `/healthz`, `/machines`, `/projects`, `/branches`, `/worktrees`, `PATCH .../worktrees/{worktreeId}`, `/harnesses` (new)
 - `control-plane/internal/api/catalog_test.go` — every body above, byte-exact wherever the desktop's TypeScript parses it (new)
+- `control-plane/internal/api/export_test.go` — `(*API).RegisteredPatterns()`, the test-only window onto the recorded route table (new, added by ruling 1)
+- `control-plane/internal/api/routes_audit_test.go` — contract §10a's audit: the two allowlists, `catalogAuditRoutes`, and the scan that stops a file registering behind the recorder (new, added by ruling 1). **Tasks 11 and 12 extend `catalogReadOnlyRoutes` here**; this is the file to look in.
+
+The last two are not transcribed in this plan, deliberately: they postdate it, they are committed at the paths above, and a second copy here is one that goes stale. Take them from the repository. A package built from the blocks below without them compiles and serves correctly and has no §10a audit at all, which is the one failure mode worth naming twice.
 
 **Interfaces:**
 - Produces:
@@ -944,6 +948,14 @@ Create `control-plane/internal/api/api.go`:
 // loopback, httpx.OriginPolicy rejects a Host that is not loopback, and it
 // rejects an Origin that is not allowlisted. Every route but /healthz sits
 // behind the last two.
+//
+// AND SO: NO GET MAY CHANGE STATE (Group C contract §10a). Task 9's guard
+// deliberately allows a request carrying no Origin — curl and every non-browser
+// tool send none — while the browser sets Host itself, so a hostile page's
+// <img src="http://127.0.0.1:8730/…"> satisfies both checks without ever seeing
+// the reply. Seeing the reply is not what a side effect needs. Registration
+// therefore goes through the recording mux below, and api_test.go audits every
+// pattern it records against an explicit read-only allowlist.
 package api
 
 import (
@@ -1001,6 +1013,10 @@ type Deps struct {
 	// locked, so the cache is the seam instead. It must not block: /healthz
 	// calls it inline and the whole point of caching is that a health check
 	// never hangs on a hung Docker socket.
+	//
+	// It must also not PROBE. /healthz is outside the origin guard, so a
+	// refresh triggered from here would be a side-effecting GET on the one
+	// route with no defences at all (Group C ruling 2).
 	BackendReady func() bool
 
 	// Store is the session registry. The catalog reads it only to count live
@@ -1029,13 +1045,81 @@ type Deps struct {
 }
 ```
 
-Still `control-plane/internal/api/api.go`, continuing below `Deps` — do not repeat the `package` clause or the imports:
+Still `control-plane/internal/api/api.go`, continuing below `Deps` — do not repeat the `package` clause or the imports.
+
+**Why the mux is wrapped, said once here rather than in every comment below.** Group C ruling 1 makes contract §10a — no `GET` may change state — a thing a test checks rather than a thing two documents assert. `net/http` can route a request but cannot list a mux's patterns, so the audit has to be handed the table, and the only table that cannot drift from what is served is one written at registration. Hence `routes`: a mux that records. Three details of it are each a defect that was found and closed, and a reader who removes any of them reopens it. The field is **named and unexported**, because embedding promoted an exported `ServeMux` selector into every file in the package and `mux.ServeMux.HandleFunc(…)` then compiled, served and recorded nothing. `ServeHTTP` is **explicit**, because de-embedding took away the promoted one that the alias and the middleware wrap both rely on. And the two recorders are kept **whole on the `API`** rather than copied into a `[]string`, because a snapshot taken partway through `New` silently excused every route registered below it — which is exactly where tasks 11 and 12 would add theirs.
 
 ```go
+// route is one ServeMux pattern and the handler registered under it.
+//
+// Registration is a table rather than a sequence of literal mux.HandleFunc
+// calls because Go 1.22 puts the METHOD IN THE PATTERN — "GET /v1/machines" —
+// which makes contract §10a's no-side-effecting-GET invariant checkable by a
+// machine for the first time. Group C ruling 1.
+type route struct {
+	Pattern string
+	Handler http.Handler
+}
+
+// routes is a mux that remembers what was registered on it. net/http can route
+// a request but cannot list its own patterns, so recording at registration is
+// the only way a test can walk the real route table instead of a list somebody
+// maintains by hand — and a hand-maintained list is one that stops matching
+// reality on the first busy afternoon.
+//
+// TASKS 11 AND 12 TAKE *routes AND NOT *http.ServeMux, deliberately: a register
+// method written against this type records whatever it registers with no extra
+// step and no coordination, and one written against *http.ServeMux fails to
+// compile at its call site in New rather than quietly dropping its routes out
+// of the audit.
+//
+// THE MUX IS A NAMED, UNEXPORTED FIELD AND NOT AN EMBEDDED ONE. Embedded, it
+// promoted an exported ServeMux selector into every file in this package, so
+// mux.ServeMux.HandleFunc(…) compiled, served, and was never recorded — nine
+// characters away from the intended call and invisible to the audit. Named and
+// unexported, that spelling does not compile at all. Reaching rs.mux directly
+// is still possible inside this package, because Go has no stronger barrier
+// than that; it is a deliberate act rather than the obvious alternative, and
+// routes_audit_test.go scans this package's own sources for it.
+type routes struct {
+	mux        *http.ServeMux
+	registered []string
+}
+
+func newRoutes() *routes {
+	return &routes{mux: http.NewServeMux()}
+}
+
+// Handle registers a pattern and records it.
+func (rs *routes) Handle(pattern string, h http.Handler) {
+	rs.registered = append(rs.registered, pattern)
+	rs.mux.Handle(pattern, h)
+}
+
+// HandleFunc is Handle for a plain function, so a register method reads exactly
+// as it would against a bare mux.
+func (rs *routes) HandleFunc(pattern string, h func(http.ResponseWriter, *http.Request)) {
+	rs.Handle(pattern, http.HandlerFunc(h))
+}
+
+// ServeHTTP implements http.Handler, which the embedded field used to supply.
+// The alias and the middleware wrap both hand a *routes on as a handler.
+func (rs *routes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	rs.mux.ServeHTTP(w, r)
+}
+
 // API is the whole HTTP surface as one handler.
 type API struct {
 	deps    Deps
 	handler http.Handler
+
+	// guarded and root are the two recorders, kept whole rather than
+	// snapshotted into a []string. RegisteredPatterns() reads them LIVE, so a
+	// registration added anywhere in New is audited — a snapshot taken at one
+	// point in that function quietly excused every route registered below it,
+	// which is where tasks 11 and 12 are most likely to add theirs.
+	guarded *routes
+	root    *routes
 }
 
 var _ http.Handler = (*API)(nil)
@@ -1074,14 +1158,25 @@ func New(d Deps) (*API, error) {
 	a := &API{deps: d}
 
 	// guarded holds every route the origin middleware protects.
-	guarded := http.NewServeMux()
+	guarded := newRoutes()
+	a.guarded = guarded
 	a.registerCatalog(guarded)
 	// Task 11 adds a.registerSessions(guarded) on the next line and task 12
-	// adds a.registerAttach(guarded). One line each, and each in the SAME step
-	// that defines the method it names: a call added ahead of its definition
-	// leaves this file uncompilable for every step in between, so no suite in
-	// them can be green. The only other edit either makes here is task 11's
-	// three Deps fields: Image, Resources and ReadyTimeout.
+	// adds a.registerAttach(guarded). One line each, each taking *routes, and
+	// each in the SAME step that defines the method it names: a call added
+	// ahead of its definition leaves this file uncompilable for every step in
+	// between, so no suite in them can be green. The only other edit either
+	// makes here is task 11's three Deps fields: Image, Resources and
+	// ReadyTimeout. Both also add their read-only patterns, if any, to
+	// catalogReadOnlyRoutes in routes_audit_test.go — the §10a audit covers
+	// their routes automatically and fails until they do.
+	//
+	// The position of those two lines is a readability preference and not a
+	// load-bearing one: the audit reads both recorders live, so a call added at
+	// the bottom of this function is audited exactly the same. What IS
+	// load-bearing is that the call goes through a *routes. Neither task owes a
+	// sessionsRoutes()-style table either — catalogRoutes is a task-10 style
+	// choice, and the recorder is the whole requirement.
 
 	// Contract §7.5: /v1 is canonical and /api/v1/… is an alias, so Phase 4's
 	// Discover routes and its entire test suite land unchanged. Nothing in
@@ -1097,7 +1192,8 @@ func New(d Deps) (*API, error) {
 	// boolean, over a listener task 13 binds to loopback. Both prefixes are
 	// registered here because the alias lives on the guarded mux, which this
 	// path never reaches.
-	root := http.NewServeMux()
+	root := newRoutes()
+	a.root = root
 	healthz := http.HandlerFunc(a.handleHealthz)
 	root.Handle("GET /v1/healthz", healthz)
 	root.Handle("GET /api/v1/healthz", healthz)
@@ -1169,7 +1265,7 @@ Every body on this surface goes through a named wire type rather than a `map[str
 
 The implementation keeps one body decoder. It calls `httpx.DecodeJSON` with a `map[string]json.RawMessage`, so the 1 MiB cap, the syntax rules and the exactly-one-object rule are still task 9's and still shared, and only the question of **which fields this endpoint accepts** — always the handler's — is answered here. A body that is not JSON is still `invalid_json`; a body that parses and asks for something this endpoint cannot do is `bad_request`.
 
-Create `control-plane/internal/api/catalog.go`. **Two amendments land after this block was transcribed and the shipped file differs from it in three places**: `registerCatalog` takes the `*routes` recorder rather than a `*http.ServeMux` (ruling 1); the `PATCH` body goes through `readyFromBody`, which answers `bad_request` for an unknown field as the paragraph above requires, rather than decoding straight into a struct and letting `DecodeJSON` label it `invalid_json`; and the three copies of the project-enumeration error switch are one `enumerationFailed` helper. Everything else below is as shipped.
+Create `control-plane/internal/api/catalog.go`:
 
 ```go
 // The read-only surface: everything that needs no sandbox, no session record
@@ -1178,9 +1274,13 @@ Create `control-plane/internal/api/catalog.go`. **Two amendments land after this
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
@@ -1189,18 +1289,38 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
 )
 
+// catalogRoutes is the read-only surface's route table.
+//
+// A table rather than a sequence of literal calls, so the patterns of one
+// surface are one value a reader can take in at once. That is a style choice
+// and tasks 11 and 12 need not copy it: what contract §10a's audit actually
+// needs is the *routes recorder in api.go, which sees a literal
+// mux.HandleFunc(…) exactly as well.
+func (a *API) catalogRoutes() []route {
+	return []route{
+		// /healthz is NOT here: api.New mounts it on the outer mux, outside the
+		// origin guard. The handler still lives in this file.
+		{"GET /v1/machines", http.HandlerFunc(a.handleMachines)},
+		{"GET /v1/projects", http.HandlerFunc(a.handleProjects)},
+		{"GET /v1/projects/{projectId}/branches", http.HandlerFunc(a.handleBranches)},
+		{"GET /v1/projects/{projectId}/worktrees", http.HandlerFunc(a.handleWorktrees)},
+		{"PATCH /v1/projects/{projectId}/worktrees/{worktreeId}", http.HandlerFunc(a.handlePatchWorktree)},
+		{"GET /v1/harnesses", http.HandlerFunc(a.handleHarnesses)},
+	}
+}
+
 // registerCatalog mounts the read-only routes. api.New calls it; tasks 11 and
 // 12 add one sibling each.
-func (a *API) registerCatalog(mux *http.ServeMux) {
-	// /healthz is NOT here: api.New mounts it on the outer mux, outside the
-	// origin guard. The handler still lives in this file.
-	mux.HandleFunc("GET /v1/machines", a.handleMachines)
-	mux.HandleFunc("GET /v1/projects", a.handleProjects)
-	mux.HandleFunc("GET /v1/projects/{projectId}/branches", a.handleBranches)
-	mux.HandleFunc("GET /v1/projects/{projectId}/worktrees", a.handleWorktrees)
-	mux.HandleFunc("PATCH /v1/projects/{projectId}/worktrees/{worktreeId}", a.handlePatchWorktree)
-	mux.HandleFunc("GET /v1/harnesses", a.handleHarnesses)
+func (a *API) registerCatalog(mux *routes) {
+	for _, rt := range a.catalogRoutes() {
+		mux.Handle(rt.Pattern, rt.Handler)
+	}
 }
+
+// nonNil and stringsOf below are surface-agnostic despite living in the
+// catalog's file: tasks 11 and 12 call them for their own JSON rather than
+// declaring a second copy, on the same reasoning ruling 6 applies to
+// isolationFor. They move to a file of their own when a third surface lands.
 
 // nonNil renders a nil slice as an empty one. json.Marshal writes nil as null,
 // and null.map(...) in the cockpit's rail is a blank screen with a console
@@ -1298,7 +1418,7 @@ type harnessesEnvelope struct {
 }
 ```
 
-Still `control-plane/internal/api/catalog.go`, continuing below the wire types:
+Still `control-plane/internal/api/catalog.go`, continuing below the wire types. `handleHealthz` reads a cached bool and starts nothing, which is contract §10a applied to the one route with no origin guard in front of it; `enumerationFailed` is the project-enumeration error switch written once instead of once per handler, and tasks 11 and 12 call it rather than writing a fourth copy:
 
 ```go
 // handleHealthz answers GET /v1/healthz. api.New mounts it on the outer mux,
@@ -1308,6 +1428,9 @@ Still `control-plane/internal/api/catalog.go`, continuing below the wire types:
 // backend is not: contract §3.3 is explicit that a supervisor restarting the
 // control plane would not fix Docker Desktop being closed, so the two facts
 // are two fields.
+//
+// It reads a cached bool and starts nothing. That is contract §10a on the one
+// route with no origin guard in front of it (Group C ruling 2).
 func (a *API) handleHealthz(w http.ResponseWriter, r *http.Request) {
 	a.grantHealthzOrigin(w, r)
 	httpx.WriteJSON(w, http.StatusOK, healthJSON{
@@ -1383,6 +1506,33 @@ func projectNotFound(w http.ResponseWriter, projectID string) {
 		map[string]string{"projectId": projectID})
 }
 
+// badRequest writes §3.2's bad_request: the body parsed, and what it asked for
+// is not something this endpoint can do.
+func badRequest(w http.ResponseWriter, msg string) {
+	httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest, msg, nil)
+}
+
+// enumerationFailed maps a project-enumeration error onto its response and
+// reports whether it wrote one, so a caller reads as
+//
+//	if a.enumerationFailed(w, r, "enumerate branches", projectID, err) { return }
+//
+// Three handlers here need it and tasks 11 and 12 will need a fourth and fifth:
+// one function is what stops project_not_found being spelled two ways.
+func (a *API) enumerationFailed(w http.ResponseWriter, r *http.Request, op, projectID string, err error) bool {
+	switch {
+	case err == nil:
+		return false
+	case errors.Is(err, project.ErrUnknownProject):
+		// errors.Is, never a string match: task 8 owns the sentinel and its
+		// message is free to change.
+		projectNotFound(w, projectID)
+	default:
+		a.internal(w, r, op, err)
+	}
+	return true
+}
+
 // handleProjects answers GET /v1/projects. An unconfigured projects directory
 // is 200 and an empty list, not an error: contract §3.5, and empty is a state
 // the cockpit renders.
@@ -1399,21 +1549,14 @@ func (a *API) handleProjects(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleBranches(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("projectId")
 	bs, err := a.deps.Projects.Branches(r.Context(), projectID)
-	switch {
-	case errors.Is(err, project.ErrUnknownProject):
-		// errors.Is, never a string match: task 8 owns the sentinel and its
-		// message is free to change.
-		projectNotFound(w, projectID)
-		return
-	case err != nil:
-		a.internal(w, r, "enumerate branches", err)
+	if a.enumerationFailed(w, r, "enumerate branches", projectID, err) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, branchesEnvelope{Branches: nonNil(bs)})
 }
 ```
 
-Still `control-plane/internal/api/catalog.go`, the worktree block — the fix for known defect 9:
+Still `control-plane/internal/api/catalog.go`, the worktree block — the fix for known defect 9. `readyFromBody` reads the body as raw fields on purpose: `httpx.DecodeJSON` keeps every **body** rule in the phase — the 1 MiB cap, the syntax, the exactly-one-object probe — and this endpoint decides only which **fields** it accepts, so an unknown field is `bad_request` rather than a `invalid_json` that would tell the user something untrue about JSON that parsed perfectly well:
 
 ```go
 // decoratedWorktrees enumerates one project's worktrees and adds the two
@@ -1465,12 +1608,7 @@ func (a *API) decoratedWorktrees(r *http.Request, projectID string) ([]worktreeJ
 func (a *API) handleWorktrees(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("projectId")
 	ws, err := a.decoratedWorktrees(r, projectID)
-	switch {
-	case errors.Is(err, project.ErrUnknownProject):
-		projectNotFound(w, projectID)
-		return
-	case err != nil:
-		a.internal(w, r, "enumerate worktrees", err)
+	if a.enumerationFailed(w, r, "enumerate worktrees", projectID, err) {
 		return
 	}
 	if branchID := r.URL.Query().Get("branchId"); branchID != "" {
@@ -1485,11 +1623,55 @@ func (a *API) handleWorktrees(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, worktreesEnvelope{Worktrees: nonNil(ws)})
 }
 
-// patchWorktreeRequest is the only body this endpoint accepts. Ready is a
-// pointer so "absent" and "false" are different states — DecodeJSON rejects an
-// unknown field, and a body that parses but sets nothing is what is left.
-type patchWorktreeRequest struct {
-	Ready *bool `json:"ready"`
+// readyFromBody parses this endpoint's only body. It returns the requested flag
+// and whether the handler should continue; every refusal is a 400 it has
+// already written.
+//
+// THE BODY IS READ AS RAW FIELDS rather than straight into a struct with
+// DisallowUnknownFields, and that is the whole of the reason: DecodeJSON answers
+// invalid_json for a field it does not recognise, and {"ready":true,"name":"x"}
+// is well-formed JSON that is semantically wrong. A code the cockpit switches on
+// must not say something untrue — the same principle that refuses
+// sandbox_not_running for a sandbox that is running. Contract §3.7 says
+// bad_request, so bad_request is what this answers.
+//
+// DecodeJSON still owns every BODY rule — the 1 MiB cap, the syntax, the
+// exactly-one-object rule — because the map goes through it too, so the phase
+// still has one body decoder. What moved here is which FIELDS this endpoint
+// accepts, which was always the handler's to decide.
+func readyFromBody(w http.ResponseWriter, r *http.Request) (ready bool, ok bool) {
+	var fields map[string]json.RawMessage
+	if !httpx.DecodeJSON(w, r, &fields) {
+		return false, false // DecodeJSON has written its own 400 invalid_json.
+	}
+
+	unknown := make([]string, 0, len(fields))
+	for name := range fields {
+		if name != "ready" {
+			unknown = append(unknown, strconv.Quote(name))
+		}
+	}
+	if len(unknown) > 0 {
+		// Sorted, because map order is random and an error message that changes
+		// between identical requests is one nobody trusts.
+		slices.Sort(unknown)
+		badRequest(w, "This endpoint sets one field, ready. It does not accept "+
+			strings.Join(unknown, ", ")+".")
+		return false, false
+	}
+
+	// Absent and null are one case: neither asks for anything, and a PATCH that
+	// silently did nothing is worse than one that says so.
+	raw, present := fields["ready"]
+	if !present || string(raw) == "null" {
+		badRequest(w, `This endpoint sets one field. Send {"ready": true} or {"ready": false}.`)
+		return false, false
+	}
+	if err := json.Unmarshal(raw, &ready); err != nil {
+		badRequest(w, "The ready field must be true or false.")
+		return false, false
+	}
+	return ready, true
 }
 
 // handlePatchWorktree is the whole of the fix for known defect 9: nothing ever
@@ -1498,28 +1680,19 @@ type patchWorktreeRequest struct {
 // §2.8 keeps at five session methods.
 //
 // This route is not in contract §3.1's table; it is the plan's adjudicated
-// Cross-group decision 2.
+// Cross-group decision 2. PATCH and not GET, per §10a: it is the one route on
+// this surface that changes anything.
 func (a *API) handlePatchWorktree(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("projectId")
 	worktreeID := r.PathValue("worktreeId")
 
-	var req patchWorktreeRequest
-	if !httpx.DecodeJSON(w, r, &req) {
-		return // DecodeJSON has already written its 400 invalid_json Problem.
-	}
-	if req.Ready == nil {
-		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
-			`This endpoint sets one field. Send {"ready": true} or {"ready": false}.`, nil)
-		return
+	ready, ok := readyFromBody(w, r)
+	if !ok {
+		return // readyFromBody has written the 400.
 	}
 
 	current, err := a.decoratedWorktrees(r, projectID)
-	switch {
-	case errors.Is(err, project.ErrUnknownProject):
-		projectNotFound(w, projectID)
-		return
-	case err != nil:
-		a.internal(w, r, "enumerate worktrees", err)
+	if a.enumerationFailed(w, r, "enumerate worktrees", projectID, err) {
 		return
 	}
 
@@ -1539,7 +1712,7 @@ func (a *API) handlePatchWorktree(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	flags, err := a.deps.Flags.SetWorktreeReady(worktreeID, *req.Ready)
+	flags, err := a.deps.Flags.SetWorktreeReady(worktreeID, ready)
 	if err != nil {
 		a.internal(w, r, "set the worktree ready flag", err)
 		return
