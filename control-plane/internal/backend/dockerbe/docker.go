@@ -2,6 +2,7 @@ package dockerbe
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -232,9 +233,19 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 	}
 	if err := backend.WaitReady(ctx, endpoint, remaining); err != nil {
 		b.cleanup(ctx, created.ID)
-		return backend.Sandbox{}, fmt.Errorf("dockerbe: sandbox %s never answered %s on %s: %w", spec.ID, backend.HealthPath, endpoint, err)
+		return backend.Sandbox{}, fmt.Errorf("dockerbe: sandbox %s never answered %s on %s within the %s ready budget: %w", spec.ID, backend.HealthPath, endpoint, b.readyTimeout, err)
 	}
-	return b.Get(ctx, spec.ID)
+
+	// The final read is a failure path like any other, and the failure it is
+	// most likely to report is ErrNonLoopbackPublish — which would otherwise
+	// mean Create tells the caller "this sandbox is on the LAN" and leaves it
+	// there. All-or-nothing has no exceptions.
+	sb, err := b.Get(ctx, spec.ID)
+	if err != nil {
+		b.cleanup(ctx, created.ID)
+		return backend.Sandbox{}, err
+	}
+	return sb, nil
 }
 
 // containerLabels is every label this package writes. The attach token is
@@ -269,6 +280,13 @@ func (b *Backend) waitForEndpoint(ctx context.Context, name string, deadline tim
 	for {
 		resp, err := b.api.ContainerInspect(ctx, name)
 		if err != nil {
+			// A caller who gave up is not a broken daemon. Classify that
+			// before the ErrUnavailable wrap below, or the same cancellation
+			// maps to 503 or to 409 depending on which statement noticed it
+			// first — the inspect, or the sleep at the bottom of the loop.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return "", abandonedWait(name, ctxErr)
+			}
 			if client.IsErrNotFound(err) {
 				return "", fmt.Errorf("dockerbe: container %s vanished while starting: %w", name, backend.ErrNotRunning)
 			}
@@ -282,14 +300,22 @@ func (b *Backend) waitForEndpoint(ctx context.Context, name string, deadline tim
 			return endpoint, nil
 		}
 		if time.Now().After(deadline) {
-			return "", fmt.Errorf("dockerbe: container %s published no %s binding on %s: %w", name, attachPort, b.bindIP, backend.ErrNotRunning)
+			return "", fmt.Errorf("dockerbe: container %s published no %s binding on %s within the %s ready budget: %w", name, attachPort, b.bindIP, b.readyTimeout, backend.ErrNotRunning)
 		}
 		select {
 		case <-ctx.Done():
-			return "", ctx.Err()
+			return "", abandonedWait(name, ctx.Err())
 		case <-time.After(endpointPollInterval):
 		}
 	}
+}
+
+// abandonedWait classifies a caller's cancellation. It is not returned raw:
+// task 13 maps errors with errors.Is, and a bare context error matches no
+// sentinel and falls through to 500. Both wraps are kept, so a caller can still
+// ask which cancellation it was.
+func abandonedWait(name string, ctxErr error) error {
+	return fmt.Errorf("dockerbe: waiting for container %s to publish %s: %w: %w", name, attachPort, ctxErr, backend.ErrNotRunning)
 }
 
 func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
@@ -364,8 +390,13 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 			// either: NonLoopback plus no endpoint means nothing attaches to it
 			// and nothing mistakes it for a normal starting container.
 			endpoint = ""
+			hostIP := ""
+			var off offLoopbackError
+			if errors.As(epErr, &off) {
+				hostIP = off.hostIP
+			}
 			b.log.Warn("sandbox port is published off loopback; refusing to expose it",
-				"sandbox", id, "container", s.ID, "err", epErr)
+				"sandbox", id, "container", s.ID, "host_ip", hostIP, "err", epErr)
 		}
 		out = append(out, backend.Sandbox{
 			ID:          id,
@@ -374,7 +405,7 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 			Endpoint:    endpoint,
 			NonLoopback: nonLoopback,
 			State:       stateFrom(s.State),
-			CreatedAt:   time.Unix(s.Created, 0).UTC(),
+			CreatedAt:   createdFromUnix(s.Created, s.Labels),
 			Labels:      s.Labels,
 		})
 	}
@@ -409,53 +440,84 @@ func portsOf(resp container.InspectResponse) nat.PortMap {
 	return resp.NetworkSettings.Ports
 }
 
-// endpointFromPortMap reads the inspect shape. An empty endpoint with a nil
-// error means "not published yet", which for a starting container is normal.
+// offLoopbackError is the one way this package reports a sandbox port published
+// somewhere it must not be. It carries the offending address as a field so a
+// sweep can log it as a structured attribute rather than leaving the value to
+// be scraped back out of a message, and it wraps backend.ErrNonLoopbackPublish,
+// so every errors.Is check at the four refusal sites is unaffected.
+type offLoopbackError struct {
+	hostIP string
+	bindIP string
+}
+
+func (e offLoopbackError) Error() string {
+	return fmt.Sprintf("dockerbe: %s is published on %q instead of %s", attachPort, e.hostIP, e.bindIP)
+}
+
+func (e offLoopbackError) Unwrap() error { return backend.ErrNonLoopbackPublish }
+
+// bindingIsSafe judges one published host address.
+//
+// The rule is loopback, decided by net.ParseIP rather than by comparing
+// strings: that admits ::1, which this daemon has not been seen to produce but
+// is no less loopback for it, and it rejects the empty spelling, because
+// net.ParseIP("") is nil and Docker reads an empty HostIP as every interface —
+// the defect this whole guard exists to catch. A binding on the configured
+// bindIP is safe by definition: when that is not a loopback address, someone
+// set AllowNonLoopback to mean it.
+func (b *Backend) bindingIsSafe(hostIP string) bool {
+	if hostIP == b.bindIP {
+		return true
+	}
+	ip := net.ParseIP(hostIP)
+	return ip != nil && ip.IsLoopback()
+}
+
+// endpointFromPortMap reads the inspect shape.
+//
+// It judges EVERY binding for the attach port rather than returning on the
+// first usable one. The question this guard has to answer is "is every binding
+// for this port safe?", not "is there a safe binding?", because it exists to
+// establish the ABSENCE of LAN reachability and an existence check cannot
+// establish an absence. One acceptable binding does not make a container safe;
+// one unacceptable binding makes it unsafe whatever sits alongside it. Docker
+// will publish a container port to 127.0.0.1 and 0.0.0.0 at once, and
+// first-match-wins hands the caller the loopback one.
+//
+// An empty endpoint with a nil error means "not published yet", which for a
+// starting container is normal.
 func (b *Backend) endpointFromPortMap(ports nat.PortMap) (string, error) {
-	var offLoopback string
+	var endpoint string
 	for _, bd := range ports[attachPort] {
 		if bd.HostPort == "" {
-			continue
+			continue // exposed, not yet published
+		}
+		if !b.bindingIsSafe(bd.HostIP) {
+			return "", offLoopbackError{hostIP: bd.HostIP, bindIP: b.bindIP}
 		}
 		if bd.HostIP == b.bindIP {
-			return net.JoinHostPort(b.bindIP, bd.HostPort), nil
-		}
-		if isWildcardIP(bd.HostIP) {
-			offLoopback = bd.HostIP
+			endpoint = net.JoinHostPort(b.bindIP, bd.HostPort)
 		}
 	}
-	if offLoopback != "" {
-		return "", fmt.Errorf("dockerbe: %s is published on %q instead of %s: %w", attachPort, offLoopback, b.bindIP, backend.ErrNonLoopbackPublish)
-	}
-	return "", nil
+	return endpoint, nil
 }
 
 // endpointFromSummaryPorts reads the list shape, which reports the same fact in
-// a different struct.
+// a different struct. It scans every binding for the same reason.
 func (b *Backend) endpointFromSummaryPorts(ports []container.Port) (string, error) {
-	var offLoopback string
+	var endpoint string
 	for _, p := range ports {
 		if int(p.PrivatePort) != backend.ContainerPort || p.Type != "tcp" || p.PublicPort == 0 {
 			continue
 		}
+		if !b.bindingIsSafe(p.IP) {
+			return "", offLoopbackError{hostIP: p.IP, bindIP: b.bindIP}
+		}
 		if p.IP == b.bindIP {
-			return net.JoinHostPort(b.bindIP, strconv.Itoa(int(p.PublicPort))), nil
-		}
-		if isWildcardIP(p.IP) {
-			offLoopback = p.IP
+			endpoint = net.JoinHostPort(b.bindIP, strconv.Itoa(int(p.PublicPort)))
 		}
 	}
-	if offLoopback != "" {
-		return "", fmt.Errorf("dockerbe: port %d is published on %q instead of %s: %w", backend.ContainerPort, offLoopback, b.bindIP, backend.ErrNonLoopbackPublish)
-	}
-	return "", nil
-}
-
-// isWildcardIP names the three spellings of "every interface". An IPv6
-// loopback binding ("::1") is neither wildcard nor usable here, so it is
-// ignored and the container reads as not-yet-published.
-func isWildcardIP(ip string) bool {
-	return ip == "" || ip == "0.0.0.0" || ip == "::"
+	return endpoint, nil
 }
 
 // stateFrom maps container.ContainerState (a string alias whose constants are
@@ -473,11 +535,27 @@ func stateFrom(status string) backend.State {
 }
 
 // parseCreated prefers the daemon's own timestamp and falls back to the label
-// this package wrote, so a sandbox created by an older build still sorts.
+// this package wrote, so a sandbox created by an older build still sorts. This
+// is the inspect shape, which carries an RFC3339 string.
 func parseCreated(raw string, labels map[string]string) time.Time {
 	if t, err := time.Parse(time.RFC3339Nano, raw); err == nil {
 		return t.UTC()
 	}
+	return createdFromLabel(labels)
+}
+
+// createdFromUnix is the list shape, which carries a Unix second instead. A
+// zero there is not 1970: it is the daemon not reporting one, and this is the
+// field task 13's reaper ages containers off, so falling through to the epoch
+// would make every such sandbox 56 years old and immediately reapable.
+func createdFromUnix(sec int64, labels map[string]string) time.Time {
+	if sec > 0 {
+		return time.Unix(sec, 0).UTC()
+	}
+	return createdFromLabel(labels)
+}
+
+func createdFromLabel(labels map[string]string) time.Time {
 	if t, err := time.Parse(time.RFC3339, labels[backend.LabelCreatedAt]); err == nil {
 		return t.UTC()
 	}

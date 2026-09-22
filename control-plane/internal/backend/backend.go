@@ -261,8 +261,9 @@ type Sandbox struct {
 	Ref      string // container id, or pod name
 	Endpoint string
 
-	// NonLoopback is true when the daemon reports this sandbox published to an
-	// address other than the loopback bind IP — 0.0.0.0, :: or "". It is set only
+	// NonLoopback is true when the daemon reports this sandbox published to any
+	// address that is not loopback — 0.0.0.0, ::, the empty spelling Docker
+	// reads as every interface, or a concrete LAN address. It is set only
 	// by List, which must not fail a whole sweep over one bad container: Get and
 	// Attach on the same id return ErrNonLoopbackPublish instead. A sandbox with
 	// this set is a security defect the reaper destroys; Endpoint is always empty

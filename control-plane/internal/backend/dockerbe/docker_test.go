@@ -68,7 +68,12 @@ type fakeDocker struct {
 
 	removes    []string
 	removeOpts []container.RemoveOptions
-	removeErr  error
+	// removeCtxErrs records each remove's ctx.Err() at call time. Create's
+	// cleanup detaches from the caller's context on purpose — the commonest
+	// reason Create fails is that the caller gave up — so "was this remove
+	// still live?" is behaviour, and the fake is the only place it can be seen.
+	removeCtxErrs []error
+	removeErr     error
 
 	closed bool
 }
@@ -113,11 +118,12 @@ func (f *fakeDocker) ContainerList(_ context.Context, opts container.ListOptions
 	return f.list, f.listErr
 }
 
-func (f *fakeDocker) ContainerRemove(_ context.Context, id string, opts container.RemoveOptions) error {
+func (f *fakeDocker) ContainerRemove(ctx context.Context, id string, opts container.RemoveOptions) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.removes = append(f.removes, id)
 	f.removeOpts = append(f.removeOpts, opts)
+	f.removeCtxErrs = append(f.removeCtxErrs, ctx.Err())
 	return f.removeErr
 }
 
@@ -147,6 +153,18 @@ func (f *fakeDocker) snapshotCreates() []createCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return append([]createCall{}, f.creates...)
+}
+
+func (f *fakeDocker) snapshotStarts() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.starts...)
+}
+
+func (f *fakeDocker) snapshotRemoveCtxErrs() []error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]error(nil), f.removeCtxErrs...)
 }
 
 // healthzAddr starts a real loopback server answering 200 on /healthz and
@@ -189,11 +207,23 @@ func labelsFor(sandboxID, sessionID string) map[string]string {
 	}
 }
 
-// inspectOf builds an InspectResponse. hostPort "" means "no binding yet".
+// inspectOf builds an InspectResponse with one binding. hostPort "" means "no
+// binding yet".
 func inspectOf(ref, status, hostIP, hostPort string, labels map[string]string) container.InspectResponse {
-	ports := nat.PortMap{}
+	var bindings []nat.PortBinding
 	if hostPort != "" {
-		ports[nat.Port("8080/tcp")] = []nat.PortBinding{{HostIP: hostIP, HostPort: hostPort}}
+		bindings = []nat.PortBinding{{HostIP: hostIP, HostPort: hostPort}}
+	}
+	return inspectWithBindings(ref, status, bindings, labels)
+}
+
+// inspectWithBindings is inspectOf for a container the daemon published more
+// than once. The off-loopback guard has to judge the whole set — one safe
+// binding does not make a container safe — so the set is what the builder takes.
+func inspectWithBindings(ref, status string, bindings []nat.PortBinding, labels map[string]string) container.InspectResponse {
+	ports := nat.PortMap{}
+	if len(bindings) > 0 {
+		ports[nat.Port("8080/tcp")] = bindings
 	}
 	return container.InspectResponse{
 		ContainerJSONBase: &container.ContainerJSONBase{
@@ -368,6 +398,9 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 	if sb.State != backend.StateRunning {
 		t.Errorf("State = %q, want %q", sb.State, backend.StateRunning)
 	}
+	if got := f.snapshotStarts(); !reflect.DeepEqual(got, []string{"c0ffeecafe"}) {
+		t.Errorf("starts = %v, want [c0ffeecafe]: a container that is built but never started serves nothing", got)
+	}
 }
 
 // A caller that could set PANACEA_APP_ATTACH_TOKEN could replace the sandbox's
@@ -441,6 +474,108 @@ func TestCreateDestroysTheSandboxThatNeverAnswersHealthz(t *testing.T) {
 	}
 	if got := f.snapshotRemoves(); len(got) != 1 || got[0] != "c0ffeecafe" {
 		t.Fatalf("removes = %v, want [c0ffeecafe]: Create is all-or-nothing", got)
+	}
+	// Create trades `docker logs` away for a diagnosable API response, and the
+	// stated price is that the message names the endpoint AND the budget that
+	// expired. Without the duration an operator who raised the timeout cannot
+	// tell from the response which budget ran out, and the container is gone.
+	if !strings.Contains(err.Error(), "400ms") {
+		t.Errorf("error %q does not name the ready budget that expired", err)
+	}
+}
+
+// The other half of the same budget: the daemon never publishes a host port at
+// all. This is the one ready-failure path with no test of its own.
+func TestCreateDestroysTheSandboxThatNeverPublishesAPort(t *testing.T) {
+	f := &fakeDocker{createID: "c0ffeecafe"}
+	f.inspects = []inspectResult{
+		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
+		{resp: inspectOf("c0ffeecafe", "running", "", "", labelsFor("s-3f2a91c0", "sess-1"))},
+	}
+	b, err := dockerbe.New(dockerbe.Config{Client: f, ReadyTimeout: 300 * time.Millisecond})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	_, err = b.Create(context.Background(), validSpec())
+	if !errors.Is(err, backend.ErrNotRunning) {
+		t.Fatalf("Create of a sandbox that never publishes a port = %v, want an error wrapping ErrNotRunning", err)
+	}
+	if !strings.Contains(err.Error(), "300ms") {
+		t.Errorf("error %q does not name the ready budget that expired", err)
+	}
+	if got := f.snapshotRemoves(); len(got) != 1 || got[0] != "c0ffeecafe" {
+		t.Fatalf("removes = %v, want [c0ffeecafe]", got)
+	}
+}
+
+// A caller that gives up mid-Create is the commonest way Create fails, and it
+// is exactly when the container must still be removed — so cleanup runs on a
+// context detached from the caller's. The remove's own ctx.Err() is the only
+// place that detachment can be observed.
+func TestCreateRemovesTheContainerAfterTheCallerGivesUp(t *testing.T) {
+	f := &fakeDocker{createID: "c0ffeecafe"}
+	f.inspects = []inspectResult{
+		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
+		{resp: inspectOf("c0ffeecafe", "running", "", "", labelsFor("s-3f2a91c0", "sess-1"))},
+	}
+	b := newBackend(t, f)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := b.Create(ctx, validSpec())
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Create with a cancelled context = %v, want an error wrapping context.Canceled", err)
+	}
+	if !errors.Is(err, backend.ErrNotRunning) {
+		t.Fatalf("Create with a cancelled context = %v, want it classified as ErrNotRunning too: task 13 maps errors with errors.Is and a bare context error falls through to 500", err)
+	}
+	if got := f.snapshotRemoves(); len(got) != 1 || got[0] != "c0ffeecafe" {
+		t.Fatalf("removes = %v, want [c0ffeecafe]", got)
+	}
+	if got := f.snapshotRemoveCtxErrs(); len(got) != 1 || got[0] != nil {
+		t.Errorf("the remove ran with ctx.Err() = %v, want nil: cleanup must outlive the caller's cancellation", got)
+	}
+}
+
+// I1's case: the last statement of Create is a failure path like any other.
+// waitForEndpoint sees a clean binding and /healthz answers, then the final
+// read finds a wildcard binding alongside the loopback one. Reporting LAN
+// exposure and leaving the container running is the one outcome all-or-nothing
+// exists to prevent.
+func TestCreateDestroysTheSandboxWhenTheFinalReadReportsOffLoopback(t *testing.T) {
+	addr := healthzAddr(t)
+	f := &fakeDocker{createID: "c0ffeecafe"}
+	f.inspects = []inspectResult{
+		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
+		{resp: inspectOf("c0ffeecafe", "running", "127.0.0.1", portOf(t, addr), labelsFor("s-3f2a91c0", "sess-1"))},
+		{resp: inspectWithBindings("c0ffeecafe", "running", []nat.PortBinding{
+			{HostIP: "127.0.0.1", HostPort: portOf(t, addr)},
+			{HostIP: "0.0.0.0", HostPort: portOf(t, addr)},
+		}, labelsFor("s-3f2a91c0", "sess-1"))},
+	}
+	b := newBackend(t, f)
+
+	_, err := b.Create(context.Background(), validSpec())
+	if !errors.Is(err, backend.ErrNonLoopbackPublish) {
+		t.Fatalf("Create whose final read reports an off-loopback binding = %v, want an error wrapping ErrNonLoopbackPublish", err)
+	}
+	if got := f.snapshotRemoves(); len(got) != 1 || got[0] != "c0ffeecafe" {
+		t.Fatalf("removes = %v, want [c0ffeecafe]: every failure exit from Create destroys the container", got)
+	}
+}
+
+func TestCreateSurfacesADaemonFailureFromContainerCreate(t *testing.T) {
+	f := &fakeDocker{createErr: errors.New("no such image: panacea-app/sandbox:dev")}
+	f.inspects = []inspectResult{{err: notFoundErr{"panacea-app-s-3f2a91c0"}}}
+	b := newBackend(t, f)
+
+	_, err := b.Create(context.Background(), validSpec())
+	if !errors.Is(err, backend.ErrUnavailable) {
+		t.Fatalf("Create against a refusing daemon = %v, want an error wrapping ErrUnavailable", err)
+	}
+	if got := f.snapshotRemoves(); len(got) != 0 {
+		t.Errorf("removes = %v, want none: there is no container to remove when create itself failed", got)
 	}
 }
 
@@ -543,6 +678,67 @@ func TestGetRefusesToHandBackAnOffLoopbackEndpoint(t *testing.T) {
 	_, err := b.Get(context.Background(), "s-3f2a91c0")
 	if !errors.Is(err, backend.ErrNonLoopbackPublish) {
 		t.Fatalf("Get of a 0.0.0.0-published sandbox = %v, want an error wrapping ErrNonLoopbackPublish", err)
+	}
+}
+
+// The guard has to establish the ABSENCE of LAN reachability, and an existence
+// check ("is there a usable loopback binding?") can never establish an absence.
+// These are the shapes a first-match-wins check lets through.
+func TestGetRefusesEveryOffLoopbackPublishShape(t *testing.T) {
+	cases := map[string][]nat.PortBinding{
+		// The regression case. Docker allows two bindings on one container
+		// port, and a first-match-wins check hands back the loopback one — so
+		// the caller reaches a LAN-published sandbox through a safe-looking
+		// endpoint, skipping all four ErrNonLoopbackPublish sites at once.
+		"a loopback binding coexisting with a wildcard one": {
+			{HostIP: "127.0.0.1", HostPort: "51000"},
+			{HostIP: "0.0.0.0", HostPort: "51000"},
+		},
+		// Docker spells "every interface" as the empty string too.
+		"an empty host IP": {
+			{HostIP: "", HostPort: "51000"},
+		},
+		// Neither the bind IP nor a wildcard: a plain LAN address.
+		"a concrete LAN address": {
+			{HostIP: "192.168.1.5", HostPort: "51000"},
+		},
+	}
+	for name, bindings := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := &fakeDocker{}
+			f.inspects = []inspectResult{
+				{resp: inspectWithBindings("c0ffeecafe", "running", bindings, labelsFor("s-3f2a91c0", "sess-1"))},
+			}
+			b := newBackend(t, f)
+
+			sb, err := b.Get(context.Background(), "s-3f2a91c0")
+			if !errors.Is(err, backend.ErrNonLoopbackPublish) {
+				t.Fatalf("Get of a sandbox published with %s = (%+v, %v), want an error wrapping ErrNonLoopbackPublish", name, sb, err)
+			}
+		})
+	}
+}
+
+// ::1 is a loopback address, so it is safe to coexist with the bind IP. It is
+// not the bind IP, so it never becomes the endpoint. This daemon never produced
+// an IPv6 line, which is exactly why the rule is "is this address loopback"
+// rather than a list of spellings someone observed once.
+func TestGetAcceptsAnIPv6LoopbackBindingAlongsideTheBindIP(t *testing.T) {
+	f := &fakeDocker{}
+	f.inspects = []inspectResult{
+		{resp: inspectWithBindings("c0ffeecafe", "running", []nat.PortBinding{
+			{HostIP: "127.0.0.1", HostPort: "51000"},
+			{HostIP: "::1", HostPort: "51000"},
+		}, labelsFor("s-3f2a91c0", "sess-1"))},
+	}
+	b := newBackend(t, f)
+
+	sb, err := b.Get(context.Background(), "s-3f2a91c0")
+	if err != nil {
+		t.Fatalf("Get of a sandbox published on 127.0.0.1 and ::1 = %v, want nil: both are loopback", err)
+	}
+	if sb.Endpoint != "127.0.0.1:51000" {
+		t.Errorf("Endpoint = %q, want the bind IP's binding, not the IPv6 one", sb.Endpoint)
 	}
 }
 
@@ -684,11 +880,92 @@ func TestListFlagsAnOffLoopbackBindingWithoutFailingTheSweep(t *testing.T) {
 		t.Errorf("the loopback-published sandbox came back %+v, want an untouched endpoint and NonLoopback false", good)
 	}
 	line := logBuf.String()
-	if !strings.Contains(line, "s-aaaaaaaa") || !strings.Contains(line, "loopback") || !strings.Contains(line, "0.0.0.0") {
-		t.Errorf("log = %q, want one warning naming the sandbox, the off-loopback publish and the offending host IP", line)
+	if !strings.Contains(line, "s-aaaaaaaa") || !strings.Contains(line, "loopback") {
+		t.Errorf("log = %q, want one warning naming the sandbox and the off-loopback publish", line)
+	}
+	// A structured attribute, not a substring of the message: a sweep's output
+	// has to be filterable by the offending address without scraping text.
+	if !strings.Contains(line, "host_ip=0.0.0.0") {
+		t.Errorf("log = %q, want the offending host IP as a host_ip attribute", line)
 	}
 	if strings.Contains(line, "s-bbbbbbbb") {
 		t.Errorf("log = %q, want no warning for the loopback-published sandbox", line)
+	}
+}
+
+// The same four shapes as TestGetRefusesEveryOffLoopbackPublishShape, over the
+// summary struct List reads. The two helpers report the same fact from
+// different daemon responses, so a guard fixed in one and not the other is a
+// guard that is not fixed.
+func TestListFlagsEveryOffLoopbackPublishShape(t *testing.T) {
+	cases := map[string][]container.Port{
+		"a loopback binding coexisting with a wildcard one": {
+			{IP: "127.0.0.1", PrivatePort: 8080, PublicPort: 51001, Type: "tcp"},
+			{IP: "0.0.0.0", PrivatePort: 8080, PublicPort: 51001, Type: "tcp"},
+		},
+		"an empty host IP": {
+			{IP: "", PrivatePort: 8080, PublicPort: 51001, Type: "tcp"},
+		},
+		"a concrete LAN address": {
+			{IP: "192.168.1.5", PrivatePort: 8080, PublicPort: 51001, Type: "tcp"},
+		},
+	}
+	for name, ports := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := &fakeDocker{list: []container.Summary{
+				{ID: "c1", State: "running", Labels: labelsFor("s-aaaaaaaa", "sess-1"), Ports: ports},
+			}}
+			b, _ := newBackendWithLog(t, f)
+
+			got, err := b.List(context.Background())
+			if err != nil {
+				t.Fatalf("List = %v, want nil", err)
+			}
+			if len(got) != 1 {
+				t.Fatalf("List = %+v, want one sandbox", got)
+			}
+			if !got[0].NonLoopback || got[0].Endpoint != "" {
+				t.Errorf("sandbox published with %s came back %+v, want NonLoopback true and no endpoint", name, got[0])
+			}
+		})
+	}
+}
+
+func TestListSurfacesADaemonFailure(t *testing.T) {
+	f := &fakeDocker{listErr: errors.New("cannot connect to the Docker daemon")}
+	b := newBackend(t, f)
+
+	_, err := b.List(context.Background())
+	if !errors.Is(err, backend.ErrUnavailable) {
+		t.Fatalf("List against a dead daemon = %v, want an error wrapping ErrUnavailable", err)
+	}
+}
+
+// A summary with no Created is the daemon declining to report one, not a
+// container made in 1970. Task 13's reaper ages containers off this field, so
+// the epoch would make every such sandbox instantly reapable.
+func TestListFallsBackToTheCreatedAtLabelWhenTheSummaryHasNoTimestamp(t *testing.T) {
+	f := &fakeDocker{list: []container.Summary{
+		{ID: "c1", State: "running", Labels: labelsFor("s-aaaaaaaa", "sess-1")},
+		{ID: "c2", State: "running", Labels: map[string]string{
+			backend.LabelManaged:   "true",
+			backend.LabelSandboxID: "s-bbbbbbbb",
+		}},
+	}}
+	b := newBackend(t, f)
+
+	got, err := b.List(context.Background())
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("List = %+v, want two sandboxes", got)
+	}
+	if want := time.Date(2026, 9, 18, 1, 2, 3, 0, time.UTC); !got[0].CreatedAt.Equal(want) {
+		t.Errorf("CreatedAt = %s, want the %s label %s", got[0].CreatedAt, backend.LabelCreatedAt, want)
+	}
+	if !got[1].CreatedAt.IsZero() {
+		t.Errorf("CreatedAt = %s with neither a timestamp nor a label, want the zero time and not the epoch", got[1].CreatedAt)
 	}
 }
 
