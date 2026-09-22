@@ -1,0 +1,195 @@
+package api_test
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
+)
+
+// This file is contract §10a, checked by a machine — Group C ruling 1. It is its
+// own file because it is the one tasks 11 and 12 must edit, and a name they can
+// find beats a block halfway down api_test.go.
+
+// catalogReadOnlyRoutes is the explicit allowlist: every GET and HEAD pattern
+// this package registers must appear here, beside the reason it is safe to serve
+// with no CSRF defence at all.
+//
+// Contract §10a is the rule and task 9's origin.go is the reason. That middleware
+// allows a request carrying NO Origin header — curl and every non-browser tool
+// send none — and a browser sets Host itself, so a hostile page's
+// <img src="http://127.0.0.1:8730/…"> satisfies both of the control plane's
+// checks without ever seeing the response. Seeing the response is not what a
+// side effect needs. There is no token on this hop before Phase 8.
+//
+// ADDING A READ-ONLY ROUTE MEANS ADDING A LINE HERE. Tasks 11 and 12 extend this
+// map; they do not touch catalogAuditRoutes. Adding a side-effecting GET means a
+// failing test that names the rule before it can be made to pass.
+var catalogReadOnlyRoutes = map[string]string{
+	"GET /v1/healthz": "Reads Deps.BackendReady, which task 13 keeps as a CACHED bool. " +
+		"This is the one route mounted outside the origin guard, so a hostile page reaches it " +
+		"with no checks whatsoever; a healthz that refreshed a probe on request would be a " +
+		"side-effecting GET on the least defended route on the surface (ruling 2).",
+	"GET /api/v1/healthz":                    "Contract §7.5's alias of the same handler, on the same outer mux.",
+	"GET /v1/machines":                       "Reads the backend kind and the cached readiness bool. Nothing is created and nothing is probed.",
+	"GET /v1/projects":                       "A git enumeration through three read-only subcommands (project.Scanner).",
+	"GET /v1/projects/{projectId}/branches":  "The same enumeration, filtered to one project.",
+	"GET /v1/projects/{projectId}/worktrees": "An enumeration plus one registry read and one flag snapshot. The ready flag is only ever WRITTEN by the PATCH beside it.",
+	"GET /v1/harnesses":                      "A package-level table (contract §2.9), copied on the way out.",
+}
+
+// catalogMethodAgnosticRoutes is the other half of the audit, and the half that is
+// easy to forget: a pattern with NO method in it answers every verb, GET included,
+// so a check that only inspects patterns labelled GET would wave it straight
+// through. Each entry states why the route cannot act on a GET.
+var catalogMethodAgnosticRoutes = map[string]string{
+	"/api/v1/": "Contract §7.5's alias. It strips /api and re-dispatches into the same mux, " +
+		"where a method-bearing pattern decides — so the audit of those patterns covers this one.",
+	"/": "The outer mux's catch-all into the origin middleware and the guarded mux. " +
+		"Same argument: every route it can reach is audited on its own pattern.",
+}
+
+// catalogAuditRoutes applies contract §10a to a list of registered patterns and
+// returns one message per violation. It takes the list rather than reading it,
+// so the same rule can be run against the real route table and against a pattern
+// that does not exist yet.
+func catalogAuditRoutes(patterns []string) []string {
+	var violations []string
+	for _, pattern := range patterns {
+		method, _, hasMethod := strings.Cut(pattern, " ")
+		switch {
+		case !hasMethod:
+			if _, allowed := catalogMethodAgnosticRoutes[pattern]; !allowed {
+				violations = append(violations, fmt.Sprintf(
+					"%q is registered with no method, so it answers GET as well as everything else. "+
+						"Contract §10a: no GET may change state, because task 9's guard passes a request "+
+						"with no Origin and the browser sets Host itself. Name the method in the pattern, "+
+						"or add the pattern to catalogMethodAgnosticRoutes with the reason a GET is safe on it.",
+					pattern))
+			}
+		case method == http.MethodGet, method == http.MethodHead:
+			if _, allowed := catalogReadOnlyRoutes[pattern]; !allowed {
+				violations = append(violations, fmt.Sprintf(
+					"%q is a %s that is not on the read-only allowlist. Contract §10a: no GET or HEAD "+
+						"may change state — a hostile page can emit <img src> at this route and both of "+
+						"the control plane's checks pass. If it only reads, add it to "+
+						"catalogReadOnlyRoutes with the reason. If it writes, it needs POST, PATCH or "+
+						"DELETE — or a Phase 8 token — and not a line in that map.",
+					pattern, method))
+			}
+		}
+	}
+	return violations
+}
+
+func TestNoRegisteredGetCanChangeState(t *testing.T) {
+	// Group C ruling 1: the invariant contract §10a states in prose, checked by
+	// a machine. It walks what New ACTUALLY registered rather than a list
+	// maintained by hand, and it reads the recorders live rather than a snapshot,
+	// so tasks 11 and 12's routes are audited the moment they are added —
+	// wherever in New the registering line lands, and with no change to this test.
+	d, _ := catalogNewDeps(t)
+	a, err := api.New(d)
+	if err != nil {
+		t.Fatalf("api.New: %v", err)
+	}
+
+	registered := a.RegisteredPatterns()
+	if len(registered) == 0 {
+		t.Fatal("New registered no patterns; the audit would pass vacuously")
+	}
+	for _, violation := range catalogAuditRoutes(registered) {
+		t.Error(violation)
+	}
+
+	// The reverse direction, so the allowlist cannot rot: an entry for a route
+	// that no longer exists is standing permission for whatever is registered
+	// under that pattern next.
+	live := make(map[string]bool, len(registered))
+	for _, pattern := range registered {
+		live[pattern] = true
+	}
+	for pattern := range catalogReadOnlyRoutes {
+		if !live[pattern] {
+			t.Errorf("catalogReadOnlyRoutes allows %q, which is not registered — delete the line", pattern)
+		}
+	}
+	for pattern := range catalogMethodAgnosticRoutes {
+		if !live[pattern] {
+			t.Errorf("catalogMethodAgnosticRoutes allows %q, which is not registered — delete the line", pattern)
+		}
+	}
+}
+
+func TestTheRouteAuditRejectsASideEffectingGet(t *testing.T) {
+	// The audit above is only worth having if it fails, so this drives the two
+	// shapes a side effect arrives in: a GET that reads like a verb, and a
+	// pattern registered with no method at all.
+	for name, pattern := range map[string]string{
+		"a GET that is really a verb": "GET /v1/sessions/{sessionId}/kill",
+		"a pattern with no method":    "/v1/sessions/{sessionId}",
+	} {
+		t.Run(name, func(t *testing.T) {
+			violations := catalogAuditRoutes([]string{pattern})
+			if len(violations) != 1 {
+				t.Fatalf("audit of %q returned %d violations, want 1: %v", pattern, len(violations), violations)
+			}
+			if !strings.Contains(violations[0], pattern) {
+				t.Errorf("violation = %q, want it to name the offending pattern", violations[0])
+			}
+			if !strings.Contains(violations[0], "§10a") {
+				t.Errorf("violation = %q, want it to point at contract §10a", violations[0])
+			}
+		})
+	}
+}
+
+func TestNoFileRegistersOnTheRawMuxBehindTheRecorder(t *testing.T) {
+	// The belt to the recorder's braces. Making routes.mux a named unexported
+	// field means mux.ServeMux.HandleFunc — the spelling the embedded version
+	// promoted into every file here — no longer compiles, but Go has no barrier
+	// against a.guarded.mux.Handle(…) INSIDE this package, and a route
+	// registered that way is served and never audited.
+	//
+	// So: no source file but api.go, which declares the type, may select .mux at
+	// all. Reaching past the recorder becomes a deliberate act that reddens a
+	// suite and names this rule, rather than a nine-character alternative
+	// spelling.
+	//
+	// _test.go files are out of scope, and not as an oversight: the threat is a
+	// route the PRODUCT serves and no test walks, and a test file registers
+	// nothing in the product binary. Scoping it this way also keeps this file,
+	// which has to spell the forbidden selectors out, from matching itself.
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatalf("read the package directory: %v", err)
+	}
+	found := 0
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") ||
+			strings.HasSuffix(name, "_test.go") || name == "api.go" {
+			continue
+		}
+		src, err := os.ReadFile(filepath.Clean(name))
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		found++
+		for _, bypass := range []string{".mux.Handle", ".mux.ServeMux", ".mux.HandleFunc"} {
+			if strings.Contains(string(src), bypass) {
+				t.Errorf("%s contains %q. Register through the *routes recorder — mux.Handle or "+
+					"mux.HandleFunc — so contract §10a's audit can see the route. Reaching the "+
+					"mux behind it serves a route no test walks.", name, bypass)
+			}
+		}
+	}
+	if found == 0 {
+		t.Fatal("scanned no source files; the working directory is not the package source " +
+			"directory, or every handler file has been renamed and this scan is now a no-op")
+	}
+}

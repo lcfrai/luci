@@ -4,9 +4,13 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
@@ -17,10 +21,11 @@ import (
 
 // catalogRoutes is the read-only surface's route table.
 //
-// It is a table rather than a sequence of literal mux.HandleFunc calls so the
-// patterns are one value — which, with the recording mux in api.go, is what
-// lets api_test.go audit every GET on this surface against contract §10a
-// instead of trusting prose. Group C ruling 1.
+// A table rather than a sequence of literal calls, so the patterns of one
+// surface are one value a reader can take in at once. That is a style choice
+// and tasks 11 and 12 need not copy it: what contract §10a's audit actually
+// needs is the *routes recorder in api.go, which sees a literal
+// mux.HandleFunc(…) exactly as well.
 func (a *API) catalogRoutes() []route {
 	return []route{
 		// /healthz is NOT here: api.New mounts it on the outer mux, outside the
@@ -41,6 +46,11 @@ func (a *API) registerCatalog(mux *routes) {
 		mux.Handle(rt.Pattern, rt.Handler)
 	}
 }
+
+// nonNil and stringsOf below are surface-agnostic despite living in the
+// catalog's file: tasks 11 and 12 call them for their own JSON rather than
+// declaring a second copy, on the same reasoning ruling 6 applies to
+// isolationFor. They move to a file of their own when a third surface lands.
 
 // nonNil renders a nil slice as an empty one. json.Marshal writes nil as null,
 // and null.map(...) in the cockpit's rail is a blank screen with a console
@@ -222,6 +232,33 @@ func projectNotFound(w http.ResponseWriter, projectID string) {
 		map[string]string{"projectId": projectID})
 }
 
+// badRequest writes §3.2's bad_request: the body parsed, and what it asked for
+// is not something this endpoint can do.
+func badRequest(w http.ResponseWriter, msg string) {
+	httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest, msg, nil)
+}
+
+// enumerationFailed maps a project-enumeration error onto its response and
+// reports whether it wrote one, so a caller reads as
+//
+//	if a.enumerationFailed(w, r, "enumerate branches", projectID, err) { return }
+//
+// Three handlers here need it and tasks 11 and 12 will need a fourth and fifth:
+// one function is what stops project_not_found being spelled two ways.
+func (a *API) enumerationFailed(w http.ResponseWriter, r *http.Request, op, projectID string, err error) bool {
+	switch {
+	case err == nil:
+		return false
+	case errors.Is(err, project.ErrUnknownProject):
+		// errors.Is, never a string match: task 8 owns the sentinel and its
+		// message is free to change.
+		projectNotFound(w, projectID)
+	default:
+		a.internal(w, r, op, err)
+	}
+	return true
+}
+
 // handleProjects answers GET /v1/projects. An unconfigured projects directory
 // is 200 and an empty list, not an error: contract §3.5, and empty is a state
 // the cockpit renders.
@@ -238,14 +275,7 @@ func (a *API) handleProjects(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleBranches(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("projectId")
 	bs, err := a.deps.Projects.Branches(r.Context(), projectID)
-	switch {
-	case errors.Is(err, project.ErrUnknownProject):
-		// errors.Is, never a string match: task 8 owns the sentinel and its
-		// message is free to change.
-		projectNotFound(w, projectID)
-		return
-	case err != nil:
-		a.internal(w, r, "enumerate branches", err)
+	if a.enumerationFailed(w, r, "enumerate branches", projectID, err) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, branchesEnvelope{Branches: nonNil(bs)})
@@ -300,12 +330,7 @@ func (a *API) decoratedWorktrees(r *http.Request, projectID string) ([]worktreeJ
 func (a *API) handleWorktrees(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("projectId")
 	ws, err := a.decoratedWorktrees(r, projectID)
-	switch {
-	case errors.Is(err, project.ErrUnknownProject):
-		projectNotFound(w, projectID)
-		return
-	case err != nil:
-		a.internal(w, r, "enumerate worktrees", err)
+	if a.enumerationFailed(w, r, "enumerate worktrees", projectID, err) {
 		return
 	}
 	if branchID := r.URL.Query().Get("branchId"); branchID != "" {
@@ -320,11 +345,55 @@ func (a *API) handleWorktrees(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, worktreesEnvelope{Worktrees: nonNil(ws)})
 }
 
-// patchWorktreeRequest is the only body this endpoint accepts. Ready is a
-// pointer so "absent" and "false" are different states — DecodeJSON rejects an
-// unknown field, and a body that parses but sets nothing is what is left.
-type patchWorktreeRequest struct {
-	Ready *bool `json:"ready"`
+// readyFromBody parses this endpoint's only body. It returns the requested flag
+// and whether the handler should continue; every refusal is a 400 it has
+// already written.
+//
+// THE BODY IS READ AS RAW FIELDS rather than straight into a struct with
+// DisallowUnknownFields, and that is the whole of the reason: DecodeJSON answers
+// invalid_json for a field it does not recognise, and {"ready":true,"name":"x"}
+// is well-formed JSON that is semantically wrong. A code the cockpit switches on
+// must not say something untrue — the same principle that refuses
+// sandbox_not_running for a sandbox that is running. Contract §3.7 says
+// bad_request, so bad_request is what this answers.
+//
+// DecodeJSON still owns every BODY rule — the 1 MiB cap, the syntax, the
+// exactly-one-object rule — because the map goes through it too, so the phase
+// still has one body decoder. What moved here is which FIELDS this endpoint
+// accepts, which was always the handler's to decide.
+func readyFromBody(w http.ResponseWriter, r *http.Request) (ready bool, ok bool) {
+	var fields map[string]json.RawMessage
+	if !httpx.DecodeJSON(w, r, &fields) {
+		return false, false // DecodeJSON has written its own 400 invalid_json.
+	}
+
+	unknown := make([]string, 0, len(fields))
+	for name := range fields {
+		if name != "ready" {
+			unknown = append(unknown, strconv.Quote(name))
+		}
+	}
+	if len(unknown) > 0 {
+		// Sorted, because map order is random and an error message that changes
+		// between identical requests is one nobody trusts.
+		slices.Sort(unknown)
+		badRequest(w, "This endpoint sets one field, ready. It does not accept "+
+			strings.Join(unknown, ", ")+".")
+		return false, false
+	}
+
+	// Absent and null are one case: neither asks for anything, and a PATCH that
+	// silently did nothing is worse than one that says so.
+	raw, present := fields["ready"]
+	if !present || string(raw) == "null" {
+		badRequest(w, `This endpoint sets one field. Send {"ready": true} or {"ready": false}.`)
+		return false, false
+	}
+	if err := json.Unmarshal(raw, &ready); err != nil {
+		badRequest(w, "The ready field must be true or false.")
+		return false, false
+	}
+	return ready, true
 }
 
 // handlePatchWorktree is the whole of the fix for known defect 9: nothing ever
@@ -339,23 +408,13 @@ func (a *API) handlePatchWorktree(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("projectId")
 	worktreeID := r.PathValue("worktreeId")
 
-	var req patchWorktreeRequest
-	if !httpx.DecodeJSON(w, r, &req) {
-		return // DecodeJSON has already written its 400 invalid_json Problem.
-	}
-	if req.Ready == nil {
-		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
-			`This endpoint sets one field. Send {"ready": true} or {"ready": false}.`, nil)
-		return
+	ready, ok := readyFromBody(w, r)
+	if !ok {
+		return // readyFromBody has written the 400.
 	}
 
 	current, err := a.decoratedWorktrees(r, projectID)
-	switch {
-	case errors.Is(err, project.ErrUnknownProject):
-		projectNotFound(w, projectID)
-		return
-	case err != nil:
-		a.internal(w, r, "enumerate worktrees", err)
+	if a.enumerationFailed(w, r, "enumerate worktrees", projectID, err) {
 		return
 	}
 
@@ -375,7 +434,7 @@ func (a *API) handlePatchWorktree(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	flags, err := a.deps.Flags.SetWorktreeReady(worktreeID, *req.Ready)
+	flags, err := a.deps.Flags.SetWorktreeReady(worktreeID, ready)
 	if err != nil {
 		a.internal(w, r, "set the worktree ready flag", err)
 		return

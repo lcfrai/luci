@@ -775,7 +775,7 @@ func TestWorktreesBranchIdFilterIncludingAMissWhichIsAnEmptyArray(t *testing.T) 
 }
 ```
 
-Still `control-plane/internal/api/catalog_test.go`, the `PATCH` block — the fix for known defect 9. Note the two 400s: an **unknown field** is `invalid_json`, because task 9's `DecodeJSON` owns every body rule and answers with that code, while a body that parses but sets nothing is `bad_request`. Adjudicated decision 2 names `bad_request` for both; step 6 explains why one of them is `invalid_json` instead and why the status code, which is what the client branches on after the code, is 400 either way:
+Still `control-plane/internal/api/catalog_test.go`, the `PATCH` block — the fix for known defect 9. **Every rejected body here is 400 `bad_request`**, adjudicated decision 2's code, unknown fields included — see the amended step 6. A body that is not JSON *at all* is still `invalid_json`, because task 9's `DecodeJSON` still owns every **body** rule in the phase. The two test blocks below pin both halves:
 
 ```go
 func TestPatchWorktreeSetsReadyAndTheListThenReportsIt(t *testing.T) {
@@ -811,8 +811,8 @@ func TestPatchWorktreeSetsReadyAndTheListThenReportsIt(t *testing.T) {
 func TestPatchWorktreeRejectsABodyThatSetsSomethingElse(t *testing.T) {
 	target := "/v1/projects/" + catalogTestProject + "/worktrees/" + catalogTestWorktree
 	for name, tc := range map[string]struct{ body, code string }{
-		"unknown field": {`{"ready":true,"name":"renamed"}`, "invalid_json"},
-		"only a name":   {`{"name":"renamed"}`, "invalid_json"},
+		"unknown field": {`{"ready":true,"name":"renamed"}`, "bad_request"},
+		"only a name":   {`{"name":"renamed"}`, "bad_request"},
 		"empty object":  {`{}`, "bad_request"},
 		"null ready":    {`{"ready":null}`, "bad_request"},
 	} {
@@ -914,12 +914,15 @@ go test ./sandboxd/... ./control-plane/... -race -count=1
 
 `go test ./...` is invalid here — `go.work` `use`s `./sandboxd` and `./control-plane` and nothing at the root, so the shorter form errors with `directory prefix . does not contain modules listed in go.work`.
 
-Expected: `internal/api` holds two test files and no source, so the failure is at package load and there is no list of `undefined:` errors to read yet. The other packages report their usual `ok` and `[no test files]` lines, which are not reproduced here:
+Expected: `internal/api` holds test files and no source, so the build fails on the first symbol `api.go` has not declared yet. The other packages report their usual `ok` and `[no test files]` lines, which are not reproduced here:
 
 ```
-github.com/kpmg-au-emu/panacea-app/control-plane/internal/api: no non-test Go files in C:\Users\au-dev-dmackie1\Projects\PanaceaApp\control-plane\internal\api
+# github.com/kpmg-au-emu/panacea-app/control-plane/internal/api [github.com/kpmg-au-emu/panacea-app/control-plane/internal/api.test]
+control-plane\internal\api\export_test.go:21:10: undefined: API
 FAIL	github.com/kpmg-au-emu/panacea-app/control-plane/internal/api [build failed]
 ```
+
+**This is a type-check error and not the loader's `no non-test Go files in …`, which an earlier draft of this step predicted.** That message is emitted only when every file in the directory is an *external* test file, and `export_test.go` — the file ruling 1 needs, because a `package api_test` audit has no other way to see `API.patterns` — is `package api`. So the package does have a Go file for the test build, the load succeeds, and the type checker runs instead. The line and column follow that file's doc comment and will move if it is reworded; the `undefined: API` is the assertion. The gate below is unchanged and still passes: the failure is in `internal/api` and nowhere else.
 
 If instead the run fails inside `internal/httpx`, `internal/harness`, `internal/project`, `internal/worktree` or `internal/registry`, task 9 or task 8 is not merged into this branch yet and this task cannot start. Stop and check that before writing a line of `api.go`.
 
@@ -1162,9 +1165,11 @@ If a third error names `a.internal` or `a.grantHealthzOrigin`, those two were dr
 
 Every body on this surface goes through a named wire type rather than a `map[string]any`, so a renamed field is a compile error here instead of a silent `undefined` in the cockpit. Three of them are not the domain type: `worktreeJSON` adds the two fields git cannot supply, `harnessJSON` adds the server-computed `available` and flattens the string-kinded slices, and `machineJSON` exists only here because no package owns a machine in Phase 2.
 
-**The one departure from adjudicated decision 2, stated plainly.** That decision says the `PATCH` answers `400 bad_request` "for any other field". This implementation answers `400 invalid_json` for an unknown field and `400 bad_request` for a body that parses and sets nothing. The reason is that task 9's `httpx.DecodeJSON` owns every body rule in the phase — the 1 MiB cap, trailing content, unknown fields, wrong types — and it writes its own `invalid_json` Problem and returns false. Reimplementing those rules here to relabel one of them would give the phase two body decoders that must be kept in step. The status code the decision fixes is 400 in both cases, and the desktop switches on the `error` code after the status, so `invalid_json` on `{"name":"x"}` is at least as actionable as `bad_request` would be. Raise it if a reviewer disagrees; do not silently pick one.
+**No departure from adjudicated decision 2 — and the reasoning, because a first draft of this step got it wrong.** The decision says the `PATCH` answers `400 bad_request` "for any other field", and it does, unknown fields included. The draft answered `400 invalid_json` for an unknown field, on the grounds that `httpx.DecodeJSON` owns every body rule and writes that code itself. **The controller ruled against it, and the ruling generalises:** an unknown field is well-formed JSON that is semantically wrong, so telling the user their JSON was invalid is false, and a code the cockpit switches on must not say something untrue. It is the same principle that refuses `sandbox_not_running` for a sandbox that is running.
 
-Create `control-plane/internal/api/catalog.go`:
+The implementation keeps one body decoder. It calls `httpx.DecodeJSON` with a `map[string]json.RawMessage`, so the 1 MiB cap, the syntax rules and the exactly-one-object rule are still task 9's and still shared, and only the question of **which fields this endpoint accepts** — always the handler's — is answered here. A body that is not JSON is still `invalid_json`; a body that parses and asks for something this endpoint cannot do is `bad_request`.
+
+Create `control-plane/internal/api/catalog.go`. **Two amendments land after this block was transcribed and the shipped file differs from it in three places**: `registerCatalog` takes the `*routes` recorder rather than a `*http.ServeMux` (ruling 1); the `PATCH` body goes through `readyFromBody`, which answers `bad_request` for an unknown field as the paragraph above requires, rather than decoding straight into a struct and letting `DecodeJSON` label it `invalid_json`; and the three copies of the project-enumeration error switch are one `enumerationFailed` helper. Everything else below is as shipped.
 
 ```go
 // The read-only surface: everything that needs no sandbox, no session record
@@ -1647,10 +1652,12 @@ worktree, which 8.8 names as the thing that stops being free at hundreds of
 sessions. And a Store.List failure is a 500 rather than sessionCount 0,
 because a count nobody could read is a fabricated number.
 
-Departs from adjudicated decision 2 on one label: an unknown field in the PATCH
-body is 400 invalid_json rather than 400 bad_request, because httpx.DecodeJSON
-owns every body rule in the phase and relabelling one would give us two body
-decoders to keep in step. Same status, and the client switches on the code.
+The PATCH answers 400 bad_request for every body it refuses, unknown fields
+included, per adjudicated decision 2: an unknown field is well-formed JSON that
+is semantically wrong, and a code the cockpit switches on must not say something
+untrue. A body that is not JSON is still invalid_json, because httpx.DecodeJSON
+still owns every body rule in the phase - the handler reads raw fields through
+it and decides only which fields this endpoint accepts.
 
 Every test double this package declares is prefixed catalog, per the Group C
 package-API contract, so tasks 11 and 12 can add sessions* and attach* doubles

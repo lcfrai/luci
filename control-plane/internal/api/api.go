@@ -118,30 +118,39 @@ type route struct {
 	Handler http.Handler
 }
 
-// routes is an *http.ServeMux that remembers what was registered on it.
-// net/http can route a request but cannot list its own patterns, so recording
-// at registration is the only way a test can walk the real route table instead
-// of a list somebody maintains by hand — and a hand-maintained list is one that
-// stops matching reality on the first busy afternoon.
+// routes is a mux that remembers what was registered on it. net/http can route
+// a request but cannot list its own patterns, so recording at registration is
+// the only way a test can walk the real route table instead of a list somebody
+// maintains by hand — and a hand-maintained list is one that stops matching
+// reality on the first busy afternoon.
 //
-// TASKS 11 AND 12 TAKE *routes AND NOT *http.ServeMux, deliberately. Handle and
-// HandleFunc shadow the embedded mux's, so a register method written against
-// this type records whatever it registers with no extra step and no
-// coordination; one written against *http.ServeMux fails to compile at its call
-// site in New rather than quietly dropping its routes out of the audit.
+// TASKS 11 AND 12 TAKE *routes AND NOT *http.ServeMux, deliberately: a register
+// method written against this type records whatever it registers with no extra
+// step and no coordination, and one written against *http.ServeMux fails to
+// compile at its call site in New rather than quietly dropping its routes out
+// of the audit.
+//
+// THE MUX IS A NAMED, UNEXPORTED FIELD AND NOT AN EMBEDDED ONE. Embedded, it
+// promoted an exported ServeMux selector into every file in this package, so
+// mux.ServeMux.HandleFunc(…) compiled, served, and was never recorded — nine
+// characters away from the intended call and invisible to the audit. Named and
+// unexported, that spelling does not compile at all. Reaching rs.mux directly
+// is still possible inside this package, because Go has no stronger barrier
+// than that; it is a deliberate act rather than the obvious alternative, and
+// routes_audit_test.go scans this package's own sources for it.
 type routes struct {
-	*http.ServeMux
+	mux        *http.ServeMux
 	registered []string
 }
 
 func newRoutes() *routes {
-	return &routes{ServeMux: http.NewServeMux()}
+	return &routes{mux: http.NewServeMux()}
 }
 
 // Handle registers a pattern and records it.
 func (rs *routes) Handle(pattern string, h http.Handler) {
 	rs.registered = append(rs.registered, pattern)
-	rs.ServeMux.Handle(pattern, h)
+	rs.mux.Handle(pattern, h)
 }
 
 // HandleFunc is Handle for a plain function, so a register method reads exactly
@@ -150,14 +159,24 @@ func (rs *routes) HandleFunc(pattern string, h func(http.ResponseWriter, *http.R
 	rs.Handle(pattern, http.HandlerFunc(h))
 }
 
+// ServeHTTP implements http.Handler, which the embedded field used to supply.
+// The alias and the middleware wrap both hand a *routes on as a handler.
+func (rs *routes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	rs.mux.ServeHTTP(w, r)
+}
+
 // API is the whole HTTP surface as one handler.
 type API struct {
 	deps    Deps
 	handler http.Handler
 
-	// patterns is every pattern New registered, in registration order. It feeds
-	// the §10a audit and nothing else; export_test.go is what reads it.
-	patterns []string
+	// guarded and root are the two recorders, kept whole rather than
+	// snapshotted into a []string. RegisteredPatterns() reads them LIVE, so a
+	// registration added anywhere in New is audited — a snapshot taken at one
+	// point in that function quietly excused every route registered below it,
+	// which is where tasks 11 and 12 are most likely to add theirs.
+	guarded *routes
+	root    *routes
 }
 
 var _ http.Handler = (*API)(nil)
@@ -197,6 +216,7 @@ func New(d Deps) (*API, error) {
 
 	// guarded holds every route the origin middleware protects.
 	guarded := newRoutes()
+	a.guarded = guarded
 	a.registerCatalog(guarded)
 	// Task 11 adds a.registerSessions(guarded) on the next line and task 12
 	// adds a.registerAttach(guarded). One line each, each taking *routes, and
@@ -205,8 +225,15 @@ func New(d Deps) (*API, error) {
 	// between, so no suite in them can be green. The only other edit either
 	// makes here is task 11's three Deps fields: Image, Resources and
 	// ReadyTimeout. Both also add their read-only patterns, if any, to
-	// catalogReadOnlyRoutes in api_test.go — the §10a audit covers their routes
-	// automatically and fails until they do.
+	// catalogReadOnlyRoutes in routes_audit_test.go — the §10a audit covers
+	// their routes automatically and fails until they do.
+	//
+	// The position of those two lines is a readability preference and not a
+	// load-bearing one: the audit reads both recorders live, so a call added at
+	// the bottom of this function is audited exactly the same. What IS
+	// load-bearing is that the call goes through a *routes. Neither task owes a
+	// sessionsRoutes()-style table either — catalogRoutes is a task-10 style
+	// choice, and the recorder is the whole requirement.
 
 	// Contract §7.5: /v1 is canonical and /api/v1/… is an alias, so Phase 4's
 	// Discover routes and its entire test suite land unchanged. Nothing in
@@ -223,14 +250,11 @@ func New(d Deps) (*API, error) {
 	// registered here because the alias lives on the guarded mux, which this
 	// path never reaches.
 	root := newRoutes()
+	a.root = root
 	healthz := http.HandlerFunc(a.handleHealthz)
 	root.Handle("GET /v1/healthz", healthz)
 	root.Handle("GET /api/v1/healthz", healthz)
 	root.Handle("/", d.Origin.Middleware(guarded))
-
-	a.patterns = make([]string, 0, len(guarded.registered)+len(root.registered))
-	a.patterns = append(a.patterns, guarded.registered...)
-	a.patterns = append(a.patterns, root.registered...)
 
 	a.handler = root
 	return a, nil

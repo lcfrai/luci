@@ -139,15 +139,35 @@ func TestMachinesReportsErrorAndAMessageWhenTheBackendIsDown(t *testing.T) {
 
 func TestMachinesIsolationFollowsTheBackendKind(t *testing.T) {
 	// katabe is dormant until Phase 8, but the mapping must not be a literal.
-	h := catalogNewAPI(t, func(d *api.Deps) { d.Backend = catalogBackend{kind: backend.KindKata} })
-	rec := catalogDo(t, h, http.MethodGet, "/v1/machines", "", nil)
+	//
+	// The third row is the one ruling 6 makes binding: isolationFor is the
+	// package's ONLY kind-to-enum mapping, task 11 calls it rather than
+	// declaring a second, and the value an unrecognised kind gets is "none" —
+	// a member of contract §3.4's three-value enum, not a fourth value like
+	// "unknown" invented at one call site.
+	for kind, wantIsolation := range map[backend.Kind]string{
+		backend.KindDocker: "container",
+		backend.KindKata:   "microvm",
+		"podman":           "none",
+	} {
+		t.Run(string(kind), func(t *testing.T) {
+			h := catalogNewAPI(t, func(d *api.Deps) { d.Backend = catalogBackend{kind: kind} })
+			rec := catalogDo(t, h, http.MethodGet, "/v1/machines", "", nil)
 
-	m := catalogListOf(t, rec.Body.String(), "machines")[0]
-	if got := m["isolation"]; got != "microvm" {
-		t.Errorf("isolation = %v for the kata backend, want \"microvm\"", got)
-	}
-	if got := m["backend"]; got != "kata" {
-		t.Errorf("backend = %v, want \"kata\"", got)
+			m := catalogListOf(t, rec.Body.String(), "machines")[0]
+			if got := m["isolation"]; got != wantIsolation {
+				t.Errorf("isolation = %v for the %s backend, want %q", got, kind, wantIsolation)
+			}
+			if got := m["backend"]; got != string(kind) {
+				t.Errorf("backend = %v, want %q", got, kind)
+			}
+			// Every kind says what it costs the user, including the one this
+			// build does not know: "unsandboxed" with no sentence under it is
+			// a badge nobody can act on.
+			if lim, _ := m["limitations"].([]any); len(lim) == 0 {
+				t.Errorf("limitations is empty for the %s backend", kind)
+			}
+		})
 	}
 }
 
@@ -352,20 +372,49 @@ func TestPatchWorktreeSetsReadyAndTheListThenReportsIt(t *testing.T) {
 }
 
 func TestPatchWorktreeRejectsABodyThatSetsSomethingElse(t *testing.T) {
+	// Every one of these is 400 bad_request and not 400 invalid_json. The
+	// controller's ruling: an unknown field is WELL-FORMED JSON that is
+	// semantically wrong, and a code the cockpit switches on must not say
+	// something untrue — the same principle that refuses sandbox_not_running for
+	// a sandbox that is running. Contract §3.7 names bad_request for this case.
 	target := "/v1/projects/" + catalogTestProject + "/worktrees/" + catalogTestWorktree
-	for name, tc := range map[string]struct{ body, code string }{
-		"unknown field": {`{"ready":true,"name":"renamed"}`, "invalid_json"},
-		"only a name":   {`{"name":"renamed"}`, "invalid_json"},
-		"empty object":  {`{}`, "bad_request"},
-		"null ready":    {`{"ready":null}`, "bad_request"},
+	for name, body := range map[string]string{
+		"unknown field beside ready": `{"ready":true,"name":"renamed"}`,
+		"only a name":                `{"name":"renamed"}`,
+		"empty object":               `{}`,
+		"null ready":                 `{"ready":null}`,
+		"ready is not a boolean":     `{"ready":"yes"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			rec := catalogDo(t, catalogNewAPI(t, nil), http.MethodPatch, target, tc.body, nil)
+			rec := catalogDo(t, catalogNewAPI(t, nil), http.MethodPatch, target, body, nil)
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, want 400; body = %s", rec.Code, rec.Body.String())
 			}
-			if !strings.Contains(rec.Body.String(), tc.code) {
-				t.Errorf("body = %s, want the %s code", rec.Body.String(), tc.code)
+			if got := catalogDecodeObject(t, rec.Body.String())["error"]; got != "bad_request" {
+				t.Errorf("error = %v, want \"bad_request\"; body = %s", got, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestPatchWorktreeStillAnswersInvalidJsonForAMalformedBody(t *testing.T) {
+	// The other half of the ruling above, and the reason it is a ruling about
+	// LABELS rather than about which decoder runs: httpx.DecodeJSON still owns
+	// every body rule in the phase, so a body that is not JSON is still
+	// invalid_json. Two codes, two distinct meanings, one decoder.
+	target := "/v1/projects/" + catalogTestProject + "/worktrees/" + catalogTestWorktree
+	for name, body := range map[string]string{
+		"truncated object": `{"ready":true`,
+		"not json at all":  `ready please`,
+		"two objects":      `{"ready":true}{"ready":false}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			rec := catalogDo(t, catalogNewAPI(t, nil), http.MethodPatch, target, body, nil)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400; body = %s", rec.Code, rec.Body.String())
+			}
+			if got := catalogDecodeObject(t, rec.Body.String())["error"]; got != "invalid_json" {
+				t.Errorf("error = %v, want \"invalid_json\"; body = %s", got, rec.Body.String())
 			}
 		})
 	}
