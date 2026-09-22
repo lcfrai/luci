@@ -50,11 +50,31 @@ describe("AppShell", () => {
   // the sub-rail must NOT be mounted — it would render a back-link to nothing — but the column
   // must still exist, or the grid jumps instead of sliding.
   it("holds the sub-rail column empty until a branch is selected", () => {
-    const { rerender } = render(<AppShell />);
+    const { container, rerender } = render(<AppShell />);
+    const shell = container.querySelector(".shell");
+    expect(shell).not.toBeNull();
+    const middleSlot = (): Element | null =>
+      shell!.querySelector(".rail")?.nextElementSibling ?? null;
+
+    // The SubRail itself must NOT be mounted — it would render a back-link to nothing.
     expect(screen.queryByRole("complementary", { name: "Phases" })).toBeNull();
+
+    // But the COLUMN must still be occupied, which is the half this test named in its comment
+    // and did not assert. The grid is three columns and the middle one animates 0px → 182px;
+    // unmount the slot entirely and the grid jumps instead of sliding. Queried as "the element
+    // after the rail" rather than by child index, so task 23 appending the palette cannot
+    // break it — and it fails the moment the placeholder becomes null, because then the rail's
+    // next sibling is <main>.
+    const empty = middleSlot();
+    expect(empty).not.toBeNull();
+    expect(empty!.tagName).not.toBe("MAIN");
+    expect(empty!.getAttribute("aria-hidden")).toBe("true");
+
     populate();
     rerender(<AppShell />);
     expect(screen.getByRole("complementary", { name: "Phases" })).not.toBeNull();
+    // And with a branch, the same slot is the sub-rail rather than the placeholder.
+    expect(middleSlot()!.tagName).toBe("ASIDE");
   });
 
   // §6.3 and AGENTIC-UX §4 rule 12: entry into any lens is legal from any state. Not one of

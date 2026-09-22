@@ -135,6 +135,42 @@ describe("the overlay stack", () => {
     other.remove();
   });
 
+  // The "keep latest onClose" layout effect. Every other case in this file transitions the
+  // overlay open → closed exactly once, so none of them ever re-renders an OPEN overlay with a
+  // changed onClose — which is the only condition under which a stale closure matters. Delete
+  // the effect and all six of them still pass; this is the one that goes red.
+  //
+  // Reachable in production, not just in principle: SessionPicker's onClose closes over
+  // worktreeId and draft state that change while the picker is open, so it re-renders with a
+  // fresh onClose on every keystroke. A stale ref would call the closure captured before the
+  // user typed anything, which is the wrong `target` and the wrong draft.
+  it("dismisses through the LATEST onClose after an open overlay re-renders", () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = render(createElement(Overlay, { onClose: first }));
+
+    // Still open, new callback — the parent re-rendered while the overlay stayed up.
+    rerender(createElement(Overlay, { onClose: second }));
+    expect(hasOpenOverlay()).toBe(true);
+
+    escape();
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+  });
+
+  // The same staleness through the other dismissal path, because the two read onCloseRef from
+  // different handlers and a fix that repaired only one would still be half a fix.
+  it("uses the latest onClose for an outside pointerdown too", () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = render(createElement(Overlay, { onClose: first }));
+    rerender(createElement(Overlay, { onClose: second }));
+
+    pointerDownOn(document.body);
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+  });
+
   // Case 5. Focus return, without which "Cmd-K, Escape, keep typing" is impossible (§6.8).
   it("returns focus to whatever had it before the overlay opened", () => {
     const before = document.createElement("input");
