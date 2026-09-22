@@ -164,6 +164,23 @@ describe("removeSession and lastError", () => {
     expect(after.contextMenu).toEqual({ kind: "branch", id: "s-1", x: 0, y: 0 });
   });
 
+  it("leaves a context menu open over a DIFFERENT session alone", () => {
+    const s = useCockpit.getState();
+    s.replaceSessions(sessionsOn("w-1", ["s-1", "s-2"]), ["w-1"]);
+    // The guard on contextMenu is a three-way conjunction, so it has two degenerate
+    // collapses and the branch-kind test above pins only one. This is the other: a menu of
+    // the RIGHT kind over the WRONG session. Dropping the id check closes it, and nothing
+    // in that test can tell, because its menu is a branch.
+    s.openContextMenu({ kind: "session", id: "s-2", x: 5, y: 6 });
+    s.removeSession("s-1");
+    expect(useCockpit.getState().contextMenu).toEqual({
+      kind: "session",
+      id: "s-2",
+      x: 5,
+      y: 6,
+    });
+  });
+
   it("is clearable only by setError(null), never by a later successful fetch", () => {
     const s = useCockpit.getState();
     s.setError({ code: "unsupported_option", message: "effort is not accepted by shell" });
