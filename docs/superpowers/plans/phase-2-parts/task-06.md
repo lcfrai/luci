@@ -43,6 +43,7 @@ import (
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -175,19 +176,43 @@ func TestCreateOmitsTheSessionLabelWhenThereIsNoSession(t *testing.T) {
 // Kata sizes the guest VM from the requests. manager_test.go already proves
 // both are present; this proves they are the values the caller asked for and
 // that they match, which is what stops a guest OOM.
+//
+// Compared with Equal rather than String(): resource.Quantity.String()
+// canonicalizes to the smallest exact suffix, so resource.MustParse("2000m")
+// prints as "2" and resource.MustParse("4096Mi") prints as "4Gi". That is
+// apimachinery's own formatting choice and has nothing to do with whether the
+// pod carries the right quantity, so pinning the string would make this test
+// a hostage to an upstream rendering decision — and pinning a value that does
+// not canonicalize (say "1500m") alongside one that does would make the
+// comparison inconsistent in a way no reader could predict.
 func TestCreateSetsRequestsEqualToLimitsAtTheGivenQuantities(t *testing.T) {
 	c := createPod(t, fake.NewSimpleClientset(), growthSpec()).Spec.Containers[0]
-	if got := c.Resources.Requests.Cpu().String(); got != "2000m" {
-		t.Errorf("cpu request = %s, want 2000m", got)
+	wantCPU := resource.MustParse("2000m")
+	wantMem := resource.MustParse("4096Mi")
+	reqCPU, limCPU := c.Resources.Requests.Cpu(), c.Resources.Limits.Cpu()
+	reqMem, limMem := c.Resources.Requests.Memory(), c.Resources.Limits.Memory()
+
+	if !reqCPU.Equal(wantCPU) {
+		t.Errorf("cpu request = %s, want %s", reqCPU.String(), wantCPU.String())
 	}
-	if got := c.Resources.Limits.Cpu().String(); got != "2000m" {
-		t.Errorf("cpu limit = %s, want 2000m", got)
+	if !limCPU.Equal(wantCPU) {
+		t.Errorf("cpu limit = %s, want %s", limCPU.String(), wantCPU.String())
 	}
-	if got := c.Resources.Requests.Memory().String(); got != "4096Mi" {
-		t.Errorf("memory request = %s, want 4096Mi", got)
+	if !reqMem.Equal(wantMem) {
+		t.Errorf("memory request = %s, want %s", reqMem.String(), wantMem.String())
 	}
-	if got := c.Resources.Limits.Memory().String(); got != "4096Mi" {
-		t.Errorf("memory limit = %s, want 4096Mi", got)
+	if !limMem.Equal(wantMem) {
+		t.Errorf("memory limit = %s, want %s", limMem.String(), wantMem.String())
+	}
+
+	// The actual invariant docs/PROGRAM.md cares about: a requests/limits
+	// mismatch is what would let the scheduler admit the pod at one size and
+	// Kata build the guest VM at another.
+	if !reqCPU.Equal(*limCPU) {
+		t.Errorf("cpu request %s != cpu limit %s", reqCPU.String(), limCPU.String())
+	}
+	if !reqMem.Equal(*limMem) {
+		t.Errorf("memory request %s != memory limit %s", reqMem.String(), limMem.String())
 	}
 }
 
@@ -576,7 +601,7 @@ Known failure mode: if `TestGetAndListIgnorePodsThisManagerDidNotCreate` reports
 
 Everything here runs on a laptop with no cluster and no Azure account. The Kubernetes half is `fake.NewSimpleClientset()`, exactly as `manager_test.go` already does; the sandbox half is an `httptest` server on loopback that serves `/healthz` and upgrades `/attach`. Pod phases do not advance by themselves in the fake client, which is the point — the test writes the phase, so "Create waits for readiness" is observable rather than assumed.
 
-What these pin, in order of what would hurt most if it broke: `Mounts` and `WorkDir` are refused rather than ignored; the CPU and memory quantities reach the pod as `"2000m"` and `"4096Mi"` in the requests **and** the limits — Kata sizes the guest VM from the requests, so a render that fills in only the limits is a guest OOM on a real cluster; `Create` does not return until the pod answers `/healthz`, and returns `ErrNotRunning` rather than a half-built `Sandbox` when it never does; every pod phase maps to exactly one `State`, including a Running pod whose kubelet has reported no container status at all; the pod's creation timestamp reaches `Sandbox.CreatedAt`; `Attach` carries the bearer token and surfaces task 4's sentinels unchanged; and `Destroy` is idempotent. Two more pin configuration rather than behaviour under load, and both would otherwise be uncovered: an unset `Config.ReadyTimeout` resolves to `backend.ReadyTimeout` and not to zero, and the pod's environment is exactly `Spec.EnvEntries()` — the same slice dockerbe renders — entry for entry in order.
+What these pin, in order of what would hurt most if it broke: `Mounts` and `WorkDir` are refused rather than ignored; the CPU and memory quantities reach the pod matching the values the caller asked for, in the requests **and** the limits alike — compared with `resource.Quantity.Equal`, not `String()`, because apimachinery canonicalizes `"2000m"` to `"2"` and `"4096Mi"` to `"4Gi"` on render, a formatting choice orthogonal to whether the pod is sized correctly — Kata sizes the guest VM from the requests, so a render that fills in only the limits is a guest OOM on a real cluster; `Create` does not return until the pod answers `/healthz`, and returns `ErrNotRunning` rather than a half-built `Sandbox` when it never does; every pod phase maps to exactly one `State`, including a Running pod whose kubelet has reported no container status at all; the pod's creation timestamp reaches `Sandbox.CreatedAt`; `Attach` carries the bearer token and surfaces task 4's sentinels unchanged; and `Destroy` is idempotent. Two more pin configuration rather than behaviour under load, and both would otherwise be uncovered: an unset `Config.ReadyTimeout` resolves to `backend.ReadyTimeout` and not to zero, and the pod's environment is exactly `Spec.EnvEntries()` — the same slice dockerbe renders — entry for entry in order.
 
 Create `control-plane/internal/backend/katabe/kata_test.go`:
 
@@ -599,6 +624,7 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend/katabe"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -872,8 +898,15 @@ func TestCreateWaitsForHealthzAndReturnsTheEndpoint(t *testing.T) {
 
 // Kata sizes the guest VM from the requests, which is why all four quantities
 // are asserted and not one of each pair: rendering 2000 millicpu as anything
-// but "2000m", or filling in only the limits, is a guest OOM on a real cluster
-// and is invisible until then.
+// but the value the caller asked for, or filling in only the limits, is a
+// guest OOM on a real cluster and is invisible until then.
+//
+// Compared with Equal rather than String(): resource.Quantity.String()
+// canonicalizes to the smallest exact suffix, so resource.MustParse("2000m")
+// prints as "2" and resource.MustParse("4096Mi") prints as "4Gi". That is
+// apimachinery's own formatting choice and has nothing to do with whether the
+// pod carries the right quantity, so pinning the string would make this test
+// a hostage to an upstream rendering decision.
 func TestCreateRendersKubernetesQuantitiesAndTheArgvContract(t *testing.T) {
 	spec := validSpec()
 	_, client, _, sb := runningSandbox(t, spec)
@@ -883,17 +916,31 @@ func TestCreateRendersKubernetesQuantitiesAndTheArgvContract(t *testing.T) {
 		t.Fatalf("Get %s: %v", sb.Ref, err)
 	}
 	c := pod.Spec.Containers[0]
-	if got := c.Resources.Requests.Cpu().String(); got != "2000m" {
-		t.Errorf("cpu request = %s, want 2000m (backend.Resources.KubeCPU); Kata sizes the guest VM from the requests", got)
+	wantCPU := resource.MustParse(spec.Resources.KubeCPU())
+	wantMem := resource.MustParse(spec.Resources.KubeMemory())
+	reqCPU, limCPU := c.Resources.Requests.Cpu(), c.Resources.Limits.Cpu()
+	reqMem, limMem := c.Resources.Requests.Memory(), c.Resources.Limits.Memory()
+
+	if !reqCPU.Equal(wantCPU) {
+		t.Errorf("cpu request = %s, want %s (backend.Resources.KubeCPU); Kata sizes the guest VM from the requests", reqCPU.String(), wantCPU.String())
 	}
-	if got := c.Resources.Limits.Cpu().String(); got != "2000m" {
-		t.Errorf("cpu limit = %s, want 2000m (backend.Resources.KubeCPU)", got)
+	if !limCPU.Equal(wantCPU) {
+		t.Errorf("cpu limit = %s, want %s (backend.Resources.KubeCPU)", limCPU.String(), wantCPU.String())
 	}
-	if got := c.Resources.Requests.Memory().String(); got != "4096Mi" {
-		t.Errorf("memory request = %s, want 4096Mi (backend.Resources.KubeMemory); an under-requested guest OOMs before the limit is ever reached", got)
+	if !reqMem.Equal(wantMem) {
+		t.Errorf("memory request = %s, want %s (backend.Resources.KubeMemory); an under-requested guest OOMs before the limit is ever reached", reqMem.String(), wantMem.String())
 	}
-	if got := c.Resources.Limits.Memory().String(); got != "4096Mi" {
-		t.Errorf("memory limit = %s, want 4096Mi (backend.Resources.KubeMemory)", got)
+	if !limMem.Equal(wantMem) {
+		t.Errorf("memory limit = %s, want %s (backend.Resources.KubeMemory)", limMem.String(), wantMem.String())
+	}
+
+	// The actual invariant: a requests/limits mismatch would let the scheduler
+	// admit the pod at one size while Kata builds the guest VM at another.
+	if !reqCPU.Equal(*limCPU) {
+		t.Errorf("cpu request %s != cpu limit %s", reqCPU.String(), limCPU.String())
+	}
+	if !reqMem.Equal(*limMem) {
+		t.Errorf("memory request %s != memory limit %s", reqMem.String(), limMem.String())
 	}
 
 	env := map[string]string{}
