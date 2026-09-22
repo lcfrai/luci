@@ -80,14 +80,29 @@
   --fail-tint: oklch(66.7% 0.1830 32.3 / 0.12);
   /* "idle" and "exited" are NEUTRAL on purpose. A colour for every state is a colour for
    * no state.
-   * Both resolve to --ink-3 (3.43:1 on --page), and that is forced rather than lazy. A status
-   * dot is a graphic you must perceive in order to read the interface, so WCAG 1.4.11 puts a
-   * 3:1 floor under it, and --ink-4 is 1.92:1 — an earlier draft pointed --idle there and
-   * shipped a dot below the floor the ink-ramp comment above asserts. --ink-3 is the
-   * lowest rung on this ramp that still clears the floor, so both states land on it
-   * and the difference is carried by SHAPE rather than colour: the component layer draws idle
-   * as a disc and exited as a square. That is rule 5 at the top of this file, and it is what a
-   * colourblind user reads anyway. Do not "fix" the duplication by moving one back to --ink-4. */
+   * Both resolve to --ink-3, and that is forced rather than lazy. A status dot is a graphic
+   * you must perceive in order to read the interface, so WCAG 1.4.11 puts a 3:1 floor under
+   * it, and --ink-4 fails that floor on EVERY surface in the ramp — 1.92:1 on --page down to
+   * 1.51:1 on --hover-2. An earlier draft pointed --idle there and shipped a dot below the
+   * floor the ink-ramp comment above asserts.
+   *
+   * --ink-3 clears the floor on the surfaces a dot RESTS on, and it does NOT clear it
+   * everywhere. Measured, per surface:
+   *     --field 3.49 · --page 3.43 · --canvas 3.34 · --surface 3.22 · --inset 3.05   clears
+   *     --hover 2.87 · --hover-2 2.69                                                below
+   * The two it misses are both transient POINTER states. A row rests at --canvas, or at
+   * --inset when selected, and only reaches --hover while the pointer is over it — which is
+   * the one moment the user's attention is already on that row. Raising the value far enough
+   * to clear --hover-2 would push the neutral states bright enough to read as live, which is
+   * a worse failure than a 4-10% shortfall on a hover frame. The shortfall is accepted, not
+   * overlooked.
+   *
+   * The idle/exited distinction does not rest on colour at all: task 18 draws idle as a disc
+   * and exited as a square (dot-disc / dot-square), which is rule 5 at the top of this file
+   * and what a colourblind user reads anyway. Note the shape vocabulary does NOT separate
+   * idle from RUNNING — both are discs — so that pair is carried by colour (--ink-3 against
+   * --run) and by motion: idle is still, running breathes on the --beat clock.
+   * Do not "fix" the duplication by moving one back to --ink-4. */
   --idle:   var(--ink-3);
   --exited: var(--ink-3);
 
