@@ -8,6 +8,15 @@
  * existing builder — it never adds a near-duplicate and never declares a local builder.
  */
 
+import type {
+  Branch,
+  Harness,
+  Machine,
+  Project,
+  Session,
+  Worktree,
+} from "../store/types";
+
 /**
  * One fixed instant, so every elapsed-time assertion is deterministic.
  * 2026-09-18T09:00:00.000Z. Freeze with `vi.useFakeTimers()` then
@@ -30,33 +39,118 @@ export const IDS = {
   sessionB: "s-8d4e72a5",
 } as const;
 
-// ── RESERVED FOR TASK 15: the six typed fixture builders ─────────────────────
-// Group D shared shape §3.1. TASK 15 fills this point and no other task does. Task 15 is the
-// first task that CAN type a builder — it declares "../store/types" — and the last one that can
-// before they are needed, because task 16 runs before task 17 and imports them for its client
-// tests. A builder declared in task 17 does not exist when task 16 reaches for it.
+// ── The typed fixture builders. Filled by task 15; reserved by task 14 ──────────────
 //
-// Task 15 adds exactly these six, each taking an optional partial override, importing its types
-// from "../store/types":
+// Group D shared shape §3.2: these SIX are the complete inventory and no other module
+// declares a domain builder. A task needing a VARIANT passes an override; a task needing a
+// SEVENTH surface adds it to this block and says so in its plan text.
 //
-//   export function aMachine(over?: Partial<Machine>): Machine { ... }
-//   export function aProject(over?: Partial<Project>): Project { ... }
-//   export function aBranch(over?: Partial<Branch>): Branch { ... }
-//   export function aWorktree(over?: Partial<Worktree>): Worktree { ... }
-//   export function aSession(over?: Partial<Session>): Session { ... }
-//   export function aHarness(over?: Partial<Harness>): Harness { ... }
-//
-// The last one's type is `Harness`. Shared shape §3.2 writes that signature against a
-// `HarnessDescriptor`, and nothing declares such a type: contract §2 calls the interface
-// `Harness`, and task 15 transcribes §2 verbatim under a diff gate so it cannot rename it. The
-// BUILDER name is `aHarness`, exactly as §3.2 fixes it; the type it takes and returns is
-// `Harness`. Task 15 settles this the same way in its own step text.
-//
-// Each returns a FULLY POPULATED, valid object: timestamps from FIXED_NOW so no test depends on
-// the wall clock, ids from IDS. aHarness() returns `models`, `efforts` and `permissionModes` as
-// EMPTY ARRAYS, never null or undefined — shared shape §5.1: the Go side allocates them
-// unconditionally and pins it with a marshalled-bytes test, so a fixture that disagrees would
-// hide a real regression instead of exposing one.
-//
-// There is no seventh. A task that believes it needs one adds it HERE, in task 15, and says so
-// in its plan text. No local builders and no second spelling: `aThing`, not `makeThingFixture`.
+// Every builder returns a fully-populated, valid object. Timestamps derive from FIXED_NOW
+// and ids from IDS, so nothing here reads the wall clock.
+
+const MINUTE_MS = 60_000;
+
+/** An ISO timestamp `msBefore` milliseconds before the frozen clock. */
+const before = (msBefore: number): string => new Date(FIXED_NOW - msBefore).toISOString();
+
+export function aMachine(over: Partial<Machine> = {}): Machine {
+  return {
+    id: IDS.machine,
+    name: "This computer",
+    kind: "local",
+    state: "running",
+    backend: "docker",
+    isolation: "container",
+    default: true,
+    limitations: ["Containers share the host kernel. Cloud machines add microVM isolation."],
+    // `message` is deliberately absent: §2 says it is present only when state is "error",
+    // so a populated one here would be an invalid machine.
+    ...over,
+  };
+}
+
+export function aProject(over: Partial<Project> = {}): Project {
+  return {
+    id: IDS.project,
+    name: "panacea",
+    path: "C:\\work\\panacea",
+    ...over,
+  };
+}
+
+export function aBranch(over: Partial<Branch> = {}): Branch {
+  return {
+    id: IDS.branch,
+    projectId: IDS.project,
+    name: "evidence-upload",
+    isHead: false,
+    ...over,
+  };
+}
+
+export function aWorktree(over: Partial<Worktree> = {}): Worktree {
+  return {
+    id: IDS.worktree,
+    projectId: IDS.project,
+    branchId: IDS.branch,
+    name: "evidence-upload",
+    path: "C:\\work\\panacea\\.worktrees\\evidence-upload",
+    isPrimary: false,
+    sessionCount: 1,
+    // `ready` is deliberately absent: §2 says it is undefined until the Go contract carries
+    // it, and the "Mark ready" verb is not rendered while it is undefined.
+    ...over,
+  };
+}
+
+export function aSession(over: Partial<Session> = {}): Session {
+  return {
+    id: IDS.session,
+    title: "Evidence upload",
+    machineId: IDS.machine,
+    projectId: IDS.project,
+    branchId: IDS.branch,
+    worktreeId: IDS.worktree,
+    harness: "claude-code",
+    model: "claude-sonnet-4-5",
+    effort: "",
+    permissionMode: "ask",
+    openingPrompt: "",
+    status: "running",
+    exitReason: "",
+    backend: "docker",
+    isolation: "container",
+    createdAt: before(41 * MINUTE_MS),
+    updatedAt: before(2 * MINUTE_MS),
+    lastOutputAt: before(2 * MINUTE_MS),
+    attachCount: 1,
+    attachPath: `/v1/sessions/${IDS.session}/attach`,
+    contextRef: "",
+    ...over,
+  };
+}
+
+/**
+ * The SHELL descriptor, because it is the one catalogue entry whose three arrays are
+ * legitimately empty — which is the shape shared shape §3.2 pins: the Go side allocates
+ * unconditionally, so they are `[]` and never `null`. A test that needs the picker populated
+ * passes `aHarness({ id: "claude-code", models: [...], efforts: [...], permissionModes: [...] })`.
+ */
+export function aHarness(over: Partial<Harness> = {}): Harness {
+  return {
+    id: "shell",
+    name: "Shell",
+    command: "/bin/bash",
+    installed: true,
+    flagsVerified: true,
+    available: true,
+    models: [],
+    defaultModel: "",
+    efforts: [],
+    permissionModes: [],
+    supportsOpeningPrompt: false,
+    supportsResume: false,
+    note: "A plain shell. No models, no effort levels and no permission modes.",
+    ...over,
+  };
+}
