@@ -1076,14 +1076,17 @@ Contract §12 assigns this to task 16 by name: the CORS behaviour in §10.1 was 
 # From the repo root. Both are reads: no `go test`, no `.go` file edited.
 grep -cE '^[[:space:]]*w\.Header\(\)\.Set\("Access-Control-Allow-Origin"' \
      control-plane/internal/httpx/origin.go     # expect 1 — task 9's grant
-grep -c 'ListenAndServe' control-plane/cmd/api/main.go   # expect 0 — nothing serves it
+grep -cE '^[[:space:]]*(ln, err := net\.Listen|go func\(\) \{ serveErr <- srv\.Serve)' \
+     control-plane/cmd/api/main.go                 # expect 2 — task 13's listener
 ```
 
-The first is anchored on purpose: the unanchored `grep -c 'Access-Control-Allow-Origin'` reads **3** against that same correct file, because the other two hits are comments (measured; shared shape §3A).
+Both are anchored on purpose: the unanchored `grep -c 'Access-Control-Allow-Origin'` reads **3** against that same correct file, because the other two hits are comments (measured; shared shape §3A).
 
-Task 9 shipped the grant and task 10 mounted the routes — `control-plane/internal/api/catalog.go` carries `PATCH /v1/projects/{projectId}/worktrees/{worktreeId}` and the five catalogue routes — but **no binary serves them**: `control-plane/cmd/api/main.go` is a seven-line stub that prints one line and returns. That is what the second grep's `0` means, and `grep -c` exits 1 on a zero count, which is the tool reporting no match and not this step failing. While it reads `0`, `go run ./cmd/api` exits immediately, nothing listens on 8730, and a webview `fetch` fails with `TypeError: Failed to fetch` — a connection refusal, which is **not** a CORS verdict and must not be recorded as one. Group D may not write that `main.go`: shared shape §6 bars every Group D task from editing a `.go` file.
+**This step was rewritten after task 16's implementer measured it.** It used to grep for `ListenAndServe` and expect `0`, reading that `0` as proof that "`main.go` is a seven-line stub, nothing serves it, stop here". The count is genuinely `0` — and the conclusion is false. Task 13 shipped a fully wired control plane that binds with `net.Listen` and serves with `srv.Serve(ln)` (`main.go:139` and `:154`), deliberately, so it can log the address it actually bound. A guard whose **passing** value means the opposite of what its comment claims is worse than no guard: this one would have declared contract §12's open question 2 unanswerable against a server that runs, and handed a closed question to task 24 as an open one.
 
-**If the second grep reads `0`, stop here.** Record in the commit message that contract §12's open question 2 is outstanding, name the cause — the control plane has no `main` that listens — and hand it to task 24, which cannot ship without it. Do not fake it, and do not work around it by adding `@tauri-apps/plugin-http`.
+The replacement greps for what the listener really is. If it reads `2`, the binary listens and you can answer §12 Q2 here rather than deferring it.
+
+Task 9 shipped the CORS grant and task 10 mounted the routes; task 13 wired the `main` that serves them. So the chain is complete and the question is measurable: start the binary, and check both halves — the **grant** on a simple request, and the **preflight**, which is the half a browser reaches first for any `POST`/`PATCH`/`DELETE` carrying `Content-Type: application/json`. Record what you measured, not what you expect. What remains after that is one real Chromium window, which is task 24's and the owner's eyes.
 
 **If it reads `1` or more**, a later Group C task has shipped the server and the observation is one request:
 
