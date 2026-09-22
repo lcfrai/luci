@@ -75,7 +75,15 @@ func TestLoadConfigRefusesANonLoopbackBind(t *testing.T) {
 			t.Errorf("PANACEA_APP_ADDR=%q: error %q does not name the override", addr, err)
 		}
 	}
-	for _, addr := range []string{"127.0.0.1:0", "127.0.0.1:8730", "localhost:8730", "[::1]:8730"} {
+	// 127.0.0.2:8730 is the accepted departure from contract §4's text, which
+	// named three spellings, and it is in this table so the departure is a
+	// property rather than a comment. validateAddr uses httpx.LoopbackHost —
+	// the same predicate task 9's middleware applies to every request's Host
+	// header — so the whole of 127.0.0.0/8 binds. Every address that admits is
+	// unroutable from another host, and one predicate is what stops the bind
+	// refusal and the runtime guard from disagreeing about the same address.
+	// Revert to a literal three-spelling check and this line fails.
+	for _, addr := range []string{"127.0.0.1:0", "127.0.0.1:8730", "127.0.0.2:8730", "localhost:8730", "[::1]:8730"} {
 		if _, err := loadConfig(env(map[string]string{"PANACEA_APP_ADDR": addr})); err != nil {
 			t.Errorf("PANACEA_APP_ADDR=%q is loopback and was rejected: %v", addr, err)
 		}

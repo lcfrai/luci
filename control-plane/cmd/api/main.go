@@ -285,6 +285,7 @@ func recoverSessions(ctx context.Context, store registry.Store, be backend.Backe
 		sb, alive := bySandbox[s.SandboxID]
 		if !alive {
 			if s.Status == registry.StatusExited {
+				clearStaleAttachCount(store, log, s)
 				continue
 			}
 			applyUpdate(store, log, s.ID, func(rec *registry.Session) {
@@ -303,6 +304,7 @@ func recoverSessions(ctx context.Context, store registry.Store, be backend.Backe
 			// this line is the only warning anyone gets about it.
 			log.Warn("a finished session still has a live sandbox; delete the session with purge to remove it",
 				"session", s.ID, "sandbox", s.SandboxID, "state", sb.State)
+			clearStaleAttachCount(store, log, s)
 			continue
 		}
 		if s.Endpoint != sb.Endpoint {
@@ -342,6 +344,27 @@ func recoverSessions(ctx context.Context, store registry.Store, be backend.Backe
 			}
 		})
 	}
+}
+
+// clearStaleAttachCount repairs the one field nothing else can, on the two
+// recovery branches that otherwise leave the record untouched: a session that
+// was already exited. Both return early — §5.6 has no transition out of exited
+// and this must not invent one — but AttachCount is not a status. It counts live
+// WebSockets, all of which died with the previous process along with the relay
+// defer that would have decremented them, so a session that was exited with a
+// client attached would otherwise show that client as connected for ever.
+//
+// Guarded on the current value rather than written unconditionally: an Update is
+// a full rewrite of the registry document under the write lock, and a laptop
+// with fifty finished sessions would pay fifty of them at every boot to change
+// nothing.
+func clearStaleAttachCount(store registry.Store, log *slog.Logger, s registry.Session) {
+	if s.AttachCount == 0 {
+		return
+	}
+	applyUpdate(store, log, s.ID, func(rec *registry.Session) {
+		rec.AttachCount = 0
+	})
 }
 
 func applyUpdate(store registry.Store, log *slog.Logger, id string, apply func(*registry.Session)) {

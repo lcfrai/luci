@@ -207,13 +207,50 @@ func TestRecoverChangesNothingWhenTheBackendIsDown(t *testing.T) {
 	}
 }
 
+// Ruling 1 splits PANACEA_APP_KUBECONFIG in two: under docker it warns, under
+// kata it is REFUSED, because honouring it needs a module this phase does not
+// add and authenticating with the in-cluster service account instead would tell
+// an operator something false about their own cluster credentials.
+//
+// The warning half is tested six ways in config_test.go, and that file also
+// asserts SILENCE under kata — an assertion that is only the right answer
+// because something louder happens here. Without this test, deleting the
+// refusal leaves the variable silently ignored on the one backend that reads it
+// with the whole suite still green, and the test that looks like it covers the
+// case actively certifies the wrong behaviour.
+//
+// The empty-string path is deliberately not asserted on: it calls
+// rest.InClusterConfig(), which answers differently off-cluster and in one.
+func TestKubeconfigIsRefusedRatherThanIgnored(t *testing.T) {
+	t.Parallel()
+	_, err := kubeClient("/home/dev/.kube/config")
+	if !errors.Is(err, backend.ErrUnsupported) {
+		t.Fatalf("kubeClient with a kubeconfig = %v, want backend.ErrUnsupported", err)
+	}
+	if !strings.Contains(err.Error(), envKubeconfig) {
+		t.Errorf("the refusal %q does not name the variable the operator set", err)
+	}
+}
+
 // Contract §5.6: there is no transition out of exited. Decision (e): recovery
 // does not destroy the lingering sandbox either, it says so and moves on.
+//
+// AttachCount is the exception, and it is not a status: both already-exited
+// branches leave every other field alone and still repair the count, because
+// nothing else in the phase can. A session that was exited with a client
+// attached when the process died would otherwise show that client as connected
+// for ever.
 func TestRecoverNeverResurrectsAnExitedSession(t *testing.T) {
 	t.Parallel()
 	store := bootStore(t)
 	bootSeed(t, store, registry.Session{
 		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusExited, ExitReason: "process exited",
+		AttachCount: 2,
+	})
+	// s-2 is the other exited branch: its sandbox is gone as well as its process.
+	bootSeed(t, store, registry.Session{
+		ID: "s-2", SandboxID: "sb-gone", Status: registry.StatusExited, ExitReason: "idle timeout",
+		AttachCount: 1,
 	})
 	be := &recoveryBackend{sandboxes: []backend.Sandbox{{
 		ID: "sb-1", Kind: backend.KindDocker, Ref: "container-sb-1",
@@ -225,6 +262,16 @@ func TestRecoverNeverResurrectsAnExitedSession(t *testing.T) {
 	s := bootGet(t, store, "s-1")
 	if s.Status != registry.StatusExited || s.ExitReason != "process exited" {
 		t.Errorf("s-1 = (%q, %q), want the terminal state it already had", s.Status, s.ExitReason)
+	}
+	if s.AttachCount != 0 {
+		t.Errorf("s-1 AttachCount = %d, want 0: the sockets it counts died with the previous process", s.AttachCount)
+	}
+	s2 := bootGet(t, store, "s-2")
+	if s2.Status != registry.StatusExited || s2.ExitReason != "idle timeout" {
+		t.Errorf("s-2 = (%q, %q), want the terminal state it already had", s2.Status, s2.ExitReason)
+	}
+	if s2.AttachCount != 0 {
+		t.Errorf("s-2 AttachCount = %d, want 0", s2.AttachCount)
 	}
 }
 

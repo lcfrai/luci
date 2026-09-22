@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,10 @@ import (
 )
 
 var clock = time.Date(2026, 9, 18, 9, 0, 0, 0, time.UTC)
+
+// offendingHost is the address a LAN-published sandbox was bound to. Ruling 2
+// requires it to reach the log, so it is a constant the assertions can look for.
+const offendingHost = "0.0.0.0"
 
 // fakeBackend answers List from a fixed slice and records every Destroy. Create
 // and Attach are never called: the reaper only ever lists and destroys, and a
@@ -41,13 +46,24 @@ func (f *fakeBackend) Attach(context.Context, string, string) (*websocket.Conn, 
 	panic("reaper called Attach")
 }
 
+// Get follows backend.Sandbox's documented split: List keeps a LAN-published
+// sandbox in the slice with NonLoopback set, and Get on the same id refuses
+// with an error naming the address (dockerbe's offLoopbackError, docker.go:446).
+// The fake honours that, because it is the channel the reaper's log reads the
+// offending address from — a fake that answered Get cleanly would let the log
+// go silent with every test still green.
 func (f *fakeBackend) Get(_ context.Context, id string) (backend.Sandbox, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, s := range f.sandboxes {
-		if s.ID == id {
-			return s, nil
+		if s.ID != id {
+			continue
 		}
+		if s.NonLoopback {
+			return backend.Sandbox{}, fmt.Errorf("fake: 8080/tcp is published on %q instead of 127.0.0.1: %w",
+				offendingHost, backend.ErrNonLoopbackPublish)
+		}
+		return s, nil
 	}
 	return backend.Sandbox{}, backend.ErrNotFound
 }
@@ -176,6 +192,33 @@ func TestSweepChangesNothingWhenTheBackendIsDown(t *testing.T) {
 	}
 }
 
+// brokenRegistry is the real FileStore with one method replaced, so everything
+// the reaper does apart from List behaves exactly as in production.
+type brokenRegistry struct {
+	registry.Store
+	err error
+}
+
+func (b brokenRegistry) List() ([]registry.Session, error) { return nil, b.err }
+
+// backendReady answers one question — did the backend answer — and contract
+// §5.3 step 7 refreshes it on a sweep that reached the end. A sweep that dies on
+// the REGISTRY has still learned the answer, so reporting the backend as down
+// would send an operator after Docker for a fault in a JSON file on disk.
+func TestBackendStaysReadyWhenTheRegistryIsTheThingThatFailed(t *testing.T) {
+	t.Parallel()
+	store := brokenRegistry{Store: newStore(t), err: errors.New("sessions.json is not JSON")}
+	be := &fakeBackend{} // the daemon is perfectly healthy and answers List
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err == nil {
+		t.Fatal("Sweep hid an unreadable registry")
+	}
+	if !r.BackendReady() {
+		t.Error("BackendReady is false for a backend that just answered List; the fault was the registry's")
+	}
+}
+
 // Rule 2.
 func TestSweepMarksADisappearedSandboxExited(t *testing.T) {
 	t.Parallel()
@@ -236,6 +279,48 @@ func TestSweepSparesASessionWhoseCreateIsStillInFlight(t *testing.T) {
 	s := get(t, store, "s-stale")
 	if s.Status != registry.StatusExited || s.ExitReason != "sandbox disappeared" {
 		t.Errorf("s-stale = (%q, %q), want (exited, \"sandbox disappeared\"): the grace is a window, not an exemption", s.Status, s.ExitReason)
+	}
+}
+
+// The grace has to survive a RESTART, and that is what decides which timestamp
+// it reads. registry.FileStore pins CreatedAt across Update by design
+// (filestore.go:210), so a session restarted an hour after birth still carries
+// an hour-old CreatedAt — a grace measured from it protects a first create and
+// nothing else, which is to say it misses every restart anybody actually
+// performs. UpdatedAt moves on the write that names the new sandbox
+// (sessions.go: the restart handler writes SandboxID before backend.Create), so
+// the window opens exactly when the create begins.
+func TestSweepSparesASessionRestartedLongAfterItWasCreated(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-restarting", SandboxID: "sb-new", Status: registry.StatusStarting,
+		CreatedAt: clock.Add(-4 * time.Hour),   // born this morning
+		UpdatedAt: clock.Add(-2 * time.Second), // restarted two seconds ago
+	})
+	seed(t, store, registry.Session{
+		ID: "s-abandoned", SandboxID: "sb-old", Status: registry.StatusStarting,
+		CreatedAt: clock.Add(-4 * time.Hour),
+		UpdatedAt: clock.Add(-4 * time.Hour), // nothing has touched it since
+	})
+	be := &fakeBackend{} // neither container exists
+	r := reaper.New(reaper.Config{
+		Store:       store,
+		Backend:     be,
+		Interval:    time.Minute,
+		CreateGrace: 90 * time.Second,
+		Now:         func() time.Time { return clock },
+		Log:         slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)),
+	})
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if got := get(t, store, "s-restarting").Status; got != registry.StatusStarting {
+		t.Errorf("s-restarting = %q, want starting: its create began two seconds ago, whatever its age", got)
+	}
+	if got := get(t, store, "s-abandoned").Status; got != registry.StatusExited {
+		t.Errorf("s-abandoned = %q, want exited: keying on UpdatedAt must not become an exemption for old records", got)
 	}
 }
 
@@ -385,6 +470,12 @@ func TestSweepDestroysANonLoopbackSandboxAndSaysWhy(t *testing.T) {
 	if !strings.Contains(line, "sb-1") || !strings.Contains(line, "127.0.0.1") {
 		t.Errorf("the log does not identify the sandbox and the reason:\n%s", line)
 	}
+	// Ruling 2 asks for the offending host IP by name. Without it an operator
+	// learns THAT a sandbox was published off loopback but not WHERE, which is
+	// the half that points at the misconfiguration.
+	if !strings.Contains(line, offendingHost) {
+		t.Errorf("the log does not say where the port was published, so the reap cannot be acted on:\n%s", line)
+	}
 	// Ruling 2: distinct from an orphan reap and from an idle-TTL reap, or "why
 	// did my sandbox vanish" is answered by a line that names the wrong cause.
 	if strings.Contains(line, "orphan") || strings.Contains(line, "idle timeout") {
@@ -449,6 +540,36 @@ func TestSweepDestroysAnUnclaimedNonLoopbackSandboxOnceAndCallsItWhatItIs(t *tes
 	}
 	if strings.Contains(logs.String(), "orphan") {
 		t.Errorf("a sandbox removed off the LAN was also reported as an orphan:\n%s", logs.String())
+	}
+}
+
+// The same sandbox as above, on the path where the destroy FAILS. It is still
+// unclaimed and still managed, so rule 4 would pick it up as an orphan in the
+// same sweep — destroying it a second time and, worse, logging a live security
+// defect as routine litter. The test above passes on the success path whether
+// or not that is true, because a successful destroy lands in `gone`; this one
+// takes the path `gone` does not cover.
+func TestSweepDoesNotRelabelAFailedNonLoopbackDestroyAsAnOrphanReap(t *testing.T) {
+	t.Parallel()
+	store := newStore(t) // no records: the sandbox is unclaimed as well as exposed
+	exposed := managed("sb-1", backend.StateRunning)
+	exposed.Endpoint = ""
+	exposed.NonLoopback = true
+	be := &fakeBackend{
+		sandboxes:  []backend.Sandbox{exposed},
+		destroyErr: map[string]error{"sb-1": errors.New("daemon says no")},
+	}
+	r, logs := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	line := logs.String()
+	if strings.Contains(line, "orphan") {
+		t.Errorf("a sandbox that is still exposed on the LAN was reported as an orphan:\n%s", line)
+	}
+	if !strings.Contains(line, "still reachable from the LAN") {
+		t.Errorf("the failed destroy did not say what is still wrong:\n%s", line)
 	}
 }
 

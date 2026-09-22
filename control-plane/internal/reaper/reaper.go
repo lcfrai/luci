@@ -9,13 +9,23 @@
 // reading "the daemon is restarting" as "every sandbox is gone" would mark
 // every session exited, and exited is terminal (contract §5.6).
 //
-// ONE SWEEP COSTS ONE registry.Store.List PLUS ONE Update PER SESSION IT
+// ONE SWEEP COSTS ONE registry.Store.List PLUS ONE DISK WRITE PER SESSION IT
 // ACTUALLY CHANGES. That matters because FileStore holds its write lock across
 // the fsync and the full rename-retry budget — up to about 200 ms when Windows
 // refuses a rename (registry/filestore.go:492-505) — while the cockpit polls
-// Get and List every two seconds. A converged system does no writes at all
-// here: every rule below either aborts its Update with errUnchanged or is not
-// entered, so the steady-state cost of a sweep is one read.
+// Get and List every two seconds. The lock is taken per Update and released on
+// return, never held around a loop, so a concurrent poll waits for at most one
+// write and never for the sweep.
+//
+// A converged system writes NOTHING here: every rule below either aborts its
+// Update with errUnchanged, which commits and writes nothing, or is not entered
+// at all. It is not free, though, and the difference is worth stating exactly
+// in a file that makes a point of this lock: rule 5 calls Update for every
+// running or idle session before it can discover there is nothing to change,
+// and Update takes the WRITE lock (filestore.go:298) to find that out. With
+// PANACEA_APP_IDLE_TIMEOUT set, rule 6 adds one Get per session with a sandbox.
+// So the converged cost is one List plus one uncontended lock acquisition per
+// session — microseconds, no disk — rather than one read.
 package reaper
 
 import (
@@ -75,17 +85,33 @@ type Config struct {
 	// mid-create rather than lost. It guards the two rules that can make an
 	// irreversible decision about a create that has not finished:
 	//
-	//   - Rule 2, the session side (Group C ruling 9). Task 11 writes the
-	//     registry record with SandboxID set BEFORE it calls backend.Create, so
-	//     for a moment the id is real and the container is not; marking that
-	//     session exited is terminal and it is still being created.
-	//   - Rule 4, the sandbox side. POST /v1/sessions/{id}/restart does the
-	//     reverse — it creates the container and writes the new id afterwards —
-	//     so between the two the container is managed, live, and matched by no
-	//     record, which is rule 4's definition of an orphan.
+	//   - Rule 2, the session side (Group C ruling 9). Both POST /v1/sessions
+	//     and POST /v1/sessions/{id}/restart write the registry record with
+	//     SandboxID set BEFORE they call backend.Create, so for the duration of
+	//     that create the id is real and the container is not; marking such a
+	//     session exited is terminal and it is starting normally.
+	//   - Rule 4, the sandbox side. The same window seen from the other end: a
+	//     container that exists before the record naming it has been committed
+	//     is, to rule 4, indistinguishable from an orphan.
 	//
-	// Zero means backend.ReadyTimeout, which is the same budget task 11's
-	// readiness watch spends before it sets the status itself.
+	// MEASURED FROM UpdatedAt, NOT CreatedAt, and that is the whole of why the
+	// rule covers a restart. registry.FileStore pins CreatedAt across Update by
+	// design (filestore.go:210) — the reaper and the session rail both order by
+	// it — so a session restarted an hour after birth has an hour-old CreatedAt
+	// and is outside any grace measured from it, which is to say every real
+	// restart. UpdatedAt moves on the write that names the new sandbox, so the
+	// window opens exactly when the risk does, for a create and a restart alike.
+	//
+	// Zero means backend.ReadyTimeout, the budget task 11's readiness watch
+	// spends before it sets the status itself. That is the right order of
+	// magnitude and NOT a proof of sufficiency: dockerbe starts its ready budget
+	// AFTER ContainerCreate and ContainerStart (dockerbe/docker.go:207 vs :219),
+	// so a create that spends its whole budget outlives a grace of the same
+	// length by the container's start latency. What this covers is the common
+	// case — a sandbox that comes up in a second or two — and the residual is
+	// the slow-start tail, which is precisely what PANACEA_APP_READY_TIMEOUT
+	// exists to let an operator lengthen. Raising it lengthens the grace with
+	// it, because they are the same number.
 	CreateGrace time.Duration
 
 	Now func() time.Time
@@ -186,12 +212,17 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		r.markBackendDown(err)
 		return fmt.Errorf("reaper: list sandboxes: %w", err)
 	}
+	// Contract §5.3 step 7, hoisted out of step order on purpose. backendReady
+	// answers one question — did the backend answer — and List just did, so
+	// every failure below this line is a fact about the registry rather than
+	// about Docker. Left at the bottom it would report backendReady=false for a
+	// healthy daemon whenever the registry document is unreadable, which sends
+	// an operator after the wrong system; the sweep completing is not what the
+	// flag means.
+	r.markBackendUp()
+
 	sessions, err := r.store.List()
 	if err != nil {
-		// Deliberately neither markBackendDown nor markBackendUp: the backend
-		// just answered, and a registry that cannot be read is not a fact about
-		// the backend. Reporting backendReady=false here would send an operator
-		// after Docker for a problem in a JSON file on disk.
 		return fmt.Errorf("reaper: list sessions: %w", err)
 	}
 
@@ -209,15 +240,16 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 	// those sandboxes, so without it a later rule would act on something that
 	// is not there any more.
 	//
-	// RULE 4 IS WHERE IT IS LOAD-BEARING: an untracked sandbox destroyed by the
-	// non-loopback rule below is, by rule 4's definition, also an orphan, and
-	// without this set it would be destroyed a second time and logged as one —
-	// which is precisely the distinction ruling 2 requires the log to keep.
-	// Rules 3, 5 and 6 consult it too, but there it is defence in depth rather
-	// than the guarantee: markExited refuses to touch a record that is already
-	// exited, so the reason written here survives whether or not those rules
-	// look. Do not read the guard in those three as the thing that protects the
-	// ExitReason — markExited is.
+	// IT IS DEFENCE IN DEPTH AND NOT A GUARANTEE ANYWHERE, and that is worth
+	// saying plainly because the obvious reading is wrong twice over. It does
+	// not protect the ExitReason rule 1a writes — markExited refuses to touch a
+	// record that is already exited, and that is what makes the reason survive
+	// rules 3, 5 and 6 looking at the session again. And it is not what stops
+	// rule 4 reaping a destroyed sandbox as an orphan: rule 4 skips NonLoopback
+	// outright, which covers the failure path this set cannot see.
+	//
+	// Keep it anyway. "Do not act on something this sweep destroyed" is the
+	// right invariant for a rule added later, and it costs a map.
 	gone := make(map[string]bool)
 	now := r.now()
 
@@ -231,14 +263,21 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 			continue
 		}
 		sess, known := tracked[sb.ID]
+		// Ruling 2 asks this log to name the offending address, and
+		// backend.Sandbox carries only the boolean. Get is where the address
+		// lives: every backend answers a non-loopback id with an error wrapping
+		// ErrNonLoopbackPublish that names where it was published, and this is
+		// a defect path taken once per exposed sandbox, not a hot one. It has to
+		// run BEFORE the Destroy, because afterwards there is nothing to ask.
+		where := r.publishedAt(ctx, sb.ID)
 		if err := r.be.Destroy(ctx, sb.ID); err != nil {
 			r.log.Error("could not destroy a sandbox published outside 127.0.0.1; it is still reachable from the LAN",
-				"sandbox", sb.ID, "session", sess.ID, "ref", sb.Ref, "err", err)
+				"sandbox", sb.ID, "session", sess.ID, "ref", sb.Ref, "published", where, "err", err)
 			continue
 		}
 		gone[sb.ID] = true
 		r.log.Warn("destroyed a sandbox whose port was published outside 127.0.0.1",
-			"sandbox", sb.ID, "session", sess.ID, "ref", sb.Ref)
+			"sandbox", sb.ID, "session", sess.ID, "ref", sb.Ref, "published", where)
 		if known {
 			r.markExited(sess.ID, reasonNonLoopback)
 		}
@@ -256,7 +295,11 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		// that waits. Only starting sessions are spared, and only for
 		// CreateGrace: after that a starting session whose sandbox is missing
 		// really is lost, and rule 2 collects it on the next sweep.
-		if s.Status == registry.StatusStarting && now.Sub(s.CreatedAt) < r.createGrace {
+		//
+		// UpdatedAt, not CreatedAt — see Config.CreateGrace. A restart reuses
+		// the record, so its CreatedAt is as old as the session and only
+		// UpdatedAt moves when the new sandbox id is written.
+		if s.Status == registry.StatusStarting && now.Sub(s.UpdatedAt) < r.createGrace {
 			continue
 		}
 		if _, alive := bySandbox[s.SandboxID]; !alive {
@@ -281,7 +324,23 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 	// Rule 4: ours, but no record. This is the crash-recovery path, and it is
 	// why task 11 writes the registry record BEFORE it creates the container.
 	for _, sb := range live {
-		if gone[sb.ID] || sb.Labels[backend.LabelManaged] != "true" {
+		if sb.Labels[backend.LabelManaged] != "true" {
+			continue
+		}
+		// Rule 1a owns every NonLoopback sandbox unconditionally, whether its
+		// destroy SUCCEEDED or failed, and this line and not the gone set is
+		// what says so. gone records successes only, so on the failure path an
+		// exposed sandbox that no record claims would otherwise be destroyed a
+		// second time here and logged as an orphan — relabelling a live security
+		// defect as routine litter, which is the mislabelling ruling 2's
+		// distinct messages exist to prevent. Rule 1a retries it next sweep,
+		// under its own message.
+		//
+		// This subsumes gone[sb.ID] for rule 4 — rule 1a is the only thing that
+		// writes to gone ahead of here, and everything it writes is NonLoopback
+		// — so that term is not also tested here. A guard no input can reach is
+		// a guard no test can hold honest.
+		if sb.NonLoopback {
 			continue
 		}
 		id := sb.Labels[backend.LabelSandboxID]
@@ -334,8 +393,21 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		}
 	}
 
-	r.markBackendUp()
 	return nil
+}
+
+// publishedAt asks the backend where a sandbox was published, for the one log
+// line that has to say so. It returns "" rather than guessing: the address is
+// only knowable through the error a backend returns for a non-loopback id
+// (dockerbe's offLoopbackError, which names the host and wraps
+// ErrNonLoopbackPublish), and an empty attribute is a missing detail where a
+// fabricated one would be a lie in a security log.
+func (r *Reaper) publishedAt(ctx context.Context, id string) string {
+	_, err := r.be.Get(ctx, id)
+	if err == nil || !errors.Is(err, backend.ErrNonLoopbackPublish) {
+		return ""
+	}
+	return err.Error()
 }
 
 // destroyOrphan reports whether the sandbox is now gone. A failed destroy is a
