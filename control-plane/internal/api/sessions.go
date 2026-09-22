@@ -771,6 +771,52 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// record, so task 13's reaper sees an orphan and removes it.
 	sandboxID := ids.New("s")
 	token := ids.Token()
+
+	// THE RECORD NAMES THE NEW SANDBOX BEFORE THE SANDBOX EXISTS, which is
+	// create's ordering (see handleSessionCreate step 4) and is here for the
+	// same reason: the record is the only thing that names a container, and
+	// task 13's reaper matches live containers against SandboxID.
+	//
+	// Written after Create instead, as this did, two sweeps break a restarting
+	// session in two different ways for the whole duration of the create — which
+	// is a readiness timeout, not an instant:
+	//
+	//  1. The new container is live and named by no record, so the orphan sweep
+	//     destroys the sandbox the user just asked for.
+	//  2. The record still names the sandbox the Destroy above removed, so the
+	//     disappeared-sandbox rule writes the session terminal — exited,
+	//     "sandbox disappeared" — while it is restarting normally. A fabricated
+	//     status, on a session that is fine.
+	//
+	// Task 13 carries a grace for the create window as defence in depth; a grace
+	// tolerates a window, and writing first removes it. What remains between the
+	// Destroy above and this write is two id mints and one store update, not a
+	// container start.
+	//
+	// The endpoint is cleared rather than left pointing at the sandbox that was
+	// just destroyed, and the token is replaced in the same write as the id, so
+	// the record never names one sandbox while holding another's secret.
+	if _, err := a.deps.Store.Update(id, func(sess *registry.Session) error {
+		sess.SandboxID = sandboxID
+		sess.SandboxRef = ""
+		sess.Endpoint = ""
+		sess.AttachToken = token
+		sess.Status = registry.StatusStarting
+		sess.ExitReason = ""
+		// AttachCount is deliberately untouched. Task 12's relay defer
+		// decrements it when the dropped socket notices; zeroing it here would
+		// take the count negative.
+		return nil
+	}); err != nil {
+		if errors.Is(err, registry.ErrNotFound) {
+			httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeSessionNotFound,
+				"No session with that id.", map[string]string{"id": id})
+			return
+		}
+		a.internal(w, r, "record the restart", err)
+		return
+	}
+
 	sb, err := a.deps.Backend.Create(ctx, backend.Spec{
 		ID:          sandboxID,
 		SessionID:   sess.ID,
@@ -789,16 +835,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Second write, and it carries only what the create told us: the id and the
+	// token are already on the record. Mirrors create's own second write.
 	updated, err := a.deps.Store.Update(id, func(sess *registry.Session) error {
-		sess.SandboxID = sb.ID
 		sess.SandboxRef = sb.Ref
 		sess.Endpoint = sb.Endpoint
-		sess.AttachToken = token
-		sess.Status = registry.StatusStarting
-		sess.ExitReason = ""
-		// AttachCount is deliberately untouched. Task 12's relay defer
-		// decrements it when the dropped socket notices; zeroing it here would
-		// take the count negative.
 		return nil
 	})
 	if err != nil {
@@ -807,7 +848,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 				"No session with that id.", map[string]string{"id": id})
 			return
 		}
-		a.internal(w, r, "record the restart", err)
+		a.internal(w, r, "record the restarted sandbox", err)
 		return
 	}
 

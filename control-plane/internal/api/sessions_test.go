@@ -390,6 +390,12 @@ type sessionsBackend struct {
 	// backend.Sandbox documents.
 	nonLoopback bool
 
+	// onCreate runs at the top of Create, before anything is recorded. It is
+	// how a test reads the registry from INSIDE the window between a record
+	// being written and its container existing — the only place the ordering
+	// of those two is observable, and the window task 13's reaper sweeps.
+	onCreate func(spec backend.Spec)
+
 	specs    []backend.Spec
 	destroys []string
 }
@@ -401,6 +407,16 @@ func sessionsNewBackend() *sessionsBackend {
 func (f *sessionsBackend) Kind() backend.Kind { return f.kind }
 
 func (f *sessionsBackend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbox, error) {
+	// The hook runs before the lock is taken and before anything is recorded,
+	// so it sees what a sweep landing mid-create would see and a hook that
+	// calls back into this fake cannot deadlock.
+	f.mu.Lock()
+	hook := f.onCreate
+	f.mu.Unlock()
+	if hook != nil {
+		hook(spec)
+	}
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.specs = append(f.specs, spec)
@@ -1379,6 +1395,71 @@ func TestRestartKeepsTheIDAndMintsANewSandboxAndANewToken(t *testing.T) {
 	sessionsAwaitWatch(t, done)
 }
 
+// Restart writes the record BEFORE it creates, exactly as create does, and for
+// the same reason: task 13's reaper matches live containers against SandboxID,
+// so the record is the only thing that names a container.
+//
+// Two sweeps land in the window this closes, and they break a restarting
+// session in two different ways.
+//
+//  1. A record that does not yet name the container being created makes that
+//     container an orphan the reaper destroys — it kills a restarting session's
+//     brand-new sandbox seconds after it was asked for.
+//  2. A record still naming the sandbox the restart has already destroyed makes
+//     rule 2 see a session whose container disappeared, and write it terminal:
+//     exited, "sandbox disappeared", onto a session that is restarting normally.
+//     That is the fabricated status this phase has now ruled on seven times.
+//
+// Both are read from inside the window, through the backend's create hook,
+// because that is the only place the ordering is observable. Asserting on the
+// state after the request tells you nothing: both orderings end identically.
+func TestRestartNamesTheNewSandboxBeforeItIsCreated(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsStubReady(t, nil)
+	done := sessionsWatchDone(t)
+	before := sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
+
+	var midCreate registry.Session
+	var midErr error
+	env.be.onCreate = func(spec backend.Spec) {
+		midCreate, midErr = env.st.Get("s-0000000b")
+	}
+
+	sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions/s-0000000b/restart", ""), http.StatusOK)
+	sessionsAwaitWatch(t, done)
+
+	if midErr != nil {
+		t.Fatalf("read the record mid-create: %v", midErr)
+	}
+	spec := env.be.spec(t, 0)
+	if midCreate.SandboxID != spec.ID {
+		t.Errorf("mid-create the record named %q while the container being created was %q; a sweep here destroys a restarting session's new sandbox as an orphan",
+			midCreate.SandboxID, spec.ID)
+	}
+	if midCreate.SandboxID == before.SandboxID {
+		t.Errorf("mid-create the record still named %q, the sandbox this restart had already destroyed; a sweep here writes the session exited with \"sandbox disappeared\"",
+			before.SandboxID)
+	}
+	if midCreate.Status != registry.StatusStarting {
+		t.Errorf("status mid-create = %q, want starting", midCreate.Status)
+	}
+	if midCreate.ExitReason != "" {
+		t.Errorf("exitReason mid-create = %q, want it already cleared", midCreate.ExitReason)
+	}
+	// The token is minted with the id and written with it, so the record never
+	// names a sandbox while still holding the token of a different one.
+	if midCreate.AttachToken != spec.AttachToken {
+		t.Errorf("mid-create the record held token %q while the sandbox was being created with %q",
+			midCreate.AttachToken, spec.AttachToken)
+	}
+	// And the endpoint is empty until there is a sandbox to have one: writing
+	// the old sandbox's address onto the new id would point an attach at a
+	// container that no longer exists.
+	if midCreate.Endpoint != "" {
+		t.Errorf("endpoint mid-create = %q, want it empty until the new sandbox reports one", midCreate.Endpoint)
+	}
+}
+
 // §3.14: 409 when a restart is already in flight. The test holds the guard
 // directly rather than racing two requests, which is what the internal test
 // package is for.
@@ -1414,6 +1495,38 @@ func TestRestartToleratesASandboxThatIsAlreadyGone(t *testing.T) {
 		t.Errorf("status = %q, want starting", got.Status)
 	}
 	sessionsAwaitWatch(t, done)
+}
+
+// The other side of writing first: when the create fails, the record names the
+// sandbox that create was asked for rather than the one the restart had already
+// destroyed. Before the reorder a failed restart left the record pointing at a
+// container known to be gone, which is the same "record names a dead sandbox"
+// the reorder exists to remove — it simply persisted instead of closing.
+func TestRestartThatCannotCreateLeavesAnHonestRecord(t *testing.T) {
+	env := sessionsNewEnv(t)
+	before := sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
+	env.be.createErr = backend.ErrUnavailable
+
+	rec := env.do(t, http.MethodPost, "/v1/sessions/s-0000000b/restart", "")
+	if code := sessionsProblemCode(t, rec, http.StatusServiceUnavailable); code != "backend_unavailable" {
+		t.Errorf("error = %q, want backend_unavailable", code)
+	}
+	after, err := env.st.Get("s-0000000b")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if after.SandboxID == before.SandboxID {
+		t.Errorf("sandboxId = %q, the sandbox this restart destroyed; the record names a container that is certainly gone", after.SandboxID)
+	}
+	if after.SandboxID != env.be.spec(t, 0).ID {
+		t.Errorf("sandboxId = %q, want the id create was asked for, %q", after.SandboxID, env.be.spec(t, 0).ID)
+	}
+	if after.Status != registry.StatusExited || after.ExitReason == "" {
+		t.Errorf("status/reason = %q/%q, want exited with a reason", after.Status, after.ExitReason)
+	}
+	if after.Endpoint != "" || after.AttachToken != "" {
+		t.Errorf("endpoint/token survived a failed restart: %q/%q", after.Endpoint, after.AttachToken)
+	}
 }
 
 func TestRestartOnAnUnknownIDIs404(t *testing.T) {
