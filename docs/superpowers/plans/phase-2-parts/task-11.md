@@ -572,7 +572,9 @@ func sessionTime(t time.Time) string {
 
 Run: `go test ./sandboxd/... ./control-plane/... -race -count=1`
 
-Expected — `internal/api` builds and its five tests pass, including the store contract suite's seven subtests. Every other package is unchanged.
+Expected — `internal/api` builds and its five tests pass, including the store contract suite's twelve subtests. Every other package is unchanged.
+
+Twelve, not the seven the suite shipped with: task 7's review found five pure `Store` properties — the `Create` seal, the `List` seal, UTC stamping on `Create`, `Update` refusing an id change, and `Delete` leaving siblings intact — sitting in `filestore_contract_test.go` rather than in `RunStoreContract`, which meant the double here would never have been held to them. They were moved into the suite (commit `d8cf1c4`), so **this double must not declare local copies of any of the five**; the suite covers them and a second copy would drift from it. The subtests are `CreateGetListDelete`, `CreateRejectsDuplicateAndEmptyID`, `CreateClonesTheSessionItIsGiven`, `CreateStampsUpdatedAtAndNormalisesTimesToUTC`, `UpdateAppliesAndStamps`, `UpdateErrorDiscardsTheChange`, `UpdateStampsInUTCAndRefusesAnIDChange`, `TheSealHolds`, `ListReturnsClones`, `ListIsOrderedByCreatedAt`, `DeleteRemovesOnlyItsOwnRecord` and `ConcurrentUpdatesAllLand`.
 
 - [ ] **Step 4: Write the failing tests for create**
 
