@@ -15,7 +15,9 @@ function LensRouter(props: { lens: Lens }): JSX.Element {
   switch (props.lens) {
     case "develop":
       // ── TASK 20 INSERTION POINT ────────────────────────────────────────────────────
-      // Task 20 replaces the next line with `return <DevelopLens />;` and adds the import.
+      // Task 20 replaces the `return ( … );` EXPRESSION below — the whole seven lines, from
+      // `return (` to `);` — with `return <DevelopLens />;` and adds the import. Replacing
+      // only the first line of it orphans five JSX lines and the arm stops compiling.
       // This makes AppShell.tsx a MODIFIED file for task 20, which §9's task-20 row does
       // not list; §9 gives DevelopLens no mounter at all, so the addition is unavoidable.
       // Per shared-shape rule 2, the step that adds the line is the step that defines

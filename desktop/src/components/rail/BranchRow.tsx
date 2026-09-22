@@ -32,7 +32,7 @@ export function BranchRow(props: {
   const expandedWorktrees = useCockpit((s) => s.expandedWorktrees);
 
   return (
-    <div className="rail-node">
+    <div>
       <div
         role="treeitem"
         tabIndex={-1}
@@ -44,7 +44,12 @@ export function BranchRow(props: {
         className="rail-row rail-level-2"
         onClick={() => {
           selectBranch(branch.projectId, branch.id);
-          toggleBranch(branch.id);
+          // Guarded exactly as WorktreeRow guards its own toggle. A childless branch that
+          // toggled anyway would accumulate expandedBranches[id] = true and render an empty
+          // <div role="group"> — an expand affordance over nothing, which is the control that
+          // lies that Rail.test.tsx's "draws no chevron for a worktree with nothing under it"
+          // argues against. Selection still happens either way; only expansion is gated.
+          if (worktrees.length > 0) toggleBranch(branch.id);
         }}
         onContextMenu={(event) => {
           event.preventDefault();

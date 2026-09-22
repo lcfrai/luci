@@ -51,8 +51,14 @@ export function Rail(): JSX.Element {
         break;
       case "ArrowRight":
         event.preventDefault();
+        // Three states, not two: "false" (collapsed, so expand), "true" (expanded, so move to
+        // the first child) and null (a LEAF — a session row, or a childless worktree or
+        // branch, which render no aria-expanded at all). ARIA APG says ArrowRight on an end
+        // node does nothing, so the null case must fall through to neither branch. Without
+        // the `=== "true"` guard it reached the else and moved focus down, which is ArrowDown
+        // wearing another key's clothes.
         if (expanded === "false") toggle(kind, id);
-        else rows[index + 1]?.focus();
+        else if (expanded === "true") rows[index + 1]?.focus();
         break;
       case "ArrowLeft":
         event.preventDefault();

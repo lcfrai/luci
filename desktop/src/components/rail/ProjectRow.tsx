@@ -25,7 +25,7 @@ export function ProjectRow(props: {
   const expandedBranches = useCockpit((s) => s.expandedBranches);
 
   return (
-    <div className="rail-node">
+    <div>
       <div
         role="treeitem"
         tabIndex={-1}

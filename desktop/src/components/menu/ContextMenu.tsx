@@ -127,10 +127,17 @@ export function ContextMenu(): JSX.Element | null {
       },
       { id: "copy-path", label: "Copy path", run: act(() => copyText(worktree.path)) },
       // ── TASK 22 INSERTION POINT ──────────────────────────────────────────────────────
-      // Task 22 appends "Mark ready" here, and ONLY when worktree.ready !== undefined
-      // (contract §10.2 and defect 9): while the server does not report the flag the verb
-      // is not rendered at all. It PATCHes the worktree and the flag must survive the next
-      // list. Anchored guard for task 22's commit step:
+      // Task 22 appends "Mark ready" here, UNCONDITIONALLY. §10.2 was requested and has
+      // SHIPPED: store/types.ts records that catalog.go's worktreeJSON carries `Ready bool`
+      // with no `omitempty`, so the flag is always on the wire as true or false — never
+      // absent, never null. Task 22's contingency is resolved and there is no world to
+      // check for: render the verb always, and PATCH …/worktrees/{id} with {"ready": bool}.
+      // `Worktree.ready` stays OPTIONAL in the type only because that safely accepts an
+      // always-present boolean; it is NOT a signal the field may be absent, and a guard on
+      // `worktree.ready !== undefined` would be dead code that is always true against the
+      // real server. Do not seed `ready: undefined` in a test to pin "the verb is hidden" —
+      // that pins a state the control plane cannot produce.
+      // The flag must survive the next list. Anchored guard for task 22's commit step:
       //   grep -cE '^[[:space:]]+id: "mark-ready"' src/components/menu/ContextMenu.tsx
       // ─────────────────────────────────────────────────────────────────────────────────
     ];

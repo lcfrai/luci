@@ -27,7 +27,7 @@ export function WorktreeRow(props: { worktree: Worktree; expanded: boolean }): J
   const hasChildren = worktree.sessionCount > 0 || sessionIds.length > 0;
 
   return (
-    <div className="rail-node">
+    <div>
       <div
         role="treeitem"
         tabIndex={-1}

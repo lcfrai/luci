@@ -14,6 +14,14 @@ import type {
   SessionDefaultsOverride,
   WorktreeId,
 } from "../../store/types";
+// BOTH stylesheets, because this renders className="pop pick-panel" and the two prefixes have
+// different owners: `.pick-*` is topbar.css's, but `.pop` — the surface, the elevation and
+// `position: fixed` — is common.css's. It resolved anyway only because Popover, StatusDot and
+// Toasts happen to pull common.css into the same bundle; rendered in isolation, or under any
+// future code-split, the picker would lose its surface and land unpositioned. Importing it
+// here rather than routing through <Popover/> because §6.4 gives SessionPicker no anchor prop,
+// so it has no rect to position from — see the `.pick-panel` rule.
+import "../common/common.css";
 import "./topbar.css";
 
 const EFFORT_LABEL: Record<Effort, string> = {

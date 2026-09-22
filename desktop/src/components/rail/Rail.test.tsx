@@ -119,6 +119,59 @@ describe("Rail", () => {
     expect(useCockpit.getState().expandedBranches["b-1"]).toBe(false);
   });
 
+  // ── BranchRow's expansion guard, both collapses ────────────────────────────────────
+  // `if (worktrees.length > 0) toggleBranch(id)` has two degenerate forms and each needs its
+  // own case: toggling unconditionally (an empty ARIA group under a childless branch) and
+  // never toggling (a branch that cannot be opened at all).
+
+  it("does not toggle a childless branch, but still selects it", async () => {
+    seed({ worktreesByBranch: {}, sessions: {}, sessionIdsByWorktree: {}, expandedBranches: {} });
+    render(<Rail />);
+    await userEvent.click(screen.getByRole("treeitem", { name: /evidence-upload$/ }));
+    expect(useCockpit.getState().selection.branchId).toBe("b-1");
+    expect(useCockpit.getState().expandedBranches["b-1"]).toBeUndefined();
+  });
+
+  it("does toggle a branch that has worktrees", async () => {
+    seed({ expandedBranches: {} });
+    render(<Rail />);
+    await userEvent.click(screen.getByRole("treeitem", { name: /evidence-upload$/ }));
+    expect(useCockpit.getState().expandedBranches["b-1"]).toBe(true);
+  });
+
+  // ── ArrowRight's three states ──────────────────────────────────────────────────────
+  // aria-expanded is "false", "true" or ABSENT, and the third is a leaf. ARIA APG says
+  // ArrowRight does nothing on an end node; without the `=== "true"` guard the null case fell
+  // through to the else and moved focus down, duplicating ArrowDown.
+
+  it("expands a collapsed row with ArrowRight rather than moving", async () => {
+    seed({ expandedBranches: {} });
+    render(<Rail />);
+    const rows = screen.getAllByRole("treeitem");
+    rows[1].focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(useCockpit.getState().expandedBranches["b-1"]).toBe(true);
+    expect(document.activeElement).toBe(rows[1]);
+  });
+
+  it("moves to the first child with ArrowRight on an already-expanded row", async () => {
+    render(<Rail />);
+    const rows = screen.getAllByRole("treeitem");
+    rows[1].focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(rows[2]);
+  });
+
+  it("does nothing on ArrowRight at a leaf", async () => {
+    render(<Rail />);
+    const rows = screen.getAllByRole("treeitem");
+    const leaf = rows[rows.length - 1];
+    expect(leaf.hasAttribute("aria-expanded")).toBe(false);
+    leaf.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(leaf);
+  });
+
   it("dispatches every right-click through the one context menu", () => {
     render(<Rail />);
     fireEvent.contextMenu(screen.getByRole("treeitem", { name: /evidence-upload$/ }));

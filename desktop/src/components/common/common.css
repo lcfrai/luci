@@ -105,6 +105,23 @@
   animation-fill-mode: forwards;
 }
 
+/* REDUCED MOTION MUST NOT COLLAPSE THE STATUS VOCABULARY TO COLOUR.
+   `running` and `idle` are BOTH .dot-disc — the shape map deliberately does not separate them —
+   so in normal motion they are told apart by colour (--run vs --idle) AND by the breath.
+   tokens.css zeroes animation-duration globally under prefers-reduced-motion, which stops the
+   breath and leaves colour as the ONLY differentiator: the exact failure the shape vocabulary
+   exists to prevent, and a WCAG 1.4.1 problem for a sighted user who is also colour-blind. The
+   aria-label and title carry the word, which covers assistive tech and does not cover them.
+   A static OUTER ring restores a shape difference in every motion mode, giving four
+   distinguishable static forms: hollow ring (starting), solid disc (idle), solid disc with a
+   halo (running), square (exited). Non-inset ON PURPOSE, so it reads differently from
+   .dot-ring's inset ring. Pinned by StatusDot.test.tsx's ?raw assertion. */
+@media (prefers-reduced-motion: reduce) {
+  .dot-live {
+    box-shadow: 0 0 0 1.5px currentColor;
+  }
+}
+
 .pop {
   position: fixed;
   z-index: 60;
@@ -137,6 +154,14 @@
   box-shadow: var(--e-raised);
   color: var(--ink);
   pointer-events: auto;
+}
+/* The message itself. The header above claims this file owns `.toast-*`, so the class the
+   component writes gets a real rule rather than reading as an omission. A toast is one
+   sentence that must not be clipped into meaninglessness, so it wraps rather than ellipsing —
+   `.toast-stack` is the thing that bounds the width. */
+.toast-text {
+  max-inline-size: 42ch;
+  white-space: normal;
 }
 .toast-undo {
   padding: 2px 8px;

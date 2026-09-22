@@ -68,4 +68,72 @@ describe("NewSessionButton", () => {
     await userEvent.click(screen.getByRole("button", { name: /new session/i }));
     await waitFor(() => expect(useCockpit.getState().selection.sessionId).toBe("s-new"));
   });
+
+  // useCreateSession's failure path. Every test above resolves, so before these landed the
+  // catch block, sentenceFor's three arms and the no-harness early return were executed by
+  // nothing. §4.2's rule is that network_unavailable and backend_unavailable must NOT be
+  // collapsed, and its stated cost is ten minutes of a user's time — telling someone to start
+  // Docker when the control plane is dead. That rule was asserted by nobody.
+  //
+  // NESTED, not a sibling describe: these need the beforeEach above. As a sibling they got no
+  // resetCockpit() between cases and the toasts accumulated 1, 2, 3, 4 — which is how the
+  // length assertions caught it.
+  describe("when the create fails", () => {
+    const click = async (): Promise<void> => {
+      render(<NewSessionButton worktreeId="w-1" />);
+      await userEvent.click(screen.getByRole("button", { name: /new session/i }));
+    };
+
+    it("says the control plane is down for network_unavailable", async () => {
+      createSession.mockRejectedValue({
+        code: "network_unavailable",
+        message: "fetch failed",
+      });
+      await click();
+      await waitFor(() => expect(useCockpit.getState().toasts).toHaveLength(1));
+      const toast = useCockpit.getState().toasts[0].message;
+      expect(toast).toContain("control plane is not running");
+      expect(toast).not.toContain("Docker");
+      expect(useCockpit.getState().lastError).toEqual({
+        code: "network_unavailable",
+        message: "fetch failed",
+      });
+    });
+
+    it("says Docker is down for backend_unavailable, which is a different sentence", async () => {
+      createSession.mockRejectedValue({
+        code: "backend_unavailable",
+        message: "docker daemon unreachable",
+      });
+      await click();
+      await waitFor(() => expect(useCockpit.getState().toasts).toHaveLength(1));
+      const toast = useCockpit.getState().toasts[0].message;
+      expect(toast).toContain("Docker is not running");
+      expect(toast).not.toContain("control plane");
+    });
+
+    // The sixteenth code, added by Group C's ruling 7. Its sandbox IS running, so any locally
+    // invented "not running" phrasing would be a lie — the message must pass through verbatim.
+    // This also pins the default arm, which exists because task 16's client lets an UNKNOWN
+    // code through intact rather than validating it.
+    it("renders an unrecognised code's server message verbatim", async () => {
+      createSession.mockRejectedValue({
+        code: "non_loopback_publish",
+        message: "sandbox published on 0.0.0.0, refusing to attach",
+      });
+      await click();
+      await waitFor(() => expect(useCockpit.getState().toasts).toHaveLength(1));
+      expect(useCockpit.getState().toasts[0].message).toBe(
+        "sandbox published on 0.0.0.0, refusing to attach",
+      );
+    });
+
+    it("refuses to create when the machine has no harness, and calls the API not at all", async () => {
+      useCockpit.setState({ harnesses: [] });
+      await click();
+      await waitFor(() => expect(useCockpit.getState().toasts).toHaveLength(1));
+      expect(useCockpit.getState().toasts[0].message).toContain("No harness is available");
+      expect(createSession).not.toHaveBeenCalled();
+    });
+  });
 });

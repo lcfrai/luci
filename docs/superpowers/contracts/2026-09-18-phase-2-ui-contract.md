@@ -1899,6 +1899,16 @@ number. `nowMs` comes from `useHeartbeat()`.
   and to a hover.
 - State changes flash and decay over ~600 ms on `opacity`/`background` only. One class,
   `.dot-flash`, applied for 600 ms when `status` changes, removed by a timer the component owns.
+- **Under `prefers-reduced-motion`, a live status carries a STATIC differentiator, because the
+  breath is not available to carry it.** `running` and `idle` are both filled circles, told
+  apart in normal motion by colour *and* by the breath; `tokens.css` zeroes `animation-duration`
+  globally for that preference, which would leave colour alone — the failure this whole bullet
+  list exists to prevent, and a WCAG 1.4.1 problem for a sighted user who is also colour-blind,
+  whom the `aria-label` does not reach. So `common.css` gives `.dot-live` a non-inset
+  `box-shadow` ring inside a `prefers-reduced-motion: reduce` block, yielding four static forms:
+  hollow ring (`starting`), disc (`idle`), disc with a halo (`running`), square (`exited`).
+  Shape separates every status in every motion mode and the breath is reinforcement, never the
+  sole signal. Added by task 18 fix round 1, ruled by the contract owner.
 
 ### 7.6 Counts, badges and the one place a number is allowed
 
