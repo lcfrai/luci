@@ -181,6 +181,68 @@ func TestMiddlewareAnswersPreflightBeforeTheMux(t *testing.T) {
 	}
 }
 
+func TestMiddlewareRejectsAPreflightFromADisallowedOrigin(t *testing.T) {
+	// The security-relevant half of the preflight path. Answering 204 with the
+	// CORS headers to an origin the allowlist rejects would hand a hostile page
+	// exactly the permission the allowlist exists to withhold. Without this,
+	// hoisting the OPTIONS branch above the origin check is a silent mutation:
+	// the other preflight test uses an allowed origin and the other rejection
+	// tests use GET, so neither ever reaches the combination.
+	p, _ := policy(t)
+	var reached bool
+	req := request(http.MethodOptions, "http://evil.example")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "content-type")
+	rec := httptest.NewRecorder()
+
+	guard(t, p, &reached).ServeHTTP(rec, req)
+
+	if reached {
+		t.Fatal("a rejected preflight reached the mux")
+	}
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+	var problem Problem
+	if err := json.Unmarshal(rec.Body.Bytes(), &problem); err != nil {
+		t.Fatalf("body %q is not a Problem: %v", rec.Body.String(), err)
+	}
+	if problem.Error != CodeForbiddenOrigin {
+		t.Errorf("error = %q, want %q", problem.Error, CodeForbiddenOrigin)
+	}
+	for _, header := range []string{
+		"Access-Control-Allow-Origin",
+		"Access-Control-Allow-Methods",
+		"Access-Control-Allow-Headers",
+		"Access-Control-Max-Age",
+	} {
+		if got := rec.Header().Get(header); got != "" {
+			t.Errorf("the rejected preflight was granted %s: %q", header, got)
+		}
+	}
+}
+
+func TestMiddlewareLetsAnOptionsWithNoOriginReachTheMux(t *testing.T) {
+	// Deliberate: an OPTIONS with no Origin is not a preflight, because a real
+	// preflight always carries one. Answering it in the middleware would bury a
+	// genuine routing question behind something that knows nothing about routes.
+	// Deleting the `&& origin != ""` is otherwise silent - nothing else sends an
+	// OPTIONS without an Origin.
+	p, _ := policy(t)
+	var reached bool
+	rec := httptest.NewRecorder()
+
+	guard(t, p, &reached).ServeHTTP(rec, request(http.MethodOptions, ""))
+
+	if !reached {
+		t.Fatalf("an OPTIONS with no Origin was answered by the middleware: %d %s",
+			rec.Code, rec.Body.String())
+	}
+	if rec.Code == http.StatusNoContent {
+		t.Error("status = 204; the middleware preflighted a request that is not a preflight")
+	}
+}
+
 func TestMiddlewareRejectsAnUnknownOriginAndSaysWhatIsAllowed(t *testing.T) {
 	p, logs := policy(t)
 	var reached bool
@@ -278,16 +340,25 @@ func TestLoopbackHost(t *testing.T) {
 		"127.0.0.1:8730":              true,
 		"127.0.0.1":                   true, // no port, HTTP/1.0 or a hand-built request
 		"127.0.0.53:8730":             true, // all of 127.0.0.0/8 is loopback
+		"127.0.0.53":                  true, // the same, without a port
 		"localhost:8730":              true,
 		"LocalHost:8730":              true, // Host is case-insensitive
 		"localhost.:8730":             true, // the fully-qualified form a resolver may produce
 		"[::1]:8730":                  true,
 		"[::1]":                       true,
 		"::1":                         true,
+		"::ffff:127.0.0.1":            true,  // IPv4-mapped IPv6; it really is loopback
 		"":                            false, // no browser omits it; nothing is lost by refusing
 		"evil.example":                false,
 		"evil.example:8730":           false,
 		"localhost.evil.example:8730": false, // prefix, not a match
+		"localhost.evil.com":          false, // the same trick without a port
+		"127.0.0.1.evil.com":          false, // the address as a LABEL, not an address
+		"127.0.0.1.evil.com:8730":     false, // and with a port, which splits off cleanly
+		"[2001:db8::1]:8730":          false, // a real IPv6 address that is not loopback
+		"[::1%25eth0]":                false, // a zone makes ParseIP fail, so this fails closed
+		"0177.0.0.1":                  false, // octal-looking IPv4; Go 1.17+ refuses it outright
+		"2130706433":                  false, // 127.0.0.1 as a bare integer is not an IP to Go
 		"0.0.0.0:8730":                false,
 		"192.168.1.10:8730":           false,
 	}

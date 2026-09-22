@@ -93,6 +93,27 @@ func normaliseOrigin(s string) string {
 // Allow reports whether an Origin header value is acceptable. An EMPTY origin is
 // allowed: curl, the Go test client and every non-browser tool send none, and
 // the attack this defends against is a browser, which always sends one.
+//
+// THE INVARIANT THAT ALLOWANCE RESTS ON: no route behind this middleware may
+// ever have a side-effecting GET. The Host guard below stops the REBINDING
+// variant of a no-Origin attack, where a page resolves evil.example to 127.0.0.1
+// and the request arrives carrying Host: evil.example. It does not stop the
+// DIRECT variant: a page served from anywhere can emit
+// <img src="http://127.0.0.1:8730/...">, the browser sets Host: 127.0.0.1:8730
+// itself so the Host guard passes, and the request carries no Origin so this
+// function passes it too. It reaches the handler.
+//
+// That is harmless today because of what the routes are, which was checked and
+// not assumed: every state-changing verb in contract 3.1 is POST, PATCH or
+// DELETE, and a browser sends Origin on all three - including an HTML form post,
+// which is the one state-changing vector that needs no preflight. The attacking
+// page cannot read any reply either, because a JSON body pulled in through <img>
+// or <script> is unreadable and no Access-Control-Allow-Origin is echoed to it.
+//
+// So the exposure is entirely a property of the route table, and a side-effecting
+// GET added later would open a real CSRF hole with nothing in this file changing
+// to reveal it. Such a route needs its own defence - a token, or an Origin that
+// is present AND allowed - rather than this function's answer.
 func (p *OriginPolicy) Allow(origin string) bool {
 	if origin == "" {
 		return true
@@ -199,6 +220,14 @@ func (p *OriginPolicy) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// The origin != "" is a decision, not a missing case. An OPTIONS with no
+		// Origin is not a preflight - a real preflight always carries one - so
+		// answering it 204 here would bury a genuine routing question, "does
+		// this path exist and what does it accept", inside a middleware that
+		// knows nothing about routes. It falls through to the mux instead. An
+		// OPTIONS that does carry an allowed origin is answered even without
+		// Access-Control-Request-Method, because the response is identical
+		// either way and the extra branch would buy nothing.
 		if r.Method == http.MethodOptions && origin != "" {
 			w.Header().Set("Access-Control-Allow-Methods", corsMethods)
 			w.Header().Set("Access-Control-Allow-Headers", corsHeaders)

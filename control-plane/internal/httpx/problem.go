@@ -115,8 +115,19 @@ func DecodeJSON[T any](w http.ResponseWriter, r *http.Request, dst *T) bool {
 	// the silent reading is the dangerous one: `{"a":1}{"b":2}` otherwise
 	// decodes as the first object with the second dropped and no complaint.
 	if err := dec.Decode(new(struct{})); !errors.Is(err, io.EOF) {
-		WriteProblem(w, http.StatusBadRequest, CodeInvalidJSON,
-			"Body must contain exactly one JSON object.", nil)
+		// This branch also catches an over-limit body whose FIRST value parsed
+		// - `{"name":"a"}` followed by a megabyte of padding - where the body is
+		// not two objects and blaming one would name the wrong fault. Only the
+		// size error is surfaced. Every other error keeps the plain sentence,
+		// because DisallowUnknownFields is still set on this decoder: a genuine
+		// second object makes Decode complain about an unknown field on the
+		// empty struct, which describes this package's own probe rather than
+		// anything the caller did.
+		msg := "Body must contain exactly one JSON object."
+		if errors.As(err, new(*http.MaxBytesError)) {
+			msg = decodeMessage(err)
+		}
+		WriteProblem(w, http.StatusBadRequest, CodeInvalidJSON, msg, nil)
 		return false
 	}
 	return true

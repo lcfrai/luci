@@ -32,6 +32,38 @@ func TestWriteProblemWritesTheExactBodyStatusAndHeaders(t *testing.T) {
 	}
 }
 
+func TestAllSixteenErrorCodesHaveTheirContractString(t *testing.T) {
+	// Contract 3.2's fifteen plus ruling 7's non_loopback_publish. These strings
+	// cross a language boundary: task 16's TypeScript union is written by hand
+	// against them, so a typo does not fail loudly here - it ships, and produces
+	// a cockpit error branch that silently never matches. That is the exact
+	// failure the constants exist to prevent, which is why the constants
+	// themselves are worth pinning rather than only the four a test happens to
+	// use. Constant keys also make a duplicated value a compile error.
+	for code, want := range map[string]string{
+		CodeInvalidJSON:        "invalid_json",
+		CodeBadRequest:         "bad_request",
+		CodeUnknownHarness:     "unknown_harness",
+		CodeUnsupportedOption:  "unsupported_option",
+		CodeForbiddenOrigin:    "forbidden_origin",
+		CodeForbiddenHost:      "forbidden_host",
+		CodeProjectNotFound:    "project_not_found",
+		CodeWorktreeNotFound:   "worktree_not_found",
+		CodeSessionNotFound:    "session_not_found",
+		CodeConflict:           "conflict",
+		CodeSandboxNotRunning:  "sandbox_not_running",
+		CodeHarnessUnavailable: "harness_unavailable",
+		CodeUpgradeRequired:    "upgrade_required",
+		CodeInternal:           "internal",
+		CodeNonLoopbackPublish: "non_loopback_publish",
+		CodeBackendUnavailable: "backend_unavailable",
+	} {
+		if code != want {
+			t.Errorf("code = %q, want %q", code, want)
+		}
+	}
+}
+
 func TestWriteProblemOmitsEmptyDetails(t *testing.T) {
 	// Contract 3.2: "details is omitted when empty." Not null, omitted: the
 	// desktop's model types it as optional and null would be a third state.
@@ -181,6 +213,21 @@ func TestDecodeJSONRejectsABodyOverTheLimit(t *testing.T) {
 	p := problemFrom(t, rec)
 	if !strings.Contains(p.Message, "1048576") {
 		t.Errorf("message = %q, want it to state the byte limit", p.Message)
+	}
+}
+
+func TestDecodeJSONReportsTheLimitWhenTheOverflowTrailsAValidValue(t *testing.T) {
+	// An over-limit body whose first value parsed lands in the trailing-content
+	// branch rather than the decode branch, and "exactly one JSON object" would
+	// name the wrong fault there: the body is not two objects, it is too big.
+	_, rec, ok := decodeBody(t, `{"name":"a"}`+strings.Repeat(" ", MaxBodyBytes))
+
+	if ok {
+		t.Fatal("DecodeJSON accepted a body over MaxBodyBytes")
+	}
+	p := problemFrom(t, rec)
+	if !strings.Contains(p.Message, "1048576") {
+		t.Errorf("message = %q, want the byte limit rather than a complaint about a second value", p.Message)
 	}
 }
 
