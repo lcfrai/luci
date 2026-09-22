@@ -50,6 +50,16 @@ export interface AttachState {
   phase: AttachPhase;
   /** Handshakes tried in the current ladder; back to 0 once one succeeds. */
   attempts: number;
+  /** `Date.now()` when the CURRENT ladder started, and **0 whenever no ladder is running** —
+   *  so `ladderStartedAt !== 0` is exactly "this pane is retrying". Contract §7.7 asks the pane
+   *  for "the elapsed retry time, not a spinner", and `attempts` cannot supply that: a number
+   *  that ticks is the thing that section is asking for.
+   *
+   *  The RAW STAMP is published, never a computed elapsed. The pane subtracts it from
+   *  `useHeartbeat()`'s 1 Hz tick at render time and prints the result in `var(--numeric)`,
+   *  which is what keeps the registry timer-free — a registry that published an elapsed would
+   *  need a clock of its own, and §7.1 already has the one clock that job belongs to. */
+  ladderStartedAt: number;
   /** Rendered verbatim by the pane. Never a code, never a stack. */
   reason: string;
 }
@@ -100,7 +110,12 @@ interface Entry {
 }
 
 /** One frozen instance, never re-allocated — decision (d). */
-const DETACHED: AttachState = Object.freeze({ phase: "detached", attempts: 0, reason: "" });
+const DETACHED: AttachState = Object.freeze({
+  phase: "detached",
+  attempts: 0,
+  ladderStartedAt: 0,
+  reason: "",
+});
 const ENCODER = new TextEncoder();
 const BANNER_ENDED = ENCODER.encode("\r\n\x1b[2m[session ended]\x1b[0m\r\n");
 
@@ -148,6 +163,14 @@ export function acquireAttach(session: Session, opts: AcquireOptions): AttachHan
   } else {
     entry.session = session;
   }
+  // LAST ACQUIRER WINS, and this line runs on the shared path too — so read it as the
+  // invariant it depends on: **`readOnly` is a property of the SESSION, never of the pane.**
+  // It is `session.status === "exited"` and nothing else (§6.6). Two panes on one session
+  // therefore always agree, and overwriting is a no-op. The day a surface acquires the same
+  // session with a different intent — a read-only preview tile beside a live pane — this line
+  // silences the live pane's stdin, and the defect will look like a keyboard bug rather than a
+  // ref-counting one. If that surface is ever wanted, readOnly moves out of the shared entry
+  // and onto the handle; do not "fix" it by making this conditional.
   entry.readOnly = opts.readOnly;
   entry.refs += 1;
   if (entry.graceTimer !== null) {
@@ -185,8 +208,14 @@ export function updateAttachSession(session: Session): void {
   entry.session = session;
   if (session.status === "exited" && !wasExited) {
     clearRetry(entry);
+    entry.ladderStartedAt = 0;   // the ladder stopped, so the pane's elapsed stops with it
     if (!entry.ws) {
-      publish(entry, { phase: "ended", attempts: entry.attempts, reason: exitedReason(session) });
+      publish(entry, {
+        phase: "ended",
+        attempts: entry.attempts,
+        ladderStartedAt: 0,
+        reason: exitedReason(session),
+      });
     }
   }
 }
@@ -282,7 +311,7 @@ function openIfLive(entry: Entry): void {
   if (entry.session.status === "exited") {
     const reason = exitedReason(entry.session);
     entry.term.write(`\r\n\x1b[2m[${reason}]\x1b[0m\r\n`);
-    publish(entry, { phase: "ended", attempts: 0, reason });
+    publish(entry, { phase: "ended", attempts: 0, ladderStartedAt: 0, reason });
     return;
   }
   connect(entry);
@@ -302,6 +331,9 @@ function connect(entry: Entry): void {
     // user while a live session is being picked back up.
     phase: !entry.everAttached && entry.attempts === 1 ? "connecting" : "reconnecting",
     attempts: entry.attempts,
+    // Stamped just above if this is the first rung; unchanged on every later rung of the same
+    // ladder, so the pane's elapsed keeps growing rather than resetting every 250 ms.
+    ladderStartedAt: entry.ladderStartedAt,
     reason: "",
   });
 
@@ -324,7 +356,7 @@ function connect(entry: Entry): void {
     entry.attempts = 0;
     entry.ladderStartedAt = 0;
     entry.everAttached = true;
-    publish(entry, { phase: "attached", attempts: 0, reason: "" });
+    publish(entry, { phase: "attached", attempts: 0, ladderStartedAt: 0, reason: "" });
     ws.send(encodeResize(entry.term.cols, entry.term.rows));
   };
 
@@ -404,9 +436,11 @@ function scheduleRetry(entry: Entry): void {
   // that can never come back, because the output that would revive it is the output we are
   // no longer attached to receive.
   if (entry.session.status === "exited") {
+    entry.ladderStartedAt = 0;   // the ladder stops here and the pane's elapsed stops with it
     publish(entry, {
       phase: "ended",
       attempts: entry.attempts,
+      ladderStartedAt: 0,
       reason: exitedReason(entry.session),
     });
     return;
@@ -418,7 +452,19 @@ function scheduleRetry(entry: Entry): void {
   if (entry.ladderStartedAt === 0) entry.ladderStartedAt = Date.now();
 
   if (Date.now() - entry.ladderStartedAt >= RETRY_BUDGET_MS) {
-    void giveUp(entry);
+    // `giveUp` is async and nothing awaits it, so a listener that throws inside one of its
+    // publishes would land as an unhandled rejection. Widening giveUp's own try is the wrong
+    // fix: that catch means "the diagnostic fetch failed" and feeds `reasonForError`, so a
+    // consumer's bug would be rendered to the user as an attach failure reason — a lie in the
+    // one sentence this whole path exists to get right. Rethrowing on a macrotask instead makes
+    // this behave like every SYNCHRONOUS publish in this file, where a throwing listener leaves
+    // the event handler as an uncaught error the platform reports. React's useSyncExternalStore
+    // callback must not throw; if one does it is a consumer defect and it should be loud.
+    void giveUp(entry).catch((error: unknown) => {
+      setTimeout(() => {
+        throw error;
+      });
+    });
     return;
   }
 
@@ -427,7 +473,12 @@ function scheduleRetry(entry: Entry): void {
   // a live session that drops would reconnect in a tight loop instead of after §4.6's 250 ms.
   const rung = Math.min(Math.max(entry.attempts - 1, 0), RETRY_DELAYS_MS.length - 1);
   const delay = RETRY_DELAYS_MS[rung];
-  publish(entry, { phase: "reconnecting", attempts: entry.attempts, reason: "" });
+  publish(entry, {
+    phase: "reconnecting",
+    attempts: entry.attempts,
+    ladderStartedAt: entry.ladderStartedAt,
+    reason: "",
+  });
   clearRetry(entry);
   entry.retryTimer = setTimeout(() => {
     entry.retryTimer = null;
@@ -438,9 +489,11 @@ function scheduleRetry(entry: Entry): void {
 /** The ladder is spent. One read of the record, so the sentence the pane renders is the truth
  *  rather than the likeliest-looking code — see the note above this step. */
 async function giveUp(entry: Entry): Promise<void> {
+  entry.ladderStartedAt = 0;   // the ladder is spent: there is no elapsed left to render
   publish(entry, {
     phase: "failed",
     attempts: entry.attempts,
+    ladderStartedAt: 0,
     reason: "the sandbox did not accept a connection within 60 seconds",
   });
 
@@ -449,19 +502,30 @@ async function giveUp(entry: Entry): Promise<void> {
     fresh = await deps.client.getSession(entry.id);
   } catch (error) {
     if (entry.destroyed) return;
-    publish(entry, { phase: "failed", attempts: entry.attempts, reason: reasonForError(error) });
+    publish(entry, {
+      phase: "failed",
+      attempts: entry.attempts,
+      ladderStartedAt: 0,
+      reason: reasonForError(error),
+    });
     return;
   }
   if (entry.destroyed) return;
 
   entry.session = fresh;
   if (fresh.status === "exited") {
-    publish(entry, { phase: "ended", attempts: entry.attempts, reason: exitedReason(fresh) });
+    publish(entry, {
+      phase: "ended",
+      attempts: entry.attempts,
+      ladderStartedAt: 0,
+      reason: exitedReason(fresh),
+    });
     return;
   }
   publish(entry, {
     phase: "failed",
     attempts: entry.attempts,
+    ladderStartedAt: 0,
     reason: `the sandbox is ${fresh.status} but refused the attach connection`,
   });
 }

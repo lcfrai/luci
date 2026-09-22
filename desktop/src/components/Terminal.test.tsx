@@ -10,6 +10,7 @@ import {
   configureAttachRegistry,
   getAttachState,
   releaseAttach,
+  useAttachState,
 } from "../api/attachRegistry";
 import type { AttachHandle } from "../api/attachRegistry";
 import { resetCockpit, useCockpit } from "../store/store";
@@ -192,5 +193,53 @@ describe("Terminal", () => {
     const before = ws.sent.length;
     term.type("rm -rf /\r");
     expect(ws.sent.length).toBe(before);
+  });
+});
+
+/** The smallest possible consumer of the hook: task 20's SessionPaneFooter, reduced to the one
+ *  job §6.5 gives it. It reads the registry, never the store. */
+function AttachProbe({ sessionId }: { sessionId: string }) {
+  const state = useAttachState(sessionId);
+  return (
+    <span data-testid="phase" data-attempts={state.attempts}>
+      {state.phase}
+    </span>
+  );
+}
+
+describe("useAttachState", () => {
+  it("re-renders its subscriber as the phase moves, and when the entry is torn down", () => {
+    vi.useFakeTimers();
+    try {
+      acquireAttach(session(), { createTerm: () => new FakeTerm(), readOnly: false });
+      const { getByTestId } = render(<AttachProbe sessionId="s-1" />);
+      expect(getByTestId("phase").textContent).toBe("connecting");
+
+      act(() => {
+        FakeWebSocket.last()!.acceptOpen();
+      });
+      expect(getByTestId("phase").textContent).toBe("attached");
+
+      releaseAttach("s-1");
+      act(() => {
+        vi.advanceTimersByTime(GRACE_MS + 1);
+      });
+      // destroy() must TELL its subscribers, not merely delete the entry. A getAttachState
+      // assertion passes on `entries.delete` plus the `?? DETACHED` fallback alone; a
+      // subscriber never notified keeps rendering "attached" for a session whose socket is
+      // closed and whose terminal is disposed.
+      expect(getByTestId("phase").textContent).toBe("detached");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hands the hook a stable snapshot, so useSyncExternalStore does not re-render for ever", () => {
+    // Decision (d). If the snapshot getter allocated, React would either loop or throw
+    // "The result of getSnapshot should be cached"; rendering an unheld session is the case
+    // where the getter returns the shared frozen constant on every call.
+    const { getByTestId } = render(<AttachProbe sessionId="s-never-held" />);
+    expect(getByTestId("phase").textContent).toBe("detached");
+    expect(getByTestId("phase").getAttribute("data-attempts")).toBe("0");
   });
 });

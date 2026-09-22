@@ -104,6 +104,50 @@ describe("attachRegistry — lifecycle", () => {
     expect(term.disposed).toBe(false);
   });
 
+  it("an extra release cannot drive the ref count negative and orphan a live pane", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });   // refs 1
+    releaseAttach("s-1");                                     // refs 0
+    releaseAttach("s-1");                                     // one release too many
+    acquireAttach(live(), { createTerm, readOnly: false });   // pane A
+    acquireAttach(live(), { createTerm, readOnly: false });   // pane B
+    releaseAttach("s-1");                                     // pane A closes
+    vi.advanceTimersByTime(GRACE_MS * 2);
+    // Unclamped, the count would read 0 here and tear down the entry pane B is still showing.
+    expect(term.disposed).toBe(false);
+  });
+
+  it("an extra release replaces the grace timer rather than stacking another", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    expect(vi.getTimerCount()).toBe(0);
+    releaseAttach("s-1");
+    expect(vi.getTimerCount()).toBe(1);
+    releaseAttach("s-1");
+    releaseAttach("s-1");
+    // One pending teardown, not three. This is the file whose whole job is not leaking timers.
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it("a re-acquire inside the grace window leaves no stray timer behind", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    releaseAttach("s-1");
+    expect(vi.getTimerCount()).toBe(1);
+    acquireAttach(live(), { createTerm, readOnly: false });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("teardown detaches the registry's element even when no pane removed it", () => {
+    // The component normally hands the element back in its cleanup. This is the path where
+    // destroy() is the only thing detaching it — a pane torn down without cleanup running.
+    const handle = acquireAttach(live(), { createTerm, readOnly: false });
+    document.body.appendChild(handle.element);
+    expect(handle.element.parentNode).toBe(document.body);
+    releaseAttach("s-1");
+    vi.advanceTimersByTime(GRACE_MS + 1);
+    expect(handle.element.parentNode).toBeNull();
+  });
+
   it("a store update does not dispose the terminal or re-open the socket (defect 1)", () => {
     const session = live();
     acquireAttach(session, { createTerm, readOnly: false });
@@ -310,6 +354,20 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     expect(() => socket().emitText("not a frame")).not.toThrow();
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
     expect(term.written).toEqual([]);
+  });
+
+  it("does not pad the next flush with the previous flush's byte count", () => {
+    // Two CONSECUTIVE MULTI-CHUNK flushes is the shape nothing else exercises: concatChunks'
+    // single-chunk fast path never reads `total`, so a stale pendingBytes is invisible until a
+    // window carries more than one payload twice. Without the reset the second flush allocates
+    // for 8 + 4 bytes and writes NUL padding into the transcript.
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    socket().emitBinary(stdout("aaaa")); socket().emitBinary(stdout("bbbb"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    socket().emitBinary(stdout("cc")); socket().emitBinary(stdout("dd"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(term.written).toEqual(["aaaabbbb", "ccdd"]);
   });
 
   it("ignores a frame from a socket the ladder has already superseded", () => {
@@ -553,6 +611,61 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
     expect(FakeWebSocket.instances.length).toBe(1);   // the armed retry never fired
     expect(getAttachState("s-1").phase).toBe("ended");
     expect(getAttachState("s-1").reason).toBe("killed");
+  });
+
+  it("publishes the ladder's start stamp, so the pane can render an elapsed (§7.7)", () => {
+    const startedAt = Date.now();
+    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    expect(getAttachState("s-1").ladderStartedAt).toBe(startedAt);
+
+    socket().emitClose(1006);
+    vi.advanceTimersByTime(250);
+    // Same ladder, later rung: the stamp must NOT move, or the pane's elapsed resets every
+    // 250 ms and stops meaning "how long this has been failing".
+    expect(getAttachState("s-1").ladderStartedAt).toBe(startedAt);
+
+    socket().acceptOpen();
+    expect(getAttachState("s-1").phase).toBe("attached");
+    expect(getAttachState("s-1").ladderStartedAt).toBe(0);   // no ladder: nothing to count
+  });
+
+  it("stamps a fresh ladder when a long-attached socket drops", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    vi.advanceTimersByTime(61_000);
+    const droppedAt = Date.now();
+    socket().emitClose(1006);
+    expect(getAttachState("s-1").ladderStartedAt).toBe(droppedAt);
+  });
+
+  it("clears the stamp when the ladder stops", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    socket().emitClose(1006);
+    expect(getAttachState("s-1").ladderStartedAt).not.toBe(0);
+
+    updateAttachSession(live({ status: "exited", exitReason: "killed" }));
+    expect(getAttachState("s-1").phase).toBe("ended");
+    expect(getAttachState("s-1").ladderStartedAt).toBe(0);
+  });
+
+  it("a listener that throws during give-up surfaces instead of vanishing into a floating promise", async () => {
+    configureAttachRegistry({ client: stubClient(async () => live({ status: "running" })) });
+    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    for (let i = 0; i < 30; i += 1) {
+      socket().emitClose(1006);
+      await vi.advanceTimersByTimeAsync(2_000);
+    }
+    const off = subscribeAttach("s-1", (state) => {
+      if (state.phase === "failed") throw new Error("listener blew up");
+    });
+
+    socket().emitClose(1006);        // budget spent: giveUp publishes "failed" synchronously
+    off();
+    await Promise.resolve();         // let the call site's .catch() run
+    // Rethrown on a macrotask rather than swallowed: an unhandled rejection here would be
+    // invisible, and giveUp's own catch must keep meaning "the diagnostic fetch failed".
+    expect(() => vi.advanceTimersByTime(0)).toThrow("listener blew up");
   });
 
   it("a poll that still reads running does not end a pending reconnect", () => {
