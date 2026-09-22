@@ -57,17 +57,21 @@ type DataState = Pick<
   | "sessions" | "sessionIdsByWorktree" | "harnesses" | "loading" | "lastError"
 >;
 
-export const initialDataState: DataState = {
-  machines: [],
-  projects: [],
-  branchesByProject: {},
-  worktreesByBranch: {},
-  sessions: {},
-  sessionIdsByWorktree: {},
-  harnesses: [],
-  loading: {},
+/** FROZEN, containers and all. Every store in the process spreads this same object —
+ *  `createCockpitStore()` on each call and `resetCockpit()` on each reset — so its nested
+ *  containers are shared across all of them. Nothing mutates one today; freezing makes the
+ *  day something does a loud TypeError rather than silent cross-store corruption. */
+export const initialDataState: DataState = Object.freeze({
+  machines: Object.freeze([]) as unknown as Machine[],
+  projects: Object.freeze([]) as unknown as Project[],
+  branchesByProject: Object.freeze({}) as Record<ProjectId, Branch[]>,
+  worktreesByBranch: Object.freeze({}) as Record<BranchId, Worktree[]>,
+  sessions: Object.freeze({}) as Record<SessionId, Session>,
+  sessionIdsByWorktree: Object.freeze({}) as Record<WorktreeId, SessionId[]>,
+  harnesses: Object.freeze([]) as unknown as Harness[],
+  loading: Object.freeze({}) as Partial<Record<LoadKey, boolean>>,
   lastError: null,
-};
+});
 
 /** Shallow field comparison, which is exact for `Session`: every field is a primitive, so
  *  there is no nested value a shallow pass could miss. Used to keep a poll from replacing an
@@ -172,6 +176,16 @@ export const createDataSlice: StateCreator<
         pinned: s.pinned.includes(id) ? s.pinned.filter((x) => x !== id) : s.pinned,
         selection:
           s.selection.sessionId === id ? { ...s.selection, sessionId: null } : s.selection,
+        // An open menu pointing at a session that no longer exists is a surface reading a
+        // dangling id: task 18 owns the ⋯ menu and task 22 owns its verbs, so clearing here
+        // is one place instead of two later tasks each remembering to. The context menu
+        // serves every row kind, so the kind is checked too — a branch whose id happens to
+        // match must keep its menu open.
+        sessionMenuFor: s.sessionMenuFor === id ? null : s.sessionMenuFor,
+        contextMenu:
+          s.contextMenu !== null && s.contextMenu.kind === "session" && s.contextMenu.id === id
+            ? null
+            : s.contextMenu,
       };
     });
   },

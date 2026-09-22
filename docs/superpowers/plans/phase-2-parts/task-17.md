@@ -347,7 +347,18 @@ cd desktop
 npm test -- src/store/defaults.test.ts
 ```
 
-**What you must see:** the run fails at import time, naming `src/store/defaults.test.ts` and the unresolved import `./defaults`, with a message of the form `Failed to load url ./defaults … Does the file exist?`, and **zero tests collected**. Vitest 5 is not installed in this tree at the time of writing, so the reporter chrome around that line is approximate and nothing here was transcribed from a run; what is not negotiable is that the failure is the missing module and not a passing suite. `./defaults` is the only production module this suite imports at runtime — `./types` is an `import type`, erased before the resolver ever sees it — so it is the only name that can appear in that message; `../test/fixtures` appearing in it instead means task 15's builders are not where step 1 checked for them, and the answer is to stop, not to declare one here.
+**What you must see:** the run fails at import time, naming `src/store/defaults.test.ts` and the unresolved import `./defaults`, with `src/store/defaults.test.ts (0 test)` and `Tests  no tests` — **zero tests collected**. The message, **transcribed from a real run** on vitest 5.0.1 / vite 8 (the plan previously predicted `Failed to load url …`, which is not what this toolchain emits):
+
+```
+ ❯ src/store/defaults.test.ts (0 test)
+ FAIL  src/store/defaults.test.ts [ src/store/defaults.test.ts ]
+Error: Failed to resolve import "./defaults" from "src/store/defaults.test.ts". Does the file exist?
+  Plugin: vite:import-analysis
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+
+What is not negotiable is that the failure is the missing module and not a passing suite. `./defaults` is the only production module this suite imports at runtime — `./types` is an `import type`, erased before the resolver ever sees it — so it is the only name that can appear in that message; `../test/fixtures` appearing in it instead means task 15's builders are not where step 1 checked for them, and the answer is to stop, not to declare one here.
 
 - [ ] **Step 3: Implement `defaults.ts` — the merge, the four clamps, the create request**
 
@@ -972,14 +983,21 @@ describe("resetCockpit", () => {
 });
 ```
 
-Honest caveats before you run it. **First,** the four `createCockpitStore()` tests assume `persist` hydrates synchronously — it does when the storage's `getItem` returns a value rather than a Promise, which `createJSONStorage(() => localStorage)` does, so the snapshot is already applied when `create` returns. I have not been able to execute this: vitest 5 is not installed in this tree. If the first of those four reads pre-hydration state, the fix is `await store.persist.rehydrate()` before the assertion and an `async` test body — **not** a change to `store.ts`. The fourth is the one that proves the `onRehydrateStorage` log fires; it seeds unparseable JSON, so `createJSONStorage`'s `JSON.parse` throws inside `getItem`, `persist` catches it and calls the rehydration callback with the error. Its `toHaveBeenCalled()` is deliberately not a `toHaveBeenCalledTimes(1)`: I could not run it, and one is a count I would be inventing. **Second,** `localStorage` in a Tauri webview is per-origin: `http://localhost:1420` in dev and `http://tauri.localhost` in a packaged Windows build. The two do not share storage, so a developer's dev-mode layout does not follow them into the packaged app. That is correct behaviour and it will still surprise someone; it is written here so the first person to report it finds the answer.
+Honest caveats before you run it. **First,** the four `createCockpitStore()` tests assume `persist` hydrates synchronously — it does when the storage's `getItem` returns a value rather than a Promise, which `createJSONStorage(() => localStorage)` does, so the snapshot is already applied when `create` returns. **MEASURED, and it holds:** all four passed as written on vitest 5.0.1 / zustand 5.0.15, so no `await store.persist.rehydrate()` and no `async` test body were needed and `store.ts` was not changed. (Had it failed, the fix would have been that `await` — **not** a change to `store.ts`.) **This is a dependency later tasks inherit:** swapping the storage for an async one, such as a Tauri store plugin, silently turns every `createCockpitStore()` test in this suite into a race. The fourth is the one that proves the `onRehydrateStorage` log fires; it seeds unparseable JSON, so `createJSONStorage`'s `JSON.parse` throws inside `getItem`, `persist` catches it and calls the rehydration callback with the error — confirmed live. Its `toHaveBeenCalled()` is deliberately not a `toHaveBeenCalledTimes(1)`, and the count was never the point: what makes that assertion mean anything is the **readable** snapshot asserted before it, which must log nothing (shared-shape §3A.1 rule 3). **Second,** `localStorage` in a Tauri webview is per-origin: `http://localhost:1420` in dev and `http://tauri.localhost` in a packaged Windows build. The two do not share storage, so a developer's dev-mode layout does not follow them into the packaged app. That is correct behaviour and it will still surprise someone; it is written here so the first person to report it finds the answer.
 
 ```bash
 cd desktop
 npm test -- src/store/store.test.ts
 ```
 
-**What you must see:** the run fails at import time, naming `src/store/store.test.ts` and the unresolved import `./store`, with a message of the form `Failed to load url ./store … Does the file exist?`, and **zero tests collected**. Reporter chrome is approximate, as above. Steps 5 to 8 write the four modules this import pulls in; the suite is not run again until step 8, because none of them compiles alone.
+**What you must see:** the run fails at import time, naming `src/store/store.test.ts` and the unresolved import `./store`, and **zero tests collected**. Transcribed from a real run, as in step 2:
+
+```
+Error: Failed to resolve import "./store" from "src/store/store.test.ts". Does the file exist?
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+ Steps 5 to 8 write the four modules this import pulls in; the suite is not run again until step 8, because none of them compiles alone.
 
 - [ ] **Step 5: Write `slices/dataSlice.ts`**
 
@@ -1801,7 +1819,14 @@ cd desktop
 npm test -- src/store/selectors.test.ts
 ```
 
-**What you must see:** a failure at import time naming `./selectors`, with a message of the form `Failed to load url ./selectors … Does the file exist?`, and **zero tests collected**. Reporter chrome approximate, as above.
+**What you must see:** a failure at import time naming `./selectors`, and **zero tests collected**. Transcribed from a real run, as in step 2:
+
+```
+Error: Failed to resolve import "./selectors" from "src/store/selectors.test.ts". Does the file exist?
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+
 
 - [ ] **Step 10: Implement `selectors.ts`, with task 18's insertion point reserved**
 

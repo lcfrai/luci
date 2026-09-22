@@ -16,12 +16,12 @@ import type { CockpitState } from "../store";
 /** docs/AGENTIC-UX.md §10 rule 5. */
 export const CANVAS_MAX_TILES = 10;
 
-export const APP_DEFAULTS: SessionDefaults = {
+export const APP_DEFAULTS: SessionDefaults = Object.freeze({
   harness: "claude-code",
   model: "", // "" resolves to the harness's own defaultModel — store/defaults.ts
   effort: "",
   permissionMode: "ask",
-};
+});
 
 export interface PrefsSlice {
   /** App-level defaults. The bottom of the inheritance chain. */
@@ -48,13 +48,14 @@ type PrefsState = Pick<
   "defaults" | "projectDefaults" | "branchDefaults" | "tiles" | "pinned"
 >;
 
-export const initialPrefsState: PrefsState = {
+/** FROZEN, containers and all — see the note on `initialDataState`. */
+export const initialPrefsState: PrefsState = Object.freeze({
   defaults: APP_DEFAULTS,
-  projectDefaults: {},
-  branchDefaults: {},
-  tiles: {},
-  pinned: [],
-};
+  projectDefaults: Object.freeze({}) as Record<ProjectId, SessionDefaultsOverride>,
+  branchDefaults: Object.freeze({}) as Record<BranchId, SessionDefaultsOverride>,
+  tiles: Object.freeze({}) as Record<SessionId, TilePosition>,
+  pinned: Object.freeze([]) as unknown as SessionId[],
+});
 
 /** Merges a patch into an override record. A key whose value is `undefined` is DELETED, not
  *  stored — clearing an override and inheriting again are the same act. */

@@ -9,8 +9,9 @@ import {
   resetCockpit,
   useCockpit,
 } from "./store";
-import { APP_DEFAULTS, CANVAS_MAX_TILES } from "./slices/prefsSlice";
-import { MAX_TOASTS, TOAST_TTL_PLAIN, TOAST_TTL_UNDO } from "./slices/uiSlice";
+import { APP_DEFAULTS, CANVAS_MAX_TILES, initialPrefsState } from "./slices/prefsSlice";
+import { initialDataState } from "./slices/dataSlice";
+import { initialUiState, MAX_TOASTS, TOAST_TTL_PLAIN, TOAST_TTL_UNDO } from "./slices/uiSlice";
 import type { Session } from "./types";
 
 /* Three harnesses, so `setHarnesses` has something with a length to assert. Composed at the
@@ -49,6 +50,17 @@ describe("dataSlice", () => {
     expect(useCockpit.getState().sessionIdsByWorktree["w-1"]).toEqual([]);
     expect(useCockpit.getState().sessions["s-1"]).toBeUndefined();
     expect(useCockpit.getState().sessions["s-3"]).toBeDefined();
+  });
+
+  it("covers a worktree the caller did not list but an incoming row names", () => {
+    const s = useCockpit.getState();
+    // Every other call in this suite lists every row's worktree, so none of them exercises
+    // the `covered.add(row.worktreeId)` line — and without it the index build dereferences a
+    // bucket that was never created and throws a TypeError inside the 2 s poller, the one
+    // code path that runs continuously.
+    s.replaceSessions(sessionsOn("w-3", ["s-4"]), []);
+    expect(useCockpit.getState().sessionIdsByWorktree["w-3"]).toEqual(["s-4"]);
+    expect(useCockpit.getState().sessions["s-4"]).toBeDefined();
   });
 
   it("leaves a worktree the fetch did not cover completely alone", () => {
@@ -116,12 +128,14 @@ describe("dataSlice", () => {
 });
 
 describe("removeSession and lastError", () => {
-  it("purges the record, the index entry, the tile, the pin and the focus", () => {
+  it("purges the record, the index entry, the tile, the pin, the focus and the menus", () => {
     const s = useCockpit.getState();
     s.replaceSessions(sessionsOn("w-1", ["s-1", "s-2"]), ["w-1"]);
     s.setTile("s-1", { x: 10, y: 20, w: 400, h: 300 });
     s.pinSession("s-1");
     s.focusSession("s-1");
+    s.openSessionMenu("s-1");
+    s.openContextMenu({ kind: "session", id: "s-1", x: 40, y: 80 });
     s.removeSession("s-1");
     const after = useCockpit.getState();
     expect(after.sessions["s-1"]).toBeUndefined();
@@ -129,14 +143,25 @@ describe("removeSession and lastError", () => {
     expect(after.tiles["s-1"]).toBeUndefined();
     expect(after.pinned).toEqual([]);
     expect(after.selection.sessionId).toBeNull();
+    // Task 18 renders both from an id; a menu left open over a forgotten session is a
+    // surface reading a dangling reference.
+    expect(after.sessionMenuFor).toBeNull();
+    expect(after.contextMenu).toBeNull();
   });
 
-  it("leaves a focus that pointed at a different session alone", () => {
+  it("leaves a focus and a menu that pointed elsewhere alone", () => {
     const s = useCockpit.getState();
     s.replaceSessions(sessionsOn("w-1", ["s-1", "s-2"]), ["w-1"]);
     s.focusSession("s-2");
+    s.openSessionMenu("s-2");
+    // A BRANCH menu whose id happens to equal the removed session's. Clearing on the id
+    // alone would close it, so the kind is what makes the guard correct rather than lucky.
+    s.openContextMenu({ kind: "branch", id: "s-1", x: 0, y: 0 });
     s.removeSession("s-1");
-    expect(useCockpit.getState().selection.sessionId).toBe("s-2");
+    const after = useCockpit.getState();
+    expect(after.selection.sessionId).toBe("s-2");
+    expect(after.sessionMenuFor).toBe("s-2");
+    expect(after.contextMenu).toEqual({ kind: "branch", id: "s-1", x: 0, y: 0 });
   });
 
   it("is clearable only by setError(null), never by a later successful fetch", () => {
@@ -471,5 +496,16 @@ describe("resetCockpit", () => {
     expect(localStorage.getItem(PERSIST_KEY)).toBeNull();
     after.setLayout("canvas");
     expect(useCockpit.getState().layout).toBe("canvas");
+
+    // resetCockpit spreads these three, and so does every createCockpitStore(), so their
+    // nested containers are shared by every store in the process. Frozen, so the day
+    // something mutates one in place is a loud TypeError rather than silent corruption of
+    // every other store.
+    for (const state of [initialDataState, initialUiState, initialPrefsState]) {
+      expect(Object.isFrozen(state)).toBe(true);
+      for (const value of Object.values(state)) {
+        if (typeof value === "object" && value !== null) expect(Object.isFrozen(value)).toBe(true);
+      }
+    }
   });
 });

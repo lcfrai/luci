@@ -168,6 +168,14 @@ describe("selectors", () => {
     s.pinSession("s-1");
     s.pinSession("s-gone");
     expect(selectCanvasSessionIds(useCockpit.getState())).toEqual(["s-3", "s-1"]);
+
+    // The EMPTY case, which is the one `NO_IDS` exists for and which nothing else pins: an
+    // empty Canvas is the state the app launches in, so a fresh [] here re-renders the
+    // canvas on every 2 s poll before the user has pinned anything.
+    resetCockpit();
+    const empty = selectCanvasSessionIds(useCockpit.getState());
+    expect(empty).toEqual([]);
+    expect(selectCanvasSessionIds(useCockpit.getState())).toBe(empty);
   });
 
   it("threads the selection through resolveDefaults", () => {

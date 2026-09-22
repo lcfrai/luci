@@ -24,12 +24,12 @@ export const TOAST_TTL_PLAIN = 3200;
 /** Decision (c). A repeating poll failure must not build an unbounded column. */
 export const MAX_TOASTS = 4;
 
-const NO_SELECTION: Selection = {
+const NO_SELECTION: Selection = Object.freeze({
   projectId: null,
   branchId: null,
   worktreeId: null,
   sessionId: null,
-};
+});
 
 export interface UiSlice {
   selection: Selection;
@@ -83,21 +83,22 @@ type UiState = Pick<
   | "paletteOpen" | "pickerOpen" | "contextMenu" | "sessionMenuFor" | "toasts"
 >;
 
-export const initialUiState: UiState = {
+/** FROZEN, containers and all — see the note on `initialDataState`. */
+export const initialUiState: UiState = Object.freeze({
   selection: NO_SELECTION,
   lens: "develop",
   layout: "columns",
   railCollapsed: false,
-  expandedProjects: {},
-  expandedBranches: {},
-  expandedWorktrees: {},
+  expandedProjects: Object.freeze({}) as Record<ProjectId, boolean>,
+  expandedBranches: Object.freeze({}) as Record<BranchId, boolean>,
+  expandedWorktrees: Object.freeze({}) as Record<WorktreeId, boolean>,
   paletteOpen: false,
   pickerOpen: false,
   contextMenu: null,
   sessionMenuFor: null,
-  toasts: [],
+  toasts: Object.freeze([]) as unknown as Toast[],
   // TASK 18 adds `machinesOpen: false,` here.
-};
+});
 
 export const createUiSlice: StateCreator<
   CockpitState,
