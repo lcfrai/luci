@@ -583,6 +583,29 @@ function destroy(entry: Entry): void {
   if (entry.graceTimer !== null) { clearTimeout(entry.graceTimer); entry.graceTimer = null; }
   for (const disposable of entry.disposables) disposable.dispose();
   entry.disposables = [];
+  // ── LOAD-BEARING ORDERING. Read this before reordering the two lines below. ──────────
+  // `entry.ws` is nulled HERE, before the close and before any later event can arrive. Four
+  // guards elsewhere in this file depend on that being true, and they depend on it in a way
+  // that does not show up in the test suite:
+  //
+  //     onopen      `if (entry.ws !== ws || entry.destroyed) return;`
+  //     onmessage   `if (entry.ws !== ws || entry.destroyed) return;`
+  //     onclose     `if (entry.ws !== ws) return;` … `if (entry.destroyed) return;`
+  //     scheduleRetry  `if (entry.destroyed) return;`
+  //
+  // Because this line runs first, a socket event arriving after teardown always fails the
+  // STALE-SOCKET half (`entry.ws` is null, so it can never equal the socket the handler closed
+  // over) and returns before the `entry.destroyed` half is ever the deciding condition. The
+  // stale-socket halves are tested; the `destroyed` halves are not, and four mutation survivors
+  // are declared on exactly this basis — they are masked, not covered.
+  //
+  // **What would have to change for that declaration to expire:** any path that calls
+  // `destroy()` while leaving a live `entry.ws` in place — nulling after the close instead of
+  // before, dropping the null, or a second teardown route that skips it. The moment that
+  // happens the four `destroyed` checks become live, reachable, UNTESTED branches, and the
+  // failure they would then be the only thing preventing is a destroyed entry re-entering the
+  // retry ladder: a socket reopened for a pane that is gone, on a terminal already disposed.
+  // If you reorder this, write the four negative cases first.
   const ws = entry.ws;
   entry.ws = null;
   // Closing the socket detaches. It does NOT destroy the session: the record and its
