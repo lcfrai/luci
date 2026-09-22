@@ -111,11 +111,12 @@ The grep names the three fields on purpose, and a bare `grep -rn "?? \[\]" src/s
 
 Create `desktop/src/hooks/heartbeat.test.ts`:
 
+**Read the stylesheet through Vite's `?raw` loader, not `node:fs`.** This step originally wrote `readFileSync` plus `fileURLToPath(new URL(..., import.meta.url))`, and **that version does not compile in this package** — corrected 2026-09-23 after task 18's implementer hit it and task 18's reviewer verified every premise. Two measured reasons, neither a preference: `@types/node` is **not** a dependency here (`vite.config.ts:3-4` carries a `@ts-expect-error` for `node:process` for precisely that reason), so the `node:fs` import fails typecheck with **TS2591**; and `import.meta.url` under vitest's transform is **not** a `file:` URL, so `fileURLToPath` throws `The URL must be of scheme file`. Task 14's `src/styles/tokens.test.ts:2` already reads the same file the same way, and `vitest.config.ts:26` opts `?raw` past the css-disable plugin for exactly this. Same subject, same assertion, no new dependency.
+
 ```ts
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
+import tokensCss from "../styles/tokens.css?raw";
 import { BEAT_MS, EPOCH, beatDelayStyle, useHeartbeat, __resetHeartbeat } from "./heartbeat";
 
 describe("beatDelayStyle", () => {
@@ -132,11 +133,7 @@ describe("beatDelayStyle", () => {
   });
 
   it("agrees with the --beat token in tokens.css", () => {
-    const css = readFileSync(
-      fileURLToPath(new URL("../styles/tokens.css", import.meta.url)),
-      "utf8",
-    );
-    const match = /--beat:\s*(\d+)ms/.exec(css);
+    const match = /--beat:\s*(\d+)ms/.exec(tokensCss);
     expect(match).not.toBeNull();
     expect(Number(match![1])).toBe(BEAT_MS);
   });
