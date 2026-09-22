@@ -116,6 +116,12 @@ type attachBackend struct {
 	getErr    error
 	attachErr error
 
+	// attaches counts upstream dials. The §10a.1 ordering test needs it: that
+	// test asserts NOTHING happens before the gates, and dialling the sandbox is
+	// something happening — a hoisted dial would leave the registry untouched
+	// and slip past a check that only counted writes.
+	attaches atomic.Int64
+
 	mu        sync.Mutex
 	destroyed []string
 }
@@ -140,6 +146,7 @@ func (b *attachBackend) List(context.Context) ([]backend.Sandbox, error) {
 }
 
 func (b *attachBackend) Attach(ctx context.Context, _, token string) (*websocket.Conn, error) {
+	b.attaches.Add(1)
 	if b.attachErr != nil {
 		return nil, b.attachErr
 	}
@@ -714,9 +721,18 @@ func TestADroppedSocketDestroysNothing(t *testing.T) {
 // phase has hit three times.
 //
 // So the property is asserted rather than described. Each case is refused at a
-// different gate, and each asserts that the registry saw no mutation OF ANY KIND
-// and the backend saw no Destroy. It uses the store's `writes` counter, not
-// `updates`, so a future write through Create or Delete is caught too.
+// different gate, and each asserts that NOTHING happened: the registry saw no
+// mutation of any kind, and the backend saw neither a Destroy nor an upstream
+// Attach. Three counters rather than one, because the claim is not "no writes"
+// but "no effects", and each counter closes a different way of having one —
+//
+//   - store.writes covers Create, Update AND Delete, not just the Update this
+//     handler uses today, so a future write of another shape is caught;
+//   - be.destroyCount() covers the destructive effect §3.16 forbids outright;
+//   - be.attaches covers the upstream dial, which touches neither the registry
+//     nor Destroy and so would otherwise sail past both. It is the effect a
+//     refactor is most likely to hoist, because moving the dial earlier looks
+//     like a latency win.
 func TestAttachWritesNothingUntilTheOriginAndUpgradeChecksHavePassed(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
@@ -772,6 +788,13 @@ func TestAttachWritesNothingUntilTheOriginAndUpgradeChecksHavePassed(t *testing.
 			if n := f.be.destroyCount(); n != 0 {
 				t.Errorf("Destroy called %d times by a request refused at %s; a refused attach "+
 					"touches nothing", n, tc.gate)
+			}
+			if n := f.be.attaches.Load(); n != 0 {
+				t.Errorf("Backend.Attach called %d times by a request refused at %s. The §10a.1 "+
+					"argument is that NOTHING happens before the gates, not merely that nothing is "+
+					"written — an upstream dial reaches the sandbox, and contract §3.16 puts it "+
+					"after the upgrade for a second reason: a dial the client never completes "+
+					"consumes a scrollback replay nobody reads.", n, tc.gate)
 			}
 		})
 	}

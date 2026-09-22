@@ -239,9 +239,25 @@ func New(d Deps) (*API, error) {
 	// added ahead of its definition leaves this file uncompilable for every
 	// step in between, so no suite in them can be green. The only other edit
 	// task 11 made here is its three Deps fields: Image, Resources and
-	// ReadyTimeout. Task 12 also adds its read-only patterns, if any, to
-	// catalogReadOnlyRoutes in routes_audit_test.go — the §10a audit covers
-	// their routes automatically and fails until they do.
+	// ReadyTimeout.
+	//
+	// ANY LATER TASK REGISTERING A GET OR HEAD owes it a line in
+	// routes_audit_test.go, and there are now TWO maps to choose between — the
+	// §10a audit covers the route automatically and fails until one of them
+	// names it:
+	//
+	//   - catalogReadOnlyRoutes, if the handler only reads. This is the usual
+	//     case and the one to reach for.
+	//   - catalogUpgradeGatedRoutes, if it writes but every write sits behind a
+	//     WebSocket upgrade. Contract §10a.1 is the ruling that created this
+	//     category, and it is conditional: the entry is only true while the
+	//     writes follow the gates, so it costs a test pinning that ordering as
+	//     well as a line. Task 12's attach route is the only member today.
+	//
+	// A handler that writes and is NOT upgrade-gated belongs in neither map: it
+	// needs POST, PATCH or DELETE, or a Phase 8 token. Adding it to the
+	// read-only map to quiet the audit is the specific mistake §10a.1 rejected,
+	// because that map is what a later author reads to learn what is read-only.
 	//
 	// The position of that line is a readability preference and not a
 	// load-bearing one: the audit reads both recorders live, so a call added at
