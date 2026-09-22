@@ -26,6 +26,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
@@ -105,6 +106,19 @@ type Deps struct {
 
 	// Log is where a 500's real cause goes. Nil means slog.Default().
 	Log *slog.Logger
+
+	// Image is the sandbox image every session runs, e.g.
+	// "panacea-app/sandbox:dev". Empty means that default.
+	Image string
+
+	// Resources sizes every sandbox. The zero value means
+	// backend.DefaultResources.
+	Resources backend.Resources
+
+	// ReadyTimeout bounds the post-create readiness watch of contract §5.1
+	// step 7. Zero means backend.ReadyTimeout. Task 13 feeds it from
+	// PANACEA_APP_READY_TIMEOUT.
+	ReadyTimeout time.Duration
 }
 
 // route is one ServeMux pattern and the handler registered under it.
@@ -218,17 +232,17 @@ func New(d Deps) (*API, error) {
 	guarded := newRoutes()
 	a.guarded = guarded
 	a.registerCatalog(guarded)
-	// Task 11 adds a.registerSessions(guarded) on the next line and task 12
-	// adds a.registerAttach(guarded). One line each, each taking *routes, and
-	// each in the SAME step that defines the method it names: a call added
-	// ahead of its definition leaves this file uncompilable for every step in
-	// between, so no suite in them can be green. The only other edit either
-	// makes here is task 11's three Deps fields: Image, Resources and
-	// ReadyTimeout. Both also add their read-only patterns, if any, to
+	a.registerSessions(guarded)
+	// Task 12 adds a.registerAttach(guarded) on the next line. One line, taking
+	// *routes, and in the SAME step that defines the method it names: a call
+	// added ahead of its definition leaves this file uncompilable for every
+	// step in between, so no suite in them can be green. The only other edit
+	// task 11 made here is its three Deps fields: Image, Resources and
+	// ReadyTimeout. Task 12 also adds its read-only patterns, if any, to
 	// catalogReadOnlyRoutes in routes_audit_test.go — the §10a audit covers
 	// their routes automatically and fails until they do.
 	//
-	// The position of those two lines is a readability preference and not a
+	// The position of that line is a readability preference and not a
 	// load-bearing one: the audit reads both recorders live, so a call added at
 	// the bottom of this function is audited exactly the same. What IS
 	// load-bearing is that the call goes through a *routes. Neither task owes a

@@ -122,8 +122,13 @@ func decodeBody(t *testing.T, body string) (decodeTarget, *httptest.ResponseReco
 }
 
 // problemFrom reads back the Problem DecodeJSON wrote, failing the test if what
-// it wrote was not one.
-func problemFrom(t *testing.T, rec *httptest.ResponseRecorder) Problem {
+// it wrote was not one carrying wantCode.
+//
+// The code is a parameter rather than a constant because DecodeJSON answers with
+// two of them and the difference is the point: invalid_json for bytes that are
+// not one JSON object, bad_request for a body that parsed and asked for
+// something this endpoint does not have.
+func problemFrom(t *testing.T, rec *httptest.ResponseRecorder, wantCode string) Problem {
 	t.Helper()
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusBadRequest)
@@ -132,8 +137,8 @@ func problemFrom(t *testing.T, rec *httptest.ResponseRecorder) Problem {
 	if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil {
 		t.Fatalf("body %q is not a Problem: %v", rec.Body.String(), err)
 	}
-	if p.Error != CodeInvalidJSON {
-		t.Errorf("error = %q, want %q", p.Error, CodeInvalidJSON)
+	if p.Error != wantCode {
+		t.Errorf("error = %q, want %q", p.Error, wantCode)
 	}
 	if p.Message == "" {
 		t.Error("message is empty; a 400 with no sentence is a bug report with no content")
@@ -155,28 +160,67 @@ func TestDecodeJSONAcceptsAWellFormedBody(t *testing.T) {
 	}
 }
 
-func TestDecodeJSONRejectsAnUnknownField(t *testing.T) {
+func TestDecodeJSONRejectsAnUnknownFieldAsBadRequestAndNotInvalidJson(t *testing.T) {
 	// The reason this is a 400 and not a shrug: "worktreedId" silently ignored
 	// is a session created against the wrong worktree, which the user then has
 	// to notice themselves.
+	//
+	// And the reason the code is bad_request: Group C §1B. An unknown field is
+	// WELL-FORMED JSON that is semantically wrong, so invalid_json would tell
+	// the cockpit something untrue — the same objection that refuses
+	// sandbox_not_running for a sandbox that is running. It is decided here
+	// rather than in each handler because a rule every caller must remember is
+	// not a rule; before this, the worktree PATCH answered bad_request from its
+	// own local field scan while every DecodeJSON endpoint answered
+	// invalid_json, which is two codes for one mistake on one surface.
 	_, rec, ok := decodeBody(t, `{"name":"api","colour":"blue"}`)
 
 	if ok {
 		t.Fatal("DecodeJSON accepted an unknown field")
 	}
-	p := problemFrom(t, rec)
+	p := problemFrom(t, rec, CodeBadRequest)
 	if !strings.Contains(p.Message, "colour") {
 		t.Errorf("message = %q, want it to name the offending field", p.Message)
 	}
 }
 
+func TestDecodeJSONSeparatesAnUnparseableBodyFromASemanticallyWrongOne(t *testing.T) {
+	// The whole of §1B in one table, and the pair is what makes either code
+	// mean anything: invalid_json is reserved for bytes that are not one JSON
+	// object, so a cockpit seeing it knows the request never parsed, and
+	// bad_request means the JSON was fine and this endpoint cannot honour it.
+	for name, tc := range map[string]struct {
+		body     string
+		wantCode string
+	}{
+		"truncated":       {`{"name":"a"`, CodeInvalidJSON},
+		"not json at all": {`name please`, CodeInvalidJSON},
+		"two objects":     {`{"name":"a"}{"name":"b"}`, CodeInvalidJSON},
+		"unknown field":   {`{"colour":"blue"}`, CodeBadRequest},
+		"unknown field beside a known one": {
+			`{"name":"a","colour":"blue"}`, CodeBadRequest,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, rec, ok := decodeBody(t, tc.body)
+			if ok {
+				t.Fatalf("DecodeJSON accepted %s", tc.body)
+			}
+			problemFrom(t, rec, tc.wantCode)
+		})
+	}
+}
+
 func TestDecodeJSONNamesTheFieldWithTheWrongType(t *testing.T) {
+	// Still invalid_json, and deliberately: §1B rules on the field NAME being
+	// unrecognised and says nothing about its value's type, so widening it here
+	// would be this task deciding a question the contract did not ask.
 	_, rec, ok := decodeBody(t, `{"count":"three"}`)
 
 	if ok {
 		t.Fatal("DecodeJSON accepted a string where an int was required")
 	}
-	p := problemFrom(t, rec)
+	p := problemFrom(t, rec, CodeInvalidJSON)
 	if !strings.Contains(p.Message, "count") {
 		t.Errorf("message = %q, want it to name the field", p.Message)
 	}
@@ -188,7 +232,7 @@ func TestDecodeJSONRejectsAnEmptyBody(t *testing.T) {
 	if ok {
 		t.Fatal("DecodeJSON accepted an empty body")
 	}
-	problemFrom(t, rec)
+	problemFrom(t, rec, CodeInvalidJSON)
 }
 
 func TestDecodeJSONRejectsTrailingContent(t *testing.T) {
@@ -199,7 +243,7 @@ func TestDecodeJSONRejectsTrailingContent(t *testing.T) {
 	if ok {
 		t.Fatal("DecodeJSON accepted two JSON values in one body")
 	}
-	problemFrom(t, rec)
+	problemFrom(t, rec, CodeInvalidJSON)
 }
 
 func TestDecodeJSONRejectsABodyOverTheLimit(t *testing.T) {
@@ -210,7 +254,7 @@ func TestDecodeJSONRejectsABodyOverTheLimit(t *testing.T) {
 	if ok {
 		t.Fatal("DecodeJSON accepted a body over MaxBodyBytes")
 	}
-	p := problemFrom(t, rec)
+	p := problemFrom(t, rec, CodeInvalidJSON)
 	if !strings.Contains(p.Message, "1048576") {
 		t.Errorf("message = %q, want it to state the byte limit", p.Message)
 	}
@@ -225,7 +269,7 @@ func TestDecodeJSONReportsTheLimitWhenTheOverflowTrailsAValidValue(t *testing.T)
 	if ok {
 		t.Fatal("DecodeJSON accepted a body over MaxBodyBytes")
 	}
-	p := problemFrom(t, rec)
+	p := problemFrom(t, rec, CodeInvalidJSON)
 	if !strings.Contains(p.Message, "1048576") {
 		t.Errorf("message = %q, want the byte limit rather than a complaint about a second value", p.Message)
 	}
@@ -240,5 +284,5 @@ func TestDecodeJSONFailureIsItselfAProblemResponse(t *testing.T) {
 	if got, want := rec.Header().Get("Content-Type"), "application/json; charset=utf-8"; got != want {
 		t.Errorf("Content-Type = %q, want %q", got, want)
 	}
-	problemFrom(t, rec)
+	problemFrom(t, rec, CodeInvalidJSON)
 }

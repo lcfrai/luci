@@ -8,9 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
-	"strconv"
-	"strings"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
@@ -349,47 +346,36 @@ func (a *API) handleWorktrees(w http.ResponseWriter, r *http.Request) {
 // and whether the handler should continue; every refusal is a 400 it has
 // already written.
 //
-// THE BODY IS READ AS RAW FIELDS rather than straight into a struct with
-// DisallowUnknownFields, and that is the whole of the reason: DecodeJSON answers
-// invalid_json for a field it does not recognise, and {"ready":true,"name":"x"}
-// is well-formed JSON that is semantically wrong. A code the cockpit switches on
-// must not say something untrue — the same principle that refuses
-// sandbox_not_running for a sandbox that is running. Contract §3.7 says
-// bad_request, so bad_request is what this answers.
+// THE UNKNOWN-FIELD SCAN THAT USED TO LIVE HERE IS GONE, and that is Group C
+// §1B. This endpoint answers bad_request for {"ready":true,"name":"x"} because
+// an unknown field is well-formed JSON that is semantically wrong, and it used
+// to reach that answer by decoding into map[string]json.RawMessage and
+// comparing the keys itself — while every endpoint that decoded into a struct
+// answered invalid_json for the same mistake. Two implementations of one rule,
+// disagreeing. httpx.DecodeJSON makes the distinction now, so this reads the
+// field it wants and nothing else, and the answer is the same on every endpoint
+// on the surface.
 //
-// DecodeJSON still owns every BODY rule — the 1 MiB cap, the syntax, the
-// exactly-one-object rule — because the map goes through it too, so the phase
-// still has one body decoder. What moved here is which FIELDS this endpoint
-// accepts, which was always the handler's to decide.
+// ready's VALUE is still a json.RawMessage rather than a *bool, which is not
+// leftover: DecodeJSON reports a wrong type as invalid_json, and contract §3.7
+// wants bad_request for {"ready":"yes"} on the same reasoning as the unknown
+// field. §1B rules on the field name and says nothing about its type, so the
+// one case it does not cover stays where it was rather than being widened here.
 func readyFromBody(w http.ResponseWriter, r *http.Request) (ready bool, ok bool) {
-	var fields map[string]json.RawMessage
-	if !httpx.DecodeJSON(w, r, &fields) {
-		return false, false // DecodeJSON has written its own 400 invalid_json.
+	var body struct {
+		Ready json.RawMessage `json:"ready"`
 	}
-
-	unknown := make([]string, 0, len(fields))
-	for name := range fields {
-		if name != "ready" {
-			unknown = append(unknown, strconv.Quote(name))
-		}
-	}
-	if len(unknown) > 0 {
-		// Sorted, because map order is random and an error message that changes
-		// between identical requests is one nobody trusts.
-		slices.Sort(unknown)
-		badRequest(w, "This endpoint sets one field, ready. It does not accept "+
-			strings.Join(unknown, ", ")+".")
-		return false, false
+	if !httpx.DecodeJSON(w, r, &body) {
+		return false, false // DecodeJSON has written its own 400.
 	}
 
 	// Absent and null are one case: neither asks for anything, and a PATCH that
 	// silently did nothing is worse than one that says so.
-	raw, present := fields["ready"]
-	if !present || string(raw) == "null" {
+	if len(body.Ready) == 0 || string(body.Ready) == "null" {
 		badRequest(w, `This endpoint sets one field. Send {"ready": true} or {"ready": false}.`)
 		return false, false
 	}
-	if err := json.Unmarshal(raw, &ready); err != nil {
+	if err := json.Unmarshal(body.Ready, &ready); err != nil {
 		badRequest(w, "The ready field must be true or false.")
 		return false, false
 	}

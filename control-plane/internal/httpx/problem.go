@@ -95,8 +95,23 @@ func WriteProblem(w http.ResponseWriter, status int, code, msg string, details m
 }
 
 // DecodeJSON reads a JSON body into dst. It rejects unknown fields and bodies
-// over 1 MiB, writes a 400 invalid_json Problem itself on failure, and reports
-// whether the handler should continue.
+// over 1 MiB, writes the 400 Problem itself on failure, and reports whether the
+// handler should continue.
+//
+// IT ANSWERS WITH TWO CODES AND THE DIFFERENCE IS LOAD-BEARING (Group C §1B):
+//
+//   - bytes that are not one JSON object — truncated, not JSON at all, two
+//     values, over the limit — are invalid_json;
+//   - a body that parsed and carries a field dst does not declare is
+//     bad_request, naming the field.
+//
+// An unknown field is well-formed JSON that is semantically wrong, and a code
+// the cockpit switches on must not say something untrue — the same objection
+// that refuses sandbox_not_running for a sandbox that is running. The
+// distinction lives here rather than in each handler for the reason
+// ValidateSpec lives inside EnvEntries: a rule every caller must remember is
+// not a rule. Before it did, one endpoint's own field scan answered bad_request
+// while every DecodeJSON endpoint answered invalid_json for the same mistake.
 //
 // It deliberately does NOT require Content-Type: application/json. Requiring it
 // would force a preflight on cross-origin posts and so add a second CSRF
@@ -108,7 +123,11 @@ func DecodeJSON[T any](w http.ResponseWriter, r *http.Request, dst *T) bool {
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(dst); err != nil {
-		WriteProblem(w, http.StatusBadRequest, CodeInvalidJSON, decodeMessage(err), nil)
+		code := CodeInvalidJSON
+		if _, unknown := unknownField(err); unknown {
+			code = CodeBadRequest
+		}
+		WriteProblem(w, http.StatusBadRequest, code, decodeMessage(err), nil)
 		return false
 	}
 	// A second value in the body is not documented anywhere on this API, and
@@ -164,8 +183,20 @@ func decodeMessage(err error) string {
 	case errors.Is(err, io.ErrUnexpectedEOF):
 		return "Body ended in the middle of a JSON value."
 	}
-	if field, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
+	if field, ok := unknownField(err); ok {
 		return "Body has an unknown field: " + field + "."
 	}
 	return "Body could not be read as JSON."
+}
+
+// unknownField reports whether err is encoding/json's unknown-field complaint,
+// and returns the already-quoted field name it names.
+//
+// A string prefix and not errors.As, because encoding/json builds this one with
+// fmt.Errorf and exports no type for it — there is nothing else to match on. It
+// is the reason DecodeJSON's two codes are decided in one place: the same
+// fragile match in two files would drift, and the failure mode is silent, a
+// handler quietly answering the wrong code.
+func unknownField(err error) (quotedName string, ok bool) {
+	return strings.CutPrefix(err.Error(), "json: unknown field ")
 }

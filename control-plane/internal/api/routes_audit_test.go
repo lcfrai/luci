@@ -40,6 +40,11 @@ var catalogReadOnlyRoutes = map[string]string{
 	"GET /v1/projects/{projectId}/branches":  "The same enumeration, filtered to one project.",
 	"GET /v1/projects/{projectId}/worktrees": "An enumeration plus one registry read and one flag snapshot. The ready flag is only ever WRITTEN by the PATCH beside it.",
 	"GET /v1/harnesses":                      "A package-level table (contract §2.9), copied on the way out.",
+	"GET /v1/sessions": "One Store.List, filtered and sorted in memory. The verbs that change a " +
+		"session are POST, PATCH and DELETE beside it; nothing here creates a sandbox, " +
+		"destroys one, or touches the registry.",
+	"GET /v1/sessions/{id}": "One Store.Get. An exited session stays readable — the transcript is the " +
+		"artifact — and reading it changes nothing about the record or the sandbox.",
 }
 
 // catalogMethodAgnosticRoutes is the other half of the audit, and the half that is
