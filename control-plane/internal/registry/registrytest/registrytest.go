@@ -1,3 +1,21 @@
+// Package registrytest is the behaviour suite every registry.Store
+// implementation must pass. FileStore runs it from
+// filestore_contract_test.go, and task 11's in-memory double runs the same
+// suite, which is the only thing that stops a double drifting from the thing
+// it doubles.
+//
+// IT IMPORTS testing AT ORDINARY BUILD TIME, AND THAT IS DELIBERATE. It is a
+// normal package rather than a _test.go file because Go will not let anything
+// import an external test package (package registry_test), so a suite written
+// there could be called from exactly one file and the "every implementation"
+// promise would be a comment. net/http/httptest and testing/fstest have this
+// exact shape for this exact reason. The testing import costs nothing outside
+// test binaries, because nothing but test code imports this package. Do not
+// "fix" it by renaming the file.
+//
+// A property that belongs to the Store interface belongs HERE, not in an
+// implementation's own test file: a property outside this suite is a property
+// the double is never held to.
 package registrytest
 
 import (
@@ -30,10 +48,15 @@ func RunStoreContract(t *testing.T, newStore NewStoreFunc) {
 	t.Helper()
 	t.Run("CreateGetListDelete", func(t *testing.T) { testCreateGetListDelete(t, newStore) })
 	t.Run("CreateRejectsDuplicateAndEmptyID", func(t *testing.T) { testCreateRejects(t, newStore) })
+	t.Run("CreateClonesTheSessionItIsGiven", func(t *testing.T) { testCreateClones(t, newStore) })
+	t.Run("CreateStampsUpdatedAtAndNormalisesTimesToUTC", func(t *testing.T) { testCreateStamps(t, newStore) })
 	t.Run("UpdateAppliesAndStamps", func(t *testing.T) { testUpdateStamps(t, newStore) })
 	t.Run("UpdateErrorDiscardsTheChange", func(t *testing.T) { testUpdateErrorDiscardsTheChange(t, newStore) })
+	t.Run("UpdateStampsInUTCAndRefusesAnIDChange", func(t *testing.T) { testUpdateRefusesAnIDChange(t, newStore) })
 	t.Run("TheSealHolds", func(t *testing.T) { testSeal(t, newStore) })
+	t.Run("ListReturnsClones", func(t *testing.T) { testListReturnsClones(t, newStore) })
 	t.Run("ListIsOrderedByCreatedAt", func(t *testing.T) { testListOrder(t, newStore) })
+	t.Run("DeleteRemovesOnlyItsOwnRecord", func(t *testing.T) { testDeleteRemovesOnlyItsOwnRecord(t, newStore) })
 	t.Run("ConcurrentUpdatesAllLand", func(t *testing.T) { testConcurrentUpdates(t, newStore) })
 }
 
@@ -147,6 +170,63 @@ func testCreateRejects(t *testing.T, newStore NewStoreFunc) {
 	}
 }
 
+// testCreateClones closes the half of the seal testSeal cannot see: the caller
+// still holds the value it passed, and Args is a slice, so a Create that stores
+// the struct as given shares its backing array with whatever the caller does
+// next — outside the lock, with nothing serialising it. An in-memory double is
+// the likelier offender here than a file store, because it has no marshalling
+// step to launder the aliasing away.
+func testCreateClones(t *testing.T, newStore NewStoreFunc) {
+	s := MustOpen(t, newStore, StorePath(t))
+
+	in := Seed("s-00000001", time.Time{})
+	if err := s.Create(in); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	in.Args[0] = "--smuggled"
+
+	got, err := s.Get("s-00000001")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Args[0] != "--model" {
+		t.Fatalf("the stored record shares the caller's Args array: %q, want --model", got.Args[0])
+	}
+}
+
+// testCreateStamps pins decision 2 beyond what testCreateGetListDelete reaches:
+// that a caller-supplied CreatedAt keeps its instant and loses its zone, and
+// that UpdatedAt is stamped too. A record nobody has updated must still read as
+// updated when it was created.
+func testCreateStamps(t *testing.T, newStore NewStoreFunc) {
+	s := MustOpen(t, newStore, StorePath(t))
+
+	// A fixed offset rather than a zoneinfo lookup: Windows ships no tzdata, so
+	// time.LoadLocation("Australia/Sydney") fails there and nowhere else.
+	sydney := time.FixedZone("AEST", 10*60*60)
+	created := time.Date(2026, 9, 18, 19, 14, 3, 0, sydney)
+	if err := s.Create(Seed("s-00000001", created)); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := s.Get("s-00000001")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if !got.CreatedAt.Equal(created) {
+		t.Fatalf("CreatedAt = %s, want the instant the caller supplied, %s", got.CreatedAt, created)
+	}
+	if got.CreatedAt.Location() != time.UTC {
+		t.Fatalf("CreatedAt location = %v, want UTC — two machines' documents should diff", got.CreatedAt.Location())
+	}
+	if got.UpdatedAt.IsZero() {
+		t.Fatal("Create left UpdatedAt zero; a record nobody has updated reads as updated when it was created")
+	}
+	if got.UpdatedAt.Location() != time.UTC {
+		t.Fatalf("UpdatedAt location = %v, want UTC", got.UpdatedAt.Location())
+	}
+}
+
 func testUpdateStamps(t *testing.T, newStore NewStoreFunc) {
 	path := StorePath(t)
 	s := MustOpen(t, newStore, path)
@@ -226,6 +306,42 @@ func testUpdateErrorDiscardsTheChange(t *testing.T, newStore NewStoreFunc) {
 	}
 }
 
+// testUpdateRefusesAnIDChange. The id is the store's key: a mutate that changes
+// it would leave the store keyed by one id and holding a record carrying
+// another, and the next reload would rename the session with nothing to show
+// why. Refusing is a symptom; restoring the id quietly is not. UpdatedAt's zone
+// rides along here because it is the same call.
+func testUpdateRefusesAnIDChange(t *testing.T, newStore NewStoreFunc) {
+	s := MustOpen(t, newStore, StorePath(t))
+	if err := s.Create(Seed("s-00000001", time.Time{})); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := s.Update("s-00000001", func(sess *registry.Session) error {
+		sess.Status = registry.StatusIdle
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if got.UpdatedAt.Location() != time.UTC {
+		t.Fatalf("UpdatedAt location = %v, want UTC", got.UpdatedAt.Location())
+	}
+
+	if _, err := s.Update("s-00000001", func(sess *registry.Session) error {
+		sess.ID = "s-00000002"
+		return nil
+	}); err == nil {
+		t.Fatal("Update accepted a mutate that changed the session id")
+	}
+	if _, err := s.Get("s-00000002"); !errors.Is(err, registry.ErrNotFound) {
+		t.Fatalf("Get s-00000002: err = %v, want ErrNotFound — the rename was committed", err)
+	}
+	if _, err := s.Get("s-00000001"); err != nil {
+		t.Fatalf("Get s-00000001 after the refused rename: %v", err)
+	}
+}
+
 func testSeal(t *testing.T, newStore NewStoreFunc) {
 	path := StorePath(t)
 	s := MustOpen(t, newStore, path)
@@ -280,6 +396,33 @@ func testSeal(t *testing.T, newStore NewStoreFunc) {
 	}
 }
 
+// testListReturnsClones is the seal on the read side of List. testSeal pins it
+// for Get only, and a List that ranges the index appending the stored values
+// hands out live Args arrays to every poll of the rail.
+func testListReturnsClones(t *testing.T, newStore NewStoreFunc) {
+	s := MustOpen(t, newStore, StorePath(t))
+	if err := s.Create(Seed("s-00000001", time.Time{})); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	list, err := s.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("List returned %d sessions, want 1", len(list))
+	}
+	list[0].Args[0] = "--smuggled"
+
+	got, err := s.Get("s-00000001")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Args[0] != "--model" {
+		t.Fatalf("List returned a view into the index: %q, want --model", got.Args[0])
+	}
+}
+
 func testListOrder(t *testing.T, newStore NewStoreFunc) {
 	path := StorePath(t)
 	s := MustOpen(t, newStore, path)
@@ -314,6 +457,39 @@ func testListOrder(t *testing.T, newStore NewStoreFunc) {
 		if fmt.Sprint(got) != fmt.Sprint(want) {
 			t.Fatalf("List order = %v, want %v — in map order the rail reshuffles on every poll", got, want)
 		}
+	}
+}
+
+// testDeleteRemovesOnlyItsOwnRecord. testCreateGetListDelete deletes the only
+// session it created, so a Delete that clears the whole store, or one that
+// drops the record and leaves its id in whatever structure List orders by,
+// passes it. This reloads, because the survivors have to be durable and not
+// just present in memory.
+func testDeleteRemovesOnlyItsOwnRecord(t *testing.T, newStore NewStoreFunc) {
+	path := StorePath(t)
+	s := MustOpen(t, newStore, path)
+
+	base := time.Date(2026, 9, 18, 9, 0, 0, 0, time.UTC)
+	for i, id := range []string{"s-0000000a", "s-0000000b", "s-0000000c"} {
+		if err := s.Create(Seed(id, base.Add(time.Duration(i)*time.Hour))); err != nil {
+			t.Fatalf("Create %s: %v", id, err)
+		}
+	}
+	if err := s.Delete("s-0000000b"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	list, err := MustOpen(t, newStore, path).List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	got := make([]string, 0, len(list))
+	for _, sess := range list {
+		got = append(got, sess.ID)
+	}
+	want := []string{"s-0000000a", "s-0000000c"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("after Delete the store holds %v, want %v", got, want)
 	}
 }
 

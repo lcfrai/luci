@@ -489,13 +489,21 @@ func writeAtomic(path string, data []byte) error {
 		return fmt.Errorf("registry: chmod %s: %w", tmpName, err)
 	}
 
+	const attempts = 5
 	var last error
-	for i := 0; i < 5; i++ {
+	for i := 0; i < attempts; i++ {
 		if last = os.Rename(tmpName, path); last == nil {
 			syncDir(dir)
 			return nil
 		}
-		time.Sleep(time.Duration(20*(i+1)) * time.Millisecond)
+		// Nothing sleeps after the final attempt: there is no sixth rename for
+		// it to wait on, and saveLocked runs under the write lock, so that last
+		// 100 ms would be 100 ms of Get and List blocked on a save already
+		// doomed — while the cockpit polls both every two seconds. A transient
+		// holder still gets the same 20+40+60+80 ms window to let go.
+		if i < attempts-1 {
+			time.Sleep(time.Duration(20*(i+1)) * time.Millisecond)
+		}
 	}
 	return fmt.Errorf("registry: replace %s: %w", path, last)
 }

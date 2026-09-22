@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -92,8 +93,12 @@ func TestSessionsSurviveAReopen(t *testing.T) {
 	if got.Endpoint != want.Endpoint || got.SandboxRef != want.SandboxRef || got.Backend != want.Backend {
 		t.Fatalf("sandbox identity lost: endpoint=%q ref=%q backend=%q", got.Endpoint, got.SandboxRef, got.Backend)
 	}
-	if got.Command != want.Command || len(got.Args) != len(want.Args) {
-		t.Fatalf("restart argv lost: command=%q args=%v", got.Command, got.Args)
+	// Contents, not just length: this is the test whose whole subject is that
+	// the argv survives, and a store that persisted three of the wrong strings
+	// would restart the agent with the wrong model.
+	if got.Command != want.Command || !slices.Equal(got.Args, want.Args) {
+		t.Fatalf("restart argv lost: command=%q args=%v, want %q args=%v",
+			got.Command, got.Args, want.Command, want.Args)
 	}
 	if got.Status != want.Status || got.AttachCount != want.AttachCount {
 		t.Fatalf("status/attachCount = %q/%d, want %q/%d", got.Status, got.AttachCount, want.Status, want.AttachCount)
@@ -293,10 +298,25 @@ func TestWorktreeReadyFlagSurvivesAReopen(t *testing.T) {
 
 func TestUnknownWorktreeIsNotReady(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sessions.json")
+	st := newStore(t, path)
+	if _, err := st.SetWorktreeReady("w-4a77b1c9", true); err != nil {
+		t.Fatalf("SetWorktreeReady: %v", err)
+	}
 
-	// The zero value is the default the API reports as "ready": false for every
-	// worktree git knows about and the registry has never been told about.
-	if newStore(t, path).WorktreeFlagsSnapshot()["w-never-seen"].Ready {
+	// The property is the store's, not Go's: the snapshot holds a row for every
+	// worktree the registry has been told about and for no other. That is what
+	// makes the zero value a truthful answer — decision 5, "a worktree the
+	// registry has never seen is not an error, it is a worktree that is not
+	// ready". A store that pre-seeded rows, or defaulted a miss to true, would
+	// fail here rather than in the API.
+	snap := st.WorktreeFlagsSnapshot()
+	if len(snap) != 1 {
+		t.Fatalf("snapshot holds %d rows, want only the one that was set: %v", len(snap), snap)
+	}
+	if _, present := snap["w-never-seen"]; present {
+		t.Fatalf("the store invented a row for a worktree it was never told about: %v", snap)
+	}
+	if snap["w-never-seen"].Ready {
 		t.Fatal("an unknown worktree reported ready")
 	}
 }

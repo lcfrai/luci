@@ -164,6 +164,51 @@ func TestCloneCopiesEveryOtherField(t *testing.T) {
 	}
 }
 
+// cloneDeepCopies names every reference-typed field on Session that Clone
+// copies deeply. Adding a field here without adding the copy to Clone is the
+// one way to defeat TestCloneCoversEveryReferenceTypedField, and it takes a
+// deliberate edit to this list to do it.
+var cloneDeepCopies = map[string]bool{
+	"Args": true,
+}
+
+// TestCloneCoversEveryReferenceTypedField is a tripwire for the next field, not
+// a test of today's behaviour.
+//
+// Clone is hand-written: a struct copy plus an explicit copy of Args. The
+// moment someone adds Env map[string]string or Labels []string — and the brief
+// calls new persisted state "an additive change inside schemaVersion 1", so
+// that is the documented growth path rather than a hypothesis — the struct copy
+// goes shallow for it and the store's seal quietly stops sealing. Nothing else
+// notices: TestCloneCopiesEveryOtherField uses reflect.DeepEqual, which is
+// perfectly happy with a shared reference, and every seal test in the contract
+// suite pokes Args by name.
+//
+// This walks the type instead, so the next reference-typed field is a red test
+// naming the field rather than an aliasing bug that reaches the cockpit.
+func TestCloneCoversEveryReferenceTypedField(t *testing.T) {
+	typ := reflect.TypeOf(registry.Session{})
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		switch field.Type.Kind() {
+		case reflect.Slice, reflect.Map, reflect.Pointer, reflect.Chan:
+		default:
+			// Strings, ints, Status and time.Time are all copied correctly by
+			// the struct copy alone. time.Time carries a *Location, but that
+			// value is immutable and shared on purpose throughout the standard
+			// library.
+			continue
+		}
+		if !cloneDeepCopies[field.Name] {
+			t.Errorf("Session.%s is %s (%s), which a struct copy aliases rather than copies.\n"+
+				"Either deep-copy it in Session.Clone and add %q to cloneDeepCopies, or, if it is\n"+
+				"genuinely immutable once stored, add %q to cloneDeepCopies with a comment saying why.\n"+
+				"Leaving it means Get, List and Update hand callers a live reference into the store.",
+				field.Name, field.Type, field.Type.Kind(), field.Name, field.Name)
+		}
+	}
+}
+
 func TestDefaultPathIsSessionsJSONUnderTheSessionsStateDir(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv(statepath.EnvStateDir, root)
