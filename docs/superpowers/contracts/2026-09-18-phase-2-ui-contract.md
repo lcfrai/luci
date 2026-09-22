@@ -438,8 +438,14 @@ export interface Worktree {
    *  queue, and Phase 2 has no queue. It decides one thing: whether the worktree row draws
    *  an expand chevron. See §7.6. */
   sessionCount: number;
-  /** REQUESTED, not yet in the Go contract — see §10.2. Undefined until it lands; the
-   *  "Mark ready" verb is not rendered while it is undefined. */
+  /** LANDED. §10.2 was requested and shipped: `catalog.go`'s `worktreeJSON` carries
+   *  `Ready bool` with no `omitempty`, so the field is ALWAYS on the wire as true or
+   *  false — never absent, never null — and `PATCH …/worktrees/{id}` with
+   *  `{"ready": bool}` persists it through `registry.WorktreeFlagStore`. So task 22's
+   *  contingency is resolved: the "Mark ready" verb IS rendered, and task 22 does not
+   *  need to check which world it is in. The type stays optional because that accepts
+   *  an always-present boolean and is the safe direction; it is not a signal that the
+   *  field might be absent. Amended 2026-09-23 after task 15 measured the Go side. */
   ready?: boolean;
 }
 
