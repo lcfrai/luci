@@ -97,8 +97,8 @@ export function aWorktree(over: Partial<Worktree> = {}): Worktree {
     path: "C:\\work\\panacea\\.worktrees\\evidence-upload",
     isPrimary: false,
     sessionCount: 1,
-    // `ready` is deliberately absent: §2 says it is undefined until the Go contract carries
-    // it, and the "Mark ready" verb is not rendered while it is undefined.
+    // Always on the wire per §2's amendment: worktreeJSON's `Ready bool` has no omitempty.
+    ready: false,
     ...over,
   };
 }
