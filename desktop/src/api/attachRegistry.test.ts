@@ -94,6 +94,21 @@ describe("attachRegistry — lifecycle", () => {
     expect(getAttachState("s-1").phase).toBe("detached");
   });
 
+  it("a torn-down pane reports no running ladder", () => {
+    // `ladderStartedAt !== 0` is exactly "this pane is retrying", and a closed pane is not.
+    // This is the DETACHED singleton's literal, reached the way every closed pane reaches it —
+    // and it is a literal, so nothing recomputes it if the invariant moves. A non-zero here
+    // has task 20 render a ticking elapsed for a pane that is doing nothing at all.
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    releaseAttach("s-1");
+    vi.advanceTimersByTime(GRACE_MS + 1);
+
+    const state = getAttachState("s-1");
+    expect(state.phase).toBe("detached");
+    expect(state.ladderStartedAt).toBe(0);
+  });
+
   it("a re-acquire inside the grace window cancels the teardown (StrictMode's shape)", () => {
     acquireAttach(live(), { createTerm, readOnly: false });
     releaseAttach("s-1");
@@ -209,6 +224,19 @@ describe("attachRegistry — input", () => {
     expect(state.phase).toBe("ended");
     expect(state.reason).toBe("process exited with status 130");
     expect(term.written.join("")).toContain("process exited with status 130");
+  });
+
+  it("an already-exited session reports no running ladder on first open", () => {
+    // The other mainline path that publishes a literal 0: an exited session never starts a
+    // ladder at all, so a non-zero here would claim a pane is retrying an attach it will never
+    // attempt. Same invariant as the torn-down case, different literal, neither derived.
+    acquireAttach(
+      live({ status: "exited", exitReason: "process exited with status 0" }),
+      { createTerm, readOnly: true },
+    );
+    const state = getAttachState("s-1");
+    expect(state.phase).toBe("ended");
+    expect(state.ladderStartedAt).toBe(0);
   });
 
   it("gives an exited session with no reason a sentence anyway", () => {
