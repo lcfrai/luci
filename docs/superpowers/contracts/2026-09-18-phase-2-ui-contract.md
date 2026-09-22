@@ -1019,12 +1019,17 @@ export const api: CockpitClient;
 ### 4.2 The error shape
 
 ```ts
-/** The complete set from contract-go.md §3.2, plus two the client raises itself. */
+/** The complete set from contract-go.md §3.2 — including non_loopback_publish, which Group C's
+ *  ruling 7 added — and the two the client raises itself.
+ *
+ *  non_loopback_publish is NOT a "not running" state: the sandbox IS running and published its
+ *  port off loopback, so any exhaustive switch over this union must give it its own sentence. */
 export type ProblemCode =
   | "invalid_json" | "bad_request" | "unknown_harness" | "unsupported_option"
   | "worktree_not_found" | "project_not_found" | "session_not_found"
   | "forbidden_origin" | "forbidden_host" | "conflict" | "sandbox_not_running"
   | "harness_unavailable" | "upgrade_required" | "backend_unavailable" | "internal"
+  | "non_loopback_publish"
   /* client-raised */
   | "network_unavailable"   // fetch rejected: the control plane is not running
   | "timeout";              // the request exceeded timeoutMs
@@ -1059,6 +1064,12 @@ catch (e) {
 `network_unavailable` and `backend_unavailable` are different sentences to the user and must not
 be collapsed: the first means *our* process is not up, the second means Docker is not. Telling a
 user to start Docker when the control plane is dead costs them ten minutes.
+
+**Sixteen codes, not fifteen.** `non_loopback_publish` was added by Group C's ruling 7 and is
+emitted by the attach handler when the daemon reports a sandbox published off loopback. It carries
+the same trap as the pair above and a worse one: **the sandbox is running**, so the plausible
+guess — "the sandbox is not running" — is the one sentence it must never produce. Anything
+rendering a failure reason from this union owes it its own branch.
 
 Non-2xx handling: read the body, `JSON.parse` it, and if it has a string `error` and a string
 `message`, throw that `ApiError`. If the body is not a Problem (a proxy interposed, or the server
@@ -1824,7 +1835,10 @@ The CSS, in `common.css`:
 ```
 
 `opacity` only, so it stays on the compositor, and it is inert under `prefers-reduced-motion` via
-the `@media` block in `tokens.css`.
+the `@media` block in `tokens.css`. **The breath stopping is not the whole story**: `running` and
+`idle` are both `dot-disc`, so with the animation inert they would differ by colour alone — which is
+what the shape vocabulary exists to prevent. §7.5 requires a compensating **static** ring on
+`.dot-live` inside that same media query; read the two together.
 
 ### 7.2 Log panes: ~10 Hz, and never a scroll-jump — `desktop/src/api/attachRegistry.ts`
 
