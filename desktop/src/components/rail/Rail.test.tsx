@@ -1,0 +1,128 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { Rail } from "./Rail";
+import { resetCockpit, useCockpit } from "../../store/store";
+import { aBranch, aProject, aSession, aWorktree } from "../../test/fixtures";
+import type { CockpitState } from "../../store/store";
+
+const project = aProject({ id: "p-1", name: "engagement-portal", path: "C:\\work\\portal" });
+const branch = aBranch({ id: "b-1", projectId: "p-1", name: "evidence-upload", isHead: false });
+const worktree = aWorktree({
+  id: "w-1",
+  projectId: "p-1",
+  branchId: "b-1",
+  name: "wt-evidence",
+  path: "C:\\work\\wt\\evidence",
+  sessionCount: 2,
+});
+const base = { projectId: "p-1", branchId: "b-1", worktreeId: "w-1", harness: "claude-code" };
+const running = aSession({ ...base, id: "s-run", status: "running", title: "wire the upload route" });
+const idling = aSession({ ...base, id: "s-idle", status: "idle", title: "read the spec" });
+
+function seed(over: Partial<CockpitState> = {}): void {
+  resetCockpit();
+  useCockpit.setState({
+    projects: [project],
+    branchesByProject: { "p-1": [branch] },
+    worktreesByBranch: { "b-1": [worktree] },
+    sessions: { "s-run": running, "s-idle": idling },
+    sessionIdsByWorktree: { "w-1": ["s-run", "s-idle"] },
+    expandedProjects: { "p-1": true },
+    expandedBranches: { "b-1": true },
+    expandedWorktrees: { "w-1": true },
+    ...over,
+  });
+}
+
+describe("Rail", () => {
+  beforeEach(() => seed());
+
+  it("nests project, branch, worktree and session as four levels", () => {
+    render(<Rail />);
+    const levelOf = (name: RegExp): string | null =>
+      screen.getByRole("treeitem", { name }).getAttribute("aria-level");
+    expect(levelOf(/engagement-portal/)).toBe("1");
+    expect(levelOf(/evidence-upload$/)).toBe("2");
+    expect(levelOf(/wt-evidence/)).toBe("3");
+    expect(levelOf(/wire the upload route/)).toBe("4");
+  });
+
+  it("selects a branch and sets the lens to develop in one click", async () => {
+    render(<Rail />);
+    await userEvent.click(screen.getByRole("treeitem", { name: /evidence-upload$/ }));
+    expect(useCockpit.getState().selection.branchId).toBe("b-1");
+    expect(useCockpit.getState().lens).toBe("develop");
+  });
+
+  it("gives the branch the highest-attention status among its sessions", () => {
+    render(<Rail />);
+    expect(screen.getByRole("img", { name: "running · evidence-upload" })).toBeDefined();
+    expect(screen.queryByRole("img", { name: "idle · evidence-upload" })).toBeNull();
+  });
+
+  it("keeps a worktree expandable when only exited sessions remain", () => {
+    const done = aSession({ ...base, id: "s-done", status: "exited", title: "read the spec" });
+    seed({
+      worktreesByBranch: { "b-1": [{ ...worktree, sessionCount: 0 }] },
+      sessions: { "s-done": done },
+      sessionIdsByWorktree: { "w-1": ["s-done"] },
+    });
+    render(<Rail />);
+    const row = screen.getByRole("treeitem", { name: /wt-evidence/ });
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("treeitem", { name: /read the spec/ })).toBeDefined();
+  });
+
+  // The other arm of the same OR. Step 11's departure is "sessionCount > 0 OR the store
+  // already holds session ids", and each arm carries a case the other cannot: the test above
+  // covers sessionCount === 0 with ids present, this one covers sessionCount > 0 with no ids
+  // fetched yet — the first paint after the catalogue lands and before the session list does.
+  // Measured: without it, collapsing hasChildren to `sessionIds.length > 0` survives every
+  // other test in this file, which is a worktree that silently loses its chevron until a poll
+  // completes. Group D shared-shape §3A.1 rule 3: a two-condition guard pins BOTH collapses.
+  it("draws the chevron before the session list has been fetched", () => {
+    seed({ sessions: {}, sessionIdsByWorktree: {} });
+    render(<Rail />);
+    const row = screen.getByRole("treeitem", { name: /wt-evidence/ });
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  // The negative case, which is what BOUNDS the departure. Widening when the chevron is drawn
+  // is only a departure and not a free-for-all if a worktree with nothing under it still draws
+  // none: §6.2 gives aria-expanded to a row that has children, and an expand affordance that
+  // reveals an empty group is a control that lies. Measured: without this, `hasChildren = true`
+  // survives both collapse mutants above.
+  it("draws no chevron for a worktree with nothing under it", () => {
+    seed({
+      worktreesByBranch: { "b-1": [{ ...worktree, sessionCount: 0 }] },
+      sessions: {},
+      sessionIdsByWorktree: {},
+    });
+    render(<Rail />);
+    const row = screen.getByRole("treeitem", { name: /wt-evidence/ });
+    expect(row.hasAttribute("aria-expanded")).toBe(false);
+  });
+
+  it("carries names and no numbers", () => {
+    render(<Rail />);
+    expect(screen.getByRole("tree").textContent ?? "").not.toMatch(/\d/);
+  });
+
+  it("moves with the arrow keys and collapses with ArrowLeft", async () => {
+    render(<Rail />);
+    const rows = screen.getAllByRole("treeitem");
+    rows[0].focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(rows[1]);
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(useCockpit.getState().expandedBranches["b-1"]).toBe(false);
+  });
+
+  it("dispatches every right-click through the one context menu", () => {
+    render(<Rail />);
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: /evidence-upload$/ }));
+    expect(useCockpit.getState().contextMenu?.kind).toBe("branch");
+    expect(useCockpit.getState().contextMenu?.id).toBe("b-1");
+  });
+});

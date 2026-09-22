@@ -1,0 +1,62 @@
+@import "../../styles/tokens.css";
+
+/* The sub-rail. Owns .sub-*. */
+.sub {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  block-size: 100%;
+  background: var(--canvas);
+  box-shadow: inset -1px 0 0 var(--line);
+  overflow: hidden;
+}
+.sub-head {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.sub-back {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+}
+.sub-branch {
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sub-list {
+  padding: 6px;
+}
+.sub-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  inline-size: 100%;
+  padding: 6px 8px;
+  background: none;
+  border: 0;
+  border-radius: var(--r-ctl);
+  color: var(--ink-2);
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.sub-row:hover {
+  background: var(--hover);
+}
+.sub-row[aria-current="page"] {
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+  color: var(--ink);
+}
+.sub-glyph {
+  inline-size: 14px;
+  text-align: center;
+}

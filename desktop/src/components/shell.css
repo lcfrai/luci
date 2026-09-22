@@ -1,0 +1,47 @@
+@import "../styles/tokens.css";
+
+/* The shell grid. Owns .shell-* and the two rules LensPlaceholder needs.
+   One `../`, not two: this file sits in src/components/, not in a subdirectory of it. */
+.shell {
+  --rail-w: 248px;
+  --sub-w: 0px;
+  display: grid;
+  grid-template-columns: var(--rail-w) var(--sub-w) 1fr;
+  block-size: 100vh;
+  background: var(--page);
+  color: var(--ink);
+  overflow: hidden;
+  /* The ONE layout transition this plan allows (§6.1). A rail that appears instantaneously
+     reads as a glitch. prefers-reduced-motion disables it via tokens.css. */
+  transition: grid-template-columns var(--dur) var(--ease);
+}
+.shell-deep {
+  --sub-w: 182px;
+}
+.shell-rail-collapsed {
+  --rail-w: 0px;
+}
+.shell-main {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-inline-size: 0;
+  overflow: hidden;
+}
+.shell-lens {
+  min-block-size: 0;
+  overflow: hidden;
+}
+.lens-placeholder {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  block-size: 100%;
+  padding: 24px;
+  color: var(--ink-2);
+  text-align: center;
+}
+.lens-placeholder h2 {
+  color: var(--ink);
+  text-transform: capitalize;
+}

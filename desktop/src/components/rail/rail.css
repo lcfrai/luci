@@ -1,0 +1,147 @@
+@import "../../styles/tokens.css";
+
+/* The rail. Owns .rail-*. */
+.rail {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-inline-size: 0;
+  block-size: 100%;
+  background: var(--canvas);
+  box-shadow: inset -1px 0 0 var(--line);
+  overflow: hidden;
+}
+.rail-scroll {
+  overflow-y: auto;
+  padding: 4px;
+}
+.rail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  inline-size: 100%;
+  padding: 4px 6px;
+  border-radius: var(--r-ctl);
+  color: var(--ink-2);
+  cursor: default;
+  user-select: none;
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.rail-row:hover {
+  background: var(--hover);
+}
+.rail-row[aria-selected="true"] {
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+  color: var(--ink);
+}
+.rail-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rail-chev {
+  inline-size: 10px;
+  color: var(--ink-3);
+  text-align: center;
+}
+.rail-chev-empty {
+  visibility: hidden;
+}
+.rail-dot-btn {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+.rail-level-2 {
+  padding-inline-start: 18px;
+}
+.rail-level-3 {
+  padding-inline-start: 32px;
+}
+.rail-level-4 {
+  padding-inline-start: 46px;
+}
+.rail-machine,
+.rail-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: none;
+  border: 0;
+  color: var(--ink-2);
+  font: inherit;
+  text-align: start;
+}
+.rail-machine {
+  inline-size: 100%;
+  box-shadow: inset 0 -1px 0 var(--line);
+  cursor: pointer;
+}
+.rail-badge {
+  padding: 1px 6px;
+  border-radius: var(--r-chip);
+  background: var(--need-tint);
+  color: var(--need);
+}
+/* The machines popover's CONTENT. `.pop` in common.css owns the surface, the elevation and
+   the placement; this owns only what goes inside it, which is why the prefix is .rail-*. */
+.rail-machine-pop {
+  display: grid;
+  gap: 6px;
+  max-inline-size: 280px;
+  padding: 2px 4px;
+  color: var(--ink-2);
+  white-space: normal;
+}
+.rail-machine-pop p {
+  margin: 0;
+  color: var(--ink);
+}
+.rail-machine-pop ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-inline-start: 16px;
+}
+.rail-footer {
+  display: grid;
+  gap: 6px;
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.rail-footer-error {
+  color: var(--fail);
+  white-space: normal;
+}
+.rail-kbd {
+  padding: 1px 5px;
+  border-radius: var(--r-chip);
+  box-shadow: var(--e-hair);
+  color: var(--ink-3);
+  font-family: var(--mono);
+}
+.rail-empty {
+  padding: 12px;
+  color: var(--ink-3);
+  white-space: normal;
+}
+.rail-add {
+  margin-inline-start: auto;
+  padding: 0 6px;
+  background: none;
+  border: 0;
+  border-radius: var(--r-chip);
+  color: var(--accent-hi);
+  cursor: pointer;
+  font: inherit;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.rail-row:hover .rail-add,
+.rail-add:focus-visible {
+  opacity: 1;
+}

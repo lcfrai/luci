@@ -11,10 +11,12 @@ import type {
   Harness,
   HarnessId,
   Machine,
+  Project,
   ProjectId,
   Session,
   SessionDefaults,
   SessionId,
+  SessionStatus,
   Worktree,
   WorktreeId,
 } from "./types";
@@ -110,3 +112,73 @@ export const selectResolvedDefaults = (s: CockpitState): SessionDefaults =>
 //   selectWorktreeById(id) => (s) => Worktree | undefined
 //     by-id reads §3.7 has for a session and a harness but not for the three catalogue
 //     levels, which ContextMenu needs because openContextMenu hands it only an id and a kind
+
+/** The project, branch or worktree a surface is about, by id.
+ *
+ *  ADDED BY TASK 18 — not in contract §3.7, which has selectSession and selectHarness but no
+ *  by-id read for the three catalogue levels. `ContextMenu` needs all three: openContextMenu
+ *  hands it an id and a kind and nothing else. The branch and worktree forms are DERIVATIONS,
+ *  not lookups — both indexes are Records of arrays — which is why shared-shape rule 4 puts
+ *  them here rather than inline in the component. Each returns the store's own object, so the
+ *  reference is stable across a poll that changed nothing and no useShallow is needed. */
+export const selectProjectById =
+  (id: ProjectId) =>
+  (s: CockpitState): Project | undefined =>
+    s.projects.find((p) => p.id === id);
+
+export const selectBranchById =
+  (id: BranchId) =>
+  (s: CockpitState): Branch | undefined => {
+    for (const branches of Object.values(s.branchesByProject)) {
+      const found = branches.find((b) => b.id === id);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+
+export const selectWorktreeById =
+  (id: WorktreeId) =>
+  (s: CockpitState): Worktree | undefined => {
+    for (const worktrees of Object.values(s.worktreesByBranch)) {
+      const found = worktrees.find((w) => w.id === id);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+
+/** Precedence from contract §6.2. Lower is more attention-worthy. */
+const STATUS_RANK: Record<SessionStatus, number> = {
+  running: 0,
+  starting: 1,
+  idle: 2,
+  exited: 3,
+};
+
+/** The session a branch row's dot is about, or null when the branch has none.
+ *
+ *  ADDED BY TASK 18 — not in contract §3.7. The rail needs it (§6.2): the dot shows the
+ *  highest-attention status among the branch's sessions, and clicking it navigates to the
+ *  first session carrying that status. Returning the id rather than the status gives the row
+ *  both facts from one read, and a string is referentially stable where a { status, id }
+ *  object would re-render every rail row on every 2 s poll.
+ *
+ *  Worktrees and sessions are walked in server order and the comparison is strict, so "first"
+ *  means first in that order — the client never re-sorts (§3.2). */
+export const selectBranchAttentionSessionId =
+  (branchId: BranchId) =>
+  (s: CockpitState): SessionId | null => {
+    let best: SessionId | null = null;
+    let bestRank = Number.POSITIVE_INFINITY;
+    for (const worktree of s.worktreesByBranch[branchId] ?? []) {
+      for (const id of s.sessionIdsByWorktree[worktree.id] ?? []) {
+        const session = s.sessions[id];
+        if (session === undefined) continue;
+        const rank = STATUS_RANK[session.status];
+        if (rank < bestRank) {
+          bestRank = rank;
+          best = id;
+        }
+      }
+    }
+    return best;
+  };

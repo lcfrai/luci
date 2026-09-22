@@ -1,0 +1,154 @@
+@import "../../styles/tokens.css";
+
+/* Shared primitives: the status dot, the popover, the toast stack.
+   Owns .dot-*, .pop-* and .toast-*. No other file writes these prefixes.
+   The @import above is the first line of EVERY stylesheet in this task, and of every
+   stylesheet in tasks 20 to 23: contract §5.5 requires it, Group D shared-shape §3B rule 1
+   binds it, and task 24's designsystem.test.ts strips comments and asserts that the first
+   line left is exactly that import. A component stylesheet that opens with a selector fails
+   the audit, and the audit is the phase's only mechanical defence against a tree of
+   hard-coded colour. */
+
+@keyframes beat {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* The status-change halo, drawn by .dot-flash::after. One outward pulse that fades to
+   nothing: transform and opacity only, so it stays on the compositor (§7.5). It ends at
+   opacity 0 and the rule below holds it there with animation-fill-mode, because React strips
+   the class a frame later and a snap back to full opacity would read as a second flash. */
+@keyframes flash {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+.dot {
+  /* position: relative is what the ::after halo is measured against. Without it the halo is
+     laid out from the nearest positioned ancestor — a rail row, or the viewport. */
+  position: relative;
+  display: inline-block;
+  flex: none;
+  inline-size: 8px;
+  block-size: 8px;
+  background: currentColor;
+  color: var(--ink-3);
+}
+
+/* Shape, not just colour — docs/DESIGN-SYSTEM.md, contract §7.5. */
+.dot-disc {
+  border-radius: 50%;
+}
+.dot-ring {
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+.dot-square {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 1px;
+}
+
+.dot-tone-starting,
+.dot-tone-provisioning {
+  color: var(--accent);
+}
+.dot-tone-running {
+  color: var(--run);
+}
+.dot-tone-idle,
+.dot-tone-sleeping {
+  color: var(--idle);
+}
+.dot-tone-exited,
+.dot-tone-stopped {
+  color: var(--exited);
+}
+.dot-tone-error {
+  color: var(--fail);
+}
+
+/* opacity only, so it stays on the compositor. The PHASE comes from the inline
+   animation-delay beatDelayStyle() returns; the duration comes from the token. */
+.dot-live {
+  animation: beat var(--beat) var(--ease) infinite;
+}
+/* THE FLASH IS ON A PSEUDO-ELEMENT, AND THAT IS NOT DECORATION. A second `.dot-flash` rule
+   setting `animation` on the dot itself would beat `.dot-live` on source order and stop the
+   shared breath for 600 ms — and, worse, it would never be seen at all: StatusDot puts
+   beatDelayStyle()'s inline `animation-delay` on the same element, that value is NEGATIVE and
+   usually larger than 600 ms, and an inline style outranks any stylesheet, so the one-shot
+   would be over before it began. animation-delay is not an inherited property and an inline
+   style does not reach ::after, so the halo starts at 0 while the dot underneath keeps
+   breathing, in phase, throughout. */
+.dot-flash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+  pointer-events: none;
+  animation: flash 600ms var(--ease) 1;
+  /* A longhand AFTER the shorthand, which resets fill-mode to none. */
+  animation-fill-mode: forwards;
+}
+
+.pop {
+  position: fixed;
+  z-index: 60;
+  min-inline-size: 180px;
+  padding: 6px;
+  background: var(--surface);
+  border-radius: var(--r-card);
+  box-shadow: var(--e-overlay);
+  color: var(--ink);
+  font: inherit;
+}
+
+.toast-stack {
+  position: fixed;
+  inset-block-end: 16px;
+  inset-inline-end: 16px;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: var(--r-ctl);
+  box-shadow: var(--e-raised);
+  color: var(--ink);
+  pointer-events: auto;
+}
+.toast-undo {
+  padding: 2px 8px;
+  background: none;
+  border: 0;
+  border-radius: var(--r-chip);
+  box-shadow: var(--e-hair);
+  color: var(--accent-hi);
+  cursor: pointer;
+  font: inherit;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.toast-undo:hover {
+  opacity: 0.8;
+}

@@ -1,0 +1,38 @@
+@import "../../styles/tokens.css";
+
+/* The single right-click menu. Owns .menu-*. */
+.menu {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 190px;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 10px;
+  background: none;
+  border: 0;
+  border-radius: var(--r-chip);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.menu-item:hover:not(:disabled) {
+  background: var(--hover);
+}
+.menu-item:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+.menu-item-danger {
+  color: var(--fail);
+}
+.menu-sep {
+  block-size: 1px;
+  margin: 4px 6px;
+  background: var(--line);
+}

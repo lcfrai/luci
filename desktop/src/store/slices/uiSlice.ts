@@ -47,7 +47,10 @@ export interface UiSlice {
    *  menu anchors to a button and the context menu anchors to a pointer. */
   sessionMenuFor: SessionId | null;
   toasts: Toast[];
-  // TASK 18 adds `machinesOpen: boolean;` here. See its step 11.
+  /** ADDED BY TASK 18 - not in contract §3.3. The machine chip's popover. It lives here and
+   *  not in MachineChip's own state because §6.9's ⌘⇧M must open it from useKeyboardMap,
+   *  which is mounted in AppShell and cannot reach a component's local state. */
+  machinesOpen: boolean;
 
   selectProject(id: ProjectId | null): void;
   /** Sets lens to "develop" and clears worktree + session selection. */
@@ -70,7 +73,8 @@ export interface UiSlice {
   closeContextMenu(): void;
   openSessionMenu(id: SessionId): void;
   closeSessionMenu(): void;
-  // TASK 18 adds `openMachines(): void;` and `closeMachines(): void;` here.
+  openMachines(): void;
+  closeMachines(): void;
 
   pushToast(message: string, undo?: () => void): void;
   dismissToast(id: string): void;
@@ -81,6 +85,7 @@ type UiState = Pick<
   | "selection" | "lens" | "layout" | "railCollapsed"
   | "expandedProjects" | "expandedBranches" | "expandedWorktrees"
   | "paletteOpen" | "pickerOpen" | "contextMenu" | "sessionMenuFor" | "toasts"
+  | "machinesOpen"
 >;
 
 /** FROZEN, containers and all — see the note on `initialDataState`. */
@@ -97,7 +102,7 @@ export const initialUiState: UiState = Object.freeze({
   contextMenu: null,
   sessionMenuFor: null,
   toasts: Object.freeze([]) as unknown as Toast[],
-  // TASK 18 adds `machinesOpen: false,` here.
+  machinesOpen: false,
 });
 
 export const createUiSlice: StateCreator<
@@ -139,7 +144,8 @@ export const createUiSlice: StateCreator<
   closeContextMenu: () => set({ contextMenu: null }),
   openSessionMenu: (id) => set({ sessionMenuFor: id }),
   closeSessionMenu: () => set({ sessionMenuFor: null }),
-  // TASK 18 adds `openMachines` and `closeMachines` here.
+  openMachines: () => set({ machinesOpen: true }),
+  closeMachines: () => set({ machinesOpen: false }),
 
   pushToast: (message, undo) =>
     set((s) => {
