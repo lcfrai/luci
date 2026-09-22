@@ -6,6 +6,7 @@ import { Rail } from "./rail/Rail";
 import { SubRail } from "./subrail/SubRail";
 import { TopBar } from "./topbar/TopBar";
 import { LensPlaceholder } from "./lens/LensPlaceholder";
+import { DevelopLens } from "./develop/DevelopLens";
 import { ContextMenu } from "./menu/ContextMenu";
 import { Toasts } from "./common/Toasts";
 import type { Lens } from "../store/types";
@@ -14,23 +15,14 @@ import "./shell.css";
 function LensRouter(props: { lens: Lens }): JSX.Element {
   switch (props.lens) {
     case "develop":
-      // ── TASK 20 INSERTION POINT ────────────────────────────────────────────────────
-      // Task 20 replaces the `return ( … );` EXPRESSION below — the whole seven lines, from
-      // `return (` to `);` — with `return <DevelopLens />;` and adds the import. Replacing
-      // only the first line of it orphans five JSX lines and the arm stops compiling.
-      // This makes AppShell.tsx a MODIFIED file for task 20, which §9's task-20 row does
-      // not list; §9 gives DevelopLens no mounter at all, so the addition is unavoidable.
-      // Per shared-shape rule 2, the step that adds the line is the step that defines
-      // DevelopLens. Anchored guard for task 20's commit step:
-      //   grep -cE '^[[:space:]]+return <DevelopLens' src/components/AppShell.tsx
+      // ── TASK 20 FILLED THIS INSERTION POINT ───────────────────────────────────────
+      // Develop is the one lens Phase 2 builds, so it is the one arm that is not a
+      // placeholder. DevelopLens chooses Columns vs Canvas vs the zero state and owns
+      // nothing else (§6.5); the other five arms stay honest about the phase that makes
+      // them real. Guard, still true:
+      //   grep -cE '^[[:space:]]+return <DevelopLens' src/components/AppShell.tsx  # 1
       // ───────────────────────────────────────────────────────────────────────────────
-      return (
-        <LensPlaceholder
-          lens="develop"
-          phase={2}
-          what="Sessions on this branch, as columns or a canvas."
-        />
-      );
+      return <DevelopLens />;
     case "discover":
       return (
         <LensPlaceholder

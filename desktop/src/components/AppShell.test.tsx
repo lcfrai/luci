@@ -18,6 +18,17 @@ import { aBranch, aHarness, aMachine, aProject, aSession, aWorktree } from "../t
 const { createSession } = vi.hoisted(() => ({ createSession: vi.fn() }));
 vi.mock("../api", () => ({ api: { createSession } }));
 
+// ADDED BY TASK 20 with the DevelopLens mount. `populate()` gives the branch a session, so
+// the develop arm now reaches <Terminal/> and, unmocked, a real xterm plus a live attach
+// ladder (250 ms rungs for 60 s, surviving the 5 s grace after unmount) would run inside a
+// suite about composition. §1.5: a component test never renders a glyph, and
+// group-d-real-browser-carries §8 puts the real terminal in task 24's window, not in jsdom.
+vi.mock("./Terminal", () => ({
+  Terminal: ({ sessionId }: { sessionId: string }) => (
+    <div data-testid="terminal" data-session={sessionId} />
+  ),
+}));
+
 function populate(): void {
   useCockpit.setState({
     machines: [aMachine()],
@@ -42,8 +53,10 @@ describe("AppShell", () => {
     expect(screen.getByRole("tree")).not.toBeNull();
     expect(screen.getByRole("group", { name: "Layout" })).not.toBeNull();
     expect(screen.getByRole("button", { name: /new session/i })).not.toBeNull();
-    // Develop is the default lens and Phase 2's own placeholder stands in for task 20.
-    expect(screen.getByRole("heading", { name: "develop" })).not.toBeNull();
+    // Develop is the default lens, and task 20 replaced its placeholder with the real
+    // DevelopLens. With an empty store there is no branch, so the zero state names the rail
+    // as the next action — which is the assertion that fails if the arm ever goes blank.
+    expect(screen.getByText(/Select a branch in the rail/i)).not.toBeNull();
   });
 
   // §6.1: the grid always has three columns and the middle one animates from 0. With no branch

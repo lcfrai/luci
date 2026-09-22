@@ -182,3 +182,17 @@ export const selectBranchAttentionSessionId =
     }
     return best;
   };
+
+/** The Branch named by `selection.branchId`. Needed by DevelopLens, which owes EmptyDevelop
+ *  a `Branch | undefined` (§6.5). Returns the stored object, so its identity is stable
+ *  across a session poll (the poller refetches sessions only).
+ *
+ *  ADDED BY TASK 20 — an addition to contract §3.7, per Group D shared-shape §4. It adds no
+ *  worktree-by-id read: `selectWorktreeById` above is task 18's and is exactly the
+ *  flatten-then-find this task would otherwise have duplicated, and the obvious second name,
+ *  `selectWorktree`, is already the uiSlice ACTION of §3.3, which navigates rather than reads. */
+export const selectSelectedBranch = (s: CockpitState): Branch | undefined => {
+  const { projectId, branchId } = s.selection;
+  if (projectId === null || branchId === null) return undefined;
+  return (s.branchesByProject[projectId] ?? []).find((b) => b.id === branchId);
+};

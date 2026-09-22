@@ -1,0 +1,268 @@
+@import "../../styles/tokens.css";
+
+/* develop.css — the Develop lens.
+ *
+ * The @import is the FIRST line, not a nicety: contract §5.5 requires it, shared-shape
+ * §3B.1 restates it, and task 24's audit strips comments before reading the first line,
+ * so this header block may sit under it but no rule may.
+ *
+ * PREFIX OWNERSHIP (Group D shared-shape §2, which overrides contract §6.5 where they
+ * differ): task 20 owns `.pane-*` and `.cols-*`. Task 21 owns `.cv-*` and appends its
+ * block under the header at the FOOT of this file, without reflowing a rule above it.
+ * Task 22 adds nothing here; its menu is styled by task 18's menu CSS.
+ *
+ * No literal hex, no colour function, no gradient, no `transition: all`, no indigo/violet
+ * — task 24 asserts every one of those. No transition of any kind here: motion must explain
+ * causality or be deleted, and nothing in this lens has causality to explain. A focus ring
+ * that fades in is a ring that is wrong for 180 ms, and `box-shadow` is neither `transform`
+ * nor `opacity`, so animating it would break the property list as well. The word appears
+ * twice in this header and nowhere else in the file, which is why step 15's guard is
+ * anchored at the start of a line (shared-shape §3A).
+ */
+
+/* ── Columns: the horizontal scroll container ────────────────────────────────────── */
+
+.cols-scroll {
+  /* Not a token: a pane width is a layout decision local to this lens, and promoting it
+     to tokens.css would invite a second consumer that does not exist. */
+  --pane-w: 520px;
+
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* proximity, not mandatory: a mandatory snap fights scrollIntoView and makes a two-pane
+     drag feel like it is resisting the user. */
+  scroll-snap-type: x proximity;
+  background: var(--page);
+}
+
+.cols-pane {
+  flex: 0 0 var(--pane-w);
+  min-width: 0;
+  display: flex;
+  scroll-snap-align: center;
+}
+
+.cols-empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: var(--page);
+}
+
+/* ── The pane ────────────────────────────────────────────────────────────────────── */
+
+.pane {
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  overflow: hidden;
+  border-radius: var(--r-card);
+  background: var(--surface);
+  box-shadow: var(--e-card);
+}
+
+.pane--focused {
+  box-shadow: 0 0 0 1px var(--accent-ring), var(--e-raised);
+}
+
+.pane--tile {
+  height: 100%;
+}
+
+/* The session is gone from the store but something still renders it — a purge that raced
+   a render. Say so in words rather than showing an empty frame. */
+.pane--gone {
+  display: grid;
+  /* Resets .pane's `auto 1fr auto auto`. Without this the single child lands in the first
+     auto row and `place-items: center` centres it horizontally only, which reads as a
+     message stuck to the top of an empty frame. */
+  grid-template-rows: 1fr;
+  place-items: center;
+  padding: 24px;
+  color: var(--ink-3);
+  font: 400 12px/1.5 var(--sans);
+}
+
+.pane-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 10px;
+  background: var(--surface);
+  box-shadow: 0 1px 0 0 var(--line-soft);
+}
+
+/* Task 21's drag handle. The attribute, not the class, is what its pointer handler binds
+   to; the class only says the cursor is a grab. */
+.pane-head--tile {
+  cursor: grab;
+  user-select: none;
+}
+
+.pane-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font: 500 12px/1.4 var(--sans);
+}
+
+.pane-sub {
+  color: var(--ink-3);
+  font: 400 11px/1.4 var(--sans);
+  white-space: nowrap;
+}
+
+.pane-more {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  color: var(--ink-3);
+  font: 400 13px/1 var(--sans);
+  cursor: pointer;
+}
+
+.pane-more:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.pane-body {
+  min-height: 0;
+  overflow: hidden;
+  background: var(--page);
+  /* tabIndex={-1} in the TSX makes this focusable as the fallback focus target; the outline
+     would be wrong on a container the user never tabs to. */
+  outline: none;
+}
+
+/* The exited bar. Neutral, not red: an exited session is a completed one, and colouring
+   every terminal state as a failure is how a UI teaches people to ignore red. */
+.pane-exit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  background: var(--inset);
+  box-shadow: 0 -1px 0 0 var(--line-soft);
+}
+
+.pane-exit-why {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-2);
+  font: 400 11px/1.4 var(--sans);
+}
+
+.pane-exit-restart {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: var(--surface);
+  box-shadow: var(--e-btn);
+  color: var(--ink);
+  font: 500 11px/1.4 var(--sans);
+  cursor: pointer;
+}
+
+.pane-exit-restart:hover:not(:disabled) {
+  background: var(--hover-2);
+}
+
+.pane-exit-restart:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+/* The two live numbers this task ships — the session elapsed and the retry elapsed — both
+   render here. app.css sets font-variant-numeric once on <body> and it inherits, but
+   shared-shape §3B clause 5 makes it the rule for the surface that ships the FIRST live
+   numbers in the application, so it is declared at the element that carries them rather
+   than relied on from four levels up. A digit that changes width makes a counter jitter. */
+.pane-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--surface);
+  box-shadow: 0 -1px 0 0 var(--line-soft);
+  color: var(--ink-3);
+  font: 400 11px/1.4 var(--mono);
+  font-variant-numeric: var(--numeric);
+}
+
+.pane-foot-fact {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pane-foot-sep {
+  color: var(--ink-4);
+}
+
+/* ── The zero states ─────────────────────────────────────────────────────────────── */
+
+.pane-empty {
+  max-width: 420px;
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.pane-empty-line {
+  margin: 0;
+  color: var(--ink);
+  font: 500 13px/1.5 var(--sans);
+}
+
+.pane-empty-note {
+  margin: 0;
+  color: var(--ink-3);
+  font: 400 12px/1.6 var(--sans);
+}
+
+.pane-empty-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pane-empty-go {
+  padding: 5px 11px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: var(--surface);
+  box-shadow: var(--e-btn);
+  color: var(--ink);
+  font: 500 12px/1.4 var(--sans);
+  cursor: pointer;
+}
+
+.pane-empty-go:hover {
+  background: var(--hover-2);
+}
+
+/* ── Canvas (`.cv-*`) — TASK 21 APPENDS BELOW THIS LINE ───────────────────────────────
+ * Shared-shape §2: the canvas plane, tiles, drag affordances and z-order are task 21's,
+ * they live under this header, and no rule above it is reflowed. If task 21 needs a
+ * `.pane-*` change it asks rather than editing one in place, so this diff stays readable.
+ */
