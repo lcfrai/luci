@@ -84,15 +84,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	// endpoint.
 	recoverSessions(ctx, store, be, log)
 
-	rp := reaper.New(reaper.Config{
-		Store:       store,
-		Backend:     be,
-		IdleAfter:   cfg.IdleAfter,
-		IdleTimeout: cfg.IdleTimeout,
-		Interval:    cfg.ReapInterval,
-		CreateGrace: cfg.ReadyTimeout,
-		Log:         log,
-	})
+	rp := reaper.New(reaperConfigFor(cfg, store, be, log))
 	// The reaper gets its own context rather than ctx, so that a SIGINT drains
 	// the HTTP server while the reaper is still sweeping a live backend; ctx is
 	// already cancelled by the time Shutdown is called, and a reaper on ctx
@@ -190,6 +182,30 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	// The reaper is stopped and drained by the deferred function above, after
 	// the HTTP server has finished and before the backend is closed.
 	return nil
+}
+
+// reaperConfigFor is the Config-to-reaper.Config mapping, extracted from serve
+// so that a test can see it. serve itself cannot be unit-tested — it builds a
+// backend, and dockerbe.New pings a real daemon inside New — which would
+// otherwise leave the one line below that is a decision rather than a copy
+// asserted by nothing at all.
+//
+// CreateGrace is DERIVED from the ready timeout and is deliberately longer than
+// it: reaper.CreateGraceFor owns the reasoning, and going through it means this
+// call site and the reaper's own default cannot drift into disagreeing about how
+// long a create may take. Passing cfg.ReadyTimeout here instead would compile,
+// run, and quietly shorten the window that stops a mid-create session being
+// marked exited.
+func reaperConfigFor(cfg Config, store registry.Store, be backend.Backend, log *slog.Logger) reaper.Config {
+	return reaper.Config{
+		Store:       store,
+		Backend:     be,
+		IdleAfter:   cfg.IdleAfter,
+		IdleTimeout: cfg.IdleTimeout,
+		Interval:    cfg.ReapInterval,
+		CreateGrace: reaper.CreateGraceFor(cfg.ReadyTimeout),
+		Log:         log,
+	}
 }
 
 func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {

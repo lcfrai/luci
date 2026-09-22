@@ -15,6 +15,7 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
 )
 
@@ -298,6 +299,42 @@ func TestRecoverClearsTheEndpointOfANonLoopbackSandbox(t *testing.T) {
 	}
 	if s.Status != registry.StatusRunning {
 		t.Errorf("Status = %q; the process is still running and the reaper owns the destruction", s.Status)
+	}
+}
+
+// The grace the reaper actually runs with has to be longer than one ready
+// timeout, because PANACEA_APP_READY_TIMEOUT budgets only the wait for
+// /healthz while the window a mid-create session must survive is the whole of
+// backend.Create. reaper.CreateGraceFor owns that relationship; this asserts
+// the wiring goes through it, since `CreateGrace: cfg.ReadyTimeout` would
+// compile and quietly halve the protection.
+func TestTheReaperIsWiredWithMoreGraceThanOneReadyTimeout(t *testing.T) {
+	t.Parallel()
+	cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_READY_TIMEOUT": "90s"}))
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	rc := reaperConfigFor(cfg, nil, nil, nil)
+	if rc.CreateGrace <= cfg.ReadyTimeout {
+		t.Errorf("CreateGrace = %v with a %v ready timeout; it must outlast ContainerCreate as well as the ready wait",
+			rc.CreateGrace, cfg.ReadyTimeout)
+	}
+	if want := reaper.CreateGraceFor(cfg.ReadyTimeout); rc.CreateGrace != want {
+		t.Errorf("CreateGrace = %v, want %v: the derivation belongs to reaper.CreateGraceFor, not to this call site", rc.CreateGrace, want)
+	}
+	// The rest of the mapping, so a reordered struct literal cannot silently
+	// swap two durations of the same type.
+	for _, c := range []struct {
+		name      string
+		got, want time.Duration
+	}{
+		{"IdleAfter", rc.IdleAfter, cfg.IdleAfter},
+		{"IdleTimeout", rc.IdleTimeout, cfg.IdleTimeout},
+		{"Interval", rc.Interval, cfg.ReapInterval},
+	} {
+		if c.got != c.want {
+			t.Errorf("reaper.Config.%s = %v, want %v", c.name, c.got, c.want)
+		}
 	}
 }
 

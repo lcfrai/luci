@@ -324,6 +324,45 @@ func TestSweepSparesASessionRestartedLongAfterItWasCreated(t *testing.T) {
 	}
 }
 
+// The grace has to span BOTH halves of backend.Create, and one ready timeout
+// buys only the second. dockerbe computes its deadline after ContainerCreate and
+// ContainerStart have returned (docker.go:207 and :211 versus :219), so a grace
+// equal to the ready timeout is structurally short by however long the daemon
+// spends creating and starting the container — and a session whose create is
+// proceeding normally gets written `exited`, which is terminal.
+//
+// The magnitude is pinned through the real path rather than by asserting on
+// CreateGraceFor's arithmetic: this test leaves Config.CreateGrace unset, so it
+// exercises exactly what production gets.
+func TestCreateGraceSpansContainerCreateAndNotOnlyTheReadyWait(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	// Past one ready timeout, inside two: the container was slow to create and
+	// is now in its ready wait. This is a live create, not a lost one.
+	seed(t, store, registry.Session{
+		ID: "s-slow", SandboxID: "sb-slow", Status: registry.StatusStarting,
+		UpdatedAt: clock.Add(-(backend.ReadyTimeout + 10*time.Second)),
+	})
+	// Past both: nothing takes this long, and a grace that never expires is a
+	// leak rather than a fix.
+	seed(t, store, registry.Session{
+		ID: "s-lost", SandboxID: "sb-lost", Status: registry.StatusStarting,
+		UpdatedAt: clock.Add(-(reaper.CreateGraceFor(backend.ReadyTimeout) + 10*time.Second)),
+	})
+	be := &fakeBackend{} // neither container exists
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if got := get(t, store, "s-slow").Status; got != registry.StatusStarting {
+		t.Errorf("s-slow = %q, want starting: one ready timeout does not cover ContainerCreate as well", got)
+	}
+	if got := get(t, store, "s-lost").Status; got != registry.StatusExited {
+		t.Errorf("s-lost = %q, want exited: the grace is a window, not an exemption", got)
+	}
+}
+
 // The grace is a window on STATUS as well as on age. A running session is one
 // whose create finished, so a missing container really is a missing container
 // however young the record is — and skipping it would hide the very
@@ -570,6 +609,14 @@ func TestSweepDoesNotRelabelAFailedNonLoopbackDestroyAsAnOrphanReap(t *testing.T
 	}
 	if !strings.Contains(line, "still reachable from the LAN") {
 		t.Errorf("the failed destroy did not say what is still wrong:\n%s", line)
+	}
+	// The address matters MORE here than on the success path, and it was pinned
+	// only there. This is the line an operator reads while the sandbox is still
+	// exposed and they have to go and find it, so a copy of the attribute that
+	// can be deleted without a test noticing is the wrong copy to leave
+	// unasserted.
+	if !strings.Contains(line, offendingHost) {
+		t.Errorf("the failed destroy does not say where the port is still published:\n%s", line)
 	}
 }
 

@@ -63,6 +63,49 @@ const (
 
 const defaultInterval = 30 * time.Second
 
+// createGraceFactor is how many ready timeouts of grace a create gets, and it is
+// 2 because the create path is TWO waits and PANACEA_APP_READY_TIMEOUT budgets
+// only the second. See CreateGraceFor.
+const createGraceFactor = 2
+
+// CreateGraceFor derives the grace from the ready timeout, and is the one place
+// that relationship is written down — cmd/api wires production through it and
+// New defaults through it, so the two cannot drift into disagreeing about how
+// long a create is allowed to take.
+//
+// WHY TWICE. The window a mid-create session must survive is the whole of
+// backend.Create, which is ContainerCreate plus ContainerStart plus the wait for
+// the sandbox to answer /healthz. PANACEA_APP_READY_TIMEOUT budgets only the
+// last of those: dockerbe computes its deadline AFTER the container is created
+// and started (dockerbe/docker.go:207 and :211 versus :219), so one ready
+// timeout of grace is structurally too short by however long the daemon takes to
+// create and start a container. Doubling covers that, and it is derived rather
+// than a second configurable number because an operator who raises the ready
+// timeout for a slow machine means "everything about starting a sandbox is
+// slower here" and would not think to raise a separate grace as well.
+//
+// WHY GENEROUS RATHER THAN TIGHT. The two failure directions are not
+// comparable. Too short and rule 2 writes `exited` — terminal — over a session
+// that is starting normally, and the user loses real work. Too long and a
+// genuinely lost session is collected one sweep later than it could have been,
+// which costs thirty seconds and nothing else. Against that asymmetry the
+// generous reading is the correct one.
+//
+// WHAT THIS STILL DOES NOT COVER, stated rather than glossed: a ContainerCreate
+// that by itself exceeds the ready timeout. The grace is measured from the
+// registry record, so a create whose FIRST half runs long enough burns the whole
+// budget before the ready wait even begins. In practice that means pulling the
+// sandbox image over a slow network — the Phase 1 runbook builds it locally and
+// dockerbe never pulls, so on a working laptop this does not arise — but it is
+// unlikely rather than impossible, and an operator who hits it raises
+// PANACEA_APP_READY_TIMEOUT, which moves this with it.
+func CreateGraceFor(readyTimeout time.Duration) time.Duration {
+	if readyTimeout <= 0 {
+		readyTimeout = backend.ReadyTimeout
+	}
+	return createGraceFactor * readyTimeout
+}
+
 // errUnchanged aborts a store.Update without writing. FileStore.Update runs the
 // mutate function under its write lock and commits nothing when it returns an
 // error (task 7), so this is how a rule that turns out to be a no-op avoids
@@ -102,16 +145,11 @@ type Config struct {
 	// restart. UpdatedAt moves on the write that names the new sandbox, so the
 	// window opens exactly when the risk does, for a create and a restart alike.
 	//
-	// Zero means backend.ReadyTimeout, the budget task 11's readiness watch
-	// spends before it sets the status itself. That is the right order of
-	// magnitude and NOT a proof of sufficiency: dockerbe starts its ready budget
-	// AFTER ContainerCreate and ContainerStart (dockerbe/docker.go:207 vs :219),
-	// so a create that spends its whole budget outlives a grace of the same
-	// length by the container's start latency. What this covers is the common
-	// case — a sandbox that comes up in a second or two — and the residual is
-	// the slow-start tail, which is precisely what PANACEA_APP_READY_TIMEOUT
-	// exists to let an operator lengthen. Raising it lengthens the grace with
-	// it, because they are the same number.
+	// Set it with CreateGraceFor, which owns the relationship to the ready
+	// timeout and the reasoning for it. Zero means CreateGraceFor's own default.
+	// It is deliberately LONGER than one ready timeout: that number budgets only
+	// the wait for /healthz, and the window this has to cover is the whole of
+	// backend.Create.
 	CreateGrace time.Duration
 
 	Now func() time.Time
@@ -160,9 +198,10 @@ func New(cfg Config) *Reaper {
 	}
 	// A zero grace would make rule 2 terminal the instant task 11 writes the
 	// record, which is the defect this field exists to close, so zero means the
-	// default rather than "no grace".
+	// default rather than "no grace" — and it goes through the same derivation
+	// cmd/api uses, so a reaper built without one behaves like production.
 	if r.createGrace <= 0 {
-		r.createGrace = backend.ReadyTimeout
+		r.createGrace = CreateGraceFor(backend.ReadyTimeout)
 	}
 	return r
 }
