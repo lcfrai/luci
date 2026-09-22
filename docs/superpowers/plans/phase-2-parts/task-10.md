@@ -18,7 +18,7 @@ The tests use a **real `*registry.FileStore`** in `t.TempDir()` for both `Deps.S
 - `control-plane/internal/api/export_test.go` — `(*API).RegisteredPatterns()`, the test-only window onto the recorded route table (new, added by ruling 1)
 - `control-plane/internal/api/routes_audit_test.go` — contract §10a's audit: the two allowlists, `catalogAuditRoutes`, and the scan that stops a file registering behind the recorder (new, added by ruling 1). **Tasks 11 and 12 extend `catalogReadOnlyRoutes` here**; this is the file to look in.
 
-The last two are not transcribed in this plan, deliberately: they postdate it, they are committed at the paths above, and a second copy here is one that goes stale. Take them from the repository. A package built from the blocks below without them compiles and serves correctly and has no §10a audit at all, which is the one failure mode worth naming twice.
+Six files and not four: ruling 1 added the last two after this plan was first written. They are transcribed in step 1 like everything else, and the reason is the failure they prevent. A package built from the other four compiles, serves every route correctly and has **no §10a audit at all** — and nothing downstream notices, because a verifier that rebuilds from a plan to compile-check is testing that the code builds, not that the plan is complete.
 
 **Interfaces:**
 - Produces:
@@ -26,7 +26,7 @@ The last two are not transcribed in this plan, deliberately: they postdate it, t
   - `api.Enumerator` — the three read-only methods of `project.Scanner`, as an interface, so a handler test needs no git
   - `api.New(Deps) (*API, error)` and `(*API).ServeHTTP` — the whole HTTP surface as one `http.Handler`, consumed by task 13's `cmd/api/main.go`. Two return values, and an error rather than a panic: a test that expects `New` to panic expects the wrong thing
   - `api.DefaultVersion` (`"0.2.0"`), `api.LocalMachineID` (`"local"`)
-  - `(*API).registerCatalog(*http.ServeMux)` and `(*API).internal(w, r, op, err)` — unexported, but named here because task 11 and task 12 each add one `a.registerX(guarded)` line to `New` and both use `internal` for their own 500s
+  - `(*API).registerCatalog(*routes)` and `(*API).internal(w, r, op, err)` — unexported, but named here because task 11 and task 12 each add one `a.registerX(guarded)` line to `New` and both use `internal` for their own 500s
   - `isolationFor(backend.Kind) string` — unexported, and the package's **only** mapping of a backend kind to contract §3.4's three-value enum. Group C ruling 6: task 11 calls this and declares no second one, because two functions mapping one enum in one package is a defect even when they agree
 - Consumes:
   - task 9 — `httpx.WriteJSON`, `httpx.WriteProblem`, `httpx.DecodeJSON`, `httpx.OriginPolicy` with `Middleware` and `Allow`, `httpx.NewOriginPolicy` (tests only), and `httpx.CodeBadRequest`, `CodeProjectNotFound`, `CodeWorktreeNotFound`, `CodeInternal`
@@ -44,7 +44,7 @@ The last two are not transcribed in this plan, deliberately: they postdate it, t
 
 This file pins the router and nothing about a body. Three of its tests would pass by accident against a mux that routed everything to one handler, so they check the wiring instead: that the `/api/v1` alias reaches the same handler as `/v1`, that a wrong method produces 405 with an `Allow` header rather than 404, and that the origin middleware is wrapped around every route except healthz. The doubles live here because `catalog_test.go` is in the same directory and the same package, so both files see them.
 
-`catalogProjects` returns `project.ErrUnknownProject` wrapped with `%w` for an id it does not hold, exactly as `project.Scanner` does — a double that returns a bare `errors.New` would let a handler that string-matches pass. Its `err` field is what step 2 uses to reach `a.internal`, the only 500 on this surface, and `catalogBrokenList` beside it is what reaches decision (f)'s. **Every** package-level identifier these two files declare begins with `catalog`, per Group C ruling 5 — the doubles `catalogBackend`, `catalogBrokenList` and `catalogProjects`, and equally the request harness `catalogBaseURL`, `catalogDo`, `catalogNewDeps`, `catalogNewAPI`, `catalogNewAPIWithSessions`, `catalogQuietLogger`, `catalogSampleProjects`, `catalogDecodeObject`, `catalogListOf` and the five `catalogTestProject`-style id constants. The rule is not about doubles; it is about three tasks writing test files into one directory, and a bare `newAPI` or `listOf` is exactly the generic name task 11 or task 12 would reach for without thinking. `TestXxx` functions are the one exception, because Go's own naming keeps them apart and a reader expects to read them as sentences.
+`catalogProjects` returns `project.ErrUnknownProject` wrapped with `%w` for an id it does not hold, exactly as `project.Scanner` does — a double that returns a bare `errors.New` would let a handler that string-matches pass. Its `err` field is what step 2 uses to reach `a.internal`, the only 500 on this surface, and `catalogBrokenList` beside it is what reaches decision (f)'s. **Every** package-level identifier this task's test files declare begins with `catalog`, per Group C ruling 5 — the doubles `catalogBackend`, `catalogBrokenList` and `catalogProjects`, the request harness `catalogBaseURL`, `catalogDo`, `catalogNewDeps`, `catalogNewAPI`, `catalogNewAPIWithSessions`, `catalogQuietLogger`, `catalogSampleProjects`, `catalogDecodeObject`, `catalogListOf` and the five `catalogTestProject`-style id constants, and equally the audit's `catalogReadOnlyRoutes`, `catalogMethodAgnosticRoutes` and `catalogAuditRoutes`. The rule is not about doubles; it is about three tasks writing test files into one directory, and a bare `newAPI` or `listOf` is exactly the generic name task 11 or task 12 would reach for without thinking. `TestXxx` functions are the one exception, because Go's own naming keeps them apart and a reader expects to read them as sentences.
 
 Create `control-plane/internal/api/api_test.go`:
 
@@ -252,7 +252,10 @@ func TestEveryContractRouteIsRegistered(t *testing.T) {
 	// Contract 3.1's table, restricted to the rows this task owns, plus the
 	// PATCH from adjudicated decision 2. A 404 here means a missing
 	// registration; a 405 means the method in the pattern is wrong.
-	h := catalogNewAPI(t, nil)
+	//
+	// Each row builds its own handler. Sharing one would let the PATCH row's
+	// ready flag outlive it — harmless in this order, a trap for whoever adds
+	// the next row or a t.Parallel.
 	for _, tc := range []struct{ method, target, body string }{
 		{http.MethodGet, "/v1/healthz", ""},
 		{http.MethodGet, "/v1/machines", ""},
@@ -263,7 +266,7 @@ func TestEveryContractRouteIsRegistered(t *testing.T) {
 		{http.MethodGet, "/v1/harnesses", ""},
 	} {
 		t.Run(tc.method+" "+tc.target, func(t *testing.T) {
-			rec := catalogDo(t, h, tc.method, tc.target, tc.body, nil)
+			rec := catalogDo(t, catalogNewAPI(t, nil), tc.method, tc.target, tc.body, nil)
 			if rec.Code != http.StatusOK {
 				t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
 			}
@@ -436,6 +439,237 @@ func TestNewFillsTheOptionalDependencies(t *testing.T) {
 }
 ```
 
+Create `control-plane/internal/api/export_test.go`. It is `package api` and not `package api_test`, which is the whole point of it: `API.guarded` and `API.root` are unexported, and an external test package cannot see them. This is also why step 3's failure below is a type-check error rather than the loader's `no non-test Go files` — the directory does have a `package api` file.
+
+```go
+package api
+
+// RegisteredPatterns returns every ServeMux pattern New registered, across the
+// guarded mux and the outer one, guarded first.
+//
+// It exists for the route audit Group C ruling 1 requires: contract §10a says no
+// GET may change state, net/http offers no way to enumerate a mux, and an
+// invariant checked against a hand-maintained list is an invariant that stops
+// being checked the day someone forgets the list. Registration records instead —
+// see routes in api.go — so the audit walks what the product actually serves,
+// including the routes tasks 11 and 12 add.
+//
+// It reads both recorders AT CALL TIME. The first version of this file copied
+// their contents into a field partway through New, which silently excused every
+// route registered after that line — including, had it survived, the ones tasks
+// 11 and 12 add at the bottom of the function.
+//
+// It lives in export_test.go rather than in api.go because nothing in the
+// product needs it, and a route table the package exports is a route table
+// something eventually branches on.
+func (a *API) RegisteredPatterns() []string {
+	out := make([]string, 0, len(a.guarded.registered)+len(a.root.registered))
+	out = append(out, a.guarded.registered...)
+	out = append(out, a.root.registered...)
+	return out
+}
+```
+
+Create `control-plane/internal/api/routes_audit_test.go`. **This is Group C ruling 1**, and it is a separate file because it is the one tasks 11 and 12 must edit: they add a line to `catalogReadOnlyRoutes` for each read-only route they register, and they touch nothing else in here. Three tests, and each covers a different way the invariant dies. `TestNoRegisteredGetCanChangeState` walks what `New` actually registered — live, so position in `New` is irrelevant — and checks it both ways: no unlisted `GET`, and no allowlist entry for a pattern that no longer exists, because a stale entry is standing permission for whatever is registered under it next. `TestTheRouteAuditRejectsASideEffectingGet` drives the audit with patterns that do not exist, so the check is known to fail rather than assumed to. And `TestNoFileRegistersOnTheRawMuxBehindTheRecorder` is the belt: Go cannot stop a file in this package reaching `rs.mux` directly, so the scan makes doing it a red suite that names the rule.
+
+```go
+package api_test
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
+)
+
+// This file is contract §10a, checked by a machine — Group C ruling 1. It is its
+// own file because it is the one tasks 11 and 12 must edit, and a name they can
+// find beats a block halfway down api_test.go.
+
+// catalogReadOnlyRoutes is the explicit allowlist: every GET and HEAD pattern
+// this package registers must appear here, beside the reason it is safe to serve
+// with no CSRF defence at all.
+//
+// Contract §10a is the rule and task 9's origin.go is the reason. That middleware
+// allows a request carrying NO Origin header — curl and every non-browser tool
+// send none — and a browser sets Host itself, so a hostile page's
+// <img src="http://127.0.0.1:8730/…"> satisfies both of the control plane's
+// checks without ever seeing the response. Seeing the response is not what a
+// side effect needs. There is no token on this hop before Phase 8.
+//
+// ADDING A READ-ONLY ROUTE MEANS ADDING A LINE HERE. Tasks 11 and 12 extend this
+// map; they do not touch catalogAuditRoutes. Adding a side-effecting GET means a
+// failing test that names the rule before it can be made to pass.
+var catalogReadOnlyRoutes = map[string]string{
+	"GET /v1/healthz": "Reads Deps.BackendReady, which task 13 keeps as a CACHED bool. " +
+		"This is the one route mounted outside the origin guard, so a hostile page reaches it " +
+		"with no checks whatsoever; a healthz that refreshed a probe on request would be a " +
+		"side-effecting GET on the least defended route on the surface (ruling 2).",
+	"GET /api/v1/healthz":                    "Contract §7.5's alias of the same handler, on the same outer mux.",
+	"GET /v1/machines":                       "Reads the backend kind and the cached readiness bool. Nothing is created and nothing is probed.",
+	"GET /v1/projects":                       "A git enumeration through three read-only subcommands (project.Scanner).",
+	"GET /v1/projects/{projectId}/branches":  "The same enumeration, filtered to one project.",
+	"GET /v1/projects/{projectId}/worktrees": "An enumeration plus one registry read and one flag snapshot. The ready flag is only ever WRITTEN by the PATCH beside it.",
+	"GET /v1/harnesses":                      "A package-level table (contract §2.9), copied on the way out.",
+}
+
+// catalogMethodAgnosticRoutes is the other half of the audit, and the half that is
+// easy to forget: a pattern with NO method in it answers every verb, GET included,
+// so a check that only inspects patterns labelled GET would wave it straight
+// through. Each entry states why the route cannot act on a GET.
+var catalogMethodAgnosticRoutes = map[string]string{
+	"/api/v1/": "Contract §7.5's alias. It strips /api and re-dispatches into the same mux, " +
+		"where a method-bearing pattern decides — so the audit of those patterns covers this one.",
+	"/": "The outer mux's catch-all into the origin middleware and the guarded mux. " +
+		"Same argument: every route it can reach is audited on its own pattern.",
+}
+
+// catalogAuditRoutes applies contract §10a to a list of registered patterns and
+// returns one message per violation. It takes the list rather than reading it,
+// so the same rule can be run against the real route table and against a pattern
+// that does not exist yet.
+func catalogAuditRoutes(patterns []string) []string {
+	var violations []string
+	for _, pattern := range patterns {
+		method, _, hasMethod := strings.Cut(pattern, " ")
+		switch {
+		case !hasMethod:
+			if _, allowed := catalogMethodAgnosticRoutes[pattern]; !allowed {
+				violations = append(violations, fmt.Sprintf(
+					"%q is registered with no method, so it answers GET as well as everything else. "+
+						"Contract §10a: no GET may change state, because task 9's guard passes a request "+
+						"with no Origin and the browser sets Host itself. Name the method in the pattern, "+
+						"or add the pattern to catalogMethodAgnosticRoutes with the reason a GET is safe on it.",
+					pattern))
+			}
+		case method == http.MethodGet, method == http.MethodHead:
+			if _, allowed := catalogReadOnlyRoutes[pattern]; !allowed {
+				violations = append(violations, fmt.Sprintf(
+					"%q is a %s that is not on the read-only allowlist. Contract §10a: no GET or HEAD "+
+						"may change state — a hostile page can emit <img src> at this route and both of "+
+						"the control plane's checks pass. If it only reads, add it to "+
+						"catalogReadOnlyRoutes with the reason. If it writes, it needs POST, PATCH or "+
+						"DELETE — or a Phase 8 token — and not a line in that map.",
+					pattern, method))
+			}
+		}
+	}
+	return violations
+}
+
+func TestNoRegisteredGetCanChangeState(t *testing.T) {
+	// Group C ruling 1: the invariant contract §10a states in prose, checked by
+	// a machine. It walks what New ACTUALLY registered rather than a list
+	// maintained by hand, and it reads the recorders live rather than a snapshot,
+	// so tasks 11 and 12's routes are audited the moment they are added —
+	// wherever in New the registering line lands, and with no change to this test.
+	d, _ := catalogNewDeps(t)
+	a, err := api.New(d)
+	if err != nil {
+		t.Fatalf("api.New: %v", err)
+	}
+
+	registered := a.RegisteredPatterns()
+	if len(registered) == 0 {
+		t.Fatal("New registered no patterns; the audit would pass vacuously")
+	}
+	for _, violation := range catalogAuditRoutes(registered) {
+		t.Error(violation)
+	}
+
+	// The reverse direction, so the allowlist cannot rot: an entry for a route
+	// that no longer exists is standing permission for whatever is registered
+	// under that pattern next.
+	live := make(map[string]bool, len(registered))
+	for _, pattern := range registered {
+		live[pattern] = true
+	}
+	for pattern := range catalogReadOnlyRoutes {
+		if !live[pattern] {
+			t.Errorf("catalogReadOnlyRoutes allows %q, which is not registered — delete the line", pattern)
+		}
+	}
+	for pattern := range catalogMethodAgnosticRoutes {
+		if !live[pattern] {
+			t.Errorf("catalogMethodAgnosticRoutes allows %q, which is not registered — delete the line", pattern)
+		}
+	}
+}
+
+func TestTheRouteAuditRejectsASideEffectingGet(t *testing.T) {
+	// The audit above is only worth having if it fails, so this drives the two
+	// shapes a side effect arrives in: a GET that reads like a verb, and a
+	// pattern registered with no method at all.
+	for name, pattern := range map[string]string{
+		"a GET that is really a verb": "GET /v1/sessions/{sessionId}/kill",
+		"a pattern with no method":    "/v1/sessions/{sessionId}",
+	} {
+		t.Run(name, func(t *testing.T) {
+			violations := catalogAuditRoutes([]string{pattern})
+			if len(violations) != 1 {
+				t.Fatalf("audit of %q returned %d violations, want 1: %v", pattern, len(violations), violations)
+			}
+			if !strings.Contains(violations[0], pattern) {
+				t.Errorf("violation = %q, want it to name the offending pattern", violations[0])
+			}
+			if !strings.Contains(violations[0], "§10a") {
+				t.Errorf("violation = %q, want it to point at contract §10a", violations[0])
+			}
+		})
+	}
+}
+
+func TestNoFileRegistersOnTheRawMuxBehindTheRecorder(t *testing.T) {
+	// The belt to the recorder's braces. Making routes.mux a named unexported
+	// field means mux.ServeMux.HandleFunc — the spelling the embedded version
+	// promoted into every file here — no longer compiles, but Go has no barrier
+	// against a.guarded.mux.Handle(…) INSIDE this package, and a route
+	// registered that way is served and never audited.
+	//
+	// So: no source file but api.go, which declares the type, may select .mux at
+	// all. Reaching past the recorder becomes a deliberate act that reddens a
+	// suite and names this rule, rather than a nine-character alternative
+	// spelling.
+	//
+	// _test.go files are out of scope, and not as an oversight: the threat is a
+	// route the PRODUCT serves and no test walks, and a test file registers
+	// nothing in the product binary. Scoping it this way also keeps this file,
+	// which has to spell the forbidden selectors out, from matching itself.
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatalf("read the package directory: %v", err)
+	}
+	found := 0
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") ||
+			strings.HasSuffix(name, "_test.go") || name == "api.go" {
+			continue
+		}
+		src, err := os.ReadFile(filepath.Clean(name))
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		found++
+		for _, bypass := range []string{".mux.Handle", ".mux.ServeMux", ".mux.HandleFunc"} {
+			if strings.Contains(string(src), bypass) {
+				t.Errorf("%s contains %q. Register through the *routes recorder — mux.Handle or "+
+					"mux.HandleFunc — so contract §10a's audit can see the route. Reaching the "+
+					"mux behind it serves a route no test walks.", name, bypass)
+			}
+		}
+	}
+	if found == 0 {
+		t.Fatal("scanned no source files; the working directory is not the package source " +
+			"directory, or every handler file has been renamed and this scan is now a no-op")
+	}
+}
+```
+
 - [ ] **Step 2: Write the failing tests for the read-only surface**
 
 These compare **exact bytes** wherever the desktop's TypeScript parses the field, because a round trip through `json.Unmarshal` passes even when the key is spelled `sessioncount`, and it is the desktop's parser rather than Go's that has to match. Three bodies are pinned byte-for-byte — healthz, which is asserted in both its ready and its not-ready form, an empty `projects` and an empty `worktrees` — and the rest are decoded into a map so a test failure names the field rather than printing two hundred characters of diff. Every expected body ends in `"\n"`: task 9's `WriteJSON` goes through `json.Encoder`, which appends one.
@@ -539,7 +773,7 @@ func TestHealthzIs200EvenWhenTheBackendIsNotReady(t *testing.T) {
 }
 ```
 
-Still `control-plane/internal/api/catalog_test.go`, continuing below the healthz tests:
+Still `control-plane/internal/api/catalog_test.go`, continuing below the healthz tests. The isolation test is a table over three backend kinds, and the third row is the one Group C ruling 6 makes binding: `isolationFor` is this package's ONLY kind-to-enum mapping, task 11 calls it rather than declaring a second, and an unrecognised kind is `"none"` — a member of contract §3.4's three-value enum, not a fourth value invented at one call site:
 
 ```go
 func TestMachinesDescribesTheLocalDockerMachine(t *testing.T) {
@@ -592,15 +826,35 @@ func TestMachinesReportsErrorAndAMessageWhenTheBackendIsDown(t *testing.T) {
 
 func TestMachinesIsolationFollowsTheBackendKind(t *testing.T) {
 	// katabe is dormant until Phase 8, but the mapping must not be a literal.
-	h := catalogNewAPI(t, func(d *api.Deps) { d.Backend = catalogBackend{kind: backend.KindKata} })
-	rec := catalogDo(t, h, http.MethodGet, "/v1/machines", "", nil)
+	//
+	// The third row is the one ruling 6 makes binding: isolationFor is the
+	// package's ONLY kind-to-enum mapping, task 11 calls it rather than
+	// declaring a second, and the value an unrecognised kind gets is "none" —
+	// a member of contract §3.4's three-value enum, not a fourth value like
+	// "unknown" invented at one call site.
+	for kind, wantIsolation := range map[backend.Kind]string{
+		backend.KindDocker: "container",
+		backend.KindKata:   "microvm",
+		"podman":           "none",
+	} {
+		t.Run(string(kind), func(t *testing.T) {
+			h := catalogNewAPI(t, func(d *api.Deps) { d.Backend = catalogBackend{kind: kind} })
+			rec := catalogDo(t, h, http.MethodGet, "/v1/machines", "", nil)
 
-	m := catalogListOf(t, rec.Body.String(), "machines")[0]
-	if got := m["isolation"]; got != "microvm" {
-		t.Errorf("isolation = %v for the kata backend, want \"microvm\"", got)
-	}
-	if got := m["backend"]; got != "kata" {
-		t.Errorf("backend = %v, want \"kata\"", got)
+			m := catalogListOf(t, rec.Body.String(), "machines")[0]
+			if got := m["isolation"]; got != wantIsolation {
+				t.Errorf("isolation = %v for the %s backend, want %q", got, kind, wantIsolation)
+			}
+			if got := m["backend"]; got != string(kind) {
+				t.Errorf("backend = %v, want %q", got, kind)
+			}
+			// Every kind says what it costs the user, including the one this
+			// build does not know: "unsandboxed" with no sentence under it is
+			// a badge nobody can act on.
+			if lim, _ := m["limitations"].([]any); len(lim) == 0 {
+				t.Errorf("limitations is empty for the %s backend", kind)
+			}
+		})
 	}
 }
 
@@ -813,20 +1067,49 @@ func TestPatchWorktreeSetsReadyAndTheListThenReportsIt(t *testing.T) {
 }
 
 func TestPatchWorktreeRejectsABodyThatSetsSomethingElse(t *testing.T) {
+	// Every one of these is 400 bad_request and not 400 invalid_json. The
+	// controller's ruling: an unknown field is WELL-FORMED JSON that is
+	// semantically wrong, and a code the cockpit switches on must not say
+	// something untrue — the same principle that refuses sandbox_not_running for
+	// a sandbox that is running. Contract §3.7 names bad_request for this case.
 	target := "/v1/projects/" + catalogTestProject + "/worktrees/" + catalogTestWorktree
-	for name, tc := range map[string]struct{ body, code string }{
-		"unknown field": {`{"ready":true,"name":"renamed"}`, "bad_request"},
-		"only a name":   {`{"name":"renamed"}`, "bad_request"},
-		"empty object":  {`{}`, "bad_request"},
-		"null ready":    {`{"ready":null}`, "bad_request"},
+	for name, body := range map[string]string{
+		"unknown field beside ready": `{"ready":true,"name":"renamed"}`,
+		"only a name":                `{"name":"renamed"}`,
+		"empty object":               `{}`,
+		"null ready":                 `{"ready":null}`,
+		"ready is not a boolean":     `{"ready":"yes"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			rec := catalogDo(t, catalogNewAPI(t, nil), http.MethodPatch, target, tc.body, nil)
+			rec := catalogDo(t, catalogNewAPI(t, nil), http.MethodPatch, target, body, nil)
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, want 400; body = %s", rec.Code, rec.Body.String())
 			}
-			if !strings.Contains(rec.Body.String(), tc.code) {
-				t.Errorf("body = %s, want the %s code", rec.Body.String(), tc.code)
+			if got := catalogDecodeObject(t, rec.Body.String())["error"]; got != "bad_request" {
+				t.Errorf("error = %v, want \"bad_request\"; body = %s", got, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestPatchWorktreeStillAnswersInvalidJsonForAMalformedBody(t *testing.T) {
+	// The other half of the ruling above, and the reason it is a ruling about
+	// LABELS rather than about which decoder runs: httpx.DecodeJSON still owns
+	// every body rule in the phase, so a body that is not JSON is still
+	// invalid_json. Two codes, two distinct meanings, one decoder.
+	target := "/v1/projects/" + catalogTestProject + "/worktrees/" + catalogTestWorktree
+	for name, body := range map[string]string{
+		"truncated object": `{"ready":true`,
+		"not json at all":  `ready please`,
+		"two objects":      `{"ready":true}{"ready":false}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			rec := catalogDo(t, catalogNewAPI(t, nil), http.MethodPatch, target, body, nil)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400; body = %s", rec.Code, rec.Body.String())
+			}
+			if got := catalogDecodeObject(t, rec.Body.String())["error"]; got != "invalid_json" {
+				t.Errorf("error = %v, want \"invalid_json\"; body = %s", got, rec.Body.String())
 			}
 		})
 	}
