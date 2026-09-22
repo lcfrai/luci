@@ -1,27 +1,11 @@
-import { useState } from "react";
-import { Terminal } from "./components/Terminal";
-
-const DEFAULT_URL = "ws://localhost:8080/attach";
-
 export default function App() {
-  const [url, setUrl] = useState(DEFAULT_URL);
-  const [connected, setConnected] = useState(false);
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#0a0908", color: "#f2ede7" }}>
-      <div style={{ display: "flex", gap: 8, padding: 8, borderBottom: "1px solid rgba(255,248,240,.075)" }}>
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          style={{ flex: 1, background: "#1a1715", color: "#f2ede7", border: 0, padding: "6px 9px", borderRadius: 7 }}
-        />
-        <button onClick={() => setConnected((c) => !c)} style={{ padding: "6px 12px", borderRadius: 7 }}>
-          {connected ? "Disconnect" : "Connect"}
-        </button>
-      </div>
-      <div style={{ flex: 1, minHeight: 0, padding: 8 }}>
-        {connected ? <Terminal url={url} /> : <div style={{ opacity: 0.5, fontSize: 13 }}>Not connected.</div>}
-      </div>
+    <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center" }}>
+      {/* Task 24 replaces this component entirely: <AppShell/> mounts here, startPolling()
+          runs alongside it, and app.css is imported from main.tsx. Nothing else in this file
+          is meant to survive. The Phase 1 ws:// harness was retired in task 19, when
+          <Terminal/> stopped taking a URL (contract §6.6). */}
+      <p style={{ opacity: 0.6, fontSize: 13 }}>The cockpit mounts here in task 24.</p>
     </div>
   );
 }

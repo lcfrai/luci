@@ -1,61 +1,93 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
-import { Kind, decode, encode, encodeResize } from "../lib/wire";
+import {
+  acquireAttach,
+  releaseAttach,
+  setAttachReadOnly,
+  updateAttachSession,
+} from "../api/attachRegistry";
+import type { TermLike } from "../api/attachRegistry";
+import { selectSession } from "../store/selectors";
+import { useCockpit } from "../store/store";
+import type { SessionId } from "../store/types";
 
-export function Terminal({ url }: { url: string }) {
+/** Checked against src/styles/tokens.css by the greps above; task 14 owns the names. */
+const TERM_BG_TOKEN = "--page";
+const TERM_FG_TOKEN = "--ink";
+
+/** The fit addon belongs to the terminal, and the terminal outlives this component, so the
+ *  pairing cannot live in a ref. Weak, so a disposed terminal takes its addon with it. */
+const fitAddons = new WeakMap<TermLike, FitAddon>();
+
+/** No literal hex in this file. If the tokens do not resolve — jsdom, where nothing is
+ *  rendered anyway — no theme is passed and xterm keeps its own defaults. */
+function themeFromTokens(): { background: string; foreground: string } | undefined {
+  const styles = getComputedStyle(document.documentElement);
+  const background = styles.getPropertyValue(TERM_BG_TOKEN).trim();
+  const foreground = styles.getPropertyValue(TERM_FG_TOKEN).trim();
+  if (background === "" || foreground === "") return undefined;
+  return { background, foreground };
+}
+
+/** Called by the registry at most once per session id. */
+function makeTerm(): TermLike {
+  const term = new XTerm({
+    fontFamily: '"Cascadia Mono", ui-monospace, Menlo, Consolas, monospace',
+    fontSize: 12,
+    theme: themeFromTokens(),
+    cursorBlink: true,
+    // §7.2. xterm's default is 1 000 lines, which makes scrolling up not worth doing — and
+    // the pinned-scroll rule only pays for itself if there is something up there to read.
+    scrollback: 10_000,
+    // Let the agent CLI own the screen; we never reinterpret its output.
+    convertEol: false,
+  });
+  const fit = new FitAddon();
+  term.loadAddon(fit);
+  fitAddons.set(term, fit);
+  return term;
+}
+
+function TerminalImpl({ sessionId, readOnly }: { sessionId: SessionId; readOnly: boolean }) {
   const host = useRef<HTMLDivElement>(null);
+  const session = useCockpit(selectSession(sessionId));
+  const hasSession = session !== undefined;
+
+  // Two pushes into the registry. Neither acquires, so neither can re-create anything.
+  useEffect(() => {
+    if (session) updateAttachSession(session);
+  }, [session]);
+  useEffect(() => {
+    setAttachReadOnly(sessionId, readOnly);
+  }, [sessionId, readOnly]);
 
   useEffect(() => {
-    if (!host.current) return;
+    const node = host.current;
+    // Read imperatively: a dependency on the session object would re-run this effect on every
+    // 2 s poll, which is known defect 1 wearing a component's clothes.
+    const current = useCockpit.getState().sessions[sessionId];
+    if (!node || !current) return;
 
-    const term = new XTerm({
-      fontFamily: '"Cascadia Mono", ui-monospace, Menlo, Consolas, monospace',
-      fontSize: 12,
-      theme: { background: "#0a0908", foreground: "#d6d0c8" },
-      cursorBlink: true,
-      // Let the agent CLI own the screen; we never reinterpret its output.
-      convertEol: false,
-    });
-    const fit = new FitAddon();
-    term.loadAddon(fit);
-    term.open(host.current);
-    fit.fit();
+    const handle = acquireAttach(current, { createTerm: makeTerm, readOnly });
+    node.appendChild(handle.element);
+    handle.mount();                              // AFTER the append: xterm measures a
+    fitAddons.get(handle.term)?.fit();           // rendered element, never a detached one
+    handle.focus();
 
-    const ws = new WebSocket(url);
-    ws.binaryType = "arraybuffer";
-
-    ws.onopen = () => {
-      ws.send(encodeResize(term.cols, term.rows));
-      term.focus();
-    };
-    ws.onmessage = (ev) => {
-      const { kind, payload } = decode(new Uint8Array(ev.data as ArrayBuffer));
-      if (kind === Kind.Stdout) term.write(payload);
-      else if (kind === Kind.Exit) term.write("\r\n\x1b[2m[session ended]\x1b[0m\r\n");
-    };
-    ws.onclose = () => term.write("\r\n\x1b[2m[disconnected]\x1b[0m\r\n");
-
-    const onData = term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(encode(Kind.Stdin, new TextEncoder().encode(data)));
-      }
-    });
-
-    const onResize = () => {
-      fit.fit();
-      if (ws.readyState === WebSocket.OPEN) ws.send(encodeResize(term.cols, term.rows));
-    };
-    window.addEventListener("resize", onResize);
+    const onWindowResize = () => fitAddons.get(handle.term)?.fit();
+    window.addEventListener("resize", onWindowResize);
 
     return () => {
-      window.removeEventListener("resize", onResize);
-      onData.dispose();
-      ws.close();
-      term.dispose();
+      window.removeEventListener("resize", onWindowResize);
+      if (handle.element.parentNode === node) node.removeChild(handle.element);
+      releaseAttach(sessionId);
     };
-  }, [url]);
+  }, [sessionId, hasSession]);
 
   return <div ref={host} style={{ width: "100%", height: "100%" }} />;
 }
+
+/** memo'd per §8 row 1: a parent re-render with unchanged props never reaches the effects. */
+export const Terminal = memo(TerminalImpl);

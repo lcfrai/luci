@@ -6,7 +6,9 @@
  * GROWS this copy and says so in both plans. TASK 19 is the known one that does: it adds
  * `scrollUp`, `resize`, `openedIn` and `focused` to FakeTerm, here. Replacing the file rather
  * than growing it orphans the non-exported helpers below and breaks this file's own typecheck
- * under `noUnusedLocals`.
+ * under `noUnusedLocals`. Task 19 also added `addons`, a write callback with a moving `baseY`,
+ * recorded resize handlers, and `opens` / `openedWhileConnected` — the last two because the
+ * mutants "mount is not idempotent" and "mount before append" both survived without them.
  *
  * This module imports nothing on purpose. It is loaded from inside `vi.mock` factories, and
  * the safe form of that is a dynamic import inside the factory, because `vi.mock` is hoisted
@@ -21,37 +23,82 @@
  * access '__vi_import_0__' before initialization" depending on which module is pulled first.
  */
 
-/** Records what the component does to the terminal without loading the real one. */
+/* ─────────────────────────────────────────────────────────────────────────────────────
+ * FakeTerm — grown by task 19 (shared-shape §3.3). The additions are marked; nothing in
+ * contract §1.5's original class was removed, and FakeWebSocket below is not touched.
+ * ───────────────────────────────────────────────────────────────────────────────────── */
+
+/** Records what the component and the registry do to a terminal without loading the real one. */
 export class FakeTerm {
   cols = 80;
   rows = 24;
   written: string[] = [];
   disposed = false;
   scrolledToBottom = 0;
+  /** task 19: Terminal.tsx must hand DOM focus to the pane, and that has to be assertable. */
+  focused = 0;
+  addons: unknown[] = [];
+  openedIn: HTMLElement | null = null;
+  /** task 19: how many times open() was called. StrictMode mounts every effect twice, and a
+   *  second open() against a live terminal is the defect the idempotent mount() prevents. */
+  opens = 0;
+  /** task 19: xterm measures its cell size from a RENDERED element, so open() on a detached
+   *  node yields a zero-column terminal. Records whether the host was in the document. */
+  openedWhileConnected: boolean | null = null;
   buffer = { active: { viewportY: 0, baseY: 0 } };
   private dataHandlers: ((d: string) => void)[] = [];
-  loadAddon() {}
-  open() {}
-  focus() {}
-  write(data: string | Uint8Array) {
-    this.written.push(typeof data === "string" ? data : new TextDecoder().decode(data));
+  private resizeHandlers: ((size: { cols: number; rows: number }) => void)[] = [];
+
+  loadAddon(addon: unknown) { this.addons.push(addon); }
+  open(parent: HTMLElement) {
+    this.openedIn = parent;
+    this.opens += 1;
+    this.openedWhileConnected = parent.isConnected;
   }
+  focus() { this.focused += 1; }
+
+  /** task 19 grew this, and both changes are load-bearing:
+   *  (a) the callback is INVOKED — the registry's pinned-scroll rule lives inside it, so a
+   *      fake that swallows the callback makes known defect 5 untestable;
+   *  (b) baseY advances by the number of newlines written while viewportY does not, which is
+   *      what a real write does. It is the only way a test can tell "pinned was measured
+   *      BEFORE the write" from "measured after": measured after, a pane that was pinned
+   *      reads viewportY < baseY and never scrolls. */
+  write(data: string | Uint8Array, callback?: () => void) {
+    const text = typeof data === "string" ? data : new TextDecoder().decode(data);
+    this.written.push(text);
+    this.buffer.active.baseY += text.split("\n").length - 1;
+    callback?.();
+  }
+
+  /** Re-pins the viewport, as xterm does. */
   scrollToBottom() {
     this.scrolledToBottom += 1;
+    this.buffer.active.viewportY = this.buffer.active.baseY;
   }
+
   onData(cb: (d: string) => void) {
     this.dataHandlers.push(cb);
-    return { dispose: () => {} };
+    return { dispose: () => { this.dataHandlers = this.dataHandlers.filter((h) => h !== cb); } };
   }
-  onResize() {
-    return { dispose: () => {} };
+  /** task 19: the registry forwards a resize frame from here, so the handler must be recorded. */
+  onResize(cb: (size: { cols: number; rows: number }) => void) {
+    this.resizeHandlers.push(cb);
+    return { dispose: () => { this.resizeHandlers = this.resizeHandlers.filter((h) => h !== cb); } };
   }
-  dispose() {
-    this.disposed = true;
-  }
+  dispose() { this.disposed = true; }
+
   /** test helper: simulate the user typing */
-  type(s: string) {
-    this.dataHandlers.forEach((h) => h(s));
+  type(s: string) { this.dataHandlers.forEach((h) => h(s)); }
+  /** test helper: simulate the fit addon resizing the terminal (task 19) */
+  resize(cols: number, rows: number) {
+    this.cols = cols;
+    this.rows = rows;
+    this.resizeHandlers.forEach((h) => h({ cols, rows }));
+  }
+  /** test helper: simulate the user scrolling up N lines to read (task 19) */
+  scrollUp(lines: number) {
+    this.buffer.active.viewportY = Math.max(0, this.buffer.active.baseY - lines);
   }
 }
 
