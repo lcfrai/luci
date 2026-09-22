@@ -100,18 +100,23 @@ func WriteProblem(w http.ResponseWriter, status int, code, msg string, details m
 //
 // IT ANSWERS WITH TWO CODES AND THE DIFFERENCE IS LOAD-BEARING (Group C §1B):
 //
-//   - bytes that are not one JSON object — truncated, not JSON at all, two
-//     values, over the limit — are invalid_json;
-//   - a body that parsed and carries a field dst does not declare is
-//     bad_request, naming the field.
+//   - invalid_json means, and means only, that the body is not one JSON object:
+//     truncated, not JSON at all, two values, or over the limit;
+//   - bad_request means the body parsed and dst cannot take it — a field dst
+//     does not declare, or a declared field holding the wrong type. Either way
+//     the message names the field.
 //
-// An unknown field is well-formed JSON that is semantically wrong, and a code
-// the cockpit switches on must not say something untrue — the same objection
-// that refuses sandbox_not_running for a sandbox that is running. The
-// distinction lives here rather than in each handler for the reason
+// Both are well-formed JSON that is semantically wrong, and a code the cockpit
+// switches on must not say something untrue — the same objection that refuses
+// sandbox_not_running for a sandbox that is running. {"ready":"yes"} parsed
+// perfectly; telling its sender the JSON was invalid sends them looking at
+// their quoting rather than at their value.
+//
+// The distinction lives here rather than in each handler for the reason
 // ValidateSpec lives inside EnvEntries: a rule every caller must remember is
-// not a rule. Before it did, one endpoint's own field scan answered bad_request
-// while every DecodeJSON endpoint answered invalid_json for the same mistake.
+// not a rule. Before it did, one endpoint's own field scan and its own type
+// check answered bad_request while every DecodeJSON endpoint answered
+// invalid_json for the same two mistakes.
 //
 // It deliberately does NOT require Content-Type: application/json. Requiring it
 // would force a preflight on cross-origin posts and so add a second CSRF
@@ -123,11 +128,7 @@ func DecodeJSON[T any](w http.ResponseWriter, r *http.Request, dst *T) bool {
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(dst); err != nil {
-		code := CodeInvalidJSON
-		if _, unknown := unknownField(err); unknown {
-			code = CodeBadRequest
-		}
-		WriteProblem(w, http.StatusBadRequest, code, decodeMessage(err), nil)
+		WriteProblem(w, http.StatusBadRequest, decodeCode(err), decodeMessage(err), nil)
 		return false
 	}
 	// A second value in the body is not documented anywhere on this API, and
@@ -150,6 +151,25 @@ func DecodeJSON[T any](w http.ResponseWriter, r *http.Request, dst *T) bool {
 		return false
 	}
 	return true
+}
+
+// decodeCode is §1B's rule in one place: bad_request when the body parsed and
+// the target cannot take it, invalid_json when the bytes are not one JSON
+// object.
+//
+// The two bad_request cases are the two ways a parsed body can be wrong about a
+// FIELD — its name is not declared, or its value is the wrong type — and both
+// name that field in the message decodeMessage builds beside this. Everything
+// else the decoder can return is a statement about the bytes: a syntax error, an
+// empty body, a value that ended early, or the size cap.
+func decodeCode(err error) string {
+	if _, unknown := unknownField(err); unknown {
+		return CodeBadRequest
+	}
+	if errors.As(err, new(*json.UnmarshalTypeError)) {
+		return CodeBadRequest
+	}
+	return CodeInvalidJSON
 }
 
 // decodeMessage turns a decoder error into one human sentence.

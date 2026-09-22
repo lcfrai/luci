@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -615,6 +616,23 @@ func sessionsStubReady(t *testing.T, err error) {
 	t.Cleanup(func() { sessionWaitReady = prev })
 }
 
+// sessionsStubReadyCalls is sessionsStubReady with a counter, for the tests that
+// must prove the readiness wait was never ENTERED rather than that it returned
+// something harmless. Stubbing the wait to nil and asserting the happy outcome
+// cannot tell "the branch was skipped" from "the branch ran and did nothing",
+// which is how the first ruling-10 test was blind to the case it was named for.
+func sessionsStubReadyCalls(t *testing.T, err error) *atomic.Int32 {
+	t.Helper()
+	var calls atomic.Int32
+	prev := sessionWaitReady
+	sessionWaitReady = func(ctx context.Context, endpoint string, timeout time.Duration) error {
+		calls.Add(1)
+		return err
+	}
+	t.Cleanup(func() { sessionWaitReady = prev })
+	return &calls
+}
+
 // sessionsWatchDone reports each finished readiness watch. Drain one value per watch
 // before the test returns, or Cleanup's write races the goroutine's read.
 func sessionsWatchDone(t *testing.T) <-chan string {
@@ -768,6 +786,55 @@ func TestCreateRecordsTheSessionBeforeTheSandboxAndKeepsItOnFailure(t *testing.T
 	if list[0].ExitReason == "" {
 		t.Error("exitReason is empty; the user is owed a reason")
 	}
+	// SandboxID written BEFORE backend.Create is the entire reason for the
+	// ordering, and group-C ruling 9 is written against it: without it a
+	// container the daemon did create before failing has no record naming it,
+	// and task 13's reaper cannot tell it from someone else's container.
+	if list[0].SandboxID == "" {
+		t.Error("sandboxId is empty; the record cannot name the container that may exist, which is what the record-first ordering is for")
+	}
+}
+
+// 201 is written before the sandbox is ready, not after — contract §3.9. The
+// response carries "starting" either way, so status alone cannot tell the two
+// apart: what distinguishes them is that the handler RETURNS while the wait is
+// still in flight. The stub releases on its own after two seconds so a
+// synchronous create fails this test rather than hanging it.
+func TestCreateReturnsBeforeTheSandboxIsReady(t *testing.T) {
+	env := sessionsNewEnv(t)
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+	prev := sessionWaitReady
+	sessionWaitReady = func(ctx context.Context, endpoint string, timeout time.Duration) error {
+		entered <- struct{}{}
+		select {
+		case <-release:
+		case <-time.After(2 * time.Second):
+		}
+		return nil
+	}
+	t.Cleanup(func() { sessionWaitReady = prev })
+	done := sessionsWatchDone(t)
+
+	start := time.Now()
+	got := sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions", sessionsCreateBody), http.StatusCreated)
+	elapsed := time.Since(start)
+
+	if elapsed > time.Second {
+		t.Errorf("create took %s; it waited for readiness, and a cockpit that blocks for ReadyTimeout looks frozen", elapsed)
+	}
+	if got.Status != string(registry.StatusStarting) {
+		t.Errorf("status = %q, want starting", got.Status)
+	}
+	// And the watch really is running — otherwise the timing above would be
+	// explained by there being nothing to wait for.
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the readiness watch never started, so the timing above proves nothing")
+	}
+	close(release)
+	sessionsAwaitWatch(t, done)
 }
 
 func TestCreateRejectsAMissingWorktreeID(t *testing.T) {
@@ -924,10 +991,16 @@ func TestWatchSessionReadyNeverTouchesASandboxItDoesNotOwn(t *testing.T) {
 // makes the reaper the only actor that resolves it, and this test is what
 // stops this task resolving it instead. The fake SETS the field — a test that
 // left it false would assert the rule and pin nothing.
+//
+// THE WAIT IS STUBBED TO FAIL, WHICH IS THE POINT. The first version of this
+// test stubbed it to nil, so it proved only that CREATE does not fabricate a
+// status and was structurally blind to the watch — the one thing that can.
+// With DeadlineExceeded, a watch that ran would destroy the sandbox and write
+// exited, and the two assertions below would catch it.
 func TestCreateDoesNotTranslateNonLoopbackIntoAStatus(t *testing.T) {
 	env := sessionsNewEnv(t)
 	env.be.nonLoopback = true
-	sessionsStubReady(t, nil)
+	calls := sessionsStubReadyCalls(t, context.DeadlineExceeded)
 	done := sessionsWatchDone(t)
 
 	got := sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions", sessionsCreateBody), http.StatusCreated)
@@ -940,10 +1013,18 @@ func TestCreateDoesNotTranslateNonLoopbackIntoAStatus(t *testing.T) {
 	if spec := env.be.spec(t, 0); spec.ID != got.ID {
 		t.Fatalf("the sandbox was created as %q, want %q", spec.ID, got.ID)
 	}
+	sessionsAwaitWatch(t, done)
+
 	if env.be.destroyCount() != 0 {
 		t.Errorf("Destroy was called %d times; ruling 10 gives that job to task 13's reaper, which logs it distinctly", env.be.destroyCount())
 	}
-	sessionsAwaitWatch(t, done)
+	// There is no endpoint to wait on, so waiting on it is not a slow path, it
+	// is a wrong one: WaitReady would build http:///healthz and fail every
+	// attempt until the timeout, and the watch would read that as "never became
+	// ready" and destroy a container that is running.
+	if n := calls.Load(); n != 0 {
+		t.Errorf("the readiness wait ran %d times against an empty endpoint", n)
+	}
 
 	// The record is what the reaper reads, so it matters that the endpoint is
 	// blank there too rather than carrying an address nothing can reach.
@@ -954,8 +1035,48 @@ func TestCreateDoesNotTranslateNonLoopbackIntoAStatus(t *testing.T) {
 	if stored.Endpoint != "" {
 		t.Errorf("endpoint = %q, want it empty — backend.Sandbox blanks it whenever NonLoopback is set", stored.Endpoint)
 	}
-	if stored.Status == registry.StatusExited {
-		t.Error("the record was marked exited for a container that is running")
+	if stored.Status != registry.StatusStarting {
+		t.Errorf("status = %q, want starting; the record was moved for a container that is running", stored.Status)
+	}
+	if stored.ExitReason != "" {
+		t.Errorf("exitReason = %q on a record that has not exited", stored.ExitReason)
+	}
+}
+
+// The watch's own version of the rule above, driven directly rather than
+// through create, because create is not the only caller — restart launches the
+// same watch, and a backend that returns an endpoint-less sandbox there gets
+// the same treatment.
+//
+// "No endpoint" is not "not ready yet". There is nothing to poll and no later
+// poll that could succeed, so treating it as a readiness timeout invents both a
+// status the session never reached and a destruction ruling 10 reserves for the
+// reaper, which logs it distinctly so "why did my sandbox vanish" has an answer.
+func TestWatchSessionReadyLeavesAnEndpointLessSandboxToTheReaper(t *testing.T) {
+	env := sessionsNewEnv(t)
+	calls := sessionsStubReadyCalls(t, context.DeadlineExceeded)
+	sessionsSeed(t, env.st, sessionsStarting("s-00000001"))
+
+	env.api.watchSessionReady("s-00000001", "s-00000001", "")
+
+	if n := calls.Load(); n != 0 {
+		t.Errorf("the readiness wait ran %d times with no endpoint to wait on", n)
+	}
+	if env.be.destroyCount() != 0 {
+		t.Fatalf("Destroy was called %d times; the sandbox is running and the reaper owns it", env.be.destroyCount())
+	}
+	got, err := env.st.Get("s-00000001")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Status != registry.StatusStarting {
+		t.Errorf("status = %q, want it left at starting for the reaper", got.Status)
+	}
+	if got.ExitReason != "" {
+		t.Errorf("exitReason = %q; the session never exited and the real cause is not a readiness timeout", got.ExitReason)
+	}
+	if got.AttachToken == "" {
+		t.Error("the attach token was cleared; the record is not terminal and task 13 re-reads it on recovery")
 	}
 }
 
@@ -1183,19 +1304,21 @@ func TestPatchRejectsAnEmptyTitleAnAbsentTitleAndAnUnknownField(t *testing.T) {
 	env := sessionsNewEnv(t)
 	sessionsSeedThree(t, env)
 
-	// Every one of these is bad_request, including the unknown field: since
-	// group-C §1B the decoder answers bad_request for well-formed JSON naming a
-	// field this endpoint does not have, so one user mistake has one code
-	// across the whole surface. The plan text expected invalid_json here and
-	// the ruling supersedes it.
+	// Every one of these is bad_request, including the last two: since group-C
+	// §1B the decoder answers bad_request for well-formed JSON that names a
+	// field this endpoint does not have OR gives a field it does have the wrong
+	// type, so one user mistake has one code across the whole surface. The plan
+	// text expected invalid_json for the unknown field and the ruling
+	// supersedes it.
 	for name, tc := range map[string]struct {
 		body     string
 		wantCode string
 	}{
-		"empty":           {`{"title":""}`, "bad_request"},
-		"whitespace only": {`{"title":"   "}`, "bad_request"},
-		"absent":          {`{}`, "bad_request"},
-		"another field":   {`{"status":"running"}`, "bad_request"},
+		"empty":                 {`{"title":""}`, "bad_request"},
+		"whitespace only":       {`{"title":"   "}`, "bad_request"},
+		"absent":                {`{}`, "bad_request"},
+		"another field":         {`{"status":"running"}`, "bad_request"},
+		"title is not a string": {`{"title":5}`, "bad_request"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			rec := env.do(t, http.MethodPatch, "/v1/sessions/s-0000000b", tc.body)
@@ -1325,6 +1448,52 @@ func TestDeleteKillsTheSandboxKeepsTheRecordAndIsIdempotent(t *testing.T) {
 	again := sessionsDecodeOne(t, env.do(t, http.MethodDelete, "/v1/sessions/s-0000000b", ""), http.StatusOK)
 	if again.ExitReason != "killed" {
 		t.Errorf("the second delete rewrote the reason to %q", again.ExitReason)
+	}
+	if env.be.destroyCount() != 1 {
+		t.Errorf("destroys = %d, want 1 — the second delete re-issued a Destroy for a sandbox the first one already removed", env.be.destroyCount())
+	}
+}
+
+// The consequence of that, and the reason it matters rather than being tidy:
+// the record deliberately keeps SandboxID after a kill, so a purge that
+// re-issued the Destroy would need a live daemon to remove a record whose
+// sandbox is already gone. A user cleaning up their rail after Docker Desktop
+// has been closed would find they could not.
+func TestPurgingAnAlreadyKilledSessionDoesNotNeedTheBackend(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
+	sessionsDecodeOne(t, env.do(t, http.MethodDelete, "/v1/sessions/s-0000000b", ""), http.StatusOK)
+
+	// Now the daemon goes away.
+	env.be.destroyErr = backend.ErrUnavailable
+
+	rec := env.do(t, http.MethodDelete, "/v1/sessions/s-0000000b?purge=true", "")
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204; body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := env.st.Get("s-0000000b"); !errors.Is(err, registry.ErrNotFound) {
+		t.Errorf("the record survived the purge: err = %v", err)
+	}
+	if env.be.destroyCount() != 1 {
+		t.Errorf("destroys = %d, want 1 — only the kill destroys; the purge has nothing left to ask the backend for", env.be.destroyCount())
+	}
+}
+
+// The other half, so the skip above cannot widen into "purge never destroys":
+// a session that has NOT been killed still destroys first, and a destroy that
+// fails still refuses the purge. Removing the record there would orphan a
+// container that may still be running, with nothing left naming it.
+func TestPurgingALiveSessionStillRefusesWhenTheDestroyFails(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
+	env.be.destroyErr = backend.ErrUnavailable
+
+	rec := env.do(t, http.MethodDelete, "/v1/sessions/s-0000000b?purge=true", "")
+	if code := sessionsProblemCode(t, rec, http.StatusServiceUnavailable); code != "backend_unavailable" {
+		t.Errorf("error = %q, want backend_unavailable", code)
+	}
+	if _, err := env.st.Get("s-0000000b"); err != nil {
+		t.Errorf("the record was purged while its container may still be running: %v", err)
 	}
 }
 

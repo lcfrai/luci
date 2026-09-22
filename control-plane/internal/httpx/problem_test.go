@@ -173,6 +173,9 @@ func TestDecodeJSONRejectsAnUnknownFieldAsBadRequestAndNotInvalidJson(t *testing
 	// not a rule; before this, the worktree PATCH answered bad_request from its
 	// own local field scan while every DecodeJSON endpoint answered
 	// invalid_json, which is two codes for one mistake on one surface.
+	//
+	// The wrong-type case below reaches the same answer by the same argument,
+	// which is §1B as amended after task 11's first round.
 	_, rec, ok := decodeBody(t, `{"name":"api","colour":"blue"}`)
 
 	if ok {
@@ -196,10 +199,16 @@ func TestDecodeJSONSeparatesAnUnparseableBodyFromASemanticallyWrongOne(t *testin
 		"truncated":       {`{"name":"a"`, CodeInvalidJSON},
 		"not json at all": {`name please`, CodeInvalidJSON},
 		"two objects":     {`{"name":"a"}{"name":"b"}`, CodeInvalidJSON},
+		"empty":           {``, CodeInvalidJSON},
 		"unknown field":   {`{"colour":"blue"}`, CodeBadRequest},
 		"unknown field beside a known one": {
 			`{"name":"a","colour":"blue"}`, CodeBadRequest,
 		},
+		// The two bad_request rows above and the two below are the same rule:
+		// the body parsed and the target cannot take it. A name it does not
+		// declare and a value of the wrong type are the two ways that happens.
+		"wrong type":                     {`{"count":"three"}`, CodeBadRequest},
+		"wrong type beside a good field": {`{"name":"a","count":[1]}`, CodeBadRequest},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, rec, ok := decodeBody(t, tc.body)
@@ -211,16 +220,18 @@ func TestDecodeJSONSeparatesAnUnparseableBodyFromASemanticallyWrongOne(t *testin
 	}
 }
 
-func TestDecodeJSONNamesTheFieldWithTheWrongType(t *testing.T) {
-	// Still invalid_json, and deliberately: §1B rules on the field NAME being
-	// unrecognised and says nothing about its value's type, so widening it here
-	// would be this task deciding a question the contract did not ask.
+func TestDecodeJSONRejectsAWrongTypeAsBadRequestAndNamesTheField(t *testing.T) {
+	// bad_request, per §1B as amended: {"count":"three"} is well-formed JSON
+	// whose value this endpoint cannot use, and calling that invalid JSON sends
+	// the sender to look at their quoting rather than at their value. The
+	// message still names the field, which is the half that makes the 400
+	// actionable.
 	_, rec, ok := decodeBody(t, `{"count":"three"}`)
 
 	if ok {
 		t.Fatal("DecodeJSON accepted a string where an int was required")
 	}
-	p := problemFrom(t, rec, CodeInvalidJSON)
+	p := problemFrom(t, rec, CodeBadRequest)
 	if !strings.Contains(p.Message, "count") {
 		t.Errorf("message = %q, want it to name the field", p.Message)
 	}

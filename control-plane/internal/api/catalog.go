@@ -4,7 +4,6 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -346,40 +345,32 @@ func (a *API) handleWorktrees(w http.ResponseWriter, r *http.Request) {
 // and whether the handler should continue; every refusal is a 400 it has
 // already written.
 //
-// THE UNKNOWN-FIELD SCAN THAT USED TO LIVE HERE IS GONE, and that is Group C
-// §1B. This endpoint answers bad_request for {"ready":true,"name":"x"} because
-// an unknown field is well-formed JSON that is semantically wrong, and it used
-// to reach that answer by decoding into map[string]json.RawMessage and
-// comparing the keys itself — while every endpoint that decoded into a struct
-// answered invalid_json for the same mistake. Two implementations of one rule,
-// disagreeing. httpx.DecodeJSON makes the distinction now, so this reads the
-// field it wants and nothing else, and the answer is the same on every endpoint
-// on the surface.
+// THE UNKNOWN-FIELD SCAN AND THE TYPE CHECK THAT USED TO LIVE HERE ARE BOTH
+// GONE, and that is Group C §1B. This endpoint has always answered bad_request
+// for {"ready":true,"name":"x"} and for {"ready":"yes"} — both are well-formed
+// JSON that is semantically wrong — and it used to reach those answers by
+// decoding into map[string]json.RawMessage and inspecting the body itself,
+// while every endpoint that decoded into a struct answered invalid_json for the
+// same two mistakes. Two implementations of one rule, disagreeing. DecodeJSON
+// makes both distinctions now, so this reads one *bool and the answer is the
+// same on every endpoint on the surface.
 //
-// ready's VALUE is still a json.RawMessage rather than a *bool, which is not
-// leftover: DecodeJSON reports a wrong type as invalid_json, and contract §3.7
-// wants bad_request for {"ready":"yes"} on the same reasoning as the unknown
-// field. §1B rules on the field name and says nothing about its type, so the
-// one case it does not cover stays where it was rather than being widened here.
+// What is left is the only question that is genuinely this endpoint's: a body
+// that names no field at all. Absent and null are one case — neither asks for
+// anything, and a PATCH that silently did nothing is worse than one that says
+// so — and a *bool is nil for both.
 func readyFromBody(w http.ResponseWriter, r *http.Request) (ready bool, ok bool) {
 	var body struct {
-		Ready json.RawMessage `json:"ready"`
+		Ready *bool `json:"ready"`
 	}
 	if !httpx.DecodeJSON(w, r, &body) {
 		return false, false // DecodeJSON has written its own 400.
 	}
-
-	// Absent and null are one case: neither asks for anything, and a PATCH that
-	// silently did nothing is worse than one that says so.
-	if len(body.Ready) == 0 || string(body.Ready) == "null" {
+	if body.Ready == nil {
 		badRequest(w, `This endpoint sets one field. Send {"ready": true} or {"ready": false}.`)
 		return false, false
 	}
-	if err := json.Unmarshal(body.Ready, &ready); err != nil {
-		badRequest(w, "The ready field must be true or false.")
-		return false, false
-	}
-	return ready, true
+	return *body.Ready, true
 }
 
 // handlePatchWorktree is the whole of the fix for known defect 9: nothing ever

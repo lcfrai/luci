@@ -413,12 +413,44 @@ func (a *API) markSessionExited(sessionID, reason string) {
 // still points at that sandbox. Without that guard a slow watch left over from
 // before a restart marks the NEW sandbox running with the OLD endpoint, or
 // destroys it outright.
+//
+// A sandbox with no endpoint gets its own path and not the timeout path. See
+// the comment on that branch: they are different failures and only one of them
+// is this task's to resolve.
 func (a *API) watchSessionReady(sessionID, sandboxID, endpoint string) {
 	defer func() {
 		if done := sessionReadyDone; done != nil {
 			done(sessionID)
 		}
 	}()
+
+	// NO ENDPOINT IS NOT "NOT READY YET", AND THE DIFFERENCE IS A FABRICATED
+	// STATUS. backend.Sandbox documents Endpoint as blank whenever NonLoopback
+	// is set, so this is the LAN-published container: it is RUNNING, the
+	// control plane simply cannot reach it. Waiting anyway would have
+	// backend.WaitReady build http:///healthz, fail every poll for the whole
+	// timeout, and hand this function a readiness error it would read as "the
+	// sandbox never became ready" — destroying a healthy container and telling
+	// the user their agent finished when it never started, with the real cause
+	// (the daemon published it off loopback) lost.
+	//
+	// That is the fifth thing in this phase to refuse to translate one fact
+	// into a different one: task 5's List keeps such a container in the slice
+	// with an empty Endpoint rather than faking StateStopped, and group-C
+	// ruling 10 hands it to task 13's reaper, which destroys it and logs that
+	// destruction distinctly so "why did my sandbox vanish" has an answer.
+	// Inventing "exited" here is the same lie one layer up.
+	//
+	// So: destroy nothing, write nothing, and leave the record at starting —
+	// which is true, the sandbox has not answered /healthz — for the reaper to
+	// resolve. The log line is the durable record of why, and it is tagged
+	// SECURITY because a sandbox published off loopback is a shell on the LAN.
+	if endpoint == "" {
+		a.sessionLog().Error("SECURITY: the sandbox has no loopback endpoint, so nothing can attach to it",
+			"sessionId", sessionID, "sandboxId", sandboxID,
+			"detail", "the record stays at starting; group-C ruling 10 gives this container to the reaper, which destroys it and says so")
+		return
+	}
 
 	timeout := a.sessionReadyTimeout()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout+sessionWatchGrace)
@@ -796,7 +828,21 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	purge := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("purge")), "true")
 
-	if sess.SandboxID != "" {
+	// A session a previous verb already took terminal has no sandbox left to
+	// destroy, and re-issuing the Destroy is what let a daemon outage trap the
+	// record forever: this verb deliberately KEEPS SandboxID after a kill — it
+	// is how the reaper tells a known container from an orphan — so a second
+	// DELETE ...?purge=true would ask the backend again, get 503, and never
+	// remove a record whose sandbox is already gone.
+	//
+	// exited WITH both the endpoint and the token cleared is the state only a
+	// COMPLETED kill, a completed watch failure or the reaper leaves. A destroy
+	// that failed leaves the record untouched — that is the rule below — so it
+	// does not match this and still gets its retry, and no container is ever
+	// orphaned by a record being purged out from under it.
+	alreadyTerminal := sess.Status == registry.StatusExited && sess.Endpoint == "" && sess.AttachToken == ""
+
+	if sess.SandboxID != "" && !alreadyTerminal {
 		// Already gone is success. An explicit kill and the reaper race by
 		// design, and a delete that errors on "already gone" makes the cockpit
 		// show a failure for work that completed.
