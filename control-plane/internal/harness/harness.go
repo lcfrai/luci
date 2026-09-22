@@ -1,0 +1,214 @@
+// Package harness decides which binary a session runs and with which arguments.
+// It never wraps, parses or reimplements any CLI; it constructs argv and stops.
+//
+// Two things in here are product decisions rather than technical ones, and both
+// are deliberate. A shell is a harness — docs/FUNCTIONAL-SPEC.md lists a plain
+// terminal as one of five choices in the picker, so "no agent" is an entry in
+// this catalogue and not a special case elsewhere. And a harness whose flags
+// have never been checked against its own --help ships as unavailable with a
+// note, rather than being started with guessed flags: a wrong flag produces a
+// usage error inside a terminal the user then has to read and interpret.
+package harness
+
+import "errors"
+
+// ID names a harness. These strings are the wire values in GET /v1/harnesses
+// and in registry.Session.Harness, so they are stable.
+type ID string
+
+const (
+	ClaudeCode ID = "claude-code"
+	Codex      ID = "codex"
+	OpenCode   ID = "opencode"
+	GeminiCLI  ID = "gemini-cli"
+	Shell      ID = "shell"
+)
+
+// PermissionMode is the product's vocabulary, from docs/FUNCTIONAL-SPEC.md
+// ("bypass / ask / plan"). Each harness maps it to its own flag, or to nothing.
+type PermissionMode string
+
+const (
+	PermissionAsk    PermissionMode = "ask"
+	PermissionBypass PermissionMode = "bypass"
+	PermissionPlan   PermissionMode = "plan"
+)
+
+// Effort is Claude Code's effort level, and Claude Code's alone
+// (docs/FUNCTIONAL-SPEC.md line 27: "low / medium / high / xhigh (Claude Code
+// only)"). The CLI also accepts "max"; the product does not offer it, so Build
+// rejects it rather than passing through a level no picker can show.
+type Effort string
+
+const (
+	EffortLow    Effort = "low"
+	EffortMedium Effort = "medium"
+	EffortHigh   Effort = "high"
+	EffortXHigh  Effort = "xhigh"
+)
+
+// Model is one selectable model for a harness.
+type Model struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// Descriptor is everything the cockpit needs to render the picker and
+// everything Build needs to construct argv.
+type Descriptor struct {
+	ID      ID     `json:"id"`
+	Name    string `json:"name"`
+	Command string `json:"command"`
+
+	// Installed is whether images/sandbox/Dockerfile actually puts this binary
+	// in the sandbox image. Only Claude Code and the shell are, today.
+	Installed bool `json:"installed"`
+
+	// FlagsVerified is whether this package's argv was checked against the real
+	// CLI's --help.
+	FlagsVerified bool `json:"flagsVerified"`
+
+	Models          []Model          `json:"models"`
+	DefaultModel    string           `json:"defaultModel"`
+	Efforts         []Effort         `json:"efforts"`
+	PermissionModes []PermissionMode `json:"permissionModes"`
+
+	SupportsOpeningPrompt bool `json:"supportsOpeningPrompt"`
+	SupportsResume        bool `json:"supportsResume"`
+
+	// Note is shown in the picker when the harness is unavailable. It says why.
+	Note string `json:"note"`
+
+	// freeTextModel is unexported on purpose: it changes no JSON and the
+	// cockpit has no use for it. Claude Code documents full model names as well
+	// as the three aliases, so pinning its list here would make the app stale
+	// the week a new model ships. The three unverified harnesses do not get
+	// that latitude — if one is ever enabled, an unlisted model is a typo.
+	freeTextModel bool
+}
+
+// Available reports whether a session may actually be started on this harness.
+func (d Descriptor) Available() bool { return d.Installed && d.FlagsVerified }
+
+// Request is one session's configuration.
+type Request struct {
+	Harness       ID
+	Model         string
+	Effort        Effort
+	Permission    PermissionMode
+	OpeningPrompt string
+	Resume        string // a prior agent session id; "" starts fresh
+}
+
+var (
+	ErrUnknownHarness    = errors.New("harness: unknown harness")
+	ErrUnavailable       = errors.New("harness: harness is not available in the sandbox image")
+	ErrUnsupportedOption = errors.New("harness: this harness does not accept that option")
+	ErrUnknownModel      = errors.New("harness: model is not offered by this harness")
+)
+
+// unverifiedNote is one string because three descriptors say the same thing and
+// the cockpit renders it verbatim. It names the file to change, so the note is
+// an instruction rather than an apology.
+const unverifiedNote = "Not installed in the sandbox image. Add it to images/sandbox/Dockerfile and verify its flags against `--help` before enabling."
+
+// catalogue is the single source of truth, in display order: the two harnesses
+// that work, then the three that do not, alphabetically. Never handed out
+// directly — see clone.
+var catalogue = []Descriptor{
+	{
+		ID:      ClaudeCode,
+		Name:    "Claude Code",
+		Command: "claude",
+		// Verified against `claude --help` on this machine, version 2.1.267.
+		// images/sandbox/Dockerfile pins @anthropic-ai/claude-code@2.1.274.
+		Installed:     true,
+		FlagsVerified: true,
+		Models: []Model{
+			{ID: "opus", Name: "Opus"},
+			{ID: "sonnet", Name: "Sonnet"},
+			{ID: "fable", Name: "Fable"},
+		},
+		DefaultModel:          "opus",
+		Efforts:               []Effort{EffortLow, EffortMedium, EffortHigh, EffortXHigh},
+		PermissionModes:       []PermissionMode{PermissionAsk, PermissionBypass, PermissionPlan},
+		SupportsOpeningPrompt: true,
+		SupportsResume:        true,
+		freeTextModel:         true,
+	},
+	{
+		ID:      Shell,
+		Name:    "Shell",
+		Command: "/bin/bash",
+		// Verified trivially: bash is in the image and -l is POSIX-stable.
+		Installed:     true,
+		FlagsVerified: true,
+		// No models, no efforts, no permission modes, and no opening prompt: a
+		// shell has no way to receive a sentence that is not "execute this",
+		// and silently executing what the user typed into a prompt box is a
+		// footgun, not a convenience.
+		SupportsOpeningPrompt: false,
+		SupportsResume:        false,
+	},
+	{
+		ID:            Codex,
+		Name:          "Codex",
+		Command:       "codex",
+		Installed:     false,
+		FlagsVerified: false,
+		Note:          unverifiedNote,
+	},
+	{
+		ID:            GeminiCLI,
+		Name:          "Gemini CLI",
+		Command:       "gemini",
+		Installed:     false,
+		FlagsVerified: false,
+		Note:          unverifiedNote,
+	},
+	{
+		ID:            OpenCode,
+		Name:          "OpenCode",
+		Command:       "opencode",
+		Installed:     false,
+		FlagsVerified: false,
+		Note:          unverifiedNote,
+	},
+}
+
+// clone deep-copies the three slices a Descriptor carries. Without it a handler
+// that appends to Models poisons the package variable for every later request
+// in the process, and the symptom shows up in an unrelated session.
+func clone(d Descriptor) Descriptor {
+	out := d
+	if d.Models != nil {
+		out.Models = append([]Model(nil), d.Models...)
+	}
+	if d.Efforts != nil {
+		out.Efforts = append([]Effort(nil), d.Efforts...)
+	}
+	if d.PermissionModes != nil {
+		out.PermissionModes = append([]PermissionMode(nil), d.PermissionModes...)
+	}
+	return out
+}
+
+// Catalogue returns every harness, in display order.
+func Catalogue() []Descriptor {
+	out := make([]Descriptor, 0, len(catalogue))
+	for _, d := range catalogue {
+		out = append(out, clone(d))
+	}
+	return out
+}
+
+// Lookup returns one descriptor. The second result is false for an id the
+// catalogue does not carry, and the first is then the zero Descriptor.
+func Lookup(id ID) (Descriptor, bool) {
+	for _, d := range catalogue {
+		if d.ID == id {
+			return clone(d), true
+		}
+	}
+	return Descriptor{}, false
+}
