@@ -237,7 +237,7 @@ three, and the two testable thirds carry all the logic:
 | File | Tested how |
 |---|---|
 | `desktop/src/lib/wire.ts` (exists) | Pure functions over `Uint8Array`. Plain unit tests, no DOM. |
-| `desktop/src/api/attachRegistry.ts` | The socket lifecycle, the 10 Hz output batching, the pinned-scroll rule and the reconnect-while-`starting` retry. Unit tested against a **fake terminal** and a **fake WebSocket**, both injected — no jsdom globals are patched. |
+| `desktop/src/api/attachRegistry.ts` | The socket lifecycle, the 10 Hz output batching, the pinned-scroll rule and the reconnect retry ladder (§4.6: `starting`, `running` and `idle`). Unit tested against a **fake terminal** and a **fake WebSocket**, both injected — no jsdom globals are patched. |
 | `desktop/src/components/Terminal.tsx` | ~40 lines that construct a real `XTerm`, call `open()` and hand it to the registry. Tested with `vi.mock("@xterm/xterm")` (below), which asserts the wiring and never renders a glyph. |
 
 The mock, copied verbatim into any test that renders `<Terminal/>`:
@@ -1196,14 +1196,35 @@ as the record exists and the sandbox has been *created* — status `starting`, n
 closes at once. The registry therefore retries:
 
 - Delays: 250 ms, 500 ms, 1 s, 2 s, 2 s, 2 s … capped at 2 s.
-- Give up after **60 s** total, surface `sandbox_not_running`, and render the pane's
-  "did not start" state with a Restart action. 60 s is the outer bound on a cold Docker pull on
-  this machine; a shorter budget turns a slow first run into a false failure.
-- Retry only while the session's status is `starting` or `running`. A session that reads
-  `exited` is not retried — the sandbox is gone and the correct UI is the exit reason.
-- A socket that opened and then closed while the status is still `running` **is** retried on the
-  same ladder: that is a control-plane restart, and the user should see the pane reconnect, not
-  a dead terminal.
+- Give up after **60 s** total and render the pane's "did not start" state with a Restart
+  action. 60 s is the outer bound on a cold Docker pull on this machine; a shorter budget turns
+  a slow first run into a false failure.
+- **AMENDED by task 19 — the give-up reason is read, not guessed.** This bullet used to say
+  "surface `sandbox_not_running`", and that is a sentence the cockpit is not entitled to. A
+  refused WebSocket upgrade exposes **neither the HTTP status nor the body** to JavaScript: the
+  handshake arrives as `onerror` then `onclose` with code 1006, and task 12's perfectly good
+  `409 sandbox_not_running` / `500 non_loopback_publish` JSON body is thrown away by the
+  browser. `sandbox_not_running` is merely the likeliest-looking code, and guessing it produces
+  exactly the sentence Group C's ruling 7 forbids, because `non_loopback_publish` means the
+  sandbox **is running** and published its port off loopback. So on give-up the registry makes
+  one diagnostic `GET /v1/sessions/{id}` (§4.4, no new client surface) and phrases the reason
+  from the record: `exited` renders `exitReason` verbatim; anything else says the sandbox *is*
+  in that status and refused the connection. `reasonForCode` keeps a `non_loopback_publish`
+  branch with the correct wording, ready for the phase that lets the client read a refusal
+  directly.
+- **AMENDED by task 19 — `idle` is retried too.** This bullet used to read "retry only while
+  the session's status is `starting` or `running`", which strands `idle`: an idle session is a
+  live sandbox that has simply been quiet, its status is derived from a `lastOutput` timestamp,
+  and refusing to reconnect leaves a healthy agent unreachable for ever — nothing can move it
+  back to `running`, because the only thing that would is the output the cockpit is no longer
+  attached to receive. The rule's intent is its own complement, stated in the same paragraph.
+  So: **the ladder runs for `starting`, `running` and `idle`, and stops on `exited`.** A session
+  that reads `exited` is not retried — the sandbox is gone and the correct UI is the exit reason.
+- A socket that opened and then closed while the session is still live **is** retried, on a
+  ladder that restarts from the bottom rung with a fresh 60 s budget: a successful handshake
+  retires both the attempt count and the budget clock, or a session attached for an hour would
+  give up instantly the first time its socket dropped. That is a control-plane restart, and the
+  user should see the pane reconnect, not a dead terminal.
 
 ### 4.7 Polling
 
@@ -1712,6 +1733,18 @@ and "move a pane between layouts" both work.
 artifact) but `onData` is not wired, so a keystroke into a dead session does nothing rather than
 silently vanishing into a closed socket.
 
+**ADDED by task 19 — the `createTerm` seam, because neither §1.5 nor §1.7 describes it.** §1.5
+puts the xterm import in this component; §1.7 puts the *instance* in the registry. A factory
+satisfies both: `Terminal` passes `acquireAttach(session, { createTerm, readOnly })` and the
+registry calls it **at most once per session id**, so `attachRegistry.ts` imports no xterm at all
+and `attachRegistry.test.ts` needs no `vi.mock`. Two consequences the component owns and the
+registry cannot: the registry hands back a **registry-owned `<div data-session-id>`** which the
+component appends and later removes — re-parenting one element is what preserves rendered
+scrollback when a pane moves between Columns and Canvas, because xterm does not support
+re-`open()`ing across parents — and `handle.mount()` is separate from `acquireAttach`, called
+**after** the append and idempotent, because xterm measures its cell size from a rendered element
+and `open()` on a detached node yields a zero-column terminal.
+
 ### 6.7 Overlays
 
 | File | Props | Owns |
@@ -1997,7 +2030,7 @@ Legend: **C** create, **M** modify, **T** test.
 | **16** | The typed control-plane client | `ApiError`, `createClient`, one function per endpoint, `attachUrl`, the injected `fetch`/`WebSocket` seams | C `desktop/src/api/client.ts`, `desktop/src/api/index.ts`; T `desktop/src/api/client.test.ts` | 14, 15 |
 | **17** | The store: slices, persistence, inheritance | three flat slices, `persist` with `PERSIST_KEY`/version 1/`migrate`, `selectors.ts`, `resolveDefaults` and `toCreateRequest` | C `desktop/src/store/store.ts`, `store/slices/dataSlice.ts`, `store/slices/uiSlice.ts`, `store/slices/prefsSlice.ts`, `store/selectors.ts`, `store/defaults.ts`; M `desktop/package.json` (zustand); T `store/store.test.ts`, `store/defaults.test.ts`, `store/selectors.test.ts` | 15 |
 | **18** | Shell, rail, sub-rail and top bar | `AppShell`, the four-level rail with right-click verbs, the six-lens sub-rail, the top bar with the layout toggle and the split New-session button + picker, `StatusDot`, `heartbeat`, `Popover`, `ContextMenu`, `Toasts` | C `components/AppShell.tsx`, `components/rail/*` (7 files + css), `components/subrail/SubRail.tsx` + css, `components/lens/LensPlaceholder.tsx`, `components/topbar/*` (4 files + css), `components/common/{StatusDot,Toasts,Popover}.tsx` + css, `components/menu/ContextMenu.tsx` + css, `hooks/heartbeat.ts`, `hooks/useDismissable.ts`; T `rail/Rail.test.tsx`, `topbar/NewSessionButton.test.tsx`, `topbar/SessionPicker.test.tsx`, `common/StatusDot.test.tsx`, `hooks/heartbeat.test.ts` | 16, 17 |
-| **19** | The terminal binding and the attach registry | `attachRegistry` (ref-counted sockets + xterm instances, the `starting` retry ladder, 10 Hz batching, pinned scroll), `Terminal.tsx` rewritten to take a `sessionId`, `poller.ts` | C `desktop/src/api/attachRegistry.ts`, `desktop/src/api/poller.ts`; M `desktop/src/components/Terminal.tsx`; T `api/attachRegistry.test.ts`, `api/poller.test.ts`, `components/Terminal.test.tsx` | 16, 17 |
+| **19** | The terminal binding and the attach registry | `attachRegistry` (ref-counted sockets + xterm instances, the §4.6 retry ladder, 10 Hz batching, pinned scroll), `Terminal.tsx` rewritten to take a `sessionId`, `poller.ts` | C `desktop/src/api/attachRegistry.ts`, `desktop/src/api/poller.ts`; M `desktop/src/components/Terminal.tsx`; T `api/attachRegistry.test.ts`, `api/poller.test.ts`, `components/Terminal.test.tsx` | 16, 17 |
 
 **Note on task 18.** It is the widest task in Group D — four surfaces and six shared primitives —
 and it is the only one that could reasonably be two. Keep it whole if it can be: the rail, the
