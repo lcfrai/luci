@@ -47,6 +47,10 @@ describe("replaceById", () => {
     const out = replaceById(items, { id: "c", label: "EDITED" });
     expect(ids(out)).toEqual(["a", "b", "c"]);
     expect(out[2].label).toBe("EDITED");
+    // The success path, not just the miss: a helper that edited in place would pass
+    // every assertion above.
+    expect(out).not.toBe(items);
+    expect(items[2].label).toBe("C");
   });
 
   it("never appends an unmatched element, because upsert is a different operation", () => {
@@ -68,6 +72,10 @@ describe("moveWithinVisible", () => {
     // The prototype's bug produced this instead: an index from the filtered list
     // applied to the unfiltered array, swapping "a" with a row the user cannot see.
     expect(ids(out)).not.toEqual(["b", "a", "c", "d"]);
+    // `all` is shared across this block, so an in-place reorder here would cascade into
+    // every test below it and be read as several unrelated failures.
+    expect(out).not.toBe(all);
+    expect(ids(all)).toEqual(["a", "b", "c", "d"]);
   });
 
   it("moves upwards through a hidden row without disturbing it", () => {

@@ -131,10 +131,20 @@ export function aSession(over: Partial<Session> = {}): Session {
 }
 
 /**
- * The SHELL descriptor, because it is the one catalogue entry whose three arrays are
- * legitimately empty — which is the shape shared shape §3.2 pins: the Go side allocates
- * unconditionally, so they are `[]` and never `null`. A test that needs the picker populated
- * passes `aHarness({ id: "claude-code", models: [...], efforts: [...], permissionModes: [...] })`.
+ * The SHELL descriptor, field for field as `harness.go`'s catalogue declares it, because it is
+ * the one catalogue entry whose three arrays are legitimately empty — which is the shape shared
+ * shape §3.2 pins: the Go side allocates unconditionally, so they are `[]` and never `null`.
+ *
+ * `note` is empty for the same reason it is `""` on the wire. `available` is
+ * `installed && flagsVerified`, computed server-side, and no catalogue entry pairs an available
+ * harness with a note: the two available entries (Claude Code, Shell) leave `Note` unset, and
+ * only the three unavailable ones carry `unverifiedNote`. A default of available-with-a-note
+ * would be a combination the control plane cannot emit.
+ *
+ * A test that needs the picker populated passes
+ * `aHarness({ id: "claude-code", models: [...], efforts: [...], permissionModes: [...] })`; a test
+ * that needs a note passes `aHarness({ installed: false, flagsVerified: false, available: false,
+ * note: "..." })`, which is the shape the three unavailable entries actually have.
  */
 export function aHarness(over: Partial<Harness> = {}): Harness {
   return {
@@ -150,7 +160,7 @@ export function aHarness(over: Partial<Harness> = {}): Harness {
     permissionModes: [],
     supportsOpeningPrompt: false,
     supportsResume: false,
-    note: "A plain shell. No models, no effort levels and no permission modes.",
+    note: "",
     ...over,
   };
 }
