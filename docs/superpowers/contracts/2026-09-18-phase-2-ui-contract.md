@@ -1367,7 +1367,7 @@ and states its ratio.
   --fail-tint: oklch(66.7% 0.1830 32.3 / 0.12);
   /* "idle" and "exited" are NEUTRAL on purpose. A colour for every state is a colour for
    * no state. */
-  --idle:   var(--ink-4);
+  --idle:   var(--ink-3);   /* amended: --ink-4 is 1.92:1, below the 3:1 floor this file asserts */
   --exited: var(--ink-3);
 
   /* ── Radius: tied to element size, not one value everywhere ───────────────────────*/
