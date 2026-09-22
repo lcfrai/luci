@@ -1,11 +1,267 @@
 package main
 
-import "testing"
+import (
+	"bytes"
+	"context"
+	"errors"
+	"io"
+	"log/slog"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
 
-func TestMain(t *testing.T) {
-	// Placeholder test to ensure main package is testable
-	t.Run("main imports", func(t *testing.T) {
-		// This test verifies the main package can be tested
-		// Actual tests will be added in later tasks
+	"github.com/coder/websocket"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+)
+
+var bootClock = time.Date(2026, 9, 18, 9, 0, 0, 0, time.UTC)
+
+// recoveryBackend answers List and nothing else. recoverSessions must never
+// create, attach to or destroy anything: it runs before the listener, and a
+// boot that destroys a container is a boot that loses work.
+type recoveryBackend struct {
+	mu        sync.Mutex
+	sandboxes []backend.Sandbox
+	listErr   error
+}
+
+func (f *recoveryBackend) Kind() backend.Kind { return backend.KindDocker }
+
+func (f *recoveryBackend) Create(context.Context, backend.Spec) (backend.Sandbox, error) {
+	panic("recovery called Create")
+}
+
+func (f *recoveryBackend) Attach(context.Context, string, string) (*websocket.Conn, error) {
+	panic("recovery called Attach")
+}
+
+func (f *recoveryBackend) Destroy(context.Context, string) error {
+	panic("recovery called Destroy")
+}
+
+func (f *recoveryBackend) Get(_ context.Context, id string) (backend.Sandbox, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, s := range f.sandboxes {
+		if s.ID == id {
+			return s, nil
+		}
+	}
+	return backend.Sandbox{}, backend.ErrNotFound
+}
+
+func (f *recoveryBackend) List(context.Context) ([]backend.Sandbox, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	out := make([]backend.Sandbox, len(f.sandboxes))
+	copy(out, f.sandboxes)
+	return out, nil
+}
+
+func (f *recoveryBackend) Close() error { return nil }
+
+func bootStore(t *testing.T) *registry.FileStore {
+	t.Helper()
+	store, err := registry.NewFileStore(filepath.Join(t.TempDir(), "sessions.json"))
+	if err != nil {
+		t.Fatalf("NewFileStore: %v", err)
+	}
+	return store
+}
+
+func bootSeed(t *testing.T, store registry.Store, s registry.Session) {
+	t.Helper()
+	if s.CreatedAt.IsZero() {
+		s.CreatedAt = bootClock.Add(-time.Hour)
+	}
+	if err := store.Create(s); err != nil {
+		t.Fatalf("seed %s: %v", s.ID, err)
+	}
+}
+
+func bootGet(t *testing.T, store registry.Store, id string) registry.Session {
+	t.Helper()
+	s, err := store.Get(id)
+	if err != nil {
+		t.Fatalf("Get %s: %v", id, err)
+	}
+	return s
+}
+
+func quietLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
+
+// Contract §5.5 step 3. The endpoint on disk is stale the moment Docker Desktop
+// restarts, and attaching to a stale endpoint is connection-refused, which
+// looks exactly like a dead agent.
+func TestRecoverRepublishesTheEndpoint(t *testing.T) {
+	t.Parallel()
+	store := bootStore(t)
+	bootSeed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning,
+		Endpoint: "127.0.0.1:49711", SandboxRef: "container-old", AttachCount: 3,
 	})
+	be := &recoveryBackend{sandboxes: []backend.Sandbox{{
+		ID: "sb-1", Kind: backend.KindDocker, Ref: "container-new",
+		Endpoint: "127.0.0.1:52002", State: backend.StateRunning,
+	}}}
+
+	recoverSessions(context.Background(), store, be, quietLogger())
+
+	s := bootGet(t, store, "s-1")
+	if s.Endpoint != "127.0.0.1:52002" {
+		t.Errorf("Endpoint = %q, want the port the daemon republished on", s.Endpoint)
+	}
+	if s.SandboxRef != "container-new" {
+		t.Errorf("SandboxRef = %q, want container-new", s.SandboxRef)
+	}
+	if s.Status != registry.StatusRunning {
+		t.Errorf("Status = %q, want running", s.Status)
+	}
+	// AttachCount is the one field nothing else can repair: it is a count of
+	// live WebSockets, every one of them died with the previous process, and
+	// task 12's relay defer that would have decremented it died with them.
+	if s.AttachCount != 0 {
+		t.Errorf("AttachCount = %d, want 0: no client is attached to a process that just came back", s.AttachCount)
+	}
+}
+
+// Contract §5.5 steps 3 and 4.
+func TestRecoverSettlesMissingAndStoppedSandboxes(t *testing.T) {
+	t.Parallel()
+	store := bootStore(t)
+	bootSeed(t, store, registry.Session{ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning, AttachCount: 2})
+	bootSeed(t, store, registry.Session{ID: "s-2", SandboxID: "sb-2", Status: registry.StatusIdle, AttachCount: 1})
+	bootSeed(t, store, registry.Session{ID: "s-3", Status: registry.StatusStarting})
+	be := &recoveryBackend{sandboxes: []backend.Sandbox{{
+		ID: "sb-2", Kind: backend.KindDocker, Ref: "container-sb-2", State: backend.StateStopped,
+	}}}
+
+	recoverSessions(context.Background(), store, be, quietLogger())
+
+	s1 := bootGet(t, store, "s-1")
+	if s1.Status != registry.StatusExited || s1.ExitReason != "sandbox disappeared while the app was not running" {
+		t.Errorf("s-1 = (%q, %q)", s1.Status, s1.ExitReason)
+	}
+	if s1.AttachCount != 0 {
+		t.Errorf("s-1 AttachCount = %d, want 0", s1.AttachCount)
+	}
+	s2 := bootGet(t, store, "s-2")
+	if s2.Status != registry.StatusExited || s2.ExitReason != "process exited" {
+		t.Errorf("s-2 = (%q, %q)", s2.Status, s2.ExitReason)
+	}
+	if s2.AttachCount != 0 {
+		t.Errorf("s-2 AttachCount = %d, want 0", s2.AttachCount)
+	}
+	if got := bootGet(t, store, "s-3").Status; got != registry.StatusStarting {
+		t.Errorf("s-3 = %q: a session with no SandboxID has no sandbox to recover", got)
+	}
+}
+
+// The one row this task adds to contract §5.5 step 3, which names only
+// StateRunning and StateStopped. A sandbox that is still starting is neither:
+// the control plane went down between Create and the first /healthz answer.
+func TestRecoverReportsAStillStartingSandboxAsStarting(t *testing.T) {
+	t.Parallel()
+	store := bootStore(t)
+	bootSeed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning, Endpoint: "127.0.0.1:49711",
+	})
+	be := &recoveryBackend{sandboxes: []backend.Sandbox{{
+		ID: "sb-1", Kind: backend.KindDocker, Ref: "container-sb-1",
+		Endpoint: "127.0.0.1:52002", State: backend.StateStarting,
+	}}}
+
+	recoverSessions(context.Background(), store, be, quietLogger())
+
+	s := bootGet(t, store, "s-1")
+	if s.Status != registry.StatusStarting {
+		t.Errorf("Status = %q, want starting: running would fabricate a status for a sandbox that is not answering yet, and exited is terminal", s.Status)
+	}
+	if s.ExitReason != "" {
+		t.Errorf("ExitReason = %q; the session has not exited", s.ExitReason)
+	}
+}
+
+// Contract §5.5 step 2, and the failure mode it names: marking everything
+// exited because Docker Desktop had not finished starting loses a night's work.
+func TestRecoverChangesNothingWhenTheBackendIsDown(t *testing.T) {
+	t.Parallel()
+	store := bootStore(t)
+	bootSeed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning, Endpoint: "127.0.0.1:49711",
+	})
+	be := &recoveryBackend{listErr: errors.New("docker daemon is still starting")}
+
+	recoverSessions(context.Background(), store, be, quietLogger())
+
+	s := bootGet(t, store, "s-1")
+	if s.Status != registry.StatusRunning || s.Endpoint != "127.0.0.1:49711" {
+		t.Errorf("s-1 = (%q, %q), want it untouched so the reaper can converge later", s.Status, s.Endpoint)
+	}
+}
+
+// Contract §5.6: there is no transition out of exited. Decision (e): recovery
+// does not destroy the lingering sandbox either, it says so and moves on.
+func TestRecoverNeverResurrectsAnExitedSession(t *testing.T) {
+	t.Parallel()
+	store := bootStore(t)
+	bootSeed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusExited, ExitReason: "process exited",
+	})
+	be := &recoveryBackend{sandboxes: []backend.Sandbox{{
+		ID: "sb-1", Kind: backend.KindDocker, Ref: "container-sb-1",
+		Endpoint: "127.0.0.1:52002", State: backend.StateRunning,
+	}}}
+
+	recoverSessions(context.Background(), store, be, quietLogger())
+
+	s := bootGet(t, store, "s-1")
+	if s.Status != registry.StatusExited || s.ExitReason != "process exited" {
+		t.Errorf("s-1 = (%q, %q), want the terminal state it already had", s.Status, s.ExitReason)
+	}
+}
+
+// A LAN-published sandbox reports NonLoopback with an empty Endpoint (task 5).
+// Recovery must overwrite the stored endpoint with that empty string rather
+// than keeping the old one, and must NOT invent a status: the reaper destroys
+// it on its first sweep, which happens immediately.
+func TestRecoverClearsTheEndpointOfANonLoopbackSandbox(t *testing.T) {
+	t.Parallel()
+	store := bootStore(t)
+	bootSeed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning, Endpoint: "127.0.0.1:49711",
+	})
+	be := &recoveryBackend{sandboxes: []backend.Sandbox{{
+		ID: "sb-1", Kind: backend.KindDocker, Ref: "container-sb-1",
+		Endpoint: "", NonLoopback: true, State: backend.StateRunning,
+	}}}
+
+	recoverSessions(context.Background(), store, be, quietLogger())
+
+	s := bootGet(t, store, "s-1")
+	if s.Endpoint != "" {
+		t.Errorf("Endpoint = %q, want empty: nothing may attach to a sandbox on the LAN", s.Endpoint)
+	}
+	if s.Status != registry.StatusRunning {
+		t.Errorf("Status = %q; the process is still running and the reaper owns the destruction", s.Status)
+	}
+}
+
+func TestRunRefusesANonLoopbackBindWithExitCode2(t *testing.T) {
+	t.Parallel()
+	var out bytes.Buffer
+	code := run(env(map[string]string{"PANACEA_APP_ADDR": "0.0.0.0:8730"}), &out)
+	if code != 2 {
+		t.Errorf("run returned %d, want 2", code)
+	}
+	if !strings.Contains(out.String(), "a sandbox attach socket on a non-loopback address is a shell on the LAN") {
+		t.Errorf("run printed %q, which does not explain the refusal", out.String())
+	}
 }

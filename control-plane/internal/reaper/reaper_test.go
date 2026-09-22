@@ -1,0 +1,569 @@
+package reaper_test
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"log/slog"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/coder/websocket"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+)
+
+var clock = time.Date(2026, 9, 18, 9, 0, 0, 0, time.UTC)
+
+// fakeBackend answers List from a fixed slice and records every Destroy. Create
+// and Attach are never called: the reaper only ever lists and destroys, and a
+// panic here would be a real finding.
+type fakeBackend struct {
+	mu         sync.Mutex
+	sandboxes  []backend.Sandbox
+	listErr    error
+	destroyErr map[string]error
+	destroyed  []string
+}
+
+func (f *fakeBackend) Kind() backend.Kind { return backend.KindDocker }
+
+func (f *fakeBackend) Create(context.Context, backend.Spec) (backend.Sandbox, error) {
+	panic("reaper called Create")
+}
+
+func (f *fakeBackend) Attach(context.Context, string, string) (*websocket.Conn, error) {
+	panic("reaper called Attach")
+}
+
+func (f *fakeBackend) Get(_ context.Context, id string) (backend.Sandbox, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, s := range f.sandboxes {
+		if s.ID == id {
+			return s, nil
+		}
+	}
+	return backend.Sandbox{}, backend.ErrNotFound
+}
+
+func (f *fakeBackend) List(context.Context) ([]backend.Sandbox, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	out := make([]backend.Sandbox, len(f.sandboxes))
+	copy(out, f.sandboxes)
+	return out, nil
+}
+
+func (f *fakeBackend) Destroy(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.destroyErr[id]; err != nil {
+		return err
+	}
+	f.destroyed = append(f.destroyed, id)
+	return nil
+}
+
+func (f *fakeBackend) Close() error { return nil }
+
+func (f *fakeBackend) wasDestroyed(id string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, d := range f.destroyed {
+		if d == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *fakeBackend) destroyCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.destroyed)
+}
+
+func newStore(t *testing.T) *registry.FileStore {
+	t.Helper()
+	store, err := registry.NewFileStore(filepath.Join(t.TempDir(), "sessions.json"))
+	if err != nil {
+		t.Fatalf("NewFileStore: %v", err)
+	}
+	return store
+}
+
+func seed(t *testing.T, store registry.Store, s registry.Session) {
+	t.Helper()
+	if s.CreatedAt.IsZero() {
+		s.CreatedAt = clock.Add(-time.Hour)
+	}
+	if err := store.Create(s); err != nil {
+		t.Fatalf("seed %s: %v", s.ID, err)
+	}
+}
+
+func get(t *testing.T, store registry.Store, id string) registry.Session {
+	t.Helper()
+	s, err := store.Get(id)
+	if err != nil {
+		t.Fatalf("Get %s: %v", id, err)
+	}
+	return s
+}
+
+// managed is a sandbox this control plane created: both labels set, endpoint on
+// loopback, and old enough that no create can still be in flight for it. Tests
+// override the fields they care about.
+func managed(id string, state backend.State) backend.Sandbox {
+	return backend.Sandbox{
+		ID:        id,
+		Kind:      backend.KindDocker,
+		Ref:       "container-" + id,
+		Endpoint:  "127.0.0.1:49711",
+		State:     state,
+		CreatedAt: clock.Add(-time.Hour),
+		Labels: map[string]string{
+			backend.LabelManaged:   "true",
+			backend.LabelSandboxID: id,
+		},
+	}
+}
+
+func newReaper(t *testing.T, store registry.Store, be backend.Backend, idleAfter, idleTimeout time.Duration) (*reaper.Reaper, *bytes.Buffer) {
+	t.Helper()
+	logs := &bytes.Buffer{}
+	r := reaper.New(reaper.Config{
+		Store:       store,
+		Backend:     be,
+		IdleAfter:   idleAfter,
+		IdleTimeout: idleTimeout,
+		Interval:    time.Minute, // no test calls Run
+		Now:         func() time.Time { return clock },
+		Log:         slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
+	})
+	return r, logs
+}
+
+// Rule 1. This is the rule that protects a night's work from a Docker Desktop
+// restart, and it is the reason Sweep returns an error instead of swallowing one.
+func TestSweepChangesNothingWhenTheBackendIsDown(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning})
+	be := &fakeBackend{listErr: errors.New("cannot connect to the Docker daemon")}
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err == nil {
+		t.Fatal("Sweep reported success while the backend was down")
+	}
+	if got := get(t, store, "s-1").Status; got != registry.StatusRunning {
+		t.Errorf("status = %q, want %q: a failed List must never be read as \"every sandbox is gone\"", got, registry.StatusRunning)
+	}
+	if be.destroyCount() != 0 {
+		t.Errorf("destroyed %d sandboxes with no usable list", be.destroyCount())
+	}
+	if r.BackendReady() {
+		t.Error("BackendReady stayed true after List failed")
+	}
+}
+
+// Rule 2.
+func TestSweepMarksADisappearedSandboxExited(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning})
+	seed(t, store, registry.Session{ID: "s-2", Status: registry.StatusStarting}) // no sandbox yet
+	be := &fakeBackend{}
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	s1 := get(t, store, "s-1")
+	if s1.Status != registry.StatusExited || s1.ExitReason != "sandbox disappeared" {
+		t.Errorf("s-1 = (%q, %q), want (exited, \"sandbox disappeared\")", s1.Status, s1.ExitReason)
+	}
+	if got := get(t, store, "s-2").Status; got != registry.StatusStarting {
+		t.Errorf("s-2 = %q: a session with no SandboxID has no sandbox to have lost", got)
+	}
+	if !r.BackendReady() {
+		t.Error("BackendReady is false after a successful sweep")
+	}
+}
+
+// Rule 2's grace condition, decision (f). The fixture above is the easy half —
+// a record with no SandboxID has no sandbox to have lost. The hard half is the
+// one task 11 actually writes: SandboxID is set BEFORE backend.Create is
+// called, so a sweep landing in that window sees an id no container answers to
+// yet, and exited is terminal. Both directions are here, because a grace that
+// never expires is a leak rather than a fix.
+func TestSweepSparesASessionWhoseCreateIsStillInFlight(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-new", SandboxID: "sb-new", Status: registry.StatusStarting,
+		CreatedAt: clock.Add(-2 * time.Second), // Store.Create has run; ContainerCreate has not returned
+	})
+	seed(t, store, registry.Session{
+		ID: "s-stale", SandboxID: "sb-stale", Status: registry.StatusStarting,
+		CreatedAt: clock.Add(-10 * time.Minute), // nothing has been in flight for ten minutes
+	})
+	be := &fakeBackend{} // List succeeds and is empty: neither container exists
+	r := reaper.New(reaper.Config{
+		Store:       store,
+		Backend:     be,
+		Interval:    time.Minute,
+		CreateGrace: 90 * time.Second,
+		Now:         func() time.Time { return clock },
+		Log:         slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)),
+	})
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if got := get(t, store, "s-new").Status; got != registry.StatusStarting {
+		t.Errorf("s-new = %q, want starting: a sweep inside the create window must not make a terminal decision", got)
+	}
+	s := get(t, store, "s-stale")
+	if s.Status != registry.StatusExited || s.ExitReason != "sandbox disappeared" {
+		t.Errorf("s-stale = (%q, %q), want (exited, \"sandbox disappeared\"): the grace is a window, not an exemption", s.Status, s.ExitReason)
+	}
+}
+
+// The grace is a window on STATUS as well as on age. A running session is one
+// whose create finished, so a missing container really is a missing container
+// however young the record is — and skipping it would hide the very
+// disappearance rule 2 exists to report.
+func TestSweepDoesNotExtendTheCreateGraceToARunningSession(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning,
+		CreatedAt: clock.Add(-2 * time.Second),
+	})
+	be := &fakeBackend{}
+	r := reaper.New(reaper.Config{
+		Store:       store,
+		Backend:     be,
+		Interval:    time.Minute,
+		CreateGrace: 90 * time.Second,
+		Now:         func() time.Time { return clock },
+		Log:         slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)),
+	})
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if got := get(t, store, "s-1").Status; got != registry.StatusExited {
+		t.Errorf("s-1 = %q, want exited: its create finished, so the grace does not apply", got)
+	}
+}
+
+// Rule 3.
+func TestSweepMarksAStoppedSandboxExited(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning})
+	be := &fakeBackend{sandboxes: []backend.Sandbox{managed("sb-1", backend.StateStopped)}}
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	s := get(t, store, "s-1")
+	if s.Status != registry.StatusExited || s.ExitReason != "process exited" {
+		t.Errorf("s-1 = (%q, %q), want (exited, \"process exited\")", s.Status, s.ExitReason)
+	}
+	if be.wasDestroyed("sb-1") {
+		t.Error("a stopped sandbox with a live record was destroyed; DELETE with purge owns that, not the reaper")
+	}
+}
+
+// Rule 4. The crash-recovery path, and the one rule that can destroy a running
+// agent if it is wrong, so it is tested from both sides in one test.
+func TestSweepDestroysOrphansAndOnlyOrphans(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning})
+	unmanaged := managed("sb-3", backend.StateRunning)
+	unmanaged.Labels = map[string]string{} // somebody else's container
+	be := &fakeBackend{sandboxes: []backend.Sandbox{
+		managed("sb-1", backend.StateRunning), // has a record
+		managed("sb-2", backend.StateRunning), // orphan
+		unmanaged,
+	}}
+	r, logs := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if !be.wasDestroyed("sb-2") {
+		t.Error("the orphan survived; a crash between Create and the record write leaks a container forever")
+	}
+	if be.wasDestroyed("sb-1") || be.wasDestroyed("sb-3") {
+		t.Errorf("destroyed something that was not an orphan: %v", be.destroyed)
+	}
+	if !strings.Contains(logs.String(), "sb-2") || !strings.Contains(logs.String(), "orphan") {
+		t.Errorf("the destruction was silent or did not say it was an orphan; logs were:\n%s", logs.String())
+	}
+	if got := get(t, store, "s-1").Status; got != registry.StatusRunning {
+		t.Errorf("s-1 = %q, want running", got)
+	}
+}
+
+// Rule 4's grace, and it is the same hazard ruling 3 names on the other rule.
+// POST /v1/sessions writes the record before it creates the container, so its
+// containers are never orphans — but POST /v1/sessions/{id}/restart mints a
+// FRESH sandbox id, calls backend.Create, and only then writes that id to the
+// record (sessions.go:773-793). Between those two the container is live,
+// managed, and matched by no record, which is rule 4's definition of an orphan.
+// A sweep landing there destroys the sandbox of a session that is restarting
+// normally. The window is small and the cost of waiting one sweep is nothing.
+func TestSweepSparesAnOrphanYoungEnoughToBeMidCreate(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	fresh := managed("sb-fresh", backend.StateStarting)
+	fresh.CreatedAt = clock.Add(-2 * time.Second) // Create returned; the record write has not
+	old := managed("sb-old", backend.StateRunning)
+	be := &fakeBackend{sandboxes: []backend.Sandbox{fresh, old}}
+	r := reaper.New(reaper.Config{
+		Store:       store,
+		Backend:     be,
+		Interval:    time.Minute,
+		CreateGrace: 90 * time.Second,
+		Now:         func() time.Time { return clock },
+		Log:         slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)),
+	})
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if be.wasDestroyed("sb-fresh") {
+		t.Error("destroyed a sandbox whose record write may still be in flight; a restarting session just lost its agent")
+	}
+	if !be.wasDestroyed("sb-old") {
+		t.Error("the grace became an exemption: an orphan older than the create window was left running")
+	}
+}
+
+// The task-5 amendment to contract §2.4: List keeps a LAN-published sandbox in
+// the slice with NonLoopback set and an empty Endpoint, and the reaper is the
+// only actor that resolves it.
+func TestSweepDestroysANonLoopbackSandboxAndSaysWhy(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning})
+	exposed := managed("sb-1", backend.StateRunning)
+	exposed.Endpoint = ""
+	exposed.NonLoopback = true
+	be := &fakeBackend{sandboxes: []backend.Sandbox{exposed}}
+	r, logs := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if !be.wasDestroyed("sb-1") {
+		t.Fatal("a sandbox published off 127.0.0.1 survived the sweep")
+	}
+	s := get(t, store, "s-1")
+	if s.Status != registry.StatusExited {
+		t.Errorf("status = %q, want exited once the sandbox is actually gone", s.Status)
+	}
+	if !strings.Contains(s.ExitReason, "127.0.0.1") {
+		t.Errorf("ExitReason = %q; it must say why, because this is the one disappearance the user did not ask for", s.ExitReason)
+	}
+	line := logs.String()
+	if !strings.Contains(line, "sb-1") || !strings.Contains(line, "127.0.0.1") {
+		t.Errorf("the log does not identify the sandbox and the reason:\n%s", line)
+	}
+	// Ruling 2: distinct from an orphan reap and from an idle-TTL reap, or "why
+	// did my sandbox vanish" is answered by a line that names the wrong cause.
+	if strings.Contains(line, "orphan") || strings.Contains(line, "idle timeout") {
+		t.Errorf("the non-loopback destruction is logged as an orphan or an idle reap:\n%s", line)
+	}
+}
+
+// Contract §9A. This is the shape task 11 actually leaves behind: watchSessionReady
+// finds no endpoint, writes NOTHING rather than inventing a status, and the
+// record sits at bare `starting` until this sweep. The terminal record this
+// writes is the ONLY place the user ever learns the cause, so a grace that
+// spared it — or a reason that said "sandbox disappeared" — would leave "my
+// session sat at starting and then vanished" with no answer anywhere.
+func TestSweepGivesAStartingSessionTheRealReasonItsSandboxWentAway(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusStarting,
+		CreatedAt: clock.Add(-2 * time.Second), // well inside any create grace
+	})
+	exposed := managed("sb-1", backend.StateRunning)
+	exposed.Endpoint = ""
+	exposed.NonLoopback = true
+	be := &fakeBackend{sandboxes: []backend.Sandbox{exposed}}
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	s := get(t, store, "s-1")
+	if s.Status != registry.StatusExited {
+		t.Fatalf("status = %q, want exited: the sandbox was destroyed, so starting is no longer true", s.Status)
+	}
+	if !strings.Contains(s.ExitReason, "127.0.0.1") {
+		t.Errorf("ExitReason = %q, want the real cause: the daemon published the sandbox off loopback", s.ExitReason)
+	}
+	if strings.Contains(s.ExitReason, "disappeared") {
+		t.Errorf("ExitReason = %q names the symptom rather than the cause", s.ExitReason)
+	}
+}
+
+// A LAN-published sandbox that no session record claims satisfies BOTH the
+// non-loopback rule and rule 4's definition of an orphan. It must be destroyed
+// once and logged once, as the thing it is: ruling 2 asks for three
+// distinguishable destruction messages, and a sandbox that produces two of them
+// for one event tells the operator it was collected as litter when it was
+// actually removed off the LAN.
+func TestSweepDestroysAnUnclaimedNonLoopbackSandboxOnceAndCallsItWhatItIs(t *testing.T) {
+	t.Parallel()
+	store := newStore(t) // no records at all: nothing claims this sandbox
+	exposed := managed("sb-1", backend.StateRunning)
+	exposed.Endpoint = ""
+	exposed.NonLoopback = true
+	be := &fakeBackend{sandboxes: []backend.Sandbox{exposed}}
+	r, logs := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if n := be.destroyCount(); n != 1 {
+		t.Errorf("Destroy was called %d times for one sandbox: %v", n, be.destroyed)
+	}
+	if strings.Contains(logs.String(), "orphan") {
+		t.Errorf("a sandbox removed off the LAN was also reported as an orphan:\n%s", logs.String())
+	}
+}
+
+func TestSweepLeavesTheSessionAloneWhenTheNonLoopbackDestroyFails(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning})
+	exposed := managed("sb-1", backend.StateRunning)
+	exposed.NonLoopback = true
+	be := &fakeBackend{
+		sandboxes:  []backend.Sandbox{exposed},
+		destroyErr: map[string]error{"sb-1": errors.New("daemon says no")},
+	}
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if got := get(t, store, "s-1").Status; got != registry.StatusRunning {
+		t.Errorf("status = %q; the process is still running and still on the LAN, so reporting exited would be a fabricated status", got)
+	}
+}
+
+// Rule 5, both directions, plus decision (d).
+func TestSweepDerivesIdleFromSilenceAndBackAgain(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning,
+		LastOutputAt: clock.Add(-2 * time.Minute),
+	})
+	// A session that has never produced a byte is measured from CreatedAt. The
+	// zero time is not "silent for a very long while"; it is year 1, and it
+	// would make every new session idle on the first sweep after creation.
+	seed(t, store, registry.Session{
+		ID: "s-2", SandboxID: "sb-2", Status: registry.StatusRunning,
+		CreatedAt: clock.Add(-30 * time.Second),
+	})
+	be := &fakeBackend{sandboxes: []backend.Sandbox{
+		managed("sb-1", backend.StateRunning),
+		managed("sb-2", backend.StateRunning),
+	}}
+	r, _ := newReaper(t, store, be, 90*time.Second, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("first Sweep: %v", err)
+	}
+	if got := get(t, store, "s-1").Status; got != registry.StatusIdle {
+		t.Errorf("s-1 = %q after two minutes of silence, want idle", got)
+	}
+	if got := get(t, store, "s-2").Status; got != registry.StatusRunning {
+		t.Errorf("s-2 = %q thirty seconds after creation, want running", got)
+	}
+	if be.destroyCount() != 0 {
+		t.Errorf("idle derivation destroyed something with IdleTimeout unset: %v", be.destroyed)
+	}
+
+	if _, err := store.Update("s-1", func(s *registry.Session) error {
+		s.LastOutputAt = clock.Add(-5 * time.Second)
+		return nil
+	}); err != nil {
+		t.Fatalf("recording output: %v", err)
+	}
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("second Sweep: %v", err)
+	}
+	if got := get(t, store, "s-1").Status; got != registry.StatusRunning {
+		t.Errorf("s-1 = %q after output resumed, want running", got)
+	}
+}
+
+func TestIdleDerivationIsOffWhenIdleAfterIsZero(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning,
+		LastOutputAt: clock.Add(-10 * time.Hour),
+	})
+	be := &fakeBackend{sandboxes: []backend.Sandbox{managed("sb-1", backend.StateRunning)}}
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if got := get(t, store, "s-1").Status; got != registry.StatusRunning {
+		t.Errorf("status = %q with PANACEA_APP_IDLE_AFTER=0, want running", got)
+	}
+}
+
+// Rule 6. Opt-in, and the only rule that destroys a sandbox the user still has
+// a record for, so the reason has to survive into the rail.
+func TestIdleTimeoutDestroysTheSandboxAndRecordsWhy(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning,
+		LastOutputAt: clock.Add(-30 * time.Minute),
+	})
+	be := &fakeBackend{sandboxes: []backend.Sandbox{managed("sb-1", backend.StateRunning)}}
+	r, logs := newReaper(t, store, be, 90*time.Second, 10*time.Minute)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if !be.wasDestroyed("sb-1") {
+		t.Fatal("the idle timeout expired and the sandbox is still there")
+	}
+	s := get(t, store, "s-1")
+	if s.Status != registry.StatusExited || s.ExitReason != "idle timeout" {
+		t.Errorf("s-1 = (%q, %q), want (exited, \"idle timeout\")", s.Status, s.ExitReason)
+	}
+	// Ruling 2 again, from the other side: an idle reap must not read as either
+	// of the other two destructions.
+	line := logs.String()
+	if !strings.Contains(line, "idle timeout") || strings.Contains(line, "orphan") || strings.Contains(line, "published outside") {
+		t.Errorf("the idle-TTL destruction is not distinguishable in the log:\n%s", line)
+	}
+}
