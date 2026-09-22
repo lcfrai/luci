@@ -47,6 +47,35 @@ var catalogReadOnlyRoutes = map[string]string{
 		"artifact — and reading it changes nothing about the record or the sandbox.",
 }
 
+// catalogUpgradeGatedRoutes is the third category: a route that IS a GET, DOES
+// write, and is safe anyway because every write sits behind a WebSocket upgrade
+// the §10a attacker cannot perform.
+//
+// THE ARGUMENT IS NOT RESTATED HERE. It is contract §10a.1, which carries the
+// ruling, the Fetch-spec and RFC 6455 citations, and the reasoning about what
+// §10a's threat model does and does not cover. A reason string is the wrong
+// place for a security argument: copied, it drifts from the contract silently.
+//
+// Two things this file owes on top of that pointer, and they are the reason a
+// route lands here rather than in the map above:
+//
+//   - It is a separate map because catalogReadOnlyRoutes is read to learn what
+//     is read-only, and a writing route listed there teaches something false.
+//     §10a.1 records that as the deciding argument.
+//   - §10a.1's exception is conditional and the condition is ORDERING: the write
+//     must follow the gate. That is pinned by
+//     TestAttachWritesNothingUntilTheOriginAndUpgradeChecksHavePassed in
+//     attach_test.go, which refuses at each gate and asserts nothing was written.
+//     An entry here costs that test as well as this line.
+var catalogUpgradeGatedRoutes = map[string]string{
+	"GET /v1/sessions/{id}/attach": "Writes attachCount and lastOutputAt, so NOT read-only. A GET " +
+		"because RFC 6455 makes a WebSocket handshake one; gated because handleAttach writes nothing " +
+		"until its origin check and its upgrade check have both passed. Contract §10a.1 is the " +
+		"ruling and the full argument; " +
+		"TestAttachWritesNothingUntilTheOriginAndUpgradeChecksHavePassed is the proof the ordering " +
+		"still holds.",
+}
+
 // catalogMethodAgnosticRoutes is the other half of the audit, and the half that is
 // easy to forget: a pattern with NO method in it answers every verb, GET included,
 // so a check that only inspects patterns labelled GET would wave it straight
@@ -77,14 +106,24 @@ func catalogAuditRoutes(patterns []string) []string {
 					pattern))
 			}
 		case method == http.MethodGet, method == http.MethodHead:
-			if _, allowed := catalogReadOnlyRoutes[pattern]; !allowed {
+			_, readOnly := catalogReadOnlyRoutes[pattern]
+			_, upgradeGated := catalogUpgradeGatedRoutes[pattern]
+			if !readOnly && !upgradeGated {
 				violations = append(violations, fmt.Sprintf(
-					"%q is a %s that is not on the read-only allowlist. Contract §10a: no GET or HEAD "+
+					"%q is a %s on neither allowlist. Contract §10a: no GET or HEAD "+
 						"may change state — a hostile page can emit <img src> at this route and both of "+
 						"the control plane's checks pass. If it only reads, add it to "+
-						"catalogReadOnlyRoutes with the reason. If it writes, it needs POST, PATCH or "+
-						"DELETE — or a Phase 8 token — and not a line in that map.",
+						"catalogReadOnlyRoutes with the reason. If every write it makes sits behind a "+
+						"WebSocket upgrade, it belongs in catalogUpgradeGatedRoutes (§10a.1) — and owes "+
+						"a test that the write really does follow the gate. Otherwise it needs POST, "+
+						"PATCH or DELETE — or a Phase 8 token — and not a line in either map.",
 					pattern, method))
+			}
+			if readOnly && upgradeGated {
+				violations = append(violations, fmt.Sprintf(
+					"%q is on BOTH allowlists, which cannot both be true: one says it never writes and "+
+						"the other says its writes are gated. Delete whichever is wrong.",
+					pattern))
 			}
 		}
 	}
@@ -118,14 +157,15 @@ func TestNoRegisteredGetCanChangeState(t *testing.T) {
 	for _, pattern := range registered {
 		live[pattern] = true
 	}
-	for pattern := range catalogReadOnlyRoutes {
-		if !live[pattern] {
-			t.Errorf("catalogReadOnlyRoutes allows %q, which is not registered — delete the line", pattern)
-		}
-	}
-	for pattern := range catalogMethodAgnosticRoutes {
-		if !live[pattern] {
-			t.Errorf("catalogMethodAgnosticRoutes allows %q, which is not registered — delete the line", pattern)
+	for name, allowlist := range map[string]map[string]string{
+		"catalogReadOnlyRoutes":       catalogReadOnlyRoutes,
+		"catalogUpgradeGatedRoutes":   catalogUpgradeGatedRoutes,
+		"catalogMethodAgnosticRoutes": catalogMethodAgnosticRoutes,
+	} {
+		for pattern := range allowlist {
+			if !live[pattern] {
+				t.Errorf("%s allows %q, which is not registered — delete the line", name, pattern)
+			}
 		}
 	}
 }
@@ -150,6 +190,29 @@ func TestTheRouteAuditRejectsASideEffectingGet(t *testing.T) {
 				t.Errorf("violation = %q, want it to point at contract §10a", violations[0])
 			}
 		})
+	}
+}
+
+func TestTheRouteAuditRejectsAPatternClaimingToBeBothReadOnlyAndGated(t *testing.T) {
+	// The two allowlists make incompatible claims — "it never writes" and "its
+	// writes are gated" — so a pattern on both is a mistake someone makes by
+	// adding a line without deleting the other one. The maps are test-local, so
+	// the cheapest honest way to drive the branch is to put a pattern on both
+	// and take it off again.
+	const pattern = "GET /v1/test-only/both-allowlists"
+	catalogReadOnlyRoutes[pattern] = "a fixture, not a route"
+	catalogUpgradeGatedRoutes[pattern] = "a fixture, not a route"
+	t.Cleanup(func() {
+		delete(catalogReadOnlyRoutes, pattern)
+		delete(catalogUpgradeGatedRoutes, pattern)
+	})
+
+	violations := catalogAuditRoutes([]string{pattern})
+	if len(violations) != 1 {
+		t.Fatalf("audit returned %d violations, want 1: %v", len(violations), violations)
+	}
+	if !strings.Contains(violations[0], "BOTH") {
+		t.Errorf("violation = %q, want it to say the pattern is on both allowlists", violations[0])
 	}
 }
 

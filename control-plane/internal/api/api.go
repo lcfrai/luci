@@ -233,7 +233,8 @@ func New(d Deps) (*API, error) {
 	a.guarded = guarded
 	a.registerCatalog(guarded)
 	a.registerSessions(guarded)
-	// Task 12 adds a.registerAttach(guarded) on the next line. One line, taking
+	a.registerAttach(guarded)
+	// Task 12 added a.registerAttach(guarded) on the line above. One line, taking
 	// *routes, and in the SAME step that defines the method it names: a call
 	// added ahead of its definition leaves this file uncompilable for every
 	// step in between, so no suite in them can be green. The only other edit
