@@ -111,6 +111,9 @@ export function attachUrl(baseUrl: string, session: Session): string {
   // attachPath is absolute and already begins with "/v1/". Resolving it against the base
   // discards the base's own path, which is what we want and what string concatenation
   // would get wrong for a baseUrl carrying a path.
+  //
+  // NOTE: `send` concatenates and therefore KEEPS a base path, so the two disagree for a
+  // prefixed base. See the asymmetry comment in `send`; today's base has no path.
   return new URL(session.attachPath, base).toString();
 }
 
@@ -193,13 +196,26 @@ function toProblem(reply: Reply): ApiError {
       typeof (parsed as Problem).error === "string" &&
       typeof (parsed as Problem).message === "string"
     ) {
+      // `error` is checked to be a string and then cast into the closed ProblemCode union: an
+      // unknown server code passes through intact rather than being flattened to `internal`,
+      // so a code added server-side stays visible with its own message. The cost is that this
+      // union is closed by convention and not by validation, so EVERY `switch (err.code)`
+      // downstream must carry a `default` — task 19's reasonForCode is specified non-exhaustive
+      // for exactly this reason.
       const problem = parsed as Problem;
       return new ApiError(problem.error, problem.message, reply.status, problem.details);
     }
   } catch {
     // Not JSON: a proxy interposed, or the server died before it wrote a body.
   }
-  return new ApiError("internal", reply.text.slice(0, 200) || reply.statusText, reply.status);
+  // The final fallback is not decoration. HTTP/2 carries no reason phrase, so a non-2xx with an
+  // empty body leaves both of the first two terms empty and the user is shown a blank sentence —
+  // the cockpit failing silently, which is the one thing this file exists to prevent.
+  return new ApiError(
+    "internal",
+    reply.text.slice(0, 200) || reply.statusText || `HTTP ${reply.status}`,
+    reply.status,
+  );
 }
 
 function parseJson<T>(reply: Reply): T {
@@ -224,6 +240,13 @@ export function createClient(opts?: ClientOptions): CockpitClient {
     ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => globalThis.fetch(input, init));
 
   async function send(method: Method, route: string, body?: unknown): Promise<Reply> {
+    // KNOWN ASYMMETRY, harmless today and written down so it is found rather than discovered.
+    // This concatenates, so a baseUrl carrying a path KEEPS it: "http://h/console" + "/v1/machines"
+    // → "http://h/console/v1/machines". attachUrl resolves against the base instead and therefore
+    // DISCARDS that path → "ws://h/v1/sessions/…/attach", which its own test asserts as correct.
+    // So a VITE_PANACEA_APP_API behind a path prefix would work for REST and silently break attach.
+    // Nothing to fix while the base is loopback with no path, which is DEFAULT_BASE_URL. Whoever
+    // first sets a prefixed base must pick one behaviour and change both ends together.
     const url = baseUrl + route;
     const controller = new AbortController();
     // Our own flag rather than reading the abort reason: it is the only way to tell this

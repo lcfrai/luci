@@ -186,6 +186,20 @@ describe("createClient — the error shape", () => {
     expect((err as ApiError).message).toBe("<html>502 Bad Gateway</html>");
   });
 
+  it("never renders a blank sentence: an empty body with no reason phrase still names the status", async () => {
+    // HTTP/2 carries no reason phrase at all, so statusText is "" on the wire as well as in a
+    // hand-built Response. Without a final fallback this is ApiError("internal", "", 502), and
+    // task 20's "did not start" pane renders an empty string — the cockpit staying silent about
+    // a failure, which is the one outcome this whole file exists to prevent.
+    const { fn } = fetchStub([new Response("", { status: 502, statusText: "" })]);
+
+    const err = await createClient({ fetch: fn }).listMachines().catch((e: unknown) => e as ApiError);
+
+    expect((err as ApiError).code).toBe("internal");
+    expect((err as ApiError).status).toBe(502);
+    expect((err as ApiError).message).toBe("HTTP 502");
+  });
+
   it("turns JSON that is not a Problem into an internal ApiError", async () => {
     const { fn } = fetchStub([jsonReply(500, '{"error":123}')]);
 
