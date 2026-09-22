@@ -256,10 +256,19 @@ func ValidateSpec(spec Spec) error {
 // /v1/sessions/{id}/attach. For dockerbe it is 127.0.0.1:<published port>; for
 // katabe it is <podIP>:8080.
 type Sandbox struct {
-	ID        string
-	Kind      Kind
-	Ref       string // container id, or pod name
-	Endpoint  string
+	ID       string
+	Kind     Kind
+	Ref      string // container id, or pod name
+	Endpoint string
+
+	// NonLoopback is true when the daemon reports this sandbox published to an
+	// address other than the loopback bind IP — 0.0.0.0, :: or "". It is set only
+	// by List, which must not fail a whole sweep over one bad container: Get and
+	// Attach on the same id return ErrNonLoopbackPublish instead. A sandbox with
+	// this set is a security defect the reaper destroys; Endpoint is always empty
+	// when it is true, so nothing can attach to it in the meantime.
+	NonLoopback bool
+
 	State     State
 	CreatedAt time.Time
 	Labels    map[string]string
