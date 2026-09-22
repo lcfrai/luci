@@ -128,7 +128,7 @@ export interface Harness {
 
 /* ── sessions ──────────────────────────────────────────────────────────────────────── */
 
-/** Exactly four. docs/AGENTIC-UX.md §4 rule 8 specifies seven; the other three need the
+/** Exactly four. docs/AGENTIC-UX.md §4 rule 8 specifies seven; the other five need the
  *  agent-runtime signal that document calls a hard runtime dependency, and deriving them
  *  would require reading PTY bytes, which docs/PROGRAM.md forbids absolutely. */
 export type SessionStatus = "starting" | "running" | "idle" | "exited";
