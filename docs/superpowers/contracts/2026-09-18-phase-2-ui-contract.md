@@ -492,9 +492,13 @@ export interface Harness {
 
 /* ── sessions ──────────────────────────────────────────────────────────────────────── */
 
-/** Exactly four. docs/AGENTIC-UX.md §4 rule 8 specifies seven; the other three need the
+/** Exactly four. docs/AGENTIC-UX.md §4 rule 8 specifies seven — PLANNING, EXECUTING,
+ *  BLOCKED-ON-YOU, BLOCKED-ON-MACHINE, PAUSED, DRIFTING, DONE — of which only EXECUTING
+ *  and DONE have mechanical analogues here (`running`, `exited`). The other five need the
  *  agent-runtime signal that document calls a hard runtime dependency, and deriving them
- *  would require reading PTY bytes, which docs/PROGRAM.md forbids absolutely. */
+ *  would require reading PTY bytes, which docs/PROGRAM.md forbids absolutely.
+ *  (Said "the other three" until 2026-09-23: an arithmetic slip that contradicted §0's
+ *  "five of the seven" in this same document. The type has always been four members.) */
 export type SessionStatus = "starting" | "running" | "idle" | "exited";
 
 export interface Session {
