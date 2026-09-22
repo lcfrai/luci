@@ -1,6 +1,7 @@
 package harness_test
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -170,5 +171,22 @@ func TestClaudeCodeOffersExactlyTheFourProductEfforts(t *testing.T) {
 	}
 	if !d.SupportsOpeningPrompt || !d.SupportsResume {
 		t.Errorf("ClaudeCode SupportsOpeningPrompt=%v SupportsResume=%v, want both true", d.SupportsOpeningPrompt, d.SupportsResume)
+	}
+}
+
+// GET /v1/harnesses serves Catalogue() straight to JSON, so a Go-level
+// len(...) == 0 check is not enough: encoding/json renders a nil slice as
+// `null` and an empty one as `[]`, and a cockpit calling
+// harness.models.map(...) throws on the former. Four of the five harnesses
+// declare no Models/Efforts/PermissionModes, so this asserts on the
+// marshalled bytes, not the Go values, which is exactly where the defect
+// this test guards against was invisible.
+func TestCatalogueMarshalsEmptyOptionListsAsArraysNeverNull(t *testing.T) {
+	b, err := json.Marshal(harness.Catalogue())
+	if err != nil {
+		t.Fatalf("json.Marshal(Catalogue()): %v", err)
+	}
+	if strings.Contains(string(b), "null") {
+		t.Fatalf("Catalogue() JSON contains \"null\"; want every field to serialise as [] or a concrete value:\n%s", b)
 	}
 }

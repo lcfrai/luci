@@ -211,8 +211,46 @@ func TestBranchesMarksTheCheckedOutBranch(t *testing.T) {
 		t.Errorf("Branches()[2].Name = %q, want the real ref name %q", got[2].Name, "feat/ready-flag")
 	}
 	wantID := project.BranchID(project.ProjectID(dir), "feat/ready-flag")
-	if got[2].ID != wantID || !strings.HasSuffix(wantID, "-feat-ready-flag") {
-		t.Errorf("Branches()[2].ID = %q, want %q ending in the slug", got[2].ID, wantID)
+	if got[2].ID != wantID || !strings.Contains(wantID, "-feat-ready-flag-") {
+		t.Errorf("Branches()[2].ID = %q, want %q containing the slug", got[2].ID, wantID)
+	}
+}
+
+// Fix round 1, M7: slug alone collapsed every run of non-[a-z0-9] to one
+// dash, so these three names shared one BranchID within a project. Now the
+// trailing digest of the raw name disambiguates them.
+func TestBranchIDsAreDistinctForNamesThatSlugTheSame(t *testing.T) {
+	pid := "p-4a77b1c9"
+	names := []string{"feat/a-b", "feat/a/b", "Feat/A B"}
+	seen := map[string]string{}
+	for _, name := range names {
+		id := project.BranchID(pid, name)
+		if other, dup := seen[id]; dup {
+			t.Fatalf("BranchID(%q) = %q, collides with BranchID(%q); names that slug the same must still get distinct ids", name, id, other)
+		}
+		seen[id] = name
+	}
+}
+
+// Non-ASCII collapses harder than ASCII punctuation: both names lose their
+// only distinguishing character to the slug's [a-z0-9] filter.
+func TestBranchIDsAreDistinctForNonAsciiNamesThatSlugTheSame(t *testing.T) {
+	pid := "p-4a77b1c9"
+	a := project.BranchID(pid, "fix/é")
+	b := project.BranchID(pid, "fix/ü")
+	if a == b {
+		t.Fatalf("BranchID(fix/é) = BranchID(fix/ü) = %q, want distinct ids", a)
+	}
+}
+
+// Reproducible from the same two inputs with no storage: two independent
+// calls for the same project and name must compute the same id.
+func TestBranchIDIsStableAcrossIndependentCalls(t *testing.T) {
+	pid := "p-4a77b1c9"
+	first := project.BranchID(pid, "feat/ready-flag")
+	second := project.BranchID(pid, "feat/ready-flag")
+	if first != second {
+		t.Fatalf("BranchID computed %q then %q for the same inputs", first, second)
 	}
 }
 
@@ -223,6 +261,21 @@ func TestBranchesOnAnUnknownProjectIsASentinelTheApiCanMapTo404(t *testing.T) {
 	_, err := project.NewScanner(root, newFakeGit()).Branches(context.Background(), "p-deadbeef")
 	if !errors.Is(err, project.ErrUnknownProject) {
 		t.Fatalf("Branches of an unknown project = %v, want an error wrapping ErrUnknownProject", err)
+	}
+}
+
+// Mirrors TestBranchesOnAnUnknownProjectIsASentinelTheApiCanMapTo404. Both
+// Branches and Worktrees funnel through findProject, but task 10 maps
+// GET …/branches and GET …/worktrees to 404 project_not_found independently,
+// so each needs its own regression test — an untested path is one edit away
+// from becoming a 500.
+func TestWorktreesOnAnUnknownProjectIsASentinelTheApiCanMapTo404(t *testing.T) {
+	root := t.TempDir()
+	makeRepo(t, root, "panacea")
+
+	_, err := project.NewScanner(root, newFakeGit()).Worktrees(context.Background(), "p-deadbeef")
+	if !errors.Is(err, project.ErrUnknownProject) {
+		t.Fatalf("Worktrees of an unknown project = %v, want an error wrapping ErrUnknownProject", err)
 	}
 }
 

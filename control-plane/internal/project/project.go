@@ -106,19 +106,31 @@ func WorktreeID(path string) string { return "w-" + hashPath(path) }
 
 // BranchID derives a branch id. It reuses the project's hash so a branch id
 // carries its project, which is what lets BranchName work without a lookup.
+//
+// The trailing segment is a digest of the raw ref name, not the slug alone.
+// slug collapses every run of non-[a-z0-9] to one dash, so without the digest
+// "feat/a-b", "feat/a/b" and "Feat/A B" would all derive the identical id —
+// a REST collection with duplicate ids, and BranchName(id) silently returning
+// whichever of them enumeration saw last. Appending sha256(name) keeps the id
+// reproducible from the same two inputs with no storage and no lookup — the
+// property slug's own doc comment protects — while making it unique; the slug
+// segment stays so a human skimming raw ids still sees something readable.
 func BranchID(projectID, name string) string {
-	return "b-" + strings.TrimPrefix(projectID, "p-") + "-" + slug(name)
+	sum := sha256.Sum256([]byte(name))
+	return "b-" + strings.TrimPrefix(projectID, "p-") + "-" + slug(name) + "-" + hex.EncodeToString(sum[:])[:8]
 }
 
 // slug lowercases and replaces every run of characters outside [a-z0-9] with a
-// single "-", and does nothing else. It is lossy — "feat/x" and "feat-x" slug
-// the same — which is why Branch.Name carries the real ref name and only the id
-// is slugged.
+// single "-", and does nothing else. It is intentionally lossy for
+// readability — "feat/x" and "feat-x" slug the same — which is why
+// Branch.Name carries the real ref name and BranchID appends a digest of that
+// same raw name so two branches that slug identically still get distinct ids.
 //
 // No trimming of leading or trailing dashes and no fallback for an empty
-// result, tempting as both are: a b- id is reproducible from the contract's
-// rule with no storage, so an extra rule here means any other phase deriving an
-// id for the same branch computes a different one. "-wip-" slugs to "-wip-".
+// result, tempting as both are: an extra rule here would mean any other phase
+// deriving an id for the same branch computes a different slug segment, even
+// though BranchID's digest segment already disambiguates on its own.
+// "-wip-" slugs to "-wip-".
 func slug(name string) string {
 	var b strings.Builder
 	dash := false

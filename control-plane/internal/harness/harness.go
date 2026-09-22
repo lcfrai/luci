@@ -179,17 +179,17 @@ var catalogue = []Descriptor{
 // clone deep-copies the three slices a Descriptor carries. Without it a handler
 // that appends to Models poisons the package variable for every later request
 // in the process, and the symptom shows up in an unrelated session.
+//
+// The allocation is unconditional, even when the source slice is nil: this
+// type is the body of GET /v1/harnesses, and encoding/json renders a nil slice
+// as `null` where it renders an empty one as `[]`. Four of the five harnesses
+// declare no Models/Efforts/PermissionModes, and a cockpit calling
+// harness.models.map(...) throws on null where it silently no-ops on [].
 func clone(d Descriptor) Descriptor {
 	out := d
-	if d.Models != nil {
-		out.Models = append([]Model(nil), d.Models...)
-	}
-	if d.Efforts != nil {
-		out.Efforts = append([]Effort(nil), d.Efforts...)
-	}
-	if d.PermissionModes != nil {
-		out.PermissionModes = append([]PermissionMode(nil), d.PermissionModes...)
-	}
+	out.Models = append([]Model{}, d.Models...)
+	out.Efforts = append([]Effort{}, d.Efforts...)
+	out.PermissionModes = append([]PermissionMode{}, d.PermissionModes...)
 	return out
 }
 

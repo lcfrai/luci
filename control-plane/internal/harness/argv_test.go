@@ -262,3 +262,26 @@ func TestBuildChecksTheModelBeforeTheEffort(t *testing.T) {
 		t.Fatalf("error = %q reports effort; model is validated first and its error is the one the API returns", err)
 	}
 }
+
+// Request declares OpeningPrompt before Resume, but the contract's validation
+// order is resume then prompt — the one adjacent pair where the struct's
+// field order and the validation order disagree, and so the one pair a
+// declaration-order implementation would get backwards without any other
+// test noticing. The shell rejects both, which is what makes the order
+// observable here.
+func TestBuildChecksResumeBeforeThePrompt(t *testing.T) {
+	_, _, err := harness.Build(harness.Request{
+		Harness:       harness.Shell,
+		Resume:        "abc123",
+		OpeningPrompt: "do the thing",
+	})
+	if err == nil {
+		t.Fatal("Build(shell with both a resume and a prompt) = nil error, want the resume fault")
+	}
+	if !strings.Contains(err.Error(), "resume") {
+		t.Fatalf("error = %q, want it to name resume, the first failing field in order", err)
+	}
+	if strings.Contains(err.Error(), "prompt") {
+		t.Fatalf("error = %q reports prompt; resume is validated first and its error is the one the API returns", err)
+	}
+}

@@ -25,10 +25,13 @@ var claudePermissionFlag = map[PermissionMode]string{
 // two arguments, and Group A task 3 replaced the transport with
 // PANACEA_APP_ARGS_JSON so the producer could stay honest.
 //
-// Validation order is fixed — unknown harness, unavailable, then options in
-// field order — so a request with two faults fails the same way every run.
-// On any error both return values are zero: a partial argv is how a rejected
-// request becomes a started session.
+// Validation order is fixed — unknown harness, unavailable, then model,
+// effort, permission, resume, prompt, in that order — so a request with two
+// faults fails the same way every run. That is not Request's declaration
+// order: the struct declares OpeningPrompt before Resume, but Build checks
+// resume before prompt, because this list is the contract's stated order,
+// not an accident of the struct layout. On any error both return values are
+// zero: a partial argv is how a rejected request becomes a started session.
 func Build(r Request) (command string, argv []string, err error) {
 	d, ok := Lookup(r.Harness)
 	if !ok {
