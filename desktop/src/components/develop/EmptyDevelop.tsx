@@ -1,9 +1,69 @@
 import type { JSX } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { startSessionOnWorktree } from "./SessionPane";
+import { api } from "../../api";
+import type { ApiError } from "../../api/client";
+import { classify } from "../../api/problems";
+import { toCreateRequest } from "../../store/defaults";
 import { selectResolvedDefaults, selectWorktrees } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
-import type { Branch } from "../../store/types";
+import type { Branch, SessionDefaults, WorktreeId } from "../../store/types";
+
+/** The create path for this surface's two named actions. It lived in `SessionPane.tsx` while
+ *  that file's Restart was also a create; Restart is now `api.restartSession`, so these two
+ *  buttons are the only callers and it belongs where they are.
+ *
+ *  DO NOT COLLAPSE THIS INTO task 18's `useCreateSession`, and the reason is not the caller
+ *  count. That hook RE-RESOLVES its arguments against the live store — right for "＋ New
+ *  session", which should honour whatever the user's defaults say today — whereas this one
+ *  sends the descriptor it was handed. Merging them would make one of the two wrong, silently,
+ *  at whichever call site lost. This comment is the only thing standing between a later task
+ *  and a helpful merge, which is why it travels with the code rather than staying in the file
+ *  the code left.
+ *
+ *  It is still the second `api.createSession` call site in the tree, and task 24's audit
+ *  counts on exactly two. */
+export async function startSessionOnWorktree(
+  worktreeId: WorktreeId,
+  defaults: SessionDefaults,
+): Promise<void> {
+  const before = useCockpit.getState();
+  const harness = before.harnesses.find((h) => h.id === defaults.harness);
+  if (harness === undefined) {
+    // Not a crash and not silence: the catalogue has not loaded, or the harness was removed
+    // server-side between the render and the click.
+    before.pushToast(`The ${defaults.harness} harness is not in the catalogue.`);
+    return;
+  }
+
+  try {
+    // toCreateRequest strips every field this harness does not accept (§3.6); sending
+    // `effort` to a shell is a 400 the client could have avoided.
+    const session = await api.createSession(toCreateRequest(worktreeId, defaults, harness));
+    const after = useCockpit.getState();
+    after.upsertSession(session);
+    after.focusSession(session.id);
+  } catch (e) {
+    // Every client method rejects with ApiError and nothing else (§4).
+    useCockpit.getState().pushToast(sentenceForCreate(e as ApiError));
+  }
+}
+
+/** The prose is local because its tail names THIS act; the discrimination is `classify` because
+ *  §4.2's non-collapse rule is one rule and three copies of it drift.
+ *
+ *  LOAD-BEARING SHAPE: declared return type, switch over `ProblemKind`, no `default:`. A fourth
+ *  kind must fail this function with TS2366 rather than fall through a catch-all. */
+function sentenceForCreate(error: ApiError): string {
+  switch (classify(error)) {
+    case "control-plane-down":
+      return "The control plane is not running. Start it, then try again.";
+    case "backend-down":
+      return "Docker is not running, so a sandbox cannot be started.";
+    case "server-said":
+      // Including the sixteenth code, non_loopback_publish, whose sandbox is RUNNING.
+      return error.message;
+  }
+}
 
 /** Three zero states, not one. docs/DESIGN-SYSTEM.md's floor is that every state is designed,
  *  and "empty" here is three different situations that deserve three different sentences: no

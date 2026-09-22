@@ -33,7 +33,14 @@ export function ColumnsLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.
     if (previous === null) return; // the seeding pass never steals focus
     const fresh = sessionIds.filter((id) => !previous.has(id));
     if (fresh.length === 0) return;
-    focusSession(fresh[0]); // server order is createdAt descending: the newest is first
+    // `fresh[0]` is the first new id in THIS LIST'S order, which is `selectPaneSessionIds`'
+    // order: worktree by worktree in server order, and within each worktree its sessions in
+    // server order (createdAt descending). So it is the newest only WITHIN one worktree — not
+    // across them, because the concatenation never re-sorts. Two sessions arriving on one poll
+    // on two different worktrees are ordered by worktree, not by age. Low stakes: it decides
+    // only which of several simultaneous arrivals takes focus, and the client must not re-sort
+    // (§3.2). Stated exactly because the earlier wording claimed a property the data lacks.
+    focusSession(fresh[0]);
   }, [sessionIds, focusSession]);
 
   // Defect 4, half two: the focused pane is brought into the viewport, whoever focused it.

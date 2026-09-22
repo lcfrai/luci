@@ -8,6 +8,7 @@ import {
   selectHarness,
   selectPaneSessionIds,
   selectResolvedDefaults,
+  selectSelectedBranch,
   selectSession,
   selectSessionIdsForWorktree,
   selectWorktrees,
@@ -203,5 +204,53 @@ describe("selectors", () => {
     expect(selectFocusedSessionId(useCockpit.getState())).toBeNull();
     useCockpit.getState().focusSession("s-2");
     expect(selectFocusedSessionId(useCockpit.getState())).toBe("s-2");
+  });
+
+  /* TWO branches, and the selection on the second. With one branch per project — which every
+   * other fixture in this file and in ColumnsLayout.test.tsx uses — `.find(b => b.id === …)`
+   * and `[0]` are indistinguishable, and the `[0]` mutant survives the whole suite. It is not
+   * a harmless mutant: DevelopLens hands this to EmptyDevelop, which derives its worktree list
+   * and its create target from `branch.id`, so a user on branch B would be shown branch A's
+   * worktree name and the `＋` button would start a session on A's worktree. */
+  describe("selectSelectedBranch", () => {
+    beforeEach(() => {
+      useCockpit.setState({
+        branchesByProject: {
+          "p-1": [
+            aBranch({ id: "b-1", projectId: "p-1", name: "main" }),
+            aBranch({ id: "b-2", projectId: "p-1", name: "evidence-upload" }),
+          ],
+        },
+      });
+    });
+
+    it("returns the branch named by the selection, not the project's first", () => {
+      useCockpit.setState({
+        selection: { projectId: "p-1", branchId: "b-2", worktreeId: null, sessionId: null },
+      });
+      expect(selectSelectedBranch(useCockpit.getState())?.id).toBe("b-2");
+      expect(selectSelectedBranch(useCockpit.getState())?.name).toBe("evidence-upload");
+    });
+
+    it("returns undefined when no branch is selected", () => {
+      useCockpit.setState({
+        selection: { projectId: "p-1", branchId: null, worktreeId: null, sessionId: null },
+      });
+      expect(selectSelectedBranch(useCockpit.getState())).toBeUndefined();
+    });
+
+    it("returns undefined when no project is selected", () => {
+      useCockpit.setState({
+        selection: { projectId: null, branchId: "b-2", worktreeId: null, sessionId: null },
+      });
+      expect(selectSelectedBranch(useCockpit.getState())).toBeUndefined();
+    });
+
+    it("returns undefined when the selected branch is not in the project", () => {
+      useCockpit.setState({
+        selection: { projectId: "p-1", branchId: "b-gone", worktreeId: null, sessionId: null },
+      });
+      expect(selectSelectedBranch(useCockpit.getState())).toBeUndefined();
+    });
   });
 });

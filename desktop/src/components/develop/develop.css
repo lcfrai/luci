@@ -143,12 +143,56 @@
 }
 
 .pane-body {
+  /* The containing block for .pane-attach. Without it an absolutely-positioned overlay walks
+     up to the nearest positioned ancestor and lands against the viewport. */
+  position: relative;
   min-height: 0;
   overflow: hidden;
   background: var(--page);
   /* tabIndex={-1} in the TSX makes this focusable as the fallback focus target; the outline
      would be wrong on a container the user never tabs to. */
   outline: none;
+}
+
+/* ── The attach overlay (§7.7's connecting line) ──────────────────────────────────────
+ * NEVER a scrim. A socket can drop on a session that has been running for an hour, and the
+ * body behind this then holds a transcript — §6.6's premise is that the transcript is the
+ * artifact, so covering it at the moment the user most wants to re-read it would hide the
+ * thing the registry exists to protect. Neither variant paints over the terminal: the centred
+ * one has no background at all, and the corner one is a small strip.
+ *
+ * `pointer-events: none` so it can never eat a selection drag in the terminal beneath it.
+ */
+.pane-attach {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  color: var(--ink-2);
+  font: 400 11px/1.5 var(--mono);
+  font-variant-numeric: var(--numeric);
+}
+
+/* Only `connecting` may take the middle: it is the only phase whose body is provably empty,
+   and an empty pane needs an anchor. No background, so this is a label and not a cover. */
+.pane-attach--centre {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  text-align: center;
+}
+
+/* Top-right, because a transcript's live edge is the bottom and that is where the eye is.
+   Wraps and is width-capped because `failed` carries a whole sentence. */
+.pane-attach--corner {
+  top: 8px;
+  right: 8px;
+  max-width: 60%;
+  padding: 4px 8px;
+  border-radius: var(--r-ctl);
+  background: var(--inset);
+  box-shadow: var(--e-btn);
+  text-align: right;
 }
 
 /* The exited bar. Neutral, not red: an exited session is a completed one, and colouring

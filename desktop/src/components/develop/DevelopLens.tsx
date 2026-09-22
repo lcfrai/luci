@@ -31,6 +31,10 @@ export function DevelopLens(): JSX.Element {
      Until task 21 lands, Canvas renders Columns rather than an empty plane — task 18's
      layout toggle already ships, and a main area that goes blank when a user flips a toggle
      reads as a crash. The component name above is deliberately mid-line so task 21's
-     anchored guard reads 0 here and 1 after its change (shared-shape rule 3). */
+     anchored guard reads 0 here and 1 after its change (shared-shape rule 3).
+     TASK 21: that guard is `grep -cE '^[[:space:]]*<CanvasLayout'`, so it counts the element
+     only when `<CanvasLayout` STARTS A LINE. Write the canvas arm across lines — a ternary
+     short enough for the formatter to keep on one line leaves the guard reading 0 and sends
+     you hunting a failure that is not there. */
   return <ColumnsLayout sessionIds={sessionIds} />;
 }

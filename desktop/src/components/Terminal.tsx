@@ -8,7 +8,7 @@ import {
   setAttachReadOnly,
   updateAttachSession,
 } from "../api/attachRegistry";
-import type { TermLike } from "../api/attachRegistry";
+import type { AttachHandle, TermLike } from "../api/attachRegistry";
 import { selectSession } from "../store/selectors";
 import { useCockpit } from "../store/store";
 import type { SessionId } from "../store/types";
@@ -50,10 +50,33 @@ function makeTerm(): TermLike {
   return term;
 }
 
-function TerminalImpl({ sessionId, readOnly }: { sessionId: SessionId; readOnly: boolean }) {
+/** EDITED BY TASK 20's FIX ROUND 1, as a declared departure — task 19 is closed and this file
+ *  is its own. The change is the `focused` prop and the condition it gates, and nothing else.
+ *
+ *  WHY. `handle.focus()` below used to run unconditionally on mount. React flushes passive
+ *  effects children-before-parents in mount order, so opening Columns with nine panes left the
+ *  NINTH terminal's helper textarea holding DOM focus, while the `pane--focused` ring follows
+ *  `selection.sessionId`, which is null on a cold open. No ring anywhere and keystrokes going
+ *  to the last pane in server order — the exact symptom §6.8's three-owner split exists to
+ *  prevent. A prop rather than a caller-side fix because mount order then stops mattering:
+ *  pane 9 simply sees `focused === false`. §6.8 is unchanged — `uiSlice.focusSession` still
+ *  holds WHICH pane is focused; this file is merely told whether it is the one. */
+function TerminalImpl({
+  sessionId,
+  readOnly,
+  focused,
+}: {
+  sessionId: SessionId;
+  readOnly: boolean;
+  focused: boolean;
+}) {
   const host = useRef<HTMLDivElement>(null);
   const session = useCockpit(selectSession(sessionId));
   const hasSession = session !== undefined;
+  /** The handle, so the focus effect below can reach it. `focused` must NOT join the mount
+   *  effect's dependency array — a focus change would re-acquire and re-append the terminal,
+   *  which is known defect 1 — so the two cannot be one effect. */
+  const handleRef = useRef<AttachHandle | null>(null);
 
   // Two pushes into the registry. Neither acquires, so neither can re-create anything.
   useEffect(() => {
@@ -71,10 +94,10 @@ function TerminalImpl({ sessionId, readOnly }: { sessionId: SessionId; readOnly:
     if (!node || !current) return;
 
     const handle = acquireAttach(current, { createTerm: makeTerm, readOnly });
+    handleRef.current = handle;
     node.appendChild(handle.element);
     handle.mount();                              // AFTER the append: xterm measures a
     fitAddons.get(handle.term)?.fit();           // rendered element, never a detached one
-    handle.focus();
 
     const onWindowResize = () => fitAddons.get(handle.term)?.fit();
     window.addEventListener("resize", onWindowResize);
@@ -82,12 +105,25 @@ function TerminalImpl({ sessionId, readOnly }: { sessionId: SessionId; readOnly:
     return () => {
       window.removeEventListener("resize", onWindowResize);
       if (handle.element.parentNode === node) node.removeChild(handle.element);
+      handleRef.current = null;
       releaseAttach(sessionId);
     };
   }, [sessionId, hasSession]);
 
+  // The condition. Runs after the effect above on mount, because effects fire in declaration
+  // order, so the handle is already in the ref. Covers BOTH halves with one mechanism: a pane
+  // that mounts focused takes the caret, and a pane focused later — a rail-row click, ⌘1-9,
+  // the palette — takes it on the false→true transition.
+  useEffect(() => {
+    if (focused) handleRef.current?.focus();
+  }, [focused, sessionId]);
+
   return <div ref={host} style={{ width: "100%", height: "100%" }} />;
 }
 
-/** memo'd per §8 row 1: a parent re-render with unchanged props never reaches the effects. */
+/** memo'd per §8 row 1: a parent re-render with unchanged props never reaches the effects.
+ *  No custom comparator, deliberately — the default shallow compare covers every prop, so
+ *  `focused` is included by construction and a fourth prop would be too. A hand-written
+ *  comparator listing `sessionId` and `readOnly` is exactly how `focused` would have been
+ *  dropped in silence. */
 export const Terminal = memo(TerminalImpl);

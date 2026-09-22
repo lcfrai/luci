@@ -9,6 +9,8 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ColumnsLayout } from "./ColumnsLayout";
 import { DevelopLens } from "./DevelopLens";
+import { startSessionOnWorktree } from "./EmptyDevelop";
+import { ApiError } from "../../api/client";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { aBranch, aHarness, aProject, aSession, aWorktree } from "../../test/fixtures";
 
@@ -286,5 +288,72 @@ describe("EmptyDevelop", () => {
     await userEvent.click(screen.getByRole("button", { name: /open a shell/i }));
 
     expect(createSessionMock).toHaveBeenCalledWith({ worktreeId: "w-1", harness: "shell" });
+  });
+});
+
+/* MOVED HERE with the function, from SessionPane.test.tsx. `startSessionOnWorktree` lived in
+ * SessionPane.tsx while that file's Restart was also a create; Restart is now
+ * `api.restartSession`, so this surface's two buttons are its only callers.
+ *
+ * Its failure branch is the part a green happy path hides: every client method rejects with
+ * ApiError and nothing else (§4), and two of the sixteen codes are different SENTENCES that
+ * must not be collapsed. */
+describe("startSessionOnWorktree", () => {
+  const DEFAULTS = {
+    harness: "claude-code",
+    model: "opus",
+    effort: "high",
+    permissionMode: "ask",
+  } as const;
+
+  beforeEach(() => {
+    resetCockpit();
+    createSessionMock.mockReset();
+    seedBranch({ worktrees: ["w-1"], sessionIdsByWorktree: { "w-1": [] } });
+  });
+
+  it("says the control plane is down, and does not say Docker is", async () => {
+    createSessionMock.mockRejectedValue(new ApiError("network_unavailable", "fetch failed", 0));
+
+    await startSessionOnWorktree("w-1", { ...DEFAULTS });
+
+    expect(useCockpit.getState().toasts.map((t) => t.message)).toEqual([
+      "The control plane is not running. Start it, then try again.",
+    ]);
+  });
+
+  it("says Docker is down, and does not say the control plane is", async () => {
+    createSessionMock.mockRejectedValue(
+      new ApiError("backend_unavailable", "docker daemon unreachable", 503),
+    );
+
+    await startSessionOnWorktree("w-1", { ...DEFAULTS });
+
+    expect(useCockpit.getState().toasts.map((t) => t.message)).toEqual([
+      "Docker is not running, so a sandbox cannot be started.",
+    ]);
+  });
+
+  it("carries the server's own sentence for every other code, the sixteenth included", async () => {
+    createSessionMock.mockRejectedValue(
+      new ApiError("non_loopback_publish", "The sandbox published a port off loopback.", 502),
+    );
+
+    await startSessionOnWorktree("w-1", { ...DEFAULTS });
+
+    const message = useCockpit.getState().toasts[0].message;
+    expect(message).toBe("The sandbox published a port off loopback.");
+    // That sandbox is RUNNING. Collapsing this into "not running" would be false, which is
+    // the whole reason Group C's ruling 7 made it its own code.
+    expect(message).not.toContain("not running");
+  });
+
+  it("names a harness the catalogue does not have, and creates nothing", async () => {
+    await startSessionOnWorktree("w-1", { ...DEFAULTS, harness: "codex" });
+
+    expect(createSessionMock).not.toHaveBeenCalled();
+    expect(useCockpit.getState().toasts[0].message).toBe(
+      "The codex harness is not in the catalogue.",
+    );
   });
 });

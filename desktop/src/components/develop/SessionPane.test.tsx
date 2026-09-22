@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { SessionPane, startSessionOnWorktree } from "./SessionPane";
+import { SessionPane } from "./SessionPane";
 import { ApiError } from "../../api/client";
 import { attachLabel } from "./SessionPaneFooter";
 import { statusLabel } from "./SessionPaneHeader";
@@ -19,8 +19,21 @@ import type { AttachState } from "../../api/attachRegistry";
 // SessionPane passes, and carries xterm's own focus target — handing DOM focus to that
 // element is the behaviour under test (§6.8).
 vi.mock("../Terminal", () => ({
-  Terminal: ({ sessionId, readOnly }: { sessionId: string; readOnly: boolean }) => (
-    <div data-testid="terminal" data-session={sessionId} data-readonly={String(readOnly)}>
+  Terminal: ({
+    sessionId,
+    readOnly,
+    focused,
+  }: {
+    sessionId: string;
+    readOnly: boolean;
+    focused: boolean;
+  }) => (
+    <div
+      data-testid="terminal"
+      data-session={sessionId}
+      data-readonly={String(readOnly)}
+      data-focused={String(focused)}
+    >
       <textarea className="xterm-helper-textarea" data-testid="xterm" readOnly />
     </div>
   ),
@@ -30,8 +43,13 @@ vi.mock("../Terminal", () => ({
 // while ./SessionPane's import graph is evaluated — before a top-level `const` has been
 // initialised. A bare const here throws "Cannot access 'createSessionMock' before
 // initialization" and looks like a mocking bug rather than a TDZ one.
-const { createSessionMock } = vi.hoisted(() => ({ createSessionMock: vi.fn() }));
-vi.mock("../../api", () => ({ api: { createSession: createSessionMock } }));
+const { createSessionMock, restartSessionMock } = vi.hoisted(() => ({
+  createSessionMock: vi.fn(),
+  restartSessionMock: vi.fn(),
+}));
+vi.mock("../../api", () => ({
+  api: { createSession: createSessionMock, restartSession: restartSessionMock },
+}));
 
 // Only `useAttachState` is replaced; everything else in the registry is the real module. The
 // registry publishes a non-empty `reason` only for a socket that actually failed, which no
@@ -91,6 +109,7 @@ describe("SessionPane", () => {
   beforeEach(() => {
     resetCockpit();
     createSessionMock.mockReset();
+    restartSessionMock.mockReset();
     attachState.current = { phase: "detached", attempts: 0, ladderStartedAt: 0, reason: "" };
   });
 
@@ -194,8 +213,8 @@ describe("SessionPane", () => {
 
   it("an exited pane keeps its scrollback, prints exitReason verbatim and offers Restart", async () => {
     const session = seed({ status: "exited", exitReason: "idle timeout" });
-    createSessionMock.mockResolvedValue(
-      aSession({ id: "s-2", worktreeId: "w-1", branchId: "b-1", status: "starting" }),
+    restartSessionMock.mockResolvedValue(
+      aSession({ id: "s-1", worktreeId: "w-1", branchId: "b-1", status: "starting" }),
     );
     render(<SessionPane sessionId={session.id} variant="column" />);
 
@@ -204,19 +223,53 @@ describe("SessionPane", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /restart/i }));
 
-    // Restart reuses the dead session's own settings, not the resolved defaults: the user
-    // chose them once and a restart is not a chance to silently change them.
-    expect(createSessionMock).toHaveBeenCalledWith({
-      worktreeId: "w-1",
-      harness: "claude-code",
-      model: "opus",
-      effort: "high",
-      permissionMode: "ask",
-    });
-    await waitFor(() => expect(useCockpit.getState().sessions["s-2"]).toBeDefined());
-    expect(useCockpit.getState().selection.sessionId).toBe("s-2");
-    // The dead session stays listed: the transcript is the artifact.
-    expect(useCockpit.getState().sessions["s-1"]).toBeDefined();
+    // `POST /v1/sessions/{id}/restart`, not a create. sessions.go:723: restart is "same
+    // config, clean context" and KEEPS THE SESSION ID, and resume is a different verb
+    // "because conflating the two makes restart lossy". A create carrying the dead session's
+    // settings would orphan it beside an unrelated session that merely looks related.
+    expect(restartSessionMock).toHaveBeenCalledWith("s-1");
+    expect(createSessionMock).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(useCockpit.getState().sessions["s-1"].status).toBe("starting"));
+    // One session, restarted in place. No second id appeared.
+    expect(Object.keys(useCockpit.getState().sessions)).toEqual(["s-1"]);
+  });
+
+  // Both are 409 CodeConflict and both must arrive as the server wrote them. Collapsing them
+  // would tell a user whose worktree has vanished that a restart is already running.
+  it("renders each of the two restart 409s as the server's own sentence", async () => {
+    for (const sentence of [
+      "A restart is already in flight for that session.",
+      "The worktree this session was created in no longer resolves.",
+    ]) {
+      resetCockpit();
+      attachState.current = { phase: "detached", attempts: 0, ladderStartedAt: 0, reason: "" };
+      const session = seed({ status: "exited", exitReason: "killed" });
+      restartSessionMock.mockReset();
+      restartSessionMock.mockRejectedValue(new ApiError("conflict", sentence, 409));
+      const view = render(<SessionPane sessionId={session.id} variant="column" />);
+
+      await userEvent.click(screen.getByRole("button", { name: /restart/i }));
+
+      await waitFor(() =>
+        expect(useCockpit.getState().toasts.map((t) => t.message)).toEqual([sentence]),
+      );
+      view.unmount();
+    }
+  });
+
+  it("does not blame Docker when the control plane is the thing that is down", async () => {
+    const session = seed({ status: "exited", exitReason: "killed" });
+    restartSessionMock.mockRejectedValue(new ApiError("network_unavailable", "fetch failed", 0));
+    render(<SessionPane sessionId={session.id} variant="column" />);
+
+    await userEvent.click(screen.getByRole("button", { name: /restart/i }));
+
+    await waitFor(() =>
+      expect(useCockpit.getState().toasts[0].message).toBe(
+        "The control plane is not running, so the session was not restarted.",
+      ),
+    );
   });
 
   it("the footer names four facts and invents no fifth", () => {
@@ -285,6 +338,19 @@ describe("SessionPane", () => {
     ).toBe("reconnecting");
   });
 
+  // The Math.max(0, …) clamp is load-bearing, not defensive padding. useHeartbeat() returns a
+  // value FLOORED to the second (heartbeat.ts:28) while ladderStartedAt is a raw Date.now()
+  // (attachRegistry.ts:326), so at a ladder's start the tick trails the stamp by up to 999ms
+  // and Math.floor(negative / 1000) is -1. Without the clamp the footer reads "connecting -1s"
+  // at the start of essentially every attach. formatElapsed's identical clamp has its own test
+  // at time.test.ts:37; this one now does too.
+  it("never prints a negative elapsed when the tick trails the stamp", () => {
+    const now = 1_700_000_000_000;
+    expect(
+      attachLabel({ phase: "connecting", attempts: 1, ladderStartedAt: now + 500, reason: "" }, now),
+    ).toBe("connecting 0s");
+  });
+
   // AGENTIC-UX §10 rule 7: the footer must not change width when a socket drops. The reason is a
   // whole sentence written for a human, so putting it in the bar would push the four facts
   // around every time the transport hiccups — and putting it nowhere would make a failed attach
@@ -312,6 +378,127 @@ describe("SessionPane", () => {
     const { container } = render(<SessionPane sessionId={session.id} variant="column" />);
 
     expect(container.querySelector(".pane-foot")?.hasAttribute("title")).toBe(false);
+  });
+
+  // §7.7's connecting line. The gate is the ATTACH PHASE, never the session status — a socket
+  // dropping on an hour-old `running` session climbs the same ladder as a cold start, and a
+  // status gate would reproduce the black rectangle the row exists to prevent for the commoner
+  // case. The overlay is a SIBLING of the terminal in every state: unmounting the terminal to
+  // explain the terminal destroys what the explanation is about.
+  it("shows nothing over the body while the socket is up", () => {
+    attachState.current = { phase: "attached", attempts: 0, ladderStartedAt: 0, reason: "" };
+    const session = seed();
+    const { container } = render(<SessionPane sessionId={session.id} variant="column" />);
+
+    expect(container.querySelector(".pane-attach")).toBeNull();
+    expect(screen.getByTestId("terminal")).toBeDefined();
+  });
+
+  it("centres the elapsed on a first connect, where the body is provably empty", () => {
+    const now = Date.now();
+    attachState.current = {
+      phase: "connecting",
+      attempts: 1,
+      ladderStartedAt: now - 3_000,
+      reason: "",
+    };
+    const session = seed({ status: "starting" });
+    const { container } = render(<SessionPane sessionId={session.id} variant="column" />);
+
+    const overlay = container.querySelector(".pane-attach");
+    expect(overlay).not.toBeNull();
+    expect(overlay?.className).toContain("pane-attach--centre");
+    expect(overlay?.textContent).toMatch(/^connecting \d+s$/);
+    // Sibling, not a replacement.
+    expect(screen.getByTestId("terminal")).toBeDefined();
+  });
+
+  it("never covers a transcript: a reconnect gets the corner strip, not the centre", () => {
+    attachState.current = {
+      phase: "reconnecting",
+      attempts: 4,
+      ladderStartedAt: Date.now() - 12_000,
+      reason: "",
+    };
+    const session = seed();
+    const { container } = render(<SessionPane sessionId={session.id} variant="column" />);
+
+    const overlay = container.querySelector(".pane-attach");
+    expect(overlay?.className).toContain("pane-attach--corner");
+    expect(overlay?.className).not.toContain("pane-attach--centre");
+    expect(screen.getByTestId("terminal")).toBeDefined();
+  });
+
+  // `giveUp` sets ladderStartedAt back to 0, so the stamp alone can never cover this phase.
+  // Before this, all three of its sentences reached the user only as the footer's `title`.
+  it("renders a given-up attach's reason verbatim, in the strip and not the centre", () => {
+    attachState.current = {
+      phase: "failed",
+      attempts: 9,
+      ladderStartedAt: 0,
+      reason: "the sandbox did not accept a connection within 60 seconds",
+    };
+    const session = seed();
+    const { container } = render(<SessionPane sessionId={session.id} variant="column" />);
+
+    const overlay = container.querySelector(".pane-attach");
+    expect(overlay?.textContent).toBe("the sandbox did not accept a connection within 60 seconds");
+    expect(overlay?.className).toContain("pane-attach--corner");
+    // Announced once, because it is final. The retrying variants tick every second and a
+    // polite live region would read the elapsed aloud for the whole ladder.
+    expect(overlay?.getAttribute("role")).toBe("status");
+    expect(screen.getByTestId("terminal")).toBeDefined();
+  });
+
+  it("does not announce the ticking variants", () => {
+    attachState.current = {
+      phase: "connecting",
+      attempts: 1,
+      ladderStartedAt: Date.now(),
+      reason: "",
+    };
+    const session = seed({ status: "starting" });
+    const { container } = render(<SessionPane sessionId={session.id} variant="column" />);
+
+    expect(container.querySelector(".pane-attach")?.hasAttribute("role")).toBe(false);
+  });
+
+  // The pane is what tells the terminal whether it is the focused one — `Terminal` moves DOM
+  // focus, `uiSlice.focusSession` holds which pane deserves it, and this prop is the seam
+  // between them. Unthreaded, every terminal would take the caret on mount again and the last
+  // one to flush would keep it.
+  it("tells the terminal whether this pane is the focused one", async () => {
+    const session = seed();
+    render(<SessionPane sessionId={session.id} variant="column" />);
+
+    expect(screen.getByTestId("terminal").getAttribute("data-focused")).toBe("false");
+
+    await userEvent.click(screen.getByRole("region", { name: /evidence-upload/ }));
+
+    expect(screen.getByTestId("terminal").getAttribute("data-focused")).toBe("true");
+  });
+
+  // Task 21 renders the pane as a tile and binds its drag handler to the ATTRIBUTE, not the
+  // class — a class is a styling decision a redesign may rename; a handle is a contract.
+  // Every other test here uses variant="column", so without this the contract is unasserted.
+  it("carries task 21's drag handle and tile classes in the tile variant", () => {
+    const session = seed();
+    const { container } = render(<SessionPane sessionId={session.id} variant="tile" />);
+
+    const head = container.querySelector(".pane-head");
+    expect(head?.getAttribute("data-pane-drag-handle")).toBe("true");
+    expect(head?.className).toContain("pane-head--tile");
+    expect(container.querySelector(".pane")?.className).toContain("pane--tile");
+    expect(container.querySelector(".pane")?.getAttribute("data-variant")).toBe("tile");
+  });
+
+  it("leaves the drag handle off the column variant", () => {
+    const session = seed();
+    const { container } = render(<SessionPane sessionId={session.id} variant="column" />);
+
+    const head = container.querySelector(".pane-head");
+    expect(head?.hasAttribute("data-pane-drag-handle")).toBe(false);
+    expect(head?.className).not.toContain("pane-head--tile");
   });
 
   // A shell session has no model. An empty fact would render as a hanging separator — "claude ·
@@ -344,70 +531,5 @@ describe("SessionPane", () => {
     await userEvent.click(screen.getByRole("region", { name: /evidence-upload/ }));
 
     expect(container.querySelector(".pane")?.className).toContain("pane--focused");
-  });
-});
-
-// The one create path shared by Restart and EmptyDevelop's two actions. Its failure branch is
-// the part a green happy path hides: every client method rejects with ApiError and nothing
-// else (§4), and two of the sixteen codes are different SENTENCES that must not be collapsed.
-describe("startSessionOnWorktree", () => {
-  const DEFAULTS = {
-    harness: "claude-code",
-    model: "opus",
-    effort: "high",
-    permissionMode: "ask",
-  } as const;
-
-  beforeEach(() => {
-    resetCockpit();
-    createSessionMock.mockReset();
-  });
-
-  it("says the control plane is down, and does not say Docker is", async () => {
-    seed();
-    createSessionMock.mockRejectedValue(new ApiError("network_unavailable", "fetch failed", 0));
-
-    await startSessionOnWorktree("w-1", { ...DEFAULTS });
-
-    const messages = useCockpit.getState().toasts.map((t) => t.message);
-    expect(messages).toEqual(["The control plane is not running. Start it, then try again."]);
-  });
-
-  it("says Docker is down, and does not say the control plane is", async () => {
-    seed();
-    createSessionMock.mockRejectedValue(
-      new ApiError("backend_unavailable", "docker daemon unreachable", 503),
-    );
-
-    await startSessionOnWorktree("w-1", { ...DEFAULTS });
-
-    const messages = useCockpit.getState().toasts.map((t) => t.message);
-    expect(messages).toEqual(["Docker is not running, so a sandbox cannot be started."]);
-  });
-
-  it("carries the server's own sentence for every other code, the sixteenth included", async () => {
-    seed();
-    createSessionMock.mockRejectedValue(
-      new ApiError("non_loopback_publish", "The sandbox published a port off loopback.", 502),
-    );
-
-    await startSessionOnWorktree("w-1", { ...DEFAULTS });
-
-    const message = useCockpit.getState().toasts[0].message;
-    expect(message).toBe("The sandbox published a port off loopback.");
-    // That sandbox is RUNNING. Collapsing this into "not running" would be false, which is
-    // the whole reason Group C's ruling 7 made it its own code.
-    expect(message).not.toContain("not running");
-  });
-
-  it("names a harness the catalogue does not have, and creates nothing", async () => {
-    seed();
-
-    await startSessionOnWorktree("w-1", { ...DEFAULTS, harness: "codex" });
-
-    expect(createSessionMock).not.toHaveBeenCalled();
-    expect(useCockpit.getState().toasts[0].message).toBe(
-      "The codex harness is not in the catalogue.",
-    );
   });
 });

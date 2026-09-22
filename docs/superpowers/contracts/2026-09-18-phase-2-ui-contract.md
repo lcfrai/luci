@@ -1692,11 +1692,11 @@ reason is the honest third option.
 | `DevelopLens.tsx` | `{}` | Chooses Columns vs Canvas vs `EmptyDevelop`. Owns nothing else. |
 | `ColumnsLayout.tsx` | `{ sessionIds: SessionId[] }` | **The horizontal scroll container**, and scroll-into-view of a newly created or newly focused pane (defect 4). |
 | `CanvasLayout.tsx` | `{ sessionIds: SessionId[] }` | The 2400×1600 scrollable plane, tile drag, tile resize, z-order, and writing `TilePosition` to the store (defect 6). |
-| `SessionPane.tsx` | `{ sessionId: SessionId; variant: "column" \| "tile" }` | One session: header, `<Terminal/>`, footer. **Owns focus intent** — clicking anywhere in the pane focuses the session and hands DOM focus to the terminal. |
+| `SessionPane.tsx` | `{ sessionId: SessionId; variant: "column" \| "tile" }` | One session: header, `<Terminal/>`, the attach overlay (§7.7), footer. **Owns focus intent** — clicking anywhere in the pane focuses the session and hands DOM focus to the terminal — and tells `<Terminal/>` whether this pane is the focused one, so nine mounting panes do not each take the caret. Restart is `api.restartSession`, which keeps the session id. |
 | `SessionPaneHeader.tsx` | `{ session: Session; worktree: Worktree \| undefined; variant: "column" \| "tile" }` | Status dot, worktree name, harness command, the `⋯` button. In `tile` variant it is also the drag handle. |
 | `SessionPaneFooter.tsx` | `{ session: Session }` | harness command · model · elapsed · attach state. All numbers `tabular-nums`. Attach state comes from `useAttachState(session.id)` (§6.6), never from the store; the retry elapsed is `useHeartbeat() - state.ladderStartedAt`, computed here because the registry owns no clock. |
 | `SessionMenu.tsx` | `{ sessionId: SessionId; anchor: DOMRect \| null; onClose(): void }` | The `⋯` menu: Resume, Fork into…, Restart clean, Rename…, Open a shell here, Kill, Forget. |
-| `EmptyDevelop.tsx` | `{ branch: Branch \| undefined }` | The zero state. Named actions, no spinner. |
+| `EmptyDevelop.tsx` | `{ branch: Branch \| undefined }` | The zero state. Named actions, no spinner. Also exports `startSessionOnWorktree(worktreeId, defaults)`, the create path its two actions share — an addition to this table, sited here because they are its only callers. Distinct from task 18's `useCreateSession`, which re-resolves against the live store. |
 | `develop.css` | — | `.pane-*`, `.cols-*`, `.cv-*` |
 
 ```tsx
@@ -2010,7 +2010,7 @@ who owns each:
 | no projects (`PANACEA_APP_PROJECTS_DIR` unset) | Rail empty state naming the environment variable | `Rail` |
 | branch with no worktrees | `EmptyDevelop` with "this branch has no worktrees yet" | `EmptyDevelop` |
 | worktree with no sessions | `EmptyDevelop` with the two named actions (`＋ Claude Code`, `Open a shell`) | `EmptyDevelop` |
-| session `starting` and the socket not yet up | Pane body shows the connecting line with the elapsed retry time, not a spinner — `useHeartbeat() - useAttachState(id).ladderStartedAt`, the interface for which is §6.6 | `Terminal` |
+| the attach socket is not up — a first connect, a reconnect, or a ladder that gave up | Pane body shows the connecting line with the elapsed retry time, not a spinner — `useHeartbeat() - useAttachState(id).ladderStartedAt`, the interface for which is §6.6. An overlay **sibling** of `<Terminal/>`, never a conditional render of it, and never a scrim once a transcript may be behind it: centred only for `connecting`, a corner strip otherwise, and for `failed` the strip carries `AttachState.reason` verbatim | `SessionPane` |
 | session `exited` | Scrollback stays, read-only, with `exitReason` and a Restart action | `SessionPane` |
 | harness unavailable | Listed in the picker with `harness.note` verbatim, not hidden | `SessionPicker` |
 | more than 10 pins on Canvas | `pinSession` no-ops and toasts the cap | `prefsSlice` |

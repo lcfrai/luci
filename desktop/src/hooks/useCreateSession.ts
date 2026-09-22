@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { api } from "../api";
 import type { ApiError } from "../api/client";
+import { classify } from "../api/problems";
 import { resolveDefaults, toCreateRequest } from "../store/defaults";
 import { selectResolvedDefaults } from "../store/selectors";
 import { useCockpit } from "../store/store";
@@ -23,17 +24,25 @@ export interface CreateSessionOptions {
  *  Every other code renders the server's own message verbatim — including the sixteenth,
  *  non_loopback_publish, whose sandbox is RUNNING and must never be described as stopped.
  *
- *  The `switch` this replaces would need a `default` for the same reason this has a trailing
- *  return: task 16's client passes an UNKNOWN code through intact rather than validating it,
- *  so ProblemCode is closed by convention and never by the type system. */
+ *  REWRITTEN BY TASK 20's FIX ROUND 1, and the two strings are byte-identical to what they
+ *  were — only the control flow changed. The rule this encodes had three copies; it is now
+ *  `api/problems.classify` and the prose stayed here, because the tail of each sentence names
+ *  the act that failed and a shared `sentenceFor(error, verb)` would read worse at all three.
+ *
+ *  LOAD-BEARING SHAPE: declared return type, switch over `ProblemKind`, no `default:`. The
+ *  `if` chain this replaces ended in a trailing return, which is exactly what would absorb a
+ *  fourth kind in silence; with `strict: true` this form fails with TS2366 instead. That
+ *  enforcement is the reason the extraction was worth doing — an import alone would have given
+ *  one definition and no check. */
 function sentenceFor(error: ApiError): string {
-  if (error.code === "network_unavailable") {
-    return "The Panacea control plane is not running, so the session was not created.";
+  switch (classify(error)) {
+    case "control-plane-down":
+      return "The Panacea control plane is not running, so the session was not created.";
+    case "backend-down":
+      return "Docker is not running on this machine, so the sandbox could not be started.";
+    case "server-said":
+      return error.message;
   }
-  if (error.code === "backend_unavailable") {
-    return "Docker is not running on this machine, so the sandbox could not be started.";
-  }
-  return error.message;
 }
 
 export function useCreateSession(): (

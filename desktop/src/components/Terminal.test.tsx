@@ -66,8 +66,8 @@ function grab(): AttachHandle {
 describe("Terminal", () => {
   it("two renders with the same sessionId construct exactly one Terminal", () => {
     seed(session());
-    const { rerender } = render(<Terminal sessionId="s-1" readOnly={false} />);
-    rerender(<Terminal sessionId="s-1" readOnly={false} />);
+    const { rerender } = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    rerender(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
     expect(FakeWebSocket.instances.length).toBe(1);
   });
 
@@ -75,16 +75,16 @@ describe("Terminal", () => {
     seed(session());
     render(
       <StrictMode>
-        <Terminal sessionId="s-1" readOnly={false} />
+        <Terminal sessionId="s-1" readOnly={false} focused={false} />
       </StrictMode>,
     );
     expect(FakeWebSocket.instances.length).toBe(1);
     expect((grab().term as unknown as FakeTerm).disposed).toBe(false);
   });
 
-  it("puts the registry's element in the pane, opens into it and takes DOM focus", () => {
+  it("puts the registry's element in the pane, opens into it and takes DOM focus when focused", () => {
     seed(session());
-    const { container } = render(<Terminal sessionId="s-1" readOnly={false} />);
+    const { container } = render(<Terminal sessionId="s-1" readOnly={false} focused />);
     const held = grab();
     const term = held.term as unknown as FakeTerm;
     expect(container.querySelector('[data-session-id="s-1"]')).toBe(held.element);
@@ -94,7 +94,7 @@ describe("Terminal", () => {
 
   it("a store update does not dispose or re-create the terminal (defect 1)", () => {
     seed(session());
-    render(<Terminal sessionId="s-1" readOnly={false} />);
+    render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
     const term = grab().term as unknown as FakeTerm;
     useCockpit.setState({
       sessions: { "s-1": session({ status: "idle", updatedAt: "2026-09-18T05:00:00Z" }) },
@@ -105,7 +105,7 @@ describe("Terminal", () => {
 
   it("opens no socket for an exited session and reports why", () => {
     seed(session({ status: "exited", exitReason: "process exited with status 0" }));
-    render(<Terminal sessionId="s-1" readOnly />);
+    render(<Terminal sessionId="s-1" readOnly focused={false} />);
     expect(FakeWebSocket.instances.length).toBe(0);
     expect(getAttachState("s-1").phase).toBe("ended");
     expect(getAttachState("s-1").reason).toBe("process exited with status 0");
@@ -113,7 +113,7 @@ describe("Terminal", () => {
 
   it("releases on unmount, and the terminal survives the grace window", () => {
     seed(session());
-    const { unmount } = render(<Terminal sessionId="s-1" readOnly={false} />);
+    const { unmount } = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
     unmount();
     expect((grab().term as unknown as FakeTerm).disposed).toBe(false);
   });
@@ -122,7 +122,7 @@ describe("Terminal", () => {
     vi.useFakeTimers();
     try {
       seed(session());
-      const { unmount } = render(<Terminal sessionId="s-1" readOnly={false} />);
+      const { unmount } = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
       const held = grab();
       const term = held.term as unknown as FakeTerm;
 
@@ -141,7 +141,7 @@ describe("Terminal", () => {
     seed(session());
     render(
       <StrictMode>
-        <Terminal sessionId="s-1" readOnly={false} />
+        <Terminal sessionId="s-1" readOnly={false} focused={false} />
       </StrictMode>,
     );
     const term = grab().term as unknown as FakeTerm;
@@ -153,7 +153,8 @@ describe("Terminal", () => {
 
   it("a store update does not re-run the mount effect", () => {
     seed(session());
-    render(<Terminal sessionId="s-1" readOnly={false} />);
+    // `focused` so the count under test is a real one rather than 0 === 0.
+    render(<Terminal sessionId="s-1" readOnly={false} focused />);
     const term = grab().term as unknown as FakeTerm;
     const focusedBefore = term.focused;
     // act, so the re-render AND its passive effects actually flush: without it neither the
@@ -170,7 +171,7 @@ describe("Terminal", () => {
 
   it("pushes the store's session into the registry, so a kill stops the reconnect", () => {
     seed(session());
-    render(<Terminal sessionId="s-1" readOnly={false} />);
+    render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
     FakeWebSocket.last()!.acceptOpen();
     act(() => {
       useCockpit.setState({
@@ -184,12 +185,12 @@ describe("Terminal", () => {
 
   it("pushes readOnly into the registry, so an exited pane stops forwarding stdin", () => {
     seed(session());
-    const { rerender } = render(<Terminal sessionId="s-1" readOnly={false} />);
+    const { rerender } = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
     const term = grab().term as unknown as FakeTerm;
     const ws = FakeWebSocket.last()!;
     ws.acceptOpen();
 
-    rerender(<Terminal sessionId="s-1" readOnly />);
+    rerender(<Terminal sessionId="s-1" readOnly focused={false} />);
     const before = ws.sent.length;
     term.type("rm -rf /\r");
     expect(ws.sent.length).toBe(before);
@@ -241,5 +242,75 @@ describe("useAttachState", () => {
     const { getByTestId } = render(<AttachProbe sessionId="s-never-held" />);
     expect(getByTestId("phase").textContent).toBe("detached");
     expect(getByTestId("phase").getAttribute("data-attempts")).toBe("0");
+  });
+});
+
+/* ADDED BY TASK 20's FIX ROUND 1, alongside the `focused` prop in Terminal.tsx.
+ *
+ * The defect: `handle.focus()` ran unconditionally on mount. React flushes passive effects
+ * children-before-parents in mount order, so Columns with nine panes left the NINTH terminal
+ * holding DOM focus while the `pane--focused` ring follows `selection.sessionId`, which is
+ * null on a cold open. No ring anywhere and keystrokes going to the last pane in server order.
+ *
+ * These live here rather than in the pane's suite because this is the file whose FakeTerm
+ * counts `focus()` calls, and the behaviour under test is this component's. */
+describe("Terminal focus is conditional", () => {
+  it("takes no DOM focus when it is not the focused pane", () => {
+    seed(session());
+    render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    expect((grab().term as unknown as FakeTerm).focused).toBe(0);
+  });
+
+  it("takes DOM focus on the false→true transition, so a rail-row click moves the caret", () => {
+    seed(session());
+    const { rerender } = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const term = grab().term as unknown as FakeTerm;
+    expect(term.focused).toBe(0);
+
+    rerender(<Terminal sessionId="s-1" readOnly={false} focused />);
+
+    expect(term.focused).toBe(1);
+  });
+
+  it("does not re-focus while it stays focused, so a poll cannot yank the caret back", () => {
+    seed(session());
+    const { rerender } = render(<Terminal sessionId="s-1" readOnly={false} focused />);
+    const term = grab().term as unknown as FakeTerm;
+    expect(term.focused).toBe(1);
+
+    rerender(<Terminal sessionId="s-1" readOnly={false} focused />);
+    act(() => {
+      useCockpit.setState({
+        sessions: { "s-1": session({ status: "idle", updatedAt: "2026-09-18T05:00:00Z" }) },
+      });
+    });
+
+    expect(term.focused).toBe(1);
+  });
+
+  // The whole point of the prop: mount order stops mattering, because an unfocused pane does
+  // nothing regardless of when its effects run.
+  it("leaves the caret alone when several panes mount and none is focused", () => {
+    useCockpit.setState({
+      sessions: {
+        "s-1": session({ id: "s-1", attachPath: "/v1/sessions/s-1/attach" }),
+        "s-2": session({ id: "s-2", attachPath: "/v1/sessions/s-2/attach" }),
+      },
+    });
+    render(
+      <>
+        <Terminal sessionId="s-1" readOnly={false} focused={false} />
+        <Terminal sessionId="s-2" readOnly={false} focused={false} />
+      </>,
+    );
+
+    for (const id of ["s-1", "s-2"]) {
+      const handle = acquireAttach(session({ id, attachPath: `/v1/sessions/${id}/attach` }), {
+        createTerm: () => { throw new Error("the component should already have built a terminal"); },
+        readOnly: false,
+      });
+      releaseAttach(id);
+      expect((handle.term as unknown as FakeTerm).focused).toBe(0);
+    }
   });
 });

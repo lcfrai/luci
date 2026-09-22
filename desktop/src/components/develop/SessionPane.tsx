@@ -2,63 +2,104 @@ import { useRef, useState } from "react";
 import type { JSX, PointerEvent } from "react";
 import { api } from "../../api";
 import type { ApiError } from "../../api/client";
+import { classify } from "../../api/problems";
+import { useAttachState } from "../../api/attachRegistry";
+import { useHeartbeat } from "../../hooks/heartbeat";
 import { Terminal } from "../Terminal";
-import { SessionPaneFooter } from "./SessionPaneFooter";
+import { SessionPaneFooter, attachLabel } from "./SessionPaneFooter";
 import { SessionPaneHeader } from "./SessionPaneHeader";
-import { toCreateRequest } from "../../store/defaults";
 import { selectSession, selectWorktreeById } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
-import type { SessionDefaults, SessionId, WorktreeId } from "../../store/types";
+import type { SessionId } from "../../store/types";
 
-/** The one create path in Group D's develop surface: this pane's Restart and EmptyDevelop's
- *  two named actions. It is here rather than in a module of its own because contract §9
- *  fixes this task's file list at seven, and here rather than in EmptyDevelop because both
- *  directions of import have to terminate.
+/** The exited bar's Restart. `POST /v1/sessions/{id}/restart`, and NOT a create.
  *
- *  It is the SECOND `api.createSession` call site in the tree and that is deliberate, not an
- *  oversight: task 18's `hooks/useCreateSession` RE-RESOLVES its arguments against the live
- *  defaults, which is right for "＋ New session" and wrong for a Restart — the user chose
- *  this session's harness, model, effort and permission mode once, and a restart that
- *  silently upgrades the model is the class of surprise this product exists to avoid. Task
- *  24's audit counts on there being exactly these two.
+ *  `control-plane/internal/api/sessions.go:723` settles which verb this is: restart means
+ *  "same config, clean context", **it keeps the session id**, and resume is a different verb
+ *  "because conflating the two makes restart lossy". A `createSession` carrying the dead
+ *  session's settings is none of the client's four verbs — it produces an unrelated session
+ *  that merely looks related and orphans the dead one beside it, which breaks the one thread
+ *  the product spine is built on. §6.5's "Restart clean" is this same verb from the menu.
  *
- *  Not permanent: it belongs in `sessionVerbs.ts` alongside Resume/Fork/Restart/Kill. No
- *  Phase 2 task moves it — task 22 creates that module but rewrites neither call site —
- *  so whoever moves it leaves a re-export here or updates both call sites together. */
-export async function startSessionOnWorktree(
-  worktreeId: WorktreeId,
-  defaults: SessionDefaults,
-): Promise<void> {
-  const before = useCockpit.getState();
-  const harness = before.harnesses.find((h) => h.id === defaults.harness);
-  if (harness === undefined) {
-    // Not a crash and not silence: the catalogue has not loaded, or the harness was removed
-    // server-side between the render and the click.
-    before.pushToast(`The ${defaults.harness} harness is not in the catalogue.`);
-    return;
-  }
-
+ *  The two 409s are different sentences and must reach the user as written. Both are
+ *  `CodeConflict`, so the `classify` branch below carries them verbatim: `sessions.go:733`
+ *  "A restart is already in flight for that session." — §3.14's in-flight guard, because two
+ *  concurrent restarts both destroy and both create — and `:751` "The worktree this session
+ *  was created in no longer resolves.", deliberately a 409 rather than a 404 because a 404
+ *  reads as "no such session" and sends the user after the wrong problem. */
+async function restartSession(sessionId: SessionId): Promise<void> {
   try {
-    // toCreateRequest strips every field this harness does not accept (§3.6); sending
-    // `effort` to a shell is a 400 the client could have avoided.
-    const session = await api.createSession(toCreateRequest(worktreeId, defaults, harness));
-    const after = useCockpit.getState();
-    after.upsertSession(session);
-    after.focusSession(session.id);
+    const session = await api.restartSession(sessionId);
+    // Same id, so this UPDATES the record rather than adding one. The transcript stays and
+    // nothing is orphaned.
+    useCockpit.getState().upsertSession(session);
   } catch (e) {
-    // Every client method rejects with ApiError and nothing else (§4). These two codes are
-    // different sentences and must not be collapsed: the first means our process is down,
-    // the second means Docker is. Every other code carries the server's own message —
-    // including the sixteenth, non_loopback_publish, whose sandbox is RUNNING.
-    const err = e as ApiError;
-    const message =
-      err.code === "network_unavailable"
-        ? "The control plane is not running. Start it, then try again."
-        : err.code === "backend_unavailable"
-          ? "Docker is not running, so a sandbox cannot be started."
-          : err.message;
-    useCockpit.getState().pushToast(message);
+    useCockpit.getState().pushToast(sentenceForRestart(e as ApiError));
   }
+}
+
+/** The prose is local because its tail names THIS act; the discrimination is `classify` because
+ *  §4.2's non-collapse rule is one rule and three copies of it drift. Both 409s land in
+ *  `server-said` and arrive as the server wrote them.
+ *
+ *  LOAD-BEARING SHAPE: declared return type, switch over `ProblemKind`, no `default:`. A fourth
+ *  kind must fail this function with TS2366 rather than fall through a catch-all. */
+function sentenceForRestart(error: ApiError): string {
+  switch (classify(error)) {
+    case "control-plane-down":
+      return "The control plane is not running, so the session was not restarted.";
+    case "backend-down":
+      return "Docker is not running, so the sandbox could not be rebuilt.";
+    case "server-said":
+      return error.message;
+  }
+}
+
+/** Contract §7.7's connecting line. An overlay SIBLING of `<Terminal/>`, never a conditional
+ *  render of it: unmounting the terminal to show a message about the terminal destroys the
+ *  thing the message is about, and a dropped socket destroys nothing (§6.6).
+ *
+ *  ITS OWN COMPONENT, not inlined into SessionPane, and that is the whole point of the shape.
+ *  It subscribes to BOTH `useAttachState` and the 1 Hz `useHeartbeat`. Holding those in
+ *  SessionPane would re-render the header, the terminal wrapper and the exit bar every second
+ *  — the same objection that kept this out of `Terminal`, arriving one component further in.
+ *  As a leaf, the tick reaches only the element that displays the number.
+ *
+ *  The gate is the ATTACH PHASE and never the session status. `ladderStartedAt !== 0` is
+ *  defined at `attachRegistry.ts:53` as exactly "this pane is retrying", which covers a first
+ *  connect and a reconnect with one condition and self-clears on `onopen`. `failed` needs the
+ *  second condition because `giveUp` sets the stamp back to 0 — the ladder is spent, so there
+ *  is no elapsed left to render. There is no third condition. */
+function AttachOverlay({ sessionId }: { sessionId: SessionId }): JSX.Element | null {
+  const attach = useAttachState(sessionId);
+  const nowMs = useHeartbeat();
+
+  if (attach.phase !== "failed" && attach.ladderStartedAt === 0) return null;
+
+  // Centred ONLY for `connecting`. It is the only phase whose body is provably empty — first
+  // handshake, fresh terminal — so it is the only one that may take the middle of the pane.
+  // Every other phase may have a transcript behind it, and covering an hour of output at the
+  // moment the user most wants to re-read it would hide the artifact the registry exists to
+  // protect. `failed` is the worse case rather than the lesser one: it is terminal, so a scrim
+  // there would occlude permanently with nothing coming to clear it.
+  const centred = attach.phase === "connecting";
+  const failed = attach.phase === "failed";
+
+  return (
+    <div
+      className={centred ? "pane-attach pane-attach--centre" : "pane-attach pane-attach--corner"}
+      data-attach-phase={attach.phase}
+      // A live region ONLY when the text is final. The retrying variants change once a second,
+      // and a polite live region would read "connecting 1s", "connecting 2s" at a screen-reader
+      // user for the whole ladder. `failed` renders once and is the sentence worth announcing.
+      role={failed ? "status" : undefined}
+    >
+      {/* Verbatim, per attachRegistry.ts:63-64 — the reason is a sentence written for a human,
+          and every `failed` publish in giveUp() carries one. Until now it reached the user
+          only as the footer's `title`, which is hover-only on an 11px strip. */}
+      {failed ? attach.reason : attachLabel(attach, nowMs)}
+    </div>
+  );
 }
 
 /** xterm.js renders a hidden `textarea.xterm-helper-textarea` and focuses it; that is the
@@ -114,18 +155,16 @@ export function SessionPane({
     // MEASURED EQUIVALENCE, and when it expires. Dropping `|| restarting` survives the suite,
     // because the only path to this handler is a <button> that carries `disabled={restarting}`
     // and a disabled button fires no click. The guard is the second lock on the same door.
-    // It stops being equivalent the moment anything reaches onRestart without going through
-    // that attribute: a keyboard verb in task 23's map, task 22's ⋯ menu offering Restart, or
-    // the button losing `disabled` in a restyle. Any of those and a double fire creates two
-    // sessions on one worktree from one intent.
+    // It stops being equivalent the moment anything reaches onRestart WITHOUT going through
+    // that attribute — the button losing `disabled` in a restyle, or a caller invoking this
+    // handler directly. Nothing planned does: task 22's ⋯ menu and task 23's palette both
+    // route through `sessionVerbs.restart`, a separate path that never reaches this function,
+    // so neither is a trigger. (Corrected after checking the task it originally named.)
     if (session === undefined || restarting) return;
     setRestarting(true);
-    void startSessionOnWorktree(session.worktreeId, {
-      harness: session.harness,
-      model: session.model,
-      effort: session.effort,
-      permissionMode: session.permissionMode,
-    }).finally(() => setRestarting(false));
+    // The server's own in-flight guard returns 409 for a concurrent restart, so this local
+    // one is a courtesy rather than the correctness boundary.
+    void restartSession(session.id).finally(() => setRestarting(false));
   };
 
   // Exception 3. A purge that raced a render: say so, do not throw.
@@ -150,7 +189,12 @@ export function SessionPane({
         {/* Unconditional, for every status — known defect 3. readOnly is the ONLY thing
             `exited` changes, and even then the scrollback stays: the transcript is the
             artifact, and a dropped socket destroys nothing. */}
-        <Terminal sessionId={session.id} readOnly={session.status === "exited"} />
+        <Terminal
+          sessionId={session.id}
+          readOnly={session.status === "exited"}
+          focused={focused}
+        />
+        <AttachOverlay sessionId={session.id} />
       </div>
       {session.status === "exited" ? (
         <div className="pane-exit">
