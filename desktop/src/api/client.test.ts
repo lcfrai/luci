@@ -57,6 +57,23 @@ const hangingFetch = ((_input: RequestInfo | URL, init?: RequestInit) =>
     );
   })) as unknown as typeof globalThis.fetch;
 
+/** A fetch whose HEADERS arrive at once and whose BODY never does — a server that answered and
+ *  then stalled, or a connection that died after the status line. The abort wiring stands in for
+ *  the platform's own: the Fetch spec has an abort error the response body stream, and undici
+ *  does, so a hand-built Response must do it by hand to behave like a real one. */
+const stallingBodyFetch = ((_input: RequestInfo | URL, init?: RequestInit) => {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      init?.signal?.addEventListener("abort", () =>
+        controller.error(new DOMException("The operation was aborted.", "AbortError")),
+      );
+    },
+  });
+  return Promise.resolve(
+    new Response(body, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8" } }),
+  );
+}) as unknown as typeof globalThis.fetch;
+
 /** Every member of the union, written out. The runtime assertion is thin; the real check is
  *  that this array compiles — a missing member is TS2322 under `npm run typecheck`. */
 const ALL_CODES: ProblemCode[] = [
@@ -115,6 +132,20 @@ describe("createClient — transport", () => {
       .listMachines()
       .catch((e: unknown) => e as ApiError);
 
+    expect((err as ApiError).code).toBe("timeout");
+    expect((err as ApiError).status).toBe(0);
+  });
+
+  it("raises timeout when the body stalls AFTER the headers arrive", async () => {
+    // The cockpit polls this client every two seconds. A server that sends 200 and then stalls
+    // mid-body must still end in a `timeout` the pane can render: a request left hanging with
+    // nothing to cancel it is a surface that silently stops updating, which tells the user less
+    // than a fabricated status would. So the timer has to outlive the headers.
+    const err = await createClient({ fetch: stallingBodyFetch, timeoutMs: 5 })
+      .listMachines()
+      .catch((e: unknown) => e as ApiError);
+
+    expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).code).toBe("timeout");
     expect((err as ApiError).status).toBe(0);
   });
@@ -200,6 +231,32 @@ describe("createClient — the catalogue reads", () => {
     const { fn } = fetchStub([jsonReply(200, '{"projects":[]}')]);
 
     await expect(createClient({ fetch: fn }).listProjects()).resolves.toEqual([]);
+  });
+
+  it("unwraps the branches envelope and puts the project id in the path", async () => {
+    const { fn, calls } = fetchStub([
+      jsonReply(
+        200,
+        '{"branches":[{"id":"b-8c1d0e42-evidence-upload","projectId":"p-8c1d0e42",' +
+          '"name":"evidence-upload","isHead":true}]}',
+      ),
+    ]);
+
+    const branches = await createClient({ fetch: fn }).listBranches("p-8c1d0e42");
+
+    expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/projects/p-8c1d0e42/branches`);
+    expect(calls[0].init?.method).toBe("GET");
+    expect(branches).toHaveLength(1);
+    expect(branches[0].name).toBe("evidence-upload");
+    // Server-computed. Task 18's rail reads it to mark the checked-out branch and never
+    // re-derives it.
+    expect(branches[0].isHead).toBe(true);
+  });
+
+  it("returns an empty array for a project with no branches", async () => {
+    const { fn } = fetchStub([jsonReply(200, '{"branches":[]}')]);
+
+    await expect(createClient({ fetch: fn }).listBranches("p-8c1d0e42")).resolves.toEqual([]);
   });
 
   it("leaves the harness arrays exactly as the server sent them", async () => {

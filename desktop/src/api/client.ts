@@ -172,12 +172,21 @@ function resolveBaseUrl(explicit?: string): string {
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
 }
 
-/** Non-2xx → ApiError. Read as text first: res.json() on a proxy's HTML page throws a
- *  SyntaxError the caller's `catch (e) { const err = e as ApiError }` cannot make sense of. */
-async function readProblem(res: Response): Promise<ApiError> {
-  const text = await res.text().catch(() => "");
+/** A reply whose body has already been read, so that nothing downstream of `send` can block.
+ *  The Response itself is deliberately NOT carried: holding it would let a caller read the body
+ *  a second time, outside the timeout that this client can enforce. */
+interface Reply {
+  status: number;
+  statusText: string;
+  text: string;
+}
+
+/** Non-2xx → ApiError. The body arrives as text and is parsed second: res.json() on a proxy's
+ *  HTML page throws a SyntaxError the caller's `catch (e) { const err = e as ApiError }` cannot
+ *  make sense of. */
+function toProblem(reply: Reply): ApiError {
   try {
-    const parsed: unknown = JSON.parse(text);
+    const parsed: unknown = JSON.parse(reply.text);
     if (
       typeof parsed === "object" &&
       parsed !== null &&
@@ -185,23 +194,22 @@ async function readProblem(res: Response): Promise<ApiError> {
       typeof (parsed as Problem).message === "string"
     ) {
       const problem = parsed as Problem;
-      return new ApiError(problem.error, problem.message, res.status, problem.details);
+      return new ApiError(problem.error, problem.message, reply.status, problem.details);
     }
   } catch {
     // Not JSON: a proxy interposed, or the server died before it wrote a body.
   }
-  return new ApiError("internal", text.slice(0, 200) || res.statusText, res.status);
+  return new ApiError("internal", reply.text.slice(0, 200) || reply.statusText, reply.status);
 }
 
-async function readJson<T>(res: Response): Promise<T> {
-  const text = await res.text();
+function parseJson<T>(reply: Reply): T {
   try {
-    return JSON.parse(text) as T;
+    return JSON.parse(reply.text) as T;
   } catch {
     throw new ApiError(
       "internal",
-      `The control plane answered ${res.status} with a body that is not JSON: ${text.slice(0, 200)}`,
-      res.status,
+      `The control plane answered ${reply.status} with a body that is not JSON: ${reply.text.slice(0, 200)}`,
+      reply.status,
     );
   }
 }
@@ -215,7 +223,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
     opts?.fetch ??
     ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => globalThis.fetch(input, init));
 
-  async function send(method: Method, route: string, body?: unknown): Promise<Response> {
+  async function send(method: Method, route: string, body?: unknown): Promise<Reply> {
     const url = baseUrl + route;
     const controller = new AbortController();
     // Our own flag rather than reading the abort reason: it is the only way to tell this
@@ -235,8 +243,15 @@ export function createClient(opts?: ClientOptions): CockpitClient {
         headers: body === undefined ? undefined : { "Content-Type": "application/json" },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
-      if (!res.ok) throw await readProblem(res);
-      return res;
+      // The body is read HERE, while the timer is still armed. Returning the Response and
+      // letting the caller read it would clear the timer in `finally` first, and a server
+      // that sends its headers and then stalls mid-body would hang for ever with nothing
+      // left to cancel it — a cockpit that silently stops updating and never says why.
+      // Not `.catch(() => "")`: a read that fails IS the failure, and swallowing it here
+      // would turn an abort into a successful empty reply.
+      const reply: Reply = { status: res.status, statusText: res.statusText, text: await res.text() };
+      if (!res.ok) throw toProblem(reply);
+      return reply;
     } catch (cause) {
       if (cause instanceof ApiError) throw cause;
       if (timedOut) {
@@ -250,7 +265,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
     }
   }
 
-  const get = async <T,>(route: string): Promise<T> => readJson<T>(await send("GET", route));
+  const get = async <T,>(route: string): Promise<T> => parseJson<T>(await send("GET", route));
   const project = (id: ProjectId): string => `/v1/projects/${encodeURIComponent(id)}`;
 
   const makeSocket = opts?.webSocket ?? ((url: string) => new WebSocket(url));
@@ -258,7 +273,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
   // A local const rather than a property read, so resumeSession and forkSession call it
   // without `this` — the returned object is a literal and has no stable receiver.
   const createSession = async (req: CreateSessionRequest): Promise<Session> =>
-    readJson<Session>(await send("POST", "/v1/sessions", req));
+    parseJson<Session>(await send("POST", "/v1/sessions", req));
 
   return {
     baseUrl,
@@ -272,7 +287,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
       return (await get<{ worktrees: Worktree[] }>(`${project(projectId)}/worktrees${query}`)).worktrees;
     },
     setWorktreeReady: async (projectId, worktreeId, ready) =>
-      readJson<Worktree>(
+      parseJson<Worktree>(
         await send("PATCH", `${project(projectId)}/worktrees/${encodeURIComponent(worktreeId)}`, { ready }),
       ),
     listHarnesses: async () => (await get<{ harnesses: Harness[] }>("/v1/harnesses")).harnesses,
@@ -292,10 +307,10 @@ export function createClient(opts?: ClientOptions): CockpitClient {
         // rename instant and costs the user no round trip to be told what we already knew.
         throw new ApiError("bad_request", "A session title cannot be empty.", 0, { id });
       }
-      return readJson<Session>(await send("PATCH", sessionPath(id), { title: trimmed }));
+      return parseJson<Session>(await send("PATCH", sessionPath(id), { title: trimmed }));
     },
-    restartSession: async (id) => readJson<Session>(await send("POST", `${sessionPath(id)}/restart`)),
-    killSession: async (id) => readJson<Session>(await send("DELETE", sessionPath(id))),
+    restartSession: async (id) => parseJson<Session>(await send("POST", `${sessionPath(id)}/restart`)),
+    killSession: async (id) => parseJson<Session>(await send("DELETE", sessionPath(id))),
     purgeSession: async (id) => {
       // 204 and no body. A res.json() here throws SyntaxError out of a catch written for
       // ApiError, and the caller sees an exception with no code at all.
