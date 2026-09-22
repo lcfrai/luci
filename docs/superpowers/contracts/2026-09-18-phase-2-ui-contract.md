@@ -1694,7 +1694,7 @@ reason is the honest third option.
 | `CanvasLayout.tsx` | `{ sessionIds: SessionId[] }` | The 2400×1600 scrollable plane, tile drag, tile resize, z-order, and writing `TilePosition` to the store (defect 6). |
 | `SessionPane.tsx` | `{ sessionId: SessionId; variant: "column" \| "tile" }` | One session: header, `<Terminal/>`, footer. **Owns focus intent** — clicking anywhere in the pane focuses the session and hands DOM focus to the terminal. |
 | `SessionPaneHeader.tsx` | `{ session: Session; worktree: Worktree \| undefined; variant: "column" \| "tile" }` | Status dot, worktree name, harness command, the `⋯` button. In `tile` variant it is also the drag handle. |
-| `SessionPaneFooter.tsx` | `{ session: Session }` | harness command · model · elapsed · attach state. All numbers `tabular-nums`. |
+| `SessionPaneFooter.tsx` | `{ session: Session }` | harness command · model · elapsed · attach state. All numbers `tabular-nums`. Attach state comes from `useAttachState(session.id)` (§6.6), never from the store; the retry elapsed is `useHeartbeat() - state.ladderStartedAt`, computed here because the registry owns no clock. |
 | `SessionMenu.tsx` | `{ sessionId: SessionId; anchor: DOMRect \| null; onClose(): void }` | The `⋯` menu: Resume, Fork into…, Restart clean, Rename…, Open a shell here, Kill, Forget. |
 | `EmptyDevelop.tsx` | `{ branch: Branch \| undefined }` | The zero state. Named actions, no spinner. |
 | `develop.css` | — | `.pane-*`, `.cols-*`, `.cv-*` |
@@ -1744,6 +1744,37 @@ scrollback when a pane moves between Columns and Canvas, because xterm does not 
 re-`open()`ing across parents — and `handle.mount()` is separate from `acquireAttach`, called
 **after** the append and idempotent, because xterm measures its cell size from a rendered element
 and `open()` on a detached node yields a zero-column terminal.
+
+**The published attach state, which no section described before.** §6.5's footer and §7.7's
+"connecting" row both ask the pane for facts about the attach, and neither named the interface
+that supplies them — which is how §7.7 came to ask for an elapsed that `AttachState` could not
+produce. The registry publishes this, and the footer reads it through `useAttachState(sessionId)`,
+**not** through the store: attach state is transport state, and putting it in the store would turn
+every socket event into a store write and every store write into a re-render of the rail.
+
+```ts
+export type AttachPhase =
+  | "detached" | "connecting" | "attached" | "reconnecting" | "ended" | "failed";
+
+export interface AttachState {
+  phase: AttachPhase;
+  /** Handshakes tried in the current ladder; back to 0 once one succeeds. */
+  attempts: number;
+  /** `Date.now()` when the current ladder started, and 0 whenever none is running — so
+   *  `ladderStartedAt !== 0` is exactly "this pane is retrying". */
+  ladderStartedAt: number;
+  /** A sentence written for a user. Rendered verbatim; never a code, never a stack. */
+  reason: string;
+}
+
+export function useAttachState(sessionId: SessionId): AttachState;
+```
+
+**The elapsed is computed by the pane, not by the registry.** The registry publishes the raw
+stamp and owns no clock: the pane subtracts `ladderStartedAt` from `useHeartbeat()`'s 1 Hz tick
+(§7.1) at render time and prints the difference in `var(--numeric)`. That is what keeps §7.1's
+one-clock rule intact — a registry that published a ticking elapsed would need a second display
+clock — and it is why §7.7's row asks for a number rather than a spinner and can now get one.
 
 ### 6.7 Overlays
 
@@ -1979,7 +2010,7 @@ who owns each:
 | no projects (`PANACEA_APP_PROJECTS_DIR` unset) | Rail empty state naming the environment variable | `Rail` |
 | branch with no worktrees | `EmptyDevelop` with "this branch has no worktrees yet" | `EmptyDevelop` |
 | worktree with no sessions | `EmptyDevelop` with the two named actions (`＋ Claude Code`, `Open a shell`) | `EmptyDevelop` |
-| session `starting` and the socket not yet up | Pane body shows the connecting line with the elapsed retry time, not a spinner | `Terminal` |
+| session `starting` and the socket not yet up | Pane body shows the connecting line with the elapsed retry time, not a spinner — `useHeartbeat() - useAttachState(id).ladderStartedAt`, the interface for which is §6.6 | `Terminal` |
 | session `exited` | Scrollback stays, read-only, with `exitReason` and a Restart action | `SessionPane` |
 | harness unavailable | Listed in the picker with `harness.note` verbatim, not hidden | `SessionPicker` |
 | more than 10 pins on Canvas | `pinSession` no-ops and toasts the cap | `prefsSlice` |
@@ -2021,6 +2052,15 @@ never edits a file D1 owns except `App.tsx` in task 24.
 
 Legend: **C** create, **M** modify, **T** test.
 
+**Two entries in task 19's row are departures from this table as first written, and both are
+argued in that task's plan rather than assumed.** `App.tsx` is §9-assigned to task 24, but task 19
+changes `<Terminal/>`'s signature and `App.tsx` was its only caller, so the tree would not
+typecheck; task 19 reduces it to a placeholder that reserves task 24's mount point and retires the
+Phase 1 `ws://` harness with it. `test/fakes.ts` is task 14's, and Group D's shared shape §3.3
+names task 19 as the one task that **grows** its `FakeTerm` rather than replacing it. Read the row
+as the record of who actually touched what, which is the job §9 does for anyone reconstructing
+this phase from the table alone.
+
 ### D1 — foundation (tasks 14–19)
 
 | # | Title | Scope in one line | Files | Depends on |
@@ -2030,7 +2070,7 @@ Legend: **C** create, **M** modify, **T** test.
 | **16** | The typed control-plane client | `ApiError`, `createClient`, one function per endpoint, `attachUrl`, the injected `fetch`/`WebSocket` seams | C `desktop/src/api/client.ts`, `desktop/src/api/index.ts`; T `desktop/src/api/client.test.ts` | 14, 15 |
 | **17** | The store: slices, persistence, inheritance | three flat slices, `persist` with `PERSIST_KEY`/version 1/`migrate`, `selectors.ts`, `resolveDefaults` and `toCreateRequest` | C `desktop/src/store/store.ts`, `store/slices/dataSlice.ts`, `store/slices/uiSlice.ts`, `store/slices/prefsSlice.ts`, `store/selectors.ts`, `store/defaults.ts`; M `desktop/package.json` (zustand); T `store/store.test.ts`, `store/defaults.test.ts`, `store/selectors.test.ts` | 15 |
 | **18** | Shell, rail, sub-rail and top bar | `AppShell`, the four-level rail with right-click verbs, the six-lens sub-rail, the top bar with the layout toggle and the split New-session button + picker, `StatusDot`, `heartbeat`, `Popover`, `ContextMenu`, `Toasts` | C `components/AppShell.tsx`, `components/rail/*` (7 files + css), `components/subrail/SubRail.tsx` + css, `components/lens/LensPlaceholder.tsx`, `components/topbar/*` (4 files + css), `components/common/{StatusDot,Toasts,Popover}.tsx` + css, `components/menu/ContextMenu.tsx` + css, `hooks/heartbeat.ts`, `hooks/useDismissable.ts`; T `rail/Rail.test.tsx`, `topbar/NewSessionButton.test.tsx`, `topbar/SessionPicker.test.tsx`, `common/StatusDot.test.tsx`, `hooks/heartbeat.test.ts` | 16, 17 |
-| **19** | The terminal binding and the attach registry | `attachRegistry` (ref-counted sockets + xterm instances, the §4.6 retry ladder, 10 Hz batching, pinned scroll), `Terminal.tsx` rewritten to take a `sessionId`, `poller.ts` | C `desktop/src/api/attachRegistry.ts`, `desktop/src/api/poller.ts`; M `desktop/src/components/Terminal.tsx`; T `api/attachRegistry.test.ts`, `api/poller.test.ts`, `components/Terminal.test.tsx` | 16, 17 |
+| **19** | The terminal binding and the attach registry | `attachRegistry` (ref-counted sockets + xterm instances, the §4.6 retry ladder, 10 Hz batching, pinned scroll), `Terminal.tsx` rewritten to take a `sessionId`, `poller.ts` | C `desktop/src/api/attachRegistry.ts`, `desktop/src/api/poller.ts`; M `desktop/src/components/Terminal.tsx`, **`desktop/src/App.tsx`**, **`desktop/src/test/fakes.ts`**; T `api/attachRegistry.test.ts`, `api/poller.test.ts`, `components/Terminal.test.tsx` | 16, 17 |
 
 **Note on task 18.** It is the widest task in Group D — four surfaces and six shared primitives —
 and it is the only one that could reasonably be two. Keep it whole if it can be: the rail, the
