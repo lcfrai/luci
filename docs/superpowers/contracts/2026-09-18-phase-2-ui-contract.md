@@ -1578,7 +1578,7 @@ rendered by the single `<ContextMenu/>`; no row renders its own menu.
 |---|---|
 | project | New branch *(disabled in Phase 2 — no endpoint, §10.3, with the reason in the tooltip)*, Copy path, Reveal in Explorer *(Tauri opener plugin, already a dependency)* |
 | branch | New session here, Copy branch name, Set branch defaults… |
-| worktree | New session here, Open a shell here, Copy path, Mark ready *(rendered only when `worktree.ready !== undefined`, §10.2)* |
+| worktree | New session here, Open a shell here, Copy path, Mark ready *(always rendered: §10.2 landed, so `ready` is always on the wire)* |
 | session | Resume, Fork into…, Restart, Rename…, Kill, Forget *(purge)* |
 
 The rail carries **names and one status dot per row, and no numbers** — `docs/AGENTIC-UX.md` §10
@@ -1950,7 +1950,7 @@ The middle column says exactly where, so nobody has to take that on faith.
 | **6** | Canvas tile positions not persisted | Drag/resize a tile, switch to Columns and back, restart the app | **21** — `prefsSlice.tiles` keyed by session id, inside `partialize` | `src/components/develop/CanvasLayout.test.tsx` → *"a dragged tile writes its position to the store"*; `src/store/store.test.ts` → *"tiles survive a rehydrate at the current schema version"* |
 | **7** | `editAnswer` splices all later answers | Any edit-one-of-many: renaming session 2 of 3, replacing one worktree in a list | **15** (the helper) consumed by **22** (rename) — `replaceAt` / `replaceById`, which replace exactly one | `src/lib/immutable.test.ts` → *"replaceAt replaces one element and keeps every later one"*; `src/components/develop/sessionVerbs.test.ts` → *"renaming the middle session leaves its neighbours unchanged"* |
 | **8** | "Don't ask again for X" flips the whole session to bypass | The cockpit must not own a permission model at all: the agent's own TUI owns it, and shift+tab belongs to the agent | **23** — `useKeyboardMap` does not intercept shift+tab, does not `preventDefault` it, and never writes `permissionMode` after create | `src/hooks/useKeyboardMap.test.ts` → *"shift+tab is not intercepted and session.permissionMode is unchanged"*; *"Escape is not intercepted while a terminal has focus and no overlay is open"* |
-| **9** | Nothing ever sets `ready`, so user-created worktrees can never merge | There is no endpoint to set it — §10.2 requests one | **22** — the "Mark ready" verb PATCHes the worktree and the flag survives a refetch. **Contingent:** while `Worktree.ready` is `undefined` the verb is not rendered, and the task's first step is to check whether §10.2 landed | `src/components/develop/sessionVerbs.test.ts` → *"Mark ready PATCHes the worktree and the flag survives the next list"* and *"the verb is absent when the server does not report `ready`"* |
+| **9** | Nothing ever sets `ready`, so user-created worktrees can never merge | There is no endpoint to set it — §10.2 requested one | **22** — the "Mark ready" verb PATCHes the worktree and the flag survives a refetch. **No longer contingent:** §10.2 landed in task 10, so the verb is always rendered and task 22 does not check which world it is in | `src/components/develop/sessionVerbs.test.ts` → *"Mark ready PATCHes the worktree and the flag survives the next list"*. The second test this row used to name — *"the verb is absent when the server does not report `ready`"* — is **deleted**, not moved: the server always reports it, so that test would assert against a shape the control plane cannot produce |
 | **10** | Merge reorder indexes the unfiltered array | Any index taken against a filtered list and applied to the full one: the palette while a query is typed, `⌘1-9` across a filtered pane list | **15** (the helper) consumed by **23** — `moveWithinVisible` / `idAtVisiblePosition`; the rule is *never pass an array index across a filter boundary, pass the id* | `src/lib/immutable.test.ts` → *"moveWithinVisible reorders only within the visible subsequence"*; `src/components/palette/CommandPalette.test.tsx` → *"Enter on the second visible row runs the second VISIBLE command, not commands[1]"* |
 
 ---
@@ -2086,8 +2086,17 @@ Storage: one more small map in the existing registry document
 restart, and it is the only new persisted state Phase 2 needs. Natural home: **task 7** (the
 registry) and **task 10** (the read surface), both already in Group B/C scope.
 
-If this is refused: `Worktree.ready` stays `undefined`, task 22 does not render the verb, and
-defect 9 moves to Phase 3 with the merge queue. Task 22's first step checks which world it is in.
+**LANDED, so this section is history rather than a request.** Task 7 added the `worktreeFlags` map
+and `WorktreeFlagStore`; task 10 shipped `worktreeJSON.Ready bool` with no `omitempty` at
+`catalog.go:105`, the zero-value fill at `:319`, the route at `:33` and `handlePatchWorktree` at
+`:384`. So `ready` is **always** on the wire as true or false, defect 9 is fixed in Phase 2 rather
+than deferred to Phase 3, and **task 22 does not check which world it is in** — it renders the verb
+unconditionally.
+
+The paragraph this replaced described the refusal branch: `Worktree.ready` staying `undefined`, the
+verb not rendered, defect 9 moving to Phase 3. None of that happened, and leaving it written would
+have had task 22 either re-deriving the answer or writing the test it named for a shape the server
+cannot produce.
 
 ### 10.3 Scope, not a defect — Phase 2 can create sessions and nothing else
 
