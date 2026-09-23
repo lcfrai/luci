@@ -15,7 +15,7 @@ build changes afterwards is task 44b's, last.
 **Files:**
 - `docs/superpowers/contracts/2026-09-23-hub-contract.md` (modify)
 - `docs/PROGRAM.md` (modify ⚑ — other phases edit it too; additions only)
-- `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` (modify: one note in §4.5)
+- `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` (modify: one note in §4.5; §4.4's `openAttach` row and §4.6's paragraph edited in place, re-review b02 m3)
 - `docs/superpowers/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` (modify: one amendments block at the top)
 
 #### What changes, exactly
@@ -67,6 +67,29 @@ store phases 3, 6 and 7 use), S-TOKEN, S-HUB, S-LINK, S-FEED."* Nothing else in 
 every REST call carries `Authorization: Bearer <local key>`, and the attach WebSocket offers it as
 its second subprotocol, `["panacea.v1", "panacea.key." + key]`, never in its URL. The per-sandbox
 `attachToken` is unchanged and still never reaches the desktop."*
+
+**UI contract §4.4 and §4.6** (plan re-review b02 m3; both still describe the synchronous,
+keyless open that task 38 replaces):
+
+- §4.4's row (`2026-09-18-phase-2-ui-contract.md:1169`) becomes
+  `openAttach(session): Promise<WebSocket>`, with the note *"async since Phase H task 38: it
+  reads the local caller key before the handshake"*.
+- §4.6's paragraph (`:1219-1221`) becomes: *"`openAttach(session)` reads the local caller key
+  afresh (`localKey.refresh()`), then calls `opts.webSocket(attachUrl(...), protocols)` —
+  default `(url, protocols) => new WebSocket(url, protocols)` — with protocols
+  `["panacea.v1", "panacea.key." + key]`, and sets `binaryType = "arraybuffer"` before
+  resolving. The browser sends `Origin` on the handshake itself; the key rides only in the
+  subprotocol, never in `attachUrl`, and the control plane echoes only `panacea.v1`. Without a
+  key source (phase 2's own tests) the protocols are `[]`. (Phase H plan, tasks 37–38.)"*
+
+These are edits in place, marked `(Phase H plan, task 38)`, not notes: §4.4 and §4.6 are the
+signatures a builder copies, and a note beside a wrong signature still gets the old one copied.
+
+**ADR-H1 is not edited** (re-review b02 m3). §5.4 still says *"every control-plane route except
+the WebSocket attach requires `Authorization: Bearer <key>`"* (`ADR-H1-hub-architecture.md:451`).
+The ADR's text is the owner's (as the HA5-4 row above says), so the plan does not rewrite it. The
+departure is recorded where a reader of the plan meets it: the plan's coverage row for ADR-H1
+§5.4 (plan.md:73), and the Hub contract §9.4 row (A3) in the table above.
 
 **Provenance contract draft.** One block at the top, *"Amended by Phase H (ADR-H1 §7.2)"*, listing:
 §2.1's store locations are now the Hub's; §1.4 and §4.1 gain the `erased` state; §6.4's *"head refs

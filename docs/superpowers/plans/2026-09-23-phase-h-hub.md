@@ -70,7 +70,7 @@ crate: sign-in opens the browser through `@tauri-apps/plugin-opener`, already a 
 | `OD-13` | Panacea stays a separate API | the Panacea token is phase 7's, kept in this phase's store (S-CRED); the Hub stores no Panacea credential |
 | ADR-H1 §4 | Design A + amendment (Hub in the control-plane module) + grafts G1–G6 | the file map; G1 = task 23, G2 = task 21, G3 = tasks 14 and 26, G4 = task 07, G5 = tasks 14 and 27, G6 = task 27 |
 | ADR-H1 §5.2 | direct Entra, no broker; the control plane holds tokens | tasks 30–32 |
-| ADR-H1 §5.4 | local caller key on the control-plane hop | tasks 37–38 |
+| ADR-H1 §5.4 | local caller key on the control-plane hop. **A declared departure** (review I3): §5.4 exempts the WebSocket attach (`ADR-H1-hub-architecture.md:451`); this plan does not, and carries the key as the attach's second subprotocol. Only the two health routes go without it | tasks 37–38 |
 | ADR-H1 §10 Q1–Q7 | open owner questions, each with a recommendation | this plan builds every recommendation (§"Open questions") |
 
 ---
