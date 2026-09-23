@@ -37,8 +37,8 @@ sandbox:
   sessionCpuMillis: 2000            # one value feeds the broker's defaults, platform.warm.balloons AND platform.sandboxes.limitRange.default* (review I4)
   sessionMemoryMib: 4096
 limits:
-  maxCpuMillis: 8000
-  maxMemoryMib: 32768
+  maxCpuMillis: 6000         # DERIVED FROM THE SANDBOX SKU (task 17, b05 re-review 2): the largest session that fits beside a machine pod on an empty node; equals platform's sandboxes.limitRange.maxCpu (session_size_is_one_value); P07 rewrites both
+  maxMemoryMib: 20480
   maxSandboxesPerUser: 8
   maxMachinesPerUser: 2
 machines:
@@ -279,15 +279,29 @@ with it.
   and filled by `deploy` (task 30) from Terraform outputs.
 - [ ] **Step 5:** Add `broker` and `hub` to `netpolcover`'s chart list and delete its
   `testdata/backends.yaml`; it must pass with the real charts, and `traefik_reaches_every_routed_backend`
-  now checks both `HTTPRoute`s. Add the case `session_size_is_one_value` (review I4): for each
-  of `deploy/values/{dev,prod}/`, `platform.yaml`'s `warm.balloons.cpu` and
-  `sandboxes.limitRange.defaultCpu` both equal `broker.yaml`'s `sandbox.sessionCpuMillis` with an
-  `m` suffix, the two memories equal `sessionMemoryMib` with `Mi`, and `sandboxes.runtimeClass`
-  equals `sandbox.runtimeClass`. The two charts read separate files (task 30 passes
-  `-f deploy/values/<env>/<chart>.yaml`), so "one value" is this test, not a shared key. Mutation
+  now checks both `HTTPRoute`s. Add the case `session_size_is_one_value` (review I4; b05
+  re-review 2, 4, 9). It compares **rendered objects, not keys**: for each env, it renders
+  `platform` and `broker` with `-f deploy/values/<env>/<chart>.yaml`, exactly as task 30
+  deploys them, so a key the env file leaves to the chart's `values.yaml` is compared at its
+  effective value. A compared object or field missing from the render fails the case; it never
+  skips. For each of dev and prod:
+  - **The session size** (the one size every cloud session gets, since remotebe sends none, task
+    22): the broker Deployment's `PANACEA_APP_BROKER_SESSION_CPU_MILLIS` with an `m` suffix equals
+    the balloon container's CPU request and limit and `LimitRange/sandboxes`'s `default.cpu` and
+    `defaultRequest.cpu`; the same for memory with `Mi`.
+  - **The ceiling** (derived from the sandbox SKU, task 17): `PANACEA_APP_BROKER_MAX_CPU_MILLIS`
+    with `m` equals `LimitRange/sandboxes`'s `max.cpu`, and `_MAX_MEMORY_MIB` with `Mi` equals
+    `max.memory`. Quantities are compared parsed (`6` and `6000m` are equal), not as strings.
+  - `sandboxes.runtimeClass` as rendered on the balloon equals the broker's
+    `PANACEA_APP_RUNTIME_CLASS` (task 17's name, shared with `cmd/api`).
+
+  The two charts read separate files, so "one value" is this test, not a shared key. Mutation
   checks, each verified applied and red:
   - set dev's `platform.yaml` `sandboxes.limitRange.defaultCpu` to `1000m` →
     `session_size_is_one_value`;
+  - set dev's `broker.yaml` `limits.maxCpuMillis` to `8000` → `session_size_is_one_value`;
+  - delete `warm.balloons.cpu` from dev's `platform.yaml` and set the chart default to `1000m` →
+    `session_size_is_one_value` (the effective value is compared, not the absent key);
   - change the broker policy's Traefik peer label → `traefik_reaches_every_routed_backend`;
   - move `hub-migrate-egress` from a hook into `networkpolicy.yaml` as a regular template →
     `hook_pods_are_allowed_before_they_run` (task 13) and `hub / migrate hooks exist before the Job`;

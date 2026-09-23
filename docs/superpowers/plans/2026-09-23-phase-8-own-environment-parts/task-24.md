@@ -119,10 +119,18 @@ An `ErrQuotaExceeded` from the backend is `429 quota_exceeded` with the broker's
 An `ErrMachineFull` (review I5) is **`409 machine_full`**, checked before the other 409s, with
 `details.sessionsPerMachine` from the `*backend.MachineFullError` (omitted when 0) and a message
 the cockpit renders verbatim (its `server-said` arm, `desktop/src/hooks/useCreateSession.ts:37-46`):
-"This cloud machine is full, so the session was not created: its 3 sessions use all the room on
-its node. Stop one of them, then try again." (`3` is the count; with none, "…full, so the session
-was not created: its node has no room for another session. Stop a session on it, then try
-again."). It is not `backend_unavailable`: the cockpit would say the backend is down, and the
+three forms, chosen by the count (b05 re-review 2, 6). The node is shared, so other users' pods
+use room too, and a cordoned node (P12) has room for nothing; so no form says this machine's
+sessions fill the node, and only a form with a count suggests stopping one:
+- count 2 or more: "This cloud machine's node has no room for another session right now (it
+  already runs this machine's 3 sessions), so the session was not created. Stop one of them, or
+  try again later." (`3` is the count.)
+- count 1: "This cloud machine's node has no room for another session right now (it already runs
+  this machine's one session), so the session was not created. Stop it, or try again later."
+- count 0 or absent: "This cloud machine's node has no room for another session right now, so the
+  session was not created. Try again later."
+
+It is not `backend_unavailable`: the cockpit would say the backend is down, and the
 user would wait for a recovery that is not coming.
 
 **Forget and worktree removal (OD-10).** If the phase 2 OD-10 follow-up has landed, its deletes
@@ -147,7 +155,7 @@ follow-up uses the interface. Either way a cloud session's Forget reaches the ma
 | `TestCloudCreateMakesTheStoreBeforeTheSandbox` | the agent saw `POST /v1/dirs` for `conversations/<w>` before the backend saw `Create` | a root-owned store the agent cannot write |
 | `TestCreateOnASleepingMachineWakesItFirst` | wake, then polls, then `Create`; the record was `starting` meanwhile | "machine asleep" shown to a user who just typed |
 | `TestQuotaIs429WithTheLimit` | `ErrQuotaExceeded` → 429 `quota_exceeded`, `details.limit` | a quota shown as "unavailable" |
-| `TestAFullMachineIs409MachineFullWithASentence` | the fake backend returns `&backend.MachineFullError{SessionsPerMachine: 3}` → 409 `machine_full`, `details.sessionsPerMachine = "3"`, the message exactly the sentence above; with `0` → no `sessionsPerMachine` key and the second sentence (review I5) | a full machine shown as "backend unavailable" or as `conflict` |
+| `TestAFullMachineIs409MachineFullWithASentence` | the fake backend returns `&backend.MachineFullError{SessionsPerMachine: 3}` → 409 `machine_full`, `details.sessionsPerMachine = "3"`, the message exactly the first form above; with `1` → `"1"` and exactly the singular form (never "1 sessions"); with `0` → no `sessionsPerMachine` key and exactly the third form, which says nothing of stopping a session (review I5; b05 re-review 6) | a full machine shown as "backend unavailable" or as `conflict` |
 | `TestLocalCreateIsUnchanged` | a local create still sends phase 2's host mounts (`TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv`, `sessions_test.go:749`, passes unchanged) | the local machine broken by the cloud branch |
 | `TestCloudForgetReachesTheMachineAgent` | Forget on a cloud session → `DELETE /v1/conversations/<w>/<id>` at the agent | OD-10 honoured on the laptop only |
 

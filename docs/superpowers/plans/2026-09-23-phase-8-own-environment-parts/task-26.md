@@ -101,9 +101,10 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
   declared return type and no `default:` arm; `quota_exceeded` gets the sentence "You are at your
   cloud machine limit."
 - **A full machine (review I5).** A session create on a cloud machine whose node has no room
-  answers `409 machine_full` with the control plane's sentence (task 24: "This cloud machine is
-  full, so the session was not created: its 3 sessions use all the room on its node. Stop one of
-  them, then try again."). The cockpit renders it verbatim through `useCreateSession`'s existing
+  answers `409 machine_full` with one of the control plane's three sentences (task 24, chosen by
+  the count; for 3: "This cloud machine's node has no room for another session right now (it
+  already runs this machine's 3 sessions), so the session was not created. Stop one of them, or
+  try again later."). The cockpit renders it verbatim through `useCreateSession`'s existing
   `server-said` arm (`hooks/useCreateSession.ts:37-46`), within seconds of the click (the broker
   refuses on the scheduler's verdict, task 18), never after a two-minute wait. It needs no new
   `ProblemKind`, and no `ProblemCode` member: `toProblem` passes an unknown server code through
@@ -134,7 +135,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 | `MachinesPopover / selecting a machine switches the rail` | click the cloud row → `selectedMachineId` set; the next poll calls `listProjects("m-…")` | the rail stuck on local projects |
 | `MachinesPopover / signed out shows the server's sentence verbatim` | `cloud.status: "signed_out"`, message `M` → the text `M` exactly, no cloud rows | a client-invented sign-in message |
 | `MachinesPopover / wake is offered only for a sleeping cloud machine` | Wake button present for `sleeping`, absent for `idle` and for `local` | a wake verb on the laptop |
-| `useCreateSession / a full machine shows the server's sentence verbatim` | the client rejects the create with `ApiError("machine_full", S, 409, {sessionsPerMachine: "3"})` → the surfaced text is `S` exactly, not the Docker or control-plane sentence (review I5) | `machine_full` classified as `backend-down`, which tells a cloud user "Docker is not running" |
+| `useCreateSession / a full machine shows the server's sentence verbatim` | three cases, each `S` one of task 24's forms copied exactly: `ApiError("machine_full", S3, 409, {sessionsPerMachine: "3"})`, `S1` with `"1"` (the singular form), and `S0` with no details → the surfaced text is that `S` exactly each time, not the Docker or control-plane sentence and not re-pluralised from the count (review I5; b05 re-review 6) | `machine_full` classified as `backend-down`, which tells a cloud user "Docker is not running" |
 | `poller / ensure-default is called once, and only when signed in` | three `ok` snapshots with no cloud machine → one call; `signed_out` → none | a POST on every tick |
 | `store / the migration adds selectedMachineId and keeps everything` | a vN persisted blob → vN+1 with `selectedMachineId: null` and every old key equal | a migration that drops user state |
 | `selectors / a vanished selection falls back to the default` | `selectedMachineId` not in `machines` → the default | a blank rail after a machine is deleted |
