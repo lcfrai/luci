@@ -36,10 +36,17 @@ const (
 // grant_type=refresh_token, client_id, refresh_token, scope="<scope> offline_access".
 //   - Callers for one scope share one redemption (single-flight); redemptions for
 //     all scopes are serialised by one lock (the refinement above).
-//   - A response carrying a new refresh_token is written — chunks, then the account
-//     record — BEFORE the access token is returned. If that write fails, Token
-//     returns the error and the old refresh token stays in the store (contract §6.2:
-//     "a crash in between leaves the old one").
+//   - A response carrying a new refresh_token is written BEFORE the access token is
+//     returned, by task 28's generation sequence (review I1): chunks under a NEW
+//     generation (NewGeneration, EntraRefreshGenPrefix); then the account record,
+//     naming refreshGen and refreshChunks, written last; only then DeleteChunked of
+//     the old generation's prefix. Nothing the old record names is overwritten, so
+//     if a chunk Put or the record Put fails, or the process dies, the old record
+//     still names the old, whole generation: Token returns the error, best-effort
+//     deletes the new generation, and the old refresh token stays usable (contract
+//     §6.2: "a crash in between leaves the old one"). A failed delete of the old
+//     generation after the record is written is logged at warn and not an error:
+//     start-up sweeps it.
 //   - invalid_grant or interaction_required → both entries deleted, every cached
 //     token dropped, Status {signed_out, reauth_required}, ErrSignedOut to every
 //     caller waiting on it.
@@ -51,8 +58,9 @@ func (a *Authenticator) Token(ctx context.Context, scope string) (string, error)
 // hubclient calls it before its one retry on a 401 with reason "expired" (contract §4.3).
 func (a *Authenticator) Invalidate(scope string)
 
-// SignOut deletes the account record, every refresh chunk and every cached
-// token; Status becomes {signed_out, ""}. It does not call Entra's logout
+// SignOut deletes the account record FIRST, then every generation's chunks
+// (DeleteChunked(EntraRefreshPrefix)), and every cached token; a crash in between
+// leaves chunks with no record, which start-up sweeps. Status becomes {signed_out, ""}. It does not call Entra's logout
 // endpoint in v1: the browser session is the user's, not ours (contract §6.2).
 func (a *Authenticator) SignOut(ctx context.Context) error
 ```
@@ -61,9 +69,14 @@ func (a *Authenticator) SignOut(ctx context.Context) error
 // control-plane/internal/entraauth/account.go — start-up (contract §6.2).
 //
 // New reads EntraAccountTarget(tid, ClientID) for the configured authority's tenant.
-// Present, and its refreshChunks all readable → Status {signed_in}, Account set,
-// NOTHING redeemed eagerly: the first Token call proves it. Absent, or a chunk
-// missing (a write that never completed) → {signed_out} and the stray chunks deleted.
+// Present, and the refreshChunks chunks of its refreshGen all readable → Status
+// {signed_in}, Account set, NOTHING redeemed eagerly: the first Token call proves
+// it; then SweepGenerations(EntraRefreshPrefix, refreshGen) deletes every generation
+// the record does not name (a rotation that failed or died before its record Put, or
+// after it but before the old generation's delete). Absent, or a chunk of the named
+// generation missing → {signed_out}, the record (if any) deleted, then
+// SweepGenerations(…, "") deletes every generation. A record without refreshGen (none exists before this plan ships) is
+// treated as absent.
 ```
 
 ```go
@@ -104,13 +117,14 @@ injected clock.
 | `TestACachedTokenIsServedUntilFiveMinutesLeft` | at exp − 6 min → the cached token, no request; at exp − 4 min → a redemption | a redemption per call; a token served until it expires in flight |
 | `TestTenCallersOneRedemption` | 10 goroutines, one scope, expired cache → exactly 1 token-endpoint request (contract §13 C1) | a thundering herd on the token endpoint |
 | `TestRedemptionsAreSerialisedAcrossScopes` | Hub and broker scopes expire together; 5 callers each, concurrently → both succeed; the endpoint saw 2 requests, never two with the same refresh token | the per-scope-only single-flight, which signs the user out under rotation |
-| `TestRotationIsWrittenBeforeTheTokenIsReturned` | a recording `Secrets`: the new chunks and the account record are written before `Token` returns | a crash between return and write losing the only valid refresh token |
-| `TestAFailedRotationWriteKeepsTheOldToken` | `Secrets.Put` fails during rotation → `Token` errors; the store still holds the previous token | a half-written token that signs the user out at the next start |
+| `TestRotationIsWrittenBeforeTheTokenIsReturned` | a recording `Secrets`: in order, the new generation's chunks, then the account record naming that `refreshGen` and `refreshChunks`, then the old generation's deletes — all before `Token` returns; **no `Put` targets any chunk of the old generation** | a crash between return and write losing the only valid refresh token; the in-place overwrite (review I1); an old generation deleted before the record names the new one |
+| `TestAFailedRotationWriteKeepsTheOldToken` | signed in (the old token, generation A); `Config.HTTPClient`'s `RoundTripper` swaps the refresh grant's `refresh_token` for a **6,000-byte** value (3 chunks — devissuer issues 43-character tokens, task-12.md:71, too small to need a second chunk); a faulting `Secrets` fails the **second** chunk's `Put` of that write → `Token` errors; the record still names A; `GetChunked(A, n)` returns the old token **whole, byte for byte**; `List(EntraRefreshPrefix)` holds only A's chunks; a fresh `New` over the same store → `signed_in`. A second case fails the record's `Put` instead: the same assertions | a torn token (new chunk 0 + old chunk 1, review I1) that signs the user out at the next start; a fault injected only on the first `Put`, which never tests the tear. (Whether the old token still redeems is Entra's rule, not this test's: devissuer revokes on rotation, task-12.md:101) |
+| `TestStartUpSweepsUnnamedGenerations` | the store holds the record naming B, B's chunks, and a stray generation C (a rotation that died before its record `Put`) and A (one that died before its old-generation delete); `New` → `signed_in`, and `List(EntraRefreshPrefix)` is exactly B's chunks | leaked refresh tokens piling up in Credential Manager; a sweep that deletes the named generation |
 | `TestInvalidGrantSignsOut` | `devissuer.RevokeRefreshTokens(grace)` → `ErrSignedOut`; `Status` `reauth_required`; the store is empty | a dead refresh token retried on every call |
 | `TestInteractionRequiredSignsOut` | `RequireInteraction(grace, true)` → the same | a conditional-access sign-in frequency never surfaced to the user |
 | `TestAnUnreachableEntraKeepsTheToken` | the issuer stopped → `ErrEntraUnavailable`; `Status` still `signed_in`; the store unchanged | a network blip signing the user out |
 | `TestStartUpFromTheAccountRecord` | a store pre-filled by a previous sign-in; `New` → `signed_in` with the account, **no** request until `Token` | an eager redemption at every start |
-| `TestAPartialWriteIsNotAnAccount` | chunks but no account record → `signed_out`, chunks deleted | a half-written sign-in treated as complete |
+| `TestAPartialWriteIsNotAnAccount` | chunks but no account record → `signed_out`, every generation deleted; and a record whose named generation lacks a chunk → `signed_out`, record and every generation deleted | a half-written sign-in treated as complete |
 | `TestSignOutDeletesEverything` | → store empty, `Token` → `ErrSignedOut` without a request | a refresh token left behind (the machine's next user) |
 | `TestInvalidateForcesARedemption` | a fresh cached token; `Invalidate`; `Token` → a request | the 401-expired retry of contract §4.3 retrying with the same token |
 | `TestOneRefreshTokenServesTwoResources` | after one sign-in, `Token(HubScope)` and `Token(brokerScope)` both succeed, each `aud` its API | a second sign-in for the broker (phase 8) |
@@ -126,7 +140,7 @@ injected clock.
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/entraauth/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 33 (18 from task 30 + 15)
+go test ./control-plane/internal/entraauth/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 34 (18 from task 30 + 16)
 go test ./control-plane/internal/entraauth/ -race -count=20 -run 'TestTenCallers|TestRedemptionsAreSerialised'   # ok — twenty runs, no flake
 ```
 
@@ -135,4 +149,10 @@ go test ./control-plane/internal/entraauth/ -race -count=20 -run 'TestTenCallers
 - **That one KPMG refresh token redeems the Hub, the broker and Azure DevOps** (ADR-H1 §11): the
   consent and the ADO resource id are checked at task 43's real-tenant sign-in.
 - That Entra keeps an old refresh token valid after rotation; the code does not rely on it.
+- That two control planes signed in to one account on one machine are safe. The single lock and
+  the start-up sweep assume one control plane per Windows user. The generations still stop a torn
+  token: random names mean two writers never share a chunk. But a second process starting mid-rotation
+  could sweep the first process's new generation before its record is written. The next start then
+  reads a record naming a missing generation, which is a clean `signed_out`, not a wrong token.
+  Unverified: nothing in the tree enforces one control plane per user.
 - Continuous Access Evaluation: not requested (the client declares no `cp1` capability, §6.4).

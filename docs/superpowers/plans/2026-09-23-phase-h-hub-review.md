@@ -596,3 +596,33 @@ Unverified: nothing compiled or run (documents only). Chromium's `", "` join is 
 token parse accepts both spellings, so the plan does not depend on which one is right. That the
 three N1 tests go red against their mutants is argued from `attachRegistry.ts`'s current code, not
 run.
+
+## Fix batch b03 — I8 and I1 (2026-09-24)
+
+The credential store's dependency pins no longer downgrade pgx. A rotation writes a new generation
+of chunks, so a crash part-way cannot tear the refresh token.
+
+| Finding | What changed | Where |
+|---|---|---|
+| **I8** task 06 | Step 1 says pgx is cached but five `golang.org/x` modules move with it: x/crypto v0.37.0, x/text v0.24.0 and x/sync v0.13.0 (pgx's), and x/sys v0.32.0 and x/term v0.31.0 (x/crypto's). It says the `go get` may need the network for the last two. If the network is not reachable, it records a blocker and never pins an older x/ module. Verified again here: both `.mod` files; `control-plane/go.mod:54-56`; the download cache has x/sys v0.24.0, v0.39.0, v0.45.0 and v0.47.0 (and v0.48.0's `.mod` only) and x/term v0.15.0, v0.21.0 and v0.38.0, but neither v0.32.0 nor v0.31.0. **Correction to the review's premise:** x/term v0.38.0 is also cached, not *"v0.21.0 only"*. This does not change the fix | task-06.md:183-195 |
+| **I8** task 28 | The Files row makes x/sys direct *"at whatever version the graph already holds, by `go mod tidy`; no version is named"*. Step 2 no longer runs `go get x/sys@v0.24.0`. It records `go list -m golang.org/x/sys` and greps that version for Cred wrappers. Step 3 runs `go mod tidy` after the source exists. The diff must show only x/sys moving to the direct block, at the recorded version. The wrapper check is restated for the versions actually grepped (v0.24.0, v0.39.0 and v0.47.0: none; re-grepped here). v0.32.0 is marked unverified | task-28.md:25, :147-151, :210-219 |
+| **I8** plan.md | Tech stack: the five modules pgx moves, the network note and the no-named-version rule (plan.md:45-53). The `go` directive constraint: x/crypto, x/text and x/sync declare `go 1.23.0` (read here). x/sys v0.32.0's and x/term v0.31.0's directives are **unverified**, and task 06's diff check catches one that is higher (plan.md:105-109). The Credential Manager note names the versions grepped (plan.md:206-209) | plan.md:45-53, :105-109, :206-209 |
+| **I1** primitives (task 28) | Targets: `EntraRefreshTarget(tenantID, clientID, gen, i)` → `…/refresh/<gen>/<i>`, plus `EntraRefreshGenPrefix`. `gen` must be 16 lowercase hex, or the builder panics. `chunk.go` states the generation sequence: new generation, then the record written last, then the old generation's delete. It adds `NewGeneration` (random, from `crypto/rand`, so two writers never share a target) and `SweepGenerations(s, prefix, keep)`. `PutChunked` never deletes and never writes outside its prefix. Tests: `TestChunkedShrinkDeletesStaleChunks` is gone, because a fresh generation has no stale tail. It is replaced by `TestAWriteNeverTouchesAnotherGeneration`, which kills the in-place overwrite, and `TestSweepKeepsOnlyTheNamedGeneration`. `TestTargetsAreExact` and `TestTargetPartsAreValidated` are extended. The acceptance counts change from 7/8 to **8/9** | task-28.md:78-88, :97-101, :105-145, :199-200, :202-203, :231 |
+| **I1** rotation (task 31) | `Token` writes by the sequence and never overwrites a chunk the old record names. A failed chunk or record `Put` keeps the old record and its whole generation, and best-effort deletes the new one. A failed delete of the old generation is a `warn`, left for start-up to sweep. Start-up sweeps every generation the record does not name. A record naming a missing chunk, or a record with no `refreshGen`, is treated as absent. `SignOut` deletes the record **first**. `TestAFailedRotationWriteKeepsTheOldToken` now fails the **second** chunk's `Put` of a **6,000-byte** token. The size comes from a `RoundTripper` on `Config.HTTPClient`, because devissuer issues 43-character tokens (task-12.md:71). The test asserts the old token reads back whole. A second case fails the record's `Put`. `TestRotationIsWritten…` asserts the order and that no `Put` targets the old generation. New: `TestStartUpSweepsUnnamedGenerations`. `TestAPartialWriteIsNotAnAccount` is widened. The acceptance count changes from 33 to **34** | task-31.md:39-50, :61-63, :69-79, :120-122, :127, :143 |
+| **I1** sign-in (task 30) | Step 10 follows the same sequence. The record gains `"refreshGen"`, and a previous sign-in's generation is swept only after the record is written. Step 11 deletes the record first. `TestSignInEndToEnd` asserts that the record names the **only** generation | task-30.md:110, :111, :123 |
+| **I1** restatements | The contract's §9.1 rows (`hub-contract.md:1172-1173`) spell the old grammar. This is correction **A11** in the plan's corrections table, and the table's count is now *"eleven"*. Task 44a's fold-in row for §9.1/§6.2 carries it, and its title and intro say A1–A11. So do the file map and the 44a task row. Task 29's `Inventory` counts one entry per account, never one per generation, and its test adds a stray generation | plan.md:150, :169, :319, :350; task-44a.md:1, :8, :40; task-29.md:144-145, :187 |
+
+**Declared, not changed.** The sweep assumes one control plane per Windows user. Nothing in the
+tree enforces that. A second process starting mid-rotation could sweep the first process's new
+generation before its record is written. The random names still prevent a torn token, and the result is a clean
+`signed_out`. This is recorded in task 31's *"does not claim"* (task-31.md:152-157).
+
+**The two restatements most likely to be missed**, both checked: the contract's own §9.1 rows,
+fixed as A11, and task 29's `Inventory` test, fixed. **A limit of the test, declared:**
+`TestAFailedRotationWriteKeepsTheOldToken` does not assert that the old token still **redeems**.
+devissuer revokes a token on rotation (task-12.md:101). Entra's rule is not observed here, and
+task 31 already disclaims it (task-31.md:151).
+
+Unverified: nothing compiled or run (documents only). x/sys v0.32.0 and x/term v0.31.0 are not
+cached, so their `go` directives and the absence of Cred wrappers in x/sys v0.32.0 are inferred,
+not read. Task 06 Step 1 and task 28 Step 2 check both when they run.

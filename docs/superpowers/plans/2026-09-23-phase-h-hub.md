@@ -147,7 +147,7 @@ Every task restates the ones it touches. None of them moves.
 ## Where this plan corrects the Hub contract — the "Hub contract asks"
 
 The contract says that where it and the ADR disagree, the ADR wins (contract `:4-5`). Reading the
-built tree and the sibling plans found **ten** places where the contract, as written, would fail
+built tree and the sibling plans found **eleven** places where the contract, as written, would fail
 when built. Each is a correction this plan builds, with the exact shape; none adds a Hub route.
 They are folded into the contract's text by **task 44a, which runs first** — on `feat/hub`, before
 task 01 and before any lane branches — so no sibling builds against the text this table calls
@@ -166,6 +166,7 @@ each, are task 00's; 44a folds those in too.
 | **A8** | the credential store has target names for a GitHub and a Panacea token (§9.1) but **no way to put one there** | nothing in the contract writes `PanaceaApp/git/github/…` or `PanaceaApp/panacea/…`; phase 3 would read an always-empty store and phase 7 would build its own write path into the same store | three **control-plane** routes (not Hub routes), write-only for the secret: `POST /v1/credentials/{kind}`, `DELETE /v1/credentials/{kind}?scope=`, `GET /v1/credentials` (metadata only) — `kind` ∈ `github`, `panacea`. Phase 7 uses these instead of writing its own (seam S-CRED) | 39 |
 | **A9** | `hubapi` imports the standard library only; `hubclient` imports `hubapi` and the standard library (§2) | the same contract has `hubapi/codes.go` **import** the shared codes from `httpx` (§4.2), `hubclient.Error` carry an `httpx.Problem`, and `hubclient` mint idempotency keys with `ids.UUID()` (§9.2). Built as written, the boundary test fails the contract's own code | the boundary allows `hubapi` → `internal/httpx`; `hubclient` → `hubapi`, `internal/httpx`, `internal/ids`. Both `httpx` and `ids` import only the standard library, so the Hub still links nothing of the control plane's | 01, 09 |
 | **A10** | the audit envelope covers `v, kind, orgId, seq, at, actorUserId, event, projectId, subject, data` (§3.6) | `audit_events.team_id` is not in it, yet the change feed decides who sees an event by `team_id` or `project_id` (§7.11). An owner-role edit of `team_id` would move an event into another team's feed **without breaking the chain** | the envelope adds `"teamId"` (or `""`). `hub verify` also checks each row's `feed` flag against the kind table of §8, since `feed` is derived from `kind`. Golden vectors 3 and 4 (task 02) are computed with it | 02, 14, 27 |
+| **A11** | the refresh token lives at `…/refresh/0` … `/refresh/<n−1>`; the account record carries `refreshChunks` and is *"written **last**, so it marks a complete write"* (§9.1, `hub-contract.md:1172-1173`) | the record marks a complete write only at the **first** sign-in. On rotation the record already exists: chunk 0 is overwritten in place, and if chunk 1's `Put` fails, or the process dies, the store holds new chunk 0 + old chunk 1 behind a valid record — neither token. §6.2's *"a crash in between leaves the old one"* breaks exactly for a multi-chunk (enterprise-sized, R1) token (review I1) | every write is a **generation**: chunks at `PanaceaApp/entra/<tenantId>/<clientId>/refresh/<gen>/<i>`, `gen` 16 lowercase hex from `crypto/rand`; the record adds `"refreshGen"` beside `"refreshChunks"` and is written last, naming the new generation; only then is the old generation deleted; start-up deletes every generation the record does not name; sign-out deletes the record first. Nothing the record names is ever overwritten | 28, 30, 31 |
 
 **Additions, not corrections** — shapes the contract did not name, which this plan adds and task
 44a folds in first. None is a Hub route. The sibling asks' answers (task 00) are listed there, not
@@ -315,7 +316,7 @@ parallel worktrees (see §"Order and parallel lanes").
 |---|---|---|---|
 | `control-plane/internal/hub/e2e_integration_test.go` | sign-in through `devissuer`, then every consumer interface against the real Hub | new | 43 |
 | `docs/verification/2026-09-23-phase-h-results.md` | what was run, what was observed, what stays unverified | new | 43 |
-| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md`, `…/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` | the amendments ADR-H1 §7.2 names, and A1–A10 plus the additions folded into the contract | modified | 44 |
+| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md`, `…/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` | the amendments ADR-H1 §7.2 names, and A1–A11 plus the additions folded into the contract | modified | 44 |
 
 ---
 
@@ -346,7 +347,7 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 
 | # | Task | Contract id | Depends on | Hours | Min? |
 |---|---|---|---|---|---|
-| 44a | **first**: A1–A10, the additions and task 00's answers folded into the contract; documents only | — | — | 1.5 | ✓ |
+| 44a | **first**: A1–A11, the additions and task 00's answers folded into the contract; documents only | — | — | 1.5 | ✓ |
 | 00 | S0 absorbs the sibling asks: every HA4/HA5/HA7 ask, its answer, the task that builds it (a planning part; no code of its own) | H0 | — | 0.5 | ✓ |
 | 01 | `ids.Wide`; `hubapi` codes, keys, digests, branch refs, repo keys; the contract-vs-code repo-key test | H0 | 44a | 2 | ✓ |
 | 02 | `hubapi.Canonical`, the envelopes, `ValidateContent`, the golden vectors | H0 | 01 | 2.5 | ✓ |

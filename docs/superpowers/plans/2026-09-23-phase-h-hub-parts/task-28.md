@@ -75,10 +75,16 @@ const TargetPrefix = "PanaceaApp/"
 // write (contract §9.1):  PanaceaApp/entra/<tenantId>/<clientId>/account
 func EntraAccountTarget(tenantID, clientID string) string
 
-// EntraRefreshTarget: chunk i of the refresh token:  PanaceaApp/entra/<tenantId>/<clientId>/refresh/<i>
-func EntraRefreshTarget(tenantID, clientID string, i int) string
+// EntraRefreshTarget: chunk i of one generation of the refresh token:
+//   PanaceaApp/entra/<tenantId>/<clientId>/refresh/<gen>/<i>
+// Every write of a refresh token is a new generation (NewGeneration, chunk.go), so
+// a write never overwrites a chunk the account record still names (review I1).
+func EntraRefreshTarget(tenantID, clientID, gen string, i int) string
 
-// EntraRefreshPrefix is the prefix of every chunk: …/refresh/
+// EntraRefreshGenPrefix is the prefix of one generation's chunks: …/refresh/<gen>/
+func EntraRefreshGenPrefix(tenantID, clientID, gen string) string
+
+// EntraRefreshPrefix is the prefix of every generation's chunks: …/refresh/
 func EntraRefreshPrefix(tenantID, clientID string) string
 
 // GitHubTarget: a GitHub token for owner, or for every owner when owner is "":
@@ -90,25 +96,52 @@ func PanaceaTarget(apiHost string) string
 
 // A part (a tenant id, a client id, an owner, a host) may not be empty (except
 // GitHubTarget's owner), contain "/", "*", a space or a control character, or
-// exceed 128 bytes; the builders panic on one, because every caller passes a
-// validated value and a bad one is a programming error.
+// exceed 128 bytes; a gen is exactly 16 lowercase hex characters. The builders
+// panic on a bad one, because every caller passes a validated value and a bad one
+// is a programming error.
 ```
 
 ```go
 // control-plane/internal/credstore/chunk.go
 
+// Chunks are written by GENERATION (review I1). A value that spans several blobs
+// cannot be replaced in place atomically: overwriting chunk 0 and then failing on
+// chunk 1 leaves new-0 + old-1 behind a valid marker, which is neither value. So a
+// write never touches the chunks a reader may be using. The sequence, which task 31
+// follows for the Entra refresh token:
+//   1. gen := NewGeneration(); PutChunked under that generation's prefix.
+//   2. Write the "written last" marker (the Entra account record), naming gen and
+//      the chunk count. Until this Put succeeds the old marker names the old
+//      generation, whose chunks are untouched.
+//   3. Only then DeleteChunked the old generation's prefix. A failure or a crash
+//      here leaves an unnamed generation, which SweepGenerations removes at start-up.
+// A failure in step 1 or 2 returns the error; the caller best-effort deletes the
+// new generation's prefix, and start-up's sweep catches what it misses.
+
+// NewGeneration returns 16 lowercase hex characters from crypto/rand. Random, not
+// old+1, so two writers (a retry after a crash, a second process) never share a
+// chunk target.
+func NewGeneration() (string, error)
+
 // PutChunked writes data as ceil(len/MaxBlob) blobs at prefix+"0", prefix+"1", …
-// and then deletes any higher-numbered chunk left from a longer previous value.
-// It returns the chunk count, which the caller records in its own "written
-// last" marker (the Entra account record). An empty data is 0 chunks.
+// prefix is one fresh generation's (EntraRefreshGenPrefix). It never deletes and
+// never writes outside prefix. It returns the chunk count, which the caller records
+// with the generation in its marker. An empty data is 0 chunks. On an error the
+// chunks written so far stay; see the sequence above.
 func PutChunked(s Secrets, prefix, userName string, data []byte) (chunks int, err error)
 
 // GetChunked reads n chunks and joins them. A missing chunk is ErrNotFound: the
 // marker said n and the store disagrees, so the value is not trusted.
 func GetChunked(s Secrets, prefix string, n int) ([]byte, error)
 
-// DeleteChunked deletes every chunk under prefix (by List).
+// DeleteChunked deletes every chunk under prefix (by List): one generation's
+// prefix after a rotation, or EntraRefreshPrefix, every generation, at sign-out.
 func DeleteChunked(s Secrets, prefix string) error
+
+// SweepGenerations deletes every chunk under prefix (EntraRefreshPrefix) whose
+// generation segment is not keep; keep "" deletes every generation. Start-up calls
+// it with the generation the marker names, before any write.
+func SweepGenerations(s Secrets, prefix, keep string) error
 ```
 
 **`wincred_windows.go` — described, with its one declaration verbatim.** `golang.org/x/sys/windows`
@@ -163,10 +196,11 @@ unique `PanaceaApp/test-<8 hex>/` prefix and a cleanup that deletes everything u
 | `Run/list_is_by_prefix` | targets `…/a/1`, `…/a/2`, `…/ab/1`; `List("…/a/")` → exactly the first two, sorted | a prefix match that reads another account's chunks |
 | `Run/errors_never_hold_blobs` | every error from every method, formatted with `%v` and `%+v`, contains no blob byte sequence | a token in a log (T1, T10) |
 | `TestChunkedRoundTrips6000Bytes` | `PutChunked` 6,000 bytes → 3 chunks; `GetChunked(3)` → the same bytes (Memory; and WinCred on Windows — contract §13 C1) | a KPMG-sized refresh token (R1) that cannot be stored |
-| `TestChunkedShrinkDeletesStaleChunks` | 6,000 then 100 bytes → 1 chunk; chunks 1 and 2 are gone | a rotated shorter token read back with a stale tail |
+| `TestAWriteNeverTouchesAnotherGeneration` | 6,000 bytes under generation A (3 chunks), then 100 bytes under generation B (1 chunk); A's `GetChunked(3)` still returns the 6,000 bytes whole, B's `GetChunked(1)` the 100; two `NewGeneration` values differ and each is 16 lowercase hex | the in-place overwrite (review I1): a rotation that tears the token the marker still names |
+| `TestSweepKeepsOnlyTheNamedGeneration` | generations A (3 chunks), B (1) and a stray C (2, no marker); `SweepGenerations(prefix, B)` → `List(prefix)` is exactly B's chunk 0; `SweepGenerations(prefix, "")` → empty; a chunk under a **different account's** prefix is untouched | a sweep that deletes the named generation; a stale generation left for ever; a sweep that crosses accounts |
 | `TestAMissingChunkIsNotFound` | delete chunk 1 of 3; `GetChunked(3)` → `ErrNotFound` | a corrupted token sent to Entra |
-| `TestTargetsAreExact` | each builder's output byte for byte, e.g. `EntraRefreshTarget("t","c",2)` = `PanaceaApp/entra/t/c/refresh/2`, `GitHubTarget("")` = `PanaceaApp/git/github/*` | two components spelling one target differently |
-| `TestTargetPartsAreValidated` | a part with `/`, `*`, a space, a newline, or 129 bytes → panic | a caller-supplied owner that escapes its namespace |
+| `TestTargetsAreExact` | each builder's output byte for byte, e.g. `EntraRefreshTarget("t","c","0123456789abcdef",2)` = `PanaceaApp/entra/t/c/refresh/0123456789abcdef/2`, `EntraRefreshGenPrefix("t","c","0123456789abcdef")` = `PanaceaApp/entra/t/c/refresh/0123456789abcdef/`, `GitHubTarget("")` = `PanaceaApp/git/github/*` | two components spelling one target differently |
+| `TestTargetPartsAreValidated` | a part with `/`, `*`, a space, a newline, or 129 bytes → panic; a gen of 15 or 17 characters, or with an uppercase or non-hex character → panic | a caller-supplied owner that escapes its namespace |
 | `TestWinCredPersistsOnThisMachineOnly` (Windows only) | after `Put`, a raw `CredReadW` shows `Persist == 2` and `Type == 1` | enterprise persistence roaming the token (ADR-H1 §5.2) |
 | `TestWinCredUnsupportedOffWindows` (non-Windows only) | every method → `ErrUnsupported` | a Linux build that pretends to have stored a token |
 
@@ -194,7 +228,7 @@ unique `PanaceaApp/test-<8 hex>/` prefix and a cleanup that deletes everything u
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/credstore/... -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 7 on Linux/macOS; 8 on Windows
+go test ./control-plane/internal/credstore/... -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 8 on Linux/macOS; 9 on Windows
 GOOS=windows go vet ./control-plane/...                                                          # no output
 go vet ./control-plane/...                                                                       # no output
 cmdkey /list | grep -c "PanaceaApp/test-"                                                        # 0   (Windows, after the tests)

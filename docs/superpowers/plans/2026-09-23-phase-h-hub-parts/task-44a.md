@@ -1,11 +1,11 @@
-### Task 44a: the contract made true **before** anyone builds — A1–A10, the additions, and the sibling asks' answers
+### Task 44a: the contract made true **before** anyone builds — A1–A11, the additions, and the sibling asks' answers
 
 **`feat/hub`, FIRST: before task 01, and before the four lanes branch. Depends on: nothing. About
 1.5 hours. Documents only.** The orchestrator announces the merged commit to phases 3, 4, 5 and 7,
 with the read path each sibling uses from its own worktree (step 3).
 
 ADR-H1 §7.2 lists amendments *"each made by the phase that next edits the file"*; this phase is
-that phase for four documents. This plan made ten corrections to the Hub contract (A1–A10), several
+that phase for four documents. This plan made eleven corrections to the Hub contract (A1–A11), several
 additions, and answered every sibling ask (task 00). They are folded in **now**, because every
 sibling reads the contract tonight — §7.4's repo-key regex (phase 4 HA4-6 and phase 7 already flag
 it), §12.1's four-service compose, §9.4's missing `Authorization` CORS header — and a phase that
@@ -37,6 +37,7 @@ that builds each:
 | §9.1, §9.3 | A8: the three credential routes |
 | §2 | A9: `hubapi` may import `httpx`; `hubclient` may import `httpx` and `ids` |
 | §3.6 | A10: `teamId` in the audit envelope; `hub verify` checks `feed`; golden vectors 3 and 4 (task 02) |
+| §9.1, §6.2 | A11: §9.1's refresh rows (`hub-contract.md:1172-1173`) become `PanaceaApp/entra/<tenantId>/<clientId>/refresh/<gen>/<i>` (`gen` 16 lowercase hex, one per write) and the account record gains `"refreshGen"`; §6.2's *"a crash in between leaves the old one"* gains the sequence that makes it true — new generation, then the record (last), then the old generation's delete; start-up deletes every generation the record does not name; sign-out deletes the record first (review I1; tasks 28, 30, 31) |
 | §9.2 | additive: `Teams`, `Projects.Project`/`AddRemote`, `Designs.Approval`/`SessionLinks` (HA5-2: §9.2's `Designs` becomes the seven methods), `Releases.Release`, `ErrSignedOut`, `ErrNotConfigured`, `ErrTokenUnavailable`, `Invalidator`, `WriteError`, `VerifyRevision`, `FormatRecorder`. One sentence at the head of §9.2: *"Siblings consume these interfaces and `NewFake()`; they never implement them. A double is `NewFake()` or an embedded interface, so an added method is additive."* |
 | §9.3 | additive: the `Panacea-Auth-State` header (task 36); the hub-link and team routes (task 35) |
 | §6.2 | the refinement: redemptions serialised across scopes (task 31) |

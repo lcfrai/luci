@@ -141,7 +141,8 @@ type Entry struct {
 }
 
 // Inventory lists every entry under TargetPrefix. Entra appears once per
-// account record — never once per refresh chunk — and its Subject is the
+// account record — never once per refresh chunk or per refresh generation
+// (task 28's …/refresh/<gen>/<i>) — and its Subject is the
 // account's username. It reads blobs to find subjects; it returns no secret.
 func Inventory(s Secrets) ([]Entry, error)
 ```
@@ -183,7 +184,7 @@ task 13: `TestCredentialNeverPrintsItsToken`, `TestNoneHasNothing`,
 | `TestLocalTakesTheOwnersTokenFirst` | owner token and wildcard token stored; `Host{GitHub, "github.com", "lcfrai"}` → the owner's; another owner → the wildcard's | a wildcard shadowing an owner-scoped token |
 | `TestLocalIsGitHubOnly` | Azure DevOps, and GitHub Enterprise (`github.example.com`) → `ErrNoCredential` | a GitHub token sent to another host |
 | `TestLocalSaysWhereItCameFrom` | `Source == "credential-manager"`, `Scheme == Bearer` | contract §9.1's named difference lost |
-| `TestInventoryHoldsNoSecret` | one GitHub, one Panacea, one Entra account with 3 chunks → 3 entries; the formatted list contains no token or chunk bytes | a listing route that leaks the secret it lists |
+| `TestInventoryHoldsNoSecret` | one GitHub, one Panacea, one Entra account with 3 chunks in its named generation plus a stray second generation (a rotation mid-way, task 28) → 3 entries; the formatted list contains no token or chunk bytes | a listing route that leaks the secret it lists |
 | `TestAnOversizeTokenIsRefused` | a 3,000-byte token → `ErrTooLarge` | a truncated token that fails at the host with a confusing 401 |
 
 #### Steps
