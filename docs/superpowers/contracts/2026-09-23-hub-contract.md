@@ -549,3 +549,180 @@ The Hub accepts `devissuer` only when `PANACEA_APP_HUB_DEV_ISSUER=true` **and**
 **Unverified**: whether a registration's `http://127.0.0.1` redirect is accepted by the portal or
 needs the manifest; that Entra matches a loopback redirect on any port with the root path. If only
 `http://localhost` can be registered, set `PANACEA_APP_ENTRA_REDIRECT_HOST=localhost` (§6.1).
+
+---
+
+## 7. Routes
+
+### 7.0 The whole table
+
+Role is the minimum from §5.3. Go 1.23 `ServeMux` patterns; `{sha}` is 64 lowercase hex.
+
+| # | Method | Path | Role | Task | Section |
+|---|---|---|---|---|---|
+| 1 | GET | `/healthz` | none | H0 | §12.4 |
+| 2 | GET | `/readyz` | none | H0 | §12.4 |
+| 3 | GET | `/v1/me` | any | H2 | §7.2 |
+| 4 | GET | `/v1/teams` | any | H2 | §7.3 |
+| 5 | POST | `/v1/teams` | any | H2 | §7.3 |
+| 6 | GET | `/v1/teams/{teamId}` | V | H2 | §7.3 |
+| 7 | PATCH | `/v1/teams/{teamId}` | A | H2 | §7.3 |
+| 8 | PUT | `/v1/teams/{teamId}/members/{userId}` | A | H2 | §7.3 |
+| 9 | DELETE | `/v1/teams/{teamId}/members/{userId}` | A, or self | H2 | §7.3 |
+| 10 | GET | `/v1/teams/{teamId}/invites` | V | H2 | §7.3 |
+| 11 | POST | `/v1/teams/{teamId}/invites` | A | H2 | §7.3 |
+| 12 | DELETE | `/v1/teams/{teamId}/invites/{inviteId}` | A | H2 | §7.3 |
+| 13 | GET | `/v1/projects` | any | H3 | §7.4 |
+| 14 | POST | `/v1/projects` | M of the team | H3 | §7.4 |
+| 15 | GET | `/v1/projects/{projectId}` | V | H3 | §7.4 |
+| 16 | PATCH | `/v1/projects/{projectId}` | A | H3 | §7.4 |
+| 17 | POST | `/v1/projects/{projectId}/remotes` | A | H3 | §7.4 |
+| 18 | DELETE | `/v1/projects/{projectId}/remotes?repoKey=` | A | H3 | §7.4 |
+| 19 | GET | `/v1/projects/{projectId}/briefs` | V | H3 | §7.5 |
+| 20 | POST | `/v1/projects/{projectId}/briefs` | M | H3 | §7.5 |
+| 21 | GET | `/v1/projects/{projectId}/briefs/for-branch?branchRef=` | V | H3 | §7.5 |
+| 22 | GET | `/v1/briefs/{briefId}` | V | H3 | §7.5 |
+| 23 | PATCH | `/v1/briefs/{briefId}` | M | H3 | §7.5 |
+| 24 | POST | `/v1/briefs/{briefId}/archive` | M | H3 | §7.5 |
+| 25 | GET | `/v1/briefs/{briefId}/revisions` | V | H3 | §7.5 |
+| 26 | POST | `/v1/projects/{projectId}/brief-revisions` | M | H3 | §7.5 |
+| 27 | GET | `/v1/refs?key=…` | any; per key | H3 (brief), H4 (design) | §7.5 |
+| 28 | PUT | `/v1/projects/{projectId}/blobs/{sha}` | M | H4 | §7.6 |
+| 29 | GET, HEAD | `/v1/projects/{projectId}/blobs/{sha}` | V | H4 | §7.6 |
+| 30 | POST | `/v1/projects/{projectId}/design-approvals` | M | H4 | §7.7 |
+| 31 | GET | `/v1/projects/{projectId}/design-approvals` | V | H4 | §7.7 |
+| 32 | GET | `/v1/design-approvals/{approvalId}` | V | H4 | §7.7 |
+| 33 | POST | `/v1/projects/{projectId}/session-links` | M | H4 | §7.8 |
+| 34 | GET | `/v1/projects/{projectId}/session-links` | V | H4 | §7.8 |
+| 35 | POST | `/v1/projects/{projectId}/releases` | M | H5 | §7.9 |
+| 36 | GET | `/v1/projects/{projectId}/releases` | V | H5 | §7.9 |
+| 37 | GET | `/v1/releases/{releaseId}` | V | H5 | §7.9 |
+| 38 | POST | `/v1/releases/{releaseId}/confirm` | the reserver | H5 | §7.9 |
+| 39 | POST | `/v1/releases/{releaseId}/abandon` | the reserver | H5 | §7.9 |
+| 40 | POST | `/v1/releases/{releaseId}/deployments` | M | H5 | §7.9 |
+| 41 | POST | `/v1/evidence` | M of the repo's project | H6 | §7.10 |
+| 42 | GET | `/v1/evidence?repo=&digest=` | V of the repo's project | H6 | §7.10 |
+| 43 | GET | `/v1/changes?after=` | any; filtered | H7 | §7.11 |
+| 44 | GET | `/v1/audit?after=` | org admin | H7 | §7.12 |
+| 45 | POST | `/v1/briefs/{briefId}/erase` | org admin | H7 | §7.12 |
+
+Nothing else is routed. An unknown path is 404 `route_not_found`; a known path with the wrong
+method is 405 `method_not_allowed`.
+
+### 7.1 Shared objects
+
+Every response object below is one of these. Fields are always present; a field that has no value
+is `null` (objects, strings that may be absent) or `[]` (lists), never omitted.
+
+```jsonc
+// User — as others see a principal
+{ "id": "u-3f2a91c07b1e4d2a", "displayName": "Dylan Mackie", "email": "dmackie1@kpmg.com.au" }
+
+// Org
+{ "id": "org-0c1d2e3f4a5b6c7d", "displayName": "KPMG Australia", "tenantId": "<guid>" }
+
+// Team — `role` is the CALLER's role in it
+{ "id": "tm-…", "name": "Engagement Portal", "role": "admin", "createdAt": "…", "createdBy": User }
+
+// Member
+{ "user": User, "role": "admin" | "member" | "viewer", "addedAt": "…", "addedBy": User | null }
+
+// Invite — `boundUser` set once state is "bound"
+{ "id": "iv-…", "teamId": "tm-…", "email": "a.person@kpmg.com.au", "role": "member",
+  "state": "pending" | "bound" | "revoked", "createdAt": "…", "createdBy": User, "boundUser": User | null }
+
+// Remote
+{ "repoKey": "github.com/lcfrai/panaceaapp", "host": "github" | "azure-devops", "addedAt": "…" }
+
+// Project
+{ "id": "pj-…", "teamId": "tm-…", "name": "Engagement Portal", "remotes": [Remote],
+  "createdAt": "…", "createdBy": User }
+
+// BriefHead — the living brief; head* are null while headRevision is 0
+{ "id": "bf-…", "projectId": "pj-…", "scope": "project" | "branch", "branchRef": "refs/heads/…" | "",
+  "headRevision": 6, "headKey": "brief:bf-…@6", "headDigest": "sha256:…", "headStatus": "complete",
+  "latestCompleteRevision": 6, "archivedAt": null, "createdAt": "…", "createdBy": User, "updatedAt": "…" }
+
+// BriefRevision — immutable; content is null exactly when erasedAt is set
+{ "key": "brief:bf-…@5", "briefId": "bf-…", "revision": 5, "digest": "sha256:…",
+  "projectId": "pj-…", "scope": "branch", "branchRef": "refs/heads/evidence-upload",
+  "status": "open" | "complete" | "skipped", "content": { … }, "savedAt": "…", "savedBy": User,
+  "erasedAt": null }
+```
+
+### 7.2 `GET /v1/me`
+
+Provisions the caller if new (§5.1) and **binds pending invites**: every `pending` invite in the
+caller's org whose `email` equals the caller's email (§5.1) becomes `bound`, and the caller becomes
+a member with the invite's role — or keeps a higher role already held. The control plane calls this
+once after every sign-in (§6.1 step 11).
+
+```jsonc
+// 200
+{ "user": User, "org": Org, "orgAdmin": false,
+  "teams": [Team], "invitesBound": 1 }
+```
+
+### 7.3 Teams, members, invites
+
+**`GET /v1/teams`** → `200 {"items":[Team],"next":null}` — the caller's teams, by name. Unpaginated
+in v1 (a person is in few teams); `next` is always `null`.
+
+**`POST /v1/teams`** `{"name":"Engagement Portal"}` → `201 Team`. `name`: 1–120 characters after
+trimming, unique per org among teams (409 `conflict`, `details.field = "name"`). The caller becomes
+its `admin`. Event `team.created`.
+
+**`GET /v1/teams/{teamId}`** → `200 {"team": Team, "members": [Member]}`, members by display name.
+
+**`PATCH /v1/teams/{teamId}`** `{"name":"…"}` → `200 Team`. Event `team.updated`.
+
+**`PUT /v1/teams/{teamId}/members/{userId}`** `{"role":"member"}` → `200 Member` (changed) or
+`201 Member` (added). `userId` must be a user of the caller's org (else 404 `member_not_found`); in
+v1 a user appears only after their first sign-in, so the usual path to add someone is an invite.
+Demoting the last admin is 409 `last_admin`. Event `team.member_set`.
+
+**`DELETE /v1/teams/{teamId}/members/{userId}`** → `204`. An admin removes anyone; anyone removes
+themselves. Removing the last admin is 409 `last_admin`. Event `team.member_removed`.
+
+**`GET /v1/teams/{teamId}/invites`** → `200 {"items":[Invite],"next":…}`, newest first.
+
+**`POST /v1/teams/{teamId}/invites`** `{"email":"a.person@kpmg.com.au","role":"member"}` →
+`201 Invite`. `email` is lowercased, 3–254 characters, one `@`. A second pending invite for the same
+email and team is 409 `conflict`. An email that already belongs to a member is 409 `conflict`,
+`details.field = "email"`. Event `team.invite_created`. No email is sent in v1: the admin tells the
+person, who signs in.
+
+**`DELETE /v1/teams/{teamId}/invites/{inviteId}`** → `204`; state becomes `revoked` (the row is
+kept). A `bound` invite cannot be revoked: 409 `conflict`. Event `team.invite_revoked`.
+
+### 7.4 Projects and remotes
+
+**`GET /v1/projects?repo=<repoKey>&teamId=<teamId>`** → `200 {"items":[Project],"next":…}`, by name.
+Both filters optional. **This is how the control plane maps a local project to a Hub project**: it
+computes each remote's `githost.RepoKey` (phase 3, H-3) and asks. At most one project in an org has a
+given remote, so `repo=` returns zero or one item.
+
+**`POST /v1/projects`**
+```json
+{ "teamId": "tm-…", "name": "Engagement Portal",
+  "remotes": [ { "repoKey": "github.com/lcfrai/panaceaapp", "host": "github" } ] }
+```
+→ `201 Project`. `name` 1–120 characters, unique per team. `remotes` may be empty. A `repoKey`
+already linked anywhere in the org is 409 `repo_already_linked`. `repoKey` must match
+`^github\.com/[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$` for `github`, or
+`^[a-z0-9-]{1,50}\.visualstudio\.com/[^/\s]{1,64}/[^/\s]{1,64}$` for `azure-devops` — phase 3's two
+forms (`2026-09-23-phase-3-git-convergence.md:299`), lowercased by phase 3 before sending. Event
+`project.created`.
+
+**`GET /v1/projects/{projectId}`** → `200 Project`.
+
+**`PATCH /v1/projects/{projectId}`** `{"name":"…"}` → `200 Project`. Event `project.updated`.
+
+**`POST /v1/projects/{projectId}/remotes`** `{"repoKey":"…","host":"…"}` → `201 Remote`; 409
+`repo_already_linked` as above. Event `project.remote_added`.
+
+**`DELETE /v1/projects/{projectId}/remotes?repoKey=<repoKey>`** → `204`. Evidence already recorded
+under that repo stays (§7.10). Event `project.remote_removed`.
+
+There is **no project deletion** in v1 (provenance contract P13: a release outlives its branch, and
+its project).
