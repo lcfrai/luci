@@ -267,9 +267,13 @@ variable "cluster_admin_group_object_ids" {
   type        = list(string)
   description = "Owner input, TF_VAR_*."
 }
-variable "deploy_principal_object_id" {
+variable "push_principal_object_id" {
   type        = string
-  description = "The pipeline's identity (owner input, TF_VAR_*): AcrPush, and AKS RBAC Cluster Admin to install charts."
+  description = "The image push identity (owner input, TF_VAR_*; the plan's Deploy identities table): AcrPush on this registry, nothing else."
+}
+variable "cluster_principal_object_id" {
+  type        = string
+  description = "The cluster identity (owner input, TF_VAR_*; the plan's Deploy identities table): installs the charts. Never AKS RBAC Cluster Admin (review I8)."
 }
 variable "dns_zone_name" {
   type        = string
@@ -311,7 +315,7 @@ variable "tags" {
 }
 
 # outputs.tf — the next stacks and the deploy pipeline read these, never a guessed name
-output "resource_group_name" { value = azurerm_resource_group.this.name }
+output "resource_group_name" { value = data.azurerm_resource_group.this.name }
 output "location" { value = var.location }
 output "vnet_id" { value = module.network.vnet_id }
 output "subnet_ids" { value = module.network.subnet_ids }
@@ -397,7 +401,10 @@ simply never gets that far.
 
 #### The rest (`main.tf`, `edge.tf`, `grants.tf`, described)
 
-- `azurerm_resource_group.this` — `rg-panacea-app-${env}`.
+- `data "azurerm_resource_group" "this"` — `rg-panacea-app-${env}`, which `bootstrap` creates
+  (task 02). It is not a resource here so that the infra identity's Contributor can be scoped to
+  the group instead of the subscription (the plan's "Deploy identities" table, review I8). Every
+  `azurerm_resource_group.this` reference in this stack reads `data.azurerm_resource_group.this`.
 - `module "network"`, `"observability"`, `"registry"`, `"keyvault"`, `"aks"` with the variables
   above; `module "egress_firewall"` with `count = var.egress_mode == "firewall" ? 1 : 0`,
   `routed_subnet_ids = module.network.egress_subnet_ids` (one source for both modes: the four
@@ -414,9 +421,28 @@ simply never gets that far.
   `azurerm_dns_zone.this`; one `azurerm_dns_a_record` per `edge_hostnames` entry with
   **`target_resource_id = azurerm_public_ip.edge.id`** (an alias record: it follows the IP) and
   `ttl = 300`.
-- `grants.tf`: kubelet → **AcrPull** on the registry; `deploy_principal_object_id` → **AcrPush** on
-  the registry, **Azure Kubernetes Service RBAC Cluster Admin** and **Azure Kubernetes Service
-  Cluster User Role** on the cluster; the AKS control-plane identity → **Network Contributor** on
+- `grants.tf`: kubelet → **AcrPull** on the registry; `push_principal_object_id` → **AcrPush** on
+  the registry; `cluster_principal_object_id` → **Azure Kubernetes Service Cluster User Role** on
+  the cluster. With local accounts off (P8-D2), that role yields a kubeconfig that holds no
+  secret. The cluster identity also gets these data-plane grants:
+  - **Azure Kubernetes Service RBAC Admin** at namespace scope (`<cluster id>/namespaces/<ns>`),
+    one assignment each for `default`, `panacea-edge`, `panacea-broker` and `panacea-hub`. These are
+    the release namespaces of task 30's table, where Helm keeps its release Secrets.
+  - The custom role **`panacea-app-cluster-deployer`** at cluster scope, which covers the
+    cluster-scoped kinds only.
+  - The custom role **`panacea-app-sandboxes-deployer`** at `<cluster id>/namespaces/panacea-sandboxes`,
+    which covers the kinds the `platform` chart renders there. It **never** includes `secrets` or
+    `pods`.
+
+  The grant is **not RBAC Cluster Admin**, and it is **not RBAC Admin on `panacea-sandboxes`**.
+  Every user's machine and sandbox tokens are Secrets in that namespace: task 17's
+  `PANACEA_APP_BROKER_NAMESPACE` is "where every pod, Secret and claim lives" (P8-D5). Either grant
+  would let the deploy pipeline read every user's session (review I8). The review's fix named "the
+  four product namespaces". That list includes `panacea-sandboxes`, so the fix is narrowed here, on
+  the facts. Task 30 writes the two custom roles and checks them against the rendered charts. The
+  owner creates them, because no pipeline identity can write role definitions. That a namespace-scope
+  assignment can be made before the namespace exists is **from training knowledge, UNVERIFIED**.
+  The first apply in task 31 checks it. Finally, the AKS control-plane identity → **Network Contributor** on
   `azurerm_public_ip.edge` (so the Traefik Service can bind it by name — whether the cloud provider
   also needs read on the resource group is **UNVERIFIED**, task 31 checks).
 
@@ -479,8 +505,9 @@ against someone else's domain.
 | `dns_goes_only_to_azure_dns` | the DNS network rule's destination is `["168.63.129.16"]` | DNS to `*`, a classic tunnel |
 
 `stacks/foundation/tests/foundation.tftest.hcl` (run by `validate.sh` once with `dev.tfvars` and once
-with `prod.tfvars`; supplies `cluster_admin_group_object_ids` and `deploy_principal_object_id`
-with all-ones GUIDs):
+with `prod.tfvars`; supplies `cluster_admin_group_object_ids`, `push_principal_object_id` and
+`cluster_principal_object_id` with distinct placeholder GUIDs, so a grant made to the wrong one
+fails):
 
 | Run | Asserts | Mutant it kills |
 |---|---|---|
@@ -495,7 +522,8 @@ with all-ones GUIDs):
 | `agents_egress_in_firewall_mode` | a second `run` block pinning `egress_mode = "firewall"` (and `environment = "dev"`, `api_private = false`, as the authorised-ranges run): `module.egress_firewall[0].routed_subnet_keys == ["agents", "apps", "sandbox", "system"]` | the two modes drifting apart, so firewall mode strands the CI pool (C2). Re-review M5: one row was two `run` blocks in one; each `egress_mode` needs its own |
 | `firewall_mode_uses_udr_and_has_no_nat` | `egress_mode = "firewall"` → `module.egress_firewall` has one instance and the cluster's `outbound_type == "userDefinedRouting"` | a UDR cluster without the firewall, which boots with no egress |
 | `edge_records_alias_the_edge_ip` | one A record per hostname, each `target_resource_id == azurerm_public_ip.edge.id`, `ttl == 300` | a literal IP record that goes stale on the first re-create |
-| `kubelet_pulls_and_deploy_pushes` | an `AcrPull` assignment to the kubelet identity and an `AcrPush` to the deploy principal, both scoped to the registry | the shared admin credential's replacement missing |
+| `kubelet_pulls_and_push_identity_pushes` | an `AcrPull` assignment to the kubelet identity and an `AcrPush` to `push_principal_object_id`, both scoped to the registry, and no other assignment to the push principal | the shared admin credential's replacement missing; the push identity given more than the registry |
+| `cluster_identity_is_not_cluster_admin` | no planned assignment anywhere names `Azure Kubernetes Service RBAC Cluster Admin`. The cluster principal's `Azure Kubernetes Service RBAC Admin` scopes are exactly the four release namespaces, and none ends in `/namespaces/panacea-sandboxes` | the old single-principal grant, which reads every Secret in the cluster (review I8); RBAC Admin widened to the namespace that holds users' tokens |
 
 #### Steps
 
@@ -513,7 +541,7 @@ bash infra/scripts/validate.sh infra/terraform/modules/egress-firewall infra/ter
 # validate: OK   infra/terraform/modules/egress-firewall
 # validate: OK   infra/terraform/stacks/foundation        (tests pass for dev.tfvars and prod.tfvars)
 # validate: 2 ok, 0 failed
-bash infra/scripts/guards.sh       # guards: 8 of 8 passed
+bash infra/scripts/guards.sh       # guards: 9 of 9 passed
 ```
 
 This stack's tests plan every module; allow several minutes and run it in the background.

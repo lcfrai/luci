@@ -9,8 +9,15 @@ identity at all**: the broker speaks only to the Kubernetes API with its service
 sandboxes run with no service-account token (task 14).
 
 This stack also holds the **role allowlist**: the exact set of role names any stack in this repo
-assigns. It is what the owner's ABAC condition on the deploy identity should permit (owner input,
-survey §7.1 item 3), so the deploy identity can grant these and no others.
+**assigns**. It is what the owner's ABAC condition on the **infra** identity should permit (owner
+input, survey §7.1 item 3), so that identity can grant these and no others. The condition also
+excludes the infra identity's own object id as a principal: it may grant the other identities
+their roles, never itself. The allowlist is **not** the list of roles any identity **holds**. Those
+roles are the owner's grants, not a stack's, and they are in the plan's "Deploy identities" table
+(review I8).
+
+Since review I8, the allowlist no longer holds **Azure Kubernetes Service RBAC Cluster Admin**. No
+stack assigns it, and no pipeline identity holds it.
 
 **Files:**
 - `infra/terraform/modules/workload-identity/{versions,main,variables,outputs}.tf`, `tests/workload-identity.tftest.hcl` (new)
@@ -123,7 +130,7 @@ variable "namespaces" {
 
 output "hub_client_id" { value = module.hub.client_id }
 output "hub_identity_name" {
-  description = "The Postgres role name the deploy pipeline creates with pgaadauth_create_principal (task 29's SQL)."
+  description = "The Postgres role name the database bootstrap creates with pgaadauth_create_principal (task 29's SQL), run by a human Postgres admin, never a pipeline (task 31 §7, review I8)."
   value       = module.hub.name
 }
 output "hub_migrate_client_id" { value = module.hub_migrate.client_id }
@@ -149,15 +156,25 @@ scoped to the zone**, not the resource group).
 
 ```
 Storage Blob Data Contributor
+Storage Blob Data Reader
 Network Contributor
 Managed Identity Operator
 AcrPull
 AcrPush
-Azure Kubernetes Service RBAC Cluster Admin
+Azure Kubernetes Service RBAC Admin
 Azure Kubernetes Service Cluster User Role
+panacea-app-cluster-deployer
+panacea-app-sandboxes-deployer
 DNS Zone Contributor
 Key Vault Secrets User
 ```
+
+`Storage Blob Data Reader` is the plan identity's read on the state container (task 02).
+`Azure Kubernetes Service RBAC Admin` and the two `panacea-app-*-deployer` custom roles are the
+cluster identity's namespace-scoped and cluster-scoped grants (task 07's `grants.tf`, task 30).
+`bootstrap`'s two state assignments are made by the operator under their own credentials (task 31
+§2), not by the infra identity. They are listed because `role-allowlist.sh` checks every literal
+under `infra/terraform`.
 
 `role-allowlist.sh` greps every `role_definition_name = "…"` literal under `infra/terraform` (and
 every `role_definition_name` value in a `role_assignments` list literal) and prints
@@ -189,7 +206,7 @@ names, not by the script.
 | `no_identity_for_the_broker_or_sandboxes` | no module or identity whose subject names `panacea-broker` or `panacea-sandboxes` | a broker identity added "in case" |
 | `helm_values_carry_every_client_id` | `command = apply` → `output.helm_values` has the three keys, each non-empty | a chart left with an empty client id |
 
-And `bash infra/scripts/role-allowlist.sh` → `role-allowlist: 9 roles used, all allowed`.
+And `bash infra/scripts/role-allowlist.sh` → `role-allowlist: 12 roles used, all allowed`.
 
 #### Steps
 
@@ -198,7 +215,7 @@ And `bash infra/scripts/role-allowlist.sh` → `role-allowlist: 9 roles used, al
 - [ ] **Step 2:** Module: variables, tests, resources, outputs.
 - [ ] **Step 3:** Stack: remote states, calls, outputs, tfvars, lock, tests.
 - [ ] **Step 4:** `role-allowlist.txt` and its script; run it over the whole of `infra/terraform`
-  (tasks 02–10) — it must list exactly the nine roles, or a task introduced a role nobody listed.
+  (tasks 02–10) — it must list exactly the twelve roles, or a task introduced a role nobody listed.
 - [ ] **Step 5:** guards, validate, commit.
 
 #### Acceptance
@@ -207,7 +224,7 @@ And `bash infra/scripts/role-allowlist.sh` → `role-allowlist: 9 roles used, al
 bash infra/scripts/validate.sh infra/terraform/modules/workload-identity infra/terraform/stacks/workloads
 # validate: 2 ok, 0 failed
 bash infra/scripts/role-allowlist.sh
-# role-allowlist: 9 roles used, all allowed
+# role-allowlist: 12 roles used, all allowed
 ```
 
 #### What this task does not claim

@@ -121,8 +121,11 @@ output "action_group_id" { value = azurerm_monitor_action_group.platform.id }
   actual ≥ 50 %, actual ≥ 80 %, actual ≥ 100 %, **forecast** ≥ 100 %, each to `alert_emails` and
   the action group. Subscription scope, not resource group, because the Kata VMs are billed in
   AKS's node resource group, which a resource-group budget on the foundation RG would miss. The
-  deploy identity needs Cost Management Contributor on the subscription for this (task 10's
-  allowlist says so).
+  **infra** identity needs Cost Management Contributor on the subscription for this. That is a
+  role the identity **holds**, granted by the owner, and it is listed in the plan's "Deploy
+  identities" table. It is not a role any stack **assigns**, so it is not in task 10's allowlist,
+  which lists only assigned roles (review I8 corrected an earlier line that said the allowlist
+  held it).
 
 AKS's own diagnostic setting (`kube-audit-admin`, `kube-apiserver`, `cluster-autoscaler`, `guard`)
 is in `modules/aks` (task 06), because it needs the cluster id.

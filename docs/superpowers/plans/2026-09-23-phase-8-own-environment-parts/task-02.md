@@ -63,10 +63,19 @@ variable "unique_suffix" {
 
 variable "state_writer_object_ids" {
   type        = list(string)
-  description = "Entra object ids granted Storage Blob Data Contributor on the state container: the deploy identity and the owner's break-glass group. Supplied as TF_VAR_state_writer_object_ids, never in tfvars."
+  description = "Entra object ids granted Storage Blob Data Contributor on the state container: the infra identity and the owner's break-glass group (the plan's Deploy identities table). Never the plan identity. Supplied as TF_VAR_state_writer_object_ids, never in tfvars."
   validation {
     condition     = length(var.state_writer_object_ids) > 0
     error_message = "At least one principal must be able to write state, or the next stack cannot init."
+  }
+}
+
+variable "state_reader_object_ids" {
+  type        = list(string)
+  description = "Entra object ids granted Storage Blob Data Reader on the state container: the plan identity, which PR builds use (review C3). Supplied as TF_VAR_state_reader_object_ids, never in tfvars."
+  validation {
+    condition     = length(setintersection(var.state_reader_object_ids, var.state_writer_object_ids)) == 0
+    error_message = "A state reader must not also be a writer: the plan identity is read-only by construction."
   }
 }
 
@@ -91,6 +100,7 @@ variable "tags" {
 output "state_resource_group_name" { value = azurerm_resource_group.state.name }
 output "state_storage_account_name" { value = azurerm_storage_account.state.name }
 output "state_container_name" { value = azurerm_storage_container.tfstate.name }
+output "product_resource_group_id" { value = azurerm_resource_group.product.id }
 ```
 
 ```hcl
@@ -105,6 +115,12 @@ use_azuread_auth = true
 #### Resources (bodies described; argument names verified against azurerm 4.81.0)
 
 - `azurerm_resource_group.state` — `rg-panacea-app-${env}-tfstate`, `var.location`.
+- `azurerm_resource_group.product` — `rg-panacea-app-${env}`, `var.location`. Bootstrap creates it,
+  not `foundation`, so that it exists **before** the infra identity's first apply. The owner can
+  then scope that identity's Contributor to this group instead of the subscription (the plan's
+  "Deploy identities" table, review I8). `foundation` reads it with `data
+  "azurerm_resource_group"` (task 07). It has no management lock: a lock on a resource group is
+  inherited by everything in it, and would block every replace `foundation` plans.
 - `azurerm_storage_account.state` — `sttfpanaceaapp${env}${suffix}`; `account_tier = "Standard"`,
   `account_replication_type = "ZRS"`, `min_tls_version = "TLS1_2"`,
   `https_traffic_only_enabled = true`, **`shared_access_key_enabled = false`**,
@@ -119,6 +135,9 @@ use_azuread_auth = true
 - `azurerm_role_assignment.state_writer` — `for_each = toset(var.state_writer_object_ids)`,
   `Storage Blob Data Contributor`, scope the container's `resource_manager_id`-equivalent id
   (the storage account id + `/blobServices/default/containers/tfstate`).
+- `azurerm_role_assignment.state_reader` — `for_each = toset(var.state_reader_object_ids)`,
+  `Storage Blob Data Reader`, the same scope. With `-lock=false` (task 30) the plan identity needs
+  no blob lease, so read is enough.
 - `azurerm_management_lock.state` — `CanNotDelete` on the storage account, `notes` saying why.
 
 #### Tests to write first (`tests/bootstrap.tftest.hcl`, mocks only)
@@ -130,6 +149,7 @@ variables {
   location                    = "australiaeast"
   unique_suffix               = "k7q2"
   state_writer_object_ids     = ["11111111-1111-1111-1111-111111111111"]
+  state_reader_object_ids     = ["22222222-2222-2222-2222-222222222222"]
   state_public_network_access = true
 }
 ```
@@ -140,6 +160,9 @@ variables {
 | `state_keeps_versions_and_deletes_for_30_days` | `versioning_enabled == true` and both retention `days == 30` | versioning or soft delete dropped |
 | `state_name_fits_storage_rules` | the name matches `^[a-z0-9]{3,24}$` and ends with `var.unique_suffix` | a hyphen in the name, or a suffix left out |
 | `every_writer_gets_blob_contributor` | two ids in → two `azurerm_role_assignment.state_writer` instances, each `Storage Blob Data Contributor` | `for_each` over the first id only; the wrong role |
+| `the_plan_identity_only_reads_state` | one `azurerm_role_assignment.state_reader` instance, `Storage Blob Data Reader`, on the container scope | a reader given Contributor, which lets a PR build rewrite state (review C3) |
+| `a_reader_that_is_also_a_writer_is_rejected` | the same id in both lists → `expect_failures = [var.state_reader_object_ids]` | the plan identity quietly made a writer |
+| `the_product_group_exists_before_foundation` | `azurerm_resource_group.product.name == "rg-panacea-app-dev"` | the group left to `foundation`, so the infra identity's Contributor would need the subscription (review I8) |
 | `no_writers_is_rejected` | `state_writer_object_ids = []` → `expect_failures = [var.state_writer_object_ids]` | the validation removed |
 | `bad_suffix_is_rejected` | `unique_suffix = "K7Q2"` → `expect_failures = [var.unique_suffix]` | a case-insensitive regex |
 | `ip_rules_turn_default_deny_on` | `state_ip_rules = ["203.0.113.0/24"]` → `network_rules[0].default_action == "Deny"` | Deny never set |
@@ -168,7 +191,7 @@ bash infra/scripts/validate.sh infra/terraform/stacks/bootstrap
 # validate: OK   infra/terraform/stacks/bootstrap
 # validate: 1 ok, 0 failed
 bash infra/scripts/guards.sh
-# guards: 8 of 8 passed
+# guards: 9 of 9 passed
 ```
 
 `terraform test` prints `Success! 8 passed, 0 failed.` inside the validate step.

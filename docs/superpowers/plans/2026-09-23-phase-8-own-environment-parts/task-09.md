@@ -175,7 +175,7 @@ output "broker_api_scope" {
 
 ```bash
 bash infra/scripts/validate.sh infra/terraform/stacks/identity   # validate: 1 ok, 0 failed (12 runs × 2 tfvars)
-bash infra/scripts/guards.sh                                      # guards: 8 of 8 passed
+bash infra/scripts/guards.sh                                      # guards: 9 of 9 passed
 ```
 
 #### What this task does not claim

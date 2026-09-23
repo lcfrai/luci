@@ -20,7 +20,7 @@ runs it per directory, in the background when a directory has many runs.
 - `infra/terraform/kata.tf`, `providers.tf`, `variables.tf`, `dev.tfvars`, `.terraform.lock.hcl` — deleted with `git rm` (the pool is re-written in `modules/aks`, task 06)
 - `infra/terraform/README.md` — the stack order, the rules, the commands (new)
 - `infra/scripts/validate.sh` — fmt, init, validate, test for one directory or all (new)
-- `infra/scripts/guards.sh` — the eight repository rules as named checks (new)
+- `infra/scripts/guards.sh` — the nine repository rules as named checks (new)
 - `infra/scripts/guards_test.sh` — one fixture tree per rule, each a mutant guards.sh must kill (new)
 - `.gitattributes` — `eol=lf` for `*.tf`, `*.tfvars`, `*.hcl`, `*.tftest.hcl`, `*.sh`, `*.yaml`, `*.yml`, `*.tpl` (new)
 - `.gitignore` — adds `*.tfplan`, `crash*.log`, `infra/terraform/modules/**/.terraform.lock.hcl` (modify)
@@ -75,10 +75,15 @@ earlier stack never reads a later one.
 set -euo pipefail
 ```
 
-#### `guards.sh` — the eight rules
+#### `guards.sh` — the nine rules
 
 Each check prints `guard G<n>: ok` or `guard G<n>: FAIL <path>: <why>`; the last line is
-`guards: <k> of 8 passed`; exit status 0 iff k = 8. Paths are searched under `infra/` only.
+`guards: <k> of 9 passed`; exit status 0 iff k = 9. Paths are searched under `infra/` only.
+
+**These guards are hygiene, not a security boundary** (review C3). They run from the branch being
+built, so a pull request can edit or delete them. They catch mistakes in reviewed code. What stops
+a hostile pull request is outside the repository: the read-only plan identity and the branch
+control on the write connections (task 30, and the plan's "Deploy identities" table).
 
 | Id | Rule | Why |
 |---|---|---|
@@ -90,6 +95,7 @@ Each check prints `guard G<n>: ok` or `guard G<n>: FAIL <path>: <why>`; the last
 | G6 | No `provisioner "local-exec"` or `"remote-exec"` | a provisioner is a script Terraform cannot plan |
 | G7 | Every `stacks/*/` has a `.terraform.lock.hcl` **tracked by git** (`git ls-files --error-unmatch`) | reproducible providers |
 | G8 | No attribute named `administrator_password`, `administrator_password_wo`, `client_secret` or `admin_password` in any `.tf` | P8-D10, P8-D11: there is no password to set |
+| G9 | Every `source =` inside a `required_providers` block, and every `provider "registry.terraform.io/<ns>/<name>"` in a `.terraform.lock.hcl`, is one of `hashicorp/azurerm`, `hashicorp/azuread`, `azure/azapi` | a provider is a program that runs at plan time with the pipeline's token: `data "external"` runs any command. A resource type used without a `required_providers` entry makes Terraform infer `hashicorp/<prefix>`, which only the lock file shows. The allowlist in G9 and `terraform init -lockfile=readonly` (task 30's `tf-stack.sh`) catch this together (review C3) |
 
 #### Conventions the README records (and later parts assume)
 
@@ -113,7 +119,7 @@ runs it with `INFRA_ROOT` pointed at the fixture, and asserts on exit status and
 
 | Test (case name) | Asserts | Mutant it kills |
 |---|---|---|
-| `clean_tree_passes` | a tree with one conforming stack and one module → exit 0, `guards: 8 of 8 passed` | a guard that fails on everything |
+| `clean_tree_passes` | a tree with one conforming stack and one module → exit 0, `guards: 9 of 9 passed` | a guard that fails on everything |
 | `g1_terraform_tfvars_fails` | `stacks/x/terraform.tfvars` present → exit ≠ 0, `guard G1: FAIL` naming the path | G1 deleted, or matching only `*.auto.tfvars` |
 | `g2_guid_in_tfvars_fails` | `dev.tfvars` with `tenant_id = "00000000-0000-0000-0000-000000000000"` → `G2: FAIL` | G2 matching only lowercase hex |
 | `g3_test_without_azuread_mock_fails` | `versions.tf` requires `azurerm` and `azuread`; the test mocks only `azurerm` → `G3: FAIL` | G3 that checks for "any" mock rather than "every" |
@@ -122,6 +128,8 @@ runs it with `INFRA_ROOT` pointed at the fixture, and asserts on exit status and
 | `g6_local_exec_fails` | a `provisioner "local-exec"` → `G6: FAIL` | G6 deleted |
 | `g7_untracked_lock_fails` | a stack whose lock file exists but is not `git add`ed in the fixture repo → `G7: FAIL` | G7 that tests file existence instead of tracking |
 | `g8_client_secret_fails` | `client_secret = var.x` in a `.tf` → `G8: FAIL` | G8 that matches only `administrator_password` |
+| `g9_external_source_fails` | a module's `versions.tf` with `external = { source = "hashicorp/external" }` → `G9: FAIL` naming the path | G9 deleted, or checking stacks only (a module's providers flow into every stack that calls it) |
+| `g9_lockfile_provider_fails` | a clean `versions.tf`, and a stack's `.terraform.lock.hcl` holding `provider "registry.terraform.io/hashicorp/external"` → `G9: FAIL` | G9 that reads only `required_providers`, which an implicit `data "external"` never appears in |
 
 `validate.sh` is proved by its own acceptance run below (it has nothing to validate yet) and by
 every later task, whose acceptance command is `infra/scripts/validate.sh <its dir>`.
@@ -132,9 +140,9 @@ every later task, whose acceptance command is `infra/scripts/validate.sh <its di
   files; `ls infra/terraform/.terraform` fails (no init state, no local tfstate). If a
   `*.tfstate` exists anywhere under `infra/`, **stop**: someone applied the phase 1 root, and
   deleting it would orphan real resources.
-- [ ] **Step 2: Write `guards_test.sh` with the nine cases.** Run it: every case fails, because
+- [ ] **Step 2: Write `guards_test.sh` with the eleven cases.** Run it: every case fails, because
   `guards.sh` does not exist.
-- [ ] **Step 3: Write `guards.sh`.** Run `guards_test.sh` until `guards_test: 9 cases, 9 passed`.
+- [ ] **Step 3: Write `guards.sh`.** Run `guards_test.sh` until `guards_test: 11 cases, 11 passed`.
 - [ ] **Step 4: Write `validate.sh`** to the contract above.
 - [ ] **Step 5: `git rm` the five phase 1 files**, add `.gitattributes`, extend `.gitignore`,
   write `README.md` with the layout, the stack order, the conventions and the command list.
@@ -144,10 +152,10 @@ every later task, whose acceptance command is `infra/scripts/validate.sh <its di
 
 ```bash
 bash infra/scripts/guards_test.sh
-# guards_test: 9 cases, 9 passed                                     exit 0
+# guards_test: 11 cases, 11 passed                                   exit 0
 bash infra/scripts/guards.sh
-# guard G1: ok … guard G8: ok
-# guards: 8 of 8 passed                                              exit 0
+# guard G1: ok … guard G9: ok
+# guards: 9 of 9 passed                                              exit 0
 bash infra/scripts/validate.sh
 # validate: nothing to validate yet                                  exit 0
 git ls-files infra

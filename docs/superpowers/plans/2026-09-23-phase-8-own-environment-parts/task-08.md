@@ -265,7 +265,7 @@ bash infra/scripts/validate.sh infra/terraform/modules/postgres infra/terraform/
 # validate: OK   infra/terraform/modules/postgres
 # validate: OK   infra/terraform/stacks/data
 # validate: 2 ok, 0 failed
-bash infra/scripts/guards.sh      # guards: 8 of 8 passed  (G8: no password attribute)
+bash infra/scripts/guards.sh      # guards: 9 of 9 passed  (G8: no password attribute)
 ```
 
 #### What this task does not claim
