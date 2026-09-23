@@ -145,7 +145,13 @@ No jest-dom (shared-shape §3C): plain DOM property assertions, as the fix's sui
 - [ ] **Step 3:** `types.ts` and the contract block in one edit each, then the fixture. In the
   same commit, UI §6.5's `LinkedWorktreeNote.tsx` row and §7.7's linked-worktree state row say
   `kind === "linked"` where they say `isPrimary: false` / `isPrimary === false`, and §6.5 gains a
-  `SharedIndexNote` row.
+  `SharedIndexNote` row. Two more phrases in that §6.5 row (UI contract line 1770 at `10fa5fd`,
+  re-review b03 Minor 5) become false after this task and are rewritten in the same commit:
+  "and that arrives in Phase 3 (`3-D1`)" becomes "and a worktree created from the cockpit is a
+  clone, where git works" (the new `LINKED_WORKTREE_GIT_NOTE`'s remedy), and round 1's closing clause "so the premise holds and "not primary" is again
+  exactly the set without working git" becomes "and `kind === "linked"` is exactly the set
+  without working git: a clone is not primary and has it". Locate both with
+  `grep -n "arrives in Phase 3\|not primary" docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md`.
 - [ ] **Step 4:** the component changes and the `SessionPane` line.
 - [ ] **Step 5:** `npx tsc --noEmit` — every object literal typed `Worktree` without `kind` now
   fails to compile; fix each by adding `kind` (tests use the fixture). List every file touched in
