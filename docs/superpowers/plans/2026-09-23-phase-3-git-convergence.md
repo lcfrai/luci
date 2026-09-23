@@ -93,7 +93,7 @@ stays exactly as it is (task 26 seam S3.1).
 | `internal/converge` | lane sync, observed claims, the chained forecast, land, history, undo, revert, branch create/rename/delete | 07–11 |
 | `internal/remote` | fetch (on demand and on a slow timer), ahead/behind, push | 12, 13 |
 | `internal/credstore` | the credential-store seam the Hub fills, plus a local fallback through the machine's git credential helper | 13 |
-| `internal/githost` | one host interface, GitHub and Azure DevOps implementations, remote-URL recognition | 14 |
+| `internal/githost` | remote-URL recognition and the git auth header (13); one host interface with GitHub and Azure DevOps implementations (14) | 13, 14 |
 | `internal/briefref` | the two interfaces phase 3 needs from phase 4 and the Hub: resolve a brief key, archive a brief head. Phase 3 never parses a key (contract P5) | 09 |
 | `internal/evidence` | evidence records, the store seam the Hub fills, the evaluator over git ancestry | 15 |
 | `internal/changes` | the Files read model: changed paths across lanes, per-path hunks, tier-1 back-links | 16 |
@@ -354,7 +354,8 @@ control-plane/
                                     undo.go branches.go                                     07-11
   internal/remote/                  fetch.go push.go aheadbehind.go                          08 12 13
   internal/credstore/               credstore.go githelper.go chain.go                       13
-  internal/githost/                 githost.go remote.go github.go azuredevops.go            14
+  internal/githost/                 remote.go header.go                                      13
+                                    githost.go github.go azuredevops.go                      14
   internal/briefref/                briefref.go                                              09
   internal/evidence/                record.go store.go filestore.go evaluate.go              15
   internal/changes/                 changes.go diff.go blame.go                              16
