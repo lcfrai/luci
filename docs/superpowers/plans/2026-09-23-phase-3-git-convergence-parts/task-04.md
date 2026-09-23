@@ -77,7 +77,8 @@ const (
 	ReasonNoRemote          = "no_remote"              // fetch, push, PR: the project has no origin
 	ReasonPushRejected      = "push_rejected"          // push: the remote has commits the branch lacks; details.gitSays
 	ReasonUnknownHost       = "unknown_host"           // PR: origin is neither GitHub nor Azure DevOps
-	ReasonNoCredential      = "no_credential"          // PR
+	ReasonNoCredential      = "no_credential"          // PR; details.host
+	ReasonNotPushed         = "not_pushed"             // PR: the branch has no upstream, or commits the remote lacks; details.why: never_pushed | ahead
 )
 
 // gitConflict writes 409 conflict with details.reason and any further details.

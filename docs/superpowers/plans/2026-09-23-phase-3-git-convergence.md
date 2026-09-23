@@ -425,7 +425,7 @@ is sized for one implementer in one to three hours.
 | 11 | Remove a worktree; create, rename and delete a branch | 07 | 3 h |
 | 12 | Fetch (on demand and on a slow timer) and push, with the machine's credential helper | 02, 04 | 2 h |
 | 13 | The credential-store seam (H-1), the git-helper fallback, push with a stored token | 12 | 2 h |
-| 14 | `githost`: GitHub and Azure DevOps behind one interface; the PR route | 13 | 3 h |
+| 14 | `githost`: GitHub and Azure DevOps behind one interface; the PR route | 10, 13 | 3 h |
 | 15 | Evidence: records, the store seam (H-2), the evaluator over ancestry | 07, 09 | 3 h |
 | 16 | Files read model: changed paths across lanes, per-path hunks, tier-1 back-links | 08 | 3 h |
 | 17 | The OD-8 transcript adapter: pinned, canary-tested, tier 2, degrading | 16 | 3 h |
@@ -437,8 +437,8 @@ is sized for one implementer in one to three hours.
 | 23 | Proof: the end-to-end script on real git and Docker, the owner's batched checklist, the seams doc | all | 2 h |
 
 **Order.** 01 → 02 → 03 → 04 → then three lanes that can run in parallel worktrees:
-**(a)** 05 → 06; **(b)** 07 → 08 → 09 → 10, then 15 and 16 → 17; **(c)** 11 (after 07), 12 → 13 →
-14. The desktop track 18 → (19 → 20) ∥ 21 ∥ 22 starts once G2 holds. Task 23 is last.
+**(a)** 05 → 06; **(b)** 07 → 08 → 09 → 10, then 15 and 16 → 17; **(c)** 11 (after 07), 12 → 13,
+then 14 once 10 has landed (its PR description lists the lands). The desktop track 18 → (19 → 20) ∥ 21 ∥ 22 starts once G2 holds. Task 23 is last.
 
 **Shared-file hazards inside phase 3.** Task 04 adds exactly two lines to `api/api.go`
 (`Deps.Git *GitDeps` and `a.registerGit(guarded)`); after that, phase 3's dependencies live in
