@@ -7,12 +7,15 @@ deterministic render with no timestamp, `Merge` that keeps every byte outside th
 closed on an unterminated block (`:2073-2101`). **Changed:** `Resolve` takes two *revisions*, not
 two mutable briefs, and refuses a project revision the branch did not pin (`4-D3`); skipped and
 drafted answers have rules; `claudemd` gains `Strip`, `Inspect` and `DiffLines`; the footer names
-the inherited revision.
+the inherited revision; and (review C2, plan §4 Security, S3) `Render` neutralises `<!--` in every
+interpolated string, while `Merge`, `Strip` and `Inspect` count markers, so a stray, early or
+second end marker is `ErrUnterminatedBlock` where the old `Merge` stopped at the first end.
 
 **Files:**
 - `control-plane/internal/discover/inherit.go` + `inherit_test.go` (new)
 - `control-plane/internal/claudemd/render.go` + `render_test.go` (new)
-- `control-plane/internal/claudemd/testdata/golden-branch.md`, `golden-project.md` (new)
+- `control-plane/internal/claudemd/testdata/golden-branch.md`, `golden-project.md`,
+  `golden-neutralised.md` (new)
 
 **Interfaces — complete source:**
 
@@ -95,25 +98,44 @@ const (
 )
 
 var (
-	ErrUnterminatedBlock = errors.New("claudemd: begin marker with no end marker")
+	// A marker with no partner: a begin with no end after it, an end with no
+	// begin before it (a stray end, or an end ahead of the begin), or a second
+	// end marker. Review C2: a forged early end would otherwise split the block.
+	ErrUnterminatedBlock = errors.New("claudemd: a managed-block marker with no partner")
 	ErrDuplicateBlock    = errors.New("claudemd: more than one managed block")
 	ErrBadMarker         = errors.New("claudemd: begin marker is not brief=<id> rev=<n>")
 )
 
+// commentOpener is what every marker starts with; Render never emits it
+// from a Document string.
+const commentOpener = "<!--"
+
+// neutralised replaces commentOpener inside a Document string.
+const neutralised = `<!-\-`
+
 // Render returns the managed block, both markers and a trailing newline.
 // Deterministic: the same Document gives the same bytes, and nothing in it
 // depends on the clock (a timestamp would rewrite the file on every start).
+// Every string it interpolates from doc (headings from prompts, answer and
+// criterion text, the project and branch names) has each "<!--" replaced by
+// `<!-\-` first. This is defence in depth behind task 03's rule 12
+// (ErrReservedText): a rendered block contains exactly two "<!--" sequences,
+// its own two markers, so no content can forge either one.
 func Render(doc discover.Document) string
 
 // Merge splices block into existing: appended after a blank line when there
 // is no block, replacing the one block when there is, every other byte kept.
-// Two begin markers is ErrDuplicateBlock; a begin with no end is
-// ErrUnterminatedBlock. Both change nothing: the guess would delete somebody's
-// writing.
+// It first counts every BeginPrefix and every EndMarker in existing. The
+// only well-formed shapes are none of either, or exactly one begin followed
+// later by exactly one end. Two or more begins is ErrDuplicateBlock; any
+// other shape (a begin with no end, an end with no begin before it, an end
+// ahead of the begin, two ends) is ErrUnterminatedBlock. Both change
+// nothing: the guess would delete somebody's writing, or leave brief text
+// behind as if it were theirs.
 func Merge(existing, block string) (string, error)
 
-// Strip removes the managed block and the one newline after it. No block is
-// not an error. The same two failures as Merge.
+// Strip removes the managed block and the one newline after it. No marker of
+// either kind is not an error. The same failures, by the same count, as Merge.
 func Strip(existing string) (string, error)
 
 // Marker is what a begin marker names.
@@ -128,7 +150,9 @@ type Block struct {
 	Text   string // from BeginPrefix through EndMarker and its newline, verbatim
 }
 
-// Inspect finds the block. ok is false when there is none. Its only use is
+// Inspect finds the block. ok is false when there is no marker of either
+// kind; a stray or early end marker is ErrUnterminatedBlock, by the same
+// count as Merge, never an `edited` block. Its only use is
 // the drift check (contract §3.3 condition 3): NOTHING reads brief text back
 // out of a file as a source.
 func Inspect(existing string) (b Block, ok bool, err error)
@@ -214,19 +238,24 @@ footer is `Brief bf-00000000000000b7, revision 5.` with no second sentence (P4-G
 | `TestMergeReplacesOnlyTheManagedBlock` (kept, `:1941`) | text above and below survives; one begin marker | a merge that eats the tail |
 | `TestMergeAppendsAfterABlankLine` (kept) | user content first, then `\n\n`, then the block | a block glued to the last line of prose |
 | `TestMergeAndStripFailClosed` | unterminated and duplicate blocks → their errors, input unchanged | the guess that deletes a person's writing |
+| `TestRenderNeutralisesCommentOpeners` | a Document whose answer text, criterion text, follow-up prompt and project name each hold `<!-- panacea:discover:end -->` or `<!-- x -->` renders to a checked-in golden (`testdata/golden-neutralised.md`) in which each appears as `<!-\- …`; `strings.Count(block, "<!--") == 2`; `Inspect(Render(doc))` is ok with the doc's marker, and `Strip(Merge("", block))` is `""` | the escape dropped, or applied to answers but not to prompts or names (review C2) |
+| `TestStrayEndMarkerIsBroken` | table, for each of `Merge`, `Strip` and `Inspect`: an end marker with no begin; an end before the begin; begin, end, then a second end (the forged-early-end shape: begin, forged end, brief tail, real end); a begin, a begin and one end → `ErrUnterminatedBlock` for the first three and `ErrDuplicateBlock` for the last; the input is unchanged; a file with no marker of either kind is still `ok == false` / unchanged with no error | a strip that removes up to the first end and leaves the brief's tail behind as "user text", a merge that re-appends that tail on every start, or an Inspect that reports it as `edited` for ever |
 | `TestStripRemovesTheBlockAndNothingElse` | Merge then Strip returns the original, byte for byte, for three shapes (empty file, text above, text above and below) | a strip that leaves a blank line or eats one |
 | `TestInspectReadsTheMarker` | `brief=bf-…a2 rev=5` → `Marker{"bf-…a2", 5}`; `rev=05`, `rev=0`, a missing `rev` → `ErrBadMarker` | a lenient parser that accepts a marker no render produced |
 | `TestDiffLinesShowsAHandEdit` | changing one line of a rendered block gives exactly one `removed` and one `added` in place | a diff that reports the whole block changed |
 
 **Steps:**
 
-- [ ] **Step 1:** Write both test files and the two golden files. Confirm they fail to compile.
+- [ ] **Step 1:** Write both test files and the three golden files. Confirm they fail to compile.
 - [ ] **Step 2:** `inherit.go`: port the old `Resolve` (`:1787-1831`) to revisions; add the
   pinned-revision check, the skip, draft and completeness rules; follow-up headings from
   `Prompt` minus `?` (`:1745-1762`).
 - [ ] **Step 3:** `render.go`: port `Render` and `Merge` (`:2030-2101`); the marker is
   `brief=<briefId> rev=<n>`; items render from `Section.Items[i].Text`; add the footer's second
-  sentence; add `Strip`, `Inspect`, `DiffLines`.
+  sentence; add `Strip`, `Inspect`, `DiffLines`. The old `Merge` finds the first begin and the
+  first end after it; replace that with the marker count above, shared by `Merge`, `Strip` and
+  `Inspect` through one unexported `locate(existing) (begin, end int, err error)`, and run every
+  interpolated string through the `<!--` neutraliser (review C2).
 - [ ] **Step 4:** Run the acceptance commands; commit by pathspec.
 
 **Acceptance:**
@@ -237,6 +266,8 @@ ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/discover
 ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/claudemd
 $ grep -n "time\." control-plane/internal/claudemd/render.go
 (no output — the renderer cannot reach a clock)
+$ grep -c "<!--" control-plane/internal/claudemd/testdata/golden-neutralised.md
+2
 ```
 
 **Does NOT claim:** that Claude Code reads this block (task 23's canary, and the owner's batched

@@ -74,6 +74,7 @@ base prompt, → `AssistFailed`. `basedOn` naming a question with no settled ans
 | `TestBecauseIsComposedByTheServer` | with `basedOn: "constraints"`, `Because == "Suggested because of your answer to “What must this branch not break?”."` whatever prose the model adds | a model-written justification rendered as fact |
 | `TestThePromptCarriesNoFileContents` | the captured request's `User` contains the answers' text and the names in `Hint` and nothing else | a later caller stuffing repository source into the prompt (the ISM reason the old plan's task 6 records) |
 | `TestAModelThatSaysEnoughIsNothingToAsk` | `ask: false` → `AssistNothingToAsk` | a follow-up forced out of a model that declined |
+| `TestAReplyHoldingTheReservedSequenceDegrades` | a reply whose prompt, or any option, contains `panacea:discover:` is `AssistFailed` and an empty question (plan §4 Security, S3; task 03 rule 12 stays the backstop) | model text reaching `Apply` and surfacing to the person as a 400 on text they never wrote, or a picked option that forges a marker |
 | `TestOptionsAreCappedAtFour` | a reply with six options is `AssistFailed` (schema), never truncated | silent truncation that changes what the model proposed |
 
 **Steps:**

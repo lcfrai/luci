@@ -91,6 +91,7 @@ current head. Errors map as in task 11. It is a POST: it costs a model call and 
 | `TestDraftWithNoModelIsModelOff` | `(nil, model_off)`, no call | a nil dereference |
 | `TestAnalyseWritesOneDraftRevision` | a bound project with no brief → one revision, `change.kind == "draft"`, status `open`, `step.kind == "review"` | a draft that completes the brief and is inherited unread |
 | `TestAnalyseNeverOverwritesAPerson` | a project brief with a person's purpose → the draft revision keeps it | the on-ramp clobbering typed text |
+| `TestADraftHoldingTheReservedSequenceIsDropped` | the model drafts five answers, one containing `panacea:discover:` → the revision holds the other four drafts and no fifth; the request is 200, not a 400 (plan §4 Security, S3; task 03 rule 12 stays the backstop) | model text reaching `Apply` and failing the whole on-ramp as a 400 on text the person never wrote |
 | `TestAnalyseWithNoModelWritesNothing` | `written: []`, `note` names the variable | a revision with no answers |
 
 **Steps:**

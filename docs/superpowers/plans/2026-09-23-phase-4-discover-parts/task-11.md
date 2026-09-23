@@ -90,6 +90,7 @@ type OpsResponse struct {
 | `*discoverhub.FanoutTooLargeError` | 409 `fanout_too_large` (**new**) | `needed`, `limit` |
 | `discoverhub.ErrErasedRestore` | 409 `conflict` | `reason: "erased"` |
 | `discover.ErrEmptyAnswer`, `ErrUnknownKey`, `ErrNotAnswered`, `ErrNotDrafted`, `ErrNotFollowUp`, `ErrBadOp`, a disallowed `op.kind` | 400 `bad_request` | `field` |
+| `discover.ErrReservedText` (task 03 rule 12, plan §4 Security, S3) | 400 `bad_request`, message "Answers cannot contain the text panacea:discover:." | `field: "text"` |
 | `project.ErrUnknownProject` | 404 `project_not_found` | `projectId` |
 | a branch id not among the project's branches | 404 `branch_not_found` (**new**) | `branchId` |
 | `discoverhub.ErrDigestDisagreement`, anything else | 500 `internal`, generic sentence; the cause to the log | — |
@@ -127,6 +128,7 @@ for that ask — never a variant spelling.
 | `TestAbsentBriefIsNull` | a bound project with no brief → 200, `brief: null`, step 1 of 5 | a 404 that the lens has to special-case |
 | `TestHubOffIsAViewNotAnError` | nil Hub → GET brief 200 with `binding.state: "hub_off"`; POST ops 503 `hub_not_configured` | Develop's rail throwing on a Discover read |
 | `TestOpsRejectsServerKinds` | `reinherit`, `draft`, `add_follow_up` → 400, `details.field: "op.kind"` | a client forging a fan-out |
+| `TestOpsRefusesReservedText` | a `record` whose text holds `<!-- panacea:discover:end -->` → 400 `bad_request`, `details.field: "text"`; the fake Hub received no revision write | the marker rule enforced in `Apply` but lost at the route, or mapped to a 500 (review C2) |
 | `TestOpsEchoesWrittenKeys` | a record at base 4 → `written: ["brief:…@5"]` | a desktop that has to guess the new key |
 | `TestRelayTable` — one test per row | status, code, message and details for each source row | a Hub `revision_conflict` rewritten as `conflict`, losing `headRevision` |
 | `TestRelayNeverLeaksATransportError` | `ErrUnavailable` wrapping a dial error to `127.0.0.1:8750` → the message is the generic sentence; the address is only in the log | a Hub address or path in the problem body |

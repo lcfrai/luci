@@ -76,7 +76,7 @@ const (
 	BriefReasonHubUnavailable = "hub_unavailable"   // the Hub did not answer; a brief may exist
 	BriefReasonSignedOut      = "signed_out"        // no Hub token; a brief may exist
 	BriefReasonWriteFailed    = "write_failed"      // the file could not be written
-	BriefReasonBlockBroken    = "block_broken"      // an unterminated or duplicated managed block
+	BriefReasonBlockBroken    = "block_broken"      // a marker with no partner (a begin with no end, a stray or early end) or two blocks
 	BriefReasonTracked        = "tracked_elsewhere" // CLAUDE.md and .claude/CLAUDE.md both tracked (P4-D)
 )
 

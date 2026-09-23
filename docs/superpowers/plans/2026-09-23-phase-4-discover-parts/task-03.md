@@ -268,7 +268,15 @@ var (
 	ErrNotFollowUp   = errors.New("discover: that question is not a follow-up")
 	ErrBadOp         = errors.New("discover: that change is not valid here")
 	ErrNoChange      = errors.New("discover: that change leaves the brief as it was")
+	// ErrReservedText: the text or prompt contains ReservedMarker, the
+	// sequence the managed block's markers are made of (plan §4 Security, S3).
+	ErrReservedText = errors.New("discover: text cannot contain the reserved sequence panacea:discover:")
 )
+
+// ReservedMarker is the prefix of every managed-block marker task 05 writes
+// (`<!-- panacea:discover:begin …-->`, `<!-- panacea:discover:end -->`). No
+// question prompt, answer text or criterion text may contain it.
+const ReservedMarker = "panacea:discover:"
 
 // Apply returns the content after op. It never mutates c. It sets V, the
 // scope-appropriate Inherits, Change, and the derived Status on every
@@ -303,6 +311,16 @@ func Apply(c Content, op Op, env Env) (Content, error)
     person**; it never overwrites a person's answer.
 11. Every result: `V = ContentVersion`; project scope → `Inherits = nil`; `Status = complete` iff
     every question has a settled answer; every slice non-nil.
+12. **The marker rule (review C2, plan §4 Security, S3).** Before it returns, `Apply` checks every
+    question `Prompt`, every answer `Text` and every criterion `Text` in the result — not just the
+    op's input, so a `draft` (model text), an `add_follow_up` prompt and a `restore` are covered by
+    the same check. Any string containing `ReservedMarker` (`panacea:discover:`, case-sensitive,
+    anywhere in the string) is `ErrReservedText`, and nothing is written. Task 11 maps it to
+    400 `bad_request` with `field: "text"`. The two model paths filter first, so a person never
+    sees a 400 for text the model wrote: task 04's `ProposeFollowUp` degrades to no question and
+    task 13's on-ramp drops that one draft; this check is their backstop. Without it, one answer carrying a pasted
+    `<!-- panacea:discover:begin … -->` makes every later `Merge` on that branch `block_broken`, for
+    every teammate, and "Start without the brief" cannot escape it.
 
 **Tests first** — `content_test.go` and `ops_test.go`, package `discover`:
 
@@ -327,6 +345,7 @@ func Apply(c Content, op Op, env Env) (Content, error)
 | `TestReinheritOnAProjectIsRefused` | `ErrBadOp` | a fan-out that writes project revisions |
 | `TestDraftNeverOverwritesAPerson` | a person's purpose survives a `draft` op carrying a purpose | the on-ramp clobbering typed text |
 | `TestNoChangeIsReported` | re-recording identical text with the same source is `ErrNoChange` | a no-op that writes a revision — every click would mint a key |
+| `TestAnswerCannotContainAMarker` | table over `record`, `edit`, `add_follow_up` (prompt), `draft` (a drafted text) and `restore` (a content carrying one): each string holding `panacea:discover:` — a whole pasted `<!-- panacea:discover:begin brief=bf-1 rev=1 -->`, a bare `<!-- panacea:discover:end -->`, the sequence mid-sentence — is `ErrReservedText`, and the input content is unchanged; `panacea:discover` without the colon and `Panacea:Discover:` are accepted | rule 12 dropped, checked on the op's text only (a model draft or a follow-up prompt forges the marker), or matched on the whole marker instead of the reserved sequence |
 | `TestApplyDoesNotMutateItsInput` | the input's answers slice is unchanged after `Apply` | aliasing between the head the service cached and the content it writes |
 
 **Steps:**

@@ -224,6 +224,39 @@ without a cycle. Phase 4 imports only the Hub's
   never as text. **The owner's eyes are the only visual acceptance** (`CLAUDE.md`); a screenshot
   or a passing test is not.
 
+**Security** (added for review C2). Every task that touches brief text holds these.
+
+- **S1. Brief text is cross-user agent instructions.** Under `OD-3` a brief lives in the Hub and is
+  materialised into the `CLAUDE.md` of every worktree on its branch, for every teammate. One
+  person's answer becomes context for another person's sandboxed agent, which runs with *that*
+  person's own credentials and subscription. Treat every answer, prompt and criterion as untrusted
+  input to someone else's agent: never interpolate it anywhere but inside the managed block, and
+  never let it change the block's structure (S3).
+- **S2. Who may write it, and the record of who did.** The only write of brief text is
+  `POST /v1/projects/{projectId}/brief-revisions`, which needs the Hub's `member` role (Hub contract
+  route 26, `hub-contract.md:588` at hub `2f84662`: minimum role `M`, per §5.3; a `viewer` gets
+  403 `forbidden`, `:238`). Each
+  revision emits one `brief.revised` event (`:804`) whose `actor` names the writer (`:1087-1088`).
+  Phase 4 adds no second write path and never writes as anyone but the signed-in person.
+- **S3. The marker rule.** No question prompt, answer text or criterion text may contain the
+  reserved sequence `panacea:discover:`. `discover.Apply` checks the whole result of every op and
+  refuses with `ErrReservedText` → 400 `bad_request`, `field: "text"` (task 03 rule 12, task 11).
+  The model's text is filtered before it reaches `Apply` (task 04's follow-up degrades, task 13
+  drops the draft), so the 400 only ever answers text a person typed.
+  Behind it, `claudemd.Render` rewrites every `<!--` in an interpolated string as `<!-\-`, so a
+  rendered block holds exactly its own two markers (task 05). `Merge`, `Strip` and `Inspect` count
+  markers and accept only none, or one begin followed by one end; a stray, early or second end is
+  `ErrUnterminatedBlock` (task 05), which the Materialiser reports as `block_broken`, or
+  `write_failed` on the *Start without the brief* strip (task 09). Without this, one pasted block in
+  an answer blocks every session start on the branch for every teammate, and the override cannot
+  escape it.
+- **S4. Answer-length caps.** Reserved for review M6 (a cap per answer and per prompt, and the
+  fan-out batch checked against the Hub's body cap). That fix lands in its own batch; until then,
+  the Hub's own 64 KiB envelope limit (`hub-contract.md:742`) is the only bound.
+- **S5. Model egress.** Reserved for review I13: brief answers are client-confidential engagement
+  text, and where they may be sent is decided by `PANACEA_APP_MODEL_BASE_URL`, not by `G4`'s rule
+  on whose key is used. That fix lands in its own batch.
+
 ---
 
 ## 5. File map
@@ -234,10 +267,10 @@ without a cycle. Phase 4 imports only the Hub's
 |---|---|---|
 | `modelclient/client.go` + test | one `POST /v1/messages`, no SDK; `Completer`, the seam phase 6 replaces | 02 |
 | `discover/content.go` + test | `Content`, `Question`, `Answer`, `Criterion`, `Author`, `BaseQuestions()`, `Step`, `Recompute` | 03 |
-| `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes | 03 |
+| `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes; the marker rule (`ErrReservedText`, S3) | 03 |
 | `discover/assist.go` + test | `ProposeFollowUp` over a `Completer`, degrading to nothing | 04 |
 | `discover/inherit.go` + test | `Resolve(project, branch *Revision) Document` — project → branch, with origins | 05 |
-| `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`; the golden block | 05 |
+| `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`; the golden blocks; the `<!--` neutraliser and the marker count (S3) | 05 |
 | `provenance/key.go` + test | the key grammar — the only parser (P5): `brief:`, `design:`, `none:` | 06 |
 | `provenance/ref.go` + test | `Ref`, `Build`, criterion digests, `Resolution` | 06 |
 | `discoverhub/binding.go` + test | local project → Hub project by repo key; local branch → `refs/heads/…` | 07 |
