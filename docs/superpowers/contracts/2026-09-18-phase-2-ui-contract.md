@@ -1528,7 +1528,9 @@ than at task 20:
 
 Every file, its props, and the one thing it owns. A component "owns" a concern when it is the
 only place that concern may be changed — two owners of focus is the bug that produces a cursor
-that jumps.
+that jumps. **One owner does not mean one call site**: §6.8's focus row has two movers under one
+owner, and what makes that safe is that their triggers are disjoint and their target is the same.
+The thing to forbid is two parties that can *disagree*, not two lines that both call `.focus()`.
 
 ```
 desktop/src/
@@ -1719,7 +1721,7 @@ property 7: if you cannot name the fact that justifies the element, the element 
 
 | File | Props | Owns |
 |---|---|---|
-| `Terminal.tsx` | `{ sessionId: SessionId; readOnly: boolean }` | Constructing the `XTerm`, calling `open()`, handing it to `attachRegistry`, and **DOM focus and vertical scrollback inside the pane**. |
+| `Terminal.tsx` | `{ sessionId: SessionId; readOnly: boolean; focused: boolean }` | Constructing the `XTerm`, calling `open()`, handing it to `attachRegistry`, and **vertical scrollback inside the pane**. Takes DOM focus **only when `focused`** — on mount and on a false→true transition. Unconditional focus-on-mount meant nine mounting panes each took the caret and the last one flushed kept it. |
 
 ```tsx
 export function Terminal(props: { sessionId: SessionId; readOnly: boolean }): JSX.Element;
@@ -1814,12 +1816,34 @@ known defect 10's class and the palette is where Phase 2 actually contains it.
 | Concern | Owner | Everyone else |
 |---|---|---|
 | Which session is *focused* (app state) | `uiSlice.focusSession` | Rail rows, Columns, the palette and `⌘1-9` all call it; none keeps its own copy |
-| DOM focus inside a pane | `Terminal.tsx` (`term.focus()`) | `SessionPane` calls it on pointer-down on the pane chrome; nothing else moves focus into a pane |
+| DOM focus inside a pane | **Two movers, disjoint by trigger** — `Terminal.tsx` (`term.focus()`) and `SessionPane.focusTerminalIn` | Nothing else moves focus into a pane. The triggers cannot both fire for one act, and they target the same element when they do — see the note below |
 | DOM focus while an overlay is open | `CommandPalette` / `Popover` | They capture on open and **restore to the previously focused element** on close. A palette that drops focus to `<body>` makes `⌘K`, Escape, keep-typing impossible |
 | Horizontal scroll of Columns | `ColumnsLayout` | `SessionRow` and the palette request it via `focusSession`; they never call `scrollIntoView` themselves |
 | Vertical scrollback inside a pane | xterm, via `attachRegistry`'s pinned rule (§7.2) | Nothing else calls `scrollToBottom()` |
 | Canvas pan/zoom | `CanvasLayout` | — |
 | The keydown listener | `useKeyboardMap`, mounted once in `AppShell` | No component adds a `window` keydown listener. Panes use React's own `onKeyDown` where they need one |
+
+**Why two movers is not a violation, and what the rule actually is.** Earlier wording named
+`Terminal.tsx` as the only thing that calls `.focus()` inside a pane. **That was never true** —
+`SessionPane.focusTerminalIn` has always moved focus on the pointer-down path, and the pane's own
+suite pins it. The rule this section exists to protect is not *"exactly one function calls
+`.focus()"*; it is **"no two movers can disagree about where the caret belongs"**, which is the
+condition that produces the jumping cursor. Two movers satisfy it when their triggers are disjoint
+and their target is the same, and these are:
+
+| mover | fires when | cannot collide because |
+|---|---|---|
+| `Terminal.tsx`'s focus effect | `focused` goes **false→true**, including a mount that is already focused | A pane that is already focused produces no transition, so this never runs on the chrome-click path |
+| `SessionPane.focusTerminalIn` | a **pointer-down on the pane chrome**, after the two early returns (an interactive control, or inside the terminal itself) | Reached only when the pane is already selected *or* is being selected by this same event — and in the second case both movers resolve to the same element, so the second call is idempotent |
+
+The element is `textarea.xterm-helper-textarea` either way: `term.focus()` is xterm focusing its
+own helper textarea, and `focusTerminalIn` looks that element up by selector. **So the worst case
+is two calls to `.focus()` on one element in one tick, which is a no-op, not a fight.**
+
+The case the second mover exists for: the `⋯` button takes the caret (deliberately — a menu must
+be keyboard-drivable), and the user then clicks the pane chrome to get back to typing. The pane
+was already focused throughout, so no transition fires and the first mover stays silent. Delete
+`focusTerminalIn` and the caret stays on the button.
 
 ### 6.9 The keyboard map
 

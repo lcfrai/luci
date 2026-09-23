@@ -157,9 +157,14 @@ export function SessionPane({
     // and a disabled button fires no click. The guard is the second lock on the same door.
     // It stops being equivalent the moment anything reaches onRestart WITHOUT going through
     // that attribute — the button losing `disabled` in a restyle, or a caller invoking this
-    // handler directly. Nothing planned does: task 22's ⋯ menu and task 23's palette both
-    // route through `sessionVerbs.restart`, a separate path that never reaches this function,
-    // so neither is a trigger. (Corrected after checking the task it originally named.)
+    // handler directly. Nothing planned does. Task 22's ⋯ menu calls `sessionVerbs.restart`,
+    // a separate path that never reaches this function. Task 23's palette is not a trigger for
+    // a stronger reason: it exposes NO session verbs at all (`task-23.md:50` — "a palette row
+    // that killed a session would be a destructive act one keystroke from a filter change"),
+    // and its only `sessionVerbs` caller is `⌘W`, which runs `kill`.
+    // Cited twice wrongly before this: first naming the ⋯ menu as a trigger, then naming the
+    // palette as a restart caller. Both were right about the conclusion and wrong about the
+    // premise. Open the other task's file before writing a sentence about its behaviour.
     if (session === undefined || restarting) return;
     setRestarting(true);
     // The server's own in-flight guard returns 409 for a concurrent restart, so this local

@@ -450,17 +450,43 @@ describe("SessionPane", () => {
     expect(screen.getByTestId("terminal")).toBeDefined();
   });
 
-  it("does not announce the ticking variants", () => {
+  // BOTH ticking phases, not just `connecting`. The live region is keyed on `failed` precisely
+  // because `reconnecting` ticks too — widening the condition to `phase !== "connecting"` reads
+  // plausible and puts a polite live region on a string that changes every second, so a screen
+  // reader re-hears the elapsed once a second for the whole ladder. Only the negative case on
+  // `reconnecting` pins that boundary; the `connecting` case alone leaves it open.
+  it("does not announce either of the ticking variants", () => {
+    for (const phase of ["connecting", "reconnecting"] as const) {
+      resetCockpit();
+      attachState.current = { phase, attempts: 1, ladderStartedAt: Date.now(), reason: "" };
+      const session = seed({ status: "starting" });
+      const { container, unmount } = render(
+        <SessionPane sessionId={session.id} variant="column" />,
+      );
+
+      const overlay = container.querySelector(".pane-attach");
+      expect(overlay).not.toBeNull();
+      expect(overlay?.hasAttribute("role")).toBe(false);
+      unmount();
+    }
+  });
+
+  // The other half of the same boundary. `failed` is what selects the reason over the label, and
+  // widening it to include `reconnecting` empties the strip, because a retrying ladder carries
+  // no reason — the registry publishes `reason: ""` until it gives up.
+  it("a reconnecting strip shows the elapsed, not an empty reason", () => {
     attachState.current = {
-      phase: "connecting",
-      attempts: 1,
-      ladderStartedAt: Date.now(),
+      phase: "reconnecting",
+      attempts: 4,
+      ladderStartedAt: Date.now() - 7_000,
       reason: "",
     };
-    const session = seed({ status: "starting" });
+    const session = seed();
     const { container } = render(<SessionPane sessionId={session.id} variant="column" />);
 
-    expect(container.querySelector(".pane-attach")?.hasAttribute("role")).toBe(false);
+    const overlay = container.querySelector(".pane-attach");
+    expect(overlay?.textContent).toMatch(/^reconnecting \d+s$/);
+    expect(overlay?.textContent).not.toBe("");
   });
 
   // The pane is what tells the terminal whether it is the focused one — `Terminal` moves DOM
