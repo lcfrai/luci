@@ -13,7 +13,7 @@ status code, and with no broker configured the control plane behaves byte-for-by
 Task 24 then puts cloud machines in front of the user.
 
 **Files:**
-- `control-plane/internal/machines/{machines.go,cloud.go}` and `machines_test.go` (new)
+- `control-plane/internal/machines/{machines.go,cloud.go,installid.go}` and `machines_test.go`, `installid_test.go` (new)
 - `control-plane/internal/api/api.go` — `Deps.Machines`, `backendFor` (modify)
 - `control-plane/internal/httpx/problem.go` — `CodeMachineNotFound = "machine_not_found"` (404), the seventeenth code (modify)
 - `control-plane/internal/api/sessions.go`, `attach.go` — route by `MachineID`; the readiness watch prefers `backend.ReadyWaiter` (modify)
@@ -66,7 +66,26 @@ func (s *Set) Cloud() *remotebe.Client
 
 // Known returns every cloud machine id the set has resolved, for the reaper.
 func (s *Set) Known() []string
+
+// InstallID returns this control plane's install id: 32 lowercase hex
+// characters from crypto/rand, kept in <dir>/install-id with mode 0600 (dir is
+// statepath.Dir("machines")). The first call creates the file (O_CREATE|O_EXCL,
+// then fsync, so two starts racing agree on one id); every later call reads it.
+// A file that exists but does not hold exactly one valid id is an error naming
+// the file, and it is never replaced: a new id would turn every running cloud
+// sandbox of this laptop into another control plane's (review I6).
+func InstallID(dir string) (string, error)
 ```
+
+**Why an install id (review I6).** The broker scopes every route by **owner** (`tid/oid`,
+task 14), and one owner can run two control planes: on a second PC, or after a reinstall that
+starts a fresh registry. The reaper destroys any listed sandbox that its registry does not name
+(rule 4, `destroyOrphan`, `reaper.go:452-463`). Scoped by owner alone, the second control plane
+would list the first one's running cloud sessions, find no record of them, and destroy them
+within one reap interval. So every cloud sandbox carries its creator's install id as the label
+`panacea-app/control-plane` (task 18), remotebe asks the broker for its own only (task 22), and
+the reaper acts only on its own (below). The id is created only when `PANACEA_APP_BROKER_URL` is
+set, so without a broker phase 2 is unchanged byte-for-byte.
 
 ```go
 // package api — Deps gains one field; nothing else in Deps changes.
@@ -93,6 +112,18 @@ func (a *API) backendFor(ctx context.Context, machineID string) (backend.Backend
 //	// said 404: the machine was deleted) marks that machine's sessions exited,
 //	// with ExitReason "the cloud machine was deleted".
 //	Machines *machines.Set
+//
+//	// InstallID is this control plane's install id; required when Machines
+//	// has a cloud client. On a cloud machine, rule 4 (a listed sandbox with
+//	// no record) destroys a sandbox only if its
+//	// Labels[backend.KubeLabelControlPlane] equals InstallID. Any other
+//	// sandbox, one with no such label included, is left running and logged
+//	// once per id at info ("left a cloud sandbox another control plane
+//	// created"). The broker already filters the list (task 22's query); this
+//	// is the second check, so a broker that ignored the query cannot make this
+//	// laptop destroy another's sessions. Rules 1-3 and the local backend's
+//	// sweep are unchanged.
+//	InstallID string
 ```
 
 Configuration added to `cmd/api/config.go` (neither is backend-scoped: they add cloud machines
@@ -103,10 +134,11 @@ beside whichever local backend is selected):
 | `PANACEA_APP_BROKER_URL` | `""` | the broker, `https://broker.<zone>`; empty = no cloud machines |
 | `PANACEA_APP_BROKER_SCOPE` | `""` | required when the URL is set: task 09's `broker_api_scope` |
 
-`main.go`: when the URL is set, `remotebe.NewClient` with the Hub's token source adapted to
-`remotebe.TokenSource` if the Hub's C1 has landed, else `remotebe.SignedOut{}`; `machines.New(be,
-client)`; `Deps.Machines`; the reaper's `Machines`; `recoverSessions` per machine with the same
-leave-it-alone rule.
+`main.go`: when the URL is set, `machines.InstallID(statepath.Dir("machines"))` first (an error
+exits 2 naming the file); `remotebe.NewClient` with that id as `ControlPlane` and the Hub's token
+source adapted to `remotebe.TokenSource` if the Hub's C1 has landed, else `remotebe.SignedOut{}`;
+`machines.New(be, client)`; `Deps.Machines`; the reaper's `Machines` and `InstallID`;
+`recoverSessions` per machine with the same leave-it-alone rule.
 
 #### What changes in the handlers (each a one-line swap, listed so review is mechanical)
 
@@ -134,6 +166,14 @@ task; task 24 changes `handleMachines`.
 | `TestAMalformedIDNeverReachesTheBroker` | `"m-../x"` → `ErrUnknownMachine`, zero requests | an id interpolated into a URL path |
 | `TestA404ForgetsTheMachine` | stand-in answers 404 after deletion → `ErrUnknownMachine`, and `Known()` drops it | a deleted machine resolved from cache forever |
 
+`installid_test.go` (review I6):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestInstallIDIsCreatedOnceAndKept` | two calls on one `t.TempDir()` → the same id, 32 lowercase hex; the file holds it; mode `0600` (asserted on non-Windows only) | an id minted per start, so every restart's reaper treats its own sessions as another's |
+| `TestTwoStartsRacingAgreeOnOneID` | 8 goroutines call `InstallID` on a fresh dir → one distinct id | a create without `O_EXCL`, where the last writer wins and the earlier start stamps a lost id |
+| `TestAMalformedInstallIDIsAnErrorAndIsKept` | the file holds `"x"`, then 32 hex plus a second line → an error naming the file each time, and the file's bytes unchanged | a silent regeneration that makes this laptop's running cloud sessions foreign |
+
 `api` tests (existing harness, a fake cloud backend injected through a `machines.Set` built on a
 stand-in broker):
 - `TestCreateOnACloudMachineUsesItsBackend` — the fake cloud backend saw the Create; the local did
@@ -149,10 +189,22 @@ stand-in broker):
 `reaper` tests: `TestTheSweepIsPerMachine` (a cloud session is not reconciled against the local
 list — kills every cloud session marked exited because Docker does not know it);
 `TestAnUnreachableCloudMachineIsSkipped` (List error → its sessions untouched);
-`TestADeletedMachineEndsItsSessions` (`ErrUnknownMachine` → exited with the reason).
+`TestADeletedMachineEndsItsSessions` (`ErrUnknownMachine` → exited with the reason);
+`TestTheReaperNeverDestroysAnotherControlPlanesCloudSandbox` (review I6: a fake cloud backend
+lists three sandboxes that no record names, one labelled with the reaper's `InstallID`, one with
+another install id, one with no control-plane label. After a sweep, only the first was
+destroyed; `Destroy` was never called with the other two ids; each of the two was logged once
+across two sweeps. The fake ignores any filter, as a broker that dropped the query would. Kills:
+rule 4's label check dropped; a missing label read as "ours". The third mutant, the check
+applied to the local backend too, where Docker sandboxes carry no such label, is killed by
+phase 2's own `TestSweepDestroysOrphansAndOnlyOrphans` (`reaper_test.go:417`), which then goes
+red. All three sandboxes are older than rule 4's mid-create grace
+(`TestSweepSparesAnOrphanYoungEnoughToBeMidCreate`, `:455`), so the grace cannot be what spares
+them.)
 
 `cmd/api` config tests: `TestBrokerURLNeedsAScope`, `TestBrokerURLMustBeHTTPS`,
-`TestNoBrokerIsPhase2`.
+`TestNoBrokerIsPhase2` (which also asserts that no `install-id` file was created), and
+`TestAMalformedInstallIDStopsTheStart` (exit 2 naming the file, review I6).
 
 #### Steps
 
@@ -160,6 +212,16 @@ list — kills every cloud session marked exited because Docker does not know it
 - [ ] **Step 2:** `Deps.Machines`, `backendFor`, the handler swaps from the table — one commit-sized
   diff; run the whole `api` suite after each file.
 - [ ] **Step 3:** The reaper; `main.go` wiring; config.
+- [ ] **Step 3a (review I6):** mutation check on a `$TEMP` copy, each verified applied and the
+  named test red: drop rule 4's label check → `TestTheReaperNeverDestroysAnotherControlPlanesCloudSandbox`;
+  read a missing label as ours → the same test; apply the check to the local backend too →
+  `TestSweepDestroysOrphansAndOnlyOrphans`; `InstallID` without `O_EXCL` →
+  `TestTwoStartsRacingAgreeOnOneID`; regenerate a malformed file →
+  `TestAMalformedInstallIDIsAnErrorAndIsKept`. The two named beforehand as likeliest to
+  survive: (a) a missing label read as ours, because a fake that lists only labelled sandboxes
+  never exercises it, and the unlabelled row exists to kill it; (b) the racing create, because a
+  sequential test passes without `O_EXCL`, and the 8-goroutine test exists for it. It can still
+  pass by luck on a mutant, so run it with `-count=20`.
 - [ ] **Step 4:** Full run; `git grep -n "a.deps.Backend\." -- control-plane/internal/api/` lists
   only `/healthz` and `handleMachines`; commit.
 
@@ -176,3 +238,12 @@ git grep -n "a.deps.Backend\." -- control-plane/internal/api/ ':!*_test.go'
 - That a user can see or choose a cloud machine — task 24 lists them, task 26 draws them.
 - That the Hub's token source exists: until C1 lands, every cloud call is signed-out, and the
   reaper skips cloud machines, which is the safe reading.
+- **More than one laptop per user, for sessions (review I6).** A cloud session belongs to the
+  control plane that created it. A second laptop signed in as the same user, or this laptop
+  after a reinstall with a fresh state directory, does not list, attach to, reap or end it. The
+  sandbox keeps its pod (running while its agent runs), holds one of the owner's
+  `MAX_SANDBOXES_PER_USER` slots, and keeps its
+  machine awake (the sleeper refuses while a session pod exists, task 19), until the owner
+  deletes it. The broker's unfiltered `GET /v1/sandboxes` and its `DELETE` are the seam for
+  that; the surface is the owner question in the review's b06 section. Lanes have the same limit
+  (task 25, P3A-2).

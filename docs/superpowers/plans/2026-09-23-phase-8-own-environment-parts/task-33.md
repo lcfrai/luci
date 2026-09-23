@@ -60,7 +60,7 @@ selects (task 32) is marked, and its warm floor (`min_count`) is costed at that 
 | To | Question | This phase assumed |
 |---|---|---|
 | phase 3 | P3A-1: join machine paths with `path.Join` (or add `Machine.Join`) | `Machine.Join` added (task 25) |
-| phase 3 | P3A-2: the lane index keyed by machine | laptop-side, keyed by `(machineId, projectId)`; single-laptop limitation stated |
+| phase 3 | P3A-2: the lane index keyed by machine | laptop-side, keyed by `(machineId, projectId)`; single-laptop limitation stated, for lanes and, since review I6, for sessions (only the control plane whose install id a sandbox carries reaps it, task 23) |
 | phase 3 | P3A-3: answered by phase 3's task 02 §HGH (H1–H5), which hardens every `gitx.Exec` call; `machined` runs it unchanged (task 21, review I7). What stays open: a git code path §HGH does not list is a finding for both phases, because on the machine it runs with the whole disk in reach | §HGH lands before task 21 |
 | Hub | Display names carry an environment suffix outside prod; the broker API is assignment-required (task 09) | as stated |
 | Hub | `entra` adds `ErrKeySetUnavailable`, `Middleware`, `Ready`, `Claims.Key` beside the contract's interface (task 16) | additive; the Hub may ignore them |
