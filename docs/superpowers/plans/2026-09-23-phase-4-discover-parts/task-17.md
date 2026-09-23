@@ -71,7 +71,7 @@ export function SessionContextChip(props: { sessionId: SessionId }): JSX.Element
 ```ts
 // desktop/src/provenance/DefinitionOfDone.tsx — mounted by phase 3 above the merge list
 export interface DefinitionOfDoneProps {
-  refValue: ProvenanceRef;             // the HEAD reading (contract §4.4)
+  refValue: ProvenanceRef;             // the HEAD reading (contract §4.4), read by the mount through task 16's useHeadRef (review I10)
   state: ProvenanceState;
   onOpenDiscover(key: string): void;
   onRecordEvidence?(criterionId: string): void; // phase 3 ask P4-5

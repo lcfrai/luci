@@ -308,7 +308,8 @@ without a cycle. Phase 4 imports only the Hub's
 |---|---|---|
 | `api/discover.ts` + test | the TypeScript mirror of every `/v1/discover` wire shape; `DiscoverClient` | 15 |
 | `store/slices/discoverSlice.ts`, `store/slices/provenanceSlice.ts` + tests | non-persisted: brief views by scope; refs by key, heads by brief, head refs by branch | 16 |
-| `provenance/loader.ts` + test; `api/hubFeed.ts` | the one loader over key sources, called from the poller's good tick; the Hub feed's control-plane route (Hub C2's) | 16 |
+| `provenance/loader.ts` + test; `api/hubFeed.ts` | the one loader over key sources, called from the poller's good tick; the Hub feed's control-plane route (Hub C2's); a `brief.*` event marks stale every view and head reading of its Hub project, and `brief.erased` drops the brief's cached text (review I10) | 16 |
+| `provenance/useHeadRef.ts` + test | the one reader of head readings into `headRefByTarget`, re-read once per stale mark (review I10) | 16 |
 | `provenance/ContextChip.tsx`, `SessionContextChip.tsx`, `DefinitionOfDone.tsx`, `ShippedManifest.tsx`, `ProvenanceDetail.tsx`, `provenance.css` + tests | the three presentational surfaces, each taking a `ProvenanceRef`; the one store-reading mount | 17 |
 | `discover/DiscoverLens.tsx`, `QuestionFlow.tsx`, `BriefPanel.tsx`, `BindingState.tsx`, `useBriefView.ts`, `discover.css` + tests | the lens: binding states, asking, the brief born, inheritance, follow-up, model off, unavailable | 18 |
 | `discover/BriefHistory.tsx`, `PastRevision.tsx`, `SessionsOnBrief.tsx`, `Materialisations.tsx`, `SectionChanges.tsx` + tests | moved on, project changed, undo, past revision read-only, missing, erased, hand-edited block | 19 |
@@ -419,7 +420,7 @@ it. This table is the index.
 | `api.Materialiser`, `MaterialiseRequest`, `MaterialiseResult`, `*MaterialiseError`, `api.RouteMounter`; `brief_not_written` | task 10 | 09, 11, 14, 20 |
 | `/v1/discover/…` routes and every JSON body | tasks 11, 12 | 15 |
 | `desktop/src/api/discover.ts` (the TypeScript mirror) | task 15 | 16–21 |
-| `discoverSlice`, `provenanceSlice`, the key-source rule, the provenance selectors | task 16 | 17–21, phases 3, 5, 7 |
+| `discoverSlice`, `provenanceSlice`, the key-source rule, the provenance selectors, `useHeadRef` | task 16 | 17–21, phases 3, 5, 7 |
 | `ContextChip`, `DefinitionOfDone`, `ShippedManifest` props | task 17 | phases 3, 7 |
 
 **The content object is versioned** (`Content.V = 1`). A revision is immutable and kept for ever,

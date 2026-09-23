@@ -10,6 +10,8 @@ and there stay two.
 **Files:**
 - `desktop/src/store/slices/provenanceSlice.ts`, `discoverSlice.ts` + tests (new)
 - `desktop/src/provenance/loader.ts` + `loader.test.ts` (new)
+- `desktop/src/provenance/useHeadRef.ts` + `useHeadRef.test.tsx` — the one reader of head readings
+  into `headRefByTarget` (review I10) (new)
 - `desktop/src/api/hubFeed.ts` — the Hub change feed's control-plane route (Hub C2) (new)
 - `desktop/src/store/store.ts` — `CockpitState` gains both slices; `partialize` unchanged (modify)
 - `desktop/src/store/selectors.ts` — the key sources and selectors below (modify)
@@ -26,13 +28,26 @@ and there stay two.
 import type { ProvenanceRef, Head, RefsResponse } from "../../api/discover";
 
 export interface ProvenanceSlice {
-  /** Filled once per key, never overwritten except by an identical ref. Never holds a ref whose
+  /** Filled once per key, never overwritten except by an identical ref, and emptied of a whole
+   *  brief by forgetBrief (a brief.erased event; review I10). Never holds a ref whose
    *  resolution is "unavailable" — those go to unavailableAt. */
   refsByKey: Record<string, ProvenanceRef>;
   /** The one moving number per brief (P4-B compares with latestCompleteRevision). */
   headsByBrief: Record<string, Head>;
   /** Head readings by targetKey ("<projectId>/<branchId or empty>"). */
   headRefByTarget: Record<string, ProvenanceRef>;
+  /** targetKey -> the Hub project id it belongs to, learnt from setBriefView's
+   *  binding.hubProjectId and from a head reading whose projectId is not "". A target absent here
+   *  is matched by EVERY brief.* event: its Hub project is not known yet (review I10). */
+  hubProjectByTarget: Record<string, string>;
+  /** Head readings a brief.* event may have moved; useHeadRef re-reads each once (review I10). */
+  staleHeadRefs: Record<string, true>;
+  /** briefId -> the erasedAt of its brief.erased event. Erasure is of every revision and is
+   *  irreversible (Hub contract §7.12 at hub 2f84662, :1106-1118; the event, §8 :1143), so
+   *  this only grows. putRefs stores
+   *  a "resolved" ref of such a brief in its erased form (no text; key, digest, savedAt, savedBy
+   *  kept), because the control plane may answer from its cache until HA4-8 lands (task 07). */
+  erasedBriefs: Record<string, string>;
   /** key -> the loader tick on which it last came back unavailable; retried after 15 ticks. */
   unavailableAt: Record<string, number>;
   /** Briefs whose head must be re-read: a feed event or a Discover write said it moved. */
@@ -43,14 +58,22 @@ export interface ProvenanceSlice {
 
   putRefs(res: RefsResponse, tick: number): void;
   putHeads(heads: Record<string, Head>): void;
+  /** Also clears staleHeadRefs[targetKey] and, when ref.projectId !== "", sets
+   *  hubProjectByTarget[targetKey]. */
   putHeadRef(targetKey: string, ref: ProvenanceRef): void;
   markStale(briefIds: readonly string[]): void;
+  markHeadRefsStale(targetKeys: readonly string[]): void;
+  /** brief.erased: deletes every refsByKey entry whose briefId is briefId (every key of the
+   *  brief, whatever its revision), records erasedBriefs[briefId] = erasedAt, and marks the
+   *  brief's head stale. The loader's next step 2 re-resolves the keys a surface still shows. */
+  forgetBrief(briefId: string, erasedAt: string): void;
   setHubCursor(cursor: string): void;
   setHubCursorRead(cursor: string): void;
 }
 
 export const initialProvenanceState: Pick<ProvenanceSlice,
-  "refsByKey" | "headsByBrief" | "headRefByTarget" | "unavailableAt" | "staleHeads" | "hubCursor" | "hubCursorRead">;
+  "refsByKey" | "headsByBrief" | "headRefByTarget" | "hubProjectByTarget" | "staleHeadRefs"
+  | "erasedBriefs" | "unavailableAt" | "staleHeads" | "hubCursor" | "hubCursorRead">;
 ```
 
 ```ts
@@ -70,7 +93,8 @@ export interface DiscoverSlice {
    *  live brief. Not persisted: a restart opens the live brief. */
   pastKey: string | null;
 
-  setBriefView(targetKey: string, view: BriefView): void; // also puts the view's head into headsByBrief
+  setBriefView(targetKey: string, view: BriefView): void; // also puts the view's head into headsByBrief,
+                                                          // and a non-"" binding.hubProjectId into hubProjectByTarget
   /** Sets pastKey and switches the lens to "discover" through phase 2's existing lens action. */
   openPast(key: string): void;
   closePast(): void;
@@ -133,8 +157,16 @@ export const NO_REF: Readonly<ProvenanceRef>;
 // desktop/src/provenance/loader.ts
 
 /** Runs on the poller's good tick, from App.tsx's callback. Never on its own timer (R6, G8).
- *  1. If hubCursor !== hubCursorRead: ONE hubFeed.changes(after) call; for each "brief.*"
- *     event, markStale([subject]) and markViewStale for every view showing that brief.
+ *  1. If hubCursor !== hubCursorRead: ONE hubFeed.changes(after) call. For each "brief.*"
+ *     event (subject is the brief id, Hub contract §8 :1139-1143 at hub 2f84662):
+ *     a. markStale([subject]);
+ *     b. "brief.erased": forgetBrief(subject, event.at) (review I10);
+ *     c. markViewStale for EVERY view whose binding.hubProjectId equals event.projectId or is
+ *        "", and markHeadRefsStale for EVERY target whose hubProjectByTarget equals
+ *        event.projectId or is absent. Matched by project, not by the brief a view shows: a
+ *        brief.created or brief.rebound names a brief no view shows yet (a branch showing
+ *        brief: null), and the Hub contract invalidates the head reading for every brief.*
+ *        (§9.3 :1373-1375; review I10). An event with projectId null matches every entry.
  *  2. Collect keys: union of keySources; drop "", keys in refsByKey, keys in flight, and keys
  *     unavailable fewer than 15 ticks ago; add one held key per stale-head brief. putRefs
  *     marks stale (markStale) the inherits.briefId of each resolved ref it stores whose brief
@@ -151,6 +183,19 @@ export function loadProvenance(
   feed: HubFeedClient,
   store: typeof useCockpit,
 ): Promise<void>;
+```
+
+```ts
+// desktop/src/provenance/useHeadRef.ts — the one reader of head readings (review I10)
+
+/** Returns selectHeadRef(target). Calls discover.headRef(target) ONCE, then putHeadRef, when
+ *  the target has no entry in headRefByTarget or staleHeadRefs names it; one call in flight per
+ *  target, shared by every mounted reader. Until the answer lands it keeps returning the old
+ *  reading, so a stale mark never blanks DefinitionOfDone. A failed call leaves the flag set
+ *  and does not retry on its own; the next brief.* event or remount tries again. Event-driven,
+ *  never on a timer (G8). Phase 3's DefinitionOfDone mount and Discover read head readings
+ *  through this hook and nowhere else. */
+export function useHeadRef(discover: DiscoverClient, target: Target): ProvenanceRef | undefined;
 ```
 
 ```ts
@@ -192,6 +237,9 @@ only through Discover's own writes and new keys).
 | `loader: unavailable backs off` | a key answered `unavailable` is not re-requested for 14 ticks and is on the 15th | a request every 2 s against a down Hub |
 | `loader: never caches unavailable` | the slot's ref is not in `refsByKey` | a chip stuck on unavailable after the Hub returns |
 | `loader: feed event marks the head stale and re-reads it` | cursor moves; one `changes` call; a `brief.revised` for `bf-…a2` → next `refs` call carries one held `bf-…a2` key; `headsByBrief` updated | a teammate's edit never reaching the chips |
+| `loader: brief.erased drops the brief's text and re-resolves` (review I10) | `refsByKey` holds `brief:…a2@5` and `@6` resolved and `brief:…b7@5`; a `brief.erased` for `bf-…a2` → both `a2` entries gone, `b7@5` kept; the next tick's one `refs` call carries `a2@5` (a session still shows it); the fake answers it **`resolved`** with its old sections (the control plane's cache, until HA4-8) → stored `erased`, `sections` `[]`, `headline` `""`, key and digest kept; `selectProvenanceState` → `erased` | erased text on a laptop until restart (ADR-H1 §6.8; `task-07.md` rule 4), or a desktop that trusts the control plane's pre-HA4-8 cache over the Hub's own event |
+| `loader: brief.* marks every view and head reading of the project stale` (review I10) | views `pj-1/b-9` (`brief: null`, binding `pj-hub-1`), `pj-1/` (binding `pj-hub-1`), `pj-2/` (binding `pj-hub-2`) and head readings for the same three targets (`pj-1/b-9`'s a `none` Ref, known only through its view's binding); a `brief.created` for a new brief of `pj-hub-1` → `discoverStale` and `staleHeadRefs` name `pj-1/b-9` and `pj-1/`, never `pj-2/`; a target with no known Hub project is named too; a `projectId: null` event names all | a teammate's new branch brief never reaching `DefinitionOfDone` (*no brief* until navigation), or an event for one project re-reading every project |
+| `useHeadRef: one read per stale mark` (review I10) | two mounted readers of one target, no entry → one `headRef` call; `markHeadRefsStale([t])` → one more call, and the old reading is returned until it lands; the answer clears the flag → no third call; a failed call → no retry until the next mark | a `DefinitionOfDone` that never re-reads, one that blanks on every event, or a head read per render |
 | `loader: no timer` | `vi.getTimerCount()` is unchanged by importing and running the loader | a third interval (G8) |
 | `selectors: superseded compares with latest complete` | ref rev 5, head `{headRevision: 7, latestCompleteRevision: 5}` → `current`; `{…: 6}` → `superseded` | P4-B inverted: every chip superseded during an unfinished edit |
 | `selectors: superseded by the inherited project revision` (review I8) | branch ref `b-51@6`, own head `{headRevision: 7, latestCompleteRevision: 6}`, `inherits` `b-7@5`; project head `b-7` `{6, 6}` → `superseded`; `{5, 5}` → `current`; `{7, 5}` (project edit open) → `current`; `b-7` absent from `headsByBrief` → `current`; the ref's own `headRevision`/`latestCompleteRevision` fields set to 99 change none of these | an open branch head's latest complete revision (OQ-8), or a raced pin, shown `current` over replaced project text; or rule 4 reading the cached ref's frozen head numbers instead of `heads` |
@@ -204,7 +252,7 @@ only through Discover's own writes and new keys).
 - [ ] **Step 1:** Write the tests; confirm they fail.
 - [ ] **Step 2:** The two slices; add them to `createCockpitStore`'s spread (`store.ts:62-66` at
   `3303fd6`) and to `CockpitState`; leave `Persisted`, `partialize` and `migrate` untouched.
-- [ ] **Step 3:** Selectors; the loader; `hubFeed.ts`; `onHubCursor`.
+- [ ] **Step 3:** Selectors; the loader; `useHeadRef.ts`; `hubFeed.ts`; `onHubCursor`.
 - [ ] **Step 4:** `App.tsx`: the good-tick callback calls `void loadProvenance(discoverApi,
   hubFeed, useCockpit)` after its existing work. `poller.ts`: the header comment above, nothing else.
 - [ ] **Step 5:** Run the acceptance commands; commit by pathspec.
