@@ -56,9 +56,11 @@ catch being false.
 
 `sandbox_docker_test.go` (`//go:build docker`), each against `panacea-app/sandbox:dev` with the
 clone bind-mounted at `/home/dev/work` and the fix's environment as `sessionEnv` builds it on
-`feat/phase-2-cockpit` (committed `internal/api/sessions.go:173-187`, at or after `5a4d0d8`): the
+`feat/phase-2-cockpit` (`internal/api/sessions.go:215-229` at `10fa5fd`, re-read 2026-09-24, review I12; at or after `5a4d0d8`): the
 `GIT_CONFIG_KEY_n`/`VALUE_n` pairs `safe.directory=/home/dev/work`, `user.useConfigOnly=true`,
-`gc.worktreePruneExpire=never`, `gc.auto=0`, `core.autocrlf=<A>`, `core.eol=<E>`, in that order,
+`gc.worktreePruneExpire=never`, `gc.auto=0`, `core.autocrlf=<A>`, `core.eol=<E>`,
+`core.excludesFile=/dev/null`, `core.attributesFile=/dev/null` (the fix's `sessionGitNoFile`,
+what a host whose git reads no global excludes or attributes file sends; `d7e2dea`), in that order,
 `GIT_CONFIG_COUNT` their number, and `GIT_AUTHOR_*`/`GIT_COMMITTER_*`. `<A>`/`<E>` are what the
 production resolver answers in that clone: `false`/`lf` for task 03's argv (task 05's
 `TestTheResolverReadsALaneCloneAsLF` pins it). The pairs are written out here, once, as a named

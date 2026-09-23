@@ -215,11 +215,12 @@ from forcing a full re-hash on every host `status` (task 07's poll). A repositor
 *How the sandbox's git gets the same answer (plan re-review b02 I-1).* Phase 2's `5a4d0d8`
 (on `feat/phase-2-cockpit`, which merged `fix/sandbox-git-ca` at `f898f5e`) gives **every**
 session, lane sessions included, `core.autocrlf` and `core.eol` as `GIT_CONFIG_KEY_n` pairs in
-`sessionEnv` (committed `internal/api/sessions.go:173-187`). Command scope outranks the clone's
+`sessionEnv` (`internal/api/sessions.go:215-229` at `10fa5fd`, re-read 2026-09-24, review I12).
+Command scope outranks the clone's
 local config, so in a lane session the sandbox's git reads the env, not these keys. The values
 come from `Deps.GitLineEndings`, which `handleSessionCreate` and `handleSessionRestart` ask in the
-session's worktree path (`sessions.go:543` and `:1142`, through `sessionGitLineEndings` at
-`:208`), and the production resolver (`cmd/api/gitlineendings.go:36`) runs the host's
+session's worktree path (`sessions.go:651` and `:1255`, through `sessionGitLineEndings` at
+`:250`), and the production resolver (`cmd/api/gitlineendings.go:36`) runs the host's
 `git config` there. For a lane that path is the clone, where the local keys answer `false` and
 `lf`, so the env says what the clone's config says. **The invariant is where the resolver is
 asked: the clone, never `Project.Path`**, whose system `autocrlf=true` would send `true`/`crlf`.
