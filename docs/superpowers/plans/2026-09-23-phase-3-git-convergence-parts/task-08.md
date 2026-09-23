@@ -45,10 +45,12 @@ type Forecast struct {
 //
 //	base := branch tip
 //	for each lane: unsynced → unknown; lane tip an ancestor of base → nothing;
-//	  merge-tree --write-tree --name-only base laneTip   (OKExit 1; gitx.Local)
+//	  MergeTreeArgs + base laneTip   (merge-tree --write-tree --name-only -z; OKExit 1; gitx.Local)
+//	  → ParseMergeTree (task 07; review I2) — a parse error is unknown with Why = its sentence
 //	  clean     → clean, After = assumed; base = forecastCommit(tree, base, laneTip); assumed += lane
 //	  conflicts → conflicts, Paths; ConflictsWith = assumed lanes whose observation's Changed
-//	              meets Paths; base does not advance (the rows below assume this one does not land)
+//	              meets Paths (byte-equal: both sides are -z, unquoted); base does not advance
+//	              (the rows below assume this one does not land)
 //
 // forecastCommit is `commit-tree <tree> -p <base> -p <laneTip> -m "panacea forecast"` with
 // GIT_AUTHOR_NAME/COMMITTER_NAME "panacea-forecast", EMAIL "forecast@panacea.invalid" and
@@ -203,6 +205,7 @@ changes."* The PUT is a write and needs no line.
 |---|---|---|
 | `TestForecastTwoCleanLanesChain` | lanes a, b touch different files → both clean; b's `After == [a]` | forecasting every row against the bare tip |
 | `TestForecastSecondConflictsWithTheFirst` | a and b edit the same line → a clean, b conflicts, `Paths == [f]`, `ConflictsWith == [a]` | "conflicts" without the row that causes it |
+| `TestForecastBlamesTheRowAboveForANonASCIIPath` (review I2) | the same as above with `f` = `docs/résumé.md` → `Paths == ["docs/résumé.md"]` (raw UTF-8) and `ConflictsWith == [a]`, not `[]` | `merge-tree` without `-z`: the quoted path meets no `Changed`, and the lens blames the branch itself |
 | `TestForecastConflictWithTheBranchItself` | the branch and lane edit the same line → conflicts, `ConflictsWith == []` | blaming a row above for the branch's own change |
 | `TestForecastAConflictDoesNotAdvanceTheBase` | a conflicts, b depends only on the tip → b clean with `After == []` | rows below assuming a conflicting row landed |
 | `TestForecastNothingToLand` | lane tip is an ancestor of the tip → `nothing` | offering Land for an empty lane |
