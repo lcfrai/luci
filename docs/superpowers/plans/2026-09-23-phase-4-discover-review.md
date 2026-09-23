@@ -1155,7 +1155,94 @@ none of it is built.
 
 **Still unverified:**
 - No Go or TypeScript was compiled or run. This batch changes plan documents only.
-- That the Hub fake can rename a project (`PATCH /v1/projects/{id}`) and rebind a brief. The rename
-  test needs both. The contract has both routes; the fake's methods are H0's.
-- That `hubclient.NewFake()` returns `*hubclient.Fake`, the type the wrapper embeds. That is the
-  plan's reading, as the old interface comment assumed.
+
+## Fix batch b05, round 2 (re-review `plan-rereview-b05-1.md`: R-I1, R-M1, R-M2, R-M3, N1, N2)
+
+Commits `0f6e67e` (R-I1, R-M1, R-M3, N1, N2: tasks 07 and 12) and `f40d9bf` (R-M2: tasks 05, 06,
+07 and the plan's file map), then this section. Line numbers are those after `f40d9bf`. The Hub is
+read at `.claude/worktrees/hub`, `feat/hub` `2635795`.
+
+**R-I1: the proof tests' fake features are phase 4's own.** Fixed as the re-review said. H0's fake
+surface (`phase-h-hub-parts/task-04.md:188-226`) was re-read: `SetUnavailable` and `SetSignedOut`
+fail every call (`:212-216`), `hubclient.Projects` has no route 16 (`:62-64`), and `Rebind` exists
+(`:85`). `hubclient.Error` has `Status` (`:140-146`).
+
+| Fix | Where |
+|---|---|
+| Two hooks in the wrapper, in the file list: `renameProject(id, name)` overrides `Project` and `ProjectForRepo`; `failResolve(n, err)` fails the n-th `Resolve` only | `task-07.md:40-50`; the seam bullets `:25-27`, `:28-30` (the hooks survive HA4-2) |
+| Step 1 writes the hooks | `task-07.md:480-489` |
+| Tests-first header names them | `task-07.md:454-455` |
+| `TestHubOffIsUnavailableNotMissing` rows: 500 through `failResolve(1, …)`; second call fails (`failResolve(2, …)`, one pin cached, one not) | `task-07.md:475` |
+| Rename leg: `renameProject`, the fake's own `Rebind`, and the fixture `Locator` answering `BranchName(b-42) = "evidence-intake"`. Added two guards, so a hook that does nothing fails the test: `Binding.HubProjectName` is `Evidence Portal` once the clock passes `Binding`'s 60 s memo (`:294-295`), and the fake's `Calls` show `ForBranch` asked for the new ref | `task-07.md:476` |
+| The b05 "unverified" bullets on the fake's rename and `NewFake`'s type are deleted. `NewFake() *Fake` is in the Hub plan (`task-04.md:176`); it is planned, not built | this file, b05 "Still unverified" |
+
+**R-M1: a branch slot is `resolved` only with its pin in hand.** Fixed with the re-review's
+sentence. The first bullet of rule 5 now says: a slot is `resolved` only when everything it needs
+is in hand, from the cache or from a call that succeeded. The split case is folded into the
+`unavailable` bullet: either the pin call fails, or the branch revision is cached and its pin is
+not. **The optional half is declined.** Stretching a cached pin's expiry to cover the branch
+revisions that name it would let an erased project revision outlive `CacheTTL` for as long as its
+branches keep being read (ADR-H1 §6.8). Rule 4 exists to stop that.
+
+| Fix | Where |
+|---|---|
+| Rule 5, bullets 1 and 2 | `task-07.md:420-434` |
+| Test row "Branch cached, pin not": the pin resolved at t0, the branch at t0 + TTL/2, the clock at t0 + TTL + 1 s. Then `b-42@6` is `unavailable`, and exactly one call carries only the pin. Also added to every row: no `resolved` branch slot lacks its pin's sections | `task-07.md:475` |
+| Restated: task 12 rule 1 | `task-12.md:71-74` |
+| Restated: `Unavailable`'s comment | `task-06.md:71-73` |
+
+**R-M2: one copy of the title rule, and one carrier of the branch ref.** Fixed as the re-review
+said.
+
+| Fix | Where |
+|---|---|
+| `discover.Title(branch *Revision) string`, exported. It reads only `BranchRef`, ignores `Status`, and is the rule's one copy. `Resolve` sets `Document.Title` from it | `task-05.md:102-114`; `Document.Title` comment `:71`; Step 2 `:281`; plan file map `2026-09-23-phase-4-discover.md:291` |
+| `Source.BranchRef` removed; `Ref.BranchRef` is `Revision.BranchRef` | `task-06.md:154-155` |
+| `Build`'s open-revision path calls `discover.Title(&src.Revision)` or `Title(nil)` | `task-06.md:158-164`; `Ref.Title` comment `:121` |
+| Tests: `TestTitleComesFromTheRevision` gains an open-revision case and `Title(nil)`; new `TestBuildTitlesAnOpenRevisionByTheOneRule` | `task-05.md:260`; `task-06.md:187` |
+| Task 07 rule 2 names `discover.Title` | `task-07.md:406-407` |
+
+A grep of the plan and its parts for `Branch brief` finds it only in task 05 (the rule, the golden
+`:209`), task 07 rule 2 (a restatement that names `discover.Title`), task 06's new test and task
+12's example JSON (`:53`). No package writes the string outside `discover`.
+
+**R-M3: the seam supplies the method, not the type.** Fixed as the re-review said.
+- `task-07.md:15-18` now says only the **method** compiles either way. The new bullet
+  (`:19-24`) says `List` names `hubapi.BriefQuery`, which phase 4 may not write. H0 without it
+  blocks the task, the same way as no H0 does.
+- Step 1 runs `go doc ./control-plane/internal/hub/hubapi BriefQuery` and stops if the type is
+  absent (`:481-484`).
+- The Hub plan does put the type in H0 (`task-03.md:283-290`, `phase-h-hub.md:354`). It puts the
+  method there too (`task-04.md:82`).
+
+**N1.** Fixed. Task 07's assumed `BriefQuery` is marked `superseded by the Hub's Page shape, Step
+2`, and so are its `After` and `Limit` fields (`task-07.md:178-183`). The §9 HA4-2 row is left
+alone, because it records what was asked.
+
+**N2: `HeadRef` with a nil Hub.** Fixed, **but not with the re-review's clause.** "The same error
+`Binding`'s `hub_off` maps to" names nothing: `Binding`'s `hub_off` is a 200 view, not an error
+(task 11 `TestHubOffIsAViewNotAnError`, `task-11.md:168`). `ErrHubOff`'s 503 applies to writes only
+(`task-11.md:88`). The root-cause answer is that `HeadRef` reports what `Inheritable` would give,
+and `Inheritable` with a nil Hub is none. So `HeadRef` returns a `none` Ref and no error, and the
+head reading is 200 `none`. This matches what a session actually inherits (task 09 step 4:
+`ErrHubOff` means nothing to inherit), and it keeps Hub contract §9.5's rule that nothing blocks
+the Develop lens (`hub-contract.md:1406-1407`). A stamped key is different: it names a revision
+that may exist, so `Resolve` answers it `unavailable`.
+
+| Fix | Where |
+|---|---|
+| Rule 6 | `task-07.md:444-452` |
+| Unit test | `task-07.md:462` (`TestBindingOffWhenTheHubIsNotConfigured` gains `HeadRef`) |
+| Task 12 rule 2 | `task-12.md:78-82` |
+| Route test | `task-12.md:119` `TestHeadReadingWithTheHubOffIsNone` |
+
+**Carried to the owner:** nothing new. The round 1 question about the `missing` chip's words
+stands.
+
+**Still unverified:**
+- No Go was compiled. The hooks override the embedded fake's methods through Go's method
+  promotion: a method declared on the outer struct shadows the promoted one. That is from the Go
+  spec, not from a build.
+- The Hub fake's surface is read from the Hub **plan**. None of it is built.
+- The fact sheet's pins for `b-42@5` were not read. The "second call fails" row seeds its own pair
+  of branch revisions with different pins, so it does not depend on them.
