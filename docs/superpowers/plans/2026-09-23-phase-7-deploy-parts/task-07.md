@@ -84,6 +84,10 @@ func (w *Watcher) Nudge(projectID string)
 // per project are kept, the least recently wanted dropped first.
 func (w *Watcher) WantBranch(projectID, branch string)
 
+// SameEnvironment is its Reader's SameEnvironment, unchanged. Task 08's route and task 19's
+// route pass it to deploywatch.Assemble, which cannot import deploy/panacea (b02 round 2, R4).
+func (w *Watcher) SameEnvironment(a, b string) bool
+
 // CursorName and Cursor implement api.CursorSource (HA7-4). Cursor is a decimal uint64 that
 // increases whenever ANY project's Snapshot.Version does; "" before the first cycle.
 func (w *Watcher) CursorName() string // "Deploy"
@@ -99,6 +103,10 @@ type Snapshot struct {
 	// deployed still has one. Joined to Environments with SameEnvironment, never by comparing
 	// the branch with Environment.Name or .Branch (review C2).
 	BranchEnvs    map[string]string
+	// BranchEnvErrs is git branch → Panacea's refusal of EnvironmentFor for it: KindNotFound,
+	// KindRejected or KindForbidden (b02 round 2, R2). A branch is in BranchEnvs or here, never
+	// both. It does not stale the snapshot: the refusal is about one name, not about Panacea.
+	BranchEnvErrs map[string]*deploy.Error
 	Latest        *deploy.Deployment // nil = never deployed, or not yet read
 	Deployments   []deploy.Deployment
 	DeploymentsAt time.Time
@@ -124,10 +132,16 @@ type Snapshot struct {
    else `Cached`. Not bound → the snapshot carries the binding and nothing else; stop.
 2. **`Environments`.** First, because a missing *project* surfaces here as its own error, which is
    what makes task 03's *"`Latest` 404 means never deployed"* safe.
-   **Then `EnvironmentFor`** for each wanted branch (`WantBranch`) not yet in `BranchEnvs`, and
-   for every wanted branch every fourth cycle — a changed production-branch label remaps `main`
-   (`mapBranchToEnvWithProd`, `projects.go:3838-3849`). One request per new branch, not per
-   cycle. Its failures follow the failure rule below; a failed re-read keeps the old answer.
+   **Then `EnvironmentFor`** for each wanted branch (`WantBranch`) in neither `BranchEnvs` nor
+   `BranchEnvErrs`, and for every wanted branch every fourth cycle — a changed production-branch
+   label remaps `main` (`mapBranchToEnvWithProd`, `projects.go:3838-3849`). One request per new
+   branch, not per cycle. `KindUnavailable` and `KindUnauthorized` follow the failure rule below,
+   and a failed re-read keeps the old answer. **Any other failure** (`KindNotFound`,
+   `KindRejected`, `KindForbidden`) is about this one name: it goes into `BranchEnvErrs[branch]`
+   (and out of `BranchEnvs`), does not stale the snapshot or end the cycle, and is retried only on
+   the every-fourth-cycle cadence — so a branch the route cannot carry (a `%2F` the ingress
+   decodes, task 03's 404 rewrite) costs one request a minute, not one per cycle (b02 round 2,
+   R2). A later success moves it back into `BranchEnvs`.
 3. **`Latest`.**
 4. **`Deployments`** — only when (a) `Latest.ID` or `Latest.Build` changed, (b) the environment
    list changed (names, statuses, replica pairs), (c) a tracked run became terminal, or (d)
@@ -158,7 +172,8 @@ type Snapshot struct {
 (Panacea is down; ten projects times three timeouts would stall the loop for minutes). Each keeps
 its last data with `Stale: true` and `LastError` set, and the cursor bumps once. `KindUnauthorized`
 is reported with `Connection.Observe` and likewise ends the cycle. A later good cycle clears both
-and calls `Observe(nil)`.
+and calls `Observe(nil)`. An `EnvironmentFor` refusal of any other kind is not a cycle failure:
+it is recorded per branch (step 2) and the cycle goes on.
 
 #### The cursor on `GET /v1/sessions` (HA7-4)
 
@@ -188,6 +203,8 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 |---|---|---|
 | `TestEnvironmentsBeforeLatest` | the fake's `Calls()` for one cycle start `Environments`, then any `EnvironmentFor`, then `Latest` | reading `Latest` first, so a deleted project reads as "never deployed" |
 | `TestWantedBranchResolvedOnce` | `WantBranch(p, "feat/x")` with the fake seeded `feat/x → feat-x` and a row `feat-x`: the next cycle calls `EnvironmentFor(p,feat/x)` once and `BranchEnvs["feat/x"] == "feat-x"`; cycles 2 and 3 make no such call, cycle 4 re-reads; a 17th wanted branch drops the least recently wanted | resolving by comparing `feat/x` with a row's `name`/`branch` (review C2), or one request per branch per cycle |
+| `TestRefusedBranchNotReaskedEveryCycle` | `WantBranch(p, "live-check/p7")` with the fake answering `EnvironmentFor` `KindNotFound` (*"Panacea could not read this branch name…"*): cycle 1 makes one such call, cycles 2 and 3 none, cycle 4 one; `BranchEnvErrs["live-check/p7"]` carries the error, `BranchEnvs` lacks the branch, and `Stale == false` with `Latest` still read; the fake then answers `live-check-p7` → it moves to `BranchEnvs` and out of `BranchEnvErrs` (b02 round 2, R2) | a refused branch re-asked every 15 s, or one bad name staling the whole project |
+| `TestWatcherPassesSameEnvironment` | the watcher's Reader is the fake wrapped so that `SameEnvironment` records its arguments and answers `true`: `w.SameEnvironment("x", "y")` is `true` and the wrapper saw `("x", "y")` (the bare Fake would answer `false`) | a watcher that hands the view a rule of its own (b02 round 2, R4) |
 | `TestDeploymentsNotEveryCycle` | three cycles with nothing changed → one `Deployments` call; `Latest.ID` changes → one more | reading the heavy list every 15 s |
 | `TestHistoryIntervalForcesRead` | 61 s of fake time with no change → a second `Deployments` | history that never refreshes when only `LiveReady` moved |
 | `TestTrackedRunDrivesActiveCadence` | `Track(p, run)`; the project is polled every 3 s until the fake advances the run to succeeded, then every 15 s | a run that stays on 3 s forever, or never gets it |

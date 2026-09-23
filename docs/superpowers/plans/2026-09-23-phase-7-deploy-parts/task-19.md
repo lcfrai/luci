@@ -103,9 +103,11 @@ commit whose trailer carries two ids counts once for each. `MaxCommits + 1` rows
 
 #### Which release is "the previous one" — in the route, from the view
 
-The route assembles the view (`deploywatch.Assemble(snapshot, now)`, task 08) and finds the row
-whose `deploymentId` is the query's. **From** is the `commit` of the newest row that is older
-(`at`) than it, has the **same `environment`**, `kind "run"`, `build "succeeded"` and a 40-hex
+The route assembles the view (`deploywatch.Assemble(snapshot, w.SameEnvironment, now)`, task 08)
+and finds the row whose `deploymentId` is the query's. **From** is the `commit` of the newest row
+that is older (`at`) than it, has the **same `environmentRow`** (the view's own join, so `prod`
+and `production` rows are one environment; when both are `null`, the same raw `environment`, which
+is how `unmatched` groups them — review I8, never a second join on raw names), `kind "run"`, `build "succeeded"` and a 40-hex
 `commit`. Rollback rows are skipped (they ship no new code); failed builds are skipped (their
 commit never served). None → `From ""`.
 

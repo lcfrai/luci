@@ -35,8 +35,9 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "releasesState": "ok" | "no_hub" | "no_hub_project" | "signed_out" | "unavailable",
   "selected": null | {                   // null when no ?branch= was sent (review b02, C2)
     "branch": "feat/evidence-upload",    // ?branch=, echoed
-    "target": "feat-evidence-upload" | null,      // Panacea's OWN environment name for the branch (Reader.EnvironmentFor); null = not resolved yet
-    "environment": "feat-evidence-upload" | null  // the `name` of the environments[] row SameEnvironment joins `target` to; null = no row (never deployed) or not resolved
+    "target": "feat-evidence-upload" | null,      // Panacea's OWN environment name for the branch (Reader.EnvironmentFor); null = not resolved yet, or refused (see error)
+    "environment": "feat-evidence-upload" | null, // the `name` of the environments[] row SameEnvironment joins `target` to; null = no row (never deployed) or not resolved
+    "error": null | { "code": "not_found" | "rejected" | "forbidden", "message": "…" }  // Snapshot.BranchEnvErrs[branch]: Panacea refused to name this branch's environment; target is then null (b02 round 2, R2)
   },
   "environments": [ EnvironmentView ],   // Panacea’s order; production is always first (clients/kubernetes.go:5154-5155)
   "unmatched": [ EnvironmentView ],      // deployments whose environment names no row (plan 7P-8); usually []
@@ -101,7 +102,12 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "isCurrent": false,                    // this row is its environment's current
   "rollbackOf": null | { "sourceDeploymentId": "…", "sourceVersion": "…" | null },
   "refusal": null | { "message": "…" },  // refused rows: the Hub's abandonMessage, which is Panacea's sentence
-  "release": ReleasePin | null           // null ⇒ "no brief is recorded for this release" (P9: shown, never hidden)
+  "release": ReleasePin | null,          // null ⇒ "no brief is recorded for this release" (P9: shown, never hidden)
+  "environmentMismatch": null | { "recorded": "develop", "deployed": "prod" }
+  // run rows only (rule 5a, b02 round 2, R1): the joined Hub release's `environment` and this
+  // deployment's `environment` are not SameEnvironment — the Hub recorded the release against one
+  // environment and Panacea deployed it to another. `environment`/`environmentRow` above are the
+  // DEPLOYMENT's, never the Hub's
 }
 
 // ReleasePin — from the Hub Release (Hub contract §7.9), verbatim fields only
@@ -136,13 +142,17 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 
 1. **Environment join** is `deploy.Reader.SameEnvironment` — for Panacea (task 03), exact name plus
    Panacea's own `prod` ≡ `production` (`clients/kubernetes.go:4210-4217`). `deploywatch` never
-   imports `deploy/panacea`. A deployment matching no row goes
+   imports `deploy/panacea`, so the rule reaches the view as a parameter:
+   **`Assemble(s Snapshot, same func(a, b string) bool, now time.Time) View`**, and the watcher
+   passes its `Reader.SameEnvironment` (b02 round 2, R4). A deployment matching no row goes
    under `unmatched`, grouped by its raw environment name. **Every `ReleaseRow` carries the
    joined row's `name` as `environmentRow`** (Hub rows join their release's `environment` the
    same way), so no consumer joins again (review I8).
 1a. **Selected branch** (review b02, C2): with `?branch=b`, `selected.target` is
    `Snapshot.BranchEnvs[b]` (absent → `null`), and `selected.environment` is the `name` of the
-   row `SameEnvironment(target, row.Name)` holds for, else `null`. A git branch is **never**
+   row `SameEnvironment(target, row.Name)` holds for, else `null`. `selected.error` is
+   `Snapshot.BranchEnvErrs[b]` (task 07), with the code of its `deploy.Kind` and Panacea's message
+   verbatim, else `null`; a branch has an error or a target, never both. A git branch is **never**
    compared with a row's `name` or `branch`, nor with `Deployment.branch`: Panacea's labels are
    `/`- and `_`-free and cut at 20 (environment) or 63 (run label) characters, so no string
    comparison with the git name can be right, and deriving the label would be a fourth copy of
@@ -157,6 +167,15 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 5. **Release for a deployment**: the Hub release with `kind "run"`, `state "confirmed"` and
    `pipelineRun == deployment.id`; else one whose `deployments[]` holds the id; else `null`. **Never**
    a release chosen by branch, environment or time — that would be pinning by observation (P2).
+5a. **Recorded against another environment** (b02 round 2, R1): when rule 5 joins a release to a
+   deployment and `!same(release.environment, deployment.Environment)`, the row carries
+   `environmentMismatch {recorded: release.environment, deployed: deployment.Environment}`. The
+   row's `environment` and `environmentRow` stay the deployment's — the label the deploy really
+   wrote (`clients/pipeline.go:608`) — and the release is never joined by the Hub's
+   `environment`, so it does not appear as the current release of an environment it never
+   reached. This is how phase 7 sees Panacea's access route disagree with its deploy (task 03's
+   `EnvironmentFor` row: `branchEnv` reads the production-branch label only), from facts after the
+   deploy, with no copy of `ResolveProductionBranch`.
 6. **Current**: the newest deployment, unless a confirmed rollback release for this environment
    has `confirmedAt` later than that deployment's `createdAt` — then `source "rollback"` and the
    rollback's `sourceDeploymentId`. The rollback appears in `history` as its own row with the
@@ -169,6 +188,12 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
    environment's rows. The comparison is exact string equality — no sanitising, no truncation
    (never a fourth copy of `sanitizeBranchEnv`, survey §3.2). The values are Panacea's run labels
    (`pipeline.go:609`), so they are compared only with each other, never with a git branch name.
+   **Known blind spot (b02 round 2, R7):** git branches that differ only in `/` versus `_` (or `-`)
+   — `feat/x` and `feat_x` — share both the environment `feat-x` and the run label `feat-x`
+   (`sanitizeLabelValue`, `pipeline.go:2351-2364`), so `branchesSeen` holds one entry and
+   `collision` is `false` while the two overwrite each other. Panacea records nothing that tells
+   them apart, and deriving it would copy its rule, so the view cannot see these twins; task 15
+   says so under the banner.
 10. **Times** are the facts' own (`createdAt`, `confirmedAt`, `reservedAt`), RFC 3339 UTC with three
     fractional digits, like the Hub (brief B4: absolute, never relative).
 11. **`history` is capped at 200 rows**, newest first; a project with more says so with the
@@ -176,7 +201,12 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 
 #### Tests to write first (`view_test.go`)
 
-Every test builds a `deploywatch.Snapshot` by hand and asserts on `Assemble(snapshot, now)`.
+Every test builds a `deploywatch.Snapshot` by hand and asserts on `Assemble(snapshot, same, now)`.
+`same` is a test stub that holds exact equality plus the one pair `prod` ≡ `production`, quoting
+`clients/kubernetes.go:4210-4217` (`tenantNamespace` sends both to the base namespace). The
+Fake's exact-only `SameEnvironment` (task 03) is not used here, because it cannot pass the `prod`
+tests (b02 round 2, R4). `TestWatcherPassesSameEnvironment` (task 07's watcher test file) pins that
+the watcher passes its `Reader.SameEnvironment`, not the stub.
 
 | Test | Assertion | Mutant it kills |
 |---|---|---|
@@ -195,7 +225,9 @@ Every test builds a `deploywatch.Snapshot` by hand and asserts on `Assemble(snap
 | `TestRollbackBeforeNewerDeploy` | the same rollback, then `d3` at 10:10 → `current` is `d3` | a rollback that sticks after a newer ship |
 | `TestPendingRowUntilDeploymentAppears` | a confirmed release for run `r9` with no deployment → a `pending` row; add `r9` → the pending row is gone and `r9` has the pin | a Ship that shows nothing for the ~seconds before Panacea lists the run |
 | `TestRefusedOnlyMineAndRecent` | my abandon 1 h ago → shown with its message; my abandon 25 h ago and a teammate's → absent | a teammate's failure appearing in my history |
-| `TestCollisionExactStrings` | two deployments in one environment from `feat/phase-7-deploy-connector-a` and `…-b` → `collision: true`, both in `branchesSeen`; the same branch twice → `false` | detecting collision by comparing sanitised names — a fourth copy of the rule |
+| `TestCollisionExactStrings` | two deployments in one environment (`feat-phase-7-deploy`: the 20-character cut leaves a trailing `-`, which `TrimRight` removes) whose `Deployment.branch` labels are `feat-phase-7-deploy-connector-a` and `feat-phase-7-deploy-connector-b` — the run labels Panacea writes for `feat/phase-7-deploy-connector-a`/`-b`, never the git names (b02 round 2, R7) → `collision: true`, both in `branchesSeen`; the same label twice → `false` | detecting collision by comparing sanitised names — a fourth copy of the rule |
+| `TestSelectedRefused` | `BranchEnvErrs{"live-check/p7": {Kind: KindNotFound, Message: "Panacea could not read this branch name…"}}` → `selected {target:null, environment:null, error:{code:"not_found", message:<verbatim>}}`; a branch in neither map → `error:null, target:null` (b02 round 2, R2) | a refusal drawn as *"Asking Panacea…"* for ever |
+| `TestReleaseRecordedAgainstAnotherEnvironment` | a confirmed run release with `environment:"develop"` and `pipelineRun:"r1"`; deployment `r1` labelled `prod`; row `production` → the `r1` row has `environment:"prod"`, `environmentRow:"production"`, `environmentMismatch:{recorded:"develop", deployed:"prod"}`, and the release pin; a release `environment:"production"` on a `prod` deployment → `environmentMismatch:null` (b02 round 2, R1: an annotation-only production branch, where the access route answers `develop` and the deploy lands in `prod`) | trusting the Hub's environment over the deployment's, so a release shows as current in an environment it never reached |
 | `TestEmptyVersionIsNull` | `Version: ""` → `"version": null` | a blank cell that reads like zero |
 | `TestNotConnectedIs200` | connection `not_connected` → the handler answers 200 with empty lists and the connection object | a 409 the lens would have to turn back into an onboarding screen |
 | `TestViewHandlerMakesNoCall` | the handler test's `Deployer` and `Releases` fakes record zero calls during the `GET`, including `GET …/deploy?branch=feat/x`, which records one `WantBranch(p, "feat/x")` on the watcher and no `EnvironmentFor` | a GET that fetches from Panacea on the request path |
