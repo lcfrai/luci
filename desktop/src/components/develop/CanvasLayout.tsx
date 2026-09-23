@@ -83,15 +83,17 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
    * mount that the user cannot act on is worse than the blank plane it replaces. */
   useEffect(() => {
     const room = CANVAS_MAX_TILES - sessionIds.length;
-    /* This early return is load-bearing, NOT a fast path, and no test pins it — a mutation
-     * deleting it survives the whole suite, because every case where `room` goes non-positive
-     * also happens to leave `missing` empty. It stops being equivalent the moment a canvas at
-     * or over the cap has an unpinned pane session: `.slice(0, room)` with a NEGATIVE `room`
-     * drops elements from the END rather than returning nothing, so without this line the loop
-     * runs for all but the last |room| of them and pinSession toasts the cap once per call —
-     * exactly the mount-time noise decision (a) computes the room to avoid. */
     if (room <= 0) return;
-    const missing = paneIds.filter((id) => !sessionIds.includes(id)).slice(0, room);
+    /* `Math.max`, not a bare `room` — shared-shape §3A.1 clause 6 prefers designing an expiry
+     * condition away to documenting one, and this is a one-call instance. A mutation deleting
+     * the early return above survived the whole suite, and the hazard that survival masked was
+     * real: `.slice(0, room)` with a NEGATIVE room drops from the END rather than returning
+     * nothing, so a canvas at the cap with unpinned pane sessions would pin all but the last
+     * |room| of them and toast the cap once per call. Clamped, the early return is genuinely
+     * just a fast path and deleting it is harmless, so there is no expiry left to write down. */
+    const missing = paneIds
+      .filter((id) => !sessionIds.includes(id))
+      .slice(0, Math.max(room, 0));
     for (const id of missing) pinSession(id);
   }, [paneIds, sessionIds, pinSession]);
 

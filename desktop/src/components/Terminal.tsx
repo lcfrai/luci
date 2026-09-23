@@ -99,11 +99,38 @@ function TerminalImpl({
     handle.mount();                              // AFTER the append: xterm measures a
     fitAddons.get(handle.term)?.fit();           // rendered element, never a detached one
 
-    const onWindowResize = () => fitAddons.get(handle.term)?.fit();
-    window.addEventListener("resize", onWindowResize);
+    /* EDITED BY TASK 21's FIX ROUND 1, as a declared departure — task 19 is closed and this file
+     * is its own. The change is the resize trigger, and nothing else.
+     *
+     * WHY. A `window` resize listener was the ONLY refit trigger in the tree, so a Canvas tile
+     * dragged by its corner grew its pixel box while xterm kept its old cols and rows until the
+     * user happened to resize the window — a letterboxed grid and a PTY never told. Nothing
+     * objected, because nothing pinned that listener either: the refit path was unpinned before
+     * this change, so the defect was not a wrong listener but an absent objection to no listener
+     * at all. Task 14's `test/setup.ts` already reads "the fit addon and the Canvas tiles both
+     * construct one", so this is the wiring that was planned for and then not made.
+     *
+     * The observer SUBSUMES the window listener rather than sitting beside it: a host in a flex
+     * or grid layout changes box when the window does, and where it does not, cols and rows
+     * would not have changed anyway. So the listener is gone, not kept.
+     *
+     * Observe `node`, NOT `handle.element`. The registry owns that element, it outlives this
+     * component, and it is RE-PARENTED between Columns and Canvas — an observer on it would have
+     * a different lifetime from the observer's owner. `node` lives exactly as long as this
+     * effect, which is the observer's life.
+     *
+     * No debounce, and it is self-limiting rather than merely cheap: attachRegistry sends a
+     * resize frame from `term.onResize`, and xterm fires that only when cols or rows ACTUALLY
+     * change, so a fit per layout frame is at most one frame per dimension change.
+     *
+     * `observe()` fires once immediately with the initial box, so `fit()` runs twice at mount.
+     * The second is a no-op at the wire for the same reason. Do NOT delete the explicit fit
+     * above as redundant: it is ordered against the append, which is not the observer's job. */
+    const ro = new ResizeObserver(() => fitAddons.get(handle.term)?.fit());
+    ro.observe(node);
 
     return () => {
-      window.removeEventListener("resize", onWindowResize);
+      ro.disconnect();
       if (handle.element.parentNode === node) node.removeChild(handle.element);
       handleRef.current = null;
       releaseAttach(sessionId);

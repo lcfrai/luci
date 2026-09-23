@@ -137,6 +137,41 @@ describe("Terminal", () => {
     }
   });
 
+  it("observes its own host for resize, and disconnects that observer on unmount", () => {
+    // Added by task 21's fix round 1, with the source change it pins. Task 14's setup.ts
+    // polyfill is a no-op class, so whether a refit actually reflows is a real-browser carry
+    // either way and nothing here pretends otherwise. What IS pinnable is the wiring — and the
+    // third assertion is why this is a spy rather than a grep: a grep can prove the text
+    // `ro.disconnect()` exists, not that it sits on the cleanup path.
+    const w = window as unknown as { ResizeObserver: unknown };
+    const real = w.ResizeObserver;
+    const observed: Element[] = [];
+    let disconnects = 0;
+    w.ResizeObserver = class {
+      observe(el: Element) { observed.push(el); }
+      unobserve() {}
+      disconnect() { disconnects += 1; }
+    };
+    try {
+      seed(session());
+      const { container, unmount } = render(
+        <Terminal sessionId="s-1" readOnly={false} focused={false} />,
+      );
+      const host = container.firstElementChild;
+
+      expect(observed.length).toBe(1);
+      // The host, NOT the registry's element: that one outlives this component and is
+      // re-parented between layouts, so an observer on it would outlive its owner.
+      expect(observed[0]).toBe(host);
+      expect(disconnects).toBe(0);
+
+      unmount();
+      expect(disconnects).toBe(1);
+    } finally {
+      w.ResizeObserver = real;
+    }
+  });
+
   it("opens the terminal exactly once, and only after its element is in the document", () => {
     seed(session());
     render(
