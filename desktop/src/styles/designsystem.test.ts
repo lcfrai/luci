@@ -302,6 +302,71 @@ function colourOutsideTokens(t: Tree): string[] {
   return offenders;
 }
 
+/** CSS Color 4's named colours. `transparent` and `currentcolor` are left out on purpose: they
+ *  name no hue, and §3B clause 2 allows both. So are the CSS-wide keywords and `none`. */
+const NAMED_COLOURS = new Set(
+  (
+    "aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue " +
+    "blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk " +
+    "crimson cyan darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki " +
+    "darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen " +
+    "darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue " +
+    "dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite " +
+    "gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki " +
+    "lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan " +
+    "lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen " +
+    "lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen " +
+    "magenta maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen " +
+    "mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream " +
+    "mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid " +
+    "palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum " +
+    "powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown " +
+    "seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen " +
+    "steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen"
+  ).split(" "),
+);
+
+/** The properties whose value can carry a colour. box-shadow is shadowFaults' own. */
+const COLOUR_PROPERTY =
+  /^(?:color|background(?:-color)?|border(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?(?:-color)?|outline(?:-color)?|fill|stroke|caret-color|accent-color|text-decoration(?:-color)?|text-emphasis(?:-color)?|column-rule(?:-color)?|text-shadow|scrollbar-color|stop-color|flood-color|lighting-color)$/;
+
+/** The same, as the camelCase keys of an inline style object. */
+const COLOUR_KEY =
+  /\b(color|background(?:Color)?|border(?:Top|Right|Bottom|Left|Block|Inline)?(?:Start|End)?(?:Color)?|outline(?:Color)?|fill|stroke|caretColor|accentColor|textDecoration(?:Color)?|textShadow)\s*:\s*(["'`])([^"'`]*)\2/g;
+
+/** Every named colour in one value, as whole words. A custom property's name is not a word here
+ *  (`--ink-red` is a token, not red), and a url() is skipped whole, because its payload is not
+ *  CSS. A var() FALLBACK is read like any other value: `var(--ink, black)` puts black on screen
+ *  the day the token is missing. */
+function namedIn(value: string): string[] {
+  const bare = value.replace(/url\((?:"[^"]*"|'[^']*'|[^)]*)\)/g, " ");
+  return [...bare.matchAll(/(?<![\w-])[a-z]+(?![\w-])/gi)]
+    .map((m) => m[0].toLowerCase())
+    .filter((word) => NAMED_COLOURS.has(word));
+}
+
+/** Shared-shape §3B clause 2: a colour is a `var(--token)`. COLOUR_FN and the hex rules cover
+ *  the other spellings. ADDED BY TASK 24's FIX ROUND 1 (review M2): `color: white` passed every
+ *  rule, and the audit's commit message said "no colour outside the token layer". */
+function namedColours(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    if (file === TOKENS) continue;
+    for (const rule of rulesOf(t.read(file))) {
+      for (const { property, value } of rule.decls) {
+        if (!COLOUR_PROPERTY.test(property)) continue;
+        for (const name of namedIn(value)) offenders.push(`${file}  ${rule.selector}  ${property}: ${name}`);
+      }
+    }
+  }
+  for (const file of t.ts) {
+    for (const m of t.read(file).matchAll(COLOUR_KEY)) {
+      for (const name of namedIn(m[3])) offenders.push(`${file}  inline ${m[1]}: ${name}`);
+    }
+  }
+  return offenders;
+}
+
 function importNotFirst(t: Tree): string[] {
   const offenders: string[] = [];
   for (const file of t.css) {
@@ -362,8 +427,52 @@ function transitionOffList(t: Tree): string[] {
     for (const m of source.matchAll(/\btransition(?:Property|Duration|TimingFunction|Delay|Behavior)\s*:/g)) {
       offenders.push(`${file}  inline ${m[0]}  (write the shorthand)`);
     }
+    for (const { property, value, text } of imperativeTransitions(source)) {
+      if (property !== "transition") {
+        offenders.push(`${file}  inline ${text}  (write the unprefixed shorthand)`);
+      } else if (value === null) {
+        offenders.push(`${file}  inline ${text}  (not a string literal, so the list cannot read it)`);
+      } else {
+        for (const fault of transitionFaults(value.trim(), file, null)) {
+          offenders.push(`${file}  inline ${text} ${value}  (${fault})`);
+        }
+      }
+    }
   }
   return offenders;
+}
+
+/** Every transition a .ts/.tsx file writes onto an element OTHER than as an object-literal key,
+ *  which the two loops above read:
+ *    - an assignment to `.style.transition…` or `.style["transition…"]`;
+ *    - `.setProperty("transition…", …)`;
+ *    - a declaration inside a style string, `.cssText = "…"` or `setAttribute("style", "…")`.
+ *  ADDED BY TASK 24's FIX ROUND 1 (review I3). CanvasLayout.tsx writes `el.style.transform`
+ *  imperatively, which makes the canvas tile the likeliest place anyone will "smooth" a move,
+ *  and `el.style.transition = "transform 200ms"` beside those lines passed the whole suite.
+ *  `value` is null where the value is not a string literal: the list cannot read a variable, so
+ *  the caller reports it outright rather than guess. */
+function imperativeTransitions(source: string): { property: string; value: string | null; text: string }[] {
+  const found: { property: string; value: string | null; text: string }[] = [];
+  const literalAt = (at: number): string | null =>
+    /^(["'`])([^"'`]*)\1/.exec(source.slice(at))?.[2] ?? null;
+  const assigned = /\.style(?:\.(transition\w*)|\[\s*(["'`])((?:-webkit-)?transition[\w-]*)\2\s*\])\s*=(?!=)\s*/g;
+  for (const m of source.matchAll(assigned)) {
+    found.push({ property: m[1] ?? m[3], value: literalAt((m.index ?? 0) + m[0].length), text: m[0].trim() });
+  }
+  for (const m of source.matchAll(/\bsetProperty\(\s*(["'`])((?:-webkit-)?transition[\w-]*)\1\s*,\s*/g)) {
+    found.push({ property: m[2], value: literalAt((m.index ?? 0) + m[0].length), text: m[0].trim() });
+  }
+  const styleString = /(?:\.cssText\s*\+?=|\bsetAttribute\(\s*["'`]style["'`]\s*,)\s*(["'`])([^"'`]*)\1/g;
+  for (const m of source.matchAll(styleString)) {
+    for (const declaration of m[2].split(";")) {
+      const colon = declaration.indexOf(":");
+      const property = declaration.slice(0, colon).trim();
+      if (colon === -1 || !/^(?:-webkit-)?transition/.test(property)) continue;
+      found.push({ property, value: declaration.slice(colon + 1).trim(), text: m[0].trim() });
+    }
+  }
+  return found;
 }
 
 /** Clause 5's per-rule half: every font-variant-numeric outside the token layer is the token,
@@ -489,6 +598,12 @@ describe("the design-system audit", () => {
     expect(colourOutsideTokens(REAL)).toEqual([]);
   });
 
+  it("names no colour by keyword outside the token layer", () => {
+    // MECHANICAL: every named colour in a colour-bearing declaration or inline style key.
+    // `currentColor`, `transparent`, `inherit` and `none` name no hue and are allowed.
+    expect(namedColours(REAL)).toEqual([]);
+  });
+
   it("has every stylesheet but the token layer import the token layer first", () => {
     expect(importNotFirst(REAL)).toEqual([]);
   });
@@ -502,6 +617,10 @@ describe("the design-system audit", () => {
     // and selector. Also mechanical: no transition longhand outside the token layer, because a
     // `transition-duration` on its own line puts the duration where the list cannot see it,
     // and no transition in an inline style except one the list would accept on its own terms.
+    // "An inline style" is every form a .ts/.tsx file can write one in: an object-literal key,
+    // an assignment to `.style.transition…`, `setProperty("transition…", …)`, and a style
+    // string (`cssText`, `setAttribute("style", …)`). The last three are `imperativeTransitions`,
+    // added by task 24's fix round 1, when only the first was read (review I3).
     // The token layer's longhands are its prefers-reduced-motion override, which is its job.
     //
     // LEFT TO REVIEW: clause 4 allows background-color and color on "row- and button-sized
@@ -591,6 +710,9 @@ interface Canary {
 }
 
 const sheet = (body: string): string => `${HEAD}${body}\n`;
+/** A planted source file whose one line writes to an element, as CanvasLayout.tsx's do. */
+const imperative = (line: string): string =>
+  `const MOVE = "transform 200ms";\nexport function place(el: HTMLElement): void {\n  el.style.transform = "translate3d(0px, 0px, 0)";\n  ${line}\n}\n`;
 const numeric = (t: Tree): string[] => numericFaults(t, LIVE_NUMBER_CARRIERS);
 const loopFaults = (t: Tree): string[] => loops(t).offenders;
 
@@ -621,6 +743,28 @@ const CANARIES: Canary[] = [
   { fault: "a transition longhand", rule: transitionOffList, file: PLANT_CSS, text: sheet(".p { transition-duration: 2s; }") },
   { fault: "an inline transition off the list", rule: transitionOffList, file: PLANT_TSX, text: 'export const s = { transition: "transform 1s" };\n' },
   { fault: "an inline transition longhand", rule: transitionOffList, file: PLANT_TSX, text: 'export const s = { transitionDuration: "1s" };\n' },
+  // Task 24's fix round 1 (review I3): one canary per form `imperativeTransitions` reads. The
+  // first is mutant T3, planted beside the three imperative writes CanvasLayout.tsx really makes.
+  { fault: "a transition assigned to an element's style (T3)", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style.transition = "transform 200ms";') },
+  { fault: "a transition assigned a value the list cannot read", rule: transitionOffList, file: PLANT_TSX, text: imperative("el.style.transition = MOVE;") },
+  { fault: "a transition longhand assigned to an element's style", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style.transitionDuration = "1s";') },
+  // "none" is the one value transitionFaults passes, so only the longhand's own branch can see
+  // this. Any other longhand value is also a fault as a shorthand, which is how mutant W5 (a
+  // longhand treated as a shorthand) survived the canary above.
+  { fault: "a transition longhand whose value reads as no transition", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style.transitionProperty = "none";') },
+  { fault: "a transition assigned through a bracketed key", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style["transition"] = "transform 200ms";') },
+  { fault: "a transition set through setProperty", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style.setProperty("transition", "transform 200ms");') },
+  { fault: "a transition longhand set through setProperty", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style.setProperty("transition-duration", "1s");') },
+  { fault: "a transition inside cssText", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style.cssText = "width: 10px; transition: transform 200ms";') },
+  { fault: "a transition inside a style attribute", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.setAttribute("style", "transition: transform 200ms");') },
+  // Review M2. HEX_LITERAL's other three lengths: a rule narrowed to six digits passed #ff0000.
+  ...["#fff", "#ffff", "#ff000080"].map(
+    (hex): Canary => ({ fault: `the hex ${hex} in a stylesheet`, rule: hexInStylesheets, file: PLANT_CSS, text: sheet(`.p { color: ${hex}; }`) }),
+  ),
+  { fault: "a named colour", rule: namedColours, file: PLANT_CSS, text: sheet(".p { color: white; }") },
+  { fault: "a named colour inside a shorthand", rule: namedColours, file: PLANT_CSS, text: sheet(".p { border: 1px solid Black; }") },
+  { fault: "a named colour as a var() fallback", rule: namedColours, file: PLANT_CSS, text: sheet(".p { background-color: var(--page, red); }") },
+  { fault: "a named colour in an inline style", rule: namedColours, file: PLANT_TSX, text: 'export const s = { backgroundColor: "white" };\n' },
   { fault: "font-variant-numeric that is not the token", rule: numeric, file: PLANT_CSS, text: sheet(".p { font-variant-numeric: tabular-nums; }") },
   { fault: "the token before a font shorthand that resets it", rule: numeric, file: PLANT_CSS, text: sheet(".p { font-variant-numeric: var(--numeric); font: 500 10px/1 var(--mono); }") },
   {
