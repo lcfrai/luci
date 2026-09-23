@@ -115,3 +115,109 @@ import `api` either — it mounts through a `func(pattern string, h http.Handler
 tests can import `discoverapi` to audit its routes without a cycle. Phase 4 imports only the Hub's
 `hubapi` and `hubclient` (Hub contract §2's boundary: the control plane may import nothing else of
 `internal/hub/...`).
+
+---
+
+## 3. The decisions this plan rests on
+
+### 3.1 Owner decisions (`planning/2026-09-23-owner-decisions.md`)
+
+| Id | What it fixes here | Where |
+|---|---|---|
+| **OD-1** | Build now on the recommendations on file, which accepts the phase 4 brief's `4-D1`, `4-D2`, `4-D3` as recommended. UI branches stay unmerged until the owner has looked | throughout; tasks 17–21 |
+| **OD-3** | Briefs and their revisions are shared, so they live in the Hub. There is no local brief store | tasks 07, 08 |
+| **OD-5**, **OD-6** | The Hub is our own server; the control plane calls it as the signed-in user. Phase 4 consumes the Hub's sign-in and never runs one | tasks 07, 14 |
+| **OD-8** | Discover reads no transcript. It writes a file the CLI reads; it never reads the CLI | global constraint G6 |
+| **OD-12** | Every owner-observed step — the real agent reading the brief, the visual pass — is batched to the end and stays **unverified** | task 23; every UI task's acceptance |
+| **OD-13** | No Panacea source; phase 4 touches no Panacea API | — |
+
+### 3.2 The phase 4 brief's decisions (`scope-and-risk-phase-4-discover.md` §0), accepted under OD-1
+
+| Id | Decision | How this plan builds it |
+|---|---|---|
+| **4-D1** | When the brief cannot be written before a session starts, **refuse the start and say why**; one button, *Start without the brief*, goes on | `409 brief_not_written` with `details.reason` (task 10); the desktop's retry and override (task 20); the override stamps `contextRef = "none:declined"`, which the chip shows as *started without the brief* (tasks 06, 17) |
+| **4-D2** | A model-written answer is **not inherited** until a person accepts or changes it; the brief records who wrote each answer | `Answer.Author` (`person` · `model_drafted` · `model_accepted`), inside `content` and so inside the digest; a `model_drafted` answer is not settled (task 03) |
+| **4-D3** | A project edit gives **every inheriting branch brief a new revision** | `Content.Inherits`; the fan-out batch in `discoverhub.Service.Apply` (task 08) |
+
+### 3.3 Orchestrator rulings (`orchestrator-rulings.md`)
+
+| Id | Ruling | Where |
+|---|---|---|
+| **R1** | `Materialiser` declared in `api`, called between worktree-resolve and `backend.Create` in create and restart, returning the key it wrote; phase 4 owns `sessions.go` for this change | task 10 |
+| **R2** | Lift `writeAtomic` into `statepath` with its tests; do not duplicate | task 01 |
+| **R3** | Persist versions are claimed in plan text. **Phase 4 claims none**: its two slices are not persisted | tasks 15, 16 |
+| **R4** | `upstream_unavailable` with `details.upstream`; the Hub adds `"hub"` (ADR-H1 §5.1) | tasks 11, 15 — phase 4 consumes the code the Hub's task C2 adds |
+| **R6** | The one loader unions **key sources** registered as selectors; it runs on the poll tick and on key-set changes, never on a new interval | task 16 |
+
+### 3.4 The Hub (ADR-H1, Hub contract), as built against
+
+| Id | What phase 4 takes | Where |
+|---|---|---|
+| Hub §7.5 | `POST /v1/projects/{id}/briefs`, `GET …/briefs`, `GET …/briefs/for-branch`, `GET /v1/briefs/{id}`, `PATCH` (rebind), `POST …/archive`, `GET …/revisions`, `POST …/brief-revisions` (the only write of brief text, 1–16 items, all or nothing), `GET /v1/refs` | tasks 07, 08 |
+| Hub §9.2 | `hubclient.Briefs`, `hubclient.Projects`, `NewFake()`, `hubclient.Error`, `ErrUnavailable`; every Go test in this phase runs against the fake | tasks 07–14 |
+| Hub §4.3 | The relay rule: a Hub 4xx passes through unchanged; 5xx and transport become `503 upstream_unavailable` (`upstream: "hub"`); a non-refreshable 401 becomes `401 signed_out` | task 11 |
+| ADR Q1 | Only a **complete** revision may be pinned or approved against; phase 4 extends the same rule to what is materialised | tasks 06, 07, 09 |
+| Hub §7.5 `erased` | A seventh provenance state | tasks 06, 17 |
+| Hub §9.3 | The `Panacea-Hub-Cursor` header on `GET /v1/sessions` and `GET /v1/hub/changes`; **phase 4 owns the UI contract §4.7 amendment** that reads them | task 16 |
+
+### 3.5 Decisions this plan makes itself — the plan author's, recorded so a reviewer can overturn them
+
+| Id | Decision | Reason | Cost if wrong |
+|---|---|---|---|
+| **P4-A** | A session inherits the branch brief's **latest complete** revision, else the project brief's latest complete revision, else nothing. **Never a key the caller supplies** — a session started from an approved design inherits the head like any other, and phase 5 records the design separately | contract P6; fact sheet §5 (`upload-ui` inherits `b-42@6`, not the design's `@5`); critique-2 §7.2 #6 | phase 5's cleanroom spec `:488` says the design start *"passes the brief key as the session's `contextRef`"*; under this plan that value is ignored. Named as seam S4-P5.2 |
+| **P4-B** | `superseded` means `revision < latestCompleteRevision`, not `< headRevision` | an unfinished edit at the head is not inheritable, so a session on the last complete revision is not working from outdated instructions | one comparison in one selector |
+| **P4-C** | `contextRef` gains one local form, `none:declined`, owned by the `provenance` grammar and resolved without the Hub | `types.ts` is byte-gated and has no field for *why* a session has no brief (critique-2 §2.7 item 2, §3.2 item 2); the desktop still never parses it (P5) — it hands it to the resolver like any key | one grammar arm |
+| **P4-D** | Materialise target: `CLAUDE.md` if the repository does not track it (and `/CLAUDE.md` is appended to `<clone>/.git/info/exclude`); `.claude/CLAUDE.md` if `CLAUDE.md` is tracked; refuse (`tracked_elsewhere`) if both are | phase 3 ask P4-6 and `3-D6`: the managed block is never committed. **Unverified** that the pinned Claude Code reads `.claude/CLAUDE.md`; task 23 carries the canary | a tracked-`CLAUDE.md` repository — this repository is one — falls back to a location the canary may disprove |
+| **P4-E** | A local project is bound to a Hub project **by its remotes' repo keys only**. A repository with no GitHub or Azure DevOps remote shows *"this repository has no shared remote"*; nothing is bound locally | ADR-H1 §5.4: nothing Hub-derived persists on the machine; a brief nobody else can reach is not shared (`OD-3`) | open question OQ-1 |
+| **P4-F** | Model-tailored options are dropped from v1 (change C16) | cost per step, and the options would need storing | the owner can ask for them back as one op |
+| **P4-G** | A project-scoped brief is rendered with the branch's name in its title, so the same project key renders a different first line per branch | the title is where-you-are context, not brief text; the digest and the key still name the brief text only | the hand-edit check renders with the same branch name, so it cannot false-positive |
+
+---
+
+## 4. Global constraints
+
+**Commands.**
+
+- Go: `go test ./control-plane/... -race -count=1` from the repository root, or with a package path.
+  `go test ./...` at the workspace root is invalid (`go.work` holds `./control-plane` and
+  `./sandboxd`). `go vet ./control-plane/...` must stay clean.
+- Desktop: `cd desktop && npx vitest run <path>` for one file, `npx vitest run` for all,
+  `npx tsc --noEmit` for types. Nothing is installed: every package this phase uses is already in
+  `desktop/package.json`. **Never write `desktop/vitest.config.ts`** (change C12).
+- Every shell command in an agent session goes through `~/.claude/tools/claudezsh/claudezsh`.
+  Commit by pathspec: `git commit -F <message file> -- <paths>`, after `git add <new paths>`.
+  Never `git add -A`, stash, reset, checkout, rebase or amend. Write the message file under a
+  **task-unique** name (the scratchpad is shared between agents; this plan's own first commit,
+  `0c8454e`, carries another planner's message because two agents wrote one file name).
+- Every commit message ends with exactly:
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`
+
+**What never changes.**
+
+- **G1.** The `go` directive stays `1.23` in every `go.mod` and in `go.work`. **This phase adds no
+  Go module requirement** — `hubclient` and `hubapi` are packages of the same module (ADR-H1 §4.1).
+- **G2.** `desktop/src/store/types.ts` does not change, byte for byte (phase 2 task 15's gate).
+  `Session.contextRef: string` and its comment already say what this plan needs.
+- **G3.** `PERSIST_VERSION` stays `1`; `partialize` does not change (R3; contract §6.5).
+- **G4.** The control plane listens on loopback only. Configuration comes from `PANACEA_APP_*`
+  variables. No secret is in source; the model key is `PANACEA_APP_MODEL_API_KEY` and is the
+  person's **own** key or a corporate gateway key — never a Claude subscription token, never pooled
+  across users (`CLAUDE.md`).
+- **G5.** No progress bar, percentage, ETA or "N of M met" anywhere. The one denominator is
+  `QUESTION n OF 5`, over the closed base set; follow-ups carry none (`AGENTIC-UX.md` principle 10).
+- **G6.** Harnesses run unmodified and unwrapped. Discover writes a file the CLI reads at start; it
+  reads no PTY byte and no transcript (`OD-8`).
+- **G7.** Only the `provenance` Go package parses a key (P5). The desktop passes keys to the
+  resolver and compares them for equality; it never splits one. No TypeScript digest exists.
+- **G8.** One `setInterval` for data (the poller) and one for display (the heartbeat). Phase 4 adds
+  **no** timer (R6).
+- **G9.** One window `keydown` listener (`useKeyboardMap`). Discover's `1`–`4`, `Enter` and `E`
+  are element-scoped `onKeyDown` handlers on the question region, never a window listener.
+- **G10.** Every UI task reads `docs/DESIGN-SYSTEM.md` first and holds its non-negotiables: no
+  indigo or violet, no gradient anywhere (phase 2's audit greps for `-gradient(`), elevation is a
+  1px ring plus a layered shadow, radius by element size (`--r-chip` 6, `--r-ctl` 8, `--r-card`
+  10, `--r-window` 14), `transform`/`opacity` only and never `transition: all`, one heartbeat
+  (`hooks/heartbeat.ts`, never a second `requestAnimationFrame` loop — critique-2 §3.4), no
+  spinner per row, `tabular-nums` on live numbers, colour plus shape for every state, `--ink-4`
+  never as text. **The owner's eyes are the only visual acceptance** (`CLAUDE.md`); a screenshot
+  or a passing test is not.
