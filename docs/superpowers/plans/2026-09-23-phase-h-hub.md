@@ -157,7 +157,7 @@ Every task restates the ones it touches. None of them moves.
 ## Where this plan corrects the Hub contract — the "Hub contract asks"
 
 The contract says that where it and the ADR disagree, the ADR wins (contract `:4-5`). Reading the
-built tree and the sibling plans found **eleven** places where the contract, as written, would fail
+built tree and the sibling plans found **thirteen** places where the contract, as written, would fail
 when built. Each is a correction this plan builds, with the exact shape; none adds a Hub route.
 They are folded into the contract's text by **task 44a, which runs first** — on `feat/hub`, before
 task 01 and before any lane branches — so no sibling builds against the text this table calls
@@ -173,10 +173,12 @@ each, are task 00's; 44a folds those in too.
 | **A5** | `devissuer` is `control-plane/cmd/devissuer`, standard library only (§2) | a `main` package cannot be imported, so task 30's tests could not run the real issuer in-process and would need a second, hand-written fake OIDC server | the issuer is a package, `control-plane/internal/devissuer` (standard library only), and `cmd/devissuer/main.go` is a ~60-line `main` over it. Test code may import it; the boundary test forbids `cmd/api` and `cmd/hub` from linking it | 11, 12 |
 | **A6** | the control plane validates the `id_token`'s signature against `jwks_uri` (§6.1 step 9) | it needs a second RS256-over-JWKS implementation in the control plane beside `internal/entra`, which validates **access** tokens for a resource API and cannot validate an `id_token` (no `scp`, a different `aud`). Two copies of key-set code drift | the `id_token` arrives on the back channel, from the token endpoint the control plane itself called, so OIDC Core 1.0 §3.1.3.7 item 6 permits TLS server validation in place of the signature check. `entraauth` checks `iss`, `aud`, `nonce`, `exp`, `tid` and `oid` **without** a signature, and then cross-checks: `GET /v1/me` (step 11), whose access token the Hub validates in full, must answer an org whose `tenantId` equals the `id_token`'s `tid`, or the sign-in fails `exchange_failed` and nothing is stored | 30 |
 | **A7** | the Hub maps `entra` rejections to 401 and says nothing of a key-set outage (§4.2, §6.3) | phase 8's `entra` adds `ErrKeySetUnavailable` (phase 8 task 16 `:102-106`); its `Middleware` answers that 503 `backend_unavailable`, which is a control-plane code meaning Docker (`problem.go:115`) | the Hub calls `Validator.Validate` itself in `internal/hub/server/auth.go` and maps `ErrKeySetUnavailable` to 503 **`unavailable`**; `/readyz` calls `JWKSValidator.Ready` | 13 |
-| **A8** | the credential store has target names for a GitHub and a Panacea token (§9.1) but **no way to put one there** | nothing in the contract writes `PanaceaApp/git/github/…` or `PanaceaApp/panacea/…`; phase 3 would read an always-empty store and phase 7 would build its own write path into the same store | three **control-plane** routes (not Hub routes), write-only for the secret: `POST /v1/credentials/{kind}`, `DELETE /v1/credentials/{kind}?scope=`, `GET /v1/credentials` (metadata only) — `kind` ∈ `github`, `panacea`. Phase 7 uses these instead of writing its own (seam S-CRED) | 39 |
+| **A8** | the credential store has target names for a GitHub and a Panacea token (§9.1) but **no way to put one there** | nothing in the contract writes `PanaceaApp/git/github/…` or `PanaceaApp/panacea/…`; phase 3 would read an always-empty store and phase 7 would build its own write path into the same store | three **control-plane** routes (not Hub routes), write-only for the secret: `POST /v1/credentials/{kind}`, `DELETE /v1/credentials/{kind}?scope=`, `GET /v1/credentials` (metadata only) — `kind` ∈ `github`, `azure-devops`, `panacea`. `azure-devops` (review I10) is a PAT per organisation at `PanaceaApp/git/azure-devops/<org>`, read by `credstore.LocalDevOps` with `Scheme: BasicPAT`, so OD-4's ADO path has a credential in the one store (OD-6) before ADR-H1 Q5 is answered. Phase 7 uses these instead of writing its own (seam S-CRED) | 28, 29, 39 |
 | **A9** | `hubapi` imports the standard library only; `hubclient` imports `hubapi` and the standard library (§2) | the same contract has `hubapi/codes.go` **import** the shared codes from `httpx` (§4.2), `hubclient.Error` carry an `httpx.Problem`, and `hubclient` mint idempotency keys with `ids.UUID()` (§9.2). Built as written, the boundary test fails the contract's own code | the boundary allows `hubapi` → `internal/httpx`; `hubclient` → `hubapi`, `internal/httpx`, `internal/ids`. Both `httpx` and `ids` import only the standard library, so the Hub still links nothing of the control plane's | 01, 09 |
 | **A10** | the audit envelope covers `v, kind, orgId, seq, at, actorUserId, event, projectId, subject, data` (§3.6) | `audit_events.team_id` is not in it, yet the change feed decides who sees an event by `team_id` or `project_id` (§7.11). An owner-role edit of `team_id` would move an event into another team's feed **without breaking the chain** | the envelope adds `"teamId"` (or `""`). `hub verify` also checks each row's `feed` flag against the kind table of §8, since `feed` is derived from `kind`. Golden vectors 3 and 4 (task 02) are computed with it | 02, 14, 27 |
 | **A11** | the refresh token lives at `…/refresh/0` … `/refresh/<n−1>`; the account record carries `refreshChunks` and is *"written **last**, so it marks a complete write"* (§9.1, `hub-contract.md:1172-1173`) | the record marks a complete write only at the **first** sign-in. On rotation the record already exists: chunk 0 is overwritten in place, and if chunk 1's `Put` fails, or the process dies, the store holds new chunk 0 + old chunk 1 behind a valid record — neither token. §6.2's *"a crash in between leaves the old one"* breaks exactly for a multi-chunk (enterprise-sized, R1) token (review I1) | every write is a **generation**: chunks at `PanaceaApp/entra/<tenantId>/<clientId>/refresh/<gen>/<i>`, `gen` 16 lowercase hex from `crypto/rand`; the record adds `"refreshGen"` beside `"refreshChunks"` and is written last, naming the new generation; only then is the old generation deleted; start-up deletes every generation the record does not name; sign-out deletes the record first. Nothing the record names is ever overwritten. Start-up validates the stored `refreshGen` (16 lowercase hex) and `refreshChunks` (1 to 16) before any target is built from them, and treats a bad record as a missing one; a read error that is not `ErrNotFound` deletes nothing (plan re-review b03 N1, m3) | 28, 30, 31 |
+| **A12** | `invalid_grant` or `interaction_required` → both Credential Manager entries deleted, `signed_out` with `reason: "reauth_required"` (§6.2, `hub-contract.md:408-409`) | one refresh token redeems the Hub, the broker and, if Q5 is yes, Azure DevOps (§6.2 `:404-407`). A refusal for **one** resource is not a dead refresh token: an unconsented resource answers `invalid_grant` with `suberror: consent_required` (AADSTS65001), and a conditional-access policy on one resource answers `interaction_required` (AADSTS50076/50079) for it alone (from knowledge, unverified). The scope-blind rule deletes the credential the Hub still redeems, so a policy on Azure DevOps signs the user out at every push, and the next sign-in, asking only for `Hub.Access`, sets up the same loop (review I2) | a refusal is read by the scope redeemed. For `HubScope`: the contract's sign-out, unchanged. For any other scope: consent → `ErrScopeNeedsConsent`, interaction (or `invalid_grant` with 50076/50079) → `ErrScopeNeedsInteraction`, each wrapping a `*ScopeRefusal`; nothing is deleted, only that scope's cached token is dropped, `Status` is unchanged. A plain `invalid_grant` on another scope is settled by one `HubScope` redemption under the same lock: the Hub refuses too → sign-out; it redeems → `ErrScopeNeedsInteraction`. `entraauth.DevOps` returns both refusals as stopping errors, never `ErrNoCredential`, so a `Chain` does not fall through to the machine's git helper | 31, 43 |
+| **A13** | the cached access token is served while `exp − now > 5 min` (§6.2, `hub-contract.md:397-398`) | any token whose lifetime is 5 minutes or less (a short `devissuer` `AccessTTL`; a tenant token-lifetime policy) is never served from the cache: **every** `Token` call redeems and rotates the refresh token. Task 43's end-to-end test, with a 90-second token, could not count "one refresh grant" (review I9) | the skew is `min(5 min, lifetime / 2)`, `lifetime` = `exp` − the `Config.Now()` at which the token response arrived; an hour's token is still refreshed 5 minutes early. Every time comes from the injected `Config.Now`, never `time.Now` | 31, 43 |
 
 **Additions, not corrections** — shapes the contract did not name, which this plan adds and task
 44a folds in first. None is a Hub route. The sibling asks' answers (task 00) are listed there, not
@@ -286,12 +288,12 @@ parallel worktrees (see §"Order and parallel lanes").
 | `control-plane/internal/credstore/{secrets,memory,chunk,targets}.go` | `Secrets`, the in-memory store, chunking, the target-name grammar | new | 28 |
 | `control-plane/internal/credstore/wincred_windows.go`, `wincred_other.go` | Windows Credential Manager over `advapi32.dll`; the non-Windows stub | new | 28 |
 | `control-plane/internal/credstore/credstore.go` ⚑ | **phase 3 task 13's file** (`Host`, `Credential`, `Store`, `None`, `Chain`); written here verbatim only if absent | new | 29 |
-| `control-plane/internal/credstore/{tokens,local}.go` | `GitHubTokens`, `PanaceaTokens`, `Inventory`; `Local` (phase 3's `Store` for GitHub) | new | 29 |
+| `control-plane/internal/credstore/{tokens,local}.go` | `GitHubTokens`, `DevOpsTokens`, `PanaceaTokens`, `Inventory`; `Local` and `LocalDevOps` (phase 3's `Store` for GitHub, and for an Azure DevOps PAT, review I10) | new | 29 |
 | `control-plane/internal/credstore/credstoretest/credstoretest.go` | the behaviour suite every `Secrets` passes | new | 28 |
 | `azure-pipelines.yml` ⚑ | one step: `GOOS=windows go vet ./control-plane/...` | modified | 28 |
 | `control-plane/internal/githost/remote.go` ⚑ | **phase 3 task 13's file** (`Remote`, `ParseRemote`, `RepoKey`); written here verbatim only if absent | new | 35 |
 | `control-plane/internal/entraauth/{entraauth,oidc,pkce,listener,signin,idtoken}.go` | discovery, PKCE, the one-shot listener, the code exchange, A6's `id_token` checks | new | 30 |
-| `control-plane/internal/entraauth/{tokens,account,devops}.go` | `TokenSource`, refresh, rotation, sign-out, start-up; the Azure DevOps adapter | new | 31 |
+| `control-plane/internal/entraauth/{tokens,account,devops}.go` | `TokenSource`, refresh, rotation, sign-out, start-up, scope-aware refusals (A12), the lifetime-aware skew (A13); the Azure DevOps adapter | new | 31 |
 | `control-plane/internal/httpx/problem.go` ⚑ | four codes: `signed_out`, `hub_not_configured`, `local_key_required`, and `upstream_unavailable` if R4 has not landed | modified | 32 |
 | `control-plane/internal/api/auth.go` | `/v1/auth/*` | new | 32 |
 | `control-plane/internal/api/api.go` ⚑ | `Deps` fields; registrations; the local-key wrap; `New` refuses a zero `LocalKey` (review C2) | modified | 32, 35, 36, 37, 39 |
@@ -327,7 +329,7 @@ parallel worktrees (see §"Order and parallel lanes").
 |---|---|---|---|
 | `control-plane/internal/hub/e2e_integration_test.go` | sign-in through `devissuer`, then every consumer interface against the real Hub | new | 43 |
 | `docs/verification/2026-09-23-phase-h-results.md` | what was run, what was observed, what stays unverified | new | 43 |
-| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md`, `…/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` | the amendments ADR-H1 §7.2 names, and A1–A11 plus the additions folded into the contract | modified | 44 |
+| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md`, `…/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` | the amendments ADR-H1 §7.2 names, and A1–A13 plus the additions folded into the contract | modified | 44 |
 
 ---
 
@@ -352,13 +354,13 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | **S4 — phase 4 integrates** | 06–20 (server), 28, 30–34 partial, 35 (client) | phase **4** | point its `discoverstore` Hub implementation at the local stack: create briefs, write revisions, resolve keys, with a real sign-in through `devissuer` |
 | **S5 — phase 5 integrates** | S4 + 21–22 | phase **5** | upload snapshots, approve designs, write session links, resolve `design:` keys |
 | **S7 — phase 7 integrates** | S5 + 23–24, 29, 39 | phase **7** | reserve → deploy → confirm/abandon, rollback, the deployment join; its `pnc_` token in the credential store |
-| S3 — phase 3's shared evidence | S4 + 25, 29, 31, 39 | phase **3** | `evidence.Store`'s Hub implementation (`Shared() == true`); push and PR with a token from the store (GitHub pasted; Azure DevOps from the Entra sign-in if Q5 is yes) |
+| S3 — phase 3's shared evidence | S4 + 25, 29, 31, 39 | phase **3** | `evidence.Store`'s Hub implementation (`Shared() == true`); push and PR with a token from the store (GitHub pasted; Azure DevOps a pasted PAT, review I10, or the Entra sign-in if Q5 is yes) |
 
 ### The task list
 
 | # | Task | Contract id | Depends on | Hours | Min? |
 |---|---|---|---|---|---|
-| 44a | **first**: A1–A11, the additions and task 00's answers folded into the contract; documents only | — | — | 1.5 | ✓ |
+| 44a | **first**: A1–A13, the additions and task 00's answers folded into the contract; documents only | — | — | 1.5 | ✓ |
 | 00 | S0 absorbs the sibling asks: every HA4/HA5/HA7 ask, its answer, the task that builds it (a planning part; no code of its own) | H0 | — | 0.5 | ✓ |
 | 01 | `ids.Wide`; `hubapi` codes, keys, digests, branch refs, repo keys; the contract-vs-code repo-key test | H0 | 44a | 2 | ✓ |
 | 02 | `hubapi.Canonical`, the envelopes, `ValidateContent`, the golden vectors | H0 | 01 | 2.5 | ✓ |
@@ -388,9 +390,9 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 26 | the change feed (G3) | H7 | 16 | 2 | |
 | 27 | the audit route, erasure (G6), the full `hub verify` | H7 | 26, 19 | 2.5 | |
 | 28 | `credstore`: `Secrets`, `Memory`, `WinCred` with chunking, target names | C1 | — | 3 | ✓ |
-| 29 | `credstore`: `Local` (GitHub), `PanaceaTokens`; phase 3's `credstore.go` if absent | C1 | 28 | 2 | S7 |
+| 29 | `credstore`: `Local` (GitHub), `LocalDevOps` and `DevOpsTokens` (an Azure DevOps PAT, review I10), `PanaceaTokens`; phase 3's `credstore.go` if absent | C1 | 28 | 2.5 | S7 |
 | 30 | `entraauth`: discovery, PKCE, the one-shot listener, the exchange (A6) | C1 | 12, 28 | 3 | ✓ |
-| 31 | `entraauth`: `TokenSource`, refresh single-flight, rotation, sign-out, start-up; `DevOps` | C1 | 30 | 3 | ✓ |
+| 31 | `entraauth`: `TokenSource`, refresh single-flight, rotation, sign-out, start-up; scope-aware refusals (A12) and the lifetime-aware skew (A13); `DevOps` | C1 | 30 | 4 | ✓ |
 | 32 | the control plane's `/v1/auth/*`, its variables, its codes, the wiring | C1 | 31 | 2.5 | ✓ |
 | 33 | `hubclient` over HTTP: transport, retries, idempotency, refresh, the relay rule | C2 | 04 | 3 | ✓ |
 | 34 | `hubclient` methods, the digest re-check, conformance against the real Hub | C2 | 33, 20 (rows grow with 22–27) | 3 | ✓ |
@@ -398,20 +400,21 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 36 | the change-feed poller, `/v1/hub/changes`, the cursor header | C2 | 26, 35 | 2 | |
 | 37 | the local caller key, control-plane side (A3, A4); the attach subprotocol (I3) | C3 | 32 | 3 | ✓ |
 | 38 | the local caller key, desktop side; the keyed async attach and its pending-read guards (I3, N1) | C3 | 37 | 3.5 | ✓ |
-| 39 | the credential routes: GitHub and Panacea tokens (A8) | C1 | 29, 37 | 2 | S7 |
+| 39 | the credential routes: GitHub, Azure DevOps and Panacea tokens (A8, review I10) | C1 | 29, 37 | 2 | S7 |
 | 40 | the desktop's auth, share and feed client; `authSlice`; `hubFeed` | C4 | 36, 38, 39 | 3 | |
 | 41 | the sign-in surface in the rail footer — **UI** | C4 | 40 | 3 | |
 | 42 | share a project with a team — **UI** | C4 | 40, 41 | 3 | |
 | 43 | end-to-end proof through `devissuer`; the real-tenant checklist; the results record | all | 01–42 | 3 | |
 | 44b | last: what the build changed, folded into the contract; the seams handed over | — | 43 | 1 | |
 
-Totals: server 01–27 ≈ 73.5 h; client and desktop 28–42 ≈ 42 h (39.5 before review I3 and
-re-review N1 added 1 h to task 37 and 1.5 h to task 38); proof and documents (00, 43,
-44a, 44b) 6 h; **≈ 121.5 engineer-hours**, against ADR-H1's 16 engineer-days (≈ 128 h). The
+Totals: server 01–27 ≈ 73.5 h; client and desktop 28–42 ≈ 43.5 h (39.5 before review I3 and
+re-review N1 added 1 h to task 37 and 1.5 h to task 38, and review I2, I9 and I10 added 1 h to
+task 31 and 0.5 h to task 29); proof and documents (00, 43, 44a, 44b) 6 h; **≈ 123
+engineer-hours**, against ADR-H1's 16 engineer-days (≈ 128 h). The
 difference is the ADR's day including review; this table is implementation time. Task 00's
 answers add rows to tasks 03–05, 07, 14, 18, 19, 23, 24, 33, 34, 36 and 40 inside their existing
 hours; that is the plan's estimate, not a measurement. The minimum (S7 reached) is tasks 44a, 00,
-01–24, 28–35, 37–39 ≈ 100.5 h: about **six working days for two engineers** — one on the server
+01–24, 28–35, 37–39 ≈ 102 h: about **six and a half working days for two engineers** — one on the server
 lane, one on identity then the client lane.
 
 ### Order and parallel lanes
@@ -456,7 +459,7 @@ resolved by keeping both.
 
 | Id | Seam | Shape | Who consumes it |
 |---|---|---|---|
-| **S-CRED** | **The credential store.** One machine store, Windows Credential Manager (`credstore.Secrets`, `WinCred()`; `Memory()` off Windows and in tests), **one target grammar** (`credstore/targets.go`), and one typed accessor per credential: the Entra refresh token (`entraauth`, task 31), a **GitHub** token (`credstore.Local`, phase 3's `Store`), an **Azure DevOps** bearer from the Entra sign-in (`entraauth.DevOps`, phase 3's `Store`, if Q5 is yes), and the **Panacea** `pnc_` token (`credstore.PanaceaTokens`, phase 7). The only write path for a pasted token is task 39's `POST /v1/credentials/{kind}`; nothing returns a secret | tasks 28, 29, 31, 39 | **phase 3** (`OD-4`: push and PR on both hosts), **phase 7** (`OD-13`: the Panacea API), **phase 6** (a future `kind` for the user's own Claude credentials — never pooled), **phase 8** (nothing: the broker reads no store) |
+| **S-CRED** | **The credential store.** One machine store, Windows Credential Manager (`credstore.Secrets`, `WinCred()`; `Memory()` off Windows and in tests), **one target grammar** (`credstore/targets.go`), and one typed accessor per credential: the Entra refresh token (`entraauth`, task 31), a **GitHub** token (`credstore.Local`, phase 3's `Store`), an **Azure DevOps** PAT per organisation (`credstore.LocalDevOps`, phase 3's `Store`, `Scheme: BasicPAT`, from v1 — review I10), an **Azure DevOps** bearer from the Entra sign-in (`entraauth.DevOps`, phase 3's `Store`, if Q5 is yes; chain order `Local → LocalDevOps → entraauth.DevOps → GitHelper`), and the **Panacea** `pnc_` token (`credstore.PanaceaTokens`, phase 7). The only write path for a pasted token is task 39's `POST /v1/credentials/{kind}`; nothing returns a secret | tasks 28, 29, 31, 39 | **phase 3** (`OD-4`: push and PR on both hosts), **phase 7** (`OD-13`: the Panacea API), **phase 6** (a future `kind` for the user's own Claude credentials — never pooled), **phase 8** (nothing: the broker reads no store) |
 | S-TOKEN | `entraauth.TokenSource` — `Token(ctx, scope)`, `ErrSignedOut` | task 31 | `hubclient` (task 33); phase 8's broker client `remotebe` (HA-2) |
 | S-HUB | `hubclient`'s consumer interfaces, `NewFake()`, the conformance suite, and `hubclient.WriteError` / `hubclient.Relay` (the relay rule, as a write and as a value) — every sibling ask answered in task 00 before they freeze. Siblings **consume** these interfaces and `NewFake()`; they never implement them, so an added method is additive for every one of them | tasks 00, 04, 05, 33, 34 | phases 3 (`Evidence`), 4 (`Briefs`), 5 (`Designs`), 7 (`Releases`) |
 | S-LINK | `hublink.Resolver.Project(ctx, localProjectID) (hubapi.Project, hublink.State, error)` — how a handler finds the Hub project behind a local one | task 35 | phases 3, 4, 5, 7: every Hub-backed handler starts here |
@@ -477,7 +480,9 @@ resolved by keeping both.
 ADR-H1 §10's seven stand, and this plan builds each recommendation: **Q1** only a complete revision
 is approved against or pinned; **Q2** erasure keeps key, digest, author and time and resolves
 `erased`; **Q3** a designer may approve their own design in v1; **Q4** teammates join by an email
-invite that binds at first sign-in; **Q5** Azure DevOps uses the same Entra sign-in; **Q6** writes
+invite that binds at first sign-in; **Q5** Azure DevOps uses the same Entra sign-in (behind `PANACEA_APP_ENTRA_DEVOPS`, default
+`false` until IT consents; until then a PAT the user pastes per organisation serves Azure DevOps
+from the same store, review I10); **Q6** writes
 never queue while the Hub is down; **Q7** the Hub holds no canvas documents in v1. Four more come
 from this plan (Q11 from a sibling ask, task 00):
 
@@ -543,11 +548,20 @@ from this plan (Q11 from a sibling ask, task 00):
   `greet`, which has none; checked only when task 38 runs `npm run tauri dev`.
 - **Token shapes**: GitHub's documented prefixes (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`,
   `github_pat_`) from knowledge; Panacea's `pnc_` from the phase 7 brief (`:119`), its length bound
-  a guess (task 39).
+  a guess (task 39). The Azure DevOps PAT shape (52 base32 characters classically, longer since)
+  is from knowledge, and task 39's bound `^[A-Za-z0-9]{52,256}$` is generous on purpose (review I10).
+- **Entra's per-resource refusal bodies** — `invalid_grant` with `suberror: consent_required`
+  (AADSTS65001) and `interaction_required` (AADSTS50076/50079) for one resource while the refresh
+  token still redeems another — are from knowledge, not observed (review I2); task 31's tests forge
+  them, and task 43's real-tenant sign-in (R-8) is the first real look.
+- **The lifetime-aware refresh skew** (A13) assumes Entra's `expires_in` is the token's real
+  lifetime; an hour's token behaves exactly as the contract's five minutes, and only a
+  tenant token-lifetime policy under ten minutes meets the new rule.
 - **`docker compose up --wait`** on the owner's Docker Desktop version (task 09 falls back to
   polling the health status).
 - **The Azure DevOps resource id** `499b84ac-1321-427f-aa17-267ca6975798` is the contract's
-  (§6.2, §15), not checked; `PANACEA_APP_ENTRA_DEVOPS` defaults to `false` until IT grants consent.
+  (§6.2, §15), not checked; `PANACEA_APP_ENTRA_DEVOPS` defaults to `false` until IT grants consent,
+  and meanwhile a pasted PAT (`credstore.LocalDevOps`, task 39) serves Azure DevOps.
 - **Two golden vectors of the contract were re-computed** for this plan (Python `json.dumps` with
   `sort_keys`, `separators=(",",":")`, `ensure_ascii=False`): both lengths (209, 256) and both
   digests agree with contract §3.5. Vectors 3 and 4 (task 02) were computed the same way. That is

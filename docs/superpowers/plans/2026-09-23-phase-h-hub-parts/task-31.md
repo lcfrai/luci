@@ -1,6 +1,6 @@
 ### Task 31: `entraauth` — the `TokenSource`: refresh, rotation, sign-out, start-up; and the Azure DevOps credential (HA-2, H-1)
 
-**Lane C. Depends on: 30. About 3 hours. Contract task C1.**
+**Lane C. Depends on: 30. About 4 hours. Contract task C1; corrections A12 and A13.**
 
 After sign-in, every Hub call, every phase 8 broker call and — if ADR-H1 Q5 is yes — every Azure
 DevOps push asks `Token(ctx, scope)` for the user's own access token (contract §6.2). **One refresh
@@ -31,7 +31,32 @@ const (
 	AzureDevOpsScope = "499b84ac-1321-427f-aa17-267ca6975798/user_impersonation"
 )
 
-// Token serves the cached access token for scope while exp − now > 5 min;
+// Scope-specific refusals (review I2). Neither signs the user out; each wraps a
+// *ScopeRefusal naming the scope and Entra's code, so the caller can surface
+// "Azure DevOps needs your consent" rather than "sign in again".
+var (
+	ErrScopeNeedsConsent     = errors.New("entraauth: this resource needs consent")
+	ErrScopeNeedsInteraction = errors.New("entraauth: this resource needs an interactive sign-in")
+)
+
+type ScopeRefusal struct {
+	Scope    string
+	Code     string // "invalid_grant" | "interaction_required"
+	Suberror string // Entra's suberror, e.g. "consent_required"; "" if none
+	Err      error  // ErrScopeNeedsConsent or ErrScopeNeedsInteraction
+}
+
+func (r *ScopeRefusal) Error() string // "entraauth: <scope>: <Code>/<Suberror>"
+func (r *ScopeRefusal) Unwrap() error // r.Err
+
+// refreshSkew is how long before exp a cached token stops being served
+// (review I9): min(5 min, lifetime/2), lifetime = exp − the Now() at which the
+// token response was received. An hour's token is refreshed 5 min early, as
+// before; a 90 s token is served for 45 s, not redeemed on every call. All times
+// come from Config.Now, never time.Now.
+func refreshSkew(lifetime time.Duration) time.Duration
+
+// Token serves the cached access token for scope while exp − now > refreshSkew(lifetime);
 // otherwise it redeems the refresh token: POST token_endpoint with
 // grant_type=refresh_token, client_id, refresh_token, scope="<scope> offline_access".
 //   - Callers for one scope share one redemption (single-flight); redemptions for
@@ -47,9 +72,41 @@ const (
 //     §6.2: "a crash in between leaves the old one"). A failed delete of the old
 //     generation after the record is written is logged at warn and not an error:
 //     start-up sweeps it.
-//   - invalid_grant or interaction_required → both entries deleted, every cached
-//     token dropped, Status {signed_out, reauth_required}, ErrSignedOut to every
-//     caller waiting on it.
+//   - A refusal is read by the SCOPE being redeemed, not by the error code alone
+//     (review I2): one refresh token serves every resource, and a refusal for one
+//     resource is not a dead refresh token.
+//       · Redeeming HubScope: invalid_grant (any suberror) or interaction_required
+//         → both entries deleted, every cached token dropped, Status
+//         {signed_out, reauth_required}, ErrSignedOut to every caller waiting on it.
+//         The Hub is the sign-in's own resource, so a refusal for it means the
+//         session is over.
+//       · Redeeming any OTHER scope (the broker's, AzureDevOpsScope):
+//         invalid_grant with suberror consent_required or error_codes holding
+//         65001 → ErrScopeNeedsConsent; interaction_required (or invalid_grant
+//         with error_codes holding 50076 or 50079) → ErrScopeNeedsInteraction.
+//         Both wrap a *ScopeRefusal{Scope, Code, Suberror}. NOTHING is deleted,
+//         the refresh token is kept, Status is unchanged, only that scope's
+//         cached token is dropped, and the other scopes keep serving.
+//       · Any OTHER invalid_grant on a non-Hub scope (no consent suberror, no
+//         50076/50079) may be a dead refresh token or a per-resource refusal, and
+//         only the Hub scope can tell: under the same redemption lock, Token
+//         redeems HubScope once. Hub refuses too → the sign-out path above, and
+//         ErrSignedOut to the non-Hub caller as well; Hub succeeds (its rotation
+//         written as above) → ErrScopeNeedsInteraction for that scope. Root-cause
+//         ruling: a non-Hub refusal never deletes the one credential the Hub
+//         still redeems, and a dead token is not left in the store for an hour
+//         while the Hub's cached access token lives.
+//       · invalid_scope on a non-Hub scope (the resource is not in the client's
+//         granted permissions: task 32's PANACEA_APP_ENTRA_DEVOPS=true before IT's
+//         consent) → ErrScopeNeedsConsent, the same keep-everything rule.
+//       · Any other 4xx body, on any scope (invalid_client, unauthorized_client,
+//         invalid_request, invalid_scope on HubScope, an unknown code) → an error
+//         naming the code (and error_codes), NOT ErrSignedOut: nothing is deleted
+//         and Status is unchanged. Only invalid_grant and interaction_required
+//         prove a refresh token dead, and only for HubScope; a misconfiguration
+//         never costs the user their sign-in.
+//       · The refresh token is NOT rotated by a refused redemption (no new
+//         refresh_token in an error body), so the store is not written.
 //   - Entra unreachable, a timeout, a 5xx → ErrEntraUnavailable; the stored token is kept.
 //   - Not signed in → ErrSignedOut, with no network call.
 func (a *Authenticator) Token(ctx context.Context, scope string) (string, error)
@@ -101,6 +158,9 @@ func (a *Authenticator) SignOut(ctx context.Context) error
 // DevOps implements phase 3's credstore.Store for Azure DevOps with the Entra
 // token (ADR-H1 Q5): Scheme bearer, Source "entra". Enabled is Q5's answer,
 // PANACEA_APP_ENTRA_DEVOPS (task 32); false makes it answer ErrNoCredential.
+// In phase 3's chain it comes AFTER credstore.LocalDevOps (task 29, review I10):
+// Local → LocalDevOps → DevOps → GitHelper, so a PAT the user pasted for an
+// organisation wins, and with Enabled false the store still serves Azure DevOps.
 type DevOps struct {
 	Tokens  TokenSource
 	Enabled bool
@@ -110,6 +170,11 @@ type DevOps struct {
 // ErrSignedOut → ErrNoCredential (a Chain then moves on to the git credential
 // helper). ErrEntraUnavailable → returned as is, stopping the Chain: "Entra is
 // down" must not silently become "use another credential" (phase 3 task 13 :87-89).
+// ErrScopeNeedsConsent and ErrScopeNeedsInteraction (review I2) → returned as is,
+// wrapped *ScopeRefusal and all, also stopping the Chain: the user IS signed in and
+// Azure DevOps refused this resource, so falling through to the machine's git
+// helper would push as whoever that helper holds, not as this user. The Hub
+// session is untouched.
 func (d DevOps) Credential(ctx context.Context, h credstore.Host) (credstore.Credential, error)
 ```
 
@@ -130,14 +195,18 @@ injected clock.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestACachedTokenIsServedUntilFiveMinutesLeft` | at exp − 6 min → the cached token, no request; at exp − 4 min → a redemption | a redemption per call; a token served until it expires in flight |
+| `TestACachedTokenIsServedUntilFiveMinutesLeft` | `AccessTTL` 60 min: at exp − 6 min → the cached token, no request; at exp − 4 min → a redemption | a redemption per call; a token served until it expires in flight |
+| `TestTheRefreshSkewIsHalfAShortLifetime` | `refreshSkew` table: 60 min → 5 min, 10 min → 5 min, 9 min → 4 min 30 s, 90 s → 45 s, 0 → 0. Then `AccessTTL` 90 s through `Token`, on the injected clock: at issue + 44 s → the cached token, no request; at issue + 46 s → one redemption (review I9) | the fixed 5-minute skew, under which any token shorter than 5 min is redeemed on every call; a skew read from `time.Now` instead of `Config.Now` |
 | `TestTenCallersOneRedemption` | 10 goroutines, one scope, expired cache → exactly 1 token-endpoint request (contract §13 C1) | a thundering herd on the token endpoint |
 | `TestRedemptionsAreSerialisedAcrossScopes` | Hub and broker scopes expire together; 5 callers each, concurrently → both succeed; the endpoint saw 2 requests, never two with the same refresh token | the per-scope-only single-flight, which signs the user out under rotation |
 | `TestRotationIsWrittenBeforeTheTokenIsReturned` | a recording `Secrets`: in order, the new generation's chunks, then the account record naming that `refreshGen` and `refreshChunks`, then the old generation's deletes — all before `Token` returns; **no `Put` targets any chunk of the old generation** | a crash between return and write losing the only valid refresh token; the in-place overwrite (review I1); an old generation deleted before the record names the new one |
 | `TestAFailedRotationWriteKeepsTheOldToken` | signed in (the old token, generation A); `Config.HTTPClient`'s `RoundTripper` swaps the refresh grant's `refresh_token` for a **6,000-byte** value (3 chunks — devissuer issues 43-character tokens, task-12.md:71, too small to need a second chunk); a faulting `Secrets` fails the **second** chunk's `Put` of that write → `Token` errors; the record still names A; `GetChunked(A, n)` returns the old token **whole, byte for byte**; `List(EntraRefreshPrefix)` holds only A's chunks; a fresh `New` over the same store → `signed_in`. A second case fails the record's `Put` instead: the same assertions | a torn token (new chunk 0 + old chunk 1, review I1) that signs the user out at the next start; a fault injected only on the first `Put`, which never tests the tear. (Whether the old token still redeems is Entra's rule, not this test's: devissuer revokes on rotation, task-12.md:101) |
 | `TestStartUpSweepsUnnamedGenerations` | the store holds the record naming B, B's chunks, and a stray generation C (a rotation that died before its record `Put`) and A (one that died before its old-generation delete); `New` → `signed_in`, and `List(EntraRefreshPrefix)` is exactly B's chunks | leaked refresh tokens piling up in Credential Manager; a sweep that deletes the named generation |
-| `TestInvalidGrantSignsOut` | `devissuer.RevokeRefreshTokens(grace)` → `ErrSignedOut`; `Status` `reauth_required`; the store is empty | a dead refresh token retried on every call |
-| `TestInteractionRequiredSignsOut` | `RequireInteraction(grace, true)` → the same | a conditional-access sign-in frequency never surfaced to the user |
+| `TestInvalidGrantSignsOut` | `devissuer.RevokeRefreshTokens(grace)`; `Token(HubScope)` with its cache expired → `ErrSignedOut`; `Status` `reauth_required`; the store is empty | a dead refresh token retried on every call |
+| `TestInteractionRequiredSignsOut` | `RequireInteraction(grace, true)`; `Token(HubScope)` → the same | a conditional-access sign-in frequency never surfaced to the user |
+| `TestASecondaryScopeRefusalKeepsTheSession` | signed in, the Hub token cached. `Config.HTTPClient`'s `RoundTripper` answers the **broker** scope's refresh grant itself, never forwarding it (so devissuer's refresh token is not spent), with Entra's body `{"error":"invalid_grant","suberror":"consent_required","error_codes":[65001]}` → `Token(brokerScope)` is `ErrScopeNeedsConsent`, `errors.As` a `*ScopeRefusal` whose `Scope` is the broker's; `Status` still `signed_in`; the store, compared entry by entry, **unchanged**; then, the Hub's cache expired, `Token(HubScope)` succeeds with a real redemption of the kept refresh token. Case 2: `{"error":"interaction_required","error_codes":[50076]}` → `ErrScopeNeedsInteraction`, the same assertions. Case 3, devissuer's own body: `RequireInteraction(grace, true)` with the Hub token still cached → `Token(brokerScope)` is `ErrScopeNeedsInteraction`, the store unchanged. Case 4: `{"error":"invalid_scope","error_codes":[70011]}` for the broker's grant → `ErrScopeNeedsConsent`, the same assertions (review I2) | the scope-blind rule, under which a conditional-access policy on Azure DevOps signs the user out of the Hub at every push; a refusal that drops every scope's cached token |
+| `TestAPlainInvalidGrantOnASecondaryScopeAsksTheHub` | Case 1: `RevokeRefreshTokens(grace)`, the Hub token cached → `Token(brokerScope)` is `ErrSignedOut`; the endpoint saw exactly two requests, the broker's then the Hub's; `Status` `reauth_required`; the store is empty. Case 2: the `RoundTripper` answers the broker's grant with a bare `{"error":"invalid_grant"}` and forwards the Hub's → `Token(brokerScope)` is `ErrScopeNeedsInteraction`; `Status` `signed_in`; the record names the Hub redemption's new generation (review I2) | a dead refresh token kept for the life of the Hub's cached token; a per-resource refusal that signs the user out |
+| `TestAnUnlistedRefusalDeletesNothing` | the `RoundTripper` answers the **Hub** scope's refresh grant with `400 {"error":"invalid_client"}`, then `{"error":"invalid_scope"}`, then `{"error":"something_new"}`, never forwarding → each `Token(HubScope)` errors naming the code, and is neither `ErrSignedOut` nor `ErrEntraUnavailable`; `Status` still `signed_in`; the store, entry by entry, unchanged; with the `RoundTripper` removed, the next `Token(HubScope)` redeems the kept refresh token (review I2) | an "any 4xx signs out" rule, under which a misconfigured client id or scope deletes every user's refresh token |
 | `TestAnUnreachableEntraKeepsTheToken` | the issuer stopped → `ErrEntraUnavailable`; `Status` still `signed_in`; the store unchanged | a network blip signing the user out |
 | `TestStartUpFromTheAccountRecord` | a store pre-filled by a previous sign-in; `New` → `signed_in` with the account, **no** request until `Token`. A second case wraps the same store in a faulting `Secrets` whose `Get` of the record returns an error that is **not** `ErrNotFound` → `New` returns `signed_out` without error, and the store, compared entry by entry before and after, is **untouched**: no `Delete`, no sweep (plan re-review b03 m3) | an eager redemption at every start; a transient read failure treated as "absent", which deletes a valid refresh token |
 | `TestAPartialWriteIsNotAnAccount` | chunks but no account record → `signed_out`, every generation deleted; a record whose named generation lacks a chunk → `signed_out`, record and every generation deleted; and a record with `"refreshGen":"XYZ"`, and one with `"refreshChunks":0` and one with `17`, each over a valid generation's chunks → `New` returns `signed_out` **without panicking**, record and every generation deleted (plan re-review b03 N1) | a half-written sign-in treated as complete; a stored gen passed unchecked to a builder, which panics at every start |
@@ -145,7 +214,7 @@ injected clock.
 | `TestInvalidateForcesARedemption` | a fresh cached token; `Invalidate`; `Token` → a request | the 401-expired retry of contract §4.3 retrying with the same token |
 | `TestOneRefreshTokenServesTwoResources` | after one sign-in, `Token(HubScope)` and `Token(brokerScope)` both succeed, each `aud` its API | a second sign-in for the broker (phase 8) |
 | `TestErrSignedOutIsHubclients` | `errors.Is(entraauth.ErrSignedOut, hubclient.ErrSignedOut)` | the relay missing a signed-out error |
-| `TestDevOpsCredential` | GitHub host → `ErrNoCredential`; `Enabled: false` → `ErrNoCredential`; enabled → `{Scheme: bearer, Source: "entra"}`; signed out → `ErrNoCredential`; Entra unreachable → that error, not `ErrNoCredential` | an ADO token sent to GitHub; an outage silently falling through the chain |
+| `TestDevOpsCredential` | GitHub host → `ErrNoCredential`; `Enabled: false` → `ErrNoCredential`; enabled → `{Scheme: bearer, Source: "entra"}`; signed out → `ErrNoCredential`; Entra unreachable → that error, not `ErrNoCredential`; a `TokenSource` answering `ErrScopeNeedsConsent`, and one answering `ErrScopeNeedsInteraction` → that error, not `ErrNoCredential`, and a `credstore.Chain{DevOps, <a store that records calls>}` never asks the second store (review I2) | an ADO token sent to GitHub; an outage silently falling through the chain; an ADO refusal falling through to the machine's git helper, which pushes as someone else |
 
 #### Steps
 
@@ -156,7 +225,7 @@ injected clock.
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/entraauth/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 34 (18 from task 30 + 16)
+go test ./control-plane/internal/entraauth/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 38 (18 from task 30 + 20)
 go test ./control-plane/internal/entraauth/ -race -count=20 -run 'TestTenCallers|TestRedemptionsAreSerialised'   # ok — twenty runs, no flake
 ```
 
@@ -172,3 +241,13 @@ go test ./control-plane/internal/entraauth/ -race -count=20 -run 'TestTenCallers
   reads a record naming a missing generation, which is a clean `signed_out`, not a wrong token.
   Unverified: nothing in the tree enforces one control plane per user.
 - Continuous Access Evaluation: not requested (the client declares no `cp1` capability, §6.4).
+- **Entra's per-resource refusal bodies** (A12): `consent_required`/65001, 50076/50079 and
+  `invalid_scope` for one resource while the refresh token redeems another are from Microsoft's
+  documentation as this plan understands it, not observed; the tests forge them, and task 43's R-8
+  records the real ones.
+- **The broker and Azure DevOps scopes are not added to task 30's authorize request** (the review's
+  optional step, declined). The desktop client is **admin**-consented for each resource (contract
+  §6.2 `:404-407`, §6.5), so asking the user at sign-in adds no consent. And a scope the tenant has
+  not consented, such as Azure DevOps while Q5 is unanswered, would fail the whole sign-in,
+  the Hub's included, where A12 fails only that resource. Task 30's step 8 also sends step 4's
+  scope unchanged, and a token request naming two resources is refused (from knowledge, unverified).

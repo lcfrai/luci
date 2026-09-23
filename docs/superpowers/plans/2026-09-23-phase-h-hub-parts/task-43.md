@@ -16,12 +16,24 @@ what only a **real KPMG tenant** can prove, and records honestly what was and wa
 #### The end-to-end test — `e2e_integration_test.go` (`//go:build integration`)
 
 One test, `TestTwoTeammatesShareTheThread`, in steps, each a `t.Run` so a failure names its step.
-The world: `hubtest.Migrated`; `devissuer` in-process with `Auto` and `AccessTTL` 90 s; the Hub's
-real handler (`server.New` + `entra.New`, `AllowInsecureAuthority`) on an `httptest.Server`; **two**
-control planes (`api.New`), one per teammate, each with its own `credstore.Memory()`, its own
-`entraauth.Authenticator`, `hubclient.Client`, `hublink.Resolver`, `hubfeed.Poller` (interval 1 s)
-and local key; a temporary git repository whose `origin` is `https://github.com/lcfrai/panaceaapp.git`
-as each control plane's only project.
+The world: `hubtest.Migrated`; `devissuer` in-process with `Auto` and `AccessTTL` **10 min**; the
+Hub's real handler (`server.New` + `entra.New`, `AllowInsecureAuthority`) on an `httptest.Server`;
+**two** control planes (`api.New`), one per teammate, each with its own `credstore.Memory()`, its
+own `entraauth.Authenticator`, `hubclient.Client`, `hublink.Resolver`, `hubfeed.Poller` (interval
+1 s) and local key; a temporary git repository whose `origin` is
+`https://github.com/lcfrai/panaceaapp.git` as each control plane's only project.
+
+**One clock (review I9).** A single test clock, `clk` — a mutex-guarded `time.Time` with `Now()`
+and `Advance(d)` — is passed as `Now` to `devissuer` (task 11's `Config.Now`), to both teammates'
+`entraauth.Config.Now` (task 30), and to the Hub's validator, `entra.Config.Now` (task 10), and
+its authentication middleware, `server.AuthConfig.Now` (task 13). It starts at the wall time the test begins and stays **frozen**
+through steps 1–8: nothing expires, so no refresh grant is made, and every token a teammate holds is
+the one sign-in gave them. Only step 9 moves it. Two clocks would break the test the other way:
+tokens minted on an advanced issuer clock carry an `nbf` in the Hub's future. The poll intervals
+and step 5's latency bound are **wall** time, on the ticker and `time.Since`, not on `clk`. Each
+teammate's `entraauth.Config.HTTPClient` wraps its transport in a counting `RoundTripper` that
+counts `POST`s to the token endpoint with `grant_type=refresh_token`; that count, per teammate, is
+what step 9 reads (`devissuer` itself keeps no count).
 
 | Step | Does, through the control plane's HTTP surface where one exists | Asserts |
 |---|---|---|
@@ -29,12 +41,12 @@ as each control plane's only project.
 | 2 `grace_shares` | `POST /v1/projects/{p}/hub-link` with a new team | `linked`; the Hub project's remote is `github.com/lcfrai/panaceaapp` |
 | 3 `grace_invites_vera` | `POST /v1/hub/teams/{tm}/invites` | 201 |
 | 4 `vera_signs_in_and_is_linked` | Vera's control plane signs in (her own store), then `GET /v1/projects/{p}/hub-link` | the **same** Hub project, found by the repository, not by any id — H-3 in practice |
-| 5 `the_brief_thread` | as Grace, through `hubclient.Briefs` (phase 4's calls): create a branch brief, write revision 1 `complete`; as Vera, `Resolve` its key | Vera resolves it `resolved` with the same digest; her feed subscriber received `brief.revised` **within 3 s** of the write (1 s poll ×2 + slack; ADR-H1 §5.5) |
+| 5 `the_brief_thread` | as Grace, through `hubclient.Briefs` (phase 4's calls): create a branch brief, write revision 1 `complete`; as Vera, `Resolve` its key | Vera resolves it `resolved` with the same digest; her feed subscriber received `brief.revised` **within 3 s** of the write, measured on the wall clock with `clk` frozen (1 s poll ×2 + slack; ADR-H1 §5.5) |
 | 6 `the_design_thread` | as Grace (phase 5's calls): upload a manifest and a file, approve `design:cv-…@1` against revision 1 | Vera resolves the design key with the approval; `approvedBy` is Grace |
 | 7 `the_release_thread` | as Vera (phase 7's calls): reserve a run on the branch, confirm, join `d-e2e1` | the pin is revision 1 `ship_head`; Grace's `Releases(deploymentId: d-e2e1)` finds it; `reservedBy` is Vera |
 | 8 `the_evidence_thread` | as Grace (phase 3's call): record evidence against revision 1 on the repo | Vera's `EvidenceByDigest` returns it; `recordedBy` formats as `Grace Example <grace@example.test>` |
-| 9 `tokens_refresh_unseen` | advance past the access token's life (90 s), make a Hub call | it succeeds; `devissuer` saw one refresh grant; the store's refresh token rotated |
-| 10 `revocation_signs_out` | `devissuer.RevokeRefreshTokens(vera)`; expire her token; a Hub call | 401 `signed_out` from her control plane; `GET /v1/auth/status` → `reauth_required`; her store is empty |
+| 9 `tokens_refresh_unseen` | before: each teammate's refresh-grant count is **0** (steps 1–8 made none). `clk.Advance(10 min)`, past the access token's life; a Hub call from Grace's control plane; then wait (bounded, 3 s wall) for Vera's poller to make its next Hub call | Grace's call succeeds; Grace's count is exactly **1** and Vera's exactly **1** (her poller's, sharing one redemption), and neither moves over a further 2 s of polling: the new tokens live 10 min on a frozen clock; each store's account record names a new `refreshGen` (task 31's rotation) |
+| 10 `revocation_signs_out` | `devissuer.RevokeRefreshTokens(vera)`; expire her token with `Invalidate(HubScope)` on her `Authenticator` (task 31), not the clock, so Grace's session is not touched; a Hub call | 401 `signed_out` from her control plane; `GET /v1/auth/status` → `reauth_required`; her store is empty |
 | 11 `the_local_key_holds` | a request to Grace's control plane without the key; one with Vera's key | both 401 `local_key_required` |
 | 12 `the_chain_verifies` | `hub verify` against the database | exit 0, `ok revisions`, `ok audit` |
 
@@ -60,9 +72,10 @@ allowed client.
 | R-5 | The refresh token's size in bytes, and so the chunk count | recorded | ADR-H1 R1 |
 | R-6 | `cmdkey /list` shows the `PanaceaApp/entra/…` entries, persisted on this machine | present | `OD-6`'s store actually used |
 | R-7 | After the access token expires (60–90 min), a Hub call still succeeds without a prompt | no prompt | refresh and rotation against Entra |
-| R-8 | `Token(Sandboxes.Access)` succeeds from the same sign-in; and Azure DevOps' scope if IT granted it (Q5) | success, or "not consented" recorded | one refresh token for three resources (ADR-H1 §11) |
+| R-8 | `Token(Sandboxes.Access)` succeeds from the same sign-in; then `Token` for Azure DevOps' scope, **whether or not** IT granted it (Q5). A refusal for either secondary scope is recorded with its `error`, `suberror` and `error_codes` (the AADSTS numbers) as Entra sent them, and after it `Status` is still `signed_in` and a Hub call still succeeds with no prompt (correction A12) | success; or `ErrScopeNeedsConsent` / `ErrScopeNeedsInteraction` with the Hub session intact | one refresh token for three resources (ADR-H1 §11); review I2's per-resource refusal bodies, known so far only from documentation, and a secondary refusal signing the user out of the Hub |
 | R-9 | The owner's token carries `roles: ["Hub.OrgAdmin"]`; `GET /v1/audit` answers 200 for them | as stated | the app-role assignment |
 | R-10 | A colleague outside *PanaceaApp Users* cannot obtain a Hub token | Entra refuses | "assignment required" (ADR-H1 §9 item 4) |
+| R-11 | A real Azure DevOps PAT, minted by the owner for one organisation, pasted through `POST /v1/credentials/azure-devops` (task 39); record its **length** and whether it is all `[A-Za-z0-9]` (never its value); then `credstore.LocalDevOps` serves it and a `git ls-remote` of a repository in that organisation, with `PANACEA_APP_ENTRA_DEVOPS` unset, succeeds through phase 3's chain | 204; listed by `GET /v1/credentials`; `ls-remote` exit 0 | review I10: task 39's PAT bound `^[A-Za-z0-9]{52,256}$` is from knowledge, and the local ADO path is the only one until Q5 |
 
 #### The results record
 
@@ -86,7 +99,7 @@ workload-identity database login, and phase 8's deployed chart.
 ```bash
 go test -tags integration ./control-plane/internal/hub/ -run TestTwoTeammatesShareTheThread -race -count=1 -v 2>&1 | grep -c "^    --- PASS"   # 12
 go test -tags integration ./control-plane/internal/hub/... ./control-plane/cmd/hub/ -race -count=1                                                 # ok
-grep -c "^| R-" docs/verification/2026-09-23-phase-h-results.md                                                                                   # 10
+grep -c "^| R-" docs/verification/2026-09-23-phase-h-results.md                                                                                   # 11
 grep -n "Unverified" docs/verification/2026-09-23-phase-h-results.md                                                                              # present
 ```
 

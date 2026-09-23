@@ -81,7 +81,7 @@ No response of these routes carries a token, a code or an object id.
 | `PANACEA_APP_ENTRA_AUTHORITY` | — | required with `HUB_URL`; `https://`, or `http://` to a loopback host only |
 | `PANACEA_APP_ENTRA_CLIENT_ID` | — | required with `HUB_URL`; a GUID |
 | `PANACEA_APP_ENTRA_REDIRECT_HOST` | `127.0.0.1` | `127.0.0.1` or `localhost` |
-| `PANACEA_APP_ENTRA_DEVOPS` | `false` | ADR-H1 Q5: `true` makes Azure DevOps use the Entra token (task 31's `DevOps.Enabled`). **Default false** until IT grants the desktop client Azure DevOps consent: without it every ADO token request fails `invalid_scope` |
+| `PANACEA_APP_ENTRA_DEVOPS` | `false` | ADR-H1 Q5: `true` makes Azure DevOps use the Entra token (task 31's `DevOps.Enabled`). **Default false** until IT grants the desktop client Azure DevOps consent: without it every ADO token request is refused (`invalid_scope` or `consent_required`, which task 31 returns as `ErrScopeNeedsConsent` for that resource alone, never a sign-out: A12). While it is false, Azure DevOps is served by the user's pasted PAT (`credstore.LocalDevOps`, task 39's kind `azure-devops`, review I10), which also wins when it is true |
 | `PANACEA_APP_CREDSTORE` | `wincred` on Windows, else `memory` | `wincred` off Windows is a start-up error |
 | `PANACEA_APP_LOCAL_KEY_FILE` | `<state dir>/local-key` | task 37 reads it |
 

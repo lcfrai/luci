@@ -1,11 +1,11 @@
-### Task 44a: the contract made true **before** anyone builds — A1–A11, the additions, and the sibling asks' answers
+### Task 44a: the contract made true **before** anyone builds — A1–A13, the additions, and the sibling asks' answers
 
 **`feat/hub`, FIRST: before task 01, and before the four lanes branch. Depends on: nothing. About
 1.5 hours. Documents only.** The orchestrator announces the merged commit to phases 3, 4, 5 and 7,
 with the read path each sibling uses from its own worktree (step 3).
 
 ADR-H1 §7.2 lists amendments *"each made by the phase that next edits the file"*; this phase is
-that phase for four documents. This plan made eleven corrections to the Hub contract (A1–A11), several
+that phase for four documents. This plan made thirteen corrections to the Hub contract (A1–A13), several
 additions, and answered every sibling ask (task 00). They are folded in **now**, because every
 sibling reads the contract tonight — §7.4's repo-key regex (phase 4 HA4-6 and phase 7 already flag
 it), §12.1's four-service compose, §9.4's missing `Authorization` CORS header — and a phase that
@@ -38,6 +38,9 @@ that builds each:
 | §2 | A9: `hubapi` may import `httpx`; `hubclient` may import `httpx` and `ids` |
 | §3.6 | A10: `teamId` in the audit envelope; `hub verify` checks `feed`; golden vectors 3 and 4 (task 02) |
 | §9.1, §6.2 | A11: §9.1's refresh rows (`hub-contract.md:1172-1173`) become `PanaceaApp/entra/<tenantId>/<clientId>/refresh/<gen>/<i>` (`gen` 16 lowercase hex, one per write) and the account record gains `"refreshGen"`; §6.2's *"a crash in between leaves the old one"* gains the sequence that makes it true — new generation, then the record (last), then the old generation's delete; start-up deletes every generation the record does not name, validates the stored `refreshGen` and `refreshChunks` (1 to 16) and treats a bad record as a missing one, and deletes nothing on a read error that is not "not found"; sign-out deletes the record first (review I1, plan re-review b03 N1 and m3; tasks 28, 30, 31) |
+| §6.2 | A12: *"Failure"* (`hub-contract.md:408-411`) is read by the scope redeemed. A refusal for `Hub.Access` keeps the contract's sign-out. A refusal for any other scope returns `ErrScopeNeedsConsent` or `ErrScopeNeedsInteraction` (a `*ScopeRefusal`), deletes nothing, and drops only that scope's cached token. A plain `invalid_grant` on another scope is settled by one `Hub.Access` redemption. The Azure DevOps `Store` returns both refusals, stopping the `Chain` (review I2; task 31) |
+| §6.2 | A13: *"while `exp − now > 5 min`"* (`hub-contract.md:397-398`) becomes *"while `exp − now > min(5 min, lifetime / 2)`"*, `lifetime` being `exp` minus the time the token response arrived (review I9; task 31) |
+| §9.1 | A8, the Azure DevOps half: the target `PanaceaApp/git/azure-devops/<org>` (a PAT per organisation, `credstore.LocalDevOps`, `Scheme: BasicPAT`), and phase 3's chain order `Local → LocalDevOps → entraauth.DevOps → GitHelper` (review I10; tasks 28, 29, 39) |
 | §9.2 | additive: `Teams`, `Projects.Project`/`AddRemote`, `Designs.Approval`/`SessionLinks` (HA5-2: §9.2's `Designs` becomes the seven methods), `Releases.Release`, `ErrSignedOut`, `ErrNotConfigured`, `ErrTokenUnavailable`, `Invalidator`, `WriteError`, `VerifyRevision`, `FormatRecorder`. One sentence at the head of §9.2: *"Siblings consume these interfaces and `NewFake()`; they never implement them. A double is `NewFake()` or an embedded interface, so an added method is additive."* |
 | §9.3 | additive: the `Panacea-Auth-State` header (task 36); the hub-link and team routes (task 35) |
 | §6.2 | the refinement: redemptions serialised across scopes (task 31) |
