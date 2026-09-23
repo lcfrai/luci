@@ -460,3 +460,133 @@ explained below the tables. Line numbers are those after the batch. `t05` means
 - **M3's second half (`Retry-After` against fixed GET backoff) is not in this batch.** It stays
   with the Minors.
 
+---
+
+## Fix batch b02 — C2 and I8 (2026-09-24)
+
+Both findings are fixed with the review's mechanism: Panacea's own mapping plus `SameEnvironment`,
+and no join on raw names anywhere. Four points were changed or added on the facts, and are
+explained below the tables. Line numbers are those after the batch. `tNN` means
+`2026-09-23-phase-7-deploy-parts/task-NN.md`, and `plan` means `2026-09-23-phase-7-deploy.md`.
+
+**Re-verified against `~/Projects/Panacea/services/panacea-api` (read-only) before editing:**
+- `routes.go:1430`: `GET …/branches/{branch}/access` is `authedProject` (member-readable).
+- `handlers/branch_security.go:29-37`: `branchEnv` → `mapBranchToEnvWithProd`.
+  `project_security.go:636` reads `r.PathValue("branch")`, `:646` calls `branchEnv`, and
+  `:668-677` writes `data.env`. No existence check. `:641-644` is a 503 without a k8s client.
+- `handlers/projects.go:2109-2118`: *"For non-base envs Env==Branch already"*, and the row writes
+  `"branch": e.Branch`. `:3783-3826`: `mapBranchToEnv` and `sanitizeBranchEnv`, which cut at 20
+  characters. `:3838-3849`: `mapBranchToEnvWithProd`.
+- `clients/pipeline.go:237`: `env := environmentForBranch(branch, prodBranch)`, a function at
+  `:2195-2207`. `:608` writes it as `panacea.io/environment`. `:609` writes
+  `panacea.io/branch: sanitizeLabelValue(branch)`, a function at `:2351-2364`.
+
+### C2 — `environments[].branch` is the environment key, not the git branch
+
+| Change | Where |
+|---|---|
+| `Reader.EnvironmentFor(ctx, p, branch)` is the only branch → environment mapping, joined with `SameEnvironment` | t01:61-67 |
+| `Environment.Branch` is documented as Panacea's label, never a join key | t01:139-143 |
+| `Fake.SetBranchEnvironment`: seeded, derives nothing, and an unseeded branch fails loudly | t01:514-518 |
+| `Seeder.BranchEnvironment` | t01:540-542 |
+| Conformance row `EnvironmentForIsTheTargets`: `feat/x`, a 31-character branch, and `main`, with no row | t01:569; "seven rows" t01:591 |
+| `environmentDTO.Branch` is commented as a label | t03:61 |
+| `branchEnvDTO {Env}` | t03:71-75 |
+| The route row: `branches/{branch}/access`, `PathEscape`, `data.env`, the empty-answer rule, and the 503 | t03:207 |
+| `Seeder` gains `BranchEnvironment` | t03:242-244 |
+| Recorded bodies: `environments.json` row `feat-evidence-upload` with `branch == name`, and three `branch-access-*.json` | t03:256-257 |
+| `panaceatest.Server` answers from a seeded table and holds no naming rule | t03:284-288 |
+| `TestEnvironmentForReadsPanaceasName` (`feat%2Fx`, long, `main`, empty) and `TestEnvironmentForJoinsProduction` | t03:309-310 |
+| Problem code `deploy_environment_invalid` replaces `deploy_environment_unknown` | t05:230, t13:254 |
+| The disconnected-method count is 24 | t05:282 |
+| `Watcher.WantBranch` | t07:81-85 |
+| `Snapshot.BranchEnvs` | t07:97-101 |
+| Cycle step 2: `EnvironmentFor` once per new wanted branch, re-read every fourth cycle | t07:127-130 |
+| `TestEnvironmentsBeforeLatest` amended; `TestWantedBranchResolvedOnce` | t07:189-190 |
+| The view route takes `?branch=` and calls `WantBranch`, with no request | t08:21-23 |
+| `DeployView.selected {branch, target, environment}` | t08:36-40 |
+| The example row is `feat-evidence-upload`, with its label; `branchesSeen` holds run labels | t08:49-51, t08:54 |
+| Rule 1a, *Selected branch*: never compare a git branch with any Panacea label | t08:143-149 |
+| Rule 9: labels are compared only with each other | t08:170-171 |
+| Tests: slash, long, production, never deployed | t08:184-187 |
+| `TestViewHandlerMakesNoCall` covers `?branch=` | t08:201 |
+| The read-only catalogue line | t08:203-205 |
+| Task 09's header: no Hub dependency | t09:3-6 |
+| `Tracker.WantBranch` and `EnvironmentNamer` | t09:60-67 |
+| `Config.Environments` replaces `EnvironmentOptional` | t09:77-79 |
+| Readiness `Environment` comes from `BranchEnvs`, with reason `environment_invalid` | t09:125-131 |
+| Readiness example value | t09:152 |
+| Step 4: `EnvironmentFor` before reserve; the error mapping; the §7.9 check; reserve with the answer verbatim | t09:178-196 |
+| Wire: `409 deploy_environment_invalid` | t09:235 |
+| Six tests replace `TestEnvironmentUnknownUntilHA71` | t09:259-264 |
+| TS types: the label comments, `environmentRow`, `selected` | t13:68-71, t13:113, t13:154 |
+| `view(projectId, branch)` sends `?branch=` verbatim, and `loadDeployView` sends the selection | t13:208-209, t13:303-306 |
+| Test `view sends the branch verbatim` | t13:326 |
+| The card finds its row through `view.selected.environment`, in three states | t15:67-80 |
+| The collision banner fires on `branchesSeen` only, not `env.branch !== branchName` | t15:127-135 |
+| Five tests: slash, long, production, never deployed, and a source grep for name compares | t15:153-157 |
+| Hub-ask row HA7-1: withdrawn | t20:49 |
+| The live test reads `EnvironmentFor("live-check/p7")` | t20:176-185 |
+| LIVE-CHECK step 6 settles the `%2F` read | t20:406 |
+| 7P-8: the production label is `prod` on the deploy path (from source) | plan:269-273 |
+| 7P-8: one join, in the control plane; a git branch is never compared with a name; Panacea's mapping; a first Ship is knowable | plan:278-291 |
+| §4 row 15: `data.env` and its users 03, 04, 07, 09, 11 | plan:376 |
+| §8 row 09: no Hub ask | plan:543 |
+| §9 HA7-1 reframed as **withdrawn**, with the false premise (plan:563-564 before) and the old *meanwhile* (plan:579-583 before) named | plan:575-590 |
+| §12: the production label settled from source; the `%2F`-through-ingress question added | plan:725-733 |
+
+### I8 — the drawer re-joins environments by exact name
+
+| Change | Where |
+|---|---|
+| `ReleaseRow.environmentRow`: the matched row's name, or `null` when unmatched | t08:88 |
+| `ReleaseRow.environment` stays the raw label (`prod`) | t08:87 |
+| Rule 1: every `ReleaseRow`, and Hub rows too, carries `environmentRow` | t08:140-142 |
+| `TestReleaseRowCarriesItsRow` (a `prod` deployment, a `prod` rollback, an unmatched row) | t08:188 |
+| TS `ReleaseRow.environmentRow` | t13:113 |
+| The drawer looks up `row.environmentRow`; an unmatched row gets no drill-ins | t17:121-128 |
+| Tests `prod row keeps its drill-ins` and `unmatched row has no drill-ins` | t17:218-219 |
+
+### Deviations and additions, declared
+
+1. **The review names the route but not how the desktop gets its answer.** The view handler makes
+   no network call (t08:5-6). So the desktop sends `?branch=`. The watcher's cycle resolves the
+   branch (`WantBranch`, at most 16 per project), and the view returns `selected`. Ship reads
+   `EnvironmentFor` directly at step 4, because an act should use Panacea's answer now, not a
+   cached one.
+2. **`deploy_environment_unknown` is replaced, not deleted.** `sanitizeBranchEnv` keeps characters
+   such as `.` (`projects.go:3814-3826`), so `release/1.2` becomes `release-1.2`, which §7.9's
+   `[a-z0-9-]` refuses. The new code, `deploy_environment_invalid`, checks the Hub's published
+   rule, not Panacea's naming rule.
+3. **`Deployment.branch` is also a sanitised label, not the git branch.** It is
+   `sanitizeLabelValue(branch)` (`clients/pipeline.go:609`). This settles the question t08 had
+   left *unverified*. The collision banner therefore no longer claims which branch is serving now.
+   It lists the labels, because comparing a label with the git name would need a copy of
+   Panacea's rule.
+4. **Three facts corrected.**
+   - The plan's example `feat-evidence-uplo` was wrong. `feat-evidence-upload` is exactly 20
+     characters, and the cut applies only past 20.
+   - Review I8 (line 307) and the Important at line 261 cite `pipeline.go:196-206`. The function
+     is at `clients/pipeline.go:2195-2207`, and `:237` is the call site. The parts cite the
+     correct lines. The review's own text is left as written.
+   - Ship now reserves with `prod`, Panacea's answer for a production branch. Before, it reserved
+     with the row name `production`. Rollback also reserves with the label `prod`, so the Hub
+     holds one spelling.
+
+### Left open
+
+- **Unverified: whether the ingress passes `%2F` to Panacea's handler.** Go's `ServeMux`
+  unescapes a wildcard segment (per the `net/http` docs; not run here). Traefik was not checked.
+  It is settled live by LIVE-CHECK step 6 (t20:406) and `TestLiveEnvironmentsAndBranches`
+  (t20:176-185). If it fails, Ship refuses with Panacea's error. It never guesses.
+- **The HA7-1 withdrawal is relayed to the Hub stream through the orchestrator.** If the Hub has
+  already built a nullable `environment`, it does no harm, because phase 7 never sends `null`.
+- **Not in this batch:**
+  - M18: rule 6's rollback *"for this environment"*, and the age cap on pending rows. Rule 1
+    now gives rollback rows `environmentRow` through `SameEnvironment`.
+  - M25: one lock per environment. It can key on the name `EnvironmentFor` resolves.
+- **b01's line numbers moved with this batch.**
+  - plan:293 → 306, :484 → 497, :526 → 539, :666 → 670, :716-720 → 720-724.
+  - t20:393 → 401, :394 → 402, :399 → 407.
+  - The t02, t05 and t07 citations are unchanged.
+
