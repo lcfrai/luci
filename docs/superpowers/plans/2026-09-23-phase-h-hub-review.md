@@ -85,3 +85,67 @@ Entra's error codes — it says so.
   `go 1.23.0`, and so do x/crypto v0.37.0, x/text v0.24.0 and x/sync v0.13.0.
 - **Honesty.** Every UI claim says *unverified by the owner*. The real-tenant items (R-1…R-10) wait
   for IT's registrations, and "nothing was compiled" comes first.
+
+---
+
+## Issues
+
+### Critical
+
+#### C1. The plan does not meet its consumers' Hub asks, and S0 would freeze interfaces they already reject
+
+- **Where:** plan.md:318 (S0: *"Nothing below S0 changes an interface they code to"*),
+  plan.md:463-466 (the sibling plans had only a few lines, so their asks are "not known"),
+  task-04.md:79-100, task-03.md:297-299, task-07.md:270 and :455-463, task-36.md:68.
+- **What is wrong:** the sibling plans now name their asks precisely. Checked against this plan:
+
+  | Ask | What it needs | This plan | Kind of change |
+  |---|---|---|---|
+  | **HA4-2** (phase-4 plan:467) | `Briefs.List(ctx, projectID, BriefQuery) (Page[BriefHead], error)`; *"task 08 is blocked on it"* | `Briefs` has no list method (task-04.md:79-89), though route 19 exists | additive method |
+  | **HA4-3** (:468) | revision batch **64**, route body cap 4 MiB, `hubapi.MaxRevisionBatch` | 1–16 (task-03.md:297-299; task-19.md:25; task-04.md:243) | a contract constant; fake, Hub, tests |
+  | **HA4-4** (:469) | `latestComplete` beside `revision` in `ForBranch` | head revision only (task-03.md:280-283) | additive field |
+  | **HA4-5** (:470) | `Relay(err) (status, Problem, ok)` | `WriteError(w, log, err)` only (task-33.md:84) | additive func |
+  | **HA4-8** (:473) | `Subscribe(func(Event)) (cancel func())` | `Subscribe(kindPrefix, fn)` (task-36.md:62) | a signature difference; this plan's shape is the better one, so confirm it |
+  | **HA4-9** (:474) | `BriefRevisionDigest(...)` | met in substance: `hubapi.BriefEnvelope{…}.Digest()` (task-02.md:118-130) is exported | confirm only |
+  | **HA5-1** (phase-5 plan:454) | `PutBlob(…, body io.ReadSeeker)`, because a retry cannot replay a consumed reader | `body io.Reader` (task-04.md:93), and task 33 retries every call twice | **parameter type** |
+  | **HA7-1** (phase-7 plan:540-563) | `environment` may be `null` at reserve and is set by the deployment join; *"blocks the first Ship of a never-deployed branch"* | `environment text NOT NULL CHECK (…)` (task-07.md:270), and `environment` is in `guard_release`'s immutable tuple (task-07.md:455-463) | **schema + trigger + types** (`string` → `*string`) |
+  | **HA7-4** (:586-611) | a generic `CursorSource` list and one `Panacea-<Name>-Cursor` header per source | one hard-coded header and expose list (task-36.md:68, :74-83) | design of task 36 |
+  | HA7-2, HA7-5, HA5-4 | a sentence of the contract; a `kind` filter; the R5 phrase | not addressed | text, or additive |
+
+- **Why it matters:** S0 (tasks 01–05) is the first thing the siblings code against, tonight.
+  HA7-1 contradicts task 07's migration and its guard. Once `0001_init.sql` has been applied
+  anywhere, that becomes a `0002` that rewrites a trigger function. HA5-1 and HA7-1 change a
+  parameter type and a field type, which breaks S0's own promise. HA4-2 blocks phase 4's task 08
+  outright. The plan's premise that later asks "should be additive" (plan.md:466) is false for
+  three of them.
+- **How to fix:** before task 01, add a part named "S0 absorbs the sibling asks" and edit tasks 03,
+  04, 05, 07, 19, 23, 24, 33 and 36. Build HA4-2, HA4-4, HA4-5 and HA5-1 as asked. Decide HA4-3's
+  number (64 costs one constant and a body cap). Build HA7-1: make `environment` nullable, add
+  `CHECK (environment IS NOT NULL OR state = 'reserved')`, and let `guard_release` allow exactly
+  `environment: NULL → value` on a reserved release. Generalise task 36's header as HA7-4 asks.
+  Replace plan.md:463-466 with a table of every ask and its answer. Task 44 then folds the answers
+  into the contract.
+
+#### C2. Task 37's local key has no defined zero value, so it either fails open or turns every API test red — this plan's and four siblings'
+
+- **Where:** task-37.md:19-24 (files), :70 (the wrap), :99-103 (steps). `api.New`'s required-deps
+  table is at `control-plane/internal/api/api.go:213-231`.
+- **What is wrong:** `Deps` gains `LocalKey`, and the wrap is unconditional. The part never says
+  what a zero `localkey.Key` means. Five existing test files build the API
+  (`internal/api/api_test.go`, `attach_test.go`, `catalog_test.go`, `routes_audit_test.go`,
+  `sessions_test.go`), and none sends a key. Phases 3, 4, 5 and 7 are adding handler tests to the
+  same package tonight. None of those files is in task 37's list.
+- **Why it matters:** there are only two outcomes. (a) A zero key refuses everything: task 37's own
+  acceptance (`go test ./control-plane/internal/api/`) fails on the first run, and merging 37 turns
+  every sibling phase's API suite red. (b) The implementer "fixes" it by treating a zero key as
+  *no check*: that fails open, and a wiring slip in `main.go` removes the key in production with
+  every test still green. The plan names the desktop half of this hazard (37 and 38 must land
+  together) but not the Go half.
+- **How to fix:**
+  1. Fail closed: `api.New` returns `"api: Deps.LocalKey is zero"`, beside the other required deps.
+  2. Add `localkey.ForTest()` (a fixed key) and one `export_test.go` helper that adds the header to
+     a request.
+  3. Put the five files in task 37's list, each changed only by that helper.
+  4. Tell the orchestrator that every sibling's API tests need the same one-line change when 37
+     merges.
+  5. Add `TestTheProcessRefusesToStartWithoutAKey` to `cmd/api/main_test.go`.
