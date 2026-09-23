@@ -266,7 +266,7 @@ them.
 | `design_not_approved` | 422 | a release names a design key with no approval | `designKey` |
 | `repo_not_linked` | 422 | an evidence record's `repo` is no project's remote the caller can read | `repo` |
 | `idempotency_mismatch` | 422 | an `Idempotency-Key` reused with a different request | — |
-| `rate_limited` | 429 | §11.3 | `scope`: `user` · `user_write` · `org` · `blob_bytes` |
+| `rate_limited` | 429 | §11.3 | `scope`: `ip` · `user` · `user_write` · `org` · `blob_bytes` |
 | `internal` **shared** | 500 | a bug; the detail is in the log under `Request-Id` | — |
 | `unavailable` | 503 | Postgres unreachable or the schema not at this build's version | — |
 
@@ -2136,3 +2136,92 @@ The control plane then needs four variables: `PANACEA_APP_HUB_URL=http://127.0.0
 `PANACEA_APP_ENTRA_AUTHORITY=http://127.0.0.1:8740/<dev tenant id>`,
 `PANACEA_APP_ENTRA_CLIENT_ID=<dev desktop client id>`, `PANACEA_APP_HUB_SCOPE=api://<dev hub id>/Hub.Access`
 — all four values are in `dev-tenant.json`, which the compose README prints.
+
+### 12.2 Configuration — every variable
+
+Read in one block per binary, as `control-plane/cmd/api/config.go:18-45` does; no other package
+calls `os.Getenv`. **No variable holds a secret in any deployed environment.**
+
+**The Hub** (`cmd/hub/config.go`):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PANACEA_APP_HUB_ENV` | `local` | `local` · `dev` · `prod`. Only `local` permits a loopback-only `http` authority and `DEV_ISSUER` |
+| `PANACEA_APP_HUB_ADDR` | `127.0.0.1:8750` | listen address. A non-loopback address is refused unless `ENV` is `dev` or `prod` (the chart sets `0.0.0.0:8080`) |
+| `PANACEA_APP_HUB_DATABASE_URL` | `postgres://hub_app@127.0.0.1:5433/hub?sslmode=disable` | the DML connection; deployed: `…?sslmode=verify-full`, no password |
+| `PANACEA_APP_HUB_MIGRATE_DATABASE_URL` | `postgres://hub_owner@127.0.0.1:5433/hub?sslmode=disable` | `hub migrate` only |
+| `PANACEA_APP_HUB_DB_AUTH` | `none` | `none` — the URL as given; `entra` — an Entra token for `https://ossrdbms-aad.database.windows.net/.default`, from workload identity, as the password of each new connection |
+| `PANACEA_APP_HUB_DB_MAX_CONNS` | `10` | per replica; `MaxConnLifetime` is fixed at 45 min (ADR R8) |
+| `PANACEA_APP_HUB_ENTRA_AUTHORITY_HOST` | `https://login.microsoftonline.com` | `devissuer`'s base URL locally |
+| `PANACEA_APP_HUB_TENANTS` | — **required** | `<tenant guid>=<display name>`, comma-separated. Each is an enrolled org (§5.1) |
+| `PANACEA_APP_HUB_AUDIENCE` | — **required** | the Hub API's client id |
+| `PANACEA_APP_HUB_REQUIRED_SCOPE` | `Hub.Access` | |
+| `PANACEA_APP_HUB_ALLOWED_CLIENTS` | — **required** | the desktop's client id(s), comma-separated |
+| `PANACEA_APP_HUB_ORG_ADMIN_ROLE` | `Hub.OrgAdmin` | the app role value |
+| `PANACEA_APP_HUB_DEV_ISSUER` | `false` | §6.4 |
+| `PANACEA_APP_HUB_RESERVATION_TTL` | `15m` | §7.9 |
+| `PANACEA_APP_HUB_BLOB_MAX_BYTES` | `16777216` | §7.6 |
+| `PANACEA_APP_HUB_PROJECT_QUOTA_BYTES` | `1073741824` | §7.6 |
+| `PANACEA_APP_HUB_TRUST_PROXY` | `false` | honour the first `X-Forwarded-For` hop (deployed behind phase 8's gateway: `true`) |
+| `PANACEA_APP_HUB_RATE_IP`, `_RATE_USER`, `_RATE_USER_WRITE`, `_RATE_ORG` | `20:40`, `20:60`, `5:20`, `200:400` | `<per second>:<burst>`, §11.3 |
+| `PANACEA_APP_HUB_RATE_BLOB_BYTES` | `67108864` | bytes per user per minute |
+| `PANACEA_APP_HUB_SHUTDOWN_GRACE` | `20s` | §12.3 |
+| `PANACEA_APP_HUB_LOG_LEVEL` | `info` | `debug` · `info` · `warn` · `error` |
+
+The one exception to the `PANACEA_APP_*` prefix: with `DB_AUTH=entra`, the Hub reads
+`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_FEDERATED_TOKEN_FILE` and `AZURE_AUTHORITY_HOST`,
+which AKS's workload-identity webhook injects under those names. It exchanges the federated token
+for a database token itself, over the standard library — no Azure SDK.
+
+**The control plane** (additions to `cmd/api/config.go`):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PANACEA_APP_HUB_URL` | unset | the Hub. Unset: every Hub-backed route answers 503 `hub_not_configured`; everything else works |
+| `PANACEA_APP_HUB_SCOPE` | — required with `HUB_URL` | `api://<hub client id>/Hub.Access` |
+| `PANACEA_APP_HUB_POLL_INTERVAL` | `5s` | the change-feed poll (§9.3); minimum `1s` |
+| `PANACEA_APP_ENTRA_AUTHORITY` | — required with `HUB_URL` | `https://login.microsoftonline.com/<tenant id>` |
+| `PANACEA_APP_ENTRA_CLIENT_ID` | — required with `HUB_URL` | the desktop's client id |
+| `PANACEA_APP_ENTRA_REDIRECT_HOST` | `127.0.0.1` | or `localhost` (§6.1) |
+| `PANACEA_APP_CREDSTORE` | `wincred` on Windows, else `memory` | §9.1 |
+| `PANACEA_APP_LOCAL_KEY_FILE` | `<state dir>/local-key` | §9.4 |
+
+**`devissuer`**: `PANACEA_APP_DEVISSUER_ADDR` (`127.0.0.1:8740`, loopback enforced),
+`PANACEA_APP_DEVISSUER_CONFIG` (`control-plane/cmd/devissuer/dev-tenant.json`),
+`PANACEA_APP_DEVISSUER_ACCESS_TTL` (`60m`), `PANACEA_APP_DEVISSUER_AUTO` (`false`).
+
+### 12.3 Deployed — the answers to phase 8's HA-4 and HA-5
+
+| Ask | Answer |
+|---|---|
+| Build path, `main` | `control-plane/cmd/hub`, module `github.com/kpmg-au-emu/panacea-app/control-plane`; the image runs `hub serve`; the migrate Job runs `hub migrate` from the same image |
+| Listen port | `:8080` (`PANACEA_APP_HUB_ADDR=0.0.0.0:8080`, `PANACEA_APP_HUB_ENV=dev` or `prod`) — the chart's provisional default holds |
+| Liveness, readiness | `/healthz`, `/readyz` (§12.4) — the provisional defaults hold |
+| Replicas | **2**, safe: the only in-process state is the JWKS cache and rate buckets; the janitor runs under a Postgres advisory lock |
+| Graceful shutdown | on `SIGTERM`: `/readyz` answers 503 at once, the listener stops accepting, in-flight requests get up to `PANACEA_APP_HUB_SHUTDOWN_GRACE` (20 s); `terminationGracePeriodSeconds` ≥ 30 |
+| Outbound calls | `login.microsoftonline.com` (OIDC discovery and JWKS; the workload-identity token exchange); Postgres. **No Microsoft Graph, nothing else** |
+| Postgres | **16**, **no extensions** (`sha256`, `gen_random_uuid`, row-level security are core) |
+| Size | small: a revision is ≤ 64 KiB (typically a few KiB); blobs dominate, capped at 1 GiB per project. Phase 8's dev SKU is ample for the pilot |
+| Connections | ≤ 10 per replica, plus 1 for the migrate Job: **21** |
+| Migrations | the `hub migrate` pre-upgrade Job as `id-hub-migrate` (a member of `hub_owner`); `roles.sql` once per environment by a member of the Postgres admin group, from the deploy pipeline (P8-D10) |
+| HA-6 | only the control plane calls the Hub; **no CORS at the edge**; no machine-to-machine caller; the broker never calls the Hub |
+| HA-7 | **Postgres only** — the audit log is a table, blobs are a table; no Log Analytics stream and **no storage account** in v1 |
+
+### 12.4 Health
+
+`GET /healthz` → `200 {"status":"ok","version":"<build>"}` while the process runs.
+
+`GET /readyz` → `200 {"status":"ready"}` when **all** hold, else `503 {"status":"not_ready",
+"failing":["database" | "schema" | "jwks" | "shutting_down"]}`: Postgres answered `SELECT 1`
+within 1 s; `max(schema_migrations.version)` equals the build's; the JWKS of every enrolled tenant
+has been fetched at least once; `SIGTERM` has not been received. Neither route authenticates,
+logs at `info`, or names a host, a tenant or an error string.
+
+### 12.5 The janitor
+
+One goroutine per replica, every 60 s, doing work only while it holds
+`pg_try_advisory_lock(hashtext('panacea-app-hub-janitor'))`. Per org (setting `hub.org_id` for
+each, so row-level security applies to it too): marks `reserved` releases past `expires_at` as
+`expired` with a `release.expired` event; deletes `project_blobs` older than 24 h that no approval
+references, then `blobs` with no association left, each with a `blob.deleted` audit event; deletes
+`idempotency_keys` older than 24 h.
