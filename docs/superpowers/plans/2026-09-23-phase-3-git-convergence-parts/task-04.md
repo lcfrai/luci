@@ -64,6 +64,11 @@ type GitDeps struct {
 	// create and restart admit through it. Deps.Git == nil admits without a lock: no lane can
 	// be created then, so there is no copy to order against.
 	Mounts *MountGuard
+	// Locks is the one gitx.Locks (task-02; review I7). Task 04 only constructs it; task 09's
+	// Lander (and task 10's Undo and Revert), task 11's branch verbs and task 12's Fetcher and
+	// Push take this value, never one of their own, so a push and a land on one project wait on
+	// the same lock whichever lane merged first.
+	Locks *gitx.Locks
 }
 ```
 
@@ -240,6 +245,7 @@ func (a *API) registerGit(mux *routes) {
 		Creator:    &lanes.Creator{Machine: machine, Store: laneStore, Mounts: mounts},
 		VersionErr: gitVersionErr,
 		Mounts:     mounts,
+		Locks:      &gitx.Locks{}, // the only one; later blocks read gitDeps.Locks
 	}
 	// and in the startup log line: "git", gitVersion, "worktrees", cfg.WorktreesDir
 ```
@@ -262,7 +268,7 @@ false for a new id).
 | `TestCatalogWorktreeJSONCarriesKind` | GET list over a fake enumerator returning each Kind → the three strings on the wire | the field dropped at the JSON boundary |
 | `TestRegisteredRoutesIncludeWorktreeCreate` | `RegisteredPatterns()` contains the POST, and the existing §10a audit still passes | a route registered on the raw mux |
 | `TestLoadConfigWorktreesDir` (cmd/api) | default is `statepath.Dir("worktrees")`; relative → error; inside projects dir → error naming both variables; containing it → error | clones scanned as projects |
-| `TestServeWiresGit` (cmd/api) | the Deps `serve` builds has a non-nil `Git` whose Creator's Machine root is `cfg.WorktreesDir`, and whose `Creator.Mounts` is non-nil and the same pointer as `Git.Mounts` | a production build with phase 3 unwired, or two guards that order nothing |
+| `TestServeWiresGit` (cmd/api) | the Deps `serve` builds has a non-nil `Git` whose Creator's Machine root is `cfg.WorktreesDir`, and whose `Creator.Mounts` is non-nil and the same pointer as `Git.Mounts`; `Git.Locks` is non-nil | a production build with phase 3 unwired, or two guards that order nothing |
 | `TestMountGuardRefusesALiveSession` (re-review b03 I-2) | a registry session on `w-1`, which the fake Provider resolves to `dir`: `StatusStarting` and running → `WhileUnmounted` returns false and fn never runs; `StatusExited` → true, fn ran; `dir` in other case on Windows → still false | a copy out of a tree a live sandbox can rewrite |
 | `TestMountGuardOrdersAdmitAfterTheCopy` | fn blocks on a channel; a concurrent `Admit(dir, …)` has not run its fn when the channel is released, and runs it after (an ordered event log, under `-race`) | two locks, or none, so a sandbox starts mid-copy |
 | `TestMountGuardFailsClosed` | `Store.List` errors, or `Path` errors for a live session → false, fn never runs, one log line | a registry glitch read as "nothing mounted" |
