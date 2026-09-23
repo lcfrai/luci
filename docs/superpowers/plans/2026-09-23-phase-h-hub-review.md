@@ -471,3 +471,61 @@ consumers or its own first runs.
 6. **I3, I8, I10** and the Minor table as the parts are touched.
 
 **Plan quality: Needs fixes**
+
+---
+
+## Fix batch b01 — C1 and I11 (2026-09-24)
+
+Paths are relative to `docs/superpowers/plans/`; `plan.md` is `2026-09-23-phase-h-hub.md`, `parts/`
+is `2026-09-23-phase-h-hub-parts/`. Line numbers are as committed by this batch. The task list
+**must be re-derived**: it gains 00 and 44a, and 44 is now 44b (`task-44.md` was renamed).
+
+### C1 — the sibling asks absorbed into S0
+
+The asks were re-read from the sibling worktrees on 2026-09-24 (phase 4 plan `:475-483`, phase 5
+`:458-462`, phase 7 `:540-616`); the review's line numbers had moved by 8–9 lines, the ask ids had
+not.
+
+| Ask | Change | Where |
+|---|---|---|
+| — | the new part *"S0 absorbs the sibling asks"*, before task 01: every ask, its answer, the task that builds it | `parts/task-00.md` (all); plan.md:334 (task row), :323 (S0 row: after 44a, 00, 01–05; the reopening rule) |
+| — | plan.md:463-466 replaced by the ask/answer table | plan.md:477-502 |
+| HA4-1 | confirmed: task 03's structs, frozen at S0 | `parts/task-00.md` table |
+| HA4-2 | `BriefQuery` (with `Page PageRequest`, a declared difference from the ask's flat fields); `Briefs.List`; the fake's rule and test; the conformance row; the HTTP method | parts/task-03.md:285; task-04.md:82, :249-253, :281; task-05.md:202; task-34.md:28 |
+| HA4-3 | `MaxRevisionBatch` 64, `MaxRevisionBatchBytes` 4 MiB; route 26 through `WriteLimit`; the fake; `json.Compact` in the client | task-03.md:313; task-14.md:112, :184; task-19.md:6, :23-27, :87; task-04.md:256, :280; task-05.md:203; task-34.md:31 |
+| HA4-3 (exposed) | `hubclient`'s JSON reply cap 1 MiB → **8 MiB**, derived from `/v1/refs` (100 × 64 KiB) and route 26's reply (64 × 64 KiB). At 1 MiB a **committed** 16-revision batch was already reported `ErrUnavailable` — a defect the review did not name | task-33.md:63, :139 |
+| HA4-4 | `BriefWithRevision.LatestComplete`; routes 21 and 22; tests (the with-revisions test sits in task 19, where revisions are written) | task-03.md:280; task-18.md:24-25, :70; task-19.md:92; task-04.md:282 |
+| HA4-5 | `Relay`; `WriteError` = `Relay` + write; `Error.RetryAfter` (without it `WriteError`'s *"Retry-After copied"* had nothing to copy) | task-33.md:98, :121, :141; task-04.md:145 |
+| HA4-8, HA4-9, HA4-7, HA5-3 | confirmed, no change; `Subscribe("", fn)` is phase 4's shape, delivery in commit order | task-36.md:59-65; `parts/task-00.md` table |
+| HA5-1 | `PutBlob(…, io.ReadSeeker)`; the transport seeks to 0 before every attempt; a failed `Seek` ends the call | task-04.md:97; task-05.md:129, :204; task-33.md:54, :140; task-34.md:33, :86 |
+| HA5-2, HA5-4 | 44a writes `Designs`' seven methods; R5 read as principal and time — ADR wording is owner question **Q11** | task-44a.md §9.2 row and answers table; plan.md:456 |
+| HA7-1 | nullable `environment`; ReserveRequest/Release `*string`; `DeploymentJoinRequest.Environment`; `JoinDeployment` takes the request; schema, CHECK, guard, grant, four database tests; reserve and join routes and tests | task-03.md:443, :470, :503; task-04.md:112; task-05.md:151-158, :198-199; task-07.md:270, :302, :471-487, :595, :630-633; task-23.md:26, :79; task-24.md:52-64, :123-124 |
+| HA7-2 | a rollback confirm naming its own source deployment → 409 `conflict` | task-24.md:24-30, :122; task-05.md:200 |
+| HA7-3 | reserved, seam S-DEPLOY-TARGET | plan.md:438 |
+| HA7-4 | `CursorSource` in `Deps.CursorSources`; the expose list built from the names by the `api` wrap; `origin.go` untouched by task 36; the desktop's `HubHeaders.cursors` map | task-36.md:17, :78-83, :138-141, :157; task-40.md:77, :107, :159; plan.md:406, :428-430 |
+| HA7-5 | `ReleaseQuery.Kind`; `kind=` on route 36 | task-03.md:508; task-23.md:46-48; task-05.md:201; task-34.md:36 |
+
+**Two corrections to the review's *how to fix*, on the facts.** (1) The review's HA7-1 CHECK,
+`environment IS NOT NULL OR state = 'reserved'`, would refuse to confirm, abandon or expire a
+null-environment run (each leaves `reserved` before any join) — a 500 on every refused first Ship.
+Built instead: `CHECK (environment IS NOT NULL OR (kind = 'run' AND source_deployment_id IS NULL))`.
+(2) The review let `guard_release` allow NULL → value *"on a reserved release"*; route 40 joins
+**confirmed** releases only (task-24.md:41-45), so that allowance would never fire. Built instead:
+NULL → value once, while `reserved` or `confirmed`. Both are argued in `parts/task-00.md`
+*"HA7-1, exactly"*. Because the guard now compares explicit column tuples rather than `NEW IS
+DISTINCT FROM OLD`, `TestReleaseGuardCoversEveryColumn` (task-07.md:633) pins the tuples to the
+table and to `hub_app`'s column grant.
+
+### I11 — the contract fold-in split
+
+| Change | Where |
+|---|---|
+| **44a**: A1–A10, the additions table and task 00's answers; documents only; runs first on `feat/hub`, before task 01 and before the lanes branch; the orchestrator announces it | `parts/task-44a.md` (new); plan.md:333, :391, :402 |
+| **44b**: only what the build changed (`(Phase H build, task NN)`), §15's build-verified items, the seams' landing commits; stays last | `parts/task-44b.md` (was `task-44.md`); plan.md:378, :402 |
+| the contract-vs-code repo-key test moves to task 01, which creates `keys_test.go` after 44a wrote A1; task 01 depends on 44a | task-01.md:365; plan.md:335 |
+| the corrections and additions tables say 44a folds them first | plan.md:142-145, :160-162 |
+| restatements of "task 44" | task-02.md:243-245 (44a), task-07.md:649 (44b) |
+| totals: 46 tasks; ≈ 119 h; minimum ≈ 98 h with 44a and 00 | plan.md:316-319, :380-386 |
+
+Unverified: the sibling plans' line numbers will move again as those plans are edited; nothing was
+compiled or run (documents only).
