@@ -23,6 +23,7 @@ the image before it ships.
 - `control-plane/internal/sandbox/manager.go` — `containerEnv` writes the same variable (p2)
 - `control-plane/internal/api/sessions.go` — `sessionEnv` gains `core.hooksPath` (the fix's function); `sessionMounts` binds `.git/config` read-only (task-02 §HGH H5)
 - `control-plane/internal/api/sessions_sandboxenv_test.go` — the fix's test, extended (the fix's file)
+- `control-plane/cmd/api/gitlineendings_test.go` — the fix's resolver test, extended with a lane clone (the fix's file, from `5a4d0d8`)
 - `control-plane/internal/api/hooks_docker_test.go` — `//go:build docker`, the real thing (new)
 - `docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md` — §2 `EnvSessionID`; §5.1 environment
 
@@ -49,21 +50,28 @@ const (
 ```
 
 ```go
-// sessions.go (post-fix) — sessionEnv's git block becomes three entries.
+// sessions.go (post-fix: feat/phase-2-cockpit at or after 5a4d0d8) — the fix's sessionEnv is
+// sessionEnv(id GitIdentity, eol GitLineEndings, caBundle string), and its git block is a
+// `pairs` slice numbered into GIT_CONFIG_KEY_n/VALUE_n, with GIT_CONFIG_COUNT = len(pairs).
+// At 5a4d0d8 it held five pairs; the committed branch now holds six (safe.directory,
+// user.useConfigOnly, gc.worktreePruneExpire, gc.auto, core.autocrlf, core.eol), and the fix
+// is still moving. Phase 3 APPENDS one pair and never renumbers or retypes the fix's own.
 const sessionHooksPath = "/opt/panacea/githooks" // images/sandbox/Dockerfile installs it
 
-	env := map[string]string{
-		"GIT_CONFIG_COUNT":   "3",
-		"GIT_CONFIG_KEY_0":   "safe.directory",
-		"GIT_CONFIG_VALUE_0": sessionWorkDir,
-		"GIT_CONFIG_KEY_1":   "user.useConfigOnly",
-		"GIT_CONFIG_VALUE_1": "true",
+	pairs := [][2]string{
+		// … the fix's pairs, unchanged, ending {"core.autocrlf", eol.AutoCRLF},
+		// {"core.eol", eol.EOL} …
 		// Phase 3: the session trailer. The dispatcher there runs the repository's own hook of
 		// every name first, so a husky repository keeps its hooks (risk R7).
-		"GIT_CONFIG_KEY_2":   "core.hooksPath",
-		"GIT_CONFIG_VALUE_2": sessionHooksPath,
+		{"core.hooksPath", sessionHooksPath},
 	}
 ```
+
+The fix's `core.autocrlf` and `core.eol` pairs are what a lane session's git reads for line
+endings, over the clone's local keys (task 03 "How the sandbox's git gets the same answer").
+Their values are right for a lane only because the handlers ask `Deps.GitLineEndings` in the
+session's worktree path, which for a lane is the clone. This task pins that; it changes no
+handler code for it.
 
 ```go
 // sessions.go — sessionMounts gains one entry (task-02 §HGH H5; review C1). When the worktree's
@@ -143,10 +151,13 @@ RUN sed -i 's/\r$//' /opt/panacea/githooks/dispatch \
 | `TestEnvEntriesOmitsAnEmptySessionID` | `SessionID == ""` → no `PANACEA_APP_SESSION_ID` entry | an empty trailer value in the hook |
 | `TestEnvEntriesIgnoresASessionIDInEnv` | `Env{"PANACEA_APP_SESSION_ID":"s-evil"}` with `SessionID:"s-1"` → exactly one entry, value `s-1` | a client-chosen session id |
 | `TestThePodEnvironmentIsExactlySpecEnvEntries` (kata, unchanged) | still passes after `containerEnv` gains the variable | Docker and Kata environments diverging |
-| `TestSessionEnvSetsHooksPath` (fix's file, extended) | `GIT_CONFIG_COUNT=3`, `KEY_2=core.hooksPath`, `VALUE_2=/opt/panacea/githooks`; keys 0 and 1 unchanged | dropping the fix's two settings while adding a third |
+| `TestSessionEnvSetsHooksPath` (fix's file, extended) | with `n` the fix's pair count read before the change (6 at the time of writing): `GIT_CONFIG_COUNT=n+1`, `KEY_n=core.hooksPath`, `VALUE_n=/opt/panacea/githooks`; keys `0` to `n-1` byte-identical to the fix's, `core.autocrlf` and `core.eol` among them | dropping or renumbering one of the fix's settings while adding one |
+| `TestALaneSessionSendsTheClonesLineEndings` (fix's file, extended; plan re-review b02 I-1) | a project and a lane clone of it (task 04's route); a `Deps.GitLineEndings` double that answers by path: `{false, lf}` in the clone's `Path`, `{true, crlf}` in `Project.Path`, and fails the test for any other path. A session created on the lane, then restarted: the recorded `backend.Spec.Env` carries `core.autocrlf=false` and `core.eol=lf`, found by **key** among the `GIT_CONFIG_KEY_n`, on both. Red first: a mutant that asks the resolver in `Project.Path` sends `true`/`crlf` | the resolver asked anywhere but the clone, which brings C2's split back inside the sandbox |
+| `TestTheResolverReadsALaneCloneAsLF` (cmd/api, the fix's `gitlineendings_test.go`, extended) | production-shaped: a `gitxtest` project with `UseSystemConfig(WindowsInstallerSystem)`, cloned by task 03's `lanes.Creator`. The production runner reads the **process** environment, not `Repo.Env`, so the test also sets it the way the fix's `TestTheRealHostGitAnswersFromEveryScope` does (`t.Setenv` of `GIT_CONFIG_NOSYSTEM=""`, `GIT_CONFIG_SYSTEM` to a file holding `WindowsInstallerSystem`, `GIT_CONFIG_GLOBAL` to a temp file, `GIT_CONFIG_COUNT=""`). The production resolver, as `gitLineEndingsResolverWith(project.NewExecRunner(), "crlf")` (Windows' native, fixed so the test means the same on any host), answers `{"false", "lf"}` in the clone, and `{"true", "crlf"}` in the project (the control: the system file is in force). Red first against a `cloneArgv` without the `--config` flags, which answers `{"true", "crlf"}` in the clone | the double above answering what the real resolver never would |
 | `TestSessionCreateAndRestartCarryTheSessionID` | the `backend.Spec` recorded by the fake backend has `SessionID` equal to the new session's id, on create **and** restart | a restart exporting the old sandbox's id |
 | `TestSessionMountsBindGitConfigReadOnly` | a worktree with a `.git` directory → the mounts end with `{<wt>/.git/config, /home/dev/work/.git/config, ReadOnly: true}`; a `.git` file (a linked worktree) → no such entry | the H5 mount dropped, or bound read-write |
 | `TestSandboxCloneConfigIsReadOnly` (docker) | task-02 §HGH H5, red first without the entry: in the real sandbox, `git config filter.x.clean y` in `/home/dev/work` exits non-zero, and the host's `.git/config` is byte-identical afterwards; `git commit` still succeeds. Then, with the session still live, the host runs `git branch -m` and `git config --remove-section branch.<b>` (task 11's writes, which replace the file by rename) through Exec: both succeed, and the test records whether `git config --list` in the sandbox then shows the new content or the old. A file bind pins an inode, so the old content is possible; the result goes in the task report and the plan's Q7, not asserted (b01 re-review Minor 1) | a nested read-only bind that Docker Desktop ignores (unverified until this runs) |
+| `TestSandboxLaneCloneChecksOutLF` (docker; plan re-review b02 I-1) | a `gitxtest` project of LF blobs under `WindowsInstallerSystem`, cloned by `lanes.Creator`, run with the environment below (read from `sessionEnv`, with the lane constant as `eol`): `git status --porcelain` prints nothing, and after `rm a.txt` and `git checkout -- a.txt` the host reads `a.txt` with no `\r`. Red first with `eol` set to `{true, crlf}`, the answer in `Project.Path`: `status` still empty, the checkout writes `\r\n` | the sandbox's git writing CRLF over a lane's LF blobs while every status check reads clean |
 | `TestDispatchStampsTheSession` (docker) | a commit in a clone mounted at `/home/dev/work` with the session environment carries `Panacea-Session: s-test1` exactly once (`git log -1 --format=%(trailers:key=Panacea-Session,valueonly)`) | the hook not installed, not executable, or CRLF |
 | `TestDispatchSurvivesNoVerify` (docker) | `git commit --no-verify -m x` still carries the trailer | trusting `--no-verify` to skip only what we expect |
 | `TestDispatchKeepsAnAmendsSession` (docker) | commit with `s-a`, then `git commit --amend` with `PANACEA_APP_SESSION_ID=s-b` → the trailer is `s-a`, once | a rewritten commit claiming a new author |
@@ -159,13 +170,22 @@ The Docker tests build the image (`docker build -f images/sandbox/Dockerfile -t 
 create repositories on the host with `gitxtest`, clone them with `lanes.Creator`, and run
 `docker run --rm -v <clone>:/home/dev/work -e …` with **exactly** the environment
 `backend.Spec{…}.EnvEntries()` plus `sessionEnv(...)` produce, read from those functions rather
-than retyped.
+than retyped. `sessionEnv`'s `eol` argument is `GitLineEndings{AutoCRLF: "false", EOL: "lf"}`:
+the answer `TestTheResolverReadsALaneCloneAsLF` pins the production resolver to give in a lane
+clone. It is written once, as a named constant in the test file, because the resolver lives in
+package `main`, which this package cannot import.
 
 #### Steps
 
-- [ ] **Step 1: Preflight.** G1 holds: `grep -c '"GIT_CONFIG_COUNT":   "2"' control-plane/internal/api/sessions.go` is 1.
+- [ ] **Step 1: Preflight.** G1 holds, with the line-ending round in: `grep -c 'func sessionEnv(id GitIdentity, eol GitLineEndings' control-plane/internal/api/sessions.go`
+  is 1, and `grep -c '{"core.eol", eol.EOL}' control-plane/internal/api/sessions.go` is 1. Record the
+  fix's pair count `n` (`TestSessionEnvSetsHooksPath` uses it). If either grep is 0, stop and
+  report (plan "Gate G1").
   Task 01's `TestSandboxGitHonoursEnvHooksPath` passed and recorded the image's git version.
 - [ ] **Step 2:** the Go tests; then `EnvSessionID`, `EnvEntries`, `containerEnv`, `sessionEnv`.
+  `TestALaneSessionSendsTheClonesLineEndings` and `TestTheResolverReadsALaneCloneAsLF` may pass
+  on arrival, since they pin the fix's behaviour: show each red against its named mutant on the
+  `$TEMP` copy, and record that in the report.
 - [ ] **Step 3:** `dispatch`, `.gitattributes`, the Dockerfile block. Check the committed blob is
   LF: `git ls-files --eol images/sandbox/githooks/dispatch` shows `i/lf`.
 - [ ] **Step 4:** the Docker tests (PowerShell tool for `docker`).
@@ -179,6 +199,8 @@ than retyped.
 go test ./control-plane/... -race -count=1                                   → PASS
 go test ./control-plane/internal/api/ -tags docker -run Dispatch -count=1 -v → PASS, 8 tests; the cost numbers in the report
 go test ./control-plane/internal/api/ -tags docker -run TestSandboxCloneConfigIsReadOnly -count=1 -v → PASS (task-02 §HGH H5)
+go test ./control-plane/internal/api/ -tags docker -run TestSandboxLaneCloneChecksOutLF -count=1 -v → PASS (plan re-review b02 I-1)
+go test ./control-plane/cmd/api/ -run TestTheResolverReadsALaneCloneAsLF -count=1 -v              → PASS, not SKIP
 git ls-files --eol images/sandbox/githooks/dispatch                          → i/lf  w/lf
 ```
 
