@@ -76,6 +76,10 @@ type Reader interface {
 	// Stream opens a live stream. The caller closes it. The body is text/event-stream bytes,
 	// relayed and never interpreted by the control plane.
 	Stream(ctx context.Context, p ProjectRef, kind StreamKind, id string) (io.ReadCloser, error)
+	// SameEnvironment is the TARGET's rule for whether two environment names name one
+	// environment. It is here, not in the view, because the rule is the target's: Panacea's is
+	// exact equality plus prod == production (task 03); a native deployer brings its own.
+	SameEnvironment(a, b string) bool
 }
 
 // Actor is every act that changes what is deployed.

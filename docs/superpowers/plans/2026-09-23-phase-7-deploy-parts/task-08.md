@@ -126,8 +126,9 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 
 #### Assembly rules (`view.go`) — each is a test below
 
-1. **Environment join** is `panacea.SameEnvironment` (task 03) — exact name plus Panacea's own
-   `prod` ≡ `production` (`clients/kubernetes.go:4210-4217`). A deployment matching no row goes
+1. **Environment join** is `deploy.Reader.SameEnvironment` — for Panacea (task 03), exact name plus
+   Panacea's own `prod` ≡ `production` (`clients/kubernetes.go:4210-4217`). `deploywatch` never
+   imports `deploy/panacea`. A deployment matching no row goes
    under `unmatched`, grouped by its raw environment name.
 2. **Newest per environment** is the first deployment in Panacea's newest-first list whose
    environment joins. Only it contributes `serving` and `scans`; historical rows carry `gates` as

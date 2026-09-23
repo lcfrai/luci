@@ -225,12 +225,15 @@ from `"Unknown"` when a run has no condition yet (`clients/kubernetes.go:5662`),
 **The environment-name equivalence** (plan 7P-8) lives here and nowhere else:
 
 ```go
-// SameEnvironment reports whether two Panacea environment names name one environment. It is
-// exact equality plus the ONE equivalence Panacea itself applies: tenantNamespace treats "prod"
-// and "production" as the base namespace (clients/kubernetes.go:4210-4217). Exported for
-// deploywatch; nothing else may compare environment names.
-func SameEnvironment(a, b string) bool
+// SameEnvironment implements deploy.Reader.SameEnvironment: exact equality plus the ONE
+// equivalence Panacea itself applies — tenantNamespace treats "prod" and "production" as the
+// base namespace (clients/kubernetes.go:4210-4217). deploywatch calls it through the interface,
+// so the orchestration layer never imports this package.
+func (c *Client) SameEnvironment(a, b string) bool
 ```
+
+`deploytest.Fake.SameEnvironment` is exact equality only, and `Seeder` gains nothing: the Panacea
+equivalence is tested here, against the connector, not through the suite.
 
 #### The recorded bodies (`testdata/`)
 
