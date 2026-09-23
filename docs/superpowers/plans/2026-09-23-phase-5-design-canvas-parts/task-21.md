@@ -1,6 +1,6 @@
 # Task 21 — Approval: the snapshot, the blobs, the Hub's design link, *changed after approval*, re-review
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 08, 09, 13, 20 · **External:** **Hub C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency** (route 21 is the human-only approval; without the key a sandbox can call it, review C1), Hub H0 (`hubapi`, `hubclient.Designs`, `NewFake`), Hub C2 (the relay rule); phase 4 task 07 (`discoverhub`, through task 20's port) · **Hours:** 3
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 08, 09, 13, 20a, 20b (review I6: 20b's `design.go` gains this task's `Hub` line) · **External:** **Hub C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency** (route 21 is the human-only approval; without the key a sandbox can call it, review C1), Hub H0 (`hubapi`, `hubclient.Designs`, `NewFake`), Hub C2 (the relay rule); phase 4 task 07 (`discoverhub`, through task 20a's port) · **Hours:** 3
 
 ## Why
 
@@ -19,6 +19,12 @@ brief R8 / P-g closed — and a release's design key always resolves.
   own output and task 22's `Materialise` runs on the Hub's (review C2, re-review I-1)
 - `control-plane/internal/designapi/approve.go`, `approvals.go` (the in-memory `Approvals` port),
   `hub.go` (the `Designs` port and the relay), `approve_test.go` (new); `routes.go` gains three routes
+- `control-plane/internal/designapi/mount.go` — `Config` gains `Hub Designs`; `(*API).Approvals()`
+  returns the in-memory port; `approvals_none.go` (task 20a's stub) is deleted
+- `control-plane/cmd/api/design.go` — one line: `Hub:` is Hub task 32's `hubclient` value (nil when
+  `PANACEA_APP_HUB_URL` is unset; route 21, and route 22 on a cache miss, then answer the Hub plan's `503 hub_not_configured`,
+  `hub/.../task-32.md:28`, never a nil-pointer panic: `TestApprove_noHub`); the MCP
+  wiring is unchanged because task 20b passes `designAPI.Approvals()` (review I6)
 
 ## Contracts
 
@@ -225,7 +231,7 @@ type Designs interface {
 func relay(w http.ResponseWriter, r *http.Request, err error) (handled bool)
 ```
 
-### Routes (added to task 20's table)
+### Routes (added to task 20a's table)
 
 | # | Method | Path | Request | `2xx` response |
 |---|---|---|---|---|
@@ -295,16 +301,17 @@ loader; this cache does not poll it).
 | `TestCheckManifest` (table over one valid manifest, one field changed per row) | the valid manifest → nil; `kind` ≠ `design-handoff`, `v: 2`, a `designKey` that fails `doc.ParseDesignKey`, a `want.CanvasID` other than the key's canvas id, and a changed `canvasId`, `designRevision`, `designKey`, `reviewDigest` or `briefKey` → `ErrTampered`; a duplicate `Files` path, an artboard path not in `Files`, two artboards sharing a slug, `tokens.css` labelled `text/html`, an asset hex ≠ its `sha256` → `ErrUnsafePath`; 500 files + the manifest, one `Size` of `MaxFileBytes`+1, sizes plus `manifestSize` summing to `MaxSnapshotBytes`+1 → `ErrTooLarge` | the two manifest rules — BuildSnapshot's and Materialise's — drifting apart (re-review I-1) |
 | `TestBuildSnapshot_selfChecks` | a fixture with artboards named `"Home"`, `"Home"`, `"Home 2"` builds, and `CheckManifest` on its output is nil; with `Slugs` replaced by a per-base-name counter (a test seam, `slugsFn`) `BuildSnapshot` returns an error wrapping `ErrUnsafePath` and no `Snapshot` | BuildSnapshot skipping its own `CheckManifest`: an approval the handoff can never materialise (re-review I-1) |
 | `TestApprove_snapshotBug` | the route with its `buildSnapshot` field (default `handoff.BuildSnapshot`) replaced by one returning an error wrapping `handoff.ErrUnsafePath`, then one wrapping `handoff.ErrTampered` → `500 internal` each time; the Hub fake received no `PutBlob` and no `Approve` | an immutable Hub approval that no handoff can use |
-| `TestMount_wrapsEveryRoute` (task 20's test, extended) | the count of mounted design routes is now **23** (routes 21–23 added); each answers 401 `local_key_required` with no key | a new route mounted around the guard (re-review M-3) |
+| `TestMount_wrapsEveryRoute` (task 20a's test, extended) | the count of mounted design routes is now **23** (routes 21–23 added); each answers 401 `local_key_required` with no key | a new route mounted around the guard (re-review M-3) |
 | `TestApprove_happy` (Hub fake) | blobs uploaded before the approval; `ApprovalRequest` has the right keys and digests; the review request is closed; route 22 then says `approved` | an approval with no snapshot |
 | `TestApprove_notShared` | an unbound project → 409 `design_not_shared` and **no** Hub call | blobs uploaded for a project the Hub cannot hold |
 | `TestApprove_incompleteBrief` | head brief `open` → 409 `design_no_brief`, no upload | an approval against an unfinished brief (ADR Q1) |
 | `TestApprove_noRenderer` | no renderer → 409 `renderer_unavailable`, no upload | an approval whose PNGs are blank |
 | `TestApprove_hubErrorsPassThrough` | fake answers `design_already_approved` → the same 409 and code reach the desktop; a fake 500 → 503 `upstream_unavailable` `upstream: hub` | Hub codes rewritten |
+| `TestApprove_noHub` (review I6) | `Config.Hub` nil (the process with `PANACEA_APP_HUB_URL` unset): route 21, and route 22 on a cache miss, → `503 hub_not_configured`, no panic, no blob or approval, authority unchanged; `Approvals().Latest` → not found | a nil `Hub` dereferenced on the one action the spine depends on |
 | `TestApprove_retryFreshReader` | a `PutBlob` failing once with `ErrUnavailable` then succeeding uploads the full bytes | a retry sending an empty body (HA5-1) |
 | `TestApprove_noApproverField` | the marshalled request has no `approvedBy`, `approver` or `actor` | an actor asserted by the caller |
 | `TestApprove_noMCPPath` | every route of `designapi` is on the guarded mux; no MCP tool name maps to route 21 (reflection over `mcp.RegisterAll`'s tools) | an agent reaching approval over MCP (ADR-H1 R5) |
-| `TestApprove_localKeyRequired` | through `Mount` with a real `localkey.Middleware` (task 20's harness): route 21 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required`, and the Hub fake received **no** `PutBlob` and **no** `Approve`; a wrong key → the same; the right key → 201 | an agent approving its own design over REST from inside its sandbox (review C1, ADR-H1 R5) |
+| `TestApprove_localKeyRequired` | through `Mount` with a real `localkey.Middleware` (task 20a's harness): route 21 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required`, and the Hub fake received **no** `PutBlob` and **no** `Approve`; a wrong key → the same; the right key → 201 | an agent approving its own design over REST from inside its sandbox (review C1, ADR-H1 R5) |
 | `TestApprovalState_changed` | approved at 5; a human colour edit at 6 → `changed`, `changedBy` names the human; a comment at 7 alone would not | *changed after approval* that fires on comments |
 | `TestApprovalState_superseded` | fake `Superseded: true` → `superseded` | a stale brief shown as current |
 | `TestReReview` | route 23 on a canvas approved at 11 against `@5`, head brief `@6` → revision 12; approving 12 sends `briefKey @6` and a digest ≠ 11's | re-review impossible (the Hub allows one approval per design key) |

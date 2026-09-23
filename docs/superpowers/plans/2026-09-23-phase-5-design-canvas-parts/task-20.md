@@ -1,6 +1,14 @@
-# Task 20 — `designapi` routes, the SSE window stream, configuration, wiring
+# Task 20a — `designapi` routes, the SSE window stream, problem codes, the route audit
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 11, 12, 13 · **External:** **Hub task C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency: this task does not start until both have landed** (plan rule 4); phase 4 task 10 (`api.RouteMounter`), phase 4 task 07 (`discoverhub`) · **Hours:** 3
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 11, 12, 13 · **Then:** task 20b (`task-20b.md`) wires this into `cmd/api` · **External:** **Hub task C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency: this task does not start until both have landed** (plan rule 4); phase 4 task 10 (`api.RouteMounter`), phase 4 task 07 (`discoverhub`) · **Hours:** 4 (the review's sizing: twenty routes and the SSE broker were about twice the old 3 h for the whole of task 20)
+
+**Why two parts (review I6).** The old task 20 declared 11, 12, 13 but its wiring called
+`mcp.NewServer` (14), `mcp.Instructions` (17), `mcp.RegisterAll` (15) and `mcprelay.NewSupervisor`
+(19), so a lane agent starting it after 13 had a `main.go` that could not compile. **20a** (this
+file, kept as `task-20.md` so earlier reviews' line citations still resolve) is everything that
+compiles against 11–13 alone: the `designapi` package, `events`, the `httpx` codes, `api.go`'s
+mount and the route audit. **20b** (`task-20b.md`) is `cmd/api`: the two variables, the one builder
+`newDesignAPI` and the `main.go` wiring, after 17, 19 and 20a.
 
 ## Why
 
@@ -8,19 +16,29 @@ The desktop reaches the authority only through the control plane's loopback surf
 everything else (Hub contract §5.4's rule, applied here). This task is that surface for everything
 except approval and handoff (tasks 21, 22): the human's ops, undo, revert, comments, selection,
 assets, the code panel, render results — and the **window stream** `GET /v1/events` (plan P5-B,
-UI contract §10.5). It also wires the whole canvas stack into `cmd/api/main.go`.
+UI contract §10.5). Task 20b wires the whole canvas stack into `cmd/api/main.go`; nothing in 20a
+imports `canvas/mcp`'s server, `mcp.RegisterAll`, `mcp.Instructions` or `mcprelay`.
 
 ## Files
 
 - `control-plane/internal/designapi/` — `routes.go`, `canvas.go`, `ops.go`, `assets.go`, `comments.go`,
-  `render.go`, `export.go`, `briefs.go`, `problems.go`, `mount.go` + tests (new)
+  `render.go`, `export.go`, `briefs.go`, `problems.go`, `mount.go`, `approvals_none.go` + tests (new)
 - `control-plane/internal/events/broker.go`, `sse.go` + tests (new)
 - `control-plane/internal/httpx/problem.go` — the codes below
 - `control-plane/internal/api/api.go` — `Deps.Design RouteMounter`; in `New`, after the Discover mount: `if d.Design != nil { d.Design.Mount(guarded.Handle) }`
-- `control-plane/internal/api/routes_audit_test.go` — the GET routes in `catalogReadOnlyRoutes`
-- `control-plane/cmd/api/config.go`, `main.go` — two variables; the wiring
-- `control-plane/cmd/api/design.go`, `design_test.go` (new) — `newDesignAPI`, the one builder
-  `main.go` uses, so the `KeyGuard` it passes is testable without `api.New`'s outer wrap (re-review I-2)
+- `control-plane/internal/api/routes_audit_test.go` — the GET routes in `catalogReadOnlyRoutes`;
+  `TestPreflightAllowsEveryRegisteredMethod` (review I3)
+
+`cmd/api/config.go`, `main.go`, `design.go` and `design_test.go` are task 20b's.
+
+**The `Approvals` seam (review I6's stub, inside `designapi`).** `canvas/mcp.Deps` takes an
+`Approvals` port (task 15, `task-15.md:61-65`) that task 21 implements. 20a adds
+`func (a *API) Approvals() mcp.Approvals`, which returns `noApprovals{}` from `approvals_none.go`:
+`Latest` → `(mcp.ApprovalInfo{}, false, nil)`, which is true, because no route can approve until
+task 21 exists. Task 20b wires the method's result, `Approvals: designAPI.Approvals()`, into
+`mcp.RegisterAll`. Task 21 deletes `approvals_none.go` and makes `Approvals()` return its in-memory
+port, so the MCP side needs no wiring change. (Task 21 still edits one `cmd/api/design.go` line, the
+`Hub` field below, so it runs after 20b.) `TestApprovals_noneUntilTask21` pins the stub's answer.
 
 If phase 4's task 10 has not landed, this task declares `RouteMounter` in `api` **exactly as phase 4
 writes it** (`interface { Mount(handle func(pattern string, h http.Handler)) }`) and adds the
@@ -194,13 +212,15 @@ func BriefsPort(src BriefSource) mcp.Briefs // maps Resolution + binding state t
 type Config struct {
 	Authority *authority.Service
 	Briefs    BriefSource
-	Hub       Designs          // task 21's port over hubclient.Designs; nil until task 21
+	// Hub Designs — NOT in 20a's struct: task 21 adds the field with its type
+	// (designapi/hub.go, Hub H0's hubapi) and the one cmd/api/design.go line that
+	// passes Hub task 32's hubclient value (review I6: 20a compiles on 11–13 alone).
 	Worktrees worktree.Provider // task 22
 	Sessions  registry.Store    // task 22
 	Identity  func(ctx context.Context) (displayName string) // the Hub's signed-in name, or "You"
 	Log       *slog.Logger
 
-	// KeyGuard is REQUIRED (review C1). main.go's newDesignAPI (below) passes
+	// KeyGuard is REQUIRED (review C1). main.go's newDesignAPI (task 20b) passes
 	//   func(h http.Handler) http.Handler { return localkey.Middleware(key, localkey.Exempt, h) }
 	// with the key localkey.Mint returned at start (Hub plan task 37). Mount wraps
 	// EVERY design handler in it — routes 1–27, tasks 21, 22 and 29's included — so a
@@ -219,30 +239,11 @@ type API struct{ /* unexported */ }
 
 func New(c Config) (*API, error) // nil KeyGuard → ErrNoKeyGuard, before anything else is checked
 func (a *API) Mount(handle func(pattern string, h http.Handler)) // api.RouteMounter; handle(p, a.keyGuard(h)) for every p
+func (a *API) Approvals() mcp.Approvals // noApprovals{} until task 21 (approvals_none.go); the same value on every call
 ```
 
-```go
-// control-plane/cmd/api/config.go — two variables; neither is ever silently ignored (config.go:69-70)
-	envCanvasMCP = "PANACEA_APP_CANVAS_MCP" // "on" (default) | "off"
-	envCanvasDir = "PANACEA_APP_CANVAS_DIR" // absolute; default statepath.Dir("canvas")
-```
-
-**Wiring, in `main.go`**: `store.NewFile(canvasDir)` → `authority.New` →
-`mcp.NewServer(info, mcp.Instructions, []string{"127.0.0.1:8731", "localhost:8731"}, log)` →
-`mcp.RegisterAll(server, mcp.Deps{Authority, Briefs: designapi.BriefsPort(briefs), Approvals: …})`
-→ `mcprelay.NewSupervisor{Sessions: store, Handler: server.Handler(), Release: auth.ReleaseSession}`
-run under the process context → `newDesignAPI(cfg, key, deps)` into `api.Deps.Design`, and
-`api.Deps.CanvasMCP = cfg.CanvasMCP`. Shutdown closes the supervisor, then the authority.
-
-`newDesignAPI(cfg Config, key localkey.Key, deps designDeps) (*designapi.API, error)` (in
-`control-plane/cmd/api/design.go`) is the ONLY place `main.go` builds the design API (re-review
-I-2). It calls `designapi.New` with `KeyGuard` built from `key` — the key `main.go` already mints
-for `api.Deps.LocalKey` (Hub task 37; one key, one `Mint` call) — and returns its result unchanged.
-It exists so a test can check the guard `main.go` really passes without `api.New`'s outer wrap
-(Hub task 37, `.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub-parts/task-37.md:70`,
-wraps the whole guarded mux in `localkey.Middleware`). Through the
-real process that outer wrap answers 401 even when `KeyGuard` is the identity function, so no test
-over the process can tell the two apart.
+The two `PANACEA_APP_CANVAS_*` variables, `newDesignAPI` and the `main.go` wiring are task 20b's
+(`task-20b.md`, *Contracts*).
 
 ## Tests first
 
@@ -264,35 +265,29 @@ over the process can tell the two apart.
 | `TestMount_everyMethodPassesPreflight` (review I3) | the same recording `handle`; for every recorded pattern, its method goes in a real preflight — `OPTIONS <path>`, `Origin: http://tauri.localhost` (from `httpx.DefaultOrigins()`), `Access-Control-Request-Method: <method>`, `Access-Control-Request-Headers: authorization, content-type` — through `httpx.NewOriginPolicy(httpx.DefaultOrigins(), log).Middleware`; the answer is 204 and its comma-split `Access-Control-Allow-Methods` contains the method, its `Access-Control-Allow-Headers` contains `Authorization` and `Content-Type`. Reads the live middleware, never a copied constant; tasks 21, 22 and 29's routes are covered the moment they mount | a route verb the preflight omits (route 11 or 17 back to `PUT`), which no `httptest` test notices because none enforces CORS |
 | `TestPreflightAllowsEveryRegisteredMethod` (`control-plane/internal/api/routes_audit_test.go`, review I3) | the same check over `api.New(d).RegisteredPatterns()` — every route the control plane registers, phase 2's included — sent through `api.New`'s real handler; a pattern with no method (`catalogMethodAgnosticRoutes`) is skipped by name, not by a missing prefix | a phase-2 or later route whose verb the preflight omits |
 | `TestBriefsPort_stub` | the stub answers `unavailable` with its sentence | a nil port panicking before phase 4 |
-| `TestConfig_canvasVars` | `PANACEA_APP_CANVAS_MCP=maybe` exits with a message; `off` sets `CanvasMCP` false; a relative `PANACEA_APP_CANVAS_DIR` exits | a silently ignored variable |
-| `TestMain_wiring` (the `main_test.go` pattern) | the process starts with a temp state dir and serves route 1 **with** the key read from `PANACEA_APP_LOCAL_KEY_FILE`; route 1 and route 5 **without** it, and with `Bearer ` (empty), → 401 `local_key_required` | a stack that compiles but is never mounted (it cannot kill an identity `KeyGuard`: `api.New`'s outer `localkey.Middleware` answers 401 first — re-review I-2) |
-| `TestNewDesignAPI_guardsBareMux` (`control-plane/cmd/api/design_test.go`) | `newDesignAPI` with a key minted into `t.TempDir()` and fake deps; its result mounted with `Mount(mux.Handle)` on a bare `http.ServeMux` — **no `api.New`, no outer wrap**; route 5 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required` and the authority unchanged; `Bearer ` (empty) → the same; the right key → not 401 | `main.go` (through `newDesignAPI`) passing an identity `KeyGuard`, or a guard over some other key (re-review I-2) |
+| `TestApprovals_noneUntilTask21` | `Approvals().Latest(ctx, anyCanvas)` → `(ApprovalInfo{}, false, nil)`; two calls return equal values (task 20b's wiring test compares them) | a stub that errors (every `at: "approved"` read would fail instead of saying "not approved yet") |
+
+`TestConfig_canvasVars`, `TestMain_wiring`, `TestNewDesignAPI_guardsBareMux` and the MCP wiring
+tests are task 20b's.
 
 ## Steps
 
 1. Tests with a `MemStore` authority and the fake renderer. 2. `events`, then `designapi`, then the
-`httpx` codes, `api.go`, the audit, `config.go`, `main.go`. 3. If phase 4's `discoverhub` exists in
-the tree, write `briefs_phase4.go`; else leave the stub wired and note it in the commit.
-4. Acceptance; commit by pathspec.
+`httpx` codes, `api.go`, the audit. 3. If phase 4's `discoverhub` exists in
+the tree, write `briefs_phase4.go`; else leave the stub in place and note it in the commit.
+4. Acceptance; commit by pathspec. Nothing here edits `cmd/api` (task 20b).
 
 ## Acceptance
 
 ```bash
 cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5 && go test ./control-plane/... -race -count=1 && go vet ./control-plane/...
 ```
-Expected: every package `ok`; vet silent.
-
-```bash
-go run ./control-plane/cmd/api & sleep 3; curl -s http://127.0.0.1:8730/v1/design/canvases/cv-0000000000000000 ; kill %1
-```
-Expected: `local_key_required` (401) — the curl sends no key. Then again with
-`-H "Authorization: Bearer $(cat "$PANACEA_APP_LOCAL_KEY_FILE")"` (set that variable to a scratch path
-before starting the process, Hub task 37): `{"error":"canvas_not_found",…}`.
-Hub task C3 is a hard dependency, so there is no "before the key" answer to expect. (Run the binary,
-not `go run`, if the orphan-process gotcha bites: build it, start it, kill it by PID.)
+Expected: every package `ok`; vet silent. The process-level curl checks are task 20b's: until 20b
+lands, `main.go` does not mount the design API.
 
 ## Not claimed
 
+- `cmd/api` (the variables, `newDesignAPI`, the wiring) is task 20b.
 - Approvals, handoff and session links are tasks 21 and 22.
 - The desktop's reader is task 27; this task tests the stream with a Go client.
 - `briefs_phase4.go` exists only if phase 4 is in the tree when this runs.

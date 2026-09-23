@@ -1,6 +1,6 @@
 # Task 30 — End to end, the phase 5 contract, and the amendments
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** all · **External:** Hub C3 (Hub plan tasks 37–38) for step 1's probe — already a hard dependency of tasks 20–22 and 27; Hub H4 on `compose.yaml` for step 2; the owner's batched hands-on session (`OD-12`) for step 5 · **Hours:** 2 (plus the owner's session)
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** all · **External:** Hub C3 (Hub plan tasks 37–38) for step 1's probe — already a hard dependency of tasks 20a, 20b, 21, 22 and 27; Hub H4 on `compose.yaml` for step 2; the owner's batched hands-on session (`OD-12`) for step 5 · **Hours:** 2 (plus the owner's session)
 
 ## Why
 
@@ -21,8 +21,8 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
 
 ## The contract document — what it gathers, each from its part
 
-1. **Routes 1–27** with request and response JSON (tasks 20, 21, 22, 29) and the problem codes (task 20).
-2. **The window stream** — format, topics, reconnect rule (task 20).
+1. **Routes 1–27** with request and response JSON (tasks 20a, 21, 22, 29) and the problem codes (task 20a).
+2. **The window stream** — format, topics, reconnect rule (task 20a).
 3. **The MCP server** — name, transport and wire table (task 14); all 35 tools with their input
    schemas and result fields (tasks 15–17); the error table (task 15); the instructions (task 17).
 4. **The relay** — framing, golden frames, listener address, channel path (task 18); the two CLI flags
@@ -43,7 +43,7 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
 | Go contract | the harness package | `Request.CanvasMCP`, `Descriptor.SupportsMCPConfig`, the argv order (task 19) |
 | Go contract | the sandbox surface | `/mcp-channel`, `-mcp-listen`, `127.0.0.1:8731` (task 18); `backend.EnvEntries` unchanged |
 | `PROGRAM.md` | Phase 5 | *"Handoff bundle: tokens, component tree, screens"* → the bundle as built (task 21), and a status line pointing at this plan |
-| Go contract / `httpx/origin.go` | `corsMethods` (contract §3.1's verb set) | **No change, recorded as a decision** (review I3): every design route is `GET`, `POST` or `DELETE` (task 20, *Verbs*), so the preflight's `GET, POST, PATCH, DELETE, OPTIONS` covers them; `TestMount_everyMethodPassesPreflight` and `TestPreflightAllowsEveryRegisteredMethod` (task 20) pin it. The design contract states the verb rule |
+| Go contract / `httpx/origin.go` | `corsMethods` (contract §3.1's verb set) | **No change, recorded as a decision** (review I3): every design route is `GET`, `POST` or `DELETE` (task 20a, *Verbs*), so the preflight's `GET, POST, PATCH, DELETE, OPTIONS` covers them; `TestMount_everyMethodPassesPreflight` and `TestPreflightAllowsEveryRegisteredMethod` (task 20a) pin it. The design contract states the verb rule |
 
 ## Steps
 

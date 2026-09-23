@@ -15,7 +15,7 @@ wrapped or parsed (G5).
 - `control-plane/go.mod`, `go.sum` — `require github.com/kpmg-au-emu/panacea-app/canvas v0.0.0-00010101000000-000000000000` and `replace github.com/kpmg-au-emu/panacea-app/canvas => ../canvas`
 - `control-plane/internal/mcprelay/tunnel.go`, `supervisor.go`, `dial.go` + tests (new)
 - `control-plane/internal/harness/harness.go`, `argv.go`, `argv_test.go`
-- `control-plane/internal/api/api.go` — `Deps.CanvasMCP bool` (one field; task 20 adds the next)
+- `control-plane/internal/api/api.go` — `Deps.CanvasMCP bool` (one field; task 20a adds the next)
 - `control-plane/internal/api/sessions.go` — `CanvasMCP` in create (`:342`) and restart (`:925`)
 
 ## Contracts
@@ -111,7 +111,7 @@ func (s *Supervisor) Channels() []string       // session ids with a live channe
 ```go
 // control-plane/internal/api/api.go — Deps gains one field
 	// CanvasMCP points every Claude Code session at the canvas MCP relay
-	// (phase 5). From PANACEA_APP_CANVAS_MCP (default on, task 20).
+	// (phase 5). From PANACEA_APP_CANVAS_MCP (default on, task 20b).
 	CanvasMCP bool
 
 // control-plane/internal/api/sessions.go — both harness.Build calls gain
@@ -146,7 +146,7 @@ func (s *Supervisor) Channels() []string       // session ids with a live channe
    `control-plane` with `GOFLAGS=-mod=mod GOPROXY=off`.
 3. Harness tests, then the harness change; sessions tests, then the two lines.
 4. Tunnel and supervisor, tests first, against task 18's listener in-process.
-5. **One real run.** With the control plane running locally and task 20 not yet landed, wire a
+5. **One real run.** With the control plane running locally and task 20b not yet landed, wire a
    throwaway handler that answers `initialize` and `tools/list` with one `ping`-like tool; start a
    Claude Code session; in its terminal run `/mcp`. Record what the CLI shows in the report below.
    Remove the throwaway wiring before committing.
@@ -169,7 +169,7 @@ Expected: a count ≥ 1 (the control plane now links the canvas module) — and 
 
 ## Not claimed
 
-- The MCP server's tools are wired in task 20; step 5's throwaway proves the path, not the tools.
+- The MCP server's tools are wired in task 20b; step 5's throwaway proves the path, not the tools.
 - Whether `--allowedTools mcp__panacea-canvas` really suppresses every prompt is observed in step 5
   as far as one tool goes; task 30 observes it over a whole design session.
 - Codex, OpenCode and Gemini CLI get no MCP (seam S5-Hx.1).

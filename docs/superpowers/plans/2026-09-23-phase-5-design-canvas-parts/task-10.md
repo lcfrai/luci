@@ -75,7 +75,7 @@ func NewMem() *MemStore
 ```
 
 ```
-// FileStore layout under dir (the control plane passes statepath.Dir("canvas"), task 20)
+// FileStore layout under dir (the control plane passes statepath.Dir("canvas"), task 20b)
 bindings.json                               {"v":1,"bindings":[Binding…]}  — written by temp file + rename
 <canvasId>/changes.jsonl                    one doc.Change per line; append, then fsync, per change
 <canvasId>/snapshot-<rev, 10 digits>.json   a doc.Document at that revision; revision 0 is written by Create

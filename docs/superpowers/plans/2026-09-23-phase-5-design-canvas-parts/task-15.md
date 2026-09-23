@@ -11,7 +11,7 @@ calling session's branch canvas (spec §7.5 "Scope"), each carrying the caller's
 mirror to drift (spec §7.6; phase 4 seam S4-P5.3).
 
 The tool layer reaches outside the canvas module only through three **ports**, which the control
-plane implements (tasks 20, 21) and tests fake.
+plane implements (tasks 20a, 21) and tests fake.
 
 ## Files
 
@@ -24,7 +24,7 @@ plane implements (tasks 20, 21) and tests fake.
 // canvas/mcp/ports.go
 
 // Briefs is phase 4's HeadRef seen from here (S4-P5.3). designapi implements
-// it over discoverhub.Service (task 20).
+// it over discoverhub.Service (task 20a).
 type Briefs interface {
 	Brief(ctx context.Context, projectID, branchID string) (Brief, error)
 }
@@ -242,6 +242,6 @@ Expected: `ok  	github.com/kpmg-au-emu/panacea-app/canvas/mcp`.
 
 ## Not claimed
 
-- The real `Briefs` and `Approvals` are the control plane's (tasks 20, 21). Phase 4's
+- The real `Briefs` and `Approvals` are the control plane's (tasks 20a, 21). Phase 4's
   `discoverhub` is plan text; the port is what this task depends on.
 - Descriptions are written for the model; their wording is reviewed with the guides in task 17.

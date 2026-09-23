@@ -33,7 +33,7 @@ const (
 	RenderFont       RenderKind = "font"       // one family's availability
 )
 
-// RenderRequest reaches a renderer as an SSE event on topic renderer:<canvasId> (task 20).
+// RenderRequest reaches a renderer as an SSE event on topic renderer:<canvasId> (task 20a).
 type RenderRequest struct {
 	ID       string     `json:"id"`       // rq-<12 hex>
 	CanvasID string     `json:"canvasId"`
@@ -162,5 +162,5 @@ Expected: `ok  	github.com/kpmg-au-emu/panacea-app/canvas/authority`.
 
 ## Not claimed
 
-- No renderer exists yet: the desktop side is task 24, the transport task 20.
+- No renderer exists yet: the desktop side is task 24, the transport task 20a.
 - The fidelity of a screenshot is the renderer's (task 01's S8), not this bridge's.

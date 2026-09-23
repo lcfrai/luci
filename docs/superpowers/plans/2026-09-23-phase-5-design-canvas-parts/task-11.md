@@ -7,7 +7,7 @@
 The authority is the single writer (architecture rule 1). This task gives it its spine: a canvas
 per branch (P5-L), one lock per canvas, the prepare → append → commit sequence that keeps memory and
 disk agreeing, and a subscription that turns every accepted batch into an event carrying
-**resulting state** (P5-V) — which the SSE stream (task 20) delivers to the desktop and the MCP
+**resulting state** (P5-V) — which the SSE stream (task 20a) delivers to the desktop and the MCP
 tools read as notices (task 12). Claims, preconditions and undo are task 12's; renderers task 13's.
 
 ## Files
@@ -243,4 +243,4 @@ Expected: `ok  	…/canvas/authority` (and `[no test files]` for `canvastest`).
 - `IfRevision` and `Shared` are accepted and ignored until task 12; `Claims`, `Presence` and
   `Notices` are empty until then.
 - No renderer calls, no selection (task 13).
-- Events are in-process only; the SSE transport is task 20.
+- Events are in-process only; the SSE transport is task 20a.

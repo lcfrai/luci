@@ -104,7 +104,7 @@ type FS interface { // os in production; a temp dir in tests; phase 8 supplies o
 // ("tampered" | "unsafe_path" | "too_large") and writes nothing.
 ```
 
-### Routes (added to task 20's table)
+### Routes (added to task 20a's table)
 
 | # | Method | Path | Request | `2xx` response |
 |---|---|---|---|---|
@@ -148,10 +148,10 @@ The link records **both** keys; they may differ, and that difference is the poin
 | `TestMaterialise_manifestLies` | a duplicate path; an artboard `HTML` path not in `Files`; `tokens.css` labelled `text/html`; an `assets/<hex>.png` whose bytes hash to another hex → `ErrUnsafePath`, nothing written | a second file overwriting the first; a path smuggled through the artboard table |
 | `TestMaterialise_otherDesign` | a valid manifest whose `canvasId`, `designRevision`, `designKey`, `reviewDigest` or `briefKey` differs from the approval record → `ErrTampered`, nothing written; a `rec.DesignKey` that `doc.ParseDesignKey` refuses → `ErrTampered`; a manifest and record that agree but whose canvas id ≠ the `canvasID` argument → `ErrTampered` (re-review M-4) | one approval materialising another design's files; a bundle directory named for another canvas |
 | `TestMaterialise_sharesCheckManifest` | a manifest `handoff.CheckManifest` refuses (each of its three sentinels, one row each, reusing task 21's `TestCheckManifest` fixtures) → Materialise returns the same sentinel, and the fake `Fetch` was called for the manifest only | Materialise keeping its own copy of the manifest rule (re-review I-1) |
-| `TestMount_wrapsEveryRoute` (task 20's test, extended) | the count of mounted design routes is now **26** (routes 24–26 added); each answers 401 `local_key_required` with no key | a new route mounted around the guard (re-review M-3) |
+| `TestMount_wrapsEveryRoute` (task 20a's test, extended) | the count of mounted design routes is now **26** (routes 24–26 added); each answers 401 `local_key_required` with no key | a new route mounted around the guard (re-review M-3) |
 | `TestMaterialise_limits` | 500 files + the manifest → `ErrTooLarge`; sizes summing to `MaxSnapshotBytes` + 1 → `ErrTooLarge`, **before** any file fetch; a fetched blob longer than its declared `Size` → `ErrTampered` | a manifest that fills the disk |
 | `TestHandoff_invalidSnapshot` | the route over a Hub fake holding the `../x` manifest → 422 `handoff_snapshot_invalid`, `details.reason: "unsafe_path"`; `info/exclude` untouched | the error flattened to 500, or a half-done handoff |
-| `TestHandoff_localKeyRequired` | routes 24 and 25 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required`; no `Fetch`, no file, no `LinkSession` call (task 20's harness) | a sandbox materialising files into a worktree or linking a session as the human (review C1) |
+| `TestHandoff_localKeyRequired` | routes 24 and 25 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required`; no `Fetch`, no file, no `LinkSession` call (task 20a's harness) | a sandbox materialising files into a worktree or linking a session as the human (review C1) |
 | `TestMaterialise_idempotent` | twice with one manifest → the second `Created: false`, files untouched (mtime) | a rewrite on every click |
 | `TestMaterialise_replacesDifferent` | a directory at `BundleDir` whose `manifest.json` differs (a hand edit, a crash leftover) is replaced whole by the rename; no stray file from it survives | half-old, half-new bundles |
 | `TestMaterialise_approvalJSON` | `approval.json` holds the record's six fields | the Develop agent unable to name what it implements |

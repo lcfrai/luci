@@ -1,6 +1,6 @@
 # Task 27 — Desktop data: the design client, the event stream, the slice, the transport adapter
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 20, 23 · **External:** **Hub C3 — Hub plan tasks 37–38, a hard dependency** (task 38's `LocalKeySource` and `client.ts` header; every design route answers a keyless call 401 `local_key_required`, task 20, review C1); phase 4 task 16 (`keySources`, the loader, the provenance slice) · **Hours:** 2.5
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 20a, 23 · **External:** **Hub C3 — Hub plan tasks 37–38, a hard dependency** (task 38's `LocalKeySource` and `client.ts` header; every design route answers a keyless call 401 `local_key_required`, task 20a, review C1); phase 4 task 16 (`keySources`, the loader, the provenance slice) · **Hours:** 2.5
 
 ## Why
 
@@ -13,7 +13,7 @@ registry of document stores (class instances, kept outside zustand), and one key
 ## Files
 
 - `desktop/src/api/design.ts`, `desktop/src/api/events.ts` + tests (new)
-- `desktop/src/api/client.ts` — the `ProblemCode` union gains task 20's twelve codes
+- `desktop/src/api/client.ts` — the `ProblemCode` union gains task 20a's twelve codes
   (`handoff_snapshot_invalid` is the twelfth, review C2) and `upstream_unavailable`, `signed_out`
   if the Hub's C1/C2 have not added them (`local_key_required` is Hub task 38's, already there). **Declared amendment**
   of UI contract §4.2 (task 30 records it). `problems.ts`' `classify` is unchanged: every new code is
@@ -26,7 +26,7 @@ registry of document stores (class instances, kept outside zustand), and one key
 ## Contracts
 
 ```ts
-// desktop/src/api/design.ts — one method per task 20–22 route; every error is an ApiError
+// desktop/src/api/design.ts — one method per task 20a, 21 and 22 route; every error is an ApiError
 export interface DesignClient {
   canvasForBranch(projectId: string, branchId: string): Promise<Summary | null>;          // route 1
   createCanvas(projectId: string, branchId: string): Promise<{ summary: Summary; created: boolean }>; // 2
@@ -57,7 +57,7 @@ export interface DesignClient {
 }
 // same options, same ApiError, same send() as client.ts — but localKey is REQUIRED here: a design
 // client with no key source throws at construction ("the design client needs the local caller key,
-// Hub plan task 38"), because every design route refuses a keyless call (task 20, review C1).
+// Hub plan task 38"), because every design route refuses a keyless call (task 20a, review C1).
 export function createDesignClient(opts: ClientOptions & { localKey: LocalKeySource }): DesignClient;
 ```
 
@@ -70,7 +70,7 @@ re-read once for both.
 22 and the Hub's `hubapi` (contract §7.7, §7.8) — and re-exports the editor package's wire types.
 
 ```ts
-// desktop/src/api/events.ts — the window stream (task 20's format), read with fetch
+// desktop/src/api/events.ts — the window stream (task 20a's format), read with fetch
 export type StreamState = "connecting" | "open" | "reconnecting" | "closed";
 export interface EventStreamOptions {
   baseUrl: string; fetch: typeof globalThis.fetch; windowId: string;
