@@ -6,11 +6,14 @@
 **Binding rule (`OD-11`, `docs/superpowers/planning/2026-09-23-owner-decisions.md:22`, `:84-100`):**
 this document was written from **public product behaviour only** — paper.design's public site, docs,
 build log (changelog), blog, compare pages and published MCP tool surface, plus third-party public
-reviews. The author **did not open, read, search or copy** `~/Projects/Paperdesign`,
-`kgoedecke/doop`, or any AGPL/GPL canvas source. The only in-repo inputs about a canvas were the
-two documents `OD-11` rule 1 allows for product ideas (`survey-phase-5-design.md`,
-`scope-and-risk-phase-5-design.md`); no code from them is reused, and nothing below is derived from
-them unless it says so.
+reviews, and third-party MIT-licensed bridges that describe Paper's live MCP surface. The author
+**did not open, read, search or copy** `~/Projects/Paperdesign`, `kgoedecke/doop`, or any AGPL/GPL
+canvas source. Of the two in-repo documents `OD-11` rule 1 allows for product ideas, only
+`scope-and-risk-phase-5-design.md` was read; `survey-phase-5-design.md` was not opened. No code
+from either is reused, and nothing below is derived from them unless it says so (§11.2 maps the
+brief's items). Other in-repo inputs — the owner decisions, `PROGRAM.md`, `DESIGN-SYSTEM.md`,
+`FUNCTIONAL-SPEC.md`, `AGENTIC-UX.md` §4, the provenance contract draft, the dependency graph, and
+the phase 2 source files cited in §7 — are ours, not canvas sources.
 
 The owner's words (`OD-11`): *"I want it pretty much exactly like paper.design with the MCP, it is
 super powerful."*
@@ -24,7 +27,8 @@ super powerful."*
    design**, not Paper's.
 2. **Paper's power is one idea:** the canvas *is* HTML/CSS, so an agent can write it with the
    language it already knows, read it back as JSX, and a human can hand-edit the same nodes. The MCP
-   is small (21 tools on the page we read) because the data model needs no translation.
+   is small — 21 tools on its docs page, about 34 on the live server (§3.2) — because the data model
+   needs no translation.
 3. **Our v1 is §9.1.** It is deliberately a strict subset: a local MCP server on loopback, an
    HTML/CSS node tree, artboards, the read/write tool surface, screenshots via the cockpit's own
    webview, a working indicator, and a handoff bundle into the worktree. Multiplayer and Figma
@@ -717,4 +721,141 @@ CI gate checks each resolved package, and this table is not a substitute for it.
 | `rocicorp/fractional-indexing` | CC0-1.0 [L31] | Not on the allowed list (OQ-8); the algorithm is published [S26] and small enough to write ourselves |
 | `paper-design/agent-plugins` | No licence (`license: null`) [S18] | Read for product behaviour only; nothing copied |
 | `~/Projects/Paperdesign`, `kgoedecke/doop` | AGPL-3.0 (per `OD-11`) | **Never opened for this document** |
+
+## 11. Open questions, and what could not be verified
+
+### 11.1 Open questions — each with the recommendation we plan around
+
+None of these blocks v1 item 1 (the spike). Rule 7: a genuine owner decision is recorded here, and
+the plan follows the recommendation until the owner overrules it.
+
+| # | Question | Recommendation | Decider |
+|---|---|---|---|
+| OQ-1 | Is v1 single-person (many agents, one human), with multiplayer across people in v2? | **Yes.** Approvals, design links and approved snapshots are in the Hub from v1, so the *shared* part of the thread is shared from day one (`OD-3`); live co-editing waits for Hub identity | Owner |
+| OQ-2 | Where do live canvas documents live in v1 — the control plane, or the Hub? | **The control plane**, in a Go package that the Hub can host unchanged in v2. Local-first (`PROGRAM.md`), works offline, no new server dependency for the first slice | Orchestrator, in the Hub ADR |
+| OQ-3 | Does the canvas get its own WebSocket, or ride the event stream the poller asks for (`poller.ts:1-3`)? | **Ride one multiplexed window stream**; the canvas is its first topic. Two transports in one window is the defect `dependency-graph-and-order.md:274` names | Phase 2 contract owner |
+| OQ-4 | The sandbox relay (§7.7): a loopback MCP listener in `sandboxd`, forwarded over a channel the control plane opens | **Yes**; it keeps the listener loopback-only on both sides, needs no token in the sandbox, and survives the move to Kata | Phase 2 owner (`sandboxd`), phase 8 for Kata |
+| OQ-5 | Tool names that follow Paper's verbs | **Yes for the verbs, no for the brand**: no Paper names or marks in our UI, no claim of compatibility. A short legal confirmation alongside the licence gate is cheap; this is not legal advice | Owner, legal if wanted |
+| OQ-6 | One claim vocabulary for canvas artboards (§7.4) and phase 3's file claims? | **Yes**, one `claim` shape with a resource kind, so the cockpit shows one kind of lock | Phase 3 and 5 plan authors |
+| OQ-7 | Layout tools when the Design lens is closed | **A hidden renderer** the desktop keeps per open project while it runs; `renderer-unavailable` only when the desktop is not running | Phase 5 plan |
+| OQ-8 | Add CC0-1.0 to the licence gate? | **No.** Write fractional indexing ourselves; the gate stays the four licences `OD-11` names | Owner |
+| OQ-9 | Screenshots: DOM-to-image in the webview, or WebView2's native capture? | **Decide in the spike** on fidelity (fonts, filters, backdrop filters). Headless browsers are blocked on the corporate fleet (`CLAUDE.md`, working agreements), so a headless Chromium is not an option here | Spike |
+| OQ-10 | Is the handoff bundle committed to git? | Follow phase 3's answer for `CLAUDE.md` (contract open question 4) | Phase 3 |
+| OQ-11 | Figma via Figma's MCP from a sandbox: egress to Figma, on the user's own Figma seat | **v2**, behind the owner's and security's yes; nothing of ours touches Figma's format | Owner + security |
+
+### 11.2 What the earlier phase 5 brief's items become
+
+`scope-and-risk-phase-5-design.md` was written against the withdrawn Northstar canvas.
+
+| Earlier item | Now |
+|---|---|
+| D1 where the canvas server runs; D2 Northstar's second spine | **Moot** (`OD-11`; owner decisions, "Three exceptions") |
+| D3 brief edited after approval → pin and mark | **Stands** (`OD-1` accepted it); simpler, because there is no mirror to rewrite (§7.6) |
+| R1 AGPL §13 | **Closed** by `OD-11` |
+| R4, R6 agent JavaScript on a server; a frame forging edits as the viewer | **Deleted by construction**: no script runs in the canvas (§7.1 rule 4) |
+| R5 parallel agents overwrite each other | **Designed out**: claims and `ifRevision` (§7.4) |
+| R7 headless agents cannot complete MCP OAuth | **Removed**: the relay channel is the credential (§7.7) |
+| R8 / P-g a deleted canvas orphans design links | **Closed**: snapshot captured into the Hub at approval (§7.6) |
+| R9 a second transport | **OQ-3** |
+| R10 two visual languages | **Closed**: the editor is ours, built to `DESIGN-SYSTEM.md` |
+| R14 scales up, not out | **v2**, when the Go package is hosted in the Hub |
+
+### 11.3 What could not be verified
+
+- **Paper's exact MCP input schemas.** Only a live `tools/list` shows them. We did not install
+  Paper Desktop on a corporate device, and no public page publishes them. §3.2's argument column
+  carries only the names public sources state.
+- **Whether Paper's MCP server authenticates.** Its docs mention no auth [S2]; a bridge probes for
+  OAuth best-effort [S22]. Unknown.
+- **Paper's HTML dialect rules** (flex/padding/gap, no margin/grid/tables, `layer-name`,
+  `paper-asset:///`, `x-paper-clone`) come from a **third-party MIT bridge's copy** of Paper's
+  guide [S11], not from Paper's own pages.
+- **The 34-tool list** comes from that bridge's runtime-discovered README [S19], corroborated by its
+  live test asserting more than 33 [S25] and by a user's issue naming `list_comment_threads` and
+  `fileId` [S20]. Paper's docs list 21 [S2].
+- **Paper's sync engine** — nothing public. §4 is behaviour only.
+- **Figma's MCP tool list** — its help page points elsewhere [S27]; not followed.
+- **Blocked by the corporate network:** `www.jsdelivr.com` redirected to KPMG's acceptable-use
+  policy page (a SharePoint URL); `www.npmjs.com` package pages returned HTTP 403. The npm
+  **registry** (`registry.npmjs.org`) was reachable and used instead.
+- **Not opened**: `app.paper.design` (sign-in required), Paper's Discord/Slack/YouTube, and the
+  licences of Paper's own open-source packages (Paper Shaders, Paper Mono) — none is proposed.
+- **In this repo:** every file and line cited in §7 was opened for this document. The WebView2
+  behaviour in §7.5, the relay in §7.7 and the hidden renderer in OQ-7 are **designs, not tested
+  facts**. Nothing was built or run.
+
+## 12. Sources
+
+All fetched 2026-09-23. `[S…]` are product sources; `[L…]` are licence checks.
+
+### 12.1 Product behaviour
+
+| Id | URL | What it gave |
+|---|---|---|
+| S1 | https://paper.design | Positioning, HTML/CSS canvas, products, integrations |
+| S2 | https://paper.design/docs/mcp | 21 tools with descriptions, transport, URL, per-client setup, caveats |
+| S3 | https://paper.design/docs/tokens | Token types, creation paths, application, roadmap |
+| S4 | https://paper.design/docs/paste | Paste types and modes |
+| S5 | https://paper.design/build-log | Dated changelog, 2025-09 to 2026-08 |
+| S6 | https://paper.design/compare/figma | Canvas model, colour, agent-format claims against Figma |
+| S7 | https://paper.design/roadmap | Components, grid, tokens, code components, statuses |
+| S8 | https://paper.design/pricing | Plans; MCP calls per week |
+| S9 | https://paper.design/docs/svg | Vector editing and its roadmap |
+| S10 | https://raw.githubusercontent.com/try-works/dsh-paper-design/main/src/guide.ts | Third-party (MIT) copy of Paper's agent rules and `get_guide` topics |
+| S11 | https://raw.githubusercontent.com/try-works/dsh-paper-design/main/skills/paper-design/SKILL.md | Third-party (MIT) HTML dialect rules and call order |
+| S12 | https://sfailabs.com/guides/figma-mcp-vs-paper | *"24 tools (11 read, 8 write, 5 utility)"*; pricing; comparison (updated 2026-08-22) |
+| S13 | https://paper.design/blog/series-a | *"HTML and CSS … a natural language for agents"*; CI visual diffs |
+| S14 | https://paper.design/blog | Post index; seed round date |
+| S15 | https://paper.design/blog/a-real-space-to-design-in-the-age-of-agents | Design-to-code-and-back argument |
+| S16 | https://paper.design/docs/support/snapshot-local-images | Snapshot's CORS requirement |
+| S17 | https://www.banani.co/blog/paper-design-mcp-review | Review (2026-08-05); Pro's 1M MCP calls/week |
+| S18 | https://github.com/paper-design/agent-plugins · https://api.github.com/repos/paper-design/agent-plugins · https://raw.githubusercontent.com/paper-design/agent-plugins/main/plugins/paper-desktop/README.md | Official plugin layout; `license: null`; documented workflows |
+| S19 | https://registry.npmjs.org/@try-works/pi-paper-design · https://pi.dev/packages/@try-works/pi-paper-design | MIT bridge; the 34 runtime-discovered tool names |
+| S20 | https://github.com/jessepollak/home/issues/679 | A user's live use: `fileId`, `pageId`, `list_comment_threads` |
+| S21 | https://github.com/try-works/dsh-paper-design | MIT bridge repository |
+| S22 | https://raw.githubusercontent.com/try-works/dsh-paper-design/main/src/auth.ts | Best-effort MCP OAuth probing |
+| S23 | https://raw.githubusercontent.com/try-works/dsh-paper-design/main/skills/design-to-code/SKILL.md | Design-to-code workflow |
+| S24 | https://raw.githubusercontent.com/try-works/dsh-paper-design/main/src/index.ts | Runtime tool discovery; `mcp_auth` filtered |
+| S25 | https://raw.githubusercontent.com/try-works/dsh-paper-design/main/tests/bridge.spec.ts | Live test asserts more than 33 tools |
+| S26 | https://www.figma.com/blog/how-figmas-multiplayer-technology-works/ | Server-authoritative multiplayer, fractional indexing (2019-10-16) |
+| S27 | https://help.figma.com/hc/en-us/articles/32132100833559 | Figma MCP: remote server writes to canvas |
+| S28 | https://www.designtokens.org/tr/drafts/format/ | W3C DTCG format 2025.10, draft of 2026-09-08 |
+
+### 12.2 Licence checks
+
+GitHub API unless stated: `https://api.github.com/repos/<owner>/<repo>`, field `license.spdx_id`.
+
+| Id | Checked | Result |
+|---|---|---|
+| L1 | `golang/net` | BSD-3-Clause |
+| L2 | `microcosm-cc/bluemonday` | BSD-3-Clause |
+| L3 | `tdewolff/parse` | MIT |
+| L4 | `modelcontextprotocol/go-sdk` → `NOASSERTION`; `raw.githubusercontent.com/modelcontextprotocol/go-sdk/main/LICENSE` | Apache-2.0 (new) + MIT (legacy) + CC-BY-4.0 (docs). The TypeScript SDK's `LICENSE` says the same |
+| L5 | `mark3labs/mcp-go` | MIT |
+| L6 | `coder/websocket` | ISC |
+| L7 | `daybrush/moveable` | MIT |
+| L8 | `daybrush/selecto` | MIT |
+| L9 | `pmndrs/use-gesture` | MIT |
+| L10 | `mourner/rbush` | MIT |
+| L11 | `Evercoder/culori` | MIT |
+| L12 | `cure53/DOMPurify`; `raw.githubusercontent.com/cure53/DOMPurify/main/LICENSE` | Apache-2.0 |
+| L13 | `bubkoo/html-to-image` | MIT |
+| L14 | `qq15725/modern-screenshot` | MIT |
+| L15 | `codemirror/dev` → `NOASSERTION`, archived; `registry.npmjs.org/@codemirror/view/latest` | MIT |
+| L16 | `foliojs/fontkit` → `null`; `registry.npmjs.org/fontkit/latest` | MIT |
+| L17 | `fontello/svgpath` | MIT |
+| L18 | `style-dictionary/style-dictionary` | Apache-2.0 |
+| L19 | `tailwindlabs/tailwindcss` | MIT |
+| L20 | `excalidraw/excalidraw` | MIT |
+| L21 | `yjs/yjs` → `NOASSERTION`; `raw.githubusercontent.com/yjs/yjs/main/LICENSE` | MIT |
+| L22 | `google/go-licenses` | Apache-2.0 |
+| L23 | `RSeidelsohn/license-checker-rseidelsohn` | BSD-3-Clause |
+| L24 | `GrapesJS/grapesjs` → `NOASSERTION`; `raw.githubusercontent.com/GrapesJS/grapesjs/dev/packages/core/LICENSE` | BSD-3-Clause |
+| L25 | `onlook-dev/onlook` | Apache-2.0 |
+| L26 | `prevwong/craft.js` | MIT |
+| L27 | `tldraw/tldraw` → `NOASSERTION`; `raw.githubusercontent.com/tldraw/tldraw/main/LICENSE.md` | Custom; production use needs a licence key |
+| L28 | `penpot/penpot` | MPL-2.0 |
+| L29 | `webstudio-is/webstudio` | AGPL-3.0 |
+| L30 | `parcel-bundler/lightningcss` | MPL-2.0 |
+| L31 | `rocicorp/fractional-indexing` | CC0-1.0 |
 
