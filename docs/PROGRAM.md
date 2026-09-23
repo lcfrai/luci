@@ -89,7 +89,15 @@ Worktree lifecycle against real git, file-claim coordination between concurrent 
 The question flow, generation of per-branch `CLAUDE.md`, inheritance project → branch → session, the provenance thread surfacing in Develop, Merge and Deploy.
 
 ### Phase 5 — Design canvas
-Adapt `Paperdesign` (the doop fork — real-HTML frames, MCP agent editing, multiplayer, already Tauri-shelled). Handoff bundle: tokens, component tree, screens. **AGPL-3.0 must be cleared before any external distribution.**
+Adapt `Paperdesign` (the doop fork — real-HTML frames, MCP agent editing, multiplayer, already Tauri-shelled). Handoff bundle: tokens, component tree, screens.
+
+**AGPL-3.0, and the trigger is NOT what this line said until 2026-09-23.** It read *"must be cleared before any external distribution"*. **That is the wrong question, and the wrong one is the easier one.** Verified against the licence text: `~/Projects/Paperdesign/package.json:5` is `"license": "AGPL-3.0-only"`, and **§13 "Remote Network Interaction"** at `LICENSE:540-546` requires a modified version to *"prominently offer all users interacting with it remotely through a computer network … an opportunity to receive the Corresponding Source"*. Paperdesign is a network-served app — `package.json:49` carries `express`.
+
+So **two triggers are in scope, not one.** `CLAUDE.md` locks *we-host SaaS on Panacea's AKS first*, under which there may never be a "distribution" in the classical sense — **and §13 fires the moment a user's browser interacts with our modified copy.** The Tauri desktop shell is *also* classic distribution. **Ask legal about §13 under a hosted model**, not about distribution clearance.
+
+Two further items nobody had raised: the licences of Paperdesign's own dependency tree, and what its `CLA.md` does — it grants **the upstream maintainer** sublicensing rights over contributions, which lets *them* relicense and does nothing for us as a downstream fork.
+
+*Not legal advice; a reading of the licence text, recorded so the question asked is the right one.*
 
 ### Phase 6 — Capacity and credential rotation
 Credential vault, per-user subscription registration, quota tracking from `anthropic-ratelimit-unified-*` headers, rotation on exhaustion, metered API/Bedrock backstop, per-session attribution and spend. Never pooled across users.
