@@ -528,7 +528,9 @@ function report(error: ApiError): void {
 > another project that still showed no branches. `clearOwnReport()` is also called after
 > `adopt?.(result)` in the deferred commit, and after Mark ready's `write`. Before this, neither
 > path cleared anything, so a failed Kill stayed on the footer after a Kill that worked.
-> `__resetSessionVerbs` resets `raised`. `desktop/src/components/develop/sessionVerbs.ts` is the
+> **Fix round 2 (re-review I1)** added the call after `focusSession(next.id)` in Resume and in
+> Fork below: both call `report`, so they are the same operation, and the module has five success
+> paths, not three. `__resetSessionVerbs` resets `raised`. `desktop/src/components/develop/sessionVerbs.ts` is the
 > reference.
 
 And the two commit shapes, still the same file:

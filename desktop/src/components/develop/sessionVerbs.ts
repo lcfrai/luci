@@ -113,9 +113,12 @@ function report(error: ApiError): void {
  *  project wiped another project's failed branch list off the footer while that project still
  *  showed no branches: an empty list with a clean footer, which is what ruling B (contract §4.7)
  *  exists to prevent. Contract §3.2: an operation clears only its own report. These verbs are
- *  one operation, because they share `report`, so all three success paths call this: the
- *  immediate commit, the deferred commit, and Mark ready. Before this round only the first
- *  cleared at all, so a failed Kill stayed on the footer after a Kill that worked. */
+ *  one operation, because they share `report`, so all five success paths call this: the
+ *  immediate commit, the deferred commit, Mark ready, Resume and Fork. Before round 1 only the
+ *  first cleared at all, so a failed Kill stayed on the footer after a Kill that worked. Round 1
+ *  wired the first three; round 2 (re-review I1) wired Resume and Fork, whose `harness_unavailable`
+ *  sentence otherwise outlived the Resume that worked. A new path that calls `report` joins this
+ *  operation, so it calls this on success and gets a row in the test file's `SUCCEEDS` table. */
 function clearOwnReport(): void {
   if (raised !== null && useCockpit.getState().lastError === raised) useCockpit.getState().setError(null);
 }
@@ -338,6 +341,7 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
                   const next = await api.resumeSession(session, harness);
                   useCockpit.getState().upsertSession(next);
                   useCockpit.getState().focusSession(next.id);
+                  clearOwnReport();
                 } catch (caught) {
                   report(caught as ApiError);
                 }
@@ -374,6 +378,7 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
                     const next = await api.forkSession(session, worktree.id, harness);
                     useCockpit.getState().upsertSession(next);
                     useCockpit.getState().focusSession(next.id);
+                    clearOwnReport();
                   } catch (caught) {
                     report(caught as ApiError);
                   }

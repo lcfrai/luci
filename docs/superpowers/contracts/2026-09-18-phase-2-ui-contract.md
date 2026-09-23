@@ -1295,8 +1295,12 @@ report is still on screen. §3.2's `lastError` lists the operations.
 **Task 24's fix round 1 (2026-09-24) finished (B).** Two call sites still cleared any report on
 success: the session verbs (task 22's `sessionVerbs.ts`) and the create path (task 18's
 `useCreateSession.ts`). Both now keep the report they last wrote and clear only that. Both are
-declared departures. The verbs' deferred commit and Mark ready now clear their own report too;
-before, neither cleared anything. The loader also **puts a report back**. The footer has one slot,
+declared departures. The verbs have five success paths, because every path that calls the one
+reporter is the same operation: the immediate commit (Rename, Restart), the deferred commit (Kill,
+Forget), Mark ready, Resume and Fork. The last four now clear their own report too; before, none
+of them cleared anything. Round 1 wired the deferred commit and Mark ready, and **fix round 2**
+(re-review I1) wired Resume and Fork, whose "Claude Code is not installed." otherwise stayed on
+the footer after a Resume that worked. The loader also **puts a report back**. The footer has one slot,
 so a catalogue failure that the poller's own failure replaced disappeared when the poller
 recovered, even though the list was still missing. Now, whenever the slot is empty and a list the
 user can see is still failing, the loader puts that list's latest report back. A list in a

@@ -852,8 +852,10 @@ describe("markWorktreeReady and §10.2's verb", () => {
 // ADDED BY TASK 24's FIX ROUND 1 (review I1), a declared departure into task 22's test file.
 // Rename and Restart used to clear ANY report on success, so a verb in one project wiped a
 // catalogue list's failure in another off the footer, and nothing here read `lastError` after
-// a success. The verbs are one operation, because they share `report`, and the module has three
-// success paths. Each clears a verb's report and leaves every other report alone.
+// a success. The verbs are one operation, because they share `report`, and the module has five
+// success paths: the immediate commit, the deferred commit, Mark ready, Resume and Fork (the
+// last two added by fix round 2, re-review I1). Each clears a verb's report and leaves every
+// other report alone.
 describe("sessionVerbs — the footer line is each operation's own", () => {
   /** Another operation's report, as the catalogue loader or the poller writes one. */
   const foreign = { code: "internal", message: "Error: projects answered 500" };
@@ -888,6 +890,27 @@ describe("sessionVerbs — the footer line is each operation's own", () => {
         expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]?.ready).toBe(true);
       },
     },
+    // ADDED BY TASK 24's FIX ROUND 2 (re-review I1). Resume and Fork call the same `report`, so
+    // they are the same operation, and before this round neither success cleared: a failed
+    // Resume kept "Claude Code is not installed." on the footer after a Resume that worked.
+    {
+      path: "Resume's success",
+      succeed: async () => {
+        resumeMock.mockResolvedValue(aSession({ id: "s-resumed" }));
+        find(sessionVerbs(IDS.session, DEPS), "resume")?.run?.();
+        await vi.runOnlyPendingTimersAsync();
+        expect(useCockpit.getState().selection.sessionId).toBe("s-resumed");
+      },
+    },
+    {
+      path: "Fork's success",
+      succeed: async () => {
+        forkMock.mockResolvedValue(aSession({ id: "s-forked", worktreeId: SIBLING }));
+        find(sessionVerbs(IDS.session, DEPS), `fork-${SIBLING}`)?.run?.();
+        await vi.runOnlyPendingTimersAsync();
+        expect(useCockpit.getState().selection.sessionId).toBe("s-forked");
+      },
+    },
   ];
 
   for (const { path, succeed } of SUCCEEDS) {
@@ -916,6 +939,38 @@ describe("sessionVerbs — the footer line is each operation's own", () => {
       const setError = vi.spyOn(useCockpit.getState(), "setError");
       await succeed();
       expect(setError).not.toHaveBeenCalled();
+    });
+  }
+
+  // The re-review's probes RR-1 and RR-2, kept: each create verb's OWN failure, then the same
+  // verb working. The table above raises its report through Rename; these raise it through the
+  // create verb, so the sentence the user actually saw is the one that must go.
+  const CREATES = [
+    { verb: "Resume", itemId: "resume", mock: resumeMock, created: aSession({ id: "s-resumed" }) },
+    {
+      verb: "Fork",
+      itemId: `fork-${SIBLING}`,
+      mock: forkMock,
+      created: aSession({ id: "s-forked", worktreeId: SIBLING }),
+    },
+  ];
+
+  for (const { verb, itemId, mock, created } of CREATES) {
+    it(`a ${verb} that works clears the report a failed ${verb} left`, async () => {
+      seed({ status: "running" });
+      mock.mockRejectedValueOnce(new ApiError("harness_unavailable", "Claude Code is not installed.", 409));
+      find(sessionVerbs(IDS.session, DEPS), itemId)?.run?.();
+      await vi.runOnlyPendingTimersAsync();
+      expect(useCockpit.getState().lastError).toEqual({
+        code: "harness_unavailable",
+        message: "Claude Code is not installed.",
+      });
+
+      mock.mockResolvedValueOnce(created);
+      find(sessionVerbs(IDS.session, DEPS), itemId)?.run?.();
+      await vi.runOnlyPendingTimersAsync();
+      expect(useCockpit.getState().sessions[created.id]?.id).toBe(created.id);
+      expect(useCockpit.getState().lastError).toBeNull();
     });
   }
 });
