@@ -299,3 +299,130 @@ Each answer is the decision; the contract holds the exact routes, JSON, DDL and 
   `upstream_unavailable`, `details.upstream = "hub"`** — ruling R4's code and kind, with a third
   upstream name. No new desktop `ProblemKind` is needed.
 
+### 5.2 Identity
+
+**The control plane runs the sign-in and holds the tokens. The renderer never sees one.**
+
+1. The renderer calls the control plane's `POST /api/v1/auth/sign-in`. The control plane makes a
+   PKCE verifier (32 random bytes), its S256 challenge, a `state` and a `nonce`, and opens a
+   **one-shot listener on `127.0.0.1:0`** (RFC 8252 §7.3, an ephemeral port).
+2. It answers `{ "authorizeUrl": … }`. The renderer opens that URL in the **system browser** through
+   `tauri-plugin-opener`, which `desktop/src-tauri/Cargo.toml` already depends on and
+   `capabilities/default.json` already grants (`opener:default`). No embedded webview sees the
+   password, which is what Entra's conditional access expects of a desktop app.
+3. Entra redirects to `http://127.0.0.1:<port>/?code=…&state=…`. The listener checks `state`,
+   answers a static "you can close this tab" page, closes itself, and exchanges the code plus
+   verifier at the token endpoint.
+4. The **refresh token** goes to **Windows Credential Manager**; **access tokens stay in memory**.
+   The renderer learns the outcome by calling `GET /api/v1/auth/status` on its poll tick.
+
+The one-shot listener is deliberate. The main control-plane listener's Origin policy rests on an
+invariant written into `httpx/origin.go`'s `Allow` doc comment: *"no route behind this middleware
+may ever have a side-effecting GET"*. An OAuth callback is a side-effecting GET. Putting it on a
+separate listener that exists for one sign-in keeps that invariant true instead of adding its
+first exception.
+
+**Why the control plane and not the Tauri shell.** `OD-5`'s consequence says *"the desktop's
+control plane calls it as the user"*. Phase 8's HA-2 asks for a `TokenSource` **in the control
+plane**. Phase 3's H-1 asks for `credstore.Store` **in the control plane**. The provenance contract's
+§6.6 puts the Panacea token in the process that calls Panacea. If the shell held the tokens, every
+Hub, broker and Panacea call would need the token handed across a process boundary, and the shell
+would need a keyring crate it does not have. Rejected in §6.2.
+
+**Refresh.** Entra access tokens live 60–90 minutes. `entraauth.TokenSource.Token(ctx, scope)`
+serves a cached token until 5 minutes before `exp`, then redeems the refresh token, **single-flight**
+per scope so twelve concurrent callers make one request. Entra rotates the refresh token on
+redemption; the new one overwrites the old in Credential Manager before the access token is
+returned. `invalid_grant` or `interaction_required` (a conditional-access sign-in frequency, for
+example) clears the store and reports `signed_out` with reason `reauth_required`. **One refresh
+token serves every resource** the desktop client is consented for: the Hub (`Hub.Access`), the
+broker (`Sandboxes.Access`, phase 8) and, if the owner wants it, Azure DevOps. So there is one
+sign-in, not three.
+
+**Credential Manager.** Generic credentials, `CRED_PERSIST_LOCAL_MACHINE` (never enterprise-roaming:
+a roaming profile would copy the token to every machine the user touches), written through
+`advapi32!CredWriteW` via `golang.org/x/sys/windows` — already in the module graph as an indirect
+requirement, so no new module. A credential blob is capped at 2,560 bytes
+(`CRED_MAX_CREDENTIAL_BLOB_SIZE`); a larger refresh token is split across numbered targets.
+**Unverified:** the size of a KPMG refresh token. The same store is phase 3's H-1 (`credstore`, for
+GitHub and Azure DevOps) and phase 7's Panacea token. The **Hub server stores no git or Panacea
+credential**: each user's credentials stay on that user's machine, which is `CLAUDE.md`'s never-pool
+rule applied to git as well as to Claude.
+
+**How the Hub validates a token** — `internal/entra`, the same package the broker uses:
+
+| Check | Rule |
+|---|---|
+| Format | JWS compact, `alg` = `RS256` only, `kid` present. `none` and HMAC are rejected before parsing claims |
+| Signature | against the tenant's JWKS, `https://login.microsoftonline.com/<tid>/discovery/v2.0/keys`, cached 24 h, refetched on an unknown `kid` at most once per 5 minutes |
+| `ver` | `2.0`. The Hub API's manifest sets `requestedAccessTokenVersion: 2` |
+| `iss` | exactly `https://login.microsoftonline.com/<tid>/v2.0`, where `<tid>` is the token's own `tid` **and** an enrolled org's tenant |
+| `aud` | the **Hub API's client id** (a v2 token's `aud` is the GUID, not the `api://` URI) |
+| `scp` | contains `Hub.Access`. A token with no `scp` (app-only, `idtyp=app`) is rejected: the Hub is delegated-only |
+| `azp` | in `PANACEA_APP_HUB_ALLOWED_CLIENTS` — the desktop's client id. A token some other app obtained for our API is refused |
+| `exp`, `nbf` | 120 s of clock skew |
+| Principal | **`(tid, oid)`**. Never `sub` (pairwise per app), never `preferred_username` (mutable) |
+
+**Direct Entra, no broker.** §6.1.
+
+**The BYO-customer-Entra tier, later.** The data model is keyed by `(tid, oid)` and an org *is* an
+Entra tenant from day one, so the later tier needs no migration. It needs the two registrations
+switched to `AzureADMultipleOrgs`, the customer's admin consent, and the customer's `tid` added as an
+org row (contract §5.1). A token from a tenant with no org row answers **403
+`tenant_not_enrolled`**. The customer-hosted tier is the same binary with the customer's own
+registrations in its configuration.
+
+**Local development — `devissuer`.** A KPMG app registration is an IT request with its own lead
+time. `control-plane/cmd/devissuer` is a loopback-only OIDC issuer (~500 lines of Go, standard
+library only) that serves the **same five things the control plane uses from Entra**: the discovery
+document, `/authorize`, `/token` (authorization code with PKCE S256 enforced; refresh with rotation),
+the JWKS, and Entra-v2-shaped access tokens (`iss`, `aud`, `azp`, `scp`, `tid`, `oid`, `name`,
+`preferred_username`, `roles`, `ver`). `/authorize` shows a page listing the users in its
+configuration file; clicking one signs in as that user, which is how a developer tests two teammates
+on one laptop. The control plane is configured with an **authority URL** and discovers every
+endpoint from it, so the code path is identical. What `devissuer` cannot reproduce — conditional
+access, MFA, consent prompts, KPMG's real token sizes and group overage — is listed in contract §6.4
+and verified at the first sign-in against the real tenant.
+
+The Hub refuses to start with a non-`https` authority unless `PANACEA_APP_HUB_DEV_ISSUER=true`, and
+refuses that flag when `PANACEA_APP_HUB_ENV` is anything but `local`.
+
+### 5.3 Data model and authorisation
+
+| Entity | Key | Notes |
+|---|---|---|
+| **org** | `org-…` | one per Entra tenant (`entra_tenant_id` unique). v1 has one: KPMG's |
+| **user** | `u-…`; unique `(tid, oid)` | created on first authenticated call. `display_name` and `email` refreshed from the token on each sign-in; never used as a key |
+| **team** | `tm-…` | inside one org. The creator becomes its first `admin` |
+| **membership** | `(team, user)` → `admin` · `member` · `viewer` | the only grant of project access |
+| **invite** | `iv-…` | a team admin invites **an email address in the same org**; it binds to the first user of that tenant whose token carries a matching `preferred_username` or `email`, case-insensitive. No Microsoft Graph call, so no Graph consent |
+| **project** | `pj-…` | owned by one team |
+| **project remote** | `(project, repo_key)` | `repo_key` is phase 3's `githost.RepoKey` (H-3): `github.com/<owner>/<repo>` or `<org>.visualstudio.com/<project>/<repo>`; host `github` · `azure-devops` (`OD-4`). **Unique per org**, so a repository resolves to one project |
+| **brief** (head) | `bf-…` | project- or branch-scoped. A branch is named by its **git ref**, `refs/heads/…`, the one name teammates share through the remote |
+| **brief revision** | `brief:bf-…@n` | immutable. Content is stored as its **canonical bytes**; the digest is SHA-256 of exactly those bytes |
+| **design approval** | `ap-…`; unique `design:<canvasId>@<rev>` | approval, design link and snapshot in one row, written in one transaction |
+| **session → design link** | `ln-…` | shape reserved by contract §3.2, fixed here |
+| **release** | `rl-…` | tagged union `run` · `rollback` (R5); the pin is taken by the Hub at reservation (G1) |
+| **release → deployment join** | `(release, deployment_id)` | a second record referencing the first (contract §2.2) |
+| **evidence** | `ev-…` | phase 3's `evidence.Record` (H-2), with `recordedBy` = the principal (H-4) |
+| **blob** | `sha256:…` per org | bytes in Postgres (G2) |
+| **audit event** | `seq` | append-only, hash-chained (G5); also the change feed (G3) |
+
+**Local ids cannot be shared ids** (§1.5), so the Hub mints its own, with prefixes disjoint from
+the control plane's (`s-`, `p-`, `b-`, `w-`, `m-`) and 16 hex characters rather than 8: a server-wide
+id space for every user is not a laptop's.
+
+**Who may do what.** Team role decides everything inside a project. Contract §5.3 has the full
+matrix; the shape of it:
+
+- **viewer** reads the project and everything under it.
+- **member** also writes brief revisions, approves designs, reserves and confirms releases, records
+  evidence, uploads blobs and writes session links.
+- **admin** also manages members, invites and project remotes.
+- **org admin** — the Entra app role `Hub.OrgAdmin`, assigned by IT — reads the org's audit log and
+  performs erasure. It grants **no read of project content**; erasure addresses a key, not a text.
+
+A caller with no membership gets **404** for the project and everything under it, never 403, so
+project ids cannot be probed. Every write records its principal from the token; **no request body
+carries an actor, an approver or a recorder field**.
+
