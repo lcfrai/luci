@@ -553,6 +553,12 @@ func sessionsNewEnvOver(t *testing.T, dir string, st registry.Store, flags regis
 // New sees them, for the optional fields — GitIdentity, CABundle, Log — that
 // most tests leave at their zero value. Still the one construction site: the
 // hook edits these Deps, it does not build its own.
+// sessionsLineEndings is a Deps.GitLineEndings that gives every worktree the
+// same answer.
+func sessionsLineEndings(eol GitLineEndings) func(context.Context, string) (GitLineEndings, error) {
+	return func(context.Context, string) (GitLineEndings, error) { return eol, nil }
+}
+
 func sessionsNewEnvOverWith(t *testing.T, dir string, st registry.Store, flags registry.WorktreeFlagStore, tweak func(*Deps)) *sessionsEnv {
 	t.Helper()
 	wtDir := filepath.Join(dir, "evidence-upload")
@@ -595,6 +601,7 @@ func sessionsNewEnvOverWith(t *testing.T, dir string, st registry.Store, flags r
 		Resources:        backend.DefaultResources,
 		ReadyTimeout:     50 * time.Millisecond,
 		ConversationsDir: env.conversations,
+		GitLineEndings:   sessionsLineEndings(GitLineEndings{AutoCRLF: "false", EOL: "lf"}),
 	}
 	if tweak != nil {
 		tweak(&deps)

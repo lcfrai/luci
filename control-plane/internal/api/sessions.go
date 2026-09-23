@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +33,11 @@ const sessionBasePath = "/v1"
 // sessionWorkDir is where the worktree is mounted inside every sandbox and the
 // working directory the harness starts in. Contract §5.1 step 5.
 const sessionWorkDir = "/home/dev/work"
+
+// sessionWorktreeAdminDir is where a primary worktree's linked-worktree
+// metadata sits inside the sandbox, mounted read-only over itself. See
+// sessionWorktreeAdmin.
+const sessionWorktreeAdminDir = sessionWorkDir + "/.git/worktrees"
 
 // sessionConversationDir is the one part of the agent user's ~/.claude that
 // outlives a sandbox. Without it Resume has nothing to resume: every sandbox
@@ -97,11 +104,16 @@ func sessionHasConversation(d harness.Descriptor) bool {
 // rewrite is not one.
 const sessionCABundlePath = "/etc/panacea-app/ca-bundle.pem"
 
-// sessionMounts is everything of the host a sandbox sees: its worktree, its
-// worktree's conversation store when the harness has a conversation, and the
-// operator's CA bundle, read-only, when there is one.
-func sessionMounts(worktreePath, conversationStore, caBundle string) []backend.Mount {
+// sessionMounts is everything of the host a sandbox sees: its worktree; a
+// primary worktree's linked-worktree metadata, read-only over itself, when
+// sessionWorktreeAdmin found one; its worktree's conversation store when the
+// harness has a conversation; and the operator's CA bundle, read-only, when
+// there is one.
+func sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle string) []backend.Mount {
 	mounts := []backend.Mount{{HostPath: worktreePath, ContainerPath: sessionWorkDir}}
+	if worktreeAdmin != "" {
+		mounts = append(mounts, backend.Mount{HostPath: worktreeAdmin, ContainerPath: sessionWorktreeAdminDir, ReadOnly: true})
+	}
 	if conversationStore != "" {
 		mounts = append(mounts, backend.Mount{HostPath: conversationStore, ContainerPath: sessionConversationDir})
 	}
@@ -117,7 +129,9 @@ func sessionMounts(worktreePath, conversationStore, caBundle string) []backend.M
 //
 // Git's configuration travels as GIT_CONFIG_COUNT/KEY/VALUE (git 2.31+; the
 // image has 2.39) rather than a file in the image, so sessionWorkDir stays the
-// ONE place the mount point is written. Two settings:
+// ONE place the mount point is written. Environment config is command scope,
+// which outranks every config file, so neither a repository's config nor an
+// agent's `git config --global` can change these. Five settings:
 //
 //   - safe.directory = sessionWorkDir. A bind mount's owner is not the image's
 //     dev user (Docker Desktop shows root), so without it every git command in
@@ -128,20 +142,39 @@ func sessionMounts(worktreePath, conversationStore, caBundle string) []backend.M
 //   - user.useConfigOnly = true. With no identity, git would otherwise invent
 //     one from the user and host name — dev@<container> — and on a host with a
 //     domain it would succeed. Commits are made as the user or not at all.
+//   - gc.worktreePruneExpire = never. Every linked worktree looks prunable from
+//     the sandbox (see sessionWorktreeAdmin), so an automatic gc would try to
+//     prune them. The read-only mount already stops the deletion; this stops
+//     gc trying, and failing, on every run.
+//   - core.autocrlf and core.eol = the host's own, from Deps.GitLineEndings.
+//     The host's system and global config are invisible here, and Git for
+//     Windows sets core.autocrlf=true at system scope. Without them a CRLF
+//     checkout over LF blobs reads as every text file modified, and commit -a
+//     writes CRLF blobs for files the agent never touched. The repository's
+//     own .gitattributes and .git/config are in the mount and apply as they
+//     do on the host. core.eol matters when core.autocrlf is false and a file
+//     is text by attribute: "native" is CRLF there and LF here, which is why
+//     the resolver sends the host's answer and never "native".
 //
 // The identity goes in as GIT_AUTHOR_* and GIT_COMMITTER_*, which git prefers
 // over any config, so what Deps.GitIdentity resolved is what every commit says.
 //
 // NODE_EXTRA_CA_CERTS ADDS to Node's trust store. SSL_CERT_FILE would replace
 // the system bundle, and verification is never disabled under any setting.
-func sessionEnv(id GitIdentity, caBundle string) map[string]string {
-	env := map[string]string{
-		"GIT_CONFIG_COUNT":   "2",
-		"GIT_CONFIG_KEY_0":   "safe.directory",
-		"GIT_CONFIG_VALUE_0": sessionWorkDir,
-		"GIT_CONFIG_KEY_1":   "user.useConfigOnly",
-		"GIT_CONFIG_VALUE_1": "true",
+func sessionEnv(id GitIdentity, eol GitLineEndings, caBundle string) map[string]string {
+	env := map[string]string{}
+	pairs := [][2]string{
+		{"safe.directory", sessionWorkDir},
+		{"user.useConfigOnly", "true"},
+		{"gc.worktreePruneExpire", "never"},
+		{"core.autocrlf", eol.AutoCRLF},
+		{"core.eol", eol.EOL},
 	}
+	for i, kv := range pairs {
+		env["GIT_CONFIG_KEY_"+strconv.Itoa(i)] = kv[0]
+		env["GIT_CONFIG_VALUE_"+strconv.Itoa(i)] = kv[1]
+	}
+	env["GIT_CONFIG_COUNT"] = strconv.Itoa(len(pairs))
 	if id.Name != "" {
 		env["GIT_AUTHOR_NAME"] = id.Name
 		env["GIT_COMMITTER_NAME"] = id.Name
@@ -154,6 +187,64 @@ func sessionEnv(id GitIdentity, caBundle string) map[string]string {
 		env["NODE_EXTRA_CA_CERTS"] = sessionCABundlePath
 	}
 	return env
+}
+
+// sessionGitLineEndings asks Deps.GitLineEndings how the host's git converts
+// line endings in this worktree, and refuses an answer the sandbox's git would
+// read differently: anything but the three core.autocrlf words, and any
+// core.eol but lf or crlf. "native" is the one that matters, because it means
+// CRLF to Git for Windows and LF to the sandbox's git. An error, or a refused
+// answer, fails the create or restart: there is no safe default.
+func (a *API) sessionGitLineEndings(ctx context.Context, worktreePath string) (GitLineEndings, error) {
+	eol, err := a.deps.GitLineEndings(ctx, worktreePath)
+	if err != nil {
+		return GitLineEndings{}, err
+	}
+	if eol.AutoCRLF != "true" && eol.AutoCRLF != "false" && eol.AutoCRLF != "input" {
+		return GitLineEndings{}, fmt.Errorf("the line-ending resolver answered core.autocrlf %q, which is not true, false or input", eol.AutoCRLF)
+	}
+	if eol.EOL != "lf" && eol.EOL != "crlf" {
+		return GitLineEndings{}, fmt.Errorf("the line-ending resolver answered core.eol %q, which is not lf or crlf", eol.EOL)
+	}
+	return eol, nil
+}
+
+// sessionWorktreeAdmin returns the host path of a primary worktree's
+// linked-worktree metadata, <worktree>/.git/worktrees, making the directory
+// when there is none yet, and "" for a worktree whose .git is not a
+// directory. A linked worktree's .git is a file, and has no such metadata.
+//
+// sessionMounts mounts it read-only over itself (I-1 of the sandbox git fix's
+// review). Each .git/worktrees/<id>/gitdir names a host path the sandbox
+// cannot see, so the sandbox's git calls every linked worktree prunable, and a
+// `git worktree prune` there would delete the host's metadata: after that,
+// host git says "not a git repository" in the linked worktree. No setting
+// stops an explicit prune; a read-only mount does, and it stops repair, move,
+// remove and add too, each of which would write a Linux path into the host's
+// metadata. The sandbox's git can still READ it, so it still knows which
+// branches the linked worktrees hold.
+//
+// The directory is made rather than skipped when absent because a bind mount
+// of a directory shows what is added to it later: a linked worktree created
+// while the session runs is covered too. Git makes the same directory itself
+// at the first `git worktree add`.
+func sessionWorktreeAdmin(worktreePath string) (string, error) {
+	gitDir := filepath.Join(worktreePath, ".git")
+	info, err := os.Lstat(gitDir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", nil
+	}
+	admin := filepath.Join(gitDir, "worktrees")
+	if err := os.MkdirAll(admin, 0o777); err != nil {
+		return "", err
+	}
+	return admin, nil
 }
 
 // sessionGitIdentity asks Deps.GitIdentity who this worktree's commits are by.
@@ -430,10 +521,22 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// 2b. The sandbox's environment. Resolved here, before the record, because
-	// the identity lookup runs git on the host and the window between the
-	// record and its sandbox is the one the reaper has to tolerate.
-	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID, path), a.deps.CABundle)
+	// 2b. The sandbox's environment and mounts. Resolved here, before the
+	// record, because both run git or write on the host, the window between
+	// the record and its sandbox is the one the reaper has to tolerate, and a
+	// failure here must leave nothing behind.
+	lineEndings, err := a.sessionGitLineEndings(ctx, path)
+	if err != nil {
+		a.internal(w, r, "read how the host's git converts line endings in worktree "+req.WorktreeID, err)
+		return
+	}
+	worktreeAdmin, err := sessionWorktreeAdmin(path)
+	if err != nil {
+		a.internal(w, r, "prepare the linked-worktree metadata of worktree "+req.WorktreeID, err)
+		return
+	}
+	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID, path), lineEndings, a.deps.CABundle)
+	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, a.deps.CABundle)
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
@@ -505,7 +608,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		AttachToken: token,
 		Resources:   a.sessionResources(),
 		WorkDir:     sessionWorkDir,
-		Mounts:      sessionMounts(path, conversationStore, a.deps.CABundle),
+		Mounts:      sandboxMounts,
 	})
 	if err != nil {
 		// The reason on the record is written for the user; the raw error goes
@@ -1018,8 +1121,21 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	}
 	// The environment is rebuilt like the mounts, and before the destroy like
 	// them: the identity is asked for again, so a user who gave their git an
-	// identity after the first create gets a sandbox that can commit.
-	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID, path), a.deps.CABundle)
+	// identity after the first create gets a sandbox that can commit, and so
+	// are the line endings, so a failure to read them leaves the old sandbox
+	// alive.
+	lineEndings, err := a.sessionGitLineEndings(ctx, path)
+	if err != nil {
+		a.internal(w, r, "read how the host's git converts line endings in worktree "+sess.WorktreeID, err)
+		return
+	}
+	worktreeAdmin, err := sessionWorktreeAdmin(path)
+	if err != nil {
+		a.internal(w, r, "prepare the linked-worktree metadata of worktree "+sess.WorktreeID, err)
+		return
+	}
+	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID, path), lineEndings, a.deps.CABundle)
+	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, a.deps.CABundle)
 
 	// One of contract §5.2's three permitted destroys.
 	if sess.SandboxID != "" {
@@ -1098,7 +1214,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		AttachToken: token,
 		Resources:   a.sessionResources(),
 		WorkDir:     sessionWorkDir,
-		Mounts:      sessionMounts(path, conversationStore, a.deps.CABundle),
+		Mounts:      sandboxMounts,
 	})
 	if err != nil {
 		a.sessionLog().Error("restart: create the sandbox", "sessionId", id, "err", err)

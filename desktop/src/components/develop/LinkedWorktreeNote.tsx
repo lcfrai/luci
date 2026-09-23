@@ -7,8 +7,10 @@ import type { Worktree } from "../../store/types";
  *  mechanical: `isPrimary: false` from the read-only enumeration means a LINKED worktree, and a
  *  linked worktree's `.git` is a file holding `gitdir: C:/…`, a host path that does not exist
  *  inside the Linux sandbox. So every git command there dies with "not a git repository". The
- *  primary worktree's git works (the sandbox git fix), which makes "not primary" exactly the set
- *  without working git. Making it work across that boundary is Phase 3's decision 3-D1. */
+ *  primary worktree's git works (the sandbox git fix): it converts line endings as the host's git
+ *  does in that worktree, and it cannot prune the linked worktrees' metadata (round 1), which
+ *  makes "not primary" exactly the set without working git. Making it work across that boundary
+ *  is Phase 3's decision 3-D1. */
 export const LINKED_WORKTREE_GIT_NOTE =
   "Git is unavailable in this worktree's sessions because it is a linked worktree, whose .git " +
   "points to a path on this machine the sandbox cannot see; git in linked worktrees arrives in " +

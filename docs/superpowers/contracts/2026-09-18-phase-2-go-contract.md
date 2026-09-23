@@ -276,7 +276,10 @@ func (r Resources) KubeMemory() string { return strconv.Itoa(r.MemoryMiB) + "Mi"
 // and — AMENDED by the resume fix (2026-09-23) — giving a session whose harness has a
 // conversation that worktree's conversation store (§5.1 step 5), and — AMENDED by
 // the sandbox git fix (2026-09-23) — the operator's PANACEA_APP_CA_BUNDLE,
-// read-only (§4). Kata ignores Mounts and returns ErrUnsupported if any are set,
+// read-only (§4), and — AMENDED by its round 1 (2026-09-24) — a primary
+// worktree's .git/worktrees, read-only over itself, so nothing in the sandbox
+// can prune or rewrite the host's linked-worktree metadata (§5.1 step 5).
+// Four things, then. Kata ignores Mounts and returns ErrUnsupported if any are set,
 // because a host path on an AKS node is meaningless (§2.6 lists what Phase 8 must
 // supply instead).
 type Mount struct {
@@ -796,6 +799,13 @@ func (b *Backend) Kind() backend.Kind { return backend.KindKata }
   node is meaningless here too. `Spec.Env` itself already reaches the pod
   (`sandbox.Spec.Env`), so the git configuration and identity variables need nothing
   from Phase 8. Until then, with the variable set, this refusal fails every Kata create.
+- AMENDED by the sandbox git fix, round 1 (2026-09-24): **and a fourth.** A primary worktree's
+  session also carries a **read-only** mount of `<worktree>/.git/worktrees` at
+  `/home/dev/work/.git/worktrees` (§5.1 step 5). Under `OD-2` (a local clone per worktree) a
+  Phase 8 pod's worktree has no linked worktrees to protect, so the need may disappear rather
+  than move; until it is decided, Kata must supply it or refuse. The line-ending pairs are
+  `Spec.Env` and need nothing from Phase 8, but `Deps.GitLineEndings` asks the host's git
+  about a host path, which a pod does not have: Phase 8 answers it from wherever its clone lives.
 - `Endpoint` is `net.JoinHostPort(pod.Status.PodIP, "8080")`. An empty `PodIP` means
   the pod is not scheduled yet: `StateStarting`, empty `Endpoint`.
 - `State` maps `pod.Status.Phase`: `Pending` → `StateStarting`, `Running` →
@@ -1938,6 +1948,7 @@ because the image does not trust the proxy's root. The owner exports that root o
 2. Export it from the Windows root store as PEM, in PowerShell, putting that `CN` in the filter:
 
    ```powershell
+   New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\PanaceaApp" | Out-Null
    $root = Get-ChildItem Cert:\LocalMachine\Root | Where-Object Subject -like '*CN=<root CN>*' | Select-Object -First 1
    "-----BEGIN CERTIFICATE-----`n" + [Convert]::ToBase64String($root.RawData, 'InsertLineBreaks') + "`n-----END CERTIFICATE-----" | Set-Content -Encoding ascii "$env:LOCALAPPDATA\PanaceaApp\corp-root.pem"
    ```
@@ -1996,7 +2007,24 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    that bundle at `/etc/panacea-app/ca-bundle.pem` with `NODE_EXTRA_CA_CERTS` naming it. The
    environment is resolved before step 4, and restart rebuilds it rather than replaying it. A
    linked worktree still has no working git — its `.git` names a host path — and that is Phase 3's
-   `3-D1`; the cockpit says so from `Worktree.isPrimary`. Failure → `store.Update` to
+   `3-D1`; the cockpit says so from `Worktree.isPrimary`. AMENDED by the sandbox git fix, round 1
+   (2026-09-24): `GIT_CONFIG_COUNT` is **5**. The three added pairs are
+   `gc.worktreePruneExpire=never`, and `core.autocrlf` and `core.eol` set to **the host's own
+   answer for that worktree** from `Deps.GitLineEndings`, which is required. cmd/api asks the host's
+   git in the worktree: `git config --get --type=bool --default false core.autocrlf` (the raw value
+   only when that refuses `input`) and `git config --get --default native core.eol`, with
+   `native` turned into the host's own ending, `crlf` on Windows. The container never sees the
+   host's system or global config, and Git for Windows sets `core.autocrlf=true` at system scope,
+   so without these a CRLF checkout reads as every file modified and `commit -a` writes CRLF blobs.
+   The repository's own `.gitattributes` and `.git/config` are in the mount and apply unchanged. An
+   error, or an answer that is not `true`/`false`/`input` and `lf`/`crlf`, fails the create or
+   restart with 500 before step 4 and before the restart's destroy. A primary worktree, one whose
+   `.git` is a directory, also gets a **read-only** mount of its `<worktree>/.git/worktrees` at
+   `/home/dev/work/.git/worktrees`, made on the host when absent. Every linked worktree's `gitdir`
+   there names a host path, so the sandbox's git calls each one prunable. The mount stops a
+   `git worktree prune`, `repair`, `move`, `remove` or `add` in the sandbox from changing the
+   host's metadata; no git setting stops an explicit prune. The mount order is the worktree, then
+   that mount, then the conversation store, then the CA bundle. Failure → `store.Update` to
    `StatusExited` with the reason, then 500 or 503.
 6. Return 201 immediately.
 7. **In a goroutine**, `backend.WaitReady(ctx, sb.Endpoint, backend.ReadyTimeout)`; on

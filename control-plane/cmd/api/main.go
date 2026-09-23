@@ -144,6 +144,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		// Created per worktree, at the first session that needs it.
 		ConversationsDir: cfg.ConversationsDir,
 		GitIdentity:      gitIdentity,
+		GitLineEndings:   gitLineEndingsResolver(gitRunner, hostNativeEOL()),
 		CABundle:         cfg.CABundle,
 	})
 	if err != nil {
