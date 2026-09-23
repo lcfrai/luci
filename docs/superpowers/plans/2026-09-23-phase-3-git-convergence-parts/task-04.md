@@ -100,7 +100,7 @@ const (
 	ReasonGitTooOld         = "git_too_old"         // any phase 3 route that runs git
 	ReasonBranchCheckedOut  = "branch_checked_out"  // lands, undo, revert, rename, delete; details.path
 	ReasonBranchMoved       = "branch_moved"        // lands, undo, revert; details.tip
-	ReasonMergeConflict     = "merge_conflict"      // lands, revert; details.paths (newline-joined)
+	ReasonMergeConflict     = "merge_conflict"      // lands, revert; details.paths (detailList)
 	ReasonNothingToLand     = "nothing_to_land"     // lands
 	ReasonNotReady          = "not_ready"           // lands
 	ReasonBriefUnresolvable = "brief_unresolvable"  // lands, evidence; details.why: no_resolver | missing | digest_mismatch | no_such_criterion
@@ -125,6 +125,16 @@ const (
 
 // gitConflict writes 409 conflict with details.reason and any further details.
 func gitConflict(w http.ResponseWriter, reason, msg string, details map[string]string)
+
+// detailList encodes a list as ONE details value: the JSON array json.Marshal(xs) makes,
+// "[]" for none (review I2). Phase 2's problem envelope keeps details a map[string]string
+// (httpx.WriteProblem), so a list cannot be a []string there, and a newline-joined value
+// cannot carry a path that holds a newline (task 07's TestPathsWithNewlinesAndSpaces). Every
+// details.paths goes through it: merge_conflict (tasks 09, 10) and confirm_required (task 11).
+// The desktop reads it with JSON.parse (task 22's detailList). The other list-valued details
+// keep their line formats: commits and elsewhere hold shas and ref names, and git refuses a
+// control character in a ref name (check-ref-format).
+func detailList(xs []string) string
 
 // gitFailed writes git_failed: 502 when the call was gitx.Remote, else 500, with
 // details.gitSays = (*gitx.Error).Sentence(). msg is the control plane's sentence around it.
@@ -263,6 +273,7 @@ false for a new id).
 | `TestWorktreeCreateResolvesTheBranchByID` | a `branchId` naming no branch → 400; a real one → `lanes.CreateRequest.Branch` is that branch's `Name` | cloning a name the client made up |
 | `TestWorktreeCreateMapsNameTaken` | a Creator returning `lanes.ErrNameTaken` → 409, `details.reason == "name_taken"` | a 500 for a user's naming clash |
 | `TestWorktreeCreateSurfacesGitsSentence` | Creator returns a `*gitx.Error` with stderr `fatal: Filename too long` → 500 `git_failed`, `details.gitSays` is that line | hiding the one sentence the user can act on |
+| `TestDetailListRoundTripsAnyPath` (review I2) | `detailList(["a b\nc.txt","docs/résumé.md","q\"x"])` decodes through `json.Unmarshal` into the same three strings; `detailList(nil) == "[]"` | a newline-joined `details.paths`, which splits `a b\nc.txt` into two paths |
 | `TestWorktreeCreateWithOldGitIsAConflict` | `VersionErr` set → 409 `git_too_old`, Creator never called | cloning on a git that cannot land |
 | `TestWorktreeCreateWithoutGitDepsIs500` | `Deps.Git == nil` → 500 `internal`, and the log line names phase 3 wiring | a nil-pointer panic |
 | `TestCatalogWorktreeJSONCarriesKind` | GET list over a fake enumerator returning each Kind → the three strings on the wire | the field dropped at the JSON boundary |
