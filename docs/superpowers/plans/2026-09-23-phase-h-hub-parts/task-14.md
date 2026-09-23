@@ -105,6 +105,12 @@ type WriteResult struct {
 // the handler saw. Blob uploads use WriteStream (task 21), which reads no body here.
 func (s *Server) Write(w http.ResponseWriter, r *http.Request, fn func(tx *Tx, body []byte) (WriteResult, error))
 
+// WriteLimit is Write with the body cap named: Write is WriteLimit(…,
+// httpx.MaxBodyBytes, …). Only route 26 passes another (hubapi.MaxRevisionBatchBytes,
+// HA4-3, task 00). A body over limit is 400 bad_request, field "body", the
+// sentence naming limit in bytes — refused before BEGIN, so nothing is locked.
+func (s *Server) WriteLimit(w http.ResponseWriter, r *http.Request, limit int64, fn func(tx *Tx, body []byte) (WriteResult, error))
+
 // Decode is httpx.DecodeJSON's rules over the buffered body: unknown fields are
 // 400 bad_request, malformed JSON 400 invalid_json.
 func Decode[T any](body []byte, dst *T) error // returns an *APIError
@@ -175,6 +181,7 @@ Unit (`apierror_test.go`, `audit_test.go`):
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestAPIErrorBecomesTheProblemBody` | `Refuse(409, "revision_conflict", "…", {"headRevision":"6"})` through `Write` → the exact `httpx.Problem` JSON | a Go error chain in `message` |
+| `TestWriteLimitNamesItsCap` | `WriteLimit(…, 4<<20, fn)` accepts a 2 MiB body that `Write` refuses; 4 MiB + 1 → 400 `field: body`, the sentence naming 4194304, `fn` never called and no `BEGIN` recorded | route 26's 64-revision batch refused at 1 MiB, or a cap checked after the org lock is taken (HA4-3) |
 | `TestInFeedIsTheContractTable` | every kind of contract §8, row by row, with its column | an audit-only kind (`auth.forbidden`, which names routes) reaching teammates' feeds |
 | `TestAppendBuildsVector3` | `Append` with vector 3's inputs (task 02) produces vector 3's canonical bytes and hash, captured through a recording `pgx.Tx` fake | the Go writer and `hub verify` disagreeing about the envelope |
 

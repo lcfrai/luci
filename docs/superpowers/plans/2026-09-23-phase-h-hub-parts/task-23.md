@@ -22,7 +22,8 @@ second call"* is prohibited — survives the ledger living on another machine (A
 | Field | Rule |
 |---|---|
 | `kind` | `run` or `rollback` |
-| `panaceaProject`, `environment` | `^[a-z0-9-]{1,63}$` — Panacea's names |
+| `panaceaProject` | `^[a-z0-9-]{1,63}$` — Panacea's name |
+| `environment` | `^[a-z0-9-]{1,63}$`, **or `null`/absent for a run without `sourceDeploymentId` only** (HA7-1, task 00: Panacea names a never-deployed branch's environment at deploy time, and task 24's join records it). `null` on a rollback or a run with a source → 400 `field: environment` |
 | `sourceDeploymentId` | 1–128 characters; **required** for a rollback |
 | `commit` | 40 lowercase hex; **required** for a run without `sourceDeploymentId`; **absent** for a rollback |
 | `branchRef` | `""` or valid (§3.3); **absent** for a rollback |
@@ -39,10 +40,12 @@ org's audit lock is already held (task 14), so no brief head can move while it i
 
 Then: `reservedAt` = the transaction's clock; `expiresAt` = `reservedAt` +
 `PANACEA_APP_HUB_RESERVATION_TTL` (default 15 min); `state: reserved`; `Emit release.reserved
-{"kind","environment","pinStatus","briefKey"}` (`briefKey` `""` when none). `201 hubapi.Release`.
+{"kind","environment","pinStatus","briefKey"}` (`briefKey` `""` when none; `environment` `""` when
+null). `201 hubapi.Release`.
 
-**Route 36 — `GET /v1/projects/{projectId}/releases?environment=&panaceaProject=&deploymentId=&pipelineRun=&state=&after=&limit=`**,
-V: `200 Page[Release]`, newest `reservedAt` first. `deploymentId=` finds the release joined to that
+**Route 36 — `GET /v1/projects/{projectId}/releases?environment=&panaceaProject=&deploymentId=&pipelineRun=&kind=&state=&after=&limit=`**,
+V: `200 Page[Release]`, newest `reservedAt` first. `kind` is `run` or `rollback` (else 400
+`field: kind`; HA7-5, task 00); `environment=` never matches a null-environment release. `deploymentId=` finds the release joined to that
 deployment — **zero items means "no brief is recorded for this release"** (§7.9), which is how a
 Deploy row for an unreserved Panacea deployment is told apart.
 
@@ -72,7 +75,8 @@ Postgres's `now()`, so a test can move time and expiry follows.
 | `TestAnUnknownSourceIsRecordedNotRefused` | a rollback with a `sourceDeploymentId` no release is joined to → 201, `none`/`source_unknown`, `sourceReleaseId: null` | a rollback of a pre-Hub deployment refused |
 | `TestExpiresAtIsTheTTL` | with TTL 15 min, `expiresAt` − `reservedAt` = 15 min exactly, both in the §1 time format | — |
 | `TestAnOverdueReservationReadsExpired` | clock + 16 min, before any janitor → `GET` shows `state: expired` | a caller confirming a reservation it was told is live, then getting 409 |
-| `TestReleaseListFiltersAndOrder` | three releases in two environments; each filter; newest first; `deploymentId=` of an unjoined id → no items | — |
+| `TestReleaseListFiltersAndOrder` | three releases in two environments; each filter; newest first; `deploymentId=` of an unjoined id → no items; `kind=rollback` → only rollbacks; `kind=x` → 400 | phase 7's watcher paging runs to find the newest rollback (HA7-5) |
+| `TestAFirstShipReservesWithoutAnEnvironment` | a run, no source, `environment: null` → 201, `Release.environment: null`, event `data.environment: ""`; a rollback, or a run with `sourceDeploymentId`, with `null` → 400 `field: environment` | the first Ship of a never-deployed branch blocked (HA7-1), or a rollback with no environment |
 
 Matrix `rowsTask23`:
 

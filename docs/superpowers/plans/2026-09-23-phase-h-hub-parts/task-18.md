@@ -21,8 +21,8 @@ Revisions are task 19; this task is the heads and the reads phase 4's `API.resol
 |---|---|---|---|---|---|
 | 19 | `GET /v1/projects/{projectId}/briefs?scope=&branchRef=&includeArchived=false&after=&limit=` | V | `200 Page[BriefHead]`, oldest first | 404 `project_not_found`; 400 `field: scope` / `branchRef` | — |
 | 20 | `POST /v1/projects/{projectId}/briefs` `CreateBriefRequest` | M | `201 BriefHead`, `headRevision: 0`, every `head*` field `null` | 404; 403 `required: member`; 400 `field: scope`; 400 `field: branchRef` (a project brief with a ref; a branch brief with none or an invalid one, `hubapi.ValidBranchRef`); 409 `brief_exists`, `details.briefId` = the live one | `brief.created {"scope","branchRef"}` |
-| 21 | `GET /v1/projects/{projectId}/briefs/for-branch?branchRef=refs/heads/…` | V | `200 ForBranch` — `branchBrief`: the live branch brief for that ref with its head revision; `projectBrief`: the live project brief with its head revision; either `null` when absent. **Never 404 for an absent brief** | 404 `project_not_found` only; 400 `field: branchRef` | — |
-| 22 | `GET /v1/briefs/{briefId}` | V | `200 BriefWithRevision` (archived briefs included) | 404 `brief_not_found` | — |
+| 21 | `GET /v1/projects/{projectId}/briefs/for-branch?branchRef=refs/heads/…` | V | `200 ForBranch` — `branchBrief`: the live branch brief for that ref with its head revision; `projectBrief`: the live project brief with its head revision; either `null` when absent; each also carries `latestComplete` (HA4-4, task 00: `null` when `latestCompleteRevision` is 0). **Never 404 for an absent brief** | 404 `project_not_found` only; 400 `field: branchRef` | — |
+| 22 | `GET /v1/briefs/{briefId}` | V | `200 BriefWithRevision` with `latestComplete` (archived briefs included) | 404 `brief_not_found` | — |
 | 23 | `PATCH /v1/briefs/{briefId}` `RebindRequest` | M | `200 BriefHead` with the new ref; no revision written | 404; 403; 400 (a project brief; an invalid ref); 409 `brief_exists` (another live brief on the new ref); 409 `brief_archived` | `brief.rebound {"branchRef","previousBranchRef"}` |
 | 24 | `POST /v1/briefs/{briefId}/archive` `{}` | M | `200 BriefHead`, `archivedAt` set; every key still resolves; the ref is free | 404; 403; 409 `brief_archived` (already archived) | `brief.archived {}` |
 
@@ -67,6 +67,7 @@ owner connection (`hubtest.OwnerConn`) with a correct canonical and digest built
 | `TestArchiveFreesTheRef` | archive → 200; a new branch brief on the same ref → 201; the archived one is still readable by id; archiving again → 409 `brief_archived` | an archive that deletes |
 | `TestReadsRenderContentFromCanonical` | a revision inserted as above → `GET /v1/briefs/{id}` returns `content` equal to the canonical envelope's `content`, byte for byte after `hubapi.Canonical` | a second copy of content drifting from the digested bytes |
 | `TestListFiltersAndOrder` | three briefs; `scope=branch` → the branch ones; `includeArchived=false` hides the archived; oldest first | — |
+| `TestForBranchLatestCompleteIsNullWithoutRevisions` | a fresh brief → `revision: null`, `latestComplete: null`, both keys present. The rows with revisions are task 19's `TestForBranchCarriesLatestComplete`, since revisions are written there | a response that omits the key phase 4 reads (HA4-4) |
 
 The matrix gains `rowsTask18`, from §5.3 ("read a project and anything under it"; "create a brief;
 write revisions; rebind; archive"):

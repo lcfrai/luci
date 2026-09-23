@@ -3,7 +3,7 @@
 **Lane A. Depends on: 18. About 3 hours. Contract task H3.**
 
 `POST /v1/projects/{projectId}/brief-revisions` is **the only write of brief text** (contract
-§7.5). One call carries 1–16 revisions, and the batch is **one transaction, all or nothing**,
+§7.5). One call carries 1–`hubapi.MaxRevisionBatch` (64) revisions (HA4-3, task 00), and the batch is **one transaction, all or nothing**,
 because a project-brief edit re-revisions every inheriting branch brief (critique-2 §7.1 #3,
 accepted under `OD-1`) and a half-applied fan-out would leave branches disagreeing with their
 parent. Optimistic concurrency is by `baseRevision`: the caller re-reads and retries; the Hub never
@@ -20,10 +20,11 @@ merges.
 **Route 26 — `POST /v1/projects/{projectId}/brief-revisions`**, body `hubapi.WriteRevisionsRequest`,
 role M, `Idempotency-Key` expected (the control plane always sends one, contract §9.2).
 
-The algorithm, inside task 14's `Write` (so the audit lock is already held):
+The algorithm, inside task 14's `WriteLimit` with `hubapi.MaxRevisionBatchBytes` (4 MiB; every
+other route keeps `httpx.MaxBodyBytes`), so the audit lock is already held:
 
-1. Decode; `revisions` has 1–16 items (else 400 `field: revisions`) with **distinct** `briefId`s
-   (else 400 `field: revisions`).
+1. Decode; `revisions` has 1–`hubapi.MaxRevisionBatch` items (else 400 `field: revisions`) with
+   **distinct** `briefId`s (else 400 `field: revisions`).
 2. Authorise: M of the project (404 `project_not_found`; 403 `required: member`).
 3. Validate each item's `content` with `hubapi.ValidateContent` (400 `bad_request`,
    `field: revisions[<i>].content`, the message naming the rule broken).
@@ -83,10 +84,12 @@ func Revisions(ctx context.Context, q pgx.Tx, briefID string, afterRevision, lim
 | `TestAStaleBaseIsARevisionConflict` | base 0 twice → the second is 409 `revision_conflict`, `details.headRevision: "1"`, `details.briefId` | last-writer-wins silently discarding a teammate's answers |
 | `TestTwoConcurrentWritersOneWins` | two goroutines, same brief, base 0 → exactly one 201 and one 409; revisions table holds 1 only; no gap | a race that writes 1 twice or skips to 2 (contract §13 H3) |
 | `TestABatchIsAllOrNothing` | four briefs, item 3's base stale → 409 naming brief 3; **no** head moved and no revision row added | a half-applied fan-out (critique-2 §7.1 #3) |
+| `TestABatchOfSixtyFourMaximumRevisions` | 64 briefs, each `content` compact and its envelope just under 64 KiB → 201, 64 revisions, one transaction; 65 small items → 400 `field: revisions`; a body of 4 MiB + 1 → 400 `field: body` before any lock | phase 4's fan-out refused past 16 (HA4-3), or a body cap that refuses the batch the item cap allows |
 | `TestTheConflictNamedIsTheFirstInIdOrder` | two stale items → the one with the smaller `briefId` is named, whatever the request order | a nondeterministic error a retry loop cannot act on |
 | `TestTheResponseIsInRequestOrder` | a batch sent as [b3, b1, b2] → the response in that order; events in that order | a caller matching responses to requests by position and getting the wrong digest |
 | `TestContentRules` | `"status":"done"`, a float, a duplicate key, 17-deep nesting, a 64 KiB + 1 envelope → 400 each, naming `revisions[<i>].content` | the Hub storing content it cannot digest canonically |
 | `TestLatestCompleteMovesOnlyOnComplete` | open, complete, open → `latestCompleteRevision` 0, 2, 2 | Q1's pin rule fed an incomplete revision (ADR-H1 Q1) |
+| `TestForBranchCarriesLatestComplete` | revisions 1 complete, 2 open → task 18's route 21 answers `revision` @2 and `latestComplete` @1 with its content; revision 3 complete → both @3; `GET /v1/briefs/{id}` the same | phase 4 materialising a session from an open revision (HA4-4, task 00) |
 | `TestTheEnvelopeCarriesTheCurrentRef` | write r1, rebind (task 18), write r2 → r1's stored canonical has the old ref, r2's the new | a digest that does not cover the ref it was written under |
 | `TestAWriteToAnArchivedBriefIs409` | → `brief_archived` | — |
 | `TestAnotherProjectsBriefIs404` | a batch naming a brief of another project → 404 `brief_not_found` and nothing written | a write that crosses projects |

@@ -21,8 +21,13 @@ idempotency keys (§12.5). When this task is merged, **start line S7 is reached 
 `Idempotency-Key` expected. Readable project, else 404 `release_not_found`; a viewer → 403
 `forbidden` `required: member`; a member who is not the reserver → **403 `not_reserver`**,
 `details.releaseId`. Body: a run sends `pipelineRun` (1–253 of `[a-z0-9.-]`, else 400); a rollback
-sends `{}` or `{"deploymentId":"…"}` (1–128 characters), and the latter **also writes the deployment
-join**.
+sends `{}` — Panacea creates no deployment for a rollback, and phase 7 always sends `{}` (HA7-2,
+task 00). A rollback's `{"deploymentId":"…"}` (1–128 characters) is still accepted and **also
+writes the deployment join**, except that a `deploymentId` equal to the rollback's own
+`sourceDeploymentId` is **409 `conflict`**, `details.field=deploymentId`, nothing written: that
+deployment is the source's, and joining it here would attribute it to two releases even when the
+source was never joined (`source_unknown`). A confirm writes no `environment`: a null one stays
+null until route 40 names it.
 
 | Current state | Result |
 |---|---|
@@ -42,7 +47,21 @@ with the rendered state (`expired` for an overdue reservation). `200 Release`, `
 M (any member: the deploy poller runs as whoever is signed in). Confirmed releases only, else 409
 `release_state`. `(panaceaProject, deploymentId)` joins **at most one** release in the org: another
 release holding it → 409 `conflict`; this release already holding it → `200`; else `201
-{"deploymentId","joinedAt"}` and `Emit release.deployment_joined {"deploymentId"}`.
+{"deploymentId","joinedAt"}` and `Emit release.deployment_joined {"deploymentId","environment"}`.
+
+**The join's environment (HA7-1, task 00).** `DeploymentJoinRequest.environment` is optional
+(`^[a-z0-9-]{1,63}$` when present, else 400 `field: environment`). In the join's transaction, the
+release row locked `FOR UPDATE` first:
+
+| Release's environment | Join names | Result |
+|---|---|---|
+| `null` | a value | `UPDATE releases SET environment` (task 07's guard allows exactly this, once, while `confirmed`); then the join |
+| `null` | none | the join; the environment stays `null` |
+| a value | the same value, or none | the join; no `UPDATE` |
+| a value | a **different** value | 409 `conflict`, `details.field=environment`, `details.environment` = the recorded one; **nothing joined** |
+
+The event's `data.environment` is the release's environment after the join (`""` while null). A
+repeat of an existing join (`200`) that names a different environment is the same 409.
 
 #### Contract — the janitor, complete
 
@@ -100,6 +119,9 @@ type SweepReport struct {
 | `TestAbandonFromReservedOnly` | abandon → 200 `abandoned` with reason and message; abandon again → 409 `release_state`; confirm after → 409 `release_state` | an abandoned release revived |
 | `TestJoinADeployment` | confirmed → 201; again → 200; another release joining the same `d-6f2` → 409 `conflict`; joining an unconfirmed release → 409 `release_state` | a Deployment attributed to two releases |
 | `TestARollbackConfirmWithADeploymentJoins` | confirm a rollback with `{"deploymentId":"d-7a1"}` → `deployments` holds it | a rollback that never joins its deployment |
+| `TestARollbackConfirmNamingItsSourceIs409` | a rollback with `sourceDeploymentId: d-4d0` (source unjoined, `source_unknown`) confirmed with `{"deploymentId":"d-4d0"}` → 409 `conflict`, `field: deploymentId`, no join row, still `reserved`; with `{}` → 200 | the source's deployment attributed to its rollback (HA7-2) |
+| `TestTheJoinNamesANullEnvironment` | a run reserved with `environment: null`, confirmed (still `null`), joined `{d-1, "feat-x"}` → 201, `GET` shows `"feat-x"`, event `data.environment: "feat-x"`; join `{d-2, "feat-y"}` → 409 `conflict`, `details.environment: "feat-x"`, `d-2` not joined; join `{d-3}` → 201, still `"feat-x"` | the first Ship's release never learning its environment, or a second join re-pointing it (HA7-1) |
+| `TestANullEnvironmentReleaseAbandonsAndExpires` | a null-environment run abandoned → 200 `abandoned`; another left past `expiresAt`, `Sweep` → `expired`; both keep `environment: null` | the review's `state = 'reserved'` check turning a refused deploy into a 500 (task 00) |
 | `TestARollbackInheritsThePin` | release A pinned `@2`, confirmed, joined `d-4d0`; rollback with source `d-4d0` → `pinned`/`inherited`, A's key, digest and `headRevisionAtShip`, `sourceReleaseId` = A, and A's `commit`, `branchRef`, `designKey` | R5's union broken: a rollback with a fresh or empty pin |
 | `TestAnUnpinnedSourceIsRecorded` | A with `none`/`no_brief`, confirmed and joined → rollback → `none`/`source_unpinned`, `sourceReleaseId` = A | — |
 
