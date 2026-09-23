@@ -1024,3 +1024,58 @@ model call. No owner question is raised for them.
   desktop's 10 s. Sandbox creation time was not measured in this batch.
 - The follow-up budget assumes `Apply`'s Hub reads before the model take under 8 s on a healthy
   Hub. No latency figure for the Hub exists yet.
+
+## Fix batch b04, round 2 (re-review `plan-rereview-b04-1.md`: R-I1, M1-M4, three nits)
+
+Commits `1139097` (R-I1) and `b53297c` (M1-M4 and the nits), on `feat/phase-4-discover`. Parts
+dir: `docs/superpowers/plans/2026-09-23-phase-4-discover-parts/`.
+
+### Important
+
+| Finding | Change | Where |
+|---|---|---|
+| R-I1 (1) HA4-10 rewritten against Hub task 33 | Framed as a change to a specified design, citing hub `2f84662` `task-33.md:29-31` (`Sleep func(d time.Duration)`, `time.Sleep`), `:52-53` (retries "a timeout", so the caller's own expiry), `:121` (the only timing test never cancels the caller), and `feat/hub` `33839b7` `:29-31`, `:56-57`. Three changes, most important first: (a) `context.WithTimeout(callerCtx, AttemptTimeout)`, with a test (100 ms caller deadline, a server that never answers, under 1.5 s); (b) no retry once `callerCtx.Err() != nil`; (c) `Sleep func(ctx, d) error`, with the 50 ms test | plan `:497` |
+| R-I1 (2) budgets sized for the uninterruptible back-off | New paragraph "Back-off that cannot be interrupted": up to 1.25 s past a deadline; every budget at least 2 s under its desktop `timeoutMs` (8/10, 28/30, 55/60, `Materialise` 5 inside session start's 10), so at least 0.75 s remains; only (a) must land for I4 to hold | task-11 `:122-135` |
+| R-I1 (2) restated at the Materialise step | step 4's comment: task 33 retries the caller's expiry and sleeps without `ctx`, about 6.25 s in all, inside 10 s | task-09 `:112-114` |
+| R-I1 (3) each failure time has its own cause | Table gains a Budget column, and each Expected time is a range: 5 to 6.25 s, 8 to 9.25 s, 29.25 s at most, 56.25 s at most. New sub-step 4: at the budget means (a), (b) and (c) all hold. Up to 1.25 s past it means (a) holds and (b) or (c) is missing, which is a pass, recorded. Curl exit 28, or more than 1.25 s past, is a fail: rerun with `--max-time 70`, and about 31 s means (a) is missing. The old "within 1.5 s of `--max-time`" line is gone | task-23 `:84-104` |
+| R-I1 (4) fallback declared | If the Hub stream refuses (a), `discoverhub` runs each Hub call in a goroutine and returns on `ctx.Done()`; the abandoned call finishes in the background (31 s at most). Built only on refusal | plan `:497` (last column); task-11 `:132-135` |
+
+### Minor
+
+| Finding | Change | Where |
+|---|---|---|
+| M1 the ceiling is not below every desktop budget | Amendment 5's heading now reads "below the longest desktop budget (analyse, 60 s)", and it states the ceiling is **not** below 30 s or 10 s. The const comment says the same. Test renamed `TestTheDefaultTimeoutIsBelowTheLongestDesktopBudget` (it still asserts `< 60 s`) | task-02 `:36-40`, `:59`, `:129` |
+| M2 `ConfigFromEnv`'s doc comment | Added to amendment 4: old plan `:327-328` ("Only the key is mandatory.", verified) is rewritten to "the key and the base URL are both mandatory; neither is defaulted" | task-02 `:26-27` |
+| M3 no fixture for the model-off wiring test | Asserted at a seam instead: `discoverWiring` gains an unexported `model modelclient.Completer`, an untyped nil when off. The test checks `w.model == nil` (a typed-nil `*Client` fails it), then sets the base URL to an `httptest` origin and sends one `w.model.Complete` there, carrying the key in `x-api-key` (old plan `:479`, verified). The route path is left to task 04's `TestNilCompleterIsModelOff` (`task-04.md:82`, verified) | task-14 `:39-45`, `:94` |
+| M4 the follow-up accounting leaves out the write | `FollowUpBudget`'s comment: the 8 s covers Apply's reads before the model **and** its write after it (one `WriteRevisions`, at most 3 rebuilds, task-08 `:89-92`, verified). The write-then-503 ambiguity is named (a fresh `Idempotency-Key` on Retry meets `revision_conflict`), and so is the fact that the desktop giving up already had it | task-04 `:46-57` |
+
+### Nits
+
+| Nit | Change | Where |
+|---|---|---|
+| task-02 `:124` clause that cannot go red | "an `httptest` server counting requests sees none" dropped; the `ErrNoBaseURL` assertions kill the mutant | task-02 `:128` |
+| task-15 per-call vs 0 | Ruled: a client-wide 0 wins (`client.ts:127` documents "0 disables"; `:256` arms only when `> 0`, both verified). `limit = timeoutMs > 0 ? (call?.timeoutMs ?? timeoutMs) : 0`. New test `a client built with timeoutMs 0 never times out a Discover call` | task-15 `:26-32`, `:211` |
+| task-12 rule 5 omits `materialisations` | Stated: it takes task 11's route-deadline row, by `ctx.Err()`. The possible misnaming of an expiry during `Inspect`'s local reads is accepted, with the reason: those reads take milliseconds, so the budget can only run out in one after the `Source` reads have spent it | task-12 `:82-88` |
+
+**Restatements checked.** Grep of the plan and every part for `HA4-10`, `honour`, `ignores \`ctx\``,
+`back-off`, `about 5 s`/`8 s`/`28 s`/`55 s`, `1.5 s`, `31 s`, `BelowEveryDesktopBudget`,
+`below every desktop`, `shorter than every`, `Only the key is mandatory`, `counting requests sees
+none`, `Hub reads the other`, `call?.timeoutMs` and `timeoutMs: 0` finds only the lines above. The
+older rows of this review (`:256`, `:987`, `:997`, `:1021`) are history and stay as written.
+Task 13's `DraftBudget` comment already counts "Apply's Hub read and write" (`task-13.md:70-71`).
+
+**Corrected unverified line (M4).** The follow-up budget assumes that `Apply`'s Hub reads before
+the model and its write after it take under 8 s together on a healthy Hub.
+
+**Still unverified:**
+- No Go or TypeScript was compiled or run. This round changes plan documents only.
+- R-I1 (a): whether the Hub stream accepts caller-derived attempts. Until then, the declared
+  `discoverhub` fallback is the only thing that holds I4 against a hubclient built as task 33
+  specifies.
+- That `Inspect` calls `Source` for a project worktree. The plan infers it from task-09 `:254`
+  ("`Inspect` on the same request never calls `Source` either" for `ProjectID ""`). The nit-3
+  reasoning depends on it.
+- Everything the round-1 list carries: `10.255.255.1` on the corporate network, the non-Hub
+  session-start time, and Hub latency.
+
+No owner question is raised.
