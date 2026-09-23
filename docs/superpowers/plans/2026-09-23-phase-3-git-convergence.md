@@ -270,6 +270,7 @@ part file; task 18 restates them as TypeScript.
 | `POST /v1/projects/{projectId}/branches/{branchId}/pull-requests` | open (or find) a PR on the host | the host | 14 |
 | `POST /v1/projects/{projectId}/evidence` | record evidence at a commit | evidence store | 15 |
 | `GET /v1/projects/{projectId}/evidence` | evidence records by criterion digest | — | 15 |
+| `GET /v1/projects/{projectId}/evidence/states` | criterion states at a commit, for a brief key the resolver answers | — | 15 |
 | `GET /v1/projects/{projectId}/branches/{branchId}/changes` | the Files read model | objects only (decision 6) | 16 |
 | `GET /v1/projects/{projectId}/branches/{branchId}/changes/diff` | one path's hunks per worktree, with back-links | — | 16, 17 |
 | `GET /v1/sessions/{id}/transcript/spans/{toolUseId}` | the tier-2 span: one tool call and the text before it | — | 17 |

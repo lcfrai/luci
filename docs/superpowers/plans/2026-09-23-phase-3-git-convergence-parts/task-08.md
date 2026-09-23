@@ -36,6 +36,9 @@ type Forecast struct {
 	ConflictsWith []string `json:"conflictsWith"`
 	Paths         []string `json:"paths"` // conflicted paths, sorted
 	Why           string   `json:"why"`
+	// ForecastCommit is the deterministic forecast commit a clean row produced: the branch as
+	// it would be after this row lands. Internal; task 15 evaluates evidence at it.
+	ForecastCommit string `json:"-"`
 }
 
 // ForecastQueue walks the queue in order:
@@ -84,6 +87,10 @@ type LaneView struct {
 type QueueEntry struct {
 	WorktreeID string   `json:"worktreeId"`
 	Forecast   Forecast `json:"forecast"`
+	// Settles is the criterion ids that are not settled at the branch tip and would be once
+	// this row lands. Task 15 fills it when the GET names a briefKey and a resolver exists;
+	// always [] from this task.
+	Settles []string `json:"settles"`
 }
 
 // Convergence is GET …/convergence's body.
@@ -147,8 +154,8 @@ func ReadState(ctx context.Context, m gitx.Machine, projectPath, branch string) 
 **Wire:**
 
 ```
-GET /v1/projects/{projectId}/branches/{branchId}/convergence
-  200 → Convergence (above)
+GET /v1/projects/{projectId}/branches/{branchId}/convergence[?briefKey=<key>]
+  200 → Convergence (above). briefKey is ignored by this task; task 15 uses it for Settles.
   404 project_not_found; 400 bad_request "No branch with id …" ; 409 git_too_old
 
 PUT /v1/projects/{projectId}/branches/{branchId}/queue
@@ -164,9 +171,10 @@ PUT /v1/projects/{projectId}/branches/{branchId}/queue
   "remote": { "remote": "origin", "upstream": "origin/evidence-upload", "ahead": 0, "behind": 0,
               "fetchedAt": "2026-09-23T05:36:00Z", "fetchError": "", "readError": "" },
   "queue": [
-    { "worktreeId": "w-ui", "forecast": { "state": "clean", "after": [], "conflictsWith": [], "paths": [], "why": "" } },
+    { "worktreeId": "w-ui", "forecast": { "state": "clean", "after": [], "conflictsWith": [], "paths": [], "why": "" },
+      "settles": [] },
     { "worktreeId": "w-api", "forecast": { "state": "conflicts", "after": ["w-ui"], "conflictsWith": ["w-ui"],
-                                           "paths": ["src/upload/handler.ts"], "why": "" } }
+                                           "paths": ["src/upload/handler.ts"], "why": "" }, "settles": [] }
   ],
   "lanes": [
     { "worktreeId": "w-api", "name": "upload-api", "synced": true, "syncedAt": "…", "tip": "…", "base": "…",
