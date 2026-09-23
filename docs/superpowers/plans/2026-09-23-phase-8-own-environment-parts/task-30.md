@@ -125,9 +125,12 @@ resource; parameters `environment`, `applyStacks` (bool), `deployCharts` (bool).
    from the consumed run and nothing newer; a plan older than 24 h is refused.
 4. **cluster** — `az aks get-credentials` (**without** `--admin`: local accounts are off, P8-D2),
    `kubelogin convert-kubeconfig -l azurecli`; then `helm upgrade --install --atomic --wait` for
-   `platform` → `edge` → `broker` → `hub`, each with `-f deploy/values/<env>/<chart>.yaml` and the
-   `--set` flags `helm-values.sh` produces from `terraform output -json` of the stacks and from the
-   `image-digests` artefact (task 27).
+   `platform` → `cert-manager` → `edge` → `broker` → `hub`, one release at a time, each with
+   `-f deploy/values/<env>/<chart>.yaml` and the `--set` flags `helm-values.sh` produces from
+   `terraform output -json` of the stacks and from the `image-digests` artefact (task 27).
+   `cert-manager` is its own release and must return before `edge` starts: `edge`'s
+   `ClusterIssuer` and `Certificate` need its CRDs mapped and its webhook serving (review C1,
+   task 13). A failed release stops the stage; nothing after it is attempted.
 5. **database** — once per environment and idempotent: `psql` as the deploy identity (a member of
    the Postgres admin group) with an Entra token, running the Hub's `roles.sql` and the rendered
    `hub-principals.sql` (task 29) **before** the `hub` chart's first install.
@@ -146,8 +149,10 @@ resource; parameters `environment`, `applyStacks` (bool), `deployCharts` (bool).
 | a `terraform.tfvars` anywhere | refused | the auto-loaded-tfvars trap |
 
 `helm-values_test.sh`: a fixture `terraform output -json` for each stack and a digests file →
-exactly the expected `--set` list (every id the charts need, nothing else; kills a chart deployed
-with an empty client id).
+exactly the expected `--set` list per release (every id the charts need, nothing else; kills a
+chart deployed with an empty client id). `cert_manager_client_id` appears twice, as
+`cert-manager`'s `identity.clientId` and `edge`'s `certManagerIdentity.clientId`: kills an issuer
+and a service account that name different identities.
 
 `modules/ci-pool/tests/ci-pool.tftest.hcl`: `agents_are_stateless` (`stateless_agent` present,
 `stateful_agent` absent — kills credentials left on an agent between runs);

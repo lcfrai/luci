@@ -112,7 +112,7 @@ variable "namespaces" {
     hub          = string
     cert_manager = string
   })
-  description = "Where the charts put these service accounts (tasks 13 and 29)."
+  description = "Where the charts put these service accounts (task 13's cert-manager release, task 29's hub)."
   default = {
     hub          = "panacea-hub"
     cert_manager = "panacea-edge"
@@ -134,7 +134,8 @@ output "helm_values" {
   value = {
     "hub.serviceAccount.clientId"         = module.hub.client_id
     "hub.migrate.serviceAccount.clientId" = module.hub_migrate.client_id
-    "certManager.clientId"                = module.cert_manager.client_id
+    "cert-manager.identity.clientId"      = module.cert_manager.client_id   # the service account (task 13)
+    "edge.certManagerIdentity.clientId"   = module.cert_manager.client_id   # the ClusterIssuer (task 13)
   }
 }
 ```
