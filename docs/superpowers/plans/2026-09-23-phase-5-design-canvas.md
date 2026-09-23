@@ -244,9 +244,13 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 
 **What never changes.**
 
-- **G1.** `go` stays `1.23` in every `go.mod` and in `go.work`. The canvas module's requirements are
-  exactly `golang.org/x/net` (BSD-3-Clause, spec L1) and `github.com/tdewolff/parse/v2` (MIT, L3).
-  The control plane gains one requirement, the canvas module itself, through a `replace`.
+- **G1.** `go` stays `1.23` in every `go.mod` and in `go.work`. The canvas module's one requirement
+  is `golang.org/x/net v0.26.0` (BSD-3-Clause, spec L1) — **that exact version**, because it is
+  already in the control plane's module graph (`control-plane/go.mod:52`) and so in the local module
+  cache: the corporate proxy breaks TLS to `proxy.golang.org` (`images/sandbox/Dockerfile:3-6`), so a
+  new download may fail. For the same reason the inline-CSS tokenizer is written in task 07 rather
+  than taken from `tdewolff/parse` (spec L3). The control plane gains one requirement, the canvas
+  module itself, through a `replace` (task 19, its first importer).
 - **G2.** `desktop/src/store/types.ts` does not change, byte for byte (phase 2 task 15's gate).
   Design state lives in its own slice with its own types file.
 - **G3.** `PERSIST_VERSION` stays `1`; `partialize` does not change. Phase 5 claims **no** persist
@@ -300,7 +304,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 
 | Path | Holds | Task |
 |---|---|---|
-| `canvas/go.mod` | module, `go 1.23`, two requirements (G1) | 02 |
+| `canvas/go.mod` | module, `go 1.23`; its one requirement (G1) is added by task 07, its first importer | 02, 07 |
 | `canvas/doc/` | `model.go` (Canvas, Page, Node, Token, Asset, Thread, Author), `ids.go`, `order.go` (fractional index), `key.go` (design key) | 05 |
 | `canvas/doc/` | `op.go`, `apply.go`, `invert.go`, `validate.go` | 06 |
 | `canvas/dialect/` | `parse.go`, `css.go`, `allowlist.go`, `report.go`, `allowlist.json` (generated) | 07 |
@@ -332,7 +336,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 
 | Path | Change | Task |
 |---|---|---|
-| `go.mod` | `require github.com/kpmg-au-emu/panacea-app/canvas` + `replace … => ../canvas` | 02 |
+| `go.mod` | `require github.com/kpmg-au-emu/panacea-app/canvas` + `replace … => ../canvas`, added by the first importer | 19 |
 | `internal/mcprelay/` (new) | `frame.go` (the tunnel framing), `tunnel.go` (a `net.Listener` over one channel), `supervisor.go` | 18, 19 |
 | `internal/harness/argv.go`, `harness.go` | `Request.CanvasMCP`, `Descriptor.SupportsMCPConfig`, the two flags | 19 |
 | `internal/api/sessions.go` | set `CanvasMCP` in create and restart | 19 |
@@ -417,7 +421,7 @@ tasks; each part says what it codes against until that task lands.
 **Parallel lanes for worktree agents.** Lane A (Go core): 05–13. Lane B (MCP): 14–17, after 12 and
 13. Lane C (relay): 18–19. Lane D (editor): 23–26, after 01 and 03. Lane E (control-plane HTTP and
 provenance): 20–22. The desktop lane (27–29) joins D and E. **Two lanes never edit one file**: the
-only shared files are `control-plane/go.mod` (02 only), `internal/api/api.go` (20 only),
+only shared files are `control-plane/go.mod` (19 only), `internal/api/api.go` (20 only),
 `internal/api/sessions.go` (19 only), `internal/httpx/problem.go` (20 only) and
 `azure-pipelines.yml` (02, then 03, then 04, in that order).
 
