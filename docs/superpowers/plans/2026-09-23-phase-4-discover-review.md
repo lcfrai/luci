@@ -648,7 +648,8 @@ moved on this branch. The plan now locates the call by symbol and cites both com
 **C2: brief text cannot forge the markers.** Fixed as the review said, with two additions:
 
 - The check runs on `Apply`'s whole *result*, not only the op's input text. That way a `draft`, a
-  follow-up prompt and a `restore` are covered too.
+  follow-up prompt and a `restore` are covered too. (Round 2 narrows it to the strings the op
+  added or changed, still read from the result; see M4 below.)
 - The two model paths filter the sequence out before `Apply`. Otherwise a person would get a 400
   for text the model wrote.
 
@@ -659,7 +660,7 @@ moved on this branch. The plan now locates the call by symbol and cites both com
 | 3. A stray or early end is `ErrUnterminatedBlock` in `Merge`/`Strip`/`Inspect` | `task-05.md:101-104` (the error), `:126-139` (one marker count for all three), `:153-155` (`Inspect`), `:255-258` (step 3 replaces the old first-end scan, checked at `2026-09-18-phase-4-discover.md:2079-2093`), `:9-12` (the Changed list); `task-10.md:79` (the `block_broken` comment) |
 | 4. The three tests | `task-03.md:348` `TestAnswerCannotContainAMarker`; `task-05.md:241` `TestRenderNeutralisesCommentOpeners`; `task-05.md:242` `TestStrayEndMarkerIsBroken` |
 | 5. A Security section | `2026-09-23-phase-4-discover.md:227-258`, inside §4 so no section number moves. S1: cross-user instruction channel. S2: the Hub `member` role (`hub-contract.md:588`, `:238`) and the `brief.revised` actor (`:804`, `:1087-1088`). S3: the marker rule. S4: reserved for M6. S5: reserved for I13. File-map rows at `:270` and `:273` |
-| Task 09's strip-fail path | `task-09.md:64-69` (the note); `task-09.md:153` `TestWithoutBriefOverAStrayEndMarkerIsWriteFailed` |
+| Task 09's strip-fail path | `task-09.md:64-69` (the note); `task-09.md:153` `TestWithoutBriefOverAStrayEndMarkerIsWriteFailed` (round 2 renames it `…IsBlockBroken` and makes the reason `block_broken`; see I2 below) |
 | Model text never becomes a person's 400 (added) | `task-03.md:319-321`; `task-04.md:77` `TestAReplyHoldingTheReservedSequenceDegrades`; `task-13.md:94` `TestADraftHoldingTheReservedSequenceIsDropped` |
 
 **Deferred or not verified:**
@@ -670,3 +671,50 @@ moved on this branch. The plan now locates the call by symbol and cites both com
   16 and 17), which this batch did not read. Left open.
 - `<!-\-` is a guess at how Claude Code reads the text. It is not verified that the CLI shows it to
   the model as literal text. Task 23's canary covers the block as a whole, not this escape.
+
+### Fix batch b01, round 2 (2026-09-24)
+
+Answers `.superpowers/sdd/p4/plan-rereview-b01-1.md` (I1, I2, M1-M5). Commit `071d663` on
+`feat/phase-4-discover`; line numbers are as of that commit. `sessions.go` re-checked at `2d6d95b`:
+restart `Worktrees.Path` `:972`, `if sess.SandboxID != ""` `:1025`, the two restart store writes
+`:1067` and `:1112`, `Backend.Create` `:1091`, the 200 `:1128`. The Hub contract's unchecked
+`content` re-checked at hub `2f84662`, `hub-contract.md:738-744`.
+
+| Re-review issue | Where it changed |
+|---|---|
+| I1.1 The restart names all four request fields | `task-10.md:138-143` (`WorktreeID`, `WorktreePath: path`, `ProjectID`/`BranchID` from the session record, `WithoutBrief: body.WithoutBrief`); `2026-09-23-phase-4-discover.md:314` (file map), `:425` (seam 8.1) |
+| I1.2 `TestRestartWithoutBriefPassesTheFlag` | `task-10.md:173` (the flag, a non-empty path equal to `Worktrees.Path`, `none:declined` stamped) |
+| I1.3 The live restart override | `task-23.md:62-67` (step 9: `{"withoutBrief": true}` → 200, `none:declined`, a new `sandboxId`, the old container gone, no block left) |
+| I2 Recommended option: broken marker is `block_broken`, a real I/O error is `write_failed` | `task-09.md:62-73` (step 3's reason follows the cause); `task-09.md:157` `TestWithoutBriefOverAStrayEndMarkerIsBlockBroken` (renamed from `…IsWriteFailed`), `:158` `TestWithoutBriefWriteErrorIsWriteFailed` (new: `CLAUDE.md` is a directory); `2026-09-23-phase-4-discover.md:253-261` (S3); `task-20.md:37-39` (`PendingStart.withoutBrief`), `:63` (the two `block_broken` sentences), `:66-68` (no second override), `:80` `a refused override offers no second override` |
+| M1 The ordering-rule comments name the destroy | `task-10.md:39-43`; `task-09.md:28-32` |
+| M2 The restart order test's full log | `task-10.md:174` (a seeded `SandboxID` the fake knows; the exact log `materialise, backend.destroy, store.update, backend.create, store.update`) |
+| M3 The desktop shows the 400 | `task-18.md:93` (a state row: the message at the answer `details.key` names, text kept, no Retry), `:110` `reserved text is refused at the field, without Retry` |
+| M4 Option 1: check only what the op added or changed, and name the key | `task-03.md:271-284` (`ErrReservedText` doc, `ReservedTextError{Key}` with `Unwrap`), `:324-338` (rule 12), `:367` (`TestAnswerCannotContainAMarker` asserts the key), `:368` `TestUnchangedReservedTextDoesNotBlockOtherOps` (new); `task-11.md:93` (`details.key`), `:131`; `2026-09-23-phase-4-discover.md:242-252` (S3) |
+| M5.1 S1's wording | `2026-09-23-phase-4-discover.md:233-235` ("never write it into any file except inside the managed block"; model prompts named) |
+| M5.2 The model filters in prose | `task-04.md:31` (the `AssistFailed` comment), `:65-67` (the causes list); `task-13.md:59-64` (`DraftAnswers`' doc) |
+| Restatements | `review.md:650-652` and `:663` annotated for the round-2 changes. The round-1 "Deferred" item on the desktop 400 is closed by M3 |
+
+**Why M4 took option 1.** The neutraliser (task 05) is the guarantee that the file cannot be forged,
+whatever the Hub stored. Rule 12 is the early refusal that can be explained. A whole-result check
+lets one head written straight to route 26 refuse every op on that brief, including ops with no
+text, so it turns defence in depth into a denial of service. Checking only what changed keeps every
+op that adds text covered: `draft`, `add_follow_up` and `restore` are all read from the result.
+
+**New, found while fixing, not fixed in this batch (N1).** This is the same dead end as I2, on the
+`tracked_elsewhere` path. Task 09 step 2 (`task-09.md:58-61`) refuses `tracked_elsewhere` before
+step 3's `WithoutBrief` strip runs. So *Start without the brief*, which is OQ-2's recommended
+recovery (`2026-09-23-phase-4-discover.md:492`), always fails again when both files are tracked.
+Round 2's `task-20.md:66-68` stops the loop at the second refusal, but it does not make the first
+offer work. Step 3 also says "strip BOTH candidates", and it does not say that it skips a tracked
+candidate. Stripping a tracked `CLAUDE.md` would edit a tracked file (3-D6). Suggested fix:
+- under `WithoutBrief`, strip only untracked candidates;
+- when both are tracked, return `none:declined` if neither tracked file holds a managed block, else
+  `tracked_elsewhere`;
+- task 20 then offers the override on `tracked_elsewhere`.
+This is left for its own batch because it changes task 09's step order and OQ-2 is open for the
+owner.
+
+**Still unverified:** that Claude Code shows `<!-\-` as literal text (carried over), and whether
+`discoverhub`'s revision cache lets `Materialise` succeed while the Hub is down. The cache question
+is not read in this batch. If the cache does that, task 23 step 9's expected 409s would pass or
+fail for the wrong reason.
