@@ -14,14 +14,19 @@ The four phases are states of one project, not four tools. The connective tissue
 
 ## Architecture decisions already locked
 
+**Owner decisions of 2026-09-23 (`OD-1`…`OD-13`) are in `docs/superpowers/planning/2026-09-23-owner-decisions.md` and win over anything older here.**
+
 - **Isolation: Kata Containers (AKS Pod Sandboxing) microVMs from day one.** Per-pod microVM + own kernel, `workload_runtime=KataVmIsolation`, AzureLinux, nested-virt SKU. Warm pools are mandatory — Kata cold start is seconds. Not Microsoft Dev Box (retiring 2026–2028).
-- **Hosting: we-host SaaS on Panacea's AKS first**, customer-hosted Azure Kubernetes App tier later.
+- **Hosting: we-host SaaS on our own environment** (`OD-5`), modelled on Panacea and written from scratch in this monorepo; customer-hosted Azure Kubernetes App tier later. Panacea stays a separate system for now — phase 7 calls its API — and is lifted into this repo after everything else is built (`OD-13`). *Was: "on Panacea's AKS first".*
+- **Shared state from day one** (`OD-3`): briefs, approvals, the provenance ledger and releases live server-side in **the Hub** (Phase H). The desktop signs in with **Entra, OAuth auth-code + PKCE**, tokens in Windows Credential Manager (`OD-6`).
 - **AI capacity: per-user rotation across that user's OWN Claude subscriptions**, with API/Bedrock/Vertex as backstop. Users authenticate as themselves. **Never pool subscriptions across users** — that violates Anthropic's Consumer Terms and is blocked server-side.
-- **Design canvas (Design phase): adopt `Projects/Paperdesign`** (a fork of `kgoedecke/doop`, an open-source paper.design equivalent: real-HTML frames in sandboxed iframes, built-in MCP for agent edits, multiplayer). AGPL-3.0 — must be cleared before any external sale.
+- **Design canvas (Design phase): a clean-room, paper.design-class canvas with a first-class MCP server** (`OD-11`) — real-HTML frames, agent editing over MCP, multiplayer — on MIT/Apache/BSD/ISC parts only. **Never open, read or copy `Projects/Paperdesign`, `kgoedecke/doop` or any AGPL/GPL canvas source.** No tldraw (commercial licence). *Was: "adopt `Projects/Paperdesign`" (AGPL-3.0), withdrawn by the owner.*
+- **Worktrees are local clones** (`OD-2`), one per worktree, work fetched back under `refs/panacea/lanes/…`. **Git hosts: Azure DevOps and GitHub, both** (`OD-4`).
+- **Harness records**: a harness's on-disk transcript may be read, read-only, through a version-pinned adapter with a canary test; nothing may require it, and nothing derives meaning from PTY bytes (`OD-8`, `PROGRAM.md` cross-cutting constraints).
 
 ## Reuse from the Panacea monorepo
 
-`Projects/Panacea` is the infrastructure platform this runs on. Reuse, do not rebuild:
+`Projects/Panacea` is the model for how we run the web and deploy side, and phase 7's API target. Since `OD-5` the product runs on **its own** environment, not on Panacea's. Reuse Panacea's patterns rather than reinventing them, but **copy no Panacea source into this repo yet** (`OD-13`: the owner lifts Panacea in after everything else is built). The patterns to follow:
 
 - Sandbox pod template: `services/forge-orchestrator/preview/manager.go`
 - Deploy/branch/version control plane: `services/panacea-api/routes/routes.go` and `services/panacea-mcp`
