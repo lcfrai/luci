@@ -147,6 +147,9 @@ type Creator struct {
 //  6. Store.Add.
 // A failure in 4-6 removes Path with RemoveTree before returning, so a failed create leaves
 // no directory behind; a failure in 1-3 has touched nothing.
+// Scopes, per task-02 §HGH H3: steps 2, 4 and 5's `var` run with Dir the project and Scope
+// Project (step 4's clone checks its source that way); step 5's `config` writes run in the
+// clone with Scope Clone.
 func (c *Creator) Create(ctx context.Context, req CreateRequest) (Lane, error)
 
 // RemoveTree deletes a directory tree that git wrote. On Windows git leaves object and pack
