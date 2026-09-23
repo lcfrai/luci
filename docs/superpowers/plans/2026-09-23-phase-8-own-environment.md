@@ -259,6 +259,27 @@ to another service or into a sandbox" (ADR `:543-546`). The broker therefore str
 control-plane route except the WebSocket attach (ADR `:439-449`). Task 26 does not add it — C3
 does — but it must not break it.
 
+### What the Hub contract then confirmed (sibling `feat/hub`, `2026-09-23-hub-contract.md`, read at 2,289 lines)
+
+The contract landed while tasks 27–33 were being written, and its §14 (`:2257-2272`) maps every
+phase 8 ask to an answer: **HA-1** → §6.3's `entra` interface, which task 16 now adopts verbatim;
+**HA-2** → `entraauth.TokenSource` and `ErrSignedOut` "exactly as asked" (§9.1), which task 22's
+interface matches by signature; **HA-3** → §6.5's registration table, which task 09 transcribes;
+**HA-4…HA-7** → §12.3 (`:2193-2208`), whose answers are the defaults tasks 08, 10 and 29 already
+used, with the full variable table in §12.2 (`:2140-2191`) that task 29's chart sets and nothing
+beyond. The two differences phase 8 introduces are recorded for the Hub's reviewer in task 33.
+
+---
+
+## Asks of phase 3 (sibling `phase-3` worktree; its code is not edited silently)
+
+| Ask | What | Plan proceeds on | Task |
+|---|---|---|---|
+| **P3A-1** | Machine paths are slash-separated on every OS: `gitx.Machine` gains `Join(elem ...string) string` (`Local` → `filepath.Join`, `Remote` → `path.Join`), and phase 3 joins clone paths through it — the control plane runs on Windows | the method is added in phase 3's task 02, or by task 25 in one commit if phase 3 has landed | 25 |
+| **P3A-2** | The lane index for a cloud machine is keyed by machine id | laptop-side, keyed by `(machineId, projectId)`; the single-laptop limitation is stated in the cockpit | 25 |
+| **P3A-3** | Does `gitx.Local` disable repository hooks and `core.fsmonitor`? An agent writes a lane clone's `.git`; `machined` forces both off on the machine (task 21) | not assumed; asked | 21, 33 |
+| **P3A-4** | Phase 3's task 05 and this phase's task 14 both edit the sandbox environment and its parity test | phase 3 lands first; task 14 step 0 checks | 14 |
+
 ---
 
 ## Open questions for the owner, each with the recommendation this plan proceeds on
@@ -298,6 +319,7 @@ infra/terraform/
   kata.tf providers.tf variables.tf dev.tfvars .terraform.lock.hcl   DELETED (01): the pool moves into modules/aks
   README.md                                   stack order, commands, the rules                     01
   backends/dev.hcl  backends/prod.hcl        partial backend config, no ids                        02
+  role-allowlist.txt                          the roles any stack may assign                       10
   modules/network/            VNet, subnets, NSGs, NAT gateway, private DNS zones                  03
   modules/observability/      Log Analytics, DCR, action group, budget                             04
   modules/registry/           ACR Premium, private endpoint, retention                             05
@@ -308,49 +330,71 @@ infra/terraform/
   modules/workload-identity/  one UAMI + federated credential + role assignments                   10
   modules/ci-pool/            Dev Center project + Managed DevOps Pool in the agents subnet        30
   stacks/bootstrap/           state RG, storage account, container                                 02
-  stacks/foundation/          composition of network … aks, DNS zone, edge IP + A records, checks  07
+  stacks/foundation/          composition of network … aks, DNS zone, edge IP + A records, checks  07, 30
   stacks/data/                Postgres for the Hub                                                 08
-  stacks/identity/            azuread: desktop client, Hub API, broker API, groups                 09
+  stacks/identity/            azuread: desktop client, Hub API, broker API (Hub contract §6.5)     09
   stacks/workloads/           id-hub, id-hub-migrate, id-cert-manager, role assignments            10
-  stacks/*/tests/*.tftest.hcl terraform test, mock providers only                         each stack
-infra/scripts/validate.sh     fmt -check, init -backend=false, validate, test — every stack        01
-infra/scripts/guards.sh       no terraform.tfvars, no ids in tfvars, mocks in every test           01
-infra/smoke/                  post-apply checks, written and shellcheck'd, NOT run                 31, 32
-deploy/charts/platform/       namespaces, PSA, priority classes, quotas, policies, warm capacity   11, 12
+  */tests/*.tftest.hcl        terraform test, mock providers only                          every task
+infra/scripts/validate.sh  guards.sh  guards_test.sh   fmt, init -backend=false, validate, test    01
+infra/scripts/role-allowlist.sh                                                                    10
+infra/smoke/                  post-apply smoke, written and tested on canned output, NOT run       31
+infra/smoke/proving/          the Kata proving scripts, NOT run                                    32
+deploy/charts/platform/       namespaces, PSA, priority classes, quotas, policies, storage class   11
+                              + warm capacity (balloons, pre-pull)                                 12
 deploy/charts/edge/           Traefik (Gateway API), cert-manager, ClusterIssuer, Gateway          13
 deploy/charts/broker/         broker Deployment, SA, Role in panacea-sandboxes, HTTPRoute, PDB     29
-deploy/charts/hub/            Hub Deployment, migrate Job, SA (WI), HTTPRoute, PDB (HA-4, HA-5)    29
-deploy/values/dev/*.yaml      per-environment values; ids injected by the pipeline                 29
-control-plane/internal/sandbox/manager.go      config, hardening, token Secret, machine volumes    14, 15
-control-plane/internal/backend/backend.go      Spec.Machine, MachineMount, ValidateSpec            15
-control-plane/internal/backend/katabe/kata.go  machine mounts, WorkDir, owner                      14, 15
+deploy/charts/hub/            Hub Deployment, migrate Job, SA (WI), HTTPRoute, PDB (contract §12)  29
+deploy/sql/hub-principals.sql.tpl   the Hub identities as Postgres principals                      29
+deploy/values/{dev,prod}/*.yaml     per-environment values; ids injected by the pipeline           29
+control-plane/internal/sandbox/manager.go      config, hardening, token Secret, machine mounts     14, 15
+control-plane/internal/sandbox/machine.go      a machine's disk, token, pod and PDB                19
+control-plane/internal/backend/backend.go      KubeLabelOwner; MachineMount, Spec.Machine          14, 15
+control-plane/internal/backend/ready.go        ReadyWaiter, ErrQuotaExceeded                       22
+control-plane/internal/backend/katabe/kata.go  owner scope, WorkDir, machine mounts               14, 15
 control-plane/internal/backend/dockerbe/docker.go  refuses MachineMounts                           15
-control-plane/internal/entra/                  Entra access-token validation (HA-1)                16
-control-plane/internal/brokerapi/              broker wire types, shared by broker and remotebe    18
+control-plane/internal/backend/remotebe/       Client and Backend over the broker                  22
+control-plane/internal/entra/                  Entra token validation (Hub contract §6.3)          16
+control-plane/internal/brokerapi/              codes (17), sandbox wire (18), machine wire (19)    17-19
 control-plane/cmd/broker/                      the broker                                          17-19
-control-plane/internal/machineapi/             machine-agent wire types                            20
-control-plane/cmd/machined/                    the machine agent                                   20, 21
-control-plane/internal/backend/remotebe/       backend.Backend over the broker                     22
-control-plane/internal/machines/               the machine set: local + cloud                      23
-control-plane/internal/api/{api,sessions,attach,catalog}.go   per-machine backend and catalog     23, 24
-control-plane/internal/reaper/reaper.go        sweeps every machine's backend                      23
-control-plane/cmd/api/{config,main}.go         PANACEA_APP_BROKER_URL and friends                  23
+control-plane/internal/machineapi/             machine-agent wire: catalog (20), git (21)          20, 21
+control-plane/cmd/machined/                    the machine agent                                   20, 21, 25
+control-plane/internal/machines/               the machine set (23); agent calls (24, 25)          23-25
+control-plane/internal/api/{api,sessions,attach}.go   route by machine                             23, 24
+control-plane/internal/api/{machines,cloudstore}.go   cloud machines, cloud conversation store     24
+control-plane/internal/api/catalog.go          machineId on the catalog routes                     24
+control-plane/internal/httpx/problem.go        machine_not_found (23), quota_exceeded (24)         23, 24
+control-plane/internal/reaper/reaper.go        sweeps per machine                                  23
+control-plane/cmd/api/{config,main}.go         RUNTIME_CLASS (14); BROKER_URL, BROKER_SCOPE (23)   14, 23
 control-plane/internal/gitx/remote.go          phase 3's Machine for a cloud machine (S3-P8.1)     25
-desktop/src/components/rail/MachineChip.tsx (+ machines popover)   cloud machine states, wake      26
-images/broker/Dockerfile  images/machine/Dockerfile                                               27
+desktop/src/{store,api}/…, components/rail/{MachineChip,MachinesPopover}.tsx   cloud machines      26
+docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md §2   amended with types.ts            26
+images/{broker,hub,machine}/Dockerfile  images/build.sh  images/images_test.sh                    27
 azure-pipelines.yml                             the Go pipeline: PR trigger, path filter, govulncheck 28
-pipelines/templates/  pipelines/{desktop,licences,secrets,infra,charts,images}.yml               27, 28
-pipelines/{infra-plan,deploy}.yml  pipelines/scripts/estate-guard.sh     written, NOT registered   30
-docs/runbooks/phase-8-first-apply.md                                                              31
-docs/verification/phase-8-kata-proving.md       results template, every row UNVERIFIED            32
-docs/SEAMS.md, docs/PROGRAM.md                  S8 rows, the Defender-for-Kata compliance gap      33
+pipelines/templates/tools.yml  pipelines/scripts/{install-tool,lint}.sh                           28 (+27, 30)
+pipelines/{desktop,licences,secrets,infra,charts}.yml  licences/  .gitleaks.toml                  28
+pipelines/images.yml                                                                               27
+pipelines/{infra-plan,deploy}.yml  pipelines/scripts/{estate-guard,tf-stack,helm-values}.sh  written, NOT registered  30
+docs/runbooks/phase-8-first-apply.md  docs/verification/phase-8-first-apply-results.md            31
+docs/verification/phase-8-kata-proving.md                                                          32
+docs/SEAMS.md  docs/PROGRAM.md  docs/superpowers/planning/env/cost-model.md  docs/verification/phase-8-results.md   33
 ```
 
-**Shared files, and who is allowed to touch them in which order.** `control-plane/go.mod` is
-changed by no task. `internal/sandbox/manager.go` by 14 then 15 (task 19's machine pod is a new
-file, `internal/sandbox/machine.go`).
-`internal/api/*.go` by 23 then 24. `pipelines/templates/tools.yml` is created by 28; 27 and 30
-append. A task that finds another task's change missing stops and reports it.
+**Shared files, and the order they are touched in.** A task that finds an earlier task's change
+missing stops and reports it.
+
+| File | Tasks, in order |
+|---|---|
+| `control-plane/go.mod` | none — this phase adds no module |
+| `internal/sandbox/manager.go` | 14 → 15 (and phase 3's task 05, which lands first — task 14 step 0) |
+| `internal/backend/backend.go` | 14 → 15 (and phase 3's task 05) |
+| `internal/api/{sessions,attach,api}.go` | 23 → 24 |
+| `internal/httpx/problem.go` | 23 → 24 |
+| `cmd/broker/server.go`, `internal/brokerapi/wire.go` | 17 → 18 → 19 |
+| `cmd/machined/*`, `internal/machineapi/wire.go` | 20 → 21 → 25 |
+| `internal/machines/agent.go` | 24 → 25 |
+| `stacks/foundation/*` | 07 → 30 |
+| `deploy/charts/platform/*` | 11 → 12 |
+| `pipelines/templates/tools.yml`, `pipelines/scripts/lint.sh` | 28 → 27 → 30 |
 
 ---
 
@@ -412,7 +456,7 @@ implementer who has read this file and the part, and assume the part's tests are
 | 22 | `remotebe`: `backend.Backend` over the broker, with the Hub's token source (HA-2) | 18 | 3 |
 | 23 | `internal/machines`: a backend per machine through sessions, attach, reaper and `main` | 22 | 3 |
 | 24 | Machine-scoped catalog, cloud machines in `GET /v1/machines`, session create on a cloud machine (closes S8.3) | 23, 20 | 3 |
-| 25 | Phase 3's `gitx.Machine` for a cloud machine (S3-P8.1) | 24, 21, **phase 3 tasks 02–04** | 2.5 |
+| 25 | Phase 3's `gitx.Machine` for a cloud machine (S3-P8.1) | 24, 21, **phase 3 tasks 02–04 and 11** | 2.5 |
 | 26 | The cockpit shows cloud machines: states, implicit wake, the isolation badge (S8.5), signed-out | 24 | 3 |
 
 ### Group G — packaging and CI/CD
@@ -443,7 +487,7 @@ wave 3   05  06  12  13  18  20
 wave 4   07  19  22  27
 wave 5   08  23  29          21 (when phase 3 task 02 has landed)
 wave 6   10  24  30
-wave 7   25 (when phase 3 tasks 02–04 have landed)  26
+wave 7   25 (when phase 3 tasks 02–04 and 11 have landed)  26
 wave 8   31  32  33          (31–32: owner-gated, OD-12)
 ```
 
@@ -492,8 +536,11 @@ for the same code locations, each cited to `file:line` in its part.
   disk, per-pod Kata overhead, allocatable CPU on `Standard_D8s_v5`, cold-start time on a warm
   node, whether `pods` in a Kata sandbox mount CSI volumes at all — is **UNVERIFIED** and is task
   32's to prove.
-- **The Hub's shape.** ADR-H1 was incomplete and its contract absent at writing time; every Hub
-  dependency is an ask (HA-1…HA-7).
+- **The Hub's code.** The Hub's shapes are taken from ADR-H1 and its contract as read on
+  2026-09-23 (both still being written — the contract grew from absent to 2,289 lines during this
+  plan); none of the Hub exists in this branch, and tasks 09, 16, 22 and 29 re-read the contract
+  before they start. The Hub contract's own list of what it did not verify (`:2276-2288`) applies
+  to everything this plan takes from it.
 - **Phase 3's code.** Tasks 21 and 25 build on `gitx.Runner` and `gitx.Machine` as phase 3's task 02
   part defines them (`phase-3` worktree, `2026-09-23-phase-3-git-convergence-parts/task-02.md:85`,
   `:150-159`); none of it exists in this branch.
