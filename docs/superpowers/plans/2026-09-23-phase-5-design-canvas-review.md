@@ -1023,3 +1023,98 @@ section corrects it.
 renderer's PNG parity is unverified, as stated above. Nothing was built or run: this round changes
 documents only.
 
+## Fix batch b04 (2026-09-24) — I4, I8, I2
+
+Paths are relative to `docs/superpowers/plans/`; `parts/` is `2026-09-23-phase-5-design-canvas-parts/`.
+Line numbers are as of this section's commit (commits `3ec956b` I4, `ad1b966` I8, `3819dbc` I2, then
+this one, which also widens three test rows without moving a line). The review's line numbers had
+moved under b01–b03: P5-Q is plan `:221`, not `:212`; G10 is `:294-298`, not `:281-283`; task 07's
+`SanitiseSVG` sat at `:277-279` and `TokenValue` at `:289`. Each fix is at the text, wherever it sat.
+
+### I4 — the hidden renderer keeps rendering while the window is minimised
+
+The review's fix, as written, plus a flush for a rAF stranded by the switch to hidden.
+
+| Finding part | Change | Where |
+|---|---|---|
+| rAF-only render queue | `schedulePatch`: `requestAnimationFrame` while `document.visibilityState === "visible"`, `queueMicrotask` otherwise; one callback per pending version; no `setInterval`, no `setTimeout` (G10) | `parts/task-24.md:74-94` |
+| a rAF queued just before minimise never fires | a `visibilitychange` listener per view (removed in `dispose`) flushes a pending patch at once. **Addition**: without it, a patch queued while visible is stranded when the window then hides | `parts/task-24.md:91-93` |
+| responder reads stale views | `view.sync()` on every view it reads before it measures or captures; a past-revision load syncs its off-screen frames too | `parts/task-24.md:130-135` |
+| responder test, `visibilityState` stubbed `"hidden"` | `responder.test.ts › hiddenHead`: `computed`, `layout` and `screenshot` at head, rAF stubbed never to fire; plus `patch.test.ts › hiddenUsesMicrotask`, `› turnsHidden`, `› noTimer` | `parts/task-24.md:172-176` |
+| spike check S11 | minimise Edge through CDP (`Browser.getWindowForTarget`, `Browser.setWindowBounds` `windowState: "minimized"`), send `__renderRequest(160)` through the page's copy of `schedulePatch`, record `visibilityState`, whether a probe rAF fired, the measured width and whether capture resolved; a negative with rAF-only scheduling; a decision-table row; the ten-check counts become eleven | `parts/task-01.md:16`, `:36`, `:61`, `:75`, `:87`, `:91-94`, `:101-106`, `:121`, `:129-143` |
+| restatements | G10; P5-Q; the task 01 row; the WebView2 unverified list; task 30's hands-on item 1 (S1–S11, and a minimised `get_screenshot` in the Tauri shell) | plan `:221`, `:294-298`, `:401`, `:526-528`; `parts/task-30.md:117-120` |
+
+**Unverified**, as the review said: whether a minimised WebView2 window reports itself hidden. S11
+measures Edge; task 30's hands-on item measures the shell. If S11 fails (layout or capture itself
+stops while minimised), task 24 still builds as planned, and the report goes to the orchestrator as a
+finding: either the shell keeps the webview unthrottled (a WebView2/Tauri setting, *unverified* which)
+or `renderer-unavailable` tells the user to restore the window. That is an owner-visible choice, not
+a tuning (`parts/task-01.md:121`).
+
+### I8 — SVG nodes are namespaced, well-formed, and carry per-node ids
+
+The review's fix, with one change to its mechanism. The prefix depends on the node id, so any path
+that copies an svg node under a new id has to re-prefix. There are three such paths: `x-clone`,
+`duplicate_nodes` and the desktop's Alt-drag duplicate, which sends client-minted ids (`parts/task-25.md:66-69`).
+So the authority canonicalises instead of only checking: `Checker.SVG(nodeID, markup)` returns the
+canonical form and `Apply` stores it. The re-prefix then happens in one Go function, not in each
+client. Content the sanitiser would drop is still refused, never repaired.
+
+| Finding part | Change | Where |
+|---|---|---|
+| root `xmlns` | always written as `SVGNamespace` on the root, whatever the input had; never on a child | `parts/task-07.md:287-293`, `:317` |
+| well-formed XML | attribute values escape `& < "`, text escapes `& < >`, XML-forbidden characters removed, empty elements `<x/>`. **Addition**: SVG case restored (`linearGradient`, `clipPath`, `viewBox`, `gradientUnits`); x/net/html lowercases them and adjusts in foreign content, verified in the module cache at `golang.org/x/net@v0.26.0/html/foreign.go:126`, `:153`, `:175`, `:197`, `:217` | `parts/task-07.md:294-301` |
+| ids collide across svg nodes | every kept id becomes `<nodeID>-<local>`; any leading `n-<12 hex>-` is stripped first, so the rewrite is idempotent and re-prefixes rather than stacks; `url(#…)` rewritten to match. **Addition**: a `url(#x)` naming no id in the same SVG, or an id outside `^[A-Za-z_][A-Za-z0-9_.-]{0,63}$`, is dropped, so no reference reaches another node. `nodeID ""` is for SVG assets, which render in their own image document | `parts/task-07.md:302-317`; the parse table `:104`, `:107` |
+| the authority | `doc.Checker.SVG(nodeID, markup) (canonical, error)`; `Apply` stores the return and writes it into the recorded op, so replicas and replay apply the same bytes. **Security addition**: `set_props` could set `SVG` (`task-06.md:33`), but its refusal row never ran `Checker.SVG`, so markup no sanitiser saw could be stored. It runs now | `parts/task-06.md:86-91`, `:171-172`, `:218`; `parts/task-07.md:368-374`; `parts/task-10.md:132-136` |
+| tests: `namespaceURI` in `svgWalk`; distinct ids across two svg nodes | Go: `TestSVG_namespace`, `_case`, `_wellFormed`, `_idsPerNode` (every url-bearing attribute), `_danglingRef`, `TestParse_twoSVGs`, `TestChecker_SVG`, `TestApply_svgCanonical`. TS: `svgWalk` asserts `namespaceURI`; `svgNoNamespace` (no `xmlns`, or a `parsererror`, builds nothing); `svgIdsDistinct` (the same literals as the Go test) | `parts/task-07.md:411-418`; `parts/task-06.md:218`; `parts/task-24.md:163-165` |
+| restatements | P5-F; `Node.SVG`; export "verbatim" and its round trip "ids aside"; `upload_asset`; `duplicate_nodes`; the desktop duplicate | plan `:210`; `parts/task-05.md:83`; `parts/task-08.md:40-47`; `parts/task-16.md:76`, `:79`; `parts/task-25.md:66-69` |
+
+### I2 — token values get the declaration refusals, and every writer re-checks them
+
+The review's fix, with one deviation and two additions. **Deviation, declared:** the review says "a
+`url()` must be an `asset:` ref". Instead, a token value refuses **any** `url()`. None of the ten
+token types takes an image. Allowing `asset:` refs would also need the asset-ref rewrite in three
+places that have none today: ExportHTML's `<style>`, `tokens.css` and the renderer's `setProperty`
+(the iframe CSP blocks `asset:`). That is more surface for a value no type accepts.
+
+| Finding part | Change | Where |
+|---|---|---|
+| `TokenValue` checks only the type | four steps, in order. (1) The "Inline CSS" global refusals, through the same tokenizer. (2) Plus `;`, `!`, a comment, an unterminated string or bad-url, and any control character. (3) Plus any `url()`. (4) Then the type, by a new `TokenRules` map. **Addition**: `font-family` becomes `RuleFamilyList` (a comma list of strings or identifiers), not the "any" rule the review's payload rode; `line-height` gets `RuleNumberOrLength`. `ErrUnsafeToken` lives in `dialect`, so neither writer package imports the other | `parts/task-07.md:134-136` (the "Inline CSS" section says so), `:328-367`; `allowlist.json` `tokenRules` `:388` |
+| `allowlist.ts` re-check before `setProperty` | `allowedTokenValue(type, value)`: the same four steps from `allowlist.json`; the renderer sets a token only if it passes, and counts `refusedTokens` | `parts/task-23.md:168-175`; `parts/task-24.md:14-15`, `:46-49`, `:68`, test `:166` |
+| `TestTokenValue` refuses the two review values | `TestTokenValue_refusals` over `testdata/token-vectors.jsonl`: the two values under **every** type, plus `URL(`/`Url(` (case-insensitive function names), `;`, `!important`, `url(asset:…)`, `/*`, an unterminated string, a CSS escape, `expression(`, a newline, and `attr()`/`var()` in a family list. The same file drives the TS test, so Go and TS refuse one set | `parts/task-07.md:26-28`, `:420-421`; `parts/task-23.md:190` |
+| the export test's fixture | `TestExportHTML_hostileToken` builds the document through `Apply` with a permissive `Checker`, as `store.Replay` does (`parts/task-10.md:132-136`), and expects `ErrUnsafeToken` for each review value. **Addition**: ExportHTML, `tokens.CSS` and `tokens.DTCG` each re-check every token before writing, because a replayed or on-disk document never passed `Apply`'s checker. `CSS` now returns `(string, error)`; `get_tokens` answers `invalid` on that error | `parts/task-08.md:62-72`, `:157`; `parts/task-09.md:125-136`, `:169`; `parts/task-17.md:47` |
+| restatements | `Token.Value`'s comment (it cited a `dialect.CheckTokenValue` that does not exist); `doc.Checker.TokenValue`'s comment | `parts/task-05.md:119`; `parts/task-06.md:85` |
+
+**Observed, not fixed (outside this batch).** Task 23's `allowedStyle` (`parts/task-23.md:164-167`)
+does not refuse a function missing from `Functions`, which the Go declaration check does
+(`parts/task-07.md:131-132`). `allowedTokenValue` does refuse it. Whether `allowedStyle` should match is
+for the orchestrator's next batch. It is a renderer-side defence-in-depth gap, not a way past the
+authority.
+
+### Mutants an implementer should expect to survive (named before, per rule 7)
+
+1. **I4**: a responder that calls `sync()` only for `screenshot`. It survives any test that asks
+   only for a screenshot. `hiddenHead` now asks for `computed`, `layout` and `screenshot`
+   (`parts/task-24.md:176`).
+2. **I8**: `url(#…)` rewritten only in `fill`. `TestSVG_idsPerNode` now carries `stroke`,
+   `clip-path` and `mask` too (`parts/task-07.md:415`).
+3. **I2**: step 3 matching `url(` case-sensitively. The `URL(` and `Url(` vectors kill it
+   (`parts/task-07.md:421`).
+
+**Owner decisions.** None new. The S11 "fail" branch (keep the webview unthrottled, or tell the user
+to restore the window) becomes an owner question only if S11 fails.
+
+**Hours** not re-estimated. The additions are about 45 minutes across tasks 01, 07, 08, 09, 23 and
+24; the task table still shows the old figures.
+
+**Restatement greps run** over the plan and every part, for:
+`requestAnimationFrame|rAF|visibilityState|ten checks|S1–S10|SanitiseSVG|Checker.SVG|SVG\(markup|canonical sanitised|TokenValue|CheckTokenValue|tokens.CSS|ExportHTML\(|setProperty`.
+Each hit was changed, or already agreed. The hits left are in phase 2's plan parts, which are
+another stream's and out of scope (`phase-2-parts/task-19.md`, visibility polling).
+
+**Unverified.** Nothing was built or run: this batch changes documents only. Checked against the
+real tree: x/net v0.26.0's SVG case tables are in the module cache (above). Whether jsdom's
+`DOMParser("image/svg+xml")` sets `namespaceURI` and yields a `parsererror` document the way
+Chromium does is not checked, and `svgNoNamespace` depends on it. So is how a minimised WebView2
+window behaves (S11 measures Edge only).
+
