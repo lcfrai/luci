@@ -429,8 +429,8 @@ tasks; each part says what it codes against until that task lands.
 
 **Total 82.5 hours**, the sum of the rows above (76 before b02; 80.5 before b03, whose I1 adds 1 h to task 22 and whose I5 adds 0.5 h each to tasks 01 and 21; re-review RR-M1) (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
 sizing note; tasks 10, 11 and 20a gain 0.5 h each for seam S5-P3.2, review I7; task 11 a further
-0.5 h for the whole-project replay, re-review RR-I7-1 and RR-I7-2). Critical path (≈ 33 h by
-earliest finish): 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17 → 20b → 21 → 22 → 28 → 30
+0.5 h for the whole-project replay, re-review RR-I7-1 and RR-I7-2). Critical path (≈ 34.5 h by
+earliest finish; 33 h before b03 added 0.5 h to 21 and 1 h to 22, both on it; 01's 0.5 h is off it): 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17 → 20b → 21 → 22 → 28 → 30
 (20a runs beside 15 and 16, off the path: it needs 14's `ports.go` and 19's `go.mod` lines, not 15 or 17,
 so it finishes at 20.5 h against 17's 21.5 h, re-review RR-I6-1; 20b waits for 17 because its `main.go` calls
 `mcp.Instructions` and `mcp.RegisterAll`, and for 19 because it calls `mcprelay.NewSupervisor`).

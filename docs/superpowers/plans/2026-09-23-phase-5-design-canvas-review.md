@@ -810,3 +810,74 @@ over the plan, every part, `docs/SEAMS.md` and the specs → no hits outside thi
 code. `git for-each-ref` with a trailing-slash prefix pattern matching every ref under it is from
 knowledge of git, not run here. Nothing was built or run: this batch changes documents only.
 
+## Fix batch b03 (2026-09-24) — I1, I5
+
+Paths are relative to `docs/superpowers/plans/`; `parts/` is `2026-09-23-phase-5-design-canvas-parts/`.
+Line numbers are as of commit `c000caf` (commits `d1e80bb` I1, `c000caf` I5; this section is the
+next commit). Phase 3 citations are
+to `.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence-parts/`.
+The review's own line numbers for task 22 (`:80-86`, `:48-53`) had moved to `:115-125` and
+`:48-84` under b01; the fix is at the text, wherever it now sits.
+
+### I1 — the handoff runs only hardened git, asks git for no path, and follows no link
+
+The review's fix, built as written, with three additions where the facts asked for more.
+
+| Finding part | Change | Where |
+|---|---|---|
+| bare `git -C … ls-files` | its one git call goes through phase 3's `gitx.Exec` (§HGH H1–H5): Class `Read`, Scope `Clone` for a clone, `Project` for the primary checkout (phase 3 `task-02.md:82-90`), behind a neutral `HandoffGit` port; `*UntrustedConfig` → `409 conflict` with phase 3's `clone_config_untrusted`/`project_config_untrusted` (`task-04.md:83-85`) | `parts/task-22.md:162-190`, `:204-208` |
+| named dependency | phase 3 tasks 02–03 are a **hard** dependency for route 24; `Config.HandoffGit` nil → `500 internal` *"phase 3 is not wired"*, never a bare-git fallback | `parts/task-22.md:3`; plan `:420`, `:541-542` |
+| `rev-parse --git-path info/exclude` | dropped: the path is `<path>/.git/info/exclude`, computed, only after `Lstat(<path>/.git)` shows a real directory (a gitfile, symlink or reparse point → `409 conflict`, `reason: "handoff_worktree_unsafe"`, no git run); `.git/info` and `exclude` checked through `NoFollow` | `parts/task-22.md:200-204`, `:214-222` |
+| `.panacea` symlink redirecting writes | `Materialise` step 4a Lstats `.panacea`, `.panacea/design`, `BundleDir` before any fetch; every step 4a–6 write goes through `NoFollow`, which Lstats **every** component on **every** call (`ModeSymlink`, `ModeIrregular`, Windows `FILE_ATTRIBUTE_REPARSE_POINT`) → `ErrWorktreeUnsafe` → `409 handoff_worktree_unsafe` | `parts/task-22.md:81-86`, `:94-101`, `:104-131`, `:24-25`, `:209-214` |
+| tests | the review's three (gitfile `.git`, symlinked `.panacea`, `core.fsmonitor=<marker>`) plus six: every-component guard, Windows junction, link planted mid-write, linked exclude, linked worktree, phase 3 unwired | `parts/task-22.md:258-266`; steps and mutants `:274-285` |
+| `Config.Worktrees` | a `worktree.Provider` gives no `Kind` and no hardened git, so route 24 cannot use it; task 22 now adds `Config.HandoffGit` (as task 21 adds `Hub`) and 20a/20b drop `Worktrees` | `parts/task-20.md:248-250`; `parts/task-20b.md:25-28`; plan `:336`, `:361` |
+
+**Additions, declared.** (1) A `linked` worktree is refused (`409`, `reason: "handoff_worktree_linked"`):
+its `.git` is a file naming a directory outside the mount, and phase 3's H5 does not pin it
+(`task-02.md:465-467`). The old text claimed linked-worktree support through `rev-parse`; that is
+withdrawn (`parts/task-22.md:196-200`, `:305-306`). (2) The exclude append writes a sibling temp and
+renames it over `exclude`, so an agent's hard link is replaced, not written through (`:217-219`).
+(3) If the append is refused after the bundle landed, the bundle this call created is removed, so no
+error leaves an unexcluded bundle (`:219-221`).
+
+**Residual, and an owner question.** `NoFollow` checks, then calls; an agent racing a swap between
+the two is not excluded. Go 1.24's `os.Root` closes it; the module stays on go 1.23 (program rule).
+`NoFollow` is the `FS` seam an `os.Root` FS replaces (`parts/task-22.md:124-128`, `:299-302`).
+
+**Mutants an implementer should expect to survive** (named before, per the program's rule 7):
+`NoFollow` testing `ModeSymlink` alone — a junction survives it everywhere but Windows, where only
+`TestNoFollow_windowsJunction` runs; and the `primary` row of `TestHandoff_fsmonitorNeverRuns`, if
+this git's `ls-files` never invokes `core.fsmonitor` — the part says so and makes the `clone` row
+the killer (`:265`).
+
+### I5 — approval captures one artboard per request, each on a measured deadline
+
+| Finding part | Change | Where |
+|---|---|---|
+| one request, every artboard, 15 s | task 21 step 4: one artboard per request, one after another, each through `RenderWithin(…, ApprovalRenderTimeout)` | `parts/task-21.md:272-284` |
+| "the constant cannot simply grow" | `RenderTimeout` stays 15 s for agents; `RenderWithin` refuses any timeout outside `(0, ApprovalRenderTimeout]` | `parts/task-13.md:100-110`, `:124-130` |
+| fail naming the artboard | `409 renderer_unavailable` with `details.artboardId`, `artboardName`, `index`, `total`, `renderError`, and a sentence naming it; nothing uploaded before every capture succeeds | `parts/task-21.md:279-284`; tests `:328-330` |
+| progress in the toast | `RenderRequest.Progress` (Go and TS), the responder's `onProgress`, the slice's `approvalProgress`, the toast's *"Capturing 3 of 12 · Billing"* (`tabular-nums`, no spinner) | `parts/task-13.md:46-57`; `parts/task-23.md:75-77`; `parts/task-24.md:114-122`, `:150`; `parts/task-27.md:109`, `:117`, `:156`; `parts/task-28.md:19-21`, `:42-46`, `:109` |
+| a measured deadline | S8 records per-artboard capture time at 1× and 2× (median, slowest; `captureMs`); `ApprovalRenderTimeout` = `max(30 s, 3 × slowest 2×)`, the report citing the row; over 10 s is a finding, not a bigger constant | `parts/task-01.md:41-47`, `:72`, `:100`, `:113`, `:120-122`, `:142-144`; `parts/task-13.md:104-109` |
+
+**Addition, declared.** The desktop's `approve` used `client.ts`'s 10 s `DEFAULT_TIMEOUT_MS`
+(`desktop/src/api/client.ts:33`, verified in the tree), shorter than one approval even before I5.
+It is now sent with `timeoutMs: 0`; the server bounds each capture (`parts/task-27.md:50`, test `:156`).
+Task 30's hands-on session re-times a twelve-artboard approval in WebView2 (`parts/task-30.md:125-129`),
+since S8 times Edge on one machine.
+
+**Hours.** Task 22 +1 h (3), tasks 01 and 21 +0.5 h each (2.5, 3.5): **total 82.5 h**, re-summed
+over the 31 rows (plan `:398`, `:419-420`, `:430`). The critical path runs through 21 and 22, so
+it grows from ≈ 33 h to ≈ 34.5 h (plan `:432-433`); 01 is off it (24 waits for 23 as well).
+
+**Restatement greps run:** `rev-parse|ls-files|info/exclude|git -C|Worktrees|worktree\.Provider`
+over the plan and every part → each hit changed or consistent. `15 s|RenderTimeout|50 per request|every artboard`
+→ only agent-facing uses of the 15 s budget remain (`task-13.md:166-169`); P5-H (`plan:212`) is
+unchanged, since an approval still covers every artboard.
+
+**Unverified.** Phase 3's names (`gitx.Exec`, `Scope`, `lanes.Catalog`, `project.Worktree.Kind`, the
+task-04 reasons) are cited from phase 3's plan parts, not from built code. That Go 1.23's `Lstat`
+reports a Windows junction as `ModeIrregular` is from the Go 1.23 release notes, not run here (the
+reparse-attribute check covers it if not). That `ls-files` runs `core.fsmonitor`, and every S8 time,
+are for the implementer to measure. Nothing was built or run: this batch changes documents only.
+
