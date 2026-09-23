@@ -9,6 +9,8 @@ import { LensPlaceholder } from "./lens/LensPlaceholder";
 import { DevelopLens } from "./develop/DevelopLens";
 import { ContextMenu } from "./menu/ContextMenu";
 import { Toasts } from "./common/Toasts";
+import { CommandPalette } from "./palette/CommandPalette";
+import { useKeyboardMap } from "../hooks/useKeyboardMap";
 import type { Lens } from "../store/types";
 import "./shell.css";
 
@@ -73,12 +75,9 @@ export function AppShell(): JSX.Element {
   const branchId = useCockpit((s) => s.selection.branchId);
   const lens = useCockpit((s) => s.lens);
 
-  // ── TASK 23 INSERTION POINT ────────────────────────────────────────────────────────
-  // Task 23 adds `useKeyboardMap();` here — ONE window keydown listener for the whole app
-  // (§6.8), and it must delegate Escape to closeTopOverlay() from hooks/useDismissable
-  // rather than tracking overlay state itself. Anchored guard for task 23:
-  //   grep -cE '^[[:space:]]+useKeyboardMap\(\);' src/components/AppShell.tsx
-  // ───────────────────────────────────────────────────────────────────────────────────
+  // §6.8: the ONE window keydown listener in the app, mounted once, here. Escape is NOT in
+  // it — hooks/useDismissable owns the overlay stack and therefore owns Escape (§6.9).
+  useKeyboardMap();
 
   const className = ["shell", "grain"]
     .concat(branchId === null ? [] : ["shell-deep"])
@@ -97,10 +96,7 @@ export function AppShell(): JSX.Element {
       </main>
       <ContextMenu />
       <Toasts />
-      {/* ── TASK 23 INSERTION POINT ──────────────────────────────────────────────────
-          Task 23 mounts <CommandPalette /> here. Anchored guard:
-            grep -cE '^[[:space:]]+<CommandPalette' src/components/AppShell.tsx
-          ───────────────────────────────────────────────────────────────────────── */}
+      <CommandPalette />
     </div>
   );
 }

@@ -219,3 +219,16 @@ export const selectSelectedBranch = (s: CockpitState): Branch | undefined => {
   if (projectId === null || branchId === null) return undefined;
   return (s.branchesByProject[projectId] ?? []).find((b) => b.id === branchId);
 };
+
+/** The worktree a new session should land on: the explicitly selected one, else the selected
+ *  branch's FIRST worktree in server order, else null. Contract §6.9 states that fallback as
+ *  the ⌘⏎ guard, and the palette's "New session…" row needs the same answer — two inline
+ *  copies would drift the day one of them starts preferring the primary worktree.
+ *  Addition to contract §3.7 by task 23, per Group D shared-shape §4. */
+export const selectTargetWorktreeId = (s: CockpitState): WorktreeId | null => {
+  const { branchId, worktreeId } = s.selection;
+  if (worktreeId !== null) return worktreeId;
+  if (branchId === null) return null;
+  const worktrees = s.worktreesByBranch[branchId] ?? [];
+  return worktrees.length === 0 ? null : worktrees[0].id;
+};
