@@ -533,3 +533,188 @@ states stand and the viewport gains our editor. What the editor carries, modelle
   brief found (S2) does not arise. `OD-9` says the cockpit wins by default; the plan settles which
   canvas keys (`V`, `F`, `T`, `H`, `Z`, …) sit under that rule.
 
+## 8. Our MCP server — the v1 tool surface
+
+Server name `panacea-canvas`. Streamable HTTP, reached as §7.7 describes. **Tool names follow
+Paper's verbs where the verb is simply the obvious name** (`write_html`, `update_styles`,
+`duplicate_nodes` …), because agents and users who know Paper's workflows should feel at home; the
+schemas, errors and additions are ours (OQ-5). Every tool is scoped to the calling session's
+branch canvas. Arguments are indicative; the plan finalises types.
+
+### 8.1 Read
+
+| Tool | Arguments | Returns | Paper analogue |
+|---|---|---|---|
+| `get_canvas_info` | — | canvas id, revision, pages, artboards (id, name, size), fonts in use, live claims, approval state, **brief chip state** (`current`/`superseded`/`none`/…) | `get_basic_info` |
+| `get_brief` | — | brief key, revision, head revision, text, resolved through phase 4's resolver | *none — ours* |
+| `get_selection` | — | the human's selection in the attached editor; empty if none attached | `get_selection` |
+| `get_node` | `nodeId`, `at?` | kind, name, parent, child ids, text, locked, hidden, revision, `lastEditedBy`, and size when a renderer is attached | `get_node_info` |
+| `get_children` | `nodeId`, `at?` | direct children with kind, name, child count | `get_children` |
+| `get_tree_summary` | `nodeId`, `depth?`, `at?` | compact indented outline | `get_tree_summary` |
+| `find_nodes` | `name?`, `kind?`, `text?`, `usesToken?` | matching ids with names and artboard | `find_nodes` |
+| `get_html` | `nodeId`, `at?` | the canonical dialect for the subtree | *none — ours; round-trip friendly* |
+| `get_jsx` | `nodeId`, `format` ∈ {`tailwind`, `inline`}, `at?` | JSX string | `get_jsx` |
+| `get_computed_styles` | `nodeIds[]` | computed CSS per node — **renderer required** | `get_computed_styles` |
+| `get_screenshot` | `nodeId`, `scale` ∈ {1, 2} | PNG image content — **renderer required** | `get_screenshot` |
+| `get_asset` | `asset` | bytes and media type | `get_fill_image` |
+| `get_font_info` | `family` | available? weights, styles, variable axes | `get_font_family_info` |
+| `get_guide` | `topic` ∈ {`canvas-rules`, `design-quality`, `design-to-code`, `code-to-design`, `figma-via-mcp`} | markdown guide | `get_guide` |
+| `list_activity` | `sinceRevision` | ops since, each with author (human or session), node ids and revision | *none — ours; how an agent sees what others changed* |
+
+`at` is `head` (default) or `approved`, so a Develop agent reads the **approved** design exactly
+(§7.6), not whatever the canvas holds today.
+
+### 8.2 Write
+
+Every write takes an optional `ifRevision` (§7.4), returns the new canvas revision and the ids it
+touched, and on first touch **claims** the artboard for the caller.
+
+| Tool | Arguments | Behaviour | Paper analogue |
+|---|---|---|---|
+| `create_page` | `name` | new page | `create_page` |
+| `create_artboard` | `name?`, `styles?`, `pageId?` | new artboard, claimed by the caller | `create_artboard` |
+| `write_html` | `targetId`, `mode` ∈ {`insert-children`, `replace`}, `html` | sanitise to the dialect (§7.3), then insert or replace; returns created ids **and a `dropped` report** | `write_html` |
+| `set_text` | `items[{nodeId, text}]` | batch | `set_text_content` |
+| `update_styles` | `items[{nodeIds[], styles}]` | batch; each property checked against the allowlist | `update_styles` |
+| `rename_nodes` | `items[{nodeId, name}]` | batch | `rename_nodes` |
+| `duplicate_nodes` | `nodeIds[]`, `targetParentId?` | deep clone; returns new ids and a descendant id map | `duplicate_nodes` |
+| `move_nodes` | `nodeIds[]`, `targetParentId`, `index?` | reorder or reparent, ids preserved; a cycle is rejected | `move_nodes` |
+| `delete_nodes` | `nodeIds[]` | node and descendants | `delete_nodes` |
+| `upload_asset` | `bytes` (base64), `mediaType` | content-addressed asset ref for `img` / fills | *none — Paper reads local paths* |
+| `start_working` | `artboardIds[]`, `shared?` | explicit claim, for an agent that plans before it writes | *implicit in Paper* |
+| `finish_working` | `artboardIds?` | release claims, clear the working indicator | `finish_working_on_nodes` |
+| `request_review` | `artboardIds[]`, `note` | a needs-you row in the cockpit queue; **never approves** | *none — ours* |
+
+### 8.3 Tokens, comments, export
+
+| Tool | Arguments | Behaviour | Paper analogue |
+|---|---|---|---|
+| `get_tokens` | — | every token with type and value | `get_tokens` |
+| `set_tokens` | `upsert[{name, type, value}]`, `delete[]` | batch; every use updates | `create_tokens` + `set_tokens` |
+| `list_comment_threads` | `status?` | threads with anchor node, status, last message | `list_comment_threads` |
+| `get_comment_thread` | `threadId` | all messages with authors | `get_comment_thread` |
+| `reply_to_comment_thread` | `threadId`, `text` | the agent answers the human in place | *none listed publicly* |
+| `set_comment_thread_status` | `threadId`, `status` ∈ {`open`, `resolved`} | resolve or reopen | `set_comment_thread_status` |
+| `export` | `nodeIds[]`, `format` ∈ {`png`, `html`, `jsx`}, `scale?` | bytes per node; PNG needs a renderer | `export` |
+
+### 8.4 Errors, instructions, limits
+
+- **Typed errors**, one closed set: `not-found`, `conflict` (with the current revision), `claimed`
+  (with the holder and expiry), `rejected-html` (nothing valid survived; the `dropped` report says
+  why), `renderer-unavailable` (open the Design lens, or the desktop is not running), `too-large`,
+  `out-of-scope`. An agent can act on every one without a human.
+- **Not in MCP, on purpose:** approve, bind or re-bind a brief, delete a canvas, break another
+  session's claim, list other projects' canvases.
+- **Server instructions** in the MCP `initialize` response carry the short rules, written by us, in
+  the spirit of Paper's [S10]: orient with `get_canvas_info` and `get_brief`; check fonts before
+  type; one visual group per `write_html`; screenshot after meaningful changes; read exact values
+  from data, not pixels; `finish_working` when done; `request_review` when ready. The long form is
+  `get_guide`.
+- **Limits** (proposed, the plan sets them): 64 KiB of HTML per write; 10 MiB per asset; 4096 px
+  longest screenshot edge. **No per-call metering** — Paper meters by plan [S8]; our cost is the
+  user's own agent capacity, which phase 6 already accounts for.
+
+## 9. Prioritised features
+
+Ordered by risk retired per unit of effort (`PROGRAM.md`), then by what the owner asked for.
+
+### 9.1 v1 — one person, many agents, one approved design
+
+| # | Feature | Why it is here | Done when |
+|---|---|---|---|
+| 1 | **Spike: the artboard iframe in WebView2** — script-less, same-origin; the parent measures, edits text, catches keys, and captures a PNG | Every later item assumes it; untested in our shell (§7.5) | A throwaway test page proves all four, or names which fails |
+| 2 | **Document authority** (Go): model, ops, revisions, fractional order, persistence, sanitiser, canonical HTML, digest | The core; everything reads or writes it | Round-trip tests: HTML in → canonical HTML out, stable digest |
+| 3 | **MCP server**, §8.1–§8.3 without comments, typed errors, instructions, guides | The owner's *"with the MCP"* | A real Claude Code session builds a settings page from a prompt |
+| 4 | **Sandbox relay** in `sandboxd` + the Claude Code launch flag | Agents cannot reach loopback otherwise (§7.7) | The session in item 3 runs in a Docker sandbox, not on the host |
+| 5 | **Renderer**: live artboards from ops; computed styles and screenshots served to agents | Agents verify their own work visually (Paper's loop, §3.4) | `get_screenshot` returns the artboard as the human sees it |
+| 6 | **Editor**: select, marquee, move, resize, layers, flex/absolute layout panel, fill/border/radius/shadow/type panels, text in place, per-author undo, code panel | A human must be able to finish what an agent started | The same page is edited by hand without touching HTML |
+| 7 | **Tokens**: Theme tab, token picker per field, `get_tokens`/`set_tokens`, CSS and DTCG out | Design-to-code needs a system, not hex | An agent creates tokens from the repo's CSS variables [S3] |
+| 8 | **Parallel agents**: claims, `ifRevision`, presence on the heartbeat, activity feed, revert-by-session | Our product's defining case (§7.4) | Two agents on two artboards never collide; on one artboard the second gets `claimed` |
+| 9 | **Comments**, with the four comment tools | The human-to-agent channel on the canvas | An agent resolves a comment it acted on |
+| 10 | **Provenance**: binding, `get_brief`, approve from chrome, digest, design link to the Hub, snapshot captured, *changed after approval*, the brief chip's six states | The spine (`CLAUDE.md`) | The owner's provenance test, `provenance-contract-draft.md` §4 |
+| 11 | **Handoff**: bundle into the worktree; *Start a Develop session from this design*; `at: approved` reads | The thread carried into Develop | A Develop agent implements the approved screen from the bundle |
+| 12 | **Paste**: HTML with inline styles, SVG, images | Paper parity [S4]; the cheapest import | Pasting a styled fragment yields editable nodes and a dropped report |
+| 13 | **Licence gate in CI** — Go and npm, MIT/Apache-2.0/BSD/ISC only | `OD-11` rule 3 | CI fails on a deliberately added MPL package |
+
+### 9.2 v2 — people together, richer systems
+
+| Feature | Note |
+|---|---|
+| **Multiplayer across people**, through the Hub: live cursors, follow, selections, presence, cursor chat | Server-authoritative per-property last-writer-wins [S26]; needs identity from the Hub (`OD-6`) |
+| **Components with slots**, instances, overrides | Paper's roadmap item [S7]; we promote `x-clone` into real instances |
+| **CSS Grid** and `margin` in the dialect | Paper plans grid [S7]; dashboards need it |
+| **Theme modes** (dark, compact) for tokens | Paper's roadmap [S3] |
+| **MCP wiring for Codex, OpenCode, Gemini CLI** | Each through its own documented MCP configuration |
+| **Figma via Figma's MCP**, tested and supported | Zero importer code from us; needs the user's own Figma seat and sandbox egress to Figma (OQ-12) |
+| **Import from a running preview** — a page of the worktree's dev server into editable nodes | Paper Snapshot's job [S5], done locally |
+| **Export**: SVG, PDF, WebP | Paper parity [S5] |
+| **Visual diff between two revisions** | Paper's CI vision [S13]; pairs with *changed after approval* |
+| **Pen tool and vector editing** | Paper shipped 2026-06 [S5], [S9] |
+
+### 9.3 Later
+
+- **Real code components on the canvas** (Paper's *"Use your code components"* [S7]). Rendering
+  repo components means **running code**, which §7.1 rule 4 forbids inside the canvas; it needs its
+  own isolated preview surface and its own security design.
+- **Sketch boards on Excalidraw** (MIT; `OD-11` rule 3 allows it) for wireframes beside real frames.
+- **Remix** variations from the context menu [S7].
+- Shaders, video export, image generation — each is egress or a vendor; each needs the owner and
+  security.
+- Continuous code ↔ canvas sync.
+- View-only sharing outside the team.
+
+## 10. Permissively licensed building blocks
+
+**Rule** (`OD-11` rule 3): MIT, Apache-2.0, BSD or ISC only; tldraw excluded; Excalidraw allowed.
+Every licence below was checked on 2026-09-23 against the GitHub API's `license` field, and where
+that said `NOASSERTION` or `null`, against the `LICENSE` file or the npm registry. Sources in
+§12.2. **A licence on a repository's front page is not the licence of every package it ships**; the
+CI gate checks each resolved package, and this table is not a substitute for it.
+
+### 10.1 Recommended
+
+| Part | Use | Licence (verified) | Note |
+|---|---|---|---|
+| `golang.org/x/net/html` | Parse agent and pasted HTML in Go | BSD-3-Clause [L1] | Go project |
+| `microcosm-cc/bluemonday` | Element/attribute allowlist sanitiser | BSD-3-Clause [L2] | We add a CSS property allowlist on top |
+| `tdewolff/parse` | Tokenise inline CSS in Go | MIT [L3] | For the property allowlist and `url()` checks |
+| `modelcontextprotocol/go-sdk` | The MCP server in Go | **Mixed**: Apache-2.0 for new code, MIT for un-relicensed older contributions, CC-BY-4.0 for docs [L4] | All three code licences are allowed; the gate must accept the compound expression. Maintained with Google |
+| `mark3labs/mcp-go` | Alternative MCP server in Go | MIT [L5] | Fallback if the official SDK lags a transport we need |
+| `coder/websocket` | Relay and op channel | ISC [L6] | **Already a dependency** (`control-plane/internal/proxy/proxy.go:9`) |
+| `daybrush/moveable` | Drag, resize, rotate, snap handles | MIT [L7] | Last pushed 2024-06; evaluate maintenance in the spike |
+| `daybrush/selecto` | Marquee selection | MIT [L8] | Same author; last pushed 2024-06 |
+| `pmndrs/use-gesture` | Pan, zoom, pinch | MIT [L9] | |
+| `mourner/rbush` | Spatial index for hit-testing and snapping | MIT [L10] | |
+| `Evercoder/culori` | OKLCH / P3 colour maths and parsing | MIT [L11] | Matches the design system's OKLCH (`DESIGN-SYSTEM.md:33`) |
+| `cure53/DOMPurify` | Renderer-side sanitising, defence in depth | Apache-2.0 [L12] | The `LICENSE` file is Apache-2.0 only |
+| `bubkoo/html-to-image` or `qq15725/modern-screenshot` | DOM → PNG for `get_screenshot` and export | MIT [L13], MIT [L14] | Fidelity against WebView2's native capture is spike item 1 |
+| CodeMirror 6 (`@codemirror/view` …) | The code panel | MIT (npm, `@codemirror/view` 6.43.13) [L15] | The `codemirror/dev` repo is archived and reports `NOASSERTION`; check per package |
+| `foliojs/fontkit` | Font axes, weights, OpenType features for `get_font_info` | MIT (npm 2.0.4) [L16] | GitHub reports `license: null`; the npm field says MIT |
+| `fontello/svgpath` | SVG path normalising | MIT [L17] | |
+| `style-dictionary/style-dictionary` | Optional token transforms (CSS, DTCG) | Apache-2.0 [L18] | We may write the two outputs directly instead |
+| `tailwindlabs/tailwindcss` | Class vocabulary for Tailwind JSX output | MIT [L19] | Needed only if we render or validate Tailwind |
+| `excalidraw/excalidraw` | Later sketch boards | MIT [L20] | Named as allowed by `OD-11` |
+| `yjs/yjs` | Only if v2 wants collaborative rich-text editing inside a text node | MIT (`LICENSE` file) [L21] | Not needed for the node tree, which is server-authoritative |
+| `google/go-licenses` | The Go half of the licence gate | Apache-2.0 [L22] | |
+| `RSeidelsohn/license-checker-rseidelsohn` | The npm half of the licence gate | BSD-3-Clause [L23] | |
+
+### 10.2 Allowed, but not recommended as a base
+
+| Project | Licence (verified) | Why not |
+|---|---|---|
+| GrapesJS | BSD-3-Clause (`packages/core/LICENSE`) [L24] | A whole web-builder framework with its own component model and editor. Adopting it replaces our model rather than serving it |
+| Onlook | Apache-2.0 [L25] | A product (an AI-first editor over a React codebase), not a library. Useful as a public reference |
+| craft.js | MIT [L26] | A React-component page editor; its model is React components, not HTML nodes |
+
+### 10.3 Excluded
+
+| Project | Licence (verified) | Reason |
+|---|---|---|
+| tldraw | Custom licence: *"Not to use the Software in Production Environments"* without a key [L27] | `OD-11` rule 3 |
+| Penpot | MPL-2.0 [L28] | Not on the allowed list |
+| Webstudio | AGPL-3.0 [L29] | AGPL; never opened |
+| Lightning CSS | MPL-2.0 [L30] | Not on the allowed list; we tokenise CSS in Go instead |
+| `rocicorp/fractional-indexing` | CC0-1.0 [L31] | Not on the allowed list (OQ-8); the algorithm is published [S26] and small enough to write ourselves |
+| `paper-design/agent-plugins` | No licence (`license: null`) [S18] | Read for product behaviour only; nothing copied |
+| `~/Projects/Paperdesign`, `kgoedecke/doop` | AGPL-3.0 (per `OD-11`) | **Never opened for this document** |
+
