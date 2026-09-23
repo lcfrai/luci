@@ -184,7 +184,12 @@ one legacy group binding with empty `grantee`), `urlprefix.json`, `urlprefix-409
   `:4383-4420` (`ClearBranchURLPrefix`), and record their response envelopes in this part's
   table before writing the decoders. The table above marks the one it did not read.
 - [ ] Write the testdata and the tests; they fail to compile.
-- [ ] Write the DTOs, `acts.go`, `governance.go`; extend `panaceatest.Server`.
+- [ ] Write the DTOs, `acts.go`, `governance.go`; extend `panaceatest.Server`. Its
+  `GET B/access` already answers `env` from task 03's `BranchEnvironment` table; `PostureWord`
+  adds the posture fields to the **same** body, and the route fails only for a branch seeded in
+  neither table, with `env` omitted when only a posture word is seeded (task 03's
+  `panaceatest.Server` paragraph; b02 round 2, R3). Otherwise `UnknownPostureFailsClosed`, which
+  seeds only `PostureWord`, would hit the unseeded-branch `t.Errorf` by design.
 - [ ] Add the conformance rows; run everything green; commit by pathspec.
 
 #### Acceptance

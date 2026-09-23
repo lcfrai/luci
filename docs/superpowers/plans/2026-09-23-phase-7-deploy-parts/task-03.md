@@ -255,6 +255,7 @@ truth the mapping tests read.
 | `projects.json` | two projects, one with `repoUrl`, one without |
 | `environments.json` | `production` (primary, `branch: "main"`, `replicas` present), and `feat-evidence-upload` with **`branch: "feat-evidence-upload"`** — Panacea's `Env == Branch` for a non-base row (`projects.go:2109-2118`), never `feat/evidence-upload` — and no `replicas` key |
 | `branch-access-feat-x.json`, `branch-access-long.json`, `branch-access-main.json` | `branches/{branch}/access` (`project_security.go:668-677`) for `feat/x` → `env: "feat-x"`; `lane/7-deploy-connector-watcher` (31 characters) → `env: "lane-7-deploy-connec"` (`sanitizeBranchEnv`'s 20-character cut, `projects.go:3818-3820`); `main` → `env: "prod"` (`mapBranchToEnv`, `projects.go:3785-3786`). Each `_source` line names the handler line; the values are Panacea's rule applied by hand to write the fixture, and appear nowhere in production code |
+| `branch-access-annotation-only.json` | the same route for `develop` on a project whose production branch is the annotation `primary-branch=develop` with no label → `env: "develop"` (`branch_security.go:32` reads the label only; the deploy would land `develop` in `prod`, `pipeline.go:233-237`). Pins the divergence (b02 round 2, R1) |
 | `latest.json`, `latest-404.json` | `deploys/latest`; the 404 is `{"error":"no deployments yet for project engagement-portal"}` (`projects.go:1539`) |
 | `deployments.json` | four rows: a `Succeeded` newest with `liveReadyReplicas: 0` and a `scanStatus`; a `Failed` with `failedStep`; a `historical` backfilled row; one with an empty `version` |
 | `run-running.json`, `run-failed.json` | `pipelines/{run}` |
@@ -282,10 +283,15 @@ var _ deploytest.Seeder = (*Server)(nil)
 ```
 
 `Server.BranchEnvironment` fills a table, and `GET P/branches/{branch}/access` answers `data.env`
-from it after `url.PathUnescape` of the segment. The server holds **no** naming rule: an unseeded
-branch is a test bug, answered `500` with `t.Errorf("panaceatest: no environment seeded for branch
-%q")`, where real Panacea would answer for any branch. So no fixture ever matches a branch to a row
-by name.
+from it after `url.PathUnescape` of the segment. The server holds **no** naming rule. The route
+has **two** seeds, because task 04's `Posture` reads the same body (b02 round 2, R3): the server
+answers from both tables — `env` from `BranchEnvironment`, and the posture fields from task 04's
+posture seed — and **omits `env`** when only a posture is seeded. A branch seeded in **neither**
+is a test bug, answered `500` with `t.Errorf("panaceatest: branch %q seeded in neither table")`,
+where real Panacea would answer for any branch. So conformance row `UnknownPostureFailsClosed`
+(task 01), which seeds only a posture word, still runs over the connector, and no fixture ever
+matches a branch to a row by name. `EnvironmentFor` on a posture-only branch reads the missing
+`env` as `KindUnavailable` (the empty-answer rule above).
 
 #### Conformance rows this task adds (`deploytest/conformance.go`)
 
@@ -307,6 +313,8 @@ by name.
 | `TestSameEnvironment` | `("prod","production")`, `("production","prod")` → true; `("prod","prod-eu")`, `("feat-a","feat-b")` → false; the test's comment quotes `clients/kubernetes.go:4213` | a prefix match that joins `production` to `production-eu` |
 | `TestPathEscapesBranchAndEnv` | `Pods(p, "feat/x")` requests `/environments/feat%2Fx/pods` | an unescaped `/` routing to a different Panacea handler |
 | `TestEnvironmentForReadsPanaceasName` | the three `branch-access-*.json` bodies: `EnvironmentFor(p, "feat/x")` requests `GET /api/v1/projects/engagement-portal/branches/feat%2Fx/access` and returns `"feat-x"`; the 31-character branch returns `"lane-7-deploy-connec"`; `main` returns `"prod"`; a body with `"env": ""` → `KindUnavailable`; and **no** request to `/environments` is made | returning the branch unchanged, or a fourth `sanitizeBranchEnv` in the connector (review C2) |
+| `TestEnvironmentForRouteNotFound` | the route answering Go's router body `404 page not found` → `KindNotFound` with the message *"Panacea could not read this branch name. It may contain `/`, which the route cannot carry."*, never the router's text (b02 round 2, R2) | a refusal that tells the user their project does not exist |
+| `TestEnvironmentForIsTheAccessRoutesMapping` | recorded body `branch-access-annotation-only.json` — the access route for `develop` on a project with annotation `primary-branch=develop` and no `production-branch` label, where `branchEnv` passes `prodBranch ""` (`branch_security.go:32`) and `mapBranchToEnv("develop")` answers `develop` — → `EnvironmentFor(p, "develop") == "develop"`, **not** `prod`, although the deploy lands that branch in `prod` (`pipeline.go:233-237`). The test's comment names the divergence and Q-P7-6 (b02 round 2, R1) | a connector that "fixes" Panacea's answer with a copy of `ResolveProductionBranch`, or a test suite that forgets the answer can be wrong |
 | `TestEnvironmentForJoinsProduction` | `SameEnvironment(EnvironmentFor(p,"main"), "production")` is true against `environments.json` — the prod row joins | an exact-name join that leaves production's branch with no card (review I8's twin) |
 | `TestTextPlain403` | `error-text-plain-403.txt` → `KindForbidden` with the full sentence | a decoder gated on `Content-Type: application/json` that loses Panacea's most actionable sentence |
 | `TestConformanceOverConnector` | `deploytest.Conformance(t, panaceaHarness)` | the connector and the fake disagreeing about any row |

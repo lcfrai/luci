@@ -758,7 +758,7 @@ recorded Panacea bodies.
   `prod`/`production` mislabel). Panacea fixed the same class for posture
   (`handlers/posture_env_prodbranch_test.go`) but not here. Phase 7 shows the disagreement after a
   deploy (task 08, rule 5a) and does not correct it. How many live projects are annotation-only or
-  mislabelled was not counted; `LIVE-CHECK.md` step 7 compares the two answers for the live
+  mislabelled was not counted; `LIVE-CHECK.md` step 5a (task 20) compares the two answers for the live
   project. The fix is Panacea's (Q-P7-6).
 - **Whether `developer` is accepted as a role spelling on `POST …/access`** — task 04 sends `editor`,
   the spelling `access.go` produces (`middleware/rbac.go:219`).

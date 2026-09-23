@@ -66,6 +66,8 @@ counts, never a body and never the token.
 // Run in the owner's session only (LIVE-CHECK.md step 3):
 //   PANACEA_APP_LIVE_PROJECT=<panacea project> PANACEA_APP_LIVE_ENV=<an environment name> \
 //   go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/
+// Step 5a adds PANACEA_APP_LIVE_PROD_BRANCH=<the production branch from the portal's settings>.
+// These three are test-only inputs, never read by the control plane.
 package panacea_test
 
 import (
@@ -183,6 +185,17 @@ func TestLiveEnvironmentsAndBranches(t *testing.T) {
 		t.Fatalf("EnvironmentFor(live-check/p7): %v", err)
 	}
 	t.Logf("environmentFor live-check/p7=%q", name)
+	// b02 round 2, R1: the access route reads the production branch from the label only
+	// (branch_security.go:32); the deploy resolves label → annotation → main (pipeline.go:233-237).
+	// For the project's real production branch, read from the portal's settings by the owner, the
+	// answer should join the primary row. A name that does not is the Q-P7-6 defect, seen live.
+	if pb := os.Getenv("PANACEA_APP_LIVE_PROD_BRANCH"); pb != "" {
+		got, err := d.EnvironmentFor(ctx, ref, pb)
+		if err != nil {
+			t.Fatalf("EnvironmentFor(%s): %v", pb, err)
+		}
+		t.Logf("environmentFor productionBranch=%q joinsProduction=%v", got, d.SameEnvironment(got, "production"))
+	}
 }
 
 // Task 12: frames must arrive while the stream is open, not all at once when it closes — a
@@ -403,6 +416,7 @@ write below touches **only** that branch. Write down its posture and auto-deploy
 | 3 | `PANACEA_APP_LIVE_PROJECT=<project> PANACEA_APP_LIVE_ENV=<an env> go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/` | `ok`; copy the logged environment names, the `withSlashInBranch` count and every `live-only key` line here | task 03's recorded bodies against live keys (plan §4 rows 2–9); repoUrl for a non-admin token (plan §12); `ParseRemote` on a real URL (task 06); `prod` vs `production` (7P-8); branch names with `/` (task 08); stream not buffered (task 12) | |
 | 4 | Select the project | *bound* to the Panacea project, with no question asked — or the one choice | task 06 | |
 | 5 | Compare the environment card with the Panacea portal for one environment | version, commit and pods ready agree; the three facts are three | tasks 08, 15 | |
+| 5a | Read the project's production branch in the portal's settings; rerun step 3 with `PANACEA_APP_LIVE_PROD_BRANCH=<it>` added | the log line `environmentFor productionBranch="prod" joinsProduction=true` | whether the access route agrees with the deploy for this project (plan §12, Q-P7-6; b02 round 2, R1). `joinsProduction=false` is the Panacea defect live: record it and send it with the Q-P7-2 note | |
 | 6 | On `live-check/p7`: Ship, then Undo inside 5 s | nothing new in the portal's pipeline list; before the Ship, the card names Panacea's environment for the branch (`live-check-p7`, the portal's name for it) and not *"Asking Panacea…"* | 7P-15, task 16; the `%2F` read of `GET P/branches/live-check%2Fp7/access` through the ingress (plan §12, review b02) | |
 | 7 | Ship again and wait; open the release; **Follow build log**; scroll up while it runs | the run shows within about 3 s; lines arrive as they happen; the pane does not jump | tasks 09, 12, 17; the `Idempotency-Key` preflight (task 05, review C1) | |
 | 8 | Read the manifest | the pin is the brief's latest complete revision; the session from the scratch commit is listed | tasks 09, 17, 19; Hub H5 | |
