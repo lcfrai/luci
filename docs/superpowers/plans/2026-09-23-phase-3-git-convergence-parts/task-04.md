@@ -8,9 +8,14 @@ appends to: **one** `Deps` field (`Git *GitDeps`), a phase 3 file for the rest
 table (`api/gitroutes.go`). After this task, later tasks edit `gitdeps.go` and `gitroutes.go`,
 not `api.go` (dependency-graph §4.2's "marked, contiguous block" rule, made structural).
 
-**Gate G1 holds before this task starts**: `grep -n "func sessionEnv" control-plane/internal/api/sessions.go`
-and `grep -n "GitIdentity func" control-plane/internal/api/api.go` each find one line. If not,
-stop and report.
+**Gate G1 holds before this task starts**, with phase 2's line-ending round in (plan "Gate G1";
+re-review b03 I-4: the older `func sessionEnv` and `GitIdentity func` greps match phase 3's base
+without that round, so they stopped nothing):
+`grep -c 'func sessionEnv(id GitIdentity, eol GitLineEndings' control-plane/internal/api/sessions.go`
+is 1 and `grep -c '{"core.eol", eol.EOL}' control-plane/internal/api/sessions.go` is 1 (task 05's
+Step 1 greps, the same two). If either is 0, stop and report. This task edits
+`handleSessionCreate` and `handleSessionRestart` (the mount guard below), which those rounds
+also changed, so it must start on them.
 
 **Files:**
 - `control-plane/internal/api/api.go` — `Deps.Git *GitDeps`; `a.registerGit(guarded)` (p2, two lines)
@@ -18,6 +23,8 @@ stop and report.
 - `control-plane/internal/api/gitroutes.go` — `gitRoutes()`, `registerGit` (new)
 - `control-plane/internal/api/worktrees.go` + `worktrees_test.go` — the create handler (new)
 - `control-plane/internal/api/catalog.go` — `worktreeJSON.Kind` (p2, one field, one assignment)
+- `control-plane/internal/api/mounts.go` + `mounts_test.go` — `MountGuard`, task 03's `lanes.MountGuard` (new; re-review b03 I-2)
+- `control-plane/internal/api/sessions.go` — the Store write that makes a session starting runs inside `MountGuard.Admit`, in create and in restart (p2, two call sites)
 - `control-plane/internal/httpx/problem.go` — `CodeGitFailed`, `CodeHostFailed` (p2, two constants)
 - `control-plane/cmd/api/config.go` — `PANACEA_APP_WORKTREES_DIR` (p2)
 - `control-plane/cmd/api/main.go` — the phase 3 wiring block (p2)
@@ -53,7 +60,33 @@ type GitDeps struct {
 	// VersionErr is gitx.CheckVersion's startup error, or nil. Non-nil makes every phase 3
 	// route that runs git answer 409 conflict, reason git_too_old, with its sentence.
 	VersionErr error
+	// Mounts is the one MountGuard. main.go gives the same value to Creator.Mounts; session
+	// create and restart admit through it. Deps.Git == nil admits without a lock: no lane can
+	// be created then, so there is no copy to order against.
+	Mounts *MountGuard
 }
+```
+
+```go
+// mounts.go
+package api
+
+// MountGuard is task 03's lanes.MountGuard over the session registry (re-review b03 I-2).
+// Session create has no lock of its own to share (sessions.go at 8236ba1 serialises only
+// restarts, per id, in sessionIDSet), so this is that lock. One mutex orders two things:
+//   - Admit(dir, fn) runs fn, the Store write that makes a session on dir StatusStarting
+//     before its sandbox starts (create's Store.Create, restart's Store.Update; at 10fa5fd
+//     sessions.go:689 and :1316, each before its Backend.Create at :729 and :1340);
+//   - WhileUnmounted(ctx, dir, fn) lists the registry (Store.List) and runs fn only when no
+//     session whose Status is not registry.StatusExited resolves, through Worktrees.Path, to
+//     dir. A List or Path error is logged and counts as mounted: fail closed. err is fn's.
+// Paths compare after filepath.Clean, and case-folded on Windows. So a lane's hooks copy out
+// of a project's working tree and a sandbox mounting that tree never overlap.
+type MountGuard struct{ /* mu sync.Mutex; store registry.Store; paths worktree.Provider; log */ }
+
+func NewMountGuard(store registry.Store, paths worktree.Provider, log *slog.Logger) *MountGuard
+func (g *MountGuard) Admit(dir string, fn func() error) error // nil g runs fn unlocked
+func (g *MountGuard) WhileUnmounted(ctx context.Context, dir string, fn func() error) (bool, error)
 
 // The closed list of details.reason on a phase 3 409 conflict. The desktop switches on it;
 // it never reads the message to decide anything.
@@ -198,11 +231,15 @@ func (a *API) registerGit(mux *routes) {
 		catalog := &lanes.Catalog{Source: scanner, Store: laneStore}
 		enumerator, worktrees = catalog, catalog // both Deps.Projects and Deps.Worktrees
 	}
+	// The registry store and logger main.go already passes as Deps.Store and Deps.Log; the
+	// catalog above as the path resolver, so both sides resolve a worktree the same way.
+	mounts := api.NewMountGuard(store, worktrees, log)
 	gitDeps := &api.GitDeps{
 		Machine:    machine,
 		Lanes:      laneStore,
-		Creator:    &lanes.Creator{Machine: machine, Store: laneStore},
+		Creator:    &lanes.Creator{Machine: machine, Store: laneStore, Mounts: mounts},
 		VersionErr: gitVersionErr,
+		Mounts:     mounts,
 	}
 	// and in the startup log line: "git", gitVersion, "worktrees", cfg.WorktreesDir
 ```
@@ -225,18 +262,24 @@ false for a new id).
 | `TestCatalogWorktreeJSONCarriesKind` | GET list over a fake enumerator returning each Kind → the three strings on the wire | the field dropped at the JSON boundary |
 | `TestRegisteredRoutesIncludeWorktreeCreate` | `RegisteredPatterns()` contains the POST, and the existing §10a audit still passes | a route registered on the raw mux |
 | `TestLoadConfigWorktreesDir` (cmd/api) | default is `statepath.Dir("worktrees")`; relative → error; inside projects dir → error naming both variables; containing it → error | clones scanned as projects |
-| `TestServeWiresGit` (cmd/api) | the Deps `serve` builds has a non-nil `Git` whose Creator's Machine root is `cfg.WorktreesDir` | a production build with phase 3 unwired |
+| `TestServeWiresGit` (cmd/api) | the Deps `serve` builds has a non-nil `Git` whose Creator's Machine root is `cfg.WorktreesDir`, and whose `Creator.Mounts` is non-nil and the same pointer as `Git.Mounts` | a production build with phase 3 unwired, or two guards that order nothing |
+| `TestMountGuardRefusesALiveSession` (re-review b03 I-2) | a registry session on `w-1`, which the fake Provider resolves to `dir`: `StatusStarting` and running → `WhileUnmounted` returns false and fn never runs; `StatusExited` → true, fn ran; `dir` in other case on Windows → still false | a copy out of a tree a live sandbox can rewrite |
+| `TestMountGuardOrdersAdmitAfterTheCopy` | fn blocks on a channel; a concurrent `Admit(dir, …)` has not run its fn when the channel is released, and runs it after (an ordered event log, under `-race`) | two locks, or none, so a sandbox starts mid-copy |
+| `TestMountGuardFailsClosed` | `Store.List` errors, or `Path` errors for a live session → false, fn never runs, one log line | a registry glitch read as "nothing mounted" |
+| `TestSessionCreateAndRestartAdmitThroughTheGuard` | with a `WhileUnmounted` fn held open on the primary worktree's path, a session create and a restart on it do not reach `Backend.Create` until it is released; with `Deps.Git == nil`, create still works | a session start that bypasses the guard |
 | `TestGitIdentityUsesGitxParseIdent` (cmd/api) | the fix's `gitidentity_test.go` cases still pass after the swap | two parsers of one line drifting |
 
 #### Steps
 
-- [ ] **Step 1: Preflight** — G1's two greps; `grep -c "a.registerGit" control-plane/internal/api/api.go` is 0.
+- [ ] **Step 1: Preflight** — G1's two greps (the line-ending round's, above); `grep -c "a.registerGit" control-plane/internal/api/api.go` is 0.
   G1's contract diff (review I12): `git diff 3303fd6 HEAD -- docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md`,
   and read every hunk in §3.1 and §3.2 before appending to them; name any in the task report.
 - [ ] **Step 2:** tests first. `worktrees_test.go` builds `New(Deps{…, Git: &GitDeps{…}})` with a
   fake `lanes.Store` and a `Creator` over `gitxtest` repos for the one real-git case.
 - [ ] **Step 3:** `gitdeps.go`, `gitroutes.go`, `worktrees.go`, the two `api.go` lines, the
-  `catalog.go` field, the two codes.
+  `catalog.go` field, the two codes; `mounts.go`, and the two `Admit` call sites in
+  `sessions.go` (re-locate them with `grep -n "a.deps.Store.Create\|StatusStarting"`, since the
+  line numbers above are `10fa5fd`'s).
 - [ ] **Step 4:** config and `main.go`; swap `parseGitIdent` for `gitx.ParseIdent` and delete it.
 - [ ] **Step 5:** amend the Go contract: §3.1 gains one row, *"Phase 3 routes: see
   `plans/2026-09-23-phase-3-git-convergence.md`, The HTTP surface"*; §3.2 gains `git_failed` and
