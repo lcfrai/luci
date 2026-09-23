@@ -87,7 +87,7 @@ URL, and an injected clock.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestTheUserPageListsTheTenant` | GET with valid parameters → 200 HTML listing the four users of tenant 1 and not tenant 2's; the CSP header above | a page that signs in anyone from any tenant |
+| `TestTheUserPageListsTheTenant` | GET with valid parameters → 200 HTML listing the five users of tenant 1 and not tenant 2's; the CSP header above | a page that signs in anyone from any tenant |
 | `TestAnUntrustedRedirectIsNeverFollowed` | `redirect_uri` of `https://127.0.0.1:1/`, `http://evil.example:1/`, `http://127.0.0.1:1/cb`, `http://127.0.0.1:1/?x=1` → 400 page, **no `Location` header** | an open redirector carrying a code to another origin |
 | `TestAnyLoopbackPortIsAccepted` | `http://127.0.0.1:53123/` and `http://localhost:1/` → the page | a registration rule that only matches one port (the rule contract §6.1 relies on) |
 | `TestS256IsRequired` | `plain`, a missing challenge, a 42-character challenge → redirect with `invalid_request` and the `state` | a flow that works without PKCE locally and fails on Entra |
@@ -110,7 +110,7 @@ URL, and an injected clock.
 - [ ] **Step 3:** `authorize.go`, `page.go`, `token.go`; register the routes in `issuer.go`.
 - [ ] **Step 4:** By hand: `go run ./control-plane/cmd/devissuer`, then open
   `http://127.0.0.1:8740/11111111-1111-4111-8111-111111111111/oauth2/v2.0/authorize?client_id=22222222-2222-4222-8222-222222222222&response_type=code&redirect_uri=http://127.0.0.1:9/&scope=openid%20api://33333333-3333-4333-8333-333333333333/Hub.Access&state=s&nonce=n&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256`
-  in a browser: the page lists Ada, Grace, Linus and Out Sider; clicking one lands on
+  in a browser: the page lists Ada, Grace, Linus, Out Sider and Vera; clicking one lands on
   `http://127.0.0.1:9/?code=…&state=s` (the connection fails; the URL is the evidence).
 - [ ] **Step 5:** Commit by pathspec.
 

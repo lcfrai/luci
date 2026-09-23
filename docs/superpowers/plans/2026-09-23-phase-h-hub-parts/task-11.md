@@ -29,7 +29,8 @@ secret of any kind. Every id in it is quoted by `devstack.sh env` (task 09) and 
         { "oid": "aaaaaaaa-0000-4000-8000-000000000001", "name": "Ada Example",   "username": "ada@example.test",   "email": "ada@example.test",   "roles": ["Hub.OrgAdmin"] },
         { "oid": "aaaaaaaa-0000-4000-8000-000000000002", "name": "Grace Example", "username": "grace@example.test", "email": "grace@example.test", "roles": [] },
         { "oid": "aaaaaaaa-0000-4000-8000-000000000003", "name": "Linus Example", "username": "linus@example.test", "email": "linus@example.test", "roles": [] },
-        { "oid": "aaaaaaaa-0000-4000-8000-000000000004", "name": "Out Sider",     "username": "out@example.test",   "email": "out@example.test",   "roles": [] }
+        { "oid": "aaaaaaaa-0000-4000-8000-000000000004", "name": "Out Sider",     "username": "out@example.test",   "email": "out@example.test",   "roles": [] },
+        { "oid": "aaaaaaaa-0000-4000-8000-000000000005", "name": "Vera Example",  "username": "vera@example.test",  "email": "vera@example.test",  "roles": [] }
       ] },
     { "id": "44444444-4444-4444-8444-444444444444", "name": "Second Dev Tenant", "enrolled": true,
       "users": [
@@ -48,9 +49,11 @@ secret of any kind. Every id in it is quoted by `devstack.sh env` (task 09) and 
 }
 ```
 
-Three tenants make every column of the authorisation matrix reachable locally: the first is the
-org (`V`, `M`, `A`, `O`, `N`); the second is `X`, another **enrolled** org; the third is enrolled
-nowhere, for `tenant_not_enrolled`. Fields beyond contract §6.4's schema — tenant `name` and
+Three tenants and five first-tenant users make every column of the authorisation matrix
+(contract §5.3) reachable locally, each by a different person: **Ada** is `O` (an org admin in no
+team), **Grace** `A`, **Linus** `M`, **Vera** `V`, **Out Sider** `N`; the second tenant's
+**Xavier** is `X`, another **enrolled** org; the third tenant is enrolled nowhere, for
+`tenant_not_enrolled`. Fields beyond contract §6.4's schema — tenant `name` and
 `enrolled`, client and API `name` — are additive.
 
 ```go
