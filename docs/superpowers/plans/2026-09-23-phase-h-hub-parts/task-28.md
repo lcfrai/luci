@@ -91,10 +91,15 @@ func EntraRefreshPrefix(tenantID, clientID string) string
 // PanaceaApp/git/github/<owner or "*">
 func GitHubTarget(owner string) string
 
+// AzureDevOpsTarget: an Azure DevOps personal access token for one organisation
+// (review I10): PanaceaApp/git/azure-devops/<org>. No wildcard: a PAT is minted
+// per organisation, so org "" is refused like any other empty part.
+func AzureDevOpsTarget(org string) string
+
 // PanaceaTarget: phase 7's pnc_ token for one API host:  PanaceaApp/panacea/<api host>
 func PanaceaTarget(apiHost string) string
 
-// A part (a tenant id, a client id, an owner, a host) may not be empty (except
+// A part (a tenant id, a client id, an owner, an organisation, a host) may not be empty (except
 // GitHubTarget's owner), contain "/", "*", a space or a control character, or
 // exceed 128 bytes; a gen is exactly 16 lowercase hex characters. The builders
 // panic on a bad one, because every caller passes a validated value and a bad one
@@ -207,7 +212,7 @@ unique `PanaceaApp/test-<8 hex>/` prefix and a cleanup that deletes everything u
 | `TestAWriteNeverTouchesAnotherGeneration` | 6,000 bytes under generation A (3 chunks), then 100 bytes under generation B (1 chunk); A's `GetChunked(3)` still returns the 6,000 bytes whole, B's `GetChunked(1)` the 100; two `NewGeneration` values differ and each is 16 lowercase hex | the in-place overwrite (review I1): a rotation that tears the token the marker still names |
 | `TestSweepKeepsOnlyTheNamedGeneration` | generations A (3 chunks), B (1) and a stray C (2, no marker); `SweepGenerations(prefix, B)` → `List(prefix)` is exactly B's chunk 0; `SweepGenerations(prefix, "")` → empty; a chunk under a **different account's** prefix is untouched | a sweep that deletes the named generation; a stale generation left for ever; a sweep that crosses accounts |
 | `TestAMissingChunkIsNotFound` | delete chunk 1 of 3; `GetChunked(3)` → `ErrNotFound` | a corrupted token sent to Entra |
-| `TestTargetsAreExact` | each builder's output byte for byte, e.g. `EntraRefreshTarget("t","c","0123456789abcdef",2)` = `PanaceaApp/entra/t/c/refresh/0123456789abcdef/2`, `EntraRefreshGenPrefix("t","c","0123456789abcdef")` = `PanaceaApp/entra/t/c/refresh/0123456789abcdef/`, `GitHubTarget("")` = `PanaceaApp/git/github/*` | two components spelling one target differently |
+| `TestTargetsAreExact` | each builder's output byte for byte, e.g. `EntraRefreshTarget("t","c","0123456789abcdef",2)` = `PanaceaApp/entra/t/c/refresh/0123456789abcdef/2`, `EntraRefreshGenPrefix("t","c","0123456789abcdef")` = `PanaceaApp/entra/t/c/refresh/0123456789abcdef/`, `GitHubTarget("")` = `PanaceaApp/git/github/*`, `AzureDevOpsTarget("kpmg-au")` = `PanaceaApp/git/azure-devops/kpmg-au` (review I10) | two components spelling one target differently |
 | `TestTargetPartsAreValidated` | a part with `/`, `*`, a space, a newline, or 129 bytes → panic; a gen of 15 or 17 characters, or with an uppercase or non-hex character → panic, and `ValidGeneration` of each of those → false (of `"0123456789abcdef"` → true) | a caller-supplied owner that escapes its namespace; a `ValidGeneration` that accepts what a builder panics on |
 | `TestWinCredPersistsOnThisMachineOnly` (Windows only) | after `Put`, a raw `CredReadW` shows `Persist == 2` and `Type == 1` | enterprise persistence roaming the token (ADR-H1 §5.2) |
 | `TestWinCredUnsupportedOffWindows` (non-Windows only) | every method → `ErrUnsupported` | a Linux build that pretends to have stored a token |

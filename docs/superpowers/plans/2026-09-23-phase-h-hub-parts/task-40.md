@@ -54,7 +54,7 @@ export interface HubLink {
   repoKeys: { repoKey: string; host: "github" | "azure-devops"; remote: string }[];
 }
 
-export type CredentialKind = "github" | "panacea";
+export type CredentialKind = "github" | "azure-devops" | "panacea"; // task 39's kinds; "azure-devops" is review I10
 /** Metadata only. There is no token field, by design: no route returns one (Hub plan task 39). */
 export interface CredentialEntry { kind: CredentialKind | "entra"; scope: string; subject: string; savedAt: string }
 
