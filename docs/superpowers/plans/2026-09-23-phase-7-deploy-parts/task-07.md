@@ -90,6 +90,7 @@ type Snapshot struct {
 	Deployments   []deploy.Deployment
 	DeploymentsAt time.Time
 	Runs          map[string]deploy.RunProgress // tracked runs only
+	Scans         map[string]deploy.ScanReport  // by deployment id; newest deployment per environment only
 	Releases      []hubapi.Release              // newest reservedAt first, at most 200
 	ReleasesState string                        // "ok" | "no_hub" | "no_hub_project" | "signed_out" | "unavailable"
 	OwnerControls string                        // "yes" | "no" | "unknown" (7P-9)
@@ -112,6 +113,9 @@ type Snapshot struct {
    `HistoryInterval` passed. It is unpaginated and runs three enrichment passes including a dozen
    PipelineRun reads (`projects.go:1227-1253`), so it is never read every cycle.
 5. **`Run`** for each tracked run whose build is not terminal. Terminal → untracked.
+   **`Scans`** for each environment's newest deployment, only when that deployment's `ID` or
+   `Build` changed since the last read, cached by deployment id in `Snapshot.Scans` — so the
+   environment strip's third fact (scans) costs one request per build, not per cycle.
 6. **Hub releases** — `Releases(HubProjectID, {PanaceaProject: <ref>, Limit: 200})` when the
    Deployments were re-read, a tracked run changed, or `HistoryInterval` passed.
    `Binding.HubProjectID == ""` → `ReleasesState "no_hub_project"`; `entraauth.ErrSignedOut` →
