@@ -2225,3 +2225,66 @@ each, so row-level security applies to it too): marks `reserved` releases past `
 `expired` with a `release.expired` event; deletes `project_blobs` older than 24 h that no approval
 references, then `blobs` with no association left, each with a `blob.deleted` audit event; deletes
 `idempotency_keys` older than 24 h.
+
+---
+
+## 13. Tasks and their acceptance
+
+ADR §5.9 orders them. Every task is test-first; every Hub task's tests run against a real Postgres
+from `compose.yaml` (`go test -tags integration ./internal/hub/...`) as well as unit tests.
+
+| Task | Done when |
+|---|---|
+| **H0** skeleton | `hub serve`/`migrate`/`verify` exist; `0001_init.sql` applies to an empty database and re-applying is a no-op; editing an applied migration fails `migrate`; `/healthz` and `/readyz` behave as §12.4; `compose up` reaches ready; **the boundary test** (§2) passes and fails when a forbidden import is added; `hubapi.Canonical` reproduces both §3.5 vectors; `hubclient` interfaces, `NewFake` and the conformance suite skeleton exist |
+| **H1** identity | `devissuer` passes an end-to-end PKCE sign-in driven by the real `entraauth` code; `entra.Validator` rejects each row of §6.3's table with its own error (one test per row, including `alg: none`, an HS256 token signed with the JWKS modulus, a wrong `azp`, and an unknown `kid` that forces one refetch); **one manual sign-in against the real KPMG tenant** once the registrations exist — the only acceptance step that is not automated, marked unverified until done |
+| **H2** teams | every row of §5.3 for teams and invites, as every column; invite binding on `/v1/me`; `last_admin` |
+| **H3** projects, briefs | §7.4 and §7.5; `revision_conflict` under two concurrent writers (one wins, one gets 409, no gap in revision numbers); an all-or-nothing batch where item 3 of 4 conflicts writes nothing; `/v1/refs` with 100 mixed keys including `invalid`, `missing`, an unreadable key and an erased one; a row whose `canonical` is altered by the owner role fails `hub verify` and resolves `missing` |
+| **H4** design | §7.6–§7.8; a blob whose bytes do not match its path is refused; an approval against an incomplete revision is 422; a second approval of one key is 409; the janitor deletes an unreferenced blob after 24 h (injected clock) and cannot delete a referenced one |
+| **H5** releases | §7.9 in full: a pin taken at reserve is unchanged after the brief moves on; no complete revision → `no_complete_revision`; a rollback inherits its source's pin; `source_unknown`; confirm idempotent; confirm after expiry is 409; the janitor expires; `UPDATE releases SET pin_brief_revision = …` as `hub_app` fails in the database |
+| **H6** evidence | §7.10; `repo_not_linked`; oldest-first order |
+| **H7** feed, audit, erasure | an event per write, gapless under 20 concurrent writers in one org; `/v1/changes` filters by readability; `hub verify` passes, then fails after an owner-role edit of one audit row; erasure keeps key and digest and resolves `erased`; a non-admin gets 403 |
+| **C1** sign-in | §6.1 end to end against `devissuer` through the real listener; each failure reason; refresh single-flight (10 concurrent callers, 1 redemption); rotation written before return; `WinCred` round-trips a 6,000-byte token in chunks (Windows CI only) |
+| **C2** client, relay | the relay table of §4.3, one test per row; `Idempotency-Key` reused across retries; a digest mismatch becomes `missing`; the `Panacea-Hub-Cursor` header is readable from the webview's origin |
+| **C3** local key | every route except `/healthz` and attach answers 401 without the key; the desktop sends it on every call; the key changes on restart |
+| **C4** desktop | the four states of §9.5, rendered against `DESIGN-SYSTEM.md`; **owner visual acceptance is batched to the end** (`OD-12`) and stays unverified until then |
+
+**The authorisation matrix test (H2–H7)** is one table-driven test: for every route in §7.0 and
+every column of §5.3, the expected status — including the `X` column run once with the Go check
+disabled to prove row-level security alone holds.
+
+---
+
+## 14. The sibling asks — satisfied, or the difference named
+
+| Ask | From | How this contract answers it |
+|---|---|---|
+| **H-1** credential store | phase 3 | `credstore.Local` (GitHub) and `entraauth.DevOps` (Azure DevOps) implement phase 3's `credstore.Store` unchanged (§9.1). **Difference:** `Credential.Source` values are `credential-manager`, `entra`, `git-credential-helper` — not `hub` |
+| **H-2** evidence store | phase 3 | §7.10, through `hubclient.Evidence`; phase 3's `evidence.Store` gets a Hub implementation whose `Shared()` is `true`. **Difference:** a repository with no Hub project is 422 `repo_not_linked`, so phase 3 keeps its file store for those |
+| **H-3** repository identity | phase 3 | `project_remotes.repo_key` is `githost.RepoKey` verbatim, unique per org (§7.4) |
+| **H-4** the principal as recorder | phase 3 | `recordedBy` is the token's principal (§7.10). `hubclient` formats `Record.RecordedBy` as `"<displayName> <<email>>"` for phase 3's string field |
+| **HA-1** shared validation | phase 8 | one package, `control-plane/internal/entra`, one `Config` per API (§6.3) — shared by construction, since the Hub is in the same module (ADR §4.1) |
+| **HA-2** `TokenSource` | phase 8 | `entraauth.TokenSource` and `ErrSignedOut`, exactly as asked (§9.1) |
+| **HA-3** registrations | phase 8 | §6.5; ADR §9 |
+| **HA-4**, **HA-5**, **HA-6**, **HA-7** | phase 8 | §12.3 |
+| approvals, design links, snapshots in the Hub from v1 | phase 5 | §7.6–§7.8 |
+| live shared canvas documents from v2 | phase 5 | not in this contract; ADR §5.5 keeps room for a `/v1/canvas/…` WebSocket route |
+| the brief store, the resolver, `/discover/refs` | phase 4 (provenance contract §3.1) | §7.5; the control plane's `/v1/discover/refs` becomes a handler over `hubclient.Briefs.Resolve` |
+| the release link, R5's union, no observation pin | phase 7 (provenance contract §3.4, R5, P2, P7) | §7.9 |
+
+---
+
+## 15. Not verified by this contract
+
+- **Nothing was compiled or run** except the digest vectors (§3.5). The DDL has not been applied to
+  a Postgres; `SECURITY DEFINER` functions, triggers and policies are written from knowledge of
+  Postgres 16 and must pass H0 and H3's integration tests before anyone relies on them.
+- **Entra facts** carried from ADR §11: loopback redirect matching, v2 claim presence, refresh-token
+  behaviour, one refresh token for three resources, the Azure DevOps resource id
+  `499b84ac-1321-427f-aa17-267ca6975798`. H1's real-tenant step checks the ones that matter.
+- **Phase 8's task 16** had not written `entra`'s source; §6.3 is this contract's version of it.
+- **Phase 4's content shape** is read from its plan (`:969-980`), not from code; the Hub does not
+  depend on it beyond `status`.
+- **Workload identity token exchange** for Entra-only Postgres is described, not prototyped.
+- **`tauri-plugin-opener`'s `opener:default`** permitting an `https` URL without a scope entry.
+
+*End of the Hub contract.*
