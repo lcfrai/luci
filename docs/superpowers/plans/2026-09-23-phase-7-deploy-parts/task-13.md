@@ -65,7 +65,9 @@ export interface ScanNote { scan: string; reason: string }
 
 export interface EnvironmentView {
   name: string;
+  /** Panacea's row LABEL (== name for non-base rows). Display only; never compared with a git branch (review b02). */
   branch: string;
+  /** Panacea's run labels, compared only with each other. */
   branchesSeen: string[];
   collision: boolean;
   primary: boolean;
@@ -107,6 +109,8 @@ export interface ReleaseRow {
   kind: "run" | "rollback" | "pending" | "refused";
   deploymentId: string | null;
   environment: string | null;
+  /** The name of the environments[] row the view joined this row to; null = unmatched. Look rows up by this (review I8). */
+  environmentRow: string | null;
   branch: string | null;
   commit: string | null;
   version: string | null;
@@ -146,6 +150,8 @@ export interface DeployView {
   staleReason: { code: string; message: string } | null;
   ownerControls: "yes" | "no" | "unknown";
   releasesState: "ok" | "no_hub" | "no_hub_project" | "signed_out" | "unavailable";
+  /** The selected branch's environment, joined by the control plane (task 08 rule 1a). null = no ?branch= sent. */
+  selected: { branch: string; target: string | null; environment: string | null } | null;
   environments: EnvironmentView[];
   unmatched: EnvironmentView[];
   history: ReleaseRow[];
@@ -199,7 +205,8 @@ export interface DeployApi {
   connect(input: { origin?: string; token: string }): Promise<ConnectionStatus>; // PUT; the token is never kept after the call
   recheck(): Promise<ConnectionStatus>;
   disconnect(): Promise<void>;
-  view(projectId: string): Promise<DeployView>;
+  /** branch: the lens's selected git branch name, verbatim; sent as ?branch=<encodeURIComponent>, omitted when null. */
+  view(projectId: string, branch: string | null): Promise<DeployView>;
   bind(projectId: string, panaceaProject: string): Promise<Binding>;
   ship(projectId: string, req: { branchId: string; commit: string; designKey: string | null; noCache: boolean | null }, idempotencyKey: string): Promise<ShipResult>;
   rollback(projectId: string, deploymentId: string, idempotencyKey: string): Promise<RollbackResult>;
@@ -244,7 +251,7 @@ timeout — a stream is long; the abort is the caller's). Branch values go in `?
 
 `ProblemCode` gains, in one block with a comment naming this plan: `"upstream_unavailable"`,
 `"deploy_not_connected"`, `"deploy_token_rejected"`, `"deploy_forbidden"`, `"deploy_not_found"`,
-`"deploy_conflict"`, `"deploy_rejected"`, `"deploy_not_bound"`, `"deploy_environment_unknown"`,
+`"deploy_conflict"`, `"deploy_rejected"`, `"deploy_not_bound"`, `"deploy_environment_invalid"`,
 `"deploy_precondition"`.
 
 #### `upstream-down` — ruling R4, if phase 5 has not landed it
@@ -293,7 +300,9 @@ export interface DeploySlice {
  *  (the in-flight load's answer is newer than the cursor that started it). */
 export function onDeployCursor(value: string, deps: { api: DeployApi; store: typeof useCockpit }): void;
 
-/** Called by the lens on mount and by a selection change while the lens is open. */
+/** Called by the lens on mount and by a selection change while the lens is open. Sends the
+ *  selected branch's name (the same selection the lens renders), so the control plane can
+ *  answer `view.selected` (task 08 rule 1a); the desktop never maps a branch to an environment. */
 export function loadDeployView(projectId: string, deps: { api: DeployApi; store: typeof useCockpit }): Promise<void>;
 ```
 
@@ -314,6 +323,7 @@ export const selectReleasePinKeys = (s: CockpitState): string[];
 | `tsc fails without a case` | a fixture call site with no `upstream-down` case fails `tsc --noEmit` (the existing `designsystem`/guard pattern, grep of the three callers) | a `default:` added to quiet the compiler |
 | `cursor change loads once` | three `onDeployCursor` calls with new values while one load is in flight → one `view()` call, then one more after it settles | a burst of fetches per tick |
 | `same cursor loads nothing` | the same value twice → zero `view()` calls | a fetch per tick in the steady state |
+| `view sends the branch verbatim` | `view("p-1", "feat/x")` requests `/v1/projects/p-1/deploy?branch=feat%2Fx`; `view("p-1", null)` sends no query | a desktop that sanitises the name itself, or drops it so `selected` is always null (review b02) |
 | `no setInterval added` | `grep -rn setInterval desktop/src --include=*.ts --include=*.tsx` in the test's own guard finds only `poller.ts` and `hooks/heartbeat.ts` | a third clock |
 | `partialize excludes deploy` | `partialize(state)` has no key starting `deploy` | persisting server truth, which outlives an erase (ADR-H1 §5.4) |
 | `pin keys are opaque` | `selectReleasePinKeys` returns the keys byte-for-byte; the source file contains no `split(`, `indexOf("@")` or regex on a key | parsing a brief key in the desktop (P5) |

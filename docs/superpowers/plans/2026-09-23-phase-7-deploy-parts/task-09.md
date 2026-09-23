@@ -1,8 +1,9 @@
 ### Task 09: Ship — reserve, deploy, confirm or abandon
 
 **Half:** 7b. **Hours:** 3. **Depends on:** 04, 08. **Elsewhere:** Hub H0 (`hubclient.Releases`
-fake; H5 for the integration run); phase 3 task 08 (`remote.State`, `Convergence.Tip`); Hub ask
-HA7-1 for a first Ship of a never-deployed branch.
+fake; H5 for the integration run); phase 3 task 08 (`remote.State`, `Convergence.Tip`). A first
+Ship of a never-deployed branch needs **no** Hub change: Panacea names its environment before the
+deploy (`Reader.EnvironmentFor`, task 03; review b02 withdrew HA7-1).
 
 The Hub's graft G1 (ADR-H1 §4.2; Hub contract §7.9): **the Hub takes the pin before the deploy
 exists**, and the only thing written afterwards is which run it became. That is how prohibition
@@ -56,6 +57,13 @@ type Tracker interface {
 	Track(projectID, run string)
 	Nudge(projectID string)
 	Snapshot(projectID string) (deploywatch.Snapshot, bool)
+	WantBranch(projectID, branch string) // task 07: readiness asks for the branch's environment name
+}
+
+// EnvironmentNamer is the one Reader method Ship needs: Panacea's own environment name for the
+// branch being shipped (task 01). deploy.Reader satisfies it.
+type EnvironmentNamer interface {
+	EnvironmentFor(ctx context.Context, p deploy.ProjectRef, branch string) (string, error)
 }
 
 type Config struct {
@@ -66,9 +74,9 @@ type Config struct {
 	Branches BranchState
 	Releases Releases
 	Tracker  Tracker
-	// EnvironmentOptional is true once the Hub grants HA7-1: a first Ship reserves with
-	// environment null. False: such a Ship is refused with deploy_environment_unknown.
-	EnvironmentOptional bool
+	// Environments names the branch's environment at Ship time (step 4). There is no
+	// "environment unknown" mode: Panacea answers for any branch (review b02, C2).
+	Environments EnvironmentNamer
 	Now func() time.Time
 	Log *slog.Logger
 }
@@ -114,10 +122,13 @@ func (o *Orchestrator) Readiness(ctx context.Context, projectID, branchID string
 
 type Readiness struct {
 	Ready       bool
-	Reason      string // "" when Ready; else a Precondition.Reason, or "not_connected" | "stale" | "signed_out" | "environment_unknown"
+	Reason      string // "" when Ready; else a Precondition.Reason, or "not_connected" | "stale" | "signed_out" | "environment_invalid"
 	Message     string
 	Commit      string // the tip Ship would send; "" when unknown
-	Environment string // "" when Panacea reports none for the branch
+	// Environment is Panacea's own name for the branch's environment, from the watcher's
+	// Snapshot.BranchEnvs (readiness calls Tracker.WantBranch and makes no Panacea call); ""
+	// until resolved. Not resolved is NOT a reason to refuse: Ship reads the name itself.
+	Environment string
 	// PinPreview reads the Hub's brief for the branch through hubclient.Briefs.ForBranch (Hub
 	// contract §9.2) and applies the Hub's rule — latest complete revision (ADR-H1 Q1). nil when
 	// the Hub or phase 4's brief is absent. It is a PREVIEW: the Hub takes the pin at reserve.
@@ -138,7 +149,7 @@ reads the brief head; reserves nothing, writes nothing."*):
 ```
 GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
   200 { "ready": false, "reason": "unpushed", "message": "2 commits are not pushed, so they would not ship. Push first.",
-        "commit": "<40 hex>" | null, "environment": "feat-evidence-uplo" | null,
+        "commit": "<40 hex>" | null, "environment": "feat-evidence-upload" | null,
         "pinPreview": { "status": "pinned", "reason": "ship_head", "briefId": "bf-…", "revision": 6 } | null }
   404 project_not_found
 ```
@@ -164,8 +175,22 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    | `!deploy.ValidCommit(Commit)` | `bad_commit` | *"That is not a full commit id."* |
 
    All map to `409 deploy_precondition` with `details.reason`.
-4. **Environment** — from the watcher's snapshot: the `environments[]` row whose `branch == Branch.Name`
-   (exact). None → `EnvironmentOptional` ? `null` : `409 deploy_environment_unknown` (plan §9 HA7-1).
+4. **Environment** — `env, err := Environments.EnvironmentFor(ref, Branch.Name)`: Panacea's own
+   name, read now, before anything is reserved (review b02, C2). It is **never** looked up by
+   comparing `Branch.Name` with an `environments[]` row: Panacea's rows carry the environment key
+   (`feat-x` for `feat/x`, `projects.go:2109-2118`), so that comparison refuses almost every real
+   branch. A branch never deployed still gets its name, so a first Ship needs no Hub change.
+   - `err` → mapped by the same Kind → code table as step 6 (`503 upstream_unavailable` with
+     `details.upstream "panacea"`, `deploy_token_rejected`, `deploy_forbidden`, …). Nothing was
+     reserved, so nothing is abandoned.
+   - `env` fails the Hub's §7.9 rule (1–63 of `[a-z0-9-]`; Panacea keeps characters such as `.`,
+     `projects.go:3814-3826`) → `409 deploy_environment_invalid`: *"Panacea names this branch's
+     environment `<env>`, which the shared release record does not accept (1 to 63 of a–z, 0–9
+     and -). Rename the branch to ship it from the cockpit."* The check is the Hub's published
+     rule, not Panacea's naming rule, so it is no fourth copy.
+   - The reserve's `environment` is `env` **verbatim** (`prod` for a production branch, the same
+     label Panacea puts on the deployment, `pipeline.go:196-206`); rows are joined to it with
+     `SameEnvironment`.
 5. **Reserve** — `Releases.Reserve(HubProjectID, {kind:"run", panaceaProject: <ref>, environment,
    branchRef: Branch.Ref, commit, briefId: null, designKey: DesignKey|null, sourceDeploymentId:
    null})`. Any error → returned as is (the relay rule, Hub contract §4.3). **Ship stops. Panacea is
@@ -205,7 +230,7 @@ POST /v1/projects/{projectId}/deploy/ship
   409 conflict                    a Ship of this branch is in progress
   409 deploy_precondition         details.reason ∈ not_bound | no_hub_project | branch_unreadable |
                                   never_pushed | unpushed | behind | stale_commit | bad_commit
-  409 deploy_environment_unknown  (until HA7-1)
+  409 deploy_environment_invalid  Panacea's name for the branch's environment breaks the Hub's §7.9 rule (step 4)
   409 deploy_not_connected · deploy_token_rejected
   403 deploy_forbidden · 404 deploy_not_found · 409 deploy_conflict · 422 deploy_rejected
                                   Panacea refused; the release was abandoned with its sentence
@@ -229,7 +254,12 @@ is retried with the same key.
 | `TestNeverPushedPrecondition` | `Upstream ""` → `409 deploy_precondition` `never_pushed`; neither Hub nor Panacea called | reserving a release for a commit Panacea cannot clone |
 | `TestUnpushedPrecondition` | `Ahead 2` → `unpushed`, `details.ahead "2"` | shipping the upstream while the user thinks they shipped their work |
 | `TestStaleCommitPrecondition` | `Commit` ≠ `Tip` → `stale_commit` | shipping a commit other than the one the screen showed |
-| `TestEnvironmentUnknownUntilHA71` | no environment row for the branch, `EnvironmentOptional false` → `409 deploy_environment_unknown`; `true` → reserve with `environment: null` | re-deriving Panacea's environment name (a fourth `sanitizeBranchEnv`) |
+| `TestShipSlashBranch` | branch `feat/x`, the fake seeded `feat/x → feat-x` and a row `feat-x` (label `feat-x`) → the reserve carries `environment: "feat-x"` and Panacea is called | `row.branch == Branch.Name`, which answered *"never deployed"* for every `/` branch (review C2) |
+| `TestShipLongBranch` | branch `lane/7-deploy-connector-watcher` seeded `→ lane-7-deploy-connec` → reserve with `environment: "lane-7-deploy-connec"` | a join that works only for 20 characters or fewer |
+| `TestShipProductionBranch` | `main` seeded `→ prod`, row `production` → reserve with `environment: "prod"`, the deployment's own label | reserving with the row name, so the Hub holds `production` for Ships and `prod` for rollbacks |
+| `TestShipFirstDeploy` | `feat/new` seeded `→ feat-new` and **no** row → the reserve carries `feat-new`; no refusal | refusing a never-deployed branch, the limitation HA7-1 used to carry |
+| `TestShipEnvironmentInvalid` | seeded `release/1.2 → release-1.2` → `409 deploy_environment_invalid`; neither `Reserve` nor `Actor.Ship` called; `EnvironmentFor` unavailable → `503 upstream_unavailable`, no `Reserve` | reserving a name the Hub will refuse, or a read failure that reserves anyway |
+| `TestShipNeverDerivesTheName` | the fake's `EnvironmentFor` unseeded for the branch → Ship fails with the fake's error; `Reserve` not called | a fallback that computes the name when Panacea has not given one (a fourth `sanitizeBranchEnv`) |
 | `TestIdempotentShip` | the same key twice → one reserve, one Panacea call, equal results | a desktop retry after a lost response double-shipping |
 | `TestConcurrentShipSameBranch` | two goroutines, one branch → one proceeds, one gets `409 conflict` | two reservations racing one branch |
 | `TestConfirmRetriedInBackground` | the Hub fails confirm three times, then succeeds → the route answered `202 confirmed:false`; the fake Hub eventually holds a `confirmed` release; the loop stopped | a Ship that reports success while the release stays reserved forever |

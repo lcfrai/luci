@@ -46,7 +46,7 @@ with the real line when the task lands; a seam with no test is not done.
 
 | Ask | Blocks | State (asked / answered / built) | Meanwhile, in code |
 |---|---|---|---|
-| HA7-1 environment may be null at reserve | the first Ship of a never-deployed branch | <…> | `409 deploy_environment_unknown` (task 09) |
+| HA7-1 environment may be null at reserve — **withdrawn** (review b02) | nothing: Panacea names a never-deployed branch's environment (`GET P/branches/{branch}/access` `data.env`) | withdrawn | `Reader.EnvironmentFor` before reserve (task 09 step 4) |
 | HA7-2 rollback confirm is `{}` | nothing (phase 7 sends `{}`) | <…> | `TestRollbackConfirmsEmpty` (task 10) |
 | HA7-3 a shared deploy binding | nothing | <…> | the local choice file (task 06) |
 | HA7-4 a generic cursor mechanism | the desktop's cursor edge | <…> | the declared amendment (tasks 07, 13) |

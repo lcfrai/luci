@@ -227,7 +227,7 @@ red, whichever order the streams land in.
 	CodeDeployConflict           = "deploy_conflict"            // 409 Panacea refused because of its current state
 	CodeDeployRejected           = "deploy_rejected"            // 422 Panacea refused the request, or the address is not Panacea
 	CodeDeployNotBound           = "deploy_not_bound"           // 409 the local project has no Panacea project (task 06)
-	CodeDeployEnvironmentUnknown = "deploy_environment_unknown" // 409 first Ship of a never-deployed branch before HA-7-1 (task 09)
+	CodeDeployEnvironmentInvalid = "deploy_environment_invalid" // 409 Panacea's environment name for the branch breaks the Hub's §7.9 rule (task 09 step 4; review b02 replaced deploy_environment_unknown)
 	CodeDeployPrecondition       = "deploy_precondition"        // 409 Ship's local precondition failed; details.reason (task 09)
 ```
 
