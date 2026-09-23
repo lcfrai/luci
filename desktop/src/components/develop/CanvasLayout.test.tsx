@@ -448,6 +448,46 @@ describe("DevelopLens on canvas", () => {
     expect(useCockpit.getState().pinned).toEqual(["s-1", "s-2", "s-9"]);
   });
 
+  it("gives a session that arrives while Canvas is open a tile of its own", () => {
+    // The failure the seed-only-when-empty version had: the user creates a session, is looking
+    // at Canvas, and nothing appears. An id absent from `seen` is new and gets a tile.
+    seed(2);
+    render(<DevelopLens />);
+    expect(screen.getAllByTestId("pane")).toHaveLength(2);
+
+    act(() => {
+      useCockpit.setState((s) => ({
+        sessions: { ...s.sessions, "s-3": aSession({ ...base, id: "s-3", title: "task s-3" }) },
+        sessionIdsByWorktree: { "w-1": ["s-1", "s-2", "s-3"] },
+      }));
+    });
+
+    expect(screen.getAllByTestId("pane").map((p) => p.getAttribute("data-session"))).toEqual([
+      "s-1",
+      "s-2",
+      "s-3",
+    ]);
+  });
+
+  it("keeps a topped-up session unpinned once the user unpins it", () => {
+    // The other half, and the one that needs `seen` to be UPDATED rather than only read: s-3
+    // was not pinned at mount, so only having been added on arrival keeps it out of the next
+    // pass's `fresh` list.
+    seed(2);
+    render(<DevelopLens />);
+    act(() => {
+      useCockpit.setState((s) => ({
+        sessions: { ...s.sessions, "s-3": aSession({ ...base, id: "s-3", title: "task s-3" }) },
+        sessionIdsByWorktree: { "w-1": ["s-1", "s-2", "s-3"] },
+      }));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Unpin task s-3" }));
+
+    expect(useCockpit.getState().pinned).toEqual(["s-1", "s-2"]);
+    expect(screen.getAllByTestId("pane")).toHaveLength(2);
+  });
+
   it("keeps a session unpinned, rather than re-seeding it on the next render", () => {
     // This case has to go through DevelopLens. The CanvasLayout-level unpin test passes a
     // LITERAL sessionIds array, so the prop cannot change when the pin list does — and a

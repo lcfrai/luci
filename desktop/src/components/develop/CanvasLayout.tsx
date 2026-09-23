@@ -78,25 +78,44 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
   const unpinSession = useCockpit((s) => s.unpinSession);
   const [stack, setStack] = useState<SessionId[]>([]);
 
-  /* Decision (a). Nothing in Group D renders a "pin to canvas" verb, so an unseeded canvas stays
-   * blank for ever and the layout toggle reads as broken.
+  /* Decision (a), as amended twice. Nothing in Group D renders a "pin to canvas" verb, so an
+   * unseeded canvas stays blank for ever and the layout toggle reads as broken.
    *
-   * Seeds an EMPTY canvas only; it never tops up a partly-pinned one. That is narrower than this
-   * effect was in the first round, and fix round 2's unpin affordance is what forced it: a
-   * top-up re-pins whatever the user just unpinned on the very next render, so the button would
-   * have been a control with no visible effect — the same class of defect as the toast naming a
-   * verb the product did not have. `pinned` cannot tell "never pinned" from "deliberately
-   * unpinned" without a persisted flag, and adding one is the schema change this round is
-   * explicitly avoiding, so the trigger moves instead.
+   * `seen` is what separates "this id is NEW" from "this id is merely absent", and the two
+   * earlier versions of this effect each got one of those wrong: topping up unconditionally
+   * re-pinned whatever the user had just unpinned, and seeding only an empty canvas meant a
+   * session created while Canvas was open never got a tile at all. The second is the worse
+   * failure — a new session that silently does not appear — which is why this is not that.
    *
-   * The residual, stated rather than hidden: unpinning the LAST tile on a branch empties the
-   * canvas and this re-seeds it. That is the safer of the two failures while no pin verb exists
-   * — a blank plane would be unrecoverable — and it disappears the moment task 22 ships one.
+   * Same device, same reason, as ColumnsLayout's defect-4 ref four files away; the two layouts
+   * now answer "is this id new?" the same way instead of each inventing a rule.
    *
-   * `paneIds` is the scope: the cap counts what Canvas SHOWS, which is this branch. */
+   *   - an id NOT in `seen` is new → it gets a tile, and joins `seen`.
+   *   - an id the user UNPINS stays in `seen` → it is never pinned again.
+   *
+   * Residual, because `pinned` cannot tell "never pinned" from "deliberately unpinned" without
+   * a persisted flag, and that is a schema change at version 1. `seen` lives as long as this
+   * component and ACCUMULATES across branches, so an unpin survives a branch switch — but not
+   * a flip to Columns and back, nor a restart, either of which remounts and re-initialises it
+   * from `pinned`. It dies the moment task 22 ships a pin verb.
+   *
+   * Room is computed before pinning rather than letting pinSession no-op, because pinSession
+   * toasts the cap (§7.7) and a toast on mount the user cannot act on is worse than the blank
+   * plane it replaces. `Math.max` keeps a negative room from slicing off the END of the list if
+   * the fast path above is ever removed. `paneIds` is the scope: the cap counts what Canvas
+   * SHOWS, which is this branch. */
+  const seen = useRef<Set<SessionId> | null>(null);
+
   useEffect(() => {
-    if (sessionIds.length > 0) return;
-    for (const id of paneIds.slice(0, CANVAS_MAX_TILES)) pinSession(id, paneIds);
+    if (seen.current === null) seen.current = new Set(sessionIds);
+    const known = seen.current;
+    const room = CANVAS_MAX_TILES - sessionIds.length;
+    if (room <= 0) return;
+    const fresh = paneIds.filter((id) => !known.has(id)).slice(0, Math.max(room, 0));
+    for (const id of fresh) {
+      known.add(id);
+      pinSession(id, paneIds);
+    }
   }, [paneIds, sessionIds, pinSession]);
 
   /* pinSession enforces the cap, but a pin list persisted by an older build rehydrates without
