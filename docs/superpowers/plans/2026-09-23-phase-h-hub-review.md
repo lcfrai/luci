@@ -657,7 +657,7 @@ from a previous attempt's uncommitted edits; each one was re-read before it was 
 
 | Finding | What changed | Where |
 |---|---|---|
-| **I2** the rule (task 31) | A refusal is read by the scope being redeemed. For `HubScope`, `invalid_grant` or `interaction_required` keeps the contract's sign-out. For any other scope: `consent_required` or 65001 → `ErrScopeNeedsConsent`; `interaction_required`, or 50076/50079 → `ErrScopeNeedsInteraction`. Each wraps a `*ScopeRefusal`. Nothing is deleted, only that scope's cached token is dropped, and `Status` does not change. A plain `invalid_grant` on another scope may be a dead token or a per-resource refusal, so one `HubScope` redemption under the same lock decides. **Beyond the review:** `invalid_scope` on another scope is `ErrScopeNeedsConsent` (task 32 predicts exactly that for Azure DevOps without consent). Any other 4xx on any scope deletes nothing, because only `invalid_grant` and `interaction_required` for the Hub prove the token dead | task-31.md:34-50, :75-109 |
+| **I2** the rule (task 31) | A refusal is read by the scope being redeemed. For `HubScope`, `invalid_grant` or `interaction_required` keeps the contract's sign-out. For any other scope: `consent_required` or 65001 → `ErrScopeNeedsConsent`; `interaction_required`, or 50076/50079 → `ErrScopeRefused`. Each wraps a `*ScopeRefusal`. Nothing is deleted, only that scope's cached token is dropped, and `Status` does not change. A plain `invalid_grant` on another scope may be a dead token or a per-resource refusal, so one `HubScope` redemption under the same lock decides. **Beyond the review:** `invalid_scope` on another scope is `ErrScopeNeedsConsent` (task 32 predicts exactly that for Azure DevOps without consent). Any other 4xx on any scope deletes nothing, because only `invalid_grant` and `interaction_required` for the Hub prove the token dead | task-31.md:34-50, :75-109 |
 | **I2** `DevOps` (task 31) | Both refusals are returned as they are and stop the `Chain`. They are never `ErrNoCredential`, so a push never falls through to the machine's helper as someone else. `TestDevOpsCredential` checks that a recording second store is never asked | task-31.md:173-177; the test row |
 | **I2** tests (task 31) | `TestASecondaryScopeRefusalKeepsTheSession` has 4 cases: consent, interaction, devissuer's own body, and `invalid_scope`. `TestAPlainInvalidGrantOnASecondaryScopeAsksTheHub` has 2 cases. New: `TestAnUnlistedRefusalDeletesNothing`. The count is 38 (18 + 20) | task-31.md:207-209, :228 |
 | **I2** optional authorize scopes | **Declined, with the reason recorded.** The client is admin-consented for each resource (contract §6.2 `:404-407`, §6.5), so asking at sign-in adds no consent. One unconsented scope (Azure DevOps while Q5 is open) would fail the whole sign-in, the Hub's included. Task 30's step 8 also sends step 4's scope unchanged | task-31.md:248-253 |
@@ -676,8 +676,10 @@ from a previous attempt's uncommitted edits; each one was re-read before it was 
 **Sibling asks for phase 3.** These are recorded, not built:
 
 1. Wire `hub` as `credstore.Chain{Local, LocalDevOps, entraauth.DevOps}` in the deps block (`task-13.md:177-185`). Put `GitHelper` after it for `Credentials` (`:222`).
-2. Make `PushAuth` (`:187-190`) fail the push on any error that is not `ErrNoCredential`. That includes `ErrScopeNeedsConsent`, `ErrScopeNeedsInteraction` and `ErrEntraUnavailable`. It must not fall back to the zero `Auth` and the machine's helper.
-3. Show `*ScopeRefusal` as *"Azure DevOps needs your consent"* or *"… an interactive sign-in"*, and never as *"sign in again"*.
+2. Make `PushAuth` (`:187-190`) fail the push on any error that is not `ErrNoCredential`. That includes `ErrScopeNeedsConsent`, `ErrScopeRefused` and `ErrEntraUnavailable`. It must not fall back to the zero `Auth` and the machine's helper.
+3. Show `*ScopeRefusal` as the actionable text, and never as *"sign in again"*: *"Azure DevOps refused PanaceaApp's sign-in for <org>: paste a personal access token for <org>, or ask IT"*, the paste going to task 39's `POST /v1/credentials/azure-devops`. For `ErrScopeNeedsConsent`, *"… needs IT's consent for PanaceaApp"* with the same PAT route. Neither names an interactive sign-in: v1 has no per-resource step-up (task 31, "does not claim"; round 2, re-review b04 N1).
+
+**Sibling ask for phase 8** (round 2, re-review b04 m3). `remotebe` (HA-2) receives `ErrScopeNeedsConsent` and `ErrScopeRefused`, each a `*ScopeRefusal`, for `Sandboxes.Access`. It shows them as the refusal (*"the sandbox broker refused this sign-in: ask IT"*), never as *"sign in again"* and never as *"broker unavailable"*, and it does not retry faster than task 31's 15 min remembered-refusal back-off.
 
 **Found, not changed (outside the batch).** Task 40 appends wire types to `desktop/src/store/types.ts`
 (task-40.md:13, :23), but phase 2's gate SX.2 requires that file to be byte-identical to UI contract §2
@@ -693,3 +695,36 @@ Unverified:
 
 All three come from knowledge; task 43's R-8 and R-11 are the first real look. Nothing was compiled
 or run: this batch changes only documents.
+
+### Fix batch b04, round 2 — re-review N1, m1–m4 (2026-09-24)
+
+Commit `92aaf80` fixes the plan and parts; this section is its map. It answers
+`.superpowers/sdd/hub/plan-rereview-b04-1.md`. **Rename:** `ErrScopeNeedsInteraction` is now
+`ErrScopeRefused` everywhere in the plan, the parts, and this b04 section above. The original I2
+finding text (`:190`) keeps the old name, because it is the record of what was found.
+
+| Finding | What changed | Where |
+|---|---|---|
+| **N1.1** the error names a remedy that does not exist | Renamed `ErrScopeRefused`, text *"this resource refused this sign-in"*. The comment states that v1's only interactive sign-in is `BeginSignIn` (`Hub.Access` alone), and it names the real remedies: the task 39 PAT, IT | task-31.md:34-44 |
+| **N1.2** sibling ask 3 | The actionable text: *"Azure DevOps refused PanaceaApp's sign-in for <org>: paste a personal access token for <org>, or ask IT"*, via task 39's `POST /v1/credentials/azure-devops`. Consent gets *"… needs IT's consent"* with the same PAT route | review.md:680 |
+| **N1.3** the stop reason contradicted `ErrSignedOut → ErrNoCredential` | The reason is now phase 3's `Chain` rule (checked: phase-3 task-13.md:87-89, "any other error stops the chain"). `ErrSignedOut` differs because it is absence, not refusal. The test row's mutant is re-worded to match | task-31.md:192-197, :238 |
+| **N1.4** "does not claim" | No per-resource step-up (scope + `claims`) in v1. It names the remedies, and states as unverified that a device-compliance policy is never met by a loopback flow | task-31.md:275-282 |
+| **N1.5** R-8 | When Azure DevOps answers `ErrScopeRefused`: sign out, run a fresh Hub-only `BeginSignIn`, and record whether the refusal clears. Then paste a PAT and confirm `LocalDevOps` serves it while the refusal stands. The owner can then rule on step-up with evidence | task-43.md:75 |
+| **m1** stale I10 text | `Local`'s comment names `LocalDevOps`, then `entraauth.DevOps`, then `GitHelper`. The title adds Azure DevOps | task-29.md:1, :168-171 |
+| **m2** rules missing from the contract | A12 and the 44a fold-in state that `invalid_scope` on another scope is `ErrScopeNeedsConsent`, and that any other 4xx on any scope deletes nothing. `Code` lists `"invalid_scope"`. The plan's unverified list names AADSTS70011, and the step-up question | plan.md:180; task-44a.md:41; task-31.md:48; plan.md:554-559 |
+| **m3** S-TOKEN | Names `ErrSignedOut`, `ErrEntraUnavailable`, `ErrScopeNeedsConsent` / `ErrScopeRefused` and `*ScopeRefusal`, and says how `remotebe` reads them. **New sibling ask for phase 8:** show a broker refusal as the refusal, never as "sign in again" or "broker unavailable", and do not retry faster than the 15 min back-off | plan.md:464; review.md:682 |
+| **m4** a refusal is not remembered, and the probe rotates on every call | A `*ScopeRefusal` is remembered per scope. It is served with no request until `refreshGen` changes, `Invalidate(scope)`, or `refusalBackoff` (15 min on `Config.Now`) passes. It is keyed to the generation current after the probe's own rotation. A probe answering 5xx gives `ErrEntraUnavailable`; one answering an unlisted 4xx gives that code's error. Neither deletes or remembers anything. New test `TestARefusalIsRememberedUntilTheGenerationChanges`, and cases 3–4 of the probe test | task-31.md:102-117, :228, :229 |
+| restatements | The task 31 count is 20 → 21 tests (39 with task 30's 18). Task 31 goes from 4 h to 4.5 h, in its header and the table. Client totals 43.5 → 44 h, all tasks 123 → **123.5 h**, minimum 102 → **102.5 h**. "Six and a half working days for two engineers" still holds (51.25 h each) | task-31.md:3, :249; plan.md:395, :410-418 |
+
+**Why 15 min.** Phase 3's Fetcher ticks every 10 min by default, and every 1 min at the minimum
+(phase-3 task-12.md:56). A 15 min back-off holds across at least one default tick, so a
+many-project organisation pays one redemption per scope per back-off. It is also short enough
+that IT's consent is seen within a quarter of an hour, with no restart. This is the plan's own
+choice, not measured.
+
+**Carried, not changed.** The task 40 / SX.2 gate on `desktop/src/store/types.ts` is outside this
+batch. It stays an orchestrator or owner ruling, and amending UI contract §2 in task 40's commit is
+the recommended fix.
+
+Unverified: Entra's refusal bodies, and whether a fresh Hub-only sign-in clears an Azure DevOps
+50076 (R-8 is the first look). Nothing was compiled or run.
