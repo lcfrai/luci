@@ -483,7 +483,10 @@ describe("CanvasLayout", () => {
 
     expect(z("s-1")).toBeGreaterThan(z("s-3"));
     // The final stack is identical whether the effect's second raise wrote or not, so the
-    // count of plane renders is the observable: one for the click, none for the echo.
+    // count of plane renders is the observable: one for the click, none for the echo. It reads
+    // them through the tiles, which re-render with the plane only because CanvasTile is not
+    // memoised and gets a fresh `position` object; give a tile stable props behind memo() and
+    // this passes with the check in `raise` deleted, so count the plane some other way first.
     expect(paneRenders.get("s-1")).toBe(1);
   });
 
