@@ -14,6 +14,7 @@ enumeration. After this task the product has two process launchers; the comment 
 
 **Files:**
 - `control-plane/internal/gitx/runner.go` — `Class`, `Call`, `Result`, `Runner`, `Exec` (new)
+- `control-plane/internal/gitx/harden.go` — `Scope`, `Hardening`, the §HGH prefix, the H3 config check, `UntrustedConfig` (new)
 - `control-plane/internal/gitx/error.go` — `*Error`, `Sentence`, `AsError` (new)
 - `control-plane/internal/gitx/version.go` — `CheckVersion` (new)
 - `control-plane/internal/gitx/machine.go` — `Machine`, `Local` (new)
@@ -69,7 +70,42 @@ type Call struct {
 	// OKExit lists non-zero exit codes that are answers rather than failures. merge-tree
 	// --write-tree exits 1 on a conflict (task 01's pin), and a conflict is a forecast.
 	OKExit []int
+	// Scope picks §HGH H3's config check for Dir. The zero value, Clone, is the strictest.
+	Scope Scope
+	// RemoteURL is the literal URL a Remote call talks to (§HGH H2). Required for Remote.
+	RemoteURL string
 }
+
+// Scope is whose repository Call.Dir is, which decides what §HGH H3 refuses.
+type Scope int
+
+const (
+	Clone   Scope = iota // a lane clone: closed allowlist
+	Project              // the user's repository: refusal list
+	None                 // `git version`, or a Dir under Hardening.OwnedRoot: no check
+)
+
+// Hardening is what Exec adds to every call (§HGH). cmd/api builds it once at startup.
+type Hardening struct {
+	HooksDir   string   // an empty directory the control plane owns (H1)
+	OwnedRoot  string   // the only root a Scope None call may run under
+	Credential []string // "key=value", the machine's credential.*helper entries, system then global (H2)
+	Proxy      string   // the machine's proxy; "" means none (H2)
+}
+
+// UntrustedConfig is a repository config key §HGH H3 refuses. It carries the key, never the value.
+// The API maps it to conflict + reason clone_config_untrusted (Clone) or project_config_untrusted.
+type UntrustedConfig struct {
+	Dir   string
+	Key   string
+	Scope Scope
+}
+
+func (u *UntrustedConfig) Error() string
+
+// ErrCallShape is a Call Exec will not run: Args[0] starting with "-", a Remote call without
+// RemoteURL, or a Scope None call outside OwnedRoot.
+var ErrCallShape = errors.New("gitx: call shape refused")
 
 // Result is a call that exited 0 or with a code in OKExit.
 type Result struct {
@@ -92,16 +128,21 @@ type Exec struct {
 	Git string
 	// Timeouts overrides the per-class defaults; a missing or zero entry uses the default.
 	Timeouts map[Class]time.Duration
+	// Hardening is §HGH's prefix. An Exec whose HooksDir is "" runs nothing (ErrCallShape).
+	Hardening Hardening
 }
 
 var _ Runner = (*Exec)(nil)
 
-func NewExec() *Exec { return &Exec{} }
+// NewExec checks that h.HooksDir is an existing, empty directory, then returns the Exec.
+func NewExec(h Hardening) (*Exec, error)
 
-// Run starts git headless — GIT_TERMINAL_PROMPT=0, GCM_INTERACTIVE=never, GIT_PAGER=cat,
-// GIT_EDITOR=false (a call that wants an editor fails rather than hangs), plus
-// GIT_OPTIONAL_LOCKS=0 for Read only — captures stdout and stderr separately, and returns an
-// *Error for a start failure, a timeout, or an exit code outside {0} ∪ OKExit.
+// Run applies §HGH (the H1 and H2 prefix, then the H3 config check for c.Scope, which refuses
+// with *UntrustedConfig before git starts), then starts git headless — GIT_TERMINAL_PROMPT=0,
+// GCM_INTERACTIVE=never, GIT_PAGER=cat, GIT_EDITOR=false (a call that wants an editor fails
+// rather than hangs), plus GIT_OPTIONAL_LOCKS=0 for Read only — captures stdout and stderr
+// separately, and returns an *Error for a start failure, a timeout, or an exit code outside
+// {0} ∪ OKExit.
 func (x *Exec) Run(ctx context.Context, c Call) (Result, error)
 
 // MaxSentence caps what the cockpit is shown of git's stderr.
@@ -225,7 +266,7 @@ type Repo struct {
 func NewRepo(t testing.TB) *Repo
 func (r *Repo) Git(args ...string) string                          // fails the test on error; trimmed stdout
 func (r *Repo) Commit(msg string, files map[string]string) string  // write, add, commit; returns the sha
-func (r *Repo) Runner() gitx.Runner                                 // an Exec whose calls carry r.Env
+func (r *Repo) Runner() gitx.Runner                                 // an Exec whose calls carry r.Env; Hardening.HooksDir is an empty t.TempDir()
 func CloneOf(t testing.TB, src *Repo, branch string) *Repo           // git clone --local --branch
 
 // Script is a Runner that answers from a table keyed by the joined argv and records calls.
@@ -355,15 +396,46 @@ option is built.
 read-write directory bind, and that git's lockfile rename onto it fails. Task 05's
 `TestSandboxCloneConfigIsReadOnly` pins both inside the real sandbox.
 
+**The §HGH tests.** Each is written first and shown **red** against an `Exec` with no §HGH: the
+marker file appears, or the call runs. Markers are written by a script in `t.TempDir()`, and each
+test asserts that the marker path does not exist after the call. They use real git (`gitxtest`),
+except the argv tests, which use the helper process.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestHGHPrefixOnEveryClass` | helper process: for `Read`, `Local` and `Remote`, argv holds every H1 `-c` pair, between `git` and `Args[0]` | a prefix added for one class only |
+| `TestHGHFsmonitorNeverRuns` | a clone whose `.git/config` sets `core.fsmonitor=<marker script>`; `status --porcelain` through Exec → no marker | `core.fsmonitor=false` dropped |
+| `TestHGHReferenceTransactionHookNeverRuns` | `.git/hooks/reference-transaction` writes a marker; `update-ref` through Exec → no marker, and the ref moved | `core.hooksPath` pointed at the repository's own directory |
+| `TestHGHUploadPackIsNeverTheRepositorys` | `remote.origin.uploadpack=<marker script>` with origin a local path; `fetch origin` through Exec → no marker, and the fetch succeeded | the `--upload-pack` insertion dropped |
+| `TestHGHReceivePackIsNeverTheRepositorys` | the same with `remote.origin.receivepack` and `push` | `--receive-pack` missing |
+| `TestHGHFilterDriverIsRefused` | clone config `filter.x.clean=<marker script>`, `.gitattributes` `* filter=x`, and a modified file; `status` with `Scope: Clone` → `*UntrustedConfig{Key: "filter.x.clean"}` and no marker | the H3 check skipped for `Read` |
+| `TestHGHCloneAllowlistAdmitsAFreshClone` | `git clone` of a `gitxtest` repo, plus the task 03 keys, plus `branch.x.remote`/`.merge`, plus `core.hooksPath=.husky/_` → the check passes | an allowlist missing a key git writes on Windows (`core.symlinks`, `core.ignorecase`) |
+| `TestHGHCloneAllowlistRefuses` | table: `include.path`, `includeIf.gitdir:/x.path`, `extensions.worktreeConfig`, `core.hooksPath=/abs`, `core.hooksPath=../x`, `http.proxy`, `credential.helper`, `url.x.insteadOf` → each refused, naming the key | a denylist where an allowlist was specified |
+| `TestHGHProjectRefusalList` | table: every key in H3's `Project` row → refused; `core.autocrlf`, `lfs.url`, `remote.origin.url` → admitted | a `Project` scope that refuses the user's ordinary config |
+| `TestHGHConfigParseIsNULSafe` | `user.name` set to `"a\nfilter.x.clean=y"` → admitted, with no key `filter.x.clean` seen; a real `filter.x.clean` beside it → refused | line-splitting the listing |
+| `TestHGHUntrustedConfigHidesTheValue` | a refused `credential.helper=s3cr3t` → `"s3cr3t"` in neither `Error()` nor any problem field | echoing the value |
+| `TestHGHRemoteNeedsAURL` | `Class: Remote` with `RemoteURL: ""` → `ErrCallShape`, git never starts | a remote call on the repository's `origin` |
+| `TestHGHRemoteOverridesBeatAURLScopedKey` | repo config `http.https://example.invalid/r.sslVerify=false` and `.proxy=http://127.0.0.1:9`; through Exec with `RemoteURL: https://example.invalid/r.git`, `config --get-urlmatch http.sslVerify <url>` → `true`, and `http.proxy` → `Hardening.Proxy` | the generic-only override |
+| `TestHGHRepoCredentialHelperNeverRuns` | repo config `credential.helper=<script that writes its stdin to a marker>`; `credential fill` through Exec → no marker, and the machine helper from `Hardening.Credential` answered | the empty `credential.helper=` reset dropped |
+| `TestHGHCallShape` | `Args[0] == "-c"` → `ErrCallShape`; `Scope: None` with a `Dir` outside `OwnedRoot` → `ErrCallShape`; `Exec{}` (no HooksDir) → `ErrCallShape` | a caller's own `-c` ahead of the prefix |
+
+Tasks 07, 09, 12 and 13 each add the end-to-end marker test for their own call site (the observer,
+the land and origin refresh, the push, and `GitHelper`), citing this section.
+
 #### Steps
 
 - [ ] **Step 1: Preflight.** Task 01's results document exists; read its Divergences section. If
   it records merge-tree's exit code or output format differently from the table above, this
   task's `OKExit` guidance and task 08's parser follow the document.
 - [ ] **Step 2:** write the tests above, the helper process first.
+- [ ] **Step 2a:** write the 15 §HGH tests. Run them against an `Exec` built without `harden.go`,
+  and record in the task report each marker that appeared and each call that ran: red first.
 - [ ] **Step 3:** implement `runner.go`, `error.go`, `version.go`, `machine.go`, `trailers.go`,
-  then `gitxtest`. The body of `Run` follows `gitrunner.go:46-78` line for line except the class
-  switch and `OKExit`.
+  `harden.go`, then `gitxtest`. The body of `Run` follows `gitrunner.go:46-78` line for line,
+  except for the class switch, `OKExit`, and the §HGH prefix and check that run before `exec`.
+- [ ] **Step 3a: Mutants for §HGH**, on a `$TEMP` copy. Drop each H1 override in turn. Drop the
+  `--upload-pack` insertion. Make `Clone` scope use the `Project` list. Split the config listing on
+  `\n` instead of `\0`. Keep only the generic H2 override. Each must turn a named §HGH test red.
 - [ ] **Step 4:** amend `gitrunner.go:19-20`'s comment to "the launcher for phase 2's read-only
   enumeration; `internal/gitx` is the other one".
 - [ ] **Step 5:** run, then commit by pathspec.
@@ -371,7 +443,7 @@ read-write directory bind, and that git's lockfile rename onto it fails. Task 05
 #### Acceptance
 
 ```
-go test ./control-plane/internal/gitx/... -race -count=1        → PASS (17 new tests plus task 01's)
+go test ./control-plane/internal/gitx/... -race -count=1        → PASS (32 new tests, 15 of them §HGH, plus task 01's)
 go test ./control-plane/internal/project/ -run TestEveryGitCommandIsReadOnly -count=1 → PASS, unchanged
 git diff --stat control-plane/go.mod go.work                     → empty
 ```
@@ -381,3 +453,6 @@ git diff --stat control-plane/go.mod go.work                     → empty
 - Nothing calls `gitx` yet except its tests. Task 03 is the first consumer.
 - `CheckVersion` is not yet wired; task 04 calls it at startup.
 - `Machine` has no second implementation; phase 8 owns it (seam S3-P8.1).
+- §HGH hardens `gitx.Exec` only. Phase 2's `project.ExecRunner`, and the scanner that runs git
+  in the primary worktree's repository, are not covered here. Whether their read-only commands
+  are exposed is phase 2's to check, and is not verified (plan Q-table row Q6).
