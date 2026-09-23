@@ -825,7 +825,7 @@ The review's fix, built as written, with three additions where the facts asked f
 
 | Finding part | Change | Where |
 |---|---|---|
-| bare `git -C … ls-files` | its one git call goes through phase 3's `gitx.Exec` (§HGH H1–H5): Class `Read`, Scope `Clone` for a clone, `Project` for the primary checkout (phase 3 `task-02.md:82-90`), behind a neutral `HandoffGit` port; `*UntrustedConfig` → `409 conflict` with phase 3's `clone_config_untrusted`/`project_config_untrusted` (`task-04.md:83-85`) | `parts/task-22.md:162-190`, `:204-208` |
+| bare `git -C … ls-files` | its one git call goes through phase 3's `gitx.Exec` (§HGH H1–H5): Class `Read`, Scope `Clone` for a clone, `Project` for the primary checkout (phase 3 `task-02.md:82-90`), behind a neutral `HandoffGit` port; `*UntrustedConfig` → `409 conflict` with phase 3's `clone_config_untrusted`/`project_config_untrusted` (`ReasonCloneConfigUntrusted`, `ReasonProjectConfigUntrusted`: `task-04.md:117-118` on 2026-09-24; corrected in round 2, RR-I1-1) | `parts/task-22.md:162-190`, `:204-208` |
 | named dependency | phase 3 tasks 02–03 are a **hard** dependency for route 24; `Config.HandoffGit` nil → `500 internal` *"phase 3 is not wired"*, never a bare-git fallback | `parts/task-22.md:3`; plan `:420`, `:541-542` |
 | `rev-parse --git-path info/exclude` | dropped: the path is `<path>/.git/info/exclude`, computed, only after `Lstat(<path>/.git)` shows a real directory (a gitfile, symlink or reparse point → `409 conflict`, `reason: "handoff_worktree_unsafe"`, no git run); `.git/info` and `exclude` checked through `NoFollow` | `parts/task-22.md:200-204`, `:214-222` |
 | `.panacea` symlink redirecting writes | `Materialise` step 4a Lstats `.panacea`, `.panacea/design`, `BundleDir` before any fetch; every step 4a–6 write goes through `NoFollow`, which Lstats **every** component on **every** call (`ModeSymlink`, `ModeIrregular`, Windows `FILE_ATTRIBUTE_REPARSE_POINT`) → `ErrWorktreeUnsafe` → `409 handoff_worktree_unsafe` | `parts/task-22.md:81-86`, `:94-101`, `:104-131`, `:24-25`, `:209-214` |
@@ -880,4 +880,146 @@ task-04 reasons) are cited from phase 3's plan parts, not from built code. That 
 reports a Windows junction as `ModeIrregular` is from the Go 1.23 release notes, not run here (the
 reparse-attribute check covers it if not). That `ls-files` runs `core.fsmonitor`, and every S8 time,
 are for the implementer to measure. Nothing was built or run: this batch changes documents only.
+
+## Fix batch b03, round 2 (2026-09-24) — the re-review's open issues (`plan-rereview-b03-1.md`)
+
+Paths as in b03 above. Line numbers are as of commit `b2e5f82` (commits `a8ca34c`, the RR-I5 items,
+and `b2e5f82`, the RR-I1 items; this section is the next commit). Phase 3 lines were re-read in
+`.claude/worktrees/phase-3` on 2026-09-24.
+
+### RR-I5-1 (Important): a stream swap or a lens switch failed the approval and blamed the renderer
+
+The re-review's five fix items, built as written, plus one addition.
+
+| Fix item | Change | Where |
+|---|---|---|
+| 1. a distinguishable detach, re-sent once | task 13: `ErrNoRenderer`, `ErrRendererDetached`, `ErrRenderTimeout`, each wrapping `ErrRendererUnavailable` (task 11), so existing `errors.Is` callers are unchanged; `detach` fails with `ErrRendererDetached`. Task 21 step 4: a request failing `ErrRendererDetached` is re-sent **once**, with a fresh `ApprovalRenderTimeout`, to the now-preferred renderer; a timeout or `*RenderError` is never re-sent | `parts/task-13.md:112-121`, `:123-125`, `:137-141`; `parts/task-21.md:291-299`; tests `parts/task-13.md:186`, `:189`, `:191`, `parts/task-21.md:358-359` |
+| 2. approval requests out of the two-strikes count; queued agent requests stated | a strike is an agent request (`Progress` nil) that times out while its renderer held **no** approval capture at any moment of its life; so neither an approval's own timeout nor an agent request queued behind one is a strike; an answer resets the count. The Service owns the count; task 20's rule restates it | `parts/task-13.md:127-135`; `parts/task-20.md:156-160`; tests `parts/task-13.md:192`, `parts/task-20.md:296` |
+| 3. the sentence names the cause | `details.cause` ∈ `no_renderer`, `renderer_gone`, `timeout`, `render_error`, each with its own sentence; *"the lens is open when a human approves"* is deleted | `parts/task-21.md:300-313`; tests `:357`, `:359`, `:364`; the toast shows each unchanged, `parts/task-28.md:114` |
+| 4. P5-I extended | *"closing the window … at any point before the last artboard is captured"* drops the approval; the toast's second line says so | plan `:213`; `parts/task-28.md:42-48`, `:114` |
+| 5. test rows | `TestApprove_rendererSwapMidApproval` (hidden takes artboard 4 → 201; the same with the window's renderer re-attached on a new stream → 201) and `TestApprove_rendererGoneMidApproval` (no renderer remains → 409 `renderer_gone`; a second detach → the same; a timeout or render error → exactly one request, no re-send) | `parts/task-21.md:358-359` |
+
+**Addition, declared: the desktop keeps a hidden renderer for the canvas under approval.** The fix's
+re-send needs a renderer to go to. Without one, leaving the lens (which the global toast invites) still
+fails the approval, only now with an honest sentence. Task 27's slice gains `approving` (the canvas id,
+set when `designApprove` opens the Undo window and cleared on Undo or when the POST settles).
+`selectHiddenRendererCanvases` includes that canvas even while the lens shows it. Two consequences:
+the stream swap this causes lands before any capture request, and a lens switch mid-capture re-sends
+to a renderer that is already loaded. `Render` still prefers the visible one.
+`parts/task-27.md:110-115`, `:143-147`; tests `:177`, `:179`. Task 30's hands-on step walks it
+(`parts/task-30.md:129-132`).
+*Unverified:* that a hidden renderer's 2× PNG matches the visible one's pixel for pixel. Task 13's
+`TestRender_prefersVisible` exists because a hidden renderer may lack the lens's loaded fonts. So an
+approval that falls back mid-capture can carry artboards from two renderers. Task 30 compares them.
+
+**Second trigger (the re-review's "unverified").** It is closed by item 2, whatever S8's times turn
+out to be: no approval capture, and no agent request queued behind one, can detach the lens.
+
+### RR-I5-2 (Minor): a too-large canvas was refused only after every capture
+
+`handoff.FileCount(doc)` (four per artboard + `tokens.css`, `tokens.json`, `tree.json` + one per
+distinct asset + the manifest) is checked against `MaxFiles` in step 4, **before** any render request.
+Step 5 keeps the full check as the backstop. The byte limits stay in step 5, because the PNGs are
+most of the bytes and do not exist yet. `parts/task-21.md:80-84`, `:278-283`, `:314-316`; tests
+`:360` (the renderer fake sees no request) and `:361` (`FileCount` pinned to `BuildSnapshot`'s own
+output, a shared asset included).
+
+### RR-I5-3 (Minor): tests hard-coded the constant S8 resets
+
+`TestRenderWithin_ownDeadline` and `TestApprove_failureNamesArtboard` now write every time from
+`RenderTimeout` and `ApprovalRenderTimeout`. The "answered late but in time" point is
+`RenderTimeout + 5 s`, which stays below `ApprovalRenderTimeout` because that constant is at least
+30 s by its own rule. `parts/task-13.md:195`; `parts/task-21.md:363-364`.
+
+### RR-I1-1 (Minor): two phase 3 citations pointed at the wrong text
+
+These are now cited by symbol, plus the line the symbol stood on 2026-09-24 (re-read in phase 3's tree):
+`lanes.Catalog` `task-03.md:301-316`, `gitx.Machine` `task-02.md:200-210`, `gitReady`
+`task-04.md:129-132`, `ReasonCloneConfigUntrusted`/`ReasonProjectConfigUntrusted` `task-04.md:117-118`.
+The fixes are at `parts/task-22.md:197-203` and `:235-236`, and in this review's b03 table (the `bare git -C … ls-files` row).
+Checked unchanged: `task-02.md:342-349` (code execution on the host) and `:455-467` (the H5 layout pin).
+The exclude-path prose cited `:455-463`; it now cites `:455-467` (`parts/task-22.md:245`).
+
+### RR-I1-2 (Minor): an equivalent mutant
+
+The `rev-parse --git-path` mutant is dropped, with the reason written into the step so no
+implementer is stuck on it. The list gains "the exclude append made through the bare `fs`"
+(killed by `TestHandoff_excludeLinked`), plus four mutants for this round's own changes (step 4a
+creating directories, `NoFollow` Lstatting through `os`, a fixed temp name, `tmp` via `MkdirAll`),
+each naming its killer. `parts/task-22.md:315-327`.
+
+### RR-I1-3 (Minor): fixed temp names
+
+Both temps are now **fresh**:
+- `tmp` is `BundleDir + ".tmp-" + 16 hex` from `crypto/rand`, made with the new `FS.Mkdir`, which fails
+  on an existing path.
+- The exclude temp is `exclude.panacea-<16 hex>`, which `Lstat` must show absent.
+
+`parts/task-22.md:91-98`, `:245-251`. Test `TestMaterialise_freshTemps` fixes the `randHex` seam, then
+pre-plants a directory holding `extra.html` and a hard link to a worktree file. Both are refused,
+nothing is written through them, and two real-seam runs use two names (`:301`). The part now also
+states what is **not** claimed: a regular file the agent drops into `tmp` between its creation and the
+rename rides into the bundle. From then on the bundle sits in the agent's own read-write worktree, so
+"byte-for-byte what was approved" is a claim about what the call writes (`:107-112`). b03's addition (2),
+above, is corrected by this: the fixed `exclude.panacea-tmp` name is gone.
+
+### RR-I1-4 (Minor): `FS` had no `Lstat`
+
+- `FS` gains `Lstat` and `Mkdir` (`parts/task-22.md:158-165`).
+- `NoFollow` Lstats through `inner`, never the host's `os`, so phase 8's pod `FS` is checked on its own
+  filesystem. The Windows reparse check reads `Sys()` only when it is a
+  `*syscall.Win32FileAttributeData` (`:127-138`).
+- Step 4a now only checks (`:81-88`). Step 6 makes the directories after every fetch and removes the
+  ones it made on error (`:91-93`).
+- Tests: `TestNoFollow_lstatThroughInner` (`:300`), and `TestHandoff_hubDown` extended so that no
+  `.panacea/` is left behind (`:299`).
+
+### RR-I1-5 (Minor): the desktop was not told about the `linked` refusal
+
+- Task 27 adds `selectHandoffWorktrees`: a clone first, then the primary, never a linked worktree
+  (`parts/task-27.md:149-157`, test `:178`).
+- Task 28's *Start a Develop session from this design* uses its first entry. With none, the button is
+  disabled with a sentence (`parts/task-28.md:92-95`, test `:115`).
+- The kind comes from phase 3 task 06's `Worktree.kind`. This plan does not amend `types.ts`: it is
+  gated against UI contract §2, and phase 3 owns that amendment (`task-06.md:23`, `:42`, `:52`, checked).
+  Until then it goes through one seam function, `handoffKind`, which returns `isPrimary ? "primary" :
+  "linked"`. That is exact before phase 3, when every non-primary worktree is a `git worktree add`
+  checkout. Seam S5-P3.3 is at plan `:471`.
+
+### RR-I1-6 (Minor): whether task 22 can ship before phase 3
+
+- Task 22 lands in two halves. Half A has no phase 3 import: the bundle, `NoFollow`, the port, the
+  routes and every recording-fake test. Route 24 answers *"phase 3 is not wired"* until Half B.
+- Half B lands with phase 3 tasks 02–03: `handoffgit_phase3.go`, the `design.go` line and
+  `TestHandoff_fsmonitorNeverRuns`. `TestHandoff_gitfile` moves to Half A, because it refuses before
+  any git runs. Step 3's claim that it needs the real `Exec` is corrected.
+- The constructor is written out against phase 3's signatures as they stand: `MachineHardening(ctx,
+  root) (Hardening, error)` `task-02.md:103`, `NewExec(h) (*Exec, error)` `:147`, `Local{Runner, Root}`
+  `:213-216`.
+- Where: `parts/task-22.md:3`, `:328-362`, the test row `:297`; plan `:420`.
+
+### Mutants expected to survive (named first, per rule 7)
+
+These are for the implementer to run; nothing was run here:
+- A strike counter that skips only `Progress`-set requests, ignoring "queued behind an approval". Only
+  `TestRender_strikesSkipApproval`'s third renderer kills it.
+- A `FileCount` that counts assets per artboard rather than distinct. Only `TestFileCount_matchesBuild`'s
+  shared-asset fixture kills it.
+
+### Not done, and why
+
+- **Hours were not re-estimated.** This round adds work to tasks 13 (sentinels and the strike rule),
+  21 (re-send, causes, `FileCount`), 22 (`Lstat`/`Mkdir`, fresh temps, the halves) and 27 (`approving`,
+  the selector). By my estimate that is 1.5 to 2 h in total, unmeasured. The 82.5 h total and the 34.5 h
+  critical path (plan `:430-433`) are unchanged, so they are now a low estimate. Re-deriving the path
+  is left to the orchestrator's sizing pass.
+
+**Restatement greps run** over the plan, every part and this review, for:
+`panacea-tmp|task-03\.md:279|task-04\.md:83|NewExec\(MachineHardening|rev-parse --git-path. through|MkdirAll, WriteFile, ReadFile, Rename and RemoveAll|is then created|two timeouts|at 30 s|renderer failed on that`.
+Each hit was changed. The one that remains is the b03 section's own history of addition (2), and this
+section corrects it.
+
+**Unverified.** Every citation to phase 3 is to its plan parts, not to built code. The hidden
+renderer's PNG parity is unverified, as stated above. Nothing was built or run: this round changes
+documents only.
 
