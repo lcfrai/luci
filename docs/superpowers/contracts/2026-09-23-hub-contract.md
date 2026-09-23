@@ -1116,3 +1116,146 @@ admin only; `reason` 1–500 characters; the brief must be in the admin's org (e
 
 → `200 {"briefId":"bf-…","erasedRevisions":6,"erasedAt":"…"}`. A second erase answers
 `erasedRevisions: 0`. Irreversible. Event `brief.erased` (in the feed, with no content).
+
+---
+
+## 8. Events
+
+Every write in §7 appends **exactly one** event per changed record, in the write's transaction
+(§10.2). `data` never holds brief content, blob bytes, evidence `because` text or a token.
+Consumers ignore kinds they do not know (§1).
+
+| Kind | `teamId` | `projectId` | `subject` | `data` | In the feed |
+|---|---|---|---|---|---|
+| `team.created` · `team.updated` | ✓ | — | team id | `{"name"}` | yes |
+| `team.member_set` | ✓ | — | user id | `{"role"}` | yes |
+| `team.member_removed` | ✓ | — | user id | `{}` | yes |
+| `team.invite_created` | ✓ | — | invite id | `{"email","role"}` | yes |
+| `team.invite_revoked` | ✓ | — | invite id | `{}` | yes |
+| `team.invite_bound` | ✓ | — | invite id | `{"userId","role"}` | yes |
+| `project.created` · `project.updated` | ✓ | ✓ | project id | `{"name"}` | yes |
+| `project.remote_added` | ✓ | ✓ | project id | `{"repoKey","host"}` | yes |
+| `project.remote_removed` | ✓ | ✓ | project id | `{"repoKey"}` | yes |
+| `brief.created` | ✓ | ✓ | brief id | `{"scope","branchRef"}` | yes |
+| `brief.revised` | ✓ | ✓ | brief id | `{"key","revision","digest","status"}` | yes |
+| `brief.rebound` | ✓ | ✓ | brief id | `{"branchRef","previousBranchRef"}` | yes |
+| `brief.archived` | ✓ | ✓ | brief id | `{}` | yes |
+| `brief.erased` | ✓ | ✓ | brief id | `{"erasedRevisions"}`; the audit also holds `"reason"` | yes, without `reason` |
+| `design.approved` | ✓ | ✓ | approval id | `{"designKey","briefKey"}` | yes |
+| `session_link.created` | ✓ | ✓ | link id | `{"designKey","briefKey","sessionId"}` | yes |
+| `release.reserved` | ✓ | ✓ | release id | `{"kind","environment","pinStatus","briefKey"}` | yes |
+| `release.confirmed` | ✓ | ✓ | release id | `{"pipelineRun"}` | yes |
+| `release.abandoned` | ✓ | ✓ | release id | `{"reason"}` | yes |
+| `release.expired` | ✓ | ✓ | release id | `{}`; `actor` is `null` (the janitor) | yes |
+| `release.deployment_joined` | ✓ | ✓ | release id | `{"deploymentId"}` | yes |
+| `evidence.recorded` | ✓ | ✓ | evidence id | `{"briefKey","criterionId","verdict","commit"}` | yes |
+| `auth.user_provisioned` | — | — | user id | `{"tenantId"}` | **audit only** |
+| `auth.forbidden` | if known | if known | the route pattern | `{"required"}` — every 403 `forbidden` and `not_reserver` | **audit only** |
+| `blob.uploaded` · `blob.deleted` | ✓ | ✓ | `sha256:…` | `{"size","contentType"}` | **audit only** |
+| `audit.read` | — | — | org id | `{"after","count"}` — who read the audit | **audit only** |
+
+Values in `data` are strings, integers or booleans, so the canonical encoding (§3.6) applies
+without floats. `401` and `tenant_not_enrolled` responses have no org and are **logged, not
+audited** (§11.5).
+
+---
+
+## 9. The control-plane side
+
+### 9.1 `credstore` and `entraauth` (task C1)
+
+**Credential Manager layout.** Generic credentials (`CRED_TYPE_GENERIC`),
+`CRED_PERSIST_LOCAL_MACHINE`, the `UserName` field set to the subject for display:
+
+| Target name | Blob |
+|---|---|
+| `PanaceaApp/entra/<tenantId>/<clientId>/account` | JSON `{"tenantId","objectId","name","username","authority","refreshChunks":2,"savedAt"}` — written **last**, so it marks a complete write |
+| `PanaceaApp/entra/<tenantId>/<clientId>/refresh/0` … `/refresh/<n−1>` | the refresh token's UTF-8 bytes, in 2,560-byte chunks |
+| `PanaceaApp/git/github/<owner or "*">` | a GitHub token for phase 3's `credstore.Store` (H-1), `Scheme` `bearer` |
+| `PanaceaApp/panacea/<api host>` | phase 7's `pnc_` token, written through its write-only route |
+
+```go
+package credstore
+
+// Secrets is this machine's secret store: Windows Credential Manager, or memory.
+// Nothing here is ever logged; errors never carry a blob.
+type Secrets interface {
+	Get(target string) ([]byte, error)              // ErrNotFound when absent
+	Put(target, userName string, blob []byte) error // len(blob) <= MaxBlob
+	Delete(target string) error                     // absent is not an error
+	List(prefix string) ([]string, error)           // target names only
+}
+
+const MaxBlob = 2560 // CRED_MAX_CREDENTIAL_BLOB_SIZE
+
+var ErrNotFound = errors.New("credstore: not found")
+
+func WinCred() Secrets // credstore_windows.go: advapi32 CredReadW/CredWriteW/CredDeleteW/CredEnumerateW
+func Memory() Secrets  // tests, and every non-Windows build: tokens last for the process only
+
+// Local implements phase 3's Store (task-13.md:77) for GitHub over Secrets.
+type Local struct{ Secrets Secrets }
+
+func (l Local) Credential(ctx context.Context, h Host) (Credential, error)
+```
+
+`PANACEA_APP_CREDSTORE` = `wincred` (the default on Windows) or `memory` (the default elsewhere).
+**There is no file-backed store**: a file is the thing Credential Manager exists to avoid.
+
+```go
+package entraauth
+
+// TokenSource is phase 8's HA-2, exactly: remotebe and hubclient call it.
+type TokenSource interface {
+	Token(ctx context.Context, scope string) (string, error)
+}
+
+var ErrSignedOut = errors.New("entraauth: signed out")
+
+type State string
+
+const (
+	SignedOut State = "signed_out"
+	SigningIn State = "signing_in"
+	SignedIn  State = "signed_in"
+)
+
+type Account struct{ TenantID, ObjectID, Name, Username string }
+
+type Status struct {
+	State   State
+	Reason  string   // "" | "timeout" | "entra_error" | "exchange_failed" | "reauth_required" | "tenant_not_enrolled"
+	Account *Account // nil unless SignedIn
+}
+
+type Config struct {
+	Authority    string // PANACEA_APP_ENTRA_AUTHORITY
+	ClientID     string // PANACEA_APP_ENTRA_CLIENT_ID
+	HubScope     string // PANACEA_APP_HUB_SCOPE, e.g. "api://<hub-client-id>/Hub.Access"
+	RedirectHost string // "127.0.0.1" (default) or "localhost"
+	Secrets      credstore.Secrets
+	HTTPClient   *http.Client
+	Now          func() time.Time
+	// AfterSignIn is called once with a fresh Hub token at step 11 of §6.1.
+	AfterSignIn func(ctx context.Context) error
+}
+
+type Authenticator struct{ /* unexported */ }
+
+func New(cfg Config) (*Authenticator, error)
+func (a *Authenticator) BeginSignIn(ctx context.Context) (authorizeURL string, expiresAt time.Time, err error)
+func (a *Authenticator) Cancel()
+func (a *Authenticator) Status() Status
+func (a *Authenticator) SignOut(ctx context.Context) error
+func (a *Authenticator) Token(ctx context.Context, scope string) (string, error) // satisfies TokenSource
+
+// DevOps implements phase 3's credstore.Store for Azure DevOps with the Entra token
+// (ADR Q5): Scheme "bearer", Source "entra". Used only when Q5 is yes.
+type DevOps struct{ Tokens TokenSource }
+```
+
+**A difference from phase 3's ask, named.** `credstore.Credential.Source` is `"hub" |
+"git-credential-helper"` in phase 3's part (`task-13.md:68`). The Hub server holds no git
+credential, so no credential comes *from the Hub*. The sources become `"credential-manager"` (a
+GitHub token in `Local`), `"entra"` (`DevOps`) and `"git-credential-helper"`; phase 3 changes one
+comment and any test that asserts `"hub"`.
