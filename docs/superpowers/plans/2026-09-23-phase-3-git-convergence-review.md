@@ -240,3 +240,90 @@ below was opened in the tree at `034232a` (whose control plane is `3303fd6`'s) o
   under `refs/heads/` that is not reachable from the lane (`for-each-ref` in the clone, then a
   fetch into `refs/panacea/archive/lanes/<id>/<unix>/<name>`). Add tests
   `TestObserveReportsAHeadOffTheBranch` and `TestRemoveArchivesOtherClonesBranches`.
+
+#### I7. Two dependency edges are missing, and parallel lane (c) cannot compile or pass as ordered
+
+- **Where:** plan:434-435 and plan:448-450 (11 depends on 07; 12 depends on 02 and 04; both run
+  in lane (c) alongside lane (b)'s 08-10); task-11:108 and task-11:114 (`briefref.Archiver`);
+  task-09:16 (task 09 creates `internal/briefref`); task-12:128-130 and task-12:152 (one mutex per
+  project shared with lands; `TestPushAndLandSerialise`); task-09:96 (the Lander serialises per
+  (project, branch), a different key).
+- **What is wrong:**
+  - Task 11 imports a package that task 09 creates. Run first, it either fails to compile or
+    creates `briefref` itself and collides with task 09.
+  - Task 12's race test needs task 09's `Lander` and a lock both sides take. The plan names two
+    lock scopes (per project in task 12, per branch in task 09) and makes no task the owner of
+    either.
+- **How to fix:**
+  - Move `briefref.go` into task 03 or 04. It is 30 lines with no dependencies.
+  - Add `gitx.Locks` (per project path, one per process) to task 02, and have `Lander`, `Push`
+    and `Fetch` all take it.
+  - Or make 12 depend on 09 and 11 depend on 09, and redraw the lanes.
+
+#### I8. Hard-linked objects make the project's object files writable from the sandbox
+
+- **Where:** plan:49 and task-03:143 (`clone --local`, hard links); OD-2's consequence (owner
+  decisions:13): "agent blast radius is its own clone".
+- **What is wrong:** a hard link is one file with two names. A pack or loose object in the clone
+  **is** the project's file. Through the bind mount the agent can clear the read-only attribute
+  (task-03:152-155 says `os.Chmod` does exactly that) and write it, and that writes the user's
+  repository history. `git gc` in the clone is safe, because it writes new files and unlinks.
+  A deliberate or confused in-place write is not safe. Nothing in the plan states this residual,
+  and OD-2's blast-radius sentence is false while it stands.
+- **How to fix:** this is an owner decision, because OD-2 names hard links. Record it as Q6.
+  Recommendation: have task 01 measure `clone --local` against `clone --no-hardlinks` on
+  `~/Projects/Panacea`, and use `--no-hardlinks` unless the copy is too slow on the owner's
+  laptop. If hard links stay, run `git fsck --connectivity-only` on the lane objects before every
+  land, and state the residual in the plan's "does not claim".
+
+#### I9. Evidence stays settled after its land is reverted
+
+- **Where:** task-15:104-111 (a record decides every descendant of its commit).
+- **What is wrong:** a revert commit removes a land's changes but keeps its commits as
+  ancestors. A criterion settled at a lane commit therefore stays `settled` at the branch head
+  after task 10 reverts that land. That is the same false "done" that contract §2.3's three
+  surfaces exist to prevent, and phase 7 would carry it into a release manifest (S3-P7.5).
+- **How to fix:** give the evaluator the first-parent `Panacea-Reverts` entries between each
+  record's commit and the subject (task 10's trailers). A record whose commit lies in a reverted
+  land's `^1..^2` range, with the revert an ancestor of the subject, no longer decides; the state
+  becomes `open`, with `because: ["the land that carried this evidence was reverted"]`. Add test
+  `TestStatesARevertedLandUnsettles`.
+
+#### I10. Hub ask H-3's repository key has two formats
+
+- **Where:** plan:304 (`github.com/<owner>/<repo>` or `<org>.visualstudio.com/<project>/<repo>`)
+  versus task-13:136-139 (`github.com/<owner>/<repo>` or `azure-devops/<org>/<project>/<repo>`).
+- **Why it matters:** this is the value the Hub keys shared evidence by. It is a cross-team
+  contract value, and the plan and its part disagree about it. The part's form is the better
+  one, because `dev.azure.com/<org>` and `<org>.visualstudio.com` are one organisation.
+- **How to fix:** make plan:304 quote task 13's form exactly.
+
+#### I11. Husky chaining is proven only on a clone configured by hand; a real clone carries no repository hooks
+
+- **Where:** task-05:84-99 (the dispatcher reads the clone's local `core.hooksPath`, else
+  `<common-dir>/hooks`); task-05:137 (`TestDispatchChainsToHusky` writes `core.hooksPath` into the
+  clone's config itself); task-03:137-147 (clone creation copies identity only).
+- **What is wrong:** `git clone` copies neither the source's `.git/config` nor its `.git/hooks`.
+  Husky's `.husky/_` is generated and ignored by git. So a fresh lane of a husky or pre-commit
+  repository runs **no** repository hooks until the agent runs the project's install step. The
+  test passes either way, so R7 stays open in practice while the plan reports it closed. Owner
+  checklist item 5 (task-23:77-78) would be the first place this shows up.
+- **How to fix:** state fresh-clone semantics in task 05's "does not claim". At clone time, copy
+  a **relative** `core.hooksPath` from the project's local config into the clone. Never copy
+  `.git/hooks` contents: a host hook's interpreter line names a Windows path. Add test
+  `TestCreateCopiesARelativeHooksPath`, and have the Docker husky test build its clone with
+  `lanes.Creator` from a project whose config carries the setting.
+
+#### I12. The fix branch has moved since the plan read it
+
+- **Where:** plan:11-12, plan:179-181, task-06:3-4 (the fix at `2d6d95b` "plus its uncommitted
+  `LinkedWorktreeNote`").
+- **What is true on 2026-09-23:** `fix/sandbox-git-ca` is at `4f6d698`, five commits past
+  `3303fd6`. The notice is committed (`58d607f`). The contracts were swept (`5e32000`;
+  `git diff --stat 3303fd6...fix/sandbox-git-ca` shows 55 lines changed in the Go contract and 7
+  in the UI contract) in the same sections that tasks 04-06 amend (§3.7, §5.1).
+  `run()` in the identity test was made hermetic (`73dd041`). The shapes the plan relies on still
+  hold: `GIT_CONFIG_COUNT` "2", `sessionMounts(worktreePath, conversationStore, caBundle)`,
+  `Deps.GitIdentity func(ctx, worktreePath) (GitIdentity, error)`, and `!worktree.isPrimary`.
+- **How to fix:** re-baseline G1 to `4f6d698`. Have tasks 04-06's preflight diff the contract
+  sections the fix already edited, before appending to them.
