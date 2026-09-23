@@ -12,7 +12,7 @@ terminals and worktrees work exactly as phase 2 built them, and only Hub-backed 
 **Files:**
 - `control-plane/internal/httpx/problem.go` — four codes, appended (modify ⚑)
 - `control-plane/internal/api/auth.go` + `auth_test.go` (new)
-- `control-plane/internal/api/api.go` — `Deps.Auth`, `Deps.Hub`, `Deps.HubConfigured`; `a.registerAuth(guarded)` (modify ⚑: three fields, one line)
+- `control-plane/internal/api/api.go` — `Deps.Auth`, `Deps.Hub`; `a.registerAuth(guarded)` (modify ⚑: two fields, one line)
 - `control-plane/internal/api/routes_audit_test.go` — `GET /v1/auth/status` in `catalogReadOnlyRoutes` (modify ⚑)
 - `control-plane/cmd/api/config.go` + `config_test.go` — the variables (modify ⚑: appended to the block)
 - `control-plane/cmd/api/main.go` + `main_test.go` — the wiring (modify ⚑)
