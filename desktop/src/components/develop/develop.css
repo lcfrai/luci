@@ -343,15 +343,22 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: var(--r-card);
+  /* --r-window, not --r-card. The pane inside already carries --r-card, and the design system
+     ties radius to element size rather than using one value everywhere; a free-floating tile on
+     a plane is the thing --r-window's own comment describes as reading as its own window. Two
+     equal radii nested inside `overflow: hidden` also just clip each other. */
+  border-radius: var(--r-window);
   background: var(--page);
   box-shadow: var(--e-card);
-  will-change: transform;
 }
 
 .cv-tile[data-cv-dragging="move"],
 .cv-tile[data-cv-dragging="resize"] {
   box-shadow: var(--e-raised);
+  /* Promoted for the gesture only. Ten permanently-promoted tiles is ten compositor layers
+     held for the life of the app; `data-cv-dragging` flips on pointerdown, before any
+     transform is written, so the layer still exists by the first move. */
+  will-change: transform;
 }
 
 .cv-grip {
@@ -418,4 +425,34 @@
 
 .cv-tile:focus-within {
   box-shadow: var(--e-card), 0 0 0 1px var(--accent-ring);
+}
+
+/* The two states COMPOSE rather than race. `.cv-tile:focus-within` and
+   `.cv-tile[data-cv-dragging="…"]` have equal specificity, so source order alone decided it and
+   the later rule won: a dragged tile holding a focused terminal — which is every tile you drag
+   after typing in it — lost its lift and read as not moving. Neither state may silently delete
+   the other, so the overlap is written out. */
+.cv-tile[data-cv-dragging="move"]:focus-within,
+.cv-tile[data-cv-dragging="resize"]:focus-within {
+  box-shadow: var(--e-raised), 0 0 0 1px var(--accent-ring);
+}
+
+.cv-unpin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-chip);
+  background: none;
+  color: var(--ink-4);
+  font: 500 11px/1 var(--sans);
+  cursor: pointer;
+}
+
+.cv-unpin:hover {
+  background: var(--hover-2);
+  color: var(--ink);
 }

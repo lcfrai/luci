@@ -132,7 +132,7 @@ describe("removeSession and lastError", () => {
     const s = useCockpit.getState();
     s.replaceSessions(sessionsOn("w-1", ["s-1", "s-2"]), ["w-1"]);
     s.setTile("s-1", { x: 10, y: 20, w: 400, h: 300 });
-    s.pinSession("s-1");
+    s.pinSession("s-1", ["s-1"]);
     s.focusSession("s-1");
     s.openSessionMenu("s-1");
     s.openContextMenu({ kind: "session", id: "s-1", x: 40, y: 80 });
@@ -347,17 +347,23 @@ describe("prefsSlice", () => {
 
   it("pins in the order the user pinned, and is idempotent", () => {
     const s = useCockpit.getState();
-    s.pinSession("s-2");
-    s.pinSession("s-1");
-    s.pinSession("s-2");
+    const scope12 = ["s-1", "s-2"];
+    s.pinSession("s-2", scope12);
+    s.pinSession("s-1", scope12);
+    s.pinSession("s-2", scope12);
     expect(useCockpit.getState().pinned).toEqual(["s-2", "s-1"]);
     expect(useCockpit.getState().toasts).toHaveLength(0);
   });
 
   it("no-ops past the cap and says so in a toast naming the number", () => {
     const s = useCockpit.getState();
-    for (let i = 0; i < CANVAS_MAX_TILES; i += 1) s.pinSession(`s-${i}`);
-    s.pinSession("s-over");
+    // The scope carries every id in play, so the cap counts the same set it counted
+    // before it became `pinned INTERSECT scopeIds`, and the assertions are unchanged.
+    const scope = [...Array(CANVAS_MAX_TILES).keys()]
+      .map((i) => `s-${i}`)
+      .concat("s-over");
+    for (let i = 0; i < CANVAS_MAX_TILES; i += 1) s.pinSession(`s-${i}`, scope);
+    s.pinSession("s-over", scope);
     const after = useCockpit.getState();
     expect(after.pinned).toHaveLength(CANVAS_MAX_TILES);
     expect(after.pinned).not.toContain("s-over");
@@ -365,11 +371,28 @@ describe("prefsSlice", () => {
     expect(after.toasts[0].message).toContain(String(CANVAS_MAX_TILES));
   });
 
+  it("caps within the scope, so another branch's pins cannot fill this one", () => {
+    // Added by task 21's fix round 2. The cap is over what Canvas SHOWS. Ten pins held for
+    // other branches used to make a six-session branch unable to seed, with a toast pointing
+    // at tiles that were not on screen.
+    const s = useCockpit.getState();
+    for (let i = 0; i < CANVAS_MAX_TILES; i += 1) s.pinSession(`other-${i}`, [`other-${i}`]);
+    const mine = ["m-1", "m-2"];
+    s.pinSession("m-1", mine);
+    s.pinSession("m-2", mine);
+
+    const after = useCockpit.getState();
+    expect(after.pinned).toContain("m-1");
+    expect(after.pinned).toContain("m-2");
+    expect(after.toasts).toHaveLength(0);
+  });
+
   it("unpins without disturbing the order of the rest", () => {
     const s = useCockpit.getState();
-    s.pinSession("s-1");
-    s.pinSession("s-2");
-    s.pinSession("s-3");
+    const scope123 = ["s-1", "s-2", "s-3"];
+    s.pinSession("s-1", scope123);
+    s.pinSession("s-2", scope123);
+    s.pinSession("s-3", scope123);
     s.unpinSession("s-2");
     expect(useCockpit.getState().pinned).toEqual(["s-1", "s-3"]);
   });
@@ -403,7 +426,7 @@ describe("persistence", () => {
     const s = useCockpit.getState();
     s.setLayout("canvas");
     s.setTile("s-1", { x: 8, y: 9, w: 480, h: 320 });
-    s.pinSession("s-1");
+    s.pinSession("s-1", ["s-1"]);
     const raw = localStorage.getItem(PERSIST_KEY);
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw as string);
@@ -500,7 +523,7 @@ describe("resetCockpit", () => {
     s.setHarnesses(CATALOGUE);
     s.replaceSessions(sessionsOn("w-1", ["s-1"]), ["w-1"]);
     s.setLayout("canvas");
-    s.pinSession("s-1");
+    s.pinSession("s-1", ["s-1"]);
     s.pushToast("hello");
     resetCockpit();
     const after = useCockpit.getState();

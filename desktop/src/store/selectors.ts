@@ -82,11 +82,27 @@ export const selectPaneSessionIds = (s: CockpitState): SessionId[] => {
   return out.length === 0 ? NO_IDS : out;
 };
 
-/** `pinned` filtered to sessions that still exist, in pin order. A pin whose session has been
- *  forgotten is dropped here rather than in prefsSlice, so an in-flight poll cannot blank a
- *  tile the user is looking at. Consume with useShallow. */
+/** `pinned` filtered to sessions that still exist AND sit on the SELECTED BRANCH, in pin order.
+ *  A pin whose session has been forgotten is dropped here rather than in prefsSlice, so an
+ *  in-flight poll cannot blank a tile the user is looking at. Consume with useShallow.
+ *
+ *  EDITED BY TASK 21's FIX ROUND 2, as a declared departure — this is task 17's file, and §4
+ *  is why the intersection lives here rather than inline in CanvasLayout: a derived read in a
+ *  selector is testable, and two components deriving it separately is how they come to disagree.
+ *
+ *  WHY the branch filter. `pinned` is one flat global list (§3.4) while Canvas renders one
+ *  branch, so without this the second branch you visit shows the first branch's tiles. The fix
+ *  is a filter rather than a re-keyed store: session ids are globally unique and each belongs
+ *  to exactly one branch, so a global persisted set filtered for display is correct per branch
+ *  AND keeps each branch's arrangement across a switch — with no persisted-shape change and no
+ *  migration at schema version 1.
+ *
+ *  Both filters are kept, not just the intersection. `selectPaneSessionIds` reads
+ *  `sessionIdsByWorktree`, which can name an id that `sessions` does not yet hold mid-poll; the
+ *  existence check is what stops that rendering a tile for a session with no record. */
 export const selectCanvasSessionIds = (s: CockpitState): SessionId[] => {
-  const out = s.pinned.filter((id) => s.sessions[id] !== undefined);
+  const scope = selectPaneSessionIds(s);
+  const out = s.pinned.filter((id) => s.sessions[id] !== undefined && scope.includes(id));
   return out.length === 0 ? NO_IDS : out;
 };
 

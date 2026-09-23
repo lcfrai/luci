@@ -165,9 +165,12 @@ describe("selectors", () => {
   it("filters dead pins out of the canvas and keeps pin order", () => {
     seed();
     const s = useCockpit.getState();
-    s.pinSession("s-3");
-    s.pinSession("s-1");
-    s.pinSession("s-gone");
+    // Production passes the branch's pane order as the scope; so does this. "s-gone" is
+    // not in it, which is the point of the case below — it pins and the selector drops it.
+    const scope = selectPaneSessionIds(useCockpit.getState());
+    s.pinSession("s-3", scope);
+    s.pinSession("s-1", scope);
+    s.pinSession("s-gone", scope);
     expect(selectCanvasSessionIds(useCockpit.getState())).toEqual(["s-3", "s-1"]);
 
     // The EMPTY case, which is the one `NO_IDS` exists for and which nothing else pins: an
@@ -177,6 +180,30 @@ describe("selectors", () => {
     const empty = selectCanvasSessionIds(useCockpit.getState());
     expect(empty).toEqual([]);
     expect(selectCanvasSessionIds(useCockpit.getState())).toBe(empty);
+  });
+
+  it("drops a pin whose session is on another branch, and brings it back on the switch", () => {
+    // `pinned` is one flat global list (§3.4) while Canvas renders one branch. Added by task
+    // 21's fix round 2: without the intersection, the second branch shows the first's tiles.
+    seed();
+    const s = useCockpit.getState();
+    s.setBranches("p-1", [
+      aBranch({ id: "b-1", projectId: "p-1", name: "main", isHead: true }),
+      aBranch({ id: "b-2", projectId: "p-1", name: "audit-trail", isHead: false }),
+    ]);
+    s.setWorktrees("b-2", [
+      aWorktree({ id: "w-3", projectId: "p-1", branchId: "b-2", name: "audit-trail" }),
+    ]);
+    s.upsertSession(aSession({ id: "s-9", projectId: "p-1", branchId: "b-2", worktreeId: "w-3" }));
+    s.pinSession("s-1", ["s-1"]);
+    s.pinSession("s-9", ["s-9"]);
+
+    expect(selectCanvasSessionIds(useCockpit.getState())).toEqual(["s-1"]);
+
+    useCockpit.getState().selectBranch("p-1", "b-2");
+    expect(selectCanvasSessionIds(useCockpit.getState())).toEqual(["s-9"]);
+    // Both survive in the store, which is what makes each branch's arrangement come back.
+    expect(useCockpit.getState().pinned).toEqual(["s-1", "s-9"]);
   });
 
   it("threads the selection through resolveDefaults", () => {

@@ -38,8 +38,20 @@ export interface PrefsSlice {
   setBranchDefaults(id: BranchId, patch: SessionDefaultsOverride): void;
   setTile(id: SessionId, tile: TilePosition): void;
   clearTile(id: SessionId): void;
-  /** No-ops past CANVAS_MAX_TILES and pushes a toast naming the cap. */
-  pinSession(id: SessionId): void;
+  /** No-ops past CANVAS_MAX_TILES **within `scopeIds`** and pushes a toast naming the cap.
+   *
+   *  EDITED BY TASK 21's FIX ROUND 2, as a declared departure — this is task 17's file. The
+   *  cap used to count `pinned` globally while Canvas renders one branch, so two branches of
+   *  six sessions each left the second unable to seed, with a toast pointing at tiles that
+   *  were not on screen. `scopeIds` is the set Canvas is currently showing from — the selected
+   *  branch's pane order — and the cap counts `pinned ∩ scopeIds`.
+   *
+   *  A second parameter rather than re-keying `pinned` by branch: this changes a signature,
+   *  not the persisted shape, so there is no migration at schema version 1 and a stored blob
+   *  written by the previous build still rehydrates. It is REQUIRED rather than optional on
+   *  purpose — an optional scope would silently restore the global cap for any caller that
+   *  forgot it, which is the defect itself wearing a default value. */
+  pinSession(id: SessionId, scopeIds: SessionId[]): void;
   unpinSession(id: SessionId): void;
 }
 
@@ -112,10 +124,13 @@ export const createPrefsSlice: StateCreator<
     });
   },
 
-  pinSession: (id) => {
+  pinSession: (id, scopeIds) => {
     const { pinned, pushToast } = get();
     if (pinned.includes(id)) return;
-    if (pinned.length >= CANVAS_MAX_TILES) {
+    // The cap is over what Canvas SHOWS, not over what the store holds. `pinned` stays a flat
+    // global list and is allowed to hold a branch's worth of pins for every branch visited.
+    const inScope = pinned.filter((p) => scopeIds.includes(p));
+    if (inScope.length >= CANVAS_MAX_TILES) {
       pushToast(`Canvas holds ${CANVAS_MAX_TILES} sessions. Unpin one to add another.`);
       return;
     }

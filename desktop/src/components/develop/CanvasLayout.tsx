@@ -75,26 +75,28 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
   const tiles = useCockpit((s) => s.tiles);
   const setTile = useCockpit((s) => s.setTile);
   const pinSession = useCockpit((s) => s.pinSession);
+  const unpinSession = useCockpit((s) => s.unpinSession);
   const [stack, setStack] = useState<SessionId[]>([]);
 
   /* Decision (a). Nothing in Group D renders a "pin to canvas" verb, so an unseeded canvas stays
-   * blank for ever and the layout toggle reads as broken. The room left under the cap is computed
-   * BEFORE pinning: pinSession no-ops past the cap and toasts it (§7.7), and a toast on every
-   * mount that the user cannot act on is worse than the blank plane it replaces. */
+   * blank for ever and the layout toggle reads as broken.
+   *
+   * Seeds an EMPTY canvas only; it never tops up a partly-pinned one. That is narrower than this
+   * effect was in the first round, and fix round 2's unpin affordance is what forced it: a
+   * top-up re-pins whatever the user just unpinned on the very next render, so the button would
+   * have been a control with no visible effect — the same class of defect as the toast naming a
+   * verb the product did not have. `pinned` cannot tell "never pinned" from "deliberately
+   * unpinned" without a persisted flag, and adding one is the schema change this round is
+   * explicitly avoiding, so the trigger moves instead.
+   *
+   * The residual, stated rather than hidden: unpinning the LAST tile on a branch empties the
+   * canvas and this re-seeds it. That is the safer of the two failures while no pin verb exists
+   * — a blank plane would be unrecoverable — and it disappears the moment task 22 ships one.
+   *
+   * `paneIds` is the scope: the cap counts what Canvas SHOWS, which is this branch. */
   useEffect(() => {
-    const room = CANVAS_MAX_TILES - sessionIds.length;
-    if (room <= 0) return;
-    /* `Math.max`, not a bare `room` — shared-shape §3A.1 clause 6 prefers designing an expiry
-     * condition away to documenting one, and this is a one-call instance. A mutation deleting
-     * the early return above survived the whole suite, and the hazard that survival masked was
-     * real: `.slice(0, room)` with a NEGATIVE room drops from the END rather than returning
-     * nothing, so a canvas at the cap with unpinned pane sessions would pin all but the last
-     * |room| of them and toast the cap once per call. Clamped, the early return is genuinely
-     * just a fast path and deleting it is harmless, so there is no expiry left to write down. */
-    const missing = paneIds
-      .filter((id) => !sessionIds.includes(id))
-      .slice(0, Math.max(room, 0));
-    for (const id of missing) pinSession(id);
+    if (sessionIds.length > 0) return;
+    for (const id of paneIds.slice(0, CANVAS_MAX_TILES)) pinSession(id, paneIds);
   }, [paneIds, sessionIds, pinSession]);
 
   /* pinSession enforces the cap, but a pin list persisted by an older build rehydrates without
@@ -120,6 +122,12 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
         {visible.map((id, i) => {
           const raised = stack.indexOf(id);
           return (
+            /* `key={id}`, never the index, and it is load-bearing rather than idiomatic: a
+             * positional key makes React re-use the tile at slot N for whatever session lands
+             * there, which unmounts one pane and mounts another in the same DOM slot and
+             * re-parents the registry's element on every pin-order change. Keyed by session,
+             * a re-order MOVES the node and the rendered scrollback goes with it. Pinned by
+             * "keeps a tile's DOM node when the pin order changes". */
             <CanvasTile
               key={id}
               sessionId={id}
@@ -127,6 +135,7 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
               z={raised === -1 ? i + 1 : CANVAS_MAX_TILES + 1 + raised}
               onRaise={raise}
               onCommit={commit}
+              onUnpin={unpinSession}
             />
           );
         })}
@@ -141,12 +150,24 @@ interface TileProps {
   z: number;
   onRaise: (id: SessionId) => void;
   onCommit: (id: SessionId, next: TilePosition) => void;
+  onUnpin: (id: SessionId) => void;
+}
+
+function samePosition(a: TilePosition, b: TilePosition): boolean {
+  return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 }
 
 /* The inner functions below are `function` declarations rather than const arrows on purpose:
  * `end` names `onUp` and `onUp` names `end`, and declarations hoist, so neither ordering is a
  * temporal-dead-zone trap. */
-function CanvasTile({ sessionId, position, z, onRaise, onCommit }: TileProps): JSX.Element {
+function CanvasTile({
+  sessionId,
+  position,
+  z,
+  onRaise,
+  onCommit,
+  onUnpin,
+}: TileProps): JSX.Element {
   /* A primitive read: stable across a poll that did not rename the session. The `?? sessionId`
    * fallback is unreachable today and no test pins it — selectCanvasSessionIds filters `pinned`
    * to sessions that still exist (selectors.ts), and an exited session stays in `sessions`, so
@@ -179,8 +200,15 @@ function CanvasTile({ sessionId, position, z, onRaise, onCommit }: TileProps): J
    * by "holds its dragged position when an unrelated store write re-renders the plane"; swapping
    * this array for `[position]` fails it with translate3d(32px, 28px, 0). */
   useLayoutEffect(() => {
-    live.current = position;
-    apply(position);
+    /* Clamped on the way IN, not only on the way out. A tile persisted against a larger plane —
+     * a wider monitor, or a future PLANE_W — rehydrates with its far edge outside the sheet and
+     * would otherwise render off-screen with no handle to drag it back by. Clamping here puts
+     * it on the plane immediately; the first gesture then persists the correction, so this
+     * needs no store write on mount. "move" is the right gesture: a rehydrate fixes the size
+     * and moves the position, exactly as a drag does. */
+    const landed = clampTile(position, "move");
+    live.current = landed;
+    apply(landed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [position.x, position.y, position.w, position.h]);
 
@@ -198,9 +226,24 @@ function CanvasTile({ sessionId, position, z, onRaise, onCommit }: TileProps): J
     const startX = e.clientX;
     const startY = e.clientY;
     const origin = live.current;
+    /* The gesture belongs to ONE pointer. Without this, a second finger landing anywhere while
+     * a drag is in flight feeds its own coordinates to this handler and the tile teleports
+     * between the two touch points. This is what declared survivor #2 — the missing
+     * `button !== 0` coverage — was hiding: both are "the handler accepts an input it should
+     * have refused", and only one of them had been noticed. */
+    const { pointerId } = e;
     setGesture(mode);
 
+    /* `in` rather than a bare compare, so the two cases are explicit rather than accidental:
+     * a real PointerEvent always carries the id and is filtered, while a plain MouseEvent has
+     * no `pointerId` on its prototype at all and is let through rather than compared against
+     * `undefined`. */
+    function fromAnotherPointer(ev: Event): boolean {
+      return "pointerId" in ev && (ev as PointerEvent).pointerId !== pointerId;
+    }
+
     function onMove(ev: MouseEvent): void {
+      if (fromAnotherPointer(ev)) return;
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
       const next = clampTile(
@@ -213,18 +256,36 @@ function CanvasTile({ sessionId, position, z, onRaise, onCommit }: TileProps): J
       apply(next);
     }
 
-    function onUp(): void {
+    function onUp(ev: Event): void {
+      if (fromAnotherPointer(ev)) return;
       end();
-      // The ONE store write of the whole gesture.
-      onCommit(sessionId, live.current);
+      /* The ONE store write of the whole gesture, and only if the gesture moved something. A
+       * bare click on the grip — which is every click that lands on it, since the grip is not
+       * a button — otherwise runs the whole `persist` middleware to write back the position the
+       * tile already had. */
+      const next = live.current;
+      if (samePosition(next, origin)) return;
+      onCommit(sessionId, next);
     }
 
     function end(): void {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("blur", onBlur);
       endRef.current = null;
       setGesture(null);
+    }
+
+    /* A window that loses focus mid-drag never delivers the pointerup — alt-tab, a native
+     * dialog, the OS taking the pointer — and the gesture would otherwise stay armed, so the
+     * next pointermove over the plane drags a tile nobody is holding. Blur carries no
+     * pointerId, hence the separate entry point rather than reusing onUp's filter. */
+    function onBlur(): void {
+      end();
+      const next = live.current;
+      if (samePosition(next, origin)) return;
+      onCommit(sessionId, next);
     }
 
     endRef.current = end;
@@ -233,6 +294,7 @@ function CanvasTile({ sessionId, position, z, onRaise, onCommit }: TileProps): J
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
+    window.addEventListener("blur", onBlur);
   }
 
   return (
@@ -259,6 +321,21 @@ function CanvasTile({ sessionId, position, z, onRaise, onCommit }: TileProps): J
       >
         <span className="cv-grip-bar" aria-hidden="true" />
         <span className="cv-coords" ref={coordsRef} aria-hidden="true" />
+        {/* The cap's toast says "Unpin one to add another" and, before this, nothing in the
+            tree called unpinSession — the product instructed an action it could not perform.
+            stopPropagation on pointerdown is what stops a click here starting a drag, because
+            the grip's own onPointerDown is this element's parent. Note the tile still comes to
+            the front: onRaise is on the CAPTURE phase, which a descendant cannot intercept —
+            that is the expiry condition declared on it, now actually exercised. */}
+        <button
+          type="button"
+          className="cv-unpin"
+          aria-label={`Unpin ${title}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => onUnpin(sessionId)}
+        >
+          <span aria-hidden="true">×</span>
+        </button>
       </div>
       <div className="cv-tile-body">
         <SessionPane sessionId={sessionId} variant="tile" />
