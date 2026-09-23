@@ -615,6 +615,95 @@ returns runs and rollbacks together, newest `reservedAt` first, 200 at most; the
 the `upstream_unavailable` relay (§4.3); the credential-store row for the `pnc_` token (§9.1); the
 local caller key (§9.4); `release.*` events in the change feed (§8).
 
+**One difference noticed, not phase 7's to settle.** The Hub contract spells an Azure DevOps repo key
+`<org>.visualstudio.com/<project>/<repo>` (ADR-H1 §5.3, the `project remote` row), phase 3's
+`githost.RepoKey` spells it `azure-devops/<org>/<project>/<repo>` (phase 3 task-13 `:136-139`). Phase 7
+only ever compares keys it computed itself with `githost` on both sides, so it is unaffected; the
+Hub and phase 3 must agree before an ADO project is linked.
+
+---
+
+## 10. Asks of, and seams with, the other phases
+
+### 10.1 What phase 7 consumes
+
+| From | Seam | Used in | If it is not there |
+|---|---|---|---|
+| Phase 2 | `routes.Handle` recorder (`api.go:174-184`); `catalogReadOnlyRoutes` (`routes_audit_test.go:32`); `httpx.WriteProblem` (`problem.go:93`); `statepath.Dir` (`statepath.go:30`); `LensPlaceholder` for `deploy` (`AppShell.tsx:60-67`, already `phase={7}`) | every task | — (all exist) |
+| Phase 2 / R2 | the shared `writeAtomic` (ruling R2 lifts it into `statepath`) | 06 | if phase 4 has not lifted it yet, task 06 does the lift, as R2 describes, **with its tests** |
+| Hub H0 | `hubapi`, `hubclient.Releases`, `hubclient.Projects`, `NewFake()` (contract §9.2) | 06–10 | nothing phase 7 can compile against; H0 is first in the Hub's order (ADR-H1 §5.9) |
+| Hub C1 | `credstore.Secrets` (§9.1) | 05 | part 05 declares `connection.Secrets` — `Get`, `Put`, `Delete`, the same signatures — which `credstore.Secrets` satisfies, and wires `credstore.Memory()` in tests |
+| Hub C2 | the relay and the cursor mechanism | 07, 13 | HA7-4's *meanwhile* |
+| Hub C3 | the local caller key on every request | 14 | the lens works without it; the §6.6 exposure is C3's to close |
+| Phase 3 task 08 | `remote.State{Upstream, Ahead, Behind}`, `Convergence.Tip` | 09 | 7b does not merge |
+| Phase 3 task 12 | `POST …/push` | 16 (offered beside a disabled Ship) | Ship says *"push first"* without the button |
+| Phase 3 task 13 | `githost.ParseRemote`, `Remote.RepoKey()` | 06 | 7a's binding cannot match; the connect screen asks for the Panacea project by name instead (part 06) |
+| Phase 3 task 05 | the `Panacea-Session` trailer on agent commits (3-D6, `S3-P7.1`) | 19 | the manifest says *"sessions are not recorded for commits made before phase 3"* |
+| Phase 4 | the key-source loader (R6) and the `Ref` cache it fills; Discover opening a past revision read-only (provenance contract §4.1) | 13, 15, 17 | the pin cell renders `resolving` for a key it cannot resolve — never a head — and part 15 states it |
+| Phase 5 | an approved `design:` key for the branch, to pass as `designKey` at reserve | 09 | Ship reserves with `designKey: null`; the Hub never infers one (§7.9) |
+
+### 10.2 What phase 7 leaves for later phases — the seams
+
+| Seam | Where | The later phase | Must not |
+|---|---|---|---|
+| **S7-N1** the native deployer | `deploy.Deployer`; `deploytest.Conformance` | the Panacea lift (`OD-13`): a native implementation passes the suite and replaces `panacea.Client` in `main.go`; the `PanaceaApp/panacea/<host>` credential row is deleted by that task | change a domain type to fit Panacea's wire shapes; add a Panacea-specific method to `Deployer` |
+| **S7-N2** the metadata mirror | `panacea.Client.Ship` sends no `metadata` today | if R7's ask is granted: the client adds `metadata: {"panacea.app/release": "<rl-…>"}` and the watcher may confirm a crashed reservation by the run's annotation (ADR-H1 R3) | pin by that annotation — it names a reservation, and the pin is still the Hub's |
+| **S7-N3** Panacea-side hash suffix | `D2` (c) | if Panacea appends a hash when truncating, the collision state in task 08 simply stops firing | re-implement `sanitizeBranchEnv` in phase 7 |
+| **S7-E1** phase 8's environment | the control plane's Panacea address and CA are configuration (§6) | phase 8 sets them in the product's environment; nothing in phase 7 assumes a laptop | hard-code `dev.panacea.kpmg` |
+| **S7-X1** another deploy target | `deploy.Deployer` | a customer-hosted tier that deploys elsewhere implements the interface | branch on target type above the interface |
+| **S7-P1** the criterion evaluator | the manifest's criteria render `open` + *"no evidence recorded yet"* | phase 3's `evidence.Evaluator` at `Deployment.Commit` (`S3-P7.5`) | evaluate at the branch head (P12) |
+
+---
+
+## 11. Open questions for the owner — each with the recommendation the plan builds on
+
+| # | Question | Recommendation (what is built) |
+|---|---|---|
+| **Q-P7-1** (A-P7-1) | May *"redeploy"* become **"Rebuild <version>"**, which rebuilds that release's exact commit and keeps its brief pin, instead of Panacea's redeploy, which rebuilds whatever the branch holds now (7P-3)? | **Yes.** The alternative makes an inherited pin false whenever the branch has moved |
+| **Q-P7-2** | Send Panacea's team the **metadata ask** (R7), and in the same note ask them to **record a rollback as a deployment row**, so a rollback made in their portal is visible to us (7P-4)? | **Yes, now** — both have another team's lead time. Task 20 writes the note; sending it is yours |
+| **Q-P7-3** | Ask Panacea to **append a short hash** when it truncates a long branch name to an environment (brief `D2` c)? | **Yes**, in the same note. Until then the cockpit shows a collision after the fact (task 08) |
+| **Q-P7-4** | The branch posture offers **`none` — public on the internet** — to any developer, because Panacea's API does (`routes.go:1431` is developer-gated). Should the cockpit offer it? | **Yes, as Panacea does**, held for 5 s with the consequence printed first: *"Anyone on the internet will be able to open this branch."* Overrule to hide `none` and `password` from the cockpit |
+| **Q-P7-5** | A rollback made **outside the cockpit** cannot be seen (7P-4). Acceptable for v1, said in the lens's help text? | **Yes**; Q-P7-2 is the fix |
+
+**What the owner provides, and when (OD-12, batched to the end):** one `pnc_` token minted in the
+Panacea dev portal (Account → API keys), pasted into the connect panel during the hands-on session;
+one dev Panacea project whose repository is also a Hub project; the owner's eyes on the lens.
+Nothing blocks development: every task runs against `deploytest.Fake`, `hubclient.NewFake()` and
+recorded Panacea bodies.
+
+---
+
+## 12. What this plan did not verify
+
+- **Nothing was compiled or run.** No Go, no TypeScript, no test.
+- **No network call was made by this pass.** The Panacea dev address and version are the
+  orchestrator's measurement (`orchestrator-rulings.md`, *Settled by measurement*). No token was
+  used and no response body was observed; every Panacea shape is read from Go source at
+  `b33d15acb`, and a later Panacea commit may move any of it. Task 02 and task 20 re-check against
+  the live dev API.
+- **Go on Windows trusts KPMG's interception root through the system store** (7P-10) — from
+  knowledge; task 02's acceptance has the one live call that settles it.
+- **The value of `panacea.io/environment` for the production environment** — `"prod"` or
+  `"production"` (7P-8). Task 08 surfaces a mismatch instead of hiding it; task 20 records the
+  answer.
+- **Whether `developer` is accepted as a role spelling on `POST …/access`** — task 04 sends `editor`,
+  the spelling `access.go` produces (`middleware/rbac.go:219`).
+- **Whether `GET /api/v1/projects` returns `repoUrl` to a non-admin token.** The `List` handler
+  (`projects.go:746-866`) was read for its envelope, not for per-field redaction. If it omits the
+  field, part 06's fallback applies (the user names the project once).
+- **That no rollback row appears anywhere in Panacea.** Read from the handler, the client and every
+  `Trigger` assignment (7P-4); not observed live.
+- **Rate limiting.** `panacea-api` applies `middleware.RateLimit` to one route only
+  (`routes.go:2271`, the redeem limiter). An edge limit in front of it, if any, was not checked. The
+  watcher's worst case is ~3 requests per bound project per 3 s while a run is active.
+- **The Hub's code does not exist.** `hubclient`, `hubapi`, `credstore` and the fake are read from
+  the Hub contract at `a6ccd77`; their final spellings may differ, and parts 05–10 name the exact
+  methods they call so the difference is a compile error, not a silent one.
+- **Phase 3, 4 and 5 interfaces** are read from their plans (phase 3 at its worktree's current text;
+  phase 4's 2026-09-23 plan was still a stub, so R6's loader is taken from the ruling and the
+  provenance contract; phase 5's plan was not found to name `upstream-down`).
+- **How the lens looks.** Visual acceptance is the owner's eyes (OD-12); every UI task says so.
+
 
 
 
