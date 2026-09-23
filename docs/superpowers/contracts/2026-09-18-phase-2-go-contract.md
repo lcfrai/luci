@@ -271,12 +271,14 @@ func (r Resources) KubeCPU() string { return strconv.Itoa(r.CPUMillis) + "m" }
 // KubeMemory renders MemoryMiB as a Kubernetes quantity, e.g. "4096Mi".
 func (r Resources) KubeMemory() string { return strconv.Itoa(r.MemoryMiB) + "Mi" }
 
-// Mount is a host path exposed inside the sandbox. Phase 2 uses it for two
+// Mount is a host path exposed inside the sandbox. Phase 2 uses it for three
 // things: giving a local Docker session the worktree it is supposed to work in,
 // and — AMENDED by the resume fix (2026-09-23) — giving a session whose harness has a
-// conversation that worktree's conversation store (§5.1 step 5). Kata ignores
-// Mounts and returns ErrUnsupported if any are set, because a host path on an
-// AKS node is meaningless.
+// conversation that worktree's conversation store (§5.1 step 5), and — AMENDED by
+// the sandbox git fix (2026-09-23) — the operator's PANACEA_APP_CA_BUNDLE,
+// read-only (§4). Kata ignores Mounts and returns ErrUnsupported if any are set,
+// because a host path on an AKS node is meaningless (§2.6 lists what Phase 8 must
+// supply instead).
 type Mount struct {
 	HostPath      string
 	ContainerPath string
@@ -786,6 +788,14 @@ func (b *Backend) Kind() backend.Kind { return backend.KindKata }
   the user goes), and holding `projects/` only: `~/.claude` itself is where `/login`
   writes credentials. Until then this refusal fails every Kata create, as the worktree
   mount already did.
+- AMENDED by the sandbox git fix (2026-09-23): **and one more.** When `PANACEA_APP_CA_BUNDLE`
+  is set (§4), every session also carries a **read-only** mount of that PEM bundle at
+  `/etc/panacea-app/ca-bundle.pem` (`sessionCABundlePath`), named by `NODE_EXTRA_CA_CERTS`
+  in `Spec.Env` (§5.1 step 5). Kata must supply it as a read-only volume — a ConfigMap or
+  Secret projected at the same path is the natural shape — because a host path on an AKS
+  node is meaningless here too. `Spec.Env` itself already reaches the pod
+  (`sandbox.Spec.Env`), so the git configuration and identity variables need nothing
+  from Phase 8. Until then, with the variable set, this refusal fails every Kata create.
 - `Endpoint` is `net.JoinHostPort(pod.Status.PodIP, "8080")`. An empty `PodIP` means
   the pod is not scheduled yet: `StateStarting`, empty `Endpoint`.
 - `State` maps `pod.Status.Phase`: `Pending` → `StateStarting`, `Running` →
@@ -1913,6 +1923,32 @@ visible in one file.
 | `PANACEA_APP_NAMESPACE` | `panacea-app` | `kata` backend only. |
 | `PANACEA_APP_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`. Anything else falls back to `info` with one warning line rather than exiting. |
 | `PANACEA_APP_HARNESS_ALLOW_UNVERIFIED` | unset | When `1`, `harness.Build` will construct argv for a harness whose flags were never verified. Nothing in Phase 2 sets it; it exists so adding Codex is a flag flip plus a `--help` check, not a code change. |
+| `PANACEA_APP_GIT_NAME` | unset | ADDED by the sandbox git fix (2026-09-23). With `PANACEA_APP_GIT_EMAIL`, the identity every commit in every sandbox is made as, passed in as `GIT_AUTHOR_*` and `GIT_COMMITTER_*`. **A pair or nothing:** one without the other exits 2 naming both. Unset, every session create and restart asks the host's own git, **in that worktree**, with `git var GIT_AUTHOR_IDENT`: the identity a commit there would carry on the host, whether it comes from the repository's config, an `includeIf`, global or system config, or git's own derivation from the account. If that fails too, the session still starts, the control plane logs "no git identity, so a commit in a sandbox will fail: set PANACEA_APP_GIT_NAME and PANACEA_APP_GIT_EMAIL, or give this machine's git an identity …" (once at startup, and at each create), and git in the sandbox refuses to commit with its own "Author identity unknown" rather than invent `dev@<container>`, because `user.useConfigOnly` is set (§5.1 step 5). |
+| `PANACEA_APP_GIT_EMAIL` | unset | ADDED by the sandbox git fix. The other half of `PANACEA_APP_GIT_NAME`'s pair; that row is the whole behaviour. |
+| `PANACEA_APP_CA_BUNDLE` | unset | ADDED by the sandbox git fix. An **absolute host path to a PEM file** of root certificates every sandbox trusts **in addition to** its own. It is mounted **read-only** at `/etc/panacea-app/ca-bundle.pem` and named by `NODE_EXTRA_CA_CERTS`, which Node — and so Claude Code — adds to its trust store. Unset mounts nothing and sets nothing. Set, it is checked at startup, and a relative path, a missing file, a directory, or a file holding no `CERTIFICATE` block x509 can parse each exits 2 with its own sentence. `SSL_CERT_FILE` is never set, because it replaces the system bundle, and TLS verification is never disabled under any setting. `kata` refuses the mount (§2.6). |
+
+**Behind a TLS-intercepting proxy.** A corporate proxy that re-signs TLS makes every sandbox fail
+Claude Code's startup check with `Failed to connect to api.anthropic.com: SELF_SIGNED_CERT_IN_CHAIN`,
+because the image does not trust the proxy's root. The owner exports that root once and points
+`PANACEA_APP_CA_BUNDLE` at it:
+
+1. See which root the proxy presents. From Git Bash:
+   `openssl s_client -showcerts -connect api.anthropic.com:443 < /dev/null`. The last certificate
+   listed is self-signed; its `CN` is the root to export.
+2. Export it from the Windows root store as PEM, in PowerShell, putting that `CN` in the filter:
+
+   ```powershell
+   $root = Get-ChildItem Cert:\LocalMachine\Root | Where-Object Subject -like '*CN=<root CN>*' | Select-Object -First 1
+   "-----BEGIN CERTIFICATE-----`n" + [Convert]::ToBase64String($root.RawData, 'InsertLineBreaks') + "`n-----END CERTIFICATE-----" | Set-Content -Encoding ascii "$env:LOCALAPPDATA\PanaceaApp\corp-root.pem"
+   ```
+
+3. `$env:PANACEA_APP_CA_BUNDLE = "$env:LOCALAPPDATA\PanaceaApp\corp-root.pem"`, then start the
+   control plane. Sessions created from then on can reach the API; `/login` is still the user's own.
+
+The file is this network's, not the product's: it is never committed. **Git over HTTPS is not
+covered.** Git does not read `NODE_EXTRA_CA_CERTS`, and its own `GIT_SSL_CAINFO` replaces the
+system bundle rather than extending it. Nothing in Phase 2 pushes or fetches from a sandbox; Phase 3
+decides it with push.
 
 **`PANACEA_APP_ATTACH_TOKEN` is deliberately NOT in this list.** It is generated
 per sandbox by `ids.Token()` and injected into that sandbox's environment. A global
@@ -1951,7 +1987,16 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    store>, ContainerPath: "/home/dev/.claude/projects"}` — `projects/` and nothing
    wider, because `/login` writes `.credentials.json` into `~/.claude` itself.
    `images/sandbox/Dockerfile` creates that path as `dev`; without it Docker makes
-   `~/.claude` root-owned to hold the mount point and `/login` breaks. Failure → `store.Update` to
+   `~/.claude` root-owned to hold the mount point and `/login` breaks. AMENDED by the sandbox git
+   fix (2026-09-23): every sandbox, whatever its harness, also gets `Spec.Env` from `sessionEnv` —
+   `GIT_CONFIG_COUNT`/`KEY_n`/`VALUE_n` setting `safe.directory` to the mount point (the
+   `sessionWorkDir` constant, never `*`) and `user.useConfigOnly=true`; the user's identity as
+   `GIT_AUTHOR_NAME`/`EMAIL` and `GIT_COMMITTER_NAME`/`EMAIL` when one resolves (§4
+   `PANACEA_APP_GIT_NAME`); and, when `PANACEA_APP_CA_BUNDLE` is set, a third, **read-only** mount of
+   that bundle at `/etc/panacea-app/ca-bundle.pem` with `NODE_EXTRA_CA_CERTS` naming it. The
+   environment is resolved before step 4, and restart rebuilds it rather than replaying it. A
+   linked worktree still has no working git — its `.git` names a host path — and that is Phase 3's
+   `3-D1`; the cockpit says so from `Worktree.isPrimary`. Failure → `store.Update` to
    `StatusExited` with the reason, then 500 or 503.
 6. Return 201 immediately.
 7. **In a goroutine**, `backend.WaitReady(ctx, sb.Endpoint, backend.ReadyTimeout)`; on

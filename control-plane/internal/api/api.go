@@ -129,6 +129,30 @@ type Deps struct {
 	// required, and absolute because it becomes a bind mount's host path.
 	// Task 13's wiring derives it from the state directory.
 	ConversationsDir string
+
+	// GitIdentity resolves who an agent's commits in one worktree are made as.
+	// Sessions call it at every create and restart, with the worktree's HOST
+	// path, and hand the answer to the sandbox as GIT_AUTHOR_* and
+	// GIT_COMMITTER_*. Users authenticate as themselves, so this is the person
+	// running the cockpit and never a shared or invented identity; cmd/api's
+	// resolver reads PANACEA_APP_GIT_NAME/EMAIL, else the host's own git.
+	//
+	// Nil, or an error, means no identity: the session still starts, the error
+	// is logged as the sentence the user acts on, and the sandbox's git refuses
+	// to commit rather than guessing (see sessionEnv's user.useConfigOnly).
+	GitIdentity func(ctx context.Context, worktreePath string) (GitIdentity, error)
+
+	// CABundle is the absolute host path of a PEM bundle every sandbox trusts in
+	// addition to its own roots, mounted read-only at sessionCABundlePath and
+	// named by NODE_EXTRA_CA_CERTS. "" mounts nothing and sets nothing. cmd/api
+	// has already refused a path that is missing or holds no certificate.
+	CABundle string
+}
+
+// GitIdentity is one person's commit identity: both fields, or neither.
+type GitIdentity struct {
+	Name  string
+	Email string
 }
 
 // route is one ServeMux pattern and the handler registered under it.
@@ -236,6 +260,9 @@ func New(d Deps) (*API, error) {
 	}
 	if !filepath.IsAbs(d.ConversationsDir) {
 		return nil, errors.New("api: Deps.ConversationsDir " + strconv.Quote(d.ConversationsDir) + " is not absolute, and it becomes a bind mount's host path")
+	}
+	if d.CABundle != "" && !filepath.IsAbs(d.CABundle) {
+		return nil, errors.New("api: Deps.CABundle " + strconv.Quote(d.CABundle) + " is not absolute, and it becomes a bind mount's host path")
 	}
 	if d.Version == "" {
 		d.Version = DefaultVersion
