@@ -1351,3 +1351,54 @@ complete revision. The recommendation is built: `reinherit` at the open head, an
 - That the Hub's `/v1/refs` puts the inherited project brief's head in `heads` whenever it
   answers a pin. HA4-7 (`plan.md:512`) asks for `latestCompleteRevision` in `heads`. The Hub
   plan was not re-read for this.
+
+## Fix batch b06, round 2 (re-review `plan-rereview-b06-1.md`: R-I1, R-I2, R-I3, R-M1-R-M4, nits)
+
+Commits `02ec7f7` (R-I1), then R-I2, R-I3 and the minors in three more, each by pathspec. Line
+numbers are at the round-2 head.
+
+### Important
+
+| Finding | Change | Where |
+|---|---|---|
+| **R-I1** (N-b06-1): a cached key brought no head, so rule 4 never saw a project edit | Both fixes, as the re-review advised. **Fix 1:** `Resolve`'s first Hub call carries every requested key, cached or not, plus each cached branch revision's pin key. The second call carries the other pins. So `heads` names every brief a key or its pin names. The Hub's answer for a cached key wins over the cache: `erased` or `missing` evicts the entry. | `task-07.md:378-391` (doc comment), `:456-464` (rule 5) |
+| | **Fix 2:** loader step 1a2 applies a `brief.revised` event's `{revision, status}` straight to `headsByBrief` (Hub contract §8 :1140), moving it forwards only, through the new `applyRevised` | `task-16.md:83-86`, `:208-214` |
+| | Step 2 now names the held key for a brief that is only inherited (`ref.inherits.key`). `putRefs` stores heads before its missing-head check. Nit 1 closed: "whose brief" is now the INHERITED brief | `task-16.md:223-233` |
+| | Tests: `TestResolveCarriesCachedKeysForTheirHeads`, and `loader: a project edit reaches an inheriting branch chip`. Three tests are restated for a Hub that is asked every time: `TestResolveCachesOnlyResolved`, `TestCriterionStatesAreRecomputedOnACachedKey` and `TestErasedIsNeverServedFromCache`. So is the "branch cached, pin not" row of `TestHubOffIsUnavailableNotMissing` | `task-07.md:507-511`, `:516`; `task-16.md:313` |
+| | The HA4-8 fallback notes the narrower erasure gap | `plan.md:513` |
+| **R-I2**: erased text survived in the branch refs and head readings that inherit it | `forgetBrief` also removes every ref and head reading whose `inherits.briefId` is the erased brief. A reading is removed, not kept until its re-read lands. `putRefs` and `putHeadRef` refuse a stale answer that still carries inherited erased text. Such a slot reads `unavailable` and is retried after 15 ticks. Neither method stores criterion states for an erased key (nit 2). A refused head reading counts as a failed call | `task-16.md:32-34`, `:60-72`, `:98-106`, `:254-257`; test `:303` |
+| | Task 07 **rule 7** answers the open question: a branch key whose pin is erased resolves from its own revision alone, with `inherits.erased: true` and none of the pin's text. `HeadRef` and `Inheritable` follow the same rule | `task-07.md:479-489`; test `:512` |
+| | `InheritedRef.Erased` and `Source.PinErased` are added, and `Build` builds from a copy of the revision with `Inherits` cleared, so task 05's `ErrInheritMismatch` does not fire | `task-06.md:111-113`, `:164-167`, `:187-191`; test `:221` |
+| | The TS `InheritedRef` gains `erased`. Task 12's JSON example shows it | `task-15.md:143-144`; `task-12.md:65` |
+| | C14 and the file map name the change. **OQ-9** goes to the owner, with the recommended option built and the "branch erased too" seam named | `plan.md:37`, `:311`, `:531` |
+| **R-I3**: `DefinitionOfDone` had no source for its criterion states | **Option 1 built:** the states ride with the reading. `HeadRef` returns `states` beside the `Ref`. The head-reading routes answer `HeadReading {ref, criterionStates}`. `putHeadRef` stores the states under the ref's key. It was chosen over option 2 because it adds no 2-second window in which every criterion reads `open`, and each head re-read brings fresh states | `task-07.md:397-405`; `task-12.md:16-17`, `:38-46`, `:107-108`; `task-15.md:159-160`, `:191`; `task-16.md:88-92`, `:39-44`; `task-17.md:76-79` |
+| | Tests: `TestHeadRefServesCriterionStatesBesideTheRef`, `TestHeadReadingServesCriterionStates`, and `useHeadRef: a head reading brings its own criterion states`. `TestHeadReadingWithTheHubOffIsNone` now reads `ref.*` | `task-07.md:510`; `task-12.md:144-145`; `task-16.md:307` |
+| | S4-P3.4 now says that states are recomputed on every head reading, and that `DefinitionOfDone` shows them on mount | `plan.md:459` |
+
+### Minor and nits
+
+| Finding | Change | Where |
+|---|---|---|
+| **R-M1**: null pin | In steps 8 and 9, a null pin counts as below every revision. OQ-8 names the null-pin case and states that the chip cannot flag it. Test: `TestANullPinIsRepinned` | `task-08.md:129-132`, `:182`; `plan.md:530` |
+| **R-M2**: race tests | `TestPostCommitChecksRunOnce` is split into `TestProjectPostCommitCheckRunsOnce` and `TestBranchPostCommitCheckRunsOnce`. The losing-race test now uses `b-80`, a brief that both project Lists missed, and says that the hook's bare `b-7@6` stands in for the project batch | `task-08.md:181`, `:183-184` |
+| **R-M3**: `Result.View` | It is read after steps 8 and 9. A failed check leaves it at the step-7 head. The race test asserts head 2 | `task-08.md:133-137`, `:181` |
+| **R-M4**: `heads` example | `bf-…b7` is added to the example, and the text says when it is absent | `task-12.md:75-76`, `:82-86` |
+| Nit 3: memo identity | An answer equal item by item keeps the old array | `task-16.md:42-43` |
+
+**Restatements grepped** (plan, parts, review): "keys not in the cache", "zero times", "no Hub call
+for it", `putHeadRef(`, `headRef(`, `HeadRef(`, `Promise<ProvenanceRef>`, `forgetBrief`,
+"erased form", `inherits: {`, `TestPostCommitChecksRunOnce`. Every live hit is updated. The only
+remaining hits are in the superseded `2026-09-18-phase-4-discover.md` and in this review's
+original findings.
+
+**Carried to the owner:** **OQ-9** (`plan.md:531`). It asks what a branch key whose project pin was
+erased shows and materialises. The recommendation is built: the branch's own text, with
+`inherits.erased`.
+
+**Still unverified:**
+- No Go or TypeScript was run. This is a plan-only batch.
+- Hub read-after-write, which steps 8 and 9 depend on (task 08's **Does NOT claim**).
+- Whether `HeadRef` and `Inheritable` read a pin through `Resolve`'s cache. Rule 7 is written for
+  both paths: the pin's `erased` answer, and an eviction.
+- How task 17 words a chip whose pin is erased. That is left to the batched visual pass
+  (`OD-12`).

@@ -62,7 +62,7 @@ type Materialisations struct {
       "briefId": "bf-…a2", "revision": 5, "digest": "sha256:…", "scope": "branch",
       "projectId": "pj-…", "branchRef": "refs/heads/evidence-upload", "status": "complete",
       "headRevision": 6, "latestCompleteRevision": 6,
-      "inherits": { "key": "brief:bf-…b7@5", "briefId": "bf-…b7", "revision": 5, "digest": "sha256:…" },
+      "inherits": { "key": "brief:bf-…b7@5", "briefId": "bf-…b7", "revision": 5, "digest": "sha256:…", "erased": false },
       "title": "Branch brief — evidence-upload",
       "headline": "Let client users upload evidence files against an open request.",
       "audience": "KPMG staff broadly", "constraints": "Existing uploads and their download links",
