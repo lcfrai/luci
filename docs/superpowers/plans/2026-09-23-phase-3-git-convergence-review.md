@@ -672,3 +672,64 @@ answer `true`/`native` in the project and `false`/`lf` in a clone made by task 0
 checkout under `GIT_CONFIG_*` holding the clone's answer writes `x\ny\n`; under the project's
 answer it writes `x\r\ny\r\n`. **Unverified:** everything inside the sandbox image; the re-hash
 item above; the `--no-hardlinks` cost.
+
+## Fix batch b03 (2026-09-24): I11 and I12
+
+Lane (a) setup: clone creation, and the fix's baseline. Runs after b02, because both edit task 03's
+Create. Line numbers are for the tree at this batch's last commit. "parts/" means
+`2026-09-23-phase-3-git-convergence-parts/`.
+
+### I11: a real clone carries no repository hooks
+
+The review's fix is adopted, and **extended on the facts**. Copying `core.hooksPath` alone still
+runs nothing on a husky 9 project: husky's `.husky/_` is generated and ignored, so a clone never
+has it, and the agent's install step cannot make it inside a lane, because its
+`git config core.hooksPath` write fails against the read-only `.git/config` that task-02 §HGH H5
+binds (the plan's own Q7 already said so). So Create also copies the generated directory the
+copied setting names, under guards. What husky 9 does after that failed write (stop before it
+creates `.husky/_`) is from memory of its source, which was not read for this batch: **unverified**.
+The design does not depend on it, since the directory is copied either way.
+
+| Review's fix | Where it is now |
+|---|---|
+| At clone time, copy a **relative** `core.hooksPath` from the project's local config | parts/task-03.md:152-158 (Create step 6; step 7 is `Store.Add`, and the cleanup and Scope lines at :160-164 now say 4-7 and name step 6's calls). The rule is `CopyableHooksPath`, parts/task-03.md:167-173: H3's Clone rule for the key (relative, no `..`), plus no `\`, because the sandbox's Linux git reads `\` as part of a file name |
+| Never copy `.git/hooks` contents | parts/task-03.md:155-156, asserted in `TestCreateCopiesARelativeHooksPath` (parts/task-03.md:321: the clone's `.git/hooks` has no `pre-commit`) |
+| (extension) the generated directory the setting names | `CopyGeneratedHooks`, parts/task-03.md:175-194: only an untracked directory, reached through real directories only (no symlink or junction, so nothing outside the project's tree or inside `.git` is read), flat, regular files, at most 64 files and 1 MiB; the host never runs them (H1). Tests at parts/task-03.md:323-324 |
+| Add `TestCreateCopiesARelativeHooksPath` | parts/task-03.md:321, with the refusal table (`/abs`, `C:/`, `C:hooks`, `\hooks`, `~/`, `../x`, `a/../../x`, `.githooks\x`); `TestCopyableHooksPath` :322; `TestCreateHooksPathPassesTheCloneCheck` :325 (a copied value never makes H3 refuse the lane) |
+| The Docker husky test builds its clone with `lanes.Creator` from a project whose config carries the setting | parts/task-05.md:176 (`TestDispatchChainsToHusky`: the test writes nothing into the clone; red first against a Creator without step 6); the hazard paragraph says so at parts/task-05.md:13-16 |
+| State fresh-clone semantics in task 05's "does not claim" | parts/task-05.md:232-242; task 03's side at parts/task-03.md:367-372 |
+| (extension) the loss is never silent | the dispatcher prints one `panacea: core.hooksPath names …` line per commit when the configured directory is missing, parts/task-05.md:123-129, tested by `TestDispatchNamesAMissingHooksDir` at :177 |
+| (extension) the premise is pinned | `TestSandboxCannotWriteHooksPath`, parts/task-05.md:178 and its acceptance line :219 |
+| Prove it in task 23 | parts/task-23.md:27-32 (the e2e project laid out as husky's install step leaves one), :38 (step 3: every sandbox commit carries `X-Husky: ran`), :41 (step 6: the host's land merge carries none, HGH H1), :81-85 (owner item 5 runs the real install step first) |
+| Restatements | plan:399 (Q7 cites the pinning test and the copy); parts/task-02.md:415 (H3's Clone row names Create as a writer of the key) |
+
+Also fixed on the way: task 05's acceptance said `-run Dispatch` runs 8 tests when the table named
+7. With `TestDispatchNamesAMissingHooksDir` it names 8, so parts/task-05.md:217 is now true.
+
+### I12: the fix branch has moved since the plan read it
+
+Re-read on 2026-09-24. The review's facts hold, with one correction and one addition:
+
+- **Correction.** The fix's contract sweep (`git diff 3303fd6...fix/sandbox-git-ca`, 55 Go lines
+  and 7 UI lines, as the review says) touches Go §2.2, §2.6, §4 and §5.1 and UI §6.5 and §7.7,
+  found by mapping each hunk to its heading. It does not touch §3.7.
+- **Addition.** Phase 3's branch forks from `f898f5e`, `feat/phase-2-cockpit`'s merge of the fix,
+  so `4f6d698` is already in phase 3's base. Phase 2's later sandbox-git rounds (`5a4d0d8` to
+  `10fa5fd`) are not in it, and they changed two shapes the plan quoted: `sessionMounts` now takes
+  five parameters (`worktreeAdmin`, `git sessionGitFiles`), and `sessionEnv` takes four with
+  eight `GIT_CONFIG_*` pairs (`core.excludesFile` and `core.attributesFile` added by `d7e2dea`).
+  `Deps.GitIdentity` and `LinkedWorktreeNote`'s condition and sentence are unchanged.
+
+| Review's fix | Where it is now |
+|---|---|
+| Re-cite plan:11-12 | plan:11-15 |
+| Re-cite plan:179-181 (now plan:208-225) | plan:208-225: the five commits on the fix branch, the sweep's sections, the fork point, phase 2's later rounds, and the shapes at `10fa5fd`; the table's two rows at plan:230-231 quote those shapes (five-argument `sessionMounts`; eight pairs, six at `57c3bf5`) |
+| Re-baseline G1 to `4f6d698` | plan:236-248 (the gate) and plan:341 (the gates table); plan:520-523 ("does not claim") |
+| Tasks 04-06's preflight diffs the contract sections the fix already edited | parts/task-04.md:234-235 (Go §3.1, §3.2); parts/task-05.md:198-200 (Go §2, §5.1); parts/task-06.md:141-143 (UI §2, §6.5, §7.7) |
+| Re-cite task-06:3-4 | parts/task-06.md:3-10: `58d607f`, in the base through `f898f5e`, unchanged at `4f6d698` and `10fa5fd` |
+| (addition) task 06 amends the rows the fix wrote | UI §6.5's `LinkedWorktreeNote.tsx` row and §7.7's linked-worktree row still say `isPrimary === false`; task 06 now amends both and adds a `SharedIndexNote` row: parts/task-06.md:24 (Files) and :145-148 (Step 3) |
+| (restatement) task 05's `sessionEnv` quote | parts/task-05.md:55-62 and :66-67 (four parameters, eight pairs at `10fa5fd`); :166 (`n` is 8 at `10fa5fd`, was "6 at the time of writing") |
+
+**Unverified.** `feat/phase-2-cockpit` is still moving (its sandbox-git round is in progress
+tonight), so the shapes above are true at `10fa5fd` only. G1's preflight re-reads them, which is
+why it stays a gate rather than a quotation.
