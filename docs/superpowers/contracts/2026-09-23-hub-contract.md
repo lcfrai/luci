@@ -1921,3 +1921,130 @@ END $$;
   three `SECURITY DEFINER` functions run as it.
 - **Team-level isolation is in Go** (§5.3), not in policies: it would need a join per policy, and
   the matrix test covers it.
+
+### 10.4 The three functions that run as the owner
+
+```sql
+-- 0001_init.sql, continued. Each is SECURITY DEFINER with a pinned search_path.
+
+-- Called by `hub serve` at start for each PANACEA_APP_HUB_TENANTS entry. p_id is a fresh
+-- ids.Wide("org"), used only if the tenant is new.
+CREATE FUNCTION ensure_org(p_tenant uuid, p_name text, p_id text) RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE v_id text;
+BEGIN
+  INSERT INTO orgs (id, entra_tenant_id, display_name) VALUES (p_id, p_tenant, p_name)
+  ON CONFLICT (entra_tenant_id) DO UPDATE SET display_name = EXCLUDED.display_name
+  RETURNING id INTO v_id;
+  INSERT INTO audit_heads (org_id) VALUES (v_id) ON CONFLICT (org_id) DO NOTHING;
+  RETURN v_id;
+END $$;
+
+-- §5.1 step 5. No row returned means the tenant is not enrolled.
+CREATE FUNCTION resolve_principal(p_tenant uuid, p_oid uuid, p_name text, p_email text,
+                                  p_new_user_id text)
+RETURNS TABLE (org_id text, user_id text, created boolean)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE v_org text; v_user text; v_name text := left(p_name, 256); v_email text := lower(left(p_email, 254));
+BEGIN
+  SELECT o.id INTO v_org FROM orgs o WHERE o.entra_tenant_id = p_tenant;
+  IF v_org IS NULL THEN RETURN; END IF;
+  INSERT INTO users (id, org_id, entra_oid, display_name, email)
+  VALUES (p_new_user_id, v_org, p_oid, v_name, v_email)
+  ON CONFLICT ON CONSTRAINT users_org_id_entra_oid_key DO NOTHING
+  RETURNING users.id INTO v_user;
+  IF v_user IS NOT NULL THEN
+    RETURN QUERY SELECT v_org, v_user, true; RETURN;
+  END IF;
+  UPDATE users u SET display_name = v_name, email = v_email, last_seen_at = now()
+   WHERE u.org_id = v_org AND u.entra_oid = p_oid
+     AND (u.display_name IS DISTINCT FROM v_name OR u.email IS DISTINCT FROM v_email
+          OR u.last_seen_at < now() - interval '1 hour');
+  SELECT u.id INTO v_user FROM users u WHERE u.org_id = v_org AND u.entra_oid = p_oid;
+  RETURN QUERY SELECT v_org, v_user, false;
+END $$;
+
+-- §7.12. The caller has already checked Hub.OrgAdmin in Go; this checks the org itself,
+-- because as owner it bypasses row-level security.
+CREATE FUNCTION erase_brief(p_brief text) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE v_org text := current_setting('hub.org_id', true); v_n integer;
+BEGIN
+  IF v_org IS NULL OR NOT EXISTS (SELECT 1 FROM briefs b WHERE b.id = p_brief AND b.org_id = v_org) THEN
+    RAISE EXCEPTION 'hub: no brief % in this org', p_brief USING ERRCODE = 'no_data_found';
+  END IF;
+  UPDATE brief_revisions SET canonical = NULL, erased_at = now()
+   WHERE brief_id = p_brief AND canonical IS NOT NULL;
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  UPDATE briefs SET archived_at = coalesce(archived_at, now()),
+                    erased_at   = coalesce(erased_at, now()),
+                    updated_at  = now()
+   WHERE id = p_brief;
+  RETURN v_n;
+END $$;
+
+REVOKE ALL ON FUNCTION ensure_org(uuid, text, text), resolve_principal(uuid, uuid, text, text, text),
+                       erase_brief(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION ensure_org(uuid, text, text), resolve_principal(uuid, uuid, text, text, text),
+                          erase_brief(text) TO hub_app;
+```
+
+### 10.5 Grants — what `hub_app` may do, and nothing else
+
+```sql
+-- 0001_init.sql, continued.
+GRANT USAGE ON SCHEMA hub TO hub_app;
+GRANT SELECT ON ALL TABLES IN SCHEMA hub TO hub_app;
+
+GRANT INSERT ON teams, team_members, team_invites, projects, project_remotes, briefs,
+                brief_revisions, blobs, project_blobs, design_approvals, design_approval_blobs,
+                session_links, releases, release_deployments, evidence, audit_events,
+                idempotency_keys TO hub_app;
+
+GRANT UPDATE (name)                                            ON teams            TO hub_app;
+GRANT UPDATE (role), DELETE                                    ON team_members     TO hub_app;
+GRANT UPDATE (state, bound_user_id, bound_at, revoked_at)      ON team_invites     TO hub_app;
+GRANT UPDATE (name)                                            ON projects         TO hub_app;
+GRANT DELETE                                                   ON project_remotes  TO hub_app;
+GRANT UPDATE (branch_ref, head_revision, latest_complete_revision, archived_at, updated_at)
+                                                               ON briefs           TO hub_app;
+GRANT UPDATE (state, pipeline_run, confirmed_at, abandoned_at, abandon_reason, abandon_message,
+              expired_at)                                      ON releases         TO hub_app;
+GRANT DELETE                                                   ON blobs, project_blobs TO hub_app;
+GRANT UPDATE (seq, hash)                                       ON audit_heads      TO hub_app;
+GRANT UPDATE (status, response), DELETE                        ON idempotency_keys TO hub_app;
+-- No UPDATE or DELETE on: orgs, users, brief_revisions, design_approvals,
+-- design_approval_blobs, session_links, release_deployments, evidence, audit_events.
+```
+
+### 10.6 The shape of every write transaction
+
+```
+BEGIN
+  SELECT * FROM hub.resolve_principal($tid, $oid, $name, $email, $newUserId)   -- §5.1 step 5
+  SELECT set_config('hub.org_id', $org, true)                                  -- §10.3
+  SELECT seq, hash FROM hub.audit_heads WHERE org_id = $org FOR UPDATE         -- the org's write lock
+  INSERT INTO hub.idempotency_keys … ON CONFLICT DO NOTHING                    -- if Idempotency-Key sent
+  … authorisation reads, then the write …
+  INSERT INTO hub.audit_events (seq = head + 1, prev_hash = head.hash, …)      -- one per changed record
+  UPDATE hub.idempotency_keys SET status = …, response = …                     -- if Idempotency-Key sent
+COMMIT
+```
+
+Taking the audit head lock **first** gives every write in an org one lock order, so writes cannot
+deadlock, and it makes the feed gapless (§7.11). Reads take no lock. The pool uses `pgx`'s
+default `READ COMMITTED`.
+
+### 10.7 Where each guarantee rests — two layers each
+
+| Guarantee | Go | Database |
+|---|---|---|
+| a revision never changes (P3) | no update path | no grant; `guard_revision`; `CHECK sha256(canonical) = digest` |
+| a head only moves forward, onto a real revision | the batch write | `guard_brief` |
+| a link names the digest it was made against | §7.7, §7.9 checks | composite FKs onto `(brief_id, revision, digest)` |
+| a pin never moves (P3, P7) | no update path | column grants; `guard_release` |
+| one release per run, one per deployment | 409s | unique indexes |
+| append-only records | no update path | no grant; `forbid_change` |
+| the audit is gapless and chained | the §10.6 recipe | `audit_append`; `CHECK hash = sha256(prev_hash ‖ canonical)` |
+| one org never reads another | org from the token, in every query | row-level security |
+| a team never reads another team's project | §5.3 checks | — (the matrix test) |
