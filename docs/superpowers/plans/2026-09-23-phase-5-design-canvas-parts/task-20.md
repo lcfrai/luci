@@ -1,6 +1,6 @@
 # Task 20 — `designapi` routes, the SSE window stream, configuration, wiring
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 11, 12, 13 · **External:** phase 4 task 10 (`api.RouteMounter`), phase 4 task 07 (`discoverhub`) · **Hours:** 3
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 11, 12, 13 · **External:** **Hub task C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency: this task does not start until both have landed** (plan rule 4); phase 4 task 10 (`api.RouteMounter`), phase 4 task 07 (`discoverhub`) · **Hours:** 3
 
 ## Why
 
@@ -26,7 +26,14 @@ writes it** (`interface { Mount(handle func(pattern string, h http.Handler)) }`)
 
 ## Contracts
 
-### Routes (all under the origin guard; `/api/v1/…` works through the alias, `api.go:287-292`)
+### Routes (all under the origin guard **and** the local-key guard; `/api/v1/…` works through the alias, `api.go:287-292`)
+
+Every route below requires `Authorization: Bearer <local key>` (Hub contract §9.4, Hub plan task 37's
+`localkey.Middleware`); a missing or wrong key is `401 local_key_required`. None of them is in
+`localkey.Exempt` (that exempts only `…/sessions/{id}/attach`). The Host check and the Origin
+allowlist stop a browser; a process in a sandbox sends no `Origin` and writes any `Host` it likes
+(`httpx/origin.go:117-123`), so the key is the only guard that stops an agent calling the human
+surface — and therefore the only thing behind "only a human approves" (review C1).
 
 | # | Method | Path | Request | `2xx` response |
 |---|---|---|---|---|
@@ -59,7 +66,7 @@ rule 4). Routes 21–27 (approval, handoff, links) are tasks 21 and 22.
 
 ```
 GET /v1/events?window=wn-3f2a91c07b1e&topic=canvas:cv-7c01d2e3f4a5b6c7@41&topic=renderer:cv-7c01d2e3f4a5b6c7:visible
-Authorization: Bearer <local key>        ← Hub task C3, when it has landed; fetch() can send it
+Authorization: Bearer <local key>        ← Hub task C3 (required; no key → 401 local_key_required); fetch() can send it
 
 200  Content-Type: text/event-stream; charset=utf-8
      Cache-Control: no-store
@@ -125,9 +132,12 @@ func Handler(src Source, log *slog.Logger) http.Handler
 	CodeRendererUnavailable = "renderer_unavailable"  // 409 a route that needs a renderer found none (task 21)
 	CodeDesignNotShared     = "design_not_shared"     // 409 the project is not bound to the Hub (task 21); details state
 	CodeDesignNoBrief       = "design_no_brief"       // 409 no complete brief to approve against (task 21)
-	CodeDesignTooLarge      = "design_too_large"      // 413 a snapshot over 500 files or 16 MiB a file (task 21)
+	CodeDesignTooLarge      = "design_too_large"      // 413 a snapshot over 500 files, 16 MiB a file or 512 MiB in all (task 21)
 	CodeHandoffPathTracked  = "handoff_path_tracked"  // 409 .panacea/ is tracked in this worktree (task 22)
+	CodeHandoffInvalid      = "handoff_snapshot_invalid" // 422 the Hub's snapshot fails Materialise's checks (task 22): ErrTampered, ErrUnsafePath or ErrTooLarge; details reason; nothing written
 ```
+
+`local_key_required` (401) is Hub task 37's code, not this task's; every route here can answer it.
 
 Hub codes reach the desktop unchanged through `hubclient.Error` (Hub contract §4.3).
 
@@ -175,12 +185,26 @@ type Config struct {
 	Sessions  registry.Store    // task 22
 	Identity  func(ctx context.Context) (displayName string) // the Hub's signed-in name, or "You"
 	Log       *slog.Logger
+
+	// KeyGuard is REQUIRED (review C1). main.go passes
+	//   func(h http.Handler) http.Handler { return localkey.Middleware(key, localkey.Exempt, h) }
+	// with the key localkey.Mint returned at start (Hub plan task 37). Mount wraps
+	// EVERY design handler in it — routes 1–27, tasks 21 and 22's included — so a
+	// design route is key-guarded wherever it is mounted, not only because api.New
+	// happens to wrap "/". Double-checking the same key under api.New's own wrap is
+	// harmless.
+	KeyGuard func(next http.Handler) http.Handler
 }
+
+// ErrNoKeyGuard: New refuses to build a human surface an unauthenticated
+// caller could reach. There is no "run without the key" mode, no env var and
+// no test-only bypass in production code; tests pass a real localkey.Middleware.
+var ErrNoKeyGuard = errors.New("designapi: KeyGuard is required (Hub task C3, local caller key)")
 
 type API struct{ /* unexported */ }
 
-func New(c Config) (*API, error)
-func (a *API) Mount(handle func(pattern string, h http.Handler)) // api.RouteMounter
+func New(c Config) (*API, error) // nil KeyGuard → ErrNoKeyGuard, before anything else is checked
+func (a *API) Mount(handle func(pattern string, h http.Handler)) // api.RouteMounter; handle(p, a.keyGuard(h)) for every p
 ```
 
 ```go
@@ -193,7 +217,8 @@ func (a *API) Mount(handle func(pattern string, h http.Handler)) // api.RouteMou
 `mcp.NewServer(info, mcp.Instructions, []string{"127.0.0.1:8731", "localhost:8731"}, log)` →
 `mcp.RegisterAll(server, mcp.Deps{Authority, Briefs: designapi.BriefsPort(briefs), Approvals: …})`
 → `mcprelay.NewSupervisor{Sessions: store, Handler: server.Handler(), Release: auth.ReleaseSession}`
-run under the process context → `designapi.New(…)` into `api.Deps.Design`, and
+run under the process context → `designapi.New(…)` with `KeyGuard` built from the key `main.go`
+already mints for `api.Deps.LocalKey` (Hub task 37; one key, one `Mint` call) into `api.Deps.Design`, and
 `api.Deps.CanvasMCP = cfg.CanvasMCP`. Shutdown closes the supervisor, then the authority.
 
 ## Tests first
@@ -210,10 +235,12 @@ run under the process context → `designapi.New(…)` into `api.Deps.Design`, a
 | `TestEvents_replayOnReconnect` | reconnect with `@41` after revisions 42–45 → four events | missed changes after a drop |
 | `TestEvents_topicLimit` | 17 topics → 400 | unbounded fan-out |
 | `TestEvents_phantomRenderer` | a renderer topic that answers nothing: after two timeouts it gets `gone` and requests go elsewhere | a stale window starving agents |
-| `TestEvents_localKey` (when C3 is present) | without the key → 401 `local_key_required` | the stream readable by another OS user |
+| `TestNew_refusesNoKeyGuard` | `New(Config{…everything but KeyGuard})` → `ErrNoKeyGuard`, no `*API` | the guard made optional again (review C1) |
+| `TestRoutes_localKeyRequired` (table, one row per route class: 5 human ops, 8 revert, 9 break claim, 17 selection, 19 render result, 20 the stream) | through `Mount` with a real `localkey.Middleware` over a key minted into `t.TempDir()`: no `Authorization` → 401 `local_key_required` and **the authority unchanged** (revision, claims, selection, pending render requests all as before); `Bearer <wrong key>` → the same; the right key → not 401. Requests carry **no `Origin`** and `Host: 127.0.0.1:8730` — exactly what a sandboxed `curl` sends | a sandbox editing as `human`, reverting another agent, breaking claims, forging the selection, answering screenshot requests, or reading the stream (review C1) |
+| `TestMount_wrapsEveryRoute` | walks every pattern `Mount` hands to `handle` (a recording `handle`) and sends each one keyless → 401; the count equals the route table's (20 here; tasks 21 and 22 raise it) | one route mounted without the wrap |
 | `TestBriefsPort_stub` | the stub answers `unavailable` with its sentence | a nil port panicking before phase 4 |
 | `TestConfig_canvasVars` | `PANACEA_APP_CANVAS_MCP=maybe` exits with a message; `off` sets `CanvasMCP` false; a relative `PANACEA_APP_CANVAS_DIR` exits | a silently ignored variable |
-| `TestMain_wiring` (the `main_test.go` pattern) | the process starts with a temp state dir and serves route 1 | a stack that compiles but is never mounted |
+| `TestMain_wiring` (the `main_test.go` pattern) | the process starts with a temp state dir and serves route 1 **with** the key read from `PANACEA_APP_LOCAL_KEY_FILE`; route 1 and route 5 **without** it → 401 `local_key_required` | a stack that compiles but is never mounted; `main.go` passing an identity `KeyGuard` |
 
 ## Steps
 
@@ -232,9 +259,11 @@ Expected: every package `ok`; vet silent.
 ```bash
 go run ./control-plane/cmd/api & sleep 3; curl -s http://127.0.0.1:8730/v1/design/canvases/cv-0000000000000000 ; kill %1
 ```
-Expected: `{"error":"canvas_not_found",…}` — or, once Hub task C3 has landed, `local_key_required`
-(run with its key then). (Run the binary, not `go run`, if the orphan-process gotcha bites: build it,
-start it, kill it by PID.)
+Expected: `local_key_required` (401) — the curl sends no key. Then again with
+`-H "Authorization: Bearer $(cat "$PANACEA_APP_LOCAL_KEY_FILE")"` (set that variable to a scratch path
+before starting the process, Hub task 37): `{"error":"canvas_not_found",…}`.
+Hub task C3 is a hard dependency, so there is no "before the key" answer to expect. (Run the binary,
+not `go run`, if the orphan-process gotcha bites: build it, start it, kill it by PID.)
 
 ## Not claimed
 

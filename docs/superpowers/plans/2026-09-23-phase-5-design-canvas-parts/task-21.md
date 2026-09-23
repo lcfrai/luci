@@ -1,6 +1,6 @@
 # Task 21 — Approval: the snapshot, the blobs, the Hub's design link, *changed after approval*, re-review
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 08, 09, 13, 20 · **External:** Hub H0 (`hubapi`, `hubclient.Designs`, `NewFake`), Hub C2 (the relay rule); phase 4 task 07 (`discoverhub`, through task 20's port) · **Hours:** 3
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 08, 09, 13, 20 · **External:** **Hub C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency** (route 21 is the human-only approval; without the key a sandbox can call it, review C1), Hub H0 (`hubapi`, `hubclient.Designs`, `NewFake`), Hub C2 (the relay rule); phase 4 task 07 (`discoverhub`, through task 20's port) · **Hours:** 3
 
 ## Why
 
@@ -14,7 +14,8 @@ brief R8 / P-g closed — and a release's design key always resolves.
 
 ## Files
 
-- `canvas/handoff/snapshot.go`, `manifest.go`, `slug.go` + tests (new)
+- `canvas/handoff/snapshot.go`, `manifest.go`, `slug.go`, `paths.go` + tests (new) — `paths.go` is the
+  one bundle-path rule task 22's `Materialise` also enforces (review C2)
 - `control-plane/internal/designapi/approve.go`, `approvals.go` (the in-memory `Approvals` port),
   `hub.go` (the `Designs` port and the relay), `approve_test.go` (new); `routes.go` gains three routes
 
@@ -61,10 +62,39 @@ type Snapshot struct {
 func BuildSnapshot(in SnapshotInput) (Snapshot, error)
 
 const (
-	MaxFiles     = 500      // the Hub's snapshot.blobs cap, manifest included (contract §7.7 check 5)
-	MaxFileBytes = 16 << 20 // the Hub's blob cap (contract §7.6)
+	MaxFiles         = 500       // the Hub's snapshot.blobs cap, manifest included (contract §7.7 check 5)
+	MaxFileBytes     = 16 << 20  // the Hub's blob cap (contract §7.6)
+	MaxSnapshotBytes = 512 << 20 // every file's Size summed, manifest included; half the Hub's 1 GiB
+	                             // project quota (contract §7.6). Task 22's Materialise refuses the same
+	                             // number, so no snapshot is built that a handoff would refuse (review C2)
 )
 var ErrTooLarge = errors.New("handoff: snapshot over the Hub's limits")
+
+// canvas/handoff/paths.go (review C2) — the ONE definition of a bundle path,
+// shared by BuildSnapshot (which asserts every path it writes passes) and
+// task 22's Materialise (which refuses any that does not).
+//
+// PathPattern is exactly the set of names BuildSnapshot produces, and nothing
+// else: "/"-separated, relative, lowercase, no "..", no "\", no ":", no drive.
+const PathPattern = `^(assets/[0-9a-f]{64}\.(png|jpg|webp|svg)` +
+	`|[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?\.(html|png|jsx|tailwind\.jsx)` +
+	`|tokens\.(css|json)|tree\.json)$`
+
+// SafePath reports whether p may be written under a bundle root: it matches
+// PathPattern; the part before its first "." is not a Windows device name
+// (con, prn, aux, nul, com0–com9, lpt0–lpt9 — reserved with any extension); and
+// filepath.Rel(root, filepath.Join(root, filepath.FromSlash(p))) neither is
+// absolute nor starts with "..". The last check cannot fail for a name the
+// pattern admits; it stays so a widened pattern cannot open an escape alone.
+func SafePath(p string) error // nil, or an error wrapping ErrUnsafePath naming p
+
+var ErrUnsafePath = errors.New("handoff: a snapshot path is not one BuildSnapshot writes")
+
+// ContentTypeFor is the one media type BuildSnapshot gives a SafePath name
+// (the table above: .html text/html; charset=utf-8, .png image/png, .jsx and
+// .tailwind.jsx text/plain; charset=utf-8, tokens.css text/css; charset=utf-8,
+// .json application/json, assets by extension). Materialise requires it.
+func ContentTypeFor(p string) string
 ```
 
 ```go
@@ -110,8 +140,12 @@ type ManifestFile struct {
 // canvas/handoff/slug.go
 
 // Slug: lowercase; every run of characters outside [a-z0-9] becomes "-";
-// trimmed of "-"; at most 60 bytes; "" becomes "artboard"; a repeat within
-// one canvas gets "-2", "-3", … in page-then-artboard order.
+// trimmed of "-"; cut to 60 bytes and trimmed of "-" again; "" becomes
+// "artboard"; a Windows device name (con, prn, aux, nul, com0–com9,
+// lpt0–lpt9) gets "-artboard" ("con" → "con-artboard"); a repeat within one
+// canvas gets "-2", "-3", … in page-then-artboard order, the base cut first so
+// the result is still at most 60 bytes. Every slug therefore passes SafePath
+// as "<slug>.html" (review C2) — the slug tests assert it for each rule.
 func Slugs(artboards []doc.Node) map[string]string // artboard id → slug
 ```
 
@@ -194,8 +228,10 @@ loader; this cache does not poll it).
 | `TestBuildSnapshot_files` | a two-artboard fixture yields exactly the file list in the contract, sorted, with correct content types | a file missing from the bundle |
 | `TestBuildSnapshot_manifestCanonical` | two builds of one input give identical manifest bytes; the manifest lists every other file's SHA-256 | a manifest that does not pin the files |
 | `TestBuildSnapshot_digestMatches` | `Snapshot.ReviewDigest == serialize.ReviewDigest(doc, briefKey)` | a second digest function |
-| `TestBuildSnapshot_limits` | 501 files → `ErrTooLarge` | a 422 from the Hub after 500 uploads |
-| `TestSlugs` | `"Settings / Profile"`, `"Settings: Profile"` → `settings-profile`, `settings-profile-2`; `""` → `artboard` | two artboards writing one file |
+| `TestBuildSnapshot_limits` | 501 files → `ErrTooLarge`; files summing past `MaxSnapshotBytes` → `ErrTooLarge` | a 422 from the Hub after 500 uploads; a snapshot task 22 would refuse to write |
+| `TestBuildSnapshot_pathsSafe` | a fixture whose artboards are named `"../../x"`, `"C:\\x"`, `"CON"`, `"a:b"`, `"Ünïcode"` and a 200-character name: every `File.Path` and every `ManifestArtboard` path passes `SafePath`, and `ContentTypeFor(path) == File.ContentType` | BuildSnapshot writing a name Materialise refuses (review C2) |
+| `TestSafePath` | accepts each name the contract table lists; refuses `../x`, `/x`, `C:\x`, `a\..\..\x`, `assets/../../x`, `CON.html`, `con.html`, `lpt1.png`, `x.html:s`, `x.HTML`, `-x.html`, `assets/abc.png` (short hex), `manifest.json`, `approval.json`, `""` → each wraps `ErrUnsafePath` | a hostile manifest path accepted (review C2) |
+| `TestSlugs` | `"Settings / Profile"`, `"Settings: Profile"` → `settings-profile`, `settings-profile-2`; `""` → `artboard`; `"Con"` → `con-artboard`; a 70-character name repeated → two slugs of at most 60 bytes, the second ending `-2` | two artboards writing one file; a device name or an over-long slug written to disk |
 | `TestApprove_happy` (Hub fake) | blobs uploaded before the approval; `ApprovalRequest` has the right keys and digests; the review request is closed; route 22 then says `approved` | an approval with no snapshot |
 | `TestApprove_notShared` | an unbound project → 409 `design_not_shared` and **no** Hub call | blobs uploaded for a project the Hub cannot hold |
 | `TestApprove_incompleteBrief` | head brief `open` → 409 `design_no_brief`, no upload | an approval against an unfinished brief (ADR Q1) |
@@ -203,7 +239,8 @@ loader; this cache does not poll it).
 | `TestApprove_hubErrorsPassThrough` | fake answers `design_already_approved` → the same 409 and code reach the desktop; a fake 500 → 503 `upstream_unavailable` `upstream: hub` | Hub codes rewritten |
 | `TestApprove_retryFreshReader` | a `PutBlob` failing once with `ErrUnavailable` then succeeding uploads the full bytes | a retry sending an empty body (HA5-1) |
 | `TestApprove_noApproverField` | the marshalled request has no `approvedBy`, `approver` or `actor` | an actor asserted by the caller |
-| `TestApprove_noMCPPath` | every route of `designapi` is on the guarded mux; no MCP tool name maps to route 21 (reflection over `mcp.RegisterAll`'s tools) | an agent reaching approval (ADR-H1 R5) |
+| `TestApprove_noMCPPath` | every route of `designapi` is on the guarded mux; no MCP tool name maps to route 21 (reflection over `mcp.RegisterAll`'s tools) | an agent reaching approval over MCP (ADR-H1 R5) |
+| `TestApprove_localKeyRequired` | through `Mount` with a real `localkey.Middleware` (task 20's harness): route 21 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required`, and the Hub fake received **no** `PutBlob` and **no** `Approve`; a wrong key → the same; the right key → 201 | an agent approving its own design over REST from inside its sandbox (review C1, ADR-H1 R5) |
 | `TestApprovalState_changed` | approved at 5; a human colour edit at 6 → `changed`, `changedBy` names the human; a comment at 7 alone would not | *changed after approval* that fires on comments |
 | `TestApprovalState_superseded` | fake `Superseded: true` → `superseded` | a stale brief shown as current |
 | `TestReReview` | route 23 on a canvas approved at 11 against `@5`, head brief `@6` → revision 12; approving 12 sends `briefKey @6` and a digest ≠ 11's | re-review impossible (the Hub allows one approval per design key) |
