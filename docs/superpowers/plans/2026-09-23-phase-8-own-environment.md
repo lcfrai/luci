@@ -237,3 +237,247 @@ against it **before** they start (each has that as step 1). Nothing here invents
 | **HA-6** Who calls the Hub | Whether only the control plane calls the Hub (so no browser CORS at the edge), or the desktop webview does too, and whether any machine-to-machine caller exists (the broker does not call the Hub in this plan) | 13, 29 | The edge sets no CORS headers; the Hub is reached by the control plane only |
 | **HA-7** Audit and object storage | Whether the audit log is a Postgres table only, or also a Log Analytics stream (a DCR and an ingestion endpoint), and whether the Hub needs Blob storage (design bundles, release artefacts) | 04, 08 | Postgres only; no storage account is provisioned for the Hub |
 
+---
+
+## Open questions for the owner, each with the recommendation this plan proceeds on
+
+Rule: a genuine owner decision is recorded, and planning goes ahead on the recommendation. None of
+these blocks a task before task 31; all of them block the first `apply`.
+
+| Id | Question | Recommendation (what the plan builds) | Why | Blocks |
+|---|---|---|---|---|
+| **Q1** (= OQ-3) | What is the data classification, and so: may sandboxes reach the internet through a NAT gateway with network policy, or must egress go through an FQDN-allowlist firewall? | **Dev: NAT + policy** (P8-D12). **PROTECTED or above: Azure Firewall Standard** with the agent allowlist of task 07 (package registries, `github.com`, `dev.azure.com`, model providers), selected by `egress_mode = "firewall"` | An allowlist that misses one registry breaks agents silently; open egress may fail a PROTECTED assessment. Cost gap about A$1.5–2k a month (survey §6.2, `:507`) | 31 |
+| **Q2** | May the edge use a public ACME CA (Let's Encrypt) for `*.<zone>`, or must certificates come from a KPMG CA? | **Let's Encrypt via DNS-01** for dev; the ClusterIssuer is a value, so a KPMG ACME endpoint or a Key Vault-issued certificate is a values change | Survey §7.2 item 3 (`:543-544`) | 31 |
+| **Q3** | Is the edge internet-facing with an IP allowlist, or reachable only from the corporate network (peering / ExpressRoute)? | **Internet-facing with an allowlist**: `loadBalancerSourceRanges` on the Traefik service and `authorized_ip_ranges` on the dev API server, both from one variable, `allowed_ingress_cidrs`. Corporate-only is a later network task | Panacea allowlists KPMG egress ranges the same way (survey §7.2 item 4, `:545-547`) | 31 |
+
+### Owner inputs, and the variable each one fills
+
+From survey §7 (`:519-557`). None is in source; each arrives as a pipeline variable or `TF_VAR_*`.
+
+| Input | Fills | Needed before |
+|---|---|---|
+| Subscription id, tenant id, region (recommended `australiaeast`, three zones) | `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`, `var.location` | first `plan` |
+| Kata vCPU quota: max sandbox nodes × 8 for `Standard_D8s_v5`, plus system and apps pools | `var.sandbox_pool.max_count`, `var.apps_pool` | first `apply` |
+| A deploy identity allowed to assign roles, **scoped by an ABAC condition** to the roles in task 10's allowlist | the `infra-plan`/`deploy` service connection | first `plan` |
+| An ADO project, an OIDC (workload identity federation) service connection, paid parallel jobs, and the right to create a Managed DevOps Pool | `pipelines/*.yml` `azureSubscription:` names, task 30's pool | first `plan` |
+| Entra: app-registration rights for the identity stack, **or** the registrations made by hand and their ids handed over | `stacks/identity` run, or `TF_VAR_*_client_id` | first `apply` of `workloads` |
+| Entra groups: cluster admins, Postgres admins, product users | `var.cluster_admin_group_object_ids`, `var.postgres_admin_group`, `var.user_group_object_id` | first `apply` |
+| A DNS name and its delegation from the parent zone | `var.dns_zone_name`; the NS records from `foundation`'s output go to the parent | first `apply` of `edge` |
+| A VNet range that does not overlap the corporate network | `var.vnet_cidr` (default `10.40.0.0/16`, a placeholder) | first `apply` |
+| A monthly budget and alert recipients | `var.monthly_budget_aud`, `var.budget_contact_emails` | first `apply` |
+| Confirmation that users' own Claude subscriptions may be used from Azure egress IPs (`PROGRAM.md` open risk 2) | nothing in code — a precondition of the first real session | task 32 |
+
+---
+
+## File map
+
+```
+infra/terraform/
+  kata.tf providers.tf variables.tf dev.tfvars .terraform.lock.hcl   DELETED (01): the pool moves into modules/aks
+  README.md                                   stack order, commands, the rules                     01
+  backends/dev.hcl  backends/prod.hcl        partial backend config, no ids                        02
+  modules/network/            VNet, subnets, NSGs, NAT gateway, private DNS zones                  03
+  modules/observability/      Log Analytics, DCR, action group, budget                             04
+  modules/registry/           ACR Premium, private endpoint, retention                             05
+  modules/keyvault/           Key Vault (RBAC), private endpoint                                   05
+  modules/aks/                cluster, system/apps/sandbox (Kata) pools, diagnostics               06
+  modules/egress-firewall/    Azure Firewall + policy + the agent allowlist (egress_mode=firewall) 07
+  modules/postgres/           Flexible Server, Entra-only, private endpoint                        08
+  modules/workload-identity/  one UAMI + federated credential + role assignments                   10
+  modules/ci-pool/            Dev Center project + Managed DevOps Pool in the agents subnet        30
+  stacks/bootstrap/           state RG, storage account, container                                 02
+  stacks/foundation/          composition of network … aks, DNS zone, edge IP + A records, checks  07
+  stacks/data/                Postgres for the Hub                                                 08
+  stacks/identity/            azuread: desktop client, Hub API, broker API, groups                 09
+  stacks/workloads/           id-hub, id-hub-migrate, id-cert-manager, role assignments            10
+  stacks/*/tests/*.tftest.hcl terraform test, mock providers only                         each stack
+infra/scripts/validate.sh     fmt -check, init -backend=false, validate, test — every stack        01
+infra/scripts/guards.sh       no terraform.tfvars, no ids in tfvars, mocks in every test           01
+infra/smoke/                  post-apply checks, written and shellcheck'd, NOT run                 31, 32
+deploy/charts/platform/       namespaces, PSA, priority classes, quotas, policies, warm capacity   11, 12
+deploy/charts/edge/           Traefik (Gateway API), cert-manager, ClusterIssuer, Gateway          13
+deploy/charts/broker/         broker Deployment, SA, Role in panacea-sandboxes, HTTPRoute, PDB     29
+deploy/charts/hub/            Hub Deployment, migrate Job, SA (WI), HTTPRoute, PDB (HA-4, HA-5)    29
+deploy/values/dev/*.yaml      per-environment values; ids injected by the pipeline                 29
+control-plane/internal/sandbox/manager.go      config, hardening, token Secret, machine volumes    14, 15
+control-plane/internal/backend/backend.go      Spec.Machine, MachineMount, ValidateSpec            15
+control-plane/internal/backend/katabe/kata.go  machine mounts, WorkDir, owner                      14, 15
+control-plane/internal/backend/dockerbe/docker.go  refuses MachineMounts                           15
+control-plane/internal/entra/                  Entra access-token validation (HA-1)                16
+control-plane/internal/brokerapi/              broker wire types, shared by broker and remotebe    18
+control-plane/cmd/broker/                      the broker                                          17-19
+control-plane/internal/machineapi/             machine-agent wire types                            20
+control-plane/cmd/machined/                    the machine agent                                   20, 21
+control-plane/internal/backend/remotebe/       backend.Backend over the broker                     22
+control-plane/internal/machines/               the machine set: local + cloud                      23
+control-plane/internal/api/{api,sessions,attach,catalog}.go   per-machine backend and catalog     23, 24
+control-plane/internal/reaper/reaper.go        sweeps every machine's backend                      23
+control-plane/cmd/api/{config,main}.go         PANACEA_APP_BROKER_URL and friends                  23
+control-plane/internal/gitx/remote.go          phase 3's Machine for a cloud machine (S3-P8.1)     25
+desktop/src/components/rail/MachineChip.tsx (+ machines popover)   cloud machine states, wake      26
+images/broker/Dockerfile  images/machine/Dockerfile                                               27
+azure-pipelines.yml                             the Go pipeline: PR trigger, path filter, govulncheck 28
+pipelines/templates/  pipelines/{desktop,licences,secrets,infra,charts,images}.yml               27, 28
+pipelines/{infra-plan,deploy}.yml  pipelines/scripts/estate-guard.sh     written, NOT registered   30
+docs/runbooks/phase-8-first-apply.md                                                              31
+docs/verification/phase-8-kata-proving.md       results template, every row UNVERIFIED            32
+docs/SEAMS.md, docs/PROGRAM.md                  S8 rows, the Defender-for-Kata compliance gap      33
+```
+
+**Shared files, and who is allowed to touch them in which order.** `control-plane/go.mod` is
+changed by tasks 16 and 22 only, in that order. `internal/sandbox/manager.go` by 14 then 15.
+`internal/api/*.go` by 23 then 24. `pipelines/templates/tools.yml` is created by 28; 27 and 30
+append. A task that finds another task's change missing stops and reports it.
+
+---
+
+## Task list
+
+Every part is in `2026-09-23-phase-8-own-environment-parts/task-NN.md`. Hours are for one
+implementer who has read this file and the part, and assume the part's tests are written first.
+
+### Group A — Terraform, written and validated (no Azure call)
+
+| # | Task | Depends on | Hours |
+|---|---|---|---|
+| 01 | The `infra/terraform` layout, the conventions, `validate.sh` and `guards.sh`; the phase 1 root (which targets Panacea's cluster) is retired | — | 2 |
+| 02 | `stacks/bootstrap`: the state storage account, Entra-only, versioned; partial backend files | 01 | 1.5 |
+| 03 | `modules/network`: VNet, five subnets, NSGs, NAT gateway, the privatelink DNS zones | 01 | 2.5 |
+| 04 | `modules/observability`: Log Analytics with a daily cap, the Container Insights DCR, action group, budget | 01 | 2 |
+| 05 | `modules/registry` and `modules/keyvault`: ACR Premium and Key Vault, private endpoints, no admin user, RBAC only | 01, 03 | 2 |
+| 06 | `modules/aks`: the cluster (Overlay + Cilium, Entra RBAC, local accounts off, WI) and three pools, the Kata pool among them | 01, 03 | 3 |
+| 07 | `stacks/foundation`: the composition, `modules/egress-firewall`, the DNS zone, the edge IP and its A records, role assignments, checks, `dev`/`prod` tfvars | 02–06 | 3 |
+| 08 | `modules/postgres` and `stacks/data`: Flexible Server for the Hub, Entra-only | 07 | 2 |
+| 09 | `stacks/identity`: the Entra registrations and groups (HA-3) | 01 | 2.5 |
+| 10 | `modules/workload-identity` and `stacks/workloads`: the pods' identities and their grants | 07, 08, 09 | 2 |
+
+### Group B — the cluster's own objects, as charts
+
+| # | Task | Depends on | Hours |
+|---|---|---|---|
+| 11 | `deploy/charts/platform`: namespaces, Pod Security, priority classes, quotas, network policies | 06 (names only) | 3 |
+| 12 | Warm capacity in `platform`: Kata balloons and the image pre-pull DaemonSet | 11 | 2 |
+| 13 | `deploy/charts/edge`: Traefik on Gateway API, cert-manager, the ClusterIssuer, the Gateway | 11 | 2.5 |
+
+### Group C — Kata, for real
+
+| # | Task | Depends on | Hours |
+|---|---|---|---|
+| 14 | Sandbox pod hardening: RuntimeClass as config (S8.4), no SA token, seccomp, the attach token in a Secret, owner labels | — | 2.5 |
+| 15 | Machine volumes: `backend.Spec.Machine` + `MachineMounts`, WorkDir, pod affinity; S8.3's Kata half | 14 | 3 |
+
+### Group D — the broker
+
+| # | Task | Depends on | Hours |
+|---|---|---|---|
+| 16 | `internal/entra`: Entra access-token validation (HA-1) | — | 2.5 |
+| 17 | `cmd/broker`: config, listener, authentication, health, problems | 16 | 2 |
+| 18 | Broker sandboxes: the `backend.Backend` surface over HTTP and the attach relay, owner-scoped | 15, 17 | 3 |
+| 19 | Broker machines: disk + machine pod + token, ensure-default, wake, sleep, delete, the idle sleeper, the agent proxy | 18 | 3 |
+
+### Group E — the machine agent
+
+| # | Task | Depends on | Hours |
+|---|---|---|---|
+| 20 | `cmd/machined`: the catalog on the machine disk, store deletion (OD-10), authentication | 15 | 2.5 |
+| 21 | `machined` git: phase 3's runner and a credentialed clone | 20, **phase 3 task 02** | 2.5 |
+
+### Group F — the laptop's control plane serves cloud machines
+
+| # | Task | Depends on | Hours |
+|---|---|---|---|
+| 22 | `remotebe`: `backend.Backend` over the broker, with the Hub's token source (HA-2) | 18 | 3 |
+| 23 | `internal/machines`: a backend per machine through sessions, attach, reaper and `main` | 22 | 3 |
+| 24 | Machine-scoped catalog, cloud machines in `GET /v1/machines`, session create on a cloud machine (closes S8.3) | 23, 20 | 3 |
+| 25 | Phase 3's `gitx.Machine` for a cloud machine (S3-P8.1) | 24, 21, **phase 3 tasks 02–04** | 2.5 |
+| 26 | The cockpit shows cloud machines: states, implicit wake, the isolation badge (S8.5), signed-out | 24 | 3 |
+
+### Group G — packaging and CI/CD
+
+| # | Task | Depends on | Hours |
+|---|---|---|---|
+| 27 | `images/broker`, `images/machine`, and the `images` pipeline: digest, SBOM, scan, the OD-8 canary | 17, 20, 28 | 2.5 |
+| 28 | Pipelines: tool templates, the Go pipeline, `desktop`, `licences` (OD-11, repo-wide), `secrets`, `infra`, `charts` | 01 | 3 |
+| 29 | `deploy/charts/broker` and `deploy/charts/hub` (HA-4, HA-5), with per-environment values | 11, 13, 19, 27 | 3 |
+| 30 | `infra-plan` and `deploy` pipelines, the estate guard, `modules/ci-pool` — written, not registered | 07, 28, 29 | 3 |
+
+### Group H — owner-gated: written now, executable only when the environment exists
+
+| # | Task | Depends on | Hours to write |
+|---|---|---|---|
+| 31 | The first-apply runbook and the smoke scripts | 07–13, 29, 30 | 2 |
+| 32 | The Kata proving checklist: RuntimeClass, disk sharing, cold start, overhead, isolation | 31 | 2 |
+| 33 | Close the phase: the S8 seams, the compliance gap, the cost model, what stays unverified | all | 1.5 |
+
+### Order
+
+The graph allows eight waves. Tasks inside a wave share no file (see "Shared files" above).
+
+```
+wave 1   01  14  16  28
+wave 2   02  03  04  09  11  15  17
+wave 3   05  06  12  13  18  20
+wave 4   07  19  22  27
+wave 5   08  23  29          21 (when phase 3 task 02 has landed)
+wave 6   10  24  30
+wave 7   25 (when phase 3 tasks 02–04 have landed)  26
+wave 8   31  32  33          (31–32: owner-gated, OD-12)
+```
+
+**The critical path** is 14 → 15 → 18 → 19 and 16 → 17 → 18 → 22 → 23 → 24 → 26: the cloud machine
+end to end. The Terraform groups can finish in parallel with it and gate nothing in Go.
+
+---
+
+## Seams
+
+### Seams this phase consumes (phase 2 task 26, `task-26.md:936-994`; phase 3's plan)
+
+| Seam | What this phase does | Task |
+|---|---|---|
+| **S8.1** `backend.Backend`, seven methods | `remotebe` implements it; the interface does not change | 22 |
+| **S8.2** kata → in-cluster client only; `PANACEA_APP_KUBECONFIG` refused | **Unchanged.** The laptop never holds a cluster credential (P8-D4); only the broker builds an in-cluster client, and it is a different binary | 17 |
+| **S8.3** create sends a host mount and `WorkDir`; `katabe` refuses both | Resolved the right way round: a cloud-machine create sends `MachineMounts`, never `Mounts`; `katabe` keeps refusing host mounts and **now honours `WorkDir`**. `TestCreateRejectsMountsAndCreatesNoPod` stays green; `TestCreateRejectsAWorkDir` is replaced, in the same commit, by a test that `WorkDir` becomes the container's `workingDir` | 15, 24 |
+| **S8.4** `runtimeClass` hardcoded | Becomes `PANACEA_APP_RUNTIME_CLASS` (P8-D15) | 14 |
+| **S8.5** `isolationFor` → `microvm` for Kata | A cloud machine reports `microvm`; the rail drops the `unsandboxed` badge for it (`MachineChip.tsx:45`) | 24, 26 |
+| **S8.6** no `Authorization` header in `desktop/src/api/client.ts` | **Unchanged on the desktop hop.** The token travels control plane → broker, never webview → control plane; `client.ts:6-8`'s comment is updated to say where the auth went | 22, 26 |
+| **S8.7** `proxy.RelayHooked`, the one relay | The broker relays laptop ↔ pod through it; no second relay is written | 18 |
+| **SX.10** the conversation store outlives its sandbox | On a cloud machine the store is `conversations/<worktree id>/` on the machine disk, mounted at `/home/dev/.claude/projects` | 15, 24 |
+| **S3-P8.1** `gitx.Machine` | A cloud machine's `Machine`: `Git()` runs on `machined` through the broker; `CloneRoot()` is `/machine/lanes`; `FetchURL` is the path, unchanged, because clone and repo share one disk | 25 |
+| **S3-P8.2** `lanes.Store` location | Cloud clones live under `/machine/lanes` on the machine disk, behind S3-P8.1 | 21, 25 |
+
+If phase 2 task 26 has not landed when a task here starts, the S-ids above are this plan's names
+for the same code locations, each cited to `file:line` in its part.
+
+### Seams this phase leaves for later phases
+
+| Seam | Where | The later phase | Must not |
+|---|---|---|---|
+| **S8-P6.1** Claude credentials in a cloud session | `~/.claude` in a session pod is an `emptyDir` (`manager.go:175-187`); only `~/.claude/projects` is on the disk (SX.10), so `/login` is per session | Phase 6's credential vault supplies the **user's own** credentials to that user's pods | Put credentials on the machine disk beside transcripts; pool or share them across users; bake them into an image |
+| **S8-P9.1** Customer-managed keys, etcd KMS, Defender, Sentinel, WAF | `modules/aks` takes `disk_encryption_set_id = null`; no `key_management_service` block; no WAF in `edge` | Phase 9 (enterprise hardening) adds each as a variable of the module it belongs to | Add a posture flag that defaults a create-time field off (P8-D2) |
+| **S8-P9.2** Defender for Containers cannot assess Kata pods | recorded as a compliance gap in `PROGRAM.md` (task 33), as its cross-cutting constraints ask | Phase 9's ISM evidence | Claim coverage from a subscription-level Defender plan |
+| **S8-H.1** The Hub's chart values | `deploy/charts/hub/values.yaml`, built against HA-4/HA-5 | The Hub phase, when its contract lands, reconciles the chart | Hard-code a Hub setting in the chart that is not in the Hub's config table |
+| **S8-C.1** Customer-hosted tier | every stack takes `environment`, `location`, tenant and subscription from variables; `identity` is separable | A later phase runs the same stacks in a customer's subscription and Entra tenant | Hard-code our tenant, zone or registry name in a module |
+| **S8-P13.1** The Panacea lift (OD-13) | the `apps` pool and the `panacea-*` namespace convention | The lift phase lands Panacea's services beside the Hub | Pre-create namespaces or pools for it now |
+
+---
+
+## What this plan does not claim
+
+- **Nothing about Azure.** No stack has been planned or applied. Every statement about how AKS Pod
+  Sandboxing behaves — the RuntimeClass name, whether two Kata pods on one node can share an RWO
+  disk, per-pod Kata overhead, allocatable CPU on `Standard_D8s_v5`, cold-start time on a warm
+  node, whether `pods` in a Kata sandbox mount CSI volumes at all — is **UNVERIFIED** and is task
+  32's to prove.
+- **The Hub's shape.** ADR-H1 was incomplete and its contract absent at writing time; every Hub
+  dependency is an ask (HA-1…HA-7).
+- **Phase 3's code.** Tasks 21 and 25 build on `gitx.Runner` and `gitx.Machine` as phase 3's task 02
+  part defines them (`phase-3` worktree, `2026-09-23-phase-3-git-convergence-parts/task-02.md:85`,
+  `:150-159`); none of it exists in this branch.
+- **Prices.** The cost model (task 33) carries the survey's order-of-magnitude figures, which quote
+  Panacea's in-code estimates (survey §6, `:480-515`); no price was fetched.
+- **Owner-observed behaviour.** Anything the owner must watch — a cloud session in the window, the
+  rail's machine states — stays unverified until the batched hands-on session (OD-12).
+- **Training-knowledge facts**, each flagged where used: the GA RuntimeClass name, the ingress-nginx
+  retirement, Managed DevOps Pools' availability in KPMG's ADO organisation.
+
