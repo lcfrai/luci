@@ -1,0 +1,163 @@
+### Task 04: `modules/observability` — the workspace, the collection rule, the alerts, the budget
+
+Panacea learned three things here (survey §1.11, `:213-223`, and G-11): a workspace needs a
+**daily ingest cap**; Container Insights on managed identity collects **nothing** until a Data
+Collection Rule exists; and kube-audit "can blow the dev 1 GB/day workspace cap". So the DCR ships
+in the first apply, the cap is sized for audit, and audit uses the **admin** category (writes, not
+every read). One more rule is ours: **a sandbox's stdout is not ours to collect.** The agent's
+process tree writes there; this module excludes `panacea-sandboxes` from container-log collection
+and keeps only its inventory and events.
+
+**Files:**
+- `infra/terraform/modules/observability/{versions,main,variables,outputs}.tf` (new)
+- `infra/terraform/modules/observability/tests/observability.tftest.hcl` (new)
+
+#### Contract
+
+```hcl
+# versions.tf — as task 03 (azurerm 4.81.0 only)
+
+# variables.tf
+variable "environment" {
+  type        = string
+  description = "dev or prod."
+  validation {
+    condition     = contains(["dev", "prod"], var.environment)
+    error_message = "environment must be dev or prod."
+  }
+}
+variable "location" {
+  type        = string
+  description = "Azure region."
+}
+variable "resource_group_name" {
+  type        = string
+  description = "The foundation resource group."
+}
+variable "retention_days" {
+  type        = number
+  description = "Workspace retention. The ISM-required period is an owner input (survey §7.3); 30 in dev."
+  validation {
+    condition     = var.retention_days >= 30 && var.retention_days <= 730
+    error_message = "retention_days must be between 30 and 730."
+  }
+}
+variable "daily_quota_gb" {
+  type        = number
+  description = "Daily ingest cap in GB. Sized for kube-audit-admin plus Container Insights; ingestion stops for the day when reached."
+  validation {
+    condition     = var.daily_quota_gb >= 1
+    error_message = "daily_quota_gb must be at least 1; -1 (uncapped) is not allowed here."
+  }
+}
+variable "excluded_log_namespaces" {
+  type        = list(string)
+  description = "Namespaces whose container stdout/stderr is never collected. Must include panacea-sandboxes."
+  default     = ["kube-system", "panacea-sandboxes"]
+  validation {
+    condition     = contains(var.excluded_log_namespaces, "panacea-sandboxes")
+    error_message = "panacea-sandboxes must stay excluded: a sandbox's stdout belongs to the agent's process tree."
+  }
+}
+variable "alert_emails" {
+  type        = list(string)
+  description = "Who receives budget and platform alerts (owner input)."
+  validation {
+    condition     = length(var.alert_emails) > 0
+    error_message = "At least one alert recipient is required, or the budget alerts nobody."
+  }
+}
+variable "monthly_budget_amount" {
+  type        = number
+  description = "Subscription budget per month, in the billing account's currency (AUD expected). Owner input."
+  validation {
+    condition     = var.monthly_budget_amount > 0
+    error_message = "monthly_budget_amount must be positive."
+  }
+}
+variable "budget_start_date" {
+  type        = string
+  description = "RFC 3339 first day of a month, not in the past at first apply, e.g. 2026-11-01T00:00:00Z."
+  validation {
+    condition     = can(regex("^\\d{4}-\\d{2}-01T00:00:00Z$", var.budget_start_date))
+    error_message = "budget_start_date must be the first of a month at 00:00:00Z."
+  }
+}
+variable "tags" {
+  type        = map(string)
+  description = "Tags."
+}
+
+# outputs.tf
+output "workspace_id" { value = azurerm_log_analytics_workspace.this.id }
+output "workspace_name" { value = azurerm_log_analytics_workspace.this.name }
+output "container_insights_dcr_id" {
+  description = "Associated with the cluster by modules/aks (the association needs the cluster id)."
+  value       = azurerm_monitor_data_collection_rule.container_insights.id
+}
+output "action_group_id" { value = azurerm_monitor_action_group.platform.id }
+```
+
+#### Resources (described)
+
+- `azurerm_log_analytics_workspace.this` — `log-panacea-app-${env}`, `sku = "PerGB2018"`,
+  `retention_in_days`, `daily_quota_gb`, **`local_authentication_enabled = false`** (4.81.0's
+  name; `local_authentication_disabled` is deprecated in this version).
+- `azurerm_monitor_data_collection_rule.container_insights` — `dcr-ci-panacea-app-${env}`; one
+  `data_sources.extension` named `ContainerInsightsExtension`, `extension_name = "ContainerInsights"`,
+  streams `Microsoft-ContainerLogV2`, `Microsoft-KubeEvents`, `Microsoft-KubePodInventory`,
+  `Microsoft-KubeNodeInventory`, `Microsoft-InsightsMetrics`, and
+  `extension_json = jsonencode({ dataCollectionSettings = { interval = "1m",
+  namespaceFilteringMode = "Exclude", namespaces = var.excluded_log_namespaces,
+  enableContainerLogV2 = true } })`; one `log_analytics` destination (this workspace); one
+  `data_flow` from those streams to it. **The extension's JSON keys are from training knowledge
+  of the Container Insights DCR schema, UNVERIFIED** — the Azure side accepts or rejects them only
+  at apply (task 31); `terraform validate` cannot see inside a JSON string.
+- `azurerm_monitor_action_group.platform` — `short_name = "panacea"`, one `email_receiver` per
+  address.
+- `data "azurerm_subscription" "current" {}` and
+  `azurerm_consumption_budget_subscription.monthly` — `time_grain = "Monthly"`,
+  `time_period { start_date = var.budget_start_date }`, and four notifications:
+  actual ≥ 50 %, actual ≥ 80 %, actual ≥ 100 %, **forecast** ≥ 100 %, each to `alert_emails` and
+  the action group. Subscription scope, not resource group, because the Kata VMs are billed in
+  AKS's node resource group, which a resource-group budget on the foundation RG would miss. The
+  deploy identity needs Cost Management Contributor on the subscription for this (task 10's
+  allowlist says so).
+
+AKS's own diagnostic setting (`kube-audit-admin`, `kube-apiserver`, `cluster-autoscaler`, `guard`)
+is in `modules/aks` (task 06), because it needs the cluster id.
+
+#### Tests to write first (`tests/observability.tftest.hcl`, mocks only)
+
+| Run | Asserts | Mutant it kills |
+|---|---|---|
+| `workspace_has_no_shared_key_auth` | `local_authentication_enabled == false` | shared-key ingestion left on (the default) |
+| `workspace_has_a_daily_cap` | `daily_quota_gb == var.daily_quota_gb` and the variable rejects `-1` (`expect_failures`) | an uncapped workspace |
+| `retention_below_30_is_rejected` | `retention_days = 7` → `expect_failures = [var.retention_days]` | the validation dropped |
+| `sandbox_stdout_is_never_collected` | `jsondecode(…extension[0].extension_json).dataCollectionSettings.namespaces` contains `panacea-sandboxes`, and `namespaceFilteringMode == "Exclude"` | the filter mode flipped to Include, or the namespace list emptied |
+| `removing_the_sandbox_exclusion_is_rejected` | `excluded_log_namespaces = ["kube-system"]` → `expect_failures` | the validation dropped |
+| `dcr_sends_to_this_workspace` | the single `log_analytics` destination's `workspace_resource_id` equals `azurerm_log_analytics_workspace.this.id` (mock id) | a DCR pointed at nothing, which collects nothing (Panacea's gap) |
+| `budget_warns_at_four_points` | four notifications: thresholds 50/80/100 `Actual` and 100 `Forecasted` | the forecast alert dropped (it is the one that fires before the money is spent) |
+| `budget_is_subscription_scoped` | the budget is `azurerm_consumption_budget_subscription` and its `subscription_id` is the data source's `id` | a resource-group budget that misses the node resource group |
+| `no_recipients_is_rejected` | `alert_emails = []` → `expect_failures` | an alert that alerts nobody |
+
+#### Steps
+
+- [ ] **Step 1:** Variables and tests; validate fails.
+- [ ] **Step 2:** Workspace, DCR, action group, budget, running tests after each.
+- [ ] **Step 3:** Outputs, fmt, guards, commit.
+
+#### Acceptance
+
+```bash
+bash infra/scripts/validate.sh infra/terraform/modules/observability
+# validate: OK   infra/terraform/modules/observability     (Success! 9 passed, 0 failed.)
+```
+
+#### What this task does not claim
+
+- That the DCR's extension JSON is what Azure accepts (above).
+- That the daily cap is large enough: the dev value (`5`, set in task 07) is a guess until task 32
+  measures a day of kube-audit-admin.
+- That Log Analytics needs no private link: dev uses public ingestion with Entra-authenticated
+  agents; a private-link scope is phase 9's (S8-P9.1).
