@@ -51,7 +51,13 @@ This phase is large. It is split into five groups that can be reviewed independe
 - The control plane listens on **loopback only** by default (`127.0.0.1:8730`). Sandbox ports are published to **`127.0.0.1` only**. Binding either to `0.0.0.0` exposes a shell to the LAN.
 - Shell is Windows. Use the **PowerShell** tool for Docker — Git Bash mangles container paths. Beware the pipe exit-code trap: `cmd | head` reports `head`'s status, not `cmd`'s.
 - Commit messages end with:
-  `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`
+
+  **Changed 2026-09-23 at a harness restart that moved the session from Opus 5 to Opus 5.5.** Every
+  commit up to and including `3c54287` correctly carries `Claude Opus 5 (1M context)`, because that
+  model made it; every commit from the salvage commit `1db2062` onward carries `Claude Opus 5.5`. A
+  reviewer checking a range that spans the change should expect both, and should flag only a commit
+  whose trailer does not match the model that made it.
 
 ### Deliberate refinements of the brief, with reasons
 
