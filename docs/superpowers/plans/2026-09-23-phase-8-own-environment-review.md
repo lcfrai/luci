@@ -630,3 +630,90 @@ in the tree yet):
 - The upstream webhook's named port (M3).
 - Ubuntu's archive on port 80 and GitHub's asset host (M4).
 - The contents of the AKS FQDN tag (M5).
+
+## Fix batch b02 (2026-09-24) — C3, I8
+
+Commits on `feat/env`: `502aec6`, `4b59507`, and the commit that adds this section. Paths are
+relative to `docs/superpowers/plans/`, with `parts/` and `plan` as in b01. Line numbers are as of
+`4b59507`. C3 and I8 are one fix, because I8's table is built on C3's plan identity. The result
+is four pipeline identities per environment (plan, infra, cluster, push), each holding one row of
+a single table.
+
+### C3 — a PR build could use the apply identity
+
+The review's fix was taken, with three additions found while applying it:
+- **The estate guard refused every PR branch.** `infra-plan`'s PR validation could therefore never
+  pass. The guard now has `plan` and `deploy` modes.
+- **A PR build can publish an artefact named `plan-<stack>` or `image-digests`.** `deploy` would
+  then apply or run the PR author's work if an approver picked that run. `deploy` now refuses a
+  consumed run from a disallowed branch, and `helm-values.sh` refuses a digest from another
+  registry.
+- **The provider-source guard alone misses implicit providers.** A `data "external"` with no
+  `required_providers` entry makes Terraform infer `hashicorp/external`. So G9 also reads the
+  lock files, and `init` runs with `-lockfile=readonly`.
+
+| Fix | Where |
+|---|---|
+| guards are hygiene, not a boundary, stated in task 01 and task 30 | `parts/task-01.md:83-86`; `parts/task-30.md:14-22` |
+| G9, the provider-source allowlist (`hashicorp/azurerm`, `hashicorp/azuread`, `azure/azapi`), over `required_providers` **and** lock files; two cases; counts 9 of 9 and 11 cases | `parts/task-01.md:98`, `:135-136`, `:143-158`; `parts/task-02.md:195`, `parts/task-03.md:232`, `parts/task-07.md:545`, `parts/task-08.md:270`, `parts/task-09.md:182 |
+| the plan connection: Reader on the subscription + Storage Blob Data Reader on state; `-lock=false`; `init -lockfile=readonly`; identity and bootstrap not in its stack list; the Reader-too-little rule (no secret-returning action is ever added); `resource_provider_registrations = "none"` | `parts/task-30.md:145-189`; `parts/task-02.md:38`, `:74-81`, `:139-141`, `:164-165`; `parts/task-07.md:170-171`; `parts/task-01.md:113-116` |
+| the estate guard: `plan` accepts any branch; `deploy` enforces the branch rule, re-runs G9, and refuses a consumed `infra-plan` or `images` run from a disallowed branch; 8 cases | `parts/task-30.md:115-137`, `:250-262`, `:334` |
+| `deploy`'s stages on the infra and cluster connections; outputs published so the cluster identity never reads state | `parts/task-30.md:191-232` |
+| the four service connections, with branch control and per-pipeline permission (ADO-side, so no PR can edit them) | `parts/task-30.md:234-247` |
+| `images.yml`'s push connection: branch control, `images` only, AcrPush only; a PR's digests never deploy | `parts/task-27.md:55-68` |
+| `tf-stack_test.sh` (3 cases); `helm-values` refuses a foreign registry | `parts/task-30.md:264-270`, `:297-300` |
+| lint rule 7: each pipeline names only its own connections (7 of 7) | `parts/task-28.md:99`, `:113`; `parts/task-30.md:339` |
+| runbook §3: four connections, branch control, the negative check (a feature-branch `deploy` must fail at the check) | `parts/task-31.md:30` |
+
+### I8 — one principal held everything
+
+The review's fix was taken, except for one scope. **RBAC Admin is not granted on
+`panacea-sandboxes`.** The review said "the four product namespaces", and those four include
+`panacea-sandboxes`. That namespace holds every user's pod and token Secret (`parts/task-17.md:29`,
+`PANACEA_APP_BROKER_NAMESPACE`, "where every pod, Secret and claim lives"). An admin grant there
+would leave C3's session-read path open. So the cluster identity gets RBAC Admin on the four
+**release** namespaces (`default`, `panacea-edge`, `panacea-broker`, `panacea-hub`). In
+`panacea-sandboxes` it gets a custom role that never names `secrets` or `pods`.
+
+A further change: `bootstrap` now creates `rg-panacea-app-<env>`, so that the infra identity's
+Contributor can be scoped to that group rather than the subscription.
+
+| Fix | Where |
+|---|---|
+| the "Deploy identities" table (plan, infra, cluster, push, and the three human roles), with the declared residuals | `plan:322-360` |
+| P8-D16; P8-D10 corrected (a human creates the database roles) | `plan:145`, `plan:139` |
+| owner inputs rewritten: four identities, the ABAC self-exclusion, two custom roles, four connections, identity stack owner-run, humans-only admin groups, a human Postgres admin | `plan:311-316` |
+| infra: Contributor on `rg-panacea-app-<env>`, which bootstrap now creates, and foundation reads it | `parts/task-02.md:104`, `:119-124`, `:166`; `parts/task-07.md:314`, `:405-408` |
+| cluster: Cluster User, RBAC Admin on the four release namespaces, two custom roles, **no** Cluster Admin, **no** RBAC Admin on `panacea-sandboxes`; test | `parts/task-07.md:271-278`, `:425-447`, `:524-527` |
+| the custom roles checked against the rendered charts (`cluster-kinds_test.sh`); the `bind` residual printed | `parts/task-30.md:30-31`, `:272-294`; `plan:429` |
+| allowlist: Cluster Admin removed; Storage Blob Data Reader, RBAC Admin and the two custom roles added (12 roles); the ABAC condition excludes the infra identity itself; "assigns" versus "holds" | `parts/task-10.md:11-20`, `:157-177`, `:209`, `:218`, `:227` |
+| database bootstrap by a human Postgres admin; `deploy` has no database stage; no `psql` in tools | `parts/task-30.md:34-35`, `:226-232`; `parts/task-31.md:34-35`; `parts/task-08.md:155-157`; `parts/task-29.md:4-5`, `:165-172`; `parts/task-10.md:133` |
+| identity stack owner-run only | `parts/task-09.md:5-13`; `parts/task-31.md:33`; `parts/task-30.md:145-148` |
+| runbook §2a: the owner creates the identities and custom roles, and checks that no pipeline identity is in an admin group | `parts/task-31.md:28-29` |
+| `task-04.md:123-125` corrected: Cost Management Contributor is a **held** role (in the table), not an allowlisted one | `parts/task-04.md:124-128` |
+
+**I9 interplay.** Taking the database out of `deploy` resolves I9's ordering, because runbook §7
+now comes before §7a, the charts. I9's other two asks are left to I9's own batch: an idempotent
+`roles.sql`, and principals by object id.
+
+**Declared residuals** (`plan:340-360`):
+1. The infra identity can reach any allowlisted role indirectly, through a user-assigned identity
+   it creates.
+2. The cluster identity may reach cluster-admin through Kubernetes RBAC `bind`, which the upstream
+   ClusterRoleBindings need. This is owner question **Q4** (`plan:301`). The recommended option is
+   built: the pipeline installs those objects in dev. The seam is `infra/rbac/cluster-deployer.json`.
+3. Reader may be too little for some refreshes.
+4. Group-scoped Contributor may be too little for AKS's node resource group.
+
+**Still UNVERIFIED after b02** (training knowledge; nothing was run against Azure or ADO):
+- ADO branch control's setting names.
+- `RESOURCES_PIPELINE_<ALIAS>_SOURCEBRANCH`.
+- `terraform apply` refusing a stale plan made with `-lock=false`.
+- `resource_provider_registrations = "none"`.
+- Namespace-scope AKS role assignments made before the namespace exists.
+- The Kubernetes RBAC `bind` requirement under the Azure RBAC webhook.
+- Which POST actions azurerm calls at plan time.
+- `az account get-access-token --resource-type oss-rdbms`.
+
+**Mutation checks:** none run. This batch changes plan documents only, with no code or test to
+mutate. The named mutants live in the new test rows, for the implementer.
