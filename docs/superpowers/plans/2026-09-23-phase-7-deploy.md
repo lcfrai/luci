@@ -266,16 +266,29 @@ never ships a commit the user cannot see. `commit` is 40 lowercase hex, which Pa
 **7P-8 — Environments are Panacea's names, joined by name, and a name that joins nothing is shown,
 not dropped.** `GET …/environments` (`projects.go:1997-2153`) names the base environment
 `"production"`, while a deployment's `Environment` is the PipelineRun label `panacea.io/environment`
-(`clients/kubernetes.go:5681`), whose value for production **was not verified** — other handlers use
-`"prod"` (`canonicalStageEnv`, `projects.go:4124-4126`). Panacea's own `tenantNamespace`
+(`clients/kubernetes.go:5681`). On the deploy path its value for production is `"prod"`:
+`TriggerPipelineRun` computes `env := environmentForBranch(branch, prodBranch)`
+(`clients/pipeline.go:237`, the function at `:2195-2207`) and writes it unchanged as the label at
+`:608` (read from source in review b02; the `TargetEnv` path at `:842` was not traced). Other
+handlers also use `"prod"` (`canonicalStageEnv`, `projects.go:4124-4126`). Panacea's own `tenantNamespace`
 (`clients/kubernetes.go:4210-4217`) treats `prod` and `production` as **the same** environment
 (both map to `tenant-<project>`), so the view joins by exact name **plus that one equivalence**,
 cited to that function and pinned by a test that quotes it. Any other deployment whose environment
 matches no row appears in its own group, titled with its raw name — never merged, never dropped —
-and task 20's live check records the real spelling. **The environment for a first Ship** of a never-deployed branch is
-not knowable without re-implementing `sanitizeBranchEnv` (`projects.go:3814-3826`), which the survey
-rightly forbids (a fourth copy to drift). Hub ask **HA7-1** makes `environment` optional at reserve
-and settable once at the deployment join. The plan builds on it.
+and task 20's live check records the real spelling. The join is done **once, in the control
+plane** (task 08): every `ReleaseRow` carries its matched row's name as `environmentRow`, and the
+desktop never joins again (review I8).
+
+**A git branch is never compared with an environment name (review b02, C2).** A row's `branch` is
+Panacea's label — the environment key for every non-base row (`feat-x` for `feat/x`,
+`projects.go:2109-2118`) — and a deployment's `branch` is a sanitised run label
+(`clients/pipeline.go:609`). The branch → environment mapping is Panacea's own:
+`GET P/branches/{branch}/access` returns `data.env` from `branchEnv` → `mapBranchToEnvWithProd`
+(`handlers/branch_security.go:29-37`; `project_security.go:646`, `:668-677`), for **any** branch,
+with no existence check. `Reader.EnvironmentFor` (tasks 01, 03) reads it, and the answer is joined
+to rows with `SameEnvironment`. So **the environment for a first Ship** of a never-deployed branch is
+knowable before the deploy, without re-implementing `sanitizeBranchEnv` (`projects.go:3814-3826`),
+which the survey rightly forbids (a fourth copy to drift). Hub ask HA7-1 is withdrawn (§9).
 
 **7P-9 — Owner-only controls are detected by asking the owner-only route, never by parsing group
 names.** `GET …/branches/{branch}/auto-deploy` is `authedProjectOwner` (`routes.go:1308`): a
@@ -360,7 +373,7 @@ connector decodes each exactly: `bare` = the object itself; `list` = `models.Lis
 | 12 | `POST P/pipelines/{run}/cancel` | 1291 | developer | `200` data `{status: "cancelled" \| "already_completed", message}` (`projects.go:3668-3687`) | 04, 10 |
 | 13 | `POST P/deployments/{id}/rollback` | 1026 | developer | `200` data `Deployment` with `rollbackWarmth`, `coldStartSeconds`; `404`, `400` (no image), `409` (image pruned) (`projects.go:1547-1640`) | 04, 10 |
 | 14 | `GET` / `PUT P/branches/{branch}/auto-deploy` | 1308, 1309 | **owner** | data `{branch,enabled,projectDefault,effective,isProductionBranch}`; `409` when the branch has no environment (`projects.go:4114-4147`); PUT body `{"enabled": bool}` (`:4160-4167`) | 04, 11 |
-| 15 | `GET` / `PUT P/branches/{branch}/access` | 1430, 1431 | member / developer | data `{branch,env,accessMode,ipWhitelist,passwordSet,bypassTokenCount}` (`handlers/project_security.go:668-677`); PUT `{accessMode, password?, bypassTokens?, rotateBypassTokens?}` (`:681-691`) | 04, 11 |
+| 15 | `GET` / `PUT P/branches/{branch}/access` | 1430, 1431 | member / developer | data `{branch,env,accessMode,ipWhitelist,passwordSet,bypassTokenCount}` (`handlers/project_security.go:668-677`); PUT `{accessMode, password?, bypassTokens?, rotateBypassTokens?}` (`:681-691`). The GET's `data.env` is Panacea's own environment name for **any** branch, before its first deploy (`branchEnv`, `handlers/branch_security.go:29-37`) — `Reader.EnvironmentFor` (review b02) | 03, 04, 07, 09, 11 |
 | 16 | `GET` / `POST P/access` · `DELETE P/access/{group}` | 1407-1409 | member / **owner** / **owner** | list of `AccessBinding{group,role,grantee?}` (`models/models.go:2004-2015`); POST `{group,role}` → `201` (`handlers/access.go:17-61`) | 04, 11 |
 | 17 | `PUT` / `DELETE P/branches/{branch}/url-prefix` | 1313, 1314 | **owner** | PUT `{"prefix"}` → data `{branch,prefix,host}`; `409` taken (`projects.go:4263-4373`) | 04, 11 |
 
@@ -527,7 +540,7 @@ reading and push, because Panacea builds only pushed commits (7P-7 settles the i
 | 06 | The binding: local project → Hub project and → Panacea project, by repository | 7a | 2 | 03, 05 | phase 3 task 13 `githost.ParseRemote`; Hub H0 `hubclient.Projects` fake |
 | 07 | The watcher: the cycle, the snapshot, the cursor header, the deployment join | 7a | 3 | 03, 06 | Hub H0 `hubclient.Releases` fake; Hub C2 cursor mechanism (HA7-4) |
 | 08 | The view: `GET /v1/projects/{id}/deploy` — environments, releases, pins, collisions, serving after rollback, owner controls | 7a | 3 | 07 | — |
-| 09 | Ship: reserve → deploy → confirm or abandon, preconditions, retries, the crash window | 7b | 3 | 04, 08 | Hub H0 fake (H5 for integration); phase 3 task 08 `remote.State`; Hub ask HA7-1 |
+| 09 | Ship: reserve → deploy → confirm or abandon, preconditions, retries, the crash window | 7b | 3 | 04, 08 | Hub H0 fake (H5 for integration); phase 3 task 08 `remote.State` |
 | 10 | Rollback, rebuild and cancel | 7b | 2.5 | 09 | — |
 | 11 | Governance routes: auto-deploy, project access, branch posture, URL prefix | 7a | 2 | 04, 08 | — |
 | 12 | Drill-in routes: run progress, scans for a release, pods, events, diagnose, the two SSE relays | 7a | 2.5 | 03, 08 | — |
@@ -559,30 +572,21 @@ Read against `.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-co
 `a6ccd77`. Each ask is the exact shape phase 7 needs. **None is built by phase 7**; where the plan
 proceeds before an answer, it says what it does meanwhile.
 
-**HA7-1 — `environment` may be unknown at reserve (blocks: the *first* Ship of a never-deployed
-branch).** §7.9 requires `environment` on every reserve, 1–63 of `[a-z0-9-]`. For a branch Panacea
-has never deployed, the environment is derived inside Panacea (`sanitizeBranchEnv`,
-`projects.go:3814-3826`) and no route reports it before the deploy (`GET …/auto-deploy` answers
-`409` for a branch with no environment, `projects.go:4132-4134`). Asked:
-
-```jsonc
-// POST /v1/projects/{projectId}/releases — kind "run", no sourceDeploymentId:
-{ "kind": "run", "panaceaProject": "engagement-portal", "environment": null,
-  "branchRef": "refs/heads/feat/evidence-upload", "commit": "<40 hex>", "briefId": null, "designKey": null }
-// Release.environment: string | null  (null only on a run reserved without one)
-
-// POST /v1/releases/{releaseId}/deployments — gains an optional field:
-{ "deploymentId": "engagement-portal-build-x7k2p", "environment": "feat-evidence-upload" }
-// The Hub sets Release.environment from it ONLY when the release's environment is null;
-// a join naming a different environment from a non-null one is 409 conflict.
-// Event release.deployment_joined gains data.environment.
-```
-
-*Meanwhile:* part 09 reserves with the environment `GET …/environments` reports for the branch
-(`branch` field, `projects.go:2118`), and for a branch with no environment refuses Ship with
-`409 deploy_environment_unknown` — *"This branch has never been deployed, and the shared release
-record needs its environment name. Ship it once from the Panacea portal, or wait for the Hub
-change."* That is a real limitation, and the reason the ask is first.
+**HA7-1 — withdrawn (review b02, C2). Phase 7 asks the Hub for nothing here.** It asked for
+`environment: null` at reserve, set once at the deployment join, on the premise that for a branch
+Panacea has never deployed *"no route reports [the environment] before the deploy"*. That premise
+was false. `GET P/branches/{branch}/access` (`routes.go:1430`, member-readable, §4 row 15) returns
+`data.env` from `branchEnv` → `mapBranchToEnvWithProd` — Panacea's own mapping, for **any** branch,
+with no existence check (`handlers/branch_security.go:29-37`; `project_security.go:646`,
+`:668-677`). (`GET …/auto-deploy`'s `409` for a branch with no environment,
+`projects.go:4132-4134`, is a different route.) So task 09 step 4 reads the name with
+`Reader.EnvironmentFor` before it reserves, and §7.9's required, non-null `environment` stands
+unchanged. The old *meanwhile* joined `environments[].branch` to the git branch, and that field is
+the environment key (`feat-x` for `feat/x`, `projects.go:2109-2118`), so it refused almost every
+real branch as *"never been deployed"*. It is gone, with `deploy_environment_unknown` and
+`EnvironmentOptional`. What is left is `409 deploy_environment_invalid`: Panacea's name breaks
+§7.9's `[a-z0-9-]` rule, for example `release-1.2`. If the Hub stream has already built the
+nullable field, phase 7 never sends `null`, and the field can stay or go at the Hub's choice.
 
 **HA7-2 — clarify §7.9's rollback confirm.** §7.9 allows `{"deploymentId":"d-7a1"}` on a rollback
 confirm *"when Panacea returns one"*. Panacea's rollback returns the **source's** id (7P-4), which
@@ -718,9 +722,15 @@ recorded Panacea bodies.
 - **Go on Windows trusts KPMG's interception root through the system store** (7P-10) — from
   knowledge; `LIVE-CHECK.md` step 1 (task 20) has the one live call that settles it. Task 02 only
   writes the command (review I9).
-- **The value of `panacea.io/environment` for the production environment** — `"prod"` or
-  `"production"` (7P-8). Task 08 surfaces a mismatch instead of hiding it; task 20 records the
-  answer.
+- **The value of `panacea.io/environment` for the production environment** — `"prod"` on the
+  deploy path, from source (`clients/pipeline.go:237`, `:608`; review b02). Not run live, and the
+  `TargetEnv` path (`:842`) not traced (7P-8). Task 08 surfaces a mismatch instead of hiding it;
+  task 20 records the live answer.
+- **Whether `%2F` in `GET P/branches/{branch}/access` reaches Panacea's handler as `/`.** Panacea
+  reads the segment with `r.PathValue("branch")` (`project_security.go:636`), and the Go 1.22+
+  `ServeMux` unescapes a wildcard segment (per the `net/http` documentation; not run here). The ingress in front of it (Traefik) was not checked
+  for decoding or rejecting `%2F`. Task 20's live check settles it for a `feat/x` branch. If it
+  fails, `EnvironmentFor` answers with Panacea's own error, and Ship refuses. It never guesses.
 - **Whether `developer` is accepted as a role spelling on `POST …/access`** — task 04 sends `editor`,
   the spelling `access.go` produces (`middleware/rbac.go:219`).
 - **Whether `GET /api/v1/projects` returns `repoUrl` to a non-admin token.** The `List` handler

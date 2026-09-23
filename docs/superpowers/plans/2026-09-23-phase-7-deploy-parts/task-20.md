@@ -173,8 +173,16 @@ func TestLiveEnvironmentsAndBranches(t *testing.T) {
 			slashed++
 		}
 	}
-	// Task 08: the PipelineRun label cannot hold "/" — does Deployment.branch carry the real name?
+	// Task 08: from source, Deployment.branch is sanitizeLabelValue(branch) (clients/pipeline.go:609),
+	// so this should log withSlashInBranch=0 (review b02). A non-zero count reopens task 08's note.
 	t.Logf("deployments=%d withSlashInBranch=%d", len(deps), slashed)
+	// Review b02: Panacea's own environment name for a slash branch, read through the ingress with
+	// the branch %2F-escaped (plan §12). A read failure here is the answer: it fails the test.
+	name, err := d.EnvironmentFor(ctx, ref, "live-check/p7")
+	if err != nil {
+		t.Fatalf("EnvironmentFor(live-check/p7): %v", err)
+	}
+	t.Logf("environmentFor live-check/p7=%q", name)
 }
 
 // Task 12: frames must arrive while the stream is open, not all at once when it closes — a
@@ -395,7 +403,7 @@ write below touches **only** that branch. Write down its posture and auto-deploy
 | 3 | `PANACEA_APP_LIVE_PROJECT=<project> PANACEA_APP_LIVE_ENV=<an env> go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/` | `ok`; copy the logged environment names, the `withSlashInBranch` count and every `live-only key` line here | task 03's recorded bodies against live keys (plan §4 rows 2–9); repoUrl for a non-admin token (plan §12); `ParseRemote` on a real URL (task 06); `prod` vs `production` (7P-8); branch names with `/` (task 08); stream not buffered (task 12) | |
 | 4 | Select the project | *bound* to the Panacea project, with no question asked — or the one choice | task 06 | |
 | 5 | Compare the environment card with the Panacea portal for one environment | version, commit and pods ready agree; the three facts are three | tasks 08, 15 | |
-| 6 | On `live-check/p7`: Ship, then Undo inside 5 s | nothing new in the portal's pipeline list | 7P-15, task 16 | |
+| 6 | On `live-check/p7`: Ship, then Undo inside 5 s | nothing new in the portal's pipeline list; before the Ship, the card names Panacea's environment for the branch (`live-check-p7`, the portal's name for it) and not *"Asking Panacea…"* | 7P-15, task 16; the `%2F` read of `GET P/branches/live-check%2Fp7/access` through the ingress (plan §12, review b02) | |
 | 7 | Ship again and wait; open the release; **Follow build log**; scroll up while it runs | the run shows within about 3 s; lines arrive as they happen; the pane does not jump | tasks 09, 12, 17; the `Idempotency-Key` preflight (task 05, review C1) | |
 | 8 | Read the manifest | the pin is the brief's latest complete revision; the session from the scratch commit is listed | tasks 09, 17, 19; Hub H5 | |
 | 9 | Ship a second commit; then **Roll back to** the first release | the warmth line; the lens says the first is serving; the portal lists **no** rollback deployment | 7P-4, plan §12 | |
