@@ -25,7 +25,7 @@ export function coveredWorktreeIds(
  * `onGoodTick` — ADDED BY TASK 24, a declared departure into this file — runs after every tick
  * whose fetch succeeded, and never after a failed, skipped or stopped one. A good tick is the
  * one proof that the control plane answers, so it is what retries a catalogue list that failed
- * or never arrived (App.tsx's `startCatalogue`), without a second timer: §7.1 allows one clock.
+ * or never arrived (App.tsx's `startCatalogue`), without a second timer: §4.7 allows one interval.
  */
 export function startPolling(
   client: CockpitClient,
@@ -56,11 +56,11 @@ export function startPolling(
       // answered was reported and then wiped by the next tick, 2 s later, leaving an empty rail
       // and a clean footer. An error is cleared by the success of the operation that raised it;
       // the catalogue clears its own. Still written only when it changes: a store write every
-      // 2 s is a re-render every 2 s, which is the layout shift AGENTIC-UX §10 rule 7 bans.
-      if (raised !== null) {
-        if (store.getState().lastError === raised) store.getState().setError(null);
-        raised = null;
-      }
+      // 2 s is a re-render every 2 s, which is the layout shift AGENTIC-UX §10 rule 7 bans. That
+      // is what `raised !== null` is for — with no error raised yet, null === null would write.
+      // `raised` is not reset after a clear: the old object cannot match again, because setError
+      // is handed each one exactly once, at the failure that built it.
+      if (raised !== null && store.getState().lastError === raised) store.getState().setError(null);
     } catch (error) {
       if (stopped) return;
       raised =
@@ -73,7 +73,13 @@ export function startPolling(
     }
     // Outside the try, so a throw from the hook is never recorded as the poller's own failure,
     // and after `finally`, so a retry the hook starts never sees this tick still in flight.
-    if (good && !stopped) onGoodTick?.();
+    // `good` already excludes a stopped tick: it is set only after the post-await `stopped`
+    // check, and a stop during the fetch returns from inside the try, so control never reaches
+    // this line. Between that check and here the code is synchronous, and a store write
+    // schedules React's render rather than running it, so nothing in between can unmount App.
+    // Were that ever to change, the hook App passes is a stopped catalogue's `retry`, which
+    // starts nothing (App.tsx's `run`, pinned by defects.test.tsx).
+    if (good) onGoodTick?.();
   };
 
   const onVisibility = (): void => {

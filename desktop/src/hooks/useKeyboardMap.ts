@@ -64,7 +64,10 @@ export function useKeyboardMap(): void {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
       // Everything that is not a chord leaves here, which is where the three
-      // non-interceptions live — and it is the same test the terminal applies.
+      // non-interceptions live — and it is the same test the terminal applies. Do not give
+      // this line a list of its own again: a copy is equivalent the day it is written and
+      // drifts silently after, because xterm reads only the predicate. The whole-keyboard
+      // agreement test in useKeyboardMap.test.ts is what notices the day the two differ.
       if (!isCockpitChord(event)) return;
 
       const key = chordKey(event);

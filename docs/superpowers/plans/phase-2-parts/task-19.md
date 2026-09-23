@@ -27,7 +27,7 @@ Three things the UI contract predates, which override it here. **`GET /v1/harnes
   - `attachRegistry.updateAttachSession(session)` and `setAttachReadOnly(sessionId, readOnly)` — the two facts the registry cannot derive
   - `attachRegistry.getAttachState(sessionId) → AttachState`, `subscribeAttach(sessionId, listener) → () => void`, `useAttachState(sessionId) → AttachState` — **the footer's "attach state" (§6.5) reads this**, not the store
   - `attachRegistry.TermLike`, `AttachState`, `AttachPhase`, `AttachHandle`, `FLUSH_INTERVAL_MS`, `GRACE_MS`, `RETRY_DELAYS_MS`, `RETRY_BUDGET_MS`, `configureAttachRegistry`, `__resetAttachRegistry`
-  - `poller.startPolling(client, store) → stop()`, `poller.POLL_INTERVAL_MS`, `poller.coveredWorktreeIds(indexed, sessions)`
+  - `poller.startPolling(client, store) → stop()`, `poller.POLL_INTERVAL_MS`, `poller.coveredWorktreeIds(indexed, sessions)` — *amended 2026-09-23 by task 24: `startPolling(client, store, onGoodTick?)`, and a good tick clears only the error the poller raised (UI contract §4.7, "Two amendments")*
   - `components/Terminal.Terminal` — `{ sessionId, readOnly }`, `memo`'d on those two props
 - Consumes: task 15's `Session`/`SessionId` (`store/types.ts`) and its `aSession` fixture builder from `src/test/fixtures.ts` — **task 15's, per shared shape §3.1**, which moved the six typed builders out of task 17 because task 16 runs first and needs them; task 16's `CockpitClient.openAttach`, `CockpitClient.getSession`, `ApiError`, `ProblemCode`, and the `api` singleton; task 17's `useCockpit` and `selectSession`; the pre-existing `lib/wire.ts` (`Kind`, `decode`, `encode`, `encodeResize`), unchanged; task 14's `fakes.ts` — `FakeWebSocket` as shipped, `FakeTerm` grown in step 1. This task declares **no** fixture builder of its own; every variant is an override object passed to `aSession`.
 - Required by: task 20 (`SessionPane` renders `<Terminal sessionId readOnly={status === "exited"}/>` and `SessionPaneFooter` renders `useAttachState`), task 21 (a tile carries the same session across a layout change and must not drop the PTY), task 24 (`App.tsx` mounts `AppShell` and calls `startPolling`).
@@ -1325,6 +1325,15 @@ npm test -- src/api/poller.test.ts
 **What you must see:** a collection failure naming `./poller` as unresolvable, and zero tests collected — the same shape as step 2.
 
 - [ ] **Step 9: Implement the poller**
+
+> **Amended 2026-09-23 by task 24, a declared departure into this file (UI contract §4.7, "Two
+> amendments").** The block below is what task 19 shipped, and two of its lines no longer hold.
+> `startPolling` takes a third, optional `onGoodTick`, called after every tick whose fetch
+> succeeded. And `if (store.getState().lastError !== null) store.getState().setError(null);` is now
+> `if (raised !== null && store.getState().lastError === raised) store.getState().setError(null);`,
+> where `raised` is the error object this poller last wrote: a good tick clears the poller's own
+> report and nothing else. The test "records a failure and clears it on the next success" still
+> holds, because that failure is the poller's own. `desktop/src/api/poller.ts` is the reference.
 
 Create `desktop/src/api/poller.ts`:
 
