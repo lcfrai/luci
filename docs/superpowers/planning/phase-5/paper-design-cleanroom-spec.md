@@ -341,3 +341,195 @@ is added (§7.6).
 | No recorded handoff, no approval, no provenance | Regulated enterprise needs the thread | Approval with a digest, a design link, a bundle in the worktree (§7.6) |
 | Egress by design: image generation vendors, CDN asset hosting, Snapshot from a public origin [S5], [S7], [S16] | Regulated tenants ask about every egress | No server-side egress in v1; assets stay local (§7.5) |
 
+---
+
+## 7. Our canvas — the product specification
+
+Everything in this section is **our design**, informed by §1–§6. Where it cites Paper it says
+which behaviour it matches. Where it cites this repo, the file and line were opened for this
+document.
+
+### 7.1 Principles
+
+1. **Match Paper's model**: HTML/CSS nodes, flex-first layout, tokens as CSS variables, a small
+   read/write MCP surface that teaches the agent, JSX out. This is what the owner asked for.
+2. **Beat it on parallel agents**: many sessions on one canvas is the default case for us, so every
+   write is attributed, claimable and revision-checked (§7.4).
+3. **Keep the thread**: a canvas is bound to a branch's brief, approval is a human act over a
+   digest, and the approved design travels into Develop and Deploy (§7.6).
+4. **No script ever runs in the canvas.** The dialect has no `<script>`, no event handlers and no
+   remote URLs (§7.3). This deletes, by construction, the whole class of risks the earlier survey
+   found in a script-executing canvas (`scope-and-risk-phase-5-design.md` R4, R6).
+5. **Own package, clean seam** (`OD-11` rule 4): the canvas is `canvas/` in the monorepo — a Go
+   module for the document authority and MCP server, and a TypeScript package for the editor —
+   mounted by the cockpit's `design` lens arm (`desktop/src/components/AppShell.tsx:36-38`, today a
+   `LensPlaceholder`).
+
+### 7.2 Where each part runs
+
+| Part | Runs in | Why |
+|---|---|---|
+| **Document authority** — the node tree, ops, revisions, claims, tokens, comments, sanitiser, JSX/HTML serialisers, the MCP server | **The control plane** (Go), a new `canvas` package, persisting under the control plane's state directory (`PANACEA_APP_STATE_DIR`, `control-plane/internal/statepath/statepath.go:13`) | Agents run in sandboxes while the user is away. Paper's MCP dies when its window closes [S2]; ours must not. Loopback only, as today (`config.go:54`, `127.0.0.1:8730`) |
+| **Renderer** — real DOM for layout, computed styles and screenshots | **The desktop webview**: the Design lens when open, otherwise a hidden renderer the desktop keeps per open project | Layout needs a browser engine; Go has none. Tools that need layout say so with a typed error when no renderer is attached (§8.4) |
+| **Editor UI** — selection, handles, panels, layers, tokens, comments | **The desktop**, `canvas/editor` mounted in the Design lens | The cockpit is the one window (`CLAUDE.md`) |
+| **Approvals, design links, approved snapshots** | **The Hub** (`OD-3`, `OD-5`) | Shared from day one: a teammate sees the same approval and the same thread |
+| **Live shared documents across people** | The Hub, from v2 | The same Go package, hosted server-side; v1 is single-person (§9) |
+
+**Transport inside the window.** The desktop polls today, *"There is no event stream in the Go
+contract … so Phase 2 polls"* (`desktop/src/api/poller.ts:1-3`). A canvas that shows agents'
+edits live is push-shaped. **Recommendation (OQ-3):** the canvas's op channel is the first topic
+on the event stream the poller comment asks for — one WebSocket per window, multiplexed — not a
+second, private transport.
+
+### 7.3 The document model and the HTML dialect
+
+**Entities** (field names are the plan's to finalise):
+
+- **Canvas** — one per branch, `(projectId, branchId) → canvasId`, created on first open. Carries
+  `revision` (monotonic, bumped by every op), the bound brief key, and pages.
+- **Page** — ordered list of artboards.
+- **Node** — `id`, `kind` ∈ {`artboard`, `frame`, `text`, `image`, `svg`}, `name` (layer name),
+  `parentId`, `order` (a fractional index, [S26]), `styles` (CSS property → value, from the
+  allowlist), `text` for text nodes, `asset` for images, `locked`, `hidden`, `revision`,
+  `lastEditedBy` (user + session handle).
+- **Token** — `name`, `type` (Paper's ten types, [S3]), `value`; serialised as CSS custom
+  properties and as a W3C Design Tokens file [S28].
+- **Asset** — content-addressed bytes (`sha256`), referenced from nodes as `asset:<sha256>`.
+- **Comment thread** — anchored to a node, with messages, author (a human, or a session), status.
+- **Claim** — `(sessionId, artboardId, expiresAt)`, see §7.4.
+- **Op** — every mutation, with author, time and the revision it produced. The log is the undo
+  stack, the activity feed and the audit trail.
+
+**The v1 dialect** — what `write_html`, paste and the editor accept (Paper's rules [S11] adopted,
+then tightened for security):
+
+| Allowed | Rejected, with a report naming what was dropped |
+|---|---|
+| `div`, `span`, `p`, `h1`–`h6`, `img`, `svg` (sanitised subset), `button`/`input`/`a` as **inert** visual elements, `x-clone` for reuse | `script`, `style` blocks, `iframe`, `object`, `embed`, `form` actions, `link`, `meta`, `base`, any `on*` attribute, `javascript:` anything |
+| **Inline styles only.** Layout by `display: flex` (direction, wrap, gap, align, justify), padding, `position: absolute` with insets, width/height incl. `fit-content`, min/max | `margin` (v1, as Paper [S11]); `display: grid` (v1; v2 adds it); `position: fixed`/`sticky`; `@import`; `url()` to anything but `asset:` and small `data:` images |
+| Colour in hex, `rgb()`, `oklch()`, `display-p3` [S6]; `var(--token)` | `expression()`, `behavior`, `-moz-binding` and every legacy script vector |
+| Fills, gradients, borders, outlines, radius per corner, shadows, opacity, filters, backdrop filters, blend modes, typography incl. variable axes and OpenType features [S5] | Remote fonts; fonts are local or bundled |
+| A `name` attribute for the layer name (Paper's `layer-name` [S11]) | — |
+
+A write never fails silently: the response lists every dropped element, attribute and property,
+so the agent can correct itself. Sanitising runs **in Go, in the authority**, before the op is
+accepted, and again in the renderer as defence in depth (§10).
+
+### 7.4 Many agents on one canvas
+
+Paper shows a working indicator [S2]; nothing public says two agents are kept apart. We need more:
+
+1. **Attribution is free and unforgeable.** Every MCP call arrives over a sandbox's own relay
+   (§7.7), so the authority knows the session without trusting anything the agent says. Every op
+   records user + session handle, and the cockpit row and the canvas presence show the same name.
+2. **Claims.** The first write into an artboard claims it for that session (Paper's working
+   indicator, promoted to a lease). `finish_working` releases it; it also lapses after an idle
+   period. Another agent's write into a claimed artboard fails with `claimed` naming the holder,
+   unless it asks for a shared claim. **Humans are never blocked** — a human edit in a claimed
+   artboard succeeds and is shown to the claiming agent on its next read. This is the canvas twin
+   of phase 3's file claims (`PROGRAM.md` phase 3, "file-claim coordination"); one vocabulary for
+   both is an open question (OQ-6).
+3. **Revision preconditions.** Every write accepts `ifRevision` for the nodes it touches. A stale
+   write fails with `conflict` and the current revision, instead of silently overwriting. Without
+   it, per-property last-writer-wins [S26] applies — that is the right default for humans dragging
+   things, not for agents rewriting a subtree.
+4. **Per-author undo.** A human's undo undoes their own ops, never an agent's; an agent's work is
+   reverted by name from the activity feed (*"revert everything session `hero-v2` did"*). This is
+   `docs/AGENTIC-UX.md` §4 rule 6 — reversible with a rewind, not a manual unpick.
+5. **Agents signal, humans decide.** An agent can `request_review` (§8.2); it cannot approve.
+
+### 7.5 Security and egress
+
+- **No script execution** anywhere in the canvas (§7.3).
+- **Each artboard renders in its own sandboxed iframe with `allow-same-origin` and without
+  `allow-scripts`.** The editor, in the parent, can read layout and handle input inside it; nothing
+  inside can run. A per-artboard viewport also gives real media-query behaviour at the artboard's
+  width. **Unverified in WebView2** — the first spike (§9.1, item 1).
+- **A strict CSP inside each artboard document**: no network at all; images and fonts only from
+  the asset scheme and `data:`.
+- **The canvas origin gets no Tauri IPC.** Today the app's CSP is `null`
+  (`desktop/src-tauri/tauri.conf.json:21`); the canvas must not widen what that exposes.
+- **No server-side egress in v1**: no image generation, no stock search, no web snapshot, no CDN.
+  Content from outside arrives through the user's own agents and MCP servers, under their own
+  identity — the capacity model `CLAUDE.md` locks.
+- **Scope**: a session sees only its own branch's canvas. There is no `list_files` across projects.
+
+### 7.6 Provenance: binding, brief, approval, handoff
+
+The provenance contract draft was written against the withdrawn Northstar canvas. Its **shapes**
+stand; its **mechanisms** get simpler because the canvas is now ours.
+
+| Concern | Contract draft said | Clean-room canvas does |
+|---|---|---|
+| Binding | `(projectId, branchId) → canvasId`, new state in our store | Same. It is a field of the Canvas entity, not a side table |
+| Brief visible to agents | A **brief mirror** written into Northstar guidelines, with a marker and a drift check (§3.3) | **No mirror.** An MCP tool, `get_brief`, resolves the bound branch's brief through the phase 4 resolver at call time and returns its key and revision. Nothing is copied, so there is nothing to drift. Contract §3.2's *"never holds a brief copy in the canvas database"* holds by construction |
+| Who approves | A human, at Northstar's `VISION` gate | A human, from our chrome. **No MCP tool approves** |
+| Digest | Northstar's SHA-256 over frames, guidelines, pinned references | Ours: SHA-256 over the canonical serialisation of the approved artboards, their assets' hashes, the tokens they use, and the brief key reviewed against |
+| Design link | `design:<canvasId>@<designRevision>` + `reviewDigest` → brief key (`provenance-contract-draft.md:265`) | **Same shape**, written to the Hub ledger in the same operation as the approval |
+| Changed after approval | Needed Northstar's activity feed to name the editor (unverified) | Recomputed digest ≠ approved digest; the op log names every op since, with its author |
+| Deleted canvas orphans links (brief R8 / P-g) | Unowned | **The approved snapshot is captured into the Hub at approval.** A handoff works while the canvas is unreachable, and a release's design key always resolves |
+| Brief edited after approval | Open question 3; recommended *pin and mark* | Unchanged: the approval stands as `superseded`; one explicit re-bind. With no mirror, a brief edit cannot void an approval by accident |
+
+**The handoff bundle**, materialised into the worktree on request, with a marker carrying the design
+key and the brief key:
+
+- `design/<artboard>.html` — the canonical dialect, the exact approved revision;
+- `design/<artboard>.png` — rendered at 2× (Paper's default [S5]);
+- `design/<artboard>.jsx` — React with Tailwind or inline styles (Paper's `get_jsx` formats [S2]);
+- `design/tokens.css` (custom properties) and `design/tokens.json` (W3C DTCG [S28]);
+- `design/manifest.json` — design key, brief key, digest, artboard list, approver, time.
+
+And Paper's live path, kept: a Develop session's agent can call the read tools against the
+**approved revision** (`revision` argument, §8.1) to pull exact values while it writes code.
+*"Start a Develop session from this design"* passes the brief key as the session's `contextRef` and
+writes a `session → design key` link (contract §3.2). Whether the bundle is **committed** follows
+phase 3's answer for `CLAUDE.md` (contract open question 4).
+
+### 7.7 How an agent in a sandbox reaches the MCP server
+
+Paper's agents run on the same machine as the app and dial `127.0.0.1:29979` [S2]. Ours run inside
+a sandbox (Docker now, Kata later), and the control plane listens on loopback only. What exists
+today: the control plane **dials into** `sandboxd` in the sandbox, which serves `/attach` and
+`/healthz` (`sandboxd/internal/server/server.go:85-86`), and relays payload-blind
+(`control-plane/internal/proxy/proxy.go:1-2`; its hooks see sizes only, `:12-15`).
+
+**Recommended design (OQ-4):**
+
+1. `sandboxd` gains a **loopback MCP listener inside the sandbox**, Streamable HTTP, like Paper's.
+2. It forwards each request over a channel **the control plane opens** into `sandboxd` — the same
+   direction as `/attach`. Nothing in the sandbox can reach the host; the host reaches in.
+3. The control plane stamps the session id on each forwarded call. The agent needs **no token**:
+   the channel is the credential. This removes, rather than solves, the *"headless agents cannot
+   complete MCP OAuth"* risk the earlier brief carried (R7).
+4. The agent is pointed at the listener through the harness's **documented** MCP configuration.
+   For Claude Code that is a launch flag, next to the flags the control plane already passes
+   (`--model`, `--effort`, `--permission-mode`, `--resume`, `--session-id`:
+   `control-plane/internal/harness/argv.go:83-118`). The CLI is not modified, wrapped or parsed
+   (rule 6). There is no MCP wiring in the harness package today (checked).
+
+This is `sandboxd` work, and `sandboxd` MCP forwarding is a relay of opaque bytes. The relay's
+**hooks see sizes, not payloads**, as the existing proxy's do.
+
+### 7.8 The Design lens
+
+The cockpit chrome around the canvas follows `docs/DESIGN-SYSTEM.md` and the six-state brief chip
+(`provenance-contract-draft.md` §4.1). The prototype `prototype/phase-5-design.html` drew that
+chrome around an embedded Northstar viewport; under `OD-11` the viewport is ours, so its seven
+states stand and the viewport gains our editor. What the editor carries, modelled on Paper [S5]:
+
+- **Canvas**: infinite pan/zoom surface of artboards; flat `--canvas` surface, no dot grid (the
+  phase 2 audit failed that construct — brief R13).
+- **Left**: pages; layer tree (drag to reorder/reparent, lock, hide, rename); Theme tab for tokens.
+- **Right**: layout (flex controls, absolute toggle, constraints, size incl. fit-content), fill,
+  border, radius, shadow, filters, typography; a token picker in every field [S3].
+- **On canvas**: select, marquee, move, resize, rotate, gap/padding handles [S5], snapping and
+  smart guides, text editing in place, `⌥`-drag duplicate.
+- **Agents**: presence per session (name, working artboards, claim state) on **the one heartbeat**
+  (`desktop/src/hooks/heartbeat.ts`); a *"reduce agent animations"* setting, as Paper has [S5].
+- **Comments**: pinned to nodes; a human writes, an agent reads and resolves over MCP.
+- **Code panel**: selected node as HTML, JSX-inline or JSX-Tailwind (Paper's `⌥R`/`⌥T` [S5]).
+- **Keyboard**: the canvas's own tools inside the viewport, the cockpit's chords outside. The
+  iframes are same-origin, so the cockpit can listen in them — the dead-keyboard seam the earlier
+  brief found (S2) does not arise. `OD-9` says the cockpit wins by default; the plan settles which
+  canvas keys (`V`, `F`, `T`, `H`, `Z`, …) sit under that rule.
+
