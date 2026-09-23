@@ -155,6 +155,21 @@ type Deps struct {
 	// commit -a writes CRLF blobs for files the agent never touched.
 	GitLineEndings func(ctx context.Context, worktreePath string) (GitLineEndings, error)
 
+	// GitGlobalFiles resolves the two files the HOST's git reads in one
+	// worktree beyond its config: the global excludes file and the global
+	// attributes file, as host paths (gitfix-rereview I-A). Sessions call it at
+	// every create and restart, and sessionEnv hands the sandbox's git the
+	// ones that exist, mounted read-only, and /dev/null for the rest.
+	//
+	// It is required, and an error fails the create or restart before anything
+	// is recorded or destroyed, like GitLineEndings. Git reads
+	// $XDG_CONFIG_HOME/git/ignore (else ~/.config/git/ignore) even with
+	// core.excludesFile unset, and the sandbox's HOME has none: without this
+	// an agent's `git add -A` commits every file the host's git ignores there,
+	// .claude/settings.local.json among them, and that is a user's personal
+	// permission allow-list.
+	GitGlobalFiles func(ctx context.Context, worktreePath string) (GitGlobalFiles, error)
+
 	// CABundle is the absolute host path of a PEM bundle every sandbox trusts in
 	// addition to its own roots, mounted read-only at sessionCABundlePath and
 	// named by NODE_EXTRA_CA_CERTS. "" mounts nothing and sets nothing. cmd/api
@@ -180,6 +195,22 @@ type GitIdentity struct {
 type GitLineEndings struct {
 	AutoCRLF string
 	EOL      string
+}
+
+// GitGlobalFiles is where the host's git looks, in one worktree, for the two
+// per-user files that change what a commit contains:
+//
+//   - Excludes is core.excludesFile, else git's own default,
+//     $XDG_CONFIG_HOME/git/ignore or ~/.config/git/ignore.
+//   - Attributes is core.attributesFile, else $XDG_CONFIG_HOME/git/attributes
+//     or ~/.config/git/attributes.
+//
+// Each is an absolute host path, and names the file git would read whether or
+// not one is there: git skips a missing file silently, and sessions do the
+// same. The resolver answers the question; sessions look at the file.
+type GitGlobalFiles struct {
+	Excludes   string
+	Attributes string
 }
 
 // route is one ServeMux pattern and the handler registered under it.
@@ -273,6 +304,7 @@ func New(d Deps) (*API, error) {
 		{"Worktrees", d.Worktrees == nil},
 		{"Origin", d.Origin == nil},
 		{"GitLineEndings", d.GitLineEndings == nil},
+		{"GitGlobalFiles", d.GitGlobalFiles == nil},
 	} {
 		// BackendReady has no safe default and that is why it is here rather
 		// than below: true fabricates health, false sends an operator after a

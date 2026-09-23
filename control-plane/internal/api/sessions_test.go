@@ -549,16 +549,22 @@ func sessionsNewEnvOver(t *testing.T, dir string, st registry.Store, flags regis
 	return sessionsNewEnvOverWith(t, dir, st, flags, nil)
 }
 
-// sessionsNewEnvOverWith is sessionsNewEnvOver with a hook over the Deps before
-// New sees them, for the optional fields — GitIdentity, CABundle, Log — that
-// most tests leave at their zero value. Still the one construction site: the
-// hook edits these Deps, it does not build its own.
 // sessionsLineEndings is a Deps.GitLineEndings that gives every worktree the
 // same answer.
 func sessionsLineEndings(eol GitLineEndings) func(context.Context, string) (GitLineEndings, error) {
 	return func(context.Context, string) (GitLineEndings, error) { return eol, nil }
 }
 
+// sessionsGlobalFiles is a Deps.GitGlobalFiles that gives every worktree the
+// same answer. The zero answer is a host whose git reads no global file.
+func sessionsGlobalFiles(files GitGlobalFiles) func(context.Context, string) (GitGlobalFiles, error) {
+	return func(context.Context, string) (GitGlobalFiles, error) { return files, nil }
+}
+
+// sessionsNewEnvOverWith is sessionsNewEnvOver with a hook over the Deps before
+// New sees them, for the optional fields — GitIdentity, CABundle, Log — that
+// most tests leave at their zero value. Still the one construction site: the
+// hook edits these Deps, it does not build its own.
 func sessionsNewEnvOverWith(t *testing.T, dir string, st registry.Store, flags registry.WorktreeFlagStore, tweak func(*Deps)) *sessionsEnv {
 	t.Helper()
 	wtDir := filepath.Join(dir, "evidence-upload")
@@ -602,6 +608,7 @@ func sessionsNewEnvOverWith(t *testing.T, dir string, st registry.Store, flags r
 		ReadyTimeout:     50 * time.Millisecond,
 		ConversationsDir: env.conversations,
 		GitLineEndings:   sessionsLineEndings(GitLineEndings{AutoCRLF: "false", EOL: "lf"}),
+		GitGlobalFiles:   sessionsGlobalFiles(GitGlobalFiles{}),
 	}
 	if tweak != nil {
 		tweak(&deps)

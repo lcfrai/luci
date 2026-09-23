@@ -155,6 +155,9 @@ func catalogNewDeps(t *testing.T) (api.Deps, *registry.FileStore) {
 		GitLineEndings: func(context.Context, string) (api.GitLineEndings, error) {
 			return api.GitLineEndings{AutoCRLF: "false", EOL: "lf"}, nil
 		},
+		GitGlobalFiles: func(context.Context, string) (api.GitGlobalFiles, error) {
+			return api.GitGlobalFiles{}, nil
+		},
 	}, st
 }
 

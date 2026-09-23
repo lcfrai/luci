@@ -278,8 +278,11 @@ func (r Resources) KubeMemory() string { return strconv.Itoa(r.MemoryMiB) + "Mi"
 // the sandbox git fix (2026-09-23) — the operator's PANACEA_APP_CA_BUNDLE,
 // read-only (§4), and — AMENDED by its round 1 (2026-09-24) — a primary
 // worktree's .git/worktrees, read-only over itself, so nothing in the sandbox
-// can prune or rewrite the host's linked-worktree metadata (§5.1 step 5).
-// Four things, then. Kata ignores Mounts and returns ErrUnsupported if any are set,
+// can prune or rewrite the host's linked-worktree metadata (§5.1 step 5), and —
+// AMENDED by its fix round (gitfix-rereview I-A, 2026-09-24) — the host git's global
+// excludes and attributes files, read-only, each when the host's git reads one, so a
+// commit in the sandbox holds what it would on the host (§5.1 step 5).
+// Five things, then. Kata ignores Mounts and returns ErrUnsupported if any are set,
 // because a host path on an AKS node is meaningless (§2.6 lists what Phase 8 must
 // supply instead).
 type Mount struct {
@@ -806,6 +809,13 @@ func (b *Backend) Kind() backend.Kind { return backend.KindKata }
   than move; until it is decided, Kata must supply it or refuse. The line-ending pairs are
   `Spec.Env` and need nothing from Phase 8, but `Deps.GitLineEndings` asks the host's git
   about a host path, which a pod does not have: Phase 8 answers it from wherever its clone lives.
+- AMENDED by the sandbox git fix's round-1 fix round (gitfix-rereview I-A, 2026-09-24): **and a
+  fifth.** Every session whose host's git reads a global excludes file or a global attributes file
+  also carries a **read-only** mount of each, at `/etc/panacea-app/git/ignore` and
+  `/etc/panacea-app/git/attributes` (§5.1 step 5). Kata must supply them as read-only volumes, the
+  same shape as the CA bundle, or refuse. `Deps.GitGlobalFiles` asks the host's git about a host
+  path too, and Phase 8 answers it for the user whose clone it is. The `core.excludesFile` and
+  `core.attributesFile` pairs are `Spec.Env`, and name `/dev/null` when there is no file.
 - `Endpoint` is `net.JoinHostPort(pod.Status.PodIP, "8080")`. An empty `PodIP` means
   the pod is not scheduled yet: `StateStarting`, empty `Endpoint`.
 - `State` maps `pod.Status.Phase`: `Pending` → `StateStarting`, `Running` →
@@ -1870,6 +1880,12 @@ session that continues an old transcript, and conflating the two makes "restart"
 
 409 `conflict` if a restart is already in flight for that session.
 
+AMENDED by the sandbox git fix's round-1 fix round (gitfix-rereview M-A, 2026-09-24): 500
+`internal` **before the destroy** when the host's git cannot say how it converts line endings or
+where its global excludes and attributes files are, for that worktree (§5.1 step 5). The old
+sandbox is **kept**, still running, and the record still names it, so the caller can retry once
+the host's git is fixed and has lost nothing.
+
 ### 3.15 `DELETE /v1/sessions/{id}[?purge=true]`
 
 Without `purge`: destroys the sandbox, sets `status` to `exited` and `exitReason` to
@@ -2003,12 +2019,14 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    `GIT_CONFIG_COUNT`/`KEY_n`/`VALUE_n` setting `safe.directory` to the mount point (the
    `sessionWorkDir` constant, never `*`) and `user.useConfigOnly=true`; the user's identity as
    `GIT_AUTHOR_NAME`/`EMAIL` and `GIT_COMMITTER_NAME`/`EMAIL` when one resolves (§4
-   `PANACEA_APP_GIT_NAME`); and, when `PANACEA_APP_CA_BUNDLE` is set, a third, **read-only** mount of
+   `PANACEA_APP_GIT_NAME`); and, when `PANACEA_APP_CA_BUNDLE` is set, a further (AMENDED, was
+   "third": the order is at the end of this step), **read-only** mount of
    that bundle at `/etc/panacea-app/ca-bundle.pem` with `NODE_EXTRA_CA_CERTS` naming it. The
    environment is resolved before step 4, and restart rebuilds it rather than replaying it. A
    linked worktree still has no working git — its `.git` names a host path — and that is Phase 3's
    `3-D1`; the cockpit says so from `Worktree.isPrimary`. AMENDED by the sandbox git fix, round 1
-   (2026-09-24): `GIT_CONFIG_COUNT` is **6**. The four added pairs are
+   (2026-09-24): `GIT_CONFIG_COUNT` is **6** (AMENDED by its fix round: **8**, the last two pairs
+   at the end of this step). The four added pairs are
    `gc.worktreePruneExpire=never`, `gc.auto=0`, and `core.autocrlf` and `core.eol` set to **the host's own
    answer for that worktree** from `Deps.GitLineEndings`, which is required. cmd/api asks the host's
    git in the worktree: `git config --get --type=bool --default false core.autocrlf` (the raw value
@@ -2023,12 +2041,35 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    `/home/dev/work/.git/worktrees`, made on the host when absent. Every linked worktree's `gitdir`
    there names a host path, so the sandbox's git calls each one prunable. The mount stops a
    `git worktree prune`, `repair`, `move`, `remove` or `add` in the sandbox from changing the
-   host's metadata; no git setting stops an explicit prune. It also makes a `git gc` in the
+   host's metadata; no git setting stops an explicit prune. The refused prune still **exits 0**
+   (gitfix-rereview E3: `error: failed to delete '.git/worktrees/wt4': Read-only file system`,
+   then rc 0), so a prune's exit code is not proof that anything was deleted. It also makes a `git gc` in the
    sandbox exit 128, because gc's reflog expiry cannot lock a linked worktree's `HEAD` there;
    `gc.auto=0` stops the sandbox starting a detached auto gc, whose failure would leave a
    `.git/gc.log` that makes the host's own auto gc stand down for a day. The host's git keeps
    the repository. The mount order is the worktree, then
-   that mount, then the conversation store, then the CA bundle. Failure → `store.Update` to
+   that mount, then the conversation store, then the CA bundle, then (AMENDED by the fix round below)
+   the excludes file, then the attributes file. AMENDED by the sandbox git fix's round-1 fix round
+   (gitfix-rereview I-A, 2026-09-24): git reads a **global excludes file** even when
+   `core.excludesFile` is unset, `$XDG_CONFIG_HOME/git/ignore` or else `~/.config/git/ignore`, and
+   the sandbox's `HOME` has none. On the owner's host that file ignores
+   `**/.claude/settings.local.json`, so an agent's `git add -A` committed a user's permission
+   allow-list (measured, E4). Pairs 7 and 8 are `core.excludesFile` and `core.attributesFile`,
+   from `Deps.GitGlobalFiles`, which is required. cmd/api asks the host's git in the worktree:
+   `git config --get --type=path --default <git's default> core.excludesFile`, and the same for
+   `core.attributesFile`, where the default is `$XDG_CONFIG_HOME/git/<ignore|attributes>` when
+   that variable is set and not empty, else `~/.config/git/<ignore|attributes>`. A relative answer
+   is joined to the worktree, and an empty value is no file. A path that is a **regular file** on
+   the host is mounted **read-only** at `/etc/panacea-app/git/ignore` or
+   `/etc/panacea-app/git/attributes`, and its pair names that path. Anything else (nothing there,
+   a directory, a file git cannot read, no path) gets no mount, and its pair names `/dev/null`,
+   because the host's git reads no patterns there. The pair is never left unset, since then the
+   sandbox's git would read its own `~/.config/git` default, which the host never reads and an
+   agent can write. An error from the resolver, or a relative path from it, fails the create or
+   restart with 500 before step 4 and before the restart's destroy. The **system** attributes
+   file (`$(prefix)/etc/gitattributes`) is not forwarded: git has no key that names it, and Git
+   for Windows' own holds only `diff=astextplain` lines, which change how a diff is shown and not
+   what a commit holds. Failure → `store.Update` to
    `StatusExited` with the reason, then 500 or 503.
 6. Return 201 immediately.
 7. **In a goroutine**, `backend.WaitReady(ctx, sb.Endpoint, backend.ReadyTimeout)`; on

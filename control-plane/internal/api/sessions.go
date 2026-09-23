@@ -104,12 +104,37 @@ func sessionHasConversation(d harness.Descriptor) bool {
 // rewrite is not one.
 const sessionCABundlePath = "/etc/panacea-app/ca-bundle.pem"
 
+// sessionGitExcludesPath and sessionGitAttributesPath are where the host's
+// global excludes and attributes files appear inside a sandbox, when the host's
+// git reads one, and what core.excludesFile and core.attributesFile name there.
+// Outside /home/dev like the CA bundle, and read-only: they are the host's
+// files, and the host's git reads them too.
+const (
+	sessionGitExcludesPath   = "/etc/panacea-app/git/ignore"
+	sessionGitAttributesPath = "/etc/panacea-app/git/attributes"
+)
+
+// sessionGitNoFile is what core.excludesFile or core.attributesFile names in a
+// sandbox whose host's git reads no such file: an empty file, so the sandbox's
+// git reads nothing there either. Leaving the key unset would not do that: git
+// would read the sandbox's own ~/.config/git default, which the host never
+// reads and an agent can write.
+const sessionGitNoFile = "/dev/null"
+
+// sessionGitFiles is the host's global excludes and attributes files a sandbox
+// sees: each a host path to mount, or "" when the host's git reads none.
+type sessionGitFiles struct {
+	excludes   string
+	attributes string
+}
+
 // sessionMounts is everything of the host a sandbox sees: its worktree; a
 // primary worktree's linked-worktree metadata, read-only over itself, when
 // sessionWorktreeAdmin found one; its worktree's conversation store when the
-// harness has a conversation; and the operator's CA bundle, read-only, when
-// there is one.
-func sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle string) []backend.Mount {
+// harness has a conversation; the operator's CA bundle, read-only, when there
+// is one; and the host's global git excludes and attributes files, read-only,
+// each when the host's git reads one.
+func sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle string, git sessionGitFiles) []backend.Mount {
 	mounts := []backend.Mount{{HostPath: worktreePath, ContainerPath: sessionWorkDir}}
 	if worktreeAdmin != "" {
 		mounts = append(mounts, backend.Mount{HostPath: worktreeAdmin, ContainerPath: sessionWorktreeAdminDir, ReadOnly: true})
@@ -119,6 +144,12 @@ func sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle stri
 	}
 	if caBundle != "" {
 		mounts = append(mounts, backend.Mount{HostPath: caBundle, ContainerPath: sessionCABundlePath, ReadOnly: true})
+	}
+	if git.excludes != "" {
+		mounts = append(mounts, backend.Mount{HostPath: git.excludes, ContainerPath: sessionGitExcludesPath, ReadOnly: true})
+	}
+	if git.attributes != "" {
+		mounts = append(mounts, backend.Mount{HostPath: git.attributes, ContainerPath: sessionGitAttributesPath, ReadOnly: true})
 	}
 	return mounts
 }
@@ -131,7 +162,7 @@ func sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle stri
 // image has 2.39) rather than a file in the image, so sessionWorkDir stays the
 // ONE place the mount point is written. Environment config is command scope,
 // which outranks every config file, so neither a repository's config nor an
-// agent's `git config --global` can change these. Six settings:
+// agent's `git config --global` can change these. Eight settings:
 //
 //   - safe.directory = sessionWorkDir. A bind mount's owner is not the image's
 //     dev user (Docker Desktop shows root), so without it every git command in
@@ -164,13 +195,22 @@ func sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle stri
 //     do on the host. core.eol matters when core.autocrlf is false and a file
 //     is text by attribute: "native" is CRLF there and LF here, which is why
 //     the resolver sends the host's answer and never "native".
+//   - core.excludesFile and core.attributesFile = the host's own files, from
+//     Deps.GitGlobalFiles, mounted read-only at sessionGitExcludesPath and
+//     sessionGitAttributesPath, or sessionGitNoFile when the host's git reads
+//     none (gitfix-rereview I-A). Git reads ~/.config/git/ignore even with
+//     core.excludesFile unset, and this HOME has none, so without the first an
+//     agent's `git add -A` commits what the host's git ignores:
+//     .claude/settings.local.json on the owner's host, measured. The second is
+//     the same class as core.autocrlf: a global `* text=auto` changes the
+//     blobs a commit writes.
 //
 // The identity goes in as GIT_AUTHOR_* and GIT_COMMITTER_*, which git prefers
 // over any config, so what Deps.GitIdentity resolved is what every commit says.
 //
 // NODE_EXTRA_CA_CERTS ADDS to Node's trust store. SSL_CERT_FILE would replace
 // the system bundle, and verification is never disabled under any setting.
-func sessionEnv(id GitIdentity, eol GitLineEndings, caBundle string) map[string]string {
+func sessionEnv(id GitIdentity, eol GitLineEndings, git sessionGitFiles, caBundle string) map[string]string {
 	env := map[string]string{}
 	pairs := [][2]string{
 		{"safe.directory", sessionWorkDir},
@@ -179,6 +219,8 @@ func sessionEnv(id GitIdentity, eol GitLineEndings, caBundle string) map[string]
 		{"gc.auto", "0"},
 		{"core.autocrlf", eol.AutoCRLF},
 		{"core.eol", eol.EOL},
+		{"core.excludesFile", sessionGitFileIn(git.excludes, sessionGitExcludesPath)},
+		{"core.attributesFile", sessionGitFileIn(git.attributes, sessionGitAttributesPath)},
 	}
 	for i, kv := range pairs {
 		env["GIT_CONFIG_KEY_"+strconv.Itoa(i)] = kv[0]
@@ -217,6 +259,71 @@ func (a *API) sessionGitLineEndings(ctx context.Context, worktreePath string) (G
 		return GitLineEndings{}, fmt.Errorf("the line-ending resolver answered core.eol %q, which is not lf or crlf", eol.EOL)
 	}
 	return eol, nil
+}
+
+// sessionGitFileIn is the path a sandbox's git reads for one of the host's
+// global files: where it is mounted when the host has it, else sessionGitNoFile.
+func sessionGitFileIn(hostPath, containerPath string) string {
+	if hostPath == "" {
+		return sessionGitNoFile
+	}
+	return containerPath
+}
+
+// sessionGitGlobalFiles asks Deps.GitGlobalFiles where the host's git looks
+// for its global excludes and attributes files in this worktree, and keeps
+// each one git would read patterns from. An error fails the create or
+// restart, like the line endings: a sandbox that guessed "none" commits what
+// the host ignores.
+func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID, worktreePath string) (sessionGitFiles, error) {
+	files, err := a.deps.GitGlobalFiles(ctx, worktreePath)
+	if err != nil {
+		return sessionGitFiles{}, err
+	}
+	excludes, err := a.sessionGitGlobalFile(worktreeID, "core.excludesFile", files.Excludes)
+	if err != nil {
+		return sessionGitFiles{}, err
+	}
+	attributes, err := a.sessionGitGlobalFile(worktreeID, "core.attributesFile", files.Attributes)
+	if err != nil {
+		return sessionGitFiles{}, err
+	}
+	return sessionGitFiles{excludes: excludes, attributes: attributes}, nil
+}
+
+// sessionGitGlobalFile is hostPath, with any link resolved, when the host's
+// git reads patterns from it, which is when it is a regular file (Stat,
+// following a link as git does), and "" otherwise, the way git itself treats
+// it. Nothing there: git skips the path silently. Something git cannot read,
+// or a directory: git reads no patterns from it and at most warns, so the
+// sandbox reads none either, and the cause goes to the log. A relative path
+// is an error, because it would be read against this process's directory and
+// not the worktree's.
+func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (string, error) {
+	if hostPath == "" {
+		return "", nil
+	}
+	if !filepath.IsAbs(hostPath) {
+		return "", fmt.Errorf("the git global-files resolver answered %s %q, which is not an absolute path", key, hostPath)
+	}
+	info, err := os.Stat(hostPath)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			a.sessionLog().Warn("the host's git cannot read this file either, so the sandbox's git reads none",
+				"worktreeId", worktreeID, "key", key, "path", hostPath, "err", err)
+		}
+		return "", nil
+	}
+	if !info.Mode().IsRegular() {
+		return "", nil
+	}
+	// The mount's source is the file, not a link to it. Dotfile managers
+	// link ~/.config/git/ignore, and the Docker Desktop share would hand the
+	// VM a link whose target is a Windows path.
+	if resolved, err := filepath.EvalSymlinks(hostPath); err == nil {
+		hostPath = resolved
+	}
+	return hostPath, nil
 }
 
 // sessionWorktreeAdmin returns the host path of a primary worktree's
@@ -545,13 +652,18 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		a.internal(w, r, "read how the host's git converts line endings in worktree "+req.WorktreeID, err)
 		return
 	}
+	gitFiles, err := a.sessionGitGlobalFiles(ctx, req.WorktreeID, path)
+	if err != nil {
+		a.internal(w, r, "find the host git's global excludes and attributes files for worktree "+req.WorktreeID, err)
+		return
+	}
 	worktreeAdmin, err := sessionWorktreeAdmin(path)
 	if err != nil {
 		a.internal(w, r, "prepare the linked-worktree metadata of worktree "+req.WorktreeID, err)
 		return
 	}
-	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID, path), lineEndings, a.deps.CABundle)
-	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, a.deps.CABundle)
+	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID, path), lineEndings, gitFiles, a.deps.CABundle)
+	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, a.deps.CABundle, gitFiles)
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
@@ -1144,13 +1256,18 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		a.internal(w, r, "read how the host's git converts line endings in worktree "+sess.WorktreeID, err)
 		return
 	}
+	gitFiles, err := a.sessionGitGlobalFiles(ctx, sess.WorktreeID, path)
+	if err != nil {
+		a.internal(w, r, "find the host git's global excludes and attributes files for worktree "+sess.WorktreeID, err)
+		return
+	}
 	worktreeAdmin, err := sessionWorktreeAdmin(path)
 	if err != nil {
 		a.internal(w, r, "prepare the linked-worktree metadata of worktree "+sess.WorktreeID, err)
 		return
 	}
-	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID, path), lineEndings, a.deps.CABundle)
-	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, a.deps.CABundle)
+	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID, path), lineEndings, gitFiles, a.deps.CABundle)
+	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, a.deps.CABundle, gitFiles)
 
 	// One of contract §5.2's three permitted destroys.
 	if sess.SandboxID != "" {

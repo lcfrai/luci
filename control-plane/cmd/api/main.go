@@ -145,6 +145,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ConversationsDir: cfg.ConversationsDir,
 		GitIdentity:      gitIdentity,
 		GitLineEndings:   gitLineEndingsResolver(gitRunner),
+		GitGlobalFiles:   gitGlobalFilesResolver(gitRunner),
 		CABundle:         cfg.CABundle,
 	})
 	if err != nil {

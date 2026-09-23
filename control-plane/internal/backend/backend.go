@@ -121,17 +121,20 @@ func (r Resources) KubeCPU() string { return strconv.Itoa(r.CPUMillis) + "m" }
 // KubeMemory renders MemoryMiB as a Kubernetes quantity, e.g. "4096Mi".
 func (r Resources) KubeMemory() string { return strconv.Itoa(r.MemoryMiB) + "Mi" }
 
-// Mount is a host path exposed inside the sandbox. Phase 2 uses it for four
+// Mount is a host path exposed inside the sandbox. Phase 2 uses it for five
 // things: giving a local Docker session the worktree it is supposed to work in;
 // a primary worktree's .git/worktrees, read-only over itself, so nothing in the
 // sandbox can prune or rewrite the host's linked-worktree metadata; giving a
 // session whose harness has a conversation that worktree's conversation store,
-// so a resume in a later sandbox can find the transcript; and, when the
-// operator set PANACEA_APP_CA_BUNDLE, the extra root certificates a
-// TLS-intercepting network needs, read-only. Kata ignores Mounts and returns
+// so a resume in a later sandbox can find the transcript; when the operator
+// set PANACEA_APP_CA_BUNDLE, the extra root certificates a TLS-intercepting
+// network needs, read-only; and the host git's global excludes and attributes
+// files, read-only, each when the host's git reads one, so a commit in the
+// sandbox holds what it would on the host. Kata ignores Mounts and returns
 // ErrUnsupported if any are set, because a host path on an AKS node is
-// meaningless — which makes the metadata mount, the conversation store and the
-// CA bundle three more things Phase 8 must provide another way (contract §2.6).
+// meaningless — which makes the metadata mount, the conversation store, the CA
+// bundle and the two git files four more things Phase 8 must provide another
+// way (contract §2.6).
 type Mount struct {
 	HostPath      string
 	ContainerPath string
