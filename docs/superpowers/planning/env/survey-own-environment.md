@@ -120,10 +120,11 @@ task timeouts" (`P:deploy/main.tf:422-423`).
   AU sovereignty", default **off**, "~A$300-500+/month" (`P:deploy/waf-appgw.tf:1-32`). Traffic
   model: client → App Gateway (TLS) → Traefik (HTTP) → pods (`:20-22`).
 
-### 1.6 Egress — Azure Firewall, off in the live estate
+### 1.6 Egress — Azure Firewall, gated per estate
 
 `P:deploy/firewall.tf`, every resource `count = var.egress_firewall_enabled ? 1 : 0`, "the live
-innovation env … egress_firewall_enabled = false" (`:27-33`). When on: `AzureFirewallSubnet`
+innovation env … egress_firewall_enabled = false" (`:27-33`); the prod and Australia East estate
+files turn it on (section 1.14). When on: `AzureFirewallSubnet`
 (`:42-48`), static public IP (`:51-66`), a Standard policy with DNS proxy (`:69-91`), and one rule
 group (`:98-210`): NTP and DNS to `168.63.129.16` only (`:112-128`), `AzureCloud.<region>` on
 443/1194/9000 (`:131-140`), the `AzureKubernetesService` FQDN tag (`:149-161`), ACR's dedicated
@@ -241,13 +242,66 @@ Key Vault (`:180-184`), and tenant build egress to GitHub, Azure DevOps and PyPI
 |---|---|---|
 | RG, ACR, Key Vault | pre-created / `az … create` | **outside Terraform** |
 | VNet, 2 subnets, NSG | yes | Terraform |
-| AKS + 5 pools | yes (Free tier, public API, Calico) | Terraform |
+| AKS + 5 pools | yes; posture per estate file (below) | Terraform |
 | DNS zone | yes; wildcard A manual | Terraform + hand |
 | cert-manager, Traefik, Vault, Keycloak, Argo CD | yes | Terraform `helm_release` |
 | oauth2-proxy, Keycloak's Postgres, CNPG, MinIO, Tekton | yes | **deploy script** (`kubectl`) |
-| Firewall, WAF, Flexible Server, Blob, CMK, Defender, private cluster, in-VNet agent | **written, off** | Terraform, gated |
+| Firewall, WAF, Flexible Server, Blob, CMK, Defender, in-VNet agent | written; **on only in the target estate files** | Terraform, gated |
 | CI | hosted agent + secret SP + 6k-line script | ADO |
+
+**The posture differs by estate file, and the files disagree with the comments.** Dev sets a public
+API, no firewall, no Entra RBAC (`P:deploy/environments/panacea-dev.env:78-82`). The prod file sets
+private cluster, Entra RBAC, firewall and private PaaS on (`…/panacea-prod.env:57-62`) and Vault
+auto-unseal (`:68`). The Australia East file adds CNI Overlay + Cilium, Flexible Server and WAF
+(`…/panacea-aue.env:54-68`, `:81`, `:127`). All three keep `NO_RBAC_MODE="true"`
+(`…/panacea-dev.env:92`, `…/panacea-prod.env:73`, `…/panacea-aue.env:136`). Yet `P:deploy/firewall.tf:27-29`
+says "the live innovation env … egress_firewall_enabled = false", and a private cluster is
+create-time immutable (`P:deploy/main.tf:247-251`). **Whether the running prod cluster was created
+with the prod file's posture is UNVERIFIED**; it was not checked against Azure, by design.
 
 The pattern that matters most: **everything Panacea wishes it had is already written behind a
 default-false flag, because the live cluster predates it and a create-time field cannot be changed
 on a running cluster.** We start with no live cluster, so we can have all of it at create time.
+
+---
+
+## 2. What we reuse as a pattern, and what we deliberately do differently
+
+OD-13 forbids copying. Everything in the left column is re-written from scratch in `infra/`.
+
+### 2.1 Reuse as pattern
+
+| Pattern | Panacea evidence | How it lands here |
+|---|---|---|
+| One pool per blast radius, taint + label + nodeSelector | `P:deploy/ci-pool.tf:3-18`, `build-pool.tf:43-52` | `system`, `apps` (Hub + broker), `sandbox` (Kata). Phase 1 already uses `panacea-app/role=sandbox` + a taint (`infra/terraform/kata.tf:23-29`, `control-plane/internal/sandbox/manager.go:164-170`) |
+| Warm capacity is a floor, not a timeout | `P:deploy/main.tf:410-424` | `min_count` on the Kata pool plus a balloon and an image pre-pull DaemonSet (section 4, G-6) |
+| Priority classes so builds cannot preempt login | `P:deploy/main.tf:947-950`, `P:deploy/ci-pool.tf:5-9` | Hub and broker above sandboxes; sandboxes above balloons |
+| Private endpoints + privatelink DNS zones for PaaS | `P:deploy/postgres-flexible.tf:202-231`, `:318-344` | Postgres, Key Vault, ACR, from the first apply |
+| Workload identity + federated credentials | `P:deploy/main.tf:265-266`, `P:deploy/object-storage-blob.tf:283` | Every pod that touches Azure; **no client secrets** |
+| Egress allowlist scoped to ACR's dedicated data endpoint, not `*.blob` | `P:deploy/firewall.tf:166-179` | Same rule, if a firewall is chosen (OQ-3) |
+| Region single-source `check` | `P:deploy/firewall.tf:12-17` | A `check` that every region input equals the RG's |
+| `check` blocks that fail the plan on a half-configured feature | `P:deploy/postgres-flexible.tf:178-191` | Same idiom for Entra ids, DNS delegation and CMK pairs |
+| Estate guard: pipeline refuses a wrong branch/env pairing | `P:azure-pipelines-dev.yml:78-86` | One guard step per environment stage |
+| Declare in the release what was once patched live | `P:deploy/main.tf:586-592`, `:632-645` | Rule: no `kubectl patch` in any runbook; drift is a bug |
+| Log Analytics with a daily ingest cap + a DCR | `P:deploy/main.tf:206-226`, `P:deploy/monitoring-dcr.tf:4-16` | Same, with the DCR in the first apply |
+| Regional WAF, not Front Door, for sovereignty | `P:deploy/waf-appgw.tf:8-12` | If a WAF is bought, it is App Gateway in-region |
+
+### 2.2 Deliberately different
+
+| Panacea does | We do instead | Why |
+|---|---|---|
+| Everything opt-in behind default-false flags so the live cluster is "byte-identical" (`P:deploy/main.tf:784-787`) | **Secure at create time, no posture flags** for create-time fields: CNI Overlay + Cilium, Entra RBAC with local accounts off, workload identity, host encryption | We have no live cluster to protect, and these fields are immutable (`P:deploy/main.tf:249`, `:307`) |
+| `count = 1` plus `moved {}` on every resource (`P:deploy/main.tf:395-402`) | Plain resources in small modules; `moved` only for real refactors | The `moved` blocks exist to rescue history we do not have |
+| One flat root of 22 files, one state (`P:deploy/versions.tf:15`) | **Separate stacks with separate state**: `bootstrap`, `foundation`, `data`, `identity`, `workloads` | A mistake in a Helm value cannot plan a cluster replacement |
+| Helm provider authenticated with the local admin client cert (`P:deploy/main.tf:26-33`) | No `helm_release` in the cluster's own stack; in-cluster objects are deployed by the pipeline with Entra auth (`kubelogin`) | Panacea's provider breaks the day `local_account_disabled` flips (`:361`) |
+| ACR and Key Vault created by `az … create`, referenced as `data` (`P:deploy/private-endpoints.tf:5-8`) | Both are Terraform resources | Nothing that the estate depends on lives outside state |
+| Contributor-only deploy identity, `NO_RBAC_MODE`, shared ACR admin credential (`P:deploy/rbac-admin-identity.tf:5-21`) | The deploy identity gets role-assignment rights **scoped by an ABAC condition to a role allowlist** (owner-provided, section 7) | Otherwise every managed-identity grant becomes a second flag and a shared secret |
+| Secret-based service connection whose secret is reused for DNS writes (`P:azure-pipelines-dev.yml:17-20`) | Workload identity federation (OIDC) service connection; cert-manager uses its own federated identity | No long-lived secret anywhere in CI |
+| Keycloak (1 replica, in-memory sessions, 5-min rebuild) + oauth2-proxy (`P:deploy/main.tf:915-1018`) | **No broker in v1.** The desktop does PKCE against Entra (OD-6); the Hub validates Entra JWTs itself | Removes Panacea's recurring SSO outage class (`:930-946`, `:997-1005`). The Hub ADR may add a broker for customer BYO-IdP later |
+| HashiCorp Vault, Shamir or AKV unseal, plaintext listener (`P:deploy/main.tf:825-906`, `:856-872`) | **Azure Key Vault only**, read through workload identity or the Secrets Store CSI add-on | No unseal ceremony, no plaintext in-cluster hop |
+| Postgres admin password in a variable (`P:deploy/postgres-flexible.tf:244-245`) | Flexible Server with **Entra-only authentication**; the Hub connects as its managed identity | No DB password exists to leak into state (`P:deploy/main.tf:772-781`) |
+| In-cluster CNPG (`P:deploy/postgres-flexible.tf:16-21`) and self-hosted MinIO (`P:deploy/object-storage-blob.tf:5-8`) | Managed Postgres from day one; object storage (Blob, private endpoint) only if the Hub ADR needs it | Panacea's own history has a shared in-cluster volume filling and taking every tenant down (a program memory note, **not re-verified in this survey**) |
+| Imports generated from existence probes (`P:deploy/imports.tf:16-23`) | No imports; a fresh subscription is a plain create | We are the fresh subscription |
+| A 6,406-line deploy script, 20 subcommands | Terraform + a thin pipeline + one `smoke` script per stack | A deploy is reviewable in a diff |
+| Many pools on one `/23` workload subnet, `max_pods = 30` (`P:deploy/ci-pool.tf:25-31`) | Overlay pod CIDR; subnets sized for nodes only | The IP ceiling was Panacea's scheduling limiter |
+
