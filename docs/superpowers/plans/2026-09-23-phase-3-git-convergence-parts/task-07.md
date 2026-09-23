@@ -74,6 +74,7 @@ func (s *Syncer) Run(ctx context.Context)
 //     fetch --no-tags --no-write-fetch-head --quiet <FetchURL(clone)> +refs/heads/<branch>:refs/panacea/lanes/<id>
 // The "+" follows a lane an agent rebased or amended. --no-write-fetch-head keeps FETCH_HEAD
 // meaning "the last fetch from origin", which task 08 reads as the fetch time.
+// Hardened per task-02 §HGH: step 1 runs with Scope Clone, steps 2 and 3 with Scope Project.
 func (s *Syncer) SyncLane(ctx context.Context, worktreeID string) (SyncState, error)
 
 // State is the last sync of one lane; ok is false before the first attempt.
@@ -125,7 +126,8 @@ const MaxCommits = 50
 //   log -n 51 --format=%H%x00%s%x00%an%x00%aI%x00<TrailerFormat(Session)>%x1e refs/heads/<b>..<LaneRef>
 //   merge-base refs/heads/<b> <LaneRef>
 //   diff --name-status -z --find-renames <base> <LaneRef>
-//   status --porcelain=v2 -z --untracked-files=all          (in the clone)
+//   status --porcelain=v2 -z --untracked-files=all          (in the clone, Scope Clone: task-02 §HGH)
+// A §HGH refusal is the lane's ReadError, which names clone_config_untrusted and the key.
 func Observe(ctx context.Context, m gitx.Machine, projectPath, branch string, lane lanes.Lane, st SyncState, synced bool) LaneObservation
 ```
 
@@ -159,6 +161,7 @@ an agent would make them. `Script` runners only where the claim is "this call is
 | `TestSyncClearsTheErrorOnSuccess` | recreate the branch in the clone → next sweep clears `Err` | a stale error forever on screen |
 | `TestSyncLaneSerialisesPerLane` | two concurrent `SyncLane`s on one lane under `-race` → one fetch | two fetches racing on one ref lock |
 | `TestRunStopsWhenTheContextEnds` | cancel → `Run` returns within one interval | a goroutine that outlives shutdown |
+| `TestObserveRunsNothingTheCloneNames` | task-02 §HGH end to end, red first against an unhardened `Exec`: clone config `core.fsmonitor=<marker script>` → `Observe` writes no marker; then `filter.x.clean=<marker script>` with `.gitattributes` `* filter=x` and a modified file → no marker, and `ReadError` names `clone_config_untrusted` and `filter.x.clean` | an observer built on an `Exec` without §HGH |
 | `TestObserveListsCommitsTheBranchLacks` | two lane commits, one carrying `Panacea-Session: s-1` → `Commits` newest first, `Sessions` `[s-1]` and `[]` | reading the branch's own commits as the lane's |
 | `TestObserveChangedIsSinceTheMergeBase` | the branch changes `a.txt` after the fork, the lane changes `b.txt` → `Changed` is `[b.txt]` only | `diff branch lane`, which reports the branch's work reversed |
 | `TestObserveCapsCommits` | 60 lane commits → 50 and `Truncated` | an unbounded payload on the poll |
@@ -181,7 +184,7 @@ an agent would make them. `Script` runners only where the claim is "this call is
 #### Acceptance
 
 ```
-go test ./control-plane/internal/converge/ -race -count=1   → PASS (17 tests)
+go test ./control-plane/internal/converge/ -race -count=1   → PASS (18 tests)
 go test ./control-plane/... -race -count=1                  → PASS
 ```
 
