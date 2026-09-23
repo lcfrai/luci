@@ -489,21 +489,28 @@ describe("the assembled cockpit", () => {
   });
 
   it("asks for a branch's worktrees under the project that lists it, not the first one open", async () => {
-    // Two projects open, the selected branch in the SECOND. Branch lists land in request order,
-    // so the first project's list is in the store before the second's. A lookup that took the
-    // first project it found, rather than the one whose list holds the branch, would ask
-    // /v1/projects/p-1/worktrees for p-2's branch, get [], and keep that empty answer for good,
-    // because a branch whose worktrees are defined is never fetched again. Every other test here
-    // has one project, which is why none of them could tell the two lookups apart.
+    // Project 1 is open and its branch list has landed. Then a branch of project 2 is selected,
+    // from the palette, say, which selects without expanding. A lookup that took the first
+    // project it found, rather than the one whose list holds the branch, would ask
+    // /v1/projects/p-1/worktrees for p-2's branch at once, get [], and keep that empty answer
+    // for good, because a branch whose worktrees are defined is never fetched again.
+    //
+    // The order is set by hand, not left to request order, because request order is not
+    // landing order here: `run` writes its loading flag BEFORE it fetches, and that write
+    // re-enters `sync`, which fetches the second project's list first. With both projects open
+    // at mount, "the first entry" would be the right project by accident, and the lookup would
+    // survive. Measured: the first draft of this test did exactly that.
     seedCatalogue();
     server.projects = [aProject({ id: "p-1" }), aProject({ id: "p-2", name: "second" })];
     server.branches.set("p-2", [aBranch({ id: "b-2", projectId: "p-2" })]);
     server.worktrees.set("b-2", [aWorktree({ id: "w-2", projectId: "p-2", branchId: "b-2" })]);
-    useCockpit.setState({
-      expandedProjects: { "p-1": true },
-      selection: { projectId: "p-2", branchId: "b-2", worktreeId: null, sessionId: null },
-    });
     render(<App />);
+    await settle();
+    act(() => useCockpit.getState().toggleProject("p-1"));
+    await settle();
+    expect(Object.keys(useCockpit.getState().branchesByProject)).toEqual(["p-1"]);
+
+    act(() => useCockpit.getState().selectBranch("p-2", "b-2"));
     await settle();
     expect(server.worktreeArgs).toEqual([["p-2", "b-2"]]);
     expect(useCockpit.getState().worktreesByBranch["b-2"]).toHaveLength(1);
