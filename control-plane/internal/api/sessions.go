@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1391,6 +1390,9 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// drop a conversation that exists. A look that fails keeps the id, because
 	// dropping one that exists is the loss this is here to prevent and listing
 	// one that does not costs a resume only a skipped candidate.
+	//
+	// A plain append: sess is Get's clone and Update clones again on the way
+	// in, so nothing this appends into is shared with the store.
 	earlier := sess.EarlierConversationIDs
 	if conversationStore != "" && sess.ConversationID != "" {
 		written, err := sessionTranscriptState(conversationStore, sess.ConversationID)
@@ -1399,7 +1401,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 				"sessionId", id, "err", err)
 		}
 		if written || err != nil {
-			earlier = append(slices.Clone(earlier), sess.ConversationID)
+			earlier = append(earlier, sess.ConversationID)
 		}
 	}
 
