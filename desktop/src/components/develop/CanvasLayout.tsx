@@ -76,6 +76,7 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
   const setTile = useCockpit((s) => s.setTile);
   const pinSession = useCockpit((s) => s.pinSession);
   const unpinSession = useCockpit((s) => s.unpinSession);
+  const focusedId = useCockpit((s) => s.selection.sessionId);
   const [stack, setStack] = useState<SessionId[]>([]);
 
   /* Decision (a), as amended twice. Nothing in Group D renders a "pin to canvas" verb, so an
@@ -127,6 +128,28 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
       prev[prev.length - 1] === id ? prev : [...prev.filter((x) => x !== id), id],
     );
   }, []);
+
+  /* A focus that arrives without a pointer raises its tile too. ⌘1-9, ⌘\, a palette row and a
+   * rail click all move focus without touching the plane, and a focused tile left under its
+   * neighbours reads as a key that did nothing. Declared departure by task 23: the canvas owns
+   * its z-order, so the keyboard map writes focus and never learns this stack exists.
+   *
+   * Keyed on a PRIMITIVE that is null unless the focused session has a tile. `visible` is a
+   * fresh array every render, so depending on it would re-raise the focused tile on every 2 s
+   * poll, burying whichever tile the user last dragged. An id absent from `visible` must not
+   * enter the stack either — `sessionIds` is branch-filtered, so a session focused from another
+   * branch's rail row is absent, and a stray entry surfaces raised when that branch opens. And
+   * because the key stays null until the tile exists, a focused session is raised the moment
+   * it GAINS one: ⌘⏎ on Canvas focuses first, and the pin that gives it a tile lands a render
+   * later.
+   *
+   * A click raises twice: the tile's capture-phase raise, then this effect when the pane's
+   * pointerdown moves focus. The second is a no-op only because `raise` returns `prev` for the
+   * tile already on top; drop that check and every click writes the same stack twice. */
+  const focusedTile = focusedId !== null && visible.includes(focusedId) ? focusedId : null;
+  useEffect(() => {
+    if (focusedTile !== null) raise(focusedTile);
+  }, [focusedTile, raise]);
 
   const commit = useCallback(
     (id: SessionId, next: TilePosition): void => {

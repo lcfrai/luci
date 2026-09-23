@@ -13,11 +13,15 @@ import type { CockpitState } from "../../store/store";
 import type { Session, SessionId } from "../../store/types";
 
 // SessionPane is task 20's, with task 20's suite. It builds a real <Terminal/>, and §1.5 keeps
-// xterm out of jsdom. The stub also makes `variant` assertable directly.
+// xterm out of jsdom. The stub also makes `variant` assertable directly, and counts its renders:
+// a tile re-renders its pane every time the plane renders, so the count is how a stack write
+// that changed nothing becomes visible (shared-shape §3A.1 clause 7).
+const { paneRenders } = vi.hoisted(() => ({ paneRenders: new Map<string, number>() }));
 vi.mock("./SessionPane", () => ({
-  SessionPane: ({ sessionId, variant }: { sessionId: string; variant: string }) => (
-    <div data-testid="pane" data-session={sessionId} data-variant={variant} />
-  ),
+  SessionPane: ({ sessionId, variant }: { sessionId: string; variant: string }) => {
+    paneRenders.set(sessionId, (paneRenders.get(sessionId) ?? 0) + 1);
+    return <div data-testid="pane" data-session={sessionId} data-variant={variant} />;
+  },
 }));
 
 // DevelopLens reaches ../../api through EmptyDevelop. Same mock task 20 uses.
@@ -85,6 +89,10 @@ function tileEl(id: SessionId): HTMLElement {
   const el = document.querySelector<HTMLElement>(`[data-cv-tile="${id}"]`);
   if (el === null) throw new Error(`no tile rendered for ${id}`);
   return el;
+}
+
+function z(id: SessionId): number {
+  return Number(tileEl(id).style.zIndex);
 }
 
 function handleEl(id: SessionId, which: "cv-grip" | "cv-resize"): HTMLElement {
@@ -444,6 +452,63 @@ describe("CanvasLayout", () => {
     expect(screen.getByRole("button", { name: "Move task s-1" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Resize task s-1" })).toBeDefined();
   });
+
+  // ── task 23, carry 1: a focus that arrives without a pointer ──────────────────────────
+
+  it("raises the focused tile when focus arrives without a pointer, as ⌘1-9 does", () => {
+    seed(3);
+    render(<CanvasLayout sessionIds={["s-1", "s-2", "s-3"]} />);
+    expect(z("s-1")).toBeLessThan(z("s-3"));
+
+    act(() => {
+      useCockpit.getState().focusSession("s-1");
+    });
+
+    expect(z("s-1")).toBeGreaterThan(z("s-3"));
+    expect(z("s-1")).toBeGreaterThan(z("s-2"));
+  });
+
+  it("raises a clicked tile with one stack write, though the focus the click causes asks again", () => {
+    seed(3);
+    render(<CanvasLayout sessionIds={["s-1", "s-2", "s-3"]} />);
+    paneRenders.clear();
+
+    // One dispatch in the product: the tile's capture-phase raise, then SessionPane's own
+    // pointerdown focusing the session (SessionPane.tsx, onPointerDown). The stub has no
+    // handler, so the focus is written inside the same act, which batches it the same way.
+    act(() => {
+      fireEvent(tileEl("s-1"), pointer("pointerdown", 50, 50));
+      useCockpit.getState().focusSession("s-1");
+    });
+
+    expect(z("s-1")).toBeGreaterThan(z("s-3"));
+    // The final stack is identical whether the effect's second raise wrote or not, so the
+    // count of plane renders is the observable: one for the click, none for the echo.
+    expect(paneRenders.get("s-1")).toBe(1);
+  });
+
+  it("leaves a tile the user raised on top when the plane re-renders under a standing focus", () => {
+    seed(3);
+    render(<CanvasLayout sessionIds={["s-1", "s-2", "s-3"]} />);
+    act(() => {
+      useCockpit.getState().focusSession("s-1");
+    });
+
+    // The grip belongs to the tile, not to the pane, so a press on s-2's grip raises s-2 and
+    // leaves the focus on s-1. No move, so the gesture writes nothing to the store.
+    fireEvent(handleEl("s-2", "cv-grip"), pointer("pointerdown", 100, 100));
+    fireEvent(window, pointer("pointerup", 100, 100));
+    expect(z("s-2")).toBeGreaterThan(z("s-1"));
+    expect(useCockpit.getState().selection.sessionId).toBe("s-1");
+
+    // Any store write the plane reads re-renders it; a 2 s poll does the same. The focus has
+    // not changed, so nothing may raise s-1 back over the tile the user just brought forward.
+    act(() => {
+      useCockpit.getState().setTile("s-3", { x: 900, y: 600, w: 460, h: 320 });
+    });
+
+    expect(z("s-2")).toBeGreaterThan(z("s-1"));
+  });
 });
 
 describe("DevelopLens on canvas", () => {
@@ -557,6 +622,63 @@ describe("DevelopLens on canvas", () => {
     expect(screen.getAllByTestId("pane").map((p) => p.getAttribute("data-session"))).toEqual([
       "s-2",
     ]);
+  });
+
+  it("does not raise a session focused from another branch, before or after that branch opens", () => {
+    // A rail row focuses without switching branch, so the focused session can be one this
+    // plane does not show. Raising it anyway puts an id with no tile in the stack.
+    seed(2);
+    const other = aBranch({ id: "b-2", projectId: "p-1", name: "audit-trail", isHead: false });
+    const otherWt = aWorktree({ id: "w-2", projectId: "p-1", branchId: "b-2", name: "wt-audit" });
+    const onOther = { ...base, branchId: "b-2", worktreeId: "w-2" };
+    act(() => {
+      useCockpit.setState((s) => ({
+        branchesByProject: { "p-1": [branch, other] },
+        worktreesByBranch: { ...s.worktreesByBranch, "b-2": [otherWt] },
+        sessions: {
+          ...s.sessions,
+          "s-9": aSession({ ...onOther, id: "s-9", title: "task s-9" }),
+          "s-10": aSession({ ...onOther, id: "s-10", title: "task s-10" }),
+        },
+        sessionIdsByWorktree: { ...s.sessionIdsByWorktree, "w-2": ["s-9", "s-10"] },
+        pinned: ["s-1", "s-2", "s-9", "s-10"],
+      }));
+    });
+    render(<DevelopLens />);
+    const before = [z("s-1"), z("s-2")];
+
+    act(() => {
+      useCockpit.getState().focusSession("s-9");
+    });
+    expect([z("s-1"), z("s-2")]).toEqual(before);
+
+    // The half that can fail. A stray stack entry changes no visible tile's z — every tile
+    // keeps its own index — so it shows only when its tile appears, raised over a neighbour
+    // nobody touched. selectBranch clears the focus, so nothing here raises s-9 legitimately.
+    act(() => {
+      useCockpit.getState().selectBranch("p-1", "b-2");
+    });
+    expect(z("s-9")).toBeLessThan(z("s-10"));
+  });
+
+  it("raises a session created on Canvas once its tile arrives", () => {
+    // ⌘⏎'s shape: useCreateSession upserts the session and focuses it in one go, and the pin
+    // that gives it a tile lands a render later. The focus changed before the tile existed.
+    seed(2);
+    render(<DevelopLens />);
+    fireEvent(tileEl("s-1"), pointer("pointerdown", 50, 50));
+    expect(z("s-1")).toBeGreaterThan(z("s-2"));
+
+    act(() => {
+      useCockpit.setState((s) => ({
+        sessions: { ...s.sessions, "s-3": aSession({ ...base, id: "s-3", title: "task s-3" }) },
+        sessionIdsByWorktree: { "w-1": ["s-1", "s-2", "s-3"] },
+      }));
+      useCockpit.getState().focusSession("s-3");
+    });
+
+    expect(useCockpit.getState().pinned).toContain("s-3");
+    expect(z("s-3")).toBeGreaterThan(z("s-1"));
   });
 
   it("seeds an empty pin list from the columns order, capped at ten", () => {
