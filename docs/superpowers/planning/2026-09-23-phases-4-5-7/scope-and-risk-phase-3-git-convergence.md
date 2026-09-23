@@ -360,8 +360,31 @@ locally, behind the interface of A6. Under (a) it has no answer that keeps git w
 
 | # | Risk | Severity | Who | Where |
 |---|---|---|---|---|
-| **R1** | **git fails inside the sandbox on every linked worktree** — inferred from the one-directory mount and git's `.git`-file format | **High** if true; one `docker run` against a real linked worktree settles it | **Orchestrator — verify**; `3-D1` fixes it either way | survey §4.2 |
-| **R2** | **No commit identity inside the sandbox** — the image sets none and the host's `~/.gitconfig` is not mounted | High, cheap | Phase 3 implementer (§2.2) | survey §4.3 |
+| **R1** | ✅ **VERIFIED 2026-09-23, and WORSE than inferred: git fails inside the sandbox on EVERY worktree, primary included.** See the verification note below this table | **High — it is a defect in shipped phase 2, not only a phase 3 risk** | Primary: fixed in phase 2 (`safe.directory`). Linked: **`3-D1`** | survey §4.2 |
+| **R2** | ✅ **VERIFIED 2026-09-23: no commit identity inside the sandbox.** `git config --global --get user.name` exits 1 in `panacea-app/sandbox:dev` | High, cheap | **Phase 2** sets it; phase 3 adds the session trailer (§2.2) | survey §4.3 |
+
+**Verification of R1 and R2, by the orchestrator.** A throwaway repository with a real linked worktree,
+each mounted at the **real** session mount point `/home/dev/work` (`control-plane/internal/api/sessions.go:33`)
+in `panacea-app/sandbox:dev`, running as the image's `dev` user. Exit codes captured by redirecting to
+a file, not through a pipe:
+
+| Mounted | `git status` | Cause |
+|---|---|---|
+| **primary** worktree | **exit 128** — `fatal: detected dubious ownership in repository at '/home/dev/work'` | The bind mount's owner does not match the container's `dev` uid, so git's `safe.directory` protection refuses the repository. **This is the half the survey did not predict** — it makes git fail even on the primary. |
+| **linked** worktree | **exit 128** — `fatal: not a git repository: /home/dev/work/C:/Users/…/main/.git/worktrees/linked` | The linked worktree's `.git` is a **file** containing `gitdir: C:/Users/…` — a Windows host path that cannot exist inside a Linux container. |
+| primary, with `-c safe.directory=/home/dev/work` | **exit 0** — `On branch main, nothing to commit` | One configuration line fixes the primary case. |
+
+**Nothing configures git anywhere today** — not the Dockerfile, not `entrypoint.sh` (which only
+`exec`s `sandboxd`), not the control plane. So every phase 2 session so far has run an agent with **no
+working git**. Phase 1's end-to-end proof tested the terminal round trip, not git, which is how this
+passed. **The linked case is the common one**: the product's premise is one worktree per agent.
+
+**Ruling.** Phase 2 fixes what it cheaply can — `safe.directory` for the mount point, and a commit
+identity passed in from the user's own host configuration — and makes a session in a **linked**
+worktree **say plainly that git is unavailable there**, rather than letting the agent discover it
+from a `fatal:`. **The linked-worktree fix itself is `3-D1`'s** — a git worktree cannot work across the
+Windows-to-Linux boundary as mounted, which is one more argument for the brief's recommended *local
+clone per worktree*.
 | R3 | **Phase 3 and phase 4 both edit `handleSessionCreate`** | Medium — certain collision, small | **Orchestrator** — schedule | §4.1 |
 | R4 | **The managed Claude policy may apply inside the sandbox** — the laptop's policy strips `settings.json` hooks and MCP; a sandbox Claude Code that `/login`s as the same KPMG account probably fetches it too | Medium — rules out any Claude-hook or MCP mechanism, which is why this brief uses none | **Orchestrator — verify** with one `/login` in a sandbox | survey §5.3 item 6 |
 | R5 | **Task 26 has not landed**, so the lens files do not exist | Medium — the `AppShell.tsx` collision returns if phase 3 starts its desktop half first | Orchestrator | §4.1 |
