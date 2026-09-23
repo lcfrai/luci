@@ -1079,3 +1079,83 @@ the model and its write after it take under 8 s together on a healthy Hub.
   session-start time, and Hub latency.
 
 No owner question is raised.
+
+## Fix batch b05 (2026-09-24): I5, I6, I11
+
+Commits: `ed5979b` (the parts and the plan), then this section and a one-line wording fix at
+`task-07.md:23`. Line numbers are those of the second commit.
+
+**I5: the block is a function of its key, title included.** The review offered two fixes for the
+project name: leave it out, or have `Inspect` normalise the title line. This batch leaves it out.
+A normalised title would still give the agent a line that no digest covers.
+
+| Fix | Where |
+|---|---|
+| The title's branch part comes from the revision envelope's `branchRef`, which is fixed per revision (Hub contract §3.4; `PATCH /v1/briefs/{id}` "writes no revision", §7.5, `hub-contract.md:771-774`) | `task-05.md:33-39` (`Revision.BranchRef`) |
+| No `Names` type; `Resolve(project, branch *Revision)` takes no name | `task-05.md:42-46`, `:100-104` |
+| The rule, in task 05 | `task-05.md:68-73` (`Document.Title`: `Branch brief — <ref minus refs/heads/>`, or `Project brief`) |
+| Golden files | `task-05.md:200` (`# Branch brief — evidence-upload`), `:238-242` (`# Project brief`) |
+| Title escaping follows the new source | `task-05.md:136` (Render comment), `:260` (`TestRenderNeutralisesCommentOpeners`, branch ref `refs/heads/<!--x`) |
+| Unit test | `task-05.md:250` `TestTitleComesFromTheRevision` |
+| Task 07's title rule, aligned | `task-07.md:388-393` (rule 2) |
+| The review's test | `task-07.md:445` `TestRenameDoesNotLookLikeAHandEdit` (the Hub project renamed and `b-42` rebound in the fake; the block stays byte-equal and `Inspect` does not report `edited`) |
+| P4-G, rewritten | `2026-09-23-phase-4-discover.md:177` |
+| Architecture rule 3 | `2026-09-23-phase-4-discover.md:99-102` ("computed from that key **alone**") |
+| Task 09's `StateEdited` | `task-09.md:186-191`; `TestInspectStates` note `:266` |
+| Restatements | `task-06.md:119` (`Ref.Title`), `:151-152` (`Source.Names` removed); `task-12.md:53` (example title) |
+
+Cost, stated in P4-G: the block no longer names its project. After a rebind it names the ref its
+revision was written on until the next revision. The superseded 2026-09-18 plan still shows the
+old title (`2026-09-18-phase-4-discover.md:1881`, `:3817`). It is superseded, so it is left as is.
+
+**I6: one rule for the Hub failing during `Resolve`.**
+
+| Fix | Where |
+|---|---|
+| `Resolve` has no error result | `task-07.md:365-368` |
+| The rule: cached stays `resolved`; any other slot is `unavailable` on any Hub error, `signed_out`, or a nil Hub; `missing` only from the Hub's answer; the second-call case; `heads` on failure. The other methods still relay errors unchanged | `task-07.md:401-418` (rule 5) |
+| Rule 6: a nil Hub gives `unavailable`, not `missing` | `task-07.md:419-421` |
+| The review's test | `task-07.md:444` `TestHubOffIsUnavailableNotMissing`; `TestHubErrorsPassThroughUnchanged` narrowed to `View`/`History`/`HeadRef`, `:443` |
+| Restated in task 12 | `task-12.md:70-75` (rule 1); route test `:110` `TestRefsWithTheHubOffOrSignedOutIsUnavailable` |
+| `Unavailable`'s definition | `task-06.md:69-74` |
+| Task 17's `missing` wording, checked | `task-17.md:109-117` |
+
+*Checked and not changed:* the `missing` sentence in task 17 (`:104`) is contract §4.1's. After
+this fix a Hub that is off, down or signed out never reaches it. One cause that is not data loss
+remains: the Hub answers `missing` for *a revision the caller cannot read*, and cannot tell that
+apart from a revision that does not exist (Hub contract §7.5). The words are copy, so they go to
+the owner (below).
+
+**I11: task 07's `List` seam is phase 4's own.**
+
+| Fix | Where |
+|---|---|
+| 1. Task 07 is marked blocked by HA4-2 | `task-07.md:10-25`; plan §6 `2026-09-23-phase-4-discover.md:369-370` (rows 07 and 08) |
+| 2. `List` is declared on phase 4's `Hub` interface. A phase-4-owned wrapper fake embeds `hubclient.NewFake()` | `task-07.md:15-23`, `:33-34` (file list), `:189-194` (interface comment), `:423-424` (tests first), `:449-453` (step 1); plan file map `:298` |
+| 3. The instruction to write into `internal/hub` is deleted | the old `task-07.md:10-12` is gone; the plan's rule at `:349-350` stands |
+| §9: who carries the asks | `2026-09-23-phase-4-discover.md:489-500`; HA4-2 row `:506` |
+
+*Where the review is now out of date.* The review found no `HA4` in the Hub worktree. A grep on
+2026-09-24 of `.claude/worktrees/hub` (`feat/hub` at `d83ff43`) finds the Hub **plan** answering
+HA4-1..9 (`2026-09-23-phase-h-hub.md:502-512`). Its **contract** still has no `BriefQuery`, and
+none of it is built.
+- HA4-2 is answered with the same `List` signature as task 07 (`phase-h-hub-parts/task-04.md:82`).
+- It differs in one place: `BriefQuery` carries `Page hubapi.PageRequest`
+  (`task-03.md:285-290`), not flat `After`/`Limit`. Task 07 records this as a Step 2 mechanical
+  rename (`task-07.md:171-176`).
+- The embedded-interface design still compiles either way. Go accepts an identical method from
+  two embedded sources.
+- HA4-10 is in neither the Hub plan's table nor a grep of its plans.
+
+**Owner question raised** (the plan builds the recommendation until answered):
+- *The `missing` chip says "this is data loss in our store".* The Hub also answers `missing` for
+  a revision the caller cannot read (Hub contract §7.5). Should the words cover both causes?
+  **Recommendation:** keep contract §4.1's words for v1, because after I6 only the Hub's own
+  answer reaches them. Revisit them at the OD-12 hands-on session.
+
+**Still unverified:**
+- No Go or TypeScript was compiled or run. This batch changes plan documents only.
+- That the Hub fake can rename a project (`PATCH /v1/projects/{id}`) and rebind a brief. The rename
+  test needs both. The contract has both routes; the fake's methods are H0's.
+- That `hubclient.NewFake()` returns `*hubclient.Fake`, the type the wrapper embeds. That is the
+  plan's reading, as the old interface comment assumed.

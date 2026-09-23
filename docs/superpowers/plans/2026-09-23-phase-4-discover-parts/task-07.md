@@ -20,7 +20,7 @@ blocks task 08 (plan §6, §9). Phase 4 writes **nothing** under `control-plane/
   and adds `List` over the revisions the test seeded. It lives in `discoverhub`, not in the Hub's
   package.
 - When HA4-2 lands, the wrapper's `List` is deleted and the embedded fake's own `List` shows
-  through; `Hub` stays as it is. That is a one-file change, and the adapter test proves it.
+  through; `Hub` stays as it is. That is a one-file change, and the unchanged tests prove it.
 
 The orchestrator carries HA4-1..9 to the Hub planner (plan §9); this task does not wait on the
 reply to start, but it cannot claim the real Hub until HA4-2 is in the Hub contract.
