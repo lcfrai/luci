@@ -170,7 +170,15 @@ func (a *API) registerGit(mux *routes) {
 ```go
 // cmd/api/main.go — the phase 3 block, after the scanner and before api.New.
 	// ── phase 3 task 04 ──
-	gitExec := gitx.NewExec()
+	// task-02 §HGH: an empty hooks directory and the machine's own helpers and proxy.
+	hardening, err := gitx.MachineHardening(ctx, statepath.Dir("git"))
+	if err != nil {
+		return fmt.Errorf("prepare host git hardening: %w", err)
+	}
+	gitExec, err := gitx.NewExec(hardening)
+	if err != nil {
+		return fmt.Errorf("prepare host git hardening: %w", err)
+	}
 	gitVersion, gitVersionErr := gitx.CheckVersion(ctx, gitExec)
 	if gitVersionErr != nil {
 		log.Warn("phase 3's git features are off", "err", gitVersionErr)

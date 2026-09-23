@@ -93,6 +93,11 @@ type Hardening struct {
 	Proxy      string   // the machine's proxy; "" means none (H2)
 }
 
+// MachineHardening creates the empty directory <root>/no-hooks, sets OwnedRoot to root, and reads
+// H2's helpers and proxy from `git config --system`, then `--global`, run with Dir root and Scope
+// None. Task 04 calls it once in main.go, with root statepath.Dir("git").
+func MachineHardening(ctx context.Context, root string) (Hardening, error)
+
 // UntrustedConfig is a repository config key §HGH H3 refuses. It carries the key, never the value.
 // The API maps it to conflict + reason clone_config_untrusted (Clone) or project_config_untrusted.
 type UntrustedConfig struct {
@@ -335,7 +340,7 @@ Exec's environment and task 13's `PushEnv` sets `GIT_CONFIG_COUNT` itself.
 | `-c core.askPass=` | a repository-named askpass program. An empty value falls through to `GIT_TERMINAL_PROMPT=0`, which fails |
 | `-c commit.gpgSign=false -c tag.gpgSign=false` | a repository `gpg.program` run by task 09's and task 10's `commit-tree` |
 | `-c submodule.recurse=false -c fetch.recurseSubmodules=false` | a host fetch that recurses into `.git/modules/*`, whose config the agent also writes |
-| `-c credential.helper=`, then `-c credential.helper=<h>` for each machine helper (H2) | every helper a repository names, including URL-scoped `credential.<url>.helper`. The empty value clears the list read so far, and command scope is read last |
+| `-c credential.helper=`, then each `Hardening.Credential` entry as `-c <key>=<value>` (H2) | every helper a repository names, including URL-scoped `credential.<url>.helper`. The empty value clears the list read so far, and command scope is read last |
 | `--upload-pack=git-upload-pack` after `fetch` and `ls-remote`; `--receive-pack=git-receive-pack` after `push` | `remote.<name>.uploadpack` and `.receivepack`, which run as a local command when the remote is a path |
 
 `Args[0]` is always the subcommand, because `Call.Dir` carries the directory. Exec refuses a
@@ -347,8 +352,9 @@ This closes review C3, where the user's token reached whatever the agent wrote.
 - `cmd/api` reads the machine's git settings once at startup, from `git config --system` and then
   `--global`: every `credential.*helper` entry in file order (`Hardening.Credential`), and
   `http.proxy`. If neither file names a proxy, it reads `HTTPS_PROXY`, then `https_proxy`, then
-  `ALL_PROXY`, and otherwise uses `""`, which means no proxy (`Hardening.Proxy`). Task 13 step 3
-  wires this in `main.go`. The agent can write neither file.
+  `ALL_PROXY`, and otherwise uses `""`, which means no proxy (`Hardening.Proxy`).
+  `MachineHardening` does this, and task 04 calls it in `main.go`. The agent can write neither
+  file.
 - A `Remote`-class call must carry `Call.RemoteURL`, the literal URL it talks to. Exec refuses
   one without it. Exec then adds `-c http.sslVerify=true -c http.proxy=<Hardening.Proxy>` twice:
   once generic, and once scoped to the exact URL (`-c http.<RemoteURL>.sslVerify=true`,
