@@ -173,7 +173,9 @@ func TestTheSandboxCommitsAsTheIdentityResolvedForItsWorktree(t *testing.T) {
 // to guess one, and the resolver's sentence is what the log says.
 func TestNoIdentityStartsTheSessionAndLogsTheResolversSentence(t *testing.T) {
 	const why = "no git identity: set PANACEA_APP_GIT_NAME and PANACEA_APP_GIT_EMAIL"
-	who := &sandboxEnvIdentity{err: errors.New(why)}
+	// A half answer alongside the error, because Deps.GitIdentity's contract is
+	// "an error means no identity" — not "an error means whatever came back".
+	who := &sandboxEnvIdentity{id: GitIdentity{Name: "Half Resolved"}, err: errors.New(why)}
 	logs := &sandboxEnvLog{}
 	env := sandboxEnvNew(t, func(d *Deps) {
 		d.GitIdentity = who.resolve

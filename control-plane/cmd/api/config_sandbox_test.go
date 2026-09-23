@@ -133,6 +133,12 @@ func TestACABundleWithNoCertificateStopsStartupWithItsOwnSentence(t *testing.T) 
 	for name, content := range map[string][]byte{
 		"a PEM block that is not a certificate": pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte{1, 2, 3}}),
 		"a CERTIFICATE block x509 cannot parse": pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("not DER")}),
+		// The label decides, not only the bytes: Node reads NODE_EXTRA_CA_CERTS
+		// with OpenSSL's PEM_read_bio_X509, which skips a block not labelled as
+		// a certificate, so a real certificate under another label trusts
+		// nothing. Every other case here also fails x509's parse, so without
+		// this one, dropping the label check would pass every test.
+		"a real certificate under a label that is not CERTIFICATE": pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: caDER(t)}),
 		"a binary DER export, not PEM":          caDER(t),
 		"an empty file":                         {},
 	} {
@@ -169,10 +175,28 @@ func TestACABundlePathMustBeAnAbsoluteFile(t *testing.T) {
 
 // "Stop startup" is the process, not the parser: run exits 2 with the
 // sentence, before anything listens.
+//
+// HERMETIC ON PURPOSE, and the reason was measured. With only the bundle
+// set, a regression that skips the check turns this test into a real
+// control plane: the default state directory, the default 127.0.0.1:8730
+// and the real Docker daemon, whose reaper sweeps at startup and destroys
+// every managed container it does not own. A mutation campaign did exactly
+// that. So the backend is kata with a kubeconfig set, which kubeClient
+// refuses outright, even inside a cluster — serve() then fails in newBackend,
+// before the reaper, a registry or a listener exists — and the state
+// directory and address are this test's own. The check intact still exits 2;
+// the check broken exits 1, fast, and touches nothing.
 func TestRunRefusesAMissingCABundleWithExitCode2(t *testing.T) {
 	var out bytes.Buffer
 	path := filepath.Join(t.TempDir(), "never-exported.pem")
-	if code := run(env(map[string]string{envCABundle: path}), &out); code != 2 {
+	hermetic := map[string]string{
+		envCABundle:   path,
+		envBackend:    "kata",
+		envKubeconfig: "kubeClient-refuses-any-kubeconfig",
+		envStateDir:   t.TempDir(),
+		envAddr:       "127.0.0.1:0",
+	}
+	if code := run(env(hermetic), &out); code != 2 {
 		t.Fatalf("exit code = %d, want 2; output %q", code, out.String())
 	}
 	if !strings.Contains(out.String(), caMissingSays) {
