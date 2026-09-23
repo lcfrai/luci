@@ -1,0 +1,108 @@
+### Task 44a: the contract made true **before** anyone builds — A1–A10, the additions, and the sibling asks' answers
+
+**`feat/hub`, FIRST: before task 01, and before the four lanes branch. Depends on: nothing. About
+1.5 hours. Documents only.** The orchestrator announces the merged commit to phases 3, 4, 5 and 7.
+
+ADR-H1 §7.2 lists amendments *"each made by the phase that next edits the file"*; this phase is
+that phase for four documents. This plan made ten corrections to the Hub contract (A1–A10), several
+additions, and answered every sibling ask (task 00). They are folded in **now**, because every
+sibling reads the contract tonight — §7.4's repo-key regex (phase 4 HA4-6 and phase 7 already flag
+it), §12.1's four-service compose, §9.4's missing `Authorization` CORS header — and a phase that
+builds against the old text is the failure this program has paid for a dozen times. What the
+build changes afterwards is task 44b's, last.
+
+**Files:**
+- `docs/superpowers/contracts/2026-09-23-hub-contract.md` (modify)
+- `docs/PROGRAM.md` (modify ⚑ — other phases edit it too; additions only)
+- `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` (modify: one note in §4.5)
+- `docs/superpowers/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` (modify: one amendments block at the top)
+
+#### What changes, exactly
+
+**The Hub contract.** Each change is made **in place**, at the section it corrects, and marked
+`(Phase H plan, A<n>)` — or `(Phase H plan, task 00, <ask id>)` for a sibling answer — so a reader
+can trace it; a new §16, *"Amendments from the Phase H plan"*, lists them in one table with the task
+that builds each:
+
+| Section | Change |
+|---|---|
+| §7.4 | A1: the two repo-key regexes and the lowercase rule; the `repo_already_linked` message sentence (task 17) |
+| §12.1 | A2: Postgres-only compose; `devstack.sh`; why |
+| §9.4, §13 C3 | A3: the exempt routes are `/v1/healthz`, `/api/v1/healthz` and the attach WebSocket |
+| §9.4 | A4: `Access-Control-Allow-Headers: Content-Type, Authorization`; the key check inside the origin guard |
+| §2, §6.4 | A5: `internal/devissuer` as a package, `cmd/devissuer` its `main`; three dev tenants and five users (task 11) |
+| §6.1 step 9, §9.1 | A6: the `id_token` checked without a signature under OIDC Core §3.1.3.7(6), and the tenant cross-check; `AfterSignIn` returns the Hub tenant id |
+| §4.2, §6.3 | A7: `ErrKeySetUnavailable` → 503 `unavailable` |
+| §9.1, §9.3 | A8: the three credential routes |
+| §2 | A9: `hubapi` may import `httpx`; `hubclient` may import `httpx` and `ids` |
+| §3.6 | A10: `teamId` in the audit envelope; `hub verify` checks `feed`; golden vectors 3 and 4 (task 02) |
+| §9.2 | additive: `Teams`, `Projects.Project`/`AddRemote`, `Designs.Approval`/`SessionLinks` (HA5-2: §9.2's `Designs` becomes the seven methods), `Releases.Release`, `ErrSignedOut`, `ErrNotConfigured`, `ErrTokenUnavailable`, `Invalidator`, `WriteError`, `VerifyRevision`, `FormatRecorder` |
+| §9.3 | additive: the `Panacea-Auth-State` header (task 36); the hub-link and team routes (task 35) |
+| §6.2 | the refinement: redemptions serialised across scopes (task 31) |
+| §7.9 | an overdue reservation reads `expired` before the janitor runs (task 23) |
+| §15 | remove what this plan verified from the tree and documentation: `opener:default` permits `https` URLs; `x/sys/windows` has no Cred wrappers. (The pgx pin and the `go 1.23.0` directive stay listed until task 06 builds them: task 44b) |
+
+**The sibling asks' answers (task 00), folded in the same way:**
+
+| Section | Change | Ask |
+|---|---|---|
+| §7.5, §7.1 | `BriefWithRevision.latestComplete` on routes 21 and 22, its null rule | HA4-4 |
+| §7.5 | the batch holds 1–64 revisions (`hubapi.MaxRevisionBatch`); route 26's body cap is 4 MiB (`hubapi.MaxRevisionBatchBytes`); every other route keeps 1 MiB | HA4-3 |
+| §9.2 | `Briefs.List(ctx, projectID, hubapi.BriefQuery)`; `PutBlob(…, body io.ReadSeeker)` and the rewind rule; `JoinDeployment(ctx, releaseID, hubapi.DeploymentJoinRequest)`; `Error.RetryAfter`; `Relay(err) (status, httpx.Problem, ok)`; the 8 MiB reply cap | HA4-2, HA5-1, HA7-1, HA4-5 |
+| §4.3 | `Relay` is the rule as a value; `WriteError` is `Relay` plus the write | HA4-5 |
+| §7.9, §8 | `environment` nullable for a run without `sourceDeploymentId`; the join sets it once, 409 `conflict` on a different one; `release.deployment_joined` gains `data.environment`; a rollback confirm is `{}`, and one naming its own source deployment is 409 `conflict`; `kind=` on the release list | HA7-1, HA7-2, HA7-5 |
+| §9.3 | the `CursorSource` mechanism: one `Panacea-<Name>-Cursor` per source, the expose list built from the names; the desktop's `cursors` map | HA7-4 |
+| §7.7 | R5's *"audited with its session context"* is read as: the Hub records the principal and the time; no client-asserted field. The ADR's own text is the owner's (task 00) | HA5-4 |
+| §9.3 | `Subscribe(kindPrefix, fn)` stands — `Subscribe("", fn)` is phase 4's shape — delivery in commit order | HA4-8 |
+| §14 | a row per ask (HA4-1…HA4-9, HA5-1…HA5-5, HA7-1…HA7-5) naming the answer and the section that now holds it; HA7-3 and HA5-5 recorded as reserved | all |
+
+**`PROGRAM.md`.** The identity row of *Decisions locked* (`PROGRAM.md:18`) gains: *"The control plane
+runs the flow and holds the tokens; the Hub validates Entra access tokens itself — no broker
+(ADR-H1 §5.2, §6.1)."* The Phase H paragraph (`:94-95`) gains one sentence naming the plan and its
+seams: *"Plan: `docs/superpowers/plans/2026-09-23-phase-h-hub.md`; seams S-CRED (the credential
+store phases 3, 6 and 7 use), S-TOKEN, S-HUB, S-LINK, S-FEED."* Nothing else in the file changes.
+
+**UI contract §4.5.** A note: *"Superseded for REST by the local caller key (Phase H plan, tasks
+37–38): every REST call carries `Authorization: Bearer <local key>`; the attach WebSocket does not."*
+
+**Provenance contract draft.** One block at the top, *"Amended by Phase H (ADR-H1 §7.2)"*, listing:
+§2.1's store locations are now the Hub's; §1.4 and §4.1 gain the `erased` state; §6.4's *"head refs
+are not polled"* is replaced by the change feed (tasks 26, 36, 40); §6.6's open exposure is closed
+by the local caller key (tasks 37–38); A5 is widened to the whole machine (ADR-H1 §5.4). Each line
+points at the Hub contract section that now holds the rule. The draft's body is not rewritten: its
+owner phase does that.
+
+#### Tests to write first
+
+Documents have no unit tests; the checks are mechanical and are the acceptance below. The one
+executable check, `TestTheContractsRepoKeyRegexIsTheCodes`, moved to **task 01** (`keys_test.go`),
+because the code it compares against does not exist yet when this task runs; it passes there
+because this task wrote A1 first.
+
+#### Steps
+
+- [ ] **Step 1:** Re-read ADR-H1 §7.2, this plan's corrections table, and task 00.
+- [ ] **Step 2:** Make each change above.
+- [ ] **Step 3:** Commit by pathspec — the four documents — on `feat/hub`, before any lane
+  branches. The orchestrator tells the sibling phases the commit.
+
+#### Acceptance
+
+```bash
+C=docs/superpowers/contracts/2026-09-23-hub-contract.md
+grep -c "(Phase H plan, A" $C                                     # ≥ 10
+grep -c "(Phase H plan, task 00" $C                               # ≥ 9
+grep -n "^## 16" $C                                               # present
+grep -n "MaxRevisionBatch\|latestComplete\|CursorSource\|io.ReadSeeker" $C   # each present
+grep -n "no broker" docs/PROGRAM.md                               # the identity row
+grep -n "Amended by Phase H" docs/superpowers/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md   # present
+git log -1 --format=%H -- $C                                      # older than task 01's first commit
+```
+
+#### What this task does not claim
+
+- That sibling phases have re-read the amended contract: the orchestrator tells them; a phase plan
+  written against the old §7.4 regex or the old §12.1 compose needs its own correction.
+- That the build matches this text: task 44b reconciles what the build changed.
+- Any change to the ADR's decision: ADR-H1 stands; only the contract's text moves. HA5-4's ADR
+  wording is an owner question.
