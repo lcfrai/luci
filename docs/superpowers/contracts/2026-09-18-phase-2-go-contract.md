@@ -2060,7 +2060,9 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    `core.attributesFile`, where the default is `$XDG_CONFIG_HOME/git/<ignore|attributes>` when
    that variable is set and not empty, else `~/.config/git/<ignore|attributes>`. A relative answer
    is joined to the worktree, and an empty value is no file. A path that is a **regular file** on
-   the host is mounted **read-only** at `/etc/panacea-app/git/ignore` or
+   the host, following a link as git does, is mounted from the file it resolves to, so what a
+   Docker host does with a link as a mount source never matters (dotfile managers link
+   `~/.config/git/ignore`), **read-only** at `/etc/panacea-app/git/ignore` or
    `/etc/panacea-app/git/attributes`, and its pair names that path. Anything else (nothing there,
    a directory, a file git cannot read, no path) gets no mount, and its pair names `/dev/null`,
    because the host's git reads no patterns there. The pair is never left unset, since then the

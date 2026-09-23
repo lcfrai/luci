@@ -318,8 +318,9 @@ func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (string, er
 		return "", nil
 	}
 	// The mount's source is the file, not a link to it. Dotfile managers
-	// link ~/.config/git/ignore, and the Docker Desktop share would hand the
-	// VM a link whose target is a Windows path.
+	// link ~/.config/git/ignore, and what a Docker host does with a link as
+	// a mount source (Docker Desktop's share would see a Windows target) is
+	// then never the question. Not measured with a link here.
 	if resolved, err := filepath.EvalSymlinks(hostPath); err == nil {
 		hostPath = resolved
 	}

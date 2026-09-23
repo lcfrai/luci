@@ -137,8 +137,8 @@ func TestTheHostsGlobalGitFilesReachTheSandboxReadOnlyAndOnlyWhenTheHostsGitRead
 		{"missing", "missing"},
 		{"dir", "none"},
 		{"none", "dir"},
-		// Mounted from the file itself: a link's target is a Windows path
-		// the Docker Desktop VM cannot follow.
+		// Followed as git follows it, and mounted from the file itself, so
+		// no Docker host is ever handed a link as a mount source.
 		{"link", "missing"},
 		{"missing", "link"},
 	} {
