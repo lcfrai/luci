@@ -47,7 +47,9 @@ func ProposeFollowUp(ctx context.Context, m modelclient.Completer, c Content, s 
 // propose_follow_up under discoverapi Budgets.FollowUp (28 s, task 11),
 // below the desktop's 30 s timeoutMs (task 15); the model gets 20 s of it
 // and Apply's Hub reads before the model and its write after it (one
-// WriteRevisions, up to three rebuilds on a fan-out conflict, task 08) share
+// WriteRevisions, up to three rebuilds on a fan-out conflict, then task 08's
+// steps 8-9 post-commit re-pin checks, which only log when the deadline cuts
+// them short and never fail the call, review I8) share
 // the other 8 s, so a slow model reaches the desktop as model_failed and
 // never as the desktop's timeout (review I4). A deadline that expires during
 // that write can answer 503 after the Hub has committed; the person's Retry

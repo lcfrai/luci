@@ -100,9 +100,20 @@ export const keySources: readonly KeySource[] = [selectSessionContextRefs];
 export type ProvenanceState =
   | "current" | "superseded" | "none" | "declined" | "missing" | "erased" | "resolving" | "unavailable";
 
-/** THE ONE PLACE superseded is decided: resolved, and revision < latestCompleteRevision of its
- *  brief's head (P4-B). "" is none; an unknown key is resolving, or unavailable if the last
- *  answer said so; invalid shows as missing. */
+/** THE ONE PLACE superseded is decided. Heads are read through headsByBrief, never from the
+ *  ref's own headRevision/latestCompleteRevision (those went stale when the ref was cached).
+ *  The first rule that applies wins:
+ *  1. "" is none; an unknown key is resolving, or unavailable if the last answer said so.
+ *  2. A ref that is not resolved shows its resolution: none, declined, missing (invalid shows
+ *     as missing), erased.
+ *  3. Resolved, and revision < latestCompleteRevision of ITS OWN brief's head: superseded (P4-B).
+ *  4. Resolved, inherits non-null, and inherits.revision < latestCompleteRevision of the
+ *     INHERITED brief's head (headsByBrief[inherits.briefId]): superseded. The branch revision
+ *     pins project text the project has since replaced: an open branch head's latest complete
+ *     revision, which keeps its pin (4-D3's narrowing, C4, OQ-8; review I8), or a pin a race
+ *     left behind (task 08 steps 8-9).
+ *  5. Otherwise current.
+ *  A head absent from headsByBrief decides nothing in rule 3 or 4; the loader fetches it (step 2). */
 export const selectProvenanceState: (key: string) => (s: CockpitState) => ProvenanceState;
 export const selectRef: (key: string) => (s: CockpitState) => ProvenanceRef | undefined;
 export const selectHead: (briefId: string) => (s: CockpitState) => Head | undefined;
@@ -125,7 +136,12 @@ export const NO_REF: Readonly<ProvenanceRef>;
  *  1. If hubCursor !== hubCursorRead: ONE hubFeed.changes(after) call; for each "brief.*"
  *     event, markStale([subject]) and markViewStale for every view showing that brief.
  *  2. Collect keys: union of keySources; drop "", keys in refsByKey, keys in flight, and keys
- *     unavailable fewer than 15 ticks ago; add one held key per stale-head brief.
+ *     unavailable fewer than 15 ticks ago; add one held key per stale-head brief. putRefs
+ *     marks stale (markStale) the inherits.briefId of each resolved ref it stores whose brief
+ *     has no entry in headsByBrief, so selectProvenanceState rule 4 gets the project head to
+ *     compare with (review I8); the held key for it is ref.inherits.key. A held key is sent
+ *     ONCE per markStale: the call that carried it clears that brief from staleHeads whether
+ *     or not a head came back, so a head the answer omits never becomes a request per tick.
  *  3. None left: return. ZERO requests on a steady tick.
  *  4. Otherwise ONE discover.refs() per 100 keys (in practice one), then putRefs.
  *  A failed call marks its keys unavailable at this tick and raises no toast: every chip already
@@ -178,6 +194,8 @@ only through Discover's own writes and new keys).
 | `loader: feed event marks the head stale and re-reads it` | cursor moves; one `changes` call; a `brief.revised` for `bf-…a2` → next `refs` call carries one held `bf-…a2` key; `headsByBrief` updated | a teammate's edit never reaching the chips |
 | `loader: no timer` | `vi.getTimerCount()` is unchanged by importing and running the loader | a third interval (G8) |
 | `selectors: superseded compares with latest complete` | ref rev 5, head `{headRevision: 7, latestCompleteRevision: 5}` → `current`; `{…: 6}` → `superseded` | P4-B inverted: every chip superseded during an unfinished edit |
+| `selectors: superseded by the inherited project revision` (review I8) | branch ref `b-51@6`, own head `{headRevision: 7, latestCompleteRevision: 6}`, `inherits` `b-7@5`; project head `b-7` `{6, 6}` → `superseded`; `{5, 5}` → `current`; `{7, 5}` (project edit open) → `current`; `b-7` absent from `headsByBrief` → `current`; the ref's own `headRevision`/`latestCompleteRevision` fields set to 99 change none of these | an open branch head's latest complete revision (OQ-8), or a raced pin, shown `current` over replaced project text; or rule 4 reading the cached ref's frozen head numbers instead of `heads` |
+| `loader: a missing project head is fetched once` (review I8) | `putRefs` stores that branch ref with no `b-7` head → the next tick's one `refs` call carries `brief:…b7@5`; its answer carries no `b-7` head → the tick after makes **no** request | rule 4 never getting a project head; or a head the server omits turning into a request every 2 s |
 | `selectors: the eight states` — table | each input → its state; `""` → `none`, `none:declined` resolved → `declined`, `invalid` → `missing` | two states merged, which the contract calls lying about one |
 | `selectors: no key is ever split` | a source scan of `desktop/src/**/*.ts(x)` finds no `.split("@")`, `.split(":")` or regex over a variable named `*key*`/`contextRef` | P5 on the desktop (G7) |
 
