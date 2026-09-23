@@ -167,3 +167,87 @@ Key Vault (`:180-184`), and tenant build egress to GitHub, Azure DevOps and PyPI
   ("NO_RBAC_MODE"), so every managed-identity grant sits behind a second flag and an owner-run
   RBAC Administrator identity (`P:deploy/rbac-admin-identity.tf:1-34`). This single constraint
   explains most of the estate's shared admin credentials.
+
+### 1.9 Data
+
+- **Live:** in-cluster CloudNativePG. The managed Flexible Server file says so: with its gate off
+  "it does NOT touch the live CloudNativePG data plane" (`P:deploy/postgres-flexible.tf:16-21`).
+- **Written, off:** `azurerm_postgresql_flexible_server.shared` (`P:deploy/postgres-flexible.tf:237-314`)
+  — Postgres 16 (`:65-68`), `GP_Standard_D2ds_v4` (`:76-79`), 32 GiB with auto-grow (`:82-85`,
+  `:251`), 14-day PITR (`:93-96`), zone-redundant HA 1→2 (`:110-124`, `:267-271`), **public access
+  off, private endpoint only** (`:258-263`, `:318-344`), `azure.extensions = VECTOR` (`:349-354`),
+  `require_secure_transport = ON` (`:357-362`). Authentication is **admin login + password**
+  (`:244-245`), with a `check` that the password is ≥16 characters (`:178-183`). Per-tenant databases
+  are created imperatively by the Go API, not Terraform (`:23-27`).
+- **Object storage:** live is a self-hosted MinIO; the written-but-off replacement is an ADLS Gen2
+  account behind S3Proxy with a private endpoint and a workload-identity-federated S3Proxy identity
+  (`P:deploy/object-storage-blob.tf:1-22`, `:72`, `:215`, `:248`, `:283`, `:310`).
+
+### 1.10 Registry and builds
+
+- **ACR** is created by `az acr create` in the deploy script and referenced by name
+  (`P:deploy/private-endpoints.tf:5-8`, `:22`). The build pool pushes and pulls a registry cache
+  (`P:deploy/build-pool.tf:14-18`). Pull auth in the live estate is the shared ACR admin credential,
+  because managed-identity `AcrPull` needs the RBAC write the deploy identity lacks
+  (`P:deploy/rbac-admin-identity.tf:20-21`).
+- Builds run in-cluster on Tekton (`P:deploy/ci-pool.tf:1-18`) with rootless BuildKit on the tainted
+  `build` pool (`P:deploy/build-pool.tf:1-10`).
+
+### 1.11 Observability and security services
+
+- **Log Analytics** `PerGB2018`, retention and a **daily ingest cap** from variables, shared-key
+  auth disabled under the baseline (`P:deploy/main.tf:206-226`). Container Insights uses MSI
+  (`:323-331`) — which then collects **nothing** without a Data Collection Rule, the gap
+  `P:deploy/monitoring-dcr.tf:4-16` closed.
+- **Control-plane and kube-audit logs:** none in the live estate; written but off because kube-audit
+  "can blow the dev 1 GB/day workspace cap" (`P:deploy/aks-diagnostics.tf:4-22`).
+- **Defender for Cloud and Sentinel:** written, off, and **subscription-scoped** unlike the rest of
+  the RG-scoped module (`P:deploy/defender-sentinel.tf:1-30`). Note `PROGRAM.md:133`: Defender for
+  Containers cannot assess Kata pods.
+
+### 1.12 CI/CD and the deploy engine
+
+- **Pipelines** are several YAML files at the repo root: `azure-pipelines.yml`, `-dev.yml`,
+  `-drift.yml`, `-main.yml`, `-v2.yml` (listed, only `-dev.yml` opened).
+- **`azure-pipelines-dev.yml`** is manual (`trigger: none`, `:26-27`), runs on a
+  Microsoft-hosted `ubuntu-latest` agent with a 360-minute timeout (`:71-73`), selects one of 20
+  subcommands (`:34-58`), and **refuses to run** unless the branch is `refs/heads/dev` and the env
+  file is `panacea-dev.env` (`:78-86`). It installs kubectl, helm, terraform 1.9.8 and jq by
+  `curl` at run time (`:88-114`) and runs under a **secret-based** service principal with
+  Contributor (`:17-24`, `:116-130`).
+- **The engine is a shell script:** `P:deploy/cloud-shell-deploy.sh` is 6,406 lines and
+  `P:deploy/panacea-deploy.sh` 2,849 (`wc -l`). Terraform is one step inside it. It generates
+  `imports.generated.tf` from per-resource existence probes before each plan, because static
+  `import` blocks hard-fail on a fresh subscription (`P:deploy/imports.tf:1-23`).
+- **State** is an `azurerm` backend with partial configuration supplied at `init`
+  (`P:deploy/versions.tf:8-15`); the estate file carries `TF_STATE_STORAGE_ACCOUNT`,
+  `TF_STATE_CONTAINER`, `TF_STATE_KEY` (`P:deploy/environments/panacea-dev.env:70-72`, names only).
+- **The in-VNet agent** for a private cluster is written, off: a VMSS in its own subnet
+  (`P:deploy/ado-selfhosted-agent.tf:1-23`, `:123`, `:162`) — because a hosted agent "CANNOT reach
+  a private API server or a private-endpoint-only registry" (`:5-9`).
+
+### 1.13 GitOps
+
+- **Argo CD** chart `6.7.3`, one replica per component, in `panacea-system`
+  (`P:deploy/main.tf:1039-1077`). The estate file names `PANACEA_GITOPS_REPO_URL` and
+  `PANACEA_GITOPS_REVISION` (`P:deploy/environments/panacea-dev.env:52-53`, names only). What the
+  applications are was not read. Panacea's own record shows GitOps-managed values drifting from what
+  runs: the Keycloak priority class sat in a values file "nothing on the live deploy reads"
+  (`P:deploy/main.tf:933-940`).
+
+### 1.14 The estate on one page
+
+| Layer | Live in Panacea | Managed by |
+|---|---|---|
+| RG, ACR, Key Vault | pre-created / `az … create` | **outside Terraform** |
+| VNet, 2 subnets, NSG | yes | Terraform |
+| AKS + 5 pools | yes (Free tier, public API, Calico) | Terraform |
+| DNS zone | yes; wildcard A manual | Terraform + hand |
+| cert-manager, Traefik, Vault, Keycloak, Argo CD | yes | Terraform `helm_release` |
+| oauth2-proxy, Keycloak's Postgres, CNPG, MinIO, Tekton | yes | **deploy script** (`kubectl`) |
+| Firewall, WAF, Flexible Server, Blob, CMK, Defender, private cluster, in-VNet agent | **written, off** | Terraform, gated |
+| CI | hosted agent + secret SP + 6k-line script | ADO |
+
+The pattern that matters most: **everything Panacea wishes it had is already written behind a
+default-false flag, because the live cluster predates it and a create-time field cannot be changed
+on a running cluster.** We start with no live cluster, so we can have all of it at create time.
