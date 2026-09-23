@@ -65,17 +65,27 @@ func (p *Poller) Subscribe(kindPrefix string, fn func(hubapi.Event)) (unsubscrib
 ```go
 // control-plane/internal/httpx/origin.go — inside Middleware, beside the existing
 // Access-Control-Allow-Origin line (origin.go:192-198), for an allowed origin only:
-w.Header().Set("Access-Control-Expose-Headers", "Panacea-Hub-Cursor")
+w.Header().Set("Access-Control-Expose-Headers", "Panacea-Hub-Cursor, Panacea-Auth-State")
 ```
 
-Without it the webview can see the header on the wire but `fetch` hides it from script
+Without it the webview can see the headers on the wire but `fetch` hides them from script
 (contract §9.3).
 
-**The header.** `api.go` wraps the guarded mux so that **every** response to an allowed caller
-carries `Panacea-Hub-Cursor: <Cursor()>` once `Cursor()` is not empty. Every response rather than
-only `GET /v1/sessions`: it needs no edit to phase 2's `sessions.go`, it survives the `/api/v1`
-alias without a second case, and the value is a sequence number that reveals nothing. The desktop
-reads it from the sessions poll only (task 40).
+**The headers.** `api.go` wraps the guarded mux so that **every** response to an allowed caller
+carries:
+
+- `Panacea-Hub-Cursor: <Cursor()>` once `Cursor()` is not empty (contract §9.3); and
+- `Panacea-Auth-State: signed_out | signing_in | signed_in` whenever `Deps.Auth` is set — **an
+  addition to the contract**, for the same reason as the cursor: the desktop learns that a sign-in
+  finished, or that a refresh failed and the user must sign in again, from the poll it already
+  makes, and calls `GET /v1/auth/status` only when this value changes (task 40). Without it the
+  renderer would have to poll the status route every tick — a second request per tick, which
+  phase 2's one-request rule (`desktop/src/api/poller.ts:1-3`) forbids.
+
+Every response rather than only `GET /v1/sessions`: it needs no edit to phase 2's `sessions.go`, it
+survives the `/api/v1` alias without a second case, and neither value reveals anything a caller
+holding the local key could not ask for. The desktop reads them from the sessions poll only
+(task 40).
 
 **The route.** `GET /v1/hub/changes?after=<cursor>&limit=` → the Hub's `/v1/changes` body,
 **unchanged** (`hubapi.ChangesPage`), or the relay (task 33). It goes in `catalogReadOnlyRoutes`.
@@ -102,7 +112,8 @@ reads it from the sessions poll only (task 40).
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestTheCursorHeaderAppearsOnceKnown` | before the first good poll: no header; after: `GET /v1/sessions` carries `Panacea-Hub-Cursor: <n>` | a desktop that polls the feed every tick |
-| `TestTheHeaderIsExposedToAllowedOrigins` | allowed origin → `Access-Control-Expose-Headers: Panacea-Hub-Cursor`; a disallowed origin is refused before any header (phase 2's behaviour unchanged) | a header the webview cannot read (contract §9.3) |
+| `TestTheAuthStateHeader` | signed out → `Panacea-Auth-State: signed_out`; during a sign-in → `signing_in`; after → `signed_in`; with `Deps.Auth` nil → absent | a renderer polling `/v1/auth/status` every tick |
+| `TestTheHeadersAreExposedToAllowedOrigins` | allowed origin → `Access-Control-Expose-Headers: Panacea-Hub-Cursor, Panacea-Auth-State`; a disallowed origin is refused before any header (phase 2's behaviour unchanged) | headers the webview cannot read (contract §9.3) |
 | `TestHubChangesRelaysTheBody` | the Hub's page byte-equal; signed out → 401 `signed_out`; no Hub → 503 `hub_not_configured` | — |
 | `TestHubChangesIsAudited` | phase 2's route audit passes | — |
 | `TestProjectEventsInvalidateTheLinkCache` | a `project.remote_added` event → `hublink`'s next `Project` asks the Hub again | a teammate's share invisible for five minutes |
