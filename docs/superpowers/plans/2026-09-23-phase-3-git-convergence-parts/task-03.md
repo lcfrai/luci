@@ -25,6 +25,8 @@ clone's local config; the fix's resolver then gives the clone the answer the pro
 - `control-plane/internal/lanes/clone.go` — `Creator`, `CreateRequest`, errors, `RemoveTree` (new)
 - `control-plane/internal/lanes/catalog.go` — `Source`, `Catalog` (new)
 - `control-plane/internal/lanes/*_test.go` (new)
+- `control-plane/internal/briefref/briefref.go` — `Revision`, `Criterion`, `Resolver`, `Archiver`;
+  interfaces only, moved here from task 09 so tasks 09, 11 and 15 share one owner (review I7) (new)
 - `control-plane/internal/project/project.go` — `Worktree.Kind`, set in `parseWorktrees` (p2; no git)
 - `control-plane/internal/project/project_test.go` — one test for `Kind` (p2, appended)
 
@@ -333,6 +335,44 @@ type Worktree struct {
 }
 ```
 
+```go
+// Package briefref is what phase 3 needs from phase 4's provenance package (asks P4-1 and
+// P4-3). It declares the interfaces; phase 4 satisfies them. Phase 3 never parses a brief key
+// (contract P5): it passes the string to Resolve and copies it into git unchanged.
+// It lives in task 03, not task 09, because tasks 09 (Resolver), 11 (Archiver) and 15 (Criterion)
+// all import it and 11 runs in a lane parallel to 09 (review I7). No code, so no tests.
+package briefref
+
+import "context"
+
+// Revision is one brief revision as phase 3 needs it.
+type Revision struct {
+	Key      string      // e.g. "brief:b-42@6", exactly as Resolve was given it
+	Digest   string      // e.g. "sha256:…", the revision's digest (contract §1.2)
+	Criteria []Criterion // in the revision's order
+}
+
+// Criterion is one criterion's identity. Digest is SHA-256 of the criterion's text as phase 4
+// computes it (ask P4-2); evidence (task 15) matches on it, because the id is positional and
+// breaks on insertion (risk R14).
+type Criterion struct {
+	ID     string
+	Digest string
+}
+
+// Resolver answers a brief key. ok is false when no revision answers it ("missing" in the
+// contract's six-state vocabulary); err is for a resolver that could not answer at all.
+type Resolver interface {
+	Resolve(ctx context.Context, key string) (rev Revision, ok bool, err error)
+}
+
+// Archiver archives a product branch's brief head when the branch is deleted (contract P13:
+// "may archive the head; revisions stay"). Called by task 11; one way, phase 3 → phase 4.
+type Archiver interface {
+	ArchiveHead(ctx context.Context, projectID, branchID string) error
+}
+```
+
 #### The tests to write first
 
 Real git through `gitxtest` wherever the claim is about git; a fake `Source` for the catalog.
@@ -377,13 +417,15 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
   `go test ./control-plane/internal/registry/ ./control-plane/internal/statepath/ -count=1`, and
   commit that move **alone**, before anything else, so the lift is one reviewable commit.
 - [ ] **Step 2:** write the tests; `gitxtest.NewRepo` for the git ones.
-- [ ] **Step 3:** implement `ident.go`, `store.go`, `clone.go`, `catalog.go`, and the `Kind` field.
+- [ ] **Step 3:** implement `ident.go`, `store.go`, `clone.go`, `catalog.go`, `briefref.go`, and
+  the `Kind` field.
 - [ ] **Step 4:** run and commit by pathspec.
 
 #### Acceptance
 
 ```
 go test ./control-plane/internal/lanes/ ./control-plane/internal/gitx/ -race -count=1   → PASS
+go vet ./control-plane/internal/briefref/                                               → clean (no test files)
 go test ./control-plane/internal/project/ -count=1                                      → PASS, TestEveryGitCommandIsReadOnly unchanged
 go test ./control-plane/internal/registry/ ./control-plane/internal/statepath/ -count=1  → PASS
 ```
