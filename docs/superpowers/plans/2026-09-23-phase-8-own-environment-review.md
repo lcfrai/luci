@@ -655,7 +655,7 @@ The review's fix was taken, with three additions found while applying it:
 | Fix | Where |
 |---|---|
 | guards are hygiene, not a boundary, stated in task 01 and task 30 | `parts/task-01.md:83-86`; `parts/task-30.md:14-22` |
-| G9, the provider-source allowlist (`hashicorp/azurerm`, `hashicorp/azuread`, `azure/azapi`), over `required_providers` **and** lock files; two cases; counts 9 of 9 and 11 cases | `parts/task-01.md:98`, `:135-136`, `:143-158`; `parts/task-02.md:195`, `parts/task-03.md:232`, `parts/task-07.md:545`, `parts/task-08.md:270`, `parts/task-09.md:182 |
+| G9, the provider-source allowlist (`hashicorp/azurerm`, `hashicorp/azuread`, `azure/azapi`), over `required_providers` **and** lock files; two cases; counts 9 of 9 and 11 cases | `parts/task-01.md:98`, `:135-136`, `:143-158`; `parts/task-02.md:195`, `parts/task-03.md:232`, `parts/task-07.md:545`, `parts/task-08.md:270`, `parts/task-09.md:182` |
 | the plan connection: Reader on the subscription + Storage Blob Data Reader on state; `-lock=false`; `init -lockfile=readonly`; identity and bootstrap not in its stack list; the Reader-too-little rule (no secret-returning action is ever added); `resource_provider_registrations = "none"` | `parts/task-30.md:145-189`; `parts/task-02.md:38`, `:74-81`, `:139-141`, `:164-165`; `parts/task-07.md:170-171`; `parts/task-01.md:113-116` |
 | the estate guard: `plan` accepts any branch; `deploy` enforces the branch rule, re-runs G9, and refuses a consumed `infra-plan` or `images` run from a disallowed branch; 8 cases | `parts/task-30.md:115-137`, `:250-262`, `:334` |
 | `deploy`'s stages on the infra and cluster connections; outputs published so the cluster identity never reads state | `parts/task-30.md:191-232` |
@@ -683,7 +683,7 @@ Contributor can be scoped to that group rather than the subscription.
 | the "Deploy identities" table (plan, infra, cluster, push, and the three human roles), with the declared residuals | `plan:322-360` |
 | P8-D16; P8-D10 corrected (a human creates the database roles) | `plan:145`, `plan:139` |
 | owner inputs rewritten: four identities, the ABAC self-exclusion, two custom roles, four connections, identity stack owner-run, humans-only admin groups, a human Postgres admin | `plan:311-316` |
-| infra: Contributor on `rg-panacea-app-<env>`, which bootstrap now creates, and foundation reads it | `parts/task-02.md:104`, `:119-124`, `:166`; `parts/task-07.md:314`, `:405-408` |
+| infra: Contributor on `rg-panacea-app-<env>`, which bootstrap now creates, and foundation reads it | `parts/task-02.md:104`, `:119-124`, `:166`; `parts/task-07.md:319` (output), `:405-408` (data source) |
 | cluster: Cluster User, RBAC Admin on the four release namespaces, two custom roles, **no** Cluster Admin, **no** RBAC Admin on `panacea-sandboxes`; test | `parts/task-07.md:271-278`, `:425-447`, `:524-527` |
 | the custom roles checked against the rendered charts (`cluster-kinds_test.sh`); the `bind` residual printed | `parts/task-30.md:30-31`, `:272-294`; `plan:429` |
 | allowlist: Cluster Admin removed; Storage Blob Data Reader, RBAC Admin and the two custom roles added (12 roles); the ABAC condition excludes the infra identity itself; "assigns" versus "holds" | `parts/task-10.md:11-20`, `:157-177`, `:209`, `:218`, `:227` |
@@ -717,3 +717,67 @@ now comes before §7a, the charts. I9's other two asks are left to I9's own batc
 
 **Mutation checks:** none run. This batch changes plan documents only, with no code or test to
 mutate. The named mutants live in the new test rows, for the implementer.
+
+### Fix batch b02, round 2 (2026-09-24) — the re-review's I-1 to I-4, M-1 to M-5
+
+Commits on `feat/env`: `54eb1fa`, `610dab9`, and the commit that adds this section. The
+re-review is `.superpowers/sdd/env/plan-rereview-b02-1.md` (git-ignored). Line numbers are as of
+`610dab9`. **This subsection supersedes the round-1 "Declared residuals" list above**: the plan
+now declares six, numbered as below.
+
+**I-2 took the re-review's option 1, the root-cause option.** No stack grants a pipeline identity
+anything. The cluster and push roles moved out of `foundation`'s `grants.tf` into an owner-run
+script, `infra/rbac/grant-pipeline-roles.sh`, and the allowlist went from 12 roles to 7. Option 2
+(keep the grants and declare that the infra identity can grant cluster-wide RBAC Admin) would
+have left a route to every session token open with only a note on it. A script, not a new
+owner-run stack, because the grants need the cluster's id, which exists only after §4, and a
+stub-`az` test gives the moved assertions a home.
+
+Two routes the re-review did not name were found while making the table true, and are declared
+with a bound, not hidden:
+- **The cluster resource** (residual 1). Contributor on the cluster can turn local accounts back
+  on and list the admin credential. Bounded by an owner-assigned Deny policy on AKS local
+  accounts (runbook §2a) and probed in §4a, with AKS run command, whose rights are UNVERIFIED.
+- **Pipeline identities in the infra identity's own group.** If they were user-assigned
+  identities in `rg-panacea-app-<env>`, Contributor could add a federated credential to the
+  cluster identity and become it. §1a puts them outside that group.
+
+| Finding | Fix | Where |
+|---|---|---|
+| I-1 | the cluster row's "Cannot" no longer claims the tokens; "It can read every user's token Secret" in the row, and residual 3 | `plan:338`, `plan:375-382` |
+| I-1 | Q4 says what it does not decide (the token route through the broker) | `plan:301` |
+| I-1 | P8-D16: the split removes the **administrator** routes only; an identity that deploys a workload can act as it | `plan:145` |
+| I-1 | task 07: the narrowing's real value (a direct grant removed), and the broker route stated | `parts/task-07.md:453-459` |
+| I-1 | `sandboxes-deployer.json` carries `escalate`/`bind` on `roles` for the broker's Role; `cluster-kinds_test.sh` prints `sandboxes RBAC verbs`, and its claim is scoped to **names**; "does not claim" bullet | `parts/task-30.md:294-312`, `:320-325`, `:398`, `:415-416` |
+| I-1 | runbook §7a records whether the broker's Role installs with those verbs | `parts/task-31.md:38` |
+| I-2 | `grants.tf` keeps only the kubelet's AcrPull and the control plane's Network Contributor; the cluster and push grants listed as the owner script's | `parts/task-07.md:417-462` |
+| I-2 | foundation takes no pipeline object id: `push_principal_object_id`, `cluster_principal_object_id` removed; the test file's inputs; `kubelet_pulls_from_the_registry`; the moved runs named | `parts/task-07.md:267-271`, `:522-524`, `:539-545` |
+| I-2 | allowlist 12 → 7; the ABAC condition permits the five the infra identity's stacks assign (not bootstrap's two Storage Blob roles); "no route through a role assignment", with the other routes pointed to residual 1; counts; a mutant for Step 4 | `parts/task-10.md:11-33`, `:169-194`, `:226`, `:235-237`, `:246` |
+| I-2 | the federated-credential route named, in task 10's "does not claim" and in residual 1 | `parts/task-10.md:255-259`; `plan:345-368` |
+| I-2 | `grant-pipeline-roles.sh` (owner-run, idempotent, `--dry-run`, eight assignments, `RBAC_ADMIN_NAMESPACES` as the single source `cluster-kinds_test.sh` reads) and its 5-case test, with task 07's two runs moved in | `parts/task-30.md:32`, `:327-351`, `:387-388`, `:397` |
+| I-2 | the table's intro says who grants what; the infra row's "Cannot"/"It can"; the owner row; owner inputs | `plan:325-329`, `plan:337`, `plan:340`, `plan:311-313` |
+| I-2 | the push identity's AcrPush is the owner script's | `parts/task-27.md:63-66` |
+| I-3 | runbook §1a (identities, no role, outside `rg-panacea-app-<env>`); §2 needs §1a; §2a grants only what exists after §2 (custom roles, plan and infra roles, the Deny policy, the checks); §4a runs the owner script after `foundation`, records the namespace-scope question, and probes residual 1 | `parts/task-31.md:28-30`, `:33` |
+| I-4 | the lock leaves Terraform (`delete_lock` and `azurerm_management_lock.server` removed, with the reason); an acceptance grep keeps it out; runbook §6a has the owner make it, with a check; the infra row says it cannot create or lift a lock | `parts/task-08.md:146-153`, `:274-275`; `parts/task-31.md:12-13`, `:36`; `plan:337` |
+| M-1 | estate-guard's ninth case (a PR-built `images` run); 9 of 9 | `parts/task-30.md:279`, `:395` |
+| M-2 | `infra/rbac/plan-reader.json` with `listClusterUserCredential` only, from day one; §6 decodes the credential; the plan row; owner inputs (three custom roles); file map | `parts/task-30.md:31`, `:171-196`; `parts/task-31.md:35`; `plan:336`, `plan:312`, `plan:469` |
+| M-3 | a PR build's VNet position declared as residual 5. **Deferred**: the `private-endpoints` NSG and a separate PR pool are network changes to tasks 03 and 30's pool, outside this identity batch | `plan:386-393`; `parts/task-30.md:176-177` |
+| M-4 | **G9 is taken by provider sources. I1's file-level test-variable guard becomes G10**, and I1's batch moves the counts to `guards: 10 of 10` and `guards_test: 12 cases` in tasks 01, 02, 03, 07, 08 and 09 | this line |
+| M-5 | the missing backtick; `task-07.md:314` → `:319` (output) and `:405-408` (data source), checked against `4b59507` | review `:658`, `:686` |
+
+**Restatements checked** (grep over `plan` and `parts/`): `12 roles`, `twelve`, `push_principal`,
+`cluster_principal`, `delete_lock`, `two custom role`, `grants.tf`, `residual N`, `8 of 8`,
+`Reader; Storage`. None is left stale. The round-1 map above keeps its `4b59507` line numbers.
+
+**Still UNVERIFIED after round 2** (training knowledge; nothing was run against Azure or ADO), in
+addition to round 1's list:
+- That an ABAC condition on `roleAssignments/write` cannot constrain the assignment's scope.
+- That Contributor covers `federatedIdentityCredentials/write`.
+- That Contributor and RBAC Administrator both lack `Microsoft.Authorization/locks/write`.
+- That azurerm's AKS read calls `listClusterUserCredential`, and that the credential holds no secret with local accounts off.
+- That a built-in Azure Policy denies AKS clusters with local accounts enabled, with a Deny effect.
+- Whether AKS run command, with local accounts off, runs with the caller's own rights.
+- That the broker's Role needs `escalate`/`bind` under the AKS Azure RBAC webhook.
+
+**Mutation checks:** none run, again. Plan documents only. The new mutants are in
+`grant-pipeline-roles_test.sh`'s table, estate-guard's ninth case and task 10's Step 4.
