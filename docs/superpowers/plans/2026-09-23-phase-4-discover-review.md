@@ -98,7 +98,7 @@ markers. It also has 14 Important and 13 Minor issues. It needs fixes before cod
 | `filestore.go:485` | the chmod is at `:488` |
 | task 10's file list | omits `attach_test.go:303`, `sessions_test.go:575` (both `package api`, direct `New(Deps{…})`) and `cmd/api/main.go:122` (I1) |
 | task 20's call sites | omit `EmptyDevelop.tsx:41` and `SessionPane.tsx:30`, and ignore resume `sessionVerbs.ts:317` and fork `:353` (I9) |
-| the ExecRunner assumption | `project/gitrunner.go:87` formats the error with `%v`, not `%w`, so the exit code cannot be matched with `errors.As` (I7) |
+| the ExecRunner assumption | `project/gitrunner.go:74` formats the error with `%v`, not `%w`, so the exit code cannot be matched with `errors.As` (I7) |
 | create ordering | "materialise, then mint and record" is false at the planned position: `:339` mints, `:356` runs `MkdirAll`, `:363` mints, and all three precede `:376` (M2) |
 
 ---
@@ -307,7 +307,7 @@ does not expose.**
 - *Where:* `task-09.md:87-96`, `task-14.md:52-56` ("Exit status 1 from ls-files is untracked"),
   and the test `TestGitQuestionsReadsUntrackedAsFalse`.
 - *What is wrong:* `ExecRunner.Run` returns `fmt.Errorf("git %s in %s: %v: %s", …)`
-  (`gitrunner.go:87`). The `%v` drops the `*exec.ExitError`, so `errors.As` cannot find exit
+  (`gitrunner.go:74`). The `%v` drops the `*exec.ExitError`, so `errors.As` cannot find exit
   status 1.
   - An implementer who tries `errors.As` gets an error for every untracked `CLAUDE.md`. Every
     session start becomes a 500, or every brief is sent to `.claude/`.
@@ -447,3 +447,179 @@ does not expose.**
     `heads`. Alternatively, declare `criteria[].state` a moving field and give the loader its
     re-read rule.
   - Record the decision in S4-P3.4 so phase 3 builds against it.
+
+### Minor
+
+**M1. Line numbers that have drifted.** Each part also names the symbol, so an implementer can
+find it. Correct them anyway:
+- `useKeyboardMap.ts:61` → `:166` (`plan.md:391`);
+- `project.go:172`/`:175` → `:171`/`:174` (`plan.md:381`);
+- `filestore.go:485` → `:488` for the chmod (`task-01.md:11`).
+
+**M2. "Materialise, then mint and record" does not match where the call is placed.**
+- *Where:* `task-10.md:14-16`.
+- The planned position is after `sessionLocate` (`:376`). By then `ids.UUID()` (`:339`),
+  `sessionConversationStore`'s `MkdirAll` (`:356`) and `ids.New("s")` (`:363`) have all run.
+- The result is harmless: minting is in memory, and the directory is reused. But the sentence
+  is false.
+- *Fix:* either move the call to just after `Worktrees.Path` (`:300`), which also keeps a refusal
+  from touching the disk, or reword the sentence to match the code.
+
+**M3. Two different file names for the lifted helper.** `plan.md:269` says `statepath.go` gains
+`WriteAtomic`, with `writeatomic_test.go` moved in. `task-01.md:17-19` creates `statepath/atomic.go`
+and `atomic_test.go`. Keep one.
+
+**M4. The `Evaluate` signature differs between the seam table and task 06.** S4-P3.4
+(`plan.md:400`) gives `Evaluate func(Criterion) (State, Because)`. `task-06.md:138` gives
+`func(briefKey string, c discover.Criterion) (CriterionState, string)`. Phase 3 will code against
+one of them. Use task 06's in both places.
+
+**M5. Change C14 lists five resolutions, but tasks 06 and 15 have six.** C14 (`plan.md:37`) omits
+`unavailable`. The Hub contract calls `erased` the seventh provenance state and task 16 says eight
+UI states. Add one sentence that reconciles the counts.
+
+**M6. No length cap on answers.**
+- *Where:* `task-03.md` rule 1.
+- The Hub refuses a canonical envelope over 64 KiB (`hub-contract.md:742`) with a 400 whose
+  message does not name the answer.
+- A 4-D3 batch of many full branch briefs can also pass the Hub's 1 MiB body cap. HA4-3 asks for
+  4 MiB for that route; until then, the limit stays 1 MiB.
+- *Fix:*
+  - Cap each answer at 4,000 characters and each question prompt at 300, with `ErrTooLong` →
+    400 `field: "text"`.
+  - Have `fanOut` check the batch's total encoded size against the cap before writing.
+
+**M7. CRLF files on Windows.**
+- This product runs on Windows first, and `Merge`, `Strip` and `Inspect` are specified in LF
+  terms only.
+- An editor that re-saves a person's `CLAUDE.md` with CRLF endings would:
+  - turn the block into CRLF, so `Inspect` reports `edited` over every line;
+  - leave a `\r` behind on `Strip`'s "one newline after it".
+- *Fix:* match markers with `\r?\n`, compare the block with line endings normalised, and add a
+  CRLF case to `TestStripRemovesTheBlockAndNothingElse`.
+
+**M8. `Bind` claims every remote the clone has.**
+- *Where:* `task-07.md:180-186`, `:255-258`.
+- A fork's clone often has `origin` = the person's fork and `upstream` = the team's repository.
+  `Bind` would register the team's key under the new project. If the team's project already
+  exists, the lookup binds the fork to it.
+- *Fix:* bind and register `origin` only. Look up by `origin` first and show other matches as a
+  choice. Otherwise, state the rule as an owner question.
+
+**M9. The exclude line hides the person's own untracked `CLAUDE.md` from git.**
+- The case: an untracked `CLAUDE.md` that holds the person's own notes, or the output of
+  Claude Code's `/init`.
+- The effect: after the first materialise, `/CLAUDE.md` in `info/exclude` means a plain
+  `git add` never stages the person's own file again.
+- *Fix:* either state this in task 19's "where it is written" view, or, when the untracked file
+  already has content outside a block, target `.claude/CLAUDE.md` instead.
+
+**M10. `signed_out` refuses every start, which is at odds with Hub contract §9.5.**
+- *Where:* `task-09.md:64-67`; Hub contract §9.5, `:1406-1407`: "none blocks the Develop lens".
+- A person with the Hub configured who has not yet signed in is refused on every start, and
+  OQ-3 means the refusal is never remembered.
+- The CLAUDE.md "wall of configuration" bar is at stake.
+- *Fix:* add this as an owner question with a recommendation. Keep the refusal, but put *Sign in*
+  first in the surface.
+
+**M11. An ambiguous task reference.** `task-17.md:37-38` says "declared departure into task 20's
+file". In this plan, task 20 is `StartWithoutBrief`. The reference is to phase 2's task 20. Say
+"phase 2 task 20's file".
+
+**M12. The `.claude/CLAUDE.md` risk is probably lower than P4-D says.**
+- *Reviewer's knowledge, not verified in this session*: the network tools were unavailable.
+  Claude Code's public memory documentation lists `./CLAUDE.md` **or** `./.claude/CLAUDE.md` as
+  project memory locations.
+- Cite the docs page in P4-D, and keep canary O2: the pinned version is what counts.
+
+**M13. The block is written before the exclude line.**
+- *Where:* `task-09.md:72-77`, steps 6 then 7.
+- If appending to `info/exclude` fails after the block is written, an untracked, un-excluded
+  `CLAUDE.md` holding the brief sits in the clone. An agent's `git add -A` would commit it
+  (3-D6).
+- *Fix:* write the exclude line first; a failure there is `write_failed` before any brief text
+  lands. Add `TestExcludeFailureWritesNoBlock`.
+
+---
+
+## Test strategy, sizing, order and design system
+
+- **Red before green** is explicit in every part's Step 1 ("confirm they fail"), and every test
+  names the mutant it kills. This is the house style and it is followed.
+- **The mutants that survive** are the ones listed above:
+  - materialise after destroy (C1);
+  - an answer carrying a marker (C2);
+  - a tracked candidate stripped (I3);
+  - a black-holed Hub (I4);
+  - a rename seen as a hand edit (I5);
+  - a real `ExecRunner` exit code (I7);
+  - an open-head fan-out (I8);
+  - start paths that skip the refusal (I9);
+  - keys typed in a field (I12).
+
+  Each fix above names the test that kills it.
+- **Sizing.** Parts are 1–3 h and mostly plausible.
+  - Task 07 at 3 h is light. It has fifteen tests, the heap cache, the binding memo and the HA4-1
+    reconcile. Expect 4–5 h, or split binding off into its own task.
+  - Task 10 grows by I1 and I2, to about 3.5 h.
+- **Order.**
+  - Lane B's rule — start task 10 only after phase 2 task 26 — is right.
+  - I1 changes what task 10 must leave behind: it must leave a binary that starts.
+  - I11 adds task 07 to what HA4-2 blocks.
+  - The critical path is otherwise right.
+- **Design system.**
+  - Every UI part (17–21) cites `DESIGN-SYSTEM.md` and holds its non-negotiables: no gradient, the
+    radius scale, `transform`/`opacity` only, one heartbeat and no spinner, `tabular-nums`,
+    colour plus shape, and no `--ink-4` as text.
+  - Stylesheet greps enforce this, and the owner's eyes are named as the only visual acceptance.
+  - No violations found in the plan text.
+  - One caution: `--drift` is a violet hue (`tokens.css:77`, `oklch(… 316.7)`). `--drift-tint`
+    must stay a flat tint, never a gradient. Task 17's grep already covers that.
+
+---
+
+## The two defects a first implementer is most likely to hit
+
+1. **Materialise placed next to the restart's record write, after `Backend.Destroy`** (C1).
+   - The plan's wording, "before the restart's record write", invites it.
+   - Its call-order test does not log `Destroy`, and its refusal test asserts the broken state.
+   - **The plan does not prevent it.** The fix in C1 does.
+2. **Detecting "untracked" from `git ls-files --error-unmatch`'s exit code with `errors.As`**
+   (I7).
+   - `ExecRunner` flattens the error with `%v` (`gitrunner.go:74`).
+   - The fake-runner test passes, and production then fails every session start, or sends every
+     brief to `.claude/`.
+   - **The plan does not prevent it.** The fix in I7 removes the need to parse the error.
+
+A third defect is near-certain but loud: task 10's required field breaks `attach_test.go`,
+`sessions_test.go` and the binary's start-up (I1). The tests will catch the first two. The
+start-up failure appears only when someone runs the binary.
+
+---
+
+## Assessment
+
+The spine is sound, and in places better than the documents it builds on:
+- immutable `brief:bf-…@n` keys;
+- a pinned `{key, digest}` for the inherited project revision;
+- a server-stamped `contextRef` from a Materialiser inside session create and restart;
+- one parser for keys;
+- one loader;
+- nothing persisted on the machine;
+- the managed block kept out of every commit through `info/exclude`.
+
+Its use of the Hub contract is careful and current. The contract is unchanged since the commit the
+plan read, and vector 1 matches. Its honesty about what is unverified is good.
+
+It is not ready for code:
+- **C1** turns a Hub outage during a restart into a killed agent and a fabricated status.
+- **C2** lets one line of brief text block every session start on a branch for a whole team, and
+  the plan has no security section to catch that class.
+- **I1–I3** and **I6–I9** are correctness defects that the plan's own tests would not catch.
+
+All the fixes are local to the parts named. None changes an owner decision. The fix-up is about
+half a day of plan edits. Nine areas need their tests added or rewritten:
+- tasks 03, 05, 07, 08, 09, 10, 16, 18 and 20;
+- task 23's step 9.
+
+**Plan quality: Needs fixes**
