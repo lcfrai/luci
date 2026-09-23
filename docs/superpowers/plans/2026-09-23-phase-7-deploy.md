@@ -8,7 +8,7 @@
 **Status:** written 2026-09-23 on branch `feat/phase-7-deploy` (worktree
 `.claude/worktrees/phase-7`, based on `3303fd6`). Owner-reviewable under `OD-1`; adversarially
 reviewed before code. **Nothing in this plan was compiled or run.** Every citation below was opened
-in this pass unless it is marked *unverified*; §10 lists what was not verified.
+in this pass unless it is marked *unverified*; §12 lists what was not verified.
 
 ---
 
@@ -68,7 +68,7 @@ H0/C1/C2; phase 3's `githost`; React 19 + TypeScript + zustand 5 + vitest, as ph
 `panacea.Client` in `cmd/api/main.go`'s wiring. The domain types, the orchestration, the routes and
 the lens do not change. The conformance suite `deploy/deploytest.Conformance(t, d Deployer)` is the
 proof: it runs today against the fake and against `panacea.Client` over a recorded `httptest`
-server, and it is what the native implementation must pass. §9 names this seam S7-N1.
+server, and it is what the native implementation must pass. §10.2 names this seam S7-N1.
 
 **Data flow for a read.** The watcher polls the `Deployer` for every bound project on its own
 timer (default 15 s; 3 s while a run the user shipped is in flight). It holds the newest snapshot in
@@ -121,7 +121,7 @@ in this plan was re-read on 2026-09-23.
 |---|---|---|
 | `D1` | `scope-and-risk-phase-7-deploy.md` §0 | answered by OD-3 (above) |
 | `D2` | same | **(a) always** — collisions shown after the fact (task 08); **URL prefix in scope**, owner-only (task 11); **(c)** — ask Panacea to hash-suffix truncated names — is an outward request, on the owner's list (§10 Q-P7-3) |
-| `D3` | same | **(b)**: phase 3 stamps `Panacea-Session` on every agent commit (phase 3 plan `:23`, `3-D6`, seam `S3-P7.1`); the manifest lists sessions from the trailers in the shipped range (task 18) |
+| `D3` | same | **(b)**: phase 3 stamps `Panacea-Session` on every agent commit (phase 3 plan `:23`, `3-D6`, seam `S3-P7.1`); the manifest lists sessions from the trailers in the shipped range (task 19) |
 | `B1` | same §0.1 | two access controls, drawn as the API offers them — **corrected**: project access is now shared with a **person** (`grantee` username or email, `clients/keycloak.go:180-190`), not with a group; legacy group bindings still list, with an empty `grantee` (`models/models.go:2004-2015`). The brief read an older API |
 | `B2` | same | Ship sends **no** scan-mode override; the lens shows each scan's `mode` |
 | `B3` | same | Ship, rollback, rebuild and access writes are **held for 5 s with Undo** before any request leaves the desktop (7P-15) |
@@ -132,7 +132,7 @@ in this plan was re-read on 2026-09-23.
 | **R4** | `orchestrator-rulings.md` | Panacea unreachable is `503 upstream_unavailable`, `details.upstream = "panacea"`, classified as the fourth `ProblemKind`, `upstream-down`. Phase 7 adds the kind **unless phase 5 has already** (task 13) |
 | **R5** | same | the release key is the Hub's tagged union. **The premise is now verified** (§3.3, 7P-4) |
 | **R6** | same | Deploy contributes **one selector** of release pin keys to phase 4's loader (task 13); it adds no interval and no per-row fetch |
-| **R7** | same | the Panacea metadata ask is **drafted** in task 19; sending it is the owner's (§10 Q-P7-2) |
+| **R7** | same | the Panacea metadata ask is **drafted** in task 20; sending it is the owner’s (§11 Q-P7-2) |
 | **G1** | ADR-H1 §4.2; Hub contract §7.9 | Ship is **reserve → deploy → confirm or abandon**; the Hub, not phase 7, selects the pinned revision |
 | relay | Hub contract §4.3 | a Hub 4xx reaches the desktop unchanged; Hub down is `upstream_unavailable` with `upstream = "hub"` |
 
@@ -178,7 +178,7 @@ pooled.
   (task 05); no response ever carries it; it is never logged; it never enters a sandbox.
 - **The swap:** `deploy.Deployer` hides the credential kind entirely. The native deployer after the
   lift authenticates with the Hub's Entra identity; the `pnc_` row is then deleted by a migration
-  step named in S7-N1.
+  step named in S7-N1 (§10.2).
 - **Cost if wrong:** if Panacea later accepts Entra bearer tokens for our audience, `panacea.Client`
   gains a second `Authorizer` and the connect screen loses its paste step. Nothing above the
   connector changes.
@@ -198,7 +198,7 @@ a `run` **with** `sourceDeploymentId`, which inherits the source's pin (Hub cont
 table row 2). An unchanged commit reuses the built image — `manualImageTag` is deterministic for a
 real SHA (`clients/pipeline.go:205`ff, the WP-31 comment). A source with no recorded `Commit`
 cannot be rebuilt exactly; the control is disabled with that reason and *Ship the branch* is
-offered. **The user-visible label is "Rebuild", not "Redeploy"** — assertion A-P7-1 (§10), which
+offered. **The user-visible label is "Rebuild", not "Redeploy"** — assertion A-P7-1 (§11, Q-P7-1), which
 the owner may overrule. Panacea's `reuseImage` config-only restart is not offered in v1.
 *Cost if wrong:* one extra route mapping.
 
@@ -242,7 +242,7 @@ against the local project's `origin`. One match binds silently. None says *"No P
 deploys this repository"*. Several — Panacea allows projects that share a repo slug
 (`models/models.go:2388-2389`, the `ProjectName`/`ProjectNamespace` comments) — ask the user once;
 the choice is stored **locally**, in `statepath.Dir("deploy")/bindings.json`, written with the
-shared `writeAtomic` (ruling R2). A shared binding in the Hub is Hub ask HA7-3 (§7), not a blocker.
+shared `writeAtomic` (ruling R2). A shared binding in the Hub is Hub ask HA7-3 (§9), not a blocker.
 *Cost if wrong:* a teammate with an ambiguous repo picks once.
 
 **7P-7 — Ship ships the branch tip, and only when the remote holds exactly that commit.**
@@ -260,7 +260,7 @@ not dropped.** `GET …/environments` (`projects.go:1997-2153`) names the base e
 `"production"`, while a deployment's `Environment` is the PipelineRun label `panacea.io/environment`
 (`clients/kubernetes.go:5681`), whose value for production **was not verified** — other handlers use
 `"prod"` (`canonicalStageEnv`, `projects.go:4124-4126`). The view joins by exact name; a deployment
-whose environment matches no row appears in its own group, titled with its raw name, and task 19's
+whose environment matches no row appears in its own group, titled with its raw name, and task 20's
 live check settles the spelling. **The environment for a first Ship** of a never-deployed branch is
 not knowable without re-implementing `sanitizeBranchEnv` (`projects.go:3814-3826`), which the survey
 rightly forbids (a fourth copy to drift). Hub ask **HA7-1** makes `environment` optional at reserve
@@ -387,7 +387,7 @@ holds. In particular:
 **What never changes, in every task of this phase:**
 
 1. **Agent CLIs are never modified, wrapped or parsed; nothing derives meaning from PTY bytes.**
-   Phase 7 reads no transcript, so OD-8's adapter rule does not arise. Session attribution (task 18)
+   Phase 7 reads no transcript, so OD-8's adapter rule does not arise. Session attribution (task 19)
    reads **git trailers**, which phase 3's hook writes into commits.
 2. **Never pool across users.** The `pnc_` token is the signed-in user's own; one per machine user;
    never sent to the Hub, a sandbox, a log line or the renderer.
