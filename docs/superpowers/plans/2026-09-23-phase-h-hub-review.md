@@ -347,7 +347,7 @@ Entra's error codes — it says so.
   task-44.md:6-8 (*"must be folded into the contract **before** another phase reads it and builds
   against the old text — the failure this program has paid for a dozen times"*).
 - **What is wrong:** the part states the ordering rule, and the plan's schedule breaks it. Phases 4
-  and 7 already flag A1's repo-key disagreement (phase-4 plan:471, HA4-6; phase-7 plan:621-627),
+  and 7 already flag A1's repo-key disagreement (phase-4 plan:471, HA4-6; phase-7 plan:624-628),
   and every sibling reads contract §12.1's four-service compose, §9.4's missing `Authorization`
   CORS header and §7.4's regex tonight.
 - **Why it matters:** the whole build window runs against a contract its own plan calls wrong in
@@ -361,7 +361,7 @@ Entra's error codes — it says so.
 
 - **Where:** task-13.md:35 (*"Email: the email claim, else preferred_username, lowercased"*);
   task-16.md:28-31 (binding); phase 8's `Claims.Key()` comment (*"never preferred_username
-  (mutable)"*, phase-8 `task-16.md` at the `Key` declaration).
+  (mutable)"*, phase-8 `task-16.md:108-110`).
 - **What is wrong:** an invite binds to whoever presents a matching `email`, or failing that a
   matching `preferred_username`. Both are mutable, and in a tenant with B2B guests neither is
   verified by the tenant. Binding stays inside the org (`TestBindingStaysInTheOrg`), which rules
@@ -374,3 +374,100 @@ Entra's error codes — it says so.
   `preferred_username` for **binding**; it may still be display text. `devissuer` emits both
   claims, so every column of the matrix is still reachable locally. Add
   `TestAGuestCannotBindAMembersInvite`.
+
+### Minor
+
+| # | Where | What is wrong | Fix |
+|---|---|---|---|
+| M1 | plan.md:127; plan.md:152; task-38.md:97; task-04.md:39 | Wrong citations. `problem.go:60-62` is the end of the code block; the "standard library only" rule is `problem.go:5`, with imports at `:10-17`. `problem.go:115` is inside `DecodeJSON`'s comment; `backend_unavailable` is at `:60`. `RailFooter.tsx:74-76` does not exist: the file has 25 lines, and the error line is `:16-21`. Task 04 says "the boundary test in task 08"; it is task 09 (plan.md:229) | Correct the four references |
+| M2 | task-12.md:120; task-11.md:198; task-36.md:104 | Task 12 counts 25 passing tests in `./internal/devissuer` alone, but `TestLoopbackOnlyBind` tests the `ADDR` rule that `cmd/devissuer` reads (task-11.md:180-184), so it lives there, and the count is 24. `TestMoreIsDrainedWithinATick` mixes two scenarios: 450 events at 200 a page is three pages, and the "eleventh page" belongs to a separate over-10-pages case | Fix the count; split the test into `…WithinATick` and `…AtMostTenPagesATick` |
+| M3 | plan.md:374-377 | "About six working days for two engineers" divides 96 h by two. The server lane to S7 is serial: tasks 01–08 and 13–24 add up to 57 h on one engineer, with task 10 blocking 13. That is seven or more working days | State the critical path (lane A to S7 ≈ 57 h) rather than the average |
+| M4 | task-07.md:3; task-16.md:3; task-43.md:3 | Undersized. Task 07 is a ~330-line schema plus 17 database tests, debugged against a live Postgres, in 3 h. Task 16 is three routes, binding, and a six-principal matrix harness with a per-cell fixture, in 3 h. Task 43 is a 12-step end-to-end test plus re-running 42 acceptance blocks, in 3 h | Split 07 into 07a (tables, grants, RLS) and 07b (guards, owner functions and their tests). Split 16 into 16a (invites) and 16b (the harness). Estimate 43 at 5 h |
+| M5 | plan.md:172-175; task-29.md:15-17, :96-97; phase-3 `task-13.md:68` | "Verbatim, so the later merge is a no-op" is untrue twice. Task 29's copy of `credstore.go` changes phase 3's `Source` comment (`"hub" \| "git-credential-helper"` becomes `"credential-manager" \| "entra" \| …`). And neither part holds the method bodies, so two implementers write two bodies at one path: an add/add conflict | Say so, and name who wins (the owner phase), in the file-sharing table. Send phase 3 a one-line ask to adopt the `Source` values |
+| M6 | task-42.md:60; task-32.md:8-10 | *Share with a team…* is added to the project menu unconditionally, which contradicts "with `PANACEA_APP_HUB_URL` unset, nothing changes for the user" | Hide the item unless `auth.hubConfigured`; add `the menu item is absent without a Hub` to task 42's tests |
+| M7 | task-38.md:71-73; `desktop/src/api/client.ts:40-48`; task-42.md:89 | `ProblemCode` gains only the control plane's four new codes. The relayed Hub codes (`repo_already_linked`, `revision_conflict`, `team_not_found`, `forbidden`, …) pass at runtime (`client.ts:199-206`), but task 42's test builds `new ApiError("repo_already_linked", …)`, which fails `npm run typecheck` | Add the Hub's §4.2 codes to the union in task 38, or type the relay's codes as `HubProblemCode` and widen `ApiError.code` |
+| M8 | task-31.md:63-66; task-32.md:81 | `New` finds the account record by the configured authority's tenant with **no network**. `PANACEA_APP_ENTRA_AUTHORITY` may name a domain (`…/kpmg.com.au`) or `organizations`, and then no tid is known | Require the authority's path to be a tenant GUID (a config error otherwise), or have `New` use `List("PanaceaApp/entra/")` filtered by client id |
+| M9 | task-37.md:41-46, :87 | On Windows the key file only inherits its directory's ACL. Under `PANACEA_APP_STATE_DIR=C:\somewhere`, that ACL may admit `Users`. `TestTheKeyFileIsPrivate` skips Windows | Set an explicit owner-only DACL (`windows.SetNamedSecurityInfo`), or refuse a state directory whose ACL admits `Users`; add the Windows test |
+| M10 | task-07.md:493-496, :563 | `orgs` has no row-level security, and `hub_app` has `SELECT` on every table, so any query path can read every enrolled tenant's id and name | Add `orgs` to the RLS loop with `USING (id = current_setting('hub.org_id', true))`; `ensure_org`/`resolve_principal` are `SECURITY DEFINER` and unaffected |
+| M11 | task-07.md:476-487, :580 | `audit_append` runs as the invoker, so `hub_app` needs `UPDATE (seq, hash)` on `audit_heads`, and a compromised Hub can move the head directly (a gap that `hub verify` finds, but only later) | Make `audit_append` `SECURITY DEFINER`, revoke `hub_app`'s `UPDATE` on `audit_heads`, and add it to `TestHubAppGrantsAreExactlyTheList` |
+| M12 | task-27.md:106-111 | Erasure's "does not claim" omits storage: the `UPDATE … canonical = NULL` leaves dead tuples until vacuum, and the text stays in WAL and in every backup taken before it | Add the sentence; name the backup retention phase 8 sets as the real erasure horizon |
+| M13 | `control-plane/internal/api/api.go:9-13`; `origin.go:164-167`; `routes_audit_test.go:25-27` | Three phase 2 comments say there is no authentication or `Authorization` on this hop "before Phase 8". Task 37 makes each false, and none is in its file list (only `client.ts:6-8` is, task-38.md:79) | Add the three comment edits to task 37 |
+| M14 | owner-decisions.md:12; tasks 41, 42; plan.md:391 | OD-1 waives prototype-before-plan for phases 3, 4, 5 and 7 only. Phase H's two surfaces have no prototype, and nothing keeps `feat/hub` (with lane D merged) from moving on before the owner looks | Record it as owner question Q11 (recommendation: a static prototype of the sign-in states and the share popover before task 41), and state that `feat/hub` is not merged onward until the owner's look (OD-1) |
+| M15 | plan.md:340, :357, :361; task-13.md:148; task-30.md:37, :134; task-31.md:19; task-11.md:127-130 | Undeclared dependencies. Task 13's `TestADevissuerTokenPassesTheRealValidator` needs task 11; task 30 needs task 04 (`hubclient.ErrSignedOut`, `ErrUnavailable`); task 34's conformance needs task 11's `MintAccessToken`. Task 31, in lane C, edits lane A's `hubclient.go` | Add 11 to 13's and 34's dependencies and 04 to 30's; move the `Invalidator` declaration into task 04 |
+
+---
+
+## The two defects a first implementer is most likely to hit
+
+1. **Every API test goes 401 the moment task 37 lands (C2).** The first `go test
+   ./control-plane/internal/api/` after the wrap goes in fails across `api_test.go`,
+   `attach_test.go`, `catalog_test.go`, `routes_audit_test.go` and `sessions_test.go`, because none
+   sends a key, and none is in task 37's file list. **Does the plan prevent it? No.** It names the
+   desktop half ("land 37 and 38 together") but gives no zero-value rule, no test helper and no
+   file list, so the likely "quick fix" is a zero key that disables the check — fail-open.
+2. **The module graph moves under the pins (I8).** Task 06's `go get …pgx/v5@v5.7.5` needs
+   `x/sys v0.32.0` and `x/term v0.31.0`, neither of which is cached. Once it succeeds, task 28's
+   `go get golang.org/x/sys@v0.24.0` would downgrade x/crypto and pgx. **Does the plan prevent it?
+   Partly.** Both tasks check `git diff control-plane/go.mod`, which shows the damage, but task 28's
+   instruction causes it and task 06's "it is in the cache" premise is false.
+
+Runner-up: **I4**, the `devissuer` page's `form-action 'self'`. It is invisible to every automated
+test and would stop the first real click in Edge at task 12's step 4.
+
+---
+
+## Citations checked
+
+**Correct** (opened in this worktree unless stated):
+- `control-plane/go.mod:1`, `:3`, `:54`, `:57`; `go.work`; `azure-pipelines.yml:6`, `:11`, `:14`;
+  `images/sandbox/Dockerfile:3-6`.
+- `cmd/api/config.go:18-51`, `:54`, `:63-82`; `internal/api/api.go:15-21`, `:213-231`, `:292`,
+  `:303-306`; `attach.go:42`; `httpx/origin.go:97-116`, `:168-171`, `:192-198`, `:231-237`.
+- `statepath/statepath.go:30-45`; `routes_audit_test.go:32`; `project/project.go:29`;
+  `internal/api/export_test.go:21` (`RegisteredPatterns`).
+- `desktop/src/api/client.ts:6-8`, `:242`, `:199-206`; `poller.ts:1-3`, `:48`, `:74-76`;
+  `StatusDot.tsx:2`; `ContextMenu.tsx:44`, `:98-110`; `tauri.conf.json` (`"csp": null`);
+  `capabilities/default.json`; `lib.rs` (only `greet`).
+- `styles/tokens.css:111-135` (`--r-ctl`, `--r-card`, `--e-btn`, `--e-card`, `--ease`).
+- The four `classify` call sites (`EmptyDevelop.tsx:57`, `SessionPane.tsx:48`, `sessionVerbs.ts:85`,
+  `useCreateSession.ts:38`); `prototype-fact-sheet.md:26`.
+- In sibling worktrees: phase-3 `task-13.md:136-139`; phase-3 review `:350-356`; phase-8
+  `task-16.md:102-106`.
+- In the module cache: pgx v5.7.5's `go 1.23.0`.
+
+**Wrong:**
+- plan.md:127 (`problem.go:60-62`) and plan.md:152 (`problem.go:115`).
+- task-38.md:97 (`RailFooter.tsx:74-76`); task-04.md:39 (task 08 → 09).
+- task-28.md:25 (x/sys v0.24.0 "the version in the graph" after task 06).
+- task-06.md:184 ("the module is in the cache": two of its requirements are not).
+- plan.md:463-466 (the sibling plans' sizes, now 517/511/715 lines).
+
+**Not checked by this review:**
+- Contract and ADR section contents beyond the passages the plan quotes.
+- The phase 7 brief's `:119`.
+- Every Entra behaviour (R-1…R-10), Chromium's `form-action` behaviour on redirects (I4), and
+  Entra's error codes for per-resource refusals (I2).
+
+---
+
+## Assessment
+
+The plan is careful, well-cut into lanes, and unusually honest about what it has not verified.
+Its server design — RLS plus grants plus triggers, one lock order, and a hash-chained audit log
+that doubles as the change feed — is right for the owner's decisions. It runs without Azure:
+Postgres in Docker, the Hub and `devissuer` on the host. It does not yet survive contact with its
+consumers or its own first runs.
+
+**Fix before any code, in this order:**
+1. **C1** — absorb the sibling asks into S0 (tasks 03, 04, 05, 07, 19, 23, 33, 36), especially
+   HA7-1's schema change and HA5-1's type change. About 3 h of plan edits.
+2. **I11** — move the contract fold-in (task 44a) to the front. About 1.5 h.
+3. **C2** — define `Deps.LocalKey` as fail-closed and give task 37 its test helper and file list.
+   About 30 min.
+4. **I1, I2, I4, I9** — the auth-flow fixes (rotation generations, scope-specific refusals, the
+   page's CSP, the e2e clock). About 1 h of plan edits.
+5. **I5, I6, I7, I12** — tenancy and privacy (composite foreign keys, erasure of stored responses,
+   right-most `X-Forwarded-For`, invite binding). About 1 h.
+6. **I3, I8, I10** and the Minor table as the parts are touched.
+
+**Plan quality: Needs fixes**
