@@ -58,8 +58,13 @@ sandboxes:
     persistentVolumeClaims: "64"
     requestsStorage: 4Ti
   limitRange:
-    maxCpu: "8"               # the largest single container the cluster will admit
-    maxMemory: 32Gi
+    # The largest single container the cluster will admit, DERIVED FROM THE SANDBOX SKU (b05
+    # re-review 2): the largest session that fits beside a machine pod on an empty node. It MUST
+    # equal the broker's PANACEA_APP_BROKER_MAX_CPU_MILLIS / _MAX_MEMORY_MIB (task 17); task 29's
+    # session_size_is_one_value holds them equal. Arithmetic for Standard_D8s_v5, UNVERIFIED;
+    # task 32's P07 measures and rewrites all three places.
+    maxCpu: 6000m
+    maxMemory: 20480Mi
     # What an unsized container gets (review I4): one session, never the max. MUST equal the
     # broker's PANACEA_APP_BROKER_SESSION_CPU_MILLIS / _MEMORY_MIB and warm.balloons (task 12);
     # task 29's netpolcover case session_size_is_one_value holds all three equal per env.
@@ -108,8 +113,10 @@ not merely missed by a review.
 `defaultMemory`, so a defaulted container is `requests == limits`, as Kata needs). Without them, a
 container LimitRange with only `max` gives an unsized container `default = max` and
 `defaultRequest = default`, and LimitRanger defaults init containers too (training knowledge of
-Kubernetes, **UNVERIFIED** here): one unsized container asked for 8 CPU / 32 GiB, more than a
-`Standard_D8s_v5` can allocate, and sat Pending while counting against the quota (review I4).
+Kubernetes, **UNVERIFIED** here): one unsized container asked for the max, which was then 8 CPU /
+32 GiB, more than a `Standard_D8s_v5` can allocate, and sat Pending while counting against the
+quota (review I4). The max is now the SKU-derived session ceiling (6 CPU / 20 GiB), which fits on
+an empty node but would still take most of one, so the default stays one session.
 The default is a backstop, not a sizing policy: every pod this repo renders or the broker creates
 sizes every container itself, and task 13's `netpolcover` case `every_sandbox_container_is_sized`
 fails the build if one in this namespace does not.
@@ -165,7 +172,7 @@ explicit machine delete, task 19), `volumeBindingMode: WaitForFirstConsumer`,
 | `storage_test` / `machine_disk_waits_for_its_pod` | `volumeBindingMode: WaitForFirstConsumer`, `provisioner: disk.csi.azure.com` | `Immediate`, which provisions the disk in a zone the pod may not schedule in |
 | `storage_test` / `nfs_only_when_enabled` | default values render no `panacea-machine-nfs`; `enabled: true` renders it | the fallback always present |
 | `values_test` / `empty_vnet_cidr_fails` | `network.vnetCidr: ""` → the render fails with the schema's message | a policy rendered with an empty `except` entry |
-| `quota_test` / `limitrange_defaults_to_one_session` | `LimitRange/sandboxes` has one `Container` item whose `default` and `defaultRequest` both equal `{cpu: 2000m, memory: 4096Mi}` and whose `max` is `{cpu: "8", memory: 32Gi}` with default values (review I4) | a `max`-only LimitRange, under which an unsized container is defaulted to 8 CPU / 32 GiB: Pending on every node, holding the quota |
+| `quota_test` / `limitrange_defaults_to_one_session` | `LimitRange/sandboxes` has one `Container` item whose `default` and `defaultRequest` both equal `{cpu: 2000m, memory: 4096Mi}` and whose `max` is `{cpu: 6000m, memory: 20480Mi}` with default values (review I4; b05 re-review 2) | a `max`-only LimitRange, under which an unsized container is defaulted to the max: most or all of a node, holding the quota |
 
 And in CI (task 28): `helm lint deploy/charts/platform -f <test values>` and
 `helm template … | kubeconform -strict -summary`.

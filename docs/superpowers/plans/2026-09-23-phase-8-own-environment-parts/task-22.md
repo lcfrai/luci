@@ -133,7 +133,7 @@ func RemoteEndpoint(id string) string { return "remote:" + id }
 
 | Method | Broker call | Notes |
 |---|---|---|
-| `Create` | `POST /v1/sandboxes` | refuses `spec.Mounts` with `ErrUnsupported` **before any request** (host paths never leave the laptop); sets `Machine` to the backend's; sends `MachineMounts`, `WorkDir`, resources, argv, env, attach token |
+| `Create` | `POST /v1/sandboxes` | refuses `spec.Mounts` with `ErrUnsupported` **before any request** (host paths never leave the laptop); sets `Machine` to the backend's; sends `MachineMounts`, `WorkDir`, argv, env, attach token. **Never a size** (b05 re-review 4): the body's `resources` stays zero, so the broker's default applies. A cloud session's size is server policy, because it is what the balloons, the LimitRange default and P8-D6's ceiling are all sized to. The laptop's `spec.Resources` (`sessionResources()`, `sessions.go:332-337`, which is `PANACEA_APP_SESSION_*` or `backend.DefaultResources` `{2000, 4096}`, never 0) is ignored on this backend |
 | `Get` / `List` | `GET /v1/sandboxes/{id}` / `GET /v1/sandboxes` | `brokerapi.Sandbox` → `backend.Sandbox{Kind: KindKata, Endpoint: RemoteEndpoint(id), …}`; List filters to this backend's machine |
 | `Attach` | `GET /v1/sandboxes/{id}/attach` (WSS) | headers `Authorization: Bearer <entra>` and `Panacea-Attach-Token: <token>`; `SetReadLimit(backend.MaxMessageBytes)` right after the dial — **the fifth site** of the shared rule; an HTTP refusal is decoded and mapped as below, so `attachCloseStatus` (`attach.go:330-343`) sees the same sentinels as for Docker |
 | `Destroy` | `DELETE /v1/sandboxes/{id}` | 204 → nil |
@@ -162,6 +162,7 @@ fake `TokenSource` that counts calls:
 |---|---|---|
 | `TestBackendSatisfiesTheSeamAndReadyWaiter` | compile-time assertions; `Kind() == KindKata` | a third Kind string, which the phase 2 seam test forbids |
 | `TestCreateSendsTheSpecAsTheUser` | one POST; `Authorization: Bearer <fake token>`; body's `machine`, `machineMounts`, `workDir`, `attachToken` match the spec | a spec field dropped on the wire |
+| `TestCreateLeavesTheSizeToTheBroker` | a spec with `Resources{CPUMillis: 6000, MemoryMiB: 16384}` → the recorded body has no `resources` or a zero one; the same with `backend.DefaultResources` | the laptop's `PANACEA_APP_SESSION_*` or its 2 CPU / 4 GiB default deciding a cloud session's size, so changing the broker's default, the balloons and the LimitRange together changes no real session (b05 re-review 4) |
 | `TestCreateRefusesHostMountsWithoutARequest` | `spec.Mounts` set → `ErrUnsupported`, broker saw zero requests | a laptop path sent to the cluster |
 | `TestEveryCallAsksForTheBrokerScope` | the token source was asked for `cfg.Scope` on each call | a Hub token sent to the broker (wrong audience — it would 401 anyway, but the laptop must not even ask for it) |
 | `TestEndpointIsOpaqueAndNonEmpty` | Get's `Endpoint == "remote:<id>"` | an empty Endpoint the attach handler reads as "not running" (`attach.go:182`) |

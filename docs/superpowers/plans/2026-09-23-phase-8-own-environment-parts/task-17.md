@@ -37,10 +37,10 @@ the edge's pods, on 8080), and it refuses every request that is not authenticate
 | `PANACEA_APP_BROKER_ALLOWED_CLIENTS` | — **required** | comma-separated; the desktop's client id |
 | `PANACEA_APP_BROKER_SANDBOX_IMAGE` | — **required** | the only session image, **by digest** |
 | `PANACEA_APP_BROKER_MACHINE_IMAGE` | — **required** | the only machine image, by digest |
-| `PANACEA_APP_BROKER_SESSION_CPU_MILLIS` | `2000` | a session's size when the caller sends 0 — the same value as the balloon (task 12) and `backend.DefaultResources` (`backend.go:110`) |
+| `PANACEA_APP_BROKER_SESSION_CPU_MILLIS` | `2000` | a session's size when the caller sends 0, which is **every cloud session**: remotebe never sends a size (task 22, b05 re-review 4), so this is the one place a cloud session's size is set. The same value as the balloon (task 12) and the LimitRange default (task 11); it equals `backend.DefaultResources` (`backend.go:110`) today by choice, not by coupling |
 | `PANACEA_APP_BROKER_SESSION_MEMORY_MIB` | `4096` | ditto |
-| `PANACEA_APP_BROKER_MAX_CPU_MILLIS` | `8000` | largest session a caller may request |
-| `PANACEA_APP_BROKER_MAX_MEMORY_MIB` | `32768` | ditto |
+| `PANACEA_APP_BROKER_MAX_CPU_MILLIS` | `6000` | the largest session a caller may request, **derived from the sandbox SKU** (b05 re-review 2): the largest session that fits beside a `500m` machine pod, the DaemonSets and the Kata overhead on an **empty** `Standard_D8s_v5` node, with margin. Allocatable a little under 8 vCPU (P8-D6) less those leaves about 6.5, so `6000` (arithmetic, **UNVERIFIED**). A request above it could fit on no node, and under the affinity it would be refused as `machine_full`, whose advice cannot help. Task 32's P07 measures the real figure and rewrites this value, the LimitRange `max` (task 11) and task 29's `limits.*` together |
+| `PANACEA_APP_BROKER_MAX_MEMORY_MIB` | `20480` | ditto for memory: a 32 GiB node's allocatable is below 32 GiB (AKS reserves memory for the kubelet and eviction), less the machine pod's `1Gi`, the DaemonSets and the Kata overhead. `20480` leaves margin (arithmetic, **UNVERIFIED**, P07) |
 | `PANACEA_APP_BROKER_MAX_SANDBOXES_PER_USER` | `8` | concurrent session pods per owner |
 | `PANACEA_APP_BROKER_MAX_MACHINES_PER_USER` | `2` | machines per owner (task 19) |
 | `PANACEA_APP_BROKER_MACHINE_DISK_GIB` | `64` | a new machine's disk (task 19) |
@@ -48,13 +48,14 @@ the edge's pods, on 8080), and it refuses every request that is not authenticate
 | `PANACEA_APP_BROKER_MACHINE_AFFINITY` | `true` | `sandbox.Config.MachineAffinity` (task 15); `false` only with RWX storage |
 | `PANACEA_APP_BROKER_MACHINE_IDLE_SLEEP` | `30m` | a machine with no session pods for this long is put to sleep (task 19); `0` disables |
 | `PANACEA_APP_BROKER_READY_TIMEOUT` | `120s` | a pod's time to answer `/healthz` (Kata cold start) |
-| `PANACEA_APP_BROKER_UNSCHEDULABLE_GRACE` | `5s` | how long a new session pod may stay `Unschedulable` with no preemption under way before the broker deletes it and answers `409 machine_full` (task 18, review I5); must be below `READY_TIMEOUT` |
+| `PANACEA_APP_BROKER_UNSCHEDULABLE_GRACE` | `5s` | how long a new session pod may stay `Unschedulable` with no preemption under way before the broker deletes it and answers `409 machine_full` (task 18, review I5); used only when `MACHINE_AFFINITY` is `true` (b05 re-review 3); must be below `READY_TIMEOUT` |
 | `PANACEA_APP_BROKER_SHUTDOWN_GRACE` | `20s` | drain time on SIGTERM |
 | `PANACEA_APP_LOG_LEVEL` | `info` | as `cmd/api` |
 
 Validation, each failure exiting 2 with one sentence naming the variable: every required value
 present; both images match `@sha256:[a-f0-9]{64}$` (a tag is refused — P8-D8, OD-8's pin); the
-runtime class a DNS-1123 subdomain; durations parse; limits positive; `UNSCHEDULABLE_GRACE`
+runtime class a DNS-1123 subdomain; durations parse; limits positive; each `SESSION_*` at or
+below its `MAX_*` (else the default session itself is `resources_too_large`); `UNSCHEDULABLE_GRACE`
 positive and below `READY_TIMEOUT` (else the timeout answers first and a full machine reads as
 `not_ready`); the authority `https` unless
 its host is loopback (a local run against the Hub's devissuer).

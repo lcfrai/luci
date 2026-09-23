@@ -9,8 +9,8 @@ Node-warm has three parts. The first is the sandbox pool's `min_count` (task 06)
 "warm capacity is a floor, not a timeout" (survey §1.4, `:119-120`). This task adds the other two:
 - **Balloons**: low-priority Kata pods the size of one session. A new session preempts a balloon
   instantly (priority ladder, task 11) and lands on an already-running node; the evicted balloon
-  goes Pending, and the autoscaler adds a node for it **in the background**, so the next session
-  also finds room.
+  goes Pending, and the autoscaler adds a node for it **in the background**, so the next
+  machine's first session also finds room.
   **Balloons warm new machines, not a busy one** (review I5). A session must land on its
   machine pod's node (required affinity on `kubernetes.io/hostname`, task 15), so a balloon helps
   it only when the balloon happens to sit on that node, and after one preemption the evicted
@@ -81,7 +81,8 @@ preempted by a balloon).
 takes the `LimitRange` defaults at admission, and LimitRanger defaults init containers too. The
 scheduler sizes a pod by the larger of its biggest init container and the sum of its containers,
 so one unsized init container makes the pre-pull pod as large as the default. With only a `max`,
-the default *is* the max (8 CPU / 32 GiB): more than a `Standard_D8s_v5` can allocate, so the pod
+the default *is* the max (then 8 CPU / 32 GiB; now the SKU-derived 6 CPU / 20 GiB, task 11, which
+still takes most of a node): more than a `Standard_D8s_v5` can allocate, so the pod
 sat Pending on every sandbox node, and Pending pods count against the quota — four of them hold
 the namespace's whole 128 GiB. Task 11 now also sets the default to one session (2 CPU / 4 GiB),
 but that would still cost one session of quota and one session of node per sandbox node. Sized at
