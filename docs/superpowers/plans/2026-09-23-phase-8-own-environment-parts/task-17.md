@@ -37,6 +37,8 @@ the edge's pods, on 8080), and it refuses every request that is not authenticate
 | `PANACEA_APP_BROKER_ALLOWED_CLIENTS` | — **required** | comma-separated; the desktop's client id |
 | `PANACEA_APP_BROKER_SANDBOX_IMAGE` | — **required** | the only session image, **by digest** |
 | `PANACEA_APP_BROKER_MACHINE_IMAGE` | — **required** | the only machine image, by digest |
+| `PANACEA_APP_BROKER_SESSION_CPU_MILLIS` | `2000` | a session's size when the caller sends 0 — the same value as the balloon (task 12) and `backend.DefaultResources` (`backend.go:110`) |
+| `PANACEA_APP_BROKER_SESSION_MEMORY_MIB` | `4096` | ditto |
 | `PANACEA_APP_BROKER_MAX_CPU_MILLIS` | `8000` | largest session a caller may request |
 | `PANACEA_APP_BROKER_MAX_MEMORY_MIB` | `32768` | ditto |
 | `PANACEA_APP_BROKER_MAX_SANDBOXES_PER_USER` | `8` | concurrent session pods per owner |
@@ -67,6 +69,8 @@ type Config struct {
 	Entra                 entra.Config // AuthorityHost, TenantIDs, Audience, RequiredScope, AllowedClients
 	SandboxImage          string
 	MachineImage          string
+	SessionCPUMillis      int
+	SessionMemoryMiB      int
 	MaxCPUMillis          int
 	MaxMemoryMiB          int
 	MaxSandboxesPerUser   int

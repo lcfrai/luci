@@ -109,7 +109,7 @@ owner approves. The gate is not loosened to make the first run pass.
 #### Acceptance
 
 ```bash
-bash pipelines/scripts/lint.sh                   # lint: 6 of 6 rules pass over 7 pipeline files
+bash pipelines/scripts/lint.sh                   # lint: 6 of 6 rules pass over 6 pipeline files (images.yml, task 27, comes after)
 bash pipelines/scripts/install-tool.sh gitleaks && gitleaks detect --no-banner   # no leaks found
 ```
 
