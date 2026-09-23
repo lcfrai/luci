@@ -145,7 +145,7 @@ without a cycle. Phase 4 imports only the Hub's
 
 | Id | Ruling | Where |
 |---|---|---|
-| **R1** | `Materialiser` declared in `api`, called between worktree-resolve and `backend.Create` in create and restart, returning the key it wrote; phase 4 owns `sessions.go` for this change | task 10 |
+| **R1** | `Materialiser` declared in `api`, called between worktree-resolve and `backend.Create` in create and restart (in restart, also before the old sandbox's `Backend.Destroy`, so a refusal leaves the running agent alive), returning the key it wrote; phase 4 owns `sessions.go` for this change | task 10 |
 | **R2** | Lift `writeAtomic` into `statepath` with its tests; do not duplicate | task 01 |
 | **R3** | Persist versions are claimed in plan text. **Phase 4 claims none**: its two slices are not persisted | tasks 15, 16 |
 | **R4** | `upstream_unavailable` with `details.upstream`; the Hub adds `"hub"` (ADR-H1 §5.1) | tasks 11, 15 — phase 4 consumes the code the Hub's task C2 adds |
@@ -269,7 +269,7 @@ without a cycle. Phase 4 imports only the Hub's
 | `control-plane/internal/statepath/statepath.go` (+ `writeatomic_test.go` moved in) | gains `WriteAtomic`, lifted from `registry/filestore.go:460` | 01 |
 | `control-plane/internal/registry/filestore.go`, `registry/writeatomic_test.go` | calls `statepath.WriteAtomic`; the test moves out | 01 |
 | `control-plane/internal/api/api.go` | `Deps.Materialiser` (required), `Deps.Discover` (optional `RouteMounter`), one validation branch, one mount line | 10 |
-| `control-plane/internal/api/sessions.go` | create and restart call `Materialise` before `Store.Create` / the restart record; stamp `ContextRef`; ignore the request's `contextRef`; accept `withoutBrief` | 10 |
+| `control-plane/internal/api/sessions.go` | create and restart call `Materialise` before `Store.Create` / the restart's `Backend.Destroy`; stamp `ContextRef`; ignore the request's `contextRef`; accept `withoutBrief` | 10 |
 | `control-plane/internal/api/materialiser.go` (new file in `api`) | the interface, request, result and `*MaterialiseError` | 10 |
 | `control-plane/internal/httpx/problem.go` | one code, `CodeBriefNotWritten = "brief_not_written"` (409) | 10 |
 | `control-plane/internal/api/api_test.go`, `routes_audit_test.go` | the test `Deps` gain a fake `Materialiser`; the audit sees the Discover GETs | 10, 11 |
@@ -380,7 +380,7 @@ encoding is the Hub's and carries its own `v` in the envelope (Hub contract §3.
 | `worktree.Provider.Path` (`worktree/worktree.go:32`) | exact match | the Materialiser receives the resolved path from the handler; it never resolves one itself |
 | `project.Scanner.ProjectName`/`BranchName` (`project/project.go:172`, `:175`) | exact match | names in the title of the managed block |
 | `handleSessionCreate` (`api/sessions.go:277`): worktree `:291` → … → `sessionLocate` `:376` → `Store.Create` `:382` → `Backend.Create` `:422` | no hook | task 10 calls `Materialise` after `sessionLocate` and before `Store.Create`, so a refusal writes nothing |
-| `handleSessionRestart` (`:879`): worktree `:895` → record → `Backend.Create` `:1010` | no hook; no request body | task 10 calls `Materialise` after the worktree resolves and stamps `ContextRef` in the restart's record write; an optional body carries `withoutBrief` |
+| `handleSessionRestart` (`:879`): worktree `:895` → argv rebuild → `Backend.Destroy` `:944` → record `:986` → `Backend.Create` `:1010` (at `2d6d95b`: `:956`, `:972`, `:998-1018`, `:1026`, `:1067`, `:1091`) | no hook; no request body | task 10 calls `Materialise` after the argv rebuild and **before `Backend.Destroy`**, so a refusal leaves the running sandbox alive (review C1), and stamps `ContextRef` in the restart's record write; an optional body carries `withoutBrief` |
 | The route recorder `routes` (`api/api.go` — unexported) and the §10a audit (`routes_audit_test.go`) | a package outside `api` cannot take `*routes` | `api.RouteMounter` hands `guarded.Handle` to `discoverapi.Mount`, so every Discover pattern is recorded and audited |
 | The `/api/v1/` alias (`api.go`, on `guarded`) | lives on the guarded mux | Discover mounts on the same mux, so the alias reaches it |
 | `writeAtomic` (`registry/filestore.go:460`, unexported) | — | lifted (R2, task 01) |

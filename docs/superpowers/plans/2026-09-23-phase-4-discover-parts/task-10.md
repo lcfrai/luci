@@ -11,8 +11,9 @@ key; the handlers stamp `ContextRef` from the return value and **never from the 
 phase 2 task 26 has merged** (brief R5), take the file as it stands on your base, and name the base
 commit in the commit message. Phase 2's resume fix (`--session-id`, `sessions.go:337` at
 `3303fd6`) is already in the file; phase 3 task 05 edits `sessionEnv`, not the step order. **The
-order within the handler is: materialise, then mint and record** — so a refusal leaves no record and
-no sandbox, and the stamped key and the minted conversation id both describe the process that
+order within the handler is: materialise, then mint and record; on restart, materialise also comes
+before the old sandbox's destroy** — so a refusal leaves no record and no sandbox on create, leaves
+the running sandbox untouched on restart, and the stamped key and the minted conversation id both describe the process that
 actually starts (R1's seam note).
 
 **Files:**
@@ -133,16 +134,26 @@ In `New`: `{"Materialiser", d.Materialiser == nil}` joins the validation table, 
   `a.internal`. On success, `ContextRef: result.ContextRef` replaces `ContextRef: req.ContextRef`
   (`:401`).
 - `handleSessionRestart`: decode the optional body (an empty body is `{}`; an unknown field is
-  `invalid_json`, as everywhere); after the worktree resolves (`:895`) and **before** the restart's
-  record write, call `Materialise` with the session's `WorktreeID`, `ProjectID`, `BranchID`; set
-  `sess.ContextRef` in that record write. Restart is a new process, so it **restamps** (contract
-  §2.4).
+  `invalid_json`, as everywhere). Call `Materialise` with the session's `WorktreeID`, `ProjectID`,
+  `BranchID` **after the argv rebuild and the `sessionEnv` rebuild, and before
+  `a.deps.Backend.Destroy(ctx, sess.SandboxID)`** — never merely "before the record write", because
+  the destroy sits between the two. Locate by symbol, not line: at `2d6d95b` the worktree resolves
+  at `sessions.go:972`, the argv rebuild is `:998-1018`, `sessionEnv` is `:1022`, the destroy is
+  `:1025-1032` and the record write is `:1067`. The handler's own rule for argv (`:996-997`, "a
+  restart that cannot build its argv must fail while the old sandbox is still alive") applies to
+  `Materialise` for the same reason: a Hub outage mid-restart must leave the running agent running,
+  not kill it and then answer 409 with a record that names a destroyed sandbox. Set
+  `sess.ContextRef` in the record write. Restart is a new process, so it **restamps** (contract
+  §2.4). **Accepted side effect:** the new block is written while the old process is still running.
+  That process read `CLAUDE.md` when it started, so its stamp stays true until the destroy ends it.
 - Resume and fork go through create, so they restamp too. Whether Claude Code re-reads `CLAUDE.md`
   on `--resume` is unverified (brief R7); restamping is correct either way for a new process, and
   task 23's canary tells us whether a resumed conversation *acts* on the new text.
 
 **Tests first** (`materialise_test.go`, package `api_test`, with a recording fake that logs each
-call's position relative to the fake backend's `Create` and the fake store's `Create`/`Update`):
+call's position relative to the fake backend's `Create` **and `Destroy`** and the fake store's
+`Create`/`Update`; the log entries are `materialise`, `backend.destroy`, `backend.create`,
+`store.create`, `store.update`):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
@@ -153,16 +164,18 @@ call's position relative to the fake backend's `Create` and the fake store's `Cr
 | `TestCreateWithoutBriefPassesTheFlag` | `withoutBrief: true` reaches the fake; its `none:declined` is stamped | the override lost between the wire and the materialiser |
 | `TestCreateOtherMaterialiseErrorIs500` | a plain error → 500 `internal`, the message generic | a raw path leaking into the problem body |
 | `TestRestartRestamps` | a session at `@5`; materialiser returns `@6` on restart → the record is `@6` | the phase 2 behaviour of keeping `contextRef` across restart (contract §2.4) |
-| `TestRestartMaterialisesBeforeTheSandbox` | log order `materialise, store.update, backend.create` | a restart that re-reads a stale file |
+| `TestRestartMaterialisesBeforeTheDestroy` | log order `materialise, backend.destroy, store.update, backend.create` | `Materialise` placed beside the record write, after the destroy (review C1); a restart that re-reads a stale file |
 | `TestRestartAcceptsAnEmptyBody` | `POST …/restart` with no body is 200 | breaking phase 2's desktop, which sends none |
-| `TestRestartRefusalLeavesTheRecordAlone` | 409; the record's status and `contextRef` are unchanged | a half-restarted session |
+| `TestRestartRefusalLeavesTheSandboxAlive` | `*MaterialiseError{hub_unavailable}` → 409 `brief_not_written`; the log holds no `backend.destroy`; the old `SandboxID` is still in the fake backend; the record's `SandboxID`, status and `contextRef` are unchanged | a Hub outage that kills the running agent, then leaves a record naming a destroyed sandbox |
 | `TestDiscoverRoutesAreMountedOnTheGuardedMux` | a fake `RouteMounter` registering `GET /v1/discover/ping` is reachable at `/v1/…` **and** `/api/v1/…`, and a request with a foreign `Origin` is 403 | a mount on `root`, outside the guard and the alias |
 
 **Steps:**
 
 - [ ] **Step 1: Preflight.** `git log -1 --format=%H -- control-plane/internal/api/sessions.go`
   — record it. `grep -n "func (a \*API) handleSessionCreate\|func (a \*API) handleSessionRestart\|sessionLocate(ctx" control-plane/internal/api/sessions.go`
-  — confirm the three symbols; if phase 2 or 3 has moved the step order, stop and report.
+  — confirm the three symbols. Then `grep -n "Backend.Destroy(ctx, sess.SandboxID)\|harness.Build(harness.Request\|sessionEnv(" control-plane/internal/api/sessions.go`
+  — inside `handleSessionRestart` the order must read argv rebuild, `sessionEnv`, destroy (at
+  `2d6d95b`: `:1002`, `:1022`, `:1026`). If phase 2 or 3 has moved the step order, stop and report.
 - [ ] **Step 2:** Write `materialise_test.go`; add a recording fake to `api_test.go`'s `Deps`
   builder so every existing test still constructs a valid `Deps`. Confirm the new tests fail.
 - [ ] **Step 3:** Write `materialiser.go`; edit `api.go`, `problem.go`, `sessions.go` as above.

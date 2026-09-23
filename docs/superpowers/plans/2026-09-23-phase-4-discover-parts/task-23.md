@@ -53,7 +53,13 @@ lists the control plane's own):
 - [ ] **Step 9: 4-D1.** Stop the Hub (`docker compose … stop hub`); start a session. Expected:
   `409 brief_not_written`, `reason: hub_unavailable`, no record created. Repeat with
   `"withoutBrief": true`. Expected: 201, `contextRef: "none:declined"`, and no managed block in
-  `CLAUDE.md`. Start the Hub again.
+  `CLAUDE.md`. **Then the restart refusal (review C1):** with the Hub still stopped, record the
+  step-7 session's `sandboxId` and `contextRef` from `GET /v1/sessions/{id}`, then
+  `POST /v1/sessions/{id}/restart` with an empty body. Expected: `409 brief_not_written`,
+  `reason: hub_unavailable`; `docker ps --filter label=panacea-app.sandbox-id=<sandboxId>` still
+  lists the old container, running; a second `GET` shows the same `sandboxId`, status and
+  `contextRef`; the pane still attaches and echoes a keystroke. A restart that kills the agent and
+  then refuses fails this step. Start the Hub again.
 - [ ] **Step 10: 4-D3.** Give the project brief five answers; confirm the branch brief moved to a
   new revision whose `inherits.key` is the project's new key, in the **same** `written` list.
 - [ ] **Step 11: The suites and the guards.** `go test ./control-plane/... -race -count=1`;
