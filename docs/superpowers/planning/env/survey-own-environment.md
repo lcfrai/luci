@@ -416,4 +416,47 @@ No `.github/` directory, though OD-7 made `github.com/lcfrai/panaceaapp` the bac
 | **G-11** | **No observability or budget guard.** | nothing in `infra/` | Log Analytics with a daily cap and a DCR in the first apply; kube-audit on, with the cap sized for it; a subscription budget alert |
 | **G-12** | **Defender for Containers cannot assess Kata pods** | `docs/PROGRAM.md:133` | Record as a compliance gap in the phase 8 plan, as `PROGRAM.md` already asks |
 
+---
+
+## 5. CI/CD shape for a monorepo of `go.work`, `desktop/` and `infra/`
+
+**Principle.** OD-5 keeps a monorepo so cross-cutting changes land atomically
+(`…/2026-09-23-owner-decisions.md:16`). CI must therefore validate *every tree a change touches* in
+one PR, and deploy nothing a reviewer did not see in a plan.
+
+**Host.** Azure DevOps is the CI of record: `PROGRAM.md:11` says "own ADO pipeline" and
+`azure-pipelines.yml` exists. `github.com/lcfrai/panaceaapp` is a backup remote (OD-7), not a
+second CI; two CI systems drift. (OD-4 is about *users'* git hosts, not ours.)
+
+**Layout.** One pipeline file per concern under `pipelines/`, each with a `paths` trigger, sharing
+templates; ADO branch policies run each as PR build validation filtered by path. The PR is green only
+when every affected pipeline is.
+
+| Pipeline | Trigger paths | Agent | Steps | Gates |
+|---|---|---|---|---|
+| `go` | `go.work`, `control-plane/**`, `sandboxd/**` | ubuntu | build, `vet`, `test -race -count=1` per module (today's three steps, `azure-pipelines.yml:12-17`, Go 1.23 at `:9-11`), `govulncheck` | PR |
+| `desktop` | `desktop/**` | ubuntu + **windows** | `npm ci`, `typecheck`, `test` (`desktop/package.json:11-13`); `cargo clippy` for `src-tauri`; `tauri build` on Windows for `main` only | PR; signing is phase 9 (`docs/PROGRAM.md:139`) |
+| `licences` | any lockfile or `go.sum` | ubuntu | npm, Go and Cargo licence reports against **MIT, Apache-2.0, BSD, ISC** | PR — OD-11 rule 3 (`…/owner-decisions.md:96-98`) applied repo-wide |
+| `images` | `images/**`, `sandboxd/**`, server code | ubuntu | `buildx` per image, tag = git SHA, SBOM, vulnerability scan, OD-8 transcript canary against the built sandbox image; push to ACR by digest on `dev`/`main` only | PR builds, never pushes |
+| `infra` | `infra/**` | ubuntu | `fmt -check`, `init -backend=false` + `validate` per stack, a linter and a static IaC scan — **no Azure call, safe on every PR** | PR |
+| `infra-plan` | `infra/**` | in-VNet pool (below) | `plan` against remote state, published as a PR artifact | **Absent until the owner's environment exists** (owner decisions `:56`) |
+| `deploy` | manual / `main` | in-VNet pool | `apply` of the saved plan; `helm upgrade --install --atomic` for the Hub and broker; smoke: RuntimeClass exists, a sandbox boots, attach works through the broker | ADO Environment approval; estate guard (branch ↔ env, as `P:azure-pipelines-dev.yml:78-86`) |
+| `secrets` | all | ubuntu | a secret scanner over the diff | PR |
+
+**Identity.** One workload-identity-federation (OIDC) service connection per environment; no client
+secret (contrast `P:azure-pipelines-dev.yml:17-20`). The deploy identity is the one in section 7.
+
+**Reaching the cluster.** Microsoft-hosted agents have no stable IP and cannot reach a private API
+(`P:deploy/ado-selfhosted-agent.tf:5-9`). Recommendation: a **VNet-injected Managed DevOps Pool**
+for `infra-plan` and `deploy`; fall back to a VMSS agent in its own subnet, Panacea's pattern.
+Whether Managed DevOps Pools are enabled in KPMG's ADO organisation is **UNVERIFIED**.
+
+**Terraform versions.** Terraform `>= 1.9.0` and `azurerm ~> 4.0` (`infra/terraform/providers.tf:2-7`);
+the lock file pins the exact provider (`infra/terraform/.terraform.lock.hcl`, not opened). Pin the
+Terraform binary in the pipeline, as Panacea pins 1.9.8 (`P:azure-pipelines-dev.yml:102-106`).
+
+**Two traps from Panacea to design out.** A fresh bootstrap exceeded the 60-minute free hosted-job
+cap (`P:azure-pipelines-dev.yml:24`), so buy parallel jobs before the first apply. And tools
+installed by `curl` at run time (`:88-114`) drift; pin versions in a template.
+
 
