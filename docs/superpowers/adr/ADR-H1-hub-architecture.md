@@ -75,6 +75,11 @@ Hub. So the Hub holds:
 Plus what `OD-3`/`OD-5` add and no earlier document owned: **users, teams, membership, projects and
 their git remotes on both hosts** (`OD-4`), and an **audit log**.
 
+**One row leaves the Hub.** Phase 3 has since chosen the merge link's home: *"The merge link lives
+in git as a trailer (3-D6)"* (`worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md:84`).
+So the Hub holds **no merge link**. It holds phase 3's **evidence records** instead (H-2, §1.5),
+which no earlier document placed.
+
 ### 1.3 What stays where it is
 
 - **`Session.contextRef`** stays on the control plane's registry session record
@@ -103,7 +108,7 @@ their git remotes on both hosts** (`OD-4`), and an **audit log**.
 
 Three sibling planners wrote while this ADR did not yet exist, and each defined the minimum it needs
 as an *ask*. Read on 2026-09-23 by absolute path, never written to. The contract satisfies each ask
-or names the difference (contract §12).
+or names the difference (contract §14).
 
 | Ask | From | Source, read directly |
 |---|---|---|
@@ -133,7 +138,7 @@ desktop, tokens in Windows Credential Manager, loopback-only control plane, this
 
 ### 2.1 Design A — smallest Go-native
 
-- **One new Go module, `hub/`**, one binary, REST + JSON under `/api/v1`, the control plane's
+- **One new Go module, `hub/`**, one binary, REST + JSON under `/v1`, the control plane's
   problem body. `pgx` for Postgres, SQL migrations embedded in the binary and run by a ~80-line
   runner. Nothing else in the process.
 - **Identity:** the **control plane** runs PKCE against Entra directly and holds the tokens. The Hub
@@ -305,7 +310,7 @@ Each answer is the decision; the contract holds the exact routes, JSON, DDL and 
 
 **The control plane runs the sign-in and holds the tokens. The renderer never sees one.**
 
-1. The renderer calls the control plane's `POST /api/v1/auth/sign-in`. The control plane makes a
+1. The renderer calls the control plane's `POST /v1/auth/sign-in`. The control plane makes a
    PKCE verifier (32 random bytes), its S256 challenge, a `state` and a `nonce`, and opens a
    **one-shot listener on `127.0.0.1:0`** (RFC 8252 §7.3, an ephemeral port).
 2. It answers `{ "authorizeUrl": … }`. The renderer opens that URL in the **system browser** through
@@ -316,7 +321,7 @@ Each answer is the decision; the contract holds the exact routes, JSON, DDL and 
    answers a static "you can close this tab" page, closes itself, and exchanges the code plus
    verifier at the token endpoint.
 4. The **refresh token** goes to **Windows Credential Manager**; **access tokens stay in memory**.
-   The renderer learns the outcome by calling `GET /api/v1/auth/status` on its poll tick.
+   The renderer learns the outcome by calling `GET /v1/auth/status` on its poll tick.
 
 The one-shot listener is deliberate. The main control-plane listener's Origin policy rests on an
 invariant written into `httpx/origin.go`'s `Allow` doc comment: *"no route behind this middleware
@@ -561,7 +566,7 @@ migrate Job.
 | server | **H5** releases: reserve, confirm, abandon, rollback, the deployment join | **phase 7** | 1.5 |
 | server | **H6** evidence | **phase 3** (H-2) | 0.5 |
 | server | **H7** change feed, audit chain, erasure | teammates see changes; Q2 | 1 |
-| client | **C1** `entraauth` + `credstore` + `/api/v1/auth/*` on the control plane | sign-in; phase 8's HA-2; phase 3's H-1 | 2 |
+| client | **C1** `entraauth` + `credstore` + `/v1/auth/*` on the control plane | sign-in; phase 8's HA-2; phase 3's H-1 | 2 |
 | client | **C2** `hubclient`, the relay rule and `upstream_unavailable` for `hub` | every phase's Hub calls | 1 |
 | client | **C3** the local caller key, control plane and desktop | the §6.6 exposure | 1 |
 | client | **C4** the desktop's sign-in surface: signed-out, signing-in, signed-in, re-auth | the owner can sign in | 1 |

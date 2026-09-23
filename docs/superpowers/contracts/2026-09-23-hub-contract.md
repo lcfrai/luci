@@ -21,7 +21,7 @@ signed-in user a request's access token names.
 | **7 Deploy** | §1, §3, §4, §7.9, §9.2 | `hubclient.Releases`; reserve → confirm or abandon, rollback, the deployment join |
 | **3 Git** | §1, §4, §7.10, §9.1 | `hubclient.Evidence`; `credstore` in the control plane |
 | **8 Environment** | §6, §10.1, §12 | the chart values in §12.3, the registrations in §6.5 |
-| **Desktop** | §4.3, §9.3–§9.5 | control-plane `/api/v1/auth/*`, the local caller key, the change cursor header |
+| **Desktop** | §4.3, §9.3–§9.5 | control-plane `/v1/auth/*`, the local caller key, the change cursor header |
 
 ---
 
@@ -370,7 +370,7 @@ the Go check disabled through a test-only hook.
 
 | Step | Who | What, exactly |
 |---|---|---|
-| 1 | renderer → control plane | `POST /api/v1/auth/sign-in` with the local caller key (§9.4). No body |
+| 1 | renderer → control plane | `POST /v1/auth/sign-in` with the local caller key (§9.4). No body |
 | 2 | control plane | cancels any pending sign-in. Makes `verifier` = base64url(32 random bytes), 43 characters; `challenge` = base64url(SHA-256(verifier)); `state` and `nonce` = base64url(32 random bytes) each. Opens a listener on `127.0.0.1:0` |
 | 3 | control plane | fetches `<authority>/v2.0/.well-known/openid-configuration` (cached 24 h), where `<authority>` is `PANACEA_APP_ENTRA_AUTHORITY` — `https://login.microsoftonline.com/<tenant-id>`, or `http://127.0.0.1:8740/<tenant-id>` for `devissuer` |
 | 4 | control plane → renderer | `200 {"authorizeUrl":"…","expiresAt":"…"}`. The URL is the discovered `authorization_endpoint` with `client_id=<desktop client id>`, `response_type=code`, `response_mode=query`, `redirect_uri=http://127.0.0.1:<port>/`, `scope=openid profile offline_access email api://<hub-client-id>/Hub.Access`, `state`, `nonce`, `code_challenge`, `code_challenge_method=S256`, `prompt=select_account`. `expiresAt` is now + 10 min |
@@ -381,7 +381,7 @@ the Go check disabled through a test-only hook.
 | 9 | control plane | validates the `id_token`: signature against the discovered `jwks_uri`, `iss`, `aud` = the desktop client id, `nonce` = step 2's, `exp`. Takes `tid`, `oid`, `name`, `preferred_username` from it |
 | 10 | control plane | writes the refresh token and the account record to Credential Manager (§9.1); keeps the access token in memory with its `exp` |
 | 11 | control plane → Hub | `GET /v1/me` with the access token — provisions the user and binds invites (§7.2) |
-| 12 | renderer | its next `GET /api/v1/auth/status` reads `signed_in` |
+| 12 | renderer | its next `GET /v1/auth/status` reads `signed_in` |
 
 **Failures.** Entra's `error` at step 7 → `signed_out`, `reason: "entra_error"`, with
 `error_description` logged, not shown. No callback in 10 minutes → `reason: "timeout"`, listener
@@ -411,7 +411,7 @@ KPMG's registration can only carry `http://localhost` (§6.5).
   `details.upstream = "entra"`; the stored token is kept.
 - **Start-up.** If Credential Manager holds an account record, status is `signed_in` immediately;
   the first `Token` call proves it. Nothing is redeemed eagerly.
-- **Sign-out.** `POST /api/v1/auth/sign-out` deletes both entries and the in-memory tokens. It does
+- **Sign-out.** `POST /v1/auth/sign-out` deletes both entries and the in-memory tokens. It does
   not call Entra's logout endpoint in v1: the browser session is the user's, not ours.
 
 ### 6.3 Token validation — `control-plane/internal/entra` (HA-1)
@@ -1112,7 +1112,7 @@ admin only; `reason` 1–500 characters; the brief must be in the admin's org (e
 - the head is archived if it was not;
 - approvals, releases, evidence and session links are **not** changed: none of them holds brief
   text. (Phase 5's snapshot holds no brief text either: there is no brief mirror,
-  `paper-design-cleanroom-spec.md:470`.)
+  `paper-design-cleanroom-spec.md:469`.)
 
 → `200 {"briefId":"bf-…","erasedRevisions":6,"erasedAt":"…"}`. A second erase answers
 `erasedRevisions: 0`. Irreversible. Event `brief.erased` (in the feed, with no content).
