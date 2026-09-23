@@ -66,8 +66,14 @@ export interface DiscoverSlice {
   /** Written by the loader when a feed event names a brief a view shows; the mounted lens
    *  re-fetches that view once and clears it. */
   discoverStale: Record<string, true>;
+  /** The key a chip asked Discover to open read-only (contract §4.1's one click); null for the
+   *  live brief. Not persisted: a restart opens the live brief. */
+  pastKey: string | null;
 
   setBriefView(targetKey: string, view: BriefView): void; // also puts the view's head into headsByBrief
+  /** Sets pastKey and switches the lens to "discover" through phase 2's existing lens action. */
+  openPast(key: string): void;
+  closePast(): void;
   setDiscoverLoad(targetKey: string, load: DiscoverLoad, error?: { code: string; message: string }): void;
   markViewStale(targetKey: string): void;
   clearViewStale(targetKey: string): void;
