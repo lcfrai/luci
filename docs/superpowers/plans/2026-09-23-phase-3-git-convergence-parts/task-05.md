@@ -11,7 +11,9 @@ repository's own configuration, so a repository using husky (`core.hooksPath=.hu
 `.git/hooks` would silently lose **every** hook, not only `prepare-commit-msg`. So the image's
 hooks directory holds one dispatcher, linked under every client-side hook name, and each name
 runs the repository's own hook of that name first. It is tested against a real husky layout in
-the image before it ships.
+the image before it ships, on a clone made by task 03's `lanes.Creator` from a project whose
+own config carries the setting (review I11: a clone configured by hand proves nothing, because
+`git clone` copies neither `.git/config` nor `.git/hooks`).
 
 **Files:**
 - `images/sandbox/githooks/dispatch` — the dispatcher (new, LF line endings)
@@ -116,6 +118,14 @@ else
 	repo_hooks="$(git rev-parse --git-common-dir)/hooks"
 fi
 
+# A configured directory the clone does not have runs nothing; say so once per commit, not
+# once per hook (review I11: task 03 copies a generated one at create time, and a lane made
+# before the project's install step ran has none).
+if [ -n "$(git config --local --get core.hooksPath 2>/dev/null)" ] && [ ! -d "$repo_hooks" ] &&
+	[ "$name" = prepare-commit-msg ]; then
+	echo "panacea: core.hooksPath names $repo_hooks, which this clone does not have; this repository's hooks did not run" >&2
+fi
+
 if [ "$repo_hooks" != "$self_dir" ] && [ -x "$repo_hooks/$name" ]; then
 	"$repo_hooks/$name" "$@" || exit $?
 fi
@@ -161,7 +171,9 @@ RUN sed -i 's/\r$//' /opt/panacea/githooks/dispatch \
 | `TestDispatchStampsTheSession` (docker) | a commit in a clone mounted at `/home/dev/work` with the session environment carries `Panacea-Session: s-test1` exactly once (`git log -1 --format=%(trailers:key=Panacea-Session,valueonly)`) | the hook not installed, not executable, or CRLF |
 | `TestDispatchSurvivesNoVerify` (docker) | `git commit --no-verify -m x` still carries the trailer | trusting `--no-verify` to skip only what we expect |
 | `TestDispatchKeepsAnAmendsSession` (docker) | commit with `s-a`, then `git commit --amend` with `PANACEA_APP_SESSION_ID=s-b` → the trailer is `s-a`, once | a rewritten commit claiming a new author |
-| `TestDispatchChainsToHusky` (docker) | a clone whose `.git/config` has `core.hooksPath=.husky/_` and whose `.husky/_/pre-commit` exits 1 → `git commit` fails; with it exiting 0 and `.husky/_/commit-msg` appending `X-Husky: ran`, the commit has **both** trailers | risk R7: a husky repository losing its hooks |
+| `TestDispatchChainsToHusky` (docker; review I11) | the clone is made by task 03's `lanes.Creator`, never configured by the test: a `gitxtest` project whose **local** config has `core.hooksPath=.husky/_` and whose working tree has an ignored `.husky/_/` (`.gitignore` `*`, a `pre-commit` exiting 1, a `commit-msg` appending `X-Husky: ran`), as husky's install step leaves it. The test writes nothing into the clone. In the sandbox `git commit` fails; with the **project's** `pre-commit` changed to exit 0 and a second lane created, the commit has **both** trailers. Red first against a Creator without step 6 | risk R7: a husky repository losing its hooks on a real clone |
+| `TestDispatchNamesAMissingHooksDir` (docker; review I11) | a lane whose clone has `core.hooksPath=.husky/_` and no `.husky/_`: `git commit` succeeds with the `Panacea-Session` trailer, and its stderr holds the `panacea: core.hooksPath names` line exactly once | a lane that silently runs none of the repository's hooks |
+| `TestSandboxCannotWriteHooksPath` (docker; review I11) | in a lane sandbox, `git config core.hooksPath .husky/_` (the write husky's install step makes) exits non-zero and the host's `.git/config` is byte-identical: the reason task 03 copies the directory rather than leave it to the install step. If it exits 0, H5 is broken: stop and report | the premise of task 03's `CopyGeneratedHooks` going stale unnoticed |
 | `TestDispatchChainsToDotGitHooks` (docker) | no local hooksPath; `.git/hooks/prepare-commit-msg` appends `X-Repo: ran` → both lines present, the repo's first | the default hooks directory skipped |
 | `TestDispatchRefusesAForgedID` (docker) | `PANACEA_APP_SESSION_ID='s-1 Panacea-Land: w-x'` → no Panacea trailer at all | trailer injection through the environment |
 | `TestDispatchCostIsBounded` (docker) | 50 commits with the dispatcher vs 50 with `core.hooksPath=/dev/null`: record both wall-clocks in the task report; fail only if the dispatcher is over 3× | a hook so slow agents notice |
@@ -199,6 +211,7 @@ package `main`, which this package cannot import.
 go test ./control-plane/... -race -count=1                                   → PASS
 go test ./control-plane/internal/api/ -tags docker -run Dispatch -count=1 -v → PASS, 8 tests; the cost numbers in the report
 go test ./control-plane/internal/api/ -tags docker -run TestSandboxCloneConfigIsReadOnly -count=1 -v → PASS (task-02 §HGH H5)
+go test ./control-plane/internal/api/ -tags docker -run TestSandboxCannotWriteHooksPath -count=1 -v → PASS (review I11)
 go test ./control-plane/internal/api/ -tags docker -run TestSandboxLaneCloneChecksOutLF -count=1 -v → PASS (plan re-review b02 I-1)
 go test ./control-plane/cmd/api/ -run TestTheResolverReadsALaneCloneAsLF -count=1 -v              → PASS, not SKIP
 git ls-files --eol images/sandbox/githooks/dispatch                          → i/lf  w/lf
@@ -211,6 +224,17 @@ git ls-files --eol images/sandbox/githooks/dispatch                          →
   and for commits made outside the cockpit, in the same words, because we cannot tell them apart.
 - A commit in a worktree shared by two sessions names the one that ran `git commit`, not whose
   lines are in it (survey §5.3 item 2; 3-D2's notice, task 06).
+- **Fresh-clone hooks (review I11).** `git clone` copies neither `.git/config` nor `.git/hooks`,
+  so a lane runs the repository's hooks only through what task 03's Create put there: a
+  relative local `core.hooksPath` (step 6) and, when the project had generated and ignored it,
+  that directory's files as they were at create time. The agent cannot repair a lane from
+  inside: the install step's `git config core.hooksPath` fails against the read-only
+  `.git/config` (`TestSandboxCannotWriteHooksPath`). A lane made before the project's install
+  step ran prints the dispatcher's `panacea:` line and runs no repository hook; removing and
+  re-creating it after the install fixes it. Hooks installed only into `.git/hooks` (the
+  pre-commit framework's shim) never reach a lane, and nothing tells that apart from a
+  repository with no hooks. Whether a copied hook is executable through Docker Desktop's bind
+  mount is `TestDispatchChainsToHusky`'s to show (NTFS has no execute bit; unverified).
 - Observation, not fixed here: `images/sandbox/entrypoint.sh` is **CRLF in this checkout**
   (`file` reports "with CRLF line terminators"; `core.autocrlf=true`, no `.gitattributes`). Whether
   that has broken an image build depends on where the image was built, which this plan did not
