@@ -91,14 +91,86 @@ func sessionHasConversation(d harness.Descriptor) bool {
 	return d.Available() && d.SupportsResume
 }
 
-// sessionMounts is everything of the host a sandbox sees: its worktree, and its
-// worktree's conversation store when the harness has a conversation.
-func sessionMounts(worktreePath, conversationStore string) []backend.Mount {
+// sessionCABundlePath is where Deps.CABundle appears inside every sandbox, and
+// the value NODE_EXTRA_CA_CERTS names. Outside /home/dev so nothing the agent
+// user owns sits over it, and read-only because a trust anchor the agent could
+// rewrite is not one.
+const sessionCABundlePath = "/etc/panacea-app/ca-bundle.pem"
+
+// sessionMounts is everything of the host a sandbox sees: its worktree, its
+// worktree's conversation store when the harness has a conversation, and the
+// operator's CA bundle, read-only, when there is one.
+func sessionMounts(worktreePath, conversationStore, caBundle string) []backend.Mount {
 	mounts := []backend.Mount{{HostPath: worktreePath, ContainerPath: sessionWorkDir}}
 	if conversationStore != "" {
 		mounts = append(mounts, backend.Mount{HostPath: conversationStore, ContainerPath: sessionConversationDir})
 	}
+	if caBundle != "" {
+		mounts = append(mounts, backend.Mount{HostPath: caBundle, ContainerPath: sessionCABundlePath, ReadOnly: true})
+	}
 	return mounts
+}
+
+// sessionEnv is the environment every sandbox gets beyond sandboxd's own three
+// variables, for every harness: a shell user runs git and node as much as an
+// agent does.
+//
+// Git's configuration travels as GIT_CONFIG_COUNT/KEY/VALUE (git 2.31+; the
+// image has 2.39) rather than a file in the image, so sessionWorkDir stays the
+// ONE place the mount point is written. Two settings:
+//
+//   - safe.directory = sessionWorkDir. A bind mount's owner is not the image's
+//     dev user (Docker Desktop shows root), so without it every git command in
+//     the worktree dies with "detected dubious ownership". This one path and
+//     never "*", which would switch the protection off for every repository.
+//     Environment config is command-scope, which git counts as protected, so
+//     the setting is honoured; a repository's own config cannot widen it.
+//   - user.useConfigOnly = true. With no identity, git would otherwise invent
+//     one from the user and host name — dev@<container> — and on a host with a
+//     domain it would succeed. Commits are made as the user or not at all.
+//
+// The identity goes in as GIT_AUTHOR_* and GIT_COMMITTER_*, which git prefers
+// over any config, so what Deps.GitIdentity resolved is what every commit says.
+//
+// NODE_EXTRA_CA_CERTS ADDS to Node's trust store. SSL_CERT_FILE would replace
+// the system bundle, and verification is never disabled under any setting.
+func sessionEnv(id GitIdentity, caBundle string) map[string]string {
+	env := map[string]string{
+		"GIT_CONFIG_COUNT":   "2",
+		"GIT_CONFIG_KEY_0":   "safe.directory",
+		"GIT_CONFIG_VALUE_0": sessionWorkDir,
+		"GIT_CONFIG_KEY_1":   "user.useConfigOnly",
+		"GIT_CONFIG_VALUE_1": "true",
+	}
+	if id.Name != "" {
+		env["GIT_AUTHOR_NAME"] = id.Name
+		env["GIT_COMMITTER_NAME"] = id.Name
+	}
+	if id.Email != "" {
+		env["GIT_AUTHOR_EMAIL"] = id.Email
+		env["GIT_COMMITTER_EMAIL"] = id.Email
+	}
+	if caBundle != "" {
+		env["NODE_EXTRA_CA_CERTS"] = sessionCABundlePath
+	}
+	return env
+}
+
+// sessionGitIdentity asks Deps.GitIdentity who this worktree's commits are by.
+// It never fails a session: an agent with no identity can still read, edit and
+// run everything, and only a commit is refused. The refusal's cause goes to the
+// log as the resolver wrote it, because that sentence names the fix.
+func (a *API) sessionGitIdentity(ctx context.Context, worktreeID, worktreePath string) GitIdentity {
+	if a.deps.GitIdentity == nil {
+		return GitIdentity{}
+	}
+	id, err := a.deps.GitIdentity(ctx, worktreePath)
+	if err != nil {
+		a.sessionLog().Warn("the sandbox has no git identity, so a commit in it will fail",
+			"worktreeId", worktreeID, "err", err)
+		return GitIdentity{}
+	}
+	return id
 }
 
 // sessionJSON is the session object of contract §3.10, and it is a separate
@@ -358,6 +430,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// 2b. The sandbox's environment. Resolved here, before the record, because
+	// the identity lookup runs git on the host and the window between the
+	// record and its sandbox is the one the reaper has to tolerate.
+	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID, path), a.deps.CABundle)
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
@@ -425,10 +501,11 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		Image:       a.sessionImage(),
 		Command:     command,
 		Args:        argv,
+		Env:         sandboxEnv,
 		AttachToken: token,
 		Resources:   a.sessionResources(),
 		WorkDir:     sessionWorkDir,
-		Mounts:      sessionMounts(path, conversationStore),
+		Mounts:      sessionMounts(path, conversationStore, a.deps.CABundle),
 	})
 	if err != nil {
 		// The reason on the record is written for the user; the raw error goes
@@ -939,6 +1016,10 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// The environment is rebuilt like the mounts, and before the destroy like
+	// them: the identity is asked for again, so a user who gave their git an
+	// identity after the first create gets a sandbox that can commit.
+	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID, path), a.deps.CABundle)
 
 	// One of contract §5.2's three permitted destroys.
 	if sess.SandboxID != "" {
@@ -1013,10 +1094,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		Image:       a.sessionImage(),
 		Command:     command,
 		Args:        args,
+		Env:         sandboxEnv,
 		AttachToken: token,
 		Resources:   a.sessionResources(),
 		WorkDir:     sessionWorkDir,
-		Mounts:      sessionMounts(path, conversationStore),
+		Mounts:      sessionMounts(path, conversationStore, a.deps.CABundle),
 	})
 	if err != nil {
 		a.sessionLog().Error("restart: create the sandbox", "sessionId", id, "err", err)

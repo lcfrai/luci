@@ -1,9 +1,14 @@
 package main
 
 import (
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -43,6 +48,19 @@ const (
 	// operator whose first pull of the sandbox image is cold has no way to wait
 	// longer. This task adds exactly this one row to that table.
 	envReadyTimeout = "PANACEA_APP_READY_TIMEOUT"
+
+	// envGitName and envGitEmail are the commit identity every sandbox's git
+	// uses, as a pair. Unset, each session takes the identity the host's own git
+	// would stamp on a commit in that worktree (gitidentity.go). Added by the
+	// sandbox git fix, with envCABundle; contract §4 carries all three rows.
+	envGitName  = "PANACEA_APP_GIT_NAME"
+	envGitEmail = "PANACEA_APP_GIT_EMAIL"
+
+	// envCABundle is an absolute host path to a PEM bundle every sandbox trusts
+	// IN ADDITION to its own roots — the root certificate of a TLS-intercepting
+	// proxy, without which Claude Code cannot reach its API from any sandbox on
+	// such a network. Unset mounts nothing and sets nothing.
+	envCABundle = "PANACEA_APP_CA_BUNDLE"
 
 	// envStateDir is statepath's own constant, not a second spelling of it.
 	// statepath.Dir reads this variable (contract §2.7) and this file reports
@@ -107,6 +125,14 @@ type Config struct {
 	LogLevel         slog.Level
 
 	HarnessAllowUnverified bool
+
+	// GitName and GitEmail are both set or both empty; loadConfig refuses one
+	// without the other. Empty means gitIdentityResolver asks the host's git.
+	GitName  string
+	GitEmail string
+	// CABundle is an absolute path to a file loadConfig has read and found to
+	// hold at least one PEM certificate, or "" for none.
+	CABundle string
 
 	// Warnings are the complaints that must not stop the process. They are
 	// collected rather than printed because the logger does not exist yet —
@@ -265,6 +291,24 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	}
 	cfg.ConversationsDir = conversations
 
+	// A pair or nothing. Half a pair has no reading that is not a guess: the
+	// other half from the host would stamp commits with two sources' idea of
+	// one person, and the half alone fails every commit in a way that names
+	// neither variable.
+	cfg.GitName, cfg.GitEmail = raw(envGitName), raw(envGitEmail)
+	switch {
+	case cfg.GitName != "" && cfg.GitEmail == "":
+		return Config{}, fmt.Errorf("%s is set but %s is not: set both, or neither to commit as the identity this machine's git uses", envGitName, envGitEmail)
+	case cfg.GitName == "" && cfg.GitEmail != "":
+		return Config{}, fmt.Errorf("%s is set but %s is not: set both, or neither to commit as the identity this machine's git uses", envGitEmail, envGitName)
+	}
+
+	if cfg.CABundle = raw(envCABundle); cfg.CABundle != "" {
+		if err := validateCABundle(cfg.CABundle); err != nil {
+			return Config{}, err
+		}
+	}
+
 	if err := validateAddr(&cfg); err != nil {
 		return Config{}, err
 	}
@@ -302,6 +346,46 @@ func validateAddr(cfg *Config) error {
 		return nil
 	}
 	return fmt.Errorf("refusing to bind %s: a sandbox attach socket on a non-loopback address is a shell on the LAN. Set %s=1 to override.", cfg.Addr, envAllowPublicBind)
+}
+
+// validateCABundle is the startup check on PANACEA_APP_CA_BUNDLE, and it
+// refuses rather than warns. A bundle that is missing or holds no certificate
+// is mounted into every sandbox anyway, Node ignores it with a warning nobody
+// sees, and the user's first sign is Claude Code failing its connection check
+// in a terminal — far from the variable that caused it.
+//
+// "At least one certificate" means a CERTIFICATE block x509 can parse, not any
+// PEM block: a private key or a CSR is valid PEM and trusts nothing.
+func validateCABundle(path string) error {
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("%s=%q is not an absolute path; it is mounted into every sandbox, so give the full path to the PEM file", envCABundle, path)
+	}
+	info, err := os.Stat(path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return fmt.Errorf("%s=%q: no such file. Export your network's root certificate as PEM to that path (contract §4 names the command), or unset the variable", envCABundle, path)
+	case err != nil:
+		return fmt.Errorf("%s=%q cannot be read: %w", envCABundle, path, err)
+	case info.IsDir():
+		return fmt.Errorf("%s=%q is a directory; it must name one PEM file", envCABundle, path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("%s=%q cannot be read: %w", envCABundle, path, err)
+	}
+	for rest := data; ; {
+		var block *pem.Block
+		if block, rest = pem.Decode(rest); block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		if _, err := x509.ParseCertificate(block.Bytes); err == nil {
+			return nil
+		}
+	}
+	return fmt.Errorf("%s=%q holds no PEM certificate: it needs at least one -----BEGIN CERTIFICATE----- block (a binary .cer export is DER and must be converted), or unset the variable", envCABundle, path)
 }
 
 // parseFlag implements contract §4's "any value other than 1 or true is also
