@@ -208,7 +208,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | **P5-M** | The canvas has **no bound-brief field**. Its brief is its branch's, resolved at call time; an approval records the key it was reviewed against | a stored binding is a second copy of phase 4's inheritance rule | — |
 | **P5-N** | *Start a Develop session from this design* is **three desktop calls**: materialise the bundle, create the session through the existing route, then link it | the control plane never calls its own session handler (no import cycle, no second create path); phase 4's P4-A ignores a caller's `contextRef` anyway | a crash between the second and third call leaves an unlinked session, which the lens shows with a *Link* action |
 | **P5-O** | The canvas Go module is a **separate module in `go.work`**, required by the control plane through a `replace` | `OD-11` rule 4: ship and test alone. ADR-H1 §4.1 kept the Hub inside the control-plane module because it needs `httpx` and `ids`; the canvas needs neither | moving it into the control-plane module is a mechanical import rewrite |
-| **P5-P** | The **licence gate** allows `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `0BSD`, `ISC`; evaluates SPDX `AND`/`OR`; denies `tldraw` and `@tldraw/*` by name whatever they declare; **enforces** every Go module linked into a binary and every npm production dependency; **reports** npm dev dependencies. **Open question OQ-P5-2** | `OD-11` rule 3 names four families; build tools never ship, and several ship data under CC licences (unverified which) | enforcing dev dependencies is one flag in the gate |
+| **P5-P** | The **licence gate** allows `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `0BSD`, `ISC`; evaluates SPDX `AND`/`OR`; denies `tldraw` and `@tldraw/*` by name whatever they declare; **enforces** every Go module linked into a binary and every npm production dependency; **reports** npm dev dependencies. It is **our own stdlib-only program** (`tools/licencegate`) over `go list -deps -json` and `npm ls --json`, not `go-licenses` and `license-checker` (spec L22, L23), because both must be downloaded and the corporate proxy breaks downloads. **Open question OQ-P5-2** | `OD-11` rule 3 names four families; build tools never ship, and several ship data under CC licences (unverified which); a gate developers cannot run locally is met only after a push | enforcing dev dependencies is one flag in the gate |
 | **P5-Q** | The **hidden renderer** (spec OQ-7) is an off-screen renderer the desktop mounts for every canvas whose branch has a running Claude Code session, plus the one open in the lens | layout tools work while the lens is closed; `renderer-unavailable` means the desktop is not running | the registration rule is one selector |
 | **P5-R** | **No shared claim vocabulary with phase 3** (spec OQ-6) | phase 3's claims are *observed* from git (phase 3 task 07), not leases; there is no second lease to share a shape with | revisit when phase 3 adds a lease |
 | **P5-S** | `request_review` creates a **review request on the canvas**, shown in the Design lens and as a toast | the cockpit's ranked queue (`AGENTIC-UX.md` §4 rule 4) does not exist yet; seam S5-Q.1 | — |
@@ -222,8 +222,8 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 
 **Commands.**
 
-- Go, from the repository root: `go test ./canvas/... ./control-plane/... ./sandboxd/... -race -count=1`,
-  or one package path. `go test ./...` at the root is invalid (`go.work` lists modules, and the root
+- Go, from the repository root: `go test ./canvas/... ./control-plane/... ./sandboxd/... ./tools/... -race -count=1`,
+  or one package path (`./tools/...` exists from task 04). `go test ./...` at the root is invalid (`go.work` lists modules, and the root
   is not one). `go vet` on the same three patterns must stay clean. Task 02 adds `./canvas` to
   `go.work`; before task 02 lands the `./canvas/...` pattern does not exist.
 - `sandboxd` is **vendored** (`sandboxd/vendor/`). Phase 5 adds no `sandboxd` requirement: its relay
@@ -354,7 +354,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 
 | Path | Change | Task |
 |---|---|---|
-| `package.json`, `vite.config.ts`, `vitest.config.ts` | the `file:` dependency; `resolve.dedupe` for React; `server.fs.allow` for `../canvas/editor` — **declared amendments** | 03 |
+| `package.json`, `vite.config.ts`, `vitest.config.ts`, `tsconfig.json` | the `file:` dependency; `resolve.dedupe` for React; `server.fs.allow` for `../canvas/editor`; `paths` pinning one `@types/react` — **declared amendments** | 03 |
 | `src/api/design.ts`, `src/api/events.ts` (new) | the design client; the SSE reader | 27 |
 | `src/design/` (new) | `designTypes.ts`, `designSlice.ts`, `transportAdapter.ts`, `DesignLens.tsx`, `ApprovalBar.tsx`, `DesignSide.tsx`, `Presence.tsx`, `Comments.tsx`, `design.css` | 27, 28 |
 | `src/store/store.ts`, `src/store/selectors.ts` | mount the slice (not persisted); one key-source selector (S4-P5.1) | 27 |
@@ -464,7 +464,7 @@ phase 5 does until it is answered.
 | # | Question | Recommendation (built) | Changes if overruled |
 |---|---|---|---|
 | **OQ-P5-1** | May an agent use the canvas tools **without a permission prompt per call**? | **Yes** (P5-D): `--allowedTools mcp__panacea-canvas`. Every canvas write is attributed to the session, claimable, and revertible by session; none touches a file | task 19 drops one flag; agents prompt on every canvas call |
-| **OQ-P5-2** | Should the licence gate **fail** on a dev-only npm dependency (a build tool that never ships)? | **No — report it** (P5-P). The gate fails on everything that ships | task 04 flips one flag; some build tools may then need exceptions |
+| **OQ-P5-2** | Should the licence gate **fail** on a dev-only npm dependency (a build tool that never ships)? And should it scan **Cargo** (the Tauri shell's crate tree, which predates `OD-11`)? | **No — report dev dependencies; do not scan Cargo in phase 5** (P5-P). The gate fails on everything the canvas could add that ships; the canvas adds no crate | task 04 flips one flag, or adds a `cargo metadata` source; either may surface existing dependencies that need review |
 | **OQ-P5-3** | Tool names that follow Paper's public verbs (`write_html`, `update_styles` …) — spec OQ-5 | **Yes for the verbs, no for the brand** (G6). A short legal confirmation is cheap; this is not legal advice | task 14's registry renames |
 | **OQ-P5-4** | Is v1 one human with many agents, and cross-person co-editing v2? — spec OQ-1 | **Yes.** The shared part of the thread (approvals, links, snapshots) is shared from v1 (`OD-3`) | v2 moves ahead of phases 6–8 |
 | **OQ-P5-5** | The canvas's bundled fonts are the design system's Geist Sans and Commit Mono, both **OFL-1.1** — a font licence outside `OD-11` rule 3's four | **Allowed as assets**: the rule governs code dependencies, and `DESIGN-SYSTEM.md` already chose these faces. The gate does not scan fonts | fonts become system-only on the canvas |
