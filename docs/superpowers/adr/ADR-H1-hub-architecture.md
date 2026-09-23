@@ -426,3 +426,122 @@ A caller with no membership gets **404** for the project and everything under it
 project ids cannot be probed. Every write records its principal from the token; **no request body
 carries an actor, an approver or a recorder field**.
 
+### 5.4 Desktop integration
+
+**Who calls the Hub.** The control plane, and nothing else (answers phase 8's HA-6). It calls with
+the user's own access token for `Hub.Access`, through `internal/hub/hubclient`. The renderer calls
+the control plane exactly as today; the control plane's Discover, Design and Deploy handlers call
+the Hub behind it. The Hub rejects any request that carries an `Origin` header, so a webview that
+somehow held a token still could not use it (contract §11.4).
+
+**What changes on the control-plane hop.** Once the Hub exists, a process that reaches
+`127.0.0.1:8730` can act on shared org data as the signed-in user — not only drive local sessions.
+The provenance contract's §6.6 left that exposure to *"the owner of control-plane authentication"*,
+and the owner decisions give that ownership to the Hub phase (`:35-36`). So H-min includes a
+**local caller key** (contract §9.4): the control plane writes a random 256-bit key to a file only
+the user can read, the Tauri shell reads it through one command and hands it to the renderer, and
+every control-plane route except the WebSocket attach requires `Authorization: Bearer <key>`. It
+stops other OS users and **a sandboxed agent that can reach the host's loopback** (whether Docker
+Desktop forwards a container to a host service bound on `127.0.0.1` is **unverified**, and the key
+makes the answer not matter). It does not stop another process of the same user; nothing short of
+an OS-level peer check does, and that is recorded as risk R4 (§8).
+
+**When the Hub is unreachable.**
+
+| Operation | Behaviour |
+|---|---|
+| Resolve a key the control plane already holds | served from its in-memory cache — revisions are immutable, so the copy cannot be stale |
+| Resolve a new key, or read a head | `unavailable` (contract §4.1's sixth state), via 503 `upstream_unavailable` |
+| Any write — a brief answer, an approval, a Ship | refused with 503 `upstream_unavailable`; nothing is queued. A queued approval or pin replayed later would record the wrong moment |
+| Start a session | Materialise needs the head; phase 4's `4-D1` recommendation decides (refuse with an override) |
+| Local sessions, terminals, worktrees | unaffected. They never touch the Hub |
+
+**What the desktop may cache — contract assertion A5 kept, and widened.** A5 says nothing
+provenance-related is persisted in the desktop. It stays, and this ADR widens it to **the user's
+machine**: neither the renderer nor the control plane persists Hub data to disk. The control plane
+may hold immutable revisions **in memory** for its lifetime. Two reasons, either sufficient:
+**erasure** (G6) — a disk copy on a laptop outlives an erase and is out of our reach — and **P4**,
+since a disk cache something renders from is a copy by the contract's own definition. The cost is
+that Discover cannot be edited offline. `PROGRAM.md`'s *local-first* means the whole stack runs on a
+laptop, not that it runs without a network, and the Hub runs on the laptop too (§5.7).
+
+### 5.5 Realtime
+
+**v1 polls a change feed; it pushes nothing.** Every Hub write appends one audit event under one
+lock, so events are numbered in commit order (G3). `GET /v1/changes?after=<seq>` returns the events
+for projects the caller can read. The control plane polls it every 5 seconds while signed in — one
+request per user, whatever the number of projects — and passes the cursor to the desktop in a
+response header on the call the poller already makes (contract §9.3). A teammate's approval
+appears in at most one poll interval plus one desktop tick.
+
+Why not SSE or WebSocket now: the desktop polls the control plane (`poller.ts`), so a push from the
+Hub would end at the control plane anyway, and a poll of an ordered feed is correct under every
+failure without reconnect logic. **SSE is v1.1 and additive**: `GET /v1/changes/stream` serves the
+same event objects with the same cursor as `Last-Event-ID`.
+
+The provenance contract's §6.4 said head refs are not polled *"unless another writer appears"*.
+Teammates are that writer, so its ruling is reopened and closed here: heads are invalidated by the
+change feed, not polled per brief.
+
+**The multiplayer canvas relay is not in v1.** Phase 5 keeps live documents in the control plane in
+v1 and plans to host **the same Go package** in the Hub for v2 (`paper-design-cleanroom-spec.md:380`,
+`:735`). The Hub is shaped so that is additive: a `/v1/canvas/…` WebSocket route on the existing
+server, identity from the same validator, authorisation from the same membership. Yjs is not
+chosen, because phase 5's model is server-authoritative last-writer-wins per property (`:647`).
+
+### 5.6 Storage
+
+- **Postgres 16** — phase 8 provisions 16 (HA-5, task 08); locally `postgres:16-alpine`. **No
+  extensions**: `sha256()`, `gen_random_uuid()`, row-level security and JSONB are all core.
+- **Migrations**: plain SQL files embedded in the binary, applied in order by a ~120-line runner in
+  `internal/hub/migrate` under `pg_advisory_lock`, recorded in `schema_migrations` with a SHA-256 of
+  each file so an edited, already-applied migration is refused. Run as **`hub migrate`**, a
+  subcommand, by phase 8's pre-upgrade Job under the DDL identity. `hub serve` never migrates; it
+  refuses readiness until the schema is at the version it was built for. Rejected: `golang-migrate`,
+  `goose`, `atlas` — each is a dependency, and some a CLI, for a hundred lines we can read.
+- **Blobs**: a `blobs` table (`bytea`, content-addressed by SHA-256, per org), behind a `blobstore`
+  interface. Caps: 16 MiB a blob, 1 GiB a project. Phase 8 provisions no storage account for the Hub
+  (HA-7's default), and this keeps it that way. When design assets outgrow Postgres the interface
+  gets an Azure Blob implementation; the routes do not change.
+- **Audit**: `audit_events`, append-only by grant and trigger, each row carrying the SHA-256 of the
+  previous row's hash and its own canonical fields. It records every write and every security event
+  (denials, sign-in of a new user, erasure). It never records brief text or blob bytes.
+- **Erasure**: an org admin erases a brief. Its revisions keep **key, digest, author and time**; their
+  content is replaced by nothing, `erased_at` is set, and the key then resolves as **`erased`** — a
+  seventh provenance state, distinct from `missing` (data loss) and from `none`. It is done by one
+  `SECURITY DEFINER` function owned by the DDL identity, the only code path allowed to touch a
+  revision. Blobs referenced only by erased records are deleted the same way. Audit rows are not
+  erased; they hold no content. Open question Q2 (§10) asks the owner to confirm the rule.
+- **Australian data residency**: the Hub, its database and its backups are in **Australia East**
+  (phase 8's region, `P8` owner-inputs table `:259`), with geo-backup, if enabled, only to the paired
+  **Australia Southeast**. The Hub makes no outbound call carrying user content. Entra itself is a
+  global service outside this design's control — noted for the owner, not solved here.
+
+### 5.7 Operations
+
+- **Local-first.** `control-plane/cmd/hub/compose.yaml` (contract §12.1) — beside the binary, not
+  under the repo-root `deploy/` tree phase 8 owns — starts `postgres:16-alpine`, `devissuer`, a one-shot `hub migrate` and `hub serve` on
+  `127.0.0.1:8750`. The control plane is pointed at it by two variables. No Azure resource is
+  needed to develop or test any Hub route.
+- **Health.** `GET /healthz`: the process is up. `GET /readyz`: Postgres answers within 1 s, the
+  schema version matches the build, and the JWKS for every enrolled tenant (or `devissuer`) has been
+  fetched once. Both unauthenticated, both answer no detail beyond `{"status":…}`.
+- **Configuration**: every variable is `PANACEA_APP_HUB_*` (contract §12.2), read in one `config.go`
+  block exactly as `control-plane/cmd/api/config.go` does. No secret is a variable in any deployed
+  environment: the database is reached with workload identity and an Entra token (phase 8's
+  `P8-D10`, Entra-only Postgres), fetched by a ~70-line standard-library token exchange, so the
+  Azure SDK is not a dependency.
+- **Deploy (phase 8).** The chart phase 8 is writing (`deploy/charts/hub`, task 29) holds: listen on
+  `:8080`, `/healthz`, `/readyz`, stateless, two replicas, a pre-upgrade migrate Job, 20 s graceful
+  shutdown. Contract §12.3 answers HA-4 and HA-5 field by field.
+
+### 5.8 Security
+
+The top-ten threat model is contract §11.1. The decisions that carry it: tenancy by `org_id` in
+Go **and** in row-level security (G4); project isolation by membership in Go, with every route
+tested as a non-member (contract §13); token audience separation (Hub, broker, Azure DevOps and
+Panacea tokens are four audiences, and none is ever forwarded to another service or into a
+sandbox); no CORS and no `Origin` accepted; per-user and per-org rate limits in process; a DML
+identity that cannot `UPDATE` or `DELETE` an immutable table; and a DDL identity used only by the
+migrate Job.
+
