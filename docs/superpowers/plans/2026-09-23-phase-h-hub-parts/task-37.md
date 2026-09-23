@@ -83,6 +83,7 @@ The `client.ts:6-8` comment (*"no Authorization header … before Phase 8"*) is 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestMintWritesAFreshKey` | the file holds 43 base64url characters; a second `Mint` replaces it with a different key; no temp file is left beside it | a key reused across restarts |
+| `TestTheKeyPathFollowsStatepath` | with `PANACEA_APP_STATE_DIR=/tmp/s` → `/tmp/s/auth/local-key`; with only `LOCALAPPDATA=C:\Users\u\AppData\Local` → `C:\Users\u\AppData\Local\PanaceaApp\state\auth\local-key`; `PANACEA_APP_LOCAL_KEY_FILE` overrides both — the same examples task 38's Rust test pins | a control plane and a shell looking in two places |
 | `TestTheKeyFileIsPrivate` (non-Windows) | mode `0600`, directory `0700` | a key any local user can read |
 | `TestTheKeyNeverPrints` | `%v`, `%+v`, `%#v`, `slog` of a `Key` → `redacted`; no response body in any test below contains it | the key in a log |
 | `TestEveryGuardedRouteNeedsTheKey` | for every pattern in `API.RegisteredPatterns()` except the exemptions, a request with ids filled in and no key → 401 `local_key_required`; with the key → not 401 | a route added later that forgets the key (the §10a audit's own technique) |
