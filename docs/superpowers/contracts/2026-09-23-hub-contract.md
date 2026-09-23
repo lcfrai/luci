@@ -1782,3 +1782,142 @@ CREATE TABLE idempotency_keys (
 );
 CREATE INDEX idempotency_keys_janitor ON idempotency_keys (created_at);
 ```
+
+`0001_init.sql`, continued — the guards:
+
+```sql
+-- ── append-only tables ───────────────────────────────────────────────────────
+CREATE FUNCTION forbid_change() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'hub: % is append-only', TG_TABLE_NAME USING ERRCODE = 'insufficient_privilege';
+END $$;
+
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['design_approvals', 'design_approval_blobs', 'session_links',
+                           'release_deployments', 'evidence', 'audit_events'] LOOP
+    EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON hub.%I
+                    FOR EACH ROW EXECUTE FUNCTION hub.forbid_change()', t || '_append_only', t);
+    EXECUTE format('CREATE TRIGGER %I BEFORE TRUNCATE ON hub.%I
+                    FOR EACH STATEMENT EXECUTE FUNCTION hub.forbid_change()', t || '_no_truncate', t);
+  END LOOP;
+END $$;
+
+-- ── a brief revision changes once, by erasure, and only inside hub.erase_brief ─
+CREATE FUNCTION guard_revision() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'hub: brief revisions are never deleted' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF current_user <> 'hub_owner'
+     OR OLD.canonical IS NULL OR NEW.canonical IS NOT NULL OR NEW.erased_at IS NULL
+     OR (NEW.org_id, NEW.brief_id, NEW.revision, NEW.project_id, NEW.scope, NEW.branch_ref,
+         NEW.status, NEW.digest, NEW.saved_at, NEW.saved_by)
+        IS DISTINCT FROM
+        (OLD.org_id, OLD.brief_id, OLD.revision, OLD.project_id, OLD.scope, OLD.branch_ref,
+         OLD.status, OLD.digest, OLD.saved_at, OLD.saved_by)
+  THEN
+    RAISE EXCEPTION 'hub: a brief revision is immutable' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER brief_revisions_guard BEFORE UPDATE OR DELETE ON brief_revisions
+  FOR EACH ROW EXECUTE FUNCTION guard_revision();
+CREATE TRIGGER brief_revisions_no_truncate BEFORE TRUNCATE ON brief_revisions
+  FOR EACH STATEMENT EXECUTE FUNCTION forbid_change();
+
+-- ── a head moves forward one revision at a time, onto a revision that exists ──
+CREATE FUNCTION guard_brief() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'hub: briefs are archived, never deleted' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF (NEW.id, NEW.org_id, NEW.project_id, NEW.scope, NEW.created_at, NEW.created_by)
+       IS DISTINCT FROM (OLD.id, OLD.org_id, OLD.project_id, OLD.scope, OLD.created_at, OLD.created_by)
+     OR NEW.head_revision NOT IN (OLD.head_revision, OLD.head_revision + 1)
+     OR NEW.latest_complete_revision < OLD.latest_complete_revision
+     OR (OLD.archived_at IS NOT NULL AND (NEW.archived_at IS DISTINCT FROM OLD.archived_at
+                                          OR NEW.head_revision <> OLD.head_revision
+                                          OR NEW.branch_ref <> OLD.branch_ref))
+     OR (OLD.erased_at IS NOT NULL AND NEW.erased_at IS DISTINCT FROM OLD.erased_at)
+     OR (NEW.head_revision <> OLD.head_revision AND NOT EXISTS
+           (SELECT 1 FROM hub.brief_revisions r WHERE r.brief_id = NEW.id AND r.revision = NEW.head_revision))
+  THEN
+    RAISE EXCEPTION 'hub: illegal change to brief %', OLD.id USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER briefs_guard BEFORE UPDATE OR DELETE ON briefs
+  FOR EACH ROW EXECUTE FUNCTION guard_brief();
+
+-- ── a release's pin and identity never change; only a reserved release moves ─
+CREATE FUNCTION guard_release() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'hub: releases are never deleted' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF (NEW.id, NEW.org_id, NEW.project_id, NEW.kind, NEW.panacea_project, NEW.environment,
+      NEW.branch_ref, NEW.commit_sha, NEW.source_deployment_id, NEW.source_release_id,
+      NEW.pin_reason, NEW.pin_brief_id, NEW.pin_brief_revision, NEW.pin_brief_digest,
+      NEW.pin_head_revision_at_ship, NEW.design_key, NEW.reserved_at, NEW.reserved_by, NEW.expires_at)
+     IS DISTINCT FROM
+     (OLD.id, OLD.org_id, OLD.project_id, OLD.kind, OLD.panacea_project, OLD.environment,
+      OLD.branch_ref, OLD.commit_sha, OLD.source_deployment_id, OLD.source_release_id,
+      OLD.pin_reason, OLD.pin_brief_id, OLD.pin_brief_revision, OLD.pin_brief_digest,
+      OLD.pin_head_revision_at_ship, OLD.design_key, OLD.reserved_at, OLD.reserved_by, OLD.expires_at)
+  THEN
+    RAISE EXCEPTION 'hub: a release''s pin never changes' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF OLD.state <> 'reserved' AND NEW IS DISTINCT FROM OLD THEN
+    RAISE EXCEPTION 'hub: release % is %, not reserved', OLD.id, OLD.state USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER releases_guard BEFORE UPDATE OR DELETE ON releases
+  FOR EACH ROW EXECUTE FUNCTION guard_release();
+
+-- ── the audit chain: gapless, in order, and it advances its own head ─────────
+CREATE FUNCTION audit_append() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE h hub.audit_heads%ROWTYPE;
+BEGIN
+  SELECT * INTO h FROM hub.audit_heads WHERE org_id = NEW.org_id FOR UPDATE;
+  IF NOT FOUND OR NEW.seq <> h.seq + 1 OR NEW.prev_hash <> h.hash THEN
+    RAISE EXCEPTION 'hub: audit event % out of order', NEW.seq USING ERRCODE = 'serialization_failure';
+  END IF;
+  UPDATE hub.audit_heads SET seq = NEW.seq, hash = NEW.hash WHERE org_id = NEW.org_id;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER audit_events_append BEFORE INSERT ON audit_events
+  FOR EACH ROW EXECUTE FUNCTION audit_append();
+```
+
+### 10.3 Row-level security — the tenancy line the Go code cannot forget
+
+```sql
+-- 0001_init.sql, continued.
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['users', 'teams', 'team_members', 'team_invites', 'projects',
+      'project_remotes', 'briefs', 'brief_revisions', 'blobs', 'project_blobs', 'design_approvals',
+      'design_approval_blobs', 'session_links', 'releases', 'release_deployments', 'evidence',
+      'audit_heads', 'audit_events', 'idempotency_keys'] LOOP
+    EXECUTE format('ALTER TABLE hub.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY org_isolation ON hub.%I TO hub_app
+                    USING (org_id = current_setting(''hub.org_id'', true))
+                    WITH CHECK (org_id = current_setting(''hub.org_id'', true))', t);
+  END LOOP;
+END $$;
+```
+
+- Every tenant table carries `org_id`, denormalised on purpose, so each policy is one comparison
+  and no policy needs a join.
+- `hub.org_id` is set with `set_config(…, true)` — **transaction-local** — as the first statement
+  of every request's transaction (§5.1 step 6), so a pooled connection cannot carry one request's
+  org into the next. Unset, `current_setting` returns `NULL` and every policy matches nothing.
+- `orgs` has no policy: it holds a tenant id and a name. `hub_app` may only read it.
+- The owner (`hub_owner`) bypasses these policies, as Postgres owners do; only `hub migrate` and the
+  three `SECURITY DEFINER` functions run as it.
+- **Team-level isolation is in Go** (§5.3), not in policies: it would need a join per policy, and
+  the matrix test covers it.
