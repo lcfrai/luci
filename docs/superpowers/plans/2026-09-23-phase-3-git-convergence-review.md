@@ -327,3 +327,61 @@ below was opened in the tree at `034232a` (whose control plane is `3303fd6`'s) o
   `Deps.GitIdentity func(ctx, worktreePath) (GitIdentity, error)`, and `!worktree.isPrimary`.
 - **How to fix:** re-baseline G1 to `4f6d698`. Have tasks 04-06's preflight diff the contract
   sections the fix already edited, before appending to them.
+
+### Minor
+
+Each is small, and each is cheap to fix in the part file named.
+
+1. **task-04:147** says an unknown field is `400 invalid_json`. `httpx.decodeCode` answers
+   `bad_request` for an unknown field (`internal/httpx/problem.go:164-172`;
+   `problem_test.go:203`). Fix the row.
+2. **task-03:22** says `registry` has "two call sites" of `writeAtomic`. There is one
+   (`internal/registry/filestore.go:401`; the definition is at `:460`, as cited).
+3. **plan:81-84** says phase 3 persists "four things", then lists three (lane index, rename map,
+   evidence). Queue order lives in the lane index. Make the count match.
+4. **task-05:164** says `PASS, 8 tests`, but the table lists seven Docker tests (`Dispatch*`).
+5. **plan:107-108** leaves `pullrequests.go` and `transcript.go` out of the `internal/api` file
+   list, while plan:380-381 has them.
+6. **task-11:74** uses `check-ref-format --branch`, which **expands** `@{-N}` to the previous
+   branch's name. A request named `@{-1}` passes validation and then fails `update-ref` as a 500.
+   Use `check-ref-format "refs/heads/<name>"`.
+7. **task-03:54** derives a lane id from its path, so removing a lane and re-creating it with the
+   same name reuses the id. History's `worktreeName` (task-10:33) and undo's
+   `SetWorktreeReady(<Panacea-Land id>, true)` (task-10:69) then act on the new lane for the old
+   lane's land. Add a creation nonce to the directory name, or keep a generation in the index.
+8. **Lane sync and origin refresh fetch into repositories the control plane does not own**, and
+   every `git fetch` runs `maintenance --auto`/`gc --auto` afterwards. A detached `gc` holding
+   `packed-refs.lock` makes a concurrent land's `update-ref` fail as `git_failed`. Pass
+   `--no-auto-maintenance` (git ≥ 2.29) on both fetches.
+9. **task-16:130** reads an untracked file "from disk" on the host. Use `os.Lstat` and refuse a
+   symlink or reparse point the agent made. Cap the read before reading, not after: a 2 GB
+   untracked file is otherwise read whole to find its first 2,000 lines. Add `--no-textconv` to
+   task 16's `diff` and `blame` calls (C1).
+10. **desktop `components/develop/sessionVerbs.ts:608,624`** still says "the merge queue in
+    Phase 3 owns that". Task 22's retirement grep (`arrives in Phase 3`, task-22:148) misses it.
+    Task 19's Not ready button now owns un-marking, so reword it and widen the grep to
+    `Phase 3`.
+11. **task-17:110-114** matches tool calls "at or before commitAt", which is the **author** date.
+    `--amend` and rebase keep the author date, so a later edit is excluded and tier 2 declines.
+    Use the committer date (`%cI`).
+12. **task-11:105** treats `config --remove-section branch.<name>` on an absent section as fine,
+    but git exits non-zero for it. Have task 01 pin the exit code, and have the code match it.
+13. **Git LFS repositories:** Git for Windows' system config defines `filter.lfs.*`, and the
+    sandbox image (`images/sandbox/Dockerfile:12` installs `git`, not `git-lfs`) does not. LFS
+    paths then look modified in the sandbox, which is the same shape as C2. Say so, or add
+    `git-lfs` to the image.
+14. **The clone's `origin` is a Windows path.** Linux git reads `C:/…` as scp-style SSH to a host
+    named `C`, so an agent that tries `git pull` gets a confusing sentence. Once C3's fix stops
+    the host from using it, set `remote.origin.pushurl` and the URL to a self-describing
+    unreachable value, and record the sandbox's sentence in task 01.
+15. **`core.symlinks=false` and `core.longpaths`.** Git for Windows writes `symlinks=false` into a
+    clone's local config, so a repository's symlinks are plain files in the sandbox. A clone under
+    `%LOCALAPPDATA%\PanaceaApp\state\worktrees\p-…\<name>\` (about 75 characters before the
+    repository's own paths; `statepath.go:30-44`) fails with "Filename too long" unless
+    `core.longpaths=true`. Task 01 measures path length but no task sets the value. Clone with
+    `-c core.longpaths=true` and write it locally. State the symlink behaviour.
+16. **task-11:89-93** renames a branch without `CheckedOutAt`. `git branch -m` silently moves the
+    user's own checkout's HEAD. Refuse with `branch_checked_out`, as delete does.
+17. **Loopback exposure grows.** Q5 names push. Destructive routes (DELETE worktree, DELETE
+    branch, lands, undo) and the transcript span GET sit behind the same unauthenticated
+    boundary. Q5's sentence should list them.
