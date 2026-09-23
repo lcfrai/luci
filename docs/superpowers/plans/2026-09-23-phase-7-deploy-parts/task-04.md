@@ -173,6 +173,7 @@ one legacy group binding with empty `grantee`), `urlprefix.json`, `urlprefix-409
 | `TestPostureMintedTokenReturnedNotLogged` | `posture-set-minted.json` → `BypassTokens` has the token; the captured log lacks it | a token in the control plane's log |
 | `TestPasswordOnlyForPasswordMode` | `SetPosture(Mode: kpmg-sso, Password: "x")` sends no `password` key | sending a stale password field that Panacea might persist |
 | `TestGrantEditorSpelling` | `Grant(RoleDeveloper)` body has `"role":"editor"` | the domain word leaking onto the wire |
+| `TestGrantUnknownUserIsRejected` | a 500 `{"error":"failed to add access binding: resolve grantee \"x\": … / no Keycloak user found for grantee \"x\""}` → `KindRejected`, `Message` *"No Panacea user matches that name or email."*; any other 500 → `KindUnavailable`, `Message ""`. The test quotes `handlers/access.go:57` and `clients/keycloak.go:182`, `:189` | a typo shown as an outage — or, the opposite mutant, any 500 body shown to the user (task 11 explains the one exception) |
 | `TestRevokeEscapesEmail` | `Revoke("a.b@kpmg.com.au")` requests `/access/a.b%40kpmg.com.au` | an unescaped path segment |
 | `TestAccessLegacyGroup` | the legacy row → `Grantee == ""`, `Group` set | drawing a group name as a person |
 | `TestNoWriteIsRetried` | every method of this task against a server answering 503 once, then 200: each saw one request | — the whole file's rule |
