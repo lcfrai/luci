@@ -44,7 +44,12 @@ Three rules hold throughout, and every task restates the one it touches:
 
 **Tech stack.** Go 1.23 (the toolchain floor does not move; see the `go` directive constraint),
 `github.com/jackc/pgx/v5` **v5.7.5** (MIT, the only new direct requirement; contract §2),
-`golang.org/x/time/rate` and `golang.org/x/sys/windows` promoted from indirect to direct. Postgres 16
+`golang.org/x/time/rate` and `golang.org/x/sys/windows` promoted from indirect to direct. pgx moves
+five `golang.org/x` modules up with it: x/crypto v0.37.0, x/text v0.24.0 and x/sync v0.13.0 (pgx's
+own requirements), and x/sys v0.32.0 and x/term v0.31.0 (x/crypto v0.37.0's). The last two are not
+in the module cache, so task 06's `go get` may need the network. x/sys becomes direct (task 28) **at
+whatever version the graph then holds**, by `go mod tidy`; no task names an x/sys version, because a
+lower one would downgrade x/crypto and pgx (review I8). Postgres 16
 (`postgres:16-alpine` locally, no extensions). The desktop adds no npm dependency and no Rust
 crate: sign-in opens the browser through `@tauri-apps/plugin-opener`, already a dependency
 (`desktop/package.json`, `desktop/src-tauri/Cargo.toml`) and already used
@@ -97,6 +102,11 @@ Every task restates the ones it touches. None of them moves.
   whose own directive is `go 1.23.0` (read from the module cache, 2026-09-23); `go` will rewrite
   the module's line to `go 1.23.0`. That is the same toolchain floor and is **accepted**; anything
   above `1.23.0` is not. pgx `v5.10.0` (also cached) declares `go 1.25.0` and **must not be used**.
+  The x/ modules pgx pulls up (see "Tech stack") move too: x/crypto v0.37.0, x/text v0.24.0 and
+  x/sync v0.13.0 also declare `go 1.23.0` (read from the cache, 2026-09-24); x/sys v0.32.0's and
+  x/term v0.31.0's directives are **unverified**, because neither is cached, and task 06's diff check
+  is what catches one above `1.23.0`. No task pins an x/ module below what the graph selects: that
+  would downgrade pgx.
   Check `git diff control-plane/go.mod` before every commit that touches it.
 - **No Go build inside Docker.** The corporate proxy breaks `go mod download` inside an image build
   (`images/sandbox/Dockerfile:3-6`) and the control-plane module is not vendored. Binaries are built
@@ -193,7 +203,9 @@ Two further facts, verified here, **close** items the contract and ADR left open
   generated schema). So sign-in needs **no capability change** (closes ADR-H1 §11, contract §15
   last bullet).
 - **`golang.org/x/sys/windows` has no Credential Manager wrappers** — `grep -l "CredWrite\|CredRead"`
-  over `x/sys@v0.24.0/windows/*.go` in the module cache finds nothing. Task 28 declares
+  over `x/sys@{v0.24.0,v0.39.0,v0.47.0}/windows/*.go` in the module cache finds nothing (2026-09-24).
+  The version actually built after task 06 is v0.32.0 or higher, which is not cached and so not
+  grepped here; task 28 Step 2 greps it before writing the calls. Task 28 declares
   `CREDENTIALW` itself and calls `advapi32.dll` through `windows.NewLazySystemDLL`, which is what the
   ADR's *"via `golang.org/x/sys/windows`"* can only mean.
 

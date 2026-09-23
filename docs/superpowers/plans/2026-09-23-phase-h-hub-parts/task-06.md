@@ -180,10 +180,19 @@ Integration tests (`migrate_integration_test.go`, `//go:build integration`), eac
 
 #### Steps
 
-- [ ] **Step 1:** `cd control-plane && go get github.com/jackc/pgx/v5@v5.7.5` (the module is in the
-  cache, `…/pkg/mod/github.com/jackc/pgx/v5@v5.7.5`). Then `git diff go.mod`: the `go` line may
-  become `go 1.23.0` — accepted; any other change to it, or a `toolchain` line, is not: remove the
-  `toolchain` line if one appears and re-run `go mod tidy`.
+- [ ] **Step 1:** `cd control-plane && go get github.com/jackc/pgx/v5@v5.7.5`. pgx itself is in the
+  download cache, but **five `golang.org/x` modules move with it**, because pgx v5.7.5 requires
+  x/crypto v0.37.0, x/text v0.24.0 and x/sync v0.13.0, and x/crypto v0.37.0 requires x/sys v0.32.0
+  and x/term v0.31.0 (both `.mod` files, read from the cache on 2026-09-24). Today
+  `control-plane/go.mod:54-56` holds x/sys v0.24.0, x/term v0.21.0 and x/text v0.16.0, so after this
+  step the graph selects **x/sys v0.32.0, x/term v0.31.0, x/text v0.24.0, x/crypto v0.37.0 and
+  x/sync v0.13.0** (or higher, if another requirement already asks for more). The cache holds
+  neither `x/sys@v0.32.0` nor `x/term@v0.31.0`, so this `go get` **may need the network**, through the
+  corporate proxy. If it cannot reach it, stop and record the blocker: do not pin an older x/sys or
+  x/term to dodge the download, because that lowers x/crypto and with it pgx. Then `git diff go.mod`:
+  the five `golang.org/x` lines above changing is expected. The `go` line may become `go 1.23.0` —
+  accepted; any other change to it, or a `toolchain` line, is not: remove the `toolchain` line if one
+  appears and re-run `go mod tidy`.
 - [ ] **Step 2:** Start a Postgres for the integration tests. Task 09's stack is not built yet, so
   run the same image by hand (PowerShell):
   `docker run -d --name hub-pg-dev -p 127.0.0.1:5433:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -v ${PWD}/control-plane/internal/hub/migrate/roles_local.sql:/docker-entrypoint-initdb.d/01-roles.sql:ro postgres:16-alpine`,

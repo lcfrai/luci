@@ -22,7 +22,7 @@ pooled; the Hub stores none, ADR-H1 §5.2).
 - `control-plane/internal/credstore/chunk.go`, `targets.go` (new)
 - `control-plane/internal/credstore/credstoretest/credstoretest.go` — the behaviour suite (new)
 - `control-plane/internal/credstore/{memory_test.go,wincred_windows_test.go,chunk_test.go,targets_test.go}` (new)
-- `control-plane/go.mod` — `golang.org/x/sys` becomes direct at **v0.24.0**, the version in the graph (modify ⚑)
+- `control-plane/go.mod` — `golang.org/x/sys` becomes direct **at whatever version the graph already holds**, by `go mod tidy`; no version is named (after task 06 that is v0.32.0 or higher, because pgx v5.7.5 → x/crypto v0.37.0 → x/sys v0.32.0) (modify ⚑)
 - `azure-pipelines.yml` — one step: `GOOS=windows go vet ./control-plane/...` (modify ⚑; see Step 5)
 
 #### Contract — complete
@@ -112,8 +112,10 @@ func DeleteChunked(s Secrets, prefix string) error
 ```
 
 **`wincred_windows.go` — described, with its one declaration verbatim.** `golang.org/x/sys/windows`
-v0.24.0 has **no** Credential Manager wrappers (checked: no `CredWrite`/`CredRead` in
-`x/sys@v0.24.0/windows/*.go`), so the file loads `advapi32.dll` with
+has **no** Credential Manager wrappers (checked 2026-09-24: no `CredWrite`/`CredRead` in
+`x/sys@{v0.24.0,v0.39.0,v0.47.0}/windows/*.go` in the module cache; v0.32.0, the version task 06's
+pgx selects, is not cached, so it is unverified there — it lies between two versions that have none,
+and Step 2 greps the version actually built), so the file loads `advapi32.dll` with
 `windows.NewLazySystemDLL("advapi32.dll")` and calls `CredWriteW`, `CredReadW`, `CredDeleteW`,
 `CredEnumerateW` and `CredFree` through `NewProc(…).Call`, with this struct:
 
@@ -171,9 +173,16 @@ unique `PanaceaApp/test-<8 hex>/` prefix and a cleanup that deletes everything u
 #### Steps
 
 - [ ] **Step 1:** Re-read contract §9.1 and ADR-H1 §5.2's Credential Manager paragraph.
-- [ ] **Step 2:** `go get golang.org/x/sys@v0.24.0`; `git diff control-plane/go.mod` shows only
-  that line moving to the direct block.
-- [ ] **Step 3:** The suite and tests; they fail. Then the seven source files.
+- [ ] **Step 2:** Record the version the graph already holds: `cd control-plane && go list -m
+  golang.org/x/sys > $TEMP/xsys.txt` (v0.32.0 or higher once task 06 has landed). **Never `go get`
+  x/sys at a named version**: a lower one downgrades x/crypto, and with it pgx below v5.7.5 (review
+  I8). Grep that version for wrappers: `grep -l "CredWrite\|CredRead" "$(go env
+  GOMODCACHE)/golang.org/x/sys@<version>/windows/"*.go` → nothing. If it finds one, stop and record
+  it: the hand-written `NewProc` calls below would duplicate a library wrapper.
+- [ ] **Step 3:** The suite and tests; they fail. Then the seven source files. Then `go mod tidy`
+  (tidy reads every build tag, so `wincred_windows.go`'s import counts on Linux too). `git diff
+  control-plane/go.mod` shows only the x/sys line moving from the indirect block to the direct block,
+  **at the version Step 2 recorded**; any other line moving is a defect to undo, not to commit.
 - [ ] **Step 4:** On the owner's Windows laptop: the whole package under `-race`, which runs the
   WinCred half. Then `cmdkey /list | grep PanaceaApp/test-` → **empty** (the suite cleaned up).
 - [ ] **Step 5:** CI is Linux (`azure-pipelines.yml:6`), so `wincred_windows.go` is never compiled
