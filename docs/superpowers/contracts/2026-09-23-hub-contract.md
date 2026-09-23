@@ -1387,8 +1387,10 @@ cannot reach means no head: phase 4's `4-D1` rule applies.
   every start: nothing to rotate.
 - **Every route** on the control plane's listener requires `Authorization: Bearer <key>` — except
   `/healthz`, and `GET /v1/sessions/{id}/attach`, whose WebSocket the webview cannot add a header to
-  (the attach route keeps phase 2's sandbox-token gate; carrying the key in `Sec-WebSocket-Protocol`
-  is later work, ADR R4). Missing or wrong: 401 `local_key_required`, compared in constant time.
+  (it stays as phase 2 built it: loopback bind, Host guard, upgrade-gated writes. The attach bearer
+  `ids.Token` mints guards the control plane → sandbox hop, not this one. Carrying the key in
+  `Sec-WebSocket-Protocol` is later work, ADR R4). Attach reaches a local PTY, never the Hub.
+  Missing or wrong key elsewhere: 401 `local_key_required`, compared in constant time.
 - The Tauri shell gains one command, `local_key() -> String`, which reads that file. The renderer
   calls it once at start, keeps the key **in memory only**, and `client.ts` adds the header to every
   request. `client.ts:6-8`'s comment is replaced.
@@ -1404,3 +1406,187 @@ signing in in your browser"*, with *Cancel*; driven by the global heartbeat, no 
 `reauth_required`; the same control as signed out, and a sentence naming why). Every lens that needs
 the Hub shows the lens's own `unavailable` or `signed_out` state; none blocks the Develop lens.
 `docs/DESIGN-SYSTEM.md` governs the visuals; C4 reads it first.
+
+---
+
+## 10. Postgres
+
+### 10.1 Roles, and how migrations run
+
+Two roles, created **once per environment** by the database administrator from
+`control-plane/internal/hub/migrate/roles.sql` — not by a migration, because creating roles needs a
+privilege the Hub's identities do not hold:
+
+```sql
+-- roles.sql — run once per environment by a database administrator.
+CREATE ROLE hub_owner NOLOGIN;   -- owns every object; used only by `hub migrate`
+CREATE ROLE hub_app   NOLOGIN;   -- the running Hub; DML only, and not all of it
+-- Deployed (phase 8, P8-D10, Entra-only auth): grant the roles to the workload identities.
+--   GRANT hub_owner TO "id-hub-migrate";
+--   GRANT hub_app   TO "id-hub";
+-- Local (compose, trust auth on 127.0.0.1): the roles log in directly.
+--   ALTER ROLE hub_owner LOGIN;  ALTER ROLE hub_app LOGIN;
+GRANT CREATE ON DATABASE hub TO hub_owner;
+```
+
+**`hub migrate`** connects with `PANACEA_APP_HUB_MIGRATE_DATABASE_URL`, runs `SET ROLE hub_owner`,
+takes `pg_advisory_lock(hashtext('panacea-app-hub-migrate'))`, then:
+
+```sql
+CREATE SCHEMA IF NOT EXISTS hub AUTHORIZATION hub_owner;
+CREATE TABLE IF NOT EXISTS hub.schema_migrations (
+  version    integer     PRIMARY KEY,
+  name       text        NOT NULL,
+  sha256     bytea       NOT NULL,
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
+```
+
+and applies each embedded `sql/NNNN_<name>.sql` not yet recorded, **each in its own transaction**,
+in version order. A recorded version whose file's SHA-256 differs is a hard error: an applied
+migration is never edited, a new one is written. **`hub serve`** never migrates. It reads
+`max(version)` and refuses readiness (`/readyz` 503) until it equals the version it was built with.
+
+### 10.2 `sql/0001_init.sql` — the complete first schema
+
+Digests are stored as raw 32-byte `bytea` and rendered `sha256:<hex>` on the wire. Ids and enums
+carry their grammar as `CHECK`s, so a bug in Go cannot store a malformed one.
+
+```sql
+-- 0001_init.sql — applied by `hub migrate` as hub_owner, in one transaction.
+SET LOCAL search_path = hub;
+
+CREATE TYPE team_role     AS ENUM ('viewer', 'member', 'admin');
+CREATE TYPE invite_state  AS ENUM ('pending', 'bound', 'revoked');
+CREATE TYPE git_host      AS ENUM ('github', 'azure-devops');
+CREATE TYPE brief_scope   AS ENUM ('project', 'branch');
+CREATE TYPE brief_status  AS ENUM ('open', 'complete', 'skipped');
+CREATE TYPE release_kind  AS ENUM ('run', 'rollback');
+CREATE TYPE release_state AS ENUM ('reserved', 'confirmed', 'abandoned', 'expired');
+CREATE TYPE pin_reason    AS ENUM ('ship_head', 'inherited', 'no_brief',
+                                   'no_complete_revision', 'source_unpinned', 'source_unknown');
+CREATE TYPE verdict       AS ENUM ('settled', 'contested');
+
+-- ── identity and teams ───────────────────────────────────────────────────────
+CREATE TABLE orgs (
+  id              text        PRIMARY KEY CHECK (id ~ '^org-[0-9a-f]{16}$'),
+  entra_tenant_id uuid        NOT NULL UNIQUE,
+  display_name    text        NOT NULL CHECK (char_length(display_name) BETWEEN 1 AND 200),
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE users (
+  id           text        PRIMARY KEY CHECK (id ~ '^u-[0-9a-f]{16}$'),
+  org_id       text        NOT NULL REFERENCES orgs (id),
+  entra_oid    uuid        NOT NULL,
+  display_name text        NOT NULL DEFAULT '' CHECK (char_length(display_name) <= 256),
+  email        text        NOT NULL DEFAULT '' CHECK (email = lower(email) AND char_length(email) <= 254),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (org_id, entra_oid)
+);
+CREATE INDEX users_org_email ON users (org_id, email);
+
+CREATE TABLE teams (
+  id         text        PRIMARY KEY CHECK (id ~ '^tm-[0-9a-f]{16}$'),
+  org_id     text        NOT NULL REFERENCES orgs (id),
+  name       text        NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by text        NOT NULL REFERENCES users (id)
+);
+CREATE UNIQUE INDEX teams_org_name ON teams (org_id, lower(name));
+
+CREATE TABLE team_members (
+  org_id   text        NOT NULL REFERENCES orgs (id),
+  team_id  text        NOT NULL REFERENCES teams (id),
+  user_id  text        NOT NULL REFERENCES users (id),
+  role     team_role   NOT NULL,
+  added_at timestamptz NOT NULL DEFAULT now(),
+  added_by text        REFERENCES users (id),
+  PRIMARY KEY (team_id, user_id)
+);
+CREATE INDEX team_members_user ON team_members (user_id);
+
+CREATE TABLE team_invites (
+  id            text         PRIMARY KEY CHECK (id ~ '^iv-[0-9a-f]{16}$'),
+  org_id        text         NOT NULL REFERENCES orgs (id),
+  team_id       text         NOT NULL REFERENCES teams (id),
+  email         text         NOT NULL CHECK (email = lower(email) AND char_length(email) BETWEEN 3 AND 254),
+  role          team_role    NOT NULL,
+  state         invite_state NOT NULL DEFAULT 'pending',
+  created_at    timestamptz  NOT NULL DEFAULT now(),
+  created_by    text         NOT NULL REFERENCES users (id),
+  bound_user_id text         REFERENCES users (id),
+  bound_at      timestamptz,
+  revoked_at    timestamptz,
+  CHECK ((state = 'bound')   = (bound_user_id IS NOT NULL AND bound_at IS NOT NULL)),
+  CHECK ((state = 'revoked') = (revoked_at IS NOT NULL))
+);
+CREATE UNIQUE INDEX team_invites_one_pending ON team_invites (team_id, email) WHERE state = 'pending';
+CREATE INDEX team_invites_binding ON team_invites (org_id, email) WHERE state = 'pending';
+
+-- ── projects ─────────────────────────────────────────────────────────────────
+CREATE TABLE projects (
+  id         text        PRIMARY KEY CHECK (id ~ '^pj-[0-9a-f]{16}$'),
+  org_id     text        NOT NULL REFERENCES orgs (id),
+  team_id    text        NOT NULL REFERENCES teams (id),
+  name       text        NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by text        NOT NULL REFERENCES users (id)
+);
+CREATE UNIQUE INDEX projects_team_name ON projects (team_id, lower(name));
+
+CREATE TABLE project_remotes (
+  org_id     text        NOT NULL REFERENCES orgs (id),
+  project_id text        NOT NULL REFERENCES projects (id),
+  repo_key   text        NOT NULL CHECK (char_length(repo_key) BETWEEN 3 AND 300),
+  host       git_host    NOT NULL,
+  added_at   timestamptz NOT NULL DEFAULT now(),
+  added_by   text        NOT NULL REFERENCES users (id),
+  PRIMARY KEY (project_id, repo_key),
+  UNIQUE (org_id, repo_key)                -- a repository is one project's, org-wide
+);
+
+-- ── briefs ───────────────────────────────────────────────────────────────────
+CREATE TABLE briefs (
+  id                       text        PRIMARY KEY CHECK (id ~ '^bf-[0-9a-f]{16}$'),
+  org_id                   text        NOT NULL REFERENCES orgs (id),
+  project_id               text        NOT NULL REFERENCES projects (id),
+  scope                    brief_scope NOT NULL,
+  branch_ref               text        NOT NULL DEFAULT '',
+  head_revision            integer     NOT NULL DEFAULT 0 CHECK (head_revision >= 0),
+  latest_complete_revision integer     NOT NULL DEFAULT 0,
+  archived_at              timestamptz,
+  erased_at                timestamptz,
+  created_at               timestamptz NOT NULL DEFAULT now(),
+  created_by               text        NOT NULL REFERENCES users (id),
+  updated_at               timestamptz NOT NULL DEFAULT now(),
+  CHECK ((scope = 'project' AND branch_ref = '')
+      OR (scope = 'branch'  AND branch_ref LIKE 'refs/heads/_%' AND octet_length(branch_ref) <= 255)),
+  CHECK (latest_complete_revision BETWEEN 0 AND head_revision),
+  CHECK (erased_at IS NULL OR archived_at IS NOT NULL)
+);
+CREATE UNIQUE INDEX briefs_live_project ON briefs (project_id)
+  WHERE scope = 'project' AND archived_at IS NULL;
+CREATE UNIQUE INDEX briefs_live_branch ON briefs (project_id, branch_ref)
+  WHERE scope = 'branch' AND archived_at IS NULL;
+
+CREATE TABLE brief_revisions (
+  org_id     text         NOT NULL REFERENCES orgs (id),
+  brief_id   text         NOT NULL REFERENCES briefs (id),
+  revision   integer      NOT NULL CHECK (revision >= 1),
+  project_id text         NOT NULL REFERENCES projects (id),
+  scope      brief_scope  NOT NULL,
+  branch_ref text         NOT NULL,
+  status     brief_status NOT NULL,
+  canonical  bytea,                                   -- §3.4's C; NULL exactly when erased
+  digest     bytea        NOT NULL CHECK (octet_length(digest) = 32),
+  saved_at   timestamptz  NOT NULL DEFAULT now(),
+  saved_by   text         NOT NULL REFERENCES users (id),
+  erased_at  timestamptz,
+  PRIMARY KEY (brief_id, revision),
+  UNIQUE (brief_id, revision, digest),                -- the target of every digest-carrying link
+  CHECK ((canonical IS NULL) = (erased_at IS NOT NULL)),
+  CHECK (canonical IS NULL OR (octet_length(canonical) <= 65536 AND sha256(canonical) = digest))
+);
+```
