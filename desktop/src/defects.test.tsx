@@ -278,9 +278,19 @@ describe("the assembled cockpit", () => {
     expect(shownError()).toContain("projects answered 500");
     const firstTicks = server.calls.sessions;
 
+    // Every value written, not the end state (clause 7). The retry on each good tick fails again
+    // and re-reports, so a poller that wrongly cleared the report would leave the same message
+    // on screen at the end, having blanked the footer for the length of one retry on every
+    // tick. Measured: the end-state assertion alone let that poller through.
+    const written: (string | null)[] = [];
+    const unsubscribe = useCockpit.subscribe((next, prev) => {
+      if (next.lastError !== prev.lastError) written.push(next.lastError?.message ?? null);
+    });
     await settle(POLL_INTERVAL_MS);
     await settle(POLL_INTERVAL_MS);
+    unsubscribe();
     expect(server.calls.sessions).toBe(firstTicks + 2);           // two more good ticks
+    expect(written).not.toContain(null);
     expect(shownError()).toContain("projects answered 500");
     // Retried on those ticks — and never more than once per tick.
     expect(server.calls.projects).toBeGreaterThan(1);
