@@ -122,14 +122,16 @@ will ever use the pod.
   warm capacity while the pool is below `max_count`. So without the affinity the create keeps
   the `READY_TIMEOUT` path, which now deletes its pod, and `machine_full` is never answered.
 - **Then** the broker counts the machine's other session pods (labels `panacea-app/component:
-  sandbox`, `panacea-app/machine-id: <machine>`, not terminating) and answers `409 machine_full`
+  sandbox`, `panacea-app/machine-id: <machine>`, not terminating, and not this request's own pod,
+  which it excludes by name because the count runs **before** `deleteIfOurs`), then deletes, then
+  answers `409 machine_full`
   with `details.sessionsPerMachine` = that count as a decimal string, and a message naming it.
 - **Delete what this request created, decided by identity, not by the error's class (b05
   re-review 1).** The error class cannot tell the cases apart. katabe wraps a client error with
   `%v` and only `backend.ErrUnavailable` with `%w` (`kata.go:105` for the pod create, `:160` for
-  every poll `Get`). So a cancel that lands while one of those calls is in flight, which the real
-  client-go returns as its own "context canceled" error, reaches the broker as `ErrUnavailable`,
-  not as `context.Canceled`. Only a cancel in the `select` at `kata.go:143-146` returns `ctx.Err()`
+  every poll `Get`). So a cancel that lands while one of those calls is in flight reaches the
+  broker as `ErrUnavailable`, not as `context.Canceled`, whatever error the client returned for
+  it. Only a cancel in the `select` at `kata.go:143-146` returns `ctx.Err()`
   itself. The same holds for a caller who leaves during the pod create at `:91-105`, which the API
   server may already have stored. And one error class holds both kinds of pod: a create of an id
   the owner already runs, refused at admission (the `ResourceQuota` is full, or the LimitRange
@@ -207,7 +209,7 @@ func watchUnschedulable(ctx context.Context, pods corev1client.PodInterface, nam
 
 // machineSessions counts the non-terminating session pods of machine
 // (component=sandbox, machine-id=machine) in the broker's namespace, except
-// the pod named except (this request's own, already being deleted).
+// the pod named except (this request's own: the count runs before its delete).
 func machineSessions(ctx context.Context, pods corev1client.PodInterface, machine, except string) (int, error)
 
 // deleteIfOurs deletes pod name only if its backend.EnvToken env value equals
@@ -232,12 +234,12 @@ sandboxd stand-in (the pattern `katabe/kata_test.go`'s `runningSandbox` already 
 | `TestCreateRefusesAHostMountField` | a body with `"mounts": [...]` → 400 `invalid_json` (unknown field) | host paths smuggled through |
 | `TestCreateNeedsAnAwakeOwnedMachine` | checker says not found → 404 `machine_not_found`; asleep → 409 `machine_asleep`; no pod either way | a session pod that can never schedule (no machine pod to be near) |
 | `TestCreateEnforcesThePerUserCap` | owner at 8 pods → 429 `quota_exceeded`, `details.limit = "8"`; another owner at 0 → 201 | a cap counted across all owners |
-| `TestAFullMachineIs409MachineFullInSeconds` | affinity on; three running session pods of this owner on machine `m-1`, and beside them, none of which may count (b05 re-review 7): a session pod of this owner on `m-2`, another owner's session pod on its machine `m-3` (machine ids are namespace-unique, task 19, so that owner cannot hold an `m-1`), the `m-1` machine pod itself (component `machine`), and a terminating session pod on `m-1`; the reactor marks the new pod `PodScheduled=False/Unschedulable`, no nomination, never Running; grace 50 ms, `READY_TIMEOUT` 5 s → 409 `machine_full`, `details.sessionsPerMachine = "3"`, answered in under 1 s, and the new pod is gone (review I5) | the two-minute hang and generic 503; a Pending pod left holding the owner's cap |
+| `TestAFullMachineIs409MachineFullInSeconds` | affinity on; three running session pods of this owner on machine `m-1`, and beside them, none of which may count (b05 re-review 7): a session pod of this owner on `m-2`, another owner's session pod on its machine `m-3` (machine ids are namespace-unique, task 19, so that owner cannot hold an `m-1`), the `m-1` machine pod itself (component `machine`), and a terminating session pod on `m-1`; the reactor marks the new pod `PodScheduled=False/Unschedulable`, no nomination, never Running; grace 50 ms, `READY_TIMEOUT` 5 s → 409 `machine_full`, `details.sessionsPerMachine = "3"`, answered in under 1 s, and the new pod is gone; a `delete pods` reactor records the one delete of the new pod, whose `DeleteOptions.Preconditions.UID` equals that pod's UID (review I5; b05 re-review 1) | the two-minute hang and generic 503; a Pending pod left holding the owner's cap |
 | `TestABriefUnschedulableIsNotFull` | the new pod is `Unschedulable` with no nomination for 20 ms (grace 200 ms), then Running → 201, the pod kept | a watcher that fires on the first `Unschedulable` event and ignores the grace, refusing a session whose room was freeing up (a terminating pod on the node) |
 | `TestPreemptionUnderWayIsNotFull` | the new pod is `Unschedulable` **with** `nominatedNodeName` set for 200 ms (grace 50 ms), then Running → 201 | a refusal every time a session preempts a balloon, which is the warm path task 12 builds |
 | `TestAReadyTimeoutDeletesThePod` | the pod stays Pending with no scheduling condition; `READY_TIMEOUT` 400 ms → 503 `backend_unavailable`, `details.reason = "not_ready"`, and the pod is gone | katabe's keep-the-pod rule carried into the broker, where the pod is an orphan counting against the cap |
 | `TestAConflictNeverDeletesTheExistingPod` | a running pod already has the id → 409 `conflict`, and that pod is still there; once with another token, and once with **the same token** (a laptop re-sending a create whose 201 it lost, b05 re-review 1) | a cleanup after `ErrAlreadyExists`, which the token match alone would not stop: it kills the owner's running session |
-| `TestAFullMachineIs409EvenWhenKatabeHidesTheCancel` | affinity on; the new pod is `Unschedulable`, no nomination; a `get pods` reactor holds the second `Get` of the new pod (katabe's poll) for 3× the grace, returns `errors.New("client rate limiter Wait returned an error: context canceled")` unwrapped, as the real client does when its context is cancelled mid-call, and lets every later `Get` through (so `deleteIfOurs`'s own `Get` works). katabe's error then wraps `ErrUnavailable`, not `context.Canceled`, which a test-only `serverDeps.onCreateError` hook records and the test asserts, so the test proves it took the path it names → 409 `machine_full` and the pod is gone (b05 re-review 1) | the old "`ErrNotRunning` or a context error" cleanup rule, which keeps the pod and answers 503 or a `machine_full` whose "the pod is deleted" is false |
+| `TestAFullMachineIs409EvenWhenKatabeHidesTheCancel` | affinity on; the new pod is `Unschedulable`, no nomination; a `get pods` reactor holds the first `Get` of the new pod (katabe's first poll, made at once after the create, `kata.go:130`, so it is in flight when the watcher fires) for 3× the grace, returns `errors.New("client rate limiter Wait returned an error: context canceled")` unwrapped, as the real client does when its context is cancelled mid-call, and lets every later `Get` through (so `deleteIfOurs`'s own `Get` works). katabe's error then wraps `ErrUnavailable`, not `context.Canceled`, which a test-only `serverDeps.onCreateError` hook records and the test asserts, so the test proves it took the path it names → 409 `machine_full` and the pod is gone (b05 re-review 1) | the old "`ErrNotRunning` or a context error" cleanup rule, which keeps the pod and answers 503 or a `machine_full` whose "the pod is deleted" is false |
 | `TestAnAdmissionRefusalNeverDeletesTheRunningSession` | the owner's running pod `sandbox-x` carries token `tok-A`; a create of `x` with token `tok-B` meets a `create pods` reactor returning `403 Forbidden` (exceeded quota) → 503 `backend_unavailable`, and `sandbox-x` still runs with `tok-A` (b05 re-review 1) | a cleanup keyed on the error class ("every error except `ErrAlreadyExists` and `ErrUnsupported`"), which destroys the owner's running session behind a refused duplicate |
 | `TestWithoutAffinityUnschedulableWaitsForTheTimeout` | `Cfg.MachineAffinity` false; the new pod is `Unschedulable` with no nomination for 10× the grace (grace 50 ms, `READY_TIMEOUT` 5 s), then Running → 201, the pod kept (b05 re-review 3) | a watcher armed whatever the affinity, which refuses every session in the NFS fallback that the autoscaler would have placed |
 | `TestTheCallerLeavingDeletesThePod` | the client cancels its request while the pod is Pending → the pod is gone within 1 s | an orphan per abandoned create |
@@ -281,6 +283,11 @@ sandboxd stand-in (the pattern `katabe/kata_test.go`'s `runningSandbox` already 
   without the terminating filter, each → `TestAFullMachineIs409MachineFullInSeconds` (the count leaves `"3"`);
   the default `MAX_CPU_MILLIS` back to `8000` → `TestCreateRefusesOversizedResources`; the size
   taken from `backend.DefaultResources` instead of `Cfg` → `TestZeroResourcesTakeTheBrokersDefault`.
+  The two named as likeliest to survive, and closed: `deleteIfOurs` without the UID precondition
+  (the fake clientset may ignore preconditions, so only the `delete pods` reactor's recorded
+  options catch it) → `TestAFullMachineIs409MachineFullInSeconds`; `machineSessions` ignoring
+  `except` (a fake delete removes the pod at once, so this is caught only because the count runs
+  before the delete) → the same test (the count becomes `"4"`).
 - [ ] **Step 3:** Update the `MaxMessageBytes` comment in `backend.go:29-37` to name five sites.
 - [ ] **Step 4:** Full test run under `-race`; commit.
 
@@ -301,4 +308,13 @@ grep -n "five" control-plane/internal/backend/backend.go                        
   grace covers a lag between the two; task 32's P06 (d) and P07 exercise both paths on a real
   node, and a false `machine_full` there raises the grace, not the design.
 - How many sessions a machine holds. P8-D6 states the arithmetic (about three default sessions on
-  `Standard_D8s_v5`); task 32's P07 measures it.
+  `Standard_D8s_v5`); task 32's P07 measures it. Nor the largest session that fits: the
+  `6000m` / `20480Mi` max is arithmetic, and P07 rewrites it.
+- That client-go's fake clientset honours `DeleteOptions.Preconditions` or passes the context to a
+  reactor (training knowledge, **UNVERIFIED**); no test depends on either. The UID precondition is
+  pinned by the recorded delete options, and the mid-call cancel is simulated by a reactor that
+  returns the real client's error text.
+- The exact error the real client-go returns for a cancel mid-request (training knowledge,
+  **UNVERIFIED**). Nothing depends on it: katabe's `%v` breaks the `errors.Is` chain whatever it
+  is (`kata.go:105`, `:160`, verified), and the token rule deletes this request's pod whatever the
+  error says.
