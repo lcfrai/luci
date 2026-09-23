@@ -219,13 +219,14 @@ spinner per row, `tabular-nums` on live numbers), and its visual acceptance is *
 
 ## Hub contract asks
 
-**The Hub contract did not exist when this plan was written.** At 2026-09-23 21:40 the sibling
-worktree held `docs/superpowers/adr/ADR-H1-hub-architecture.md` at 100 lines — §0 (method) and §1
-(context and forces) only; its §1.4 force 5 cites this environment's survey — and
-`docs/superpowers/contracts/` held only phase 2's two contracts. So every Hub-dependent task below
-is written against **the minimal shape phase 8 needs**, marked as an ask. When the Hub contract
-lands, it satisfies each ask or names the difference, and tasks 09, 16, 22 and 29 are re-checked
-against it **before** they start (each has that as step 1). Nothing here invents a Hub route.
+**The Hub contract did not exist when this plan was written.** The asks below were written at
+21:40 against a 100-line ADR-H1 (§0–§1 only). By the time tasks 16–29 were written the ADR was
+complete and committed on `feat/hub` (`67609ab`, 653+ lines, read by absolute path) and answered
+most of them — see "What ADR-H1 answered" under the table. The contract it builds
+(`docs/superpowers/contracts/2026-09-23-hub-contract.md`, "§12.3 answers HA-4 and HA-5 field by
+field", ADR-H1 `:536-538`) was **still absent** from the sibling tree. So every Hub-dependent task
+is written against the ADR's answers, and tasks 09, 16, 22 and 29 re-check the contract **before**
+they start (each has that as step 1). Nothing here invents a Hub route.
 
 | Ask | What phase 8 needs, exactly | Needed by | If the Hub contract does not provide it |
 |---|---|---|---|
@@ -236,6 +237,25 @@ against it **before** they start (each has that as step 1). Nothing here invents
 | **HA-5** The Hub's database | Postgres major version, required extensions (`azure.extensions` allowlist), expected size and connection count, and **how migrations run**: a `migrate` subcommand the chart runs as a pre-upgrade Job under a separate DDL identity, or at start-up under an advisory lock | 08, 10, 29 | Task 08 provisions Postgres **16**, no extensions, `B_Standard_B2s` in dev; task 10 creates two identities, `id-hub` (DML) and `id-hub-migrate` (DDL); task 29 runs migrations as a pre-upgrade Job |
 | **HA-6** Who calls the Hub | Whether only the control plane calls the Hub (so no browser CORS at the edge), or the desktop webview does too, and whether any machine-to-machine caller exists (the broker does not call the Hub in this plan) | 13, 29 | The edge sets no CORS headers; the Hub is reached by the control plane only |
 | **HA-7** Audit and object storage | Whether the audit log is a Postgres table only, or also a Log Analytics stream (a DCR and an ingestion endpoint), and whether the Hub needs Blob storage (design bundles, release artefacts) | 04, 08 | Postgres only; no storage account is provisioned for the Hub |
+
+### What ADR-H1 answered (sibling `feat/hub` at `67609ab`, read by absolute path)
+
+| Ask | ADR-H1's answer | Where | Effect on this plan |
+|---|---|---|---|
+| HA-1 | **The Hub is a second binary in the control-plane module** (`control-plane/cmd/hub`), and it uses **this plan's `control-plane/internal/entra`** — "one package, not two to reconcile". Its validation rules are fixed: RS256 only with `kid`; JWKS cached 24 h, refetched on an unknown `kid` at most once per 5 min; `ver` 2.0; `iss` exact for the token's `tid`, which must be enrolled; `aud` = the API's client id; `scp` must contain the API's scope, app-only tokens refused; `azp` in an allowlist; 120 s skew; principal `(tid, oid)`, never `sub` or `preferred_username` | ADR `:206-238`, `:354-366` | Task 16 implements exactly that table, parameterised by audience, scope and allowed clients, so one package serves both servers |
+| HA-2 | `entraauth.TokenSource.Token(ctx, scope)` in the **control plane**, single-flight refresh 5 min before `exp`, one refresh token for every resource (Hub, broker, optionally ADO); built in the Hub's client track **C1** | ADR `:334-342`, `:564` | Task 22 consumes that interface; until C1 lands, its stub returns `ErrSignedOut` |
+| HA-3 | **Three registrations**, "as task 09 already guessed": desktop public client, Hub API (`Hub.Access`), broker API (`Sandboxes.Access`); details in the contract | ADR `:340-341`, `:666` | Task 09 stands; step 1 reconciles the details |
+| HA-4 | `hub serve` on `:8080`, `/healthz` (up) and `/readyz` (Postgres within 1 s, schema at the built version, JWKS fetched), stateless, **two replicas**, **20 s** graceful shutdown, config `PANACEA_APP_HUB_*` | ADR `:286-288`, `:528-538` | Task 29's chart defaults hold; task 27 builds `images/hub` from `control-plane/cmd/hub` |
+| HA-5 | **Postgres 16, no extensions**; migrations by **`hub migrate`** in a pre-upgrade Job under the **DDL identity**; `hub serve` never migrates and is not ready until the schema matches; DML identity `id-hub`, DDL identity `id-hub-migrate`; the database is reached with workload identity and an Entra token from a standard-library token exchange | ADR `:496-503`, `:532-535`, `:666` | Tasks 08, 10 and 29 stand as written |
+| HA-6 | **Only the control plane calls the Hub**; the Hub rejects any request carrying an `Origin` header; no CORS | ADR `:433-437`, `:546` | The edge sets no CORS headers (task 13 stands) |
+| HA-7 | Audit in Postgres (`audit_events`, hash-chained); blobs in a Postgres table behind a `blobstore` interface; **no storage account**; audit anchoring to Log Analytics is later | ADR `:504-510`, `:580-581` | No storage account; the DCR has no Hub stream yet |
+
+**One ADR decision touches phase 8's broker:** audiences are separate and "none is ever forwarded
+to another service or into a sandbox" (ADR `:543-546`). The broker therefore strips the caller's
+`Authorization` header before it dials a pod; a sandbox sees only its own attach token (task 18).
+**And one touches the control plane's hop:** the Hub's C3 adds a local caller key to every
+control-plane route except the WebSocket attach (ADR `:439-449`). Task 26 does not add it — C3
+does — but it must not break it.
 
 ---
 
