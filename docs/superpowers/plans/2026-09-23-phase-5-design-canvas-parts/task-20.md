@@ -1,6 +1,6 @@
 # Task 20a — `designapi` routes, the SSE window stream, problem codes, the route audit
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 11, 12, 13 · **Then:** task 20b (`task-20b.md`) wires this into `cmd/api` · **External:** **Hub task C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency: this task does not start until both have landed** (plan rule 4); phase 4 task 10 (`api.RouteMounter`), phase 4 task 07 (`discoverhub`) · **Hours:** 4 (the review's sizing: twenty routes and the SSE broker were about twice the old 3 h for the whole of task 20)
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 11, 12, 13 · **Then:** task 20b (`task-20b.md`) wires this into `cmd/api` · **External:** **Hub task C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency: this task does not start until both have landed** (plan rule 4); phase 4 task 10 (`api.RouteMounter`), phase 4 task 07 (`discoverhub`) · **Hours:** 4.5 (the review's sizing: twenty routes and the SSE broker were about twice the old 3 h for the whole of task 20; plus 0.5 for the phase-3 branch adapter, review I7)
 
 **Why two parts (review I6).** The old task 20 declared 11, 12, 13 but its wiring called
 `mcp.NewServer` (14), `mcp.Instructions` (17), `mcp.RegisterAll` (15) and `mcprelay.NewSupervisor`
@@ -29,7 +29,25 @@ imports `canvas/mcp`'s server, `mcp.RegisterAll`, `mcp.Instructions` or `mcprela
 - `control-plane/internal/api/routes_audit_test.go` — the GET routes in `catalogReadOnlyRoutes`;
   `TestPreflightAllowsEveryRegisteredMethod` (review I3)
 
+- `control-plane/internal/designapi/branches_phase3.go` + test — **only if phase 3's `lanes`
+  package is in the tree** (as `briefs_phase4.go` waits for phase 4): the `authority.BranchLifecycle`
+  adapter, seam S5-P3.2 (review I7, below)
+
 `cmd/api/config.go`, `main.go`, `design.go` and `design_test.go` are task 20b's.
+
+**The branch-lifecycle adapter (seam S5-P3.2, review I7).** `Phase3Branches(lanes lanes.Store,
+git <phase 3's gitx.Machine>, projectPath func(projectID string) (string, error))
+authority.BranchLifecycle`:
+- `Renames(ctx, p)` returns phase 3's `lanes.Store.Renames(p)` (oldest first,
+  `.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence-parts/task-03.md:72-96`)
+  mapped field for field; it never errors, because phase 3's method does not.
+- `LastDeleted(ctx, p, b)` runs `for-each-ref --format=%(refname) refs/panacea/archive/<b>/` in the
+  project's repository through phase 3's `gitx.Machine` (Scope Project, no hook, phase 3's
+  hardened invocation) and returns the largest `<unix>` suffix; a suffix that is not decimal is
+  skipped and logged. `b` is checked against `^b-[a-z0-9-]+$` before it reaches git.
+- A route whose `resolve` fails with `authority.ErrBranchLifecycle` answers `500 internal` (detail
+  in the log); an MCP call answers `internal`. No new problem code.
+If phase 3 is not in the tree, `authority.Config.Branches` stays nil (task 20b) and the commit says so.
 
 **The `Approvals` seam (review I6's stub, inside `designapi`).** `canvas/mcp.Deps` takes an
 `Approvals` port (task 15, `task-15.md:61-65`) that task 21 implements. 20a adds
@@ -265,6 +283,9 @@ The two `PANACEA_APP_CANVAS_*` variables, `newDesignAPI` and the `main.go` wirin
 | `TestMount_everyMethodPassesPreflight` (review I3) | the same recording `handle`; for every recorded pattern, its method goes in a real preflight — `OPTIONS <path>`, `Origin: http://tauri.localhost` (from `httpx.DefaultOrigins()`), `Access-Control-Request-Method: <method>`, `Access-Control-Request-Headers: authorization, content-type` — through `httpx.NewOriginPolicy(httpx.DefaultOrigins(), log).Middleware`; the answer is 204 and its comma-split `Access-Control-Allow-Methods` contains the method, its `Access-Control-Allow-Headers` contains `Authorization` and `Content-Type`. Reads the live middleware, never a copied constant; tasks 21, 22 and 29's routes are covered the moment they mount | a route verb the preflight omits (route 11 or 17 back to `PUT`), which no `httptest` test notices because none enforces CORS |
 | `TestPreflightAllowsEveryRegisteredMethod` (`control-plane/internal/api/routes_audit_test.go`, review I3) | the same check over `api.New(d).RegisteredPatterns()` — every route the control plane registers, phase 2's included — sent through `api.New`'s real handler; a pattern with no method (`catalogMethodAgnosticRoutes`) is skipped by name, not by a missing prefix | a phase-2 or later route whose verb the preflight omits |
 | `TestBriefsPort_stub` | the stub answers `unavailable` with its sentence | a nil port panicking before phase 4 |
+| `TestPhase3Branches_renames` (only with phase 3 in the tree) | a real `lanes` file store with two `AddRename` rows → `Renames` returns both, oldest first, field for field | a rename map read in the wrong order (a chain followed backwards) |
+| `TestPhase3Branches_lastDeleted` (only with phase 3) | a temp repository with `refs/panacea/archive/b-x-1a2b3c4d/1790000000` and `…/1790000100` → `(1790000100 s, true)`; none → `ok: false`; a branch id `b-x;rm` → an error, git never run | a stale delete time; a branch id reaching git unchecked |
+| `TestRoutes_renameAndDelete` (review I7) | through `Mount` with a fake `BranchLifecycle`: route 2 creates `cv-1` on `b-old`; the fake renames `b-old → b-new`; route 1 on `b-new` → `cv-1`; the fake deletes `b-new` (a `LastDeleted` after `cv-1`'s creation); route 1 on `b-new` → `{"canvas": null}`, route 2 → a new canvas id; a failing fake → `500 internal`, no canvas created | the Design lens showing state 1 on a renamed branch, or a recreated branch showing the old approvals |
 | `TestApprovals_noneUntilTask21` | `Approvals().Latest(ctx, anyCanvas)` → `(ApprovalInfo{}, false, nil)`; two calls return equal values (task 20b's wiring test compares them) | a stub that errors (every `at: "approved"` read would fail instead of saying "not approved yet") |
 
 `TestConfig_canvasVars`, `TestMain_wiring`, `TestNewDesignAPI_guardsBareMux` and the MCP wiring

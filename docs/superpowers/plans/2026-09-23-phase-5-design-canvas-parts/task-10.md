@@ -1,6 +1,6 @@
 # Task 10 — The store: the op log, snapshots, reconstruction, crash safety
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 06 · **Hours:** 2.5
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 06 · **Hours:** 3 (2.5, plus `Rebind` and `Archive`, review I7)
 
 ## Why
 
@@ -41,19 +41,38 @@ const (
 
 // Binding is (local project, local branch) → canvas. v1 ids are local and
 // path-hashed; v2 re-keys by Hub project and branch ref (S5-H.1, HA5-5).
+//
+// BranchID is a pure function of the project id and the branch NAME
+// (control-plane/internal/project/project.go:118-121), so a binding does not
+// follow a rename by itself and would outlive a delete (review I7). The
+// authority (task 11) moves it with Rebind when phase 3's rename map says so,
+// and retires it with Archive when phase 3 deleted the branch (seam S5-P3.2).
 type Binding struct {
 	ProjectID string `json:"projectId"`
 	BranchID  string `json:"branchId"`
 	CanvasID  string `json:"canvasId"`
 	CreatedAt string `json:"createdAt"`
+	// ArchivedAt is set when the branch this binding named was deleted. An
+	// archived binding keeps its canvas on disk (its design keys still resolve
+	// for provenance), is never returned by Lookup, and never blocks a Bind.
+	ArchivedAt string `json:"archivedAt,omitempty"`
 }
 
 // Store is safe for concurrent use across canvases. Calls for ONE canvas
 // are serialised by the authority (task 11), and the store may assume so.
 type Store interface {
-	Bind(b Binding) error // ErrExists if (ProjectID, BranchID) is bound, or CanvasID is used
-	Lookup(projectID, branchID string) (Binding, bool, error)
-	Bindings() ([]Binding, error)
+	// Bind: ErrExists if an UNARCHIVED binding holds (ProjectID, BranchID), or
+	// any binding, archived or not, uses CanvasID.
+	Bind(b Binding) error
+	Lookup(projectID, branchID string) (Binding, bool, error) // unarchived only
+	Bindings() ([]Binding, error)                              // all, archived included
+	// Rebind moves the unarchived binding of (projectID, from) to (projectID, to):
+	// one field of one row in bindings.json, CanvasID and CreatedAt unchanged.
+	// ErrNotFound if from is not bound; ErrExists if to already is.
+	Rebind(projectID, fromBranchID, toBranchID string) error
+	// Archive sets ArchivedAt = at on the unarchived binding of (projectID,
+	// branchID). ErrNotFound if there is none.
+	Archive(projectID, branchID, at string) error
 
 	Create(d doc.Document) error // Revision must be 0; ErrExists if the canvas exists
 	Load(canvasID string) (doc.Document, error) // the head: last snapshot + every later change
@@ -103,13 +122,17 @@ func Replay(d *doc.Doc, c doc.Change) error
    warning: it was never acknowledged. Any **earlier** bad line is `ErrCorrupt` — never skipped.
 3. A snapshot is written after its change is durable; a crash between the two leaves a log that
    replays to the same state.
-4. `bindings.json` is never half-written: temp file, fsync, rename.
+4. `bindings.json` is never half-written: temp file, fsync, rename — for `Bind`, `Rebind` and
+   `Archive` alike, so a crash mid-rebind leaves the whole old file or the whole new one.
 
 ## Tests first
 
 | Test | Asserts | Kills the mutant |
 |---|---|---|
 | `storetest.Run` › *bind, lookup, conflict* | second bind of one branch is `ErrExists`; lookup returns it; `Bindings()` sorted by project then branch | two canvases for one branch |
+| `storetest.Run` › *rebind* (review I7) | bind `(p, b-old)`; `Rebind(p, b-old, b-new)` → `Lookup(p, b-new)` is the same `CanvasID` and `CreatedAt`, `Lookup(p, b-old)` misses, `Bindings()` has the same length; an unbound `from` → `ErrNotFound`; a bound `to` → `ErrExists` and neither row changed | a rename orphaning the approved design; a rebind that overwrites another branch's canvas |
+| `storetest.Run` › *archive* (review I7) | bind `(p, b)` to `cv-1`; `Archive(p, b, t)` → `Lookup(p, b)` misses; `Bind(p, b, cv-2)` succeeds; `Bindings()` holds both, `cv-1` with `ArchivedAt = t`; `Bind` of a new branch to `cv-1` → `ErrExists` | a new branch of a deleted branch's name inheriting its canvas and approvals; a canvas id reused |
+| `TestFileStore_rebindArchiveRestart` | after `Rebind` and `Archive`, a new `FileStore` on the dir sees both; a crash injected between the temp write and the rename (an `fs` seam) leaves `bindings.json` byte-equal to before | a rebind held only in memory; a torn `bindings.json` |
 | `storetest.Run` › *append order* | appending revision 3 to a head of 1 is `ErrRevision` | a gap in the log |
 | `storetest.Run` › *load equals live* | 1,200 random batches applied live and appended; `Load` equals the live `Document()` byte for byte | replay diverging from live apply |
 | `storetest.Run` › *At* | `At(rev)` for 20 random revisions equals the document captured live at that revision | reconstruction from the wrong snapshot |
@@ -138,5 +161,6 @@ Expected: `ok  	…/canvas/store` (and `[no test files]` for `storetest`).
 - **One process per state directory.** The FileStore takes no OS file lock, like phase 2's
   registry file store; two control planes on one `PANACEA_APP_STATE_DIR` are unsupported.
 - No deletion of canvases: nothing in v1 deletes one (spec §8.4 keeps delete out of MCP; the lens
-  has no delete). Worktree or branch removal does not remove a canvas (seam S5-P3.1).
+  has no delete). A branch delete **archives the binding**, never the canvas (seam S5-P3.2, task
+  11 decides when); a worktree removal touches neither (seam S5-P3.1).
 - Disk use is bounded by retention, not capped.

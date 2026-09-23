@@ -213,7 +213,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | **P5-I** | *Approve*'s Undo is a **5-second delayed commit in the desktop**; nothing reaches the Hub until it lapses | the Hub has no revocation (contract §7.7), and `DESIGN-SYSTEM.md` asks for optimistic mutation with Undo, not a confirm dialog | closing the window inside 5 s drops the approval — stated in the toast |
 | **P5-J** | **No handle, marquee, code-editor or sanitiser library** in the editor: own handles and marquee, a read-only code panel, and a renderer that builds DOM from the Go-generated allowlist | `moveable`/`selecto` were last pushed 2024-06 (spec L7, L8); a read-only panel needs no editor; DOMPurify purifies HTML strings, and the renderer never has one | the spec's recommended libraries remain allowed and gated |
 | **P5-K** | **One revision per accepted batch**; a node's `revision` is the last revision that changed its own fields; `ifRevision` checks every node a batch modifies or deletes | a 30-node `write_html` is one step of undo and one entry in the feed; two agents on two artboards never conflict | — |
-| **P5-L** | **One canvas per branch**, created by the lens's *Create canvas* or by the agent's first `create_artboard`; a read on a branch with no canvas answers `not-found` with the sentence that says how to create one — except `get_canvas_info`, which answers `exists: false` so an agent can orient | spec §7.3; the prototype's state 1 | per-project canvases later are a binding change |
+| **P5-L** | **One canvas per branch**, created by the lens's *Create canvas* or by the agent's first `create_artboard`; a read on a branch with no canvas answers `not-found` with the sentence that says how to create one — except `get_canvas_info`, which answers `exists: false` so an agent can orient | spec §7.3; the prototype's state 1 | per-project canvases later are a binding change. The binding follows a phase-3 rename and is archived by a phase-3 delete (seam S5-P3.2, review I7) |
 | **P5-M** | The canvas has **no bound-brief field**. Its brief is its branch's, resolved at call time; an approval records the key it was reviewed against | a stored binding is a second copy of phase 4's inheritance rule | — |
 | **P5-N** | *Start a Develop session from this design* is **three desktop calls**: materialise the bundle, create the session through the existing route, then link it | the control plane never calls its own session handler (no import cycle, no second create path); phase 4's P4-A ignores a caller's `contextRef` anyway | a crash between the second and third call leaves an unlinked session, which the lens shows with a *Link* action |
 | **P5-O** | The canvas Go module is a **separate module in `go.work`**, required by the control plane through a `replace` | `OD-11` rule 4: ship and test alone. ADR-H1 §4.1 kept the Hub inside the control-plane module because it needs `httpx` and `ids`; the canvas needs neither | moving it into the control-plane module is a mechanical import rewrite |
@@ -326,7 +326,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `canvas/serialize/` | `html.go` (canonical dialect), `export.go` (standalone HTML), `canonjson.go`, `digest.go` | 08 |
 | `canvas/serialize/`, `canvas/tokens/` | `jsx.go`, `tailwind.go`, `tree.go`; `css.go`, `dtcg.go` | 09 |
 | `canvas/store/` | `store.go` (interface), `filestore.go`, `memstore.go`, `replay.go`, `storetest/suite.go` | 10 |
-| `canvas/authority/` | `service.go`, `binding.go`, `apply.go`, `subscribe.go`, `activity.go`, `errors.go` | 11 |
+| `canvas/authority/` | `service.go`, `binding.go`, `branches.go` (the branch-lifecycle port, S5-P3.2), `apply.go`, `subscribe.go`, `activity.go`, `errors.go` | 11 |
 | `canvas/authority/` | `claims.go`, `precondition.go`, `notices.go`, `presence.go`, `undo.go`, `revert.go` | 12 |
 | `canvas/authority/` | `render.go` (renderer registry), `selection.go` | 13 |
 | `canvas/mcp/` | `jsonrpc.go`, `transport.go`, `server.go`, `registry.go`, `schema.go`, `errors.go`, `identity.go` | 14 |
@@ -358,7 +358,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `internal/api/sessions.go` | set `CanvasMCP` in create and restart | 19 |
 | `internal/api/api.go` | `Deps.CanvasMCP bool` (19); `Deps.Design RouteMounter` (phase 4's interface, task 10 of its plan) (20a) | 19, 20a |
 | `internal/events/` (new) | `broker.go`, `sse.go` — the window stream | 20a |
-| `internal/designapi/` (new) | `routes.go`, `mount.go`, `canvas.go`, `ops.go`, `assets.go`, `comments.go`, `render.go`, `export.go`, `briefs.go` (the neutral port; `briefs_phase4.go` adapts `discoverhub` once it exists), `problems.go`, `approvals_none.go` (the `Approvals` stub) (20a); `approve.go`, `approvals.go`, `hub.go` (21, which deletes the stub); `handoff.go`, `links.go`, `gitexclude.go` (22); `paste.go` (29); `e2e_test.go` (30) | 20a, 21, 22, 29, 30 |
+| `internal/designapi/` (new) | `routes.go`, `mount.go`, `canvas.go`, `ops.go`, `assets.go`, `comments.go`, `render.go`, `export.go`, `briefs.go` (the neutral port; `briefs_phase4.go` adapts `discoverhub` once it exists), `problems.go`, `approvals_none.go` (the `Approvals` stub), `branches_phase3.go` (the S5-P3.2 adapter, once phase 3 exists) (20a); `approve.go`, `approvals.go`, `hub.go` (21, which deletes the stub); `handoff.go`, `links.go`, `gitexclude.go` (22); `paste.go` (29); `e2e_test.go` (30) | 20a, 21, 22, 29, 30 |
 | `internal/httpx/problem.go` | the design codes (task 20a lists them) | 20a |
 | `cmd/api/config.go`, `main.go` | `PANACEA_APP_CANVAS_*` variables; wiring (task 19 touches neither, `task-19.md:13-19`) | 20b |
 | `cmd/api/design.go` (new) | `newDesignAPI`, the one builder of the design API, so the `KeyGuard` `main.go` passes is testable without `api.New`'s outer wrap; `newMCPServer`, `newMCPDeps` (20b); the `Hub` line (21) | 20b, 21 |
@@ -404,8 +404,8 @@ tasks; each part says what it codes against until that task lands.
 | 07 | The dialect: HTML and inline CSS into nodes, the allowlist, the dropped report, `data:` into assets | 05 | — | 3 |
 | 08 | Canonical HTML, export HTML, canonical JSON, the review digest | 05, 07 | — | 2.5 |
 | 09 | JSX (inline and Tailwind), `tree.json`, `tokens.css`, DTCG `tokens.json` | 08 | — | 3 |
-| 10 | The store: op log, snapshots, reconstruction at a revision, crash safety | 06 | — | 2.5 |
-| 11 | Authority I: canvases by branch, `Apply` with an author, subscriptions, the activity feed | 06, 10 | — | 3 |
+| 10 | The store: op log, snapshots, reconstruction at a revision, crash safety; `Rebind` and `Archive` (S5-P3.2) | 06 | — | 3 |
+| 11 | Authority I: canvases by branch (following phase 3's renames and deletes, S5-P3.2), `Apply` with an author, subscriptions, the activity feed | 06, 10 | — | 3.5 |
 | 12 | Authority II: claims, `ifRevision`, notices, per-author undo and redo, revert by session | 11 | — | 3 |
 | 13 | The render bridge and the human's selection | 11 | — | 2 |
 | 14 | The MCP protocol layer | 05 | — | 2.5 |
@@ -414,7 +414,7 @@ tasks; each part says what it codes against until that task lands.
 | 17 | MCP tokens, comments, export, guides, server instructions | 09, 15, 16 | — | 2.5 |
 | 18 | The relay framing in both modules; `sandboxd`'s listener and `/mcp-channel` | — | — | 3 |
 | 19 | The relay supervisor; `--mcp-config` and `--allowedTools`; session wiring | 14, 18 | — | 2.5 |
-| 20a | `designapi` routes, the SSE window stream, problem codes, the route audit, the `Approvals` stub (`task-20.md`) | 11, 12, 13 | **Hub C3, Hub plan tasks 37–38 (`localkey`) — hard, no fallback (rule 4)**; phase 4 task 10 (`RouteMounter`; declared here if absent) | 4 |
+| 20a | `designapi` routes, the SSE window stream, problem codes, the route audit, the `Approvals` stub, the phase-3 branch adapter (`task-20.md`) | 11, 12, 13 | **Hub C3, Hub plan tasks 37–38 (`localkey`) — hard, no fallback (rule 4)**; phase 4 task 10 (`RouteMounter`; declared here if absent); phase 3 task 11 (renames, archive refs; the adapter waits for it, S5-P3.2) | 4.5 |
 | 20b | Configuration and the `cmd/api` wiring: store, authority, MCP server and tools, relay supervisor, `newDesignAPI` (`task-20b.md`) | 17, 19, 20a | **Hub C3 (tasks 37–38) — hard** | 1.5 |
 | 21 | Approval: snapshot, blobs, the Hub approval, *changed after approval*, re-review | 08, 09, 13, 20a, 20b | **Hub C3 (tasks 37–38) — hard**; Hub H0/C2 (`hubclient.Designs` + fake); phase 4 task 07 (`discoverhub`) | 3 |
 | 22 | Handoff: the bundle into the worktree (manifest paths validated, review C2); the session link | 21 | **Hub C3 (tasks 37–38) — hard**; Hub H4 fake; phase 3 3-D6 | 2 |
@@ -427,8 +427,8 @@ tasks; each part says what it codes against until that task lands.
 | 29 | Paste: HTML, SVG and images | 20a, 26 | — | 1.5 |
 | 30 | End to end, the phase 5 contract document, and the amendments | all | OD-12's hands-on session | 2 |
 
-**Total ≈ 79.5 hours** (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
-sizing note). Critical path: 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17 → 20b → 21 → 22 → 28 → 30
+**Total ≈ 81 hours** (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
+sizing note; tasks 10, 11 and 20a gain 0.5 h each for seam S5-P3.2, review I7). Critical path: 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17 → 20b → 21 → 22 → 28 → 30
 (20a runs beside 15 and 16, off the path; 20b waits for 17 because its `main.go` calls
 `mcp.Instructions` and `mcp.RegisterAll`, and for 19 because it calls `mcprelay.NewSupervisor`).
 
@@ -464,6 +464,7 @@ is 20a's, then 21's, and `cmd/api/design.go` is 20b's, then 21's one `Hub` line.
 | **S5-H.1** | `authority.Service` over the `store.Store` interface; authors carry a `UserID` that is `"local"` in v1 | v2: the Hub hosts this package, with a Postgres `Store` and the Hub principal as `UserID`, behind `/v1/canvas/…` (ADR-H1 §5.5) | fork the op protocol for the Hub |
 | **S5-H.2** | The Hub's boundary test (`go list -deps ./cmd/hub`, contract §2) allows no canvas import in v1 | v2 adds `github.com/kpmg-au-emu/panacea-app/canvas/...` to its allowlist | host the canvas without amending the test |
 | **S5-P3.1** | The handoff writes into a worktree the caller names (S3-P5.1) | phase 3's *create a worktree from this design* calls task 22's route after its own create | commit `.panacea/` |
+| **S5-P3.2** | A canvas binding follows the branch, not its id (review I7): `authority.BranchLifecycle` (task 11) reads phase 3's rename map (`lanes.Store.Renames`, served as `GET /v1/projects/{projectId}/renames`) and its delete archive refs (`refs/panacea/archive/<branchId>/<unix>`); a rename **rebinds** (one row of `bindings.json`, temp file + rename, task 10); a delete **archives** the binding so a new branch of that name gets a new canvas, and the old canvas stays on disk for provenance; any read failure fails closed | phase 3 (task 11 of its plan) keeps both records; `designapi/branches_phase3.go` (task 20a) adapts them once phase 3 is in the tree, and a terminal `git branch -m`/`-D` stays out of scope as it is for phase 3 (its A8) | key a canvas by branch name, or delete a canvas with its branch |
 | **S5-P6.1** | Every agent-caused op is attributed to a session | phase 6's activity and cost views read `list_activity` / the activity route | derive activity from PTY bytes |
 | **S5-P7.1** | `design:` keys resolve through the Hub's `/v1/refs` (contract §7.5) | phase 7's release manifest renders the approved design key | read the canvas for a release |
 | **S5-P8.1** | The relay dials `<endpoint>/mcp-channel`, and `Endpoint` is whatever the backend reports (`backend.Sandbox.Endpoint`) | phase 8's `katabe` pods serve the same path on `:8080` | open a port on the node for MCP |

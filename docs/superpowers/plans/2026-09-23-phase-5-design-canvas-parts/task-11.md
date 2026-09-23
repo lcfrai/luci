@@ -1,6 +1,6 @@
 # Task 11 — Authority I: canvases by branch, `Apply`, subscriptions, the activity feed
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 06, 10 · **Hours:** 3
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 06, 10 · **Hours:** 3.5 (3, plus `resolve` over the branch lifecycle, review I7)
 
 ## Why
 
@@ -12,7 +12,8 @@ tools read as notices (task 12). Claims, preconditions and undo are task 12's; r
 
 ## Files
 
-- `canvas/authority/service.go`, `binding.go`, `apply.go`, `subscribe.go`, `activity.go`, `errors.go` (new)
+- `canvas/authority/service.go`, `binding.go`, `branches.go` (the branch-lifecycle port, seam
+  S5-P3.2, review I7), `apply.go`, `subscribe.go`, `activity.go`, `errors.go` (new)
 - `canvas/authority/*_test.go` (new); `canvas/canvastest/fixtures.go` (new: a document builder)
 
 ## Contracts
@@ -29,6 +30,10 @@ type Config struct {
 	// IdleUnload drops a canvas from memory after this long with no call and
 	// no subscriber. Zero means 30 minutes.
 	IdleUnload time.Duration
+	// Branches is phase 3's branch lifecycle (branches.go, seam S5-P3.2). nil
+	// until phase 3 is in the tree: bindings then follow neither a rename nor
+	// a delete, exactly as before this seam.
+	Branches BranchLifecycle
 }
 
 // Caller is who is calling, stamped by the adapter (plan rule 4): designapi
@@ -89,6 +94,61 @@ func (s *Service) Summary(ctx context.Context, canvasID string) (Summary, error)
 ```
 
 ```go
+// canvas/authority/branches.go — seam S5-P3.2 (review I7)
+
+// BranchRename is one row of phase 3's rename map (phase 3 task 11:
+// GET /v1/projects/{projectId}/renames, {fromBranchId, toBranchId, at}).
+type BranchRename struct {
+	FromBranchID string
+	ToBranchID   string
+	At           time.Time
+}
+
+// BranchLifecycle is what the authority needs from phase 3. The control
+// plane implements it (designapi/branches_phase3.go, task 20a); the canvas
+// module never imports phase 3.
+type BranchLifecycle interface {
+	// Renames returns the project's rename map, oldest first.
+	Renames(ctx context.Context, projectID string) ([]BranchRename, error)
+	// LastDeleted returns when the cockpit last deleted branchID: the newest
+	// <unix> of phase 3's refs/panacea/archive/<branchID>/<unix>, written on
+	// every delete (phase 3 task-11.md:105,111). ok is false if never.
+	// Whole seconds, because the ref name is.
+	LastDeleted(ctx context.Context, projectID, branchID string) (at time.Time, ok bool, err error)
+}
+
+// ErrBranchLifecycle wraps a BranchLifecycle error. The authority FAILS CLOSED
+// on it: no Bind, no Rebind, no Archive, no Ensure-create — guessing would
+// either hand a new branch the old canvas and its approvals, or strand the
+// approved design behind a fresh empty canvas.
+var ErrBranchLifecycle = errors.New("authority: the branch lifecycle could not be read")
+```
+
+**Resolving `(projectID, branchID)` to a canvas** — one function, `resolve`, behind `Ensure`,
+`ForBranch` and every session caller's canvas lookup (so the lens and MCP see the same answer):
+
+1. **Deleted?** `Lookup` hits and the lookup is *fresh* — every `Ensure` and `ForBranch` (the
+   lens's routes 1 and 2, task 20a, a human action) and a session's **first** call in this process
+   (the authority keeps the set of session ids it has checked) → `LastDeleted(p, b)`. `ok` and
+   `at ≥ binding.CreatedAt` truncated to the second → `Store.Archive(p, b, now)`, unload the canvas
+   from memory, and treat it as a miss. A binding `Ensure` creates gets `CreatedAt =
+   max(now, at + 1 s)` when `ok`, so a delete in the same second as a create is never read
+   backwards. A branch deleted through the cockpit had no worktrees (phase 3 refuses
+   `branch_has_worktrees`), so a session on the new branch of that name is always a new session,
+   and its first call runs the check.
+2. **Renamed?** On a miss, `Renames(p)`: every unarchived binding of `p` whose `BranchID` reaches
+   `b` through the map (follow `from → to` until no row matches, at most `len(map)` steps, so a
+   cycle ends) → `Store.Rebind(p, old, b)`, and the loaded canvas's `Summary.BranchID` becomes `b`.
+   The result is a hit. Phase 3 refuses a rename while the branch has worktrees (its Q4), so no
+   session is on the branch while it moves.
+3. **Neither** → none: `ForBranch` answers `ok: false`; `Ensure` creates.
+
+Scope (`apply.go` step 1) compares a session's `(ProjectID, BranchID)` with the **binding's**,
+after `resolve`, never with `Document.BranchID`, which keeps the branch the canvas was created on
+(it is in every snapshot; rewriting it would change past revisions' bytes).
+`Config.Branches == nil` skips steps 1 and 2.
+
+```go
 // canvas/authority/apply.go
 
 // At names a revision to read: the head, or a past one.
@@ -113,7 +173,8 @@ type ApplyResult struct {
 }
 
 // Apply is the only mutation. Under the canvas's lock, in this order:
-//   1. scope: a session caller's (ProjectID, BranchID) must be the canvas's, else ErrOutOfScope;
+//   1. scope: a session caller's (ProjectID, BranchID) must be the canvas's BINDING's (after resolve,
+//      review I7), else ErrOutOfScope;
 //   2. task 12's hooks: precondition, claims;
 //   3. doc.Prepare (refusal → *doc.OpError, unchanged);
 //   4. store.Append (failure → the error, memory unchanged);
@@ -225,11 +286,19 @@ type ClaimedError struct { // task 12
 | `TestDocument_at` | `Document(At{Revision: 5})` equals the live capture at 5 | `at: approved` reading the head |
 | `TestActivity_truncates` | a 300-node batch's row lists 50 nodes and `more: 250` | an unbounded feed row |
 | `TestIdleUnload` | after `IdleUnload` with no call and no subscriber the canvas is evicted; the next call reloads it equal | every canvas held in memory for ever |
+| `TestResolve_followsRename` (review I7) | `Ensure(p, b-old)` → `cv-1`; a fake `BranchLifecycle` whose map is `{b-old → b-new}`; `ForBranch(p, b-new)` → `cv-1`, `Summary.BranchID = b-new`, and the store's `Bindings()` differs from before in that one row's `branchId` only; `ForBranch(p, b-old)` → none; `Ensure(p, b-new)` → `created: false` | the renamed branch showing state 1 while the approved design sits on a canvas no branch shows |
+| `TestResolve_followsRenameChain` | map `{a → b, b → c}` → `ForBranch(p, c)` finds the canvas bound to `a`; a map with a cycle `{a → b, b → a}` ends (the call returns within the test's 1 s deadline) and rebinds nothing | a second rename losing the canvas; a hostile map hanging the lookup |
+| `TestResolve_deleteArchives` (review I7) | `Ensure(p, b)` → `cv-1`, three batches applied (revision 3); the fake's `LastDeleted(p, b)` is 2 s after `cv-1`'s `CreatedAt`; `ForBranch(p, b)` → none; `Ensure(p, b)` → a **new** `cv-2`, `created: true`, revision 0; `Summary("cv-1")` still loads, unchanged; `Bindings()` holds `cv-1` archived | a new branch of a deleted branch's name inheriting its canvas and approvals |
+| `TestResolve_sessionFirstCallChecks` | a session's first `Apply` runs `LastDeleted` once; its next 10 calls do not; a second session's first call does | a session on the recreated branch writing into the deleted branch's canvas; a git read on every agent call |
+| `TestResolve_notDeletedKeeps` | `LastDeleted` not ok, or older than `cv-1`'s `CreatedAt` → `ForBranch` returns `cv-1`, nothing archived | a canvas archived on every open |
+| `TestResolve_lifecycleErrorFailsClosed` | `Renames` or `LastDeleted` returns an error → `Ensure` and `ForBranch` return `ErrBranchLifecycle`; no `Bind`, `Rebind`, `Archive` or create reached the store (a recording store) | a phase-3 read failure creating an empty canvas over the approved one, or handing a deleted branch's canvas to a new one |
+| `TestResolve_nilLifecycle` | `Config.Branches` nil → no port call; behaviour equals the tests above without a rename or a delete | phase 5 unusable before phase 3 lands |
+| `TestApply_scopeFollowsBinding` | after the rename above, a session on `b-new` applies to `cv-1`; a session on `b-old` → `ErrOutOfScope` | scope read from `Document.BranchID`, the creation branch |
 
 ## Steps
 
 1. `canvastest/fixtures.go`: a builder that makes documents and batches for tests.
-2. Tests, then the six files. 3. Acceptance; commit by pathspec.
+2. Tests, then the seven files. 3. Acceptance; commit by pathspec.
 
 ## Acceptance
 
@@ -244,3 +313,8 @@ Expected: `ok  	…/canvas/authority` (and `[no test files]` for `canvastest`).
   `Notices` are empty until then.
 - No renderer calls, no selection (task 13).
 - Events are in-process only; the SSE transport is task 20a.
+- **A rename or delete done outside the cockpit** (`git branch -m`, `git branch -D` in a terminal)
+  is not followed: phase 3 itself sees it as a delete plus a create and records no rename and no
+  archive ref (phase 3 `task-11.md:198-199`), so a terminal rename leaves the canvas bound to the
+  old id (not shown on any branch, still on disk), and a terminal delete-and-recreate inherits the
+  canvas. The phase 3 adapter is task 20a's; before phase 3 lands, `Branches` is nil.

@@ -176,7 +176,7 @@ type Document struct {
 	V         int             `json:"v"`         // 1
 	CanvasID  string          `json:"canvasId"`  // cv-<16 hex>
 	ProjectID string          `json:"projectId"` // the LOCAL project id, p-… (v1)
-	BranchID  string          `json:"branchId"`  // the LOCAL branch id, b-…
+	BranchID  string          `json:"branchId"`  // the LOCAL branch id, b-…, the canvas was CREATED on; the current branch is the binding's (task 10, review I7)
 	Revision  int             `json:"revision"`  // 0 for a new canvas
 	CreatedAt string          `json:"createdAt"`
 	Pages     []Page          `json:"pages"`   // by Order, then ID

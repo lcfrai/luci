@@ -31,7 +31,8 @@ unset). This task passes every other `Config` field: `Authority`, `Briefs`, `Wor
 - `control-plane/cmd/api/config.go`, `main.go` — two variables; the wiring
 - `control-plane/cmd/api/design.go`, `design_test.go` (new) — `newDesignAPI`, the one builder
   `main.go` uses, so the `KeyGuard` it passes is testable without `api.New`'s outer wrap (re-review I-2);
-  `newMCPServer` and `newMCPDeps`, so the MCP wiring is testable without starting the process
+  `newMCPServer` and `newMCPDeps`, so the MCP wiring is testable without starting the process;
+  `newAuthorityConfig`, so the branch-lifecycle port it passes is testable (review I7)
 - `control-plane/cmd/api/main_test.go` — `TestMain_wiring`
 
 ## Contracts
@@ -42,7 +43,10 @@ unset). This task passes every other `Config` field: `Authority`, `Briefs`, `Wor
 	envCanvasDir = "PANACEA_APP_CANVAS_DIR" // absolute; default statepath.Dir("canvas")
 ```
 
-**Wiring, in `main.go`**, in this order: `store.NewFile(canvasDir)` → `authority.New` →
+**Wiring, in `main.go`**, in this order: `store.NewFile(canvasDir)` →
+`authority.New(authority.Config{…, Branches: branches})`, where `branches` is
+`designapi.Phase3Branches(…)` over phase 3's lane store and git runner when task 20a wrote
+`branches_phase3.go`, else nil (seam S5-P3.2, review I7) →
 `newDesignAPI(cfg, key, deps)` (the design API first, because the MCP deps read its `Approvals()`) →
 `newMCPServer(auth, designAPI, briefs, log)`, which is
 `mcp.NewServer(info, mcp.Instructions, []string{"127.0.0.1:8731", "localhost:8731"}, log)` then
@@ -66,6 +70,7 @@ over the process can tell the two apart.
 
 | Test | Asserts | Kills the mutant |
 |---|---|---|
+| `TestNewAuthority_branchesWired` (`design_test.go`; only when `branches_phase3.go` exists) | the `authority.Config` `main.go` builds (through a `newAuthorityConfig` helper in `design.go`) has a non-nil `Branches`; without phase 3 in the tree the test is skipped with that reason | a phase-3 tree whose renames and deletes the canvas never follows because the adapter was never passed (review I7) |
 | `TestConfig_canvasVars` | `PANACEA_APP_CANVAS_MCP=maybe` exits with a message; `off` sets `CanvasMCP` false; a relative `PANACEA_APP_CANVAS_DIR` exits | a silently ignored variable |
 | `TestMain_wiring` (the `main_test.go` pattern) | the process starts with a temp state dir and serves route 1 **with** the key read from `PANACEA_APP_LOCAL_KEY_FILE`; route 1 and route 5 **without** it, and with `Bearer ` (empty), → 401 `local_key_required` | a stack that compiles but is never mounted (it cannot kill an identity `KeyGuard`: `api.New`'s outer `localkey.Middleware` answers 401 first — re-review I-2) |
 | `TestNewDesignAPI_guardsBareMux` (`control-plane/cmd/api/design_test.go`) | `newDesignAPI` with a key minted into `t.TempDir()` and fake deps; its result mounted with `Mount(mux.Handle)` on a bare `http.ServeMux` — **no `api.New`, no outer wrap**; route 5 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required` and the authority unchanged; `Bearer ` (empty) → the same; the right key → not 401 | `main.go` (through `newDesignAPI`) passing an identity `KeyGuard`, or a guard over some other key (re-review I-2) |

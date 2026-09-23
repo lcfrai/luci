@@ -133,6 +133,11 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
       an image onto an artboard (route 11) and click a node, then have the agent call
       `get_selection` (route 17 stored it). The image renders, the selection is the clicked node,
       and WebView2's devtools console shows no CORS or preflight error.
+   9. **Branch lifecycle** (review I7, seam S5-P3.2; only if phase 3 is in the tree, else recorded
+      **not run**): approve a design on a branch with no worktrees, rename the branch in the cockpit,
+      and open Design on the new name — the same canvas and its approval show. Delete that branch,
+      create a new branch with the same name, open Design — state 1, *no canvas*, and none of the old
+      approvals.
 6. Commit by pathspec. **Do not merge** the branch (`OD-1`); the orchestrator pushes when asked.
 
 ## Acceptance
@@ -145,7 +150,7 @@ Expected: `--- PASS: TestE2E_relay` and `ok`.
 ```bash
 go run ./tools/licencegate -root . >/dev/null; echo "gate $?"; grep -c "unverified" docs/superpowers/planning/phase-5/e2e-report.md
 ```
-Expected: `gate 0`; a count of at least `8` (one per owner item).
+Expected: `gate 0`; a count of at least `9` (one per owner item).
 
 ## Not claimed
 
