@@ -12,6 +12,7 @@ Panacea's source says it does (plan §3.3, 7P-10 to 7P-12) and from `panacea-mcp
 - `control-plane/internal/deploy/panacea/errors.go` (new) — `mapStatus`, `readProblem`
 - `control-plane/internal/deploy/panacea/client_test.go` (new)
 - `control-plane/internal/deploy/panacea/errors_test.go` (new)
+- `control-plane/internal/deploy/panacea/cmd/versioncheck/main.go` (new) — prints `Version` for an origin; written and vetted here, run only by the owner (`LIVE-CHECK.md` step 1, task 20)
 
 #### Interfaces — complete
 
@@ -142,13 +143,14 @@ says**, takes `error`, falls back to `message`, trims to 500 bytes on a rune bou
   `path` always begins `/api/v1/` and every path segment taken from a caller is escaped with
   `url.PathEscape` (a branch name contains `/`).
 - [ ] Run the tests green.
-- [ ] **Live check, once, from this laptop — the only network call in this task.** With nothing
-  but the origin: `go run ./control-plane/internal/deploy/panacea/cmd/versioncheck
-  https://dev.panacea.kpmg` (a 20-line `main` under `internal/…/cmd/versioncheck`, committed, that
-  calls `Version` through `BuildHTTPClient("", 15s)`). Record the printed version and the date in
-  the commit message. This settles 7P-10 (Go through the Windows store trusts KPMG's interception
-  root) for this machine. If it fails with an `x509` error, **stop**: the fix is
-  `PANACEA_APP_PANACEA_CA_FILE`, not a skip flag, and the report says which root was missing.
+- [ ] Write `cmd/versioncheck/main.go`: a 20-line `main` that takes the origin as its one
+  argument and calls `Version` through `BuildHTTPClient("", 15s)`. It prints the version, or the
+  error and exit status 1. **Do not run it.** Type-check it with `go vet` (Acceptance). This task
+  makes no network call: an implementing agent never calls a real Panacea, and OD-12 batches every
+  live item into the owner's session (review I9). 7P-10 (Go through the Windows store trusts
+  KPMG's interception root) is settled when the owner runs this command at `LIVE-CHECK.md` step 1
+  (task 20). If that run fails with an `x509` error, the fix is `PANACEA_APP_PANACEA_CA_FILE`,
+  not a skip flag.
 - [ ] Commit by pathspec.
 
 #### Acceptance
@@ -157,8 +159,8 @@ says**, takes `error`, falls back to `message`, trims to 500 bytes on a rune bou
 go test ./control-plane/internal/deploy/panacea/ -race -count=1 -run 'Origin|Bearer|Token|Status|Retried|Redirect|CAFile|Timeout|Version|NotConnected|FiveHundred'
 → ok
 
-go run ./control-plane/internal/deploy/panacea/cmd/versioncheck https://dev.panacea.kpmg
-→ v1.163.0        (or whatever version dev runs that day; any non-empty version string)
+go vet ./control-plane/internal/deploy/panacea/cmd/versioncheck
+→ (nothing; it compiles and is not run: its live run is LIVE-CHECK.md step 1, task 20)
 
 grep -rn 'InsecureSkipVerify' control-plane/internal/deploy/
 → (nothing)
@@ -167,6 +169,7 @@ grep -rn 'InsecureSkipVerify' control-plane/internal/deploy/
 #### What this task does NOT claim
 
 - That any authenticated route works. No token is used in this task.
-- That the Windows store trusts the interception root on **every** KPMG laptop — only on the one
-  the live check ran on.
+- That the Windows store trusts the interception root on **any** KPMG laptop. This task makes no
+  live call. The owner's `LIVE-CHECK.md` step 1 (task 20) settles it for the one laptop it runs
+  on.
 - Anything about the response shapes of routes other than `/api/v1/version`. Task 03.

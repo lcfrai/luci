@@ -290,8 +290,9 @@ the reservation is abandoned.
 **7P-10 — Corporate TLS through the operating system's trust store; no "insecure" switch.**
 `panacea-mcp` needed `PANACEA_TLS_INSECURE=1` (`src/index.ts:69-71`) because Node carries its own
 CA list. Go's `crypto/x509` on Windows verifies through the Windows certificate store, where KPMG's
-interception root is installed — **from knowledge, not tested here**; task 02's acceptance includes
-one live `GET /api/v1/version` from Go on this laptop. `PANACEA_APP_PANACEA_CA_FILE` adds a PEM for
+interception root is installed — **from knowledge, not tested here**. Task 02 writes
+`cmd/versioncheck` and does not run it. The owner runs the one live `GET /api/v1/version` from Go
+on this laptop at `LIVE-CHECK.md` step 1 (task 20, OD-12; review I9). `PANACEA_APP_PANACEA_CA_FILE` adds a PEM for
 non-Windows builds. There is no skip-verify flag at all.
 
 **7P-11 — The Panacea address is an origin, validated before it is accepted.** Measured by the
@@ -480,6 +481,7 @@ New unless marked. `cp/` is `control-plane/`, `d/` is `desktop/src/`.
 | `cp/internal/api/sessions.go`, `cp/internal/httpx/origin.go` *(modified, only if Hub C2 has not built HA7-4)* | 07 | the cursor header on `GET /v1/sessions`; `Access-Control-Expose-Headers` |
 | `cp/internal/api/routes_audit_test.go` *(modified)* | 05, 08, 09, 11, 12, 19 | one `catalogReadOnlyRoutes` line per `GET` |
 | `cp/internal/httpx/problem.go` *(modified)* | 05 | the `deploy_*` codes; `upstream_unavailable` if no earlier task added it |
+| `cp/internal/httpx/origin.go`, `origin_test.go` *(modified)* | 05 | the preflight: `PUT` in `corsMethods`, `Idempotency-Key` in `corsHeaders` (review C1; a declared amendment to phase 2 task 09 and Hub task 37, C3); two membership rows |
 | `cp/cmd/api/config.go`, `main.go` *(modified)* | 05, 06, 07, 09, 19 | the variables of §6; the wiring |
 | `d/deploy/types.ts`, `api.ts` | 13; 16, 19 | wire types of every route above; `DeployApi` over phase 2's `client.ts` request helper (16 adds `ShipReadiness`, 19 `ReleaseSessions`) |
 | `d/deploy/deploySlice.ts`, `loader.ts` | 13; 16 | the store slice — **not in `partialize`**; `onDeployCursor`, `loadDeployView` (16 adds the readiness load) |
@@ -521,7 +523,7 @@ reading and push, because Panacea builds only pushed commits (7P-7 settles the i
 | 02 | Panacea transport: address, bearer, timeouts, retries of reads, error mapping, TLS roots, `Version` | 7a | 2 | 01 | — |
 | 03 | Panacea reads: `Whoami`, `Projects`, `Environments`, `Latest`, `Deployments`, `Run`, `Scans`, `Pods`, `Events`, `Diagnosis` + recorded bodies | 7a | 3 | 02 | — |
 | 04 | Panacea acts and governance calls: `Ship`, `Cancel`, `Rollback`, auto-deploy, posture, project access, URL prefix | 7a | 3 | 02, 03 | — |
-| 05 | The connection: write-only token route, status, config, the `deploy_*` codes | 7a | 2 | 02, 03 | Hub C1 `credstore` (or its three-method subset, part 05) |
+| 05 | The connection: write-only token route, status, config, the `deploy_*` codes; the preflight allows `PUT` and `Idempotency-Key` (C1) | 7a | 2 | 02, 03 | Hub C1 `credstore` (or its three-method subset, part 05) |
 | 06 | The binding: local project → Hub project and → Panacea project, by repository | 7a | 2 | 03, 05 | phase 3 task 13 `githost.ParseRemote`; Hub H0 `hubclient.Projects` fake |
 | 07 | The watcher: the cycle, the snapshot, the cursor header, the deployment join | 7a | 3 | 03, 06 | Hub H0 `hubclient.Releases` fake; Hub C2 cursor mechanism (HA7-4) |
 | 08 | The view: `GET /v1/projects/{id}/deploy` — environments, releases, pins, collisions, serving after rollback, owner controls | 7a | 3 | 07 | — |
@@ -661,6 +663,7 @@ Hub and phase 3 must agree before an ADO project is linked.
 | Hub C1 | `credstore.Secrets` (§9.1) | 05 | part 05 declares `connection.Secrets` — `Get`, `Put`, `Delete`, the same signatures — which `credstore.Secrets` satisfies, and wires `credstore.Memory()` in tests |
 | Hub C2 | the relay and the cursor mechanism | 07, 13 | HA7-4's *meanwhile* |
 | Hub C3 | the local caller key on every request | 14 | the lens works without it; the §6.6 exposure is C3's to close |
+| Phase 2 task 09; Hub C3 (task 37) | the preflight constants in `origin.go:168-172`, which both already write | 05 | **amended by phase 7:** `PUT` and `Idempotency-Key` are added. Whichever of task 05 and Hub task 37 lands second adds its entry to the list it finds and does not paste its own literal; task 05's membership rows go red if an entry is dropped (review C1) |
 | Phase 3 task 08 | `remote.State{Upstream, Ahead, Behind}`, `Convergence.Tip` | 09 | 7b does not merge |
 | Phase 3 task 12 | `POST …/push` | 16 (offered beside a disabled Ship) | Ship says *"push first"* without the button |
 | Phase 3 task 13 | `githost.ParseRemote`, `Remote.RepoKey()` | 06 | 7a's binding cannot match; the connect screen asks for the Panacea project by name instead (part 06) |
@@ -710,10 +713,11 @@ recorded Panacea bodies.
 - **No network call was made by this pass.** The Panacea dev address and version are the
   orchestrator's measurement (`orchestrator-rulings.md`, *Settled by measurement*). No token was
   used and no response body was observed; every Panacea shape is read from Go source at
-  `406d0da95` (§2), and a later Panacea commit may move any of it. Task 02 and task 20's
-  `LIVE-CHECK.md` re-check against the live dev API.
+  `406d0da95` (§2), and a later Panacea commit may move any of it. Task 20's `LIVE-CHECK.md`
+  re-checks against the live dev API, in the owner's session (OD-12).
 - **Go on Windows trusts KPMG's interception root through the system store** (7P-10) — from
-  knowledge; task 02's acceptance has the one live call that settles it.
+  knowledge; `LIVE-CHECK.md` step 1 (task 20) has the one live call that settles it. Task 02 only
+  writes the command (review I9).
 - **The value of `panacea.io/environment` for the production environment** — `"prod"` or
   `"production"` (7P-8). Task 08 surfaces a mismatch instead of hiding it; task 20 records the
   answer.

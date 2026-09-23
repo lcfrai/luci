@@ -14,7 +14,7 @@ Hub contract §9.3). The watcher is one more, and it is the only thing that poll
 - `control-plane/internal/deploy/deploywatch/watcher_test.go`, `join_test.go` (new)
 - `control-plane/internal/api/api.go` (modified) — `Deps.CursorSources`, **only if Hub C2 has not added it** (HA7-4)
 - `control-plane/internal/api/sessions.go` (modified, same condition) — the header loop on `GET /v1/sessions`
-- `control-plane/internal/httpx/origin.go` (modified, same condition) — `Access-Control-Expose-Headers`
+- `control-plane/internal/httpx/origin.go` (modified, same condition) — `Access-Control-Expose-Headers` only. The preflight's `corsMethods` and `corsHeaders` are task 05's change (review C1), and this task leaves them alone.
 - `control-plane/cmd/api/config.go`, `main.go` (modified) — three interval variables (plan §6); start `Run`
 
 #### Interfaces — complete

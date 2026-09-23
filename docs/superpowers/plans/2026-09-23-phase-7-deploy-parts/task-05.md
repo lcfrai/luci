@@ -18,6 +18,8 @@ response carries it, no log line prints it, it never reaches the Hub or a sandbo
 - `control-plane/internal/api/api.go` (modified) — `Deps.DeployConnection`; `a.registerDeployConnection(guarded)` in `New`
 - `control-plane/internal/api/routes_audit_test.go` (modified) — one `catalogReadOnlyRoutes` line
 - `control-plane/internal/httpx/problem.go` (modified) — the codes below
+- `control-plane/internal/httpx/origin.go` (modified) — `PUT` in `corsMethods`, `Idempotency-Key` in `corsHeaders`, and the comment above them (review C1; a declared amendment to phase 2 and Hub C3, below)
+- `control-plane/internal/httpx/origin_test.go` (modified) — the exact-value row updated; two new preflight rows
 - `control-plane/cmd/api/config.go`, `config_test.go`, `main.go` (modified) — three variables, the wiring
 
 #### Interfaces — complete
@@ -165,6 +167,55 @@ DELETE /v1/deploy/connection
 `PUT` is `http.MaxBytesReader`-bounded by `httpx.DecodeJSON` (1 MiB) and decoded into a struct
 whose `Token` field has a `String()` that redacts, so a `%v` in any later log line cannot print it.
 
+#### The preflight must allow `PUT` and `Idempotency-Key` (review C1; a declared amendment)
+
+This task sends phase 7's first `PUT`. Every Tauri build is cross-origin to `127.0.0.1:8730`
+(phase 2 task 09, decision 1), so the webview preflights every `PUT` and every request that
+carries `Idempotency-Key`. `origin.go:231-237` answers that preflight from two constants
+(`origin.go:168-172`), and today they list neither: `corsMethods = "GET, POST, PATCH, DELETE,
+OPTIONS"`, `corsHeaders = "Content-Type"`. Unchanged, they refuse every one of these at the
+preflight, before the request is sent:
+- Connect, from this task (`PUT /v1/deploy/connection`)
+- Bind (`PUT …/deploy/binding`, task 06)
+- the three governance `PUT`s (task 11)
+- Ship (task 09), and Rollback and Rebuild (task 10), which send `Idempotency-Key`
+
+The Go tests call handlers directly and the vitest tests mock `fetch`, so without the rows below
+the whole plan stays green while the lens cannot connect or ship.
+
+```go
+// control-plane/internal/httpx/origin.go — the constants after this task.
+// If Hub task 37 (C3) has already landed, corsHeaders is "Content-Type, Authorization" today:
+	corsMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+	corsHeaders = "Content-Type, Authorization, Idempotency-Key"
+// If it has not:
+	corsMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+	corsHeaders = "Content-Type, Idempotency-Key"
+```
+
+Rewrite the comment above them (`origin.go:164-167`). It says the desktop *"sends no custom
+header"*, and after this task that is false. The new comment says:
+- Methods is every verb the control plane routes, `PUT` included (phase 7's writes).
+- Headers is `Content-Type`, plus `Idempotency-Key`, which ship, rollback and rebuild send
+  (tasks 09 and 10), plus `Authorization` once Hub C3's local key is in.
+
+`corsMaxAge`, the origin check, the `Vary` header and the missing
+`Access-Control-Allow-Credentials` stay exactly as they are.
+
+**Declared amendment to phase 2.** Phase 2 fixed both values:
+- task 09 (`phase-2-parts/task-09.md:5`, `:642-643`, `:952-953`)
+- task 24's live check, which expects them (`phase-2-parts/task-24.md:1299`)
+
+Phase 7 widens both lists and narrows nothing. Phase 2's exact-value test row
+(`origin_test.go:171-172`) is updated to the new values in this task.
+
+**Declared amendment to Hub C3.** Hub task 37 writes both constants as literals
+(`phase-h-hub-parts/task-37.md:154-159`: methods without `PUT`, headers `"Content-Type,
+Authorization"`). Whichever of the two tasks lands second **adds its entry to the list it
+finds**. It must not paste its own literal. Pasting compiles, and it silently drops the other
+stream's entry (the silent-override class). If that happens, the two membership rows below go
+red, whichever order the streams land in.
+
 #### Problem codes — added to `httpx`'s constant block (`problem.go:45-60`)
 
 ```go
@@ -235,13 +286,28 @@ The Hub rows compile only once Hub C2's `hubclient` exists; until then they are 
 | `TestWriteDeployErrorTable` | one sub-test per row of `writeDeployError` | a 401 on this surface for a Panacea token |
 | `TestConfigPanaceaURL` | `https://dev.panacea.kpmg/api` exits with the path sentence; `http://…` exits | the doubled `/api` (measured 404) |
 | `TestRoutesAudit` | the existing §10a audit passes with `GET /v1/deploy/connection` in `catalogReadOnlyRoutes` | — (the audit is phase 2's) |
+| `TestPreflightAllowsPut` (`origin_test.go`) | `OPTIONS` from `http://tauri.localhost` with `Access-Control-Request-Method: PUT` → 204, and `PUT` is one of the comma-separated entries of `Access-Control-Allow-Methods` | `corsMethods` unchanged: every phase 7 `PUT` is refused at the preflight |
+| `TestPreflightAllowsIdempotencyKey` (`origin_test.go`) | `OPTIONS` with `Access-Control-Request-Method: POST` and `Access-Control-Request-Headers: content-type,idempotency-key` (the browser's lower-cased form) → 204, and `Idempotency-Key` is one of the entries of `Access-Control-Allow-Headers`, compared case-insensitively | `corsHeaders` unchanged: Ship, Rollback and Rebuild are refused at the preflight |
+| `TestMiddlewareAnswersPreflightBeforeTheMux` (existing, `origin_test.go:151-182`) | its rows at `:171-172` expect the new constants exactly | — (phase 2's row; it stays exact, so a verb or header nobody asked for is still a diff) |
 
 `catalogReadOnlyRoutes` line: `"GET /v1/deploy/connection": "Returns Manager.Status(), a cached
 struct; it performs no network call and writes nothing. The token is never in it."`
 
+The two new preflight rows test **membership, not string equality**, on purpose. Hub C3 adds
+`Authorization` to the same constant. A row that pinned the whole string would be rewritten by
+whichever stream lands second, and that rewrite would carry the other stream's entry away with it.
+A membership row does not change when Hub C3 lands, so it keeps `PUT` and `Idempotency-Key`
+guarded. **Mutants** (on a `$TEMP` copy): restore `corsMethods` to phase 2's value, and
+`TestPreflightAllowsPut` goes red; restore `corsHeaders`, and `TestPreflightAllowsIdempotencyKey`
+goes red.
+
 #### Steps
 
 - [ ] Tests first; they fail to compile.
+- [ ] The two preflight rows first, against today's `origin.go`: both go red (`PUT` and
+  `Idempotency-Key` are missing). Then change the two constants and their comment (above) and the
+  exact row at `origin_test.go:171-172`; all three go green. Commit this change by itself, so that
+  the Hub stream can see the amendment as one diff.
 - [ ] `connection.go`, `current.go`; then the codes in `problem.go`; then `deploy_errors.go` and
   `deploy_connection.go`; register through `routes`; one `Deps` field `DeployConnection
   *connection.Manager` — **nil disables every phase 7 route with 503 `deploy_not_connected`**
@@ -259,6 +325,9 @@ go test ./control-plane/... -race -count=1
 
 grep -rn 'pnc_' control-plane/internal --include=*.go | grep -v _test.go
 → only the prefix check in deploy_connection.go and the constant's comment
+
+grep -n 'corsMethods =\|corsHeaders =' control-plane/internal/httpx/origin.go
+→ corsMethods lists PUT; corsHeaders lists Idempotency-Key (and Authorization, if Hub C3 is in)
 ```
 
 #### What this task does NOT claim
@@ -268,3 +337,6 @@ grep -rn 'pnc_' control-plane/internal --include=*.go | grep -v _test.go
 - That the §6.6 exposure is closed. Another OS user reaching `127.0.0.1:8730` is stopped by Hub
   task C3's local caller key, not here.
 - Anything visual. Task 14 draws these states.
+- That WebView2 accepts the widened preflight. The rows prove what the middleware answers, not
+  what the browser does with that answer. The real window first sees it at `LIVE-CHECK.md`
+  steps 2 and 7 (task 20, OD-12).

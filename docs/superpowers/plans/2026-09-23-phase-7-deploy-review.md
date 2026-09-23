@@ -393,3 +393,70 @@ re-check of tasks 03, 08, 09 and 15 is enough.
 
 **Plan quality: Needs fixes**
 
+---
+
+## Fix batch b01 — C1 and I9 (2026-09-24)
+
+Both findings are fixed as the review said. Two points were changed on the facts, and are
+explained below the tables. Line numbers are those after the batch. `t05` means
+`2026-09-23-phase-7-deploy-parts/task-05.md`, and `plan` means `2026-09-23-phase-7-deploy.md`.
+
+**Re-verified against the tree before editing:**
+- `origin.go:168-172` holds `corsMethods = "GET, POST, PATCH, DELETE, OPTIONS"` and
+  `corsHeaders = "Content-Type"`, and `:231-237` serves them.
+- `origin_test.go:171-172` pins both values **exactly**, in `TestMiddlewareAnswersPreflightBeforeTheMux`
+  (`:151-182`).
+- Hub `task-37.md:154-159` writes both constants as literals: `"Content-Type, Authorization"`,
+  and methods without `PUT`.
+- Phase 2 fixes the values at `phase-2-parts/task-09.md:5`, `:642-643` and `:952-953`, and at
+  `task-24.md:1299`.
+
+### C1 — the preflight refuses `PUT` and `Idempotency-Key`
+
+| Change | Where |
+|---|---|
+| `origin.go` and `origin_test.go` added to task 05's file list | t05:21-22 |
+| New section: why, both constant pairs (with Hub C3 landed and without it), the comment rewrite, and the declared amendments to phase 2 and Hub C3 | t05:170-217 |
+| `TestPreflightAllowsPut` and `TestPreflightAllowsIdempotencyKey` (membership rows); the existing exact row at `origin_test.go:171-172` updated | t05:289-291 |
+| Why the rows test membership, and the two "constant unchanged" mutants | t05:296-302 |
+| Steps: the rows go red first; the amendment gets a commit of its own | t05:307-310 |
+| Acceptance: `grep` of the two constants | t05:329-330 |
+| Not claimed: WebView2's own behaviour is live-only (LIVE-CHECK steps 2 and 7) | t05:340-342 |
+| Task 07's `origin.go` line now says it touches `Expose-Headers` only | t07:17 |
+| The file map row | plan:484 |
+| The task table row 05 | plan:526 |
+| The §10.1 seam row declaring the amendment and the land-second rule | plan:666 |
+| LIVE-CHECK steps 2 and 7 name the two preflights they exercise | t20:394, t20:399 |
+
+### I9 — task 02's live acceptance step
+
+| Change | Where |
+|---|---|
+| `cmd/versioncheck/main.go` added to the file list (this also closes M3's first half) | t02:15 |
+| The live-run step replaced: write the command, do not run it, and say where 7P-10 is settled | t02:146-153 |
+| Acceptance: `go run … https://dev.panacea.kpmg` replaced by `go vet` of the command | t02:162-163 |
+| "Does not claim" row: no live call is made in this task | t02:172-174 |
+| 7P-10's evidence line now points at LIVE-CHECK step 1, not at task 02 | plan:293-295 |
+| §12's two restatements ("Task 02 … re-check", "task 02's acceptance has the one live call") | plan:716-720 |
+| LIVE-CHECK step 1 "Settles": the command is task 02's; the run is the owner's | t20:393 |
+
+### Deviations from the review's "how to fix", declared
+
+1. **The review says "both asserting the allow lists." The new rows check membership, not the
+   whole string.** Hub task 37 rewrites the same constant. A row that pinned the whole string
+   would be rewritten by whichever stream lands second, and could drop the other stream's entry
+   without anyone noticing. Phase 2's existing exact row stays and is updated. The membership
+   rows are what keep `PUT` and `Idempotency-Key` in place in either landing order.
+2. **The review did not name the existing exact row at `origin_test.go:171-172`.** Changing the
+   constants turns it red, so task 05 updates it on purpose instead of meeting it as a surprise.
+
+### Left open
+
+- **Hub `task-37.md:154-159` still shows literal constants** that would drop `PUT` and
+  `Idempotency-Key` if task 37 lands after task 05. That plan is in the Hub stream's worktree,
+  which this stream may not edit. Phase 7 declares the rule at plan:666 and t05:212-217, and the
+  membership rows catch a violation. The Hub stream should change its code block to "add
+  `Authorization` to the list you find". Relayed through the orchestrator.
+- **M3's second half (`Retry-After` against fixed GET backoff) is not in this batch.** It stays
+  with the Minors.
+

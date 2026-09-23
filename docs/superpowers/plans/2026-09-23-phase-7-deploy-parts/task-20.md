@@ -390,13 +390,13 @@ write below touches **only** that branch. Write down its posture and auto-deploy
 
 | # | Do | Expect | Settles | Seen |
 |---|---|---|---|---|
-| 1 | `go run ./control-plane/internal/deploy/panacea/cmd/versioncheck <dev origin>` | a version string. An `x509` error: stop, set `PANACEA_APP_PANACEA_CA_FILE` | 7P-10 on this laptop (task 02) | |
-| 2 | Deploy lens → paste the token → Connect | *connected*, or the awaiting-approval words; the field is empty after; `cmdkey /list` shows a `PanaceaApp/panacea/<host>` row | task 05, live | |
+| 1 | `go run ./control-plane/internal/deploy/panacea/cmd/versioncheck <dev origin>` | a version string. An `x509` error: stop, set `PANACEA_APP_PANACEA_CA_FILE` | 7P-10 on this laptop (the command task 02 writes and does not run; review I9) | |
+| 2 | Deploy lens → paste the token → Connect | *connected*, or the awaiting-approval words; the field is empty after; `cmdkey /list` shows a `PanaceaApp/panacea/<host>` row | task 05, live, including the `PUT` preflight (review C1) | |
 | 3 | `PANACEA_APP_LIVE_PROJECT=<project> PANACEA_APP_LIVE_ENV=<an env> go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/` | `ok`; copy the logged environment names, the `withSlashInBranch` count and every `live-only key` line here | task 03's recorded bodies against live keys (plan §4 rows 2–9); repoUrl for a non-admin token (plan §12); `ParseRemote` on a real URL (task 06); `prod` vs `production` (7P-8); branch names with `/` (task 08); stream not buffered (task 12) | |
 | 4 | Select the project | *bound* to the Panacea project, with no question asked — or the one choice | task 06 | |
 | 5 | Compare the environment card with the Panacea portal for one environment | version, commit and pods ready agree; the three facts are three | tasks 08, 15 | |
 | 6 | On `live-check/p7`: Ship, then Undo inside 5 s | nothing new in the portal's pipeline list | 7P-15, task 16 | |
-| 7 | Ship again and wait; open the release; **Follow build log**; scroll up while it runs | the run shows within about 3 s; lines arrive as they happen; the pane does not jump | tasks 09, 12, 17 | |
+| 7 | Ship again and wait; open the release; **Follow build log**; scroll up while it runs | the run shows within about 3 s; lines arrive as they happen; the pane does not jump | tasks 09, 12, 17; the `Idempotency-Key` preflight (task 05, review C1) | |
 | 8 | Read the manifest | the pin is the brief's latest complete revision; the session from the scratch commit is listed | tasks 09, 17, 19; Hub H5 | |
 | 9 | Ship a second commit; then **Roll back to** the first release | the warmth line; the lens says the first is serving; the portal lists **no** rollback deployment | 7P-4, plan §12 | |
 | 10 | **Rebuild** the first release | a new run of the first release's commit; its pin says *inherited* | 7P-3, task 10 | |
