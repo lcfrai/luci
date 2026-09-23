@@ -518,8 +518,12 @@ this batch adds **25** (the session link writes to the Hub as the signed-in user
 every mounted pattern (`TestMount_wrapsEveryRoute`), so a route added later cannot skip the wrap.
 (2) `designapi.New` takes a `KeyGuard func(http.Handler) http.Handler`, not the `localkey.Key`:
 task 37's `Key` exposes no way to check it is non-zero, so `New` cannot validate a `Key`. The
-identity-function mutant is killed by `TestMain_wiring` instead, and the zero-key gap goes to the
-Hub as HA5-6.
+zero-key gap goes to the Hub as HA5-6. *Corrected in round 2 (re-review I-2):* this batch first
+said `TestMain_wiring` kills the identity-function mutant. It cannot: Hub task 37 wraps the whole
+guarded mux in `localkey.Middleware` (`task-37.md:70`), so a keyless request through the real
+process is 401 whatever `KeyGuard` is. `main.go` now builds the design API only through
+`newDesignAPI`, and `TestNewDesignAPI_guardsBareMux` mounts its result on a bare `http.ServeMux`
+with no outer wrap; that is the test that kills the mutant.
 
 ### C2 — Materialise treats a Hub manifest as hostile input
 
@@ -556,4 +560,43 @@ Desktop (the review's own caveat) — task 30 step 1 now records it. Hub plan ta
 sibling plan's; their names (`localkey.Mint`, `Middleware`, `Exempt`, `LocalKeySource`) are cited
 from `.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub-parts/task-37.md:29-77`
 and `task-38.md:45-69`, not from built code.
+
+### Round 2 (2026-09-24) — the re-review's open issues (`plan-rereview-b01-1.md`)
+
+The re-review found C1 and C2 resolved and raised I-1, I-2 and M-1 to M-4. Line numbers are as of
+this round's commits.
+
+| Finding | Change | Where |
+|---|---|---|
+| **I-1** slug collision makes an approval un-handoff-able | `Slugs` measures a repeat against every slug already given out (one `taken` set): `"Home"`, `"Home"`, `"Home 2"` → `home`, `home-2`, `home-2-2` | `parts/task-21.md:188-201` |
+| I-1 | `CheckManifest(m, manifestSize, ManifestWant)` in `paths.go` is the one manifest rule (kind/v, the approval's keys through `doc.ParseDesignKey`, `SafePath`, no duplicate path or slug, artboard paths ⊆ `Files`, content types, asset hex, the three limits); `ErrTampered` moves to `paths.go` with it | `parts/task-21.md:109-143` |
+| I-1 | `BuildSnapshot` runs `CheckManifest` on its own output as its last step; the Files list and the limits comment say so | `parts/task-21.md:17-19`, `:69-84` |
+| I-1 | Approve step 5: a self-check `ErrTampered`/`ErrUnsafePath` → `500 internal`, nothing uploaded, no approval; `buildSnapshot` seam | `parts/task-21.md:260-264` |
+| I-1 | `TestSlugs` rows (both orders, pairwise distinct); `TestCheckManifest`; `TestBuildSnapshot_selfChecks` (`slugsFn` seam, `:203-205`); `TestApprove_snapshotBug` | `parts/task-21.md:294-297` |
+| I-1 | Materialise steps 2–4 are now one `handoff.CheckManifest` call, the same function; `TestMaterialise_sharesCheckManifest` | `parts/task-22.md:52-73`, `:150` |
+| I-1 | Plan file map: `paths.go` is the path **and manifest** rule | plan `:336` |
+| **I-2** identity `KeyGuard` survives `TestMain_wiring` | `main.go` builds the design API only through `newDesignAPI` (`cmd/api/design.go`); why the outer wrap hides the mutant | `parts/task-20.md:22-23`, `:191`, `:222-233`; plan `:364` |
+| I-2 | `TestNewDesignAPI_guardsBareMux`: the result on a bare `http.ServeMux`, no `api.New`, route 5 keyless → 401; `TestMain_wiring`'s kill column narrowed to "never mounted" | `parts/task-20.md:254-255` |
+| I-2 | Departure (2) of this section corrected | this file `:519-526` |
+| **M-1** stream retry never resets | "a second **consecutive** 401"; the allowance resets on every 200; the test runs two restarts in one window | `parts/task-27.md:77-81`, `:147` |
+| **M-2** task 30's probe can hang | `--connect-timeout 3 --max-time 5` on each call; a 15 s `docker exec` context; classified by curl's exit code (6/7/28 with `000` = unreachable; 28 with a status = a keyless stream = fail; 0 = must be 401 `local_key_required`); a keyed host-side positive control on route 20 | `parts/task-30.md:64-100` |
+| **M-3** route-walk count rows | task 20 names each part's count; task 21 row (23), task 22 row (26), task 29 row (27) plus route 27's keyless-401 row | `parts/task-20.md:251`; `parts/task-21.md:298`; `parts/task-22.md:151`; `parts/task-29.md:60-61` |
+| **M-4.1** design key parse and canvas id | `rec.DesignKey` through `doc.ParseDesignKey` (a parse failure → `ErrTampered`); its canvas id must equal the route's `{canvasId}`, now Materialise's `canvasID` argument; test rows | `parts/task-21.md:124-127`; `parts/task-22.md:62-65`, `:84`, `:119-121`, `:149` |
+| **M-4.2** "every path it writes" | now "every `Files` path" (`manifest.json` is not one) | `parts/task-21.md:81-84` |
+
+**Departures, and why.** (1) I-1's fix named `CheckManifest(m Manifest, want ApprovalRecord)`.
+`ApprovalRecord` is task 22's type, and `BuildSnapshot` (task 21) has no approval yet, so the
+function takes a `ManifestWant` of the four values both callers do have, plus `manifestSize`
+(the byte limit counts the manifest, which `Manifest` alone cannot measure). (2) M-2's "28 means
+unreachable" is refined: a keyless route 20 sends its headers and then may send no body byte for
+up to 15 s (the ping interval), so exit 28 alone cannot tell "unreachable" from "streaming to a
+sandbox". The status curl received is the signal, and the positive control proves curl reports it
+on a `--max-time` exit. (3) `CheckManifest` also refuses two artboards sharing a slug; unique
+paths imply it for `BuildSnapshot`'s output, and it closes a hostile manifest pointing two
+artboard rows at one file set.
+
+**Unverified.** That curl prints the received status on a `--max-time` exit (task 30's positive
+control checks it). That the sandbox image ships `curl` (already assumed by b01). The re-review's
+out-of-scope observations (G4 and review I1's symlink case, the key file under a bind mount, the
+HA5-5/HA5-6 row order) are not addressed here.
 

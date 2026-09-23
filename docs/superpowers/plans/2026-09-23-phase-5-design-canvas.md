@@ -333,7 +333,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `canvas/mcp/` | `tools.go` (the builder and the error table), `ports.go` (Briefs, Approvals), `views.go`, `tools_read.go` | 15 |
 | `canvas/mcp/` | `tools_write.go`, `place.go` | 16 |
 | `canvas/mcp/` | `tools_tokens.go`, `tools_comments.go`, `tools_export.go`, `guides.go`, `instructions.go`, `guides/*.md` | 17 |
-| `canvas/handoff/` | `snapshot.go`, `manifest.go`, `slug.go`, `paths.go` — the one bundle-path rule (21); `bundle.go` (22) | 21, 22 |
+| `canvas/handoff/` | `snapshot.go`, `manifest.go`, `slug.go`, `paths.go` — the one bundle-path and manifest rule, `SafePath` and `CheckManifest` (21); `bundle.go` (22) | 21, 22 |
 | `canvas/canvastest/` | `fixtures.go` (11), `renderer.go` (13), `ports.go` (15) | 11, 13, 15 |
 
 **New npm package `canvas/editor/`** (`@panacea-app/canvas-editor`, private):
@@ -361,6 +361,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `internal/designapi/` (new) | `routes.go`, `mount.go`, `canvas.go`, `ops.go`, `assets.go`, `comments.go`, `render.go`, `export.go`, `briefs.go` (the neutral port; `briefs_phase4.go` adapts `discoverhub` once it exists), `problems.go` (20); `approve.go`, `approvals.go`, `hub.go` (21); `handoff.go`, `links.go`, `gitexclude.go` (22); `paste.go` (29); `e2e_test.go` (30) | 20–22, 29, 30 |
 | `internal/httpx/problem.go` | the design codes (task 20 lists them) | 20 |
 | `cmd/api/config.go`, `main.go` | `PANACEA_APP_CANVAS_*` variables; wiring | 19, 20 |
+| `cmd/api/design.go` (new) | `newDesignAPI`, the one builder of the design API, so the `KeyGuard` `main.go` passes is testable without `api.New`'s outer wrap | 20 |
 | `internal/api/routes_audit_test.go` | the new GET routes in `catalogReadOnlyRoutes` | 20 |
 
 **`sandboxd/`**: `internal/mcprelay/` (new: `frame.go`, `listener.go`, `channel.go`), `internal/server/server.go`
