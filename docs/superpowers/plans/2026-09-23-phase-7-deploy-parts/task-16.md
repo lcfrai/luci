@@ -23,6 +23,7 @@ while sending: the button's label reads *"Sending…"* and the row appears when 
 - `desktop/src/deploy/ReleaseActs.tsx` (new) — `RollbackButton`, `RebuildButton`, used by the drawer (task 17)
 - `desktop/src/deploy/ActBanners.tsx` (new) — the outcome of the last act
 - `*.test.tsx` beside each
+- `desktop/src/deploy/DeployLens.tsx` (modified, task 14's) — mounts `ShipBar` above the environment card, and passes `RollbackButton` / `RebuildButton` into task 17's `ReleaseDrawer` `acts` slot
 - `desktop/src/deploy/types.ts`, `api.ts`, `deploySlice.ts`, `loader.ts` (modified, task 13's) — `ShipReadiness`, `DeployApi.shipReadiness(projectId, branchId)`, `deployReadiness`, and the readiness load on the loader's three edges
 
 #### Contracts — complete
