@@ -702,3 +702,111 @@ after a rename) is phase 4's concern and was not checked. `TestPreflightAllowsEv
 assumes a preflight through `api.New`'s handler reaches the origin middleware at `/`: read from
 `httpx/origin.go:231-237` and `routes_audit_test.go:83-88`, not run.
 
+## Fix batch b02, round 2 (2026-09-24) — the re-review's open issues
+
+Source: `.superpowers/sdd/p5/plan-rereview-b02-1.md` (local). Commits `c0c610b` (the I6 half)
+and `50bb83a` (the I7 half). **`c0c610b`'s message is wrong:** it reads "phase 5 b01 r2 - a slug
+is unique by construction…", a stale message file's text that this batch reused by accident. Its
+content is this batch's I6 half only (six files, all listed below). It is recorded here, in
+`50bb83a`'s message and in the stream ledger, not amended (the stream forbids amend).
+Paths are relative to `docs/superpowers/plans/`; `parts/` is `2026-09-23-phase-5-design-canvas-parts/`.
+
+### RR-I6-1 (Important): 20a named task 15's port types
+
+The reviewer's option 5 ("split `ports.go` out of 15"), folded into task 14 instead of a new task.
+`ports.go` is six declarations over `context` alone, so 14 still knows no canvas behaviour. 20a
+then depends on 14 (finishes at 5.5 h), and stays off the critical path. **19 is added as well:**
+the file map gives `control-plane/go.mod`'s `canvas` requirement to 19 and orders `api.go` "19,
+then 20a", and neither was declared (the re-review's carried-over `go.mod` item).
+
+| Change | Where |
+|---|---|
+| 20a depends on 11, 12, 13, 14, 19, and says why | `parts/task-20.md:3`, `:8-17` |
+| "11–13 alone" corrected; 20a imports `canvas/mcp` only for `ports.go` | `parts/task-20.md:9`, `:28-29`, `:247`; `parts/task-20b.md:7` |
+| `ports.go` is task 14's (declarations only; text stays in `task-15.md:23-79`) | `parts/task-14.md:17-23`; `parts/task-15.md:18`, `:24`, `:233-234` |
+| Plan: row 14, row 20a deps, the file map, Lane E | plan `:411`, `:417`, `:332-333`, `:454` |
+| Critical path unchanged; 20a at 20.5 h against 17's 21.5 h | plan `:432-435` |
+
+### RR-I6-2 (Minor): task 21's undeclared Hub C1
+
+| Change | Where |
+|---|---|
+| Hub C1 (task 32: `api.Deps.Hub`, `CodeHubNotConfigured`) on task 21's External line and the plan row | `parts/task-21.md:3`; plan `:419` |
+
+### RR-I6-3 (Minor): a typed-nil `Hub`
+
+| Change | Where |
+|---|---|
+| The nil rule: `design.go` assigns `Hub` only from a non-nil `hubclient.Hub` interface; `designapi.New` refuses a typed nil (`ErrTypedNilHub`) | `parts/task-21.md:24`, `:28-37` |
+| `TestNew_refusesTypedNilHub`; `TestNewDesignAPI_noHubURL` through the real `newDesignAPI` with `HUB_URL` unset → `503 hub_not_configured` | `parts/task-21.md:320-321` |
+
+### RR-I7-1 (Important): a rename followed only on a miss
+
+| Change | Where |
+|---|---|
+| A fresh lookup reconciles the **whole project, hit or miss**, under a per-project mutex | `parts/task-11.md:133-142`, steps `:144-177`, nil port `:191` |
+| `TestResolve_renameThenRecreateOldFirst` (the reviewer's ordering: old name opened first → state 1; new name → `cv-1`; the new branch's work stays put) | `parts/task-11.md:332` |
+| Owner item 9 gains the ordering | `parts/task-30.md:140-142` |
+
+### RR-I7-2 (Important): the delete compared with `CreatedAt`
+
+The reviewer's fix (`BoundAt`, a time-ordered walk, one candidate), plus two things it needs to be
+right:
+- **`LastDeleted` becomes `Deletes`, every delete.** With only the newest delete, "delete `X`,
+  recreate, rename away, recreate, delete again" hides the first delete, and the replay moves a
+  deleted branch's canvas.
+- **One atomic `Reconcile`, not `Rebind` then `Archive`.** A swap (`x → tmp`, `y → x`, `tmp → y`)
+  cannot be applied one row at a time without `ErrExists`.
+
+| Change | Where |
+|---|---|
+| `Binding.BoundAt` (set by `Bind`, and by a move to the rename row's `At`; an old row reads `CreatedAt`) | `parts/task-10.md:57-62` |
+| `Fate`; `Reconcile(projectID, fates)`, checked on the final state, one write; `ErrBadFate`; crash rule 4 | `parts/task-10.md:69-76`, `:86-96`, `:35`, `:146-147` |
+| Store tests: *bind sets BoundAt*, *reconcile move*, *reconcile swap and chain*, *reconcile archive*, `TestFileStore_reconcileRestart` | `parts/task-10.md:154-158` |
+| Port `Deletes(ctx, projectID) map[string][]time.Time`; fail-closed wording | `parts/task-11.md:111-121`, `:123-125` |
+| The replay from `(BranchID, BoundAt)`; the tie rule (a whole-second delete precedes every other event in its second); one owner per branch; the declared same-second residual | `parts/task-11.md:144-177`, residual `:179-186` |
+| Tests: `…renameOntoDeletedName` (twice, and the same-second tie), `…deletedIncarnationNotRebound`, `…swapInOneWrite`, the "`from` named twice" case in `…followsRenameChain`, `…outOfCockpitDeleteTieBreak`, and the rewritten `…notDeletedKeeps`, `…sessionFirstCallChecks`, `…lifecycleErrorFailsClosed` | `parts/task-11.md:331-342` |
+| The adapter: one fixed `for-each-ref refs/panacea/archive/`, every ref parsed, malformed refs skipped and logged; `TestPhase3Branches_deletes` | `parts/task-20.md:53-59`, `:299` |
+| Plan: row 10; the S5-P3.2 seam row, with the open edge | plan `:407`, `:470` |
+| Task 11's hours 3.5 → 4 | `parts/task-11.md:3`; plan `:408` |
+
+### RR-I7-3 (Minor): the route test's ordering
+
+| Change | Where |
+|---|---|
+| `TestRoutes_renameAndDelete` gains (a) old name opened first, (b) renamed onto a deleted name, opened twice | `parts/task-20.md:300` |
+
+### RR-M1 (Minor): the total
+
+| Change | Where |
+|---|---|
+| "Total 80.5 hours, the sum of the rows": 80 after round 1, plus task 11's 0.5 h in this round. Critical path ≈ 33 h by earliest finish | plan `:430-433` |
+
+### RR-M2 (Minor): `store.NewFile`
+
+| Change | Where |
+|---|---|
+| `canvasstore.NewFile(canvasDir, log)`, with the alias and the reason (`main.go:78`'s `store`) | `parts/task-20b.md:46-50` |
+
+### Carried over
+
+| Item | Where |
+|---|---|
+| `go.mod` ordering: 20a now depends on 19 (above) | `parts/task-20.md:3`, `:14-17` |
+| 20b's live check: the Docker lock, a built binary, stream port 8781, `PANACEA_APP_REAP_INTERVAL=24h`, its own state dir, killed by PID | `parts/task-20b.md:96-114` |
+
+**Departures, and why.** (1) `ports.go` went into task 14, not a new task: a new task would
+renumber the wave and lane text for six type declarations. (2) The tie rule reads a delete as
+before any same-second event. The other order fails on the likelier sequence ("delete `X`, then
+rename onto `X`") and strands an approved design. The residual (rename, then delete, inside one
+second) is declared in `task-11.md`. (3) `designapi.New` refusing a typed nil uses `reflect`, a
+small cost for the one field whose nil check guards the approval route.
+
+**Restatement greps run:** `Rebind|LastDeleted|Archive(|rebindArchive|lastDeleted|11.13 alone|≈ 81`
+over the plan, every part, `docs/SEAMS.md` and the specs → no hits outside this review's history.
+`S5-P3.2|rename map` → every hit read and consistent.
+
+**Unverified.** Phase 3's and the Hub's names are still cited from their plan parts, not from built
+code. `git for-each-ref` with a trailing-slash prefix pattern matching every ref under it is from
+knowledge of git, not run here. Nothing was built or run: this batch changes documents only.
+
