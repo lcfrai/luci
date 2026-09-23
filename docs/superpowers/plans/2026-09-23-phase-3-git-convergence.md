@@ -71,8 +71,14 @@ cannot fetch or push, and that is the design (brief A4).
 `--no-hardlinks`, so no object file in the clone is the project's file (Q9). Its `--config`
 writes `core.autocrlf=false`, `core.eol=lf`, `core.checkStat=minimal` and `core.trustctime=false`
 into the clone's local config before the checkout, so the working tree holds the blobs' bytes
-under the system `core.autocrlf=true` Git for Windows installs, and the host's git and the
-sandbox's Linux git read it the same way (review C2; task 03 "Line endings").
+under the system `core.autocrlf=true` Git for Windows installs (review C2; task 03 "Line
+endings"). The host's git reads those local keys. The sandbox's git does not: on a base with
+phase 2's `5a4d0d8`, `sessionEnv` sends `core.autocrlf` and `core.eol` as `GIT_CONFIG_*`, and
+command scope outranks every config file. The two gits agree only because `Deps.GitLineEndings`
+is asked in the session's worktree path, which for a lane is the clone, and there the host's git
+reads the clone's local `false` and `lf`. **That is the invariant: the line-ending resolver is
+asked in the clone, never in `Project.Path`** (task 05 pins it). The local keys still govern a
+sandbox session started without that environment.
 
 **The control plane converges by fetching, never by sharing a filesystem.** A background lane
 syncer, on the control plane's own timer and never behind a GET, copies each clone's
@@ -203,15 +209,18 @@ The fix (`2d6d95b` on `fix/sandbox-git-ca`, based on `69bbc02`, plus the uncommi
 | The fix does | Phase 3 does | Kept, changed or superseded |
 |---|---|---|
 | Mounts the worktree at `/home/dev/work`, the conversation store, and the CA bundle read-only (`sessionMounts(worktreePath, conversationStore, caBundle)`) | Leaves all three mounts as they are, and adds one: when the worktree's `.git` is a directory (every clone, and a primary worktree), `<path>/.git/config` is bound read-only on top (task 05; task-02 §HGH H5; review C1). For a cockpit worktree the worktree mount's host path is the clone, whose `.git` is a directory, so no `.git` common-dir mount is ever added (brief 3-D1 option a is rejected) | **Kept, plus one read-only file.** The mount model the brief calls "linked-worktree mounts" is replaced by clones, not by more directory mounts |
-| `sessionEnv`: `GIT_CONFIG_COUNT=2` with `safe.directory=/home/dev/work` and `user.useConfigOnly=true`; `GIT_AUTHOR_*`/`GIT_COMMITTER_*` from the identity; `NODE_EXTRA_CA_CERTS` | Adds a third entry, `core.hooksPath=/opt/panacea/githooks`, so the count becomes 3. Adds `PANACEA_APP_SESSION_ID`, a reserved variable `EnvEntries` writes from `Spec.SessionID` (task 05) | **Extended.** `safe.directory` is still needed: a clone's bind mount has the same foreign owner |
+| `sessionEnv(id, eol, caBundle)` (as of `5a4d0d8` on `feat/phase-2-cockpit`, re-read 2026-09-24): a `pairs` slice numbered into `GIT_CONFIG_KEY_n`/`VALUE_n` (`safe.directory=/home/dev/work`, `user.useConfigOnly=true`, `gc.worktreePruneExpire=never`, `gc.auto=0`, `core.autocrlf` and `core.eol` from `Deps.GitLineEndings` asked in the session's worktree path), `GIT_CONFIG_COUNT` their number (six at the time of writing); `GIT_AUTHOR_*`/`GIT_COMMITTER_*` from the identity; `NODE_EXTRA_CA_CERTS` | Appends one pair, `core.hooksPath=/opt/panacea/githooks`, after the fix's own, which it never renumbers. Relies on the resolver being asked in the clone for a lane session, and pins it (task 05; plan re-review b02 I-1; "A clone shares no file" above). Adds `PANACEA_APP_SESSION_ID`, a reserved variable `EnvEntries` writes from `Spec.SessionID` (task 05) | **Extended.** `safe.directory` is still needed: a clone's bind mount has the same foreign owner |
 | `gitIdentityResolver` asks `git var GIT_AUTHOR_IDENT` in the worktree's host path | A clone does not inherit its source's `.git/config`, nor an `includeIf gitdir:` that matched the project's path. So clone creation asks `git var` **in the project repository** and writes the answer into the clone's local `user.name`/`user.email` (task 03). The fix's per-worktree resolution then gives the same answer in the clone that it gives in the project | **Kept, with one addition at clone time** |
 | `LinkedWorktreeNote` renders for every worktree with `isPrimary: false`, saying git "arrives in Phase 3" | The condition narrows to `kind === "linked"`: a worktree made with `git worktree add` outside the cockpit, where git is still unavailable. A clone is `kind: "clone"`, `isPrimary: false`, and renders no notice. The sentence is rewritten to name the fix the user can take, and stops promising a phase (task 06) | **Superseded** for clones; **kept and reworded** for linked worktrees |
 | Git over HTTPS "is phase 3's" (the fix's commit message) | Push and fetch run on the host, never in the sandbox; the sandbox holds no credential (A4). `NODE_EXTRA_CA_CERTS` does not affect git on the host, which uses whatever trust the host's git is already configured with (its `http.sslBackend` — not read for this plan) | **Answered**: nothing git-over-HTTPS happens in a sandbox |
 
 **Gate G1.** Task 04 and every later task assume the fix is merged into the branch phase 3 builds
 on. If the fix is still unmerged when task 04 starts, the implementer stops and reports; phase 3
-does not re-implement it. If the fix merges with a different shape from the one quoted above
-(`sessionEnv`'s count, `GitIdentity`'s signature, `LinkedWorktreeNote`'s condition), tasks 04–06
+does not re-implement it. "The fix" includes its line-ending round, `5a4d0d8`, which landed on
+`feat/phase-2-cockpit` after that branch merged `fix/sandbox-git-ca` (`f898f5e`) and is not on
+`fix/sandbox-git-ca` itself: task 05's preflight greps for it. If the fix merges with a different
+shape from the one quoted above (`sessionEnv`'s pairs, `GitIdentity`'s signature,
+`LinkedWorktreeNote`'s condition), tasks 04–06
 re-read it and adjust their preflight greps, and the change is reported in the task's commit.
 
 ## Global constraints
@@ -305,7 +314,7 @@ part file; task 18 restates them as TypeScript.
 
 | Gate | What | Blocks | If it has not landed |
 |---|---|---|---|
-| **G1** | `fix/sandbox-git-ca` merged into phase 3's base | tasks 04–06, and everything that starts a session | stop and report (above) |
+| **G1** | `fix/sandbox-git-ca` merged into phase 3's base, with its line-ending round `5a4d0d8` (on `feat/phase-2-cockpit`) | tasks 04–06, and everything that starts a session | stop and report (above) |
 | **G2** | Phase 2 task 26 lands: `components/lens/FilesLens.tsx` and `MergeLens.tsx` exist and `AppShell.tsx` is closed (seam SX.1). **Verified absent on 2026-09-23**: `desktop/src/components/lens/` holds only `LensPlaceholder.tsx`, and `AppShell.tsx:44-58` still routes `files` and `merge` to `LensPlaceholder phase={3}` | tasks 19–21 | the desktop half waits. It never edits `AppShell.tsx`: that reopens the four-way collision `dependency-graph-and-order.md` §2.2 counts |
 | G3 (soft) | Phase 4's `provenance` slice zero: a `briefref.Resolver` implementation and `DefinitionOfDone` | the brief key on a land, evidence recording, the DoD above the queue | lands record no brief (`none`); evidence recording answers `brief_unresolvable`; the Merge lens renders the DoD slot's honest empty state |
 | G4 (soft) | The Hub's credential store (`credstore.Store`) | push and PR with a stored token | push uses the machine's git credential helper; PR creation uses the git-helper fallback (task 13) or says there is no credential |
@@ -365,7 +374,7 @@ named task changes.
 | **Q6** | Review C1's residual: phase 2's scanner and `project.ExecRunner` run host git in the primary worktree's repository, whose `.git` the sandbox can write on a primary-worktree session. task-02 §HGH hardens `gitx.Exec` only. Are phase 2's read-only commands (`worktree list`, `for-each-ref`, `status`) exposed to `core.fsmonitor`, hooks or filters? | **Phase 2 checks, and adopts §HGH's H1 prefix in `ExecRunner` if they are.** `status` honours `core.fsmonitor`, so that exposure is likely. It is **not verified here**, and phase 2's files are not this plan's to edit. H5's read-only `.git/config` mount covers that one file only: a `.git/commondir` the agent writes moves the config git reads (verified on git 2.53.0.windows.2, task-02 §HGH H5). So phase 2's launcher needs H5's layout pin (`GIT_DIR`, `GIT_COMMON_DIR`) as well as the H1 prefix | phase 3 lifts H1 into `project.ExecRunner` itself (one prefix, both launchers) |
 | **Q7** | task-02 §HGH H5 makes a checkout's `.git/config` read-only inside the sandbox. An agent's `git config`, `git branch --set-upstream-to` and `git remote add` then fail there. So, by the same reasoning and not verified, do an agent's `git branch -m` (it moves `branch.<old>.*`) and husky's `prepare` script, which runs `git config core.hooksPath` when the agent runs `npm install`. Accept that? | **Yes.** It is the only rule that closes H3's check-then-call race. The sandbox holds no git credential (A4), so it never needs a remote, and identity arrives through the session environment. The agent's `git commit`, `branch` and `checkout -b` keep working | H5 is dropped, and H3 becomes a best-effort check with a documented race. Filter drivers in a clone are then a residual host-execution risk |
 | **Q8** | task-02 §HGH H1 clears a repository's own credential helper, so a cockpit fetch or push authenticates as the account the machine's helpers (system, then global) answer for that URL, not the one a repo-local `credential.<url>.helper` chooses. On this repository that is the global helper's account, not the repo-local `lcfrai/panaceaapp` one. Accept that? | **Yes.** A repository helper is a program the sandbox may have written, and the machine's config is the only config the agent cannot write. A user who wants the repo-local account moves that key to `--global`; it is URL-scoped, so it still applies to that repository alone | task 12 lets a push run the repository's own helper when no session has ever mounted that repository's `.git`, which needs a per-repository record of mounts |
-| **Q9** | OD-2 says a lane clone's objects are hard-linked. A hard link is one file with two names, so through the bind mount an agent can clear a pack's read-only attribute and rewrite the **project's** pack, which makes OD-2's "blast radius is its own clone" false (review I8; verified on git 2.53.0.windows.2: `clone --local` gives the pack, `.idx`, `.rev` and commit-graph a link count of 2). Copy the objects instead? | **Yes: `clone --no-hardlinks`, built** (task 03 step 4, one function `cloneArgv`). The cost is disk and clone time per lane. Task 01's Step 5 measures both on `~/Projects/Panacea`; **not measured yet**. Recommend keeping the copy unless that clone is too slow on the owner's laptop | task 03 goes back to `clone --local`; every land first runs `git fsck --connectivity-only` over the lane's objects (task 09); and this plan's "does not claim" states that an agent can write the project's object files |
+| **Q9** | OD-2 says a lane clone's objects are hard-linked. A hard link is one file with two names, so through the bind mount an agent can clear a pack's read-only attribute and rewrite the **project's** pack, which makes OD-2's "blast radius is its own clone" false (review I8; verified on git 2.53.0.windows.2: `clone --local` gives the pack, `.idx`, `.rev` and commit-graph a link count of 2). Copy the objects instead? | **Yes: `clone --no-hardlinks`, built** (task 03 step 4, one function `cloneArgv`). The cost is disk and clone time per lane. Task 01's Step 5 measures both on `~/Projects/Panacea`; **not measured yet**. Recommend keeping the copy unless that clone is too slow on the owner's laptop | task 03 goes back to `clone --local`, and **no check closes the hole**. The files an agent rewrites are the project's from the moment it writes them, so a check at land time leaves the user's repository exposed between lands; and `git fsck --connectivity-only` cannot see the damage at all (git-fsck(1), git 2.53: "Corruption in blob objects will not be detected at all"). The nearest mitigation is a full `git fsck` of the project before each land (task 09), which checks every object's hash and is slow on a large repository. This plan's "does not claim" then says plainly: the user's object files are writable from the sandbox, and no check before a land closes that (plan re-review b02 M-1) |
 
 ## File map
 
@@ -450,7 +459,7 @@ is sized for one implementer in one to three hours.
 | 02 | `gitx`: the write runner, timeout classes, `*gitx.Error`, the `Machine` seam, trailers, a real-git test helper | 01 | 2 h |
 | 03 | `lanes`: the lane index, clone create, identity copy, the composite catalog | 02 | 3 h |
 | 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1 | 2 h |
-| 05 | Git in the sandbox for clones: `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1; 04 for its Docker step | 3 h |
+| 05 | Git in the sandbox for clones: `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
 | 06 | The linked-worktree notice superseded: `kind` in `types.ts`, the notice narrowed, the shared-index note (3-D2) | 04, G1 | 2 h |
 | 07 | Lane sync and observed claims | 04 | 3 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 | 3 h |
@@ -496,9 +505,14 @@ made structural). `routes_audit_test.go` gets one line per GET, appended.
 - **Verified in fix batch b02** (git 2.53.0.windows.2, 2026-09-24, host only, with a test system
   file holding `core.autocrlf=true`): a plain clone checks LF blobs out CRLF and writes no local
   `core.autocrlf`; task 03's argv checks them out LF, writes its four keys and leaves `status`
-  clean; `clone --local` hard-links the pack files and `--no-hardlinks` does not. **Not verified**:
-  the sandbox's Linux git on such a clone (task 01's Docker test), and what `--no-hardlinks` costs
-  on `~/Projects/Panacea` (task 01 Step 5, Q9).
+  clean; `clone --local` hard-links the pack files and `--no-hardlinks` does not. Round 2 (same
+  git, host only; `scratchpad/p3/b02r2-probe.out`): the production resolver's two `git config`
+  calls answer `false`/`lf` in such a clone and `true`/`native` in its project, a checkout under
+  the clone's answer as `GIT_CONFIG_*` writes LF, and one under the project's writes CRLF while
+  `status` stays empty (the re-review's probe). **Not verified**: the sandbox's Linux git on such
+  a clone under the real session env (task 01's and task 05's Docker tests), whether
+  `checkStat=minimal` and `trustctime=false` stop the cross-system re-hash, and what
+  `--no-hardlinks` costs on `~/Projects/Panacea` (task 01 Step 5, Q9).
 - **Every git behaviour the brief took from documentation** is task 01's to verify before any
   task relies on it, and task 01's results document replaces this plan's assumptions wherever they
   differ.
