@@ -49,13 +49,13 @@ surface — and therefore the only thing behind "only a human approves" (review 
 | 8 | POST | `/v1/design/canvases/{canvasId}/revert` | `{"sessionId":"s-…","sinceRevision":0}` | `200 authority.RevertResult` |
 | 9 | DELETE | `/v1/design/canvases/{canvasId}/claims/{artboardId}` | — | `204` |
 | 10 | GET | `/v1/design/canvases/{canvasId}/activity?after=&limit=` | — | `200 {"rows":[authority.ActivityRow]}` |
-| 11 | PUT | `/v1/design/canvases/{canvasId}/assets/{sha}` | raw bytes; `Content-Type` one of the four image types; ≤ 10 MiB | `200 {"asset": doc.Asset, "revision": n}` — stored and `add_asset` applied as one human batch |
+| 11 | POST | `/v1/design/canvases/{canvasId}/assets/{sha}` | raw bytes; `Content-Type` one of the four image types; ≤ 10 MiB | `200 {"asset": doc.Asset, "revision": n}` — stored and `add_asset` applied as one human batch |
 | 12 | GET | `/v1/design/canvases/{canvasId}/assets/{sha}` | — | the bytes; `Content-Type` as stored; `Cache-Control: private, max-age=31536000, immutable` (content-addressed); `X-Content-Type-Options: nosniff` |
 | 13 | POST | `/v1/design/canvases/{canvasId}/threads` | `{"nodeId":"n-…","text":"…"}` | `201 doc.Thread` |
 | 14 | POST | `/v1/design/canvases/{canvasId}/threads/{threadId}/messages` | `{"text":"…"}` | `201 doc.Message` |
 | 15 | POST | `/v1/design/canvases/{canvasId}/threads/{threadId}/status` | `{"status":"open"\|"resolved"}` | `200 doc.Thread` |
 | 16 | POST | `/v1/design/canvases/{canvasId}/reviews/{reviewId}/close` | `{}` | `200 doc.ReviewRequest` |
-| 17 | PUT | `/v1/design/canvases/{canvasId}/selection` | `{"nodeIds":["n-…"]}` | `200 authority.Selection` |
+| 17 | POST | `/v1/design/canvases/{canvasId}/selection` | `{"nodeIds":["n-…"]}` | `200 authority.Selection` |
 | 18 | GET | `/v1/design/canvases/{canvasId}/export?nodeId=&format=html\|jsx-inline\|jsx-tailwind&at=` | — | `200 {"format":"…","text":"…"}` (the code panel) |
 | 19 | POST | `/v1/design/render-results/{requestId}` | `authority.RenderResult`, ≤ 32 MiB (its own decoder, not `httpx.DecodeJSON`'s 1 MiB) | `204` |
 | 20 | GET | `/v1/events?window={id}&topic=…` | — | `200 text/event-stream` (below) |
@@ -63,6 +63,18 @@ surface — and therefore the only thing behind "only a human approves" (review 
 Every human route builds `authority.Caller{Author: {Kind: human, UserID: "local", Handle: <the
 signed-in name from the Hub's /v1/auth/status, else "You">}}` — **no body field sets it** (plan
 rule 4). Routes 21–27 (approval, handoff, links) are tasks 21 and 22.
+
+**Verbs: GET, POST and DELETE only (review I3).** Every Tauri build is cross-origin against the
+control plane, so every non-GET call is preflighted, and the preflight answers
+`Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS` (`httpx/origin.go:169`, the
+verb set of the phase-2 Go contract §3.1, `2026-09-18-phase-2-go-contract.md:1531`) — **no `PUT`**. Routes 11 and 17 were `PUT`, which the webview
+would block at the preflight while every `httptest` and vitest test passed (neither enforces CORS).
+They are `POST`: the canvas stays inside the verb set phase 2 declared, and `origin.go` (which Hub
+task 37 already edits for `corsHeaders`) is not touched a second time. Route 11 is still idempotent
+by construction (the path is the content's SHA-256), so `POST` loses nothing. A new design route
+that needs another verb amends `corsMethods` and Go contract §3.1 in its own commit;
+`TestMount_everyMethodPassesPreflight` and `TestPreflightAllowsEveryRegisteredMethod` (Tests) make
+that a red test instead of a first-run surprise.
 
 ### The window stream, exactly
 
@@ -239,7 +251,7 @@ over the process can tell the two apart.
 | `TestRoutes_audit` (`routes_audit_test.go`) | routes 1, 3, 4, 10, 12, 18, 20 are in `catalogReadOnlyRoutes`; the audit passes | a GET added outside the audit |
 | `TestOps_authorIsHuman` | a body with `"author":{…}` is `400 bad_request` (unknown field); the applied change's author is `human` | an actor field in a request (plan rule 4) |
 | `TestOps_conflictAndRejected` | stale `ifRevision` → 409 `canvas_conflict` with `currentRevision`; a cycle → 422 `op_rejected` with `index` | errors flattened to 500 |
-| `TestAssets_putGet` | PUT a PNG → asset + revision; GET returns the bytes with `nosniff`; a JPEG body labelled PNG → 415; 10 MiB + 1 → 413 | a mislabelled asset served to the renderer |
+| `TestAssets_postGet` | POST a PNG → asset + revision; GET returns the bytes with `nosniff`; a JPEG body labelled PNG → 415; 10 MiB + 1 → 413 | a mislabelled asset served to the renderer |
 | `TestRenderResults_bigBody` | a 20 MiB result is accepted (its own limit); 33 MiB → 413 | screenshots refused by the 1 MiB JSON cap |
 | `TestRenderResults_wrongWindow` | a result for another window's request → 404 `render_not_found` | one window answering for another |
 | `TestEvents_sseFormat` | a subscriber sees `event: canvas`, `id:`, `data:` lines, flushed per event, and a ping within 15 s (injected ticker) | buffered events arriving in bursts |
@@ -249,6 +261,8 @@ over the process can tell the two apart.
 | `TestNew_refusesNoKeyGuard` | `New(Config{…everything but KeyGuard})` → `ErrNoKeyGuard`, no `*API` | the guard made optional again (review C1) |
 | `TestRoutes_localKeyRequired` (table, one row per route class: 5 human ops, 8 revert, 9 break claim, 17 selection, 19 render result, 20 the stream) | through `Mount` with a real `localkey.Middleware` over a key minted into `t.TempDir()`: no `Authorization` → 401 `local_key_required` and **the authority unchanged** (revision, claims, selection, pending render requests all as before); `Bearer <wrong key>` → the same; `Authorization: Bearer ` (empty) → the same (plan HA5-6); the right key → not 401. Requests carry **no `Origin`** and `Host: 127.0.0.1:8730` — exactly what a sandboxed `curl` sends | a sandbox editing as `human`, reverting another agent, breaking claims, forging the selection, answering screenshot requests, or reading the stream (review C1) |
 | `TestMount_wrapsEveryRoute` | walks every pattern `Mount` hands to `handle` (a recording `handle`) and sends each one keyless → 401; the count equals the route table's (20 here; task 21 raises it to 23, task 22 to 26 and task 29 to 27, and each of those parts carries its own row extending this test) | one route mounted without the wrap |
+| `TestMount_everyMethodPassesPreflight` (review I3) | the same recording `handle`; for every recorded pattern, its method goes in a real preflight — `OPTIONS <path>`, `Origin: http://tauri.localhost` (from `httpx.DefaultOrigins()`), `Access-Control-Request-Method: <method>`, `Access-Control-Request-Headers: authorization, content-type` — through `httpx.NewOriginPolicy(httpx.DefaultOrigins(), log).Middleware`; the answer is 204 and its comma-split `Access-Control-Allow-Methods` contains the method, its `Access-Control-Allow-Headers` contains `Authorization` and `Content-Type`. Reads the live middleware, never a copied constant; tasks 21, 22 and 29's routes are covered the moment they mount | a route verb the preflight omits (route 11 or 17 back to `PUT`), which no `httptest` test notices because none enforces CORS |
+| `TestPreflightAllowsEveryRegisteredMethod` (`control-plane/internal/api/routes_audit_test.go`, review I3) | the same check over `api.New(d).RegisteredPatterns()` — every route the control plane registers, phase 2's included — sent through `api.New`'s real handler; a pattern with no method (`catalogMethodAgnosticRoutes`) is skipped by name, not by a missing prefix | a phase-2 or later route whose verb the preflight omits |
 | `TestBriefsPort_stub` | the stub answers `unavailable` with its sentence | a nil port panicking before phase 4 |
 | `TestConfig_canvasVars` | `PANACEA_APP_CANVAS_MCP=maybe` exits with a message; `off` sets `CanvasMCP` false; a relative `PANACEA_APP_CANVAS_DIR` exits | a silently ignored variable |
 | `TestMain_wiring` (the `main_test.go` pattern) | the process starts with a temp state dir and serves route 1 **with** the key read from `PANACEA_APP_LOCAL_KEY_FILE`; route 1 and route 5 **without** it, and with `Bearer ` (empty), → 401 `local_key_required` | a stack that compiles but is never mounted (it cannot kill an identity `KeyGuard`: `api.New`'s outer `localkey.Middleware` answers 401 first — re-review I-2) |

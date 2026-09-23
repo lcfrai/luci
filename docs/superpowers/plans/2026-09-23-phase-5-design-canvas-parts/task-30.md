@@ -43,6 +43,7 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
 | Go contract | the harness package | `Request.CanvasMCP`, `Descriptor.SupportsMCPConfig`, the argv order (task 19) |
 | Go contract | the sandbox surface | `/mcp-channel`, `-mcp-listen`, `127.0.0.1:8731` (task 18); `backend.EnvEntries` unchanged |
 | `PROGRAM.md` | Phase 5 | *"Handoff bundle: tokens, component tree, screens"* → the bundle as built (task 21), and a status line pointing at this plan |
+| Go contract / `httpx/origin.go` | `corsMethods` (contract §3.1's verb set) | **No change, recorded as a decision** (review I3): every design route is `GET`, `POST` or `DELETE` (task 20, *Verbs*), so the preflight's `GET, POST, PATCH, DELETE, OPTIONS` covers them; `TestMount_everyMethodPassesPreflight` and `TestPreflightAllowsEveryRegisteredMethod` (task 20) pin it. The design contract states the verb rule |
 
 ## Steps
 
@@ -128,6 +129,10 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
       nothing under `.panacea/`.
    7. The visual pass: the Design lens against `prototype/phase-5-design.html` states 1–6 and
       `docs/DESIGN-SYSTEM.md`.
+   8. **CORS in the real webview** (review I3; no `httptest` or vitest test enforces CORS): paste
+      an image onto an artboard (route 11) and click a node, then have the agent call
+      `get_selection` (route 17 stored it). The image renders, the selection is the clicked node,
+      and WebView2's devtools console shows no CORS or preflight error.
 6. Commit by pathspec. **Do not merge** the branch (`OD-1`); the orchestrator pushes when asked.
 
 ## Acceptance
@@ -140,7 +145,7 @@ Expected: `--- PASS: TestE2E_relay` and `ok`.
 ```bash
 go run ./tools/licencegate -root . >/dev/null; echo "gate $?"; grep -c "unverified" docs/superpowers/planning/phase-5/e2e-report.md
 ```
-Expected: `gate 0`; a count of at least `7` (one per owner item).
+Expected: `gate 0`; a count of at least `8` (one per owner item).
 
 ## Not claimed
 
