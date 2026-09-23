@@ -109,7 +109,9 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     hubclient.ErrUnavailable → hub_unavailable; the budget's OWN expiry
 //     (the child ctx's Err() is DeadlineExceeded while the caller's ctx.Err()
 //     is nil) → hub_unavailable too, whatever error type Source returned
-//     (HA4-10: hubclient's ctx handling is not stated); the caller's own ctx
+//     (HA4-10: the Hub's task 33 retries even the caller's own expiry and
+//     sleeps without ctx, so up to 1.25 s more can pass, about 6.25 s in
+//     all, inside session start's 10 s; task 11); the caller's own ctx
 //     cancelled (the desktop went away) → a plain error, never a refusal
 //     reason. Only this step is budgeted: steps 1-3 and 5-7 are local git
 //     and disk, and an expiry there would be misnamed as the Hub's.

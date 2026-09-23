@@ -117,11 +117,22 @@ type Budgets struct {
 
 Each handler wraps `r.Context()` in `context.WithTimeout` from `Config.Budgets` before its first Hub
 call. A model call that outlasts its own inner budget degrades (`model_failed`) and is never this
-row. That `hubclient` stops its attempts and its back-off when `ctx` expires is **not stated** in
-§9.2. The row above therefore classifies by the route's own `ctx.Err()`, never by the error's type.
-If `hubclient` ignores `ctx`, a black-holed read still runs its full ~31 s and the budget cannot cut
-it short. Hub ask **HA4-10** (plan §9) records it: every attempt and every back-off honours `ctx`.
-Unverified until task 23 step 10 runs against the real `hubclient`.
+row. The row above classifies by the route's own `ctx.Err()`, never by the error's type.
+
+**Back-off that cannot be interrupted.** The Hub's transport design (Hub task 33 at `2f84662`,
+`phase-h-hub-parts/task-33.md:29-31` and `:52-53`) sleeps with `time.Sleep`, which no `ctx` can
+cut short, and retries a timeout, including the caller's own `context.DeadlineExceeded`. A deadline
+that expires during an attempt therefore costs up to **1.25 s** more: 250 ms of sleep, an attempt
+that fails at once, 1 s of sleep, and a third that fails at once. Every budget here is sized to
+absorb that. Each is at least 2 s under its desktop `timeoutMs`: `Default` 8 s against 10 s,
+`FollowUp` 28 s against 30 s, `Analyse` 55 s against 60 s, and `Materialise`'s Hub budget 5 s
+(task 09) inside session start's 10 s. So the typed 503 still arrives at least 0.75 s before the
+desktop gives up. Of Hub ask **HA4-10**'s three changes (plan §9), only **(a)** must land for I4 to
+hold: each attempt's context derives from the caller's `ctx`. Without (a), a black-holed read runs
+its full ~31 s whatever the budget. (b), no retry once the caller's `ctx` is done, and (c), a
+`ctx`-aware `Sleep`, only remove the 1.25 s. If the Hub stream refuses (a), `discoverhub` takes
+the fallback HA4-10 declares: each Hub call runs in a goroutine and the route returns on
+`ctx.Done()`. Unverified until task 23 step 10 runs against the real `hubclient`.
 
 ```go
 // control-plane/internal/httpx/problem.go — three constants, beside CodeBriefNotWritten

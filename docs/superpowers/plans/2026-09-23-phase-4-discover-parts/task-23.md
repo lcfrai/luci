@@ -81,17 +81,27 @@ lists the control plane's own):
      `%{http_code}` and `%{time_total}`. A curl exit of 28 is a **fail**: the desktop would have
      shown `timeout`.
 
-     | Call | `--max-time` (desktop) | Expected |
-     |---|---|---|
-     | `POST /v1/sessions` on the step-4 worktree | 10 (`DEFAULT_TIMEOUT_MS`) | `409 brief_not_written`, `reason: hub_unavailable`, in about 5 s (task 09's `HubBudget`); no record created |
-     | `GET …/branches/{b}/brief` | 10 | `503 upstream_unavailable`, `upstream: "hub"`, in about 8 s (task 11's `Budgets.Default`) |
-     | `POST …/branches/{b}/brief/ops` with `{"baseRevision": <head>, "op": {"kind": "propose_follow_up"}}` | 30 (`DISCOVER_FOLLOW_UP_TIMEOUT_MS`) | `503 upstream_unavailable`, in about 28 s at most (`Budgets.FollowUp`) |
-     | `POST …/analyse` | 60 (`DISCOVER_ANALYSE_TIMEOUT_MS`) | `503 upstream_unavailable`, in about 55 s at most (`Budgets.Analyse`) |
+     | Call | `--max-time` (desktop) | Budget | Expected |
+     |---|---|---|---|
+     | `POST /v1/sessions` on the step-4 worktree | 10 (`DEFAULT_TIMEOUT_MS`) | 5 s (task 09's `HubBudget`) | `409 brief_not_written`, `reason: hub_unavailable`, in 5 to 6.25 s; no record created |
+     | `GET …/branches/{b}/brief` | 10 | 8 s (task 11's `Budgets.Default`) | `503 upstream_unavailable`, `upstream: "hub"`, in 8 to 9.25 s |
+     | `POST …/branches/{b}/brief/ops` with `{"baseRevision": <head>, "op": {"kind": "propose_follow_up"}}` | 30 (`DISCOVER_FOLLOW_UP_TIMEOUT_MS`) | 28 s (`Budgets.FollowUp`) | `503 upstream_unavailable`, in 29.25 s at most |
+     | `POST …/analyse` | 60 (`DISCOVER_ANALYSE_TIMEOUT_MS`) | 55 s (`Budgets.Analyse`) | `503 upstream_unavailable`, in 56.25 s at most (earlier if the model answers fast, because hubclient's three attempts then run out before the budget) |
 
-  4. Restore the real `PANACEA_APP_HUB_URL` and restart the control plane by PID.
-  A time within 1.5 s of `--max-time`, or any row that overruns, means `hubclient` does not honour
-  `ctx` (Hub ask **HA4-10**). Record it as that, not as a flake. That `10.255.255.1` black-holes on
-  the corporate network is **unverified**, and sub-step 1 exists to find out.
+  4. Read each row against its budget. Each failure time has its own cause (Hub ask **HA4-10**,
+     plan §9). Record the cause, never "flake".
+     - **At the budget:** HA4-10's (a), (b) and (c) all hold.
+     - **Between the budget and 1.25 s past it:** (a) holds, and (b) or (c) is missing. The Hub's
+       task 33 retries the caller's own expiry and sleeps with `time.Sleep`, which costs up to
+       250 ms + 1 s. This is a **pass**: every budget is sized to absorb it (task 11, "Back-off
+       that cannot be interrupted"). Record which rows showed it.
+     - **curl exit 28, or more than 1.25 s past the budget:** a **fail**. Run that one call again
+       with `--max-time 70` and record `%{time_total}`. About 31 s after the call's first Hub read
+       means (a) is missing: hubclient's attempts do not derive from the caller's `ctx`, so no
+       budget can cut them short. Then `discoverhub` needs the fallback HA4-10 declares.
+  5. Restore the real `PANACEA_APP_HUB_URL` and restart the control plane by PID.
+  That `10.255.255.1` black-holes on the corporate network is **unverified**, and sub-step 1
+  exists to find out.
 - [ ] **Step 11: 4-D3.** Give the project brief five answers; confirm the branch brief moved to a
   new revision whose `inherits.key` is the project's new key, in the **same** `written` list.
 - [ ] **Step 12: The suites and the guards.** `go test ./control-plane/... -race -count=1`;
