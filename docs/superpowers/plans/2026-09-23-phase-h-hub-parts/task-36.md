@@ -76,14 +76,16 @@ func (p *Poller) CursorName() string
 // makes. Every response to an allowed caller carries "Panacea-<Name>-Cursor:
 // <Cursor()>" for each source whose Cursor() is not "".
 type CursorSource interface {
-	CursorName() string // [A-Za-z]{1,32}, unique among the sources: "Hub", "Deploy"
+	CursorName() string // [A-Za-z]{1,32}, unique among the sources IGNORING CASE: "Hub", "Deploy"
 	Cursor() string     // opaque; "" means "do not set the header"
 }
 
 // exposeHeaders is built once by api.New from Deps.CursorSources:
 // "Panacea-<Name>-Cursor" for each, then "Panacea-Auth-State", comma-separated.
 // api.New refuses a name outside the pattern or a duplicate, as it refuses any
-// other bad Deps.
+// other bad Deps. A duplicate is compared case-insensitively ("Hub" and "HUB"
+// are one header name in HTTP, and one key, "hub", in the desktop's cursors map,
+// task 40).
 func exposeHeaders(sources []CursorSource) (string, error)
 ```
 
@@ -136,7 +138,7 @@ holding the local key could not ask for. The desktop reads them from the session
 |---|---|---|
 | `TestTheCursorHeaderAppearsOnceKnown` | before the first good poll: no header; after: `GET /v1/sessions` carries `Panacea-Hub-Cursor: <n>` | a desktop that polls the feed every tick |
 | `TestEverySourceSetsItsOwnHeader` | two scripted sources `Hub` ("7") and `Deploy` ("c-3") → both `Panacea-Hub-Cursor: 7` and `Panacea-Deploy-Cursor: c-3`; `Deploy` returning `""` → its header absent, `Hub`'s still set | phase 7's second cursor needing its own copy of the mechanism (HA7-4) |
-| `TestABadOrDuplicateSourceNameIsRefused` | `api.New` with a source named `Hub-2`, `""`, 33 letters, or two named `Hub` → an error naming the source | a header name the desktop cannot parse, or two sources overwriting one header |
+| `TestABadOrDuplicateSourceNameIsRefused` | `api.New` with a source named `Hub-2`, `""`, 33 letters, two named `Hub`, or `Hub` and `HUB` → an error naming the source | a header name the desktop cannot parse, or two sources overwriting one header (header names, and the desktop's lowercased keys, ignore case) |
 | `TestTheAuthStateHeader` | signed out → `Panacea-Auth-State: signed_out`; during a sign-in → `signing_in`; after → `signed_in`; with `Deps.Auth` nil → absent | a renderer polling `/v1/auth/status` every tick |
 | `TestTheHeadersAreExposedToAllowedOrigins` | allowed origin, sources `Hub` and `Deploy` → `Access-Control-Expose-Headers: Panacea-Hub-Cursor, Panacea-Deploy-Cursor, Panacea-Auth-State`; a disallowed origin is refused before any header, and a preflight is answered as before (phase 2's behaviour unchanged) | headers the webview cannot read (contract §9.3) |
 | `TestHubChangesRelaysTheBody` | the Hub's page byte-equal; signed out → 401 `signed_out`; no Hub → 503 `hub_not_configured` | — |

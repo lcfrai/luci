@@ -20,7 +20,8 @@ contract that phases 3, 4, 5 and 7 hold at the end describes the Hub that exists
    marked `(Phase H build, task NN)`, and gets a row in §16's table beside 44a's. A departure that
    changes an S0 interface (task 00's rule: anything but an added method, field or route) is
    **not** folded silently: it is a reopened ask, named in the report to the orchestrator, which
-   tells the sibling phase that codes to it.
+   tells the sibling phase that codes to it, with the sha and the `git show <sha>:<contract path>`
+   read path, as task 44a's step 3 does.
 2. **§15, what the build verified.** Remove the pgx pin and the `go 1.23.0` directive once task 06
    built them; add anything task 43 found unverified (the real-tenant checklist's open rows stay
    until the owner's batched session, `OD-12`).

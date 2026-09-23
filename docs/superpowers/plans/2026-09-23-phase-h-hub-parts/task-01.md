@@ -1,6 +1,7 @@
 ### Task 01: `ids.Wide`, and the `hubapi` grammar — codes, keys, digests, branch refs, repo keys
 
-**Lane A. Depends on: nothing. About 2 hours. Contract task H0.**
+**Lane A. Depends on: 44a (merged on `feat/hub`; `TestTheContractsRepoKeyRegexIsTheCodes` reads
+its amended §7.4). About 2 hours. Contract task H0.**
 
 Every later task names a Hub id, a key, a digest, a branch or a repository. This task is the one
 place each of those is parsed and formatted, so no handler, no store and no client ever writes a

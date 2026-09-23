@@ -320,7 +320,7 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 
 | Start line | After | Who can start | What they can do |
 |---|---|---|---|
-| **S0 — code against the fake** | 44a, 00, 01–05 (≈ 15 h) | phases **3, 4, 5, 7** | build every Hub-backed handler against `hubclient`'s interfaces and `hubclient.NewFake()`, and run `hubclient/conformance` against the fake. Nothing below S0 changes an interface they code to: task 00 answered every sibling ask (HA4-1…9, HA5-1…5, HA7-1…5) **before** S0 froze, and a later change that is not an added method, field or route reopens task 00 and is announced |
+| **S0 — code against the fake** | 44a, 00, 01–05 (≈ 15 h) | phases **3, 4, 5, 7** | build every Hub-backed handler against `hubclient`'s interfaces and `hubclient.NewFake()`, and run `hubclient/conformance` against the fake. Nothing below S0 changes an interface they code to: task 00 answered every sibling ask (HA4-1…9, HA5-1…5, HA7-1…5) **before** S0 froze, and a later change that is not an added method, field or route reopens task 00 and is announced. An added method is additive only because siblings consume these interfaces and `NewFake()` and never implement them (task 00) |
 | **S4 — phase 4 integrates** | 06–20 (server), 28, 30–34 partial, 35 (client) | phase **4** | point its `discoverstore` Hub implementation at the local stack: create briefs, write revisions, resolve keys, with a real sign-in through `devissuer` |
 | **S5 — phase 5 integrates** | S4 + 21–22 | phase **5** | upload snapshots, approve designs, write session links, resolve `design:` keys |
 | **S7 — phase 7 integrates** | S5 + 23–24, 29, 39 | phase **7** | reserve → deploy → confirm/abandon, rollback, the deployment join; its `pnc_` token in the credential store |
@@ -388,7 +388,9 @@ lane, one on identity then the client lane.
 ### Order and parallel lanes
 
 Task 44a runs first, alone, on `feat/hub`, and the orchestrator announces its commit to phases 3,
-4, 5 and 7. Then four lanes, each its own git worktree branched from `feat/hub` **after 44a**, so
+4, 5 and 7 **with the read path**: `git show <44a-sha>:docs/superpowers/contracts/2026-09-23-hub-contract.md`.
+Every worktree shares one object store, so that command works from a sibling's own worktree, where
+the file on disk is still the old text (task 44a, step 3). Then four lanes, each its own git worktree branched from `feat/hub` **after 44a**, so
 they can run at once. **An
 implementer never merges**; the orchestrator merges a lane's finished tasks into `feat/hub`, in the
 order below, and a lane that needs another lane's task waits for that merge.
@@ -425,9 +427,9 @@ resolved by keeping both.
 |---|---|---|---|
 | **S-CRED** | **The credential store.** One machine store, Windows Credential Manager (`credstore.Secrets`, `WinCred()`; `Memory()` off Windows and in tests), **one target grammar** (`credstore/targets.go`), and one typed accessor per credential: the Entra refresh token (`entraauth`, task 31), a **GitHub** token (`credstore.Local`, phase 3's `Store`), an **Azure DevOps** bearer from the Entra sign-in (`entraauth.DevOps`, phase 3's `Store`, if Q5 is yes), and the **Panacea** `pnc_` token (`credstore.PanaceaTokens`, phase 7). The only write path for a pasted token is task 39's `POST /v1/credentials/{kind}`; nothing returns a secret | tasks 28, 29, 31, 39 | **phase 3** (`OD-4`: push and PR on both hosts), **phase 7** (`OD-13`: the Panacea API), **phase 6** (a future `kind` for the user's own Claude credentials — never pooled), **phase 8** (nothing: the broker reads no store) |
 | S-TOKEN | `entraauth.TokenSource` — `Token(ctx, scope)`, `ErrSignedOut` | task 31 | `hubclient` (task 33); phase 8's broker client `remotebe` (HA-2) |
-| S-HUB | `hubclient`'s consumer interfaces, `NewFake()`, the conformance suite, and `hubclient.WriteError` / `hubclient.Relay` (the relay rule, as a write and as a value) — every sibling ask answered in task 00 before they freeze | tasks 00, 04, 05, 33, 34 | phases 3 (`Evidence`), 4 (`Briefs`), 5 (`Designs`), 7 (`Releases`) |
+| S-HUB | `hubclient`'s consumer interfaces, `NewFake()`, the conformance suite, and `hubclient.WriteError` / `hubclient.Relay` (the relay rule, as a write and as a value) — every sibling ask answered in task 00 before they freeze. Siblings **consume** these interfaces and `NewFake()`; they never implement them, so an added method is additive for every one of them | tasks 00, 04, 05, 33, 34 | phases 3 (`Evidence`), 4 (`Briefs`), 5 (`Designs`), 7 (`Releases`) |
 | S-LINK | `hublink.Resolver.Project(ctx, localProjectID) (hubapi.Project, hublink.State, error)` — how a handler finds the Hub project behind a local one | task 35 | phases 3, 4, 5, 7: every Hub-backed handler starts here |
-| S-FEED | the control plane's `hubfeed.Poller.Subscribe(kindPrefix, fn)`; the desktop's `hubFeed.subscribe(kindPrefix, fn)`; and the generic cursor headers — `api.CursorSource` in `Deps.CursorSources`, one `Panacea-<Name>-Cursor` each, read by the desktop into `HubHeaders.cursors` (HA7-4) | tasks 36, 40 | phase 4's `provenanceSlice` (`brief.*`), phase 5's approvals (`design.*`), phase 7's releases (`release.*`) and its `Deploy` cursor source |
+| S-FEED | the control plane's `hubfeed.Poller.Subscribe(kindPrefix, fn)`; the desktop's `hubFeed.subscribe(kindPrefix, fn)`; and the generic cursor headers — `api.CursorSource` in `Deps.CursorSources`, one `Panacea-<Name>-Cursor` each, read by the desktop into `HubHeaders.cursors`, keyed by the lowercased name, through one `onHubHeaders` hook (HA7-4; no `onCursor`, a declared difference) | tasks 36, 40 | phase 4's `provenanceSlice` (`brief.*`), phase 5's approvals (`design.*`), phase 7's releases (`release.*`) and its `Deploy` cursor source |
 | S-ENTRA | `internal/entra` — one validator for the Hub and the broker (HA-1) | task 10 / phase 8 task 16 | phase 8's `cmd/broker` |
 | S-CHART | `hub serve` / `hub migrate` / `hub verify`; `:8080`; `/healthz`, `/readyz`; `roles.sql`; `PANACEA_APP_HUB_*` | tasks 06–08 | phase 8 tasks 27 (image), 29 (chart, principals SQL), 30 (pipeline) |
 | S-CI | an integration job with a Postgres service, running `go test -tags integration ./control-plane/internal/hub/...` | not built here: `azure-pipelines.yml` runs no database today | phase 8's pipelines (ask) |
@@ -498,7 +500,7 @@ from this plan (Q11 from a sibling ask, task 00):
   | HA7-1 nullable `environment` | built, with a kind-based CHECK and a set-once guard (task 00 says why the review's shape was corrected) | 03, 04, 05, 07, 23, 24, 34 |
   | HA7-2 rollback confirm `{}` | built: naming its own source is 409 | 05, 24, 44a |
   | HA7-3 shared deploy target | reserved, S-DEPLOY-TARGET | — |
-  | HA7-4 generic cursor | built: `CursorSource` | 36, 40 |
+  | HA7-4 generic cursor | control plane built as asked: `CursorSource`. Desktop: declared difference — one `onHubHeaders(h)` hook, not `onCursor`; `h.cursors` keyed by the lowercased name (`deploy`) | 36, 40 |
   | HA7-5 `kind` filter | built | 03, 05, 23, 34 |
 
   The sibling line numbers in task 00 move as those plans are edited; the ask ids do not.

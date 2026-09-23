@@ -1,7 +1,8 @@
 ### Task 44a: the contract made true **before** anyone builds — A1–A10, the additions, and the sibling asks' answers
 
 **`feat/hub`, FIRST: before task 01, and before the four lanes branch. Depends on: nothing. About
-1.5 hours. Documents only.** The orchestrator announces the merged commit to phases 3, 4, 5 and 7.
+1.5 hours. Documents only.** The orchestrator announces the merged commit to phases 3, 4, 5 and 7,
+with the read path each sibling uses from its own worktree (step 3).
 
 ADR-H1 §7.2 lists amendments *"each made by the phase that next edits the file"*; this phase is
 that phase for four documents. This plan made ten corrections to the Hub contract (A1–A10), several
@@ -36,7 +37,7 @@ that builds each:
 | §9.1, §9.3 | A8: the three credential routes |
 | §2 | A9: `hubapi` may import `httpx`; `hubclient` may import `httpx` and `ids` |
 | §3.6 | A10: `teamId` in the audit envelope; `hub verify` checks `feed`; golden vectors 3 and 4 (task 02) |
-| §9.2 | additive: `Teams`, `Projects.Project`/`AddRemote`, `Designs.Approval`/`SessionLinks` (HA5-2: §9.2's `Designs` becomes the seven methods), `Releases.Release`, `ErrSignedOut`, `ErrNotConfigured`, `ErrTokenUnavailable`, `Invalidator`, `WriteError`, `VerifyRevision`, `FormatRecorder` |
+| §9.2 | additive: `Teams`, `Projects.Project`/`AddRemote`, `Designs.Approval`/`SessionLinks` (HA5-2: §9.2's `Designs` becomes the seven methods), `Releases.Release`, `ErrSignedOut`, `ErrNotConfigured`, `ErrTokenUnavailable`, `Invalidator`, `WriteError`, `VerifyRevision`, `FormatRecorder`. One sentence at the head of §9.2: *"Siblings consume these interfaces and `NewFake()`; they never implement them. A double is `NewFake()` or an embedded interface, so an added method is additive."* |
 | §9.3 | additive: the `Panacea-Auth-State` header (task 36); the hub-link and team routes (task 35) |
 | §6.2 | the refinement: redemptions serialised across scopes (task 31) |
 | §7.9 | an overdue reservation reads `expired` before the janitor runs (task 23) |
@@ -50,8 +51,8 @@ that builds each:
 | §7.5 | the batch holds 1–64 revisions (`hubapi.MaxRevisionBatch`); route 26's body cap is 4 MiB of **wire** bytes (`hubapi.MaxRevisionBatchBytes`); every other route keeps 1 MiB. The wire rule, stated in §1 as well: a `content` travels as its canonical bytes, and no JSON body in either direction is HTML-escaped (`SetEscapeHTML(false)`; task 00, *Sizes*) | HA4-3 |
 | §9.2 | `Briefs.List(ctx, projectID, hubapi.BriefQuery)`; `PutBlob(…, body io.ReadSeeker)` and the rewind rule; `JoinDeployment(ctx, releaseID, hubapi.DeploymentJoinRequest)`; `Error.RetryAfter`; `Relay(err) (status, httpx.Problem, ok)`; the 8 MiB reply cap and the wire rule it rests on | HA4-2, HA5-1, HA7-1, HA4-5 |
 | §4.3 | `Relay` is the rule as a value; `WriteError` is `Relay` plus the write | HA4-5 |
-| §7.9, §8 | `environment` nullable for a run without `sourceDeploymentId`; the join sets it once, 409 `conflict` on a different one; `release.deployment_joined` gains `data.environment`; a rollback confirm is `{}`, and one naming its own source deployment is 409 `conflict`; `kind=` on the release list | HA7-1, HA7-2, HA7-5 |
-| §9.3 | the `CursorSource` mechanism: one `Panacea-<Name>-Cursor` per source, the expose list built from the names; the desktop's `cursors` map | HA7-4 |
+| §7.9, §8 | `environment` nullable for a run without `sourceDeploymentId`; the join sets it once, 409 `conflict` on a different one; `release.deployment_joined` gains `data.environment`, the release's environment after the join (`""` while null); a rollback confirm is `{}`, and one naming its own source deployment is 409 `conflict`; `kind=` on the release list | HA7-1, HA7-2, HA7-5 |
+| §9.3 | the `CursorSource` mechanism: one `Panacea-<Name>-Cursor` per source, names unique ignoring case, the expose list built from the names. The desktop half is a **declared difference** from HA7-4's ask: one `onHubHeaders(h)` hook, not `onCursor(name, value)`, which is not built. `h.cursors` is keyed by the **lowercased** name (`hub`, `deploy`), and each consumer compares its own entry with the last value it saw | HA7-4 |
 | §7.7 | R5's *"audited with its session context"* is read as: the Hub records the principal and the time; no client-asserted field. The ADR's own text is the owner's (task 00) | HA5-4 |
 | §9.3 | `Subscribe(kindPrefix, fn)` stands — `Subscribe("", fn)` is phase 4's shape — delivery in commit order | HA4-8 |
 | §14 | a row per ask (HA4-1…HA4-9, HA5-1…HA5-5, HA7-1…HA7-5) naming the answer and the section that now holds it; HA7-3 and HA5-5 recorded as reserved | all |
@@ -84,7 +85,15 @@ because this task wrote A1 first.
 - [ ] **Step 1:** Re-read ADR-H1 §7.2, this plan's corrections table, and task 00.
 - [ ] **Step 2:** Make each change above.
 - [ ] **Step 3:** Commit by pathspec — the four documents — on `feat/hub`, before any lane
-  branches. The orchestrator tells the sibling phases the commit.
+  branches. Append a dated entry to `.superpowers/sdd/hub/progress.md` that records the commit's
+  sha and these two read paths, and put the same three lines in the task report. The orchestrator
+  sends the sibling phases exactly those lines. A sibling works in its own worktree on its own
+  branch, and there the contract file on disk is still the **old** text, so a bare sha is not
+  enough:
+  - `git show <44a-sha>:docs/superpowers/contracts/2026-09-23-hub-contract.md`. This works from
+    any worktree, because all of them share one object store. It is the path to use.
+  - `C:/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md`.
+    Read it only while `feat/hub` is checked out at or after `<44a-sha>`.
 
 #### Acceptance
 
@@ -97,11 +106,13 @@ grep -n "MaxRevisionBatch\|latestComplete\|CursorSource\|io.ReadSeeker" $C   # e
 grep -n "no broker" docs/PROGRAM.md                               # the identity row
 grep -n "Amended by Phase H" docs/superpowers/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md   # present
 git log -1 --format=%H -- $C                                      # older than task 01's first commit
+grep -n "git show .*:docs/superpowers/contracts/2026-09-23-hub-contract.md" .superpowers/sdd/hub/progress.md   # the read path, with the sha
 ```
 
 #### What this task does not claim
 
-- That sibling phases have re-read the amended contract: the orchestrator tells them; a phase plan
+- That sibling phases have re-read the amended contract: the orchestrator sends them the sha and
+  the `git show` read path (step 3); a phase plan
   written against the old §7.4 regex or the old §12.1 compose needs its own correction.
 - That the build matches this text: task 44b reconciles what the build changed.
 - Any change to the ADR's decision: ADR-H1 stands; only the contract's text moves. HA5-4's ADR

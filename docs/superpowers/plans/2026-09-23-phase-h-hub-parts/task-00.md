@@ -9,7 +9,11 @@ precisely (phase 4 plan `:475-483`, HA4-1…HA4-9; phase 5 plan `:458-462`, HA5-
 `:540-616`, HA7-1…HA7-5). Three of them are **not** additive — HA5-1 changes a parameter type,
 HA7-1 a column, a trigger and a field type, and HA7-1 again the signature of `JoinDeployment` — so
 they are decided here, before task 01, and every S0 task builds the answer. A later ask is
-additive only if it adds a method, a field or a route; anything else reopens this part.
+additive only if it adds a method, a field or a route; anything else reopens this part. An added
+method is additive **because siblings consume these interfaces and `NewFake()`; they never
+implement them**. A sibling that needs a double uses `NewFake()` or embeds the interface, never a
+hand-written type that satisfies it. (Checked on 2026-09-24 by grepping the phase 3, 4, 5 and 7
+plans for a type, a `var _` assertion or a stub that implements a `hubclient` interface: none.)
 
 The sibling line numbers were read on 2026-09-24 from the sibling worktrees
 (`.claude/worktrees/phase-4`, `phase-5`, `phase-7`, `docs/superpowers/plans/`); they move as those
@@ -36,7 +40,7 @@ plans are edited, so each row quotes the ask's id, which does not.
 | **HA7-1** | `environment` may be `null` at reserve, set by the deployment join | **built** — with two corrections to the review's shape, below | 03, 04, 05, 07, 23, 24, 34 |
 | **HA7-2** | §7.9's rollback confirm is `{}`; a rollback confirm naming its **source's** deployment is 409 | **built**: the fake and the Hub refuse a rollback confirm whose `deploymentId` equals its `sourceDeploymentId` with 409 `conflict`; 44a writes the sentence | 05, 24, 44a |
 | **HA7-3** | a shared deploy target on the project | **not in v1**, additive later; phase 7's local file stands. Recorded as seam S-DEPLOY-TARGET (reserved) | — |
-| **HA7-4** | one generic cursor mechanism: `CursorSource`, one `Panacea-<Name>-Cursor` header per source | **built as asked** (task 36), and the desktop half (task 40) reads every such header into one map | 36, 40 |
+| **HA7-4** | one generic cursor mechanism: `CursorSource`, one `Panacea-<Name>-Cursor` header per source | **control plane: built as asked** (task 36). **Desktop: built with one declared difference** (task 40), as HA4-2's `Page` is. In place of `startPolling(…, onCursor?: (name, value) => void)`, called once per changed header, there is one `onHubHeaders(h)` hook. `h.cursors` is keyed by the **lowercased** name (`hub`, `deploy`, never `Deploy`), and each consumer compares its own entry with the last value it saw. `onCursor` is **not** built. Phase 7 adds no second hook to `poller.ts`: it passes its feed's `noteHeaders` through `App.tsx`'s one function and reads `h.cursors.deploy` | 36, 40 |
 | **HA7-5** | a `kind` filter on the release list | **built**: `ReleaseQuery.Kind` and `&kind=run\|rollback` on route 36 | 03, 05, 23, 34 |
 
 #### HA7-1, exactly — and why the review's shape was corrected
@@ -82,7 +86,9 @@ JoinDeployment(ctx context.Context, releaseID string, req hubapi.DeploymentJoinR
 Route 40 (task 24): a join naming an environment **equal** to the release's is a no-op on the
 column; naming one on a null-environment release sets it in the join's transaction; naming a
 **different** one from a non-null value is 409 `conflict`, `details.field=environment`, and nothing
-is joined. `release.deployment_joined` gains `data.environment` (`""` when the join named none).
+is joined. `release.deployment_joined` gains `data.environment`: the release's environment
+**after** the join, `""` while it is still null (task 24). A join that names none on a release
+whose environment is `feat-x` emits `"feat-x"`.
 Route 35 (task 23): `environment` absent or `null` is 400 `field: environment` for a rollback or a
 run with `sourceDeploymentId`; `release.reserved`'s `data.environment` is `""` when null.
 
@@ -126,18 +132,23 @@ so a `é` stays six bytes for a two-byte `é`. The rule is therefore:
 // makes. Every response to an allowed caller carries "Panacea-<Name>-Cursor: <Cursor()>"
 // for each source whose Cursor() is not "".
 type CursorSource interface {
-	CursorName() string // one token of [A-Za-z], 1–32 long, unique among the sources: "Hub", "Deploy"
+	CursorName() string // one token of [A-Za-z], 1–32 long, unique among the sources ignoring case: "Hub", "Deploy"
 	Cursor() string     // opaque; "" means "do not set the header"
 }
-// Deps.CursorSources []CursorSource — api.New refuses a bad or duplicate name.
+// Deps.CursorSources []CursorSource — api.New refuses a bad name, or a duplicate compared case-insensitively.
 ```
 
 `hubfeed.Poller` is the first source (`"Hub"`); phase 7 appends its own in its own wiring. The
 `Access-Control-Expose-Headers` value is built once, in `api.New`, from the sources' names plus
 `Panacea-Auth-State`, and set by the same wrap — so `httpx/origin.go` holds no Hub or phase-7 name.
-The desktop half (task 40): `onHubHeaders` receives `{ cursors: Record<string, string>; authState }`
-— one entry per `Panacea-<Name>-Cursor` header, keyed by `<Name>` — and `App.tsx` passes one function
-that each consumer's `noteHeaders` is called from.
+The desktop half (task 40) is **not** phase 7's `onCursor(name, value)`. It is a declared
+difference. `startPolling`'s one `onHubHeaders` hook receives `{ cursors: Record<string, string>;
+authState }`, with one entry per `Panacea-<Name>-Cursor` header, keyed by the **lowercased** `<Name>`
+(`fetch` lowercases header names, and task 40 matches `^panacea-([a-z]{1,32})-cursor$`). So the Hub's
+entry is `cursors.hub`, phase 7's is `cursors.deploy`, and `cursors.Deploy` is always `undefined`.
+`App.tsx` passes one function, and each consumer's `noteHeaders` is called from it. Each consumer
+compares its own entry with the last value it saw, which does the work `onCursor`'s "changed" filter
+would have done.
 
 #### Acceptance
 
@@ -155,6 +166,7 @@ grep -rn "1–16" $P/ --exclude=task-00.md                                   # n
 #### What this part does not claim
 
 - That the siblings have re-read these answers: 44a publishes them in the contract, and the
-  orchestrator announces 44a to phases 3, 4, 5 and 7.
+  orchestrator announces 44a to phases 3, 4, 5 and 7 with its sha and the `git show
+  <44a-sha>:docs/superpowers/contracts/2026-09-23-hub-contract.md` read path (task 44a, step 3).
 - HA5-4's ADR text: deleting R5's phrase is the owner's decision; until then the contract says
   what the Hub records.

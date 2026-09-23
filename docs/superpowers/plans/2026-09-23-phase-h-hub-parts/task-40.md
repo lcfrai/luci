@@ -159,8 +159,10 @@ export function startPolling(
 // onGoodTick does, poller.ts:74-76), so a throw from it is never the poller's failure. One
 // parameter serves every consumer: App.tsx passes one function that calls hubFeed.noteHeaders
 // and, when phase 7 lands, its deploy feed's — each reads its own cursors entry (HA7-4, task 00).
-// Phase 7 asked for onCursor(name, value) per changed header; the map is that ask's superset,
-// and each consumer already compares its cursor with the last one it saw.
+// DECLARED DIFFERENCE (task 00, 44a §9.3): phase 7 asked for onCursor(name, value) per changed
+// header. That is NOT built. There is one hook, keys are the LOWERCASED name (cursors.hub,
+// cursors.deploy; cursors.Deploy is always undefined), and each consumer compares its own entry
+// with the last value it saw. Phase 7 adds no second hook here.
 ```
 
 #### Tests to write first
