@@ -188,7 +188,7 @@ var _ api.Materialiser = materialiserUntilTask14{}
 `main.go` adds one line to the `api.New(api.Deps{…})` literal (`:132` at `2d6d95b`):
 `Materialiser: newMaterialiserUntilTask14(log),`. No test in `cmd/api` reaches `api.New` (at
 `2d6d95b`, `TestRunRefusesANonLoopbackBindWithExitCode2` `main_test.go:387` and
-`TestRunRefusesAMissingCABundleWithExitCode2` `config_sandbox_test.go:189` both exit in config),
+`TestRunRefusesAMissingCABundleWithExitCode2` `config_sandbox_test.go:172` both exit in config),
 so a missing line would show only when the binary starts ("api: Deps.Materialiser is nil"). The
 acceptance below therefore greps for the line and builds the binary.
 
@@ -230,7 +230,8 @@ acceptance below therefore greps for the line and builds the binary.
   `invalid_json`, as everywhere). Call `Materialise` with all four request fields:
   `WorktreeID: sess.WorktreeID`, `WorktreePath: path` (the restart's own `Worktrees.Path` result,
   `sessions.go:972` at `2d6d95b`; an empty path is task 09's 500 on every restart),
-  `ProjectID: sess.ProjectID`, `BranchID: sess.BranchID`, and `WithoutBrief: body.WithoutBrief`
+  `ProjectID: sess.ProjectID`, `BranchID: sess.BranchID` (or the re-located ids, next bullet,
+  when the record's `ProjectID` is `""`), and `WithoutBrief: body.WithoutBrief`
   (the decoded body; dropping it makes task 20's *Start without the brief* ask the Hub again and
   get a second 409). Make the call **after the argv rebuild and the `sessionEnv` rebuild, and before
   `a.deps.Backend.Destroy(ctx, sess.SandboxID)`** — never merely "before the record write", because
@@ -248,8 +249,11 @@ acceptance below therefore greps for the line and builds the binary.
   those as `""`, and so does the `WithoutBrief` path above). So the restart calls
   `sessionLocate(ctx, sess.WorktreeID)` again, before `Materialise` and so before the destroy. The
   error rule is the create rule: `errProjectUnknown` without `body.WithoutBrief` is the 409
-  `project_unknown`, and the old sandbox stays alive. Found ids go to `Materialise` and into the
-  record write. A clean `""` stays `""`. A record that already names a project is not re-located.
+  `project_unknown`, and the old sandbox stays alive. `errProjectUnknown` **with**
+  `body.WithoutBrief` does not refuse: `Materialise` gets `ProjectID: ""` and `WithoutBrief: true`,
+  and the restart proceeds (a refusal here would leave task 20 showing only **Retry**, the N1 dead
+  end). Found ids go to `Materialise` and into the record write. A clean `""` stays `""`. A record
+  that already names a project is not re-located.
 - Resume and fork go through create, so they restamp too. Whether Claude Code re-reads `CLAUDE.md`
   on `--resume` is unverified (brief R7); restamping is correct either way for a new process, and
   task 23's canary tells us whether a resumed conversation *acts* on the new text.
@@ -290,7 +294,8 @@ map[string]error`, a failure for one project's `Worktrees` only.
 | `TestCreateRefusesAnUnknownProject` | `sessionsLocator.err` set → 409 `brief_not_written`, `details.reason: "project_unknown"`, `details.worktreeId`; the materialiser fake never called; no store record; no backend call | an enumeration failure turned into a session with no brief and no warning |
 | `TestCreateWithoutBriefStartsDespiteAnUnknownProject` | `sessionsLocator.err` set, `withoutBrief: true` → 201; the fake gets `ProjectID: ""` and `WithoutBrief: true`; `none:declined` stamped | *Start without the brief* made a dead end, as N1 is on `tracked_elsewhere` |
 | `TestCreateOutsideEveryProjectMaterialisesWithNoProject` | a clean miss → 201; the fake gets `ProjectID: ""`; its `""` is stamped | the clean `""` refused, or never passed through |
-| `TestRestartRelocatesARecordWithNoProject` | a seeded record with `ProjectID: ""`. The locator finds the worktree → the fake gets the found ids, and the record write carries them. With `sessionsLocator.err` set → 409 `project_unknown`, no `backend.destroy`, the old sandbox still in the fake backend | a restart that reads an ambiguous `""` as "outside every project" |
+| `TestRestartRelocatesARecordWithNoProject` | a seeded record with `ProjectID: ""`. The locator finds the worktree → the fake gets the found ids, and the record write carries them. With `sessionsLocator.err` set → 409 `project_unknown`, no `backend.destroy`, the old sandbox still in the fake backend. A clean miss → 200; the fake gets `ProjectID: ""`, the record's ids stay `""`, nothing refuses | a restart that reads an ambiguous `""` as "outside every project"; a clean miss on restart refused |
+| `TestRestartWithoutBriefStartsDespiteAnUnknownProject` (re-review b02 I-1) | a seeded record with `ProjectID: ""`, `sessionsLocator.err` set, `POST …/restart` with `{"withoutBrief": true}` → 200; the fake gets `ProjectID: ""` and `WithoutBrief: true`; `none:declined` is stamped on the record | restart's re-locate refusing `project_unknown` regardless of the override, so *Start without the brief* gets a second 409 and task 20 shows only **Retry** |
 
 | Test (`cmd/api/materialiser_interim_test.go`) | Asserts | Mutant it kills |
 |---|---|---|
@@ -315,7 +320,7 @@ map[string]error`, a failure for one project's `Worktrees` only.
   `problem.go`, `sessions.go` (both handlers and `sessionLocate`) and `main.go` as above.
 - [ ] **Step 4:** Run the whole `api` suite, the route audit, the `cmd/api` suite, and build the
   binary.
-- [ ] **Step 5:** Commit the eleven files by pathspec (`git add` the three new ones first). The
+- [ ] **Step 5:** Commit the eleven files by pathspec (`git add` the four new ones first). The
   message names R1, review I1 and I2, the base commit of `sessions.go`, the two declared
   departures, and that `materialiserUntilTask14` is interim, deleted by task 14.
 

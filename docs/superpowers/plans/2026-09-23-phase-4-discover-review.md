@@ -733,7 +733,7 @@ The review's I1 and I2 lines are right at `3303fd6` but have moved at `2d6d95b`:
 - `main.go`'s `api.New(api.Deps{` is `:132` (was `:122`).
 `git grep -n "New(Deps{\|:= Deps{\|api.Deps{" -- control-plane` finds exactly four direct
 constructions: `api_test.go:142`, `attach_test.go:303`, `sessions_test.go:584` and `main.go:132`.
-No `cmd/api` test reaches `api.New`: `main_test.go:387` and `config_sandbox_test.go:189` both exit
+No `cmd/api` test reaches `api.New`: `main_test.go:387` and `config_sandbox_test.go:172` both exit
 in config.
 
 **I1: every `Deps` builder gets a Materialiser, and the binary starts.** Fixed as the review said.
@@ -786,3 +786,35 @@ constant is there. Task 09 only maps causes onto that set, and it never returns
   while `env.wt` still resolves the path. `sessionsLocator.err` also fails `Branches`. Whether
   anything else in create calls `Branches` was not read.
 - The interim's Warn wording is a plan choice. No test pins more than "task 14".
+
+### Fix batch b02, round 2 (2026-09-24): re-review I-1, M-1, M-2, M-3
+
+Fixes the open issues of `.superpowers/sdd/p4/plan-rereview-b02-1.md` (round 1: I1 resolved, I2
+resolved in design and text). Line numbers are as of the commit that adds this subsection. Round 1's
+tables above cite `ac2e515`. In `task-10.md` everything after `:232` has moved: +1 line from `:233`,
++4 from `:252`, +5 from `:298`. So round 1's `:246-252` is now `:247-256`, `:285-293` is
+`:289-297`, `:297` is `:302`, `:318-320` is `:323-325`, `:332-345` is `:337-350`, and `:347-349` is
+`:352-354`. Round 1's `:219-228` and `:223-228` are unchanged.
+
+| Re-review issue | Where it changed |
+|---|---|
+| **I-1** (Important): restart with `withoutBrief` and a failed enumeration was untested | `task-10.md:250-256` (the restart re-locate bullet now says in full that `errProjectUnknown` **with** `body.WithoutBrief` does not refuse: `Materialise` gets `ProjectID: ""` and `WithoutBrief: true`); `:298` new row `TestRestartWithoutBriefStartsDespiteAnUnknownProject` (seeded `ProjectID: ""`, `sessionsLocator.err`, `{"withoutBrief": true}` → 200, the fake gets `ProjectID: ""` and `WithoutBrief: true`, `none:declined` on the record; mutant: re-locate refuses whatever the override); `:297` `TestRestartRelocatesARecordWithNoProject` gains the optional clean-miss case (200, ids stay `""`, nothing refuses) |
+| I-1 restatement | `2026-09-23-phase-4-discover.md:430` (restart seam: the re-locate runs under the create's rule, so it is `409 project_unknown` unless `withoutBrief`) |
+| **M-1**: "three new ones" | `task-10.md:323` now "four new ones" (`materialiser.go`, `materialise_test.go`, `materialiser_interim.go`, `materialiser_interim_test.go`) |
+| **M-2**: `config_sandbox_test.go:189` does not exist | `task-10.md:191` and this review's b02 section `:736` both now `:172`. Checked with `git show 2d6d95b:control-plane/cmd/api/config_sandbox_test.go`: 181 lines, `TestRunRefusesAMissingCABundleWithExitCode2` at `:172`, its `run(` at `:175` |
+| **M-3**: the restart request list read `ProjectID: sess.ProjectID` unconditionally | `task-10.md:233-234` adds "(or the re-located ids, next bullet, when the record's `ProjectID` is `""`)" |
+
+**Restatements checked.** `task-20.md:66` already says `project_unknown` is raised only without
+`withoutBrief: true`, for create and restart alike, so it now matches the restart text. `task-20.md:82`
+covers both verbs against a mocked client and needs no change. `task-22.md:24` and `task-09.md:79`
+restate only the reason set, which this round does not change. A grep over the plan and its parts
+finds no other copy of the three changed facts.
+
+**Round 1's "still unverified" item 1 is closed.** The re-review verified it: create reaches
+`Deps.Projects` only through `sessionLocate` (`sessions.go:545` at `2d6d95b`), and restart makes no
+locator call today. So `sessionsLocator.err` failing all three methods is safe for the new restart
+row too.
+
+**Still unverified:** no Go was run, because this round changes plan documents only. Where the
+re-locate lands in the restart body relative to the argv and `sessionEnv` rebuilds was not read. The
+plan requires only that it comes before `Materialise`, and so before the destroy.
