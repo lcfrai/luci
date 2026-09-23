@@ -456,7 +456,8 @@ New unless marked. `cp/` is `control-plane/`, `d/` is `desktop/src/`.
 | `cp/internal/deploy/ship/rerun.go` | 10 | `Orchestrator.Rollback`, `Rebuild`, `Cancel` |
 | `cp/internal/deploy/sessions/sessions.go` | 19 | sessions in a shipped range, from `Panacea-Session` trailers |
 | `cp/internal/api/deploy_connection.go` | 05 | `/v1/deploy/connection` |
-| `cp/internal/api/deploy_view.go` | 08 | `GET /v1/projects/{projectId}/deploy`, the binding `PUT` |
+| `cp/internal/api/deploy_binding.go` | 06 | `PUT /v1/projects/{projectId}/deploy/binding` |
+| `cp/internal/api/deploy_view.go` | 08 | `GET /v1/projects/{projectId}/deploy` |
 | `cp/internal/api/deploy_acts.go` | 09, 10 | ship, rollback, rebuild, cancel |
 | `cp/internal/api/deploy_governance.go` | 11 | auto-deploy, access, posture, URL prefix |
 | `cp/internal/api/deploy_drill.go` | 12, 19 | run progress, scans, pods, events, diagnose, the two streams, sessions |
