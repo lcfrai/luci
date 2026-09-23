@@ -56,11 +56,12 @@ type Forecast struct {
 // TestBehaviourFixedDateCommitTreeIsDeterministic). It is reachable from no ref.
 //
 // Results are cached in memory keyed by (branch tip, the ordered lane tips); a repeat of the
-// same key runs no git at all.
+// same key runs no git at all. Every call runs in the project with Scope Project (task-02 §HGH).
 func ForecastQueue(ctx context.Context, m gitx.Machine, projectPath, branchTip string, queue []LaneObservation) []Forecast
 
 // CheckedOutAt returns the path of a worktree of the project repository that has refs/heads/<branch>
-// checked out, or "" when none does. Read: `worktree list --porcelain` in the project.
+// checked out, or "" when none does. Read: `worktree list --porcelain` in the project, Scope
+// Project (task-02 §HGH).
 func CheckedOutAt(ctx context.Context, m gitx.Machine, projectPath, branch string) (string, error)
 ```
 
@@ -142,7 +143,7 @@ type State struct {
 	ReadError  string `json:"readError"`
 }
 
-// ReadState, all gitx.Read in the project:
+// ReadState, all gitx.Read in the project with Scope Project (task-02 §HGH):
 //   remote get-url origin                                         (absent → Remote "")
 //   rev-parse --abbrev-ref --symbolic-full-name <branch>@{upstream} (fails → never pushed)
 //   rev-list --left-right --count refs/heads/<branch>...<branch>@{upstream}
