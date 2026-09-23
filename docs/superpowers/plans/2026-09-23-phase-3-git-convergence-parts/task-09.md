@@ -13,48 +13,14 @@ commit byte for byte and never parsed (contract P5). Without a resolver a land r
 (plan decision 4) and renders `none`.
 
 **Files:**
-- `control-plane/internal/briefref/briefref.go` — `Revision`, `Criterion`, `Resolver`, `Archiver` (new)
 - `control-plane/internal/converge/land.go` + `land_test.go` — `Land`, `LandRequest`, `LandResult`, refusals (new)
 - `control-plane/internal/api/lands.go` + test — `POST …/lands` (new)
 - `control-plane/internal/api/gitdeps.go`, `gitroutes.go` — `// ── task 09 ──` blocks
 
 #### Interfaces — complete
 
-```go
-// Package briefref is what phase 3 needs from phase 4's provenance package (asks P4-1 and
-// P4-3). It declares the interfaces; phase 4 satisfies them. Phase 3 never parses a brief key
-// (contract P5): it passes the string to Resolve and copies it into git unchanged.
-package briefref
-
-import "context"
-
-// Revision is one brief revision as phase 3 needs it.
-type Revision struct {
-	Key      string      // e.g. "brief:b-42@6", exactly as Resolve was given it
-	Digest   string      // e.g. "sha256:…", the revision's digest (contract §1.2)
-	Criteria []Criterion // in the revision's order
-}
-
-// Criterion is one criterion's identity. Digest is SHA-256 of the criterion's text as phase 4
-// computes it (ask P4-2); evidence (task 15) matches on it, because the id is positional and
-// breaks on insertion (risk R14).
-type Criterion struct {
-	ID     string
-	Digest string
-}
-
-// Resolver answers a brief key. ok is false when no revision answers it ("missing" in the
-// contract's six-state vocabulary); err is for a resolver that could not answer at all.
-type Resolver interface {
-	Resolve(ctx context.Context, key string) (rev Revision, ok bool, err error)
-}
-
-// Archiver archives a product branch's brief head when the branch is deleted (contract P13:
-// "may archive the head; revisions stay"). Called by task 11; one way, phase 3 → phase 4.
-type Archiver interface {
-	ArchiveHead(ctx context.Context, projectID, branchID string) error
-}
-```
+`briefref.Resolver` and `briefref.Revision` are task 03's (review I7 moved the package there, so
+task 11 can import it in a parallel lane). This task consumes them and declares nothing in it.
 
 ```go
 package converge
@@ -93,8 +59,11 @@ type Refusal struct {
 
 func (r *Refusal) Error() string { return r.Message }
 
-// Lander lands. One per process; it serialises lands, undos and reverts per (project, branch).
+// Lander lands. One per process. Land, Undo and Revert (task 10) each hold
+// Locks.Lock(ctx, req.ProjectID) for the whole verb, so they serialise per project with each
+// other and with task 11's branch verbs and task 12's Fetch and Push (review I7: one scope).
 type Lander struct {
+	Locks    *gitx.Locks // GitDeps.Locks, task 04's one value; nil is a wiring error, refused
 	Machine  gitx.Machine
 	Syncer   *Syncer
 	Lanes    lanes.Store
@@ -107,6 +76,7 @@ type Lander struct {
 
 // Land, in this order. Every step before 10 writes nothing; a *Refusal from any of them
 // leaves the repository exactly as it was.
+//  0. unlock, err := Locks.Lock(ctx, req.ProjectID); defer unlock()  (ctx ended → its error)
 //  1. the lane belongs to this project and branch                 (else bad_request)
 //  2. it is marked ready                                          (not_ready)
 //  3. CheckedOutAt(branch) == ""                                  (branch_checked_out, details.path)
@@ -193,23 +163,26 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestLandTellsEveryClone` | after landing clone A, clone B's `refs/remotes/origin/<b>` equals the merge | 3-D3's prompt naming a stale `origin/<b>` |
 | `TestLandRefreshFailureDoesNotFailTheLand` | clone B's directory removed → 201, `refreshErrors[B]` holds git's sentence | failing a land that happened |
 | `TestLandSerialisesPerBranch` | two concurrent lands of different lanes on one branch under `-race` → one succeeds, the other gets `branch_moved` or lands after it; never both on the same `old` | a double land on one tip |
+| `TestLandWaitsOnTheProjectLock` (review I7) | the test holds `Locks.Lock(ctx, p)`: a land on branch `a` and one on branch `b` of `p` have run no git call 50 ms later (a recording Runner); release → both land. Through the handler: holding `Deps.Git.Locks` for `p` keeps `POST …/lands` unanswered until release. A `nil` `Locks` → 500 `internal`, nothing run | a per-branch lock task 12's push does not share; a Lander given a lock of its own |
 | `TestLandRouteMapsEveryRefusal` | table test over the handler: each `*Refusal` → 409 with its reason; each `*gitx.Error` → `git_failed`; a `*gitx.UntrustedConfig` → 409 `project_config_untrusted` with `details.key` | a refusal that surfaces as 500 |
 | `TestLandRunsNoProjectHook` | task-02 §HGH, red first against an unhardened `Exec`: the project's `.git/hooks/reference-transaction` writes a marker → a land succeeds and no marker exists | a land that honours the repository's hooks |
 | `TestLandRefreshNeverUsesTheClonesOrigin` | task-02 §HGH H2 and review C3, red first. (a) Clone B's config sets only `remote.origin.url` (an allowlisted key) to an `httptest` smart-HTTP server → after a land, B's `refs/remotes/origin/<b>` equals the merge and the server received no request. (b) B's config also sets `http.proxy` to a second `httptest` server, `http.sslVerify=false` and `remote.origin.uploadpack=<marker script>` → neither server received a request, no marker exists, and `refreshErrors[B]` names `clone_config_untrusted` | a refresh that fetches `origin` |
 
 #### Steps
 
-- [ ] **Step 1: Preflight.** Task 08 merged. Task 01's `TestBehaviourUpdateRefCompareAndSwapRefuses`
+- [ ] **Step 1: Preflight.** Task 08 merged; `briefref` (task 03) and `gitx.Locks` (task 02) and
+  `GitDeps.Locks` (task 04) exist. Task 01's `TestBehaviourUpdateRefCompareAndSwapRefuses`
   recorded the refusal's stderr; the race test asserts on the **re-read tip**, not on that text.
-- [ ] **Step 2:** `briefref.go`; the tests; `land.go`; the handler, routes and deps block.
-- [ ] **Step 3:** wire `Lander` in `main.go` with `Identity` adapting `api.Deps.GitIdentity`
-  (the fix's `func(ctx, path) (api.GitIdentity, error)`) to `gitx.Ident`, and `Resolver: nil`.
+- [ ] **Step 2:** the tests; `land.go`; the handler, routes and deps block.
+- [ ] **Step 3:** wire `Lander` in `main.go` with `Locks: gitDeps.Locks`, `Identity` adapting
+  `api.Deps.GitIdentity` (the fix's `func(ctx, path) (api.GitIdentity, error)`) to `gitx.Ident`,
+  and `Resolver: nil`.
 - [ ] **Step 4:** run and commit by pathspec.
 
 #### Acceptance
 
 ```
-go test ./control-plane/internal/converge/ ./control-plane/internal/briefref/ ./control-plane/internal/api/ -race -count=1 → PASS
+go test ./control-plane/internal/converge/ ./control-plane/internal/api/ -race -count=1 → PASS
 git log --first-parent -1 --format="%P%n%(trailers)" refs/heads/<b>   (manual, after a real land) → two parents; Panacea-Land
 ```
 
