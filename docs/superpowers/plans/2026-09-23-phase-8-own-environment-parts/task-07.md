@@ -399,10 +399,11 @@ resource "terraform_data" "invariants" {
       condition     = cidrsubnet("${var.aks_network.dns_service_ip}/${local.service_prefix}", 0, 0) == cidrsubnet(var.aks_network.service_cidr, 0, 0)
       error_message = "I3: dns_service_ip must lie inside service_cidr."
     }
-    precondition {
-      condition     = var.api_private || length(var.api_authorized_ip_ranges) > 0 || var.egress_mode == "nat"
-      error_message = "I4: a public API server needs at least one authorised range; in firewall mode there is no NAT address to add automatically."
-    }
+    # I4 is retired, and its id is not reused. It required a public cluster in firewall mode to
+    # name its own authorised ranges, because "there is no NAT address to add". Since review C2 the
+    # AKS module's list is concat(var.api_authorized_ip_ranges, [<nat or firewall egress IP>/32])
+    # in BOTH modes (below), so a public cluster's list is never empty and I4 only refused valid
+    # firewall-mode plans (plan re-review b04 round 1, finding 3).
     precondition {
       condition     = var.environment != "prod" || var.api_private
       error_message = "I5: prod is a private cluster (OQ-5)."
@@ -551,7 +552,35 @@ with `prod.tfvars`; its file-level `variables` block holds **only** `cluster_adm
 a placeholder GUID no tfvars sets (guard G10, review I1: a file-level key overrides `-var-file`).
 The stack takes no pipeline identity's object id, because it grants none, plan re-review I-2).
 Every run below that depends on an environment-specific value pins it in its own `variables`
-block, so it means the same under either pass:
+block, so it means the same under either pass.
+
+Its `mock_provider "azurerm"` is not empty: it holds
+
+```hcl
+mock_provider "azurerm" {
+  mock_resource "azurerm_container_registry" {
+    defaults = {
+      login_server             = "acrpanaceaappdevk7q2.azurecr.io"
+      data_endpoint_host_names = ["acrpanaceaappdevk7q2.australiaeast.data.azurecr.io"]
+    }
+  }
+}
+```
+
+The reason is the module's `acr_login_server` validation (`endswith(…, ".azurecr.io")`, above).
+Foundation feeds it `module.registry.login_server`, a computed attribute. At plan the value is
+unknown, so the validation waits; at apply Terraform enforces it against whatever value the
+provider produced (Terraform 1.15.8 probe, plan re-review b04 round 1, finding 4). A bare mock
+gives a computed string a random 8-character value (Terraform's documented mock behaviour;
+training knowledge, not probed with azurerm, UNVERIFIED), which fails `endswith`. Without the
+default, every firewall-mode run that applies would stop at the validation:
+`firewall_mode_allowlists_its_own_address_on_the_api` (`command = apply`),
+`agents_egress_in_firewall_mode` and `firewall_mode_uses_udr_and_has_no_nat` (no `command`, so
+apply). The name is task 05 `:79`'s `acrpanaceaapp${env}${suffix}` for dev; under the prod pass
+it is still the dev name, which is fine, because no run asserts the registry's environment. If the
+validation still fires under the default, the mock is not reaching the module's registry: record
+it, and add an `override_resource { target = module.registry.azurerm_container_registry.this }`
+with the same values to each firewall-mode run instead.
 
 | Run | Asserts | Mutant it kills |
 |---|---|---|
@@ -561,10 +590,10 @@ block, so it means the same under either pass:
 | `non_australian_region_fails` | `location = "eastus"` → `expect_failures` | I1 dropped |
 | `prod_must_be_private` | `environment = "prod"`, `api_private = false` → `expect_failures` | I5 dropped |
 | `nat_mode_allowlists_its_own_address_on_the_api` | the run pins `environment = "dev"`, `api_private = false`, `egress_mode = "nat"` (under `prod.tfvars`, `api_private = true` leaves no authorised ranges, and `api_private = false` alone trips I5; review I1), `command = apply` with `override_resource` giving the NAT IP `20.0.0.1` → the AKS module's authorised ranges include `20.0.0.1/32` | the in-VNet pool locked out of its own cluster |
-| `firewall_mode_allowlists_its_own_address_on_the_api` | the run pins `environment = "dev"`, `api_private = false`, `egress_mode = "firewall"` (so it means the same under either tfvars file: a private cluster has no authorised ranges, review I1/I5), `command = apply` with `override_resource` giving the firewall's public IP `20.0.0.2` → the authorised ranges include `20.0.0.2/32` | the same lock-out in firewall mode, where the agents egress through the firewall, not a NAT |
+| `firewall_mode_allowlists_its_own_address_on_the_api` | the run pins `environment = "dev"`, `api_private = false`, `egress_mode = "firewall"` (so it means the same under either tfvars file: a private cluster has no authorised ranges, review I1/I5), `command = apply` with `override_resource` giving the firewall's public IP `20.0.0.2` → the authorised ranges include `20.0.0.2/32`. It sets no `api_authorized_ip_ranges`, and neither tfvars does, so the list holds only the firewall's /32 | the same lock-out in firewall mode, where the agents egress through the firewall, not a NAT; and the retired I4 put back, which refuses exactly this plan (a public firewall-mode cluster with no extra ranges; plan re-review b04 round 1, finding 3) |
 | `agents_egress_in_nat_mode` | a `run` block pinning `egress_mode = "nat"`: `module.network.egress_subnet_ids` has key `agents` (task 03's `nat_mode_puts_nat_on_every_egress_subnet` pins one NAT association per key) | nat mode stranding the CI pool (C2) |
 | `agents_egress_in_firewall_mode` | a second `run` block pinning `egress_mode = "firewall"` (and `environment = "dev"`, `api_private = false`, as the authorised-ranges run): `module.egress_firewall[0].routed_subnet_keys == ["agents", "apps", "sandbox", "system"]` | the two modes drifting apart, so firewall mode strands the CI pool (C2). Re-review M5: one row was two `run` blocks in one; each `egress_mode` needs its own |
-| `firewall_mode_uses_udr_and_has_no_nat` | `egress_mode = "firewall"` → `module.egress_firewall` has one instance and the cluster's `outbound_type == "userDefinedRouting"` | a UDR cluster without the firewall, which boots with no egress |
+| `firewall_mode_uses_udr_and_has_no_nat` | pins `egress_mode = "firewall"`, `environment = "dev"`, `api_private = false`, as its two firewall-mode siblings do (plan re-review b04 round 1, finding 3: unpinned, the row meant a public cluster under `dev.tfvars` and a private one under `prod.tfvars`) → `module.egress_firewall` has one instance and the cluster's `outbound_type == "userDefinedRouting"` | a UDR cluster without the firewall, which boots with no egress |
 | `edge_records_alias_the_edge_ip` | one A record per hostname, each `target_resource_id == azurerm_public_ip.edge.id`, `ttl == 300` | a literal IP record that goes stale on the first re-create |
 | `kubelet_pulls_from_the_registry` | an `AcrPull` assignment to the kubelet identity, scoped to the registry, and `grants.tf`'s only other assignment is `Network Contributor` on `azurerm_public_ip.edge` | the shared admin credential's replacement missing; a second grant slipped into `grants.tf` |
 

@@ -168,7 +168,8 @@ environment-specific value pin it at run level.
 | `assignment_is_required_on_the_apis_only` | APIs true, desktop false; users group assigned to both APIs | anyone in the tenant using the APIs; or the desktop blocked before it can show "not assigned" |
 | `org_admin_role_is_assigned` | `Hub.OrgAdmin` on the Hub API, assigned to `org_admin_group_object_id` | no org admin able to erase (ADR-H1 G6) |
 | `email_is_an_optional_claim_on_the_hub` | the Hub's `optional_claims.access_token` has `email` | Hub invites keyed on a missing claim |
-| `names_carry_the_environment_outside_prod` | dev → `PanaceaApp Desktop (dev)`; prod → `PanaceaApp Desktop` | dev and prod colliding in one tenant |
+| `names_carry_the_environment_outside_prod` | pins `environment = "dev"` → `PanaceaApp Desktop (dev)` | dev and prod colliding in one tenant |
+| `prod_names_carry_no_suffix` | pins `environment = "prod"` → `PanaceaApp Desktop`, with no `(prod)`. One row with both environments in it was two runs or a pass-dependent one (plan re-review b04 round 1, finding 7); as two pinned runs, each tfvars pass checks both names | a suffix on every environment, prod included, so prod's consent screen shows `(prod)` |
 | `ado_only_when_asked` | `request_azure_devops = false` → no ADO access or grant | a consent the owner did not approve |
 | `no_secret_anywhere` | no `azuread_application_password` or certificate resource | a secret added "for testing" |
 
@@ -178,13 +179,13 @@ environment-specific value pin it at run level.
   rows.
 - [ ] **Step 2:** Variables, locals (**fresh UUIDs** replace the three above — a scope id copied
   from a document is one someone else may also have copied), tests; validate fails.
-- [ ] **Step 3:** Data sources, resources, outputs until the thirteen runs pass for both tfvars.
+- [ ] **Step 3:** Data sources, resources, outputs until the fourteen runs pass for both tfvars.
 - [ ] **Step 4:** tfvars hold only `environment`; lock file; guards; commit.
 
 #### Acceptance
 
 ```bash
-bash infra/scripts/validate.sh infra/terraform/stacks/identity   # validate: 1 ok, 0 failed (12 runs × 2 tfvars)
+bash infra/scripts/validate.sh infra/terraform/stacks/identity   # validate: 1 ok, 0 failed (14 runs × 2 tfvars)
 bash infra/scripts/guards.sh                                      # guards: 10 of 10 passed
 ```
 
