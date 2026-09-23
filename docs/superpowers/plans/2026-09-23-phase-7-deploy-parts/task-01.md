@@ -352,9 +352,15 @@ type PostureChange struct {
 
 type PostureResult struct {
 	Posture Posture
-	// BypassToken is a freshly minted token, returned exactly once. "" when none was minted.
-	// The control plane passes it to the desktop once and never keeps it.
-	BypassToken string
+	// Enforced is false when the target SAVED the new mode but could not apply it, so traffic
+	// still meets the OLD mode. The lens must say so; a saved-but-not-enforced posture drawn as
+	// done is the silent-override class this program keeps paying for.
+	Enforced bool
+	// Message is the target's own sentence about the outcome, verbatim.
+	Message string
+	// BypassTokens are freshly minted tokens, returned exactly once. Empty when none was minted.
+	// The control plane passes them to the desktop once and never keeps them.
+	BypassTokens []string
 }
 
 // AccessRole is the domain's vocabulary. The Panacea connector maps RoleDeveloper to its wire
