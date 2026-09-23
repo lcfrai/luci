@@ -23,5 +23,12 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 USER dev
 WORKDIR /home/dev
+# The control plane bind-mounts each worktree's conversation store over
+# ~/.claude/projects, and over nothing else in ~/.claude: that directory is
+# where claude keeps the transcripts --resume reads, and its siblings are where
+# /login writes credentials. Docker creates a mount point's missing parents as
+# root, which leaves ~/.claude unwritable by dev and breaks /login, so the image
+# creates the path first, as dev.
+RUN mkdir -p /home/dev/.claude/projects
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

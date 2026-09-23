@@ -26,6 +26,8 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
@@ -119,6 +121,14 @@ type Deps struct {
 	// step 7. Zero means backend.ReadyTimeout. Task 13 feeds it from
 	// PANACEA_APP_READY_TIMEOUT.
 	ReadyTimeout time.Duration
+
+	// ConversationsDir is the host directory every worktree's conversation
+	// store lives under — see sessionConversationStore for the layout and
+	// sessionConversationDir for what is mounted where. Without it a sandbox's
+	// transcripts die with the sandbox and no resume can find them, so it is
+	// required, and absolute because it becomes a bind mount's host path.
+	// Task 13's wiring derives it from the state directory.
+	ConversationsDir string
 }
 
 // route is one ServeMux pattern and the handler registered under it.
@@ -218,6 +228,14 @@ func New(d Deps) (*API, error) {
 		if dep.missing {
 			return nil, errors.New("api: Deps." + dep.name + " is nil")
 		}
+	}
+	// Not in the table above because it is a string, not a nil: the sentence
+	// has to say which of the two ways it is wrong.
+	if d.ConversationsDir == "" {
+		return nil, errors.New("api: Deps.ConversationsDir is empty; every sandbox's transcripts would die with it and no resume could find them")
+	}
+	if !filepath.IsAbs(d.ConversationsDir) {
+		return nil, errors.New("api: Deps.ConversationsDir " + strconv.Quote(d.ConversationsDir) + " is not absolute, and it becomes a bind mount's host path")
 	}
 	if d.Version == "" {
 		d.Version = DefaultVersion

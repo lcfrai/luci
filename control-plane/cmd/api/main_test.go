@@ -165,6 +165,52 @@ func TestRecoverSettlesMissingAndStoppedSandboxes(t *testing.T) {
 	}
 }
 
+// Resume after a restart depends on one field recovery never has a reason to
+// touch: the conversation id. Every branch that writes is here — republished,
+// disappeared, stopped, and an exited record whose stale attach count is
+// repaired — and each is read back from a REOPENED file, because that is what
+// the next process sees.
+func TestRecoverKeepsEveryConversationID(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "sessions.json")
+	store, err := registry.NewFileStore(path)
+	if err != nil {
+		t.Fatalf("NewFileStore: %v", err)
+	}
+	seeds := map[string]registry.Session{
+		"s-1": {ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning, Endpoint: "127.0.0.1:49711"},
+		"s-2": {ID: "s-2", SandboxID: "sb-2", Status: registry.StatusRunning},
+		"s-3": {ID: "s-3", SandboxID: "sb-3", Status: registry.StatusIdle},
+		"s-4": {ID: "s-4", SandboxID: "sb-4", Status: registry.StatusExited, AttachCount: 2},
+	}
+	conversations := map[string]string{
+		"s-1": "11111111-1111-4111-8111-111111111111",
+		"s-2": "22222222-2222-4222-8222-222222222222",
+		"s-3": "33333333-3333-4333-8333-333333333333",
+		"s-4": "44444444-4444-4444-8444-444444444444",
+	}
+	for id, s := range seeds {
+		s.ConversationID = conversations[id]
+		bootSeed(t, store, s)
+	}
+	be := &recoveryBackend{sandboxes: []backend.Sandbox{
+		{ID: "sb-1", Kind: backend.KindDocker, Endpoint: "127.0.0.1:52002", State: backend.StateRunning},
+		{ID: "sb-3", Kind: backend.KindDocker, State: backend.StateStopped},
+	}}
+
+	recoverSessions(context.Background(), store, be, quietLogger())
+
+	reopened, err := registry.NewFileStore(path)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	for id, want := range conversations {
+		if got := bootGet(t, reopened, id).ConversationID; got != want {
+			t.Errorf("%s conversationId = %q after recovery and a reopen, want %q", id, got, want)
+		}
+	}
+}
+
 // The one row this task adds to contract §5.5 step 3, which names only
 // StateRunning and StateStopped. A sandbox that is still starting is neither:
 // the control plane went down between Create and the first /healthz answer.

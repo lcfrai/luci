@@ -20,13 +20,21 @@ func argvEqual(t *testing.T, got, want []string) {
 	}
 }
 
+// Two conversation ids in the shape ids.UUID mints. The literals are distinct
+// in every group so an argv that swapped them fails on sight.
+const (
+	sourceConversation = "aaaaaaaa-1111-4111-8111-111111111111"
+	forkConversation   = "bbbbbbbb-2222-4222-8222-222222222222"
+)
+
 func TestBuildClaudeCodeMapsEveryFieldToItsVerifiedFlag(t *testing.T) {
 	cmd, argv, err := harness.Build(harness.Request{
 		Harness:       harness.ClaudeCode,
 		Model:         "opus",
 		Effort:        harness.EffortHigh,
 		Permission:    harness.PermissionBypass,
-		Resume:        "abc123",
+		Resume:        sourceConversation,
+		Conversation:  forkConversation,
 		OpeningPrompt: "add tests",
 	})
 	if err != nil {
@@ -39,9 +47,67 @@ func TestBuildClaudeCodeMapsEveryFieldToItsVerifiedFlag(t *testing.T) {
 		"--model", "opus",
 		"--effort", "high",
 		"--permission-mode", "bypassPermissions",
-		"--resume", "abc123",
+		"--resume", sourceConversation, "--fork-session",
+		"--session-id", forkConversation,
 		"add tests",
 	})
+}
+
+// A fresh session is NAMED, and that is the whole fix: without --session-id the
+// CLI picks the id itself and the only place it appears is the terminal, which
+// the product may not read — so nothing could ever resume the session.
+func TestBuildNamesAFreshConversationAndDoesNotResume(t *testing.T) {
+	_, argv, err := harness.Build(harness.Request{
+		Harness:       harness.ClaudeCode,
+		Model:         "opus",
+		Conversation:  forkConversation,
+		OpeningPrompt: "add tests",
+	})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	argvEqual(t, argv, []string{"--model", "opus", "--session-id", forkConversation, "add tests"})
+}
+
+// THE DEFECT. The cockpit sent its own session id as `resume`, and Build passed
+// it to `claude --resume`, which knows conversations only by its own UUID. A
+// cockpit id reaching Build is now refused as the control-plane defect it is,
+// rather than started as a terminal that prints one line and exits.
+func TestBuildRefusesACockpitSessionIDAsAResume(t *testing.T) {
+	for name, req := range map[string]harness.Request{
+		"cockpit id as resume":       {Harness: harness.ClaudeCode, Resume: "s-3f2a91c0", Conversation: forkConversation},
+		"cockpit id as conversation": {Harness: harness.ClaudeCode, Conversation: "s-3f2a91c0"},
+		"uppercase uuid":             {Harness: harness.ClaudeCode, Conversation: strings.ToUpper(forkConversation)},
+	} {
+		_, argv, err := harness.Build(req)
+		if !errors.Is(err, harness.ErrConversationID) {
+			t.Errorf("%s: Build = %v, want an error wrapping ErrConversationID", name, err)
+		}
+		if argv != nil {
+			t.Errorf("%s: argv = %#v alongside an error", name, argv)
+		}
+	}
+}
+
+// --fork-session with no --session-id is accepted by the CLI and gives the fork
+// an id that only its output reveals: a resumed session nothing could resume.
+func TestBuildRefusesAResumeWhoseForkIsUnnamed(t *testing.T) {
+	_, argv, err := harness.Build(harness.Request{Harness: harness.ClaudeCode, Resume: sourceConversation})
+	if !errors.Is(err, harness.ErrConversationID) {
+		t.Fatalf("Build(resume, no conversation) = %v, want ErrConversationID", err)
+	}
+	if argv != nil {
+		t.Fatalf("argv = %#v alongside an error", argv)
+	}
+}
+
+// Observed in the pinned CLI: --session-id naming a conversation that exists
+// fails with "Session ID <id> is already in use".
+func TestBuildRefusesAForkThatReusesTheSourceID(t *testing.T) {
+	_, _, err := harness.Build(harness.Request{Harness: harness.ClaudeCode, Resume: sourceConversation, Conversation: sourceConversation})
+	if !errors.Is(err, harness.ErrConversationID) {
+		t.Fatalf("Build(resume == conversation) = %v, want ErrConversationID", err)
+	}
 }
 
 // THE COMMA DEFECT. The legacy PANACEA_APP_ARGS was comma-joined, so this
@@ -164,8 +230,11 @@ func TestBuildRejectsEveryAgentOptionOnTheShell(t *testing.T) {
 		"model":      {Harness: harness.Shell, Model: "opus"},
 		"effort":     {Harness: harness.Shell, Effort: harness.EffortHigh},
 		"permission": {Harness: harness.Shell, Permission: harness.PermissionBypass},
-		"resume":     {Harness: harness.Shell, Resume: "abc123"},
+		"resume":     {Harness: harness.Shell, Resume: sourceConversation},
 		"prompt":     {Harness: harness.Shell, OpeningPrompt: "do the thing"},
+		// A shell has no conversation, so the control plane mints it no id and
+		// mounts it no store; Build refusing one is what keeps that true.
+		"conversation": {Harness: harness.Shell, Conversation: forkConversation},
 	}
 	for name, req := range cases {
 		_, argv, err := harness.Build(req)
@@ -272,7 +341,7 @@ func TestBuildChecksTheModelBeforeTheEffort(t *testing.T) {
 func TestBuildChecksResumeBeforeThePrompt(t *testing.T) {
 	_, _, err := harness.Build(harness.Request{
 		Harness:       harness.Shell,
-		Resume:        "abc123",
+		Resume:        sourceConversation,
 		OpeningPrompt: "do the thing",
 	})
 	if err == nil {

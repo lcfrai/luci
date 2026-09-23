@@ -41,6 +41,7 @@ func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {
 		{"Namespace", cfg.Namespace, "panacea-app"},
 		{"LogLevel", cfg.LogLevel, slog.LevelInfo},
 		{"SessionsPath", cfg.SessionsPath, filepath.Join(dir, "sessions", "sessions.json")},
+		{"ConversationsDir", cfg.ConversationsDir, filepath.Join(dir, "conversations")},
 	} {
 		if c.got != c.want {
 			t.Errorf("Config.%s = %v, want %v", c.name, c.got, c.want)
@@ -54,6 +55,23 @@ func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {
 	}
 	if cfg.AllowPublicBind || cfg.HarnessAllowUnverified {
 		t.Error("an unset boolean must be false")
+	}
+}
+
+// The registry tolerates a relative state directory and a bind mount does not:
+// every session create would fail inside Docker with an error naming neither
+// PANACEA_APP_STATE_DIR nor the conversation store.
+func TestConversationsDirIsAbsoluteEvenForARelativeStateDir(t *testing.T) {
+	t.Parallel()
+	cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_STATE_DIR": "relative-state"}))
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	if !filepath.IsAbs(cfg.ConversationsDir) {
+		t.Fatalf("ConversationsDir = %q, want an absolute path", cfg.ConversationsDir)
+	}
+	if !strings.HasSuffix(cfg.ConversationsDir, filepath.Join("relative-state", "conversations")) {
+		t.Errorf("ConversationsDir = %q, want it under the state directory", cfg.ConversationsDir)
 	}
 }
 

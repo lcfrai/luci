@@ -310,6 +310,8 @@ func attachNewFixture(t *testing.T, replay []byte, shape func(*registry.Session)
 		Worktrees:    worktree.Static{},
 		Origin:       httpx.NewOriginPolicy(nil, quiet),
 		Log:          quiet,
+		// Required by New; the relay never creates a sandbox.
+		ConversationsDir: filepath.Join(t.TempDir(), "conversations"),
 	})
 	if err != nil {
 		t.Fatalf("api.New: %v", err)

@@ -34,3 +34,22 @@ func Token() string {
 	}
 	return base64.RawURLEncoding.EncodeToString(b)
 }
+
+// UUID returns a random RFC 4122 version 4 UUID in the canonical lowercase
+// 8-4-4-4-12 form, e.g. "3f2a91c0-7b1e-4d2a-9c4f-0e8b6a5d1c23".
+//
+// It has one caller: the conversation id a harness session is started with.
+// `claude --session-id` requires a UUID, and the control plane MINTS that id
+// and tells the CLI, because the only other way to learn it is to read the
+// CLI's output, which docs/PROGRAM.md forbids. It carries no prefix for the
+// same reason — the CLI rejects anything that is not a UUID.
+func UUID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic("ids: crypto/rand failed: " + err.Error())
+	}
+	b[6] = b[6]&0x0f | 0x40 // version 4
+	b[8] = b[8]&0x3f | 0x80 // the RFC 4122 variant, 10xx
+	h := hex.EncodeToString(b)
+	return h[0:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:32]
+}

@@ -131,6 +131,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ReadyTimeout: cfg.ReadyTimeout,
 		BackendReady: rp.BackendReady,
 		Log:          log,
+		// Created per worktree, at the first session that needs it.
+		ConversationsDir: cfg.ConversationsDir,
 	})
 	if err != nil {
 		return fmt.Errorf("build the HTTP surface: %w", err)
@@ -156,6 +158,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		"addr", ln.Addr().String(),
 		"backend", be.Kind(),
 		"sessions", cfg.SessionsPath,
+		"conversations", cfg.ConversationsDir,
 		"projects", cfg.ProjectsDir,
 		"image", cfg.SandboxImage,
 	)

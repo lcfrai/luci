@@ -121,10 +121,13 @@ func (r Resources) KubeCPU() string { return strconv.Itoa(r.CPUMillis) + "m" }
 // KubeMemory renders MemoryMiB as a Kubernetes quantity, e.g. "4096Mi".
 func (r Resources) KubeMemory() string { return strconv.Itoa(r.MemoryMiB) + "Mi" }
 
-// Mount is a host path exposed inside the sandbox. Phase 2 uses it for one
-// thing: giving a local Docker session the worktree it is supposed to work in.
+// Mount is a host path exposed inside the sandbox. Phase 2 uses it for two
+// things: giving a local Docker session the worktree it is supposed to work in,
+// and giving a session whose harness has a conversation that worktree's
+// conversation store, so a resume in a later sandbox can find the transcript.
 // Kata ignores Mounts and returns ErrUnsupported if any are set, because a host
-// path on an AKS node is meaningless.
+// path on an AKS node is meaningless — which makes the conversation store one
+// more thing Phase 8 must provide another way.
 type Mount struct {
 	HostPath      string
 	ContainerPath string

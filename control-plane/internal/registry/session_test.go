@@ -32,6 +32,7 @@ func sampleSession() registry.Session {
 		OpeningPrompt:  "add tests, then refactor",
 		Command:        "claude",
 		Args:           []string{"--model", "opus", "--effort", "high", "add tests, then refactor"},
+		ConversationID: "0f3c2b1a-9d8e-4f7a-8b6c-5d4e3f2a1b0c",
 		Status:         registry.StatusRunning,
 		ExitReason:     "",
 		Backend:        "docker",
@@ -59,7 +60,7 @@ func TestSessionJSONKeySet(t *testing.T) {
 
 	want := []string{
 		"args", "attachCount", "attachToken", "backend", "branchId",
-		"command", "contextRef", "createdAt", "effort", "endpoint",
+		"command", "contextRef", "conversationId", "createdAt", "effort", "endpoint",
 		"exitReason", "harness", "id", "lastOutputAt", "machineId",
 		"model", "openingPrompt", "permissionMode", "projectId", "sandboxId",
 		"sandboxRef", "status", "title", "updatedAt", "worktreeId",

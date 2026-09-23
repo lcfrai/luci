@@ -26,6 +26,7 @@ binary on this machine. Nothing here is recalled.
 | coder/websocket's origin check is host-only and permits a **missing** Origin | `coder/websocket@v1.8.12/accept.go` lines 206–234 |
 | Tauri webview origin string | tauri `dev` branch, `crates/tauri/src/manager/webview.rs` (`window_origin`) and `crates/tauri-utils/src/config.rs` (`use_https_scheme`, "Defaults to `false`") |
 | Claude Code flags | `claude --help` on this machine, version **2.1.267**; the sandbox image pins **2.1.274** |
+| `--session-id`, `--fork-session`, where transcripts live — AMENDED by the resume fix (2026-09-23) | `claude --help` and the CLI's behaviour **inside `panacea-app/sandbox:dev`, version 2.1.274**: transcript at `~/.claude/projects/-home-dev-work/<uuid>.jsonl`; `--session-id` of an existing conversation → `Session ID <id> is already in use`; `--resume A --session-id B` without `--fork-session` → refused; `--resume A --fork-session --session-id B` → B written with A's history; `--resume <missing>` → `No conversation found with session ID: <id>` |
 
 **Not verified, and marked as such throughout:** Codex, OpenCode and Gemini CLI
 flags. None of those binaries exists on this machine, and
@@ -270,10 +271,12 @@ func (r Resources) KubeCPU() string { return strconv.Itoa(r.CPUMillis) + "m" }
 // KubeMemory renders MemoryMiB as a Kubernetes quantity, e.g. "4096Mi".
 func (r Resources) KubeMemory() string { return strconv.Itoa(r.MemoryMiB) + "Mi" }
 
-// Mount is a host path exposed inside the sandbox. Phase 2 uses it for one
-// thing: giving a local Docker session the worktree it is supposed to work in.
-// Kata ignores Mounts and returns ErrUnsupported if any are set, because a host
-// path on an AKS node is meaningless.
+// Mount is a host path exposed inside the sandbox. Phase 2 uses it for two
+// things: giving a local Docker session the worktree it is supposed to work in,
+// and — AMENDED by the resume fix (2026-09-23) — giving a session whose harness has a
+// conversation that worktree's conversation store (§5.1 step 5). Kata ignores
+// Mounts and returns ErrUnsupported if any are set, because a host path on an
+// AKS node is meaningless.
 type Mount struct {
 	HostPath      string
 	ContainerPath string
@@ -605,7 +608,10 @@ var attachPort = nat.Port("8080/tcp") // nat.Port is a string type; this literal
 - `HostPort: ""` asks the daemon for an ephemeral host port. `AutoRemove: false` is
   load-bearing: `docs/…phase-2…md` "Deliberate refinement 1" says destroy happens on
   explicit kill, idle TTL or reap, never on disconnect, and a self-removing container
-  would delete the transcript `claude --resume` reads.
+  would delete the transcript `claude --resume` reads. AMENDED by the resume fix (2026-09-23): the
+  transcript no longer lives in the container — it is in the worktree's conversation
+  store on the host (§5.1 step 5), which outlives every sandbox — so this reason is
+  gone; the destroy rule it cites still holds on its own.
 - `container.Resources` is **embedded** in `HostConfig` (hostconfig.go line 468), so it
   is set as a field named `Resources`.
 - Networking: leave `networkingConfig` nil and `NetworkMode` unset — the default bridge.
@@ -772,6 +778,14 @@ func (b *Backend) Kind() backend.Kind { return backend.KindKata }
 - `Create` rejects a `Spec` with non-empty `Mounts` with `backend.ErrUnsupported`: a
   host path on an AKS node is meaningless, and silently ignoring the field would give
   an agent an empty worktree with no error anywhere.
+- AMENDED by the resume fix (2026-09-23): **one more thing Phase 8 must provide.** Every Claude Code
+  session now also carries a mount of its worktree's conversation store at
+  `/home/dev/.claude/projects` (§5.1 step 5) — the only thing `claude --resume` needs
+  from a previous sandbox. Kata must supply it as a volume that outlives the pod,
+  scoped **per user and per worktree** (the host layout's `<owner>` segment is where
+  the user goes), and holding `projects/` only: `~/.claude` itself is where `/login`
+  writes credentials. Until then this refusal fails every Kata create, as the worktree
+  mount already did.
 - `Endpoint` is `net.JoinHostPort(pod.Status.PodIP, "8080")`. An empty `PodIP` means
   the pod is not scheduled yet: `StateStarting`, empty `Endpoint`.
 - `State` maps `pod.Status.Phase`: `Pending` → `StateStarting`, `Running` →
@@ -829,6 +843,11 @@ func Dir(sub string) string {
 This ladder is byte-for-byte the one Phase 4's `discoverstore.DefaultDir()` already
 contains (phase-4 plan lines 3200–3215). See §8.1.
 
+AMENDED by the resume fix (2026-09-23): a third kind, `conversations`, sits beside `sessions`.
+`cmd/api` derives it the way it derives the registry path —
+`$PANACEA_APP_STATE_DIR/conversations`, else `statepath.Dir("conversations")` — and
+makes it absolute, because it becomes a bind mount's host path.
+
 ### 2.8 `internal/registry` — the session record and its store
 
 ```go
@@ -884,6 +903,14 @@ type Session struct {
 	OpeningPrompt  string `json:"openingPrompt"`
 	Command        string `json:"command"` // resolved argv[0], for restart
 	Args           []string `json:"args"`  // resolved argv[1:], for restart
+
+	// ConversationID — AMENDED by the resume fix (2026-09-23). The HARNESS's id for this
+	// session's conversation: the UUID the control plane minted and passed as
+	// `claude --session-id`, or "" for a harness with none (a shell). A later
+	// resume passes it to `claude --resume`; ID above means nothing to the CLI.
+	// Persisted, never on the REST surface (§3.10), and additive inside
+	// schemaVersion 1.
+	ConversationID string `json:"conversationId"`
 
 	Status     Status `json:"status"`
 	ExitReason string `json:"exitReason"`
@@ -1118,6 +1145,10 @@ type Descriptor struct {
 	PermissionModes []PermissionMode `json:"permissionModes"`
 
 	SupportsOpeningPrompt bool `json:"supportsOpeningPrompt"`
+	// AMENDED by the resume fix (2026-09-23): also whether the harness has a
+	// conversation for the control plane to name. Resuming is the only thing
+	// Request.Conversation is for, so a harness that cannot resume is given
+	// none, no conversation store is mounted for it, and Build refuses one.
 	SupportsResume        bool `json:"supportsResume"`
 
 	// Note is shown in the picker when the harness is unavailable. It says why.
@@ -1134,8 +1165,15 @@ type Request struct {
 	Effort        Effort
 	Permission    PermissionMode
 	OpeningPrompt string
-	Resume        string // a prior agent session id; "" starts fresh
+	Conversation  string // the id this session's conversation will carry; "" names none
+	Resume        string // the conversation to continue from; "" starts fresh
 }
+
+// AMENDED by the resume fix (2026-09-23): Conversation and Resume are both the HARNESS's
+// conversation ids (UUIDs), never a cockpit session id. As first written, Resume
+// was documented as "a prior agent session id" and the API filled it with the
+// cockpit's s-… id, which `claude --resume` has never heard of: Resume resumed
+// nothing. The API now resolves it from the source session's record (§3.9).
 
 // Catalogue returns every harness, in display order.
 func Catalogue() []Descriptor
@@ -1151,6 +1189,9 @@ var (
 	ErrUnavailable      = errors.New("harness: harness is not available in the sandbox image")
 	ErrUnsupportedOption = errors.New("harness: this harness does not accept that option")
 	ErrUnknownModel     = errors.New("harness: model is not offered by this harness")
+	// AMENDED by the resume fix (2026-09-23). A control-plane defect, never a user's: both
+	// conversation ids come from the record, so the API answers it 500.
+	ErrConversationID   = errors.New("harness: conversation ids are not usable")
 )
 ```
 
@@ -1165,7 +1206,20 @@ var (
 | `Permission == "bypass"` | `--permission-mode bypassPermissions` | `--permission-mode <mode>` choices: `acceptEdits`, `auto`, `bypassPermissions`, `manual`, `dontAsk`, `plan` |
 | `Permission == "plan"` | `--permission-mode plan` | same |
 | `Permission == "ask"` | **nothing** | deliberate; see below |
-| `Resume` (non-empty) | `--resume <value>` | `--resume <session-id>` |
+| `Resume` (non-empty) | `--resume <value> --fork-session` — AMENDED by the resume fix (2026-09-23); was `--resume <value>` | `-r, --resume [value]`; `--fork-session` "When resuming, create a new session ID instead of reusing the original" |
+| `Conversation` (non-empty) — AMENDED by the resume fix (2026-09-23) | `--session-id <value>`, after any `--resume` and before the prompt | `--session-id <uuid>` "(must be a valid UUID)" |
+
+AMENDED by the resume fix (2026-09-23). **A resume forks, and the fork is named.** Reusing the
+original id is wrong here: the cockpit offers Resume on a running session, so reuse
+puts two processes in two sandboxes appending to one transcript, and the CLI's own
+running-session guard lives in `~/.claude/sessions`, which no sandbox shares. A bare
+`--fork-session` gets an id only the CLI's output would reveal, so `Conversation`
+names it. The CLI accepts that pairing and refuses `--session-id` with `--resume`
+alone. `Build` refuses, with `ErrConversationID`: a non-UUID in either field, a
+`Resume` with no `Conversation`, and the two being equal (`Session ID … is already in
+use`). A `Conversation` on a harness with `SupportsResume: false` is
+`ErrUnsupportedOption`. The validation slot is the old `resume` slot: model, effort,
+permission, **resume and conversation**, prompt.
 | `OpeningPrompt` (non-empty) | appended last, as one positional argument | `Usage: claude [options] [command] [prompt]` |
 
 **Why `ask` emits no flag.** The CLI's choice list has no `default`; 2.1.x offers
@@ -1194,7 +1248,7 @@ two arguments.
 **Shell — verified, trivially.** `Command: "/bin/bash"`, `argv: ["-l"]`,
 `Installed: true`, `FlagsVerified: true`, no models, no efforts, no permission modes.
 `Build` returns `ErrUnsupportedOption` when a `Model`, `Effort`, `Permission` other
-than `ask`, `Resume` or `OpeningPrompt` is set — a shell has no way to receive an
+than `ask`, `Resume`, `Conversation` (AMENDED by the resume fix (2026-09-23)) or `OpeningPrompt` is set — a shell has no way to receive an
 opening prompt that is not "execute this as a command", and silently executing a
 sentence the user typed into a prompt box is a footgun.
 
@@ -1684,7 +1738,7 @@ Request:
 | `permissionMode` | string | no | `"ask"` |
 | `openingPrompt` | string | no | `""` |
 | `title` | string | no | derived: harness name + " · " + worktree name |
-| `resume` | string | no | `""` |
+| `resume` | string | no | `""` — AMENDED by the resume fix (2026-09-23): the **cockpit id** of the session to resume, which is what the desktop has always sent. The control plane resolves it to that session's stored `conversationId` and never passes it to the CLI. The source must be on the same harness and in the same worktree. |
 | `contextRef` | string | no | `""`; stored, never interpreted (§8.3) |
 
 201 with the session object of §3.10 and `Location: /v1/sessions/s-3f2a91c0`.
@@ -1692,6 +1746,14 @@ Request:
 Errors: 400 `bad_request` (no `worktreeId`), 400 `unknown_harness`, 400
 `unsupported_option`, 404 `worktree_not_found`, 409 `harness_unavailable`, 503
 `backend_unavailable`.
+
+AMENDED by the resume fix (2026-09-23) — a `resume` that cannot work is refused before
+anything is recorded or created, each with a sentence the user can act on: 404
+`session_not_found` (the source is no longer in the list), 400 `bad_request` (the
+source ran on another harness, or in another worktree — the conversation store is per
+worktree), 409 `conflict` (the source has no `conversationId`: it predates this
+field). A harness that cannot resume still answers 400 `unsupported_option` from
+`Build`, unchanged.
 
 **The response is returned as soon as the record exists and the sandbox has been
 created — status `starting` — not after the sandbox is ready.** A create that blocks
@@ -1733,7 +1795,8 @@ Returned by create, list, get, patch, restart and delete.
 `"idle timeout"`, `"sandbox disappeared while the app was not running"`.
 
 **Never serialised:** `attachToken`, `endpoint`, `sandboxRef`, `sandboxId`, `command`,
-`args`. The token is a secret; the endpoint is a port on the host that nothing outside
+`args`, and — AMENDED by the resume fix (2026-09-23) — `conversationId`, a harness implementation
+detail the desktop must never be invited to send back as `resume`. The token is a secret; the endpoint is a port on the host that nothing outside
 the control plane should learn; `command`/`args` would put the user's opening prompt
 into two places and invite the desktop to reconstruct argv itself. The task
 implementing this defines a separate `api.sessionJSON` struct and a
@@ -1770,6 +1833,16 @@ whitespace-only title is 400 `bad_request`. Renaming an exited session is allowe
 No body. Destroys the sandbox, creates a new one from the **same** stored
 `command`/`args`, keeps the same session id, sets `status` to `starting`, clears
 `exitReason`, and mints a **new** attach token. 200 with the session object.
+
+AMENDED by the resume fix (2026-09-23): **except a harness with a conversation**, whose argv is
+rebuilt by `harness.Build` from the stored configuration (harness, model, effort,
+permission mode, opening prompt) with a **new** `conversationId` and no `resume`.
+Replaying is no longer possible: the stored argv names the old conversation with
+`--session-id`, that conversation now outlives the sandbox, and the pinned CLI answers
+`Session ID … is already in use`. Dropping `--resume` from a resumed session is the
+"clean context" half of this section — a replay would fork the original again. The new
+`command`, `args` and `conversationId` are written in the same pre-create update as
+the new sandbox id and token. Everything else still replays byte for byte.
 
 Same config, clean context — `docs/FUNCTIONAL-SPEC.md` "Restart". Resume is a separate
 verb built from `POST /v1/sessions` with `resume` set, because resuming produces a new
@@ -1827,7 +1900,7 @@ visible in one file.
 | `PANACEA_APP_ALLOW_PUBLIC_BIND` | unset | Unset means the refusal above is enforced. Any value other than `1` or `true` is also treated as unset. |
 | `PANACEA_APP_BACKEND` | `docker` | `docker` or `kata`. An unrecognised value exits 2 naming both. `kata` is dormant (Phase 8); selecting it works but requires a kubeconfig. |
 | `PANACEA_APP_SANDBOX_IMAGE` | `panacea-app/sandbox:dev` | The image every sandbox runs. Unset uses the dev tag the Phase 1 runbook builds. |
-| `PANACEA_APP_STATE_DIR` | unset | Falls through `statepath.Dir`: `%LOCALAPPDATA%\PanaceaApp\state` on Windows, `$XDG_STATE_HOME/panacea-app`, then `~/.local/state/panacea-app`. |
+| `PANACEA_APP_STATE_DIR` | unset | Falls through `statepath.Dir`: `%LOCALAPPDATA%\PanaceaApp\state` on Windows, `$XDG_STATE_HOME/panacea-app`, then `~/.local/state/panacea-app`. AMENDED by the resume fix (2026-09-23): it also roots `conversations/`, every worktree's conversation store (§5.1 step 5). No new variable. |
 | `PANACEA_APP_PROJECTS_DIR` | unset | `GET /v1/projects` returns `[]`, and `worktree.Provider` is `worktree.Static{}`, so every session create fails 404 `worktree_not_found`. That is correct and visible: no projects directory means no worktrees to work in. |
 | `PANACEA_APP_ALLOWED_ORIGINS` | unset | Uses `httpx.DefaultOrigins()` (§2.12). When set it is a comma-separated list of **full origins** and **replaces** the defaults — it does not extend them, because an "extend" semantic makes it impossible to lock down. |
 | `PANACEA_APP_IDLE_AFTER` | `90s` | How long without relayed output before `running` becomes `idle`. A Go duration string. `0` disables idle derivation; status then goes straight from `running` to `exited`. |
@@ -1862,12 +1935,23 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
 1. Resolve the worktree: `worktree.Provider.Path(ctx, worktreeID)`. Failure → 404. This
    happens **first**, before anything is created, so a bad id costs nothing.
 2. Resolve the harness: `harness.Lookup` then `harness.Build`. Failure → 400 or 409.
+   AMENDED by the resume fix (2026-09-23): for a harness with a conversation (available and
+   `SupportsResume`), first resolve a non-empty `resume` to the source record's
+   `conversationId` (§3.9's refusals), then mint `conversationId := ids.UUID()`, pass
+   both to `Build`, and create the worktree's conversation store on the host,
+   `<ConversationsDir>/<owner>/<worktreeId>` with `<owner>` = `local` in Phase 2 — all
+   before step 4, so a failure costs nothing.
 3. Mint `sessionID := ids.New("s")` and `token := ids.Token()`.
 4. `store.Create(session)` with `Status: StatusStarting`. **The record exists before
    the sandbox does.** If step 5 fails the record is the only evidence of what
    happened, and without it a half-created container becomes an orphan nobody can name.
 5. `backend.Create(ctx, spec)` with `Mounts: [{HostPath: worktreePath, ContainerPath: "/home/dev/work"}]`
-   and `WorkDir: "/home/dev/work"` for the Docker backend. Failure → `store.Update` to
+   and `WorkDir: "/home/dev/work"` for the Docker backend. AMENDED by the resume fix (2026-09-23): a
+   harness with a conversation gets a second mount, `{HostPath: <its conversation
+   store>, ContainerPath: "/home/dev/.claude/projects"}` — `projects/` and nothing
+   wider, because `/login` writes `.credentials.json` into `~/.claude` itself.
+   `images/sandbox/Dockerfile` creates that path as `dev`; without it Docker makes
+   `~/.claude` root-owned to hold the mount point and `/login` breaks. Failure → `store.Update` to
    `StatusExited` with the reason, then 500 or 503.
 6. Return 201 immediately.
 7. **In a goroutine**, `backend.WaitReady(ctx, sb.Endpoint, backend.ReadyTimeout)`; on
@@ -1891,7 +1975,10 @@ Three causes, and no others:
 **A dropped WebSocket destroys nothing.** `docs/FUNCTIONAL-SPEC.md` requires finished
 sessions stay listed and readable and that Resume restores context by running
 `claude --resume`, which reads state from `~/.claude` inside the sandbox. Destroying on
-disconnect deletes the artifact the product is built around. The relay goroutine's
+disconnect deletes the artifact the product is built around. (AMENDED by the resume fix (2026-09-23):
+the transcript `--resume` reads is in the worktree's conversation store, mounted at
+`~/.claude/projects`, so it survives even the three permitted destroys. Without that,
+Resume — which always runs in a NEW sandbox — found nothing.) The relay goroutine's
 `defer` decrements `attachCount` and flushes `lastOutputAt`; that is all it does.
 
 ### 5.3 The reaper
@@ -1995,6 +2082,11 @@ and is not invented here.
 The attach token survives in the registry file, which is why the file is `0o600` and
 why `writeAtomic` chmods the temp file before the rename rather than after.
 
+AMENDED by the resume fix (2026-09-23): `conversationId` survives the same way, and no step above
+writes it, so a resume issued after a control-plane restart finds the conversation. It
+is pinned both by `TestRecoverKeepsEveryConversationID` and by a resume through a
+second API over the reopened registry file.
+
 ### 5.6 The complete status machine
 
 ```
@@ -2011,7 +2103,8 @@ why `writeAtomic` chmods the temp file before the rename rather than after.
 ```
 
 No other transitions exist. In particular there is no transition out of `exited`:
-restart keeps the id but re-enters at `starting`, and resume creates a new session.
+restart keeps the id but re-enters at `starting`, and resume creates a new session —
+AMENDED by the resume fix (2026-09-23) — whose conversation is a named fork of the source's.
 
 ---
 ## 6. The task list

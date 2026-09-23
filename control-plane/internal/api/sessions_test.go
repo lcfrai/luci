@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -35,6 +36,12 @@ const (
 	sessionsToken    = "SECRET-ATTACH-TOKEN-DO-NOT-SERIALISE"
 	sessionsEndpoint = "127.0.0.1:65432"
 	sessionsRef      = "CONTAINER-REF-DO-NOT-SERIALISE"
+
+	// A conversation id is not a secret, but it is a harness implementation
+	// detail the desktop must never be tempted to send back as `resume`: the
+	// server resolves it from the record. Unmistakable, and UUID-shaped
+	// because a record would never carry anything else.
+	sessionsConversation = "c0ffee00-0000-4000-8000-5ec2e7c0ffee"
 )
 
 // sessionsFullRecord is a Session with every field set to something distinguishable,
@@ -54,7 +61,8 @@ func sessionsFullRecord() registry.Session {
 		PermissionMode: "ask",
 		OpeningPrompt:  "add tests, then refactor",
 		Command:        "claude",
-		Args:           []string{"--model", "opus", "add tests, then refactor"},
+		Args:           []string{"--model", "opus", "--session-id", sessionsConversation, "add tests, then refactor"},
+		ConversationID: sessionsConversation,
 		Status:         registry.StatusRunning,
 		ExitReason:     "",
 		Backend:        "docker",
@@ -81,6 +89,7 @@ func TestSessionJSONLeaksNeitherTheTokenNorTheEndpoint(t *testing.T) {
 	body := string(raw)
 	for name, secret := range map[string]string{
 		"attach token": sessionsToken,
+		"conversation": sessionsConversation,
 		"endpoint":     sessionsEndpoint,
 		"sandbox ref":  sessionsRef,
 	} {
@@ -90,7 +99,7 @@ func TestSessionJSONLeaksNeitherTheTokenNorTheEndpoint(t *testing.T) {
 	}
 	// command and args are forbidden for a different reason: they would put the
 	// opening prompt in two places and invite the desktop to rebuild argv.
-	for _, fragment := range []string{`"command"`, `"args"`, `"sandboxId"`, `"sandboxRef"`, `"endpoint"`, `"attachToken"`} {
+	for _, fragment := range []string{`"command"`, `"args"`, `"sandboxId"`, `"sandboxRef"`, `"endpoint"`, `"attachToken"`, `"conversationId"`} {
 		if strings.Contains(body, fragment) {
 			t.Errorf("forbidden key %s is present: %s", fragment, body)
 		}
@@ -506,30 +515,49 @@ type sessionsEnv struct {
 	api *API
 	mux *routes
 	be  *sessionsBackend
-	st  *sessionsStore
+	st  *sessionsStore // nil when the env was built over another store
 	wt  worktree.Static
 	dir string
 	loc *sessionsLocator
+
+	// conversations is Deps.ConversationsDir: the root, not one worktree's
+	// store.
+	conversations string
 }
 
-// sessionsNewEnv is the ONE place that constructs an API. Deps carries seven
-// fields New refuses to start without — Backend, BackendReady, Store, Flags,
-// Projects, Worktrees and Origin — so all seven are here even though two,
-// BackendReady and Flags, belong to task 10's surface and go unexercised.
+// sessionsNewEnv is the env almost every test wants: a fresh directory and the
+// in-memory store double.
 func sessionsNewEnv(t *testing.T) *sessionsEnv {
 	t.Helper()
-	dir := t.TempDir()
+	st := sessionsMustStore(t)
+	env := sessionsNewEnvOver(t, t.TempDir(), st, st)
+	env.st = st
+	return env
+}
+
+// sessionsNewEnvOver is the ONE place that constructs an API. Deps carries
+// eight fields New refuses to start without — Backend, BackendReady, Store,
+// Flags, Projects, Worktrees, Origin and ConversationsDir — so all eight are
+// here even though two, BackendReady and Flags, belong to task 10's surface and
+// go unexercised.
+//
+// dir and the store are parameters for one kind of test: a control-plane
+// restart, which is a second API over the same state directory and the same
+// registry file.
+func sessionsNewEnvOver(t *testing.T, dir string, st registry.Store, flags registry.WorktreeFlagStore) *sessionsEnv {
+	t.Helper()
 	wtDir := filepath.Join(dir, "evidence-upload")
 	if err := os.MkdirAll(wtDir, 0o700); err != nil {
 		t.Fatalf("make the worktree dir: %v", err)
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	st := sessionsMustStore(t)
 	env := &sessionsEnv{
 		be:  sessionsNewBackend(),
-		st:  st,
 		wt:  worktree.Static{"w-4a77b1c9": wtDir},
 		dir: wtDir,
+		// A sibling of the projects directory, never inside the worktree: a
+		// store inside the worktree would be committed with the code.
+		conversations: filepath.Join(dir, "conversations"),
 		loc: &sessionsLocator{
 			projects: []project.Project{{ID: "p-8c1d0e42", Name: "panacea", Path: dir}},
 			branches: map[string][]project.Branch{
@@ -545,18 +573,19 @@ func sessionsNewEnv(t *testing.T) *sessionsEnv {
 		},
 	}
 	a, err := New(Deps{
-		Version:      "test",
-		Backend:      env.be,
-		BackendReady: func() bool { return true },
-		Store:        st,
-		Flags:        st,
-		Projects:     env.loc,
-		Worktrees:    env.wt,
-		Origin:       httpx.NewOriginPolicy(nil, log),
-		Log:          log,
-		Image:        "panacea-app/sandbox:dev",
-		Resources:    backend.DefaultResources,
-		ReadyTimeout: 50 * time.Millisecond,
+		Version:          "test",
+		Backend:          env.be,
+		BackendReady:     func() bool { return true },
+		Store:            st,
+		Flags:            flags,
+		Projects:         env.loc,
+		Worktrees:        env.wt,
+		Origin:           httpx.NewOriginPolicy(nil, log),
+		Log:              log,
+		Image:            "panacea-app/sandbox:dev",
+		Resources:        backend.DefaultResources,
+		ReadyTimeout:     50 * time.Millisecond,
+		ConversationsDir: env.conversations,
 	})
 	if err != nil {
 		t.Fatalf("api.New: %v", err)
@@ -734,8 +763,10 @@ func TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv(t *testing.T) {
 	if spec.WorkDir != sessionWorkDir {
 		t.Errorf("WorkDir = %q, want %q", spec.WorkDir, sessionWorkDir)
 	}
-	if len(spec.Mounts) != 1 || spec.Mounts[0].HostPath != env.dir || spec.Mounts[0].ContainerPath != sessionWorkDir {
-		t.Fatalf("Mounts = %#v, want one mount of %q at %q", spec.Mounts, env.dir, sessionWorkDir)
+	// Two mounts for a harness with a conversation: the worktree, and that
+	// worktree's conversation store. sessions_resume_test.go pins the second.
+	if len(spec.Mounts) != 2 || spec.Mounts[0].HostPath != env.dir || spec.Mounts[0].ContainerPath != sessionWorkDir {
+		t.Fatalf("Mounts = %#v, want the worktree %q at %q and then its conversation store", spec.Mounts, env.dir, sessionWorkDir)
 	}
 	if spec.Mounts[0].ReadOnly {
 		t.Error("the worktree is mounted read-only; the agent cannot write the code it was asked to write")
@@ -743,7 +774,11 @@ func TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv(t *testing.T) {
 	if spec.Command != "claude" {
 		t.Errorf("Command = %q, want claude", spec.Command)
 	}
-	if strings.Join(spec.Args, "\x00") != strings.Join([]string{"--model", "opus", "--effort", "high", "add tests, then refactor"}, "\x00") {
+	stored, err := env.st.Get(got.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if strings.Join(spec.Args, "\x00") != strings.Join([]string{"--model", "opus", "--effort", "high", "--session-id", stored.ConversationID, "add tests, then refactor"}, "\x00") {
 		t.Errorf("Args = %#v", spec.Args)
 	}
 	if spec.AttachToken == "" {
@@ -913,9 +948,12 @@ func TestCreateMapsEveryHarnessFailureToItsOwnStatus(t *testing.T) {
 
 // sessionsStarting is the fixture the watch tests drive.
 func sessionsStarting(id string) registry.Session {
+	// Model agrees with Args, as it does on every record create writes: a
+	// restart rebuilds argv from the configuration fields, so a fixture whose
+	// fields contradict its argv would test a record production cannot make.
 	return registry.Session{
 		ID: id, Title: "t", MachineID: "local", WorktreeID: "w-4a77b1c9",
-		Harness: "claude-code", Command: "claude", Args: []string{"--model", "opus"},
+		Harness: "claude-code", Model: "opus", Command: "claude", Args: []string{"--model", "opus"},
 		Status: registry.StatusStarting, Backend: "docker",
 		SandboxID: id, SandboxRef: "ref-" + id, AttachToken: sessionsToken,
 		CreatedAt: time.Date(2026, 9, 18, 9, 0, 0, 0, time.UTC),
@@ -1380,8 +1418,14 @@ func TestRestartKeepsTheIDAndMintsANewSandboxAndANewToken(t *testing.T) {
 	if after.SandboxID == before.SandboxID {
 		t.Errorf("sandboxId is still %q; a fresh id is what stops Create racing a Destroy that has not finished, and it makes the old container an orphan the reaper can see", after.SandboxID)
 	}
-	if after.Command != before.Command || strings.Join(after.Args, "\x00") != strings.Join(before.Args, "\x00") {
-		t.Errorf("restart changed the command: %q %v, want %q %v", after.Command, after.Args, before.Command, before.Args)
+	// Same config, and one thing new: the conversation. The stored argv named
+	// no conversation, and replaying one that does gets "Session ID … is
+	// already in use" from the CLI — sessions_resume_test.go pins both halves.
+	if after.ConversationID == "" || after.ConversationID == before.ConversationID {
+		t.Errorf("conversationId = %q (was %q); a restart is a clean context and needs a conversation of its own", after.ConversationID, before.ConversationID)
+	}
+	if want := []string{"--model", "opus", "--session-id", after.ConversationID}; after.Command != before.Command || strings.Join(after.Args, "\x00") != strings.Join(want, "\x00") {
+		t.Errorf("restart ran %q %v, want %q %v", after.Command, after.Args, before.Command, want)
 	}
 	if len(env.be.destroys) != 1 || env.be.destroys[0] != before.SandboxID {
 		t.Errorf("destroys = %v, want exactly the old sandbox %q", env.be.destroys, before.SandboxID)
@@ -1451,6 +1495,13 @@ func TestRestartNamesTheNewSandboxBeforeItIsCreated(t *testing.T) {
 	if midCreate.AttachToken != spec.AttachToken {
 		t.Errorf("mid-create the record held token %q while the sandbox was being created with %q",
 			midCreate.AttachToken, spec.AttachToken)
+	}
+	// Likewise the conversation: a crash inside this window must leave a record
+	// that names the conversation the new sandbox runs, or a later resume
+	// continues the one the restart abandoned.
+	if i := slices.Index(spec.Args, "--session-id"); i < 0 || midCreate.ConversationID != spec.Args[i+1] {
+		t.Errorf("mid-create the record named conversation %q while the sandbox was being created with %#v",
+			midCreate.ConversationID, spec.Args)
 	}
 	// And the endpoint is empty until there is a sandbox to have one: writing
 	// the old sandbox's address onto the new id would point an attach at a

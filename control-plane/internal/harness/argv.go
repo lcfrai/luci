@@ -1,6 +1,9 @@
 package harness
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+)
 
 // claudePermissionFlag maps the product's three-word vocabulary onto the CLI's
 // --permission-mode choices. Evidence: `claude --help` 2.1.267 lists
@@ -26,12 +29,13 @@ var claudePermissionFlag = map[PermissionMode]string{
 // PANACEA_APP_ARGS_JSON so the producer could stay honest.
 //
 // Validation order is fixed — unknown harness, unavailable, then model,
-// effort, permission, resume, prompt, in that order — so a request with two
-// faults fails the same way every run. That is not Request's declaration
-// order: the struct declares OpeningPrompt before Resume, but Build checks
-// resume before prompt, because this list is the contract's stated order,
-// not an accident of the struct layout. On any error both return values are
-// zero: a partial argv is how a rejected request becomes a started session.
+// effort, permission, resume and conversation, prompt, in that order — so a
+// request with two faults fails the same way every run. That is not Request's
+// declaration order: the struct declares OpeningPrompt before Resume, but
+// Build checks resume before prompt, because this list is the contract's
+// stated order, not an accident of the struct layout. On any error both return
+// values are zero: a partial argv is how a rejected request becomes a started
+// session.
 func Build(r Request) (command string, argv []string, err error) {
 	d, ok := Lookup(r.Harness)
 	if !ok {
@@ -49,7 +53,7 @@ func Build(r Request) (command string, argv []string, err error) {
 	if err := validatePermission(d, r.Permission); err != nil {
 		return "", nil, err
 	}
-	if err := validateResume(d, r.Resume); err != nil {
+	if err := validateResume(d, r.Resume, r.Conversation); err != nil {
 		return "", nil, err
 	}
 	if err := validatePrompt(d, r.OpeningPrompt); err != nil {
@@ -74,7 +78,7 @@ func Build(r Request) (command string, argv []string, err error) {
 }
 
 func claudeArgv(r Request) []string {
-	argv := make([]string, 0, 9)
+	argv := make([]string, 0, 12)
 	if r.Model != "" {
 		argv = append(argv, "--model", r.Model)
 	}
@@ -84,8 +88,34 @@ func claudeArgv(r Request) []string {
 	if flag, ok := claudePermissionFlag[r.Permission]; ok {
 		argv = append(argv, "--permission-mode", flag)
 	}
+	// A resume FORKS, and the fork is named. Evidence: `claude --help` 2.1.274,
+	// run inside panacea-app/sandbox:dev, and the CLI's behaviour there:
+	//
+	//   --fork-session  "When resuming, create a new session ID instead of
+	//                   reusing the original (use with --resume or --continue)"
+	//   --session-id    "Use a specific session ID for the conversation (must
+	//                   be a valid UUID)"
+	//
+	// Reusing the original id is wrong for this product. The cockpit offers
+	// Resume on a session that is still running, so reuse puts two processes,
+	// in two sandboxes, appending to one transcript through the shared store —
+	// and the CLI's own guard against that (--bg "starts a copy and says so
+	// when the session is already running") keeps its state in
+	// ~/.claude/sessions, which no sandbox shares, so it cannot see the other
+	// one. A fork gives every cockpit session a transcript of its own.
+	//
+	// A bare fork gets an id only the CLI's output would reveal, so the fork is
+	// named with --session-id. The CLI accepts that pairing and no other:
+	// `--resume A --session-id B` without --fork-session fails with "--session-id
+	// can only be used with --continue or --resume if --fork-session is also
+	// specified", and --session-id naming a conversation that already exists
+	// fails with "Session ID <id> is already in use" — which is why
+	// validateResume requires Conversation and Resume to differ.
 	if r.Resume != "" {
-		argv = append(argv, "--resume", r.Resume)
+		argv = append(argv, "--resume", r.Resume, "--fork-session")
+	}
+	if r.Conversation != "" {
+		argv = append(argv, "--session-id", r.Conversation)
 	}
 	if r.OpeningPrompt != "" {
 		// Usage: claude [options] [command] [prompt]. Last, and whole.
@@ -149,12 +179,40 @@ func validatePermission(d Descriptor, mode PermissionMode) error {
 	return fmt.Errorf("%w: %q does not offer the permission mode %q", ErrUnsupportedOption, d.ID, mode)
 }
 
-func validateResume(d Descriptor, resume string) error {
-	if resume == "" {
+// conversationPattern is "a valid UUID" in the only spelling ids.UUID mints.
+// Anything else reaching here came from a record that was edited or corrupted,
+// and the CLI would reject it inside a terminal instead of here.
+var conversationPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// validateResume checks the two conversation ids together, because their
+// rules are joint. The resume check comes first and keeps its wording: it is
+// the one of these a client can actually cause, by asking a shell to resume.
+// Everything after it is ErrConversationID — both ids come from the session
+// record, never from a request body.
+func validateResume(d Descriptor, resume, conversation string) error {
+	if resume == "" && conversation == "" {
 		return nil
 	}
 	if !d.SupportsResume {
-		return fmt.Errorf("%w: %q cannot resume a prior session", ErrUnsupportedOption, d.ID)
+		if resume != "" {
+			return fmt.Errorf("%w: %q cannot resume a prior session", ErrUnsupportedOption, d.ID)
+		}
+		return fmt.Errorf("%w: %q has no conversation to name", ErrUnsupportedOption, d.ID)
+	}
+	if conversation != "" && !conversationPattern.MatchString(conversation) {
+		return fmt.Errorf("%w: %q is not a UUID", ErrConversationID, conversation)
+	}
+	if resume == "" {
+		return nil
+	}
+	if !conversationPattern.MatchString(resume) {
+		return fmt.Errorf("%w: %q is not a UUID, so it is not a conversation the CLI can resume", ErrConversationID, resume)
+	}
+	if conversation == "" {
+		return fmt.Errorf("%w: a resume needs the id its fork will carry, or the fork gets one nobody can learn without reading the CLI's output", ErrConversationID)
+	}
+	if conversation == resume {
+		return fmt.Errorf("%w: the fork of %q needs a new id; the CLI refuses a --session-id that is already in use", ErrConversationID, resume)
 	}
 	return nil
 }

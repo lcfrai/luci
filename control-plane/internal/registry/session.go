@@ -55,6 +55,15 @@ type Session struct {
 	Command        string   `json:"command"` // resolved argv[0], for restart
 	Args           []string `json:"args"`    // resolved argv[1:], for restart
 
+	// ConversationID is the HARNESS's id for this session's conversation — the
+	// UUID the control plane minted and passed as `claude --session-id` — or ""
+	// for a harness with no conversation, such as a shell. It is what a later
+	// resume passes to `claude --resume`; the cockpit's own id, ID above, means
+	// nothing to the CLI. Persisted and NEVER on the REST surface: it is a
+	// harness implementation detail, resolved server-side from the session a
+	// resume names.
+	ConversationID string `json:"conversationId"`
+
 	Status     Status `json:"status"`
 	ExitReason string `json:"exitReason"`
 

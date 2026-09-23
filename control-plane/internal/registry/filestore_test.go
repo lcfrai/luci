@@ -29,7 +29,8 @@ func sampleSession() Session {
 		PermissionMode: "ask",
 		OpeningPrompt:  "add tests, then refactor",
 		Command:        "claude",
-		Args:           []string{"--model", "opus", "add tests, then refactor"},
+		Args:           []string{"--model", "opus", "--session-id", "0f3c2b1a-9d8e-4f7a-8b6c-5d4e3f2a1b0c", "add tests, then refactor"},
+		ConversationID: "0f3c2b1a-9d8e-4f7a-8b6c-5d4e3f2a1b0c",
 		Status:         StatusRunning,
 		ExitReason:     "",
 		Backend:        "docker",
@@ -100,6 +101,15 @@ func TestSessionsSurviveAReopen(t *testing.T) {
 		t.Fatalf("restart argv lost: command=%q args=%v, want %q args=%v",
 			got.Command, got.Args, want.Command, want.Args)
 	}
+	// The one field a resume after a control-plane restart depends on. Lose it
+	// and every session created before the restart becomes one nothing can
+	// resume, with no error until somebody tries.
+	if want.ConversationID == "" {
+		t.Fatal("the fixture carries no conversation id, so this assertion proves nothing")
+	}
+	if got.ConversationID != want.ConversationID {
+		t.Fatalf("conversationId = %q after a reopen, want %q", got.ConversationID, want.ConversationID)
+	}
 	if got.Status != want.Status || got.AttachCount != want.AttachCount {
 		t.Fatalf("status/attachCount = %q/%d, want %q/%d", got.Status, got.AttachCount, want.Status, want.AttachCount)
 	}
@@ -142,7 +152,7 @@ func TestDocumentUsesTheContractFieldNames(t *testing.T) {
 	for _, key := range []string{
 		"id", "title", "machineId", "projectId", "branchId", "worktreeId",
 		"harness", "model", "effort", "permissionMode", "openingPrompt",
-		"command", "args", "status", "exitReason", "backend", "sandboxId",
+		"command", "args", "conversationId", "status", "exitReason", "backend", "sandboxId",
 		"sandboxRef", "endpoint", "attachToken", "createdAt", "updatedAt",
 		"lastOutputAt", "attachCount", "contextRef",
 	} {

@@ -74,7 +74,12 @@ type Descriptor struct {
 	PermissionModes []PermissionMode `json:"permissionModes"`
 
 	SupportsOpeningPrompt bool `json:"supportsOpeningPrompt"`
-	SupportsResume        bool `json:"supportsResume"`
+
+	// SupportsResume is also whether the harness has a conversation for the
+	// control plane to name: resuming is the only thing Request.Conversation
+	// is for, so a harness that cannot resume is given none and Build refuses
+	// one.
+	SupportsResume bool `json:"supportsResume"`
 
 	// Note is shown in the picker when the harness is unavailable. It says why.
 	Note string `json:"note"`
@@ -91,13 +96,20 @@ type Descriptor struct {
 func (d Descriptor) Available() bool { return d.Installed && d.FlagsVerified }
 
 // Request is one session's configuration.
+//
+// Conversation and Resume are both the HARNESS's conversation ids, never a
+// cockpit session id: `claude --resume s-3f2a91c0` resumes nothing, because the
+// CLI knows its conversations by its own UUID. The control plane mints
+// Conversation and keeps it on the session record, which is how it can later
+// supply Resume without ever reading what the CLI printed.
 type Request struct {
 	Harness       ID
 	Model         string
 	Effort        Effort
 	Permission    PermissionMode
 	OpeningPrompt string
-	Resume        string // a prior agent session id; "" starts fresh
+	Conversation  string // the id this session's conversation will carry; "" names none
+	Resume        string // the conversation to continue from; "" starts fresh
 }
 
 var (
@@ -105,6 +117,10 @@ var (
 	ErrUnavailable       = errors.New("harness: harness is not available in the sandbox image")
 	ErrUnsupportedOption = errors.New("harness: this harness does not accept that option")
 	ErrUnknownModel      = errors.New("harness: model is not offered by this harness")
+	// ErrConversationID is a control-plane defect, never a user's: both ids
+	// come from the session record, not from a request body, so the API
+	// answers it 500 and logs it.
+	ErrConversationID = errors.New("harness: conversation ids are not usable")
 )
 
 // unverifiedNote is one string because three descriptors say the same thing and
@@ -122,6 +138,9 @@ var catalogue = []Descriptor{
 		Command: "claude",
 		// Verified against `claude --help` on this machine, version 2.1.267.
 		// images/sandbox/Dockerfile pins @anthropic-ai/claude-code@2.1.274.
+		// --session-id and --fork-session were verified inside that image, at
+		// 2.1.274, against the CLI's behaviour as well as its help; see
+		// claudeArgv.
 		Installed:     true,
 		FlagsVerified: true,
 		Models: []Model{

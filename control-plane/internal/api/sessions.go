@@ -3,9 +3,12 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -28,6 +31,75 @@ const sessionBasePath = "/v1"
 // sessionWorkDir is where the worktree is mounted inside every sandbox and the
 // working directory the harness starts in. Contract §5.1 step 5.
 const sessionWorkDir = "/home/dev/work"
+
+// sessionConversationDir is the one part of the agent user's ~/.claude that
+// outlives a sandbox. Without it Resume has nothing to resume: every sandbox
+// is new, so the transcript `claude --resume` reads died with the old one.
+//
+// Observed, not assumed — claude 2.1.274 in panacea-app/sandbox:dev, started
+// in sessionWorkDir, writes ~/.claude/projects/-home-dev-work/<conversation
+// id>.jsonl, and a fresh container given only this directory resumed and
+// forked that conversation with its history intact.
+//
+// ONLY this directory, and the reason is credentials. /login writes
+// .credentials.json and .device-keys.json into ~/.claude itself, beside
+// projects/, and mounting ~/.claude whole would carry a user's Claude
+// credentials onto the host, into a directory that outlives every sandbox.
+// images/sandbox/Dockerfile creates this path as the agent user: Docker makes a
+// mount point's missing parents root-owned, which would leave ~/.claude
+// unwritable and break /login.
+const sessionConversationDir = "/home/dev/.claude/projects"
+
+// sessionConversationOwner is the first path segment of every conversation
+// store, between Deps.ConversationsDir and the worktree id. Phase 2 has one
+// user, named the way the one machine is. Phase 8's multi-user backend puts the
+// signed-in user's id here, so two users who share a worktree never share a
+// transcript.
+const sessionConversationOwner = "local"
+
+// sessionStoreSegment is what a worktree id must look like to name a host
+// directory. project.WorktreeID mints "w-" plus eight hex characters; this is
+// the belt to that braces, because an id with a separator or ".." in it would
+// put the store somewhere else on the host.
+var sessionStoreSegment = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
+
+// sessionConversationStore returns the host directory that holds one
+// worktree's conversations, creating it if absent:
+//
+//	<Deps.ConversationsDir>/<owner>/<worktree id>
+//
+// Per worktree because resume is same-worktree by design, so nothing ever needs
+// to read another worktree's transcripts. 0o700 because a transcript holds
+// whatever the agent read, and on Windows that mode is advisory: the boundary
+// there is that the directory sits under the user's own state directory.
+func (a *API) sessionConversationStore(worktreeID string) (string, error) {
+	if !sessionStoreSegment.MatchString(worktreeID) {
+		return "", fmt.Errorf("worktree id %q cannot name a directory", worktreeID)
+	}
+	dir := filepath.Join(a.deps.ConversationsDir, sessionConversationOwner, worktreeID)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+// sessionHasConversation is whether a session on this harness is given a
+// conversation id and a conversation store. SupportsResume is the test because
+// resuming is the only thing either is for; a shell has no conversation, and
+// mounting it one would only put transcripts in reach of a terminal.
+func sessionHasConversation(d harness.Descriptor) bool {
+	return d.Available() && d.SupportsResume
+}
+
+// sessionMounts is everything of the host a sandbox sees: its worktree, and its
+// worktree's conversation store when the harness has a conversation.
+func sessionMounts(worktreePath, conversationStore string) []backend.Mount {
+	mounts := []backend.Mount{{HostPath: worktreePath, ContainerPath: sessionWorkDir}}
+	if conversationStore != "" {
+		mounts = append(mounts, backend.Mount{HostPath: conversationStore, ContainerPath: sessionConversationDir})
+	}
+	return mounts
+}
 
 // sessionJSON is the session object of contract §3.10, and it is a separate
 // struct from registry.Session for one reason: AttachToken, Endpoint,
@@ -247,17 +319,44 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		mode = harness.PermissionAsk
 	}
 	effort := harness.Effort(strings.TrimSpace(req.Effort))
+
+	// 2a. The conversation. `resume` names a COCKPIT session, which is all the
+	// desktop has; the harness needs that session's own conversation id, and
+	// sessionResolveResume looks it up on the record. For a harness with no
+	// conversation the raw value goes to Build untranslated, and Build refuses
+	// it — unavailable, or cannot resume — in the contract's order.
+	resume := strings.TrimSpace(req.Resume)
+	var conversation, conversationStore string
+	if sessionHasConversation(desc) {
+		if resume != "" {
+			var ok bool
+			if resume, ok = a.sessionResolveResume(w, r, resume, harnessID, req.WorktreeID); !ok {
+				return
+			}
+		}
+		// Minted here and TOLD to the CLI with --session-id. The alternative,
+		// learning the id the CLI picked, means reading its output.
+		conversation = ids.UUID()
+	}
+
 	command, argv, err := harness.Build(harness.Request{
 		Harness:       harnessID,
 		Model:         model,
 		Effort:        effort,
 		Permission:    mode,
 		OpeningPrompt: req.OpeningPrompt,
-		Resume:        strings.TrimSpace(req.Resume),
+		Conversation:  conversation,
+		Resume:        resume,
 	})
 	if err != nil {
 		a.writeHarnessProblem(w, r, harnessID, desc, err)
 		return
+	}
+	if conversation != "" {
+		if conversationStore, err = a.sessionConversationStore(req.WorktreeID); err != nil {
+			a.internal(w, r, "prepare the conversation store for worktree "+req.WorktreeID, err)
+			return
+		}
 	}
 
 	// 3. Ids and the secret.
@@ -294,6 +393,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		OpeningPrompt:  req.OpeningPrompt,
 		Command:        command,
 		Args:           argv,
+		ConversationID: conversation,
 		Status:         registry.StatusStarting,
 		Backend:        string(a.deps.Backend.Kind()),
 		SandboxID:      sessionID,
@@ -328,7 +428,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		AttachToken: token,
 		Resources:   a.sessionResources(),
 		WorkDir:     sessionWorkDir,
-		Mounts:      []backend.Mount{{HostPath: path, ContainerPath: sessionWorkDir}},
+		Mounts:      sessionMounts(path, conversationStore),
 	})
 	if err != nil {
 		// The reason on the record is written for the user; the raw error goes
@@ -387,6 +487,55 @@ func (a *API) sessionLocate(ctx context.Context, worktreeID string) (projectID, 
 		}
 	}
 	return "", ""
+}
+
+// sessionResolveResume turns the `resume` field — the id of the cockpit session
+// being resumed — into the conversation id the harness knows it by, which is on
+// that session's record. The desktop sends the cockpit id and always has; what
+// was wrong is that this file then passed it to `claude --resume` unchanged,
+// and the CLI has never heard of s-3f2a91c0.
+//
+// Every refusal is a sentence the user can act on. The alternative is worse
+// than an error: a resume the CLI cannot honour starts a sandbox whose
+// terminal prints one line and exits.
+func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourceID string, harnessID harness.ID, worktreeID string) (string, bool) {
+	details := map[string]string{"resume": sourceID}
+	src, err := a.deps.Store.Get(sourceID)
+	if err != nil {
+		if errors.Is(err, registry.ErrNotFound) {
+			httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeSessionNotFound,
+				"The session to resume is no longer in the list, so there is no conversation to continue. Start a new session instead.",
+				details)
+			return "", false
+		}
+		a.internal(w, r, "read the session to resume", err)
+		return "", false
+	}
+	if src.Harness != string(harnessID) {
+		name := src.Harness
+		if d, ok := harness.Lookup(harness.ID(src.Harness)); ok {
+			name = d.Name
+		}
+		details["harness"] = src.Harness
+		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
+			"A session resumes on the harness it ran, and that one ran "+name+".", details)
+		return "", false
+	}
+	// Same work, same worktree — and the conversation store is per worktree, so
+	// a resume anywhere else would find no conversation to continue.
+	if src.WorktreeID != worktreeID {
+		details["worktreeId"] = src.WorktreeID
+		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
+			"A session resumes in the worktree it ran in, because that is where its conversation is kept.", details)
+		return "", false
+	}
+	if src.ConversationID == "" {
+		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
+			"That session has no saved conversation to continue: it was started before the app recorded one. Start a new session instead.",
+			details)
+		return "", false
+	}
+	return src.ConversationID, true
 }
 
 // markSessionExited is the one place a session becomes terminal without a
@@ -722,10 +871,11 @@ func (s *sessionIDSet) release(id string) {
 var sessionRestarts = &sessionIDSet{}
 
 // handleSessionRestart is §3.14: same config, clean context. It keeps the
-// session id, rebuilds the sandbox from the STORED command and args, and mints
-// a new attach token. Resume is a different verb — POST /v1/sessions with
-// resume set — because resuming continues an old transcript and conflating the
-// two makes restart lossy.
+// session id, rebuilds the sandbox from the STORED command and args — except
+// that a harness with a conversation gets a new one, see below — and mints a
+// new attach token. Resume is a different verb — POST /v1/sessions with resume
+// set — because resuming continues an old transcript and conflating the two
+// makes restart lossy.
 func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !sessionRestarts.acquire(id) {
@@ -753,6 +903,41 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 			"The worktree this session was created in no longer resolves.",
 			map[string]string{"worktreeId": sess.WorktreeID})
 		return
+	}
+
+	// A harness with a conversation is REBUILT, not replayed, and restart is
+	// the one place this file does that. The stored args name the old
+	// conversation with --session-id, and now that the store outlives the
+	// sandbox that conversation still exists: the pinned CLI answers a replay
+	// with "Session ID <id> is already in use" and exits. So restart mints a
+	// new conversation and builds argv from the stored configuration — which
+	// also drops a resumed session's --resume, because a restart is "same
+	// config, clean context" (docs/FUNCTIONAL-SPEC.md) and replaying the fork
+	// would start it inside the conversation it was forked from. Everything
+	// else still replays the stored command and args exactly.
+	//
+	// Before the destroy, like the worktree above: a restart that cannot build
+	// its argv must fail while the old sandbox is still alive.
+	command, args, conversation := sess.Command, sess.Args, sess.ConversationID
+	var conversationStore string
+	if desc, known := harness.Lookup(harness.ID(sess.Harness)); known && sessionHasConversation(desc) {
+		conversation = ids.UUID()
+		command, args, err = harness.Build(harness.Request{
+			Harness:       desc.ID,
+			Model:         sess.Model,
+			Effort:        harness.Effort(sess.Effort),
+			Permission:    harness.PermissionMode(sess.PermissionMode),
+			OpeningPrompt: sess.OpeningPrompt,
+			Conversation:  conversation,
+		})
+		if err != nil {
+			a.writeHarnessProblem(w, r, desc.ID, desc, err)
+			return
+		}
+		if conversationStore, err = a.sessionConversationStore(sess.WorktreeID); err != nil {
+			a.internal(w, r, "prepare the conversation store for worktree "+sess.WorktreeID, err)
+			return
+		}
 	}
 
 	// One of contract §5.2's three permitted destroys.
@@ -795,12 +980,17 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	//
 	// The endpoint is cleared rather than left pointing at the sandbox that was
 	// just destroyed, and the token is replaced in the same write as the id, so
-	// the record never names one sandbox while holding another's secret.
+	// the record never names one sandbox while holding another's secret. The
+	// argv and the conversation go in the same write for the same reason: a
+	// resume must find the conversation the new sandbox is running.
 	if _, err := a.deps.Store.Update(id, func(sess *registry.Session) error {
 		sess.SandboxID = sandboxID
 		sess.SandboxRef = ""
 		sess.Endpoint = ""
 		sess.AttachToken = token
+		sess.Command = command
+		sess.Args = args
+		sess.ConversationID = conversation
 		sess.Status = registry.StatusStarting
 		sess.ExitReason = ""
 		// AttachCount is deliberately untouched. Task 12's relay defer
@@ -821,12 +1011,12 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		ID:          sandboxID,
 		SessionID:   sess.ID,
 		Image:       a.sessionImage(),
-		Command:     sess.Command,
-		Args:        sess.Args,
+		Command:     command,
+		Args:        args,
 		AttachToken: token,
 		Resources:   a.sessionResources(),
 		WorkDir:     sessionWorkDir,
-		Mounts:      []backend.Mount{{HostPath: path, ContainerPath: sessionWorkDir}},
+		Mounts:      sessionMounts(path, conversationStore),
 	})
 	if err != nil {
 		a.sessionLog().Error("restart: create the sandbox", "sessionId", id, "err", err)

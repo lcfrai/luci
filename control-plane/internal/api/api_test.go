@@ -149,6 +149,9 @@ func catalogNewDeps(t *testing.T) (api.Deps, *registry.FileStore) {
 		Worktrees:    worktree.Static{},
 		Origin:       httpx.NewOriginPolicy(nil, log),
 		Log:          log,
+		// Required by New and unused by the catalog: nothing here starts a
+		// session.
+		ConversationsDir: filepath.Join(t.TempDir(), "conversations"),
 	}, st
 }
 
@@ -355,6 +358,28 @@ func TestNewRejectsEveryMissingDependency(t *testing.T) {
 				t.Errorf("error = %q, want it to name the field %q", err, name)
 			}
 		})
+	}
+}
+
+// ConversationsDir is not a nil, so it has its own two ways to be wrong. Empty
+// would start sandboxes whose transcripts die with them — Resume shipped that
+// way once — and relative would fail every create inside Docker's bind-mount
+// error, which names neither this field nor the variable behind it.
+func TestNewRejectsAnUnusableConversationsDir(t *testing.T) {
+	for value, want := range map[string]string{
+		"":              "ConversationsDir is empty",
+		"conversations": "is not absolute",
+	} {
+		d, _ := catalogNewDeps(t)
+		d.ConversationsDir = value
+		a, err := api.New(d)
+		if err == nil {
+			t.Errorf("New accepted ConversationsDir %q and returned %v", value, a)
+			continue
+		}
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("ConversationsDir %q: error = %q, want it to say %q", value, err, want)
+		}
 	}
 }
 

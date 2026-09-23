@@ -89,18 +89,22 @@ type Config struct {
 	SandboxImage    string
 	StateDir        string // "" means the statepath ladder decides
 	SessionsPath    string // the registry document, derived from StateDir
-	ProjectsDir     string // "" means no projects, and therefore no worktrees
-	AllowedOrigins  []string
-	IdleAfter       time.Duration // 0 disables idle derivation
-	IdleTimeout     time.Duration // 0 means never destroy an idle sandbox
-	ReapInterval    time.Duration
-	ReadyTimeout    time.Duration
-	CPUMillis       int
-	MemoryMiB       int
-	DockerHost      string
-	Kubeconfig      string // parsed so kubeClient can refuse it by name
-	Namespace       string
-	LogLevel        slog.Level
+	// ConversationsDir is the root every worktree's conversation store lives
+	// under, derived from StateDir beside the registry. Absolute always: it
+	// becomes a bind mount's host path.
+	ConversationsDir string
+	ProjectsDir      string // "" means no projects, and therefore no worktrees
+	AllowedOrigins   []string
+	IdleAfter        time.Duration // 0 disables idle derivation
+	IdleTimeout      time.Duration // 0 means never destroy an idle sandbox
+	ReapInterval     time.Duration
+	ReadyTimeout     time.Duration
+	CPUMillis        int
+	MemoryMiB        int
+	DockerHost       string
+	Kubeconfig       string // parsed so kubeClient can refuse it by name
+	Namespace        string
+	LogLevel         slog.Level
 
 	HarnessAllowUnverified bool
 
@@ -247,9 +251,19 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	// keeps the rest of the ladder in the one package that owns it.
 	if cfg.StateDir != "" {
 		cfg.SessionsPath = filepath.Join(cfg.StateDir, "sessions", "sessions.json")
+		cfg.ConversationsDir = filepath.Join(cfg.StateDir, "conversations")
 	} else {
 		cfg.SessionsPath = registry.DefaultPath()
+		cfg.ConversationsDir = statepath.Dir("conversations")
 	}
+	// The registry is happy with a relative path and a bind mount is not: a
+	// relative PANACEA_APP_STATE_DIR would otherwise fail every session create
+	// with a Docker error that names neither variable.
+	conversations, err := filepath.Abs(cfg.ConversationsDir)
+	if err != nil {
+		return Config{}, fmt.Errorf("%s: make the conversation store %q absolute: %w", envStateDir, cfg.ConversationsDir, err)
+	}
+	cfg.ConversationsDir = conversations
 
 	if err := validateAddr(&cfg); err != nil {
 		return Config{}, err
