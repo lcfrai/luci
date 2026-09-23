@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panacea App — Merge and Files lenses (phase 3, owner review)</title>
+<!--
+  Owner-review prototype for phase 3: git, worktrees, coordination and convergence.
+  One self-contained file: no external CSS, no fonts, no network calls, no build step.
+  Companion brief:  docs/superpowers/planning/2026-09-23-phases-4-5-7/scope-and-risk-phase-3-git-convergence.md
+  Companion survey: docs/superpowers/planning/2026-09-23-phases-4-5-7/survey-phase-3-git-convergence.md
+  Sample world: docs/superpowers/planning/2026-09-23-phases-4-5-7/prototype-fact-sheet.md
+    Project Engagement Portal, branch evidence-upload, brief b-42 (head rev 6), sessions upload-api,
+    scan-hook, upload-ui, releases v1.6.0 (4e7a91c) and v1.5.2 (c81f02a), run a90d3f4.
+  Phase-3-only facts the sheet does not hold, invented here and marked "phase 3 sample" under
+  Show sources: worktree names (one per sheet session, named after it), merge commit e19b7c2,
+  lane commits 7c2e5b1 / 3b8d0e4 / 52aa9c1, file paths, and the evidence records.
+  One deliberate departure from the sheet, flagged in the brief section 7: the land that carries
+  upload-ui's commits (4e7a91c) records brief rev 6, not rev 5, because upload-ui started after rev 6
+  was saved and contract section 4.4 has Merge review against the head.
+  Every element names the fact behind it: turn on "Show sources" (AGENTIC-UX.md section 2, property 7).
+  Colour: every literal colour lives in :root below. Nothing outside :root names a colour.
+-->
+<style>
+:root{
+  /* surfaces, back to front — token names from desktop/src/styles/tokens.css, values from app.html */
+  --page:#0a0908; --canvas:#0e0c0b; --surface:#141210; --inset:#1a1715; --hover:#1f1c19; --hover-2:#24201c;
+  --field:#0c0b0a;
+  /* ink ramp — --ink-3 is the floor for text; --ink-4 is never text */
+  --ink:#f2ede7; --ink-2:#a79f97; --ink-3:#6c645d; --ink-4:#453f39;
+  /* hairlines carry structure */
+  --line:rgba(255,248,240,.075); --line-strong:rgba(255,248,240,.15); --line-soft:rgba(255,248,240,.04);
+  --thread:rgba(255,241,224,.16);
+  /* accent: interactive and current state only */
+  --accent:#2fb3bd; --accent-hi:#74d9e0; --accent-lo:#1d7f86; --accent-tint:rgba(47,179,189,.11);
+  --accent-ring:rgba(47,179,189,.28); --accent-ink:#04201f;
+  /* status vocabulary — never the accent; every state also has a shape (fact sheet section 10) */
+  --run:#43b95e; --need:#e2a33c; --fail:#ef5f45; --drift:#c98ae0; --idle:#6c645d; --exited:#6c645d;
+  --run-tint:rgba(67,185,94,.10); --need-tint:rgba(226,163,60,.10); --fail-tint:rgba(239,95,69,.10);
+  /* NOT in tokens.css — would be added there under phase 2 CSS rule 2 before porting */
+  --diff-add:rgba(67,185,94,.13); --diff-del:rgba(239,95,69,.12); --src:#9fb8a0;
+  --sh-1:rgba(0,0,0,.28); --sh-2:rgba(0,0,0,.45); --sh-3:rgba(0,0,0,.66); --scrim:rgba(0,0,0,.55);
+  --scroll:rgba(255,248,240,.07); --scroll-hi:rgba(255,248,240,.15);
+  /* radius scale tied to element size — DESIGN-SYSTEM.md:29 */
+  --r-chip:6px; --r-ctl:8px; --r-card:10px; --r-window:14px;
+  /* elevation: a 1px ring PLUS a layered shadow, never a flat border */
+  --e-hair:0 0 0 1px var(--line);
+  --e-btn:0 0 0 1px var(--line),0 1px 1px var(--sh-1);
+  --e-card:0 0 0 1px var(--line),0 1px 2px var(--sh-1),0 6px 16px var(--sh-1);
+  --e-raised:0 0 0 1px var(--line-strong),0 2px 4px var(--sh-1),0 14px 32px var(--sh-2);
+  --e-overlay:0 0 0 1px var(--line-strong),0 10px 24px var(--sh-2),0 30px 70px var(--sh-3);
+  /* one house curve; one heartbeat period (BEAT_MS = 2400 in hooks/heartbeat.ts) */
+  --ease:cubic-bezier(.23,1,.32,1); --dur-fast:120ms; --dur:200ms; --dur-slow:280ms;
+  --beat:2400ms;
+  --numeric:tabular-nums;
+  --mono:"Cascadia Mono",ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+  --sans:"Segoe UI Variable Text","Segoe UI",-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font:13.5px/1.45 var(--sans);
+  -webkit-font-smoothing:antialiased;overflow:hidden;font-variant-numeric:var(--numeric)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+select{font:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:var(--r-chip)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--scroll);border:3px solid transparent;border-radius:var(--r-ctl);background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:var(--scroll-hi);background-clip:padding-box}
+.mono{font-family:var(--mono)}
+.num{font-variant-numeric:var(--numeric)}
+
+/* ONE heartbeat. Every live element gets a negative animation-delay from one EPOCH, the
+   mechanism hooks/heartbeat.ts uses, so everything breathes in phase however late it mounted. */
+@keyframes beat{0%,100%{opacity:.4}50%{opacity:1}}
+.live{animation:beat var(--beat) var(--ease) infinite}
+
+/* REVIEW BAR — prototype-only chrome, not product */
+.review{height:36px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--canvas);
+  box-shadow:0 1px 0 var(--line-strong);position:relative;z-index:50;font-size:11px;color:var(--ink-3)}
+.review .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--need);
+  background:var(--need-tint);padding:2px 7px;border-radius:var(--r-chip)}
+.review select{background:var(--inset);color:var(--ink);box-shadow:var(--e-btn);border:0;border-radius:var(--r-ctl);
+  padding:3px 8px;font-size:11px;outline:none;max-width:420px}
+.review label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.review .sp{flex:1}
+
+/* APP SHELL — rail, sub-rail, main, as prototype/app.html and the other three prototypes */
+.app{display:flex;height:calc(100vh - 36px)}
+.rail{width:248px;flex:0 0 248px;background:var(--canvas);box-shadow:1px 0 0 var(--line);display:flex;flex-direction:column;position:relative;z-index:2}
+.mchip{display:flex;align-items:center;gap:8px;padding:9px 11px;box-shadow:0 1px 0 var(--line-soft)}
+.mark{width:22px;height:22px;border-radius:var(--r-chip);background:var(--ink);color:var(--page);
+  display:grid;place-items:center;font-weight:800;font-size:11.5px;flex:0 0 auto}
+.mchip .m1{font-size:11.5px;font-weight:650}
+.mchip .m2{font-size:9.5px;color:var(--ink-3);font-family:var(--mono)}
+.rs{flex:1;overflow:auto;padding:4px 6px 12px}
+.mhd{padding:9px 7px 4px;font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--ink-3)}
+.prow{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:var(--r-ctl)}
+.prow.sel{background:var(--inset);box-shadow:var(--e-hair)}
+.pini{width:19px;height:19px;border-radius:var(--r-chip);background:var(--accent);color:var(--accent-ink);
+  display:grid;place-items:center;font-size:9px;font-weight:700;flex:0 0 auto}
+.pnm{flex:1;font-size:12px;font-weight:600}
+.kids{padding-left:9px;margin-left:9px;box-shadow:inset 1px 0 0 var(--thread)}
+.brow{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:var(--r-chip);position:relative}
+.brow::before{content:"";position:absolute;left:-9px;top:50%;width:6px;height:1px;background:var(--thread)}
+.brow.sel{background:var(--accent-tint);box-shadow:inset 0 0 0 1px var(--accent-ring)}
+.bnm{flex:1;font-family:var(--mono);font-size:10.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow.sel .bnm{color:var(--ink)}
+.wrow{display:flex;align-items:center;gap:7px;padding:3px 7px 3px 8px;border-radius:var(--r-chip);position:relative;font-size:11px;color:var(--ink-2)}
+.wrow::before{content:"";position:absolute;left:-9px;top:50%;width:6px;height:1px;background:var(--thread)}
+.wrow .wn{flex:1;font-family:var(--mono);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wrow .ss{display:flex;gap:4px;align-items:center}
+.rfoot{box-shadow:0 -1px 0 var(--line);padding:7px 9px;display:flex;align-items:center;gap:8px}
+.me{width:22px;height:22px;border-radius:50%;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--ink-2)}
+.rfoot .who{flex:1;font-size:11px;color:var(--ink-3)}
+.sub{width:184px;flex:0 0 184px;background:var(--canvas);box-shadow:1px 0 0 var(--line);display:flex;flex-direction:column;position:relative;z-index:1}
+.stop{padding:10px 11px 9px;box-shadow:0 1px 0 var(--line-soft)}
+.sbr{font-family:var(--mono);font-size:11.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spurpose{font-size:10.5px;color:var(--ink-3);margin-top:4px;line-height:1.4}
+.mods{padding:7px 6px;display:flex;flex-direction:column;gap:1px}
+.mod{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:var(--r-ctl);color:var(--ink-3);font-size:12px;text-align:left;
+  transition:background-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease)}
+.mod:hover{background:var(--hover);color:var(--ink-2)}
+.mod.sel{background:var(--inset);box-shadow:var(--e-hair);color:var(--ink);font-weight:650}
+.mod[disabled]{cursor:default}
+.mod[disabled]:hover{background:none;color:var(--ink-3)}
+.mod .g{width:14px;text-align:center;font-size:11px}
+.mod .note{margin-left:auto;font-size:9.5px;color:var(--ink-3);font-weight:400}
+
+/* MAIN */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--page)}
+.top{min-height:44px;display:flex;align-items:center;gap:8px;padding:0 14px;box-shadow:0 1px 0 var(--line);flex:0 0 auto;position:relative;z-index:1}
+.top .ttl{font-size:12.5px;font-weight:650} .top .sp{flex:1}
+.top .remote{font-size:10.5px;color:var(--ink-3);text-align:right;line-height:1.4}
+.top .remote b{color:var(--ink-2);font-weight:600}
+.btn{padding:4px 10px;border-radius:var(--r-ctl);font-size:11px;font-weight:600;background:var(--surface);box-shadow:var(--e-btn);white-space:nowrap;
+  transition:background-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease)}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);box-shadow:0 1px 1px var(--sh-1)}
+.btn.pri:hover{background:var(--accent-hi)}
+.btn.ghost{background:none;box-shadow:none;color:var(--ink-3)} .btn.ghost:hover{color:var(--ink);background:var(--hover)}
+.btn[disabled]{opacity:.4;cursor:default} .btn[disabled]:hover{background:var(--surface)}
+.btn.pri[disabled]:hover{background:var(--accent)}
+.body{flex:1;overflow:auto;padding:18px 22px 48px}
+.inner{max-width:820px}
+.sech{font-size:9px;font-weight:700;letter-spacing:.11em;color:var(--ink-3);margin:24px 0 9px;display:flex;align-items:center;gap:9px}
+.sech:first-child{margin-top:0}
+.sech::after{content:"";flex:1;height:1px;background:var(--line-soft);order:1}
+.sech .aside{font-weight:400;letter-spacing:0;font-size:10.5px;color:var(--ink-3);order:2}
+.card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:12px 14px;margin-bottom:8px;position:relative}
+.t1{font-size:12.5px;font-weight:600} .t2{font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.55}
+.t2 b{color:var(--ink-2);font-weight:600}
+.row{display:flex;align-items:center;gap:10px} .row .sp{flex:1}
+.why{font-size:11px;color:var(--ink-3);line-height:1.55;margin-top:6px}
+.why b{color:var(--ink-2);font-weight:600}
+.key{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);background:var(--inset);box-shadow:var(--e-hair);
+  padding:1px 6px;border-radius:var(--r-chip);white-space:nowrap}
+.dl{font-size:9.5px;font-family:var(--mono);color:var(--need);background:var(--need-tint);padding:1px 6px;border-radius:var(--r-chip);white-space:nowrap}
+
+/* STATUS SHAPES — fact sheet section 10: the same state is the same shape in every file */
+.st{width:8px;height:8px;flex:0 0 auto;display:inline-block;vertical-align:middle;position:relative}
+.st.run{border-radius:50%;background:var(--run)}
+.st.idle{border-radius:50%;background:var(--idle)}
+.st.ok{border-radius:50%;background:var(--run)}
+.st.need{width:0;height:0;border-left:4.5px solid transparent;border-right:4.5px solid transparent;border-bottom:8px solid var(--need)}
+.st.drift{border-radius:50%;overflow:hidden;box-shadow:inset 0 0 0 1.5px var(--drift)}
+.st.drift::before{content:"";position:absolute;top:0;bottom:0;left:0;right:50%;background:var(--drift)}
+.st.fail{border-radius:1px;background:var(--fail)}
+.st.none{border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-4)}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  /* running and still-green must stay apart without motion: running gains a static outer ring */
+  .st.run{box-shadow:0 0 0 2px var(--page),0 0 0 3px var(--run)}
+}
+.stw{display:inline-flex;align-items:center;gap:6px}
+
+/* PROVENANCE — contract section 4.1's six states */
+.pv{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-2);padding:3px 8px;border-radius:var(--r-chip);
+  background:var(--inset);box-shadow:var(--e-hair);max-width:100%}
+.pv .rv{font-family:var(--mono);font-size:10.5px;color:var(--ink)}
+.pv.sup{box-shadow:inset 0 0 0 1px var(--drift)}
+.pv.none{background:none;box-shadow:inset 0 0 0 1px var(--line-strong);color:var(--ink-3)}
+.pv.miss{box-shadow:inset 0 0 0 1px var(--fail)}
+.pv.res{width:170px;height:22px;background:var(--inset)}
+.pv.unav .bang{font-family:var(--mono);font-weight:800;color:var(--ink)}
+
+/* DEFINITION OF DONE — phase 4's component, mounted here; states from the evaluator at the branch head */
+.dod{padding:0;overflow:hidden}
+.dod .hd{padding:12px 14px 10px;display:flex;align-items:flex-start;gap:12px}
+.dod .hl{font-size:13px;font-weight:600;line-height:1.4}
+.crit{display:flex;gap:10px;padding:9px 14px;box-shadow:0 -1px 0 var(--line-soft);align-items:flex-start}
+.crit .st{margin-top:5px}
+.crit .ct{flex:1;font-size:12px;color:var(--ink)}
+.crit .cs{font-size:10.5px;font-family:var(--mono);color:var(--ink-3);white-space:nowrap;margin-top:1px}
+.crit .because{font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.5}
+.crit .because b{color:var(--ink-2);font-weight:600}
+
+/* THE QUEUE — one row per worktree marked ready, in the human's order */
+.lane{padding:0;overflow:hidden}
+.lane .hd{display:flex;align-items:center;gap:11px;padding:11px 14px}
+.ord{width:22px;height:22px;border-radius:var(--r-chip);background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-family:var(--mono);font-size:10.5px;color:var(--ink-2);flex:0 0 auto}
+.lane .nm{font-family:var(--mono);font-size:12.5px;font-weight:600}
+.lane .fc{font-size:11px;display:flex;align-items:center;gap:7px;color:var(--ink-2)}
+.lane.conflict{box-shadow:0 0 0 1px var(--need),0 1px 2px var(--sh-1),0 6px 16px var(--sh-1)}
+.lane .facts{display:grid;grid-template-columns:1.1fr 1fr 1fr;box-shadow:0 -1px 0 var(--line-soft)}
+.fact{padding:9px 14px 11px;min-width:0}
+.fact+.fact{box-shadow:-1px 0 0 var(--line-soft)}
+.fact .k{font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--ink-3);margin-bottom:5px}
+.fact .v{font-size:11.5px;color:var(--ink-2);line-height:1.55}
+.fact .v .mono{color:var(--ink);font-size:10.5px}
+.lane .warn{padding:8px 14px;box-shadow:0 -1px 0 var(--line-soft);font-size:11px;color:var(--ink-2);display:flex;gap:8px;align-items:center;background:var(--need-tint)}
+.lane .foot{padding:8px 14px;box-shadow:0 -1px 0 var(--line-soft);display:flex;gap:6px;align-items:center}
+.lane .foot .sp{flex:1}
+.mv{width:22px;height:22px;border-radius:var(--r-chip);color:var(--ink-3);display:grid;place-items:center;font-size:10px;
+  transition:background-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease)}
+.mv:hover{background:var(--hover);color:var(--ink)} .mv[disabled]{opacity:.35;cursor:default}
+
+/* LANDED — first-parent history of the branch, newest first */
+.landed{display:flex;gap:11px;padding:10px 14px;align-items:flex-start;box-shadow:0 -1px 0 var(--line-soft)}
+.landed:first-child{box-shadow:none}
+.landed .sha{font-family:var(--mono);font-size:11px;color:var(--ink);width:62px;flex:0 0 auto;margin-top:1px}
+.landed .tx{flex:1;min-width:0}
+.landed .when{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);white-space:nowrap;margin-top:1px}
+.landed.direct .sha{color:var(--ink-2)}
+.just{box-shadow:inset 3px 0 0 var(--accent)}
+
+/* BANNERS — a failure names its cause and its fix, in the call site's own sentence */
+.ban{display:flex;gap:10px;align-items:flex-start;padding:10px 13px;border-radius:var(--r-card);margin-bottom:12px;
+  background:var(--surface);box-shadow:var(--e-card);font-size:11.5px;color:var(--ink-2);line-height:1.55}
+.ban .st{margin-top:5px}
+.ban b{color:var(--ink);font-weight:600}
+.ban.bad{box-shadow:0 0 0 1px var(--fail),0 1px 2px var(--sh-1)}
+.ban.need{box-shadow:0 0 0 1px var(--need),0 1px 2px var(--sh-1)}
+.ban .gitsays{display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink);background:var(--field);
+  box-shadow:var(--e-hair);border-radius:var(--r-chip);padding:6px 8px;margin-top:6px;white-space:pre-wrap}
+.ban .acts{display:flex;gap:6px;margin-top:8px}
+.stale{opacity:.5}
+
+/* ZERO STATE — the target state; mono once, at display scale (DESIGN-SYSTEM.md:49) */
+.zero{padding:46px 8px 24px;max-width:560px}
+.zero .z1{font-family:var(--mono);font-size:19px;letter-spacing:-.01em;color:var(--ink);line-height:1.35}
+.zero .z2{font-size:12px;color:var(--ink-3);margin-top:10px;line-height:1.6}
+.zero .z2 b{color:var(--ink-2);font-weight:600}
+
+/* FILES — changed paths across the branch's worktrees; selecting one opens its diff */
+.fsplit{flex:1;display:flex;min-height:0}
+.flist{width:390px;flex:0 0 390px;overflow:auto;padding:14px 12px 40px;box-shadow:1px 0 0 var(--line)}
+.fdir{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);padding:10px 8px 4px}
+.frow{display:flex;align-items:flex-start;gap:9px;padding:6px 8px;border-radius:var(--r-ctl);cursor:pointer;text-align:left;width:100%;
+  transition:background-color var(--dur-fast) var(--ease)}
+.frow:hover{background:var(--hover)}
+.frow.sel{background:var(--inset);box-shadow:var(--e-hair)}
+.frow .st{margin-top:5px}
+.frow .fn{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
+.frow .who{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.wt{font-family:var(--mono);font-size:10px;color:var(--ink-2);padding:0 6px;border-radius:var(--r-chip);box-shadow:var(--e-hair);background:var(--surface)}
+.wt.unc{background:none;box-shadow:inset 0 0 0 1px var(--line-strong);color:var(--ink-3)}
+.frow .fx{font-size:10.5px;color:var(--ink-3);margin-top:4px;line-height:1.45}
+.fview{flex:1;min-width:0;overflow:auto;padding:16px 20px 48px}
+.dhd{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.dhd .fn{font-family:var(--mono);font-size:12.5px;font-weight:600}
+.hunk{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);margin-bottom:12px;overflow:hidden}
+.hunk .hh{display:flex;align-items:center;gap:9px;padding:8px 12px;box-shadow:0 1px 0 var(--line-soft);font-size:11px;color:var(--ink-3)}
+.hunk .hh .mono{color:var(--ink-2)}
+.code{font-family:var(--mono);font-size:11px;line-height:1.6;padding:6px 0}
+.code div{padding:0 12px;white-space:pre;color:var(--ink-2)}
+.code .a{background:var(--diff-add);color:var(--ink)}
+.code .d{background:var(--diff-del);color:var(--ink-2)}
+.backs{padding:8px 12px 10px;box-shadow:0 -1px 0 var(--line-soft);display:flex;flex-direction:column;gap:5px}
+.back{font-size:11px;color:var(--ink-2);display:flex;gap:8px;align-items:baseline}
+.back .tier{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);width:44px;flex:0 0 auto}
+.back a{color:var(--accent);text-decoration:none} .back a:hover{color:var(--accent-hi)}
+.back .no{color:var(--ink-3)}
+
+/* OVERLAY — the one question this lens asks before acting (a discard cannot be undone) */
+.scrim{position:fixed;inset:0;background:var(--scrim);display:none;align-items:center;justify-content:center;z-index:200}
+.scrim.on{display:flex}
+.dlg{width:520px;background:var(--surface);border-radius:var(--r-window);box-shadow:var(--e-overlay);padding:18px 20px}
+.dlg h3{font-size:14px;font-weight:650;margin-bottom:8px}
+.dlg p{font-size:12px;color:var(--ink-2);line-height:1.6;margin-bottom:8px}
+.dlg textarea{width:100%;height:92px;background:var(--field);color:var(--ink);box-shadow:var(--e-hair);border:0;border-radius:var(--r-ctl);
+  padding:8px 10px;font:11.5px/1.5 var(--mono);resize:none;outline:none;margin:4px 0 10px}
+.dlg .acts{display:flex;gap:8px;justify-content:flex-end}
+
+/* TOAST — outcome of a land, with its undo; exact while nothing is pushed or landed after it */
+.toast{position:fixed;left:50%;bottom:22px;translate:-50% 0;background:var(--surface);box-shadow:var(--e-raised);border-radius:var(--r-card);
+  padding:9px 12px;font-size:12px;display:none;align-items:center;gap:12px;z-index:150}
+.toast.on{display:flex}
+
+/* SHOW SOURCES — prints the fact behind each element (prototype-only) */
+[data-src]{position:relative}
+body.src [data-src]::after{content:attr(data-src);display:block;font:9.5px/1.35 var(--mono);color:var(--src);margin-top:3px;white-space:normal;letter-spacing:0;font-weight:400;text-transform:none}
+body.src .st[data-src]::after,body.src .ord[data-src]::after{display:none}
+</style>
+</head>
+<body>
+<div class="review">
+  <span class="tag">OWNER REVIEW · PHASE 3</span>
+  <select id="state" aria-label="State to review"></select>
+  <label><input type="checkbox" id="srcs"> Show sources</label>
+  <span class="sp"></span>
+  <span>Sample data — fact sheet world, "now" = 23 Sep 15:40</span>
+</div>
+<div class="app">
+  <aside class="rail" id="rail"></aside>
+  <nav class="sub" id="sub"></nav>
+  <main class="main" id="main"></main>
+</div>
+<div class="scrim" id="scrim"><div class="dlg" id="dlg" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+"use strict";
+/* ---------- the one clock (hooks/heartbeat.ts's mechanism: a negative delay from one EPOCH) ---------- */
+const EPOCH = performance.now(), BEAT_MS = 2400;
+const beat = () => `animation-delay:-${Math.round(performance.now() - EPOCH) % BEAT_MS}ms`;
+
+/* ---------- facts from prototype-fact-sheet.md ---------- */
+const BRIEF = {
+  id: "b-42", head: 6,
+  headline: "Let client users upload evidence files against an open request.",
+  audience: "Client users, and the KPMG staff who serve them",   /* inherited from b-7, sheet section 3 */
+  outOfScope: "Bulk upload; the reviewer side of evidence",
+};
+const HEAD_KEY = "brief:b-42@6";
+
+/* Criteria B (rev 6). Evidence records are phase 3 sample data — survey section 8.4. */
+const CRITERIA = [
+  { n: 1, text: "Upload works for PDF, XLSX and images",
+    ev: { verdict: "settled", at: "e19b7c2", by: "Dylan Mackie", when: "23 Sep 13:32", rev: 5, was: 1,
+          because: "Uploaded one of each type against request R-118; each opened in the evidence list" } },
+  { n: 2, text: "A virus scan runs before any file is visible",
+    ev: { verdict: "settled", at: "c81f02a", by: "Dylan Mackie", when: "22 Sep 16:12", rev: 5, was: 2,
+          because: "The EICAR test file stayed in quarantine; a clean file appeared only after its scan" } },
+  { n: 3, text: "An interrupted upload resumes", isNew: true,
+    lane: { wt: "upload-ui", at: "7c2e5b1", by: "Dylan Mackie", when: "23 Sep 15:18",
+            because: "Cut the connection at 60%; the upload resumed from its last chunk" } },
+  { n: 4, text: "Tests pass",
+    ev: { verdict: "contested", at: "a90d3f4", by: "Dylan Mackie", when: "23 Sep 15:34", rev: 6,
+          because: "limits.test.ts fails at a90d3f4 — the size limit changed without its test",
+          over: "settled at 4e7a91c, 13:59" } },
+];
+
+/* Worktrees of evidence-upload: one per sheet session, named after it (phase 3 sample). */
+const WT = {
+  "upload-ui": {
+    harness: "Claude Code",
+    sessions: [{ n: "upload-ui", kind: "agent", st: "idle", ref: "brief:b-42@6" }],
+    commits: [{ sha: "7c2e5b1", msg: "Resume an interrupted upload from its last chunk", s: "upload-ui", t: "15:12",
+                files: ["api/upload/handler.ts", "api/upload/resume.ts", "web/src/evidence/UploadPanel.tsx"] }],
+    unc: [], ready: true },
+  "upload-api": {
+    harness: "Claude Code",
+    sessions: [{ n: "upload-api", kind: "agent", st: "run", ref: "brief:b-42@5" },
+               { n: "shell", kind: "shell", st: "idle", ref: "" }],
+    commits: [{ sha: "3b8d0e4", msg: "Stream chunks straight to quarantine storage", s: "upload-api", t: "14:40",
+                files: ["api/upload/handler.ts"] },
+              { sha: "52aa9c1", msg: "Reject a chunk whose checksum does not match", s: "upload-api", t: "15:05",
+                files: ["api/upload/handler.ts", "api/upload/checksum.ts"] }],
+    unc: ["api/upload/limits.ts"], ready: true },
+  "scan-hook": {
+    harness: "Claude Code",
+    sessions: [{ n: "scan-hook", kind: "agent", st: "idle", ref: "brief:b-42@5" }],
+    commits: [], unc: ["api/scan/hook.ts", "api/upload/limits.ts"], ready: false },
+};
+
+/* First-parent history of evidence-upload, newest first. SHAs 4e7a91c, c81f02a, a90d3f4 are the
+   sheet's (section 6); e19b7c2 and 9f13b60 are phase 3 sample. Session counts match the sheet's
+   "sessions that produced it" for v1.6.0 and v1.5.2. */
+const LANDED = [
+  { sha: "a90d3f4", when: "23 Sep 15:29", kind: "direct", msg: "Raise the per-file size limit to 40 MB",
+    sess: "no session recorded", ref: null, rel: "building now as run a90d3f4" },
+  { sha: "4e7a91c", when: "23 Sep 13:58", kind: "land", lane: "upload-ui", ref: "brief:b-42@6",
+    sess: "upload-ui 2 commits", rel: "shipped as v1.6.0" },
+  { sha: "e19b7c2", when: "23 Sep 13:31", kind: "land", lane: "upload-api", ref: "brief:b-42@5",
+    sess: "upload-api 3 commits · 1 commit with no session recorded" },
+  { sha: "c81f02a", when: "22 Sep 16:11", kind: "land", lane: "scan-hook", ref: "brief:b-42@5",
+    sess: "scan-hook 2 commits", rel: "shipped as v1.5.2" },
+  { sha: "9f13b60", when: "22 Sep 15:40", kind: "land", lane: "upload-api", ref: "brief:b-42@5",
+    sess: "upload-api 4 commits" },
+];
+
+const BRANCHES = ["main", "evidence-upload", "fix-session-timeout", "feat/request-reminders-email", "feat/request-reminders-sms"];
+
+/* ---------- review states ---------- */
+const STATES = [
+  ["m-now",     "Merge", "Now — two worktrees ready, the second conflicts"],
+  ["m-landed",  "Merge", "Just landed upload-ui — not pushed, exact undo"],
+  ["m-conf",    "Merge", "Conflict — upload-ui landed; resolve upload-api in its worktree (3-D3)"],
+  ["m-race",    "Merge", "Failure — the branch moved while landing"],
+  ["m-checked", "Merge", "Refused — the branch is checked out elsewhere"],
+  ["m-push",    "Merge", "Failure — push had no credential (3-D8)"],
+  ["m-gitfail", "Merge", "Failure — git could not read one worktree"],
+  ["m-down",    "Merge", "Failure — the control plane is not answering"],
+  ["m-empty",   "Merge", "Empty — nothing marked ready"],
+  ["m-new",     "Merge", "Empty — a branch with no worktree and no brief"],
+  ["f-now",     "Files", "Now — changed paths across the worktrees"],
+  ["f-open",    "Files", "A path open — its diff and back-links (3-D7)"],
+  ["f-empty",   "Files", "Empty — nothing changing on the branch"],
+  ["f-gitfail", "Files", "Failure — one worktree could not be read"],
+];
+
+/* ---------- helpers ---------- */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const src = s => ` data-src="${esc(s)}"`;
+const S = { state: "m-now", order: ["upload-ui", "upload-api"], openPath: "api/upload/handler.ts", justLanded: false, undone: false };
+const shape = (k, s) => `<span class="st ${k}${k === "run" ? " live" : ""}"${k === "run" ? ` style="${beat()}"` : ""}${s ? src(s) : ""}></span>`;
+const revOf = key => Number(key.split("@")[1]);   /* prototype only: the product never splits a key (contract P5) */
+
+/* Contract section 4.1's six states, one element. */
+function prov(key, opts = {}) {
+  if (opts.unavailable) return `<span class="pv unav"><span class="bang">!</span> could not reach the control plane, so the brief is not shown</span>`;
+  if (opts.resolving) return `<span class="pv res" aria-label="resolving the brief"></span>`;
+  if (!key) return `<span class="pv none"${src(opts.noneSrc || "no key: no Panacea-Brief trailer on this commit")}>${esc(opts.none || "no brief")}</span>`;
+  const r = revOf(key);
+  if (r < BRIEF.head) return `<span class="pv sup"${src("GET /api/v1/discover/refs?key=" + key + " — superseded is derived: rev < headRevision")}>${shape("drift")}<span class="rv">rev ${r}</span> · brief now at rev ${BRIEF.head}</span>`;
+  return `<span class="pv"${src("GET /api/v1/discover/refs?key=" + key)}><span class="rv">rev ${r}</span> current</span>`;
+}
+
+/* ---------- rail and sub-rail ---------- */
+function rail() {
+  const sel = S.state === "m-new" ? "fix-session-timeout" : "evidence-upload";
+  const wts = sel === "evidence-upload" ? Object.keys(WT) : [];
+  const sess = s => s.kind === "shell" ? shape("idle", "session status: idle (phase 2 poller)") + `<span class="mono" style="font-size:9.5px;color:var(--ink-3)">sh</span>` : shape(s.st === "run" ? "run" : "idle", "session status: " + s.st + " (phase 2 poller)");
+  const wrows = wts.map(n => `<div class="wrow"${src("worktree of evidence-upload — phase 3 sample name, one per fact-sheet session")}><span class="wn">${n}</span><span class="ss">${WT[n].sessions.map(sess).join("")}</span></div>`).join("");
+  document.getElementById("rail").innerHTML = `
+    <div class="mchip"><span class="mark">P</span><div><div class="m1">This laptop</div><div class="m2">local · docker</div></div></div>
+    <div class="rs">
+      <div class="mhd">PROJECTS</div>
+      <div class="prow sel"><span class="pini">EP</span><span class="pnm">Engagement Portal</span></div>
+      <div class="kids">${BRANCHES.map(b => `<div class="brow${b === sel ? " sel" : ""}"><span class="bnm">${esc(b)}</span></div>${b === sel && wts.length ? `<div class="kids">${wrows}</div>` : ""}`).join("")}</div>
+    </div>
+    <div class="rfoot"><span class="me">DM</span><span class="who">Dylan Mackie</span></div>`;
+}
+function subrail() {
+  const lens = S.state.startsWith("f-") ? "files" : "merge";
+  const br = S.state === "m-new" ? "fix-session-timeout" : "evidence-upload";
+  const L = [["discover", "◇", "Discover"], ["design", "◈", "Design"], ["develop", "◆", "Develop"], ["files", "▤", "Files"], ["merge", "⑂", "Merge"], ["deploy", "▲", "Deploy"]];
+  document.getElementById("sub").innerHTML = `
+    <div class="stop"><div class="sbr">${br}</div><div class="spurpose">${br === "evidence-upload" ? esc(BRIEF.headline) : "No brief on this branch"}</div></div>
+    <div class="mods">${L.map(([id, g, n]) => {
+      const mine = id === "files" || id === "merge";
+      return `<button class="mod${id === lens ? " sel" : ""}"${mine ? ` onclick="A.lens('${id}')"` : " disabled"}><span class="g">${g}</span>${n}${mine ? "" : `<span class="note">phase ${{ discover: 4, design: 5, develop: 2, deploy: 7 }[id]}</span>`}</button>`;
+    }).join("")}</div>`;
+}
+
+/* ---------- Merge lens: the parts ---------- */
+function topMerge(o = {}) {
+  const ahead = o.ahead || 0;
+  const remote = o.down ? `<b>origin/evidence-upload</b> · last reading 15:40`
+    : o.newBranch ? `<b>fix-session-timeout</b> · never pushed`
+    : ahead ? `<b class="num">${ahead}</b> commit not pushed · origin/evidence-upload fetched <span class="num">15:36</span>`
+    : `<b>origin/evidence-upload</b> · up to date · fetched <span class="num">15:36</span>`;
+  return `<div class="top"><span class="ttl">Merge into ${o.newBranch ? "fix-session-timeout" : "evidence-upload"}</span><span class="sp"></span>
+    <span class="remote"${src("git rev-list --left-right --count evidence-upload...@{upstream}; time of the last git fetch — never on the 2 s poll")}>${remote}</span>
+    <button class="btn" ${o.down || o.newBranch ? "disabled" : ""} onclick="A.toast('Fetching from origin… (runs on the machine, not in a sandbox)')">Fetch</button>
+    <button class="btn" ${ahead && !o.down ? "" : "disabled"} title="${ahead ? "" : "Nothing to push: the branch matches origin"}" onclick="A.set('m-push')">Push</button>
+    <button class="btn ghost" ${o.down || o.newBranch ? "disabled" : ""} onclick="A.toast('Would open a PR to main on the host 3-D8 names, with brief:b-42@6 in its description as text')">Open PR <span class="dl">3-D8</span></button></div>`;
+}
+
+function dod(o = {}) {
+  if (o.newBranch) return `<div class="card dod"><div class="hd"><div style="flex:1"><div class="t2" style="margin-top:0">DEFINITION OF DONE</div>
+      <div class="why">${prov(null, { none: "no brief on this branch", noneSrc: "head Ref present:false — GET /api/v1/discover/branches/{id}/provenance" })} · Nothing can be settled or contested without one. Write it in Discover.</div></div></div></div>`;
+  if (o.down) return `<div class="card dod"><div class="hd"><div style="flex:1"><div class="t2" style="margin-top:0">DEFINITION OF DONE</div><div class="why">${prov(HEAD_KEY, { unavailable: true })}</div></div></div></div>`;
+  const tip = o.tip || "a90d3f4";
+  const rows = CRITERIA.map(c => {
+    let k, word, because, s;
+    if (c.isNew && !o.landedUi) {
+      k = "none"; word = "open";
+      because = `New at rev 6 — no evidence reachable from <span class="mono">${tip}</span>. <b>Landing upload-ui brings a settled record</b> made at <span class="mono">${c.lane.at}</span> by ${c.lane.by}: <i>"${esc(c.lane.because)}"</i>`;
+      s = `evaluator(${HEAD_KEY}, ${tip}): no record at an ancestor → open; forecast: record at ${c.lane.at} becomes reachable when upload-ui lands`;
+    } else if (c.isNew) {
+      k = "ok"; word = "settled";
+      because = `<i>"${esc(c.lane.because)}"</i> — ${c.lane.by}, ${c.lane.when}, at <span class="mono">${c.lane.at}</span>, reachable since the land just made`;
+      s = `evaluator(${HEAD_KEY}, ${tip}): record at ${c.lane.at} is an ancestor → settled`;
+    } else {
+      const e = c.ev;
+      k = e.verdict === "settled" ? "ok" : "need"; word = e.verdict;
+      because = `<i>"${esc(e.because)}"</i> — ${e.by}, ${e.when}, at <span class="mono">${e.at}</span>`
+        + (e.rev < BRIEF.head ? `. <b>Recorded against rev ${e.rev}</b>${e.was !== c.n ? `, where it was criterion ${e.was}` : ""} — carried because the criterion's text is unchanged` : "")
+        + (e.over ? `. Supersedes <span class="mono">${esc(e.over)}</span>` : "");
+      s = `evaluator(${HEAD_KEY}, ${tip}): newest record at an ancestor of ${tip} — git merge-base --is-ancestor ${e.at} ${tip}; carried by criterion text digest (proposed contract amendment)`;
+    }
+    return `<div class="crit">${shape(k)}<div style="flex:1"><div class="row"><span class="ct">${esc(c.text)}</span><span class="sp"></span><span class="cs"${src(s)}>${word}</span></div><div class="because">${because}</div></div></div>`;
+  }).join("");
+  return `<div class="card dod"${src("DefinitionOfDone — phase 4's component, mounted by phase 3; head Ref of evidence-upload")}>
+    <div class="hd"><div style="flex:1"><div class="t2" style="margin-top:0">DEFINITION OF DONE · evaluated at <span class="mono">${tip}</span>, the head of evidence-upload</div>
+      <div class="hl">${esc(BRIEF.headline)}</div>
+      <div class="why">${prov(HEAD_KEY)} <span class="key">${HEAD_KEY}</span> · Out of scope: ${esc(BRIEF.outOfScope)}</div></div>
+      <button class="btn ghost" onclick="A.toast('Opens Discover at brief:b-42@6, read-only (contract section 4.1)')">Open in Discover</button></div>
+    ${rows}</div>`;
+}
+
+/* The forecast: each ready worktree against the branch as it will be after the rows above it land. */
+function forecast(queue, landedUi) {
+  return queue.map((n, i) => {
+    const against = landedUi ? ["upload-ui"] : queue.slice(0, i);
+    const hit = against.find(o => o !== n && (o === "upload-ui" || o === "upload-api") && (n === "upload-ui" || n === "upload-api"));
+    return hit ? { clean: false, with: hit, files: ["api/upload/handler.ts"] } : { clean: true };
+  });
+}
+
+function laneCard(n, i, f, o = {}) {
+  const w = WT[n], agent = w.sessions.find(s => s.kind === "agent");
+  const byS = {}; w.commits.forEach(c => { byS[c.s] = (byS[c.s] || 0) + 1; });
+  const files = [...new Set(w.commits.flatMap(c => c.files))];
+  const fc = f.clean
+    ? `<span class="fc"${src("git merge-tree --write-tree --name-only <evidence-upload after the rows above> " + n + " → clean")}>${shape("ok")} lands clean</span>`
+    : `<span class="fc"${src("git merge-tree --write-tree --name-only <evidence-upload after " + f.with + "> " + n + " → conflicted paths")}>${shape("need")} conflicts with ${f.with} in <span class="mono">${f.files.join(", ")}</span></span>`;
+  const blocked = o.checked ? "evidence-upload is checked out elsewhere" : o.down ? "the control plane is not answering"
+    : !f.clean && !o.landedUi ? "land " + f.with + " first — this row then conflicts with it"
+    : !f.clean ? "resolve the conflict in " + n + " first" : "";
+  const crit = n === "upload-ui" ? `<div class="warn" style="background:var(--run-tint)"${src("evidence record at 7c2e5b1 (in this worktree) becomes an ancestor of the branch head on landing")}>${shape("ok")} Landing settles criterion 3, <i>An interrupted upload resumes</i> — a record made at <span class="mono">7c2e5b1</span>.</div>` : "";
+  const shared = w.sessions.length > 1 ? `<div class="warn"${src("sessions whose worktreeId is " + n + " — GET /v1/sessions (phase 2)")}>${shape("need")} <span><b>Two sessions share this worktree</b> — <span class="mono">upload-api</span> (agent) and a shell. They share one index: a commit in either takes whatever the other has staged, and its session trailer names only the one that ran <span class="mono">git commit</span>. <span class="dl">3-D2</span></span></div>` : "";
+  const unc = w.unc.length ? `<div class="warn" style="background:none"${src("git status --porcelain=v2 in " + n)}>${shape("none")} <span>Not committed: <span class="mono">${w.unc.join(", ")}</span> — uncommitted work does not land.</span></div>` : "";
+  const detail = o.conflictOpen && !f.clean ? `<div class="warn" style="display:block;background:var(--need-tint)"${src("git merge-tree --write-tree " + f.with + " " + n + " — conflicted path and both sides' hunks")}>
+      <div><b>api/upload/handler.ts</b> — both changed lines 41–58. <span class="mono">upload-ui</span> resumes from the last chunk; <span class="mono">upload-api</span> checks each chunk's checksum on the same path.</div>
+      <div class="why">The conflict is resolved <b>in upload-api</b>, by taking evidence-upload's new work there. evidence-upload only ever receives clean merges.</div>
+      <div class="acts" style="display:flex;gap:6px;margin-top:8px"><button class="btn pri" onclick="A.resolve()">Start a session to resolve…</button><button class="btn" onclick="A.toast('Opens a shell session in upload-api; the human resolves it')">Open a shell in upload-api</button><button class="btn ghost" onclick="A.lens('files')">See the file across worktrees</button></div></div>` : "";
+  return `<div class="card lane${f.clean ? "" : " conflict"}${o.stale ? " stale" : ""}">
+    <div class="hd"><span class="ord num"${src("the human's order — moveWithinVisible (seam S3.4)")}>${i + 1}</span>
+      <div style="flex:1;min-width:0"><div class="row"><span class="nm">${n}</span>${fc}</div>
+        <div class="t2">${w.harness} · its agent inherited ${prov(agent.ref)}</div></div></div>
+    <div class="facts">
+      <div class="fact"><div class="k">COMMITS NOT YET LANDED</div><div class="v"${src("git log evidence-upload.." + n + " --format='%h %s %(trailers:key=Panacea-Session)'")}>${w.commits.map(c => `<div><span class="mono">${c.sha}</span> ${esc(c.msg)} · <span class="mono">${c.s}</span> <span class="num">${c.t}</span></div>`).join("")}</div></div>
+      <div class="fact"><div class="k">FILES</div><div class="v"${src("git diff --name-only $(git merge-base evidence-upload " + n + ").." + n)}>${files.map(p => `<div class="mono">${p}</div>`).join("")}</div></div>
+      <div class="fact"><div class="k">MADE BY</div><div class="v"${src("Panacea-Session trailers on those commits (survey section 5)")}>${Object.entries(byS).map(([s, k]) => `<div><span class="mono">${s}</span> · <span class="num">${k}</span> commit${k > 1 ? "s" : ""}</div>`).join("")}</div></div>
+    </div>${crit}${shared}${unc}${detail}
+    <div class="foot">
+      <button class="mv" title="Move up" ${i === 0 || o.down ? "disabled" : ""} onclick="A.move('${n}',-1)">▲</button>
+      <button class="mv" title="Move down" ${o.last || o.down ? "disabled" : ""} onclick="A.move('${n}',1)">▼</button>
+      <button class="btn ghost" ${o.down ? "disabled" : ""} onclick="A.toast('${n} is no longer marked ready (PATCH …/worktrees/{id} {ready:false})')"${src("Worktree.ready — seam S3.3; a person sets it, nothing infers it")}>Not ready</button>
+      <span class="sp"></span>${!f.clean && o.landedUi && !o.conflictOpen && !o.down ? `<button class="btn" onclick="A.set('m-conf')">Resolve…</button>` : ""}
+      <span class="t2" style="margin:0">${esc(blocked)}</span>
+      <button class="btn pri" ${blocked ? "disabled" : ""} onclick="A.land('${n}')">Land</button></div></div>`;
+}
+
+function landedList(o = {}) {
+  const rows = [];
+  if (o.race) rows.push({ sha: "1c9e2f0", when: "23 Sep 15:40", kind: "direct", msg: "Log the rejected chunk's checksum", sess: "no session recorded", ref: null, rel: "committed while upload-ui was landing" });
+  if (o.landedUi) rows.push({ sha: "d5f0a17", when: "23 Sep 15:40", kind: "land", lane: "upload-ui", ref: HEAD_KEY, sess: "upload-ui 1 commit", fresh: true });
+  if (o.newBranch) return `<div class="card"><div class="t2" style="margin:0">No lands recorded on fix-session-timeout.</div></div>`;
+  const all = rows.concat(LANDED);
+  return `<div class="card" style="padding:0">${all.map(r => {
+    const title = r.kind === "direct" ? `${esc(r.msg)} <span class="t2" style="display:inline">— committed on evidence-upload directly, not a land</span>` : `land <span class="mono">${r.lane}</span>`;
+    const verb = r.fresh ? (o.pushed ? `<button class="btn ghost" onclick="A.toast('Would land a revert commit — history keeps both')">Revert…</button>` : `<button class="btn" onclick="A.undo()">Undo</button>`)
+      : r.kind === "land" ? `<button class="btn ghost" ${o.down ? "disabled" : ""} onclick="A.toast('Pushed already, so undo is a revert commit, landed like any other — never a force-push')">Revert…</button>` : "";
+    const ref = r.kind === "direct" ? prov(null, { none: "no brief — not a land", noneSrc: "no Panacea-Brief trailer: the commit did not come through a land" }) : prov(r.ref);
+    return `<div class="landed${r.kind === "direct" ? " direct" : ""}${r.fresh ? " just" : ""}"${src(r.kind === "land" ? "git log --first-parent evidence-upload --format='%h %(trailers:key=Panacea-Brief)'; merge commit " + r.sha : "git log --first-parent evidence-upload: a non-merge commit")}>
+      <span class="sha">${r.sha}</span>
+      <div class="tx"><div class="t1" style="font-weight:500">${title}</div>
+        <div class="t2">${r.kind === "land" ? "reviewed against " : ""}${ref} · ${esc(r.sess)}${r.rel ? " · " + esc(r.rel) : ""}${r.fresh ? (o.pushed ? " · pushed" : " · <b>not pushed — undo is exact</b>") : ""}</div></div>
+      <span class="when num">${r.when}</span>${verb}</div>`;
+  }).join("")}</div>`;
+}
+
+function notReady(o = {}) {
+  const w = WT["scan-hook"];
+  const others = o.empty ? ["upload-ui", "upload-api"].map(n => `<div class="card"><div class="row"><span class="nm mono" style="font-weight:600">${n}</span><span class="t2" style="margin:0">its agent inherited</span>${prov(WT[n].sessions[0].ref)}<span class="sp"></span>
+      <button class="btn" onclick="A.toast('${n} marked ready (PATCH …/worktrees/{id} {ready:true}) — it joins the queue at the bottom')"${src("Worktree.ready — seam S3.3")}>Mark ready</button></div>
+    <div class="t2"${src("git log evidence-upload.." + n)}><span class="num">${WT[n].commits.length}</span> commit${WT[n].commits.length > 1 ? "s" : ""} not yet landed.</div></div>`).join("") : "";
+  if (o.gitfail) return `<div class="ban bad"${src("the control plane's git read for scan-hook failed; git's own sentence, verbatim")}>${shape("fail")}<div><b>git could not read scan-hook</b>, so its row shows nothing current. The other worktrees are unaffected.
+      <span class="gitsays">fatal: cannot change to 'C:\\Users\\dmackie1\\Projects\\engagement-portal-worktrees\\scan-hook': No such file or directory</span>
+      <div class="why">Its directory was removed outside the cockpit. Its committed work is still in the project repository. Remove the worktree here to clear the row.</div>
+      <div class="acts"><button class="btn" onclick="A.remove()">Remove worktree…</button></div></div></div>`;
+  return others + `<div class="card"><div class="row"><span class="nm mono" style="font-weight:600">scan-hook</span><span class="t2" style="margin:0">its agent inherited</span>${prov(w.sessions[0].ref)}<span class="sp"></span>
+      <button class="btn" disabled title="Nothing committed since its last land — commit first">Mark ready</button></div>
+    <div class="t2"${src("git log evidence-upload..scan-hook (empty); git status --porcelain=v2 in scan-hook")}>No commits since its last land. Not committed: <span class="mono">${w.unc.join(", ")}</span>.</div></div>`;
+}
+
+/* ---------- Merge lens ---------- */
+function mergeLens() {
+  const st = S.state;
+  const o = { landedUi: st === "m-landed" || st === "m-push" || st === "m-conf", checked: st === "m-checked", down: st === "m-down",
+              newBranch: st === "m-new", race: st === "m-race", conflictOpen: st === "m-conf", gitfail: st === "m-gitfail", empty: st === "m-empty" };
+  o.tip = o.landedUi ? "d5f0a17" : o.race ? "1c9e2f0" : "a90d3f4";
+  let ban = "";
+  if (o.race) ban = `<div class="ban bad"${src("git update-ref refs/heads/evidence-upload <new> a90d3f4 — compare-and-swap refused")}>${shape("fail")}<div><b>Nothing landed.</b> evidence-upload moved from <span class="mono">a90d3f4</span> to <span class="mono">1c9e2f0</span> while upload-ui was landing, so git refused to move it again. The forecast below is recomputed against <span class="mono">1c9e2f0</span>: upload-ui still lands clean.
+      <span class="gitsays">fatal: update_ref failed for ref 'refs/heads/evidence-upload': cannot lock ref 'refs/heads/evidence-upload': is at 1c9e2f0 but expected a90d3f4</span>
+      <div class="acts"><button class="btn pri" onclick="A.land('upload-ui')">Land upload-ui again</button></div></div></div>`;
+  if (o.checked) ban = `<div class="ban need"${src("git worktree list --porcelain: evidence-upload is the branch of a checkout")}>${shape("need")}<div><b>Landing is off:</b> evidence-upload is checked out in the primary worktree of Engagement Portal, <span class="mono">C:\\Users\\dmackie1\\Projects\\engagement-portal</span>. A land moves the branch without touching any checkout, and that checkout's files would then describe the old commit. Switch that checkout to another branch, or merge there with <span class="mono">git merge</span>.</div></div>`;
+  if (st === "m-push") ban = `<div class="ban bad"${src("git push origin evidence-upload, run by the control plane on this machine; git's sentence verbatim")}>${shape("fail")}<div><b>Push did not run:</b> this machine has no saved sign-in for origin, and the cockpit never opens a login prompt.
+      <span class="gitsays">fatal: could not read Username for 'https://&lt;remote host, 3-D8&gt;': terminal prompts disabled</span>
+      <div class="why">Sign in once with git in a terminal on this machine — the credential helper keeps it — then push again. The land stays; its undo is still exact.</div>
+      <div class="acts"><button class="btn" onclick="A.toast('Pushing again…')">Push again</button></div></div></div>`;
+  if (o.down) ban = `<div class="ban bad"${src("classify(error) = control-plane-down — network_unavailable")}>${shape("fail")}<div><b>The control plane is not answering</b>, so nothing below is current — it is the reading from 15:40. Landing, pushing and fetching are off until it answers.</div></div>`;
+
+  let queue;
+  if (st === "m-empty") queue = `<div class="zero"><div class="z1">Nothing is waiting to land into evidence-upload.</div>
+      <div class="z2">upload-api, scan-hook and upload-ui are on this branch and none is marked ready. A worktree is ready when a person says so; nothing infers it.</div></div>`;
+  else if (o.newBranch) queue = `<div class="zero"><div class="z1">No worktree on fix-session-timeout yet.</div>
+      <div class="z2">Nothing can land until a worktree does some work here. <button class="btn" style="margin-left:6px" onclick="A.toast('Creates a worktree on fix-session-timeout — 3-D1 decides whether it is a git worktree or a local clone')">New worktree <span class="dl">3-D1</span></button></div></div>`;
+  else {
+    const q = o.landedUi ? ["upload-api"] : S.order.slice();
+    const f = forecast(q, o.landedUi);
+    queue = q.map((n, i) => laneCard(n, i, f[i], { ...o, last: i === q.length - 1, stale: o.down })).join("");
+  }
+  const anyReady = !(st === "m-empty" || o.newBranch);
+  const landAll = anyReady ? `<button class="btn" ${o.checked || o.down || o.landedUi ? "disabled" : ""} onclick="A.landAll()" style="order:3">Land all in order</button>` : "";
+  return topMerge({ ahead: o.landedUi ? 1 : 0, down: o.down, newBranch: o.newBranch }) + `
+    <div class="body"><div class="inner">
+      ${ban}
+      ${dod(o)}
+      <div class="sech">READY TO LAND, IN THIS ORDER <span class="aside">each forecast assumes the rows above it land first</span>${landAll}</div>
+      <div class="${o.down ? "stale" : ""}">${queue}</div>
+      ${o.newBranch ? "" : `<div class="sech">NOT MARKED READY</div>${notReady(o)}`}
+      <div class="sech">LANDED ON ${o.newBranch ? "FIX-SESSION-TIMEOUT" : "EVIDENCE-UPLOAD"} <span class="aside">first-parent history, newest first</span></div>
+      <div class="${o.down ? "stale" : ""}">${landedList(o)}</div>
+    </div></div>`;
+}
+
+/* ---------- Files lens ---------- */
+const PATHS = [
+  { p: "api/upload/handler.ts", who: [["upload-ui", "c"], ["upload-api", "c"]], st: "need",
+    note: "Conflicts on landing — whichever of the two lands second", s: "git merge-tree --write-tree upload-ui upload-api → conflicted" },
+  { p: "api/upload/checksum.ts", who: [["upload-api", "c"]] },
+  { p: "api/upload/limits.ts", who: [["upload-api", "u"], ["scan-hook", "u"]], st: "none",
+    note: "Both edit this file — not committed, so it cannot be forecast yet", s: "git status --porcelain=v2 in upload-api and in scan-hook — overlap only" },
+  { p: "api/upload/resume.ts", who: [["upload-ui", "c"]] },
+  { p: "api/scan/hook.ts", who: [["scan-hook", "u"]] },
+  { p: "web/src/evidence/UploadPanel.tsx", who: [["upload-ui", "c"]] },
+];
+const HUNKS = {
+  "api/upload/handler.ts": [
+    { wt: "upload-ui", at: "@@ -41,6 +41,11 @@", commit: "7c2e5b1", sess: "upload-ui", t: "15:12", span: true,
+      lines: [[" ", "export async function receiveChunk(req: ChunkRequest) {"], ["+", "  const resumeFrom = await lastStoredChunk(req.uploadId);"], ["+", "  if (req.index < resumeFrom) return { skipped: true };"], [" ", "  const stored = await storeChunk(req);"]] },
+    { wt: "upload-api", at: "@@ -44,3 +44,9 @@", commit: "52aa9c1", sess: "upload-api", t: "15:05", span: true,
+      lines: [[" ", "  const stored = await storeChunk(req);"], ["-", "  return { stored: true };"], ["+", "  if (sha256(req.body) !== req.checksum) {"], ["+", "    return reject(req, \"checksum does not match\");"], ["+", "  }"], ["+", "  return { stored: true, quarantined: true };"]] },
+  ],
+  "api/upload/limits.ts": [
+    { wt: "upload-api", at: "@@ -3,2 +3,2 @@", uncommitted: true, shared: true,
+      lines: [["-", "export const MAX_FILE_MB = 40;"], ["+", "export const MAX_FILE_MB = 50;"]] },
+    { wt: "scan-hook", at: "@@ -8,0 +8,2 @@", uncommitted: true,
+      lines: [["+", "/** Files over this size are scanned in the background, not inline. */"], ["+", "export const INLINE_SCAN_MAX_MB = 25;"]] },
+  ],
+};
+function hunkHtml(h) {
+  const code = h.lines.map(([k, t]) => `<div class="${k === "+" ? "a" : k === "-" ? "d" : ""}">${k} ${esc(t)}</div>`).join("");
+  const t1 = h.uncommitted
+    ? `<div class="back"><span class="tier">tier 1</span><span class="no">Not committed, so no commit and no session is recorded for it yet.${h.shared ? " Two sessions share this worktree (upload-api and a shell), so the commit that takes it may be either's." : ""}</span></div>`
+    : `<div class="back"${src("git blame -L on " + h.wt + " → " + h.commit + " → its Panacea-Session trailer")}><span class="tier">tier 1</span><span>commit <span class="mono">${h.commit}</span> · session <span class="mono">${h.sess}</span> · <span class="num">${h.t}</span> · <a href="#" onclick="A.toast('Opens session ${h.sess} at ${h.t}');return false">open session ↗</a></span></div>`;
+  const t2 = h.uncommitted ? "" : `<div class="back"${src("Claude Code transcript file for " + h.sess + ", by the conversation id the control plane minted — only if 3-D7 allows")}><span class="tier">tier 2</span><span>the <span class="mono">Edit</span> tool call that wrote these lines · <a href="#" onclick="A.toast('Opens the transcript at that tool call — needs 3-D7');return false">transcript span ↗</a> <span class="dl">3-D7</span></span></div>`;
+  return `<div class="hunk"><div class="hh"><span class="mono" style="color:var(--ink)">${h.wt}</span><span class="mono">${h.at}</span><span class="sp" style="flex:1"></span>${h.uncommitted ? "not committed" : "committed"}</div>
+    <div class="code">${code}</div><div class="backs">${t1}${t2}</div></div>`;
+}
+function filesLens() {
+  const st = S.state;
+  const top = `<div class="top"><span class="ttl">Files changing on evidence-upload</span><span class="sp"></span>
+    <span class="remote"${src("paths changed since each worktree left evidence-upload: committed (git diff --name-only) and not (git status)")}>changed paths only · across every worktree of the branch <span class="dl">3-D9</span></span></div>`;
+  if (st === "f-empty") return top + `<div class="body"><div class="zero"><div class="z1">Nothing is changing on evidence-upload.</div>
+      <div class="z2">Every worktree's work has landed and none has changed a file since. <b>An alternative moment</b>, after the Merge lens's queue is empty.</div></div></div>`;
+  const fail = st === "f-gitfail";
+  const paths = fail ? PATHS.filter(x => !(x.who.length === 1 && x.who[0][0] === "scan-hook")).map(x => x.p === "api/upload/limits.ts" ? { ...x, who: [["upload-api", "u"]], st: null, note: "" } : x) : PATHS;
+  const dirs = [...new Set(paths.map(x => x.p.slice(0, x.p.lastIndexOf("/"))))];
+  const open = st === "f-open" ? S.openPath : null;
+  const list = dirs.map(d => `<div class="fdir">${d}/</div>` + paths.filter(x => x.p.startsWith(d + "/") && !x.p.slice(d.length + 1).includes("/")).map(x => `
+    <button class="frow${x.p === open ? " sel" : ""}" onclick="A.open('${x.p}')"${x.s ? src(x.s) : ""}>${x.st ? shape(x.st) : `<span class="st" style="visibility:hidden"></span>`}
+      <div style="flex:1;min-width:0"><div class="fn">${x.p.slice(d.length + 1)}</div>
+        <div class="who">${x.who.map(([w, k]) => `<span class="wt${k === "u" ? " unc" : ""}">${w}${k === "u" ? " · not committed" : ""}</span>`).join("")}</div>
+        ${x.note ? `<div class="fx">${esc(x.note)}</div>` : ""}</div></button>`).join("")).join("");
+  const failBan = fail ? `<div class="ban bad" style="margin:0 0 8px"${src("git status in scan-hook failed; git's sentence verbatim")}>${shape("fail")}<div><b>scan-hook's changes are not shown</b> — git could not read it. The other worktrees are current.
+      <span class="gitsays">fatal: cannot change to 'C:\\Users\\dmackie1\\Projects\\engagement-portal-worktrees\\scan-hook': No such file or directory</span></div></div>` : "";
+  const note = `<div class="t2" style="padding:14px 8px 0">CLAUDE.md is not listed: its brief block is excluded from git, not committed <span class="dl">3-D6</span>.</div>`;
+  let view;
+  if (!open) view = `<div class="zero" style="padding-top:30px"><div class="z2">Choose a path to see each worktree's change to it, and where each change was written.</div></div>`;
+  else {
+    const hs = HUNKS[open] || [{ wt: (PATHS.find(x => x.p === open) || { who: [["upload-ui"]] }).who[0][0], at: "@@ -1,0 +1,4 @@", commit: "7c2e5b1", sess: "upload-ui", t: "15:12", span: true, lines: [["+", "// sample change"]] }];
+    view = `<div class="dhd"><span class="fn">${open}</span><span class="sp" style="flex:1"></span>${(PATHS.find(x => x.p === open) || {}).st === "need" ? `<span class="fc stw">${shape("need")} conflicts on landing</span>` : ""}</div>` + hs.map(hunkHtml).join("");
+  }
+  return top + `<div class="fsplit"><div class="flist">${failBan}${list}${note}</div><div class="fview">${view}</div></div>`;
+}
+
+/* ---------- dialog and toast ---------- */
+function dialog(html) { document.getElementById("dlg").innerHTML = html; document.getElementById("scrim").classList.add("on"); }
+function closeDialog() { document.getElementById("scrim").classList.remove("on"); }
+let toastTimer = 0;
+function toast(html, undo) {
+  const t = document.getElementById("toast");
+  t.innerHTML = `<span>${html}</span>${undo ? `<button class="btn" onclick="A.undo()">Undo</button>` : ""}`;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), undo ? 9000 : 4200);
+}
+
+/* ---------- actions ---------- */
+const A = {
+  set(s) { S.state = s; document.getElementById("state").value = s; render(); },
+  lens(l) { A.set(l === "files" ? "f-now" : "m-now"); },
+  open(p) { S.openPath = p; A.set("f-open"); },
+  move(n, d) {
+    const i = S.order.indexOf(n), j = i + d;
+    if (j < 0 || j >= S.order.length) return;
+    [S.order[i], S.order[j]] = [S.order[j], S.order[i]];   /* the product does this through moveWithinVisible (seam S3.4) */
+    render();
+  },
+  land(n) {
+    if (n !== "upload-ui" || S.order[0] !== "upload-ui") {
+      toast(`This prototype draws the <span class="mono">upload-ui</span> land only. With <span class="mono">${n}</span> first, the product lands it and re-forecasts the rest.`);
+      return;
+    }
+    A.set("m-landed");
+    toast(`Landed <span class="mono">upload-ui</span> into evidence-upload as <span class="mono">d5f0a17</span> · reviewed against <span class="mono">${HEAD_KEY}</span>`, true);
+  },
+  landAll() {
+    if (S.order[0] !== "upload-ui") { A.land(S.order[0]); return; }
+    A.set("m-landed");
+    toast(`Landed <span class="mono">upload-ui</span>. Stopped at <span class="mono">upload-api</span>: it conflicts with what just landed.`, true);
+  },
+  undo() {
+    A.set("m-now");
+    toast(`Undone: evidence-upload is back at <span class="mono">a90d3f4</span>. <span class="mono">d5f0a17</span> is kept under <span class="mono">refs/panacea/undone/</span> so its merge link still resolves.`);
+  },
+  resolve() {
+    dialog(`<h3>Resolve the conflict in upload-api</h3>
+      <p>Starts a <b>new</b> Claude Code session in <span class="mono">upload-api</span> with this opening prompt. Nothing is typed into the running <span class="mono">upload-api</span> session. Edit the prompt first if you want. <span class="dl">3-D3</span></p>
+      <textarea aria-label="Opening prompt">Merge evidence-upload into this branch and resolve the conflict in api/upload/handler.ts. upload-ui's change resumes an interrupted upload from its last chunk; this branch's change checks each chunk's checksum. Keep both behaviours. Run the tests before you commit.</textarea>
+      <div class="acts"><button class="btn ghost" onclick="A.close()">Cancel</button><button class="btn pri" onclick="A.close();A.toast('Session resolve-upload-api starting in upload-api (phase 2 session create, with an opening prompt)')">Start session</button></div>`);
+  },
+  remove() {
+    dialog(`<h3>Remove the worktree scan-hook?</h3>
+      <p>Session <span class="mono">scan-hook</span> is still listed on it, idle. Its directory is already gone, so no uncommitted file is lost by removing it here. Its committed work stays in the project repository.</p>
+      <p class="t2">This is the one action in these lenses that asks first: discarding uncommitted files cannot be undone, so when a directory is present the question names each file and each live session.</p>
+      <div class="acts"><button class="btn ghost" onclick="A.close()">Cancel</button><button class="btn pri" onclick="A.close();A.toast('scan-hook removed; its session ended and its row cleared')">Remove</button></div>`);
+  },
+  close: closeDialog,
+  toast,
+};
+
+/* ---------- render ---------- */
+function render() {
+  rail(); subrail();
+  document.getElementById("main").innerHTML = S.state.startsWith("f-") ? filesLens() : mergeLens();
+}
+(function init() {
+  const sel = document.getElementById("state");
+  let group = "";
+  sel.innerHTML = STATES.map(([id, g, label]) => {
+    const head = g !== group ? `${group ? "</optgroup>" : ""}<optgroup label="${g} lens">` : "";
+    group = g;
+    return `${head}<option value="${id}">${esc(label)}</option>`;
+  }).join("") + "</optgroup>";
+  sel.addEventListener("change", e => A.set(e.target.value));
+  document.getElementById("srcs").addEventListener("change", e => document.body.classList.toggle("src", e.target.checked));
+  document.getElementById("scrim").addEventListener("click", e => { if (e.target.id === "scrim") closeDialog(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeDialog(); });
+  render();
+})();
+</script>
+</body>
+</html>
