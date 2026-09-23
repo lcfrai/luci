@@ -90,6 +90,7 @@ owner's):
 | 6 | `assist: "model_off"` or `"model_failed"` | one sentence naming why follow-ups are missing (`PANACEA_APP_MODEL_API_KEY` for model_off), and the flow carries on |
 | 14 | `control-plane-down`, or `upstream_unavailable` | *Not saved.* The typed text stays where it was typed, and **Retry** re-sends the same op |
 | — | `revision_conflict` | *Someone saved revision n first.* The view re-reads; the typed text stays; nothing is merged |
+| — | 400 `bad_request`, `details.field: "text"` (the marker rule, plan §4 Security, S3; task 11) | the server's `message` verbatim, inline at the answer field of the question `details.key` names (the current step's field when it is that question); the typed text stays; **no Retry**, because re-sending the same text is refused again. Typically a pasted copy of a `CLAUDE.md` block, not an attack |
 
 **The model follow-up is asked once, automatically**, after the third settled base answer, by the
 op `propose_follow_up`; the server refuses a second (`already_asked`) and asks nothing before three
@@ -106,6 +107,7 @@ op `propose_follow_up`; the server refuses a second (`already_asked`) and asks n
 | `typing a free answer sends source typed` | `record` with the trimmed text | a typed answer labelled as picked |
 | `branch skip is "Keep the project answer"` | branch scope shows that label and sends `skip` | a project-scope label on a branch |
 | `a failed save keeps the typed text` | client rejects `network_unavailable` → text still in the field, *Not saved*, **Retry** re-sends the identical op | state 14's promise |
+| `reserved text is refused at the field, without Retry` | client rejects 400 `bad_request` with `details: {field: "text", key: "purpose"}` on the `purpose` step → the server's message is shown at that answer field; the typed text is still in the field; no **Retry** control and no *Not saved*; no toast | the marker rule's 400 shown as state 14 (a Retry that is refused forever) or as a toast that discards the text (re-review M3) |
 | `a Hub outage says the Hub, not the control plane` | `upstream_unavailable` → a sentence about the Hub | "the control plane is down" when it is not |
 | `a conflict re-reads and keeps the text` | 409 `revision_conflict` → one `view()` call; text kept | a silent overwrite of a teammate |
 | `the key flashes once, on mint only` | the save that makes the brief complete sets `justMinted`; re-rendering the same view does not re-flash | motion with no cause |

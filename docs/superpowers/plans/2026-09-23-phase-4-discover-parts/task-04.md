@@ -28,7 +28,7 @@ type AssistOutcome string
 const (
 	AssistProposed     AssistOutcome = "proposed"
 	AssistModelOff     AssistOutcome = "model_off"      // Completer is nil: no PANACEA_APP_MODEL_API_KEY
-	AssistFailed       AssistOutcome = "model_failed"   // transport, refusal, no JSON, invalid JSON
+	AssistFailed       AssistOutcome = "model_failed"   // transport, refusal, no JSON, invalid JSON, a reply holding panacea:discover:
 	AssistNothingToAsk AssistOutcome = "nothing_to_ask" // the model said the five answers suffice
 	AssistAlreadyAsked AssistOutcome = "already_asked"  // the brief already holds a follow-up
 	AssistNotYet       AssistOutcome = "not_yet"        // fewer than three base answers are settled
@@ -62,6 +62,9 @@ because a schema is a request, not a guarantee):
 
 `ask: false` → `AssistNothingToAsk`. A `question` that is empty after trimming, or that equals a
 base prompt, → `AssistFailed`. `basedOn` naming a question with no settled answer → `AssistFailed`.
+A `question` or any option that contains `discover.ReservedMarker` (`panacea:discover:`) →
+`AssistFailed` and an empty question (plan §4 Security, S3; task 03 rule 12 stays the backstop), so
+model text never reaches `Apply` as a 400 on text the person did not write.
 
 **Tests first** (`assist_test.go`, a fake `Completer`):
 

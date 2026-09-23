@@ -59,7 +59,12 @@ lists the control plane's own):
   `reason: hub_unavailable`; `docker ps --filter label=panacea-app.sandbox-id=<sandboxId>` still
   lists the old container, running; a second `GET` shows the same `sandboxId`, status and
   `contextRef`; the pane still attaches and echoes a keystroke. A restart that kills the agent and
-  then refuses fails this step. Start the Hub again.
+  then refuses fails this step. **Then the restart override (re-review I1):** with the Hub still
+  stopped, `POST /v1/sessions/{id}/restart` with `{"withoutBrief": true}`. Expected: 200,
+  `contextRef: "none:declined"`, a `sandboxId` different from the one recorded above, the old
+  container gone from `docker ps --filter label=panacea-app.sandbox-id=<old sandboxId>`, and no
+  managed block left in that worktree's `CLAUDE.md`. A second 409 here means the restart dropped
+  `withoutBrief` on its way to `Materialise`. Start the Hub again.
 - [ ] **Step 10: 4-D3.** Give the project brief five answers; confirm the branch brief moved to a
   new revision whose `inherits.key` is the project's new key, in the **same** `written` list.
 - [ ] **Step 11: The suites and the guards.** `go test ./control-plane/... -race -count=1`;

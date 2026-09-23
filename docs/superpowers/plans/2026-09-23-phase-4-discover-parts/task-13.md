@@ -57,7 +57,11 @@ const (
 // Each returned answer has Author model_drafted, Source drafted, and
 // DraftedFrom = the Manifests and TopLevel names the prompt carried (the
 // prototype's "read from" list), at most 8. An answer the model left empty
-// is omitted, not sent as "". Nil model → (nil, DraftModelOff).
+// is omitted, not sent as "". An answer whose text contains
+// discover.ReservedMarker ("panacea:discover:") is dropped, alone, so the
+// other drafts still land and Apply's marker rule never refuses model text
+// (plan §4 Security, S3; task 03 rule 12 stays the backstop). Nil model →
+// (nil, DraftModelOff).
 func DraftAnswers(ctx context.Context, m modelclient.Completer, f Findings, now time.Time) ([]discover.Answer, DraftOutcome)
 ```
 

@@ -230,26 +230,35 @@ without a cycle. Phase 4 imports only the Hub's
   materialised into the `CLAUDE.md` of every worktree on its branch, for every teammate. One
   person's answer becomes context for another person's sandboxed agent, which runs with *that*
   person's own credentials and subscription. Treat every answer, prompt and criterion as untrusted
-  input to someone else's agent: never interpolate it anywhere but inside the managed block, and
-  never let it change the block's structure (S3).
+  input to someone else's agent: never write it into any file except inside the managed block, and
+  never let it change the block's structure (S3). (Model prompts do carry it, in tasks 04 and 13;
+  what the model says back is filtered before it reaches `Apply`, S3.)
 - **S2. Who may write it, and the record of who did.** The only write of brief text is
   `POST /v1/projects/{projectId}/brief-revisions`, which needs the Hub's `member` role (Hub contract
   route 26, `hub-contract.md:588` at hub `2f84662`: minimum role `M`, per §5.3; a `viewer` gets
   403 `forbidden`, `:238`). Each
   revision emits one `brief.revised` event (`:804`) whose `actor` names the writer (`:1087-1088`).
   Phase 4 adds no second write path and never writes as anyone but the signed-in person.
-- **S3. The marker rule.** No question prompt, answer text or criterion text may contain the
-  reserved sequence `panacea:discover:`. `discover.Apply` checks the whole result of every op and
-  refuses with `ErrReservedText` → 400 `bad_request`, `field: "text"` (task 03 rule 12, task 11).
-  The model's text is filtered before it reaches `Apply` (task 04's follow-up degrades, task 13
-  drops the draft), so the 400 only ever answers text a person typed.
-  Behind it, `claudemd.Render` rewrites every `<!--` in an interpolated string as `<!-\-`, so a
-  rendered block holds exactly its own two markers (task 05). `Merge`, `Strip` and `Inspect` count
-  markers and accept only none, or one begin followed by one end; a stray, early or second end is
-  `ErrUnterminatedBlock` (task 05), which the Materialiser reports as `block_broken`, or
-  `write_failed` on the *Start without the brief* strip (task 09). Without this, one pasted block in
-  an answer blocks every session start on the branch for every teammate, and the override cannot
-  escape it.
+- **S3. The marker rule.** No question prompt, answer text or criterion text that an op adds or
+  changes may contain the reserved sequence `panacea:discover:`. `discover.Apply` checks those
+  strings in the result of every op (a string the op left as it was is not re-checked) and refuses
+  with `*ReservedTextError` (`errors.Is` → `ErrReservedText`) → 400 `bad_request`,
+  `field: "text"`, `key` naming the question (task 03 rule 12, task 11); the desktop shows the
+  message at that answer (task 18). The model's text is filtered before it reaches `Apply` (task
+  04's follow-up degrades, task 13 drops the draft), so through phase 4's own routes the 400
+  answers only text a person typed or restored. The Hub stores `content` without checking it
+  (`hub-contract.md:740-743` at hub `2f84662`), so a head written straight to route 26 can hold
+  the sequence; the unchanged-string rule keeps that head editable, and the next guarantee keeps
+  it harmless.
+  **The guarantee:** `claudemd.Render` rewrites every `<!--` in an interpolated string as `<!-\-`,
+  so a rendered block holds exactly its own two markers (task 05), whatever the Hub stored.
+  `Merge`, `Strip` and `Inspect` count markers and accept only none, or one begin followed by one
+  end; a stray, early or second end is `ErrUnterminatedBlock` (task 05). The Materialiser reports
+  a broken marker as `block_broken` on every path, including the *Start without the brief* strip,
+  and keeps `write_failed` for a real read or write error (task 09, re-review I2). The desktop's
+  `block_broken` sentence offers *Start without the brief* only when the refused start did not
+  already carry it (task 20). Without this, one pasted block in an answer blocks every session
+  start on the branch for every teammate, and the override cannot escape it.
 - **S4. Answer-length caps.** Reserved for review M6 (a cap per answer and per prompt, and the
   fan-out batch checked against the Hub's body cap). That fix lands in its own batch; until then,
   the Hub's own 64 KiB envelope limit (`hub-contract.md:742`) is the only bound.
@@ -302,7 +311,7 @@ without a cycle. Phase 4 imports only the Hub's
 | `control-plane/internal/statepath/statepath.go` (+ `writeatomic_test.go` moved in) | gains `WriteAtomic`, lifted from `registry/filestore.go:460` | 01 |
 | `control-plane/internal/registry/filestore.go`, `registry/writeatomic_test.go` | calls `statepath.WriteAtomic`; the test moves out | 01 |
 | `control-plane/internal/api/api.go` | `Deps.Materialiser` (required), `Deps.Discover` (optional `RouteMounter`), one validation branch, one mount line | 10 |
-| `control-plane/internal/api/sessions.go` | create and restart call `Materialise` before `Store.Create` / the restart's `Backend.Destroy`; stamp `ContextRef`; ignore the request's `contextRef`; accept `withoutBrief` | 10 |
+| `control-plane/internal/api/sessions.go` | create and restart call `Materialise` before `Store.Create` / the restart's `Backend.Destroy`; stamp `ContextRef`; ignore the request's `contextRef`; accept `withoutBrief` on both and pass it to `Materialise` | 10 |
 | `control-plane/internal/api/materialiser.go` (new file in `api`) | the interface, request, result and `*MaterialiseError` | 10 |
 | `control-plane/internal/httpx/problem.go` | one code, `CodeBriefNotWritten = "brief_not_written"` (409) | 10 |
 | `control-plane/internal/api/api_test.go`, `routes_audit_test.go` | the test `Deps` gain a fake `Materialiser`; the audit sees the Discover GETs | 10, 11 |
@@ -413,7 +422,7 @@ encoding is the Hub's and carries its own `v` in the envelope (Hub contract §3.
 | `worktree.Provider.Path` (`worktree/worktree.go:32`) | exact match | the Materialiser receives the resolved path from the handler; it never resolves one itself |
 | `project.Scanner.ProjectName`/`BranchName` (`project/project.go:172`, `:175`) | exact match | names in the title of the managed block |
 | `handleSessionCreate` (`api/sessions.go:277`): worktree `:291` → … → `sessionLocate` `:376` → `Store.Create` `:382` → `Backend.Create` `:422` | no hook | task 10 calls `Materialise` after `sessionLocate` and before `Store.Create`, so a refusal writes nothing |
-| `handleSessionRestart` (`:879`): worktree `:895` → argv rebuild → `Backend.Destroy` `:944` → record `:986` → `Backend.Create` `:1010` (at `2d6d95b`: `:956`, `:972`, `:998-1018`, `:1026`, `:1067`, `:1091`) | no hook; no request body | task 10 calls `Materialise` after the argv rebuild and **before `Backend.Destroy`**, so a refusal leaves the running sandbox alive (review C1), and stamps `ContextRef` in the restart's record write; an optional body carries `withoutBrief` |
+| `handleSessionRestart` (`:879`): worktree `:895` → argv rebuild → `Backend.Destroy` `:944` → record `:986` → `Backend.Create` `:1010` (at `2d6d95b`: `:956`, `:972`, `:998-1018`, `:1026`, `:1067`, `:1091`) | no hook; no request body | task 10 calls `Materialise` after the argv rebuild and **before `Backend.Destroy`**, so a refusal leaves the running sandbox alive (review C1), and stamps `ContextRef` in the restart's record write; an optional body carries `withoutBrief`, which reaches `Materialise` beside the restart's own `Worktrees.Path` result (re-review I1) |
 | The route recorder `routes` (`api/api.go` — unexported) and the §10a audit (`routes_audit_test.go`) | a package outside `api` cannot take `*routes` | `api.RouteMounter` hands `guarded.Handle` to `discoverapi.Mount`, so every Discover pattern is recorded and audited |
 | The `/api/v1/` alias (`api.go`, on `guarded`) | lives on the guarded mux | Discover mounts on the same mux, so the alias reaches it |
 | `writeAtomic` (`registry/filestore.go:460`, unexported) | — | lifted (R2, task 01) |

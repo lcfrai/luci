@@ -37,8 +37,10 @@ package api
 // phase 4.
 //
 // THE ORDERING RULE: handleSessionCreate and handleSessionRestart call it
-// after the worktree resolves and before anything is recorded or created.
-// Called after the process starts, the session inherits nothing, silently.
+// after the worktree resolves and before anything is recorded or created,
+// and, on restart, before the old sandbox's destroy (a refusal must leave
+// the running agent running). Called after the process starts, the session
+// inherits nothing, silently.
 type Materialiser interface {
 	Materialise(ctx context.Context, req MaterialiseRequest) (MaterialiseResult, error)
 }
@@ -134,8 +136,12 @@ In `New`: `{"Materialiser", d.Materialiser == nil}` joins the validation table, 
   `a.internal`. On success, `ContextRef: result.ContextRef` replaces `ContextRef: req.ContextRef`
   (`:401`).
 - `handleSessionRestart`: decode the optional body (an empty body is `{}`; an unknown field is
-  `invalid_json`, as everywhere). Call `Materialise` with the session's `WorktreeID`, `ProjectID`,
-  `BranchID` **after the argv rebuild and the `sessionEnv` rebuild, and before
+  `invalid_json`, as everywhere). Call `Materialise` with all four request fields:
+  `WorktreeID: sess.WorktreeID`, `WorktreePath: path` (the restart's own `Worktrees.Path` result,
+  `sessions.go:972` at `2d6d95b`; an empty path is task 09's 500 on every restart),
+  `ProjectID: sess.ProjectID`, `BranchID: sess.BranchID`, and `WithoutBrief: body.WithoutBrief`
+  (the decoded body; dropping it makes task 20's *Start without the brief* ask the Hub again and
+  get a second 409). Make the call **after the argv rebuild and the `sessionEnv` rebuild, and before
   `a.deps.Backend.Destroy(ctx, sess.SandboxID)`** — never merely "before the record write", because
   the destroy sits between the two. Locate by symbol, not line: at `2d6d95b` the worktree resolves
   at `sessions.go:972`, the argv rebuild is `:998-1018`, `sessionEnv` is `:1022`, the destroy is
@@ -164,7 +170,8 @@ call's position relative to the fake backend's `Create` **and `Destroy`** and th
 | `TestCreateWithoutBriefPassesTheFlag` | `withoutBrief: true` reaches the fake; its `none:declined` is stamped | the override lost between the wire and the materialiser |
 | `TestCreateOtherMaterialiseErrorIs500` | a plain error → 500 `internal`, the message generic | a raw path leaking into the problem body |
 | `TestRestartRestamps` | a session at `@5`; materialiser returns `@6` on restart → the record is `@6` | the phase 2 behaviour of keeping `contextRef` across restart (contract §2.4) |
-| `TestRestartMaterialisesBeforeTheDestroy` | log order `materialise, backend.destroy, store.update, backend.create` | `Materialise` placed beside the record write, after the destroy (review C1); a restart that re-reads a stale file |
+| `TestRestartWithoutBriefPassesTheFlag` | `POST …/restart` with `{"withoutBrief": true}` → the fake receives `WithoutBrief: true` **and** a non-empty `WorktreePath` equal to the fake `Worktrees.Path` result; its `none:declined` is stamped on the record and the response | the restart override lost between the wire and the materialiser (re-review I1), so *Start without the brief* asks the Hub again; a restart that passes no path |
+| `TestRestartMaterialisesBeforeTheDestroy` | the seeded session holds a `SandboxID` the fake backend knows (an empty id skips the destroy, `sessions.go:1025`); the exact log is `materialise, backend.destroy, store.update, backend.create, store.update` (restart writes the store twice: before `Backend.Create` and after it) | `Materialise` placed beside the record write, after the destroy (review C1); a restart that re-reads a stale file |
 | `TestRestartAcceptsAnEmptyBody` | `POST …/restart` with no body is 200 | breaking phase 2's desktop, which sends none |
 | `TestRestartRefusalLeavesTheSandboxAlive` | `*MaterialiseError{hub_unavailable}` → 409 `brief_not_written`; the log holds no `backend.destroy`; the old `SandboxID` is still in the fake backend; the record's `SandboxID`, status and `contextRef` are unchanged | a Hub outage that kills the running agent, then leaves a record naming a destroyed sandbox |
 | `TestDiscoverRoutesAreMountedOnTheGuardedMux` | a fake `RouteMounter` registering `GET /v1/discover/ping` is reachable at `/v1/…` **and** `/api/v1/…`, and a request with a foreign `Origin` is 403 | a mount on `root`, outside the guard and the alias |
