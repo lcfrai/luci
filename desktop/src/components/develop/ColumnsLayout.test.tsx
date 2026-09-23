@@ -177,14 +177,15 @@ describe("DevelopLens", () => {
     expect(container.querySelectorAll("[data-session-id]")).toHaveLength(2);
   });
 
-  it("renders Columns for the canvas layout too, until task 21 lands", () => {
+  it("renders the Canvas plane when the layout is canvas", () => {
     seedBranch({ worktrees: ["w-1"], sessionIdsByWorktree: { "w-1": ["s-1"] } });
     useCockpit.setState({ layout: "canvas" });
     const { container } = render(<DevelopLens />);
 
-    // Task 21 REPLACES this expectation with one about CanvasLayout. It is here so the
-    // interim behaviour is a decision on the record rather than an accident.
-    expect(container.querySelector(".cols-scroll")).not.toBeNull();
+    // Task 20 reserved this expectation for task 21 to replace. It asserted `.cols-scroll`
+    // while Canvas still fell through to Columns; the plane is what it falls through to now.
+    expect(container.querySelector('[data-testid="cv-plane"]')).not.toBeNull();
+    expect(container.querySelector(".cols-scroll")).toBeNull();
   });
 
   it("renders the zero state when the branch has no sessions", () => {

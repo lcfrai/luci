@@ -310,3 +310,112 @@
  * they live under this header, and no rule above it is reflowed. If task 21 needs a
  * `.pane-*` change it asks rather than editing one in place, so this diff stays readable.
  */
+
+/* The 2400x1600 plane, its tiles and their two handles. Sizes come from CanvasLayout.tsx
+ * (PLANE_W / PLANE_H) and are set inline, so this file never states them a second time.
+ * No transition in this block and no gradient in it either, both deliberately: a tile that
+ * eases toward the pointer is a tile that is behind the pointer, and shared-shape §3B bans
+ * every gradient. Both words appear in prose here and in the rule comments below, which is
+ * why the pre-commit guards count `transition:` at the start of a line and `-gradient(`
+ * with its parenthesis rather than the bare words (shared-shape §3A). */
+
+.cv-plane {
+  /* height, not flex: the parent is task 18's `.shell-lens`, a BLOCK container with
+     overflow: hidden, so a flex child grows nothing and the 1600px sheet would be clipped
+     with no scrollbar at all. Task 20's `.cols-scroll` fills the same slot the same way. */
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  overflow: auto;
+  /* Flat. The dot grid an earlier draft drew here was a radial-gradient, and §3B bans every
+     gradient; `--canvas` is the token whose own comment calls it the Canvas backdrop. */
+  background: var(--canvas);
+}
+
+.cv-sheet {
+  position: relative;
+}
+
+.cv-tile {
+  position: absolute;
+  top: 0;
+  left: 0; /* position is transform-only; these two pin the origin it translates from */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--r-card);
+  background: var(--page);
+  box-shadow: var(--e-card);
+  will-change: transform;
+}
+
+.cv-tile[data-cv-dragging="move"],
+.cv-tile[data-cv-dragging="resize"] {
+  box-shadow: var(--e-raised);
+}
+
+.cv-grip {
+  flex: 0 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--surface);
+  cursor: grab;
+  touch-action: none; /* or a pen drag scrolls the plane instead of moving the tile */
+}
+
+.cv-tile[data-cv-dragging="move"] .cv-grip {
+  cursor: grabbing;
+}
+
+.cv-grip-bar {
+  width: 26px;
+  height: 3px;
+  border-radius: var(--r-chip);
+  background: var(--ink-4);
+}
+
+.cv-coords {
+  display: none;
+  font: 500 10px/1 var(--mono);
+  /* The `font` shorthand RESETS font-variant-numeric, which app.css sets once on <body> for
+     everything to inherit. §7.3 is the rule that reset would break — it names tile
+     coordinates in its enforcement list — and §7.6 is why these digits exist at all, so
+     restate it here or they jitter under the pointer. */
+  font-variant-numeric: var(--numeric);
+  color: var(--ink-3);
+}
+
+.cv-tile[data-cv-dragging="move"] .cv-coords {
+  display: block;
+}
+
+.cv-tile-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* Sizes whatever SessionPane renders without naming one of task 20's class names. */
+.cv-tile-body > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.cv-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+  /* Two 2px edges meeting in the corner, drawn as an inset ring rather than the diagonal
+     gradient an earlier draft used: §3B bans gradients and task 24 greps for them. */
+  box-shadow: inset -2px -2px 0 0 var(--line-strong);
+}
+
+.cv-tile:focus-within {
+  box-shadow: var(--e-card), 0 0 0 1px var(--accent-ring);
+}

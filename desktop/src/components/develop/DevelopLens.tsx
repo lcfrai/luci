@@ -1,9 +1,14 @@
 import "./develop.css";
 import type { JSX } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { CanvasLayout } from "./CanvasLayout";
 import { ColumnsLayout } from "./ColumnsLayout";
 import { EmptyDevelop } from "./EmptyDevelop";
-import { selectPaneSessionIds, selectSelectedBranch } from "../../store/selectors";
+import {
+  selectCanvasSessionIds,
+  selectPaneSessionIds,
+  selectSelectedBranch,
+} from "../../store/selectors";
 import { useCockpit } from "../../store/store";
 
 export function DevelopLens(): JSX.Element {
@@ -12,6 +17,8 @@ export function DevelopLens(): JSX.Element {
   // lens thirty times a minute — invisible until ten panes are open. selectSelectedBranch
   // needs none: it returns a stored object.
   const sessionIds = useCockpit(useShallow(selectPaneSessionIds));
+  const canvasIds = useCockpit(useShallow(selectCanvasSessionIds));
+  const layout = useCockpit((s) => s.layout);
   const branch = useCockpit(selectSelectedBranch);
 
   if (sessionIds.length === 0) {
@@ -22,19 +29,17 @@ export function DevelopLens(): JSX.Element {
     );
   }
 
-  /* TASK 21 — the Canvas branch goes HERE, and this comment is its reservation.
-     In ONE step (Group D shared-shape rule 2), task 21 adds the `layout` and
-     `selectCanvasSessionIds` reads above and replaces the return below with a ternary whose
-     canvas arm is <CanvasLayout sessionIds={canvasIds}/>. Neither read exists yet on
-     purpose: an unused local is either deleted by the compiler's check or kept alive by a
-     `void`, and both are worse than adding it with its consumer.
-     Until task 21 lands, Canvas renders Columns rather than an empty plane — task 18's
-     layout toggle already ships, and a main area that goes blank when a user flips a toggle
-     reads as a crash. The component name above is deliberately mid-line so task 21's
-     anchored guard reads 0 here and 1 after its change (shared-shape rule 3).
-     TASK 21: that guard is `grep -cE '^[[:space:]]*<CanvasLayout'`, so it counts the element
-     only when `<CanvasLayout` STARTS A LINE. Write the canvas arm across lines — a ternary
-     short enough for the formatter to keep on one line leaves the guard reading 0 and sends
-     you hunting a failure that is not there. */
-  return <ColumnsLayout sessionIds={sessionIds} />;
+  /* Canvas renders the pinned working set (§3.7 selectCanvasSessionIds); Columns renders every
+     session on the branch (§3.7 selectPaneSessionIds). The empty case above is decided on the
+     pane list, so Canvas is never reached with nothing to show, and CanvasLayout seeds an empty
+     pin list from the pane order rather than rendering a bare plane.
+     The ternary stays broken across lines: task 21's guard is
+     `grep -cE '^[[:space:]]*<CanvasLayout'` and it counts the element only when the element
+     STARTS A LINE, so collapsing this onto one line leaves that guard reading 0 against wired
+     code (shared-shape rule 3). */
+  return layout === "canvas" ? (
+    <CanvasLayout sessionIds={canvasIds} />
+  ) : (
+    <ColumnsLayout sessionIds={sessionIds} />
+  );
 }
