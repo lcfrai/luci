@@ -1,0 +1,118 @@
+### Task 01: Lift `writeAtomic` into `statepath` (ruling R2)
+
+**Why.** Ruling R2: one implementation of the atomic replace, with its Windows retry and its tests,
+shared by the registry and by phase 4's `contextwrite` — never a second copy that lacks the
+hard-won test (the `FILE_SHARE_DELETE` finding of phase 2 task 7). Under `OD-3` phase 4 has no
+revision store on disk, so its only caller is the `CLAUDE.md` write (task 09). **Phase 3's task 03
+step 1 does the same lift "if phase 4 has not done it first"** (phase 3 plan `:138`): whichever
+lands first does it, the other drops its step. Check before starting (step 1).
+
+**One real change, not only a move.** The registry's version chmods the temp file `0o600` and
+creates directories `0o700` (`registry/filestore.go:462`, `:485`). That is right for the session
+registry and **wrong for `CLAUDE.md`**: the file is read by the agent inside the sandbox, through a
+bind mount, as the container's user, which is not guaranteed to be the host user. So the lifted
+function takes a `Mode`. The registry passes `Private`, keeping its behaviour byte for byte.
+
+**Files:**
+- `control-plane/internal/statepath/atomic.go` — `WriteAtomic`, `Mode`, `syncDir` (new)
+- `control-plane/internal/statepath/atomic_test.go` — the five tests moved from
+  `registry/writeatomic_test.go`, their helper `countTempFiles`, plus two new ones (new)
+- `control-plane/internal/registry/filestore.go` — `writeAtomic` becomes a one-line call; `syncDir`
+  is deleted from this file (modify, **declared departure into a closed phase 2 file**, R2)
+- `control-plane/internal/registry/writeatomic_test.go` — deleted (its tests moved)
+
+**Interfaces — complete source:**
+
+```go
+// control-plane/internal/statepath/atomic.go
+package statepath
+
+import "os"
+
+// Mode is who may read what WriteAtomic writes.
+type Mode int
+
+const (
+	// Private: file 0o600, created directories 0o700. The session registry.
+	Private Mode = iota
+	// Shared: file 0o644, created directories 0o755. A file another user on
+	// the machine must read - CLAUDE.md, which the agent reads through a bind
+	// mount as the sandbox's user, not as ours.
+	Shared
+)
+
+// WriteAtomic replaces path with data so that a reader sees either the old
+// bytes or the new bytes, never a mixture and never an empty file.
+//
+// It creates missing parent directories with the mode's directory permission,
+// writes a temp file in the same directory named "." + stem + "-*" + ext
+// (sessions.json -> .sessions-*.json, CLAUDE.md -> .CLAUDE-*.md), syncs it,
+// sets the mode's file permission on the TEMP file (never on the published
+// one), and renames it over path. The rename is retried five times with
+// 20, 40, 60 and 80 ms between attempts and no sleep after the last, because
+// on Windows a scanner holding the target open fails MoveFileEx with
+// ERROR_ACCESS_DENIED. Errors are wrapped with "statepath: <op> <path>".
+// The temp file is removed on every failure path.
+func WriteAtomic(path string, data []byte, mode Mode) error
+
+// FilePerm and DirPerm are the permissions a mode writes.
+func (m Mode) FilePerm() os.FileMode
+func (m Mode) DirPerm() os.FileMode
+```
+
+```go
+// control-plane/internal/registry/filestore.go — the whole of what remains of writeAtomic
+func writeAtomic(path string, data []byte) error {
+	return statepath.WriteAtomic(path, data, statepath.Private)
+}
+```
+
+**Tests first** (`statepath/atomic_test.go`, package `statepath`):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestWriteAtomicCreatesTheFileAndItsDirectory` (moved) | a nested path is created with the data | a `WriteAtomic` that drops `MkdirAll` |
+| `TestWriteAtomicReplacesAFileThatAlreadyExists` (moved) | the new bytes replace the old | a write that appends |
+| `TestWriteAtomicWhileAReaderHoldsTheTargetOpen` (moved, **unchanged including its Windows inversion**) | on Windows the replace fails while a reader holds the file, and the old document is intact; elsewhere it succeeds | a fallback that writes in place |
+| `TestWriteAtomicLeavesNoTempFileBehind` (moved) | no `.sessions-*.json` left after three writes | a missing `os.Remove` on success |
+| `TestWriteAtomicFailureLeavesThePreviousContentIntact` (moved; its string check becomes `"statepath: replace"`) | an unreplaceable target is an error naming the op and path, and nothing else changed | a retry loop that returns nil on exhaustion |
+| `TestSharedModeWritesAWorldReadableFile` (new; skipped on Windows, where POSIX bits are not honoured) | `Shared` publishes `0o644` and creates directories `0o755` | a lift that kept the hard-coded `0o600` — the defect this task exists for |
+| `TestTempNameFollowsTheTarget` (new) | while the rename is blocked (reuse the directory-target trick), the temp file matches `.CLAUDE-*.md` for `CLAUDE.md` and `.sessions-*.json` for `sessions.json` | a fixed `.sessions-*` pattern leaking into worktrees |
+
+`registry`'s own suite (`filestore_test.go`, `filestore_contract_test.go`) must pass **unchanged**:
+it is the proof the registry's behaviour did not move.
+
+**Steps:**
+
+- [ ] **Step 1: Check the lift has not already landed.**
+  `grep -n "func WriteAtomic" control-plane/internal/statepath/*.go` — expect no match. If phase 3
+  has landed it, confirm it takes a mode (or add `Mode` as a separate commit) and skip to step 5.
+- [ ] **Step 2: Move the tests.** `git mv control-plane/internal/registry/writeatomic_test.go
+  control-plane/internal/statepath/atomic_test.go`, change `package registry` to `package
+  statepath`, `writeAtomic(p, d)` to `WriteAtomic(p, d, Private)`, the error string to
+  `"statepath: replace"`. Add the two new tests. Run `go test ./control-plane/internal/statepath/...`
+  — expect a compile failure (`WriteAtomic` undefined).
+- [ ] **Step 3: Write `atomic.go`** by moving the body of `registry.writeAtomic` and `syncDir`,
+  parameterising the two permissions and the temp pattern. No other behavioural change.
+- [ ] **Step 4: Replace `registry.writeAtomic`'s body** with the one-line call above; delete
+  `syncDir` and any import the file no longer needs (`runtime`, `time` if unused).
+- [ ] **Step 5: Run** `go test ./control-plane/internal/statepath/... ./control-plane/internal/registry/... -race -count=1`
+  and `go vet ./control-plane/...`.
+- [ ] **Step 6: Commit** `statepath/atomic.go`, `statepath/atomic_test.go`,
+  `registry/filestore.go` and the deletion, by pathspec. The message names R2 and the declared
+  departure into `registry/filestore.go`.
+
+**Acceptance:**
+
+```
+$ go test ./control-plane/internal/statepath/... ./control-plane/internal/registry/... -race -count=1
+ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/statepath
+ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry
+$ grep -rn "os.Rename" control-plane/internal/registry/
+(no output — the registry no longer renames anything itself)
+$ grep -c "func WriteAtomic" control-plane/internal/statepath/atomic.go
+1
+```
+
+**Does NOT claim:** that the Windows reader test was run on Windows by this task (it runs where CI
+runs; phase 2 task 7 established its inversion); any change to the registry's on-disk format.
