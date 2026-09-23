@@ -319,4 +319,31 @@ describe("isCockpitChord — the one list the map and the terminal both read", (
       expect([name, event.defaultPrevented]).toEqual([name, isCockpitChord(event)]);
     }
   });
+
+  it("across the whole keyboard, the map intercepts a key exactly when the predicate claims it", () => {
+    // The two lists above are chosen cases, so they cannot see a key that the predicate claims
+    // and no branch handles — one xterm would then skip and nothing would act on, lost to both
+    // the agent and the cockpit. This is every key below with every modifier the predicate
+    // reads. Added by task 23's fix round 1: mutation "⌘L claimed, no branch" survived the lists.
+    const keys = [
+      ..."abcdefghijklmnopqrstuvwxyz0123456789\\/,.;'[]-=` ",
+      "Enter", "Escape", "Tab", "Backspace", "Delete", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "F1", "F5",
+    ];
+    const modifiers: KeyboardEventInit[] = [
+      {}, { shiftKey: true }, { ctrlKey: true }, { metaKey: true },
+      { ctrlKey: true, shiftKey: true }, { metaKey: true, shiftKey: true }, { ctrlKey: true, altKey: true },
+    ];
+    let claimed = 0;
+    for (const base of keys) {
+      for (const modifier of modifiers) {
+        const key = modifier.shiftKey && base.length === 1 ? base.toUpperCase() : base;
+        const event = press(key, modifier);
+        if (isCockpitChord(event)) claimed += 1;
+        expect([key, modifier, event.defaultPrevented]).toEqual([key, modifier, isCockpitChord(event)]);
+      }
+    }
+    // §6.9's fourteen unshifted keys and ⌘⇧M, each on Ctrl and on Meta. Without this count a
+    // predicate that claimed nothing would make every comparison above agree, vacuously.
+    expect(claimed).toBe(30);
+  });
 });

@@ -61,6 +61,17 @@ function read(file: string): string {
 
 const TOKENS = "src/styles/tokens.css";
 
+/** What a rule reads: the real tree, or the real tree with one file planted or replaced. Every
+ *  rule below takes one, so that the canaries at the bottom of this file can hand it the fault
+ *  it exists to catch. Against the real tree alone, every WEAKENING of a rule passes, because a
+ *  clean tree has nothing for it to find — shared shape §3A.1 clause 1, applied to the audit. */
+interface Tree {
+  css: readonly string[];
+  ts: readonly string[];
+  read(file: string): string;
+}
+const REAL: Tree = { css: CSS, ts: TS, read };
+
 /* ── the rules, as predicates ───────────────────────────────────────────────────────── */
 
 /** The indigo/violet arc, in OKLCH degrees. docs/DESIGN-SYSTEM.md bans the slop pair
@@ -101,8 +112,8 @@ interface Rule {
   within: string[];
 }
 
-function rulesOf(file: string): Rule[] {
-  const css = stripCssComments(read(file));
+function rulesOf(source: string): Rule[] {
+  const css = stripCssComments(source);
   const out: Rule[] = [];
   const within: string[] = [];
   let start = 0;
@@ -221,6 +232,220 @@ const LIVE_NUMBER_CARRIERS = [
 
 const REDUCED_MOTION = /prefers-reduced-motion:\s*reduce/;
 
+/** docs/DESIGN-SYSTEM.md's slop pair, banned by value wherever they appear. */
+const TELL = ["#6366f1", "#8b5cf6"];
+const COLOUR_FN = /\b(?:rgba?|hsla?|lab|lch|oklab|oklch|color-mix)\(/g;
+const TOKEN_IMPORT = /^@import "(?:\.\/|(?:\.\.\/)+styles\/)tokens\.css";$/;
+const GRADIENT = /\b(?:linear|radial|conic)-gradient\(/g;
+
+/* ── each rule, as a function from a tree to its offenders ──────────────────────────── */
+// Every offender begins "<file>  ", which is what the canaries match on.
+
+function hexInStylesheets(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    for (const hex of findHexLiterals(stripCssComments(t.read(file)))) {
+      offenders.push(`${file}  ${hex}`);
+    }
+  }
+  return offenders;
+}
+
+function hexInSource(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.ts) {
+    for (const hex of findHexLiterals(t.read(file))) offenders.push(`${file}  ${hex}`);
+  }
+  return offenders;
+}
+
+function violetTell(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of [...t.css, ...t.ts]) {
+    const text = t.read(file).toLowerCase();
+    for (const tell of TELL) if (text.includes(tell)) offenders.push(`${file}  ${tell}`);
+  }
+  return offenders;
+}
+
+/** --drift is defined so Phase 3 does not invent a second purple, and contract §5.2 says so.
+ *  It is the single permitted member of the arc, once, in the token layer. */
+function violetArc(t: Tree): string[] {
+  const offenders: string[] = [];
+  const tokenHues = oklchHues(stripCssComments(t.read(TOKENS))).filter(inBannedArc);
+  if (tokenHues.length !== 1 || tokenHues[0] !== DRIFT_HUE) {
+    offenders.push(`${TOKENS}  in-arc hues [${tokenHues.join(", ")}], where only --drift's ${DRIFT_HUE} may be`);
+  }
+  for (const file of t.css) {
+    if (file === TOKENS) continue;
+    for (const hue of oklchHues(stripCssComments(t.read(file))).filter(inBannedArc)) {
+      offenders.push(`${file}  oklch hue ${hue}`);
+    }
+  }
+  return offenders;
+}
+
+function driftReferenced(t: Tree): string[] {
+  return [...t.css, ...t.ts]
+    .filter((file) => t.read(file).includes("var(--drift)"))
+    .map((file) => `${file}  var(--drift)`);
+}
+
+function colourOutsideTokens(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    if (file === TOKENS) continue;
+    for (const m of stripCssComments(t.read(file)).matchAll(COLOUR_FN)) {
+      offenders.push(`${file}  ${m[0]}`);
+    }
+  }
+  return offenders;
+}
+
+function importNotFirst(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    if (file === TOKENS) continue;
+    // .trim() is load-bearing: the checkout is CRLF, so every split line ends in "\r".
+    const first = stripCssComments(t.read(file))
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line !== "");
+    if (first === undefined || !TOKEN_IMPORT.test(first)) {
+      offenders.push(`${file}  ${first ?? "<empty file>"}`);
+    }
+  }
+  return offenders;
+}
+
+function transitionAllOrNoProperty(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    for (const value of declarations(stripCssComments(t.read(file)), "transition")) {
+      // `transition: 0.75s` is `transition: all` with the word left out.
+      if (/^all\b/.test(value) || !/^[a-z-]+[\s,]/.test(`${value} `)) {
+        offenders.push(`${file}  transition: ${value}`);
+      }
+    }
+  }
+  for (const file of t.ts) {
+    for (const m of t.read(file).matchAll(/transition\s*:\s*["'`]\s*all\b/g)) {
+      offenders.push(`${file}  ${m[0]}`);
+    }
+  }
+  return offenders;
+}
+
+function transitionOffList(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    for (const rule of rulesOf(t.read(file))) {
+      if (rule.within.some((at) => at.startsWith("@keyframes"))) continue;
+      for (const { property, value } of rule.decls) {
+        if (property === "transition") {
+          for (const fault of transitionFaults(value, file, rule.selector)) {
+            offenders.push(`${file}  ${rule.selector}  transition: ${value}  (${fault})`);
+          }
+        } else if (property.startsWith("transition-") && file !== TOKENS) {
+          offenders.push(`${file}  ${rule.selector}  ${property}: ${value}  (write the shorthand)`);
+        }
+      }
+    }
+  }
+  for (const file of t.ts) {
+    const source = t.read(file);
+    for (const m of source.matchAll(/\btransition\s*:\s*(["'`])([^"'`]*)\1/g)) {
+      for (const fault of transitionFaults(m[2].trim(), file, null)) {
+        offenders.push(`${file}  inline transition: ${m[2]}  (${fault})`);
+      }
+    }
+    for (const m of source.matchAll(/\btransition(?:Property|Duration|TimingFunction|Delay|Behavior)\s*:/g)) {
+      offenders.push(`${file}  inline ${m[0]}  (write the shorthand)`);
+    }
+  }
+  return offenders;
+}
+
+/** Clause 5's per-rule half: every font-variant-numeric outside the token layer is the token,
+ *  and none sits before a value-bearing `font` shorthand that resets it. Then each named carrier
+ *  restates it. `carriers` is a parameter so a canary can name a planted one. */
+function numericFaults(t: Tree, carriers: readonly { file: string; selector: string }[]): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    if (file === TOKENS) continue;
+    for (const rule of rulesOf(t.read(file))) {
+      const props = rule.decls.map((d) => d.property);
+      const numeric = props.lastIndexOf("font-variant-numeric");
+      if (numeric === -1) continue;
+      if (rule.decls[numeric].value !== "var(--numeric)") {
+        offenders.push(`${file}  ${rule.selector}  font-variant-numeric: ${rule.decls[numeric].value}`);
+      }
+      const shorthand = rule.decls.findIndex((d, i) => i > numeric && d.property === "font" && resetsNumeric(d.value));
+      if (shorthand !== -1) {
+        offenders.push(`${file}  ${rule.selector}  font-variant-numeric before a font shorthand that resets it`);
+      }
+    }
+  }
+  for (const carrier of carriers) {
+    const rule = rulesOf(t.read(carrier.file)).find((r) => r.selector === carrier.selector);
+    const last = rule?.decls.filter((d) => d.property === "font-variant-numeric").pop();
+    if (last?.value !== "var(--numeric)") {
+      offenders.push(`${carrier.file}  ${carrier.selector}  renders a live number without var(--numeric)`);
+    }
+  }
+  return offenders;
+}
+
+/** Every looping selector, and those among them with no reduced-motion stand-in. */
+function loops(t: Tree): { looping: string[]; offenders: string[] } {
+  const looping: string[] = [];
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    const rules = rulesOf(t.read(file));
+    for (const rule of rules) {
+      if (rule.within.some((at) => at.startsWith("@keyframes") || REDUCED_MOTION.test(at))) continue;
+      const loopsHere = rule.decls.some(
+        (d) =>
+          (d.property === "animation" && /\binfinite\b/.test(d.value)) ||
+          (d.property === "animation-iteration-count" && d.value === "infinite"),
+      );
+      if (!loopsHere) continue;
+      looping.push(`${file}  ${rule.selector}`);
+      const standIn = rules.some(
+        (r) =>
+          r.selector === rule.selector &&
+          r.within.some((at) => REDUCED_MOTION.test(at)) &&
+          r.decls.some((d) => !/^(?:animation|transition)/.test(d.property)),
+      );
+      if (!standIn) offenders.push(`${file}  ${rule.selector}  loops with no reduced-motion stand-in`);
+    }
+  }
+  return { looping, offenders };
+}
+
+function shadowFaults(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    if (file === TOKENS) continue;
+    for (const value of declarations(stripCssComments(t.read(file)), "box-shadow")) {
+      if (!value.includes("var(--") && !value.includes("currentColor")) {
+        offenders.push(`${file}  box-shadow: ${value}`);
+      }
+    }
+  }
+  return offenders;
+}
+
+function gradients(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of [...t.css, ...t.ts]) {
+    for (const m of stripCssComments(t.read(file)).matchAll(GRADIENT)) {
+      offenders.push(`${file}  ${m[0]}`);
+    }
+  }
+  return offenders;
+}
+
 describe("the design-system audit", () => {
   it("walks the whole source tree and reads real bytes", () => {
     expect(CSS).toContain(TOKENS);
@@ -236,98 +461,40 @@ describe("the design-system audit", () => {
   });
 
   it("uses no literal hex in any stylesheet", () => {
-    const offenders: string[] = [];
-    for (const file of CSS) {
-      for (const hex of findHexLiterals(stripCssComments(read(file)))) {
-        offenders.push(`${file}  ${hex}`);
-      }
-    }
-    expect(offenders).toEqual([]);
+    expect(hexInStylesheets(REAL)).toEqual([]);
   });
 
   it("uses no literal hex in any non-test source file", () => {
     // Task 19 already lives by this rule: xterm cannot read a CSS variable, so its theme is
     // resolved from the token layer at construction rather than hard-coded. Any red here is
     // fixed the same way, never by widening the exclusion list.
-    const offenders: string[] = [];
-    for (const file of TS) {
-      for (const hex of findHexLiterals(read(file))) offenders.push(`${file}  ${hex}`);
-    }
-    expect(offenders).toEqual([]);
+    expect(hexInSource(REAL)).toEqual([]);
   });
 
   it("contains the indigo/violet tell nowhere at all", () => {
-    const tell = ["#6366f1", "#8b5cf6"];
-    const offenders = [...TEXT.keys()].filter((f) =>
-      tell.some((t) => read(f).toLowerCase().includes(t)),
-    );
-    expect(offenders).toEqual([]);
+    expect(violetTell(REAL)).toEqual([]);
   });
 
   it("lands no colour in the indigo/violet arc, bar the one status token Phase 2 never emits", () => {
-    // --drift is defined so Phase 3 does not invent a second purple, and contract §5.2 says
-    // so. It is the single permitted member of the arc, and the next test proves it is unused.
-    expect(oklchHues(stripCssComments(read(TOKENS))).filter(inBannedArc)).toEqual([DRIFT_HUE]);
-
-    const offenders: string[] = [];
-    for (const file of CSS) {
-      if (file === TOKENS) continue;
-      for (const hue of oklchHues(stripCssComments(read(file))).filter(inBannedArc)) {
-        offenders.push(`${file}  oklch hue ${hue}`);
-      }
-    }
-    expect(offenders).toEqual([]);
+    // The next test proves --drift, the one permitted member, is unused.
+    expect(violetArc(REAL)).toEqual([]);
   });
 
   it("defines --drift and references it nowhere, because Phase 2 cannot derive drift", () => {
     expect(stripCssComments(read(TOKENS))).toMatch(/^\s*--drift\s*:/m);
-    expect([...TEXT.keys()].filter((f) => read(f).includes("var(--drift)"))).toEqual([]);
+    expect(driftReferenced(REAL)).toEqual([]);
   });
 
   it("keeps every colour function inside the token layer", () => {
-    const colourFn = /\b(?:rgba?|hsla?|lab|lch|oklab|oklch|color-mix)\(/g;
-    const offenders: string[] = [];
-    for (const file of CSS) {
-      if (file === TOKENS) continue;
-      for (const m of stripCssComments(read(file)).matchAll(colourFn)) {
-        offenders.push(`${file}  ${m[0]}`);
-      }
-    }
-    expect(offenders).toEqual([]);
+    expect(colourOutsideTokens(REAL)).toEqual([]);
   });
 
   it("has every stylesheet but the token layer import the token layer first", () => {
-    const offenders: string[] = [];
-    for (const file of CSS) {
-      if (file === TOKENS) continue;
-      // .trim() is load-bearing: the checkout is CRLF, so every split line ends in "\r".
-      const first = stripCssComments(read(file))
-        .split("\n")
-        .map((line) => line.trim())
-        .find((line) => line !== "");
-      if (first === undefined || !/^@import "(?:\.\/|(?:\.\.\/)+styles\/)tokens\.css";$/.test(first)) {
-        offenders.push(`${file}  ${first ?? "<empty file>"}`);
-      }
-    }
-    expect(offenders).toEqual([]);
+    expect(importNotFirst(REAL)).toEqual([]);
   });
 
   it("never writes `transition: all`, nor a transition that names no property", () => {
-    const offenders: string[] = [];
-    for (const file of CSS) {
-      for (const value of declarations(stripCssComments(read(file)), "transition")) {
-        // `transition: 0.75s` is `transition: all` with the word left out.
-        if (/^all\b/.test(value) || !/^[a-z-]+[\s,]/.test(`${value} `)) {
-          offenders.push(`${file}  transition: ${value}`);
-        }
-      }
-    }
-    for (const file of TS) {
-      for (const m of read(file).matchAll(/transition\s*:\s*["'`]\s*all\b/g)) {
-        offenders.push(`${file}  ${m[0]}`);
-      }
-    }
-    expect(offenders).toEqual([]);
+    expect(transitionAllOrNoProperty(REAL)).toEqual([]);
   });
 
   it("transitions only what shared-shape §3B clause 4 names, at the duration it names", () => {
@@ -340,33 +507,7 @@ describe("the design-system audit", () => {
     // LEFT TO REVIEW: clause 4 allows background-color and color on "row- and button-sized
     // elements only". A stylesheet does not know how large its element renders, so that
     // qualifier is the reviewer's, not this test's. Nor does the ruling constrain the easing.
-    const offenders: string[] = [];
-    for (const file of CSS) {
-      for (const rule of rulesOf(file)) {
-        if (rule.within.some((at) => at.startsWith("@keyframes"))) continue;
-        for (const { property, value } of rule.decls) {
-          if (property === "transition") {
-            for (const fault of transitionFaults(value, file, rule.selector)) {
-              offenders.push(`${file}  ${rule.selector}  transition: ${value}  (${fault})`);
-            }
-          } else if (property.startsWith("transition-") && file !== TOKENS) {
-            offenders.push(`${file}  ${rule.selector}  ${property}: ${value}  (write the shorthand)`);
-          }
-        }
-      }
-    }
-    for (const file of TS) {
-      const source = read(file);
-      for (const m of source.matchAll(/\btransition\s*:\s*(["'`])([^"'`]*)\1/g)) {
-        for (const fault of transitionFaults(m[2].trim(), file, null)) {
-          offenders.push(`${file}  inline transition: ${m[2]}  (${fault})`);
-        }
-      }
-      for (const m of source.matchAll(/\btransition(?:Property|Duration|TimingFunction|Delay|Behavior)\s*:/g)) {
-        offenders.push(`${file}  inline ${m[0]}  (write the shorthand)`);
-      }
-    }
-    expect(offenders).toEqual([]);
+    expect(transitionOffList(REAL)).toEqual([]);
   });
 
   it("gives every live number tabular figures, and never lets a font shorthand undo them", () => {
@@ -380,36 +521,12 @@ describe("the design-system audit", () => {
     // LEFT TO REVIEW: which elements print a digit. That is LIVE_NUMBER_CARRIERS above, a list
     // a person maintains; the last loop checks each named carrier does restate the token.
     expect(stripCssComments(read(TOKENS))).toMatch(/^\s*--numeric\s*:\s*tabular-nums\s*;/m);
-    const body = rulesOf("src/styles/app.css").find((r) => r.selector === "body");
+    const body = rulesOf(read("src/styles/app.css")).find((r) => r.selector === "body");
     expect(body?.decls.filter((d) => d.property === "font-variant-numeric")).toEqual([
       { property: "font-variant-numeric", value: "var(--numeric)" },
     ]);
     expect(read("src/main.tsx")).toMatch(/^import "\.\/styles\/app\.css";$/m);
-
-    const offenders: string[] = [];
-    for (const file of CSS) {
-      if (file === TOKENS) continue;
-      for (const rule of rulesOf(file)) {
-        const props = rule.decls.map((d) => d.property);
-        const numeric = props.lastIndexOf("font-variant-numeric");
-        if (numeric === -1) continue;
-        if (rule.decls[numeric].value !== "var(--numeric)") {
-          offenders.push(`${file}  ${rule.selector}  font-variant-numeric: ${rule.decls[numeric].value}`);
-        }
-        const shorthand = rule.decls.findIndex((d, i) => i > numeric && d.property === "font" && resetsNumeric(d.value));
-        if (shorthand !== -1) {
-          offenders.push(`${file}  ${rule.selector}  font-variant-numeric before a font shorthand that resets it`);
-        }
-      }
-    }
-    for (const carrier of LIVE_NUMBER_CARRIERS) {
-      const rule = rulesOf(carrier.file).find((r) => r.selector === carrier.selector);
-      const last = rule?.decls.filter((d) => d.property === "font-variant-numeric").pop();
-      if (last?.value !== "var(--numeric)") {
-        offenders.push(`${carrier.file}  ${carrier.selector}  renders a live number without var(--numeric)`);
-      }
-    }
-    expect(offenders).toEqual([]);
+    expect(numericFaults(REAL, LIVE_NUMBER_CARRIERS)).toEqual([]);
   });
 
   it("gives every looping animation a static stand-in when motion is reduced", () => {
@@ -423,28 +540,7 @@ describe("the design-system audit", () => {
     // LEFT TO REVIEW: that the stand-in is visibly distinct from its neighbours (`.dot-live`'s
     // ring is non-inset so it cannot be read as `.dot-ring`'s inset one), and that statuses
     // sharing a shape are separated at all — StatusDot.test.tsx pins the shape map itself.
-    const looping: string[] = [];
-    const offenders: string[] = [];
-    for (const file of CSS) {
-      const rules = rulesOf(file);
-      for (const rule of rules) {
-        if (rule.within.some((at) => at.startsWith("@keyframes") || REDUCED_MOTION.test(at))) continue;
-        const loops = rule.decls.some(
-          (d) =>
-            (d.property === "animation" && /\binfinite\b/.test(d.value)) ||
-            (d.property === "animation-iteration-count" && d.value === "infinite"),
-        );
-        if (!loops) continue;
-        looping.push(`${file}  ${rule.selector}`);
-        const standIn = rules.some(
-          (r) =>
-            r.selector === rule.selector &&
-            r.within.some((at) => REDUCED_MOTION.test(at)) &&
-            r.decls.some((d) => !/^(?:animation|transition)/.test(d.property)),
-        );
-        if (!standIn) offenders.push(`${file}  ${rule.selector}  loops with no reduced-motion stand-in`);
-      }
-    }
+    const { looping, offenders } = loops(REAL);
     // Not vacuous: the shared heartbeat is the one loop Phase 2 ships.
     expect(looping).toContain("src/components/common/common.css  .dot-live");
     expect(offenders).toEqual([]);
@@ -453,28 +549,110 @@ describe("the design-system audit", () => {
   it("builds every shadow from a token or from currentColor", () => {
     // docs/DESIGN-SYSTEM.md: elevation is a 1px ring plus a layered shadow, never a flat
     // border — and never a colour invented at the call site.
-    const offenders: string[] = [];
-    for (const file of CSS) {
-      if (file === TOKENS) continue;
-      for (const value of declarations(stripCssComments(read(file)), "box-shadow")) {
-        if (!value.includes("var(--") && !value.includes("currentColor")) {
-          offenders.push(`${file}  box-shadow: ${value}`);
-        }
-      }
-    }
-    expect(offenders).toEqual([]);
+    expect(shadowFaults(REAL)).toEqual([]);
   });
 
   it("ships no gradient anywhere", () => {
     // Tell #1 in docs/DESIGN-SYSTEM.md, and Phase 2 needs none: the grain layer is an SVG
     // noise `url()`, not a gradient. A surface that needs one changes the design system
     // first and this test second, in that order.
-    const offenders: string[] = [];
-    for (const file of [...CSS, ...TS]) {
-      for (const m of stripCssComments(read(file)).matchAll(/\b(?:linear|radial|conic)-gradient\(/g)) {
-        offenders.push(`${file}  ${m[0]}`);
-      }
-    }
-    expect(offenders).toEqual([]);
+    expect(gradients(REAL)).toEqual([]);
   });
+});
+
+/* ── the canaries: each rule, handed the one fault it exists to catch ──────────────── */
+// Every rule above is green against a tree with nothing wrong in it, and so is every weakened
+// copy of it: a regex that lost an alternative, a condition that lost a clause. These cases are
+// what fails instead. Each plants one file (or replaces one) holding one fault, chosen so that
+// the condition under test is the only thing that can catch it (shared shape §3A.1 clause 4),
+// and asserts the rule names that file.
+
+const PLANT_CSS = "src/components/planted/planted.css";
+const PLANT_TSX = "src/components/planted/Planted.tsx";
+const HEAD = '@import "../../styles/tokens.css";\n';
+const SHELL = "src/components/shell.css";
+
+/** The real tree with `file` added, or replaced where it already exists. */
+function plant(file: string, text: string): Tree {
+  const add = (list: readonly string[], applies: boolean): readonly string[] =>
+    applies && !list.includes(file) ? [...list, file].sort() : list;
+  return {
+    css: add(CSS, file.endsWith(".css")),
+    ts: add(TS, /\.tsx?$/.test(file)),
+    read: (f) => (f === file ? text : read(f)),
+  };
+}
+
+interface Canary {
+  fault: string;
+  rule: (t: Tree) => string[];
+  file: string;
+  text: string;
+}
+
+const sheet = (body: string): string => `${HEAD}${body}\n`;
+const numeric = (t: Tree): string[] => numericFaults(t, LIVE_NUMBER_CARRIERS);
+const loopFaults = (t: Tree): string[] => loops(t).offenders;
+
+const CANARIES: Canary[] = [
+  { fault: "a hex in a stylesheet", rule: hexInStylesheets, file: PLANT_CSS, text: sheet(".p { color: #ff0000; }") },
+  { fault: "a hex in source", rule: hexInSource, file: PLANT_TSX, text: 'export const INK = "#ff0000";\n' },
+  // Upper case on purpose: the tell is banned by value, however it is spelled.
+  { fault: "the tell #6366f1", rule: violetTell, file: PLANT_TSX, text: 'export const A = "#6366F1";\n' },
+  { fault: "the tell #8b5cf6", rule: violetTell, file: PLANT_TSX, text: 'export const B = "#8b5cf6";\n' },
+  // Contract §5.2 places the slop pair at ~276° and ~303°; both must sit inside the arc.
+  { fault: "a token at #6366f1's hue", rule: violetArc, file: TOKENS, text: `${read(TOKENS)}\n:root { --x: oklch(58% 0.2 276); }\n` },
+  { fault: "a token at #8b5cf6's hue", rule: violetArc, file: TOKENS, text: `${read(TOKENS)}\n:root { --x: oklch(60% 0.2 303); }\n` },
+  { fault: "an in-arc hue outside the token layer", rule: violetArc, file: PLANT_CSS, text: sheet(".p { color: oklch(60% 0.2 290); }") },
+  { fault: "var(--drift) in use", rule: driftReferenced, file: PLANT_CSS, text: sheet(".p { color: var(--drift); }") },
+  ...["rgb", "rgba", "hsl", "hsla", "lab", "lch", "oklab", "oklch", "color-mix"].map(
+    (fn): Canary => ({ fault: `${fn}() outside the token layer`, rule: colourOutsideTokens, file: PLANT_CSS, text: sheet(`.p { color: ${fn}(1 2 3); }`) }),
+  ),
+  { fault: "a stylesheet that imports nothing", rule: importNotFirst, file: PLANT_CSS, text: ".p { color: var(--ink); }\n" },
+  { fault: "a stylesheet that imports something else first", rule: importNotFirst, file: PLANT_CSS, text: '@import "./other.css";\n.p { color: var(--ink); }\n' },
+  { fault: "transition: all", rule: transitionAllOrNoProperty, file: PLANT_CSS, text: sheet(".p { transition: all var(--dur-fast); }") },
+  { fault: "a transition that names no property", rule: transitionAllOrNoProperty, file: PLANT_CSS, text: sheet(".p { transition: 0.75s; }") },
+  { fault: "an inline transition: all", rule: transitionAllOrNoProperty, file: PLANT_TSX, text: 'export const s = { transition: "all 1s" };\n' },
+  { fault: "a property off the list", rule: transitionOffList, file: PLANT_CSS, text: sheet(".p { transition: transform var(--dur-fast) var(--ease); }") },
+  { fault: "a listed property at the wrong duration", rule: transitionOffList, file: PLANT_CSS, text: sheet(".p { transition: opacity 200ms var(--ease); }") },
+  { fault: "the grid transition in another file", rule: transitionOffList, file: PLANT_CSS, text: sheet(".shell { transition: grid-template-columns var(--dur) var(--ease); }") },
+  { fault: "the grid transition on another selector in shell.css", rule: transitionOffList, file: SHELL, text: `${read(SHELL)}\n.shell-x { transition: grid-template-columns var(--dur) var(--ease); }\n` },
+  { fault: "a vendor-prefixed transition", rule: transitionOffList, file: PLANT_CSS, text: sheet(".p { -webkit-transition: transform var(--dur-fast); }") },
+  { fault: "a transition longhand", rule: transitionOffList, file: PLANT_CSS, text: sheet(".p { transition-duration: 2s; }") },
+  { fault: "an inline transition off the list", rule: transitionOffList, file: PLANT_TSX, text: 'export const s = { transition: "transform 1s" };\n' },
+  { fault: "an inline transition longhand", rule: transitionOffList, file: PLANT_TSX, text: 'export const s = { transitionDuration: "1s" };\n' },
+  { fault: "font-variant-numeric that is not the token", rule: numeric, file: PLANT_CSS, text: sheet(".p { font-variant-numeric: tabular-nums; }") },
+  { fault: "the token before a font shorthand that resets it", rule: numeric, file: PLANT_CSS, text: sheet(".p { font-variant-numeric: var(--numeric); font: 500 10px/1 var(--mono); }") },
+  {
+    fault: "a live-number carrier that never restates the token",
+    // Named as a carrier only where it exists: against the real tree the planted file does not,
+    // and reading it would throw rather than answer.
+    rule: (t) => numericFaults(t, t.css.includes(PLANT_CSS) ? [{ file: PLANT_CSS, selector: ".p" }] : []),
+    file: PLANT_CSS,
+    text: sheet(".p { font: 400 11px/1.4 var(--mono); }"),
+  },
+  { fault: "a loop with no reduced-motion block", rule: loopFaults, file: PLANT_CSS, text: sheet(".p { animation: beat var(--beat) var(--ease) infinite; }") },
+  {
+    fault: "a loop whose reduced-motion block only stops it",
+    rule: loopFaults,
+    file: PLANT_CSS,
+    text: sheet(".p { animation: beat var(--beat) var(--ease) infinite; }\n@media (prefers-reduced-motion: reduce) {\n  .p { animation: none; }\n}"),
+  },
+  { fault: "a shadow with a literal colour", rule: shadowFaults, file: PLANT_CSS, text: sheet(".p { box-shadow: 0 1px 2px black; }") },
+  ...["linear", "radial", "conic"].map(
+    (kind): Canary => ({ fault: `a ${kind} gradient`, rule: gradients, file: PLANT_CSS, text: sheet(`.p { background-image: ${kind}-gradient(var(--ink), var(--page)); }`) }),
+  ),
+  { fault: "a gradient in source", rule: gradients, file: PLANT_TSX, text: 'export const s = { background: "linear-gradient(red, blue)" };\n' },
+];
+
+describe("the audit's own rules, fed a planted tree", () => {
+  for (const canary of CANARIES) {
+    it(`catches ${canary.fault}`, () => {
+      const onFile = (offenders: string[]): string[] =>
+        offenders.filter((o) => o.startsWith(`${canary.file}  `));
+      // Nothing on that file in the real tree, so whatever is found below is the plant.
+      expect(onFile(canary.rule(REAL))).toEqual([]);
+      expect(onFile(canary.rule(plant(canary.file, canary.text)))).not.toEqual([]);
+    });
+  }
 });
