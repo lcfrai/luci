@@ -255,7 +255,8 @@ an environment ticks `applyStacks` alone, and charts wait for the database boots
    `tf-stack.sh apply <stack> <env>` applies **the saved plan artefact** from the consumed run and
    nothing newer; a plan older than 24 h is refused. `apply` takes the state lock, which the infra
    identity can do. Then **outputs**: `terraform output -json` per stack goes to the artefact
-   `stack-outputs`. So the cluster identity never needs to read state.
+   `stack-outputs`, one file `<stack>.json` per stack (`helm-values.sh` here, and `render-sql.sh`
+   in task 31 §7, read them by output name). So the cluster identity never needs to read state.
 4. **cluster** — on `$(PANACEA_APP_<ENV>_CLUSTER_SERVICE_CONNECTION)`: `az aks get-credentials`
    (**without** `--admin`: local accounts are off, P8-D2), then `kubelogin convert-kubeconfig -l
    azurecli`. If `applyStacks` is false, `stack-outputs` comes from an outputs-only job that runs on

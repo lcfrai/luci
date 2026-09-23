@@ -11,7 +11,7 @@ HA-5 "field by field"); nothing here sets a Hub variable that table does not lis
 - `deploy/charts/broker/{Chart.yaml,values.yaml,values.schema.json}`, `templates/{deployment,serviceaccount,rbac,service,httproute,pdb,networkpolicy}.yaml`, `tests/*_test.yaml` (new)
 - `deploy/charts/hub/{Chart.yaml,values.yaml,values.schema.json}`, `templates/{deployment,serviceaccount,migrate-job,service,httproute,pdb,networkpolicy}.yaml`, `tests/*_test.yaml` (new)
 - `deploy/sql/hub-principals.sql.tpl` — the Entra principals and grants for the Hub's two identities (new)
-- `pipelines/scripts/render-sql.sh`, `render-sql_test.sh`, `tests/fixtures/ids.env` — fills the template's `{{…}}` placeholders from a `KEY=value` file and refuses (exit 1, naming it) any placeholder left unfilled (new; review I9)
+- `pipelines/scripts/render-sql.sh`, `pipelines/scripts/render-sql_test.sh`, `pipelines/scripts/tests/fixtures/workloads-outputs.json` — fills the template's `{{…}}` placeholders from the `workloads` stack's `terraform output -json` file (the `stack-outputs` artefact), by output name, through the one mapping table below; refuses (exit 1, naming it) any placeholder left unfilled, any output missing, and any value that is not a plain identity name or a GUID (new; review I9, plan re-review b03 M-5)
 - `deploy/values/dev/{platform,cert-manager,edge,broker,hub}.yaml`, `deploy/values/prod/…` — per-environment values holding **no id** (new)
 - `deploy/tests/netpolcover/netpolcover_test.go` — add `broker` and `hub` to the rendered charts; delete `testdata/backends.yaml`, which stood in for them (modify, task 13)
 
@@ -201,12 +201,17 @@ BEGIN
       RAISE EXCEPTION 'role % exists bound to object id %, expected %', '{{HUB_MIGRATE_IDENTITY}}', bound, '{{HUB_MIGRATE_OBJECT_ID}}';
     END IF;
   END IF;
+  -- 3. Membership: the DDL identity owns, the DML identity only runs (Hub contract §10.1's
+  --    commented grants, made real for phase 8). INSIDE the block, after both checks: a
+  --    RAISE above aborts the block, so no grant reaches a role bound to another object id
+  --    even if psql were run without ON_ERROR_STOP (plan re-review b03 I-1). GRANT of a role
+  --    already held is a notice, not an error, so a re-run is safe.
+  EXECUTE format('GRANT hub_owner TO %I', '{{HUB_MIGRATE_IDENTITY}}');
+  EXECUTE format('GRANT hub_app TO %I', '{{HUB_APP_IDENTITY}}');
 END
 $$;
--- 3. Membership: the DDL identity owns, the DML identity only runs (Hub contract §10.1's
---    commented grants, made real for phase 8).
-GRANT hub_owner TO "{{HUB_MIGRATE_IDENTITY}}";
-GRANT hub_app   TO "{{HUB_APP_IDENTITY}}";
+-- Nothing follows the block. task 31 §7 runs this file, and roles.sql, with
+-- `psql -v ON_ERROR_STOP=1 --single-transaction -f <file>` and reads the exit code.
 ```
 
 `pgaadauth_create_principal_with_oid` is Azure Database for PostgreSQL's function for an Entra
@@ -217,6 +222,22 @@ columns — are from training knowledge, UNVERIFIED**; task 31 §7 runs `pgaadau
 by hand first and records its real columns. The object ids are the `workloads` outputs
 `hub_principal_id` and `hub_migrate_principal_id`: a user-assigned identity's `principal_id` is its
 service principal's object id, the `oid` its tokens carry (task 10).
+
+**The mapping, written once** (plan re-review b03 M-5). `render-sql.sh <template> <workloads.json>`
+holds this table and nothing else decides it; a human never types the ids:
+
+| Placeholder | `workloads` output (task 10) | Accepted value |
+|---|---|---|
+| `HUB_APP_IDENTITY` | `hub_identity_name` | `^[A-Za-z0-9_-]{3,128}$` |
+| `HUB_APP_OBJECT_ID` | `hub_principal_id` | a lower-case GUID |
+| `HUB_MIGRATE_IDENTITY` | `hub_migrate_identity_name` | `^[A-Za-z0-9_-]{3,128}$` |
+| `HUB_MIGRATE_OBJECT_ID` | `hub_migrate_principal_id` | a lower-case GUID |
+
+It reads each output's `value` with `python3 -c` and the standard `json` module (no `jq`, which the
+operator's workstation may lack; `python3` is a §7 prerequisite in task 31). A value outside its
+pattern exits 1 naming the key, so no quote or `$$` can reach the SQL text. The four output names
+are task 10's (`parts/task-10.md:145-155`); if task 10 renames one, this table and the fixture move
+with it.
 
 #### Tests to write first (helm-unittest; and a template test for the SQL)
 
@@ -237,7 +258,10 @@ service principal's object id, the `oid` its tokens carry (task 10).
 | `hub / egress reaches Postgres and Entra only` | egress rules: DNS, the PE CIDR on 5432, 443 to world minus RFC 1918 | a Hub that can reach sandboxes |
 | `sql / principals and grants are rendered for both identities` | the template renders two `pgaadauth_create_principal_with_oid` calls and the two grants, DDL to `hub_owner`, DML to `hub_app` | the grants swapped — the serving identity able to alter the schema (ADR-H1 G4) |
 | `sql / principals are bound by object id` | each `pgaadauth_create_principal_with_oid` call carries its own identity's object id from the fixture (the app's id with the app's name, the migrate id with the migrate name); the text contains no name-only `pgaadauth_create_principal(`; each existing-role branch compares against the same id and `RAISE`s on a mismatch | a principal resolved by display name, which binds whichever identity in the tenant shares it; the two ids swapped; a re-run that accepts a role bound to someone else (review I9) |
-| `sql / an unfilled placeholder fails the render` | a fixture missing `HUB_MIGRATE_OBJECT_ID` → `render-sql.sh` exits 1 naming the placeholder, and prints no SQL | a literal `{{…}}` sent to `psql`, which creates a role named after the placeholder |
+| `sql / no grant runs outside the checked block` | in the rendered text, both `GRANT` statements sit between the DO block's `BEGIN` and its `END`, after both `RAISE EXCEPTION` lines; nothing but comments follows `$$;` | a top-level `GRANT` after the block, which psql's default (report the error, carry on, exit 0) runs after the oid check fails — a foreign identity handed `hub_owner` (plan re-review b03 I-1) |
+| `sql / an unfilled placeholder fails the render` | a fixture missing the output `hub_migrate_principal_id` → `render-sql.sh` exits 1 naming `HUB_MIGRATE_OBJECT_ID` and the output, and prints no SQL; a template with an unknown `{{HUB_OTHER}}` → exit 1 naming it | a literal `{{…}}` sent to `psql`, which creates a role named after the placeholder |
+| `sql / each placeholder reads its own output` | a fixture whose four outputs hold four distinct values → each lands in exactly its mapped placeholder (the app name beside the app id in the first call, the migrate name beside the migrate id in the second) | the mapping table swapped for one pair, which binds the serving name to the DDL identity's oid (plan re-review b03 M-5) |
+| `sql / a value that is not a name or a GUID is refused` | `hub_identity_name` = `id-hub"; DROP ROLE hub_owner; --` → exit 1 naming `HUB_APP_IDENTITY`; `hub_principal_id` = `not-a-guid` → exit 1 naming `HUB_APP_OBJECT_ID`; no SQL printed | an output value that breaks out of the SQL literal or the `%I` quoting |
 
 #### Steps
 
@@ -269,8 +293,8 @@ helm lint deploy/charts/broker -f deploy/charts/broker/tests/values-test.yaml   
 helm lint deploy/charts/hub -f deploy/charts/hub/tests/values-test.yaml         # 0 failed
 helm unittest deploy/charts/broker deploy/charts/hub                            # all suites pass
 go test ./deploy/tests/netpolcover/... -count=1                                  # ok, five charts rendered
-bash pipelines/scripts/render-sql.sh deploy/sql/hub-principals.sql.tpl tests/fixtures/ids.env   # prints the DO block and the two grants, no {{ left
-bash pipelines/scripts/render-sql_test.sh                                        # render-sql_test: 3 of 3 passed
+bash pipelines/scripts/render-sql.sh deploy/sql/hub-principals.sql.tpl pipelines/scripts/tests/fixtures/workloads-outputs.json   # prints the DO block with both grants inside it, no {{ left
+bash pipelines/scripts/render-sql_test.sh                                        # render-sql_test: 6 of 6 passed (the six `sql /` rows)
 ```
 
 #### What this task does not claim
