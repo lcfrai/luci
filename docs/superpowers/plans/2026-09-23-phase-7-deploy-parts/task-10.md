@@ -79,8 +79,12 @@ type RebuildRequest struct {
 //       could not resolve the head (clients/pipeline.go:218-224) — else 409 deploy_precondition
 //       reason "no_exact_commit": "This release did not record a full commit, so it cannot be
 //       rebuilt exactly. Ship the branch instead.";
-//     a branch: the source's Hub release branchRef when it has one (the Hub's is the real ref),
-//       else source.Branch; neither → reason "no_branch".
+//     a branch: the source's Hub release branchRef, and only that (the Hub's is the real ref).
+//       No Hub release, or one with no branchRef → 409 deploy_precondition reason "no_branch":
+//       "Panacea recorded only a label for this release's branch. Ship the branch instead."
+//       source.Branch is never used: it is Panacea's run label, sanitizeLabelValue(branch)
+//       (clients/pipeline.go:609, :2351-2364), which turns feat/x into feat-x, and whether a label
+//       equals its branch cannot be told without a copy of that rule (b02 round 2, R8).
 //   reserve {kind:"run", panaceaProject, environment: source.Environment, branchRef, commit:
 //            source.Commit, briefId: null, designKey: <the source release's designKey or null>,
 //            sourceDeploymentId: source.ID} — the Hub pins "inherited" (Hub contract §7.9);
@@ -141,7 +145,8 @@ Rebuild because the code is `deploy_conflict` on a rollback, and prints the sent
 | `TestRollbackIdMismatchAbandons` | the connector reports a different id → abandoned, `503` | confirming a rollback whose premise broke |
 | `TestRebuildUsesExactCommit` | source `Commit` 40 hex → Panacea body `{"branch":…, "commit":<that>}` | Panacea's `/redeploy` path, which builds the branch head |
 | `TestRebuildRefusesSymbolicCommit` | source `Commit: "main"` → `409 deploy_precondition` `no_exact_commit`; no reserve | rebuilding "whatever main is now" under an inherited pin |
-| `TestRebuildPrefersHubBranchRef` | source `Branch: "feat-x"`, its release `branchRef: "refs/heads/feat/x"` → Panacea gets `feat/x` | cloning a sanitised label that is not a branch (task 08's unverified point) |
+| `TestRebuildPrefersHubBranchRef` | source `Branch: "feat-x"`, its release `branchRef: "refs/heads/feat/x"` → Panacea gets `feat/x` | cloning a sanitised label that is not a branch (`Deployment.branch` is the run label, `pipeline.go:609`; settled in b02, deviation 3) |
+| `TestRebuildRefusesLabelOnlyBranch` | source `Branch: "feat-x"`, no Hub release → `409 deploy_precondition` `no_branch` with *"Panacea recorded only a label for this release's branch. Ship the branch instead."*; the Hub fake saw no `Reserve` and the Panacea fake saw no call (b02 round 2, R8) | falling back to `source.Branch`, which records `refs/heads/feat-x` in the Hub and asks Panacea to clone a branch that does not exist |
 | `TestRebuildInheritsPin` | the reserve carries `sourceDeploymentId`; the Hub fake returns `inherited` | a rebuild pinned to today's head |
 | `TestCancelNoHubCall` | `Cancel` → the Hub fake saw no call | abandoning a confirmed release (the Hub allows abandon only from `reserved`) |
 | `TestCancelAlreadyFinished` | `AlreadyFinished` → `200 {outcome:"already_finished"}` | an error toast when Undo loses the race to the build's end |

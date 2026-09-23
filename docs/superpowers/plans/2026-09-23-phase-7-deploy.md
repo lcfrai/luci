@@ -201,9 +201,12 @@ lacks adds one; the suite shows what else must hold.
 **the branch head**: `TriggerDeployOptions{Branch: branch, Commit: branch, …}`
 (`handlers/projects.go:1886-1889`). The provenance contract (§3.4) says a redeploy inherits the pin
 of the deployment it re-runs, which is only true if it re-runs that deployment's **commit**. So
-phase 7's Rebuild calls `POST …/deploy {branch: source.Branch, commit: source.Commit}` and reserves
-a `run` **with** `sourceDeploymentId`, which inherits the source's pin (Hub contract §7.9, pin
-table row 2). An unchanged commit reuses the built image — `manualImageTag` is deterministic for a
+phase 7's Rebuild calls `POST …/deploy {branch: <the source's Hub release branchRef>, commit:
+source.Commit}` and reserves a `run` **with** `sourceDeploymentId`, which inherits the source's pin
+(Hub contract §7.9, pin table row 2). The branch is never `source.Branch`: that is Panacea's run
+label, `sanitizeLabelValue(branch)` (`clients/pipeline.go:609`), so `feat/x` reads `feat-x`. A
+source with no Hub `branchRef` is refused `no_branch` (task 10; b02 round 2, R8). An unchanged
+commit reuses the built image — `manualImageTag` is deterministic for a
 real SHA (`clients/pipeline.go:205`ff, the WP-31 comment). A source with no recorded `Commit`
 cannot be rebuilt exactly; the control is disabled with that reason and *Ship the branch* is
 offered. **The user-visible label is "Rebuild", not "Redeploy"** — assertion A-P7-1 (§11, Q-P7-1), which

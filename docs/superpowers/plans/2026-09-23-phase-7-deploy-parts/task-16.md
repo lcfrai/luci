@@ -93,10 +93,25 @@ Label: *"Ship"*; *"Ship anyway"* in `--need` on a collision; *"Sends in 4 s · U
 | Button | Offered when | The sentence beside it, before the press |
 |---|---|---|
 | **Roll back to this** | the row is `kind "run"`, `build "succeeded"`, not `isCurrent`, and its environment has no running build | *"Returns `<env>` to `<version>`. Keeps this release's brief pin — not the brief as it reads today. How fast it is, Panacea says only once it starts."* |
-| **Rebuild** | the row has a 40-hex `commit` and a branch | *"Builds `<short commit>` again as a new release, with this release's brief pin."* |
+| **Rebuild** | the row has a 40-hex `commit` and a Hub release (`release != null`) | *"Builds `<short commit>` again as a new release, with this release's brief pin."* |
+
+**Its environment** is the drawer's own lookup, `view.environments.find(e => e.name ===
+row.environmentRow)` (task 17), never a compare with `row.environment`: a production release's
+`environment` is `prod` and its row is `production` (task 08 rule 1). *"No running build"* means
+that row's `build.state` is neither `running` nor `pending`. The check **fails closed**: with
+`environmentRow == null`, or no row found, **Roll back** is not offered — a lookup that finds nothing
+must never read as *"nothing is building"* (b02 round 2, R9).
+
+**Rebuild** needs the branch from the Hub release's `branchRef` (task 10): a row with
+`release == null` came from outside any cockpit, and Panacea recorded only a run label for its
+branch (`clients/pipeline.go:609`). A Hub release without a `branchRef` gets the control plane's
+`409 no_branch`, shown verbatim (b02 round 2, R8).
 
 Disabled rows say why: *"A failed build has no image to roll back to."*, *"This is what `<env>` is
-serving."*, *"Off while Panacea is not answering."*, *"This release did not record a full commit."*.
+serving."*, *"`<env>` has a build running. Roll back once it finishes."*, *"Panacea lists no
+environment named `<row.environment>`."*, *"Off while Panacea is not answering."*, *"This release
+did not record a full commit."*, *"Panacea recorded only a label for this release's branch. Ship the
+branch instead."*.
 
 #### Outcome banners (`ActBanners`)
 
@@ -122,6 +137,8 @@ serving."*, *"Off while Panacea is not answering."*, *"This release did not reco
 | `countdown on the one clock` | the reduced-motion countdown text changes on heartbeat ticks; `useHeldAct.ts` and `ShipBar.tsx` contain no `setInterval` | a display timer per act |
 | `rebuild offered on pruned` | a rollback rejected `deploy_conflict` → the banner has **Rebuild**; rejected `deploy_rejected` → it does not | offering Rebuild by parsing Panacea's sentence |
 | `rollback copy keeps the pin` | the rollback sentence names *"this release's brief pin"* | implying rollback re-reads today's brief (P1) |
+| `rollback off while production builds` | row `{kind:"run", build:"succeeded", isCurrent:false, environment:"prod", environmentRow:"production"}`, `view.environments` holds `production` with `build.state "running"` → **Roll back** disabled with *"`production` has a build running. Roll back once it finishes."*; the same row with `environmentRow: null` → not offered, with the *"Panacea lists no environment named `prod`."* line (b02 round 2, R9) | `e.name === row.environment`, which finds no row for `prod` and so offers Roll back while production is building |
+| `rebuild needs a Hub release` | a 40-hex row with `release: null` → **Rebuild** disabled with *"Panacea recorded only a label for this release's branch. Ship the branch instead."*; with a release → offered (b02 round 2, R8) | offering a Rebuild the control plane can only refuse |
 | `cancel not held` | pressing Cancel run calls `cancel` at once | a 5 s delay on the one act that must be immediate |
 | `readiness on the three edges` (`loader.test.ts`) | a cursor change, a branch selection and a lens open each call `api.shipReadiness` once for the selected branch; 60 s of fake time with none of them → zero calls | a readiness poll on a timer — a second clock (DESIGN-SYSTEM one-clock rule) |
 | `readiness failure keeps the bar honest` | `shipReadiness` rejects `upstream_unavailable` → `readiness null`, Ship off with the stale line, the old readiness not shown | a Ship button left on from a readiness the server no longer vouches for |
