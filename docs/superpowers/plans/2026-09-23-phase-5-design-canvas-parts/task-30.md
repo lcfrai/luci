@@ -1,6 +1,6 @@
 # Task 30 — End to end, the phase 5 contract, and the amendments
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** all · **External:** Hub H4 on `compose.yaml` for step 2; the owner's batched hands-on session (`OD-12`) for step 5 · **Hours:** 2 (plus the owner's session)
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** all · **External:** Hub C3 (Hub plan tasks 37–38) for step 1's probe — already a hard dependency of tasks 20–22 and 27; Hub H4 on `compose.yaml` for step 2; the owner's batched hands-on session (`OD-12`) for step 5 · **Hours:** 2 (plus the owner's session)
 
 ## Why
 
@@ -55,11 +55,37 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
    `GET /v1/design/…/document`; its `editedBy.sessionId` is **that session's id**, though no request
    named it. This is `e2e_test.go`, run with `go test -tags e2e ./control-plane/internal/designapi/...`.
    (`docker exec` drives the test; it does not wrap the CLI, which never runs a command here.)
+
+   **Then the human-surface probe from inside the sandbox (review C1).** With `<port>` the control
+   plane's port (8730 by default; the implementer's own range when agents share a machine) and
+   `<id>` the canvas just created, `e2e_test.go` runs, through `docker exec <sandbox>`, each of:
+
+   ```bash
+   curl -s -o /tmp/probe.body -w "%{http_code}" -H "Host: 127.0.0.1:<port>" \
+     -X POST http://host.docker.internal:<port>/v1/design/canvases/<id>/approvals -d '{"revision":1}'
+   curl -s -o /tmp/probe.body -w "%{http_code}" -H "Host: 127.0.0.1:<port>" \
+     -X POST http://host.docker.internal:<port>/v1/design/canvases/<id>/ops -d '{"ops":[],"label":"x","ifRevision":0}'
+   curl -s -o /tmp/probe.body -w "%{http_code}" -H "Host: 127.0.0.1:<port>" \
+     "http://host.docker.internal:<port>/v1/events?window=wn-000000000000"
+   ```
+
+   No `Origin`, a spoofed `Host`, no key — exactly the review's failure scenario. Assert, for each:
+   **either** the connection is refused or times out (the host's loopback is not reachable from the
+   sandbox), **or** the status is `401` and the body's code is `local_key_required`. Any other
+   answer fails the test. Then, from the host **with** the key, assert the canvas's revision did not
+   move and route 22 is not `approved`. The report records which of the two it was — **whether the
+   host was reachable at all** from this fleet's Docker Desktop is the fact the review left
+   unverified. If it was not reachable, the test also sends the same three requests keyless from
+   the host itself and asserts each is `401 local_key_required`, so the key is proven either way.
 2. **Hub end to end** (when Hub H4 has landed): `docker compose -f control-plane/cmd/hub/compose.yaml up`,
    sign in through `devissuer`, bind the fixture project (phase 4), write a complete brief (phase 4),
    then through the control plane: approve revision *n*; assert the Hub's `GET /v1/refs?key=design:…@n`
    resolves with the snapshot's blobs, and that `POST …/handoffs` writes a bundle whose every file
-   matches the manifest. If Hub H4 has not landed, record it in the report as **not run**.
+   matches the manifest. Then the hostile-teammate case (review C2): as a second `devissuer` user
+   in the same org, post straight to the Hub API an approval for revision *n+1* whose manifest's
+   blobs all match their digests but whose `files` lists `../../x.cmd`; `POST …/handoffs` for it →
+   `422 handoff_snapshot_invalid` (`reason: "unsafe_path"`), and nothing new exists in the
+   worktree or its parent directory. If Hub H4 has not landed, record it in the report as **not run**.
 3. **The gates**: `go run ./tools/licencegate -root .` → 0; `go test ./canvas/... ./control-plane/...
    ./sandboxd/... ./tools/... -race -count=1`; `cd canvas/editor && npx vitest run && npx tsc --noEmit`;
    `cd desktop && npx vitest run && npx tsc --noEmit`; the G7 grep (task 24).

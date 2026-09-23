@@ -480,3 +480,80 @@ Fix C1, C2 and I1–I3 in the plan, re-check I6's dependency split, and the plan
 
 **Plan quality: Needs fixes**
 
+---
+
+## Fix batch b01 (2026-09-24) — C1, C2
+
+Paths are relative to `docs/superpowers/plans/`; `parts/` is `2026-09-23-phase-5-design-canvas-parts/`.
+Line numbers are as of this batch's commit.
+
+### C1 — the local caller key is a hard dependency, and every design route requires it
+
+| Change | Where |
+|---|---|
+| Rule 4 says the key is mandatory, why Host/Origin do not stop a sandbox, and what enforces it | plan `:108-116` |
+| G4 gains the invariant: every design route behind the key; no mode, variable or build without it | plan `:270-272` |
+| Task table: Hub C3 (Hub plan tasks 37–38) **hard** in the External column of 20, 21, 22, 27 | plan `:415-417`, `:422` |
+| The waves: Hub C3 gates Lane E and task 27; no "add the key later" path | plan `:438-441` |
+| New ask **HA5-6**: `localkey.Middleware` must refuse a zero `Key` (empty-slice `ConstantTimeCompare` is 1) | plan `:480` |
+| Task 20 header: Hub C3 hard | `parts/task-20.md:3` |
+| Every route requires the key; none is in `localkey.Exempt`; why | `parts/task-20.md:29-37` |
+| The stream's `Authorization` line: required, not "when it has landed" (the review's `:62`) | `parts/task-20.md:69` |
+| `Config.KeyGuard` required; `ErrNoKeyGuard`; `New` refuses first; `Mount` wraps every handler | `parts/task-20.md:189-206` |
+| `main.go` builds `KeyGuard` from task 37's one minted key | `parts/task-20.md:220-221` (the wiring paragraph) |
+| `TestNew_refusesNoKeyGuard`; `TestRoutes_localKeyRequired` (routes 5, 8, 9, 17, 19, 20: no key, wrong key, empty bearer → 401, authority unchanged; no `Origin`, spoofed `Host`); `TestMount_wrapsEveryRoute`; `TestMain_wiring` asserts keyless → 401 | `parts/task-20.md:238-240`, `:243` |
+| Acceptance curl now expects `local_key_required`, then `canvas_not_found` with the key | `parts/task-20.md:262-266` |
+| Task 21 header: Hub C3 hard | `parts/task-21.md:3` |
+| `TestApprove_localKeyRequired` (route 21: 401, **no** `PutBlob`, **no** `Approve`); `TestApprove_noMCPPath` kept (it is the MCP half; the review's `:206`) | `parts/task-21.md:243-244` |
+| Task 22 header: Hub C3 hard | `parts/task-22.md:3` |
+| `TestHandoff_localKeyRequired` (routes 24 and 25) | `parts/task-22.md:146` |
+| Task 27 header: Hub C3 hard | `parts/task-27.md:3` |
+| `createDesignClient` requires `localKey` and throws without it; the stream's `localKey` is required with one refresh-and-retry (the review's `:160-161` fallback is gone) | `parts/task-27.md:58-66`, `:77-78` |
+| `events.test.ts › authHeader` rewritten; `design.test.ts › localKeyRequired` added | `parts/task-27.md:144-145` |
+| "Not claimed" no longer offers a Host/Origin fallback | `parts/task-27.md:170-173` |
+| Task 30 header, and step 1's in-sandbox probe: routes 21, 5 and 20 from `docker exec` with no `Origin`, a spoofed `Host`, no key → refused **or** 401 `local_key_required`; the report records whether the host was reachable at all; if it was not, the same requests keyless from the host must be 401 | `parts/task-30.md:3`, `:59-80` |
+
+**Departures from the review's fix, and why.** (1) The review listed routes 5, 8, 9, 17, 19, 20, 21, 24;
+this batch adds **25** (the session link writes to the Hub as the signed-in user) and a walk of
+every mounted pattern (`TestMount_wrapsEveryRoute`), so a route added later cannot skip the wrap.
+(2) `designapi.New` takes a `KeyGuard func(http.Handler) http.Handler`, not the `localkey.Key`:
+task 37's `Key` exposes no way to check it is non-zero, so `New` cannot validate a `Key`. The
+identity-function mutant is killed by `TestMain_wiring` instead, and the zero-key gap goes to the
+Hub as HA5-6.
+
+### C2 — Materialise treats a Hub manifest as hostile input
+
+| Change | Where |
+|---|---|
+| Task 21 Files: `paths.go`, the one bundle-path rule | `parts/task-21.md:17-18`; plan file map `:336` |
+| `MaxSnapshotBytes` = 512 MiB, shared by `BuildSnapshot` and `Materialise` | `parts/task-21.md:67-69` |
+| `PathPattern`, `SafePath` (pattern, Windows device names, the `filepath.Rel` check), `ErrUnsafePath`, `ContentTypeFor` | `parts/task-21.md:73-98` |
+| Slug rule: cut to 60 bytes **including** the repeat suffix; a device name gets `-artboard` | `parts/task-21.md:142-148` |
+| Approve step 5: `MaxSnapshotBytes` → 413; a `SafePath` failure inside `BuildSnapshot` is a bug → 500 | `parts/task-21.md:204-205` |
+| `TestBuildSnapshot_limits` (total bytes), `TestBuildSnapshot_pathsSafe`, `TestSafePath` (the review's seven names plus `con.html`, `lpt1.png`, `x.HTML`, `-x.html`, short hex, `manifest.json`, `approval.json`, `""`), `TestSlugs` (device name, over-long repeat) | `parts/task-21.md:232-235` |
+| `Materialise`'s six ordered checks: strict manifest decode; the manifest names **this** approval (`designKey`, `canvasId`, `designRevision`, `reviewDigest`, `briefKey`), `BundleDir` from the Hub record only; `SafePath`, no duplicates, artboard paths ⊆ `Files`, content types, asset hex = its SHA-256; 500 files / 16 MiB / 512 MiB **before** any fetch; size and digest per file; the `filepath.Rel` re-check at the write site; any error writes nothing | `parts/task-22.md:48-79` |
+| Error mapping: all three errors → `422 handoff_snapshot_invalid`, `details.reason` | `parts/task-22.md:96-100`; code at `parts/task-20.md:137`; `ProblemCode` count at `parts/task-27.md:16-18` |
+| The route: `Fetch` bounded by `io.LimitReader(MaxFileBytes+1)`; `rec` is the Hub's record, never the body | `parts/task-22.md:114-117` |
+| `TestMaterialise_hostilePaths` (the review's seven names, `con.html` and the Startup-folder path, each with **correct** digests: `ErrUnsafePath`, nothing written anywhere, only the manifest fetched), `TestMaterialise_manifestLies`, `TestMaterialise_otherDesign`, `TestMaterialise_limits`, `TestHandoff_invalidSnapshot` | `parts/task-22.md:141-145` |
+| Task 30 step 2: a second `devissuer` user posts a `../../x.cmd` manifest to the real Hub; handoff → 422, nothing written | `parts/task-30.md:84-88` |
+| G4 gains the invariant | plan `:272-274` |
+
+**Departures from the review's fix, and why.** (1) The review's regex admits `con.html` (only
+`CON.html`, which its case already refuses, was in its test list) — Windows reserves device names
+case-insensitively with any extension, so `SafePath` adds a device-name check and `Slugs` never
+produces one. (2) It admits `x.tailwind.html` and `x.tailwind.png`, and a slug starting or ending
+in `-`, none of which `BuildSnapshot` writes; `PathPattern` is tightened to exactly its output.
+(3) `slug.go` said "at most 60 bytes" and then appended `-2`, so a legal repeat could exceed the
+regex's 60; the slug rule now cuts the base first. (4) The review said "cap … total bytes" without a
+number: this batch takes **512 MiB**, half the Hub's 1 GiB project quota (`hub-contract.md:847`),
+and makes `BuildSnapshot` refuse the same number so no snapshot is built that a handoff would
+refuse. (5) Errors: the review offered `ErrTampered` or a new `ErrUnsafePath`; this batch uses
+`ErrTampered` for digest, size and wrong-design mismatches, `ErrUnsafePath` for paths, and
+`ErrTooLarge` for limits, all answered as one 422 code with a `reason`.
+
+**Unverified.** That `host.docker.internal` reaches the host's loopback on this fleet's Docker
+Desktop (the review's own caveat) — task 30 step 1 now records it. Hub plan tasks 37–38 are a
+sibling plan's; their names (`localkey.Mint`, `Middleware`, `Exempt`, `LocalKeySource`) are cited
+from `.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub-parts/task-37.md:29-77`
+and `task-38.md:45-69`, not from built code.
+

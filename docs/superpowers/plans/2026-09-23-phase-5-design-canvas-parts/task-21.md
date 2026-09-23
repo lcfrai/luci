@@ -201,7 +201,8 @@ type ApprovalState struct {
 4. The document at `revision` (`authority.Document`), then **2× screenshots of every artboard at
    that revision** (`authority.Render`, 50 per request), else `409 renderer_unavailable` — the lens is
    open when a human approves, so this means the renderer failed.
-5. `handoff.BuildSnapshot`; over `MaxFiles` or `MaxFileBytes` → `413 design_too_large`.
+5. `handoff.BuildSnapshot`; over `MaxFiles`, `MaxFileBytes` or `MaxSnapshotBytes` → `413 design_too_large`.
+   A path failing `SafePath` inside `BuildSnapshot` is a bug in `slug.go` — `500 internal`, nothing uploaded.
 6. `PutBlob` for every file and the manifest, each from a `*bytes.Reader` (HA5-1), retried once on
    `ErrUnavailable` with a fresh reader.
 7. `Approve` with `designKey`, `reviewDigest`, `briefKey`, `briefDigest`, `branchRef`

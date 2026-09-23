@@ -105,6 +105,15 @@ pen tool, sketch boards.
    it. No tool takes an author, session or approver argument. A human's op arrives on the
    local-key-guarded REST surface and is authored `human`. Only a human approves, and only through
    `POST /v1/design/canvases/{id}/approvals`, which no MCP tool reaches (ADR-H1 R5's mitigation).
+   **The local caller key is mandatory, not optional** (review C1). The Host check and the Origin
+   allowlist stop a browser; a process in a sandbox sends no `Origin` and any `Host`
+   (`httpx/origin.go:117-123`), so without the key "which no MCP tool reaches" is a convention an
+   agent can walk round with `curl`. Hub task C3 (Hub plan tasks 37–38, `localkey`) is therefore a
+   **hard** dependency of tasks 20, 21, 22 and 27: `designapi.New` refuses to build without its
+   `KeyGuard` (`ErrNoKeyGuard`), `Mount` wraps every design route in it, each route class has a
+   keyless-401 test, and task 30 probes the approval route from inside a real sandbox. The key does
+   not stop another process of the same OS user (Hub contract §9.4); nothing short of an OS peer
+   check does (ADR-H1 R4).
 5. **The thread lives in the Hub; the canvas holds no copy of it.** The canvas stores no brief text
    and no approval: `get_brief` resolves the branch's brief through phase 4's
    `discoverhub.Service` at call time, and approvals are read from the Hub and held in memory only
@@ -258,7 +267,11 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 - **G4.** The control plane listens on loopback only; `sandboxd`'s MCP listener binds
   `127.0.0.1:8731` inside the sandbox and nothing else. Configuration comes from `PANACEA_APP_*`
   variables (task 20 lists every new one). No secret is in source. No subscription is pooled: the
-  canvas never calls a model, and its agents are the user's own sessions (`CLAUDE.md`).
+  canvas never calls a model, and its agents are the user's own sessions (`CLAUDE.md`). **Every
+  design route sits behind the local caller key** (Hub C3; rule 4): none is exempt, and no mode,
+  variable or build runs the design surface without it (review C1). **The handoff writes only names
+  `handoff.SafePath` admits, only under the bundle directory, and nothing at all when any check
+  fails** — a manifest from the shared Hub is hostile input until checked (task 22, review C2).
 - **G5.** Harnesses run **unmodified and unwrapped** (`OD-8`). Phase 5 adds two documented Claude
   Code flags to the argv and nothing else. It reads no PTY byte and no transcript. `sandboxd`'s
   relay forwards bytes it never parses.
@@ -320,7 +333,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `canvas/mcp/` | `tools.go` (the builder and the error table), `ports.go` (Briefs, Approvals), `views.go`, `tools_read.go` | 15 |
 | `canvas/mcp/` | `tools_write.go`, `place.go` | 16 |
 | `canvas/mcp/` | `tools_tokens.go`, `tools_comments.go`, `tools_export.go`, `guides.go`, `instructions.go`, `guides/*.md` | 17 |
-| `canvas/handoff/` | `snapshot.go`, `manifest.go`, `slug.go` (21); `bundle.go` (22) | 21, 22 |
+| `canvas/handoff/` | `snapshot.go`, `manifest.go`, `slug.go`, `paths.go` — the one bundle-path rule (21); `bundle.go` (22) | 21, 22 |
 | `canvas/canvastest/` | `fixtures.go` (11), `renderer.go` (13), `ports.go` (15) | 11, 13, 15 |
 
 **New npm package `canvas/editor/`** (`@panacea-app/canvas-editor`, private):
@@ -399,14 +412,14 @@ tasks; each part says what it codes against until that task lands.
 | 17 | MCP tokens, comments, export, guides, server instructions | 09, 15, 16 | — | 2.5 |
 | 18 | The relay framing in both modules; `sandboxd`'s listener and `/mcp-channel` | — | — | 3 |
 | 19 | The relay supervisor; `--mcp-config` and `--allowedTools`; session wiring | 14, 18 | — | 2.5 |
-| 20 | `designapi` routes, the SSE window stream, configuration, wiring | 11, 12, 13 | phase 4 task 10 (`RouteMounter`; declared here if absent) | 3 |
-| 21 | Approval: snapshot, blobs, the Hub approval, *changed after approval*, re-review | 08, 09, 13, 20 | Hub H0/C2 (`hubclient.Designs` + fake); phase 4 task 07 (`discoverhub`) | 3 |
-| 22 | Handoff: the bundle into the worktree; the session link | 21 | Hub H4 fake; phase 3 3-D6 | 2 |
+| 20 | `designapi` routes, the SSE window stream, configuration, wiring | 11, 12, 13 | **Hub C3, Hub plan tasks 37–38 (`localkey`) — hard, no fallback (rule 4)**; phase 4 task 10 (`RouteMounter`; declared here if absent) | 3 |
+| 21 | Approval: snapshot, blobs, the Hub approval, *changed after approval*, re-review | 08, 09, 13, 20 | **Hub C3 (tasks 37–38) — hard**; Hub H0/C2 (`hubclient.Designs` + fake); phase 4 task 07 (`discoverhub`) | 3 |
+| 22 | Handoff: the bundle into the worktree (manifest paths validated, review C2); the session link | 21 | **Hub C3 (tasks 37–38) — hard**; Hub H4 fake; phase 3 3-D6 | 2 |
 | 23 | Editor data layer: wire types, the document store, the transport port, the allowlist check | 03, 07, 11 | — | 2.5 |
 | 24 | The renderer: artboard iframes, assets, measurement, capture, the render responder, the hidden renderer | 01, 23 | — | 3 |
 | 25 | The editor: viewport, selection, marquee, move and resize, snapping, canvas keys | 24 | — | 3 |
 | 26 | The editor: layers, layout, fill, border, effects, type, token picker, code panel, text in place | 25 | — | 3 |
-| 27 | Desktop data: `design.ts`, `events.ts`, the design slice, the transport adapter, the key-source selector | 20, 23 | phase 4 task 16 (the loader) | 2.5 |
+| 27 | Desktop data: `design.ts`, `events.ts`, the design slice, the transport adapter, the key-source selector | 20, 23 | **Hub C3 (tasks 37–38; task 38's `LocalKeySource`) — hard**; phase 4 task 16 (the loader) | 2.5 |
 | 28 | The Design lens chrome: seven states, approval bar, side panel, presence, comments, review requests | 21, 22, 26, 27 | phase 4 task 17 (`ContextChip`) | 3 |
 | 29 | Paste: HTML, SVG and images | 20, 26 | — | 1.5 |
 | 30 | End to end, the phase 5 contract document, and the amendments | all | OD-12's hands-on session | 2 |
@@ -421,6 +434,11 @@ tasks; each part says what it codes against until that task lands.
 3. **06, 07, 14** → **08, 10** → **09, 11**.
 4. **12, 13, 19** → **15, 16, 20, 23**.
 5. **17, 21, 24** → **22, 25** → **26, 27** → **28, 29** → **30**.
+
+**Hub C3 gates Lane E and task 27.** Tasks 20, 21, 22 and 27 do not start until Hub plan tasks 37
+and 38 have landed in the tree (`control-plane/internal/localkey/` and `desktop/src/api/localKey.ts`
+exist). There is no "code it without the key and add it later" path: `designapi.New` will not build
+without `KeyGuard` (plan rule 4, review C1). If C3 slips, Lane E waits; the other lanes do not.
 
 **Parallel lanes for worktree agents.** Lane A (Go core): 05–13. Lane B (MCP): 14–17, after 12 and
 13. Lane C (relay): 18–19. Lane D (editor): 23–26, after 01 and 03. Lane E (control-plane HTTP and
@@ -459,6 +477,7 @@ phase 5 does until it is answered.
 | **HA5-2** | Contract §9.2's `Designs` has five methods; the Hub plan's `task-04.md:91-100` has seven (`Approval`, `SessionLinks` added) | amend §9.2 to the plan's seven | phase 5 uses only the contract's five plus `Approval` (task 22 reads one approval by id) and codes a local interface of exactly those six |
 | **HA5-3** | The fake must model every check of §7.7 (1–6) and §7.8, and §7.6's `digest_mismatch` and `quota_exceeded`, because phase 5's tests run only against it | confirmation that `NewFake()` implements them, with the same error codes and `details` | task 21's tests assert those codes against the fake; a gap is a failing test that names this ask |
 | **HA5-4** | ADR-H1 R5 says *"every approval is audited with its session context"*; `ApprovalRequest` (contract §7.7; `task-03.md:353-360`) has no field that could carry one, and §5.3 forbids actor fields | delete the phrase from R5 (recommended — the Hub records the principal and the time, which is all it can know), **or** add an optional `"surface": "design-lens"` to `ApprovalRequest` | phase 5 sends the contract's request exactly; no extra field |
+| **HA5-6** | Hub plan task 37's `localkey.Middleware` has no stated behaviour for a **zero** `Key` (`localkey.Key{}`); `crypto/subtle.ConstantTimeCompare` of two empty slices returns 1, so a zero key plus `Authorization: Bearer ` could pass. Task 37's `TestAWrongKeyIs401` covers an empty bearer only against a real key (`task-37.md:90`) | `Middleware` panics when given a zero `Key` (a wiring bug, found at start), and a test pins it | phase 5 builds `KeyGuard` only from the `Key` `localkey.Mint` returned; task 20's `TestRoutes_localKeyRequired` and `TestMain_wiring` send an empty bearer through the real wiring and require 401 (review C1) |
 | **HA5-5** | v2 only, recorded now so it is not a surprise: canvases move into the Hub | a `canvases` table keyed by `(project, branchRef)`, a `/v1/canvas/{canvasId}/stream` WebSocket, and `canvas/...` in the §2 boundary allowlist (S5-H.2) | nothing in v1 |
 
 ---

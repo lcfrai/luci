@@ -1,6 +1,6 @@
 # Task 27 — Desktop data: the design client, the event stream, the slice, the transport adapter
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 20, 23 · **External:** phase 4 task 16 (`keySources`, the loader, the provenance slice) · **Hours:** 2.5
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 20, 23 · **External:** **Hub C3 — Hub plan tasks 37–38, a hard dependency** (task 38's `LocalKeySource` and `client.ts` header; every design route answers a keyless call 401 `local_key_required`, task 20, review C1); phase 4 task 16 (`keySources`, the loader, the provenance slice) · **Hours:** 2.5
 
 ## Why
 
@@ -13,8 +13,9 @@ registry of document stores (class instances, kept outside zustand), and one key
 ## Files
 
 - `desktop/src/api/design.ts`, `desktop/src/api/events.ts` + tests (new)
-- `desktop/src/api/client.ts` — the `ProblemCode` union gains task 20's eleven codes and
-  `upstream_unavailable`, `signed_out` if the Hub's C1/C2 have not added them. **Declared amendment**
+- `desktop/src/api/client.ts` — the `ProblemCode` union gains task 20's twelve codes
+  (`handoff_snapshot_invalid` is the twelfth, review C2) and `upstream_unavailable`, `signed_out`
+  if the Hub's C1/C2 have not added them (`local_key_required` is Hub task 38's, already there). **Declared amendment**
   of UI contract §4.2 (task 30 records it). `problems.ts`' `classify` is unchanged: every new code is
   `server-said` (the server wrote the sentence), and `signed_out` is the Hub's C4's to map.
 - `desktop/src/design/designTypes.ts`, `designSlice.ts`, `docstores.ts`, `transportAdapter.ts`,
@@ -54,8 +55,15 @@ export interface DesignClient {
   sessionLinks(canvasId: string): Promise<SessionLink[]>;                                   // 26
   paste(canvasId: string, req: PasteRequest): Promise<PasteResult>;                         // task 29
 }
-export function createDesignClient(opts: ClientOptions): DesignClient; // same options, same ApiError, same local key header as client.ts
+// same options, same ApiError, same send() as client.ts — but localKey is REQUIRED here: a design
+// client with no key source throws at construction ("the design client needs the local caller key,
+// Hub plan task 38"), because every design route refuses a keyless call (task 20, review C1).
+export function createDesignClient(opts: ClientOptions & { localKey: LocalKeySource }): DesignClient;
 ```
+
+`LocalKeySource` is Hub plan task 38's (`desktop/src/api/localKey.ts`); the design client and the
+stream share the one instance the app builds at start, so a restarted control plane's new key is
+re-read once for both.
 
 `designTypes.ts` declares `Summary`, `ApprovalState`, `DesignApproval`, `SessionLink`,
 `HandoffResult`, `ActivityRow`, `RevertResult` — field for field the Go JSON of tasks 11, 12, 21,
@@ -66,7 +74,8 @@ export function createDesignClient(opts: ClientOptions): DesignClient; // same o
 export type StreamState = "connecting" | "open" | "reconnecting" | "closed";
 export interface EventStreamOptions {
   baseUrl: string; fetch: typeof globalThis.fetch; windowId: string;
-  authorization?: () => string | undefined;   // the local key (Hub C3) when present
+  localKey: LocalKeySource;  // REQUIRED (Hub plan task 38): get() before every connect; a 401
+                             // local_key_required → refresh() and reconnect ONCE; a second → "closed"
   onCanvas(e: CanvasEvent): void;
   onRender(r: RenderRequest): void;
   onGone(g: { topic: string; code: string }): void;
@@ -132,7 +141,8 @@ export function selectHiddenRendererCanvases(s: CockpitState): string[];
 | `events.test.ts › reconnect` (fake timers) | a drop reconnects after 0.5 s, then 1 s …; the second request's URL carries `@<last revision>` | reconnect replaying from zero, or never |
 | `events.test.ts › noInterval` | the module never calls `setInterval` (spy) | a second clock (G10) |
 | `events.test.ts › topicsReplace` | changing the topic set opens one new request and aborts the old | two streams per window |
-| `events.test.ts › authHeader` | with `authorization()` set, the fetch carries `Authorization: Bearer …` | a stream the local key would refuse |
+| `events.test.ts › authHeader` | the first connect and every reconnect carry `Authorization: Bearer <localKey.get()>`; a 401 `local_key_required` → `refresh()` once and a reconnect with the new key; a second 401 → state `closed` and `onGone` with code `local_key_required`, no further request | a stream the local key refuses; a restart that leaves the window deaf; an infinite retry |
+| `design.test.ts › localKeyRequired` | `createDesignClient` without `localKey` throws; with it, every method's request carries the header (one assertion per method, the same table as the row below) | a design client that silently calls keyless and gets 401 on every route (review C1) |
 | `design.test.ts` (one row per method) | method, path and body; an error body becomes `ApiError` with its code | a route typo found only in the lens |
 | `designSlice.test.ts › undoWindow` (fake timers) | `designApprove` sends nothing for 5 s; `designCancelApproval` in that window sends nothing ever; after 5 s exactly one POST | an approval sent before Undo can stop it (P5-I) |
 | `designSlice.test.ts › notPersisted` | `partialize(state)` has no `design` key | design state leaking into localStorage |
@@ -157,5 +167,7 @@ Expected: tests pass; typecheck clean; **no diff** for `types.ts` (G2).
 ## Not claimed
 
 - No UI: the lens is task 28.
-- The local key is Hub C3's; until it lands the stream is guarded as every other route is (the
-  loopback Host guard and the Origin allowlist).
+- The local key is Hub C3's (Hub plan tasks 37–38), and this task does not start until both have
+  landed: the loopback Host guard and the Origin allowlist stop a browser, not a sandboxed process,
+  so there is no "guarded as every other route" fallback (review C1). What the key does not stop is
+  another process of the same OS user, which can read the key file (Hub contract §9.4).
