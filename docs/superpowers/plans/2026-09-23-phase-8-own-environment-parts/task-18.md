@@ -15,6 +15,10 @@ a frame: it copies them, as the control plane does (`internal/api/attach.go:212-
 - `control-plane/internal/brokerapi/wire.go` — request/response types (new)
 - `control-plane/cmd/broker/sandboxes.go`, `attach.go`, `machinecheck.go`, `capacity.go` and their tests (new)
 - `control-plane/cmd/broker/server.go` — the five routes join the table (modify)
+- `control-plane/internal/backend/backend.go` — `KubeLabelControlPlane`, `Spec.ControlPlane` and
+  its `ValidateSpec` rule (modify; review I6)
+- `control-plane/internal/sandbox/manager.go` and `internal/backend/katabe/kata.go` — the label
+  on the pod and its Secret, passed through from `Spec.ControlPlane` (modify; review I6)
 
 #### Contract — `brokerapi/wire.go` (complete)
 
@@ -51,7 +55,21 @@ type SandboxSpec struct {
 	WorkDir       string            `json:"workDir"`
 	Machine       string            `json:"machine"` // required: every cloud sandbox runs on a machine
 	MachineMounts []MachineMount    `json:"machineMounts"`
+	// ControlPlane is the creating control plane's install id (task 23's
+	// machines.InstallID), ^[0-9a-f]{32}$, required. The broker stamps it as the
+	// pod's and Secret's backend.KubeLabelControlPlane label, so a laptop's
+	// reaper can tell its own sandboxes from another laptop's of the same owner
+	// (review I6). It is an identifier, not a secret, and authorises nothing:
+	// the owner label still scopes every route.
+	ControlPlane string `json:"controlPlane"`
 }
+
+// QueryControlPlane is GET /v1/sandboxes' optional filter: ?controlPlane=<id>
+// lists only the owner's sandboxes carrying that install id. remotebe always
+// sends it (task 22). Without it the answer is every sandbox of the owner,
+// which is the seam for ending a session another laptop started (review I6's
+// owner question).
+const QueryControlPlane = "controlPlane"
 
 // Sandbox is what the broker reports. It deliberately has no Endpoint: the
 // laptop never learns a pod IP; it attaches through the broker.
@@ -71,12 +89,35 @@ type SandboxList struct {
 }
 ```
 
+#### Contract — the install-id label (review I6)
+
+```go
+// package backend (backend.go), beside KubeLabelOwner (task 14):
+const KubeLabelControlPlane = "panacea-app/control-plane" // the creating control plane's install id; absent on the laptop
+
+// Spec gains one field, after MachineMounts (task 15):
+//
+//	ControlPlane string // for the label only, like SessionID; a backend never reads it back
+//
+// ValidateSpec gains, wrapping ErrUnsupported: ControlPlane, when set, must
+// match ^[0-9a-f]{32}$. sandbox.Spec gains the same field; katabe passes it
+// through, and sandbox.Manager writes it as KubeLabelControlPlane on the pod and
+// on its attach Secret when it is non-empty. dockerbe ignores it: the laptop's
+// Docker sandboxes keep phase 2's one-control-plane-per-daemon assumption.
+```
+
+Why a label and not the owner: the broker scopes by **owner** (`tid/oid`), and one owner can run
+two control planes, on a second PC or after a reinstall with a fresh state directory. Each
+laptop's reaper destroys any listed sandbox that its registry does not name (rule 4,
+`destroyOrphan`, `reaper.go:452-463`). Without this label, the second laptop's reaper would
+destroy the first laptop's running cloud sessions within one reap interval.
+
 #### Contract — the routes
 
 | Route | Success | Failures (problem code, status) |
 |---|---|---|
 | `POST /v1/sandboxes` | `201` + `Sandbox`, **after** the pod answers `/healthz` (katabe's wait, up to `READY_TIMEOUT`) | `invalid_json` 400 · `bad_request` 400 (`backend.ValidateSpec` refused; message names the field) · `image_not_allowed` 400 · `resources_too_large` 400 · `machine_not_found` 404 · `machine_asleep` 409 · **`machine_full` 409** (only under the machine affinity; `details.sessionsPerMachine`: the machine's other session pods at the refusal, possibly `0` when other users' pods fill the node or it is cordoned; the new pod is already deleted — review I5, b05 re-review) · `conflict` 409 (id exists for this owner) · `quota_exceeded` 429 (`details.limit`) · `backend_unavailable` 503 (API server, or the pod never became ready: `details.reason = "not_ready"`, and the pod is deleted before the answer) |
-| `GET /v1/sandboxes` | `200` + `SandboxList`, this owner's only | `backend_unavailable` 503 |
+| `GET /v1/sandboxes` | `200` + `SandboxList`, this owner's only; with `?controlPlane=<id>`, only those whose pod carries `panacea-app/control-plane: <id>` (a label selector beside the owner's, so the filter runs in the API server). Each `Sandbox.Labels` carries the pod's labels, the control-plane label among them (katabe copies them, `kata.go:181-186`) | `bad_request` 400 (a `controlPlane` that is not 32 lowercase hex) · `backend_unavailable` 503 |
 | `GET /v1/sandboxes/{id}` | `200` + `Sandbox` | `sandbox_not_found` 404 — also for another owner's id |
 | `DELETE /v1/sandboxes/{id}` | `204`, also when it did not exist (katabe's `Destroy` is idempotent, `kata.go:243-257`) | `backend_unavailable` 503 |
 | `GET /v1/sandboxes/{id}/attach` | `101` WebSocket, then frames both ways | before the upgrade, as HTTP: `bad_request` 400 (no `Panacea-Attach-Token`) · `sandbox_not_found` 404 · `sandbox_not_running` 409 · `attach_rejected` 403 (sandboxd said 401) · `backend_unavailable` 503 |
@@ -87,7 +128,8 @@ task 12), and 0 is what every cloud session sends (remotebe never sends a size, 
 the SKU-derived max (task 17) is `resources_too_large`, because such a session fits on no node
 beside its machine pod → `Machine` present, and the machine **exists for this owner and is awake**
 (`machineChecker`, below) → the owner's pod count < `MAX_SANDBOXES_PER_USER` → build
-`backend.Spec` (`Mounts: nil`, `MachineMounts` mapped) → `katabe.New(Config{Manager: base,
+`backend.Spec` (`Mounts: nil`, `MachineMounts` mapped, `ControlPlane` copied; an empty or
+malformed `ControlPlane` is `bad_request` naming the field, review I6) → `katabe.New(Config{Manager: base,
 Owner: owner, ReadyTimeout})` → `Create` under a context that `watchUnschedulable` (below) may
 cancel, **armed only when `Cfg.MachineAffinity` is true** → on failure, **delete the pod this
 request created** (below) → answer in the order below, mapping errors by `errors.Is` (never by
@@ -245,9 +287,17 @@ sandboxd stand-in (the pattern `katabe/kata_test.go`'s `runningSandbox` already 
 | `TestTheCallerLeavingDeletesThePod` | the client cancels its request while the pod is Pending → the pod is gone within 1 s | an orphan per abandoned create |
 | `TestAnotherOwnersSandboxIs404Everywhere` | owner B: `GET`, `DELETE` (→ 204 but the pod survives), `attach` on A's id → 404 / no-op / 404 | the cross-user access the broker exists to prevent |
 | `TestListReturnsOnlyTheCallersSandboxes` | A has 2, B has 1 → A lists 2 | `Manager.List` unscoped (`manager.go:240-247`) |
+| `TestCreateStampsTheControlPlane` | `controlPlane: "<32 hex>"` → the pod and its Secret carry `panacea-app/control-plane: <id>`, and the answer's `labels` include it (review I6) | an install id the reaper can never find |
+| `TestCreateWithoutAControlPlaneIs400` | `""`, `"ABC"` and 31 hex characters → 400 `bad_request` naming `controlPlane`, no pod | an unlabelled cloud sandbox that every laptop of the owner may treat as its own |
+| `TestListFiltersByControlPlane` | owner A has two pods with id `X` and one with `Y`; owner B has one with `X` → `?controlPlane=X` lists A's two; no query lists A's three; `?controlPlane=zz` → 400 | the filter dropped, or applied across owners |
 | `TestDeleteIsIdempotent` | two DELETEs → 204, 204 | the reaper's second pass a 500 |
 | `TestErrorsAreMappedByIsNotByString` | a fake katabe error wrapping `backend.ErrUnavailable` with an unrelated message → 503 | string matching |
 | `TestTheAttachTokenIsNeverLogged` | a create and an attach with token `tok-SECRET` → the captured log has no `tok-SECRET` | a token in a log line |
+
+And beside them (review I6): `backend_test.go` gains `TestValidateSpecRefusesAMalformedControlPlane`
+(`"ABC"` → `ErrUnsupported`; `""` and 32 hex characters pass), and `internal/sandbox` gains
+`TestManagerWritesTheControlPlaneLabel` (the pod and the Secret carry it; with `""`, neither has
+the key).
 
 `attach_test.go`:
 
@@ -288,6 +338,10 @@ sandboxd stand-in (the pattern `katabe/kata_test.go`'s `runningSandbox` already 
   options catch it) → `TestAFullMachineIs409MachineFullInSeconds`; `machineSessions` ignoring
   `except` (a fake delete removes the pod at once, so this is caught only because the count runs
   before the delete) → the same test (the count becomes `"4"`).
+- [ ] **Step 2b (review I6):** mutation check, the same way: `controlPlane` optional on create →
+  `TestCreateWithoutAControlPlaneIs400`; the `?controlPlane` selector dropped →
+  `TestListFiltersByControlPlane`; the label written on the Secret only, not the pod →
+  `TestCreateStampsTheControlPlane`.
 - [ ] **Step 3:** Update the `MaxMessageBytes` comment in `backend.go:29-37` to name five sites.
 - [ ] **Step 4:** Full test run under `-race`; commit.
 
@@ -303,6 +357,11 @@ grep -n "five" control-plane/internal/backend/backend.go                        
 
 - That a pod IP is reachable from the broker's pod through Cilium with task 11's policies (task 32).
 - That 30 s pings survive the chosen Traefik release's WebSocket handling (task 13's open item).
+- That the install id separates two laptops for anything but listing. `GET`, `DELETE` and
+  `attach` stay scoped by owner alone. A laptop only ever addresses the ids its own registry
+  holds, and an attach still needs the sandbox's token, which only the creating laptop has. The
+  unfiltered list plus `DELETE` is the seam for ending a session that another laptop started
+  (review I6's owner question).
 - That the scheduler writes `nominatedNodeName` no later than it reports `Unschedulable` for a
   pod that will preempt a balloon (training knowledge of kube-scheduler, **UNVERIFIED**). The 5 s
   grace covers a lag between the two; task 32's P06 (d) and P07 exercise both paths on a real
