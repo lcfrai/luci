@@ -54,7 +54,7 @@ One cloud machine exists at first sign-in with no create form — claimed from a
 
 `⌘K` palette · `⌘⏎` new default session · `⌘⇧M` machines · `⌘1-9` focus session n · `⌘\` next session · `shift+tab` cycle permission mode in the focused session · `esc` interrupt · `⌘W` close session · `⌘B` toggle rail · `/` slash commands inside a session.
 
-With a terminal focused, the `⌘` chords go to the cockpit, as in VS Code. The palette's **"Send shortcut keys to the terminal"** toggle hands every one of them, `⌘K` included, to the agent instead; `⌘K` pressed outside a terminal still opens the palette. `shift+tab`, `esc` and `/` go to the agent either way. *(Owner decision OD-9, 2026-09-24.)*
+With a terminal focused, the `⌘` chords go to the cockpit, as in VS Code. The palette's **"Send shortcut keys to the terminal"** toggle hands every one of them, `⌘K` included, to the agent instead; `⌘K` pressed outside a terminal still opens the palette, but with the toggle on, getting outside one takes a pointer: no key leaves a terminal then (an open owner question, UI contract §6.9). `shift+tab`, `esc` and `/` go to the agent either way. *(Owner decision OD-9, 2026-09-24.)*
 
 ## Known defects being fixed in this pass
 

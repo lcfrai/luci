@@ -74,11 +74,11 @@ afterEach(() => {
 /** Mount the real Terminal, focused, and return its helper textarea — which must be the element
  *  holding DOM focus, or nothing below is dispatched where a real keystroke lands — and every
  *  byte xterm hands the agent from here on. */
-function focusedTerminal(): { textarea: HTMLTextAreaElement; sent: string[] } {
-  render(<Terminal sessionId="s-1" readOnly={false} focused />);
-  const handle = acquireAttach(session("s-1"), {
+function focusedTerminal(readOnly = false): { textarea: HTMLTextAreaElement; sent: string[] } {
+  render(<Terminal sessionId="s-1" readOnly={readOnly} focused />);
+  const handle = acquireAttach(useCockpit.getState().sessions["s-1"] ?? session("s-1"), {
     createTerm: () => { throw new Error("the component should already have built a terminal"); },
-    readOnly: false,
+    readOnly,
   });
   releaseAttach("s-1");
   const sent: string[] = [];
@@ -239,6 +239,21 @@ describe("OD-9 on: a chord pressed on a focused real xterm reaches the agent, an
     state().setSendChordsToTerminal(false);
     keydownOn(textarea, "3", 51, { ctrlKey: true });
     expect({ sent, focus: state().selection.sessionId }).toEqual({ sent: ["\x1b"], focus: "s-3" });
+  });
+
+  // ADDED BY OD-9's FIX ROUND 1 (the review's M1). Every row above is a writable terminal, so a
+  // host marker rendered only when `readOnly` is false passed them all. An exited pane can still
+  // hold DOM focus, from a click into its scrollback, and the ruling is that it is still a
+  // terminal: the two chords xterm maps to nothing must not move focus or open the popover.
+  // The session is seeded EXITED, the one pairing the app makes with readOnly (SessionPane).
+  it("a read-only (exited) terminal is still a terminal: ⌘1 and ⌘⇧M pressed in one move nothing", () => {
+    state().setSendChordsToTerminal(true);
+    useCockpit.setState((s) => ({ sessions: { ...s.sessions, "s-1": { ...session("s-1"), status: "exited", exitReason: "killed" } } }));
+    const { textarea, sent } = focusedTerminal(true);
+    const before = mapSnapshot();
+    keydownOn(textarea, "1", 49, { ctrlKey: true });
+    keydownOn(textarea, "M", 77, { ctrlKey: true, shiftKey: true });
+    expect({ sent, mapUnchanged: mapSnapshot() === before }).toEqual({ sent: [], mapUnchanged: true });
   });
 
   it("⌘K pressed outside the terminal still opens the palette, with a terminal on the page", () => {

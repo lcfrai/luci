@@ -427,11 +427,28 @@ describe("Terminal lets the cockpit's chords past xterm", () => {
     },
   );
 
-  it("OD-9: the terminal's element sits inside a host the keyboard map recognises as a terminal", () => {
-    seed(session());
-    const { container } = render(<Terminal sessionId="s-1" readOnly={false} focused />);
-    const host = container.firstElementChild as HTMLElement;
-    expect([host.hasAttribute(TERMINAL_HOST_ATTRIBUTE), host.contains(grab().element), isInsideTerminal(grab().element)])
-      .toEqual([true, true, true]);
-  });
+  /* EDITED BY OD-9's FIX ROUND 1. This was one row, `readOnly={false} focused`, so a marker
+   * rendered only on a writable terminal, or only on the focused pane, passed it (the review's
+   * R1 and R2). An exited pane can still hold DOM focus: the user clicks into its scrollback.
+   * The ruling is that a read-only terminal is still a terminal, and whether a pane is the
+   * selected one is app state, not what the element is. So the marker is pinned in all four.
+   * A read-only row seeds an EXITED session, because that is the only pairing the app makes
+   * (SessionPane passes `readOnly={session.status === "exited"}`, and attachRegistry calls
+   * readOnly "a property of the SESSION"). Seeded running, a marker keyed on the session's
+   * status instead of the prop passed all four rows. */
+  it.each([
+    { readOnly: false, focused: true },
+    { readOnly: false, focused: false },
+    { readOnly: true, focused: true },
+    { readOnly: true, focused: false },
+  ])(
+    "OD-9: the terminal's element sits inside a host the keyboard map recognises as a terminal (readOnly $readOnly, focused $focused)",
+    ({ readOnly, focused }) => {
+      seed(readOnly ? session({ status: "exited", exitReason: "killed" }) : session());
+      const { container } = render(<Terminal sessionId="s-1" readOnly={readOnly} focused={focused} />);
+      const host = container.firstElementChild as HTMLElement;
+      expect([host.hasAttribute(TERMINAL_HOST_ATTRIBUTE), host.contains(grab().element), isInsideTerminal(grab().element)])
+        .toEqual([true, true, true]);
+    },
+  );
 });

@@ -1,6 +1,6 @@
 // desktop/src/store/slices/prefsSlice.ts
 //
-// Contract §3.4. Defaults, inheritance overrides, tiles, pins.
+// Contract §3.4. Defaults, inheritance overrides, tiles, pins, and OD-9's sendChordsToTerminal.
 
 import type { StateCreator } from "zustand";
 import type {

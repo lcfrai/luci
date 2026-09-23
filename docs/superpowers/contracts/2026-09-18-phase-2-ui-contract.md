@@ -289,7 +289,8 @@ the agent. OD-9 (2026-09-24) added the other mode to the same file: with "Send s
 the terminal" on, every chord reaches the agent as the bytes xterm maps it to, or reaches nobody
 where xterm maps it to nothing, and the map does nothing either way; `⌘K` pressed outside the
 terminal still opens the palette; and Escape, shift+Tab, Ctrl+C and `/` behave identically in both
-modes. It was allowed on one condition, that it is stable (five consecutive identical runs
+modes. OD-9's fix round 1 added one row: a read-only terminal on an exited session is still a
+terminal, so `⌘1` and `⌘⇧M` pressed in one move nothing (§6.9). It was allowed on one condition, that it is stable (five consecutive identical runs
 before commit); **if it ever flakes it is deleted**, and `Terminal.test.tsx`'s handler-level tests
 stay. Nothing in it draws or measures a glyph, so the rule above is unchanged for rendering.
 
@@ -630,7 +631,7 @@ export interface Toast {
 | `desktop/src/store/store.ts` | `createCockpitStore`, the `useCockpit` singleton, `resetCockpit`, the `persist` wiring, `PERSIST_KEY`, `PERSIST_VERSION`, `migrate`. |
 | `desktop/src/store/slices/dataSlice.ts` | Server-derived entities and their setters. |
 | `desktop/src/store/slices/uiSlice.ts` | Selection, lens, layout, rail expansion, overlays, toasts. |
-| `desktop/src/store/slices/prefsSlice.ts` | Defaults, inheritance overrides, tiles, pins. |
+| `desktop/src/store/slices/prefsSlice.ts` | Defaults, inheritance overrides, tiles, pins, and OD-9's `sendChordsToTerminal`. |
 | `desktop/src/store/selectors.ts` | Every derived read. No component computes a derivation inline. |
 | `desktop/src/store/defaults.ts` | `resolveDefaults`, `toCreateRequest` — pure, no store import. |
 
@@ -1989,8 +1990,14 @@ Its label never changes, so the query "shortcut" always finds it, and its state 
 in the row. It has no `hint`, because a chord that toggled it would be one the setting hands away.
 The palette closes before `run`, so `run` also pushes a toast that says which way the keys now go,
 with an Undo that restores the value it replaced. Turning it **on** says how to get back here:
-*"Shortcut keys now go to the terminal. To open this palette, click outside the terminal and press
-⌘K."* There is no settings page yet, and the pane is deliberately not given a control for it.
+*"Shortcut keys now go to the terminal, ⌘K too. To open this palette again, click an empty part of
+the top bar, then press ⌘K."* It names the top bar's empty part, and not "outside the terminal"
+(the wording before OD-9's fix round 1), because that is always on screen and moves no focus into
+a pane, while a click on a pane's own header or footer, or on another session's rail row, hands
+focus straight back to a terminal (§6.8's two movers), where `⌘K` is the agent's. The way back
+needs a pointer, and so does the toast's Undo while a terminal has focus; §6.9 says why, and that
+it is an open owner question. There is no settings page yet, and the pane is deliberately not
+given a control for it.
 
 Palette ranking is **stable**: `buildCommands` returns a fixed order (verbs, then sessions, then
 worktrees, then branches, then projects) and filtering only *removes* rows; it never re-ranks.
@@ -2045,7 +2052,7 @@ was already focused throughout, so no transition fires and the first mover stays
 | `⌘⇧M` | Machines popover | Always, except from inside a terminal with OD-9's setting on (below) |
 | `⌘1`–`⌘9` | Focus the *n*th session in `selectPaneSessionIds` | Via `idAtVisiblePosition`; no-op past the end |
 | `⌘\` | Focus the next session, wrapping | Same list |
-| `⌘W` | Kill the focused session (optimistic + Undo toast) | Requires a focused session. **Does not close the window** — `preventDefault` is mandatory or the webview closes |
+| `⌘W` | Kill the focused session (optimistic + Undo toast) | Requires a focused session. **Does not close the window** — `preventDefault` is mandatory or the webview closes (inside a terminal with OD-9's setting on, xterm's own cancel does it; below). On a Mac, `Cmd+W` maps to nothing in xterm, so with the setting on nothing cancels it; the app is Windows-only today, and this is recorded, not built |
 | `⌘B` | Toggle the rail | Always, except from inside a terminal with OD-9's setting on (below) |
 | `Escape` | Close the topmost overlay; if none, **do nothing** | See below |
 | `shift+tab` | **Not intercepted.** Passed to the terminal | See below |
@@ -2076,11 +2083,33 @@ takes two guards, one per kind of chord:
 The setting moves **no key in or out of the predicate**, so Escape, `shift+tab` and `/` behave
 identically in both modes, and a chord pressed **outside** a terminal is the cockpit's in both
 modes. That is how the palette stays reachable when the setting is on: `⌘K` from the rail, the top
-bar, the page, or the palette's own input (which is how an open palette still closes on `⌘K`).
+bar, the page, or the palette's own input (which is how an open palette still closes on `⌘K`),
+once a pointer has put focus there (below).
 **Ruling:** `⌘K` inside a terminal, with the setting on, goes to the terminal. The setting means
-"every chord", `⌘K` included; the palette is one click outside the terminal away, and the toast
-that turns the setting on says so. A read-only (exited) terminal is still a terminal: with the
-setting on it receives the chord and, having no agent, drops it, as it drops every other key.
+"every chord", `⌘K` included, and the toast that turns the setting on says how to get back.
+A read-only (exited) terminal is still a terminal: with the setting on it receives the chord and,
+having no agent, drops it, as it drops every other key. So `Terminal`'s host carries the marker
+whatever `readOnly` and `focused` are; `Terminal.test.tsx` pins all four pairings, each read-only
+row on an exited session (the only pairing `SessionPane` makes), and the real-xterm file presses
+`⌘1` and `⌘⇧M` in an exited session's terminal (OD-9's fix round 1).
+
+**What that ruling costs, stated plainly (OD-9's fix round 1): with the setting on, a keyboard
+alone cannot leave a terminal.** xterm sends and cancels Tab, Escape, the F-keys and every Ctrl
+chord it maps to data; the chords it maps to nothing are dropped by the second return above; and
+nothing else moves DOM focus out of a pane. So from inside a terminal no key reaches the palette,
+the rail or any other cockpit surface, and the only way back to the one row that turns the
+setting off is a **pointer**. Not a click anywhere "outside the terminal", either: a click on a
+pane's header or footer re-focuses its terminal (§6.8's second mover), and so does a click on
+another session's rail row (the first mover, on its false→true transition). A click on an empty
+part of the top bar, then `⌘K`, is the route the toast names, and `AppShell.test.tsx` walks it and
+the pane-header route side by side. The toast's Undo is pointer-only too while a terminal has
+focus, and a reflex `⌘K` inside one sends `\x0b`, which a readline-style prompt treats as
+kill-to-end-of-line. The app also **starts** in this state: the setting and `selection` are both
+persisted, and a pane that mounts focused takes DOM focus (`Terminal.tsx`'s focus effect). That is
+a keyboard trap under WCAG 2.1.2 (No Keyboard Trap, level A), and it falls short of
+DESIGN-SYSTEM.md's "keyboard is a primary input here". Every way out is a key the cockpit keeps
+while the setting says it keeps none, so choosing one is the owner's decision: it is recorded,
+with the options, in `od9-toggle-report.md`'s fix round 1, and not built.
 
 Two entries need the reason spelled out, because both look like omissions:
 

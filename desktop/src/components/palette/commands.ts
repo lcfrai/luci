@@ -120,6 +120,12 @@ export function buildCommands(state: CockpitState): Command[] {
   // The palette closes before `run`, so the toast is the only thing that shows the change took,
   // and it says the one thing the new mode hides: with the setting on, ⌘K pressed in a
   // terminal goes to the agent, so the way back to this row is ⌘K from outside one.
+  //
+  // EDITED BY OD-9's FIX ROUND 1. It names ONE surface, the top bar's empty part, because
+  // "outside the terminal" was not enough: a click on a pane's own header or footer, or on
+  // another session's rail row, hands focus straight back to a terminal (contract §6.8's two
+  // movers). And the way back needs a pointer: with the setting on, no key leaves a terminal
+  // (contract §6.9, an open owner question, recorded and not built).
   const sendChords = state.sendChordsToTerminal;
   commands.push({
     id: "verb:send-chords-to-terminal",
@@ -131,7 +137,7 @@ export function buildCommands(state: CockpitState): Command[] {
       state.pushToast(
         sendChords
           ? "Shortcut keys go to the cockpit again, from a terminal too."
-          : "Shortcut keys now go to the terminal. To open this palette, click outside the terminal and press ⌘K.",
+          : "Shortcut keys now go to the terminal, ⌘K too. To open this palette again, click an empty part of the top bar, then press ⌘K.",
         () => state.setSendChordsToTerminal(sendChords),
       );
     },

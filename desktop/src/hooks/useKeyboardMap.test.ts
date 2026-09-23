@@ -185,9 +185,12 @@ describe("useKeyboardMap — the chord table", () => {
     expect(killMock).toHaveBeenCalledTimes(1);
   });
 
-  it("⌘K toggles the palette, including while a terminal has focus", () => {
+  it("⌘K toggles the palette, including while a terminal has focus, with OD-9's setting off (the default)", () => {
     // Through the focused element, not straight at the window: dispatched at the window, this
-    // name was true of a listener that no focused terminal ever let a chord reach.
+    // name was true of a listener that no focused terminal ever let a chord reach. RENAMED BY
+    // OD-9's FIX ROUND 1: with the setting on, ⌘K inside a terminal is the agent's (the OD-9
+    // describe below pins that), so the unqualified name was no longer true. This stand-in
+    // textarea carries no terminal-host marker, so this row does not see the setting either way.
     const term = focusedTerminal();
     expect(pressOn(term, "k", { ctrlKey: true }).defaultPrevented).toBe(true);
     expect(useCockpit.getState().paletteOpen).toBe(true);

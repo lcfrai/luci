@@ -136,8 +136,13 @@ export function useKeyboardMap(): void {
 
       const key = chordKey(event);
 
-      // ⌘W FIRST, and preventDefault BEFORE every guard: without it WebView2 closes the
-      // window, and "no session is focused" must still swallow the key (§6.9).
+      // ⌘W FIRST, and preventDefault BEFORE every guard below: without it WebView2 closes the
+      // window, and "no session is focused" must still swallow the key (§6.9). The one return
+      // above it, OD-9's, is for keys from inside a terminal with the setting on, where xterm
+      // has already cancelled Ctrl+W itself (it sends ETB, so that keydown never gets here).
+      // Do not move that return below this branch: a ⌘W that does get here from inside a
+      // terminal, such as Meta+W, which xterm maps to nothing, would then kill the focused
+      // session while the setting says the terminal has the keys.
       if (key === "w") {
         event.preventDefault();
         if (hasOpenOverlay()) return;

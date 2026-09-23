@@ -13,6 +13,7 @@ import userEvent from "@testing-library/user-event";
 import { AppShell } from "./AppShell";
 import { LENSES } from "./subrail/SubRail";
 import { resetCockpit, useCockpit } from "../store/store";
+import { TERMINAL_HOST_ATTRIBUTE, isInsideTerminal } from "../hooks/useKeyboardMap";
 import { aBranch, aHarness, aMachine, aProject, aSession, aWorktree } from "../test/fixtures";
 
 const { createSession } = vi.hoisted(() => ({ createSession: vi.fn() }));
@@ -23,9 +24,16 @@ vi.mock("../api", () => ({ api: { createSession } }));
 // ladder (250 ms rungs for 60 s, surviving the 5 s grace after unmount) would run inside a
 // suite about composition. §1.5: a component test never renders a glyph, and
 // group-d-real-browser-carries §8 puts the real terminal in task 24's window, not in jsdom.
+//
+// EDITED BY OD-9's FIX ROUND 1: the stand-in now carries what the keyboard map and the pane
+// read from a real one, and nothing else: the terminal-host marker, and xterm's helper
+// textarea, which is the element a keystroke lands on. The literal is checked against
+// TERMINAL_HOST_ATTRIBUTE in the test that relies on it (a vi.mock factory cannot import).
 vi.mock("./Terminal", () => ({
   Terminal: ({ sessionId }: { sessionId: string }) => (
-    <div data-testid="terminal" data-session={sessionId} />
+    <div data-testid="terminal" data-session={sessionId} data-terminal-host="">
+      <textarea className="xterm-helper-textarea" aria-label={`terminal ${sessionId}`} />
+    </div>
   ),
 }));
 
@@ -145,6 +153,34 @@ describe("AppShell", () => {
     });
     expect(useCockpit.getState().contextMenu?.kind).toBe("project");
     expect(screen.getAllByRole("menu")).toHaveLength(1);
+  });
+
+  /* OD-9's fix round 1. The toast that turns "Send shortcut keys to the terminal" on names ONE
+   * way back to the palette, and this walks it. user-event's press moves focus the way a
+   * browser's does: to the closest focusable ancestor, or to <body>. The pane-header row is why
+   * the toast no longer says "click outside the terminal": that click IS outside the terminal,
+   * and the pane hands focus straight back to it (§6.8's second mover), where ⌘K is the agent's.
+   * So a surface that starts moving focus into a pane on a click turns the top-bar row red.
+   * The click lands on `header.top` itself, not on `.top-spacer`: the spacer is an empty span
+   * whose auto margin is the gap, so the empty part a user clicks is the header's own box. */
+  it.each([
+    { route: "an empty part of the top bar", selector: "header.top", opens: true },
+    { route: "the focused pane's own header", selector: ".pane-head", opens: false },
+  ])("OD-9 on, a terminal focused: a click on $route, then ⌘K, opens the palette: $opens", async ({ selector, opens }) => {
+    expect(TERMINAL_HOST_ATTRIBUTE).toBe("data-terminal-host");
+    populate();
+    useCockpit.getState().focusSession("s-1");
+    useCockpit.getState().setSendChordsToTerminal(true);
+    render(<AppShell />);
+    const textarea = screen.getByLabelText("terminal s-1");
+    textarea.focus();
+    expect(isInsideTerminal(document.activeElement)).toBe(true);
+    const surface = document.querySelector(selector);
+    expect(surface).not.toBeNull();
+    await userEvent.click(surface as Element);
+    expect(isInsideTerminal(document.activeElement)).toBe(!opens);
+    await userEvent.keyboard("{Control>}k{/Control}");
+    expect(useCockpit.getState().paletteOpen).toBe(opens);
   });
 
   it("collapses the rail and deepens for a branch through class state alone", () => {

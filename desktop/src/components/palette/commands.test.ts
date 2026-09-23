@@ -81,8 +81,12 @@ describe("buildCommands", () => {
     };
     run();
     expect(useCockpit.getState().sendChordsToTerminal).toBe(true);
+    // EDITED BY OD-9's FIX ROUND 1. It used to say "click outside the terminal", and a click on
+    // a pane's own header or footer, or on another session's rail row, puts focus back into a
+    // terminal, where ⌘K is the agent's. The top bar's empty part moves no focus into a pane:
+    // AppShell.test.tsx walks this exact route, and the pane-header route, which fails.
     expect(lastToast()?.message).toBe(
-      "Shortcut keys now go to the terminal. To open this palette, click outside the terminal and press ⌘K.",
+      "Shortcut keys now go to the terminal, ⌘K too. To open this palette again, click an empty part of the top bar, then press ⌘K.",
     );
     lastToast()?.undo?.();
     expect(useCockpit.getState().sendChordsToTerminal).toBe(false);
