@@ -73,7 +73,8 @@ export type Resolution = "resolved" | "missing" | "erased" | "invalid" | "none" 
 export type CriterionState = "open" | "settled" | "contested";
 export type Origin = "project" | "branch" | "override";
 export type WorktreeBlockState =
-  | "absent" | "pending" | "current" | "superseded" | "edited" | "stale" | "broken";
+  | "absent" | "pending" | "current" | "superseded" | "edited" | "stale" | "broken"
+  | "committed"; // a TRACKED file holds a block; task 09's StateCommitted (review I3)
 
 export interface Question {
   key: string; projectPrompt: string; branchPrompt: string; help: string;

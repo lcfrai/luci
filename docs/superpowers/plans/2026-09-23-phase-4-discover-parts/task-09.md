@@ -33,7 +33,10 @@ types; `api` imports nothing of it).
 //
 // THE COMMIT RULE: the managed block is never committed (phase 3's 3-D6). It
 // is written only to a file the repository does not track, and that file's
-// path is added to the clone's info/exclude.
+// path is added to the clone's info/exclude. A file git tracks is never
+// opened for writing, not even to strip a block from it (review I3): a
+// tracked file that already holds a block is repository text, left
+// byte-identical and reported by Inspect as StateCommitted.
 package contextwrite
 
 const (
@@ -55,13 +58,24 @@ var _ api.Materialiser = (*Materialiser)(nil)
 // Materialise, in order:
 //  1. WorktreePath must be absolute and an existing directory, else a plain
 //     error (500: the handler resolved it a moment ago).
-//  2. Choose the target: FileName if git does not track it; else
-//     AltFileName if git does not track that; else *api.MaterialiseError
-//     tracked_elsewhere. A directory git does not manage (Git reports
-//     ErrNotARepo) gets FileName and no exclude line.
-//  3. WithoutBrief: strip any managed block from BOTH candidate files and
-//     return "none:declined". A strip that fails refuses: a session
-//     labelled "started without the brief" must not find an old brief.
+//  2. Ask Git.Tracked of both candidates, once per call, and keep both
+//     answers: the STRIPPABLE candidates are exactly the ones git does not
+//     track (review I3). Choose the target: FileName if git does not track
+//     it; else AltFileName if git does not track that; else
+//     *api.MaterialiseError tracked_elsewhere (this step still runs before
+//     step 3; the WithoutBrief dead end on that path is review N1, open for
+//     its own batch). A directory git does not manage (Git reports
+//     ErrNotARepo) has both candidates strippable, target FileName and no
+//     exclude line. Any other Git error → a plain error (500), never a
+//     guess at "untracked".
+//  3. WithoutBrief: strip any managed block from every STRIPPABLE candidate
+//     and return "none:declined". A tracked candidate is never opened. A
+//     strip that fails refuses: a session labelled "started without the
+//     brief" must not find an old brief in a file this package writes. A
+//     block already committed in a tracked file is repository text that no
+//     Panacea write may remove (3-D6): it is left byte-identical, the start
+//     is not refused for it, and Inspect reports StateCommitted, which task
+//     19 shows with the file's path (review I3).
 //     The reason follows the cause (re-review I2):
 //     claudemd.ErrUnterminatedBlock / ErrDuplicateBlock → block_broken (the
 //     markers are broken; the person repairs the file); a read or write
@@ -82,9 +96,13 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     entraauth.ErrSignedOut, or a relayed 401 → signed_out;
 //     ErrHubOff, ErrNotBound, ErrNoRemote, or a Hub 404 → nothing to
 //     inherit. Any other error → a plain error.
-//  5. Nothing to inherit: strip both candidates; return "".
-//     Something: Merge(existing, Render(doc)) into the target and strip the
-//     other candidate, so at most one managed block exists across the two.
+//  5. Nothing to inherit: strip every strippable candidate; return "".
+//     Something: Merge(existing, Render(doc)) into the target, and strip
+//     the other candidate only if it is strippable, so at most one managed
+//     block exists across the files this package writes. A tracked other
+//     candidate is not opened, even if it holds a block: the target is
+//     still written and the key still returned, and Inspect reports that
+//     worktree StateCommitted (review I3).
 //     claudemd.ErrUnterminatedBlock / ErrDuplicateBlock → block_broken.
 //  6. Write only if the bytes changed, with statepath.WriteAtomic(..., Shared).
 //     A file left holding only whitespace after a strip is removed.
@@ -103,8 +121,14 @@ package contextwrite
 
 // Git is the two read-only questions this package asks git. Task 14 wires it
 // over project.Runner (phase 2's read-only runner):
-//   Tracked:     git -C <dir> ls-files --error-unmatch -- <rel>   (exit 1 = untracked)
+//   Tracked:     git -C <dir> ls-files -- <rel>   (exit 0 either way: empty
+//                output = untracked, any output = tracked; review I7)
 //   ExcludePath: git -C <dir> rev-parse --git-path info/exclude  (joined to dir if relative)
+// NO exit code is read. project.ExecRunner.Run wraps a failure with %v
+// (gitrunner.go:74), which drops the *exec.ExitError, so "exit 1 means
+// untracked" cannot be seen through the runner, and --error-unmatch is not
+// used. The one error text parsed is "not a git repository", from either
+// command, which becomes ErrNotARepo; the plan knows it is a string match.
 // It never writes through git. The exclude FILE is written by this package
 // with statepath.WriteAtomic, which is a file write, not a git command.
 type Git interface {
@@ -129,6 +153,7 @@ const (
 	StateEdited     WorktreeState = "edited"     // the marker names the right key, the text is not its render (state 11)
 	StateStale      WorktreeState = "stale"      // a block, but nothing should be inherited now
 	StateBroken     WorktreeState = "broken"     // unterminated or duplicated
+	StateCommitted  WorktreeState = "committed"  // a file git TRACKS holds a block, or a marker of one; never written, never stripped (review I3)
 )
 
 type Inspection struct {
@@ -142,10 +167,22 @@ type Inspection struct {
 
 // Inspect reads, never writes. It is the ONLY place brief text is read back
 // out of a worktree, and it reads it only to compare (contract §3.3).
+//
+// It asks Git.Tracked of both candidates, as Materialise's step 2 does. If a
+// TRACKED candidate holds a block, or any marker of one (claudemd.Inspect ok,
+// or ErrUnterminatedBlock / ErrDuplicateBlock), the state is StateCommitted,
+// Path is that tracked file, MarkerKey is its marker's key ("" when the
+// markers are broken), ExpectedKey is as usual and Diff is []. Committed wins
+// over the target's own state: it is the one no session start can change,
+// and a session there reads both files. Otherwise the target is inspected
+// for the other seven states, as before. With both candidates tracked and
+// neither holding a marker, Inspect answers what the shared target choice
+// answers (tracked_elsewhere), unchanged by this fix.
 func (m *Materialiser) Inspect(ctx context.Context, req api.MaterialiseRequest) (Inspection, error)
 ```
 
-**Tests first** (a fake `Source`, a fake `Git`, `t.TempDir()` worktrees):
+**Tests first** (a fake `Source`, a fake `Git` answering `Tracked` per path, `t.TempDir()`
+worktrees; the real `git ls-files` wiring is tested over real git in task 14):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
@@ -156,7 +193,8 @@ func (m *Materialiser) Inspect(ctx context.Context, req api.MaterialiseRequest) 
 | `TestExcludeLineIsAddedOnce` | after three materialises, `info/exclude` has exactly one `/CLAUDE.md` line and its earlier lines intact | an exclude that grows each start |
 | `TestNothingToInheritStripsAnOldBlock` | an old block and nothing inheritable → block removed, result `""` | a chip saying *no brief* over a file that still holds one |
 | `TestAFileHoldingOnlyTheBlockIsRemovedOnStrip` | the file does not exist afterwards | an empty CLAUDE.md left in every worktree |
-| `TestWithoutBriefStripsAndDeclines` | both candidates stripped; result `none:declined`; `Source` never called | the override blocked by the Hub being down, the very case it exists for |
+| `TestWithoutBriefStripsAndDeclines` | both candidates untracked and each holding a block → both stripped; result `none:declined`; `Source` never called | the override blocked by the Hub being down, the very case it exists for |
+| `TestNeverStripsATrackedFile` — table | `CLAUDE.md` **tracked** and holding a block, `.claude/CLAUDE.md` untracked. Row 1, something to inherit: the block is written to `.claude/CLAUDE.md`, the key is returned, and `CLAUDE.md` is byte-identical with an unchanged mtime. Row 2, nothing to inherit: result `""`, `CLAUDE.md` byte-identical. Row 3, `WithoutBrief`: result `none:declined`, `CLAUDE.md` byte-identical. Row 4, the tracked file's markers broken (begin only): rows 1-3 still succeed, not `block_broken`. In every row the fake `Git` asked `Tracked` of both paths, and `Inspect` on the same request gives `committed` with `Path` the tracked file (review I3) | "strip both candidates" rewriting a tracked `CLAUDE.md` on every start and leaving the worktree dirty, so an agent's `git add -A` commits the change (3-D6); a tracked file's broken markers refusing a start whose target is another file |
 | `TestHubUnavailableIsARefusal` | `ErrUnavailable` → `hub_unavailable`; the file untouched | a silent `""` when a brief may exist — 4-D1's whole point |
 | `TestSignedOutIsARefusal` | `ErrSignedOut` → `signed_out` | as above |
 | `TestHubOffAndUnboundInheritNothing` | `ErrHubOff`, `ErrNotBound`, `ErrNoRemote` → `""`, no refusal | Develop blocked for everyone without a Hub (Hub contract §9.5: nothing blocks Develop) |
@@ -167,7 +205,7 @@ func (m *Materialiser) Inspect(ctx context.Context, req api.MaterialiseRequest) 
 | `TestUnchangedBytesAreNotRewritten` | the file's mtime does not move on a second identical materialise | a rewrite per start — noise in every editor watching the file |
 | `TestFileIsWorldReadable` (skipped on Windows) | mode `0o644` | the registry's `0o600` making the brief unreadable to the sandbox user (task 01) |
 | `TestConcurrentStartsOnOneWorktreeSerialise` | two goroutines, two keys: the file ends as one complete render of one of them and `Merge` never sees a half-written file | interleaved writes |
-| `TestInspectStates` — table | each of the seven states from a constructed file and expected key; `edited` carries a diff with the changed line | a drift check that only compares keys (brief §4.2 gap 3) |
+| `TestInspectStates` — table | each of the eight states from a constructed file and expected key; `edited` carries a diff with the changed line; `committed` is a tracked `CLAUDE.md` holding a block while `.claude/CLAUDE.md` is `current`, and it wins | a drift check that only compares keys (brief §4.2 gap 3); a committed block hidden behind the target's `current` |
 
 **Steps:**
 
