@@ -63,7 +63,9 @@ type Call struct {
 	Class Class
 	// Stdin, when non-nil, is git's standard input (commit-tree -F -).
 	Stdin []byte
-	// Env is applied after os.Environ() and after the headless defaults, so a key here wins.
+	// Env is applied after os.Environ() and after the headless defaults, so a key here wins,
+	// except GIT_DIR, GIT_COMMON_DIR and GIT_WORK_TREE: Exec pins those (§HGH H5), and a Call
+	// naming one is ErrCallShape.
 	// A value may be a secret (task 13 passes an http.extraHeader for push): Env is never
 	// logged, never formatted into an Error, and never echoed in a Result.
 	Env map[string]string
