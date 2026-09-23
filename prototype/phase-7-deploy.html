@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panacea App — Deploy lens (phase 7, owner review)</title>
+<!--
+  Owner-review prototype for phase 7, the Deploy connector.
+  One self-contained file: no external CSS, no CDN fonts, no network calls, no build step.
+  Companion brief: docs/superpowers/planning/2026-09-23-phases-4-5-7/scope-and-risk-phase-7-deploy.md
+  Every value on screen is SAMPLE data standing in for a named API field. "Show sources" in the
+  review bar prints the field behind each element (AGENTIC-UX.md §2 property 7).
+  Colour: every literal colour lives in :root below. Nothing outside :root names a colour.
+-->
+<style>
+:root{
+  /* surfaces, back to front — values from prototype/app.html */
+  --page:#0a0908; --canvas:#0e0c0b; --surface:#141210; --inset:#1a1715; --hover:#1f1c19;
+  /* ink ramp */
+  --ink:#f2ede7; --ink-2:#a79f97; --ink-3:#6c645d; --ink-4:#453f39;
+  /* hairlines carry structure */
+  --line:rgba(255,248,240,.075); --line-strong:rgba(255,248,240,.15); --line-soft:rgba(255,248,240,.04);
+  --thread:rgba(255,241,224,.16);
+  /* accent: interactive and current state only */
+  --accent:#2fb3bd; --accent-hi:#74d9e0; --accent-tint:rgba(47,179,189,.11); --accent-ring:rgba(47,179,189,.28);
+  --on-accent:#04201f;
+  /* status vocabulary — separate from the accent; each also carries a shape (.st) */
+  --run:#43b95e; --need:#e2a33c; --fail:#ef5f45; --drift:#c98ae0;
+  --run-tint:rgba(67,185,94,.10); --need-tint:rgba(226,163,60,.10); --fail-tint:rgba(239,95,69,.10); --drift-tint:rgba(201,138,224,.10);
+  --need-ring:rgba(226,163,60,.40); --fail-ring:rgba(239,95,69,.40);
+  --on-need:#241802;
+  /* terminal ink, for the log drill-in */
+  --t-fg:#d6d0c8; --t-dim:#6f6862;
+  /* shadow and overlay colours */
+  --sh-1:rgba(0,0,0,.28); --sh-2:rgba(0,0,0,.45); --sh-3:rgba(0,0,0,.66); --scrim:rgba(0,0,0,.55);
+  --scroll:rgba(255,248,240,.07); --scroll-hi:rgba(255,248,240,.15);
+  --flash:rgba(255,248,240,.07);
+  /* radius scale tied to element size — DESIGN-SYSTEM.md: chip 6 / control 8 / card 10 / window 14 */
+  --r-chip:6px; --r-ctl:8px; --r-card:10px; --r-win:14px;
+  /* elevation: a 1px ring PLUS a layered shadow, never a flat border */
+  --e-hair:0 0 0 1px var(--line);
+  --e-btn:0 0 0 1px var(--line),0 1px 1px var(--sh-1);
+  --e-card:0 0 0 1px var(--line),0 1px 2px var(--sh-1),0 6px 16px var(--sh-1);
+  --e-raised:0 0 0 1px var(--line-strong),0 2px 4px var(--sh-1),0 14px 32px var(--sh-2);
+  --e-overlay:0 0 0 1px var(--line-strong),0 10px 24px var(--sh-2),0 30px 70px var(--sh-3);
+  /* one house curve; one heartbeat period */
+  --ease:cubic-bezier(.23,1,.32,1);
+  --beat:2.4s; --beat-delay:0ms;
+  --grain:.028;
+  --mono:"Cascadia Mono",ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+  --sans:"Segoe UI Variable Text","Segoe UI",-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font:13.5px/1.45 var(--sans);
+  -webkit-font-smoothing:antialiased;overflow:hidden;font-variant-numeric:tabular-nums}
+/* grain: kills banding on the dark ramp; you would only notice it if it were removed */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:900;opacity:var(--grain);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,select{font:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:3px}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--scroll);border:3px solid transparent;border-radius:8px;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:var(--scroll-hi);background-clip:padding-box}
+.mono{font-family:var(--mono)}
+
+/* ONE heartbeat. Every live element shares --beat-delay, set once per render from a single
+   time origin, so all of them breathe in phase however late they were inserted. */
+@keyframes beat{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+@keyframes decay{from{opacity:1}to{opacity:0}}
+@keyframes rise{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@keyframes slidein{from{transform:translateX(16px);opacity:0}to{transform:none;opacity:1}}
+.live{animation:beat var(--beat) var(--ease) infinite;animation-delay:var(--beat-delay)}
+
+/* REVIEW BAR — prototype-only chrome, not product */
+.review{height:36px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--canvas);
+  box-shadow:0 1px 0 var(--line-strong);position:relative;z-index:50;font-size:11px;color:var(--ink-3)}
+.review .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--need);
+  background:var(--need-tint);padding:2px 7px;border-radius:var(--r-chip)}
+.review select{background:var(--inset);color:var(--ink);box-shadow:var(--e-btn);border:0;border-radius:var(--r-ctl);
+  padding:3px 8px;font-size:11px;outline:none}
+.review label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.review .sp{flex:1}
+.review .note{font-size:10.5px;color:var(--ink-4)}
+
+/* APP SHELL — matches prototype/app.html: rail, sub-rail, main */
+.app{display:flex;height:calc(100vh - 36px)}
+.rail{width:256px;flex:0 0 256px;background:var(--canvas);box-shadow:1px 0 0 var(--line);display:flex;flex-direction:column;position:relative;z-index:2}
+.mchip{display:flex;align-items:center;gap:8px;padding:9px 11px;box-shadow:0 1px 0 var(--line-soft)}
+.mark{width:22px;height:22px;border-radius:var(--r-chip);background:var(--ink);color:var(--page);
+  display:grid;place-items:center;font-weight:800;font-size:11.5px;flex:0 0 auto}
+.mchip .m1{font-size:11.5px;font-weight:650}
+.mchip .m2{font-size:9.5px;color:var(--ink-4);font-family:var(--mono)}
+.rs{flex:1;overflow:auto;padding:4px 6px 12px}
+.mhd{padding:9px 7px 4px;font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--ink-4)}
+.prow{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:var(--r-ctl)}
+.prow.sel{background:var(--inset);box-shadow:var(--e-hair)}
+.pini{width:19px;height:19px;border-radius:5px;background:var(--accent);color:var(--on-accent);
+  display:grid;place-items:center;font-size:9px;font-weight:700;flex:0 0 auto}
+.pnm{flex:1;font-size:12px;font-weight:600}
+.kids{padding-left:9px;margin-left:9px;box-shadow:inset 1px 0 0 var(--thread)}
+.brow{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:var(--r-chip);cursor:pointer;position:relative}
+.brow::before{content:"";position:absolute;left:-9px;top:50%;width:6px;height:1px;background:var(--thread)}
+.brow:hover{background:var(--hover)}
+.brow.sel{background:var(--accent-tint);box-shadow:inset 0 0 0 1px var(--accent-ring)}
+.bnm{flex:1;font-family:var(--mono);font-size:10.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow.sel .bnm{color:var(--ink)}
+.rfoot{box-shadow:0 -1px 0 var(--line);padding:7px 9px;display:flex;align-items:center;gap:8px}
+.me{width:22px;height:22px;border-radius:50%;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--ink-2)}
+.rfoot .who{flex:1;font-size:11px;color:var(--ink-3)}
+.sub{width:182px;flex:0 0 182px;background:var(--canvas);box-shadow:1px 0 0 var(--line);display:flex;flex-direction:column;position:relative;z-index:1}
+.stop{padding:10px 11px 9px;box-shadow:0 1px 0 var(--line-soft)}
+.sbr{font-family:var(--mono);font-size:11.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spurpose{font-size:10px;color:var(--ink-3);margin-top:4px;line-height:1.4}
+.mods{padding:7px 6px;display:flex;flex-direction:column;gap:1px}
+.mod{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:var(--r-ctl);color:var(--ink-3);font-size:12px}
+.mod.sel{background:var(--inset);box-shadow:var(--e-hair);color:var(--ink);font-weight:650}
+.mod .note{margin-left:auto;font-size:9px;color:var(--ink-4);font-weight:400}
+
+/* MAIN */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--page)}
+.top{min-height:42px;display:flex;align-items:center;gap:8px;padding:0 14px;box-shadow:0 1px 0 var(--line);flex:0 0 auto;position:relative;z-index:1}
+.top .ttl{font-size:12px;font-weight:650} .top .sub2{font-size:11px;color:var(--ink-3)} .top .sp{flex:1}
+.top .will{font-size:10.5px;color:var(--ink-3);text-align:right;line-height:1.35;max-width:330px}
+.top .will b{color:var(--ink-2);font-weight:600}
+.btn{padding:4px 10px;border-radius:var(--r-ctl);font-size:11px;font-weight:600;background:var(--surface);box-shadow:var(--e-btn);white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);color:var(--on-accent);box-shadow:0 1px 1px var(--sh-1)}
+.btn.pri:hover{background:var(--accent-hi)}
+.btn.warn{background:var(--need);color:var(--on-need);box-shadow:0 1px 1px var(--sh-1)}
+.btn.ghost{background:none;box-shadow:none;color:var(--ink-3)} .btn.ghost:hover{color:var(--ink);background:var(--hover)}
+.btn[disabled]{opacity:.38;cursor:default} .btn[disabled]:hover{background:var(--surface)}
+.btn.pri[disabled]:hover{background:var(--accent)}
+.split{flex:1;display:flex;min-height:0}
+.split .body{min-width:0}
+.body{flex:1;overflow:auto;padding:20px 22px 40px}
+.inner{max-width:780px}
+.sech{font-size:9px;font-weight:700;letter-spacing:.11em;color:var(--ink-4);margin:22px 0 9px;display:flex;align-items:center;gap:9px}
+.sech:first-child{margin-top:0}
+.sech::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+.sech .aside{font-weight:400;letter-spacing:0;font-size:10px;color:var(--ink-4);order:2}
+.card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:12px 14px;margin-bottom:8px;position:relative}
+.card .t1{font-size:12.5px;font-weight:600} .card .t2{font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.55}
+.card .t2 b{color:var(--ink-2);font-weight:600}
+.row{display:flex;align-items:center;gap:11px} .row .sp{flex:1}
+.why{font-size:11px;color:var(--ink-3);line-height:1.55;margin-top:6px}
+.why b{color:var(--ink-2);font-weight:600}
+
+/* STATUS SHAPES — colour never alone: circle serving/pass, diamond warn/needs-you, square failed, ring unmeasured */
+.st{width:8px;height:8px;flex:0 0 auto;display:inline-block;vertical-align:middle}
+.st.ok{border-radius:50%;background:var(--run)}
+.st.warn{background:var(--need);transform:rotate(45deg) scale(.85)}
+.st.bad{background:var(--fail);border-radius:1px}
+.st.none{border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-4)}
+.st.run{border-radius:50%;background:var(--run)}
+.st.idle{border-radius:50%;background:var(--ink-4)}
+
+/* ENVIRONMENT CARD — two facts, always both: the build and the pods */
+.env{padding:0;overflow:hidden}
+.env .hd{padding:12px 14px 10px;display:flex;align-items:flex-start;gap:12px}
+.env .nm{font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:-.01em}
+.env .host{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:3px}
+.env .derived{font-size:10.5px;color:var(--ink-4);margin-top:5px;line-height:1.5}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);box-shadow:0 -1px 0 var(--line-soft)}
+.fact{padding:10px 14px 12px;position:relative;min-width:0}
+.fact+.fact{box-shadow:-1px 0 0 var(--line-soft)}
+.fact .k{font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--ink-4);margin-bottom:6px}
+.fact .v{font-size:12.5px;display:flex;align-items:center;gap:7px;font-weight:600}
+.fact .d{font-size:10.5px;color:var(--ink-3);margin-top:4px;line-height:1.5}
+.fact .d .mono{color:var(--ink-2)}
+.flash::after{content:"";position:absolute;inset:0;background:var(--flash);pointer-events:none;animation:decay .6s var(--ease) forwards}
+.hb{position:relative;height:1px;overflow:hidden;background:var(--line-soft);margin-top:8px}
+.hb::before{content:"";position:absolute;top:0;left:0;height:1px;width:30%;background:var(--run);
+  animation:sweep var(--beat) var(--ease) infinite;animation-delay:var(--beat-delay)}
+
+/* BANNERS — one per condition, never one per row */
+.banner{border-radius:var(--r-card);padding:11px 14px;margin-bottom:10px;font-size:11.5px;line-height:1.55;color:var(--ink-2);
+  background:var(--surface);box-shadow:var(--e-card);display:flex;gap:11px;align-items:flex-start}
+.banner .st{margin-top:5px}
+.banner b{color:var(--ink);font-weight:600}
+.banner.need{box-shadow:0 0 0 1px var(--need-ring),0 1px 2px var(--sh-1),0 6px 16px var(--sh-1);background:var(--need-tint)}
+.banner.fail{box-shadow:0 0 0 1px var(--fail-ring),0 1px 2px var(--sh-1),0 6px 16px var(--sh-1);background:var(--fail-tint)}
+.banner .acts{margin-top:8px;display:flex;gap:6px}
+.verb{font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--inset);box-shadow:var(--e-hair);
+  padding:6px 9px;border-radius:var(--r-ctl);margin-top:6px;white-space:pre-wrap;word-break:break-word}
+
+/* PIPELINE — completed steps and the current step. No total, no bar: the API does not say what remains */
+.steps{list-style:none;margin-top:8px;font-family:var(--mono);font-size:11px}
+.steps li{display:flex;align-items:center;gap:8px;padding:3px 0;color:var(--ink-3)}
+.steps li.cur{color:var(--ink)}
+.steps li.bad{color:var(--fail)}
+.steps .tick{width:8px;text-align:center;color:var(--ink-4)}
+
+/* SCANS */
+.scans{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px}
+.scans td{padding:6px 8px 6px 0;box-shadow:0 1px 0 var(--line-soft);vertical-align:top}
+.scans tr:last-child td{box-shadow:none}
+.scans .n{font-family:var(--mono);width:120px;color:var(--ink-2)}
+.scans .s{width:110px;white-space:nowrap}
+.scans .m{width:70px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+.scans .r{color:var(--ink-3);font-size:11px}
+.mode-enforce{color:var(--ink-2)}
+
+/* RELEASES — history; rows never reflow under the reader, selection is a ring not a resize */
+.rels{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);overflow:hidden}
+.rel{display:grid;grid-template-columns:14px 84px 64px minmax(120px,1fr) minmax(150px,1.2fr);gap:10px;align-items:center;
+  padding:8px 14px;font-size:11.5px;cursor:pointer;position:relative}
+.rel+.rel{box-shadow:0 -1px 0 var(--line-soft)}
+.rel:hover{background:var(--hover)}
+.rel.sel{background:var(--accent-tint);box-shadow:inset 2px 0 0 var(--accent)}
+.rel.hd{cursor:default;font-size:9px;font-weight:700;letter-spacing:.09em;color:var(--ink-4);padding-top:9px;padding-bottom:7px}
+.rel.hd:hover{background:none}
+.rel .ver{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.rel .ver.unk{color:var(--ink-3);font-weight:400;font-style:italic}
+.rel .sha{font-family:var(--mono);color:var(--ink-3)}
+.rel .when{color:var(--ink-3)} .rel .when b{color:var(--ink-2);font-weight:400}
+.rel .orig{display:block;font-size:10.5px;color:var(--ink-4)}
+
+/* PROVENANCE PIN — six states, never merged (provenance contract §4.1) */
+.pin{font-size:11px;display:inline-flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.pin .rv{font-family:var(--mono);color:var(--ink)}
+.pin.cur .rv{color:var(--ink)}
+.pin.sup .rv{color:var(--drift)}
+.pin.sup .mk{font-family:var(--mono);font-size:9.5px;color:var(--drift);background:var(--drift-tint);padding:0 5px;border-radius:4px}
+.pin.none{color:var(--ink-3);font-style:italic;white-space:normal;line-height:1.35}
+.pin.miss{color:var(--fail);font-family:var(--mono);font-size:10.5px}
+.pin.res .ph{display:inline-block;width:92px;height:9px;border-radius:3px;background:var(--inset)}
+.pin.na{color:var(--ink-3)}
+
+/* MANIFEST DRAWER — the release's thread, rendered from the pinned revision */
+.drawer{width:392px;flex:0 0 392px;background:var(--canvas);box-shadow:-1px 0 0 var(--line),-12px 0 28px var(--sh-1);
+  overflow:auto;padding:16px 16px 40px}
+/* slides in only when a row was just opened — a re-render never replays it */
+.drawer.enter{animation:slidein .22s var(--ease)}
+.drawer .x{float:right;color:var(--ink-4);font-size:12px;padding:2px 6px;border-radius:var(--r-chip)}
+.drawer .x:hover{color:var(--ink);background:var(--hover)}
+.drawer h3{font-size:13px;font-weight:650;margin-bottom:3px}
+.drawer .lede{font-size:12px;color:var(--ink-2);line-height:1.55}
+.drawer .lede .mono{color:var(--ink)}
+.mf{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:11px 13px;margin-top:10px}
+.mf .k{font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--ink-4);margin-bottom:6px;display:flex;gap:8px}
+.mf .k .dep{font-weight:400;letter-spacing:0;color:var(--need)}
+.mf .hl{font-size:12.5px;font-weight:600;line-height:1.45}
+.mf .sm{font-size:11px;color:var(--ink-3);line-height:1.55;margin-top:4px}
+.mf .sm b{color:var(--ink-2);font-weight:600}
+.crit{list-style:none;margin-top:8px}
+.crit li{font-size:11.5px;color:var(--ink-2);padding:4px 0 4px 16px;position:relative;line-height:1.45}
+.crit li::before{content:"";position:absolute;left:2px;top:10px;width:6px;height:6px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-4)}
+.kvs{display:grid;grid-template-columns:88px 1fr;gap:5px 10px;font-size:11px;margin-top:2px}
+.kvs .kk{color:var(--ink-4)} .kvs .vv{color:var(--ink-2);min-width:0;word-break:break-all} .kvs .vv.mono{font-size:10.5px}
+.link{color:var(--accent-hi);cursor:pointer;font-size:11px}
+.link:hover{text-decoration:underline}
+.sess{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11.5px;box-shadow:0 1px 0 var(--line-soft)}
+.sess:last-child{box-shadow:none}
+.sess .c{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--ink-4)}
+
+/* ACCESS — two controls, because the API has two systems */
+.grp{display:grid;grid-template-columns:1fr 104px 60px;gap:8px;align-items:center;padding:6px 0;font-size:11.5px;box-shadow:0 1px 0 var(--line-soft)}
+.grp:last-child{box-shadow:none}
+.grp .g{font-family:var(--mono);font-size:11px;color:var(--ink)}
+.grp .g small{display:block;font-family:var(--sans);font-size:10px;color:var(--ink-4)}
+.role{font-size:11px;color:var(--ink-2)}
+.post{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.popt{display:grid;grid-template-columns:16px 110px 1fr;gap:9px;align-items:start;padding:7px 9px;border-radius:var(--r-ctl);cursor:pointer;font-size:11.5px}
+.popt:hover{background:var(--hover)}
+.popt.on{background:var(--accent-tint);box-shadow:inset 0 0 0 1px var(--accent-ring)}
+.popt .rd{width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-4);margin-top:2px}
+.popt.on .rd{box-shadow:inset 0 0 0 3.5px var(--accent)}
+.popt .pv{font-family:var(--mono);font-size:11px;color:var(--ink)}
+.popt .pd{color:var(--ink-3);line-height:1.45}
+.popt .pd .risk{color:var(--need)}
+.popt[aria-disabled="true"]{cursor:default;opacity:.5} .popt[aria-disabled="true"]:hover{background:none}
+
+/* TOGGLE — the thumb moves by transform only */
+.tog{width:30px;height:17px;border-radius:9px;background:var(--inset);box-shadow:var(--e-hair);position:relative;flex:0 0 auto}
+.tog i{position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--ink-3);
+  transition:transform .18s var(--ease)}
+.tog.on{background:var(--accent)} .tog.on i{transform:translateX(13px);background:var(--on-accent)}
+.tog[aria-disabled="true"]{opacity:.4;cursor:default}
+
+/* FIELDS */
+.fld{width:100%;background:var(--inset);box-shadow:var(--e-hair);border:0;border-radius:var(--r-ctl);
+  padding:8px 10px;color:var(--ink);font-size:12.5px;outline:none}
+.fld:focus{box-shadow:0 0 0 1px var(--accent)} .fld.mono{font-family:var(--mono);font-size:12px}
+.fld[readonly]{color:var(--ink-3)}
+.fhint{font-size:10.5px;color:var(--ink-4);margin-top:5px;line-height:1.5}
+.fhint.bad{color:var(--fail)}
+
+/* CONNECT / EMPTY */
+.empty{padding:28px 4px;max-width:560px}
+.empty h3{font-size:16px;font-weight:600;margin-bottom:8px;letter-spacing:-.01em}
+.empty p{font-size:12.5px;color:var(--ink-3);line-height:1.6;margin-bottom:14px}
+.empty p b{color:var(--ink-2);font-weight:600}
+.ol{list-style:none;counter-reset:s;margin:4px 0 16px}
+.ol li{counter-increment:s;display:flex;gap:10px;font-size:12px;color:var(--ink-2);padding:5px 0;line-height:1.5}
+.ol li::before{content:counter(s);font-family:var(--mono);font-size:10px;color:var(--ink-3);width:18px;height:18px;flex:0 0 auto;
+  border-radius:5px;background:var(--inset);box-shadow:var(--e-hair);display:grid;place-items:center}
+.stale{font-size:10.5px;color:var(--need);font-family:var(--mono)}
+.dim{opacity:.55}
+
+/* LOG DRILL-IN — batched at ~10Hz, never scroll-jumps when the reader has scrolled up */
+.log{background:var(--page);border-radius:var(--r-ctl);box-shadow:var(--e-hair);padding:9px 11px;margin-top:8px;
+  font-family:var(--mono);font-size:10.5px;line-height:1.6;color:var(--t-fg);white-space:pre-wrap;max-height:150px;overflow:auto}
+.log .dm{color:var(--t-dim)}
+
+/* TOASTS — optimistic actions carry their undo, not a confirm dialog */
+.toasts{position:fixed;right:14px;bottom:14px;z-index:300;display:flex;flex-direction:column;gap:7px;align-items:flex-end}
+.toast{background:var(--surface);box-shadow:var(--e-overlay);border-radius:var(--r-ctl);padding:9px 13px;font-size:12px;
+  color:var(--ink-2);animation:rise .18s var(--ease);max-width:380px;display:flex;align-items:center;gap:10px}
+.toast b{color:var(--ink)} .toast .undo{color:var(--accent-hi);cursor:pointer;font-weight:600}
+
+/* SOURCES — the review aid: every element names the field that justifies it */
+.srcs [data-src]{position:relative}
+.srcs [data-src]::after{content:attr(data-src);display:block;font:500 9.5px/1.35 var(--mono);color:var(--need);
+  background:var(--need-tint);border-radius:4px;padding:2px 5px;margin-top:4px;white-space:normal;letter-spacing:0;text-transform:none;font-style:normal}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .hb::before{width:100%;opacity:.5}
+}
+</style>
+</head>
+<body>
+<div class="review" role="toolbar" aria-label="Prototype review controls">
+  <span class="tag">PROTOTYPE</span>
+  <label>State
+    <select id="stateSel" aria-label="State to show">
+      <optgroup label="Connection">
+        <option value="connect">Not connected — no token yet</option>
+        <option value="approval">Connected — awaiting team approval (403)</option>
+        <option value="rejected">Token rejected (401)</option>
+        <option value="offline">Panacea unreachable — last reading kept, marked stale</option>
+      </optgroup>
+      <optgroup label="This branch">
+        <option value="never">Never deployed — empty</option>
+        <option value="building">Building — pipeline running</option>
+        <option value="live" selected>Live — built, serving, scans pass</option>
+        <option value="dead">Built green, site down — 0 pods ready</option>
+        <option value="failed">Build failed</option>
+        <option value="scans">Scan blocking (FAIL, enforce)</option>
+        <option value="incomplete">Scans incomplete — a scanner ran and produced nothing</option>
+        <option value="collision">Environment taken by another branch (20-char rule)</option>
+      </optgroup>
+      <optgroup label="Rollback">
+        <option value="rolledback">Rolled back — warm cut-over</option>
+        <option value="rolledcold">Rolled back — cold start</option>
+        <option value="pruned">Rollback refused — image pruned (409)</option>
+      </optgroup>
+      <optgroup label="Provenance">
+        <option value="briefdown">Brief resolver unavailable</option>
+        <option value="nobrief">Branch has no brief</option>
+      </optgroup>
+    </select>
+  </label>
+  <label>Role
+    <select id="roleSel" aria-label="Your role on this project">
+      <option value="developer" selected>developer</option>
+      <option value="owner">owner</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="srcChk" /> Show sources</label>
+  <span class="sp"></span>
+  <span class="note">Sample values. Each stands for the API field "Show sources" names. Click a release row for its manifest.</span>
+</div>
+
+<div class="app" id="app">
+  <nav class="rail" aria-label="Projects and branches">
+    <div class="mchip">
+      <div class="mark">P</div>
+      <div><div class="m1">Panacea App</div><div class="m2">local control plane</div></div>
+    </div>
+    <div class="rs" id="rail"></div>
+    <div class="rfoot"><div class="me">DM</div><span class="who">Dylan Mackie</span></div>
+  </nav>
+  <aside class="sub" id="sub" aria-label="Lenses for this branch"></aside>
+  <main class="main" id="main"></main>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ============================ SAMPLE DATA ============================
+   Every value below stands in for a named field. S(...) strings are what "Show sources" prints.
+   Panacea routes are abbreviated "…" = /api/v1/projects/{name}. Nothing here is fetched. */
+const SRC = {
+  env:      'GET …/environments → name (derived by Panacea from the branch; never computed here)',
+  envBranch:'GET …/environments → branch',
+  host:     'GET …/environments → subdomain (a URL-prefix claim wins when set)',
+  status:   'Deployment.status — the BUILD PIPELINE outcome, not the pods',
+  ready:    'Deployment.liveReadyReplicas on the newest release only — nil = not measured, 0 = measured down',
+  desired:  'GET …/environments → replicas.desired',
+  step:     'GET …/pipelines/{run} → currentStep, completedSteps[] (task names are samples; Tekton definitions not read)',
+  failed:   'Deployment.failedStep + errorMessage, verbatim',
+  started:  'PipelineRunStatus.startTime; elapsed ticks on the one heartbeat',
+  overall:  'GET …/security-status?deployId= → overall, blocking[], incomplete[]',
+  scanRow:  'SecurityStatus.scans[] → scan, status, mode, counts, skipReason, errorReason',
+  details:  'SecurityStatus.detailsSource — are these findings attributable to THIS release',
+  version:  'Deployment.version — image tag, else commit short SHA; empty renders "version unknown"',
+  commit:   'Deployment.commit',
+  created:  'Deployment.createdAt, absolute — never "2m ago"',
+  duration: 'Deployment.duration',
+  pin:      'release link in the provenance ledger → brief key, resolved via GET /discover/refs',
+  origin:   'release link present = shipped from this cockpit; absent = outside it (auto-deploy or portal — Panacea does not tell us which)',
+  design:   'design link (phase 5) — approved design key + the brief revision it was reviewed against',
+  merge:    'merge link (phase 3) — brief revision the merge was reviewed against',
+  sessions: 'DEPENDS ON DECISION D3(b): session trailers on commits in the shipped range — no such fact exists today',
+  criteria: 'pinned revision text via /discover/refs; state evaluated against Deployment.commit by phase 3 — not built, so every criterion is open',
+  groups:   'GET …/access → Keycloak group → role (viewer | developer | owner)',
+  posture:  'GET …/branches/{branch}/access → one of five values',
+  auto:     'GET …/branches/{branch}/auto-deploy (PUT is owner-only)',
+  prefix:   'handlers/branch_url_prefix.go — owner-only, globally unique, RFC 1123 label',
+  willShip: 'remote branch head (source unverified: GET …/branches or phase 3 git) + head brief Ref at Ship',
+  events:   'GET …/environments/{env}/events — sample event text',
+  warmth:   'Rollback response → Deployment.rollbackWarmth, coldStartSeconds (advisory); set only on the object Rollback returns',
+  r409:     'Rollback 409 body, verbatim — handlers/projects.go:1686',
+  r403:     'RequirePortalGrant 403 body, verbatim — middleware/rbac.go:374',
+};
+
+const PROJECT = 'harbourline';
+const BRIEF = { id:'b-42', head:5,
+  revs:{
+    5:{ headline:'Reviewers can export a claim’s audit trail as a signed PDF',
+        criteria:['Every state change appears with its actor and time','The signature verifies offline against the published key',
+                  'Large claims export without timing out','Reviewers without the export role see no export action'] },
+    3:{ headline:'Reviewers can export a claim’s audit trail as a signed PDF',
+        criteria:['Every state change appears with its actor and time','The signature verifies offline against the published key',
+                  'Large claims export without timing out'] },
+  } };
+
+/* releases on environment feat-audit-export, newest first. pin: {rev} | null (none) | {missing:key} */
+const RELEASES = [
+  { id:'d-6f2', ver:'v1.6.0', sha:'4e7a91c', at:'23 Sep 14:02', dur:'4m 12s', status:'Succeeded', pin:{rev:5}, cockpit:true,
+    design:{key:'design:cv-7@4', rev:3, by:'J. Tran'}, merge:{rev:5},
+    sessions:[['audit-export · PDF renderer',3],['audit-export · signing',2]], outside:1, author:'dmackie1' },
+  { id:'d-5e1', ver:'v1.5.3', sha:'0b3d5e8', at:'23 Sep 11:40', dur:'3m 58s', status:'Succeeded', pin:null, cockpit:false, author:'dmackie1' },
+  { id:'d-4d0', ver:'v1.5.2', sha:'c81f02a', at:'22 Sep 16:25', dur:'4m 05s', status:'Succeeded', pin:{rev:3}, cockpit:true,
+    design:{key:'design:cv-7@4', rev:3, by:'J. Tran'}, merge:{rev:2},
+    sessions:[['audit-export · PDF renderer',4]], outside:0, author:'dmackie1' },
+  { id:'d-3c9', ver:'v1.5.1', sha:'77aa310', at:'22 Sep 10:13', dur:'1m 41s', status:'Failed', pin:{rev:3}, cockpit:true,
+    failedStep:'build-image', author:'dmackie1' },
+  { id:'d-2b8', ver:'', sha:'', at:'19 Sep 09:02', dur:'3m 30s', status:'Succeeded', pin:{missing:'brief:b-42@1'}, cockpit:true, author:'' },
+];
+
+const SCANS_PASS = { overall:'PASS', blocking:[], incomplete:[], details:'snapshot', rows:[
+  ['trivy','PASS','enforce','medium 3 · low 7',''],
+  ['sast','PASS','warn','no findings',''],
+  ['secret','PASS','enforce','no findings',''],
+  ['dast','PASS','warn','baseline scan · low 2',''],
+  ['deploy-checks','SKIPPED','off','','off — not run'] ] };
+const SCANS_FAIL = { overall:'FAIL', details:'live', incomplete:[],
+  blocking:[['trivy','critical 2 — enforce']], rows:[
+  ['trivy','FAIL','enforce','critical 2 · high 1',''],
+  ['sast','PASS','warn','no findings',''],
+  ['secret','PASS','enforce','no findings',''],
+  ['dast','—','warn','','no result recorded for this release'],
+  ['deploy-checks','SKIPPED','off','','off — not run'] ] };
+const SCANS_INCOMPLETE = { overall:'INCOMPLETE', details:'mixed', blocking:[],
+  incomplete:[['dast','TaskRunTimeout']], rows:[
+  ['trivy','PASS','enforce','medium 3 · low 7',''],
+  ['sast','PASS','warn','no findings',''],
+  ['secret','PASS','enforce','no findings',''],
+  ['dast','—','warn','','ran, produced no result: TaskRunTimeout'],
+  ['deploy-checks','SKIPPED','off','','off — not run'] ] };
+
+const GROUPS = [
+  ['harbourline-owners','owner','Entra group, federated through Keycloak'],
+  ['Harbourline, Claims Reviewers','viewer','one group — its display name contains a comma'],
+  ['harbourline-developers','developer',''] ];
+
+const POSTURES = [
+  ['kpmg-sso','Any signed-in KPMG identity. The platform’s safe default.',''],
+  ['panacea-sso','Signed in, and on this project’s own app-user allowlist.',''],
+  ['password','One shared password. A branch inheriting this falls back to kpmg-sso — the password is not inherited.','risk'],
+  ['bypass-token','Signed in, or holding a valid bypass token.',''],
+  ['none','Public. Anyone who has the address.','risk'] ];
+
+const BRIEFS = { 'b-42':BRIEF,
+  'b-51':{ id:'b-51', head:2, revs:{ 2:{ headline:'Claims intake accepts PDF uploads', criteria:['A PDF under the size limit is accepted'] } } } };
+
+/* ============================ UI STATE ============================ */
+const ui = { state:'live', role:'developer', srcs:false, sel:null, resolving:false, prev:{}, lastState:null,
+  auto:false, posture:'kpmg-sso', enteredAt:performance.now() };
+
+/* ============================ HELPERS ============================ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const src = k => ui.srcs && SRC[k] ? ` data-src="${esc(SRC[k])}"` : '';
+const clone = o => JSON.parse(JSON.stringify(o));
+const isOwner = () => ui.role === 'owner';
+/* One time origin for every live element: a negative delay puts each in phase with the global clock. */
+const T0 = performance.now();
+const syncBeat = () => document.documentElement.style.setProperty('--beat-delay', `-${Math.round((performance.now() - T0) % 2400)}ms`);
+
+/* ============================ SCENES ============================
+   One function turns the review-bar state into what the API would have returned. */
+function scene() {
+  const s = ui.state;
+  const sc = {
+    conn:'ok', stale:false, branch:'feat/audit-export', briefId:'b-42',
+    env:{ name:'feat-audit-export', branch:'feat/audit-export', host:'harbourline-feat-audit-export.panacea.kpmg' },
+    rels:clone(RELEASES).map(r => (r.pin && r.pin.rev ? (r.pin.brief = 'b-42', r) : r)),
+    ready:2, desired:2, scans:SCANS_PASS, head:{ sha:'a90d3f4' }, banner:null, events:null, rollback:null,
+  };
+  sc.rels.forEach(r => r.env = 'feat-audit-export');
+  const run = { id:'run', run:'harbourline-x7k2p', ver:'', sha:'a90d3f4', at:'23 Sep 15:31', dur:'', status:'Running',
+    pin:{ brief:'b-42', rev:5 }, cockpit:true, env:'feat-audit-export', author:'dmackie1',
+    done:['fetch-source','detect-stack'], cur:'build-image', startedMinsAgo:2 };
+  switch (s) {
+    case 'connect':  sc.conn = 'none'; break;
+    case 'approval': sc.conn = 'approval'; break;
+    case 'rejected': sc.conn = 'rejected'; break;
+    case 'offline':  sc.stale = true; break;
+    case 'never':    sc.env = null; sc.rels = []; sc.ready = null; sc.scans = null; break;
+    case 'building': sc.rels.unshift(run); sc.scans = null; break;
+    case 'dead':
+      sc.ready = 0;
+      sc.events = ['Warning  BackOff    pod/app-6c9f-x2l  Back-off restarting failed container app',
+                   'Warning  Unhealthy  pod/app-6c9f-x2l  Readiness probe failed: connection refused',
+                   'Normal   Pulled     pod/app-6c9f-x2l  Container image already present on machine'];
+      break;
+    case 'failed':
+      sc.rels.unshift(Object.assign(clone(run), { id:'d-7a3', status:'Failed', ver:'a90d3f4', dur:'1m 52s',
+        failedStep:'build-image', error:'npm ERR! code ELIFECYCLE — script "build" exited with code 1', done:['fetch-source','detect-stack'], cur:'' }));
+      sc.scans = null; break;
+    case 'scans':
+      sc.rels.unshift(Object.assign(clone(run), { id:'d-7a3', status:'Failed', ver:'v1.6.1', dur:'5m 03s',
+        failedStep:'trivy-scan', error:'', inferredScanStop:true, done:['fetch-source','detect-stack','build-image'], cur:'' }));
+      sc.scans = SCANS_FAIL; break;
+    case 'incomplete': sc.scans = SCANS_INCOMPLETE; break;
+    case 'collision':
+      sc.branch = 'feat/claims-intake-v2-pdf'; sc.briefId = 'b-51'; sc.head = { sha:'3f0c1d9' };
+      sc.env = { name:'feat-claims-intake-v', branch:'feat/claims-intake-v2-csv', host:'harbourline-feat-claims-intake-v.panacea.kpmg' };
+      sc.rels = [
+        { id:'c-2', ver:'v0.3.1', sha:'e19b7c2', at:'23 Sep 13:15', dur:'3m 11s', status:'Succeeded', pin:null, cockpit:false,
+          branch:'feat/claims-intake-v2-csv', env:'feat-claims-intake-v', author:'a teammate' },
+        { id:'c-1', ver:'v0.2.0', sha:'91ad4e7', at:'21 Sep 10:48', dur:'3m 02s', status:'Succeeded', pin:{ brief:'b-51', rev:2 }, cockpit:true,
+          branch:'feat/claims-intake-v2-pdf', env:'feat-claims-intake-v', author:'dmackie1' } ];
+      sc.collision = true; sc.scans = SCANS_PASS; break;
+    case 'rolledback': case 'rolledcold': {
+      const cold = s === 'rolledcold';
+      const rb = Object.assign(clone(RELEASES[2]), { id:'d-rb', at:'23 Sep 15:34', dur:'', rollbackOf:'v1.5.2', env:'feat-audit-export',
+        warmth: cold ? 'cold' : 'warm', coldStart: cold ? 20 : 0 });
+      rb.pin.brief = 'b-42'; sc.rels.unshift(rb);
+      sc.rollback = rb; sc.ready = cold ? 0 : 2; sc.coldStarting = cold; break; }
+    case 'pruned': sc.banner = 'pruned'; break;
+    case 'briefdown': sc.briefDown = true; break;
+    case 'nobrief': sc.briefId = null; sc.rels.forEach(r => { r.pin = null; r.cockpit = true; r.design = null; r.merge = null; }); break;
+  }
+  sc.newest = sc.rels[0] || null;
+  sc.state = s;
+  return sc;
+}
+
+/* ============================ CHROME ============================ */
+function viewRail(sc) {
+  /* A dot appears only where Panacea reports an environment for the branch. No dot is not "healthy". */
+  const br = [
+    ['main', 'production', 'ok'],
+    ['feat/audit-export', sc.state === 'never' ? null : 'feat-audit-export',
+      sc.ready === 0 ? 'bad' : sc.newest && sc.newest.status === 'Running' ? 'run live' : 'ok'],
+    ['feat/claims-intake-v2-pdf', 'feat-claims-intake-v', 'warn'],
+    ['feat/claims-intake-v2-csv', 'feat-claims-intake-v', 'ok'],
+    ['spike/pdf-fonts', null, ''] ];
+  return `<div class="mhd">PROJECT</div>
+    <div class="prow sel"><div class="pini">H</div><div class="pnm">${PROJECT}</div></div>
+    <div class="kids">${br.map(([b, env, st]) => `
+      <div class="brow ${b === sc.branch ? 'sel' : ''}" title="${esc(env ? 'environment ' + env : 'no environment')}">
+        <span class="bnm">${esc(b)}</span>${env ? `<span class="st ${st}"></span>` : '<span class="st none"></span>'}
+      </div>`).join('')}</div>`;
+}
+
+function viewSub(sc) {
+  /* Four lenses, no pipeline: no numbers, no arrows, no completion marks (AGENTIC-UX principle 12). */
+  const lenses = ['Discover', 'Design', 'Develop', 'Merge', 'Deploy'];
+  return `<div class="stop"><div class="sbr">${esc(sc.branch)}</div>
+      <div class="spurpose">${sc.briefId ? esc(BRIEFS[sc.briefId].revs[BRIEFS[sc.briefId].head].headline) : 'No brief for this branch'}</div></div>
+    <div class="mods">${lenses.map(l => `<div class="mod ${l === 'Deploy' ? 'sel' : ''}">${l}${l === 'Deploy' ? '' : '<span class="note">not in this prototype</span>'}</div>`).join('')}</div>`;
+}
+
+function viewTop(sc) {
+  const connected = sc.conn === 'ok';
+  const running = sc.newest && sc.newest.status === 'Running';
+  const b = sc.briefId && BRIEFS[sc.briefId];
+  /* The consequence of Ship is shown BEFORE it is pressed, beside the button — no confirm dialog. */
+  let will = '';
+  if (connected && !sc.stale) {
+    will = `Builds <b class="mono">${esc(sc.head.sha)}</b> from the Panacea remote · pins ${b
+      ? `brief <b>${esc(b.id)} rev ${b.head}</b>` : '<b>no brief</b> — none is bound to this branch'}`;
+    if (sc.collision) will += ` · <span style="color:var(--need)">replaces the release of <b class="mono">${esc(sc.env.branch)}</b></span>`;
+  }
+  const shipLabel = running ? 'Shipping…' : sc.collision ? 'Ship anyway' : 'Ship';
+  const why = !connected ? 'Connect to Panacea first' : sc.stale ? 'Panacea is not answering' : running ? 'A pipeline is already running for this branch' : '';
+  return `<div class="top"><span class="ttl">Deploy</span><span class="sub2">· ${esc(sc.branch)}</span><div class="sp"></div>
+      ${will ? `<div class="will"${src('willShip')}>${will}</div>` : ''}
+      ${running ? `<button class="btn ghost" onclick="A.toast('Cancel sent: <b>POST …/pipelines/${esc(sc.newest.run)}/cancel</b>')">Cancel run</button>` : ''}
+      <button class="btn ${sc.collision ? 'warn' : 'pri'}" ${why ? `disabled title="${esc(why)}"` : ''} onclick="A.ship()">${shipLabel}</button></div>`;
+}
+
+/* ============================ THIS ENVIRONMENT ============================ */
+/* flash-and-decay: a fact whose value changed since the last render flashes once (~600ms, opacity only) */
+function fl(key, val) { const ch = ui.lastState && ui.prev[key] !== undefined && ui.prev[key] !== val; ui.prev[key] = val; return ch ? ' flash' : ''; }
+
+function factBuild(sc) {
+  const n = sc.newest;
+  if (n.status === 'Running') return `<div class="fact${fl('b', 'run')}"${src('step')}><div class="k">BUILD</div>
+      <div class="v"><span class="st run live"></span>Building <span class="mono" style="color:var(--ink-3);font-weight:400" data-elapsed="${n.startedMinsAgo * 60}">—</span></div>
+      <ul class="steps">${n.done.map(d => `<li><span class="tick">✓</span>${esc(d)}</li>`).join('')}
+        <li class="cur"><span class="tick"><span class="st run live" style="width:6px;height:6px"></span></span>${esc(n.cur)}</li></ul>
+      <div class="hb"></div>
+      <div class="d">Steps after the current one are not listed: Panacea does not say what remains.</div></div>`;
+  if (n.status === 'Failed') return `<div class="fact${fl('b', 'bad' + n.id)}"${src('failed')}><div class="k">BUILD</div>
+      <div class="v"><span class="st bad"></span>Failed at <span class="mono">${esc(n.failedStep)}</span></div>
+      <ul class="steps">${n.done.map(d => `<li><span class="tick">✓</span>${esc(d)}</li>`).join('')}<li class="bad"><span class="tick">×</span>${esc(n.failedStep)}</li></ul>
+      ${n.error ? `<div class="verb">${esc(n.error)}</div>` : ''}
+      ${n.inferredScanStop ? '<div class="d">Stopped by a scan in <span class="mono">enforce</span> mode. <i>Inferred</i> from <span class="mono">isBlocking</span>; the pipeline definition was not read.</div>' : ''}
+      <div class="d"><span class="link" onclick="A.toast('Opens <b>Deployment.buildLogs</b> for this run')">Build log</span></div></div>`;
+  return `<div class="fact${fl('b', 'ok' + n.id)}"${src('status')}><div class="k">BUILD</div>
+      <div class="v"><span class="st ok"></span>Built</div>
+      <div class="d"><span class="mono">${esc(n.ver || 'version unknown')}</span> · <span class="mono">${esc(n.sha || '—')}</span> · ${esc(n.dur || '—')}</div>
+      ${n.rollbackOf ? `<div class="d">Rolled back to this release at ${esc(n.at)}.</div>` : ''}</div>`;
+}
+
+function factServing(sc) {
+  const env = esc(sc.env.name);
+  let v, d, cls = '';
+  if (sc.ready === null) { cls = 'none'; v = 'Not measured'; d = 'Panacea reported no pod count. That is not the same as serving.'; }
+  else if (sc.ready === 0 && sc.coldStarting) { cls = 'warn live'; v = 'Starting — 0 pods ready';
+    d = `Cold start. Panacea estimates about <span class="mono">${sc.rollback.coldStart} s</span>; advisory, not a promise.`; }
+  else if (sc.ready === 0) { cls = 'bad'; v = 'Down — 0 pods ready'; d = `Measured in <span class="mono">${env}</span> · ${sc.desired} desired. The build passing does not mean the site is up.`; }
+  else { cls = 'ok'; v = `Serving — ${sc.ready} pods ready`; d = `Measured in <span class="mono">${env}</span>, not per release · ${sc.desired} desired.`; }
+  return `<div class="fact${fl('s', v)}"${src(sc.coldStarting ? 'warmth' : 'ready')}><div class="k">SERVING</div>
+      <div class="v"><span class="st ${cls}"></span>${v}</div><div class="d">${d}</div></div>`;
+}
+
+function factScans(sc) {
+  const x = sc.scans, n = sc.newest;
+  let v, d, cls;
+  if (!x) { cls = 'none'; v = 'No result for this release';
+    d = n.status === 'Running' ? 'Scans run inside the pipeline.' : n.status === 'Failed' ? 'The build stopped before any scan ran.' : ''; }
+  else if (x.overall === 'PASS') { cls = 'ok'; v = 'Pass'; d = 'Findings are this release’s own (snapshot).'; }
+  else if (x.overall === 'FAIL') { cls = 'bad'; v = 'Blocking — ' + x.blocking.map(b => b[0]).join(', ');
+    d = x.blocking.map(b => `<span class="mono">${esc(b[0])}</span>: ${esc(b[1])}`).join('<br>'); }
+  else { cls = 'warn'; v = 'Incomplete — ' + x.incomplete.map(b => b[0]).join(', ');
+    d = x.incomplete.map(b => `<span class="mono">${esc(b[0])}</span> ran and produced no result: <span class="mono">${esc(b[1])}</span>. Not a pass.`).join('<br>'); }
+  return `<div class="fact${fl('x', v)}"${src('overall')}><div class="k">SCANS</div>
+      <div class="v"><span class="st ${cls}"></span>${esc(v)}</div><div class="d">${d}</div></div>`;
+}
+
+function viewEnv(sc) {
+  if (!sc.env) return `<div class="card"><div class="row"><span class="st none"></span><div style="flex:1">
+      <div class="t1">No environment for this branch yet</div>
+      <div class="t2">Panacea names the environment from the branch name the first time it deploys. The cockpit shows the
+        name Panacea reports; it does not predict it.</div></div></div></div>`;
+  return `<div class="card env${sc.stale ? ' dim' : ''}">
+      <div class="hd"><div style="flex:1;min-width:0">
+        <div class="nm"${src('env')}>${esc(sc.env.name)}</div>
+        <div class="host"${src('host')}>${esc(sc.env.host)}</div>
+        <div class="derived">Named by Panacea from the branch.${sc.env.branch !== sc.branch
+          ? ` Currently serving <span class="mono" style="color:var(--need)">${esc(sc.env.branch)}</span>, not this branch.` : ''}</div></div>
+        ${sc.stale ? '<span class="stale">read 14:07 · stale</span>' : ''}</div>
+      <div class="facts">${factBuild(sc)}${factServing(sc)}${factScans(sc)}</div></div>`;
+}
+
+/* ============================ BANNERS — one per condition ============================ */
+function viewBanners(sc) {
+  const out = [];
+  if (sc.stale) out.push(`<div class="banner need"><span class="st warn"></span><div>
+      <b>Panacea has not answered since 14:07.</b> Everything below is what it said then, and is marked stale.
+      Ship and rollback are off until it answers.
+      <div class="why">If the corporate proxy is intercepting TLS, the fix is to load the corporate root certificate —
+        not to turn certificate checks off.</div></div></div>`);
+  if (sc.collision) out.push(`<div class="banner need"${src('envBranch')}><span class="st warn"></span><div>
+      <b><span class="mono">${esc(sc.env.name)}</span> is serving <span class="mono">${esc(sc.env.branch)}</span>, not this branch.</b>
+      Panacea shortens branch names to 20 characters, so <span class="mono">${esc(sc.branch)}</span> and
+      <span class="mono">${esc(sc.env.branch)}</span> share one environment. Your <span class="mono">v0.2.0</span> was replaced at
+      23 Sep 13:15. Panacea reported no error. Shipping now replaces theirs.
+      <div class="why">How the cockpit knows: this branch’s last release went to <span class="mono">${esc(sc.env.name)}</span>, and
+        Panacea now reports that environment’s branch as another. It cannot know this before a branch first deploys
+        without copying Panacea’s naming rule — <b>decision D2</b>.</div></div></div>`);
+  if (sc.rollback) out.push(`<div class="banner"${src('warmth')}><span class="st ${sc.rollback.warmth === 'warm' ? 'ok' : 'warn live'}"></span><div>
+      <b>Rolled back <span class="mono">${esc(sc.env.name)}</span> to <span class="mono">${esc(sc.rollback.rollbackOf)}</span> at ${esc(sc.rollback.at)}</b> —
+      ${sc.rollback.warmth === 'warm'
+        ? 'warm: Panacea re-pointed the service to pods that were still running. No cold start.'
+        : `cold: the earlier pods were gone, so new ones are starting. Panacea estimates about <span class="mono">${sc.rollback.coldStart} s</span>; advisory.`}
+      <div class="why">Panacea says how fast a rollback is only once it has started, so the cockpit cannot say it beforehand.
+        This release keeps <span class="mono">v1.5.2</span>’s pin — brief rev 3 — not the brief as it reads today.</div>
+      <div class="acts"><button class="btn" onclick="A.rollback('v1.6.0')">Roll forward to v1.6.0</button></div></div></div>`);
+  if (sc.banner === 'pruned') out.push(`<div class="banner fail"${src('r409')}><span class="st bad"></span><div>
+      <b>Rollback to <span class="mono">v1.5.2</span> was refused.</b> Panacea said:
+      <div class="verb">cannot roll back: image panaceacr.azurecr.io/harbourline:v1.5.2 no longer exists in the registry (it may have been pruned) — redeploy from source instead</div>
+      <div class="why">Rebuilding <span class="mono">c81f02a</span> ships the same commit as a new release. It keeps
+        <span class="mono">v1.5.2</span>’s pin — brief rev 3 — because it re-runs that release.</div>
+      <div class="acts"><button class="btn pri" onclick="A.toast('Ship <b>c81f02a</b> — pin inherited from v1.5.2: brief b-42 rev 3')">Rebuild c81f02a</button></div></div></div>`);
+  return out.join('');
+}
+
+/* ============================ SCAN DETAIL, DRILL-IN ============================ */
+function viewScans(sc) {
+  if (!sc.scans) return '';
+  const x = sc.scans;
+  return `<div class="sech">SCANS FOR THIS RELEASE<span class="aside"${src('details')}>findings source: <span class="mono">${esc(x.details)}</span></span></div>
+    <div class="card${sc.stale ? ' dim' : ''}"${src('scanRow')}><table class="scans"><tbody>${x.rows.map(([n, s, m, c, r]) => `
+      <tr><td class="n">${esc(n)}</td>
+        <td class="s"><span class="st ${s === 'PASS' ? 'ok' : s === 'FAIL' ? 'bad' : s === 'SKIPPED' ? 'none' : 'warn'}"></span>
+          <span style="margin-left:6px">${esc(s === '—' ? 'no result' : s.toLowerCase())}</span></td>
+        <td class="m ${m === 'enforce' ? 'mode-enforce' : ''}">${esc(m)}</td>
+        <td class="r">${esc(c || r)}</td></tr>`).join('')}</tbody></table>
+      <div class="why">The cockpit sends no scan modes: each scan runs as the project sets it. <span class="mono">off</span> means the scan did not run — never a pass.</div></div>`;
+}
+
+function viewDrill(sc) {
+  if (!sc.events) return '';
+  return `<div class="sech">WHY IT IS DOWN<span class="aside">one environment, opened on demand</span></div>
+    <div class="card">
+      <div class="row"><div style="flex:1"><div class="t1">Events in <span class="mono">${esc(sc.env.name)}</span></div>
+        <div class="t2">The build passed; the pods are not becoming ready. Newest first.</div></div>
+        <button class="btn" onclick="A.toast('<b>GET …/environments/${esc(sc.env.name)}/diagnose</b>')">Diagnose</button>
+        <button class="btn ghost" onclick="A.toast('Opens the live log for this one environment — the only stream the lens holds open')">Follow log</button></div>
+      <div class="log"${src('events')}>${sc.events.map(e => esc(e)).join('\n')}</div></div>`;
+}
+
+/* ============================ RELEASES ============================ */
+/* The six provenance states, never merged (contract §4.1). Rows are never painted with the brief head. */
+function pinCell(sc, r) {
+  if (ui.resolving && r.pin) return `<span class="pin res"${src('pin')}><span class="ph"></span></span>`;
+  if (sc.briefDown && r.pin) return `<span class="pin na"${src('pin')}>brief not read</span>`;
+  if (!r.pin) return `<span class="pin none"${src('origin')}>no brief is recorded for this release</span>`;
+  if (r.pin.missing) return `<span class="pin miss"${src('pin')}>${esc(r.pin.missing)} not found</span>`;
+  const head = BRIEFS[r.pin.brief].head;
+  if (r.pin.rev === head) return `<span class="pin cur"${src('pin')}>brief <span class="rv">rev ${r.pin.rev}</span></span>`;
+  return `<span class="pin sup"${src('pin')}>brief <span class="rv">rev ${r.pin.rev}</span><span class="mk">↻ now rev ${head}</span></span>`;
+}
+
+function viewReleases(sc) {
+  const hd = `<div class="sech">RELEASES<span class="aside">${sc.env ? 'environment ' + esc(sc.env.name) : ''}</span></div>`;
+  if (!sc.rels.length) return hd + `<div class="card"><div class="t2">No releases yet. The first Ship creates one, pinned to the brief as it reads at that moment.</div></div>`;
+  const down = sc.briefDown ? `<div class="banner"><span class="st warn"></span><div><b>Could not read briefs.</b> The control plane said:
+      <div class="verb">the brief store could not be read</div>
+      <div class="why">Releases are listed; the brief each one carries appears when the store answers.
+        “Not read” is not “none” — these releases may well have briefs.</div></div></div>` : '';
+  const rows = sc.rels.map(r => {
+    const st = r.status === 'Running' ? 'run live' : r.status === 'Failed' ? 'bad' : 'ok';
+    return `<div class="rel ${ui.sel === r.id ? 'sel' : ''}" onclick="A.sel('${r.id}')" role="button" tabindex="0">
+      <span class="st ${st}" title="${esc(r.status)}"></span>
+      <span class="ver ${r.ver ? '' : 'unk'}"${src('version')}>${esc(r.ver || (r.status === 'Running' ? 'building' : 'version unknown'))}</span>
+      <span class="sha"${src('commit')}>${esc(r.sha || '—')}</span>
+      <span class="when"${src('created')}><b>${esc(r.at)}</b>${r.dur ? ' · ' + esc(r.dur) : ''}${r.rollbackOf ? ' · rollback' : ''}
+        ${r.branch && r.branch !== sc.branch ? `<br><span class="mono" style="font-size:10px;color:var(--need)">${esc(r.branch)}</span>` : ''}
+        <span class="orig"${src('origin')}>${r.rollbackOf ? 'rollback, from this cockpit' : r.cockpit ? 'from this cockpit' : 'outside this cockpit'}</span></span>
+      ${pinCell(sc, r)}</div>`;
+  }).join('');
+  return hd + down + `<div class="rels${sc.stale ? ' dim' : ''}">
+      <div class="rel hd"><span></span><span>VERSION</span><span>COMMIT</span><span>SHIPPED</span><span>BRIEF</span></div>
+      ${rows}</div>
+    <div class="why">Releases shipped outside this cockpit — auto-deploy on push, the Panacea portal, a teammate’s cockpit — carry no
+      brief: Panacea has nowhere to store one, and this cockpit never guesses it after the fact.</div>`;
+}
+
+/* ============================ MANIFEST — one click from any row ============================ */
+function viewManifest(sc) {
+  const r = sc.rels.find(x => x.id === ui.sel);
+  if (!r) return '';
+  const b = r.pin && r.pin.brief ? BRIEFS[r.pin.brief] : null;
+  const name = r.ver || 'This release';
+  let lede, brief = '';
+  if (ui.resolving && r.pin) lede = '<span class="pin res"><span class="ph" style="width:220px"></span></span>';
+  else if (sc.briefDown && r.pin) lede = 'The brief this release carries could not be read. See the note above the releases.';
+  else if (!r.pin) lede = `No brief is recorded for this release. ${r.cockpit ? 'It was shipped from this cockpit while the branch had no brief.'
+      : 'It was not shipped from this cockpit, so no brief was pinned when it shipped — and none is pinned now.'}`;
+  else if (r.pin.missing) lede = `<span class="mono" style="color:var(--fail)">${esc(r.pin.missing)}</span> — not found. The release names a
+      brief revision our store no longer has. That is data loss in our own store, not a state you caused.`;
+  else {
+    const rev = b.revs[r.pin.rev], sup = r.pin.rev < b.head;
+    lede = `<span class="mono">${esc(name)}</span> shipped against brief <span class="mono">${esc(b.id)}</span>, revision ${r.pin.rev}.
+      ${sup ? `<span style="color:var(--drift)">↻ The brief has since moved to revision ${b.head}.</span>` : ''}
+      <div style="margin-top:6px"><span class="link" onclick="A.toast('Opens Discover at <b>${esc(b.id)} rev ${r.pin.rev}</b>, read-only')">Open rev ${r.pin.rev} in Discover</span>
+      ${sup ? ` · <span class="link" onclick="A.toast('Opens Discover at <b>${esc(b.id)} rev ${b.head}</b>')">Open rev ${b.head}</span>` : ''}</div>`;
+    brief = `<div class="mf"${src('criteria')}><div class="k">BRIEF · REV ${r.pin.rev}</div>
+      <div class="hl">${esc(rev.headline)}</div>
+      <ul class="crit">${rev.criteria.map(c => `<li>${esc(c)}</li>`).join('')}</ul>
+      <div class="sm">No evidence recorded yet. Whether the shipped commit meets these has not been evaluated — which is not the same as unmet.</div></div>`;
+  }
+  return `<aside class="drawer${ui.sel !== ui.lastSel ? ' enter' : ''}" aria-label="Release manifest">
+      <button class="x" onclick="A.sel(null)" aria-label="Close">✕</button>
+      <h3>${esc(name)}${r.rollbackOf ? ' · rollback' : ''}</h3>
+      <div class="lede"${src('pin')}>${lede}</div>
+      ${brief}${viewThread(r)}${viewFacts(sc, r)}</aside>`;
+}
+
+/* ============================ CONNECTION STATES ============================ */
+function viewConnect(sc) {
+  if (sc.conn === 'none') return `<div class="empty">
+      <h3>Connect this cockpit to Panacea</h3>
+      <p>Deploying goes through <b>panacea-api</b>, as you. The cockpit cannot sign you in by itself yet — Panacea has no
+         desktop sign-in — so it uses a personal token you create once.</p>
+      <ol class="ol">
+        <li>Open the Panacea portal in your browser and sign in as usual.</li>
+        <li>Go to Account → API keys and create a key. It starts with <span class="mono">pnc_</span>.</li>
+        <li>Paste it below. The cockpit stores it in the operating system’s credential store and never shows it again.</li>
+      </ol>
+      <div class="card" style="max-width:520px">
+        <div class="t1" style="margin-bottom:8px">Panacea address</div>
+        <input class="fld mono" value="" placeholder="https://" aria-label="Panacea API address" />
+        <div class="fhint">Configuration, not a default we trust: two written sources disagree on this address.
+          <span class="link" onclick="A.toast('<b>GET /api/v1/version</b> — unauthenticated; confirms the address before any token is sent')">Check address</span></div>
+        <div class="t1" style="margin:14px 0 8px">Personal token</div>
+        <input class="fld mono" type="password" placeholder="pnc_…" aria-label="Personal token" oninput="A.tokHint(this)" />
+        <div class="fhint" id="tokHint">Sent once, to the control plane. The window never holds it after this.</div>
+        <div style="margin-top:12px;display:flex;gap:8px"><button class="btn pri" onclick="A.set('live')">Connect</button>
+          <button class="btn ghost" onclick="A.toast('Opens the portal in your system browser')">Open the portal</button></div>
+      </div></div>`;
+  if (sc.conn === 'approval') return `<div class="empty">
+      <h3>Panacea accepted your token, but you have no access yet</h3>
+      <p>Panacea said:</p>
+      <div class="verb"${src('r403')}>no access yet: your account is waiting for team approval</div>
+      <p style="margin-top:14px">A project owner approves new members in the Panacea portal. Nothing in the cockpit can speed this up.
+         This screen checks again on its own; you do not need to reconnect.</p></div>`;
+  return `<div class="empty">
+      <h3>Panacea rejected the token</h3>
+      <p>Panacea answered <b>401</b>. The token has expired or been revoked — tokens also stop working within about a minute
+         of their owner leaving a group, where Panacea checks live membership.</p>
+      <ol class="ol"><li>Create a new key in the portal: Account → API keys.</li><li>Paste it here. The old one is discarded.</li></ol>
+      <button class="btn pri" onclick="A.set('connect')">Paste a new token</button></div>`;
+}
+
+/* ============================ THE THREAD — design, merge, sessions ============================ */
+function viewThread(r) {
+  /* No release link (shipped outside the cockpit) or a key that does not resolve: nothing to join through. */
+  if ((!r.pin && !r.cockpit) || (r.pin && r.pin.missing)) return '';
+  const p = r.pin ? r.pin.rev : null;
+  const design = r.design
+    ? `<div class="sm">Approved design <span class="mono">${esc(r.design.key)}</span>, reviewed against brief rev ${r.design.rev} by ${esc(r.design.by)}.</div>
+       ${p !== null && r.design.rev !== p ? `<div class="sm" style="color:var(--need)">The design was approved against rev ${r.design.rev}; the release shipped against rev ${p}. Shown as recorded — neither is corrected.</div>` : ''}`
+    : '<div class="sm">No approved design is linked to this release.</div>';
+  const merge = r.merge
+    ? `<div class="sm">Merged after review against brief rev ${r.merge.rev}.</div>
+       ${p !== null && r.merge.rev !== p ? `<div class="sm" style="color:var(--need)">Reviewed against rev ${r.merge.rev} at merge; shipped against rev ${p}. Two facts, shown side by side.</div>` : ''}`
+    : '<div class="sm">No merge link is recorded.</div>';
+  const sess = r.sessions
+    ? r.sessions.map(([n]) => `<div class="sess"><span class="st idle"></span>${esc(n)}<span class="c">open</span></div>`).join('')
+      + (r.outside ? '<div class="sess"><span class="st none"></span><span style="color:var(--ink-3)">commits made outside any session</span></div>' : '')
+    : '<div class="sm">No sessions are recorded for this release.</div>';
+  return `<div class="mf"${src('design')}><div class="k">DESIGN</div>${design}</div>
+    <div class="mf"${src('merge')}><div class="k">MERGE</div>${merge}</div>
+    <div class="mf"${src('sessions')}><div class="k">SESSIONS THAT PRODUCED IT<span class="dep">depends on decision D3</span></div>
+      ${sess}<div class="sm">Sessions whose commits fall between the previous release on this environment and <span class="mono">${esc(r.sha)}</span>.</div></div>`;
+}
+
+function viewFacts(sc, r) {
+  const current = sc.newest && sc.newest.id === r.id;
+  const canRoll = !current && r.status === 'Succeeded' && !!r.ver && !sc.stale && !(sc.newest && sc.newest.status === 'Running');
+  const why = current ? 'This is the environment’s current release.' : r.status !== 'Succeeded' ? 'A failed build has no image to roll back to.'
+    : !r.ver ? 'Panacea refuses this one: “deployment has no image tag — cannot rollback”.'
+    : sc.stale ? 'Off while Panacea is not answering.' : '';
+  return `<div class="mf"><div class="k">RELEASE</div><div class="kvs">
+      <span class="kk">version</span><span class="vv mono"${src('version')}>${esc(r.ver || 'version unknown')}</span>
+      <span class="kk">commit</span><span class="vv mono"${src('commit')}>${esc(r.sha || 'not recorded')}</span>
+      <span class="kk">environment</span><span class="vv mono">${esc(r.env || '—')}</span>
+      <span class="kk">shipped</span><span class="vv"${src('created')}>${esc(r.at)}${r.dur ? ' · ' + esc(r.dur) : ''}</span>
+      <span class="kk">author</span><span class="vv">${esc(r.author || 'not recorded')}</span>
+      <span class="kk">origin</span><span class="vv"${src('origin')}>${r.rollbackOf ? 'rollback from this cockpit' : r.cockpit ? 'shipped from this cockpit' : 'outside this cockpit'}</span>
+      <span class="kk">deployment</span><span class="vv mono">${esc(r.id)}</span></div>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button class="btn" ${canRoll ? '' : 'disabled'} onclick="A.rollback('${esc(r.ver)}')">Roll back ${esc(sc.env ? sc.env.name : '')} to ${esc(r.ver || 'this')}</button></div>
+      ${why ? `<div class="sm">${why}</div>` : `<div class="sm">Keeps this release’s pin${r.pin && r.pin.rev ? ` — brief rev ${r.pin.rev}` : ''}. You get a few seconds to undo before it is sent.</div>`}</div>`;
+}
+
+/* ============================ GOVERN — auto-deploy, access, URL prefix ============================ */
+function viewGovern(sc) {
+  if (!sc.env) return '';
+  const own = isOwner(), dis = own ? '' : ' aria-disabled="true"';
+  const ownerOnly = own ? '' : '<div class="fhint">Only a project owner can change this. Panacea refuses it for developers.</div>';
+  return `<div class="sech">DEPLOY ON PUSH</div>
+    <div class="card"${src('auto')}><div class="row"><div style="flex:1">
+        <div class="t1">Deploy <span class="mono">${esc(sc.branch)}</span> automatically on every push</div>
+        <div class="t2">${ui.auto ? 'On.' : 'Off.'} ${ui.auto ? 'Every' : 'If turned on, every'} release it makes <b>will say “no brief is recorded for this release”</b> — the cockpit
+          does not ship them, so it pins nothing.</div></div>
+      <div class="tog ${ui.auto ? 'on' : ''}" role="switch" aria-checked="${ui.auto}" aria-label="Deploy on push"${dis} ${own && !sc.stale ? 'onclick="A.auto()"' : ''}><i></i></div></div>${ownerOnly}</div>
+
+    <div class="sech">WHO CAN REACH IT<span class="aside">two separate controls — Panacea has two systems</span></div>
+    <div class="card"${src('posture')}><div class="t1">How this branch’s environment admits people</div>
+      <div class="t2">Per branch, one of five. Unknown values fall back to <span class="mono">kpmg-sso</span>, never to public.</div>
+      <div class="post">${POSTURES.map(([v, d, risk]) => `<div class="popt ${v === ui.posture ? 'on' : ''}" role="radio" aria-checked="${v === ui.posture}"
+          ${sc.stale ? 'aria-disabled="true"' : `onclick="A.posture('${v}')"`}>
+          <span class="rd"></span><span class="pv">${v}</span><span class="pd">${risk ? `<span class="risk">◆</span> ` : ''}${esc(d)}</span></div>`).join('')}</div></div>
+    <div class="card"${src('groups')}><div class="row"><div style="flex:1"><div class="t1">Project members, by Entra group</div>
+        <div class="t2">For the whole project, not per branch — Panacea has no per-branch group control (assertion B1 in the brief).</div></div>
+        <button class="btn" ${own ? '' : 'disabled'}>Add a group</button></div>
+      <div style="margin-top:8px">${GROUPS.map(([g, role, note]) => `<div class="grp"><span class="g">${esc(g)}${note ? `<small>${esc(note)}</small>` : ''}</span>
+        <span class="role">${role}</span><button class="btn ghost" ${own ? '' : 'disabled'}>Remove</button></div>`).join('')}</div>${ownerOnly}</div>
+
+    <div class="sech">A NAME PEOPLE TYPE<span class="aside">depends on decision D2</span></div>
+    <div class="card"${src('prefix')}><div class="t1">Web address for this branch</div>
+      <div class="t2">Replaces <span class="mono">${esc(sc.env.host)}</span> with a name you choose. Names the address, not the
+        environment. First come, first served across all of Panacea.</div>
+      <div style="display:flex;gap:8px;margin-top:9px"><input class="fld mono" style="max-width:260px" placeholder="audit-export" ${own ? '' : 'readonly'} oninput="A.prefixHint(this)" aria-label="URL prefix" />
+        <button class="btn" ${own ? '' : 'disabled'} onclick="A.toast('Claim sent. If another branch holds it, Panacea’s answer is shown here verbatim.')">Claim</button></div>
+      <div class="fhint" id="pfxHint">Lowercase letters, digits and hyphens; 1–63 characters; no hyphen at either end. Platform names such as <span class="mono">api</span> are refused.</div>${ownerOnly}</div>`;
+}
+
+/* ============================ RENDER ============================ */
+function render() {
+  const sc = scene();
+  document.body.classList.toggle('srcs', ui.srcs);
+  const keep = document.querySelector('.main .body'); const top = keep ? keep.scrollTop : 0;
+  $('rail').innerHTML = viewRail(sc);
+  $('sub').innerHTML = viewSub(sc);
+  if (sc.conn !== 'ok') {
+    $('main').innerHTML = viewTop(sc) + `<div class="body"><div class="inner">${viewConnect(sc)}</div></div>`;
+  } else {
+    $('main').innerHTML = viewTop(sc) + `<div class="split"><div class="body"><div class="inner">
+        ${viewBanners(sc)}
+        <div class="sech">THIS BRANCH’S ENVIRONMENT</div>${viewEnv(sc)}
+        ${viewDrill(sc)}${viewScans(sc)}${viewReleases(sc)}${viewGovern(sc)}
+      </div></div>${viewManifest(sc)}</div>`;
+  }
+  const b = document.querySelector('.main .body'); if (b) b.scrollTop = top;   /* a re-render never moves what you are reading */
+  syncBeat(); tick();
+  ui.lastState = ui.state; ui.lastSel = ui.sel;
+}
+
+/* ============================ THE ONE CLOCK ============================
+   A single interval drives every live number. It updates text in place and never re-renders,
+   so nothing reflows under the reader. */
+function tick() {
+  const secs = Math.floor((performance.now() - ui.enteredAt) / 1000);
+  document.querySelectorAll('[data-elapsed]').forEach(el => {
+    const t = +el.dataset.elapsed + secs; el.textContent = `${Math.floor(t / 60)}m ${String(t % 60).padStart(2, '0')}s`;
+  });
+}
+setInterval(tick, 1000);
+
+/* ============================ ACTIONS ============================ */
+function toast(html, undo) {
+  const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = `<span>${html}</span>`;
+  if (undo) { const u = document.createElement('span'); u.className = 'undo'; u.textContent = 'Undo';
+    u.addEventListener('click', () => { undo(); t.remove(); }); t.appendChild(u); }
+  $('toasts').appendChild(t); setTimeout(() => t.remove(), 5000);
+}
+/* Optimistic with an undo window: the request is held for five seconds, then sent. No confirm dialog. */
+function pend(html, fn) { const h = setTimeout(fn, 5000); toast(html, () => { clearTimeout(h); toast('Not sent.'); }); }
+
+const A = {
+  toast: h => toast(h),
+  set(s) {
+    ui.state = s; ui.sel = null; ui.enteredAt = performance.now();
+    const sel = $('stateSel'); if (sel.value !== s) sel.value = s;
+    ui.resolving = true; render();
+    setTimeout(() => { ui.resolving = false; render(); }, 650);   /* resolving: fixed-width placeholder, no spinner */
+  },
+  sel(id) { ui.sel = ui.sel === id ? null : id; render(); },
+  ship() {
+    const sc = scene(), b = sc.briefId && BRIEFS[sc.briefId];
+    pend(`Shipping <b class="mono">${esc(sc.head.sha)}</b>${b ? ` pinned to <b>${esc(b.id)} rev ${b.head}</b>` : ' with no brief'}. Sends in 5 s.`,
+      () => { toast('<b>POST …/deploy</b> answered 202. Release link written in the same step.'); A.set('building'); });
+  },
+  rollback(ver) {
+    pend(`Rolling back to <b class="mono">${esc(ver)}</b>. Sends in 5 s.`, () => A.set(ver === 'v1.6.0' ? 'live' : 'rolledback'));
+  },
+  auto() { ui.auto = !ui.auto; render(); toast(`Deploy on push <b>${ui.auto ? 'on' : 'off'}</b>.`, () => { ui.auto = !ui.auto; render(); }); },
+  posture(v) {
+    const was = ui.posture; if (v === was) return; ui.posture = v; render();
+    toast(`Access for this branch: <b class="mono">${esc(v)}</b>${v === 'none' ? ' — public' : ''}.`, () => { ui.posture = was; render(); });
+  },
+  tokHint(el) {
+    const h = $('tokHint'), v = el.value.trim(), bad = v && !v.startsWith('pnc_');
+    h.className = 'fhint' + (bad ? ' bad' : '');
+    h.textContent = bad ? 'This does not look like a Panacea token — they start with pnc_.' : 'Sent once, to the control plane. The window never holds it after this.';
+  },
+  prefixHint(el) {
+    const h = $('pfxHint'), v = el.value, ok = !v || /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(v);
+    h.className = 'fhint' + (ok ? '' : ' bad');
+    h.textContent = ok ? 'Lowercase letters, digits and hyphens; 1–63 characters; no hyphen at either end. Reserved platform names are refused by Panacea on claim.'
+      : 'Panacea will refuse this: lowercase letters, digits and hyphens only, no leading or trailing hyphen.';
+  },
+};
+
+/* ============================ WIRING ============================ */
+$('stateSel').addEventListener('change', e => A.set(e.target.value));
+$('roleSel').addEventListener('change', e => { ui.role = e.target.value; render(); });
+$('srcChk').addEventListener('change', e => { ui.srcs = e.target.checked; render(); });
+$('main').addEventListener('keydown', e => {
+  const r = e.target.closest && e.target.closest('.rel[tabindex]');
+  if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); r.click(); }
+});
+A.set('live');
+</script>
+</body>
+</html>

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panacea App — phase 5 Design canvas (owner-review prototype)</title>
+<!-- One self-contained file. No external CSS, no fetched fonts, no network calls, no build step.
+     Every colour is a token defined in :root below; values are taken from prototype/app.html.
+     Radius and elevation follow docs/DESIGN-SYSTEM.md (chip 6 / control 8 / card 10 / window 14). -->
+<style>
+:root{
+  /* surfaces, ink, hairlines, accent, status — values from prototype/app.html */
+  --page:#0a0908; --canvas:#0e0c0b; --surface:#141210; --inset:#1a1715; --hover:#1f1c19;
+  --ink:#f2ede7; --ink-2:#a79f97; --ink-3:#6c645d; --ink-4:#453f39;
+  --line-soft:rgba(255,248,240,.04); --line:rgba(255,248,240,.075); --line-strong:rgba(255,248,240,.15);
+  --thread:rgba(255,241,224,.16);
+  --accent:#2fb3bd; --accent-hi:#74d9e0; --accent-tint:rgba(47,179,189,.11); --accent-ring:rgba(47,179,189,.28);
+  --on-accent:#04201f;
+  --run:#43b95e; --run-tint:rgba(46,160,67,.16);
+  --need:#e2a33c; --need-tint:rgba(226,163,60,.1); --on-need:#241802;
+  --fail:#ef5f45; --fail-tint:rgba(248,81,73,.13); --fail-fg:#ffb4a6;
+  --drift:#c98ae0; --drift-tint:rgba(201,138,224,.12);
+  --sh-soft:rgba(0,0,0,.5); --sh-mid:rgba(0,0,0,.55); --sh-deep:rgba(0,0,0,.7);
+  /* frame "paper" — the colours app.html's sample frames use; frame content is the user's design, not our chrome */
+  --paper:#fff; --paper-ink:#191614; --paper-ink-2:#6d655e; --paper-ink-3:#a8a099;
+  --paper-line:#e3e3e3; --paper-fill:#eee; --paper-dash:#ddd; --paper-acc:#2fa0aa;
+  /* radius scale tied to element size */
+  --r-xs:4px; --r-chip:6px; --r-ctl:8px; --r-card:10px; --r-win:14px;
+  /* elevation: a 1px ring plus a layered shadow, never a flat border */
+  --e-hair:0 0 0 1px var(--line);
+  --e-btn:0 0 0 1px var(--line),0 1px 2px var(--sh-soft);
+  --e-card:0 0 0 1px var(--line),0 1px 2px var(--sh-soft),0 6px 14px -8px var(--sh-soft);
+  --e-raised:0 0 0 1px var(--line-strong),0 2px 4px var(--sh-soft),0 14px 34px -8px var(--sh-mid);
+  --e-overlay:0 0 0 1px var(--line-strong),0 8px 20px var(--sh-mid),0 30px 70px var(--sh-deep);
+  --ease:cubic-bezier(.23,1,.32,1);
+  --beat:2400ms; /* = BEAT_MS in desktop/src/hooks/heartbeat.ts */
+  --mono:"Cascadia Mono",ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+  --sans:"Segoe UI Variable Text","Segoe UI",-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font:13.5px/1.45 var(--sans);-webkit-font-smoothing:antialiased;
+  overflow:hidden;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:var(--r-xs)}
+.mono{font-family:var(--mono)}
+/* one heartbeat: every .live element shares one phase (delay set from one EPOCH in script) */
+@keyframes beat{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes flash{from{opacity:1}to{opacity:0}}
+@keyframes fadein{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+.live{animation:beat var(--beat) var(--ease) infinite}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* REVIEW BAR — prototype only, not product UI */
+.rv{height:36px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--surface);
+  box-shadow:var(--e-card);position:relative;z-index:10}
+.rv .tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-3);white-space:nowrap}
+.rv .tabs{display:flex;gap:2px;background:var(--canvas);box-shadow:var(--e-hair);border-radius:var(--r-ctl);padding:2px}
+.rv .tabs button{padding:3px 9px;border-radius:var(--r-chip);font-size:11px;color:var(--ink-3);white-space:nowrap}
+.rv .tabs button:hover{color:var(--ink)} .rv .tabs button.on{background:var(--inset);color:var(--ink);box-shadow:var(--e-btn)}
+.rv .tabs b{font-family:var(--mono);font-weight:400;color:var(--ink-4);margin-right:5px}
+.rv .sp{flex:1} .rv .smp{font-size:10.5px;color:var(--ink-4)}
+
+/* SHELL — matches app.html: rail, sub-rail, main */
+.app{display:flex;height:calc(100vh - 36px)}
+.rail{width:236px;flex:0 0 236px;background:var(--canvas);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.mchip{display:flex;align-items:center;gap:8px;padding:9px 11px;border-bottom:1px solid var(--line-soft)}
+.mark{width:22px;height:22px;border-radius:var(--r-chip);background:var(--ink);color:var(--page);display:grid;place-items:center;font-weight:800;font-size:11.5px}
+.m1{font-size:11.5px;font-weight:650} .m2{font-size:9.5px;color:var(--ink-4);font-family:var(--mono)}
+.rs{flex:1;overflow:auto;padding:4px 6px 12px}
+.mhd{padding:9px 7px 4px;font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--ink-4)}
+.prow{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:var(--r-ctl)}
+.prow.sel{background:var(--inset);box-shadow:var(--e-hair)}
+.pini{width:19px;height:19px;border-radius:var(--r-chip);background:var(--inset);box-shadow:var(--e-hair);display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--ink-2)}
+.prow.sel .pini{background:var(--accent);color:var(--on-accent)}
+.pnm{flex:1;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kids{padding-left:9px;margin-left:9px;border-left:1px solid var(--thread)}
+.brow,.srow{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:var(--r-chip);position:relative}
+.brow::before,.srow::before{content:"";position:absolute;left:-9px;top:50%;width:6px;height:1px;background:var(--thread)}
+.brow.sel{background:var(--accent-tint);box-shadow:inset 0 0 0 1px var(--accent-ring)}
+.bnm{flex:1;font-family:var(--mono);font-size:10.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow.sel .bnm{color:var(--ink)}
+.srow{font-size:10.5px;color:var(--ink-3)} .srow .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rfoot{border-top:1px solid var(--line);padding:7px 9px;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-3)}
+.me{width:22px;height:22px;border-radius:50%;background:var(--inset);box-shadow:var(--e-hair);display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--ink-2)}
+.kbd{font-family:var(--mono);font-size:9.5px;padding:1px 5px;border-radius:var(--r-xs);background:var(--inset);box-shadow:var(--e-hair);color:var(--ink-4)}
+.sub{width:176px;flex:0 0 176px;background:var(--canvas);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.stop{padding:10px 11px 9px;border-bottom:1px solid var(--line-soft)}
+.sbr{font-family:var(--mono);font-size:11px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spurpose{font-size:10px;color:var(--ink-3);margin-top:4px;line-height:1.4}
+.mods{padding:7px 6px;display:flex;flex-direction:column;gap:1px}
+.mod{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:var(--r-ctl);color:var(--ink-2);font-size:12px}
+.mod.sel{background:var(--inset);box-shadow:var(--e-hair);color:var(--ink);font-weight:650}
+.mi{width:12px;text-align:center;font-size:10.5px;color:var(--ink-4)} .mod.sel .mi{color:var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--page);position:relative}
+
+/* STATUS — every status carries a shape as well as a colour */
+.st{width:8px;height:8px;flex:0 0 auto;display:inline-block}
+.st.run{background:var(--run);border-radius:50%}
+.st.need{background:var(--need);clip-path:polygon(50% 0,100% 100%,0 100%)}
+.st.fail{background:var(--fail);border-radius:1px}
+.st.idle{border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.st.drift{background:var(--drift);transform:rotate(45deg) scale(.8);border-radius:1px}
+
+/* DESIGN LENS */
+.top{min-height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.top .ttl{font-size:12.5px;font-weight:650} .top .meta{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);white-space:nowrap}
+.top .sp{flex:1}
+.btn{padding:5px 11px;border-radius:var(--r-ctl);font-size:11.5px;font-weight:600;background:var(--surface);box-shadow:var(--e-btn);white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);color:var(--on-accent);box-shadow:var(--e-btn)} .btn.pri:hover{opacity:.92}
+.btn.need{background:var(--need);color:var(--on-need)}
+.btn.ghost{background:none;box-shadow:none;color:var(--ink-3)} .btn.ghost:hover{color:var(--ink);background:var(--hover)}
+.btn[disabled]{opacity:.35;cursor:default}
+.dsplit{display:flex;flex:1;min-height:0}
+.dcv{flex:1;position:relative;overflow:auto;background:var(--canvas)}
+.dside{width:300px;flex:0 0 300px;border-left:1px solid var(--line);background:var(--canvas);display:flex;flex-direction:column;min-height:0}
+.dside .b{flex:1;overflow:auto;padding:12px}
+.dside .f{padding:9px 10px;border-top:1px solid var(--line-soft);display:flex;gap:6px}
+.dside input{flex:1;min-width:0;background:var(--inset);box-shadow:var(--e-hair);border-radius:var(--r-ctl);padding:6px 9px;color:var(--ink);font-size:11.5px;outline:none}
+.dside input:focus{box-shadow:0 0 0 1px var(--accent)}
+.sech{font-size:9px;font-weight:700;letter-spacing:.11em;color:var(--ink-4);margin:4px 0 8px;display:flex;align-items:center;gap:9px}
+.sech::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+.card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:11px 12px;margin-bottom:10px;position:relative}
+.card .t1{font-size:12px;font-weight:600} .card .t2{font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.5}
+.kv{display:flex;gap:10px;font-size:11px;padding:3px 0} .kv .k{color:var(--ink-3);width:92px;flex:0 0 auto}
+.kv .v{color:var(--ink-2);font-family:var(--mono);font-size:10.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* BRIEF CHIP — contract §4.1: six states, no two share a treatment; drawn by our chrome, never inside a frame */
+.bchip{display:inline-flex;align-items:center;gap:7px;height:24px;padding:0 9px;border-radius:var(--r-chip);
+  background:var(--inset);box-shadow:var(--e-hair);font-size:11px;color:var(--ink);max-width:460px;min-width:0;cursor:pointer}
+.bchip:hover{box-shadow:0 0 0 1px var(--line-strong)}
+.bchip .hl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.bchip .rev{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);white-space:nowrap}
+.bchip .lbl{font-size:10px;color:var(--ink-3);white-space:nowrap}
+.bchip.sup{box-shadow:0 0 0 1px var(--drift-tint),inset 0 0 0 1px var(--drift-tint)} .bchip.sup .now{color:var(--drift);font-family:var(--mono);font-size:10.5px;white-space:nowrap}
+.bchip.none{background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--ink-3);cursor:default}
+.bchip.miss{box-shadow:0 0 0 1px var(--fail-tint)} .bchip.miss .key{font-family:var(--mono);font-size:10.5px;color:var(--fail-fg)}
+.bchip.miss .nf{color:var(--fail);font-size:10.5px;font-weight:600}
+.bchip.res{cursor:default} .bchip.res .ph{width:168px;height:8px;border-radius:var(--r-xs);background:var(--hover)}
+.bchip.una{cursor:default;color:var(--ink-2)} .bchip.una .why{font-size:10.5px}
+.bchip .glyph{font-family:var(--mono);font-size:10px;color:var(--ink-4)}
+
+/* CANVAS VIEWPORT — the embedded Northstar region. Flat surface: no gradient dot grid (R13) */
+.frame{position:absolute;background:var(--paper);border-radius:var(--r-ctl);box-shadow:var(--e-raised);color:var(--paper-ink);font-size:11px}
+.frame .fl{position:absolute;top:-18px;left:1px;font-size:10px;color:var(--ink-3);white-space:nowrap}
+.frame .clip{position:absolute;inset:0;border-radius:var(--r-ctl);overflow:hidden}
+.pp-h{height:36px;border-bottom:1px solid var(--paper-fill);display:flex;align-items:center;padding:0 12px;font-weight:700;font-size:12px}
+.pp-b{padding:12px}
+.pp-lbl{font-size:10px;color:var(--paper-ink-2);margin-top:9px} .pp-lbl:first-child{margin-top:0}
+.pp-drop{border:2px dashed var(--paper-dash);border-radius:var(--r-ctl);padding:16px;text-align:center;color:var(--paper-ink-3);margin-top:5px}
+.pp-field{border:1px solid var(--paper-line);border-radius:var(--r-chip);padding:6px 8px;margin-top:3px}
+.pp-card{border:1px solid var(--paper-line);border-radius:var(--r-ctl);padding:10px;margin-bottom:8px}
+.pp-bar{height:4px;background:var(--paper-fill);border-radius:var(--r-xs);margin:8px 0}
+.pp-bar i{display:block;height:100%;width:62%;background:var(--paper-acc);border-radius:var(--r-xs)}
+.pp-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--paper-fill);font-size:10.5px}
+.pp-row span:last-child{color:var(--paper-ink-2)}
+.vpmsg{position:absolute;inset:0;display:grid;place-items:center}
+
+/* SESSIONS PANEL */
+.sess{display:flex;gap:9px;padding:9px 10px;border-radius:var(--r-ctl);background:var(--surface);box-shadow:var(--e-card);margin-bottom:6px;align-items:flex-start}
+.sess .st{margin-top:4px}
+.sess .tx{flex:1;min-width:0} .sess .n1{font-family:var(--mono);font-size:11px;color:var(--ink)}
+.sess .n2{font-size:11px;color:var(--ink-3);margin-top:2px;line-height:1.45}
+.sess.need{box-shadow:0 0 0 1px var(--need-tint),0 1px 2px var(--sh-soft),0 6px 14px -8px var(--sh-soft)}
+.sess .act{margin-top:7px;display:flex;gap:6px}
+.mirror{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-2)}
+.mirror .mk{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+
+/* PANELS: approval, failure, empty */
+.appr{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line-soft);font-size:11.5px;color:var(--ink-2);position:relative;flex:0 0 auto}
+.appr b{color:var(--ink);font-weight:600} .appr .mono{font-size:10.5px;color:var(--ink-3)} .appr .sp{flex:1}
+.appr.sup{background:var(--drift-tint)} .appr.need{background:var(--need-tint)} .appr.ok{background:var(--surface)}
+.fail-card{max-width:440px;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-raised);padding:16px 18px}
+.fail-card h3{font-size:14px;font-weight:650;margin-bottom:10px;display:flex;align-items:center;gap:9px}
+.fail-card p{font-size:12px;color:var(--ink-2);line-height:1.6;margin-bottom:8px} .fail-card p b{color:var(--ink);font-weight:600}
+.fail-card .row{display:flex;gap:8px;margin-top:12px}
+.empty{max-width:500px;padding:40px 36px}
+.empty h3{font-size:16px;font-weight:600;margin-bottom:9px}
+.empty p{font-size:12.5px;color:var(--ink-3);line-height:1.6;margin-bottom:14px}
+.empty ol{margin:0 0 18px 18px;font-size:12px;color:var(--ink-2);line-height:1.8}
+.bundle .it{display:flex;gap:9px;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:11.5px;align-items:baseline}
+.bundle .it:last-child{border-bottom:0} .bundle .it .c{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);width:22px;text-align:right}
+.bundle .it .d{flex:1;color:var(--ink-2)} .bundle .it .d small{display:block;color:var(--ink-3);font-size:10.5px}
+
+/* SPECIMEN (state 7) */
+.spec{padding:22px 24px;overflow:auto;flex:1}
+.spec .rowx{display:grid;grid-template-columns:110px 1fr 300px;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line-soft)}
+.spec .nm{font-family:var(--mono);font-size:11px;color:var(--ink-2)} .spec .cond{font-size:11px;color:var(--ink-3);line-height:1.5}
+
+/* flash-and-decay on a state change: opacity only */
+.flash::after{content:"";position:absolute;inset:0;background:var(--accent-tint);pointer-events:none;animation:flash .6s var(--ease) forwards}
+
+/* NOTES LAYER — prototype only: region boundaries and the fact behind each element */
+.notes{position:fixed;right:14px;bottom:14px;width:430px;max-height:56vh;overflow:auto;z-index:40;background:var(--surface);
+  border-radius:var(--r-win);box-shadow:var(--e-overlay);padding:14px 16px;display:none;animation:fadein .16s var(--ease)}
+body.notes-on .notes{display:block}
+.notes h4{font-size:12px;font-weight:650;margin-bottom:4px} .notes .sub2{font-size:11px;color:var(--ink-3);margin-bottom:10px;line-height:1.5}
+.notes .nt{display:flex;gap:9px;padding:6px 0;border-top:1px solid var(--line-soft);font-size:11px;line-height:1.5}
+.notes .nt .n{font-family:var(--mono);color:var(--ink-4);width:14px;flex:0 0 auto} .notes .nt b{color:var(--ink);font-weight:600}
+.notes .nt .src{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+.notes .nt.q b{color:var(--need)}
+body.notes-on .dcv{outline:1px dashed var(--need);outline-offset:-6px}
+body.notes-on .dcv::before{content:"EMBEDDED — Northstar canvas, separate process (AGPL). Frames only.";position:absolute;left:12px;bottom:10px;z-index:5;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--need);background:var(--canvas);padding:2px 6px;border-radius:var(--r-chip)}
+body.notes-on .dside,body.notes-on .top,body.notes-on .appr{outline:1px dashed var(--accent-ring);outline-offset:-3px}
+
+/* TOASTS */
+.toasts{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:7px;align-items:center}
+.toast{background:var(--surface);box-shadow:var(--e-overlay);border-radius:var(--r-ctl);padding:9px 13px;font-size:12px;color:var(--ink-2);
+  animation:fadein .18s var(--ease);max-width:520px;display:flex;align-items:center;gap:12px}
+.toast b{color:var(--ink);font-weight:600} .toast .undo{color:var(--accent-hi);font-weight:600}
+</style>
+</head>
+<body>
+<header class="rv" id="rv"></header>
+<div class="app" id="app">
+  <nav class="rail" id="rail"></nav>
+  <aside class="sub" id="sub"></aside>
+  <main class="main" id="main"></main>
+</div>
+<aside class="notes" id="notes" aria-label="Why each element exists"></aside>
+<div class="toasts" id="toasts"></div>
+<script>
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- one heartbeat — mirrors desktop/src/hooks/heartbeat.ts (EPOCH, BEAT_MS, beatDelayStyle) ----------
+   Every .live element gets a negative animation-delay measured from ONE epoch, so all of them share one phase,
+   however late they were rendered. No per-row timer, no spinner. */
+const EPOCH=performance.now(), BEAT_MS=2400;
+function syncBeat(){const d=-((performance.now()-EPOCH)%BEAT_MS);
+  document.querySelectorAll('.live').forEach(el=>{el.style.animationDelay=d+'ms'})}
+
+/* ---------- sample data — identifiers and revisions are illustrative; every one maps to a named field ---------- */
+const BRIEF={id:'b-42',headline:'Testers upload evidence; every file is scanned and classified before a reviewer sees it'};
+const FRAMES=[
+  {id:'f1',name:'Control detail',x:28,y:48,w:210,h:300,kind:'detail'},
+  {id:'f2',name:'Scanning',x:258,y:48,w:210,h:300,kind:'scan'},
+  {id:'f3',name:'Evidence list',x:488,y:48,w:210,h:300,kind:'list'}];
+const OTHER_SESSIONS=[ /* phase-2 sessions on this branch that are not design sessions */
+  {name:'upload handler',st:'run'},{name:'test harness',st:'need'},{name:'docs',st:'idle'}];
+
+/* M is the whole prototype model. Everything on screen is derived from it. */
+let M={};
+const PRESETS={
+  1:()=>({view:'lens',canvas:false,canvasUp:true,briefRev:3,mirrorRev:3,designRev:0,frames:[],approval:null,changed:null,
+          design:[]}),
+  2:()=>({view:'lens',canvas:true,canvasUp:true,briefRev:3,mirrorRev:3,designRev:11,frames:FRAMES,approval:null,changed:null,
+          design:[{name:'design-1',st:'run',line:'laying out the evidence list'},
+                  {name:'design-2',st:'need',blocked:'access'}]}),
+  3:()=>({view:'lens',canvas:true,canvasUp:true,briefRev:3,mirrorRev:3,designRev:11,frames:FRAMES,
+          approval:{designRev:11,briefRev:3,by:'Dylan Mackie',digest:'sha256:9c41…e07a'},changed:null,
+          design:[{name:'design-1',st:'idle',line:'done — 3 frames ready for review'},{name:'design-2',st:'idle',line:null}]}),
+  4:()=>({...PRESETS[3](),briefRev:5}),
+  5:()=>({...PRESETS[3](),designRev:12,changed:{frame:'f2',by:'design-1'},
+          design:[{name:'design-1',st:'run',line:'tightening the scanning copy'},{name:'design-2',st:'idle',line:null}]}),
+  6:()=>({...PRESETS[3](),canvasUp:false}),
+  7:()=>({...PRESETS[3](),view:'specimen'})};
+let STATE=2;
+const STATE_NAMES={1:'No canvas yet',2:'Designing',3:'Approved',4:'Brief superseded',5:'Changed after approval',
+  6:'Canvas unreachable',7:'Brief chip · six states'};
+function load(n){STATE=n;M=PRESETS[n]();render()}
+
+/* derived facts — the only places the UI decides what is true */
+const approvedNow=()=>!!M.approval&&M.approval.designRev===M.designRev;
+const changedAfter=()=>!!M.approval&&M.approval.designRev!==M.designRev;
+const superseded=()=>!!M.approval&&M.approval.briefRev<M.briefRev;
+const designKey=()=>M.approval?`design:cv-7@${M.approval.designRev}`:'';
+const briefKey=rev=>`brief:${BRIEF.id}@${rev}`;
+
+/* ---------- review bar (prototype only) ---------- */
+function renderReviewBar(){
+  $('#rv').innerHTML=`<span class="tag">PROTOTYPE · PHASE 5 · DESIGN</span>
+    <div class="tabs" role="tablist">${Object.keys(STATE_NAMES).map(k=>
+      `<button role="tab" class="${+k===STATE?'on':''}" onclick="load(${k})"><b>${k}</b>${esc(STATE_NAMES[k])}</button>`).join('')}</div>
+    <span class="sp"></span><span class="smp">Sample data · keys 1–7 · N for notes</span>
+    <button class="btn ghost" onclick="toggleNotes()">Notes</button>`}
+
+/* ---------- rail: project tree, sessions from the phase-2 poller ---------- */
+function renderRail(){
+  const rows=[...OTHER_SESSIONS,...(M.design||[]).map(d=>({name:d.name,st:d.st}))];
+  $('#rail').innerHTML=`<div class="mchip"><div class="mark">P</div>
+      <div><div class="m1">aue-kata-01</div><div class="m2">this user's machine</div></div></div>
+    <div class="rs"><div class="mhd">PROJECTS</div>
+      <div class="prow sel"><span class="pini">CT</span><span class="pnm">Control Testing</span></div>
+      <div class="kids">
+        <div class="brow"><span class="bnm">main</span></div>
+        <div class="brow sel"><span class="bnm">feature/evidence-upload</span></div>
+        <div class="kids">${rows.map(r=>`<div class="srow"><span class="st ${r.st}${r.st==='run'?' live':''}"></span>
+          <span class="t">${esc(r.name)}</span></div>`).join('')}</div>
+        <div class="brow"><span class="bnm">client-preview</span></div>
+      </div>
+      <div class="prow"><span class="pini">VS</span><span class="pnm">Verity Serum</span></div>
+      <div class="prow"><span class="pini">MF</span><span class="pnm">Manifold</span></div></div>
+    <div class="rfoot"><div class="me">DM</div><span style="flex:1">Dylan Mackie</span><span class="kbd">⌘K</span></div>`}
+
+/* ---------- sub-rail: the lenses. Design is selected. ---------- */
+function renderSub(){
+  const L=[['◇','Discover'],['◩','Design'],['▤','Develop'],['⑂','Merge'],['▲','Deploy'],['◧','Files']];
+  $('#sub').innerHTML=`<div class="stop"><div class="sbr">feature/evidence-upload</div>
+      <div class="spurpose">Control Testing</div></div>
+    <div class="mods">${L.map(([i,n])=>`<div class="mod${n==='Design'?' sel':''}"><span class="mi">${i}</span>${n}</div>`).join('')}</div>`}
+
+/* ---------- the brief chip — contract §4.1. Fixed width, so resolving never shifts layout. ---------- */
+const CHIP_W=380;
+function chip(kind,o={}){const w=`style="width:${o.w||CHIP_W}px;flex:0 1 ${o.w||CHIP_W}px"`;
+  switch(kind){
+    case 'current': return `<span class="bchip" ${w} title="${esc(briefKey(o.rev))} — opens Discover at this revision, read-only"
+        onclick="openDiscover(${o.rev})"><span class="glyph">◇</span><span class="hl">${esc(BRIEF.headline)}</span>
+        <span class="rev">rev ${o.rev}</span></span>`;
+    case 'superseded': return `<span class="bchip sup" ${w} title="${esc(briefKey(o.rev))} — opens Discover at this revision, read-only"
+        onclick="openDiscover(${o.rev})"><span class="st drift"></span><span class="hl">${esc(BRIEF.headline)}</span>
+        <span class="rev">rev ${o.rev}</span><span class="now">· brief now at rev ${o.head}</span></span>`;
+    case 'none': return `<span class="bchip none" ${w}><span class="glyph">◇</span><span class="lbl">${esc(o.text||'not bound to a brief')}</span></span>`;
+    case 'missing': return `<span class="bchip miss" ${w} onclick="openDiscover(${o.rev})"><span class="st fail"></span>
+        <span class="key">${esc(briefKey(o.rev))}</span><span class="nf">not found</span></span>`;
+    case 'resolving': return `<span class="bchip res" ${w} aria-busy="true"><span class="glyph">◇</span><span class="ph"></span></span>`;
+    case 'unavailable': return `<span class="bchip una" ${w}><span class="glyph">◇</span>
+        <span class="why">Brief unavailable — the control plane is not responding</span></span>`;
+  }}
+/* which chip the header shows: the head Ref before approval; the design link's pinned key after (contract §4.2) */
+function headerChip(){
+  if(M.approval) return superseded()?chip('superseded',{rev:M.approval.briefRev,head:M.briefRev}):chip('current',{rev:M.approval.briefRev});
+  return chip('current',{rev:M.briefRev})}
+
+/* ---------- frames: the user's design, inside the embedded viewport. Names only — no provenance drawn here (P11) ---------- */
+function frameInner(k){
+  if(k==='detail') return `<div class="pp-h">Access review</div><div class="pp-b"><div class="pp-lbl">Evidence</div>
+    <div class="pp-drop">Drop files</div><div class="pp-lbl">Classification</div><div class="pp-field">Client confidential</div>
+    <div class="pp-lbl">Reviewer</div><div class="pp-field">Unassigned</div></div>`;
+  if(k==='scan') return `<div class="pp-h">Upload</div><div class="pp-b"><div class="pp-card"><b>evidence-q3.pdf</b>
+    <div class="pp-bar"><i></i></div><div class="pp-lbl">Scanning for malware…</div></div>
+    <div class="pp-lbl">Files stay private until the scan is clean.</div></div>`;
+  return `<div class="pp-h">Evidence</div><div class="pp-b">
+    <div class="pp-row"><span>evidence-q3.pdf</span><span>Clean</span></div>
+    <div class="pp-row"><span>walkthrough.docx</span><span>Scanning</span></div>
+    <div class="pp-row"><span>sample-43.xlsx</span><span>Clean</span></div></div>`}
+function framesHTML(){return M.frames.map(f=>`<div class="frame" style="left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px">
+  <div class="fl">${esc(f.name)}</div><div class="clip">${frameInner(f.kind)}</div></div>`).join('')}
+
+/* ---------- lens header ---------- */
+function renderTop(){
+  const meta=!M.canvas?'no canvas':M.frames.length?`cv-7 · design rev ${M.designRev} · ${M.frames.length} frames`:'cv-7 · no frames';
+  let act='';const down=!M.canvasUp;
+  if(M.canvas&&!M.frames.length) act=`<button class="btn pri" onclick="startDesign()">Start design session</button>`;
+  else if(M.canvas&&!M.approval) act=`<button class="btn ghost" onclick="startDesign()">Start design session</button>
+      <button class="btn pri" onclick="approve()" ${down?'disabled':''}>Approve design rev ${M.designRev}</button>`;
+  else if(approvedNow()) act=`<button class="btn ${superseded()?'':'pri'}" onclick="startDevelop()">Start Develop session from this design</button>`;
+  return `<div class="top"><span class="ttl">Design</span>${headerChip()}<span class="meta">${meta}</span>
+    <span class="sp"></span>${act}</div>`}
+
+/* ---------- approval bar — drawn from OUR ledger's design link, so it survives a canvas outage ---------- */
+function renderApproval(){
+  if(!M.approval) return '';
+  const a=M.approval, rec=`<span class="mono">${esc(designKey())} · ${esc(a.digest)}</span>`;
+  if(changedAfter()){const f=M.frames.find(x=>x.id===M.changed.frame);
+    return `<div class="appr need" id="appr"><span class="st need"></span>
+      <span><b>Design changed after approval.</b> Approved design rev ${a.designRev}; the canvas is now at rev ${M.designRev}
+      — <b>${esc(f.name)}</b> was edited by ${esc(M.changed.by)}.</span><span class="sp"></span>
+      <button class="btn pri" onclick="approve()">Approve design rev ${M.designRev}</button></div>`}
+  if(superseded()) return `<div class="appr sup" id="appr"><span class="st drift"></span>
+      <span>Approved against brief rev ${a.briefRev} by ${esc(a.by)}. <b>The brief has since moved to rev ${M.briefRev}.</b></span>
+      <span class="sp"></span><button class="btn ghost" onclick="openDiscover(${a.briefRev})">Open rev ${a.briefRev}</button>
+      <button class="btn ghost" onclick="openDiscover(${M.briefRev})">Open rev ${M.briefRev}</button>
+      <button class="btn" onclick="reReview()">Re-review against rev ${M.briefRev}</button></div>`;
+  return `<div class="appr ok" id="appr"><span class="glyph mono" style="color:var(--ink-2)">✓</span>
+      <span><b>Approved</b> against brief rev ${a.briefRev} by ${esc(a.by)} · design rev ${a.designRev}</span>
+      <span class="sp"></span>${rec}</div>`}
+
+/* ---------- viewport ---------- */
+function renderViewport(){
+  if(!M.canvasUp) return `<div class="dcv"><div class="vpmsg"><div class="fail-card">
+      <h3><span class="st fail"></span>Canvas server not reachable</h3>
+      <p>Cause: <b>no response from the canvas server on aue-kata-01.</b> Design sessions keep running; any canvas call
+      they make fails until it is back. Rechecked on every tick.</p>
+      <p><b>Your approval is intact.</b> The design link lives in the provenance ledger, not in the canvas, so the brief
+      chip and the approval above still resolve.</p>
+      <div class="row"><button class="btn pri" onclick="restartCanvas()">Restart canvas server</button></div></div></div></div>`;
+  if(!M.frames.length) return `<div class="dcv"><div class="vpmsg"><div style="text-align:center;max-width:320px">
+      <p style="font-size:12.5px;color:var(--ink-2);margin-bottom:6px">No frames yet.</p>
+      <p style="font-size:11.5px;color:var(--ink-3);line-height:1.6">Start a design session. It reads brief rev ${M.mirrorRev}
+      from the canvas and draws real-HTML frames here.</p></div></div></div>`;
+  return `<div class="dcv">${framesHTML()}</div>`}
+
+/* ---------- side panel ---------- */
+function sessRow(d){
+  if(d.blocked==='access') return `<div class="sess need"><span class="st need"></span><div class="tx">
+      <div class="n1">${esc(d.name)}</div><div class="n2">Needs you: approve its access to this canvas. It cannot read or draw
+      until you do.</div><div class="act"><button class="btn need" onclick="grantAccess('${esc(d.name)}')">Approve canvas access</button>
+      </div></div></div>`;
+  const line=d.line?`“${esc(d.line)}”`:(d.st==='idle'?'idle':'');
+  return `<div class="sess"><span class="st ${d.st}${d.st==='run'?' live':''}"></span><div class="tx">
+      <div class="n1">${esc(d.name)}</div>${line?`<div class="n2">${line}</div>`:''}</div></div>`}
+function sessionsBlock(){
+  if(!M.design.length) return `<div class="sech">DESIGN SESSIONS</div>
+    <div class="card"><div class="t2" style="margin:0">None yet. A design session is a normal session on this branch, pointed at this canvas.</div></div>`;
+  return `<div class="sech">DESIGN SESSIONS · ${M.design.length}</div>${M.design.map(sessRow).join('')}`}
+function mirrorCard(){
+  const frozen=!!M.approval, drift=frozen&&M.mirrorRev<M.briefRev;
+  return `<div class="sech">BRIEF IN THE CANVAS</div><div class="card"><div class="mirror">
+      ${drift?'<span class="st drift"></span>':'<span class="glyph mono">◇</span>'}
+      <span>Guideline <span class="mono">brief</span> — rev ${M.mirrorRev}, read-only</span></div>
+    <div class="t2">${frozen
+      ? (drift?`Frozen at rev ${M.mirrorRev} with the approval. The brief head is rev ${M.briefRev}.`:`Frozen at rev ${M.mirrorRev} with the approval.`)
+      : 'Written from the Brief store, never edited here. Matches the brief head.'}</div>
+    <div class="mirror" style="margin-top:6px"><span class="mk">panacea:discover brief=${BRIEF.id} rev=${M.mirrorRev}</span></div></div>`}
+function sidePanel(){
+  let b='';
+  if(!M.approval){
+    b=sessionsBlock()+mirrorCard()+(M.frames.length?`<div class="sech">APPROVING RECORDS</div><div class="card">
+      <div class="kv"><span class="k">canvas</span><span class="v">cv-7 at design rev ${M.designRev}</span></div>
+      <div class="kv"><span class="k">reviewed against</span><span class="v">${esc(briefKey(M.mirrorRev))}</span></div>
+      <div class="kv"><span class="k">approved by</span><span class="v">you</span></div>
+      <div class="kv"><span class="k">digest</span><span class="v">computed by the canvas at approval</span></div></div>`:'');
+  } else {
+    const a=M.approval;
+    const bundle=!M.canvasUp
+      ? `<div class="card"><div class="t1">Bundle unavailable</div><div class="t2">It is read from the canvas at handoff, and the
+          canvas server is not responding. The approval record above does not depend on it.</div></div>`
+      : `<div class="card bundle">
+          <div class="it"><span class="c">${M.frames.length}</span><span class="d">Screens<small>Exact approved HTML of
+            ${M.frames.map(f=>esc(f.name)).join(', ')}, plus a rendered PNG each</small></span></div>
+          <div class="it"><span class="c">2</span><span class="d">Tokens<small>Guidelines as markdown: brief (rev ${a.briefRev}),
+            evidence-ui</small></span></div>
+          <div class="it"><span class="c">—</span><span class="d">Component tree<small>Not produced. A frame is one HTML string;
+            there is no component model to export.</small></span></div></div>`;
+    const carry=changedAfter()
+      ? `<div class="card"><div class="t2" style="margin:0">Design rev ${M.designRev} is not approved. Nothing is handed to Develop
+          until you approve it.</div></div>`
+      : `<div class="card">
+          <div class="kv"><span class="k">contextRef</span><span class="v">${esc(briefKey(a.briefRev))}</span></div>
+          <div class="kv"><span class="k">ledger link</span><span class="v">${esc(designKey())}</span></div>
+          <div class="kv"><span class="k">bundle</span><span class="v">${M.canvasUp?'design/ in its worktree, marked':'waits for the canvas server'}</span></div>
+          ${superseded()?`<div class="t2" style="margin-top:6px">It inherits rev ${a.briefRev}; the brief is at rev ${M.briefRev}.
+            Its ContextChip will say so.</div>`:''}</div>`;
+    b=`<div class="sech">HANDOFF BUNDLE · DESIGN REV ${a.designRev}</div>${bundle}
+       <div class="sech">A DEVELOP SESSION STARTED HERE CARRIES</div>${carry}${mirrorCard()}${sessionsBlock()}`;
+  }
+  const lead=M.design.find(d=>d.st!=='need');
+  const foot=M.canvasUp&&lead?`<div class="f"><input placeholder="Tell ${esc(lead.name)}…"
+      onkeydown="if(event.key==='Enter')tell(this,'${esc(lead.name)}')"/>
+      <button class="btn" onclick="tell(this.previousElementSibling,'${esc(lead.name)}')">Send</button></div>`:'';
+  return `<aside class="dside"><div class="b">${b}</div>${foot}</aside>`}
+
+/* ---------- empty (no canvas) and the chip specimen ---------- */
+function emptyLens(){return `<div class="empty"><h3>No canvas for this branch yet.</h3>
+    <p>A canvas is where design sessions draw real-HTML screens against the brief. Creating one:</p>
+    <ol><li>binds a new canvas to <span class="mono">feature/evidence-upload</span></li>
+      <li>writes brief rev ${M.briefRev} into it as a read-only guideline, marked with its key</li>
+      <li>lets you start design sessions that draw in it</li></ol>
+    <button class="btn pri" onclick="createCanvas()">Create canvas</button></div>`}
+function specimen(){
+  const R=[['current','Key resolved; revision equals the head.',chip('current',{rev:3})],
+    ['superseded','Key resolved; revision is behind the head. Colour plus a diamond — never colour alone.',chip('superseded',{rev:3,head:5})],
+    ['none','No key: the canvas is not bound to a brief. Shown quietly, never hidden (P9).',chip('none',{})],
+    ['missing','A key was recorded and no revision answers it — data loss in our own store. The key is shown verbatim.',chip('missing',{rev:3})],
+    ['resolving','Key known, not yet in the cache. Same width as resolved; no spinner.',chip('resolving',{})],
+    ['unavailable','The resolver call failed. The sentence comes from classify() — here, control-plane-down.',chip('unavailable',{})]];
+  return `<div class="top"><span class="ttl">Brief chip</span><span class="meta">six states · contract §4.1</span></div>
+    <div class="spec">${R.map(([n,c,h])=>`<div class="rowx"><span class="nm">${n}</span><span class="cond">${esc(c)}</span>
+      <span>${h.replace(`width:${CHIP_W}px`,'width:300px')}</span></div>`).join('')}</div>`}
+
+/* ---------- render ---------- */
+function render(){
+  renderReviewBar();renderRail();renderSub();
+  const main=$('#main');
+  if(M.view==='specimen') main.innerHTML=specimen();
+  else if(!M.canvas) main.innerHTML=renderTop()+emptyLens();
+  else main.innerHTML=renderTop()+renderApproval()+`<div class="dsplit">${renderViewport()}${sidePanel()}</div>`;
+  if(!M.canvasUp){const s=main.querySelector('.top .btn');if(s&&/Develop/.test(s.textContent)){s.disabled=true;
+    s.title='The handoff bundle is read from the canvas, which is not responding'}}
+  renderNotes();syncBeat()}
+
+/* ---------- notes layer: the fact behind every element (AGENTIC-UX §2 property 7). q = a question for the owner ---------- */
+const NOTES={
+ 1:[['Brief chip, before any canvas','the head provenance.Ref for the branch — GET /discover/branches/{id}/provenance','contract §3.1 · P9'],
+    ['Create canvas','writes the new (project, branch) → canvasId binding; Northstar has no field for it','brief I2 · survey §7.2'],
+    ['“writes brief rev 3 into it”','the brief mirror guideline, under the four render conditions','contract §3.3'],
+    ['One canvas per branch is a proposal. Per project is the alternative.','','brief §1.1 I2',1]],
+ 2:[['Chip = head Ref','before approval the header reads the brief head','contract §4.2'],
+    ['“design rev 11 · 3 frames”','Northstar designRevision and frame list for the open canvas, via the control plane on the tick','brief S4'],
+    ['Session rows','status from the phase-2 poller; the quoted line is the agent’s own Northstar set_status','survey §2.2'],
+    ['design-2 needs you','MCP OAuth needs an interactive approval; a headless agent cannot give it. Unsolved in the fork','brief R7'],
+    ['Live dots share one phase','negative animation-delay from one EPOCH, as heartbeat.ts','brief S3'],
+    ['Approve design rev 11','optimistic with Undo, no confirm dialog; writes the design link in the same operation','DESIGN-SYSTEM · brief P-a (REST route unverified)'],
+    ['Focus inside the canvas silences ⌘K and every chord — the one keydown listener is on window','','brief S2',1]],
+ 3:[['Approval bar','our ledger’s design link: canvasId, designRevision, reviewDigest, brief key, approver','contract §2.2'],
+    ['Chip = pinned key','after approval the header reads the key the approval was made against','contract §4.2'],
+    ['Screens','Northstar reviewArtifacts — the exact approved HTML — plus export_frame PNGs','survey §7.3'],
+    ['Tokens','guideline markdown; there is no token object','survey §2.3'],
+    ['Component tree: not produced','shown as absent so no reader assumes it exists','brief O5'],
+    ['Carry card','contextRef is the brief key the server stamps; the design key goes in a session → design ledger link','contract §3.2 · A3'],
+    ['Is the bundle captured at approval, or read from the canvas at handoff? State 6 shows why it matters.','','brief P-g',1]],
+ 4:[['Superseded chip','revision < headRevision, derived on the desktop, never stored','contract §1.4, §4.1'],
+    ['Approval stands, marked','D3 option A — the recommendation','brief D3'],
+    ['Re-review against rev 5','rewrites the mirror; the digest returns the canvas to review; the rev 11 approval stays on record','brief D3 · survey §7.1'],
+    ['Open rev 3 / rev 5','Discover renders a past revision read-only — a new phase-4 obligation','contract §4.1'],
+    ['D3: should a brief edit void the approval instead? Option B is what happens if nobody decides.','','brief D3',1]],
+ 5:[['Changed-after-approval bar','approved designRevision (our ledger) ≠ current designRevision (Northstar): its digest guard','survey §7.1'],
+    ['“edited by design-1”','assumes the actor is recoverable from Northstar’s events — not verified','brief §4'],
+    ['Amber, not red','a human must act; nothing failed','DESIGN-SYSTEM status vocabulary'],
+    ['Viewport left unmarked','our chrome cannot draw inside the embedded canvas, and must not','contract P11'],
+    ['A frame’s own script can cause this state under the viewer’s name. The fix is a Northstar change.','','brief R6',1]],
+ 6:[['Failure card','cause and fix, stated plainly','CLAUDE.md error tone'],
+    ['Approval and chip still resolve','the design link is in our ledger, not the canvas','contract §2.1'],
+    ['Bundle unavailable','read from the canvas at handoff in this design','brief P-g'],
+    ['Restart canvas server','exists only if the server runs beside the agents','brief D1 option A'],
+    ['“Canvas unreachable” needs a problem code or kind in problems.ts','','brief S5',1]],
+ 7:[['Six states','no two share a treatment','contract §4.1'],
+    ['Fixed width','resolving never shifts layout','DESIGN-SYSTEM skeleton rule'],
+    ['Shapes','diamond superseded, square missing/failed, triangle needs-you, circle running','DESIGN-SYSTEM: colour alone fails'],
+    ['Unavailable sentence','through classify() — control-plane-down','contract §4.1']]};
+function renderNotes(){const N=NOTES[STATE]||[];
+  $('#notes').innerHTML=`<h4>State ${STATE} — ${esc(STATE_NAMES[STATE])}</h4>
+    <div class="sub2">Dashed amber: the embedded canvas. Dashed teal: our chrome. Each row names the fact that justifies an element.</div>
+    ${N.map((r,i)=>`<div class="nt${r[3]?' q':''}"><span class="n">${r[3]?'?':i+1}</span><span><b>${esc(r[0])}</b>
+      ${r[1]?' — '+esc(r[1]):''}<span class="src">${esc(r[2])}</span></span></div>`).join('')}`}
+function toggleNotes(){document.body.classList.toggle('notes-on')}
+
+/* ---------- actions — optimistic, with Undo where the action is reversible ---------- */
+function toast(html,undo){const t=document.createElement('div');t.className='toast';
+  t.innerHTML=`<span>${html}</span>${undo?'<button class="undo">Undo</button>':''}`;
+  if(undo)t.querySelector('.undo').onclick=()=>{undo();t.remove()};
+  $('#toasts').appendChild(t);setTimeout(()=>t.remove(),5200)}
+function flashApproval(){const a=$('#appr');if(a){a.classList.remove('flash');void a.offsetWidth;a.classList.add('flash')}}
+function openDiscover(rev){toast(`Opens Discover at <b>${esc(briefKey(rev))}</b>, read-only`)}
+function createCanvas(){M={...PRESETS[2](),frames:[],designRev:0,design:[]};STATE=2;render();
+  toast('Canvas <b>cv-7</b> bound to feature/evidence-upload · brief rev 3 written as a guideline')}
+function startDesign(){
+  if(!M.frames.length){M={...PRESETS[2]()};STATE=2;render();toast('Started <b>design-1</b> and <b>design-2</b> on this branch, pointed at canvas cv-7');return}
+  const n='design-'+(M.design.length+1);M.design.push({name:n,st:'run',line:'reading the brief guideline'});render();
+  toast(`Started <b>${n}</b> on this branch, pointed at canvas cv-7`,()=>{M.design=M.design.filter(d=>d.name!==n);render()})}
+function grantAccess(n){const d=M.design.find(x=>x.name===n);
+  toast(`Opens the canvas’s access approval for <b>${esc(n)}</b> in your browser`);
+  d.blocked=null;d.st='run';d.line='reading the brief guideline';render()}
+/* sample digests, one per design revision — a new revision always has a new digest */
+const DIGEST=r=>({11:'sha256:9c41…e07a',12:'sha256:51d0…8b3f',13:'sha256:c7e2…19a4'}[r]||'sha256:…');
+function approve(){const prev=M.approval,prevChanged=M.changed;
+  /* approval does not stop the agents: any later edit moves the canvas past the approved revision (state 5) */
+  M.approval={designRev:M.designRev,briefRev:M.mirrorRev,by:'Dylan Mackie',digest:DIGEST(M.designRev)};
+  M.changed=null;STATE=3;render();flashApproval();
+  toast(`Approved design rev <b>${M.designRev}</b> against brief rev <b>${M.approval.briefRev}</b>`,
+    ()=>{M.approval=prev;M.changed=prevChanged;render()})}
+function reReview(){const prev=JSON.parse(JSON.stringify(M));
+  M.mirrorRev=M.briefRev;M.designRev+=1;M.approval=null;STATE=2;render();
+  toast(`Brief mirror now rev <b>${M.mirrorRev}</b>. Design rev ${M.designRev} is back in review; the earlier approval stays on record`,
+    ()=>{M=prev;STATE=4;render()})}
+function startDevelop(){toast(`Started <b>dev-4</b> from design rev ${M.approval.designRev} · inherits ${esc(briefKey(M.approval.briefRev))}`,
+  ()=>toast('dev-4 stopped'))}
+function restartCanvas(){M.canvasUp=true;render();toast('Canvas server restarted on aue-kata-01')}
+function tell(inp,n){const v=inp.value.trim();if(!v)return;inp.value='';toast(`Sent to <b>${esc(n)}</b>’s terminal`)}
+
+/* ---------- keys: 1–7 states, N notes. Ignored while typing. ---------- */
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(/^[1-7]$/.test(e.key))load(+e.key); else if(e.key==='n'||e.key==='N')toggleNotes()});
+
+load(2);
+</script>
+</body>
+</html>
