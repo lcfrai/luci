@@ -69,12 +69,17 @@ for lists — so the desktop's type has no optional fields.
 
 1. `refs` delegates to `discoverhub.Service.Resolve` (task 07), which **never returns a Hub
    error** — it has no error result (task 07 rule 5, review I6). The one rule, restated: a slot
-   served from cache stays `resolved`; every other brief slot is `unavailable` on any Hub error,
+   whose pieces are all in hand stays `resolved` (a branch key's pieces are its revision **and**
+   its pinned project revision, each from the cache or a call that succeeded; re-review b05-1
+   R-M1); every other brief slot is `unavailable` on any Hub error,
    on `signed_out`, and when the Hub is not configured (`hub_off`, a nil `discoverhub.Config.Hub`); `missing`
    comes only from the Hub's own answer, never from its absence. The response is 200 in every one
    of those cases. Only a failure to parse the query is a 4xx.
 2. The head readings delegate to `Service.HeadRef`. A Hub that cannot be reached is 503
-   `upstream_unavailable` here — a head is never served from cache, because it moves.
+   `upstream_unavailable` here — a head is never served from cache, because it moves. A Hub that
+   is **not configured** is not "cannot be reached": `HeadRef` answers a `none` Ref with no error
+   (task 07 rule 6), so the reading is 200 `none` — a session started now inherits nothing, and
+   Develop is not blocked for a Hub it was never given (Hub contract §9.5; re-review b05-1 N2).
 3. `materialisations` lists the branch's worktrees through the scanner and calls
    `contextwrite.Materialiser.Inspect` for each. It **reads files and writes nothing**.
 4. Criterion states come from `Config.Evaluate` (phase 3's seam, S4-P3.4); nil → all `open`.
@@ -111,6 +116,7 @@ for lists — so the desktop's type has no optional fields.
 | `TestRefsJSONHasEveryFieldInEverySlot` | each slot's JSON object has the same key set as the golden `Ref` of task 06 | optional fields the desktop has to guard |
 | `TestHeadReadingIsNeverCached` | two reads with the head moved between them return different revisions | a stale `DefinitionOfDone` |
 | `TestHeadReadingOfAnUnreachableHubIs503` | `upstream_unavailable`, `upstream: "hub"` | a head served from memory |
+| `TestHeadReadingWithTheHubOffIsNone` (re-review b05-1 N2) | a `discoverhub.Service` built with a nil `discoverhub.Config.Hub` → 200, `resolution: "none"`, every `Ref` field present | a nil Hub mapped to 503, which puts an error on Develop's `DefinitionOfDone` for a Hub nobody configured |
 | `TestRefsAgainstAHubThatNeverAnswersIs200WithinTheBudget` | a fake Hub that blocks until `ctx.Done()`, `Budgets{Default: 200ms}`, one key cached and one not → 200 within 1 s, the cached slot `resolved`, the other `unavailable` | a `refs` with no deadline (the desktop's `timeout` on every chip), or a deadline expiry mapped to 503 when rule 1 promises 200 (review I4) |
 | `TestMaterialisationsWritesNothing` | every worktree's file bytes and mtimes are unchanged after the call | a GET with a side effect (§10a) |
 | `TestMaterialisationsListsTheBranchsWorktreesOnly` | two branches, three worktrees: only this branch's two | a cross-branch leak into "who inherits this" |

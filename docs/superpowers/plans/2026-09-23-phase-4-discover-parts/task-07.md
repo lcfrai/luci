@@ -14,13 +14,20 @@ blocks task 08 (plan §6, §9). Phase 4 writes **nothing** under `control-plane/
 
 - `Hub` below is phase 4's interface, and it declares `List` itself. It still embeds
   `hubclient.Briefs`; Go (1.14 and later) accepts an identical method from two embedded sources, so
-  it compiles whether or not the Hub's `Briefs` has `List` yet. If H0's `List` lands with a
-  different signature, that is a compile error here, which is the right place to learn it.
-- `fakehub_test.go` is a thin phase-4-owned wrapper: a struct that embeds `hubclient.NewFake()`
-  and adds `List` over the revisions the test seeded. It lives in `discoverhub`, not in the Hub's
-  package.
+  the **method** compiles whether or not the Hub's `Briefs` has `List` yet. If H0's `List` lands
+  with a different signature, that is a compile error here, which is the right place to learn it.
+- The seam supplies HA4-2's **method**, not its **types**. `List` names `hubapi.BriefQuery`, which
+  exists only as part of HA4-2, and phase 4 may not write it into `internal/hub/hubapi` (plan §5).
+  So H0 without `BriefQuery` blocks this task exactly as no H0 does (Step 1 checks both). The Hub
+  plan puts `BriefQuery` and `Briefs.List` in H0 (`phase-h-hub-parts/task-03.md:283-290`,
+  `task-04.md:82`), so the wrapper's `List` is expected to be needed only if H0 slips HA4-2's
+  method while keeping its type.
+- `fakehub_test.go` is a thin phase-4-owned wrapper: a struct that embeds `hubclient.NewFake()`,
+  adds `List` over the revisions the test seeded, and adds the two hooks named in **Files** below
+  (`renameProject`, `failResolve`). It lives in `discoverhub`, not in the Hub's package.
 - When HA4-2 lands, the wrapper's `List` is deleted and the embedded fake's own `List` shows
-  through; `Hub` stays as it is. That is a one-file change, and the unchanged tests prove it.
+  through; `Hub` stays as it is, and so do the two hooks. That is a one-file change, and the
+  unchanged tests prove it.
 
 The orchestrator carries HA4-1..9 to the Hub planner (plan §9); this task does not wait on the
 reply to start, but it cannot claim the real Hub until HA4-2 is in the Hub contract.
@@ -31,7 +38,16 @@ reply to start, but it cannot claim the real Hub until HA4-2 is in the Hub contr
 - `control-plane/internal/discoverhub/read.go` + `read_test.go` (new)
 - `control-plane/internal/discoverhub/fixtures_test.go` — the fact sheet's world in the fake (new)
 - `control-plane/internal/discoverhub/fakehub_test.go` — `fakeHub{*hubclient.Fake}` plus `List`
-  over the seeded revisions, until HA4-2 lands (new; phase 4's, not the Hub's)
+  over the seeded revisions, until HA4-2 lands, and two test hooks H0's fake does not plan
+  (`phase-h-hub-parts/task-04.md:188-226` lists its whole surface, and neither is in it) (new;
+  phase 4's, not the Hub's):
+  - `renameProject(id, name string)` — from then on the wrapper's `Project` and `ProjectForRepo`
+    return the embedded fake's answer with `Name` replaced. It stands in for route 16,
+    `PATCH /v1/projects/{id}`, which `hubclient.Projects` has no method for.
+  - `failResolve(n int, err error)` — the n-th `Resolve` call made through the wrapper (1-based,
+    counted from the hook) returns `err` without reaching the embedded fake; every other call
+    passes through. It gives a chosen `*hubclient.Error` status and a failure on the second call
+    only; `SetUnavailable` fails every call.
 
 **Assumed `hubapi` shapes (Hub contract ask HA4-1).** The contract names these structs (§9.2) and
 fixes their JSON (§7.1, §7.5) but writes no Go. Phase 4 codes against this reading; a field-name
@@ -159,12 +175,12 @@ type RefsResponse struct {
 	Results []RefResult        `json:"results"`
 	Heads   map[string]RefHead `json:"heads"`
 }
-type BriefQuery struct { // HA4-2
+type BriefQuery struct { // HA4-2 — superseded by the Hub's Page shape, Step 2 (read below)
 	Scope           string
 	BranchRef       string
 	IncludeArchived bool
-	After           string
-	Limit           int
+	After           string // superseded: the Hub's BriefQuery carries Page hubapi.PageRequest
+	Limit           int    // superseded: as After
 }
 ```
 
@@ -400,13 +416,21 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
    one must not keep content.
 5. **One rule for the Hub failing during `Resolve`** (review I6; task 12 rule 1 restates it).
    `Resolve` **never returns a Hub error** — it has no error result. Slot by slot:
-   - a key served from the cache stays `resolved`, whatever the Hub is doing;
+   - a slot is `resolved` only when **everything it needs is in hand**, each piece from the cache
+     or from a call that succeeded. A project key needs its revision. A branch key needs its
+     revision **and** its pinned project revision (rule 3; `provenance.Build` reads both, task 06).
+     A key whose pieces are all cached stays `resolved`, whatever the Hub is doing;
    - every other brief key is `unavailable` when the Hub call that would answer it fails for any
      reason (`*hubclient.Error` of any status, `hubclient.ErrUnavailable`, a transport error or
      the route's deadline), when it returns `entraauth.ErrSignedOut`, and when `Config.Hub` is nil
-     (rule 6). If the first call succeeds and the second (the pinned project revisions) fails, a
-     branch key is `resolved` when its pin was cached and `unavailable` when it was not — never
-     resolved against anything but its pin (rule 3);
+     (rule 6). That covers each split case the same way: the first call succeeds and the second
+     (the pinned project revisions) fails; or the branch revision is cached while its pin has
+     expired or been evicted (the entries have their own TTLs and the 4096 cap, so the window is
+     real), and the one call for the pin fails. Either way the branch key is `resolved` when its
+     pin is in hand and `unavailable` when it is not — never resolved against anything but its
+     pin, and never a branch `Ref` with no inherited text. A cached pin's expiry is **not**
+     extended to cover the branch revisions that name it: that would let an erased project
+     revision outlive `CacheTTL` for as long as its branches keep being read (ADR-H1 §6.8);
    - `missing` comes **only** from the Hub's own answer: a key `/v1/refs` answered as missing.
      Nothing in this package manufactures it, because the chip's words for `missing` say the text
      is lost (task 17), and a Hub that is off, down or signed out has lost nothing;
@@ -417,18 +441,24 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
    each Hub error **unchanged** (`*hubclient.Error`, `hubclient.ErrUnavailable`,
    `entraauth.ErrSignedOut`): the relay is task 11's.
 6. A nil `Config.Hub` makes `Binding` answer `hub_off`, `View` answer a view with that binding and
-   no brief, `Resolve` answer `unavailable` for every brief key (rule 5; **not** `missing`), and
-   `Inheritable` answer none.
+   no brief, `Resolve` answer `unavailable` for every brief key (rule 5; **not** `missing`),
+   `Inheritable` answer none, and `HeadRef` answer a `none` Ref with **no error** — the same
+   answer as `Inheritable`, whose answer it reports, and treated like `Binding`'s `hub_off`, which
+   is a 200 view and not an error (re-review b05-1 N2). So a Hub that is not configured is not task 12 rule 2's
+   "cannot be reached": the head reading is 200 `none`, never 503, because a session started now
+   inherits nothing (task 09 step 4) and Develop is not to be blocked or toasted for a Hub it was
+   never given (Hub contract §9.5; task 18's `hub_off leaves Develop alone`). A stamped key is
+   different: it names a revision that may exist, so `Resolve` says `unavailable`, not `none`.
 
 **Tests first** (`fakeHub` from `fakehub_test.go` — `hubclient.NewFake()` embedded, plus `List`
-until HA4-2 lands — seeded by `fixtures_test.go` with the fact sheet's world —
+until HA4-2 lands, plus the `renameProject` and `failResolve` hooks — seeded by `fixtures_test.go` with the fact sheet's world —
 project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins of fact sheet §2–§3):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestBindingFindsTheProjectByItsRepoKey` | a local project whose second remote is linked is `bound` to it | a lookup of origin only |
 | `TestBindingWithNoRemoteSaysSo` | `no_remote`, no Hub call | a Hub project created for a repository nobody else can reach (OQ-1) |
-| `TestBindingOffWhenTheHubIsNotConfigured` | nil Hub → `hub_off` | a nil dereference at the first lens open |
+| `TestBindingOffWhenTheHubIsNotConfigured` | nil Hub → `hub_off`; `HeadRef` on `b-42` → a `none` Ref and a nil error (rule 6) | a nil dereference at the first lens open; a `HeadRef` error that task 12 would turn into a 503 on Develop's head reading for a Hub it was never given |
 | `TestBindRaceReturnsTheTeammatesProject` | fake answers `repo_already_linked`; `Bind` returns that project `bound` | a second project for one repository |
 | `TestInheritableIsTheBranchsLatestComplete` | `b-42` head 7 open, latest complete 6 → key `@6` | materialising an unfinished edit (C9) |
 | `TestInheritableFallsBackToTheProject` | branch brief open with no complete revision → the project's latest complete key | a branch session that inherits nothing while the project has a brief |
@@ -441,16 +471,21 @@ project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins o
 | `TestViewOfABranchShowsWhatItInherits` | `Inherited` is `b-7`'s latest complete; `Preview.Block` equals `claudemd.Render` of `Inheritable`'s document | a preview the materialiser would not write |
 | `TestHistoryIsOldestFirstWithChanges` | six rows, `Change.Kind` from each content, erased rows marked | a history that has to diff revisions |
 | `TestHubErrorsPassThroughUnchanged` | from `View`, `History` and `HeadRef`, a fake 409 and a fake `ErrUnavailable` reach the caller as `errors.As`/`errors.Is` match | a wrapped error the relay cannot see |
-| `TestHubOffIsUnavailableNotMissing` (review I6) | table over a nil `Config.Hub`, the fake failing with `ErrUnavailable`, with a 500 `*hubclient.Error`, and with `entraauth.ErrSignedOut`: keys `[b-42@6 (cached by an earlier, healthy call), b-42@5 (not cached), "", none:declined, "b-42"]` → `resolved`, `unavailable`, `none`, `none`, `invalid` (in the nil-Hub row nothing can have been cached, so the first is `unavailable` too); `Resolve` has no error to return; **no** slot `missing` in any row; and a healthy fake that does not hold `bf-…40@5` answers it `missing` | rule 6's old `missing` for every key, which showed a Hub switched off as data loss (task 17's words); a Hub error returned from `Resolve`, which task 12 would turn into a non-200; a failed call that drops a cached slot |
-| `TestRenameDoesNotLookLikeAHandEdit` (review I5) | render `Inheritable`'s document for `b-42` with `claudemd.Render` → block A. Rename the Hub project in the fake (`PATCH /v1/projects/{id}`, `Engagement Portal` → `Evidence Portal`) and rebind `b-42`'s brief to `refs/heads/evidence-intake` (fake `PATCH`, which writes no revision). `Inheritable` on the rebound branch → the same key, `@6`, and a block **byte-equal** to A (title `# Branch brief — evidence-upload`, from rev 6's envelope); `claudemd.Inspect` on a file holding A, compared as task 09 compares, is not `edited`. The project key `b-7@6` renders byte-equal before and after too | a title read from the Hub project's current name or the branch's current ref, which makes every worktree's block report `edited`, with a diff, after a rename |
+| `TestHubOffIsUnavailableNotMissing` (review I6; re-review b05-1 R-I1, R-M1) | a table of rows, each on a fresh `fakeHub`, hooks installed after the seeding calls. **Whole-call failures** — a nil `Config.Hub`; `SetUnavailable(true)`; `failResolve(1, &hubclient.Error{Status: 500})`; `SetSignedOut(true)` — over keys `[b-42@6 (it and its pin cached by an earlier, healthy call), b-42@5 (not cached), "", none:declined, "b-42"]` → `resolved`, `unavailable`, `none`, `none`, `invalid` (in the nil-Hub row nothing can have been cached, so the first is `unavailable` too). **Second call fails** — two branch revisions seeded for the row, each pinning a different project revision; one pin cached by an earlier healthy call, the other not; `failResolve(2, &hubclient.Error{Status: 500})`: the first call answers both branch revisions, the pin call fails → the branch key whose pin was cached is `resolved`, the other `unavailable`. **Branch cached, pin not** — resolve `b-7@6` at t0 and `b-42@6` at t0 + `CacheTTL`/2 (reusing the cached pin, no Hub call for it); advance the injected clock to t0 + `CacheTTL` + 1 s; `failResolve(1, hubclient.ErrUnavailable)` → `b-42@6` is `unavailable`, and the wrapper saw one `Resolve` call, carrying only `b-7@6`. In every row: `Resolve` has no error to return, **no** slot is `missing`, and no `resolved` branch slot lacks its pinned project revision's sections. And a healthy fake that does not hold `bf-…40@5` answers it `missing` | rule 6's old `missing` for every key, which showed a Hub switched off as data loss (task 17's words); a Hub error returned from `Resolve`, which task 12 would turn into a non-200; a failed call that drops a cached slot; a branch slot called `resolved` with no pin in hand, the chip with no audience that rule 3 forbids (critique-2 §1.1); a status-specific branch that answers `missing` for a 500 |
+| `TestRenameDoesNotLookLikeAHandEdit` (review I5) | render `Inheritable`'s document for `b-42` with `claudemd.Render` → block A. Rename the Hub project with the wrapper's `renameProject` (route 16, `PATCH /v1/projects/{id}`, which `hubclient.Projects` has no method for; `Engagement Portal` → `Evidence Portal`) and rebind `b-42`'s brief to `refs/heads/evidence-intake` with the fake's own `Rebind` (`PATCH /v1/briefs/{id}`, which writes no revision). The fixture `Locator` then answers `BranchName(b-42) = "evidence-intake"`, as the scanner would after the local branch is renamed; without that, `Inheritable` asks `ForBranch` for the old ref and the test proves nothing about the rebind. `Inheritable` on the rebound branch → the same key, `@6`, and a block **byte-equal** to A (title `# Branch brief — evidence-upload`, from rev 6's envelope); `claudemd.Inspect` on a file holding A, compared as task 09 compares, is not `edited`. The project key `b-7@6` renders byte-equal before and after too. Two guards that the test changed what it claims to: after the steps, and with the injected clock advanced 61 s past `Binding`'s 60 s memo, `Binding.HubProjectName` is `Evidence Portal`; and `ForBranch` was asked for `refs/heads/evidence-intake` (the fake's `Calls`), so a hook that did nothing fails the test instead of passing it | a title read from the Hub project's current name or the branch's current ref, which makes every worktree's block report `edited`, with a diff, after a rename |
 
 **Steps:**
 
 - [ ] **Step 1:** Confirm H0 has landed: `go doc ./control-plane/internal/hub/hubclient NewFake`.
-  If not, stop — this task cannot start (§6 dependency). Then read
+  If not, stop — this task cannot start (§6 dependency). Then confirm HA4-2's **type** is there:
+  `go doc ./control-plane/internal/hub/hubapi BriefQuery`. If it is absent, stop: the task is
+  blocked by HA4-2 exactly as by no H0, because `Hub.List` cannot name the type and phase 4 may
+  not write it (re-review b05-1 R-M3). Then read
   `go doc ./control-plane/internal/hub/hubclient Briefs`: if it already has HA4-2's `List`, write
   `fakehub_test.go` without its own `List`; if not, write the wrapper's `List`. Either way, write
-  nothing under `control-plane/internal/hub/` (review I11).
+  the wrapper's `renameProject` and `failResolve` hooks (H0's fake has neither: its surface,
+  `phase-h-hub-parts/task-04.md:188-226`, offers `SetUnavailable` for every call and no
+  rename), and write nothing under `control-plane/internal/hub/` (review I11).
 - [ ] **Step 2:** Reconcile part 07's assumed `hubapi` shapes with the real ones; record any
   rename in the commit message.
 - [ ] **Step 3:** Write `fixtures_test.go` and the tests; confirm they fail.
