@@ -50,7 +50,7 @@ type Materialisations struct {
       "projectId": "pj-…", "branchRef": "refs/heads/evidence-upload", "status": "complete",
       "headRevision": 6, "latestCompleteRevision": 6,
       "inherits": { "key": "brief:bf-…b7@5", "briefId": "bf-…b7", "revision": 5, "digest": "sha256:…" },
-      "title": "Engagement Portal — evidence-upload",
+      "title": "Branch brief — evidence-upload",
       "headline": "Let client users upload evidence files against an open request.",
       "audience": "KPMG staff broadly", "constraints": "Existing uploads and their download links",
       "outOfScope": "Bulk upload; the reviewer side of evidence",
@@ -67,9 +67,12 @@ for lists — so the desktop's type has no optional fields.
 
 **Rules:**
 
-1. `refs` delegates to `discoverhub.Service.Resolve` (task 07). If the Hub is unreachable, slots
-   the cache can answer are answered and the rest are `unavailable`; the response is still 200.
-   Only a failure to parse the query is a 4xx.
+1. `refs` delegates to `discoverhub.Service.Resolve` (task 07), which **never returns a Hub
+   error** — it has no error result (task 07 rule 5, review I6). The one rule, restated: a slot
+   served from cache stays `resolved`; every other brief slot is `unavailable` on any Hub error,
+   on `signed_out`, and when the Hub is not configured (`hub_off`, a nil `discoverhub.Config.Hub`); `missing`
+   comes only from the Hub's own answer, never from its absence. The response is 200 in every one
+   of those cases. Only a failure to parse the query is a 4xx.
 2. The head readings delegate to `Service.HeadRef`. A Hub that cannot be reached is 503
    `upstream_unavailable` here — a head is never served from cache, because it moves.
 3. `materialisations` lists the branch's worktrees through the scanner and calls
@@ -104,6 +107,7 @@ for lists — so the desktop's type has no optional fields.
 | `TestRefsNeverFailsTheBatchForABadKey` | `b-42`, `brief:bf-…@0`, `""` among good keys → 200, `invalid`/`none` in their slots | one typo blanking twelve chips |
 | `TestRefsLimits` | 0 keys and 101 keys → 400 `field: "key"` | an unbounded fan-out to the Hub |
 | `TestRefsServesCachedSlotsWhenTheHubIsDown` | resolve once; fake goes unavailable; resolve the same key plus a new one → 200, first `resolved`, second `unavailable` | a whole Develop column of chips blanked by one unreachable Hub (ADR-H1 §5.4) |
+| `TestRefsWithTheHubOffOrSignedOutIsUnavailable` (review I6) | a `discoverhub.Service` built with a nil `discoverhub.Config.Hub`, and one whose fake returns `entraauth.ErrSignedOut` → 200 (not 401, not 503), every uncached brief slot `unavailable`, **none** `missing` | the route relaying a `Resolve` error, or `hub_off` shown as data loss on every chip (task 07's `TestHubOffIsUnavailableNotMissing` is the unit half) |
 | `TestRefsJSONHasEveryFieldInEverySlot` | each slot's JSON object has the same key set as the golden `Ref` of task 06 | optional fields the desktop has to guard |
 | `TestHeadReadingIsNeverCached` | two reads with the head moved between them return different revisions | a stale `DefinitionOfDone` |
 | `TestHeadReadingOfAnUnreachableHubIs503` | `upstream_unavailable`, `upstream: "hub"` | a head served from memory |

@@ -97,7 +97,9 @@ configured. A drafted answer is held until a person accepts or changes it.
 3. **A key names immutable text.** A brief revision never changes (P3). A branch revision pins
    the project revision it inherits (`4-D3`), so the resolved text an agent read is a pure function
    of one key. Every render — the managed block, a chip, the past-revision view — is computed from
-   that key and never read back from a file (contract §3.3).
+   that key **alone** and never read back from a file (contract §3.3). "Alone" includes the
+   block's title: it comes from the revision envelope's own `branchRef`, never from a mutable
+   project or branch name (P4-G, review I5).
 4. **Nothing provenance-related is persisted on the machine** (contract A5, widened by ADR-H1
    §5.4). The control plane holds resolved revisions **in memory** for its lifetime, because they
    are immutable; the desktop holds them in non-persisted slices. `PERSIST_VERSION` stays `1`
@@ -172,7 +174,7 @@ without a cycle. Phase 4 imports only the Hub's
 | **P4-D** | Materialise target: `CLAUDE.md` if the repository does not track it (and `/CLAUDE.md` is appended to `<clone>/.git/info/exclude`); `.claude/CLAUDE.md` if `CLAUDE.md` is tracked; refuse (`tracked_elsewhere`) if both are. A tracked candidate is never written, not even to strip a block; a block already committed in one is left alone and listed in the worktree inspection's `committed`, beside the target's own state and never instead of it; a start there is not refused (OQ-7) (tasks 09, 15, 19; review I3, re-review R-M1). Tracked-ness is read from `git --icase-pathspecs ls-files -- <rel>` output, never an exit code, so a tracked `claude.md` counts as a tracked `CLAUDE.md` on a case-insensitive disk (task 14; review I7, re-review R-I1) | phase 3 ask P4-6 and `3-D6`: the managed block is never committed. **Unverified** that the pinned Claude Code reads `.claude/CLAUDE.md`; task 23 carries the canary | a tracked-`CLAUDE.md` repository — this repository is one — falls back to a location the canary may disprove |
 | **P4-E** | A local project is bound to a Hub project **by its remotes' repo keys only**. A repository with no GitHub or Azure DevOps remote shows *"this repository has no shared remote"*; nothing is bound locally | ADR-H1 §5.4: nothing Hub-derived persists on the machine; a brief nobody else can reach is not shared (`OD-3`) | open question OQ-1 |
 | **P4-F** | Model-tailored options are dropped from v1 (change C16) | cost per step, and the options would need storing | the owner can ask for them back as one op |
-| **P4-G** | A project-scoped brief is rendered with the branch's name in its title, so the same project key renders a different first line per branch | the title is where-you-are context, not brief text; the digest and the key still name the brief text only | the hand-edit check renders with the same branch name, so it cannot false-positive |
+| **P4-G** | **The rendered block is a function of its key, title included** (amended by review I5). A branch key's title is `Branch brief — ` + its own revision envelope's `branchRef` minus `refs/heads/`; a project key's title is `Project brief`. No project name and no current branch name reach the block (task 05's `Document.Title`, task 07 rule 2). *Was:* the Hub project's name and the current branch's name, so a project key rendered a different first line per branch | the project name changes under `PATCH /v1/projects/{id}` and the branch name under a rebind, while the key does not; a title read from either made `Inspect` report `edited` on every worktree after a rename, and gave the agent a line no digest covers. The envelope's `branchRef` is fixed per revision (Hub contract §3.4; a rebind writes no revision, §7.5) and the digest covers it. `TestRenameDoesNotLookLikeAHandEdit` (task 07) | the block no longer says which project it belongs to; the agent's repository and the cockpit's pane header already do. After a rebind, a block still names the ref its revision was written on until the next revision |
 
 ---
 
@@ -293,6 +295,7 @@ without a cycle. Phase 4 imports only the Hub's
 | `discoverhub/binding.go` + test | local project → Hub project by repo key; local branch → `refs/heads/…` | 07 |
 | `discoverhub/read.go` + test | `View`, `History`, `Resolve(keys)`, `HeadRef`, `Inheritable`; the in-memory revision cache | 07 |
 | `discoverhub/service.go` | `Config`, `Service`, the in-memory revision cache | 07 |
+| `discoverhub/fakehub_test.go` | phase 4's wrapper fake: `hubclient.NewFake()` embedded, plus `List` until HA4-2 lands (review I11) — in `discoverhub`, never in the Hub's package | 07 |
 | `discoverhub/write.go`, `digest.go`, `lifecycle.go` + tests | `Apply`: one domain op → one Hub batch, with the `4-D3` fan-out and its conflict retry; the local digest until HA4-9; `ArchiveHead`, `Rebind` | 08 |
 | `contextwrite/materialise.go`, `inspect.go`, `git.go` + tests | the `api.Materialiser`: target choice, exclude line, write, strip; `Inspect` for drift; the two read-only git questions | 09 |
 | `discoverapi/api.go`, `briefs.go`, `provenance.go`, `analyse.go` + tests | the `/v1/discover` routes; the relay rule; `Mount` | 11, 12, 13 |
@@ -363,8 +366,8 @@ after H0).
 | 04 | `discover`: the model follow-up, degrading to nothing | 02, 03 | 1.5 h |
 | 05 | `discover.Resolve` with the pinned project revision (`4-D3`); `claudemd` Render, Merge, Strip, Inspect | 03 | 2.5 h |
 | 06 | `provenance`: the key grammar, `Ref`, `Build`, criterion digests | 03, 05 | 2.5 h |
-| 07 | `discoverhub`: binding and reads, against `hubclient.NewFake()` | 03, 05, 06, **Hub H0** | 3 h |
-| 08 | `discoverhub`: writes, the `4-D3` fan-out, archive and rebind | 07 | 3 h |
+| 07 | `discoverhub`: binding and reads, against `hubclient.NewFake()` through a phase-4-owned wrapper that adds `List` | 03, 05, 06, **Hub H0**; **blocked by HA4-2** for the real Hub (until it lands, phase 4's own `Hub` interface declares `List` and the wrapper fake supplies it; nothing is written under `internal/hub/` — review I11) | 3 h |
+| 08 | `discoverhub`: writes, the `4-D3` fan-out, archive and rebind | 07; **blocked by HA4-2** (the fan-out's `List`), HA4-9 | 3 h |
 | 09 | `contextwrite`: the Materialiser | 01, 05, 07, 10 (it imports `api`'s request, result and error types) | 3 h |
 | 10 | `api`: the `Materialiser` seam in create and restart (R1), `brief_not_written` (with `project_unknown`), `RouteMounter`; the binary's interim `materialiserUntilTask14` | — (declares its own interfaces; tests use fakes) | 3.5 h |
 | 11 | `discoverapi`: brief routes, the relay rule, the route audit | 07, 08, 10 | 3 h |
@@ -483,10 +486,24 @@ Each is a shape phase 4 needs that the Hub contract (read at `.claude/worktrees/
 `a6ccd77`) does not provide. **No Hub route is invented here.** Each has what phase 4 does until
 it is answered.
 
+**Who carries them.** Phase 4 does not write the Hub's contract, plan or code. The
+**orchestrator carries HA4-1..9 to the Hub planner** (review I11: a grep of the Hub worktree's
+contract and plan for `HA4` or `Briefs.List` found nothing, so none had reached it). HA4-10 was
+added later, for review I4, and goes the same way. Until an ask is in the Hub contract, the
+"Until answered" column is what phase 4 builds.
+
+*Status read 2026-09-24* (`.claude/worktrees/hub`, `feat/hub` at `d83ff43`): the Hub's **plan**
+now answers HA4-1..9 (`2026-09-23-phase-h-hub.md:502-512`; HA4-2 as built with
+`BriefQuery.Page` in place of flat `After`/`Limit`). Its contract does not yet (a grep of
+`2026-09-23-hub-contract.md` for `HA4` or `BriefQuery` finds nothing), and none of it is built,
+so the blocks in §6 stand until H0 lands with them. HA4-10 is not in that table, and a grep of
+the Hub's plans for `HA4-10` finds nothing; whether the Hub plan has met it under another name
+is **unverified** here.
+
 | Id | Ask | Exact shape | Until answered |
 |---|---|---|---|
 | **HA4-1** | Publish the `hubapi` Go structs. §9.2 lists their names and says the JSON tags follow §7; the fields are not written anywhere | the struct set in part 07, §"Assumed `hubapi` shapes", derived field-for-field from §7.1 and §7.5 | phase 4 codes against part 07's assumed shapes; a rename is a mechanical fix |
-| **HA4-2** | `hubclient.Briefs` has no list method, though route 19 exists | `List(ctx context.Context, projectID string, q hubapi.BriefQuery) (hubapi.Page[hubapi.BriefHead], error)` with `type BriefQuery struct { Scope string; BranchRef string; IncludeArchived bool; After string; Limit int }` | the `4-D3` fan-out cannot find the inheriting branch briefs; task 08 is blocked on it |
+| **HA4-2** | `hubclient.Briefs` has no list method, though route 19 exists | `List(ctx context.Context, projectID string, q hubapi.BriefQuery) (hubapi.Page[hubapi.BriefHead], error)` with `type BriefQuery struct { Scope string; BranchRef string; IncludeArchived bool; After string; Limit int }` | **tasks 07 and 08 are both blocked on it** for the real Hub (review I11): task 07's `Hub` interface needs `List`, and the `4-D3` fan-out cannot find the inheriting branch briefs without it. Until it lands, `List` is declared on phase 4's **own** `discoverhub.Hub` interface, and tests run through a phase-4-owned wrapper fake (`discoverhub/fakehub_test.go`) that embeds `hubclient.NewFake()` and adds `List`. Phase 4 writes nothing under `control-plane/internal/hub/` (§5, "Never touched") |
 | **HA4-3** | The revision batch holds 1–16 items (§7.5). A project with more than 15 complete branch briefs cannot re-revision them all in one transaction, and `4-D3` needs one | raise the limit to **64** for `POST …/brief-revisions`, with that route's body cap at **4 MiB**, and export it as `hubapi.MaxRevisionBatch` | the control plane refuses such an edit with `409 fanout_too_large` and a sentence naming the count (task 08) |
 | **HA4-4** | Materialise at session start needs the **latest complete** revision's content; `for-branch` returns only the head revision | add `"latestComplete": BriefRevision \| null` beside `"revision"` in each of `branchBrief` and `projectBrief` | one extra `/v1/refs` call per session start (task 07) |
 | **HA4-5** | The relay rule (§4.3) is "implemented once in `hubclient`", but no function maps an error to a response | `func Relay(err error) (status int, p httpx.Problem, ok bool)` in `hubclient`, `ok` false for a non-Hub error | `discoverapi.relay` implements §4.3's table locally, one function, marked for deletion when `Relay` lands (task 11) |

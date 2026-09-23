@@ -67,8 +67,10 @@ const (
 	Invalid  Resolution = "invalid"  // not a key in the grammar
 	None     Resolution = "none"     // "" or none:declined — no brief was inherited
 	// Unavailable is a slot the server could not answer because the Hub did
-	// not (ADR-H1 §5.4: a key already cached is still answered). Never
-	// cached by the desktop; the loader retries it (task 16).
+	// not: any Hub error, signed_out, or no Hub configured (task 07 rule 5,
+	// review I6). A key already cached is still answered (ADR-H1 §5.4).
+	// Missing is never used for these: it comes only from the Hub's answer.
+	// Never cached by the desktop; the loader retries it (task 16).
 	Unavailable Resolution = "unavailable"
 )
 
@@ -114,7 +116,7 @@ type Ref struct {
 	HeadRevision           int               `json:"headRevision"`
 	LatestCompleteRevision int               `json:"latestCompleteRevision"`
 	Inherits               *InheritedRef     `json:"inherits"`
-	Title                  string            `json:"title"`
+	Title                  string            `json:"title"`    // Document.Title: a function of the key alone (task 05, review I5)
 	Headline               string            `json:"headline"` // the purpose section's body
 	Audience               string            `json:"audience"`
 	Constraints            string            `json:"constraints"`
@@ -146,7 +148,8 @@ type Source struct {
 	BranchRef string
 	SavedAt   string
 	SavedBy   string
-	Names     discover.Names
+	// No Names: discover.Resolve takes none, and the title comes from
+	// Revision.BranchRef, the envelope's own ref (review I5, task 05).
 }
 
 // Build resolves a complete revision through discover.Resolve and fills

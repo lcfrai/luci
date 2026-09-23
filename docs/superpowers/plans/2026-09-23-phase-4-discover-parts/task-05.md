@@ -30,13 +30,20 @@ type Revision struct {
 	Number  int
 	Key     string
 	Scope   Scope
-	Content Content
+	// BranchRef is the revision envelope's own branchRef (Hub contract §3.4):
+	// "refs/heads/evidence-upload" for a branch revision, "" for a project one.
+	// The digest covers it, and a rebind never changes it: PATCH writes no
+	// revision, and only the next revision's envelope carries the new ref
+	// (Hub contract §7.5). Review I5.
+	BranchRef string
+	Content   Content
 }
 
-type Names struct {
-	Project string // project.Scanner.ProjectName
-	Branch  string // project.Scanner.BranchName; "" for a detached worktree
-}
+// There is no Names type. The block's title is computed from the revision the
+// key names and nothing else - never from the Hub project's current name
+// (PATCH /v1/projects/{id} changes it) or the branch's current name (a rebind
+// changes it). A render that read either would make every worktree's block
+// look hand-edited after a rename (review I5; TestRenameDoesNotLookLikeAHandEdit).
 
 type Origin string
 
@@ -58,7 +65,12 @@ type Section struct {
 // Document is everything Render needs. It is produced by Resolve and by
 // nothing else.
 type Document struct {
-	Title           string    `json:"title"`   // "Engagement Portal — evidence-upload"; the project name alone when Names.Branch is ""
+	// Title is a function of the key alone (review I5). A branch key:
+	// "Branch brief — " + the branch revision's BranchRef minus "refs/heads/"
+	// ("Branch brief — evidence-upload"). A project key: "Project brief".
+	// No project name and no current branch name, so a rename changes no byte
+	// of any block, and every title byte is covered by the key's digest.
+	Title           string    `json:"title"`
 	BriefID         string    `json:"briefId"` // the revision the key names: the branch's when branch != nil
 	Revision        int       `json:"revision"`
 	Key             string    `json:"key"`
@@ -85,7 +97,11 @@ var ErrIncomplete = errors.New("discover: only a complete revision can be resolv
 //
 // Sections follow the base heading order, then follow-ups - project first,
 // then branch - in the order they were added.
-func Resolve(n Names, project, branch *Revision) (Document, error)
+//
+// Title follows Document.Title's rule, from branch.BranchRef when branch !=
+// nil, else "Project brief". Resolve takes no name argument: nothing mutable
+// can reach the block.
+func Resolve(project, branch *Revision) (Document, error)
 ```
 
 ```go
@@ -117,7 +133,7 @@ const neutralised = `<!-\-`
 // Deterministic: the same Document gives the same bytes, and nothing in it
 // depends on the clock (a timestamp would rewrite the file on every start).
 // Every string it interpolates from doc (headings from prompts, answer and
-// criterion text, the project and branch names) has each "<!--" replaced by
+// criterion text, the title's branch ref) has each "<!--" replaced by
 // `<!-\-` first. This is defence in depth behind task 03's rule 12
 // (ErrReservedText): a rendered block contains exactly two "<!--" sequences,
 // its own two markers, so no content can forge either one.
@@ -181,7 +197,7 @@ revisions in Go and compares bytes; **fix the renderer, never the golden file**:
 
 ```markdown
 <!-- panacea:discover:begin brief=bf-00000000000000a2 rev=5 -->
-# Engagement Portal — evidence-upload
+# Branch brief — evidence-upload
 
 Written by Discover in Panacea App. Every session started on this branch reads it first.
 Change it in Discover, not here: this block is regenerated and your edits inside it will be lost.
@@ -220,8 +236,10 @@ Brief bf-00000000000000a2, revision 5. Inherits project brief bf-00000000000000b
 ```
 
 The project golden (`golden-project.md`) is `b-7@5` alone: every section carries
-`_Inherited from the project brief._`, the title is the project name and the branch name, and the
-footer is `Brief bf-00000000000000b7, revision 5.` with no second sentence (P4-G).
+`_Inherited from the project brief._`, the title is `# Project brief` (no project name and no
+branch name: the block is a function of its key, P4-G as amended by review I5), and the footer is
+`Brief bf-00000000000000b7, revision 5.` with no second sentence. The same project key therefore
+renders the same bytes on every branch and every teammate's machine.
 
 **Tests first:**
 
@@ -229,6 +247,7 @@ footer is `Brief bf-00000000000000b7, revision 5.` with no second sentence (P4-G
 |---|---|---|
 | `TestResolveBranchOverProjectGolden` | `Render(Resolve(…))` equals `golden-branch.md` byte for byte | any drift in wording, order or spacing |
 | `TestResolveProjectAloneGolden` | equals `golden-project.md` | a project render that prints a branch-only line |
+| `TestTitleComesFromTheRevision` (review I5) | branch `BranchRef` `refs/heads/evidence-upload` → `Title` `Branch brief — evidence-upload`; a project revision → `Project brief`; a Go-level check that `Resolve`'s signature is `func(project, branch *Revision) (Document, error)` (no name can be passed) | a title read from the project's or the branch's current name, which a rename changes under an unchanged key (the rename end to end is task 07's `TestRenameDoesNotLookLikeAHandEdit`) |
 | `TestResolveRefusesAProjectRevisionTheBranchDidNotPin` | branch `Inherits` = `…b7@5`, project passed = `…b7@6` → `ErrInheritMismatch` | a caller that resolves against the project head — critique-2 §1.1 |
 | `TestResolveRefusesAnIncompleteRevision` | an open branch revision → `ErrIncomplete` | materialising half a brief |
 | `TestSkippedBranchAnswerInheritsTheProject` | branch skips audience → section `OriginProject` with the project's text | a skip rendered as an empty section |
@@ -238,7 +257,7 @@ footer is `Brief bf-00000000000000b7, revision 5.` with no second sentence (P4-G
 | `TestMergeReplacesOnlyTheManagedBlock` (kept, `:1941`) | text above and below survives; one begin marker | a merge that eats the tail |
 | `TestMergeAppendsAfterABlankLine` (kept) | user content first, then `\n\n`, then the block | a block glued to the last line of prose |
 | `TestMergeAndStripFailClosed` | unterminated and duplicate blocks → their errors, input unchanged | the guess that deletes a person's writing |
-| `TestRenderNeutralisesCommentOpeners` | a Document whose answer text, criterion text, follow-up prompt and project name each hold `<!-- panacea:discover:end -->` or `<!-- x -->` renders to a checked-in golden (`testdata/golden-neutralised.md`) in which each appears as `<!-\- …`; `strings.Count(block, "<!--") == 2`; `Inspect(Render(doc))` is ok with the doc's marker, and `Strip(Merge("", block))` is `""` | the escape dropped, or applied to answers but not to prompts or names (review C2) |
+| `TestRenderNeutralisesCommentOpeners` | a Document whose answer text, criterion text, follow-up prompt and title (from a `BranchRef` of `refs/heads/<!--x` — `<` and `!` are legal in a git ref) each hold `<!-- panacea:discover:end -->` or `<!-- x -->` renders to a checked-in golden (`testdata/golden-neutralised.md`) in which each appears as `<!-\- …`; `strings.Count(block, "<!--") == 2`; `Inspect(Render(doc))` is ok with the doc's marker, and `Strip(Merge("", block))` is `""` | the escape dropped, or applied to answers but not to prompts or the title (review C2) |
 | `TestStrayEndMarkerIsBroken` | table, for each of `Merge`, `Strip` and `Inspect`: an end marker with no begin; an end before the begin; begin, end, then a second end (the forged-early-end shape: begin, forged end, brief tail, real end); a begin, a begin and one end → `ErrUnterminatedBlock` for the first three and `ErrDuplicateBlock` for the last; the input is unchanged; a file with no marker of either kind is still `ok == false` / unchanged with no error | a strip that removes up to the first end and leaves the brief's tail behind as "user text", a merge that re-appends that tail on every start, or an Inspect that reports it as `edited` for ever |
 | `TestStripRemovesTheBlockAndNothingElse` | Merge then Strip returns the original, byte for byte, for three shapes (empty file, text above, text above and below) | a strip that leaves a blank line or eats one |
 | `TestInspectReadsTheMarker` | `brief=bf-…a2 rev=5` → `Marker{"bf-…a2", 5}`; `rev=05`, `rev=0`, a missing `rev` → `ErrBadMarker` | a lenient parser that accepts a marker no render produced |

@@ -183,7 +183,12 @@ const (
 	StatePending    WorktreeState = "pending"    // no block yet; the next session start writes one
 	StateCurrent    WorktreeState = "current"    // the block is a byte-exact render of the key a start would write now
 	StateSuperseded WorktreeState = "superseded" // the block names an older key; sessions already running read it
-	StateEdited     WorktreeState = "edited"     // the marker names the right key, the text is not its render (state 11)
+	// StateEdited: the marker names the right key, and the text is not that
+	// key's render (state 11). A key's render depends on nothing but the key -
+	// the title comes from the revision's own branchRef, never from a project
+	// or branch name (task 05's Document.Title, review I5) - so a rename is
+	// never "edited"; only a change to the file's bytes is.
+	StateEdited     WorktreeState = "edited"
 	StateStale      WorktreeState = "stale"      // a block, but nothing should be inherited now
 	StateBroken     WorktreeState = "broken"     // unterminated or duplicated
 )
@@ -258,7 +263,7 @@ worktrees; the real `git ls-files` wiring is tested over real git in task 14):
 | `TestUnchangedBytesAreNotRewritten` | the file's mtime does not move on a second identical materialise | a rewrite per start — noise in every editor watching the file |
 | `TestFileIsWorldReadable` (skipped on Windows) | mode `0o644` | the registry's `0o600` making the brief unreadable to the sandbox user (task 01) |
 | `TestConcurrentStartsOnOneWorktreeSerialise` | two goroutines, two keys: the file ends as one complete render of one of them and `Merge` never sees a half-written file | interleaved writes |
-| `TestInspectStates` — table | each of the seven states from a constructed file and expected key, with `Committed` `[]` (not `nil`: it marshals as `[]`); `edited` carries a diff with the changed line | a drift check that only compares keys (brief §4.2 gap 3) |
+| `TestInspectStates` — table | each of the seven states from a constructed file and expected key, with `Committed` `[]` (not `nil`: it marshals as `[]`); `edited` carries a diff with the changed line (a rename is not a changed line: `Source`'s document carries no name, so this package cannot be fed one; the rename end to end is task 07's `TestRenameDoesNotLookLikeAHandEdit`, review I5) | a drift check that only compares keys (brief §4.2 gap 3) |
 | `TestInspectListsCommittedBesideTheTargetsState` — table | a tracked `CLAUDE.md` holding a block, and the untracked target `.claude/CLAUDE.md` in turn `current`, `edited`, `broken` and `superseded`: `State` is the target's own each time (`edited` still carries its diff), and `Committed` is one entry, the tracked file's path and marker key. A tracked `CLAUDE.md` holding only a begin marker → its entry has `MarkerKey ""`. Both candidates tracked, each holding a block → `tracked_elsewhere`, as `TestBothTrackedIsRefused` (re-review R-M1) | a committed block hidden behind the target's `current`; a committed block hiding an `edited` target, so the next start silently overwrites a hand edit; a broken target reported only as committed, so the person removes the committed block and every start is still refused `block_broken` |
 
 **Steps:**

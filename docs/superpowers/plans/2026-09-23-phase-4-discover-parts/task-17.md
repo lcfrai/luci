@@ -106,6 +106,16 @@ export function ShippedManifest(props: ShippedManifestProps): JSX.Element;
 | resolving | a static bar | — |
 | unavailable | `!` *could not check the brief* | the call site's sentence |
 
+**Which state a Hub outage reaches (review I6).** The `missing` sentence is shown only for a slot
+the Hub itself answered as missing: task 07 rule 5 makes a Hub that is off (`hub_off`),
+unreachable, failing or signed out give `unavailable` for every uncached slot, never `missing`,
+and task 12 serves that as a 200. So no chip here says *data loss* because the Hub could not be
+asked. Checked for this batch and **not** changed: the sentence itself, which is contract §4.1's.
+The Hub's `missing` also covers *a revision the caller cannot read* (Hub contract §7.5,
+indistinguishable on purpose), which is not data loss either; whether the words should say so is
+copy, and final copy is the owner's (the header of the table above). It is carried as an owner question in the fix-batch b05
+record of the review.
+
 **Tests first** (`provenance.test.tsx`, Testing Library, fixtures from the fact sheet):
 
 | Test | Asserts | Mutant it kills |
