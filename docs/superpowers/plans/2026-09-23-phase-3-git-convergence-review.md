@@ -586,3 +586,47 @@ at Step 3a (task-02.md:514). Decision 9 is restated to match at plan:179.
 **Unverified:** GCM reading `credential.trace` from the repository it runs in (from GCM's
 documentation). Docker Desktop's nested file bind, and what it shows after a host rename (task 05).
 Whether any `.git` file other than `commondir` steers config discovery.
+
+## Fix batch b02 (2026-09-24): C2 and I8
+
+Both findings rewrite task 03's clone step, so one batch does both. C2 is adopted as written
+(ruling R1). I8 is the owner's, because OD-2 names hard links: the plan builds the review's
+recommendation behind one seam and asks the owner as Q9. Line numbers are for the tree at this
+batch's last commit. "parts/" means `2026-09-23-phase-3-git-convergence-parts/`.
+
+### C2: a clone made under the system `core.autocrlf=true` is CRLF on disk
+
+| Review's fix | Where it is now |
+|---|---|
+| Clone with `-c core.autocrlf=false -c core.eol=lf` **and** write `core.autocrlf=false` into the clone's local config | parts/task-03.md:143-148 (Create step 4). `clone --config` (git's `clone -c`) does both at once: it writes each key into the new repository's local config before the checkout, so the checkout runs under them and the sandbox's git reads the same keys later. The mechanism, and why phase 2's primary-worktree fix takes another route (a lane clone is ours to configure, the user's primary checkout is not), are at parts/task-03.md:167-180 |
+| Also write `core.checkStat=minimal` and `core.trustctime=false` | the same argv, parts/task-03.md:144; the reason (task 07's poll re-hashing) at :174-175 |
+| A repository whose `.gitattributes` asks for `eol=crlf` keeps it | parts/task-03.md:175-177; asserted through `b.bat` at parts/task-01.md:40 and parts/task-03.md:259 |
+| The keys must pass the `Clone` allowlist | parts/task-02.md:415 (§HGH H3 names all four), tested at parts/task-02.md:492 |
+| task 01 gains `TestBehaviourSystemAutocrlfReachesAClone`, without `GIT_CONFIG_NOSYSTEM` | parts/task-01.md:28-33: "production-shaped" tests replace `GIT_CONFIG_NOSYSTEM=1` with `GIT_CONFIG_SYSTEM=<tempdir>/system` holding `core.autocrlf=true`. The test is at :40, with its control: a plain clone writes CRLF and no local key |
+| `TestSandboxCloneHasWorkingGit` asserts an **empty** `status --porcelain` under host `core.autocrlf=true` | parts/task-01.md:63. A control run (plain `clone --local`) comes first and records whether C2 reproduces in the image |
+| task 03's `TestCreateWritesLineEndingConfig` pins the keys | parts/task-03.md:259, production-shaped, red first against a `--local` argv without the `--config` flags. It pins four keys, not three, because `core.eol=lf` persists too |
+| (helper, so the tests above cost one call) | parts/task-02.md:286-292: `gitxtest.(*Repo).UseSystemConfig` and `WindowsInstallerSystem` |
+| (plan body) | plan:70-75 (the paragraph), plan:496-501 (what b02 verified, and what it did not) |
+
+### I8: hard-linked objects are the project's files, writable from the sandbox
+
+| Review's fix | Where it is now |
+|---|---|
+| An owner decision, recorded as Q6 | plan:368, recorded as **Q9**, because Q6 to Q8 were taken by fix batch b01. OD-2's row states the departure at plan:131 |
+| Task 01 measures `clone --local` against `--no-hardlinks` on `~/Projects/Panacea` | parts/task-01.md:85-92 (Step 5). Q9's answer rests on that wall-clock. **Not measured yet** |
+| Use `--no-hardlinks` unless too slow | parts/task-03.md:143-146, with the reason at :186-195. The argv lives in one function, `cloneArgv`, which is the seam Q9's answer changes. The diagram is at plan:50 |
+| (tests) | parts/task-01.md:37 (`--local` does share object files, pinned as the reason) and :38 (`--no-hardlinks` shares none); parts/task-03.md:260 (`TestCreateSharesNoObjectFileWithTheProject`, red first against `--local`); `gitxtest.CloneOf` copies too, at parts/task-02.md:284 |
+| If hard links stay: `fsck --connectivity-only` before every land, and a "does not claim" residual | Not built. Q9's fallback column (plan:368) names both, for an owner who answers no |
+| (knock-on) | parts/task-04.md:169-170 drops the different-volume warning, since no clone needs one volume. parts/task-03.md:299-301 states the per-lane disk cost |
+
+**Verified** (git 2.53.0.windows.2, 2026-09-24, host only; `scratchpad/p3/b02-verify.sh`, output
+in `b02-verify.out`, temp directories only). With a test system file holding
+`core.autocrlf=true`: a plain clone checked `a.txt` out `x\r\ny\r\n` and had no local
+`core.autocrlf`. Task 03's argv checked it out `x\ny\n` and `b.bat` (`eol=crlf`) out CRLF, listed
+all four keys locally, and left `status --porcelain` empty. `clone --local` gave the pack, `.idx`,
+`.rev`, `info/packs` and `info/commit-graph` the source's file ids with a link count of 2;
+`--no-hardlinks` gave every file a new id. Neither clone had `objects/info/alternates`.
+
+**Unverified:** the sandbox's Linux git on a four-key clone, through the bind mount (task-01:63 is
+the check). That `checkStat=minimal` and `trustctime=false` stop the re-hash across the two
+systems (the probe ran on the host only). What `--no-hardlinks` costs on `~/Projects/Panacea`.
