@@ -30,7 +30,7 @@ the edge's pods, on 8080), and it refuses every request that is not authenticate
 | `PANACEA_APP_RUNTIME_CLASS` | `kata-vm-isolation` | P8-D15 — the same variable name `cmd/api` reads (task 14) |
 | `PANACEA_APP_BROKER_SESSION_PRIORITY_CLASS` | `panacea-session` | task 11 |
 | `PANACEA_APP_BROKER_MACHINE_PRIORITY_CLASS` | `panacea-machine` | task 11 |
-| `PANACEA_APP_BROKER_ENTRA_AUTHORITY` | `https://login.microsoftonline.com` | `entra.Config.Authority` |
+| `PANACEA_APP_BROKER_ENTRA_AUTHORITY` | `https://login.microsoftonline.com` | `entra.Config.AuthorityHost` |
 | `PANACEA_APP_BROKER_ENTRA_TENANTS` | — **required** | comma-separated enrolled tenant ids |
 | `PANACEA_APP_BROKER_ENTRA_AUDIENCE` | — **required** | the broker API's client id (task 09 output) |
 | `PANACEA_APP_BROKER_ENTRA_SCOPE` | `Sandboxes.Access` | `entra.Config.RequiredScope` |
@@ -64,7 +64,7 @@ type Config struct {
 	RuntimeClass          string
 	SessionPriorityClass  string
 	MachinePriorityClass  string
-	Entra                 entra.Config // Authority, Tenants, Audience, RequiredScope, AllowedClients
+	Entra                 entra.Config // AuthorityHost, TenantIDs, Audience, RequiredScope, AllowedClients
 	SandboxImage          string
 	MachineImage          string
 	MaxCPUMillis          int
@@ -115,7 +115,7 @@ const (
 // request carrying an Origin header gets 403 forbidden_origin: only the control
 // plane calls the broker, never a browser — the Hub's rule, ADR-H1 :436-437),
 // then entra's Middleware for everything under /v1/.
-func newServer(cfg Config, v *entra.Validator, deps serverDeps) http.Handler
+func newServer(cfg Config, v *entra.JWKSValidator, deps serverDeps) http.Handler
 
 // serverDeps is what handlers need; tasks 18 and 19 add their fields here.
 type serverDeps struct {
@@ -125,8 +125,8 @@ type serverDeps struct {
 }
 
 // ownerOf is the only place a request becomes an owner label value.
-func ownerOf(r *http.Request) (owner string, p entra.Principal, ok bool)
-// = sandbox.OwnerLabelValue(p.TenantID, p.ObjectID)
+func ownerOf(r *http.Request) (owner string, c entra.Claims, ok bool)
+// = sandbox.OwnerLabelValue(c.TenantID, c.ObjectID)
 ```
 
 Routes this task registers (tasks 18–19 add theirs through the same table):

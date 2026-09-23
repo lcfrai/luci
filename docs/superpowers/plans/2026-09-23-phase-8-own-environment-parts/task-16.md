@@ -3,28 +3,31 @@
 The broker must know **who** is calling before it creates a pod (P8-D4), and ADR-H1 made this
 package the Hub's validator too: the Hub is a second binary in the control-plane module and
 "`control-plane/cmd/broker` imports `control-plane/internal/entra` … HA-1 … is satisfied by
-construction: it is one package, not two to reconcile" (ADR-H1 `:206-229`). ADR-H1 also fixed the
-rules (`:354-366`); this task implements **exactly** that table, parameterised so each server
-passes its own audience, scope and allowed clients. If the Hub's task H1 reaches this package
-first, it writes it "to phase 8's interface" (ADR-H1 `:557`) — the interface below.
+construction: it is one package, not two to reconcile" (ADR-H1 `:206-229`).
 
-**No new dependency.** RS256 verification is `crypto/rsa.VerifyPKCS1v15` over `crypto/sha256`,
-and a JWKS key is two base64url integers; the whole verifier is standard library. The ADR's
-devissuer and token exchange are standard library for the same reason (ADR-H1 `:377-380`,
-`:532-535`). A JOSE library would accept algorithms this package must refuse; not having one
-removes the key-confusion class instead of configuring it away. `control-plane/go.mod` is
-unchanged.
+**The interface is the Hub contract's.** The Hub contract (sibling `feat/hub`,
+`docs/superpowers/contracts/2026-09-23-hub-contract.md` §6.3, `:417-494`) wrote down the interface
+the Hub needs, and said: "Phase 8's task 16 owns this package … If task 16 lands first with a
+different shape, the Hub adapts to it in one file … the rules in the table must hold either way".
+This part adopts that interface **exactly** — the same `Config` fields, `Claims`, `Validator`,
+`New`, the ten sentinels and the check order — so the Hub adapts nothing. What phase 8 adds is
+**additive**: an HTTP middleware, a readiness call, a stable key, and one sentinel for a key-set
+outage, which is an infrastructure failure rather than a rejection.
+
+**No new dependency.** RS256 verification is `crypto/rsa.VerifyPKCS1v15` over `crypto/sha256`; a
+JWKS key is two base64url integers. The Hub contract says the same ("Standard library only",
+`:426`). A JOSE library would accept algorithms this package must refuse; not having one removes
+the key-confusion class instead of configuring it away. `control-plane/go.mod` is unchanged.
 
 **Files:**
 - `control-plane/internal/entra/{entra.go,jwks.go,verify.go,middleware.go}` (new)
-- `control-plane/internal/entra/{entra_test.go,jwks_test.go,middleware_test.go}` and `testkey_test.go` — an in-test RSA key and JWKS server (new)
+- `control-plane/internal/entra/{entra_test.go,jwks_test.go,middleware_test.go,testkey_test.go}` (new)
 
-#### Contract (complete)
+#### Contract (complete) — the Hub contract's §6.3, verbatim, then phase 8's additions
 
 ```go
-// Package entra validates Microsoft Entra ID v2.0 access tokens for our two
-// resource APIs, the broker and the Hub. It is the only place either server
-// decides who a caller is. Rules: ADR-H1 §5.2's validation table.
+// Package entra validates Microsoft Entra ID v2 access tokens for a resource API.
+// Standard library only: RS256 over crypto/rsa, JWKS over net/http.
 package entra
 
 import (
@@ -34,172 +37,169 @@ import (
 	"time"
 )
 
-// Principal is who a validated token speaks for. (TenantID, ObjectID) is the
-// identity; every other field is for display and audit only.
-type Principal struct {
+type Config struct {
+	// AuthorityHost is "https://login.microsoftonline.com" in every deployed
+	// environment, or devissuer's base URL locally. The tenant id is appended.
+	AuthorityHost string
+	// TenantIDs are the enrolled tenants. A token from any other is ErrTenant.
+	TenantIDs []string
+	// Audience is the resource API's client id, a GUID: a v2 token's aud.
+	Audience string
+	// RequiredScope must appear in scp, e.g. "Hub.Access" or "Sandboxes.Access".
+	RequiredScope string
+	// AllowedClients is the azp allowlist: the desktop's client id.
+	AllowedClients []string
+	// ClockSkew defaults to 120 s.
+	ClockSkew time.Duration
+	// AllowInsecureAuthority permits an http AuthorityHost, and only a loopback one.
+	AllowInsecureAuthority bool
+	HTTPClient             *http.Client // default: 10 s timeout
+	Now                    func() time.Time
+}
+
+// Claims is what a validated token says. It holds no token text.
+type Claims struct {
 	TenantID          string   // tid
 	ObjectID          string   // oid
-	ClientID          string   // azp — the app that obtained the token
-	Name              string   // name; display only
-	PreferredUsername string   // preferred_username; display only, mutable, never a key
-	Scopes            []string // scp, split on single spaces
+	ClientID          string   // azp
+	Name              string   // name
+	PreferredUsername string   // preferred_username
+	Email             string   // email, when the optional claim is configured
+	Scopes            []string // scp, split on spaces
 	Roles             []string // roles
+	ExpiresAt         time.Time
 }
 
-// Key is "tid/oid", the stable identity string. Never sub (pairwise per app),
-// never preferred_username (mutable).
-func (p Principal) Key() string { return p.TenantID + "/" + p.ObjectID }
-
-// Config is one server's acceptance policy.
-type Config struct {
-	// Authority is the issuer base: "https://login.microsoftonline.com" for
-	// Entra. A tenant's issuer is Authority+"/"+tid+"/v2.0" and its JWKS is
-	// Authority+"/"+tid+"/discovery/v2.0/keys".
-	Authority string
-	// Tenants is the set of enrolled tenant ids. A token whose tid is absent is
-	// ErrTenantNotEnrolled.
-	Tenants []string
-	// Audience is the API's client id — a v2 token's aud is the GUID, not the
-	// api:// URI.
-	Audience string
-	// RequiredScope must appear, exactly, as one element of scp.
-	RequiredScope string
-	// AllowedClients are the accepted azp values (the desktop's client id).
-	AllowedClients []string
-	// ClockSkew applies to exp and nbf. Zero means 120 s.
-	ClockSkew time.Duration
-	// JWKSMaxAge is how long a fetched key set is trusted. Zero means 24 h.
-	JWKSMaxAge time.Duration
-	// UnknownKidRefetch is the minimum gap between refetches triggered by an
-	// unknown kid, per tenant. Zero means 5 minutes.
-	UnknownKidRefetch time.Duration
-	// HTTPClient fetches key sets. nil means a client with a 10 s timeout.
-	HTTPClient *http.Client
-	// Now is the clock. nil means time.Now.
-	Now func() time.Time
-	// AllowInsecureAuthority permits an http:// Authority. Only the Hub's local
-	// devissuer on loopback needs it (ADR-H1 :389-390); NewValidator refuses an
-	// http:// authority whose host is not 127.0.0.1 or localhost even with it.
-	AllowInsecureAuthority bool
+type Validator interface {
+	Validate(ctx context.Context, bearer string) (Claims, error)
 }
 
-// Validator is safe for concurrent use.
-type Validator struct{ /* unexported: config, per-tenant key cache, single-flight fetch */ }
+func New(cfg Config) (*JWKSValidator, error) // errors on an unusable Config; fetches nothing
 
-// NewValidator checks cfg (non-empty Authority, Tenants, Audience,
-// RequiredScope and AllowedClients; https unless allowed) and returns a
-// Validator. It fetches nothing.
-func NewValidator(cfg Config) (*Validator, error)
-
-// Validate verifies raw (a JWS compact string, no "Bearer " prefix) and returns
-// its Principal, or an error wrapping exactly one of the sentinels below. Error
-// messages never contain the token or any claim value longer than an id.
-func (v *Validator) Validate(ctx context.Context, raw string) (Principal, error)
-
-// Ready fetches the key set of every enrolled tenant not yet fetched, and
-// reports the first failure. The Hub's /readyz and the broker's call it.
-func (v *Validator) Ready(ctx context.Context) error
-
-// Middleware authenticates "Authorization: Bearer <token>" and stores the
-// Principal in the request context. On failure it answers 401 with
-// "WWW-Authenticate: Bearer error=\"invalid_token\"" and an httpx problem body
-// {"error":"unauthenticated","message":…}; a missing header gets
-// "WWW-Authenticate: Bearer" with no error attribute (RFC 6750 §3.1). It never
-// passes the request on, and it removes the Authorization header from the
-// request it hands to next, so no handler can forward the token (ADR-H1 :545).
-func (v *Validator) Middleware(next http.Handler) http.Handler
-
-// PrincipalFrom returns the Principal Middleware stored.
-func PrincipalFrom(ctx context.Context) (Principal, bool)
-
-// CodeUnauthenticated is the problem code Middleware writes with its 401. It is
-// not in httpx's set because the control plane itself never authenticates a
-// caller this way; the broker and the Hub both use this constant.
-const CodeUnauthenticated = "unauthenticated"
-
+// Every rejection wraps exactly one of these. The Hub maps each to details.reason.
 var (
-	ErrMalformed         = errors.New("entra: not a well-formed JWS")
-	ErrAlgorithm         = errors.New("entra: algorithm is not RS256")
-	ErrNoKeyID           = errors.New("entra: header has no kid")
-	ErrUnknownKey        = errors.New("entra: kid is not in the tenant's key set")
-	ErrSignature         = errors.New("entra: signature does not verify")
-	ErrVersion           = errors.New("entra: not a v2.0 access token")
-	ErrExpired           = errors.New("entra: expired or not yet valid")
-	ErrTenantNotEnrolled = errors.New("entra: tenant is not enrolled")
-	ErrIssuer            = errors.New("entra: issuer does not match the token's tenant")
-	ErrAudience          = errors.New("entra: audience is not this API")
-	ErrAppOnly           = errors.New("entra: app-only tokens are not accepted")
-	ErrScope             = errors.New("entra: required scope is missing")
-	ErrClient            = errors.New("entra: issued to a client that is not allowed")
-	ErrNoPrincipal       = errors.New("entra: tid or oid is missing")
-	ErrKeySetUnavailable = errors.New("entra: the tenant's key set could not be fetched")
+	ErrMalformed   = errors.New("entra: malformed token")      // "malformed"
+	ErrSignature   = errors.New("entra: bad signature")         // "signature"
+	ErrExpired     = errors.New("entra: token expired")         // "expired"
+	ErrNotYetValid = errors.New("entra: token not yet valid")   // "not_yet_valid"
+	ErrIssuer      = errors.New("entra: wrong issuer")          // "issuer"
+	ErrAudience    = errors.New("entra: wrong audience")        // "audience"
+	ErrScope       = errors.New("entra: required scope absent") // "scope"
+	ErrClient      = errors.New("entra: client not allowed")    // "client"
+	ErrVersion     = errors.New("entra: not a v2 token")        // "version"
+	ErrTenant      = errors.New("entra: tenant not enrolled")   // 403 tenant_not_enrolled
 )
 ```
 
-**Order of checks** (each failure returns immediately, so a cheap check never waits on a fetch):
-split into three base64url parts → header JSON: `alg == "RS256"` (anything else, including
-`none` and every `HS*`, is `ErrAlgorithm`) and `kid` present → payload JSON (unverified, only to
-read `tid`) → `tid` enrolled → key set for that tenant (cache; on an unknown `kid`, refetch if the
-last refetch for that tenant is older than `UnknownKidRefetch`, single-flight) → RS256 signature
-over `header.payload` → `ver == "2.0"` → `exp`/`nbf` with skew → `iss ==
-Authority+"/"+tid+"/v2.0"` → `aud == Audience` → app-only (`idtyp == "app"`, or no `scp`) →
-`scp` contains `RequiredScope` → `azp ∈ AllowedClients` → `tid`, `oid` non-empty. JWKS keys are
-used only if `kty == "RSA"` and `use` is absent or `"sig"`; a key with `n` shorter than 2048 bits
-is skipped.
+```go
+// ── Phase 8's additions. All additive; the Hub may use or ignore each. ──
+
+// JWKSValidator implements Validator. Safe for concurrent use.
+type JWKSValidator struct{ /* unexported: config, per-tenant key cache, single-flight fetch */ }
+
+var _ Validator = (*JWKSValidator)(nil)
+
+// ErrKeySetUnavailable: the tenant's JWKS could not be fetched. NOT a
+// rejection of the token — nobody could be authenticated — so the broker
+// answers 503, not 401. It is the only error Validate returns that is not one
+// of the ten above.
+var ErrKeySetUnavailable = errors.New("entra: key set unavailable")
+
+// Key is "tid/oid", the stable identity. Never sub (pairwise per app), never
+// preferred_username (mutable) — ADR-H1 :366.
+func (c Claims) Key() string { return c.TenantID + "/" + c.ObjectID }
+
+// Ready fetches the key set of every enrolled tenant not yet fetched and
+// returns the first failure (wrapping ErrKeySetUnavailable). The broker's
+// /readyz calls it; the Hub's /readyz may (ADR-H1 :528-530).
+func (v *JWKSValidator) Ready(ctx context.Context) error
+
+// Middleware authenticates "Authorization: Bearer <token>", stores the Claims
+// in the request context, and REMOVES the Authorization header from the
+// request it hands on, so no handler can forward the user's token (ADR-H1
+// :543-546: no token is forwarded to another service or into a sandbox).
+// A missing header: 401 with "WWW-Authenticate: Bearer". A rejection: 401 with
+// "WWW-Authenticate: Bearer error=\"invalid_token\"", except ErrTenant, which
+// is 403. ErrKeySetUnavailable: 503 backend_unavailable. Bodies are httpx
+// problems with code CodeUnauthenticated (401), "tenant_not_enrolled" (403) or
+// httpx.CodeBackendUnavailable (503); details.reason carries the Hub's reason
+// string for a rejection.
+func Middleware(v Validator, next http.Handler) http.Handler
+
+// ClaimsFrom returns the Claims Middleware stored.
+func ClaimsFrom(ctx context.Context) (Claims, bool)
+
+// CodeUnauthenticated is the problem code Middleware writes with its 401.
+const CodeUnauthenticated = "unauthenticated"
+```
+
+**Check order** — the Hub contract's table (`:483-494`), unchanged: shape (three base64url
+segments; `alg == "RS256"` and a `kid`; anything else, `none` and every `HS*` included, is
+`ErrMalformed` before claims are read) → tenant (`tid` present and enrolled, else `ErrTenant`) →
+signature (the JWKS key whose `kid` matches, from `<AuthorityHost>/<tid>/discovery/v2.0/keys`,
+cached 24 h per tenant; an unknown `kid` triggers one refetch at most once per 5 min per tenant;
+still unknown, or a bad signature, is `ErrSignature`) → `ver == "2.0"` → `iss ==
+<AuthorityHost>/<tid>/v2.0` → `aud == Audience` → `now < exp + skew` (`ErrExpired`) and
+`nbf − skew ≤ now` (`ErrNotYetValid`) → `azp ∈ AllowedClients` → `scp` contains `RequiredScope`
+(a token with `roles` but no `scp` — app-only — fails here, `ErrScope`) → `oid` present and a GUID
+(`ErrMalformed`). JWKS keys are used only if `kty == "RSA"`, `use` absent or `"sig"`, and the
+modulus is at least 2048 bits. Error messages never contain the token or a signature segment.
 
 #### Tests to write first
 
-`testkey_test.go` generates one 2048-bit key per test binary (`rsa.GenerateKey`, once, in a
+`testkey_test.go` generates one 2048-bit key per test binary (`rsa.GenerateKey` once, in a
 `sync.Once`), serves `/{tid}/discovery/v2.0/keys` from an `httptest.Server` that counts requests,
-and mints tokens with any header and claims. The authority is that server with
-`AllowInsecureAuthority: true` (loopback).
+and mints tokens with any header and claims; the authority is that server on loopback with
+`AllowInsecureAuthority: true`.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestAValidTokenYieldsItsPrincipal` | tid, oid, azp, scopes, name; `Key() == "tid/oid"` | a validator that fails everything |
-| `TestNoneIsRejected` | `alg: none`, no signature → `ErrAlgorithm` | the classic `none` bypass |
-| `TestHS256SignedWithThePublicKeyIsRejected` | a token HMAC-signed with the JWKS modulus bytes → `ErrAlgorithm` | key confusion (an HMAC check keyed by the public key) |
-| `TestAMissingKidIsRejected` | → `ErrNoKeyID` | "try every key", which lets a stale key verify forever |
-| `TestATamperedPayloadFailsTheSignature` | flip one claim byte → `ErrSignature` | a verifier over the header only |
-| `TestAnUnknownKidRefetchesOnceThenRejects` | first unknown kid → one extra fetch → `ErrUnknownKey`; a second within 5 min → no fetch | a JWKS endpoint hammered by garbage tokens |
-| `TestRotationIsPickedUpOnAnUnknownKid` | the server rotates to a new key; a token with the new kid validates after one refetch | a cache that never refreshes before 24 h |
-| `TestTheKeySetIsCachedFor24Hours` | two validations → one fetch; `Now` + 25 h → a second fetch | a fetch per request |
+| `TestAValidTokenYieldsItsClaims` | tid, oid, azp, scopes, name, email, `ExpiresAt`; `Key() == "tid/oid"` | a validator that fails everything |
+| `TestNoneIsMalformed` | `alg: none` → `ErrMalformed` | the classic `none` bypass |
+| `TestHS256SignedWithThePublicKeyIsMalformed` | an HMAC token keyed with the JWKS modulus → `ErrMalformed`, before any fetch | key confusion |
+| `TestAMissingKidIsMalformed` | → `ErrMalformed` | "try every key" |
+| `TestATamperedPayloadFailsTheSignature` | one claim byte flipped → `ErrSignature` | a verifier over the header only |
+| `TestAnUnknownKidRefetchesOnceThenFails` | first → one extra fetch → `ErrSignature`; a second within 5 min → no fetch | a JWKS endpoint hammered by garbage |
+| `TestRotationIsPickedUpOnAnUnknownKid` | the server rotates; a new-kid token validates after one refetch | a cache that never refreshes inside 24 h |
+| `TestTheKeySetIsCachedFor24Hours` | two validations → one fetch; `Now` + 25 h → a second | a fetch per request |
 | `TestConcurrentMissesFetchOnce` | 20 goroutines, cold cache → one fetch | a thundering herd |
-| `TestExpiryHonoursTheSkew` | exp = now − 119 s accepted; now − 121 s → `ErrExpired`; nbf = now + 121 s → `ErrExpired` | skew applied only to exp, or not at all |
+| `TestTheTenantIsCheckedBeforeAnyFetch` | tid not enrolled → `ErrTenant`, zero fetches | JWKS fetched for any tenant a caller names |
+| `TestExpiryAndNotBeforeHonourTheSkew` | exp = now − 119 s ok; − 121 s → `ErrExpired`; nbf = now + 121 s → `ErrNotYetValid` | skew on one bound only |
 | `TestAVersion1TokenIsRejected` | `ver: "1.0"` → `ErrVersion` | v1 tokens, whose iss and aud differ |
-| `TestAnUnenrolledTenantIsRejectedBeforeAnyFetch` | tid not in Tenants → `ErrTenantNotEnrolled`, zero fetches | fetching JWKS for any tenant a caller names |
-| `TestTheIssuerMustBeTheTokensOwnTenant` | tid A (enrolled), iss for tenant B (enrolled) → `ErrIssuer` | a token minted in one tenant replayed as another |
-| `TestTheAudienceIsTheClientIDOnly` | aud = `api://<id>` → `ErrAudience`; aud = the Hub's id at the broker → `ErrAudience` | a Hub token driving sandboxes (P8-D4's separate audiences) |
-| `TestScopeMatchIsExact` | scp `Sandboxes.AccessAll` → `ErrScope`; `"openid Sandboxes.Access"` → ok | a substring match |
-| `TestAppOnlyTokensAreRejected` | `idtyp: app` with roles, no scp → `ErrAppOnly` | a daemon credential accepted as a user |
-| `TestAnUnlistedClientIsRejected` | azp not in AllowedClients → `ErrClient` | a token some other app obtained for our API |
-| `TestSubIsNeverTheIdentity` | two tokens, same tid/oid, different sub → equal `Key()` | identity keyed on the pairwise sub |
-| `TestErrorsNeverContainTheToken` | for every failure above, `err.Error()` does not contain the raw token or its signature segment | a token written to a log by an error message |
-| `TestMiddlewareAnswers401WithTheChallenge` | bad token → 401, `WWW-Authenticate: Bearer error="invalid_token"`, problem code `unauthenticated`; missing header → `WWW-Authenticate: Bearer` | a 403, or a handler reached |
-| `TestMiddlewareStripsTheAuthorizationHeader` | the handler sees no `Authorization` header and a Principal in context | a handler that forwards the user's token into a pod |
-| `TestAnInsecureAuthorityIsRefused` | `http://` without the flag → error; `http://example.com` with it → error | a production validator pointed at plaintext |
+| `TestTheIssuerMustBeTheTokensOwnTenant` | tid A, iss of enrolled tenant B → `ErrIssuer` | a token replayed across tenants |
+| `TestTheAudienceIsTheClientIDOnly` | `aud: api://<id>` → `ErrAudience`; the Hub's id at a broker validator → `ErrAudience` | a Hub token driving sandboxes (P8-D4) |
+| `TestAnUnlistedClientIsRejected` | azp not allowed → `ErrClient` | a token another app obtained for our API |
+| `TestScopeMatchIsExact` | `Sandboxes.AccessAll` → `ErrScope`; `"openid Sandboxes.Access"` → ok | a substring match |
+| `TestAppOnlyTokensFailTheScopeCheck` | `roles` but no `scp` → `ErrScope` | a daemon credential accepted as a user |
+| `TestAMissingOrNonGUIDOidIsMalformed` | → `ErrMalformed` | a principal with no identity |
+| `TestSubIsNeverTheIdentity` | same tid/oid, different sub → equal `Key()` | identity keyed on the pairwise sub |
+| `TestAKeySetOutageIsNotARejection` | JWKS server 500 → `ErrKeySetUnavailable`, and `errors.Is` false for all ten rejections | a JWKS outage reported as "your token is invalid" |
+| `TestErrorsNeverContainTheToken` | for every failure above, the error text holds neither the token nor its signature segment | a token in a log |
+| `TestMiddlewareStatuses` | missing → 401 `Bearer`; rejection → 401 `invalid_token` with `details.reason`; `ErrTenant` → 403 `tenant_not_enrolled`; outage → 503 | a 401 that sends a user to re-sign-in during an Entra outage |
+| `TestMiddlewareStripsTheAuthorizationHeader` | the handler sees no `Authorization` and a `ClaimsFrom` value | a handler that forwards the user's token into a pod |
+| `TestAnInsecureAuthorityIsRefused` | `http://` without the flag → error; `http://example.com` with it → error | a production validator on plaintext |
 | `TestReadyFetchesEveryTenant` | two tenants → two fetches; one failing → `ErrKeySetUnavailable` | a /readyz that says ready with no keys |
 
 #### Steps
 
-- [ ] **Step 1:** Re-read the Hub contract, if it now exists, for any change to ADR-H1's table; if it
-  differs, the contract wins and the difference is recorded in the commit.
+- [ ] **Step 1:** Re-read Hub contract §6.3. If it changed after this part was written, the
+  contract's words win for everything above the "Phase 8's additions" line, and the change is
+  recorded in the commit.
 - [ ] **Step 2:** `testkey_test.go`, then the tests; they fail to compile.
-- [ ] **Step 3:** `entra.go` (types, config checks), `jwks.go` (cache, single-flight, rotation),
-  `verify.go` (the check order), `middleware.go`. All tests pass under `-race`.
+- [ ] **Step 3:** `entra.go`, `jwks.go`, `verify.go`, `middleware.go`; all pass under `-race`.
 - [ ] **Step 4:** `git diff control-plane/go.mod` — empty. Commit.
 
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/entra/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 23
+go test ./control-plane/internal/entra/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 25
 go test ./sandboxd/... ./control-plane/... -race -count=1                                 # ok
 git diff --stat control-plane/go.mod control-plane/go.sum                                 # empty
 ```
 
 #### What this task does not claim
 
-- That KPMG's tenant issues tokens in exactly this shape (v2, `azp`, `scp`, `idtyp`) — ADR-H1's R2
-  and the first real sign-in are where that is proven; the devissuer mimics the shape.
-- Group-overage handling: no rule here reads `groups` (ADR-H1 §6.6 rejects membership from group
+- That KPMG's tenant issues tokens in exactly this shape (v2, `azp`, `scp`); the Hub's H1 has one
+  real-tenant acceptance test for that (Hub contract `:520-523`).
+- Group-overage handling: nothing here reads `groups` (ADR-H1 §6.6 rejects membership from group
   claims).
