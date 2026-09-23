@@ -111,9 +111,10 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
   ): Promise<void> => {
     // Every request and every store write this loader makes passes through here, bar one, so
     // this is the one `stopped` check that "starts nothing after stop" needs. The exception is
-    // `sync`'s put-back of an outstanding report, which carries its own; `retry` carries none. App's callers never reach it after stop (its cleanup stops this loader
-    // and the poller together, synchronously), so defects.test.tsx pins it directly, by calling
-    // `retry` on a stopped loader.
+    // `sync`'s put-back of an outstanding report, which carries its own; `retry` carries none.
+    // App's callers never reach `retry` after stop (its cleanup stops this loader and the poller
+    // together, synchronously), so defects.test.tsx pins it directly, by calling `retry` on a
+    // stopped loader.
     if (stopped || inFlight.has(key) || failed.has(key)) return;
     inFlight.add(key);
     store.getState().setLoading(key, true);

@@ -331,6 +331,13 @@ describe("the design-system audit", () => {
 });
 ```
 
+> **The two blocks above are no longer the file** (added 2026-09-24 by task 24's fix round 2,
+> re-review M4). The shipped file had already diverged from them before the first review, which
+> accepted it: its rules take a `Tree`, and a planted canary proves each. Fix round 1 added `namedColours` (review
+> M2) and `imperativeTransitions` (review I3), and fix round 2 moved `imperativeTransitions`' body
+> into `imperativeStyles`, which `namedColours` now reads as well (re-review M1).
+> `desktop/src/styles/designsystem.test.ts` is the reference.
+
 - [ ] **Step 3: Run the audit and watch five of its eleven go red on one file**
 
 ```bash

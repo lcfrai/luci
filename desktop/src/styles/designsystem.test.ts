@@ -326,13 +326,16 @@ const NAMED_COLOURS = new Set(
   ).split(" "),
 );
 
-/** The properties whose value can carry a colour. box-shadow is shadowFaults' own. */
-const COLOUR_PROPERTY =
-  /^(?:color|background(?:-color)?|border(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?(?:-color)?|outline(?:-color)?|fill|stroke|caret-color|accent-color|text-decoration(?:-color)?|text-emphasis(?:-color)?|column-rule(?:-color)?|text-shadow|scrollbar-color|stop-color|flood-color|lighting-color)$/;
+/** The properties whose value can carry a colour. box-shadow is shadowFaults' own. A source
+ *  fragment with no capturing group, because `imperativeStyles` embeds it in its own groups. */
+const COLOUR_KEBAB =
+  "color|background(?:-color)?|border(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?(?:-color)?|outline(?:-color)?|fill|stroke|caret-color|accent-color|text-decoration(?:-color)?|text-emphasis(?:-color)?|column-rule(?:-color)?|text-shadow|scrollbar-color|stop-color|flood-color|lighting-color";
+const COLOUR_PROPERTY = new RegExp(`^(?:${COLOUR_KEBAB})$`);
 
-/** The same, as the camelCase keys of an inline style object. */
-const COLOUR_KEY =
-  /\b(color|background(?:Color)?|border(?:Top|Right|Bottom|Left|Block|Inline)?(?:Start|End)?(?:Color)?|outline(?:Color)?|fill|stroke|caretColor|accentColor|textDecoration(?:Color)?|textShadow)\s*:\s*(["'`])([^"'`]*)\2/g;
+/** The same, as camelCase: the keys of an inline style object, and the members of `el.style`. */
+const COLOUR_CAMEL =
+  "color|background(?:Color)?|border(?:Top|Right|Bottom|Left|Block|Inline)?(?:Start|End)?(?:Color)?|outline(?:Color)?|fill|stroke|caretColor|accentColor|textDecoration(?:Color)?|textShadow";
+const COLOUR_KEY = new RegExp(`\\b(${COLOUR_CAMEL})\\s*:\\s*(["'\`])([^"'\`]*)\\2`, "g");
 
 /** Every named colour in one value, as whole words. A custom property's name is not a word here
  *  (`--ink-red` is a token, not red), and a url() is skipped whole, because its payload is not
@@ -347,7 +350,13 @@ function namedIn(value: string): string[] {
 
 /** Shared-shape §3B clause 2: a colour is a `var(--token)`. COLOUR_FN and the hex rules cover
  *  the other spellings. ADDED BY TASK 24's FIX ROUND 1 (review M2): `color: white` passed every
- *  rule, and the audit's commit message said "no colour outside the token layer". */
+ *  rule, and the audit's commit message said "no colour outside the token layer".
+ *
+ *  FIX ROUND 2 (re-review M1) added the third loop: every form `imperativeStyles` reads, which
+ *  is how `el.style.color = "white"` beside CanvasLayout.tsx's own imperative writes passed the
+ *  whole suite. A value that is not a string literal is skipped, not reported: unlike a
+ *  transition, which must be checked against a list, a colour held in a variable is no more
+ *  readable here than the same variable as an object key, which the second loop also skips. */
 function namedColours(t: Tree): string[] {
   const offenders: string[] = [];
   for (const file of t.css) {
@@ -360,8 +369,13 @@ function namedColours(t: Tree): string[] {
     }
   }
   for (const file of t.ts) {
-    for (const m of t.read(file).matchAll(COLOUR_KEY)) {
+    const source = t.read(file);
+    for (const m of source.matchAll(COLOUR_KEY)) {
       for (const name of namedIn(m[3])) offenders.push(`${file}  inline ${m[1]}: ${name}`);
+    }
+    for (const { value, text } of imperativeStyles(source, COLOUR_CAMEL, COLOUR_KEBAB)) {
+      if (value === null) continue;
+      for (const name of namedIn(value)) offenders.push(`${file}  inline ${text} ${value}: ${name}`);
     }
   }
   return offenders;
@@ -452,23 +466,47 @@ function transitionOffList(t: Tree): string[] {
  *  and `el.style.transition = "transform 200ms"` beside those lines passed the whole suite.
  *  `value` is null where the value is not a string literal: the list cannot read a variable, so
  *  the caller reports it outright rather than guess. */
-function imperativeTransitions(source: string): { property: string; value: string | null; text: string }[] {
-  const found: { property: string; value: string | null; text: string }[] = [];
+function imperativeTransitions(source: string): ImperativeStyle[] {
+  return imperativeStyles(source, "transition\\w*", "(?:-webkit-)?transition[\\w-]*");
+}
+
+interface ImperativeStyle {
+  property: string;
+  value: string | null;
+  text: string;
+}
+
+/** The reader behind `imperativeTransitions`, parameterised by property so `namedColours` reads
+ *  the same four forms. FACTORED OUT BY TASK 24's FIX ROUND 2 (re-review M1): the colour rule
+ *  had the blind spot round 1 closed for transitions, because only the transition rule read
+ *  imperative writes. One reader for both, so a fifth form added for one reaches the other.
+ *  `camel` names an `el.style` member; `kebab` names a CSS property, as a bracketed key, a
+ *  `setProperty` argument or a declaration in a style string. Both are regex SOURCE with no
+ *  capturing group. A camel name is the whole member because `\s*=` must follow it at once, so
+ *  `el.style.colorScheme = …` is not read as `color`. */
+function imperativeStyles(source: string, camel: string, kebab: string): ImperativeStyle[] {
+  const found: ImperativeStyle[] = [];
   const literalAt = (at: number): string | null =>
     /^(["'`])([^"'`]*)\1/.exec(source.slice(at))?.[2] ?? null;
-  const assigned = /\.style(?:\.(transition\w*)|\[\s*(["'`])((?:-webkit-)?transition[\w-]*)\2\s*\])\s*=(?!=)\s*/g;
+  const assigned = new RegExp(
+    `\\.style(?:\\.(?<camel>${camel})|\\[\\s*(?<q>["'\`])(?<kebab>${kebab})\\k<q>\\s*\\])\\s*=(?!=)\\s*`,
+    "g",
+  );
   for (const m of source.matchAll(assigned)) {
-    found.push({ property: m[1] ?? m[3], value: literalAt((m.index ?? 0) + m[0].length), text: m[0].trim() });
+    const property = m.groups?.camel ?? m.groups?.kebab ?? "";
+    found.push({ property, value: literalAt((m.index ?? 0) + m[0].length), text: m[0].trim() });
   }
-  for (const m of source.matchAll(/\bsetProperty\(\s*(["'`])((?:-webkit-)?transition[\w-]*)\1\s*,\s*/g)) {
-    found.push({ property: m[2], value: literalAt((m.index ?? 0) + m[0].length), text: m[0].trim() });
+  const set = new RegExp(`\\bsetProperty\\(\\s*(?<q>["'\`])(?<kebab>${kebab})\\k<q>\\s*,\\s*`, "g");
+  for (const m of source.matchAll(set)) {
+    found.push({ property: m.groups?.kebab ?? "", value: literalAt((m.index ?? 0) + m[0].length), text: m[0].trim() });
   }
+  const wanted = new RegExp(`^(?:${kebab})$`);
   const styleString = /(?:\.cssText\s*\+?=|\bsetAttribute\(\s*["'`]style["'`]\s*,)\s*(["'`])([^"'`]*)\1/g;
   for (const m of source.matchAll(styleString)) {
     for (const declaration of m[2].split(";")) {
       const colon = declaration.indexOf(":");
       const property = declaration.slice(0, colon).trim();
-      if (colon === -1 || !/^(?:-webkit-)?transition/.test(property)) continue;
+      if (colon === -1 || !wanted.test(property)) continue;
       found.push({ property, value: declaration.slice(colon + 1).trim(), text: m[0].trim() });
     }
   }
@@ -599,7 +637,10 @@ describe("the design-system audit", () => {
   });
 
   it("names no colour by keyword outside the token layer", () => {
-    // MECHANICAL: every named colour in a colour-bearing declaration or inline style key.
+    // MECHANICAL: every named colour in a colour-bearing declaration, an inline style key, or
+    // any of the imperative forms `imperativeStyles` reads (an `el.style` assignment, a
+    // bracketed key, `setProperty`, `cssText`, `setAttribute("style", …)`; fix round 2,
+    // re-review M1). A string literal only: a colour held in a variable is not readable here.
     // `currentColor`, `transparent`, `inherit` and `none` name no hue and are allowed.
     expect(namedColours(REAL)).toEqual([]);
   });
@@ -620,7 +661,8 @@ describe("the design-system audit", () => {
     // "An inline style" is every form a .ts/.tsx file can write one in: an object-literal key,
     // an assignment to `.style.transition…`, `setProperty("transition…", …)`, and a style
     // string (`cssText`, `setAttribute("style", …)`). The last three are `imperativeTransitions`,
-    // added by task 24's fix round 1, when only the first was read (review I3).
+    // added by task 24's fix round 1, when only the first was read (review I3). Fix round 2
+    // moved its body into `imperativeStyles`, which `namedColours` also reads.
     // The token layer's longhands are its prefers-reduced-motion override, which is its job.
     //
     // LEFT TO REVIEW: clause 4 allows background-color and color on "row- and button-sized
@@ -756,6 +798,9 @@ const CANARIES: Canary[] = [
   { fault: "a transition set through setProperty", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style.setProperty("transition", "transform 200ms");') },
   { fault: "a transition longhand set through setProperty", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style.setProperty("transition-duration", "1s");') },
   { fault: "a transition inside cssText", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style.cssText = "width: 10px; transition: transform 200ms";') },
+  // Fix round 2: SW's transition half. A longhand is the one transition property whose camel
+  // and kebab spellings differ.
+  { fault: "a transition longhand inside cssText", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.style.cssText = "transition-duration: 1s";') },
   { fault: "a transition inside a style attribute", rule: transitionOffList, file: PLANT_TSX, text: imperative('el.setAttribute("style", "transition: transform 200ms");') },
   // Review M2. HEX_LITERAL's other three lengths: a rule narrowed to six digits passed #ff0000.
   ...["#fff", "#ffff", "#ff000080"].map(
@@ -765,6 +810,18 @@ const CANARIES: Canary[] = [
   { fault: "a named colour inside a shorthand", rule: namedColours, file: PLANT_CSS, text: sheet(".p { border: 1px solid Black; }") },
   { fault: "a named colour as a var() fallback", rule: namedColours, file: PLANT_CSS, text: sheet(".p { background-color: var(--page, red); }") },
   { fault: "a named colour in an inline style", rule: namedColours, file: PLANT_TSX, text: 'export const s = { backgroundColor: "white" };\n' },
+  // Task 24's fix round 2 (re-review M1): one canary per imperative form, the same four forms
+  // `imperativeTransitions` reads. P1 and X2 are the re-review's two survivors, planted beside
+  // the imperative writes CanvasLayout.tsx really makes.
+  { fault: "a named colour assigned to an element's style (P1)", rule: namedColours, file: PLANT_TSX, text: imperative('el.style.color = "white";') },
+  { fault: "a named colour assigned to a longhand colour key", rule: namedColours, file: PLANT_TSX, text: imperative('el.style.borderTopColor = "red";') },
+  { fault: "a named colour assigned through a bracketed key", rule: namedColours, file: PLANT_TSX, text: imperative('el.style["background-color"] = "white";') },
+  { fault: "a named colour set through setProperty (X2)", rule: namedColours, file: PLANT_TSX, text: imperative('el.style.setProperty("color", "white");') },
+  // A hyphenated property on purpose. `color`, `border` and `transition` are spelled the same in
+  // camelCase, so with those alone a style-string reader handed the camel fragment instead of
+  // the kebab one passed every canary (mutant SW, predicted and survived).
+  { fault: "a named colour inside cssText", rule: namedColours, file: PLANT_TSX, text: imperative('el.style.cssText = "width: 10px; background-color: white";') },
+  { fault: "a named colour inside a style attribute", rule: namedColours, file: PLANT_TSX, text: imperative('el.setAttribute("style", "border: 1px solid black");') },
   { fault: "font-variant-numeric that is not the token", rule: numeric, file: PLANT_CSS, text: sheet(".p { font-variant-numeric: tabular-nums; }") },
   { fault: "the token before a font shorthand that resets it", rule: numeric, file: PLANT_CSS, text: sheet(".p { font-variant-numeric: var(--numeric); font: 500 10px/1 var(--mono); }") },
   {
@@ -799,4 +856,31 @@ describe("the audit's own rules, fed a planted tree", () => {
       expect(onFile(canary.rule(plant(canary.file, canary.text)))).not.toEqual([]);
     });
   }
+
+  // Fix round 2 (re-review M1). A canary proves a rule sees a fault; this proves the colour
+  // rule's declared limit holds without throwing: a colour held in a variable is not a literal,
+  // so it is skipped, as the object-key half skips `{ color: tone }`. Without the skip,
+  // `namedIn(null)` throws and the whole audit reports nothing at all.
+  it("reads an imperative colour held in a variable as nothing, and does not throw", () => {
+    const planted = plant(PLANT_TSX, imperative("el.style.color = MOVE;"));
+    expect(namedColours(planted).filter((o) => o.startsWith(`${PLANT_TSX}  `))).toEqual([]);
+  });
+
+  // Fix round 2. The canaries prove each imperative form is SEEN; this proves each is read as
+  // the property it names, so a transition the list accepts passes in every form. Mutant SP
+  // (the bracketed key's property dropped) survived every canary, because an off-list value is
+  // an offender whatever the reason, and would have failed this on-list write as a prefixed one.
+  it("accepts a transition the list allows, in every imperative form", () => {
+    const allowed = "opacity var(--dur-fast) var(--ease)";
+    for (const line of [
+      `el.style.transition = "${allowed}";`,
+      `el.style["transition"] = "${allowed}";`,
+      `el.style.setProperty("transition", "${allowed}");`,
+      `el.style.cssText = "width: 10px; transition: ${allowed}";`,
+      `el.setAttribute("style", "transition: ${allowed}");`,
+    ]) {
+      const planted = plant(PLANT_TSX, imperative(line));
+      expect(transitionOffList(planted).filter((o) => o.startsWith(`${PLANT_TSX}  `)), line).toEqual([]);
+    }
+  });
 });
