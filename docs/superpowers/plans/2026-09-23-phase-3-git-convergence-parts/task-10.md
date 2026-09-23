@@ -68,7 +68,8 @@ type UndoResult struct {
 //   update-ref -m "panacea: undo land <id>" refs/heads/<branch> <sha>^1 <sha>   (compare-and-swap)
 //   SetWorktreeReady(<Panacea-Land id>, true) when that lane still exists  (exact means as before)
 //   the clones' origin/<branch> refresh, as Land's step 14
-// It serialises with Land on the same branch.
+// It serialises with Land on the same branch. Hardened per task-02 §HGH: the project calls use
+// Scope Project, the refresh uses Scope Clone, and no hook runs (H4).
 func (l *Lander) Undo(ctx context.Context, projectPath, projectID, branch, sha, expectedTip string) (UndoResult, error)
 
 // RevertResult is a revert commit that landed.
@@ -85,7 +86,8 @@ type RevertResult struct {
 //   msg  = Message("Revert land <name> into <branch>", "This takes back <sha>.", [Panacea-Reverts: <sha>])
 //   rev  = commit-tree <tree> -p <tip> -F -                              (the user's identity)
 //   update-ref -m "panacea: revert <sha>" refs/heads/<branch> <rev> <tip>
-// The reverted lane's ready flag is not touched.
+// The reverted lane's ready flag is not touched. Hardened per task-02 §HGH: every call uses Scope
+// Project, and no hook or merge driver the repository names runs (H1, H3, H4).
 func (l *Lander) Revert(ctx context.Context, projectPath, projectID, branch, sha, expectedTip string) (RevertResult, error)
 ```
 
