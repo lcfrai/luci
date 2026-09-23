@@ -10,8 +10,10 @@ the variable, and the hook.
 repository's own configuration, so a repository using husky (`core.hooksPath=.husky/_`) or plain
 `.git/hooks` would silently lose **every** hook, not only `prepare-commit-msg`. So the image's
 hooks directory holds one dispatcher, linked under every client-side hook name, and each name
-runs the repository's own hook of that name first. It is tested against a real husky layout in
-the image before it ships, on a clone made by task 03's `lanes.Creator` from a project whose
+runs the repository's own hook of that name first. It is tested in the image before it ships
+against husky 9's shape (a stub per hook name in `.husky/_` that sources `h`, which runs the
+tracked `.husky/<name>`; the fixture's `h` is a small stand-in, not husky's file, so the real
+file's chain stays owner item 5's), on a clone made by task 03's `lanes.Creator` from a project whose
 own config carries the setting (review I11: a clone configured by hand proves nothing, because
 `git clone` copies neither `.git/config` nor `.git/hooks`).
 
@@ -121,8 +123,10 @@ else
 fi
 
 # A configured directory the clone does not have runs nothing; say so once per commit, not
-# once per hook (review I11: task 03 copies a generated one at create time, and a lane made
-# before the project's install step ran has none).
+# once per hook (review I11: task 03 copies a generated one at create time). This fires only
+# when the setting was copied without its folder: deleted in the project after install, refused
+# by CopyGeneratedHooks, or deleted in the lane. A lane made before the project's install step
+# has no local setting at all, so it is silent here (re-review b03 I-3; task-03's last bullet).
 if [ -n "$(git config --local --get core.hooksPath 2>/dev/null)" ] && [ ! -d "$repo_hooks" ] &&
 	[ "$name" = prepare-commit-msg ]; then
 	echo "panacea: core.hooksPath names $repo_hooks, which this clone does not have; this repository's hooks did not run" >&2
@@ -173,7 +177,7 @@ RUN sed -i 's/\r$//' /opt/panacea/githooks/dispatch \
 | `TestDispatchStampsTheSession` (docker) | a commit in a clone mounted at `/home/dev/work` with the session environment carries `Panacea-Session: s-test1` exactly once (`git log -1 --format=%(trailers:key=Panacea-Session,valueonly)`) | the hook not installed, not executable, or CRLF |
 | `TestDispatchSurvivesNoVerify` (docker) | `git commit --no-verify -m x` still carries the trailer | trusting `--no-verify` to skip only what we expect |
 | `TestDispatchKeepsAnAmendsSession` (docker) | commit with `s-a`, then `git commit --amend` with `PANACEA_APP_SESSION_ID=s-b` → the trailer is `s-a`, once | a rewritten commit claiming a new author |
-| `TestDispatchChainsToHusky` (docker; review I11) | the clone is made by task 03's `lanes.Creator`, never configured by the test: a `gitxtest` project whose **local** config has `core.hooksPath=.husky/_` and whose working tree has an ignored `.husky/_/` (`.gitignore` `*`, a `pre-commit` exiting 1, a `commit-msg` appending `X-Husky: ran`), as husky's install step leaves it. The test writes nothing into the clone. In the sandbox `git commit` fails; with the **project's** `pre-commit` changed to exit 0 and a second lane created, the commit has **both** trailers. Red first against a Creator without step 6 | risk R7: a husky repository losing its hooks on a real clone |
+| `TestDispatchChainsToHusky` (docker; review I11) | the clone is made by task 03's `lanes.Creator`, never configured by the test: a `gitxtest` project whose **local** config has `core.hooksPath=.husky/_`, whose branch tracks `.husky/pre-commit` (exits 1) and `.husky/commit-msg` (appends `X-Husky: ran`), and whose working tree has an ignored `.husky/_/` in husky 9's stub shape: `.gitignore` `*`; `pre-commit` and `commit-msg` each the one line `. "${0%/*}/h"`; and an `h` that runs `$(dirname "$(dirname "$0")")/$(basename "$0")` with `sh -e` when that file exists (a stand-in: husky's own `h` was not read, re-review b03 Minor 2). The test writes nothing into the clone. In the sandbox `git commit` fails; with the tracked `.husky/pre-commit` changed to exit 0 and committed on the branch in the project (with `-c core.hooksPath=/dev/null`, since the old one still exits 1 there), and a second lane created, the commit has **both** trailers. Red first against a Creator without step 6 | risk R7: a husky repository losing its hooks on a real clone |
 | `TestDispatchNamesAMissingHooksDir` (docker; review I11) | a lane whose clone has `core.hooksPath=.husky/_` and no `.husky/_`: `git commit` succeeds with the `Panacea-Session` trailer, and its stderr holds the `panacea: core.hooksPath names` line exactly once | a lane that silently runs none of the repository's hooks |
 | `TestSandboxCannotWriteHooksPath` (docker; review I11) | in a lane sandbox, `git config core.hooksPath .husky/_` (the write husky's install step makes) exits non-zero and the host's `.git/config` is byte-identical: the reason task 03 copies the directory rather than leave it to the install step. If it exits 0, H5 is broken: stop and report | the premise of task 03's `CopyGeneratedHooks` going stale unnoticed |
 | `TestDispatchChainsToDotGitHooks` (docker) | no local hooksPath; `.git/hooks/prepare-commit-msg` appends `X-Repo: ran` → both lines present, the repo's first | the default hooks directory skipped |
@@ -196,8 +200,8 @@ package `main`, which this package cannot import.
   fix's pair count `n` (`TestSessionEnvSetsHooksPath` uses it). If either grep is 0, stop and
   report (plan "Gate G1").
   G1's contract diff (review I12): `git diff 3303fd6 HEAD -- docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md`,
-  and read every hunk in §2 and §5.1 before editing them: the fix's `5e32000` already edited
-  §2.2 and §5.1, and phase 2's later rounds add more there.
+  and read every hunk in §2 and §5.1 before editing them: the fix branch already edited §2.2
+  (`5e32000`) and §2.6 and §5.1 (`2d6d95b`), and phase 2's later rounds add more there.
   Task 01's `TestSandboxGitHonoursEnvHooksPath` passed and recorded the image's git version.
 - [ ] **Step 2:** the Go tests; then `EnvSessionID`, `EnvEntries`, `containerEnv`, `sessionEnv`.
   `TestALaneSessionSendsTheClonesLineEndings` and `TestTheResolverReadsALaneCloneAsLF` may pass
@@ -234,11 +238,17 @@ git ls-files --eol images/sandbox/githooks/dispatch                          →
   relative local `core.hooksPath` (step 6) and, when the project had generated and ignored it,
   that directory's files as they were at create time. The agent cannot repair a lane from
   inside: the install step's `git config core.hooksPath` fails against the read-only
-  `.git/config` (`TestSandboxCannotWriteHooksPath`). A lane made before the project's install
-  step ran prints the dispatcher's `panacea:` line and runs no repository hook; removing and
-  re-creating it after the install fixes it. Hooks installed only into `.git/hooks` (the
-  pre-commit framework's shim) never reach a lane, and nothing tells that apart from a
-  repository with no hooks. Whether a copied hook is executable through Docker Desktop's bind
+  `.git/config` (`TestSandboxCannotWriteHooksPath`). The dispatcher's `panacea:` line prints
+  only when the clone has the setting but not its folder: the project's `.husky/_` was deleted
+  after install (`git clean -fdx`), CopyGeneratedHooks refused it (over 64 files, a link, a
+  subfolder, or a live primary-worktree session), or the agent deleted it in the lane. Three
+  cases are **silent** and look like a repository with no hooks: a lane made before the
+  project's install step ran (the install is what writes the local setting, so there was
+  nothing to copy), an absolute hooks path, and hooks only in `.git/hooks` or a
+  `core.hooksPath` naming it (the pre-commit framework's shim). Re-creating the lane after the
+  install, with no primary-worktree session live, repairs a lane made before install, a deleted
+  folder and a live-session refusal. A folder refused for its shape, an absolute path and
+  `.git/hooks` reach no lane however it is made (re-review b03 I-3). Whether a copied hook is executable through Docker Desktop's bind
   mount is `TestDispatchChainsToHusky`'s to show (NTFS has no execute bit; unverified).
 - Observation, not fixed here: `images/sandbox/entrypoint.sh` is **CRLF in this checkout**
   (`file` reports "with CRLF line terminators"; `core.autocrlf=true`, no `.gitattributes`). Whether

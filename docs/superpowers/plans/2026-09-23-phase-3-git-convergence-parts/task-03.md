@@ -132,6 +132,18 @@ type Creator struct {
 	Machine gitx.Machine
 	Store   Store
 	Now     func() time.Time // nil means time.Now
+	// Mounts holds sandboxes off the project's working tree while step 6 reads it (re-review
+	// b03 I-2). nil copies no hooks directory: fail closed.
+	Mounts MountGuard
+}
+
+// MountGuard answers "can a sandbox write dir right now" and holds the answer. WhileUnmounted
+// runs fn only when no session that is live or starting has dir as its worktree path, and it
+// holds every new mount of dir off until fn returns; otherwise it returns false and runs
+// nothing. Task 04's api.MountGuard implements it under the lock that session create and
+// restart take before they start a sandbox.
+type MountGuard interface {
+	WhileUnmounted(ctx context.Context, dir string, fn func() error) (ran bool, err error)
 }
 
 // Create, in this order, and the order is the point:
@@ -155,13 +167,16 @@ type Creator struct {
 //     without this a husky repository's lane runs none of its hooks (review I11). Nothing
 //     under `.git/hooks` is ever copied: a host hook's `#!` line names a Windows path. A value
 //     CopyableHooksPath refuses is not copied and not an error. When the value was copied,
-//     CopyGeneratedHooks then copies the directory it names, if the project generated one;
+//     CopyGeneratedHooks then copies the directory it names, if the project generated one,
+//     inside c.Mounts.WhileUnmounted(ctx, Project.Path, …). ran == false (a primary-worktree
+//     session is live or starting, or Mounts is nil) copies no files and is not an error: the
+//     setting stays, and task 05's dispatcher line names the missing folder;
 //  7. Store.Add.
 // A failure in 4-7 removes Path with RemoveTree before returning, so a failed create leaves
 // no directory behind; a failure in 1-3 has touched nothing.
 // Scopes, per task-02 §HGH H3: steps 2, 4, 5's `var` and 6's `--get` run with Dir the project
 // and Scope Project (step 4's clone checks its source that way); steps 5 and 6's `config`
-// writes run in the clone with Scope Clone.
+// writes, and CopyGeneratedHooks' `ls-files`, run in the clone with Scope Clone.
 func (c *Creator) Create(ctx context.Context, req CreateRequest) (Lane, error)
 
 // CopyableHooksPath reports whether a project's local core.hooksPath is copied into a lane
@@ -180,12 +195,28 @@ func CopyableHooksPath(v string) bool
 // husky's source was not read for this plan; task 05's Docker test settles what a lane needs,
 // not what husky does). Copying the setting without the directory runs nothing (review I11).
 // It copies only when every one of these holds, and otherwise copies nothing and returns 0:
-//   - `ls-files -- <rel>` in the project (Read) prints nothing: a tracked hooks directory is
-//     already in the clone's checkout, and is never overwritten;
+//   - no segment of <rel> is `.git`, compared case-insensitively after trimming the trailing
+//     dots and spaces Windows drops (`.GIT`, `.git.`, `.git ` all refuse): nothing under any
+//     `.git`, so `core.hooksPath=.git/hooks`, the common way to undo husky, copies nothing
+//     (re-review b03 I-1; `ls-files` answers empty for such a path, so it cannot be the test);
+//   - os.Lstat(<cloneTop>/<rel>) reports not-exist. The clone is safe to stat: no sandbox has
+//     mounted it yet. A hooks directory tracked on the lane's `<Branch>` is already in the
+//     checkout and is never overwritten; the project's own index is the wrong one to ask,
+//     since it is the project's current branch, not the lane's (re-review b03 I-1);
 //   - every path component from projectTop to <rel>, and <rel> itself, is a real directory by
 //     os.Lstat (no symlink, no junction or other reparse point), so the copy reads nothing
-//     outside the project's working tree and nothing inside `.git`;
+//     outside the project's working tree;
 //   - it holds only regular files, at most 64 and 1 MiB in total, one level deep.
+// Each file is opened, then os.SameFile(its Lstat info, f.Stat()) must hold, and it is read
+// through io.LimitReader of the budget that remains, so neither a file swapped between check
+// and open nor one grown after the Lstat is read past the 1 MiB (review Minor 9). These guards
+// hold a static tree only; a live agent swapping a parent folder for a link between check and
+// read defeats any path check, which is why the caller runs this inside Mounts.WhileUnmounted
+// (re-review b03 I-2, the A4 class).
+// After the copy, `ls-files --others --exclude-standard -- <rel>` in the clone (Scope Clone)
+// must print nothing: the folder is ignored there. Otherwise RemoveTree takes the copy back and
+// it returns 0, so a user's uncommitted, unignored `.githooks/` never reaches an agent's
+// `git add -A` and a land (re-review b03 Minor 3).
 // Files keep their bytes. NTFS has no execute bit, so whether the sandbox's `[ -x ]` passes is
 // the bind mount's answer, not the file's; task 05's `TestDispatchChainsToHusky` runs through
 // the real mount and settles it (unverified until then). The host never runs them: every
@@ -322,7 +353,9 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCreateCopiesARelativeHooksPath` (review I11) | project local `core.hooksPath=.husky/_` and a `.git/hooks/pre-commit` file: the clone's `config --local --get core.hooksPath` prints `.husky/_`, and the clone's `.git/hooks` holds only what `git clone` put there (no `pre-commit`). Then a table of project values, each a fresh create: `/abs/hooks`, `C:/hooks`, `C:hooks`, `\hooks`, `~/hooks`, `../x`, `a/../../x`, `.githooks\x` → lane created, clone has no `core.hooksPath`; `.githooks` → copied. Red first against step 6 removed | a husky lane running none of the project's hooks; a host path or an escape copied into a clone |
 | `TestCopyableHooksPath` | the same table as a pure function, plus `""` → false | a predicate that disagrees with Create's copy |
 | `TestCreateCopiesAGeneratedHooksDir` (review I11) | project local `core.hooksPath=.husky/_`, tracked `.husky/pre-commit`, and an ignored `.husky/_/` holding `.gitignore` (`*`), `h` and `pre-commit`: the clone's `.husky/_` holds the same three files byte-identical, `status --porcelain` in the clone prints nothing. Red first against CopyGeneratedHooks not called | a husky lane with the setting but no hooks, which runs nothing |
-| `TestCopyGeneratedHooksRefuses` | table, each → 0 files and nothing written: a tracked `.githooks/` (the clone's checked-out copy is byte-unchanged); `.husky` a junction (Windows) or symlink to a temp directory; a symlink file inside `.husky/_`; a subdirectory inside it; 65 files; 1 MiB + 1 byte | a copy that reads outside the project's tree, or overwrites a tracked hook |
+| `TestCopyGeneratedHooksRefuses` | table, each → 0 files and nothing written: a tracked `.githooks/` (the clone's checked-out copy is byte-unchanged); a `.githooks/` tracked on the lane's `<Branch>` only and untracked in the project's checkout (the clone's copy is byte-unchanged); `rel` = `.git/hooks`, `.GIT/hooks` and `.git./hooks` (the clone's sample hooks are byte-unchanged); `.husky` a junction (Windows) or symlink to a temp directory; a symlink file inside `.husky/_`; a subdirectory inside it; 65 files; 1 MiB + 1 byte; an untracked `.githooks/` that no `.gitignore` covers (the clone has no `.githooks/` afterwards) | a copy that reads outside the project's tree, reads `.git`, overwrites a hook the lane's branch tracks, or leaves a folder the agent's `git add -A` commits |
+| `TestCopyGeneratedHooksChecksTheOpenedFile` | through the unexported package variable `openForCopy` (a test-only seam, default `os.Open`): an opener that returns a different file than the path's Lstat named → 0 files, error names the path; one that returns a file larger than its Lstat size → at most 1 MiB read in total, and the copy is refused | a swap between check and open, or an uncapped read of a file an agent wrote |
+| `TestCreateCopiesNoHooksWhileTheProjectIsMounted` (re-review b03 I-2) | Mounts a fake that returns ran == false → the clone has `core.hooksPath` and no `.husky/_`, Create succeeds; Mounts nil → the same; a fake that returns true → the copy runs inside its fn (a flag set in fn is seen by the copy seam) | a copy out of a working tree a live agent can rewrite |
 | `TestCreateHooksPathPassesTheCloneCheck` | a created clone whose project had `core.hooksPath=.husky/_`: a `status` with `Scope: Clone` through `gitx.Machine` is not refused (task-02 §HGH H3) | a copy the clone's own allowlist then refuses, breaking every host call in the lane |
 | `TestCreateUnknownBranchTouchesNothing` | `Branch: "nope"` → ErrUnknownBranch, `<root>/<p>` has no entry | a half-made clone |
 | `TestCreateNeverReusesAnExistingDirectory` | a file at Path → ErrNameTaken and the file's bytes are unchanged | RemoveTree on a directory we did not make |
@@ -366,8 +399,16 @@ go test ./control-plane/internal/registry/ ./control-plane/internal/statepath/ -
 - This task's line-ending tests run on the host only. That the sandbox's Linux git sees the clone
   as clean is task 01's `TestSandboxCloneHasWorkingGit`.
 - Step 6 copies the setting, and a generated hooks directory as the project holds it **at
-  create time**. A lane made before the project's install step ran, or on a branch whose husky
-  differs, carries what the project had; nothing refreshes it later. A project whose hooks
-  directory is absolute, or whose hooks live only in `.git/hooks` (pre-commit's shim names the
-  host's Python), runs none of them in a lane. Task 05's dispatcher names the first case on
-  stderr; the second looks, from inside the clone, exactly like a project with no hooks.
+  create time**. A lane made on a branch whose husky differs carries what the project had;
+  nothing refreshes it later. Task 05's dispatcher prints its `panacea:` line only when the
+  clone has a local `core.hooksPath` whose folder is missing: the project's `.husky/_` was
+  deleted after install (`git clean -fdx`), CopyGeneratedHooks refused it (over 64 files, a
+  link, a subfolder, or a live primary-worktree session), or the agent deleted it inside the
+  lane. Three cases are **silent**, and from inside the clone look exactly like a project with
+  no hooks: a lane made **before** the project's install step ran (husky's install is what
+  writes the local `core.hooksPath`, so step 6 has nothing to copy); a hooks path that is
+  absolute; and hooks that live only in `.git/hooks`, or a `core.hooksPath` naming it
+  (pre-commit's shim names the host's Python). Re-creating the lane after the install, with no
+  primary-worktree session live, repairs a lane made before install, a deleted folder and a
+  live-session refusal. A folder refused for its shape, an absolute path and `.git/hooks` reach
+  no lane however it is made (re-review b03 I-3).
