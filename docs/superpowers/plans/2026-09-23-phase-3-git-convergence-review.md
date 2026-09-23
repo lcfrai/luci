@@ -510,3 +510,43 @@ Record both as open questions with the recommendations above, then build on the
 recommendations.
 
 **Plan quality: Needs fixes**
+
+## Fix batch b01 (2026-09-24): C1 and C3
+
+Both findings are adopted as written (orchestrator ruling R1). The rule is written once, as
+`task-02 §HGH`, and every other part cites it at its call site (R2). Line numbers are for the
+tree at this batch's last commit. "parts/" means `2026-09-23-phase-3-git-convergence-parts/`.
+
+### C1: host git runs agent-controlled config, hooks and filters
+
+| Review's fix | Where it is now |
+|---|---|
+| 1. Command-scope prefix: `core.hooksPath=<owned empty dir>`, `core.fsmonitor=false`, `core.sshCommand=`, `protocol.ext.allow=never`, and `--upload-pack=git-upload-pack` on fetch | parts/task-02.md:328 (H1). It adds `core.askPass=`, `commit.gpgSign`/`tag.gpgSign=false`, `submodule.recurse`/`fetch.recurseSubmodules=false`, the `credential.helper=` reset, `--receive-pack` on push, and `ErrCallShape`, so no caller's `-c` can precede the prefix. The interfaces are at task-02.md:73-113 (`Call.Scope`, `Call.RemoteURL`, `Hardening`, `MachineHardening`, `UntrustedConfig`, `ErrCallShape`). `NewExec(Hardening)` is wired at parts/task-04.md:176 |
+| 2. Clone-config allowlist, refusing with `clone_config_untrusted` and the key; `include.*`/`includeIf.*` outside it | parts/task-02.md:369 (H3). `Clone` scope is a closed allowlist; `Project` scope is a refusal list, because the user's own config is not ours to close. The listing is read with `--local --no-includes -z`. The reasons are at parts/task-04.md:83 and parts/task-18.md:162 |
+| 3. Land-path writes run no hooks, the user's husky `pre-push` included, and why | parts/task-02.md:385 (H4). It is cited at parts/task-09.md:133, parts/task-10.md:71 and :89, and parts/task-12.md:103 |
+| 4. Red-first marker tests: fsmonitor → observer; `reference-transaction` → land; `remote.origin.uploadpack` → origin refresh; `filter.x.clean` → `clone_config_untrusted` | parts/task-02.md:406 (15 §HGH tests, each layer tested alone), Step 2a at :442, mutants at Step 3a :447, and the count at :457. End to end: parts/task-07.md:164 (fsmonitor and filter, observer), parts/task-09.md:197 (hook, land), parts/task-09.md:198 (uploadpack, refresh), and parts/task-11.md:162 (a hostile clone stays removable) |
+| Call sites (review "Where": task 07 status, task 09 refresh, task 11 remove question) | parts/task-07.md:77 and :129-130, parts/task-09.md:128-133, parts/task-10.md:71 and :89, parts/task-11.md:40-45, :54 and :70 |
+| Residual: phase 2's scanner runs git in the primary worktree's repository | plan:355 (Q6), and parts/task-02.md:469. **Not verified**: it is phase 2's to check |
+
+**Beyond the review (declared, root-cause option taken):** H3 alone has a check-then-call race.
+An agent could rewrite `.git/config` between the check and the call. H5
+(parts/task-02.md:392) closes it by binding `<path>/.git/config` read-only into the sandbox, which
+is built at parts/task-05.md:69 and tested at :149 and :181. It amends the mounts row at plan:195
+and the file map. Its cost, that the agent's own `git config` writes fail, is plan:356 (Q7).
+**Unverified:** that Docker Desktop honours the nested read-only file bind. Task 05's docker test
+is the check.
+
+### C3: the user's token reaches agent-written repository config
+
+| Review's fix | Where it is now |
+|---|---|
+| 1. The origin refresh fetches the project's literal path, never the clone's `origin` | parts/task-09.md:129-131 (Land step 14), plan:158 (decision 3), and parts/task-02.md:350 (H2, which also names task 07's lane sync). Tested at parts/task-09.md:198: (a) an allowlisted `remote.origin.url` pointed at an `httptest` server is never contacted; (b) a hostile `http.proxy`/`sslVerify`/`uploadpack` is refused `clone_config_untrusted`, neither server is contacted, and no marker is written |
+| 2. Command-scope `credential.helper=` reset plus the machine's helpers; `http.sslVerify=true`; proxy from global config or `HTTPS_PROXY` | parts/task-02.md:328 (H1: the reset) and :350 (H2: `Hardening.Credential` and `.Proxy`, read once by `MachineHardening`, task-02.md:99; task-04.md:176). **A correction to the review's fix:** git selects `http.<url>.*` by URL specificity before file order, so a generic `-c http.sslVerify=true` loses to a repository's `http.https://github.com.sslVerify=false`. H2 therefore writes each override twice, generic and at the exact `RemoteURL`, and every `Remote` call must carry `Call.RemoteURL` (parts/task-12.md:68 and :104). The pin is `TestHGHRemoteOverridesBeatAURLScopedKey` (`git config --get-urlmatch`), in the table at task-02.md:406 |
+| 2b. The allowlist refuses `credential.*`, `http.*`, `remote.*.pushurl`, `url.*.insteadOf` and `url.*.pushInsteadOf` | parts/task-02.md:369 (H3, both scopes). The cockpit's only project config writes (`branch.<b>.remote`/`.merge` from `push --set-upstream`) are named there |
+| 3. `GitHelper.Dir` is a control-plane-owned empty repository | parts/task-13.md:108-112 (the `Dir` comment), Step 3 at :222 (made with `git init` under `OwnedRoot`), and `Scope None`, limited to `OwnedRoot` (task-02.md:79-85 and :113) |
+| PushEnv's scoping does not stop a repository proxy | parts/task-13.md:172-174 |
+| 4. Red-first tests: proxy and origin `httptest` servers receive nothing after a land; a repo-local helper writes nothing after a push and after `GitHelper.Credential` | parts/task-09.md:198 (land), parts/task-12.md:151-153 (push: repository helper, repository proxy, `pre-push`), and parts/task-13.md:200-202 (`GitHelper`) |
+
+**Not changed:** A4's wording at plan:33-35 gains one sentence pointing at decision 9 (plan:179).
+The OD-8 adapter, the contract §2 gate and `desktop/src/store/types.ts` are untouched.
+`ConflictReason` lives in the new `api/convergence.ts` (task 18), not in `types.ts`.
