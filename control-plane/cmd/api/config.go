@@ -356,18 +356,23 @@ func validateAddr(cfg *Config) error {
 //
 // "At least one certificate" means a CERTIFICATE block x509 can parse, not any
 // PEM block: a private key or a CSR is valid PEM and trusts nothing.
+//
+// Each refusal wraps one of the errCABundle* values below, so a test asks
+// errors.Is which refusal it got. A test that matched text could not tell a
+// refusal from the generic "cannot be read" fallback on Linux, whose errno
+// strings are "no such file or directory" and "is a directory".
 func validateCABundle(path string) error {
 	if !filepath.IsAbs(path) {
-		return fmt.Errorf("%s=%q is not an absolute path; it is mounted into every sandbox, so give the full path to the PEM file", envCABundle, path)
+		return fmt.Errorf("%s=%q %w", envCABundle, path, errCABundleNotAbsolute)
 	}
 	info, err := os.Stat(path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return fmt.Errorf("%s=%q: no such file. Export your network's root certificate as PEM to that path (contract §4 names the command), or unset the variable", envCABundle, path)
+		return fmt.Errorf("%s=%q: %w", envCABundle, path, errCABundleMissing)
 	case err != nil:
 		return fmt.Errorf("%s=%q cannot be read: %w", envCABundle, path, err)
 	case info.IsDir():
-		return fmt.Errorf("%s=%q is a directory; it must name one PEM file", envCABundle, path)
+		return fmt.Errorf("%s=%q %w", envCABundle, path, errCABundleIsADirectory)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -385,8 +390,17 @@ func validateCABundle(path string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("%s=%q holds no PEM certificate: it needs at least one -----BEGIN CERTIFICATE----- block (a binary .cer export is DER and must be converted), or unset the variable", envCABundle, path)
+	return fmt.Errorf("%s=%q %w", envCABundle, path, errCABundleNoCertificate)
 }
+
+// The four refusals of validateCABundle, each the rest of the sentence after
+// the variable and its value.
+var (
+	errCABundleNotAbsolute   = errors.New("is not an absolute path; it is mounted into every sandbox, so give the full path to the PEM file")
+	errCABundleMissing       = errors.New("no such file. Export your network's root certificate as PEM to that path (contract §4 names the command), or unset the variable")
+	errCABundleIsADirectory  = errors.New("is a directory; it must name one PEM file")
+	errCABundleNoCertificate = errors.New("holds no PEM certificate: it needs at least one -----BEGIN CERTIFICATE----- block (a binary .cer export is DER and must be converted), or unset the variable")
+)
 
 // parseFlag implements contract §4's "any value other than 1 or true is also
 // treated as unset", and it means ANY other value: "TRUE" is not "true".

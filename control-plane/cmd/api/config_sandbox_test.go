@@ -8,6 +8,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
+	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -19,12 +21,32 @@ import (
 // The sandbox git fix's three variables: PANACEA_APP_GIT_NAME/EMAIL as a pair,
 // and PANACEA_APP_CA_BUNDLE, validated at startup.
 
-// The two CA refusals are distinct sentences, so each test can check it got
-// its own and not the other's.
-const (
-	caMissingSays = "no such file"
-	caNoCertSays  = "holds no PEM certificate"
-)
+// Each CA refusal is its own errCABundle* value, so each test asks errors.Is
+// whether it got its own and not another's. Never the error's text: on Linux,
+// where CI runs, the generic "cannot be read: %w" fallback carries the OS's
+// errno string, "no such file or directory" or "is a directory", and a text
+// match could not tell the fallback from the refusal it replaced.
+//
+// caSentence is the one place the product's own words are matched: run()
+// prints the error, so its output is text. These are words validateCABundle
+// writes and no operating system does.
+const caSentence = "Export your network's root certificate as PEM"
+
+// caRefusal fails the test unless err is refusal want and none of the others.
+func caRefusal(t *testing.T, err, want error) {
+	t.Helper()
+	if !errors.Is(err, want) {
+		t.Errorf("error %v, want the refusal %q", err, want)
+	}
+	if !strings.Contains(fmt.Sprint(err), envCABundle) {
+		t.Errorf("error %v does not name %s", err, envCABundle)
+	}
+	for _, other := range []error{errCABundleNotAbsolute, errCABundleMissing, errCABundleIsADirectory, errCABundleNoCertificate} {
+		if other != want && errors.Is(err, other) {
+			t.Errorf("error %v is also the refusal %q", err, other)
+		}
+	}
+}
 
 // caWrite writes content to a fresh file and returns its absolute path.
 func caWrite(t *testing.T, content []byte) string {
@@ -122,9 +144,7 @@ func TestAMissingCABundleStopsStartupWithItsOwnSentence(t *testing.T) {
 	if err == nil {
 		t.Fatal("a missing bundle was accepted")
 	}
-	if !strings.Contains(err.Error(), envCABundle) || !strings.Contains(err.Error(), caMissingSays) || strings.Contains(err.Error(), caNoCertSays) {
-		t.Errorf("error %q, want %s's own %q sentence", err, envCABundle, caMissingSays)
-	}
+	caRefusal(t, err, errCABundleMissing)
 }
 
 // No certificate: the file exists and is readable, and each case is valid PEM
@@ -147,9 +167,7 @@ func TestACABundleWithNoCertificateStopsStartupWithItsOwnSentence(t *testing.T) 
 			if err == nil {
 				t.Fatal("accepted")
 			}
-			if !strings.Contains(err.Error(), envCABundle) || !strings.Contains(err.Error(), caNoCertSays) || strings.Contains(err.Error(), caMissingSays) {
-				t.Errorf("error %q, want %s's own %q sentence", err, envCABundle, caNoCertSays)
-			}
+			caRefusal(t, err, errCABundleNoCertificate)
 		})
 	}
 }
@@ -162,14 +180,16 @@ func caDER(t *testing.T) []byte {
 
 // The path must be absolute and must be a file. Each refusal names itself.
 func TestACABundlePathMustBeAnAbsoluteFile(t *testing.T) {
-	for value, want := range map[string]string{
-		"corp-root.pem": "is not an absolute path",
-		t.TempDir():     "is a directory",
+	for value, want := range map[string]error{
+		"corp-root.pem": errCABundleNotAbsolute,
+		t.TempDir():     errCABundleIsADirectory,
 	} {
 		_, err := loadConfig(env(map[string]string{envCABundle: value}))
-		if err == nil || !strings.Contains(err.Error(), want) {
-			t.Errorf("%s=%q: error %v, want it to say %q", envCABundle, value, err, want)
+		if err == nil {
+			t.Errorf("%s=%q was accepted", envCABundle, value)
+			continue
 		}
+		caRefusal(t, err, want)
 	}
 }
 
@@ -189,17 +209,32 @@ func TestACABundlePathMustBeAnAbsoluteFile(t *testing.T) {
 func TestRunRefusesAMissingCABundleWithExitCode2(t *testing.T) {
 	var out bytes.Buffer
 	path := filepath.Join(t.TempDir(), "never-exported.pem")
-	hermetic := map[string]string{
-		envCABundle:   path,
-		envBackend:    "kata",
-		envKubeconfig: "kubeClient-refuses-any-kubeconfig",
-		envStateDir:   t.TempDir(),
-		envAddr:       "127.0.0.1:0",
-	}
-	if code := run(env(hermetic), &out); code != 2 {
+	if code := run(env(runHermetic(t, map[string]string{envCABundle: path})), &out); code != 2 {
 		t.Fatalf("exit code = %d, want 2; output %q", code, out.String())
 	}
-	if !strings.Contains(out.String(), caMissingSays) {
-		t.Errorf("output %q does not carry the sentence", out.String())
+	if !strings.Contains(out.String(), caSentence) {
+		t.Errorf("output %q does not carry the sentence %q", out.String(), caSentence)
 	}
+}
+
+// runHermetic is the environment every test that calls run() uses: the
+// variables under test over a control plane that cannot reach anything if the
+// check under test is broken. kata with a kubeconfig, which kubeClient refuses
+// outright even inside a cluster, so serve() fails in newBackend before the
+// reaper, a registry or a listener exists; and this test's own state
+// directory and port 0, so even a serve() that got further would touch
+// neither the default state directory nor 127.0.0.1:8730. Every key the test
+// sets wins, except the backend and kubeconfig, which a test may not change.
+func runHermetic(t *testing.T, vars map[string]string) map[string]string {
+	t.Helper()
+	m := map[string]string{
+		envStateDir: t.TempDir(),
+		envAddr:     "127.0.0.1:0",
+	}
+	for k, v := range vars {
+		m[k] = v
+	}
+	m[envBackend] = "kata"
+	m[envKubeconfig] = "kubeClient-refuses-any-kubeconfig"
+	return m
 }
