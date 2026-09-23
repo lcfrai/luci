@@ -11,7 +11,8 @@
  * never saw either. Terminal.test.tsx pins that makeTerm installs a handler and which way it
  * points, against FakeTerm. This file pins the end state the user sees, through the real thing:
  *
- *   - a chord pressed on the focused terminal reaches the map, and the agent receives nothing;
+ *   - a chord pressed on the focused terminal, with Ctrl or with Meta (fix round 2), reaches the
+ *     map, and the agent receives nothing;
  *   - Escape, shift+Tab and Ctrl+C pressed the same way reach the agent, and the map does nothing.
  *
  * §1.5's reason for keeping xterm out still holds for what it names — RENDERING. Nothing here
@@ -134,8 +135,22 @@ const THE_REST_OF_THE_TABLE: ChordRow[] = [
     acted: () => state().machinesOpen },
 ];
 
+/** ADDED BY TASK 23's FIX ROUND 2: the whole table again, pressed with Meta and with Ctrl
+ *  released. §6.9's ⌘ is metaKey || ctrlKey, and every row above presses Ctrl, so a key handler
+ *  narrowed to `!(event.ctrlKey && isCockpitChord(event))` passed the suite. Under it, ⌘⏎ on the
+ *  Meta key is the row that goes red here: xterm maps Enter to CR whatever the modifiers, so the
+ *  agent's half-typed prompt is submitted and no session is created. On a non-Mac platform xterm
+ *  maps no other Meta chord in the table to data, so those rows reach the map whatever the
+ *  handler says. They are here because each carries its own `acted`, which pins the other half:
+ *  a map branch that stopped acting on Meta would go red in its own row. */
+const THE_TABLE_ON_THE_META_KEY: ChordRow[] = [...CONSUMED_BEFORE_THE_FIX, ...THE_REST_OF_THE_TABLE].map((row) => ({
+  ...row,
+  name: `${row.name.split(" (")[0]} on the Meta key`,
+  init: { ...row.init, ctrlKey: false, metaKey: true },
+}));
+
 describe("a chord pressed on a focused real xterm reaches the keyboard map, and not the agent", () => {
-  it.each([...CONSUMED_BEFORE_THE_FIX, ...THE_REST_OF_THE_TABLE])("$name", (row) => {
+  it.each([...CONSUMED_BEFORE_THE_FIX, ...THE_REST_OF_THE_TABLE, ...THE_TABLE_ON_THE_META_KEY])("$name", (row) => {
     if (row.focus !== null) state().focusSession(row.focus);
     const { textarea, sent } = focusedTerminal();
     keydownOn(textarea, row.key, row.keyCode, row.init);

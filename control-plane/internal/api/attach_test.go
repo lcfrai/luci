@@ -312,6 +312,7 @@ func attachNewFixture(t *testing.T, replay []byte, shape func(*registry.Session)
 		Log:          quiet,
 		// Required by New; the relay never creates a sandbox.
 		ConversationsDir: filepath.Join(t.TempDir(), "conversations"),
+		GitLineEndings:   sessionsLineEndings(GitLineEndings{AutoCRLF: "false", EOL: "lf"}),
 	})
 	if err != nil {
 		t.Fatalf("api.New: %v", err)

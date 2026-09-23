@@ -27,7 +27,7 @@ Three things the UI contract predates, which override it here. **`GET /v1/harnes
   - `attachRegistry.updateAttachSession(session)` and `setAttachReadOnly(sessionId, readOnly)` — the two facts the registry cannot derive
   - `attachRegistry.getAttachState(sessionId) → AttachState`, `subscribeAttach(sessionId, listener) → () => void`, `useAttachState(sessionId) → AttachState` — **the footer's "attach state" (§6.5) reads this**, not the store
   - `attachRegistry.TermLike`, `AttachState`, `AttachPhase`, `AttachHandle`, `FLUSH_INTERVAL_MS`, `GRACE_MS`, `RETRY_DELAYS_MS`, `RETRY_BUDGET_MS`, `configureAttachRegistry`, `__resetAttachRegistry`
-  - `poller.startPolling(client, store) → stop()`, `poller.POLL_INTERVAL_MS`, `poller.coveredWorktreeIds(indexed, sessions)`
+  - `poller.startPolling(client, store) → stop()`, `poller.POLL_INTERVAL_MS`, `poller.coveredWorktreeIds(indexed, sessions)` — *amended 2026-09-23 by task 24: `startPolling(client, store, onGoodTick?)`, and a good tick clears only the error the poller raised (UI contract §4.7, "Two amendments")*
   - `components/Terminal.Terminal` — `{ sessionId, readOnly }`, `memo`'d on those two props
 - Consumes: task 15's `Session`/`SessionId` (`store/types.ts`) and its `aSession` fixture builder from `src/test/fixtures.ts` — **task 15's, per shared shape §3.1**, which moved the six typed builders out of task 17 because task 16 runs first and needs them; task 16's `CockpitClient.openAttach`, `CockpitClient.getSession`, `ApiError`, `ProblemCode`, and the `api` singleton; task 17's `useCockpit` and `selectSession`; the pre-existing `lib/wire.ts` (`Kind`, `decode`, `encode`, `encodeResize`), unchanged; task 14's `fakes.ts` — `FakeWebSocket` as shipped, `FakeTerm` grown in step 1. This task declares **no** fixture builder of its own; every variant is an override object passed to `aSession`.
 - Required by: task 20 (`SessionPane` renders `<Terminal sessionId readOnly={status === "exited"}/>` and `SessionPaneFooter` renders `useAttachState`), task 21 (a tile carries the same session across a layout change and must not drop the PTY), task 24 (`App.tsx` mounts `AppShell` and calls `startPolling`).
@@ -84,6 +84,13 @@ Now grow **task 14's** `desktop/src/test/fakes.ts`. Shared-shape §3.3 is explic
 | the bytes of a sent frame | `sent[i]` | typed `string \| ArrayBufferLike \| ArrayBufferView`; step 2 adds a local narrowing helper rather than widening the shared fake |
 
 One behaviour of task 14's class to keep in mind while reading the registry: its `send()` **throws** unless `readyState === OPEN`. The registry guards every send on exactly that, so the throw is a tripwire for a regression rather than something to work around.
+
+> **Amended 2026-09-24 by task 23's fix round 2.** The class below is what this step first
+> wrote. `desktop/src/test/fakes.ts` is the reference, and it has two more additions. Task 19
+> itself shipped `opens` and `openedWhileConnected` beyond this block (commit `4d2eb56`), because
+> two of its mutants survived without them. Task 23's fix round 1 added
+> `attachCustomKeyEventHandler` and the `customKeyEventHandler` it records, because `makeTerm`
+> now calls it (UI contract §1.5's `FakeTerm` block and §6.6, "The chord filter").
 
 So only `FakeTerm` grows. Replace task 14's `FakeTerm` with the class below — a superset of its **members**, every original one kept and every addition marked — and leave the rest of the file, `FakeWebSocket` included, untouched. It is deliberately **not** a superset of its signatures: task 14 declares `loadAddon()`, `open()` and `onResize()` with no parameters, and each one here gains the argument it has to record. Nothing in tasks 14 to 24 calls those three bare — the component passes the fit addon, the registry passes the host element and the resize callback — so no call site that compiled before stops compiling.
 
@@ -1326,6 +1333,15 @@ npm test -- src/api/poller.test.ts
 
 - [ ] **Step 9: Implement the poller**
 
+> **Amended 2026-09-23 by task 24, a declared departure into this file (UI contract §4.7, "Two
+> amendments").** The block below is what task 19 shipped, and two of its lines no longer hold.
+> `startPolling` takes a third, optional `onGoodTick`, called after every tick whose fetch
+> succeeded. And `if (store.getState().lastError !== null) store.getState().setError(null);` is now
+> `if (raised !== null && store.getState().lastError === raised) store.getState().setError(null);`,
+> where `raised` is the error object this poller last wrote: a good tick clears the poller's own
+> report and nothing else. The test "records a failure and clears it on the next success" still
+> holds, because that failure is the poller's own. `desktop/src/api/poller.ts` is the reference.
+
 Create `desktop/src/api/poller.ts`:
 
 ```ts
@@ -1572,6 +1588,20 @@ grep -cE '^[[:space:]]*--ink:'  src/styles/tokens.css   # expect 1
 If either reads 0, task 14 renamed a token: read `src/styles/tokens.css`, take the ground and
 the primary ink from there, and **do not** fall back to a hex literal — that is the one thing
 task 24's audit is built to catch.
+
+> **Amended 2026-09-24 by task 23's fix round 2, recording three declared departures into this
+> file, in the form task 24 used at step 9.** The block below is what task 19 shipped.
+> `desktop/src/components/Terminal.tsx` is the reference, and it differs from the block in three
+> places. Each is marked at its site in that file by an "EDITED BY TASK n's FIX ROUND 1" comment.
+> - **Task 23 (UI contract §6.6, "The chord filter").** `makeTerm` also calls
+>   `term.attachCustomKeyEventHandler((event) => !isCockpitChord(event))`, imported from
+>   `../hooks/useKeyboardMap`. Without it a focused xterm cancelled six of §6.9's chords before
+>   the keyboard map saw them: `⌘3` went to the agent as ESC and `⌘⏎` as CR.
+> - **Task 20 (§6.6, the `focused` paragraph).** `Terminal` takes a third prop, `focused`.
+>   `handle.focus()` leaves the mount effect and runs from an effect of its own, only while
+>   `focused` is true, on mount and on a false→true transition.
+> - **Task 21.** The `window` resize listener is replaced by a `ResizeObserver` on the host node,
+>   so a Canvas tile resized by its corner refits xterm.
 
 Replace `desktop/src/components/Terminal.tsx` in full:
 

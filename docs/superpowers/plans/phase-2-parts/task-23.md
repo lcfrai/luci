@@ -39,7 +39,12 @@ One chord is a foot-gun in a webview and is written defensively for it. `⌘W` c
 - Produces:
   - `components/palette/commands` — `Command` (the §6.7 interface, declared here), `buildCommands(state: CockpitState): Command[]`, and `filterCommands(commands, query): Command[]`
   - `components/palette/CommandPalette` — `CommandPalette(): JSX.Element | null`
-  - `hooks/useKeyboardMap` — `useKeyboardMap(): void`
+  - `hooks/useKeyboardMap` — `useKeyboardMap(): void`. *Amended 2026-09-24 by fix round 2. Fix
+    round 1 added `isCockpitChord(event: KeyboardEvent): boolean`, which task 19's `Terminal.tsx`
+    hands to xterm (UI contract §6.6, "The chord filter"). Fix round 2 added
+    `CHORD_KEYS: readonly string[]` and `SHIFTED_CHORD_KEYS: readonly string[]`, both frozen. They
+    are the predicate's whole claim, exported so that `useKeyboardMap.test.ts` can check every
+    listed key reaches a branch. The step 8 block below predates all three.*
   - `store/selectors` — `selectTargetWorktreeId(s: CockpitState): WorktreeId | null`
 - Consumes:
   - task 15 — `lib/immutable.idAtVisiblePosition`; `store/types` for `CockpitState`'s member types; `test/fixtures.{aProject, aBranch, aWorktree, aSession}`, the shared-shape §3 builders task 15 fills into task 14's file

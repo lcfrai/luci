@@ -534,6 +534,24 @@ describe("raiseToTop", () => {
     expect(stack).toEqual(["s-1", "s-2", "s-3"]);
     expect(raiseToTop([], "s-4")).toEqual(["s-4"]);
   });
+
+  // The one thing the two tests above cannot see is whether the plane USES raiseToTop. The
+  // render test sees it only while CanvasTile re-renders with the plane: in fix round 1's
+  // campaign, CanvasTile behind memo() with stable default positions PLUS a `raise` that inlined
+  // its own fresh-array updater passed the whole suite (E2W1). So the wiring is pinned as text,
+  // which no memoisation can mask, and there is no expiry left to write at the tile. Read
+  // through import.meta.glob, as defects.test.tsx does: @types/node is not a dependency.
+  it("is the only way the plane writes its stack", () => {
+    const sources = import.meta.glob<string>("./CanvasLayout.tsx", { query: "?raw", import: "default", eager: true });
+    const source = sources["./CanvasLayout.tsx"];
+    expect(source).toBeDefined();
+    // Comments blanked, so prose naming setStack cannot count; lines trimmed, so a CRLF
+    // checkout reads the same as an LF one.
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    expect(code.match(/\bsetStack\b/g)).toHaveLength(2);   // the useState pair, and one call
+    const calls = (code.match(/^[ \t]*setStack\(.*$/gm) ?? []).map((line) => line.trim());
+    expect(calls).toEqual(["setStack((prev) => raiseToTop(prev, id));"]);
+  });
 });
 
 describe("DevelopLens on canvas", () => {

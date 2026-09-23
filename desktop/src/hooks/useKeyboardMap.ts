@@ -32,8 +32,17 @@ import { useCockpit } from "../store/store";
  *  one verb this file runs (Kill) calls deps.close() before it commits anything. */
 const NOOP = (): void => {};
 
-/** §6.9's unshifted chord keys. ⌘⇧M is the one shifted chord and is matched separately. */
-const CHORD_KEYS: readonly string[] = ["w", "k", "b", "Enter", "\\", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+/** §6.9's unshifted chord keys, and its shifted ones (⌘⇧M alone), in the lower case chordKey
+ *  yields. Between them these two lists ARE the predicate's claim: it reads no key outside them.
+ *
+ *  Exported, frozen, for one reader besides isCockpitChord. The keys are still written twice,
+ *  here and in the branch chain below, and a key listed here with no branch is one xterm skips
+ *  and nothing acts on, lost to both the agent and the cockpit. useKeyboardMap.test.ts reads
+ *  these lists and checks every entry, on Ctrl and on Meta, reaches a branch. EDITED BY TASK
+ *  23's FIX ROUND 2: before, the only guard sampled the keyboard, and "⌘← claimed, no branch"
+ *  fell outside the sample and passed. */
+export const CHORD_KEYS: readonly string[] = Object.freeze(["w", "k", "b", "Enter", "\\", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+export const SHIFTED_CHORD_KEYS: readonly string[] = Object.freeze(["m"]);
 
 /** Shifted letters arrive as "M", not "m", so the table is matched in lower case. */
 function chordKey(event: KeyboardEvent): string {
@@ -47,7 +56,8 @@ function chordKey(event: KeyboardEvent): string {
  *  keydown on its own focused textarea first and CANCELS what it maps to data: Ctrl-3 is ESC,
  *  which interrupts the agent, and Ctrl-Enter is CR, which submits its prompt, and neither ever
  *  bubbled to this map while a terminal had focus. Returning false there makes xterm skip the
- *  event without cancelling it. So a key added here is a key the agent stops receiving. */
+ *  event without cancelling it. So a key added to the two lists above is a key the agent
+ *  stops receiving. */
 export function isCockpitChord(event: KeyboardEvent): boolean {
   // ⌘ is metaKey || ctrlKey — the app runs on Windows, where the physical key is Ctrl.
   if (!(event.metaKey || event.ctrlKey)) return false;
@@ -55,7 +65,7 @@ export function isCockpitChord(event: KeyboardEvent): boolean {
   // composed characters the user is typing into the agent.
   if (event.altKey) return false;
   const key = chordKey(event);
-  return event.shiftKey ? key === "m" : CHORD_KEYS.includes(key);
+  return (event.shiftKey ? SHIFTED_CHORD_KEYS : CHORD_KEYS).includes(key);
 }
 
 export function useKeyboardMap(): void {
@@ -64,7 +74,19 @@ export function useKeyboardMap(): void {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
       // Everything that is not a chord leaves here, which is where the three
-      // non-interceptions live — and it is the same test the terminal applies.
+      // non-interceptions live — and it is the same test the terminal applies. Do not give
+      // this line a list of its own again: a copy is equivalent the day it is written and
+      // drifts silently after, because xterm reads only the predicate.
+      //
+      // What pins what, in useKeyboardMap.test.ts (corrected by task 23's fix round 2; this
+      // comment used to say the whole-keyboard test notices any drift, and it sees only its
+      // own keys). "every key the two lists name ... reaches a branch" reads CHORD_KEYS and
+      // SHIFTED_CHORD_KEYS, so a listed key with no branch fails it whatever the key is. The
+      // whole-keyboard test presses a SAMPLE of 74 keys with every modifier the predicate
+      // reads; it is what catches a claim written into the predicate outside the two lists,
+      // and only for a key in its sample. The other direction, a branch for a key the
+      // predicate does not claim, loses no key: every branch is below this line, so it is
+      // dead code, and the chord table's own test for that chord is what fails.
       if (!isCockpitChord(event)) return;
 
       const key = chordKey(event);

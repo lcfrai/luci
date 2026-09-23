@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { isCockpitChord, useKeyboardMap } from "./useKeyboardMap";
+import { CHORD_KEYS, SHIFTED_CHORD_KEYS, isCockpitChord, useKeyboardMap } from "./useKeyboardMap";
 import { __resetOverlays, hasOpenOverlay, useDismissable } from "./useDismissable";
 import { resetCockpit, useCockpit } from "../store/store";
 import { aBranch, aProject, aSession, aWorktree } from "../test/fixtures";
@@ -318,5 +318,61 @@ describe("isCockpitChord — the one list the map and the terminal both read", (
       const event = press(init.key ?? "", init);
       expect([name, event.defaultPrevented]).toEqual([name, isCockpitChord(event)]);
     }
+  });
+
+  it("across the whole keyboard, the map intercepts a key exactly when the predicate claims it", () => {
+    // The two lists above are chosen cases, so they cannot see a key that the predicate claims
+    // and no branch handles — one xterm would then skip and nothing would act on, lost to both
+    // the agent and the cockpit. This is every key below with every modifier the predicate
+    // reads. Added by task 23's fix round 1: mutation "⌘L claimed, no branch" survived the lists.
+    // It is a SAMPLE, and it sees a claim only for a key it presses: fix round 2 found "⌘←
+    // claimed, no branch" outside it, widened it by the fourteen named keys below the first
+    // line, and added the test after this one, which reads the lists themselves.
+    const keys = [
+      ..."abcdefghijklmnopqrstuvwxyz0123456789\\/,.;'[]-=` ",
+      "Enter", "Escape", "Tab", "Backspace", "Delete", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "F1", "F5",
+      "ArrowLeft", "ArrowRight", "PageDown", "Insert", "F2", "F3", "F4", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
+    ];
+    expect(keys.length).toBe(74);
+    const modifiers: KeyboardEventInit[] = [
+      {}, { shiftKey: true }, { ctrlKey: true }, { metaKey: true },
+      { ctrlKey: true, shiftKey: true }, { metaKey: true, shiftKey: true }, { ctrlKey: true, altKey: true },
+    ];
+    let claimed = 0;
+    for (const base of keys) {
+      for (const modifier of modifiers) {
+        const key = modifier.shiftKey && base.length === 1 ? base.toUpperCase() : base;
+        const event = press(key, modifier);
+        if (isCockpitChord(event)) claimed += 1;
+        expect([key, modifier, event.defaultPrevented]).toEqual([key, modifier, isCockpitChord(event)]);
+      }
+    }
+    // §6.9's fourteen unshifted keys and ⌘⇧M, each on Ctrl and on Meta. Without this count a
+    // predicate that claimed nothing would make every comparison above agree, vacuously.
+    expect(claimed).toBe(30);
+  });
+
+  it("every key the two lists name is claimed on Ctrl and on Meta, and reaches a branch that takes it", () => {
+    // ADDED BY TASK 23's FIX ROUND 2. The keys are written twice, in the lists xterm reads and
+    // in the branch chain that acts, and the test above only samples the keyboard: "⌘← claimed,
+    // no branch" (ArrowLeft appended to CHORD_KEYS) passed it, and through a real xterm Ctrl+←
+    // then reached neither readline's word-left nor the map. This reads the lists, so a listed
+    // key with no branch fails here whatever the key is. No overlay is open, so every branch
+    // reaches its preventDefault, and preventDefault is the one thing every branch does first.
+    const cases: Array<[string, KeyboardEventInit]> = [
+      ...CHORD_KEYS.map((key): [string, KeyboardEventInit] => [key, {}]),
+      ...SHIFTED_CHORD_KEYS.map((key): [string, KeyboardEventInit] => [key.length === 1 ? key.toUpperCase() : key, { shiftKey: true }]),
+    ];
+    let checked = 0;
+    for (const [key, init] of cases) {
+      for (const modifier of [{ ctrlKey: true }, { metaKey: true }]) {
+        const event = press(key, { ...init, ...modifier });
+        checked += 1;
+        expect([key, modifier, isCockpitChord(event), event.defaultPrevented]).toEqual([key, modifier, true, true]);
+      }
+    }
+    // §6.9's fifteen chords, each on Ctrl and on Meta: the same thirty the test above counts.
+    // Without it, emptied lists would pass this test having checked nothing.
+    expect(checked).toBe(30);
   });
 });
