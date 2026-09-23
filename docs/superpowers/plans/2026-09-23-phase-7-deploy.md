@@ -282,13 +282,26 @@ desktop never joins again (review I8).
 **A git branch is never compared with an environment name (review b02, C2).** A row's `branch` is
 Panacea's label — the environment key for every non-base row (`feat-x` for `feat/x`,
 `projects.go:2109-2118`) — and a deployment's `branch` is a sanitised run label
-(`clients/pipeline.go:609`). The branch → environment mapping is Panacea's own:
+(`clients/pipeline.go:609`). The branch → environment mapping is Panacea's access handler's:
 `GET P/branches/{branch}/access` returns `data.env` from `branchEnv` → `mapBranchToEnvWithProd`
 (`handlers/branch_security.go:29-37`; `project_security.go:646`, `:668-677`), for **any** branch,
 with no existence check. `Reader.EnvironmentFor` (tasks 01, 03) reads it, and the answer is joined
 to rows with `SameEnvironment`. So **the environment for a first Ship** of a never-deployed branch is
 knowable before the deploy, without re-implementing `sanitizeBranchEnv` (`projects.go:3814-3826`),
 which the survey rightly forbids (a fourth copy to drift). Hub ask HA7-1 is withdrawn (§9).
+
+**That mapping is not quite the deploy's (b02 round 2, R1).** `branchEnv` reads the production
+branch from the raw `production-branch` label only (`branch_security.go:32`). The deploy resolves
+it with `ResolveProjectProductionBranch` — label, then the `primary-branch` annotation, then
+`"main"`, skipping a label whose value is `prod`/`production` (`clients/pipeline.go:233-237`,
+`clients/kubernetes.go:10179-10204`), and the environments list does the same
+(`kubernetes.go:5189`). For a project whose production branch is annotation-only or mislabelled,
+the two disagree: annotation `primary-branch=develop` and no label → the route answers `develop`
+for `develop`, which deploys to `prod`. Phase 7 copies no resolver to correct it. It detects the
+disagreement from the fact the deploy wrote: a Hub release whose `environment` is not
+`SameEnvironment` as its joined Deployment's `Environment` (the label, `pipeline.go:608`) is shown
+as *recorded against another environment* and is never joined by the Hub's name (task 08, rule 5a).
+It is a Panacea defect phase 7 lives with (§12), relayed to Panacea's owner.
 
 **7P-9 — Owner-only controls are detected by asking the owner-only route, never by parsing group
 names.** `GET …/branches/{branch}/auto-deploy` is `authedProjectOwner` (`routes.go:1308`): a
@@ -576,9 +589,11 @@ proceeds before an answer, it says what it does meanwhile.
 `environment: null` at reserve, set once at the deployment join, on the premise that for a branch
 Panacea has never deployed *"no route reports [the environment] before the deploy"*. That premise
 was false. `GET P/branches/{branch}/access` (`routes.go:1430`, member-readable, §4 row 15) returns
-`data.env` from `branchEnv` → `mapBranchToEnvWithProd` — Panacea's own mapping, for **any** branch,
-with no existence check (`handlers/branch_security.go:29-37`; `project_security.go:646`,
-`:668-677`). (`GET …/auto-deploy`'s `409` for a branch with no environment,
+`data.env` from `branchEnv` → `mapBranchToEnvWithProd` — the access handler's mapping, for **any**
+branch, with no existence check (`handlers/branch_security.go:29-37`; `project_security.go:646`,
+`:668-677`). It reads the production branch from the label only, so it can disagree with the
+deploy for an annotation-only or mislabelled project; 7P-8 says how phase 7 shows that, and §12
+records it (b02 round 2, R1). (`GET …/auto-deploy`'s `409` for a branch with no environment,
 `projects.go:4132-4134`, is a different route.) So task 09 step 4 reads the name with
 `Reader.EnvironmentFor` before it reserves, and §7.9's required, non-null `environment` stands
 unchanged. The old *meanwhile* joined `environments[].branch` to the git branch, and that field is
@@ -702,6 +717,7 @@ Task 20's `SEAMS.md` restates these rows with the file, line and test that hold 
 | **Q-P7-3** | Ask Panacea to **append a short hash** when it truncates a long branch name to an environment (brief `D2` c)? | **Yes**, in the same note. Until then the cockpit shows a collision after the fact (task 08) |
 | **Q-P7-4** | The branch posture offers **`none` — public on the internet** — to any developer, because Panacea's API does (`routes.go:1431` is developer-gated). Should the cockpit offer it? | **Yes, as Panacea does**, held for 5 s with the consequence printed first: *"Anyone on the internet will be able to open this branch."* Overrule to hide `none` and `password` from the cockpit |
 | **Q-P7-5** | A rollback made **outside the cockpit** cannot be seen (7P-4). Acceptable for v1, said in the lens's help text? | **Yes**; Q-P7-2 is the fix |
+| **Q-P7-6** (b02 round 2, R1) | Ask Panacea to make `branchEnv` (`handlers/branch_security.go:29-37`) resolve the production branch with `ResolveProjectProductionBranch`, as its deploy and its posture path already do? Until then, for a project whose production branch is annotation-only or mislabelled, Ship records the Hub release against the access route's answer and the lens flags it after the deploy (7P-8, §12) | **Yes**, in the same note as Q-P7-2 and Q-P7-3. Phase 7 builds the after-the-fact flag and corrects nothing; a Hub-side correction at the deployment join would be a new Hub ask, and is not built |
 
 **What the owner provides, and when (OD-12, batched to the end):** one `pnc_` token minted in the
 Panacea dev portal (Account → API keys), pasted into the connect panel during the hands-on session;
@@ -730,7 +746,20 @@ recorded Panacea bodies.
   reads the segment with `r.PathValue("branch")` (`project_security.go:636`), and the Go 1.22+
   `ServeMux` unescapes a wildcard segment (per the `net/http` documentation; not run here). The ingress in front of it (Traefik) was not checked
   for decoding or rejecting `%2F`. Task 20's live check settles it for a `feat/x` branch. If it
-  fails, `EnvironmentFor` answers with Panacea's own error, and Ship refuses. It never guesses.
+  fails, `EnvironmentFor` answers with Panacea's error — a 404 on this route is rewritten to
+  *"Panacea could not read this branch name. It may contain `/`…"* (task 03) — Ship refuses with
+  `409 deploy_environment_unreadable` (task 09), the watcher keeps the refusal per branch and asks
+  again once a minute (task 07), and the card says so (task 15). Nothing guesses (b02 round 2, R2).
+- **Panacea's access route and its deploy disagree for some projects (b02 round 2, R1) — a
+  Panacea defect phase 7 lives with.** `branchEnv` (`handlers/branch_security.go:29-37`) reads the
+  production branch from the raw label (`:32`); the deploy (`clients/pipeline.go:233-237`) and the
+  environments list (`clients/kubernetes.go:5189`) use `ResolveProductionBranch`
+  (`kubernetes.go:10179-10204`: label, then `primary-branch` annotation, then `main`, skipping a
+  `prod`/`production` mislabel). Panacea fixed the same class for posture
+  (`handlers/posture_env_prodbranch_test.go`) but not here. Phase 7 shows the disagreement after a
+  deploy (task 08, rule 5a) and does not correct it. How many live projects are annotation-only or
+  mislabelled was not counted; `LIVE-CHECK.md` step 7 compares the two answers for the live
+  project. The fix is Panacea's (Q-P7-6).
 - **Whether `developer` is accepted as a role spelling on `POST …/access`** — task 04 sends `editor`,
   the spelling `access.go` produces (`middleware/rbac.go:219`).
 - **Whether `GET /api/v1/projects` returns `repoUrl` to a non-admin token.** The `List` handler

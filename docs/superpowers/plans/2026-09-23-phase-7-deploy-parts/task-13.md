@@ -111,6 +111,8 @@ export interface ReleaseRow {
   environment: string | null;
   /** The name of the environments[] row the view joined this row to; null = unmatched. Look rows up by this (review I8). */
   environmentRow: string | null;
+  /** Run rows: the Hub recorded the release against `recorded`, Panacea deployed it to `deployed` (task 08 rule 5a; b02 round 2, R1). */
+  environmentMismatch: { recorded: string; deployed: string } | null;
   branch: string | null;
   commit: string | null;
   version: string | null;
@@ -151,7 +153,13 @@ export interface DeployView {
   ownerControls: "yes" | "no" | "unknown";
   releasesState: "ok" | "no_hub" | "no_hub_project" | "signed_out" | "unavailable";
   /** The selected branch's environment, joined by the control plane (task 08 rule 1a). null = no ?branch= sent. */
-  selected: { branch: string; target: string | null; environment: string | null } | null;
+  selected: {
+    branch: string;
+    target: string | null;
+    environment: string | null;
+    /** Panacea refused to name this branch's environment (task 08 rule 1a; b02 round 2, R2). A branch has an error or a target, never both. */
+    error: { code: "not_found" | "rejected" | "forbidden"; message: string } | null;
+  } | null;
   environments: EnvironmentView[];
   unmatched: EnvironmentView[];
   history: ReleaseRow[];
@@ -252,7 +260,7 @@ timeout — a stream is long; the abort is the caller's). Branch values go in `?
 `ProblemCode` gains, in one block with a comment naming this plan: `"upstream_unavailable"`,
 `"deploy_not_connected"`, `"deploy_token_rejected"`, `"deploy_forbidden"`, `"deploy_not_found"`,
 `"deploy_conflict"`, `"deploy_rejected"`, `"deploy_not_bound"`, `"deploy_environment_invalid"`,
-`"deploy_precondition"`.
+`"deploy_environment_unreadable"`, `"deploy_precondition"`.
 
 #### `upstream-down` — ruling R4, if phase 5 has not landed it
 
@@ -297,7 +305,9 @@ export interface DeploySlice {
 
 /** Wired as the poller's onCursor listener for name "Deploy" (HA7-4). A changed value loads the
  *  selected project's view — once, even if the value changes again while that load is in flight
- *  (the in-flight load's answer is newer than the cursor that started it). */
+ *  (the in-flight load's answer is newer than the cursor that started it). It loads THROUGH
+ *  loadDeployView, so a cursor-driven load sends the selected branch too; it never calls
+ *  view(projectId, null) itself, which would return selected: null on every tick (b02 round 2, R6). */
 export function onDeployCursor(value: string, deps: { api: DeployApi; store: typeof useCockpit }): void;
 
 /** Called by the lens on mount and by a selection change while the lens is open. Sends the
@@ -321,7 +331,7 @@ export const selectReleasePinKeys = (s: CockpitState): string[];
 |---|---|---|
 | `classify maps upstream_unavailable` | → `"upstream-down"`; `details.upstream: "hub"` → `upstreamName` *"the Hub"* | routing Panacea's outage through `backend-down`, which says "Docker" (brief §4.1) |
 | `tsc fails without a case` | a fixture call site with no `upstream-down` case fails `tsc --noEmit` (the existing `designsystem`/guard pattern, grep of the three callers) | a `default:` added to quiet the compiler |
-| `cursor change loads once` | three `onDeployCursor` calls with new values while one load is in flight → one `view()` call, then one more after it settles | a burst of fetches per tick |
+| `cursor change loads once` | with branch `feat/x` selected, three `onDeployCursor` calls with new values while one load is in flight → one `view()` call, then one more after it settles, and both requests carry `?branch=feat%2Fx` (b02 round 2, R6) | a burst of fetches per tick, or a cursor path that drops the branch so the card vanishes on every tick |
 | `same cursor loads nothing` | the same value twice → zero `view()` calls | a fetch per tick in the steady state |
 | `view sends the branch verbatim` | `view("p-1", "feat/x")` requests `/v1/projects/p-1/deploy?branch=feat%2Fx`; `view("p-1", null)` sends no query | a desktop that sanitises the name itself, or drops it so `selected` is always null (review b02) |
 | `no setInterval added` | `grep -rn setInterval desktop/src --include=*.ts --include=*.tsx` in the test's own guard finds only `poller.ts` and `hooks/heartbeat.ts` | a third clock |

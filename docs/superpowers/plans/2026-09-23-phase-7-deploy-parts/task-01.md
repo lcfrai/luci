@@ -63,7 +63,9 @@ type Reader interface {
 	// branch → environment mapping: nothing above this interface derives one, and nothing
 	// compares a branch name with an Environment's Name or Branch. The answer is joined to
 	// Environment rows with SameEnvironment (Panacea's answer for a production branch is "prod",
-	// while its row is named "production").
+	// while its row is named "production"). For Panacea it is the access route's answer, which
+	// reads the production branch from the label only; where that disagrees with the deploy, the
+	// view shows it from the deployment's own label and corrects nothing (task 03, task 08 rule 5a).
 	EnvironmentFor(ctx context.Context, p ProjectRef, branch string) (string, error)
 	// Latest is the newest deployment across ALL environments. ok is false, with a nil error,
 	// when the project has never been deployed.

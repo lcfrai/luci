@@ -228,6 +228,7 @@ red, whichever order the streams land in.
 	CodeDeployRejected           = "deploy_rejected"            // 422 Panacea refused the request, or the address is not Panacea
 	CodeDeployNotBound           = "deploy_not_bound"           // 409 the local project has no Panacea project (task 06)
 	CodeDeployEnvironmentInvalid = "deploy_environment_invalid" // 409 Panacea's environment name for the branch breaks the Hub's §7.9 rule (task 09 step 4; review b02 replaced deploy_environment_unknown)
+	CodeDeployEnvironmentUnreadable = "deploy_environment_unreadable" // 409 Panacea did not name the branch's environment: EnvironmentFor answered KindNotFound or KindRejected, e.Message verbatim (task 09 step 4; b02 round 2, R2 — never deploy_not_found, which would blame a project that exists)
 	CodeDeployPrecondition       = "deploy_precondition"        // 409 Ship's local precondition failed; details.reason (task 09)
 ```
 

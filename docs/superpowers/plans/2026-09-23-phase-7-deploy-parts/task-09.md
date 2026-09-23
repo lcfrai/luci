@@ -181,7 +181,11 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    (`feat-x` for `feat/x`, `projects.go:2109-2118`), so that comparison refuses almost every real
    branch. A branch never deployed still gets its name, so a first Ship needs no Hub change.
    - `err` → mapped by the same Kind → code table as step 6 (`503 upstream_unavailable` with
-     `details.upstream "panacea"`, `deploy_token_rejected`, `deploy_forbidden`, …). Nothing was
+     `details.upstream "panacea"`, `deploy_token_rejected`, `deploy_forbidden`, …), **except**
+     `KindNotFound` and `KindRejected`, which answer `409 deploy_environment_unreadable` with
+     Panacea's message verbatim (task 03 rewrites this route's 404 to *"Panacea could not read
+     this branch name. It may contain `/`…"*). `Environments` has already found the project, so
+     `404 deploy_not_found` here would blame a project that exists (b02 round 2, R2). Nothing was
      reserved, so nothing is abandoned.
    - `env` fails the Hub's §7.9 rule (1–63 of `[a-z0-9-]`; Panacea keeps characters such as `.`,
      `projects.go:3814-3826`) → `409 deploy_environment_invalid`: *"Panacea names this branch's
@@ -192,7 +196,13 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
      label Panacea puts on the deployment — `environmentForBranch`, `clients/pipeline.go:2195-2207`,
      called at `:237`, which its comment says mirrors `mapBranchToEnvWithProd`, *"pinned by the
      parity tests"*); rows are joined to it with
-     `SameEnvironment`.
+     `SameEnvironment`. The two functions mirror, but their **inputs** differ: the access route
+     passes the raw label, the deploy the resolved production branch (task 03's `EnvironmentFor`
+     row; b02 round 2, R1). So for an annotation-only or mislabelled project the reserved
+     `environment` can differ from the deployment's. Ship does not pre-check it against the
+     primary row's `branch`, which is the newest production run's label, not a reliable git name
+     (`kubernetes.go:5191-5202`, task 08 rule 1a); the view flags the pair after the deploy
+     (task 08, rule 5a).
 5. **Reserve** — `Releases.Reserve(HubProjectID, {kind:"run", panaceaProject: <ref>, environment,
    branchRef: Branch.Ref, commit, briefId: null, designKey: DesignKey|null, sourceDeploymentId:
    null})`. Any error → returned as is (the relay rule, Hub contract §4.3). **Ship stops. Panacea is
@@ -233,6 +243,7 @@ POST /v1/projects/{projectId}/deploy/ship
   409 deploy_precondition         details.reason ∈ not_bound | no_hub_project | branch_unreadable |
                                   never_pushed | unpushed | behind | stale_commit | bad_commit
   409 deploy_environment_invalid  Panacea's name for the branch's environment breaks the Hub's §7.9 rule (step 4)
+  409 deploy_environment_unreadable  Panacea did not name the branch's environment (EnvironmentFor 404/422; step 4); nothing reserved
   409 deploy_not_connected · deploy_token_rejected
   403 deploy_forbidden · 404 deploy_not_found · 409 deploy_conflict · 422 deploy_rejected
                                   Panacea refused; the release was abandoned with its sentence
@@ -261,6 +272,8 @@ is retried with the same key.
 | `TestShipProductionBranch` | `main` seeded `→ prod`, row `production` → reserve with `environment: "prod"`, the deployment's own label | reserving with the row name, so the Hub holds `production` for Ships and `prod` for rollbacks |
 | `TestShipFirstDeploy` | `feat/new` seeded `→ feat-new` and **no** row → the reserve carries `feat-new`; no refusal | refusing a never-deployed branch, the limitation HA7-1 used to carry |
 | `TestShipEnvironmentInvalid` | seeded `release/1.2 → release-1.2` → `409 deploy_environment_invalid`; neither `Reserve` nor `Actor.Ship` called; `EnvironmentFor` unavailable → `503 upstream_unavailable`, no `Reserve` | reserving a name the Hub will refuse, or a read failure that reserves anyway |
+| `TestShipEnvironmentUnreadable` | the fake's `EnvironmentFor` for `live-check/p7` answers `KindNotFound` with *"Panacea could not read this branch name…"* → `409 deploy_environment_unreadable` with that message verbatim; neither `Reserve` nor `Actor.Ship` called (b02 round 2, R2) | `404 deploy_not_found`, which tells the user a project they are looking at does not exist |
+| `TestShipReservesTheAccessRoutesAnswer` | the fake's `EnvironmentFor("develop") → "develop"` (what Panacea's access route answers for an annotation-only `primary-branch=develop` project) → the reserve's `environment` is `develop` verbatim; Ship makes no other environment read and no comparison with the primary row (b02 round 2, R1: the divergence is pinned here and in task 03, and flagged by task 08 rule 5a after the deploy) | a Ship that "corrects" the name with a copy of `ResolveProductionBranch` |
 | `TestShipNeverDerivesTheName` | the fake's `EnvironmentFor` unseeded for the branch → Ship fails with the fake's error; `Reserve` not called | a fallback that computes the name when Panacea has not given one (a fourth `sanitizeBranchEnv`) |
 | `TestIdempotentShip` | the same key twice → one reserve, one Panacea call, equal results | a desktop retry after a lost response double-shipping |
 | `TestConcurrentShipSameBranch` | two goroutines, one branch → one proceeds, one gets `409 conflict` | two reservations racing one branch |
