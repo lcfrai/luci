@@ -1,4 +1,4 @@
-### Task 29: `credstore` — GitHub and Panacea tokens over `Secrets`; phase 3's `Store` satisfied (H-1)
+### Task 29: `credstore` — GitHub, Azure DevOps and Panacea tokens over `Secrets`; phase 3's `Store` satisfied (H-1)
 
 **Lane C. Depends on: 28. About 2.5 hours. Contract task C1 (phase 3's H-1; phase 7's token).**
 
@@ -167,7 +167,8 @@ package credstore
 
 // Local implements Store for GitHub over this machine's store (H-1). For a host
 // that is not GitHub on github.com it answers ErrNoCredential, so a Chain moves
-// on — to entraauth.DevOps for Azure DevOps (task 31), then to GitHelper (phase 3).
+// on — for Azure DevOps to LocalDevOps (a pasted PAT, below), then to
+// entraauth.DevOps (task 31), then to GitHelper (phase 3).
 // It looks up the owner's token first, then the every-owner token.
 type Local struct{ Secrets Secrets }
 
