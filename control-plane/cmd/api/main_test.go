@@ -384,10 +384,15 @@ func TestTheReaperIsWiredWithMoreGraceThanOneReadyTimeout(t *testing.T) {
 	}
 }
 
+// Hermetic like every run() test (runHermetic): with the loopback rule broken,
+// this would otherwise be a real control plane on every interface, on the
+// default state directory and the real Docker daemon, whose startup sweep
+// destroys every managed container it does not own. Port 0, so even that
+// control plane would not hold 8730.
 func TestRunRefusesANonLoopbackBindWithExitCode2(t *testing.T) {
 	t.Parallel()
 	var out bytes.Buffer
-	code := run(env(map[string]string{"PANACEA_APP_ADDR": "0.0.0.0:8730"}), &out)
+	code := run(env(runHermetic(t, map[string]string{envAddr: "0.0.0.0:0"})), &out)
 	if code != 2 {
 		t.Errorf("run returned %d, want 2", code)
 	}

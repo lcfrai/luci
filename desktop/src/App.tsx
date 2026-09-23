@@ -90,36 +90,53 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
   /** The three lists that belong to no selection, once their reply has landed. Tracked here
    *  rather than read off the store, because an empty list is a real answer. */
   const arrived = new Set<LoadKey>();
-  /** The error object each key last reported. setError stores the object it is handed, so
-   *  identity says whether `lastError` is still this list's report when the list recovers. */
+  /** Every list that is OUTSTANDING — failed, and not yet recovered — with the error object its
+   *  latest failure reported, newest last. setError stores the object it is handed, so identity
+   *  says whether `lastError` is still this list's report when the list recovers. An entry is
+   *  deleted when its list lands, which is what makes the map double as the outstanding set. */
   const raised = new Map<LoadKey, Problem>();
+
+  /** Whether the user can currently see that a list is missing. The root lists always; a
+   *  project's branches while it is open; a branch's worktrees while it is open. */
+  const shown = (key: LoadKey, state: CockpitState): boolean => {
+    if (key.startsWith("branches:")) return openProjects(state).includes(key.slice("branches:".length));
+    if (key.startsWith("worktrees:")) return openBranches(state).includes(key.slice("worktrees:".length));
+    return true;
+  };
 
   const run = async <T,>(
     key: LoadKey,
     fetch: () => Promise<T>,
     commit: (value: T) => void,
   ): Promise<void> => {
-    // `stopped` is unreachable here and at the top of `sync` and `retry` today: their callers
-    // are startup, the subscription, and the poller's good tick, and App's cleanup stops this
-    // loader and the poller together, synchronously. It is the enforcement of "starts nothing
-    // after stop" for a caller that is none of those, and stops being dead code when one lands.
+    // Every request and every store write this loader makes passes through here, bar one, so
+    // this is the one `stopped` check that "starts nothing after stop" needs. The exception is
+    // `sync`'s put-back of an outstanding report, which carries its own; `retry` carries none.
+    // App's callers never reach `retry` after stop (its cleanup stops this loader and the poller
+    // together, synchronously), so defects.test.tsx pins it directly, by calling `retry` on a
+    // stopped loader.
     if (stopped || inFlight.has(key) || failed.has(key)) return;
     inFlight.add(key);
     store.getState().setLoading(key, true);
     try {
       const value = await fetch();
       if (stopped) return;
+      // No longer outstanding, and taken out BEFORE the commit: the commit is a store write,
+      // which runs `sync`, which would otherwise put this list's own stale report back.
+      const mine = raised.get(key);
+      raised.delete(key);
       commit(value);
       arrived.add(key);
       // An error is cleared by the success of the operation that raised it, and only if it is
-      // still the one on screen: a later failure elsewhere keeps its own report.
-      const mine = raised.get(key);
-      raised.delete(key);
-      if (mine !== undefined && store.getState().lastError === mine) store.getState().setError(null);
+      // still the one on screen: a later failure elsewhere keeps its own report. Identity alone
+      // decides. A key that never failed has no entry, and undefined never equals `lastError`,
+      // which is an object or null.
+      if (store.getState().lastError === mine) store.getState().setError(null);
     } catch (error) {
       if (stopped) return;
       failed.add(key);
       const problem = asError(error);
+      raised.delete(key);   // re-inserted, so the newest failure is the one `sync` puts back
       raised.set(key, problem);
       store.getState().setError(problem);
     } finally {
@@ -143,7 +160,6 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
   };
 
   const sync = (): void => {
-    if (stopped) return;
     const state = store.getState();
 
     for (const projectId of openProjects(state)) {
@@ -165,16 +181,33 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
         (worktrees) => store.getState().setWorktrees(branchId, worktrees),
       );
     }
+
+    // PUT BACK, added by task 24's fix round 1 (review M1). The footer has one slot. When
+    // another operation's report replaced this loader's and that operation then cleared its
+    // own, as it must, the slot went empty while a list was still missing: an empty rail and a
+    // clean footer for one retry round trip, or up to the client's 10 s timeout on a hung
+    // list. That is the defect class ruling B exists for. So whenever the slot is empty and a
+    // list the user can see is still outstanding, its latest report goes back up.
+    //
+    // It cannot feed itself. The write it makes fills the slot, and the `sync` that write
+    // wakes finds the slot full. A list the user has closed is not put back: it is not retried
+    // while closed, so its report would sit on the footer, unrefreshed, for as long as it stays
+    // closed. Opening it again is a store write, which runs this.
+    // The one store write in this loader that does not pass through `run`, so it carries its
+    // own `stopped` check: `retry` on a stopped loader calls this directly.
+    const now = store.getState();
+    if (!stopped && now.lastError === null) {
+      const back = [...raised].reverse().find(([key]) => shown(key, now));
+      if (back !== undefined) now.setError(back[1]);
+    }
   };
 
   loadRoots();
   const unsubscribe = store.subscribe(sync);
-  // A rehydrated selection is navigation that already happened. MEASURED EQUIVALENT today, and
-  // kept as the statement of intent: deleting this call survives the suite, because the root
-  // loads above always write the store AFTER this subscription exists, and that write runs
-  // `sync` anyway. It stops being equivalent the moment startup can finish with no store write
-  // after `subscribe` — the root lists moving out of this loader, say — and a restored branch
-  // would then sit unloaded until the user touched something.
+  // A rehydrated selection is navigation that already happened, so its lists are asked for now,
+  // beside the root lists, rather than when the first store write after `subscribe` wakes
+  // `sync`. In the assembled app that write comes within one round trip anyway (a root reply,
+  // or the poller's first tick), so only defects.test.tsx's held-client test can see this call.
   sync();
 
   return {
@@ -183,7 +216,6 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
       unsubscribe();
     },
     retry: () => {
-      if (stopped) return;
       // Writes nothing when nothing failed and everything arrived, which is every quiet tick:
       // the poller's one-store-write-per-quiet-tick property holds with this hook attached.
       failed.clear();

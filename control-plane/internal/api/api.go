@@ -129,6 +129,88 @@ type Deps struct {
 	// required, and absolute because it becomes a bind mount's host path.
 	// Task 13's wiring derives it from the state directory.
 	ConversationsDir string
+
+	// GitIdentity resolves who an agent's commits in one worktree are made as.
+	// Sessions call it at every create and restart, with the worktree's HOST
+	// path, and hand the answer to the sandbox as GIT_AUTHOR_* and
+	// GIT_COMMITTER_*. Users authenticate as themselves, so this is the person
+	// running the cockpit and never a shared or invented identity; cmd/api's
+	// resolver reads PANACEA_APP_GIT_NAME/EMAIL, else the host's own git.
+	//
+	// Nil, or an error, means no identity: the session still starts, the error
+	// is logged as the sentence the user acts on, and the sandbox's git refuses
+	// to commit rather than guessing (see sessionEnv's user.useConfigOnly).
+	GitIdentity func(ctx context.Context, worktreePath string) (GitIdentity, error)
+
+	// GitLineEndings resolves how the HOST's git normalises line endings in one
+	// worktree: its effective core.autocrlf, and the ending core.eol means
+	// there. Sessions call it at every create and restart, with the worktree's
+	// host path, and hand the answer to the sandbox as git configuration.
+	//
+	// It is required, and an error fails the create or restart before anything
+	// is recorded or destroyed, because there is no safe guess. The host's
+	// system and global config are invisible to the sandbox, and Git for
+	// Windows' installer sets core.autocrlf=true at system scope. A sandbox
+	// that guessed "false" there sees every CRLF file as modified, and one
+	// commit -a writes CRLF blobs for files the agent never touched.
+	GitLineEndings func(ctx context.Context, worktreePath string) (GitLineEndings, error)
+
+	// GitGlobalFiles resolves the two files the HOST's git reads in one
+	// worktree beyond its config: the global excludes file and the global
+	// attributes file, as host paths (gitfix-rereview I-A). Sessions call it at
+	// every create and restart, and sessionEnv hands the sandbox's git the
+	// ones that exist, mounted read-only, and /dev/null for the rest.
+	//
+	// It is required, and an error fails the create or restart before anything
+	// is recorded or destroyed, like GitLineEndings. Git reads
+	// $XDG_CONFIG_HOME/git/ignore (else ~/.config/git/ignore) even with
+	// core.excludesFile unset, and the sandbox's HOME has none: without this
+	// an agent's `git add -A` commits every file the host's git ignores there,
+	// .claude/settings.local.json among them, and that is a user's personal
+	// permission allow-list.
+	GitGlobalFiles func(ctx context.Context, worktreePath string) (GitGlobalFiles, error)
+
+	// CABundle is the absolute host path of a PEM bundle every sandbox trusts in
+	// addition to its own roots, mounted read-only at sessionCABundlePath and
+	// named by NODE_EXTRA_CA_CERTS. "" mounts nothing and sets nothing. cmd/api
+	// has already refused a path that is missing or holds no certificate.
+	CABundle string
+}
+
+// GitIdentity is one person's commit identity: both fields, or neither.
+type GitIdentity struct {
+	Name  string
+	Email string
+}
+
+// GitLineEndings is how the host's git converts line endings in one worktree,
+// in the two words the sandbox's git needs to do the same.
+//
+//   - AutoCRLF is core.autocrlf as git itself reads it: "true", "false" or
+//     "input".
+//   - EOL is the ending a text file gets on checkout when core.autocrlf is
+//     false: "lf" or "crlf". It is never "native", because native means CRLF
+//     to Git for Windows and LF to the sandbox's Linux git. The resolver
+//     turns it into the host's own answer.
+type GitLineEndings struct {
+	AutoCRLF string
+	EOL      string
+}
+
+// GitGlobalFiles is where the host's git looks, in one worktree, for the two
+// per-user files that change what a commit contains:
+//
+//   - Excludes is core.excludesFile, else git's own default,
+//     $XDG_CONFIG_HOME/git/ignore or ~/.config/git/ignore.
+//   - Attributes is core.attributesFile, else $XDG_CONFIG_HOME/git/attributes
+//     or ~/.config/git/attributes.
+//
+// Each is an absolute host path, and names the file git would read whether or
+// not one is there: git skips a missing file silently, and sessions do the
+// same. The resolver answers the question; sessions look at the file.
+type GitGlobalFiles struct {
+	Excludes   string
+	Attributes string
 }
 
 // route is one ServeMux pattern and the handler registered under it.
@@ -221,6 +303,8 @@ func New(d Deps) (*API, error) {
 		{"Projects", d.Projects == nil},
 		{"Worktrees", d.Worktrees == nil},
 		{"Origin", d.Origin == nil},
+		{"GitLineEndings", d.GitLineEndings == nil},
+		{"GitGlobalFiles", d.GitGlobalFiles == nil},
 	} {
 		// BackendReady has no safe default and that is why it is here rather
 		// than below: true fabricates health, false sends an operator after a
@@ -236,6 +320,9 @@ func New(d Deps) (*API, error) {
 	}
 	if !filepath.IsAbs(d.ConversationsDir) {
 		return nil, errors.New("api: Deps.ConversationsDir " + strconv.Quote(d.ConversationsDir) + " is not absolute, and it becomes a bind mount's host path")
+	}
+	if d.CABundle != "" && !filepath.IsAbs(d.CABundle) {
+		return nil, errors.New("api: Deps.CABundle " + strconv.Quote(d.CABundle) + " is not absolute, and it becomes a bind mount's host path")
 	}
 	if d.Version == "" {
 		d.Version = DefaultVersion

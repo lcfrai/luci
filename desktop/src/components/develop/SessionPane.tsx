@@ -6,6 +6,7 @@ import { classify } from "../../api/problems";
 import { useAttachState } from "../../api/attachRegistry";
 import { useHeartbeat } from "../../hooks/heartbeat";
 import { Terminal } from "../Terminal";
+import { LinkedWorktreeNote } from "./LinkedWorktreeNote";
 import { SessionPaneFooter, attachLabel } from "./SessionPaneFooter";
 import { SessionPaneHeader } from "./SessionPaneHeader";
 import { selectSession, selectWorktreeById } from "../../store/selectors";
@@ -201,6 +202,10 @@ export function SessionPane({
         />
         <AttachOverlay sessionId={session.id} />
       </div>
+      {/* After the body, not between it and the header: `.pane`'s rows are positional
+          (`auto 1fr auto auto`), so a child above the body would take the 1fr row. Here it
+          lands in an auto row, and a pane on a primary worktree renders nothing at all. */}
+      <LinkedWorktreeNote worktree={worktree} />
       {session.status === "exited" ? (
         <div className="pane-exit">
           <span className="pane-exit-why">

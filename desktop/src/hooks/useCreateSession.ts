@@ -45,6 +45,23 @@ function sentenceFor(error: ApiError): string {
   }
 }
 
+/** The report this create path last wrote to `lastError`. Module-level, not per hook instance:
+ *  every caller of the hook is the same operation, one create endpoint. setError stores the
+ *  object it is handed, so identity says whether the footer still shows a create's report.
+ *
+ *  ADDED BY TASK 24's FIX ROUND 1 (review I1), a declared departure into task 18's file. A
+ *  successful create used to call `setError(null)` outright, which wiped a catalogue list's
+ *  failure off the footer while that list was still missing from the rail. Contract §3.2: an
+ *  operation clears only its own report. */
+let raised: { code: string; message: string } | null = null;
+
+/** Test-only, mirroring __resetSessionVerbs. vitest's restoreMocks does not clear module state,
+ *  and a `raised` left by one test's failed create hides the `raised !== null` guard from the
+ *  next: measured, when mutant C4 survived NewSessionButton.test.tsx for exactly that reason. */
+export function __resetCreateSession(): void {
+  raised = null;
+}
+
 export function useCreateSession(): (
   worktreeId: WorktreeId,
   options?: CreateSessionOptions,
@@ -73,13 +90,15 @@ export function useCreateSession(): (
         }),
       );
       state.upsertSession(session);
-      state.setError(null);
+      // Read live: `state` is the snapshot from before the await, and its `lastError` is stale.
+      if (raised !== null && useCockpit.getState().lastError === raised) state.setError(null);
       state.selectWorktree(worktreeId);
       // Focus is what makes defect 4's scroll-into-view fire in task 20's ColumnsLayout.
       state.focusSession(session.id);
     } catch (caught) {
       const error = caught as ApiError;
-      state.setError({ code: error.code, message: error.message });
+      raised = { code: error.code, message: error.message };
+      state.setError(raised);
       state.pushToast(sentenceFor(error));
     } finally {
       useCockpit.getState().setLoading("sessions", false);

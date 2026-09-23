@@ -331,6 +331,13 @@ describe("the design-system audit", () => {
 });
 ```
 
+> **The two blocks above are no longer the file** (added 2026-09-24 by task 24's fix round 2,
+> re-review M4). The shipped file had already diverged from them before the first review, which
+> accepted it: its rules take a `Tree`, and a planted canary proves each. Fix round 1 added `namedColours` (review
+> M2) and `imperativeTransitions` (review I3), and fix round 2 moved `imperativeTransitions`' body
+> into `imperativeStyles`, which `namedColours` now reads as well (re-review M1).
+> `desktop/src/styles/designsystem.test.ts` is the reference.
+
 - [ ] **Step 3: Run the audit and watch five of its eleven go red on one file**
 
 ```bash
@@ -697,6 +704,31 @@ The navigation signal is already in the store — `expandedProjects`, `expandedB
 **It memoises failure, and that is not an optimisation.** The subscription fires on every store write, including its own `setLoading`. Without a set of keys whose last attempt threw, a control plane that is not running turns one expanded project into a fetch per keystroke — and since the failure path also calls `setError`, which is a store write, it would be a self-feeding loop. Step 4's last test is that memo's regression test.
 
 Replace `desktop/src/App.tsx` in full:
+
+> **Superseded in part, 2026-09-23 (ledger, "Task 24 rulings"; UI contract §4.7, "Two
+> amendments").** The implementer found two catalogue-error defects in the block below, and both
+> are fixed in the shipped file. First, a list that failed or never arrived was never fetched again.
+> Second, the poller's next good tick wiped the catalogue's `lastError`. So `startCatalogue` now
+> returns `{ stop, retry }` rather than a stop function. App passes `catalogue.retry` to
+> `startPolling` as its third argument. The loader clears only the error it raised itself. The
+> step-10 table's "Comment out `startPolling(api, useCockpit)`" row therefore targets
+> `startPolling(api, useCockpit, catalogue.retry)`. `desktop/src/App.tsx` is the reference.
+>
+> **Three facts in this block are now reversed or stale, which "App.tsx is the reference" did not
+> say** (added 2026-09-24 by task 24's fix round 1, review M5):
+> - **The in-flight guard.** It was `store.getState().loading[key] === true`. It is now a private
+>   `inFlight` set. No loader reads the store's `loading`, so StrictMode's two loaders cannot act on
+>   each other's flags.
+> - **The loading-flag rationale is reversed.** The comment "Cleared even when stopped…" argued
+>   that a stopped loader must clear its flag. The shipped loader does the opposite: once stopped,
+>   it writes nothing, not even `setLoading(key, false)`. The flag it would clear belongs to the
+>   surviving loader's request, which is still in flight. defects.test.tsx pins this as "writes
+>   nothing once stopped".
+> - **Step 10's "14 passed"** is now 43 for `src/defects.test.tsx`, measured at fix round 1.
+>
+> Fix round 1 also changed the loader. Its `raised` map now holds only lists that are still
+> failing. When the one `lastError` slot is empty and such a list is visible, `sync` puts that
+> list's latest report back (UI contract §4.7).
 
 ```tsx
 // Contract §9 (task 24) and §4.7. This file renders nothing of its own: it mounts

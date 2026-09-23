@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NewSessionButton } from "./NewSessionButton";
+import { __resetCreateSession } from "../../hooks/useCreateSession";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { aHarness, aSession, aWorktree } from "../../test/fixtures";
 
@@ -31,6 +32,7 @@ describe("NewSessionButton", () => {
     createSession.mockReset();
     createSession.mockResolvedValue(aSession({ id: "s-new", worktreeId: "w-1" }));
     resetCockpit();
+    __resetCreateSession();
     useCockpit.setState({
       harnesses: [claude],
       worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", branchId: "b-1" })] },
@@ -67,6 +69,74 @@ describe("NewSessionButton", () => {
     render(<NewSessionButton worktreeId="w-1" />);
     await userEvent.click(screen.getByRole("button", { name: /new session/i }));
     await waitFor(() => expect(useCockpit.getState().selection.sessionId).toBe("s-new"));
+  });
+
+  // Contract §3.2's `lastError` and §4.7: an operation clears only the report it raised itself.
+  // ADDED BY TASK 24's FIX ROUND 1 (review I1), a declared departure into task 18's test file.
+  // useCreateSession used to clear ANY report on success, so starting a session wiped a
+  // catalogue list's failure off the footer while that list was still missing from the rail.
+  describe("and the footer line", () => {
+    const click = async (): Promise<void> => {
+      await userEvent.click(screen.getByRole("button", { name: /new session/i }));
+    };
+
+    it("leaves another operation's report there when the create succeeds", async () => {
+      const foreign = { code: "internal", message: "Error: projects answered 500" };
+      useCockpit.getState().setError(foreign);
+      render(<NewSessionButton worktreeId="w-1" />);
+      await click();
+      // The clear, when there is one, comes before the selection in useCreateSession, so this
+      // wait is also the wait for it.
+      await waitFor(() => expect(useCockpit.getState().selection.sessionId).toBe("s-new"));
+      expect(useCockpit.getState().lastError).toBe(foreign);
+    });
+
+    it("clears the report its own failure left, when the next create succeeds", async () => {
+      createSession.mockRejectedValueOnce({ code: "conflict", message: "Already starting." });
+      render(<NewSessionButton worktreeId="w-1" />);
+      await click();
+      await waitFor(() => expect(useCockpit.getState().lastError?.code).toBe("conflict"));
+      await click();
+      await waitFor(() => expect(useCockpit.getState().selection.sessionId).toBe("s-new"));
+      expect(useCockpit.getState().lastError).toBeNull();
+    });
+
+    it("writes nothing to the footer when there is nothing of its own to clear", async () => {
+      // The act (shared shape §3A.1 clause 7): with no report raised and an empty slot, the
+      // identity test is null === null, and without `raised !== null` a success would write
+      // setError(null) over nothing. The same mutant survived at the verb site as V5.
+      const setError = vi.spyOn(useCockpit.getState(), "setError");
+      render(<NewSessionButton worktreeId="w-1" />);
+      await click();
+      await waitFor(() => expect(useCockpit.getState().selection.sessionId).toBe("s-new"));
+      expect(setError).not.toHaveBeenCalled();
+    });
+
+    it("clears nothing when another report replaced its own while the request was out", async () => {
+      // useCreateSession's `state` is read before the await, and the slot can change hands
+      // during it. Here the create's own failure is on the footer when the click lands, and a
+      // catalogue list's failure replaces it while the request is out. Read off the stale
+      // snapshot, the create's report still looks like the one on screen, and the success
+      // wipes the catalogue's.
+      createSession.mockRejectedValueOnce({ code: "conflict", message: "Already starting." });
+      render(<NewSessionButton worktreeId="w-1" />);
+      await click();
+      await waitFor(() => expect(useCockpit.getState().lastError?.code).toBe("conflict"));
+
+      let answer: (session: unknown) => void = () => undefined;
+      createSession.mockReturnValueOnce(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+      await click();
+      await waitFor(() => expect(createSession).toHaveBeenCalledTimes(2));
+      const foreign = { code: "internal", message: "Error: projects answered 500" };
+      useCockpit.getState().setError(foreign);
+      answer(aSession({ id: "s-new", worktreeId: "w-1" }));
+      await waitFor(() => expect(useCockpit.getState().selection.sessionId).toBe("s-new"));
+      expect(useCockpit.getState().lastError).toBe(foreign);
+    });
   });
 
   // useCreateSession's failure path. Every test above resolves, so before these landed the

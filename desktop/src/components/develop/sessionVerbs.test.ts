@@ -847,3 +847,130 @@ describe("markWorktreeReady and §10.2's verb", () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 });
+
+// Contract §3.2's `lastError` and §4.7: an operation clears only the report it raised itself.
+// ADDED BY TASK 24's FIX ROUND 1 (review I1), a declared departure into task 22's test file.
+// Rename and Restart used to clear ANY report on success, so a verb in one project wiped a
+// catalogue list's failure in another off the footer, and nothing here read `lastError` after
+// a success. The verbs are one operation, because they share `report`, and the module has five
+// success paths: the immediate commit, the deferred commit, Mark ready, Resume and Fork (the
+// last two added by fix round 2, re-review I1). Each clears a verb's report and leaves every
+// other report alone.
+describe("sessionVerbs — the footer line is each operation's own", () => {
+  /** Another operation's report, as the catalogue loader or the poller writes one. */
+  const foreign = { code: "internal", message: "Error: projects answered 500" };
+
+  const SUCCEEDS: { path: string; succeed: () => Promise<void> }[] = [
+    {
+      path: "an immediate verb's success (Rename)",
+      succeed: async () => {
+        renameMock.mockResolvedValue(aSession({ title: "retention rules" }));
+        renameSessionTo(IDS.session, "retention rules");
+        await vi.runOnlyPendingTimersAsync();
+        expect(renameMock).toHaveBeenLastCalledWith(IDS.session, "retention rules");
+      },
+    },
+    {
+      path: "a deferred verb's success (Kill, once its window closes)",
+      succeed: async () => {
+        killMock.mockResolvedValue(aSession({ status: "exited", exitReason: "killed" }));
+        find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+        await vi.advanceTimersByTimeAsync(TOAST_TTL_UNDO);
+        expect(killMock).toHaveBeenCalledWith(IDS.session);
+      },
+    },
+    {
+      path: "Mark ready's success",
+      succeed: async () => {
+        const w = aWorktree({ ready: false });
+        useCockpit.getState().setWorktrees(IDS.branch, [w]);
+        readyMock.mockResolvedValue({ ...w, ready: true });
+        markWorktreeReady(w);
+        await vi.runOnlyPendingTimersAsync();
+        expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]?.ready).toBe(true);
+      },
+    },
+    // ADDED BY TASK 24's FIX ROUND 2 (re-review I1). Resume and Fork call the same `report`, so
+    // they are the same operation, and before this round neither success cleared: a failed
+    // Resume kept "Claude Code is not installed." on the footer after a Resume that worked.
+    {
+      path: "Resume's success",
+      succeed: async () => {
+        resumeMock.mockResolvedValue(aSession({ id: "s-resumed" }));
+        find(sessionVerbs(IDS.session, DEPS), "resume")?.run?.();
+        await vi.runOnlyPendingTimersAsync();
+        expect(useCockpit.getState().selection.sessionId).toBe("s-resumed");
+      },
+    },
+    {
+      path: "Fork's success",
+      succeed: async () => {
+        forkMock.mockResolvedValue(aSession({ id: "s-forked", worktreeId: SIBLING }));
+        find(sessionVerbs(IDS.session, DEPS), `fork-${SIBLING}`)?.run?.();
+        await vi.runOnlyPendingTimersAsync();
+        expect(useCockpit.getState().selection.sessionId).toBe("s-forked");
+      },
+    },
+  ];
+
+  for (const { path, succeed } of SUCCEEDS) {
+    it(`${path} leaves another operation's report on the footer`, async () => {
+      seed({ status: "running" });
+      useCockpit.getState().setError(foreign);
+      await succeed();
+      expect(useCockpit.getState().lastError).toBe(foreign);
+    });
+
+    it(`${path} clears the report a verb's own failure left`, async () => {
+      seed({ status: "running" });
+      renameMock.mockRejectedValueOnce(new ApiError("conflict", "That title is taken.", 409));
+      renameSessionTo(IDS.session, "taken");
+      await vi.runOnlyPendingTimersAsync();
+      expect(useCockpit.getState().lastError).toEqual({ code: "conflict", message: "That title is taken." });
+      await succeed();
+      expect(useCockpit.getState().lastError).toBeNull();
+    });
+
+    it(`${path} writes nothing to the footer when there is nothing of its own to clear`, async () => {
+      // The act, not the end state (shared shape §3A.1 clause 7): with no report raised and an
+      // empty slot, `lastError === raised` is null === null, and without the `raised !== null`
+      // half the success would write setError(null) over nothing. Survived as mutant V5.
+      seed({ status: "running" });
+      const setError = vi.spyOn(useCockpit.getState(), "setError");
+      await succeed();
+      expect(setError).not.toHaveBeenCalled();
+    });
+  }
+
+  // The re-review's probes RR-1 and RR-2, kept: each create verb's OWN failure, then the same
+  // verb working. The table above raises its report through Rename; these raise it through the
+  // create verb, so the sentence the user actually saw is the one that must go.
+  const CREATES = [
+    { verb: "Resume", itemId: "resume", mock: resumeMock, created: aSession({ id: "s-resumed" }) },
+    {
+      verb: "Fork",
+      itemId: `fork-${SIBLING}`,
+      mock: forkMock,
+      created: aSession({ id: "s-forked", worktreeId: SIBLING }),
+    },
+  ];
+
+  for (const { verb, itemId, mock, created } of CREATES) {
+    it(`a ${verb} that works clears the report a failed ${verb} left`, async () => {
+      seed({ status: "running" });
+      mock.mockRejectedValueOnce(new ApiError("harness_unavailable", "Claude Code is not installed.", 409));
+      find(sessionVerbs(IDS.session, DEPS), itemId)?.run?.();
+      await vi.runOnlyPendingTimersAsync();
+      expect(useCockpit.getState().lastError).toEqual({
+        code: "harness_unavailable",
+        message: "Claude Code is not installed.",
+      });
+
+      mock.mockResolvedValueOnce(created);
+      find(sessionVerbs(IDS.session, DEPS), itemId)?.run?.();
+      await vi.runOnlyPendingTimersAsync();
+      expect(useCockpit.getState().sessions[created.id]?.id).toBe(created.id);
+      expect(useCockpit.getState().lastError).toBeNull();
+    });
+  }
+});

@@ -283,7 +283,8 @@ jsdom does run. The defect it pins was invisible to every other test because the
 on `window` and none on the focused element: xterm handles keydown on its own helper textarea
 first and cancels what it maps to data, so a chord pressed in a focused terminal went to the agent
 as control bytes (§6.6, "The chord filter"). The file mounts the real `<Terminal/>` and asserts the
-end state — the map acts and the agent receives nothing; Escape, shift+Tab and Ctrl+C still reach
+end state — the map acts and the agent receives nothing, for every chord pressed with Ctrl and
+again with Meta (the Meta rows added by fix round 2); Escape, shift+Tab and Ctrl+C still reach
 the agent. It was allowed on one condition, that it is stable (five consecutive identical runs
 before commit); **if it ever flakes it is deleted**, and `Terminal.test.tsx`'s handler-level tests
 stay. Nothing in it draws or measures a glyph, so the rule above is unchanged for rendering.
@@ -650,7 +651,14 @@ export interface DataSlice {
   sessionIdsByWorktree: Record<WorktreeId, SessionId[]>;
   harnesses: Harness[];
   loading: Partial<Record<LoadKey, boolean>>;
-  /** The last API failure, for the one status line in the rail footer. Cleared on success. */
+  /** The last API failure, for the one status line in the rail footer. Cleared only by
+   *  setError(null) (task 17, decision (a)), which the operation that RAISED it calls when it
+   *  next succeeds, and only while this is still its report; another operation's success
+   *  leaves it alone. The operations are: the poller; each catalogue list; the session verbs,
+   *  which are one operation because they share one reporter; and the create path. While a
+   *  catalogue list the user can see is still failing, the loader also puts that list's report
+   *  back whenever this is null. Amended 2026-09-23 by task 24 (ruling B, §4.7), and
+   *  2026-09-24 by its fix round 1. */
   lastError: { code: string; message: string } | null;
 
   setMachines(machines: Machine[]): void;
@@ -1256,8 +1264,13 @@ place: `desktop/src/api/poller.ts`.
 ```ts
 /** One interval for the whole app. Starts on mount of AppShell, stops on unmount, pauses
  *  while document.visibilityState === "hidden" (a laptop lid closed for eight hours must not
- *  wake to 14,000 queued requests). */
-export function startPolling(client: CockpitClient, store: typeof useCockpit): () => void;
+ *  wake to 14,000 queued requests). `onGoodTick` runs after every tick whose fetch succeeded,
+ *  and never after a failed, skipped or stopped one. */
+export function startPolling(
+  client: CockpitClient,
+  store: typeof useCockpit,
+  onGoodTick?: () => void,
+): () => void;
 
 export const POLL_INTERVAL_MS = 2000;
 ```
@@ -1267,6 +1280,32 @@ branch>` is wrong (N requests); it issues `GET /v1/sessions` unfiltered and call
 `replaceSessions(all, worktreeIdsSeen)`. Machines, projects, branches, worktrees and harnesses
 are fetched on navigation and on an explicit refresh, not on the poll — they change when the user
 acts, not when an agent does.
+
+**Two amendments, added 2026-09-23 by task 24 (ledger, "Task 24 rulings"), both declared
+departures into task 19's `poller.ts`.** (A) A catalogue list that **failed, or never arrived**,
+is retried on the poll after all: App passes the catalogue loader's `retry` as `onGoodTick`, so
+every good tick retries such a list, with at most one request in flight per list, and a list that
+has arrived is never fetched again. A good tick is the one proof the control plane answers, so a
+daemon that is down costs no extra request, and there is still one interval. (B) A good tick
+clears `lastError` **only if the poller raised it** and it is still on screen. It used to clear
+any error, so a catalogue failure was reported and then wiped 2 s later, leaving an empty rail and
+a clean footer. Each operation clears its own report when it next succeeds, and only while that
+report is still on screen. §3.2's `lastError` lists the operations.
+
+**Task 24's fix round 1 (2026-09-24) finished (B).** Two call sites still cleared any report on
+success: the session verbs (task 22's `sessionVerbs.ts`) and the create path (task 18's
+`useCreateSession.ts`). Both now keep the report they last wrote and clear only that. Both are
+declared departures. The verbs have five success paths, because every path that calls the one
+reporter is the same operation: the immediate commit (Rename, Restart), the deferred commit (Kill,
+Forget), Mark ready, Resume and Fork. The last four now clear their own report too; before, none
+of them cleared anything. Round 1 wired the deferred commit and Mark ready, and **fix round 2**
+(re-review I1) wired Resume and Fork, whose "Claude Code is not installed." otherwise stayed on
+the footer after a Resume that worked. The loader also **puts a report back**. The footer has one slot,
+so a catalogue failure that the poller's own failure replaced disappeared when the poller
+recovered, even though the list was still missing. Now, whenever the slot is empty and a list the
+user can see is still failing, the loader puts that list's latest report back. A list in a
+collapsed project or branch is not put back. It is not retried while closed, so its report would
+sit on the footer without being refreshed.
 
 The poll must move zero pixels. Three things make that true, and all three are testable:
 `replaceSessions` preserves index position for known ids (§3.2), the server sorts and the client
@@ -1723,11 +1762,12 @@ reason is the honest third option.
 | `DevelopLens.tsx` | `{}` | Chooses Columns vs Canvas vs `EmptyDevelop`. Owns nothing else. |
 | `ColumnsLayout.tsx` | `{ sessionIds: SessionId[] }` | **The horizontal scroll container**, and scroll-into-view of a newly created or newly focused pane (defect 4). |
 | `CanvasLayout.tsx` | `{ sessionIds: SessionId[] }` | The 2400×1600 scrollable plane, tile drag, tile resize, z-order, and writing `TilePosition` to the store (defect 6). |
-| `SessionPane.tsx` | `{ sessionId: SessionId; variant: "column" \| "tile" }` | One session: header, `<Terminal/>`, the attach overlay (§7.7), footer. **Owns focus intent** — clicking anywhere in the pane focuses the session and hands DOM focus to the terminal — and tells `<Terminal/>` whether this pane is the focused one, so nine mounting panes do not each take the caret. Restart is `api.restartSession`, which keeps the session id. |
+| `SessionPane.tsx` | `{ sessionId: SessionId; variant: "column" \| "tile" }` | One session: header, `<Terminal/>`, the attach overlay (§7.7), `<LinkedWorktreeNote/>` after the body *(sandbox git fix, 2026-09-23)*, footer. **Owns focus intent** — clicking anywhere in the pane focuses the session and hands DOM focus to the terminal — and tells `<Terminal/>` whether this pane is the focused one, so nine mounting panes do not each take the caret. Restart is `api.restartSession`, which keeps the session id. |
 | `SessionPaneHeader.tsx` | `{ session: Session; worktree: Worktree \| undefined; variant: "column" \| "tile" }` | Status dot, worktree name, harness command, the `⋯` button. In `tile` variant it is also the drag handle. |
 | `SessionPaneFooter.tsx` | `{ session: Session }` | harness command · model · elapsed · attach state. All numbers `tabular-nums`. Attach state comes from `useAttachState(session.id)` (§6.6), never from the store; the retry elapsed is `useHeartbeat() - state.ladderStartedAt`, computed here because the registry owns no clock. |
 | `SessionMenu.tsx` | `{ sessionId: SessionId; anchor: DOMRect \| null; onClose(): void }` | The `⋯` menu: Resume, Fork into…, **Restart**, Rename…, Open a shell here, Kill, Forget, Copy session id, and **Retry attach** *(only while `useAttachState(id).phase === "failed"` — §6.6)*. Mounted by `ContextMenu.tsx` (§6.7). The rows are built by `develop/sessionVerbs.ts`, which the rail's menu shares. |
-| `EmptyDevelop.tsx` | `{ branch: Branch \| undefined }` | The zero state. Named actions, no spinner. Also exports `startSessionOnWorktree(worktreeId, defaults)`, the create path its two actions share — an addition to this table, sited here because they are its only callers. Distinct from task 18's `useCreateSession`, which re-resolves against the live store. |
+| `EmptyDevelop.tsx` | `{ branch: Branch \| undefined }` | The zero state. Named actions, no spinner, and `<LinkedWorktreeNote/>` before them *(sandbox git fix)*. Also exports `startSessionOnWorktree(worktreeId, defaults)`, the create path its two actions share — an addition to this table, sited here because they are its only callers. Distinct from task 18's `useCreateSession`, which re-resolves against the live store. |
+| `LinkedWorktreeNote.tsx` | `{ worktree: Worktree \| undefined }` | ADDED by the sandbox git fix (2026-09-23). One sentence, `LINKED_WORKTREE_GIT_NOTE`, for `worktree.isPrimary === false`: git is unavailable in a linked worktree's sessions, because its `.git` names a host path the sandbox cannot see, and that arrives in Phase 3 (`3-D1`). Nothing for the primary worktree, and nothing for an unloaded one. No wire field, no §2 change. AMENDED by the sandbox git fix, round 1 (2026-09-24): the premise "the primary worktree's git works" was false on a host with Git for Windows' system `core.autocrlf=true`, where the sandbox's git saw every file modified and `commit -a` rewrote line endings. The sandbox's git now takes the host's `core.autocrlf` and `core.eol` for the worktree, and the primary's `.git/worktrees` is read-only in the sandbox (Go contract §5.1 step 5), so the premise holds and "not primary" is again exactly the set without working git. |
 | `develop.css` | — | `.pane-*`, `.cols-*`, `.cv-*` |
 
 ```tsx
@@ -1739,6 +1779,7 @@ export function SessionPaneHeader(props: { session: Session; worktree: Worktree 
 export function SessionPaneFooter(props: { session: Session }): JSX.Element;
 export function SessionMenu(props: { sessionId: SessionId; anchor: DOMRect | null; onClose: () => void }): JSX.Element;
 export function EmptyDevelop(props: { branch: Branch | undefined }): JSX.Element;
+export function LinkedWorktreeNote(props: { worktree: Worktree | undefined }): JSX.Element | null;
 ```
 
 The footer shows what Phase 2 can honestly know: `claude · opus · 41m · attached`. It does **not**
@@ -2131,6 +2172,7 @@ who owns each:
 | no projects (`PANACEA_APP_PROJECTS_DIR` unset) | Rail empty state naming the environment variable | `Rail` |
 | branch with no worktrees | `EmptyDevelop` with "this branch has no worktrees yet" | `EmptyDevelop` |
 | worktree with no sessions | `EmptyDevelop` with the two named actions (`＋ Claude Code`, `Open a shell`) | `EmptyDevelop` |
+| linked worktree (`isPrimary: false`) — git does not work in its sandboxes | `LinkedWorktreeNote`'s one sentence, before `EmptyDevelop`'s actions and after every such pane's terminal body. ADDED by the sandbox git fix (2026-09-23) | `LinkedWorktreeNote`, placed by `EmptyDevelop` and `SessionPane` |
 | the attach socket is not up — a first connect, a reconnect, or a ladder that gave up | Pane body shows the connecting line with the elapsed retry time, not a spinner — `useHeartbeat() - useAttachState(id).ladderStartedAt`, the interface for which is §6.6. An overlay **sibling** of `<Terminal/>`, never a conditional render of it, and never a scrim once a transcript may be behind it: centred only for `connecting`, a corner strip otherwise, and for `failed` the strip carries `AttachState.reason` verbatim. **`failed` also has a way forward**, which it did not when this row was written: `Retry attach` in the `⋯` menu, calling §6.6's `retryAttach`. The strip explains; the menu acts — this row stays the *explanation*, and a second action inside the overlay would be a control on a surface that is `pointer-events: none` | `SessionPane`, and `SessionMenu` for the action |
 | session `exited` | Scrollback stays, read-only, with `exitReason` and a Restart action | `SessionPane` |
 | harness unavailable | Listed in the picker with `harness.note` verbatim, not hidden | `SessionPicker` |
@@ -2169,7 +2211,11 @@ The middle column says exactly where, so nobody has to take that on faith.
 Eleven tasks. **D1 writes 14–19** (the foundation: nothing on screen until 18, everything on
 screen depends on 14–17). **D2 writes 20–24** (the surfaces, the verbs and the proof). The line is
 drawn so that D1 hands D2 a compiling, tested substrate with no UI decisions left in it, and D2
-never edits a file D1 owns except `App.tsx` in task 24.
+never edits a file D1 owns except by declared departure, recorded at the site and in the section
+it amends. *Amended 2026-09-24 by task 23's fix round 2.* The sentence used to say "except
+`App.tsx` in task 24", which was the one departure planned. D2's tasks and their review rounds
+have since made others, into `Terminal.tsx`, `fakes.ts`, `poller.ts` and `useCreateSession.ts`,
+each recorded where it happened.
 
 Legend: **C** create, **M** modify, **T** test.
 
@@ -2208,7 +2254,7 @@ untouched.
 | **21** | Canvas layout and persisted tiles | The 2400×1600 plane, pointer-driven drag and resize on `transform`, z-order, the 10-tile pin cap, `TilePosition` written through to `prefsSlice` | C `components/develop/CanvasLayout.tsx`; M `components/develop/develop.css`, `components/develop/DevelopLens.tsx`; T `develop/CanvasLayout.test.tsx` | 20 |
 | **22** | Session lifecycle verbs | `SessionMenu` and the rail's context verbs wired to the client: Resume, Fork into…, Restart, Rename…, Kill, Forget, Open a shell here, Copy session id, Mark ready; optimistic mutation with an Undo window, in **two** commit shapes — deferred (Kill, Forget: the request is held for the window and Undo cancels it) and immediate (Rename, Restart: sent at once, snapshot restored on refusal). A deferred verb's ids are held in `lib/pendingSessions` and `replaceSessions` suppresses the poller for them, or the 2 s tick undoes the patch inside the 6 s window | C `components/develop/SessionMenu.tsx`, `components/develop/sessionVerbs.ts`, `lib/pendingSessions.ts`; M `components/menu/ContextMenu.tsx`, `components/menu/menu.css`, `components/rail/*Row.tsx`, `store/slices/dataSlice.ts` *(declared departure — task 17's)*, `api/attachRegistry.ts` *(declared departure — task 19's; the `retryAttach` export of §6.6, which answers the terminal `failed` state)*; T `develop/sessionVerbs.test.ts`, `develop/SessionMenu.test.tsx`, and edits to `menu/ContextMenu.test.tsx` (whose verb-list assertions this task necessarily breaks) and `api/attachRegistry.test.ts` | 20 |
 | **23** | The command palette and the keyboard map | `buildCommands`, `CommandPalette` with stable ranking and id-based selection, `useKeyboardMap` with the full chord table and the two deliberate non-interceptions | C `components/palette/{CommandPalette.tsx,commands.ts,palette.css}`, `hooks/useKeyboardMap.ts`; M `components/AppShell.tsx`; T `palette/CommandPalette.test.tsx`, `palette/commands.test.ts`, `hooks/useKeyboardMap.test.ts` | 20, 22 |
-| **24** | Wire the cockpit to the live control plane, and prove the ten | `App.tsx` rewritten to mount `AppShell` + start the poller + load the catalogue; the defect regression suite as one file; the design-system audit (no literal hex, no `transition: all`, no banned hue) | M `desktop/src/App.tsx`, `desktop/src/main.tsx` (imports `app.css`); D `desktop/src/App.css`; C `desktop/src/defects.test.tsx`, `desktop/src/styles/designsystem.test.ts`; T the two above | 21, 22, 23 |
+| **24** | Wire the cockpit to the live control plane, and prove the ten | `App.tsx` rewritten to mount `AppShell` + start the poller + load the catalogue; the defect regression suite as one file; the design-system audit (no literal hex, no named colour, no `transition: all`, no banned hue, and no transition off shared shape §3B's list in a stylesheet or in any inline style) | M `desktop/src/App.tsx`, `desktop/src/main.tsx` (imports `app.css`), `desktop/src/api/poller.ts` *(declared departure, task 19's file: §4.7's `onGoodTick` and ruling B)*, and, in fix round 1, `desktop/src/hooks/useCreateSession.ts` *(declared departure, task 18's file)* and `desktop/src/components/develop/sessionVerbs.ts` *(declared departure, task 22's file)*, both for §3.2's own-report rule; D `desktop/src/App.css`; C `desktop/src/defects.test.tsx`, `desktop/src/styles/designsystem.test.ts`; T the two above, which also pin `poller.ts`'s departure, plus fix round 1's edits to `develop/sessionVerbs.test.ts` and `topbar/NewSessionButton.test.tsx` | 21, 22, 23 |
 
 Every task runs `npm test` from `desktop/` and `npm run typecheck`, and every task's commit step
 ends with:

@@ -67,6 +67,7 @@ export function __resetSessionVerbs(): void {
   for (const timer of timers) clearTimeout(timer);
   timers.clear();
   __resetPendingSessions();
+  raised = null;
 }
 
 /* ── the one place a failure becomes a sentence ──────────────────────────────────────── */
@@ -92,12 +93,34 @@ function sentenceFor(error: ApiError): string {
   }
 }
 
+/** The report this module last wrote to `lastError`. setError stores the object it is handed,
+ *  so identity says whether the footer still shows a verb's report. */
+let raised: { code: string; message: string } | null = null;
+
 function report(error: ApiError): void {
   const state = useCockpit.getState();
-  state.setError({ code: error.code, message: error.message });
+  raised = { code: error.code, message: error.message };
+  state.setError(raised);
   // No undo argument: by the time this runs the window has closed and the button is gone.
   // An Undo offered here would be a button with nothing to take back.
   state.pushToast(sentenceFor(error));
+}
+
+/** A verb succeeded. Clears the footer only if it still shows the report a verb raised.
+ *
+ *  AMENDED BY TASK 24's FIX ROUND 1 (review I1), a declared departure into task 22's file.
+ *  Rename and Restart used to call `setError(null)` outright, so stopping a session in one
+ *  project wiped another project's failed branch list off the footer while that project still
+ *  showed no branches: an empty list with a clean footer, which is what ruling B (contract §4.7)
+ *  exists to prevent. Contract §3.2: an operation clears only its own report. These verbs are
+ *  one operation, because they share `report`, so all five success paths call this: the
+ *  immediate commit, the deferred commit, Mark ready, Resume and Fork. Before round 1 only the
+ *  first cleared at all, so a failed Kill stayed on the footer after a Kill that worked. Round 1
+ *  wired the first three; round 2 (re-review I1) wired Resume and Fork, whose `harness_unavailable`
+ *  sentence otherwise outlived the Resume that worked. A new path that calls `report` joins this
+ *  operation, so it calls this on success and gets a row in the test file's `SUCCEEDS` table. */
+function clearOwnReport(): void {
+  if (raised !== null && useCockpit.getState().lastError === raised) useCockpit.getState().setError(null);
 }
 
 /* ── commit shape 1: deferred. The request is held for the Undo window. ──────────────── */
@@ -145,6 +168,7 @@ function runDeferred<T>(opts: {
       // force while the server's own row lands — otherwise a tick between the two could take
       // the row back to the state this request just changed.
       adopt?.(result);
+      clearOwnReport();
     } catch (caught) {
       // The window has closed. Put the row back, say why in plain text, and let task 19's
       // 2 s poller reconcile anything the rollback guessed wrong on its next tick.
@@ -201,7 +225,7 @@ function runImmediate(opts: {
       // an attachPath the cockpit cannot derive, and guessing either is how a pane ends up
       // attached to a socket that no longer exists.
       useCockpit.getState().upsertSession(await commit());
-      useCockpit.getState().setError(null);
+      clearOwnReport();
     } catch (caught) {
       rollback();
       report(caught as ApiError);
@@ -317,6 +341,7 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
                   const next = await api.resumeSession(session, harness);
                   useCockpit.getState().upsertSession(next);
                   useCockpit.getState().focusSession(next.id);
+                  clearOwnReport();
                 } catch (caught) {
                   report(caught as ApiError);
                 }
@@ -353,6 +378,7 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
                     const next = await api.forkSession(session, worktree.id, harness);
                     useCockpit.getState().upsertSession(next);
                     useCockpit.getState().focusSession(next.id);
+                    clearOwnReport();
                   } catch (caught) {
                     report(caught as ApiError);
                   }
@@ -586,6 +612,7 @@ export function markWorktreeReady(worktree: Worktree): void {
   void (async () => {
     try {
       write(await api.setWorktreeReady(worktree.projectId, worktree.id, true));
+      clearOwnReport();
     } catch (caught) {
       write(worktree);
       report(caught as ApiError);

@@ -546,6 +546,27 @@ func sessionsNewEnv(t *testing.T) *sessionsEnv {
 // registry file.
 func sessionsNewEnvOver(t *testing.T, dir string, st registry.Store, flags registry.WorktreeFlagStore) *sessionsEnv {
 	t.Helper()
+	return sessionsNewEnvOverWith(t, dir, st, flags, nil)
+}
+
+// sessionsLineEndings is a Deps.GitLineEndings that gives every worktree the
+// same answer.
+func sessionsLineEndings(eol GitLineEndings) func(context.Context, string) (GitLineEndings, error) {
+	return func(context.Context, string) (GitLineEndings, error) { return eol, nil }
+}
+
+// sessionsGlobalFiles is a Deps.GitGlobalFiles that gives every worktree the
+// same answer. The zero answer is a host whose git reads no global file.
+func sessionsGlobalFiles(files GitGlobalFiles) func(context.Context, string) (GitGlobalFiles, error) {
+	return func(context.Context, string) (GitGlobalFiles, error) { return files, nil }
+}
+
+// sessionsNewEnvOverWith is sessionsNewEnvOver with a hook over the Deps before
+// New sees them, for the optional fields — GitIdentity, CABundle, Log — that
+// most tests leave at their zero value. Still the one construction site: the
+// hook edits these Deps, it does not build its own.
+func sessionsNewEnvOverWith(t *testing.T, dir string, st registry.Store, flags registry.WorktreeFlagStore, tweak func(*Deps)) *sessionsEnv {
+	t.Helper()
 	wtDir := filepath.Join(dir, "evidence-upload")
 	if err := os.MkdirAll(wtDir, 0o700); err != nil {
 		t.Fatalf("make the worktree dir: %v", err)
@@ -572,7 +593,7 @@ func sessionsNewEnvOver(t *testing.T, dir string, st registry.Store, flags regis
 			},
 		},
 	}
-	a, err := New(Deps{
+	deps := Deps{
 		Version:          "test",
 		Backend:          env.be,
 		BackendReady:     func() bool { return true },
@@ -586,7 +607,13 @@ func sessionsNewEnvOver(t *testing.T, dir string, st registry.Store, flags regis
 		Resources:        backend.DefaultResources,
 		ReadyTimeout:     50 * time.Millisecond,
 		ConversationsDir: env.conversations,
-	})
+		GitLineEndings:   sessionsLineEndings(GitLineEndings{AutoCRLF: "false", EOL: "lf"}),
+		GitGlobalFiles:   sessionsGlobalFiles(GitGlobalFiles{}),
+	}
+	if tweak != nil {
+		tweak(&deps)
+	}
+	a, err := New(deps)
 	if err != nil {
 		t.Fatalf("api.New: %v", err)
 	}
@@ -784,8 +811,14 @@ func TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv(t *testing.T) {
 	if spec.AttachToken == "" {
 		t.Error("Spec.AttachToken is empty; the sandbox would exit 1 at startup")
 	}
-	if len(spec.Env) != 0 {
-		t.Errorf("Env = %#v; this task sets no extra environment, and a PANACEA_APP_* key here would be rejected by EnvEntries anyway", spec.Env)
+	// AMENDED by the sandbox git fix: with no identity and no CA bundle the only
+	// extra environment is git's own configuration, whose values
+	// sessions_sandboxenv_test.go pins. A PANACEA_APP_* key here would be
+	// rejected by EnvEntries anyway.
+	for k := range spec.Env {
+		if !strings.HasPrefix(k, "GIT_CONFIG_") {
+			t.Errorf("Env carries %q = %q; with no identity and no CA bundle only git's configuration is set", k, spec.Env[k])
+		}
 	}
 	sessionsAwaitWatch(t, done)
 }
