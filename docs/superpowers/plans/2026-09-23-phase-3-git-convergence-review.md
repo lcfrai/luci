@@ -98,3 +98,47 @@ below was opened in the tree at `034232a` (whose control plane is `3303fd6`'s) o
   `TestSandboxCloneHasWorkingGit` asserts `git status --porcelain` is **empty** on a fresh clone
   of a repository with LF blobs, under a host config with `core.autocrlf=true`; task 03's
   `TestCreateWritesLineEndingConfig` pins the three keys.
+- **Also verified:** `git ls-files --eol images/sandbox/entrypoint.sh` in this worktree prints
+  `i/lf w/crlf`: an LF blob checked out CRLF by the system `autocrlf`, the exact mechanism above.
+
+#### C3. The user's token reaches whatever the agent writes into a repository's config (A4 broken)
+
+- **Where:** task-09:128-130 (origin refresh: `fetch … origin …` **in the clone**), task-12:66
+  (timer `fetch --prune origin` in the project), task-12:94-101 (push), task-13:106-110
+  (`GitHelper.Dir` is "the project's, so a repo-local helper config applies"), task-13:164-168
+  (`PushEnv`).
+- **What is wrong:** every remote operation takes its URL, proxy, TLS and helper settings from a
+  repository config the agent can write (C1's premise).
+  1. **The origin refresh follows the clone's `origin`.** The agent sets
+     `remote.origin.url=https://github.com/<any>/<repo>`, `http.proxy=http://<its listener>` and
+     `http.sslVerify=false` in `<clone>/.git/config`. After the next land, the host's git fetches
+     "origin" from GitHub through that proxy with TLS verification off, and the machine's Git
+     Credential Manager answers non-interactively with the user's cached token (task 12 relies on
+     exactly that). The `Authorization` header goes to the agent's proxy in clear.
+  2. **A repo-local `credential.helper`** runs on the host (C1) and, after any successful
+     authenticated fetch or push, git calls `store` on **every** configured helper with the
+     username and password on stdin. The agent's helper receives the token GCM supplied.
+     `GitHelper` deliberately honours repo-local helper config (task-13:108).
+  3. `PushEnv` scopes the header to `http.https://<Authority>/.extraHeader`, which stops it going
+     to another host, but not through an agent-chosen `http.proxy` with `http.sslVerify=false`.
+- **Why it matters:** A4 is the phase's central security promise ("a sandbox never holds a git
+  credential", plan:33-34, plan:218-220). Obtaining the token through the host is holding it.
+- **How to fix:**
+  1. The origin refresh never uses the clone's configured remote. Fetch from the project's path
+     given **literally** (from the lane index, never read from the clone):
+     `git -C <clone> fetch --no-tags --upload-pack=git-upload-pack <projectPath> +refs/heads/<b>:refs/remotes/origin/<b>`,
+     with C1's hardening. A local path needs no credential, proxy or TLS.
+  2. Every `gitx.Remote` call and `credential fill` gets command-scope overrides that repository
+     config cannot beat: `-c credential.helper=` followed by `-c credential.helper=<the helper
+     the machine's global/system config names>` (read once at startup from
+     `git config --global/--system --get-all credential.helper`), `-c http.sslVerify=true`, and
+     no repository `http.proxy`; say where the proxy comes from instead (global config or
+     `HTTPS_PROXY`). C1's allowlist then refuses a project config carrying `credential.*`,
+     `http.*`, `remote.*.pushurl`, `url.*.insteadOf` or `url.*.pushInsteadOf` that the cockpit
+     did not write, with the key named.
+  3. `GitHelper.Dir` is a directory the control plane owns (an empty temp repository), never the
+     project, so no repo-local helper config is read.
+  4. Tests, red first: a clone whose config names a proxy `httptest` server as `http.proxy`,
+     `sslVerify=false`, and an `origin` on an `httptest` smart-HTTP URL → after a land, neither
+     test server received a request; a repo-local `credential.helper` that writes its stdin to a
+     file → after a push and a `GitHelper.Credential`, the file does not exist.
