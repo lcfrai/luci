@@ -292,7 +292,8 @@ export const selectHeadBriefKey = (branchId: BranchId | null) => (s: CockpitStat
 ```
 cd desktop && npx tsc --noEmit   → no output
 cd desktop && npx vitest run     → PASS
-git grep -n "setInterval" -- desktop/src | grep -v "\.test\." → exactly the two phase 2 sites (poller.ts, heartbeat.ts)
+git grep -n "setInterval(" -- desktop/src | grep -v "\.test\." → exactly two lines: api/poller.ts and hooks/heartbeat.ts
+                                                                 (read on 2026-09-23: poller.ts:84, heartbeat.ts:34)
 ```
 
 #### What this task does not claim
