@@ -221,3 +221,117 @@ tests can import `discoverapi` to audit its routes without a cycle. Phase 4 impo
   spinner per row, `tabular-nums` on live numbers, colour plus shape for every state, `--ink-4`
   never as text. **The owner's eyes are the only visual acceptance** (`CLAUDE.md`); a screenshot
   or a passing test is not.
+
+---
+
+## 5. File map
+
+**New — Go** (`control-plane/internal/…`):
+
+| Path | Responsibility | Task |
+|---|---|---|
+| `modelclient/client.go` + test | one `POST /v1/messages`, no SDK; `Completer`, the seam phase 6 replaces | 02 |
+| `discover/content.go` + test | `Content`, `Question`, `Answer`, `Criterion`, `Author`, `BaseQuestions()`, `Step`, `Recompute` | 03 |
+| `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes | 03 |
+| `discover/assist.go` + test | `ProposeFollowUp` over a `Completer`, degrading to nothing | 04 |
+| `discover/inherit.go` + test | `Resolve(project, branch *Revision) Document` — project → branch, with origins | 05 |
+| `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`; the golden block | 05 |
+| `provenance/key.go` + test | the key grammar — the only parser (P5): `brief:`, `design:`, `none:` | 06 |
+| `provenance/ref.go` + test | `Ref`, `Build`, criterion digests, `Resolution` | 06 |
+| `discoverhub/binding.go` + test | local project → Hub project by repo key; local branch → `refs/heads/…` | 07 |
+| `discoverhub/read.go` + test | `View`, `History`, `Resolve(keys)`, `HeadRef`, `Inheritable`; the in-memory revision cache | 07 |
+| `discoverhub/write.go` + test | `Apply`: one domain op → one Hub batch, with the `4-D3` fan-out and its conflict retry; `ArchiveHead`, `Rebind` | 08 |
+| `contextwrite/materialise.go` + test | the `api.Materialiser`: target choice, exclude line, write, strip; `Inspect` for drift | 09 |
+| `discoverapi/api.go`, `briefs.go`, `provenance.go` + tests | the `/v1/discover` routes; the relay rule; `Mount` | 11, 12 |
+| `repoanalysis/scan.go`, `draft.go` + test | the mechanical scan; the drafted brief as one revision | 13 |
+
+**New — desktop** (`desktop/src/…`):
+
+| Path | Responsibility | Task |
+|---|---|---|
+| `api/discover.ts` + test | the TypeScript mirror of every `/v1/discover` wire shape; `DiscoverClient` | 15 |
+| `store/slices/discoverSlice.ts`, `store/slices/provenanceSlice.ts` + tests | non-persisted: brief views by scope; refs by key, heads by brief, head refs by branch | 16 |
+| `provenance/loader.ts` + test | the one loader over key sources, called from the poller's tick | 16 |
+| `provenance/ContextChip.tsx`, `DefinitionOfDone.tsx`, `ShippedManifest.tsx`, `provenance.css` + tests | the three presentational surfaces; each takes a `ProvenanceRef` | 17 |
+| `discover/DiscoverLens.tsx`, `QuestionFlow.tsx`, `BriefPanel.tsx`, `discover.css` + tests | the lens: binding states, asking, the brief born, inheritance, follow-up, model off, unavailable | 18 |
+| `discover/BriefHistory.tsx`, `PastRevision.tsx`, `SessionsOnBrief.tsx`, `Materialisations.tsx` + tests | moved on, project changed, undo, past revision read-only, missing, erased, hand-edited block | 19 |
+| `discover/StartWithoutBrief.tsx` + test | the `4-D1` refusal and override on session start and restart | 20 |
+| `discover/ImportRepo.tsx` + test | drafted from the code: accept or change each answer | 21 |
+
+**Modified — phase 2 files, each a declared departure named in its task:**
+
+| Path | Change | Task |
+|---|---|---|
+| `control-plane/internal/statepath/statepath.go` (+ `writeatomic_test.go` moved in) | gains `WriteAtomic`, lifted from `registry/filestore.go:460` | 01 |
+| `control-plane/internal/registry/filestore.go`, `registry/writeatomic_test.go` | calls `statepath.WriteAtomic`; the test moves out | 01 |
+| `control-plane/internal/api/api.go` | `Deps.Materialiser` (required), `Deps.Discover` (optional `RouteMounter`), one validation branch, one mount line | 10 |
+| `control-plane/internal/api/sessions.go` | create and restart call `Materialise` before `Store.Create` / the restart record; stamp `ContextRef`; ignore the request's `contextRef`; accept `withoutBrief` | 10 |
+| `control-plane/internal/api/materialiser.go` (new file in `api`) | the interface, request, result and `*MaterialiseError` | 10 |
+| `control-plane/internal/httpx/problem.go` | one code, `CodeBriefNotWritten = "brief_not_written"` (409) | 10 |
+| `control-plane/internal/api/api_test.go`, `routes_audit_test.go` | the test `Deps` gain a fake `Materialiser`; the audit sees the Discover GETs | 10, 11 |
+| `control-plane/cmd/api/main.go`, `config.go` | wiring and configuration | 14 |
+| `desktop/src/api/client.ts` | `ProblemCode` gains phase 4's and the Hub's relayed codes; `createSession`, `resumeSession`, `forkSession` stop sending `contextRef`; `restartSession` takes an optional `{withoutBrief}` | 15 |
+| `desktop/src/store/defaults.ts` | `toCreateRequest` stops setting `contextRef` | 15 |
+| `desktop/src/store/store.ts` | `CockpitState` gains the two slices; `partialize` unchanged | 16 |
+| `desktop/src/store/selectors.ts` | the key-source selectors and the provenance selectors | 16 |
+| `desktop/src/api/poller.ts` | after `replaceSessions`, calls the loader; its header comment is amended (UI contract §4.7) | 16 |
+| `desktop/src/components/develop/SessionPaneHeader.tsx` | mounts `ContextChip` | 17 |
+| `desktop/src/components/AppShell.tsx` | the `discover` arm returns `<DiscoverLens />` | 18 |
+| `desktop/src/hooks/useCreateSession.ts` | routes `brief_not_written` to the refusal surface instead of a toast | 20 |
+| `desktop/src/styles/tokens.css`, `tokens.test.ts` | `--drift-tint` (the one token phase 4 lacks; phases 5 and 7 need the same one — whoever lands first adds it) | 17 |
+
+**Documents:** `docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md` and
+`2026-09-18-phase-2-ui-contract.md` (amendments, task 22);
+`planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` (amendments, task 22);
+`docs/verification/2026-09-23-phase-4-results.md` (task 23).
+
+**Never touched:** `desktop/src/store/types.ts`, `desktop/vitest.config.ts`, anything under
+`control-plane/internal/hub/`, anything under `~/Projects/Paperdesign` or `~/Projects/Panacea`.
+
+---
+
+## 6. Tasks — dependencies and order
+
+Each task is 1–3 hours for one implementer who has read this file and the task's part.
+
+| # | Task | Depends on | Est. |
+|---|---|---|---|
+| 01 | Lift `writeAtomic` into `statepath` (R2) | — | 1 h |
+| 02 | `modelclient` — kept from the old plan's task 1 | — | 1.5 h |
+| 03 | `discover`: the content model and its ops (`4-D2`, R6 criterion ids, per-question skip) | — | 3 h |
+| 04 | `discover`: the model follow-up, degrading to nothing | 02, 03 | 1.5 h |
+| 05 | `discover.Resolve` with the pinned project revision (`4-D3`); `claudemd` Render, Merge, Strip, Inspect | 03 | 2.5 h |
+| 06 | `provenance`: the key grammar, `Ref`, `Build`, criterion digests | 03, 05 | 2.5 h |
+| 07 | `discoverhub`: binding and reads, against `hubclient.NewFake()` | 03, 05, 06, **Hub H0** | 3 h |
+| 08 | `discoverhub`: writes, the `4-D3` fan-out, archive and rebind | 07 | 3 h |
+| 09 | `contextwrite`: the Materialiser | 01, 05, 07 | 3 h |
+| 10 | `api`: the `Materialiser` seam in create and restart (R1), `brief_not_written`, `RouteMounter` | — (declares its own interfaces; tests use fakes) | 2.5 h |
+| 11 | `discoverapi`: brief routes, the relay rule, the route audit | 07, 08, 10 | 3 h |
+| 12 | `discoverapi`: refs, branch provenance, materialisations | 09, 11 | 2 h |
+| 13 | `repoanalysis` and the drafted brief | 02, 03, 11 | 2.5 h |
+| 14 | Wiring and configuration in `cmd/api` | 09–13; **Hub C2** for the real client, **phase 3 task 13** for `githost` | 1.5 h |
+| 15 | Desktop: the Discover client, wire types, problem codes, stop sending `contextRef` | 11, 12 (their contracts, not their code) | 2 h |
+| 16 | Desktop: `discoverSlice`, `provenanceSlice`, selectors, the one loader, the poller amendment | 15 | 3 h |
+| 17 | Desktop: `ContextChip`, `DefinitionOfDone`, `ShippedManifest`; the chip on every pane header | 16 | 3 h |
+| 18 | Desktop: the Discover lens — binding, asking, the brief born, inheritance, follow-up, failures | 16, 17 | 3 h |
+| 19 | Desktop: moved on, project changed, undo, past revision, missing, erased, hand-edited | 18 | 3 h |
+| 20 | Desktop: `4-D1` on start and restart — retry and *Start without the brief* | 15, 16 | 2 h |
+| 21 | Desktop: import a repository — drafted from the code | 13, 18 | 2 h |
+| 22 | Contract amendments (Go, UI, provenance) | 10, 12, 16 | 1.5 h |
+| 23 | End-to-end verification; the owner's batched steps written down | all | 2 h |
+
+**Order.** Three lanes can run in parallel from the start, each in its own worktree:
+
+- **Lane A (pure Go):** 01 → 02 → 03 → 04, 05 → 06.
+- **Lane B (seams):** 10 — alone, because it edits `sessions.go`, which phase 2 (resume fix),
+  phase 3 (task 05, `sessionEnv`) and this phase all touch (phase 3 ask P4-7). **Start it only after
+  phase 2 task 26 has merged** (brief R5), and rebase-free: take the file as it is on the branch
+  you are based on and name the base commit in the commit message.
+- **Lane C (desktop):** 15 can start once 11's and 12's wire shapes are fixed in this plan (they
+  are: parts 11 and 12), then 16 → 17 → 18 → 19, with 20 and 21 after.
+
+Then 07 → 08 → 09 → 11 → 12 → 13 → 14 as the Hub's H0 lands (`hubclient` interfaces and fake; ADR
+§5.9 ships them first), then 22 and 23 last. **UI branches (17–21) stay unmerged until the owner
+has looked** (`OD-1`).
+
+**Critical path:** Hub H0 → 07 → 08 → 09 → 11 → 12 → 14 → 23, about 18 engineer-hours after H0.
