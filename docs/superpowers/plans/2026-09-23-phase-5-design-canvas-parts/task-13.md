@@ -43,6 +43,17 @@ type RenderRequest struct {
 	Scale    int        `json:"scale"`    // 1 or 2, screenshots only
 	Family   string     `json:"family"`   // font only
 	Deadline string     `json:"deadline"` // RFC 3339; the renderer drops a request past it
+	// Progress is set only by the approval's capture (task 21 step 4, review I5): one
+	// artboard per request, so the renderer that takes it can show "3 of 12 · Billing"
+	// in the approval toast (task 27's approvalProgress). nil on every agent request.
+	Progress *RenderProgress `json:"progress,omitempty"`
+}
+
+type RenderProgress struct {
+	Purpose string `json:"purpose"` // "approval"
+	Index   int    `json:"index"`   // 1-based
+	Total   int    `json:"total"`
+	Name    string `json:"name"`    // the artboard's name, for the toast and the failure sentence
 }
 
 type Box struct {
@@ -90,6 +101,12 @@ const (
 	RenderTimeout      = 15 * time.Second
 	MaxScreenshotEdge  = 4096
 	MaxRenderNodes     = 50
+	// ApprovalRenderTimeout bounds ONE artboard's 2× capture during an approval
+	// (review I5). The agents' RenderTimeout serves a one-node screenshot and
+	// does not grow. 30 s is provisional: task 01's S8 records the per-artboard
+	// capture time at 1× and 2×, and task 13's implementer sets this to
+	// max(30 s, 3 × the slowest 2× capture S8 measured), citing the S8 row.
+	ApprovalRenderTimeout = 30 * time.Second
 )
 
 // AttachRenderer registers one renderer for one canvas. visible is true for
@@ -103,6 +120,14 @@ func (s *Service) AttachRenderer(canvasID, rendererID string, visible bool) (req
 // ErrRendererUnavailable. A result with Error set is returned as
 // *RenderError{Code, Message}.
 func (s *Service) Render(ctx context.Context, canvasID string, r RenderRequest) (RenderResult, error)
+
+// RenderWithin is Render with timeout in place of RenderTimeout: it sets
+// r.Deadline to now + timeout and waits that long. Render is
+// RenderWithin(ctx, canvasID, r, RenderTimeout). A timeout outside
+// (0, ApprovalRenderTimeout] is refused before anything is sent (an error,
+// not a clamp), so no caller can hold a renderer longer than an approval
+// does. Only task 21's approval passes ApprovalRenderTimeout (review I5).
+func (s *Service) RenderWithin(ctx context.Context, canvasID string, r RenderRequest, timeout time.Duration) (RenderResult, error)
 
 // CompleteRender delivers a renderer's result. The request must be
 // outstanding AND have been sent to rendererID; anything else is ErrNotFound.
@@ -146,6 +171,9 @@ func (s *Service) GetSelection(canvasID string) Selection
 | `TestRender_detachFailsOutstanding` | detaching with a request in flight fails it immediately | a request orphaned by a closed lens |
 | `TestRender_errorPassthrough` | a result with `Error: "not-rendered"` → `*RenderError` | a failed render reported as an empty success |
 | `TestRender_limits` | 51 node ids, scale 3 → `ErrTooLarge` before any renderer sees it | an unbounded request |
+| `TestRenderWithin_ownDeadline` (injected clock) | `RenderWithin(…, ApprovalRenderTimeout)` answered at 20 s → the result, and the request's `Deadline` is now + 30 s; unanswered → `ErrRendererUnavailable` at 30 s, not 15 s; `Render` still fails at 15 s | an approval capture held to the agents' 15 s budget, or the agents' budget grown (review I5) |
+| `TestRenderWithin_bounds` | a timeout of 0, a negative one, and `ApprovalRenderTimeout + 1ns` → an error, and no renderer saw a request | a caller holding a renderer indefinitely |
+| `TestRender_progressPassesThrough` | a request with `Progress{approval, 3, 12, "Billing"}` reaches the renderer channel unchanged; an agent's request (`Render`) carries `nil` | a toast with no count, or an agent request dressed as an approval |
 | `TestSelection_humanOnly` | a session caller → refused; a human sets `[a, b, missing]` → `[a, b]` | an agent writing the human's selection |
 | `TestSelection_clearedOnDetach` | detaching the visible renderer clears the selection | `get_selection` reporting a selection from a closed lens |
 

@@ -111,9 +111,14 @@ export function ArtboardFrame(props: {
 // Registers with transport.onRenderRequest(canvasId, visible, …) for as long as it lives. A
 // request at the store's head uses the live views; one at another revision loads that document
 // into an off-screen store and frames, answers, and disposes them. Past the deadline → dropped.
+// A request carrying `progress` (the approval's one-artboard capture, task 13, review I5) calls
+// onProgress({canvasId, index, total, name}) as it starts; the desktop passes its slice's
+// designApprovalProgress (task 27), which the approval toast reads. The editor package keeps no
+// progress state of its own.
 export function useRenderResponder(opts: {
   transport: CanvasTransport; canvasId: string; visible: boolean;
   views: () => Map<string, ArtboardView>; store: DocStore; bundledFonts: BundledFont[];
+  onProgress?: (p: { canvasId: string; index: number; total: number; name: string }) => void;
 }): void;
 
 // canvas/editor/src/renderer/HiddenRenderer.tsx — P5-Q: every artboard of one canvas, off-screen
@@ -142,6 +147,7 @@ export function HiddenRenderer(props: { transport: CanvasTransport; canvasId: st
 | `responder.test.ts › head` | a screenshot request at head answers from the live view (capture stubbed) | a reload for every screenshot |
 | `responder.test.ts › pastRevision` | a request at revision 3 while head is 9 loads document 3 through the transport | an approved-revision screenshot of the head |
 | `responder.test.ts › deadline` | a request past its deadline gets no answer | late answers the server has already failed |
+| `responder.test.ts › progress` | a request with `progress: {purpose: "approval", index: 3, total: 12, name: "Billing"}` calls `onProgress` once, before capture starts; a request without it never calls it | an approval toast that cannot count (review I5) |
 | `fonts.test.ts` | a bundled family → `source: "bundled"`, its weights; an unknown family → `available: false`, `source: "missing"` | fonts reported available that will render as fallback |
 
 ## Steps

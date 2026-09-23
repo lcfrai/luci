@@ -72,7 +72,9 @@ export interface ApplyResult { revision: number; change: { revision: number; lab
 export interface UndoResult { revision: number; undid: number; skipped: string[]; message: string }
 
 export type RenderKind = "screenshot" | "computed" | "layout" | "font";
-export interface RenderRequest { id: string; canvasId: string; revision: number; kind: RenderKind; nodeIds: string[]; scale: 1 | 2; family: string; deadline: string }
+export interface RenderRequest { id: string; canvasId: string; revision: number; kind: RenderKind; nodeIds: string[]; scale: 1 | 2; family: string; deadline: string; progress?: RenderProgress }
+// Only the approval's one-artboard captures carry it (task 13's RenderProgress, review I5).
+export interface RenderProgress { purpose: "approval"; index: number; total: number; name: string }
 export interface Box { nodeId: string; x: number; y: number; width: number; height: number }
 export interface Png { nodeId: string; width: number; height: number; scale: 1 | 2; data: string /* base64 */ }
 export interface RenderResult {

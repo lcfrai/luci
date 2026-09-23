@@ -1,7 +1,7 @@
 # Task 01 — Spike: the script-less artboard iframe
 
 **Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** — · **Gates:** 24, 25, 26 ·
-**Hours:** 2
+**Hours:** 2.5
 
 ## Why
 
@@ -37,6 +37,14 @@ interface SpikeResult {
     outcome: "pass" | "fail" | "partial";
     evidence: string;                // one sentence: the values measured
   }>;
+  // S8's timing half (review I5): one row per library × artboard × scale, five runs each
+  captureMs: Array<{
+    library: "modern-screenshot" | "html-to-image";
+    artboard: "1440x900" | "390x844";
+    scale: 1 | 2;
+    medianMs: number;
+    slowestMs: number;
+  }>;
 }
 ```
 
@@ -61,7 +69,7 @@ The iframe under test, exactly as task 24 will build it (only the body differs):
 | S5 | A parent-side text overlay lines up | a `<textarea>` in the parent, positioned from S3's rect and styled from S3's computed font, wraps the fixture paragraph onto the same number of lines (compare `scrollHeight / lineHeight`) |
 | S6 | The meta CSP holds | an `<img src="https://example.invalid/x.png">` stays `naturalWidth === 0`; a `url(https://…)` background yields no network request (Playwright's `page.on('request')` sees none) |
 | S7 | Parent-registered listeners on nodes inside the sandboxed document | record whether `contentDocument.body.addEventListener('click', f)` from the parent fires on a synthetic click. **Either answer is acceptable**; it decides whether task 26 edits text inside the iframe or over it |
-| S8 | PNG capture fidelity | `modern-screenshot`'s `domToPng` and `html-to-image`'s `toPng` of `contentDocument.documentElement`, against a fixture with a web font from a `blob:` URL, a `linear-gradient`, a `box-shadow`, `filter: blur(2px)`, `backdrop-filter: blur(8px)` and `border-radius` clipping an image. Record per feature: rendered, missing, or wrong |
+| S8 | PNG capture fidelity | `modern-screenshot`'s `domToPng` and `html-to-image`'s `toPng` of `contentDocument.documentElement`, against a fixture with a web font from a `blob:` URL, a `linear-gradient`, a `box-shadow`, `filter: blur(2px)`, `backdrop-filter: blur(8px)` and `border-radius` clipping an image. Record per feature: rendered, missing, or wrong. **And capture time per artboard** (review I5): a 1440×900 fixture artboard (about 200 nodes, the web font, two `blob:` images) and a 390×844 one, each captured five times at 1× and five at 2× with each library, each timed from the call to the `Blob` in hand (`performance.now()`), PNG encode included. Record the median and the slowest, in ms, per artboard, scale and library. The slowest 2× figure of the library task 24 adopts sets task 13's `ApprovalRenderTimeout` (`max(30 s, 3 × it)`); a slowest 2× over 10 s is written up as a finding, not tuned away |
 | S9 | A parent-made `blob:` URL loads inside | an `<img src="blob:…">` created by the parent from a PNG `Uint8Array` reaches `naturalWidth > 0` under the CSP |
 | S10 | Keys stay in the parent | after clicking the iframe's area, `document.activeElement` in the parent is the viewport element, not the iframe |
 
@@ -89,7 +97,8 @@ so that it can fail:
    non-zero if any check is missing. `--negative` runs the three negative variants.
 3. Run it both ways. Record Edge's version from `userAgent`.
 4. Write the report: the result table, the three negative runs, the capture fidelity matrix (S8),
-   and the **decision table** below with every row filled.
+   the capture **time** matrix (S8's `captureMs`, four rows per library), and the **decision
+   table** below with every row filled.
 5. Commit the four files by pathspec.
 
 ### The decision table the report must fill
@@ -101,13 +110,16 @@ so that it can fail:
 | Text editing inside the iframe or over it? (S7) | S7 | over it: a parent `<textarea>` positioned from S3 (task 26 builds this by default) |
 | Which capture library? (S8) | S8 | the one with fewer "missing" rows; ties go to `modern-screenshot` (MIT, spec L14). Features neither renders are listed in task 24's `capture.ts` doc comment and in the guide (task 17) as *"not shown in screenshots"* |
 | Do `blob:` assets work? (S9) | S9 | `data:` URLs (larger, but same-origin by construction) |
+| How long may one approval capture take? (S8 time) | S8 `captureMs`, the adopted library's slowest 2× row | task 13's `ApprovalRenderTimeout` = `max(30 s, 3 × that figure)`, the report citing the row; over 10 s is a finding for the orchestrator (task 21's one-artboard-per-request loop then needs a smaller scale), never a larger constant alone (review I5) |
 
 ## Acceptance
 
 ```bash
 cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5/canvas/editor/spike && node run.mjs
 ```
-Expected: one JSON object with ten `checks`, each with an `outcome`; exit 0.
+Expected: one JSON object with ten `checks`, each with an `outcome`, and eight `captureMs` rows
+(2 libraries × 2 artboards × 2 scales, each row a median and a slowest); exit 0 (the runner exits
+non-zero if a `captureMs` row is missing).
 
 ```bash
 node run.mjs --negative
@@ -127,4 +139,7 @@ Expected: `10` or more.
   hands-on list (`OD-12`).
 - Native WebView2 capture (`ICoreWebView2::CapturePreview`) is not tried; it needs Rust in the
   shell and captures the whole webview. It is the fallback if S8 finds both libraries unusable.
+- **S8's times are one machine's.** They are Edge on this workstation, not WebView2, not a slower
+  laptop, and not a busy main thread; the 3× factor in `ApprovalRenderTimeout` is for that gap, and
+  task 30's hands-on list re-times one twelve-artboard approval in the Tauri shell.
 - Nothing here is product code; nothing here is imported by the package.

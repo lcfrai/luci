@@ -123,7 +123,10 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
    4. Hand-edit the agent's page (move, reorder, restyle, retype); undo your own edit and see the
       agent's work untouched; revert one agent's changes from the activity feed.
    5. Approve (see the Undo toast); edit after approval (*changed after approval* names you); edit
-      the brief in Discover (*superseded*); re-review and approve again.
+      the brief in Discover (*superseded*); re-review and approve again. Then approve a canvas of
+      twelve artboards: the toast counts *"Capturing 3 of 12 · <name>"*, and the log's per-artboard
+      capture times are noted beside S8's (task 01) — the WebView2 figure `ApprovalRenderTimeout`
+      was set without (review I5).
    6. *Start a Develop session from this design*; the Develop agent reads
       `.panacea/design/<canvas>@<rev>/manifest.json` and implements the screen; `git status` shows
       nothing under `.panacea/`.

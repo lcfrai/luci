@@ -395,7 +395,7 @@ tasks; each part says what it codes against until that task lands.
 
 | # | Task | Depends on | External | Hours |
 |---|---|---|---|---|
-| 01 | **Spike**: the script-less artboard iframe in WebView2 — measure, hit-test, text overlay, keys, PNG, CSP | — | — | 2 |
+| 01 | **Spike**: the script-less artboard iframe in WebView2 — measure, hit-test, text overlay, keys, PNG (fidelity and capture time per artboard, review I5), CSP | — | — | 2.5 |
 | 02 | The `canvas/` Go module, `go.work`, the control plane's `replace`, CI build/test/vet | — | — | 1 |
 | 03 | The `canvas/editor` npm package, the desktop's `file:` dependency and its three declared config amendments | — | — | 1.5 |
 | 04 | **The licence gate**: `tools/licencegate`, SPDX evaluation, deny list, exceptions, CI step | 02, 03 | — | 2.5 |
@@ -416,7 +416,7 @@ tasks; each part says what it codes against until that task lands.
 | 19 | The relay supervisor; `--mcp-config` and `--allowedTools`; session wiring | 14, 18 | — | 2.5 |
 | 20a | `designapi` routes, the SSE window stream, problem codes, the route audit, the `Approvals` stub, the phase-3 branch adapter (`task-20.md`) | 11, 12, 13, 14, 19 | **Hub C3, Hub plan tasks 37–38 (`localkey`) — hard, no fallback (rule 4)**; phase 4 task 10 (`RouteMounter`; declared here if absent); phase 3 task 11 (renames, archive refs; the adapter waits for it, S5-P3.2) | 4.5 |
 | 20b | Configuration and the `cmd/api` wiring: store, authority, MCP server and tools, relay supervisor, `newDesignAPI` (`task-20b.md`) | 17, 19, 20a | **Hub C3 (tasks 37–38) — hard** | 1.5 |
-| 21 | Approval: snapshot, blobs, the Hub approval, *changed after approval*, re-review | 08, 09, 13, 20a, 20b | **Hub C3 (tasks 37–38) — hard**; Hub H0/C2 (`hubclient.Designs` + fake); Hub C1 (task 32: `api.Deps.Hub`, `CodeHubNotConfigured`; re-review RR-I6-2); phase 4 task 07 (`discoverhub`) | 3 |
+| 21 | Approval: snapshot (one artboard captured per request, review I5), blobs, the Hub approval, *changed after approval*, re-review | 08, 09, 13, 20a, 20b | **Hub C3 (tasks 37–38) — hard**; Hub H0/C2 (`hubclient.Designs` + fake); Hub C1 (task 32: `api.Deps.Hub`, `CodeHubNotConfigured`; re-review RR-I6-2); phase 4 task 07 (`discoverhub`) | 3.5 |
 | 22 | Handoff: the bundle into the worktree (manifest paths validated, review C2; no link followed, host git hardened, review I1); the session link | 21 | **Hub C3 (tasks 37–38) — hard**; **phase 3 tasks 02–03 (`gitx.Exec` §HGH, `lanes.Catalog`) — hard for route 24**; Hub H4 fake; phase 3 3-D6 | 3 |
 | 23 | Editor data layer: wire types, the document store, the transport port, the allowlist check | 03, 07, 11 | — | 2.5 |
 | 24 | The renderer: artboard iframes, assets, measurement, capture, the render responder, the hidden renderer | 01, 23 | — | 3 |
@@ -427,7 +427,7 @@ tasks; each part says what it codes against until that task lands.
 | 29 | Paste: HTML, SVG and images | 20a, 26 | — | 1.5 |
 | 30 | End to end, the phase 5 contract document, and the amendments | all | OD-12's hands-on session | 2 |
 
-**Total 81.5 hours**, the sum of the rows above (76 before b02; 80.5 before b03, whose I1 adds 1 h to task 22; re-review RR-M1) (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
+**Total 82.5 hours**, the sum of the rows above (76 before b02; 80.5 before b03, whose I1 adds 1 h to task 22 and whose I5 adds 0.5 h each to tasks 01 and 21; re-review RR-M1) (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
 sizing note; tasks 10, 11 and 20a gain 0.5 h each for seam S5-P3.2, review I7; task 11 a further
 0.5 h for the whole-project replay, re-review RR-I7-1 and RR-I7-2). Critical path (≈ 33 h by
 earliest finish): 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17 → 20b → 21 → 22 → 28 → 30

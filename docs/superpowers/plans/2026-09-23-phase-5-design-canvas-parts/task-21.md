@@ -1,6 +1,6 @@
 # Task 21 — Approval: the snapshot, the blobs, the Hub's design link, *changed after approval*, re-review
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 08, 09, 13, 20a, 20b (review I6: 20b's `design.go` gains this task's `Hub` line) · **External:** **Hub C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency** (route 21 is the human-only approval; without the key a sandbox can call it, review C1), Hub H0 (`hubapi`, `hubclient.Designs`, `NewFake`), Hub C2 (the relay rule), **Hub C1 — Hub plan task 32** (`api.Deps.Hub hubclient.Hub`, `hub/.../task-32.md:58`, and `CodeHubNotConfigured`, `:28`; the `design.go` line below passes that value and route 21 answers that code, re-review RR-I6-2); phase 4 task 07 (`discoverhub`, through task 20a's port) · **Hours:** 3
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 08, 09, 13, 20a, 20b (review I6: 20b's `design.go` gains this task's `Hub` line) · **External:** **Hub C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency** (route 21 is the human-only approval; without the key a sandbox can call it, review C1), Hub H0 (`hubapi`, `hubclient.Designs`, `NewFake`), Hub C2 (the relay rule), **Hub C1 — Hub plan task 32** (`api.Deps.Hub hubclient.Hub`, `hub/.../task-32.md:58`, and `CodeHubNotConfigured`, `:28`; the `design.go` line below passes that value and route 21 answers that code, re-review RR-I6-2); phase 4 task 07 (`discoverhub`, through task 20a's port) · **Hours:** 3.5
 
 ## Why
 
@@ -270,8 +270,18 @@ type ApprovalState struct {
 2. `Briefs.Binding(projectId)` is `bound`, else `409 design_not_shared` `{state}`.
 3. `Briefs.Head(projectId, branchId)` is `resolved` with status `complete`, else `409 design_no_brief`.
 4. The document at `revision` (`authority.Document`), then **2× screenshots of every artboard at
-   that revision** (`authority.Render`, 50 per request), else `409 renderer_unavailable` — the lens is
-   open when a human approves, so this means the renderer failed.
+   that revision, one artboard per request** (review I5): for artboard *i* of *n*, in document
+   order, `authority.RenderWithin(ctx, canvasId, {Kind: screenshot, NodeIDs: [id], Scale: 2,
+   Revision: revision, Progress: {approval, i, n, name}}, ApprovalRenderTimeout)` (task 13), so each
+   capture has its own deadline and the agents' 15 s `RenderTimeout` is untouched. The requests run
+   one after another (a renderer captures on its main thread; parallel requests would share it).
+   The log records each artboard's capture time (`artboard`, `ms`, `scale`), the figure task 30
+   compares with S8. The first failure stops the loop: `409 renderer_unavailable` with
+   `details.artboardId`, `details.artboardName`, `details.index`, `details.total` and, for a
+   `*RenderError`, `details.renderError` (its code), and the sentence *"The renderer could not
+   capture artboard "<name>" (<i> of <n>). Nothing was approved."* — the lens is open when a human
+   approves, so this means the renderer failed on that artboard. Nothing is uploaded before every
+   capture has succeeded (step 6 comes after), so a failure leaves the Hub untouched.
 5. `handoff.BuildSnapshot` (called through the API's unexported `buildSnapshot` field, which only
    `TestApprove_snapshotBug` replaces); over `MaxFiles`, `MaxFileBytes` or `MaxSnapshotBytes` → `413 design_too_large`.
    `ErrTampered` or `ErrUnsafePath` from `BuildSnapshot`'s own `CheckManifest` (a path failing
@@ -315,6 +325,9 @@ loader; this cache does not poll it).
 | `TestApprove_notShared` | an unbound project → 409 `design_not_shared` and **no** Hub call | blobs uploaded for a project the Hub cannot hold |
 | `TestApprove_incompleteBrief` | head brief `open` → 409 `design_no_brief`, no upload | an approval against an unfinished brief (ADR Q1) |
 | `TestApprove_noRenderer` | no renderer → 409 `renderer_unavailable`, no upload | an approval whose PNGs are blank |
+| `TestApprove_onePerArtboard` (a recording renderer fake, 12 artboards) | twelve requests, one after another (the next is sent only after the last `CompleteRender`), each with one node id, `Scale: 2`, `Revision` the approved one, `Progress{approval, i, 12, name}` in document order, and a `Deadline` of now + `ApprovalRenderTimeout` (injected clock) | the old one-request-for-every-artboard capture held to 15 s; parallel captures fighting over one main thread (review I5) |
+| `TestApprove_slowArtboardWithinItsDeadline` (injected clock) | each artboard answered at 20 s → 201; the same with `Render`'s 15 s budget would have failed (asserted by a row that calls `Render` directly) | the approval routed through `Render`, not `RenderWithin` |
+| `TestApprove_failureNamesArtboard` | artboard 3 of 5 (*"Billing"*) unanswered → at 30 s, `409 renderer_unavailable` with `details.artboardId`, `artboardName: "Billing"`, `index: 3`, `total: 5`, the sentence naming it; artboards 4–5 never requested; **no** `PutBlob`, **no** `Approve`; a `*RenderError{too-large}` on artboard 2 → the same shape with `details.renderError: "too-large"` | a failure the human cannot act on; blobs uploaded for an approval that failed |
 | `TestApprove_hubErrorsPassThrough` | fake answers `design_already_approved` → the same 409 and code reach the desktop; a fake 500 → 503 `upstream_unavailable` `upstream: hub` | Hub codes rewritten |
 | `TestApprove_noHub` (review I6) | `Config.Hub` nil (the process with `PANACEA_APP_HUB_URL` unset): route 21, and route 22 on a cache miss, → `503 hub_not_configured`, no panic, no blob or approval, authority unchanged; `Approvals().Latest` → not found | a nil `Hub` dereferenced on the one action the spine depends on |
 | `TestNew_refusesTypedNilHub` (re-review RR-I6-3) | `New(Config{…, Hub: (*fakeDesigns)(nil)})` → `ErrTypedNilHub`, no `*API`; an untyped nil `Hub` → builds | a nil pointer inside a non-nil interface reaching route 21 |

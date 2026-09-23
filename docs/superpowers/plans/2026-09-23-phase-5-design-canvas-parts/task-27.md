@@ -47,7 +47,7 @@ export interface DesignClient {
   setSelection(canvasId: string, nodeIds: string[]): Promise<void>;                         // 17
   exportCode(canvasId: string, nodeId: string, format: "html" | "jsx-inline" | "jsx-tailwind"): Promise<string>; // 18
   renderResult(requestId: string, r: RenderResult): Promise<void>;                          // 19
-  approve(canvasId: string, revision: number): Promise<DesignApproval>;                     // 21
+  approve(canvasId: string, revision: number): Promise<DesignApproval>;                     // 21; sent with timeoutMs: 0 (review I5: client.ts's 10 s DEFAULT_TIMEOUT_MS, client.ts:33, is shorter than one approval capture; the server bounds each artboard with ApprovalRenderTimeout and the toast shows progress)
   approvals(canvasId: string): Promise<ApprovalState>;                                      // 22
   reviewMark(canvasId: string): Promise<{ revision: number; briefKey: string }>;            // 23
   handoff(canvasId: string, approvalId: string, worktreeId: string): Promise<HandoffResult>; // 24
@@ -104,6 +104,9 @@ export interface DesignSlice {
     summaries: Record<string, Summary>;                // by canvas id
     approvals: Record<string, ApprovalState>;          // by canvas id; refreshed on content events and after approve
     pendingApproval: { canvasId: string; revision: number; timer: number } | null; // P5-I
+    // Set by the render responder (task 24) from a RenderRequest's progress (task 13) while the
+    // approval POST is in flight; cleared when it settles. The toast reads it (task 28, review I5).
+    approvalProgress: { canvasId: string; index: number; total: number; name: string } | null;
     stream: StreamState;
     lastUndo: { canvasId: string; message: string } | null;
   };
@@ -111,6 +114,7 @@ export interface DesignSlice {
   designCreateCanvas(projectId: string, branchId: string): Promise<void>;
   designApprove(canvasId: string, revision: number): void;   // starts the 5 s Undo window; the POST is sent when it lapses
   designCancelApproval(): void;                               // the toast's Undo
+  designApprovalProgress(p: { canvasId: string; index: number; total: number; name: string } | null): void; // the responder's call (review I5)
   designReReview(canvasId: string): Promise<void>;
   designStartDevelop(canvasId: string, approvalId: string, worktreeId: string, harness: string): Promise<{ sessionId: string; linked: boolean }>; // P5-N's three calls
   designRetryLink(canvasId: string, approvalId: string, sessionId: string): Promise<void>;
@@ -149,6 +153,7 @@ export function selectHiddenRendererCanvases(s: CockpitState): string[];
 | `design.test.ts` (one row per method) | method, path and body; an error body becomes `ApiError` with its code | a route typo found only in the lens |
 | `designSlice.test.ts › undoWindow` (fake timers) | `designApprove` sends nothing for 5 s; `designCancelApproval` in that window sends nothing ever; after 5 s exactly one POST | an approval sent before Undo can stop it (P5-I) |
 | `designSlice.test.ts › notPersisted` | `partialize(state)` has no `design` key | design state leaking into localStorage |
+| `designSlice.test.ts › approvalProgress` | `designApprovalProgress({…, index: 3, total: 12, name: "Billing"})` sets it; the approve POST settling (success or `ApiError`) clears it; `approve` is called with `timeoutMs: 0` (an injected `fetch` sees no abort after 10 s, fake timers) | a 12-artboard approval aborted by the client's 10 s default, or a toast stuck on *"3 of 12"* (review I5) |
 | `designSlice.test.ts › startDevelop` | three calls in order; a failing third leaves `linked: false` and the retry path works | an unlinked session nobody can fix |
 | `transportAdapter.test.ts › gapReload` | a DocStore `gap` triggers exactly one `document()` | a canvas stuck behind after a drop |
 | `transportAdapter.test.ts › renderRoundTrip` | a render event runs the handler and POSTs its result to route 19 | render requests that time out server-side |
