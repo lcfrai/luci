@@ -30,7 +30,8 @@ import type { ProvenanceRef, Head, RefsResponse, CriterionReading } from "../../
 
 export interface ProvenanceSlice {
   /** Filled once per key, never overwritten except by an identical ref, and emptied of a whole
-   *  brief by forgetBrief (a brief.erased event; review I10). Never holds a ref whose
+   *  brief, and of every key that pinned it, by forgetBrief (a brief.erased event; review I10,
+   *  re-review b06-1 R-I2). Never holds a ref whose
    *  resolution is "unavailable" — those go to unavailableAt. */
   refsByKey: Record<string, ProvenanceRef>;
   /** The one moving number per brief (P4-B compares with latestCompleteRevision). */
@@ -53,9 +54,18 @@ export interface ProvenanceSlice {
   staleHeadRefs: Record<string, true>;
   /** briefId -> the erasedAt of its brief.erased event. Erasure is of every revision and is
    *  irreversible (Hub contract §7.12 at hub 2f84662, :1106-1118; the event, §8 :1143), so
-   *  this only grows. putRefs stores
-   *  a "resolved" ref of such a brief in its erased form (no text; key, digest, savedAt, savedBy
-   *  kept), because the control plane may answer from its cache until HA4-8 lands (task 07). */
+   *  this only grows. The control plane may still answer an erased revision from its cache
+   *  while the Hub is failing, until HA4-8 lands (task 07 rules 5 and 7), so putRefs and
+   *  putHeadRef hold none of that text (re-review b06-1 R-I2):
+   *  - a "resolved" ref OF such a brief is stored in its erased form (no text; key, digest,
+   *    savedAt, savedBy kept);
+   *  - a "resolved" ref that INHERITS from such a brief (inherits.briefId in erasedBriefs) with
+   *    inherits.erased false is not stored: its slot is marked unavailable at this tick, as a
+   *    failed call's are, and is retried after 15 ticks. Only the control plane can tell the
+   *    branch's own text from the pin's (task 06's Build), so the desktop does not cut it;
+   *  - neither stores criterion states for that key;
+   *  - putHeadRef refuses a reading that holds such text by either rule: nothing is stored,
+   *    and useHeadRef treats the call as failed. */
   erasedBriefs: Record<string, string>;
   /** key -> the loader tick on which it last came back unavailable; retried after 15 ticks. */
   unavailableAt: Record<string, number>;
@@ -79,10 +89,14 @@ export interface ProvenanceSlice {
   /** S4-P3.4, phase 3's seam (review I14): the loader's next tick re-requests these keys, even
    *  though refsByKey holds them, and putRefs overwrites only their criterion states. */
   markCriteriaStale(keys: readonly string[]): void;
-  /** brief.erased: deletes every refsByKey entry whose briefId is briefId (every key of the
-   *  brief, whatever its revision) and the criterionStatesByKey entries of those keys, records
-   *  erasedBriefs[briefId] = erasedAt, and marks the
-   *  brief's head stale. The loader's next step 2 re-resolves the keys a surface still shows. */
+  /** brief.erased: deletes every refsByKey entry whose briefId OR inherits.briefId is briefId
+   *  (every key of the brief, whatever its revision, and every branch key that pinned it) and
+   *  the criterionStatesByKey entries of those keys; deletes every headRefByTarget reading by
+   *  the same test and marks those targets stale (removed, not kept until the re-read lands:
+   *  a failed re-read would otherwise leave the text on screen); records
+   *  erasedBriefs[briefId] = erasedAt, and marks the brief's head stale. The loader's next
+   *  step 2 re-resolves the keys a surface still shows, and useHeadRef re-reads the targets
+   *  (re-review b06-1 R-I2). */
   forgetBrief(briefId: string, erasedAt: string): void;
   setHubCursor(cursor: string): void;
   setHubCursorRead(cursor: string): void;
@@ -231,8 +245,10 @@ export function loadProvenance(
 /** Returns selectHeadRef(target). Calls discover.headRef(target) ONCE, then putHeadRef, when
  *  the target has no entry in headRefByTarget or staleHeadRefs names it; one call in flight per
  *  target, shared by every mounted reader. Until the answer lands it keeps returning the old
- *  reading, so a stale mark never blanks DefinitionOfDone. A failed call leaves the flag set
- *  and does not retry on its own; the next brief.* event or remount tries again. Event-driven,
+ *  reading, so a stale mark never blanks DefinitionOfDone; forgetBrief is the one exception,
+ *  and deletes a reading that holds erased text before the re-read (re-review b06-1 R-I2). A
+ *  failed call, or an answer putHeadRef refuses, leaves the flag set and does not retry on its
+ *  own; the next brief.* event or remount tries again. Event-driven,
  *  never on a timer (G8). Phase 3's DefinitionOfDone mount and Discover read head readings
  *  through this hook and nowhere else. */
 export function useHeadRef(discover: DiscoverClient, target: Target): ProvenanceRef | undefined;
@@ -278,6 +294,7 @@ only through Discover's own writes and new keys).
 | `loader: never caches unavailable` | the slot's ref is not in `refsByKey` | a chip stuck on unavailable after the Hub returns |
 | `loader: feed event marks the head stale and re-reads it` | cursor moves; one `changes` call; a `brief.revised` for `bf-…a2` → next `refs` call carries one held `bf-…a2` key; `headsByBrief` updated | a teammate's edit never reaching the chips |
 | `loader: brief.erased drops the brief's text and re-resolves` (review I10) | `refsByKey` holds `brief:…a2@5` and `@6` resolved and `brief:…b7@5`; a `brief.erased` for `bf-…a2` → both `a2` entries gone, `b7@5` kept; the next tick's one `refs` call carries `a2@5` (a session still shows it); the fake answers it **`resolved`** with its old sections (the control plane's cache, until HA4-8) → stored `erased`, `sections` `[]`, `headline` `""`, key and digest kept; `selectProvenanceState` → `erased` | erased text on a laptop until restart (ADR-H1 §6.8; `task-07.md` rule 4), or a desktop that trusts the control plane's pre-HA4-8 cache over the Hub's own event |
+| `loader: brief.erased leaves no inherited text either` (re-review b06-1 R-I2) | `refsByKey` holds `brief:…b42@6` (inherits `b-7@5`, its `audience` and an `OriginProject` section carrying `b-7`'s text) and `headRefByTarget["pj-1/b-42"]` holds the same reading; a `brief.erased` for `bf-…b7` → both are gone at once, and `staleHeadRefs` names `pj-1/b-42`; the next `refs` answer serves `b-42@6` **`resolved` with `inherits.erased` false** and the old text (the control plane's cache, Hub failing) → not stored, the slot `unavailable`, no `criterionStates` entry; the head re-read answers the same → refused, no reading, no retry; a later answer with `inherits.erased` true is stored. After each step, a JSON dump of the provenance slice holds no byte of `b-7`'s answers | erased project text surviving in the branch keys and head readings that inherit it (ADR-H1 §6.8), which the own-brief sweep of review I10 cannot see |
 | `loader: brief.* marks every view and head reading of the project stale` (review I10) | views `pj-1/b-9` (`brief: null`, binding `pj-hub-1`), `pj-1/` (binding `pj-hub-1`), `pj-2/` (binding `pj-hub-2`) and head readings for the same three targets (`pj-1/b-9`'s a `none` Ref, known only through its view's binding); a `brief.created` for a new brief of `pj-hub-1` → `discoverStale` and `staleHeadRefs` name `pj-1/b-9` and `pj-1/`, never `pj-2/`; a target with no known Hub project is named too; a `projectId: null` event names all | a teammate's new branch brief never reaching `DefinitionOfDone` (*no brief* until navigation), or an event for one project re-reading every project |
 | `loader: criterion states move, the ref does not` (review I14) | tick 1 answers `a2@5` with `criterionStates` `open`; `markCriteriaStale(["brief:…a2@5"])` → tick 2's one `refs` call carries that key although `refsByKey` holds it; it answers `settled, "CI run 88 passed"` → `selectCriterionStates` gives `settled` and its `because`; `refsByKey["brief:…a2@5"]` is the same object as after tick 1; tick 3 makes **no** request | a verdict frozen in the forever-cached ref, or a states re-read that becomes a request per tick |
 | `selectors: criterion states come from the map, never the ref` (review I14) | a ref whose `criteria` items carry a stray `state: "settled"` and no map entry → every id reads `open`; the same frozen empty record on two calls | a reader that falls back to a field the wire no longer has |

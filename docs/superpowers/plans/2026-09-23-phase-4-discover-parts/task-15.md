@@ -140,7 +140,8 @@ export interface RefCriterion { id: string; text: string; digest: string }
 /** provenance.CriterionReading: phase 3's verdict, served beside the refs and never cached with
  *  them (task 16's criterionStatesByKey). */
 export interface CriterionReading { id: string; state: CriterionState; because: string }
-export interface InheritedRef { key: string; briefId: string; revision: number; digest: string }
+export interface InheritedRef { key: string; briefId: string; revision: number; digest: string;
+  erased: boolean } // the pin was erased: the ref holds none of its text (task 07 rule 7)
 /** provenance.Ref. Every field is always present (task 12's rule). */
 export interface ProvenanceRef {
   key: string; resolution: Resolution; noneReason: "" | "declined"; present: boolean;

@@ -454,7 +454,8 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
      is (same bytes, same expiry; a key's content is immutable, so the answer's copy is not
      re-read). `erased` or `missing` evicts the entry, and the slot takes the Hub's answer; for a
      cached pin, the branch slot that needs it follows the pin's answer (an `erased` pin is
-     rule 8's case). So an erasure reaches `Resolve` at its next successful call, not only at the
+     rule 7's case, a `missing` one makes the branch slot `unavailable`: its pin is not in
+     hand). So an erasure reaches `Resolve` at its next successful call, not only at the
      TTL. A Hub that is failing still leaves a cached erased revision servable until `CacheTTL`;
      that gap is HA4-8's.
 
@@ -470,6 +471,17 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
    inherits nothing (task 09 step 4) and Develop is not to be blocked or toasted for a Hub it was
    never given (Hub contract §9.5; task 18's `hub_off leaves Develop alone`). A stamped key is
    different: it names a revision that may exist, so `Resolve` says `unavailable`, not `none`.
+7. **A branch key whose pinned project revision is erased** (re-review b06-1 R-I2; OQ-9). The
+   Hub erases every revision of a brief at once and keeps each key resolvable as `erased` (Hub
+   contract §7.12 :1110-1111), so a branch revision can outlive the project text it pins. When
+   the pin's answer is `erased`, the branch slot is `resolved` from **its own revision alone**:
+   `Build` gets `Source.Project` nil and `Source.PinErased` true (task 06), `Inherits` keeps the
+   pin's key, briefId, revision and digest with `erased: true`, and no field or section holds
+   the pin's text. The pin's cached copy is never used for it: the `erased` answer evicted it
+   (rule 5). `HeadRef` builds its `Ref` by the same rule. `Inheritable` returns the same
+   own-text document for such a revision, with `Key` the branch key (the recommended answer to
+   OQ-9). Only a Hub that is failing, with both pieces cached, still yields the old text until
+   `CacheTTL`; that is HA4-8's gap, and the desktop refuses that answer (task 16 `putRefs`).
 
 **Tests first** (`fakeHub` from `fakehub_test.go` — `hubclient.NewFake()` embedded, plus `List`
 until HA4-2 lands, plus the `renameProject` and `failResolve` hooks — seeded by `fixtures_test.go` with the fact sheet's world —
@@ -491,6 +503,7 @@ project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins o
 | `TestResolveCarriesCachedKeysForTheirHeads` (re-review b06-1 R-I1) | resolve `b-42@6` (pins `b-7@5`); the fake writes `b-7@6` `complete`; resolve `b-42@6` again inside `CacheTTL` → the wrapper saw the first call carry `b-42@6` and `b-7@5`, `heads["bf-…b7"]` is `{6, 6}` and `heads["bf-…b42"]` is present, and the `refs` slot is equal to the first answer's | a cache hit that costs the desktop its head, so a project edit never reaches a branch chip (rule 4 of task 16's selector reads `current` for ever) |
 | `TestCriterionStatesAreRecomputedOnACachedKey` (review I14) | `Config.Evaluate` answers `open` on the first call and `settled, "CI run 88 passed"` on the second; `Resolve` the same resolved key twice, the second with `SetUnavailable(true)` → its `refs` slot is `resolved` from the cache and equal to the first, and `states[key]` changes from `open` to `settled`; a `missing`, `none` or `unavailable` slot has no `states` entry | a verdict cached with the revision, so evidence never moves it |
 | `TestErasedIsNeverServedFromCache` | resolve, erase in the fake, resolve again inside `CacheTTL` → `erased`, no sections, and the entry is evicted (the Hub's answer wins); resolve, erase, `SetUnavailable(true)`, advance the injected clock past `CacheTTL`, resolve → `unavailable`, never `resolved` | erased text outliving its erasure on a laptop (ADR-H1 §6.8), or a cache that outranks the Hub's own `erased` |
+| `TestABranchKeyWhosePinIsErasedKeepsOnlyItsOwnText` (re-review b06-1 R-I2; rule 7) | resolve `b-42@6` (pins `b-7@5`, audience skipped on the branch) so both are cached; erase `b-7` in the fake; resolve `b-42@6` again → `resolved`, `inherits` `{key: brief:…b7@5, erased: true}`, `audience` `""`, no section whose origin is `project`, and no byte of `b-7@5`'s answers anywhere in the JSON; `HeadRef` on `b-42` and `Inheritable` agree | erased project text served inside every branch key that pinned it, from the cache or from a rebuild |
 | `TestViewOfABranchShowsWhatItInherits` | `Inherited` is `b-7`'s latest complete; `Preview.Block` equals `claudemd.Render` of `Inheritable`'s document | a preview the materialiser would not write |
 | `TestHistoryIsOldestFirstWithChanges` | six rows, `Change.Kind` from each content, erased rows marked | a history that has to diff revisions |
 | `TestHubErrorsPassThroughUnchanged` | from `View`, `History` and `HeadRef`, a fake 409 and a fake `ErrUnavailable` reach the caller as `errors.As`/`errors.Is` match | a wrapped error the relay cannot see |

@@ -108,6 +108,9 @@ type InheritedRef struct {
 	BriefID  string `json:"briefId"`
 	Revision int    `json:"revision"`
 	Digest   string `json:"digest"`
+	// Erased: the pinned project revision was erased, so the Ref holds none
+	// of its text (task 07 rule 7; re-review b06-1 R-I2).
+	Erased bool `json:"erased"`
 }
 
 // Ref is one brief key, resolved. Cacheable for ever EXCEPT headRevision and
@@ -158,6 +161,10 @@ type Evaluate func(briefKey string, c discover.Criterion) (CriterionState, strin
 type Source struct {
 	Revision  discover.Revision  // the revision the key names
 	Project   *discover.Revision // its pinned project revision (branch keys), or nil
+	// PinErased: Revision pins a project revision the Hub answered erased.
+	// Project is then nil, and Build renders the branch's own answers alone
+	// (task 07 rule 7; re-review b06-1 R-I2).
+	PinErased bool
 	Digest    string
 	ProjectID string
 	SavedAt   string
@@ -177,6 +184,11 @@ type Source struct {
 // never a string written here (re-review b05-1 R-M2).
 // Build takes no Evaluate: nothing in a Ref may depend on evidence
 // (review I14).
+// With src.PinErased, Build calls discover.Resolve on a copy of src.Revision
+// whose Content.Inherits is nil (so a nil project is legal, task 05), then
+// sets Ref.Inherits from the original Content.Inherits with Erased true: no
+// OriginProject section, and an audience, constraint or out-of-scope the
+// branch skipped stays "".
 func Build(key string, src Source, head Head) Ref
 
 // Readings is the moving part of one resolved key: one CriterionReading per
@@ -206,6 +218,7 @@ func CriterionDigest(text string) string
 | `TestEmptyIsNotAKeyButIsNone` | `Parse("")` is `ErrInvalidKey`; `NoneRef("")` is `resolution: none`, `noneReason: ""` | an empty `contextRef` read as data loss |
 | `TestDeclinedIsNoneWithAReason` | `NoneRef(Declined)` → `none`, `declined`, `present: false` | the override indistinguishable from "no brief" |
 | `TestBuildBranchKeyShowsInheritedText` | a branch revision that skips audience, with its pinned project revision: `Audience` is the project's text and its section is `OriginProject` | critique-2 §1.1's second consequence — a chip with no audience |
+| `TestBuildWithAnErasedPinHoldsNoInheritedText` (re-review b06-1 R-I2) | the same branch revision with `PinErased: true` and `Project` nil → `Inherits.Erased` true with the pin's key and digest, `Audience` `""`, no `OriginProject` section, and no `ErrInheritMismatch` | a branch `Ref` carrying erased project text, or one that fails to build and blanks every chip on the branch |
 | `TestBuildTitlesAnOpenRevisionByTheOneRule` (re-review b05-1 R-M2) | `Build` over an open branch revision on `refs/heads/evidence-upload` → `Title` equals `discover.Title` of it (`Branch brief — evidence-upload`) and `BranchRef` equals `Revision.BranchRef`; an open project revision → `Project brief` | an open history row titled `""`, or by a second hand-written copy of task 05's rule that drifts from it |
 | `TestBuildCarriesCriterionDigests` | each criterion's digest is `CriterionDigest(text)`; ids are the content's | phase 3 matching evidence by a digest phase 4 never computed |
 | `TestCriterionDigestVector` | `CriterionDigest("Tests pass")` is `sha256:` + the SHA-256 of those 10 bytes, checked against a literal computed by `printf 'Tests pass' \| sha256sum` when the test is written | a digest over a trimmed, lower-cased or JSON-quoted text |
