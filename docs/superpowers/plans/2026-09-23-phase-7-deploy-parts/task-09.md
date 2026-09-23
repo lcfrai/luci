@@ -10,10 +10,11 @@ P7 (*"a release link written by a second call"*) holds with the ledger on anothe
 never chooses which revision is pinned; it sends the branch, and the Hub resolves the brief.
 
 **Files:**
-- `control-plane/internal/deploy/ship/ship.go` (new) — `BranchState`, `Branch`, `Releases`, `Config`, `Orchestrator`, `Request`, `Result`, `Ship`
+- `control-plane/internal/deploy/ship/ship.go` (new) — `BranchState`, `Branch`, `Releases`, `Config`, `Orchestrator`, `Request`, `Result`, `Ship`, `Readiness`, `PinPreview`
 - `control-plane/internal/deploy/ship/confirm.go` (new) — the confirm retry loop
-- `control-plane/internal/deploy/ship/ship_test.go`, `confirm_test.go` (new)
-- `control-plane/internal/api/deploy_acts.go` (new) — `POST /v1/projects/{projectId}/deploy/ship`
+- `control-plane/internal/deploy/ship/ship_test.go`, `confirm_test.go`, `readiness_test.go` (new)
+- `control-plane/internal/api/deploy_acts.go` (new) — `POST /v1/projects/{projectId}/deploy/ship`, `GET …/deploy/ship-readiness`
+- `control-plane/internal/api/routes_audit_test.go` (modified) — the readiness route's `catalogReadOnlyRoutes` line
 - `control-plane/internal/api/deploy_acts_test.go` (new)
 - `control-plane/internal/api/api.go`, `control-plane/cmd/api/main.go` (modified) — `Deps.DeployShip`, the wiring; the `BranchState` adapter over phase 3's `remote.ReadState`
 
@@ -105,6 +106,41 @@ func (p *Precondition) Error() string
 // a Result. A repeat with the same IdempotencyKey within 15 minutes returns the first Result (or
 // the first error) without calling anything.
 func (o *Orchestrator) Ship(ctx context.Context, req Request) (Result, error)
+
+// Readiness is steps 3 and 4 of the sequence — the SAME function Ship calls — plus a preview of
+// the pin the Hub would take, so the button and the server cannot disagree about why Ship is off.
+// It reserves nothing and calls Panacea not at all.
+func (o *Orchestrator) Readiness(ctx context.Context, projectID, branchID string) (Readiness, error)
+
+type Readiness struct {
+	Ready       bool
+	Reason      string // "" when Ready; else a Precondition.Reason, or "not_connected" | "stale" | "signed_out" | "environment_unknown"
+	Message     string
+	Commit      string // the tip Ship would send; "" when unknown
+	Environment string // "" when Panacea reports none for the branch
+	// PinPreview reads the Hub's brief for the branch through hubclient.Briefs.ForBranch (Hub
+	// contract §9.2) and applies the Hub's rule — latest complete revision (ADR-H1 Q1). nil when
+	// the Hub or phase 4's brief is absent. It is a PREVIEW: the Hub takes the pin at reserve.
+	PinPreview *PinPreview
+}
+
+type PinPreview struct {
+	Status   string // "pinned" | "none"
+	Reason   string // "ship_head" | "no_brief" | "no_complete_revision"
+	BriefID  string // "" when none — the id only; the desktop resolves text through phase 4
+	Revision int    // 0 when none
+}
+```
+
+The readiness route (read-only; `catalogReadOnlyRoutes`: *"Evaluates Ship's preconditions and
+reads the brief head; reserves nothing, writes nothing."*):
+
+```
+GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
+  200 { "ready": false, "reason": "unpushed", "message": "2 commits are not pushed, so they would not ship. Push first.",
+        "commit": "<40 hex>" | null, "environment": "feat-evidence-uplo" | null,
+        "pinPreview": { "status": "pinned", "reason": "ship_head", "briefId": "bf-…", "revision": 6 } | null }
+  404 project_not_found
 ```
 
 #### The sequence — exactly
@@ -199,6 +235,10 @@ is retried with the same key.
 | `TestConfirmRetriedInBackground` | the Hub fails confirm three times, then succeeds → the route answered `202 confirmed:false`; the fake Hub eventually holds a `confirmed` release; the loop stopped | a Ship that reports success while the release stays reserved forever |
 | `TestConfirmStopsAtExpiry` | the Hub answers `409 release_expired` → the loop stops, one error log | a loop that retries past the reservation's life |
 | `TestTracksRun` | after success, `Tracker.Track(p, "r1")` and `Nudge(p)` called | a 15 s wait before the lens shows the build |
+| `TestReadinessIsShipsPreconditions` | for every row of the step-3 table, `Readiness(…).Reason` equals the `Precondition.Reason` a `Ship` of the same state returns | a second copy of the checks that drifts, so the button is on and the server refuses |
+| `TestReadinessReservesNothing` | a ready branch → `Ready true`; the Hub fake saw no `Reserve`, `deploytest.Fake.Calls()` is empty, no mutex is held | a readiness call that reserves, so every lens refresh leaves a release to expire |
+| `TestPinPreviewAppliesTheHubRule` | the fake brief has revisions 5 (complete) and 6 (incomplete) → `{pinned, ship_head, bf-…, 5}`; no complete revision → `{none, no_complete_revision}`; no brief → `{none, no_brief}`; Hub down → `PinPreview nil`, `Ready` unchanged | previewing the head instead of the latest complete revision (ADR-H1 Q1), or a Hub outage switching Ship off by itself |
+| `TestReadinessRouteIsReadOnly` | `GET …/ship-readiness` is in `catalogReadOnlyRoutes`; the §10a audit passes | a readiness route registered outside the recorder |
 
 #### Steps
 
@@ -206,6 +246,10 @@ is retried with the same key.
   table `BranchState`.
 - [ ] `ship.go`, `confirm.go`, the route in `deploy_acts.go`; `writeDeployError` (task 05) for
   every error; `*Precondition` → `409 deploy_precondition` with `details.reason`.
+- [ ] `Readiness`: factor steps 3 and 4 into one unexported `check(ctx, projectID, branchID)`
+  that `Ship` and `Readiness` both call — no second copy. The pin preview is one
+  `Briefs.ForBranch` call; its error is logged and yields `PinPreview nil`, never a failure. The
+  `GET …/ship-readiness` route and its `catalogReadOnlyRoutes` line. Task 16's Ship bar reads it.
 - [ ] `main.go`: the `BranchState` adapter — `Deps.Projects.Branches` for the name, phase 3's
   `remote.ReadState` and `Convergence.Tip` for the rest. If phase 3 task 08 is not merged, this
   task is built and tested but **not merged** (plan §8, 7b).

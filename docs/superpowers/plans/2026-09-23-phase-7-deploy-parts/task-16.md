@@ -23,6 +23,7 @@ while sending: the button's label reads *"Sending…"* and the row appears when 
 - `desktop/src/deploy/ReleaseActs.tsx` (new) — `RollbackButton`, `RebuildButton`, used by the drawer (task 17)
 - `desktop/src/deploy/ActBanners.tsx` (new) — the outcome of the last act
 - `*.test.tsx` beside each
+- `desktop/src/deploy/types.ts`, `api.ts`, `deploySlice.ts`, `loader.ts` (modified, task 13's) — `ShipReadiness`, `DeployApi.shipReadiness(projectId, branchId)`, `deployReadiness`, and the readiness load on the loader's three edges
 
 #### Contracts — complete
 
@@ -121,15 +122,14 @@ serving."*, *"Off while Panacea is not answering."*, *"This release did not reco
 | `rebuild offered on pruned` | a rollback rejected `deploy_conflict` → the banner has **Rebuild**; rejected `deploy_rejected` → it does not | offering Rebuild by parsing Panacea's sentence |
 | `rollback copy keeps the pin` | the rollback sentence names *"this release's brief pin"* | implying rollback re-reads today's brief (P1) |
 | `cancel not held` | pressing Cancel run calls `cancel` at once | a 5 s delay on the one act that must be immediate |
+| `readiness on the three edges` (`loader.test.ts`) | a cursor change, a branch selection and a lens open each call `api.shipReadiness` once for the selected branch; 60 s of fake time with none of them → zero calls | a readiness poll on a timer — a second clock (DESIGN-SYSTEM one-clock rule) |
+| `readiness failure keeps the bar honest` | `shipReadiness` rejects `upstream_unavailable` → `readiness null`, Ship off with the stale line, the old readiness not shown | a Ship button left on from a readiness the server no longer vouches for |
 
 #### Steps
 
-- [ ] **Amend task 09 first** (a small declared addition): `Orchestrator.Readiness(ctx, projectID,
-  branchID) (Readiness, error)` — the same precondition function `Ship` calls, plus the Hub's pin
-  preview through `hubclient.Briefs.ForBranch` (Hub contract §9.2) when phase 4's brief exists —
-  and `GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=` (read-only; its
-  `catalogReadOnlyRoutes` line: *"Evaluates Ship's preconditions and reads the brief head; writes
-  nothing."*). Task 13's `loadDeployView` also loads readiness for the selected branch.
+- [ ] Extend task 13's `loadDeployView` to also load task 09's `ship-readiness` for the selected
+  branch, on the same three edges (cursor, selection, lens open) — never on a timer. The slice gains
+  `deployReadiness: Record<branchId, ShipReadiness>`, not persisted.
 - [ ] Tests first; `useHeldAct`; `ShipBar`; `ReleaseActs`; `ActBanners`.
 - [ ] `npx tsc --noEmit`, `npx vitest run`; commit by pathspec with *"Visual acceptance pending the
   owner (OD-12)."*
