@@ -80,6 +80,9 @@ const (
 	ReasonNoCredential      = "no_credential"          // PR; details.host
 	ReasonNotPushed         = "not_pushed"             // PR: the branch has no upstream, or commits the remote lacks; details.why: never_pushed | ahead
 	ReasonTranscript        = "transcript_unreadable"  // transcript span; details.why is the adapter's Unreadable.Reason (task 17)
+	// task-02 §HGH H3: a *gitx.UntrustedConfig, on any phase 3 route that runs git; details.key, never the value
+	ReasonCloneConfigUntrusted   = "clone_config_untrusted"   // a key outside the clone allowlist
+	ReasonProjectConfigUntrusted = "project_config_untrusted" // a key on the project refusal list
 )
 
 // gitConflict writes 409 conflict with details.reason and any further details.
