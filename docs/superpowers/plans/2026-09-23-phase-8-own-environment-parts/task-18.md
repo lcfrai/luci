@@ -13,7 +13,7 @@ a frame: it copies them, as the control plane does (`internal/api/attach.go:212-
 
 **Files:**
 - `control-plane/internal/brokerapi/wire.go` — request/response types (new)
-- `control-plane/cmd/broker/sandboxes.go`, `attach.go`, `machinecheck.go` and their tests (new)
+- `control-plane/cmd/broker/sandboxes.go`, `attach.go`, `machinecheck.go`, `capacity.go` and their tests (new)
 - `control-plane/cmd/broker/server.go` — the five routes join the table (modify)
 
 #### Contract — `brokerapi/wire.go` (complete)
@@ -75,7 +75,7 @@ type SandboxList struct {
 
 | Route | Success | Failures (problem code, status) |
 |---|---|---|
-| `POST /v1/sandboxes` | `201` + `Sandbox`, **after** the pod answers `/healthz` (katabe's wait, up to `READY_TIMEOUT`) | `invalid_json` 400 · `bad_request` 400 (`backend.ValidateSpec` refused; message names the field) · `image_not_allowed` 400 · `resources_too_large` 400 · `machine_not_found` 404 · `machine_asleep` 409 · `conflict` 409 (id exists for this owner) · `quota_exceeded` 429 (`details.limit`) · `backend_unavailable` 503 (API server, or the pod never became ready: `details.reason = "not_ready"`) |
+| `POST /v1/sandboxes` | `201` + `Sandbox`, **after** the pod answers `/healthz` (katabe's wait, up to `READY_TIMEOUT`) | `invalid_json` 400 · `bad_request` 400 (`backend.ValidateSpec` refused; message names the field) · `image_not_allowed` 400 · `resources_too_large` 400 · `machine_not_found` 404 · `machine_asleep` 409 · **`machine_full` 409** (`details.sessionsPerMachine`: the machine's session pods at the refusal; the new pod is already deleted — review I5) · `conflict` 409 (id exists for this owner) · `quota_exceeded` 429 (`details.limit`) · `backend_unavailable` 503 (API server, or the pod never became ready: `details.reason = "not_ready"`, and the pod is deleted before the answer) |
 | `GET /v1/sandboxes` | `200` + `SandboxList`, this owner's only | `backend_unavailable` 503 |
 | `GET /v1/sandboxes/{id}` | `200` + `Sandbox` | `sandbox_not_found` 404 — also for another owner's id |
 | `DELETE /v1/sandboxes/{id}` | `204`, also when it did not exist (katabe's `Destroy` is idempotent, `kata.go:243-257`) | `backend_unavailable` 503 |
@@ -86,8 +86,42 @@ digest, then set to it → resources: 0 means the default (the balloon's size, t
 max is refused → `Machine` present, and the machine **exists for this owner and is awake**
 (`machineChecker`, below) → the owner's pod count < `MAX_SANDBOXES_PER_USER` → build
 `backend.Spec` (`Mounts: nil`, `MachineMounts` mapped) → `katabe.New(Config{Manager: base,
-Owner: owner, ReadyTimeout})` → `Create` → map errors by `errors.Is` (never by string, as the
-control plane does).
+Owner: owner, ReadyTimeout})` → `Create` under a context that `watchUnschedulable` (below) may
+cancel → on failure, **delete the pod this request created** (below) → map errors by `errors.Is`
+(never by string, as the control plane does).
+
+**A full machine is refused in seconds, and no failed create leaves a pod (review I5).** Task 15's
+required affinity puts every session on its machine pod's node, beside whatever else runs there
+(other users' machines and sessions, the DaemonSets). When that node is full, the session can
+never schedule: a new node does not hold the machine pod, so the autoscaler cannot help, and a
+balloon helps only if it happens to sit on that node. Without this, the create waited the whole
+`READY_TIMEOUT` (120 s), answered a generic 503, and left the Pending pod counting against the
+owner's cap: katabe deliberately keeps a pod after a readiness timeout
+(`TestCreateTimesOutWithErrNotRunningAndLeavesThePod`, `kata_test.go:379`), which is right for
+the laptop's retry and wrong here, where the caller has been told the create failed and nobody
+will ever use the pod.
+- **The scheduler decides "fits", not the broker.** The review proposed a pre-create sum
+  (the machine's pods plus the RuntimeClass overhead, against the node's allocatable). That is
+  wrong on two facts: the node is shared, so the machine's own pods are not all that is on it;
+  and reading a node's allocatable needs a permission on `nodes`, which task 29 grants to no one
+  and tests as absent (least privilege), while the DaemonSets of other namespaces are pods the
+  broker cannot list either. The scheduler already counts all of it, Kata overhead
+  (`pod.spec.overhead`) included. So the broker creates the pod and watches it (`pods watch`,
+  already granted): `PodScheduled` `False` with reason `Unschedulable` **and** an empty
+  `status.nominatedNodeName` (no preemption under way, so no balloon on that node is being
+  evicted for it), held continuously for `UNSCHEDULABLE_GRACE` (5 s), cancels the create.
+  A nominated node means a balloon is being preempted: keep waiting, that is the warm path.
+- **Then** the broker counts the machine's other session pods (labels `panacea-app/component:
+  sandbox`, `panacea-app/machine-id: <machine>`, not terminating) and answers `409 machine_full`
+  with `details.sessionsPerMachine` = that count as a decimal string, and a message naming it.
+- **Delete what this request created.** After a `Create` error that wraps `backend.ErrNotRunning`
+  (the readiness timeout) or is this request's context error (the unschedulable cancel, or the
+  caller gone), the broker calls the owner-scoped `Destroy(id)` under a fresh 10 s context, then
+  answers. Never after `ErrAlreadyExists` (that pod is the owner's running session with this id)
+  and never after a refusal that came before `Create`. katabe's own behaviour is unchanged.
+- The prediction the review asked for survives as a **number, not a gate**: P8-D6 states the
+  ceiling (about three default sessions per machine on `Standard_D8s_v5`), and task 32's P07
+  measures it.
 
 **Attach, in order — the dial comes before the upgrade here**, unlike the control plane's
 (`attach.go:190-199` dials after, to avoid wasting sandboxd's replay frame on a client that never
@@ -124,6 +158,23 @@ var (
 // serverDeps gains:  Machines machineChecker; Base *sandbox.Manager (unscoped); Cfg Config
 ```
 
+```go
+// capacity.go — review I5. The scheduler is the one authority on whether a
+// session fits beside its machine pod; the broker only listens to it.
+
+// watchUnschedulable calls cancel once pod name (katabe's "sandbox-<id>",
+// kata_test.go:387) has reported PodScheduled=False, reason Unschedulable, with
+// an empty status.nominatedNodeName, continuously for grace. A nominated node,
+// a scheduled pod or a deleted pod resets or ends the watch. It returns a func
+// that stops the watch and reports whether it fired.
+func watchUnschedulable(ctx context.Context, pods corev1client.PodInterface, name string,
+	grace time.Duration, cancel context.CancelFunc) (stop func() (fired bool))
+
+// machineSessions counts the non-terminating session pods of machine
+// (component=sandbox, machine-id=machine) in the broker's namespace.
+func machineSessions(ctx context.Context, pods corev1client.PodInterface, machine string) (int, error)
+```
+
 #### Tests to write first
 
 `sandboxes_test.go` — the broker's handler over a fake clientset, a fake `machineChecker`, and a
@@ -139,6 +190,11 @@ sandboxd stand-in (the pattern `katabe/kata_test.go`'s `runningSandbox` already 
 | `TestCreateRefusesAHostMountField` | a body with `"mounts": [...]` → 400 `invalid_json` (unknown field) | host paths smuggled through |
 | `TestCreateNeedsAnAwakeOwnedMachine` | checker says not found → 404 `machine_not_found`; asleep → 409 `machine_asleep`; no pod either way | a session pod that can never schedule (no machine pod to be near) |
 | `TestCreateEnforcesThePerUserCap` | owner at 8 pods → 429 `quota_exceeded`, `details.limit = "8"`; another owner at 0 → 201 | a cap counted across all owners |
+| `TestAFullMachineIs409MachineFullInSeconds` | three running session pods on machine `m-1`; the reactor marks the new pod `PodScheduled=False/Unschedulable`, no nomination, never Running; grace 50 ms, `READY_TIMEOUT` 5 s → 409 `machine_full`, `details.sessionsPerMachine = "3"`, answered in under 1 s, and the new pod is gone (review I5) | the two-minute hang and generic 503; a Pending pod left holding the owner's cap |
+| `TestPreemptionUnderWayIsNotFull` | the new pod is `Unschedulable` **with** `nominatedNodeName` set for 200 ms (grace 50 ms), then Running → 201 | a refusal every time a session preempts a balloon, which is the warm path task 12 builds |
+| `TestAReadyTimeoutDeletesThePod` | the pod stays Pending with no scheduling condition; `READY_TIMEOUT` 400 ms → 503 `backend_unavailable`, `details.reason = "not_ready"`, and the pod is gone | katabe's keep-the-pod rule carried into the broker, where the pod is an orphan counting against the cap |
+| `TestAConflictNeverDeletesTheExistingPod` | a running pod already has the id → 409 `conflict`, and that pod is still there | a cleanup on every error, killing the owner's running session |
+| `TestTheCallerLeavingDeletesThePod` | the client cancels its request while the pod is Pending → the pod is gone within 1 s | an orphan per abandoned create |
 | `TestAnotherOwnersSandboxIs404Everywhere` | owner B: `GET`, `DELETE` (→ 204 but the pod survives), `attach` on A's id → 404 / no-op / 404 | the cross-user access the broker exists to prevent |
 | `TestListReturnsOnlyTheCallersSandboxes` | A has 2, B has 1 → A lists 2 | `Manager.List` unscoped (`manager.go:240-247`) |
 | `TestDeleteIsIdempotent` | two DELETEs → 204, 204 | the reaper's second pass a 500 |
@@ -161,9 +217,14 @@ sandboxd stand-in (the pattern `katabe/kata_test.go`'s `runningSandbox` already 
 #### Steps
 
 - [ ] **Step 1:** `wire.go`; the tests; they fail to compile.
-- [ ] **Step 2:** `machinecheck.go` (interface + a fake for tests), `sandboxes.go`, `attach.go`; the
-  routes join `server.go`'s table; update task 17's `TestNoRouteIsASideEffectingGet` allowlist
-  with the two read routes.
+- [ ] **Step 2:** `machinecheck.go` (interface + a fake for tests), `capacity.go`, `sandboxes.go`,
+  `attach.go`; the routes join `server.go`'s table; update task 17's
+  `TestNoRouteIsASideEffectingGet` allowlist with the two read routes.
+- [ ] **Step 2a (review I5):** mutation check on a `$TEMP` copy, each verified applied and the
+  named test red: drop the `nominatedNodeName` condition from `watchUnschedulable` →
+  `TestPreemptionUnderWayIsNotFull`; delete the post-failure `Destroy` →
+  `TestAReadyTimeoutDeletesThePod`, `TestAFullMachineIs409MachineFullInSeconds`; widen the
+  cleanup to every `Create` error → `TestAConflictNeverDeletesTheExistingPod`.
 - [ ] **Step 3:** Update the `MaxMessageBytes` comment in `backend.go:29-37` to name five sites.
 - [ ] **Step 4:** Full test run under `-race`; commit.
 
@@ -179,3 +240,9 @@ grep -n "five" control-plane/internal/backend/backend.go                        
 
 - That a pod IP is reachable from the broker's pod through Cilium with task 11's policies (task 32).
 - That 30 s pings survive the chosen Traefik release's WebSocket handling (task 13's open item).
+- That the scheduler writes `nominatedNodeName` no later than it reports `Unschedulable` for a
+  pod that will preempt a balloon (training knowledge of kube-scheduler, **UNVERIFIED**). The 5 s
+  grace covers a lag between the two; task 32's P06 (d) and P07 exercise both paths on a real
+  node, and a false `machine_full` there raises the grace, not the design.
+- How many sessions a machine holds. P8-D6 states the arithmetic (about three default sessions on
+  `Standard_D8s_v5`); task 32's P07 measures it.

@@ -48,12 +48,15 @@ the edge's pods, on 8080), and it refuses every request that is not authenticate
 | `PANACEA_APP_BROKER_MACHINE_AFFINITY` | `true` | `sandbox.Config.MachineAffinity` (task 15); `false` only with RWX storage |
 | `PANACEA_APP_BROKER_MACHINE_IDLE_SLEEP` | `30m` | a machine with no session pods for this long is put to sleep (task 19); `0` disables |
 | `PANACEA_APP_BROKER_READY_TIMEOUT` | `120s` | a pod's time to answer `/healthz` (Kata cold start) |
+| `PANACEA_APP_BROKER_UNSCHEDULABLE_GRACE` | `5s` | how long a new session pod may stay `Unschedulable` with no preemption under way before the broker deletes it and answers `409 machine_full` (task 18, review I5); must be below `READY_TIMEOUT` |
 | `PANACEA_APP_BROKER_SHUTDOWN_GRACE` | `20s` | drain time on SIGTERM |
 | `PANACEA_APP_LOG_LEVEL` | `info` | as `cmd/api` |
 
 Validation, each failure exiting 2 with one sentence naming the variable: every required value
 present; both images match `@sha256:[a-f0-9]{64}$` (a tag is refused — P8-D8, OD-8's pin); the
-runtime class a DNS-1123 subdomain; durations parse; limits positive; the authority `https` unless
+runtime class a DNS-1123 subdomain; durations parse; limits positive; `UNSCHEDULABLE_GRACE`
+positive and below `READY_TIMEOUT` (else the timeout answers first and a full machine reads as
+`not_ready`); the authority `https` unless
 its host is loopback (a local run against the Hub's devissuer).
 
 ```go
@@ -80,6 +83,7 @@ type Config struct {
 	MachineAffinity       bool
 	MachineIdleSleep      time.Duration
 	ReadyTimeout          time.Duration
+	UnschedulableGrace    time.Duration
 	ShutdownGrace         time.Duration
 	LogLevel              slog.Level
 }
@@ -106,6 +110,7 @@ const (
 	CodeQuotaExceeded     = "quota_exceeded"      // 429 — the owner is at MAX_SANDBOXES / MAX_MACHINES
 	CodeMachineAsleep     = "machine_asleep"      // 409 — a session create on a sleeping machine; wake it first
 	CodeMachineBusy       = "machine_busy"        // 409 — sleep or delete while sessions run
+	CodeMachineFull       = "machine_full"        // 409 — the machine pod's node has no room for this session; details.sessionsPerMachine (task 18, review I5)
 	CodeAttachRejected    = "attach_rejected"     // 403 — sandboxd refused the attach token (backend.ErrUnauthorized)
 )
 ```
@@ -154,7 +159,10 @@ variable, by design (S8.2 on the broker side too).
 `config_test.go`: `TestEveryRequiredVariableIsNamedWhenMissing` (five required, each missing in
 turn names itself — kills a generic "config invalid"); `TestImagesMustBeDigests` (a `:tag` is
 refused — kills OD-8's pin defeated by a tag); `TestDefaultsAreTheDocumentedOnes` (every default
-in the table — kills drift between this part and the code); `TestAPlaintextAuthorityIsRefusedOffLoopback`.
+in the table — kills drift between this part and the code); `TestAPlaintextAuthorityIsRefusedOffLoopback`;
+`TestUnschedulableGraceMustBeBelowTheReadyTimeout` (`UNSCHEDULABLE_GRACE=120s` with the default
+`READY_TIMEOUT` exits 2 naming both — kills a full machine reported as `not_ready` after two
+minutes, review I5).
 
 `server_test.go` (an `httptest.Server`, a fake clientset, an `entra.Validator` against a test JWKS
 server as in task 16):

@@ -17,8 +17,8 @@ Node-warm has three parts. The first is the sandbox pool's `min_count` (task 06)
   balloon reschedules wherever there is room, usually elsewhere. What balloons buy is a warm Kata
   slot for the next **machine** (and that machine's first session). A machine whose node is full
   is not rescued by balloons or by the autoscaler, because a new node does not hold the machine
-  pod: the broker refuses that session with `409 machine_full` before it creates anything
-  (task 18), and the ceiling is stated in P8-D6.
+  pod: the broker refuses that session with `409 machine_full` within seconds and deletes the
+  pod it tried (task 18), and the ceiling is stated in P8-D6.
 - **Pre-pull**: a DaemonSet on every sandbox node whose init containers pull the sandbox and machine
   images by digest, so no session waits on a registry.
 
