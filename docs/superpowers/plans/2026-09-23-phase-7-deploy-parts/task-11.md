@@ -13,6 +13,7 @@ draw owner controls disabled *before* a press, with the reason; it is never used
 - `control-plane/internal/api/deploy_governance.go` (new) — nine routes
 - `control-plane/internal/api/deploy_governance_test.go` (new)
 - `control-plane/internal/api/routes_audit_test.go` (modified) — three `GET` lines
+- `control-plane/internal/api/api.go` (modified) — `a.registerDeployGovernance(guarded)` in `New`; no new `Deps` field: the handlers read `Deps.DeployConnection` (task 05, whose `Current()` is the `Governor`) and `Deps.DeployBinding` (task 06, for the Panacea project, else `409 deploy_not_bound`)
 
 #### Why the branch is a query parameter
 

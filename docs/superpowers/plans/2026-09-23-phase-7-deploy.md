@@ -347,7 +347,7 @@ connector decodes each exactly: `bare` = the object itself; `list` = `models.Lis
 | 6 | `GET P/deployments` | 1024 | member | list of `Deployment`, unpaginated, enriched (`projects.go:1227-1253`) | 03, 07 |
 | 7 | `GET P/pipelines/{run}` | 1290 | member | data `PipelineRunStatus` (`projects.go:3576-3612`) | 03, 07 |
 | 8 | `GET P/security-status?deployId=` | 1043 | member | data `SecurityStatus` (`models/security.go:205`; `handlers/security_status.go:204-254`); `deployId` is a PipelineRun name (`:211-214`) | 03, 12 |
-| 9 | `GET P/environments/{env}/pods` · `/events` · `/diagnose` | 1148, 1150, 1151 | member | passed through, shape not interpreted | 12 |
+| 9 | `GET P/environments/{env}/pods` · `/events` · `/diagnose` | 1148, 1150, 1151 | member | list of `PodStatus` · list of `NamespaceEvent` (`clients/pod_introspection.go:47-61`, `:95-104`; `handlers/pod_introspection.go:139`, `:199`) · data `DiagnoseResponse` (`handlers/diagnose.go:70-79`, `:157`); task 03 decodes each into its own DTO | 03, 12 |
 | 10 | `GET P/pipelines/{run}/logs/stream` · `P/environments/{env}/readiness/stream` | 2283, 2286 | member | SSE, `data: <json>` frames (`handlers/readiness_stream.go:195`, `handlers/logs_stream.go:118-141`), parsed by the connector and re-emitted as **our** frames (task 12) | 12 |
 | 11 | `POST P/deploy` | 1286 | developer + `RequireSectionWritable("service")` | `202` data `{project,status,pipelineRun}` (`projects.go:2997-3005`) | 04, 09 |
 | 12 | `POST P/pipelines/{run}/cancel` | 1291 | developer | `200` data `{status: "cancelled" \| "already_completed", message}` (`projects.go:3668-3687`) | 04, 10 |
@@ -440,48 +440,60 @@ New unless marked. `cp/` is `control-plane/`, `d/` is `desktop/src/`.
 
 | Path | Task | What it holds |
 |---|---|---|
-| `cp/internal/deploy/deploy.go` | 01 | `Deployer`, the domain types, `ProjectRef` |
-| `cp/internal/deploy/errors.go` | 01 | `Error` and its `Kind`s |
+| `cp/internal/deploy/deploy.go` | 01 | `Deployer` and its parts, the domain types, `ProjectRef` |
+| `cp/internal/deploy/errors.go` | 01 | `Error`, `Kind`, `KindOf` |
+| `cp/internal/deploy/validate.go` | 01 | `ValidCommit`, `ParsePostureMode` |
 | `cp/internal/deploy/deploytest/fake.go` | 01 | `Fake`, an in-memory `Deployer` with an injectable clock |
-| `cp/internal/deploy/deploytest/conformance.go` | 01; rows 03, 04 | `Conformance(t, Harness)` |
-| `cp/internal/deploy/panacea/client.go` | 02 | `Client`, `Config`, `New`, the transport, `Version` |
-| `cp/internal/deploy/panacea/errors.go` | 02 | status → `deploy.Error`, the body decoder |
+| `cp/internal/deploy/deploytest/conformance.go` | 01; rows 03, 04 | `Harness`, `Seeder`, `Conformance(t, Harness)` |
+| `cp/internal/deploy/seams_test.go` | 20 | `SEAMS.md` names only real tests and holds no `<…>` |
+| `cp/internal/deploy/panacea/client.go` | 02 | `Config`, `TokenSource`, `Client`, `New`, `ParseOrigin`, `Version`, `BuildHTTPClient`, `do` |
+| `cp/internal/deploy/panacea/errors.go` | 02 | `mapStatus`, `readProblem`: status → `deploy.Error` |
 | `cp/internal/deploy/panacea/wire.go` | 03, 04 | the DTOs, each citing the Panacea line it mirrors |
-| `cp/internal/deploy/panacea/reads.go` | 03 | `Me`, `Projects`, `Environments`, `Latest`, `Deployments`, `Run`, `Scans` |
+| `cp/internal/deploy/panacea/reads.go` | 03 | `Whoami`, `Projects`, `Environments`, `Latest`, `Deployments`, `Run`, `Scans`, `Pods`, `Events`, `Diagnosis` |
 | `cp/internal/deploy/panacea/acts.go` | 04 | `Ship`, `Cancel`, `Rollback` |
-| `cp/internal/deploy/panacea/governance.go` | 04 | auto-deploy, branch access, project access, URL prefix |
+| `cp/internal/deploy/panacea/governance.go` | 04 | the nine `Governor` methods: auto-deploy, branch posture, project access, URL prefix |
 | `cp/internal/deploy/panacea/stream.go` | 12 | `Stream` for the two SSE routes |
+| `cp/internal/deploy/panacea/panaceatest/server.go` | 03, 04 | a fake `panacea-api` over `httptest`, serving the recorded bodies |
 | `cp/internal/deploy/panacea/testdata/*.json` | 03, 04 | response bodies, one per route and state |
-| `cp/internal/deploy/connection/connection.go` | 05 | `Manager`: address, token in the secret store, status |
-| `cp/internal/deploy/binding/binding.go` | 06 | `Resolver`, `Binding`, the local choice file |
-| `cp/internal/deploy/deploywatch/watcher.go` | 07 | `Watcher`, its cycle, the cursor, the deployment join |
+| `cp/internal/deploy/panacea/live_test.go` (`//go:build live`), `live_guard_test.go` | 20 | the read-only half of the owner's live check; the guard that keeps it tagged and secret-free |
+| `cp/internal/deploy/connection/connection.go`, `current.go` | 05 | `Manager`: address, token in the secret store, status; `Current`, the delegating `Deployer` |
+| `cp/internal/deploy/binding/binding.go`, `choices.go` | 06 | `Resolver`, `Binding`, `State`; the local choice file |
+| `cp/internal/statepath/atomic.go` *(only if ruling R2's lift has not landed)* | 06 | the atomic write the choice file uses |
+| `cp/internal/deploy/deploywatch/watcher.go`, `join.go` | 07 | `Watcher`, `Snapshot`, its cycle, the cursor; the deployment join |
 | `cp/internal/deploy/deploywatch/view.go` | 08 | `View` assembly: environments, releases, pins, collisions, serving-after-rollback |
-| `cp/internal/deploy/ship/ship.go` | 09 | `Orchestrator.Ship` |
-| `cp/internal/deploy/ship/rerun.go` | 10 | `Orchestrator.Rollback`, `Rebuild`, `Cancel` |
+| `cp/internal/deploy/ship/ship.go`, `confirm.go` | 09 | `Orchestrator.Ship`, `Readiness`, `PinPreview`; the confirm retry loop |
+| `cp/internal/deploy/ship/core.go`, `rerun.go` | 10 | `withReservation`, extracted from `ship.go`; `Rollback`, `Rebuild`, `Cancel` |
 | `cp/internal/deploy/sessions/sessions.go` | 19 | sessions in a shipped range, from `Panacea-Session` trailers |
-| `cp/internal/api/deploy_connection.go` | 05 | `/v1/deploy/connection` |
+| `cp/internal/api/deploy_connection.go`, `deploy_errors.go` | 05 | `/v1/deploy/connection`; `writeDeployError`, the one error mapping |
 | `cp/internal/api/deploy_binding.go` | 06 | `PUT /v1/projects/{projectId}/deploy/binding` |
 | `cp/internal/api/deploy_view.go` | 08 | `GET /v1/projects/{projectId}/deploy` |
-| `cp/internal/api/deploy_acts.go` | 09, 10 | ship, rollback, rebuild, cancel |
-| `cp/internal/api/deploy_governance.go` | 11 | auto-deploy, access, posture, URL prefix |
+| `cp/internal/api/deploy_acts.go` | 09, 10 | ship, ship-readiness, rollback, rebuild, cancel |
+| `cp/internal/api/deploy_governance.go` | 11 | nine routes: auto-deploy, access, posture, URL prefix |
 | `cp/internal/api/deploy_drill.go` | 12, 19 | run progress, scans, pods, events, diagnose, the two streams, sessions |
-| `cp/internal/api/api.go` *(modified)* | 05, 07, 08, 09 | `Deps` fields; one `register…` call per file |
-| `cp/internal/api/routes_audit_test.go` *(modified)* | 05, 08, 11, 12, 19 | one `catalogReadOnlyRoutes` line per `GET` |
+| `cp/internal/api/api.go` *(modified)* | 05, 06, 07, 08, 09, 11, 12, 19 | `Deps` fields; one `register…` call per new route file |
+| `cp/internal/api/sessions.go`, `cp/internal/httpx/origin.go` *(modified, only if Hub C2 has not built HA7-4)* | 07 | the cursor header on `GET /v1/sessions`; `Access-Control-Expose-Headers` |
+| `cp/internal/api/routes_audit_test.go` *(modified)* | 05, 08, 09, 11, 12, 19 | one `catalogReadOnlyRoutes` line per `GET` |
 | `cp/internal/httpx/problem.go` *(modified)* | 05 | the `deploy_*` codes; `upstream_unavailable` if no earlier task added it |
-| `cp/cmd/api/config.go`, `main.go` *(modified)* | 05, 07, 09 | the variables of §6; the wiring |
-| `d/deploy/types.ts` | 13 | wire types of every route above |
-| `d/deploy/api.ts` | 13 | the client methods, over phase 2's `client.ts` request helper |
-| `d/deploy/deploySlice.ts` | 13 | the store slice — **not in `partialize`** |
+| `cp/cmd/api/config.go`, `main.go` *(modified)* | 05, 06, 07, 09, 19 | the variables of §6; the wiring |
+| `d/deploy/types.ts`, `api.ts` | 13; 16, 19 | wire types of every route above; `DeployApi` over phase 2's `client.ts` request helper (16 adds `ShipReadiness`, 19 `ReleaseSessions`) |
+| `d/deploy/deploySlice.ts`, `loader.ts` | 13; 16 | the store slice — **not in `partialize`**; `onDeployCursor`, `loadDeployView` (16 adds the readiness load) |
+| `d/store/store.ts` *(modified)* | 13 | one import and one spread for the slice; `partialize` untouched |
 | `d/store/selectors.ts` *(modified)* | 13 | `selectDeployView`, `selectReleasePinKeys` (R6's key source) |
-| `d/api/problems.ts`, `d/api/client.ts` *(modified)* | 13 | `upstream-down` (R4) if absent; the new `ProblemCode`s |
-| `d/deploy/DeployLens.tsx`, `deploy.css` | 14 | the lens frame and its connection states |
-| `d/deploy/ConnectPanel.tsx` | 14 | address + token, write-only |
-| `d/deploy/EnvironmentStrip.tsx`, `ReleaseTable.tsx`, `PinCell.tsx` | 15 | the three facts, the history, the pins |
-| `d/deploy/ShipBar.tsx`, `useHeldAct.ts` | 16 | Ship, and the 5 s hold every act shares |
-| `d/deploy/ReleaseDrawer.tsx`, `ScanList.tsx`, `DiagnosePanel.tsx`, `LogPane.tsx` | 17 | drill-ins |
-| `d/deploy/GovernancePanel.tsx` | 18 | auto-deploy, access, posture, URL prefix |
+| `d/api/problems.ts`, `d/api/client.ts` *(modified)* | 13 | `upstream-down` (R4) if absent; `PUT`, `headers`, the new `ProblemCode`s |
+| `d/api/poller.ts` *(modified, only if Hub C2 has not built HA7-4's `onCursor`)* | 13 | the cursor edge |
+| the four `classify` call sites *(modified, only if `upstream-down` was absent)* | 13 | `EmptyDevelop.tsx:57`, `SessionPane.tsx:48`, `sessionVerbs.ts:85`, `useCreateSession.ts:38` |
+| `d/deploy/DeployLens.tsx`, `deploy.css` | 14; 16–19 | the lens frame and its connection states; 16–19 mount their parts in the lens, 17–18 style theirs in `deploy.css` |
+| `d/deploy/ConnectPanel.tsx`, `BindingPanel.tsx` | 14 | address + token, write-only; the six unbound answers and the one choice |
+| `d/deploy/EnvironmentCard.tsx`, `EnvironmentList.tsx`, `ReleaseTable.tsx`, `PinCell.tsx`, `usePinRef.ts`, `Banners.tsx` | 15 | the three facts, the other environments, the history, the pins, stale and collision |
+| `d/components/common/StatusDot.tsx`, `common.css`, `d/styles/designsystem.test.ts` *(modified)* | 15 | the fact statuses; the `--drift` guard if phase 4 has not added it |
+| `d/deploy/useHeldAct.ts` | 16 (or 18, whichever lands first) | the 5 s hold every act shares |
+| `d/deploy/ShipBar.tsx`, `ReleaseActs.tsx`, `ActBanners.tsx` | 16 | Ship and Cancel run; rollback and rebuild for the drawer; the last act's outcome |
+| `d/deploy/ReleaseDrawer.tsx`, `PinManifest.tsx`, `ScanList.tsx`, `DiagnosePanel.tsx`, `LogPane.tsx`, `drillStream.ts` | 17 | the manifest and the drill-ins; the window's one open stream |
+| `d/deploy/GovernancePanel.tsx`, `PostureControl.tsx`, `AccessList.tsx`, `useGovernance.ts` | 18 | auto-deploy, access, posture, URL prefix |
+| `d/deploy/ReleaseSessions.tsx` | 19 | the drawer's sessions block |
 | `d/components/AppShell.tsx` *(modified)* | 14 | `case "deploy"` renders `DeployLens` |
-| `docs/superpowers/plans/2026-09-23-phase-7-deploy-parts/SEAMS.md` | 20 | the seams of §9, as built |
+| `docs/superpowers/plans/2026-09-23-phase-7-deploy-parts/SEAMS.md` | 20 | the seams of §10.2, as built, and the Hub asks' state |
+| `docs/superpowers/plans/2026-09-23-phase-7-deploy-parts/LIVE-CHECK.md` | 20 | the owner's one live session (OD-12), with a column for what was seen |
 | `docs/superpowers/plans/2026-09-23-phase-7-deploy-parts/panacea-metadata-ask.md` | 20 | the R7 draft, for the owner to send |
 
 ---
@@ -501,7 +513,7 @@ reading and push, because Panacea builds only pushed commits (7P-7 settles the i
 |---|---|---|---|---|---|
 | 01 | The `deploy` domain: `Deployer`, types, errors, `Fake`, conformance skeleton | 7a | 2 | — | — |
 | 02 | Panacea transport: address, bearer, timeouts, retries of reads, error mapping, TLS roots, `Version` | 7a | 2 | 01 | — |
-| 03 | Panacea reads: `Me`, `Projects`, `Environments`, `Latest`, `Deployments`, `Run`, `Scans` + golden bodies | 7a | 3 | 02 | — |
+| 03 | Panacea reads: `Whoami`, `Projects`, `Environments`, `Latest`, `Deployments`, `Run`, `Scans`, `Pods`, `Events`, `Diagnosis` + recorded bodies | 7a | 3 | 02 | — |
 | 04 | Panacea acts and governance calls: `Ship`, `Cancel`, `Rollback`, auto-deploy, posture, project access, URL prefix | 7a | 3 | 02, 03 | — |
 | 05 | The connection: write-only token route, status, config, the `deploy_*` codes | 7a | 2 | 02, 03 | Hub C1 `credstore` (or its three-method subset, part 05) |
 | 06 | The binding: local project → Hub project and → Panacea project, by repository | 7a | 2 | 03, 05 | phase 3 task 13 `githost.ParseRemote`; Hub H0 `hubclient.Projects` fake |
@@ -511,14 +523,14 @@ reading and push, because Panacea builds only pushed commits (7P-7 settles the i
 | 10 | Rollback, rebuild and cancel | 7b | 2.5 | 09 | — |
 | 11 | Governance routes: auto-deploy, project access, branch posture, URL prefix | 7a | 2 | 04, 08 | — |
 | 12 | Drill-in routes: run progress, scans for a release, pods, events, diagnose, the two SSE relays | 7a | 2.5 | 03, 08 | — |
-| 13 | Desktop data layer: types, client, slice, cursor-driven fetch, `upstream-down`, R6 key selector | 7a | 3 | 08 | Hub C2 poller cursor (HA7-4); phase 4's key-source loader (R6) |
-| 14 | Desktop: the lens frame and its four connection states | 7a | 2.5 | 05, 13 | Hub C3 local key in `client.ts` |
-| 15 | Desktop: the environment strip, the release table, the pin cell, collisions | 7a | 3 | 14 | phase 4's `Ref` cache (R6) |
+| 13 | Desktop data layer: types, client, slice, cursor-driven fetch, `upstream-down`, R6 key selector | 7a | 3 | 08 | Hub C2 poller cursor (HA7-4); phase 4's key-source loader (R6); Hub C3 local key in `client.ts` |
+| 14 | Desktop: the lens frame, its four connection states, and the binding | 7a | 2.5 | 05, 13 | Hub C3 local key in `client.ts` (the lens works without it) |
+| 15 | Desktop: the environment card, the release table, the pin cell, stale and collision banners | 7a | 3 | 14 | phase 4's `Ref` cache (R6) |
 | 16 | Desktop: the Ship bar and the held acts (ship, rollback, rebuild, cancel) | 7b | 3 | 15, 09, 10 | — |
-| 17 | Desktop: the release drawer (manifest), scans, diagnose, the log pane | 7a | 3 | 15, 12 | phase 4's `ShippedManifest` if it exists (part 17 says what if not) |
-| 18 | Desktop: the governance panel | 7a | 2.5 | 15, 11 | — |
-| 19 | Sessions in a release, from `Panacea-Session` trailers | 7b | 2 | 08, 17 | phase 3 task 05 (the hook) and `gitx` |
-| 20 | Seams, the live verification recipe (owner-batched), the Panacea metadata ask draft | — | 1.5 | all | — |
+| 17 | Desktop: the release drawer (manifest), scans, why it is down, the log pane | 7a | 3 | 15, 12 | phase 4 tasks 16–17's `ShippedManifest` and selectors, if merged (part 17 says what if not) |
+| 18 | Desktop: the governance panel | 7a | 2.5 | 15, 11 (uses 16's `useHeldAct` contract; lands the file if 16 has not) | — |
+| 19 | Sessions in a release, from `Panacea-Session` trailers | 7b | 2 | 08, 17 | phase 3 task 02 (`gitx`) and task 05 (the hook, `S3-P7.1`) |
+| 20 | Seams, the live verification recipe (owner-batched), the Panacea metadata ask draft | — | 1.5 to write; the owner's session about 45 min | all | Hub H5 running for the Ship steps; the owner's session (OD-12) |
 
 **Order.** 01 → 02 → (03 ∥ 05's config half) → 04 → 05 → 06 → 07 → 08 → (11 ∥ 12 ∥ 13) → 14 → 15 →
 (17 ∥ 18) → *7b:* 09 → 10 → 16 → 19 → 20.
@@ -657,9 +669,14 @@ Hub and phase 3 must agree before an ADO project is linked.
 | **S7-N1** the native deployer | `deploy.Deployer`; `deploytest.Conformance` | the Panacea lift (`OD-13`): a native implementation passes the suite and replaces `panacea.Client` in `main.go`; the `PanaceaApp/panacea/<host>` credential row is deleted by that task | change a domain type to fit Panacea's wire shapes; add a Panacea-specific method to `Deployer` |
 | **S7-N2** the metadata mirror | `panacea.Client.Ship` sends no `metadata` today | if R7's ask is granted: the client adds `metadata: {"panacea.app/release": "<rl-…>"}` and the watcher may confirm a crashed reservation by the run's annotation (ADR-H1 R3) | pin by that annotation — it names a reservation, and the pin is still the Hub's |
 | **S7-N3** Panacea-side hash suffix | `D2` (c) | if Panacea appends a hash when truncating, the collision state in task 08 simply stops firing | re-implement `sanitizeBranchEnv` in phase 7 |
+| **S7-N4** a rollback as a Panacea row | "serving after rollback" in task 08's view (7P-4) | if ask 2 of `panacea-metadata-ask.md` is granted: a portal rollback shows as a `rollback` row; the Hub's rule stays for cockpit rollbacks | drop the Hub's confirmed-rollback reading before Panacea's rows are observed live |
 | **S7-E1** phase 8's environment | the control plane's Panacea address and CA are configuration (§6) | phase 8 sets them in the product's environment; nothing in phase 7 assumes a laptop | hard-code `dev.panacea.kpmg` |
 | **S7-X1** another deploy target | `deploy.Deployer` | a customer-hosted tier that deploys elsewhere implements the interface | branch on target type above the interface |
 | **S7-P1** the criterion evaluator | the manifest's criteria render `open` + *"no evidence recorded yet"* | phase 3's `evidence.Evaluator` at `Deployment.Commit` (`S3-P7.5`) | evaluate at the branch head (P12) |
+| **S7-P2** the merge link | task 17's `PinManifest` passes no `mergeRef` | whichever phase records a merge link in the Hub adds a field to the release or a route; `PinManifest` passes it | infer a merge from a commit being on `main` |
+| **S7-S1** sessions by trailer | task 19's `sessions.Reader.Read` | phase 3's hook stays the only writer of `Panacea-Session` (`S3-P7.1`) | infer a session from a commit's time |
+
+Task 20's `SEAMS.md` restates these rows with the file, line and test that hold each one, as built.
 
 ---
 

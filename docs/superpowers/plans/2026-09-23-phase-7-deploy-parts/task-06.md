@@ -16,6 +16,7 @@ key, Hub contract §7.4). The Panacea project is found by matching repository ke
 - `control-plane/internal/deploy/binding/binding_test.go`, `choices_test.go` (new)
 - `control-plane/internal/api/deploy_binding.go` (new) — `PUT /v1/projects/{projectId}/deploy/binding`
 - `control-plane/internal/api/deploy_binding_test.go` (new)
+- `control-plane/internal/api/api.go`, `control-plane/cmd/api/main.go` (modified) — `Deps.DeployBinding` (the one `*binding.Resolver`; the watcher, task 07, and tasks 09, 11 and 12 read the same one) and `a.registerDeployBinding(guarded)` in `New`; `main.go` builds the resolver over phase 3's `gitx` remotes and `hubclient.Projects`
 - `control-plane/internal/statepath/atomic.go` (new, **only if ruling R2's lift has not landed**) — see Steps
 
 #### Interfaces — complete

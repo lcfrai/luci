@@ -18,6 +18,9 @@ runs only in the owner's session.
 - `docs/superpowers/plans/2026-09-23-phase-7-deploy-parts/LIVE-CHECK.md` (new) — the owner's session, step by step, with a column for what was seen
 - `docs/superpowers/plans/2026-09-23-phase-7-deploy-parts/panacea-metadata-ask.md` (new) — the note to Panacea's team
 - `control-plane/internal/deploy/panacea/live_test.go` (new, `//go:build live`) — the read-only half of the live check
+- `control-plane/internal/deploy/panacea/live_guard_test.go` (new, untagged) — keeps `live_test.go` tagged and secret-free
+- `control-plane/internal/deploy/seams_test.go` (new, untagged) — keeps `SEAMS.md` honest
+- `docs/superpowers/plans/2026-09-23-phase-7-deploy.md` (modified) — §12 pointed at `LIVE-CHECK.md`, each settled item moved out after the session
 
 #### `SEAMS.md` — complete, with the paths the implementer fills in
 
@@ -238,21 +241,22 @@ func TestLiveBodiesMatchRecordedKeys(t *testing.T) {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 		return resp.StatusCode, b
 	}
+	// Every route below is decoded by a task 03 DTO (task 03, "The routes and their envelopes"),
+	// pods and events included (podDTO, eventDTO), so a recorded key missing live is a defect.
 	type check struct {
 		path     string
 		recorded []string // their key sets are intersected: a key one of them lacks is optional
-		decoded  bool     // false: passed through, shape not interpreted (plan §4 row 9) — logs only
 	}
 	p := "/api/v1/projects/" + url.PathEscape(string(ref))
 	e := p + "/environments/" + url.PathEscape(env)
 	checks := []check{
-		{"/api/v1/me", []string{"me-approved.json", "me-pending.json"}, true},
-		{"/api/v1/projects", []string{"projects.json"}, true},
-		{p + "/environments", []string{"environments.json"}, true},
-		{p + "/deploys/latest", []string{"latest.json"}, true},
-		{p + "/deployments", []string{"deployments.json"}, true},
-		{e + "/pods", []string{"pods.json"}, false},
-		{e + "/events", []string{"events.json"}, false},
+		{"/api/v1/me", []string{"me-approved.json", "me-pending.json"}},
+		{"/api/v1/projects", []string{"projects.json"}},
+		{p + "/environments", []string{"environments.json"}},
+		{p + "/deploys/latest", []string{"latest.json"}},
+		{p + "/deployments", []string{"deployments.json"}},
+		{e + "/pods", []string{"pods.json"}},
+		{e + "/events", []string{"events.json"}},
 	}
 	// Rows 7 and 8 need a run. A deployment's id IS its PipelineRun name (clients/kubernetes.go:5743,
 	// `ID: pr.GetName()`), spelled "id" (models/models.go:666); deployId takes that name
@@ -263,8 +267,8 @@ func TestLiveBodiesMatchRecordedKeys(t *testing.T) {
 		}
 		if json.Unmarshal(b, &latest) == nil && latest.ID != "" {
 			checks = append(checks,
-				check{p + "/pipelines/" + url.PathEscape(latest.ID), []string{"run-running.json", "run-failed.json"}, true},
-				check{p + "/security-status?deployId=" + url.QueryEscape(latest.ID), []string{"security-status.json"}, true})
+				check{p + "/pipelines/" + url.PathEscape(latest.ID), []string{"run-running.json", "run-failed.json"}},
+				check{p + "/security-status?deployId=" + url.QueryEscape(latest.ID), []string{"security-status.json"}})
 		}
 	} else {
 		t.Logf("deploys/latest answered %d: rows 7 and 8 are not compared", code)
@@ -286,12 +290,8 @@ func TestLiveBodiesMatchRecordedKeys(t *testing.T) {
 			wantEvery, wantSome = intersect(wantEvery, every), union(wantSome, some)
 		}
 		for k := range wantEvery {
-			switch {
-			case liveSome[k]:
-			case c.decoded:
+			if !liveSome[k] {
 				t.Errorf("%s: recorded key %q is in no live item — task 03's DTO reads it", c.path, k)
-			default:
-				t.Logf("%s: recorded key %q is in no live item (passed through, so not a defect)", c.path, k)
 			}
 		}
 		for k := range liveSome {
@@ -483,8 +483,8 @@ The live test is the only code; what guards it runs in every ordinary build.
   Hub-ask state with its state that day.
 - [ ] `LIVE-CHECK.md` and `panacea-metadata-ask.md` from the blocks above, verbatim.
 - [ ] `live_test.go`, `live_guard_test.go`, `seams_test.go`; `go vet -tags live`.
-- [ ] Add plan §10.2's two new rows (S7-N4, S7-P2) if they are not there, and point §12 at
-  `LIVE-CHECK.md`.
+- [ ] Check that `SEAMS.md`'s rows are plan §10.2's nine (S7-N1…N4, E1, X1, P1, P2, S1), one for
+  one; point §12 at `LIVE-CHECK.md`.
 - [ ] Commit by pathspec. The message says: *"The live check has not run. It is the owner's, batched
   (OD-12)."*
 

@@ -13,6 +13,7 @@ because two live connections per visible environment would break the one-heartbe
 - `control-plane/internal/api/deploy_drill.go` (new) — six routes and the relay
 - `control-plane/internal/api/deploy_drill_test.go` (new)
 - `control-plane/internal/api/routes_audit_test.go` (modified) — six `GET` lines
+- `control-plane/internal/api/api.go` (modified) — `a.registerDeployDrill(guarded)` in `New`; no new `Deps` field: the handlers read `Deps.DeployConnection` (task 05, whose `Current()` is the `deploy.Reader`, `Stream` included) and `Deps.DeployBinding` (task 06, for the Panacea project)
 
 #### Panacea's two stream formats — what the connector parses
 
@@ -124,7 +125,8 @@ second stream replaces; still no write."*
 
 #### Steps
 
-- [ ] Tests first; `stream.go`; then `deploy_drill.go`.
+- [ ] Tests first; `stream.go`; then `deploy_drill.go`; register through `routes`, in the same step
+  that defines `registerDeployDrill`.
 - [ ] Flush after each frame through `http.NewResponseController(w).Flush()`; check the phase 2
   origin middleware does not buffer (it wraps with headers only, `origin.go:183`ff) — if it
   does, stop and record it.
