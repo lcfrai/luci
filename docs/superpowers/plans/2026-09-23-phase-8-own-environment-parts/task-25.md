@@ -1,0 +1,110 @@
+### Task 25: Phase 3's `gitx.Machine` for a cloud machine (seam S3-P8.1)
+
+Phase 3 routes every git call through `gitx.Machine` — `ID()`, `Git() Runner`, `CloneRoot()`,
+`FetchURL(clonePath)` — and ships one implementation, `gitx.Local`
+(phase 3 task 02, sibling `phase-3` worktree, `task-02.md:146-171`). It leaves the second to this
+phase: "a pod gets a clone, FetchURL names it, and the control plane fetches from it"
+(`:148-149`), seams S3-P8.1 and S3-P8.2 (phase 3 plan `:314-319`). On a cloud machine the
+project repository and its lane clones share the machine's disk (OD-2, P8-D6), so **every git
+call, including the fetch-back, runs on the machine**, through task 21's `POST /v1/git`.
+
+**Depends on** phase 3 tasks 02–04 and 11 (the runner, the lane store, clone create/remove, the
+composite catalog) and on tasks 21 and 24 here. If any is missing, this task does not start.
+
+**Files:**
+- `control-plane/internal/gitx/remote.go`, `remote_test.go` — `gitx.Remote` (new file in phase 3's package: the seam's own home)
+- `control-plane/internal/machines/agent.go` — `Agent` implements `gitx.AgentGit` (modify)
+- `control-plane/cmd/machined/catalog.go` — switch from phase 2's Scanner to phase 3's composite catalog over `<root>/projects` and `<root>/lanes` (S3-P8.2) (modify)
+- wherever phase 3 resolves a `gitx.Machine` by machine id (its task 04 wiring) — one arm for cloud ids (modify)
+
+#### Contract (complete)
+
+```go
+package gitx
+
+import (
+	"context"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/machineapi"
+)
+
+// AgentGit is the one call a cloud machine's Runner needs: task 21's
+// POST /v1/git on that machine's agent, through the broker. machines.Agent
+// implements it; gitx does not import machines, so there is no cycle.
+type AgentGit interface {
+	Git(ctx context.Context, call machineapi.GitCall) (machineapi.GitResult, error)
+}
+
+// MachineRoot is where a cloud machine's disk is mounted in its machine pod
+// (PANACEA_APP_MACHINED_ROOT, task 20). Paths a Remote hands out are absolute
+// on the MACHINE and slash-separated — never host paths.
+const MachineRoot = "/machine"
+
+// Remote is a cloud machine: seam S3-P8.1's second implementation.
+type Remote struct {
+	MachineID string   // "m-…"
+	Agent     AgentGit
+}
+
+var _ Machine = Remote{}
+
+func (r Remote) ID() string { return r.MachineID }
+
+// Git runs on the machine agent. Call.Dir must be absolute under MachineRoot
+// (slash-separated); it is sent relative. A problem "git_failed" becomes a
+// *Error with ExitCode, Stderr (= details.gitSays) and TimedOut from the
+// details, Args and Dir from the Call — so callers that switch on *Error, and
+// the cockpit's details.gitSays, behave exactly as for Local.
+func (r Remote) Git() Runner
+
+// CloneRoot is MachineRoot + "/lanes" (machineapi.DirLanes).
+func (r Remote) CloneRoot() string { return MachineRoot + "/" + machineapi.DirLanes }
+
+// FetchURL is the clone's path, unchanged: the project repository and the
+// clone are on the same disk, so the fetch is local to the machine — the same
+// answer Local gives, for the same reason.
+func (r Remote) FetchURL(clonePath string) string { return clonePath }
+```
+
+#### Two asks of phase 3, recorded here and in task 33 (phase 3's code is not edited silently)
+
+| Ask | What | Why | Plan proceeds on |
+|---|---|---|---|
+| **P3A-1** Machine paths are not host paths | Every path phase 3 derives from `CloneRoot()` for a non-local machine is joined with `path.Join` (slash), never `filepath.Join` — or `Machine` gains `Join(elem ...string) string` | the control plane runs on **Windows**; `filepath.Join("/machine/lanes", "p-1")` yields `\machine\lanes\p-1`, which the machine agent refuses | phase 3 adds `Join` to `Machine` (`Local.Join` = `filepath.Join`, `Remote.Join` = `path.Join`) in its task 02 before it lands; if it has already landed, this task adds the method to both implementations and to the interface in one commit and names every call site it changed |
+| **P3A-2** Where the lane index lives for a cloud machine | Phase 3's lane store (its task 03) persists on the laptop under `statepath`. For a cloud machine it must be **keyed by machine id** | a machine is per user, not per laptop: a second laptop signed in as the same user sees the machine's clones through the catalog but not their lane metadata | v1 keeps the index on the laptop, keyed by `(machineId, projectId)`, and states the single-laptop limitation in the cockpit's machine popover; a machine-side index served by `machined` is later |
+
+#### Tests to write first (`remote_test.go`, a fake `AgentGit`)
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRemoteSendsDirRelativeToTheMachineRoot` | `Call{Dir: "/machine/lanes/p-1/w-2"}` → `GitCall.Dir == "lanes/p-1/w-2"` | an absolute path the agent refuses, or a host path sent |
+| `TestRemoteRefusesADirOutsideTheRoot` | `Dir: "C:\\Users\\x"` or `"/etc"` → error, no call | a laptop path leaking to the machine |
+| `TestRemoteCarriesClassStdinEnvAndOKExit` | each field arrives; `Class` as `"read" | "local" | "remote"` | a Read call taking optional locks on the machine |
+| `TestGitFailedBecomesAGitxError` | problem `git_failed` with details → `*Error{ExitCode, Stderr, TimedOut}`, `AsError` finds it, `Sentence()` is `gitSays` | the cockpit's `details.gitSays` empty for cloud machines |
+| `TestAnUnreachableAgentIsNotAGitError` | the fake returns `backend.ErrUnavailable` → the error is not an `*Error` | "git said" shown for a network failure |
+| `TestFetchURLIsThePath` and `TestCloneRootIsMachineLanes` | as the contract | a URL scheme invented for a same-disk fetch |
+| phase 3's own `Machine` conformance tests, if its task 02 ships any, run against `Remote` with the fake | pass | a second implementation that diverges from the first |
+
+And in `cmd/machined`: `TestCatalogListsLanesBesideWorktrees` — phase 3's composite catalog on the
+machine lists a lane clone under `lanes/` as a worktree of its project (S3-P8.2).
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the dependencies: `git grep -n "type Machine interface" -- control-plane/internal/gitx/`, phase 3's lane store and composite catalog exist, tasks 21 and 24 landed. Resolve P3A-1 as the table says.
+- [ ] **Step 2:** Tests; `remote.go`; `machines.Agent.Git`.
+- [ ] **Step 3:** The resolver arm for cloud ids; `machined`'s catalog switch.
+- [ ] **Step 4:** Full run, including phase 3's suites; commit.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/gitx/ ./control-plane/internal/machines/ ./control-plane/cmd/machined/ -race -count=1   # ok
+go test ./sandboxd/... ./control-plane/... -race -count=1                                                               # ok
+```
+
+#### What this task does not claim
+
+- That phase 3's convergence flows have run against a real cloud machine: that is the owner's
+  batched hands-on session (OD-12), listed in task 32.
+- Push from a cloud machine to a git host: it is phase 3's push (its task 13) with the user's
+  token in `Env`, through the same route; nothing here changes it, and it is unobserved.
