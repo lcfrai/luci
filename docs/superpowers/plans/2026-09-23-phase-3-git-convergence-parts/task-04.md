@@ -66,9 +66,11 @@ const (
 	ReasonNothingToLand     = "nothing_to_land"     // lands
 	ReasonNotReady          = "not_ready"           // lands
 	ReasonBriefUnresolvable = "brief_unresolvable"  // lands, evidence; details.why: no_resolver | missing | digest_mismatch | no_such_criterion
-	ReasonNoGitIdentity     = "no_git_identity"     // lands, revert, branch create
-	ReasonUndoNotExact      = "undo_not_exact"      // undo; details.why: pushed | built_upon | not_a_land | not_the_tip
-	ReasonConfirmRequired   = "confirm_required"    // DELETE worktree; details.sessions, .paths, .commits, .confirm
+	ReasonNoGitIdentity     = "no_git_identity"     // lands, revert
+	ReasonUndoNotExact      = "undo_not_exact"      // undo, revert; details.why: pushed | built_upon | not_a_land | not_the_tip
+	ReasonLiveSessions      = "live_sessions"       // DELETE worktree; details.sessions — the desktop kills them first
+	ReasonConfirmRequired   = "confirm_required"    // DELETE worktree; details.paths, .commits, .confirm
+	ReasonConfirmStale      = "confirm_stale"       // DELETE worktree: the state changed since the question; fresh details
 	ReasonNotCockpit        = "not_a_cockpit_worktree" // DELETE worktree of kind primary or linked
 	ReasonBranchHasLanes    = "branch_has_worktrees"   // PATCH and DELETE branch; details.worktrees
 	ReasonBranchExists      = "branch_exists"          // POST branches, PATCH branch
