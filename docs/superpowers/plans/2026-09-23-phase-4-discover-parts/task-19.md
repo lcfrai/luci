@@ -54,9 +54,12 @@ export function SessionsOnBrief(props: { target: Target }): JSX.Element;
 // desktop/src/discover/Materialisations.tsx
 /** Where the brief is written and what each worktree's file holds (task 12's route): fetched on
  *  open of the panel and after a save, never on a timer. "edited" shows the server's diff lines
- *  and says the next session start rewrites the block. "committed" names the TRACKED file that
- *  holds a block and says no session start changes it (review I3): it offers no rewrite, no
- *  strip and no git action, because Panacea never writes a tracked file (3-D6). */
+ *  and says the next session start rewrites the block. Each entry of `committed` names the
+ *  TRACKED file that holds a block and says no session start changes it (review I3): it offers
+ *  no rewrite, no strip and no git action, because Panacea never writes a tracked file (3-D6).
+ *  It is shown BESIDE the target's own state, never instead of it, so an edited target keeps
+ *  its diff and warning and a broken or superseded one renders as it would alone (re-review
+ *  R-M1). */
 export function Materialisations(props: { projectId: ProjectId; branchId: BranchId }): JSX.Element;
 
 // desktop/src/discover/BriefHistory.tsx
@@ -77,7 +80,7 @@ export function PastRevision(props: { pastKey: string }): JSX.Element;
 | 9 | a project edit whose `written` includes branch keys (`4-D3`) | on the project view: each branch brief moved, **by branch name**, with its new key. On a branch view after the feed marks it stale: *The project brief changed; this branch's brief is now rev 7*, and the section changes show **only inherited sections moving** |
 | — | Undo pressed within five seconds | a `restore` op for the previous revision; the new key; the history shows `restore` · `restores: 6` |
 | 11 | a worktree's inspection is `edited` | the file path, the changed lines (`added`/`removed`), *The next session started here rewrites this block. Edit the brief in Discover instead.* |
-| — | a worktree's inspection is `committed` (review I3; no prototype draws it) | the tracked file's path in mono; the marker's key when there is one; *This repository has a brief block committed in this file. Sessions here read it as well as the brief Panacea writes, and no session start will change it. Remove it in a commit.* No action control |
+| — | a worktree's inspection has a non-empty `committed` (review I3; no prototype draws it) | below the target's own state, whatever that is (re-review R-M1): the tracked file's path in mono; the marker's key when there is one; *This repository has a brief block committed in this file. Sessions here read it as well as the brief Panacea writes, and no session start will change it. Remove it in a commit.* No action control |
 | 12 | `pastKey` resolved | *You are reading revision 5, read-only.* Its sections; *Changed since:* the section changes to the head reading; *Back to the live brief* |
 | 13 | `pastKey` missing | the key, verbatim, in mono, *not found*, framed as **data loss in our store**, distinct from *no brief* |
 | — | `pastKey` erased | *This brief was erased on <date>. Its key and digest remain; its text does not.* |
@@ -99,7 +102,8 @@ export function PastRevision(props: { pastKey: string }): JSX.Element;
 | `missing is data loss, not none` | missing → the key in mono and the data-loss sentence; none → never this sentence | two states merged |
 | `erased keeps key and digest in view` | the key and *erased on* are shown; no section text | an erased brief shown as missing |
 | `edited block shows the server's lines` | an `edited` inspection → one removed and one added line, verbatim | a client-computed diff of file text |
-| `committed block names the tracked file and offers nothing` | a `committed` inspection → its `path` verbatim and the *Remove it in a commit* sentence; no `button` inside the row; the *rewrites this block* sentence absent | a committed block shown as `edited`, promising a rewrite that never happens; a control that invites Panacea to edit a tracked file (3-D6) |
+| `committed block names the tracked file and offers nothing` | a `current` inspection with one `committed` entry → the entry's `path` verbatim and the *Remove it in a commit* sentence; no `button` inside the committed row; the *rewrites this block* sentence absent from it | a committed block shown as `edited`, promising a rewrite that never happens; a control that invites Panacea to edit a tracked file (3-D6) |
+| `committed never hides the target's own state` | an `edited` inspection with one `committed` entry → the edited diff lines and the *rewrites this block* sentence, AND the committed path with *Remove it in a commit*; for each of `broken` and `superseded`, the inspection with one entry renders every text node the same inspection renders with `committed: []`, plus the committed path (task 19 draws no special words for those two, so the test compares renders instead of naming a sentence) | the committed row painted instead of the target's state, so a hand edit is silently overwritten at the next start, or a `block_broken` refusal has no visible cause (re-review R-M1) |
 | `no relative time` | no rendered text matches `/\b(ago|just now|yesterday)\b/i` | AGENTIC-UX property 1 |
 
 **Steps:**

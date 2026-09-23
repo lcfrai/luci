@@ -73,8 +73,9 @@ export type Resolution = "resolved" | "missing" | "erased" | "invalid" | "none" 
 export type CriterionState = "open" | "settled" | "contested";
 export type Origin = "project" | "branch" | "override";
 export type WorktreeBlockState =
-  | "absent" | "pending" | "current" | "superseded" | "edited" | "stale" | "broken"
-  | "committed"; // a TRACKED file holds a block; task 09's StateCommitted (review I3)
+  | "absent" | "pending" | "current" | "superseded" | "edited" | "stale" | "broken";
+  // the TARGET's own state. A block in a tracked file is WorktreeInspection.committed,
+  // not an eighth state (review I3, re-review R-M1)
 
 export interface Question {
   key: string; projectPrompt: string; branchPrompt: string; help: string;
@@ -142,9 +143,12 @@ export interface Head { headRevision: number; latestCompleteRevision: number; ar
 export interface RefsResponse { refs: ProvenanceRef[]; heads: Record<string, Head> }
 
 export interface DiffLine { op: "same" | "added" | "removed"; text: string }
+/** A block, or a marker of one, in a file git TRACKS; task 09's CommittedBlock (review I3). */
+export interface CommittedBlock { path: string; markerKey: string }
 export interface WorktreeInspection {
   worktreeId: WorktreeId; path: string; state: WorktreeBlockState;
   markerKey: string; expectedKey: string; diff: DiffLine[];
+  committed: CommittedBlock[]; // beside the target's own state, never instead of it (re-review R-M1)
 }
 export interface Materialisations { expectedKey: string; worktrees: WorktreeInspection[] }
 

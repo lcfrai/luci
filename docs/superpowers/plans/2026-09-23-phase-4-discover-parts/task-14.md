@@ -53,10 +53,15 @@ type scannerLocator struct{ s *project.Scanner }
 // and githost.ParseRemote (phase 3 task 13). origin first, then by name.
 type gitRepos struct{ git project.Runner }
 
-// gitQuestions implements contextwrite.Git with `git ls-files -- <rel>` and
+// gitQuestions implements contextwrite.Git with
+// `git --icase-pathspecs ls-files -- <rel>` and
 // `git rev-parse --git-path info/exclude`, each run in the worktree.
 // ls-files WITHOUT --error-unmatch exits 0 whether or not <rel> is tracked:
-// empty standard output is "untracked", any output is "tracked". No exit
+// empty standard output is "untracked", any output is "tracked".
+// --icase-pathspecs because a pathspec stays case-sensitive under
+// core.ignorecase=true, so a tracked claude.md would read as untracked while
+// NTFS/APFS opens it for CLAUDE.md (re-review R-I1); not :(icase), which
+// GIT_LITERAL_PATHSPECS=1 turns into a silent "untracked". No exit
 // code is read, because project.ExecRunner.Run wraps a failure with %v
 // (gitrunner.go:74) and errors.As cannot find the *exec.ExitError (review
 // I7). The only string match is "not a git repository" in either command's
@@ -80,9 +85,9 @@ type gitQuestions struct{ git project.Runner }
 |---|---|---|
 | `TestWireDiscoverAlwaysGivesAMaterialiser` | with every dependency nil, `Materialiser` is non-nil and `api.New` accepts it | a wiring that passes nil and trips task 10's check at start-up |
 | `TestNilHubServesHubOff` | `GET /v1/discover/projects/{id}/brief` over the wired handler → `binding.state: "hub_off"` | a panic on the first lens open |
-| `TestGitQuestionsReadsUntrackedAsFalse` | a fake runner answering `ls-files` with empty output and a nil error → `(false, nil)`; answering `CLAUDE.md\n` → `(true, nil)`; the recorded args are exactly `ls-files -- CLAUDE.md`, with no `--error-unmatch`; a fake error holding `fatal: not a git repository` → `errors.Is(err, contextwrite.ErrNotARepo)`; any other fake error → returned, not `(false, nil)` | every fresh repository read as "tracked" and every brief sent to `.claude/`; an error swallowed as "untracked" |
-| `TestGitQuestionsOverARealRepository` | over `project.NewExecRunner()` and real git in `t.TempDir()` (skipped when git is not on `PATH`, as `project`'s `requireGit` does; the fixture neutralises the developer's config with `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` as `makeGitRepo` does, `gitrunner_test.go:26-53`, which this package cannot import): a repository with `CLAUDE.md` committed → `Tracked(CLAUDE.md)` is `(true, nil)`; `Tracked(.claude/CLAUDE.md)` is `(false, nil)`; an untracked `CLAUDE.md` in a second repository is `(false, nil)`; `ExcludePath` is absolute and ends in `info/exclude`; a plain directory, with `GIT_CEILING_DIRECTORIES` set to its parent by `t.Setenv` so no repository above `%TEMP%` can answer, → `ErrNotARepo` from both questions | the fake-runner test passing while the real runner errors on every untracked file, because a fake can return any error type (review I7) |
-| `TestGitQuestionsNeverWrites` | the fake runner records only `remote`, `ls-files`, `rev-parse` subcommands | a write through the read-only runner |
+| `TestGitQuestionsReadsUntrackedAsFalse` | a fake runner answering `ls-files` with empty output and a nil error → `(false, nil)`; answering `CLAUDE.md\n` → `(true, nil)`; the recorded args are exactly `--icase-pathspecs ls-files -- CLAUDE.md` (the worktree goes in `Run`'s `dir`, which `ExecRunner` sets as `cmd.Dir`, `gitrunner.go:55`; there is no `-C`), with no `--error-unmatch` and no `:(icase)` magic; a fake error holding `fatal: not a git repository` → `errors.Is(err, contextwrite.ErrNotARepo)`; any other fake error → returned, not `(false, nil)` | every fresh repository read as "tracked" and every brief sent to `.claude/`; an error swallowed as "untracked" |
+| `TestGitQuestionsOverARealRepository` | over `project.NewExecRunner()` and real git in `t.TempDir()` (skipped when git is not on `PATH`, as `project`'s `requireGit` does; the fixture neutralises the developer's config with `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` as `makeGitRepo` does, `gitrunner_test.go:26-53`, which this package cannot import): a repository with `CLAUDE.md` committed → `Tracked(CLAUDE.md)` is `(true, nil)`; `Tracked(.claude/CLAUDE.md)` is `(false, nil)`; an untracked `CLAUDE.md` in a second repository is `(false, nil)`; a third repository whose index holds `claude.md` (lower case, committed; the fixture leaves `core.ignorecase` as `git init` sets it) → `Tracked(CLAUDE.md)` is `(true, nil)` on every platform (re-review R-I1); `ExcludePath` is absolute and ends in `info/exclude`; a plain directory, with `GIT_CEILING_DIRECTORIES` set to its parent by `t.Setenv` so no repository above `%TEMP%` can answer, → `ErrNotARepo` from both questions | the fake-runner test passing while the real runner errors on every untracked file, because a fake can return any error type (review I7) |
+| `TestGitQuestionsNeverWrites` | the fake runner records only `remote`, `ls-files`, `rev-parse` subcommands; the subcommand is the first recorded argument that does not start with `-`, so `--icase-pathspecs` is skipped and `ls-files` is read (re-review R-I1) | a write through the read-only runner |
 | `TestNoModelKeyIsNotFatal` | unset key → `wireDiscover` succeeds | a control plane that will not start without a model |
 | `TestTheInterimMaterialiserIsGone` | a source scan of `control-plane/cmd/api/*.go`, skipping `discover_test.go` itself, finds, case-insensitively, no `materialiserUntilTask14` (so no `newMaterialiserUntilTask14` either), and `materialiser_interim.go` does not exist. The test spells the name as `"materialiser" + "UntilTask14"`, so it does not match itself (review I1) | the interim left in place or still wired, so the binary starts and every session silently inherits nothing |
 | `TestOnlyProvenanceParsesKeys` | a source scan of `control-plane/internal/**/*.go` (excluding tests and `internal/provenance`, `internal/hub`) finds no `"brief:"` literal used with `strings.Split`/`Cut`/`TrimPrefix`/a regexp | P5, enforced by a test rather than a review |
@@ -111,8 +116,11 @@ $ git diff --stat HEAD -- control-plane/go.mod go.work
 (no output — G1)
 $ git grep -n "UntilTask14" -- control-plane
 (one line only: discover_test.go's split spelling, "materialiser" + "UntilTask14")
-$ git grep -n -e "error-unmatch" -e "ExitCode()" -- control-plane/cmd/api control-plane/internal/contextwrite ':!*_test.go'
-(no output — tracked-ness is read from ls-files' output, never from an exit code; review I7)
+$ git grep -n -e '"--error-unmatch"' -e '\.ExitCode()' -- control-plane/cmd/api control-plane/internal/contextwrite ':!*_test.go'
+(no output — tracked-ness is read from ls-files' output, never from an exit code; review I7.
+ The patterns are the forms code would use: the Go string literal WITH its quotes, and a method
+ call. The prescribed doc comments, which say "--error-unmatch" and "*exec.ExitError" in plain
+ words, do not match them; re-review R-I2, probed on git 2.53.0)
 ```
 
 **Does NOT claim:** a running Hub (task 23); a real sign-in (the Hub's C1 acceptance, and `OD-12`).
