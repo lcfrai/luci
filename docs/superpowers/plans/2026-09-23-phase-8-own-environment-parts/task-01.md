@@ -72,6 +72,10 @@ earlier stack never reads a later one.
 # unsets ARM_SUBSCRIPTION_ID, ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_USE_OIDC and
 # ARM_OIDC_TOKEN for its own process tree, so a developer's shell credentials cannot reach a
 # provider even if a test forgot a mock (guards.sh G3 is the first line; this is the second).
+# It also exports AZURE_CONFIG_DIR as a fresh empty directory (mktemp -d, removed by an EXIT
+# trap), so no `az login` context is reachable either: azurerm's Azure CLI authentication
+# finds no account, and a missed mock fails instead of reading the operator's subscription —
+# who runs Panacea day to day, so that context is likely Panacea's (review I3).
 set -euo pipefail
 ```
 
@@ -147,7 +151,13 @@ every later task, whose acceptance command is `infra/scripts/validate.sh <its di
 - [ ] **Step 2: Write `guards_test.sh` with the eleven cases.** Run it: every case fails, because
   `guards.sh` does not exist.
 - [ ] **Step 3: Write `guards.sh`.** Run `guards_test.sh` until `guards_test: 11 cases, 11 passed`.
-- [ ] **Step 4: Write `validate.sh`** to the contract above.
+- [ ] **Step 4: Write `validate.sh`** to the contract above. Prove the credential scrub once, red
+  first (review I3): in a scratch directory holding one `main.tf`, with `ARM_SUBSCRIPTION_ID`
+  exported and a stub `terraform` first on `PATH` that appends `AZURE_CONFIG_DIR=…`, the output
+  of `ls -A "$AZURE_CONFIG_DIR"` and `ARM_SUBSCRIPTION_ID=…` to a log, run
+  `validate.sh <scratch dir>`. The log must show an existing, empty directory that is not
+  `~/.azure`, and an empty `ARM_SUBSCRIPTION_ID`; after the run the directory is gone. Run it
+  first against a `validate.sh` without the `AZURE_CONFIG_DIR` export and record that it fails.
 - [ ] **Step 5: `git rm` the five phase 1 files**, add `.gitattributes`, extend `.gitignore`,
   write `README.md` with the layout, the stack order, the conventions and the command list.
 - [ ] **Step 6: Run the acceptance commands** and commit by pathspec.

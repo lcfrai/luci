@@ -8,8 +8,10 @@ owner-run only** (review I8). Creating applications and granting their consent t
 Graph permissions, which in Entra come close to tenant administration (training knowledge,
 UNVERIFIED). No pipeline identity is given them. So the owner either applies this stack once with
 their own credentials from a workstation, or makes the registrations by hand and hands over the
-ids (survey §7.2 item 1, `:539-541`). Task 30's `tf-stack.sh` refuses the stack name, and
-`infra-plan`'s default stack list leaves it out. `stacks/workloads` and the charts read only this
+ids (survey §7.2 item 1, `:539-541`). Task 30's `tf-stack.sh` refuses the stack name in a
+pipeline, and `infra-plan`'s default stack list leaves it out. On the owner's workstation
+`tf-stack.sh` runs it, after the estate guard has checked the subscription's
+`panacea-app-estate` tag (review I3). `stacks/workloads` and the charts read only this
 stack's **outputs**, so either path works. The plan's "Deploy identities" table records the
 decision.
 

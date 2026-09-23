@@ -26,7 +26,7 @@ The plan's "Deploy identities" table lists every principal, what it holds and at
 - `infra/terraform/stacks/foundation/{main,variables,outputs}.tf` and both tfvars — the `ci_pool` module call (modify, after task 07)
 - `pipelines/infra-plan.yml`, `pipelines/deploy.yml` (new)
 - `pipelines/scripts/estate-guard.sh`, `estate-guard_test.sh` (new)
-- `pipelines/scripts/tf-stack.sh`, `tf-stack_test.sh` — init/plan/apply one stack with the partial backend; plan with `-lock=false`, init with `-lockfile=readonly` (new)
+- `pipelines/scripts/tf-stack.sh`, `tf-stack_test.sh` — init/plan/apply one stack with the partial backend; plan with `-lock=false`, init with `-lockfile=readonly`; **runs `estate-guard.sh` first on every subcommand and every path**, pipeline or workstation (review I3; new)
 - `infra/rbac/cluster-deployer.json`, `infra/rbac/sandboxes-deployer.json` — the cluster identity's two custom role definitions, which the owner creates (review I8; new)
 - `infra/rbac/plan-reader.json` — the plan identity's custom role, `panacea-app-plan-reader`, which the owner creates (plan re-review M-2; new)
 - `infra/rbac/grant-pipeline-roles.sh`, `grant-pipeline-roles_test.sh` — the owner's script that grants the cluster and push identities their roles once `foundation` has made the cluster and the registry. It is the only place those grants are made (plan re-review I-2, I-3; new)
@@ -114,25 +114,61 @@ nothing to that path and must not add a public IP of its own.
 
 ```bash
 #!/usr/bin/env bash
-# pipelines/scripts/estate-guard.sh <environment> <plan|deploy>
+# pipelines/scripts/estate-guard.sh <environment> <plan|deploy> [<stack>…]
+# Called by tf-stack.sh before every subcommand, by grant-pipeline-roles.sh, by deploy's
+# guard stage, and first in every workstation section of the task 31 runbook (review I3).
+# A pipeline is TF_BUILD=True (set by ADO on every job, training knowledge, UNVERIFIED);
+# anything else is a workstation.
 # Refuses (exit 1, one sentence) unless ALL hold:
 #   - <environment> is dev or prod
-#   - deploy only: BUILD_SOURCEBRANCH is allowed for it:   dev  ← refs/heads/dev | refs/heads/main
+#   - ARM_SUBSCRIPTION_ID is set and non-empty (azurerm 4.x targets it; nothing falls back
+#     to whatever `az` has selected)
+#   - THE POSITIVE FINGERPRINT, on every path: the subscription ARM_SUBSCRIPTION_ID names
+#     carries the tag panacea-app-estate=<environment>, which the owner sets at handover
+#     (task 31 §1). Read with
+#       az rest --method get --url "https://management.azure.com/subscriptions/$ARM_SUBSCRIPTION_ID?api-version=2022-12-01" --query 'tags."panacea-app-estate"' -o tsv
+#     A missing tag, a tag naming the other environment, or a failed read is a refusal,
+#     never a skip. A Panacea subscription never carries the tag, and no id is committed
+#     (guard G2 holds)
+#   - pipeline: ARM_SUBSCRIPTION_ID equals the pipeline variable PANACEA_APP_<ENV>_SUBSCRIPTION_ID,
+#     which must be set (catches the dev connection pointed at prod)
+#   - workstation: ARM_SUBSCRIPTION_ID equals `az account show --query id -o tsv`, so the
+#     subscription Terraform targets and the one the runbook's next `az` command hits agree
+#   - pipeline, deploy only: BUILD_SOURCEBRANCH is allowed for it:   dev  ← refs/heads/dev | refs/heads/main
 #                                                          prod ← refs/heads/main only
 #     (plan mode accepts any branch, refs/pull/* included: that is what PR validation is,
-#      and the plan connection can only read — review C3)
-#   - ARM_SUBSCRIPTION_ID equals the pipeline variable PANACEA_APP_<ENV>_SUBSCRIPTION_ID
-#     (the service connection cannot point at another estate's subscription)
-#   - infra/terraform/stacks/*/<environment>.tfvars exists for every stack being run
+#      and the plan connection can only read — review C3; a workstation has no branch, and
+#      its bound is the operator's own rights plus the fingerprint)
+#   - infra/terraform/stacks/<stack>/<environment>.tfvars exists for every stack named
+#     (default: the pipeline's `stacks` parameter)
 #   - no infra/terraform/**/terraform.tfvars exists (guard G1, again, at the last moment)
 #   - every provider source is allowlisted (guard G9, again, at the last moment)
-#   - deploy only: every consumed pipeline resource (the infra-plan run, the images run)
+#   - pipeline, deploy only: every consumed pipeline resource (the infra-plan run, the images run)
 #     has a source branch allowed for <environment> by the rule above. A run from
 #     refs/pull/* or a feature branch is refused, naming the resource and its branch.
 #     Read from RESOURCES_PIPELINE_<ALIAS>_SOURCEBRANCH (variable name from training
 #     knowledge, UNVERIFIED)
-# Prints "estate-guard: <environment> on <branch> in <subscription> — ok" and exits 0.
+# Prints "estate-guard: <environment> on <branch|workstation> in …<last 4 of the subscription>,
+# tagged panacea-app-estate=<environment> — ok" and exits 0.
 ```
+
+**Why a tag, and why this read** (review I3). The subscription-variable check compares two
+values from the same ADO project, so it catches a dev/prod swap but not a connection, or an
+operator's shell, pointed at a Panacea subscription. The operator runs Panacea day to day, so a
+shell whose `ARM_SUBSCRIPTION_ID` or `az` context is Panacea's is the likely accident, and
+bootstrap, the subscription-scoped budget (task 04) and role assignments would land there. The
+tag is a positive claim only the owner makes, on our subscription only. The read is the
+subscription's own `GET`, not `az tag list` (which the review suggested): `az tag list
+--resource-id /subscriptions/…` needs `Microsoft.Resources/tags/read` **at subscription scope**,
+which the infra identity does not hold (its Contributor is on `rg-panacea-app-<env>`), while the
+subscription `GET` needs only `Microsoft.Resources/subscriptions/read`: the plan identity's
+Reader includes it, and so does the infra identity's Cost Management Contributor on the
+subscription (task 04). **That both roles include that action, and that the `GET` response
+carries `tags`, are training knowledge, UNVERIFIED**; task 31 §4's first plan and first apply
+run the guard on the plan and infra connections and record what each read. If a connection cannot read it, the guard refuses on that
+connection, and the fix is a one-action custom role, never a skipped check. Removing or moving
+the tag needs `Microsoft.Resources/tags/write` at subscription scope, which no pipeline identity
+holds.
 
 The consumed-resource rule closes a gap that the plan connection alone leaves open (review C3).
 A PR build can publish an artefact named `plan-<stack>` or `image-digests`, and if an approver
@@ -147,7 +183,10 @@ registered**; `pool: name: $(PANACEA_APP_CI_POOL)` (the Managed DevOps Pool); pa
 `environment` (`dev`|`prod`) and `stacks`. The default is `foundation`, `data` and `workloads`, in
 order. `bootstrap` is operator-run (task 31 §2). `identity` is **owner-run only** (task 09): the
 plan identity holds no Microsoft Graph permission, so it cannot refresh that stack's Entra
-objects. `tf-stack.sh` refuses either name. Steps: tools → the estate guard → per stack,
+objects. In a pipeline (`TF_BUILD=True`) `tf-stack.sh` refuses either name. On a workstation it
+refuses `bootstrap` (local state, task 31 §2, which runs the guard itself) and runs `identity` for
+the owner, after the guard like every other path, so the owner's own identity run is fingerprinted
+too (review I3). Steps: tools → the estate guard → per stack,
 `tf-stack.sh plan <stack> <env>`. That runs `terraform init -lockfile=readonly
 -backend-config=infra/terraform/backends/<env>.hcl -backend-config=storage_account_name=$(…)
 -backend-config=resource_group_name=$(…) -backend-config=key=<stack>.<env>.tfstate`, then
@@ -207,8 +246,10 @@ resource; parameters `environment`, `applyStacks` (bool, default `false`), `depl
 default `false`), so a run does only what its operator ticked; the first `data`/`workloads` run of
 an environment ticks `applyStacks` alone, and charts wait for the database bootstrap (task 31 §6,
 §7, §7a; review I9). Stages:
-1. **guard** — the estate guard, including the consumed-resource rule: the `infra-plan` run and
-   the `images` run must both come from an allowed branch.
+1. **guard** — the estate guard on the plan connection, including the consumed-resource rule:
+   the `infra-plan` run and the `images` run must both come from an allowed branch. It runs again
+   inside every `tf-stack.sh` call of stage 3, on the infra connection, so the fingerprint is
+   read by the identity that writes (review I3).
 2. **approve** — an ADO **Environment** `panacea-app-<env>` with an approval check (the owner).
 3. **apply** — on `$(PANACEA_APP_<ENV>_INFRA_SERVICE_CONNECTION)`. Per stack,
    `tf-stack.sh apply <stack> <env>` applies **the saved plan artefact** from the consumed run and
@@ -280,11 +321,18 @@ change the check.
 
 #### Tests to write first
 
-`estate-guard_test.sh`:
+`estate-guard_test.sh`. A stub `az` first on `PATH` answers the tag read and `az account show` from per-case fixtures;
+every case below not about the tag has the subscription tagged with its own environment, and
+every case not about the workstation sets `TF_BUILD=True`.
 
 | Case | Expect | Mutant it kills |
 |---|---|---|
 | dev on `refs/heads/dev`, matching subscription | ok | a guard that refuses everything |
+| **dev on `refs/heads/dev`, matching subscription, no `panacea-app-estate` tag** | refused, naming the missing tag and the subscription's last 4 characters | a guard with no positive fingerprint, so a Panacea subscription whose id was copied into the variable passes (review I3) |
+| dev, subscription tagged `panacea-app-estate=prod` | refused, naming both values | a guard that checks only that the tag exists |
+| dev, the tag read fails (stub `az` exits 1, as on a 403) | refused, naming the failed read | a guard that treats an unreadable tag as absent and carries on, or skips the check when `az` fails |
+| workstation (`TF_BUILD` unset), `az account show` returns a different id from `ARM_SUBSCRIPTION_ID` | refused, naming both ids' last 4 characters | Terraform and the runbook's next `az` command aimed at different subscriptions |
+| workstation, `ARM_SUBSCRIPTION_ID` unset | refused | azurerm left to pick up whatever subscription the operator's `az` has selected |
 | prod on `refs/heads/dev` | refused, naming the branch | a feature branch deploying prod |
 | prod on `refs/heads/main`, subscription of dev | refused, naming both ids' last 4 characters only | the dev service connection pointed at prod (Panacea's same-AKS-name collision class) |
 | a stack missing `<env>.tfvars` | refused | a plan that silently falls back to defaults |
@@ -294,13 +342,19 @@ change the check.
 | a module requiring `hashicorp/external` | refused, naming guard G9 | a provider that runs a program at plan time |
 | deploy on `refs/heads/dev` consuming an `images` run whose source branch is `refs/pull/12/merge` (the `infra-plan` run from `refs/heads/dev`) | refused, naming `images` and its branch | a guard that checks only the `infra-plan` alias, so a PR-built `image-digests` naming an older digest in the environment's own registry passes both the guard and `helm-values.sh`'s registry check (plan re-review M-1) |
 
-`tf-stack_test.sh` puts a stub `terraform` on `PATH` that records its arguments:
+`tf-stack_test.sh` puts a stub `terraform` on `PATH` that records its arguments, and a stub
+`estate-guard.sh` (found through `PANACEA_APP_ESTATE_GUARD`, default the real script beside it)
+that records its arguments and exits with a per-case status. Cases run with `TF_BUILD=True`
+unless they say "workstation":
 
 | Case | Expect | Mutant it kills |
 |---|---|---|
 | `plan foundation dev` | `init` received `-lockfile=readonly`, `plan` received `-lock=false` | a plan that tries to take a lease it cannot hold, or an `init` that fetches an unlisted provider |
 | `apply foundation dev` | `apply` received no `-lock=false` | an apply that races another apply |
 | `plan identity dev`, `plan bootstrap dev` | exit 1, naming the stack as owner-run or operator-run | the identity stack reached from a pipeline (review I8) |
+| `plan foundation dev`, `apply foundation dev`, and workstation `plan foundation dev`, each with the guard stub exiting 1 | exit 1, and the `terraform` stub recorded **nothing** | the workstation path, or any subcommand, reaching `terraform` without the guard (review I3) |
+| `apply foundation dev` with the guard stub exiting 0 | the guard received `dev deploy foundation`, before the first `terraform` call | the guard called in `plan` mode on the write path, which skips the branch and consumed-resource rules |
+| workstation `plan identity dev` | the guard received `dev plan identity`, then `init` and `plan` ran; workstation `plan bootstrap dev` still exits 1 | the owner's identity run left outside the guard, or bootstrap's local-state run forced through the partial backend |
 
 `cluster-kinds_test.sh` checks the cluster identity's two custom roles, `infra/rbac/cluster-deployer.json`
 and `infra/rbac/sandboxes-deployer.json`, against what the charts actually render. It runs
@@ -341,7 +395,10 @@ is what it means:
   only; the token route through the broker stays for as long as the pipeline deploys the broker.
 
 `grant-pipeline-roles.sh <env> [--dry-run]` is run by the **owner** under their own credentials,
-never by a pipeline (task 31 §4a). It reads the two object ids from
+never by a pipeline (task 31 §4a). Before anything else it runs `estate-guard.sh <env> deploy`
+(the workstation path: `ARM_SUBSCRIPTION_ID` set, equal to the `az` context, and tagged
+`panacea-app-estate=<env>`), so no assignment can land in a Panacea subscription the owner's
+shell happens to have selected (review I3). It reads the two object ids from
 `PANACEA_APP_<ENV>_CLUSTER_PRINCIPAL_OBJECT_ID` and `PANACEA_APP_<ENV>_PUSH_PRINCIPAL_OBJECT_ID`,
 looks up the cluster and registry ids with `az aks show` and `az acr show` in
 `rg-panacea-app-<env>`, and makes exactly the eight assignments of task 07's list: AcrPush on the
@@ -365,6 +422,7 @@ the owner runs the script again (task 31 §4a).
 | `dev`, the stub reporting AcrPush already present | seven `create` calls, and one `present` line | a script that fails with a conflict, or duplicates a grant, on its second run |
 | `dev`, the cluster and push ids equal | exit 1 before any `az` call, naming both variables | one principal holding both rows (review I8) |
 | `dev`, an object id unset | exit 1 before any `az` call, naming the variable | a grant to an empty principal |
+| `dev`, the guard stub (`PANACEA_APP_ESTATE_GUARD`) exiting 1 | exit 1, and the `az` stub recorded no `role assignment` call | role assignments made in whatever subscription the owner's shell had selected, Panacea's included (review I3) |
 
 `helm-values_test.sh`: a fixture `terraform output -json` for each stack and a digests file →
 exactly the expected `--set` list per release (every id the charts need, nothing else; kills a
@@ -399,6 +457,10 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
 
 - [ ] **Step 1:** `ci-pool` module and tests; the foundation call; validate both.
 - [ ] **Step 2:** `estate-guard.sh`, `tf-stack.sh`, `helm-values.sh`, `api-server-cidrs.sh` and their tests.
+  Mutation checks for review I3, each verified applied and red: delete the tag comparison →
+  the no-tag case; compare the tag's presence but not its value → the `prod`-tagged case; make a
+  failed tag read fall through → the failed-read case; drop the guard call from `tf-stack.sh`'s
+  workstation branch only → the guard-first case's workstation row.
 - [ ] **Step 3:** `infra/rbac/cluster-deployer.json`, `infra/rbac/sandboxes-deployer.json`,
   `infra/rbac/plan-reader.json`, `grant-pipeline-roles.sh` and its test, and
   `cluster-kinds_test.sh` (needs the charts of tasks 11–13, 26 and 29 to render).
@@ -408,9 +470,9 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
 
 ```bash
 bash infra/scripts/validate.sh infra/terraform/modules/ci-pool infra/terraform/stacks/foundation   # 2 ok
-bash pipelines/scripts/estate-guard_test.sh        # estate-guard_test: 9 of 9 passed
-bash pipelines/scripts/tf-stack_test.sh            # tf-stack_test: 3 of 3 passed
-bash infra/rbac/grant-pipeline-roles_test.sh       # grant-pipeline-roles_test: 5 of 5 passed
+bash pipelines/scripts/estate-guard_test.sh        # estate-guard_test: 14 of 14 passed
+bash pipelines/scripts/tf-stack_test.sh            # tf-stack_test: 6 of 6 passed
+bash infra/rbac/grant-pipeline-roles_test.sh       # grant-pipeline-roles_test: 6 of 6 passed
 bash pipelines/scripts/cluster-kinds_test.sh       # cluster-kinds: ok, the "can bind" line and the "sandboxes RBAC verbs" line
 bash pipelines/scripts/helm-values_test.sh         # helm-values_test: ok
 bash pipelines/scripts/api-server-cidrs_test.sh    # api-server-cidrs_test: 4 of 4 passed
