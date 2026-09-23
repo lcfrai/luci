@@ -6,8 +6,9 @@
 > Every task is test-first.
 
 **Status:** written 2026-09-23 on branch `feat/phase-7-deploy` (worktree
-`.claude/worktrees/phase-7`, based on `3303fd6`). Owner-reviewable under `OD-1`; adversarially
-reviewed before code. **Nothing in this plan was compiled or run.** Every citation below was opened
+`.claude/worktrees/phase-7`, based on `3303fd6`); parts 17–20 finished, and the file map (§7),
+task table (§8) and seams (§10.2) re-checked against every part, on 2026-09-24. Owner-reviewable
+under `OD-1`; adversarially reviewed before code. **Nothing in this plan was compiled or run.** Every citation below was opened
 in this pass unless it is marked *unverified*; §12 lists what was not verified.
 
 ---
@@ -66,7 +67,8 @@ H0/C1/C2; phase 3's `githost`; React 19 + TypeScript + zustand 5 + vitest, as ph
 **The swap (OD-13).** When Panacea is lifted into this repo, a second implementation of
 `deploy.Deployer` — native, in-process, or over the lifted service's internal API — replaces
 `panacea.Client` in `cmd/api/main.go`'s wiring. The domain types, the orchestration, the routes and
-the lens do not change. The conformance suite `deploy/deploytest.Conformance(t, d Deployer)` is the
+the lens do not change. The conformance suite `deploy/deploytest.Conformance(t, h Harness)` (a
+`Harness` hands it a `Deployer` and a `Seeder`, task 01) is the
 proof: it runs today against the fake and against `panacea.Client` over a recorded `httptest`
 server, and it is what the native implementation must pass. §10.2 names this seam S7-N1.
 
@@ -82,12 +84,13 @@ control plane chooses, not by the renderer's tick.
 
 **Data flow for Ship** (Hub contract §7.9, graft G1 of ADR-H1):
 
-1. Desktop `POST /v1/projects/{id}/deploy/ship {branchId, commit, designKey?}`.
+1. Desktop `POST /v1/projects/{id}/deploy/ship {branchId, commit, designKey?, noCache?}`, with an
+   `Idempotency-Key` minted when its 5 s hold starts (task 16).
 2. Control plane checks preconditions it can check locally (connected; bound; the commit is the
    branch tip and phase 3's `remote` block says `ahead == 0 && behind == 0`; Hub signed in).
 3. `hubclient.Releases.Reserve` → **the Hub fixes the pin**. Failure → Ship does not happen.
-4. `Deployer.Ship` → Panacea `POST /api/v1/projects/{name}/deploy {branch, commit}` → `202` with
-   `pipelineRun`.
+4. `Deployer.Ship` → Panacea `POST /api/v1/projects/{name}/deploy {branch, commit}` (plus
+   `noCache` only when set; never a scan override) → `202` with `pipelineRun`.
 5. `hubclient.Releases.Confirm {pipelineRun}` — or, on Panacea's refusal, `Abandon {reason,
    message}` carrying Panacea's sentence verbatim.
 6. The watcher, the first time a `Deployment` with `ID == pipelineRun` appears, writes the
@@ -100,7 +103,10 @@ line numbers are those of Panacea commit `406d0da95`. **Line numbers have moved 
 which read `b33d15acb`: `406d0da95` removed 82 lines from `projects.go` after `:1418` (`Rollback`
 was `projects.go:1629`, is `:1547`; `TriggerDeploy` was `:3024`, is `:2942`). Every Panacea line
 cited in this plan was re-read on 2026-09-23; the lines parts 17–20 cite, and a sample of the rest,
-were re-read at `b02424691` on 2026-09-24, which leaves every cited line where it was.
+were re-read at `b02424691` on 2026-09-24. Between `406d0da95` and `b02424691` the only
+`panacea-api` source that changed is `clients/kubernetes.go`, from `:6468` down (plus a new test
+file), and every `kubernetes.go` line this plan cites is above `:6100`, so every cited line is where
+it was.
 
 ---
 
@@ -725,8 +731,11 @@ recorded Panacea bodies.
   the Hub contract at `a6ccd77`; their final spellings may differ, and parts 05–10 name the exact
   methods they call so the difference is a compile error, not a silent one.
 - **Phase 3, 4 and 5 interfaces** are read from their plans (phase 3 at its worktree's current text;
-  phase 4's 2026-09-23 plan was still a stub, so R6's loader is taken from the ruling and the
-  provenance contract; phase 5's plan was not found to name `upstream-down`).
+  phase 4's 2026-09-23 plan was still a stub when parts 13 and 15 were written, so R6's loader there
+  is taken from the ruling and the provenance contract; phase 5's plan was not found to name
+  `upstream-down`). Phase 4's parts have since been written: part 17's `ShippedManifestProps` and
+  the phase 4 selector names it uses were checked against phase 4's tasks 16 and 17 at the phase-4
+  worktree's `e330498` on 2026-09-24. Parts 13 and 15 were not re-checked against them.
 - **How the lens looks.** Visual acceptance is the owner's eyes (OD-12); every UI task says so.
 
 
