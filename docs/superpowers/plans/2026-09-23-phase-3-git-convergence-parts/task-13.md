@@ -105,7 +105,11 @@ package credstore
 // base64url segments, first starting "eyJ"), else BasicPAT. Subject is "username=".
 type GitHelper struct {
 	Runner gitx.Runner
-	Dir    string // any directory; the project's, so a repo-local helper config applies
+	// Dir is an empty repository the control plane owns, <Hardening.OwnedRoot>/credential, made
+	// once at startup. It is never the project, so no repo-local helper config is ever read, and
+	// the call runs with Scope None (task-02 §HGH; review C3). The helpers that answer are the
+	// machine's alone, because H1 clears the list and re-applies Hardening.Credential.
+	Dir    string
 	Path   string // the remote's path, e.g. "lcfrai/panaceaapp"; set by the caller per call
 }
 
@@ -165,6 +169,8 @@ func GitAuthHeader(r Remote, cred credstore.Credential) string
 // origin URL so no other host ever receives it —
 //   GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=http.https://<Authority>/.extraHeader, GIT_CONFIG_VALUE_0=<header>
 // The token travels only in the child process's environment, never on its command line.
+// Host scoping alone does not stop a repository-named http.proxy with sslVerify=false (review
+// C3). task-02 §HGH H2 does: the push's proxy and TLS are the machine's, at the URL's specificity.
 func PushEnv(r Remote, cred credstore.Credential) map[string]string
 ```
 
@@ -191,7 +197,9 @@ timer fetch of an HTTPS remote uses the stored token too (a private repository n
 | `TestCredentialNeverPrintsItsToken` | `fmt.Sprintf` with `%v`, `%+v`, `%#v`, `%s` and `slog` of a Credential → no `s3cr3t`; `json.Marshal` → error | a token in a log line |
 | `TestNoneHasNothing` | → `ErrNoCredential` | a default that invents a token |
 | `TestChainSkipsNoCredentialAndStopsOnFailure` | [None, fixed] → fixed; [failing, fixed] → failing's error | "Hub down" silently falling through |
-| `TestGitHelperReadsFill` | isolated config with `credential.helper=!f() { echo username=ada; echo password=gho_x; }; f` → `Token gho_x`, `Subject ada`, `Source git-credential-helper` | a parser that misses the secret |
+| `TestGitHelperReadsFill` | `Hardening.Credential` holds `credential.helper=!f() { echo username=ada; echo password=gho_x; }; f` (the machine's helper, task-02 §HGH H2) → `Token gho_x`, `Subject ada`, `Source git-credential-helper` | a parser that misses the secret |
+| `TestGitHelperNeverReadsARepoHelper` | review C3, red first: a project whose `.git/config` names `credential.helper=<script writing its stdin to a marker>`, and a GitHelper built by `main.go`'s constructor → after `Credential`, the marker does not exist and `Dir` is under `Hardening.OwnedRoot` | a GitHelper whose `Dir` is the project |
+| `TestGitHelperDirMustBeOwned` | `Dir` outside `Hardening.OwnedRoot` → `gitx.ErrCallShape`, git never starts | a caller pointing the helper back at a repository |
 | `TestGitHelperNothingStoredIsNoCredential` | no helper configured → `ErrNoCredential` within `LocalTimeout`, never a prompt | a hang on a terminal prompt |
 | `TestGitHelperOnlyEverRunsFill` | Script runner: the argv is exactly `credential fill` | approving or rejecting the user's credentials |
 | `TestGitHelperSchemes` | GitHub → Bearer; ADO JWT-shaped → Bearer; ADO other → BasicPAT | an ADO PAT sent as a bearer token |
@@ -211,7 +219,9 @@ timer fetch of an HTTPS remote uses the stored token too (a private repository n
   `credstore.Store` as phase 3's view and write a one-file adapter over the Hub's type, and record
   every difference in the commit message. Do not edit the Hub's worktree.
 - [ ] **Step 2:** tests; then `credstore`, `githost/remote.go`, `githost/header.go`.
-- [ ] **Step 3:** the deps block and `PushAuth` in `main.go`; `Credentials = credstore.Chain{hub, credstore.GitHelper{…}}`.
+- [ ] **Step 3:** the deps block and `PushAuth` in `main.go`; `Credentials = credstore.Chain{hub, credstore.GitHelper{…}}`,
+  whose `Dir` is `<hardening.OwnedRoot>/credential`, made once with `git init --quiet` (Scope
+  None) (task-02 §HGH).
 - [ ] **Step 4:** run; commit by pathspec.
 
 #### Acceptance
