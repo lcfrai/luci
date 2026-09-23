@@ -2008,8 +2008,8 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    environment is resolved before step 4, and restart rebuilds it rather than replaying it. A
    linked worktree still has no working git — its `.git` names a host path — and that is Phase 3's
    `3-D1`; the cockpit says so from `Worktree.isPrimary`. AMENDED by the sandbox git fix, round 1
-   (2026-09-24): `GIT_CONFIG_COUNT` is **5**. The three added pairs are
-   `gc.worktreePruneExpire=never`, and `core.autocrlf` and `core.eol` set to **the host's own
+   (2026-09-24): `GIT_CONFIG_COUNT` is **6**. The four added pairs are
+   `gc.worktreePruneExpire=never`, `gc.auto=0`, and `core.autocrlf` and `core.eol` set to **the host's own
    answer for that worktree** from `Deps.GitLineEndings`, which is required. cmd/api asks the host's
    git in the worktree: `git config --get --type=bool --default false core.autocrlf` (the raw value
    only when that refuses `input`) and `git config --get --default native core.eol`, with
@@ -2023,7 +2023,11 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    `/home/dev/work/.git/worktrees`, made on the host when absent. Every linked worktree's `gitdir`
    there names a host path, so the sandbox's git calls each one prunable. The mount stops a
    `git worktree prune`, `repair`, `move`, `remove` or `add` in the sandbox from changing the
-   host's metadata; no git setting stops an explicit prune. The mount order is the worktree, then
+   host's metadata; no git setting stops an explicit prune. It also makes a `git gc` in the
+   sandbox exit 128, because gc's reflog expiry cannot lock a linked worktree's `HEAD` there;
+   `gc.auto=0` stops the sandbox starting a detached auto gc, whose failure would leave a
+   `.git/gc.log` that makes the host's own auto gc stand down for a day. The host's git keeps
+   the repository. The mount order is the worktree, then
    that mount, then the conversation store, then the CA bundle. Failure → `store.Update` to
    `StatusExited` with the reason, then 500 or 503.
 6. Return 201 immediately.

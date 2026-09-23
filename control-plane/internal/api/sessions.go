@@ -131,7 +131,7 @@ func sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle stri
 // image has 2.39) rather than a file in the image, so sessionWorkDir stays the
 // ONE place the mount point is written. Environment config is command scope,
 // which outranks every config file, so neither a repository's config nor an
-// agent's `git config --global` can change these. Five settings:
+// agent's `git config --global` can change these. Six settings:
 //
 //   - safe.directory = sessionWorkDir. A bind mount's owner is not the image's
 //     dev user (Docker Desktop shows root), so without it every git command in
@@ -143,9 +143,18 @@ func sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle stri
 //     one from the user and host name — dev@<container> — and on a host with a
 //     domain it would succeed. Commits are made as the user or not at all.
 //   - gc.worktreePruneExpire = never. Every linked worktree looks prunable from
-//     the sandbox (see sessionWorktreeAdmin), so an automatic gc would try to
-//     prune them. The read-only mount already stops the deletion; this stops
-//     gc trying, and failing, on every run.
+//     the sandbox (see sessionWorktreeAdmin), so a gc would try to prune
+//     them. The read-only mount already stops the deletion; this stops gc
+//     trying.
+//   - gc.auto = 0. With that metadata read-only, a gc in the sandbox cannot
+//     lock a linked worktree's HEAD to expire its reflog, and exits 128
+//     ("fatal: failed to run reflog", measured). A DETACHED auto gc that
+//     fails writes .git/gc.log, and the host's own `git gc --auto` then
+//     prints it and does nothing until the file is a day old (git-gc(1),
+//     gc.logExpiry; documented, not measured here). So the sandbox never
+//     starts one, and the host's git, which can write all of its metadata,
+//     keeps the repository. A `git gc` an agent runs by hand still fails,
+//     loudly, and harms nothing.
 //   - core.autocrlf and core.eol = the host's own, from Deps.GitLineEndings.
 //     The host's system and global config are invisible here, and Git for
 //     Windows sets core.autocrlf=true at system scope. Without them a CRLF
@@ -167,6 +176,7 @@ func sessionEnv(id GitIdentity, eol GitLineEndings, caBundle string) map[string]
 		{"safe.directory", sessionWorkDir},
 		{"user.useConfigOnly", "true"},
 		{"gc.worktreePruneExpire", "never"},
+		{"gc.auto", "0"},
 		{"core.autocrlf", eol.AutoCRLF},
 		{"core.eol", eol.EOL},
 	}

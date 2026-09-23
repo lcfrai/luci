@@ -144,6 +144,13 @@ func TestEverySandboxTrustsTheMountPointAndNothingWider(t *testing.T) {
 			if got := cfg["gc.worktreePruneExpire"]; got != "never" {
 				t.Errorf("gc.worktreePruneExpire = %q, want \"never\" so no gc in the sandbox prunes a host worktree", got)
 			}
+			// With that metadata read-only, gc's reflog expiry cannot lock a
+			// linked worktree's HEAD and gc exits 128. A detached auto gc that
+			// fails writes .git/gc.log, and the HOST's git then skips its own
+			// auto gc for a day (gc.logExpiry). So the sandbox never starts one.
+			if got := cfg["gc.auto"]; got != "0" {
+				t.Errorf("gc.auto = %q, want \"0\" so no auto gc in the sandbox leaves the host a gc.log", got)
+			}
 		})
 	}
 }
@@ -319,9 +326,9 @@ func TestRestartAsksForTheIdentityAgainAndKeepsTheCAAndSafeDirectory(t *testing.
 	if asked := host.calls(); len(asked) != 1 || asked[0] != env.dir {
 		t.Errorf("the restart asked for the line endings of %#v, want once, of %q", asked, env.dir)
 	}
-	if cfg["core.autocrlf"] != "true" || cfg["core.eol"] != "crlf" || cfg["gc.worktreePruneExpire"] != "never" {
-		t.Errorf("after a restart core.autocrlf %q, core.eol %q, gc.worktreePruneExpire %q; want true, crlf, never",
-			cfg["core.autocrlf"], cfg["core.eol"], cfg["gc.worktreePruneExpire"])
+	if cfg["core.autocrlf"] != "true" || cfg["core.eol"] != "crlf" || cfg["gc.worktreePruneExpire"] != "never" || cfg["gc.auto"] != "0" {
+		t.Errorf("after a restart core.autocrlf %q, core.eol %q, gc.worktreePruneExpire %q, gc.auto %q; want true, crlf, never, 0",
+			cfg["core.autocrlf"], cfg["core.eol"], cfg["gc.worktreePruneExpire"], cfg["gc.auto"])
 	}
 	if got := sandboxEnvAdminMounts(spec); len(got) != 1 || got[0].HostPath != admin || !got[0].ReadOnly {
 		t.Errorf("after a restart the linked-worktree metadata mounts are %#v, want %q read-only", got, admin)
