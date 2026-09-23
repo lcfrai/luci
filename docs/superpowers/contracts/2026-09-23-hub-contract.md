@@ -1259,3 +1259,148 @@ type DevOps struct{ Tokens TokenSource }
 credential, so no credential comes *from the Hub*. The sources become `"credential-manager"` (a
 GitHub token in `Local`), `"entra"` (`DevOps`) and `"git-credential-helper"`; phase 3 changes one
 comment and any test that asserts `"hub"`.
+
+### 9.2 `hubclient` — what phases 3, 4, 5 and 7 code against tonight
+
+`hubapi` holds one Go struct per JSON object in §7 (`User`, `Team`, `Project`, `BriefHead`,
+`BriefRevision`, `RevisionSummary`, `RefResult`, `RefsResponse`, `DesignApproval`, `SessionLink`,
+`Release`, `Pin`, `EvidenceRecord`, `Event`, `Page[T]`, and one `…Request` per request body), with
+the JSON tags of §7 exactly. `hubclient` is split by consumer so each phase depends on the smallest
+interface:
+
+```go
+package hubclient
+
+type TokenSource interface { // satisfied by *entraauth.Authenticator
+	Token(ctx context.Context, scope string) (string, error)
+}
+
+type Projects interface {
+	Me(ctx context.Context) (hubapi.Me, error)
+	ProjectForRepo(ctx context.Context, repoKey string) (hubapi.Project, bool, error)
+	CreateProject(ctx context.Context, req hubapi.CreateProjectRequest) (hubapi.Project, error)
+}
+
+type Briefs interface { // phase 4
+	CreateBrief(ctx context.Context, projectID string, req hubapi.CreateBriefRequest) (hubapi.BriefHead, error)
+	ForBranch(ctx context.Context, projectID, branchRef string) (hubapi.ForBranch, error)
+	Brief(ctx context.Context, briefID string) (hubapi.BriefWithRevision, error)
+	Rebind(ctx context.Context, briefID, branchRef string) (hubapi.BriefHead, error)
+	Archive(ctx context.Context, briefID string) (hubapi.BriefHead, error)
+	Revisions(ctx context.Context, briefID string, page hubapi.PageRequest) (hubapi.Page[hubapi.RevisionSummary], error)
+	WriteRevisions(ctx context.Context, projectID string, writes []hubapi.RevisionWrite) ([]hubapi.BriefRevision, error)
+	Resolve(ctx context.Context, keys []string) (hubapi.RefsResponse, error) // brief: and design: keys; batches of 100
+}
+
+type Designs interface { // phase 5
+	PutBlob(ctx context.Context, projectID string, digest string, contentType string, size int64, body io.Reader) (hubapi.Blob, error)
+	GetBlob(ctx context.Context, projectID string, digest string) (io.ReadCloser, hubapi.Blob, error)
+	Approve(ctx context.Context, projectID string, req hubapi.ApprovalRequest) (hubapi.DesignApproval, error)
+	Approvals(ctx context.Context, projectID string, q hubapi.ApprovalQuery) (hubapi.Page[hubapi.DesignApproval], error)
+	LinkSession(ctx context.Context, projectID string, req hubapi.SessionLinkRequest) (hubapi.SessionLink, error)
+}
+
+type Releases interface { // phase 7
+	Reserve(ctx context.Context, projectID string, req hubapi.ReserveRequest) (hubapi.Release, error)
+	Confirm(ctx context.Context, releaseID string, req hubapi.ConfirmRequest) (hubapi.Release, error)
+	Abandon(ctx context.Context, releaseID string, req hubapi.AbandonRequest) (hubapi.Release, error)
+	JoinDeployment(ctx context.Context, releaseID, deploymentID string) (hubapi.DeploymentJoin, error)
+	Releases(ctx context.Context, projectID string, q hubapi.ReleaseQuery) (hubapi.Page[hubapi.Release], error)
+}
+
+type Evidence interface { // phase 3, H-2
+	RecordEvidence(ctx context.Context, req hubapi.EvidenceRequest) (hubapi.EvidenceRecord, error)
+	EvidenceByDigest(ctx context.Context, repo string, digests []string) ([]hubapi.EvidenceRecord, error)
+}
+
+type Feed interface {
+	Changes(ctx context.Context, after string, limit int) (hubapi.ChangesPage, error)
+}
+
+type Hub interface { Projects; Briefs; Designs; Releases; Evidence; Feed }
+
+func New(baseURL, scope string, tokens TokenSource, httpClient *http.Client) *Client // implements Hub
+func NewFake() *Fake                                                               // implements Hub, in memory
+
+// Error is every Hub problem, carried unchanged for the relay rule (§4.3).
+type Error struct {
+	Status  int
+	Problem httpx.Problem
+}
+
+// ErrUnavailable wraps transport failures and 5xx; the relay maps it to 503 upstream_unavailable.
+var ErrUnavailable = errors.New("hubclient: hub unavailable")
+```
+
+**What the client does for every call, so no handler has to:** takes a token for `scope` from
+`TokenSource` (`ErrSignedOut` passes through); sends a fresh `Idempotency-Key` (UUID, `ids.UUID()`)
+on every `POST`, **reused across its own retries**; retries a transport failure or a 502/503/504
+twice with 250 ms and 1 s back-off; refreshes and retries once on 401 `expired`; times out each
+attempt at 10 s; and **re-computes the digest of every brief revision it receives** with
+`hubapi.Canonical` — a mismatch turns that result into `missing` and logs an error, so a revision
+altered in transit or at rest is never rendered (provenance contract §6.2).
+
+**The fake and the conformance suite.** `NewFake()` implements every rule in §7 that a caller can
+observe: numbering, `revision_conflict`, the completeness rule, pin selection, reservation expiry
+(with an injectable clock), 404 for another team's project, `missing` for an unreadable key.
+`hubclient/conformance` is one table-driven suite run against the fake (`go test`) and against a
+real Hub from `compose.yaml` (`go test -tags integration`). **H0 ships the interfaces, the fake and
+the suite skeleton first**, so phases 3, 4, 5 and 7 build tonight against the fake, and each Hub
+task H2–H7 makes its rows pass against the real server.
+
+### 9.3 Control-plane routes this phase adds (task C1, C2)
+
+Canonical `/v1/…`; `/api/v1/…` works through the existing alias (`control-plane/internal/api/api.go:287-292`).
+Each is registered through the `routes` recorder so the §10a route audit sees it
+(`api.go:262-285`); `GET /v1/auth/status` and `GET /v1/hub/changes` go in `catalogReadOnlyRoutes`.
+
+| Method | Path | Request | `200` response | Errors |
+|---|---|---|---|---|
+| POST | `/v1/auth/sign-in` | none | `{"authorizeUrl":"https://…","expiresAt":"…"}` | 409 `conflict` if already `signed_in`; 503 `upstream_unavailable` (`entra`) if discovery fails; 503 `hub_not_configured` if `PANACEA_APP_HUB_URL` is unset |
+| POST | `/v1/auth/cancel` | none | `204` | — |
+| GET | `/v1/auth/status` | — | `{"state":"signed_in","reason":"","account":{"tenantId","name","username"},"hubConfigured":true}` | — |
+| POST | `/v1/auth/sign-out` | none | `204` | — |
+| GET | `/v1/hub/changes?after=` | — | the Hub's `/v1/changes` body, unchanged | the relay rule (§4.3) |
+
+New control-plane codes, added to `httpx`'s constant block by C1: `signed_out` (401),
+`hub_not_configured` (503), `local_key_required` (401, §9.4). `upstream_unavailable` (503) is R4's.
+
+**The change cursor reaches the desktop without a new request per tick.** The control plane polls
+the Hub's `/v1/changes` every `PANACEA_APP_HUB_POLL_INTERVAL` (5 s) while signed in, and sets
+`Panacea-Hub-Cursor: <next>` on its `GET /v1/sessions` response — the one call `poller.ts` already
+makes each tick. `httpx.Middleware` gains `Access-Control-Expose-Headers: Panacea-Hub-Cursor`, or the
+webview cannot read it (C2; a one-line amendment to `origin.go`). When the desktop's loader sees the
+header change, it makes **one** `GET /v1/hub/changes?after=<last>` and invalidates:
+`headRevisionByBrief` and `headRefByBranch` for `brief.*` events; its release and approval lists for
+`release.*` and `design.*`. This amends UI contract §4.7 once more (provenance contract §6.4's
+edge-triggered resolve, plus this edge-triggered feed read); phase 4 owns that amendment.
+
+**Materialise and `contextRef` are unchanged in meaning.** The control plane fetches the head
+through `Briefs.ForBranch`, renders it, and stamps the key it rendered (ruling R1, P6). A Hub it
+cannot reach means no head: phase 4's `4-D1` rule applies.
+
+### 9.4 The local caller key (task C3)
+
+- At start the control plane writes 32 random bytes, base64url, to `<state dir>/local-key`
+  (`PANACEA_APP_LOCAL_KEY_FILE` overrides the path), replacing any previous file. The state directory
+  is under the user's profile, whose ACL admits only the user, SYSTEM and Administrators. A new key
+  every start: nothing to rotate.
+- **Every route** on the control plane's listener requires `Authorization: Bearer <key>` — except
+  `/healthz`, and `GET /v1/sessions/{id}/attach`, whose WebSocket the webview cannot add a header to
+  (the attach route keeps phase 2's sandbox-token gate; carrying the key in `Sec-WebSocket-Protocol`
+  is later work, ADR R4). Missing or wrong: 401 `local_key_required`, compared in constant time.
+- The Tauri shell gains one command, `local_key() -> String`, which reads that file. The renderer
+  calls it once at start, keeps the key **in memory only**, and `client.ts` adds the header to every
+  request. `client.ts:6-8`'s comment is replaced.
+- What it stops: another OS user; a process in a sandbox that can reach the host's loopback. What
+  it does not stop: another process of the same user, which can read the file.
+
+### 9.5 The desktop's sign-in surface (task C4)
+
+Four states from `GET /v1/auth/status`, rendered in the rail footer where the prototypes put the
+person (`prototype-fact-sheet.md:26`): **signed out** (a *Sign in* control), **signing in** (*"Finish
+signing in in your browser"*, with *Cancel*; driven by the global heartbeat, no spinner),
+**signed in** (name, and *Sign out* in its menu), **needs you to sign in again** (for
+`reauth_required`; the same control as signed out, and a sentence naming why). Every lens that needs
+the Hub shows the lens's own `unavailable` or `signed_out` state; none blocks the Develop lens.
+`docs/DESIGN-SYSTEM.md` governs the visuals; C4 reads it first.
