@@ -36,17 +36,26 @@ type Auth struct {
 	Env map[string]string
 }
 
+// ProjectRef names one project for a fetch: ID keys gitx.Locks, Path is where git runs.
+type ProjectRef struct {
+	ID   string
+	Path string
+}
+
 // Fetcher fetches origin. One per process.
 type Fetcher struct {
 	Machine gitx.Machine
-	// Projects lists the project paths the timer fetches: projects with at least one cockpit
+	// Locks is GitDeps.Locks, task 04's one value (task-02; review I7). Every Fetch holds its
+	// project's lock, the same lock land, undo, revert, the branch verbs and Push take.
+	Locks *gitx.Locks
+	// Projects lists the projects the timer fetches: projects with at least one cockpit
 	// worktree. A project the user never converges in is never fetched behind their back.
-	Projects func(ctx context.Context) ([]string, error)
+	Projects func(ctx context.Context) ([]ProjectRef, error)
 	// AuthFor is task 13's hook; nil means the zero Auth for every project.
 	AuthFor  func(ctx context.Context, projectPath string) Auth
 	Interval time.Duration // PANACEA_APP_FETCH_INTERVAL; default 10m; 0 disables the timer; minimum 1m otherwise
 	Log      *slog.Logger
-	// unexported: per-project mutex, last error per project
+	// unexported: last error per project path (no lock of its own: Locks is the lock)
 }
 
 const (
@@ -66,8 +75,8 @@ var ErrNoRemote = errors.New("remote: the project has no origin")
 // Fetch runs `fetch --prune origin` (gitx.Remote) in the project. It records the failure's
 // sentence as the project's last error (ReadState's FetchError) and clears it on success.
 // Hardened per task-02 §HGH: Scope Project, and RemoteURL is `config --get remote.origin.url`,
-// read just before the call (H2).
-func (f *Fetcher) Fetch(ctx context.Context, projectPath string) (FetchResult, error)
+// read just before the call (H2). It holds Locks.Lock(ctx, p.ID) for the whole call.
+func (f *Fetcher) Fetch(ctx context.Context, p ProjectRef) (FetchResult, error)
 
 // LastError is the last failed fetch's sentence for a project, or "".
 func (f *Fetcher) LastError(projectPath string) string
@@ -102,8 +111,9 @@ var ErrPushRejected = errors.New("remote: the remote has commits this branch doe
 // else is ever passed. --porcelain's "!" line is ErrPushRejected; "=" is UpToDate.
 // Those are the Args Push gives Exec. Exec adds task-02 §HGH's prefix and --receive-pack itself.
 // The call uses Scope Project, and RemoteURL is `config --get remote.<remote>.url` (H2). No
-// hook runs, including the user's pre-push (H4).
-func Push(ctx context.Context, m gitx.Machine, projectPath, branch string, auth Auth) (PushResult, error)
+// hook runs, including the user's pre-push (H4). Push holds locks.Lock(ctx, p.ID) from the
+// first read of the branch to the push's exit (review I7), so it never publishes a tip mid-land.
+func Push(ctx context.Context, m gitx.Machine, locks *gitx.Locks, p ProjectRef, branch string, auth Auth) (PushResult, error)
 ```
 
 ```go
@@ -130,9 +140,14 @@ POST /v1/projects/{projectId}/branches/{branchId}/push
   502 git_failed details.gitSays
 ```
 
-Both serialise per project with each other and with lands on that project's branches (one
-`sync.Mutex` per project path, shared through `GitDeps`), because a push reading a branch a land
-is moving would push whichever tip it happened to see.
+Both serialise per project with each other and with lands on that project's branches through
+**task 02's `gitx.Locks`**, the one value task 04 puts in `GitDeps.Locks` (review I7). A push
+reading a branch a land is moving would push whichever tip it happened to see; a fetch's
+`--prune` and a push's remote-tracking update would contend for the same ref locks. This task
+builds no lock of its own, so it needs neither task 09's `Lander` nor an edge to task 09: each
+side proves it waits on the shared lock (`TestLandWaitsOnTheProjectLock` there, the test below
+here), and `TestServeWiresGit` proves there is one. The cost: a land waits behind a slow fetch,
+for at most that fetch's `RemoteTimeout`.
 
 #### The tests to write first
 
@@ -157,15 +172,16 @@ Real git against a **bare repository on disk** as the remote, and, for the crede
 | `TestFetchTimerOffAtZero` | `Interval: 0` → `Run` returns immediately, no git call | a timer the user turned off still running |
 | `TestFetchRouteNoRemote` | → 409 `no_remote` | a git error for a normal state |
 | `TestPushRouteMapsRejection` | → 409 `push_rejected` with `details.gitSays` | a rejection surfacing as `git_failed` |
-| `TestPushAndLandSerialise` | a push and a land on one project concurrently under `-race` → the push publishes either the old or the new tip, never a torn state, and the result names which | pushing a tip mid-land |
+| `TestPushAndFetchWaitOnTheProjectLock` (review I7; replaces `TestPushAndLandSerialise`, which needed task 09's `Lander`) | under `-race`, the test holds `Locks.Lock(ctx, p.ID)`: a `Push` and a `Fetch` of `p` have run no git call 50 ms later (a recording Runner), and a `Fetch` of another project has finished; release → both run. A `Push` whose context is cancelled while it waits → `context.Canceled`, the bare remote unchanged. Through the handlers: holding `Deps.Git.Locks` keeps `POST …/push` and `POST …/fetch` unanswered until release | a push that reads the tip outside the lock a land holds; a Fetcher with a mutex of its own |
 | `TestLoadConfigFetchInterval` (cmd/api) | default 10m; `0` accepted (off); `30s` refused naming the 1m minimum | a fetch loop hammering a corporate proxy |
 
 #### Steps
 
-- [ ] **Step 1: Preflight.** Task 02 merged; task 01's sandbox test recorded that fetch fails
+- [ ] **Step 1: Preflight.** Tasks 02 (`gitx.Locks`) and 04 (`GitDeps.Locks`) merged; task 01's sandbox test recorded that fetch fails
   *inside* a sandbox (the design), which this task never attempts.
 - [ ] **Step 2:** tests; `fetch.go`, `push.go`; the `FetchError` fill in `ReadState`.
-- [ ] **Step 3:** handlers, routes, deps, config row, `main.go` start/stop; the Go contract's §4
+- [ ] **Step 3:** handlers, routes, deps, config row, `main.go` start/stop (the Fetcher gets
+  `Locks: gitDeps.Locks`, and `Projects` maps each lane-bearing project to its `ProjectRef`); the Go contract's §4
   table gains `PANACEA_APP_FETCH_INTERVAL` (default `10m`, `0` off, minimum `1m`).
 - [ ] **Step 4:** run; commit by pathspec.
 
