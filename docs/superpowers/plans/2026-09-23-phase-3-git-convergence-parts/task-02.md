@@ -19,6 +19,8 @@ enumeration. After this task the product has two process launchers; the comment 
 - `control-plane/internal/gitx/version.go` — `CheckVersion` (new)
 - `control-plane/internal/gitx/machine.go` — `Machine`, `Local` (new)
 - `control-plane/internal/gitx/trailers.go` — trailer keys, `Message`, `TrailerFormat` (new)
+- `control-plane/internal/gitx/locks.go` — `Locks`, the one per-project lock that land, undo,
+  revert, the branch verbs, fetch and push all take (review I7) (new)
 - `control-plane/internal/gitx/gitxtest/repo.go` — real-git fixtures and a scripted fake (new)
 - `control-plane/internal/gitx/*_test.go` — this task's tests (new)
 - `control-plane/internal/project/gitrunner.go` — one comment line (p2)
@@ -224,6 +226,32 @@ func (l Local) FetchURL(clonePath string) string { return clonePath }
 ```go
 package gitx
 
+// Locks is the ONE lock scope for the project repository's branches (review I7). Every call that
+// moves a product branch, or reads one to publish it, holds its project's lock for the whole
+// verb: Land (task 09), Undo and Revert (task 10), CreateBranch, RenameBranch and DeleteBranch
+// (task 11), Fetch and Push (task 12, and task 13's push through it). A push that read a tip a
+// land was moving would publish whichever tip it happened to see.
+//
+// One per process. Task 04 constructs it in cmd/api and hands the same value to every user
+// through GitDeps.Locks, so no task builds its own. The key is the project ID, phase 2's
+// "p-" + hash of the catalog path (project.go:29, :102): every caller already holds it, and a
+// path is spelled several ways on Windows (8.3 names, case, a junction; re-review b03 N-1), so a
+// path key could give one repository two locks.
+//
+// Lock order: a Locks lock is taken first. Syncer.SyncLane's per-lane lock (task 07) may be taken
+// inside it (Land's step 4); nothing takes a Locks lock while holding a lane lock.
+type Locks struct {
+	// unexported: mu sync.Mutex; m map[string]chan struct{} (capacity 1, one per project ID)
+}
+
+// Lock waits for projectID's lock, or for ctx. It returns ctx.Err() when ctx ends first, so a
+// request the human abandoned stops waiting. unlock is idempotent. The zero Locks is ready.
+func (l *Locks) Lock(ctx context.Context, projectID string) (unlock func(), err error)
+```
+
+```go
+package gitx
+
 // The trailer keys phase 3 writes. Readers match them exactly as written here.
 const (
 	TrailerSession     = "Panacea-Session"      // the hook, task 05
@@ -333,6 +361,9 @@ child's environment without trusting the code under test.
 | `TestMessageIsReadBackByGit` | real git: `git interpret-trailers --parse` on `Message(...)` prints exactly the trailers given | a missing blank line before the trailer block |
 | `TestLocalMachineFetchURLIsThePath` | `Local{Root: r}.FetchURL(p) == p`, `ID() == "local"` | a Local that rewrites paths |
 | `TestScriptFailsOnAnUnscriptedCall` | an unknown argv fails the calling test | a fake that silently succeeds |
+| `TestLocksSerialiseOneProject` | under `-race`: goroutine A holds `Lock(ctx, "p-1")`; B's `Lock(ctx, "p-1")` has not returned 50 ms later; A unlocks → B returns within 1 s; calling A's unlock twice does not release B's hold | a lock keyed per call, or an unlock that frees the next holder |
+| `TestLocksLetOtherProjectsRun` | A holds `"p-1"`; `Lock(ctx, "p-2")` returns at once | one global mutex that stalls every project behind a slow push |
+| `TestLocksLockHonoursTheContext` | A holds `"p-1"`; B's `Lock` with a context cancelled after 20 ms → `context.Canceled`, and A's later unlock leaves the lock free for C | a waiter that outlives its request, or a cancelled waiter that swallows the next release |
 
 #### Host git hardening (HGH)
 
@@ -514,7 +545,7 @@ the land and origin refresh, the push, and `GitHelper`), citing this section.
 - [ ] **Step 2a:** write the 18 §HGH tests. Run them against an `Exec` built without `harden.go`,
   and record in the task report each marker that appeared and each call that ran: red first.
 - [ ] **Step 3:** implement `runner.go`, `error.go`, `version.go`, `machine.go`, `trailers.go`,
-  `harden.go`, then `gitxtest`. The body of `Run` follows `gitrunner.go:46-78` line for line,
+  `locks.go`, `harden.go`, then `gitxtest`. The body of `Run` follows `gitrunner.go:46-78` line for line,
   except for the class switch, `OKExit`, and the §HGH prefix and check that run before `exec`.
 - [ ] **Step 3a: Mutants for §HGH**, on a `$TEMP` copy. Drop each H1 override in turn. Drop the
   `--upload-pack` insertion. Make `Clone` scope use the `Project` list. Split the config listing on
@@ -529,7 +560,7 @@ the land and origin refresh, the push, and `GitHelper`), citing this section.
 #### Acceptance
 
 ```
-go test ./control-plane/internal/gitx/... -race -count=1        → PASS (35 new tests, 18 of them §HGH, plus task 01's)
+go test ./control-plane/internal/gitx/... -race -count=1        → PASS (38 new tests, 18 of them §HGH, plus task 01's)
 go test ./control-plane/internal/project/ -run TestEveryGitCommandIsReadOnly -count=1 → PASS, unchanged
 git diff --stat control-plane/go.mod go.work                     → empty
 ```
