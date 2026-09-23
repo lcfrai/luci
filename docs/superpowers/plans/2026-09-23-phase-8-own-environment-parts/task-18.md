@@ -191,6 +191,7 @@ sandboxd stand-in (the pattern `katabe/kata_test.go`'s `runningSandbox` already 
 | `TestCreateNeedsAnAwakeOwnedMachine` | checker says not found → 404 `machine_not_found`; asleep → 409 `machine_asleep`; no pod either way | a session pod that can never schedule (no machine pod to be near) |
 | `TestCreateEnforcesThePerUserCap` | owner at 8 pods → 429 `quota_exceeded`, `details.limit = "8"`; another owner at 0 → 201 | a cap counted across all owners |
 | `TestAFullMachineIs409MachineFullInSeconds` | three running session pods on machine `m-1`; the reactor marks the new pod `PodScheduled=False/Unschedulable`, no nomination, never Running; grace 50 ms, `READY_TIMEOUT` 5 s → 409 `machine_full`, `details.sessionsPerMachine = "3"`, answered in under 1 s, and the new pod is gone (review I5) | the two-minute hang and generic 503; a Pending pod left holding the owner's cap |
+| `TestABriefUnschedulableIsNotFull` | the new pod is `Unschedulable` with no nomination for 20 ms (grace 200 ms), then Running → 201, the pod kept | a watcher that fires on the first `Unschedulable` event and ignores the grace, refusing a session whose room was freeing up (a terminating pod on the node) |
 | `TestPreemptionUnderWayIsNotFull` | the new pod is `Unschedulable` **with** `nominatedNodeName` set for 200 ms (grace 50 ms), then Running → 201 | a refusal every time a session preempts a balloon, which is the warm path task 12 builds |
 | `TestAReadyTimeoutDeletesThePod` | the pod stays Pending with no scheduling condition; `READY_TIMEOUT` 400 ms → 503 `backend_unavailable`, `details.reason = "not_ready"`, and the pod is gone | katabe's keep-the-pod rule carried into the broker, where the pod is an orphan counting against the cap |
 | `TestAConflictNeverDeletesTheExistingPod` | a running pod already has the id → 409 `conflict`, and that pod is still there | a cleanup on every error, killing the owner's running session |
@@ -222,7 +223,8 @@ sandboxd stand-in (the pattern `katabe/kata_test.go`'s `runningSandbox` already 
   `TestNoRouteIsASideEffectingGet` allowlist with the two read routes.
 - [ ] **Step 2a (review I5):** mutation check on a `$TEMP` copy, each verified applied and the
   named test red: drop the `nominatedNodeName` condition from `watchUnschedulable` →
-  `TestPreemptionUnderWayIsNotFull`; delete the post-failure `Destroy` →
+  `TestPreemptionUnderWayIsNotFull`; fire on the first `Unschedulable` event, ignoring the grace →
+  `TestABriefUnschedulableIsNotFull`; delete the post-failure `Destroy` →
   `TestAReadyTimeoutDeletesThePod`, `TestAFullMachineIs409MachineFullInSeconds`; widen the
   cleanup to every `Create` error → `TestAConflictNeverDeletesTheExistingPod`.
 - [ ] **Step 3:** Update the `MaxMessageBytes` comment in `backend.go:29-37` to name five sites.
