@@ -55,14 +55,23 @@ catch being false.
 | `TestBehaviourRemoveAllOnAClone` | `os.RemoveAll(clone)` succeeds — **or** fails on read-only object files on Windows; record which, and the fix that makes it succeed (clear `FILE_ATTRIBUTE_READONLY` with `os.Chmod(p, 0o600)` during a walk) | worktree removal | 11 |
 
 `sandbox_docker_test.go` (`//go:build docker`), each against `panacea-app/sandbox:dev` with the
-clone bind-mounted at `/home/dev/work` and the fix's environment (`GIT_CONFIG_COUNT=2`,
-`safe.directory=/home/dev/work`, `user.useConfigOnly=true`, `GIT_AUTHOR_*`/`GIT_COMMITTER_*`):
+clone bind-mounted at `/home/dev/work` and the fix's environment as `sessionEnv` builds it on
+`feat/phase-2-cockpit` (committed `internal/api/sessions.go:173-187`, at or after `5a4d0d8`): the
+`GIT_CONFIG_KEY_n`/`VALUE_n` pairs `safe.directory=/home/dev/work`, `user.useConfigOnly=true`,
+`gc.worktreePruneExpire=never`, `gc.auto=0`, `core.autocrlf=<A>`, `core.eol=<E>`, in that order,
+`GIT_CONFIG_COUNT` their number, and `GIT_AUTHOR_*`/`GIT_COMMITTER_*`. `<A>`/`<E>` are what the
+production resolver answers in that clone: `false`/`lf` for task 03's argv (task 05's
+`TestTheResolverReadsALaneCloneAsLF` pins it). The pairs are written out here, once, as a named
+list in the test file: this task precedes gate G1, and `gitx` cannot import `internal/api`'s
+unexported `sessionEnv`. Task 05's `TestSandboxLaneCloneChecksOutLF` repeats the line-ending
+check with the env read from `sessionEnv` itself, so a retyped list that drifts is caught there
+(plan re-review b02 I-1):
 
 | Test | Asserts | Consumed by |
 |---|---|---|
-| `TestSandboxCloneHasWorkingGit` | the host clones a repository of LF blobs with task 03's argv, **production-shaped** (host `core.autocrlf=true`). In the sandbox, `git status --porcelain` prints **nothing** (an exit code of 0 is not enough: review C2); `git commit --allow-empty -m x` exits 0 and the commit's author is the injected identity. Control, run first: a plain `clone --local` under the same host config makes the sandbox's `status --porcelain` list every LF file as modified. Record the count; if the control is clean, record that C2's mechanism did not reproduce | 03, 04 |
+| `TestSandboxCloneHasWorkingGit` | the host clones a repository of LF blobs with task 03's argv, **production-shaped** (host `core.autocrlf=true`). In the sandbox, `git status --porcelain` prints **nothing** (an exit code of 0 is not enough: review C2); then `rm a.txt` and `git checkout -- a.txt`, and the host reads `a.txt`'s bytes: they contain no `\r`. That is the only check here that sees an environment `core.autocrlf=true`, which leaves `status` empty (plan re-review b02 I-1). `git commit --allow-empty -m x` exits 0 and the commit's author is the injected identity. Two controls, run first. (1) C2's mechanism: a plain `clone --local` under the same host config, with the env **minus** its two line-ending pairs (a session without them), makes `status --porcelain` list every LF file as modified; record the count, and if it is clean, record that C2's mechanism did not reproduce. With the resolver's real answer for a plain clone (`true`/`crlf`) this control would come out clean for the wrong reason, which is why it drops the pairs. (2) The I-1 mutant: task 03's clone with `<A>`/`<E>` set to `true`/`crlf` (the answer in `Project.Path`) leaves `status` empty, and the checkout writes `x\r\ny\r\n`; record both | 03, 04, 05 |
 | `TestSandboxCloneCannotFetch` | `git fetch` exits non-zero; record the sentence verbatim | 04, and the agent-facing docs of task 23 |
-| `TestSandboxGitHonoursEnvHooksPath` | with `GIT_CONFIG_KEY_2=core.hooksPath` pointing at a bind-mounted directory holding a `prepare-commit-msg`, a commit carries the hook's line; record `git --version` from the image | 05 |
+| `TestSandboxGitHonoursEnvHooksPath` | with `core.hooksPath` appended as the last `GIT_CONFIG_KEY_n` (after the fix's pairs, as task 05 appends it), pointing at a bind-mounted directory holding a `prepare-commit-msg`, a commit carries the hook's line; record `git --version` from the image | 05 |
 
 Exit codes are captured with `cmd.ProcessState.ExitCode()`, never through a pipe (phase 2's
 pipe exit-code trap). Docker is driven with `os/exec` and `docker run --rm`; the test builds no
