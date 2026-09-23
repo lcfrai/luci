@@ -186,6 +186,7 @@ export interface UrlPrefix { branch: string; prefix: string; host: string }
 
 export interface ScanReportView {
   deploymentId: string;
+  environment: string; // echoed by the route; the environment the report was read in (review C3)
   overall: string;
   blocking: ScanNote[];
   incomplete: ScanNote[];
@@ -221,7 +222,8 @@ export interface DeployApi {
   rebuild(projectId: string, deploymentId: string, noCache: boolean | null, idempotencyKey: string): Promise<ShipResult>;
   cancel(projectId: string, run: string): Promise<CancelResult>;
   run(projectId: string, run: string): Promise<RunView>;
-  scans(projectId: string, deploymentId: string): Promise<ScanReportView>;
+  /** environment: the deployment row's `environment`, verbatim (may be ""); always sent as ?environment= (review C3). */
+  scans(projectId: string, environment: string, deploymentId: string): Promise<ScanReportView>;
   pods(projectId: string, env: string): Promise<Pod[]>;
   events(projectId: string, env: string): Promise<PodEvent[]>;
   diagnosis(projectId: string, env: string): Promise<Diagnosis>;
@@ -338,6 +340,7 @@ export const selectReleasePinKeys = (s: CockpitState): string[];
 | `partialize excludes deploy` | `partialize(state)` has no key starting `deploy` | persisting server truth, which outlives an erase (ADR-H1 §5.4) |
 | `pin keys are opaque` | `selectReleasePinKeys` returns the keys byte-for-byte; the source file contains no `split(`, `indexOf("@")` or regex on a key | parsing a brief key in the desktop (P5) |
 | `pin keys de-duplicated` | two rows with one key → one key | two resolver entries for one key |
+| `scans send the environment` | `scans("p-1", "feat-x", "d-feat")` requests `/v1/projects/p-1/deploy/scans?environment=feat-x&deploymentId=d-feat`; `scans("p-1", "", "d1")` still sends `environment=` (the route requires the key, task 12) (review C3) | dropping `environment`, which reads production's scan verdict for a branch release |
 | `branch goes in the query` | `autoDeploy("p", "feat/x")` requests `/v1/projects/p/deploy/auto-deploy?branch=feat%2Fx` | a path-segment branch |
 | `ship sends the idempotency key` | `ship(…, "k1")` sets `Idempotency-Key: k1` | a retried Ship reserving twice |
 | `connect drops the token` | after `connect`, no store field, closure or module variable holds the token (the test searches the store's JSON and the module's exports) | a token kept in renderer memory, the most exposed process (ADR-H1 §6.5) |

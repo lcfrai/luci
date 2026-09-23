@@ -382,7 +382,7 @@ connector decodes each exactly: `bare` = the object itself; `list` = `models.Lis
 | 5 | `GET P/deploys/latest` | 1025 | member | bare `Deployment`, newest **across all environments**; `404` when none (`projects.go:1521-1546`) | 03, 07 |
 | 6 | `GET P/deployments` | 1024 | member | list of `Deployment`, unpaginated, enriched (`projects.go:1227-1253`) | 03, 07 |
 | 7 | `GET P/pipelines/{run}` | 1290 | member | data `PipelineRunStatus` (`projects.go:3576-3612`) | 03, 07 |
-| 8 | `GET P/security-status?deployId=` | 1043 | member | data `SecurityStatus` (`models/security.go:205`; `handlers/security_status.go:204-254`); `deployId` is a PipelineRun name (`:211-214`) | 03, 12 |
+| 8 | `GET P/security-status?env=&deployId=` | 1043 | member | data `SecurityStatus` (`models/security.go:205`; `handlers/security_status.go:204-254`); `deployId` is a PipelineRun name (`:211-214`); `env` is the deployment's `Environment`, sent whenever non-empty, because a missing `env` reads production (`:192-201`) and a branch release would show production's verdict (review C3) | 03, 07, 12 |
 | 9 | `GET P/environments/{env}/pods` · `/events` · `/diagnose` | 1148, 1150, 1151 | member | list of `PodStatus` · list of `NamespaceEvent` (`clients/pod_introspection.go:47-61`, `:95-104`; `handlers/pod_introspection.go:139`, `:199`) · data `DiagnoseResponse` (`handlers/diagnose.go:70-79`, `:157`); task 03 decodes each into its own DTO | 03, 12 |
 | 10 | `GET P/pipelines/{run}/logs/stream` · `P/environments/{env}/readiness/stream` | 2283, 2286 | member | SSE, `data: <json>` frames (`handlers/readiness_stream.go:195`, `handlers/logs_stream.go:118-141`), parsed by the connector and re-emitted as **our** frames (task 12) | 12 |
 | 11 | `POST P/deploy` | 1286 | developer + `RequireSectionWritable("service")` | `202` data `{project,status,pipelineRun}` (`projects.go:2997-3005`) | 04, 09 |
@@ -783,6 +783,30 @@ recorded Panacea bodies.
   the phase 4 selector names it uses were checked against phase 4's tasks 16 and 17 at the phase-4
   worktree's `e330498` on 2026-09-24. Parts 13 and 15 were not re-checked against them.
 - **How the lens looks.** Visual acceptance is the owner's eyes (OD-12); every UI task says so.
+
+### Settled from source, no longer open
+
+- **`Deployment.branch` is a label value, never a git branch (review I4, settled 2026-09-24).**
+  The deploy stamps `panacea.io/branch: sanitizeLabelValue(branch)` (`clients/pipeline.go:609`);
+  the function turns `/` and `_` into `-`, drops every other character outside `[a-zA-Z0-9.-]`,
+  cuts at 63 and answers `"unknown"` for an empty result (`:2351-2364`); the deployments list reads
+  the label back verbatim (`clients/kubernetes.go:5750`). No annotation holds the real branch. So:
+  `branchesSeen` and the collision banner compare and show labels, and say so (task 08 rule 9,
+  task 15); Rebuild takes its branch from the source's Hub `branchRef` only and refuses
+  `no_branch` without one — the `source.Branch` fallback is gone (task 10, review M23); nothing
+  sends a `Deployment.branch` as a branch or a `branchRef`. Because Rebuild never sends a label,
+  Panacea's `environmentForBranch` (`branch == prodBranch`, `pipeline.go:2195-2207`) never sees
+  `release-x` for a production branch named `release/x`. Residual: an environment's label for a
+  branch cannot be matched to a git branch without a copy of Panacea's rule, so the cockpit never
+  claims which branch is serving (task 15).
+- **`security-status` must be sent the deployment's environment (review C3, settled 2026-09-24).**
+  `resolveEnv` reads a missing `env` as `"production"` (`handlers/security_status.go:192-201`),
+  `tenantNamespaceForEnv` maps `""`, `prod` and `production` to the base namespace
+  (`handlers/tier_store.go:106-113`), and `collectScansFromK8s` keeps only ConfigMaps whose
+  `panacea.io/env` matches (`security_status.go:526-534`). `Scans(ctx, p, env, deploymentID)`
+  (task 01) sends `env` whenever it is non-empty (task 03), the watcher passes the newest
+  deployment's `Environment` (task 07), and the drill route requires `environment` (tasks 12, 13,
+  17), as Panacea's portal does (`SecurityScanReview.tsx:437-440`). Not run live.
 
 
 

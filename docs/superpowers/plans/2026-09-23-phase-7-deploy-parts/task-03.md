@@ -208,7 +208,7 @@ type findingDTO struct {
 | `Latest` | `GET P/deploys/latest` (1025) | bare `deploymentDTO` | **404 → `(Deployment{}, false, nil)`**; the watcher calls `Environments` first in the same cycle, so a missing *project* has already surfaced as its own error |
 | `Deployments` | `GET P/deployments` (1024) | `listDTO[deploymentDTO]` | order kept as served (newest first, `projects.go:1532-1536`) |
 | `Run` | `GET P/pipelines/{run}` (1290) | `dataDTO[pipelineRunDTO]` | 404 → `KindNotFound` (it is also Panacea's cross-project IDOR answer, `projects.go:3595-3601`) |
-| `Scans` | `GET P/security-status?deployId=` (1043) | `dataDTO[securityStatusDTO]` | `deployId` is a run name (`handlers/security_status.go:211-214`) |
+| `Scans` | `GET P/security-status?env=&deployId=` (1043) | `dataDTO[securityStatusDTO]` | `deployId` is a run name (`handlers/security_status.go:211-214`). **`env` is the deployment's `Environment`, set with `url.Values` whenever it is non-empty** and omitted otherwise, exactly as the portal builds it (`backstage/packages/app/src/plugins/SecurityScanReview.tsx:437-440`). Without it `resolveEnv` reads `"production"` (`security_status.go:192-201`), `collectScans` lists the base namespace (`:232`, `tier_store.go:106-113`) and keeps only ConfigMaps labelled with that env (`:526-534`), so a branch release would show production's verdicts, or `NOT_RUN` rows, as its own (review C3). `"prod"` needs no special case: Panacea maps it to the same namespace |
 | `Pods` | `GET P/environments/{env}/pods` (1148) | `listDTO[podDTO]` | — |
 | `Events` | `GET P/environments/{env}/events` (1150) | `listDTO[eventDTO]` | `Time` parsed as RFC 3339; unparseable → zero |
 | `Diagnosis` | `GET P/environments/{env}/diagnose` (1151) | `dataDTO[diagnoseDTO]` | — |
@@ -293,6 +293,16 @@ where real Panacea would answer for any branch. So conformance row `UnknownPostu
 matches a branch to a row by name. `EnvironmentFor` on a posture-only branch reads the missing
 `env` as `KindUnavailable` (the empty-answer rule above).
 
+`Server.Scans` fills a table keyed by `(env, deployId)`, and `GET P/security-status` answers from
+it the way Panacea resolves the env (review C3): a request **without `env`**, or with `prod` or
+`production`, answers the report seeded under `prod` — `resolveEnv` defaults to `"production"`
+(`handlers/security_status.go:192-201`) and `tenantNamespaceForEnv` sends all three to the base
+namespace (`handlers/tier_store.go:106-113`). Any other `env` is looked up exactly. This is the one
+place the server copies a Panacea rule, because it is the rule the C3 mutant hides behind: a
+connector that drops `env` is answered with production's report, as live Panacea would answer it.
+A pair seeded in neither form is a test bug, answered `500` with
+`t.Errorf("panaceatest: no scans seeded for env %q, deploy %q")`.
+
 #### Conformance rows this task adds (`deploytest/conformance.go`)
 
 | Row | Assertion | Mutant it kills |
@@ -316,6 +326,7 @@ matches a branch to a row by name. `EnvironmentFor` on a posture-only branch rea
 | `TestEnvironmentForRouteNotFound` | the route answering Go's router body `404 page not found` → `KindNotFound` with the message *"Panacea could not read this branch name. It may contain `/`, which the route cannot carry."*, never the router's text (b02 round 2, R2) | a refusal that tells the user their project does not exist |
 | `TestEnvironmentForIsTheAccessRoutesMapping` | recorded body `branch-access-annotation-only.json` — the access route for `develop` on a project with annotation `primary-branch=develop` and no `production-branch` label, where `branchEnv` passes `prodBranch ""` (`branch_security.go:32`) and `mapBranchToEnv("develop")` answers `develop` — → `EnvironmentFor(p, "develop") == "develop"`, **not** `prod`, although the deploy lands that branch in `prod` (`pipeline.go:233-237`). The test's comment names the divergence and Q-P7-6 (b02 round 2, R1) | a connector that "fixes" Panacea's answer with a copy of `ResolveProductionBranch`, or a test suite that forgets the answer can be wrong |
 | `TestEnvironmentForJoinsProduction` | `SameEnvironment(EnvironmentFor(p,"main"), "production")` is true against `environments.json` — the prod row joins | an exact-name join that leaves production's branch with no card (review I8's twin) |
+| `TestScansSendsTheEnvironment` | `Scans(p, "feat-x", "d-feat")` requests `GET /api/v1/projects/engagement-portal/security-status?deployId=d-feat&env=feat-x` (`url.Values.Encode` order); `Scans(p, "prod", "d1")` sends `env=prod`; `Scans(p, "", "d1")` sends `?deployId=d1` with **no** `env` key, never `env=` (review C3) | dropping `env`, which shows production's verdict as a branch release's; or sending `env=` empty, which Panacea also reads as production |
 | `TestTextPlain403` | `error-text-plain-403.txt` → `KindForbidden` with the full sentence | a decoder gated on `Content-Type: application/json` that loses Panacea's most actionable sentence |
 | `TestConformanceOverConnector` | `deploytest.Conformance(t, panaceaHarness)` | the connector and the fake disagreeing about any row |
 

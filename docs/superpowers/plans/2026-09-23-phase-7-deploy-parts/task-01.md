@@ -75,8 +75,13 @@ type Reader interface {
 	Deployments(ctx context.Context, p ProjectRef) ([]Deployment, error)
 	// Run is one build's progress. KindNotFound for a run of another project.
 	Run(ctx context.Context, p ProjectRef, run string) (RunProgress, error)
-	// Scans is the security report scoped to one deployment.
-	Scans(ctx context.Context, p ProjectRef, deploymentID string) (ScanReport, error)
+	// Scans is the security report scoped to one deployment IN ITS ENVIRONMENT. env is that
+	// deployment's Environment and is sent whenever it is non-empty: Panacea reads a missing env
+	// as "production" (handlers/security_status.go:192-201) and env-keyed scanners answer with
+	// that environment's latest result (:211-213), so omitting it shows production's verdict as
+	// a branch release's (review C3). A production deployment's Environment is "prod", which
+	// Panacea maps to the same base namespace as a missing env (handlers/tier_store.go:106-113).
+	Scans(ctx context.Context, p ProjectRef, env, deploymentID string) (ScanReport, error)
 	// Pods and Events explain an environment that is not serving.
 	Pods(ctx context.Context, p ProjectRef, env string) ([]Pod, error)
 	Events(ctx context.Context, p ProjectRef, env string) ([]Event, error)
@@ -169,7 +174,12 @@ func (b BuildState) Terminal() bool
 // Deployment is one build of one commit into one environment.
 type Deployment struct {
 	ID          string // equals the run name that built it
-	Environment string
+	Environment string // the target's own word (Panacea: "prod" for the production branch); Scans takes it
+	// Branch is a LABEL VALUE, never a git ref: Panacea stamps sanitizeLabelValue(branch)
+	// (clients/pipeline.go:609, :2351-2364: "/" and "_" become "-", other invalid characters
+	// are dropped, 63-character cap, "unknown" when empty) and reads it back at
+	// kubernetes.go:5750. It is for display and label-to-label comparison only; nothing sends
+	// it as a branch (review I4, plan §12).
 	Branch      string
 	Commit      string // "" when not recorded
 	Version     string // "" means unknown; the lens says "version unknown"
@@ -519,7 +529,10 @@ func (f *Fake) SetEnvironments(p deploy.ProjectRef, envs []deploy.Environment)
 // names by accident.
 func (f *Fake) SetBranchEnvironment(p deploy.ProjectRef, branch, env string)
 func (f *Fake) AddDeployment(p deploy.ProjectRef, d deploy.Deployment) // newest-first order is kept by CreatedAt
-func (f *Fake) SetScans(p deploy.ProjectRef, deploymentID string, r deploy.ScanReport)
+// SetScans seeds the report Scans(p, env, deploymentID) returns. The key is the EXACT env
+// string (the Fake knows no target's env aliases); an unseeded pair is KindNotFound, so a
+// caller that drops or mangles env fails loudly (review C3).
+func (f *Fake) SetScans(p deploy.ProjectRef, env, deploymentID string, r deploy.ScanReport)
 // Advance moves a run to a new state; a terminal state also sets the Deployment's Build.
 func (f *Fake) Advance(p deploy.ProjectRef, run string, to deploy.BuildState)
 // FailNext makes the next call of the named method return err. Method names are the
@@ -545,6 +558,9 @@ type Seeder interface {
 	Deployment(p deploy.ProjectRef, d deploy.Deployment)
 	NoDeployments(p deploy.ProjectRef)
 	RollbackTarget(p deploy.ProjectRef, deploymentID string, warmth deploy.Warmth)
+	// Scans seeds one deployment's report as the target answers it for env. "prod" is
+	// production (Panacea's word, t01 Environment).
+	Scans(p deploy.ProjectRef, env, deploymentID string, r deploy.ScanReport)
 	// PostureWord seeds the target's raw access-mode word for a branch, so the fail-closed
 	// parse is tested through every implementation, not only the helper.
 	PostureWord(p deploy.ProjectRef, branch, word string)
@@ -569,6 +585,7 @@ func Conformance(t *testing.T, h Harness)
 | `ShipNamesTheRun` | `Ship` returns a non-empty `Run`, and the next `Deployments` either lacks it or has it with `ID == Run` | a Run name that is not the Deployment id, which breaks the join (§2 step 6) |
 | `UnknownPostureFailsClosed` | an environment seeded with posture word `"open-to-all"` reads `Mode == PostureKPMGSSO`, `ModeKnown == false` | mapping an unknown word to public |
 | `EnvironmentForIsTheTargets` | seeded `feat/x` → `feat-x`, `lane/7-deploy-connector-watcher` (31 characters) → `lane-7-deploy-connec`, and `main` → `prod` read back exactly, with **no** `Environments` row for any of them (the answer exists before the first deploy) | returning the branch unchanged, or reading the answer off an environment row, which only works for trunk-like names (review C2) |
+| `ScansReadTheDeploymentsEnvironment` | seed `Scans(p, "prod", "d-feat", <iac PASS>)` and `Scans(p, "feat-x", "d-feat", <iac FAIL>)`; `Scans(ctx, p, "feat-x", "d-feat")` reads iac `FAIL` | dropping `env`, which on Panacea reads production's namespace and shows its PASS as the branch release's verdict (review C3) |
 
 #### Tests to write first (`deploy_test.go`, `fake_test.go`)
 

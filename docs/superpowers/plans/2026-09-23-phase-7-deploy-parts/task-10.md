@@ -84,7 +84,8 @@ type RebuildRequest struct {
 //       "Panacea recorded only a label for this release's branch. Ship the branch instead."
 //       source.Branch is never used: it is Panacea's run label, sanitizeLabelValue(branch)
 //       (clients/pipeline.go:609, :2351-2364), which turns feat/x into feat-x, and whether a label
-//       equals its branch cannot be told without a copy of that rule (b02 round 2, R8).
+//       equals its branch cannot be told without a copy of that rule (b02 round 2, R8; review
+//       I4 and M23, settled in plan §12).
 //   reserve {kind:"run", panaceaProject, environment: source.Environment, branchRef, commit:
 //            source.Commit, briefId: null, designKey: <the source release's designKey or null>,
 //            sourceDeploymentId: source.ID} — the Hub pins "inherited" (Hub contract §7.9);

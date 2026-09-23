@@ -157,7 +157,10 @@ phase 3's evaluator exists (seam S7-P1). The drawer adds no criterion words of i
 
 #### Scans — `ScanList`
 
-One `api.scans(projectId, deploymentId)` when it mounts; again only on **Try again**. One row per
+One `api.scans(projectId, row.environment ?? "", row.deploymentId)` when it mounts — the
+`ReleaseRow`'s raw `environment` (task 08: the Deployment's own word, `"prod"` for production),
+never the card's name or `environmentRow` (review C3) — again only on
+**Try again**. One row per
 `scans[]`: name; a dot by status (`PASS` ok, `FAIL` fail, `SKIPPED` unmeasured, anything else
 warn) and the status word, or *"no result"* when it is empty; `mode`, with `enforce` marked; the
 counts, else `errorReason`, else `skipReason`, else `summary`. Under the table, always: *"The

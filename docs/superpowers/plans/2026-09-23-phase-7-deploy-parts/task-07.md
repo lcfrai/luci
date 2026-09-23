@@ -148,9 +148,12 @@ type Snapshot struct {
    `HistoryInterval` passed. It is unpaginated and runs three enrichment passes including a dozen
    PipelineRun reads (`projects.go:1227-1253`), so it is never read every cycle.
 5. **`Run`** for each tracked run whose build is not terminal. Terminal → untracked.
-   **`Scans`** for each environment's newest deployment, only when that deployment's `ID` or
-   `Build` changed since the last read, cached by deployment id in `Snapshot.Scans` — so the
-   environment strip's third fact (scans) costs one request per build, not per cycle.
+   **`Scans(ctx, p, d.Environment, d.ID)`** for each environment's newest deployment `d` — the
+   deployment's own `Environment`, verbatim, never the card's name and never empty for a branch
+   row, because Panacea reads a missing `env` as production (review C3) — only when that
+   deployment's `ID` or `Build` changed since the last read, cached by deployment id in
+   `Snapshot.Scans` — so the environment strip's third fact (scans) costs one request per build,
+   not per cycle.
 6. **Hub releases** — `Releases(HubProjectID, {PanaceaProject: <ref>, Limit: 200})` when the
    Deployments were re-read, a tracked run changed, or `HistoryInterval` passed.
    `Binding.HubProjectID == ""` → `ReleasesState "no_hub_project"`; `entraauth.ErrSignedOut` →
@@ -206,6 +209,7 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestRefusedBranchNotReaskedEveryCycle` | `WantBranch(p, "live-check/p7")` with the fake answering `EnvironmentFor` `KindNotFound` (*"Panacea could not read this branch name…"*): cycle 1 makes one such call, cycles 2 and 3 none, cycle 4 one; `BranchEnvErrs["live-check/p7"]` carries the error, `BranchEnvs` lacks the branch, and `Stale == false` with `Latest` still read; the fake then answers `live-check-p7` → it moves to `BranchEnvs` and out of `BranchEnvErrs` (b02 round 2, R2) | a refused branch re-asked every 15 s, or one bad name staling the whole project |
 | `TestWatcherPassesSameEnvironment` | the watcher's Reader is the fake wrapped so that `SameEnvironment` records its arguments and answers `true`: `w.SameEnvironment("x", "y")` is `true` and the wrapper saw `("x", "y")` (the bare Fake would answer `false`) | a watcher that hands the view a rule of its own (b02 round 2, R4) |
 | `TestDeploymentsNotEveryCycle` | three cycles with nothing changed → one `Deployments` call; `Latest.ID` changes → one more | reading the heavy list every 15 s |
+| `TestScansReadWithTheDeploymentsEnvironment` | a newest deployment `{ID: "d-feat", Environment: "feat-x"}`, with the fake seeded `SetScans(p, "feat-x", "d-feat", …)` → the fake's `Calls()` holds `Scans(engagement-portal,feat-x,d-feat)` and `Snapshot.Scans["d-feat"]` is that report (review C3) | passing `""` or the card's name, which on Panacea shows production's verdict as the branch release's |
 | `TestHistoryIntervalForcesRead` | 61 s of fake time with no change → a second `Deployments` | history that never refreshes when only `LiveReady` moved |
 | `TestTrackedRunDrivesActiveCadence` | `Track(p, run)`; the project is polled every 3 s until the fake advances the run to succeeded, then every 15 s | a run that stays on 3 s forever, or never gets it |
 | `TestUnavailableEndsCycleForAll` | two bound projects; the first `Environments` fails `KindUnavailable` → the second project saw **no** call this cycle; both `Stale`, one cursor bump | a cycle that stalls for N × timeout in an outage |

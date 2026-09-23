@@ -57,8 +57,13 @@ GET {P}/runs/{run}
   200 RunView                         (task 08's shape; a live read, for a run the watcher is not tracking)
   404 deploy_not_found
 
-GET {P}/scans?deploymentId=engagement-portal-build-x7k2p
-  200 { "deploymentId": "…", "overall": "FAIL" | "INCOMPLETE" | "WARN" | "PASS" | "SKIPPED",
+GET {P}/scans?environment=feat-x&deploymentId=engagement-portal-build-x7k2p
+  — environment is REQUIRED as a key (absent → 400 bad_request "environment is required"), and its
+    value is the deployment row's "environment" verbatim, validated against [a-z0-9.-]*. It is
+    passed to Scans(ctx, p, environment, deploymentId) unchanged: Panacea reads a missing env as
+    production (review C3). An empty value is passed as empty; see the note below.
+  200 { "deploymentId": "…", "environment": "feat-x",
+        "overall": "FAIL" | "INCOMPLETE" | "WARN" | "PASS" | "SKIPPED",
         "blocking":   [ { "scan": "trivy", "reason": "…" } ],
         "incomplete": [ { "scan": "dast",  "reason": "…" } ],
         "scans": [ { "name": "trivy", "status": "FAIL", "mode": "enforce", "counts": { "critical": 2 },
@@ -68,6 +73,10 @@ GET {P}/scans?deploymentId=engagement-portal-build-x7k2p
         "detailsSource": "live" | "snapshot" | "mixed" | "unverified" | "none" | null,
         "updatedAt": "…" }
   — "mode" is shown, never changed: Ship sends no override (brief B2).
+  — An empty "environment" is legal because a Panacea row without the panacea.io/environment
+    label reads back with "" (clients/kubernetes.go:5681, :5751); Panacea then answers with
+    production's report, as its own portal does (SecurityScanReview.tsx:437-440). Unverified:
+    whether any live run lacks the label. A production row carries "prod", never "".
 
 GET {P}/environments/{env}/pods
   200 { "pods": [ { "name": "…", "phase": "Running", "ready": false, "restarts": 7,
@@ -116,6 +125,7 @@ both apply as for any `GET`.
 | `TestSecondStreamReplacesFirst` | open A, open B → A receives `event: end` and closes; B streams | two live relays at once |
 | `TestStreamClosesOnDisconnect` | the client cancels → the upstream request's context is cancelled | a leaked Panacea connection per drill-in |
 | `TestScansShowModeUnchanged` | the response has `"mode":"enforce"` exactly as the fake returned | a mode rewritten for display |
+| `TestScansPassTheEnvironment` | `GET {P}/scans?environment=feat-x&deploymentId=d-feat` → the fake's `Calls()` holds `Scans(engagement-portal,feat-x,d-feat)` and the body's `environment` is `feat-x`; the same request without the `environment` key → `400 bad_request` and the fake saw nothing (review C3) | dropping `env` between the route and the connector, which shows production's verdict as the branch release's |
 | `TestEnvAndRunValidated` | `/environments/..%2Fetc/pods` and `/runs/a%20b` → 400; the fake saw nothing | a path-traversal string forwarded to Panacea |
 | `TestDiagnosisSourceCarried` | `source: "rules+ai"` reaches the response | hiding that a model wrote the "likely cause" |
 
