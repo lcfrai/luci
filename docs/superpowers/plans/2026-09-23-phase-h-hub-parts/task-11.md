@@ -54,7 +54,10 @@ Three tenants and five first-tenant users make every column of the authorisation
 team), **Grace** `A`, **Linus** `M`, **Vera** `V`, **Out Sider** `N`; the second tenant's
 **Xavier** is `X`, another **enrolled** org; the third tenant is enrolled nowhere, for
 `tenant_not_enrolled`. Fields beyond contract §6.4's schema — tenant `name` and
-`enrolled`, client and API `name` — are additive.
+`enrolled`, client and API `name`, user `guest` and `emailVerified` (correction A15) — are
+additive. The committed file sets neither user field, so all seven users are members and every
+column still binds its invites locally; a test that needs a guest copies the loaded `Config` and
+flips one user (`Options.Config` is a value).
 
 ```go
 // control-plane/internal/devissuer/config.go
@@ -79,6 +82,11 @@ type User struct {
 	Username string   `json:"username"` // preferred_username
 	Email    string   `json:"email"`
 	Roles    []string `json:"roles"`
+	// The two claims the Hub's invite binding reads (review I12, correction A15).
+	// Both default to false when omitted, so every committed user is a member
+	// (acct 0) whose email is not domain-verified: members bind by acct alone.
+	Guest         bool `json:"guest"`         // acct: 1 when true, else 0
+	EmailVerified bool `json:"emailVerified"` // xms_edov, a JSON boolean
 }
 
 type Client struct {
@@ -170,6 +178,8 @@ v2 names them:
 | `azp` | the client id | — |
 | `scp` | the granted scopes, space-separated, bare names (`Hub.Access`) | — |
 | `tid`, `oid`, `name`, `preferred_username`, `email` | the user's | the user's |
+| `acct` | a JSON number: `1` for a `guest` user, else `0` (Entra's optional claim: 0 member, 1 guest) | same |
+| `xms_edov` | a JSON boolean: the user's `emailVerified` (Entra's optional claim, *email domain owner verified*) | same |
 | `roles` | the user's, **only when the API is the Hub API** and the list is non-empty | — |
 | `sub` | pairwise: base64url(SHA-256(oid + "\|" + aud)), first 43 characters | same rule, with the client id |
 | `nonce` | — | the authorize request's |
@@ -192,6 +202,7 @@ minimum `1m`), `PANACEA_APP_DEVISSUER_AUTO` (default `false`). `BaseURL` is `htt
 | `TestDiscoveryDocument` | the JSON above exactly, for tenant 1; an unknown tenant → 404 | an issuer string that differs from the validator's rule |
 | `TestKeysAndKid` | one key; `kid` = the modulus rule; `n` decodes to the key's modulus; `e` = `AQAB` | a kid the validator's refetch logic never matches |
 | `TestAMintedAccessTokenValidates` | `entra.New(Config{AuthorityHost: base, TenantIDs: [t1], Audience: hubAPI, RequiredScope: "Hub.Access", AllowedClients: [desktop], AllowInsecureAuthority: true})` accepts a minted token; `Claims` carries tid, oid, name, username, email, `roles` for Ada | an issuer the Hub cannot validate (R9) |
+| `TestTheAccountClaims` | decoding a minted token's payload (access and ID): Grace → `"acct": 0` and `"xms_edov": false`, as a JSON number and a JSON boolean; the committed config with Out Sider set `guest: true, emailVerified: true` → `"acct": 1`, `"xms_edov": true` | a devissuer that omits `acct`, so every local invite fails to bind (the Hub fails closed on an absent `acct`); `acct` emitted as the string `"0"`, which the Hub refuses |
 | `TestRolesOnlyForTheHubAPI` | Ada's token for the broker API has no `roles` | the org-admin role leaking to another resource |
 | `TestSubIsPairwise` | one oid, two APIs → two different `sub`s; `oid` equal | code that keys on `sub` passing locally and failing on Entra |
 | `TestMintRefusesUnknownParties` | an unknown tid, oid, client or API → error | a test minting a principal that does not exist |
@@ -208,7 +219,7 @@ minimum `1m`), `PANACEA_APP_DEVISSUER_AUTO` (default `false`). `BaseURL` is `htt
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/devissuer/ ./control-plane/cmd/devissuer/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 10
+go test ./control-plane/internal/devissuer/ ./control-plane/cmd/devissuer/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 11
 go run ./control-plane/cmd/devissuer env | head -1
 # PANACEA_APP_HUB_TENANTS=11111111-1111-4111-8111-111111111111=Example Dev Tenant,44444444-4444-4444-8444-444444444444=Second Dev Tenant
 git grep -n -i "secret\|password" -- control-plane/cmd/devissuer/dev-tenant.json                                         # no output

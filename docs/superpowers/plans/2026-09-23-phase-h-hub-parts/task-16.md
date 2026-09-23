@@ -25,9 +25,16 @@ second time with the Go checks switched off to prove row-level security alone ho
 | 12 | `DELETE /v1/teams/{teamId}/invites/{inviteId}` | A | `204`; the row stays, `state: revoked` | 404 `team_not_found`; 403; 404 `invite_not_found`; 409 `conflict` (already `bound`) | `team.invite_revoked {}` |
 | 3 | `GET /v1/me` — **binding** | any | `invitesBound`: the number bound by this call | — | per bound invite: `team.invite_bound {"userId","role"}`; then, if membership changed, `team.member_set {"role"}` |
 
-**Binding** (contract §7.2): every `pending` invite **in the caller's org** whose `email` equals the
-caller's email (§5.1: the `email` claim, else `preferred_username`, lowercased) becomes `bound`,
-with `bound_user_id` and `bound_at`; the caller becomes a member with the invite's role, **or
+**Binding** (contract §7.2, as correction A15 amends it): every `pending` invite **in the caller's
+org** whose `email` equals the caller's **`Claims.BindEmail`** (task 13) becomes `bound`, with
+`bound_user_id` and `bound_at`. `BindEmail` is the `email` claim alone, lowercased, and only when
+this token shows a member account (`acct == 0`) or a verified email domain owner
+(`xms_edov == true`); otherwise it is `""` and **nothing binds** — `invitesBound: 0`, the invites
+stay `pending`, and no event is written. It is never `preferred_username` (mutable, and not
+verified by the tenant for a B2B guest; Microsoft says not to authorise by it or by `email`), and
+never the `users` row's stored `email`, which stays display text (review I12). A member whose token
+has no `email` claim binds nothing; a team admin adds them by `PUT …/members/{userId}` after
+their first sign-in (task 15), as for any user; the caller becomes a member with the invite's role, **or
 keeps a higher role already held**. `/v1/me` runs under `Write` (task 14) so binding takes the org's
 audit lock; it sends no `Idempotency-Key` because it is a `GET`, and binding twice is impossible
 because a bound invite is no longer pending.
@@ -119,6 +126,7 @@ most likely to be skipped.
 | `TestBindingOnFirstSignIn` | Grace invites Vera as `viewer`; Vera's `GET /v1/me` → `invitesBound: 1` and T with role `viewer`; a second call → 0; events `team.invite_bound` then `team.member_set` | an invite that never binds, or binds twice |
 | `TestBindingKeepsAHigherRole` | Linus is `member`; an invite for him as `viewer` binds and leaves him `member` | a demotion by invite |
 | `TestBindingStaysInTheOrg` | an invite in org 1 for `xavier@other.test` does not bind when Xavier (org 2) signs in | a cross-tenant join by email (T3) |
+| `TestAGuestCannotBindAMembersInvite` | the test's own issuer, from the committed config with one user flipped (task 11: `Options.Config` is a value). (1) Out Sider as `guest: true`, `emailVerified: false`; Grace invites `out@example.test` as `member`; Out Sider's `GET /v1/me` → `invitesBound: 0`, the invite still `pending`, Out Sider not in T, no `team.invite_bound` event; (2) the same world with `emailVerified: true` → `invitesBound: 1`; (3) Vera a member with `email` set to `""` (her `preferred_username` still `vera@example.test`) and an invite for `vera@example.test` → `invitesBound: 0` | a guest's unverified `email` granting a member's invite (review I12); a `preferred_username` fallback for binding; binding that reads the stored `users.email` instead of this token |
 
 `matrix_integration_test.go`:
 
@@ -140,8 +148,8 @@ most likely to be skipped.
 
 ```bash
 go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
-  -run 'TestInvite|TestASecondPending|TestInvitingAMember|TestRevokeKeeps|TestBinding|TestAuthorisationMatrix|TestTheXColumn|TestEveryRoute' \
-  2>&1 | grep -c "^--- PASS"                                                                     # 11
+  -run 'TestInvite|TestASecondPending|TestInvitingAMember|TestRevokeKeeps|TestBinding|TestAGuestCannotBind|TestAuthorisationMatrix|TestTheXColumn|TestEveryRoute' \
+  2>&1 | grep -c "^--- PASS"                                                                     # 12
 grep -rn "disableGoAuthz" control-plane/internal/hub/server/ --include=*.go | grep -v _test.go    # only authz.go's declaration and its two uses
 ```
 

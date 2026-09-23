@@ -32,9 +32,25 @@ package server
 // is not kept anywhere.
 type Claims struct {
 	TenantID, ObjectID string
-	Name, Email        string // Email: the email claim, else preferred_username, lowercased (§5.1)
+	Name, Email        string // DISPLAY ONLY. Email: the email claim, else preferred_username, lowercased (§5.1)
 	OrgAdmin           bool   // roles ∋ AuthConfig.OrgAdminRole, read from THIS token (§5.1)
+	// BindEmail is the only address an invite may bind to (review I12, correction
+	// A15): the email claim alone, lowercased, and only when THIS token shows a
+	// member account (acct is the JSON number 0) or a verified email domain owner
+	// (xms_edov is the JSON boolean true). Otherwise "". Never preferred_username,
+	// never the users row's stored email. Both claims are optional in Entra, so an
+	// absent one, or one of another JSON type, fails closed.
+	BindEmail          string
 }
+
+// bindingClaims reads acct and xms_edov from the payload segment of the bearer
+// that Validator.Validate has JUST accepted — never before Validate, and never a
+// token Validate refused. It is the seam for correction A15: entra.Claims (phase
+// 8's package, task 10) carries neither claim, and task 10's ownership rule says
+// the Hub adapts in auth.go alone. When phase 8 adds them (the sibling ask in the
+// plan's A15 row), this function's body becomes a read of entra.Claims and nothing
+// else changes. It decodes JSON only: no signature code, and nothing is kept.
+func bindingClaims(bearer string) (member, emailVerified bool)
 
 // ClaimsFrom returns what the pipeline stored. Every /v1 handler may assume ok.
 func ClaimsFrom(ctx context.Context) (Claims, bool)
@@ -53,7 +69,15 @@ type AuthConfig struct {
 	Validator    entra.Validator
 	OrgAdminRole string // "Hub.OrgAdmin"
 	Limits       Limits
-	TrustProxy   bool // take the client address from X-Forwarded-For's first hop
+	// TrustedHops is how many proxies in front of the Hub append to
+	// X-Forwarded-For (PANACEA_APP_HUB_TRUSTED_HOPS, correction A14). 0: the header
+	// is ignored and the peer address is the key. N ≥ 1: every X-Forwarded-For
+	// line, joined in order, is split on commas, and the key is the N-th entry
+	// from the RIGHT — the address the outermost trusted proxy saw. Never the
+	// left-most: a proxy appends, so everything left of its entry is whatever the
+	// client wrote (review I7). Fewer than N entries, or an entry that is not an
+	// IP address, and the peer address is the key.
+	TrustedHops  int
 	Log          *slog.Logger
 	Now          func() time.Time
 }
@@ -141,11 +165,12 @@ Unit tests use a fake `entra.Validator` that returns a scripted `Claims` or erro
 | `TestIPLimitRunsBeforeValidation` | with `IP 1:2`, the 3rd request in a burst → 429 `scope: ip`, `Retry-After ≥ 1`; the validator was called twice | a flood of bad tokens that costs a signature check each |
 | `TestUserAndWriteLimitsAreSeparate` | with `User 100:100` and `UserWrite 1:1`, two POSTs → the second 429 `user_write`; GETs still pass | reads throttled by writes |
 | `TestOrgLimit` | two users of one tenant share the `org` bucket; a user of another tenant does not | a per-user limit mislabelled as an org one |
-| `TestForwardedForOnlyWhenTrusted` | `X-Forwarded-For: 203.0.113.9, 10.0.0.1` is the key with `TrustProxy`; ignored (the peer address is the key) without | a spoofed header that resets anyone's bucket |
+| `TestForwardedForOnlyWhenTrusted` | with `IP 1:2`: (1) `TrustedHops 1`, `X-Forwarded-For: 198.51.100.7, 203.0.113.9` → the key is `203.0.113.9`; (2) three requests from that ingress hop whose left-most value changes each time (`198.51.100.1, 203.0.113.9`, `198.51.100.2, 203.0.113.9`, …) → the 3rd is 429 `scope: ip`: a client-written value never resets the bucket; (3) the same entries split over two `X-Forwarded-For` lines → the same key; (4) `TrustedHops 2`, `198.51.100.7, 203.0.113.9, 10.0.0.1` → `203.0.113.9`; (5) `TrustedHops 1` with no header, or a right-most entry that is not an IP → the peer address; (6) `TrustedHops 0` → the header is ignored and the peer address is the key | the left-most entry as the key (review I7: a made-up value per request is a fresh bucket, and the pre-validation bound is gone behind phase 8's ingress); only the first header line read; the header honoured with `TrustedHops 0` |
 | `TestLimiterEntriesAreEvicted` | 1,000 distinct keys; advance 11 min; sweep; the map is empty | unbounded memory under a spray of IPs |
 | `TestClaimsReachTheHandler` | through `export_test.go`'s route: `ClaimsFrom` has tid, oid, name, the email rule (email claim, else `preferred_username`, lowercased) and `OrgAdmin` from `roles` | an email taken from `preferred_username` when `email` exists; an org admin cached across tokens |
+| `TestBindEmailNeedsAMemberOrAVerifiedEmail` | the fake validator accepts a hand-built bearer whose payload holds the claims under test; `ClaimsFrom(...).BindEmail` is: `acct: 0` + `email` → the email, lowercased; `acct: 1` without `xms_edov` → `""`; `acct: 1` + `xms_edov: true` → the email; `acct` absent → `""`; `acct: "0"` (a string) → `""`; `xms_edov: "true"` (a string) → `""`; `acct: 0`, no `email`, a `preferred_username` → `""`, while `Email` (display) is still the `preferred_username`; a bearer the validator refuses → 401 and its payload is never decoded (a payload that is not JSON gives 401, not 500) | binding by `preferred_username` (review I12); a guest's self-asserted `email` granting a member's invite; an absent optional claim read as `acct == 0`; `bindingClaims` run before `Validate` |
 | `TestNoTokenInAnyLogLine` | every test above run with a captured `slog` handler; no line contains the bearer text or its signature segment | a token in a log (T1) |
-| `TestADevissuerTokenPassesTheRealValidator` | `devissuer` in-process (task 11), `entra.New` configured as `serve` configures it with `AllowInsecureAuthority` → a minted token for Grace reaches the handler | a pipeline tested only against the fake |
+| `TestADevissuerTokenPassesTheRealValidator` | `devissuer` in-process (task 11), `entra.New` configured as `serve` configures it with `AllowInsecureAuthority` → a minted token for Grace reaches the handler, with `BindEmail` = `grace@example.test` (devissuer's `acct: 0`, task 11) | a pipeline tested only against the fake; a devissuer whose members can never bind |
 
 Integration (`orgs_integration_test.go`, `//go:build integration`):
 
@@ -169,7 +194,7 @@ Integration (`orgs_integration_test.go`, `//go:build integration`):
   moving from the indirect block to the direct block, **at the version Step 2 recorded**; any other
   line moving is a defect to undo, not to commit. Wire `serve.go`:
   build `entra.New` from `Config` (`AllowInsecureAuthority` = `DevIssuer`), `EnsureOrgs`, wrap `/v1`
-  in `Authenticate`, add the readiness check.
+  in `Authenticate` (`AuthConfig.TrustedHops` = `Config.TrustedHops`), add the readiness check.
 - [ ] **Step 4:** By hand: `devstack.sh up` (task 09 — or its manual equivalent if task 09 has not
   landed), then `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8750/v1/me` → `401`
   (no `/v1/me` handler exists yet, and the pipeline answers first).
@@ -178,7 +203,7 @@ Integration (`orgs_integration_test.go`, `//go:build integration`):
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/hub/server/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"                # 23 (11 from task 08 + 12)
+go test ./control-plane/internal/hub/server/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"                # 24 (11 from task 08 + 13)
 go test -tags integration ./control-plane/internal/hub/store/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # ≥ 4 (task 08's dbauth test + these 3)
 git diff control-plane/go.mod | grep "^[-+]" | grep -v "^[-+][-+]"                                         # only golang.org/x/time moving to the direct block, at $TEMP/xtime.txt's version
 ```

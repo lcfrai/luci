@@ -56,7 +56,8 @@ const (
 	envReservationTTL = "PANACEA_APP_HUB_RESERVATION_TTL"
 	envBlobMaxBytes   = "PANACEA_APP_HUB_BLOB_MAX_BYTES"
 	envProjectQuota   = "PANACEA_APP_HUB_PROJECT_QUOTA_BYTES"
-	envTrustProxy     = "PANACEA_APP_HUB_TRUST_PROXY"
+	envTrustedHops    = "PANACEA_APP_HUB_TRUSTED_HOPS" // was TRUST_PROXY (correction A14, review I7)
+	envRetiredTrust   = "PANACEA_APP_HUB_TRUST_PROXY"  // read only to refuse it
 	envRateIP         = "PANACEA_APP_HUB_RATE_IP"
 	envRateUser       = "PANACEA_APP_HUB_RATE_USER"
 	envRateUserWrite  = "PANACEA_APP_HUB_RATE_USER_WRITE"
@@ -95,7 +96,7 @@ type Config struct {
 	ReservationTTL time.Duration
 	BlobMaxBytes   int64
 	ProjectQuota   int64
-	TrustProxy     bool
+	TrustedHops    int // 0: X-Forwarded-For ignored; N: the N-th entry from the right (task 13)
 	RateIP, RateUser, RateUserWrite, RateOrg Rate
 	RateBlobBytes  int64 // per user per minute
 	ShutdownGrace  time.Duration
@@ -112,6 +113,10 @@ type Config struct {
 //   - serve: TENANTS (≥ 1 "<guid>=<name>", name 1–200 chars), AUDIENCE (a GUID)
 //     and ALLOWED_CLIENTS (≥ 1 GUID) are required. migrate and verify need none of them.
 //   - RATE_* are "<per second>:<burst>", both positive.
+//   - TRUSTED_HOPS is an integer in [0, 5], default 0. A set TRUST_PROXY (the
+//     retired name) is refused with an error naming TRUSTED_HOPS, so an old
+//     "TRUST_PROXY=true" deployment fails loudly instead of silently keying the
+//     limit on the ingress for every client (correction A14).
 //   - RESERVATION_TTL in [1m, 24h]; BLOB_MAX_BYTES in [1, 16777216] (the table's CHECK);
 //     PROJECT_QUOTA_BYTES ≥ BLOB_MAX_BYTES; DB_MAX_CONNS in [1, 100]; SHUTDOWN_GRACE in [1s, 5m].
 //   - DB_AUTH=entra needs ENV dev or prod and all four AZURE_* variables.
