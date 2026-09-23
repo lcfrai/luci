@@ -600,3 +600,105 @@ control checks it). That the sandbox image ships `curl` (already assumed by b01)
 out-of-scope observations (G4 and review I1's symlink case, the key file under a bind mount, the
 HA5-5/HA5-6 row order) are not addressed here.
 
+## Fix batch b02 (2026-09-24) — I3, I6, I7
+
+Paths are relative to `docs/superpowers/plans/`; `parts/` is `2026-09-23-phase-5-design-canvas-parts/`.
+Line numbers are as of commit `5d9982d` (commits `17c39eb` I3, `09d8951` I6, `5d9982d` I7).
+
+### I3 — the design routes stay inside the preflight's verb set
+
+| Change | Where |
+|---|---|
+| Route 11 (`…/assets/{sha}`) and route 17 (`…/selection`) are `POST`, not `PUT` | `parts/task-20.md:88`, `:94` |
+| The verb rule: GET, POST, DELETE only; why (`httpx/origin.go:169`, Go contract §3.1 at `2026-09-18-phase-2-go-contract.md:1531`); a later verb amends `corsMethods` and §3.1 in its own commit | `parts/task-20.md:103-113` |
+| `TestAssets_putGet` → `TestAssets_postGet` | `parts/task-20.md:273` |
+| `TestMount_everyMethodPassesPreflight`: every pattern `Mount` records gets a real preflight through `httpx.NewOriginPolicy(httpx.DefaultOrigins(), …).Middleware`; the method must be in `Allow-Methods`, and `Authorization`, `Content-Type` in `Allow-Headers` | `parts/task-20.md:283` |
+| `TestPreflightAllowsEveryRegisteredMethod`: the same over `api.New(d).RegisteredPatterns()`, phase 2's routes included | `parts/task-20.md:284`; Files `:29-30`; plan file map `:365` |
+| Task 30 records `corsMethods` **unchanged** as a decision, not an amendment | `parts/task-30.md:46` |
+| Owner item 8: image paste and selection in the real webview, no CORS error; count → 8, then 9 after I7 | `parts/task-30.md:132-135`, `:153` |
+
+**Departures, and why.** (1) The review offered POST or a `corsMethods` amendment. This batch
+takes POST: route 11 is idempotent by construction (the path is the SHA-256), `origin.go`'s
+constant block is already edited by Hub task 37 for `corsHeaders`
+(`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub-parts/task-37.md:21`, `:64-65`),
+and the verb set is the phase-2 Go contract's. (2) The review asked for one `httpx` test. `httpx`
+cannot see the routes without importing their packages, so there are two tests, one per route
+recorder (`designapi`'s recording `handle`, `api`'s `RegisteredPatterns`,
+`control-plane/internal/api/export_test.go:21`). Both send a real preflight and read the live
+middleware's answer rather than a copied constant.
+
+### I6 — task 20 is two tasks, each compiling on what it declares
+
+| Change | Where |
+|---|---|
+| Task 20a (kept as `task-20.md`): header, deps 11, 12, 13, hours 4.5, why the split | `parts/task-20.md:1-11` |
+| 20a's Files: no `cmd/api` file; `approvals_none.go` | `parts/task-20.md:22-36` |
+| The `Approvals` seam: `(*API).Approvals()` returns `noApprovals{}` (`Latest` → not found) until task 21 replaces it inside `designapi` | `parts/task-20.md:52-59`, `:260`; `TestApprovals_noneUntilTask21` `:289` |
+| `Config.Hub` is not in 20a's struct: task 21 adds the field with its type | `parts/task-20.md:233-235` |
+| 20a's tests, steps, acceptance and "Not claimed" drop the `cmd/api` work | `parts/task-20.md:291-314` |
+| Task 20b (new `task-20b.md`): deps 17, 19, 20a; hours 1.5; the table of calls and the task each comes from | `parts/task-20b.md:1-27` |
+| 20b's Files, the two variables, the wiring order (`newDesignAPI` first, then `newMCPServer` / `newMCPDeps`, then `mcprelay.NewSupervisor(mcprelay.SupervisorConfig{…})`) | `parts/task-20b.md:29-68` |
+| 20b's tests: `TestConfig_canvasVars`, `TestMain_wiring`, `TestNewDesignAPI_guardsBareMux` (moved from 20), `TestNewMCPServer_wired`, `TestNewMCPDeps_approvalsFromDesignAPI` (new); the acceptance curl (moved) | `parts/task-20b.md:74-78`, `:85-100` |
+| Task 21: deps 08, 09, 13, 20a, 20b; Files gain `mount.go` (`Config.Hub`, the real `Approvals()`) and the one `cmd/api/design.go` `Hub` line | `parts/task-21.md:3`, `:22-27` |
+| `TestApprove_noHub`: a nil `Hub` → `503 hub_not_configured` (Hub plan `task-32.md:28`), no panic | `parts/task-21.md:310` |
+| Plan: task table rows 20a, 20b, 21, 27, 29 | plan `:417-419`, `:425`, `:427` |
+| Plan: total ≈ 81 h; critical path `… 15 → 17 → 20b → 21 → 22 → 28 → 30` and why | plan `:430-433` |
+| Plan: waves 4 and 5 | plan `:441-442` |
+| Plan: Hub C3 names 20a and 20b; lanes; the shared-files list, with 20a/20b and Lane E's two internal hand-offs | plan `:112`, `:444`, `:449-456` |
+| Plan: file map rows (`api.go`, `events/`, `designapi/`, `problem.go`, `config.go`/`main.go`, `design.go`, `routes_audit_test.go`); the parts-file note | plan `:359-365`, `:391-392` |
+| Every "task 20" restatement names 20a or 20b | `parts/task-10.md:78`, `task-11.md:10`, `:304`, `task-13.md:36`, `:165`, `task-15.md:14`, `:27`, `:245`, `task-19.md:18`, `:114`, `:149`, `:172`, `task-21.md:3`, `:234`, `:304`, `:314`, `task-22.md:107`, `:151`, `:154`, `task-27.md:3`, `:16`, `:29`, `:73`, `task-29.md:3`, `:60-61`, `task-30.md:3`, `:24-25`; plan `:175`, `:269`, `:489` |
+
+**Departures, and why.** (1) The review put a stub `Approvals` in 20b's wiring "until 21". A stub
+there would need task 21 to edit `main.go` again. The stub is instead 20a's `(*API).Approvals()`
+method, and 20b wires its result, so task 21 changes no MCP wiring. (2) Fixing I6 exposed a second
+undeclared dependency of the same kind: `designapi.Config.Hub` had type `Designs`, which task 21
+declares (`parts/task-21.md:215-226`), and no task passed a Hub client into `main.go` at all. Task 21
+now adds the field and its `design.go` line (so 21 depends on 20b, and the critical path runs
+17 → 20b → 21), and passes Hub task 32's `hubclient` value (Hub plan `task-32.md:91-96`).
+(3) The old wiring wrote `mcprelay.NewSupervisor{…}`; the real signature is
+`NewSupervisor(SupervisorConfig) (*Supervisor, error)` (`parts/task-19.md:86-106`). (4) The plan's
+file map said task 19 edits `cmd/api/config.go` and `main.go`; task 19's Files do not
+(`parts/task-19.md:13-19`), so the row now says 20b. (5) Hours: the review's sizing note says task 20 was
+about twice its 3 h, so 20a is 4 h (4.5 after I7) and 20b is 1.5 h.
+
+### I7 — a canvas binding follows its branch (seam S5-P3.2)
+
+| Change | Where |
+|---|---|
+| `Binding` comment (why an id does not follow a rename, `project.go:118-121`), `ArchivedAt`; `Bind` counts unarchived bindings only; `Lookup` unarchived only; `Rebind`, `Archive` | `parts/task-10.md:42-76` |
+| Crash rule 4 covers `Rebind` and `Archive` | `parts/task-10.md:125-126` |
+| `storetest` › *rebind*, › *archive*; `TestFileStore_rebindArchiveRestart` (a crash between temp write and rename leaves the old file) | `parts/task-10.md:133-135` |
+| "Not claimed": a delete archives the binding, never the canvas | `parts/task-10.md:164-165`; hours `:3` |
+| `authority.Config.Branches BranchLifecycle` (nil before phase 3); `branches.go`: `BranchRename`, `BranchLifecycle{Renames, LastDeleted}`, `ErrBranchLifecycle` (fail closed) | `parts/task-11.md:15-16`, `:33-36`, `:96-125` |
+| `resolve`: a fresh lookup (every `Ensure`/`ForBranch`, a session's first call) archives a deleted branch's binding; a miss follows the rename map, bounded against cycles; `CreatedAt = max(now, at + 1 s)` after a delete | `parts/task-11.md:127-149` |
+| Scope reads the binding, not `Document.BranchID` (which keeps the creation branch) | `parts/task-11.md:146-149`, `:176-177`; `parts/task-05.md:179` |
+| Eight tests: follows a rename, a chain and a cycle, delete archives, a session's first call checks, not-deleted keeps, errors fail closed, nil port, scope follows the binding | `parts/task-11.md:289-296` |
+| "Not claimed": a terminal `git branch -m`/`-D` is not followed (phase 3's own A8 limit, phase 3 `task-11.md:198-199`) | `parts/task-11.md:316-320`; hours `:3` |
+| The phase-3 adapter `designapi/branches_phase3.go` (only once phase 3 exists): `Renames` over `lanes.Store.Renames` (phase 3 `task-03.md:72-96`); `LastDeleted` over `refs/panacea/archive/<b>/<unix>` (phase 3 `task-11.md:105`, `:111`), the branch id checked before git; a lifecycle error → `500 internal`, no new code | `parts/task-20.md:32-34`, `:38-50` |
+| `TestPhase3Branches_renames`, `TestPhase3Branches_lastDeleted`, `TestRoutes_renameAndDelete` | `parts/task-20.md:286-288` |
+| 20b wires `authority.Config.Branches`; `newAuthorityConfig`; `TestNewAuthority_branchesWired` | `parts/task-20b.md:35-36`, `:46-50`, `:73` |
+| Owner item 9: rename keeps the canvas and approval; delete-and-recreate shows state 1 | `parts/task-30.md:136-140` |
+| Plan: P5-L names the seam; the S5-P3.2 row; task rows 10, 11, 20a; file map rows | plan `:216`, `:467`, `:407-408`, `:417`, `:329`, `:361` |
+
+**Departures, and why.** (1) The review put the rebind in `designapi`. MCP resolves a session's
+canvas through the authority, not through `designapi`, so a rebind there would leave an agent on a
+recreated branch writing into the deleted branch's canvas. `resolve` lives in the authority, behind
+both surfaces. (2) The review said "a branch delete archives the binding" without saying how the
+canvas learns of a delete. Phase 3's `DeleteBranch` has one hook, and it is phase 4's
+(`briefref.Archiver`, phase 3 `task-11.md:114-117`), and a hook can be lost across a crash. This
+batch reads phase 3's durable record instead, the archive ref every cockpit delete writes, on every
+fresh lookup. No ask to phase 3 is needed. (3) The port returns `LastDeleted` (a time), not a
+yes/no, because the archive ref has whole seconds: `resolve` compares at the second and dates a
+post-delete binding one second after the delete, so a create and a delete in one second are never
+read in the wrong order. (4) Any lifecycle read error fails closed (no create, rebind or archive).
+Guessing either way breaks the thread: it hands a new branch the old approvals, or strands the
+approved design behind an empty canvas.
+
+**Unverified.** Every phase-3 name (`lanes.Store.Renames`, `Rename`, the archive-ref layout,
+`gitx.Machine`, the `branch_has_worktrees` and Q4 refusals) is cited from phase 3's plan parts in
+`.claude/worktrees/phase-3/`, not from built code. The same goes for Hub task 32's `hubclient`
+wiring and `hub_not_configured`. Whether phase 4's brief binding follows a branch rename (the approval's brief key
+after a rename) is phase 4's concern and was not checked. `TestPreflightAllowsEveryRegisteredMethod`
+assumes a preflight through `api.New`'s handler reaches the origin middleware at `/`: read from
+`httpx/origin.go:231-237` and `routes_audit_test.go:83-88`, not run.
+
