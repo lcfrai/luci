@@ -21,7 +21,7 @@ from the npm registry or from `desktop/node_modules` on this machine. Nothing he
 | `@testing-library/react@16.3.3`, peers React `^18 \|\| ^19` **and `@testing-library/dom ^10.0.0`** (must be installed explicitly) | `npm view @testing-library/react peerDependencies` |
 | `@testing-library/dom@10.4.2`, `@testing-library/user-event@14.6.7` | `npm view … version` |
 | `zustand@5.0.15`, export map has a `"./*"` wildcard so `zustand/middleware` and `zustand/react/shallow` resolve | `npm view zustand version` / `npm view zustand exports --json` |
-| `@xterm/xterm@6.0.0` typings expose `write(data: string \| Uint8Array, cb?)` (1253), `scrollToBottom()` (1227), `IBuffer.viewportY` (1525), `IBuffer.baseY` (1531), `attachCustomKeyEventHandler` (1072) | `desktop/node_modules/@xterm/xterm/typings/xterm.d.ts` |
+| `@xterm/xterm@6.0.0` typings expose `write(data: string \| Uint8Array, cb?)` (1253), `scrollToBottom()` (1227), `IBuffer.viewportY` (1525), `IBuffer.baseY` (1531), `attachCustomKeyEventHandler` (1072) — assigned to `makeTerm` by task 23's fix round 1 (§6.6, "The chord filter") | `desktop/node_modules/@xterm/xterm/typings/xterm.d.ts` |
 | Node on this machine is **v24.15.0**; `vitest@5` `engines.node` is `^22.12.0 \|\| ^24.0.0 \|\| >=26.0.0` | `node --version` |
 | `desktop/tsconfig.json` is `strict`, `noUnusedLocals`, `noUnusedParameters`, `lib: ["ES2020","DOM"]`, `include: ["src"]`; `tsconfig.node.json` includes only `vite.config.ts`; there is **no `@types/node`** (`vite.config.ts` carries a `@ts-expect-error` for `node:process`) | the files |
 | `main.tsx` renders inside `<React.StrictMode>` — effects double-invoke in dev | `desktop/src/main.tsx` |
@@ -238,7 +238,7 @@ three, and the two testable thirds carry all the logic:
 |---|---|
 | `desktop/src/lib/wire.ts` (exists) | Pure functions over `Uint8Array`. Plain unit tests, no DOM. |
 | `desktop/src/api/attachRegistry.ts` | The socket lifecycle, the 10 Hz output batching, the pinned-scroll rule and the reconnect retry ladder (§4.6: `starting`, `running` and `idle`). Unit tested against a **fake terminal** and a **fake WebSocket**, both injected — no jsdom globals are patched. |
-| `desktop/src/components/Terminal.tsx` | ~40 lines that construct a real `XTerm`, call `open()` and hand it to the registry. Tested with `vi.mock("@xterm/xterm")` (below), which asserts the wiring and never renders a glyph. |
+| `desktop/src/components/Terminal.tsx` | ~40 lines that construct a real `XTerm`, install the keyboard map's chord filter on it (§6.6), call `open()` and hand it to the registry. Tested with `vi.mock("@xterm/xterm")` (below), which asserts the wiring and never renders a glyph. |
 
 The mock, copied verbatim into any test that renders `<Terminal/>`:
 
@@ -253,6 +253,7 @@ export class FakeTerm {
   buffer = { active: { viewportY: 0, baseY: 0 } };
   private dataHandlers: ((d: string) => void)[] = [];
   loadAddon() {}
+  attachCustomKeyEventHandler() {}   // makeTerm calls it (§6.6); without it construction throws
   open() {}
   focus() {}
   write(data: string | Uint8Array) {
@@ -275,6 +276,17 @@ Real xterm rendering — ANSI fidelity, resize, the permission prompt drawing co
 already proven in Phase 1 against a real Claude Code session
 (`docs/verification/2026-09-17-phase-1-results.md`, 9/9) and is re-proven by hand in Group E.
 It is not a thing a jsdom assertion can tell the truth about.
+
+**One declared departure, task 23's fix round 1: `src/hooks/useKeyboardMap.xterm.test.tsx` runs
+the real xterm.** Not its rendering — its *key path*, which is plain DOM event handling and which
+jsdom does run. The defect it pins was invisible to every other test because they all dispatched
+on `window` and none on the focused element: xterm handles keydown on its own helper textarea
+first and cancels what it maps to data, so a chord pressed in a focused terminal went to the agent
+as control bytes (§6.6, "The chord filter"). The file mounts the real `<Terminal/>` and asserts the
+end state — the map acts and the agent receives nothing; Escape, shift+Tab and Ctrl+C still reach
+the agent. It was allowed on one condition, that it is stable (five consecutive identical runs
+before commit); **if it ever flakes it is deleted**, and `Terminal.test.tsx`'s handler-level tests
+stay. Nothing in it draws or measures a glyph, so the rule above is unchanged for rendering.
 
 ### 1.6 How a test renders a store-backed component
 
@@ -1738,7 +1750,7 @@ property 7: if you cannot name the fact that justifies the element, the element 
 
 | File | Props | Owns |
 |---|---|---|
-| `Terminal.tsx` | `{ sessionId: SessionId; readOnly: boolean; focused: boolean }` | Constructing the `XTerm`, calling `open()`, handing it to `attachRegistry`, and **vertical scrollback inside the pane**. Takes DOM focus **only when `focused`** — on mount and on a false→true transition. Unconditional focus-on-mount meant nine mounting panes each took the caret and the last one flushed kept it. |
+| `Terminal.tsx` | `{ sessionId: SessionId; readOnly: boolean; focused: boolean }` | Constructing the `XTerm`, installing **the chord filter** on it (below), calling `open()`, handing it to `attachRegistry`, and **vertical scrollback inside the pane**. Takes DOM focus **only when `focused`** — on mount and on a false→true transition. Unconditional focus-on-mount meant nine mounting panes each took the caret and the last one flushed kept it. |
 
 ```tsx
 export function Terminal(props: {
@@ -1761,6 +1773,26 @@ records why the two movers cannot disagree.
 `readOnly` is `session.status === "exited"`: the scrollback stays readable (the transcript is the
 artifact) but `onData` is not wired, so a keystroke into a dead session does nothing rather than
 silently vanishing into a closed socket.
+
+**The chord filter — ADDED by task 23's fix round 1, a declared departure into task 19's closed
+file.** It amends this section's "Owns" cell and §1.5's `Terminal.tsx` row, which both described
+`makeTerm` as construct-open-hand-over and nothing else, and §1.5's `FakeTerm` block, which now
+carries the method. xterm handles keydown on its own focused helper textarea, and for every key
+it maps to data it sends the bytes to the agent and cancels the event, `stopPropagation`
+included. So with a terminal focused — the state the cockpit spends its time in — six of §6.9's
+chords never reached `useKeyboardMap`: `⌘3` went down the PTY as ESC and interrupted the agent,
+`⌘⏎` as CR and submitted its half-typed prompt, and `⌘K`, `⌘W`, `⌘B` and `⌘\` as C0 bytes.
+`makeTerm` therefore calls
+
+```ts
+term.attachCustomKeyEventHandler((event) => !isCockpitChord(event));
+```
+
+`isCockpitChord` is exported by `hooks/useKeyboardMap.ts` and is also that hook's own early
+return, so the chord list exists **once** and the terminal and the map cannot disagree about it.
+Returning `false` makes xterm skip the event **without cancelling it**, so it bubbles to the map.
+Everything outside the predicate — Escape, shift+Tab, `/`, AltGr (Ctrl+Alt), Ctrl+C and every
+bare key — is still xterm's to send, which is what §6.9's two spelled-out entries require.
 
 **ADDED by task 19 — the `createTerm` seam, because neither §1.5 nor §1.7 describes it.** §1.5
 puts the xterm import in this component; §1.7 puts the *instance* in the registry. A factory
@@ -1877,7 +1909,7 @@ known defect 10's class and the palette is where Phase 2 actually contains it.
 | Horizontal scroll of Columns | `ColumnsLayout` | `SessionRow` and the palette request it via `focusSession`; they never call `scrollIntoView` themselves |
 | Vertical scrollback inside a pane | xterm, via `attachRegistry`'s pinned rule (§7.2) | Nothing else calls `scrollToBottom()` |
 | Canvas pan/zoom | `CanvasLayout` | — |
-| The keydown listener | `useKeyboardMap`, mounted once in `AppShell` | No component adds a `window` keydown listener. Panes use React's own `onKeyDown` where they need one |
+| The keydown listener | `useKeyboardMap`, mounted once in `AppShell` | No component adds a `window` keydown listener. Panes use React's own `onKeyDown` where they need one. xterm's own textarea handler is not a second owner of the table: it defers every chord to `useKeyboardMap`'s `isCockpitChord` (§6.6, "The chord filter") |
 
 **Why two movers is not a violation, and what the rule actually is.** Earlier wording named
 `Terminal.tsx` as the only thing that calls `.focus()` inside a pane. **That was never true** —
@@ -1919,13 +1951,22 @@ was already focused throughout, so no transition fires and the first mover stays
 | `shift+tab` | **Not intercepted.** Passed to the terminal | See below |
 | `/` | Not intercepted | Slash commands belong to the agent CLI |
 
+**"Including while a terminal has focus" needs the terminal's cooperation, and has it.** A
+focused xterm sees a keystroke before any `window` listener and cancels what it maps to data.
+The rows above marked `⌘` reach this map from inside a terminal only because `makeTerm` hands
+xterm the map's own predicate, `isCockpitChord`, and xterm skips what it claims (§6.6, "The chord
+filter"). So the predicate is the table: a key added to it is a key the agent stops receiving,
+and the table's last three rows — Escape, `shift+tab`, `/` — are kept out of it on purpose.
+
 Two entries need the reason spelled out, because both look like omissions:
 
 - **`esc` interrupt.** `docs/FUNCTIONAL-SPEC.md` lists `esc` as "interrupt". In Phase 2 the
   interrupt is a real keystroke the agent CLI already handles: when a terminal has focus, xterm
   sends `\x1b` down the PTY and Claude Code interrupts itself. The app must therefore **not**
-  intercept Escape while a terminal has focus, and must not synthesise an "interrupted" state.
-  When an overlay is open, the overlay consumes Escape first. That ordering is the whole rule.
+  intercept Escape while a terminal has focus, and must not synthesise an "interrupted" state —
+  which is also why Escape is outside `isCockpitChord`: claimed there, xterm would skip it and the
+  agent would never receive `\x1b`. When an overlay is open, the overlay consumes Escape first.
+  That ordering is the whole rule.
 - **`shift+tab` cycle permission mode.** Claude Code cycles its own permission mode on shift+tab,
   inside its own TUI. The cockpit intercepting it, mutating `session.permissionMode` and
   *not* telling the agent would put the two out of sync permanently — which is known defect 8
