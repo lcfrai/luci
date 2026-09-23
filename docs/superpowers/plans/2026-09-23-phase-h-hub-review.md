@@ -270,3 +270,107 @@ Entra's error codes — it says so.
   or revision-write responses are stored without `content` and rebuilt on replay. Extend
   `TestErasureKeepsKeyAndDigest` (task 27): after erasure, no `text` or `bytea` column of any
   table holds a marker string from the erased content.
+
+#### I7. The per-IP rate limit keys on the left-most `X-Forwarded-For` entry, which the client writes
+
+- **Where:** task-13.md:56 (*"take the client address from X-Forwarded-For's first hop"*), :144
+  (`TestForwardedForOnlyWhenTrusted` pins `203.0.113.9` from `203.0.113.9, 10.0.0.1`).
+- **What is wrong:** an ingress **appends** to `X-Forwarded-For`, so the left-most entry is
+  whatever the client sent. A fresh made-up value on each request gets a fresh bucket. The test's
+  own mutant (*"a spoofed header that resets anyone's bucket"*) survives with `TrustProxy` on.
+- **Why it matters:** the per-IP limit runs **before** token validation to bound the cost of bad
+  tokens (task-13.md:141). Behind phase 8's ingress, that bound disappears.
+- **How to fix:** take the entry the trusted proxy appended — the **right-most** one, or the N-th
+  from the right for N trusted hops (`PANACEA_APP_HUB_TRUSTED_HOPS`, default 1). Change the test:
+  `X-Forwarded-For: 198.51.100.7, 203.0.113.9` from the ingress keys on `203.0.113.9`, and a
+  changing left-most value does not reset the bucket.
+
+#### I8. pgx moves `x/sys` to v0.32.0; task 28 then asks for v0.24.0, which would downgrade pgx; the "it is cached" premise is also false
+
+- **Where:** task-06.md:183-186 (*"the module is in the cache"*); task-28.md:25 (*"`golang.org/x/sys`
+  becomes direct at **v0.24.0**, the version in the graph"*), :174-175 (`go get golang.org/x/sys@v0.24.0`);
+  plan.md:45-47, :96-100.
+- **What is wrong (module cache read here):** pgx v5.7.5 requires x/crypto v0.37.0, x/text v0.24.0
+  and x/sync v0.13.0. x/crypto v0.37.0 requires **x/sys v0.32.0** and **x/term v0.31.0**. The
+  control-plane module holds x/sys v0.24.0, x/term v0.21.0 and x/text v0.16.0
+  (`control-plane/go.mod:54-57`). So after task 06, the graph selects x/sys ≥ v0.32.0. The
+  download cache has neither `x/sys@v0.32.0` nor `x/term@v0.31.0`: it has x/sys v0.24.0, v0.39.0,
+  … and x/term v0.21.0 only.
+- **Why it matters:** task 06's `go get` needs the network for two modules, behind the proxy.
+  Task 28's literal `go get golang.org/x/sys@v0.24.0` then **downgrades** x/crypto, and with it
+  pgx, below v5.7.5. Task 28's own diff check would show the damage, but the instruction causes
+  it. The x/sys "no Credential Manager wrappers" check was also run on a version that will not be
+  built. (It still holds: v0.39.0 and v0.47.0 were grepped here and have none either.)
+- **How to fix:**
+  - Task 06: say that x/sys, x/term, x/text, x/crypto and x/sync move with pgx, and that `go get`
+    may need the network for x/sys v0.32.0 and x/term v0.31.0.
+  - Task 28: make x/sys direct **at whatever version the graph already holds**. `go mod tidy`
+    after the first import does that; never name a version.
+  - Update plan.md:45-47.
+
+#### I9. The end-to-end test cannot pass as written: a 90-second access token is always inside the five-minute refresh window
+
+- **Where:** task-43.md:19 (`devissuer … AccessTTL 90 s`), :36 (step 9: *"devissuer saw **one**
+  refresh grant"*); task-31.md:34 (*"serves the cached access token for scope while exp − now > 5 min"*).
+- **What is wrong:** with a 90 s lifetime, `exp − now` is never above five minutes, so every
+  `Token` call redeems and rotates. Steps 1–8 make dozens of refresh grants before step 9 counts
+  "one". The test also mixes clocks: step 5's *"within 3 s"* is wall-clock, while step 9
+  "advances past" the token's life.
+- **Why it matters:** this is the plan's only proof of *the thread*. It will fail for a reason that
+  is not a product defect, and the likely "fix" — loosening the assertion — hides a real problem:
+  any lifetime under five minutes means a refresh on every call.
+- **How to fix:** make the skew `min(5 min, lifetime/2)` and test that rule in task 31. Give the
+  e2e test an `AccessTTL` of 10 minutes and **one injected clock** shared by devissuer, entraauth
+  and the Hub's validator. Advance that clock by 10 minutes in step 9. Keep step 5's latency
+  assertion on wall time, with the clock frozen.
+
+#### I10. OD-4 and OD-6 promise one store that holds the Azure DevOps token; by default it holds none
+
+- **Where:** task-39.md:26-31 (`kind` ∈ `github`, `panacea` only); task-32.md:84
+  (`PANACEA_APP_ENTRA_DEVOPS` default `false`); task-31.md:75-84 (`DevOps` answers
+  `ErrNoCredential` when disabled); phase 3's `Credential` already has
+  `BasicPAT … an Azure DevOps personal access token` (task-29.md:60).
+- **What is wrong:** until KPMG IT grants the desktop client Azure DevOps consent, which is
+  unscheduled, the store has no ADO credential and no way to be given one. Phase 3's push and PR
+  on Azure DevOps fall through to the machine's git credential helper.
+- **Why it matters:** OD-4 is *"both, from v1"*, and OD-6 names the same store for both. Phase 3
+  is building its ADO path tonight against a store that will be empty.
+- **How to fix:** add `kind: azure-devops` to task 39: scope = the organisation
+  (`^[a-z0-9-]{1,50}$`), a PAT of 52 base32 characters (or a generous bound), stored as
+  `PanaceaApp/git/azure-devops/<org>` and served by a `credstore.LocalDevOps` with
+  `Scheme: BasicPAT`. Order the chain `Local → LocalDevOps → entraauth.DevOps → GitHelper`.
+  When Q5 flips, the Entra path takes over with no write-path change.
+
+#### I11. The ten contract corrections are folded in **last**, though the plan says siblings must read them first
+
+- **Where:** plan.md:137-143, :371 (task 44 depends on 43), :391 (`feat/hub`: `43 → 44`);
+  task-44.md:6-8 (*"must be folded into the contract **before** another phase reads it and builds
+  against the old text — the failure this program has paid for a dozen times"*).
+- **What is wrong:** the part states the ordering rule, and the plan's schedule breaks it. Phases 4
+  and 7 already flag A1's repo-key disagreement (phase-4 plan:471, HA4-6; phase-7 plan:621-627),
+  and every sibling reads contract §12.1's four-service compose, §9.4's missing `Authorization`
+  CORS header and §7.4's regex tonight.
+- **Why it matters:** the whole build window runs against a contract its own plan calls wrong in
+  ten places.
+- **How to fix:** split task 44. **44a** — A1–A10, the additions table and C1's answers, a
+  1.5-hour documents-only task — runs **first**, before task 01, on `feat/hub`, and the
+  orchestrator announces it to the siblings. **44b** — whatever the build changed afterwards —
+  stays last.
+
+#### I12. Team membership is granted by the `email` claim, which Microsoft says not to use for authorisation
+
+- **Where:** task-13.md:35 (*"Email: the email claim, else preferred_username, lowercased"*);
+  task-16.md:28-31 (binding); phase 8's `Claims.Key()` comment (*"never preferred_username
+  (mutable)"*, phase-8 `task-16.md` at the `Key` declaration).
+- **What is wrong:** an invite binds to whoever presents a matching `email`, or failing that a
+  matching `preferred_username`. Both are mutable, and in a tenant with B2B guests neither is
+  verified by the tenant. Binding stays inside the org (`TestBindingStaysInTheOrg`), which rules
+  out the cross-tenant case. It does not rule out a guest or a renamed account in the same tenant,
+  or the multi-tenant customer tier (seam S-BYO).
+- **Why it matters:** membership is the only authorisation inside an org (T4, a single-layer
+  control), and an invite is a grant.
+- **How to fix:** bind only a principal whose token shows a member account (`acct == 0`) or a
+  verified email (`xms_edov == true`, an optional claim — add it to R-4). Never fall back to
+  `preferred_username` for **binding**; it may still be display text. `devissuer` emits both
+  claims, so every column of the matrix is still reachable locally. Add
+  `TestAGuestCannotBindAMembersInvite`.
