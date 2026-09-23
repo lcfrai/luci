@@ -137,7 +137,7 @@ Every task restates the ones it touches. None of them moves.
 ## Where this plan corrects the Hub contract — the "Hub contract asks"
 
 The contract says that where it and the ADR disagree, the ADR wins (contract `:4-5`). Reading the
-built tree and the sibling plans found **nine** places where the contract, as written, would fail
+built tree and the sibling plans found **ten** places where the contract, as written, would fail
 when built. Each is a correction this plan builds, with the exact shape; none adds a Hub route.
 They are asks against the contract's text, to be folded into it by whoever next edits it.
 
@@ -152,6 +152,7 @@ They are asks against the contract's text, to be folded into it by whoever next 
 | **A7** | the Hub maps `entra` rejections to 401 and says nothing of a key-set outage (§4.2, §6.3) | phase 8's `entra` adds `ErrKeySetUnavailable` (phase 8 task 16 `:102-106`); its `Middleware` answers that 503 `backend_unavailable`, which is a control-plane code meaning Docker (`problem.go:115`) | the Hub calls `Validator.Validate` itself in `internal/hub/server/auth.go` and maps `ErrKeySetUnavailable` to 503 **`unavailable`**; `/readyz` calls `JWKSValidator.Ready` | 13 |
 | **A8** | the credential store has target names for a GitHub and a Panacea token (§9.1) but **no way to put one there** | nothing in the contract writes `PanaceaApp/git/github/…` or `PanaceaApp/panacea/…`; phase 3 would read an always-empty store and phase 7 would build its own write path into the same store | three **control-plane** routes (not Hub routes), write-only for the secret: `POST /v1/credentials/{kind}`, `DELETE /v1/credentials/{kind}?scope=`, `GET /v1/credentials` (metadata only) — `kind` ∈ `github`, `panacea`. Phase 7 uses these instead of writing its own (seam S-CRED) | 39 |
 | **A9** | `hubapi` imports the standard library only; `hubclient` imports `hubapi` and the standard library (§2) | the same contract has `hubapi/codes.go` **import** the shared codes from `httpx` (§4.2), `hubclient.Error` carry an `httpx.Problem`, and `hubclient` mint idempotency keys with `ids.UUID()` (§9.2). Built as written, the boundary test fails the contract's own code | the boundary allows `hubapi` → `internal/httpx`; `hubclient` → `hubapi`, `internal/httpx`, `internal/ids`. Both `httpx` and `ids` import only the standard library, so the Hub still links nothing of the control plane's | 01, 08 |
+| **A10** | the audit envelope covers `v, kind, orgId, seq, at, actorUserId, event, projectId, subject, data` (§3.6) | `audit_events.team_id` is not in it, yet the change feed decides who sees an event by `team_id` or `project_id` (§7.11). An owner-role edit of `team_id` would move an event into another team's feed **without breaking the chain** | the envelope adds `"teamId"` (or `""`). `hub verify` also checks each row's `feed` flag against the kind table of §8, since `feed` is derived from `kind`. Golden vectors 3 and 4 (task 02) are computed with it | 02, 14, 27 |
 
 Two further facts, verified here, **close** items the contract and ADR left open:
 
@@ -263,7 +264,7 @@ parallel worktrees (see §"Order and parallel lanes").
 |---|---|---|---|
 | `control-plane/internal/hub/e2e_integration_test.go` | sign-in through `devissuer`, then every consumer interface against the real Hub | new | 43 |
 | `docs/verification/2026-09-23-phase-h-results.md` | what was run, what was observed, what stays unverified | new | 43 |
-| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md` | the amendments ADR-H1 §7.2 names, and A1–A9 folded into the contract | modified | 44 |
+| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md` | the amendments ADR-H1 §7.2 names, and A1–A10 folded into the contract | modified | 44 |
 
 ---
 
@@ -335,7 +336,7 @@ It is tasks **01–24** on the server and **28, 30–35, 37, 38** on the client 
 | 41 | the sign-in surface in the rail footer — **UI** | C4 | 40 | 3 | |
 | 42 | share a project with a team — **UI** | C4 | 40, 41 | 3 | |
 | 43 | end-to-end proof through `devissuer`; the real-tenant checklist; the results record | all | 01–42 | 3 | |
-| 44 | the document amendments; A1–A9 folded into the contract; the seams handed over | — | 43 | 1.5 | |
+| 44 | the document amendments; A1–A10 folded into the contract; the seams handed over | — | 43 | 1.5 | |
 
 Totals: server 01–27 ≈ 73.5 h; client and desktop 28–42 ≈ 39.5 h; proof and documents 4.5 h;
 **≈ 117.5 engineer-hours**, against ADR-H1's 16 engineer-days (≈ 128 h). The difference is the
