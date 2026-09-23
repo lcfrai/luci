@@ -268,10 +268,12 @@ through `internal/hub/hubclient` and the wire types in `internal/hub/hubapi`.
   function (G6). Revisit when a customer contract requires customer-managed keys.
 - **B's Rust-held tokens** — §6.2.
 
-**Revised cost.** H-min (§5.9) is about **11 engineer-days**; the first route phase 4 can call
-(`POST …/brief-revisions`) is reachable on **day 3**. Estimates assume one engineer who has read
-this ADR and the contract, and that the phase 8 `internal/entra` package lands first or is written
-here to its interface.
+**Revised cost.** H-min (§5.9) is about **16 engineer-days**: 11 on the Hub server and 5 on the
+control-plane and desktop side (sign-in, credential store, Hub client, local caller key). Split
+across two engineers it is about eight working days. The first route phase 4 can call
+(`POST …/brief-revisions`) is reachable on **day 3** of the server track. Estimates assume engineers
+who have read this ADR and the contract, and that phase 8's `internal/entra` lands first or is
+written here to its interface. The grafts account for about 4½ of the 16 days.
 
 ---
 
@@ -544,4 +546,108 @@ Panacea tokens are four audiences, and none is ever forwarded to another service
 sandbox); no CORS and no `Origin` accepted; per-user and per-org rate limits in process; a DML
 identity that cannot `UPDATE` or `DELETE` an immutable table; and a DDL identity used only by the
 migrate Job.
+
+### 5.9 Decomposition — the minimum Hub, and what comes after
+
+**H-min is what phases 3, 4, 5 and 7 need, and nothing else.** Task ids are the contract's §13.
+
+| Track | Task | Unblocks | Days |
+|---|---|---|---|
+| server | **H0** skeleton: `cmd/hub` (`serve`, `migrate`), config, health, migrate runner, migration `0001`, compose, import-boundary test | everything | 1.5 |
+| server | **H1** `devissuer`, and `internal/entra` to phase 8's interface if task 16 has not landed | every authenticated route | 2 |
+| server | **H2** users, orgs, teams, members, invites, `/v1/me` | membership, so authorisation | 1.5 |
+| server | **H3** projects, remotes, briefs, the revision batch write, the canonical digest, `/v1/refs`, the branch head | **phase 4** | 2 |
+| server | **H4** blobs, design approvals, session → design links | **phase 5** | 1.5 |
+| server | **H5** releases: reserve, confirm, abandon, rollback, the deployment join | **phase 7** | 1.5 |
+| server | **H6** evidence | **phase 3** (H-2) | 0.5 |
+| server | **H7** change feed, audit chain, erasure | teammates see changes; Q2 | 1 |
+| client | **C1** `entraauth` + `credstore` + `/api/v1/auth/*` on the control plane | sign-in; phase 8's HA-2; phase 3's H-1 | 2 |
+| client | **C2** `hubclient`, the relay rule and `upstream_unavailable` for `hub` | every phase's Hub calls | 1 |
+| client | **C3** the local caller key, control plane and desktop | the §6.6 exposure | 1 |
+| client | **C4** the desktop's sign-in surface: signed-out, signing-in, signed-in, re-auth | the owner can sign in | 1 |
+
+**Order.** H0 → H1 → (H2 ∥ C1) → H3 → (H4 ∥ H5 ∥ H6 ∥ C2) → H7, C3, C4. Phases 4, 5 and 7 build
+against the contract in parallel with the Hub and integrate against `compose.yaml` when H3, H4 and
+H5 land. Until then, each phase codes to `hubclient`'s interface with its in-memory fake
+(contract §9.2), which H0 ships first.
+
+**After H-min, in the order the program is likely to need them:**
+
+1. **SSE** on the change feed (`/v1/changes/stream`) — when the one-poll latency is noticed.
+2. **Phase 5 v2** — the canvas package hosted in the Hub over WebSocket; presence; cursors.
+3. **The BYO-customer-Entra tier** — multi-tenant registrations, per-customer admin consent,
+   an enrolment route for org admins.
+4. **Audit anchoring** — the chain head exported to Log Analytics hourly, so a rewritten chain is
+   caught outside the database (phase 8's DCR).
+5. **Azure Blob** behind `blobstore`, when a project nears its 1 GiB cap.
+6. **Server-signed release manifests** — when a manifest must verify outside our system.
+7. **A people picker** through Microsoft Graph, replacing invite-by-email — needs Graph consent.
+8. **Separation of duties** — an org policy that an approver may not approve their own design.
+
+---
+
+## 6. Rejected alternatives
+
+### 6.1 A broker (Keycloak) in front of Entra
+
+Rejected. **`OD-6`** asks for Entra SSO with auth-code + PKCE, and a broker adds a second token
+issuer the Hub must trust and the owner must operate. Panacea's Keycloak is a recurring outage class:
+one replica, in-memory sessions, a five-minute rebuild (`env` worktree,
+`planning/env/survey-own-environment.md:316`, and its §1.7). Phase 8 already recommends **no broker
+in v1** for itself and leaves the Hub's choice to this ADR (phase 8 plan `:119`, OQ-4). The
+only thing a broker buys that we need is customer identity federation, and Entra's own multi-tenant
+applications do that for Entra customers (§5.2). A customer on a non-Entra IdP is the one case that
+reopens this; none is on the roadmap.
+
+### 6.2 The Tauri shell runs the flow and holds the tokens
+
+Rejected. The consumers of the token are all in Go — the Hub client, phase 8's broker backend,
+phase 7's Panacea client and phase 3's git host clients. A shell-held token crosses a process
+boundary on every call, the shell gains a keyring crate, and `OD-5`'s *"the control plane calls it
+as the user"* stops being literally true. The one argument for the shell — that it can open the
+browser — is met by the renderer calling `tauri-plugin-opener` with a URL the control plane built.
+
+### 6.3 A new `hub/` Go module, with `httpx`, `ids` and `entra` lifted into a shared module
+
+Rejected for now (§4.1). It is the cleaner end state and costs a sweep of import paths across the
+control plane. **Revisit** when no phase branch is open against `control-plane/internal/api`. Nothing
+in this design depends on the module the code lives in, so the move is mechanical.
+
+### 6.4 An event-sourced store (Design C)
+
+Rejected (§4.2). It turns every read into a projection to keep correct. The Hub's only records that
+must never change — revisions, approvals, pins, evidence — are made immutable directly.
+
+### 6.5 The renderer calls the Hub directly
+
+Rejected. It needs the token in the renderer (the most exposed process, which renders agent output
+and, from phase 5, design frames), CORS at the Hub's edge, and a second client. It also splits
+provenance writes across two processes, which the provenance contract's P7 forbids.
+
+### 6.6 Membership from Entra group claims
+
+Rejected for v1. It needs IT to create a group per team, and KPMG users are likely to hit **group
+overage** — past 200 groups the token carries a Graph pointer instead of the list, and resolving it
+needs Graph consent. Team membership lives in the Hub, managed by team admins. **Unverified:** KPMG
+users' group counts.
+
+### 6.7 An object store for blobs in v1
+
+Rejected (G2). Phase 5's v1 snapshots are a handful of HTML files, PNGs and token files per approval.
+Postgres holds them transactionally with the approval that references them, backs them up with
+everything else, and erases them in the same transaction as their records.
+
+### 6.8 A disk cache or an offline write queue on the laptop
+
+Rejected (§5.4). A cache outlives an erase; a queue replays an approval or a pin at the wrong
+moment.
+
+### 6.9 A per-user store synchronised between machines
+
+Rejected by `OD-3` itself: shared from day one means one source of truth, not reconciled copies.
+
+### 6.10 gRPC or GraphQL
+
+Rejected. The control plane already speaks REST + JSON with one problem shape to the desktop; a
+second style doubles the error model for no caller that needs streaming or graph queries.
 
