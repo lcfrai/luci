@@ -198,7 +198,7 @@ after approval **is** the decision about whether the approval survives.
 
 | Option | Behaviour | Trade-off |
 |---|---|---|
-| **A. Pin and mark** — *recommended* | Before approval the mirror tracks the brief head. At approval it freezes with the design. When the brief moves on, our chrome says *"approved against brief rev 3 · brief now at rev 5"* (`superseded`, contract §4.1) and offers **Re-review against rev 5**, which rewrites the mirror and, through the digest, returns the canvas to review | A typo fix does not void an approval. The human decides when a brief change matters. Agents keep designing against rev 3 until re-bound, and the chrome says so |
+| **A. Pin and mark** — *recommended* | Before approval the mirror tracks the brief head. At approval it freezes with the design. When the brief moves on, our chrome says *"approved against brief rev 5 · brief now at rev 6"* (`superseded`, contract §4.1) and offers **Re-review against rev 6**, which rewrites the mirror and, through the digest, returns the canvas to review | A typo fix does not void an approval. The human decides when a brief change matters. Agents keep designing against rev 5 until re-bound, and the chrome says so |
 | **B. Void automatically** | Every brief edit rewrites the mirror; Northstar's digest voids the approval; the design returns to review | Strictest. Every brief edit, however small, forces a re-approval |
 
 Option A is the contract's stated default (*"does not silently re-point the approval"*, §4.2) and
@@ -227,7 +227,7 @@ our chrome ends and the embedded canvas begins and lists the fact behind every e
 |---|---|---|---|
 | 1 | **No canvas yet** | empty | The brief chip is present before anything else exists (P9) |
 | 2 | **Designing** — one agent running, one blocked on canvas access | live, partial, blocked | One heartbeat for every live dot; R7 drawn as a *needs-you* row, not hidden; the head `Ref` in the header |
-| 3 | **Approved** — design link pinned, handoff bundle, start a Develop session | success | *"approved against brief rev 3"*; the bundle says plainly what it holds and what it does not |
+| 3 | **Approved** — design link pinned, handoff bundle, start a Develop session | success | *"approved against brief rev 5"*; the bundle says plainly what it holds and what it does not; a Develop session started here inherits the brief **head**, like any session on the branch, and the design goes in a separate ledger link (contract §3.2) |
 | 4 | **Brief superseded after approval** | stale | D3 option A: the approval stands, marked `superseded`, with one re-bind action |
 | 5 | **Design changed after approval** | error | Northstar's digest guard, drawn by our chrome, with the approved and current design revisions side by side |
 | 6 | **Canvas server unreachable** | offline, error | Provenance survives a canvas outage because the design link is ours, not Northstar's |
@@ -242,16 +242,21 @@ our chrome ends and the embedded canvas begins and lists the fact behind every e
 - **One heartbeat.** Every live dot gets a negative `animation-delay` measured from one `EPOCH`, the
   same mechanism as `desktop/src/hooks/heartbeat.ts` (`BEAT_MS = 2400`). No per-row timer, no spinner.
 - **The brief chip has a fixed width** so `resolving` → `current` shifts nothing, and each of the six
-  states has its own treatment. Status carries a shape as well as a colour: circle running, triangle
-  needs-you, square failed/missing, ring idle, diamond superseded.
+  states has its own treatment. Status carries a shape as well as a colour: disc running and idle
+  (running breathes, and gains an outer ring under reduced motion), triangle needs-you, square
+  failed/missing, half-filled disc superseded, `!` unavailable — the one table all three prototypes
+  share (`prototype-fact-sheet.md` §10). Until 2026-09-23 this file drew superseded as a diamond,
+  which the Deploy prototype used for needs-you (completeness-critique-2 §2.4).
 - **Design changed after approval is amber, not red.** A human must act; nothing failed.
 - **No canvas dot grid.** `app.html`'s `radial-gradient` grid is the construct the phase-2 audit
   failed (R13). The viewport is a flat `--canvas` surface.
 - **Colour:** every value is a token in `:root`, taken from `app.html`. Three tokens are new names
   for values `app.html` uses inline (`--on-accent`, `--on-need`, `--fail-fg`), shadow alphas became
   `--sh-*` tokens, and `--drift-tint` is the one derived value (the `--drift` hue at 12% alpha).
-- **Radius follows `DESIGN-SYSTEM.md`'s 6 / 8 / 10 / 14**, not `app.html`'s 7 / 9, plus a 4px step
-  for elements smaller than a chip. `50%` and `1px` remain only on status shapes.
+- **Radius follows `DESIGN-SYSTEM.md`'s 6 / 8 / 10 / 14**, not `app.html`'s 7 / 9. `50%` and `1px`
+  remain only on status shapes and the avatar. **Changed 2026-09-23:** the extra 4px step
+  (`--r-xs`) this file had for elements smaller than a chip is gone; those five uses are now
+  `--r-chip`, so the file matches the scale exactly (completeness-critique-2 §4.4).
 - **Invented numbers:** none that do not map to a named field. Revisions, frame counts and digests
   are sample values of real fields (`Brief.Revision`, `headRevision`, `designRevision`, frame list,
   `reviewDigest`). I left out ages (*"waiting 4m"*) because I could not name the phase-2 field

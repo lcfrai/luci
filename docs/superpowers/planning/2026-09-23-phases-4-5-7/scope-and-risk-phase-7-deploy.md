@@ -329,12 +329,22 @@ Click a release row for its manifest.
   returns nothing. Values are `prototype/app.html`'s, plus tints, rings and shadow colours it lacked.
 - **Elevation** — cards, banners, the releases table and toasts use a 1px ring plus a layered
   shadow (`--e-card`, `--e-raised`, `--e-overlay`). Structural dividers are hairlines.
-- **Radius** — `DESIGN-SYSTEM.md`'s scale: chip 6, control 8, card 10, window 14. `app.html` uses
-  7 and 9; this file follows the design system, which is binding.
+- **Radius** — `DESIGN-SYSTEM.md`'s scale: chip 6, control 8, card 10, window 14, through the
+  `--r-*` tokens. `app.html` uses 7 and 9; this file follows the design system, which is binding.
+  Status shapes, the avatar, radio dots and the toggle thumb are shapes and use `50%` or `1px`, as
+  phase 2's `common.css` does. **Corrected 2026-09-23:** this line first claimed the scale while the
+  file held 1px, 3px, 4px, 5px, 8px and 9px literals on surfaces (completeness-critique-2 §4.4);
+  those are now tokens.
+- **Status shapes** — disc serving, running and idle; triangle needs-you; square failed or missing;
+  half-filled disc superseded; hollow ring not measured; `!` unavailable. This is the one table all
+  three prototypes share (`prototype-fact-sheet.md` §10). Until 2026-09-23 this file drew needs-you
+  as a diamond, which the Design prototype used for superseded (completeness-critique-2 §2.4).
 - **One heartbeat** — every live dot and the build hairline share one CSS clock: each render sets one
   negative `animation-delay` from a single time origin, so elements inserted at different moments
   still breathe in phase. One `setInterval` updates live numbers in place and never re-renders.
-- **Motion** — `transform` and `opacity` only; no `transition: all`; a changed fact flashes once
+- **Motion** — `transform` and `opacity` only, as `CLAUDE.md` requires; the toggle thumb's
+  `transform` transition would still fail phase 2's stricter rule 4 if lifted (completeness-critique-2
+  §3.4); no `transition: all`; a changed fact flashes once
   and decays over 600ms; `prefers-reduced-motion` stops all of it.
 - **Numbers** — `tabular-nums` on the whole document. No counts, percentages or health scores
   (`AGENTIC-UX.md` principles 4 and 10).

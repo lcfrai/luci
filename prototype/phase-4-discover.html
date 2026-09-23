@@ -61,11 +61,12 @@ body{background:var(--page);color:var(--ink);font:13.5px/1.45 var(--sans);-webki
 body::after{content:"";position:fixed;inset:0;background-image:var(--grain);opacity:.025;pointer-events:none;z-index:900}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 input,textarea,select{font:inherit;color:inherit}
-:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:3px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:var(--r-chip)}
 .mono{font-family:var(--mono)}
 .live{opacity:var(--pulse)}
 @keyframes decay{from{opacity:1}to{opacity:0}}
-@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}
+  .sd.run.live{box-shadow:0 0 0 1.5px var(--run)}}  /* running keeps a shape apart from idle when nothing breathes */
 
 /* OWNER-REVIEW STRIP — not product UI */
 .rev{height:32px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--field);
@@ -84,16 +85,22 @@ input,textarea,select{font:inherit;color:inherit}
 .rs{flex:1;overflow:auto;padding:4px 6px 12px}
 .mhd{padding:9px 7px 4px;font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--ink-4)}
 .prow{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:var(--r-ctl)}
-.pini{width:19px;height:19px;border-radius:5px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:9px;font-weight:700}
+.pini{width:19px;height:19px;border-radius:var(--r-chip);background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:9px;font-weight:700}
 .pnm{flex:1;font-size:12px;font-weight:600}
 .kids{padding-left:9px;margin-left:9px;box-shadow:inset 1px 0 0 var(--thread)}
-.brow{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:5px;position:relative}
+.brow{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:var(--r-chip);position:relative}
 .brow::before{content:"";position:absolute;left:-9px;top:50%;width:6px;height:1px;background:var(--thread)}
 .brow.sel{background:var(--accent-tint);box-shadow:inset 0 0 0 1px var(--accent-ring)}
 .bnm{flex:1;font-family:var(--mono);font-size:10.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brow.sel .bnm{color:var(--ink)}
-.sd{width:6px;height:6px;border-radius:50%;flex:0 0 auto;display:inline-block}
-.sd.run{background:var(--run)} .sd.idle{background:var(--ink-4)} .sd.need{background:var(--need)} .sd.fail{background:var(--fail)}
+/* STATUS SHAPES — one table for all three prototypes (prototype-fact-sheet.md §10): disc running/idle,
+   triangle needs-you, half-filled disc superseded, square missing/failed. Diamonds are lens glyphs only. */
+.sd{width:8px;height:8px;border-radius:50%;flex:0 0 auto;display:inline-block;vertical-align:middle;position:relative}
+.sd.run{background:var(--run)} .sd.idle{background:var(--ink-3)}
+.sd.need{background:var(--need);border-radius:0;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.sd.fail{background:var(--fail);border-radius:1px}
+.sd.drift{box-shadow:inset 0 0 0 1.5px var(--drift)}
+.sd.drift::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--drift);clip-path:inset(0 50% 0 0)}
 .sub{width:176px;flex:0 0 176px;background:var(--canvas);box-shadow:inset -1px 0 0 var(--line);display:flex;flex-direction:column}
 .stop{padding:10px 11px 9px;box-shadow:inset 0 -1px 0 var(--line-soft)}
 .sbr{font-family:var(--mono);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -127,7 +134,7 @@ h1.zero{font-family:var(--mono);font-size:22px;font-weight:500;letter-spacing:-.
 p.lede{font-size:13px;color:var(--ink-2);line-height:1.65;margin-bottom:6px;max-width:540px}
 p.lede b{color:var(--ink);font-weight:600}
 .inh{display:flex;gap:10px;padding:10px 12px;border-radius:var(--r-card);background:var(--surface);box-shadow:var(--e-card);margin-bottom:12px;font-size:12px}
-.inh .bar{width:2px;border-radius:2px;background:var(--thread);flex:0 0 auto}
+.inh .bar{width:2px;background:var(--thread);flex:0 0 auto}
 .inh .l{font-size:10.5px;color:var(--ink-3);margin-bottom:3px} .inh .t{color:var(--ink)}
 .pick{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-card);background:var(--surface);box-shadow:var(--e-card);margin-bottom:6px;width:100%;text-align:left}
 .pick:hover{box-shadow:0 0 0 1px var(--accent),0 1px 2px var(--sh-b),0 4px 12px var(--sh-c)}
@@ -182,8 +189,9 @@ p.lede b{color:var(--ink);font-weight:600}
 .chip.none{background:none;box-shadow:inset 0 0 0 1px var(--line-strong);color:var(--ink-3)}
 .chip.missing{color:var(--fail);box-shadow:inset 0 0 0 1px var(--fail-ring);background:var(--fail-tint)}
 .chip.resolving{width:150px;justify-content:flex-start}
-.chip.resolving i{display:block;height:6px;width:100%;border-radius:3px;background:var(--hover-2)}
-.chip.unavailable{color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--need-ring)}
+.chip.resolving i{display:block;height:6px;width:100%;border-radius:var(--r-chip);background:var(--hover-2)}
+.chip.unavailable{color:var(--ink-2)}
+.una{font-family:var(--mono);font-weight:700;color:var(--ink-2)}   /* the "!" mark: unavailable, in all three prototypes */
 button.chip:hover{box-shadow:0 0 0 1px var(--accent)}
 
 /* NOTES — stated cause and fix; tinted ring + layered shadow, never a flat border */
@@ -245,7 +253,7 @@ button.chip:hover{box-shadow:0 0 0 1px var(--accent)}
   <span class="kbd">[</span><span class="kbd">]</span>
   <span class="why" id="stateWhy"></span>
   <span class="sp"></span>
-  <span>Sample data. Revision numbers are computed from each sample brief's own history.</span>
+  <span>Sample data, the same brief as the Design and Deploy prototypes (prototype-fact-sheet.md). Revision numbers are computed from its history.</span>
 </div>
 <div class="app">
   <nav class="rail" id="rail" aria-label="Projects"></nav>
@@ -279,7 +287,8 @@ const QUESTIONS=[
   opts:['Anything the reviewer sees','Bulk operations','Billing','Nothing beyond the project brief']}];
 const PROJECT={id:'p-1',name:'Engagement Portal'};
 const BRANCH={id:'br-eu',name:'evidence-upload'};
-const OTHER_BRANCHES=['main','fix-session-timeout'];
+const OTHER_BRANCHES=['main','fix-session-timeout','feat/request-reminders-email','feat/request-reminders-sms'];
+/* Sample world shared with phase-5-design.html and phase-7-deploy.html: docs/superpowers/planning/2026-09-23-phases-4-5-7/prototype-fact-sheet.md */
 const PROJECT_HISTORY=[
  {op:'record',key:'purpose',text:'Client-facing portal for audit engagements: requests, evidence and status.'},
  {op:'record',key:'audience',text:'KPMG staff broadly'},
@@ -316,7 +325,7 @@ function renderBlock(briefId,n,sections,pRev){const L=[];
   L.push('# '+PROJECT.name+' — '+BRANCH.name,'');
   L.push('Written by Discover in Panacea App. Every session started on this branch reads it first.');
   L.push('Change it in Discover, not here: this block is regenerated and your edits inside it will be lost.','');
-  for(const s of sections){if(!s.val||s.val.by==='drafted')continue;L.push('## '+s.q.heading);  /* D2 proposal: drafted answers are not inherited */
+  for(const s of sections){if(!s.val||s.val.by==='drafted')continue;L.push('## '+s.q.heading);  /* 4-D2 proposal: drafted answers are not inherited */
     if(s.origin==='override')L.push('_Set on this branch, replacing the project brief: '+textOf(s.inherits)+'_','');
     if(s.origin==='project')L.push('_Inherited from the project brief._','');
     if(s.val.items)s.val.items.forEach(i=>L.push('- '+i));else L.push(s.val.text);L.push('')}
@@ -369,11 +378,11 @@ function chipState(key,o){o=o||{};if(o.unavailable)return{s:'unavailable'};if(o.
 function chip(key,o){const c=chipState(key,o),r=c.r;
   switch(c.s){
    case'current':return`<button class="chip" title="${esc(key)} — open in Discover at this revision"><span class="hl">${esc(r.headline)}</span><span class="r">rev ${r.revision}</span></button>`;
-   case'superseded':return`<button class="chip superseded" title="${esc(key)} — open in Discover at this revision"><span aria-hidden="true">◐</span><span class="r">rev ${r.revision} · brief now at rev ${r.headRevision}</span></button>`;
+   case'superseded':return`<button class="chip superseded" title="${esc(key)} — open in Discover at this revision"><span class="sd drift" aria-hidden="true"></span><span class="r">rev ${r.revision} · brief now at rev ${r.headRevision}</span></button>`;
    case'none':return`<span class="chip none">${esc(o&&o.noneText||'no brief')}</span>`;
-   case'missing':return`<button class="chip missing" title="Open the revision-not-found view"><span aria-hidden="true">✕</span>${esc(key)} not found</button>`;
+   case'missing':return`<button class="chip missing" title="Open the revision-not-found view"><span class="sd fail" aria-hidden="true"></span>${esc(key)} not found</button>`;
    case'resolving':return`<span class="chip resolving" role="status" aria-label="Resolving the brief"><i></i></span>`;
-   case'unavailable':return`<span class="chip unavailable"><span aria-hidden="true">!</span>could not reach the control plane</span>`;
+   case'unavailable':return`<span class="chip unavailable"><span class="una" aria-hidden="true">!</span>could not reach the control plane</span>`;
   }}
 
 /* ================================================================ THE BRIEF — side panel */
@@ -389,7 +398,7 @@ function sectionHTML(s,o){const drafted=s.val&&s.val.by==='drafted';
   if(s.val&&s.val.items)v='<ul>'+s.val.items.map(i=>`<li><span class="st">open</span><span>${esc(i)}</span></li>`).join('')+'</ul>';
   else if(s.val)v='<div class="v">'+esc(s.val.text)+'</div>';
   const was=s.origin==='override'?`<div class="was">Replaces the project answer: ${esc(textOf(s.inherits))}</div>`:'';
-  const chg=o.changed&&o.changed.includes(s.q.key)?'<span class="chg">◐ '+esc(o.changedLabel||'changed since')+'</span>':'';
+  const chg=o.changed&&o.changed.includes(s.q.key)?'<span class="chg"><span class="sd drift" aria-hidden="true"></span> '+esc(o.changedLabel||'changed since')+'</span>':'';
   return`<div class="sec"><div class="h"><span>${s.q.heading}</span>${chg}<span class="sp"></span>${originTag(s,o.pRev,drafted)}</div>${v}${was}</div>`}
 function briefPanel(o){
   if(!o.briefId&&!o.inherit){return`<div class="bhd"><span class="nm">The Brief</span><span class="key none">no brief</span></div>
@@ -413,6 +422,7 @@ function heirStrip(o){const rows=[];
 
 /* ================================================================ SHARED PIECES */
 const PB='b-7', BB='b-42';                       /* sample brief ids, in the plan's b-<n> form */
+const LOST=keyOf('b-40',5);                      /* the one key that does not resolve, in all three prototypes (fact sheet §7) */
 let PH=PROJECT_HISTORY;                         /* the project brief's history for the state on screen */
 const pHead=()=>rev(PH);
 const pAns=()=>answersAt(PH,pHead());
@@ -491,7 +501,7 @@ S.born={label:'4 · The Brief is born',why:'Where the provenance thread starts. 
     <div class="block">${blockHTML(renderBlock(BB,n,secs,pHead()))}</div></div>
    ${answeredList(a,true)}</div>`}}};
 
-S.followup={label:'5 · Follow-up drafted by the model',why:'A follow-up is not one of the five, so it carries no denominator. The model drafted the question and the person gives the answer.',render(){
+S.followup={label:'5 · Follow-up drafted by the model (a fork)',why:'A follow-up is not one of the five, so it carries no denominator. The model drafted the question and the person gives the answer. A fork after rev 3: adding the follow-up is this state’s rev 4, so its rev 4 is not the sample brief’s (fact sheet §8).',render(){
   const h=BRANCH_HISTORY.slice(0,3).concat([{op:'followup',key:'maxSize'}]);BRIEFS={[PB]:PH,[BB]:h};
   const n=rev(h),a=answersAt(h,n),secs=resolve(pAns(),a);
   shell({purpose:textOf(secs[0].val),topRight:chip(keyOf(BB,n))});
@@ -528,7 +538,8 @@ function sessRow(s,headKey){const c=chipState(s.ctx);
    <span class="sp">${chip(s.ctx)}<div class="m mono">…/${esc(s.wt)}/CLAUDE.md</div></span>
    ${c.s==='superseded'?`<button class="btn" onclick="toast('Restart belongs to Develop. It would write <b class=&quot;mono&quot;>${headKey}</b> into this worktree before the new process starts.')">Restart to inherit rev ${provenanceResolve(headKey).revision}</button>`:'<span class="m">on the current revision</span>'}</div>`}
 
-S.drafted={label:'7 · Drafted from the code',why:'The on-ramp for an existing repository. Proposal D2: a drafted answer is not inherited until a person accepts or changes it, and the brief records who wrote each answer.',render(){
+S.drafted={label:'7 · Drafted from the code (a fork)',why:'The on-ramp for an existing repository. Proposal 4-D2: a drafted answer is not inherited until a person accepts or changes it, and the brief records who wrote each answer. A different starting point from the sample brief, so it is its own brief, b-43 (fact sheet §8).',render(){
+  const BB='b-43';   /* shadows the sample id on purpose: no b-42 key may name this text */
   const h=[{op:'record',key:'purpose',text:'A portal where client users answer evidence requests for an audit engagement.',by:'drafted'},
    {op:'record',key:'audience',text:'Client users, and the KPMG staff who serve them',by:'drafted'},{op:'accept',key:'audience'},
    {op:'record',key:'constraints',text:'The /v1 REST API that the mobile client calls',by:'drafted'}];
@@ -543,7 +554,7 @@ S.drafted={label:'7 · Drafted from the code',why:'The on-ramp for an existing r
      ${pend?'<div class="acts"><button class="btn pri" onclick="toast(\'Accepted. Saved as a new revision. Now inherited.\')">Accept</button><button class="btn">Change it</button></div>':''}</div>`};
   shell({purpose:'Drafted, not yet accepted',topRight:chip(keyOf(BB,n))});
   return{side:briefPanel({briefId:BB,n,sections:secs,pRev:0,
-     dest:'Only answers a person has written or accepted go into <span class="p">CLAUDE.md</span>. <b>Drafted answers stay out until you accept them.</b> Proposal D2.'}),
+     dest:'Only answers a person has written or accepted go into <span class="p">CLAUDE.md</span>. <b>Drafted answers stay out until you accept them.</b> Proposal 4-D2.'}),
    flow:`<div class="inner"><div class="step">EXISTING REPOSITORY · DRAFTED FROM THE CODE</div>
    <h2 class="q">This is what the code suggests the branch is for. Correct it.</h2>
    <p class="help">Each draft names the files it was read from. Accepting one saves a revision that records you accepted a drafted answer. Changing one saves your words as your own answer.</p>
@@ -551,17 +562,19 @@ S.drafted={label:'7 · Drafted from the code',why:'The on-ramp for an existing r
 
 function movedState(o){return{label:o.label,why:o.why,enter(){toast(o.toastHTML,()=>toast(o.undoHTML))},render(){
   PH=o.ph;const h=o.bh;BRIEFS={[PB]:PH,[BB]:h};const n=rev(h),a=answersAt(h,n),secs=resolve(pAns(),a),headKey=keyOf(BB,n);
-  const prevSecs=resolve(answersAt(PROJECT_HISTORY,rev(PROJECT_HISTORY)),answersAt(BRANCH_HISTORY,rev(BRANCH_HISTORY)));
-  const oldBlock=renderBlock(BB,rev(BRANCH_HISTORY),prevSecs,rev(PROJECT_HISTORY)),newBlock=renderBlock(BB,n,secs,pHead());
+  const from=o.from||BRANCH_HISTORY,fromPh=o.fromPh||PROJECT_HISTORY;   /* the revision the running sessions last read */
+  const prevSecs=resolve(answersAt(fromPh,rev(fromPh)),answersAt(from,rev(from)));
+  const oldBlock=renderBlock(BB,rev(from),prevSecs,rev(fromPh)),newBlock=renderBlock(BB,n,secs,pHead());
   const behind=o.sessions.filter(s=>chipState(s.ctx).s==='superseded');
+  const byKey={};behind.forEach(s=>(byKey[s.ctx]=byKey[s.ctx]||[]).push(s.name));
   shell({purpose:textOf(secs[0].val),topRight:chip(headKey),sessions:o.sessions});
   return{side:briefPanel({briefId:BB,n,inherit:{id:PB,n:pHead()},sections:secs,pRev:pHead(),changed:o.changed,changedLabel:'changed in rev '+n,heir:true,sessions:o.sessions,
      dest:'Every session started on this branch from now on inherits <span class="mono">'+headKey+'</span>. Sessions already running keep the revision they started with until they restart.'}),
    flow:`<div class="inner">
-   <div class="note drift"><span class="ic">◐</span><div class="tx">${o.noteHTML}
-     <div class="why-line">${behind.map(s=>esc(s.name)).join(' · ')} inherited <span>${esc(behind[0]?behind[0].ctx:'')}</span></div></div></div>
+   <div class="note drift"><span class="ic"><span class="sd drift" aria-hidden="true"></span></span><div class="tx">${o.noteHTML}
+     <div class="why-line">${Object.keys(byKey).map(k=>esc(byKey[k].join(' · '))+' inherited <span>'+esc(k)+'</span>').join('; ')}</div></div></div>
    <div class="sech">SESSIONS ON THIS BRANCH</div>${o.sessions.map(s=>sessRow(s,headKey)).join('')}
-   <div class="done"><div class="sech">WHAT CHANGED IN CLAUDE.md, rev ${rev(BRANCH_HISTORY)} → rev ${n}</div><div class="block">${diffHTML(oldBlock,newBlock)}</div></div></div>`}}}}
+   <div class="done"><div class="sech">WHAT CHANGED IN CLAUDE.md, rev ${rev(from)} → rev ${n}</div><div class="block">${diffHTML(oldBlock,newBlock)}</div></div></div>`}}}}
 const SESS=[{name:'upload-api',wt:'wt-upload-api',status:'run'},{name:'scan-hook',wt:'wt-scan-hook',status:'run'},{name:'upload-ui',wt:'wt-upload-ui',status:'idle'}];
 const k5=keyOf(BB,rev(BRANCH_HISTORY)),k6=keyOf(BB,rev(BRANCH_HISTORY)+1);
 S.superseded=movedState({label:'8 · Brief moved on while sessions run',why:'Contract §4.3: an agent working from instructions that have since changed must be told. Restart is offered per session. An Undo window replaces a confirm dialog.',
@@ -569,21 +582,22 @@ S.superseded=movedState({label:'8 · Brief moved on while sessions run',why:'Con
   sessions:[{...SESS[0],ctx:k5},{...SESS[1],ctx:k5},{...SESS[2],ctx:k6}],
   toastHTML:'Saved <b>rev '+(rev(BRANCH_HISTORY)+1)+'</b> of the brief.',undoHTML:'Undo saves the previous text as a new revision. No revision is ever deleted.',
   noteHTML:'<b>You changed the definition of done.</b> Sessions that started before the change are still working from the old revision. They read <span class="mono">CLAUDE.md</span> once, when their process started.'});
-S.projectmoved=movedState({label:'9 · Project brief changed (D3)',why:'Proposal D3: a project edit saves a new revision of every branch brief that inherits it, so one key still names exactly the text an agent read. This is the visible cost.',
+const AFTER_EDIT=BRANCH_HISTORY.concat([EDIT_DONE]);   /* rev 6: the head in the other two prototypes */
+S.projectmoved=movedState({label:'9 · Project brief changed (4-D3)',why:'Proposal 4-D3: a project edit saves a new revision of every branch brief that inherits it, so one key still names exactly the text an agent read. This is the visible cost. It continues past the other prototypes’ “now”: the brief was at rev 6, and this saves rev 7 (fact sheet §8).',
   ph:PROJECT_HISTORY.concat([{op:'edit',key:'constraints',text:'Existing client data; the published API; evidence retention periods'}]),
-  bh:BRANCH_HISTORY.concat([{op:'reinherit'}]),changed:[],
-  sessions:[{...SESS[0],ctx:k5},{...SESS[1],ctx:k5}],
-  toastHTML:'Project brief saved. This branch’s brief re-inherited it as <b>rev '+(rev(BRANCH_HISTORY)+1)+'</b>.',undoHTML:'Undo saves the previous project text as a new revision. No revision is ever deleted.',
-  noteHTML:'<b>The project brief changed, and this branch inherits it.</b> This branch’s brief saved a new revision that records the new project text, so running sessions here are now a revision behind. Nothing on this branch was edited.'});
+  from:AFTER_EDIT,bh:AFTER_EDIT.concat([{op:'reinherit'}]),changed:[],
+  sessions:[{...SESS[0],ctx:k5},{...SESS[1],ctx:k5},{...SESS[2],ctx:k6}],
+  toastHTML:'Project brief saved. This branch’s brief re-inherited it as <b>rev '+(rev(AFTER_EDIT)+1)+'</b>.',undoHTML:'Undo saves the previous project text as a new revision. No revision is ever deleted.',
+  noteHTML:'<b>The project brief changed, and this branch inherits it.</b> This branch’s brief saved a new revision that records the new project text, so every running session here is now behind the head. Nothing on this branch was edited.'});
 
 /* A settled branch brief at its head, shared by the remaining states. */
 function settled(h){BRIEFS={[PB]:PH,[BB]:h};const n=rev(h),a=answersAt(h,n);return{n,a,secs:resolve(pAns(),a),k:keyOf(BB,n)}}
 
-S.writefailed={label:'10 · Write failed, session not started (D1)',why:'Proposal D1: if the brief cannot be written before the process starts, the session does not start. Going on without the brief is one deliberate, visible click.',render(){
+S.writefailed={label:'10 · Write failed, session not started (4-D1)',why:'Proposal 4-D1: if the brief cannot be written before the process starts, the session does not start. Going on without the brief is one deliberate, visible click.',render(){
   const {n,a,secs,k}=settled(BRANCH_HISTORY);shell({purpose:textOf(secs[0].val),topRight:chip(k)});
   return{side:briefPanel({briefId:BB,n,inherit:inh(),sections:secs,pRev:pHead(),dest:nobodyYet,heir:true,sessions:[]}),
    flow:`<div class="inner">
-   <div class="note fail"><span class="ic">✕</span><div class="tx"><b>The session did not start.</b> The brief could not be written into
+   <div class="note fail"><span class="ic"><span class="sd fail" aria-hidden="true"></span></span><div class="tx"><b>The session did not start.</b> The brief could not be written into
      <span class="mono">…/wt-upload-api/CLAUDE.md</span>, and an agent started now would work without it and nothing would say so.
      <div class="why-line">Another process held the file open. The write was retried five times, as the shared atomic-write helper does, and failed each time.</div>
      <div class="acts"><button class="btn pri" onclick="toast('Prototype: retry is not wired. It repeats the write, then starts the process only if the write landed.')">Try again</button>
@@ -600,7 +614,7 @@ S.handedited={label:'11 · CLAUDE.md block edited by hand',why:'Proposal, not in
   return{side:briefPanel({briefId:BB,n,inherit:inh(),sections:secs,pRev:pHead(),heir:true,sessions:[{...SESS[1],ctx:k}],
      dest:'<span class="mono">'+k+'</span> was written into <span class="p">…/wt-scan-hook/CLAUDE.md</span>.'}),
    flow:`<div class="inner">
-   <div class="note need"><span class="ic">△</span><div class="tx"><b>Someone edited the Discover block in <span class="mono">…/wt-scan-hook/CLAUDE.md</span> by hand.</b>
+   <div class="note need"><span class="ic"><span class="sd need" aria-hidden="true"></span></span><div class="tx"><b>Someone edited the Discover block in <span class="mono">…/wt-scan-hook/CLAUDE.md</span> by hand.</b>
      Its marker still says <span class="mono">rev=${n}</span>, but the text no longer matches revision ${n}. The next write replaces the block, and the line below will be lost.
      <div class="acts"><button class="btn pri" onclick="P.edit('done')">Add it to the definition of done</button>
       <button class="btn ghost" onclick="toast('Left as it is. The next write to this worktree replaces the block.')">Let the next write replace it</button></div></div></div>
@@ -616,20 +630,20 @@ S.past={label:'12 · Past revision, read-only',why:'Contract §4.1: every chip o
    flow:`<div class="inner"><div class="ro"><span>Reading <span class="mono">${keyOf(BB,n)}</span>. Read-only.</span><span class="sp"></span>
      <span>The brief is now at revision ${hn}.</span><button class="btn" onclick="P.go('superseded')">Open revision ${hn}</button></div>
    <div class="sech">WHAT A SESSION STARTED AT REVISION ${n} READ</div><div class="block">${blockHTML(renderBlock(BB,n,secs,pHead()))}</div>
-   <p class="cap" style="margin-top:8px">Answers marked ◐ in the panel have changed since this revision.</p></div>`}}};
+   <p class="cap" style="margin-top:8px">Answers marked <span class="sd drift" aria-hidden="true"></span> in the panel have changed since this revision.</p></div>`}}};
 
 S.missing={label:'13 · Revision not found',why:'Contract §4.1 "missing": a key was supplied and no revision answers it. This is data loss in our own store, a different fact from having no brief.',render(){
-  const {n,secs,k}=settled(BRANCH_HISTORY);const bad=keyOf(BB,n+4);   /* a key past the head: cannot resolve */
+  const {n,secs,k}=settled(BRANCH_HISTORY);const bad=LOST;   /* the one key no store answers (fact sheet §7) */
   shell({purpose:textOf(secs[0].val),topRight:chip(k)});
-  return{side:briefPanel({briefId:BB,n,inherit:inh(),sections:secs,pRev:pHead(),heir:true,sessions:[{...SESS[0],ctx:bad}]}),
+  return{side:briefPanel({briefId:BB,n,inherit:inh(),sections:secs,pRev:pHead(),heir:true,sessions:[{name:'old-upload',status:'run',ctx:bad}]}),
    flow:`<div class="inner">
-   <div class="note fail"><span class="ic">✕</span><div class="tx"><b>No revision answers <span class="mono">${bad}</span>.</b>
-     Session <span class="mono">upload-api</span> holds this key as the brief it inherited, but brief ${BB} only has revisions 1 to ${n} in the Brief store.
+   <div class="note fail"><span class="ic"><span class="sd fail" aria-hidden="true"></span></span><div class="tx"><b>No revision answers <span class="mono">${bad}</span>.</b>
+     Session <span class="mono">old-upload</span> holds this key as the brief it inherited, but the Brief store has no record of that brief at all. This branch’s brief is ${BB}, at revision ${n}.
      <div class="why-line">Revisions are never deleted, so this means the Brief store lost data. It is not something the person did. The session keeps running. Its header shows this key and "not found" until the store is repaired.</div>
      <div class="acts"><button class="btn" onclick="P.go('born')">Open the current revision, rev ${n}</button>
       <button class="btn ghost" onclick="toast('Copied <b class=&quot;mono&quot;>${bad}</b>.')">Copy the key</button></div></div></div>
    <div class="sech">ON THAT SESSION’S HEADER</div>
-   <div class="ph"><span class="sd run live"></span><span class="nm mono">upload-api</span><span class="sp"></span>${chip(bad)}</div></div>`}}};
+   <div class="ph"><span class="sd run live"></span><span class="nm mono">old-upload</span><span class="sp"></span>${chip(bad)}</div></div>`}}};
 
 S.unavailable={label:'14 · Control plane unreachable',why:'Contract §4.1 "unavailable". The answer is not saved and the page does not pretend it was. The typed text stays where it was typed.',render(){
   const h=BRANCH_HISTORY.slice(0,1);BRIEFS={[PB]:PH,[BB]:h};const n=rev(h),a=answersAt(h,n),secs=resolve(pAns(),a),q=QUESTIONS[1];
@@ -647,9 +661,9 @@ S.unavailable={label:'14 · Control plane unreachable',why:'Contract §4.1 "unav
 S.chips={label:'15 · Downstream: the chip on a session header',why:'The thread leaving Discover. Every session pane header in Develop carries one chip, resolved from that session’s own key. There are six states and none is ever hidden.',render(){
   const head=BRANCH_HISTORY.concat([EDIT_DONE]);BRIEFS={[PB]:PH,[BB]:head};const hn=rev(head),a=answersAt(head,hn),secs=resolve(pAns(),a);
   const rows=[['upload-ui',keyOf(BB,hn),{},'current: the key resolves and it is the head.'],
-   ['upload-api',keyOf(BB,hn-1),{},'superseded: started before the last edit. Colour plus the ◐ shape, never colour alone.'],
+   ['upload-api',keyOf(BB,hn-1),{},'superseded: started before the last edit. Colour plus the half-filled disc, never colour alone.'],
    ['spike-thumbnails','',{noneText:'no brief'},'none: nothing was written before this process started. Quiet, but shown.'],
-   ['scan-hook',keyOf(BB,hn+3),{},'missing: the key is shown verbatim, because the store lost that revision.'],
+   ['old-upload',LOST,{},'missing: the key is shown verbatim, because the store lost that revision.'],
    ['docs-pass',keyOf(BB,hn),{resolving:true},'resolving: fixed width, no spinner, so nothing moves when it resolves.'],
    ['lint-fix',keyOf(BB,hn),{unavailable:true},'unavailable: the resolver call failed. This is the call site’s own sentence.']];
   shell({purpose:textOf(secs[0].val),topRight:chip(keyOf(BB,hn)),sessions:[1]});

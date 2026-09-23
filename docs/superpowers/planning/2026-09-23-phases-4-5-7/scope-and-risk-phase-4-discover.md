@@ -147,7 +147,7 @@ written:
 1. **One key cannot name inherited text. This is a real gap and I verified it in the plan.**
    `discover.Document` carries exactly one `BriefID` and one `Revision` (plan `:1724-1730`).
    `Resolve(project, branch)` copies the project brief's answers into it (plan `:1791`). So a
-   branch session's `contextRef = brief:b-42@3` names the branch brief. The block that session read
+   branch session's `contextRef = brief:b-42@5` names the branch brief. The block that session read
    also contains **project** text, and no key pins it. Edit the project brief and the next session on
    that branch reads different text under the **same key**. That breaks the contract's central
    claim that a key names immutable text (§3). → **Decision D3.**
@@ -232,14 +232,20 @@ through the states.
 - **Motion only where it explains a cause.** The key flashes and decays over 600ms (opacity on a
   pseudo-element) only when a save mints a revision, never when a state is revisited. There are
   no entrance animations, and hover changes rings, not layout.
-- **Colour plus shape**, for every provenance state: `◐` superseded, `✕` missing, `!`
-  unavailable, `◌` drafted, and for `none` an unfilled outlined chip with the words "no brief". Colour is never the only
-  signal.
+- **Colour plus shape**, for every provenance state: a half-filled disc for superseded, a square for
+  missing, `!` for unavailable, `◌` for drafted, and for `none` an unfilled outlined chip with the words "no brief". Colour is never the only
+  signal. The shapes are the one table all three prototypes share (`prototype-fact-sheet.md` §10);
+  until 2026-09-23 this prototype used `◐`, `✕` and `△` glyphs, which the other two drew differently
+  (completeness-critique-2 §2.4).
 - **Fixed-width chips on session headers**, so `resolving → current` never shifts a pixel. The
   placeholder is a static bar, not a spinner.
-- **Tokens only.** Names come from the shipped `tokens.css` and values from `app.html`. There is no
-  colour literal outside `:root`. Radius is 6, 8, 10 or 14 by element size. Elevation is always a
-  ring plus a layered shadow.
+- **Tokens only.** Names come from the shipped `tokens.css` and values from `app.html`, except at
+  least nine the file defines that `tokens.css` lacks (`--drift-tint`, `--need-ring` and others —
+  completeness-critique-2 §3.4). There is no colour literal outside `:root`. Radius is 6, 8, 10 or
+  14 by element size, through the `--r-*` tokens; status dots are shapes and use `50%` or `1px`, as
+  phase 2's `common.css` does. **Corrected 2026-09-23:** this sentence first claimed the scale while
+  the file held 2px, 3px and 5px literals (completeness-critique-2 §4.4); those are now tokens.
+  Elevation is always a ring plus a layered shadow.
 
 ## 7. What I could not verify
 

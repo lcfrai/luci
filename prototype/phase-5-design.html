@@ -25,7 +25,7 @@
   --paper:#fff; --paper-ink:#191614; --paper-ink-2:#6d655e; --paper-ink-3:#a8a099;
   --paper-line:#e3e3e3; --paper-fill:#eee; --paper-dash:#ddd; --paper-acc:#2fa0aa;
   /* radius scale tied to element size */
-  --r-xs:4px; --r-chip:6px; --r-ctl:8px; --r-card:10px; --r-win:14px;
+  --r-chip:6px; --r-ctl:8px; --r-card:10px; --r-win:14px;
   /* elevation: a 1px ring plus a layered shadow, never a flat border */
   --e-hair:0 0 0 1px var(--line);
   --e-btn:0 0 0 1px var(--line),0 1px 2px var(--sh-soft);
@@ -43,7 +43,7 @@ body{background:var(--page);color:var(--ink);font:13.5px/1.45 var(--sans);-webki
   overflow:hidden;font-variant-numeric:tabular-nums}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 input{font:inherit}
-:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:var(--r-xs)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:var(--r-chip)}
 .mono{font-family:var(--mono)}
 /* one heartbeat: every .live element shares one phase (delay set from one EPOCH in script) */
 @keyframes beat{0%,100%{opacity:.4}50%{opacity:1}}
@@ -84,7 +84,7 @@ input{font:inherit}
 .srow{font-size:10.5px;color:var(--ink-3)} .srow .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rfoot{border-top:1px solid var(--line);padding:7px 9px;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-3)}
 .me{width:22px;height:22px;border-radius:50%;background:var(--inset);box-shadow:var(--e-hair);display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--ink-2)}
-.kbd{font-family:var(--mono);font-size:9.5px;padding:1px 5px;border-radius:var(--r-xs);background:var(--inset);box-shadow:var(--e-hair);color:var(--ink-4)}
+.kbd{font-family:var(--mono);font-size:9.5px;padding:1px 5px;border-radius:var(--r-chip);background:var(--inset);box-shadow:var(--e-hair);color:var(--ink-4)}
 .sub{width:176px;flex:0 0 176px;background:var(--canvas);border-right:1px solid var(--line);display:flex;flex-direction:column}
 .stop{padding:10px 11px 9px;border-bottom:1px solid var(--line-soft)}
 .sbr{font-family:var(--mono);font-size:11px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -95,13 +95,18 @@ input{font:inherit}
 .mi{width:12px;text-align:center;font-size:10.5px;color:var(--ink-4)} .mod.sel .mi{color:var(--accent)}
 .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--page);position:relative}
 
-/* STATUS — every status carries a shape as well as a colour */
-.st{width:8px;height:8px;flex:0 0 auto;display:inline-block}
+/* STATUS — every status carries a shape as well as a colour. One table for all three prototypes
+   (prototype-fact-sheet.md §10): disc running/idle, triangle needs-you, half-filled disc superseded,
+   square missing/failed. Diamonds are lens glyphs only. */
+.st{width:8px;height:8px;flex:0 0 auto;display:inline-block;position:relative}
 .st.run{background:var(--run);border-radius:50%}
 .st.need{background:var(--need);clip-path:polygon(50% 0,100% 100%,0 100%)}
 .st.fail{background:var(--fail);border-radius:1px}
-.st.idle{border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-3)}
-.st.drift{background:var(--drift);transform:rotate(45deg) scale(.8);border-radius:1px}
+.st.idle{border-radius:50%;background:var(--ink-3)}
+.st.drift{border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--drift)}
+.st.drift::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--drift);clip-path:inset(0 50% 0 0)}
+@media(prefers-reduced-motion:reduce){.st.run.live{box-shadow:0 0 0 1.5px var(--run)}}  /* running keeps a shape apart from idle */
+.una{font-family:var(--mono);font-weight:700;color:var(--ink-2)}   /* the "!" mark: unavailable, in all three prototypes */
 
 /* DESIGN LENS */
 .top{min-height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line);flex:0 0 auto}
@@ -138,8 +143,8 @@ input{font:inherit}
 .bchip.none{background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--ink-3);cursor:default}
 .bchip.miss{box-shadow:0 0 0 1px var(--fail-tint)} .bchip.miss .key{font-family:var(--mono);font-size:10.5px;color:var(--fail-fg)}
 .bchip.miss .nf{color:var(--fail);font-size:10.5px;font-weight:600}
-.bchip.res{cursor:default} .bchip.res .ph{width:168px;height:8px;border-radius:var(--r-xs);background:var(--hover)}
-.bchip.una{cursor:default;color:var(--ink-2)} .bchip.una .why{font-size:10.5px}
+.bchip.res{cursor:default} .bchip.res .ph{width:168px;height:8px;border-radius:var(--r-chip);background:var(--hover)}
+.bchip.unav{cursor:default;color:var(--ink-2)} .bchip.unav .why{font-size:10.5px}
 .bchip .glyph{font-family:var(--mono);font-size:10px;color:var(--ink-4)}
 
 /* CANVAS VIEWPORT — the embedded Northstar region. Flat surface: no gradient dot grid (R13) */
@@ -152,8 +157,8 @@ input{font:inherit}
 .pp-drop{border:2px dashed var(--paper-dash);border-radius:var(--r-ctl);padding:16px;text-align:center;color:var(--paper-ink-3);margin-top:5px}
 .pp-field{border:1px solid var(--paper-line);border-radius:var(--r-chip);padding:6px 8px;margin-top:3px}
 .pp-card{border:1px solid var(--paper-line);border-radius:var(--r-ctl);padding:10px;margin-bottom:8px}
-.pp-bar{height:4px;background:var(--paper-fill);border-radius:var(--r-xs);margin:8px 0}
-.pp-bar i{display:block;height:100%;width:62%;background:var(--paper-acc);border-radius:var(--r-xs)}
+.pp-bar{height:4px;background:var(--paper-fill);border-radius:var(--r-chip);margin:8px 0}
+.pp-bar i{display:block;height:100%;width:62%;background:var(--paper-acc);border-radius:var(--r-chip)}
 .pp-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--paper-fill);font-size:10.5px}
 .pp-row span:last-child{color:var(--paper-ink-2)}
 .vpmsg{position:absolute;inset:0;display:grid;place-items:center}
@@ -234,31 +239,34 @@ const EPOCH=performance.now(), BEAT_MS=2400;
 function syncBeat(){const d=-((performance.now()-EPOCH)%BEAT_MS);
   document.querySelectorAll('.live').forEach(el=>{el.style.animationDelay=d+'ms'})}
 
-/* ---------- sample data — identifiers and revisions are illustrative; every one maps to a named field ---------- */
-const BRIEF={id:'b-42',headline:'Testers upload evidence; every file is scanned and classified before a reviewer sees it'};
+/* ---------- sample data — the one sample world shared with phase-4-discover.html and phase-7-deploy.html:
+   docs/superpowers/planning/2026-09-23-phases-4-5-7/prototype-fact-sheet.md. Every value maps to a named field ---------- */
+const BRIEF={id:'b-42',headline:'Let client users upload evidence files against an open request.'};
+const LOST='brief:b-40@5';   /* the one key no store answers (fact sheet §7) */
 const FRAMES=[
-  {id:'f1',name:'Control detail',x:28,y:48,w:210,h:300,kind:'detail'},
+  {id:'f1',name:'Open request',x:28,y:48,w:210,h:300,kind:'detail'},
   {id:'f2',name:'Scanning',x:258,y:48,w:210,h:300,kind:'scan'},
   {id:'f3',name:'Evidence list',x:488,y:48,w:210,h:300,kind:'list'}];
-const OTHER_SESSIONS=[ /* phase-2 sessions on this branch that are not design sessions */
-  {name:'upload handler',st:'run'},{name:'test harness',st:'need'},{name:'docs',st:'idle'}];
+const OTHER_SESSIONS=[ /* phase-2 sessions on this branch that are not design sessions (fact sheet §5) */
+  {name:'upload-api',st:'run'},{name:'scan-hook',st:'run'}];
 
 /* M is the whole prototype model. Everything on screen is derived from it. */
 let M={};
 const PRESETS={
-  1:()=>({view:'lens',canvas:false,canvasUp:true,briefRev:3,mirrorRev:3,designRev:0,frames:[],approval:null,changed:null,
+  /* brief b-42: rev 5 is the first complete revision, rev 6 edits the definition of done (fact sheet §2) */
+  1:()=>({view:'lens',canvas:false,canvasUp:true,briefRev:5,mirrorRev:5,designRev:0,frames:[],approval:null,changed:null,
           design:[]}),
-  2:()=>({view:'lens',canvas:true,canvasUp:true,briefRev:3,mirrorRev:3,designRev:11,frames:FRAMES,approval:null,changed:null,
+  2:()=>({view:'lens',canvas:true,canvasUp:true,briefRev:5,mirrorRev:5,designRev:11,frames:FRAMES,approval:null,changed:null,
           design:[{name:'design-1',st:'run',line:'laying out the evidence list'},
                   {name:'design-2',st:'need',blocked:'access'}]}),
-  3:()=>({view:'lens',canvas:true,canvasUp:true,briefRev:3,mirrorRev:3,designRev:11,frames:FRAMES,
-          approval:{designRev:11,briefRev:3,by:'Dylan Mackie',digest:'sha256:9c41…e07a'},changed:null,
+  3:()=>({view:'lens',canvas:true,canvasUp:true,briefRev:5,mirrorRev:5,designRev:11,frames:FRAMES,
+          approval:{designRev:11,briefRev:5,by:'Dylan Mackie',digest:'sha256:9c41…e07a'},changed:null,
           design:[{name:'design-1',st:'idle',line:'done — 3 frames ready for review'},{name:'design-2',st:'idle',line:null}]}),
-  4:()=>({...PRESETS[3](),briefRev:5}),
+  4:()=>({...PRESETS[3](),briefRev:6}),
   5:()=>({...PRESETS[3](),designRev:12,changed:{frame:'f2',by:'design-1'},
           design:[{name:'design-1',st:'run',line:'tightening the scanning copy'},{name:'design-2',st:'idle',line:null}]}),
   6:()=>({...PRESETS[3](),canvasUp:false}),
-  7:()=>({...PRESETS[3](),view:'specimen'})};
+  7:()=>({...PRESETS[4](),view:'specimen'})};
 let STATE=2;
 const STATE_NAMES={1:'No canvas yet',2:'Designing',3:'Approved',4:'Brief superseded',5:'Changed after approval',
   6:'Canvas unreachable',7:'Brief chip · six states'};
@@ -285,23 +293,21 @@ function renderRail(){
   $('#rail').innerHTML=`<div class="mchip"><div class="mark">P</div>
       <div><div class="m1">aue-kata-01</div><div class="m2">this user's machine</div></div></div>
     <div class="rs"><div class="mhd">PROJECTS</div>
-      <div class="prow sel"><span class="pini">CT</span><span class="pnm">Control Testing</span></div>
+      <div class="prow sel"><span class="pini">EP</span><span class="pnm">Engagement Portal</span></div>
       <div class="kids">
         <div class="brow"><span class="bnm">main</span></div>
-        <div class="brow sel"><span class="bnm">feature/evidence-upload</span></div>
+        <div class="brow sel"><span class="bnm">evidence-upload</span></div>
         <div class="kids">${rows.map(r=>`<div class="srow"><span class="st ${r.st}${r.st==='run'?' live':''}"></span>
           <span class="t">${esc(r.name)}</span></div>`).join('')}</div>
-        <div class="brow"><span class="bnm">client-preview</span></div>
-      </div>
-      <div class="prow"><span class="pini">VS</span><span class="pnm">Verity Serum</span></div>
-      <div class="prow"><span class="pini">MF</span><span class="pnm">Manifold</span></div></div>
+        ${['fix-session-timeout','feat/request-reminders-email','feat/request-reminders-sms'].map(b=>`<div class="brow"><span class="bnm">${b}</span></div>`).join('')}
+      </div></div>
     <div class="rfoot"><div class="me">DM</div><span style="flex:1">Dylan Mackie</span><span class="kbd">⌘K</span></div>`}
 
-/* ---------- sub-rail: the lenses. Design is selected. ---------- */
+/* ---------- sub-rail: the six lenses phase 2 ships (SubRail.tsx LENSES), in its order. Design is selected. ---------- */
 function renderSub(){
-  const L=[['◇','Discover'],['◩','Design'],['▤','Develop'],['⑂','Merge'],['▲','Deploy'],['◧','Files']];
-  $('#sub').innerHTML=`<div class="stop"><div class="sbr">feature/evidence-upload</div>
-      <div class="spurpose">Control Testing</div></div>
+  const L=[['◇','Discover'],['◈','Design'],['◆','Develop'],['▤','Files'],['⑂','Merge'],['▲','Deploy']];
+  $('#sub').innerHTML=`<div class="stop"><div class="sbr">evidence-upload</div>
+      <div class="spurpose">${esc(BRIEF.headline)}</div></div>
     <div class="mods">${L.map(([i,n])=>`<div class="mod${n==='Design'?' sel':''}"><span class="mi">${i}</span>${n}</div>`).join('')}</div>`}
 
 /* ---------- the brief chip — contract §4.1. Fixed width, so resolving never shifts layout. ---------- */
@@ -309,16 +315,16 @@ const CHIP_W=380;
 function chip(kind,o={}){const w=`style="width:${o.w||CHIP_W}px;flex:0 1 ${o.w||CHIP_W}px"`;
   switch(kind){
     case 'current': return `<span class="bchip" ${w} title="${esc(briefKey(o.rev))} — opens Discover at this revision, read-only"
-        onclick="openDiscover(${o.rev})"><span class="glyph">◇</span><span class="hl">${esc(BRIEF.headline)}</span>
+        onclick="openDiscover(${o.rev})"><span class="hl">${esc(BRIEF.headline)}</span>
         <span class="rev">rev ${o.rev}</span></span>`;
     case 'superseded': return `<span class="bchip sup" ${w} title="${esc(briefKey(o.rev))} — opens Discover at this revision, read-only"
         onclick="openDiscover(${o.rev})"><span class="st drift"></span><span class="hl">${esc(BRIEF.headline)}</span>
         <span class="rev">rev ${o.rev}</span><span class="now">· brief now at rev ${o.head}</span></span>`;
-    case 'none': return `<span class="bchip none" ${w}><span class="glyph">◇</span><span class="lbl">${esc(o.text||'not bound to a brief')}</span></span>`;
-    case 'missing': return `<span class="bchip miss" ${w} onclick="openDiscover(${o.rev})"><span class="st fail"></span>
-        <span class="key">${esc(briefKey(o.rev))}</span><span class="nf">not found</span></span>`;
-    case 'resolving': return `<span class="bchip res" ${w} aria-busy="true"><span class="glyph">◇</span><span class="ph"></span></span>`;
-    case 'unavailable': return `<span class="bchip una" ${w}><span class="glyph">◇</span>
+    case 'none': return `<span class="bchip none" ${w}><span class="lbl">${esc(o.text||'not bound to a brief')}</span></span>`;
+    case 'missing': return `<span class="bchip miss" ${w} onclick="openMissing('${esc(o.key)}')"><span class="st fail"></span>
+        <span class="key">${esc(o.key)}</span><span class="nf">not found</span></span>`;
+    case 'resolving': return `<span class="bchip res" ${w} aria-busy="true"><span class="ph"></span></span>`;
+    case 'unavailable': return `<span class="bchip unav" ${w}><span class="una" aria-hidden="true">!</span>
         <span class="why">Brief unavailable — the control plane is not responding</span></span>`;
   }}
 /* which chip the header shows: the head Ref before approval; the design link's pinned key after (contract §4.2) */
@@ -328,15 +334,15 @@ function headerChip(){
 
 /* ---------- frames: the user's design, inside the embedded viewport. Names only — no provenance drawn here (P11) ---------- */
 function frameInner(k){
-  if(k==='detail') return `<div class="pp-h">Access review</div><div class="pp-b"><div class="pp-lbl">Evidence</div>
-    <div class="pp-drop">Drop files</div><div class="pp-lbl">Classification</div><div class="pp-field">Client confidential</div>
-    <div class="pp-lbl">Reviewer</div><div class="pp-field">Unassigned</div></div>`;
+  if(k==='detail') return `<div class="pp-h">Evidence request 14</div><div class="pp-b"><div class="pp-lbl">Requested</div>
+    <div class="pp-field">Q3 user access review</div><div class="pp-lbl">Evidence</div><div class="pp-drop">Drop files</div>
+    <div class="pp-lbl">Accepted</div><div class="pp-field">PDF, XLSX, images</div></div>`;
   if(k==='scan') return `<div class="pp-h">Upload</div><div class="pp-b"><div class="pp-card"><b>evidence-q3.pdf</b>
     <div class="pp-bar"><i></i></div><div class="pp-lbl">Scanning for malware…</div></div>
     <div class="pp-lbl">Files stay private until the scan is clean.</div></div>`;
   return `<div class="pp-h">Evidence</div><div class="pp-b">
     <div class="pp-row"><span>evidence-q3.pdf</span><span>Clean</span></div>
-    <div class="pp-row"><span>walkthrough.docx</span><span>Scanning</span></div>
+    <div class="pp-row"><span>screenshot-04.png</span><span>Scanning</span></div>
     <div class="pp-row"><span>sample-43.xlsx</span><span>Clean</span></div></div>`}
 function framesHTML(){return M.frames.map(f=>`<div class="frame" style="left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px">
   <div class="fl">${esc(f.name)}</div><div class="clip">${frameInner(f.kind)}</div></div>`).join('')}
@@ -401,7 +407,7 @@ function sessionsBlock(){
 function mirrorCard(){
   const frozen=!!M.approval, drift=frozen&&M.mirrorRev<M.briefRev;
   return `<div class="sech">BRIEF IN THE CANVAS</div><div class="card"><div class="mirror">
-      ${drift?'<span class="st drift"></span>':'<span class="glyph mono">◇</span>'}
+      ${drift?'<span class="st drift"></span>':''}
       <span>Guideline <span class="mono">brief</span> — rev ${M.mirrorRev}, read-only</span></div>
     <div class="t2">${frozen
       ? (drift?`Frozen at rev ${M.mirrorRev} with the approval. The brief head is rev ${M.briefRev}.`:`Frozen at rev ${M.mirrorRev} with the approval.`)
@@ -431,11 +437,13 @@ function sidePanel(){
       ? `<div class="card"><div class="t2" style="margin:0">Design rev ${M.designRev} is not approved. Nothing is handed to Develop
           until you approve it.</div></div>`
       : `<div class="card">
-          <div class="kv"><span class="k">contextRef</span><span class="v">${esc(briefKey(a.briefRev))}</span></div>
-          <div class="kv"><span class="k">ledger link</span><span class="v">${esc(designKey())}</span></div>
+          <div class="kv"><span class="k">contextRef</span><span class="v">${esc(briefKey(M.briefRev))} — the brief head</span></div>
+          <div class="kv"><span class="k">ledger link</span><span class="v">session → ${esc(designKey())}</span></div>
           <div class="kv"><span class="k">bundle</span><span class="v">${M.canvasUp?'design/ in its worktree, marked':'waits for the canvas server'}</span></div>
-          ${superseded()?`<div class="t2" style="margin-top:6px">It inherits rev ${a.briefRev}; the brief is at rev ${M.briefRev}.
-            Its ContextChip will say so.</div>`:''}</div>`;
+          <div class="t2" style="margin-top:6px">${superseded()
+            ?`It inherits the head, rev ${M.briefRev}, like every session started on this branch — not rev ${a.briefRev}, which this
+              design was approved against. The ledger link keeps rev ${a.briefRev} on record through the design.`
+            :`It inherits the head, like every session started on this branch. The head is rev ${a.briefRev}, the revision this design was approved against.`}</div></div>`;
     b=`<div class="sech">HANDOFF BUNDLE · DESIGN REV ${a.designRev}</div>${bundle}
        <div class="sech">A DEVELOP SESSION STARTED HERE CARRIES</div>${carry}${mirrorCard()}${sessionsBlock()}`;
   }
@@ -448,15 +456,15 @@ function sidePanel(){
 /* ---------- empty (no canvas) and the chip specimen ---------- */
 function emptyLens(){return `<div class="empty"><h3>No canvas for this branch yet.</h3>
     <p>A canvas is where design sessions draw real-HTML screens against the brief. Creating one:</p>
-    <ol><li>binds a new canvas to <span class="mono">feature/evidence-upload</span></li>
+    <ol><li>binds a new canvas to <span class="mono">evidence-upload</span></li>
       <li>writes brief rev ${M.briefRev} into it as a read-only guideline, marked with its key</li>
       <li>lets you start design sessions that draw in it</li></ol>
     <button class="btn pri" onclick="createCanvas()">Create canvas</button></div>`}
 function specimen(){
-  const R=[['current','Key resolved; revision equals the head.',chip('current',{rev:3})],
-    ['superseded','Key resolved; revision is behind the head. Colour plus a diamond — never colour alone.',chip('superseded',{rev:3,head:5})],
+  const R=[['current','Key resolved; revision equals the head.',chip('current',{rev:6})],
+    ['superseded','Key resolved; revision is behind the head. Colour plus a half-filled disc — never colour alone.',chip('superseded',{rev:5,head:6})],
     ['none','No key: the canvas is not bound to a brief. Shown quietly, never hidden (P9).',chip('none',{})],
-    ['missing','A key was recorded and no revision answers it — data loss in our own store. The key is shown verbatim.',chip('missing',{rev:3})],
+    ['missing','A key was recorded and no revision answers it — data loss in our own store. The key is shown verbatim.',chip('missing',{key:LOST})],
     ['resolving','Key known, not yet in the cache. Same width as resolved; no spinner.',chip('resolving',{})],
     ['unavailable','The resolver call failed. The sentence comes from classify() — here, control-plane-down.',chip('unavailable',{})]];
   return `<div class="top"><span class="ttl">Brief chip</span><span class="meta">six states · contract §4.1</span></div>
@@ -478,7 +486,7 @@ function render(){
 const NOTES={
  1:[['Brief chip, before any canvas','the head provenance.Ref for the branch — GET /discover/branches/{id}/provenance','contract §3.1 · P9'],
     ['Create canvas','writes the new (project, branch) → canvasId binding; Northstar has no field for it','brief I2 · survey §7.2'],
-    ['“writes brief rev 3 into it”','the brief mirror guideline, under the four render conditions','contract §3.3'],
+    ['“writes brief rev 5 into it”','the brief mirror guideline, under the four render conditions','contract §3.3'],
     ['One canvas per branch is a proposal. Per project is the alternative.','','brief §1.1 I2',1]],
  2:[['Chip = head Ref','before approval the header reads the brief head','contract §4.2'],
     ['“design rev 11 · 3 frames”','Northstar designRevision and frame list for the open canvas, via the control plane on the tick','brief S4'],
@@ -492,13 +500,14 @@ const NOTES={
     ['Screens','Northstar reviewArtifacts — the exact approved HTML — plus export_frame PNGs','survey §7.3'],
     ['Tokens','guideline markdown; there is no token object','survey §2.3'],
     ['Component tree: not produced','shown as absent so no reader assumes it exists','brief O5'],
-    ['Carry card','contextRef is the brief key the server stamps; the design key goes in a session → design ledger link','contract §3.2 · A3'],
+    ['Carry card','contextRef is the brief head the server materialises, as for any session on this branch; the design key goes in a session → design ledger link','contract §3.2 · A3 · decision 6'],
     ['Is the bundle captured at approval, or read from the canvas at handoff? State 6 shows why it matters.','','brief P-g',1]],
  4:[['Superseded chip','revision < headRevision, derived on the desktop, never stored','contract §1.4, §4.1'],
-    ['Approval stands, marked','D3 option A — the recommendation','brief D3'],
-    ['Re-review against rev 5','rewrites the mirror; the digest returns the canvas to review; the rev 11 approval stays on record','brief D3 · survey §7.1'],
-    ['Open rev 3 / rev 5','Discover renders a past revision read-only — a new phase-4 obligation','contract §4.1'],
-    ['D3: should a brief edit void the approval instead? Option B is what happens if nobody decides.','','brief D3',1]],
+    ['Approval stands, marked','5-D3 option A — the recommendation','brief 5-D3'],
+    ['Re-review against rev 6','rewrites the mirror; the digest returns the canvas to review; the rev 11 approval stays on record','brief 5-D3 · survey §7.1'],
+    ['Open rev 5 / rev 6','Discover renders a past revision read-only — a new phase-4 obligation','contract §4.1'],
+    ['Start Develop session stays on','the new session inherits the head, rev 6, not rev 5 — the carry card says so','contract §3.2 · decision 6'],
+    ['5-D3: should a brief edit void the approval instead? Option B is what happens if nobody decides.','','brief 5-D3',1]],
  5:[['Changed-after-approval bar','approved designRevision (our ledger) ≠ current designRevision (Northstar): its digest guard','survey §7.1'],
     ['“edited by design-1”','assumes the actor is recoverable from Northstar’s events — not verified','brief §4'],
     ['Amber, not red','a human must act; nothing failed','DESIGN-SYSTEM status vocabulary'],
@@ -507,11 +516,11 @@ const NOTES={
  6:[['Failure card','cause and fix, stated plainly','CLAUDE.md error tone'],
     ['Approval and chip still resolve','the design link is in our ledger, not the canvas','contract §2.1'],
     ['Bundle unavailable','read from the canvas at handoff in this design','brief P-g'],
-    ['Restart canvas server','exists only if the server runs beside the agents','brief D1 option A'],
+    ['Restart canvas server','exists only if the server runs beside the agents','brief 5-D1 option A'],
     ['“Canvas unreachable” needs a problem code or kind in problems.ts','','brief S5',1]],
  7:[['Six states','no two share a treatment','contract §4.1'],
     ['Fixed width','resolving never shifts layout','DESIGN-SYSTEM skeleton rule'],
-    ['Shapes','diamond superseded, square missing/failed, triangle needs-you, circle running','DESIGN-SYSTEM: colour alone fails'],
+    ['Shapes','half-filled disc superseded, square missing/failed, triangle needs-you, disc running/idle; ! unavailable','prototype-fact-sheet.md §10 · DESIGN-SYSTEM: colour alone fails'],
     ['Unavailable sentence','through classify() — control-plane-down','contract §4.1']]};
 function renderNotes(){const N=NOTES[STATE]||[];
   $('#notes').innerHTML=`<h4>State ${STATE} — ${esc(STATE_NAMES[STATE])}</h4>
@@ -527,8 +536,9 @@ function toast(html,undo){const t=document.createElement('div');t.className='toa
   $('#toasts').appendChild(t);setTimeout(()=>t.remove(),5200)}
 function flashApproval(){const a=$('#appr');if(a){a.classList.remove('flash');void a.offsetWidth;a.classList.add('flash')}}
 function openDiscover(rev){toast(`Opens Discover at <b>${esc(briefKey(rev))}</b>, read-only`)}
+function openMissing(k){toast(`Opens Discover’s revision-not-found view for <b>${esc(k)}</b>`)}
 function createCanvas(){M={...PRESETS[2](),frames:[],designRev:0,design:[]};STATE=2;render();
-  toast('Canvas <b>cv-7</b> bound to feature/evidence-upload · brief rev 3 written as a guideline')}
+  toast(`Canvas <b>cv-7</b> bound to evidence-upload · brief rev ${M.briefRev} written as a guideline`)}
 function startDesign(){
   if(!M.frames.length){M={...PRESETS[2]()};STATE=2;render();toast('Started <b>design-1</b> and <b>design-2</b> on this branch, pointed at canvas cv-7');return}
   const n='design-'+(M.design.length+1);M.design.push({name:n,st:'run',line:'reading the brief guideline'});render();
@@ -548,8 +558,12 @@ function reReview(){const prev=JSON.parse(JSON.stringify(M));
   M.mirrorRev=M.briefRev;M.designRev+=1;M.approval=null;STATE=2;render();
   toast(`Brief mirror now rev <b>${M.mirrorRev}</b>. Design rev ${M.designRev} is back in review; the earlier approval stays on record`,
     ()=>{M=prev;STATE=4;render()})}
-function startDevelop(){toast(`Started <b>dev-4</b> from design rev ${M.approval.designRev} · inherits ${esc(briefKey(M.approval.briefRev))}`,
-  ()=>toast('dev-4 stopped'))}
+/* Contract §3.2: a session started from an approved design gets its brief key in contextRef "like any other session" —
+   the head the server materialises — and a separate session → design link. Fact sheet §5: this is how upload-ui got b-42@6. */
+function startDevelop(){const a=M.approval,nm=superseded()?'upload-ui':'a Develop session';   /* upload-ui is the state-4 one */
+  toast(`Started <b>${nm}</b> from design rev ${a.designRev} · inherits <b>${esc(briefKey(M.briefRev))}</b>, the brief head${
+    superseded()?` — not rev ${a.briefRev}, which the design was approved against`:''} · ledger link to ${esc(designKey())}`,
+  ()=>toast('Stopped.'))}
 function restartCanvas(){M.canvasUp=true;render();toast('Canvas server restarted on aue-kata-01')}
 function tell(inp,n){const v=inp.value.trim();if(!v)return;inp.value='';toast(`Sent to <b>${esc(n)}</b>’s terminal`)}
 
