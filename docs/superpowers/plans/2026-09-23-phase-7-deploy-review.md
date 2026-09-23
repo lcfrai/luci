@@ -590,3 +590,79 @@ explained below the tables. Line numbers are those after the batch. `tNN` means
   - t20:393 → 401, :394 → 402, :399 → 407.
   - The t02, t05 and t07 citations are unchanged.
 
+### Fix batch b02, round 2 — the re-review's R1 to R9 (2026-09-24)
+
+Source: `.superpowers/sdd/p7/plan-rereview-b02-1.md`. Commits `06bb704`, `d3342fc`, `061cb91` and
+the two after it. Line numbers are those after round 2.
+
+**Re-verified against `~/Projects/Panacea/services/panacea-api` (read-only) before editing:**
+- `handlers/branch_security.go:29-37`: `branchEnv` reads only the `production-branch` label (`:32`).
+- `clients/pipeline.go:233-237`: the deploy calls `ResolveProjectProductionBranch` (`:236`).
+  `:609` writes `sanitizeLabelValue(branch)`, a function at `:2351-2364`. It replaces `/` and `_`
+  with `-` and keeps capitals.
+- `clients/kubernetes.go:5189`: the environments list calls `ResolveProductionBranch`. That
+  function is at `:10179-10204`: label, then annotation, then `main`, and it skips `prod` and
+  `production`.
+- `clients/kubernetes.go:4210-4217`: `tenantNamespace` sends `prod`, `production` and `""` to the
+  base namespace. The round-1 re-review had not re-read this.
+- `handlers/projects.go:3838-3849`: with an empty `prodBranch`, `develop` maps to `develop`.
+
+| Finding | Change | Where |
+|---|---|---|
+| R1 | `EnvironmentFor` is the access route's mapping, which reads the label only | t01:67, t03:207 |
+| R1 | Fixture `branch-access-annotation-only.json`, and `TestEnvironmentForIsTheAccessRoutesMapping` | t03:258, t03:317 |
+| R1 | Rule 5a: `environmentMismatch` from facts after the deploy, never joined by the Hub's name | t08:106-109, t08:170-178 |
+| R1 | Test `TestReleaseRecordedAgainstAnotherEnvironment` (`develop` against `prod`) | t08:230 |
+| R1 | Ship does not pre-check the primary row's `branch` (step 3 of the fix) | t09:201-203 |
+| R1 | TS `environmentMismatch`; the card draws the sentence; test `mismatch is drawn` | t13:114-115, t15:96-99, t15:186 |
+| R1 | 7P-8, §9 HA7-1, Q-P7-6 and §12 name the Panacea defect | plan:296-303, plan:595-599, plan:723, plan:756-765 |
+| R1 | Live row: LIVE-CHECK step 5a and `PANACEA_APP_LIVE_PROD_BRANCH` | t20:69-70, t20:188-198, t20:419 |
+| R2 | `BranchEnvErrs`, retried every fourth cycle, never staling the snapshot | t07:106-109, t07:136-143 |
+| R2 | Test `TestRefusedBranchNotReaskedEveryCycle` | t07:206 |
+| R2 | `selected.error` (Go and TS) and rule 1a | t08:40, t08:151-155, t13:160-161 |
+| R2 | The route's 404 is rewritten to the `/` sentence; `TestEnvironmentForRouteNotFound` | t03:316 |
+| R2 | Ship: `409 deploy_environment_unreadable`, never `deploy_not_found`; `TestShipEnvironmentUnreadable` | t05:231, t09:185-188, t09:246, t09:275, t13:263 |
+| R2 | The card's refusal state and test `refused names the refusal` | t15:86-90, t15:184 |
+| R2 | §12: the `%2F` path ends in a kept refusal and a card sentence | plan:748-755 |
+| R3 | `panaceatest.Server` answers the route from both seeds; `env` is omitted for a posture-only branch | t03:285-294, t04:187-192 |
+| R4 | `Assemble(s, same, now)`; `Watcher.SameEnvironment`; the view tests' `prod`/`production` stub | t07:87-89, t08:144-147, t08:204-209 |
+| R4 | Test `TestWatcherPassesSameEnvironment` | t07:207 |
+| R5 | The props are `selected` / `selectedEnvironment`, and the git branch is display text only | t15:59-72 |
+| R5 | The `no branch comparisons` grep covers both operand orders, `includes`/`startsWith`/`endsWith`, and the old prop names | t15:187 |
+| R6 | `onDeployCursor` goes through `loadDeployView`; `cursor change loads once` asserts `?branch=` | t13:307-311, t13:334 |
+| R6 | The card's `selected == null` state and test `no selection, no card` | t15:83-85, t15:185 |
+| R7 | The collision fixture uses run labels | t08:228 |
+| R7 | Rule 9 names the blind spot | t08:191 |
+| R7 | The banner's blind spot, cited | t15:157-162 |
+| R8 | Rebuild's branch is the Hub `branchRef` only, else `409 no_branch` | t10:82-87 |
+| R8 | Test `TestRebuildRefusesLabelOnlyBranch`; `TestRebuildPrefersHubBranchRef`'s note corrected | t10:148-149 |
+| R8 | 7P-3's Rebuild body | plan:204-208 |
+| R8 | The desktop offers Rebuild only with a Hub release; test `rebuild needs a Hub release` | t16:96, t16:105-108, t16:141 |
+| R9 | Roll back finds *its environment* through `environmentRow`, and fails closed | t16:98-103 |
+| R9 | Test `rollback off while production builds` (`prod` against `production`, and unmatched) | t16:140 |
+| (R1, t19) | *"The previous one"* compares `environmentRow`, not the raw environment | t19:108 |
+
+**Declared, on the facts:**
+- **R2 step 6, the 404 rewrite:** kept as `KindNotFound` with the rewritten sentence, not as
+  `KindUnavailable`. `KindUnavailable` would stale the whole cycle for every project (t07's failure
+  rule) over one branch name. Ship maps it to its own code, `deploy_environment_unreadable`.
+- **R5:** `EnvironmentCard` takes the whole `view.selected`, not `selectedEnvironment`, because
+  its five states need `target` and `error` too. The branch reaches it as `selected.branch`,
+  display text.
+- **R7 blind spot, stated precisely:** twins that differ only in `/`, `_` or `-` share one label.
+  Twins that differ in case do not, because the label keeps capitals and the environment is
+  lower-cased. Twins that differ past the 20th character do not either, because the label is cut
+  at 63. The banner shows both of those.
+- **R8, carried into t16 and 7P-3:** the desktop has no `branchRef` (the TS `ReleasePin` does not
+  carry one). So it offers Rebuild on `release != null`, and it shows the control plane's
+  `no_branch` refusal verbatim for a Hub release without a `branchRef`.
+- **R9:** two disabled sentences were added: *"`<env>` has a build running. Roll back once it
+  finishes."* and the unmatched-row line from t17.
+
+**Relay through the orchestrator (not sent from here):** tell the Panacea owner that `branchEnv`
+should call `ResolveProjectProductionBranch`, as the deploy and posture paths do (Q-P7-6).
+
+**Unverified:** whether Traefik passes `%2F`. How many live projects are annotation-only or carry
+a `production` mislabel (LIVE-CHECK step 5a counts the live project only). Nothing was compiled or
+run. This is plan text.
+
