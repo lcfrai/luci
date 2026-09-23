@@ -170,14 +170,36 @@ repository, so a plain clone of an LF blob is CRLF on disk. The sandbox's Linux 
 setting, re-hashes every file (the stat data Windows wrote never matches through the bind mount),
 and sees the whole tree modified; an agent's `git add -A` then rewrites every text file to CRLF.
 Step 4's four keys fix it at the root. `core.autocrlf=false` and `core.eol=lf` make the working
-tree hold the blobs' bytes, and both gits read those keys from the clone's own config.
+tree hold the blobs' bytes, and the host's git reads them from the clone's local config.
 `core.checkStat=minimal` and `core.trustctime=false` stop the two systems' differing stat fields
 from forcing a full re-hash on every host `status` (task 07's poll). A repository whose
 `.gitattributes` asks for `eol=crlf` keeps CRLF for those paths, because attributes outrank
-`core.autocrlf`. Phase 2's sandbox-git fix handles the same system setting for a
-**primary-worktree** mount differently: it passes the host's effective `autocrlf` into the
-sandbox. The two routes differ because a lane clone is ours to configure and the user's primary
-checkout is not. All four keys are on task-02 §HGH H3's `Clone` allowlist.
+`core.autocrlf`. All four keys are on task-02 §HGH H3's `Clone` allowlist.
+
+*How the sandbox's git gets the same answer (plan re-review b02 I-1).* Phase 2's `5a4d0d8`
+(on `feat/phase-2-cockpit`, which merged `fix/sandbox-git-ca` at `f898f5e`) gives **every**
+session, lane sessions included, `core.autocrlf` and `core.eol` as `GIT_CONFIG_KEY_n` pairs in
+`sessionEnv` (committed `internal/api/sessions.go:173-187`). Command scope outranks the clone's
+local config, so in a lane session the sandbox's git reads the env, not these keys. The values
+come from `Deps.GitLineEndings`, which `handleSessionCreate` and `handleSessionRestart` ask in the
+session's worktree path (`sessions.go:543` and `:1142`, through `sessionGitLineEndings` at
+`:208`), and the production resolver (`cmd/api/gitlineendings.go:36`) runs the host's
+`git config` there. For a lane that path is the clone, where the local keys answer `false` and
+`lf`, so the env says what the clone's config says. **The invariant is where the resolver is
+asked: the clone, never `Project.Path`**, whose system `autocrlf=true` would send `true`/`crlf`.
+A probe (`scratchpad/p3/rr-b02-probe.out`) showed what that mutant does: with `GIT_CONFIG_*`
+holding `core.autocrlf=true` over a clone made by step 4's argv, `status --porcelain` stays empty
+and `git checkout -- a.txt` writes `x\r\ny\r\n`. A second probe (`scratchpad/p3/b02r2-probe.out`,
+git 2.53.0.windows.2, host only) ran the resolver's two calls (`config --get --type=bool
+--default false core.autocrlf`, `config --get --default native core.eol`): `true`/`native` in
+the project (the resolver turns `native` into `crlf`), `false`/`lf` in a step-4 clone, and a
+checkout under the clone's answer as env writes `x\ny\n`. Task 05's
+`TestALaneSessionSendsTheClonesLineEndings` and `TestTheResolverReadsALaneCloneAsLF` pin the
+invariant, and task 01's `TestSandboxCloneHasWorkingGit` checks the bytes in the real sandbox.
+The local keys still decide for a sandbox session started without that environment. Phase 2 and
+phase 3 differ on where the answer comes from, not on the mechanism: a primary checkout is the
+user's, so phase 2 reads its effective setting and sends it; a lane clone is ours to configure,
+so phase 3 writes `false`/`lf` into it, and the same resolver sends that.
 Verified on git 2.53.0.windows.2 on 2026-09-24, with a test system file holding
 `core.autocrlf=true`: a plain `clone --local` checked `a.txt` out as `x\r\ny\r\n` and wrote no
 local `core.autocrlf`. Step 4's argv checked it out as `x\ny\n`, wrote all four keys locally,
