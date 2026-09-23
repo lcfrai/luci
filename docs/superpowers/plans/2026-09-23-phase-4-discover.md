@@ -313,7 +313,8 @@ without a cycle. Phase 4 imports only the Hub's
 | `provenance/ContextChip.tsx`, `SessionContextChip.tsx`, `DefinitionOfDone.tsx`, `ShippedManifest.tsx`, `ProvenanceDetail.tsx`, `provenance.css` + tests | the three presentational surfaces, each taking a `ProvenanceRef`; the one store-reading mount | 17 |
 | `discover/DiscoverLens.tsx`, `QuestionFlow.tsx`, `BriefPanel.tsx`, `BindingState.tsx`, `useBriefView.ts`, `discover.css` + tests | the lens: binding states, asking, the brief born, inheritance, follow-up, model off, unavailable | 18 |
 | `discover/BriefHistory.tsx`, `PastRevision.tsx`, `SessionsOnBrief.tsx`, `Materialisations.tsx`, `SectionChanges.tsx` + tests | moved on, project changed, undo, past revision read-only, missing, erased, hand-edited block | 19 |
-| `discover/StartWithoutBrief.tsx` + test | the `4-D1` refusal and override on session start and restart | 20 |
+| `discover/StartWithoutBrief.tsx` + test | the `4-D1` refusal and override on all six ways a session starts: create (two call sites), restart (two), resume, fork (review I9) | 20 |
+| `discover/startAttempt.ts` + test | `routeBriefRefusal`, which every start path's `catch` calls first, and `replayStart`, which Retry and the override call (review I9) | 20 |
 | `discover/ImportRepo.tsx` + test | drafted from the code: accept or change each answer | 21 |
 
 **Modified — phase 2 files, each a declared departure named in its task:**
@@ -330,13 +331,15 @@ without a cycle. Phase 4 imports only the Hub's
 | `control-plane/internal/api/attach_test.go`, `sessions_test.go` (`package api`) | each builds `Deps` itself and gains its own recording fake; `sessions_test.go` holds the `sessionLocate` tests (review I1, I2) | 10 |
 | `control-plane/cmd/api/materialiser_interim.go` (+ test) | `materialiserUntilTask14`: writes nothing, logs once at start-up; created by 10, **deleted by 14** (review I1) | 10, 14 |
 | `control-plane/cmd/api/main.go`, `config.go` | `Materialiser: newMaterialiserUntilTask14(log)` (10), then wiring and configuration (14) | 10, 14 |
-| `desktop/src/api/client.ts` | `ProblemCode` gains phase 4's and the Hub's relayed codes; `createSession`, `resumeSession`, `forkSession` stop sending `contextRef`; `restartSession` takes an optional `{withoutBrief}` | 15 |
+| `desktop/src/api/client.ts` | `ProblemCode` gains phase 4's and the Hub's relayed codes; `createSession`, `resumeSession`, `forkSession` stop sending `contextRef`; `restartSession`, `resumeSession` and `forkSession` take an optional `{withoutBrief}` (review I9) | 15 |
 | `desktop/src/store/defaults.ts` | `toCreateRequest` stops setting `contextRef` | 15 |
 | `desktop/src/store/store.ts` | `CockpitState` gains the two slices; `partialize` unchanged | 16 |
 | `desktop/src/store/selectors.ts` | the key-source selectors and the provenance selectors | 16 |
 | `desktop/src/api/poller.ts` | **header comment only**, amended (UI contract §4.7) | 16 |
 | `desktop/src/App.tsx` | the poller's good-tick callback also runs the loader | 16 |
-| `desktop/src/components/develop/sessionVerbs.ts` | restart routes `brief_not_written` to the refusal | 20 |
+| `desktop/src/components/develop/sessionVerbs.ts` | restart, resume and fork route `brief_not_written` to the refusal; `runImmediate` gains an optional `refusal` (review I9) | 20 |
+| `desktop/src/components/develop/EmptyDevelop.tsx` | `startSessionOnWorktree` routes `brief_not_written` to the refusal, rendered beside its two buttons (review I9) | 20 |
+| `desktop/src/components/develop/SessionPane.tsx` | the exit bar's `restartSession` routes `brief_not_written`; the pane renders the refusal for restart, resume and fork (review I9) | 20 |
 | `desktop/src/components/develop/SessionPaneHeader.tsx` | mounts `ContextChip` | 17 |
 | `desktop/src/components/AppShell.tsx` | the `discover` arm returns `<DiscoverLens />` | 18 |
 | `desktop/src/hooks/useCreateSession.ts` | routes `brief_not_written` to the refusal surface instead of a toast | 20 |

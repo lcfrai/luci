@@ -30,7 +30,7 @@ plan did not open every one of them (§11).
 | Section | Amendment | Made true by |
 |---|---|---|
 | §3.1 (`CockpitState`) | `discoverSlice`, `provenanceSlice`, neither persisted; `PERSIST_VERSION` unchanged | task 16 |
-| §4 (client) | create, resume and fork do not send `contextRef`; `restartSession(id, opts?)`; `createTransport`; `onHubCursor` | tasks 15, 16 |
+| §4 (client) | create, resume and fork do not send `contextRef`; `restartSession(id, opts?)`, `resumeSession(source, harness, opts?)` and `forkSession(source, targetWorktreeId, harness, opts?)`, each `opts` being `{withoutBrief?}` (review I9); `createTransport`; `onHubCursor` | tasks 15, 16 |
 | §4.2 (problem codes) | the codes of task 15; `classify` unchanged | task 15 |
 | §4.7 (poller) | the header of task 16: one `listSessions` per tick; on a good tick at most one batched refs call and one feed call | task 16 |
 | §6 (AppShell, pane header) | the `discover` arm; the chip on every pane header | tasks 17, 18 |

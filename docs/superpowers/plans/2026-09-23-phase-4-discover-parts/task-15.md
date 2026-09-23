@@ -10,7 +10,8 @@ deleted all three.
 - `desktop/src/api/discover.ts` — types and `createDiscoverClient` (new)
 - `desktop/src/api/discover.test.ts` (new)
 - `desktop/src/api/client.ts` — `createTransport` extracted; `ProblemCode` extended; `contextRef`
-  no longer sent on resume and fork; `restartSession` takes options (modify, declared departure)
+  no longer sent on resume and fork; `restartSession`, `resumeSession` and `forkSession` take
+  options (modify, declared departure)
 - `desktop/src/store/defaults.ts` — `toCreateRequest` no longer sets `contextRef` (modify)
 - `desktop/src/api/index.ts` — exports `discoverApi = createDiscoverClient()` (modify)
 
@@ -52,6 +53,13 @@ deleted all three.
    server since phase 4 (contract P6)`. `CreateSessionRequest` gains `withoutBrief?: boolean`.
 4. `restartSession(id, opts?: { withoutBrief?: boolean })` sends `{"withoutBrief": true}` only
    when asked, so phase 2's empty-body restart is byte-identical.
+5. **`resumeSession` and `forkSession` take the same options** (review I9):
+   `resumeSession(source, harness, opts?: { withoutBrief?: boolean })` and
+   `forkSession(source, targetWorktreeId, harness, opts?: { withoutBrief?: boolean })`, in the
+   `ApiClient` interface (`:159`, `:162`) and the method table (`:342`, `:362`). Each adds
+   `withoutBrief: true` to the create body it builds only when asked, so phase 2's bodies are
+   byte-identical. Both build their request inside the client, so this option is the only way
+   task 20's *Start without the brief* can reach them.
 
 **`defaults.ts`:** `toCreateRequest` (`:110`, `:127`) drops the `contextRef` option and line.
 
@@ -220,6 +228,7 @@ export const DISCOVER_ANALYSE_TIMEOUT_MS = 60_000;   // analyse()
 | `a Hub conflict arrives as an ApiError with details` | a 409 `revision_conflict` body → `code`, `details.headRevision` | a client that drops `details` |
 | `resume and fork no longer send contextRef` | the create body for both has no `contextRef` key | the desktop still asserting what the agent inherited (P6) |
 | `restart sends no body unless asked` | `restartSession(id)` sends no body; with `{withoutBrief: true}` sends that | a phase 2 regression |
+| `resume and fork send withoutBrief only when asked` | with no options, neither create body has a `withoutBrief` key; with `{withoutBrief: true}`, each body has `withoutBrief: true` and is otherwise identical | an option the client drops, so task 20's override on a resume or fork asks the Hub again (review I9) |
 
 **Steps:**
 
