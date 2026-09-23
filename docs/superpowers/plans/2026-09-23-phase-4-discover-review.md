@@ -623,3 +623,50 @@ half a day of plan edits. Nine areas need their tests added or rewritten:
 - task 23's step 9.
 
 **Plan quality: Needs fixes**
+
+---
+
+## Fix batch b01 (2026-09-24): C1, C2
+
+Commits `f7b75dc` (C1) and `d307ec4` (C2) on `feat/phase-4-discover`. Line numbers are as of
+`d307ec4`. `sessions.go` was checked at `2d6d95b`, its last commit on this branch, and at `3303fd6`,
+the plan's base. The Hub contract was checked at hub `2f84662`.
+
+**C1: restart materialises before the destroy.** Fixed as the review said. The review's
+`sessions.go` lines are right at `3303fd6` (destroy `:944-945`, record `:986`), but they have
+moved on this branch. The plan now locates the call by symbol and cites both commits.
+
+| How to fix | Where it changed |
+|---|---|
+| 1. After the argv rebuild, before `Backend.Destroy` | `task-10.md:136-148` (the handler bullet: at `2d6d95b` the argv rebuild is `:998-1018`, `sessionEnv` `:1022`, the destroy `:1025-1032`, the record `:1067`); `task-10.md:13-16` (the order rule); `task-10.md:175-177` (the Step 1 preflight also greps the restart's step order) |
+| 2. `backend.destroy` in the fake's log, and the four-step order | `task-10.md:153-156` (the fake logs `backend.destroy`); `task-10.md:167` `TestRestartMaterialisesBeforeTheDestroy` |
+| 3. The refusal leaves the old sandbox alive and never calls `Destroy` | `task-10.md:169` `TestRestartRefusalLeavesTheSandboxAlive` (replaces `TestRestartRefusalLeavesTheRecordAlone`) |
+| 4. A live restart refusal | `task-23.md:56-62` (step 9: Hub stopped → 409; the container with the `panacea-app.sandbox-id` label is still running; the record is unchanged; the pane attaches) |
+| 5. Accept the side effect | `task-10.md:147-148` |
+| Other places that said the same thing | `2026-09-23-phase-4-discover.md:148` (R1), `:305` (file map), `:416` (seam 8.1) |
+
+**C2: brief text cannot forge the markers.** Fixed as the review said, with two additions:
+
+- The check runs on `Apply`'s whole *result*, not only the op's input text. That way a `draft`, a
+  follow-up prompt and a `restore` are covered too.
+- The two model paths filter the sequence out before `Apply`. Otherwise a person would get a 400
+  for text the model wrote.
+
+| How to fix | Where it changed |
+|---|---|
+| 1. `ErrReservedText` → 400, `field: "text"` | `task-03.md:273` (the var), `:279` (`ReservedMarker`), `:314-323` (rule 12); `task-11.md:93` (the mapping), `:131` `TestOpsRefusesReservedText` |
+| 2. `Render` neutralises `<!--` | `task-05.md:109-124` (`<!--` becomes `<!-\-` in every interpolated string, including prompts and names); `:18` and `:249` (the third golden file); `:269` (an acceptance line: exactly 2 `<!--`) |
+| 3. A stray or early end is `ErrUnterminatedBlock` in `Merge`/`Strip`/`Inspect` | `task-05.md:101-104` (the error), `:126-139` (one marker count for all three), `:153-155` (`Inspect`), `:255-258` (step 3 replaces the old first-end scan, checked at `2026-09-18-phase-4-discover.md:2079-2093`), `:9-12` (the Changed list); `task-10.md:79` (the `block_broken` comment) |
+| 4. The three tests | `task-03.md:348` `TestAnswerCannotContainAMarker`; `task-05.md:241` `TestRenderNeutralisesCommentOpeners`; `task-05.md:242` `TestStrayEndMarkerIsBroken` |
+| 5. A Security section | `2026-09-23-phase-4-discover.md:227-258`, inside §4 so no section number moves. S1: cross-user instruction channel. S2: the Hub `member` role (`hub-contract.md:588`, `:238`) and the `brief.revised` actor (`:804`, `:1087-1088`). S3: the marker rule. S4: reserved for M6. S5: reserved for I13. File-map rows at `:270` and `:273` |
+| Task 09's strip-fail path | `task-09.md:64-69` (the note); `task-09.md:153` `TestWithoutBriefOverAStrayEndMarkerIsWriteFailed` |
+| Model text never becomes a person's 400 (added) | `task-03.md:319-321`; `task-04.md:77` `TestAReplyHoldingTheReservedSequenceDegrades`; `task-13.md:94` `TestADraftHoldingTheReservedSequenceIsDropped` |
+
+**Deferred or not verified:**
+
+- S4 (M6) and S5 (I13) are placeholders only. Each fix lands in its own batch.
+- No desktop task says where a 400 `bad_request` with `field: "text"` from `POST …/brief/ops`
+  appears, for example inline at the answer. This belongs to the desktop error handling (tasks
+  16 and 17), which this batch did not read. Left open.
+- `<!-\-` is a guess at how Claude Code reads the text. It is not verified that the CLI shows it to
+  the model as literal text. Task 23's canary covers the block as a whole, not this escape.
