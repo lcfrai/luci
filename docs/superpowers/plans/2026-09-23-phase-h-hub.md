@@ -154,6 +154,32 @@ They are asks against the contract's text, to be folded into it by whoever next 
 | **A9** | `hubapi` imports the standard library only; `hubclient` imports `hubapi` and the standard library (§2) | the same contract has `hubapi/codes.go` **import** the shared codes from `httpx` (§4.2), `hubclient.Error` carry an `httpx.Problem`, and `hubclient` mint idempotency keys with `ids.UUID()` (§9.2). Built as written, the boundary test fails the contract's own code | the boundary allows `hubapi` → `internal/httpx`; `hubclient` → `hubapi`, `internal/httpx`, `internal/ids`. Both `httpx` and `ids` import only the standard library, so the Hub still links nothing of the control plane's | 01, 09 |
 | **A10** | the audit envelope covers `v, kind, orgId, seq, at, actorUserId, event, projectId, subject, data` (§3.6) | `audit_events.team_id` is not in it, yet the change feed decides who sees an event by `team_id` or `project_id` (§7.11). An owner-role edit of `team_id` would move an event into another team's feed **without breaking the chain** | the envelope adds `"teamId"` (or `""`). `hub verify` also checks each row's `feed` flag against the kind table of §8, since `feed` is derived from `kind`. Golden vectors 3 and 4 (task 02) are computed with it | 02, 14, 27 |
 
+**Additions, not corrections** — shapes the contract did not name, which this plan adds and task 44
+folds in. None is a Hub route.
+
+| Addition | Exact shape | Why | Task |
+|---|---|---|---|
+| `Panacea-Auth-State` response header on the control plane, exposed to the webview beside `Panacea-Hub-Cursor` | `signed_out` \| `signing_in` \| `signed_in` | the desktop learns a sign-in finished, or a refresh died, from the poll it already makes — phase 2's one-request-per-tick rule (`poller.ts:1-3`) | 36, 40 |
+| `hubclient` gains `Teams`, `Projects.Project`/`AddRemote`, `Designs.Approval`/`SessionLinks`, `Releases.Release`, `ErrSignedOut`, `ErrNotConfigured`, `ErrTokenUnavailable`, `Invalidator`, `WriteError`, `VerifyRevision`, `FormatRecorder` | task 04, 31, 33, 34's contracts | each wraps a route §7 already defines, or names a rule §4.3/§9.2 already states | 04, 31, 33, 34 |
+| `entraauth.Config.AfterSignIn` returns `(hubTenantID string, err error)` | was `error` only | correction A6's cross-check needs the Hub org's tenant | 30 |
+| Refresh redemptions serialised across **all** scopes | one lock; single-flight per scope under it | one refresh token, rotated on use, redeemed twice at once would sign the user out | 31 |
+| An overdue `reserved` release **reads** `expired` before the janitor marks it | rendered state only | the fake and the Hub agree through the interface; no caller confirms a dead reservation | 23 |
+| Control-plane `hub-link` and `hub/teams` routes | task 35's table | the share flow (Q8): without it no local project becomes a Hub project | 35, 42 |
+| `server.Patterns()` | `func (s *Server) Patterns() []string` | the matrix meta-test and the conformance harness read the real route table, never a list | 08, 16, 34 |
+
+### Files that belong to a sibling phase — "whichever lands first"
+
+Three packages this plan needs are **owned by sibling plans** that may land before or after it.
+Each task that needs one runs a preflight: if the file exists, it is used as it is; if not, the task
+writes it **verbatim from the owning part**, so the later merge is a no-op or a whitespace conflict,
+never two designs.
+
+| Package | Owner | This plan's task | The owning part |
+|---|---|---|---|
+| `control-plane/internal/entra` | phase 8 task 16 | 10 | sibling `feat/env`, `…/2026-09-23-phase-8-own-environment-parts/task-16.md` |
+| `control-plane/internal/credstore/credstore.go` | phase 3 task 13 | 29 | sibling `feat/phase-3-git`, `…/2026-09-23-phase-3-git-convergence-parts/task-13.md` |
+| `control-plane/internal/githost/remote.go` | phase 3 task 13 | 35 | the same part |
+
 Two further facts, verified here, **close** items the contract and ADR left open:
 
 - **`opener:default` permits `http://` and `https://` URLs** — its generated description reads
@@ -232,8 +258,11 @@ parallel worktrees (see §"Order and parallel lanes").
 | `control-plane/internal/credstore/{secrets,memory,chunk,targets}.go` | `Secrets`, the in-memory store, chunking, the target-name grammar | new | 28 |
 | `control-plane/internal/credstore/wincred_windows.go`, `wincred_other.go` | Windows Credential Manager over `advapi32.dll`; the non-Windows stub | new | 28 |
 | `control-plane/internal/credstore/credstore.go` ⚑ | **phase 3 task 13's file** (`Host`, `Credential`, `Store`, `None`, `Chain`); written here verbatim only if absent | new | 29 |
-| `control-plane/internal/credstore/{local,panacea}.go` | `Local` (GitHub) and `PanaceaTokens` over `Secrets` | new | 29 |
-| `control-plane/internal/entraauth/{oidc,pkce,listener,signin}.go` | discovery, PKCE, the one-shot listener, the code exchange | new | 30 |
+| `control-plane/internal/credstore/{tokens,local}.go` | `GitHubTokens`, `PanaceaTokens`, `Inventory`; `Local` (phase 3's `Store` for GitHub) | new | 29 |
+| `control-plane/internal/credstore/credstoretest/credstoretest.go` | the behaviour suite every `Secrets` passes | new | 28 |
+| `azure-pipelines.yml` ⚑ | one step: `GOOS=windows go vet ./control-plane/...` | modified | 28 |
+| `control-plane/internal/githost/remote.go` ⚑ | **phase 3 task 13's file** (`Remote`, `ParseRemote`, `RepoKey`); written here verbatim only if absent | new | 35 |
+| `control-plane/internal/entraauth/{entraauth,oidc,pkce,listener,signin,idtoken}.go` | discovery, PKCE, the one-shot listener, the code exchange, A6's `id_token` checks | new | 30 |
 | `control-plane/internal/entraauth/{tokens,account,devops}.go` | `TokenSource`, refresh, rotation, sign-out, start-up; the Azure DevOps adapter | new | 31 |
 | `control-plane/internal/httpx/problem.go` ⚑ | four codes: `signed_out`, `hub_not_configured`, `local_key_required`, and `upstream_unavailable` if R4 has not landed | modified | 32 |
 | `control-plane/internal/api/auth.go` | `/v1/auth/*` | new | 32 |
@@ -241,8 +270,9 @@ parallel worktrees (see §"Order and parallel lanes").
 | `control-plane/internal/api/routes_audit_test.go` ⚑ | new `GET`s in `catalogReadOnlyRoutes` | modified | 32, 35, 36, 39 |
 | `control-plane/cmd/api/{config,main}.go` ⚑ | the new variables; wiring | modified | 32, 35, 36, 37 |
 | `control-plane/internal/hublink/hublink.go`, `internal/api/hublink.go` | local project → Hub project; the share routes | new | 35 |
-| `control-plane/internal/hubfeed/poller.go`, `internal/api/hubchanges.go` | the change-feed poll and the cursor header | new | 36 |
-| `control-plane/internal/httpx/origin.go` ⚑ | expose `Panacea-Hub-Cursor`; allow the `Authorization` header (A4) | modified | 36, 37 |
+| `control-plane/internal/hubfeed/poller.go`, `internal/api/hubchanges.go` | the change-feed poll; the cursor and auth-state headers | new | 36 |
+| `control-plane/internal/httpx/origin.go` ⚑ | expose `Panacea-Hub-Cursor` and `Panacea-Auth-State`; allow the `Authorization` header (A4) | modified | 36, 37 |
+| `control-plane/internal/hub/hubclient/hubclient.go` | the optional `Invalidator` | modified | 31 |
 | `control-plane/internal/localkey/localkey.go` | the local caller key: mint, write, compare | new | 37 |
 | `control-plane/internal/api/credentials.go` | the write-only credential routes (A8) | new | 39 |
 
@@ -251,13 +281,14 @@ parallel worktrees (see §"Order and parallel lanes").
 | Path | Responsibility | Status | Task |
 |---|---|---|---|
 | `desktop/src-tauri/src/lib.rs` ⚑ | `local_key` command | modified | 38 |
-| `desktop/src/api/localKey.ts` | fetch the key once, hold it in memory | new | 38 |
+| `desktop/src/api/localKey.ts`, `desktop/src/api/index.ts` | fetch the key once, hold it in memory; build `api` with it | new, modified | 38 |
 | `desktop/src/api/client.ts` ⚑ | the key on every call; auth, hub-link, credential and change functions; new codes | modified | 38, 40 |
 | `desktop/src/api/hubFeed.ts` | the one feed reader and its subscriber registry | new | 40 |
-| `desktop/src/api/poller.ts` ⚑ | reads the cursor off the sessions poll | modified | 40 |
-| `desktop/src/store/slices/authSlice.ts`, `store/store.ts` ⚑, `store/types.ts` ⚑ | sign-in state, never persisted | new, modified | 40 |
+| `desktop/src/api/poller.ts` ⚑, `desktop/src/App.tsx` ⚑ | the header hook after a good tick; one line wiring it | modified | 40 |
+| `desktop/src/store/slices/authSlice.ts`, `store/store.ts` ⚑, `store/types.ts` ⚑ | sign-in and share state, never persisted | new, modified | 40, 42 |
 | `desktop/src/components/rail/{RailFooter,AccountControl}.tsx`, `rail.css` ⚑ | the sign-in surface | modified, new | 41 |
-| `desktop/src/components/share/{SharePopover.tsx,share.css}`, `rail/ProjectRow.tsx` ⚑ | share a project with a team | new, modified | 42 |
+| `desktop/src/components/share/{SharePopover.tsx,share.css}` | share a project with a team | new | 42 |
+| `desktop/src/components/menu/ContextMenu.tsx` ⚑, `desktop/src/components/AppShell.tsx` ⚑ | the *Share with a team…* item; the popover's one mount | modified | 42 |
 
 ### Proof and documents
 
@@ -265,7 +296,7 @@ parallel worktrees (see §"Order and parallel lanes").
 |---|---|---|---|
 | `control-plane/internal/hub/e2e_integration_test.go` | sign-in through `devissuer`, then every consumer interface against the real Hub | new | 43 |
 | `docs/verification/2026-09-23-phase-h-results.md` | what was run, what was observed, what stays unverified | new | 43 |
-| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md` | the amendments ADR-H1 §7.2 names, and A1–A10 folded into the contract | modified | 44 |
+| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md`, `…/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` | the amendments ADR-H1 §7.2 names, and A1–A10 plus the additions folded into the contract | modified | 44 |
 
 ---
 
@@ -328,7 +359,7 @@ It is tasks **01–24** on the server and **28, 30–35, 37, 38** on the client 
 | 32 | the control plane's `/v1/auth/*`, its variables, its codes, the wiring | C1 | 31 | 2.5 | ✓ |
 | 33 | `hubclient` over HTTP: transport, retries, idempotency, refresh, the relay rule | C2 | 04 | 3 | ✓ |
 | 34 | `hubclient` methods, the digest re-check, conformance against the real Hub | C2 | 33, 20 (rows grow with 22–27) | 3 | ✓ |
-| 35 | `hublink`: local project → Hub project; the share routes | C2 | 32, 34 | 3 | ✓ |
+| 35 | `hublink`: local project → Hub project; the share routes | C2 | 32, 34; phase 3 task 13's `githost` (or its copy) | 3 | ✓ |
 | 36 | the change-feed poller, `/v1/hub/changes`, the cursor header | C2 | 26, 35 | 2 | |
 | 37 | the local caller key, control-plane side (A3, A4) | C3 | 32 | 2 | ✓ |
 | 38 | the local caller key, desktop side | C3 | 37 | 2 | ✓ |
@@ -437,4 +468,17 @@ from this plan:
   code. Tasks 10 and 29 write them from those parts verbatim only if they have not landed.
 - **Docker Desktop's reachability** of a host service bound to `127.0.0.1` from a container was not
   tested; the local caller key (task 37) makes the answer not matter, as ADR-H1 §5.4 intends.
+- **Tauri 2 app-defined commands need no capability entry** (task 38): inferred from phase 2's
+  `greet`, which has none; checked only when task 38 runs `npm run tauri dev`.
+- **Token shapes**: GitHub's documented prefixes (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`,
+  `github_pat_`) from knowledge; Panacea's `pnc_` from the phase 7 brief (`:119`), its length bound
+  a guess (task 39).
+- **`docker compose up --wait`** on the owner's Docker Desktop version (task 09 falls back to
+  polling the health status).
+- **The Azure DevOps resource id** `499b84ac-1321-427f-aa17-267ca6975798` is the contract's
+  (§6.2, §15), not checked; `PANACEA_APP_ENTRA_DEVOPS` defaults to `false` until IT grants consent.
+- **Two golden vectors of the contract were re-computed** for this plan (Python `json.dumps` with
+  `sort_keys`, `separators=(",",":")`, `ensure_ascii=False`): both lengths (209, 256) and both
+  digests agree with contract §3.5. Vectors 3 and 4 (task 02) were computed the same way. That is
+  the only code this plan ran.
 
