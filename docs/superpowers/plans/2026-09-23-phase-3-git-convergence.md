@@ -518,7 +518,8 @@ is sized for one implementer in one to three hours.
 **Order.** 01 → 02 → 03 → 04 → then three lanes that can run in parallel worktrees:
 **(a)** 05 → 06; **(b)** 07 → 08 → 09 → 10, then 15 and 16 → 17; **(c)** 11 (after 07), 12 → 13,
 then 14 once 10 has landed (its PR description lists the lands). The desktop track 18 → (19 → 20) ∥ 21 ∥ 22 starts once G2 holds. Task 23 is last.
-Lane (c) needs nothing from lane (b) before 14 (review I7): `briefref`, which task 11 imports,
+Lane (c) needs only 07 from lane (b) before 14 (review I7; re-review b04-1 issue 4): task 11
+waits on 07, lane (b)'s first task, and nothing else in lane (c) waits on lane (b). `briefref`, which task 11 imports,
 is task 03's; the one lock that tasks 09-12 all take is task 02's `gitx.Locks`, constructed once
 by task 04 in `GitDeps.Locks`. Each task tests its own side against that lock, so task 12 needs
 no `Lander` and no edge to task 09 exists or is needed.

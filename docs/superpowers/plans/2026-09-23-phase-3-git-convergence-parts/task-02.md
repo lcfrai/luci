@@ -234,9 +234,13 @@ package gitx
 //
 // One per process. Task 04 constructs it in cmd/api and hands the same value to every user
 // through GitDeps.Locks, so no task builds its own. The key is the project ID, phase 2's
-// "p-" + hash of the catalog path (project.go:29, :102): every caller already holds it, and a
-// path is spelled several ways on Windows (8.3 names, case, a junction; re-review b03 N-1), so a
-// path key could give one repository two locks.
+// "p-" + hash of the catalog path (project.go:29, :102). Every caller takes it from the one catalog
+// entry, which has one spelling, whereas a path handed in by each caller could be spelled several
+// ways on Windows (re-review b03 N-1). The ID does not normalise those spellings itself: hashPath
+// only makes the path absolute, cleans it and lowercases it (project.go:86-97), so an 8.3 or
+// junction spelling still hashes differently (re-review b04-1 issue 5). The case that remains is
+// two catalog entries for one repository, which get two locks; compare-and-swap update-ref still
+// refuses the double land, and the loser gets branch_moved (task 09).
 //
 // Lock order: a Locks lock is taken first. Syncer.SyncLane's per-lane lock (task 07) may be taken
 // inside it (Land's step 4); nothing takes a Locks lock while holding a lane lock.
