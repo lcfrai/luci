@@ -283,7 +283,8 @@ jsdom does run. The defect it pins was invisible to every other test because the
 on `window` and none on the focused element: xterm handles keydown on its own helper textarea
 first and cancels what it maps to data, so a chord pressed in a focused terminal went to the agent
 as control bytes (§6.6, "The chord filter"). The file mounts the real `<Terminal/>` and asserts the
-end state — the map acts and the agent receives nothing; Escape, shift+Tab and Ctrl+C still reach
+end state — the map acts and the agent receives nothing, for every chord pressed with Ctrl and
+again with Meta (the Meta rows added by fix round 2); Escape, shift+Tab and Ctrl+C still reach
 the agent. It was allowed on one condition, that it is stable (five consecutive identical runs
 before commit); **if it ever flakes it is deleted**, and `Terminal.test.tsx`'s handler-level tests
 stay. Nothing in it draws or measures a glyph, so the rule above is unchanged for rendering.
@@ -2206,7 +2207,11 @@ The middle column says exactly where, so nobody has to take that on faith.
 Eleven tasks. **D1 writes 14–19** (the foundation: nothing on screen until 18, everything on
 screen depends on 14–17). **D2 writes 20–24** (the surfaces, the verbs and the proof). The line is
 drawn so that D1 hands D2 a compiling, tested substrate with no UI decisions left in it, and D2
-never edits a file D1 owns except `App.tsx` in task 24.
+never edits a file D1 owns except by declared departure, recorded at the site and in the section
+it amends. *Amended 2026-09-24 by task 23's fix round 2.* The sentence used to say "except
+`App.tsx` in task 24", which was the one departure planned. D2's tasks and their review rounds
+have since made others, into `Terminal.tsx`, `fakes.ts`, `poller.ts` and `useCreateSession.ts`,
+each recorded where it happened.
 
 Legend: **C** create, **M** modify, **T** test.
 
