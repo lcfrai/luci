@@ -255,16 +255,24 @@ export function retryAttach(sessionId: SessionId): boolean {
   // there is no spent ladder to restart and zeroing the stamp would blank an elapsed the pane is
   // rendering. `connect()` would early-return on the same condition, so without this the call
   // would report success having done nothing. The one mid-ladder moment this DOES accept is an
-  // armed rung, where `ws` is null — there the clearRetry below replaces the rung instead of
-  // racing it.
+  // armed rung, where `ws` is null.
   if (entry.ws) return false;
-  // NO `clearRetry` HERE, and its absence is measured rather than an oversight. A mutant that
-  // added one back survives every test, because an armed rung is already unobservable by the
-  // time it could matter: `scheduleRetry` calls `clearRetry` itself before arming the next rung,
-  // so a close after this cancels the stale timer; and if nothing closes, the stale timer fires
-  // into a `connect()` that early-returns on the live `entry.ws` this retry just set, nulling
-  // `entry.retryTimer` on its way out. `destroy()` clears it in the teardown path. A line that
-  // cannot change an outcome reads as protection while doing nothing, which is worse than none.
+  // NO `clearRetry` HERE, and this comment is what the deleted line left behind. A mutant adding
+  // one back SURVIVES every test, because three separate mechanisms already make a rung armed
+  // before this call unobservable by the time it could matter:
+  //
+  //   1. `scheduleRetry` calls `clearRetry` itself before arming the next rung, so any close
+  //      after this point cancels the stale timer.
+  //   2. With no close, the stale timer fires into a `connect()` that early-returns on the live
+  //      `entry.ws` this retry is about to set — and nulls `entry.retryTimer` on its way out.
+  //   3. `destroy()` clears it in the teardown path.
+  //
+  // WHAT WOULD HAVE TO CHANGE for the absence to become a defect: any ONE of those three. If
+  // `scheduleRetry` stops clearing before it arms, or `connect()` stops early-returning on a live
+  // socket, or `destroy()` stops clearing, then a rung armed before this retry can reach a
+  // `connect()` with a null `ws` and open a second socket off the ladder this call replaced —
+  // two ladders interleaved, each arming rungs the other satisfies. At that point `retryAttach`
+  // needs its own `clearRetry(entry)` back, on this line.
   entry.attempts = 0;
   // DECLARED EQUIVALENT MUTANT, and it is equivalent in value rather than in meaning. Replacing
   // this `0` with `Date.now()` survives the suite, because `connect()` runs SYNCHRONOUSLY on the
