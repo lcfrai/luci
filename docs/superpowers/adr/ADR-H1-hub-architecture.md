@@ -83,7 +83,7 @@ which no earlier document placed.
 ### 1.3 What stays where it is
 
 - **`Session.contextRef`** stays on the control plane's registry session record
-  (`desktop/src/store/types.ts`, contract §2.4). It is a fact about one process on one machine. It
+  (`desktop/src/store/types.ts`, provenance contract §2.4). It is a fact about one process on one machine. It
   holds a brief key; the key resolves at the Hub.
 - **Sessions, machines, worktrees and PTYs** stay local. The Hub never sees a terminal byte.
 - **Criterion state** stays computed, never stored (§2.3). Phase 3's evaluator is local.
@@ -409,9 +409,9 @@ refuses that flag when `PANACEA_APP_HUB_ENV` is anything but `local`.
 | **brief** (head) | `bf-…` | project- or branch-scoped. A branch is named by its **git ref**, `refs/heads/…`, the one name teammates share through the remote |
 | **brief revision** | `brief:bf-…@n` | immutable. Content is stored as its **canonical bytes**; the digest is SHA-256 of exactly those bytes |
 | **design approval** | `ap-…`; unique `design:<canvasId>@<rev>` | approval, design link and snapshot in one row, written in one transaction |
-| **session → design link** | `ln-…` | shape reserved by contract §3.2, fixed here |
+| **session → design link** | `ln-…` | shape reserved by provenance contract §3.2, fixed here |
 | **release** | `rl-…` | tagged union `run` · `rollback` (R5); the pin is taken by the Hub at reservation (G1) |
-| **release → deployment join** | `(release, deployment_id)` | a second record referencing the first (contract §2.2) |
+| **release → deployment join** | `(release, deployment_id)` | a second record referencing the first (provenance contract §2.2) |
 | **evidence** | `ev-…` | phase 3's `evidence.Record` (H-2), with `recordedBy` = the principal (H-4) |
 | **blob** | `sha256:…` per org | bytes in Postgres (G2) |
 | **audit event** | `seq` | append-only, hash-chained (G5); also the change feed (G3) |
@@ -459,7 +459,7 @@ an OS-level peer check does, and that is recorded as risk R4 (§8).
 | Operation | Behaviour |
 |---|---|
 | Resolve a key the control plane already holds | served from its in-memory cache — revisions are immutable, so the copy cannot be stale |
-| Resolve a new key, or read a head | `unavailable` (contract §4.1's sixth state), via 503 `upstream_unavailable` |
+| Resolve a new key, or read a head | `unavailable` (provenance contract §4.1's sixth state), via 503 `upstream_unavailable` |
 | Any write — a brief answer, an approval, a Ship | refused with 503 `upstream_unavailable`; nothing is queued. A queued approval or pin replayed later would record the wrong moment |
 | Start a session | Materialise needs the head; phase 4's `4-D1` recommendation decides (refuse with an override) |
 | Local sessions, terminals, worktrees | unaffected. They never touch the Hub |
