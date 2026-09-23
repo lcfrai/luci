@@ -68,9 +68,11 @@ type RemovalState struct {
 	// LaneTip ‖ "\n" ‖ sorted Elsewhere ‖ "\n" ‖ set(Unlisted) ‖ "\n" ‖ set(Unarchivable)))[:16],
 	// where set(s) is "1" when s is non-empty and "" when not.
 	// A DELETE carrying it proves the human saw this exact state. Git's wording of a failure is
-	// shown, never hashed: an archive failure names the attempt's <unix> prefix, and a timeout can
-	// name a duration, so hashing the wording would make every token stale. ArchivedAt is not
-	// hashed either, for the same reason. What is at risk is bound by Elsewhere's shas.
+	// shown, never hashed. The token must survive a retry, and nothing pins that wording across
+	// attempts: with --quiet the D/F failure names only the clone's path (probed, fix batch b04
+	// round 2), but without it each ref line names the attempt's <unix> prefix, and a timeout can
+	// name a duration. ArchivedAt, which holds that <unix>, is not hashed either. What is at risk
+	// is bound by Elsewhere's shas.
 	Confirm string
 }
 
@@ -279,5 +281,7 @@ go test ./control-plane/internal/lanes/ ./control-plane/internal/converge/ ./con
   commit reachable only from the clone's reflog is not archived and is lost with the clone.
 - Every DELETE's `Inspect` archives under its own `<unix>`, so a question asked three times
   leaves three archives of the same objects. Phase 3 keeps them all, like every archive ref (Q5).
-- Unverified: git's exact sentence for each unarchivable case. The token hashes only whether
-  `Unarchivable` is set, so nothing depends on the wording.
+- Unverified: git's exact sentence for each unarchivable case other than the D/F pair (probed:
+  "error: some local refs could not be updated; try running 'git remote prune <clone>' …", the
+  same on every attempt). The token hashes only whether `Unarchivable` is set, so nothing
+  depends on the wording.
