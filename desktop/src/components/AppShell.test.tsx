@@ -116,7 +116,7 @@ describe("AppShell", () => {
   // cut and rendering them live would be a lie. Disabled with the phase that makes each real.
   it("is honest about the two controls it cannot implement yet", () => {
     render(<AppShell />);
-    for (const [name, phase] of [["Authority", /Phase 3/], ["Run locally", /Phase 5/]] as const) {
+    for (const [name, phase] of [["Authority", /Phase 3/], ["Run locally", /Phase 7/]] as const) {
       const button = screen.getByRole("button", { name });
       expect(button.hasAttribute("disabled")).toBe(true);
       expect(button.getAttribute("title") ?? "").toMatch(phase);

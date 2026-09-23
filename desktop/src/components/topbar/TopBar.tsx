@@ -34,7 +34,7 @@ export function TopBar(): JSX.Element {
         type="button"
         className="top-btn"
         disabled
-        title="Run locally needs the deploy connector. It arrives in Phase 5."
+        title="Run locally needs the deploy connector. It arrives in Phase 7."
       >
         Run locally
       </button>
