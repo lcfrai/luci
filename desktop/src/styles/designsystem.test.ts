@@ -8,9 +8,9 @@
 // The tree is collected with Vite's `import.meta.glob`, eager and `?raw`, and not walked with
 // node:fs. Both halves of that were measured rather than preferred. node:fs does not typecheck
 // in this package: `@types/node` is not a dependency, so `import { readFileSync } from
-// "node:fs"` is TS2591 under `npm run typecheck` — the reason vite.config.ts carries a
-// @ts-expect-error for node:process. And a hand-written list of `?raw` imports would audit only
-// the stylesheets somebody remembered to list. A glob is neither: it is expanded from the file
+// "node:fs"` is TS2591 under `npm run typecheck`, which is also why vite.config.ts suppresses
+// the error on its node:process import. And a hand-written list of `?raw` imports would audit
+// only the stylesheets somebody remembered to list. A glob is neither: it is expanded from the file
 // system on every run, so a stylesheet a later phase adds is audited the moment it exists, and
 // `?raw` hands over the bytes on disk. vitest.config.ts opts `.css?raw` past vitest's
 // css-disable plugin; the first assertion below is what notices if that ever stops being true.

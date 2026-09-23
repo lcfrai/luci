@@ -21,34 +21,59 @@ export function coveredWorktreeIds(
   return [...seen];
 }
 
-export function startPolling(client: CockpitClient, store: typeof useCockpit): () => void {
+/**
+ * `onGoodTick` — ADDED BY TASK 24, a declared departure into this file — runs after every tick
+ * whose fetch succeeded, and never after a failed, skipped or stopped one. A good tick is the
+ * one proof that the control plane answers, so it is what retries a catalogue list that failed
+ * or never arrived (App.tsx's `startCatalogue`), without a second timer: §7.1 allows one clock.
+ */
+export function startPolling(
+  client: CockpitClient,
+  store: typeof useCockpit,
+  onGoodTick?: () => void,
+): () => void {
   let stopped = false;
   let inFlight = false;
+  /** The error object this poller last wrote. setError stores the object it is handed, so
+   *  identity says whose report `lastError` currently is. */
+  let raised: { code: string; message: string } | null = null;
 
   const tick = async (): Promise<void> => {
     // Paused while hidden: a laptop lid closed for eight hours must not wake to 14 000 queued
     // requests. In-flight guard: a slow tick delays the next one, it never stacks another.
     if (stopped || inFlight || document.visibilityState === "hidden") return;
     inFlight = true;
+    let good = false;
     try {
       const sessions = await client.listSessions();
       if (stopped) return;
+      good = true;
       const state = store.getState();
       const covered = coveredWorktreeIds(Object.keys(state.sessionIdsByWorktree), sessions);
       state.replaceSessions(sessions, covered);
-      // Only written when it actually changes: a store write every 2 s is a re-render every
-      // 2 s, which is the layout shift AGENTIC-UX §10 rule 7 bans.
-      if (store.getState().lastError !== null) store.getState().setError(null);
+      // AMENDED BY TASK 24: a good tick clears the error THIS POLLER raised, and nothing else.
+      // It used to clear any non-null lastError, so a catalogue list that failed while sessions
+      // answered was reported and then wiped by the next tick, 2 s later, leaving an empty rail
+      // and a clean footer. An error is cleared by the success of the operation that raised it;
+      // the catalogue clears its own. Still written only when it changes: a store write every
+      // 2 s is a re-render every 2 s, which is the layout shift AGENTIC-UX §10 rule 7 bans.
+      if (raised !== null) {
+        if (store.getState().lastError === raised) store.getState().setError(null);
+        raised = null;
+      }
     } catch (error) {
       if (stopped) return;
-      store.getState().setError(
+      raised =
         error instanceof ApiError
           ? { code: error.code, message: error.message }
-          : { code: "internal", message: String(error) },
-      );
+          : { code: "internal", message: String(error) };
+      store.getState().setError(raised);
     } finally {
       inFlight = false;
     }
+    // Outside the try, so a throw from the hook is never recorded as the poller's own failure,
+    // and after `finally`, so a retry the hook starts never sees this tick still in flight.
+    if (good && !stopped) onGoodTick?.();
   };
 
   const onVisibility = (): void => {
