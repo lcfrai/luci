@@ -146,6 +146,15 @@ export const selectDesignBriefKeys: KeySource;   // every loaded approval's brie
 // design.approving, INCLUDING when the lens shows it: that hidden renderer is the approval's
 // fallback when the lens closes mid-capture (re-review RR-I5-1). Render still prefers visible.
 export function selectHiddenRendererCanvases(s: CockpitState): string[];
+// selectHandoffWorktrees (re-review RR-I1-5): the branch's worktrees route 24 accepts — kind
+// "clone" first, then "primary" — never "linked" (route 24 answers 409 handoff_worktree_linked).
+// kind is phase 3 task 06's Worktree.kind (it amends types.ts and UI contract §2; this plan does
+// not). Until task 06 lands, handoffKind(w) — the one seam, in this file — returns
+// w.isPrimary ? "primary" : "linked", which is exact before phase 3 (every non-primary worktree
+// is then a `git worktree add` checkout). If task 06 is already in the tree when this task is
+// built, handoffKind is `return w.kind` from the start; otherwise the merge that brings task 06
+// into this branch changes it to that, in the same commit (seam S5-P3.3).
+export function selectHandoffWorktrees(s: CockpitState, branchId: string): Worktree[];
 ```
 
 ## Tests first
@@ -166,6 +175,7 @@ export function selectHiddenRendererCanvases(s: CockpitState): string[];
 | `transportAdapter.test.ts › gapReload` | a DocStore `gap` triggers exactly one `document()` | a canvas stuck behind after a drop |
 | `transportAdapter.test.ts › renderRoundTrip` | a render event runs the handler and POSTs its result to route 19 | render requests that time out server-side |
 | `selectors.test.ts` | `selectDesignBriefKeys` lists approved keys; `selectHiddenRendererCanvases` includes a branch with a running claude-code session and excludes the lens's canvas; with `approving` set to the lens's own canvas it includes that canvas, and with `approving` null it drops it again | hidden renderers for every branch, or none; an approval whose only renderer closes with the lens (re-review RR-I5-1) |
+| `selectors.test.ts › selectHandoffWorktrees` (re-review RR-I1-5) | a branch with a primary, a linked and a clone worktree → `[clone, primary]`; a branch whose only worktree is linked → `[]`; before phase 3 (`handoffKind` on `isPrimary`), a non-primary worktree → excluded | a handoff offered into a linked worktree, answered 409 after the click |
 | `designSlice.test.ts › approving` | `designApprove(c, 5)` sets `approving: c` at once (inside the Undo window); `designCancelApproval` clears it; the approve POST settling, with success or an `ApiError`, clears it | a hidden renderer kept for ever, or one attached only after capture has started |
 
 ## Steps

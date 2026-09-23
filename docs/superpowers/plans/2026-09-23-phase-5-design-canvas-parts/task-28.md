@@ -89,7 +89,10 @@ normal session on this branch, pointed at this canvas"*).
 **Start a Develop session from this design** runs `designStartDevelop` (task 27; P5-N) with the
 opening prompt *"Implement the approved design in .panacea/design/{canvasId}@{rev}/ — read
 manifest.json first, then build it in this repository's own conventions."*; if the link fails, the
-carry card shows *Not linked* with *Link*.
+carry card shows *Not linked* with *Link*. Its `worktreeId` is the first of task 27's
+`selectHandoffWorktrees` for the canvas's branch (a cockpit clone, else the main checkout; never a
+linked git worktree, which route 24 refuses). With none, the button is disabled with *"This branch
+has no cockpit worktree or main checkout to hand the design to"* (re-review RR-I1-5).
 
 **Layout.** Header row; the approval bar when present; then three columns: left 240px (pages,
 layers, Theme — task 26's `LeftPanel`), the viewport (flex 1, `var(--canvas)`, no dot grid), right
@@ -109,6 +112,7 @@ on revisions, counts and times.
 | `DesignLens.test.tsx › notShared` | `design_not_shared` → phase 4's OQ-1 sentence | a raw code on screen |
 | `approve.test.tsx` (fake timers) | *Approve* shows a toast with Undo; Undo within 5 s sends nothing | a confirm dialog, or an approval that cannot be undone |
 | `approve.test.tsx › capturing` | with `approvalProgress` `{index: 3, total: 12, name: "Billing"}` the toast reads *"Capturing 3 of 12 · Billing"* and *"Keep this window open until capture ends; you can leave the Design lens"*; a `409 renderer_unavailable` whose details name artboard *"Billing"* (3 of 12) shows the server's sentence, for each `details.cause` (`no_renderer`, `renderer_gone`, `timeout`, `render_error`) unchanged | a silent twelve-artboard wait, or a failure that does not say which artboard or why (review I5, re-review RR-I5-1) |
+| `DesignLens.test.tsx › startDevelopWorktree` (re-review RR-I1-5) | an approved canvas on a branch with a linked and a clone worktree → `designStartDevelop` receives the clone's id; a branch whose only worktree is linked → the button is disabled with *"This branch has no cockpit worktree or main checkout to hand the design to"*, and no handoff POST is sent | a click answered by route 24's 409 `handoff_worktree_linked` |
 | `Presence.test.tsx` | rows use `beatDelayStyle`/`useHeartbeat`; no `setInterval`; *Release claim* calls route 9 | a per-row timer |
 | `Activity.test.tsx` | *Revert {handle}'s changes* calls route 8 with that session id | revert by the wrong author |
 | `AppShell.test.tsx` (amended) | the design arm renders `DesignLens`; the phase 2 guard `grep -cE '^[[:space:]]+return <DevelopLens' …` is still `1` | the Develop arm disturbed |
