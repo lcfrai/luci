@@ -29,7 +29,7 @@ that builds each:
 |---|---|
 | §7.4 | A1: the two repo-key regexes and the lowercase rule; the `repo_already_linked` message sentence (task 17) |
 | §12.1 | A2: Postgres-only compose; `devstack.sh`; why |
-| §9.4, §13 C3 | A3: the exempt routes are `/v1/healthz`, `/api/v1/healthz` and the attach WebSocket |
+| §9.4, §13 C3 | A3: the only routes without the key are `/v1/healthz` and `/api/v1/healthz`, mounted outside the guard. Review I3 replaces §9.4's attach exemption and its *"later work"* sentence: the attach WebSocket carries the key as its second subprotocol (`["panacea.v1", "panacea.key." + key]`), compared in constant time, and the control plane echoes only `panacea.v1` (task 37); *"calls it once at start"* gains *"and again for each attach handshake"* (task 38) |
 | §9.4 | A4: `Access-Control-Allow-Headers: Content-Type, Authorization`; the key check inside the origin guard |
 | §2, §6.4 | A5: `internal/devissuer` as a package, `cmd/devissuer` its `main`; three dev tenants and five users (task 11) |
 | §6.1 step 9, §9.1 | A6: the `id_token` checked without a signature under OIDC Core §3.1.3.7(6), and the tenant cross-check; `AfterSignIn` returns the Hub tenant id |
@@ -63,8 +63,10 @@ runs the flow and holds the tokens; the Hub validates Entra access tokens itself
 seams: *"Plan: `docs/superpowers/plans/2026-09-23-phase-h-hub.md`; seams S-CRED (the credential
 store phases 3, 6 and 7 use), S-TOKEN, S-HUB, S-LINK, S-FEED."* Nothing else in the file changes.
 
-**UI contract §4.5.** A note: *"Superseded for REST by the local caller key (Phase H plan, tasks
-37–38): every REST call carries `Authorization: Bearer <local key>`; the attach WebSocket does not."*
+**UI contract §4.5.** A note: *"Superseded by the local caller key (Phase H plan, tasks 37–38):
+every REST call carries `Authorization: Bearer <local key>`, and the attach WebSocket offers it as
+its second subprotocol, `["panacea.v1", "panacea.key." + key]`, never in its URL. The per-sandbox
+`attachToken` is unchanged and still never reaches the desktop."*
 
 **Provenance contract draft.** One block at the top, *"Amended by Phase H (ADR-H1 §7.2)"*, listing:
 §2.1's store locations are now the Hub's; §1.4 and §4.1 gain the `erased` state; §6.4's *"head refs
