@@ -855,3 +855,48 @@ is a different script and is unchanged.
 
 **Mutation checks:** none run. Plan documents only. The new mutants are the five in task 30's
 Step 2 (`:496-501`) and the three new `sql /` rows of task 29.
+
+## Fix batch b04 (2026-09-24) — I1, I2, I10
+
+Commit `c71ccbb`. Line numbers are at `c71ccbb`.
+
+**I1. "Every committed tfvars is proven to plan" is false: a test file's variables override `-var-file`.**
+
+| Ask | Change | Where |
+|---|---|---|
+| guard G9: a stack's `.tftest.hcl` file-level `variables` may hold no key any `<env>.tfvars` sets | **Renumbered G10.** G9 was already taken by the provider-source allowlist (b02, C3). G10 reads the column-0 `variables { … }` block (fmt puts a run's block at column 2) against every tfvars' top-level keys. Guards count 9 → 10 | `parts/task-01.md:23`, `:93-96`, `:114`; counts restated in `parts/task-02.md:216`, `parts/task-03.md:232`, `parts/task-07.md:593`, `parts/task-08.md:275`, `parts/task-09.md:188` |
+| every run that depends on an environment-specific value sets it at run level, `environment` included | Written into the `validate.sh` contract and the README conventions. **Addition:** each stack test has a `committed_tfvars_plan` run with no run-level tfvars key. That run is what actually plans each tfvars untouched, because run-level values override `-var-file` too | `parts/task-01.md:64-74`, `:130-133` |
+| fix task 02's test file | the file-level block holds only `state_writer_object_ids` and `state_reader_object_ids`. There is a new `committed_tfvars_plan` run. `the_product_group_exists_before_foundation` asserts `rg-panacea-app-${var.environment}` rather than `"dev"`. The count is `12 passed`, printed twice (once per tfvars) | `parts/task-02.md:147-176`, `:180`, `:187`, `:219-220` |
+| task 07's dev-shaped runs | foundation's file-level block holds only `cluster_admin_group_object_ids`. `nat_mode_allowlists_its_own_address_on_the_api` pins `environment`, `api_private` and `egress_mode`. **Found beyond the review:** `overlapping_pod_range_fails_the_plan` depended on dev's `vnet_cidr`, because prod's differs and would not overlap, so it now pins `vnet_cidr` and the whole `aks_network`. `dns_ip_outside_service_range_fails` pins the whole `aks_network` too. `tfvars_plan_against_mocks` is renamed `committed_tfvars_plan` | `parts/task-07.md:550-563`; `parts/task-08.md:253-254` |
+| a `guards_test.sh` case for G9 | `g10_tftest_file_level_tfvars_key_fails`: the key is set only in `prod.tfvars`, which kills a G10 that reads only `dev.tfvars`. The same key at run level passes. Cases 11 → 13, counting I2's case | `parts/task-01.md:158`, `:169-171`, `:187-190` |
+| (consistency) | `stacks/identity` and `stacks/workloads` gain the same `committed_tfvars_plan` run and the file-level rule. The identity run count goes 12 → 13 | `parts/task-09.md:156-161`, `:181`; `parts/task-10.md:220-226` |
+
+**Verified this batch.** The probe was provider-free Terraform 1.15.8 in the scratchpad `env/b04-probe`, with no provider and no Azure, run as `terraform test -var-file=prod.tfvars`:
+- A run with no pin and no file-level key saw `"prod"`.
+- A run-level `environment = "dev"` saw `"dev"`.
+- With a file-level `environment = "dev"` added, the unpinned run saw `"dev"` and failed (`Failure! 1 passed, 1 failed`).
+
+**Correction recorded:** a `committed_tfvars_plan` whose assertions read `var.environment` agrees with whichever value won, so it **cannot** kill the file-level mutant. G10 is the only kill, and the rows say so (`parts/task-02.md:180`, `parts/task-07.md:558`).
+
+**I2. The runbook's first command cannot run.**
+
+| Ask | Change | Where |
+|---|---|---|
+| §2 uses an uncommitted `backend_override.tf` (local), then `init -migrate-state` with the real `-backend-config` flags | Steps (a)–(f): (a) write the override and check it with `git check-ignore -v`; (b) init/plan/apply to a plan file; (c) delete the override; (d) `init -migrate-state` with `backends/<env>.hcl` plus the resource group, account and `bootstrap.<env>.tfstate` key; (e) a no-change `plan` against the migrated state, then delete the local state; (f) guards. **Addition:** step (d) needs the operator in the break-glass writer group, and a 403 straight after apply is role-assignment propagation (UNVERIFIED) | `parts/task-31.md:29`; `parts/task-02.md:29-35` (backend.tf comment) |
+| `.gitignore` gains `*_override.tf` | plus `*_override.tf.json` | `parts/task-01.md:26` |
+| G1 refuses a tracked override | G1 checks `git ls-files` for `*_override.tf` and `*_override.tf.json`. New case `g1_tracked_override_fails`: tracked → FAIL, and untracked → ok, because §2 needs the override on disk | `parts/task-01.md:105`, `:148` |
+
+**I10. The firewall allowlist is described as an egress control it cannot be.**
+
+| Ask | Change | Where |
+|---|---|---|
+| `module.registry.login_server` exactly, not `*.azurecr.io` | the module takes `acr_login_server`, validated to have no leading `*` and to end in `.azurecr.io`. `acr_data_endpoints` is validated to have no leading `*`. Rule 2 lists exactly those names. Foundation passes `module.registry.login_server` and `data_endpoint_host_names` (task 05 `:72-75`) | `parts/task-07.md:102-117`, `:160-162`, `:429-430` |
+| a test that no FQDN in the ACR rule starts with `*` | `acr_rule_names_our_registry_exactly` (the exact name is present, and `alltrue(!startswith(f, "*"))`). A second, separate run, `wildcard_acr_login_server_is_rejected`, is added. The module's runs go 7 → 9 | `parts/task-07.md:544-545`, `:579` |
+| Q1 and task 07 state that Overlay SNAT hides sources and that per-sandbox FQDN control needs Cilium FQDN policy (UNVERIFIED) | Q1: the firewall limits where agents go and does not stop exfiltration. Node rules are open to sandboxes, and `github.com` / `*.githubusercontent.com` accept uploads. Task 07 gets a paragraph after the rule list, a `source_cidrs` description, and a "does not claim" bullet | plan `:298`; `parts/task-07.md:100`, `:170-178`, `:609-612` |
+
+**Still UNVERIFIED after this batch:**
+- `init -migrate-state` from `local` to `azurerm` with `use_azuread_auth` (not probed, because it needs Azure).
+- The RBAC propagation delay.
+- That Advanced Container Networking's FQDN policy enforces per pod on the Kata pool.
+
+**Mutation checks:** none run beyond the precedence probe. These are plan documents only. The new mutants are those in the three new guard/test rows (`parts/task-01.md:148`, `:158`; `parts/task-07.md:544-545`).
