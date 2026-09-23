@@ -1590,3 +1590,195 @@ CREATE TABLE brief_revisions (
   CHECK (canonical IS NULL OR (octet_length(canonical) <= 65536 AND sha256(canonical) = digest))
 );
 ```
+
+`0001_init.sql`, continued:
+
+```sql
+-- ── blobs ────────────────────────────────────────────────────────────────────
+CREATE TABLE blobs (
+  org_id     text        NOT NULL REFERENCES orgs (id),
+  digest     bytea       NOT NULL CHECK (octet_length(digest) = 32),
+  size       integer     NOT NULL CHECK (size BETWEEN 0 AND 16777216),
+  bytes      bytea       NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (org_id, digest),
+  CHECK (octet_length(bytes) = size AND sha256(bytes) = digest)
+);
+
+CREATE TABLE project_blobs (
+  org_id       text        NOT NULL REFERENCES orgs (id),
+  project_id   text        NOT NULL REFERENCES projects (id),
+  digest       bytea       NOT NULL,
+  content_type text        NOT NULL CHECK (char_length(content_type) BETWEEN 3 AND 100),
+  uploaded_at  timestamptz NOT NULL DEFAULT now(),
+  uploaded_by  text        NOT NULL REFERENCES users (id),
+  PRIMARY KEY (project_id, digest),
+  FOREIGN KEY (org_id, digest) REFERENCES blobs (org_id, digest)
+);
+CREATE INDEX project_blobs_janitor ON project_blobs (uploaded_at);
+
+-- ── design approvals and session links ───────────────────────────────────────
+CREATE TABLE design_approvals (
+  id              text        PRIMARY KEY CHECK (id ~ '^ap-[0-9a-f]{16}$'),
+  org_id          text        NOT NULL REFERENCES orgs (id),
+  project_id      text        NOT NULL REFERENCES projects (id),
+  design_key      text        NOT NULL CHECK (design_key ~ '^design:[a-z]{2,4}-[0-9a-f]{4,32}@[1-9][0-9]{0,8}$'),
+  canvas_id       text        NOT NULL,
+  design_revision integer     NOT NULL CHECK (design_revision >= 1),
+  review_digest   bytea       NOT NULL CHECK (octet_length(review_digest) = 32),
+  brief_id        text        NOT NULL,
+  brief_revision  integer     NOT NULL,
+  brief_digest    bytea       NOT NULL,
+  branch_ref      text        NOT NULL,
+  manifest_digest bytea       NOT NULL,
+  approved_at     timestamptz NOT NULL DEFAULT now(),
+  approved_by     text        NOT NULL REFERENCES users (id),
+  UNIQUE (project_id, design_key),
+  CHECK (design_key = 'design:' || canvas_id || '@' || design_revision),
+  FOREIGN KEY (brief_id, brief_revision, brief_digest)
+    REFERENCES brief_revisions (brief_id, revision, digest),
+  FOREIGN KEY (project_id, manifest_digest) REFERENCES project_blobs (project_id, digest)
+);
+
+CREATE TABLE design_approval_blobs (
+  org_id      text  NOT NULL REFERENCES orgs (id),
+  approval_id text  NOT NULL REFERENCES design_approvals (id),
+  project_id  text  NOT NULL,
+  digest      bytea NOT NULL,
+  PRIMARY KEY (approval_id, digest),
+  FOREIGN KEY (project_id, digest) REFERENCES project_blobs (project_id, digest)
+);
+
+CREATE TABLE session_links (
+  id             text        PRIMARY KEY CHECK (id ~ '^ln-[0-9a-f]{16}$'),
+  org_id         text        NOT NULL REFERENCES orgs (id),
+  project_id     text        NOT NULL REFERENCES projects (id),
+  design_key     text        NOT NULL,
+  brief_id       text        NOT NULL,
+  brief_revision integer     NOT NULL,
+  session_id     text        NOT NULL CHECK (session_id ~ '^[a-z]{1,4}-[0-9a-f]{8,32}$'),
+  branch_ref     text        NOT NULL,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  created_by     text        NOT NULL REFERENCES users (id),
+  UNIQUE (created_by, session_id, design_key),
+  FOREIGN KEY (project_id, design_key) REFERENCES design_approvals (project_id, design_key),
+  FOREIGN KEY (brief_id, brief_revision) REFERENCES brief_revisions (brief_id, revision)
+);
+
+-- ── releases ─────────────────────────────────────────────────────────────────
+CREATE TABLE releases (
+  id                        text          PRIMARY KEY CHECK (id ~ '^rl-[0-9a-f]{16}$'),
+  org_id                    text          NOT NULL REFERENCES orgs (id),
+  project_id                text          NOT NULL REFERENCES projects (id),
+  kind                      release_kind  NOT NULL,
+  panacea_project           text          NOT NULL CHECK (panacea_project ~ '^[a-z0-9-]{1,63}$'),
+  environment               text          NOT NULL CHECK (environment ~ '^[a-z0-9-]{1,63}$'),
+  branch_ref                text          NOT NULL DEFAULT '',
+  commit_sha                text          CHECK (commit_sha ~ '^[0-9a-f]{40}$'),
+  source_deployment_id      text          CHECK (char_length(source_deployment_id) BETWEEN 1 AND 128),
+  source_release_id         text          REFERENCES releases (id),
+  -- the pin: written by the reservation, never updated (hub.guard_release_update)
+  pin_reason                pin_reason    NOT NULL,
+  pin_brief_id              text,
+  pin_brief_revision        integer,
+  pin_brief_digest          bytea,
+  pin_head_revision_at_ship integer,
+  design_key                text,
+  state                     release_state NOT NULL DEFAULT 'reserved',
+  pipeline_run              text          CHECK (pipeline_run ~ '^[a-z0-9.-]{1,253}$'),
+  reserved_at               timestamptz   NOT NULL DEFAULT now(),
+  reserved_by               text          NOT NULL REFERENCES users (id),
+  expires_at                timestamptz   NOT NULL,
+  confirmed_at              timestamptz,
+  abandoned_at              timestamptz,
+  abandon_reason            text          CHECK (abandon_reason IN ('deploy_failed', 'cancelled')),
+  abandon_message           text          CHECK (char_length(abandon_message) <= 500),
+  expired_at                timestamptz,
+  CHECK ((pin_reason IN ('ship_head', 'inherited')) = (pin_brief_id IS NOT NULL)),
+  CHECK ((pin_brief_id IS NULL) = (pin_brief_revision IS NULL)),
+  CHECK ((pin_brief_id IS NULL) = (pin_brief_digest IS NULL)),
+  CHECK ((pin_brief_id IS NULL) = (pin_head_revision_at_ship IS NULL)),
+  CHECK (pin_reason <> 'inherited' OR source_release_id IS NOT NULL),
+  CHECK (kind <> 'rollback' OR (source_deployment_id IS NOT NULL AND pipeline_run IS NULL)),
+  CHECK (kind <> 'run' OR state <> 'confirmed' OR pipeline_run IS NOT NULL),
+  CHECK ((state = 'confirmed') = (confirmed_at IS NOT NULL)),
+  CHECK ((state = 'abandoned') = (abandoned_at IS NOT NULL AND abandon_reason IS NOT NULL)),
+  CHECK ((state = 'expired')   = (expired_at IS NOT NULL)),
+  FOREIGN KEY (pin_brief_id, pin_brief_revision, pin_brief_digest)
+    REFERENCES brief_revisions (brief_id, revision, digest),
+  FOREIGN KEY (project_id, design_key) REFERENCES design_approvals (project_id, design_key)
+);
+CREATE UNIQUE INDEX releases_one_per_run ON releases (org_id, panacea_project, pipeline_run)
+  WHERE pipeline_run IS NOT NULL;
+CREATE INDEX releases_by_project ON releases (project_id, reserved_at DESC);
+CREATE INDEX releases_to_expire ON releases (expires_at) WHERE state = 'reserved';
+
+CREATE TABLE release_deployments (
+  org_id          text        NOT NULL REFERENCES orgs (id),
+  release_id      text        NOT NULL REFERENCES releases (id),
+  panacea_project text        NOT NULL,
+  deployment_id   text        NOT NULL CHECK (char_length(deployment_id) BETWEEN 1 AND 128),
+  joined_at       timestamptz NOT NULL DEFAULT now(),
+  joined_by       text        NOT NULL REFERENCES users (id),
+  PRIMARY KEY (release_id, deployment_id),
+  UNIQUE (org_id, panacea_project, deployment_id)   -- a deployment belongs to one release
+);
+
+-- ── evidence (phase 3, H-2) ──────────────────────────────────────────────────
+CREATE TABLE evidence (
+  id               text        PRIMARY KEY CHECK (id ~ '^ev-[0-9a-f]{16}$'),
+  org_id           text        NOT NULL REFERENCES orgs (id),
+  project_id       text        NOT NULL REFERENCES projects (id),
+  repo_key         text        NOT NULL,          -- verbatim; survives the remote's removal
+  brief_id         text        NOT NULL,
+  brief_revision   integer     NOT NULL,
+  criterion_id     text        NOT NULL CHECK (char_length(criterion_id) BETWEEN 1 AND 128),
+  criterion_digest bytea       NOT NULL CHECK (octet_length(criterion_digest) = 32),
+  commit_sha       text        NOT NULL CHECK (commit_sha ~ '^[0-9a-f]{40}$'),
+  verdict          verdict     NOT NULL,
+  because          text        NOT NULL CHECK (char_length(btrim(because)) BETWEEN 1 AND 2000),
+  recorded_at      timestamptz NOT NULL DEFAULT now(),
+  recorded_by      text        NOT NULL REFERENCES users (id),
+  FOREIGN KEY (brief_id, brief_revision) REFERENCES brief_revisions (brief_id, revision)
+);
+CREATE INDEX evidence_by_digest ON evidence (org_id, repo_key, criterion_digest, recorded_at);
+
+-- ── audit, the change feed, idempotency ──────────────────────────────────────
+CREATE TABLE audit_heads (
+  org_id text   PRIMARY KEY REFERENCES orgs (id),
+  seq    bigint NOT NULL DEFAULT 0 CHECK (seq >= 0),
+  hash   bytea  NOT NULL DEFAULT decode(repeat('00', 32), 'hex') CHECK (octet_length(hash) = 32)
+);
+
+CREATE TABLE audit_events (
+  org_id        text        NOT NULL REFERENCES orgs (id),
+  seq           bigint      NOT NULL CHECK (seq >= 1),
+  at            timestamptz NOT NULL,
+  kind          text        NOT NULL CHECK (kind ~ '^[a-z]+(_[a-z]+)*\.[a-z]+(_[a-z]+)*$'),
+  feed          boolean     NOT NULL,
+  team_id       text,
+  project_id    text,
+  subject       text        NOT NULL,
+  actor_user_id text        REFERENCES users (id),
+  canonical     bytea       NOT NULL,             -- §3.6
+  prev_hash     bytea       NOT NULL CHECK (octet_length(prev_hash) = 32),
+  hash          bytea       NOT NULL CHECK (hash = sha256(prev_hash || canonical)),
+  PRIMARY KEY (org_id, seq)
+);
+CREATE INDEX audit_feed_by_project ON audit_events (org_id, project_id, seq) WHERE feed;
+CREATE INDEX audit_feed_by_team    ON audit_events (org_id, team_id, seq)    WHERE feed;
+
+CREATE TABLE idempotency_keys (
+  org_id         text        NOT NULL REFERENCES orgs (id),
+  user_id        text        NOT NULL REFERENCES users (id),
+  key            text        NOT NULL CHECK (key ~ '^[A-Za-z0-9_-]{1,64}$'),
+  method         text        NOT NULL,
+  path           text        NOT NULL,
+  request_sha256 bytea       NOT NULL,
+  status         smallint    NOT NULL DEFAULT 0,   -- 0 while the first request is in flight
+  response       bytea,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, key)
+);
+CREATE INDEX idempotency_keys_janitor ON idempotency_keys (created_at);
+```
