@@ -58,7 +58,7 @@ type projectDTO struct {
 // replicas is present ONLY when the namespace was read (:2125-2140).
 type environmentDTO struct {
 	Name      string `json:"name"`
-	Branch    string `json:"branch"`
+	Branch    string `json:"branch"` // a LABEL: == Name for every non-base row (:2109-2111); not the git branch
 	Primary   bool   `json:"primary"`
 	Subdomain string `json:"subdomain"`
 	Status    string `json:"status"`
@@ -66,6 +66,12 @@ type environmentDTO struct {
 		Current int `json:"current"`
 		Desired int `json:"desired"`
 	} `json:"replicas"`
+}
+
+// branchEnvDTO is the ONE field EnvironmentFor reads from GetBranchAccessMode's data
+// (handlers/project_security.go:668-677): Panacea's own environment name for any branch.
+type branchEnvDTO struct {
+	Env string `json:"env"`
 }
 
 // deploymentDTO mirrors models.Deployment (models/models.go:665-770). BuildLogs is NOT declared:
@@ -197,7 +203,8 @@ type findingDTO struct {
 |---|---|---|---|
 | `Whoami` | `GET /api/v1/me` (3038) | bare `meDTO` | `Approved: dto.Approved != nil && *dto.Approved` |
 | `Projects` | `GET /api/v1/projects` (1018) | `listDTO[projectDTO]` | — |
-| `Environments` | `GET P/environments` (1126) | `listDTO[environmentDTO]` | `Replicas` nil when the key is absent; `Host = Subdomain` |
+| `Environments` | `GET P/environments` (1126) | `listDTO[environmentDTO]` | `Replicas` nil when the key is absent; `Host = Subdomain`; `Branch` is the row's label verbatim — `Env` for every non-base row (`handlers/projects.go:2109-2118`), so never a join key |
+| `EnvironmentFor` | `GET P/branches/{branch}/access` (1430), the branch `url.PathEscape`d | `dataDTO[branchEnvDTO]`, where `branchEnvDTO` is `{Env string \`json:"env"\`}` only | returns `data.env` verbatim. Panacea computes it with `branchEnv` → `mapBranchToEnvWithProd` (`handlers/branch_security.go:29-37`, called at `project_security.go:646`, written at `:668-677`), honouring a custom production branch, **with no existence check** — so it answers for a branch never deployed. `data.env == ""` or a missing `data` → `KindUnavailable` (Panacea never writes one: `mapBranchToEnv` and `sanitizeBranchEnv` never return `""`, `projects.go:3783-3826`). Its 503 *"kubernetes client unavailable"* (`:641-644`) is the ordinary 5xx rule. Task 04's `Posture` reads the same route into its own `postureDTO`; the two share the route, not a struct |
 | `Latest` | `GET P/deploys/latest` (1025) | bare `deploymentDTO` | **404 → `(Deployment{}, false, nil)`**; the watcher calls `Environments` first in the same cycle, so a missing *project* has already surfaced as its own error |
 | `Deployments` | `GET P/deployments` (1024) | `listDTO[deploymentDTO]` | order kept as served (newest first, `projects.go:1532-1536`) |
 | `Run` | `GET P/pipelines/{run}` (1290) | `dataDTO[pipelineRunDTO]` | 404 → `KindNotFound` (it is also Panacea's cross-project IDOR answer, `projects.go:3595-3601`) |
@@ -232,8 +239,9 @@ from `"Unknown"` when a run has no condition yet (`clients/kubernetes.go:5662`),
 func (c *Client) SameEnvironment(a, b string) bool
 ```
 
-`deploytest.Fake.SameEnvironment` is exact equality only, and `Seeder` gains nothing: the Panacea
-equivalence is tested here, against the connector, not through the suite.
+`deploytest.Fake.SameEnvironment` is exact equality only, and `Seeder` gains nothing for it: the
+Panacea equivalence is tested here, against the connector, not through the suite. (`Seeder` does
+gain `BranchEnvironment`, for `EnvironmentFor` — task 01, review b02.)
 
 #### The recorded bodies (`testdata/`)
 
@@ -245,7 +253,8 @@ truth the mapping tests read.
 |---|---|
 | `me-approved.json`, `me-pending.json`, `me-no-approved-field.json` | `/me` |
 | `projects.json` | two projects, one with `repoUrl`, one without |
-| `environments.json` | `production` (primary, `replicas` present), `feat-evidence-uplo` (no `replicas` key) |
+| `environments.json` | `production` (primary, `branch: "main"`, `replicas` present), and `feat-evidence-upload` with **`branch: "feat-evidence-upload"`** — Panacea's `Env == Branch` for a non-base row (`projects.go:2109-2118`), never `feat/evidence-upload` — and no `replicas` key |
+| `branch-access-feat-x.json`, `branch-access-long.json`, `branch-access-main.json` | `branches/{branch}/access` (`project_security.go:668-677`) for `feat/x` → `env: "feat-x"`; `lane/7-deploy-connector-watcher` (31 characters) → `env: "lane-7-deploy-connec"` (`sanitizeBranchEnv`'s 20-character cut, `projects.go:3818-3820`); `main` → `env: "prod"` (`mapBranchToEnv`, `projects.go:3785-3786`). Each `_source` line names the handler line; the values are Panacea's rule applied by hand to write the fixture, and appear nowhere in production code |
 | `latest.json`, `latest-404.json` | `deploys/latest`; the 404 is `{"error":"no deployments yet for project engagement-portal"}` (`projects.go:1539`) |
 | `deployments.json` | four rows: a `Succeeded` newest with `liveReadyReplicas: 0` and a `scanStatus`; a `Failed` with `failedStep`; a `historical` backfilled row; one with an empty `version` |
 | `run-running.json`, `run-failed.json` | `pipelines/{run}` |
@@ -272,6 +281,12 @@ func (s *Server) Requests() []string       // "METHOD /path" in order
 var _ deploytest.Seeder = (*Server)(nil)
 ```
 
+`Server.BranchEnvironment` fills a table, and `GET P/branches/{branch}/access` answers `data.env`
+from it after `url.PathUnescape` of the segment. The server holds **no** naming rule: an unseeded
+branch is a test bug, answered `500` with `t.Errorf("panaceatest: no environment seeded for branch
+%q")`, where real Panacea would answer for any branch. So no fixture ever matches a branch to a row
+by name.
+
 #### Conformance rows this task adds (`deploytest/conformance.go`)
 
 | Row | Assertion | Mutant it kills |
@@ -291,6 +306,8 @@ var _ deploytest.Seeder = (*Server)(nil)
 | `TestStatusMappingTable` | every row of the status table, both DTOs | mapping `Pending` to `BuildPending`, which leaves the watcher's 3 s cadence on for the whole build |
 | `TestSameEnvironment` | `("prod","production")`, `("production","prod")` → true; `("prod","prod-eu")`, `("feat-a","feat-b")` → false; the test's comment quotes `clients/kubernetes.go:4213` | a prefix match that joins `production` to `production-eu` |
 | `TestPathEscapesBranchAndEnv` | `Pods(p, "feat/x")` requests `/environments/feat%2Fx/pods` | an unescaped `/` routing to a different Panacea handler |
+| `TestEnvironmentForReadsPanaceasName` | the three `branch-access-*.json` bodies: `EnvironmentFor(p, "feat/x")` requests `GET /api/v1/projects/engagement-portal/branches/feat%2Fx/access` and returns `"feat-x"`; the 31-character branch returns `"lane-7-deploy-connec"`; `main` returns `"prod"`; a body with `"env": ""` → `KindUnavailable`; and **no** request to `/environments` is made | returning the branch unchanged, or a fourth `sanitizeBranchEnv` in the connector (review C2) |
+| `TestEnvironmentForJoinsProduction` | `SameEnvironment(EnvironmentFor(p,"main"), "production")` is true against `environments.json` — the prod row joins | an exact-name join that leaves production's branch with no card (review I8's twin) |
 | `TestTextPlain403` | `error-text-plain-403.txt` → `KindForbidden` with the full sentence | a decoder gated on `Content-Type: application/json` that loses Panacea's most actionable sentence |
 | `TestConformanceOverConnector` | `deploytest.Conformance(t, panaceaHarness)` | the connector and the fake disagreeing about any row |
 

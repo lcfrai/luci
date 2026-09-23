@@ -58,6 +58,13 @@ type Identity interface {
 type Reader interface {
 	// Environments is the project's real environments, as the target reports them.
 	Environments(ctx context.Context, p ProjectRef) ([]Environment, error)
+	// EnvironmentFor is the TARGET's own name for the environment a git branch deploys to, for
+	// any branch, whether or not that environment exists yet. It is the cockpit's ONLY
+	// branch → environment mapping: nothing above this interface derives one, and nothing
+	// compares a branch name with an Environment's Name or Branch. The answer is joined to
+	// Environment rows with SameEnvironment (Panacea's answer for a production branch is "prod",
+	// while its row is named "production").
+	EnvironmentFor(ctx context.Context, p ProjectRef, branch string) (string, error)
 	// Latest is the newest deployment across ALL environments. ok is false, with a nil error,
 	// when the project has never been deployed.
 	Latest(ctx context.Context, p ProjectRef) (d Deployment, ok bool, err error)
@@ -128,8 +135,12 @@ type Project struct {
 
 // Environment is one live environment.
 type Environment struct {
-	Name     string    // the target's own name; the join key for Deployment.Environment
-	Branch   string    // the branch the target says it serves
+	Name     string    // the target's own name; joined to Deployment.Environment with SameEnvironment
+	// Branch is the target's LABEL for the row, verbatim — NOT the git branch. Panacea sets it
+	// to the environment key for every non-base row ("feat-x" for feat/x) and to the real branch
+	// only for production (handlers/projects.go:2109-2118). Display only; never a join key —
+	// EnvironmentFor is how a git branch finds its row.
+	Branch   string
 	Primary  bool      // the project's base environment
 	Host     string    // "" when the target reports none; no scheme
 	Status   string    // the target's word, displayed verbatim, never interpreted
@@ -500,6 +511,11 @@ func NewFake(now func() time.Time) *Fake
 func (f *Fake) SetAccount(a deploy.Account)
 func (f *Fake) AddProject(p deploy.Project)
 func (f *Fake) SetEnvironments(p deploy.ProjectRef, envs []deploy.Environment)
+// SetBranchEnvironment seeds EnvironmentFor's answer for one branch. The Fake derives NOTHING
+// (no copy of any target's naming rule): an unseeded branch returns a KindRejected *Error whose
+// Message names the branch, so a test that forgot to seed fails loudly instead of matching
+// names by accident.
+func (f *Fake) SetBranchEnvironment(p deploy.ProjectRef, branch, env string)
 func (f *Fake) AddDeployment(p deploy.ProjectRef, d deploy.Deployment) // newest-first order is kept by CreatedAt
 func (f *Fake) SetScans(p deploy.ProjectRef, deploymentID string, r deploy.ScanReport)
 // Advance moves a run to a new state; a terminal state also sets the Deployment's Build.
@@ -521,6 +537,9 @@ package deploytest
 type Seeder interface {
 	Project(p deploy.Project)
 	Environments(p deploy.ProjectRef, envs []deploy.Environment)
+	// BranchEnvironment seeds the target's own environment name for a git branch
+	// (EnvironmentFor). Tests seed Panacea's real answers, never a rule that computes them.
+	BranchEnvironment(p deploy.ProjectRef, branch, env string)
 	Deployment(p deploy.ProjectRef, d deploy.Deployment)
 	NoDeployments(p deploy.ProjectRef)
 	RollbackTarget(p deploy.ProjectRef, deploymentID string, warmth deploy.Warmth)
@@ -547,6 +566,7 @@ func Conformance(t *testing.T, h Harness)
 | `RollbackCreatesNoDeployment` | after `Rollback(d1)`, `Deployments` has the same length and `SourceDeploymentID == "d1"` | a fake that invents a rollback row, hiding 7P-4 from every test above it |
 | `ShipNamesTheRun` | `Ship` returns a non-empty `Run`, and the next `Deployments` either lacks it or has it with `ID == Run` | a Run name that is not the Deployment id, which breaks the join (§2 step 6) |
 | `UnknownPostureFailsClosed` | an environment seeded with posture word `"open-to-all"` reads `Mode == PostureKPMGSSO`, `ModeKnown == false` | mapping an unknown word to public |
+| `EnvironmentForIsTheTargets` | seeded `feat/x` → `feat-x`, `lane/7-deploy-connector-watcher` (31 characters) → `lane-7-deploy-connec`, and `main` → `prod` read back exactly, with **no** `Environments` row for any of them (the answer exists before the first deploy) | returning the branch unchanged, or reading the answer off an environment row, which only works for trunk-like names (review C2) |
 
 #### Tests to write first (`deploy_test.go`, `fake_test.go`)
 
@@ -568,7 +588,7 @@ func Conformance(t *testing.T, h Harness)
 - [ ] Write `deploytest/fake.go`: a mutex, maps keyed by `ProjectRef`, run names `"run-"` + a
   counter, `Ship` appending a `BuildPending` deployment whose `ID` is the run, `Rollback` returning
   the argument as `SourceDeploymentID` and adding nothing.
-- [ ] Write `deploytest/conformance.go` with the six rows, each a `t.Run`.
+- [ ] Write `deploytest/conformance.go` with the seven rows, each a `t.Run`.
 - [ ] Run the acceptance commands. Commit:
   `git add control-plane/internal/deploy && git commit -F <msg> -- control-plane/internal/deploy`.
 

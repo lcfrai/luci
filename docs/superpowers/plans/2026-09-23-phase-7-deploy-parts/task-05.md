@@ -279,7 +279,7 @@ The Hub rows compile only once Hub C2's `hubclient` exists; until then they are 
 | `TestLockedOriginRefusesAnother` | `LockedOrigin` set, `Connect` with a different origin → 400 | a user override of an administrator's address |
 | `TestAwaitingApproval` | `/me` with `approved: false` → token stored, `State == AwaitingApproval` | treating a pending account as connected |
 | `TestNewMakesNoNetworkCall` | `New` with a stored token against a server that fails the test on any request | a startup that hangs on Panacea |
-| `TestCurrentWhenDisconnected` | every method of `Current` that can fail (all 23 but `SameEnvironment`, which answers exact equality when disconnected; by reflection over `deploy.Deployer`) returns `deploy.ErrNotConnected` | one delegating method forgotten |
+| `TestCurrentWhenDisconnected` | every method of `Current` that can fail (all 24 but `SameEnvironment` — review b02 added `EnvironmentFor`, which does fail when disconnected — which answers exact equality when disconnected; by reflection over `deploy.Deployer`) returns `deploy.ErrNotConnected` | one delegating method forgotten |
 | `TestObserveUnauthorized` | `Observe(&deploy.Error{Kind: KindUnauthorized, Message: "api key revoked or expired"})` → status `TokenRejected` with that message | the lens keeping "connected" while every call 401s |
 | `TestConnectionGETNeverHasToken` | after `PUT` with `pnc_abcdef`, the `GET` body contains neither `pnc_` nor `abcdef` | an `Account`-style struct growing a token field |
 | `TestPutRejectsNonPncToken` | `"token": "eyJhbGciOi…"` → 400 with the sentence; nothing stored | storing a pasted JWT |
