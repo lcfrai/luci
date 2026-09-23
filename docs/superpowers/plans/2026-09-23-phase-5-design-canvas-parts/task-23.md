@@ -165,6 +165,14 @@ export function allowedStyle(property: string, value: string): boolean;
 // allowedStyle: the property is in the list, AND the value contains none of: "\\", "<", ">",
 // "{", "}", "@", "expression", "javascript:", "behavior", "-moz-binding", and every url( … )
 // target is asset:sha256-<64 hex> (the renderer rewrites those to blob: URLs itself).
+export function allowedTokenValue(type: TokenType, value: string): boolean;
+// allowedTokenValue: the renderer's re-check of a token before setProperty('--name', value) on
+// :root (task 24; review I2) — task 07's Checker.TokenValue, all four steps: allowedStyle's value
+// refusals and a function not in allowlist.json's "functions"; plus ";", "!", "/*", an
+// unterminated string and any control character; plus ANY url( (no token type takes an image);
+// then the type by allowlist.json's "tokenRules" (font-family: a comma list of quoted strings or
+// identifiers only). A refused token is not set and is counted; the artboard's var() then falls
+// back as an unknown token would.
 ```
 
 ## Tests first
@@ -179,6 +187,7 @@ export function allowedStyle(property: string, value: string): boolean;
 | `docstore.test.ts › childrenOrder` | children sorted by `order` then `id`, as Go | the canvas drawing siblings in another order than export |
 | `allowlist.test.ts › copyMatchesGo` | `generated/allowlist.json` equals `../../dialect/allowlist.json` byte for byte | the renderer's list drifting from the sanitiser's |
 | `allowlist.test.ts › refuses` | `margin`, `url(https://x)`, `expression(`, `\\75rl(` → false; `color: var(--brand)` → true | a renderer that trusts the server blindly |
+| `allowedTokenValue.test.ts` | every line of `canvas/dialect/testdata/token-vectors.jsonl` (task 07's `TestTokenValue_refusals`, read from the Go tree like `copyMatchesGo`) → false, including the review's two values under `font-family`; `color: #2fb3bd`, `font-weight: 650`, `font-family: "Inter", system-ui, sans-serif`, `spacing: var(--space-2)` → true | a token that reaches `setProperty` without the checks a declaration gets, or TS and Go refusing different sets (review I2) |
 | `boundary.test.ts` | no file under `src/` imports a relative path outside `src/`, or a bare module outside `package.json`'s dependencies and peers | the package importing the cockpit (G13) |
 | `memoryTransport.test.ts` | a submitted `set_props` yields one change event with the node's full state | tests passing against a transport the desktop's does not match |
 

@@ -82,7 +82,7 @@ type Op struct {
 // it; doc must not import dialect).
 type Checker interface {
 	Style(property, value string) error         // one declaration, against the allowlist
-	TokenValue(t TokenType, value string) error // a value valid for the type
+	TokenValue(t TokenType, value string) error // the declaration refusals and more, then the type (task 07, review I2)
 	// SVG refuses markup the sanitiser would drop anything from, and returns the
 	// canonical form for THIS node id (root xmlns, well-formed XML, ids prefixed
 	// with nodeID; task 07, review I8). Apply stores the returned string, and

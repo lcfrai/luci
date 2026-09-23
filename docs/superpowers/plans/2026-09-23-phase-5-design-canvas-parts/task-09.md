@@ -127,7 +127,13 @@ package tokens
 //   :root {
 //     --<name>: <value>;          ← sorted by name, two-space indent
 //   }
-func CSS(canvasID string, revision int, ts []doc.Token) string
+// Every value is re-checked with dialect.Checker{}.TokenValue before it is written
+// (review I2): a refused one fails with dialect.ErrUnsafeToken (task 07), wrapped with
+// the token's name, and nothing is returned. DTCG applies the same re-check. tokens.css ships in the handoff bundle (task 21) and
+// get_tokens hands it to an agent to paste into code (task 17), so a "}" or url() in a
+// value would reach the repository's stylesheet. Same reason as ExportHTML: a document
+// replayed from disk was never re-checked (task 10).
+func CSS(canvasID string, revision int, ts []doc.Token) (string, error)
 ```
 
 ```go
@@ -160,6 +166,7 @@ func DTCG(ts []doc.Token) ([]byte, error)
 | `TestTailwind_arbitraryEscapes` | `grid-area`-like unknowns never occur (dialect), but `box-shadow: 0 1px 2px rgb(0 0 0 / 0.2)` → `[box-shadow:0_1px_2px_rgb(0_0_0_/_0.2)]` | spaces left in a class |
 | `TestTree_golden` | `BuildTree` of a two-artboard fixture equals `tree.golden.json` | `null` children |
 | `TestTokensCSS_golden` | sorted, header present, trailing newline | unsorted output (a noisy diff per approval) |
+| `TestTokensCSS_hostileToken` | `CSS` of tokens holding each of the review's two values (`red}</style><script>…</script><style>` and `url(https://tracker.example/p.png)`, type `font-family`) → an error that `errors.Is` `dialect.ErrUnsafeToken` and names the token, `""` returned; `DTCG` of the same tokens errs the same way | a `}` closing `:root` early, or a remote fetch, in the bundle's `tokens.css` (review I2) |
 | `TestDTCG_golden` | every one of the ten token types maps as the table says; `$extensions` carries the CSS | a lossy DTCG (an `oklch()` colour silently dropped) |
 
 ## Steps

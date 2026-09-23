@@ -116,7 +116,7 @@ const (
 type Token struct {
 	Name  string    `json:"name"`  // ^[a-z][a-z0-9-]{0,62}$
 	Type  TokenType `json:"type"`
-	Value string    `json:"value"` // checked for Type by dialect.CheckTokenValue (task 07)
+	Value string    `json:"value"` // checked by dialect.Checker.TokenValue (task 07): the declaration refusals, plus ";" "!" comments and control characters, plus any url(), then the Type (review I2)
 }
 
 // Asset is content-addressed image bytes. The bytes live in the store (task 10).

