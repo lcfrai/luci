@@ -518,3 +518,68 @@ A close third, also verified: runbook §2's bootstrap `terraform init` fails on 
 partial backend (I2).
 
 **Plan quality: Needs fixes**
+
+---
+
+## Fix batch b01 (2026-09-24) — C1, C2
+
+Commits on `feat/env`: `436e004`, `99b948d` (C1), `4c67af0` (C2), and the commit that adds this
+section. Paths below are relative to `docs/superpowers/plans/`; `parts/` is
+`2026-09-23-phase-8-own-environment-parts/`, `plan` is `2026-09-23-phase-8-own-environment.md`.
+Line numbers are as of that last commit.
+
+### C1 — the edge namespace sealed; cert-manager racing its own issuer
+
+The review's fix (a), (b) and (c) were taken as written, with three additions found while
+applying them: cert-manager's policies live in its own chart, because its `startupapicheck` hook
+runs inside the cert-manager release, before `edge` exists; the controller also needs UDP/TCP 53
+to the world for the DNS-01 self-check (training knowledge, UNVERIFIED); and the Hub's migrate
+Job needs an allow too, which the new test would otherwise fail on.
+
+| Fix | Where |
+|---|---|
+| (b) cert-manager is its own release, before `edge`; why, in the task's words | `parts/task-13.md:1`, `:10-17` |
+| (b) the `cert-manager` wrapper chart: `Chart.yaml`, `values.yaml` (`identity.clientId`, the `apiServer` seam, `webhook.securePort`, `crds.keep`, `startupapicheck`) | `parts/task-13.md:42-100` |
+| (a) cert-manager's `serviceaccount.yaml` and `networkpolicy.yaml` (DNS, API server, controller egress 443 + 53 minus IMDS/wire server/RFC 1918, webhook ingress from the API server) | `parts/task-13.md:101-124` |
+| (b) `edge` loses the cert-manager dependency; values gain `apiServer` and `backends`; Traefik's update checks off | `parts/task-13.md:126-219` |
+| (a) the edge's `networkpolicy.yaml`: `traefik-ingress` (8443 from `allowedSourceRanges` only), `traefik-backends` (broker/Hub on 8080), `traefik-api-server`, no internet egress | `parts/task-13.md:236-253` |
+| tests: 3 new edge runs, 8 cert-manager runs | `parts/task-13.md:255-283` |
+| (c) `deploy/tests/netpolcover`, the cross-chart render test (4 cases), its `go.work` entry and its CI job | `parts/task-13.md:19-25`, `:38-40`, `:285-300` |
+| steps: the red run that reproduces C1 before any policy exists; named mutants | `parts/task-13.md:304-320` |
+| stage 4 is `platform → cert-manager → edge → broker → hub` | `parts/task-30.md:135-141` |
+| one Terraform output feeds both releases; the helm-values test asserts it | `parts/task-10.md:137-138`, `parts/task-30.md:159-163` |
+| default-deny names which chart brings each namespace's allows | `parts/task-11.md:103-109` |
+| broker/Hub ingress peers use Traefik's pod labels; the Hub's egress also selects the migrate Job; task 29 adds `broker`/`hub` to `netpolcover` | `parts/task-29.md:13-14`, `:73-76`, `:136-142`, `:201-204`, `:212` |
+| `charts.yml` gains the `netpolcover` job (added by task 13) | `parts/task-28.md:58` |
+| proving rows for the two UNVERIFIED Cilium facts: P20 (`kube-apiserver` entity), P21 (the webhook's source through the AKS tunnel) | `parts/task-32.md:16`, `:41-42`, `:64` |
+| restatements: the chart list, the file map, task 13's row (depends on 11, 28; 3.5 h), `go.work` and the new module in "Shared files" | `plan:71-74`, `:189-191`, `:349-351`, `:394-397`, `:437` |
+
+### C2 — `snet-agents` has no egress
+
+The review's fix was taken as written. One addition: in firewall mode the API server's
+authorised ranges did not include the firewall's egress IP, so a dev cluster in firewall mode would
+have locked out the pool even with a route. Both modes now add the egress /32.
+
+| Fix | Where |
+|---|---|
+| `local.egress_subnets` = the three node subnets + `agents`; output `egress_subnet_ids` | `parts/task-03.md:116-119`, `:148-153` |
+| one NAT association per egress subnet (`for_each`, nat mode only) | `parts/task-03.md:176-181` |
+| the run becomes `nat_mode_puts_nat_on_every_egress_subnet`: four associations, none on private endpoints | `parts/task-03.md:210` |
+| firewall mode routes the same four (`routed_subnet_ids`, validated to hold `agents`) | `parts/task-07.md:43-50`, `:145-149`, `:392-393` |
+| a CI FQDN rule from the agents subnet only (`ci_agent_source_cidrs`, `ci_agent_allowed_fqdns`, UNVERIFIED starting list) | `parts/task-07.md:51-89`, `:142-143` |
+| the API server allowlists the egress /32 in either mode; the claim at old `:153-157` corrected | `parts/task-07.md:202`, `:396-398` |
+| one run renamed and widened (`every_egress_subnet_is_routed`) and three new: `ci_agents_get_their_allowlist_from_their_subnet_only`, `firewall_mode_allowlists_its_own_address_on_the_api` (pins dev + public, so it means the same under either tfvars file), and `agents_egress_in_both_modes` (read through the module's new `routed_subnet_keys` output) | `parts/task-07.md:130`, `:463-464`, `:481-482` |
+| what the list does not claim; the dev state account's blob host | `parts/task-07.md:512-515` |
+| the ci-pool contract says where its egress comes from | `parts/task-30.md:89-95` |
+| proving row P22: a real pipeline through the real egress | `parts/task-32.md:43`, `:64` |
+| restatement: the architecture diagram's egress line | `plan:61` |
+
+### Still UNVERIFIED after this batch
+
+- AKS-managed Cilium's `kube-apiserver` entity, and which source the webhook's calls arrive from
+  (P20, P21). The `apiServer.mode: cidr` seam is the fallback, and a wrong guess fails closed at
+  `--atomic`.
+- The cert-manager and Traefik chart key names and pod labels; `netpolcover` checks the rendered
+  pods, not the keys.
+- The CI FQDN list, and whether a delegated `Microsoft.DevOpsInfrastructure/pools` subnet takes a
+  NAT gateway or a route table (P22).
