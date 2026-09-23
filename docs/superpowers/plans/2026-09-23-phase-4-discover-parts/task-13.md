@@ -1,0 +1,115 @@
+### Task 13: `repoanalysis` — the scan and the drafted brief
+
+The on-ramp for an existing repository (brief S4; prototype state 7): a mechanical scan, a model
+drafts the five answers from the scan, and every drafted answer waits for a person (`4-D2`).
+**Kept from the 2026-09-18 plan's task 6** (`:2485-3004`): the scan is mechanical so the facts
+shown are facts; the model sees `Findings` — counts, manifest names, directory names — **never file
+contents** (the ISM reason the old plan records); `Scan` and `Findings` as declared at `:2495-2502`.
+**Changed:** `DraftBrief` no longer mutates a brief; it returns answers, and the route writes them
+as **one** `draft` revision through `discoverhub.Service.Apply`, so the draft is a revision like any
+other and is never inherited until each answer is accepted or changed.
+
+**Files:**
+- `control-plane/internal/repoanalysis/scan.go`, `draft.go` + `scan_test.go`, `draft_test.go` (new)
+- `control-plane/internal/discoverapi/analyse.go` + `analyse_test.go` (new)
+
+**Interfaces — complete source:**
+
+```go
+// control-plane/internal/repoanalysis/scan.go — the old plan's declarations, kept
+package repoanalysis
+
+type LanguageCount struct {
+	Language string `json:"language"`
+	Files    int    `json:"files"`
+}
+
+type Findings struct {
+	Root        string          `json:"root"`
+	FilesSeen   int             `json:"filesSeen"`
+	Truncated   bool            `json:"truncated"`
+	Languages   []LanguageCount `json:"languages"`
+	Manifests   []string        `json:"manifests"` // "go.mod", "desktop/package.json", …
+	TopLevel    []string        `json:"topLevel"`  // top-level directory names
+	TestFiles   int             `json:"testFiles"`
+	HasCLAUDEMD bool            `json:"hasClaudeMd"`
+}
+
+func (f Findings) Summary() string
+func Scan(root string) (Findings, error) // skips .git, node_modules, vendor, target, dist; stops at 20 000 files (Truncated)
+
+var ErrNotADir = errors.New("repoanalysis: not a directory")
+```
+
+```go
+// control-plane/internal/repoanalysis/draft.go
+package repoanalysis
+
+type DraftOutcome string
+
+const (
+	DraftProposed DraftOutcome = "proposed"
+	DraftModelOff DraftOutcome = "model_off"
+	DraftFailed   DraftOutcome = "model_failed"
+)
+
+// DraftAnswers asks the model once for the five base answers from f alone.
+// Each returned answer has Author model_drafted, Source drafted, and
+// DraftedFrom = the Manifests and TopLevel names the prompt carried (the
+// prototype's "read from" list), at most 8. An answer the model left empty
+// is omitted, not sent as "". Nil model → (nil, DraftModelOff).
+func DraftAnswers(ctx context.Context, m modelclient.Completer, f Findings, now time.Time) ([]discover.Answer, DraftOutcome)
+```
+
+```go
+// control-plane/internal/discoverapi/analyse.go
+package discoverapi
+
+// POST /v1/discover/projects/{projectId}/analyse   body: {}
+type AnalyseResponse struct {
+	Findings repoanalysis.Findings     `json:"findings"`
+	Draft    repoanalysis.DraftOutcome `json:"draft"`
+	View     discoverhub.View          `json:"view"`    // the project scope, after the draft revision (or unchanged)
+	Written  []string                  `json:"written"` // [] unless a draft revision was written
+	Note     string                    `json:"note"`    // model_off: "No model is configured, so nothing was drafted. Set PANACEA_APP_MODEL_API_KEY to have Discover draft a brief from the scan."
+}
+```
+
+The route scans the project's path (`Locator.ProjectPath`), drafts, and — when answers came back —
+calls `Service.Apply` with `Op{Kind: discover.OpDraft, Drafts: answers}` on the project scope at its
+current head. Errors map as in task 11. It is a POST: it costs a model call and writes a revision.
+
+**Tests first:**
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestScanCountsWithoutReadingContents` (kept) | findings for a fixture tree whose files are all mode `0o000` (unreadable) on POSIX: the scan still succeeds, because it reads directory entries and names only | a scanner that reads source |
+| `TestScanSkipsVendoredTrees` | `node_modules` and `target` contribute 0 files | a scan that walks a million files in `node_modules` |
+| `TestScanTruncates` | a tree of 20 001 files → `Truncated`, `FilesSeen == 20000` | an unbounded walk |
+| `TestDraftAnswersAreHeld` | every answer is `model_drafted` / `drafted` with a non-empty `DraftedFrom` | `4-D2` broken at the source |
+| `TestDraftPromptHasNoFileContents` | the captured prompt holds only `Findings.Summary()` | client source in a prompt |
+| `TestDraftWithNoModelIsModelOff` | `(nil, model_off)`, no call | a nil dereference |
+| `TestAnalyseWritesOneDraftRevision` | a bound project with no brief → one revision, `change.kind == "draft"`, status `open`, `step.kind == "review"` | a draft that completes the brief and is inherited unread |
+| `TestAnalyseNeverOverwritesAPerson` | a project brief with a person's purpose → the draft revision keeps it | the on-ramp clobbering typed text |
+| `TestAnalyseWithNoModelWritesNothing` | `written: []`, `note` names the variable | a revision with no answers |
+
+**Steps:**
+
+- [ ] **Step 1:** Port the old plan's scan tests and `Scan` (`:2504-2890`); write the new tests.
+- [ ] **Step 2:** `draft.go`: one `Complete` with a JSON schema of the five keys (strings, each at
+  most 400 characters); validate; build answers.
+- [ ] **Step 3:** `analyse.go`; add the route to `Mount`.
+- [ ] **Step 4:** Run the acceptance commands; commit by pathspec.
+
+**Acceptance:**
+
+```
+$ go test ./control-plane/internal/repoanalysis/... ./control-plane/internal/discoverapi/... -race -count=1
+ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/repoanalysis
+ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/discoverapi
+$ grep -n "os.ReadFile\|os.Open(" control-plane/internal/repoanalysis/*.go | grep -v _test
+(no output — the scan reads directory entries, never contents)
+```
+
+**Does NOT claim:** the quality of a real draft (the owner's batched session); a branch-scope draft
+(the on-ramp is for a repository, prototype state 7).
