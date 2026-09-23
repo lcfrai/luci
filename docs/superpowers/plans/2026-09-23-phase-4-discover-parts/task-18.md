@@ -18,6 +18,20 @@ entrance animation; `QUESTION n OF 5` is the one denominator (G5), and a follow-
 *Saving* and disables it; the one heartbeat (`hooks/heartbeat.ts`) for any live dot; keyboard
 first: `1`–`4` pick, `Enter` sends, `E` edits the focused answer — **element-scoped handlers on
 the question region, never a window listener** (G9); `:focus-visible` rings designed, not default.
+**Typing is text** (review I12). The free-text field sits inside the question region, so its
+keydown events bubble to the region's `onKeyDown`. The region handler therefore returns first,
+doing nothing, when `event.target` is an `input`, a `textarea`, a `select` or inside
+`[contenteditable]`
+(`target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')`).
+Inside the field, `1`–`4` and `E` are characters. **The field's rule is the prototype's**
+(`prototype/phase-4-discover.html:689-693`, the specification this task follows; `:690` sends,
+`:691` returns for form fields): `Enter` sends the
+typed answer, `Shift+Enter` is a new line, handled by the field's own `onKeyDown`, which calls
+`preventDefault` on the sending `Enter` only. Nothing is sent while an IME composition is open
+(`event.nativeEvent.isComposing`), because that `Enter` confirms the composition. To pick an option
+again, the person tabs out of the field. The review offered `Ctrl+Enter` or a stated rule; this
+plan states the prototype's rule, because the owner reviewed the prototype and a chat-style field
+that ignores a plain `Enter` would surprise its users.
 **The owner's eyes are the only visual acceptance** (`OD-12`).
 
 **Files:**
@@ -104,6 +118,7 @@ op `propose_follow_up`; the server refuses a second (`already_asked`) and asks n
 | `the flow shows QUESTION n OF 5 and nothing else numeric` | step 2 → `QUESTION 2 OF 5`; no other `n of m` in the lens | a progress bar in words |
 | `a follow-up has no denominator` | a `follow_up` step shows no `OF` | G5 |
 | `1-4 pick and Enter sends, scoped to the region` | keydown `2` on the region selects option 2; `Enter` sends a `record` op with `source: "picked"`; the same keys dispatched on `window` do nothing | a second window listener (G9) |
+| `typing digits and E in the field is text` | `userEvent` (`@testing-library/user-event` 14.6.7, already in `desktop/package.json:28`) types `10 MB`, then `{Shift>}{Enter}{/Shift}`, then `Evidence` into the free-text field, whose events bubble to the region → the field's value is `10 MB\nEvidence`; no option is selected; the edit affordance does not open; no op is sent. Then `{Enter}` sends one `record` with `source: "typed"` and that text, trimmed. A keydown `Enter` with `isComposing: true` on the field sends nothing (review I12) | a region handler that does not check the target, so "10 MB" picks option 1 and "Evidence" opens the edit; a field with no new line, so a multi-line answer is sent at its first line |
 | `typing a free answer sends source typed` | `record` with the trimmed text | a typed answer labelled as picked |
 | `branch skip is "Keep the project answer"` | branch scope shows that label and sends `skip` | a project-scope label on a branch |
 | `a failed save keeps the typed text` | client rejects `network_unavailable` → text still in the field, *Not saved*, **Retry** re-sends the identical op | state 14's promise |
