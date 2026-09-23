@@ -290,3 +290,126 @@ in `hubclient` (§9.2) as `hubclient.Error`:
 by the tasks that add them (C1; whichever of phases 5 and 7 lands R4 first). Every other Hub code
 the desktop may see is listed above; `desktop/src/api/problems.ts` maps them all to the
 `server-said` kind except `signed_out`, which C4 maps to the sign-in surface.
+
+---
+
+## 5. Principals and authorisation
+
+### 5.1 From token to principal — every `/v1` request, in this order
+
+1. Refuse any request with an `Origin` header: 403 `forbidden_origin`.
+2. Apply the per-IP pre-auth limit (§11.3).
+3. Validate the bearer token with `entra.Validator` (§6.3). Failure: 401 `unauthenticated` with the
+   reason, or 403 `tenant_not_enrolled`.
+4. Apply the per-user and per-org limits (§11.3).
+5. Begin one transaction. Call `hub.resolve_principal(tid, oid, name, email)` (§10.4), a
+   `SECURITY DEFINER` function that finds the org by `entra_tenant_id`, inserts the user on first
+   sight (`auth.user_provisioned` audit event), refreshes `display_name` and `email` when they
+   changed, and returns `(org_id, user_id)`.
+6. `SELECT set_config('hub.org_id', <org_id>, true)` — the row-level-security key (§10.3) for the
+   rest of the transaction.
+7. Run the handler. Authorisation is checked in Go against §5.3 **before** any read of project
+   content. Commit.
+
+**Org enrolment is configuration in v1.** `hub serve` upserts one org per entry of
+`PANACEA_APP_HUB_TENANTS` at start (§12.2). There is no enrolment route until the BYO tier.
+
+**`email`** is the token's `email` claim if present, else `preferred_username`, lowercased. It is
+used for one thing: binding invites (§7.3). It is never a key.
+
+**Org admin** is true when the token's `roles` claim contains `Hub.OrgAdmin` — an Entra app role IT
+assigns (§6.5). It is read from each token, never stored, so removing the assignment in Entra takes
+effect at the next token.
+
+### 5.2 Roles
+
+| Role | Held in | Grants |
+|---|---|---|
+| `viewer` | `team_members.role` | read the team, its projects and everything under them |
+| `member` | `team_members.role` | viewer, plus every write in §5.3 marked **M** |
+| `admin` | `team_members.role` | member, plus every write marked **A** |
+| org admin | token `roles` ∋ `Hub.OrgAdmin` | the audit log and erasure for its org. **No read of project content** it is not a member of |
+
+A project's access is exactly its team's membership. There are no per-project grants in v1.
+
+### 5.3 The matrix — the authorisation test (H2) runs every row as every column
+
+`V` viewer, `M` member, `A` admin, `O` org admin who is not a member, `N` an authenticated
+non-member in the same org, `X` a principal from another enrolled org. **✓** allowed; **403** is
+`forbidden`; **404** is the route's `*_not_found`.
+
+| Operation | V | M | A | O | N | X |
+|---|---|---|---|---|---|---|
+| `GET /v1/me`, `GET /v1/teams`, `POST /v1/teams` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| read a team, its members, its invites | ✓ | ✓ | ✓ | 404 | 404 | 404 |
+| rename a team; set or remove a member; create or revoke an invite | 403 | 403 | ✓ | 404 | 404 | 404 |
+| leave a team (remove yourself) | ✓ | ✓ | ✓ unless `last_admin` | 404 | 404 | 404 |
+| `GET /v1/projects?repo=` | own teams' projects only | ← | ← | ← | empty list | empty list |
+| create a project in a team | 403 | ✓ | ✓ | 404 | 404 | 404 |
+| read a project and anything under it | ✓ | ✓ | ✓ | 404 | 404 | 404 |
+| rename a project; add or remove a remote | 403 | 403 | ✓ | 404 | 404 | 404 |
+| create a brief; write revisions; rebind; archive | 403 | ✓ | ✓ | 404 | 404 | 404 |
+| upload a blob; approve a design; write a session link | 403 | ✓ | ✓ | 404 | 404 | 404 |
+| reserve a release; add a deployment join | 403 | ✓ | ✓ | 404 | 404 | 404 |
+| confirm or abandon a release | 403 | reserver only, else `not_reserver` | ← | 404 | 404 | 404 |
+| record evidence | 403 | ✓ | ✓ | `repo_not_linked` | `repo_not_linked` | `repo_not_linked` |
+| `GET /v1/refs` | resolves keys in readable projects; every other key is `missing` | ← | ← | ← | ← | ← |
+| `GET /v1/changes` | events of readable projects and own teams only | ← | ← | ← | ← | ← |
+| `GET /v1/audit` | 403 | 403 | 403 | ✓ own org | 403 | 403 |
+| erase a brief | 403 | 403 | 403 | ✓ own org | 403 | 403 |
+
+`X` can never reach another org's rows even if the Go check were missing: row-level security
+(§10.3) returns none. The test asserts both layers separately by running the `X` column once with
+the Go check disabled through a test-only hook.
+
+---
+
+## 6. Identity — the flow, step by step
+
+### 6.1 Sign-in (task C1; control plane)
+
+| Step | Who | What, exactly |
+|---|---|---|
+| 1 | renderer → control plane | `POST /api/v1/auth/sign-in` with the local caller key (§9.4). No body |
+| 2 | control plane | cancels any pending sign-in. Makes `verifier` = base64url(32 random bytes), 43 characters; `challenge` = base64url(SHA-256(verifier)); `state` and `nonce` = base64url(32 random bytes) each. Opens a listener on `127.0.0.1:0` |
+| 3 | control plane | fetches `<authority>/v2.0/.well-known/openid-configuration` (cached 24 h), where `<authority>` is `PANACEA_APP_ENTRA_AUTHORITY` — `https://login.microsoftonline.com/<tenant-id>`, or `http://127.0.0.1:8740/<tenant-id>` for `devissuer` |
+| 4 | control plane → renderer | `200 {"authorizeUrl":"…","expiresAt":"…"}`. The URL is the discovered `authorization_endpoint` with `client_id=<desktop client id>`, `response_type=code`, `response_mode=query`, `redirect_uri=http://127.0.0.1:<port>/`, `scope=openid profile offline_access email api://<hub-client-id>/Hub.Access`, `state`, `nonce`, `code_challenge`, `code_challenge_method=S256`, `prompt=select_account`. `expiresAt` is now + 10 min |
+| 5 | renderer | `openUrl(authorizeUrl)` from `@tauri-apps/plugin-opener` — the system browser. The renderer never sees the redirect |
+| 6 | browser ↔ Entra | the user signs in, under KPMG's conditional access |
+| 7 | browser → listener | `GET /?code=…&state=…` (or `?error=…&error_description=…&state=…`). The listener serves **only** `GET /`. A request whose `state` does not match, compared in constant time, is answered 400 and **ignored** — it does not end the sign-in, so a racing local page cannot abort it. A matching one is answered with a static page (`Content-Security-Policy: default-src 'none'`, no script): *"You're signed in to PanaceaApp. You can close this tab."* The listener then closes |
+| 8 | control plane → Entra | `POST token_endpoint`, form-encoded: `grant_type=authorization_code`, `client_id`, `code`, `redirect_uri` (identical to step 4), `code_verifier`, `scope` (identical to step 4). **No client secret; no `Origin` header** |
+| 9 | control plane | validates the `id_token`: signature against the discovered `jwks_uri`, `iss`, `aud` = the desktop client id, `nonce` = step 2's, `exp`. Takes `tid`, `oid`, `name`, `preferred_username` from it |
+| 10 | control plane | writes the refresh token and the account record to Credential Manager (§9.1); keeps the access token in memory with its `exp` |
+| 11 | control plane → Hub | `GET /v1/me` with the access token — provisions the user and binds invites (§7.2) |
+| 12 | renderer | its next `GET /api/v1/auth/status` reads `signed_in` |
+
+**Failures.** Entra's `error` at step 7 → `signed_out`, `reason: "entra_error"`, with
+`error_description` logged, not shown. No callback in 10 minutes → `reason: "timeout"`, listener
+closed. The token exchange refused → `reason: "exchange_failed"`. `/v1/me` answering 403
+`tenant_not_enrolled` → `reason: "tenant_not_enrolled"`; the tokens are discarded, not stored.
+
+**Why `127.0.0.1` and not `localhost` in the redirect**: the listener binds IPv4 loopback only, and
+`localhost` may resolve to `::1` first. `PANACEA_APP_ENTRA_REDIRECT_HOST=localhost` switches it if
+KPMG's registration can only carry `http://localhost` (§6.5).
+
+### 6.2 Tokens after sign-in
+
+- **Serving a token.** `TokenSource.Token(ctx, scope)` returns the cached access token for `scope`
+  while `exp − now > 5 min`. Otherwise it redeems the refresh token: `POST token_endpoint` with
+  `grant_type=refresh_token`, `client_id`, `refresh_token`, `scope=<scope> offline_access`.
+  Concurrent callers for one scope share one redemption (single-flight).
+- **Rotation.** When the response carries a new `refresh_token`, it is written to Credential Manager
+  **before** the access token is returned. A crash in between leaves the old one, which Entra still
+  honours until it expires.
+- **Scopes in v1.** `api://<hub-client-id>/Hub.Access`; phase 8's
+  `api://<broker-client-id>/Sandboxes.Access`; if ADR Q5 is yes,
+  `499b84ac-1321-427f-aa17-267ca6975798/user_impersonation` (Azure DevOps). One refresh token
+  redeems all three because the desktop client is admin-consented for each (§6.5).
+- **Failure.** `invalid_grant` or `interaction_required` → both Credential Manager entries deleted,
+  `signed_out` with `reason: "reauth_required"`, and `ErrSignedOut` to every caller. Entra
+  unreachable → an error the control plane maps to 503 `upstream_unavailable`,
+  `details.upstream = "entra"`; the stored token is kept.
+- **Start-up.** If Credential Manager holds an account record, status is `signed_in` immediately;
+  the first `Token` call proves it. Nothing is redeemed eagerly.
+- **Sign-out.** `POST /api/v1/auth/sign-out` deletes both entries and the in-memory tokens. It does
+  not call Entra's logout endpoint in v1: the browser session is the user's, not ours.
