@@ -259,9 +259,12 @@ never ships a commit the user cannot see. `commit` is 40 lowercase hex, which Pa
 not dropped.** `GET …/environments` (`projects.go:1997-2153`) names the base environment
 `"production"`, while a deployment's `Environment` is the PipelineRun label `panacea.io/environment`
 (`clients/kubernetes.go:5681`), whose value for production **was not verified** — other handlers use
-`"prod"` (`canonicalStageEnv`, `projects.go:4124-4126`). The view joins by exact name; a deployment
-whose environment matches no row appears in its own group, titled with its raw name, and task 20's
-live check settles the spelling. **The environment for a first Ship** of a never-deployed branch is
+`"prod"` (`canonicalStageEnv`, `projects.go:4124-4126`). Panacea's own `tenantNamespace`
+(`clients/kubernetes.go:4210-4217`) treats `prod` and `production` as **the same** environment
+(both map to `tenant-<project>`), so the view joins by exact name **plus that one equivalence**,
+cited to that function and pinned by a test that quotes it. Any other deployment whose environment
+matches no row appears in its own group, titled with its raw name — never merged, never dropped —
+and task 20's live check records the real spelling. **The environment for a first Ship** of a never-deployed branch is
 not knowable without re-implementing `sanitizeBranchEnv` (`projects.go:3814-3826`), which the survey
 rightly forbids (a fourth copy to drift). Hub ask **HA7-1** makes `environment` optional at reserve
 and settable once at the deployment join. The plan builds on it.
