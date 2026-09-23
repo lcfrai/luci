@@ -361,3 +361,147 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 `docs/superpowers/contracts/2026-09-23-phase-5-design-contract.md` (new, task 30: the wire contract
 gathered from the parts), and amendments to the phase 2 UI contract §10.5 and `PROGRAM.md` phase 5
 (task 30).
+
+---
+
+## Tasks — dependencies and order
+
+Each part is `2026-09-23-phase-5-design-canvas-parts/task-NN.md`. Hours assume an implementer who
+has read this file, the spec §7–§8 and the part. **External** dependencies are on sibling plans'
+tasks; each part says what it codes against until that task lands.
+
+| # | Task | Depends on | External | Hours |
+|---|---|---|---|---|
+| 01 | **Spike**: the script-less artboard iframe in WebView2 — measure, hit-test, text overlay, keys, PNG, CSP | — | — | 2 |
+| 02 | The `canvas/` Go module, `go.work`, the control plane's `replace`, CI build/test/vet | — | — | 1 |
+| 03 | The `canvas/editor` npm package, the desktop's `file:` dependency and its three declared config amendments | — | — | 1.5 |
+| 04 | **The licence gate**: `tools/licencegate`, SPDX evaluation, deny list, exceptions, CI step | 02, 03 | — | 2.5 |
+| 05 | The document model, ids, the design key, fractional order | 02 | — | 2 |
+| 06 | Ops: kinds, validation, apply, inverse, `review_mark` | 05 | — | 3 |
+| 07 | The dialect: HTML and inline CSS into nodes, the allowlist, the dropped report, `data:` into assets | 05 | — | 3 |
+| 08 | Canonical HTML, export HTML, canonical JSON, the review digest | 05, 07 | — | 2.5 |
+| 09 | JSX (inline and Tailwind), `tree.json`, `tokens.css`, DTCG `tokens.json` | 08 | — | 3 |
+| 10 | The store: op log, snapshots, reconstruction at a revision, crash safety | 06 | — | 2.5 |
+| 11 | Authority I: canvases by branch, `Apply` with an author, subscriptions, the activity feed | 06, 10 | — | 3 |
+| 12 | Authority II: claims, `ifRevision`, notices, per-author undo and redo, revert by session | 11 | — | 3 |
+| 13 | The render bridge and the human's selection | 11 | — | 2 |
+| 14 | The MCP protocol layer | 02 | — | 2.5 |
+| 15 | MCP read tools, `get_brief` and its port | 08, 09, 12, 13, 14 | phase 4 task 07 (coded against a port and a fake) | 3 |
+| 16 | MCP write tools | 07, 12, 14 | — | 3 |
+| 17 | MCP tokens, comments, export, guides, server instructions | 09, 15, 16 | — | 2.5 |
+| 18 | The relay framing in both modules; `sandboxd`'s listener and `/mcp-channel` | — | — | 3 |
+| 19 | The relay supervisor; `--mcp-config` and `--allowedTools`; session wiring | 14, 18 | — | 2.5 |
+| 20 | `designapi` routes, the SSE window stream, configuration, wiring | 11, 12, 13 | phase 4 task 10 (`RouteMounter`; declared here if absent) | 3 |
+| 21 | Approval: snapshot, blobs, the Hub approval, *changed after approval*, re-review | 08, 09, 13, 20 | Hub H0/C2 (`hubclient.Designs` + fake); phase 4 task 07 (`discoverhub`) | 3 |
+| 22 | Handoff: the bundle into the worktree; the session link | 21 | Hub H4 fake; phase 3 3-D6 | 2 |
+| 23 | Editor data layer: wire types, the document store, the transport port, the allowlist check | 03, 07, 11 | — | 2.5 |
+| 24 | The renderer: artboard iframes, assets, measurement, capture, the render responder, the hidden renderer | 01, 23 | — | 3 |
+| 25 | The editor: viewport, selection, marquee, move and resize, snapping, canvas keys | 24 | — | 3 |
+| 26 | The editor: layers, layout, fill, border, effects, type, token picker, code panel, text in place | 25 | — | 3 |
+| 27 | Desktop data: `design.ts`, `events.ts`, the design slice, the transport adapter, the key-source selector | 20, 23 | phase 4 task 16 (the loader) | 2.5 |
+| 28 | The Design lens chrome: seven states, approval bar, side panel, presence, comments, review requests | 21, 22, 26, 27 | phase 4 task 17 (`ContextChip`) | 3 |
+| 29 | Paste: HTML, SVG and images | 20, 26 | — | 1.5 |
+| 30 | End to end, the phase 5 contract document, and the amendments | all | OD-12's hands-on session | 2 |
+
+**Total ≈ 77 hours.** Critical path: 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17, then 20 → 21 → 22 → 28 → 30.
+
+**Order, in waves** (a wave's tasks are independent of each other):
+
+1. **01, 02, 03, 18** — the spike, both scaffolds, the relay framing. 01 gates 24–26; if it fails
+   an item, its report names the fallback each later part already carries.
+2. **04, 05, 14** — the gate before any dependency is added; the model; the protocol layer.
+3. **06, 07** → **08, 10** → **09, 11**.
+4. **12, 13, 19** → **15, 16, 20, 23**.
+5. **17, 21, 24** → **22, 25** → **26, 27** → **28, 29** → **30**.
+
+**Parallel lanes for worktree agents.** Lane A (Go core): 05–13. Lane B (MCP): 14–17, after 12 and
+13. Lane C (relay): 18–19. Lane D (editor): 23–26, after 01 and 03. Lane E (control-plane HTTP and
+provenance): 20–22. The desktop lane (27–29) joins D and E. **Two lanes never edit one file**: the
+only shared files are `control-plane/go.mod` (02 only), `internal/api/api.go` (20 only),
+`internal/api/sessions.go` (19 only), `internal/httpx/problem.go` (20 only) and
+`azure-pipelines.yml` (02, then 03, then 04, in that order).
+
+---
+
+## Seams to later phases
+
+| Id | Seam | The later phase | Must not |
+|---|---|---|---|
+| **S5-H.1** | `authority.Service` over the `store.Store` interface; authors carry a `UserID` that is `"local"` in v1 | v2: the Hub hosts this package, with a Postgres `Store` and the Hub principal as `UserID`, behind `/v1/canvas/…` (ADR-H1 §5.5) | fork the op protocol for the Hub |
+| **S5-H.2** | The Hub's boundary test (`go list -deps ./cmd/hub`, contract §2) allows no canvas import in v1 | v2 adds `github.com/kpmg-au-emu/panacea-app/canvas/...` to its allowlist | host the canvas without amending the test |
+| **S5-P3.1** | The handoff writes into a worktree the caller names (S3-P5.1) | phase 3's *create a worktree from this design* calls task 22's route after its own create | commit `.panacea/` |
+| **S5-P6.1** | Every agent-caused op is attributed to a session | phase 6's activity and cost views read `list_activity` / the activity route | derive activity from PTY bytes |
+| **S5-P7.1** | `design:` keys resolve through the Hub's `/v1/refs` (contract §7.5) | phase 7's release manifest renders the approved design key | read the canvas for a release |
+| **S5-P8.1** | The relay dials `<endpoint>/mcp-channel`, and `Endpoint` is whatever the backend reports (`backend.Sandbox.Endpoint`) | phase 8's `katabe` pods serve the same path on `:8080` | open a port on the node for MCP |
+| **S5-Q.1** | `request_review` makes a canvas review request | a later cockpit queue (`AGENTIC-UX.md` §4 rule 4) ranks it | count it outside the queue |
+| **S5-Hx.1** | `harness.Descriptor.SupportsMCPConfig` | v2: Codex, OpenCode and Gemini CLI, each through its own documented MCP configuration | wrap a CLI to inject MCP |
+| **S5-UI.1** | `GET /v1/events` topics | a later phase moves sessions onto the stream (UI contract §10.5) and retires the poller's session read | open a second stream per window |
+
+---
+
+## Hub contract asks
+
+Each is a shape phase 5 needs that the Hub contract (read at `.claude/worktrees/hub`, commit
+`f684067`) does not state, or states two ways. **No Hub route is invented here.** Each says what
+phase 5 does until it is answered.
+
+| Id | Ask | Exact shape | Until answered |
+|---|---|---|---|
+| **HA5-1** | `PutBlob`'s retry (contract §9.2: *"retries a transport failure or a 502/503/504 twice"*) cannot replay an `io.Reader` it has consumed | change the parameter to `body io.ReadSeeker` and seek to 0 before each attempt; or state that `PutBlob` never retries | phase 5 always passes a `*bytes.Reader` (every snapshot file is in memory, ≤ 16 MiB) and retries a failed upload itself, once, with a fresh reader (task 21) |
+| **HA5-2** | Contract §9.2's `Designs` has five methods; the Hub plan's `task-04.md:91-100` has seven (`Approval`, `SessionLinks` added) | amend §9.2 to the plan's seven | phase 5 uses only the contract's five plus `Approval` (task 22 reads one approval by id) and codes a local interface of exactly those six |
+| **HA5-3** | The fake must model every check of §7.7 (1–6) and §7.8, and §7.6's `digest_mismatch` and `quota_exceeded`, because phase 5's tests run only against it | confirmation that `NewFake()` implements them, with the same error codes and `details` | task 21's tests assert those codes against the fake; a gap is a failing test that names this ask |
+| **HA5-4** | ADR-H1 R5 says *"every approval is audited with its session context"*; `ApprovalRequest` (contract §7.7; `task-03.md:353-360`) has no field that could carry one, and §5.3 forbids actor fields | delete the phrase from R5 (recommended — the Hub records the principal and the time, which is all it can know), **or** add an optional `"surface": "design-lens"` to `ApprovalRequest` | phase 5 sends the contract's request exactly; no extra field |
+| **HA5-5** | v2 only, recorded now so it is not a surprise: canvases move into the Hub | a `canvases` table keyed by `(project, branchRef)`, a `/v1/canvas/{canvasId}/stream` WebSocket, and `canvas/...` in the §2 boundary allowlist (S5-H.2) | nothing in v1 |
+
+---
+
+## Open questions for the owner — each with the recommendation this plan builds on
+
+| # | Question | Recommendation (built) | Changes if overruled |
+|---|---|---|---|
+| **OQ-P5-1** | May an agent use the canvas tools **without a permission prompt per call**? | **Yes** (P5-D): `--allowedTools mcp__panacea-canvas`. Every canvas write is attributed to the session, claimable, and revertible by session; none touches a file | task 19 drops one flag; agents prompt on every canvas call |
+| **OQ-P5-2** | Should the licence gate **fail** on a dev-only npm dependency (a build tool that never ships)? | **No — report it** (P5-P). The gate fails on everything that ships | task 04 flips one flag; some build tools may then need exceptions |
+| **OQ-P5-3** | Tool names that follow Paper's public verbs (`write_html`, `update_styles` …) — spec OQ-5 | **Yes for the verbs, no for the brand** (G6). A short legal confirmation is cheap; this is not legal advice | task 14's registry renames |
+| **OQ-P5-4** | Is v1 one human with many agents, and cross-person co-editing v2? — spec OQ-1 | **Yes.** The shared part of the thread (approvals, links, snapshots) is shared from v1 (`OD-3`) | v2 moves ahead of phases 6–8 |
+| **OQ-P5-5** | The canvas's bundled fonts are the design system's Geist Sans and Commit Mono, both **OFL-1.1** — a font licence outside `OD-11` rule 3's four | **Allowed as assets**: the rule governs code dependencies, and `DESIGN-SYSTEM.md` already chose these faces. The gate does not scan fonts | fonts become system-only on the canvas |
+
+Answered elsewhere, recorded so nobody asks again: spec OQ-2 (documents in the control plane in
+v1 — ADR-H1 Q7 agrees); OQ-3 (P5-B); OQ-4 (the relay, tasks 18–19); OQ-6 (P5-R); OQ-7 (P5-Q);
+OQ-8 (no CC0 — fractional indexing is written in task 05); OQ-9 (spike task 01); OQ-10 (the bundle
+is not committed — phase 3's 3-D6); OQ-11 (Figma via its MCP is v2, behind owner and security).
+
+---
+
+## What this plan did not verify
+
+- **Nothing was compiled, run or rendered.** Every claim about code is a reading of the tree at
+  `3303fd6` plus this branch's docs commits. Phase 2 is still committing on `feat/phase-2-cockpit`;
+  line numbers in `sessions.go`, `api.go`, `argv.go` and `desktop/src` will drift, so every part
+  names the symbol as well as the line.
+- **WebView2 behaviour**: a `srcdoc` iframe with `sandbox="allow-same-origin"` and no
+  `allow-scripts` — that the parent can read its layout, that nothing inside runs, that a `<meta>`
+  CSP applies, and how a PNG is best captured. Task 01 is the spike; every later UI part names its
+  fallback.
+- **Claude Code's flags**: that `--mcp-config` accepts an inline JSON string with `"type":"http"`,
+  whether it and `--allowedTools` are variadic (they are emitted first for that reason, task 19),
+  and that `mcp__panacea-canvas` allows every tool of the server. From knowledge of the CLI, not
+  from `claude --help` 2.1.274 in `panacea-app/sandbox:dev`; task 19's first step checks all three.
+- **Claude Code's MCP client**: the protocol revision it asks for, whether it ever batches, how
+  long it waits at start for a server that is not yet reachable (the listener holds connections
+  until the channel opens, task 18), and how it recovers when a connection drops.
+- **The MCP specification details** used in task 14 (Streamable HTTP; `application/json` single
+  responses; `GET` answered 405; no session id) are from knowledge of revisions 2025-03-26,
+  2025-06-18 and 2025-11-25, not re-read tonight.
+- **The licence tools**: `google/go-licenses`' handling of a compound `LICENSE` file and its own Go
+  version requirement; `license-checker-rseidelsohn`'s JSON output. Task 04 pins both and tests the
+  gate's evaluator on fixtures, not on the tools' behaviour.
+- **npm and Vite on Windows**: that `file:../canvas/editor` produces a junction, that
+  `resolve.dedupe` yields one React in both the build and vitest, and that `server.fs.allow` lets
+  `tauri dev` serve the package. Task 03's acceptance measures each.
+- **Sibling plans are plan text.** Phase 4's `discoverhub`, `provenance`, `ContextChip` and loader;
+  phase 3's 3-D6 exclude rule; the Hub's `hubclient`, `hubapi` and fake. Each part codes against a
+  port it declares and a fake, and names the sibling task that replaces the fake.
+- **The prototype** `prototype/phase-5-design.html` (577 lines) was read for its seven states and
+  their notes, not opened in a browser. Its states were drawn around an embedded Northstar viewport;
+  task 28 maps each onto our canvas and says which changed.
+- **The owner's eyes remain the visual acceptance** (`CLAUDE.md`), batched to the end (`OD-12`).
