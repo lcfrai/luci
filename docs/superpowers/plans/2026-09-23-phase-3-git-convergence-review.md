@@ -550,3 +550,39 @@ is the check.
 **Not changed:** A4's wording at plan:33-35 gains one sentence pointing at decision 9 (plan:179).
 The OD-8 adapter, the contract §2 gate and `desktop/src/store/types.ts` are untouched.
 `ConflictReason` lives in the new `api/convergence.ts` (task 18), not in `types.ts`.
+
+### Fix batch b01, round 2 (2026-09-24): the re-review's open issues
+
+Source: `.superpowers/sdd/p3/plan-rereview-b01-1.md`. Line numbers are for the tree at this
+round's last commit. Four probes ran on git 2.53.0.windows.2 in `$TEMP` (scripts
+`probe-b01*.sh`): a `.git/commondir` redirect, the `credential.helper=` reset against a URL-scoped
+helper, a valueless key under `-z`, and what a local fetch runs in its source.
+
+| Re-review item | Where it is now |
+|---|---|
+| R1 (Critical): `Scope`'s zero value was `Clone` | parts/task-02.md:73 and :84: the zero value is `Unset`, which is `ErrCallShape`. The rule "Scope follows Dir", and `clone` checking its source as `Project`, are at :396. Call sites now name their scope: parts/task-03.md:150, task-08.md:59, :63 and :146, task-11.md:100 and :115, task-14.md:124, task-15.md:110, and task-16.md:64 and :128. Tests: `TestHGHCallShape` (:491, `Unset`), `TestHGHProjectAdmitsRealConfig` (:485, `vscode-merge-base` and `gh-resolved`). `gitxtest.NewRepo` carries real project keys (:267), so a project call site marked `Clone` goes red in its own task |
+| R2: `credential.*`/`http.*` refused on every Project call | parts/task-02.md:406: refused on a `Remote` call only. `credential.*` keeps four inert keys admitted there (the helper, cleared by H1's reset, which a probe confirmed for a URL-scoped helper, :356; and `useHttpPath`). The rest stays refused, because the machine helper runs in the project on a `Remote` call and GCM reads its own `credential.trace`/`traceSecrets` from there. No machine helper runs on a `Read` or `Local` call (:356). This repository's config passes (:406, :485). The account change is stated at :412 and in plan Q8 (plan:360) |
+| R3: `remote.<name>.proxy` beats H2 | parts/task-02.md:377 (H2 no longer claims it) and :406 (H3 refuses `remote.*.proxy`, `.proxyAuthMethod` and `.vcs` on every Project call). Test: parts/task-12.md:152, `TestPushAndFetchRefuseARepoProxy` case (b) |
+| R4: two H2 tests could not fail | parts/task-02.md:489: transport level against a bare TLS server, keyed at exactly `RemoteURL`, with a `--get-urlmatch` precondition. parts/task-12.md:152: keyed at the remote's exact scheme, host and port, with the same precondition |
+| R5: other `.git` files steer config discovery | Verified: `.git/commondir` redirected `git config` in a plain repository, and pinning `GIT_DIR` plus `GIT_COMMON_DIR` restored it. parts/task-02.md:445 (the layout pin; `Call.Env` may not override it; the `clone` exception; a `.git`-file project is not pinned, unverified). Test: `TestHGHCommondirCannotRedirect` (:492). The claim is softened at :445 and in plan Q6 (plan:358) |
+| Minor 1: task 11 also writes project config | parts/task-02.md:406 names `branch -m` and `config --remove-section`. parts/task-05.md:149 records what the sandbox sees after a host rename under the bind |
+| Minor 2: Q7's cost list | plan:359 names `git branch -m` and husky's `prepare`, both unverified. Batch b03 is told in the ledger |
+| Minor 3: a valueless key is `key\0` | Verified (`x.flag\0`). parts/task-02.md:390 (the parser) and :486 (`TestHGHConfigParseIsNULSafe` gains a valueless `filter.x.required`) |
+| Minor 4: the source side of a local fetch | parts/task-02.md:419. Verified: neither a source-local nor a command-scope `uploadpack.packObjectsHook` ran. Pinned by `TestHGHUploadPackSourceRunsNothing` (:493), a git-behaviour pin |
+| Minor 5: `protocol.ext.allow` blocks one transport by name | parts/task-02.md:352: `protocol.allow=never`, with `file` always and `https` on a `Remote` call only. So `gitxtest.HTTPSRemote` (:288) replaces plain `httptest` remotes (parts/task-12.md:149) |
+
+Counts: 35 new tests in task 02, 18 of them §HGH (parts/task-02.md:504 and :522). Mutants added
+at Step 3a (:512). Decision 9 is restated to match at plan:179.
+
+**Declared rulings (root-cause option taken):**
+1. R2 goes beyond the re-review's fix. The re-review said to refuse the credential families on
+   `Remote` calls. That still refuses this repository's push (`credential.usehttppath`). So the
+   four keys H1 makes inert are admitted, and the rest of the family stays refused.
+2. Minor 5 turns https off on `Read` and `Local` calls too. That also closes a lazy fetch from a
+   partial-clone promisor remote on a non-network call, which H2 does not harden.
+3. The layout pin (R5) is Exec's, not a refusal, because a refusal would have the same
+   check-then-call race H5 exists to close.
+
+**Unverified:** GCM reading `credential.trace` from the repository it runs in (from GCM's
+documentation). Docker Desktop's nested file bind, and what it shows after a host rename (task 05).
+Whether any `.git` file other than `commondir` steers config discovery.
