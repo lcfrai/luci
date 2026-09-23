@@ -171,8 +171,12 @@ export function allowedTokenValue(type: TokenType, value: string): boolean;
 // refusals and a function not in allowlist.json's "functions"; plus ";", "!", "/*", an
 // unterminated string and any control character; plus ANY url( (no token type takes an image);
 // then the type by allowlist.json's "tokenRules" (font-family: a comma list of quoted strings or
-// identifiers only). A refused token is not set and is counted; the artboard's var() then falls
-// back as an unknown token would.
+// identifiers only). The rule NAME carries every keyword (re-review RR-I2-1): "font-weight"
+// (a number 1–1000, or normal | bold | lighter | bolder), "length-or-normal" (letter-spacing),
+// "number-or-length" (line-height, with normal), "family-list"; TS implements each of those four
+// token-only rules as its own function, never by widening "number" or "length" (which opacity,
+// flex-grow and the declaration letter-spacing share). A refused token is not set and is counted;
+// the artboard's var() then falls back as an unknown token would.
 ```
 
 ## Tests first
@@ -187,7 +191,7 @@ export function allowedTokenValue(type: TokenType, value: string): boolean;
 | `docstore.test.ts › childrenOrder` | children sorted by `order` then `id`, as Go | the canvas drawing siblings in another order than export |
 | `allowlist.test.ts › copyMatchesGo` | `generated/allowlist.json` equals `../../dialect/allowlist.json` byte for byte | the renderer's list drifting from the sanitiser's |
 | `allowlist.test.ts › refuses` | `margin`, `url(https://x)`, `expression(`, `\\75rl(` → false; `color: var(--brand)` → true | a renderer that trusts the server blindly |
-| `allowedTokenValue.test.ts` | every line of `canvas/dialect/testdata/token-vectors.jsonl` (task 07's `TestTokenValue_refusals`, read from the Go tree like `copyMatchesGo`) → false, including the review's two values under `font-family`; `color: #2fb3bd`, `font-weight: 650`, `font-family: "Inter", system-ui, sans-serif`, `spacing: var(--space-2)` → true | a token that reaches `setProperty` without the checks a declaration gets, or TS and Go refusing different sets (review I2) |
+| `allowedTokenValue.test.ts` | every line of `canvas/dialect/testdata/token-vectors.jsonl` (task 07's `TestTokenValue_refusals`, read from the Go tree like `copyMatchesGo`) → false, including the review's two values under `font-family`; every line of `canvas/dialect/testdata/token-accept.jsonl` (the same lines task 07's `TestTokenValue` accepts: `font-weight: bold` and `650`, `letter-spacing: normal`, `spacing: var(--space-2)`, `line-height: 1.4`, the Inter family list, …) → true; and `allowedStyle("opacity", "bold")` → false (the token rules widened no declaration rule) | a token that reaches `setProperty` without the checks a declaration gets, or TS and Go refusing different sets (review I2); TS refusing a keyword Go's `TokenValue` accepts, so the canvas shows the `var()` fallback while the export ships `bold` (re-review RR-I2-1) |
 | `boundary.test.ts` | no file under `src/` imports a relative path outside `src/`, or a bare module outside `package.json`'s dependencies and peers | the package importing the cockpit (G13) |
 | `memoryTransport.test.ts` | a submitted `set_props` yields one change event with the node's full state | tests passing against a transport the desktop's does not match |
 
