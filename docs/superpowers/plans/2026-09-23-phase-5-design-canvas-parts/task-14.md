@@ -136,8 +136,10 @@ Every response is `Content-Type: application/json`. No `Mcp-Session-Id` is issue
 // canvas/mcp/schema.go
 
 // The JSON Schema subset tool schemas may use: type (object, string,
-// integer, number, boolean, array), properties, required,
-// additionalProperties (must be false on every object), enum, minLength,
+// integer, number, boolean, array, or a list of those, e.g.
+// ["string","null"]), properties, required, additionalProperties (false on
+// every object, except that it may be exactly {"type":["string","null"]} —
+// the styles map of task 16, whose keys are CSS properties), enum, minLength,
 // maxLength, pattern, minimum, maximum, items, minItems, maxItems,
 // description. Register refuses a schema using anything else, so the
 // validator is never asked a question it cannot answer.
