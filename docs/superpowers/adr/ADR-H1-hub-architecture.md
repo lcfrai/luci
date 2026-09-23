@@ -236,7 +236,8 @@ Why, in order of weight:
    Docker client because they share a `go.mod`. `pgx` joins the module's requirements; the
    control-plane binary does not link it.
 
-The cost is a boundary the compiler does not draw. It is drawn by a test (contract §13, task H0.3):
+The cost is a boundary the compiler does not draw. It is drawn by a test (contract §2, built in
+task H0):
 `go list -deps ./cmd/hub` may name only the standard library, `internal/hub/...`, `internal/httpx`,
 `internal/ids`, `internal/entra`, `pgx` and `golang.org/x/time/rate`; and no package outside
 `internal/hub/...` may import `internal/hub/server/...`. The control plane reaches the Hub only
@@ -517,8 +518,9 @@ chosen, because phase 5's model is server-authoritative last-writer-wins per pro
   content is replaced by nothing, `erased_at` is set, and the key then resolves as **`erased`** — a
   seventh provenance state, distinct from `missing` (data loss) and from `none`. It is done by one
   `SECURITY DEFINER` function owned by the DDL identity, the only code path allowed to touch a
-  revision. Blobs referenced only by erased records are deleted the same way. Audit rows are not
-  erased; they hold no content. Open question Q2 (§10) asks the owner to confirm the rule.
+  revision. Nothing else holds brief text — approvals, pins, evidence and links hold keys and
+  digests, and phase 5's snapshot has no brief mirror — so v1 erasure touches brief revisions
+  only. Audit rows are not erased; they hold no content. Open question Q2 (§10) asks the owner to confirm the rule.
 - **Australian data residency**: the Hub, its database and its backups are in **Australia East**
   (phase 8's region, `P8` owner-inputs table `:259`), with geo-backup, if enabled, only to the paired
   **Australia Southeast**. The Hub makes no outbound call carrying user content. Entra itself is a
@@ -527,9 +529,9 @@ chosen, because phase 5's model is server-authoritative last-writer-wins per pro
 ### 5.7 Operations
 
 - **Local-first.** `control-plane/cmd/hub/compose.yaml` (contract §12.1) — beside the binary, not
-  under the repo-root `deploy/` tree phase 8 owns — starts `postgres:16-alpine`, `devissuer`, a one-shot `hub migrate` and `hub serve` on
-  `127.0.0.1:8750`. The control plane is pointed at it by two variables. No Azure resource is
-  needed to develop or test any Hub route.
+  under the repo-root `deploy/` tree phase 8 owns — starts `postgres:16-alpine`, `devissuer`, a
+  one-shot `hub migrate` and `hub serve` on `127.0.0.1:8750`. The control plane is pointed at it
+  by four variables (contract §12.1). No Azure resource is needed to develop or test any Hub route.
 - **Health.** `GET /healthz`: the process is up. `GET /readyz`: Postgres answers within 1 s, the
   schema version matches the build, and the JWKS for every enrolled tenant (or `devissuer`) has been
   fetched once. Both unauthenticated, both answer no detail beyond `{"status":…}`.
@@ -699,7 +701,7 @@ second style doubles the error model for no caller that needs streaming or graph
 |---|---|---|---|
 | R1 | A KPMG refresh token exceeds Credential Manager's 2,560-byte blob | medium · sign-in cannot persist | chunked targets (contract §9.1). Measured at the first real sign-in |
 | R2 | KPMG conditional access blocks, or adds a device-compliance prompt to, a public client with a loopback redirect | medium · nobody signs in | ask IT before the first real sign-in (§9, item 6); `devissuer` keeps all development moving meanwhile |
-| R3 | A crash **after** Panacea accepts a deploy and **before** confirm leaves a reserved release that expires as `abandoned` although a run happened | low · one release shows *"reserved, never confirmed"* | confirm is idempotent and retried; if the Panacea metadata ask (R7) is granted, the deployment poller confirms by the `releaseId` it finds on the run. It never pins by observation (P2) |
+| R3 | A crash **after** Panacea accepts a deploy and **before** confirm leaves a reserved release that becomes `expired` although a run happened | low · one release shows *"reserved, never confirmed"* | confirm is idempotent and retried with the same `Idempotency-Key` for the reservation's 15 minutes; if the Panacea metadata ask (R7) is granted, the deploy poller can confirm within that window by the `releaseId` it finds on the run. It never pins by observation (P2) |
 | R4 | Another process **of the same OS user** drives the control plane, and so the Hub, as that user | low · acts as the user | C3 stops other users and sandboxes, not this. An OS peer-credential check is later work |
 | R5 | An agent causes an approval. The Hub cannot tell a human's call from the control plane's | low · a false approval | phase 5's rule that no MCP tool approves; the approve handler is reachable only from our chrome; every approval is audited with its session context |
 | R6 | The Hub's packages start importing control-plane internals because the compiler allows it | medium · the Hub drags in local-only code | the import-boundary test in H0 (§4.1) |
