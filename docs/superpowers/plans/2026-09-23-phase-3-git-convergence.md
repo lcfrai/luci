@@ -31,7 +31,8 @@ into their product branch with provenance. Concretely, when this plan is done:
    undone exactly until it is pushed or built upon, and by a revert commit after.
 5. The branch pushes from the control plane with the user's own credentials, and a PR opens on
    **Azure DevOps or GitHub** behind one host interface (OD-4). The sandbox never holds a git
-   credential.
+   credential, and it cannot obtain one through the host's git either. Every host git call is
+   hardened against the config the sandbox writes (decision 9, task-02 §HGH).
 6. Each diff hunk links to the commit and session that wrote it (tier 1, always), and, for Claude
    Code, to the tool call that wrote it through a version-pinned, canary-tested transcript adapter
    that degrades to tier 1 (OD-8).
@@ -153,7 +154,9 @@ Each is small, stated so a reviewer can overturn it, and none changes what the o
    9: nothing infers it).
 3. **After every land, the control plane refreshes `origin/<branch>` in every clone of that
    branch.** It writes only a remote-tracking ref, which the agent does not write. This is what
-   makes 3-D3's opening prompt ("merge `origin/evidence-upload` into this branch") true.
+   makes 3-D3's opening prompt ("merge `origin/evidence-upload` into this branch") true. The
+   refresh fetches from the project's literal path, taken from the lane index, and never from the
+   clone's configured `origin`, which the agent can rewrite (review C3; task-02 §HGH H2).
 4. **A land or an evidence record that names a brief key is refused when no resolver is
    configured.** Writing an unverifiable key into immutable history is worse than writing none. A
    land with no key records no brief trailer and renders `none`.
@@ -173,6 +176,13 @@ Each is small, stated so a reviewer can overturn it, and none changes what the o
    `host_failed` (the GitHub or Azure DevOps API refused, 502; `details.hostSays`). Both classify
    as `server-said` through `classify`'s existing catch-all. Every other refusal is `conflict`
    with a `details.reason` from the closed list in task 04's `gitdeps.go`.
+9. **Host git never runs what a repository names** (review C1 and C3; task-02 §HGH). The sandbox
+   can write a clone's `.git`, and on a primary-worktree session the project's too. So every host
+   git call carries a command-scope prefix that disables hooks, fsmonitor, ssh and ext commands,
+   askpass, signing and repository credential helpers. A config check refuses driver, include and
+   credential keys (`clone_config_untrusted`, `project_config_untrusted`). The sandbox mounts
+   `.git/config` read-only, so the file that was checked is the file git reads. Network calls take
+   their proxy, TLS and helpers from the machine's config, never the repository's.
 
 ## How this plan supersedes the sandbox git fix (`fix/sandbox-git-ca`)
 
@@ -182,7 +192,7 @@ The fix (`2d6d95b` on `fix/sandbox-git-ca`, based on `69bbc02`, plus the uncommi
 
 | The fix does | Phase 3 does | Kept, changed or superseded |
 |---|---|---|
-| Mounts the worktree at `/home/dev/work`, the conversation store, and the CA bundle read-only (`sessionMounts(worktreePath, conversationStore, caBundle)`) | Leaves all three mounts exactly as they are. For a cockpit worktree the worktree mount's host path is the clone, whose `.git` is a directory, so no `.git` common-dir mount is ever added (brief 3-D1 option a is rejected) | **Kept.** The mount model the brief calls "linked-worktree mounts" is replaced by clones, not by more mounts |
+| Mounts the worktree at `/home/dev/work`, the conversation store, and the CA bundle read-only (`sessionMounts(worktreePath, conversationStore, caBundle)`) | Leaves all three mounts as they are, and adds one: when the worktree's `.git` is a directory (every clone, and a primary worktree), `<path>/.git/config` is bound read-only on top (task 05; task-02 §HGH H5; review C1). For a cockpit worktree the worktree mount's host path is the clone, whose `.git` is a directory, so no `.git` common-dir mount is ever added (brief 3-D1 option a is rejected) | **Kept, plus one read-only file.** The mount model the brief calls "linked-worktree mounts" is replaced by clones, not by more directory mounts |
 | `sessionEnv`: `GIT_CONFIG_COUNT=2` with `safe.directory=/home/dev/work` and `user.useConfigOnly=true`; `GIT_AUTHOR_*`/`GIT_COMMITTER_*` from the identity; `NODE_EXTRA_CA_CERTS` | Adds a third entry, `core.hooksPath=/opt/panacea/githooks`, so the count becomes 3. Adds `PANACEA_APP_SESSION_ID`, a reserved variable `EnvEntries` writes from `Spec.SessionID` (task 05) | **Extended.** `safe.directory` is still needed: a clone's bind mount has the same foreign owner |
 | `gitIdentityResolver` asks `git var GIT_AUTHOR_IDENT` in the worktree's host path | A clone does not inherit its source's `.git/config`, nor an `includeIf gitdir:` that matched the project's path. So clone creation asks `git var` **in the project repository** and writes the answer into the clone's local `user.name`/`user.email` (task 03). The fix's per-worktree resolution then gives the same answer in the clone that it gives in the project | **Kept, with one addition at clone time** |
 | `LinkedWorktreeNote` renders for every worktree with `isPrimary: false`, saying git "arrives in Phase 3" | The condition narrows to `kind === "linked"`: a worktree made with `git worktree add` outside the cockpit, where git is still unavailable. A clone is `kind: "clone"`, `isPrimary: false`, and renders no notice. The sentence is rewritten to name the fix the user can take, and stops promising a phase (task 06) | **Superseded** for clones; **kept and reworded** for linked worktrees |
@@ -342,6 +352,8 @@ named task changes.
 | **Q3** | Is refusing to land into a checked-out branch acceptable when the user's primary worktree has that branch checked out, which is common? | **Yes** (brief A5). The banner names the checkout and the two ways out | task 09 would need a real `git merge` through that checkout, which touches the user's files |
 | **Q4** | Rename a product branch that has cockpit worktrees? | **Refused in v1** with the sentence "Remove or land this branch's worktrees first". Renaming a checked-out branch under a running agent is a change nobody asked that agent for | task 11 renames in every clone too |
 | **Q5** | Contract Q6 / risk R6: phase 3 adds push behind a loopback boundary with no authentication | **Accept for now**, as the brief does; the Hub owns control-plane authentication (OD-6). Push only ever uses the signed-in user's own credential, so another local process could push *as the user*, never as anyone else | the Hub's authentication lands before task 12 |
+| **Q6** | Review C1's residual: phase 2's scanner and `project.ExecRunner` run host git in the primary worktree's repository, whose `.git` the sandbox can write on a primary-worktree session. task-02 §HGH hardens `gitx.Exec` only. Are phase 2's read-only commands (`worktree list`, `for-each-ref`, `status`) exposed to `core.fsmonitor`, hooks or filters? | **Phase 2 checks, and adopts §HGH's H1 prefix in `ExecRunner` if they are.** `status` honours `core.fsmonitor`, so that exposure is likely. It is **not verified here**, and phase 2's files are not this plan's to edit. H5's read-only `.git/config` mount already covers a primary-worktree session | phase 3 lifts H1 into `project.ExecRunner` itself (one prefix, both launchers) |
+| **Q7** | task-02 §HGH H5 makes a checkout's `.git/config` read-only inside the sandbox. An agent's `git config`, `git branch --set-upstream-to` and `git remote add` then fail there. Accept that? | **Yes.** It is the only rule that closes H3's check-then-call race. The sandbox holds no git credential (A4), so it never needs a remote, and identity arrives through the session environment. The agent's `git commit`, `branch` and `checkout -b` keep working | H5 is dropped, and H3 becomes a best-effort check with a documented race. Filter drivers in a clone are then a residual host-execution risk |
 
 ## File map
 
@@ -352,7 +364,7 @@ exact insertion.
 control-plane/
   cmd/api/config.go                 (p2) three PANACEA_APP_* rows                          04 07 12
   cmd/api/main.go                   (p2) wire lanes, syncer, fetch timer, deps             04 07 12 13
-  internal/gitx/                    runner.go error.go machine.go trailers.go
+  internal/gitx/                    runner.go error.go machine.go trailers.go harden.go (§HGH)
                                     gitxtest/repo.go  behaviour_test.go                     01 02
   internal/lanes/                   store.go clone.go catalog.go remove.go                  03 04 11
   internal/converge/                sync.go observe.go forecast.go land.go history.go
@@ -374,7 +386,8 @@ control-plane/
   internal/api/gitdeps.go           GitDeps (one block per task), reasons, problem helpers   04 onward
   internal/api/gitroutes.go         phase 3's route table (one block per task)               04 onward
   internal/httpx/problem.go         (p2) CodeGitFailed, CodeHostFailed                        04
-  internal/api/sessions.go          (p2, post-fix) sessionEnv gains core.hooksPath           05
+  internal/api/sessions.go          (p2, post-fix) sessionEnv gains core.hooksPath;
+                                    sessionMounts binds .git/config read-only (§HGH H5)       05
   internal/api/catalog.go           (p2) worktreeJSON.Kind                                   04
   internal/api/routes_audit_test.go (p2) one line per new GET                                08 10 11 15 16 17
   internal/api/{worktrees,convergence,lands,branches,remote,pullrequests,
