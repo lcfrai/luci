@@ -651,3 +651,56 @@ Rejected by `OD-3` itself: shared from day one means one source of truth, not re
 Rejected. The control plane already speaks REST + JSON with one problem shape to the desktop; a
 second style doubles the error model for no caller that needs streaming or graph queries.
 
+---
+
+## 7. Consequences
+
+### 7.1 For each phase
+
+| Phase | What changes for it |
+|---|---|
+| **4 Discover** | `discoverstore.Store` gains a Hub-backed implementation; the file store becomes a test double. Brief ids are Hub-minted, `bf-` + 16 hex, so the `provenance` grammar must accept them (contract §3.2). A branch is named by its git ref. Every write goes through one batch route, so a project edit that re-revisions each inheriting branch brief (critique-2 §7.1 #3) is one transaction. `GET /api/v1/discover/refs` becomes a control-plane handler over the Hub's `GET /v1/refs`. `Ref.resolution` gains **`erased`** |
+| **5 Design** | Approval is one Hub call that writes the approval, the design link and the snapshot's manifest together, after the snapshot's blobs are uploaded. The approver is the token's principal, never a field. Canvas ids should be minted with 16 hex (contract §3.2) so they stay unique when v2 moves canvases into the Hub |
+| **7 Deploy** | Ship is **reserve → deploy → confirm** (G1). The Hub, not phase 7, resolves which revision is pinned. Rollback is R5's `rollback` shape and copies its pin from the release it restores. Ship and rollback are disabled while the Hub is unreachable — which the prototype already does for Panacea (`phase-7-deploy.html:670-674`, per ruling R4) |
+| **3 Git** | Evidence (H-2) is a Hub route; `Shared()` becomes true. H-1's `credstore` is the control plane's, built here in C1. H-3's `RepoKey` is the Hub's project-remote key. H-4's recorder is the token's principal |
+| **8 Environment** | The chart's provisional defaults hold (contract §12.3). Three registrations, as task 09 already guessed, with the details in §9. No storage account. The DB identities `id-hub` and `id-hub-migrate` are the DML and DDL roles |
+| **Desktop** | New: a sign-in surface; the local caller key on every control-plane call; one response header read by the poller; `upstream_unavailable` with `upstream: "hub"` |
+
+### 7.2 Documents this ADR amends — each amendment is made by the phase that next edits the file
+
+- **`PROGRAM.md`**, identity line: *"EntraID via … Keycloak"* → Entra direct, auth-code + PKCE run by
+  the control plane, validated by the Hub (`OD-6`, this ADR §5.2).
+- **`desktop/src/api/client.ts:6-8`** and **UI contract §4.5**: *"no Authorization header before
+  Phase 8"* → the local caller key from task C3.
+- **Provenance contract**: §2.1's store locations move to the Hub (`OD-3`); §1.4 gains `erased`;
+  §6.4's *"head refs are not polled"* is replaced by the change feed; §6.6's open exposure is closed
+  by C3; A5 is widened to the whole machine (§5.4).
+- **Phase 8 plan**, HA-1…HA-7: answered in contract §12.3 and §14.
+
+### 7.3 What gets harder
+
+- **Discover needs a network.** A laptop with no route to the Hub can run sessions but cannot edit
+  a brief, approve a design or ship. This is `OD-3`'s price, stated plainly.
+- **Two processes must agree on a digest.** The Hub writes it and the control plane re-checks it,
+  both from the same Go package, so they cannot drift — but a TypeScript reimplementation would.
+  The desktop never computes one (P5).
+- **A second binary to run locally.** One `docker compose up`, documented in contract §12.1.
+
+---
+
+## 8. Open risks
+
+| # | Risk | Likelihood · impact | Mitigation, and what remains |
+|---|---|---|---|
+| R1 | A KPMG refresh token exceeds Credential Manager's 2,560-byte blob | medium · sign-in cannot persist | chunked targets (contract §9.1). Measured at the first real sign-in |
+| R2 | KPMG conditional access blocks, or adds a device-compliance prompt to, a public client with a loopback redirect | medium · nobody signs in | ask IT before the first real sign-in (§9, item 6); `devissuer` keeps all development moving meanwhile |
+| R3 | A crash **after** Panacea accepts a deploy and **before** confirm leaves a reserved release that expires as `abandoned` although a run happened | low · one release shows *"reserved, never confirmed"* | confirm is idempotent and retried; if the Panacea metadata ask (R7) is granted, the deployment poller confirms by the `releaseId` it finds on the run. It never pins by observation (P2) |
+| R4 | Another process **of the same OS user** drives the control plane, and so the Hub, as that user | low · acts as the user | C3 stops other users and sandboxes, not this. An OS peer-credential check is later work |
+| R5 | An agent causes an approval. The Hub cannot tell a human's call from the control plane's | low · a false approval | phase 5's rule that no MCP tool approves; the approve handler is reachable only from our chrome; every approval is audited with its session context |
+| R6 | The Hub's packages start importing control-plane internals because the compiler allows it | medium · the Hub drags in local-only code | the import-boundary test in H0 (§4.1) |
+| R7 | A later writer encodes the canonical form differently and every digest changes | low · every link reads `missing` | the encoding is specified to the byte (contract §3.4), with golden vectors checked into tests |
+| R8 | Entra-only Postgres: a pooled connection outlives the token it was opened with | medium in cloud · connection errors | `MaxConnLifetime` 45 minutes, below the token's life; a token is fetched per new connection |
+| R9 | `devissuer` diverges from Entra in a way the code relies on | medium · the first real sign-in fails | contract §6.4 lists every known difference; H1's acceptance test is one real-tenant sign-in |
+| R10 | One lock serialises every write (G3, G5) | low · write latency under load | writes are human-paced; the lock is held for one insert. Measure before optimising |
+| R11 | These scores are one author's, over reconstructions (§0) | — | `OD-1`'s adversarial review of this ADR and the contract, told so |
+
