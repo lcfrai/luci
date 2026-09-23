@@ -245,7 +245,9 @@ type Config struct {
 	// Hub Designs — NOT in 20a's struct: task 21 adds the field with its type
 	// (designapi/hub.go, Hub H0's hubapi) and the one cmd/api/design.go line that
 	// passes Hub task 32's hubclient value (review I6: 20a compiles on 11–14 and 19, never on 21).
-	Worktrees worktree.Provider // task 22
+	// HandoffGit — NOT in 20a's struct: task 22 adds it (designapi/handoffgit.go), with the one
+	// design.go line that passes phase 3's adapter (fix batch b03, review I1: route 24 needs the
+	// worktree's Kind and phase 3's hardened gitx.Exec, which a worktree.Provider does not give).
 	Sessions  registry.Store    // task 22
 	Identity  func(ctx context.Context) (displayName string) // the Hub's signed-in name, or "You"
 	Log       *slog.Logger

@@ -22,9 +22,10 @@ It does **not** depend on task 21; task 21 depends on it. The `Approvals` port i
 `designapi`; this task wires the method's result, so 21 changes no MCP wiring (`task-20.md`, *The
 `Approvals` seam*). `designapi.Config.Hub` does not exist yet: task 21 adds it and the one
 `design.go` line that passes Hub task 32's `hubclient` value (nil when `PANACEA_APP_HUB_URL` is
-unset). This task passes every other `Config` field: `Authority`, `Briefs`, `Worktrees`
-(`worktree.Provider`, `worktree.go:32`), `Sessions` (`registry.Store`, `registry.go:48`),
-`Identity`, `Log`, `KeyGuard`.
+unset). Likewise `designapi.Config.HandoffGit`: task 22 adds it and its `design.go` line (nil
+until phase 3 is in the tree; fix batch b03, review I1). This task passes every other `Config`
+field: `Authority`, `Briefs`, `Sessions` (`registry.Store`, `registry.go:48`), `Identity`, `Log`,
+`KeyGuard`.
 
 ## Files
 

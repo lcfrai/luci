@@ -333,7 +333,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `canvas/mcp/` | `tools.go` (the builder, `Deps` and the error table), `views.go`, `tools_read.go` | 15 |
 | `canvas/mcp/` | `tools_write.go`, `place.go` | 16 |
 | `canvas/mcp/` | `tools_tokens.go`, `tools_comments.go`, `tools_export.go`, `guides.go`, `instructions.go`, `guides/*.md` | 17 |
-| `canvas/handoff/` | `snapshot.go`, `manifest.go`, `slug.go`, `paths.go` — the one bundle-path and manifest rule, `SafePath` and `CheckManifest` (21); `bundle.go` (22) | 21, 22 |
+| `canvas/handoff/` | `snapshot.go`, `manifest.go`, `slug.go`, `paths.go` — the one bundle-path and manifest rule, `SafePath` and `CheckManifest` (21); `bundle.go`, `nofollow.go` (+ `_windows`/`_other`: the `FS` that follows no link, review I1) (22) | 21, 22 |
 | `canvas/canvastest/` | `fixtures.go` (11), `renderer.go` (13), `ports.go` (15) | 11, 13, 15 |
 
 **New npm package `canvas/editor/`** (`@panacea-app/canvas-editor`, private):
@@ -358,7 +358,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `internal/api/sessions.go` | set `CanvasMCP` in create and restart | 19 |
 | `internal/api/api.go` | `Deps.CanvasMCP bool` (19); `Deps.Design RouteMounter` (phase 4's interface, task 10 of its plan) (20a) | 19, 20a |
 | `internal/events/` (new) | `broker.go`, `sse.go` — the window stream | 20a |
-| `internal/designapi/` (new) | `routes.go`, `mount.go`, `canvas.go`, `ops.go`, `assets.go`, `comments.go`, `render.go`, `export.go`, `briefs.go` (the neutral port; `briefs_phase4.go` adapts `discoverhub` once it exists), `problems.go`, `approvals_none.go` (the `Approvals` stub), `branches_phase3.go` (the S5-P3.2 adapter, once phase 3 exists) (20a); `approve.go`, `approvals.go`, `hub.go` (21, which deletes the stub); `handoff.go`, `links.go`, `gitexclude.go` (22); `paste.go` (29); `e2e_test.go` (30) | 20a, 21, 22, 29, 30 |
+| `internal/designapi/` (new) | `routes.go`, `mount.go`, `canvas.go`, `ops.go`, `assets.go`, `comments.go`, `render.go`, `export.go`, `briefs.go` (the neutral port; `briefs_phase4.go` adapts `discoverhub` once it exists), `problems.go`, `approvals_none.go` (the `Approvals` stub), `branches_phase3.go` (the S5-P3.2 adapter, once phase 3 exists) (20a); `approve.go`, `approvals.go`, `hub.go` (21, which deletes the stub); `handoff.go`, `links.go`, `gitexclude.go`, `handoffgit.go` (the neutral port; `handoffgit_phase3.go` adapts phase 3's catalog and hardened `gitx.Exec`, review I1) (22); `paste.go` (29); `e2e_test.go` (30) | 20a, 21, 22, 29, 30 |
 | `internal/httpx/problem.go` | the design codes (task 20a lists them) | 20a |
 | `cmd/api/config.go`, `main.go` | `PANACEA_APP_CANVAS_*` variables; wiring (task 19 touches neither, `task-19.md:13-19`) | 20b |
 | `cmd/api/design.go` (new) | `newDesignAPI`, the one builder of the design API, so the `KeyGuard` `main.go` passes is testable without `api.New`'s outer wrap; `newMCPServer`, `newMCPDeps` (20b); the `Hub` line (21) | 20b, 21 |
@@ -417,7 +417,7 @@ tasks; each part says what it codes against until that task lands.
 | 20a | `designapi` routes, the SSE window stream, problem codes, the route audit, the `Approvals` stub, the phase-3 branch adapter (`task-20.md`) | 11, 12, 13, 14, 19 | **Hub C3, Hub plan tasks 37–38 (`localkey`) — hard, no fallback (rule 4)**; phase 4 task 10 (`RouteMounter`; declared here if absent); phase 3 task 11 (renames, archive refs; the adapter waits for it, S5-P3.2) | 4.5 |
 | 20b | Configuration and the `cmd/api` wiring: store, authority, MCP server and tools, relay supervisor, `newDesignAPI` (`task-20b.md`) | 17, 19, 20a | **Hub C3 (tasks 37–38) — hard** | 1.5 |
 | 21 | Approval: snapshot, blobs, the Hub approval, *changed after approval*, re-review | 08, 09, 13, 20a, 20b | **Hub C3 (tasks 37–38) — hard**; Hub H0/C2 (`hubclient.Designs` + fake); Hub C1 (task 32: `api.Deps.Hub`, `CodeHubNotConfigured`; re-review RR-I6-2); phase 4 task 07 (`discoverhub`) | 3 |
-| 22 | Handoff: the bundle into the worktree (manifest paths validated, review C2); the session link | 21 | **Hub C3 (tasks 37–38) — hard**; Hub H4 fake; phase 3 3-D6 | 2 |
+| 22 | Handoff: the bundle into the worktree (manifest paths validated, review C2; no link followed, host git hardened, review I1); the session link | 21 | **Hub C3 (tasks 37–38) — hard**; **phase 3 tasks 02–03 (`gitx.Exec` §HGH, `lanes.Catalog`) — hard for route 24**; Hub H4 fake; phase 3 3-D6 | 3 |
 | 23 | Editor data layer: wire types, the document store, the transport port, the allowlist check | 03, 07, 11 | — | 2.5 |
 | 24 | The renderer: artboard iframes, assets, measurement, capture, the render responder, the hidden renderer | 01, 23 | — | 3 |
 | 25 | The editor: viewport, selection, marquee, move and resize, snapping, canvas keys | 24 | — | 3 |
@@ -427,7 +427,7 @@ tasks; each part says what it codes against until that task lands.
 | 29 | Paste: HTML, SVG and images | 20a, 26 | — | 1.5 |
 | 30 | End to end, the phase 5 contract document, and the amendments | all | OD-12's hands-on session | 2 |
 
-**Total 80.5 hours**, the sum of the rows above (76 before b02; re-review RR-M1) (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
+**Total 81.5 hours**, the sum of the rows above (76 before b02; 80.5 before b03, whose I1 adds 1 h to task 22; re-review RR-M1) (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
 sizing note; tasks 10, 11 and 20a gain 0.5 h each for seam S5-P3.2, review I7; task 11 a further
 0.5 h for the whole-project replay, re-review RR-I7-1 and RR-I7-2). Critical path (≈ 33 h by
 earliest finish): 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17 → 20b → 21 → 22 → 28 → 30
@@ -538,7 +538,8 @@ is not committed — phase 3's 3-D6); OQ-11 (Figma via its MCP is v2, behind own
   `resolve.dedupe` yields one React in both the build and vitest, and that `server.fs.allow` lets
   `tauri dev` serve the package. Task 03's acceptance measures each.
 - **Sibling plans are plan text.** Phase 4's `discoverhub`, `provenance`, `ContextChip` and loader;
-  phase 3's 3-D6 exclude rule; the Hub's `hubclient`, `hubapi` and fake. Each part codes against a
+  phase 3's 3-D6 exclude rule, `gitx.Exec` (§HGH) and `lanes.Catalog` (task 22's `HandoffGit`
+  port, review I1); the Hub's `hubclient`, `hubapi` and fake. Each part codes against a
   port it declares and a fake, and names the sibling task that replaces the fake.
 - **The prototype** `prototype/phase-5-design.html` (577 lines) was read for its seven states and
   their notes, not opened in a browser. Its states were drawn around an embedded Northstar viewport;
