@@ -110,10 +110,6 @@ variable "log_analytics_workspace_id" {
   type        = string
   description = "Diagnostics destination."
 }
-variable "delete_lock" {
-  type        = bool
-  description = "CanNotDelete lock on the server (prod)."
-}
 variable "tags" {
   type        = map(string)
   description = "Tags."
@@ -147,7 +143,14 @@ Resources (described; names from azurerm 4.81.0):
 - `azurerm_private_endpoint.postgres` — **`subresource_names = ["postgresqlServer"]`**, the
   zone group.
 - `azurerm_monitor_diagnostic_setting.postgres` — `enabled_log { category_group = "allLogs" }`.
-- `azurerm_management_lock.server` — `count = var.delete_lock ? 1 : 0`.
+- **No `azurerm_management_lock`.** Prod's `CanNotDelete` lock on the server is the owner's, made
+  by hand in task 31 §6a after the first prod apply (plan re-review I-4). The infra identity that
+  applies this stack holds no `Microsoft.Authorization/locks/write`: Contributor excludes
+  `Microsoft.Authorization/*/Write`, and Role Based Access Control Administrator grants role
+  assignments only (**training knowledge, UNVERIFIED**). A lock in Terraform would fail the first
+  prod apply. Granting the infra identity lock rights would let it lift the lock as well, so the
+  lock would guard only against accidents, never against the pipeline. An owner-held lock guards
+  against both.
 
 **No database role is created here.** A Postgres role for an Entra principal is SQL
 (`pgaadauth_create_principal`, run as a member of the admin group) and a grant is SQL; Terraform's
@@ -268,6 +271,8 @@ bash infra/scripts/validate.sh infra/terraform/modules/postgres infra/terraform/
 # validate: OK   infra/terraform/stacks/data
 # validate: 2 ok, 0 failed
 bash infra/scripts/guards.sh      # guards: 9 of 9 passed  (G8: no password attribute)
+grep -rn "azurerm_management_lock" infra/terraform/modules/postgres infra/terraform/stacks/data > lock.out; echo "exit=$?"
+# exit=1 and lock.out empty: prod's lock is the owner's (task 31 §6a, plan re-review I-4)
 ```
 
 #### What this task does not claim

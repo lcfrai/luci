@@ -61,7 +61,9 @@ nothing of its own there.
   YAML and can delete the condition. What stops a PR from pushing are the connection's ADO checks
   (task 30's service-connection table): **branch control** `refs/heads/main` and `refs/heads/dev`,
   and pipeline permission for `images` only. The push identity holds **AcrPush on this registry
-  and nothing else** (the plan's "Deploy identities" table). `build`, `sbom`, `scan` and `canary`
+  and nothing else** (the plan's "Deploy identities" table), granted by the owner's
+  `infra/rbac/grant-pipeline-roles.sh` (task 30, task 31 §4a), never by a stack, so the infra
+  identity cannot grant AcrPush to anyone (plan re-review I-2). `build`, `sbom`, `scan` and `canary`
   use no connection, so a PR build still runs every check.
 - **A PR's `image-digests` is never deployed.** Task 30's estate guard refuses an `images` run
   from a branch not allowed for the environment. `helm-values.sh` refuses a digest outside the
