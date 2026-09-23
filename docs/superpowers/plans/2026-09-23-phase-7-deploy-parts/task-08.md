@@ -18,7 +18,9 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 #### The wire — complete
 
 ```jsonc
-// GET /v1/projects/{projectId}/deploy → 200 DeployView
+// GET /v1/projects/{projectId}/deploy[?branch=<git branch>] → 200 DeployView
+// ?branch= is the lens's selected branch, verbatim ("feat/evidence-upload"). The handler calls
+// Watcher.WantBranch with it (a map write, no request) and answers from BranchEnvs.
 // 404 project_not_found (phase 2's code) for an unknown local project id. Every other state —
 // not connected, not bound, Panacea down, Hub down — is a 200 whose fields say so: the lens has a
 // sentence for each, and a problem would give it none.
@@ -31,6 +33,11 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "staleReason": null | { "code": "upstream_unavailable" | "deploy_token_rejected", "message": "…" },
   "ownerControls": "yes" | "no" | "unknown",
   "releasesState": "ok" | "no_hub" | "no_hub_project" | "signed_out" | "unavailable",
+  "selected": null | {                   // null when no ?branch= was sent (review b02, C2)
+    "branch": "feat/evidence-upload",    // ?branch=, echoed
+    "target": "feat-evidence-upload" | null,      // Panacea's OWN environment name for the branch (Reader.EnvironmentFor); null = not resolved yet
+    "environment": "feat-evidence-upload" | null  // the `name` of the environments[] row SameEnvironment joins `target` to; null = no row (never deployed) or not resolved
+  },
   "environments": [ EnvironmentView ],   // Panacea’s order; production is always first (clients/kubernetes.go:5154-5155)
   "unmatched": [ EnvironmentView ],      // deployments whose environment names no row (plan 7P-8); usually []
   "history": [ ReleaseRow ],             // newest "at" first, at most 200
@@ -39,12 +46,12 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 
 // EnvironmentView — three facts, never merged (plan §5 rule 9)
 {
-  "name": "feat-evidence-uplo",
-  "branch": "feat/evidence-upload",      // the branch Panacea says it serves (projects.go:2118)
-  "branchesSeen": ["feat/evidence-upload"], // distinct Deployment.branch values in this environment's history, newest first
+  "name": "feat-evidence-upload",        // 20 characters: sanitizeBranchEnv cuts only past 20 (projects.go:3818-3820)
+  "branch": "feat-evidence-upload",      // Panacea's row LABEL (projects.go:2118): == name for every non-base row, the real branch only for production (:2109-2111). Display only; NEVER a join key
+  "branchesSeen": ["feat-evidence-upload"], // distinct Deployment.branch values in this environment's history, newest first — Panacea's run LABELS (sanitizeLabelValue: / and _ → -, pipeline.go:609, :2351-2364), not git branch names
   "collision": false,                    // branchesSeen has more than one entry: two branches share this environment (brief D2 a)
   "primary": false,
-  "host": "engagement-portal-feat-evidence-uplo.panacea.kpmg" | null,
+  "host": "engagement-portal-feat-evidence-upload.panacea.kpmg" | null,
   "status": "running",                   // Panacea's word, verbatim, never interpreted
   "replicas": { "ready": 1, "desired": 1 } | null,   // null = not measured (projects.go:2125-2140)
   "build": {                             // FACT 1: the newest deployment's pipeline outcome
@@ -77,8 +84,9 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   //   pending  — a confirmed Hub run release whose deployment has not appeared yet
   //   refused  — one of THIS user's releases abandoned in the last 24 h, with Panacea's sentence
   "deploymentId": "engagement-portal-build-x7k2p" | null,   // null for rollback and refused
-  "environment": "feat-evidence-uplo" | null,
-  "branch": "feat/evidence-upload" | null,
+  "environment": "feat-evidence-upload" | null,     // the row's raw environment, verbatim ("prod" for a production deployment, pipeline.go:196-206)
+  "environmentRow": "feat-evidence-upload" | null,  // the `name` of the environments[] row that `environment` joins by SameEnvironment ("production" for "prod"); null = the row sits under `unmatched`. The desktop looks environments up by THIS, never by `environment` (review I8)
+  "branch": "feat-evidence-upload" | null,  // run rows: Panacea's run label (sanitizeLabelValue, pipeline.go:609); Hub rows: the release's branchRef without refs/heads/
   "commit": "4e7a91c0000000000000000000000000000000aa" | null,
   "version": "manual-4e7a91c0" | null,   // null → the lens says "version unknown", never blank
   "build": "succeeded" | "failed" | "running" | "pending" | "historical" | "unknown" | null,
@@ -129,7 +137,16 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 1. **Environment join** is `deploy.Reader.SameEnvironment` — for Panacea (task 03), exact name plus
    Panacea's own `prod` ≡ `production` (`clients/kubernetes.go:4210-4217`). `deploywatch` never
    imports `deploy/panacea`. A deployment matching no row goes
-   under `unmatched`, grouped by its raw environment name.
+   under `unmatched`, grouped by its raw environment name. **Every `ReleaseRow` carries the
+   joined row's `name` as `environmentRow`** (Hub rows join their release's `environment` the
+   same way), so no consumer joins again (review I8).
+1a. **Selected branch** (review b02, C2): with `?branch=b`, `selected.target` is
+   `Snapshot.BranchEnvs[b]` (absent → `null`), and `selected.environment` is the `name` of the
+   row `SameEnvironment(target, row.Name)` holds for, else `null`. A git branch is **never**
+   compared with a row's `name` or `branch`, nor with `Deployment.branch`: Panacea's labels are
+   `/`- and `_`-free and cut at 20 (environment) or 63 (run label) characters, so no string
+   comparison with the git name can be right, and deriving the label would be a fourth copy of
+   Panacea's rule.
 2. **Newest per environment** is the first deployment in Panacea's newest-first list whose
    environment joins. Only it contributes `serving` and `scans`; historical rows carry `gates` as
    recorded and **never** `serving` (`models/models.go:720-722`).
@@ -150,7 +167,8 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
    Teammates' refusals are theirs and are not shown.
 9. **`branchesSeen` / `collision`** count distinct non-empty `Deployment.branch` values among the
    environment's rows. The comparison is exact string equality — no sanitising, no truncation
-   (never a fourth copy of `sanitizeBranchEnv`, survey §3.2).
+   (never a fourth copy of `sanitizeBranchEnv`, survey §3.2). The values are Panacea's run labels
+   (`pipeline.go:609`), so they are compared only with each other, never with a git branch name.
 10. **Times** are the facts' own (`createdAt`, `confirmedAt`, `reservedAt`), RFC 3339 UTC with three
     fractional digits, like the Hub (brief B4: absolute, never relative).
 11. **`history` is capped at 200 rows**, newest first; a project with more says so with the
@@ -163,6 +181,11 @@ Every test builds a `deploywatch.Snapshot` by hand and asserts on `Assemble(snap
 | Test | Assertion | Mutant it kills |
 |---|---|---|
 | `TestProdEqualsProduction` | a deployment with `environment "prod"` joins the row named `production`; one with `"prod-eu"` goes to `unmatched` | a lens with an empty production row and an orphan group |
+| `TestSelectedSlashBranch` | rows `production` (label `main`) and `feat-x` (label `feat-x`); `BranchEnvs{"feat/x": "feat-x"}`; `?branch=feat/x` → `selected {branch:"feat/x", target:"feat-x", environment:"feat-x"}` | `row.branch == branch` or `row.name == branch`, which finds nothing for `feat/x` (review C2) |
+| `TestSelectedLongBranch` | `BranchEnvs{"lane/7-deploy-connector-watcher": "lane-7-deploy-connec"}` and a row `lane-7-deploy-connec` → `selected.environment == "lane-7-deploy-connec"` | a join that works only for names of 20 characters or fewer |
+| `TestSelectedProduction` | `BranchEnvs{"main": "prod"}` and the row `production` → `selected {target:"prod", environment:"production"}` | an exact join that leaves the production branch with no card |
+| `TestSelectedNeverDeployed` | `BranchEnvs{"feat/new": "feat-new"}`, no such row → `selected {target:"feat-new", environment:null}`; `BranchEnvs` without the branch → `target:null` | reading "no row" as "not resolved", or the reverse |
+| `TestReleaseRowCarriesItsRow` | a deployment labelled `prod` → its `ReleaseRow` has `environment:"prod"`, `environmentRow:"production"`; a confirmed rollback release with `environment:"prod"` → the `rollback` row has `environmentRow:"production"`; an `unmatched` deployment → `environmentRow:null` | a desktop left to re-join `prod` to `production` by exact name, losing *Why it is down* and *Follow readiness* (review I8) |
 | `TestUnmatchedNeverDropped` | a deployment in environment `"legacy"` with no row appears under `unmatched` | a join that silently discards what it cannot place |
 | `TestServingOnlyFromNewest` | the second-newest row's `LiveReady: &3` does not reach `serving`; the newest's nil → `measured:false` | painting yesterday's health on today |
 | `TestServingZeroIsDown` | newest `LiveReady: &0` → `{measured:true, ready:0}` while `build.state == "succeeded"` | a green tick over a dead site (survey §3.3) |
@@ -175,10 +198,11 @@ Every test builds a `deploywatch.Snapshot` by hand and asserts on `Assemble(snap
 | `TestCollisionExactStrings` | two deployments in one environment from `feat/phase-7-deploy-connector-a` and `…-b` → `collision: true`, both in `branchesSeen`; the same branch twice → `false` | detecting collision by comparing sanitised names — a fourth copy of the rule |
 | `TestEmptyVersionIsNull` | `Version: ""` → `"version": null` | a blank cell that reads like zero |
 | `TestNotConnectedIs200` | connection `not_connected` → the handler answers 200 with empty lists and the connection object | a 409 the lens would have to turn back into an onboarding screen |
-| `TestViewHandlerMakesNoCall` | the handler test's `Deployer` and `Releases` fakes record zero calls during the `GET` | a GET that fetches from Panacea on the request path |
+| `TestViewHandlerMakesNoCall` | the handler test's `Deployer` and `Releases` fakes record zero calls during the `GET`, including `GET …/deploy?branch=feat/x`, which records one `WantBranch(p, "feat/x")` on the watcher and no `EnvironmentFor` | a GET that fetches from Panacea on the request path |
 
 `catalogReadOnlyRoutes` line: `"GET /v1/projects/{projectId}/deploy": "Assembles the watcher's
-in-memory snapshot. No network call, no write; the watcher's own cycle is on its own timer."`
+in-memory snapshot. No network call and no stored write: ?branch= only adds the branch to the
+watcher's in-memory wanted set, which its own cycle resolves on its own timer."`
 
 #### Steps
 
@@ -194,11 +218,14 @@ go test ./control-plane/internal/deploy/deploywatch/ ./control-plane/internal/ap
 
 #### What this task does NOT claim
 
-- That `Deployment.branch` carries the real branch name with its `/`. It is read from the
-  PipelineRun **label** `panacea.io/branch` (`clients/kubernetes.go:5750`), and a Kubernetes label
-  value cannot contain `/`; yet `Redeploy`'s comment calls the row's branch *"the real branch"*
-  (`projects.go:1803-1805`). **Unverified.** If the label is sanitised, `branchesSeen` still
-  detects collisions (two distinct sanitised values), but the desktop's "this branch's environment"
-  must come from `environments[].branch`, which is what task 15 uses. Task 20 records the answer.
+- That `Deployment.branch` carries the real branch name with its `/`. **Settled in review b02: it
+  does not.** It is read from the PipelineRun **label** `panacea.io/branch`
+  (`clients/kubernetes.go:5750`), written as `sanitizeLabelValue(branch)` (`clients/pipeline.go:609`;
+  the function at `:2351-2364` turns `/` and `_` into `-`, drops other characters and cuts at 63),
+  and Panacea's own comment says the portal chip *"carries the DNS-sanitized panacea.io/branch
+  LABEL (slash→dash)"* (`kubernetes.go:3052`). `Redeploy`'s *"the real branch"*
+  (`projects.go:1803-1805`) is wrong for slash branches. So `branchesSeen` still detects collisions
+  (two distinct labels), and "this branch's environment" comes from `selected` (rule 1a), never
+  from `environments[].branch` or `Deployment.branch`.
 - Anything about how a pinned revision reads. The view carries `briefKey` and nothing of the brief;
   the text comes from phase 4's loader (R6) in the desktop.

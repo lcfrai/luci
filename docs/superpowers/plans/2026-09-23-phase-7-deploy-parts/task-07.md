@@ -78,6 +78,12 @@ func (w *Watcher) Snapshot(projectID string) (Snapshot, bool)
 func (w *Watcher) Track(projectID string, run string)
 func (w *Watcher) Nudge(projectID string)
 
+// WantBranch asks for a git branch's environment name to be resolved (Reader.EnvironmentFor)
+// and kept in Snapshot.BranchEnvs. Task 08's route calls it for the lens's selected branch; it
+// makes no request itself and Nudges the project when the branch is new. At most 16 branches
+// per project are kept, the least recently wanted dropped first.
+func (w *Watcher) WantBranch(projectID, branch string)
+
 // CursorName and Cursor implement api.CursorSource (HA7-4). Cursor is a decimal uint64 that
 // increases whenever ANY project's Snapshot.Version does; "" before the first cycle.
 func (w *Watcher) CursorName() string // "Deploy"
@@ -88,6 +94,11 @@ type Snapshot struct {
 	ProjectID     string
 	Binding       binding.Binding
 	Environments  []deploy.Environment
+	// BranchEnvs is git branch → the target's environment name for it (EnvironmentFor), for the
+	// wanted branches only. Absent = not resolved yet. The name may match no row: a branch never
+	// deployed still has one. Joined to Environments with SameEnvironment, never by comparing
+	// the branch with Environment.Name or .Branch (review C2).
+	BranchEnvs    map[string]string
 	Latest        *deploy.Deployment // nil = never deployed, or not yet read
 	Deployments   []deploy.Deployment
 	DeploymentsAt time.Time
@@ -113,6 +124,10 @@ type Snapshot struct {
    else `Cached`. Not bound → the snapshot carries the binding and nothing else; stop.
 2. **`Environments`.** First, because a missing *project* surfaces here as its own error, which is
    what makes task 03's *"`Latest` 404 means never deployed"* safe.
+   **Then `EnvironmentFor`** for each wanted branch (`WantBranch`) not yet in `BranchEnvs`, and
+   for every wanted branch every fourth cycle — a changed production-branch label remaps `main`
+   (`mapBranchToEnvWithProd`, `projects.go:3838-3849`). One request per new branch, not per
+   cycle. Its failures follow the failure rule below; a failed re-read keeps the old answer.
 3. **`Latest`.**
 4. **`Deployments`** — only when (a) `Latest.ID` or `Latest.Build` changed, (b) the environment
    list changed (names, statuses, replica pairs), (c) a tracked run became terminal, or (d)
@@ -171,7 +186,8 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 
 | Test | Assertion | Mutant it kills |
 |---|---|---|
-| `TestEnvironmentsBeforeLatest` | the fake's `Calls()` for one cycle start `Environments`, then `Latest` | reading `Latest` first, so a deleted project reads as "never deployed" |
+| `TestEnvironmentsBeforeLatest` | the fake's `Calls()` for one cycle start `Environments`, then any `EnvironmentFor`, then `Latest` | reading `Latest` first, so a deleted project reads as "never deployed" |
+| `TestWantedBranchResolvedOnce` | `WantBranch(p, "feat/x")` with the fake seeded `feat/x → feat-x` and a row `feat-x`: the next cycle calls `EnvironmentFor(p,feat/x)` once and `BranchEnvs["feat/x"] == "feat-x"`; cycles 2 and 3 make no such call, cycle 4 re-reads; a 17th wanted branch drops the least recently wanted | resolving by comparing `feat/x` with a row's `name`/`branch` (review C2), or one request per branch per cycle |
 | `TestDeploymentsNotEveryCycle` | three cycles with nothing changed → one `Deployments` call; `Latest.ID` changes → one more | reading the heavy list every 15 s |
 | `TestHistoryIntervalForcesRead` | 61 s of fake time with no change → a second `Deployments` | history that never refreshes when only `LiveReady` moved |
 | `TestTrackedRunDrivesActiveCadence` | `Track(p, run)`; the project is polled every 3 s until the fake advances the run to succeeded, then every 15 s | a run that stays on 3 s forever, or never gets it |
