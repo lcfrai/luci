@@ -2,12 +2,70 @@
 
 **Plan:** `docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md` and its 23 part files,
 at `034232a` on `feat/phase-3-git`. **Reviewer:** adversarial plan reviewer (OD-1), 2026-09-23.
-**Status of this file:** in progress; the Critical section is written first so a restart keeps it.
+**Verdict:** Needs fixes. There are 3 Critical, 12 Important and 17 Minor issues. All three
+Critical issues come from one blind spot: the plan treats the repositories the sandbox can write
+as trusted input to the host's git.
 
 Citations are `file:line` in this worktree. "Plan" means the map file; `task-NN` means
 `docs/superpowers/plans/2026-09-23-phase-3-git-convergence-parts/task-NN.md`. Every code citation
 below was opened in the tree at `034232a` (whose control plane is `3303fd6`'s) or on
-`fix/sandbox-git-ca`, unless it is marked **unverified**.
+`fix/sandbox-git-ca`, unless it is marked **unverified**. Nothing was run except read-only git,
+`sed`/`grep` over the tree, and one structural count over this machine's Claude Code transcripts
+(line types and version fields only, no content printed).
+
+## Coverage
+
+| Source | Item | Covered by | Verdict |
+|---|---|---|---|
+| OD-1 | adversarial review before code; UI branches unmerged until the owner looks | plan:8; task 23 step 4 | covered |
+| OD-2 | a local clone per worktree, fetched back under `refs/panacea/lanes/…` | tasks 01, 03, 04, 07 | covered. The blast-radius claim is false while objects are hard-linked (**I8**) |
+| OD-3/5 | shared stores in the Hub | H-2 seam, local store labelled (task 15, Q2) | covered as a seam |
+| OD-4 | Azure DevOps **and** GitHub behind one interface | tasks 13, 14 | covered; host APIs unverified (declared) |
+| OD-6 | the user's own tokens, never pooled | task 13 seam; `credstore.GitHelper` (Q1) | shape covered; token safety broken (**C3**) |
+| OD-8 | read-only, pinned, canary-tested, degrading adapter | task 17 | degrades, but declines on every real transcript (**I1**); the canary never fails |
+| OD-10 | removal deletes the worktree's conversation store | task 11 | covered |
+| OD-12 | owner checks batched, unverified until then | task 23 checklist; every UI task's look marked unverified | covered |
+| Brief A1-A9 | git is the truth; clean merges only; no force; no credential in sandbox; plumbing CAS; machine seam; archive; rename map; no enforced claims | plan:81-91, tasks 02, 09-12 | covered, except A4 (**C1**, **C3**) and "exact before a later land" (**I3**) |
+| Brief §2.1 | create/remove worktree, branch lifecycle, fetch on a slow timer | tasks 04, 11, 12 | covered |
+| Brief §2.2 | identity, `core.hooksPath`, session id, chained hook | tasks 03, 05 | covered in code; husky in practice (**I11**); line endings missing (**C2**) |
+| Brief §2.3 | observed claims, chained forecast, shared-worktree warning | tasks 06, 07, 08 | covered; path quoting (**I2**); off-branch commits invisible (**I6**) |
+| Brief §2.4 | queue, land one/all, conflict in lane, history and two undos | tasks 08-10, 19, 20 | covered; stale `origin` in the resolve prompt (**I4**) |
+| Brief §2.5 | push, ahead/behind, fetch time, PR with key as text | tasks 08, 12-14, 20 | covered, except bringing in remote commits (**I5**) |
+| Brief §2.6 | DoD mount, merge-link trailer, evaluator, deletion archive, back-links | tasks 09, 11, 15-17, 19 | covered as seams to phase 4; revert keeps evidence settled (**I9**) |
+| Brief §2.7 | the two lenses fill task 26's files; `AppShell.tsx` untouched | tasks 19-21; G2 | covered (G2 verified still absent: `desktop/src/components/lens/` holds only `LensPlaceholder.tsx`) |
+| Prototype | 14 states, `phase-3-convergence.html:387-402` | 10 Merge states in tasks 19-20, 4 Files states in task 21; owner recipe in task 23 | all 14 mapped |
+| Design system | tokens, elevation, radius, motion, heartbeat, tabular-nums, virtualisation | tasks 06, 19-22 design checks and audit tests | compliant. The 600 ms background flash is allowed by `DESIGN-SYSTEM.md:63`; virtualisation over 50 rows is in task 21 |
+
+## Strengths
+
+- **Every git assumption becomes a test before anything relies on it** (task 01), and each later
+  task's preflight reads the results document. That is the right answer to this program's history
+  of wrong inputs.
+- **Landing is correct git.** The land is `merge-tree --write-tree`, then a two-parent
+  `commit-tree` with the old tip as parent 1, then a compare-and-swap `update-ref`. It refuses a
+  checked-out branch, and `TestLandLosesARaceCleanly` injects the race. The revert is the right
+  three-way merge (`--merge-base=<M> <tip> <M^1>`). Fetch-backs use `--no-write-fetch-head`, so
+  `FETCH_HEAD` keeps meaning "the last remote fetch".
+- **Seams are structural, not promised.** Two lines go into `api.go`, and every later task appends
+  a contiguous block to `gitdeps.go` and `gitroutes.go`. The Hub and phase 4 asks are declared as
+  Go interfaces with fallbacks, and the gates say what happens when each is absent.
+- **Tests name the mutant each one kills,** including the negative cases that usually go missing:
+  a GET that writes, an unscripted git call, a token in `%#v`, an argv with `+`, an injected
+  trailer, a spinner or interval added.
+- **Honest scope.** Every part has a "does not claim" section. Unverified host APIs, the
+  unverified 2.1.274 transcript shape and the UI's look are all marked as such.
+- **The citations are accurate.** Against the real tree I checked every cited identifier:
+  `project.WorktreeID`, `BranchID`, `worktree.Verify`/`ErrNotADir`, `api.Enumerator`,
+  `LocalMachineID`, `routes`/`route`/`guarded`, `catalogReadOnlyRoutes` at
+  `routes_audit_test.go:32`, `TestEveryGitCommandIsReadOnly` at `project_test.go:429`,
+  `writeAtomic` at `filestore.go:460`, `EnvEntries`, `containerEnv`,
+  `TestThePodEnvironmentIsExactlySpecEnvEntries`, `sessionConversationOwner`,
+  `sessionStoreSegment`, the conversation-path comment at `sessions.go:39-42`,
+  `poller.ts:84`, `heartbeat.ts:34`, `onGoodTick`, `PERSIST_VERSION = 1`, `moveWithinVisible` at
+  `lib/immutable.ts:45`, `TopBar.tsx:29`, the `AppShell.tsx` placeholders, `EmptyDevelop.tsx:100`,
+  `ContextMenu.tsx:103`, and the Dockerfile pin `claude-code@2.1.274`. All exist as described.
+  The fix's shapes (`GIT_CONFIG_COUNT` "2", the three-argument `sessionMounts`, `GitIdentity`)
+  match too. Only the Minor items above and I12 are wrong.
 
 ## Issues
 
@@ -333,7 +391,7 @@ below was opened in the tree at `034232a` (whose control plane is `3303fd6`'s) o
 Each is small, and each is cheap to fix in the part file named.
 
 1. **task-04:147** says an unknown field is `400 invalid_json`. `httpx.decodeCode` answers
-   `bad_request` for an unknown field (`internal/httpx/problem.go:164-172`;
+   `bad_request` for an unknown field (`internal/httpx/problem.go:165-173`;
    `problem_test.go:203`). Fix the row.
 2. **task-03:22** says `registry` has "two call sites" of `writeAtomic`. There is one
    (`internal/registry/filestore.go:401`; the definition is at `:460`, as cited).
@@ -385,3 +443,70 @@ Each is small, and each is cheap to fix in the part file named.
 17. **Loopback exposure grows.** Q5 names push. Destructive routes (DELETE worktree, DELETE
     branch, lands, undo) and the transcript span GET sit behind the same unauthenticated
     boundary. Q5's sentence should list them.
+
+## Test strategy, sizing and order
+
+- **Red before green** is explicit in tasks 02 (helper process first), 06 ("run them red") and
+  09, and implied elsewhere by "tests first" steps. Every row names its mutant, and the negative
+  cases are present.
+- **The one systematic gap: the tests are hermetic in exactly the way production is not.**
+  - `gitxtest` and task 01 set `GIT_CONFIG_NOSYSTEM=1` and an empty global config, so the
+    system `core.autocrlf=true` (C2), GCM as the system `credential.helper` (C3) and
+    `filter.lfs` (Minor 13) never reach a test.
+  - No test builds a **hostile** repository: agent-written config, hooks or remotes (C1, C3).
+- **Fix:** add a `gitxtest.HostileClone` helper that writes each dangerous key and hook with a
+  marker file, plus one "production-shaped" run per task that touches a clone (a system config
+  file with `core.autocrlf=true` and a `credential.helper`).
+- **Sizing:** 1-3 hours per task is plausible for most tasks. Task 09 (land, 20 tests, the
+  briefref package, main.go wiring) and task 16 (four parsers and pairwise merge-tree) are the
+  largest and likely run over. C1/C3's hardening adds about 2 hours to task 02 and 1 hour each to
+  tasks 07, 09 and 12. The C2 fix is about 30 minutes in task 03, plus a test run without
+  `GIT_CONFIG_NOSYSTEM`.
+- **Order:** sound apart from I7 (11 needs `briefref`; 12 needs a shared lock and the Lander).
+  G2 still holds the desktop track (verified absent 2026-09-23).
+
+## The two defects a first implementer is most likely to hit
+
+1. **Every file shows as modified inside the first real sandbox (C2).**
+   - **Why it is likely:** the implementer follows task 01 and `gitxtest` exactly, so every test
+     runs with `GIT_CONFIG_NOSYSTEM=1`. The suite is green. Task 04's `curl` returns
+     `"kind":"clone"`, and task 01's Docker test sees `git status` exit 0.
+   - **When it shows up:** the first owner-driven session, or the first agent commit that
+     normalises every file to CRLF.
+   - **Does the plan prevent it?** No. No part mentions `core.autocrlf`, and the one place that
+     notices CRLF (task-05:175-179) scopes a `.gitattributes` rule to `githooks/` only.
+2. **Tier 2 back-links never appear (I1).**
+   - **Why it is likely:** the implementer writes the synthetic fixture to the shape task 17
+     states ("every line carries `version`"). They implement "decline when any line's version is
+     not the pin", and every test passes.
+   - **When it shows up:** the first real transcript. About a third of its lines have no
+     `version` (verified on 76,592 lines here), so the adapter declines it with a format reason.
+     The owner sees tier 1 everywhere and cannot tell a broken adapter from a correct
+     degradation.
+   - **Does the plan prevent it?** No. It states the false shape as verified, and the one test
+     that would catch it (`TestCapturedFixtureParses`) is designed to skip.
+
+Runner-up: `merge-tree` without `-z` (I2). It passes every ASCII-named test, then blames the
+branch itself for the first conflict in a path with a space or an accent.
+
+## Assessment
+
+The plan is unusually disciplined. The git plumbing is right, the seams are structural, the tests
+name their mutants, and almost every citation checked out against the real tree. Its failure is
+concentrated in one assumption: **the host's git can trust the repositories the sandbox writes.**
+
+- C1 (host code execution through config and hooks) and C3 (the user's token leaving through
+  agent-written remote, proxy and helper settings) each break A4, the phase's central promise.
+- C2 (line endings) breaks the first real session on this machine.
+- None needs a redesign. Each needs a hardening rule in `gitx`, a config allowlist for clones,
+  one literal-path fetch, three config keys at clone time, and hostile-repository tests.
+
+The Important items need a part-file edit each, and two need the owner:
+
+- **I5:** bringing remote commits in. Build it, or record it as Q6 and fix the copy.
+- **I8:** hard links versus `--no-hardlinks`, which is OD-2's own wording.
+
+Record both as open questions with the recommendations above, then build on the
+recommendations.
+
+**Plan quality: Needs fixes**
