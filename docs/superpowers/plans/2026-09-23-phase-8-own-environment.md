@@ -185,9 +185,11 @@ scaffolding (survey §2.2, `:310`). Every resource carries `local.tags`, which i
 `go test ./...` is invalid at the workspace root, so always
 `go test ./sandboxd/... ./control-plane/... -race -count=1`; the `go 1.23` directive stays in
 `go.work` and both `go.mod` files — check `git diff` on them before every commit; `sandboxd/vendor/`
-stays committed and **sandboxd gains no dependency in this phase**. A new control-plane dependency
-(tasks 16, 22) needs a pinning review in its part: licence, `go` directive of the module, and the
-transitive additions to `go.sum`, listed.
+stays committed and **sandboxd gains no dependency in this phase**. **Neither does the
+control-plane module**: `internal/entra` verifies RS256 with the standard library (task 16), and
+the broker, the machine agent and `remotebe` use only `coder/websocket` and `client-go`, which
+`control-plane/go.mod` already requires. A task that finds it needs a module stops and reports it,
+with the licence, the module's `go` directive and the `go.sum` additions listed.
 
 **Listeners.** The control plane binds `127.0.0.1:8730` and nothing in this phase changes that.
 The broker (`:8080`) and the machine agent (`:8081`) are the only new listeners; both exist only
@@ -345,7 +347,8 @@ docs/SEAMS.md, docs/PROGRAM.md                  S8 rows, the Defender-for-Kata c
 ```
 
 **Shared files, and who is allowed to touch them in which order.** `control-plane/go.mod` is
-changed by tasks 16 and 22 only, in that order. `internal/sandbox/manager.go` by 14 then 15.
+changed by no task. `internal/sandbox/manager.go` by 14 then 15 (task 19's machine pod is a new
+file, `internal/sandbox/machine.go`).
 `internal/api/*.go` by 23 then 24. `pipelines/templates/tools.yml` is created by 28; 27 and 30
 append. A task that finds another task's change missing stops and reports it.
 
