@@ -583,3 +583,50 @@ have locked out the pool even with a route. Both modes now add the egress /32.
   pods, not the keys.
 - The CI FQDN list, and whether a delegated `Microsoft.DevOpsInfrastructure/pools` subnet takes a
   NAT gateway or a route table (P22).
+
+## Fix batch b01, round 2 (2026-09-24) — the re-review's I1-I4, M1-M5
+
+Against `.superpowers/sdd/env/plan-rereview-b01-1.md` (local). Commits `77edf29` (I1-I4, M1-M3)
+and `2941429` (M4, M5). Paths are relative to `docs/superpowers/plans/`; `parts/` is
+`2026-09-23-phase-8-own-environment-parts/`. Every fix took the re-review's "how to fix", except
+where noted.
+
+| Finding | Change | Where |
+|---|---|---|
+| **I1** migrate Job sealed on first install | the Job's `ServiceAccount` and egress policy are `pre-install,pre-upgrade` hooks at weights `-10`, `-5`, Job `0`, `before-hook-creation`; the regular policy selects serving pods only | `parts/task-29.md:137-162` |
+| I1 | new per-chart test `hub / migrate hooks exist before the Job` | `parts/task-29.md:209` |
+| I1 | new cross-chart case `hook_pods_are_allowed_before_they_run` (phase-aware: a `post-install` hook may use regular templates, which is why cert-manager's `startupapicheck` still passes) | `parts/task-13.md:348` |
+| I1 | named mutants: the policy as a regular template; the SA without hook annotations | `parts/task-29.md:227-230` |
+| **I2** direction-blind coverage | `every_denied_workload_has_an_allow` counts Egress for every pod and Ingress for Service- or webhook-backed pods | `parts/task-13.md:346` |
+| I2 | new cert-manager run `every_component_reaches_dns_and_the_api_server` | `parts/task-13.md:326` |
+| I2 | both deletions named as mutants (record that `netpolcover` stays green), plus a direction mutant on Traefik | `parts/task-13.md:380-385` |
+| I2 | a consequence of counting ingress: cert-manager's metrics `Service` would need an ingress allow nobody uses, so `prometheus.enabled: false` (nothing scrapes in this environment) | `parts/task-13.md:89-90` |
+| I2 | the same gap on the broker: `broker-api-server` deleted → `broker / the API server is reachable in both modes` | `parts/task-29.md:231-233` |
+| **I3a** broker cannot switch | the broker gets the same `apiServer` block and names its policy `broker-api-server`; switching is one value per chart | `parts/task-29.md:47-49`, `:79-87` |
+| I3a | broker test `broker / the API server is reachable in both modes` | `parts/task-29.md:205` |
+| **I3b** nothing supplies the addresses | `apiServer.cidrs`: new `pipelines/scripts/api-server-cidrs.sh` reads the `default/kubernetes` EndpointSlice after `get-credentials` and never prints an empty list, with a 4-case test. `webhookSourceCidrs`: committed per environment from P21 | `parts/task-13.md:75-78`, `:134-142`; `parts/task-30.md:21`, `:140`, `:177-190`, `:200`, `:209` |
+| **I3c** an empty list fails open | three guards: schema `if`/`then` `minItems: 1` (cert-manager, edge, broker, and `backends`); a template `fail`; cross-chart `no_allow_rule_is_peerless`. Runs `cidr_mode_with_an_empty_list_is_refused` in both wrapper charts | `parts/task-13.md:118-133`, `:208`, `:314`, `:327`, `:349`, `:386-388` |
+| I3 restatements | P20 and P21 remedies name the values files and the script | `parts/task-32.md:41-42` |
+| **I4** `alias: certManager` names | `certManager.fullnameOverride` and `nameOverride: cert-manager`, with the reason beside the alias | `parts/task-13.md:55-68`, `:81-82`, `:111-113` |
+| I4 | `rendered_names_are_dns_1123` in **`netpolcover`**, not helm-unittest. Deviation, and why: helm-unittest asserts per named template file and cannot sweep a subchart's documents; `netpolcover` already renders both wrapper charts with their real subcharts | `parts/task-13.md:353`, mutant `:389` |
+| **M1** no `helm dependency build` in the job | `netpolcover`'s `TestMain` builds dependencies itself | `parts/task-13.md:40`, `:332-334`; `parts/task-28.md:58` |
+| **M2** no release namespace | stage 4 is a table of release → `--namespace` (`platform` in `default`, holding only its release record, never `--create-namespace` into one of its own four); `netpolcover` renders with the same table; new case `every_workload_is_in_a_denied_namespace` | `parts/task-30.md:135-153`; `parts/task-13.md:332-342`, `:347`, mutant `:390` |
+| **M3** named webhook `targetPort` | the row resolves a named port through the pod's container ports; an unresolved name fails | `parts/task-13.md:351` |
+| **M4** apt on 443; GitHub assets host | `azure.archive.ubuntu.com` moves to a new `ci_agent_allowed_http_fqdns` (`Http:80`, agents subnet only, exact hosts, validated); `release-assets.githubusercontent.com` added, UNVERIFIED; new run `ci_http_takes_exact_hosts_only`; the module now has seven runs | `parts/task-07.md:83-97`, `:151-154`, `:476`, `:502`; P22 `parts/task-32.md:43` |
+| **M5** row rationale; one row = two runs | the ARM rationale is corrected: rule 2's AKS tag already admits ARM from the nodes, and a sandbox's guard is having no credential. `agents_egress_in_both_modes` is split into `agents_egress_in_nat_mode` and `agents_egress_in_firewall_mode` | `parts/task-07.md:475`, `:494-495` |
+| restatement: platform's netpolcover sentence | now names both directions and the hook rule | `parts/task-11.md:107-111` |
+
+**Owner question carried forward** (not decided here): allow `*.queue.core.windows.net` from the
+agents subnet only (`parts/task-07.md:67-72`). The fixer and the re-reviewer both recommend
+accepting it, and the plan builds that option. The wildcard is confined to `ci_agent_source_cidrs`,
+and P22's deny log is the fallback if the owner refuses it.
+
+**Still UNVERIFIED after round 2** (training knowledge, nothing rendered or run; no chart exists
+in the tree yet):
+- Helm's hook order and weights (I1).
+- The cert-manager `fullname` helper's use of the alias, and both override keys (I4).
+- Helm 3's support for schema `if`/`then`.
+- That the `kubernetes` EndpointSlice holds the address Cilium sees (P20 checks it).
+- The upstream webhook's named port (M3).
+- Ubuntu's archive on port 80 and GitHub's asset host (M4).
+- The contents of the AKS FQDN tag (M5).
