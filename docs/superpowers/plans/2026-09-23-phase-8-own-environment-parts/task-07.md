@@ -42,7 +42,49 @@ variable "firewall_subnet_id" {
 }
 variable "routed_subnet_ids" {
   type        = map(string)
-  description = "Node subnets whose default route goes through the firewall: system, apps, sandbox."
+  description = "Every egress subnet, whose default route goes through the firewall: system, apps, sandbox, agents (modules/network egress_subnet_ids — the same four nat mode NATs)."
+  validation {
+    condition     = alltrue([for k in ["system", "apps", "sandbox", "agents"] : contains(keys(var.routed_subnet_ids), k)])
+    error_message = "routed_subnet_ids must hold system, apps, sandbox and agents: a subnet left off has no egress at all (default outbound access is off, task 03)."
+  }
+}
+variable "ci_agent_source_cidrs" {
+  type        = list(string)
+  description = "The agents subnet's range only (modules/network subnet_cidrs.agents). The CI allowlist below applies from here and nowhere else, so a sandbox never gains the CI agents' reach."
+}
+variable "ci_agent_allowed_fqdns" {
+  type        = list(string)
+  description = "What the Managed DevOps Pool's agents (task 30) may reach on 443, beyond rule 2's AKS, ACR and Entra entries. A starting list from training knowledge, UNVERIFIED (task 32 P22): a missing entry fails closed — the pool registers no agent, or a pipeline step fails — and the firewall's deny log names the host."
+  default = [
+    # Azure DevOps: the agent's service connection, logs, artefacts, agent updates
+    "dev.azure.com",
+    "*.dev.azure.com",
+    "*.visualstudio.com",
+    "*.vsassets.io",
+    "*.vsblob.visualstudio.com",
+    "vstsagentpackage.azureedge.net",
+    "download.agent.dev.azure.com",
+    # Managed DevOps Pools' own service endpoints. The queue entry is a storage wildcard like the one
+    # the ACR rule refuses; it is tolerable here only because ci_agent_source_cidrs confines it to
+    # the agents subnet.
+    "*.prod.manageddevops.microsoft.com",
+    "rmprodbuilds.azureedge.net",
+    "*.queue.core.windows.net",
+    "server.pipe.aria.microsoft.com",
+    # Azure Resource Manager (terraform apply, az CLI)
+    "management.azure.com",
+    # Terraform and Helm, and the chart repositories the deploy pipeline builds from (task 13)
+    "registry.terraform.io",
+    "releases.hashicorp.com",
+    "get.helm.sh",
+    "charts.jetstack.io",
+    "traefik.github.io",
+    "github.com",
+    "objects.githubusercontent.com",
+    # The agent image's OS packages
+    "azure.archive.ubuntu.com",
+    "packages.microsoft.com",
+  ]
 }
 variable "source_cidrs" {
   type        = list(string)
@@ -85,6 +127,7 @@ variable "tags" {
 output "firewall_private_ip" { value = azurerm_firewall.this.ip_configuration[0].private_ip_address }
 output "egress_public_ip" { value = azurerm_public_ip.firewall.ip_address }
 output "route_table_id" { value = azurerm_route_table.egress.id }
+output "routed_subnet_keys" { value = sort(keys(azurerm_subnet_route_table_association.this)) }   # the foundation test reads it
 ```
 
 Resources: a Standard static `azurerm_public_ip.firewall`; `azurerm_firewall_policy.this`
@@ -96,11 +139,15 @@ one `azurerm_firewall_policy_rule_collection_group` with, in priority order:
    `var.acr_data_endpoints` + `*.azurecr.io` login server on 443, Entra
    (`login.microsoftonline.com`, `graph.microsoft.com`) on 443;
 3. application rules — **`var.agent_allowed_fqdns` on 443, from `var.source_cidrs`**;
-4. nothing else: the policy's default is deny.
+4. application rules — **`var.ci_agent_allowed_fqdns` on 443, from `var.ci_agent_source_cidrs`
+   only** (review C2: the CI pool's agents in `snet-agents`);
+5. nothing else: the policy's default is deny.
 
 And `azurerm_route_table.egress` (`bgp_route_propagation_enabled = false`, one route `0.0.0.0/0`
-→ `VirtualAppliance` at the firewall's private IP) with one `azurerm_subnet_route_table_association`
-per `routed_subnet_ids` entry, plus a diagnostic setting to the workspace.
+→ `VirtualAppliance` at the firewall's private IP) with one `azurerm_subnet_route_table_association.this`
+per `routed_subnet_ids` entry (`for_each`; four, `agents` among them), plus a diagnostic setting to the
+workspace. That a route table can be associated with a subnet delegated to
+`Microsoft.DevOpsInfrastructure/pools` is **from training knowledge, UNVERIFIED**.
 
 #### Contract — `stacks/foundation`
 
@@ -152,7 +199,7 @@ variable "allowed_ingress_cidrs" {
 }
 variable "api_authorized_ip_ranges" {
   type        = list(string)
-  description = "Extra CIDRs allowed to the public API server (the owner's admin workstations). In nat mode the NAT gateway's own /32 is added automatically, so the in-VNet agent pool reaches the API."
+  description = "Extra CIDRs allowed to the public API server (the owner's admin workstations). The environment's own egress /32 (the NAT gateway's in nat mode, the firewall's in firewall mode) is added automatically: the in-VNet agent pool egresses through it (task 03's egress_subnets include agents), so that is the address the API server sees."
   default     = []
 }
 variable "api_private" {
@@ -341,10 +388,15 @@ simply never gets that far.
 
 - `azurerm_resource_group.this` — `rg-panacea-app-${env}`.
 - `module "network"`, `"observability"`, `"registry"`, `"keyvault"`, `"aks"` with the variables
-  above; `module "egress_firewall"` with `count = var.egress_mode == "firewall" ? 1 : 0`.
+  above; `module "egress_firewall"` with `count = var.egress_mode == "firewall" ? 1 : 0`,
+  `routed_subnet_ids = module.network.egress_subnet_ids` (one source for both modes: the four
+  subnets nat mode NATs are the four firewall mode routes) and
+  `ci_agent_source_cidrs = [module.network.subnet_cidrs.agents]`.
   The AKS module gets `outbound_type = var.egress_mode == "nat" ? "userAssignedNATGateway" :
   "userDefinedRouting"` and `authorized_ip_ranges = concat(var.api_authorized_ip_ranges,
-  var.egress_mode == "nat" ? ["${module.network.nat_public_ip}/32"] : [])`, and `depends_on` the
+  ["${var.egress_mode == "nat" ? module.network.nat_public_ip : module.egress_firewall[0].egress_public_ip}/32"])`
+  (review C2: in either mode the CI agents reach the API from the environment's egress address; a
+  private cluster ignores the list, task 06), and `depends_on` the
   firewall module in firewall mode (a UDR cluster that boots before its allow rules comes up
   broken — Panacea's pentest #2, survey §1.3 `:99-100`).
 - `edge.tf`: `azurerm_public_ip.edge` — `pip-edge-panacea-app-${env}`, Standard, Static, zones;
@@ -408,7 +460,8 @@ against someone else's domain.
 | Run | Asserts | Mutant it kills |
 |---|---|---|
 | `default_route_goes_to_the_firewall` | one route `0.0.0.0/0`, `next_hop_type == "VirtualAppliance"`, next hop = the firewall's private IP (override_resource) | a route to `Internet` that bypasses the firewall |
-| `every_node_subnet_is_routed` | three associations for three `routed_subnet_ids` | the sandbox subnet left on the default route |
+| `every_egress_subnet_is_routed` | four associations for the four `routed_subnet_ids` (system, apps, sandbox, agents); a map missing `agents` → `expect_failures = [var.routed_subnet_ids]` | the sandbox subnet left on the default route, or **the CI agents left with no route at all (C2)** |
+| `ci_agents_get_their_allowlist_from_their_subnet_only` | the CI rule's `destination_fqdns == var.ci_agent_allowed_fqdns`, HTTPS 443 only, `source_addresses == var.ci_agent_source_cidrs`; the coding-agent rule does not contain `management.azure.com` | the CI list granted to the whole VNet, so a sandbox can reach Azure Resource Manager |
 | `acr_is_allowed_by_data_endpoint_not_blob_wildcard` | the ACR rule's FQDNs contain the data endpoints and no `*.blob.core.windows.net` | the wildcard that lets a sandbox exfiltrate to any storage account |
 | `agents_get_exactly_the_allowlist` | the agent rule's `destination_fqdns == var.agent_allowed_fqdns` and its protocol is HTTPS 443 only | an allow-all application rule |
 | `dns_goes_only_to_azure_dns` | the DNS network rule's destination is `["168.63.129.16"]` | DNS to `*`, a classic tunnel |
@@ -425,13 +478,15 @@ with all-ones GUIDs):
 | `non_australian_region_fails` | `location = "eastus"` → `expect_failures` | I1 dropped |
 | `prod_must_be_private` | `environment = "prod"`, `api_private = false` → `expect_failures` | I5 dropped |
 | `nat_mode_allowlists_its_own_address_on_the_api` | `command = apply` with `override_resource` giving the NAT IP `20.0.0.1` → the AKS module's authorised ranges include `20.0.0.1/32` | the in-VNet pool locked out of its own cluster |
+| `firewall_mode_allowlists_its_own_address_on_the_api` | `egress_mode = "firewall"`, `command = apply` with `override_resource` giving the firewall's public IP `20.0.0.2` → the authorised ranges include `20.0.0.2/32` | the same lock-out in firewall mode, where the agents egress through the firewall, not a NAT |
+| `agents_egress_in_both_modes` | nat mode: `module.network.egress_subnet_ids` has key `agents`; firewall mode: `module.egress_firewall[0].routed_subnet_keys == ["agents", "apps", "sandbox", "system"]` | the two modes drifting apart, so one of them strands the CI pool (C2) |
 | `firewall_mode_uses_udr_and_has_no_nat` | `egress_mode = "firewall"` → `module.egress_firewall` has one instance and the cluster's `outbound_type == "userDefinedRouting"` | a UDR cluster without the firewall, which boots with no egress |
 | `edge_records_alias_the_edge_ip` | one A record per hostname, each `target_resource_id == azurerm_public_ip.edge.id`, `ttl == 300` | a literal IP record that goes stale on the first re-create |
 | `kubelet_pulls_and_deploy_pushes` | an `AcrPull` assignment to the kubelet identity and an `AcrPush` to the deploy principal, both scoped to the registry | the shared admin credential's replacement missing |
 
 #### Steps
 
-- [ ] **Step 1:** `modules/egress-firewall`: variables, tests, resources, outputs — its five runs pass.
+- [ ] **Step 1:** `modules/egress-firewall`: variables, tests, resources, outputs — its six runs pass.
 - [ ] **Step 2:** The stack's variables, the invariants and the test file; the invariant runs pass
   before any module is called (the preconditions need no module).
 - [ ] **Step 3:** Module calls, `edge.tf`, `grants.tf`, outputs; the remaining runs pass.
@@ -454,6 +509,10 @@ This stack's tests plan every module; allow several minutes and run it in the ba
 
 - That `agent_allowed_fqdns` is complete or right — it is a starting list from training knowledge
   (Q1). Task 32 runs a real agent through it.
+- That `ci_agent_allowed_fqdns` is complete or right — the same kind of starting list, for the CI
+  pool (review C2); task 32's P22 runs a real pipeline through it. It deliberately omits the dev
+  state account's public blob host: in firewall mode with a public state account, add that one
+  host (never `*.blob.core.windows.net`), or reach the state through its private endpoint.
 - That `1.33` is a supported AKS minor on the day of first apply; the runbook (task 31) checks
   `az aks get-versions` first.
 - That the DNS zone resolves: delegation from the parent is an owner input.

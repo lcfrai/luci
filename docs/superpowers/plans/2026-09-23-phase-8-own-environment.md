@@ -58,6 +58,7 @@ S8.1–S8.7 and SX.10).
  │                                          balloons (lowest priority) + image pre-pull          │
  │  ACR Premium (PE, kubelet AcrPull) · Key Vault (PE, RBAC) · Log Analytics (+DCR, cap, audit)  │
  │  egress: NAT gateway (dev); Azure Firewall with an agent allowlist where OQ-3 requires it     │
+ │  egress subnets (both modes): system, apps, sandbox and agents (the CI pool) — nothing else   │
  └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 

@@ -86,6 +86,14 @@ Foundation composes it as `module "ci_pool"` with `count = var.ci_pool.enabled ?
 Managed DevOps Pools are enabled in KPMG's ADO organisation is UNVERIFIED** (survey §5, `:465-468`);
 the fallback is a VMSS agent in the same subnet, Panacea's pattern (`P:deploy/ado-selfhosted-agent.tf`).
 
+**The agents' egress is not this module's** (review C2). Every subnet has default outbound
+access off (task 03), so the pool reaches `dev.azure.com`, the Terraform registry, the Helm repos
+and ARM only because `snet-agents` is one of `modules/network`'s four `egress_subnets`: NAT-associated
+in nat mode (task 03), routed through the firewall with `ci_agent_allowed_fqdns` from the agents
+subnet only in firewall mode (task 07). The API server's authorised ranges hold the environment's
+egress /32 in either mode (task 07), which is the address the agents present. This module adds
+nothing to that path and must not add a public IP of its own.
+
 #### Contract — `estate-guard.sh` (complete behaviour)
 
 ```bash

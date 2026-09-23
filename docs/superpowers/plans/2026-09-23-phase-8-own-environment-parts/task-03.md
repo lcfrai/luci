@@ -62,7 +62,7 @@ variable "vnet_cidr" {
 }
 variable "egress_mode" {
   type        = string
-  description = "nat: a NAT gateway on every node subnet (dev). firewall: no NAT here; the AzureFirewallSubnet is created and modules/egress-firewall routes through it (task 07)."
+  description = "nat: a NAT gateway on every egress subnet — the three node subnets and agents (dev). firewall: no NAT here; the AzureFirewallSubnet is created and modules/egress-firewall routes the same four subnets through it (task 07)."
   validation {
     condition     = contains(["nat", "firewall"], var.egress_mode)
     error_message = "egress_mode must be nat or firewall."
@@ -113,8 +113,12 @@ output "subnet_cidrs" {
     firewall          = local.cidr.firewall
   }
 }
+output "egress_subnet_ids" {
+  description = "Every subnet that must reach the internet, and only those: system, apps, sandbox, agents. NAT-associated in nat mode; task 07 routes exactly these through the firewall in firewall mode. Never private_endpoints or firewall."
+  value       = local.egress_subnets
+}
 output "nat_public_ip" {
-  description = "The sandboxes' and nodes' egress address in nat mode (null in firewall mode). Owner input: providers may need to allowlist it."
+  description = "The sandboxes', nodes' and CI agents' egress address in nat mode (null in firewall mode). Owner input: providers may need to allowlist it."
   value       = var.egress_mode == "nat" ? azurerm_public_ip.nat[0].ip_address : null
 }
 output "private_dns_zone_ids" {
@@ -141,6 +145,11 @@ locals {
     blob     = "privatelink.blob.core.windows.net"
   }
   node_subnets = { system = azurerm_subnet.system.id, apps = azurerm_subnet.apps.id, sandbox = azurerm_subnet.sandbox.id }
+  # Review C2: every subnet has default_outbound_access_enabled = false, so a subnet missing here
+  # has no internet at all. The Managed DevOps Pool's agents (task 30) must reach dev.azure.com,
+  # the Terraform registry and the Helm repos, and in prod they are the only path to the private
+  # API server, so agents is an egress subnet like the three node subnets.
+  egress_subnets = merge(local.node_subnets, { agents = azurerm_subnet.agents.id })
 }
 ```
 
@@ -165,7 +174,11 @@ locals {
   - `private-endpoints`: allow TCP 443 and 5432 from the VNet, deny everything else inbound, 4000.
 - `azurerm_public_ip.nat` (Standard, static, `count` on nat mode), `azurerm_nat_gateway.this`
   (`sku_name = "Standard"`, `idle_timeout_in_minutes`), its IP association, and one
-  `azurerm_subnet_nat_gateway_association` per entry of `local.node_subnets`.
+  `azurerm_subnet_nat_gateway_association.this` per entry of `local.egress_subnets` (four: the
+  three node subnets and `agents`; `for_each = var.egress_mode == "nat" ? local.egress_subnets : {}`,
+  so each is addressed by its key and firewall mode has none). That a NAT gateway can
+  be associated with a subnet delegated to `Microsoft.DevOpsInfrastructure/pools` is **from
+  training knowledge, UNVERIFIED**; the first foundation apply (task 31 step 4) proves it.
 - `azurerm_private_dns_zone.this` for each of `local.private_dns_zones`, and one
   `azurerm_private_dns_zone_virtual_network_link` per zone with `registration_enabled = false`.
 
@@ -194,7 +207,7 @@ variables {
 | `subnets_follow_the_address_plan` | `azurerm_subnet.system.address_prefixes == ["10.40.0.0/24"]`, `sandbox == ["10.40.4.0/22"]`, `private_endpoints == ["10.40.8.0/26"]`, `agents == ["10.40.8.64/26"]` | a changed `newbits`/`netnum` that silently overlaps two subnets |
 | `no_subnet_has_default_outbound_access` | every subnet's `default_outbound_access_enabled == false` | one subnet left on the implicit Azure egress |
 | `vnet_must_be_a_slash_16` | `vnet_cidr = "10.40.0.0/20"` → `expect_failures = [var.vnet_cidr]` | the validation dropped, letting `cidrsubnet` fail obscurely |
-| `nat_mode_puts_nat_on_all_three_node_subnets` | `length(azurerm_subnet_nat_gateway_association) == 3`; the private-endpoint subnet has none | NAT on the PE subnet, or on only one pool |
+| `nat_mode_puts_nat_on_every_egress_subnet` | four associations: `keys(azurerm_subnet_nat_gateway_association.this) == ["agents", "apps", "sandbox", "system"]`, and `output.egress_subnet_ids` has the same four keys; none on private endpoints | NAT on the PE subnet, on only one pool, or **missing on `agents`, so the CI pool never registers an agent (C2)** |
 | `firewall_mode_has_no_nat_and_has_the_firewall_subnet` | `egress_mode = "firewall"` → `length(azurerm_nat_gateway.this) == 0`, `azurerm_subnet.firewall[0].name == "AzureFirewallSubnet"` | NAT and firewall both present (asymmetric routing) |
 | `sandbox_nsg_denies_internet_inbound` | the `nodes-sandbox` NSG has a rule with `access == "Deny"`, `direction == "Inbound"`, `source_address_prefix == "Internet"` and priority 100 | the deny rule dropped or given priority 4096, below Azure's allow |
 | `edge_allow_is_one_rule_per_cidr` | the `nodes-apps` NSG has exactly two 443 allow rules, sources equal to the two CIDRs | a single rule with only the first CIDR |

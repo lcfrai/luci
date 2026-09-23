@@ -13,7 +13,7 @@ changes if it is false**, so a failed row is a known edit, not a redesign.
 
 **Files:**
 - `docs/verification/phase-8-kata-proving.md` — the checklist, every result `NOT RUN` (new)
-- `infra/smoke/proving/{p01-runtimeclass.sh … p16-audit-volume.sh,p20-api-server-entity.sh,p21-webhook-source.sh}` and `proving_test.sh` (new)
+- `infra/smoke/proving/{p01-runtimeclass.sh … p16-audit-volume.sh,p20-api-server-entity.sh,p21-webhook-source.sh,p22-ci-egress.sh}` and `proving_test.sh` (new)
 
 #### The checklist
 
@@ -40,6 +40,7 @@ changes if it is false**, so a failed row is a known edit, not a redesign.
 | P19 | **(owner)** Anthropic accepts the user's own subscription from Azure egress IPs (`PROGRAM.md` open risk 2) | the product | part of P18 | phase 6's backstop (API keys) becomes the default |
 | P20 | AKS-managed Cilium honours `toEntities: [kube-apiserver]`: a pod with only that egress allow reaches the API server and nothing else | tasks 13 and 29's `apiServer.mode: entity` (Traefik, cert-manager, broker) | `p20-api-server-entity.sh`: a throwaway pod in `panacea-edge` under the entity policy, `GET /version` via the `kubernetes` Service, then a probe to a non-API address | set `apiServer.mode: cidr` and pass the API server's address(es) in `apiServer.cidrs` for all three charts |
 | P21 | The API server's calls to the cert-manager webhook are admitted by `fromEntities: [kube-apiserver]` (on AKS they arrive through the control-plane tunnel) | task 13's `cert-manager-webhook-ingress` | `p21-webhook-source.sh`: `kubectl create --dry-run=server` of a `ClusterIssuer`, which the webhook must validate; on failure, the Hubble/Cilium drop log names the source identity | `apiServer.mode: cidr` with `apiServer.webhookSourceCidrs` set to the source the drop log named |
+| P22 | The Managed DevOps Pool's agents in `snet-agents` register and complete a pipeline through the environment's egress: NAT in nat mode; in firewall mode `ci_agent_allowed_fqdns` is enough, and the API server admits the egress /32 | review C2; tasks 03, 07, 30 | `p22-ci-egress.sh`: the first `infra-plan` run on `PANACEA_APP_CI_POOL` (runbook step 4's hand-over) succeeds; in firewall mode, the workspace's application-rule denies from the agents subnet's range over that run are listed, and must be none | add the host the deny log named to `ci_agent_allowed_fqdns` (one host, never a wider wildcard); if the pool cannot take a NAT or a route table on its delegated subnet, the VMSS-agent fallback of task 30 |
 
 #### Tests to write first — `proving_test.sh`
 
@@ -60,7 +61,7 @@ and the overhead it read`.
 
 ```bash
 bash infra/smoke/proving/proving_test.sh     # proving_test: all cases passed
-grep -c "NOT RUN" docs/verification/phase-8-kata-proving.md     # 21
+grep -c "NOT RUN" docs/verification/phase-8-kata-proving.md     # 22
 ```
 
 #### What this task does not claim
