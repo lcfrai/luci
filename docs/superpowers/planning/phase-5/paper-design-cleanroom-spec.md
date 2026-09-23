@@ -240,3 +240,104 @@ The documented agent workflows [S2], [S18]:
 - **Real content:** pull copy or data from Notion or an API into frames (*"Fetch live data — Done"* [S7]).
 - **Multi-MCP:** Paper with Figma or Notion in one agent session — *"ensure correct files open in both apps"*.
 
+## 4. Multiplayer
+
+What is public is behaviour, not protocol. Paper publishes nothing about its sync engine.
+
+| Behaviour | Source |
+|---|---|
+| Live multiplayer cursors; *"multiplayer cursor logic"* refined 2026-03 and 2026-06 | [S5] |
+| **Follow a teammate's cursor**; **cursor chat** from the right-click menu (2026-05) | [S5] |
+| **Teammate and agent presence** — agents appear as present, like people (2026-06) | [S5] |
+| Multiplayer selection highlights (a fix for deleting while highlighted, 2025-12) | [S5] |
+| **Comments** (2026-08): leave, resolve, search, filter and sort in the right panel. Agents read and resolve them over MCP (`list_comment_threads`, `set_comment_thread_status`) | [S5], [S19], [S20] |
+| Roles: Editor and Admin in teams; free viewer roles; view-only sharing outside the team; anonymous visitors; *"Full sharing settings"* in progress | [S5], [S7] |
+| *"Improved disconnection handling"*; an *"internet loss warning"* | [S5] |
+| Organisations plan: SAML/SSO and admin controls | [S8] |
+
+**For the design of ours** the closest public, detailed reference is Figma's own write-up [S26]
+(2019): **server-authoritative, not a true CRDT** — *"Figma isn't using true CRDTs though"* —
+**per-property last-writer-wins** as ordered by the server, object ids that embed the client id,
+parent links stored on the child with **cycles rejected by the server**, **fractional indexing**
+for child order, **multiplayer-aware undo**, and on reconnect a fresh download plus replay of
+offline edits. That model fits a Go authority far better than a CRDT library, and needs no
+third-party code (§10).
+
+## 5. Import, export, and the handoff to code
+
+### 5.1 Into Paper
+
+| Path | Behaviour | Source |
+|---|---|---|
+| **Paste HTML** | *"as editable layers"*; HTML with inline styles (2026-05) | [S4], [S5] |
+| **Paste from Figma** | objects with SVGs and images (2026-05); Figma slots survive (2026-08). Mechanism unpublished | [S4], [S5] |
+| **Figma via Figma's MCP** | the `figma-import` guide; an agent reads Figma's MCP and writes Paper. Paper's listed Figma-MCP quirks: *"SVG fills returned as images, spacer elements ignored, inset borders not converted"* | [S2], [S10] |
+| **Paper Snapshot** | *"Convert webpages to editable layers"*; runs from `app.paper.design`, so a local dev server must allow CORS from that origin for images; Vite 6+ blocks `/@fs/` cross-origin regardless | [S5], [S16] |
+| **Images, SVG, text** | *"all common content types"*; paste on top `⌘V`, paste to replace `⌘R`; SVG becomes editable layers | [S4], [S9] |
+| **From code** | an agent reads the repo's CSS and tokens and draws with them | [S2], [S18] |
+| **Live data** | agents pull from APIs, Google Sheets, Notion into frames | [S2], [S7] |
+
+### 5.2 Out of Paper
+
+| Path | Behaviour | Source |
+|---|---|---|
+| **Copy as React** / **Tailwind** | menu and `⌥R` / `⌥T` | [S5] |
+| **`get_jsx`** | Tailwind or inline styles, per node subtree | [S2] |
+| **`get_computed_styles`**, **`get_fill_image`** | exact values and image bytes for an agent writing code | [S2] |
+| **`export`** | PNG, JPG, SVG, MP4 *"etc."*; WebP, AVIF, PDF per the build log; combined PDF | [S2], [S5] |
+| **Tokens** | copy/paste into a CSS file | [S3] |
+| **Host assets from Paper** | direct CDN links — in progress | [S7] |
+
+### 5.3 The handoff, as Paper frames it
+
+There is **no handoff artefact**. Paper's claim is that the design *is* the code's material:
+*"Not a picture of the change, but the change itself"* [S15]. The handoff is an agent, in the user's
+repo, reading the canvas over MCP and writing code in the project's conventions (§3.4). Paper's
+forward bet is round-tripping — *"pull a section of your live app onto a canvas, iterate on it
+spatially … and push it back as code"* [S15] — plus *"Use your code components"* (in progress) and
+CI that *"will create canvases with visual diffs"* [S13].
+
+**For us this is the one place we deliberately go further than Paper:** our product spine needs a
+**recorded** handoff — an approved, digested snapshot bound to a brief revision, carried into
+Develop and attached to the release (`CLAUDE.md`, "Product spine";
+`provenance-contract-draft.md` §3.2). Paper's live-read handoff is still offered; the recorded one
+is added (§7.6).
+
+## 6. What makes it powerful, compared with Figma-style tools
+
+1. **No translation layer.** The document is HTML/CSS [S6]. An agent writes it in the language it
+   is best at, and reads it back as JSX [S2]. Figma's model is proprietary and its MCP must
+   translate; Paper's comparison page says so directly [S6].
+2. **Read *and* write, as peers.** Agents create artboards, write HTML, restyle, duplicate, move,
+   delete and export [S2]. The human's selection is agent input (`get_selection`), and the agent's
+   work is visible to the human as it happens (the working indicator, agent presence) [S2], [S5].
+   Figma's MCP now also writes to canvas on its remote server [S27], so the gap here is narrowing.
+   The data-model gap is not.
+3. **A small, sharp tool surface.** About 34 tools cover orient → read → write → verify → export
+   [S19]. Batch variants everywhere. `duplicate_nodes` returns a descendant id map so an agent can
+   keep editing the copies without a re-read [S2].
+4. **The server teaches the agent.** `get_guide` serves the design-quality rules and the workflows
+   (fonts first, one visual group per write, screenshot to verify, finish-working) [S10]. The
+   quality floor is in the server, not in every user's prompt.
+5. **Code-shaped constraints.** Flex + padding + gap, tokens as CSS variables, absolute as an
+   explicit escape [S5], [S11]. What the human draws is already structured like the code will be,
+   which is why the JSX comes out clean [S2].
+6. **Local and composable.** Loopback MCP inside the desktop app [S2]: the agent has the repo, the
+   design and other MCP servers (Figma, Notion) in one context [S15]. No upload of the codebase to
+   the design tool.
+7. **Modern colour and type** — OKLCH/P3 per element, variable fonts, OpenType features [S5], [S6].
+   Our design system is OKLCH already (`docs/DESIGN-SYSTEM.md:33`).
+8. **Cheap to iterate.** Duplicate-and-vary is the core loop; *"Right click → Remix"* is planned
+   [S7]. Spatial side-by-side comparison is the thing chat cannot do [S15].
+
+**Where Paper is weaker, and where we can win** (our analysis, not Paper's claims):
+
+| Gap in Paper (public evidence) | Why it matters for our users | Our answer |
+|---|---|---|
+| No component/instance system yet [S7] | Design systems need instances | v2 components with slots (§9.2) |
+| No CSS Grid yet [S7] | Dashboards and tables are grid-shaped | v2 grid (§9.2) |
+| **Parallel agents are not addressed.** The working indicator is a visual cue; nothing public says two agents are stopped from overwriting each other | Parallel agents are our product | Claims with leases and revision preconditions on every write (§7.4) |
+| The MCP needs the desktop app open with the file open [S2] | Our agents run in sandboxes while the user is away (`docs/AGENTIC-UX.md` §4 rule 1) | The document authority lives in the control plane, not the window (§7.2) |
+| No recorded handoff, no approval, no provenance | Regulated enterprise needs the thread | Approval with a digest, a design link, a bundle in the worktree (§7.6) |
+| Egress by design: image generation vendors, CDN asset hosting, Snapshot from a public origin [S5], [S7], [S16] | Regulated tenants ask about every egress | No server-side egress in v1; assets stay local (§7.5) |
+
