@@ -1064,7 +1064,7 @@ client. Content the sanitiser would drop is still refused, never repaired.
 |---|---|---|
 | root `xmlns` | always written as `SVGNamespace` on the root, whatever the input had; never on a child | `parts/task-07.md:287-293`, `:317` |
 | well-formed XML | attribute values escape `& < "`, text escapes `& < >`, XML-forbidden characters removed, empty elements `<x/>`. **Addition**: SVG case restored (`linearGradient`, `clipPath`, `viewBox`, `gradientUnits`); x/net/html lowercases them and adjusts in foreign content, verified in the module cache at `golang.org/x/net@v0.26.0/html/foreign.go:126`, `:153`, `:175`, `:197`, `:217` | `parts/task-07.md:294-301` |
-| ids collide across svg nodes | every kept id becomes `<nodeID>-<local>`; any leading `n-<12 hex>-` is stripped first, so the rewrite is idempotent and re-prefixes rather than stacks; `url(#…)` rewritten to match. **Addition**: a `url(#x)` naming no id in the same SVG, or an id outside `^[A-Za-z_][A-Za-z0-9_.-]{0,63}$`, is dropped, so no reference reaches another node. `nodeID ""` is for SVG assets, which render in their own image document | `parts/task-07.md:302-317`; the parse table `:104`, `:107` |
+| ids collide across svg nodes | every kept id becomes `<nodeID>-<local>`; any leading `n-<12 hex>-` is stripped first, so the rewrite is idempotent and re-prefixes rather than stacks; `url(#…)` rewritten to match. **Addition**: a `url(#x)` naming no id in the same SVG, or an id outside `^[A-Za-z_][A-Za-z0-9_.-]{0,63}$`, is dropped, so no reference reaches another node. `nodeID ""` is for SVG assets, which render in their own image document | `parts/task-07.md:302-317`; the parse table `:106`, `:107` (the `img` and `svg` rows at `6b20704`; was `:104`, corrected in round 2, re-review RR-M6) |
 | the authority | `doc.Checker.SVG(nodeID, markup) (canonical, error)`; `Apply` stores the return and writes it into the recorded op, so replicas and replay apply the same bytes. **Security addition**: `set_props` could set `SVG` (`task-06.md:33`), but its refusal row never ran `Checker.SVG`, so markup no sanitiser saw could be stored. It runs now | `parts/task-06.md:86-91`, `:171-172`, `:218`; `parts/task-07.md:368-374`; `parts/task-10.md:132-136` |
 | tests: `namespaceURI` in `svgWalk`; distinct ids across two svg nodes | Go: `TestSVG_namespace`, `_case`, `_wellFormed`, `_idsPerNode` (every url-bearing attribute), `_danglingRef`, `TestParse_twoSVGs`, `TestChecker_SVG`, `TestApply_svgCanonical`. TS: `svgWalk` asserts `namespaceURI`; `svgNoNamespace` (no `xmlns`, or a `parsererror`, builds nothing); `svgIdsDistinct` (the same literals as the Go test) | `parts/task-07.md:411-418`; `parts/task-06.md:218`; `parts/task-24.md:163-165` |
 | restatements | P5-F; `Node.SVG`; export "verbatim" and its round trip "ids aside"; `upload_asset`; `duplicate_nodes`; the desktop duplicate | plan `:210`; `parts/task-05.md:83`; `parts/task-08.md:40-47`; `parts/task-16.md:76`, `:79`; `parts/task-25.md:66-69` |
@@ -1117,4 +1117,55 @@ real tree: x/net v0.26.0's SVG case tables are in the module cache (above). Whet
 `DOMParser("image/svg+xml")` sets `namespaceURI` and yields a `parsererror` document the way
 Chromium does is not checked, and `svgNoNamespace` depends on it. So is how a minimised WebView2
 window behaves (S11 measures Edge only).
+
+## Fix batch b04, round 2 (2026-09-24) — the re-review's open issues (`plan-rereview-b04-1.md`)
+
+Commits `396f6d2` (RR-I8-1, RR-I2-1), `b304f4f` (RR-I4-1, RR-M4), `8e85bba` (RR-M1, RR-M2, RR-M3,
+RR-M5), and this section's commit (RR-M6, S11's field rename). Paths are relative to
+`docs/superpowers/plans/`; `parts/` is `2026-09-23-phase-5-design-canvas-parts/`. Lines are as of
+this section's commit.
+
+| Finding | Change | Where |
+|---|---|---|
+| RR-I8-1 defs-last SVG loses its refs | the `url(#…)` check is two passes: collect every kept id, then rewrite and check refs; Figma's defs-last order named as the reason | `parts/task-07.md:324-330` (Go), `parts/task-24.md:63-66` (TS walk) |
+| RR-I8-1 tests | a defs-last row (node `n-000000000004`, `url(#…paint0_linear_1_2)` before its `<defs>`) in `TestSVG_idsPerNode`; `TestParse_twoSVGs` builds both icons defs-last with an empty report; `svgIdsDistinct` gains a fourth node holding the same canonical literal. Each names "one-pass `url(#…)` check" as its mutant | `parts/task-07.md:459`, `:461`; `parts/task-24.md:169` |
+| RR-I2-1 Go and TS token rules drift | `RuleLengthOrNormal` and `RuleFontWeight` are their own token-only rules, so the JSON rule name carries the keywords; `RuleNumber`/`RuleLength` gain nothing | `parts/task-07.md:381-395`, `allowlist.json` sample `:431-432`, TS `parts/task-23.md:173-180` |
+| RR-I2-1 tests | new shared `testdata/token-accept.jsonl` (bold, 650, `letter-spacing: normal`, `var(--space-2)`, `1.4`, `normal`, the Inter list, …), accepted by `TestTokenValue` and `allowedTokenValue.test.ts`; `opacity: bold` still refused on both sides | `parts/task-07.md:29-34`, `:398-402`, `:464`; `parts/task-23.md:194` |
+| RR-I4-1 Playwright's switches | `ignoreDefaultArgs` drops `--disable-background-timer-throttling`, `--disable-backgrounding-occluded-windows`, `--disable-renderer-backgrounding`; the runner records the effective command line and fails if a switch remains | `parts/task-01.md:103-113` |
+| RR-I4-1 hidden-state race | `window.__armHidden()` before minimising; await `visibilitychange` to `"hidden"`, bounded 5 s, record `waitMs`; `not-applicable` only after the wait expires | `parts/task-01.md:78`, `:90`, `:114-116`, `:150-152` |
+| RR-I4-1 capture time | S11 answers `hiddenCaptureMs` (renamed from the first draft's `captureMs`, which collided with S8's top-level `captureMs` array); `SpikeResult.s11` carries every S11 value | `parts/task-01.md:48-50`, `:78` |
+| RR-M1 export trusts replayed nodes | `ExportHTML` re-checks each svg node (`Checker{}.SVG(id, Node.SVG)` must return the stored bytes) and each declaration (`CheckDeclaration`); new `dialect.ErrUnsafeNode`; `TestExportHTML_hostileNode` | `parts/task-08.md:40-42`, `:73-80`, `:166`; `parts/task-07.md:372-375` |
+| RR-M2 `""` and the prefix | `SanitiseSVG("", …)` strips `n-<12 hex>-` too; `SanitiseSVG("", SanitiseSVG(a, m)) == SanitiseSVG("", m)` asserted | `parts/task-07.md:330-335`, `:459` |
+| RR-M3 refuse vs canonicalise | stated rule: a spelling change is canonicalised (order, case, a missing root `xmlns`, a child `xmlns` equal to the SVG namespace, escaping, the id prefix); a foreign `xmlns` or a control character is a report entry, so `Checker.SVG` refuses it. One `TestChecker_SVG` row each, and `TestSVG_namespace`/`TestSVG_wellFormed` assert the report entries | `parts/task-07.md:298-302`, `:309-310`, `:409-416`, `:456`, `:458`, `:462` |
+| RR-M4 S11 inside Tauri | task 30 runs S1–S10 in the Tauri page; S11 by hand through the product | `parts/task-30.md:117-122` |
+| RR-M5 writers' error surfaces | MCP `export` `html` answers `invalid` naming the token or node; the handoff bundle fails whole, and the approve route answers the new `422 design_unsafe` (task 20's thirteenth code, task 27's `ProblemCode` union); `TestApprove_unsafeDocument` | `parts/task-17.md:53`; `parts/task-21.md:78-84`, `:323-325`, `:369`; `parts/task-20.md:203`; `parts/task-27.md:16-18` |
+| RR-M6 drifted citation | b04's `:104` corrected to `:106` | this file `:1067` |
+
+**Deviations, declared.**
+- RR-M1: of the two options, the re-check was taken. It is the root cause: the same replay threat
+  covers SVG and declarations. `HTML` stays a pure writer. MCP `export`'s `HTML(IDs:false)` for a
+  non-artboard node is not re-checked. Its output goes to the agent as text, not to a browser, and
+  every node it reads was checked by `Apply` or recorded canonical in the log (`parts/task-10.md:133-136`).
+- RR-M5: the review suggested `invalid` for the approval. The approve route speaks HTTP problem
+  codes (`parts/task-20.md:191-203`), not MCP's `invalid`, so it gets its own code. The desktop's
+  `ProblemCode` union and task 27's count ("thirteen") change with it.
+
+**Mutants named for the next implementer**, the two most likely to survive:
+1. **A one-pass `url(#…)` check.** Killed by the defs-last rows in Go and TS.
+2. **`font-weight` keywords handled inside Go's `TokenValue`**, not in `RuleFontWeight`. Killed by
+   `token-accept.jsonl`, since TS reads only the rule name and must accept `bold`.
+
+**Restatement greps run** over the plan and every part, for:
+`RuleLength|RuleNumber|tokenRules|token-vectors|twelve|handoff_snapshot_invalid|verbatim|ErrUnsafeToken|S11|S1–S11|not-applicable|stayed visible|captureMs|defs|one-pass`.
+Each hit was changed or already agreed.
+
+**Unverified.** Nothing was built or run; this batch changes documents only. Not checked on this
+machine:
+- Playwright's three default switches, and whether `Browser.getBrowserCommandLine` answers without
+  `--enable-automation`. The runner fails loudly if neither route yields the command line.
+- Figma's defs-last export order, taken from familiarity with its output.
+- Whether minimising Edge fires `visibilitychange` within 5 s. S11 records the wait.
+- That WebView2 runs without the three switches. Checked: nothing in `desktop/src-tauri`'s
+  `*.json`, `*.rs` or `*.toml` sets `additionalBrowserArgs` or a background switch. Not checked:
+  the default arguments Tauri itself passes to WebView2.
 
