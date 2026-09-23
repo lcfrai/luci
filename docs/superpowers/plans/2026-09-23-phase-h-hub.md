@@ -151,7 +151,7 @@ They are asks against the contract's text, to be folded into it by whoever next 
 | **A6** | the control plane validates the `id_token`'s signature against `jwks_uri` (§6.1 step 9) | it needs a second RS256-over-JWKS implementation in the control plane beside `internal/entra`, which validates **access** tokens for a resource API and cannot validate an `id_token` (no `scp`, a different `aud`). Two copies of key-set code drift | the `id_token` arrives on the back channel, from the token endpoint the control plane itself called, so OIDC Core 1.0 §3.1.3.7 item 6 permits TLS server validation in place of the signature check. `entraauth` checks `iss`, `aud`, `nonce`, `exp`, `tid` and `oid` **without** a signature, and then cross-checks: `GET /v1/me` (step 11), whose access token the Hub validates in full, must answer an org whose `tenantId` equals the `id_token`'s `tid`, or the sign-in fails `exchange_failed` and nothing is stored | 30 |
 | **A7** | the Hub maps `entra` rejections to 401 and says nothing of a key-set outage (§4.2, §6.3) | phase 8's `entra` adds `ErrKeySetUnavailable` (phase 8 task 16 `:102-106`); its `Middleware` answers that 503 `backend_unavailable`, which is a control-plane code meaning Docker (`problem.go:115`) | the Hub calls `Validator.Validate` itself in `internal/hub/server/auth.go` and maps `ErrKeySetUnavailable` to 503 **`unavailable`**; `/readyz` calls `JWKSValidator.Ready` | 13 |
 | **A8** | the credential store has target names for a GitHub and a Panacea token (§9.1) but **no way to put one there** | nothing in the contract writes `PanaceaApp/git/github/…` or `PanaceaApp/panacea/…`; phase 3 would read an always-empty store and phase 7 would build its own write path into the same store | three **control-plane** routes (not Hub routes), write-only for the secret: `POST /v1/credentials/{kind}`, `DELETE /v1/credentials/{kind}?scope=`, `GET /v1/credentials` (metadata only) — `kind` ∈ `github`, `panacea`. Phase 7 uses these instead of writing its own (seam S-CRED) | 39 |
-| **A9** | `hubapi` imports the standard library only; `hubclient` imports `hubapi` and the standard library (§2) | the same contract has `hubapi/codes.go` **import** the shared codes from `httpx` (§4.2), `hubclient.Error` carry an `httpx.Problem`, and `hubclient` mint idempotency keys with `ids.UUID()` (§9.2). Built as written, the boundary test fails the contract's own code | the boundary allows `hubapi` → `internal/httpx`; `hubclient` → `hubapi`, `internal/httpx`, `internal/ids`. Both `httpx` and `ids` import only the standard library, so the Hub still links nothing of the control plane's | 01, 08 |
+| **A9** | `hubapi` imports the standard library only; `hubclient` imports `hubapi` and the standard library (§2) | the same contract has `hubapi/codes.go` **import** the shared codes from `httpx` (§4.2), `hubclient.Error` carry an `httpx.Problem`, and `hubclient` mint idempotency keys with `ids.UUID()` (§9.2). Built as written, the boundary test fails the contract's own code | the boundary allows `hubapi` → `internal/httpx`; `hubclient` → `hubapi`, `internal/httpx`, `internal/ids`. Both `httpx` and `ids` import only the standard library, so the Hub still links nothing of the control plane's | 01, 09 |
 | **A10** | the audit envelope covers `v, kind, orgId, seq, at, actorUserId, event, projectId, subject, data` (§3.6) | `audit_events.team_id` is not in it, yet the change feed decides who sees an event by `team_id` or `project_id` (§7.11). An owner-role edit of `team_id` would move an event into another team's feed **without breaking the chain** | the envelope adds `"teamId"` (or `""`). `hub verify` also checks each row's `feed` flag against the kind table of §8, since `feed` is derived from `kind`. Golden vectors 3 and 4 (task 02) are computed with it | 02, 14, 27 |
 
 Two further facts, verified here, **close** items the contract and ADR left open:
@@ -200,13 +200,14 @@ parallel worktrees (see §"Order and parallel lanes").
 | `control-plane/internal/hub/migrate/sql/0001_init.sql` | the complete first schema, guards, RLS, owner functions, grants | new | 07 |
 | `control-plane/cmd/hub/{main,config,serve,verify}.go` | `hub serve`, `hub migrate`, `hub verify`; one config block | new | 08; `verify.go` extended 20, 27 |
 | `control-plane/internal/hub/server/server.go` | mux, middleware chain, `/healthz`, `/readyz`, 404/405, headers, request logging | new | 08 |
-| `control-plane/internal/hub/boundary_test.go` | the import boundary (ADR-H1 §4.1, contract §2) | new | 08; extended 11 |
-| `control-plane/cmd/hub/{compose.yaml,devstack.sh,README.md}` | the local stack: Postgres in Docker, the two binaries on the host (correction A2) | new | 09 |
+| `control-plane/internal/hub/boundary_test.go` | the import boundary (ADR-H1 §4.1, contract §2, A9) | new | 09 |
+| `control-plane/cmd/hub/{compose.yaml,devstack.sh,README.md}`, `.gitignore` | the local stack: Postgres in Docker, the two binaries on the host (correction A2); `.out/` ignored | new, modified | 09 |
 | `control-plane/internal/entra/*` | Entra access-token validation — **phase 8 task 16's files**; written here only if that task has not landed | new | 10 |
 | `control-plane/internal/devissuer/*` | the local OIDC issuer, as a package (correction A5) | new | 11, 12 |
 | `control-plane/cmd/devissuer/{main.go,dev-tenant.json}` | its `main`, and the fictional tenant | new | 11 |
 | `control-plane/internal/hub/server/{auth,ratelimit}.go` | Origin refusal, rate limits, token validation, principal resolution (contract §5.1) | new | 13 |
-| `control-plane/internal/hub/store/{store,orgs}.go` | the pool, the per-request transaction, org enrolment at start | new | 13 |
+| `control-plane/internal/hub/store/{store,dbauth}.go` | the pool; Entra-only Postgres over the standard library | new | 08 |
+| `control-plane/internal/hub/store/orgs.go` | org enrolment at start; principal resolution | new | 13 |
 | `control-plane/internal/hub/server/tx.go`, `store/{audit,idempotency}.go` | the one write-transaction shape (contract §10.6): audit lock, chain, idempotency | new | 14 |
 | `control-plane/internal/hub/server/{me,teams}.go`, `store/teams.go` | `/v1/me`, teams, members | new | 15 |
 | `control-plane/internal/hub/server/invites.go`, `store/invites.go` | invites and their binding | new | 16 |
@@ -300,8 +301,8 @@ It is tasks **01–24** on the server and **28, 30–35, 37, 38** on the client 
 | 05 | the fake, part 2 (designs, releases, evidence, feed); the conformance suite — **S0** | H0 | 04 | 3 | ✓ |
 | 06 | the migrate runner, `roles.sql`, the integration harness; `pgx` pinned | H0 | — | 3 | ✓ |
 | 07 | `sql/0001_init.sql` complete, with a database test for every guard | H0 | 06 | 3 | ✓ |
-| 08 | `cmd/hub`: config, `serve`, `migrate`, `verify` shell; the server chassis; the boundary test | H0 | 01, 06 | 3 | ✓ |
-| 09 | the local stack: Postgres-only compose, `devstack.sh`, the README (A2) | H0 | 07, 08, 12 | 2 | ✓ |
+| 08 | `cmd/hub`: config, `serve`, `migrate`, `verify` shell; the server chassis; the pool | H0 | 01, 06, 07 | 3 | ✓ |
+| 09 | the local stack: Postgres-only compose, `devstack.sh`, the README (A2); the import boundary test | H0 | 07, 08, 12 | 2 | ✓ |
 | 10 | `internal/entra` — phase 8 task 16, verbatim, **only if it has not landed** | H1 | — | 3 (0 if landed) | ✓ |
 | 11 | `devissuer`, part 1: the package, config, discovery, JWKS, token minting; `cmd/devissuer` | H1 | — | 2.5 | ✓ |
 | 12 | `devissuer`, part 2: `/authorize`, `/token` (code + PKCE S256, rotating refresh) | H1 | 11 | 3 | ✓ |
