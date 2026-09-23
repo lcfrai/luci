@@ -96,6 +96,7 @@ owner approves. The gate is not loosened to make the first run pass.
 | every `azureSubscription:` value is a `$(variable)`, never a literal name | a service connection hard-coded to one estate |
 | `infra-plan.yml` and `deploy.yml` start with the estate guard (task 30) | a deploy that can target the wrong environment |
 | `install-tool.sh` has a SHA-256 for every tool it names | a tool added without its hash |
+| each file names only its own connections: `infra-plan.yml` names only `PANACEA_APP_<ENV>_PLAN_SERVICE_CONNECTION`; `images.yml` names only `…_PUSH_…`; `deploy.yml` names `…_INFRA_…` in `apply`, `…_CLUSTER_…` in `cluster` and `smoke`, and `…_PLAN_…` in the outputs-only job; every other file names none (task 30's service-connection table) | a write connection named in a PR-built file. Like every rule here this is hygiene: the ADO branch control on the connection is the boundary (review C3) |
 
 #### Steps
 
@@ -109,7 +110,7 @@ owner approves. The gate is not loosened to make the first run pass.
 #### Acceptance
 
 ```bash
-bash pipelines/scripts/lint.sh                   # lint: 6 of 6 rules pass over 6 pipeline files (images.yml, task 27, comes after)
+bash pipelines/scripts/lint.sh                   # lint: 7 of 7 rules pass over 6 pipeline files (images.yml, task 27, comes after)
 bash pipelines/scripts/install-tool.sh gitleaks && gitleaks detect --no-banner   # no leaks found
 ```
 

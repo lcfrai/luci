@@ -34,7 +34,8 @@ terraform {
 # providers.tf
 provider "azurerm" {
   features {}
-  storage_use_azuread = true # the account has no shared key; data-plane calls use Entra
+  storage_use_azuread            = true   # the account has no shared key; data-plane calls use Entra
+  resource_provider_registrations = "none" # the read-only plan identity cannot register providers; task 31 §1 does (review C3; attribute name UNVERIFIED)
 }
 
 # variables.tf

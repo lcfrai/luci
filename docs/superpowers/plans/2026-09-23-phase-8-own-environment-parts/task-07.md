@@ -167,7 +167,8 @@ workspace. That a route table can be associated with a subnet delegated to
 # providers.tf
 provider "azurerm" {
   features {}
-  storage_use_azuread = true
+  storage_use_azuread            = true
+  resource_provider_registrations = "none" # as task 02: the plan identity cannot register providers
 }
 data "azurerm_client_config" "current" {}
 

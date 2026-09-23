@@ -53,8 +53,19 @@ nothing of its own there.
 - **Jobs**: `build` (the script, no push) → `sbom` (an SPDX SBOM per image, published as the
   pipeline artefact `sbom`) → `scan` (a vulnerability scan per image; **fails on a CRITICAL with a
   fix available**; the report is an artefact) → `canary` (below) → `push` (**`main`/`dev` only**,
-  `--push` to the environment's ACR through the OIDC service connection; publishes
-  `images/.out/digests.json` as the artefact **`image-digests`**, which task 30's `deploy` consumes).
+  `--push` to the environment's ACR through `$(PANACEA_APP_<ENV>_PUSH_SERVICE_CONNECTION)`;
+  publishes `images/.out/digests.json` as the artefact **`image-digests`**, which task 30's
+  `deploy` consumes).
+- **The push connection is the only credentialed step, and its boundary lives in ADO** (review
+  C3). The `main`/`dev` condition in this YAML is hygiene, because a PR build runs the PR's own
+  YAML and can delete the condition. What stops a PR from pushing are the connection's ADO checks
+  (task 30's service-connection table): **branch control** `refs/heads/main` and `refs/heads/dev`,
+  and pipeline permission for `images` only. The push identity holds **AcrPush on this registry
+  and nothing else** (the plan's "Deploy identities" table). `build`, `sbom`, `scan` and `canary`
+  use no connection, so a PR build still runs every check.
+- **A PR's `image-digests` is never deployed.** Task 30's estate guard refuses an `images` run
+  from a branch not allowed for the environment. `helm-values.sh` refuses a digest outside the
+  environment's registry.
 - **The OD-8 canary**: the job runs phase 3's transcript-adapter canary (its task 17,
   `internal/transcript/claudecode`) against **the sandbox image built in this run**, in whatever
   form that task defines. If phase 3 task 17 has not landed, the job prints

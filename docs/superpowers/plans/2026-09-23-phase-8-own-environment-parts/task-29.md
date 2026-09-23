@@ -1,8 +1,9 @@
 ### Task 29: `deploy/charts/broker` and `deploy/charts/hub` — the two servers, and the SQL that lets the Hub in
 
 Two charts, one per server, each owning its Deployment, service account, HTTPRoute, disruption
-budget and network policy; plus the Hub's migrate Job and the one SQL file the deploy pipeline runs
-as a Postgres administrator. The Hub's side is **the Hub contract's** (sibling `feat/hub`,
+budget and network policy; plus the Hub's migrate Job and the one SQL file that a **human**
+Postgres administrator runs once per environment (task 31 §7; no pipeline identity is a database
+administrator, review I8). The Hub's side is **the Hub contract's** (sibling `feat/hub`,
 `2026-09-23-hub-contract.md` §12.2 `:2140-2191` and §12.3 `:2193-2208`, which answer HA-4 and
 HA-5 "field by field"); nothing here sets a Hub variable that table does not list (seam S8-H.1).
 
@@ -161,14 +162,14 @@ takes), and 443 to `0.0.0.0/0` except RFC 1918 (Entra). The migrate Job's pod is
 hook policy above, not by this one — `netpolcover`'s `hook_pods_are_allowed_before_they_run`
 (task 13) fails if the Job's only allow is a regular template. **No CORS anywhere** (HA-6).
 
-#### Contract — `deploy/sql/hub-principals.sql.tpl` (complete; rendered and run by `deploy`, task 30)
+#### Contract — `deploy/sql/hub-principals.sql.tpl` (complete; rendered from the `workloads` outputs and run by a human, task 31 §7)
 
 ```sql
--- Run by the deploy pipeline as a member of the Postgres admin group (task 08), connected to the
--- `postgres` database with an Entra token. Idempotent. Placeholders are filled from the workloads
--- stack's outputs; nothing here is a secret.
+-- Run by a HUMAN member of the Postgres admin group (task 08), with their own Entra token,
+-- connected to the `postgres` database. No pipeline identity is in that group (review I8).
+-- Idempotent. Placeholders are filled from the workloads stack's outputs; nothing here is a secret.
 --
--- 1. The Hub's own roles.sql, once per environment (Hub contract §10.1): the pipeline runs
+-- 1. The Hub's own roles.sql, once per environment (Hub contract §10.1): the same person runs
 --    control-plane/internal/hub/migrate/roles.sql first, in database `hub`.
 -- 2. The two Entra principals, named exactly as the managed identities:
 --    A DO block, because a function in a FROM clause runs before any WHERE could skip it.

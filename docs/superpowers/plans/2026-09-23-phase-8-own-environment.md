@@ -136,12 +136,13 @@ Q1 below.
 | **P8-D7** | **The machine agent** (`control-plane/cmd/machined`) serves the catalog and the git runner **inside the machine pod**, on the pod network, behind a per-machine bearer token held in a Kubernetes Secret. Only the broker can reach it. **Nothing uses `pods/exec`** | Reuses `internal/project.Scanner` and phase 3's local git runner unchanged, on Linux paths. `pods/exec` would put git arguments (and, on a clone, credentials) into the API server's audit log and would need an SPDY dependency |
 | **P8-D8** | **Images are built from binaries compiled outside Docker** (`CGO_ENABLED=0 GOOS=linux go build`) and copied into the image, and every image is referenced **by digest**. The machine image is `FROM` the sandbox image's digest plus the `machined` binary, so one image pin covers the CLI version (OD-8) | The corporate proxy breaks `go mod download` inside a container (`images/sandbox/Dockerfile:3-8`); the control-plane module is not vendored and should not become so to build two binaries |
 | **P8-D9** | **Ingress is the Kubernetes Gateway API, implemented by Traefik**, with TLS from cert-manager (DNS-01 against our Azure DNS zone, workload identity). **Terraform owns the public IP and the A records**, so no DNS step is manual and no external-dns runs | Panacea's wildcard A record is a manual step after Traefik gets an IP (survey §1.5, `:124-125`). The AKS application-routing add-on is built on ingress-nginx, whose upstream announced its retirement — **from training knowledge, UNVERIFIED**; Gateway API resources keep the implementation swappable either way |
-| **P8-D10** | **Postgres Flexible Server with Entra-only authentication** (`password_auth_enabled = false`), public access off, a private endpoint, and an owner-provided Entra group as its administrator. The Hub connects as its own user-assigned identity through workload identity. The Hub's database role is created by the `deploy` pipeline running as a member of the admin group — SQL, not Terraform | No database password exists to leak into state (survey §2.2, `:318`) |
+| **P8-D10** | **Postgres Flexible Server with Entra-only authentication** (`password_auth_enabled = false`), public access off, a private endpoint, and an owner-provided Entra group as its administrator. The Hub connects as its own user-assigned identity through workload identity. The Hub's database roles are created once per environment by a **human** member of the admin group (task 31 §7). This is SQL, not Terraform, and no pipeline identity is in that group (P8-D16, review I8) | No database password exists to leak into state (survey §2.2, `:318`) |
 | **P8-D11** | **No long-lived secret anywhere**: OIDC service connections in CI, workload identity in the cluster, Key Vault (RBAC mode, private endpoint) for whatever ADR-H1's Hub needs, read through the Secrets Store CSI add-on. Per-machine and per-sandbox bearer tokens are minted by the broker and live as Kubernetes Secrets owned by their pod, so they are garbage-collected with it | Survey §2.2 `:315-317` |
 | **P8-D12** | **Sandbox egress** (dev): internet via the NAT gateway; **denied** to `169.254.169.254`, the pod and service CIDRs, the VNet, and every other sandbox; DNS to kube-dns only; ingress to a sandbox only from the broker on 8080 and to a machine pod only from the broker on 8081 | Kata isolates the kernel, not the network (survey G-4, `:420`) |
 | **P8-D13** | **Azure DevOps is the CI of record**; one pipeline per concern under `pipelines/`, path-triggered, sharing pinned-tool templates. The root `azure-pipelines.yml` stays, as the Go pipeline, so the definition already registered against it keeps working. `infra-plan` and `deploy` are written and **not registered** until the environment exists | Survey §5 (`:437-476`); owner decisions `:56` |
 | **P8-D14** | **Tool and provider pins.** Terraform `>= 1.9.0, < 2.0.0` in every stack, CI pinned to **1.15.8** (the version on the build laptop, `terraform version` on 2026-09-23); `hashicorp/azurerm` **4.81.0** (already locked, `infra/terraform/.terraform.lock.hcl:4-6`), `hashicorp/azuread` **3.9.0**. Each stack commits its own `.terraform.lock.hcl` | Every argument name this plan cites was checked against `terraform providers schema -json` for exactly these versions, in a scratch directory, on 2026-09-23 |
 | **P8-D15** | **The RuntimeClass name becomes configuration**, `PANACEA_APP_RUNTIME_CLASS`, default `kata-vm-isolation`, and the first smoke check is `kubectl get runtimeclass` | The code hardcodes `kata-mshv-vm-isolation` (`manager.go:20`) against a pool created with `KataVmIsolation` (`infra/terraform/kata.tf:16`). Which name AKS installs is **UNVERIFIED** (survey G-3); the default is the GA name from training knowledge, and task 32 proves it |
+| **P8-D16** | **Four pipeline identities per environment, split by what they may do** (plan, read-only, the only one PR builds reach; infra; cluster; push). The write connections carry ADO branch control and per-pipeline permission. No pipeline identity is a Postgres or cluster administrator or holds Graph application rights, so the database bootstrap and `stacks/identity` are human steps. The guards in the repository are hygiene, not the boundary. The full table is "Deploy identities" below | Review C3 (a PR build ran with the apply identity), review I8 (one principal held Azure RBAC, cluster Secrets, the Hub's data and possibly tenant Graph rights) |
 
 ---
 
@@ -297,6 +298,7 @@ these blocks a task before task 31; all of them block the first `apply`.
 | **Q1** (= OQ-3) | What is the data classification, and so: may sandboxes reach the internet through a NAT gateway with network policy, or must egress go through an FQDN-allowlist firewall? | **Dev: NAT + policy** (P8-D12). **PROTECTED or above: Azure Firewall Standard** with the agent allowlist of task 07 (package registries, `github.com`, `dev.azure.com`, model providers), selected by `egress_mode = "firewall"` | An allowlist that misses one registry breaks agents silently; open egress may fail a PROTECTED assessment. Cost gap about A$1.5–2k a month (survey §6.2, `:507`). A cheaper third option exists in the provider schema — AKS Advanced Container Networking's `security_enabled` (`network_profile.advanced_networking`, azurerm 4.81.0), which enables Cilium FQDN policies; **that it meets the classification's egress control is UNVERIFIED** and it is not built here | 31 |
 | **Q2** | May the edge use a public ACME CA (Let's Encrypt) for `*.<zone>`, or must certificates come from a KPMG CA? | **Let's Encrypt via DNS-01** for dev; the ClusterIssuer is a value, so a KPMG ACME endpoint or a Key Vault-issued certificate is a values change | Survey §7.2 item 3 (`:543-544`) | 31 |
 | **Q3** | Is the edge internet-facing with an IP allowlist, or reachable only from the corporate network (peering / ExpressRoute)? | **Internet-facing with an allowlist**: `loadBalancerSourceRanges` on the Traefik service and `authorized_ip_ranges` on the dev API server, both from one variable, `allowed_ingress_cidrs`. Corporate-only is a later network task | Panacea allowlists KPMG egress ranges the same way (survey §7.2 item 4, `:545-547`) | 31 |
+| **Q4** | May the cluster identity install cluster-scoped RBAC (the ClusterRoles and ClusterRoleBindings of cert-manager and Traefik), which may let it reach cluster-admin through Kubernetes RBAC `bind`? Or must those objects move to an owner-run prerequisite release, installed under the cluster admin group when a chart version changes? | **Dev: the pipeline installs them.** The ADO checks are the boundary, and the `cluster-kinds` line keeps the list visible. **Before prod: decide.** The seam is `infra/rbac/cluster-deployer.json`: removing `bind`/`escalate` and the RBAC kinds from it, and moving those objects to a separate release, is a change to one file and one release table (task 30, task 13's `netpolcover` table) | A deploy pipeline that can reach cluster-admin can read every user's session token. The stricter option adds an owner step to every cert-manager or Traefik upgrade | 30, 31 |
 
 ### Owner inputs, and the variable each one fills
 
@@ -306,14 +308,57 @@ From survey §7 (`:519-557`). None is in source; each arrives as a pipeline vari
 |---|---|---|
 | Subscription id, tenant id, region (recommended `australiaeast`, three zones) | `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`, `var.location` | first `plan` |
 | Kata vCPU quota: max sandbox nodes × 8 for `Standard_D8s_v5`, plus system and apps pools | `var.sandbox_pool.max_count`, `var.apps_pool` | first `apply` |
-| A deploy identity allowed to assign roles, **scoped by an ABAC condition** to the roles in task 10's allowlist | the `infra-plan`/`deploy` service connection | first `plan` |
-| An ADO project, an OIDC (workload identity federation) service connection, paid parallel jobs, and the right to create a Managed DevOps Pool | `pipelines/*.yml` `azureSubscription:` names, task 30's pool | first `plan` |
-| Entra: app-registration rights for the identity stack, **or** the registrations made by hand and their ids handed over | `stacks/identity` run, or `TF_VAR_*_client_id` | first `apply` of `workloads` |
-| Entra groups: cluster admins, Postgres admins, product users | `var.cluster_admin_group_object_ids`, `var.postgres_admin_group`, `var.user_group_object_id` | first `apply` |
+| **Four pipeline identities per environment** (plan, infra, cluster, push), each holding exactly its row of "Deploy identities" below. The infra identity's role-assignment right is **scoped by an ABAC condition** to the roles in task 10's allowlist, and excludes its own object id as a principal | `TF_VAR_state_writer_object_ids`, `TF_VAR_state_reader_object_ids` (task 02); `TF_VAR_push_principal_object_id`, `TF_VAR_cluster_principal_object_id` (task 07) | first `plan` |
+| The two custom role definitions, `panacea-app-cluster-deployer` and `panacea-app-sandboxes-deployer`, created from `infra/rbac/*.json` (task 30). No pipeline identity can write role definitions | the role names task 07's `grants.tf` assigns | first `apply` of `foundation` |
+| An ADO project; **four** OIDC (workload identity federation) service connections per environment, with branch control and per-pipeline permissions on the three write connections (task 30's table); paid parallel jobs; and the right to create a Managed DevOps Pool | `PANACEA_APP_<ENV>_{PLAN,INFRA,CLUSTER,PUSH}_SERVICE_CONNECTION`, task 30's pool | first `plan` |
+| Entra: the identity stack is **owner-run only**, applied by the owner with their own credentials, **or** the registrations are made by hand and their ids handed over. No pipeline identity holds Graph application rights (review I8) | `stacks/identity` run by the owner, or `TF_VAR_*_client_id` | first `apply` of `workloads` |
+| Entra groups: cluster admins, Postgres admins, product users. **Humans only**: no pipeline identity is a member of the cluster admin or Postgres admin groups (task 31 §2a checks) | `var.cluster_admin_group_object_ids`, `var.postgres_admin_group`, `var.user_group_object_id` | first `apply` |
+| A human member of the Postgres admin group to run the database bootstrap once per environment (task 31 §7) | nothing in code | first `deploy` with `deployCharts: true` |
 | A DNS name and its delegation from the parent zone | `var.dns_zone_name`; the NS records from `foundation`'s output go to the parent | first `apply` of `edge` |
 | A VNet range that does not overlap the corporate network | `var.vnet_cidr` (default `10.40.0.0/16`, a placeholder) | first `apply` |
 | A monthly budget and alert recipients | `var.monthly_budget_aud`, `var.budget_contact_emails` | first `apply` |
 | Confirmation that users' own Claude subscriptions may be used from Azure egress IPs (`PROGRAM.md` open risk 2) | nothing in code — a precondition of the first real session | task 32 |
+
+### Deploy identities: every principal, what it holds, at what scope (review C3, I8)
+
+The roles below are **held** roles. The owner grants them, and no stack does. Task 10's allowlist
+is a different list: the roles a stack **assigns** to someone else. Each environment has its own
+four pipeline identities, and none is shared between dev and prod. The ADO checks live outside
+the repository, so a pull request cannot edit them (task 30). The guards inside the repository
+are hygiene, not a boundary.
+
+| Principal | Holds | Scope | Used by | ADO checks | Cannot |
+|---|---|---|---|---|---|
+| **plan** | Reader; Storage Blob Data Reader | the subscription; the state container | `infra-plan` (PR validation and manual), `-lock=false`; `deploy`'s outputs-only job | pipeline permission `infra-plan`, `deploy`. No branch control: PR builds use it | write anything in Azure; take a state lease; read a Key Vault secret, the cluster or Graph |
+| **infra** | Contributor; Role Based Access Control Administrator with the ABAC condition (task 10's allowlist, never itself as principal); Storage Blob Data Contributor; Cost Management Contributor | `rg-panacea-app-<env>` (created by `bootstrap`, task 02); the same group; the state container; the subscription (the budget, task 04) | `deploy` stage 3 | pipeline permission `deploy` only; branch control `main` (prod), `main`/`dev` (dev); the Environment approval | read cluster Secrets (no AKS data-plane role); read the Hub's data (not a Postgres admin); touch Entra applications (no Graph right) |
+| **cluster** | Azure Kubernetes Service Cluster User Role; Azure Kubernetes Service RBAC Admin; `panacea-app-cluster-deployer`; `panacea-app-sandboxes-deployer` | the cluster; namespaces `default`, `panacea-edge`, `panacea-broker`, `panacea-hub`; the cluster (cluster-scoped kinds only); namespace `panacea-sandboxes` (never `secrets` or `pods`) | `deploy` stages 4–5 | as infra | change Azure RBAC or resources; read or write state; read users' tokens in `panacea-sandboxes` (task 07) |
+| **push** | AcrPush | the environment's registry | `images.yml` `push` (task 27) | pipeline permission `images` only; branch control as infra | anything but push images; get an image deployed (task 30 refuses digests from another branch or registry) |
+| **owner** (a human) | subscription owner, or User Access Administrator; the Entra rights for `stacks/identity` | the subscription; the tenant | task 31 §0–§2a; `stacks/identity`, owner-run only (task 09) | — | — |
+| **Postgres admin** (a human, in `var.postgres_admin_group`) | the server's Entra administrator group | the Hub's server | the database bootstrap, task 31 §7, once per environment | — | — |
+| **cluster admin** (a human, in `var.cluster_admin_group_object_ids`) | cluster admin, through the AKS Entra integration | the cluster | break-glass only | — | — |
+
+**What the split still leaves open (declared, not fixed):**
+1. **The infra identity can reach whatever the allowlist allows.** Contributor lets it create a
+   user-assigned identity, and RBAC Administrator lets it grant that identity any allowlisted
+   role, `Azure Kubernetes Service RBAC Admin` included. The ABAC condition's self-exclusion
+   stops the direct self-grant, but not this indirect one. What bounds it is the allowlist, which
+   no longer holds RBAC Cluster Admin and gives no role over `panacea-sandboxes` Secrets, plus
+   the branch control and the approval.
+2. **The cluster identity may be able to bind `cluster-admin` to itself.** The upstream
+   cert-manager and Traefik charts bring ClusterRoles and ClusterRoleBindings. Creating those may
+   need Kubernetes RBAC `bind`, which would allow that self-binding (task 30's
+   `cluster-kinds_test.sh` prints the list; training knowledge, UNVERIFIED). The recommended
+   build keeps those objects in the pipeline's releases, so `deploy` works end to end, and relies
+   on the ADO checks. The stricter option is owner question **Q4** (the open questions above).
+3. **Reader may be too little for some refreshes.** Task 30 adds only actions that return no
+   secret, into `panacea-app-plan-reader`; task 31 §6 records the 403s.
+4. **Contributor on one resource group may be too little for AKS.** Creating a cluster whose node
+   resource group is `rg-panacea-app-<env>-nodes` may require the caller to be allowed to create
+   that group. **UNVERIFIED**: the AKS resource provider may create it on its own authority. If
+   task 31's first `foundation` apply fails for this reason, the owner widens the infra identity's
+   Contributor to the subscription and records it as a widening in the results file. A role
+   cannot be scoped to a group that does not yet exist.
+
 
 ---
 
@@ -381,6 +426,7 @@ pipelines/templates/tools.yml  pipelines/scripts/{install-tool,lint}.sh         
 pipelines/{desktop,licences,secrets,infra,charts}.yml  licences/  .gitleaks.toml                  28
 pipelines/images.yml                                                                               27
 pipelines/{infra-plan,deploy}.yml  pipelines/scripts/{estate-guard,tf-stack,helm-values}.sh  written, NOT registered  30
+pipelines/scripts/cluster-kinds_test.sh  infra/rbac/{cluster,sandboxes}-deployer.json   the cluster identity's roles (C3/I8)  30
 docs/runbooks/phase-8-first-apply.md  docs/verification/phase-8-first-apply-results.md            31
 docs/verification/phase-8-kata-proving.md                                                          32
 docs/SEAMS.md  docs/PROGRAM.md  docs/superpowers/planning/env/cost-model.md  docs/verification/phase-8-results.md   33

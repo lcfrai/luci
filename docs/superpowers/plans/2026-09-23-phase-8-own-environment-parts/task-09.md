@@ -3,11 +3,15 @@
 OD-6 has the desktop sign in with Entra auth-code + PKCE and the control plane call servers **as
 the user**. That needs registrations in Entra: a public client for the desktop and one resource API
 per server. Survey G-8 (`:429`) found none in code. This stack writes them on the `azuread`
-provider, **as its own stack** so it can run under a different identity from the others: if the
-owner grants the deploy identity the rights, the pipeline runs it; if not, the owner runs it once
-with their own credentials, or makes the registrations by hand and hands over the ids (survey §7.2
-item 1, `:539-541`). `stacks/workloads` and the charts read only this stack's **outputs**, so any
-path works.
+provider, **as its own stack** so it runs under a different identity from the others. **It is
+owner-run only** (review I8). Creating applications and granting their consent takes tenant-level
+Graph permissions, which in Entra come close to tenant administration (training knowledge,
+UNVERIFIED). No pipeline identity is given them. So the owner either applies this stack once with
+their own credentials from a workstation, or makes the registrations by hand and hands over the
+ids (survey §7.2 item 1, `:539-541`). Task 30's `tf-stack.sh` refuses the stack name, and
+`infra-plan`'s default stack list leaves it out. `stacks/workloads` and the charts read only this
+stack's **outputs**, so either path works. The plan's "Deploy identities" table records the
+decision.
 
 **The values are the Hub contract's.** HA-3 asked for the exact list; the Hub contract answered it
 (sibling `feat/hub`, `2026-09-23-hub-contract.md` §6.5, `:528-551`, "exact values for phase 8's

@@ -152,7 +152,9 @@ Resources (described; names from azurerm 4.81.0):
 **No database role is created here.** A Postgres role for an Entra principal is SQL
 (`pgaadauth_create_principal`, run as a member of the admin group) and a grant is SQL; Terraform's
 Postgres provider would need a network path and a token to the private server from the plan agent.
-Task 29 writes `deploy/sql/hub-roles.sql`; task 30's `deploy` pipeline runs it.
+Task 29 writes the SQL. A **human** member of the admin group runs it once per environment, as
+task 31 §7. No pipeline identity is in the admin group (the plan's "Deploy identities" table,
+review I8).
 
 #### Contract — `stacks/data`
 

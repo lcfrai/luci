@@ -111,6 +111,10 @@ control on the write connections (task 30, and the plan's "Deploy identities" ta
   `terraform providers lock -platform=windows_amd64 -platform=linux_amd64`, so the Linux CI agent
   and the Windows laptop both verify against the committed file.
 - `environment` is validated against `["dev", "prod"]`.
+- Every stack's `provider "azurerm"` block sets `storage_use_azuread = true` and
+  `resource_provider_registrations = "none"`. The second is needed because the read-only plan
+  identity cannot register resource providers, so task 31 §1 registers them by hand (task 30,
+  review C3; the attribute name is **UNVERIFIED** until `validate` runs in task 02).
 
 #### Tests to write first
 
