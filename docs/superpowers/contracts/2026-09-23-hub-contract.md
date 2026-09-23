@@ -831,3 +831,116 @@ of every resolved design approval's `briefKey`. It is the only time-varying part
 the `provenanceSlice` caches results forever and `heads` per brief (provenance contract §6.4).
 **`erased` is a new provenance state** (ADR §5.6), an amendment phase 4 makes to `Ref.resolution`
 and to the six-state table in provenance contract §4.1.
+
+### 7.6 Blobs — phase 5's snapshots and handoff files
+
+**`PUT /v1/projects/{projectId}/blobs/{sha}`** — raw bytes, not JSON.
+
+| Request header | Rule |
+|---|---|
+| `Content-Type` | required; one of `text/html; charset=utf-8`, `text/css; charset=utf-8`, `text/plain; charset=utf-8`, `application/json`, `image/png`, `image/jpeg`, `image/webp`, `image/svg+xml`, `font/woff2`, `application/octet-stream`. Anything else is 400 `bad_request`, `details.field = "Content-Type"` |
+| `Content-Length` | required; at most 16 MiB (16,777,216). Over it: 413 `blob_too_large` before the body is read |
+
+The Hub hashes the body as it streams. Bytes that do not hash to `{sha}` are 422 `digest_mismatch`
+and nothing is stored. Blobs are content-addressed **per org**: identical bytes uploaded by two
+projects are stored once and associated with each (the uploader has proved it holds the bytes, so
+association leaks nothing). A project's associated total above 1 GiB is 409 `quota_exceeded`.
+
+```jsonc
+// 201 (new to this project) or 200 (already associated)
+{ "digest": "sha256:…", "size": 48213, "contentType": "text/html; charset=utf-8" }
+```
+
+**`GET` and `HEAD /v1/projects/{projectId}/blobs/{sha}`** → the bytes, with `Content-Type` as
+stored, `Content-Length`, `Content-Disposition: attachment; filename="<sha>"`,
+`Content-Security-Policy: sandbox; default-src 'none'`, `X-Content-Type-Options: nosniff`. A blob not
+associated with this project is 404 `blob_not_found`, whatever other project holds it.
+
+**Lifetime.** An association that no design approval references is deleted by the janitor
+(§12.5) 24 hours after upload; a blob with no association left is deleted with it. A referenced
+blob lives as long as the approval, which is forever in v1.
+
+### 7.7 Design approvals — the design link
+
+One route writes **the approval, the design link and the snapshot reference together**
+(`paper-design-cleanroom-spec.md:472-474`). Phase 5 uploads the snapshot's files first (§7.6),
+then approves.
+
+**`POST /v1/projects/{projectId}/design-approvals`**
+```json
+{ "designKey": "design:cv-7c01d2e3f4a5b6c7@11",
+  "reviewDigest": "sha256:9c41…e07a",
+  "briefKey": "brief:bf-3f2a91c07b1e4d2a@5",
+  "briefDigest": "sha256:…",
+  "branchRef": "refs/heads/evidence-upload",
+  "snapshot": { "manifest": "sha256:…", "blobs": ["sha256:…", "sha256:…"] } }
+```
+Checks, in order, each with its error:
+
+1. `designKey`, `briefKey` in §3.2's grammar; digests `sha256:` + 64 hex; `branchRef` §3.3 — 400
+   `bad_request`.
+2. `briefKey` names a revision of a brief **in this project** that is not erased — else 422
+   `key_unresolvable`.
+3. `briefDigest` equals that revision's digest — else 422 `digest_mismatch`.
+4. That revision's `status` is `complete` — else 422 `brief_incomplete` (ADR Q1).
+5. `snapshot.blobs` has 1–500 distinct digests, includes `snapshot.manifest`, and every one is
+   associated with this project — else 422 `blob_missing` naming the first absent one.
+6. No approval exists for `designKey` in this project — else 409 `design_already_approved`.
+
+The approver is the principal. **There is no approver field.** The row is immutable; there is no
+revocation in v1. A re-review approves a new design revision, which is a new key.
+
+```jsonc
+// 201 — DesignApproval
+{ "id": "ap-…", "projectId": "pj-…", "designKey": "design:cv-…@11", "canvasId": "cv-…",
+  "designRevision": 11, "reviewDigest": "sha256:…", "briefKey": "brief:bf-…@5",
+  "briefDigest": "sha256:…", "branchRef": "refs/heads/evidence-upload",
+  "snapshot": { "manifest": "sha256:…",
+                "blobs": [ { "digest": "sha256:…", "size": 48213, "contentType": "text/html; charset=utf-8" } ] },
+  "approvedAt": "…", "approvedBy": User }
+```
+
+**What the Hub does not check.** `reviewDigest` is phase 5's SHA-256 over its own canonical
+serialisation of the approved artboards (`paper-design-cleanroom-spec.md:471`); the Hub cannot
+recompute it and records it as given. The manifest blob's contents (`design/manifest.json`) are
+phase 5's. An approval against a complete revision older than the head is **allowed**: it is shown
+as `superseded`, not refused (provenance contract §3.4, *"disagreement is shown, not resolved"*).
+
+Event `design.approved`.
+
+**`GET /v1/projects/{projectId}/design-approvals?canvasId=&branchRef=`** →
+`200 {"items":[DesignApproval],"next":…}`, newest first.
+
+**`GET /v1/design-approvals/{approvalId}`** → `200 DesignApproval`. Resolution by key is through
+`/v1/refs` (§7.5).
+
+### 7.8 Session → design links
+
+The shape provenance contract §3.2 reserved. A Develop session started from an approved design
+carries its brief key in `contextRef` like any other session; this link records the design.
+
+**`POST /v1/projects/{projectId}/session-links`**
+```json
+{ "designKey": "design:cv-…@11", "briefKey": "brief:bf-…@6",
+  "sessionId": "s-3f2a91c0", "branchRef": "refs/heads/evidence-upload" }
+```
+- `designKey` must have an approval in this project — else 422 `design_not_approved`.
+- `briefKey` is the key the control plane **stamped** into the session's `contextRef` (provenance
+  contract §2.4, P6) — it must resolve in this project, else 422 `key_unresolvable`. It may differ
+  from the approval's brief key; that difference is the point of recording both
+  (`prototype-fact-sheet.md:92`).
+- `sessionId` is the control plane's local id, `^[a-z]{1,4}-[0-9a-f]{8,32}$`. It means something
+  only on the creator's machine; teammates see it with `createdBy`.
+- A repeat of the same `(designKey, sessionId)` by the same user returns `200` and the existing
+  link.
+
+```jsonc
+// 201 — SessionLink
+{ "id": "ln-…", "projectId": "pj-…", "designKey": "design:cv-…@11", "briefKey": "brief:bf-…@6",
+  "sessionId": "s-3f2a91c0", "branchRef": "refs/heads/evidence-upload",
+  "createdAt": "…", "createdBy": User }
+```
+Event `session_link.created`.
+
+**`GET /v1/projects/{projectId}/session-links?designKey=&sessionId=`** →
+`200 {"items":[SessionLink],"next":…}`, newest first.
