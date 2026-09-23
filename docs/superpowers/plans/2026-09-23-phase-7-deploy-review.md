@@ -667,3 +667,86 @@ should call `ResolveProjectProductionBranch`, as the deploy and posture paths do
 a `production` mislabel (LIVE-CHECK step 5a counts the live project only). Nothing was compiled or
 run. This is plan text.
 
+
+## Fix batch b03 — C3 and I4 (2026-09-24)
+
+Both findings were re-checked against Panacea at `~/Projects/Panacea` (read only) before any edit.
+C3 holds as written: `resolveEnv` defaults `""` to `"production"` (`handlers/security_status.go:192-201`),
+`collectScansFromK8s` lists `tenantNamespaceForEnv(project, env)` (`:495`), which sends `""`, `prod`
+and `production` to the base namespace (`handlers/tier_store.go:106-113`), and keeps only ConfigMaps
+whose `panacea.io/env` matches (`:526-534`). The portal sends `env` only when non-empty
+(`backstage/packages/app/src/plugins/SecurityScanReview.tsx:437-440`). I4 holds as written
+(`clients/pipeline.go:609`, `:2351-2364`; `clients/kubernetes.go:5750`), with one citation
+corrected: `environmentForBranch` is at `pipeline.go:2195-2207`, not `:196-206`.
+
+### C3 — scans are read in the deployment's environment
+
+| Change | Where |
+|---|---|
+| `Scans(ctx, p, env, deploymentID)`, with the why | t01:78-84 |
+| `Deployment.Environment` notes that Panacea's production word is `prod` and that Scans takes it | t01:177 |
+| `Fake.SetScans(p, env, deploymentID, r)`, keyed by the exact env; unseeded → `KindNotFound` | t01:532-535 |
+| `Seeder.Scans(p, env, deploymentID, r)` | t01:561-563 |
+| Conformance row `ScansReadTheDeploymentsEnvironment` (kills the drop-env mutant over both implementations) | t01:588 |
+| Route row: `?env=&deployId=`, `env` set with `url.Values` when non-empty | t03:211 |
+| `panaceatest.Server.Scans`: a missing `env` (or `prod`/`production`) answers production's report | t03:296-305 |
+| `TestScansSendsTheEnvironment` (query shape; no `env=` when empty) | t03:330 |
+| Watcher step 5 calls `Scans(ctx, p, d.Environment, d.ID)` | t07:151-156 |
+| `TestScansReadWithTheDeploymentsEnvironment` | t07:212 |
+| Drill route `GET {P}/scans?environment=&deploymentId=`: `environment` required as a key, echoed in the body, and the empty-value note | t12:60-79 |
+| `TestScansPassTheEnvironment` | t12:128 |
+| TS `ScanReportView.environment`; `DeployApi.scans(projectId, environment, deploymentId)` | t13:189, t13:225-226 |
+| Test `scans send the environment` | t13:343 |
+| `ScanList` calls `api.scans(projectId, row.environment ?? "", row.deploymentId)` | t17:160-163 |
+| Test `scans read in the row's environment` | t17:220 |
+| `LIVE-CHECK` row 8 builds its query with `url.Values` and the latest deployment's `environment` | t20:284-301 |
+| §4 row 8 route shape and users | plan:385 |
+| Recorded as settled | plan:802-809 |
+
+### I4 — `Deployment.branch` is a label value
+
+| Change | Where |
+|---|---|
+| `Deployment.Branch` documented as a label value, never sent as a branch | t01:178-183 |
+| Settled in plan §12 (new subsection *Settled from source, no longer open*), with the `release/x` consequence closed | plan:787-801 |
+| Collision banner: *"Panacea records them only by label — … — not by their git names"*; never a link, never offered to Ship or Rebuild | t15:150-156 |
+| Test `collision banner words` asserts the label wording and no `<a>` or button | t15:182 |
+| Rebuild's comment cites I4, M23 and plan §12 | t10:87-88 |
+
+**Already done by b02 (no edit needed, checked):** `branchesSeen` is worded as run labels
+(t08:52, t08:187-196); t08's "unverified" point is settled at t08:253-261; Rebuild's
+`source.Branch` fallback was dropped in b02 round 2 R8 (t10:82-87, test t10:150), which closes
+M23. The review's line numbers t08:151-153 and :197-202 predate b02 and now point at rules 1a, 10 and 11.
+
+### Deviations from the review's "how to fix", declared
+
+- **The drill route requires `environment` as a key but allows an empty value.** A required key
+  stops a desktop caller from forgetting it (the C3 mutant one layer up). An empty value is legal
+  because a PipelineRun without the `panacea.io/environment` label reads back `""`
+  (`kubernetes.go:5681`, `:5751`); Panacea then answers production's report, as its own portal
+  does. Whether any live run lacks the label is unverified.
+- **`panaceatest` copies one Panacea rule** — `""`, `prod` and `production` are production — because
+  it is the rule the C3 mutant hides behind. The Fake copies nothing and keys by the exact string.
+- **Added beyond the review:** the watcher test (t07), the desktop client and scan-list tests
+  (t13, t17) and `LIVE-CHECK` row 8 (t20), because each restated the old two-argument call.
+
+### Mutants
+
+This batch changes plan text; no phase 7 code exists in the worktree
+(`control-plane/internal/deploy/` is absent), so no mutant was run. The plan now names the
+drop-env mutant at four layers: the connector (t03 `TestScansSendsTheEnvironment` and the
+conformance row over `panaceatest`), the watcher (t07), the drill route (t12) and the desktop
+(t13, t17). The two I expect most likely to survive, once code exists: sending `env=` with an
+empty value (killed by t03's *no `env` key* assertion), and the scan list sending `environmentRow`
+instead of `environment`. For a production row that is `production` for `prod`, which Panacea
+answers identically, and for a matched branch row the two are equal; it goes wrong only for an
+unmatched row (`environmentRow: null` → `""` → production). So it is killed only by t17's explicit
+`"prod"` assertion, and task 17's mutation step must run it.
+
+### Left open
+
+- Whether any live PipelineRun lacks `panacea.io/environment` (task 20 can count it).
+- `ReleaseRow.branch` mixes a run label (run rows) and a Hub `branchRef` (Hub rows) in one field
+  (t08:90). It is display-only and never compared (t15's `no branch comparisons` test), so it is
+  not a defect today; splitting it is a Minor, deferred as out of scope for C3 and I4.
+- Nothing was compiled or run. This is plan text.

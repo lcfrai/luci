@@ -282,14 +282,23 @@ func TestLiveBodiesMatchRecordedKeys(t *testing.T) {
 	// Rows 7 and 8 need a run. A deployment's id IS its PipelineRun name (clients/kubernetes.go:5743,
 	// `ID: pr.GetName()`), spelled "id" (models/models.go:666); deployId takes that name
 	// (handlers/security_status.go:211-214). A project that never shipped answers 404 (row 5).
+	// env is the deployment's own environment (json "environment,omitempty", models/models.go:681),
+	// sent when non-empty exactly as the connector sends it (task 03): without it Panacea reads
+	// production's namespace (security_status.go:192-201) and row 8 would compare the wrong
+	// environment's report (review C3).
 	if code, b := get(p + "/deploys/latest"); code == http.StatusOK {
 		var latest struct {
-			ID string `json:"id"`
+			ID          string `json:"id"`
+			Environment string `json:"environment"`
 		}
 		if json.Unmarshal(b, &latest) == nil && latest.ID != "" {
+			q := url.Values{"deployId": {latest.ID}}
+			if latest.Environment != "" {
+				q.Set("env", latest.Environment)
+			}
 			checks = append(checks,
 				check{p + "/pipelines/" + url.PathEscape(latest.ID), []string{"run-running.json", "run-failed.json"}},
-				check{p + "/security-status?deployId=" + url.QueryEscape(latest.ID), []string{"security-status.json"}})
+				check{p + "/security-status?" + q.Encode(), []string{"security-status.json"}})
 		}
 	} else {
 		t.Logf("deploys/latest answered %d: rows 7 and 8 are not compared", code)

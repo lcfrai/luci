@@ -294,8 +294,9 @@ matches a branch to a row by name. `EnvironmentFor` on a posture-only branch rea
 `env` as `KindUnavailable` (the empty-answer rule above).
 
 `Server.Scans` fills a table keyed by `(env, deployId)`, and `GET P/security-status` answers from
-it the way Panacea resolves the env (review C3): a request **without `env`**, or with `prod` or
-`production`, answers the report seeded under `prod` — `resolveEnv` defaults to `"production"`
+it the way Panacea resolves the env (review C3): a seed under `""`, `prod` or `production` is
+production's, and a request **without `env`**, or with `prod` or `production`, answers
+production's report — `resolveEnv` defaults to `"production"`
 (`handlers/security_status.go:192-201`) and `tenantNamespaceForEnv` sends all three to the base
 namespace (`handlers/tier_store.go:106-113`). Any other `env` is looked up exactly. This is the one
 place the server copies a Panacea rule, because it is the rule the C3 mutant hides behind: a
