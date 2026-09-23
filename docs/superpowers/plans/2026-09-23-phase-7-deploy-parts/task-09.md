@@ -189,7 +189,9 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
      and -). Rename the branch to ship it from the cockpit."* The check is the Hub's published
      rule, not Panacea's naming rule, so it is no fourth copy.
    - The reserve's `environment` is `env` **verbatim** (`prod` for a production branch, the same
-     label Panacea puts on the deployment, `pipeline.go:196-206`); rows are joined to it with
+     label Panacea puts on the deployment — `environmentForBranch`, `clients/pipeline.go:2195-2207`,
+     called at `:237`, which its comment says mirrors `mapBranchToEnvWithProd`, *"pinned by the
+     parity tests"*); rows are joined to it with
      `SameEnvironment`.
 5. **Reserve** — `Releases.Reserve(HubProjectID, {kind:"run", panaceaProject: <ref>, environment,
    branchRef: Branch.Ref, commit, briefId: null, designKey: DesignKey|null, sourceDeploymentId:

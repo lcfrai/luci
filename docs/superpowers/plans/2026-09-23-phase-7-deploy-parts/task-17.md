@@ -118,8 +118,14 @@ that drops the row closes the drawer; Escape and the ✕ close it. Opening anoth
 | **Why it is down** | `isCurrent`, and the row's environment is found | `DiagnosePanel` — open at once when `serving` is `{measured:true, ready:0}`, else behind **Show pods and events** |
 | **Log** | a run row with `deploymentId` | **Follow build log** → `LogPane` with `run-logs`; for `isCurrent` also **Follow readiness** → `readiness` |
 
-The row's environment is `view.environments.find(e => e.name === row.environment)` — by name,
-exact, never re-derived from the branch (task 08 rule 9).
+The row's environment is `view.environments.find(e => e.name === row.environmentRow)` — the row
+name the view already joined with `SameEnvironment` (task 08 rule 1), never `row.environment`
+and never re-derived from the branch. The drawer does no join of its own: a production
+deployment's `environment` is `prod` while its row is named `production` (`environmentForBranch`,
+`clients/pipeline.go:2195-2207`, called at `:237`; `projects.go:2116-2118`), so an exact compare with `row.environment` lost *Why it is
+down* and *Follow readiness* for every production release (review I8). `environmentRow == null`
+(an `unmatched` row) → neither block, and the Release table says *"Panacea lists no environment
+named `<row.environment>`."*
 
 **`PinManifest` — the rules, none merged** (provenance contract §4.5; task 15's pin states):
 
@@ -209,6 +215,8 @@ Panacea's diagnosis may consult its AI and then answers `source "rules+ai"`
 | `design key verbatim` | `designKey "design:cv-…@11"` → exactly that text in mono; the component source has no `split(` / `match(` on it | parsing a key outside its owner (P5) |
 | `scans read once` | mount → one `api.scans` call; 60 s of fake time → still one; **Try again** → two | a scan poll per open drawer |
 | `off is not a pass` | a scan with `status "SKIPPED"`, `mode "off"` → the unmeasured dot and the footnote; the DOM lacks *"pass"* for it | absence read as clean |
+| `prod row keeps its drill-ins` | `row {environment:"prod", environmentRow:"production", isCurrent:true}`, `view.environments` holds `production` serving `{measured:true, ready:0}` → *Why it is down* is open and **Follow readiness** is offered for `production` | `e.name === row.environment`, which found no row for any production release (review I8) |
+| `unmatched row has no drill-ins` | `environmentRow: null` → neither *Why it is down* nor **Follow readiness**, and the *"Panacea lists no environment named"* line | a drawer that guesses a row by name |
 | `diagnose only on press` | mount → `pods` and `events` once each, `diagnosis` zero; press **Diagnose** → one | an AI call on Panacea's side every time a drawer opens |
 | `one stream in the window` | open `run-logs r1`, then `readiness env-a` → the first handle's `onEnd("replaced")` once, its `AbortSignal` aborted, `currentDrillTarget()` is `env-a` | two live streams — a second clock (plan 7P-14) |
 | `onEnd exactly once` | `close()` twice, then an `end` frame → `onEnd` called once, with `"closed"` | a double "stream ended" line, or a leaked listener |

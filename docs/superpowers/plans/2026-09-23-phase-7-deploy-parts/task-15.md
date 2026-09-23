@@ -64,9 +64,20 @@ export function StaleBanner(props: { since: string | null; reason: { code: strin
 export function CollisionBanner(props: { env: EnvironmentView; branchName: string }): JSX.Element | null;
 ```
 
-**Which environment is "this branch's".** `environments.find(e => e.branch === branchName)`, exact
-(task 08 rule 9). None → the card's empty state. `unmatched` groups render in `EnvironmentList`
-under their raw names, never folded into a row.
+**Which environment is "this branch's".** The control plane's answer, never the desktop's:
+`view.selected.environment` (task 08 rule 1a), then `environments.find(e => e.name ===
+view.selected.environment)` — a lookup by the name the view itself returned, not a join. The
+desktop **never** compares `branchName` with `e.branch`, `e.name` or `branchesSeen`: Panacea's
+row label for `feat/x` is `feat-x` (`projects.go:2109-2118`), so any such comparison finds nothing
+for a branch with `/`, `_`, capitals or more than 20 characters (review b02, C2). Three states:
+- `selected.target == null` → the card's empty state reads *"Asking Panacea which environment
+  this branch deploys to."* (the watcher resolves it on its next cycle, and the cursor bump
+  re-renders; no timer here).
+- `selected.target` set, `selected.environment == null` → *"Not deployed yet. Panacea will
+  deploy this branch to `<target>`."* — Panacea's own name, shown before the first Ship.
+- both set → the card for that row.
+
+`unmatched` groups render in `EnvironmentList` under their raw names, never folded into a row.
 
 #### The three facts — words (from `prototype/phase-7-deploy.html:617-661`, kept where true)
 
@@ -113,12 +124,15 @@ which was true only while releases were per-laptop.
 - **Stale** (`view.stale`): *"Panacea has not answered since `<fetchedAt, absolute>`. Everything below
   is what it said then. Ship and rollback are off until it answers."* The whole lens body takes the
   `dim` treatment (opacity only).
-- **Collision** (`env.collision` and `env.branch !== branchName`, or `branchesSeen.length > 1`):
-  *"`<env>` is serving `<env.branch>`, not this branch. Panacea gives both branches one environment
-  name — it turns `/` and `_` into `-` and shortens names to 20 characters
-  (`handlers/projects.go:3814-3826`) — so each Ship replaces the other's release, and Panacea reports
-  no error."* — a fact from source, stated once; the cockpit does not predict it (never a fourth
-  copy of the rule).
+- **Collision** (`env.collision` on the selected row, i.e. `branchesSeen.length > 1`; review b02
+  removed `env.branch !== branchName`, which fired for every `/` branch because `env.branch` is
+  Panacea's label): *"`<env>` has been deployed from more than one branch: `<branchesSeen, joined>`,
+  as Panacea labels them. Panacea gives these branches one environment name — it turns `/` and `_`
+  into `-` and shortens names to 20 characters (`handlers/projects.go:3814-3826`) — so each Ship
+  replaces the other's release, and Panacea reports no error."* The banner does not say which
+  branch is serving now: the labels (`pipeline.go:609`) cannot be compared with this branch's name
+  without a copy of Panacea's rule. A fact from source, stated once; the cockpit does not predict it
+  (never a fourth copy of the rule).
 
 #### Tests to write first
 
@@ -136,6 +150,11 @@ which was true only while releases were per-laptop.
 | `table windows past 50` | 200 rows → fewer than 60 `role="row"` in the DOM; scrolling reveals later rows | 200 live rows re-rendering each tick |
 | `origin is the reserver` | a teammate's pinned release → their display name; `release: null` → *"outside any cockpit"* | the per-laptop "this cockpit" wording surviving OD-3 |
 | `collision banner words` | two branches seen → the banner with both names and the cited rule; one branch → none | a silent overwrite (brief R2) |
+| `slash branch finds its card` | `branchName "feat/x"`, `selected {target:"feat-x", environment:"feat-x"}`, a row `{name:"feat-x", branch:"feat-x", branchesSeen:["feat-x"]}` → the card for `feat-x`, and **no** collision banner | `e.branch === branchName`, which drew the empty state and a false collision for every `/` branch (review C2) |
+| `long branch finds its card` | `branchName "lane/7-deploy-connector-watcher"`, `selected.environment "lane-7-deploy-connec"`, that row → its card | a join that works only for 20 characters or fewer |
+| `production branch finds its card` | `branchName "main"`, `selected {target:"prod", environment:"production"}`, the row `production` → its card | an exact `target === e.name` compare in the desktop |
+| `never deployed names the target` | `selected {target:"feat-new", environment:null}` → *"Not deployed yet. Panacea will deploy this branch to `feat-new`."*; `target:null` → the asking sentence | a card that guesses, or says "never deployed" while Panacea is still being asked |
+| `no branch comparisons` | a source grep of `desktop/src/deploy/*.tsx`: no `=== branchName`, `!== branchName`, `.branch ===` or `.branch !==` | a later edit re-introducing the name join |
 | `drift guard` | `designsystem.test.ts` allows `var(--drift)` in `common.css`'s `dot-tone-drift` and nowhere else | drift colour leaking to decoration |
 
 #### Steps

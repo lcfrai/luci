@@ -84,7 +84,7 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   //   pending  — a confirmed Hub run release whose deployment has not appeared yet
   //   refused  — one of THIS user's releases abandoned in the last 24 h, with Panacea's sentence
   "deploymentId": "engagement-portal-build-x7k2p" | null,   // null for rollback and refused
-  "environment": "feat-evidence-upload" | null,     // the row's raw environment, verbatim ("prod" for a production deployment, pipeline.go:196-206)
+  "environment": "feat-evidence-upload" | null,     // the row's raw environment, verbatim ("prod" for a production deployment: environmentForBranch, clients/pipeline.go:2195-2207, called at :237)
   "environmentRow": "feat-evidence-upload" | null,  // the `name` of the environments[] row that `environment` joins by SameEnvironment ("production" for "prod"); null = the row sits under `unmatched`. The desktop looks environments up by THIS, never by `environment` (review I8)
   "branch": "feat-evidence-upload" | null,  // run rows: Panacea's run label (sanitizeLabelValue, pipeline.go:609); Hub rows: the release's branchRef without refs/heads/
   "commit": "4e7a91c0000000000000000000000000000000aa" | null,
