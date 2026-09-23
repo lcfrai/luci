@@ -955,3 +955,72 @@ worktree inspection's. `task-12.md:40` passes `contextwrite.Inspection` through,
 - `--icase-pathspecs` was probed on git 2.53.0 only. The git versions on the sandbox image and on
   other developers' machines were not checked. It is an old option, but the version that added it
   was not looked up.
+
+## Fix batch b04 (2026-09-24): I4, I13
+
+Commits: `2282e4d` (the parts and the plan), then this section and task 12's rule 5.
+
+**I4: every Discover call now has a budget, and each server budget sits below the desktop's.**
+The ordering rule, stated in `task-02.md:40-41` and `task-11.md:105`: model budget < route
+deadline < desktop `timeoutMs`.
+
+| Call | Model budget | Server deadline | Desktop `timeoutMs` |
+|---|---|---|---|
+| Session start (`Materialise`'s Hub read) | — | `HubBudget` 5 s | 10 s (`DEFAULT_TIMEOUT_MS`, `client.ts:33`) |
+| Every GET, and ops other than `propose_follow_up` | — | `Budgets.Default` 8 s | 10 s |
+| `apply` with `propose_follow_up` | `FollowUpBudget` 20 s | `Budgets.FollowUp` 28 s | 30 s |
+| `analyse` | `DraftBudget` 35 s | `Budgets.Analyse` 55 s | 60 s |
+| modelclient HTTP ceiling | `DefaultTimeout` 45 s (was 120 s) | — | below 60 s |
+
+| Fix | Where |
+|---|---|
+| 1. `Materialise` Hub read under 5 s; its expiry is `hub_unavailable` | `task-09.md:56-64` (`HubBudget`, `WithHubBudget`); `:107-115` (step 4); tests `:248` `TestABlackHoledHubIsARefusalWithinTheBudget`, `:249` `TestTheHubBudgetIsBelowTheDesktopSessionTimeout` |
+| 2. The client passes `timeoutMs` per call | `task-15.md:24-28` (the transport's `send` gains `call?.timeoutMs`); `:186-194` (`DISCOVER_FOLLOW_UP_TIMEOUT_MS = 30_000`, `DISCOVER_ANALYSE_TIMEOUT_MS = 60_000`); tests `:205-206` |
+| 3. Server model contexts shorter than the client's | `task-04.md:42-51` (`FollowUpBudget`), `:98` (step 2), test `:91`; `task-13.md:65-73` (`DraftBudget`), test `:115`; `task-02.md:34-41` (amendment 5), `:55` (`DefaultTimeout`), test `:125` |
+| 4. A non-routable `PANACEA_APP_HUB_URL` step | `task-23.md:68-94` (new step 10: black-hole pre-check, restart by PID, four calls each timed against the desktop's `--max-time`); old steps 10 and 11 are now `:95` and `:97` |
+| Beyond the review: route deadlines | `task-11.md:96` (error row), `:99-124` (`Budgets`), tests `:163-164`; `task-13.md:91-96` (analyse runs under `Budgets.Analyse`), test `:116`; `task-12.md:78-82` (rule 5), test `:104` |
+| Hub ask | `2026-09-23-phase-4-discover.md:497` (**HA4-10**) |
+
+**Where the review's fix was wrong on the facts, and what replaced it.**
+- *Fix 3 alone does not keep the follow-up or the draft off `timeout`.* `Apply` reads the Hub
+  before it calls the model (`task-08.md:76-83`, steps 2 and 3). A black-holed Hub holds that
+  read for about 31 s (§9.2), longer than the 30 s client budget, whatever the model's context
+  is. The root cause is that no route had a deadline. So every Discover route now runs under
+  `Budgets`, and an expired route deadline during a Hub call is 503 `upstream_unavailable`,
+  `upstream: "hub"`. The route classifies by its own `ctx.Err()`, not by the error type
+  `hubclient` returns. `task-12.md` rule 5 keeps `refs` at 200 with `unavailable` slots, as its
+  rule 1 already promised.
+- *"`Materialise` runs under a 5 s context" is narrowed to its Hub read (step 4).* Steps 1-3 and
+  5-7 are local git and disk. An expiry there would be misnamed `hub_unavailable`, which tells the
+  person to fix the wrong thing. The caller's own cancellation stays a plain error.
+- *`hubclient`'s `ctx` handling is not stated in §9.2* (`hub-contract.md:1337-1339` at hub
+  `2f84662`, read with `git show`). If `hubclient` ignores `ctx`, no caller budget can cut a
+  black-holed read short. That is Hub ask HA4-10, and task 23 step 10 is the live check.
+
+**I13: the model endpoint is never defaulted.**
+
+| Fix | Where |
+|---|---|
+| `DefaultBaseURL` deleted; `ErrNoBaseURL` | `task-02.md:23-33` (amendment 4, naming the old plan's `:299-302`, `:331`, `:389-391`); `:53` and `:59` (interface block); `:69` (`BaseURL` mandatory); test `:124` `TestAKeyWithoutABaseURLIsModelOff`; `:7`, `:133` ("five amendments"); `:19-20` (amendment 3 names `ErrNoBaseURL`) |
+| A key without a base URL is model off, with a log line naming both variables | `task-14.md:24` (no default); `:81` (the fallback row and its exact `Warn` sentence, the key never logged); test `:87` |
+| Security section sentence | `2026-09-23-phase-4-discover.md:266-275` (S5, which b01 reserved); `:207` (G4 points to S5) |
+| Restatements | `task-04.md:30` (`AssistModelOff`); `task-13.md:86` (the `note` names both variables), `:114`; `task-18.md:90` (state 6's sentence names both variables) |
+
+**Restatements checked.** A grep of the plan and all parts for `api.anthropic`, `DefaultBaseURL`,
+`120 s`, `120 *`, "three amendments", `MODEL_API_KEY`, `MODEL_BASE_URL`, `20 s`, `10 s`,
+`DEFAULT_TIMEOUT`, `timeoutMs`, `"timeout"`, "Step 10", "Step 11" and "task 23 step" finds only
+the lines above. The remaining `api.anthropic.com` mentions are the deletion notes themselves.
+Nothing outside task 23 cited its old step numbers 10 or 11.
+
+**Declared, not the owner's.** The budget values (5, 8, 28, 55, 20, 35 and 45 s) are this batch's
+choice, one per call. Each sits below the next layer and leaves room for the Hub work around a
+model call. No owner question is raised for them.
+
+**Still unverified:**
+- No Go or TypeScript was compiled or run. This batch changes plan documents only.
+- That `hubclient` honours `ctx` (HA4-10). That `10.255.255.1` black-holes on the corporate
+  network: task 23 step 10 sub-step 1 checks it and falls back to `192.0.2.1`.
+- That Phase 2's session start fits its non-Hub work into the 5 s `HubBudget` leaves inside the
+  desktop's 10 s. Sandbox creation time was not measured in this batch.
+- The follow-up budget assumes `Apply`'s Hub reads before the model take under 8 s on a healthy
+  Hub. No latency figure for the Hub exists yet.

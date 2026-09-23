@@ -75,6 +75,11 @@ for lists — so the desktop's type has no optional fields.
 3. `materialisations` lists the branch's worktrees through the scanner and calls
    `contextwrite.Materialiser.Inspect` for each. It **reads files and writes nothing**.
 4. Criterion states come from `Config.Evaluate` (phase 3's seam, S4-P3.4); nil → all `open`.
+5. **Every route here runs under task 11's `Budgets.Default` (8 s; review I4)**, below the
+   desktop's 10 s. For the head readings, the deadline's expiry is task 11's route-deadline row
+   (503 `upstream_unavailable`). For `refs`, it is "unreachable" in rule 1's sense: the cache
+   answers what it can, the rest are `unavailable`, and the response is still 200, so a
+   black-holed Hub never turns the chip into the desktop's `timeout`.
 
 **The route audit** gains four lines:
 
@@ -96,6 +101,7 @@ for lists — so the desktop's type has no optional fields.
 | `TestRefsJSONHasEveryFieldInEverySlot` | each slot's JSON object has the same key set as the golden `Ref` of task 06 | optional fields the desktop has to guard |
 | `TestHeadReadingIsNeverCached` | two reads with the head moved between them return different revisions | a stale `DefinitionOfDone` |
 | `TestHeadReadingOfAnUnreachableHubIs503` | `upstream_unavailable`, `upstream: "hub"` | a head served from memory |
+| `TestRefsAgainstAHubThatNeverAnswersIs200WithinTheBudget` | a fake Hub that blocks until `ctx.Done()`, `Budgets{Default: 200ms}`, one key cached and one not → 200 within 1 s, the cached slot `resolved`, the other `unavailable` | a `refs` with no deadline (the desktop's `timeout` on every chip), or a deadline expiry mapped to 503 when rule 1 promises 200 (review I4) |
 | `TestMaterialisationsWritesNothing` | every worktree's file bytes and mtimes are unchanged after the call | a GET with a side effect (§10a) |
 | `TestMaterialisationsListsTheBranchsWorktreesOnly` | two branches, three worktrees: only this branch's two | a cross-branch leak into "who inherits this" |
 
