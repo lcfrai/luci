@@ -321,5 +321,92 @@ desktop for 5 s after the press, with the consequence printed beside the button 
 pressed (B3). Undo cancels before any request leaves. After 5 s the request is sent and the row
 shows what happened. Cancel of a running pipeline is itself the undo of Ship after that point.
 
+---
+
+## 4. The Panacea surface phase 7 uses — every route re-read in `routes/routes.go`
+
+Guards are the chain wrappers at `routes.go:3226-3333`. **Envelopes differ per route**, and the
+connector decodes each exactly: `bare` = the object itself; `list` = `models.ListResponse
+{items,totalCount}` (`models/models.go:2153`); `data` = `models.APIResponse{data,error,message}`
+(`:2147-2151`).
+
+| # | Method, path (`/api/v1/projects/{name}` = `P`) | `routes.go` | Guard | Answer | Used by task |
+|---|---|---|---|---|---|
+| 1 | `GET /api/v1/version` | 630 | none | bare `{"version"}` | 02 |
+| 2 | `GET /api/v1/me` | 3038 | authed | bare `{username,email,groups,isAdmin,role,approved}` (`handlers/me.go:48-59`) | 03, 05 |
+| 3 | `GET /api/v1/projects` | 1018 | authed | list of `Project` | 03, 06 |
+| 4 | `GET P/environments` | 1126 | member | list of rows `{name,branch,displayName,primary,subdomain,status,lastDeploy,replicas?,previewData?}` (`projects.go:2116-2152`) | 03, 07 |
+| 5 | `GET P/deploys/latest` | 1025 | member | bare `Deployment`, newest **across all environments**; `404` when none (`projects.go:1521-1546`) | 03, 07 |
+| 6 | `GET P/deployments` | 1024 | member | list of `Deployment`, unpaginated, enriched (`projects.go:1227-1253`) | 03, 07 |
+| 7 | `GET P/pipelines/{run}` | 1290 | member | data `PipelineRunStatus` (`projects.go:3576-3612`) | 03, 07 |
+| 8 | `GET P/security-status?deployId=` | 1043 | member | data `SecurityStatus` (`models/security.go:205`; `handlers/security_status.go:204-254`); `deployId` is a PipelineRun name (`:211-214`) | 03, 12 |
+| 9 | `GET P/environments/{env}/pods` · `/events` · `/diagnose` | 1148, 1150, 1151 | member | passed through, shape not interpreted | 12 |
+| 10 | `GET P/pipelines/{run}/logs/stream` · `P/environments/{env}/readiness/stream` | 2283, 2286 | member | SSE, relayed byte for byte | 12 |
+| 11 | `POST P/deploy` | 1286 | developer + `RequireSectionWritable("service")` | `202` data `{project,status,pipelineRun}` (`projects.go:2997-3005`) | 04, 09 |
+| 12 | `POST P/pipelines/{run}/cancel` | 1291 | developer | `200` data `{status: "cancelled" \| "already_completed", message}` (`projects.go:3668-3687`) | 04, 10 |
+| 13 | `POST P/deployments/{id}/rollback` | 1026 | developer | `200` data `Deployment` with `rollbackWarmth`, `coldStartSeconds`; `404`, `400` (no image), `409` (image pruned) (`projects.go:1547-1640`) | 04, 10 |
+| 14 | `GET` / `PUT P/branches/{branch}/auto-deploy` | 1308, 1309 | **owner** | data `{branch,enabled,projectDefault,effective,isProductionBranch}`; `409` when the branch has no environment (`projects.go:4114-4147`); PUT body `{"enabled": bool}` (`:4160-4167`) | 04, 11 |
+| 15 | `GET` / `PUT P/branches/{branch}/access` | 1430, 1431 | member / developer | data `{branch,env,accessMode,ipWhitelist,passwordSet,bypassTokenCount}` (`handlers/project_security.go:668-677`); PUT `{accessMode, password?, bypassTokens?, rotateBypassTokens?}` (`:681-691`) | 04, 11 |
+| 16 | `GET` / `POST P/access` · `DELETE P/access/{group}` | 1407-1409 | member / **owner** / **owner** | list of `AccessBinding{group,role,grantee?}` (`models/models.go:2004-2015`); POST `{group,role}` → `201` (`handlers/access.go:17-61`) | 04, 11 |
+| 17 | `PUT` / `DELETE P/branches/{branch}/url-prefix` | 1313, 1314 | **owner** | PUT `{"prefix"}` → data `{branch,prefix,host}`; `409` taken (`projects.go:4263-4373`) | 04, 11 |
+
+**Not used, deliberately:** `P/environments/{env}/redeploy` (7P-3), `P/promote`, the branch
+lifecycle verbs (archive, pause, delete, set-primary), `POST /api/v1/me/api-keys` (a token cannot
+mint a token), every admin route, and the ten scan-mode overrides on `TriggerDeployOptions`
+(`models/models.go:2342-2383`, closing before `PipelineRunStatus` at `:2384`; ten, as the scope brief corrected the survey's eleven).
+
+**Two facts the lens must respect**, both from the handlers above:
+- **`deploys/latest` is project-wide, not per environment.** The per-environment header comes from
+  `environments` (row 4) plus the newest `deployments` row per environment, which alone carries
+  `liveReadyReplicas` (`models/models.go:709-723`, *"Only the NEWEST deploy per environment carries
+  it"*).
+- **`POST P/access` now shares a project with a person.** `group` carries a username or email that
+  `AddProjectAccess` resolves to a Keycloak user (`clients/keycloak.go:180-192`) and adds to
+  `project-<name>-<role>`. The role vocabulary on the wire is the group suffix: `viewer`, `editor`
+  (developer) and `owner` (`models/project_groups.go:9-12`). The lens labels `editor` *Developer*.
+  **Unverified:** whether `developer` is accepted as a synonym on POST; task 04 sends `editor`.
+
+---
+
+## 5. Global constraints
+
+Everything in phase 2's Global Constraints (`2026-09-18-phase-2-backend-and-cockpit.md:42-60`)
+holds. In particular:
+
+- **`go test ./...` is invalid at the workspace root.** Run
+  `go test ./control-plane/... -race -count=1` (and `./sandboxd/...` when a task touches it).
+- `go 1.23` stays in `go.work` and `control-plane/go.mod`. **Phase 7 adds no module requirement**;
+  check `git diff control-plane/go.mod` is empty before every commit.
+- Desktop: `cd desktop && npx vitest run` and `npx tsc --noEmit`, both green.
+- Every shell command through `~/.claude/tools/claudezsh/claudezsh`. Commit by pathspec:
+  `git commit -F <file> -- <paths>`; a new file is `git add <path>` first. Never
+  `add -A/-u/.`, stash, reset, checkout, switch, rebase, merge, amend or push.
+- Every commit message ends with exactly:
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`
+
+**What never changes, in every task of this phase:**
+
+1. **Agent CLIs are never modified, wrapped or parsed; nothing derives meaning from PTY bytes.**
+   Phase 7 reads no transcript, so OD-8's adapter rule does not arise. Session attribution (task 18)
+   reads **git trailers**, which phase 3's hook writes into commits.
+2. **Never pool across users.** The `pnc_` token is the signed-in user's own; one per machine user;
+   never sent to the Hub, a sandbox, a log line or the renderer.
+3. **No secret in source.** Configuration is `PANACEA_APP_*` (§6, task 05). No default Panacea
+   address is compiled in.
+4. **Loopback only.** Phase 7 adds routes to the existing listener and opens no listener of its own.
+5. **No `GET` changes state** (phase 2 contract §10a). Every phase 7 `GET` is added to
+   `catalogReadOnlyRoutes` in `control-plane/internal/api/routes_audit_test.go` with its reason. The
+   SSE relays are reads.
+6. **No Panacea source copied** (OD-13). DTOs are re-declared with only the fields used, each with
+   the Panacea file and line it mirrors.
+7. **One clock in the desktop.** No new `setInterval`, no per-row `useEffect` fetch (P8), no spinner
+   (DESIGN-SYSTEM.md "Designing for many live processes").
+8. **Provenance prohibitions P1–P13** (provenance contract §5) — in particular P1 (never render a
+   release from the head), P2 (never pin by observation), P4 (never copy brief text into a store),
+   P5 (never parse a key outside `provenance`), P7 (no second-call link) and P9 (never hide an
+   absent pin).
+9. **Build status, serving status and scans are three facts**, always drawn separately. A `nil`
+   ready count says nothing; `0` says down.
+
 
 
