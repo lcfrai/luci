@@ -97,11 +97,23 @@ variable "ci_agent_allowed_http_fqdns" {
 }
 variable "source_cidrs" {
   type        = list(string)
-  description = "Addresses allowed out: the VNet range (nodes SNAT pod traffic to their own address under Overlay)."
+  description = "Addresses allowed out: the VNet range (nodes SNAT pod traffic to their own address under Overlay). Because of that SNAT the firewall cannot tell a sandbox from its node: every rule here is open to both (review I10, Q1)."
+}
+variable "acr_login_server" {
+  type        = string
+  description = "modules/registry login_server (<name>.azurecr.io), allowlisted exactly. Never *.azurecr.io: that matches every other tenant's registry (review I10)."
+  validation {
+    condition     = !startswith(var.acr_login_server, "*") && endswith(var.acr_login_server, ".azurecr.io")
+    error_message = "acr_login_server must be our registry's exact login server, not a wildcard."
+  }
 }
 variable "acr_data_endpoints" {
   type        = list(string)
-  description = "modules/registry data_endpoint_host_names, allowlisted instead of *.blob.core.windows.net."
+  description = "modules/registry data_endpoint_host_names (<name>.<region>.data.azurecr.io), allowlisted exactly instead of *.blob.core.windows.net or *.data.azurecr.io."
+  validation {
+    condition     = alltrue([for h in var.acr_data_endpoints : !startswith(h, "*")])
+    error_message = "acr_data_endpoints must be exact host names: *.data.azurecr.io admits any tenant's registry data endpoint (review I10)."
+  }
 }
 variable "agent_allowed_fqdns" {
   type        = list(string)
@@ -145,14 +157,25 @@ Resources: a Standard static `azurerm_public_ip.firewall`; `azurerm_firewall_pol
 one `azurerm_firewall_policy_rule_collection_group` with, in priority order:
 1. network rules — UDP 123 to `*` (NTP), UDP/TCP 53 to `168.63.129.16` only;
 2. application rules — `AzureKubernetesService` FQDN tag on 443 (AKS's own required egress),
-   `var.acr_data_endpoints` + `*.azurecr.io` login server on 443, Entra
-   (`login.microsoftonline.com`, `graph.microsoft.com`) on 443;
+   **exactly** `var.acr_login_server` + `var.acr_data_endpoints` on 443 (the ACR rule: our
+   registry's login server and data endpoints, never `*.azurecr.io`, which admits every other
+   tenant's registry, review I10), Entra (`login.microsoftonline.com`, `graph.microsoft.com`) on 443;
 3. application rules — **`var.agent_allowed_fqdns` on 443, from `var.source_cidrs`**;
 4. application rules — **`var.ci_agent_allowed_fqdns` on 443, from `var.ci_agent_source_cidrs`
    only** (review C2: the CI pool's agents in `snet-agents`); and, in the same collection,
    **`var.ci_agent_allowed_http_fqdns` on `Http:80`, from `var.ci_agent_source_cidrs` only**
    (re-review M4: Ubuntu's archive for apt);
 5. nothing else: the policy's default is deny.
+
+**What this allowlist is, and is not (review I10, Q1).** Under CNI Overlay a sandbox pod's traffic
+leaves as its node's address, so `source_cidrs` (the VNet) cannot tell a sandbox from a node. A
+sandbox therefore gets every rule meant for nodes: rule 2's FQDN tag (which admits
+`management.azure.com`, training knowledge of AKS's required egress, UNVERIFIED), Entra and the
+registry. And rule 3's `github.com` and `*.githubusercontent.com` accept arbitrary uploads. The
+firewall limits **where** agents go; it does not stop a determined agent sending data out. Real
+per-sandbox FQDN control needs Cilium FQDN policy keyed on pod identity: AKS Advanced Container
+Networking's `security_enabled` (Q1's third option). That it enforces per-pod FQDN rules on the Kata
+pool, and that it meets the classification's egress control, is **UNVERIFIED** and not built here.
 
 And `azurerm_route_table.egress` (`bgp_route_propagation_enabled = false`, one route `0.0.0.0/0`
 → `VirtualAppliance` at the firewall's private IP) with one `azurerm_subnet_route_table_association.this`
@@ -401,8 +424,10 @@ simply never gets that far.
 - `module "network"`, `"observability"`, `"registry"`, `"keyvault"`, `"aks"` with the variables
   above; `module "egress_firewall"` with `count = var.egress_mode == "firewall" ? 1 : 0`,
   `routed_subnet_ids = module.network.egress_subnet_ids` (one source for both modes: the four
-  subnets nat mode NATs are the four firewall mode routes) and
-  `ci_agent_source_cidrs = [module.network.subnet_cidrs.agents]`.
+  subnets nat mode NATs are the four firewall mode routes),
+  `ci_agent_source_cidrs = [module.network.subnet_cidrs.agents]`,
+  `acr_login_server = module.registry.login_server` (exactly; review I10) and
+  `acr_data_endpoints = module.registry.data_endpoint_host_names` (task 05 `:72-75`).
   The AKS module gets `outbound_type = var.egress_mode == "nat" ? "userAssignedNATGateway" :
   "userDefinedRouting"` and `authorized_ip_ranges = concat(var.api_authorized_ip_ranges,
   ["${var.egress_mode == "nat" ? module.network.nat_public_ip : module.egress_firewall[0].egress_public_ip}/32"])`
@@ -516,21 +541,26 @@ against someone else's domain.
 | `ci_agents_get_their_allowlist_from_their_subnet_only` | the CI rule's `destination_fqdns == var.ci_agent_allowed_fqdns`, HTTPS 443 only, `source_addresses == var.ci_agent_source_cidrs`; the CI HTTP rule's `destination_fqdns == var.ci_agent_allowed_http_fqdns`, `Http:80` only, the same source; the coding-agent rule does not contain `management.azure.com` | the CI list granted to the whole VNet, so a sandbox can reach Azure DevOps, the `*.queue.core.windows.net` wildcard, GitHub and the Terraform and Helm registries. (Re-review M5: it does **not** by itself keep Azure Resource Manager from a sandbox. Rule 2's `AzureKubernetesService` FQDN tag already admits `management.azure.com` from the nodes, and a sandbox pod leaves as its node's address — training knowledge of AKS's required egress, UNVERIFIED. What keeps ARM from a sandbox is that it holds no Azure credential: task 14's pod mounts no token, and IMDS is denied by task 11's `egress-internet`.) |
 | `ci_http_takes_exact_hosts_only` | `ci_agent_allowed_http_fqdns = ["*.ubuntu.com"]` → `expect_failures = [var.ci_agent_allowed_http_fqdns]` | a wildcard allowed out in the clear (re-review M4) |
 | `acr_is_allowed_by_data_endpoint_not_blob_wildcard` | the ACR rule's FQDNs contain the data endpoints and no `*.blob.core.windows.net` | the wildcard that lets a sandbox exfiltrate to any storage account |
+| `acr_rule_names_our_registry_exactly` | with `acr_login_server = "acrpanaceaappdevk7q2.azurecr.io"` (task 05 `:79`'s name): the ACR rule's `destination_fqdns` contains that name, and `alltrue([for f in <the ACR rule's destination_fqdns> : !startswith(f, "*")])` | `*.azurecr.io` (every tenant's registry, and with it `<name>.<region>.data.azurecr.io`) put back in the rule beside the exact name (review I10) |
+| `wildcard_acr_login_server_is_rejected` | its own `run`: `acr_login_server = "*.azurecr.io"` → `expect_failures = [var.acr_login_server]` | the validation removed, so a caller can pass the wildcard in (review I10) |
 | `agents_get_exactly_the_allowlist` | the agent rule's `destination_fqdns == var.agent_allowed_fqdns` and its protocol is HTTPS 443 only | an allow-all application rule |
 | `dns_goes_only_to_azure_dns` | the DNS network rule's destination is `["168.63.129.16"]` | DNS to `*`, a classic tunnel |
 
 `stacks/foundation/tests/foundation.tftest.hcl` (run by `validate.sh` once with `dev.tfvars` and once
-with `prod.tfvars`; supplies `cluster_admin_group_object_ids` with a placeholder GUID. The stack
-takes no pipeline identity's object id, because it grants none, plan re-review I-2):
+with `prod.tfvars`; its file-level `variables` block holds **only** `cluster_admin_group_object_ids`,
+a placeholder GUID no tfvars sets (guard G10, review I1: a file-level key overrides `-var-file`).
+The stack takes no pipeline identity's object id, because it grants none, plan re-review I-2).
+Every run below that depends on an environment-specific value pins it in its own `variables`
+block, so it means the same under either pass:
 
 | Run | Asserts | Mutant it kills |
 |---|---|---|
-| `tfvars_plan_against_mocks` | `command = plan` succeeds with the file's values | a committed tfvars that does not plan |
-| `overlapping_pod_range_fails_the_plan` | `aks_network.pod_cidr = "10.40.128.0/17"` → `expect_failures = [terraform_data.invariants]` | I2 written as a `check` (warning only) |
-| `dns_ip_outside_service_range_fails` | `dns_service_ip = "172.17.0.10"` → `expect_failures` | I3 dropped |
+| `committed_tfvars_plan` | `command = plan` succeeds with the `-var-file`'s values; the run sets no key a tfvars sets, so the prod pass plans `prod.tfvars` (`api_private = true`) untouched | a committed tfvars that does not plan. A file-level key that makes the prod pass a dev pass is guard G10's to kill; this run cannot see which pass it is in |
+| `overlapping_pod_range_fails_the_plan` | pins `vnet_cidr = "10.40.0.0/16"` and the whole `aks_network` object with `pod_cidr = "10.40.128.0/17"` (prod's `vnet_cidr` differs, so without the pin the prod pass would not overlap) → `expect_failures = [terraform_data.invariants]` | I2 written as a `check` (warning only) |
+| `dns_ip_outside_service_range_fails` | pins the whole `aks_network` object with `service_cidr = "172.16.0.0/16"`, `dns_service_ip = "172.17.0.10"` → `expect_failures` | I3 dropped |
 | `non_australian_region_fails` | `location = "eastus"` → `expect_failures` | I1 dropped |
 | `prod_must_be_private` | `environment = "prod"`, `api_private = false` → `expect_failures` | I5 dropped |
-| `nat_mode_allowlists_its_own_address_on_the_api` | `command = apply` with `override_resource` giving the NAT IP `20.0.0.1` → the AKS module's authorised ranges include `20.0.0.1/32` | the in-VNet pool locked out of its own cluster |
+| `nat_mode_allowlists_its_own_address_on_the_api` | the run pins `environment = "dev"`, `api_private = false`, `egress_mode = "nat"` (under `prod.tfvars`, `api_private = true` leaves no authorised ranges, and `api_private = false` alone trips I5; review I1), `command = apply` with `override_resource` giving the NAT IP `20.0.0.1` → the AKS module's authorised ranges include `20.0.0.1/32` | the in-VNet pool locked out of its own cluster |
 | `firewall_mode_allowlists_its_own_address_on_the_api` | the run pins `environment = "dev"`, `api_private = false`, `egress_mode = "firewall"` (so it means the same under either tfvars file: a private cluster has no authorised ranges, review I1/I5), `command = apply` with `override_resource` giving the firewall's public IP `20.0.0.2` → the authorised ranges include `20.0.0.2/32` | the same lock-out in firewall mode, where the agents egress through the firewall, not a NAT |
 | `agents_egress_in_nat_mode` | a `run` block pinning `egress_mode = "nat"`: `module.network.egress_subnet_ids` has key `agents` (task 03's `nat_mode_puts_nat_on_every_egress_subnet` pins one NAT association per key) | nat mode stranding the CI pool (C2) |
 | `agents_egress_in_firewall_mode` | a second `run` block pinning `egress_mode = "firewall"` (and `environment = "dev"`, `api_private = false`, as the authorised-ranges run): `module.egress_firewall[0].routed_subnet_keys == ["agents", "apps", "sandbox", "system"]` | the two modes drifting apart, so firewall mode strands the CI pool (C2). Re-review M5: one row was two `run` blocks in one; each `egress_mode` needs its own |
@@ -546,7 +576,7 @@ run) move with the grants to task 30's `grant-pipeline-roles_test.sh`.
 
 #### Steps
 
-- [ ] **Step 1:** `modules/egress-firewall`: variables, tests, resources, outputs — its seven runs pass.
+- [ ] **Step 1:** `modules/egress-firewall`: variables, tests, resources, outputs — its nine runs pass.
 - [ ] **Step 2:** The stack's variables, the invariants and the test file; the invariant runs pass
   before any module is called (the preconditions need no module).
 - [ ] **Step 3:** Module calls, `edge.tf`, `grants.tf`, outputs; the remaining runs pass.
@@ -560,7 +590,7 @@ bash infra/scripts/validate.sh infra/terraform/modules/egress-firewall infra/ter
 # validate: OK   infra/terraform/modules/egress-firewall
 # validate: OK   infra/terraform/stacks/foundation        (tests pass for dev.tfvars and prod.tfvars)
 # validate: 2 ok, 0 failed
-bash infra/scripts/guards.sh       # guards: 9 of 9 passed
+bash infra/scripts/guards.sh       # guards: 10 of 10 passed
 ```
 
 This stack's tests plan every module; allow several minutes and run it in the background.
@@ -576,3 +606,7 @@ This stack's tests plan every module; allow several minutes and run it in the ba
 - That `1.33` is a supported AKS minor on the day of first apply; the runbook (task 31) checks
   `az aks get-versions` first.
 - That the DNS zone resolves: delegation from the parent is an owner input.
+- That firewall mode is an exfiltration control. It limits where agents go; under Overlay SNAT it
+  cannot tell a sandbox from a node, and allowlisted hosts accept uploads (review I10, Q1).
+  Per-sandbox FQDN control needs Cilium FQDN policy on pod identity (Advanced Container
+  Networking), **UNVERIFIED** and not built here.

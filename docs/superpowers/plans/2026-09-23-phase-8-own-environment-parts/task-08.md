@@ -250,7 +250,8 @@ standby_zone = "2" }`. `prod.tfvars`: `GP_Standard_D2ds_v5`, retention 35,
 | `hub_database_exists_by_default` | one database named `hub` | the Hub starting against no database |
 
 `stacks/data/tests/data.tftest.hcl` (with `override_data` giving `data.terraform_remote_state.foundation`
-the outputs task 07 declares): `tfvars_plan_against_mocks` for each tfvars file; and
+the outputs task 07 declares): `committed_tfvars_plan` for each tfvars file (no file-level or
+run-level key that a tfvars sets, guard G10, review I1); and
 `reads_the_foundation_it_is_given`: the module's `private_endpoint_subnet_id` equals the mocked
 `subnet_ids.private_endpoints` (kills a hard-coded subnet name).
 
@@ -271,7 +272,7 @@ bash infra/scripts/validate.sh infra/terraform/modules/postgres infra/terraform/
 # validate: OK   infra/terraform/modules/postgres
 # validate: OK   infra/terraform/stacks/data
 # validate: 2 ok, 0 failed
-bash infra/scripts/guards.sh      # guards: 9 of 9 passed  (G8: no password attribute)
+bash infra/scripts/guards.sh      # guards: 10 of 10 passed  (G8: no password attribute)
 grep -rn "azurerm_management_lock" infra/terraform/modules/postgres infra/terraform/stacks/data > lock.out; echo "exit=$?"
 # exit=1 and lock.out empty: prod's lock is the owner's (task 31 §6a, plan re-review I-4)
 ```

@@ -217,10 +217,13 @@ names, not by the script.
 | `reordering_grants_changes_nothing` | two runs with the same two grants in opposite order plan the same instance keys | `count` keyed by index |
 | `bad_namespace_is_rejected` | `namespace = "Panacea_Hub"` → `expect_failures` | an unvalidated name |
 
-`stacks/workloads/tests/workloads.tftest.hcl` (`override_data` for both remote states):
+`stacks/workloads/tests/workloads.tftest.hcl` (`override_data` for both remote states; the
+file-level `variables` block holds no key a tfvars sets, such as `hub_key_vault_access`, guard G10,
+review I1):
 
 | Run | Asserts | Mutant it kills |
 |---|---|---|
+| `committed_tfvars_plan` | `command = plan` with no run-level key a tfvars sets, once per tfvars pass | a committed tfvars that does not plan |
 | `cert_manager_can_write_only_its_zone` | cert-manager's one grant is `DNS Zone Contributor` with `scope == dns_zone_id` | Contributor on the resource group |
 | `hub_has_no_azure_role_by_default` | `hub_key_vault_access = false` → the hub module has zero role assignments | a speculative Key Vault grant |
 | `hub_vault_grant_is_secrets_user_on_the_vault` | `true` → exactly `Key Vault Secrets User` on `key_vault_id` | Key Vault Administrator |

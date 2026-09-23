@@ -20,10 +20,10 @@ runs it per directory, in the background when a directory has many runs.
 - `infra/terraform/kata.tf`, `providers.tf`, `variables.tf`, `dev.tfvars`, `.terraform.lock.hcl` — deleted with `git rm` (the pool is re-written in `modules/aks`, task 06)
 - `infra/terraform/README.md` — the stack order, the rules, the commands (new)
 - `infra/scripts/validate.sh` — fmt, init, validate, test for one directory or all (new)
-- `infra/scripts/guards.sh` — the nine repository rules as named checks (new)
+- `infra/scripts/guards.sh` — the ten repository rules as named checks (new)
 - `infra/scripts/guards_test.sh` — one fixture tree per rule, each a mutant guards.sh must kill (new)
 - `.gitattributes` — `eol=lf` for `*.tf`, `*.tfvars`, `*.hcl`, `*.tftest.hcl`, `*.sh`, `*.yaml`, `*.yml`, `*.tpl` (new)
-- `.gitignore` — adds `*.tfplan`, `crash*.log`, `infra/terraform/modules/**/.terraform.lock.hcl` (modify)
+- `.gitignore` — adds `*.tfplan`, `crash*.log`, `infra/terraform/modules/**/.terraform.lock.hcl`, `*_override.tf`, `*_override.tf.json` (modify; the override lines keep runbook §2's local-backend file out of git, review I2)
 
 #### The layout (every later task writes into exactly this)
 
@@ -61,6 +61,17 @@ earlier stack never reads a later one.
 #        stacks:  terraform test -no-color -var-file=<env>.tfvars, once per <env>.tfvars in the
 #                 stack, so every committed tfvars file is proven to plan against mocks. The
 #                 test files supply only what tfvars may not hold (ids, as TF_VAR_* would).
+#                 A file-level `variables` block in a .tftest.hcl OVERRIDES -var-file
+#                 (Terraform 1.15.8 probe, review I1), so guards.sh G10 forbids a file-level
+#                 key that any <env>.tfvars in the stack sets; a run that needs an
+#                 environment-specific value sets it in that run's own `variables` block.
+#                 Run-level values override -var-file too (b04 probe, Terraform 1.15.8: a
+#                 run pinning "dev" saw "dev" under a prod -var-file; a run with no pin and
+#                 no file-level key saw "prod"), so the proof rests on each stack's
+#                 `committed_tfvars_plan` run: `command = plan`, and no run-level key that a
+#                 tfvars sets, so the dev pass plans dev.tfvars and the prod pass plans
+#                 prod.tfvars, each untouched. That run cannot tell which pass it is in, so
+#                 G10, not the run, is what kills a file-level override.
 #
 # Output, one line per directory:   validate: OK   <dir>
 #                                   validate: FAIL <dir> (<step>)
@@ -79,10 +90,10 @@ earlier stack never reads a later one.
 set -euo pipefail
 ```
 
-#### `guards.sh` — the nine rules
+#### `guards.sh` — the ten rules
 
 Each check prints `guard G<n>: ok` or `guard G<n>: FAIL <path>: <why>`; the last line is
-`guards: <k> of 9 passed`; exit status 0 iff k = 9. Paths are searched under `infra/` only.
+`guards: <k> of 10 passed`; exit status 0 iff k = 10. Paths are searched under `infra/` only.
 
 **These guards are hygiene, not a security boundary** (review C3). They run from the branch being
 built, so a pull request can edit or delete them. They catch mistakes in reviewed code. What stops
@@ -91,7 +102,7 @@ control on the write connections (task 30, and the plan's "Deploy identities" ta
 
 | Id | Rule | Why |
 |---|---|---|
-| G1 | No `terraform.tfvars` and no `*.auto.tfvars` anywhere | auto-loaded tfvars is how a bare `apply` hit Panacea's production (survey §1.1, `:46-51`) |
+| G1 | No `terraform.tfvars` and no `*.auto.tfvars` anywhere, and no `*_override.tf` / `*_override.tf.json` tracked by git (`git ls-files`) | auto-loaded tfvars is how a bare `apply` hit Panacea's production (survey §1.1, `:46-51`). An override file silently replaces the block it names, including `backend`: runbook §2 writes an uncommitted `backend_override.tf` for the one local-state bootstrap apply (review I2), and a tracked one would swap any stack's backend for local state |
 | G2 | No `*.tfvars` contains a GUID (`[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}`) | subscription, tenant and object ids arrive as `TF_VAR_*` / `ARM_*`, never in source |
 | G3 | Every `*.tftest.hcl` declares a `mock_provider` for **every** provider named in its directory's `versions.tf` `required_providers` | a test without a mock would call Azure |
 | G4 | No `provider "kubernetes"`, `provider "helm"`, and no `hashicorp/kubernetes` or `hashicorp/helm` source anywhere | P8-D3 |
@@ -100,6 +111,7 @@ control on the write connections (task 30, and the plan's "Deploy identities" ta
 | G7 | Every `stacks/*/` has a `.terraform.lock.hcl` **tracked by git** (`git ls-files --error-unmatch`) | reproducible providers |
 | G8 | No attribute named `administrator_password`, `administrator_password_wo`, `client_secret` or `admin_password` in any `.tf` | P8-D10, P8-D11: there is no password to set |
 | G9 | Every `source =` inside a `required_providers` block, and every `provider "registry.terraform.io/<ns>/<name>"` in a `.terraform.lock.hcl`, is one of `hashicorp/azurerm`, `hashicorp/azuread`, `azure/azapi` | a provider is a program that runs at plan time with the pipeline's token: `data "external"` runs any command. A resource type used without a `required_providers` entry makes Terraform infer `hashicorp/<prefix>`, which only the lock file shows. The allowlist in G9 and `terraform init -lockfile=readonly` (task 30's `tf-stack.sh`) catch this together (review C3) |
+| G10 | In every `stacks/*/tests/*.tftest.hcl`, the file-level `variables { … }` block (the one outside any `run`) holds no key that any `stacks/<same>/*.tfvars` sets | a file-level `variables` block overrides `-var-file` (Terraform 1.15.8 probe: file `environment = "dev"`, `-var-file` `"prod"`, the run saw `"dev"`; review I1), so a file-level `environment` turns validate.sh's `prod.tfvars` run into a second dev run. Environment-specific values a run depends on go in that run's own `variables` block. `terraform fmt` puts a file-level block at column 0 and a run's at column 2, so G10 reads the lines between `^variables {` and `^}` for `^  <key> =`, against every tfvars' `^<key> *=`; validate.sh's `fmt -check` refuses a file laid out to dodge it |
 
 #### Conventions the README records (and later parts assume)
 
@@ -115,6 +127,10 @@ control on the write connections (task 30, and the plan's "Deploy identities" ta
   `terraform providers lock -platform=windows_amd64 -platform=linux_amd64`, so the Linux CI agent
   and the Windows laptop both verify against the committed file.
 - `environment` is validated against `["dev", "prod"]`.
+- A stack's `.tftest.hcl` file-level `variables` block holds only what no `<env>.tfvars` sets (ids,
+  as `TF_VAR_*` would supply). Every run that depends on an environment-specific value, including
+  `environment` itself, sets it in its own run-level `variables` block, and each stack's test file
+  has a `committed_tfvars_plan` run that sets none of them (G10, review I1).
 - Every stack's `provider "azurerm"` block sets `storage_use_azuread = true` and
   `resource_provider_registrations = "none"`. The second is needed because the read-only plan
   identity cannot register resource providers, so task 31 §1 registers them by hand (task 30,
@@ -127,8 +143,9 @@ runs it with `INFRA_ROOT` pointed at the fixture, and asserts on exit status and
 
 | Test (case name) | Asserts | Mutant it kills |
 |---|---|---|
-| `clean_tree_passes` | a tree with one conforming stack and one module → exit 0, `guards: 9 of 9 passed` | a guard that fails on everything |
+| `clean_tree_passes` | a tree with one conforming stack and one module → exit 0, `guards: 10 of 10 passed` | a guard that fails on everything |
 | `g1_terraform_tfvars_fails` | `stacks/x/terraform.tfvars` present → exit ≠ 0, `guard G1: FAIL` naming the path | G1 deleted, or matching only `*.auto.tfvars` |
+| `g1_tracked_override_fails` | `stacks/x/backend_override.tf` holding `terraform { backend "local" {} }`, `git add`ed in the fixture repo → `G1: FAIL` naming the path; the same file present but untracked → G1 ok | G1 without the override check, or one that fails on an untracked override (runbook §2 needs one on disk) |
 | `g2_guid_in_tfvars_fails` | `dev.tfvars` with `tenant_id = "00000000-0000-0000-0000-000000000000"` → `G2: FAIL` | G2 matching only lowercase hex |
 | `g3_test_without_azuread_mock_fails` | `versions.tf` requires `azurerm` and `azuread`; the test mocks only `azurerm` → `G3: FAIL` | G3 that checks for "any" mock rather than "every" |
 | `g4_helm_provider_fails` | a `provider "helm" {}` block → `G4: FAIL` | G4 that only greps `required_providers` |
@@ -138,6 +155,7 @@ runs it with `INFRA_ROOT` pointed at the fixture, and asserts on exit status and
 | `g8_client_secret_fails` | `client_secret = var.x` in a `.tf` → `G8: FAIL` | G8 that matches only `administrator_password` |
 | `g9_external_source_fails` | a module's `versions.tf` with `external = { source = "hashicorp/external" }` → `G9: FAIL` naming the path | G9 deleted, or checking stacks only (a module's providers flow into every stack that calls it) |
 | `g9_lockfile_provider_fails` | a clean `versions.tf`, and a stack's `.terraform.lock.hcl` holding `provider "registry.terraform.io/hashicorp/external"` → `G9: FAIL` | G9 that reads only `required_providers`, which an implicit `data "external"` never appears in |
+| `g10_tftest_file_level_tfvars_key_fails` | `stacks/x/dev.tfvars` sets `environment`; `stacks/x/prod.tfvars` sets `environment` and `api_private`; `stacks/x/tests/x.tftest.hcl` has a file-level `variables { api_private = false }` → `G10: FAIL` naming the file and the key; the same key moved inside a `run "…" { variables { … } }` block → G10 ok | G10 deleted, G10 that reads only `dev.tfvars` (not every `*.tfvars`), or one that also flags run-level `variables` (which the fix needs) |
 
 `validate.sh` is proved by its own acceptance run below (it has nothing to validate yet) and by
 every later task, whose acceptance command is `infra/scripts/validate.sh <its dir>`.
@@ -148,9 +166,9 @@ every later task, whose acceptance command is `infra/scripts/validate.sh <its di
   files; `ls infra/terraform/.terraform` fails (no init state, no local tfstate). If a
   `*.tfstate` exists anywhere under `infra/`, **stop**: someone applied the phase 1 root, and
   deleting it would orphan real resources.
-- [ ] **Step 2: Write `guards_test.sh` with the eleven cases.** Run it: every case fails, because
+- [ ] **Step 2: Write `guards_test.sh` with the thirteen cases.** Run it: every case fails, because
   `guards.sh` does not exist.
-- [ ] **Step 3: Write `guards.sh`.** Run `guards_test.sh` until `guards_test: 11 cases, 11 passed`.
+- [ ] **Step 3: Write `guards.sh`.** Run `guards_test.sh` until `guards_test: 13 cases, 13 passed`.
 - [ ] **Step 4: Write `validate.sh`** to the contract above. Prove the credential scrub once, red
   first (review I3): in a scratch directory holding one `main.tf`, with `ARM_SUBSCRIPTION_ID`
   exported and a stub `terraform` first on `PATH` that appends `AZURE_CONFIG_DIR=…`, the output
@@ -166,10 +184,10 @@ every later task, whose acceptance command is `infra/scripts/validate.sh <its di
 
 ```bash
 bash infra/scripts/guards_test.sh
-# guards_test: 11 cases, 11 passed                                   exit 0
+# guards_test: 13 cases, 13 passed                                   exit 0
 bash infra/scripts/guards.sh
-# guard G1: ok … guard G9: ok
-# guards: 9 of 9 passed                                              exit 0
+# guard G1: ok … guard G10: ok
+# guards: 10 of 10 passed                                            exit 0
 bash infra/scripts/validate.sh
 # validate: nothing to validate yet                                  exit 0
 git ls-files infra

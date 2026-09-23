@@ -153,8 +153,12 @@ output "broker_api_scope" {
 
 #### Tests to write first (`tests/identity.tftest.hcl`, `mock_provider "azuread"`, `override_data` for the Graph lookups)
 
+The file-level `variables` block holds no key a tfvars sets (guard G10, review I1); runs that need an
+environment-specific value pin it at run level.
+
 | Run | Asserts | Mutant it kills |
 |---|---|---|
+| `committed_tfvars_plan` | `command = plan` with no run-level key a tfvars sets, once per tfvars pass | a committed tfvars that does not plan |
 | `desktop_is_a_public_client_on_both_loopbacks` | redirect URIs `http://127.0.0.1/` and `http://localhost/`; no `web` block; no `password` | a confidential client, or a redirect the contract's `PANACEA_APP_ENTRA_REDIRECT_HOST` switch cannot use |
 | `apis_issue_v2_tokens` | Hub and broker `requested_access_token_version == 2` | v1 tokens, whose `aud`/`iss` task 16 rejects |
 | `scopes_are_the_contracts` | Hub scope `Hub.Access`, broker `Sandboxes.Access`, both `type == "User"` | a renamed scope the servers reject |
@@ -174,14 +178,14 @@ output "broker_api_scope" {
   rows.
 - [ ] **Step 2:** Variables, locals (**fresh UUIDs** replace the three above — a scope id copied
   from a document is one someone else may also have copied), tests; validate fails.
-- [ ] **Step 3:** Data sources, resources, outputs until the twelve runs pass for both tfvars.
+- [ ] **Step 3:** Data sources, resources, outputs until the thirteen runs pass for both tfvars.
 - [ ] **Step 4:** tfvars hold only `environment`; lock file; guards; commit.
 
 #### Acceptance
 
 ```bash
 bash infra/scripts/validate.sh infra/terraform/stacks/identity   # validate: 1 ok, 0 failed (12 runs × 2 tfvars)
-bash infra/scripts/guards.sh                                      # guards: 9 of 9 passed
+bash infra/scripts/guards.sh                                      # guards: 10 of 10 passed
 ```
 
 #### What this task does not claim

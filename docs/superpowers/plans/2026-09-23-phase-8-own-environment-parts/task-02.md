@@ -26,7 +26,10 @@ terraform {
   }
 }
 
-# backend.tf — partial; task 31 migrates local state into the container this stack creates
+# backend.tf — partial; guard G5 keeps it empty. The first apply cannot init this block without
+# the account it creates, so task 31 §2 writes an uncommitted backend_override.tf
+# (`terraform { backend "local" {} }`, git-ignored, guard G1 refuses it tracked), applies with
+# local state, deletes the override and runs `init -migrate-state` into this backend (review I2)
 terraform {
   backend "azurerm" {}
 }
@@ -145,25 +148,43 @@ use_azuread_auth = true
 
 ```hcl
 mock_provider "azurerm" {}
+# File level holds ONLY what no <env>.tfvars sets (guard G10, review I1). A file-level
+# variables block overrides -var-file, so an `environment = "dev"` here would make
+# validate.sh's prod.tfvars pass a second dev pass. environment, location, unique_suffix and
+# state_public_network_access come from the -var-file validate.sh passes.
 variables {
-  environment                 = "dev"
-  location                    = "australiaeast"
-  unique_suffix               = "k7q2"
-  state_writer_object_ids     = ["11111111-1111-1111-1111-111111111111"]
-  state_reader_object_ids     = ["22222222-2222-2222-2222-222222222222"]
-  state_public_network_access = true
+  state_writer_object_ids = ["11111111-1111-1111-1111-111111111111"]
+  state_reader_object_ids = ["22222222-2222-2222-2222-222222222222"]
+}
+
+# Plans the committed tfvars untouched: no run-level key a tfvars sets.
+run "committed_tfvars_plan" {
+  command = plan
+  assert {
+    condition     = azurerm_storage_account.state.name == "sttfpanaceaapp${var.environment}${var.unique_suffix}"
+    error_message = "The state account name is not built from this tfvars' environment and suffix."
+  }
+  assert {
+    condition     = azurerm_storage_account.state.public_network_access_enabled == var.state_public_network_access
+    error_message = "state_public_network_access from the tfvars did not reach the account."
+  }
 }
 ```
 
+Every other run reads `var.environment` in its assertions instead of a literal `"dev"`, so it
+holds under both passes. A bare `terraform test` in the stack, without `-var-file`, stops at
+"No value for required variable": that is intended, and `validate.sh` is the only caller.
+
 | Run | Asserts | Mutant it kills |
 |---|---|---|
+| `committed_tfvars_plan` | the block above; runs once under `dev.tfvars` and once under `prod.tfvars` | a committed tfvars that does not plan. It **cannot** kill a file-level `environment` that turns the prod pass into a dev pass: its assertions read `var.environment`, so they agree with whatever value won (b04 probe). Guard G10 kills that mutant, statically |
 | `state_account_has_no_shared_key` | `azurerm_storage_account.state.shared_access_key_enabled == false` | the key left on (the default) |
 | `state_keeps_versions_and_deletes_for_30_days` | `versioning_enabled == true` and both retention `days == 30` | versioning or soft delete dropped |
 | `state_name_fits_storage_rules` | the name matches `^[a-z0-9]{3,24}$` and ends with `var.unique_suffix` | a hyphen in the name, or a suffix left out |
 | `every_writer_gets_blob_contributor` | two ids in → two `azurerm_role_assignment.state_writer` instances, each `Storage Blob Data Contributor` | `for_each` over the first id only; the wrong role |
 | `the_plan_identity_only_reads_state` | one `azurerm_role_assignment.state_reader` instance, `Storage Blob Data Reader`, on the container scope | a reader given Contributor, which lets a PR build rewrite state (review C3) |
 | `a_reader_that_is_also_a_writer_is_rejected` | the same id in both lists → `expect_failures = [var.state_reader_object_ids]` | the plan identity quietly made a writer |
-| `the_product_group_exists_before_foundation` | `azurerm_resource_group.product.name == "rg-panacea-app-dev"` | the group left to `foundation`, so the infra identity's Contributor would need the subscription (review I8) |
+| `the_product_group_exists_before_foundation` | `azurerm_resource_group.product.name == "rg-panacea-app-${var.environment}"` | the group left to `foundation`, so the infra identity's Contributor would need the subscription (review I8) |
 | `no_writers_is_rejected` | `state_writer_object_ids = []` → `expect_failures = [var.state_writer_object_ids]` | the validation removed |
 | `bad_suffix_is_rejected` | `unique_suffix = "K7Q2"` → `expect_failures = [var.unique_suffix]` | a case-insensitive regex |
 | `ip_rules_turn_default_deny_on` | `state_ip_rules = ["203.0.113.0/24"]` → `network_rules[0].default_action == "Deny"` | Deny never set |
@@ -192,10 +213,11 @@ bash infra/scripts/validate.sh infra/terraform/stacks/bootstrap
 # validate: OK   infra/terraform/stacks/bootstrap
 # validate: 1 ok, 0 failed
 bash infra/scripts/guards.sh
-# guards: 9 of 9 passed
+# guards: 10 of 10 passed
 ```
 
-`terraform test` prints `Success! 8 passed, 0 failed.` inside the validate step.
+`terraform test` prints `Success! 12 passed, 0 failed.` twice inside the validate step, once per
+tfvars file (`dev.tfvars`, `prod.tfvars`).
 
 #### What this task does not claim
 

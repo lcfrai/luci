@@ -229,7 +229,7 @@ variables {
 bash infra/scripts/validate.sh infra/terraform/modules/network
 # validate: OK   infra/terraform/modules/network
 # validate: 1 ok, 0 failed          (terraform test: Success! 10 passed, 0 failed.)
-bash infra/scripts/guards.sh        # guards: 9 of 9 passed
+bash infra/scripts/guards.sh        # guards: 10 of 10 passed
 ```
 
 #### What this task does not claim
