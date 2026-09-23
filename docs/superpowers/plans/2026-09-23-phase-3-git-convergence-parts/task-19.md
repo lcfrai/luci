@@ -101,7 +101,8 @@ seam S3.4) over the queue's entries, then `api.setQueue` with the full new order
 Alt+↑ / Alt+↓ on a focused card move it; the position numbers are `tabular-nums` (the one count
 AGENTIC-UX §10 allows, inside the queue). Reordering animates by FLIP on `transform` only, 200 ms,
 the house curve, and not at all under `prefers-reduced-motion` (`DESIGN-SYSTEM.md` Interaction
-standards).
+standards) — through WAAPI (`element.animate`), because `desktop/package.json` carries no motion
+library and this task adds no dependency.
 
 **Mark ready / Not ready** call phase 2's `api.setWorktreeReady` (seam S3.3) then `reload()`. A
 lane with no commits the branch lacks has **Mark ready** disabled with the reason "Nothing committed

@@ -78,7 +78,10 @@ truncated one *"Showing the first 2000 changed lines."*
 Rows **never reflow** while the poll refreshes: a path keeps its row, and a path that stops
 changing leaves at the next load without animating out (`DESIGN-SYSTEM.md`: hover and refresh
 never change layout; motion must explain causality). Lists over 50 paths are virtualised (the
-Floor rule) with a fixed row height.
+Floor rule) with a fixed row height and a window computed from `scrollTop` — **no new
+dependency**: `desktop/package.json` has no virtualisation or motion library (read 2026-09-23), and
+task 19's reorder FLIP uses WAAPI (`element.animate`) for the same reason (`DESIGN-SYSTEM.md`:
+CSS > WAAPI > JS library).
 
 #### The tests to write first
 
