@@ -698,9 +698,9 @@ The design does not depend on it, since the directory is copied either way.
 | Add `TestCreateCopiesARelativeHooksPath` | parts/task-03.md:322, with the refusal table (`/abs`, `C:/`, `C:hooks`, `\hooks`, `~/`, `../x`, `a/../../x`, `.githooks\x`); `TestCopyableHooksPath` :323; `TestCreateHooksPathPassesTheCloneCheck` :326 (a copied value never makes H3 refuse the lane) |
 | The Docker husky test builds its clone with `lanes.Creator` from a project whose config carries the setting | parts/task-05.md:176 (`TestDispatchChainsToHusky`: the test writes nothing into the clone; red first against a Creator without step 6); the hazard paragraph says so at parts/task-05.md:13-16 |
 | State fresh-clone semantics in task 05's "does not claim" | parts/task-05.md:232-242; task 03's side at parts/task-03.md:368-373 |
-| (extension) the loss is never silent | the dispatcher prints one `panacea: core.hooksPath names …` line per commit when the configured directory is missing, parts/task-05.md:123-129, tested by `TestDispatchNamesAMissingHooksDir` at :177 |
+| (extension) the dispatcher names the loss it can see (round 2: a lane made before install, an absolute path and `.git/hooks` stay silent, and the plan says so; re-review b03 I-3) | the dispatcher prints one `panacea: core.hooksPath names …` line per commit when the configured directory is missing, parts/task-05.md:123-129, tested by `TestDispatchNamesAMissingHooksDir` at :177 |
 | (extension) the premise is pinned | `TestSandboxCannotWriteHooksPath`, parts/task-05.md:178 and its acceptance line :219 |
-| Prove it in task 23 | parts/task-23.md:27-32 (the e2e project laid out as husky's install step leaves one), :38 (step 3: every sandbox commit carries `X-Husky: ran`), :41 (step 6: the host's land merge carries none, HGH H1), :81-85 (owner item 5 runs the real install step first) |
+| Prove it in task 23 | parts/task-23.md:27-32 (the e2e project laid out as husky's install step leaves one), :38 (step 3: every sandbox commit carries `X-Husky: ran`), :41 (step 6: HGH H1; round 2 replaced the trailer check with a host-only `reference-transaction` marker, see below), :81-85 (owner item 5 runs the real install step first) |
 | Restatements | plan:399 (Q7 cites the pinning test and the copy); parts/task-02.md:415 (H3's Clone row names Create as a writer of the key) |
 
 Also fixed on the way: task 05's acceptance said `-run Dispatch` runs 8 tests when the table named
@@ -710,8 +710,8 @@ Also fixed on the way: task 05's acceptance said `-run Dispatch` runs 8 tests wh
 
 Re-read on 2026-09-24. The review's facts hold, with one correction and one addition:
 
-- **Correction.** The fix's contract sweep (`git diff 3303fd6...fix/sandbox-git-ca`, 55 Go lines
-  and 7 UI lines, as the review says) touches Go §2.2, §2.6, §4 and §5.1 and UI §6.5 and §7.7,
+- **Correction.** The fix branch's contract edits (`2d6d95b`, `5e32000`; `git diff 3303fd6...fix/sandbox-git-ca`, 55 Go lines
+  and 7 UI lines, as the review says) touch Go §2.2 (`5e32000`: §2.2, UI §6.5, §7.7; `2d6d95b`: §2.6, §4, §5.1), §2.6, §4 and §5.1 and UI §6.5 and §7.7,
   found by mapping each hunk to its heading. It does not touch §3.7.
 - **Addition.** Phase 3's branch forks from `f898f5e`, `feat/phase-2-cockpit`'s merge of the fix,
   so `4f6d698` is already in phase 3's base. Phase 2's later sandbox-git rounds (`5a4d0d8` to
@@ -734,3 +734,29 @@ Re-read on 2026-09-24. The review's facts hold, with one correction and one addi
 **Unverified.** `feat/phase-2-cockpit` is still moving (its sandbox-git round is in progress
 tonight), so the shapes above are true at `10fa5fd` only. G1's preflight re-reads them, which is
 why it stays a gate rather than a quotation.
+
+### Fix batch b03, round 2 (2026-09-24): the re-review's open issues
+
+Source: `.superpowers/sdd/p3/plan-rereview-b03-1.md` (local). Every issue is fixed; none is
+deferred. Line numbers are for the tree at this round's last commit.
+
+| Re-review issue | Where it is now |
+|---|---|
+| **I-1** `.git/hooks` copied; a hooks folder tracked on the lane's branch overwritten | parts/task-03.md:198-201 (no `.git` segment, case-folded, trailing dots and spaces trimmed) and :202-205 (`os.Lstat(<cloneTop>/<rel>)` must report not-exist, which replaces the project-index `ls-files` guard: wrong index). Rows `.git/hooks`, `.GIT/hooks`, `.git./hooks` and tracked-on-the-lane-branch-only in `TestCopyGeneratedHooksRefuses`, parts/task-03.md:356 |
+| **I-2** check-then-use on a folder the sandbox can write (A4) | Root cause: nothing stopped a sandbox mounting the project's tree mid-copy, and session create had no lock to share (at `8236ba1` only restart's per-id `sessionIDSet`, sessions.go:913-938). New `lanes.MountGuard`, parts/task-03.md:137-147; step 6 runs the copy inside `WhileUnmounted`, :170-173 (ran false or Mounts nil copies nothing, not an error). `api.MountGuard` orders session create's and restart's `StatusStarting` write (`Store.Create` at `10fa5fd`:689, `Store.Update` :1316, each before `Backend.Create` :729, :1340) against the copy, and fails closed on a registry error: parts/task-04.md:26-27 (Files), :62-89 (type), :234-243 (wiring), :265-269 (tests). Open-then-`SameFile` and `io.LimitReader`: parts/task-03.md:210-215, test :357. Zero files with a live session: :358. Plan file map :438-442, Q7 :403 |
+| **I-3** the silent case was claimed to print | parts/task-05.md:125-129 (the dispatcher's comment) and :241-251 ("does not claim"); parts/task-03.md:401-414. Each lists what prints and the three silent cases (made before install, absolute path, `.git/hooks`), and which of them re-creating the lane repairs. Review row :701 corrected |
+| **I-4** G1's stop at task 04 checked nothing | parts/task-04.md:11-18 and :274 use task 05's two greps. Verified: both give 1 at `10fa5fd`; the signature grep gives 0 at `8236ba1`. Plan G1, plan:241-246, says both tasks run them, and why task 04 needs the round (it now edits session create and restart) |
+| Minor 1: task 23 step 6 could not fail | parts/task-23.md:27-42: a tracked `.husky/reference-transaction` writes a marker in a host-only directory, and a control `update-ref` before step 1 shows the marker appears when host git runs the hook; step 6, :53, asserts it is absent |
+| Minor 2: not husky's real layout | parts/task-05.md:13-16 and :180 and parts/task-23.md:27-35 use husky 9's stub shape (`. "${0%/*}/h"`) with a stand-in `h`, and say the real `h` is owner item 5's |
+| Minor 3: an unignored untracked folder gets committed | parts/task-03.md:216-219 (the clone's `ls-files --others --exclude-standard` must print nothing, else the copy is removed); row in :356 |
+| Minor 4: `5e32000` over-credited | plan:213-216; parts/task-05.md:203-204; review :713-715 |
+| Minor 5: task 06 Step 3 misses two phrases | parts/task-06.md:148-154 (contract line 1770 at `10fa5fd`: "arrives in Phase 3" and round 1's "not primary" clause, both rewritten, with the grep that finds them) |
+
+Also on the way: `TestCreateCopiesAGeneratedHooksDir` (parts/task-03.md:355) and
+`TestDispatchChainsToHusky` (parts/task-05.md:180) now give `Creator.Mounts` a fake that runs
+fn, since nil copies nothing.
+
+**Unverified.** Whether a container can make a Win32-followable link on Docker Desktop's bind
+mount is still not run. The design no longer depends on it: a live or starting primary-worktree
+session stops the copy. The restart line number (`:1316`) is `10fa5fd`'s; task 04 re-locates both
+call sites by grep.
