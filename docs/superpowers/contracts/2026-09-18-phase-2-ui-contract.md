@@ -1181,7 +1181,7 @@ export interface ListSessionsFilter {
 | `listSessions(filter?): Promise<Session[]>` | `GET /v1/sessions[?worktreeId=&status=]` | 200 | server-sorted `createdAt` descending; the client never re-sorts |
 | `getSession(id): Promise<Session>` | `GET /v1/sessions/{id}` | 200 | |
 | `renameSession(id, title): Promise<Session>` | `PATCH /v1/sessions/{id}` | 200 | body `{ "title": string }`; empty/whitespace title is 400 `bad_request`, so the client trims and refuses to send an empty one |
-| `restartSession(id): Promise<Session>` | `POST /v1/sessions/{id}/restart` | 200 | no body sent; 409 `conflict` when a restart is already in flight |
+| `restartSession(id): Promise<Session>` | `POST /v1/sessions/{id}/restart` | 200 | no body sent; 409 `conflict` when a restart is already in flight. *(Resume fix round 1, 2026-09-24, `contract-go.md` §3.14:)* also 409 `conflict` when the worktree no longer resolves, 400 `unknown_harness` / 400 `unsupported_option` / 409 `harness_unavailable` from the argv rebuild, and 500 `internal` when the conversation store cannot be created — every one before the old sandbox is destroyed, so it is still running |
 | `killSession(id): Promise<Session>` | `DELETE /v1/sessions/{id}` | 200 | idempotent; killing an exited session is 200 |
 | `purgeSession(id): Promise<void>` | `DELETE /v1/sessions/{id}?purge=true` | **204** | no body — the method must not attempt `res.json()` |
 | `attachUrl(session): string` | — | — | §4.6 |
@@ -1204,6 +1204,15 @@ resumeSession(source: Session, harness: Harness): Promise<Session>;
  *  worktree, and the menu names the target. */
 forkSession(source: Session, targetWorktreeId: WorktreeId, harness: Harness): Promise<Session>;
 ```
+
+*(Resume fix round 1, 2026-09-24, `contract-go.md` §3.9.)* A resume the CLI could not honour
+is refused by the control plane before any sandbox starts, and the refusal is a problem body
+whose `message` is a sentence the user can act on — the Resume verb reports it as it reports
+any other `ApiError` (`sessionVerbs.ts`), with no desktop change. One of them is new: 409 `conflict`, "Nothing has been said in that session
+yet, so there is no conversation to continue. Start a new session instead." A session that
+was restarted and not yet spoken to still resumes: the control plane continues the
+conversation the restart cleared. Nothing about the request changes — `resume` is still the
+cockpit id, and `types.ts` is untouched.
 
 ### 4.5 There is no bearer token on this hop
 

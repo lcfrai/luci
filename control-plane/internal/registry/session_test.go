@@ -19,32 +19,33 @@ import (
 // golden document, and the prefixes are what this fixture is pinning.
 func sampleSession() registry.Session {
 	return registry.Session{
-		ID:             "s-3f2a91c0",
-		Title:          "evidence upload",
-		MachineID:      "local",
-		ProjectID:      "p-8c1d0e42",
-		BranchID:       "b-8c1d0e42-evidence-upload",
-		WorktreeID:     "w-4a77b1c9",
-		Harness:        "claude-code",
-		Model:          "opus",
-		Effort:         "high",
-		PermissionMode: "ask",
-		OpeningPrompt:  "add tests, then refactor",
-		Command:        "claude",
-		Args:           []string{"--model", "opus", "--effort", "high", "add tests, then refactor"},
-		ConversationID: "0f3c2b1a-9d8e-4f7a-8b6c-5d4e3f2a1b0c",
-		Status:         registry.StatusRunning,
-		ExitReason:     "",
-		Backend:        "docker",
-		SandboxID:      "s-3f2a91c0",
-		SandboxRef:     "9c1f0b7ad3e2",
-		Endpoint:       "127.0.0.1:52431",
-		AttachToken:    "Qk9fV0lMTF9CRV9SRVBMQUNFRF9CWV8zMl9SQU5ET01f",
-		CreatedAt:      time.Date(2026, 9, 18, 9, 14, 3, 0, time.UTC),
-		UpdatedAt:      time.Date(2026, 9, 18, 9, 14, 7, 0, time.UTC),
-		LastOutputAt:   time.Date(2026, 9, 18, 9, 14, 6, 0, time.UTC),
-		AttachCount:    1,
-		ContextRef:     "",
+		ID:                     "s-3f2a91c0",
+		Title:                  "evidence upload",
+		MachineID:              "local",
+		ProjectID:              "p-8c1d0e42",
+		BranchID:               "b-8c1d0e42-evidence-upload",
+		WorktreeID:             "w-4a77b1c9",
+		Harness:                "claude-code",
+		Model:                  "opus",
+		Effort:                 "high",
+		PermissionMode:         "ask",
+		OpeningPrompt:          "add tests, then refactor",
+		Command:                "claude",
+		Args:                   []string{"--model", "opus", "--effort", "high", "add tests, then refactor"},
+		ConversationID:         "0f3c2b1a-9d8e-4f7a-8b6c-5d4e3f2a1b0c",
+		EarlierConversationIDs: []string{"1a2b3c4d-0000-4000-8000-00000000e001"},
+		Status:                 registry.StatusRunning,
+		ExitReason:             "",
+		Backend:                "docker",
+		SandboxID:              "s-3f2a91c0",
+		SandboxRef:             "9c1f0b7ad3e2",
+		Endpoint:               "127.0.0.1:52431",
+		AttachToken:            "Qk9fV0lMTF9CRV9SRVBMQUNFRF9CWV8zMl9SQU5ET01f",
+		CreatedAt:              time.Date(2026, 9, 18, 9, 14, 3, 0, time.UTC),
+		UpdatedAt:              time.Date(2026, 9, 18, 9, 14, 7, 0, time.UTC),
+		LastOutputAt:           time.Date(2026, 9, 18, 9, 14, 6, 0, time.UTC),
+		AttachCount:            1,
+		ContextRef:             "",
 	}
 }
 
@@ -60,7 +61,7 @@ func TestSessionJSONKeySet(t *testing.T) {
 
 	want := []string{
 		"args", "attachCount", "attachToken", "backend", "branchId",
-		"command", "contextRef", "conversationId", "createdAt", "effort", "endpoint",
+		"command", "contextRef", "conversationId", "createdAt", "earlierConversationIds", "effort", "endpoint",
 		"exitReason", "harness", "id", "lastOutputAt", "machineId",
 		"model", "openingPrompt", "permissionMode", "projectId", "sandboxId",
 		"sandboxRef", "status", "title", "updatedAt", "worktreeId",
@@ -158,6 +159,23 @@ func TestCloneDeepCopiesArgs(t *testing.T) {
 	}
 }
 
+// The second slice, by name, for the same reason as Args: a restart appends to
+// it inside Update, and a shared backing array would let that append write into
+// a value Get already handed out.
+func TestCloneDeepCopiesEarlierConversationIDs(t *testing.T) {
+	orig := sampleSession()
+	clone := orig.Clone()
+
+	clone.EarlierConversationIDs[0] = "edited"
+	if orig.EarlierConversationIDs[0] != "1a2b3c4d-0000-4000-8000-00000000e001" {
+		t.Fatalf("writing the clone changed the original to %q — Clone shared the backing array", orig.EarlierConversationIDs[0])
+	}
+	var empty registry.Session
+	if empty.Clone().EarlierConversationIDs != nil {
+		t.Fatal("Clone fabricated an empty EarlierConversationIDs slice from a nil one")
+	}
+}
+
 func TestCloneCopiesEveryOtherField(t *testing.T) {
 	orig := sampleSession()
 	if !reflect.DeepEqual(orig.Clone(), orig) {
@@ -170,7 +188,8 @@ func TestCloneCopiesEveryOtherField(t *testing.T) {
 // one way to defeat TestCloneCoversEveryReferenceTypedField, and it takes a
 // deliberate edit to this list to do it.
 var cloneDeepCopies = map[string]bool{
-	"Args": true,
+	"Args":                   true,
+	"EarlierConversationIDs": true,
 }
 
 // TestCloneCoversEveryReferenceTypedField is a tripwire for the next field, not

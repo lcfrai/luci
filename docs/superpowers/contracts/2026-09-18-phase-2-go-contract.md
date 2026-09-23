@@ -942,6 +942,16 @@ type Session struct {
 	// schemaVersion 1.
 	ConversationID string `json:"conversationId"`
 
+	// EarlierConversationIDs — AMENDED by the resume fix's round-1 fix round
+	// (resume-fix-review I2, 2026-09-24). This session's OWN conversations from
+	// before its latest restart, oldest first, each one the CLI wrote a
+	// transcript for (§3.14). A resume falls back to the newest of them when
+	// ConversationID has no transcript yet (§3.9), which is the state a restart
+	// leaves until someone speaks. Deep-copied by Clone like Args. Same rules as
+	// ConversationID: persisted, never on the REST surface, additive inside
+	// schemaVersion 1; an older record decodes it as nil.
+	EarlierConversationIDs []string `json:"earlierConversationIds"`
+
 	Status     Status `json:"status"`
 	ExitReason string `json:"exitReason"`
 
@@ -1785,6 +1795,21 @@ worktree), 409 `conflict` (the source has no `conversationId`: it predates this
 field). A harness that cannot resume still answers 400 `unsupported_option` from
 `Build`, unchanged.
 
+AMENDED by the resume fix's round-1 fix round (resume-fix-review I2, 2026-09-24) — the
+conversation passed to `--resume` is the **newest of the source's own conversations the CLI
+has written a transcript for**: its `conversationId` first, then its
+`earlierConversationIds` newest first (§2.8). The control plane looks for
+`<store>/-home-dev-work/<id>.jsonl` with one `stat` by the id it minted — it opens and reads
+nothing (OD-8) — and `TestTheTranscriptLayoutIsPinnedToTheImagesCLI` fails the moment the
+image installs a CLI other than the 2.1.274 that layout was observed on (the verification
+table at the top of this document). When every one
+is certainly absent, the resume is refused **before anything is recorded or created** with
+409 `conflict`, "Nothing has been said in that session yet, so there is no conversation to
+continue. Start a new session instead." — the alternative is a terminal that prints `No
+conversation found with session ID` and exits. A `stat` that fails any other way is not a
+refusal: that candidate is passed and the CLI judges, because OD-8 lets no feature require
+the look to work. A refused resume creates no directory, not even the store.
+
 **The response is returned as soon as the record exists and the sandbox has been
 created — status `starting` — not after the sandbox is ready.** A create that blocks
 for `ReadyTimeout` is a UI that appears frozen. The desktop opens the attach socket,
@@ -1826,7 +1851,8 @@ Returned by create, list, get, patch, restart and delete.
 
 **Never serialised:** `attachToken`, `endpoint`, `sandboxRef`, `sandboxId`, `command`,
 `args`, and — AMENDED by the resume fix (2026-09-23) — `conversationId`, a harness implementation
-detail the desktop must never be invited to send back as `resume`. The token is a secret; the endpoint is a port on the host that nothing outside
+detail the desktop must never be invited to send back as `resume`, and (2026-09-24)
+`earlierConversationIds`, for the same reason. The token is a secret; the endpoint is a port on the host that nothing outside
 the control plane should learn; `command`/`args` would put the user's opening prompt
 into two places and invite the desktop to reconstruct argv itself. The task
 implementing this defines a separate `api.sessionJSON` struct and a
@@ -1874,11 +1900,30 @@ Replaying is no longer possible: the stored argv names the old conversation with
 `command`, `args` and `conversationId` are written in the same pre-create update as
 the new sandbox id and token. Everything else still replays byte for byte.
 
+AMENDED by the resume fix's round-1 fix round (resume-fix-review I2, 2026-09-24): a
+restart clears the context, **not the artifact**. After the destroy — so a first line the
+old CLI wrote as it was stopped is seen — the restart looks for the old conversation's
+transcript (§3.9's one `stat`). If it exists, or the look fails, the old `conversationId`
+is appended to `earlierConversationIds` in the same pre-create update, so the conversation
+stays named by its record and a resume issued before anyone speaks in the restarted
+sandbox continues it. A conversation nobody spoke in has no transcript and is not listed.
+The rebuild keeps `effort` and `permissionMode` (pinned by
+`TestRestartKeepsThePermissionModeAndTheEffort`), and the rebuild and the store are
+resolved **before the destroy**: a failure in either leaves the old sandbox running and the
+record untouched (`TestARestartThatCannotPrepareTheStoreLeavesTheOldSandboxAlive`).
+
 Same config, clean context — `docs/FUNCTIONAL-SPEC.md` "Restart". Resume is a separate
 verb built from `POST /v1/sessions` with `resume` set, because resuming produces a new
 session that continues an old transcript, and conflating the two makes "restart" lossy.
 
 409 `conflict` if a restart is already in flight for that session.
+
+AMENDED by the resume fix's round-1 fix round (resume-fix-review m4, 2026-09-24): also 409
+`conflict` when the worktree no longer resolves; `Build`'s own answers through
+`writeHarnessProblem` for a harness with a conversation (400 `unknown_harness`, 400
+`unsupported_option`, 409 `harness_unavailable`, 500 `internal` for anything else); and 500
+`internal` when the conversation store cannot be created. All of these come **before the
+destroy**, so the old sandbox is kept.
 
 AMENDED by the sandbox git fix's round-1 fix round (gitfix-rereview M-A, 2026-09-24): 500
 `internal` **before the destroy** when the host's git cannot say how it converts line endings or
@@ -2000,7 +2045,8 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
 2. Resolve the harness: `harness.Lookup` then `harness.Build`. Failure → 400 or 409.
    AMENDED by the resume fix (2026-09-23): for a harness with a conversation (available and
    `SupportsResume`), first resolve a non-empty `resume` to the source record's
-   `conversationId` (§3.9's refusals), then mint `conversationId := ids.UUID()`, pass
+   `conversationId` (§3.9's refusals — AMENDED 2026-09-24: the newest of its own
+   conversations with a transcript, else 409), then mint `conversationId := ids.UUID()`, pass
    both to `Build`, and create the worktree's conversation store on the host,
    `<ConversationsDir>/<owner>/<worktreeId>` with `<owner>` = `local` in Phase 2 — all
    before step 4, so a failure costs nothing.
@@ -2205,7 +2251,9 @@ why `writeAtomic` chmods the temp file before the rename rather than after.
 AMENDED by the resume fix (2026-09-23): `conversationId` survives the same way, and no step above
 writes it, so a resume issued after a control-plane restart finds the conversation. It
 is pinned both by `TestRecoverKeepsEveryConversationID` and by a resume through a
-second API over the reopened registry file.
+second API over the reopened registry file. AMENDED by the resume fix's round-1 fix round
+(2026-09-24): `earlierConversationIds` survives the same way, pinned by the same test and by
+`TestSessionsSurviveAReopen`.
 
 ### 5.6 The complete status machine
 

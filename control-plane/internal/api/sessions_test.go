@@ -49,34 +49,39 @@ const (
 // values in the forbidden fields would pass the leak test by accident.
 func sessionsFullRecord() registry.Session {
 	return registry.Session{
-		ID:             "s-3f2a91c0",
-		Title:          "Claude Code · evidence-upload",
-		MachineID:      "local",
-		ProjectID:      "p-8c1d0e42",
-		BranchID:       "b-8c1d0e42-evidence-upload",
-		WorktreeID:     "w-4a77b1c9",
-		Harness:        "claude-code",
-		Model:          "opus",
-		Effort:         "high",
-		PermissionMode: "ask",
-		OpeningPrompt:  "add tests, then refactor",
-		Command:        "claude",
-		Args:           []string{"--model", "opus", "--session-id", sessionsConversation, "add tests, then refactor"},
-		ConversationID: sessionsConversation,
-		Status:         registry.StatusRunning,
-		ExitReason:     "",
-		Backend:        "docker",
-		SandboxID:      "s-3f2a91c0",
-		SandboxRef:     sessionsRef,
-		Endpoint:       sessionsEndpoint,
-		AttachToken:    sessionsToken,
-		CreatedAt:      time.Date(2026, 9, 18, 9, 14, 3, 0, time.UTC),
-		UpdatedAt:      time.Date(2026, 9, 18, 9, 14, 7, 0, time.UTC),
-		LastOutputAt:   time.Date(2026, 9, 18, 9, 14, 6, 0, time.UTC),
-		AttachCount:    1,
-		ContextRef:     "",
+		ID:                     "s-3f2a91c0",
+		Title:                  "Claude Code · evidence-upload",
+		MachineID:              "local",
+		ProjectID:              "p-8c1d0e42",
+		BranchID:               "b-8c1d0e42-evidence-upload",
+		WorktreeID:             "w-4a77b1c9",
+		Harness:                "claude-code",
+		Model:                  "opus",
+		Effort:                 "high",
+		PermissionMode:         "ask",
+		OpeningPrompt:          "add tests, then refactor",
+		Command:                "claude",
+		Args:                   []string{"--model", "opus", "--session-id", sessionsConversation, "add tests, then refactor"},
+		ConversationID:         sessionsConversation,
+		EarlierConversationIDs: []string{sessionsEarlierConversation},
+		Status:                 registry.StatusRunning,
+		ExitReason:             "",
+		Backend:                "docker",
+		SandboxID:              "s-3f2a91c0",
+		SandboxRef:             sessionsRef,
+		Endpoint:               sessionsEndpoint,
+		AttachToken:            sessionsToken,
+		CreatedAt:              time.Date(2026, 9, 18, 9, 14, 3, 0, time.UTC),
+		UpdatedAt:              time.Date(2026, 9, 18, 9, 14, 7, 0, time.UTC),
+		LastOutputAt:           time.Date(2026, 9, 18, 9, 14, 6, 0, time.UTC),
+		AttachCount:            1,
+		ContextRef:             "",
 	}
 }
+
+// sessionsEarlierConversation is a conversation a restart left, for the same
+// reason and in the same shape as sessionsConversation.
+const sessionsEarlierConversation = "ea71e700-0000-4000-8000-5ec2e7ea71e7"
 
 // This is the test contract §3.10 asks for and the reason api.sessionJSON
 // exists. It searches the BYTES. Asserting that a field you remembered is empty
@@ -88,10 +93,11 @@ func TestSessionJSONLeaksNeitherTheTokenNorTheEndpoint(t *testing.T) {
 	}
 	body := string(raw)
 	for name, secret := range map[string]string{
-		"attach token": sessionsToken,
-		"conversation": sessionsConversation,
-		"endpoint":     sessionsEndpoint,
-		"sandbox ref":  sessionsRef,
+		"attach token":         sessionsToken,
+		"conversation":         sessionsConversation,
+		"earlier conversation": sessionsEarlierConversation,
+		"endpoint":             sessionsEndpoint,
+		"sandbox ref":          sessionsRef,
 	} {
 		if strings.Contains(body, secret) {
 			t.Errorf("the %s reached the wire: %s", name, body)
@@ -99,7 +105,7 @@ func TestSessionJSONLeaksNeitherTheTokenNorTheEndpoint(t *testing.T) {
 	}
 	// command and args are forbidden for a different reason: they would put the
 	// opening prompt in two places and invite the desktop to rebuild argv.
-	for _, fragment := range []string{`"command"`, `"args"`, `"sandboxId"`, `"sandboxRef"`, `"endpoint"`, `"attachToken"`, `"conversationId"`} {
+	for _, fragment := range []string{`"command"`, `"args"`, `"sandboxId"`, `"sandboxRef"`, `"endpoint"`, `"attachToken"`, `"conversationId"`, `"earlierConversationIds"`} {
 		if strings.Contains(body, fragment) {
 			t.Errorf("forbidden key %s is present: %s", fragment, body)
 		}
@@ -405,6 +411,11 @@ type sessionsBackend struct {
 	// of those two is observable, and the window task 13's reaper sweeps.
 	onCreate func(spec backend.Spec)
 
+	// onDestroy runs at the top of Destroy, for the same reason: what a
+	// sandbox does in its last moments — its CLI writing a transcript's first
+	// line — is observable only from inside the call that ends it.
+	onDestroy func(id string)
+
 	specs    []backend.Spec
 	destroys []string
 }
@@ -461,6 +472,13 @@ func (f *sessionsBackend) Attach(ctx context.Context, id, token string) (*websoc
 }
 
 func (f *sessionsBackend) Destroy(ctx context.Context, id string) error {
+	f.mu.Lock()
+	hook := f.onDestroy
+	f.mu.Unlock()
+	if hook != nil {
+		hook(id)
+	}
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.destroys = append(f.destroys, id)

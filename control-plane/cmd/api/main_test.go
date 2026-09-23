@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -189,8 +190,12 @@ func TestRecoverKeepsEveryConversationID(t *testing.T) {
 		"s-3": "33333333-3333-4333-8333-333333333333",
 		"s-4": "44444444-4444-4444-8444-444444444444",
 	}
+	// And the conversations a restart left, which a resume falls back to: a
+	// recovery write that dropped them would orphan every one.
+	earlier := func(id string) []string { return []string{"eeeeeeee-0000-4000-8000-00000000000" + id[2:]} }
 	for id, s := range seeds {
 		s.ConversationID = conversations[id]
+		s.EarlierConversationIDs = earlier(id)
 		bootSeed(t, store, s)
 	}
 	be := &recoveryBackend{sandboxes: []backend.Sandbox{
@@ -205,8 +210,12 @@ func TestRecoverKeepsEveryConversationID(t *testing.T) {
 		t.Fatalf("reopen: %v", err)
 	}
 	for id, want := range conversations {
-		if got := bootGet(t, reopened, id).ConversationID; got != want {
-			t.Errorf("%s conversationId = %q after recovery and a reopen, want %q", id, got, want)
+		got := bootGet(t, reopened, id)
+		if got.ConversationID != want {
+			t.Errorf("%s conversationId = %q after recovery and a reopen, want %q", id, got.ConversationID, want)
+		}
+		if !slices.Equal(got.EarlierConversationIDs, earlier(id)) {
+			t.Errorf("%s earlierConversationIds = %v after recovery and a reopen, want %v", id, got.EarlierConversationIDs, earlier(id))
 		}
 	}
 }

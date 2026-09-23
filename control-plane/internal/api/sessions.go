@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -77,17 +78,69 @@ var sessionStoreSegment = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 //
 // Per worktree because resume is same-worktree by design, so nothing ever needs
 // to read another worktree's transcripts. 0o700 because a transcript holds
-// whatever the agent read, and on Windows that mode is advisory: the boundary
-// there is that the directory sits under the user's own state directory.
+// whatever the agent read. On Windows that mode is advisory — Go's MkdirAll
+// ignores it, and Docker Desktop shows the bind as root 777 inside the sandbox
+// — so the boundary there is the ACL of the user's own profile, under which the
+// state directory sits.
 func (a *API) sessionConversationStore(worktreeID string) (string, error) {
-	if !sessionStoreSegment.MatchString(worktreeID) {
-		return "", fmt.Errorf("worktree id %q cannot name a directory", worktreeID)
+	dir, err := a.sessionConversationStorePath(worktreeID)
+	if err != nil {
+		return "", err
 	}
-	dir := filepath.Join(a.deps.ConversationsDir, sessionConversationOwner, worktreeID)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
 	return dir, nil
+}
+
+// sessionConversationStorePath is where sessionConversationStore puts a
+// worktree's store, without creating it: a resume that is refused must leave
+// nothing behind, not even an empty directory.
+func (a *API) sessionConversationStorePath(worktreeID string) (string, error) {
+	if !sessionStoreSegment.MatchString(worktreeID) {
+		return "", fmt.Errorf("worktree id %q cannot name a directory", worktreeID)
+	}
+	return filepath.Join(a.deps.ConversationsDir, sessionConversationOwner, worktreeID), nil
+}
+
+// sessionTranscriptCLIVersion is the claude-code version the transcript layout
+// below was observed on. OD-8 lets the control plane look at a harness's own
+// file by an id the control plane minted, read-only, on condition that the
+// reading is pinned to the CLI version in the image and a canary fails when
+// that moves: TestTheTranscriptLayoutIsPinnedToTheImagesCLI fails the moment
+// images/sandbox/Dockerfile installs any other version, and says to observe
+// the layout again.
+const sessionTranscriptCLIVersion = "2.1.274"
+
+// sessionTranscriptPath is where the pinned CLI writes conversation id's
+// transcript inside a worktree's store: the store is ~/.claude/projects, and
+// the CLI names the directory under it after the working directory with every
+// "/" made "-". Observed in panacea-app/sandbox:dev, and recorded in the
+// go-contract's verification table: ~/.claude/projects/-home-dev-work/<uuid>.jsonl.
+func sessionTranscriptPath(store, conversation string) string {
+	return filepath.Join(store, strings.ReplaceAll(sessionWorkDir, "/", "-"), conversation+".jsonl")
+}
+
+// sessionStat is os.Stat, a variable only so a test can make the stat fail in
+// a way this platform's filesystem cannot be made to.
+var sessionStat = os.Stat
+
+// sessionTranscriptState is the ONE look the control plane takes at a
+// harness's own files: does the transcript for this conversation exist. It
+// opens nothing and reads no byte of it, so it cannot come to depend on the
+// format — only on where the file is, which the canary above pins.
+//
+// written is false only when the file is certainly absent. Any other failure
+// to stat comes back as err, and every caller degrades on it rather than
+// refusing, as OD-8 requires: nothing may need this look to work.
+func sessionTranscriptState(store, conversation string) (written bool, err error) {
+	if _, err := sessionStat(sessionTranscriptPath(store, conversation)); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // sessionHasConversation is whether a session on this harness is given a
@@ -843,7 +896,53 @@ func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourc
 			details)
 		return "", false
 	}
-	return src.ConversationID, true
+	conversation, found, err := a.sessionResumableConversation(src)
+	if err != nil {
+		a.internal(w, r, "find the conversation of the session to resume", err)
+		return "", false
+	}
+	if !found {
+		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
+			"Nothing has been said in that session yet, so there is no conversation to continue. Start a new session instead.",
+			details)
+		return "", false
+	}
+	return conversation, true
+}
+
+// sessionResumableConversation is the conversation a resume of src continues:
+// the newest of src's own conversations the CLI has written a transcript for.
+// Its current one first; then, newest first, the ones its restarts left, so a
+// resume after a restart and before anyone speaks continues the conversation
+// the restart cleared instead of one that does not exist yet.
+//
+// found is false only when every one of them is certainly absent — the state
+// `claude --resume` answers with "No conversation found with session ID" and an
+// exit, which is why the caller refuses before any sandbox starts. A
+// conversation whose transcript cannot be looked at is taken as it is, and the
+// CLI is left to judge: refusing on a failed look would make resume depend on
+// it, which OD-8 forbids.
+func (a *API) sessionResumableConversation(src registry.Session) (conversation string, found bool, err error) {
+	store, err := a.sessionConversationStorePath(src.WorktreeID)
+	if err != nil {
+		return "", false, err
+	}
+	candidates := []string{src.ConversationID}
+	for i := len(src.EarlierConversationIDs) - 1; i >= 0; i-- {
+		candidates = append(candidates, src.EarlierConversationIDs[i])
+	}
+	for _, id := range candidates {
+		written, err := sessionTranscriptState(store, id)
+		if err != nil {
+			a.sessionLog().Warn("resume: cannot tell whether a transcript was written; letting the CLI decide",
+				"sessionId", src.ID, "err", err)
+			return id, true, nil
+		}
+		if written {
+			return id, true, nil
+		}
+	}
+	return "", false, nil
 }
 
 // markSessionExited is the one place a session becomes terminal without a
@@ -1280,6 +1379,30 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// The conversation the restart leaves stays resumable. A restart clears the
+	// context, not the artifact: the old transcript is still on disk, and with
+	// the record naming only the new conversation nothing would name it again.
+	// So it joins the list a resume falls back to — if the CLI wrote it. A
+	// conversation nobody spoke in has no transcript, and listing it would grow
+	// the record by one dead id per restart.
+	//
+	// After the destroy, not before with the rest: until the old sandbox is gone
+	// its CLI can still write the first line, and a look taken before that would
+	// drop a conversation that exists. A look that fails keeps the id, because
+	// dropping one that exists is the loss this is here to prevent and listing
+	// one that does not costs a resume only a skipped candidate.
+	earlier := sess.EarlierConversationIDs
+	if conversationStore != "" && sess.ConversationID != "" {
+		written, err := sessionTranscriptState(conversationStore, sess.ConversationID)
+		if err != nil {
+			a.sessionLog().Warn("restart: cannot tell whether the old conversation was written; keeping it",
+				"sessionId", id, "err", err)
+		}
+		if written || err != nil {
+			earlier = append(slices.Clone(earlier), sess.ConversationID)
+		}
+	}
+
 	// A FRESH sandbox id, not the old one. Reusing it races a Destroy the
 	// daemon has not finished and comes back as ErrAlreadyExists; minting a new
 	// one also means a container that survived the destroy stops matching any
@@ -1311,8 +1434,9 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// The endpoint is cleared rather than left pointing at the sandbox that was
 	// just destroyed, and the token is replaced in the same write as the id, so
 	// the record never names one sandbox while holding another's secret. The
-	// argv and the conversation go in the same write for the same reason: a
-	// resume must find the conversation the new sandbox is running.
+	// argv, the conversation and the earlier conversations go in the same write
+	// for the same reason: a resume must find the conversation the new sandbox
+	// is running, and the one it left.
 	if _, err := a.deps.Store.Update(id, func(sess *registry.Session) error {
 		sess.SandboxID = sandboxID
 		sess.SandboxRef = ""
@@ -1321,6 +1445,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		sess.Command = command
 		sess.Args = args
 		sess.ConversationID = conversation
+		sess.EarlierConversationIDs = earlier
 		sess.Status = registry.StatusStarting
 		sess.ExitReason = ""
 		// AttachCount is deliberately untouched. Task 12's relay defer
