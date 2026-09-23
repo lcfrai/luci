@@ -29,7 +29,9 @@ the Azure DevOps key form is phase 3's `azure-devops/<org>/<project>/<repo>`, va
 
 - **`repo_already_linked`** (contract §4.2): `details.repoKey` always; `details.projectId` **only when
   the caller can read** the project that holds it — otherwise the answer would reveal a project id
-  across teams.
+  across teams. Its `message` is exactly *"Another team already shares this repository. Ask someone
+  in that team to invite you."* — the desktop renders it verbatim (task 42), so it is written for
+  the person, not the developer.
 - **No project deletion** in v1 (provenance contract P13): `DELETE /v1/projects/{projectId}` is 405
   `method_not_allowed` (the chassis's rule, task 08).
 - **The same repository in two orgs** is two projects: the unique index is `(org_id, repo_key)`
