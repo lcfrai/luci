@@ -193,6 +193,13 @@ export const selectBranchAttentionSessionId =
  *  `selectWorktree`, is already the uiSlice ACTION of §3.3, which navigates rather than reads. */
 export const selectSelectedBranch = (s: CockpitState): Branch | undefined => {
   const { projectId, branchId } = s.selection;
+  // MEASURED EQUIVALENCE on the `|| branchId === null` half, and when it expires. Dropping it
+  // survives the suite, and it survives correctly rather than for want of a test: the `.find`
+  // below would then compare `b.id === null`, which no branch can satisfy, so the result is
+  // `undefined` either way. The clause is a short-circuit, not a guard.
+  // It stops being equivalent the moment a branch can carry a null or undefined id — a server
+  // field going optional, or a fixture growing a partial Branch — because `.find` would then
+  // MATCH on the null and return a branch for "no branch selected".
   if (projectId === null || branchId === null) return undefined;
   return (s.branchesByProject[projectId] ?? []).find((b) => b.id === branchId);
 };

@@ -88,6 +88,10 @@ describe("AppShell", () => {
     expect(screen.getByRole("complementary", { name: "Phases" })).not.toBeNull();
     // And with a branch, the same slot is the sub-rail rather than the placeholder.
     expect(middleSlot()!.tagName).toBe("ASIDE");
+    // It names the branch it is about. Added in task 20's fix round 1, which pointed this
+    // derivation at `selectSelectedBranch` (shared-shape §4) — before it, blanking the name
+    // outright passed the whole suite, so the sub-rail's one piece of context was unasserted.
+    expect(container.querySelector(".sub-branch")?.textContent).toBe("evidence");
   });
 
   // §6.3 and AGENTIC-UX §4 rule 12: entry into any lens is legal from any state. Not one of
