@@ -18,7 +18,7 @@ while sending: the button's label reads *"Sending…"* and the row appears when 
 **Visual acceptance is the owner's, batched (OD-12).**
 
 **Files:**
-- `desktop/src/deploy/useHeldAct.ts` (new) — the hold
+- `desktop/src/deploy/useHeldAct.ts` (new, unless task 18 landed it first from this contract) — the hold
 - `desktop/src/deploy/ShipBar.tsx` (new) — the lens's top bar: Ship, Cancel run, the *will* line
 - `desktop/src/deploy/ReleaseActs.tsx` (new) — `RollbackButton`, `RebuildButton`, used by the drawer (task 17)
 - `desktop/src/deploy/ActBanners.tsx` (new) — the outcome of the last act
