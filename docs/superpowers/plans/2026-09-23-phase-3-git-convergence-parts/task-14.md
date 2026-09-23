@@ -121,7 +121,9 @@ to `symbolic-ref --short refs/remotes/origin/HEAD` minus `origin/` (unknown → 
 branch") → `GitDeps.Credentials.Credential(remote.Host())` (`no_credential`, `details.host`) →
 the description → `Hosts(kind).OpenPullRequest` (`*HTTPError` → 502 `host_failed` with
 `details.hostSays` and `details.status`). `title` defaults to the branch name. `briefKey` must pass
-`gitx.Message`'s value charset (400 otherwise) and is copied verbatim.
+`gitx.Message`'s value charset (400 otherwise) and is copied verbatim. Every git call the handler
+makes (`origin`'s URL, `symbolic-ref`, and the ancestry check below) is `gitx.Read` in the project
+with Scope Project (task-02 §HGH).
 
 The description, plain text, built by one function so a test pins it:
 
