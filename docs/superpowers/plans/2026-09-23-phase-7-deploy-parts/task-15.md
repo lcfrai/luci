@@ -56,26 +56,47 @@ export function usePinRef(briefKey: string | null): PinRef | null; // null ⇔ b
 ```
 
 ```tsx
-export function EnvironmentCard(props: { env: EnvironmentView | null; branchName: string; stale: boolean; staleSince: string | null }): JSX.Element;
-export function EnvironmentList(props: { environments: EnvironmentView[]; unmatched: EnvironmentView[]; selectedBranch: string }): JSX.Element;
-export function ReleaseTable(props: { rows: ReleaseRow[]; selectedBranch: string; onOpen(row: ReleaseRow): void; stale: boolean }): JSX.Element;
+// selected: view.selected, verbatim. selectedEnvironment: view.selected?.environment ?? null.
+// No component takes the git branch as a comparable value (b02 round 2, R5): the only use a
+// component could make of it is a comparison with a Panacea label. The branch reaches the DOM
+// only as display text, read from selected.branch.
+export function EnvironmentCard(props: { env: EnvironmentView | null; selected: DeployView["selected"]; stale: boolean; staleSince: string | null }): JSX.Element | null;
+export function EnvironmentList(props: { environments: EnvironmentView[]; unmatched: EnvironmentView[]; selectedEnvironment: string | null }): JSX.Element;
+export function ReleaseTable(props: { rows: ReleaseRow[]; selectedEnvironment: string | null; onOpen(row: ReleaseRow): void; stale: boolean }): JSX.Element;
 export function PinCell(props: { row: ReleaseRow }): JSX.Element;
 export function StaleBanner(props: { since: string | null; reason: { code: string; message: string } | null }): JSX.Element | null;
-export function CollisionBanner(props: { env: EnvironmentView; branchName: string }): JSX.Element | null;
+export function CollisionBanner(props: { env: EnvironmentView }): JSX.Element | null;
 ```
+
+`EnvironmentList` marks the row whose `name === selectedEnvironment`, and `ReleaseTable` marks the
+rows whose `environmentRow === selectedEnvironment`: both compare two names the view itself
+returned (task 08 rules 1 and 1a), never a git branch with a label.
 
 **Which environment is "this branch's".** The control plane's answer, never the desktop's:
 `view.selected.environment` (task 08 rule 1a), then `environments.find(e => e.name ===
 view.selected.environment)` — a lookup by the name the view itself returned, not a join. The
-desktop **never** compares `branchName` with `e.branch`, `e.name` or `branchesSeen`: Panacea's
-row label for `feat/x` is `feat-x` (`projects.go:2109-2118`), so any such comparison finds nothing
-for a branch with `/`, `_`, capitals or more than 20 characters (review b02, C2). Three states:
+desktop **never** compares the git branch (`selected.branch`) with `e.branch`, `e.name` or
+`branchesSeen`: Panacea's row label for `feat/x` is `feat-x` (`projects.go:2109-2118`), so any such
+comparison finds nothing for a branch with `/`, `_`, capitals or more than 20 characters (review
+b02, C2). Five states, checked in this order:
+- `view.selected == null` → no branch is selected, so no `?branch=` was sent: the lens draws **no**
+  environment card, only the list (b02 round 2, R6). Never the asking sentence, which would claim a
+  request that was never made.
+- `selected.error` set → *"Panacea did not name this branch's environment: `<error.message>`"* —
+  Panacea's refusal, verbatim (task 03 rewrites the router's `404 page not found` on this route to
+  the `/` sentence). The watcher retries it every fourth cycle (task 07, `BranchEnvErrs`); the
+  cursor bump re-renders; no timer here (b02 round 2, R2).
 - `selected.target == null` → the card's empty state reads *"Asking Panacea which environment
   this branch deploys to."* (the watcher resolves it on its next cycle, and the cursor bump
-  re-renders; no timer here).
+  re-renders; no timer here). With `error` checked first, this state means only *not asked yet*.
 - `selected.target` set, `selected.environment == null` → *"Not deployed yet. Panacea will
   deploy this branch to `<target>`."* — Panacea's own name, shown before the first Ship.
 - both set → the card for that row.
+
+**Recorded against another environment** (task 08 rule 5a; b02 round 2, R1). A `ReleaseTable` row
+with `environmentMismatch` set carries one `warn` line: *"The release was recorded against
+`<recorded>`, but Panacea deployed it to `<deployed>`."* Both names verbatim, in mono. The row sits
+under its `environmentRow` (the deployment's), never under `recorded`.
 
 `unmatched` groups render in `EnvironmentList` under their raw names, never folded into a row.
 
@@ -133,6 +154,12 @@ which was true only while releases were per-laptop.
   branch is serving now: the labels (`pipeline.go:609`) cannot be compared with this branch's name
   without a copy of Panacea's rule. A fact from source, stated once; the cockpit does not predict it
   (never a fourth copy of the rule).
+  **Blind spot, stated not fixed** (b02 round 2, R7): branches whose names differ only in `/`
+  versus `_` versus `-` (`feat/x`, `feat_x`, `feat-x`) share the environment `feat-x` **and** the run
+  label `feat-x` (`sanitizeLabelValue`, `clients/pipeline.go:2351-2364`, applied at `:609`), so
+  `branchesSeen` holds one entry and no banner is drawn while they overwrite each other. Twins
+  that differ in case (the label keeps capitals) or past the 20th character (the label is cut at
+  63) do show. The banner never claims *"one branch"*: its absence is not a proof.
 
 #### Tests to write first
 
@@ -150,11 +177,14 @@ which was true only while releases were per-laptop.
 | `table windows past 50` | 200 rows → fewer than 60 `role="row"` in the DOM; scrolling reveals later rows | 200 live rows re-rendering each tick |
 | `origin is the reserver` | a teammate's pinned release → their display name; `release: null` → *"outside any cockpit"* | the per-laptop "this cockpit" wording surviving OD-3 |
 | `collision banner words` | two branches seen → the banner with both names and the cited rule; one branch → none | a silent overwrite (brief R2) |
-| `slash branch finds its card` | `branchName "feat/x"`, `selected {target:"feat-x", environment:"feat-x"}`, a row `{name:"feat-x", branch:"feat-x", branchesSeen:["feat-x"]}` → the card for `feat-x`, and **no** collision banner | `e.branch === branchName`, which drew the empty state and a false collision for every `/` branch (review C2) |
-| `long branch finds its card` | `branchName "lane/7-deploy-connector-watcher"`, `selected.environment "lane-7-deploy-connec"`, that row → its card | a join that works only for 20 characters or fewer |
-| `production branch finds its card` | `branchName "main"`, `selected {target:"prod", environment:"production"}`, the row `production` → its card | an exact `target === e.name` compare in the desktop |
-| `never deployed names the target` | `selected {target:"feat-new", environment:null}` → *"Not deployed yet. Panacea will deploy this branch to `feat-new`."*; `target:null` → the asking sentence | a card that guesses, or says "never deployed" while Panacea is still being asked |
-| `no branch comparisons` | a source grep of `desktop/src/deploy/*.tsx`: no `=== branchName`, `!== branchName`, `.branch ===` or `.branch !==` | a later edit re-introducing the name join |
+| `slash branch finds its card` | `selected {branch:"feat/x", target:"feat-x", environment:"feat-x", error:null}`, a row `{name:"feat-x", branch:"feat-x", branchesSeen:["feat-x"]}` → the card for `feat-x`, and **no** collision banner | `e.branch === branchName`, which drew the empty state and a false collision for every `/` branch (review C2) |
+| `long branch finds its card` | `selected {branch:"lane/7-deploy-connector-watcher", target:"lane-7-deploy-connec", environment:"lane-7-deploy-connec", error:null}`, that row → its card | a join that works only for 20 characters or fewer |
+| `production branch finds its card` | `selected {branch:"main", target:"prod", environment:"production", error:null}`, the row `production` → its card, and `ReleaseTable` marks the rows with `environmentRow "production"` | an exact `target === e.name` compare in the desktop |
+| `never deployed names the target` | `selected {target:"feat-new", environment:null, error:null}` → *"Not deployed yet. Panacea will deploy this branch to `feat-new`."*; `target:null, error:null` → the asking sentence | a card that guesses, or says "never deployed" while Panacea is still being asked |
+| `refused names the refusal` | `selected {branch:"live-check/p7", target:null, environment:null, error:{code:"not_found", message:"Panacea could not read this branch name. It may contain \`/\`, which the route cannot carry."}}` → *"Panacea did not name this branch's environment: "* + the message verbatim, and the DOM lacks *"Asking Panacea"* (b02 round 2, R2) | a refusal drawn as the asking state for ever |
+| `no selection, no card` | `selected: null` → `EnvironmentCard` renders nothing; the DOM lacks *"Asking Panacea"* and *"Not deployed yet"*; the list still renders (b02 round 2, R6) | a lens that says it is asking when it sent no branch |
+| `mismatch is drawn` | a row `{environmentRow:"production", environmentMismatch:{recorded:"develop", deployed:"prod"}}` → *"The release was recorded against `develop`, but Panacea deployed it to `prod`."*, under `production` (b02 round 2, R1) | a false provenance record shown as if it held |
+| `no branch comparisons` | a source grep of `desktop/src/deploy/*.tsx` (b02 round 2, R5, widened): no identifier `branchName` or `selectedBranch`; no `.branch` on either side of `===`, `!==`, `==` or `!=` (`/\.branch\s*[!=]==?/` and `/[!=]==?\s*[\w.?]*\.branch\b/`); no `.includes(`, `.startsWith(` or `.endsWith(` whose receiver or argument ends in `branch` or `branchesSeen` | a later edit re-introducing the name join, in either operand order |
 | `drift guard` | `designsystem.test.ts` allows `var(--drift)` in `common.css`'s `dot-tone-drift` and nowhere else | drift colour leaking to decoration |
 
 #### Steps
