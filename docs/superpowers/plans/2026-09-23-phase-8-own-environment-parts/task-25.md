@@ -52,10 +52,15 @@ var _ Machine = Remote{}
 func (r Remote) ID() string { return r.MachineID }
 
 // Git runs on the machine agent. Call.Dir must be absolute under MachineRoot
-// (slash-separated); it is sent relative. A problem "git_failed" becomes a
+// (slash-separated); it is sent relative. Call.Scope and Call.RemoteURL are
+// sent as GitCall.Scope ("clone" | "project" | "none") and RemoteURL; an Unset
+// scope is ErrCallShape here, before any request. A problem "git_failed" becomes a
 // *Error with ExitCode, Stderr (= details.gitSays) and TimedOut from the
-// details, Args and Dir from the Call — so callers that switch on *Error, and
-// the cockpit's details.gitSays, behave exactly as for Local.
+// details, Args and Dir from the Call. A problem "conflict" with details.reason
+// clone_config_untrusted | project_config_untrusted becomes
+// *UntrustedConfig{Dir, Key: details.key, Scope}. A 400 wraps ErrCallShape. So
+// callers that switch on *Error or *UntrustedConfig, and the cockpit's
+// details.gitSays, behave exactly as for Local (task 21, review I7).
 func (r Remote) Git() Runner
 
 // CloneRoot is MachineRoot + "/lanes" (machineapi.DirLanes).
@@ -84,8 +89,10 @@ func (r Remote) Join(elem ...string) string { return path.Join(elem...) }
 |---|---|---|
 | `TestRemoteSendsDirRelativeToTheMachineRoot` | `Call{Dir: "/machine/lanes/p-1/w-2"}` → `GitCall.Dir == "lanes/p-1/w-2"` | an absolute path the agent refuses, or a host path sent |
 | `TestRemoteRefusesADirOutsideTheRoot` | `Dir: "C:\\Users\\x"` or `"/etc"` → error, no call | a laptop path leaking to the machine |
-| `TestRemoteCarriesClassStdinEnvAndOKExit` | each field arrives; `Class` as `"read" | "local" | "remote"` | a Read call taking optional locks on the machine |
+| `TestRemoteCarriesClassStdinEnvAndOKExit` | each field arrives; `Class` as `"read" | "local" | "remote"`; `Scope` as `"clone" | "project" | "none"`; `RemoteURL` | a Read call taking optional locks on the machine; a lane call sent as `project` |
+| `TestRemoteRefusesAnUnsetScope` | `Scope: Unset` → `ErrCallShape`, no call | a call the machine must guess the scope of |
 | `TestGitFailedBecomesAGitxError` | problem `git_failed` with details → `*Error{ExitCode, Stderr, TimedOut}`, `AsError` finds it, `Sentence()` is `gitSays` | the cockpit's `details.gitSays` empty for cloud machines |
+| `TestAnUntrustedConfigBecomesAGitxUntrustedConfig` | problem `conflict`, `reason: clone_config_untrusted`, `key: filter.x.clean` → `*UntrustedConfig{Key: "filter.x.clean", Scope: Clone}`; the `project_…` reason → `Scope: Project` | a refused filter shown as a network failure, or as "git said" |
 | `TestAnUnreachableAgentIsNotAGitError` | the fake returns `backend.ErrUnavailable` → the error is not an `*Error` | "git said" shown for a network failure |
 | `TestFetchURLIsThePath` and `TestCloneRootIsMachineLanes` | as the contract | a URL scheme invented for a same-disk fetch |
 | phase 3's own `Machine` conformance tests, if its task 02 ships any, run against `Remote` with the fake | pass | a second implementation that diverges from the first |
@@ -112,4 +119,9 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
 - That phase 3's convergence flows have run against a real cloud machine: that is the owner's
   batched hands-on session (OD-12), listed in task 32.
 - Push from a cloud machine to a git host: it is phase 3's push (its task 13) with the user's
-  token in `Env`, through the same route; nothing here changes it, and it is unobserved.
+  token in `Env`, through the same route, and it is unobserved. It runs in the project
+  repository, `Scope: Project`, `Class: Remote`, with `RemoteURL`. `machined` admits the token
+  there only as `http.<RemoteURL's origin>/.extraHeader`, the form `PushEnv` writes, and refuses
+  it on every `clone`-scope call (task 21, review I7). A phase 3 push from a lane clone would
+  therefore be a `400`. Phase 3's task 12 runs its fetch and push with `Scope Project` (its
+  contract comments, read at `93c1fdf`), which is what this plan relies on.
