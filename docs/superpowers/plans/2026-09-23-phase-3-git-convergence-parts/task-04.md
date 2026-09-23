@@ -79,6 +79,7 @@ const (
 	ReasonUnknownHost       = "unknown_host"           // PR: origin is neither GitHub nor Azure DevOps
 	ReasonNoCredential      = "no_credential"          // PR; details.host
 	ReasonNotPushed         = "not_pushed"             // PR: the branch has no upstream, or commits the remote lacks; details.why: never_pushed | ahead
+	ReasonTranscript        = "transcript_unreadable"  // transcript span; details.why is the adapter's Unreadable.Reason (task 17)
 )
 
 // gitConflict writes 409 conflict with details.reason and any further details.
