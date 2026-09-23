@@ -177,7 +177,7 @@ Key Vault (`:180-184`), and tenant build egress to GitHub, Azure DevOps and PyPI
   form was added (`P:deploy/main.tf:772-816`). The live default is still the inline form (`:784-787`).
 - **ACR and Key Vault are created imperatively** by the deploy scripts (`az acr create`,
   `az keyvault create`) and only referenced by Terraform as `data` sources
-  (`P:deploy/private-endpoints.tf:5-8`, `:22-37`).
+  (`P:deploy/private-endpoints.tf:5-8`; the `data` blocks at `:22` and `:30`).
 - **CMK substrate** (Premium KV, RSA-HSM key, Disk Encryption Set) is written but off
   (`P:deploy/cmk.tf:1-31`); ACR CMK likewise (`P:deploy/acr-cmk.tf`, not opened past the index).
 - **The RBAC gap.** The deploy identity is Contributor-only and cannot write role assignments
