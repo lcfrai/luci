@@ -39,6 +39,24 @@ vi.mock("../../api", () => ({
   },
 }));
 
+// Only the two members sessionVerbs.ts imports. The registry function itself is proven in
+// `src/api/attachRegistry.test.ts` against task 19's FakeWebSocket harness — mocking it there
+// too would test the verb's wiring and leave the registry proven by nothing.
+const { attachPhaseMock, retryAttachMock } = vi.hoisted(() => ({
+  attachPhaseMock: vi.fn(() => "detached"),
+  retryAttachMock: vi.fn(() => true),
+}));
+vi.mock("../../api/attachRegistry", () => ({
+  getAttachState: (id: string) => ({
+    phase: attachPhaseMock(),
+    attempts: 0,
+    ladderStartedAt: 0,
+    reason: "",
+    id,
+  }),
+  retryAttach: retryAttachMock,
+}));
+
 import {
   __resetSessionVerbs,
   isSessionPending,
@@ -80,6 +98,8 @@ beforeEach(() => {
   for (const mock of [killMock, purgeMock, restartMock, renameMock, resumeMock, forkMock, readyMock]) {
     mock.mockReset();
   }
+  attachPhaseMock.mockReturnValue("detached");
+  retryAttachMock.mockReturnValue(true);
 });
 
 afterEach(() => {
@@ -146,6 +166,49 @@ describe("sessionVerbs — the gates", () => {
     const items = sessionVerbs("s-nope", DEPS);
     expect(items).toHaveLength(1);
     expect(items[0]?.run).toBeUndefined();
+  });
+});
+
+// The carry this task took as a declared departure: a pane whose attach has failed had no way
+// forward from the pane itself, because `failed` is terminal and the exit bar is absent by
+// definition — the socket died while the session is NOT exited.
+describe("sessionVerbs — Retry attach", () => {
+  it("appears only while the attach ladder is spent", () => {
+    seed({ status: "running" });
+    expect(find(sessionVerbs(IDS.session, DEPS), "retry-attach")).toBeUndefined();
+
+    attachPhaseMock.mockReturnValue("reconnecting");
+    expect(find(sessionVerbs(IDS.session, DEPS), "retry-attach")).toBeUndefined();
+
+    attachPhaseMock.mockReturnValue("failed");
+    const row = find(sessionVerbs(IDS.session, DEPS), "retry-attach");
+    expect(row?.label).toBe("Retry attach");
+    expect(row?.run).toBeTypeOf("function");
+  });
+
+  it("closes the menu and restarts the ladder, silently when it works", () => {
+    seed({ status: "running" });
+    attachPhaseMock.mockReturnValue("failed");
+    const deps = { createSession: vi.fn(), close: vi.fn(), beginRename: vi.fn() };
+
+    find(sessionVerbs(IDS.session, deps), "retry-attach")?.run?.();
+
+    expect(retryAttachMock).toHaveBeenCalledWith(IDS.session);
+    expect(deps.close).toHaveBeenCalledTimes(1);
+    expect(useCockpit.getState().toasts).toHaveLength(0);
+  });
+
+  it("says so when the registry refuses, rather than no-opping under the click", () => {
+    seed({ status: "running" });
+    attachPhaseMock.mockReturnValue("failed");
+    retryAttachMock.mockReturnValue(false);
+
+    find(sessionVerbs(IDS.session, DEPS), "retry-attach")?.run?.();
+
+    expect(lastToast()?.message).toBe(
+      "That pane is no longer attached, so there was nothing to retry.",
+    );
+    expect(lastToast()?.undo).toBeUndefined();
   });
 });
 

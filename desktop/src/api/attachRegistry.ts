@@ -225,6 +225,63 @@ export function setAttachReadOnly(sessionId: SessionId, readOnly: boolean): void
   if (entry) entry.readOnly = readOnly;
 }
 
+/** Start a FRESH ladder for a pane whose previous one is spent. Returns false, having done
+ *  nothing, when there is nothing to retry.
+ *
+ *  ADDED BY TASK 22 as a declared departure — this file is task 19's. The gap it closes:
+ *  **`failed` is terminal.** Nothing in this surface re-attempts, and the pane's exit bar cannot
+ *  offer the way out because it is absent *by definition* — the socket died while the session is
+ *  NOT exited, so the Restart that answers `exited` never appears. Release-and-reacquire is not a
+ *  retry: after the grace it destroys the terminal and loses the transcript, and inside the grace
+ *  it hands back this same exhausted entry. Task 22's ⋯ menu carries the verb that calls this.
+ *
+ *  **It resets the two counters and then calls `connect()` rather than stamping the clock
+ *  itself**, and that is the load-bearing part. `ladderStartedAt !== 0` is the published meaning
+ *  of "this pane is retrying" (§7.7), which task 20's footer renders an elapsed from. `connect()`
+ *  already owns the stamp with its own `if (entry.ladderStartedAt === 0)`, so zeroing here and
+ *  letting it stamp keeps ONE writer of that invariant. Stamping by hand would make two; leaving
+ *  the zero in place would render a retrying pane with no elapsed. */
+export function retryAttach(sessionId: SessionId): boolean {
+  const entry = entries.get(sessionId);
+  // `entry.destroyed` is checked for the same reason the four guards named at `destroy()` are,
+  // and it is masked in the same way: `destroy()` deletes the entry, so today the first half
+  // always catches it first. It stops being masked the moment anything marks an entry destroyed
+  // without removing it from `entries` — the same expiry condition already written at destroy().
+  if (!entry || entry.destroyed) return false;
+  // An exited session has no sandbox to attach to; 409 is the only answer the attach route can
+  // give, which is the rule `openIfLive` states.
+  if (entry.session.status === "exited") return false;
+  // A socket is open, or a handshake is already in flight: either way an attempt is running, so
+  // there is no spent ladder to restart and zeroing the stamp would blank an elapsed the pane is
+  // rendering. `connect()` would early-return on the same condition, so without this the call
+  // would report success having done nothing. The one mid-ladder moment this DOES accept is an
+  // armed rung, where `ws` is null — there the clearRetry below replaces the rung instead of
+  // racing it.
+  if (entry.ws) return false;
+  // NO `clearRetry` HERE, and its absence is measured rather than an oversight. A mutant that
+  // added one back survives every test, because an armed rung is already unobservable by the
+  // time it could matter: `scheduleRetry` calls `clearRetry` itself before arming the next rung,
+  // so a close after this cancels the stale timer; and if nothing closes, the stale timer fires
+  // into a `connect()` that early-returns on the live `entry.ws` this retry just set, nulling
+  // `entry.retryTimer` on its way out. `destroy()` clears it in the teardown path. A line that
+  // cannot change an outcome reads as protection while doing nothing, which is worse than none.
+  entry.attempts = 0;
+  // DECLARED EQUIVALENT MUTANT, and it is equivalent in value rather than in meaning. Replacing
+  // this `0` with `Date.now()` survives the suite, because `connect()` runs SYNCHRONOUSLY on the
+  // next line and its own conditional stamp reads the very same millisecond — the published
+  // `ladderStartedAt` is identical either way.
+  //
+  // What would have to change for it to stop being equivalent: anything landing between these
+  // two lines — an await, a publish, a listener callback — or `connect()` ceasing to stamp
+  // conditionally. Then the two diverge, and the hand-stamped version is a second writer of an
+  // invariant `connect()` owns. That condition is mechanically checkable, so it is a guard and
+  // not only this comment:
+  //     grep -A1 '^  entry.ladderStartedAt = 0;$' attachRegistry.ts | grep -c '^  connect(entry);$'
+  entry.ladderStartedAt = 0;
+  connect(entry);
+  return true;
+}
+
 export function getAttachState(sessionId: SessionId): AttachState {
   return entries.get(sessionId)?.state ?? DETACHED;
 }

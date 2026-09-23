@@ -11,6 +11,7 @@
 // not work, which is worse than no button.
 import { useSyncExternalStore } from "react";
 import { api } from "../../api";
+import { getAttachState, retryAttach } from "../../api/attachRegistry";
 import type { ApiError } from "../../api/client";
 import { classify } from "../../api/problems";
 import type { CreateSessionOptions } from "../../hooks/useCreateSession";
@@ -363,7 +364,42 @@ function tailVerbs(
   act: (fn: () => void) => () => void,
 ): MenuItem[] {
   const id = session.id;
+
+  /** Only while the ladder is spent, and RENDERED rather than disabled when it is not.
+   *
+   *  `failed` is terminal: nothing re-attempts on its own, and the pane's exit bar cannot offer
+   *  the way out because it is absent by definition — the socket died while the session is NOT
+   *  exited, so the Restart that answers `exited` never appears. Without this row a failed pane
+   *  has no way forward from the pane itself.
+   *
+   *  Hidden rather than disabled because it is a repair for a transient transport state, not a
+   *  capability the cockpit is withholding — §6.4 wants a reason on every disabled control, and
+   *  "the attach is working" is not a reason a healthy session should carry on every right-click.
+   *
+   *  Reading the registry here does not make this a subscription: `sessionVerbs` takes one
+   *  snapshot when the menu opens, and `getAttachState` is a synchronous snapshot read. That is
+   *  why the verb lives here rather than in `SessionPane`, which would have needed a new surface
+   *  in a file this task does not own. */
+  const retryRow: MenuItem[] =
+    getAttachState(id).phase === "failed"
+      ? [
+          {
+            id: "retry-attach",
+            label: "Retry attach",
+            run: act(() => {
+              if (retryAttach(id)) return;
+              // It refuses when the pane has closed, the grace has run out, or a poll turned the
+              // session exited under the open menu. Saying so beats a row that silently no-ops.
+              useCockpit
+                .getState()
+                .pushToast("That pane is no longer attached, so there was nothing to retry.");
+            }),
+          },
+        ]
+      : [];
+
   return [
+    ...retryRow,
     {
       id: "restart",
       // §6.5 says "Restart clean". Phase 2 has no worktree mutation endpoint (§10.3), so the

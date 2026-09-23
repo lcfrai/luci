@@ -8,6 +8,7 @@ import {
   configureAttachRegistry,
   getAttachState,
   releaseAttach,
+  retryAttach,
   setAttachReadOnly,
   subscribeAttach,
   updateAttachSession,
@@ -705,5 +706,156 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
     expect(getAttachState("s-1").phase).toBe("reconnecting");
     vi.advanceTimersByTime(250);
     expect(FakeWebSocket.instances.length).toBe(2);
+  });
+});
+
+// ADDED BY TASK 22, as a declared departure into this file — task 19 owns it and had closed it.
+// The carry it answers: `failed` is TERMINAL. Nothing re-attempts on its own, and the pane's exit
+// bar cannot offer the way out because it is absent by definition — the socket died while the
+// session is NOT exited. Release-and-reacquire is not a retry either: after the grace it destroys
+// the terminal and loses the transcript, and inside the grace it hands back the same spent entry.
+// So the surface needed a tenth export, and task 22's ⋯ menu is where the verb that calls it went.
+//
+// Every assertion below is on the ACT — socket count, the stamp, the boolean — and not on the
+// resulting state (§3A.1 clause 7). A retry's defect signature is "the same value, again": a
+// double-connect, a no-op that reports success, or a ladder that restarts without its clock all
+// leave `phase` looking exactly right.
+describe("attachRegistry — retryAttach", () => {
+  /** Drive the ladder to `failed` with a client that confirms the sandbox is still running. */
+  async function spendTheLadder(): Promise<void> {
+    configureAttachRegistry({ client: stubClient(async () => live({ status: "running" })) });
+    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    for (let i = 0; i < 40; i += 1) {
+      socket().emitClose(1006);
+      await vi.advanceTimersByTimeAsync(2_000);
+    }
+    expect(getAttachState("s-1").phase).toBe("failed");
+  }
+
+  it("opens exactly one new socket for a ladder nothing else could restart", async () => {
+    await spendTheLadder();
+    const spent = FakeWebSocket.instances.length;
+
+    expect(retryAttach("s-1")).toBe(true);
+
+    // One, not two: `connect()` early-returns on a live `entry.ws`, and a retry that both
+    // connected and re-armed the ladder would leave `phase` correct and two sockets open.
+    expect(FakeWebSocket.instances.length).toBe(spent + 1);
+    expect(getAttachState("s-1").phase).not.toBe("failed");
+  });
+
+  it("stamps a FRESH ladder, so the pane's elapsed starts counting again (§7.7)", async () => {
+    await spendTheLadder();
+    // giveUp zeroes the stamp: the spent ladder has no elapsed left to render.
+    expect(getAttachState("s-1").ladderStartedAt).toBe(0);
+
+    vi.advanceTimersByTime(5_000);
+    const retriedAt = Date.now();
+    retryAttach("s-1");
+
+    // `ladderStartedAt !== 0` is the published meaning of "this pane is retrying", and it is
+    // what task 20's footer renders an elapsed from. Left at 0 the pane shows a retrying session
+    // with no elapsed; stamped by hand here it would be a second writer of an invariant that
+    // connect()'s own `if (ladderStartedAt === 0)` already owns.
+    expect(getAttachState("s-1").ladderStartedAt).toBe(retriedAt);
+  });
+
+  it("restarts the budget rather than resuming the spent one", async () => {
+    await spendTheLadder();
+    retryAttach("s-1");
+    const sockets = FakeWebSocket.instances.length;
+
+    // The bottom rung, from the bottom: attempts was reset, so this is 250 ms and not a
+    // continuation of a ladder that had already run past the end of RETRY_DELAYS_MS.
+    socket().emitClose(1006);
+    vi.advanceTimersByTime(249);
+    expect(FakeWebSocket.instances.length).toBe(sockets);
+    vi.advanceTimersByTime(1);
+    expect(FakeWebSocket.instances.length).toBe(sockets + 1);
+  });
+
+  // The two tests above run on the `failed` path, where giveUp has ALREADY zeroed the stamp — so
+  // neither of them can tell `entry.ladderStartedAt = 0` from a no-op. These two run the export
+  // on the other path it accepts, a ladder mid-flight, which is where that line and the
+  // clearRetry beside it actually do something.
+  it("restarts the budget clock even when a ladder is already running", () => {
+    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    const firstLadder = getAttachState("s-1").ladderStartedAt;
+    expect(firstLadder).not.toBe(0);
+
+    // Half the budget spent, then stop INSIDE an armed rung: `entry.ws` is null there, which is
+    // the only mid-ladder moment a retry is accepted. A handshake already in flight is refused.
+    for (let i = 0; i < 15; i += 1) {
+      socket().emitClose(1006);
+      vi.advanceTimersByTime(2_000);
+    }
+    socket().emitClose(1006);
+    vi.advanceTimersByTime(100);
+    const retriedAt = Date.now();
+
+    expect(retryAttach("s-1")).toBe(true);
+    // Not the old stamp: a user-initiated retry gets a whole budget, not the remainder of one.
+    // This is the assertion that makes `entry.ladderStartedAt = 0` more than a no-op — on the
+    // `failed` path giveUp has already zeroed it, so only this path can tell the two apart.
+    expect(getAttachState("s-1").ladderStartedAt).toBe(retriedAt);
+    expect(getAttachState("s-1").ladderStartedAt).not.toBe(firstLadder);
+  });
+
+  // Pins the TIMING of the ladder a retry starts, which is the part a state assertion cannot see
+  // (§3A.1 clause 7). It does NOT prove that the rung armed before the retry was cancelled, and
+  // an earlier version of this test claimed it did: a mutant adding `clearRetry` back into
+  // `retryAttach` survives, because the stale rung is unobservable either way. See the note at
+  // that line — `scheduleRetry` clears before arming, and `connect()` early-returns on a live
+  // socket, so nothing the stale timer does can reach a socket count.
+  it("runs the retry's own ladder from the bottom rung, timed from the retry's close", () => {
+    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    socket().emitClose(1006);            // t=0: a 250 ms rung is armed
+    expect(FakeWebSocket.instances.length).toBe(1);
+
+    vi.advanceTimersByTime(100);         // t=100
+    retryAttach("s-1");
+    expect(FakeWebSocket.instances.length).toBe(2);   // the retry connected immediately
+    socket().emitClose(1006);            // t=100: the retry's rung is armed for t=350
+
+    vi.advanceTimersByTime(150);         // t=250 — where the pre-retry ladder's rung would have
+    expect(FakeWebSocket.instances.length).toBe(2);   // landed. Nothing opens here.
+
+    vi.advanceTimersByTime(99);          // t=349
+    expect(FakeWebSocket.instances.length).toBe(2);
+    vi.advanceTimersByTime(1);           // t=350: 250 ms after the retry's own close, not 250
+    expect(FakeWebSocket.instances.length).toBe(3);   // after the ladder it replaced
+  });
+
+  it("refuses, and opens nothing, when no pane holds the session", () => {
+    expect(retryAttach("s-nope")).toBe(false);
+    expect(FakeWebSocket.instances.length).toBe(0);
+  });
+
+  it("refuses an exited session, because there is no sandbox to attach to", async () => {
+    await spendTheLadder();
+    updateAttachSession(live({ status: "exited", exitReason: "killed" }));
+    const spent = FakeWebSocket.instances.length;
+
+    expect(retryAttach("s-1")).toBe(false);
+    expect(FakeWebSocket.instances.length).toBe(spent);
+  });
+
+  it("refuses once the pane is gone and the grace has run out", () => {
+    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    releaseAttach("s-1");
+    vi.advanceTimersByTime(GRACE_MS);
+    const before = FakeWebSocket.instances.length;
+
+    expect(retryAttach("s-1")).toBe(false);
+    expect(FakeWebSocket.instances.length).toBe(before);
+  });
+
+  it("refuses while a socket is live, so it cannot blank an elapsed or double-connect", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+
+    expect(retryAttach("s-1")).toBe(false);
+    expect(FakeWebSocket.instances.length).toBe(1);
+    expect(getAttachState("s-1").phase).toBe("attached");
   });
 });
