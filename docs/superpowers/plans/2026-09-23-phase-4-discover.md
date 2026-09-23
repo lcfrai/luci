@@ -335,3 +335,134 @@ Then 07 → 08 → 09 → 11 → 12 → 13 → 14 as the Hub's H0 lands (`hubcli
 has looked** (`OD-1`).
 
 **Critical path:** Hub H0 → 07 → 08 → 09 → 11 → 12 → 14 → 23, about 18 engineer-hours after H0.
+
+---
+
+## 7. The contracts, and where each is written in full
+
+A contract is written **once**, as complete source, in the part that produces it. Other parts cite
+it. This table is the index.
+
+| Contract | Complete source in | Consumed by |
+|---|---|---|
+| `statepath.WriteAtomic` | task 01 | 09, registry |
+| `modelclient.Completer`, `Request`, `Response`, `Config` | task 02 | 04, 13, phase 6 |
+| `discover.Content` (the Hub `content` object, **version 1**), `Question`, `Answer`, `Author`, `Criterion`, `Step`, `Op`, `Apply` | task 03 | everything |
+| `discover.Document`, `Section`, `Origin`, `Resolve`; `claudemd.Render`/`Merge`/`Strip`/`Inspect`, the markers, the golden block | task 05 | 06, 09, 12 |
+| `provenance` key grammar, `Key`, `Parse`, `Ref`, `Resolution`, `Criterion`, `Build` | task 06 | 07, 11, 12, phase 3 |
+| `discoverhub.Service`, `Binding`, `View`, `RepoIdentity` | tasks 07, 08 | 09, 11, 12, 13, phase 3 (`briefref`) |
+| `api.Materialiser`, `MaterialiseRequest`, `MaterialiseResult`, `*MaterialiseError`, `api.RouteMounter`; `brief_not_written` | task 10 | 09, 11, 14, 20 |
+| `/v1/discover/…` routes and every JSON body | tasks 11, 12 | 15 |
+| `desktop/src/api/discover.ts` (the TypeScript mirror) | task 15 | 16–21 |
+| `discoverSlice`, `provenanceSlice`, the key-source rule, the provenance selectors | task 16 | 17–21, phases 3, 5, 7 |
+| `ContextChip`, `DefinitionOfDone`, `ShippedManifest` props | task 17 | phases 3, 7 |
+
+**The content object is versioned** (`Content.V = 1`). A revision is immutable and kept for ever,
+so no migration may rewrite one: every reader handles every version ever written, and a new version
+is additive (critique-2 §1.3's "Go-side document versioning", sharpened by P3). The canonical
+encoding is the Hub's and carries its own `v` in the envelope (Hub contract §3.4).
+
+---
+
+## 8. Seams
+
+### 8.1 Against phase 2 (shipped; this branch is based on `3303fd6`)
+
+| Seam | State, read in this pass | Handling |
+|---|---|---|
+| `worktree.Provider.Path` (`worktree/worktree.go:32`) | exact match | the Materialiser receives the resolved path from the handler; it never resolves one itself |
+| `project.Scanner.ProjectName`/`BranchName` (`project/project.go:172`, `:175`) | exact match | names in the title of the managed block |
+| `handleSessionCreate` (`api/sessions.go:277`): worktree `:291` → … → `sessionLocate` `:376` → `Store.Create` `:382` → `Backend.Create` `:422` | no hook | task 10 calls `Materialise` after `sessionLocate` and before `Store.Create`, so a refusal writes nothing |
+| `handleSessionRestart` (`:879`): worktree `:895` → record → `Backend.Create` `:1010` | no hook; no request body | task 10 calls `Materialise` after the worktree resolves and stamps `ContextRef` in the restart's record write; an optional body carries `withoutBrief` |
+| The route recorder `routes` (`api/api.go` — unexported) and the §10a audit (`routes_audit_test.go`) | a package outside `api` cannot take `*routes` | `api.RouteMounter` hands `guarded.Handle` to `discoverapi.Mount`, so every Discover pattern is recorded and audited |
+| The `/api/v1/` alias (`api.go`, on `guarded`) | lives on the guarded mux | Discover mounts on the same mux, so the alias reaches it |
+| `writeAtomic` (`registry/filestore.go:460`, unexported) | — | lifted (R2, task 01) |
+| `AppShell.tsx` `discover` arm → `LensPlaceholder` | read | task 18 replaces the arm |
+| `poller.ts` — "exactly one request per tick" (`:1-3`) | read | task 16's declared amendment |
+| `problems.ts` `ProblemKind` (three kinds, `:13`) | read | no new kind: Hub failures arrive as `upstream_unavailable`, which R4's owner adds as a kind; `brief_not_written` is `server-said` plus a code check at one call site |
+| `types.ts` `Session.contextRef` (`:162-163`) | read | unchanged (G2) |
+| `useKeyboardMap` — the one window listener (`hooks/useKeyboardMap.ts:61`) | read | Discover's keys are element-scoped (G9) |
+
+### 8.2 To phase 3 (plan read at `.claude/worktrees/phase-3`, commit `a9e4289`)
+
+| Id | What phase 4 provides | Phase 3's ask |
+|---|---|---|
+| S4-P3.1 | `discoverhub.Service` satisfies `briefref.Resolver` — digest and each criterion's id and text digest | P4-1, P4-2 |
+| S4-P3.2 | `discoverhub.Service` satisfies `briefref.Archiver.ArchiveHead(ctx, projectID, branchID)` — archives the Hub head; revisions untouched | P4-3 |
+| S4-P3.3 | `DefinitionOfDone` takes an optional `onRecordEvidence?(criterionId)` | P4-5 |
+| S4-P3.4 | `provenance.Build` takes an optional `Evaluate func(Criterion) (State, Because)`; nil means every criterion `open` | P4-4 |
+| S4-P3.5 | the Materialiser appends `/CLAUDE.md` to the clone's `.git/info/exclude` on first write | P4-6 |
+| S4-P3.6 | **New ask of phase 3:** when task 11's `RenameBranch` succeeds, call `discoverhub.Service.Rebind(ctx, projectID, oldBranchID, newBranchID)`, so the brief follows the branch (Hub `PATCH /v1/briefs/{id}`). Without it a renamed branch shows *no brief* and its old brief sits on a ref nobody uses | — (not in phase 3's list) |
+| S4-P3.7 | `sessions.go`: phase 4's call is in the handlers' step order; phase 3 task 05's is inside `sessionEnv`. They do not contend | P4-7 |
+
+**A conflict between siblings, named, not phase 4's to settle:** phase 3's `githost.RepoKey` for
+Azure DevOps is `"azure-devops/<org>/<project>/<repo>"` (phase 3 task 13), and the Hub's
+`repoKey` pattern is `<org>.visualstudio.com/<project>/<repo>` (Hub contract §7.4). Phase 4 passes
+whatever `githost` produces. Until the two agree, an Azure DevOps repository cannot be bound. Hub
+contract ask HA4-6.
+
+### 8.3 To phases 5, 6, 7 and 8
+
+| Id | Seam | The later phase | Must not |
+|---|---|---|---|
+| S4-P5.1 | a key-source selector in `store/selectors.ts` for Design's bound and approved keys (R6) | phase 5 adds one selector | fetch provenance itself (P8) |
+| S4-P5.2 | a session started from an approved design inherits the branch's latest complete revision (P4-A); phase 5 records `session → design:` through the Hub's session links | phase 5 | send `contextRef` and expect it kept |
+| S4-P5.3 | `get_brief` (cleanroom spec `:553`) resolves through `discoverhub.Service.HeadRef` / `Resolve` | phase 5 | copy brief text into the canvas |
+| S4-P6.1 | `modelclient.Completer` | phase 6's rotation replaces the implementation | change the interface |
+| S4-P7.1 | `ShippedManifest({refValue, version, mergeRef?, designRef?})` renders the **pinned** `Ref` | phase 7 | pass a head `Ref` (P1) |
+| S4-P7.2 | a key-source selector for release pins (R6) | phase 7 | resolve keys outside the loader |
+| S4-P8.1 | `MaterialiseRequest.WorktreePath` is a host path. A cloud machine's worktree is on the pod's volume; phase 8 supplies a `contextwrite.FS` for it | phase 8 | write a brief by attaching to the PTY |
+
+---
+
+## 9. Hub contract asks
+
+Each is a shape phase 4 needs that the Hub contract (read at `.claude/worktrees/hub`, commit
+`a6ccd77`) does not provide. **No Hub route is invented here.** Each has what phase 4 does until
+it is answered.
+
+| Id | Ask | Exact shape | Until answered |
+|---|---|---|---|
+| **HA4-1** | Publish the `hubapi` Go structs. §9.2 lists their names and says the JSON tags follow §7; the fields are not written anywhere | the struct set in part 07, §"Assumed `hubapi` shapes", derived field-for-field from §7.1 and §7.5 | phase 4 codes against part 07's assumed shapes; a rename is a mechanical fix |
+| **HA4-2** | `hubclient.Briefs` has no list method, though route 19 exists | `List(ctx context.Context, projectID string, q hubapi.BriefQuery) (hubapi.Page[hubapi.BriefHead], error)` with `type BriefQuery struct { Scope string; BranchRef string; IncludeArchived bool; After string; Limit int }` | the `4-D3` fan-out cannot find the inheriting branch briefs; task 08 is blocked on it |
+| **HA4-3** | The revision batch holds 1–16 items (§7.5). A project with more than 15 complete branch briefs cannot re-revision them all in one transaction, and `4-D3` needs one | raise the limit to **64** for `POST …/brief-revisions`, with that route's body cap at **4 MiB**, and export it as `hubapi.MaxRevisionBatch` | the control plane refuses such an edit with `409 fanout_too_large` and a sentence naming the count (task 08) |
+| **HA4-4** | Materialise at session start needs the **latest complete** revision's content; `for-branch` returns only the head revision | add `"latestComplete": BriefRevision \| null` beside `"revision"` in each of `branchBrief` and `projectBrief` | one extra `/v1/refs` call per session start (task 07) |
+| **HA4-5** | The relay rule (§4.3) is "implemented once in `hubclient`", but no function maps an error to a response | `func Relay(err error) (status int, p httpx.Problem, ok bool)` in `hubclient`, `ok` false for a non-Hub error | `discoverapi.relay` implements §4.3's table locally, one function, marked for deletion when `Relay` lands (task 11) |
+| **HA4-6** | One Azure DevOps repo-key form (§8.2 above) | either the Hub accepts `azure-devops/<org>/<project>/<repo>` or phase 3 emits `<org>.visualstudio.com/<project>/<repo>` | Azure DevOps repositories show *"this repository cannot be shared yet"* |
+| **HA4-7** | The fake's completeness rule must follow `content.status` exactly and expose `latestCompleteRevision` on heads, and `/v1/refs`'s `heads` must include `latestCompleteRevision` for every brief it names | as §7.1's `BriefHead` and §7.5's `heads` already show | — (a confirmation, not a change) |
+
+---
+
+## 10. Open questions for the owner — each with the recommendation this plan builds on
+
+| # | Question | Recommendation (built) |
+|---|---|---|
+| **OQ-1** | A repository with no GitHub or Azure DevOps remote — a fresh `git init` — cannot be bound to a Hub project. May it keep a brief anyway? | **No.** Discover shows *"this repository has no shared remote, so its brief could not be shared"* with the one command that adds one. A local-only brief would be a second store, and `OD-3` asked for one |
+| **OQ-2** | `.claude/CLAUDE.md` as the fallback when a repository tracks `CLAUDE.md` (P4-D). If task 23's canary shows the CLI does not read it, what then? | Refuse the start with `tracked_elsewhere` and offer *Start without the brief* — never edit a tracked file |
+| **OQ-3** | Should *Start without the brief* be remembered for a branch? | **No.** It is asked at each start, because `4-D1` makes going without the brief deliberate |
+| **OQ-4** | Can a person archive a brief by hand? | **Not in v1.** Phase 3 archives the head when the branch is deleted (P13) |
+
+Carried and **answered elsewhere**: contract Q4 (is `CLAUDE.md` committed?) — no, by phase 3's
+`3-D6`; contract Q5 (erasure) — ADR-H1 Q2, the `erased` state; contract Q6 (who owns control-plane
+authentication) — the Hub (owner decisions `:35`).
+
+---
+
+## 11. What this plan did not verify
+
+- **Nothing was compiled, run or rendered.** Every claim about code is a reading at `3303fd6`.
+  Phase 2 is still committing on `feat/phase-2-cockpit`; line numbers in `sessions.go`, `api.go`
+  and `desktop/src` will drift. Each part names the symbol as well as the line.
+- **The Hub does not exist.** `hubclient`, `hubapi` and the fake are the contract's words; part 07's
+  struct shapes are this plan's reading of §7 (HA4-1).
+- **Claude Code's reading of `CLAUDE.md`**: that it reads `.claude/CLAUDE.md` (P4-D), and whether it
+  re-reads either on `--resume` or mid-session (brief R7). The resume fix's experiment has no report
+  in the tree yet. Task 23 carries both as canaries; the answer changes the restamp-on-resume rule
+  and OQ-2.
+- **Phase 3's `githost`, `briefref` and `RenameBranch`** are plan text (phase 3 tasks 09, 11, 13),
+  not code.
+- **Phase 5's cleanroom spec and phase 7's plan** were read only where they name phase 4.
+- **The prototype** (`prototype/phase-4-discover.html`, 698 lines) was read for its states and its
+  data model; it was not opened in a browser. The owner's eyes remain the visual acceptance.
+- **Whether `hubclient.NewFake()` models `revision_conflict` under concurrent batches** is the
+  contract's promise (§9.2); task 08's tests depend on it.
