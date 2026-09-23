@@ -21,7 +21,7 @@ plans are edited, so each row quotes the ask's id, which does not.
 |---|---|---|---|
 | **HA4-1** | the `hubapi` Go structs, field by field | task 03 writes every §7 object and request as a Go struct; S0 freezes them. Phase 4's assumed shapes differ only in names, and it fixes those mechanically | 03 |
 | **HA4-2** | `Briefs.List(ctx, projectID, BriefQuery) (Page[BriefHead], error)`; phase 4's task 08 is blocked on it | **built as asked**, with one change: `BriefQuery` carries `Page PageRequest` rather than flat `After`/`Limit`, the shape of every other query type (`ReleaseQuery`, `ApprovalQuery`). Route 19 already exists (task 18) | 03, 04, 05, 34 |
-| **HA4-3** | a revision batch of **64**, the route's body cap **4 MiB**, `hubapi.MaxRevisionBatch` | **built as asked**: `hubapi.MaxRevisionBatch = 64`, `hubapi.MaxRevisionBatchBytes = 4 << 20`. Route 26's body cap is that constant (task 14's `WriteLimit`); every other route keeps `httpx.MaxBodyBytes`. The reply cap in `hubclient` is raised to 8 MiB (see *Sizes* below) | 03, 04, 14, 19, 33 |
+| **HA4-3** | a revision batch of **64**, the route's body cap **4 MiB**, `hubapi.MaxRevisionBatch` | **built as asked**: `hubapi.MaxRevisionBatch = 64`, `hubapi.MaxRevisionBatchBytes = 4 << 20`. Route 26's body cap is that constant (task 14's `WriteLimit`); every other route keeps `httpx.MaxBodyBytes`. The reply cap in `hubclient` is raised to 8 MiB. Both caps hold only under the *Wire rule* (no HTML escaping on either side; see *Sizes* below) | 03, 04, 08, 14, 19, 33, 34 |
 | **HA4-4** | `latestComplete` beside `revision` in `ForBranch` | **built as asked**: `BriefWithRevision.LatestComplete *BriefRevision` (`"latestComplete"`), `null` exactly when `LatestCompleteRevision` is 0, and the same revision as `revision` when the head is complete. One type, so `GET /v1/briefs/{id}` carries it too | 03, 04, 18 |
 | **HA4-5** | `Relay(err) (status int, p httpx.Problem, ok bool)` in `hubclient` | **built as asked**. `WriteError` becomes `Relay` plus `httpx.WriteProblem`; `ok` is false for an error the rule does not classify, which `WriteError` answers 500 `internal`. `Error` gains `RetryAfter string` so a caller of `Relay` can copy a 429's header — `WriteError` could not, before, because `Error` did not carry it | 04, 33 |
 | **HA4-6** | one Azure DevOps repo-key form | = **A1**: the Hub accepts `azure-devops/<org>/<project>/<repo>`, lowercased | 01, 17 |
@@ -91,8 +91,32 @@ run with `sourceDeploymentId`; `release.reserved`'s `data.environment` is `""` w
 | Constant | Value | Why |
 |---|---|---|
 | `hubapi.MaxRevisionBatch` | 64 | HA4-3; phase 4's fan-out re-revisions every inheriting branch brief in one batch |
-| `hubapi.MaxRevisionBatchBytes` | 4 MiB | 64 × the 64 KiB envelope cap (task 02, `ErrEnvelopeTooLarge`). A batch of 64 maximum-size revisions fits when each `content` is compact JSON, which `hubclient.WriteRevisions` guarantees by `json.Compact`ing each `content` before it sends (semantics unchanged: the Hub digests the canonical form) |
-| `hubclient`'s JSON reply cap | 8 MiB (was 1 MiB) | the two largest bodies the Hub sends: `/v1/refs`, 100 keys × a 64 KiB revision (≈ 6.3 MiB), and route 26's reply, 64 revisions echoed with content (≈ 4.1 MiB). At 1 MiB, a **committed** batch of 16 near-maximum revisions — already legal before HA4-3 — was reported `ErrUnavailable`, and its idempotent replay again |
+| `hubapi.MaxRevisionBatchBytes` | 4 MiB | 64 × the 64 KiB envelope cap (task 02, `ErrEnvelopeTooLarge`). The cap is on **wire** bytes and the item cap is on **canonical** bytes, so the plan fixes the wire encoding (the *Wire rule* below). Under it each item is `{"briefId","baseRevision","content"}` with `content` byte-for-byte its canonical form — fewer bytes than the canonical envelope, whose other members are `v`, `kind`, `briefId`, `revision`, `projectId`, `scope` and `branchRef` — so 64 maximum-size revisions fit, whatever characters their content holds |
+| `hubclient`'s JSON reply cap | 8 MiB (was 1 MiB) | the two largest bodies the Hub sends: `/v1/refs`, 100 keys × a 64 KiB revision (≈ 6.3 MiB), and route 26's reply, 64 revisions echoed with content (≈ 4.1 MiB). Both figures hold **only** under the *Wire rule*: with the default encoder a content of `<` characters is six times its canonical size, and neither is a bound. At 1 MiB, a **committed** batch of 16 near-maximum revisions — already legal before HA4-3 — was reported `ErrUnavailable`, and its idempotent replay again |
+
+**The wire rule (R1 of the b01 re-review).** Canonical form writes `<`, `>`, `&`, U+2028 and
+U+2029 as raw UTF-8 bytes (task 02). Go's default JSON encoding does not. `json.Marshal`, and a
+`json.Encoder` left at its default, write each of `<`, `>` and `&` as the six bytes `<`, and
+U+2028 and U+2029 (three bytes each) as six. They do this even inside a `json.RawMessage`: go1.26
+`encoding/json/encode.go:487` compacts a marshaller's output through `appendCompact(…,
+opts.escapeHTML)`, and `indent.go:57-71` escapes those five characters only when that flag is set.
+`json.Compact` would not help either. It removes whitespace and keeps every escape the writer sent,
+so a `é` stays six bytes for a two-byte `é`. The rule is therefore:
+
+1. **Requests.** `hubclient` encodes every JSON request body once per call, with
+   `json.NewEncoder(&buf)` and `SetEscapeHTML(false)`, and never with `json.Marshal` (task 33).
+   `WriteRevisions` replaces each `content` with `hubapi.Canonical(content)` before it encodes
+   (task 34), so the wire carries exactly the bytes the Hub will digest.
+2. **Replies.** The Hub's `server.WriteJSON`, which writes every success body, encodes with
+   `SetEscapeHTML(false)` itself and no longer calls `httpx.WriteJSON` (task 08).
+   `httpx.WriteJSON` is shared with the control plane and is unchanged. Turning off the escape is
+   safe because every Hub response carries `Content-Type: application/json` and
+   `X-Content-Type-Options: nosniff` (task 08). A `content` in a reply is then its stored
+   canonical bytes.
+3. **What still expands.** A Go `string` field is escaped as before: U+2028 and U+2029 always
+   (`encode.go:1054`), control characters as `\u00xx`. These are ids, names and times. All of them
+   are bounded and none is `content`, so they fall inside the fixed per-item wrapper that the
+   ≈ figures above already include.
 
 #### HA7-4, exactly — the cursor headers
 

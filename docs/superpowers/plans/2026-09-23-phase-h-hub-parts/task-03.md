@@ -309,6 +309,9 @@ type RevisionWrite struct {
 
 // MaxRevisionBatch and MaxRevisionBatchBytes bound POST …/brief-revisions
 // (HA4-3, task 00): 64 items, and a 4 MiB body — 64 × the 64 KiB envelope cap.
+// The body cap counts wire bytes; it holds for 64 maximum-size items only
+// because hubclient sends each content canonical and encodes without HTML
+// escaping (task 00, the wire rule).
 const (
 	MaxRevisionBatch      = 64
 	MaxRevisionBatchBytes = 4 << 20

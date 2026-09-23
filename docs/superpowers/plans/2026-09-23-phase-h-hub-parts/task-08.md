@@ -209,7 +209,15 @@ func (s *Server) handle(pattern string, h http.HandlerFunc)
 // hand-maintained list of routes.
 func (s *Server) Patterns() []string
 
-// WriteJSON is every success body: hubapi.EnsureLists, then httpx.WriteJSON.
+// WriteJSON is every success body: hubapi.EnsureLists, then v encoded into a
+// buffer by json.NewEncoder with SetEscapeHTML(false) — NOT httpx.WriteJSON,
+// whose default encoder writes "<", ">", "&", U+2028 and U+2029 as six-byte
+// escapes even inside a json.RawMessage, so a revision's content would reach the
+// wire up to six times its canonical size and the 8 MiB reply cap would not be a
+// bound (task 00, the wire rule). It keeps httpx.WriteJSON's other behaviour:
+// encode before touching w, and an encode failure is the constant 500 body;
+// Content-Type "application/json; charset=utf-8" and nosniff on every body.
+// httpx itself is unchanged: it is shared with the control plane.
 func WriteJSON(w http.ResponseWriter, status int, v any)
 
 // WriteProblem is httpx.WriteProblem, and records the code for the access log.
@@ -269,6 +277,7 @@ registered it prints `verify: no checks registered` and exits 0 (tasks 20 and 27
 | `TestRequestIDOnEveryResponse` | `Request-Id` is a v4 UUID and differs per request | a bug report nobody can find in the log |
 | `TestAccessLogShape` | the log line for `GET /readyz?x=secret` has `route: "GET /readyz"` and no `secret` | a query string (with a token someone pasted) in the log |
 | `TestPanicIs500Internal` | a registered handler that panics → 500 `internal`, the process lives | one bad request killing a replica |
+| `TestSuccessBodiesAreNotHTMLEscaped` | `WriteJSON` of `struct{C json.RawMessage}` holding `{"t":"a<b&&c>d"}` plus a raw U+2028 → the body contains those bytes exactly, and no `<`, `&` or ` `; `Content-Type: application/json; charset=utf-8` and `nosniff` set; a value that fails to encode → the constant 500 body | `WriteJSON` calling `httpx.WriteJSON` or `json.Marshal`, which makes a `<`-dense 64-revision reply up to six times its canonical size and past `hubclient`'s 8 MiB cap (task 00, the wire rule) |
 | `TestEntraPasswordExchangeAndCache` | against an `httptest` token endpoint: the form fields exactly as above; the assertion is the file's current contents; a second call within the lifetime makes no request; the token never appears in a log line | a stale assertion after rotation; a token per connection |
 | `TestRunDispatch` | `run(["nope"])` → 2 with usage; `run(["version"])` prints `dev` → 0 | — |
 

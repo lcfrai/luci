@@ -484,7 +484,7 @@ from this plan (Q11 from a sibling ask, task 00):
   |---|---|---|
   | HA4-1 `hubapi` structs | task 03's structs, frozen at S0 | 03 |
   | HA4-2 `Briefs.List` | built; `BriefQuery.Page` rather than flat `After`/`Limit` | 03, 04, 05, 34 |
-  | HA4-3 batch 64, 4 MiB | built: `hubapi.MaxRevisionBatch`, `MaxRevisionBatchBytes`; reply cap 8 MiB | 03, 04, 14, 19, 33 |
+  | HA4-3 batch 64, 4 MiB | built: `hubapi.MaxRevisionBatch`, `MaxRevisionBatchBytes`; reply cap 8 MiB; both rest on the wire rule (canonical `content`, no HTML escaping either way) | 03, 04, 08, 14, 19, 33, 34 |
   | HA4-4 `latestComplete` | built on `BriefWithRevision` | 03, 04, 18 |
   | HA4-5 `Relay` | built; `Error.RetryAfter` added | 04, 33 |
   | HA4-6 ADO repo key | = A1 | 01, 17 |

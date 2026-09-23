@@ -48,7 +48,11 @@ var ErrTokenUnavailable = errors.New("hubclient: no token: Entra could not be re
 2. Headers: `Authorization: Bearer <token>`, `Accept: application/json`, and for a JSON body
    `Content-Type: application/json; charset=utf-8`. **Never** an `Origin` header (the Hub refuses
    one, §11.4). A `POST` carries `Idempotency-Key: <ids.UUID()>`, minted **once per call** and
-   sent unchanged on every retry of that call.
+   sent unchanged on every retry of that call. A JSON body is encoded **once per call**, before
+   the first attempt, with `json.NewEncoder(&buf)` and `SetEscapeHTML(false)`, and **never** with
+   `json.Marshal`. The default encoding writes `<`, `>`, `&`, U+2028 and U+2029 as six-byte
+   escapes even inside a `json.RawMessage`, so a `<`-dense 64-revision batch would pass route
+   26's 4 MiB wire cap while every item is under the 64 KiB canonical cap (task 00, the wire rule).
 3. Each attempt has its own `AttemptTimeout` deadline. A transport error, a timeout, a TLS failure,
    or a 502/503/504 → retry after `Backoff[i]`, at most `len(Backoff)` times; then `ErrUnavailable`
    wrapping the last cause. **Every attempt sends the whole body**: a JSON body is a `[]byte`
@@ -136,7 +140,8 @@ implements `Invalidator`, and a recording `Sleep`.
 | `TestEachAttemptTimesOut` | `AttemptTimeout: 50ms`, a Hub that stalls → retried, then `ErrUnavailable` in < 1 s total | a control plane hung on a hung Hub |
 | `TestNoOriginHeaderIsSent` | the fake Hub records none | a 403 `forbidden_origin` from every call |
 | `TestTokenErrorsMap` | `ErrSignedOut` passes through `errors.Is`; any other → `errors.Is(err, ErrTokenUnavailable)` | an Entra outage signing the user out |
-| `TestAnOversizeBodyIsUnavailable` | a 6.5 MiB 200 body → decoded; an 8 MiB + 1 200 body → `ErrUnavailable` | unbounded memory on a broken Hub, or a committed batch or a 100-key `/v1/refs` read reported as an outage (task 00) |
+| `TestAnOversizeBodyIsUnavailable` | a 6.5 MiB 200 body whose revisions' `content` is dense in raw `<`, `>`, `&` and U+2028, as the Hub's `server.WriteJSON` writes it (task 08) → decoded, each `content` byte-equal to what was sent; an 8 MiB + 1 200 body → `ErrUnavailable` | unbounded memory on a broken Hub, or a committed batch or a 100-key `/v1/refs` read reported as an outage (task 00) |
+| `TestAJSONBodyIsNotHTMLEscaped` | a `POST` whose body holds a `json.RawMessage` of `{"t":"a<b&&c>d"}` plus a raw U+2028 → the fake Hub receives those bytes exactly, with no `<`, `&` or ` `; a 503 then 201 → the second attempt's body is byte-equal to the first | the body encoded by `json.Marshal`, which pushes a `<`-dense 64-revision batch past route 26's 4 MiB cap (task 00, the wire rule) |
 | `TestARetryRewindsASeekableBody` | a call whose body is an `io.ReadSeeker` (the shape task 34's `PutBlob` passes) gets 503 after the fake Hub read half of it → the second attempt's body is the whole body, byte-equal; a reader whose `Seek` fails → that error after one attempt | a retried upload sending a short body the Hub then refuses `digest_mismatch` (HA5-1) |
 | `TestA429KeepsRetryAfterOnTheError` | 429 with `Retry-After: 3` → `errors.As` gives `*Error` with `RetryAfter: "3"` | `WriteError` asked to copy a header the error never carried |
 | `TestErrorsNeverHoldTheToken` | every error above, formatted `%+v`, lacks the bearer | T1 |

@@ -47,8 +47,8 @@ that builds each:
 | Section | Change | Ask |
 |---|---|---|
 | §7.5, §7.1 | `BriefWithRevision.latestComplete` on routes 21 and 22, its null rule | HA4-4 |
-| §7.5 | the batch holds 1–64 revisions (`hubapi.MaxRevisionBatch`); route 26's body cap is 4 MiB (`hubapi.MaxRevisionBatchBytes`); every other route keeps 1 MiB | HA4-3 |
-| §9.2 | `Briefs.List(ctx, projectID, hubapi.BriefQuery)`; `PutBlob(…, body io.ReadSeeker)` and the rewind rule; `JoinDeployment(ctx, releaseID, hubapi.DeploymentJoinRequest)`; `Error.RetryAfter`; `Relay(err) (status, httpx.Problem, ok)`; the 8 MiB reply cap | HA4-2, HA5-1, HA7-1, HA4-5 |
+| §7.5 | the batch holds 1–64 revisions (`hubapi.MaxRevisionBatch`); route 26's body cap is 4 MiB of **wire** bytes (`hubapi.MaxRevisionBatchBytes`); every other route keeps 1 MiB. The wire rule, stated in §1 as well: a `content` travels as its canonical bytes, and no JSON body in either direction is HTML-escaped (`SetEscapeHTML(false)`; task 00, *Sizes*) | HA4-3 |
+| §9.2 | `Briefs.List(ctx, projectID, hubapi.BriefQuery)`; `PutBlob(…, body io.ReadSeeker)` and the rewind rule; `JoinDeployment(ctx, releaseID, hubapi.DeploymentJoinRequest)`; `Error.RetryAfter`; `Relay(err) (status, httpx.Problem, ok)`; the 8 MiB reply cap and the wire rule it rests on | HA4-2, HA5-1, HA7-1, HA4-5 |
 | §4.3 | `Relay` is the rule as a value; `WriteError` is `Relay` plus the write | HA4-5 |
 | §7.9, §8 | `environment` nullable for a run without `sourceDeploymentId`; the join sets it once, 409 `conflict` on a different one; `release.deployment_joined` gains `data.environment`; a rollback confirm is `{}`, and one naming its own source deployment is 409 `conflict`; `kind=` on the release list | HA7-1, HA7-2, HA7-5 |
 | §9.3 | the `CursorSource` mechanism: one `Panacea-<Name>-Cursor` per source, the expose list built from the names; the desktop's `cursors` map | HA7-4 |
