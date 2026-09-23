@@ -74,7 +74,9 @@ export interface DefinitionOfDoneProps {
   refValue: ProvenanceRef;             // the HEAD reading (contract §4.4), read by the mount through task 16's useHeadRef (review I10)
   state: ProvenanceState;
   /** selectCriterionStates(refValue.key): each criterion's state and because, by id. The ref's
-   *  criteria carry text only; a state is never read from them (review I14). */
+   *  criteria carry text only; a state is never read from them (review I14). useHeadRef's
+   *  answer fills that entry itself (task 16 putHeadRef, HeadReading.criterionStates), so no
+   *  session need have stamped the key (re-review b06-1 R-I3). */
   criterionStates: Readonly<Record<string, CriterionReading>>;
   onOpenDiscover(key: string): void;
   onRecordEvidence?(criterionId: string): void; // phase 3 ask P4-5

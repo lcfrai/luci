@@ -13,8 +13,8 @@ drift view. Every surface in every phase that shows a brief resolves it here: `C
 | Method | Path | 200 | Errors |
 |---|---|---|---|
 | GET | `/v1/discover/refs?key=…&key=…` (1–100) | `RefsResponse` | 400 `bad_request` (`field: "key"`) for 0 or more than 100; **never** for an unknown or malformed key |
-| GET | `/v1/discover/projects/{projectId}/provenance` | `provenance.Ref` — what a session on a detached worktree would inherit | 404 `project_not_found` |
-| GET | `/v1/discover/projects/{projectId}/branches/{branchId}/provenance` | `provenance.Ref` — what a session on this branch would inherit | 404 `project_not_found`, `branch_not_found` |
+| GET | `/v1/discover/projects/{projectId}/provenance` | `HeadReading` — what a session on a detached worktree would inherit, and its criterion states | 404 `project_not_found` |
+| GET | `/v1/discover/projects/{projectId}/branches/{branchId}/provenance` | `HeadReading` — what a session on this branch would inherit, and its criterion states | 404 `project_not_found`, `branch_not_found` |
 | GET | `/v1/discover/projects/{projectId}/branches/{branchId}/materialisations` | `Materialisations` | 404 as above |
 
 **Wire shapes — complete:**
@@ -33,6 +33,16 @@ type RefsResponse struct {
 	Refs            []provenance.Ref                         `json:"refs"`
 	Heads           map[string]provenance.Head               `json:"heads"`
 	CriterionStates map[string][]provenance.CriterionReading `json:"criterionStates"` // by key; resolved slots only
+}
+
+// HeadReading is a head reading: the Ref, plus its criterion states beside it
+// (never inside it), from the same HeadRef call (task 07). DefinitionOfDone is
+// the one surface that shows states, and it reads them from here, so they do
+// not depend on some session having stamped the same key (re-review b06-1
+// R-I3). CriterionStates is [] when the Ref is not resolved, never null.
+type HeadReading struct {
+	Ref             provenance.Ref                `json:"ref"`
+	CriterionStates []provenance.CriterionReading `json:"criterionStates"`
 }
 
 // Materialisations is every worktree of the branch and the state of its
@@ -89,7 +99,8 @@ for lists — so the desktop's type has no optional fields.
 4. Criterion states come from `Config.Evaluate` (phase 3's seam, S4-P3.4); nil → all `open`.
    They are **not** in any `Ref`: `Resolve`'s `states` becomes `criterionStates`, keyed by key,
    one entry per `resolved` slot, recomputed on every call (review I14). `criterionStates` is
-   `{}`, never `null`, when no slot is resolved.
+   `{}`, never `null`, when no slot is resolved. The head readings serve `HeadRef`'s `states`
+   as `HeadReading.criterionStates`, `[]` when the `Ref` is not resolved (re-review b06-1 R-I3).
 5. **Every route here runs under task 11's `Budgets.Default` (8 s; review I4)**, below the
    desktop's 10 s. For the head readings, the deadline's expiry is task 11's route-deadline row
    (503 `upstream_unavailable`). For `refs`, it is "unreachable" in rule 1's sense: the cache
@@ -124,7 +135,8 @@ for lists — so the desktop's type has no optional fields.
 | `TestRefsServesCriterionStatesBesideTheRefs` (review I14) | a resolved key, a `missing` one and `""` → `criterionStates` has exactly the resolved key, with one `{id, state, because}` per `criteria` item of its slot, same ids and order; no slot's `criteria` item has `state` or `because`; zero resolved slots → `"criterionStates": {}` | a verdict inside the cached `Ref`, or a `null` the desktop has to guard |
 | `TestHeadReadingIsNeverCached` | two reads with the head moved between them return different revisions | a stale `DefinitionOfDone` |
 | `TestHeadReadingOfAnUnreachableHubIs503` | `upstream_unavailable`, `upstream: "hub"` | a head served from memory |
-| `TestHeadReadingWithTheHubOffIsNone` (re-review b05-1 N2) | a `discoverhub.Service` built with a nil `discoverhub.Config.Hub` → 200, `resolution: "none"`, every `Ref` field present | a nil Hub mapped to 503, which puts an error on Develop's `DefinitionOfDone` for a Hub nobody configured |
+| `TestHeadReadingServesCriterionStates` (re-review b06-1 R-I3) | a branch whose head key no session stamped; `Config.Evaluate` answers `settled, "CI run 88 passed"` → 200, `ref` has no `state` or `because` under `criteria`, and `criterionStates` has one `settled` reading per `ref.criteria` item, same ids and order | a head reading with no states, which leaves `DefinitionOfDone` showing `open` until phase 3 happens to mark that exact key |
+| `TestHeadReadingWithTheHubOffIsNone` (re-review b05-1 N2) | a `discoverhub.Service` built with a nil `discoverhub.Config.Hub` → 200, `ref.resolution: "none"`, every `Ref` field present, `criterionStates: []` | a nil Hub mapped to 503, which puts an error on Develop's `DefinitionOfDone` for a Hub nobody configured |
 | `TestRefsAgainstAHubThatNeverAnswersIs200WithinTheBudget` | a fake Hub that blocks until `ctx.Done()`, `Budgets{Default: 200ms}`, one key cached and one not → 200 within 1 s, the cached slot `resolved`, the other `unavailable` | a `refs` with no deadline (the desktop's `timeout` on every chip), or a deadline expiry mapped to 503 when rule 1 promises 200 (review I4) |
 | `TestMaterialisationsWritesNothing` | every worktree's file bytes and mtimes are unchanged after the call | a GET with a side effect (§10a) |
 | `TestMaterialisationsListsTheBranchsWorktreesOnly` | two branches, three worktrees: only this branch's two | a cross-branch leak into "who inherits this" |

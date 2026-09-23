@@ -26,7 +26,7 @@ and there stay two.
 // NOT PERSISTED (contract A5, widened by ADR-H1 §5.4; ruling R3: phase 4 claims no persist
 // version). A cache of control-plane truth: refs are immutable once filled; heads and
 // criterion states move, and are kept beside the refs, never inside them (review I14).
-import type { ProvenanceRef, Head, RefsResponse, CriterionReading } from "../../api/discover";
+import type { ProvenanceRef, Head, RefsResponse, CriterionReading, HeadReading } from "../../api/discover";
 
 export interface ProvenanceSlice {
   /** Filled once per key, never overwritten except by an identical ref, and emptied of a whole
@@ -37,8 +37,9 @@ export interface ProvenanceSlice {
   /** The one moving number per brief (P4-B compares with latestCompleteRevision). */
   headsByBrief: Record<string, Head>;
   /** key -> phase 3's criterion states for it (S4-P3.4; review I14). MOVING, unlike refsByKey:
-   *  putRefs OVERWRITES a key's entry whenever res.criterionStates carries it, and forgetBrief
-   *  deletes the brief's entries. Never read from a ProvenanceRef, which holds no state. */
+   *  putRefs OVERWRITES a key's entry whenever res.criterionStates carries it, putHeadRef
+   *  whenever a head reading carries it (re-review b06-1 R-I3), and forgetBrief deletes the
+   *  brief's entries. Never read from a ProvenanceRef, which holds no state. */
   criterionStatesByKey: Record<string, CriterionReading[]>;
   /** Keys whose criterion states must be re-read. Written only through markCriteriaStale,
    *  phase 3's seam: its evidence path calls it when a verdict on a key may have moved. Phase 4
@@ -81,9 +82,12 @@ export interface ProvenanceSlice {
    *  headsByBrief entry forwards only: headRevision = revision when revision > headRevision, and
    *  latestCompleteRevision = revision when status is "complete" too. No entry: does nothing. */
   applyRevised(briefId: string, revision: number, status: string): void;
-  /** Also clears staleHeadRefs[targetKey] and, when ref.projectId !== "", sets
-   *  hubProjectByTarget[targetKey]. */
-  putHeadRef(targetKey: string, ref: ProvenanceRef): void;
+  /** Stores reading.ref in headRefByTarget and OVERWRITES criterionStatesByKey[reading.ref.key]
+   *  with reading.criterionStates when the ref is resolved: the head reading is how
+   *  DefinitionOfDone gets its states, whether or not any session stamped that key
+   *  (re-review b06-1 R-I3). Also clears staleHeadRefs[targetKey] and, when
+   *  ref.projectId !== "", sets hubProjectByTarget[targetKey]. */
+  putHeadRef(targetKey: string, reading: HeadReading): void;
   markStale(briefIds: readonly string[]): void;
   markHeadRefsStale(targetKeys: readonly string[]): void;
   /** S4-P3.4, phase 3's seam (review I14): the loader's next tick re-requests these keys, even
@@ -298,6 +302,7 @@ only through Discover's own writes and new keys).
 | `loader: brief.* marks every view and head reading of the project stale` (review I10) | views `pj-1/b-9` (`brief: null`, binding `pj-hub-1`), `pj-1/` (binding `pj-hub-1`), `pj-2/` (binding `pj-hub-2`) and head readings for the same three targets (`pj-1/b-9`'s a `none` Ref, known only through its view's binding); a `brief.created` for a new brief of `pj-hub-1` → `discoverStale` and `staleHeadRefs` name `pj-1/b-9` and `pj-1/`, never `pj-2/`; a target with no known Hub project is named too; a `projectId: null` event names all | a teammate's new branch brief never reaching `DefinitionOfDone` (*no brief* until navigation), or an event for one project re-reading every project |
 | `loader: criterion states move, the ref does not` (review I14) | tick 1 answers `a2@5` with `criterionStates` `open`; `markCriteriaStale(["brief:…a2@5"])` → tick 2's one `refs` call carries that key although `refsByKey` holds it; it answers `settled, "CI run 88 passed"` → `selectCriterionStates` gives `settled` and its `because`; `refsByKey["brief:…a2@5"]` is the same object as after tick 1; tick 3 makes **no** request | a verdict frozen in the forever-cached ref, or a states re-read that becomes a request per tick |
 | `selectors: criterion states come from the map, never the ref` (review I14) | a ref whose `criteria` items carry a stray `state: "settled"` and no map entry → every id reads `open`; the same frozen empty record on two calls | a reader that falls back to a field the wire no longer has |
+| `useHeadRef: a head reading brings its own criterion states` (re-review b06-1 R-I3) | no session stamps `brief:…a2@6` and `staleCriteria` is empty; `headRef` answers `{ref: a2@6, criterionStates: [settled, "CI run 88 passed"]}` → `selectCriterionStates("brief:…a2@6")` gives `settled` and its `because`, with **no** `markCriteriaStale` call and **no** `refs` call; a re-read after `markHeadRefsStale` answering `contested` overwrites it; a `none` reading writes no states | a `DefinitionOfDone` that shows every criterion `open` on every mount, because its key reaches `refs` only when a session stamped it or phase 3 marked it |
 | `useHeadRef: one read per stale mark` (review I10) | two mounted readers of one target, no entry → one `headRef` call; `markHeadRefsStale([t])` → one more call, and the old reading is returned until it lands; the answer clears the flag → no third call; a failed call → no retry until the next mark | a `DefinitionOfDone` that never re-reads, one that blanks on every event, or a head read per render |
 | `loader: no timer` | `vi.getTimerCount()` is unchanged by importing and running the loader | a third interval (G8) |
 | `selectors: superseded compares with latest complete` | ref rev 5, head `{headRevision: 7, latestCompleteRevision: 5}` → `current`; `{…: 6}` → `superseded` | P4-B inverted: every chip superseded during an unfinished edit |

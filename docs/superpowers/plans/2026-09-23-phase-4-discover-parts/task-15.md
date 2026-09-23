@@ -156,6 +156,8 @@ export interface RefsResponse {
   refs: ProvenanceRef[]; heads: Record<string, Head>;
   criterionStates: Record<string, CriterionReading[]>; // by key; resolved slots only; {} when none
 }
+/** A head reading: the ref, and its criterion states beside it; [] when not resolved. */
+export interface HeadReading { ref: ProvenanceRef; criterionStates: CriterionReading[] }
 
 export interface DiffLine { op: "same" | "added" | "removed"; text: string }
 /** A block, or a marker of one, in a file git TRACKS; task 09's CommittedBlock (review I3). */
@@ -186,7 +188,7 @@ export interface DiscoverClient {
   apply(target: Target, baseRevision: number, op: Op): Promise<OpsResponse>;
   history(briefId: string, after?: string): Promise<History>;
   refs(keys: readonly string[]): Promise<RefsResponse>;     // 1–100 keys; callers batch
-  headRef(target: Target): Promise<ProvenanceRef>;
+  headRef(target: Target): Promise<HeadReading>;            // task 12's HeadReading (re-review b06-1 R-I3)
   materialisations(projectId: ProjectId, branchId: BranchId): Promise<Materialisations>;
   analyse(projectId: ProjectId): Promise<AnalyseResponse>;
 }
