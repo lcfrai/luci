@@ -133,7 +133,24 @@ type Change struct {
 // author on every node it creates or changes and setting that node's
 // Revision. On error the Doc is exactly as before and the error is *OpError.
 // label is copied into the Change. at is RFC 3339 UTC with milliseconds.
+// Apply is Prepare followed by Commit.
 func (d *Doc) Apply(ops []Op, author Author, at, label string, c Checker) (Change, error)
+
+// Prepare validates ops and computes the Change and its inverse against a
+// copy-on-write overlay of d, without changing d. The authority prepares,
+// makes the change durable (task 10), and only then commits — so a failed
+// disk write leaves memory and disk agreeing.
+func (d *Doc) Prepare(ops []Op, author Author, at, label string, c Checker) (*Pending, error)
+
+// Pending is a prepared, uncommitted batch.
+type Pending struct {
+	Change Change
+	/* unexported: the overlay and the revision it was prepared against */
+}
+
+// Commit makes the prepared batch the Doc's state. It panics if the Doc has
+// changed since Prepare: the authority holds the canvas lock across both.
+func (p *Pending) Commit()
 ```
 
 **Rules Apply enforces**, each a test:
@@ -195,6 +212,7 @@ func Invertible(k OpKind) bool
 | `TestInverse_deleteSubtreeOrder` | deleting a frame with 12 ordered children and applying the inverse restores their `Order` keys exactly | inverse creating children in the wrong order |
 | `TestChange_contentChanged` | a batch of only `create_thread` has `ContentChanged: false`; with one `set_props` added, `true` | comments counted as design changes (would wrongly trip *changed after approval*) |
 | `TestChange_artboards` | a move from artboard A to artboard B lists both | claims checked only on the destination (task 12) |
+| `TestPrepare_doesNotMutate` | after `Prepare` of a valid batch, `Document()` is unchanged until `Commit`; with two batches prepared against one revision, committing the second after the first panics | a Prepare that writes through (a failed disk append would leave memory ahead of disk) |
 | `TestOp_jsonNullRemoves` | `{"kind":"set_props","nodeId":"n-…","styles":{"color":null}}` unmarshals to a nil pointer under `color` | `omitempty` swallowing the removal |
 
 ## Steps
