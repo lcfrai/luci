@@ -126,7 +126,9 @@ func TestFakeConforms(t *testing.T) {
 1. **Blobs (§7.6).** `PutBlob` refuses a content type outside `hubapi.BlobContentTypes` (400
    `bad_request`, `details.field=Content-Type`), a size over 16 MiB (413 `blob_too_large`), and bytes
    that do not hash to `digest` (422 `digest_mismatch`, nothing stored). Blobs dedupe per org and
-   associate per project; a project past 1 GiB is 409 `quota_exceeded`. `GetBlob` of a blob not
+   associate per project; a project past 1 GiB is 409 `quota_exceeded`. `PutBlob` seeks `body` to
+   0 before it reads, as the transport does before every attempt (HA5-1, task 00), so a caller
+   that passes a half-read reader gets the same answer from the fake and the Hub. `GetBlob` of a blob not
    associated with **this** project is 404 `blob_not_found`. Needs `member` to put, `viewer` to get.
 2. **Approvals (§7.7).** The six checks **in contract order**, each with its error; the approver is
    the view's user; a second approval of one key is 409 `design_already_approved` with
@@ -145,8 +147,14 @@ func TestFakeConforms(t *testing.T) {
    → 409 `release_expired`, and a `reserved` release read after `expiresAt` reports `expired`
    (the fake expires lazily; the Hub's janitor does it every 60 s — the difference is invisible
    through the interface). One release per `(panaceaProject, pipelineRun)` and per
-   `(panaceaProject, deploymentId)` in the org (409 `conflict`). `Releases` filters and lists newest
-   first.
+   `(panaceaProject, deploymentId)` in the org (409 `conflict`). `Releases` filters — `Kind`
+   included (HA7-5) — and lists newest first. **The environment (HA7-1, task 00):** `null` is
+   accepted only on a run without `sourceDeploymentId` (else 400 `field: environment`);
+   `JoinDeployment` with `Environment` sets a null one, is a no-op on an equal one, and is 409
+   `conflict` (`details.field=environment`, nothing joined) on a different one; a confirmed,
+   abandoned or expired release keeps a null environment until a join names it. **A rollback
+   confirm (HA7-2):** `{}`; a `deploymentId` equal to the rollback's `sourceDeploymentId` → 409
+   `conflict`, nothing joined.
 5. **Evidence (§7.10).** `repo` must be a remote of a project the caller is a **member** of, else
    422 `repo_not_linked` (a viewer of that project: 403 `forbidden`); `briefKey` must resolve in it
    (422 `key_unresolvable`); `because` is 1–2,000 characters after trimming. `EvidenceByDigest`
@@ -187,6 +195,13 @@ kill. Rows marked ⏱ need `Advance` and skip on a real Hub.
 | releases | `expiry` ⏱ | `Advance(TTL + 1 s)`; confirm → 409 `release_expired` |
 | releases | `rollback_inherits` / `source_unknown` / `source_unpinned` | the pin copied from the confirmed release joined to the deployment |
 | releases | `by_deployment_id` | `Releases(q.DeploymentID)` finds the joined release; an unjoined id → no items |
+| releases | `environment_null_until_joined` | a run reserved with `environment: null` → confirm → still `null`; join `{d-1, "feat-x"}` → `"feat-x"`; a second join `{d-2, "feat-y"}` → 409 `conflict`, `d-2` not joined; a rollback with `null` → 400 `field: environment` (HA7-1) |
+| releases | `environment_null_abandons_and_expires` ⏱ | a null-environment run abandons → 200 `abandoned`; another one, `Advance(TTL + 1 s)` → reads `expired` — neither refused for its null (HA7-1) |
+| releases | `rollback_confirm_names_no_source` | a rollback confirmed with `deploymentId` = its `sourceDeploymentId` → 409 `conflict`; with `{}` → 200 (HA7-2) |
+| releases | `kind_filter` | one run and one rollback confirmed in one environment → `Kind: rollback` returns only the rollback (HA7-5) |
+| briefs | `list_filters` / `latest_complete` | as task 04's `TestFakeListBriefs` and `TestFakeForBranchCarriesLatestComplete` (HA4-2, HA4-4) |
+| briefs | `batch_of_sixty_four` | 64 revisions in one call → 201; 65 → 400 `field: revisions` (HA4-3) |
+| designs | `put_blob_rewinds` | a `bytes.Reader` already read to its end → `PutBlob` stores the whole blob, digest checked (HA5-1) |
 | evidence | `repo_not_linked` / `viewer_forbidden` / `oldest_first` / `unreadable_repo_is_empty` | as §7.10 |
 | feed | `latest_then_new_events` | `Changes("latest")` → none; after a revision write, `Changes(next)` holds `brief.revised` with `data.key` |
 | feed | `outsider_sees_nothing` | the outsider's feed after the team's writes holds none of them |

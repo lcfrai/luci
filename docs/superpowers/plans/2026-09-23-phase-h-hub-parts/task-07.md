@@ -267,7 +267,8 @@ CREATE TABLE releases (
   project_id                text          NOT NULL REFERENCES projects (id),
   kind                      release_kind  NOT NULL,
   panacea_project           text          NOT NULL CHECK (panacea_project ~ '^[a-z0-9-]{1,63}$'),
-  environment               text          NOT NULL CHECK (environment ~ '^[a-z0-9-]{1,63}$'),
+  -- nullable (HA7-1, task 00): a never-deployed branch's run learns it at the join
+  environment               text          CHECK (environment ~ '^[a-z0-9-]{1,63}$'),
   branch_ref                text          NOT NULL DEFAULT '',
   commit_sha                text          CHECK (commit_sha ~ '^[0-9a-f]{40}$'),
   source_deployment_id      text          CHECK (char_length(source_deployment_id) BETWEEN 1 AND 128),
@@ -296,6 +297,9 @@ CREATE TABLE releases (
   CHECK (pin_reason <> 'inherited' OR source_release_id IS NOT NULL),
   CHECK (kind <> 'rollback' OR (source_deployment_id IS NOT NULL AND pipeline_run IS NULL)),
   CHECK (kind <> 'run' OR state <> 'confirmed' OR pipeline_run IS NOT NULL),
+  -- only a run with no source may lack its environment, in ANY state: confirm, abandon
+  -- and expiry all happen before (or without) the join that names it (task 00, HA7-1)
+  CHECK (environment IS NOT NULL OR (kind = 'run' AND source_deployment_id IS NULL)),
   CHECK ((state = 'confirmed') = (confirmed_at IS NOT NULL)),
   CHECK ((state = 'abandoned') = (abandoned_at IS NOT NULL AND abandon_reason IS NOT NULL)),
   CHECK ((state = 'expired')   = (expired_at IS NOT NULL)),
@@ -452,19 +456,32 @@ BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'hub: releases are never deleted' USING ERRCODE = 'insufficient_privilege';
   END IF;
-  IF (NEW.id, NEW.org_id, NEW.project_id, NEW.kind, NEW.panacea_project, NEW.environment,
+  IF (NEW.id, NEW.org_id, NEW.project_id, NEW.kind, NEW.panacea_project,
       NEW.branch_ref, NEW.commit_sha, NEW.source_deployment_id, NEW.source_release_id,
       NEW.pin_reason, NEW.pin_brief_id, NEW.pin_brief_revision, NEW.pin_brief_digest,
       NEW.pin_head_revision_at_ship, NEW.design_key, NEW.reserved_at, NEW.reserved_by, NEW.expires_at)
      IS DISTINCT FROM
-     (OLD.id, OLD.org_id, OLD.project_id, OLD.kind, OLD.panacea_project, OLD.environment,
+     (OLD.id, OLD.org_id, OLD.project_id, OLD.kind, OLD.panacea_project,
       OLD.branch_ref, OLD.commit_sha, OLD.source_deployment_id, OLD.source_release_id,
       OLD.pin_reason, OLD.pin_brief_id, OLD.pin_brief_revision, OLD.pin_brief_digest,
       OLD.pin_head_revision_at_ship, OLD.design_key, OLD.reserved_at, OLD.reserved_by, OLD.expires_at)
   THEN
     RAISE EXCEPTION 'hub: a release''s pin never changes' USING ERRCODE = 'insufficient_privilege';
   END IF;
-  IF OLD.state <> 'reserved' AND NEW IS DISTINCT FROM OLD THEN
+  -- the environment is written once (HA7-1, task 00): a value never changes or returns
+  -- to NULL; NULL -> a value only while reserved or confirmed (the join is confirmed-only)
+  IF NEW.environment IS DISTINCT FROM OLD.environment AND
+     (OLD.environment IS NOT NULL OR OLD.state NOT IN ('reserved', 'confirmed')) THEN
+    RAISE EXCEPTION 'hub: release %''s environment is set once', OLD.id USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  -- a non-reserved release takes no change but that one
+  IF OLD.state <> 'reserved' AND
+     (NEW.state, NEW.pipeline_run, NEW.confirmed_at, NEW.abandoned_at, NEW.abandon_reason,
+      NEW.abandon_message, NEW.expired_at)
+     IS DISTINCT FROM
+     (OLD.state, OLD.pipeline_run, OLD.confirmed_at, OLD.abandoned_at, OLD.abandon_reason,
+      OLD.abandon_message, OLD.expired_at)
+  THEN
     RAISE EXCEPTION 'hub: release % is %, not reserved', OLD.id, OLD.state USING ERRCODE = 'insufficient_privilege';
   END IF;
   RETURN NEW;
@@ -575,7 +592,7 @@ GRANT DELETE                                                   ON project_remote
 GRANT UPDATE (branch_ref, head_revision, latest_complete_revision, archived_at, updated_at)
                                                                ON briefs           TO hub_app;
 GRANT UPDATE (state, pipeline_run, confirmed_at, abandoned_at, abandon_reason, abandon_message,
-              expired_at)                                      ON releases         TO hub_app;
+              expired_at, environment)                         ON releases         TO hub_app;  -- environment: HA7-1's join
 GRANT DELETE                                                   ON blobs, project_blobs TO hub_app;
 GRANT UPDATE (seq, hash)                                       ON audit_heads      TO hub_app;
 GRANT UPDATE (status, response), DELETE                        ON idempotency_keys TO hub_app;
@@ -610,6 +627,10 @@ named.
 | `TestAnArchivedBriefIsFrozen` | after `archived_at` is set: head, ref and `archived_at` changes → `42501`; a new live brief on the same ref → ok | branch deletion that frees the ref but not the old brief |
 | `TestAPinNeverMoves` | as `hub_app`, `UPDATE releases SET pin_brief_revision = …` → `42501` (column grant); as the owner → `42501` (trigger) | P7 held by one layer only |
 | `TestOnlyAReservedReleaseMoves` | confirm a release; any further `UPDATE` of `state` → `42501` | a confirmed release re-confirmed with another run |
+| `TestANullEnvironmentIsARunsOnly` | `INSERT` a run with `environment` NULL and no source → ok; a rollback, or a run with `source_deployment_id`, with NULL → `23514` (check) | a rollback recorded with no environment (HA7-1) |
+| `TestANullEnvironmentReleaseConfirmsAbandonsAndExpires` | three NULL-environment runs: `UPDATE` to `confirmed` (with `pipeline_run`), to `abandoned`, to `expired` → each ok, `environment` still NULL | the review's `state = 'reserved'` check, which refuses all three (task 00) |
+| `TestTheEnvironmentIsSetOnce` | a NULL-environment run: `SET environment = 'feat-x'` while `confirmed` → ok; then `= 'feat-y'` → `42501`; then `= NULL` → `42501`; a NULL one `abandoned` then `SET environment` → `42501`; a non-NULL reserved one `SET environment` → `42501` | a join that re-points a release at another environment, or a deleted one |
+| `TestReleaseGuardCoversEveryColumn` | the test holds `guard_release`'s two tuples as Go lists, copied from the migration: the columns of `releases` (`information_schema.columns`) = immutable ∪ mutable ∪ `{environment}`, disjoint; and mutable ∪ `{environment}` = `hub_app`'s `UPDATE` columns (`information_schema.column_privileges`) | a column added later that the guard's explicit tuples silently let move — the old `NEW IS DISTINCT FROM OLD` caught it, the tuples do not |
 | `TestTheAuditChainIsGaplessAndHashed` | insert seq 1 then 2 correctly → ok and `audit_heads` advanced; seq 3 with the wrong `prev_hash`, or seq 4 skipping 3 → `40001`; a `hash` not equal to `sha256(prev_hash ‖ canonical)` → `23514` | a chain the Go side can fork (G5) |
 | `TestRowLevelSecuritySeparatesOrgs` | two orgs with a user each; `set_config('hub.org_id', A, true)`; `SELECT` from each of the 19 tables sees only A; `INSERT` of an org-B row → `42501` (WITH CHECK) | a table missing from the RLS loop (T3) |
 | `TestAnUnsetOrgSeesNothingEvenOnAReusedConnection` | on one connection: a transaction that sets org A and commits; then a new transaction that sets nothing → zero rows from `users` | a pooled connection carrying one request's org into the next |

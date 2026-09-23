@@ -274,6 +274,19 @@ type CreateBriefRequest struct {
 type BriefWithRevision struct {
 	Head     BriefHead      `json:"head"`
 	Revision *BriefRevision `json:"revision"` // the head revision; null while HeadRevision is 0
+	// LatestComplete is the latest complete revision (HA4-4, task 00): null exactly
+	// when Head.LatestCompleteRevision is 0; the same revision as Revision when the
+	// head is complete. Routes 21 and 22 both carry it.
+	LatestComplete *BriefRevision `json:"latestComplete"`
+}
+
+// BriefQuery is route 19's query (HA4-2, task 00). Page is the shape every other
+// query type uses; phase 4's ask spelt it as flat After/Limit fields.
+type BriefQuery struct {
+	Scope           string // "" = both; "project" or "branch"
+	BranchRef       string // "" = any; else a valid ref (§3.3)
+	IncludeArchived bool
+	Page            PageRequest
 }
 
 // ForBranch is GET …/briefs/for-branch. Never a 404 for an absent brief.
@@ -294,8 +307,15 @@ type RevisionWrite struct {
 	Content      json.RawMessage `json:"content"`
 }
 
+// MaxRevisionBatch and MaxRevisionBatchBytes bound POST …/brief-revisions
+// (HA4-3, task 00): 64 items, and a 4 MiB body — 64 × the 64 KiB envelope cap.
+const (
+	MaxRevisionBatch      = 64
+	MaxRevisionBatchBytes = 4 << 20
+)
+
 type WriteRevisionsRequest struct {
-	Revisions []RevisionWrite `json:"revisions"` // 1–16, distinct briefIds
+	Revisions []RevisionWrite `json:"revisions"` // 1–MaxRevisionBatch, distinct briefIds
 }
 
 type WriteRevisionsResponse struct {
@@ -415,10 +435,12 @@ type SessionLinkQuery struct {
 // Environment, BranchRef, Commit (unless SourceDeploymentID), and optionally
 // BriefID, DesignKey, SourceDeploymentID. A rollback sends Kind, PanaceaProject,
 // Environment and SourceDeploymentID only; any other field is 400 bad_request.
+// Environment may be null only for a run without SourceDeploymentID (HA7-1,
+// task 00): Panacea names a never-deployed branch's environment at deploy time.
 type ReserveRequest struct {
 	Kind               ReleaseKind `json:"kind"`
 	PanaceaProject     string      `json:"panaceaProject"`
-	Environment        string      `json:"environment"`
+	Environment        *string     `json:"environment"`
 	BranchRef          *string     `json:"branchRef,omitempty"`
 	Commit             *string     `json:"commit,omitempty"`
 	BriefID            *string     `json:"briefId,omitempty"`
@@ -445,7 +467,7 @@ type Release struct {
 	Kind               ReleaseKind      `json:"kind"`
 	State              ReleaseState     `json:"state"`
 	PanaceaProject     string           `json:"panaceaProject"`
-	Environment        string           `json:"environment"`
+	Environment        *string          `json:"environment"` // null until a join names it (HA7-1)
 	BranchRef          string           `json:"branchRef"` // "" when none
 	Commit             *string          `json:"commit"`
 	PipelineRun        *string          `json:"pipelineRun"`
@@ -476,10 +498,14 @@ type AbandonRequest struct {
 
 type DeploymentJoinRequest struct {
 	DeploymentID string `json:"deploymentId"`
+	// Environment sets Release.Environment when it is null; equal to a non-null
+	// one is a no-op; different from a non-null one is 409 conflict (HA7-1).
+	Environment *string `json:"environment,omitempty"`
 }
 
 type ReleaseQuery struct {
 	Environment, PanaceaProject, DeploymentID, PipelineRun string // "" = any
+	Kind                                                   ReleaseKind // "" = both (HA7-5)
 	State                                                  ReleaseState
 	Page                                                   PageRequest
 }
@@ -586,6 +612,7 @@ func EnsureLists(v any)
 | `TestDigestFieldsAreStrings` | `BriefRevision.Digest` marshals as `"sha256:…"`; a `*Digest` nil marshals as `null` | a `[32]byte` encoded as an array of numbers |
 | `TestRequestsRejectUnknownFields` | decoding `{"name":"x","actor":"u-…"}` into `CreateTeamRequest` with `httpx.DecodeJSON` → 400 `bad_request` | a body that smuggles an actor, approver or recorder (contract §5.3, "no request body carries an actor") |
 | `TestReserveRequestOmitsWhatItDoesNotSend` | a rollback `ReserveRequest` marshals to exactly `{"kind","panaceaProject","environment","sourceDeploymentId"}` | a client that sends `"branchRef":null` on a rollback and gets 400 |
+| `TestTheSiblingAsksAreInTheTypes` | task 00's shapes: `BriefWithRevision{}` marshals `"latestComplete":null`; a run `ReserveRequest` with `Environment` nil marshals `"environment":null` and `Release{}` does too; `DeploymentJoinRequest{DeploymentID:"d"}` marshals without `environment`; `MaxRevisionBatch` = 64 and `MaxRevisionBatchBytes` = 4,194,304 | an S0 interface that differs from what phases 4 and 7 were told (HA4-3, HA4-4, HA7-1) |
 | `TestBlobContentTypesAreTheAllowlist` | the slice equals §7.6's ten strings, in order | a content type quietly added (T8: a blob served as something new) |
 
 #### Steps

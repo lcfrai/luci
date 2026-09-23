@@ -78,6 +78,8 @@ type Teams interface {
 
 type Briefs interface { // phase 4
 	CreateBrief(ctx context.Context, projectID string, req hubapi.CreateBriefRequest) (hubapi.BriefHead, error)
+	// List is route 19 (HA4-2, task 00): oldest first; archived heads only when asked.
+	List(ctx context.Context, projectID string, q hubapi.BriefQuery) (hubapi.Page[hubapi.BriefHead], error)
 	ForBranch(ctx context.Context, projectID, branchRef string) (hubapi.ForBranch, error)
 	Brief(ctx context.Context, briefID string) (hubapi.BriefWithRevision, error)
 	Rebind(ctx context.Context, briefID, branchRef string) (hubapi.BriefHead, error)
@@ -90,7 +92,9 @@ type Briefs interface { // phase 4
 
 type Designs interface { // phase 5
 	// digest is the wire form, "sha256:" + 64 hex, exactly as contract §9.2 declares it.
-	PutBlob(ctx context.Context, projectID string, digest string, contentType string, size int64, body io.Reader) (hubapi.Blob, error)
+	// body is an io.ReadSeeker (HA5-1, task 00): the transport seeks it to 0 before
+	// every attempt, so a retried upload never sends a consumed or short body.
+	PutBlob(ctx context.Context, projectID string, digest string, contentType string, size int64, body io.ReadSeeker) (hubapi.Blob, error)
 	GetBlob(ctx context.Context, projectID string, digest string) (io.ReadCloser, hubapi.Blob, error)
 	Approve(ctx context.Context, projectID string, req hubapi.ApprovalRequest) (hubapi.DesignApproval, error)
 	Approval(ctx context.Context, approvalID string) (hubapi.DesignApproval, error)
@@ -103,7 +107,9 @@ type Releases interface { // phase 7
 	Reserve(ctx context.Context, projectID string, req hubapi.ReserveRequest) (hubapi.Release, error)
 	Confirm(ctx context.Context, releaseID string, req hubapi.ConfirmRequest) (hubapi.Release, error)
 	Abandon(ctx context.Context, releaseID string, req hubapi.AbandonRequest) (hubapi.Release, error)
-	JoinDeployment(ctx context.Context, releaseID, deploymentID string) (hubapi.DeploymentJoin, error)
+	// JoinDeployment takes the request, not a bare id: the join may name the
+	// environment a null-environment run was deployed to (HA7-1, task 00).
+	JoinDeployment(ctx context.Context, releaseID string, req hubapi.DeploymentJoinRequest) (hubapi.DeploymentJoin, error)
 	Release(ctx context.Context, releaseID string) (hubapi.Release, error)
 	Releases(ctx context.Context, projectID string, q hubapi.ReleaseQuery) (hubapi.Page[hubapi.Release], error)
 }
@@ -134,6 +140,9 @@ type Hub interface {
 type Error struct {
 	Status  int
 	Problem httpx.Problem
+	// RetryAfter is the Hub's Retry-After on a 429, else "" — so WriteError and a
+	// caller of Relay (task 33, HA4-5) can copy it.
+	RetryAfter string
 }
 
 func (e *Error) Error() string { return "hub: " + e.Problem.Error + ": " + e.Problem.Message }
@@ -237,10 +246,14 @@ Every error is an `*Error` whose `Status` and `Problem.Error` are exactly the Hu
    `AddRemote` needs `admin`.
 3. **Briefs (§7.5).** `CreateBrief`: one live project brief per project and one live branch brief
    per `(project, branchRef)`, else 409 `brief_exists` with `details.briefId`; `scope` `project`
-   with a non-empty ref, or an invalid ref, is 400. `ForBranch` never 404s for an absent brief.
+   with a non-empty ref, or an invalid ref, is 400. `List` answers route 19: the project's heads
+   oldest first, filtered by `scope` and `branchRef`, archived ones only with `IncludeArchived`,
+   paged by `Page`; a project the caller cannot read is 404 `project_not_found`; a bad `scope` or
+   ref is 400 naming it. `ForBranch` never 404s for an absent brief, and each
+   `BriefWithRevision` it (and `Brief`) returns carries `LatestComplete` by task 03's rule.
    `Rebind` is for branch briefs only and moves no revision. `Archive` frees the ref; a write to an
    archived brief is 409 `brief_archived`.
-4. **Revisions (§7.5).** `WriteRevisions`: 1–16 items with distinct brief ids, all of this project,
+4. **Revisions (§7.5).** `WriteRevisions`: 1–`hubapi.MaxRevisionBatch` (64) items with distinct brief ids, all of this project,
    **all or nothing**; every `baseRevision` must equal its head, else 409 `revision_conflict`
    naming the first failing brief (in brief-id order) and its `headRevision`; content passes
    `hubapi.ValidateContent`; each new revision is `base + 1`, its envelope built and digested with
@@ -264,6 +277,9 @@ Every error is an `*Error` whose `Status` and `Problem.Error` are exactly the Hu
 | `TestFakeBriefExistsAndArchiveFreesTheRef` | a second live branch brief on one ref → 409 `brief_exists` with the first's id; after `Archive` a new one succeeds; writing to the archived one → 409 `brief_archived` | a unique constraint that ignores archival |
 | `TestFakeRevisionNumberingAndConflict` | two writes on base 0 → revision 1, then base 0 again → 409 `revision_conflict`, `headRevision: "1"`; numbers are gapless | a revision number taken from the request |
 | `TestFakeBatchIsAllOrNothing` | four briefs, item 3's base stale → 409 and **no** head moved | a partial batch commit (critique-2 §7.1 #3) |
+| `TestFakeBatchHoldsSixtyFour` | 64 branch briefs re-revisioned in one call → 201, 64 revisions in request order; 65 → 400 `field: revisions`, nothing written | phase 4's fan-out refused at 17 (HA4-3), or a cap that is not `hubapi.MaxRevisionBatch` |
+| `TestFakeListBriefs` | a project brief, two branch briefs, one archived → `List{}` holds three, oldest first; `Scope:"branch"` two; `IncludeArchived` four; `BranchRef` one; `Page.Limit:1` pages with `next`; Linus → 404 `project_not_found` | phase 4's fan-out missing an inheriting branch brief (HA4-2) |
+| `TestFakeForBranchCarriesLatestComplete` | revisions 1 complete, 2 open → `branchBrief.revision` @2, `latestComplete` @1; revision 3 complete → both @3; a brief with no complete revision → `latestComplete: null` | a session materialised from an incomplete revision (HA4-4) |
 | `TestFakeDigestIsTheEnvelopes` | a written revision's `Digest` equals `hubapi.BriefEnvelope{…}.Digest()` for its fields | a fake whose digests the real client would reject as `missing` |
 | `TestFakeLatestCompleteMovesOnlyOnComplete` | open → complete → open: `latestCompleteRevision` is 0, 2, 2 | Q1's pin rule fed the wrong revision |
 | `TestFakeResolveStates` | 5 keys: a readable revision (`resolved`), a revision 9 that does not exist (`missing`), another team's revision (`missing`, not 404), an erased one (`erased`, content null, digest kept), `b-42` (`invalid`, kind null); results in request order; `heads` has the two briefs | a resolver that leaks existence; one that drops erased revisions |
