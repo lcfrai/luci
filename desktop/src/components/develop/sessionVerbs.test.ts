@@ -577,6 +577,50 @@ describe("the 2 s poller cannot undo a deferred verb inside its window", () => {
     expect(useCockpit.getState().sessions[IDS.session]?.status).toBe("idle");
   });
 
+  // The two edges of the re-indexing loop the suppression added, both of which survived a
+  // mutant in the scoped pass. They live here rather than in a store suite because
+  // `dataSlice.ts` has no own test file and this behaviour is only reachable through a pending
+  // id, which only these verbs set — the whole suppression story stays in one place.
+
+  // `built[worktreeId] === undefined`: the held row's worktree was NOT covered by this fetch, so
+  // there is no rebuilt list to splice into and the existing index must be left exactly alone.
+  it("leaves the index untouched when the held row's worktree was not part of the fetch", () => {
+    seed({ status: "running" });
+    useCockpit.getState().upsertSession(aSession({ id: IDS.sessionB, title: "Retention rules" }));
+    const before = useCockpit.getState().sessionIdsByWorktree[IDS.worktree];
+
+    find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+    // A tick that covered nothing: no worktree ids, no rows.
+    useCockpit.getState().replaceSessions([], []);
+
+    expect(useCockpit.getState().sessions[IDS.session]?.status).toBe("exited");
+    // The SAME array, not merely an equal one: an uncovered worktree must not be rewritten at
+    // all, or every pane keyed off it re-renders on a tick that said nothing about it.
+    expect(useCockpit.getState().sessionIdsByWorktree[IDS.worktree]).toBe(before);
+  });
+
+  // `at === -1`: the held id is in `sessions` but absent from the previous index — the orphan
+  // state. There is no old position to restore it to, so it goes at the END rather than at
+  // index -1, which `splice` would read as "one from the end" and insert in the wrong place.
+  it("appends a held row that had no index position, rather than splicing from the end", () => {
+    seed({ status: "running" });
+    // An orphan by construction: present in `sessions`, absent from `sessionIdsByWorktree`.
+    // `upsertSession` leaves a known id's position alone, so the Kill below keeps it orphaned.
+    useCockpit.setState({ sessionIdsByWorktree: { [IDS.worktree]: [] } });
+
+    find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+    useCockpit
+      .getState()
+      .replaceSessions([aSession({ id: IDS.sessionB, title: "Retention rules" })], [IDS.worktree]);
+
+    // Last, not second-to-last. With a bare `splice(at, …)` and `at === -1` the held id would
+    // land BEFORE the server's row, inventing an order the server never sent.
+    expect(useCockpit.getState().sessionIdsByWorktree[IDS.worktree]).toEqual([
+      IDS.sessionB,
+      IDS.session,
+    ]);
+  });
+
   it("holds a pending row the server has stopped listing, rather than orphaning it", () => {
     seed({ status: "running" });
     useCockpit.getState().upsertSession(aSession({ id: IDS.sessionB, title: "Retention rules" }));

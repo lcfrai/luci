@@ -1714,7 +1714,7 @@ reason is the honest third option.
 | `SessionPane.tsx` | `{ sessionId: SessionId; variant: "column" \| "tile" }` | One session: header, `<Terminal/>`, the attach overlay (§7.7), footer. **Owns focus intent** — clicking anywhere in the pane focuses the session and hands DOM focus to the terminal — and tells `<Terminal/>` whether this pane is the focused one, so nine mounting panes do not each take the caret. Restart is `api.restartSession`, which keeps the session id. |
 | `SessionPaneHeader.tsx` | `{ session: Session; worktree: Worktree \| undefined; variant: "column" \| "tile" }` | Status dot, worktree name, harness command, the `⋯` button. In `tile` variant it is also the drag handle. |
 | `SessionPaneFooter.tsx` | `{ session: Session }` | harness command · model · elapsed · attach state. All numbers `tabular-nums`. Attach state comes from `useAttachState(session.id)` (§6.6), never from the store; the retry elapsed is `useHeartbeat() - state.ladderStartedAt`, computed here because the registry owns no clock. |
-| `SessionMenu.tsx` | `{ sessionId: SessionId; anchor: DOMRect \| null; onClose(): void }` | The `⋯` menu: Resume, Fork into…, **Restart**, Rename…, Open a shell here, Kill, Forget, Copy session id. Mounted by `ContextMenu.tsx` (§6.7). The rows are built by `develop/sessionVerbs.ts`, which the rail's menu shares. |
+| `SessionMenu.tsx` | `{ sessionId: SessionId; anchor: DOMRect \| null; onClose(): void }` | The `⋯` menu: Resume, Fork into…, **Restart**, Rename…, Open a shell here, Kill, Forget, Copy session id, and **Retry attach** *(only while `useAttachState(id).phase === "failed"` — §6.6)*. Mounted by `ContextMenu.tsx` (§6.7). The rows are built by `develop/sessionVerbs.ts`, which the rail's menu shares. |
 | `EmptyDevelop.tsx` | `{ branch: Branch \| undefined }` | The zero state. Named actions, no spinner. Also exports `startSessionOnWorktree(worktreeId, defaults)`, the create path its two actions share — an addition to this table, sited here because they are its only callers. Distinct from task 18's `useCreateSession`, which re-resolves against the live store. |
 | `develop.css` | — | `.pane-*`, `.cols-*`, `.cv-*` |
 
@@ -1797,7 +1797,27 @@ export interface AttachState {
 }
 
 export function useAttachState(sessionId: SessionId): AttachState;
+
+/** Start a FRESH ladder for a pane whose previous one is spent. False, having done nothing,
+ *  when there is no entry, it is destroyed, the session has exited, or a socket is already
+ *  open or in flight. Added 2026-09-23 by task 22. */
+export function retryAttach(sessionId: SessionId): boolean;
 ```
+
+**`failed` is terminal, and `retryAttach` is the only way out of it.** Nothing in the registry
+re-attempts once the 60 s budget is spent, and the pane's exit bar cannot offer the way out
+because it is absent *by definition* — the socket died while the session is **not** exited, so
+the Restart that answers `exited` never appears. Release-and-reacquire is not a retry either:
+after the grace it destroys the terminal and loses the transcript, and inside the grace it hands
+back the same exhausted entry. The verb that calls this is a row in task 22's `⋯` menu, rendered
+only while `phase === "failed"`, so no new surface was needed — `sessionVerbs` reads a snapshot
+at open time and `getAttachState` is a synchronous snapshot read.
+
+**It resets the counters and calls `connect()` rather than stamping the clock itself**, and that
+follows directly from the `ladderStartedAt` contract three paragraphs above: `!== 0` means "this
+pane is retrying", and `connect()` already owns that write with its own conditional stamp. Two
+writers of one invariant is the defect; leaving the zero in place would render a retrying pane
+with no elapsed.
 
 **The elapsed is computed by the pane, not by the registry.** The registry publishes the raw
 stamp and owns no clock: the pane subtracts `ladderStartedAt` from `useHeartbeat()`'s 1 Hz tick
@@ -2070,7 +2090,7 @@ who owns each:
 | no projects (`PANACEA_APP_PROJECTS_DIR` unset) | Rail empty state naming the environment variable | `Rail` |
 | branch with no worktrees | `EmptyDevelop` with "this branch has no worktrees yet" | `EmptyDevelop` |
 | worktree with no sessions | `EmptyDevelop` with the two named actions (`＋ Claude Code`, `Open a shell`) | `EmptyDevelop` |
-| the attach socket is not up — a first connect, a reconnect, or a ladder that gave up | Pane body shows the connecting line with the elapsed retry time, not a spinner — `useHeartbeat() - useAttachState(id).ladderStartedAt`, the interface for which is §6.6. An overlay **sibling** of `<Terminal/>`, never a conditional render of it, and never a scrim once a transcript may be behind it: centred only for `connecting`, a corner strip otherwise, and for `failed` the strip carries `AttachState.reason` verbatim | `SessionPane` |
+| the attach socket is not up — a first connect, a reconnect, or a ladder that gave up | Pane body shows the connecting line with the elapsed retry time, not a spinner — `useHeartbeat() - useAttachState(id).ladderStartedAt`, the interface for which is §6.6. An overlay **sibling** of `<Terminal/>`, never a conditional render of it, and never a scrim once a transcript may be behind it: centred only for `connecting`, a corner strip otherwise, and for `failed` the strip carries `AttachState.reason` verbatim. **`failed` also has a way forward**, which it did not when this row was written: `Retry attach` in the `⋯` menu, calling §6.6's `retryAttach`. The strip explains; the menu acts — this row stays the *explanation*, and a second action inside the overlay would be a control on a surface that is `pointer-events: none` | `SessionPane`, and `SessionMenu` for the action |
 | session `exited` | Scrollback stays, read-only, with `exitReason` and a Restart action | `SessionPane` |
 | harness unavailable | Listed in the picker with `harness.note` verbatim, not hidden | `SessionPicker` |
 | more than 10 pins on Canvas | `pinSession` no-ops and toasts the cap | `prefsSlice` |
@@ -2145,7 +2165,7 @@ untouched.
 |---|---|---|---|---|
 | **20** | Columns layout and the session pane | `DevelopLens`, `ColumnsLayout` (horizontal scroll, scroll-into-view, focus), `SessionPane` + header + footer, `EmptyDevelop` | C `components/develop/{DevelopLens,ColumnsLayout,SessionPane,SessionPaneHeader,SessionPaneFooter,EmptyDevelop}.tsx`, `components/develop/develop.css`; T `develop/ColumnsLayout.test.tsx`, `develop/SessionPane.test.tsx` | 18, 19 |
 | **21** | Canvas layout and persisted tiles | The 2400×1600 plane, pointer-driven drag and resize on `transform`, z-order, the 10-tile pin cap, `TilePosition` written through to `prefsSlice` | C `components/develop/CanvasLayout.tsx`; M `components/develop/develop.css`, `components/develop/DevelopLens.tsx`; T `develop/CanvasLayout.test.tsx` | 20 |
-| **22** | Session lifecycle verbs | `SessionMenu` and the rail's context verbs wired to the client: Resume, Fork into…, Restart, Rename…, Kill, Forget, Open a shell here, Copy session id, Mark ready; optimistic mutation with an Undo window, in **two** commit shapes — deferred (Kill, Forget: the request is held for the window and Undo cancels it) and immediate (Rename, Restart: sent at once, snapshot restored on refusal). A deferred verb's ids are held in `lib/pendingSessions` and `replaceSessions` suppresses the poller for them, or the 2 s tick undoes the patch inside the 6 s window | C `components/develop/SessionMenu.tsx`, `components/develop/sessionVerbs.ts`, `lib/pendingSessions.ts`; M `components/menu/ContextMenu.tsx`, `components/menu/menu.css`, `components/rail/*Row.tsx`, `store/slices/dataSlice.ts` *(declared departure — task 17's)*; T `develop/sessionVerbs.test.ts`, `develop/SessionMenu.test.tsx`, and edits to `menu/ContextMenu.test.tsx`, whose verb-list assertions this task necessarily breaks | 20 |
+| **22** | Session lifecycle verbs | `SessionMenu` and the rail's context verbs wired to the client: Resume, Fork into…, Restart, Rename…, Kill, Forget, Open a shell here, Copy session id, Mark ready; optimistic mutation with an Undo window, in **two** commit shapes — deferred (Kill, Forget: the request is held for the window and Undo cancels it) and immediate (Rename, Restart: sent at once, snapshot restored on refusal). A deferred verb's ids are held in `lib/pendingSessions` and `replaceSessions` suppresses the poller for them, or the 2 s tick undoes the patch inside the 6 s window | C `components/develop/SessionMenu.tsx`, `components/develop/sessionVerbs.ts`, `lib/pendingSessions.ts`; M `components/menu/ContextMenu.tsx`, `components/menu/menu.css`, `components/rail/*Row.tsx`, `store/slices/dataSlice.ts` *(declared departure — task 17's)*, `api/attachRegistry.ts` *(declared departure — task 19's; the `retryAttach` export of §6.6, which answers the terminal `failed` state)*; T `develop/sessionVerbs.test.ts`, `develop/SessionMenu.test.tsx`, and edits to `menu/ContextMenu.test.tsx` (whose verb-list assertions this task necessarily breaks) and `api/attachRegistry.test.ts` | 20 |
 | **23** | The command palette and the keyboard map | `buildCommands`, `CommandPalette` with stable ranking and id-based selection, `useKeyboardMap` with the full chord table and the two deliberate non-interceptions | C `components/palette/{CommandPalette.tsx,commands.ts,palette.css}`, `hooks/useKeyboardMap.ts`; M `components/AppShell.tsx`; T `palette/CommandPalette.test.tsx`, `palette/commands.test.ts`, `hooks/useKeyboardMap.test.ts` | 20, 22 |
 | **24** | Wire the cockpit to the live control plane, and prove the ten | `App.tsx` rewritten to mount `AppShell` + start the poller + load the catalogue; the defect regression suite as one file; the design-system audit (no literal hex, no `transition: all`, no banned hue) | M `desktop/src/App.tsx`, `desktop/src/main.tsx` (imports `app.css`); D `desktop/src/App.css`; C `desktop/src/defects.test.tsx`, `desktop/src/styles/designsystem.test.ts`; T the two above | 21, 22, 23 |
 
