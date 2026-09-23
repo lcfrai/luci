@@ -139,6 +139,20 @@ function grabTerm(id: SessionId): FakeTerm {
   return handle.term as unknown as FakeTerm;
 }
 
+/** The DOM node the registry's element sits in right now: the pane's host while it is mounted.
+ *  Reached the way grabTerm reaches the terminal, so reaching one is also the assertion that the
+ *  entry exists. */
+function hostOf(id: SessionId): Node | null {
+  const handle = acquireAttach(useCockpit.getState().sessions[id], {
+    createTerm: () => {
+      throw new Error(`no terminal exists for ${id}; the pane never mounted`);
+    },
+    readOnly: false,
+  });
+  releaseAttach(id);
+  return handle.element.parentNode;
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   FakeWebSocket.reset();
@@ -674,6 +688,8 @@ describe("defect 1, in the assembled app", () => {
     expect(FakeWebSocket.instances).toHaveLength(1);
     const term = grabTerm("s-1");
     term.write("the user is typing");
+    const host = hostOf("s-1");
+    expect(host?.isConnected).toBe(true);
 
     for (const status of ["running", "idle", "running"] as const) {
       server.sessions = [{ ...base, status, updatedAt: new Date().toISOString() }];
@@ -695,6 +711,13 @@ describe("defect 1, in the assembled app", () => {
     expect(after.written.join("")).toContain("the user is typing");
     expect(after.disposed).toBe(false);
     expect(FakeWebSocket.instances).toHaveLength(1);
+    // And the pane never remounted. A <Terminal> keyed on anything a tick changes (its status,
+    // say) survives every assertion above, because the registry hands the new mount the same
+    // terminal. But the remount lifts the element out of the DOM and puts it into a NEW host, and
+    // a detached element loses focus and its scroll offset. That is argued, not observed here,
+    // since jsdom lays nothing out. In a real window it is this defect by another route, and the
+    // old host staying the host is what rules it out.
+    expect(hostOf("s-1")).toBe(host);
   });
 });
 
