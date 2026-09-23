@@ -101,7 +101,12 @@ not merely missed by a review.
 `sandboxes.quota` and `sandboxes.limitRange` (`type: Container`, `max`).
 
 `networkpolicy-defaults.yaml` — in each of the four namespaces, `NetworkPolicy/default-deny`:
-`podSelector: {}`, `policyTypes: [Ingress, Egress]`, no rules.
+`podSelector: {}`, `policyTypes: [Ingress, Egress]`, no rules. This chart lays allows only in
+`panacea-sandboxes` (below). Every other chart that puts a pod in a denied namespace brings its own
+allows: `cert-manager` and `edge` in `panacea-edge` (task 13), `broker` and `hub` in theirs
+(task 29). Because helm-unittest cannot see across charts, `deploy/tests/netpolcover` (task 13)
+renders this chart with the others and fails if any workload in a denied namespace has no allow
+(review C1: without it, `panacea-edge` was silently sealed).
 
 `networkpolicy-sandboxes.yaml` — in `panacea-sandboxes` (standard `networking.k8s.io/v1`,
 enforced by Cilium):

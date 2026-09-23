@@ -67,8 +67,10 @@ S8.1–S8.7 and SX.10).
    `identity`, `workloads` — built from small modules under `infra/terraform/modules/`, one state
    per stack per environment. No stack talks to the Kubernetes API (P8-D3).
 2. **Helm charts** under `deploy/charts/` — `platform` (namespaces, priority classes, policies,
-   quotas, warm capacity), `edge` (Traefik, cert-manager, the Gateway), `broker`, `hub` — applied by
-   the `deploy` pipeline with Entra credentials (`kubelogin`), never by Terraform.
+   quotas, warm capacity), `cert-manager` (its own release, so its CRDs and webhook exist before
+   anything uses them), `edge` (Traefik, the Gateway, the issuer), `broker`, `hub` — each bringing
+   its own NetworkPolicy onto `platform`'s default-deny — applied in that order by the `deploy`
+   pipeline with Entra credentials (`kubelogin`), never by Terraform.
 3. **The broker** (`control-plane/cmd/broker`): `katabe` moved in-cluster, behind the ingress,
    authenticating the caller's Entra token and scoping every object to them (OQ-1). It owns cloud
    machines: a disk, a machine pod, and the session pods that mount the disk.
@@ -184,7 +186,9 @@ scaffolding (survey §2.2, `:310`). Every resource carries `local.tags`, which i
 **Go.** From phase 2, unchanged: the module prefix is `github.com/kpmg-au-emu/panacea-app`;
 `go test ./...` is invalid at the workspace root, so always
 `go test ./sandboxd/... ./control-plane/... -race -count=1`; the `go 1.23` directive stays in
-`go.work` and both `go.mod` files — check `git diff` on them before every commit; `sandboxd/vendor/`
+`go.work` and every `go.mod` (the two existing, and task 13's test-only
+`deploy/tests/netpolcover`, run as `go test ./deploy/tests/netpolcover/... -count=1`) — check
+`git diff` on them before every commit; `sandboxd/vendor/`
 stays committed and **sandboxd gains no dependency in this phase**. **Neither does the
 control-plane module**: `internal/entra` verifies RS256 with the standard library (task 16), and
 the broker, the machine agent and `remotebe` use only `coder/websocket` and `client-go`, which
@@ -341,7 +345,9 @@ infra/smoke/                  post-apply smoke, written and tested on canned out
 infra/smoke/proving/          the Kata proving scripts, NOT run                                    32
 deploy/charts/platform/       namespaces, PSA, priority classes, quotas, policies, storage class   11
                               + warm capacity (balloons, pre-pull)                                 12
-deploy/charts/edge/           Traefik (Gateway API), cert-manager, ClusterIssuer, Gateway          13
+deploy/charts/cert-manager/   upstream cert-manager, its WI service account, its NetworkPolicy     13
+deploy/charts/edge/           Traefik (Gateway API), ClusterIssuer, Gateway, edge NetworkPolicy    13
+deploy/tests/netpolcover/     cross-chart render test: no workload sealed by default-deny          13
 deploy/charts/broker/         broker Deployment, SA, Role in panacea-sandboxes, HTTPRoute, PDB     29
 deploy/charts/hub/            Hub Deployment, migrate Job, SA (WI), HTTPRoute, PDB (contract §12)  29
 deploy/sql/hub-principals.sql.tpl   the Hub identities as Postgres principals                      29
@@ -384,7 +390,10 @@ missing stops and reports it.
 
 | File | Tasks, in order |
 |---|---|
-| `control-plane/go.mod` | none — this phase adds no module |
+| `control-plane/go.mod` | none — this phase adds no dependency to it |
+| `go.work` | 13 only (`use ./deploy/tests/netpolcover`, a test-only module that ships in no image) |
+| `deploy/tests/netpolcover/*` | 13 → 29 (29 adds `broker` and `hub`, deletes the stand-in `testdata/backends.yaml`) |
+| `pipelines/charts.yml` | 28 → 13 (13 adds the cross-chart `netpolcover` job) |
 | `internal/sandbox/manager.go` | 14 → 15 (and phase 3's task 05, which lands first — task 14 step 0) |
 | `internal/backend/backend.go` | 14 → 15 (and phase 3's task 05) |
 | `internal/api/{sessions,attach,api}.go` | 23 → 24 |
@@ -424,7 +433,7 @@ implementer who has read this file and the part, and assume the part's tests are
 |---|---|---|---|
 | 11 | `deploy/charts/platform`: namespaces, Pod Security, priority classes, quotas, network policies | 06 (names only) | 3 |
 | 12 | Warm capacity in `platform`: Kata balloons and the image pre-pull DaemonSet | 11 | 2 |
-| 13 | `deploy/charts/edge`: Traefik on Gateway API, cert-manager, the ClusterIssuer, the Gateway | 11 | 2.5 |
+| 13 | `deploy/charts/cert-manager` (its own release) and `deploy/charts/edge`: Traefik on Gateway API, the ClusterIssuer, the Gateway, both charts' NetworkPolicies, the cross-chart `netpolcover` test | 11, 28 | 3.5 |
 
 ### Group C — Kata, for real
 

@@ -13,7 +13,7 @@ changes if it is false**, so a failed row is a known edit, not a redesign.
 
 **Files:**
 - `docs/verification/phase-8-kata-proving.md` — the checklist, every result `NOT RUN` (new)
-- `infra/smoke/proving/{p01-runtimeclass.sh … p16-audit-volume.sh}` and `proving_test.sh` (new)
+- `infra/smoke/proving/{p01-runtimeclass.sh … p16-audit-volume.sh,p20-api-server-entity.sh,p21-webhook-source.sh}` and `proving_test.sh` (new)
 
 #### The checklist
 
@@ -38,6 +38,8 @@ changes if it is false**, so a failed row is a known edit, not a redesign.
 | P17 | **(owner)** The laptop reaches `broker.<zone>` over WSS through the KPMG network, with or without `HTTPS_PROXY` | task 22 | the owner's session | document the proxy setting, or ask for a proxy bypass for the zone |
 | P18 | **(owner)** End to end: sign in; the cloud machine appears (no create form); a Claude Code session on it; `/login` inside it with the user's own subscription (never pooled); a sleep; typing wakes it ("waking… Ns"); resume restores the conversation | tasks 19–26, SX.10, OD-12 | the owner's batched session | per finding |
 | P19 | **(owner)** Anthropic accepts the user's own subscription from Azure egress IPs (`PROGRAM.md` open risk 2) | the product | part of P18 | phase 6's backstop (API keys) becomes the default |
+| P20 | AKS-managed Cilium honours `toEntities: [kube-apiserver]`: a pod with only that egress allow reaches the API server and nothing else | tasks 13 and 29's `apiServer.mode: entity` (Traefik, cert-manager, broker) | `p20-api-server-entity.sh`: a throwaway pod in `panacea-edge` under the entity policy, `GET /version` via the `kubernetes` Service, then a probe to a non-API address | set `apiServer.mode: cidr` and pass the API server's address(es) in `apiServer.cidrs` for all three charts |
+| P21 | The API server's calls to the cert-manager webhook are admitted by `fromEntities: [kube-apiserver]` (on AKS they arrive through the control-plane tunnel) | task 13's `cert-manager-webhook-ingress` | `p21-webhook-source.sh`: `kubectl create --dry-run=server` of a `ClusterIssuer`, which the webhook must validate; on failure, the Hubble/Cilium drop log names the source identity | `apiServer.mode: cidr` with `apiServer.webhookSourceCidrs` set to the source the drop log named |
 
 #### Tests to write first — `proving_test.sh`
 
@@ -58,7 +60,7 @@ and the overhead it read`.
 
 ```bash
 bash infra/smoke/proving/proving_test.sh     # proving_test: all cases passed
-grep -c "NOT RUN" docs/verification/phase-8-kata-proving.md     # 19
+grep -c "NOT RUN" docs/verification/phase-8-kata-proving.md     # 21
 ```
 
 #### What this task does not claim

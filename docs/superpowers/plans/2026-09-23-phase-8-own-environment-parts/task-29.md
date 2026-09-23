@@ -10,7 +10,8 @@ HA-5 "field by field"); nothing here sets a Hub variable that table does not lis
 - `deploy/charts/broker/{Chart.yaml,values.yaml,values.schema.json}`, `templates/{deployment,serviceaccount,rbac,service,httproute,pdb,networkpolicy}.yaml`, `tests/*_test.yaml` (new)
 - `deploy/charts/hub/{Chart.yaml,values.yaml,values.schema.json}`, `templates/{deployment,serviceaccount,migrate-job,service,httproute,pdb,networkpolicy}.yaml`, `tests/*_test.yaml` (new)
 - `deploy/sql/hub-principals.sql.tpl` — the Entra principals and grants for the Hub's two identities (new)
-- `deploy/values/dev/{platform,edge,broker,hub}.yaml`, `deploy/values/prod/…` — per-environment values holding **no id** (new)
+- `deploy/values/dev/{platform,cert-manager,edge,broker,hub}.yaml`, `deploy/values/prod/…` — per-environment values holding **no id** (new)
+- `deploy/tests/netpolcover/netpolcover_test.go` — add `broker` and `hub` to the rendered charts; delete `testdata/backends.yaml`, which stood in for them (modify, task 13)
 
 #### Contract — `deploy/charts/broker/values.yaml` (complete)
 
@@ -70,7 +71,9 @@ nothing uses exec), anything on `nodes`, `namespaces`, `serviceaccounts`, `roles
 and `list`/`watch` on `secrets` (the broker reads a machine's token Secret by name only).
 
 **`networkpolicy.yaml`** (in `panacea-broker`, on top of task 11's default-deny): ingress from the
-Traefik pods in `panacea-edge` on 8080; egress to kube-dns, to `panacea-sandboxes` pods labelled
+Traefik pods in `panacea-edge` on 8080 (the peer is namespace `panacea-edge` **and** Traefik's pod
+labels, the same labels task 13's `traefik-*` policies select; `netpolcover` fails if they
+drift); egress to kube-dns, to `panacea-sandboxes` pods labelled
 `panacea-app/component` in (`sandbox`, `machine`) on 8080/8081, to the API server (a
 `CiliumNetworkPolicy` with `toEntities: [kube-apiserver]` — **AKS-managed Cilium's support for that
 entity is UNVERIFIED**; fallback is an `ipBlock` for the API server's address, looked up at deploy),
@@ -130,9 +133,13 @@ before-hook-creation`, service account `hub-migrate` (its own WI client id), com
 and `PANACEA_APP_HUB_DB_AUTH=entra`, `backoffLimit: 0` (a failed migration stops the upgrade;
 `--atomic` rolls back).
 
-**`networkpolicy.yaml`** (in `panacea-hub`): ingress from Traefik on 8080; egress to kube-dns, to
+**`networkpolicy.yaml`** (in `panacea-hub`): ingress from Traefik on 8080 (namespace
+`panacea-edge` **and** Traefik's pod labels, as the broker's); egress to kube-dns, to
 the private-endpoint subnet on 5432 (`network.privateEndpointsCidr`, the same value task 11
-takes), and 443 to `0.0.0.0/0` except RFC 1918 (Entra). **No CORS anywhere** (HA-6).
+takes), and 443 to `0.0.0.0/0` except RFC 1918 (Entra). The egress policy selects the migrate
+Job's pods as well as the serving pods (the Job needs DNS, Postgres and Entra too; the ingress
+policy selects the serving pods only) — `netpolcover`'s `every_denied_workload_has_an_allow` fails
+on a hook Job with no allow. **No CORS anywhere** (HA-6).
 
 #### Contract — `deploy/sql/hub-principals.sql.tpl` (complete; rendered and run by `deploy`, task 30)
 
@@ -190,7 +197,11 @@ runbook runs it by hand first.
 - [ ] **Step 3:** Templates; the SQL template and its render test (`pipelines/scripts/render-sql.sh`
   with a fixture, asserting the output text); `helm lint` for both.
 - [ ] **Step 4:** `deploy/values/{dev,prod}/*.yaml` with every non-id value; ids are left empty
-  and filled by `deploy` (task 30) from Terraform outputs. Commit.
+  and filled by `deploy` (task 30) from Terraform outputs.
+- [ ] **Step 5:** Add `broker` and `hub` to `netpolcover`'s chart list and delete its
+  `testdata/backends.yaml`; it must pass with the real charts, and `traefik_reaches_every_routed_backend`
+  now checks both `HTTPRoute`s. Mutation check: change the broker policy's Traefik peer label, and
+  `traefik_reaches_every_routed_backend` goes red. Commit.
 
 #### Acceptance
 
@@ -198,6 +209,7 @@ runbook runs it by hand first.
 helm lint deploy/charts/broker -f deploy/charts/broker/tests/values-test.yaml   # 0 failed
 helm lint deploy/charts/hub -f deploy/charts/hub/tests/values-test.yaml         # 0 failed
 helm unittest deploy/charts/broker deploy/charts/hub                            # all suites pass
+go test ./deploy/tests/netpolcover/... -count=1                                  # ok, five charts rendered
 bash pipelines/scripts/render-sql.sh deploy/sql/hub-principals.sql.tpl tests/fixtures/ids.env   # prints the four statements
 ```
 

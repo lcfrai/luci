@@ -37,6 +37,7 @@ client IPs (`:131-132`). Both carry over, written from scratch.
 - `deploy/charts/edge/tests/*_test.yaml` (new)
 - `deploy/tests/netpolcover/{go.mod,go.sum,netpolcover_test.go,testdata/backends.yaml}` — the cross-chart NetworkPolicy coverage test, its own Go module (`go 1.23`; one dependency, `sigs.k8s.io/yaml`, already in the control plane's module graph) (new)
 - `go.work` — `use ./deploy/tests/netpolcover` (modify)
+- `pipelines/charts.yml` — one job after the per-chart jobs: Go 1.23 (`GoTool@0`), `helm` at task 28's pin, `go test ./deploy/tests/netpolcover/... -count=1` (modify, task 28)
 
 #### Contract — `deploy/charts/cert-manager/Chart.yaml` (versions pinned exactly at implementation; no ranges)
 
