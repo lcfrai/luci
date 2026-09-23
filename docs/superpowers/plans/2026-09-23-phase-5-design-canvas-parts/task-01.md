@@ -72,7 +72,7 @@ The iframe under test, exactly as task 24 will build it (only the body differs):
 | S8 | PNG capture fidelity | `modern-screenshot`'s `domToPng` and `html-to-image`'s `toPng` of `contentDocument.documentElement`, against a fixture with a web font from a `blob:` URL, a `linear-gradient`, a `box-shadow`, `filter: blur(2px)`, `backdrop-filter: blur(8px)` and `border-radius` clipping an image. Record per feature: rendered, missing, or wrong. **And capture time per artboard** (review I5): a 1440×900 fixture artboard (about 200 nodes, the web font, two `blob:` images) and a 390×844 one, each captured five times at 1× and five at 2× with each library, each timed from the call to the `Blob` in hand (`performance.now()`), PNG encode included. Record the median and the slowest, in ms, per artboard, scale and library. The slowest 2× figure of the library task 24 adopts sets task 13's `ApprovalRenderTimeout` (`max(30 s, 3 × it)`); a slowest 2× over 10 s is written up as a finding, not tuned away |
 | S9 | A parent-made `blob:` URL loads inside | an `<img src="blob:…">` created by the parent from a PNG `Uint8Array` reaches `naturalWidth > 0` under the CSP |
 | S10 | Keys stay in the parent | after clicking the iframe's area, `document.activeElement` in the parent is the viewport element, not the iframe |
-| S11 | The renderer answers while the window is minimised (review I4) | the runner minimises Edge through CDP (`Browser.getWindowForTarget`, then `Browser.setWindowBounds` with `windowState: "minimized"`) and then sends a render request: `page.evaluate(() => window.__renderRequest(160))`, the spike's stand-in for task 13's request, which writes `width: 160px` to the S3 fixture node **through the page's copy of task 24's `schedulePatch` rule** (rAF while `document.visibilityState === "visible"`, `queueMicrotask` otherwise), calls the same flush before it measures (task 24's responder rule), and answers `{visibilityState, rafFiredWithin2s, width, captured}` — `rafFiredWithin2s` from a probe rAF queued at request time, `captured` whether S8's adopted library resolved a PNG within 10 s. Pass when `width` is 160 within 0.5 px and `captured` is true while minimised. The report records all four values as measured, whatever they are; `visibilityState` and `rafFiredWithin2s` are facts to record, not pass conditions |
+| S11 | The renderer answers while the window is minimised (review I4) | the runner minimises Edge through CDP (`Browser.getWindowForTarget`, then `Browser.setWindowBounds` with `windowState: "minimized"`), then **waits for the page to be told it is hidden** (re-review RR-I4-1: `setWindowBounds` resolves before the renderer learns of it): before minimising, the runner calls `window.__armHidden()`, which returns a promise resolving `{hidden, waitMs}` on the first `visibilitychange` to `"hidden"` (at once if already hidden) or `{hidden: false, waitMs: 5000}` after a bounded 5 s; the runner awaits it, records `waitMs`, and only then sends a render request: `page.evaluate(() => window.__renderRequest(160))`, the spike's stand-in for task 13's request, which writes `width: 160px` to the S3 fixture node **through the page's copy of task 24's `schedulePatch` rule** (rAF while `document.visibilityState === "visible"`, `queueMicrotask` otherwise), calls the same flush before it measures (task 24's responder rule), and answers `{visibilityState, rafFiredWithin2s, width, captured, captureMs}` — `rafFiredWithin2s` from a probe rAF queued at request time, `captured` whether S8's adopted library resolved a PNG within 10 s, `captureMs` how long it took (a capture library's internal timers are throttled in a hidden page, so the time is the fact task 13's render timeout needs, not only the yes/no). Pass when `width` is 160 within 0.5 px and `captured` is true while minimised. The report records every value as measured, whatever it is, plus `waitMs` and the launch's effective switches; `visibilityState`, `rafFiredWithin2s`, `captureMs` and `waitMs` are facts to record, not pass conditions |
 
 ## Tests first
 
@@ -84,7 +84,7 @@ so that it can fail:
 | S2 with the `sandbox` attribute removed | the runner's `--negative` flag rebuilds the iframe with no `sandbox` and **expects S2 to fail** | a check that cannot fail — a page whose flags are never set for another reason |
 | S6 with the meta CSP removed | `--negative` also drops the `<meta>` and expects S6 to see the request | a CSP check that passes because the host is simply unreachable |
 | S4 with the node moved | the fixture node moved to 200,200 makes S4 fail at 30,30 | an `elementFromPoint` that always returns `body` |
-| S11 with rAF-only scheduling | `--negative` also rebuilds `__renderRequest` with the scheduling forced to `requestAnimationFrame` and **no** pre-measure flush, minimised; it expects S11 to fail (width not 160) **when** the positive run recorded `visibilityState: "hidden"`. If Edge reported `"visible"` while minimised, the negative cannot fail, and the runner prints `S11-negative: not-applicable (minimised page stayed visible)` instead of asserting; the report states it and task 30's hands-on item re-checks the Tauri shell | an S11 that passes because the page never went hidden |
+| S11 with rAF-only scheduling | `--negative` also rebuilds `__renderRequest` with the scheduling forced to `requestAnimationFrame` and **no** pre-measure flush, minimised; it expects S11 to fail (width not 160) **when** the positive run recorded `visibilityState: "hidden"`. If Edge still reported `"visible"` after the armed 5 s wait for `visibilitychange` expired (`hidden: false`), the negative cannot fail, and the runner prints `S11-negative: not-applicable (minimised page stayed visible for 5 s)` instead of asserting — never after a request sent before the wait, which would make "stayed visible" a race rather than a fact (re-review RR-I4-1); the report states it and task 30's hands-on item re-checks the Tauri shell | an S11 that passes because the page never went hidden |
 
 ## Steps
 
@@ -97,11 +97,21 @@ so that it can fail:
 2. Write `run.mjs`: `npm install --prefix <scratchpad>/spike playwright-core@1 modern-screenshot@4
    html-to-image@1` (the registry is reachable, spec §11.3); serve `canvas/editor/spike/` and those
    packages from `http://127.0.0.1:<free port>/` with Node's `http` module; launch
-   `chromium.launch({ channel: "msedge", headless: false })` (headless screenshots are blocked on the
-   corporate fleet, `CLAUDE.md`); open the page; wait for `window.__spikeReady`; minimise the window
+   `chromium.launch({ channel: "msedge", headless: false, ignoreDefaultArgs:
+   ["--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows",
+   "--disable-renderer-backgrounding"] })` (headless screenshots are blocked on the corporate
+   fleet, `CLAUDE.md`). The three removed switches are Playwright's own defaults (its
+   `chromiumSwitches`; cited from Playwright's source, **unverified in this tree** until the spike
+   installs playwright-core — the runner records the effective command line in the report, through
+   CDP `Browser.getBrowserCommandLine` or, if Chromium refuses it (it answers only with
+   `--enable-automation` on the command line), the "Command line" row of `edge://version` opened in
+   a second tab; both routes are unverified until run, and the runner fails if any of the three
+   switches is still present or neither route yields the line). They switch off exactly the background throttling S11 exists to measure, and
+   WebView2 in the Tauri shell does not pass them (re-review RR-I4-1). Open the page; wait for
+   `window.__spikeReady`; call `window.__armHidden()`; minimise the window
    through a CDP session (`page.context().newCDPSession(page)`, `Browser.getWindowForTarget`,
-   `Browser.setWindowBounds({ windowId, bounds: { windowState: "minimized" } })`), run S11's
-   `__renderRequest`, restore the window (`windowState: "normal"`); wait for `window.__spike`; print
+   `Browser.setWindowBounds({ windowId, bounds: { windowState: "minimized" } })`); await the armed
+   promise (bounded 5 s) and record `waitMs`; run S11's `__renderRequest`, restore the window (`windowState: "normal"`); wait for `window.__spike`; print
    it as JSON; exit non-zero if any check is missing. `--negative` runs the four negative variants.
 3. Run it both ways. Record Edge's version from `userAgent`.
 4. Write the report: the result table, the four negative runs, the capture fidelity matrix (S8),
@@ -135,7 +145,8 @@ node run.mjs --negative
 ```
 Expected: S2 and S6 report `fail` for the unsandboxed and CSP-less variants, S4 reports `fail` for the
 moved node, and S11 reports `fail` for rAF-only scheduling (or prints `S11-negative: not-applicable`
-when the minimised page stayed `"visible"`); exit 0 (the runner asserts that the negatives failed).
+when the minimised page stayed `"visible"` through the bounded 5 s wait); the report lists the
+effective command line without the three background switches, S11's `waitMs` and `captureMs`; exit 0 (the runner asserts that the negatives failed).
 
 ```bash
 grep -c "^| S" /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5/docs/superpowers/planning/phase-5/spike-01-artboard-iframe.md

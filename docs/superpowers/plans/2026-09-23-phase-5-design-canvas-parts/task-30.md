@@ -114,10 +114,12 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
 4. Write the contract document and make the amendments.
 5. **The owner's hands-on list** — written into `e2e-report.md`, every item **unverified** until
    the owner does it in the batched session (`OD-12`):
-   1. The spike page (task 01) inside the Tauri shell: WebView2's result for S1–S11. Then the
-      product itself (review I4): minimise the cockpit while an agent works, and have the agent
-      call `get_screenshot` after a write — the PNG shows the write and no `renderer-unavailable`
-      comes back.
+   1. The spike page (task 01) inside the Tauri shell: WebView2's result for S1–S10. S11 is not
+      run in the page: it is driven by task 01's CDP runner (minimise, then `__renderRequest`),
+      which the Tauri shell does not have, so the page would wait for an answer that never comes
+      (re-review RR-M4). S11's check in WebView2 is the product itself, by hand (review I4):
+      minimise the cockpit while an agent works, and have the agent call `get_screenshot` after a
+      write — the PNG shows the write and no `renderer-unavailable` comes back.
    2. `/login` in a sandbox; prompt *"Design a settings page for this app on the canvas."* Watch the
       agent orient (`get_canvas_info`, `get_brief`), write, screenshot, `finish_working`,
       `request_review` — **with no permission prompt per canvas call** (OQ-P5-1).
