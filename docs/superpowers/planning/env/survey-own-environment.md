@@ -459,4 +459,85 @@ Terraform binary in the pipeline, as Panacea pins 1.9.8 (`P:azure-pipelines-dev.
 cap (`P:azure-pipelines-dev.yml:24`), so buy parallel jobs before the first apply. And tools
 installed by `curl` at run time (`:88-114`) drift; pin versions in a template.
 
+---
+
+## 6. Cost drivers
+
+**No price below was fetched** (corporate network; no pricing call was made). Anchors are Panacea's
+own in-code estimates, marked with their file. Treat everything else as order of magnitude.
+
+### 6.1 The dominant driver: Kata nodes, because requests equal limits
+
+- A session is 2 vCPU / 4 GiB by default (`control-plane/internal/backend/backend.go:110`), and
+  requests **equal** limits because the guest VM is sized from them (`manager.go:188-193`,
+  `docs/PROGRAM.md:133`). There is no overcommit: an idle agent costs the same as a busy one.
+- On the default `Standard_D8s_v5` (8 vCPU, 32 GiB; `infra/terraform/variables.tf:19`) that is **at
+  most 3 sessions per node**, CPU-bound, after node reservations and per-pod Kata overhead. The
+  exact allocatable CPU and the Kata pod overhead are **UNVERIFIED**; phase 8 measures both.
+- Panacea's own estimate for one always-on D8-class node is "~AUD $355-601/mo"
+  (`P:deploy/build-pool.tf:19-20`, for `D8ds_v5`). So an always-on session slot costs roughly
+  **AUD 120–200 a month**.
+- **Worked example, to size a budget, not a quote:** 10 users × 4 concurrent sessions = 40 slots ≈
+  14 nodes ≈ AUD 5–8.4k a month if always on, far less with a small floor and autoscaling.
+- **The levers**, in order of effect: the warm floor (`min_count`, G-6); the idle reaper
+  (`PANACEA_APP_IDLE_AFTER`, default 90 s, `control-plane/cmd/api/config.go:58`); session size
+  (`PANACEA_APP_SESSION_CPU_MILLIS` / `_MEMORY_MIB`, `config.go:32-33`); off-hours scale-down; SKU
+  shape (a 1 vCPU / 4 GiB session fits a memory-optimised family better than D-series).
+
+### 6.2 The rest, ranked
+
+| Driver | Anchor | Lever |
+|---|---|---|
+| Azure Firewall Standard, if chosen (OQ-3) | "~A$1.5-2k/month + data processing" (`P:deploy/firewall.tf:35-37`) | NAT gateway in dev; firewall only for a PROTECTED estate |
+| Postgres Flexible Server with zone-redundant HA | none in code; HA roughly doubles compute (standby) | Burstable SKU and no HA in dev; HA in prod |
+| App Gateway WAF_v2, if chosen | "~A$300-500+/month before data processing" (`P:deploy/waf-appgw.tf:24-27`) | Only if the edge is internet-facing |
+| Log Analytics ingest, kube-audit especially | kube-audit "can blow the dev 1 GB/day workspace cap" (`P:deploy/aks-diagnostics.tf:17-21`) | Daily cap (`P:deploy/main.tf:213-214` pattern); basic-logs tier for audit (UNVERIFIED availability) |
+| Defender plans + Sentinel | "~A$15/server/mo", Sentinel per-GB on top (`P:deploy/defender-sentinel.tf:26-30`) | Owner sign-off; may already be on at the subscription level |
+| System + apps pools, AKS Standard tier | not in code; Standard is a fixed per-cluster fee (`P:deploy/main.tf:253-259`) | Free tier in dev |
+| ACR Premium, private endpoints, public IPs | "ACR must be Premium" for private access (`P:deploy/environments/panacea-prod.env:62`) | Standard ACR in dev if private endpoints are skipped there |
+| Per-worktree disks (G-5) | none | Delete the PVC with the worktree (the OD-10 rule, extended) |
+| CI: parallel jobs, Windows minutes for Tauri | 60-min free cap (`P:azure-pipelines-dev.yml:24`) | Windows builds on `main` only |
+
+---
+
+## 7. What the owner must provide when the environment arrives
+
+### 7.1 Before the first `terraform plan`
+
+1. **A dedicated Azure subscription and its tenant id**, and the region. Recommendation:
+   Australia East, for three availability zones (`P:deploy/environments/panacea-aue.env:22`).
+2. **vCPU quota for the Kata VM family** in that region: max Kata nodes × 8 vCPU for `D8s_v5`, plus
+   the system and apps pools. Pod Sandboxing needs a nested-virtualisation Gen2 SKU
+   (`infra/terraform/kata.tf:1-3`).
+3. **A deploy identity with role-assignment rights**, scoped by an ABAC condition to a role
+   allowlist, so we never run `NO_RBAC_MODE` (`P:deploy/rbac-admin-identity.tf:5-11`). Owner on
+   the subscription is the simpler alternative.
+4. **An ADO project and a workload-identity-federation service connection** to that subscription,
+   plus paid parallel jobs, plus a VNet-injectable agent pool or the right to create one.
+5. **A Terraform state location** — or the right to create it in a `bootstrap` stack: a storage
+   account with versioning, soft delete and Entra-only data access. Panacea names this in its estate
+   file (`P:deploy/environments/panacea-dev.env:70-72`).
+
+### 7.2 Before the first apply
+
+1. **Entra app registrations**, or the right to create them (Application Administrator for the
+   deploy identity): a desktop public client for PKCE with a loopback redirect (OD-6), a Hub API
+   exposing a delegated scope, admin consent, and the ids handed over as variables.
+2. **Entra security groups**: cluster admins (for AKS Entra RBAC) and product users/teams.
+3. **A DNS name and its delegation** from the parent zone, and the certificate policy (is a public
+   ACME CA allowed, or must certificates come from a KPMG CA).
+4. **The network posture**: internet-facing with an IP allowlist (Panacea allowlists KPMG egress
+   ranges, `P:deploy/main.tf:580-607`), or corporate-only through peering or ExpressRoute; and a
+   VNet address space that does not overlap the corporate network.
+5. **The data classification** (for example PROTECTED or not), which decides firewall, WAF,
+   customer-managed keys and Defender, and a **monthly budget** with alert recipients.
+
+### 7.3 Later, before real users
+
+- Confirmation that sandboxes may reach Anthropic and the other providers from Azure egress IPs with
+  users' own subscriptions (`docs/PROGRAM.md:138`, phase 6's risk).
+- The Azure Policy assignments on the subscription, and exemptions if they block Kata SKUs,
+  public IPs or the chosen CNI.
+- Who is on call, and the log-retention period ISM requires.
+
 
