@@ -47,7 +47,7 @@ Three places hold git, and the control plane is the only process that runs git i
  project repository (the user's clone,          lane clones, one per cockpit worktree
  under PANACEA_APP_PROJECTS_DIR)                 (under PANACEA_APP_WORKTREES_DIR, default
                                                   statepath.Dir("worktrees"))
- ┌───────────────────────────────┐   git clone --local (objects hard-linked)
+ ┌───────────────────────────────┐   git clone --no-hardlinks (objects copied, Q9)
  │ refs/heads/evidence-upload     │ ─────────────────────────────►  ┌──────────────────────────┐
  │ refs/panacea/lanes/<w-id>      │ ◄──── lane sync: git fetch ───  │ refs/heads/evidence-upload│ ◄── agent's git,
  │ refs/panacea/archive/…         │       (control plane, host)     │ refs/remotes/origin/…     │     inside the sandbox,
@@ -66,6 +66,13 @@ working repository into the sandbox. Nothing about the mount changes: its host p
 clone's directory. The clone's `origin` names the project repository by host path, which the
 sandbox cannot reach. The agent sees `origin/<branch>` as the control plane last refreshed it and
 cannot fetch or push, and that is the design (brief A4).
+
+**A clone shares no file with the project, and holds the blobs' bytes.** Task 03 clones with
+`--no-hardlinks`, so no object file in the clone is the project's file (Q9). Its `--config`
+writes `core.autocrlf=false`, `core.eol=lf`, `core.checkStat=minimal` and `core.trustctime=false`
+into the clone's local config before the checkout, so the working tree holds the blobs' bytes
+under the system `core.autocrlf=true` Git for Windows installs, and the host's git and the
+sandbox's Linux git read it the same way (review C2; task 03 "Line endings").
 
 **The control plane converges by fetching, never by sharing a filesystem.** A background lane
 syncer, on the control plane's own timer and never behind a GET, copies each clone's
@@ -121,7 +128,7 @@ Owner decisions are in `docs/superpowers/planning/2026-09-23-owner-decisions.md`
 
 | Id | Decision | Where it lands |
 |---|---|---|
-| **OD-2** (= 3-D1 b) | A worktree is a local clone, objects hard-linked, work fetched back under `refs/panacea/lanes/<worktree-id>` | tasks 01, 03, 04, 07 |
+| **OD-2** (= 3-D1 b) | A worktree is a local clone, work fetched back under `refs/panacea/lanes/<worktree-id>`. OD-2 says "objects hard-linked"; this plan **copies** them (`clone --no-hardlinks`), because a hard-linked object is the project's own file, writable from the sandbox through the bind mount, and OD-2's "blast radius is its own clone" is false while it is (review I8; open question Q9) | tasks 01, 03, 04, 07 |
 | **OD-4** (= 3-D8) | Azure DevOps **and** GitHub, behind one host interface | task 14 |
 | **OD-6** | Tokens live in Windows Credential Manager, the store the Hub builds; users are always themselves | task 13 (the seam) |
 | **OD-8** (= 3-D7 b) | The Claude Code transcript may be read, read-only, through an adapter pinned to the image's CLI version, canary-tested, degrading to commit level | task 17 |
@@ -358,6 +365,7 @@ named task changes.
 | **Q6** | Review C1's residual: phase 2's scanner and `project.ExecRunner` run host git in the primary worktree's repository, whose `.git` the sandbox can write on a primary-worktree session. task-02 §HGH hardens `gitx.Exec` only. Are phase 2's read-only commands (`worktree list`, `for-each-ref`, `status`) exposed to `core.fsmonitor`, hooks or filters? | **Phase 2 checks, and adopts §HGH's H1 prefix in `ExecRunner` if they are.** `status` honours `core.fsmonitor`, so that exposure is likely. It is **not verified here**, and phase 2's files are not this plan's to edit. H5's read-only `.git/config` mount covers that one file only: a `.git/commondir` the agent writes moves the config git reads (verified on git 2.53.0.windows.2, task-02 §HGH H5). So phase 2's launcher needs H5's layout pin (`GIT_DIR`, `GIT_COMMON_DIR`) as well as the H1 prefix | phase 3 lifts H1 into `project.ExecRunner` itself (one prefix, both launchers) |
 | **Q7** | task-02 §HGH H5 makes a checkout's `.git/config` read-only inside the sandbox. An agent's `git config`, `git branch --set-upstream-to` and `git remote add` then fail there. So, by the same reasoning and not verified, do an agent's `git branch -m` (it moves `branch.<old>.*`) and husky's `prepare` script, which runs `git config core.hooksPath` when the agent runs `npm install`. Accept that? | **Yes.** It is the only rule that closes H3's check-then-call race. The sandbox holds no git credential (A4), so it never needs a remote, and identity arrives through the session environment. The agent's `git commit`, `branch` and `checkout -b` keep working | H5 is dropped, and H3 becomes a best-effort check with a documented race. Filter drivers in a clone are then a residual host-execution risk |
 | **Q8** | task-02 §HGH H1 clears a repository's own credential helper, so a cockpit fetch or push authenticates as the account the machine's helpers (system, then global) answer for that URL, not the one a repo-local `credential.<url>.helper` chooses. On this repository that is the global helper's account, not the repo-local `lcfrai/panaceaapp` one. Accept that? | **Yes.** A repository helper is a program the sandbox may have written, and the machine's config is the only config the agent cannot write. A user who wants the repo-local account moves that key to `--global`; it is URL-scoped, so it still applies to that repository alone | task 12 lets a push run the repository's own helper when no session has ever mounted that repository's `.git`, which needs a per-repository record of mounts |
+| **Q9** | OD-2 says a lane clone's objects are hard-linked. A hard link is one file with two names, so through the bind mount an agent can clear a pack's read-only attribute and rewrite the **project's** pack, which makes OD-2's "blast radius is its own clone" false (review I8; verified on git 2.53.0.windows.2: `clone --local` gives the pack, `.idx`, `.rev` and commit-graph a link count of 2). Copy the objects instead? | **Yes: `clone --no-hardlinks`, built** (task 03 step 4, one function `cloneArgv`). The cost is disk and clone time per lane. Task 01's Step 5 measures both on `~/Projects/Panacea`; **not measured yet**. Recommend keeping the copy unless that clone is too slow on the owner's laptop | task 03 goes back to `clone --local`; every land first runs `git fsck --connectivity-only` over the lane's objects (task 09); and this plan's "does not claim" states that an agent can write the project's object files |
 
 ## File map
 
@@ -485,6 +493,12 @@ made structural). `routes_audit_test.go` gets one line per GET, appended.
   checks it. Also verified: the remote URL forms of this programme's own repositories
   (`https://github.com/<owner>/<repo>`, `https://kpmgcomau.visualstudio.com/<project>/_git/<repo>`),
   and that no Hub contract exists yet.
+- **Verified in fix batch b02** (git 2.53.0.windows.2, 2026-09-24, host only, with a test system
+  file holding `core.autocrlf=true`): a plain clone checks LF blobs out CRLF and writes no local
+  `core.autocrlf`; task 03's argv checks them out LF, writes its four keys and leaves `status`
+  clean; `clone --local` hard-links the pack files and `--no-hardlinks` does not. **Not verified**:
+  the sandbox's Linux git on such a clone (task 01's Docker test), and what `--no-hardlinks` costs
+  on `~/Projects/Panacea` (task 01 Step 5, Q9).
 - **Every git behaviour the brief took from documentation** is task 01's to verify before any
   task relies on it, and task 01's results document replaces this plan's assumptions wherever they
   differ.
