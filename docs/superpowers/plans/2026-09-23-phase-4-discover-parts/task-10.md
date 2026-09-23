@@ -20,10 +20,22 @@ actually starts (R1's seam note).
 - `control-plane/internal/api/materialiser.go` — the interface and its types (new, in `api`)
 - `control-plane/internal/api/api.go` — `Deps.Materialiser` (required), `Deps.Discover`
   (optional), the validation line, the mount line (modify, declared departure)
-- `control-plane/internal/api/sessions.go` — both handlers (modify, declared departure)
+- `control-plane/internal/api/sessions.go` — both handlers, and `sessionLocate` gains an error
+  return (modify, declared departure)
 - `control-plane/internal/httpx/problem.go` — `CodeBriefNotWritten` (modify)
 - `control-plane/internal/api/materialise_test.go` — the new tests (new)
 - `control-plane/internal/api/api_test.go` — its `Deps` builder gains a recording fake (modify)
+- `control-plane/internal/api/attach_test.go` — its `New(Deps{…})` (`:303` at `2d6d95b`) gains its
+  own recording fake (modify). It is `package api`, so it cannot see `api_test.go`'s builder
+  (`package api_test`) (review I1)
+- `control-plane/internal/api/sessions_test.go` — its `Deps{…}` (`:584` at `2d6d95b`) gains its own
+  recording fake, `sessionsLocator` gains a per-project `worktreesErr`, and the `sessionLocate`
+  tests below (modify; `package api`) (review I1, I2)
+- `control-plane/cmd/api/materialiser_interim.go` — `materialiserUntilTask14`, the named interim
+  value (new; **task 14 deletes it**) (review I1)
+- `control-plane/cmd/api/materialiser_interim_test.go` — its one test (new; task 14 deletes it)
+- `control-plane/cmd/api/main.go` — `Materialiser: newMaterialiserUntilTask14(log)` in the
+  `api.New(api.Deps{…})` literal (`:132` at `2d6d95b`) (modify) (review I1)
 
 **Interfaces — complete source:**
 
@@ -48,7 +60,12 @@ type Materialiser interface {
 type MaterialiseRequest struct {
 	WorktreeID   string
 	WorktreePath string // absolute, from Deps.Worktrees.Path
-	ProjectID    string // local, from sessionLocate; "" when unknown
+	// ProjectID is local, from sessionLocate. "" means the worktree is
+	// outside every project, which enumerated cleanly: there is no project,
+	// so nothing to inherit (task 09 step 4). An enumeration FAILURE never
+	// arrives here as "": the handler refuses it as project_unknown first
+	// (review I2), unless WithoutBrief is set.
+	ProjectID    string
 	BranchID     string // local; "" for a detached worktree
 	// WithoutBrief is the person's "Start without the brief" (4-D1). The
 	// Materialiser removes any managed block it can and returns
@@ -80,6 +97,11 @@ const (
 	BriefReasonWriteFailed    = "write_failed"      // the file could not be written
 	BriefReasonBlockBroken    = "block_broken"      // a marker with no partner (a begin with no end, a stray or early end) or two blocks
 	BriefReasonTracked        = "tracked_elsewhere" // CLAUDE.md and .claude/CLAUDE.md both tracked (P4-D)
+	// BriefReasonProjectUnknown is raised by the HANDLER, never by a
+	// Materialiser: sessionLocate could not enumerate the projects, or could
+	// not read a project's worktrees and did not find this one elsewhere, so
+	// which project's brief applies is unknown (review I2). A brief may exist.
+	BriefReasonProjectUnknown = "project_unknown"
 )
 
 // RouteMounter lets a package outside api register routes through the
@@ -111,6 +133,65 @@ In `New`: `{"Materialiser", d.Materialiser == nil}` joins the validation table, 
 	CodeBriefNotWritten = "brief_not_written" // 409 the brief could not be written before the session started (4-D1)
 ```
 
+```go
+// control-plane/internal/api/sessions.go — sessionLocate gains an error (review I2).
+// At 2d6d95b it is :540-567 and returns ("", "") for a failed Projects()
+// (:549-553) and for a failed Worktrees() (:555-558, continue) alike.
+
+// sessionLocate finds the project and branch a worktree belongs to. Three
+// answers, never confused:
+//   - found: its ids and nil, even if another project's Worktrees() failed
+//     (a worktree id belongs to one project);
+//   - outside every project, and every enumeration succeeded: "", "", nil;
+//   - not found, and Projects() or some Worktrees() failed: "", "",
+//     errProjectUnknown wrapping the first failure.
+// The two Warn logs stay: the error is for the handler, the log for the
+// operator. A nil Projects (a hand-built API; New rejects it) is "", "", nil.
+func (a *API) sessionLocate(ctx context.Context, worktreeID string) (projectID, branchID string, err error)
+
+var errProjectUnknown = errors.New("api: the projects could not be enumerated")
+```
+
+```go
+// control-plane/cmd/api/materialiser_interim.go — new in task 10, DELETED by task 14
+package main
+
+// materialiserUntilTask14 is the Materialiser the binary runs between phase 4
+// task 10, which makes Deps.Materialiser required, and task 14, which wires
+// contextwrite and deletes this file (review I1). Its name is its deadline,
+// so it cannot pass for the real thing: it writes nothing. It is not a
+// default inside api: api.New still refuses a nil Materialiser, and only
+// main chooses this value.
+type materialiserUntilTask14 struct{}
+
+// newMaterialiserUntilTask14 logs ONE line, at start-up, that sessions
+// inherit nothing until phase 4 task 14. Materialise itself never logs.
+func newMaterialiserUntilTask14(log *slog.Logger) materialiserUntilTask14 {
+	log.Warn("sessions inherit no brief until phase 4 task 14 wires contextwrite")
+	return materialiserUntilTask14{}
+}
+
+// Materialise returns "" (nothing inherited), or "none:declined" when the
+// person declined the brief, as MaterialiseRequest.WithoutBrief says. No code
+// before task 14 writes a managed block (at 2d6d95b nothing in control-plane
+// imports claudemd or contextwrite), so there is no block to strip.
+func (materialiserUntilTask14) Materialise(ctx context.Context, req api.MaterialiseRequest) (api.MaterialiseResult, error) {
+	if req.WithoutBrief {
+		return api.MaterialiseResult{ContextRef: "none:declined"}, nil
+	}
+	return api.MaterialiseResult{}, nil
+}
+
+var _ api.Materialiser = materialiserUntilTask14{}
+```
+
+`main.go` adds one line to the `api.New(api.Deps{…})` literal (`:132` at `2d6d95b`):
+`Materialiser: newMaterialiserUntilTask14(log),`. No test in `cmd/api` reaches `api.New` (at
+`2d6d95b`, `TestRunRefusesANonLoopbackBindWithExitCode2` `main_test.go:387` and
+`TestRunRefusesAMissingCABundleWithExitCode2` `config_sandbox_test.go:189` both exit in config),
+so a missing line would show only when the binary starts ("api: Deps.Materialiser is nil"). The
+acceptance below therefore greps for the line and builds the binary.
+
 **Wire changes** (UI contract §3.9 and §3.14 amendments, written by task 22):
 
 ```jsonc
@@ -135,6 +216,16 @@ In `New`: `{"Materialiser", d.Materialiser == nil}` joins the validation table, 
   `req.WithoutBrief`. `*MaterialiseError` → 409 as above and return; any other error →
   `a.internal`. On success, `ContextRef: result.ContextRef` replaces `ContextRef: req.ContextRef`
   (`:401`).
+- `handleSessionCreate`, `sessionLocate`'s error (review I2; at `2d6d95b` the call is
+  `sessions.go:452`): when it is `errProjectUnknown` and `req.WithoutBrief` is false, the handler
+  answers through the same 409 writer with `&MaterialiseError{Reason: BriefReasonProjectUnknown,
+  Message: "The brief could not be written because the projects could not be read."}`, and
+  returns. `Materialise` is not called; nothing is recorded or created. When `req.WithoutBrief`
+  is true, the error does not refuse: the person declined the brief, so no project's brief is
+  needed (task 09 step 3 never asks the Hub), and refusing would make *Start without the brief* a
+  dead end, as N1 is on `tracked_elsewhere`. `Materialise` then gets `ProjectID: ""`, and the record
+  carries empty ids, which is what phase 2 records today for every enumeration failure. A clean
+  `""` (outside every project) is passed through unchanged.
 - `handleSessionRestart`: decode the optional body (an empty body is `{}`; an unknown field is
   `invalid_json`, as everywhere). Call `Materialise` with all four request fields:
   `WorktreeID: sess.WorktreeID`, `WorktreePath: path` (the restart's own `Worktrees.Path` result,
@@ -152,6 +243,13 @@ In `New`: `{"Materialiser", d.Materialiser == nil}` joins the validation table, 
   `sess.ContextRef` in the record write. Restart is a new process, so it **restamps** (contract
   §2.4). **Accepted side effect:** the new block is written while the old process is still running.
   That process read `CLAUDE.md` when it started, so its stamp stays true until the destroy ends it.
+- `handleSessionRestart`, a record with `ProjectID == ""` (review I2): that `""` is ambiguous. It
+  may be a worktree outside every project, or an enumeration failure at create (phase 2 records
+  those as `""`, and so does the `WithoutBrief` path above). So the restart calls
+  `sessionLocate(ctx, sess.WorktreeID)` again, before `Materialise` and so before the destroy. The
+  error rule is the create rule: `errProjectUnknown` without `body.WithoutBrief` is the 409
+  `project_unknown`, and the old sandbox stays alive. Found ids go to `Materialise` and into the
+  record write. A clean `""` stays `""`. A record that already names a project is not re-located.
 - Resume and fork go through create, so they restamp too. Whether Claude Code re-reads `CLAUDE.md`
   on `--resume` is unverified (brief R7); restamping is correct either way for a new process, and
   task 23's canary tells us whether a resumed conversation *acts* on the new text.
@@ -176,6 +274,28 @@ call's position relative to the fake backend's `Create` **and `Destroy`** and th
 | `TestRestartRefusalLeavesTheSandboxAlive` | `*MaterialiseError{hub_unavailable}` → 409 `brief_not_written`; the log holds no `backend.destroy`; the old `SandboxID` is still in the fake backend; the record's `SandboxID`, status and `contextRef` are unchanged | a Hub outage that kills the running agent, then leaves a record naming a destroyed sandbox |
 | `TestDiscoverRoutesAreMountedOnTheGuardedMux` | a fake `RouteMounter` registering `GET /v1/discover/ping` is reachable at `/v1/…` **and** `/api/v1/…`, and a request with a foreign `Origin` is 403 | a mount on `root`, outside the guard and the alias |
 
+**The two `package api` files** (review I1). `attach_test.go` and `sessions_test.go` build `Deps`
+themselves, so each gets its **own** recording fake. `attach_test.go`'s fake asserts it was never
+called: the relay starts no process. `sessions_test.go`'s fake records each request and returns a
+set result. Its env (`sessionsNewEnvOverWith`, `:556` at `2d6d95b`) already drives create and
+restart end to end through `sessionsLocator`, whose `err` (`:495`) fails all three methods. So the
+`sessionLocate` tests live there (review I2). `sessionsLocator` gains `worktreesErr
+map[string]error`, a failure for one project's `Worktrees` only.
+
+| Test (`sessions_test.go`) | Asserts | Mutant it kills |
+|---|---|---|
+| `TestSessionLocateEnumerationFailureIsAnError` | `Projects()` fails → `"", ""` and `errors.Is(err, errProjectUnknown)`; separately, the only project's `Worktrees()` fails → the same | today's `"", ""` for a failure: the session inherits nothing, silently (R1's failure) |
+| `TestSessionLocateFindsTheWorktreeDespiteAnotherProjectsFailure` | project A's `Worktrees()` fails, the worktree is in B → B's ids and `nil` | one broken repository refusing every session in every other project |
+| `TestSessionLocateOutsideEveryProjectIsACleanEmpty` | every enumeration succeeds, no project holds the id → `"", "", nil` | a clean miss reported as `project_unknown` |
+| `TestCreateRefusesAnUnknownProject` | `sessionsLocator.err` set → 409 `brief_not_written`, `details.reason: "project_unknown"`, `details.worktreeId`; the materialiser fake never called; no store record; no backend call | an enumeration failure turned into a session with no brief and no warning |
+| `TestCreateWithoutBriefStartsDespiteAnUnknownProject` | `sessionsLocator.err` set, `withoutBrief: true` → 201; the fake gets `ProjectID: ""` and `WithoutBrief: true`; `none:declined` stamped | *Start without the brief* made a dead end, as N1 is on `tracked_elsewhere` |
+| `TestCreateOutsideEveryProjectMaterialisesWithNoProject` | a clean miss → 201; the fake gets `ProjectID: ""`; its `""` is stamped | the clean `""` refused, or never passed through |
+| `TestRestartRelocatesARecordWithNoProject` | a seeded record with `ProjectID: ""`. The locator finds the worktree → the fake gets the found ids, and the record write carries them. With `sessionsLocator.err` set → 409 `project_unknown`, no `backend.destroy`, the old sandbox still in the fake backend | a restart that reads an ambiguous `""` as "outside every project" |
+
+| Test (`cmd/api/materialiser_interim_test.go`) | Asserts | Mutant it kills |
+|---|---|---|
+| `TestMaterialiserUntilTask14InheritsNothingAndSaysSoOnce` | constructed over a buffer logger → exactly one Warn line, naming "task 14"; two `Materialise` calls add no line; `WithoutBrief: false` → `""`, nil; `WithoutBrief: true` → `"none:declined"`, nil | a fabricated key; a log line per session start; the override's stamp lost |
+
 **Steps:**
 
 - [ ] **Step 1: Preflight.** `git log -1 --format=%H -- control-plane/internal/api/sessions.go`
@@ -183,12 +303,21 @@ call's position relative to the fake backend's `Create` **and `Destroy`** and th
   — confirm the three symbols. Then `grep -n "Backend.Destroy(ctx, sess.SandboxID)\|harness.Build(harness.Request\|sessionEnv(" control-plane/internal/api/sessions.go`
   — inside `handleSessionRestart` the order must read argv rebuild, `sessionEnv`, destroy (at
   `2d6d95b`: `:1002`, `:1022`, `:1026`). If phase 2 or 3 has moved the step order, stop and report.
+  Then list every direct `Deps` construction:
+  `git grep -n "New(Deps{\|:= Deps{\|api.Deps{" -- control-plane`. At `2d6d95b` there are four:
+  `api_test.go:142` (the builder), `attach_test.go:303`, `sessions_test.go:584`,
+  `cmd/api/main.go:132` (review I1). Any other one joins this task's file list with its own fake.
 - [ ] **Step 2:** Write `materialise_test.go`; add a recording fake to `api_test.go`'s `Deps`
-  builder so every existing test still constructs a valid `Deps`. Confirm the new tests fail.
-- [ ] **Step 3:** Write `materialiser.go`; edit `api.go`, `problem.go`, `sessions.go` as above.
-- [ ] **Step 4:** Run the whole `api` suite and the route audit.
-- [ ] **Step 5:** Commit the six files by pathspec. The message names R1, the base commit of
-  `sessions.go`, and the two declared departures.
+  builder, to `attach_test.go` and to `sessions_test.go`, so every existing test still constructs
+  a valid `Deps`; write the `sessionLocate` tests and `materialiser_interim_test.go`. Confirm the
+  new tests fail.
+- [ ] **Step 3:** Write `materialiser.go` and `materialiser_interim.go`; edit `api.go`,
+  `problem.go`, `sessions.go` (both handlers and `sessionLocate`) and `main.go` as above.
+- [ ] **Step 4:** Run the whole `api` suite, the route audit, the `cmd/api` suite, and build the
+  binary.
+- [ ] **Step 5:** Commit the eleven files by pathspec (`git add` the three new ones first). The
+  message names R1, review I1 and I2, the base commit of `sessions.go`, the two declared
+  departures, and that `materialiserUntilTask14` is interim, deleted by task 14.
 
 **Acceptance:**
 
@@ -200,7 +329,21 @@ $ grep -n "req.ContextRef" control-plane/internal/api/sessions.go
 (no output — the request's value reaches nothing)
 $ grep -c "Materialise(ctx" control-plane/internal/api/sessions.go
 2
+$ go test ./control-plane/cmd/api/... -race -count=1
+ok   github.com/kpmg-au-emu/panacea-app/control-plane/cmd/api
+$ grep -n "Materialiser:" control-plane/cmd/api/main.go
+(one line: Materialiser: newMaterialiserUntilTask14(log),)
+$ go build -o $TEMP/pa-api.exe ./control-plane/cmd/api && echo built
+built
 ```
 
+The binary starts after this task and logs the interim line once. No test reaches `main`'s `Deps`
+literal, so the `grep` above is what keeps it. Starting the binary is not part of this acceptance:
+its reaper sweeps at start-up, so it needs the shared Docker daemon lock
+(`.superpowers/sdd/2026-09-18-phase-2-backend-and-cockpit/docker-daemon-lock.md` in the main tree;
+git-ignored, local only). Task 23's live run is where it starts. Until task 14 every session is stamped `""` or
+`none:declined`, and that is honest, because nothing is written.
+
 **Does NOT claim:** anything about what is written (task 09); the desktop's handling of the 409
-(task 20); the Go and UI contract amendments (task 22).
+(task 20); the Go and UI contract amendments (task 22); a real Materialiser in the binary
+(task 14, which replaces `materialiserUntilTask14`).
