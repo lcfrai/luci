@@ -704,3 +704,66 @@ second style doubles the error model for no caller that needs streaming or graph
 | R10 | One lock serialises every write (G3, G5) | low · write latency under load | writes are human-paced; the lock is held for one insert. Measure before optimising |
 | R11 | These scores are one author's, over reconstructions (§0) | — | `OD-1`'s adversarial review of this ADR and the contract, told so |
 
+---
+
+## 9. What the owner and KPMG IT must provide
+
+Nothing below blocks development: `devissuer` runs the whole flow locally. Items 1–6 block the
+**first real sign-in**. Item 9 is phase 8's and is listed so the whole ask goes to IT once.
+
+| # | For | Exactly what | Who |
+|---|---|---|---|
+| 1 | Tenant | The **KPMG Australia tenant id** (a GUID) the registrations live in | IT |
+| 2 | **Desktop registration** — display name *PanaceaApp Desktop* | Single tenant (*"Accounts in this organizational directory only"*). Platform **Mobile and desktop applications**, redirect URIs **`http://localhost`** and **`http://127.0.0.1`** (the second may need the manifest editor: `replyUrlsWithType`, type `InstalledClient`). **No client secret, no certificate.** *Allow public client flows*: **No** — auth-code + PKCE does not need it. Delegated permissions: `openid`, `profile`, `offline_access`, `email`, `api://<hub-id>/Hub.Access`, and phase 8's `api://<broker-id>/Sandboxes.Access`. Optional: Azure DevOps `user_impersonation` if Q5 is yes. **Tenant-wide admin consent** for all of them, so no user sees a consent prompt | IT |
+| 3 | **Hub API registration** — *PanaceaApp Hub API* | Single tenant. Application ID URI **`api://<its-client-id>`** (the default; a custom URI needs a verified domain). Exposed delegated scope **`Hub.Access`** (*"Use PanaceaApp's shared workspace as you"*). **Authorised client application**: the desktop's client id, for `Hub.Access`. Manifest **`requestedAccessTokenVersion: 2`**. App role **`Hub.OrgAdmin`** (allowed member types: users and groups). Optional claim **`email`** on the access token. **No secret, no certificate** — the Hub calls nothing as itself in v1 | IT |
+| 4 | Enterprise application for the Hub API | **Assignment required: Yes**, assigned to group *PanaceaApp Users* — so only assigned people can obtain a Hub token at all | IT |
+| 5 | Groups | **PanaceaApp Users** (security group; the owner and the pilot team). **PanaceaApp Org Admins** (assigned the `Hub.OrgAdmin` app role; the owner). Phase 8's Postgres administrator group (`P8-D10`) if not already requested | IT, owner names members |
+| 6 | Conditional access | Confirmation that KPMG's policies allow a public desktop client with a loopback redirect, and what they require of the device (compliant, hybrid-joined). If a sign-in-frequency policy applies, its interval | IT |
+| 7 | Decisions | Q1–Q7 in §10 — each has a recommendation this design already plans around | owner |
+| 8 | Nothing else | No Graph permission, no client secret, no certificate, no Keycloak, no API Management, no storage account | — |
+| 9 | Phase 8's broker registration | *PanaceaApp Sandbox Broker*, scope `Sandboxes.Access`, desktop pre-authorised — as phase 8's task 09 writes it | IT |
+
+---
+
+## 10. Open questions for the owner — each with the recommendation planned around
+
+| # | Question | Recommendation (what the contract builds) |
+|---|---|---|
+| Q1 | May only a **complete** revision be pinned or approved against? | **Yes.** The Hub refuses an approval against an incomplete revision (`brief_incomplete`). At Ship it pins the **latest complete** revision, and records *"no complete revision"* if there is none. This is the rule all three prototypes draw (`prototype-fact-sheet.md:56-60`) and critique-2 §2.2 asks for |
+| Q2 | What does **erasure** of a brief do to a release that pinned it? (provenance contract Q5) | Content removed; key, digest, author and time kept; the pin renders **"erased on <date>"** — a state distinct from `missing` (§5.6) |
+| Q3 | May a designer approve their own design? | **Yes in v1**, as the prototype draws; separation of duties is an org policy later (§5.9 item 8) |
+| Q4 | How do teammates join? | A team admin **invites an email address in the same tenant**; it binds at that person's first sign-in. No Graph people picker in v1 |
+| Q5 | Should Azure DevOps use the **same Entra sign-in**? | **Yes** — one refresh token serves ADO, so no ADO PAT is needed (`OD-4`, `OD-6`). Needs item 2's optional permission. GitHub keeps its own token in the same store |
+| Q6 | When the Hub is down, may writes queue and replay? | **No.** A queued approval or pin would record the wrong moment. Writes are refused and say why |
+| Q7 | Does the Hub, in its first cut, hold canvas documents? | **No** — phase 5's v1 keeps them in the control plane; the Hub hosts that package in v2 (§5.5) |
+
+---
+
+## 11. What this ADR did not verify
+
+- **Nothing was built or run.** No Go was compiled, no container started, no token issued.
+- **Entra behaviour stated from knowledge, not tested here:** that a registered `http://localhost`
+  or `http://127.0.0.1` redirect matches any runtime port and the root path; that v2 access tokens
+  carry `preferred_username`, `name` and `azp` with the `profile` scope; token lifetimes; refresh
+  token rotation on redemption; that one refresh token can be redeemed for the Hub, the broker and
+  Azure DevOps. Each is checked by H1's real-tenant acceptance test.
+- **Windows:** the 2,560-byte credential blob cap is from the Win32 documentation's constant as
+  recalled; KPMG token sizes are unknown (R1).
+- **`tauri-plugin-opener`:** present in `Cargo.toml` and granted as `opener:default` — read. Whether
+  `opener:default` permits an `https://login.microsoftonline.com/…` URL without a scope entry was not
+  checked.
+- **Docker Desktop reachability** of a host service bound to `127.0.0.1` from inside a container:
+  not tested (§5.4). C3 is designed so the answer does not matter.
+- **Sibling plans were read as they stood on 2026-09-23**, several uncommitted. Phase 8's task 16
+  part, which will hold the `entra.Validator` source, **did not exist yet** (its parts directory
+  held tasks 01–05); the interface this contract assumes is written in contract §6.3 and must be
+  reconciled with task 16 when it lands.
+- **Phase 4's resolution rule** — a branch brief if one exists, else the project brief — is read
+  from the phase 4 plan's `API.resolve` (`:4250-4261`) and `discoverstore.Store` (`:3019`), not
+  from built code; no phase 4 code exists.
+- **Azure Postgres Flexible Server** supporting major version 16 and the core functions used
+  (`sha256`, `gen_random_uuid`, row-level security) is from knowledge and phase 8's choice, not
+  from a provisioned server.
+
+*End of ADR-H1. The contract is `docs/superpowers/contracts/2026-09-23-hub-contract.md`.*
+
