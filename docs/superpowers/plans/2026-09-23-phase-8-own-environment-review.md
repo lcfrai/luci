@@ -927,3 +927,56 @@ The re-review is `.superpowers/sdd/env/plan-rereview-b04-1.md` (local, git-ignor
 - The round-1 items stand: the RBAC propagation delay, and ACNS per-pod FQDN enforcement on Kata.
 
 **Mutation checks:** both probes above are the red/green halves of two named mutants: the single-space G10 pattern, and override matching that sees only `*_override.tf`. Before running them I named those two as the likeliest survivors. Both would have survived round 1's fixtures, and both are now killed by the case rows at `parts/task-01.md:148` and `:158`. No `guards.sh` exists yet to mutate; these are plan documents.
+
+## Fix batch b05 (2026-09-24) — I4, I5
+
+Commits `08cd790` (I4), `adf4169` (I5, broker side), `2383ef9` (I5, laptop side and the
+restatements), `6c8aab7` (the two likeliest survivors). Line numbers are at `6c8aab7`.
+
+**I4. The pre-pull DaemonSet asks for a whole node and can exhaust the namespace quota.**
+
+| Ask | Change | Where |
+|---|---|---|
+| `requests == limits` (`10m`/`16Mi`) on both init containers | done, with a paragraph on why (the scheduler sizes a pod by its largest init container, and a `max`-only LimitRange defaults an unsized one to 8 CPU / 32 GiB). New helm-unittest case `prepull_init_containers_are_tiny`. Counts: 7 suites and 21 tests | `parts/task-12.md:73-90`, `:109`, `:122-123` |
+| a LimitRange `default`/`defaultRequest` at session size | `sandboxes.limitRange.defaultCpu: 2000m`, `defaultMemory: 4096Mi`. `quota.yaml` renders `max`, `default` and `defaultRequest` in one `Container` item. The default is a backstop, not a sizing policy. New case `quota_test / limitrange_defaults_to_one_session`. Counts: 6 suites and 12 tests | `parts/task-11.md:60-67`, `:105-115`, `:168`, `:188-189` |
+| a helm-unittest case: every container and init container in `platform` has `requests == limits` | **Moved into `netpolcover`, as `every_sandbox_container_is_sized`.** This is a deviation, for two reasons. First, helm-unittest has no assertion that compares two paths, so it cannot state "requests equal limits" for every container; it can only pin values, and task 12's rows already do that. Second, `netpolcover` already renders `platform` with real values, as the b01 round-2 precedent did for `rendered_names_are_dns_1123`. Scope: every pod template rendered into `panacea-sandboxes` by any release, including CronJob `jobTemplate`s and bare Pods. The comparison is by string, so the module keeps its one dependency. Two mutants | `parts/task-13.md:354`, `:393-396` |
+| (restatement) "one value" feeds the broker, the balloons and now the LimitRange | **Found beyond the review:** the "task 29 passes both from one value" claim had nothing enforcing it, because each chart reads its own `deploy/values/<env>/<chart>.yaml` (task 30). Task 29 therefore adds a `netpolcover` case, `session_size_is_one_value`, that compares the two files for each environment, with a mutant. Task 12's comment named the wrong variable (`PANACEA_APP_SESSION_CPU_MILLIS`, not `…_BROKER_SESSION_…`) and is corrected | `parts/task-29.md:37`, `:282-290`; `parts/task-12.md:41-43`; `parts/task-11.md:63-65`; plan `:485` |
+
+**I5. A cloud machine is capped at one node's capacity.**
+
+| Ask | Change | Where |
+|---|---|---|
+| state the ceiling in P8-D6 | P8-D6 now says that every session of a machine shares its machine pod's node with whatever else runs there, and that neither a balloon nor the autoscaler adds room. On `Standard_D8s_v5` that is **about three default sessions per machine** (arithmetic, UNVERIFIED until P07). It also says the per-user cap of 8 over 2 machines cannot be reached on one machine, and how the limit is handled | plan `:135` |
+| state the ceiling in the cost model | the cost is counted per node that can hold a machine's sessions, not per session. There is one row per candidate SKU, plus one row for a smaller session, and the warm floor is costed at the SKU that P07 selects | `parts/task-33.md:48-56` |
+| a broker check **before** create: sum the machine's pods plus the RuntimeClass overhead, against the node's allocatable | **Replaced by the scheduler's verdict**, because the ask is wrong on two facts. (1) The node is shared: other users' machines and sessions, and the DaemonSets, run beside the machine pod, so summing the machine's own pods under-counts. (2) Reading a node's allocatable needs a permission on `nodes`, which task 29 grants to no one and tests as absent (least privilege). The DaemonSets live in namespaces the broker cannot list either. The scheduler already counts all of this, Kata `pod.spec.overhead` included. So `watchUnschedulable` cancels the create when `PodScheduled=False/Unschedulable` holds, with **no** `nominatedNodeName`, continuously for `UNSCHEDULABLE_GRACE` (5 s). A nominated node means a balloon is being preempted, which is the warm path, so the create keeps waiting | `parts/task-18.md:89-124`, `:161-176` |
+| `409 machine_full` with `details.sessionsPerMachine` | `brokerapi.CodeMachineFull`. The count is the machine's other non-terminating session pods at the moment of refusal. The route table lists it | `parts/task-17.md:113`; `parts/task-18.md:78`, `:114-115` |
+| (config) | `PANACEA_APP_BROKER_UNSCHEDULABLE_GRACE`, default `5s`, must be positive and below `READY_TIMEOUT`. Test `TestUnschedulableGraceMustBeBelowTheReadyTimeout`. The broker chart gains a `timeouts` block. **Found beyond the review:** `READY_TIMEOUT` and `SHUTDOWN_GRACE` were not in the chart's values, although the chart claims to set "every" variable; the block holds all three | `parts/task-17.md:51`, `:57-59`, `:86`, `:163-165`; `parts/task-29.md:49-52` |
+| on a create timeout the broker deletes the Pending pod | the broker deletes the pod after `ErrNotRunning`, after the unschedulable cancel, and after the caller leaves. It never deletes after `ErrAlreadyExists`, whose pod is the owner's running session. katabe's keep-the-pod rule is unchanged, because it is right for the laptop | `parts/task-18.md:117-121` |
+| broker tests | `TestAFullMachineIs409MachineFullInSeconds`, `TestABriefUnschedulableIsNotFull`, `TestPreemptionUnderWayIsNotFull`, `TestAReadyTimeoutDeletesThePod`, `TestAConflictNeverDeletesTheExistingPod` and `TestTheCallerLeavingDeletesThePod`, plus a mutation step with four mutants | `parts/task-18.md:193-198`, `:224-229` |
+| map it in remotebe | `backend.ErrMachineFull` and `*MachineFullError{SessionsPerMachine}` go in `ready.go`. There is a mapping-table row and `TestMachineFullCarriesTheCount`, which asserts the error is **not** `ErrNotRunning` or `ErrAlreadyExists` | `parts/task-22.md:24`, `:44-56`, `:153`, `:169`; plan `:446` |
+| (control plane) | `httpx.CodeMachineFull`. `ErrMachineFull` becomes `409 machine_full` with the count and one server-written sentence. Test `TestAFullMachineIs409MachineFullWithASentence` | `parts/task-24.md:24`, `:119-126`, `:150`; plan `:459` |
+| a cockpit sentence | the sentence is rendered verbatim through `useCreateSession`'s existing `server-said` arm (`useCreateSession.ts:37-46`, verified). It needs no new `ProblemKind`, and no `types.ts` or UI-contract change, because `toProblem` passes unknown codes through (`client.ts:199-207`, verified). New test `useCreateSession / a full machine shows the server's sentence verbatim`, in a new `useCreateSession.test.ts` | `parts/task-26.md:24-25`, `:103-110`, `:137` |
+| P07 (task 32) decides the SKU (D16s/D32s_v5) or a smaller default session | P07 measures sessions per machine **through the broker** (the count, the time to refusal, and that no pod is left), and the balloon-on-the-machine's-node path. The target is `MAX_SANDBOXES_PER_USER / MAX_MACHINES_PER_USER` = 4. P07 picks the smallest option that meets it, and the owner chooses on cost (see owner question) | `parts/task-32.md:28` |
+| record that balloons warm new machines, not a busy one | done, in task 12's framing | `parts/task-12.md:14-21` |
+| (restatements) | task 15's affinity bullet states the consequence. task 07's dev tfvars marks `Standard_D8s_v5` as provisional. The plan's vCPU-quota prerequisite no longer assumes 8 vCPUs per node, and its "does not claim" list names sessions per machine | `parts/task-15.md:100-103`; `parts/task-07.md:511-513`; plan `:311`, `:635-636` |
+
+**Owner question (recorded, recommended option built behind a seam).** If P07 confirms about three sessions per machine on `Standard_D8s_v5`, which should it be: move the sandbox pool to `Standard_D16s_v5`, which holds about seven, at roughly twice the per-node price and a doubled warm floor; or shrink the default session below 2 CPU / 4 GiB? **Recommended: `Standard_D16s_v5`.** The product is parallel agents per machine, and a smaller session slows every agent. The seam is `sandbox_pool.vm_size` (task 07), with the session size as one value across three files, held equal by `session_size_is_one_value`.
+
+**Verified this batch** (against the tree at `6c8aab7`):
+- `kata_test.go:379`: `TestCreateTimesOutWithErrNotRunningAndLeavesThePod`. katabe keeps the pod on purpose (`kata.go:108-110`).
+- `PROGRAM.md:133` is the Kata-constraints line.
+- `useCreateSession.ts:37-46` is the `sentenceFor` switch.
+- `client.ts:199-207` passes an unknown code through intact.
+- task 29 `:64-75`: the broker's `Role` is namespaced, and `nodes` is tested as absent.
+
+**Still UNVERIFIED:**
+- LimitRanger's defaulting of init containers under a `max`-only LimitRange. This is training knowledge, but explicit sizes make it moot.
+- That kube-scheduler writes `nominatedNodeName` no later than it reports `Unschedulable` for a preempting pod. The 5 s grace absorbs a lag. P06 (d) and P07 exercise it.
+- The per-pod Kata overhead and D8s_v5 allocatable, and so the number three. This is P07's job.
+- That the fake clientset's watch delivers status updates as the new broker tests assume.
+
+**Mutation checks:** no code exists yet, so none were run. Before writing the tests, I named the two mutants most likely to survive:
+- (a) a watcher that fires on the first `Unschedulable` event and ignores the grace;
+- (b) a workload kind that `netpolcover`'s pod-template walk does not visit, such as a CronJob.
+
+Both would have survived the first draft of this batch. (a) is now killed by `TestABriefUnschedulableIsNotFull` (`parts/task-18.md:194`, mutant `:226-227`). (b) is now covered by the walk's scope (`parts/task-13.md:354`). The other named mutants are listed at `parts/task-13.md:393-396`, `parts/task-18.md:224-229` and `parts/task-29.md:289-290`.
