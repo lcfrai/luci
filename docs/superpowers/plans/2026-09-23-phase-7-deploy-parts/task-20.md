@@ -34,7 +34,7 @@ with the real line when the task lands; a seam with no test is not done.
 |---|---|---|---|---|
 | S7-N1 the native deployer | `deploy.Deployer` (`control-plane/internal/deploy/deploy.go:<…>`); `panacea.Client` wired once in `cmd/api/main.go:<…>` | `deploytest.Conformance` over `Fake`, and `TestConformanceOverConnector` (task 03) | the Panacea lift (OD-13) passes the suite and swaps one line in `main.go`; deletes the `PanaceaApp/panacea/<host>` credential row | change a domain type to fit Panacea's wire; add a Panacea-only method |
 | S7-N2 the metadata mirror | `panacea.Client.Ship` (`panacea/acts.go:<…>`) sends no `metadata` | `TestShipSendsExactlyBranchCommit` (task 04) | if ask 1 below is granted: send `{"panacea.app/release": "<rl-…>"}`; the watcher may confirm a crashed reservation by it (ADR-H1 R3) | pin by the annotation — it names a reservation; the pin stays the Hub's |
-| S7-N3 Panacea-side hash suffix | the collision rule, `deploywatch/view.go:<…>` | `TestCollisionExactStrings` (task 08) | if ask 3 is granted, collisions stop firing on their own | re-implement `sanitizeBranchEnv` here |
+| S7-N3 Panacea-side hash suffix | the collision rule, `deploywatch/view.go:<…>` | `TestCollisionExactStrings` (task 08) | if ask 3 is granted, collisions of long names cut at 20 stop firing on their own; a push-and-Ship label split of one branch (plan §12) still shows | re-implement `sanitizeBranchEnv` here |
 | S7-N4 a rollback as a Panacea row | "serving after rollback", `deploywatch/view.go:<…>` (plan 7P-4) | `TestRollbackIsCurrent` (task 08) | if ask 2 is granted: a portal rollback shows as a `rollback` row; the Hub rule stays for cockpit rollbacks | drop the Hub's confirmed-rollback reading before Panacea's rows are observed live |
 | S7-E1 phase 8's environment | the Panacea origin and CA are configuration (`cmd/api/config.go:<…>`, plan §6) | `TestParseOriginTable` (task 02), `TestLockedOriginRefusesAnother` (task 05) | phase 8 sets them for the product's environment | hard-code `dev.panacea.kpmg` |
 | S7-X1 another deploy target | `deploy.Deployer` | the conformance suite | a customer-hosted tier implements the interface | branch on target type above it |
@@ -169,15 +169,22 @@ func TestLiveEnvironmentsAndBranches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Deployments: %v", err)
 	}
-	slashed := 0
+	slashed, underscored := 0, 0
 	for _, x := range deps {
 		if strings.Contains(x.Branch, "/") {
 			slashed++
 		}
+		if strings.Contains(x.Branch, "_") {
+			underscored++
+		}
 	}
-	// Task 08: from source, Deployment.branch is sanitizeLabelValue(branch) (clients/pipeline.go:609),
-	// so this should log withSlashInBranch=0 (review b02). A non-zero count reopens task 08's note.
-	t.Logf("deployments=%d withSlashInBranch=%d", len(deps), slashed)
+	// Task 08: from source, Deployment.branch is sanitizeLabelValue(branch) from the API
+	// (clients/pipeline.go:609) or sanitizeLabel(event.Branch) from the webhook-receiver
+	// (webhook-receiver/pipeline/trigger.go:1270); both turn "/" into "-", so this should log
+	// withSlashInBranch=0 (review b02). A non-zero count reopens task 08's note. Only the webhook
+	// keeps "_", so withUnderscoreInBranch > 0 is the live sign that push-to-deploy runs reach this
+	// project's list (re-review b03 I-1; unverified from source whether the dev estate runs it).
+	t.Logf("deployments=%d withSlashInBranch=%d withUnderscoreInBranch=%d", len(deps), slashed, underscored)
 	// Review b02: Panacea's own environment name for a slash branch, read through the ingress with
 	// the branch %2F-escaped (plan §12). A read failure here is the answer: it fails the test.
 	name, err := d.EnvironmentFor(ctx, ref, "live-check/p7")
@@ -422,7 +429,7 @@ write below touches **only** that branch. Write down its posture and auto-deploy
 |---|---|---|---|---|
 | 1 | `go run ./control-plane/internal/deploy/panacea/cmd/versioncheck <dev origin>` | a version string. An `x509` error: stop, set `PANACEA_APP_PANACEA_CA_FILE` | 7P-10 on this laptop (the command task 02 writes and does not run; review I9) | |
 | 2 | Deploy lens → paste the token → Connect | *connected*, or the awaiting-approval words; the field is empty after; `cmdkey /list` shows a `PanaceaApp/panacea/<host>` row | task 05, live, including the `PUT` preflight (review C1) | |
-| 3 | `PANACEA_APP_LIVE_PROJECT=<project> PANACEA_APP_LIVE_ENV=<an env> go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/` | `ok`; copy the logged environment names, the `withSlashInBranch` count and every `live-only key` line here | task 03's recorded bodies against live keys (plan §4 rows 2–9); repoUrl for a non-admin token (plan §12); `ParseRemote` on a real URL (task 06); `prod` vs `production` (7P-8); branch names with `/` (task 08); stream not buffered (task 12) | |
+| 3 | `PANACEA_APP_LIVE_PROJECT=<project> PANACEA_APP_LIVE_ENV=<an env> go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/` | `ok`; copy the logged environment names, the `withSlashInBranch` and `withUnderscoreInBranch` counts and every `live-only key` line here | task 03's recorded bodies against live keys (plan §4 rows 2–9); repoUrl for a non-admin token (plan §12); `ParseRemote` on a real URL (task 06); `prod` vs `production` (7P-8); branch names with `/` (task 08); push-to-deploy labels that keep `_` (task 08 rule 9, re-review b03 I-1); stream not buffered (task 12) | |
 | 4 | Select the project | *bound* to the Panacea project, with no question asked — or the one choice | task 06 | |
 | 5 | Compare the environment card with the Panacea portal for one environment | version, commit and pods ready agree; the three facts are three | tasks 08, 15 | |
 | 5a | Read the project's production branch in the portal's settings; rerun step 3 with `PANACEA_APP_LIVE_PROD_BRANCH=<it>` added | the log line `environmentFor productionBranch="prod" joinsProduction=true` | whether the access route agrees with the deploy for this project (plan §12, Q-P7-6; b02 round 2, R1). `joinsProduction=false` is the Panacea defect live: record it and send it with the Q-P7-2 note | |

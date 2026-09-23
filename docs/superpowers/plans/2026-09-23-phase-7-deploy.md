@@ -204,7 +204,9 @@ of the deployment it re-runs, which is only true if it re-runs that deployment's
 phase 7's Rebuild calls `POST …/deploy {branch: <the source's Hub release branchRef>, commit:
 source.Commit}` and reserves a `run` **with** `sourceDeploymentId`, which inherits the source's pin
 (Hub contract §7.9, pin table row 2). The branch is never `source.Branch`: that is Panacea's run
-label, `sanitizeLabelValue(branch)` (`clients/pipeline.go:609`), so `feat/x` reads `feat-x`. A
+label — `sanitizeLabelValue(branch)` from the API (`clients/pipeline.go:609`) or `sanitizeLabel`
+from the webhook-receiver (`webhook-receiver/pipeline/trigger.go:1270`) — so `feat/x` reads `feat-x`
+(§12). A
 source with no Hub `branchRef` is refused `no_branch` (task 10; b02 round 2, R8). An unchanged
 commit reuses the built image — `manualImageTag` is deterministic for a
 real SHA (`clients/pipeline.go:205`ff, the WP-31 comment). A source with no recorded `Commit`
@@ -284,8 +286,9 @@ desktop never joins again (review I8).
 
 **A git branch is never compared with an environment name (review b02, C2).** A row's `branch` is
 Panacea's label — the environment key for every non-base row (`feat-x` for `feat/x`,
-`projects.go:2109-2118`) — and a deployment's `branch` is a sanitised run label
-(`clients/pipeline.go:609`). The branch → environment mapping is Panacea's access handler's:
+`projects.go:2109-2118`) — and a deployment's `branch` is a sanitised run label, written by the
+API (`clients/pipeline.go:609`) or by the webhook-receiver for a push, which keeps `_`
+(`webhook-receiver/pipeline/trigger.go:1270`; §12). The branch → environment mapping is Panacea's access handler's:
 `GET P/branches/{branch}/access` returns `data.env` from `branchEnv` → `mapBranchToEnvWithProd`
 (`handlers/branch_security.go:29-37`; `project_security.go:646`, `:668-677`), for **any** branch,
 with no existence check. `Reader.EnvironmentFor` (tasks 01, 03) reads it, and the answer is joined
@@ -699,7 +702,7 @@ Hub and phase 3 must agree before an ADO project is linked.
 |---|---|---|---|
 | **S7-N1** the native deployer | `deploy.Deployer`; `deploytest.Conformance` | the Panacea lift (`OD-13`): a native implementation passes the suite and replaces `panacea.Client` in `main.go`; the `PanaceaApp/panacea/<host>` credential row is deleted by that task | change a domain type to fit Panacea's wire shapes; add a Panacea-specific method to `Deployer` |
 | **S7-N2** the metadata mirror | `panacea.Client.Ship` sends no `metadata` today | if R7's ask is granted: the client adds `metadata: {"panacea.app/release": "<rl-…>"}` and the watcher may confirm a crashed reservation by the run's annotation (ADR-H1 R3) | pin by that annotation — it names a reservation, and the pin is still the Hub's |
-| **S7-N3** Panacea-side hash suffix | `D2` (c) | if Panacea appends a hash when truncating, the collision state in task 08 simply stops firing | re-implement `sanitizeBranchEnv` in phase 7 |
+| **S7-N3** Panacea-side hash suffix | `D2` (c) | if Panacea appends a hash when truncating, the collision state in task 08 stops firing for long names that differ past the 20th character; a push-and-Ship label split of one branch (`feat_x` / `feat-x`, §12) and `/`-versus-`_` twins are untouched by a hash on truncation | re-implement `sanitizeBranchEnv` in phase 7 |
 | **S7-N4** a rollback as a Panacea row | "serving after rollback" in task 08's view (7P-4) | if ask 2 of `panacea-metadata-ask.md` is granted: a portal rollback shows as a `rollback` row; the Hub's rule stays for cockpit rollbacks | drop the Hub's confirmed-rollback reading before Panacea's rows are observed live |
 | **S7-E1** phase 8's environment | the control plane's Panacea address and CA are configuration (§6) | phase 8 sets them in the product's environment; nothing in phase 7 assumes a laptop | hard-code `dev.panacea.kpmg` |
 | **S7-X1** another deploy target | `deploy.Deployer` | a customer-hosted tier that deploys elsewhere implements the interface | branch on target type above the interface |
@@ -786,13 +789,29 @@ recorded Panacea bodies.
 
 ### Settled from source, no longer open
 
-- **`Deployment.branch` is a label value, never a git branch (review I4, settled 2026-09-24).**
-  The deploy stamps `panacea.io/branch: sanitizeLabelValue(branch)` (`clients/pipeline.go:609`);
-  the function turns `/` and `_` into `-`, drops every other character outside `[a-zA-Z0-9.-]`,
-  cuts at 63 and answers `"unknown"` for an empty result (`:2351-2364`); the deployments list reads
-  the label back verbatim (`clients/kubernetes.go:5750`). No annotation holds the real branch. So:
-  `branchesSeen` and the collision banner compare and show labels, and say so (task 08 rule 9,
-  task 15); Rebuild takes its branch from the source's Hub `branchRef` only and refuses
+- **`Deployment.branch` is a label value, never a git branch (review I4, settled 2026-09-24;
+  second writer added by re-review b03 round 1, I-1).** Panacea has **two** writers of the label,
+  and they disagree:
+  - **The API** (Ship, Rebuild, a manual deploy) stamps `panacea.io/branch:
+    sanitizeLabelValue(branch)` (`clients/pipeline.go:609`). That function turns `/` and `_` into
+    `-`, drops every other character outside `[a-zA-Z0-9.-]`, cuts at 63, trims `-` and `.`, and
+    answers `"unknown"` for an empty result (`:2351-2364`).
+  - **The webhook-receiver** (push-to-deploy, which phase 7 turns on: §4 row 14, tasks 11 and 18)
+    stamps `panacea.io/branch: sanitizeLabel(event.Branch)` (`services/webhook-receiver/pipeline/
+    trigger.go:1270`). That function turns `/`, `\`, `:` and space into `-`, **keeps `_`**, drops
+    every other character outside `[a-zA-Z0-9._-]`, trims every non-alphanumeric end, cuts at 63,
+    and answers `""` for an empty result (`:1553-1574`, `truncateLabel` `:1546-1551`). Its run
+    carries `panacea.io/project` (`:1268`), so the deployments list shows it
+    (`clients/kubernetes.go:5599`). Its environment is `branchEnvName`, which does turn `_` into
+    `-` (`models/event.go:136-148`).
+
+  So one branch `feat_x` can appear in environment `feat-x` under two labels: `feat_x` (a push)
+  and `feat-x` (a Ship). The deployments list reads the label back verbatim
+  (`clients/kubernetes.go:5750`). No annotation holds the real branch. So: `branchesSeen` and the
+  collision banner compare and show labels as Panacea wrote them, never normalised (a fourth copy
+  of Panacea's rules is exactly what this plan refuses); the banner counts **labels**, never
+  branches, and says a push and a Ship write the label differently (task 08 rule 9, task 15);
+  Rebuild takes its branch from the source's Hub `branchRef` only and refuses
   `no_branch` without one — the `source.Branch` fallback is gone (task 10, review M23); nothing
   sends a `Deployment.branch` as a branch or a `branchRef`. Because Rebuild never sends a label,
   Panacea's `environmentForBranch` (`branch == prodBranch`, `pipeline.go:2195-2207`) never sees

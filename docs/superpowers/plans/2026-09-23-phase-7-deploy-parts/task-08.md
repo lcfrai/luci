@@ -49,8 +49,8 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 {
   "name": "feat-evidence-upload",        // 20 characters: sanitizeBranchEnv cuts only past 20 (projects.go:3818-3820)
   "branch": "feat-evidence-upload",      // Panacea's row LABEL (projects.go:2118): == name for every non-base row, the real branch only for production (:2109-2111). Display only; NEVER a join key
-  "branchesSeen": ["feat-evidence-upload"], // distinct Deployment.branch values in this environment's history, newest first — Panacea's run LABELS (sanitizeLabelValue: / and _ → -, pipeline.go:609, :2351-2364), not git branch names
-  "collision": false,                    // branchesSeen has more than one entry: two branches share this environment (brief D2 a)
+  "branchesSeen": ["feat-evidence-upload"], // distinct Deployment.branch values in this environment's history, newest first — Panacea's run LABELS as written, never normalised (a Ship: sanitizeLabelValue, / and _ → -, pipeline.go:609, :2351-2364; a push: sanitizeLabel, keeps _, webhook-receiver trigger.go:1270, :1553-1574), not git branch names
+  "collision": false,                    // branchesSeen has more than one entry: more than one LABEL in this environment — two branches, or one branch pushed and Shipped (rule 9; brief D2 a)
   "primary": false,
   "host": "engagement-portal-feat-evidence-upload.panacea.kpmg" | null,
   "status": "running",                   // Panacea's word, verbatim, never interpreted
@@ -87,7 +87,7 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "deploymentId": "engagement-portal-build-x7k2p" | null,   // null for rollback and refused
   "environment": "feat-evidence-upload" | null,     // the row's raw environment, verbatim ("prod" for a production deployment: environmentForBranch, clients/pipeline.go:2195-2207, called at :237)
   "environmentRow": "feat-evidence-upload" | null,  // the `name` of the environments[] row that `environment` joins by SameEnvironment ("production" for "prod"); null = the row sits under `unmatched`. The desktop looks environments up by THIS, never by `environment` (review I8)
-  "branch": "feat-evidence-upload" | null,  // run rows: Panacea's run label (sanitizeLabelValue, pipeline.go:609); Hub rows: the release's branchRef without refs/heads/
+  "branch": "feat-evidence-upload" | null,  // run rows: Panacea's run label, verbatim (a Ship's sanitizeLabelValue, pipeline.go:609, or a push's sanitizeLabel, trigger.go:1270; plan §12); Hub rows: the release's branchRef without refs/heads/
   "commit": "4e7a91c0000000000000000000000000000000aa" | null,
   "version": "manual-4e7a91c0" | null,   // null → the lens says "version unknown", never blank
   "build": "succeeded" | "failed" | "running" | "pending" | "historical" | "unknown" | null,
@@ -154,9 +154,10 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
    `Snapshot.BranchEnvErrs[b]` (task 07), with the code of its `deploy.Kind` and Panacea's message
    verbatim, else `null`; a branch has an error or a target, never both. A git branch is **never**
    compared with a row's `name` or `branch`, nor with `Deployment.branch`: Panacea's labels are
-   `/`- and `_`-free and cut at 20 (environment) or 63 (run label) characters, so no string
-   comparison with the git name can be right, and deriving the label would be a fourth copy of
-   Panacea's rule.
+   `/`-free and cut at 20 (environment) or 63 (run label) characters, and whether `_` survives
+   depends on the writer (the environment and a Ship's run label fold it into `-`; a push's run
+   label keeps it: rule 9, plan §12), so no string comparison with the git name can be right, and
+   deriving the label would be a fourth copy of Panacea's rules.
 2. **Newest per environment** is the first deployment in Panacea's newest-first list whose
    environment joins. Only it contributes `serving` and `scans`; historical rows carry `gates` as
    recorded and **never** `serving` (`models/models.go:720-722`).
@@ -186,14 +187,22 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
    Teammates' refusals are theirs and are not shown.
 9. **`branchesSeen` / `collision`** count distinct non-empty `Deployment.branch` values among the
    environment's rows. The comparison is exact string equality — no sanitising, no truncation
-   (never a fourth copy of `sanitizeBranchEnv`, survey §3.2). The values are Panacea's run labels
-   (`pipeline.go:609`), so they are compared only with each other, never with a git branch name.
-   **Known blind spot (b02 round 2, R7):** git branches that differ only in `/` versus `_` (or `-`)
-   — `feat/x` and `feat_x` — share both the environment `feat-x` and the run label `feat-x`
-   (`sanitizeLabelValue`, `pipeline.go:2351-2364`), so `branchesSeen` holds one entry and
-   `collision` is `false` while the two overwrite each other. Panacea records nothing that tells
-   them apart, and deriving it would copy its rule, so the view cannot see these twins; task 15
-   says so under the banner.
+   (never a fourth copy of `sanitizeBranchEnv`, survey §3.2; `_` is never folded into `-`). The
+   values are Panacea's run labels, so they are compared only with each other, never with a git
+   branch name. Panacea has **two** label writers (plan §12): the API's `sanitizeLabelValue`
+   (`clients/pipeline.go:609`, `:2351-2364`) turns `_` into `-`; the webhook-receiver's
+   `sanitizeLabel` (`webhook-receiver/pipeline/trigger.go:1270`, `:1553-1574`) keeps `_`. So
+   `collision` means "more than one **label**", never "more than one branch" (re-review b03, I-1):
+   - **False positive:** one branch `feat_x`, pushed (label `feat_x`) and then Shipped (label
+     `feat-x`), gives `branchesSeen` `["feat-x","feat_x"]` and `collision` `true`. Task 15's banner
+     words this case as possible.
+   - **Blind spot (b02 round 2, R7):** git branches that differ only in `/` versus `_` (or `-`)
+     can still share one label. `feat/x` and `feat_x`, both Shipped, both read `feat-x`
+     (`sanitizeLabelValue`); `feat/x` pushed and `feat_x` Shipped also both read `feat-x`. They
+     share the environment `feat-x` too, so `branchesSeen` holds one entry and `collision` is
+     `false` while the two overwrite each other. Panacea records nothing that tells them apart,
+     and deriving it would copy its rule, so the view cannot see these twins; task 15 says so
+     under the banner.
 10. **Times** are the facts' own (`createdAt`, `confirmedAt`, `reservedAt`), RFC 3339 UTC with three
     fractional digits, like the Hub (brief B4: absolute, never relative).
 11. **`history` is capped at 200 rows**, newest first; a project with more says so with the
@@ -226,6 +235,7 @@ the watcher passes its `Reader.SameEnvironment`, not the stub.
 | `TestPendingRowUntilDeploymentAppears` | a confirmed release for run `r9` with no deployment → a `pending` row; add `r9` → the pending row is gone and `r9` has the pin | a Ship that shows nothing for the ~seconds before Panacea lists the run |
 | `TestRefusedOnlyMineAndRecent` | my abandon 1 h ago → shown with its message; my abandon 25 h ago and a teammate's → absent | a teammate's failure appearing in my history |
 | `TestCollisionExactStrings` | two deployments in one environment (`feat-phase-7-deploy`: the 20-character cut leaves a trailing `-`, which `TrimRight` removes) whose `Deployment.branch` labels are `feat-phase-7-deploy-connector-a` and `feat-phase-7-deploy-connector-b` — the run labels Panacea writes for `feat/phase-7-deploy-connector-a`/`-b`, never the git names (b02 round 2, R7) → `collision: true`, both in `branchesSeen`; the same label twice → `false` | detecting collision by comparing sanitised names — a fourth copy of the rule |
+| `TestCollisionKeepsPushLabel` | two deployments in environment `feat-x`, labels `feat_x` (a push: the webhook's `sanitizeLabel` keeps `_`, `trigger.go:1270`) and `feat-x` (a Ship) → `collision: true`, `branchesSeen` holds both strings exactly, `_` intact (re-review b03, I-1) | a view that folds `_` into `-` before counting — a copy of `sanitizeLabelValue`, and one that hides which writer made each label |
 | `TestSelectedRefused` | `BranchEnvErrs{"live-check/p7": {Kind: KindNotFound, Message: "Panacea could not read this branch name…"}}` → `selected {target:null, environment:null, error:{code:"not_found", message:<verbatim>}}`; a branch in neither map → `error:null, target:null` (b02 round 2, R2) | a refusal drawn as *"Asking Panacea…"* for ever |
 | `TestReleaseRecordedAgainstAnotherEnvironment` | a confirmed run release with `environment:"develop"` and `pipelineRun:"r1"`; deployment `r1` labelled `prod`; row `production` → the `r1` row has `environment:"prod"`, `environmentRow:"production"`, `environmentMismatch:{recorded:"develop", deployed:"prod"}`, and the release pin; a release `environment:"production"` on a `prod` deployment → `environmentMismatch:null` (b02 round 2, R1: an annotation-only production branch, where the access route answers `develop` and the deploy lands in `prod`) | trusting the Hub's environment over the deployment's, so a release shows as current in an environment it never reached |
 | `TestEmptyVersionIsNull` | `Version: ""` → `"version": null` | a blank cell that reads like zero |
@@ -252,12 +262,15 @@ go test ./control-plane/internal/deploy/deploywatch/ ./control-plane/internal/ap
 
 - That `Deployment.branch` carries the real branch name with its `/`. **Settled in review b02: it
   does not.** It is read from the PipelineRun **label** `panacea.io/branch`
-  (`clients/kubernetes.go:5750`), written as `sanitizeLabelValue(branch)` (`clients/pipeline.go:609`;
-  the function at `:2351-2364` turns `/` and `_` into `-`, drops other characters and cuts at 63),
-  and Panacea's own comment says the portal chip *"carries the DNS-sanitized panacea.io/branch
-  LABEL (slash→dash)"* (`kubernetes.go:3052`). `Redeploy`'s *"the real branch"*
-  (`projects.go:1803-1805`) is wrong for slash branches. So `branchesSeen` still detects collisions
-  (two distinct labels), and "this branch's environment" comes from `selected` (rule 1a), never
-  from `environments[].branch` or `Deployment.branch`.
+  (`clients/kubernetes.go:5750`), written by two writers that disagree (plan §12; re-review b03,
+  I-1): the API writes `sanitizeLabelValue(branch)` (`clients/pipeline.go:609`; the function at
+  `:2351-2364` turns `/` and `_` into `-`, drops other characters and cuts at 63), and the
+  webhook-receiver writes `sanitizeLabel(event.Branch)` (`webhook-receiver/pipeline/trigger.go:1270`;
+  `:1553-1574` turns `/` into `-` but keeps `_`). Panacea's own comment says the portal chip
+  *"carries the DNS-sanitized panacea.io/branch LABEL (slash→dash)"* (`kubernetes.go:3052`).
+  `Redeploy`'s *"the real branch"* (`projects.go:1803-1805`) is wrong for slash branches.
+- That `collision` counts branches. It counts distinct labels (rule 9): one branch pushed and then
+  Shipped can show two, and two branches can show one. "This branch's environment" comes from
+  `selected` (rule 1a), never from `environments[].branch` or `Deployment.branch`.
 - Anything about how a pinned revision reads. The view carries `briefKey` and nothing of the brief;
   the text comes from phase 4's loader (R6) in the desktop.

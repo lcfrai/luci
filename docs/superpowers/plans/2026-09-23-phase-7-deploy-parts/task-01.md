@@ -175,11 +175,17 @@ func (b BuildState) Terminal() bool
 type Deployment struct {
 	ID          string // equals the run name that built it
 	Environment string // the target's own word (Panacea: "prod" for the production branch); Scans takes it
-	// Branch is a LABEL VALUE, never a git ref: Panacea stamps sanitizeLabelValue(branch)
-	// (clients/pipeline.go:609, :2351-2364: "/" and "_" become "-", other invalid characters
-	// are dropped, 63-character cap, "unknown" when empty) and reads it back at
-	// kubernetes.go:5750. It is for display and label-to-label comparison only; nothing sends
-	// it as a branch (review I4, plan §12).
+	// Branch is a LABEL VALUE, never a git ref, and Panacea has two writers that disagree
+	// (review I4, re-review b03 I-1, plan §12):
+	//   - the API (Ship, Rebuild) stamps sanitizeLabelValue(branch) (clients/pipeline.go:609,
+	//     :2351-2364: "/" and "_" become "-", other invalid characters are dropped, 63-character
+	//     cap, "unknown" when empty);
+	//   - the webhook-receiver (push-to-deploy) stamps sanitizeLabel(event.Branch)
+	//     (webhook-receiver/pipeline/trigger.go:1270, :1553-1574: "/", "\", ":" and space become
+	//     "-", "_" is KEPT, 63-character cap, "" when empty).
+	// So one branch feat_x reads "feat_x" after a push and "feat-x" after a Ship. Panacea reads
+	// the label back verbatim at kubernetes.go:5750. It is for display and label-to-label
+	// comparison only, never normalised; nothing sends it as a branch.
 	Branch      string
 	Commit      string // "" when not recorded
 	Version     string // "" means unknown; the lens says "version unknown"
@@ -531,7 +537,11 @@ func (f *Fake) SetBranchEnvironment(p deploy.ProjectRef, branch, env string)
 func (f *Fake) AddDeployment(p deploy.ProjectRef, d deploy.Deployment) // newest-first order is kept by CreatedAt
 // SetScans seeds the report Scans(p, env, deploymentID) returns. The key is the EXACT env
 // string (the Fake knows no target's env aliases); an unseeded pair is KindNotFound, so a
-// caller that drops or mangles env fails loudly (review C3).
+// caller that drops or mangles env fails loudly (review C3). Panacea itself never answers an
+// error here (a mangled env gets a 200 with NOT_RUN or empty rows, security_status.go:204-254):
+// this KindNotFound is a test-bug signal, and task 07 step 5 says what the watcher does with it
+// (Scans unset, not stale, retried; re-review b03 M-2). The conformance suite does not exercise
+// an unseeded pair: panaceatest answers it 500 plus t.Errorf, also a test-bug signal (task 03).
 func (f *Fake) SetScans(p deploy.ProjectRef, env, deploymentID string, r deploy.ScanReport)
 // Advance moves a run to a new state; a terminal state also sets the Deployment's Build.
 func (f *Fake) Advance(p deploy.ProjectRef, run string, to deploy.BuildState)

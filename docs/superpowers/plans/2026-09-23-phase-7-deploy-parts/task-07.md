@@ -153,7 +153,18 @@ type Snapshot struct {
    row, because Panacea reads a missing `env` as production (review C3) — only when that
    deployment's `ID` or `Build` changed since the last read, cached by deployment id in
    `Snapshot.Scans` — so the environment strip's third fact (scans) costs one request per build,
-   not per cycle.
+   not per cycle. A deployment whose `Environment` is `""` (legacy only, from source: task 12's
+   note, re-review b03 M-1) is **not** read: `Snapshot.Scans[d.ID]` stays unset and the fact reads
+   `not_read` (task 08 rule 4), never production's verdict.
+   **A `Scans` failure** (re-review b03, M-2): `KindUnavailable` and `KindUnauthorized` follow the
+   failure rule below. **Any other kind** (`KindNotFound` from the Fake's unseeded pair,
+   `KindRejected` for Panacea's 400, `KindForbidden` for a token the project refuses) leaves `Snapshot.Scans[d.ID]` unset, so
+   the fact reads `not_read`, does **not** set `Stale` or `LastError`, and does not end the cycle.
+   The read is not marked done, so it is retried on the next cycle in which the deployment's `ID`
+   or `Build` changes or `HistoryInterval` passes. Panacea's handler itself has no 404 path — it
+   answers 400 for an empty project name and 200 otherwise (`handlers/security_status.go:204-254`)
+   — so live this path is taken only by a refusal, never by an unseeded or mangled `env` (that
+   gets a 200 with `NOT_RUN` or empty rows).
 6. **Hub releases** — `Releases(HubProjectID, {PanaceaProject: <ref>, Limit: 200})` when the
    Deployments were re-read, a tracked run changed, or `HistoryInterval` passed.
    `Binding.HubProjectID == ""` → `ReleasesState "no_hub_project"`; `entraauth.ErrSignedOut` →
@@ -210,6 +221,8 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestWatcherPassesSameEnvironment` | the watcher's Reader is the fake wrapped so that `SameEnvironment` records its arguments and answers `true`: `w.SameEnvironment("x", "y")` is `true` and the wrapper saw `("x", "y")` (the bare Fake would answer `false`) | a watcher that hands the view a rule of its own (b02 round 2, R4) |
 | `TestDeploymentsNotEveryCycle` | three cycles with nothing changed → one `Deployments` call; `Latest.ID` changes → one more | reading the heavy list every 15 s |
 | `TestScansReadWithTheDeploymentsEnvironment` | a newest deployment `{ID: "d-feat", Environment: "feat-x"}`, with the fake seeded `SetScans(p, "feat-x", "d-feat", …)` → the fake's `Calls()` holds `Scans(engagement-portal,feat-x,d-feat)` and `Snapshot.Scans["d-feat"]` is that report (review C3) | passing `""` or the card's name, which on Panacea shows production's verdict as the branch release's |
+| `TestScansFailureIsNotStale` | a newest deployment `{ID:"d-feat", Environment:"feat-x"}` with **no** `SetScans` (the Fake answers `KindNotFound`) → `Snapshot.Scans` has no `"d-feat"`, `Stale` is `false`, `LastError` is `""`, and the same cycle still reads Hub releases; 61 s later → a second `Scans` call (re-review b03, M-2) | a scan read error that stales the whole project, or one cached as done so it is never retried |
+| `TestScansSkipsEmptyEnvironment` | a newest deployment `{ID:"d-old", Environment:""}` → `Calls()` holds no `Scans` for `d-old` and `Snapshot.Scans` has no `"d-old"` (re-review b03, M-1) | calling `Scans(p, "", id)`, which on Panacea stores production's verdict under a legacy release |
 | `TestHistoryIntervalForcesRead` | 61 s of fake time with no change → a second `Deployments` | history that never refreshes when only `LiveReady` moved |
 | `TestTrackedRunDrivesActiveCadence` | `Track(p, run)`; the project is polled every 3 s until the fake advances the run to succeeded, then every 15 s | a run that stays on 3 s forever, or never gets it |
 | `TestUnavailableEndsCycleForAll` | two bound projects; the first `Environments` fails `KindUnavailable` → the second project saw **no** call this cycle; both `Stale`, one cursor bump | a cycle that stalls for N × timeout in an outage |

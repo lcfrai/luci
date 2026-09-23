@@ -147,21 +147,27 @@ which was true only while releases were per-laptop.
   `dim` treatment (opacity only).
 - **Collision** (`env.collision` on the selected row, i.e. `branchesSeen.length > 1`; review b02
   removed `env.branch !== branchName`, which fired for every `/` branch because `env.branch` is
-  Panacea's label): *"`<env>` has been deployed from more than one branch. Panacea records them
-  only by label — `<branchesSeen, joined>` — not by their git names. Panacea gives these branches
-  one environment name — it turns `/` and `_` into `-` and shortens names to 20 characters
-  (`handlers/projects.go:3814-3826`) — so each Ship replaces the other's release, and Panacea
-  reports no error."* The values are `Deployment.branch`, which is `sanitizeLabelValue(branch)`
-  (review I4, plan §12), so the banner never calls one a branch name, never renders one as a
-  link to a branch or lane, and never offers one to Ship or Rebuild. The banner does not say which
-  branch is serving now: the labels (`pipeline.go:609`) cannot be compared with this branch's name
-  without a copy of Panacea's rule. A fact from source, stated once; the cockpit does not predict it
-  (never a fourth copy of the rule).
+  Panacea's label): *"Panacea recorded deployments to `<env>` under more than one branch label:
+  `<branchesSeen, joined>`. These are labels, not git branch names. A Ship and a push write the
+  label differently (a push keeps `_`; a Ship turns it into `-`), so one branch can appear under
+  two labels. If these are different branches, they share this environment — Panacea turns `/`
+  and `_` into `-` and shortens names to 20 characters (`handlers/projects.go:3814-3826`) — so
+  each Ship replaces the other's release, and Panacea reports no error."* (Re-review b03, I-1: a
+  count of labels is never presented as a count of branches.) The values are `Deployment.branch`,
+  written by two Panacea writers that disagree: the API's `sanitizeLabelValue(branch)`
+  (`clients/pipeline.go:609`) and the webhook-receiver's `sanitizeLabel(event.Branch)`
+  (`webhook-receiver/pipeline/trigger.go:1270`, `:1553-1574`) (review I4, plan §12). They are
+  shown exactly as written — the desktop never folds `_` into `-` or otherwise normalises them —
+  so the banner never calls one a branch name, never renders one as a link to a branch or lane,
+  and never offers one to Ship or Rebuild. The banner does not say which branch is serving now:
+  the labels cannot be compared with this branch's name without a copy of Panacea's rules. A fact
+  from source, stated once; the cockpit does not predict it (never a fourth copy of the rule).
   **Blind spot, stated not fixed** (b02 round 2, R7): branches whose names differ only in `/`
-  versus `_` versus `-` (`feat/x`, `feat_x`, `feat-x`) share the environment `feat-x` **and** the run
+  versus `_` versus `-` (`feat/x`, `feat_x`, `feat-x`) share the environment `feat-x`, and when
+  each reaches it by a Ship (or `feat/x` by a push and `feat_x` by a Ship) they also share the run
   label `feat-x` (`sanitizeLabelValue`, `clients/pipeline.go:2351-2364`, applied at `:609`), so
   `branchesSeen` holds one entry and no banner is drawn while they overwrite each other. Twins
-  that differ in case (the label keeps capitals) or past the 20th character (the label is cut at
+  that differ in case (both writers keep capitals) or past the 20th character (the label is cut at
   63) do show. The banner never claims *"one branch"*: its absence is not a proof.
 
 #### Tests to write first
@@ -179,7 +185,8 @@ which was true only while releases were per-laptop.
 | `elapsed uses the one clock` | the building fact re-renders on the heartbeat tick; `EnvironmentCard.tsx` contains no `setInterval`/`setTimeout` | a timer per card |
 | `table windows past 50` | 200 rows → fewer than 60 `role="row"` in the DOM; scrolling reveals later rows | 200 live rows re-rendering each tick |
 | `origin is the reserver` | a teammate's pinned release → their display name; `release: null` → *"outside any cockpit"* | the per-laptop "this cockpit" wording surviving OD-3 |
-| `collision banner words` | two labels seen (`feat-a-x`, `feat-a-y`) → the banner with both labels after *"only by label"* and the cited rule, and neither label inside an `<a>` or a button; one label → none | a silent overwrite (brief R2), or a label presented as a git branch the user could act on (review I4) |
+| `collision banner words` | two labels seen (`feat-a-x`, `feat-a-y`) → the banner with both labels after *"under more than one branch label:"* and the cited rule, and neither label inside an `<a>` or a button; one label → none | a silent overwrite (brief R2), or a label presented as a git branch the user could act on (review I4) |
+| `push and Ship labels are not two branches` | `branchesSeen ["feat-x","feat_x"]` (one branch `feat_x`, pushed then Shipped; re-review b03, I-1) → the banner is drawn; it contains `feat_x` with its `_` and `feat-x`, and the sentence *"A Ship and a push write the label differently"*; the DOM lacks *"more than one branch."*, *"deployed from more than one branch"* and *"two branches"* | a banner that counts labels as branches (a false claim for one branch), or a desktop that folds `_` into `-` and so hides the push label |
 | `slash branch finds its card` | `selected {branch:"feat/x", target:"feat-x", environment:"feat-x", error:null}`, a row `{name:"feat-x", branch:"feat-x", branchesSeen:["feat-x"]}` → the card for `feat-x`, and **no** collision banner | `e.branch === branchName`, which drew the empty state and a false collision for every `/` branch (review C2) |
 | `long branch finds its card` | `selected {branch:"lane/7-deploy-connector-watcher", target:"lane-7-deploy-connec", environment:"lane-7-deploy-connec", error:null}`, that row → its card | a join that works only for 20 characters or fewer |
 | `production branch finds its card` | `selected {branch:"main", target:"prod", environment:"production", error:null}`, the row `production` → its card, and `ReleaseTable` marks the rows with `environmentRow "production"` | an exact `target === e.name` compare in the desktop |

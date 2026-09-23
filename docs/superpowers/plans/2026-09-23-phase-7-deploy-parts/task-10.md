@@ -82,10 +82,12 @@ type RebuildRequest struct {
 //     a branch: the source's Hub release branchRef, and only that (the Hub's is the real ref).
 //       No Hub release, or one with no branchRef → 409 deploy_precondition reason "no_branch":
 //       "Panacea recorded only a label for this release's branch. Ship the branch instead."
-//       source.Branch is never used: it is Panacea's run label, sanitizeLabelValue(branch)
-//       (clients/pipeline.go:609, :2351-2364), which turns feat/x into feat-x, and whether a label
-//       equals its branch cannot be told without a copy of that rule (b02 round 2, R8; review
-//       I4 and M23, settled in plan §12).
+//       source.Branch is never used: it is Panacea's run label, written by the API as
+//       sanitizeLabelValue(branch) (clients/pipeline.go:609, :2351-2364: feat/x and feat_x both
+//       read feat-x) or by the webhook-receiver as sanitizeLabel(event.Branch)
+//       (webhook-receiver/pipeline/trigger.go:1270, :1553-1574: feat/x reads feat-x, feat_x
+//       stays feat_x), and whether a label equals its branch cannot be told without a copy of
+//       those rules (b02 round 2, R8; review I4 and M23; re-review b03 I-1; plan §12).
 //   reserve {kind:"run", panaceaProject, environment: source.Environment, branchRef, commit:
 //            source.Commit, briefId: null, designKey: <the source release's designKey or null>,
 //            sourceDeploymentId: source.ID} — the Hub pins "inherited" (Hub contract §7.9);

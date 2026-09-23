@@ -750,3 +750,74 @@ unmatched row (`environmentRow: null` → `""` → production). So it is killed 
   (t08:90). It is display-only and never compared (t15's `no branch comparisons` test), so it is
   not a defect today; splitting it is a Minor, deferred as out of scope for C3 and I4.
 - Nothing was compiled or run. This is plan text.
+
+### Fix batch b03, round 2 — the re-review's I-1, M-1 and M-2 (2026-09-24)
+
+Input: `.superpowers/sdd/p7/plan-rereview-b03-1.md`. Panacea re-read at `~/Projects/Panacea`
+`70b257893`, read-only. Every new citation below was re-read at source in this round:
+`webhook-receiver/pipeline/trigger.go:1268`, `:1270`, `:1546-1551`, `:1553-1574`;
+`webhook-receiver/models/event.go:116-148`; `panacea-api/clients/pipeline.go:842`, `:2195-2253`,
+`:2351-2364`; `clients/kubernetes.go:5595-5602`; `handlers/security_status.go:195-207`.
+
+**I-1 (Important) — Panacea has two label writers; the banner counted labels as branches.**
+Confirmed at source: the webhook's `sanitizeLabel` keeps `_`, maps `\`, `:` and space to `-`,
+trims every non-alphanumeric end and answers `""` when empty; the API's `sanitizeLabelValue` folds
+`_` into `-` and answers `"unknown"`. Fixed as the re-review says; the labels are **not**
+normalised.
+
+| Change | Where |
+|---|---|
+| §12 records both writers, their rules, the `feat_x` split, and "labels as written, never normalised" | plan:792-814 |
+| §5 and §4 Rebuild restatements name the second writer | plan:207-209, plan:289-291 |
+| S7-N3: a hash on truncation does not stop the push-and-Ship split firing | plan:705, t20:37 |
+| `Deployment.Branch` comment names both writers and `feat_x` → `feat_x` / `feat-x` | t01:178-188 |
+| `branchesSeen` / `collision` JSON comments: labels verbatim, collision = more than one **label** | t08:52-53, t08:90 |
+| Rule 1a: whether `_` survives depends on the writer | t08:156-160 |
+| Rule 9: two writers; false positive (one branch pushed then Shipped); blind spot restated per writer | t08:188-205 |
+| New test `TestCollisionKeepsPushLabel`: `feat_x` + `feat-x` → `collision: true`, `_` intact | t08:238 |
+| "Does NOT claim": two writers; new bullet "That `collision` counts branches" | t08:264-274 |
+| Rebuild comment: `source.Branch` may be either writer's label | t10:85-90 |
+| Rebuild row text names the webhook citation | t16:106-108 |
+| Banner reworded to the re-review's text: *"…under more than one branch label: … A Ship and a push write the label differently … If these are different branches, …"*; the desktop never folds `_` | t15:148-164 |
+| Blind spot restated per writer; "both writers keep capitals" | t15:165-171 |
+| `collision banner words` anchors on the new phrase | t15:188 |
+| New test `push and Ship labels are not two branches`: `["feat-x","feat_x"]` → banner drawn, `feat_x` intact, the DOM lacks *"more than one branch."*, *"deployed from more than one branch"* and *"two branches"* | t15:189 |
+| Live check logs `withUnderscoreInBranch` (the live sign that push runs reach the list); LIVE-CHECK step 3 copies it | t20:172-187, t20:432 |
+
+**M-1 (Minor, fixed; C3's false statement in a narrow case) — an empty `environment` read
+production's verdict.** Settled from source that `""` is legacy-only (`pipeline.go:2195-2253`,
+`:842`; `event.go:116-148`).
+
+| Change | Where |
+|---|---|
+| `ScanList` takes `environment: string \| null`; `""` or null → no call, the sentence *"Panacea recorded no environment for this release, so its scans are not read."*, no **Try again** | t17:79, t17:160-169 |
+| New test `no environment, no scan read` | t17:227 |
+| The watcher does not call `Scans` for a deployment whose `Environment` is `""` | t07:156-158 |
+| New test `TestScansSkipsEmptyEnvironment` | t07:225 |
+| The route's note: stays a pass-through, the desktop never sends `""`, and the "unverified" is settled from source | t12:76-86 |
+
+**M-2 (Minor, fixed) — the Fake's unseeded answer and the watcher's handling of it.** Took the
+re-review's first option (state the watcher rule) rather than changing the Fake to an empty
+`SKIPPED` report: the rule is needed live anyway (a 400 or 403 on `security-status`), and
+`KindNotFound` stays a loud test-bug signal.
+
+| Change | Where |
+|---|---|
+| Step 5: a `Scans` failure other than `KindUnavailable` / `KindUnauthorized` leaves `Snapshot.Scans[d.ID]` unset (`not_read`), sets no `Stale` or `LastError`, does not end the cycle, and is retried on the next `ID`/`Build` change or `HistoryInterval` | t07:159-167 |
+| New test `TestScansFailureIsNotStale` | t07:224 |
+| `SetScans` comment: Panacea never errors here; `KindNotFound` is a test-bug signal; the conformance suite does not exercise an unseeded pair, and panaceatest's 500 + `t.Errorf` is also one | t01:538-545 |
+
+**Declared.** The re-review's M-2 text named no `Kind` for a body the connector cannot read; t01
+has no `KindProtocol` (t01:473-481), so t07 names `KindRejected` (Panacea's 400) and
+`KindForbidden` instead. t03 already maps an unreadable answer to `KindUnavailable` (t03:294),
+which follows the cycle failure rule.
+
+**Mutants for this round (plan text; none run, as there is no phase 7 code).** Named likely
+survivors before writing the tests: (1) a view that folds `_` into `-` before counting — killed by
+`TestCollisionKeepsPushLabel` (t08:238); (2) a `ScanList` that sends `row.environment ?? ""` —
+killed by `no environment, no scan read` (t17:227). Also: a watcher that stales on a `Scans`
+`KindNotFound` — killed by `TestScansFailureIsNotStale` (t07:224); a banner that keeps *"more than
+one branch."* — killed by t15:189.
+
+**Left open.** Whether the live dev estate runs the webhook-receiver for this project's pushes
+(the live check's `withUnderscoreInBranch` count answers it, t20:185-187).

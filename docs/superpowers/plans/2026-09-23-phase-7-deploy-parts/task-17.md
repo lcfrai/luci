@@ -76,7 +76,7 @@ export function ReleaseDrawer(props: {
 }): JSX.Element;
 
 export function PinManifest(props: { row: ReleaseRow }): JSX.Element;
-export function ScanList(props: { projectId: string; deploymentId: string; stale: boolean }): JSX.Element;
+export function ScanList(props: { projectId: string; environment: string | null; deploymentId: string; stale: boolean }): JSX.Element; // environment: the ReleaseRow's raw environment; "" or null → no call (re-review b03, M-1)
 export function DiagnosePanel(props: { projectId: string; env: EnvironmentView; stale: boolean }): JSX.Element;
 export function LogPane(props: { projectId: string; target: DrillTarget }): JSX.Element;
 ```
@@ -157,10 +157,16 @@ phase 3's evaluator exists (seam S7-P1). The drawer adds no criterion words of i
 
 #### Scans — `ScanList`
 
-One `api.scans(projectId, row.environment ?? "", row.deploymentId)` when it mounts — the
+One `api.scans(projectId, row.environment, row.deploymentId)` when it mounts — the
 `ReleaseRow`'s raw `environment` (task 08: the Deployment's own word, `"prod"` for production),
 never the card's name or `environmentRow` (review C3) — again only on
-**Try again**. One row per
+**Try again**. **An empty or null `environment` makes no call** (re-review b03, M-1): Panacea
+reads a missing `env` as production (`handlers/security_status.go:192-201`), so the answer would
+be production's verdict drawn as this release's. `ScanList` shows instead *"Panacea recorded no
+environment for this release, so its scans are not read."* and no **Try again**. From source this
+is legacy-only: every current writer sets a non-empty environment label (`environmentForBranch`,
+`clients/pipeline.go:2195-2253`; the webhook's `TargetEnvironment`, `models/event.go:116-148`;
+advisory runs, `pipeline.go:842`). One row per
 `scans[]`: name; a dot by status (`PASS` ok, `FAIL` fail, `SKIPPED` unmeasured, anything else
 warn) and the status word, or *"no result"* when it is empty; `mode`, with `enforce` marked; the
 counts, else `errorReason`, else `skipReason`, else `summary`. Under the table, always: *"The
@@ -218,6 +224,7 @@ Panacea's diagnosis may consult its AI and then answers `source "rules+ai"`
 | `design key verbatim` | `designKey "design:cv-…@11"` → exactly that text in mono; the component source has no `split(` / `match(` on it | parsing a key outside its owner (P5) |
 | `scans read once` | mount → one `api.scans` call; 60 s of fake time → still one; **Try again** → two | a scan poll per open drawer |
 | `scans read in the row's environment` | a row `{deploymentId:"d-feat", environment:"feat-x", environmentRow:"feat-x"}` → `api.scans("p-1", "feat-x", "d-feat")`; a row `{environment:"prod", environmentRow:"production"}` → `"prod"`, never `"production"` (review C3) | dropping the environment, which reads production's verdict for a branch release, or sending the card's name |
+| `no environment, no scan read` | a row `{deploymentId:"d-old", environment:""}` and one with `environment:null` → zero `api.scans` calls; the text *"Panacea recorded no environment for this release, so its scans are not read."*; no **Try again**; the DOM lacks *"Pass"* and every status word (re-review b03, M-1) | `row.environment ?? ""` sent as-is, which draws production's verdict as a legacy release's own |
 | `off is not a pass` | a scan with `status "SKIPPED"`, `mode "off"` → the unmeasured dot and the footnote; the DOM lacks *"pass"* for it | absence read as clean |
 | `prod row keeps its drill-ins` | `row {environment:"prod", environmentRow:"production", isCurrent:true}`, `view.environments` holds `production` serving `{measured:true, ready:0}` → *Why it is down* is open and **Follow readiness** is offered for `production` | `e.name === row.environment`, which found no row for any production release (review I8) |
 | `unmatched row has no drill-ins` | `environmentRow: null` → neither *Why it is down* nor **Follow readiness**, and the *"Panacea lists no environment named"* line | a drawer that guesses a row by name |

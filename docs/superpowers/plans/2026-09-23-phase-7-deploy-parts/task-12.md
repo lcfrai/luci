@@ -73,10 +73,16 @@ GET {P}/scans?environment=feat-x&deploymentId=engagement-portal-build-x7k2p
         "detailsSource": "live" | "snapshot" | "mixed" | "unverified" | "none" | null,
         "updatedAt": "…" }
   — "mode" is shown, never changed: Ship sends no override (brief B2).
-  — An empty "environment" is legal because a Panacea row without the panacea.io/environment
-    label reads back with "" (clients/kubernetes.go:5681, :5751); Panacea then answers with
-    production's report, as its own portal does (SecurityScanReview.tsx:437-440). Unverified:
-    whether any live run lacks the label. A production row carries "prod", never "".
+  — An empty "environment" is legal at the route because a Panacea row without the
+    panacea.io/environment label reads back with "" (clients/kubernetes.go:5681, :5751); Panacea
+    then answers with production's report, as its own portal does (SecurityScanReview.tsx:437-440).
+    The route stays a thin pass-through, but the desktop never sends "" (task 17 ScanList, re-review
+    b03 M-1): it would draw production's verdict as the release's own. Settled from source that ""
+    is legacy-only: every current writer sets a non-empty environment label — environmentForBranch
+    answers "prod", the sanitised name or "dev" (clients/pipeline.go:2195-2253); the webhook's
+    TargetEnvironment answers "preview", "prod" or branchEnvName with a "dev" fallback
+    (webhook-receiver/models/event.go:116-148); advisory runs fall back to "unknown"
+    (pipeline.go:842). A production row carries "prod", never "".
 
 GET {P}/environments/{env}/pods
   200 { "pods": [ { "name": "…", "phase": "Running", "ready": false, "restarts": 7,

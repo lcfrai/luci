@@ -104,7 +104,8 @@ must never read as *"nothing is building"* (b02 round 2, R9).
 
 **Rebuild** needs the branch from the Hub release's `branchRef` (task 10): a row with
 `release == null` came from outside any cockpit, and Panacea recorded only a run label for its
-branch (`clients/pipeline.go:609`). A Hub release without a `branchRef` gets the control plane's
+branch (`clients/pipeline.go:609` for the API, `webhook-receiver/pipeline/trigger.go:1270` for a
+push; plan §12). A Hub release without a `branchRef` gets the control plane's
 `409 no_branch`, shown verbatim (b02 round 2, R8).
 
 Disabled rows say why: *"A failed build has no image to roll back to."*, *"This is what `<env>` is
