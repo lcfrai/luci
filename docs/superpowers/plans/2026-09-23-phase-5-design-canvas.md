@@ -17,5 +17,36 @@ never written to:
   read in full at commit `4eefb51`;
 - `.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md` ("the Hub
   contract"), 2289 lines; the sections this plan builds on are cited by section and line.
+  **Re-read at hub commit `ec9d05b`** (the Hub branch moved on while this plan was written; §1–§4,
+  §7.0, §7.5–§7.8, §7.11, §8, §9.2–§9.4, §13–§15 were re-opened at that commit).
+
+---
+
+## Goal
+
+Give the Design phase a canvas the owner can call *"pretty much exactly like paper.design with the
+MCP"* (`OD-11`), built clean-room on permissive parts, that does four things end to end:
+
+1. **Agents design on it.** A Claude Code session running in a sandbox connects to an MCP server
+   named `panacea-canvas`, orients itself, reads the branch's brief, writes real HTML/CSS into
+   artboards, verifies its work with screenshots, and releases its claim — while the Design lens is
+   open, or while it is closed and the desktop is running.
+2. **A human finishes what agents started.** The Design lens shows the same artboards as real DOM
+   in script-less, sandboxed iframes, live as agents write, and lets the human select, move,
+   resize, restyle, retype, reorder and undo their own work without touching HTML.
+3. **Many writers never silently collide.** Every write is attributed to a session the server
+   knows (never one the agent names), claims an artboard, and may carry an `ifRevision`
+   precondition. The op protocol is server-authoritative, per-property last-writer-wins, and is
+   written so the **same Go package** hosts cross-person multiplayer in the Hub in v2.
+4. **The thread is kept.** A canvas is bound to its branch's brief; only a human approves, from our
+   chrome, over a SHA-256 digest; the approval writes `design:<canvasId>@<rev>` → `brief:<id>@<rev>`
+   to the Hub with the snapshot captured there; and a handoff bundle (HTML, PNG, JSX, `tokens.css`,
+   DTCG `tokens.json`, `manifest.json`) lands in the worktree for a Develop session that is started
+   *from* the design and linked to it.
+
+**Out of this plan** (named seams in §"Seams"): cross-person live co-editing (v2, Hub-hosted),
+components with slots, CSS Grid and `margin`, theme modes, MCP wiring for harnesses other than
+Claude Code, Figma via Figma's MCP, import from a running preview, SVG/PDF export, visual diff,
+pen tool, sketch boards.
 
 _Sections follow as they are written._
