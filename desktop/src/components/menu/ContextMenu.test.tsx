@@ -99,6 +99,20 @@ describe("ContextMenu", () => {
     ]);
   });
 
+  // I5's third survivor, `rail-rename-never-opens-the-dots-menu`. The rail row has no text
+  // field, so Rename… from HERE is a two-step: it closes this menu and opens the ⋯ menu, which
+  // owns the only rename surface in the app. Nothing asserted either half, so a `beginRename`
+  // that did nothing at all would have looked identical.
+  it("the rail's Rename… closes this menu and opens the ⋯ menu for the same session", async () => {
+    seed({ kind: "session", id: "s-1", ...at });
+    render(<ContextMenu />);
+
+    await userEvent.click(screen.getByRole("menuitem", { name: "Rename…" }));
+
+    expect(useCockpit.getState().contextMenu).toBeNull();
+    expect(useCockpit.getState().sessionMenuFor).toBe("s-1");
+  });
+
   // The §6.7 amendment this task argues for: <SessionMenu/> is mounted HERE, not in AppShell,
   // because shared-shape §1 gives AppShell's edit row to task 23. Unproven anywhere else, and
   // the ⋯ menu must be able to open while no right-click menu is up — the normal case.

@@ -3,6 +3,7 @@
 // Contract §3.2. Server-derived entities and their setters.
 
 import type { StateCreator } from "zustand";
+import { pendingSessionIds } from "../../lib/pendingSessions";
 import type {
   Branch,
   BranchId,
@@ -125,9 +126,44 @@ export const createDataSlice: StateCreator<
         sessions[row.id] = prev !== undefined && sameSession(prev, row) ? prev : row;
       }
 
+      // ── deferred-verb suppression. ADDED BY TASK 22's FIX ROUND 1, a declared departure
+      // into task 17's file, and it belongs here rather than in the poller or in the verbs.
+      //
+      // Kill and Forget patch the store NOW and hold the request for the 6 s Undo window, so the
+      // server still reports the old truth. The poller runs every 2 s. Without this, a killed row
+      // comes back as `running`, and a forgotten row reappears, about two seconds into the window
+      // — WITH THE UNDO TOAST STILL ON SCREEN.
+      //
+      // The store is the one place holding both the incoming rows and the pending ids, so every
+      // future deferred verb gets this for free and no caller has to remember. A poller-side
+      // check would leak store knowledge into a fetch loop; a re-patch after each tick is a race.
+      //
+      // The rule is simply: while a deferred verb is in flight, the store's own view of that id
+      // wins — present with its optimistic status (Kill), or absent (Forget).
+      for (const id of pendingSessionIds()) {
+        const held = s.sessions[id];
+        if (held === undefined) delete sessions[id];
+        else sessions[id] = held;
+      }
+
       const built: Record<WorktreeId, SessionId[]> = {};
       for (const id of covered) built[id] = [];
-      for (const row of incoming) built[row.worktreeId].push(row.id);
+      // `sessions[row.id]` is the test, not `incoming`: a row a deferred Forget has removed must
+      // not be re-indexed, or the rail renders an id the session map no longer holds.
+      for (const row of incoming) {
+        if (sessions[row.id] !== undefined) built[row.worktreeId].push(row.id);
+      }
+      // A held row the server has stopped listing keeps its old place. Present in `sessions` but
+      // missing from the index renders nowhere, and Undo cannot repair it: `upsertSession` leaves
+      // the position of an id it already holds unchanged, so there would be no position to leave.
+      for (const id of pendingSessionIds()) {
+        const held = sessions[id];
+        if (held === undefined) continue;
+        const list = built[held.worktreeId];
+        if (list === undefined || list.includes(id)) continue;
+        const at = (s.sessionIdsByWorktree[held.worktreeId] ?? []).indexOf(id);
+        list.splice(at === -1 ? list.length : at, 0, id);
+      }
 
       const sessionIdsByWorktree = { ...s.sessionIdsByWorktree };
       for (const [id, ids] of Object.entries(built)) {

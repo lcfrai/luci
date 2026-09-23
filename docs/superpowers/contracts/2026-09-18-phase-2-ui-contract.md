@@ -649,7 +649,17 @@ export interface DataSlice {
 
   /** Replaces the full session set for the given worktree ids and rebuilds their indexes.
    *  `worktreeIds` is the set the fetch covered, so a worktree that now has zero sessions
-   *  empties rather than keeping stale rows. */
+   *  empties rather than keeping stale rows.
+   *
+   *  ONE EXCEPTION, added 2026-09-23 by task 22: ids held in `lib/pendingSessions` are skipped,
+   *  and the store's own view of them wins — present with its optimistic status, or absent.
+   *  A deferred verb (Kill, Forget) patches the store now and HOLDS its request for the 6 s
+   *  Undo window, so the server still reports the old truth; without this the 2 s poll takes
+   *  the row back about two seconds in, with the Undo toast still on screen. The suppression
+   *  lives here rather than in the poller because this is the one place holding both the
+   *  incoming rows and the pending ids, so every future deferred verb gets it for free. It
+   *  lasts exactly as long as the window: once the id clears, the server is authoritative
+   *  again. */
   replaceSessions(sessions: Session[], worktreeIds: WorktreeId[]): void;
   /** Merges one session in place. If the id is known, the position in
    *  sessionIdsByWorktree is UNCHANGED — docs/AGENTIC-UX.md §10 rule 7: a poll moves
@@ -1249,6 +1259,13 @@ acts, not when an agent does.
 The poll must move zero pixels. Three things make that true, and all three are testable:
 `replaceSessions` preserves index position for known ids (§3.2), the server sorts and the client
 never re-sorts, and Columns keys panes by `session.id`.
+
+**And one thing makes the poll not move a row it must not move at all.** A deferred verb holds its
+request for the 6 s Undo window while the poll runs every 2 s, so for those ids the server is
+briefly *wrong* rather than merely stale. `replaceSessions` skips ids held in
+`lib/pendingSessions` (§3.2) — **the poller itself has no knowledge of this and needs none**,
+which is the point: a check here would leak store state into a fetch loop, and every deferred verb
+added later would have to remember it. *Added 2026-09-23 by task 22.*
 ---
 
 ## 5. The token layer — `desktop/src/styles/tokens.css`
@@ -1697,7 +1714,7 @@ reason is the honest third option.
 | `SessionPane.tsx` | `{ sessionId: SessionId; variant: "column" \| "tile" }` | One session: header, `<Terminal/>`, the attach overlay (§7.7), footer. **Owns focus intent** — clicking anywhere in the pane focuses the session and hands DOM focus to the terminal — and tells `<Terminal/>` whether this pane is the focused one, so nine mounting panes do not each take the caret. Restart is `api.restartSession`, which keeps the session id. |
 | `SessionPaneHeader.tsx` | `{ session: Session; worktree: Worktree \| undefined; variant: "column" \| "tile" }` | Status dot, worktree name, harness command, the `⋯` button. In `tile` variant it is also the drag handle. |
 | `SessionPaneFooter.tsx` | `{ session: Session }` | harness command · model · elapsed · attach state. All numbers `tabular-nums`. Attach state comes from `useAttachState(session.id)` (§6.6), never from the store; the retry elapsed is `useHeartbeat() - state.ladderStartedAt`, computed here because the registry owns no clock. |
-| `SessionMenu.tsx` | `{ sessionId: SessionId; anchor: DOMRect \| null; onClose(): void }` | The `⋯` menu: Resume, Fork into…, Restart clean, Rename…, Open a shell here, Kill, Forget. |
+| `SessionMenu.tsx` | `{ sessionId: SessionId; anchor: DOMRect \| null; onClose(): void }` | The `⋯` menu: Resume, Fork into…, **Restart**, Rename…, Open a shell here, Kill, Forget, Copy session id. Mounted by `ContextMenu.tsx` (§6.7). The rows are built by `develop/sessionVerbs.ts`, which the rail's menu shares. |
 | `EmptyDevelop.tsx` | `{ branch: Branch \| undefined }` | The zero state. Named actions, no spinner. Also exports `startSessionOnWorktree(worktreeId, defaults)`, the create path its two actions share — an addition to this table, sited here because they are its only callers. Distinct from task 18's `useCreateSession`, which re-resolves against the live store. |
 | `develop.css` | — | `.pane-*`, `.cols-*`, `.cv-*` |
 
@@ -1794,10 +1811,19 @@ clock — and it is why §7.7's row asks for a number rather than a spinner and 
 |---|---|---|
 | `palette/CommandPalette.tsx` | `{}` | The `⌘K` surface: the input, the filtered list, arrow/Enter selection. Owns focus **while open**, and returns it on close. |
 | `palette/commands.ts` | — | `buildCommands(state): Command[]` — the command set, pure, testable without rendering. |
-| `menu/ContextMenu.tsx` | `{}` | The single right-click menu, positioned from `store.contextMenu`, clamped to the viewport. |
+| `menu/ContextMenu.tsx` | `{}` | The single right-click menu, positioned from `store.contextMenu`, clamped to the viewport. **Also mounts `<SessionMenu/>`** from `store.sessionMenuFor`, so it returns a fragment whose two halves open independently — the `⋯` menu must be able to open while no right-click menu is up, which is the normal case. |
 | `common/StatusDot.tsx` | `{ status: SessionStatus \| MachineState; live: boolean; label: string }` | The status dot: **colour plus shape**, and the shared heartbeat phase when `live`. |
 | `common/Toasts.tsx` | `{}` | The optimistic-mutation Undo window. Plain text only. |
 | `common/Popover.tsx` | `{ anchor: DOMRect \| null; onClose(): void; children }` | Positioning, outside-click, Escape, and focus return. Used by the picker, the session menu and the machine chip. |
+
+**`SessionMenu` takes no row of its own here**, and the omission is deliberate rather than
+stale. This table lists overlays by the file that *owns* the surface; `SessionMenu` is a
+presentational component with three props that renders **inside** `Popover`, and the row above
+records who mounts it. Its inline rename input is likewise not a fourth overlay: it is a second
+`useDismissable` entry within the popover that is already open, which is what makes §6.9's
+"close the topmost overlay" step back to the verb list rather than closing the menu. It adds a
+row to `useDismissable`'s runtime stack and none to this table, so §6.8's focus rule needs no
+new case — focus returns through the popover it never left. *Amended 2026-09-23 by task 22.*
 
 ```ts
 export interface Command {
@@ -2119,7 +2145,7 @@ untouched.
 |---|---|---|---|---|
 | **20** | Columns layout and the session pane | `DevelopLens`, `ColumnsLayout` (horizontal scroll, scroll-into-view, focus), `SessionPane` + header + footer, `EmptyDevelop` | C `components/develop/{DevelopLens,ColumnsLayout,SessionPane,SessionPaneHeader,SessionPaneFooter,EmptyDevelop}.tsx`, `components/develop/develop.css`; T `develop/ColumnsLayout.test.tsx`, `develop/SessionPane.test.tsx` | 18, 19 |
 | **21** | Canvas layout and persisted tiles | The 2400×1600 plane, pointer-driven drag and resize on `transform`, z-order, the 10-tile pin cap, `TilePosition` written through to `prefsSlice` | C `components/develop/CanvasLayout.tsx`; M `components/develop/develop.css`, `components/develop/DevelopLens.tsx`; T `develop/CanvasLayout.test.tsx` | 20 |
-| **22** | Session lifecycle verbs | `SessionMenu` and the rail's context verbs wired to the client: Resume, Fork into…, Restart, Rename…, Kill, Forget, Open a shell here, Mark ready; optimistic mutation with an Undo window | C `components/develop/SessionMenu.tsx`, `components/develop/sessionVerbs.ts`; M `components/menu/ContextMenu.tsx`, `components/rail/*Row.tsx`; T `develop/sessionVerbs.test.ts`, `develop/SessionMenu.test.tsx` | 20 |
+| **22** | Session lifecycle verbs | `SessionMenu` and the rail's context verbs wired to the client: Resume, Fork into…, Restart, Rename…, Kill, Forget, Open a shell here, Copy session id, Mark ready; optimistic mutation with an Undo window, in **two** commit shapes — deferred (Kill, Forget: the request is held for the window and Undo cancels it) and immediate (Rename, Restart: sent at once, snapshot restored on refusal). A deferred verb's ids are held in `lib/pendingSessions` and `replaceSessions` suppresses the poller for them, or the 2 s tick undoes the patch inside the 6 s window | C `components/develop/SessionMenu.tsx`, `components/develop/sessionVerbs.ts`, `lib/pendingSessions.ts`; M `components/menu/ContextMenu.tsx`, `components/menu/menu.css`, `components/rail/*Row.tsx`, `store/slices/dataSlice.ts` *(declared departure — task 17's)*; T `develop/sessionVerbs.test.ts`, `develop/SessionMenu.test.tsx`, and edits to `menu/ContextMenu.test.tsx`, whose verb-list assertions this task necessarily breaks | 20 |
 | **23** | The command palette and the keyboard map | `buildCommands`, `CommandPalette` with stable ranking and id-based selection, `useKeyboardMap` with the full chord table and the two deliberate non-interceptions | C `components/palette/{CommandPalette.tsx,commands.ts,palette.css}`, `hooks/useKeyboardMap.ts`; M `components/AppShell.tsx`; T `palette/CommandPalette.test.tsx`, `palette/commands.test.ts`, `hooks/useKeyboardMap.test.ts` | 20, 22 |
 | **24** | Wire the cockpit to the live control plane, and prove the ten | `App.tsx` rewritten to mount `AppShell` + start the poller + load the catalogue; the defect regression suite as one file; the design-system audit (no literal hex, no `transition: all`, no banned hue) | M `desktop/src/App.tsx`, `desktop/src/main.tsx` (imports `app.css`); D `desktop/src/App.css`; C `desktop/src/defects.test.tsx`, `desktop/src/styles/designsystem.test.ts`; T the two above | 21, 22, 23 |
 

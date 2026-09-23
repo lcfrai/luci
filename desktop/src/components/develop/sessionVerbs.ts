@@ -16,6 +16,12 @@ import type { ApiError } from "../../api/client";
 import { classify } from "../../api/problems";
 import type { CreateSessionOptions } from "../../hooks/useCreateSession";
 import { replaceById } from "../../lib/immutable";
+import {
+  __resetPendingSessions,
+  isSessionPending as isPending,
+  setSessionPending as setPending,
+  subscribePending,
+} from "../../lib/pendingSessions";
 import type { MenuItem } from "../menu/ContextMenu";
 import { selectHarness, selectSession, selectWorktrees } from "../../store/selectors";
 import { TOAST_TTL_UNDO } from "../../store/slices/uiSlice";
@@ -34,36 +40,23 @@ export interface VerbDeps {
 
 /* ── the pending registry ────────────────────────────────────────────────────────────── */
 
-const pending = new Set<SessionId>();
-const listeners = new Set<() => void>();
+/** The in-flight timers of deferred commits. The pending IDS moved to `lib/pendingSessions`
+ *  in fix round 1, because `dataSlice.replaceSessions` has to read them and a store slice
+ *  importing this module — which imports the store — would be a runtime cycle. The timers stay
+ *  here: they are this module's machinery and nothing else reads them. */
 const timers = new Set<ReturnType<typeof setTimeout>>();
 
-function emit(): void {
-  for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-export function isSessionPending(id: SessionId): boolean {
-  return pending.has(id);
-}
+export { isSessionPending } from "../../lib/pendingSessions";
 
 /** One boolean per row. A primitive snapshot, so useSyncExternalStore never sees a new
  *  reference for an unchanged value and a rail of forty rows re-renders none of them.
  *
- *  Module-level rather than in the store, and that is a decision the contract does not make.
- *  `SessionRow` needs one boolean that lives for six seconds, never persists and has exactly one
- *  reader; putting it in `uiSlice` would mean editing task 17's file for it. This mirrors what
- *  task 18 already does for the heartbeat and the overlay stack. */
+ *  The hook lives here rather than beside the Set so that `lib/pendingSessions` imports no
+ *  React and stays a leaf that cannot participate in a cycle. */
 export function useSessionPending(id: SessionId): boolean {
   return useSyncExternalStore(
-    subscribe,
-    () => pending.has(id),
+    subscribePending,
+    () => isPending(id),
     () => false,
   );
 }
@@ -73,14 +66,7 @@ export function useSessionPending(id: SessionId): boolean {
 export function __resetSessionVerbs(): void {
   for (const timer of timers) clearTimeout(timer);
   timers.clear();
-  pending.clear();
-  emit();
-}
-
-function setPending(id: SessionId, value: boolean): void {
-  if (value) pending.add(id);
-  else pending.delete(id);
-  emit();
+  __resetPendingSessions();
 }
 
 /* ── the one place a failure becomes a sentence ──────────────────────────────────────── */
@@ -116,16 +102,20 @@ function report(error: ApiError): void {
 
 /* ── commit shape 1: deferred. The request is held for the Undo window. ──────────────── */
 
-function runDeferred(opts: {
+function runDeferred<T>(opts: {
   sessionId: SessionId;
   message: string;
   /** The optimistic patch. Applied synchronously, before anything is sent. */
   apply: () => void;
   /** The exact inverse of `apply`. Used by Undo, and by a late failure. */
   rollback: () => void;
-  commit: () => Promise<unknown>;
+  commit: () => Promise<T>;
+  /** What to do with the server's answer, for the verbs that get one. Kill's `killSession`
+   *  returns the `Session` it killed; Forget's `purgeSession` returns nothing, so it passes
+   *  none. Generic rather than `unknown`, so a verb cannot quietly adopt the wrong shape. */
+  adopt?: (result: T) => void;
 }): void {
-  const { sessionId, message, apply, rollback, commit } = opts;
+  const { sessionId, message, apply, rollback, commit, adopt } = opts;
   // Set the instant the request leaves. The Undo button is already off the screen by then, but
   // the store does not drop the toast until ToastRow's own timer fires, and a click landing in
   // that gap would roll back a change the server had already accepted — leaving the cockpit
@@ -150,10 +140,22 @@ function runDeferred(opts: {
   async function settle(): Promise<void> {
     sent = true;
     try {
-      await commit();
+      const result = await commit();
+      // Before `setPending(false)` in the finally below, so the poller suppression is still in
+      // force while the server's own row lands — otherwise a tick between the two could take
+      // the row back to the state this request just changed.
+      adopt?.(result);
     } catch (caught) {
       // The window has closed. Put the row back, say why in plain text, and let task 19's
       // 2 s poller reconcile anything the rollback guessed wrong on its next tick.
+      //
+      // PENDING IS CLEARED FIRST, and the order is load-bearing rather than tidy. Forget's
+      // rollback goes through `replaceSessions`, which now SUPPRESSES writes for pending ids —
+      // so rolling back while still pending would have the store discard its own restore, and
+      // the forgotten row would never come back. The Undo path above already clears before it
+      // rolls back, for the same reason; this is the same ordering, on the failure path.
+      // Nothing can interleave between the two: both are synchronous, with no await between.
+      setPending(sessionId, false);
       rollback();
       report(caught as ApiError);
     } finally {
@@ -227,7 +229,17 @@ function restoreSession(snapshot: Session): () => void {
  *  side door, and on the COMMON path, because Undo is the button this task exists to offer.
  *
  *  The capture happens when this is CALLED, which is while the argument list of `runDeferred` is
- *  being evaluated — before `apply()` runs. */
+ *  being evaluated — before `apply()` runs.
+ *
+ *  KNOWN AND ACCEPTED: `rows` is a wholesale snapshot up to six seconds old, which is the shape
+ *  `markWorktreeReady` deliberately rejects one screen below — and sessions are the list that
+ *  really is polled, so this one can genuinely be stale. It is accepted here and not there
+ *  because the two rollbacks are not the same operation: marking a worktree replaces ONE element
+ *  and `replaceById` can express that against the live list, while un-forgetting has to restore
+ *  a row AT AN INDEX the live list no longer has a slot for. The cost is bounded — a session the
+ *  poll added during the window is dropped from the index for at most one tick, and 2 s later
+ *  `replaceSessions` puts it back from the server, which is authoritative for exactly this list.
+ *  A rewrite would be an index-merge for a 2 s window, which is more machinery than the defect. */
 function restoreWorktreeSessions(worktreeId: WorktreeId, sessionId: SessionId): () => void {
   const state = useCockpit.getState();
   const rows = (state.sessionIdsByWorktree[worktreeId] ?? [])
@@ -364,6 +376,15 @@ function tailVerbs(
   act: (fn: () => void) => () => void,
 ): MenuItem[] {
   const id = session.id;
+  // A deferred verb is already holding a request for this session. Both deferred verbs are gated
+  // on it, because `session.status` here is the OPTIMISTICALLY PATCHED status: during a Kill
+  // window the row already reads `exited`, which is exactly the condition that enables Forget. A
+  // stacked Forget would then remove the row, and the Kill's own rollback would `upsertSession`
+  // it back — prepending an id the store no longer holds, so the row returns at the TOP of its
+  // worktree instead of where the user left it. One undoable change at a time removes the whole
+  // family rather than the one pair that happens to collide.
+  const inFlight = isPending(id);
+  const inFlightReason = "Another change to this session has not finished yet.";
 
   /** Only while the ladder is spent, and RENDERED rather than disabled when it is not.
    *
@@ -442,42 +463,55 @@ function tailVerbs(
       label: "Kill",
       danger: true,
       separatorBefore: true,
-      run: alive
-        ? act(() =>
-            runDeferred({
-              sessionId: id,
-              message: `Killed ${session.title}.`,
-              apply: () =>
-                useCockpit
-                  .getState()
-                  .upsertSession({ ...session, status: "exited", exitReason: "killed" }),
-              rollback: restoreSession(session),
-              commit: () => api.killSession(id),
-            }),
-          )
-        : undefined,
-      disabledReason: alive ? undefined : "This session has already exited.",
+      run:
+        alive && !inFlight
+          ? act(() =>
+              runDeferred({
+                sessionId: id,
+                message: `Killed ${session.title}.`,
+                apply: () =>
+                  useCockpit
+                    .getState()
+                    .upsertSession({ ...session, status: "exited", exitReason: "killed" }),
+                rollback: restoreSession(session),
+                commit: () => api.killSession(id),
+                // The server's own object, for the reason `runImmediate` argues at length: it
+                // carries `updatedAt` and an `attachPath` the cockpit cannot derive. Discarding
+                // it used to read as harmless only because the 2 s poller overwrote it — which
+                // is precisely what this round's suppression now prevents.
+                adopt: (killed) => useCockpit.getState().upsertSession(killed),
+              }),
+            )
+          : undefined,
+      disabledReason: inFlight
+        ? inFlightReason
+        : alive
+          ? undefined
+          : "This session has already exited.",
     },
     {
       id: "forget",
       label: "Forget",
       danger: true,
-      run: alive
-        ? undefined
-        : act(() =>
-            runDeferred({
-              sessionId: id,
-              message: `Forgot ${session.title}.`,
-              apply: () => useCockpit.getState().removeSession(id),
-              // NOT restoreSession: see the comment on this helper. Forget is the one verb whose
-              // rollback has to put a row back at an index, with its tile and its pin.
-              rollback: restoreWorktreeSessions(session.worktreeId, id),
-              commit: () => api.purgeSession(id),
-            }),
-          ),
-      disabledReason: alive
-        ? "Kill it first — Forget removes the record, not the process."
-        : undefined,
+      run:
+        alive || inFlight
+          ? undefined
+          : act(() =>
+              runDeferred({
+                sessionId: id,
+                message: `Forgot ${session.title}.`,
+                apply: () => useCockpit.getState().removeSession(id),
+                // NOT restoreSession: see the comment on this helper. Forget is the one verb
+                // whose rollback has to put a row back at an index, with its tile and its pin.
+                rollback: restoreWorktreeSessions(session.worktreeId, id),
+                commit: () => api.purgeSession(id),
+              }),
+            ),
+      disabledReason: inFlight
+        ? inFlightReason
+        : alive
+          ? "Kill it first — Forget removes the record, not the process."
+          : undefined,
     },
     {
       id: "copy-session-id",
@@ -537,9 +571,15 @@ export function renameSessionTo(sessionId: SessionId, title: string): void {
 export function markWorktreeReady(worktree: Worktree): void {
   const branchId = worktree.branchId;
   const write = (next: Worktree): void => {
-    useCockpit
-      .getState()
-      .setWorktrees(branchId, replaceById(selectWorktrees(branchId)(useCockpit.getState()), next));
+    const current = selectWorktrees(branchId)(useCockpit.getState());
+    // `replaceById` returns a COPY for an id it cannot find (`lib/immutable.ts:31`), and
+    // `selectWorktrees` returns the shared empty constant for a branch the store does not hold —
+    // so writing unconditionally would create `worktreesByBranch[branchId] = []` where there was
+    // no key at all, inventing an empty branch out of a failed lookup. Nothing to replace is not
+    // an error here; it means the branch was never loaded, or a poll dropped the worktree while
+    // the menu was open.
+    if (!current.some((w) => w.id === next.id)) return;
+    useCockpit.getState().setWorktrees(branchId, replaceById(current, next));
   };
 
   write({ ...worktree, ready: true });

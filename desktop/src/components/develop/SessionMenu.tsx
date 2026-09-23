@@ -2,11 +2,16 @@
 // resolved by the caller, because uiSlice.sessionMenuFor carries only an id and task 20's
 // header exposes the button through a data attribute rather than a ref.
 //
-// This file renders its own rows rather than importing a shared list component from
-// ContextMenu.tsx, because ContextMenu.tsx imports SessionMenu to mount it — a `MenuList`
-// exported from there and imported back here would be a genuine ES module cycle. Vite tolerates
-// cycles; they fail later, in a bundler or a test runner, in a way that names neither file. The
-// duplicated markup is the cheaper of the two, and menu.css keeps both honest.
+// This file renders its own rows, duplicating the markup in ContextMenu.tsx, and the honest
+// reason is the FILE GRANT rather than the cycle.
+//
+// A `MenuList` exported from ContextMenu.tsx and imported back here would indeed be a cycle,
+// because ContextMenu.tsx imports this file to mount it — but that is an argument against one
+// particular home, not against sharing. A third module under `menu/` breaks the cycle and the
+// duplication at once, and would be the better shape. Group D's shared-shape §1 does not grant
+// task 22 a new file under `menu/`, and inventing one is how two tasks come to own the same
+// directory. So the duplication is a scope decision, and it is cheap to undo: two blocks, same
+// class names, and `menu.css` keeps them honest until someone with that grant merges them.
 import { Fragment, useState } from "react";
 import type { FormEvent, JSX } from "react";
 import { Popover } from "../common/Popover";

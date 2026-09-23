@@ -161,6 +161,63 @@ describe("sessionVerbs — the gates", () => {
     expect(deps.close).toHaveBeenCalledTimes(1);
   });
 
+  // I3: these three verbs were declared, reset and never asserted — their run bodies had never
+  // been entered by any test, so `api.resumeSession(session, harness)` could have been called
+  // with the arguments in either order and nothing would have noticed.
+  it("Resume creates a continuing session from this one and focuses it", async () => {
+    seed({ harness: "claude-code" });
+    const resumed = aSession({ id: "s-resumed", title: "Evidence upload" });
+    resumeMock.mockResolvedValue(resumed);
+
+    find(sessionVerbs(IDS.session, DEPS), "resume")?.run?.();
+    await vi.runOnlyPendingTimersAsync();
+
+    const [source, harness] = resumeMock.mock.calls[0] as [Session, { id: string }];
+    expect(source.id).toBe(IDS.session);
+    expect(harness.id).toBe("claude-code");
+    expect(useCockpit.getState().sessions["s-resumed"]?.id).toBe("s-resumed");
+    expect(useCockpit.getState().selection.sessionId).toBe("s-resumed");
+  });
+
+  it("Fork creates into the OTHER worktree and focuses the result", async () => {
+    seed({ harness: "claude-code" });
+    const forked = aSession({ id: "s-forked", worktreeId: SIBLING });
+    forkMock.mockResolvedValue(forked);
+
+    find(sessionVerbs(IDS.session, DEPS), `fork-${SIBLING}`)?.run?.();
+    await vi.runOnlyPendingTimersAsync();
+
+    const [source, target] = forkMock.mock.calls[0] as [Session, string];
+    expect(source.id).toBe(IDS.session);
+    // The sibling, never the session's own worktree — the whole point of the fork gate.
+    expect(target).toBe(SIBLING);
+    expect(useCockpit.getState().selection.sessionId).toBe("s-forked");
+  });
+
+  it("Open a shell here goes through the ONE create path, forcing the shell harness", () => {
+    seed();
+    const deps = { createSession: vi.fn().mockResolvedValue(undefined), close: vi.fn(), beginRename: vi.fn() };
+
+    find(sessionVerbs(IDS.session, deps), "shell")?.run?.();
+
+    // deps.createSession is task 18's useCreateSession, which re-resolves defaults and clamps.
+    // This module adds no second create path, so the assertion is on the delegation.
+    expect(deps.createSession).toHaveBeenCalledWith(IDS.worktree, { harness: "shell" });
+  });
+
+  it("a create verb that the server refuses reports the sentence and focuses nothing", async () => {
+    seed({ harness: "claude-code" });
+    resumeMock.mockRejectedValue(new ApiError("harness_unavailable", "Claude Code is not installed.", 409));
+
+    find(sessionVerbs(IDS.session, DEPS), "resume")?.run?.();
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(lastToast()?.message).toBe("Claude Code is not installed.");
+    // No Undo on a create: there is nothing to take back, because nothing was created.
+    expect(lastToast()?.undo).toBeUndefined();
+    expect(useCockpit.getState().selection.sessionId).toBeNull();
+  });
+
   it("returns a single honest row when the store does not hold the session", () => {
     seed();
     const items = sessionVerbs("s-nope", DEPS);
@@ -228,6 +285,36 @@ describe("sessionVerbs — the deferred commit and its window", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(killMock).toHaveBeenCalledWith(IDS.session);
     expect(isSessionPending(IDS.session)).toBe(false);
+  });
+
+  // Minor 1. `runImmediate` argues at length that the server's object matters — it carries
+  // `updatedAt` and an `attachPath` the cockpit cannot derive — and Kill discarded it. That read
+  // as harmless only because the 2 s poller overwrote it within a tick, which is exactly what
+  // this round's suppression now prevents.
+  it("adopts the server's own killed row rather than keeping the guess", async () => {
+    seed({ status: "running" });
+    killMock.mockResolvedValue(
+      aSession({
+        status: "exited",
+        exitReason: "killed",
+        updatedAt: "2026-09-18T09:05:00.000Z",
+        attachPath: "/v1/sessions/s-3f2a91c0/attach?replay=1",
+      }),
+    );
+
+    find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+    // The optimistic guess carries the ORIGINAL timestamps, because it is a spread of the
+    // snapshot with two fields changed.
+    expect(useCockpit.getState().sessions[IDS.session]?.updatedAt).not.toBe(
+      "2026-09-18T09:05:00.000Z",
+    );
+
+    await vi.advanceTimersByTimeAsync(TOAST_TTL_UNDO);
+
+    expect(useCockpit.getState().sessions[IDS.session]?.updatedAt).toBe("2026-09-18T09:05:00.000Z");
+    expect(useCockpit.getState().sessions[IDS.session]?.attachPath).toBe(
+      "/v1/sessions/s-3f2a91c0/attach?replay=1",
+    );
   });
 
   it("Undo inside the window cancels the request and restores the session", async () => {
@@ -324,6 +411,28 @@ describe("sessionVerbs — the deferred commit and its window", () => {
     expect(useCockpit.getState().selection.sessionId).toBe(IDS.session);
   });
 
+  // I4: the departure's HEADLINE claim, and round 1 did not pin it. The earlier test pinned the
+  // session LAST, where append and insert-at-index produce the same array — so the one part that
+  // was actually argued for, the index, was the one part no assertion could see. Here the
+  // forgotten session is pinned FIRST, with two pins after it.
+  it("Undo puts the pin back at its index, not on the end", () => {
+    seed({ status: "exited" });
+    useCockpit.getState().upsertSession(aSession({ id: IDS.sessionB, title: "Retention rules" }));
+    useCockpit.getState().upsertSession(aSession({ id: THIRD, title: "Access review" }));
+    const scope = [IDS.session, IDS.sessionB, THIRD];
+    for (const id of scope) useCockpit.getState().pinSession(id, scope);
+    expect(useCockpit.getState().pinned).toEqual(scope);
+
+    find(sessionVerbs(IDS.session, DEPS), "forget")?.run?.();
+    expect(useCockpit.getState().pinned).toEqual([IDS.sessionB, THIRD]);
+
+    lastToast()?.undo?.();
+
+    // Appending would give [sessionB, THIRD, session] and Canvas would redraw in a different
+    // order than the user left it. This is the assertion the departure was argued for.
+    expect(useCockpit.getState().pinned).toEqual(scope);
+  });
+
   it("does not yank focus back when the user moved to another session during the window", () => {
     seed({ status: "exited" });
     useCockpit.getState().upsertSession(aSession({ id: IDS.sessionB, title: "Retention rules" }));
@@ -335,6 +444,156 @@ describe("sessionVerbs — the deferred commit and its window", () => {
 
     expect(useCockpit.getState().sessions[IDS.session]?.id).toBe(IDS.session);
     expect(useCockpit.getState().selection.sessionId).toBe(IDS.sessionB);
+  });
+});
+
+// I2. `session.status` inside sessionVerbs is the OPTIMISTICALLY PATCHED status, so during a
+// Kill window the row already reads `exited` — which is exactly the condition that enables
+// Forget. The two would stack, and the Kill's rollback would then upsert a row the Forget had
+// removed, prepending it to the top of the worktree.
+describe("sessionVerbs — one undoable change at a time", () => {
+  it("does not offer Forget while a Kill is still undoable", () => {
+    seed({ status: "running" });
+    find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+
+    // The patched row reads `exited`, which is what used to enable Forget.
+    expect(useCockpit.getState().sessions[IDS.session]?.status).toBe("exited");
+    const forget = find(sessionVerbs(IDS.session, DEPS), "forget");
+    expect(forget?.run).toBeUndefined();
+    expect(forget?.disabledReason).toBe("Another change to this session has not finished yet.");
+    // And Kill does not re-arm either: a second Kill would hold a second request.
+    expect(find(sessionVerbs(IDS.session, DEPS), "kill")?.run).toBeUndefined();
+  });
+
+  it("the row survives the window with no duplicate and no reorder", async () => {
+    seed({ status: "running" });
+    useCockpit.getState().upsertSession(aSession({ id: IDS.sessionB, title: "Retention rules" }));
+    const order = [IDS.sessionB, IDS.session];
+    expect(useCockpit.getState().sessionIdsByWorktree[IDS.worktree]).toEqual(order);
+    killMock.mockResolvedValue(aSession({ status: "exited", exitReason: "killed" }));
+
+    find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+    // The Forget that used to be reachable here is now disabled, so nothing stacks.
+    find(sessionVerbs(IDS.session, DEPS), "forget")?.run?.();
+    await vi.advanceTimersByTimeAsync(TOAST_TTL_UNDO);
+
+    expect(useCockpit.getState().sessionIdsByWorktree[IDS.worktree]).toEqual(order);
+    expect(Object.keys(useCockpit.getState().sessions).sort()).toEqual([...order].sort());
+    expect(purgeMock).not.toHaveBeenCalled();
+  });
+
+  // The Kill gate's `!inFlight` half needs a session that is ALIVE and pending, which a Kill
+  // can never produce — it patches the row to `exited`, so `alive` is already false and the two
+  // conditions cannot be told apart. The reachable case is an IMMEDIATE verb: `runImmediate`
+  // marks the session pending too, and Restart/Rename leave it alive. Without this test the
+  // half is unobservable and a mutant deleting it survives.
+  it("does not offer Kill while an immediate verb is still in flight", () => {
+    seed({ status: "running" });
+    // A request that never settles, so the session stays alive AND pending.
+    renameMock.mockReturnValue(new Promise(() => undefined));
+
+    renameSessionTo(IDS.session, "retention rules");
+    expect(isSessionPending(IDS.session)).toBe(true);
+    expect(useCockpit.getState().sessions[IDS.session]?.status).toBe("running");
+
+    const kill = find(sessionVerbs(IDS.session, DEPS), "kill");
+    expect(kill?.run).toBeUndefined();
+    expect(kill?.disabledReason).toBe("Another change to this session has not finished yet.");
+  });
+
+  it("re-offers both verbs once the window has closed", async () => {
+    seed({ status: "running" });
+    killMock.mockResolvedValue(aSession({ status: "exited", exitReason: "killed" }));
+
+    find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+    await vi.advanceTimersByTimeAsync(TOAST_TTL_UNDO);
+
+    // The gate is the in-flight window, not a permanent lock — Forget is the whole point of
+    // killing something first.
+    expect(isSessionPending(IDS.session)).toBe(false);
+    expect(find(sessionVerbs(IDS.session, DEPS), "forget")?.run).toBeTypeOf("function");
+  });
+});
+
+// I1. The poller replaces sessions every 2 s; a deferred verb holds its request for 6 s. Without
+// suppression the row returns about two seconds into the window, with the Undo toast still up.
+// The suppression lives in `replaceSessions` so every deferred verb gets it for free; these
+// tests drive the store action directly, which is what the poller calls.
+describe("the 2 s poller cannot undo a deferred verb inside its window", () => {
+  /** What the server still reports, because the request has not been sent. */
+  const serverRows = (): Session[] => [
+    aSession({ id: IDS.sessionB, title: "Retention rules" }),
+    aSession({ status: "running" }),
+  ];
+
+  it("a killed row keeps its optimistic status across a poll", async () => {
+    seed({ status: "running" });
+    useCockpit.getState().upsertSession(aSession({ id: IDS.sessionB, title: "Retention rules" }));
+    killMock.mockResolvedValue(aSession({ status: "exited", exitReason: "killed" }));
+
+    find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+    useCockpit.getState().replaceSessions(serverRows(), [IDS.worktree]);
+
+    expect(useCockpit.getState().sessions[IDS.session]?.status).toBe("exited");
+    expect(useCockpit.getState().sessions[IDS.session]?.exitReason).toBe("killed");
+    // Its neighbour, which is NOT pending, still takes the server's row.
+    expect(useCockpit.getState().sessions[IDS.sessionB]?.title).toBe("Retention rules");
+    expect(useCockpit.getState().sessionIdsByWorktree[IDS.worktree]).toEqual([
+      IDS.sessionB,
+      IDS.session,
+    ]);
+
+    // And Undo still restores, because nothing was sent and nothing overwrote the snapshot.
+    lastToast()?.undo?.();
+    expect(useCockpit.getState().sessions[IDS.session]?.status).toBe("running");
+    await vi.advanceTimersByTimeAsync(TOAST_TTL_UNDO * 2);
+    expect(killMock).not.toHaveBeenCalled();
+  });
+
+  it("a forgotten row stays gone across a poll, and out of the index", () => {
+    seed({ status: "exited" });
+    useCockpit.getState().upsertSession(aSession({ id: IDS.sessionB, title: "Retention rules" }));
+
+    find(sessionVerbs(IDS.session, DEPS), "forget")?.run?.();
+    useCockpit.getState().replaceSessions(serverRows(), [IDS.worktree]);
+
+    expect(useCockpit.getState().sessions[IDS.session]).toBeUndefined();
+    // The index matters as much as the map: an id here with no record renders a row the session
+    // map cannot fill.
+    expect(useCockpit.getState().sessionIdsByWorktree[IDS.worktree]).toEqual([IDS.sessionB]);
+  });
+
+  it("stops suppressing the moment the window closes", async () => {
+    seed({ status: "running" });
+    killMock.mockResolvedValue(aSession({ status: "exited", exitReason: "killed" }));
+
+    find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+    await vi.advanceTimersByTimeAsync(TOAST_TTL_UNDO);
+    expect(isSessionPending(IDS.session)).toBe(false);
+
+    // The server is authoritative again. A suppression that outlived the window would freeze the
+    // row for ever, which is a worse failure than the one it fixes.
+    useCockpit.getState().replaceSessions([aSession({ status: "idle" })], [IDS.worktree]);
+    expect(useCockpit.getState().sessions[IDS.session]?.status).toBe("idle");
+  });
+
+  it("holds a pending row the server has stopped listing, rather than orphaning it", () => {
+    seed({ status: "running" });
+    useCockpit.getState().upsertSession(aSession({ id: IDS.sessionB, title: "Retention rules" }));
+
+    find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+    // Another client purged it, or the reaper did. The row is held either way: present in the
+    // map AND in the index, because present-but-unindexed renders nowhere and Undo cannot
+    // repair it — upsertSession leaves an existing id's position alone, and there would be none.
+    useCockpit
+      .getState()
+      .replaceSessions([aSession({ id: IDS.sessionB, title: "Retention rules" })], [IDS.worktree]);
+
+    expect(useCockpit.getState().sessions[IDS.session]?.status).toBe("exited");
+    expect(useCockpit.getState().sessionIdsByWorktree[IDS.worktree]).toEqual([
+      IDS.sessionB,
+      IDS.session,
+    ]);
   });
 });
 
@@ -515,6 +774,23 @@ describe("markWorktreeReady and §10.2's verb", () => {
     expect(already).toHaveLength(1);
     expect(already[0]?.run).toBeUndefined();
     expect(already[0]?.disabledReason).toContain("Already marked ready");
+  });
+
+  // Minor 3. `replaceById` returns a copy for an id it cannot find, and `selectWorktrees`
+  // returns the shared empty constant for a branch the store does not hold — so an unguarded
+  // write turns a failed lookup into `worktreesByBranch[branchId] = []`, a branch that exists
+  // and is empty where there was no key at all. The rail would then draw a branch with no
+  // worktrees rather than one that has simply not loaded.
+  it("does not invent a branch when the worktree is not in the store", async () => {
+    seed();
+    const orphan = aWorktree({ id: "w-orphan", branchId: "b-never-loaded", ready: false });
+    readyMock.mockResolvedValue({ ...orphan, ready: true });
+
+    markWorktreeReady(orphan);
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(useCockpit.getState().worktreesByBranch["b-never-loaded"]).toBeUndefined();
+    expect(Object.keys(useCockpit.getState().worktreesByBranch)).toEqual([IDS.branch]);
   });
 
   it("closes the host menu before it mutates, so the Undo toast is not hidden behind it", () => {

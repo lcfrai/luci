@@ -157,10 +157,21 @@ export function ContextMenu(): JSX.Element {
     return sessionVerbs(id, {
       createSession,
       close: closeContextMenu,
-      // The rail row has no room for a text field, so Rename re-routes to the ⋯ menu, which
-      // owns the only rename surface in the app. One surface, two ways in. The close is HERE
-      // rather than in sessionVerbs' `act` wrapper: `act` would also close SessionMenu's own
-      // menu, which is the surface the rename input has to appear in.
+      // TWO STEPS, AND THAT IS INTENDED. From the rail, Rename… closes this menu and opens the
+      // ⋯ menu; the user then clicks Rename… again there to get the input. The rail row has no
+      // room for a text field and this task creates no second rename surface, so the ⋯ menu
+      // owns the only one in the app — one surface, two ways in.
+      //
+      // The cheap alternative was considered and not taken: a module-level "rename armed for
+      // id" that `SessionMenu` reads on mount would open the input directly. It is a third piece
+      // of cross-menu module state whose lifetime nothing owns — it has to be cleared on mount,
+      // on close, and on a session that disappears between the two — to save one click on the
+      // less-used of the two entry points. If a reviewer wants the one click, that is the shape,
+      // and the clearing rules are the work.
+      //
+      // The close is HERE rather than in `sessionVerbs`' `act` wrapper: `act` would also close
+      // SessionMenu's own menu, which is the surface the rename input has to appear in. That was
+      // this task's correction 2 and it is what made Rename work at all.
       beginRename: (sessionId) => {
         closeContextMenu();
         openSessionMenu(sessionId);
