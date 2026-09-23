@@ -84,7 +84,8 @@ func (k Key) IsZero() bool
 
 // ForTest is a fixed, non-zero key for tests in any package. It is not secret
 // and never minted: Mint is the only constructor main.go may call, and
-// TestNoCommandUsesForTest (a scan of control-plane/cmd's non-test .go files) pins that.
+// TestNoCommandUsesForTest (a scan of every non-test .go file in control-plane/
+// outside internal/localkey) pins that.
 func ForTest() Key
 
 // ForTestHeader is "Bearer " + ForTest()'s text, and ForTestSubprotocols is
@@ -110,12 +111,23 @@ func Mint(path string) (Key, error)
 // Middleware requires the key on EVERY request it sees; it has no exemption
 // parameter. The key arrives one of two ways:
 //   - "Authorization: Bearer <key>", on any request; or
-//   - a WebSocket upgrade (GET with "Upgrade: websocket") whose
-//     Sec-WebSocket-Protocol list is exactly {Subprotocol, SubprotocolKeyPrefix+key},
-//     in that order (review I3). Not on any other request: a plain GET that offers
-//     the subprotocol key is refused, so the header path stays the only one a
-//     non-WebSocket caller can use.
-// Both compare with crypto/subtle.ConstantTimeCompare. A zero k matches nothing.
+//   - a WebSocket upgrade whose Sec-WebSocket-Protocol list is exactly
+//     {Subprotocol, SubprotocolKeyPrefix+key}, in that order (review I3). Not on any
+//     other request: a plain GET that offers the subprotocol key is refused, so the
+//     header path stays the only one a non-WebSocket caller can use.
+//   "Upgrade" is the rule api's isWebSocketUpgrade applies (attach.go:350-352), restated
+//     here because localkey cannot import api: a GET whose Connection header carries the
+//     token "upgrade" (any case, in any of its comma-separated values) AND whose Upgrade
+//     header is "websocket" (strings.EqualFold). Not a bare Upgrade check.
+//   "The list" is the tokens of EVERY Sec-WebSocket-Protocol header line, each value split
+//     on "," and strings.TrimSpace'd, empties dropped, in order (re-review m1). That is how
+//     coder/websocket's own headerTokens reads it (accept.go:331, v1.8.12), and it accepts
+//     both wire spellings: Dial's "a,b" (dial.go:200) and the browser's "a, b", and the
+//     list split across two header lines. Comparing the raw header string passes every
+//     Go test (they all use Dial) and refuses the real window.
+// Both compare with crypto/subtle.ConstantTimeCompare. A zero k matches nothing, on
+// both paths: the zero check comes before the comparison, not inside the header branch,
+// because ConstantTimeCompare of two empty slices returns 1 (re-review m2).
 // Missing or wrong → 401 local_key_required with
 // WWW-Authenticate: Bearer realm="panacea-app-local". It never logs a header's value.
 func Middleware(k Key, next http.Handler) http.Handler
@@ -159,12 +171,15 @@ outside both.
 
 ```go
 if d.LocalKey.IsZero() {
-	return nil, errors.New("api: Deps.LocalKey is zero; every route would be open to any process that reaches loopback")
+	return nil, errors.New("api: Deps.LocalKey is zero; build it with localkey.Mint (localkey.ForTest in a test)")
 }
 ```
 
 There is no "zero means no check" branch anywhere, in `New` or in `Middleware`: a wiring slip in
-`main.go` must stop the process, never open it.
+`main.go` must stop the process, never open it. (A zero key that did reach `Middleware` would match
+nothing, so every route would refuse every caller: a control plane that is up and useless. `New`
+refuses it so the slip shows at startup, not as a wall of 401s. Re-review m5 corrected the old
+message, which claimed every route would be *open*.)
 
 **The one test helper** (`control-plane/internal/api/export_test.go`, package `api`, so both the
 `api` and `api_test` test files can call it):
@@ -191,7 +206,8 @@ The `client.ts:6-8` comment (*"no Authorization header … before Phase 8"*) is 
 #### Tests to write first
 
 Where each lives: `TestMint…`, `TestTheKey…`, `TestAZeroKeyMatchesNothing`, `TestNoCommandUsesForTest`
-(it reads `../../cmd`), `TestAWrongKeyIs401` and `TestTheSubprotocolKeyIsOnlyForUpgrades` in
+(it walks `../..`, the whole `control-plane/` module), `TestAWrongKeyIs401`,
+`TestTheSubprotocolListIsReadAsTokens` and `TestTheSubprotocolKeyIsOnlyForUpgrades` in
 `internal/localkey/localkey_test.go`, against `Middleware` alone. `TestEveryGuardedRouteNeedsTheKey`,
 `TestHealthzNeedsNoKey`, `TestAttachNeedsTheKeyInItsSubprotocol`, `TestAPreflightNeedsNoKey` and
 `TestADisallowedOriginIsStillRefusedFirst` in `internal/api/localkey_test.go`, **package `api`**, so
@@ -204,15 +220,16 @@ table.
 | `TestTheKeyPathFollowsStatepath` | with `PANACEA_APP_STATE_DIR=/tmp/s` → `/tmp/s/auth/local-key`; with only `LOCALAPPDATA=C:\Users\u\AppData\Local` → `C:\Users\u\AppData\Local\PanaceaApp\state\auth\local-key`; `PANACEA_APP_LOCAL_KEY_FILE` overrides both — the same examples task 38's Rust test pins | a control plane and a shell looking in two places |
 | `TestTheKeyFileIsPrivate` (non-Windows) | mode `0600`, directory `0700` | a key any local user can read |
 | `TestTheKeyNeverPrints` | `%v`, `%+v`, `%#v`, `slog` of a `Key` → `redacted`; no response body in any test below contains it | the key in a log |
-| `TestEveryGuardedRouteNeedsTheKey` | for **every** pattern in `API.RegisteredPatterns()`, attach included, with no exceptions, a request with ids filled in and no key → 401 `local_key_required`; with the key → not 401 | a route added later that forgets the key (the §10a audit's own technique); an exemption list growing back |
+| `TestEveryGuardedRouteNeedsTheKey` | for **every** pattern in `API.RegisteredPatterns()`, attach included, with no exceptions, a request with ids filled in and no key → 401 `local_key_required`; with the key → not 401 **with code `local_key_required`** (a Hub route may still answer 401 `signed_out`, task-32.md:27, task-35.md:131; plain "not 401" would fail falsely on a signed-out fixture — re-review, outside b02) | a route added later that forgets the key (the §10a audit's own technique); an exemption list growing back |
 | `TestNewRefusesAZeroLocalKey` (`api_test.go`, through `catalogNewDeps`) | `d.LocalKey = localkey.Key{}` → `New` returns an error containing `Deps.LocalKey is zero` and a nil handler (C2) | a zero key treated as *no check*: fails open, every test still green |
-| `TestAZeroKeyMatchesNothing` (`internal/localkey/localkey_test.go`) | `Middleware(localkey.Key{}, next)`: no header, `Bearer ` (empty), `Bearer <43 × "A">` → all 401, `next` never called | the same fail-open, one layer down |
-| `TestNoCommandUsesForTest` (`internal/localkey/localkey_test.go`) | no non-test `.go` file under `control-plane/cmd/` contains `localkey.ForTest` | production wired with the public test key |
+| `TestAZeroKeyMatchesNothing` (`internal/localkey/localkey_test.go`) | `Middleware(localkey.Key{}, next)`: no header, `Bearer ` (empty), `Bearer <43 × "A">` → all 401; **and on the upgrade path** (re-review m2), a WebSocket-upgrade GET offering `{"panacea.v1", "panacea.key."}` (an empty key) and one offering `{"panacea.v1", "panacea.key.<43 × "A">"}` → both 401; `next` never called in any case | the same fail-open, one layer down; a zero-key guard written only in the header branch, which the upgrade path passes because `ConstantTimeCompare` of two empty slices is 1 |
+| `TestNoCommandUsesForTest` (`internal/localkey/localkey_test.go`) | no non-test `.go` file anywhere under `control-plane/` outside `internal/localkey/` itself contains `localkey.ForTest` (it walks `../..`; re-review m5 widened it from `cmd/`, at the same cost) | production wired with the public test key, from `main.go` or from an internal package's "helpful default" |
+| `TestTheSubprotocolListIsReadAsTokens` (`internal/localkey/localkey_test.go`; re-review m1) | a WebSocket-upgrade GET whose `Sec-WebSocket-Protocol` is the browser's spelling `"panacea.v1, panacea.key.<k>"` → `next` called; the same list as two header lines (`panacea.v1` and `panacea.key.<k>`) → `next` called; `"panacea.v1,panacea.key.<k>"` (Dial's spelling) → `next` called; `Connection: keep-alive, Upgrade` with `Upgrade: WebSocket` → treated as an upgrade; `Upgrade: websocket` with no `Connection` token → not an upgrade, 401 | a raw-string compare against `","` that passes every `Dial`-based test and refuses the real window; an upgrade test that differs from `isWebSocketUpgrade` |
 | `TestAWrongKeyIs401` | `Bearer <another key>`, `Bearer`, `Basic …` → 401 | a prefix match or an empty-string match |
 | `TestHealthzNeedsNoKey` | `GET /v1/healthz` and `GET /api/v1/healthz` → 200 without a key (A3) | a supervisor restarting a healthy control plane |
 | `TestAttachNeedsTheKeyInItsSubprotocol` (review I3; replaces `TestAttachIsExempt`) | through `New`'s handler, on `/v1/sessions/{id}/attach` and the `/api` alias, against a running fixture session served by `httptest.NewServer(a)`: a `websocket.Dial` with no subprotocols → 401 `local_key_required`; with `{"panacea.v1", "panacea.key.<wrong>"}` → 401; with the two entries swapped → 401; with `{"panacea.v1"}` only → 401; with `localkey.ForTestSubprotocols()` → the socket opens and `c.Subprotocol()` is `panacea.v1`; the handshake response's `Sec-WebSocket-Protocol` header and every captured log line contain no `panacea.key.` text | a PTY any local process can type into after guessing 32 bits; a prefix or ordering match; the key echoed back or logged |
 | `TestTheSubprotocolKeyIsOnlyForUpgrades` | a plain `GET /v1/sessions` (no `Upgrade`) whose `Sec-WebSocket-Protocol` is `ForTestSubprotocols()` → 401 | the subprotocol turned into a second, header-shaped credential for every route |
-| `TestTheProcessRefusesToStartWithoutAKey` (`cmd/api/main_test.go`, in the style of `TestRunRefusesANonLoopbackBindWithExitCode2`, `:392`) | `run` with `PANACEA_APP_LOCAL_KEY_FILE` under a path whose parent is a regular file, and `PANACEA_APP_ADDR=127.0.0.1:8761` → a non-zero exit, `errOut` names the path and says the local key could not be written, and a `net.Dial` to `127.0.0.1:8761` is refused. `Mint` is the first thing `serve` (`main.go:66`) does, before `newBackend` and `api.New` (`:132`) and the listener (`:154`), so the test needs no Docker | a control plane that serves with no key file the desktop can read, or with a key it never wrote |
+| `TestTheProcessRefusesToStartWithoutAKey` (`cmd/api/main_test.go`, written exactly as `TestRunRefusesANonLoopbackBindWithExitCode2` is, `:392-402`: `run(env(runHermetic(t, map[string]string{envLocalKeyFile: …})), &out)`, where `envLocalKeyFile` is the constant this task adds for `PANACEA_APP_LOCAL_KEY_FILE` beside `envAddr` and `envBackend` in `cmd/api/config.go:28-30`) | `PANACEA_APP_LOCAL_KEY_FILE` under a path whose parent is a regular file → a non-zero exit, and `out` names the path and says the local key could not be written. **It must go through `runHermetic`** (`config_sandbox_test.go:228-240`; re-review m4), which forces `kata` with a kubeconfig `kubeClient` refuses, a `t.TempDir()` state directory and port 0. That is what makes it safe **while it is red**: once green, `Mint` is the first thing `serve` (`main.go:66`) does, before `newBackend` (`:67`), `api.New` (`:132`) and the listener (`:154`); but in the mandated red run, and under the mutant that moves `Mint` after `newBackend`, a test without `runHermetic` would start the default Docker backend, whose reaper sweeps the shared daemon at once with an empty registry (`main.go:85-97`), and then serve and hang. Under `runHermetic` both fail in `newBackend` with a kubeconfig error that does not name the key path, so the test is red and nothing is touched. (No `net.Dial` assertion: `run` returns only after `serve` does, so a dial after it proves nothing.) | a control plane that serves with no key file the desktop can read, or with a key it never wrote |
 | `TestAPreflightNeedsNoKey` | `OPTIONS /v1/sessions` with an allowed `Origin` → 204 with `Access-Control-Allow-Headers: Content-Type, Authorization` (A4) | every request failing at the preflight — the failure A4 exists to prevent |
 | `TestADisallowedOriginIsStillRefusedFirst` | a bad `Origin` with a good key → 403 `forbidden_origin` | the key replacing the origin check instead of adding to it |
 

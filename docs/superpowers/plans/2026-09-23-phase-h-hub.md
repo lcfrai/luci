@@ -289,7 +289,7 @@ parallel worktrees (see §"Order and parallel lanes").
 | `desktop/src-tauri/src/lib.rs` ⚑ | `local_key` command | modified | 38 |
 | `desktop/src/api/localKey.ts`, `desktop/src/api/index.ts` | fetch the key once, hold it in memory; build `api` with it | new, modified | 38 |
 | `desktop/src/api/client.ts` ⚑ | the key on every call, and in the attach socket's subprotocol (`openAttach` becomes async, review I3); auth, hub-link, credential and change functions; new codes | modified | 38, 40 |
-| `desktop/src/api/attachRegistry.ts` ⚑ | `connect` awaits `openAttach` (review I3) | modified | 38 |
+| `desktop/src/api/attachRegistry.ts` ⚑ | `connect` awaits `openAttach` (review I3); a pending key read counts as in flight, by a monotonic handshake generation (re-review N1) | modified | 38 |
 | `desktop/src/api/hubFeed.ts` | the one feed reader and its subscriber registry | new | 40 |
 | `desktop/src/api/poller.ts` ⚑, `desktop/src/App.tsx` ⚑ | the header hook after a good tick; one line wiring it | modified | 40 |
 | `desktop/src/store/slices/authSlice.ts`, `store/store.ts` ⚑, `store/types.ts` ⚑ | sign-in and share state, never persisted | new, modified | 40, 42 |

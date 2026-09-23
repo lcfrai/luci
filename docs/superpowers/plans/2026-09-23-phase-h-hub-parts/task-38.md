@@ -15,7 +15,7 @@ control plane compares the second entry and echoes only `panacea.v1`. The key is
 - `desktop/src/api/localKey.ts` + `localKey.test.ts` (new)
 - `desktop/src/api/client.ts` + `client.test.ts` — the header, the retry, the new codes, the comment at `:6-8` (modify ⚑)
 - `desktop/src/api/index.ts` — construct `api` with the key source (modify)
-- `desktop/src/api/attachRegistry.ts` + `attachRegistry.test.ts` — `connect` (`:385`) awaits `openAttach` (modify ⚑; review I3)
+- `desktop/src/api/attachRegistry.ts` + `attachRegistry.test.ts` — `connect` (`:385`) awaits `openAttach`, and a pending key read counts as in flight at `connect`, `retryAttach` and `updateAttachSession` (modify ⚑; review I3, re-review N1)
 - The fake clients whose `openAttach` returns a socket synchronously, each changed only to return
   it from an `async` function: `attachRegistry.test.ts:26`, `components/Terminal.test.tsx:45`,
   `defects.test.tsx:92` and `:176`, `hooks/useKeyboardMap.xterm.test.tsx:55` (modify; Step 1
@@ -109,9 +109,42 @@ path and never the content. `attachUrl` stays unchanged: no key, no query.
 becomes an `await`, inside the existing `try`, whose `catch` already schedules a retry (`:410-413`).
 The comment at `:407-408` (*"No Authorization header … before Phase 8 (§4.5)"*) becomes: *"The
 local caller key rides in the subprotocol (Hub plan task 38; UI contract §4.5 as amended by task
-44a)."* After the `await`, if `entry.destroyed`, or `entry.attempts` has moved on from the value
-this call set at `:392`, the new socket is closed at once and nothing is published. That is the one
-new race an async open creates.
+44a)."*
+
+**The pending key read is "in flight" too (plan re-review b02 N1).** Phase 2 reads
+`entry.ws !== null` as *"a socket is open or a handshake is in flight"*. An `await` leaves
+`entry.ws` null for the whole key read, so that one test loses its meaning at three sites:
+`connect`'s top guard (`:386`) would let a stale rung or any other caller open a second socket;
+`retryAttach`'s guard (`:259`) would pass and zero a ladder the pending call still runs on; and
+`updateAttachSession` (`:212`) would publish `ended` for a handshake that then publishes over it.
+`entry.attempts` cannot tell the calls apart either: `retryAttach` (`:276`) and `onopen` (`:421`)
+both reset it to 0, so a superseding call can land on the same value (ABA) and leak the first
+socket, a live attach to the PTY that nothing reads. The fix, complete:
+
+1. `Entry` (`:95-110`) gains two fields. `openSeq: number` is a handshake generation that only
+   ever increases, never reset by anything. `opening: number` is the generation of the key read
+   now pending, and 0 when none is. Both start at 0 in the entry literal (`:139-159`).
+2. One predicate, `inFlight(entry) = entry.ws !== null || entry.opening !== 0`, replaces the bare
+   `entry.ws` test at `:386`, `:259` and `:212`, and nowhere else: the socket handlers' own
+   `entry.ws !== ws` guards (`:417`, `:429`, `:437`) are about *which* socket, not whether one
+   exists, and stay as they are. The comment at `:254-258` and mechanism 2 of `:266-267` now name
+   the pending read beside the live socket.
+3. `connect`, just before the `await`: `const gen = ++entry.openSeq; entry.opening = gen;`.
+4. After the `await` (both the resolve and the `catch`), the call first checks
+   `entry.opening === gen && !entry.destroyed`. When that fails, a resolved socket is closed at
+   once, nothing is published and nothing is scheduled. When it holds, `entry.opening = 0`, and
+   then: a rejected read runs the existing `scheduleRetry(entry)`; a resolved read whose session
+   exited during the read (the poller's `updateAttachSession` left it alone, by step 2) closes the
+   socket and runs `scheduleRetry(entry)`, whose exited branch (`:503`) publishes `ended`; any
+   other resolved read sets `entry.ws = ws` and wires the handlers, exactly as today.
+5. `destroy()` (`:643`) also sets `entry.opening = 0`, so a read that settles after the pane closed
+   fails step 4's first check on two counts.
+
+**Declared equivalent mutant.** With step 2's three guards in place, nothing can start a second
+`connect` while a read is pending, so dropping the `entry.opening === gen` half of step 4 (keeping
+`!entry.destroyed`) survives every test. It is the check that keeps the file safe the day one of
+those guards is removed, which is exactly how this defect arose. The guards themselves are each
+killed by a named test below.
 
 `problems.ts`'s `classify` is **unchanged**: the new codes are `server-said`, rendered verbatim (four call sites switch on
 `classify` — `EmptyDevelop.tsx:57`, `SessionPane.tsx:48`, `sessionVerbs.ts:85`,
@@ -132,6 +165,9 @@ new race an async open creates.
 | `every attach handshake reads the key afresh` | `invoke` answers `k1`, then `k2`; two `openAttach` calls → the second socket's protocols carry `panacea.key.k2`, and a REST call after it sends `Bearer k2` | a terminal that never reattaches after a control-plane restart, because the refused handshake gave it no 401 to react to |
 | `a key that cannot be read fails the open, not the app` | `invoke` rejects → `openAttach` rejects with the command's message; the registry schedules a retry (`attachRegistry.test.ts`) | an unhandled rejection; a pane stuck on "connecting" |
 | `a pane closed while the key is read opens nothing` (`attachRegistry.test.ts`) | `openAttach` held pending, the entry destroyed, then resolved → the socket is closed at once and no phase is published | a socket leaked by the new `await` |
+| `a retry while the key is read opens one socket` (`attachRegistry.test.ts`; re-review N1) | `openAttach` held pending on the first `connect`; `retryAttach("s-1")` → returns `false` and `openAttach` is not called again; resolve → exactly one socket exists and it is `entry.ws`, and the published `attempts` was never zeroed | `retryAttach`'s guard testing `entry.ws` alone (`:259`): the second call lands on the same `attempts`, both publish, and the first socket leaks |
+| `a stale rung firing during the key read opens nothing` (`attachRegistry.test.ts`; re-review N1) | the mid-ladder shape of `:810-827`: a close arms a 250 ms rung; at t=100 `retryAttach` starts a `connect` whose `openAttach` is held pending; advance to t=250, where the stale rung fires → `openAttach` was called exactly twice in all (the first socket, the retry), not three times; resolve → one live socket | `connect`'s top guard testing `entry.ws` alone (`:386`): the stale rung opens a second socket off the replaced ladder |
+| `a session that exits while the key is read ends once` (`attachRegistry.test.ts`; re-review N1) | `openAttach` held pending; `updateAttachSession` with `status: "exited"` → no `ended` is published yet; resolve → the socket is closed at once, `ended` is published once, and `attached` never is | `updateAttachSession`'s guard testing `entry.ws` alone (`:212`): `ended` published while the handshake is pending, and the handshake publishing over it |
 | `the key is never in an error` | every `ApiError` above: `message` and `details` do not contain `k1` or `k2` | the key surfacing in the rail footer's error line (`RailFooter.tsx:74-76`) |
 | `the key is not in the store` | after calls, `JSON.stringify(useCockpit.getState())` and `localStorage` contain neither key | a persisted key that outlives the process |
 
@@ -144,7 +180,8 @@ and `/tmp/s/auth/local-key` (`PANACEA_APP_STATE_DIR=/tmp/s`), which task 37's Go
 - [ ] **Step 1:** Re-read contract §9.4; `client.ts` in full; `lib.rs`; `attachRegistry.ts:375-430`
   (`openIfLive` and `connect`). Re-derive the fake-client list in Files with its `git grep`.
 - [ ] **Step 2:** Tests; they fail. Then `localKey.ts`, the three `send` changes, the codes, the
-  comment, the async `openAttach` and its subprotocols, `connect`'s `await` and its race guard,
+  comment, the async `openAttach` and its subprotocols, `connect`'s `await`, the `openSeq` /
+  `opening` generation and the `inFlight` predicate at its three sites (re-review N1),
   the fakes (each only made `async`), `index.ts`, `lib.rs`. A phase-2 test that reads a fake socket
   in the same tick as the attach now awaits one microtask first; that is the only other change a
   test may get (how many such tests exist is unverified until Step 2 runs them).
