@@ -1,0 +1,315 @@
+### Task 20: Seams, the live check (owner-batched), and the Panacea ask
+
+**Half:** — . **Hours:** 1.5 to write; the owner's live session is about 45 minutes. **Depends
+on:** all. **Elsewhere:** Hub H5 running for the Ship steps; the owner's hands (OD-12).
+
+Three things close the phase. **The seams**, written down as built, so the Panacea lift (OD-13) and
+the later phases find each one by path and test, not by memory. **The live check**, the one place
+phase 7 meets real Panacea: every item earlier parts marked *unverified* is settled here, in one
+session the owner runs at the end with everything else (OD-12) — until then each stays unverified,
+and every report says so. **The Panacea ask**, drafted for the owner to send (plan §11 Q-P7-2,
+Q-P7-3; ruling R7): sending it is the owner's, not the plan's.
+
+**Nothing in this task calls Panacea while it is being written.** The live test is build-tagged and
+runs only in the owner's session.
+
+**Files:**
+- `docs/superpowers/plans/2026-09-23-phase-7-deploy-parts/SEAMS.md` (new) — the seams and the Hub asks, as built
+- `docs/superpowers/plans/2026-09-23-phase-7-deploy-parts/LIVE-CHECK.md` (new) — the owner's session, step by step, with a column for what was seen
+- `docs/superpowers/plans/2026-09-23-phase-7-deploy-parts/panacea-metadata-ask.md` (new) — the note to Panacea's team
+- `control-plane/internal/deploy/panacea/live_test.go` (new, `//go:build live`) — the read-only half of the live check
+
+#### `SEAMS.md` — complete, with the paths the implementer fills in
+
+Each row names the file and the test that holds it. The implementer replaces every `<…>`
+with the real line when the task lands; a seam with no test is not done.
+
+```markdown
+# Phase 7 — seams, as built
+
+| Seam | Held by (file : line) | Pinned by (test) | The later phase | Must not |
+|---|---|---|---|---|
+| S7-N1 the native deployer | `deploy.Deployer` (`control-plane/internal/deploy/deploy.go:<…>`); `panacea.Client` wired once in `cmd/api/main.go:<…>` | `deploytest.Conformance` over `Fake`, and `TestConformanceOverConnector` (task 03) | the Panacea lift (OD-13) passes the suite and swaps one line in `main.go`; deletes the `PanaceaApp/panacea/<host>` credential row | change a domain type to fit Panacea's wire; add a Panacea-only method |
+| S7-N2 the metadata mirror | `panacea.Client.Ship` (`panacea/acts.go:<…>`) sends no `metadata` | `TestShipSendsExactlyBranchCommit` (task 04) | if ask 1 below is granted: send `{"panacea.app/release": "<rl-…>"}`; the watcher may confirm a crashed reservation by it (ADR-H1 R3) | pin by the annotation — it names a reservation; the pin stays the Hub's |
+| S7-N3 Panacea-side hash suffix | the collision rule, `deploywatch/view.go:<…>` | `TestCollisionExactStrings` (task 08) | if ask 3 is granted, collisions stop firing on their own | re-implement `sanitizeBranchEnv` here |
+| S7-N4 a rollback as a Panacea row | "serving after rollback", `deploywatch/view.go:<…>` (plan 7P-4) | `TestRollbackIsCurrent` (task 08) | if ask 2 is granted: a portal rollback shows as a `rollback` row; the Hub rule stays for cockpit rollbacks | drop the Hub's confirmed-rollback reading before Panacea's rows are observed live |
+| S7-E1 phase 8's environment | the Panacea origin and CA are configuration (`cmd/api/config.go:<…>`, plan §6) | `TestParseOriginTable` (task 02), `TestLockedOriginRefusesAnother` (task 05) | phase 8 sets them for the product's environment | hard-code `dev.panacea.kpmg` |
+| S7-X1 another deploy target | `deploy.Deployer` | the conformance suite | a customer-hosted tier implements the interface | branch on target type above it |
+| S7-P1 the criterion evaluator | criteria drawn `open`, *"no evidence recorded yet"* (phase 4's `ShippedManifest`, mounted by `deploy/PinManifest.tsx:<…>`) | `pinned renders the pinned ref` (task 17) | phase 3's `evidence.Evaluator` at `Deployment.Commit` (`S3-P7.5`) | evaluate at the branch head (P12) |
+| S7-P2 the merge link | `PinManifest` passes no `mergeRef` (`deploy/PinManifest.tsx:<…>`) | `no merge link is claimed` (task 17) | whichever phase records a merge link in the Hub adds a field to the release or a route; `PinManifest` passes it | infer a merge from a commit being on `main` |
+| S7-S1 sessions by trailer | `sessions.Reader.Read` (`deploy/sessions/sessions.go:<…>`) | `TestRangeIsExclusiveInclusive` (task 19) | phase 3's hook is the only writer of `Panacea-Session` | infer a session from a commit's time (`S3-P7.1`) |
+
+## Hub asks — state when phase 7 landed
+
+| Ask | Blocks | State (asked / answered / built) | Meanwhile, in code |
+|---|---|---|---|
+| HA7-1 environment may be null at reserve | the first Ship of a never-deployed branch | <…> | `409 deploy_environment_unknown` (task 09) |
+| HA7-2 rollback confirm is `{}` | nothing (phase 7 sends `{}`) | <…> | `TestRollbackConfirmsEmpty` (task 10) |
+| HA7-3 a shared deploy binding | nothing | <…> | the local choice file (task 06) |
+| HA7-4 a generic cursor mechanism | the desktop's cursor edge | <…> | the declared amendment (tasks 07, 13) |
+| HA7-5 a `kind` filter on releases | nothing | <…> | the watcher filters (task 07) |
+```
+
+#### `live_test.go` — the read-only half, complete
+
+It reads **the token the owner pasted into the connect panel**, from the credential store row task
+05 writes, through task 05's own `Manager` — never from an environment variable, a flag or a file,
+so the token is in no shell history. It writes nothing to Panacea. It logs field **names** and
+counts, never a body and never the token.
+
+```go
+//go:build live
+
+// Run in the owner's session only (LIVE-CHECK.md step 3):
+//   PANACEA_APP_LIVE_PROJECT=<panacea project> PANACEA_APP_LIVE_ENV=<an environment name> \
+//   go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/
+package panacea_test
+
+import (
+	"context"
+	"errors"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/credstore"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/deploy"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/deploy/connection"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/deploy/panacea"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/githost"
+)
+
+func liveDeployer(t *testing.T) (deploy.Deployer, deploy.ProjectRef, string) {
+	t.Helper()
+	project, env := os.Getenv("PANACEA_APP_LIVE_PROJECT"), os.Getenv("PANACEA_APP_LIVE_ENV")
+	if project == "" || env == "" {
+		t.Skip("PANACEA_APP_LIVE_PROJECT and PANACEA_APP_LIVE_ENV name what to read")
+	}
+	m, err := connection.New(connection.Config{
+		Secrets:    credstore.WinCred(),
+		IsNotFound: func(err error) bool { return errors.Is(err, credstore.ErrNotFound) },
+		NewClient: func(origin string, tokens panacea.TokenSource) (deploy.Deployer, error) {
+			return panacea.New(panacea.Config{Origin: origin, Tokens: tokens, UserAgent: "PanaceaApp/live-check"})
+		},
+	})
+	if err != nil {
+		t.Fatalf("connection: %v", err)
+	}
+	return m.Current(), deploy.ProjectRef(project), env
+}
+
+func TestLiveWhoamiAndProjects(t *testing.T) {
+	d, ref, _ := liveDeployer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	acct, err := d.Whoami(ctx)
+	if err != nil {
+		t.Fatalf("Whoami: %v", err) // KindUnauthorized here means the pasted token is rejected
+	}
+	t.Logf("account admin=%v", acct.Admin)
+	projects, err := d.Projects(ctx)
+	if err != nil {
+		t.Fatalf("Projects: %v", err)
+	}
+	for _, p := range projects {
+		if p.Ref != ref {
+			continue
+		}
+		// Plan §12: does GET /api/v1/projects return repoUrl to a non-admin token?
+		if p.RepoURL == "" {
+			t.Errorf("repoUrl is empty for %s: part 06's fallback (the user names the project) applies", ref)
+			return
+		}
+		// Task 06: Panacea normalises clone URLs; phase 3's parser must accept the result.
+		if _, err := githost.ParseRemote(p.RepoURL); err != nil {
+			t.Errorf("githost.ParseRemote(<repoUrl of %s>): %v", ref, err)
+		}
+		return
+	}
+	t.Fatalf("project %s is not visible to this token", ref)
+}
+
+// Records two answers the plan could not read from source (plan §12; task 08; 7P-8). It logs
+// them for LIVE-CHECK.md; it fails only when a read fails.
+func TestLiveEnvironmentsAndBranches(t *testing.T) {
+	d, ref, _ := liveDeployer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	envs, err := d.Environments(ctx, ref)
+	if err != nil {
+		t.Fatalf("Environments: %v", err)
+	}
+	for _, e := range envs {
+		t.Logf("environment name=%q primary=%v replicasMeasured=%v", e.Name, e.Primary, e.Replicas != nil)
+	}
+	deps, err := d.Deployments(ctx, ref)
+	if err != nil {
+		t.Fatalf("Deployments: %v", err)
+	}
+	slashed := 0
+	for _, x := range deps {
+		if strings.Contains(x.Branch, "/") {
+			slashed++
+		}
+	}
+	// Task 08: the PipelineRun label cannot hold "/" — does Deployment.branch carry the real name?
+	t.Logf("deployments=%d withSlashInBranch=%d", len(deps), slashed)
+}
+
+// Task 12: frames must arrive while the stream is open, not all at once when it closes — a
+// buffering proxy between this laptop and Panacea would batch them (DESIGN-SYSTEM :65 cannot
+// hold if it does). Panacea emits one reading at once (handlers/readiness_stream.go:199-201) and
+// its next bytes are a 25 s keepalive (:27), so a frame within 15 s means nothing held it.
+func TestLiveReadinessStreamIsNotBuffered(t *testing.T) {
+	d, ref, env := liveDeployer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+	defer cancel()
+	s, err := d.Stream(ctx, ref, deploy.StreamReadiness, env)
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	defer s.Close()
+	first := make(chan error, 1)
+	go func() { _, err := s.Next(); first <- err }()
+	select {
+	case err := <-first:
+		if err != nil {
+			t.Fatalf("first frame: %v", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("no readiness frame within 15 s: a proxy is buffering the stream, or Panacea sends none")
+	}
+}
+```
+
+The build-log stream is checked by eye in step 6 below, because it needs a run in progress.
+
+#### `LIVE-CHECK.md` — complete: the owner's one session (OD-12)
+
+```markdown
+# Phase 7 — live check (the owner's session, batched with phases 3–6)
+
+**You provide** (plan §11): one `pnc_` token from the dev Panacea portal (Account → API keys); one
+dev Panacea project whose repository is also a Hub project; about 45 minutes. **Running:** the
+control plane and desktop from `feat/phase-7-deploy`, and the Hub (H5) in `compose.yaml`.
+**Scratch branch:** `live-check/p7`, pushed, with one commit made from a sandbox session. Every
+write below touches **only** that branch. Write down its posture and auto-deploy before step 10.
+
+| # | Do | Expect | Settles | Seen |
+|---|---|---|---|---|
+| 1 | `go run ./control-plane/internal/deploy/panacea/cmd/versioncheck <dev origin>` | a version string. An `x509` error: stop, set `PANACEA_APP_PANACEA_CA_FILE` | 7P-10 on this laptop (task 02) | |
+| 2 | Deploy lens → paste the token → Connect | *connected*, or the awaiting-approval words; the field is empty after; `cmdkey /list` shows a `PanaceaApp/panacea/<host>` row | task 05, live | |
+| 3 | `PANACEA_APP_LIVE_PROJECT=<project> PANACEA_APP_LIVE_ENV=<an env> go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/` | `ok`; copy the logged environment names and the `withSlashInBranch` count here | repoUrl for a non-admin token (plan §12); `ParseRemote` on a real URL (task 06); `prod` vs `production` (7P-8); branch names with `/` (task 08); stream not buffered (task 12) | |
+| 4 | Select the project | *bound* to the Panacea project, with no question asked — or the one choice | task 06 | |
+| 5 | Compare the environment card with the Panacea portal for one environment | version, commit and pods ready agree; the three facts are three | tasks 08, 15 | |
+| 6 | On `live-check/p7`: Ship, then Undo inside 5 s | nothing new in the portal's pipeline list | 7P-15, task 16 | |
+| 7 | Ship again and wait; open the release; **Follow build log**; scroll up while it runs | the run shows within about 3 s; lines arrive as they happen; the pane does not jump | tasks 09, 12, 17 | |
+| 8 | Read the manifest | the pin is the brief's latest complete revision; the session from the scratch commit is listed | tasks 09, 17, 19; Hub H5 | |
+| 9 | Ship a second commit; then **Roll back to** the first release | the warmth line; the lens says the first is serving; the portal lists **no** rollback deployment | 7P-4, plan §12 | |
+| 10 | **Rebuild** the first release | a new run of the first release's commit; its pin says *inherited* | 7P-3, task 10 | |
+| 11 | Governance on the scratch branch: posture → `none`, Undo; → `password`, then back; deploy on push on, then off; claim an address, then release it | each held act sends nothing before 5 s; each refusal is Panacea's sentence | tasks 11, 18 | |
+| 12 | If a second, non-owner account is available, open the panel with it | the owner-only lines, before any press | 7P-9 | |
+| 13 | Put the scratch branch's posture and auto-deploy back as written down | as they were | — | |
+
+**After:** date, Panacea version (step 1) and this repository's commit at the top; commit this
+file; move each settled item out of plan §12. Anything that did not match is a defect against the
+task named in *Settles*, not a note.
+```
+
+#### `panacea-metadata-ask.md` — complete: the note, for the owner to send
+
+Every line it cites was re-read at Panacea `b02424691` (2026-09-24). The note asks; it does not
+assume a yes, and phase 7 builds nothing that needs one (seams S7-N2, S7-N3, S7-N4).
+
+```markdown
+# Three small asks of panacea-api, from the PanaceaApp cockpit
+
+The cockpit ships to Panacea through its existing API, as the signed-in user, with their own
+`pnc_` token. It records, in its own store, which brief each release was built against. Three gaps
+make that record weaker than it could be. Each ask is additive; none changes an existing answer.
+
+## 1. Carry a caller's reference on a deploy
+
+**Today.** `POST /api/v1/projects/{name}/deploy` decodes `models.TriggerDeployOptions`
+(`handlers/projects.go:2966-2968`), which has no field for a caller's reference
+(`models/models.go:2342-2382`); the decode ignores unknown fields, so anything extra is silently
+dropped. The PipelineRun gets only `panacea.io/deployed-by` and `panacea.io/trigger`
+(`clients/pipeline.go:82-97`, applied at `:681`).
+
+**Ask.** An optional `"metadata": {"<key>": "<value>"}` on that body — keys limited to a prefix
+such as `panacea.app/`, at most 8 entries of 256 bytes — written as PipelineRun annotations beside
+the two above, and returned on the deployment reads. The cockpit would send
+`{"panacea.app/release": "rl-…"}`.
+
+**Why.** Our deploy call can time out after Panacea has created the run: the handler spends up to
+15 s creating it (`handlers/projects.go:2983-2988`). Today the cockpit cannot tell which of its
+releases that run belongs to, so it records the release as abandoned and the run shows with no
+brief. With the reference, it can match them exactly.
+
+## 2. Record a rollback as a deployment
+
+**Today.** `RollbackDeployment` re-points the environment and returns the **source** deployment's
+id (`clients/kubernetes.go:5982`, `:6030`); no `panacea_deployments` row is written
+(`clients/deployment_store.go:195` is the only writer, and no caller sets `Trigger` to `rollback`,
+though `models/models.go:2378-2379` lists it as a value). So `deploys/latest` keeps reporting the
+newer build after a rollback, and a rollback made in the portal is invisible to any client.
+
+**Ask.** On a successful rollback, write a deployment row with a new id, `trigger_kind
+"rollback"`, the source deployment's id, `deployed_by`, and `created_at`; return that id.
+
+## 3. Keep two long branch names from sharing one environment
+
+**Today.** `sanitizeBranchEnv` lower-cases, turns `/` and `_` into `-`, and keeps the first 20
+characters (`handlers/projects.go:3814-3826`). `feature/evidence-upload-ui` and
+`feature/evidence-upload-api` both become `feature-evidence-upl`: each deploy replaces the other's,
+and nothing says so.
+
+**Ask.** When a name is longer than 20, keep 13 characters, a `-`, and the first 6 hex of the
+SHA-256 of the whole branch name (20 in all). This renames existing long-branch environments, so
+it needs your migration call; a flag on new projects only would also serve us.
+
+---
+Sent by <owner>, <date>. Contact for the cockpit side: <owner>.
+```
+
+#### Tests to write first
+
+The live test is the only code; what guards it runs in every ordinary build.
+
+| Test | Assertion | Mutant it kills |
+|---|---|---|
+| `go vet -tags live ./control-plane/internal/deploy/panacea/` | compiles against the real `connection`, `credstore`, `githost` and `deploy` names | a live check that rots unseen because nothing builds it until the owner's session |
+| `TestLiveFileIsTagged` (untagged, `panacea/live_guard_test.go`) | `live_test.go`'s first line is exactly `//go:build live` | a live call running in CI, or in an agent's `go test ./...` |
+| `TestLiveReadsNoSecretFromEnv` (untagged) | `live_test.go` contains no `Getenv` of a name holding `TOKEN`, `KEY` or `SECRET`, and no `t.Log` of a body | a token pasted into shell history, or written to a test log |
+| `TestSeamsNamesRealTests` (untagged, `control-plane/internal/deploy/seams_test.go`) | every `Test…` name in `SEAMS.md`'s *Pinned by* column exists in the repository (`go test -list` output, or a source grep) | a seam pinned by a test that was renamed away |
+| `TestSeamsHasNoPlaceholders` (same file) | after this task, `SEAMS.md` contains no `<…>` | a seam table left as a template |
+
+#### Steps
+
+- [ ] `SEAMS.md` from the block above; replace every `<…>` with the real line, and every
+  Hub-ask state with its state that day.
+- [ ] `LIVE-CHECK.md` and `panacea-metadata-ask.md` from the blocks above, verbatim.
+- [ ] `live_test.go`, `live_guard_test.go`, `seams_test.go`; `go vet -tags live`.
+- [ ] Add plan §10.2's two new rows (S7-N4, S7-P2) if they are not there, and point §12 at
+  `LIVE-CHECK.md`.
+- [ ] Commit by pathspec. The message says: *"The live check has not run. It is the owner's, batched
+  (OD-12)."*
+
+#### Acceptance
+
+```
+go vet -tags live ./control-plane/internal/deploy/panacea/            → no output
+go test ./control-plane/internal/deploy/... -count=1 -run 'Live|Seams' → ok (the live tests themselves skip: untagged)
+grep -c "<…>" docs/superpowers/plans/2026-09-23-phase-7-deploy-parts/SEAMS.md → 0
+```
+**The owner's session** (`LIVE-CHECK.md`) is the acceptance of every *unverified* line in the
+earlier parts. Until it runs, phase 7 is **built and tested against fakes, not verified live**.
+
+#### What this task does NOT claim
+
+- That the live check passed. It has not run; it runs once, with the owner, at the end (OD-12).
+- That Panacea's team will say yes to any ask. Phase 7 needs none of them to work; each only makes a
+  gap smaller, and each seam says what changes if it is granted.
+- That `LIVE-CHECK.md` covers visual acceptance. The owner's eyes on each lens state are the UI
+  tasks' own *Owner's eyes* lines, run in the same session.
