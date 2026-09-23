@@ -11,6 +11,14 @@ Node-warm has three parts. The first is the sandbox pool's `min_count` (task 06)
   instantly (priority ladder, task 11) and lands on an already-running node; the evicted balloon
   goes Pending, and the autoscaler adds a node for it **in the background**, so the next session
   also finds room.
+  **Balloons warm new machines, not a busy one** (review I5). A session must land on its
+  machine pod's node (required affinity on `kubernetes.io/hostname`, task 15), so a balloon helps
+  it only when the balloon happens to sit on that node, and after one preemption the evicted
+  balloon reschedules wherever there is room, usually elsewhere. What balloons buy is a warm Kata
+  slot for the next **machine** (and that machine's first session). A machine whose node is full
+  is not rescued by balloons or by the autoscaler, because a new node does not hold the machine
+  pod: the broker refuses that session with `409 machine_full` before it creates anything
+  (task 18), and the ceiling is stated in P8-D6.
 - **Pre-pull**: a DaemonSet on every sandbox node whose init containers pull the sandbox and machine
   images by digest, so no session waits on a registry.
 
@@ -62,10 +70,24 @@ The schema requires both images to match `^[a-z0-9.\-]+(:[0-9]+)?/[a-z0-9._/\-]+
 `warm-prepull.yaml` — `DaemonSet/image-prepull` in `panacea-sandboxes`, when `prepull.enabled`:
 sandbox-node selector and toleration; **no** `runtimeClassName` (a plain runc pod: the pull goes
 to the node's containerd image store); two `initContainers` (`pull-sandbox`, `pull-machine`) with
-the two digests and `command: ["/bin/true"]`; one container `hold`, the sandbox image,
+the two digests and `command: ["/bin/true"]`, **each with `requests: {cpu: 10m, memory: 16Mi}`
+and limits the same**; one container `hold`, the sandbox image,
 `command: ["/bin/sleep", "infinity"]`, `requests: {cpu: 10m, memory: 16Mi}`, limits the same;
 the same restricted `securityContext`; `priorityClassName: panacea-session` (it must not be
 preempted by a balloon).
+
+**Why the init containers are sized (review I4).** An unsized container in `panacea-sandboxes`
+takes the `LimitRange` defaults at admission, and LimitRanger defaults init containers too. The
+scheduler sizes a pod by the larger of its biggest init container and the sum of its containers,
+so one unsized init container makes the pre-pull pod as large as the default. With only a `max`,
+the default *is* the max (8 CPU / 32 GiB): more than a `Standard_D8s_v5` can allocate, so the pod
+sat Pending on every sandbox node, and Pending pods count against the quota — four of them hold
+the namespace's whole 128 GiB. Task 11 now also sets the default to one session (2 CPU / 4 GiB),
+but that would still cost one session of quota and one session of node per sandbox node. Sized at
+`10m`/`16Mi`, the pod costs almost nothing. (The defaulting behaviour is from training knowledge
+of Kubernetes, **UNVERIFIED** here; explicit sizes make it irrelevant.) Task 13's
+`netpolcover` case `every_sandbox_container_is_sized` fails the build if any container here, init
+or not, is left unsized or has requests ≠ limits.
 
 **The pre-pull only helps if Kata pods start from the host's image store.** For AKS Pod Sandboxing
 (not Confidential Containers) the host pulls and shares the rootfs into the guest — **from
@@ -83,6 +105,7 @@ this sentence says why.
 | `balloon_passes_restricted` | runAsNonRoot, no escalation, drop ALL, RuntimeDefault seccomp, no SA token | a balloon the `restricted` namespace rejects, so warm capacity silently never exists |
 | `images_must_be_digests` | `warm.images.sandbox: "x/sandbox:latest"` → render fails with the schema message | a mutable tag, which defeats OD-8's pin |
 | `prepull_pulls_both_images_on_sandbox_nodes` | two init containers with the two digests; sandbox nodeSelector; no runtimeClassName | the machine image not pre-pulled, so a machine's first wake is cold |
+| `prepull_init_containers_are_tiny` | `pull-sandbox` and `pull-machine` each have `requests == limits == {cpu: 10m, memory: 16Mi}` | an unsized init container, which LimitRanger defaults to a whole session and so holds a session's quota on every sandbox node (review I4) |
 | `zero_replicas_is_allowed` | `balloons.replicas: 0` renders `replicas: 0` | a schema that forbids turning balloons off |
 
 #### Steps
@@ -95,8 +118,8 @@ this sentence says why.
 
 ```bash
 helm unittest deploy/charts/platform
-# Test Suites: 6 passed, 6 total
-# Tests:       19 passed, 19 total
+# Test Suites: 7 passed, 7 total
+# Tests:       21 passed, 21 total
 ```
 
 #### What this task does not claim

@@ -57,9 +57,14 @@ sandboxes:
     pods: "64"
     persistentVolumeClaims: "64"
     requestsStorage: 4Ti
-  limitRange:                 # the largest single container the cluster will admit
-    maxCpu: "8"
+  limitRange:
+    maxCpu: "8"               # the largest single container the cluster will admit
     maxMemory: 32Gi
+    # What an unsized container gets (review I4): one session, never the max. MUST equal the
+    # broker's PANACEA_APP_BROKER_SESSION_CPU_MILLIS / _MEMORY_MIB and warm.balloons (task 12);
+    # task 29 passes all three from one value.
+    defaultCpu: 2000m
+    defaultMemory: 4096Mi
 
 storage:
   machineDisk:
@@ -98,7 +103,16 @@ not merely missed by a review.
 | `panacea-balloon` | -10 | **Never** | warm-capacity balloons (task 12): evicted first, never evict anything |
 
 `quota.yaml` — `ResourceQuota/sandboxes` and `LimitRange/sandboxes` in `panacea-sandboxes` from
-`sandboxes.quota` and `sandboxes.limitRange` (`type: Container`, `max`).
+`sandboxes.quota` and `sandboxes.limitRange`: one `type: Container` item with `max` (from
+`maxCpu`/`maxMemory`) **and** `default` and `defaultRequest` (both from `defaultCpu`/
+`defaultMemory`, so a defaulted container is `requests == limits`, as Kata needs). Without them, a
+container LimitRange with only `max` gives an unsized container `default = max` and
+`defaultRequest = default`, and LimitRanger defaults init containers too (training knowledge of
+Kubernetes, **UNVERIFIED** here): one unsized container asked for 8 CPU / 32 GiB, more than a
+`Standard_D8s_v5` can allocate, and sat Pending while counting against the quota (review I4).
+The default is a backstop, not a sizing policy: every pod this repo renders or the broker creates
+sizes every container itself, and task 13's `netpolcover` case `every_sandbox_container_is_sized`
+fails the build if one in this namespace does not.
 
 `networkpolicy-defaults.yaml` — in each of the four namespaces, `NetworkPolicy/default-deny`:
 `podSelector: {}`, `policyTypes: [Ingress, Egress]`, no rules. This chart lays allows only in
@@ -151,6 +165,7 @@ explicit machine delete, task 19), `volumeBindingMode: WaitForFirstConsumer`,
 | `storage_test` / `machine_disk_waits_for_its_pod` | `volumeBindingMode: WaitForFirstConsumer`, `provisioner: disk.csi.azure.com` | `Immediate`, which provisions the disk in a zone the pod may not schedule in |
 | `storage_test` / `nfs_only_when_enabled` | default values render no `panacea-machine-nfs`; `enabled: true` renders it | the fallback always present |
 | `values_test` / `empty_vnet_cidr_fails` | `network.vnetCidr: ""` → the render fails with the schema's message | a policy rendered with an empty `except` entry |
+| `quota_test` / `limitrange_defaults_to_one_session` | `LimitRange/sandboxes` has one `Container` item whose `default` and `defaultRequest` both equal `{cpu: 2000m, memory: 4096Mi}` and whose `max` is `{cpu: "8", memory: 32Gi}` with default values (review I4) | a `max`-only LimitRange, under which an unsized container is defaulted to 8 CPU / 32 GiB: Pending on every node, holding the quota |
 
 And in CI (task 28): `helm lint deploy/charts/platform -f <test values>` and
 `helm template … | kubeconform -strict -summary`.
@@ -170,8 +185,8 @@ helm lint deploy/charts/platform -f deploy/charts/platform/tests/values-test.yam
 # 1 chart(s) linted, 0 chart(s) failed
 helm unittest deploy/charts/platform
 # Charts:      1 passed, 1 total
-# Test Suites: 5 passed, 5 total
-# Tests:       11 passed, 11 total
+# Test Suites: 6 passed, 6 total
+# Tests:       12 passed, 12 total
 ```
 
 #### What this task does not claim

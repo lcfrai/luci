@@ -351,6 +351,7 @@ document, records each hook's `helm.sh/hook` phase and `hook-weight`, and assert
 | `the_webhook_is_reachable` | a policy admits ingress to the pods behind the `ValidatingWebhookConfiguration`'s service, on that service's `targetPort`. The upstream webhook Service targets a **named** port (`https`, training knowledge, UNVERIFIED), so the test resolves a named `targetPort` through the selected pod's `containers[].ports[].name` to its `containerPort` before comparing; a name that resolves to nothing fails (review M3) | the API server unable to call the webhook, so every `ClusterIssuer` create fails |
 | `traefik_reaches_every_routed_backend` | for each `backends` entry: the Traefik egress peer matches a rendered pod, and a policy in that namespace admits ingress from Traefik's pod labels in `panacea-edge` on that port | label drift between the edge and the broker/Hub charts: a front door to a wall |
 | `rendered_names_are_dns_1123` | every rendered document's `metadata.name` in the `cert-manager` and `edge` releases (both wrapper charts, their subcharts included), and later in all five, matches `^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$` and is at most 253 characters; a `Service`'s name at most 63 and without `.` (review I4) | `alias: certManager` without `fullnameOverride`: `cert-manager-certManager-webhook`, which the API server refuses at the first install while `helm template`, helm-unittest and `kubeconform` pass it |
+| `every_sandbox_container_is_sized` | every container **and init container** of every pod template rendered into `panacea-sandboxes` by any release (today `platform`'s balloon Deployment and pre-pull DaemonSet) sets `resources.requests` and `resources.limits` for both `cpu` and `memory`, and requests equal limits, compared as the rendered strings (each template renders both from one value, so they are identical; `1000m` against `1` fails, the stricter reading, and it keeps the module's one dependency) (review I4; the Kata rule of `PROGRAM.md:133`) | an unsized pre-pull init container: LimitRanger gives it the namespace default, the pod asks for a session (or, with only a `max`, a whole node) on every sandbox node and holds the namespace quota; or a balloon with requests ≠ limits, which Kata sizes wrongly |
 
 Task 29 adds `broker` and `hub` to the chart list, at which point `traefik_reaches_every_routed_backend`
 also checks every rendered `HTTPRoute` `backendRef` against `backends`; until then
@@ -388,7 +389,10 @@ ingress NetworkPolicy per backend, written from task 29's contract), and task 29
     and `cidr_mode_with_an_empty_list_is_refused`;
   - delete `certManager.fullnameOverride` and `nameOverride` → `rendered_names_are_dns_1123`;
   - drop `--namespace` for `edge` from the Go table → `every_workload_is_in_a_denied_namespace`
-    (Traefik lands in `default`, where no case would otherwise look; review M2).
+    (Traefik lands in `default`, where no case would otherwise look; review M2);
+  - delete `resources` from `platform`'s `pull-machine` init container → `every_sandbox_container_is_sized`
+    (and task 12's `prepull_init_containers_are_tiny`); then set the balloon's `limits.memory` to
+    `8192Mi` with requests unchanged → `every_sandbox_container_is_sized` (review I4).
 
   Commit.
 
