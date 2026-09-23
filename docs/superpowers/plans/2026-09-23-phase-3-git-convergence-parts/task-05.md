@@ -52,17 +52,19 @@ const (
 ```
 
 ```go
-// sessions.go (post-fix: feat/phase-2-cockpit at or after 5a4d0d8) — the fix's sessionEnv is
-// sessionEnv(id GitIdentity, eol GitLineEndings, caBundle string), and its git block is a
-// `pairs` slice numbered into GIT_CONFIG_KEY_n/VALUE_n, with GIT_CONFIG_COUNT = len(pairs).
-// At 5a4d0d8 it held five pairs; the committed branch now holds six (safe.directory,
-// user.useConfigOnly, gc.worktreePruneExpire, gc.auto, core.autocrlf, core.eol), and the fix
-// is still moving. Phase 3 APPENDS one pair and never renumbers or retypes the fix's own.
+// sessions.go (post-fix: feat/phase-2-cockpit at or after 5a4d0d8) — at 10fa5fd the fix's
+// sessionEnv is sessionEnv(id GitIdentity, eol GitLineEndings, git sessionGitFiles, caBundle
+// string), and its git block is a `pairs` slice numbered into GIT_CONFIG_KEY_n/VALUE_n, with
+// GIT_CONFIG_COUNT = len(pairs). It held five pairs at 5a4d0d8 and six at 57c3bf5; at 10fa5fd
+// (re-read 2026-09-24, review I12) it holds eight (safe.directory, user.useConfigOnly,
+// gc.worktreePruneExpire, gc.auto, core.autocrlf, core.eol, core.excludesFile,
+// core.attributesFile), and the fix is still moving. Phase 3 APPENDS one pair after the last of
+// them and never renumbers or retypes the fix's own.
 const sessionHooksPath = "/opt/panacea/githooks" // images/sandbox/Dockerfile installs it
 
 	pairs := [][2]string{
-		// … the fix's pairs, unchanged, ending {"core.autocrlf", eol.AutoCRLF},
-		// {"core.eol", eol.EOL} …
+		// … the fix's pairs, unchanged, which at 10fa5fd end {"core.excludesFile", …},
+		// {"core.attributesFile", …} …
 		// Phase 3: the session trailer. The dispatcher there runs the repository's own hook of
 		// every name first, so a husky repository keeps its hooks (risk R7).
 		{"core.hooksPath", sessionHooksPath},
@@ -161,7 +163,7 @@ RUN sed -i 's/\r$//' /opt/panacea/githooks/dispatch \
 | `TestEnvEntriesOmitsAnEmptySessionID` | `SessionID == ""` → no `PANACEA_APP_SESSION_ID` entry | an empty trailer value in the hook |
 | `TestEnvEntriesIgnoresASessionIDInEnv` | `Env{"PANACEA_APP_SESSION_ID":"s-evil"}` with `SessionID:"s-1"` → exactly one entry, value `s-1` | a client-chosen session id |
 | `TestThePodEnvironmentIsExactlySpecEnvEntries` (kata, unchanged) | still passes after `containerEnv` gains the variable | Docker and Kata environments diverging |
-| `TestSessionEnvSetsHooksPath` (fix's file, extended) | with `n` the fix's pair count read before the change (6 at the time of writing): `GIT_CONFIG_COUNT=n+1`, `KEY_n=core.hooksPath`, `VALUE_n=/opt/panacea/githooks`; keys `0` to `n-1` byte-identical to the fix's, `core.autocrlf` and `core.eol` among them | dropping or renumbering one of the fix's settings while adding one |
+| `TestSessionEnvSetsHooksPath` (fix's file, extended) | with `n` the fix's pair count read before the change (8 at `feat/phase-2-cockpit`'s `10fa5fd`, re-read 2026-09-24, review I12): `GIT_CONFIG_COUNT=n+1`, `KEY_n=core.hooksPath`, `VALUE_n=/opt/panacea/githooks`; keys `0` to `n-1` byte-identical to the fix's, `core.autocrlf` and `core.eol` among them | dropping or renumbering one of the fix's settings while adding one |
 | `TestALaneSessionSendsTheClonesLineEndings` (fix's file, extended; plan re-review b02 I-1) | a project and a lane clone of it (task 04's route); a `Deps.GitLineEndings` double that answers by path: `{false, lf}` in the clone's `Path`, `{true, crlf}` in `Project.Path`, and fails the test for any other path. A session created on the lane, then restarted: the recorded `backend.Spec.Env` carries `core.autocrlf=false` and `core.eol=lf`, found by **key** among the `GIT_CONFIG_KEY_n`, on both. Red first: a mutant that asks the resolver in `Project.Path` sends `true`/`crlf` | the resolver asked anywhere but the clone, which brings C2's split back inside the sandbox |
 | `TestTheResolverReadsALaneCloneAsLF` (cmd/api, the fix's `gitlineendings_test.go`, extended) | production-shaped: a `gitxtest` project with `UseSystemConfig(WindowsInstallerSystem)`, cloned by task 03's `lanes.Creator`. The production runner reads the **process** environment, not `Repo.Env`, so the test also sets it the way the fix's `TestTheRealHostGitAnswersFromEveryScope` does (`t.Setenv` of `GIT_CONFIG_NOSYSTEM=""`, `GIT_CONFIG_SYSTEM` to a file holding `WindowsInstallerSystem`, `GIT_CONFIG_GLOBAL` to a temp file, `GIT_CONFIG_COUNT=""`). The production resolver, as `gitLineEndingsResolverWith(project.NewExecRunner(), "crlf")` (Windows' native, fixed so the test means the same on any host), answers `{"false", "lf"}` in the clone, and `{"true", "crlf"}` in the project (the control: the system file is in force). Red first against a `cloneArgv` without the `--config` flags, which answers `{"true", "crlf"}` in the clone | the double above answering what the real resolver never would |
 | `TestSessionCreateAndRestartCarryTheSessionID` | the `backend.Spec` recorded by the fake backend has `SessionID` equal to the new session's id, on create **and** restart | a restart exporting the old sandbox's id |
@@ -193,6 +195,9 @@ package `main`, which this package cannot import.
   is 1, and `grep -c '{"core.eol", eol.EOL}' control-plane/internal/api/sessions.go` is 1. Record the
   fix's pair count `n` (`TestSessionEnvSetsHooksPath` uses it). If either grep is 0, stop and
   report (plan "Gate G1").
+  G1's contract diff (review I12): `git diff 3303fd6 HEAD -- docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md`,
+  and read every hunk in §2 and §5.1 before editing them: the fix's `5e32000` already edited
+  §2.2 and §5.1, and phase 2's later rounds add more there.
   Task 01's `TestSandboxGitHonoursEnvHooksPath` passed and recorded the image's git version.
 - [ ] **Step 2:** the Go tests; then `EnvSessionID`, `EnvEntries`, `containerEnv`, `sessionEnv`.
   `TestALaneSessionSendsTheClonesLineEndings` and `TestTheResolverReadsALaneCloneAsLF` may pass

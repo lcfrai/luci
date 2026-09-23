@@ -231,6 +231,8 @@ false for a new id).
 #### Steps
 
 - [ ] **Step 1: Preflight** — G1's two greps; `grep -c "a.registerGit" control-plane/internal/api/api.go` is 0.
+  G1's contract diff (review I12): `git diff 3303fd6 HEAD -- docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md`,
+  and read every hunk in §3.1 and §3.2 before appending to them; name any in the task report.
 - [ ] **Step 2:** tests first. `worktrees_test.go` builds `New(Deps{…, Git: &GitDeps{…}})` with a
   fake `lanes.Store` and a `Creator` over `gitxtest` repos for the one real-git case.
 - [ ] **Step 3:** `gitdeps.go`, `gitroutes.go`, `worktrees.go`, the two `api.go` lines, the
