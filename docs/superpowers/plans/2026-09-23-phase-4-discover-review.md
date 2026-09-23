@@ -879,3 +879,79 @@ so it gains the state without an edit. `task-20.md:65` (`tracked_elsewhere`) is 
   not tried.
 - Whether Claude Code reads both a tracked `CLAUDE.md` and `.claude/CLAUDE.md` in one session is
   OQ-2's canary (task 23). `committed`'s copy assumes that it does.
+
+## Fix batch b03, round 2 (re-review `plan-rereview-b03-1.md`: R-I1, R-I2, R-M1, R-M2)
+
+Plan edits are commit `4578faf`. Lines are at that commit. Round 1's rows above for "New
+`Inspect` state `committed`" and "`TestInspectStates` (eight states)" are **superseded** by R-M1
+below: there is no `StateCommitted` any more.
+
+**Probes run** (git 2.53.0.windows.2, `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` = `/dev/null`,
+scratch repositories under `$TEMP/.../p4/b03r2/`):
+
+| # | Probe | Result |
+|---|---|---|
+| 1 | index holds `claude.md`, `core.ignorecase=true`: `ls-files -- CLAUDE.md` | exit 0, empty (the re-review's probe 3, reproduced) |
+| 2 | same: `--icase-pathspecs ls-files -- CLAUDE.md` | exit 0, `claude.md` |
+| 3 | same, with `GIT_LITERAL_PATHSPECS=1` | exit 128, `fatal: global 'literal' pathspec setting is incompatible with all other global pathspec settings` |
+| 4 | same repository: `--icase-pathspecs ls-files -- .claude/CLAUDE.md` | exit 0, empty |
+| 5 | untracked `CLAUDE.md`: `--icase-pathspecs ls-files -- CLAUDE.md` | exit 0, empty |
+| 6 | the new guard over the two prescribed comment lines | exit 1, 0 lines |
+| 7 | the new guard over `[]string{"ls-files", "--error-unmatch", rel}` and `ee.ExitCode() == 1` | exit 0, 2 lines |
+
+**R-I1: a tracked `claude.md` now reads as tracked.** Fixed as the re-review said.
+
+| How to fix | Where it changed |
+|---|---|
+| Ask `git --icase-pathspecs ls-files -- <rel>`, not `:(icase)`, and say why | `task-09.md:124-139` (the `Git` interface doc: the command, core.ignorecase, NTFS/APFS, `GIT_LITERAL_PATHSPECS`, the safe way on Linux); `task-14.md:56-70` (`gitQuestions`) |
+| The exact-args assertion | `task-14.md:88` (args exactly `--icase-pathspecs ls-files -- CLAUDE.md`; no `--error-unmatch`, no `:(icase)`) |
+| `TestGitQuestionsNeverWrites` reads the subcommand as the first non-option argument | `task-14.md:90` |
+| A real-git row: the index holds `claude.md` → `Tracked(CLAUDE.md)` is `(true, nil)` | `task-14.md:89` (a third repository, `core.ignorecase` as `git init` sets it) |
+| Restatement | `2026-09-23-phase-4-discover.md:172` (P4-D names the command and the case) |
+
+One correction the re-review did not ask for: both parts wrote the commands as `git -C <dir> …`.
+`ExecRunner.Run` passes no `-C`; it sets `cmd.Dir = dir` (`gitrunner.go:55`). `task-09.md:125-126`
+now says so, `:127` and `:139` drop the `-C`, and `task-14.md:88` states the args carry no `-C`.
+
+**R-I2: the guard no longer fails on the plan's own comments.** Fixed as the re-review said:
+`task-14.md:119-123` matches `'"--error-unmatch"'` (the Go literal with its quotes) and
+`'\.ExitCode()'`, and says why. Probes 6 and 7.
+
+**R-M1: `committed` never hides the target's own state.** Fixed by the re-review's second option,
+because one `State` for two files is the root cause.
+
+| How to fix | Where it changed |
+|---|---|
+| `Inspection` keeps the target's own state; a separate list carries the committed block | `task-09.md:161-169` (seven states; `StateCommitted` removed); `:171-178` (`CommittedBlock{Path, MarkerKey}`, and why it is not a state); `:180-188` (`Inspection.Committed`, `[]` when none, `FileName` first); `:189-192` (at most one entry today, and why it is a list) |
+| `Inspect` doc | `task-09.md:197-211` (the target is inspected for its own state always; every tracked candidate holding a block or marker is listed; both-tracked is `tracked_elsewhere` whatever the files hold) |
+| Which file is `Path` when both are tracked and both hold blocks | `task-09.md:180-188`, `:207-211`. `Path` is always the target. With both tracked there is no target, so `Inspect` answers `tracked_elsewhere`; `Committed`'s order is pinned `FileName` first for N1's batch |
+| Tests | `task-09.md:228` `TestNeverStripsATrackedFile` (`Inspect` gives the target's own state and one `Committed` entry); `:239` `TestInspectStates` (seven states, `Committed` `[]`); `:240` `TestInspectListsCommittedBesideTheTargetsState` (`current`, `edited`, `broken`, `superseded` beside one entry; a broken tracked marker → `MarkerKey ""`; both tracked → `tracked_elsewhere`) |
+| Desktop type (in `api/discover.ts`, not the gated `store/types.ts`) | `task-15.md:75-78` (the union loses `"committed"`); `:146-152` (`CommittedBlock`, `WorktreeInspection.committed`) |
+| Task 19 shows both | `task-19.md:54-62` (`Materialisations` doc); `:83` (the row sits below the target's own state); `:105` (the test now starts from a `current` inspection); `:106` `committed never hides the target's own state` (`edited` keeps its diff and warning; `broken` and `superseded` render as they do alone, compared by render because task 19 names no sentence for them) |
+| Restatements | `task-09.md:39`, `:80`, `:107` (step 3, step 5 and the commit rule say "listed in `Committed`"); `2026-09-23-phase-4-discover.md:172` (P4-D) |
+
+One behaviour changed that the re-review did not name. Round 1 answered `committed` for a
+both-tracked repository whose files held a block. Now that case is `tracked_elsewhere` whatever
+the files hold (`task-09.md:207-211`). No Panacea session can start there (N1), and
+`tracked_elsewhere` names the cause a person acts on. N1's batch revisits it.
+
+**R-M2: OQ-7 is in the owner's table.** `2026-09-23-phase-4-discover.md:502` asks whether a start
+over a committed block is refused. It names the chip consequence (*declined* and *none* sessions
+still read a committed brief; a *current* session reads a second, unstamped block), that no
+`contextRef` records the block, the narrowed step 3 invariant, the recommendation (do not refuse;
+show it) and the seam (one new reason from the marker read `Inspect` already makes). Pointers:
+`task-09.md:77-80` (step 3) and P4-D (`2026-09-23-phase-4-discover.md:172`).
+
+**Restatements checked.** A `git grep` of the plan and all parts for `StateCommitted`, "shown as
+`committed`", "eight states", "committed wins", "seven states", `ls-files`, `git -C`, `icase`,
+`OQ-6`, "open questions" and "narrowed" finds only the lines above. The "eight states" in
+`task-16.md:99,181`, `task-17.md:21,145` and `task-22.md:50` are the provenance chip's, not the
+worktree inspection's. `task-12.md:40` passes `contextwrite.Inspection` through, so it gains
+`committed` without an edit.
+
+**Still unverified:**
+- No Go or TypeScript was compiled or run. This batch changes plan documents only.
+- macOS was not probed. The APFS claim rests on APFS being case-insensitive by default.
+- `--icase-pathspecs` was probed on git 2.53.0 only. The git versions on the sandbox image and on
+  other developers' machines were not checked. It is an old option, but the version that added it
+  was not looked up.
