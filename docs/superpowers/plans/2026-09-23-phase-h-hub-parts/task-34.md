@@ -25,14 +25,15 @@ scratch database, with tokens from an in-process `devissuer` — which is the pr
 | `Teams`, `CreateTeam`, `Team` | routes 4, 5, 6 | `Teams` returns `items` |
 | `SetMember`, `RemoveMember` | routes 8, 9 | |
 | `Invites`, `CreateInvite`, `RevokeInvite` | routes 10, 11, 12 | `Invites` follows `next` to the end (a team has few) |
-| `CreateBrief`, `ForBranch`, `Brief`, `Rebind`, `Archive` | routes 20, 21, 22, 23, 24 | every revision in a response is re-checked |
+| `List(projectID, q)` | route 19, `?scope=&branchRef=&includeArchived=&after=&limit=` from `hubapi.BriefQuery` (HA4-2, task 00) | one page, as asked |
+| `CreateBrief`, `ForBranch`, `Brief`, `Rebind`, `Archive` | routes 20, 21, 22, 23, 24 | every revision in a response is re-checked — `latestComplete` included (HA4-4) |
 | `Revisions(briefID, page)` | route 25 | one page, as asked |
-| `WriteRevisions(projectID, writes)` | route 26 | re-checks each returned revision |
+| `WriteRevisions(projectID, writes)` | route 26 | more than `hubapi.MaxRevisionBatch` writes → 400-shaped `*Error` `field: revisions` before any request; each `content` is `json.Compact`ed before sending, so 64 maximum-size revisions fit `hubapi.MaxRevisionBatchBytes` (HA4-3); re-checks each returned revision |
 | `Resolve(keys)` | route 27, in batches of **100**, results concatenated in request order, `heads` merged | a revision failing the re-check becomes `{resolution: missing, revision: null}` and an `error` log line naming the key |
-| `PutBlob(projectID, digest, contentType, size, body)` | route 28, `PUT …/blobs/<64 hex>` with `Content-Type` and `Content-Length: size` | retried on a transient failure **only when `body` is an `io.Seeker`** (it is rewound); otherwise one attempt |
+| `PutBlob(projectID, digest, contentType, size, body)` | route 28, `PUT …/blobs/<64 hex>` with `Content-Type` and `Content-Length: size` | `body` is an `io.ReadSeeker` (HA5-1, task 00), passed to task 33's transport, which seeks it to 0 before every attempt; retried on a transient failure like any call |
 | `GetBlob(projectID, digest)` | route 29 | the `Blob` from `Content-Type` and `Content-Length`; the caller closes the body; a body past 16 MiB is cut off with an error |
 | `Approve`, `Approval`, `Approvals`, `LinkSession`, `SessionLinks` | routes 30, 32, 31, 33, 34 | |
-| `Reserve`, `Confirm`, `Abandon`, `JoinDeployment`, `Release`, `Releases` | routes 35, 38, 39, 40, 37, 36 | |
+| `Reserve`, `Confirm`, `Abandon`, `JoinDeployment`, `Release`, `Releases` | routes 35, 38, 39, 40, 37, 36 | `JoinDeployment` sends its `DeploymentJoinRequest` as the body (HA7-1); `Releases` sends `kind=` when `q.Kind` is set (HA7-5) |
 | `RecordEvidence` | route 41 | |
 | `EvidenceByDigest(repo, digests)` | route 42, in batches of 100, concatenated, then **sorted oldest first** again across batches | |
 | `Changes(after, limit)` | route 43 | |
@@ -82,7 +83,7 @@ JSON):
 | `TestAMismatchedRevisionResolvesMissing` | the fake answers a revision whose content was altered after digesting → that slot `missing`, the others intact, one error logged | a tampered revision rendered (provenance contract §6.2) |
 | `TestAMismatchedHeadIsUnavailable` | `Brief()` receiving the same → `errors.Is(err, ErrUnavailable)` and `ErrDigestMismatch` | a Discover pane rendering text its key does not describe |
 | `TestErasedRevisionsAreNotRechecked` | an erased revision passes through as `erased` | every erased key turned into `missing` |
-| `TestPutBlobStreams` | `Content-Length` and `Content-Type` as given; the body arrives whole; a 503 then 201 with a `bytes.Reader` → two attempts; with a plain `io.Reader` → one, then `ErrUnavailable` | a retry that sends an empty body |
+| `TestPutBlobStreams` | `Content-Length` and `Content-Type` as given; the body arrives whole; a 503 then 201 with a `bytes.Reader` → two attempts, the second body whole; a `bytes.Reader` already read to its end → the whole blob arrives (rewound first) | a retry that sends an empty body (HA5-1) |
 | `TestGetBlobReadsItsMetadata` | `Blob.ContentType` and `Size` from the headers; the body is the bytes | — |
 | `TestProjectForRepo` | zero items → `ok == false`; one → the project | a missing link treated as an error |
 | `TestEvidenceBatchesStayOldestFirst` | 150 digests over two batches with interleaved times → one list, oldest first | phase 3 taking a later judgement as the first |

@@ -69,9 +69,12 @@ export interface HubChangesPage { events: HubEvent[]; next: string; more: boolea
 ```ts
 // desktop/src/api/client.ts — CockpitClient gains, and createClient implements:
 
-  /** The two headers the control plane sets on every response (Hub plan task 36), as last
-   *  seen on ANY response of this client. null until one carried them. */
-  lastHubHeaders(): { cursor: string | null; authState: AuthState | null };
+  /** The headers the control plane sets on every response (Hub plan task 36), as last seen on
+   *  ANY response of this client. `cursors` holds one entry per `Panacea-<Name>-Cursor` header,
+   *  keyed by the LOWERCASED <Name> ("hub", "deploy": `Headers` iteration lowercases names) —
+   *  the generic mechanism phase 7 asked for (HA7-4, task 00). A name absent from a response
+   *  keeps its last value; authState is null until a response carried it. */
+  lastHubHeaders(): HubHeaders;
 
   authStatus(): Promise<AuthStatus>;                                   // GET  /v1/auth/status
   signIn(): Promise<SignInStart>;                                      // POST /v1/auth/sign-in
@@ -95,8 +98,14 @@ export interface HubChangesPage { events: HubEvent[]; next: string; more: boolea
 ```
 
 `storeCredential` holds the token only for the duration of the request: it is never assigned to a
-module variable, the store or an error. `send` captures the two headers from every response
-(`res.headers.get(…)`, read while the timer is armed, as the body is).
+module variable, the store or an error. `send` captures the headers from every response
+(`res.headers.forEach`, matching `^panacea-([a-z]{1,32})-cursor$` and `panacea-auth-state`, read
+while the timer is armed, as the body is).
+
+```ts
+// desktop/src/api/hubFeed.ts (exported type)
+export type HubHeaders = { cursors: Readonly<Record<string, string>>; authState: AuthState | null };
+```
 
 ```ts
 // desktop/src/api/hubFeed.ts
@@ -107,8 +116,9 @@ export interface HubFeed {
    *  "project.", "team.", or "" for all. Phase 4's provenanceSlice, phase 5's approvals and phase
    *  7's releases subscribe here (contract §9.3). Returns the unsubscribe. */
   subscribe(kindPrefix: string, fn: (e: HubEvent) => void): () => void;
-  /** The poller calls this after every good tick with lastHubHeaders(). */
-  noteHeaders(h: { cursor: string | null; authState: AuthState | null }): void;
+  /** The poller calls this after every good tick with lastHubHeaders(); it reads
+   *  h.cursors.hub and h.authState, and ignores every other cursor. */
+  noteHeaders(h: HubHeaders): void;
   /** Any caller that got ApiError "signed_out" calls this; it re-reads the auth status once. */
   noteSignedOut(): void;
 }
@@ -116,7 +126,7 @@ export interface HubFeed {
 export function createHubFeed(client: CockpitClient, store: typeof useCockpit): HubFeed;
 ```
 
-**`noteHeaders`' rules:** the **first** cursor seen is remembered and nothing is fetched — every
+**`noteHeaders`' rules:** the **first** `cursors.hub` seen is remembered and nothing is fetched — every
 cache starts empty, so there is nothing to invalidate. A **changed** cursor → one
 `hubChanges(after = last)`, each event delivered to matching subscribers in `seq` order, `last` =
 `next`; while `more`, fetch again (at most 5 pages per change). **One read in flight at a time**: a
@@ -143,10 +153,14 @@ export function startPolling(
   client: CockpitClient,
   store: typeof useCockpit,
   onGoodTick?: () => void,
-  onHubHeaders?: (h: { cursor: string | null; authState: AuthState | null }) => void,
+  onHubHeaders?: (h: HubHeaders) => void,
 ): () => void;
 // onHubHeaders runs after a good tick only, with client.lastHubHeaders(), outside the try (as
-// onGoodTick does, poller.ts:74-76), so a throw from it is never the poller's failure.
+// onGoodTick does, poller.ts:74-76), so a throw from it is never the poller's failure. One
+// parameter serves every consumer: App.tsx passes one function that calls hubFeed.noteHeaders
+// and, when phase 7 lands, its deploy feed's — each reads its own cursors entry (HA7-4, task 00).
+// Phase 7 asked for onCursor(name, value) per changed header; the map is that ask's superset,
+// and each consumer already compares its cursor with the last one it saw.
 ```
 
 #### Tests to write first
@@ -155,8 +169,8 @@ export function startPolling(
 |---|---|---|
 | `client: each new function calls its route` | one row per function: method, path, query, JSON body, and the 204 functions resolve `undefined` | a path typo the compiler cannot see |
 | `client: storeCredential never keeps the token` | after a call that succeeds and one that fails, neither `ApiError`'s `message` nor `details` holds the token | a token in the rail footer's error line |
-| `client: headers are captured from any response` | a `listSessions` whose response carries both headers → `lastHubHeaders()` returns them; a response without them leaves the last values | a feed that never fires |
-| `hubFeed: the first cursor fetches nothing` | `noteHeaders({cursor:"5"})` → no `hubChanges` call | a start-up replay of history |
+| `client: headers are captured from any response` | a `listSessions` whose response carries `Panacea-Hub-Cursor`, `Panacea-Deploy-Cursor` and `Panacea-Auth-State` → `lastHubHeaders()` returns `cursors: {hub, deploy}` and the state; a response without them leaves the last values, per name | a feed that never fires, or phase 7's cursor dropped (HA7-4) |
+| `hubFeed: the first cursor fetches nothing` | `noteHeaders({cursors:{hub:"5"}, authState:null})` → no `hubChanges` call; a changed `deploy` alone → none either | a start-up replay of history, or the Hub feed read on another source's tick |
 | `hubFeed: a change reads once and delivers in order` | cursor 5 → 8 → one `hubChanges("5")`; a `brief.` subscriber gets the `brief.*` events in seq order; a `release.` subscriber none | an invalidation missed or misrouted |
 | `hubFeed: one read in flight` | 8 → 9 → 10 while the first read is pending → two reads in total, the second from the first's `next` | parallel reads delivering events twice or out of order |
 | `hubFeed: more is followed, bounded` | `more: true` three times → four reads; `more` six times → five, the rest at the next change | an unbounded loop in the render thread |

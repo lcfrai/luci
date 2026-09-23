@@ -51,14 +51,21 @@ var ErrTokenUnavailable = errors.New("hubclient: no token: Entra could not be re
    sent unchanged on every retry of that call.
 3. Each attempt has its own `AttemptTimeout` deadline. A transport error, a timeout, a TLS failure,
    or a 502/503/504 → retry after `Backoff[i]`, at most `len(Backoff)` times; then `ErrUnavailable`
-   wrapping the last cause.
+   wrapping the last cause. **Every attempt sends the whole body**: a JSON body is a `[]byte`
+   re-sent as is; a blob body is the caller's `io.ReadSeeker` (HA5-1, task 00), sought to 0
+   before each attempt — a failed `Seek` ends the call with that error, never an attempt with a
+   short body.
 4. A 401 whose `details.reason` is `expired` → `Invalidate(scope)` if `tokens` is an
    `Invalidator` (task 31), a fresh `Token`, **one** retry; a second 401 → `*Error` as answered.
 5. Any other non-2xx with a problem body → `*Error{Status, Problem}`; a 500 or 501 → `ErrUnavailable`
    (not retried: a Hub bug is not transient). A non-2xx without a parseable problem → `*Error` with
    code `internal` and the status.
-6. A 2xx body over 1 MiB (JSON) → `ErrUnavailable` (a Hub that answers that is broken). Blob bodies
-   stream (task 34) and are bounded by the blob limit.
+6. A 2xx JSON body over **8 MiB** → `ErrUnavailable` (a Hub that answers that is broken). The cap
+   is derived, not picked (task 00, *Sizes*): the two largest bodies the Hub sends are `/v1/refs`
+   (100 keys × a 64 KiB revision ≈ 6.3 MiB) and route 26's reply (64 revisions echoed with their
+   content ≈ 4.1 MiB). The old 1 MiB cap reported a **committed** 16-revision batch as
+   `ErrUnavailable`. Blob bodies stream (task 34) and are bounded by the blob limit. A 429's
+   `Retry-After` is kept in `Error.RetryAfter` (task 04).
 7. Every error that leaves the client names the method, the route **pattern** and the Hub's
    `Request-Id` when there was one — never the token, never a request body.
 
@@ -82,10 +89,17 @@ package hubclient
 // verbatim (desktop/src/api/problems.ts classifies it server-said) and its rail
 // footer offers the sign-in (task 41).
 func WriteError(w http.ResponseWriter, log *slog.Logger, err error)
+
+// Relay is the same rule as a value (HA4-5, task 00), for a handler that answers
+// in its own shape — a batch result, a stream's last frame. It returns the status
+// and problem WriteError would write; ok is false for "anything else" (a non-Hub
+// error), which the caller answers itself (WriteError: 500 internal, logged). A
+// 429's Retry-After is (*Error).RetryAfter, read with errors.As.
+func Relay(err error) (status int, p httpx.Problem, ok bool)
 ```
 
-`WriteError` writes through `httpx.WriteProblem`, so the body is byte-for-byte the control plane's
-problem shape (§4.1).
+`WriteError` is `Relay` plus `httpx.WriteProblem` (and the `Retry-After` copy), so the two can
+never disagree, and the body is byte-for-byte the control plane's problem shape (§4.1).
 
 #### Tests to write first
 
@@ -104,6 +118,7 @@ implements `Invalidator`, and a recording `Sleep`.
 | `TestRelayTokenUnavailableIsUpstreamEntra` | → 503, `upstream: entra` | an Entra outage reported as the Hub's |
 | `TestRelayNotConfigured` | → 503 `hub_not_configured` | — |
 | `TestRelayAnythingElseIs500` | `io.ErrUnexpectedEOF` → 500 `internal`, the cause logged and absent from the body | a Go error chain in `message` |
+| `TestRelayAgreesWithWriteError` | for every error above, `Relay`'s `(status, p)` equals what `WriteError` writes, byte for byte after marshalling; `io.ErrUnexpectedEOF` → `ok == false` | phase 4's `discoverapi.relay` and the control plane's disagreeing about one Hub failure (HA4-5) |
 
 `transport_test.go`:
 
@@ -121,7 +136,9 @@ implements `Invalidator`, and a recording `Sleep`.
 | `TestEachAttemptTimesOut` | `AttemptTimeout: 50ms`, a Hub that stalls → retried, then `ErrUnavailable` in < 1 s total | a control plane hung on a hung Hub |
 | `TestNoOriginHeaderIsSent` | the fake Hub records none | a 403 `forbidden_origin` from every call |
 | `TestTokenErrorsMap` | `ErrSignedOut` passes through `errors.Is`; any other → `errors.Is(err, ErrTokenUnavailable)` | an Entra outage signing the user out |
-| `TestAnOversizeBodyIsUnavailable` | a 2 MiB 200 body → `ErrUnavailable` | unbounded memory on a broken Hub |
+| `TestAnOversizeBodyIsUnavailable` | a 6.5 MiB 200 body → decoded; an 8 MiB + 1 200 body → `ErrUnavailable` | unbounded memory on a broken Hub, or a committed batch or a 100-key `/v1/refs` read reported as an outage (task 00) |
+| `TestARetryRewindsASeekableBody` | a call whose body is an `io.ReadSeeker` (the shape task 34's `PutBlob` passes) gets 503 after the fake Hub read half of it → the second attempt's body is the whole body, byte-equal; a reader whose `Seek` fails → that error after one attempt | a retried upload sending a short body the Hub then refuses `digest_mismatch` (HA5-1) |
+| `TestA429KeepsRetryAfterOnTheError` | 429 with `Retry-After: 3` → `errors.As` gives `*Error` with `RetryAfter: "3"` | `WriteError` asked to copy a header the error never carried |
 | `TestErrorsNeverHoldTheToken` | every error above, formatted `%+v`, lacks the bearer | T1 |
 
 #### Steps

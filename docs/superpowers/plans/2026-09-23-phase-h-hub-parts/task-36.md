@@ -7,13 +7,15 @@ the Hub's feed every `PANACEA_APP_HUB_POLL_INTERVAL` (5 s) while signed in — o
 whatever the number of projects — and tells the desktop the cursor moved **without a new request
 per tick**: it sets `Panacea-Hub-Cursor` on the responses of the call `poller.ts` already makes
 every 2 s (`desktop/src/api/poller.ts:48`, contract §9.3). The desktop then reads the events once
-(task 40). Server-side caches — `hublink`'s, and any phase's — subscribe here.
+(task 40). Server-side caches — `hublink`'s, and any phase's — subscribe here. The header is one
+instance of a generic mechanism, `CursorSource` (HA7-4, task 00): phase 7's `Panacea-Deploy-Cursor`
+is a second source, not a second copy.
 
 **Files:**
 - `control-plane/internal/hubfeed/poller.go` + `poller_test.go` (new)
 - `control-plane/internal/api/hubchanges.go` + `hubchanges_test.go` — the route and the header (new)
-- `control-plane/internal/httpx/origin.go` + `origin_test.go` — expose the header (modify ⚑: one line and one test)
-- `control-plane/internal/api/api.go` — `Deps.Feed`; the header wrap; `a.registerHubChanges(guarded)` (modify ⚑)
+- `control-plane/internal/api/cursors.go` + `cursors_test.go` — `CursorSource`, the header wrap, the expose list (new; HA7-4, task 00)
+- `control-plane/internal/api/api.go` — `Deps.Feed`, `Deps.CursorSources`; the wrap; `a.registerHubChanges(guarded)` (modify ⚑)
 - `control-plane/internal/api/routes_audit_test.go` — `GET /v1/hub/changes` (modify ⚑)
 - `control-plane/cmd/api/main.go` — start the poller; subscribe `hublink` (modify ⚑)
 
@@ -58,23 +60,44 @@ func (p *Poller) Cursor() string
 
 // Subscribe registers fn for events whose kind starts with kindPrefix ("brief.",
 // "design.", "release.", "project.", or "" for all). fn runs on the poller's
-// goroutine and must not block. The returned func unsubscribes.
+// goroutine and must not block. Events arrive in seq order, which is commit
+// order (task 14's org lock serialises writes). The returned func unsubscribes.
+// Phase 4's HA4-8 shape, Subscribe(fn), is Subscribe("", fn) (task 00).
 func (p *Poller) Subscribe(kindPrefix string, fn func(hubapi.Event)) (unsubscribe func())
+
+// CursorName makes the poller a CursorSource named "Hub" (below).
+func (p *Poller) CursorName() string
 ```
 
 ```go
-// control-plane/internal/httpx/origin.go — inside Middleware, beside the existing
-// Access-Control-Allow-Origin line (origin.go:192-198), for an allowed origin only:
-w.Header().Set("Access-Control-Expose-Headers", "Panacea-Hub-Cursor, Panacea-Auth-State")
+// control-plane/internal/api/cursors.go — the generic mechanism phase 7 asked for (HA7-4, task 00)
+
+// CursorSource is one change cursor the desktop learns from the poll it already
+// makes. Every response to an allowed caller carries "Panacea-<Name>-Cursor:
+// <Cursor()>" for each source whose Cursor() is not "".
+type CursorSource interface {
+	CursorName() string // [A-Za-z]{1,32}, unique among the sources: "Hub", "Deploy"
+	Cursor() string     // opaque; "" means "do not set the header"
+}
+
+// exposeHeaders is built once by api.New from Deps.CursorSources:
+// "Panacea-<Name>-Cursor" for each, then "Panacea-Auth-State", comma-separated.
+// api.New refuses a name outside the pattern or a duplicate, as it refuses any
+// other bad Deps.
+func exposeHeaders(sources []CursorSource) (string, error)
 ```
 
-Without it the webview can see the headers on the wire but `fetch` hides them from script
-(contract §9.3).
+**The headers.** `api.go` wraps the guarded mux (the wrap is in `cursors.go`) so that **every**
+response to an allowed caller carries:
 
-**The headers.** `api.go` wraps the guarded mux so that **every** response to an allowed caller
-carries:
-
-- `Panacea-Hub-Cursor: <Cursor()>` once `Cursor()` is not empty (contract §9.3); and
+- `Access-Control-Expose-Headers: <exposeHeaders>` — without it the webview can see the headers
+  on the wire but `fetch` hides them from script (contract §9.3). The wrap sets it, not
+  `httpx/origin.go`: the names are known only from `Deps`, and `httpx` stays free of Hub and
+  phase-7 names. The wrap sits inside the origin middleware, so a disallowed origin is refused
+  before it runs, and a preflight is answered before it runs;
+- `Panacea-<Name>-Cursor: <Cursor()>` for each source whose `Cursor()` is not empty — the poller
+  is the first source, `Panacea-Hub-Cursor` (contract §9.3); phase 7 appends its `Deploy` source
+  in its own wiring, one element of `Deps.CursorSources`; and
 - `Panacea-Auth-State: signed_out | signing_in | signed_in` whenever `Deps.Auth` is set — **an
   addition to the contract**, for the same reason as the cursor: the desktop learns that a sign-in
   finished, or that a refresh failed and the user must sign in again, from the poll it already
@@ -107,13 +130,15 @@ holding the local key could not ask for. The desktop reads them from the session
 | `TestMeIsCalledOncePerSignIn` | two sign-ins → two `Me` calls; ticks in between → none | invites never bound when sign-in could not reach the Hub; `/v1/me` every 5 s |
 | `TestUnsubscribe` | after unsubscribing, the fn gets nothing | — |
 
-`hubchanges_test.go` and `origin_test.go`:
+`hubchanges_test.go` and `cursors_test.go`:
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestTheCursorHeaderAppearsOnceKnown` | before the first good poll: no header; after: `GET /v1/sessions` carries `Panacea-Hub-Cursor: <n>` | a desktop that polls the feed every tick |
+| `TestEverySourceSetsItsOwnHeader` | two scripted sources `Hub` ("7") and `Deploy` ("c-3") → both `Panacea-Hub-Cursor: 7` and `Panacea-Deploy-Cursor: c-3`; `Deploy` returning `""` → its header absent, `Hub`'s still set | phase 7's second cursor needing its own copy of the mechanism (HA7-4) |
+| `TestABadOrDuplicateSourceNameIsRefused` | `api.New` with a source named `Hub-2`, `""`, 33 letters, or two named `Hub` → an error naming the source | a header name the desktop cannot parse, or two sources overwriting one header |
 | `TestTheAuthStateHeader` | signed out → `Panacea-Auth-State: signed_out`; during a sign-in → `signing_in`; after → `signed_in`; with `Deps.Auth` nil → absent | a renderer polling `/v1/auth/status` every tick |
-| `TestTheHeadersAreExposedToAllowedOrigins` | allowed origin → `Access-Control-Expose-Headers: Panacea-Hub-Cursor, Panacea-Auth-State`; a disallowed origin is refused before any header (phase 2's behaviour unchanged) | headers the webview cannot read (contract §9.3) |
+| `TestTheHeadersAreExposedToAllowedOrigins` | allowed origin, sources `Hub` and `Deploy` → `Access-Control-Expose-Headers: Panacea-Hub-Cursor, Panacea-Deploy-Cursor, Panacea-Auth-State`; a disallowed origin is refused before any header, and a preflight is answered as before (phase 2's behaviour unchanged) | headers the webview cannot read (contract §9.3) |
 | `TestHubChangesRelaysTheBody` | the Hub's page byte-equal; signed out → 401 `signed_out`; no Hub → 503 `hub_not_configured` | — |
 | `TestHubChangesIsAudited` | phase 2's route audit passes | — |
 | `TestProjectEventsInvalidateTheLinkCache` | a `project.remote_added` event → `hublink`'s next `Project` asks the Hub again | a teammate's share invisible for five minutes |
@@ -121,15 +146,15 @@ holding the local key could not ask for. The desktop reads them from the session
 #### Steps
 
 - [ ] **Step 1:** Re-read contract §9.3, §7.11; `desktop/src/api/poller.ts` (read only, for the tick).
-- [ ] **Step 2:** Tests; they fail. Then `poller.go`, `hubchanges.go`, the `origin.go` line, the
-  `api.go` wrap, the wiring.
+- [ ] **Step 2:** Tests; they fail. Then `poller.go`, `hubchanges.go`, `cursors.go`, the
+  `api.go` wrap and `Deps.CursorSources` (the poller its first element), the wiring.
 - [ ] **Step 3:** Commit by pathspec.
 
 #### Acceptance
 
 ```bash
 go test ./control-plane/internal/hubfeed/ ./control-plane/internal/api/ ./control-plane/internal/httpx/ -race -count=1   # ok
-git diff --stat HEAD~1 -- control-plane/internal/httpx/origin.go                                                     # 1 file changed, 1-3 insertions(+), 0 deletions
+git diff --stat HEAD~1 -- control-plane/internal/httpx/origin.go                                                     # empty: origin.go is not this task's (task 00, HA7-4)
 ```
 
 #### What this task does not claim
