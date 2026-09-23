@@ -110,9 +110,11 @@ provenance, discoverhub, contextwrite, discoverapi, repoanalysis}`; `statepath` 
 `desktop/src/store/slices/{discoverSlice,provenanceSlice}.ts`.
 
 **Dependency direction.** `api` imports none of phase 4's packages: it declares the two interfaces
-and `cmd/api/main.go` wires phase 4's implementations in (R1's reason). `discoverapi` does not
-import `api` either — it mounts through a `func(pattern string, h http.Handler)` — so `api`'s own
-tests can import `discoverapi` to audit its routes without a cycle. Phase 4 imports only the Hub's
+and `cmd/api/main.go` wires phase 4's implementations in (R1's reason). `contextwrite` imports
+`api` for the `Materialiser`'s request, result and error types, and `discoverapi` mounts through a
+plain `func(pattern string, h http.Handler)`. `api`'s route audit (`routes_audit_test.go`) is the
+external test package `api_test`, so it can import `discoverapi` to audit the real Discover routes
+without a cycle. Phase 4 imports only the Hub's
 `hubapi` and `hubclient` (Hub contract §2's boundary: the control plane may import nothing else of
 `internal/hub/...`).
 

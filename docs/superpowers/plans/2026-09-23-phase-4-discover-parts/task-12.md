@@ -1,0 +1,118 @@
+### Task 12: `discoverapi` — refs, the head reading, materialisations
+
+The two provenance endpoints of contract §3.1 — **two endpoints, one type** — and the per-worktree
+drift view. Every surface in every phase that shows a brief resolves it here: `ContextChip` and
+`ShippedManifest` by key, `DefinitionOfDone` and Discover by the head reading.
+
+**Files:**
+- `control-plane/internal/discoverapi/provenance.go` + `provenance_test.go` (new)
+- `control-plane/internal/api/routes_audit_test.go` — four lines (modify)
+
+**Routes:**
+
+| Method | Path | 200 | Errors |
+|---|---|---|---|
+| GET | `/v1/discover/refs?key=…&key=…` (1–100) | `RefsResponse` | 400 `bad_request` (`field: "key"`) for 0 or more than 100; **never** for an unknown or malformed key |
+| GET | `/v1/discover/projects/{projectId}/provenance` | `provenance.Ref` — what a session on a detached worktree would inherit | 404 `project_not_found` |
+| GET | `/v1/discover/projects/{projectId}/branches/{branchId}/provenance` | `provenance.Ref` — what a session on this branch would inherit | 404 `project_not_found`, `branch_not_found` |
+| GET | `/v1/discover/projects/{projectId}/branches/{branchId}/materialisations` | `Materialisations` | 404 as above |
+
+**Wire shapes — complete:**
+
+```go
+// control-plane/internal/discoverapi/provenance.go
+package discoverapi
+
+// RefsResponse is one Ref per requested key, in request order (a repeated
+// key is answered in each slot), plus the time-varying heads of every brief
+// named. The desktop caches refs by key for ever and heads per brief
+// (contract §6.4) - except slots whose resolution is "unavailable".
+type RefsResponse struct {
+	Refs  []provenance.Ref           `json:"refs"`
+	Heads map[string]provenance.Head `json:"heads"`
+}
+
+// Materialisations is every worktree of the branch and the state of its
+// managed block, for Discover's "who inherits this" and "edited by hand"
+// views (prototype states 4, 8 and 11).
+type Materialisations struct {
+	ExpectedKey string                    `json:"expectedKey"` // what a start would write now; "" for none
+	Worktrees   []contextwrite.Inspection `json:"worktrees"`   // in the scanner's order
+}
+```
+
+```jsonc
+// GET /v1/discover/refs?key=brief:bf-…a2@5&key=none:declined&key=brief:bf-…40@5&key=
+// 200
+{ "refs": [
+    { "key": "brief:bf-…a2@5", "resolution": "resolved", "noneReason": "", "present": true,
+      "briefId": "bf-…a2", "revision": 5, "digest": "sha256:…", "scope": "branch",
+      "projectId": "pj-…", "branchRef": "refs/heads/evidence-upload", "status": "complete",
+      "headRevision": 6, "latestCompleteRevision": 6,
+      "inherits": { "key": "brief:bf-…b7@5", "briefId": "bf-…b7", "revision": 5, "digest": "sha256:…" },
+      "title": "Engagement Portal — evidence-upload",
+      "headline": "Let client users upload evidence files against an open request.",
+      "audience": "KPMG staff broadly", "constraints": "Existing uploads and their download links",
+      "outOfScope": "Bulk upload; the reviewer side of evidence",
+      "sections": [ … ], "criteria": [ { "id": "c-…", "text": "Tests pass", "digest": "sha256:…", "state": "open", "because": "" } ],
+      "savedAt": "…", "savedBy": "Dylan Mackie", "erasedAt": "" },
+    { "key": "none:declined", "resolution": "none", "noneReason": "declined", "present": false, … },
+    { "key": "brief:bf-…40@5", "resolution": "missing", "present": false, … },
+    { "key": "", "resolution": "none", "noneReason": "", "present": false, … } ],
+  "heads": { "bf-…a2": { "headRevision": 6, "latestCompleteRevision": 6, "archived": false } } }
+```
+
+Every `Ref` field is present in every slot — empty strings, zeroes, `null` for `inherits`, `[]`
+for lists — so the desktop's type has no optional fields.
+
+**Rules:**
+
+1. `refs` delegates to `discoverhub.Service.Resolve` (task 07). If the Hub is unreachable, slots
+   the cache can answer are answered and the rest are `unavailable`; the response is still 200.
+   Only a failure to parse the query is a 4xx.
+2. The head readings delegate to `Service.HeadRef`. A Hub that cannot be reached is 503
+   `upstream_unavailable` here — a head is never served from cache, because it moves.
+3. `materialisations` lists the branch's worktrees through the scanner and calls
+   `contextwrite.Materialiser.Inspect` for each. It **reads files and writes nothing**.
+4. Criterion states come from `Config.Evaluate` (phase 3's seam, S4-P3.4); nil → all `open`.
+
+**The route audit** gains four lines:
+
+```go
+"GET /v1/discover/refs":                                                   "Hub reads through an in-memory cache of immutable revisions. Writes nothing.",
+"GET /v1/discover/projects/{projectId}/provenance":                        "One Hub head read.",
+"GET /v1/discover/projects/{projectId}/branches/{branchId}/provenance":    "One Hub head read.",
+"GET /v1/discover/projects/{projectId}/branches/{branchId}/materialisations": "Reads each worktree's CLAUDE.md to compare it with a fresh render (contract §3.3's one permitted read-back). Writes no file.",
+```
+
+**Tests first:**
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRefsAnswersEverySlotInOrder` | four keys in, four refs out, in order, with a repeat answered twice | a map-ordered response the desktop cannot zip |
+| `TestRefsNeverFailsTheBatchForABadKey` | `b-42`, `brief:bf-…@0`, `""` among good keys → 200, `invalid`/`none` in their slots | one typo blanking twelve chips |
+| `TestRefsLimits` | 0 keys and 101 keys → 400 `field: "key"` | an unbounded fan-out to the Hub |
+| `TestRefsServesCachedSlotsWhenTheHubIsDown` | resolve once; fake goes unavailable; resolve the same key plus a new one → 200, first `resolved`, second `unavailable` | a whole Develop column of chips blanked by one unreachable Hub (ADR-H1 §5.4) |
+| `TestRefsJSONHasEveryFieldInEverySlot` | each slot's JSON object has the same key set as the golden `Ref` of task 06 | optional fields the desktop has to guard |
+| `TestHeadReadingIsNeverCached` | two reads with the head moved between them return different revisions | a stale `DefinitionOfDone` |
+| `TestHeadReadingOfAnUnreachableHubIs503` | `upstream_unavailable`, `upstream: "hub"` | a head served from memory |
+| `TestMaterialisationsWritesNothing` | every worktree's file bytes and mtimes are unchanged after the call | a GET with a side effect (§10a) |
+| `TestMaterialisationsListsTheBranchsWorktreesOnly` | two branches, three worktrees: only this branch's two | a cross-branch leak into "who inherits this" |
+
+**Steps:**
+
+- [ ] **Step 1:** Write the tests; confirm they fail.
+- [ ] **Step 2:** `provenance.go`; add the four routes to `Mount`; add the audit lines.
+- [ ] **Step 3:** Run the acceptance commands; commit by pathspec.
+
+**Acceptance:**
+
+```
+$ go test ./control-plane/internal/discoverapi/... ./control-plane/internal/api/... -race -count=1
+ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/discoverapi
+ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/api
+```
+
+**Does NOT claim:** `design:` key resolution for phase 5 (the Hub's `/v1/refs` answers those; this
+route passes them through as `resolved`/`missing` with phase 4's `Ref` fields empty — phase 5 adds
+its own fields or its own surface, S4-P5.1); criterion evaluation (phase 3).

@@ -146,8 +146,11 @@ for that ask — never a variant spelling.
 $ go test ./control-plane/internal/discoverapi/... ./control-plane/internal/api/... -race -count=1
 ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/discoverapi
 ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/api
-$ go list -deps ./control-plane/internal/discoverapi | grep -c "control-plane/internal/api$"
+$ go list -deps ./control-plane/internal/api | grep -c "discover\|contextwrite\|provenance"
 0
 ```
+(`api` imports nothing of phase 4 — R1's reason. The reverse is allowed: `discoverapi` reaches
+`api` through `contextwrite`, and `routes_audit_test.go` is the external package `api_test`, so
+importing `discoverapi` there is not a cycle.)
 
 **Does NOT claim:** provenance routes (task 12); analyse (task 13); any real Hub call.

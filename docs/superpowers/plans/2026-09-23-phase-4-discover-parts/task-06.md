@@ -66,6 +66,10 @@ const (
 	Erased   Resolution = "erased"   // an org admin erased it; key, digest, savedAt, savedBy remain (ADR-H1 §5.6)
 	Invalid  Resolution = "invalid"  // not a key in the grammar
 	None     Resolution = "none"     // "" or none:declined — no brief was inherited
+	// Unavailable is a slot the server could not answer because the Hub did
+	// not (ADR-H1 §5.4: a key already cached is still answered). Never
+	// cached by the desktop; the loader retries it (task 16).
+	Unavailable Resolution = "unavailable"
 )
 
 type CriterionState string
@@ -154,6 +158,7 @@ func Build(key string, src Source, head Head, eval Evaluate) Ref
 
 func MissingRef(key string) Ref
 func InvalidRef(key string) Ref
+func UnavailableRef(key string) Ref
 func NoneRef(contextRef string) Ref // "" or none:declined
 func ErasedRef(key string, briefID string, revision int, digest, savedAt, savedBy, erasedAt string, head Head) Ref
 
