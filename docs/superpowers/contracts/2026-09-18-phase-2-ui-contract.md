@@ -650,7 +650,10 @@ export interface DataSlice {
   sessionIdsByWorktree: Record<WorktreeId, SessionId[]>;
   harnesses: Harness[];
   loading: Partial<Record<LoadKey, boolean>>;
-  /** The last API failure, for the one status line in the rail footer. Cleared on success. */
+  /** The last API failure, for the one status line in the rail footer. Cleared only by
+   *  setError(null) (task 17, decision (a)), which the operation that RAISED it calls when it
+   *  next succeeds, and only while this is still its report; another operation's success
+   *  leaves it alone. Amended 2026-09-23 by task 24 (ruling B, §4.7). */
   lastError: { code: string; message: string } | null;
 
   setMachines(machines: Machine[]): void;
@@ -1256,8 +1259,13 @@ place: `desktop/src/api/poller.ts`.
 ```ts
 /** One interval for the whole app. Starts on mount of AppShell, stops on unmount, pauses
  *  while document.visibilityState === "hidden" (a laptop lid closed for eight hours must not
- *  wake to 14,000 queued requests). */
-export function startPolling(client: CockpitClient, store: typeof useCockpit): () => void;
+ *  wake to 14,000 queued requests). `onGoodTick` runs after every tick whose fetch succeeded,
+ *  and never after a failed, skipped or stopped one. */
+export function startPolling(
+  client: CockpitClient,
+  store: typeof useCockpit,
+  onGoodTick?: () => void,
+): () => void;
 
 export const POLL_INTERVAL_MS = 2000;
 ```
@@ -1267,6 +1275,16 @@ branch>` is wrong (N requests); it issues `GET /v1/sessions` unfiltered and call
 `replaceSessions(all, worktreeIdsSeen)`. Machines, projects, branches, worktrees and harnesses
 are fetched on navigation and on an explicit refresh, not on the poll — they change when the user
 acts, not when an agent does.
+
+**Two amendments, added 2026-09-23 by task 24 (ledger, "Task 24 rulings"), both declared
+departures into task 19's `poller.ts`.** (A) A catalogue list that **failed, or never arrived**,
+is retried on the poll after all: App passes the catalogue loader's `retry` as `onGoodTick`, so
+every good tick retries such a list, with at most one request in flight per list, and a list that
+has arrived is never fetched again. A good tick is the one proof the control plane answers, so a
+daemon that is down costs no extra request, and there is still one interval. (B) A good tick
+clears `lastError` **only if the poller raised it** and it is still on screen. It used to clear
+any error, so a catalogue failure was reported and then wiped 2 s later, leaving an empty rail and
+a clean footer. Each operation clears its own report when it next succeeds (§3.2's `lastError`).
 
 The poll must move zero pixels. Three things make that true, and all three are testable:
 `replaceSessions` preserves index position for known ids (§3.2), the server sorts and the client
@@ -1723,11 +1741,12 @@ reason is the honest third option.
 | `DevelopLens.tsx` | `{}` | Chooses Columns vs Canvas vs `EmptyDevelop`. Owns nothing else. |
 | `ColumnsLayout.tsx` | `{ sessionIds: SessionId[] }` | **The horizontal scroll container**, and scroll-into-view of a newly created or newly focused pane (defect 4). |
 | `CanvasLayout.tsx` | `{ sessionIds: SessionId[] }` | The 2400×1600 scrollable plane, tile drag, tile resize, z-order, and writing `TilePosition` to the store (defect 6). |
-| `SessionPane.tsx` | `{ sessionId: SessionId; variant: "column" \| "tile" }` | One session: header, `<Terminal/>`, the attach overlay (§7.7), footer. **Owns focus intent** — clicking anywhere in the pane focuses the session and hands DOM focus to the terminal — and tells `<Terminal/>` whether this pane is the focused one, so nine mounting panes do not each take the caret. Restart is `api.restartSession`, which keeps the session id. |
+| `SessionPane.tsx` | `{ sessionId: SessionId; variant: "column" \| "tile" }` | One session: header, `<Terminal/>`, the attach overlay (§7.7), `<LinkedWorktreeNote/>` after the body *(sandbox git fix, 2026-09-23)*, footer. **Owns focus intent** — clicking anywhere in the pane focuses the session and hands DOM focus to the terminal — and tells `<Terminal/>` whether this pane is the focused one, so nine mounting panes do not each take the caret. Restart is `api.restartSession`, which keeps the session id. |
 | `SessionPaneHeader.tsx` | `{ session: Session; worktree: Worktree \| undefined; variant: "column" \| "tile" }` | Status dot, worktree name, harness command, the `⋯` button. In `tile` variant it is also the drag handle. |
 | `SessionPaneFooter.tsx` | `{ session: Session }` | harness command · model · elapsed · attach state. All numbers `tabular-nums`. Attach state comes from `useAttachState(session.id)` (§6.6), never from the store; the retry elapsed is `useHeartbeat() - state.ladderStartedAt`, computed here because the registry owns no clock. |
 | `SessionMenu.tsx` | `{ sessionId: SessionId; anchor: DOMRect \| null; onClose(): void }` | The `⋯` menu: Resume, Fork into…, **Restart**, Rename…, Open a shell here, Kill, Forget, Copy session id, and **Retry attach** *(only while `useAttachState(id).phase === "failed"` — §6.6)*. Mounted by `ContextMenu.tsx` (§6.7). The rows are built by `develop/sessionVerbs.ts`, which the rail's menu shares. |
-| `EmptyDevelop.tsx` | `{ branch: Branch \| undefined }` | The zero state. Named actions, no spinner. Also exports `startSessionOnWorktree(worktreeId, defaults)`, the create path its two actions share — an addition to this table, sited here because they are its only callers. Distinct from task 18's `useCreateSession`, which re-resolves against the live store. |
+| `EmptyDevelop.tsx` | `{ branch: Branch \| undefined }` | The zero state. Named actions, no spinner, and `<LinkedWorktreeNote/>` before them *(sandbox git fix)*. Also exports `startSessionOnWorktree(worktreeId, defaults)`, the create path its two actions share — an addition to this table, sited here because they are its only callers. Distinct from task 18's `useCreateSession`, which re-resolves against the live store. |
+| `LinkedWorktreeNote.tsx` | `{ worktree: Worktree \| undefined }` | ADDED by the sandbox git fix (2026-09-23). One sentence, `LINKED_WORKTREE_GIT_NOTE`, for `worktree.isPrimary === false`: git is unavailable in a linked worktree's sessions, because its `.git` names a host path the sandbox cannot see, and that arrives in Phase 3 (`3-D1`). Nothing for the primary worktree, and nothing for an unloaded one. No wire field, no §2 change. |
 | `develop.css` | — | `.pane-*`, `.cols-*`, `.cv-*` |
 
 ```tsx
@@ -1739,6 +1758,7 @@ export function SessionPaneHeader(props: { session: Session; worktree: Worktree 
 export function SessionPaneFooter(props: { session: Session }): JSX.Element;
 export function SessionMenu(props: { sessionId: SessionId; anchor: DOMRect | null; onClose: () => void }): JSX.Element;
 export function EmptyDevelop(props: { branch: Branch | undefined }): JSX.Element;
+export function LinkedWorktreeNote(props: { worktree: Worktree | undefined }): JSX.Element | null;
 ```
 
 The footer shows what Phase 2 can honestly know: `claude · opus · 41m · attached`. It does **not**
@@ -2131,6 +2151,7 @@ who owns each:
 | no projects (`PANACEA_APP_PROJECTS_DIR` unset) | Rail empty state naming the environment variable | `Rail` |
 | branch with no worktrees | `EmptyDevelop` with "this branch has no worktrees yet" | `EmptyDevelop` |
 | worktree with no sessions | `EmptyDevelop` with the two named actions (`＋ Claude Code`, `Open a shell`) | `EmptyDevelop` |
+| linked worktree (`isPrimary: false`) — git does not work in its sandboxes | `LinkedWorktreeNote`'s one sentence, before `EmptyDevelop`'s actions and after every such pane's terminal body. ADDED by the sandbox git fix (2026-09-23) | `LinkedWorktreeNote`, placed by `EmptyDevelop` and `SessionPane` |
 | the attach socket is not up — a first connect, a reconnect, or a ladder that gave up | Pane body shows the connecting line with the elapsed retry time, not a spinner — `useHeartbeat() - useAttachState(id).ladderStartedAt`, the interface for which is §6.6. An overlay **sibling** of `<Terminal/>`, never a conditional render of it, and never a scrim once a transcript may be behind it: centred only for `connecting`, a corner strip otherwise, and for `failed` the strip carries `AttachState.reason` verbatim. **`failed` also has a way forward**, which it did not when this row was written: `Retry attach` in the `⋯` menu, calling §6.6's `retryAttach`. The strip explains; the menu acts — this row stays the *explanation*, and a second action inside the overlay would be a control on a surface that is `pointer-events: none` | `SessionPane`, and `SessionMenu` for the action |
 | session `exited` | Scrollback stays, read-only, with `exitReason` and a Restart action | `SessionPane` |
 | harness unavailable | Listed in the picker with `harness.note` verbatim, not hidden | `SessionPicker` |

@@ -698,6 +698,15 @@ The navigation signal is already in the store — `expandedProjects`, `expandedB
 
 Replace `desktop/src/App.tsx` in full:
 
+> **Superseded in part, 2026-09-23 (ledger, "Task 24 rulings"; UI contract §4.7, "Two
+> amendments").** The implementer found two catalogue-error defects in the block below, and both
+> are fixed in the shipped file. First, a list that failed or never arrived was never fetched again.
+> Second, the poller's next good tick wiped the catalogue's `lastError`. So `startCatalogue` now
+> returns `{ stop, retry }` rather than a stop function. App passes `catalogue.retry` to
+> `startPolling` as its third argument. The loader clears only the error it raised itself. The
+> step-10 table's "Comment out `startPolling(api, useCockpit)`" row therefore targets
+> `startPolling(api, useCockpit, catalogue.retry)`. `desktop/src/App.tsx` is the reference.
+
 ```tsx
 // Contract §9 (task 24) and §4.7. This file renders nothing of its own: it mounts
 // <AppShell/>, it starts the one poller, and it owns every catalogue fetch.
