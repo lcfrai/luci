@@ -32,6 +32,12 @@ vi.mock("../components/develop/sessionVerbs", () => ({
 }));
 vi.mock("./useCreateSession", () => ({ useCreateSession: () => createSessionMock }));
 
+/** useKeyboardMap.ts as text, for the one test that pins the predicate's source. It is loaded
+ *  with import.meta.glob rather than node:fs, for defects.test.tsx's reason: `@types/node` is
+ *  not a dependency, so a node:fs import fails the typecheck. */
+const KEYBOARD_MAP_SOURCE: string =
+  Object.values(import.meta.glob<string>("./useKeyboardMap.ts", { query: "?raw", import: "default", eager: true }))[0] ?? "";
+
 /** cancelable:true is MANDATORY. Without it preventDefault() is a no-op, defaultPrevented
  *  stays false, and every "is not intercepted" assertion below passes for the wrong reason. */
 function press(key: string, init: KeyboardEventInit = {}): KeyboardEvent {
@@ -374,5 +380,36 @@ describe("isCockpitChord — the one list the map and the terminal both read", (
     // §6.9's fifteen chords, each on Ctrl and on Meta: the same thirty the test above counts.
     // Without it, emptied lists would pass this test having checked nothing.
     expect(checked).toBe(30);
+  });
+
+  it("the predicate names no key of its own, so the two lists are its whole claim", () => {
+    // ADDED BY TASK 23's FIX ROUND 2. The test above covers every key the lists name, and the
+    // whole-keyboard test covers the keys it samples. A key the predicate names itself is in
+    // neither: "⌘? claimed, no branch" (`if (key === "?") return true;` in the predicate)
+    // passed all 701 tests, because "?" is outside the lists and outside the sample. So the
+    // predicate and chordKey are pinned as source, comments stripped and whitespace collapsed,
+    // as defects.test.tsx reads source. To add a chord, add its key to CHORD_KEYS or
+    // SHIFTED_CHORD_KEYS and give it a branch. Neither function changes, and if one must, this
+    // test is where that decision is made on purpose.
+    const code = KEYBOARD_MAP_SOURCE
+      .replace(/\r\n/g, "\n")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "");
+    const fn = (head: string): string => {
+      const start = code.indexOf(head);
+      const end = code.indexOf("\n}\n", start);
+      expect([head, start >= 0 && end > start]).toEqual([head, true]);
+      return code.slice(start, end + 2).replace(/\s+/g, " ").trim();
+    };
+    expect(fn("function chordKey(")).toBe(
+      "function chordKey(event: KeyboardEvent): string { return event.key.length === 1 ? event.key.toLowerCase() : event.key; }",
+    );
+    expect(fn("export function isCockpitChord(")).toBe(
+      "export function isCockpitChord(event: KeyboardEvent): boolean { " +
+        "if (!(event.metaKey || event.ctrlKey)) return false; " +
+        "if (event.altKey) return false; " +
+        "const key = chordKey(event); " +
+        "return (event.shiftKey ? SHIFTED_CHORD_KEYS : CHORD_KEYS).includes(key); }",
+    );
   });
 });

@@ -33,7 +33,8 @@ import { useCockpit } from "../store/store";
 const NOOP = (): void => {};
 
 /** §6.9's unshifted chord keys, and its shifted ones (⌘⇧M alone), in the lower case chordKey
- *  yields. Between them these two lists ARE the predicate's claim: it reads no key outside them.
+ *  yields. Between them these two lists ARE the predicate's claim: it reads no key outside them,
+ *  and a test pins isCockpitChord's source so that it cannot start to.
  *
  *  Exported, frozen, for one reader besides isCockpitChord. The keys are still written twice,
  *  here and in the branch chain below, and a key listed here with no branch is one xterm skips
@@ -81,12 +82,14 @@ export function useKeyboardMap(): void {
       // What pins what, in useKeyboardMap.test.ts (corrected by task 23's fix round 2; this
       // comment used to say the whole-keyboard test notices any drift, and it sees only its
       // own keys). "every key the two lists name ... reaches a branch" reads CHORD_KEYS and
-      // SHIFTED_CHORD_KEYS, so a listed key with no branch fails it whatever the key is. The
+      // SHIFTED_CHORD_KEYS, so a listed key with no branch fails it whatever the key is. "the
+      // predicate names no key of its own" pins isCockpitChord and chordKey as source, so a
+      // claim written into either, outside the two lists, fails it whatever the key is. The
       // whole-keyboard test presses a SAMPLE of 74 keys with every modifier the predicate
-      // reads; it is what catches a claim written into the predicate outside the two lists,
-      // and only for a key in its sample. The other direction, a branch for a key the
-      // predicate does not claim, loses no key: every branch is below this line, so it is
-      // dead code, and the chord table's own test for that chord is what fails.
+      // reads, and checks behaviour rather than source, for the keys in its sample. The other
+      // direction, a branch for a key the predicate does not claim, loses no key: every branch
+      // is below this line, so it is dead code, and the chord table's own test for that chord
+      // is what fails.
       if (!isCockpitChord(event)) return;
 
       const key = chordKey(event);
