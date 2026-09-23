@@ -149,13 +149,27 @@ type Creator struct {
 //  5. `var GIT_AUTHOR_IDENT` in the PROJECT (Read); when ParseIdent accepts it,
 //     `config user.name` and `config user.email` in the clone (Local). No identity is not an
 //     error: the sandbox fix's resolver logs it at session create;
-//  6. Store.Add.
-// A failure in 4-6 removes Path with RemoveTree before returning, so a failed create leaves
+//  6. `config --local --get core.hooksPath` in the PROJECT (Read; exit 1 means unset). When
+//     CopyableHooksPath accepts the value, `config core.hooksPath <value>` in the clone
+//     (Local), byte for byte. `git clone` copies neither `.git/config` nor `.git/hooks`, so
+//     without this a husky repository's lane runs none of its hooks (review I11). Nothing
+//     under `.git/hooks` is ever copied: a host hook's `#!` line names a Windows path. A value
+//     CopyableHooksPath refuses is not copied and not an error;
+//  7. Store.Add.
+// A failure in 4-7 removes Path with RemoveTree before returning, so a failed create leaves
 // no directory behind; a failure in 1-3 has touched nothing.
-// Scopes, per task-02 §HGH H3: steps 2, 4 and 5's `var` run with Dir the project and Scope
-// Project (step 4's clone checks its source that way); step 5's `config` writes run in the
-// clone with Scope Clone.
+// Scopes, per task-02 §HGH H3: steps 2, 4, 5's `var` and 6's `--get` run with Dir the project
+// and Scope Project (step 4's clone checks its source that way); steps 5 and 6's `config`
+// writes run in the clone with Scope Clone.
 func (c *Creator) Create(ctx context.Context, req CreateRequest) (Lane, error)
+
+// CopyableHooksPath reports whether a project's local core.hooksPath is copied into a lane
+// clone: it is non-empty, relative (no leading `/` or `\`, no `X:` drive, no leading `~`),
+// has no `..` segment, and holds no `\`. The first three are task-02 §HGH H3's Clone rule
+// for the key, so a copied value never makes the clone's own config check refuse it; the
+// `\` refusal is because the sandbox's Linux git reads `\` as part of a file name, so a
+// Windows-style value would name no directory there. Husky writes `.husky/_`.
+func CopyableHooksPath(v string) bool
 
 // RemoveTree deletes a directory tree that git wrote. On Windows git leaves object and pack
 // files read-only, and os.RemoveAll fails on them (task 01's TestBehaviourRemoveAllOnAClone
@@ -282,6 +296,9 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCreateSharesNoObjectFileWithTheProject` | walk the clone's `.git/objects`; for every file, the same relative path in the project is absent or not `os.SameFile`. Red first against `--local` (task 01 pins that it shares them) | an agent rewriting the user's history through a hard-linked pack (review I8) |
 | `TestCreateCopiesTheProjectsIdentity` | project has local `user.name=Ada`; the clone's `git var GIT_AUTHOR_IDENT` starts `Ada <` | agents committing as the machine-wide identity in a repo that sets its own |
 | `TestCreateWithoutAnIdentityStillCreates` | no identity anywhere (isolated config, `user.useConfigOnly`) → lane created, clone config has no `user.name` | failing a create for a commit-time problem |
+| `TestCreateCopiesARelativeHooksPath` (review I11) | project local `core.hooksPath=.husky/_` and a `.git/hooks/pre-commit` file: the clone's `config --local --get core.hooksPath` prints `.husky/_`, and the clone's `.git/hooks` holds only what `git clone` put there (no `pre-commit`). Then a table of project values, each a fresh create: `/abs/hooks`, `C:/hooks`, `C:hooks`, `\hooks`, `~/hooks`, `../x`, `a/../../x`, `.githooks\x` → lane created, clone has no `core.hooksPath`; `.githooks` → copied. Red first against step 6 removed | a husky lane running none of the project's hooks; a host path or an escape copied into a clone |
+| `TestCopyableHooksPath` | the same table as a pure function, plus `""` → false | a predicate that disagrees with Create's copy |
+| `TestCreateHooksPathPassesTheCloneCheck` | a created clone whose project had `core.hooksPath=.husky/_`: a `status` with `Scope: Clone` through `gitx.Machine` is not refused (task-02 §HGH H3) | a copy the clone's own allowlist then refuses, breaking every host call in the lane |
 | `TestCreateUnknownBranchTouchesNothing` | `Branch: "nope"` → ErrUnknownBranch, `<root>/<p>` has no entry | a half-made clone |
 | `TestCreateNeverReusesAnExistingDirectory` | a file at Path → ErrNameTaken and the file's bytes are unchanged | RemoveTree on a directory we did not make |
 | `TestCreateCleansUpAfterAFailedClone` | a Runner that fails the clone after creating Path → Path absent | leaving a broken clone for the catalog to list |
@@ -323,3 +340,6 @@ go test ./control-plane/internal/registry/ ./control-plane/internal/statepath/ -
   `~/Projects/Panacea`; this task does not.
 - This task's line-ending tests run on the host only. That the sandbox's Linux git sees the clone
   as clean is task 01's `TestSandboxCloneHasWorkingGit`.
+- Step 6 copies the **setting**, not the hooks. A hooks directory the project generates and
+  ignores (husky's `.husky/_`) is not in a fresh clone, so its hooks run only once the
+  project's install step has made it there. Task 05 states what that means in a sandbox.
