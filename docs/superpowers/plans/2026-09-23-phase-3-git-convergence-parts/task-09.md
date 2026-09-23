@@ -16,6 +16,7 @@ commit byte for byte and never parsed (contract P5). Without a resolver a land r
 - `control-plane/internal/converge/land.go` + `land_test.go` — `Land`, `LandRequest`, `LandResult`, refusals (new)
 - `control-plane/internal/api/lands.go` + test — `POST …/lands` (new)
 - `control-plane/internal/api/gitdeps.go`, `gitroutes.go` — `// ── task 09 ──` blocks
+- `control-plane/cmd/api/main.go` — wire `Lander`; task 04's `TestServeWiresGit`, in the test file task 04 put it in, gains one assertion (re-review b04-1 issue 3)
 
 #### Interfaces — complete
 
@@ -164,6 +165,7 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestLandRefreshFailureDoesNotFailTheLand` | clone B's directory removed → 201, `refreshErrors[B]` holds git's sentence | failing a land that happened |
 | `TestLandSerialisesPerBranch` | two concurrent lands of different lanes on one branch under `-race` → one succeeds, the other gets `branch_moved` or lands after it; never both on the same `old` | a double land on one tip |
 | `TestLandWaitsOnTheProjectLock` (review I7) | the test holds `Locks.Lock(ctx, p)`: a land on branch `a` and one on branch `b` of `p` have run no git call 50 ms later (a recording Runner); release → both land. Through the handler: holding `Deps.Git.Locks` for `p` keeps `POST …/lands` unanswered until release. A `nil` `Locks` → 500 `internal`, nothing run | a per-branch lock task 12's push does not share; a Lander given a lock of its own |
+| `TestServeWiresGit` (cmd/api; task 04's test, extended; re-review b04-1 issue 3) | red first against a `main.go` that gives the `Lander` `&gitx.Locks{}`: `Git.Lander.Locks` is the same pointer as `Git.Locks` | a Lander given a lock of its own, which every handler test (each builds its own Deps) would miss |
 | `TestLandRouteMapsEveryRefusal` | table test over the handler: each `*Refusal` → 409 with its reason; each `*gitx.Error` → `git_failed`; a `*gitx.UntrustedConfig` → 409 `project_config_untrusted` with `details.key` | a refusal that surfaces as 500 |
 | `TestLandRunsNoProjectHook` | task-02 §HGH, red first against an unhardened `Exec`: the project's `.git/hooks/reference-transaction` writes a marker → a land succeeds and no marker exists | a land that honours the repository's hooks |
 | `TestLandRefreshNeverUsesTheClonesOrigin` | task-02 §HGH H2 and review C3, red first. (a) Clone B's config sets only `remote.origin.url` (an allowlisted key) to an `httptest` smart-HTTP server → after a land, B's `refs/remotes/origin/<b>` equals the merge and the server received no request. (b) B's config also sets `http.proxy` to a second `httptest` server, `http.sslVerify=false` and `remote.origin.uploadpack=<marker script>` → neither server received a request, no marker exists, and `refreshErrors[B]` names `clone_config_untrusted` | a refresh that fetches `origin` |
@@ -182,7 +184,7 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 #### Acceptance
 
 ```
-go test ./control-plane/internal/converge/ ./control-plane/internal/api/ -race -count=1 → PASS
+go test ./control-plane/internal/converge/ ./control-plane/internal/api/ ./control-plane/cmd/api/ -race -count=1 → PASS
 git log --first-parent -1 --format="%P%n%(trailers)" refs/heads/<b>   (manual, after a real land) → two parents; Panacea-Land
 ```
 

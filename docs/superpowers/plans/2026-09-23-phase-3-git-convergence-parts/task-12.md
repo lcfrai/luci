@@ -23,6 +23,7 @@ and on a slow timer, owned by the control plane. Its time is `FETCH_HEAD`'s mtim
 - `control-plane/internal/api/remote.go` + test — POST fetch, POST push (new)
 - `control-plane/internal/api/gitdeps.go`, `gitroutes.go` — `// ── task 12 ──`
 - `control-plane/cmd/api/config.go`, `main.go` — `PANACEA_APP_FETCH_INTERVAL`; start/stop the Fetcher
+- task 04's `TestServeWiresGit`, in the test file task 04 put it in, gains one assertion (re-review b04-1 issue 3)
 
 #### Interfaces — complete
 
@@ -146,7 +147,8 @@ reading a branch a land is moving would push whichever tip it happened to see; a
 `--prune` and a push's remote-tracking update would contend for the same ref locks. This task
 builds no lock of its own, so it needs neither task 09's `Lander` nor an edge to task 09: each
 side proves it waits on the shared lock (`TestLandWaitsOnTheProjectLock` there, the test below
-here), and `TestServeWiresGit` proves there is one. The cost: a land waits behind a slow fetch,
+here), and `TestServeWiresGit` proves there is one: task 04 asserts `Git.Locks`, and tasks 09 and
+12 each assert that their struct's `Locks` is that same pointer (re-review b04-1 issue 3). The cost: a land waits behind a slow fetch,
 for at most that fetch's `RemoteTimeout`.
 
 #### The tests to write first
@@ -173,6 +175,7 @@ Real git against a **bare repository on disk** as the remote, and, for the crede
 | `TestFetchRouteNoRemote` | → 409 `no_remote` | a git error for a normal state |
 | `TestPushRouteMapsRejection` | → 409 `push_rejected` with `details.gitSays` | a rejection surfacing as `git_failed` |
 | `TestPushAndFetchWaitOnTheProjectLock` (review I7; replaces `TestPushAndLandSerialise`, which needed task 09's `Lander`) | under `-race`, the test holds `Locks.Lock(ctx, p.ID)`: a `Push` and a `Fetch` of `p` have run no git call 50 ms later (a recording Runner), and a `Fetch` of another project has finished; release → both run. A `Push` whose context is cancelled while it waits → `context.Canceled`, the bare remote unchanged. Through the handlers: holding `Deps.Git.Locks` keeps `POST …/push` and `POST …/fetch` unanswered until release | a push that reads the tip outside the lock a land holds; a Fetcher with a mutex of its own |
+| `TestServeWiresGit` (cmd/api; task 04's test, extended; re-review b04-1 issue 3) | red first against a `main.go` that gives the `Fetcher` `&gitx.Locks{}`: `Git.Fetcher.Locks` is the same pointer as `Git.Locks` | a Fetcher with a lock of its own, which every handler test (each builds its own Deps) would miss |
 | `TestLoadConfigFetchInterval` (cmd/api) | default 10m; `0` accepted (off); `30s` refused naming the 1m minimum | a fetch loop hammering a corporate proxy |
 
 #### Steps
