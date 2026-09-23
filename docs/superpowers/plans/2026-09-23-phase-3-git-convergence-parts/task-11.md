@@ -97,7 +97,7 @@ type RenameResult struct {
 // RenameBranch refuses branch_has_worktrees (details.worktrees = the lanes' names; open question
 // Q4) and branch_exists; otherwise `branch -m <old> <new>` (Local), which moves the reflog and
 // branch.<old>.* config and updates any checkout's HEAD; then Store.AddRename and
-// Store.Retarget(projectID, old, new).
+// Store.Retarget(projectID, old, new). Scope Project (task-02 §HGH), and no hook runs (H4).
 func RenameBranch(ctx context.Context, m gitx.Machine, store lanes.Store, projectPath, projectID, old, new string, now time.Time) (RenameResult, error)
 
 // DeleteResult is a deletion that happened.
@@ -112,7 +112,8 @@ type DeleteResult struct {
 //   update-ref -d refs/heads/<name> <tip>                              (compare-and-swap)
 //   config --remove-section branch.<name>                              (absent section is fine)
 //   Store.SetQueue(projectID, name, nil); Archiver.ArchiveHead(projectID, branchID) when non-nil
-// The remote branch is not deleted.
+// The remote branch is not deleted. Every git call runs in the project with Scope Project
+// (task-02 §HGH), and no hook runs (H4).
 func DeleteBranch(ctx context.Context, m gitx.Machine, store lanes.Store, arch briefref.Archiver, projectPath, projectID, branchID, name string, now time.Time) (DeleteResult, error)
 ```
 
