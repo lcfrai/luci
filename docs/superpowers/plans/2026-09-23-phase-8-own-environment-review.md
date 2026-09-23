@@ -1017,3 +1017,70 @@ Tree after `7ddf82e` plus this section's commit. Every finding is fixed; none is
 - Whether PID 1 ignores SIGTERM inside a Kata guest the same way.
 
 **Owner question:** none new. The b05 question (a larger SKU or a smaller session) stands, with its seam corrected.
+
+## Fix batch b06 (2026-09-24) — I6, I7
+
+Commits `005c8ba` and `ab1b9ac` (I7, task 21), `cebcb1c` (I7, task 25 and P3A-3), `19787b7`
+(I6, broker), `0aa3071` (I6, the laptop and the restatements), and this section's commit. Line
+numbers are at `ab1b9ac`. No finding is deferred.
+
+**I6. The laptop's reaper will destroy another laptop's cloud sessions.**
+
+| Ask | Change | Where |
+|---|---|---|
+| a random install id under `statepath` | `machines.InstallID(statepath.Dir("machines"))`: 32 lowercase hex from `crypto/rand`, in `install-id` (mode `0600`), created with `O_EXCL` and then fsynced, so two starts that race agree on one id. A malformed file is an error that names it, and the file is **never regenerated**: a new id would turn this laptop's running sessions into another control plane's, and rule 1 would then mark them exited. The id is created only when `PANACEA_APP_BROKER_URL` is set, so phase 2 is unchanged byte-for-byte | `parts/task-23.md:16`, `:69-89`, `:137-141` |
+| sent as a label in `SandboxSpec` | `SandboxSpec.ControlPlane` (`controlPlane`, required, `^[0-9a-f]{32}$`) flows to `backend.Spec.ControlPlane` (label only, on `SessionID`'s precedent, `backend.go:143`), then to `sandbox.Spec`, and becomes the pod's and the Secret's label `panacea-app/control-plane` (`backend.KubeLabelControlPlane`). dockerbe ignores it. remotebe sets it on every Create, and `NewClient` refuses a malformed id | `parts/task-18.md:14-21`, `:57-64`, `:92-113`, `:131-132`; `parts/task-22.md:86-90`, `:104`, `:141` |
+| filtered on by the broker on request | `GET /v1/sandboxes?controlPlane=<id>` adds a label selector beside the owner's, so the API server does the filtering. A malformed id is `400`. Without the query the answer is the owner's whole list, kept as the seam for ending a session that another laptop started (owner question below). remotebe always sends the query | `parts/task-18.md:66-72`, `:120`; `parts/task-22.md:142` |
+| rule 4 acts only on sandboxes carrying its own id | `reaper.Config.InstallID`. On a cloud machine, rule 4 destroys a sandbox only when its label equals the install id; a foreign or unlabelled sandbox is left running and logged once. This is a **second** check behind the broker's filter. remotebe deliberately does not filter a third time, so the reaper test can drive a broker that ignored the query. Rules 1-3 and the local sweep are unchanged | `parts/task-23.md:115-126`; `parts/task-22.md:142` |
+| `TestTheReaperNeverDestroysAnotherControlPlanesCloudSandbox` | Added. Its three sandboxes (its own, a foreign one, an unlabelled one) are all older than rule 4's mid-create grace. Also added: `installid_test.go` (three tests), `TestAMalformedInstallIDStopsTheStart`, `TestNoBrokerIsPhase2` (asserts that no id file is created), broker `TestCreateStampsTheControlPlane`, `TestCreateWithoutAControlPlaneIs400` and `TestListFiltersByControlPlane`, the backend and sandbox label tests, and remotebe `TestListAsksForThisControlPlaneOnly` and `TestNewClientRefusesAMalformedControlPlane`. Mutation steps in tasks 18 and 23 | `parts/task-23.md:169-175`, `:193-207`, `:215-225`; `parts/task-18.md:290-292`, `:297-300`, `:341-344`; `parts/task-22.md:169-171` |
+| state the single-laptop limit for sessions as well as lanes | Task 23 states that a second laptop, or a reinstall with a fresh state directory, neither lists, attaches to, reaps nor ends another control plane's session. That session holds one of the owner's `MAX_SANDBOXES_PER_USER` slots and keeps its machine awake, because the sleeper refuses while a session pod exists (`task-19.md:93-94`). P3A-2 now names sessions in task 25, task 33 and the plan. Task 18 states that the id authorises nothing: `GET`, `DELETE` and `attach` stay owner-scoped | `parts/task-23.md:241-249`; `parts/task-25.md:84`; `parts/task-33.md:63`; plan `:285`; `parts/task-18.md:360-364` |
+| (restatements) | The plan's file map, the shared-file order (`backend.go`, `manager.go` and `kata.go` gain task 18), and task rows 18 and 23 (3 → 3.5 h) | plan `:443`, `:445`, `:447`, `:455`, `:460`, `:487-489`, `:542`, `:557` |
+
+**I7. `machined` closes two of git's code-execution paths, then hands git the user's tokens.**
+
+| Ask | Change | Where |
+|---|---|---|
+| (a) an explicit `Env` allowlist, with the key restricted to `http.extraHeader` or `http.<url>.extraHeader` | Done, and **narrower than asked**. Only `http.https://<host>[:<port>]/.extraHeader` is admitted, and its host must be `RemoteURL`'s. The bare `http.extraHeader` is refused for three reasons: it sends the header to every host the call reaches, phase 3's `PushEnv` never writes it, and phase 3's own `TestPushEnvScopesTheHeaderToTheHost` treats it as the bug. `GIT_CONFIG_COUNT` is 1 to 4. `GIT_TERMINAL_PROMPT` and `GIT_OPTIONAL_LOCKS` are admitted as `0` only | `parts/task-21.md:122-136` |
+| (b) a `--local --no-includes` config allowlist before any `lanes/` call | **Reused rather than rewritten, and widened to `projects/`.** Phase 3's task 02 now carries §HGH. Its H3 runs exactly this check before every call: a closed allowlist for `Clone`, a refusal list for `Project`. It adds H1's command-scope prefix and H5's layout pin, which stops a planted `commondir` from swapping the checked config. Task 21 had been written against an older `gitx` with no `Scope`. `GitCall` now carries `Scope` and `RemoteURL`, and `machined` runs `gitx.NewExec(MachineHardening(…))` with no `-c` of its own. The review's "pushes run from `projects/`, whose config no session can write" is **wrong on one fact**: a session on a project's primary worktree mounts `projects/<name>` read-write (`task-20.md:101`, `task-24.md:91`), and phase 3's §HGH says the same. So `machined` also checks that `Scope` follows `Dir` for both trees, and it refuses to start if the machine has a credential helper. On the laptop, `Remote` sends the scope and rebuilds `*UntrustedConfig` from the `409` | `parts/task-21.md:12-16`, `:27-49`, `:69-84`, `:86-121`; `parts/task-25.md:55-64`, `:92-95` |
+| (b) no credential `Env` for `lanes/` | Done. Any `GIT_CONFIG_*` on a `clone`-scope call is a `400`. It is admitted only on a `project`-scope Remote call, where H3's Remote rule refuses `http.*` and `credential.*`, and on the add-project clone. Phase 3's task 12 runs fetch and push with `Scope Project`, per its contract comments at phase 3's `93c1fdf` | `parts/task-21.md:137-141`; `parts/task-25.md:121-127` |
+| (c) a scrubbed environment, without `PANACEA_APP_MACHINED_TOKEN` | `machined`'s `main` unsets **every** `PANACEA_APP_*` before it listens, because phase 3's Exec starts git with `os.Environ()`. **Limit, stated:** `/proc/1/environ` keeps the start-time block, which any process running as the same uid can read. The scrub stops inheritance; items 1 to 3 stop the code | `parts/task-21.md:19`, `:142-152` |
+| (d) a lane with `filter.x.clean` and `* filter=x` has its `status` refused and writes no marker; `GIT_DIR` in `Env` is a `400` | `TestGitLaneFilterNeverRuns` and `TestGitRefusesGITDIRInEnv`. Also `TestGitPrimaryWorktreeFilterNeverRuns` (it kills the "`lanes/` only" rule), `TestGitIncludedConfigIsRefused`, `TestGitEnvIsAnExplicitAllowlist`, `TestGitScopeMustFollowDir`, `TestGitCredentialEnvIsRefusedInALane`, `TestGitNeverSeesTheMachinedToken`, `TestGitStartRefusesAMachineCredentialHelper` and `TestGitAddProjectCloneHasOneShape`: 20 tests, and a mutation step | `parts/task-21.md:169-197`, `:203-218` |
+| (found beyond the review) the add-project clone | `git clone <url> projects/<name>` could not have passed H3, which has no repository to read before the clone. It is now one fixed `Scope None` shape, run in `machined`'s owned root, with a host-scoped token and a new name only | `parts/task-21.md:158-167` |
+| (found beyond the review) the acceptance selector | `-run Git` matched only three of the eleven old names. Every test is now `TestGit…`, and the count is 20 | `parts/task-21.md:171-173`, `:224` |
+| (restatements) | P3A-3 is answered (plan, task 33); P8-D7 names the hardening; task row 21 goes from 2.5 to 3.5 h | plan `:136`, `:286`, `:550`; `parts/task-33.md:64` |
+
+**Owner question (recorded; the recommended option's seam is built).** What ends a cloud session
+whose laptop is gone: a second PC, a reinstall, or a lost laptop? No other laptop reaps it now,
+and the machine's sleeper will not sleep a machine that has one.
+- **(A), recommended.** The cockpit lists "sessions started on another computer" for each machine
+  and offers an explicit End. Nothing is destroyed unless a person decides.
+- **(B).** A broker-side lease deletes a sandbox whose control plane has made no broker call for N
+  hours. It is automatic, but it kills the agents of a laptop that was closed for a weekend.
+
+Seam: the broker's unfiltered `GET /v1/sandboxes` and its `DELETE` (task 18). The surface belongs
+to tasks 24 and 26, batched with the UI (OD-12).
+
+**Verified this batch** (tree at `ab1b9ac`, phase 3 at `93c1fdf`):
+- `destroyOrphan` is at `reaper.go:452-463`; the review cited `:456-462`.
+- `kata.go:181-186` copies every pod label into `Sandbox.Labels`.
+- `backend.Spec` is at `backend.go:141-152`, and `SessionID` is "for the label only".
+- `statepath.Dir(sub string) string`.
+- `reaper_test.go:417` and `:455`.
+- Phase 3's task 02: §HGH H1-H5, `Call.Scope`, `RemoteURL`, `MachineHardening`, `UntrustedConfig`, and the `os.Environ()` rule in `Call.Env`'s comment.
+- Phase 3's task 13: `PushEnv`'s host-scoped key, and `TestPushEnvScopesTheHeaderToTheHost`.
+- Phase 3's task 12: `Scope Project`.
+- `task-20.md:101`; `task-24.md:91`; `task-19.md:93-94`.
+
+**Still UNVERIFIED:**
+- That `/proc/1/environ` survives `os.Unsetenv`. This is training knowledge of Linux: the file is the block the process was started with.
+- That the machine image has no system credential helper. `machined` now refuses to start if it has one, so a wrong guess fails loudly.
+- Whether `objects/info/alternates` needs a check (see task 21's "does not claim").
+- The state of phase 3's §HGH. It has not landed, and its file was being edited while it was read, so task 21 cites it by heading.
+
+**Mutation checks:** no code exists, so none were run. The likeliest survivors, named before the
+tests were written:
+- I7: `"clone"` mapped to `gitx.Project`, which only the `reason` string kills.
+- I7: the scrub put in a helper that `main` never calls, which only a start through `main`'s own function kills.
+- I7, found while writing: the `^GIT_` prefix mutant survives `TestGitRefusesGITDIRInEnv`, because H5 refuses `GIT_DIR` as well. It is checked against the allowlist rows that phase 3 does not refuse (`parts/task-21.md:204-208`).
+- I6: a missing label read as "ours", which the unlabelled row kills.
+- I6: a create without `O_EXCL`, which the 8-goroutine test kills, run with `-count=20`.
