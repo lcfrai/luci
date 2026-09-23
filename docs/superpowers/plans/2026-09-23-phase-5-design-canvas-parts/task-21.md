@@ -1,6 +1,6 @@
 # Task 21 — Approval: the snapshot, the blobs, the Hub's design link, *changed after approval*, re-review
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 08, 09, 13, 20a, 20b (review I6: 20b's `design.go` gains this task's `Hub` line) · **External:** **Hub C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency** (route 21 is the human-only approval; without the key a sandbox can call it, review C1), Hub H0 (`hubapi`, `hubclient.Designs`, `NewFake`), Hub C2 (the relay rule); phase 4 task 07 (`discoverhub`, through task 20a's port) · **Hours:** 3
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 08, 09, 13, 20a, 20b (review I6: 20b's `design.go` gains this task's `Hub` line) · **External:** **Hub C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency** (route 21 is the human-only approval; without the key a sandbox can call it, review C1), Hub H0 (`hubapi`, `hubclient.Designs`, `NewFake`), Hub C2 (the relay rule), **Hub C1 — Hub plan task 32** (`api.Deps.Hub hubclient.Hub`, `hub/.../task-32.md:58`, and `CodeHubNotConfigured`, `:28`; the `design.go` line below passes that value and route 21 answers that code, re-review RR-I6-2); phase 4 task 07 (`discoverhub`, through task 20a's port) · **Hours:** 3
 
 ## Why
 
@@ -21,10 +21,19 @@ brief R8 / P-g closed — and a release's design key always resolves.
   `hub.go` (the `Designs` port and the relay), `approve_test.go` (new); `routes.go` gains three routes
 - `control-plane/internal/designapi/mount.go` — `Config` gains `Hub Designs`; `(*API).Approvals()`
   returns the in-memory port; `approvals_none.go` (task 20a's stub) is deleted
-- `control-plane/cmd/api/design.go` — one line: `Hub:` is Hub task 32's `hubclient` value (nil when
+- `control-plane/cmd/api/design.go` — one statement (the nil rule below), and `design_test.go` one test (`TestNewDesignAPI_noHubURL`): `Hub:` is Hub task 32's `hubclient` value (nil when
   `PANACEA_APP_HUB_URL` is unset; route 21, and route 22 on a cache miss, then answer the Hub plan's `503 hub_not_configured`,
   `hub/.../task-32.md:28`, never a nil-pointer panic: `TestApprove_noHub`); the MCP
-  wiring is unchanged because task 20b passes `designAPI.Approvals()` (review I6)
+  wiring is unchanged because task 20b passes `designAPI.Approvals()` (review I6).
+  **The nil rule (re-review RR-I6-3).** The line is `if hc != nil { cfg.Hub = hc }`, where `hc`
+  is the `hubclient.Hub` interface value from `api.Deps.Hub` (`task-32.md:58`), never a
+  `*hubclient.Client` (`hubclient.New` returns one, `hub/.../task-04.md:173`): a nil pointer
+  stored in an interface is a non-nil interface, so `c.Hub == nil` would be false and route 21
+  would call through it. `designapi.New` also refuses a typed nil: `if c.Hub != nil &&
+  reflect.ValueOf(c.Hub).Kind() == reflect.Pointer && reflect.ValueOf(c.Hub).IsNil()` →
+  `ErrTypedNilHub`. `TestNewDesignAPI_noHubURL` (task 20b's `design_test.go`, extended here) runs
+  `newDesignAPI` with `PANACEA_APP_HUB_URL` unset and calls route 21 through the returned mount:
+  `503 hub_not_configured`, no panic
 
 ## Contracts
 
@@ -308,6 +317,8 @@ loader; this cache does not poll it).
 | `TestApprove_noRenderer` | no renderer → 409 `renderer_unavailable`, no upload | an approval whose PNGs are blank |
 | `TestApprove_hubErrorsPassThrough` | fake answers `design_already_approved` → the same 409 and code reach the desktop; a fake 500 → 503 `upstream_unavailable` `upstream: hub` | Hub codes rewritten |
 | `TestApprove_noHub` (review I6) | `Config.Hub` nil (the process with `PANACEA_APP_HUB_URL` unset): route 21, and route 22 on a cache miss, → `503 hub_not_configured`, no panic, no blob or approval, authority unchanged; `Approvals().Latest` → not found | a nil `Hub` dereferenced on the one action the spine depends on |
+| `TestNew_refusesTypedNilHub` (re-review RR-I6-3) | `New(Config{…, Hub: (*fakeDesigns)(nil)})` → `ErrTypedNilHub`, no `*API`; an untyped nil `Hub` → builds | a nil pointer inside a non-nil interface reaching route 21 |
+| `TestNewDesignAPI_noHubURL` (`cmd/api/design_test.go`, re-review RR-I6-3) | the real `newDesignAPI` with `PANACEA_APP_HUB_URL` unset (so `api.Deps.Hub` is nil, Hub task 32): route 21 through the returned mount, right local key → `503 hub_not_configured`, no panic | `design.go` assigning a typed nil `*hubclient.Client`, which `TestApprove_noHub`'s untyped nil cannot see |
 | `TestApprove_retryFreshReader` | a `PutBlob` failing once with `ErrUnavailable` then succeeding uploads the full bytes | a retry sending an empty body (HA5-1) |
 | `TestApprove_noApproverField` | the marshalled request has no `approvedBy`, `approver` or `actor` | an actor asserted by the caller |
 | `TestApprove_noMCPPath` | every route of `designapi` is on the guarded mux; no MCP tool name maps to route 21 (reflection over `mcp.RegisterAll`'s tools) | an agent reaching approval over MCP (ADR-H1 R5) |

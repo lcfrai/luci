@@ -4,7 +4,7 @@
 
 ## Why
 
-Task 20a (`task-20.md`) builds the design API against tasks 11–13 alone. This task joins it to
+Task 20a (`task-20.md`) builds the design API against tasks 11–14 and 19 (14 for `ports.go`, re-review RR-I6-1). This task joins it to
 everything else in one process: the store, the authority, the MCP server with every tool and its
 instructions, the relay supervisor and the design routes. It is its own task because the wiring
 calls code that 20a's dependencies do not provide (review I6):
@@ -43,7 +43,11 @@ unset). This task passes every other `Config` field: `Authority`, `Briefs`, `Wor
 	envCanvasDir = "PANACEA_APP_CANVAS_DIR" // absolute; default statepath.Dir("canvas")
 ```
 
-**Wiring, in `main.go`**, in this order: `store.NewFile(canvasDir)` →
+**Wiring, in `main.go`**, in this order: `canvasstore.NewFile(canvasDir, log)` (the import is
+aliased `canvasstore "github.com/kpmg-au-emu/panacea-app/canvas/store"`, because `main.go`'s local
+`store` is already the `*registry.FileStore`, `control-plane/cmd/api/main.go:78`, which
+`Sessions: store` below relies on; the signature is `NewFile(dir string, log *slog.Logger)`,
+`task-10.md:92`; re-review RR-M2) →
 `authority.New(authority.Config{…, Branches: branches})`, where `branches` is
 `designapi.Phase3Branches(…)` over phase 3's lane store and git runner when task 20a wrote
 `branches_phase3.go`, else nil (seam S5-P3.2, review I7) →
@@ -89,14 +93,25 @@ cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5 && go 
 ```
 Expected: every package `ok`; vet silent.
 
-```bash
-go run ./control-plane/cmd/api & sleep 3; curl -s http://127.0.0.1:8730/v1/design/canvases/cv-0000000000000000 ; kill %1
-```
-Expected: `local_key_required` (401) — the curl sends no key. Then again with
-`-H "Authorization: Bearer $(cat "$PANACEA_APP_LOCAL_KEY_FILE")"` (set that variable to a scratch path
-before starting the process, Hub task 37): `{"error":"canvas_not_found",…}`.
-Hub task C3 is a hard dependency, so there is no "before the key" answer to expect. (Run the binary,
-not `go run`, if the orphan-process gotcha bites: build it, start it, kill it by PID.)
+**The live check starts a control plane, and a control plane's reaper destroys at startup every
+sandbox it does not own** (re-review, carried over). So, in this order:
+1. Take the stream's Docker-daemon lock and check for foreign `panacea-app.managed` containers, as
+   the local lock procedure says (`.superpowers/sdd/2026-09-18-phase-2-backend-and-cockpit/docker-daemon-lock.md`
+   in the main tree; git-ignored, so not in this repository). Stop if the lock is held or a foreign
+   container exists.
+2. Build a binary (never `go run`: a background `go run` orphans its child when stopped):
+   `go build -o "$P5/api-20b.exe" ./control-plane/cmd/api`, where `$P5` is the stream's scratch
+   directory.
+3. Start it in the background on a **stream port**, never the default 8730, with its own state and
+   the reaper held off, and record its PID:
+   `PANACEA_APP_ADDR=127.0.0.1:8781 PANACEA_APP_STATE_DIR="$P5/state-20b"
+   PANACEA_APP_REAP_INTERVAL=24h PANACEA_APP_LOCAL_KEY_FILE="$P5/state-20b/local.key" "$P5/api-20b.exe"`.
+4. `curl -s -o "$P5/r1.json" -w '%{http_code}' http://127.0.0.1:8781/v1/design/canvases/cv-0000000000000000 > "$P5/r1.code"`
+   → `401` and `local_key_required`: the curl sends no key. Then the same with
+   `-H "Authorization: Bearer $(cat "$P5/state-20b/local.key")"` → `404` and `canvas_not_found`.
+5. Kill the binary by the recorded PID, purge only this run's sessions, release the lock.
+
+Hub task C3 is a hard dependency, so there is no "before the key" answer to expect.
 
 ## Not claimed
 

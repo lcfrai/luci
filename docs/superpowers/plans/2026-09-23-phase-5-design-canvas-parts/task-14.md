@@ -14,6 +14,13 @@ separate (tasks 15–17), so swapping in `modelcontextprotocol/go-sdk` later tou
 
 - `canvas/mcp/jsonrpc.go`, `transport.go`, `server.go`, `registry.go`, `schema.go`, `errors.go`, `identity.go` (new)
 - `canvas/mcp/*_test.go` (new)
+- `canvas/mcp/ports.go` (new) — **declarations only**: `Briefs`, `Brief`, `Criterion`, `Section`,
+  `Approvals`, `ApprovalInfo`, written verbatim from the block at `task-15.md:23-79`, which stays
+  the one source of their text. Standard library only (`context`); no function bodies, no canvas
+  import, so "this task knows no canvas" still holds for every line of behaviour. It is here, not
+  in task 15, because task 20a's `designapi` names all five types and must compile before 15
+  lands (plan b02 round 2, re-review RR-I6-1). `mcp.Deps` stays in task 15's `tools.go`: it
+  names `*authority.Service`, which 14 does not depend on. No change to the hours.
 
 ## Contracts
 

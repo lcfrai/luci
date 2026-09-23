@@ -1,13 +1,21 @@
 # Task 20a — `designapi` routes, the SSE window stream, problem codes, the route audit
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 11, 12, 13 · **Then:** task 20b (`task-20b.md`) wires this into `cmd/api` · **External:** **Hub task C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency: this task does not start until both have landed** (plan rule 4); phase 4 task 10 (`api.RouteMounter`), phase 4 task 07 (`discoverhub`) · **Hours:** 4.5 (the review's sizing: twenty routes and the SSE broker were about twice the old 3 h for the whole of task 20; plus 0.5 for the phase-3 branch adapter, review I7)
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 11, 12, 13, 14, 19 (14 for `canvas/mcp/ports.go`, the five port types this task names; 19 for `control-plane/go.mod`'s `canvas` requirement and the earlier `api.go` edit; b02 round 2, RR-I6-1) · **Then:** task 20b (`task-20b.md`) wires this into `cmd/api` · **External:** **Hub task C3 — Hub plan tasks 37–38 (`localkey`), a hard dependency: this task does not start until both have landed** (plan rule 4); phase 4 task 10 (`api.RouteMounter`), phase 4 task 07 (`discoverhub`) · **Hours:** 4.5 (the review's sizing: twenty routes and the SSE broker were about twice the old 3 h for the whole of task 20; plus 0.5 for the phase-3 branch adapter, review I7)
 
 **Why two parts (review I6).** The old task 20 declared 11, 12, 13 but its wiring called
 `mcp.NewServer` (14), `mcp.Instructions` (17), `mcp.RegisterAll` (15) and `mcprelay.NewSupervisor`
 (19), so a lane agent starting it after 13 had a `main.go` that could not compile. **20a** (this
 file, kept as `task-20.md` so earlier reviews' line citations still resolve) is everything that
-compiles against 11–13 alone: the `designapi` package, `events`, the `httpx` codes, `api.go`'s
-mount and the route audit. **20b** (`task-20b.md`) is `cmd/api`: the two variables, the one builder
+compiles against 11–13 plus task 14's `canvas/mcp/ports.go`: the `designapi` package, `events`,
+the `httpx` codes, `api.go`'s mount and the route audit. `designapi` names five types from that
+file (`mcp.Briefs`, `mcp.Criterion`, `mcp.Section`, `mcp.Approvals`, `mcp.ApprovalInfo`), so
+`ports.go` lives in task 14 (stdlib only, no server code), not task 15: 20a starts after 13 and
+stays off the critical path (re-review RR-I6-1, the reviewer's "split `ports.go` out of 15"
+option, folded into 14 instead of a new task). 20a also depends on **19**: 19 is the first
+importer of the `canvas` module and so owns `control-plane/go.mod`'s `require` and `replace`
+(plan file map), and 19 edits `internal/api/api.go` before 20a does (plan "Two lanes never edit
+one file"). Without 19 declared, a `GOWORK=off` build of `designapi` fails and the two lanes race
+on `api.go`. 19 finishes at 8 h, so the critical path does not move. **20b** (`task-20b.md`) is `cmd/api`: the two variables, the one builder
 `newDesignAPI` and the `main.go` wiring, after 17, 19 and 20a.
 
 ## Why
@@ -17,7 +25,8 @@ everything else (Hub contract §5.4's rule, applied here). This task is that sur
 except approval and handoff (tasks 21, 22): the human's ops, undo, revert, comments, selection,
 assets, the code panel, render results — and the **window stream** `GET /v1/events` (plan P5-B,
 UI contract §10.5). Task 20b wires the whole canvas stack into `cmd/api/main.go`; nothing in 20a
-imports `canvas/mcp`'s server, `mcp.RegisterAll`, `mcp.Instructions` or `mcprelay`.
+imports `canvas/mcp`'s server, `mcp.RegisterAll`, `mcp.Instructions` or `mcprelay`. It imports
+`canvas/mcp` only for `ports.go`'s five types, which task 14 writes.
 
 ## Files
 
@@ -232,7 +241,7 @@ type Config struct {
 	Briefs    BriefSource
 	// Hub Designs — NOT in 20a's struct: task 21 adds the field with its type
 	// (designapi/hub.go, Hub H0's hubapi) and the one cmd/api/design.go line that
-	// passes Hub task 32's hubclient value (review I6: 20a compiles on 11–13 alone).
+	// passes Hub task 32's hubclient value (review I6: 20a compiles on 11–14 and 19, never on 21).
 	Worktrees worktree.Provider // task 22
 	Sessions  registry.Store    // task 22
 	Identity  func(ctx context.Context) (displayName string) // the Hub's signed-in name, or "You"

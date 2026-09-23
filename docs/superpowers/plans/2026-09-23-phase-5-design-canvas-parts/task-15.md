@@ -15,13 +15,13 @@ plane implements (tasks 20a, 21) and tests fake.
 
 ## Files
 
-- `canvas/mcp/tools.go` (the `Tools` builder and error mapping), `ports.go`, `tools_read.go`, `views.go` (new)
+- `canvas/mcp/tools.go` (the `Tools` builder and error mapping), `tools_read.go`, `views.go` (new); `ports.go` is **task 14's** file (re-review RR-I6-1: 20a names its types and runs before 15), and the block below is its text, which 14 writes and 15 only reads
 - `canvas/mcp/tools_read_test.go` (new); `canvas/canvastest/ports.go` (new: fake ports)
 
 ## Contracts
 
 ```go
-// canvas/mcp/ports.go
+// canvas/mcp/ports.go — written by task 14 (RR-I6-1)
 
 // Briefs is phase 4's HeadRef seen from here (S4-P5.3). designapi implements
 // it over discoverhub.Service (task 20a).
@@ -230,8 +230,8 @@ plus `{"asset": doc.Asset}`; `get_font_info` → `authority.FontInfo`; `list_act
 
 ## Steps
 
-1. Fake ports in `canvastest/ports.go`. 2. Tests, then `ports.go`, `tools.go`, `views.go`,
-`tools_read.go`. 3. Acceptance; commit by pathspec.
+1. Fake ports in `canvastest/ports.go` (over task 14's `ports.go`). 2. Tests, then `tools.go`,
+`views.go`, `tools_read.go`. 3. Acceptance; commit by pathspec.
 
 ## Acceptance
 

@@ -329,8 +329,8 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `canvas/authority/` | `service.go`, `binding.go`, `branches.go` (the branch-lifecycle port, S5-P3.2), `apply.go`, `subscribe.go`, `activity.go`, `errors.go` | 11 |
 | `canvas/authority/` | `claims.go`, `precondition.go`, `notices.go`, `presence.go`, `undo.go`, `revert.go` | 12 |
 | `canvas/authority/` | `render.go` (renderer registry), `selection.go` | 13 |
-| `canvas/mcp/` | `jsonrpc.go`, `transport.go`, `server.go`, `registry.go`, `schema.go`, `errors.go`, `identity.go` | 14 |
-| `canvas/mcp/` | `tools.go` (the builder and the error table), `ports.go` (Briefs, Approvals), `views.go`, `tools_read.go` | 15 |
+| `canvas/mcp/` | `jsonrpc.go`, `transport.go`, `server.go`, `registry.go`, `schema.go`, `errors.go`, `identity.go`; `ports.go` (Briefs, Approvals: declarations only, text in `task-15.md`; in 14 so 20a compiles before 15, re-review RR-I6-1) | 14 |
+| `canvas/mcp/` | `tools.go` (the builder, `Deps` and the error table), `views.go`, `tools_read.go` | 15 |
 | `canvas/mcp/` | `tools_write.go`, `place.go` | 16 |
 | `canvas/mcp/` | `tools_tokens.go`, `tools_comments.go`, `tools_export.go`, `guides.go`, `instructions.go`, `guides/*.md` | 17 |
 | `canvas/handoff/` | `snapshot.go`, `manifest.go`, `slug.go`, `paths.go` — the one bundle-path and manifest rule, `SafePath` and `CheckManifest` (21); `bundle.go` (22) | 21, 22 |
@@ -408,15 +408,15 @@ tasks; each part says what it codes against until that task lands.
 | 11 | Authority I: canvases by branch (following phase 3's renames and deletes, S5-P3.2), `Apply` with an author, subscriptions, the activity feed | 06, 10 | — | 3.5 |
 | 12 | Authority II: claims, `ifRevision`, notices, per-author undo and redo, revert by session | 11 | — | 3 |
 | 13 | The render bridge and the human's selection | 11 | — | 2 |
-| 14 | The MCP protocol layer | 05 | — | 2.5 |
+| 14 | The MCP protocol layer; `ports.go`, the tool layer's port types (declarations only, re-review RR-I6-1) | 05 | — | 2.5 |
 | 15 | MCP read tools, `get_brief` and its port | 08, 09, 12, 13, 14 | phase 4 task 07 (coded against a port and a fake) | 3 |
 | 16 | MCP write tools | 07, 12, 14 | — | 3 |
 | 17 | MCP tokens, comments, export, guides, server instructions | 09, 15, 16 | — | 2.5 |
 | 18 | The relay framing in both modules; `sandboxd`'s listener and `/mcp-channel` | — | — | 3 |
 | 19 | The relay supervisor; `--mcp-config` and `--allowedTools`; session wiring | 14, 18 | — | 2.5 |
-| 20a | `designapi` routes, the SSE window stream, problem codes, the route audit, the `Approvals` stub, the phase-3 branch adapter (`task-20.md`) | 11, 12, 13 | **Hub C3, Hub plan tasks 37–38 (`localkey`) — hard, no fallback (rule 4)**; phase 4 task 10 (`RouteMounter`; declared here if absent); phase 3 task 11 (renames, archive refs; the adapter waits for it, S5-P3.2) | 4.5 |
+| 20a | `designapi` routes, the SSE window stream, problem codes, the route audit, the `Approvals` stub, the phase-3 branch adapter (`task-20.md`) | 11, 12, 13, 14, 19 | **Hub C3, Hub plan tasks 37–38 (`localkey`) — hard, no fallback (rule 4)**; phase 4 task 10 (`RouteMounter`; declared here if absent); phase 3 task 11 (renames, archive refs; the adapter waits for it, S5-P3.2) | 4.5 |
 | 20b | Configuration and the `cmd/api` wiring: store, authority, MCP server and tools, relay supervisor, `newDesignAPI` (`task-20b.md`) | 17, 19, 20a | **Hub C3 (tasks 37–38) — hard** | 1.5 |
-| 21 | Approval: snapshot, blobs, the Hub approval, *changed after approval*, re-review | 08, 09, 13, 20a, 20b | **Hub C3 (tasks 37–38) — hard**; Hub H0/C2 (`hubclient.Designs` + fake); phase 4 task 07 (`discoverhub`) | 3 |
+| 21 | Approval: snapshot, blobs, the Hub approval, *changed after approval*, re-review | 08, 09, 13, 20a, 20b | **Hub C3 (tasks 37–38) — hard**; Hub H0/C2 (`hubclient.Designs` + fake); Hub C1 (task 32: `api.Deps.Hub`, `CodeHubNotConfigured`; re-review RR-I6-2); phase 4 task 07 (`discoverhub`) | 3 |
 | 22 | Handoff: the bundle into the worktree (manifest paths validated, review C2); the session link | 21 | **Hub C3 (tasks 37–38) — hard**; Hub H4 fake; phase 3 3-D6 | 2 |
 | 23 | Editor data layer: wire types, the document store, the transport port, the allowlist check | 03, 07, 11 | — | 2.5 |
 | 24 | The renderer: artboard iframes, assets, measurement, capture, the render responder, the hidden renderer | 01, 23 | — | 3 |
@@ -427,9 +427,10 @@ tasks; each part says what it codes against until that task lands.
 | 29 | Paste: HTML, SVG and images | 20a, 26 | — | 1.5 |
 | 30 | End to end, the phase 5 contract document, and the amendments | all | OD-12's hands-on session | 2 |
 
-**Total ≈ 81 hours** (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
+**Total 80 hours**, the sum of the rows above (76 before b02; re-review RR-M1) (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
 sizing note; tasks 10, 11 and 20a gain 0.5 h each for seam S5-P3.2, review I7). Critical path: 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17 → 20b → 21 → 22 → 28 → 30
-(20a runs beside 15 and 16, off the path; 20b waits for 17 because its `main.go` calls
+(20a runs beside 15 and 16, off the path: it needs 14's `ports.go` and 19's `go.mod` lines, not 15 or 17,
+so it finishes at 20 h against 17's 21 h, re-review RR-I6-1; 20b waits for 17 because its `main.go` calls
 `mcp.Instructions` and `mcp.RegisterAll`, and for 19 because it calls `mcprelay.NewSupervisor`).
 
 **Order, in waves** (a wave's tasks are independent of each other):
@@ -448,7 +449,7 @@ without `KeyGuard` (plan rule 4, review C1). If C3 slips, Lane E waits; the othe
 
 **Parallel lanes for worktree agents.** Lane A (Go core): 05–13. Lane B (MCP): 14–17, after 12 and
 13. Lane C (relay): 18–19. Lane D (editor): 23–26, after 01 and 03. Lane E (control-plane HTTP and
-provenance): 20a, then 20b after Lane B's 17 and Lane C's 19, then 21–22. The desktop lane (27–29)
+provenance): 20a after Lane B's 14 and Lane C's 19, then 20b after Lane B's 17, then 21–22. The desktop lane (27–29)
 joins D and E; 27 and 29 need only 20a. **Two lanes never edit one file**: the
 only shared files are `control-plane/go.mod` (19 only), `internal/api/api.go` (19, then 20a),
 `internal/api/sessions.go` (19 only), `internal/httpx/problem.go` (20a only) and
