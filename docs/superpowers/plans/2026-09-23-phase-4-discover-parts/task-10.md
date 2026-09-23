@@ -60,11 +60,11 @@ type Materialiser interface {
 type MaterialiseRequest struct {
 	WorktreeID   string
 	WorktreePath string // absolute, from Deps.Worktrees.Path
-	// ProjectID is local, from sessionLocate. "" means the worktree is
-	// outside every project, which enumerated cleanly: there is no project,
-	// so nothing to inherit (task 09 step 4). An enumeration FAILURE never
-	// arrives here as "": the handler refuses it as project_unknown first
-	// (review I2), unless WithoutBrief is set.
+	// ProjectID is local: sessionLocate's on create, the record's on restart
+	// (re-located when ""; re-review R2-M2 item 4). "" is a worktree outside
+	// every project, enumerated cleanly: nothing to inherit (task 09 step 4).
+	// An enumeration FAILURE never arrives as "": the handler refuses it as
+	// project_unknown first (review I2), unless WithoutBrief is set.
 	ProjectID    string
 	BranchID     string // local; "" for a detached worktree
 	// WithoutBrief is the person's "Start without the brief" (4-D1). The
@@ -341,8 +341,8 @@ The binary starts after this task and logs the interim line once. No test reache
 literal, so the `grep` above is what keeps it. Starting the binary is not part of this acceptance:
 its reaper sweeps at start-up, so it needs the shared Docker daemon lock
 (`.superpowers/sdd/2026-09-18-phase-2-backend-and-cockpit/docker-daemon-lock.md` in the main tree;
-git-ignored, local only). Task 23's live run is where it starts. Until task 14 every session is stamped `""` or
-`none:declined`, and that is honest, because nothing is written.
+git-ignored, local only). Task 23's live run is where it starts. Until task 14 every session is
+stamped `""` or `none:declined`, and that is honest, because nothing is written.
 
 **Does NOT claim:** anything about what is written (task 09); the desktop's handling of the 409
 (task 20); the Go and UI contract amendments (task 22); a real Materialiser in the binary

@@ -718,3 +718,71 @@ owner.
 `discoverhub`'s revision cache lets `Materialise` succeed while the Hub is down. The cache question
 is not read in this batch. If the cache does that, task 23 step 9's expected 409s would pass or
 fail for the wrong reason.
+
+## Fix batch b02 (2026-09-24): I1, I2
+
+Commits `f1a9b6f` (task 10) and `ac2e515` (tasks 09, 14, 20, 22 and the plan) on
+`feat/phase-4-discover`. Line numbers are as of `ac2e515`. The commit that adds this section also
+rewrites `task-10.md:63-67` (the `ProjectID` doc, now also closing re-review R2-M2 item 4) and
+rewraps `:344-345`, and moves no line. The source was checked at `2d6d95b`,
+the last commit on this branch to touch `sessions.go`, `sessions_test.go` and `cmd/api/main.go`.
+The review's I1 and I2 lines are right at `3303fd6` but have moved at `2d6d95b`:
+- `sessionLocate` is `sessions.go:544-567` (was `:467-490`), called at `:452`;
+- the `package api` literal in `sessions_test.go` is `:584` (the review's `:575` is inside the
+  `sessionsLocator` literal just above);
+- `main.go`'s `api.New(api.Deps{` is `:132` (was `:122`).
+`git grep -n "New(Deps{\|:= Deps{\|api.Deps{" -- control-plane` finds exactly four direct
+constructions: `api_test.go:142`, `attach_test.go:303`, `sessions_test.go:584` and `main.go:132`.
+No `cmd/api` test reaches `api.New`: `main_test.go:387` and `config_sandbox_test.go:189` both exit
+in config.
+
+**I1: every `Deps` builder gets a Materialiser, and the binary starts.** Fixed as the review said.
+
+| How to fix | Where it changed |
+|---|---|
+| 1. Both test files, each with a recording fake | `task-10.md:28-33` (file list); `:277-283` (attach's fake asserts it is never called; sessions' fake records); `:306-313` (Step 1 lists all four constructions, Step 2 adds the fakes) |
+| 2. `main.go` wired with the named interim | `task-10.md:34-38` (files); `:155-193` (`materialiserUntilTask14`, complete source: logs one Warn at construction, `""`, or `none:declined` under `WithoutBrief`; the `main.go` line; why only a grep and a build can catch a missing line); `:297` `TestMaterialiserUntilTask14InheritsNothingAndSaysSoOnce`; `:332-345` (acceptance: the `cmd/api` suite, `grep "Materialiser:"`, `go build`) |
+| 3. Task 14 deletes it and tests it is gone | `task-14.md:12-17` (files: `main.go` swaps the value, `git rm` the two interim files); `:81` `TestTheInterimMaterialiserIsGone`; `:90-95` (Steps 3 and 4); `:106-107` (acceptance `git grep`) |
+| Restatements | `2026-09-23-phase-4-discover.md:318-320` (file map), `:345-348` (task 10 at 3.5 h, the one task over 3 h), `:361` (task table); `task-10.md:318-320` (Step 5: eleven files), `:348-349` (Does NOT claim) |
+
+**One departure from the review's wording.** The interim returns `"none:declined"` when
+`WithoutBrief` is set, not `""` in every case. `MaterialiseRequest.WithoutBrief`'s own doc
+(`task-10.md:53-56` before this batch) says a Materialiser returns `none:declined`. An interim
+that broke the interface would stamp a declined start as "no brief exists". No code at `2d6d95b`
+writes a managed block, so there is nothing for it to strip.
+
+**I2: a failed enumeration is `project_unknown`, and a clean miss stays `""`.** Fixed as the
+review said, with two additions.
+
+| How to fix | Where it changed |
+|---|---|
+| 1. `sessionLocate` gains an error return | `task-10.md:136-153` (signature, the three answers, `errProjectUnknown`; a worktree found in B despite A's `Worktrees()` failing is found); `:23-24` (files) |
+| 2. `*MaterialiseError{project_unknown}`, the closed set, task 20's table | `task-10.md:100-104` (`BriefReasonProjectUnknown`, raised by the handler only); `:219-228` (create: the 409, `Materialise` not called); `task-20.md:26-28` (`BriefReason`), `:66` (the table row), `:81` (six rows), `:82` `an unknown project offers the override`; `task-22.md:24` (§3.2 names the set of six) |
+| 3. `""` kept for a worktree outside every project | `task-10.md:63-67` (`ProjectID`'s doc); `task-09.md:74-80` (step 4: `ProjectID ""` inherits nothing, and `Source` is never asked); `task-09.md:163` `TestNoProjectInheritsNothingWithoutAskingTheHub` |
+| 4. Test both paths | `task-10.md:285-293` (`sessions_test.go`: three `sessionLocate` tests, then the create refusal, the create override, the clean miss, and the restart re-locate); `:282-283` (`sessionsLocator.worktreesErr`) |
+| Restatements | `2026-09-23-phase-4-discover.md:314` (file map), `:429-430` (seams: create and restart) |
+
+The two additions:
+- **The override does not refuse.** Under `withoutBrief: true` the create does not refuse an
+  enumeration failure (`task-10.md:223-228`). Task 09 step 3 never asks the Hub, so no project is
+  needed. Refusing would make *Start without the brief* a dead end, as N1 is on
+  `tracked_elsewhere`. The price is a record with empty ids, which is what phase 2 records today
+  for every enumeration failure. For the same reason task 20's `project_unknown` has no
+  `withoutBrief: true` variant.
+- **Restart re-locates an empty record.** `handleSessionRestart` uses the record's `ProjectID`,
+  not `sessionLocate`. A `""` there is ambiguous: phase 2 recorded failures as `""`, and so does
+  the override path above. So restart re-runs `sessionLocate` when the record's `ProjectID` is
+  `""`, before the destroy, with the create's error rule (`task-10.md:246-252`,
+  `TestRestartRelocatesARecordWithNoProject` `:293`). Without this, I2's silent non-inheritance
+  would come back on every restart of such a session.
+
+**A correction to the review.** Its fix 2 puts `project_unknown` in "the closed reason set
+(task 09)". The closed set is declared in task 10's `materialiser.go` (`task-10.md:93-105`), so the
+constant is there. Task 09 only maps causes onto that set, and it never returns
+`project_unknown`: it now says so (`task-09.md:78-80`).
+
+**Still unverified:**
+- The handler-level tests assume the `sessions_test.go` env can create with the locator failing
+  while `env.wt` still resolves the path. `sessionsLocator.err` also fails `Branches`. Whether
+  anything else in create calls `Branches` was not read.
+- The interim's Warn wording is a plan choice. No test pins more than "task 14".
