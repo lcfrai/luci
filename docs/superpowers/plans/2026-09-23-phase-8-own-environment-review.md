@@ -781,3 +781,45 @@ addition to round 1's list:
 
 **Mutation checks:** none run, again. Plan documents only. The new mutants are in
 `grant-pipeline-roles_test.sh`'s table, estate-guard's ninth case and task 10's Step 4.
+
+## Fix batch b03 (2026-09-24) — I9, I3
+
+Commits `50839bf` (I9) and `fb10d54` (I3). Line numbers are at `fb10d54`.
+
+**I9. The first deploy installs the Hub before the database roles exist.**
+
+| Ask | Change | Where |
+|---|---|---|
+| order the stages `guard → approve → apply → database → cluster → smoke`, or split the Hub out of stage 4 | **The `database` stage is not taken**: it needs a pipeline identity in the Postgres admin group, which the I8 fix (b02) removed. The order is held three ways: `applyStacks` and `deployCharts` default to `false`, and the runbook's first `data`/`workloads` run leaves charts off; the human bootstrap (§7) comes before the first chart run (§7a); and `hub` is the last release, so a skipped bootstrap fails the Hub alone, fail-closed, and the stage prints the `hub-migrate` Job's log. The migrate hook is the only exact check (the Hub's own DDL identity against the real server). An ADO "bootstrapped" variable was rejected: it would be a claim, not an observation | `parts/task-30.md:245-248`, `:283-288`, `:291-305`; `parts/task-31.md:35`, `:38` |
+| idempotent role creation, as a Hub-contract ask in task 33 | ask **HC-1**: wrap `roles.sql`'s `CREATE ROLE`s in `DO … IF NOT EXISTS` (contract `:1421-1430`, checked in the sibling `hub` worktree). Until the Hub answers, runbook §7 counts `hub_owner`/`hub_app` first: 0 → run `roles.sql`, 2 → skip it, 1 → stop. That is correct for both the current file and the amended one. Ask **HC-2**: `hub migrate` names a missing bootstrap | `parts/task-33.md:57-58`; `parts/task-31.md:37`; `parts/task-29.md:171-177` |
+| `pgaadauth_create_principal_with_oid` by object id | the template creates both principals with `_with_oid(name, oid, 'service', false, false)`. On a re-run, a role that already exists must be bound to the expected oid (`pgaadauth_list_principals`), or the block `RAISE`s. `workloads` gains `hub_principal_id` and `hub_migrate_principal_id`. `render-sql.sh` refuses an unfilled placeholder. There are two new render tests, and the Hub is told the grants are rendered, not literal | `parts/task-29.md:14`, `:171-206`, `:212-219`, `:238-240`, `:272-273`; `parts/task-10.md:146-155`; `parts/task-08.md:156`; `parts/task-33.md:59`; plan `:439-440` |
+
+**I3. The workstation path skips the estate guard, and nothing positively identifies our subscription as not Panacea's.**
+
+| Ask | Change | Where |
+|---|---|---|
+| `tf-stack.sh` calls `estate-guard.sh` itself, on every path | `tf-stack.sh` runs the guard before every subcommand, pipeline or workstation. So does `grant-pipeline-roles.sh`, the owner script that makes role assignments. The runbook runs the guard first in every workstation section, and §2 (bootstrap, which `tf-stack.sh` refuses) calls it directly. In a pipeline `tf-stack.sh` still refuses `identity`; on the owner's workstation it runs it after the guard, so the owner's identity run is guarded too. On a workstation the guard also requires `ARM_SUBSCRIPTION_ID` to be set and to equal `az account show` | `parts/task-30.md:29`, `:117-152`, `:186-189`, `:249-252`, `:397-401`; `parts/task-31.md:27`, `:29`, `:32`, `:35`; `parts/task-09.md:11-14` |
+| a positive tag `panacea-app-estate=<env>`, checked by the guard, with a refusal test | The owner sets the tag in §1, and the plan's owner-inputs table lists it. The guard refuses a missing tag, the other environment's tag, and a failed read. **Deviation:** the read is the subscription's own `GET` (`az rest`), not `az tag list`. `az tag list` on a subscription needs `tags/read` at subscription scope, which the infra identity lacks; the `GET` needs only `subscriptions/read`, which Reader and Cost Management Contributor carry (UNVERIFIED, recorded per connection in §4). No grant was added. Five new guard cases: no tag (**the refusal test**), wrong tag, failed read, workstation context mismatch, `ARM_SUBSCRIPTION_ID` unset. Three new `tf-stack` cases (the guard runs first, `terraform` never reached), one new `grant-pipeline-roles` case. Counts: `14 of 14`, `6 of 6`, `6 of 6`. Four mutants are named | `parts/task-30.md:155-172`, `:322-343`, `:345-358`, `:425`, `:459-463`, `:473-475`; `parts/task-31.md:27`, `:32`; plan `:310` |
+| `validate.sh` sets an empty `AZURE_CONFIG_DIR` | exported as a fresh `mktemp -d`, removed by an `EXIT` trap; Step 4 proves it red-first with a stub `terraform` that logs the directory and `ARM_SUBSCRIPTION_ID` | `parts/task-01.md:75-78`, `:154-160` |
+
+**Restatements checked** (grep over the plan and `parts/`): `pgaadauth_create_principal`,
+`hub_identity_name`, `render-sql`, `four statements`, `deployCharts`, `No database stage`,
+`stage 4`/`stages 4–5`, `tf-stack.sh refuses`, `estate-guard_test: 9`, `3 of 3`, `5 of 5`,
+`task 31 §3` (the per-connection tag read moved to §4). None is left stale. The release table and
+its stage numbers are unchanged, so task 13's copy of it stands. Earlier batches' maps keep
+their own line numbers.
+
+**Deferred, with reason:** a Terraform-level fingerprint (a `data "azurerm_subscription"`
+postcondition on the tag in every stack) would also catch raw `terraform` typed by hand. It is not
+in I3's fix, and it touches every stack's part and its mocks. The guard covers every scripted path
+and every runbook section. Recorded for the owner as an optional hardening, not built.
+
+**Still UNVERIFIED** (training knowledge; nothing was run against Azure, ADO or Postgres):
+- `pgaadauth_create_principal_with_oid`'s signature and `'service'` object type; `pgaadauth_list_principals`' `rolname`/`objectid` columns.
+- That a subscription `GET` returns `tags`, and that Reader and Cost Management Contributor include `Microsoft.Resources/subscriptions/read`.
+- That ADO sets `TF_BUILD=True` on every job.
+- That `az tag update --operation Merge` is the right command for the owner's tag.
+- That the cluster identity's namespace role may read the `hub-migrate` Job's logs.
+
+**Mutation checks:** none run. These are plan documents only. The new mutants are in task 30's
+Step 2 (four, for I3), task 29's two new `sql /` rows, and task 01's Step 4.
