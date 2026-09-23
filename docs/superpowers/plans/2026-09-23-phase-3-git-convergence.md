@@ -164,11 +164,11 @@ Each is small, stated so a reviewer can overturn it, and none changes what the o
    `kind: "primary" | "linked" | "clone"`, a declared amendment to both contracts (task 06). The
    alternative, a lane set in a phase 3 slice, would let the linked-worktree notice render on a
    clone until that slice loaded, which is a false claim on screen.
-8. **Two new problem codes, no new kind.** `git_failed` (a git process the control plane ran for
-   a remote failed; `details.gitSays` is git's sentence) and `host_failed` (the GitHub or Azure
-   DevOps API refused; `details.hostSays`). Both classify as `server-said` through `classify`'s
-   existing catch-all. Every other refusal is `conflict` with a `details.reason` from a closed list
-   (task 08's table).
+8. **Two new problem codes, no new kind.** `git_failed` (a git process the control plane ran
+   failed: 502 when it talked to a remote, 500 otherwise; `details.gitSays` is git's sentence) and
+   `host_failed` (the GitHub or Azure DevOps API refused, 502; `details.hostSays`). Both classify
+   as `server-said` through `classify`'s existing catch-all. Every other refusal is `conflict`
+   with a `details.reason` from the closed list in task 04's `gitdeps.go`.
 
 ## How this plan supersedes the sandbox git fix (`fix/sandbox-git-ca`)
 
@@ -228,7 +228,7 @@ still binds. Restated where phase 3 leans on it, and added where phase 3 is the 
   request.
 - **`internal/project` stays read-only.** `TestEveryGitCommandIsReadOnly`
   (`project_test.go:429`) is not edited. The one change phase 3 makes in that package is a
-  struct field (`Worktree.Kind`, task 04) that runs no git.
+  struct field (`Worktree.Kind`, task 03) that runs no git.
 - **Configuration comes from `PANACEA_APP_*`**, read in `cmd/api/config.go` only (contract §4):
   `PANACEA_APP_WORKTREES_DIR` (task 04), `PANACEA_APP_LANE_SYNC_INTERVAL` (task 07),
   `PANACEA_APP_FETCH_INTERVAL` (task 12). No other package calls `os.Getenv`.
@@ -359,11 +359,15 @@ control-plane/
   internal/evidence/                record.go store.go filestore.go evaluate.go              15
   internal/changes/                 changes.go diff.go blame.go                              16
   internal/transcript/claudecode/   adapter.go match.go testdata/                            17
-  internal/project/project.go       (p2) Worktree.Kind; parseWorktrees sets it — no git      04
+  internal/project/project.go       (p2) Worktree.Kind; parseWorktrees sets it — no git      03
+  internal/gitx/ident.go            ParseIdent, the one parser of git's ident line           03
   internal/statepath/               (p2) atomic.go, if R2's lift has not happened            03
   internal/backend/backend.go       (p2) EnvSessionID, written by EnvEntries                 05
   internal/backend/katabe/kata_test.go (p2) the env-parity pin gains one variable            05
-  internal/api/api.go               (p2) Deps: Lanes, Converge, Remote, Hosts, Evidence…     04 onward
+  internal/api/api.go               (p2) two lines: Deps.Git, a.registerGit                   04
+  internal/api/gitdeps.go           GitDeps (one block per task), reasons, problem helpers   04 onward
+  internal/api/gitroutes.go         phase 3's route table (one block per task)               04 onward
+  internal/httpx/problem.go         (p2) CodeGitFailed, CodeHostFailed                        04
   internal/api/sessions.go          (p2, post-fix) sessionEnv gains core.hooksPath           05
   internal/api/catalog.go           (p2) worktreeJSON.Kind                                   04
   internal/api/routes_audit_test.go (p2) one line per new GET                                08 10 11 15 16 17
@@ -435,12 +439,13 @@ is sized for one implementer in one to three hours.
 **(a)** 05 → 06; **(b)** 07 → 08 → 09 → 10, then 15 and 16 → 17; **(c)** 11 (after 07), 12 → 13 →
 14. The desktop track 18 → (19 → 20) ∥ 21 ∥ 22 starts once G2 holds. Task 23 is last.
 
-**Shared-file hazards inside phase 3.** `api/api.go`'s `Deps` and `cmd/api/main.go` are touched by
-tasks 04, 07, 08, 09, 12, 13, 14, 15, 16 and 17. Each task adds a **contiguous, commented block**
-of its own (`// ── phase 3 task NN ──`) at the foot of `Deps` and at the foot of `serve`'s
-wiring, never between another task's lines, so parallel lanes merge mechanically
-(`dependency-graph-and-order.md` §4.2's rule for `api.go`). `routes_audit_test.go` gets one line
-per GET, appended.
+**Shared-file hazards inside phase 3.** Task 04 adds exactly two lines to `api/api.go`
+(`Deps.Git *GitDeps` and `a.registerGit(guarded)`); after that, phase 3's dependencies live in
+`api/gitdeps.go` and its routes in `api/gitroutes.go`, both phase 3's own files. Each later task
+appends a **contiguous, commented block** (`// ── task NN ──`) to `GitDeps`, to `gitRoutes()`
+and to `serve`'s phase 3 wiring in `cmd/api/main.go`, never between another task's lines, so
+parallel lanes merge mechanically (`dependency-graph-and-order.md` §4.2's rule for `api.go`,
+made structural). `routes_audit_test.go` gets one line per GET, appended.
 
 ## What this plan does not claim
 
