@@ -1,8 +1,13 @@
 ### Task 06: The linked-worktree notice, superseded — `kind` in the model, the notice narrowed, and the shared-index note (3-D2)
 
-The sandbox git fix added `LinkedWorktreeNote` (uncommitted in `.claude/worktrees/sandbox-git-fix`
-on 2026-09-23, read there): for every worktree with `isPrimary: false` it says git is unavailable
-and that git in linked worktrees "arrives in Phase 3". After task 04 a cockpit worktree is a clone
+The sandbox git fix added `LinkedWorktreeNote`, committed as `58d607f` on `fix/sandbox-git-ca`
+and in phase 3's base through `f898f5e` (re-read 2026-09-24 at `4f6d698` and at
+`feat/phase-2-cockpit`'s `10fa5fd`, review I12; the condition and sentence are the same at both,
+and phase 2's round 1 rewrote only its doc comment and added tests, `c53621a`): for every
+worktree with `isPrimary: false` it says git is unavailable and that git in linked worktrees
+"arrives in Phase 3". The fix's contract sweep (`5e32000`, then `d3a2824`) wrote that condition
+into UI §6.5's `LinkedWorktreeNote.tsx` row and §7.7's linked-worktree state row, so this task
+amends both. After task 04 a cockpit worktree is a clone
 with `isPrimary: false` **and working git**, so the fix's condition becomes a false claim on
 every worktree phase 3 creates. This task makes the condition exact, rewrites the sentence so it
 names what the user can do instead of promising a phase, and adds the one other git fact a
@@ -16,7 +21,7 @@ window where a clone renders the linked notice. `kind` arrives with the worktree
 
 **Files:**
 - `desktop/src/store/types.ts` — `WorktreeKind`, `Worktree.kind` (p2; contract §2 amended in the same commit)
-- `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` — §2's fenced `Worktree` block, byte-identical to `types.ts`
+- `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` — §2's fenced `Worktree` block, byte-identical to `types.ts`; §6.5's `LinkedWorktreeNote.tsx` row and a `SharedIndexNote` row; §7.7's linked-worktree state row (review I12: the fix wrote those rows)
 - `desktop/src/test/fixtures.ts` — `aWorktree` derives `kind` from `isPrimary` unless given (p2)
 - `desktop/src/components/develop/LinkedWorktreeNote.tsx` + `.test.tsx` — narrowed, reworded, and `SharedIndexNote` (the fix's files)
 - `desktop/src/components/develop/SessionPane.tsx` — mount `SharedIndexNote` beside the fix's mount (p2, one line)
@@ -133,8 +138,14 @@ No jest-dom (shared-shape §3C): plain DOM property assertions, as the fix's sui
   succeeds and `grep -c "isPrimary" desktop/src/components/develop/LinkedWorktreeNote.tsx` ≥ 1.
   Task 04 has landed: `grep -c '"kind"' control-plane/internal/api/catalog.go` ≥ 1. If the fix
   landed with a different sentence or file name, apply this task to what landed and say so.
+  Then G1's contract diff: `git diff 3303fd6 HEAD -- docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md`
+  and read every hunk in §2, §6.5 and §7.7 before editing them (the fix's `5e32000` and
+  `d3a2824` wrote the rows this task amends; review I12).
 - [ ] **Step 2:** rewrite and add the tests; run them red.
-- [ ] **Step 3:** `types.ts` and the contract block in one edit each, then the fixture.
+- [ ] **Step 3:** `types.ts` and the contract block in one edit each, then the fixture. In the
+  same commit, UI §6.5's `LinkedWorktreeNote.tsx` row and §7.7's linked-worktree state row say
+  `kind === "linked"` where they say `isPrimary: false` / `isPrimary === false`, and §6.5 gains a
+  `SharedIndexNote` row.
 - [ ] **Step 4:** the component changes and the `SessionPane` line.
 - [ ] **Step 5:** `npx tsc --noEmit` — every object literal typed `Worktree` without `kind` now
   fails to compile; fix each by adding `kind` (tests use the fixture). List every file touched in
