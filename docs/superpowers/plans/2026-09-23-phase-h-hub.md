@@ -13,8 +13,8 @@ their git remotes, brief revisions, design approvals and their snapshots, releas
 phase 3's evidence, and a hash-chained audit log that doubles as the change feed. The desktop's
 control plane signs the user in to Entra with auth-code + PKCE, keeps the refresh token in Windows
 Credential Manager, and calls the Hub **as that user**. The whole stack runs on a laptop with one
-`docker compose up` and a local OIDC issuer that speaks Entra's shape, so no Azure resource is
-needed to build or test any of it.
+command (`control-plane/cmd/hub/devstack.sh up`: Postgres in Docker, the Hub and a local OIDC issuer
+that speaks Entra's shape on the host), so no Azure resource is needed to build or test any of it.
 
 **Architecture:** one new server binary and one new development binary, both in the existing
 `control-plane` Go module (ADR-H1 §4.1); three new control-plane packages; one new desktop surface.
@@ -35,22 +35,24 @@ Tauri window (React)                control plane (cmd/api, 127.0.0.1:8730)     
 Three rules hold throughout, and every task restates the one it touches:
 
 1. **The renderer never holds an Entra token.** The control plane runs the flow, holds the tokens and
-   calls the Hub (ADR-H1 §5.2, §6.2, §6.5). The renderer holds only the local caller key (task 30).
+   calls the Hub (ADR-H1 §5.2, §6.2, §6.5). The renderer holds only the local caller key (tasks 37–38).
 2. **No request body carries an actor.** Every Hub write records the principal of the token that made
    it (ADR-H1 §5.3; contract §5.3).
 3. **Nothing Hub-derived is persisted on the user's machine.** The control plane may cache immutable
    revisions in memory; neither it nor the renderer writes Hub data to disk (ADR-H1 §5.4, assertion
    A5 widened).
 
-**Tech stack.** Go 1.23 (the module's `go` directive does not move), `github.com/jackc/pgx/v5` (MIT,
-the only new module requirement; contract §2), `golang.org/x/time/rate` and `golang.org/x/sys/windows`
-promoted from indirect to direct. Postgres 16 (`postgres:16-alpine` locally, no extensions). The
-desktop adds no npm dependency and no Rust crate: sign-in opens the browser through
-`@tauri-apps/plugin-opener`, which the shell already carries (task 31 verifies).
+**Tech stack.** Go 1.23 (the toolchain floor does not move; see the `go` directive constraint),
+`github.com/jackc/pgx/v5` **v5.7.5** (MIT, the only new direct requirement; contract §2),
+`golang.org/x/time/rate` and `golang.org/x/sys/windows` promoted from indirect to direct. Postgres 16
+(`postgres:16-alpine` locally, no extensions). The desktop adds no npm dependency and no Rust
+crate: sign-in opens the browser through `@tauri-apps/plugin-opener`, already a dependency
+(`desktop/package.json`, `desktop/src-tauri/Cargo.toml`) and already used
+(`desktop/src/components/menu/ContextMenu.tsx:44`).
 
 **Spec:** ADR-H1 (the decision), the Hub contract (the exact routes, JSON, DDL and variables),
 `docs/superpowers/planning/2026-09-23-owner-decisions.md` (`OD-1`…`OD-13`), `docs/PROGRAM.md`,
-`docs/DESIGN-SYSTEM.md` (task 33 only).
+`docs/DESIGN-SYSTEM.md` (tasks 41 and 42).
 
 ---
 
@@ -135,7 +137,7 @@ Every task restates the ones it touches. None of them moves.
 ## Where this plan corrects the Hub contract — the "Hub contract asks"
 
 The contract says that where it and the ADR disagree, the ADR wins (contract `:4-5`). Reading the
-built tree and the sibling plans found **eight** places where the contract, as written, would fail
+built tree and the sibling plans found **nine** places where the contract, as written, would fail
 when built. Each is a correction this plan builds, with the exact shape; none adds a Hub route.
 They are asks against the contract's text, to be folded into it by whoever next edits it.
 
@@ -149,6 +151,7 @@ They are asks against the contract's text, to be folded into it by whoever next 
 | **A6** | the control plane validates the `id_token`'s signature against `jwks_uri` (§6.1 step 9) | it needs a second RS256-over-JWKS implementation in the control plane beside `internal/entra`, which validates **access** tokens for a resource API and cannot validate an `id_token` (no `scp`, a different `aud`). Two copies of key-set code drift | the `id_token` arrives on the back channel, from the token endpoint the control plane itself called, so OIDC Core 1.0 §3.1.3.7 item 6 permits TLS server validation in place of the signature check. `entraauth` checks `iss`, `aud`, `nonce`, `exp`, `tid` and `oid` **without** a signature, and then cross-checks: `GET /v1/me` (step 11), whose access token the Hub validates in full, must answer an org whose `tenantId` equals the `id_token`'s `tid`, or the sign-in fails `exchange_failed` and nothing is stored | 30 |
 | **A7** | the Hub maps `entra` rejections to 401 and says nothing of a key-set outage (§4.2, §6.3) | phase 8's `entra` adds `ErrKeySetUnavailable` (phase 8 task 16 `:102-106`); its `Middleware` answers that 503 `backend_unavailable`, which is a control-plane code meaning Docker (`problem.go:115`) | the Hub calls `Validator.Validate` itself in `internal/hub/server/auth.go` and maps `ErrKeySetUnavailable` to 503 **`unavailable`**; `/readyz` calls `JWKSValidator.Ready` | 13 |
 | **A8** | the credential store has target names for a GitHub and a Panacea token (§9.1) but **no way to put one there** | nothing in the contract writes `PanaceaApp/git/github/…` or `PanaceaApp/panacea/…`; phase 3 would read an always-empty store and phase 7 would build its own write path into the same store | three **control-plane** routes (not Hub routes), write-only for the secret: `POST /v1/credentials/{kind}`, `DELETE /v1/credentials/{kind}?scope=`, `GET /v1/credentials` (metadata only) — `kind` ∈ `github`, `panacea`. Phase 7 uses these instead of writing its own (seam S-CRED) | 39 |
+| **A9** | `hubapi` imports the standard library only; `hubclient` imports `hubapi` and the standard library (§2) | the same contract has `hubapi/codes.go` **import** the shared codes from `httpx` (§4.2), `hubclient.Error` carry an `httpx.Problem`, and `hubclient` mint idempotency keys with `ids.UUID()` (§9.2). Built as written, the boundary test fails the contract's own code | the boundary allows `hubapi` → `internal/httpx`; `hubclient` → `hubapi`, `internal/httpx`, `internal/ids`. Both `httpx` and `ids` import only the standard library, so the Hub still links nothing of the control plane's | 01, 08 |
 
 Two further facts, verified here, **close** items the contract and ADR left open:
 
@@ -260,7 +263,7 @@ parallel worktrees (see §"Order and parallel lanes").
 |---|---|---|---|
 | `control-plane/internal/hub/e2e_integration_test.go` | sign-in through `devissuer`, then every consumer interface against the real Hub | new | 43 |
 | `docs/verification/2026-09-23-phase-h-results.md` | what was run, what was observed, what stays unverified | new | 43 |
-| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md` | the amendments ADR-H1 §7.2 names, and A1–A8 folded into the contract | modified | 44 |
+| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md` | the amendments ADR-H1 §7.2 names, and A1–A9 folded into the contract | modified | 44 |
 
 ---
 
@@ -332,7 +335,7 @@ It is tasks **01–24** on the server and **28, 30–35, 37, 38** on the client 
 | 41 | the sign-in surface in the rail footer — **UI** | C4 | 40 | 3 | |
 | 42 | share a project with a team — **UI** | C4 | 40, 41 | 3 | |
 | 43 | end-to-end proof through `devissuer`; the real-tenant checklist; the results record | all | 01–42 | 3 | |
-| 44 | the document amendments; A1–A8 folded into the contract; the seams handed over | — | 43 | 1.5 | |
+| 44 | the document amendments; A1–A9 folded into the contract; the seams handed over | — | 43 | 1.5 | |
 
 Totals: server 01–27 ≈ 73.5 h; client and desktop 28–42 ≈ 39.5 h; proof and documents 4.5 h;
 **≈ 117.5 engineer-hours**, against ADR-H1's 16 engineer-days (≈ 128 h). The difference is the
