@@ -340,3 +340,96 @@ ADR's day including review; this table is implementation time. The minimum (S7 r
 tasks 01–24, 28–35, 37–39 ≈ 96 h: about **six working days for two engineers** — one on the server
 lane, one on identity then the client lane.
 
+### Order and parallel lanes
+
+Four lanes, each its own git worktree branched from `feat/hub`, so they can run at once. **An
+implementer never merges**; the orchestrator merges a lane's finished tasks into `feat/hub`, in the
+order below, and a lane that needs another lane's task waits for that merge.
+
+| Lane | Worktree branch | Tasks, in order | Waits for |
+|---|---|---|---|
+| **A — contract in code, then server** | `feat/hub-server` | 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 24 → 25 → 26 → 27 | 13 waits for 10 (lane B) |
+| **B — identity** | `feat/hub-identity` | 10 → 11 → 12 → 09 | 09 waits for 07 and 08 (lane A) |
+| **C — control plane** | `feat/hub-client` | 28 → 29 → 30 → 31 → 32 → 37 → 33 → 34 → 35 → 39 → 36 | 28 waits for 06 (go.mod); 30 for 12; 33 for 04; 34's rows for 20, 22, 24–27; 36 for 26 |
+| **D — desktop** | `feat/hub-desktop` | 38 → 40 → 41 → 42 | 38 for 37; 40 for 36 and 39 |
+| — | `feat/hub` | 43 → 44 | everything |
+
+**Why the lanes are cut this way — the shared files.** Five tasks edit the control plane's wiring
+(`internal/api/api.go`, `cmd/api/config.go`, `cmd/api/main.go`, `routes_audit_test.go`): 32, 35,
+36, 37, 39. Two edit `httpx/origin.go`: 36, 37. All are in lane C, one after another, so no two
+worktrees ever edit those files at once. Four desktop tasks edit `client.ts` or the store: all in
+lane D. `control-plane/go.mod` is edited by 06 (pgx), 13 (`x/time` direct) and 28 (`x/sys` direct);
+28 waits for 06's merge, and 13 is in 06's own lane.
+
+**Sibling phases edit the same wiring files tonight** — phases 3, 4, 5 and 7 each register routes
+in `api.go`, add fields to `Deps`, variables to `config.go` and codes to `httpx`. Every task here
+follows the rule that keeps those merges mechanical: a handler lives in **its own new file**; the
+edit to `api.go` is **one registration line and one `Deps` field**; a new code is **appended at the
+end** of `httpx`'s constant block with a comment naming its task; a new variable is **appended at
+the end** of `config.go`'s block. A merge conflict in those files is then two adjacent additions,
+resolved by keeping both.
+
+---
+
+## Seams — what later phases and sibling phases plug into
+
+| Id | Seam | Shape | Who consumes it |
+|---|---|---|---|
+| **S-CRED** | **The credential store.** One machine store, Windows Credential Manager (`credstore.Secrets`, `WinCred()`; `Memory()` off Windows and in tests), **one target grammar** (`credstore/targets.go`), and one typed accessor per credential: the Entra refresh token (`entraauth`, task 31), a **GitHub** token (`credstore.Local`, phase 3's `Store`), an **Azure DevOps** bearer from the Entra sign-in (`entraauth.DevOps`, phase 3's `Store`, if Q5 is yes), and the **Panacea** `pnc_` token (`credstore.PanaceaTokens`, phase 7). The only write path for a pasted token is task 39's `POST /v1/credentials/{kind}`; nothing returns a secret | tasks 28, 29, 31, 39 | **phase 3** (`OD-4`: push and PR on both hosts), **phase 7** (`OD-13`: the Panacea API), **phase 6** (a future `kind` for the user's own Claude credentials — never pooled), **phase 8** (nothing: the broker reads no store) |
+| S-TOKEN | `entraauth.TokenSource` — `Token(ctx, scope)`, `ErrSignedOut` | task 31 | `hubclient` (task 33); phase 8's broker client `remotebe` (HA-2) |
+| S-HUB | `hubclient`'s consumer interfaces, `NewFake()`, the conformance suite, and `hubclient.WriteError` (the relay rule) | tasks 04, 05, 33, 34 | phases 3 (`Evidence`), 4 (`Briefs`), 5 (`Designs`), 7 (`Releases`) |
+| S-LINK | `hublink.Resolver.Project(ctx, localProjectID) (hubapi.Project, hublink.State, error)` — how a handler finds the Hub project behind a local one | task 35 | phases 3, 4, 5, 7: every Hub-backed handler starts here |
+| S-FEED | the control plane's `hubfeed.Poller.Subscribe(kindPrefix, fn)`; the desktop's `hubFeed.subscribe(kindPrefix, fn)` | tasks 36, 40 | phase 4's `provenanceSlice` (`brief.*`), phase 5's approvals (`design.*`), phase 7's releases (`release.*`) |
+| S-ENTRA | `internal/entra` — one validator for the Hub and the broker (HA-1) | task 10 / phase 8 task 16 | phase 8's `cmd/broker` |
+| S-CHART | `hub serve` / `hub migrate` / `hub verify`; `:8080`; `/healthz`, `/readyz`; `roles.sql`; `PANACEA_APP_HUB_*` | tasks 06–08 | phase 8 tasks 27 (image), 29 (chart, principals SQL), 30 (pipeline) |
+| S-CI | an integration job with a Postgres service, running `go test -tags integration ./control-plane/internal/hub/...` | not built here: `azure-pipelines.yml` runs no database today | phase 8's pipelines (ask) |
+| S-CANVAS | a `/v1/canvas/…` WebSocket route on the same server, identity from the same validator (ADR-H1 §5.5) | reserved; nothing built | phase 5 v2 |
+| S-SSE | `GET /v1/changes/stream`, the same events, `Last-Event-ID` as the cursor | reserved | when the 5 s poll is noticed |
+| S-BYO | multi-tenant registrations, a second `PANACEA_APP_HUB_TENANTS` entry, an enrolment route | reserved (ADR-H1 §5.9 item 3) | the customer tier |
+| S-CSP | the webview has **no CSP** (`tauri.conf.json` `"csp": null`) | not ours; phase 2 or 9 | phase 5 renders design frames in that webview |
+
+---
+
+## Open questions for the owner — each with the recommendation this plan builds
+
+ADR-H1 §10's seven stand, and this plan builds each recommendation: **Q1** only a complete revision
+is approved against or pinned; **Q2** erasure keeps key, digest, author and time and resolves
+`erased`; **Q3** a designer may approve their own design in v1; **Q4** teammates join by an email
+invite that binds at first sign-in; **Q5** Azure DevOps uses the same Entra sign-in; **Q6** writes
+never queue while the Hub is down; **Q7** the Hub holds no canvas documents in v1. Three more come
+from this plan:
+
+| # | Question | Recommendation (what this plan builds) |
+|---|---|---|
+| **Q8** | How does a local project join the Hub? | **Explicitly**: a *Share with a team* action on the project row (task 42) creates the Hub project from the local project's remotes, in a team the user picks or creates in the same popover. A project whose remote is already some Hub project's links **automatically** on first sight (task 35), because that is the same repository. The alternative — auto-create a personal team for every local project — makes teams nobody chose |
+| **Q9** | Where does a GitHub token come from in v1? | **Pasted once** into the app (a fine-grained personal access token), stored by task 39, with phase 3's machine-credential-helper fallback behind it. A GitHub OAuth app would need an app registration under `kpmg-au-emu` and `lcfrai` — later |
+| **Q10** | Who runs the Hub's database tests in CI? | **Phase 8's pipeline** adds a Postgres service job (S-CI). Until then they run on a developer laptop against task 09's stack, and every report says so |
+
+---
+
+## What this plan did not verify
+
+- **Nothing was compiled or run.** No Go was built, no container started, no SQL applied, no
+  token issued.
+- **Entra behaviour** carried from ADR-H1 §11: loopback redirect matching, v2 claims with
+  `profile`, refresh rotation, one refresh token for three resources, KPMG token sizes. Task 43's
+  real-tenant checklist checks them once the registrations exist, and stays unverified until the
+  owner's batched session (`OD-12`).
+- **Postgres facts from knowledge, pinned by tests rather than trusted:** the default name
+  `users_org_id_entra_oid_key` that `resolve_principal`'s `ON CONFLICT ON CONSTRAINT` relies on
+  (task 07 asserts it exists); that a transaction-local `set_config` leaves `''`, not `NULL`, on a
+  pooled connection after commit (task 13's test runs a second transaction on the same connection
+  and asserts it reads nothing); `SECURITY DEFINER` running as the owner for `guard_revision`'s
+  `current_user` test (task 27).
+- **Win32 facts from documentation recall:** `CRED_MAX_CREDENTIAL_BLOB_SIZE` = 2,560 bytes; the
+  `CREDENTIALW` layout. Task 28's Windows-only test round-trips a 6,000-byte blob to prove the
+  chunking, on the owner's laptop, since CI is Linux (`azure-pipelines.yml:6`).
+- **Sibling plans were read as they stood at about 21:30 on 2026-09-23.** Phase 3 (23 parts and a
+  review) and phase 8 (33 parts) were read by absolute path; phases 4, 5 and 7 had only 6, 13 and
+  34 lines of plan, so **their asks of the Hub are not known**. This plan satisfies the contract's
+  §0 table for them and gives each an S0 start line; any ask they raise later is additive.
+- **Phase 8 task 16** (`internal/entra`) and **phase 3 task 13** (`credstore.go`) are plans, not
+  code. Tasks 10 and 29 write them from those parts verbatim only if they have not landed.
+- **Docker Desktop's reachability** of a host service bound to `127.0.0.1` from a container was not
+  tested; the local caller key (task 37) makes the answer not matter, as ADR-H1 §5.4 intends.
+
