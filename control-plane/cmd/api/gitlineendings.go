@@ -29,10 +29,17 @@ import (
 //     reads any other value, "native" included, as native, which is the
 //     host's ending: native.
 //
-// native is a parameter so a test can be both hosts. Production passes
-// hostNativeEOL(): Git for Windows is built with NATIVE_CRLF, and git
-// everywhere else is not.
-func gitLineEndingsResolver(run project.Runner, native string) func(context.Context, string) (api.GitLineEndings, error) {
+// native is hostNativeEOL(), chosen here rather than by the caller so that
+// serve(), which no unit test runs, has nothing to get wrong.
+// gitLineEndingsResolverWith takes it as a parameter so a test can be both
+// hosts.
+func gitLineEndingsResolver(run project.Runner) func(context.Context, string) (api.GitLineEndings, error) {
+	return gitLineEndingsResolverWith(run, hostNativeEOL())
+}
+
+// gitLineEndingsResolverWith is gitLineEndingsResolver on a host whose git
+// reads "native" as native.
+func gitLineEndingsResolverWith(run project.Runner, native string) func(context.Context, string) (api.GitLineEndings, error) {
 	return func(ctx context.Context, worktreePath string) (api.GitLineEndings, error) {
 		autocrlf, err := gitConfigValue(ctx, run, worktreePath, "--type=bool", "--default", "false", "core.autocrlf")
 		if err != nil {
@@ -66,7 +73,8 @@ func gitConfigValue(ctx context.Context, run project.Runner, dir string, args ..
 	return strings.TrimSpace(string(out)), nil
 }
 
-// hostNativeEOL is the line ending "native" means to this host's git.
+// hostNativeEOL is the line ending "native" means to this host's git: Git for
+// Windows is built with NATIVE_CRLF, and git everywhere else is not.
 func hostNativeEOL() string {
 	if runtime.GOOS == "windows" {
 		return "crlf"

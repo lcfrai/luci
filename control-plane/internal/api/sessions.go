@@ -228,6 +228,11 @@ func (a *API) sessionGitLineEndings(ctx context.Context, worktreePath string) (G
 // of a directory shows what is added to it later: a linked worktree created
 // while the session runs is covered too. Git makes the same directory itself
 // at the first `git worktree add`.
+//
+// Lstat, so a .git that is a symlink is not followed: the sandbox resolves the
+// link against its own filesystem, where a target outside the mount does not
+// exist, and a directory or a mount made through it would land outside the
+// worktree.
 func sessionWorktreeAdmin(worktreePath string) (string, error) {
 	gitDir := filepath.Join(worktreePath, ".git")
 	info, err := os.Lstat(gitDir)

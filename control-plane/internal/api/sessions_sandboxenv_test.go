@@ -530,19 +530,32 @@ func TestAPrimaryWorktreesLinkedWorktreeMetadataIsReadOnlyInTheSandbox(t *testin
 
 // A linked worktree's .git is a file naming the host, and a directory with no
 // .git is not a repository. Neither has linked-worktree metadata to protect,
-// so neither gets a mount, and nothing is made in it.
+// so neither gets a mount, and nothing is made in it. A .git that is a
+// symlink is not followed either: nothing is made or mounted through a link
+// whose target the sandbox resolves against its own filesystem.
 func TestAWorktreeWhoseGitIsNotADirectoryGetsNoMetadataMount(t *testing.T) {
-	for name, gitFile := range map[string]string{
-		"a linked worktree": "gitdir: C:/work/primary/.git/worktrees/linked\n",
-		"no .git":           "",
+	for name, setup := range map[string]func(t *testing.T, dir string) string{
+		"a linked worktree": func(t *testing.T, dir string) string {
+			if err := os.WriteFile(filepath.Join(dir, ".git"), []byte("gitdir: C:/work/primary/.git/worktrees/linked\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			return filepath.Join(dir, ".git", "worktrees")
+		},
+		"no .git": func(t *testing.T, dir string) string { return filepath.Join(dir, ".git", "worktrees") },
+		"a .git that is a symlink to a directory": func(t *testing.T, dir string) string {
+			target := filepath.Join(dir, "real-git-dir")
+			if err := os.Mkdir(target, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(target, filepath.Join(dir, ".git")); err != nil {
+				t.Skipf("this host cannot make a directory symlink: %v", err)
+			}
+			return filepath.Join(target, "worktrees")
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			env := sandboxEnvNew(t, nil)
-			if gitFile != "" {
-				if err := os.WriteFile(filepath.Join(env.dir, ".git"), []byte(gitFile), 0o644); err != nil {
-					t.Fatal(err)
-				}
-			}
+			notMade := setup(t, env.dir)
 			spec := sandboxEnvCreate(t, env, sessionsCreateBody)
 
 			for _, m := range spec.Mounts {
@@ -550,8 +563,8 @@ func TestAWorktreeWhoseGitIsNotADirectoryGetsNoMetadataMount(t *testing.T) {
 					t.Errorf("mount %#v inside the worktree of %s", m, name)
 				}
 			}
-			if _, err := os.Stat(filepath.Join(env.dir, ".git", "worktrees")); err == nil {
-				t.Errorf("a .git/worktrees was made in %s", name)
+			if _, err := os.Stat(notMade); err == nil {
+				t.Errorf("%s was made in %s", notMade, name)
 			}
 		})
 	}

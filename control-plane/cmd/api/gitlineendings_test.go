@@ -81,7 +81,7 @@ func TestTheLineEndingsAreTheHostGitsOwnAnswerInTheWorktree(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := &eolRunner{answers: tc.answers}
-			got, err := gitLineEndingsResolver(host, tc.native)(context.Background(), `C:\work\evidence-upload`)
+			got, err := gitLineEndingsResolverWith(host, tc.native)(context.Background(), `C:\work\evidence-upload`)
 			if err != nil {
 				t.Fatalf("resolve: %v", err)
 			}
@@ -107,7 +107,7 @@ func TestALineEndingSettingTheHostsGitCannotReadIsAnError(t *testing.T) {
 		"core.eol cannot be read":          {eolAskBool: {out: "true\n"}, eolAskEOL: {err: gitDied}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			got, err := gitLineEndingsResolver(&eolRunner{answers: answers}, "crlf")(context.Background(), `C:\w`)
+			got, err := gitLineEndingsResolverWith(&eolRunner{answers: answers}, "crlf")(context.Background(), `C:\w`)
 			if err == nil {
 				t.Fatalf("resolve returned %#v and no error", got)
 			}
@@ -131,6 +131,12 @@ func TestNativeIsCRLFOnWindowsAndLFElsewhere(t *testing.T) {
 	if got := hostNativeEOL(); got != want {
 		t.Errorf("hostNativeEOL() on %s = %q, want %q", runtime.GOOS, got, want)
 	}
+	// And the production resolver, the one main.go wires, is on this host.
+	host := &eolRunner{answers: map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "native\n"}}}
+	got, err := gitLineEndingsResolver(host)(context.Background(), `C:\w`)
+	if err != nil || got.EOL != want {
+		t.Errorf("gitLineEndingsResolver on %s: %#v, %v; want core.eol native read as %q", runtime.GOOS, got, err, want)
+	}
 }
 
 // Against the real git: the answer includes the SYSTEM scope, which is where
@@ -153,7 +159,7 @@ func TestTheRealHostGitAnswersFromEveryScope(t *testing.T) {
 	if out, err := exec.Command("git", "init", "-q", repo).CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v: %s", err, out)
 	}
-	resolve := gitLineEndingsResolver(project.NewExecRunner(), "crlf")
+	resolve := gitLineEndingsResolverWith(project.NewExecRunner(), "crlf")
 
 	got, err := resolve(context.Background(), repo)
 	if err != nil {
