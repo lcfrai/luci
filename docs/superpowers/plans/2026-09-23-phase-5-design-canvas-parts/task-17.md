@@ -50,7 +50,7 @@ channel on the canvas (§9.1 item 9); export is the design-to-code path's last s
 | `get_comment_thread` | — | `thread` (`doc.Thread`) |
 | `reply_to_comment_thread` | `add_message`, authored by the session | `messageId` |
 | `set_comment_thread_status` | `set_thread_status` | `status` |
-| `export` | `png` through the renderer (content: one `image` block per node); `html` → task 08's `ExportHTML` for artboards, `HTML(IDs:false)` for other nodes; `jsx-*` → task 09's `JSX` (content: one `text` block per node) | `files`: `[{"nodeId","format","name","width","height","bytes"}]` |
+| `export` | `png` through the renderer (content: one `image` block per node); `html` → task 08's `ExportHTML` for artboards, `HTML(IDs:false)` for other nodes (`ExportHTML`'s `dialect.ErrUnsafeToken` or `dialect.ErrUnsafeNode`, reachable only through a document replayed from disk, answers `invalid` naming the token or node and returns no `files`, as `get_tokens` does; re-review RR-M5); `jsx-*` → task 09's `JSX` (content: one `text` block per node) | `files`: `[{"nodeId","format","name","width","height","bytes"}]` |
 | `get_guide` | the embedded markdown, verbatim | `topic`, `markdown` (and one `text` block) |
 
 Comment threads are **created by humans** in the lens (task 28): no MCP tool opens one. An agent

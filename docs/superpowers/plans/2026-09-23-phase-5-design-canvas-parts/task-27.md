@@ -13,8 +13,9 @@ registry of document stores (class instances, kept outside zustand), and one key
 ## Files
 
 - `desktop/src/api/design.ts`, `desktop/src/api/events.ts` + tests (new)
-- `desktop/src/api/client.ts` — the `ProblemCode` union gains task 20a's twelve codes
-  (`handoff_snapshot_invalid` is the twelfth, review C2) and `upstream_unavailable`, `signed_out`
+- `desktop/src/api/client.ts` — the `ProblemCode` union gains task 20a's thirteen codes
+  (`handoff_snapshot_invalid` is the twelfth, review C2; `design_unsafe` the thirteenth,
+  re-review RR-M5) and `upstream_unavailable`, `signed_out`
   if the Hub's C1/C2 have not added them (`local_key_required` is Hub task 38's, already there). **Declared amendment**
   of UI contract §4.2 (task 30 records it). `problems.ts`' `classify` is unchanged: every new code is
   `server-said` (the server wrote the sentence), and `signed_out` is the Hub's C4's to map.

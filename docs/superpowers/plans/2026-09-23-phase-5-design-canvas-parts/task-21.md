@@ -75,6 +75,12 @@ type Snapshot struct {
 // and once: tokens.css (text/css; charset=utf-8), tokens.json, tree.json
 // (application/json), assets/<hex>.<png|jpg|webp|svg> (their media type),
 // then manifest.json. A missing PNG for any artboard is an error.
+// A dialect.ErrUnsafeToken from ExportHTML or tokens.CSS, or a
+// dialect.ErrUnsafeNode from ExportHTML (reachable only through a document
+// replayed from disk, task 08), fails the whole bundle, wrapped with the token
+// or node it names; the approval that asked for it is refused as
+// `422 design_unsafe` (task 20) with details.token or details.nodeId, never
+// blamed on the renderer (re-review RR-M5).
 func BuildSnapshot(in SnapshotInput) (Snapshot, error)
 
 // FileCount is len(Files)+1 of the snapshot BuildSnapshot would write for doc,
@@ -314,6 +320,9 @@ type ApprovalState struct {
 5. `handoff.BuildSnapshot` (called through the API's unexported `buildSnapshot` field, which only
    `TestApprove_snapshotBug` replaces); over `MaxFiles` (already refused in step 4, kept as the
    backstop), `MaxFileBytes` or `MaxSnapshotBytes` → `413 design_too_large`.
+   `dialect.ErrUnsafeToken` or `dialect.ErrUnsafeNode` (the export re-check, task 08) →
+   `422 design_unsafe` with `details.token` or `details.nodeId`, nothing uploaded, no approval
+   asked of the Hub (re-review RR-M5).
    `ErrTampered` or `ErrUnsafePath` from `BuildSnapshot`'s own `CheckManifest` (a path failing
    `SafePath`, a path repeated, a content type or asset hex that disagrees) is a bug in `slug.go` or
    `snapshot.go` — `500 internal`, nothing uploaded, no approval asked of the Hub (re-review I-1).
@@ -357,6 +366,7 @@ loader; this cache does not poll it).
 | `TestApprove_noRenderer` | no renderer → 409 `renderer_unavailable`, `details.cause: "no_renderer"` and its sentence, no upload | an approval whose PNGs are blank |
 | `TestApprove_rendererSwapMidApproval` (re-review RR-I5-1; a recording renderer fake, 12 artboards, a visible and a hidden renderer attached) | the visible renderer detaches while holding artboard 4 → artboard 4 is re-sent once, with a fresh `ApprovalRenderTimeout`, to the hidden renderer, which answers; artboards 5–12 go to the hidden one → 201, twelve PNGs; the same with the visible renderer re-attached under its own id (a stream replacement) instead of a hidden one → 201, artboard 4 captured by the re-attached renderer | a stream swap or a lens switch failing the spine's one action (re-review RR-I5-1) |
 | `TestApprove_rendererGoneMidApproval` (re-review RR-I5-1) | the only renderer detaches holding artboard 4 of 12 → `409 renderer_unavailable`, `details.cause: "renderer_gone"`, index 4, the *"The canvas closed while …"* sentence; artboard 4 re-sent to a renderer that detaches again → the same; a `*RenderError` or a timeout on artboard 4 → exactly one request for artboard 4 (no re-send) and cause `render_error` / `timeout`; no `PutBlob`, no `Approve` in any row | an error blaming the renderer for a closed window; a re-send loop; a timeout re-sent, doubling the wait |
+| `TestApprove_unsafeDocument` (re-review RR-M5) | a store fixture replayed with a permissive `Checker` whose artboard uses a `font-family` token holding the review I2 script value → `422 design_unsafe` with `details.token: "brand"`; the same with a frame declaration `margin: 0` → `details.nodeId`; in both, no `PutBlob` and no Hub approval call, and the code is not `renderer_unavailable` | a dialect failure at export blamed on the renderer, or an unsafe bundle uploaded |
 | `TestApprove_tooManyFilesBeforeCapture` (re-review RR-I5-2) | a document whose `FileCount` is `MaxFiles` + 1 → `413 design_too_large`, and the renderer fake saw **no** request, no `PutBlob`; at exactly `MaxFiles` it proceeds to capture | a canvas over the cap captured artboard by artboard before it is refused |
 | `TestFileCount_matchesBuild` | for the two-artboard fixture, a fixture sharing one asset between artboards, and the `"Home"`, `"Home"`, `"Home 2"` fixture, `FileCount(doc) == len(BuildSnapshot(…).Files) + 1` | the pre-check and the build counting different files |
 | `TestApprove_onePerArtboard` (a recording renderer fake, 12 artboards) | twelve requests, one after another (the next is sent only after the last `CompleteRender`), each with one node id, `Scale: 2`, `Revision` the approved one, `Progress{approval, i, 12, name}` in document order, and a `Deadline` of now + `ApprovalRenderTimeout` (injected clock) | the old one-request-for-every-artboard capture held to 15 s; parallel captures fighting over one main thread (review I5) |

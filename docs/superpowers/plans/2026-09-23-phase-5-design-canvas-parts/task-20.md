@@ -200,6 +200,7 @@ func Handler(src Source, log *slog.Logger) http.Handler
 	CodeDesignTooLarge      = "design_too_large"      // 413 a snapshot over 500 files, 16 MiB a file or 512 MiB in all (task 21)
 	CodeHandoffPathTracked  = "handoff_path_tracked"  // 409 .panacea/ is tracked in this worktree (task 22)
 	CodeHandoffInvalid      = "handoff_snapshot_invalid" // 422 the Hub's snapshot fails Materialise's checks (task 22): ErrTampered, ErrUnsafePath or ErrTooLarge; details reason; nothing written
+	CodeDesignUnsafe        = "design_unsafe"         // 422 the document fails the dialect on the export re-check (task 08's ExportHTML, task 09's tokens.CSS; task 21's approve): dialect.ErrUnsafeToken or ErrUnsafeNode; details token or nodeId; nothing approved (re-review RR-M5)
 ```
 
 `local_key_required` (401) is Hub task 37's code, not this task's; every route here can answer it.
