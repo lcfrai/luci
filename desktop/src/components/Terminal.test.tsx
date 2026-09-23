@@ -373,6 +373,16 @@ const SKIPPED_BY_XTERM: KeyCase[] = [
   ...Array.from({ length: 9 }, (_, i): KeyCase => [`⌘${i + 1}`, { key: `${i + 1}`, ctrlKey: true }]),
 ];
 
+/* ADDED BY TASK 23's FIX ROUND 2. §6.9's ⌘ is metaKey || ctrlKey, and every row above presses
+ * Ctrl. So a handler narrowed to `!(event.ctrlKey && isCockpitChord(event))` passed the whole
+ * suite, and through a real xterm Meta+Enter then went to the agent as CR and created no
+ * session. The Meta half of the table is therefore pinned too, row for row, with Ctrl released
+ * so that Meta is the only modifier that can decide it. */
+const SKIPPED_BY_XTERM_ON_META: KeyCase[] = SKIPPED_BY_XTERM.map(([name, init]): KeyCase => [
+  `${name} on the Meta key`,
+  { ...init, ctrlKey: false, metaKey: true },
+]);
+
 const HANDLED_BY_XTERM: KeyCase[] = [
   ["Escape, the agent's interrupt", { key: "Escape" }],
   ["shift+Tab, the agent's permission cycle", { key: "Tab", shiftKey: true }],
@@ -391,7 +401,7 @@ describe("Terminal lets the cockpit's chords past xterm", () => {
     return handler as (event: KeyboardEvent) => boolean;
   }
 
-  it.each(SKIPPED_BY_XTERM)("xterm skips %s, so it bubbles to the keyboard map", (_name, init) => {
+  it.each([...SKIPPED_BY_XTERM, ...SKIPPED_BY_XTERM_ON_META])("xterm skips %s, so it bubbles to the keyboard map", (_name, init) => {
     expect(installedHandler()(new KeyboardEvent("keydown", init))).toBe(false);
   });
 

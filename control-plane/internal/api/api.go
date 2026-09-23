@@ -129,6 +129,57 @@ type Deps struct {
 	// required, and absolute because it becomes a bind mount's host path.
 	// Task 13's wiring derives it from the state directory.
 	ConversationsDir string
+
+	// GitIdentity resolves who an agent's commits in one worktree are made as.
+	// Sessions call it at every create and restart, with the worktree's HOST
+	// path, and hand the answer to the sandbox as GIT_AUTHOR_* and
+	// GIT_COMMITTER_*. Users authenticate as themselves, so this is the person
+	// running the cockpit and never a shared or invented identity; cmd/api's
+	// resolver reads PANACEA_APP_GIT_NAME/EMAIL, else the host's own git.
+	//
+	// Nil, or an error, means no identity: the session still starts, the error
+	// is logged as the sentence the user acts on, and the sandbox's git refuses
+	// to commit rather than guessing (see sessionEnv's user.useConfigOnly).
+	GitIdentity func(ctx context.Context, worktreePath string) (GitIdentity, error)
+
+	// GitLineEndings resolves how the HOST's git normalises line endings in one
+	// worktree: its effective core.autocrlf, and the ending core.eol means
+	// there. Sessions call it at every create and restart, with the worktree's
+	// host path, and hand the answer to the sandbox as git configuration.
+	//
+	// It is required, and an error fails the create or restart before anything
+	// is recorded or destroyed, because there is no safe guess. The host's
+	// system and global config are invisible to the sandbox, and Git for
+	// Windows' installer sets core.autocrlf=true at system scope. A sandbox
+	// that guessed "false" there sees every CRLF file as modified, and one
+	// commit -a writes CRLF blobs for files the agent never touched.
+	GitLineEndings func(ctx context.Context, worktreePath string) (GitLineEndings, error)
+
+	// CABundle is the absolute host path of a PEM bundle every sandbox trusts in
+	// addition to its own roots, mounted read-only at sessionCABundlePath and
+	// named by NODE_EXTRA_CA_CERTS. "" mounts nothing and sets nothing. cmd/api
+	// has already refused a path that is missing or holds no certificate.
+	CABundle string
+}
+
+// GitIdentity is one person's commit identity: both fields, or neither.
+type GitIdentity struct {
+	Name  string
+	Email string
+}
+
+// GitLineEndings is how the host's git converts line endings in one worktree,
+// in the two words the sandbox's git needs to do the same.
+//
+//   - AutoCRLF is core.autocrlf as git itself reads it: "true", "false" or
+//     "input".
+//   - EOL is the ending a text file gets on checkout when core.autocrlf is
+//     false: "lf" or "crlf". It is never "native", because native means CRLF
+//     to Git for Windows and LF to the sandbox's Linux git. The resolver
+//     turns it into the host's own answer.
+type GitLineEndings struct {
+	AutoCRLF string
+	EOL      string
 }
 
 // route is one ServeMux pattern and the handler registered under it.
@@ -221,6 +272,7 @@ func New(d Deps) (*API, error) {
 		{"Projects", d.Projects == nil},
 		{"Worktrees", d.Worktrees == nil},
 		{"Origin", d.Origin == nil},
+		{"GitLineEndings", d.GitLineEndings == nil},
 	} {
 		// BackendReady has no safe default and that is why it is here rather
 		// than below: true fabricates health, false sends an operator after a
@@ -236,6 +288,9 @@ func New(d Deps) (*API, error) {
 	}
 	if !filepath.IsAbs(d.ConversationsDir) {
 		return nil, errors.New("api: Deps.ConversationsDir " + strconv.Quote(d.ConversationsDir) + " is not absolute, and it becomes a bind mount's host path")
+	}
+	if d.CABundle != "" && !filepath.IsAbs(d.CABundle) {
+		return nil, errors.New("api: Deps.CABundle " + strconv.Quote(d.CABundle) + " is not absolute, and it becomes a bind mount's host path")
 	}
 	if d.Version == "" {
 		d.Version = DefaultVersion

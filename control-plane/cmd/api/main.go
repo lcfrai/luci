@@ -105,13 +105,23 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		<-reaperDone
 	}()
 
-	scanner := project.NewScanner(cfg.ProjectsDir, project.NewExecRunner())
+	gitRunner := project.NewExecRunner()
+	scanner := project.NewScanner(cfg.ProjectsDir, gitRunner)
 	// Contract §4: with no projects directory the provider is worktree.Static{},
 	// so every session create fails 404 worktree_not_found. That is correct and
 	// visible — no projects directory means no worktrees to work in.
 	var worktrees worktree.Provider = worktree.Static{}
 	if cfg.ProjectsDir != "" {
 		worktrees = scanner
+	}
+
+	// Asked once here as well as at every create, so the user without an
+	// identity hears it at startup, before any agent tries to commit. Asked
+	// outside any worktree, this is the machine-wide answer; a repository that
+	// sets its own identity is still asked at its own sessions' creates.
+	gitIdentity := gitIdentityResolver(cfg.GitName, cfg.GitEmail, gitRunner)
+	if _, err := gitIdentity(ctx, cfg.ProjectsDir); err != nil {
+		log.Warn("no git identity", "err", err)
 	}
 
 	// api.New returns (*API, error): it validates every dependency it cannot
@@ -133,6 +143,9 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		Log:          log,
 		// Created per worktree, at the first session that needs it.
 		ConversationsDir: cfg.ConversationsDir,
+		GitIdentity:      gitIdentity,
+		GitLineEndings:   gitLineEndingsResolver(gitRunner),
+		CABundle:         cfg.CABundle,
 	})
 	if err != nil {
 		return fmt.Errorf("build the HTTP surface: %w", err)
@@ -161,6 +174,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		"conversations", cfg.ConversationsDir,
 		"projects", cfg.ProjectsDir,
 		"image", cfg.SandboxImage,
+		"caBundle", cfg.CABundle,
 	)
 
 	select {

@@ -15,10 +15,12 @@ import {
   configureAttachRegistry,
   releaseAttach,
 } from "./api/attachRegistry";
+import { ApiError } from "./api/client";
+import type { CockpitClient } from "./api/client";
 import { POLL_INTERVAL_MS } from "./api/poller";
 import { resetCockpit, useCockpit } from "./store/store";
 import type { Session, SessionId } from "./store/types";
-import App from "./App";
+import App, { startCatalogue } from "./App";
 
 // The dynamic-import form, per task 14's note at the top of fakes.ts: vi.mock is hoisted above
 // this file's imports, so a factory that closes over the static FakeTerm binding can run first.
@@ -137,6 +139,20 @@ function grabTerm(id: SessionId): FakeTerm {
   return handle.term as unknown as FakeTerm;
 }
 
+/** The DOM node the registry's element sits in right now: the pane's host while it is mounted.
+ *  Reached the way grabTerm reaches the terminal, so reaching one is also the assertion that the
+ *  entry exists. */
+function hostOf(id: SessionId): Node | null {
+  const handle = acquireAttach(useCockpit.getState().sessions[id], {
+    createTerm: () => {
+      throw new Error(`no terminal exists for ${id}; the pane never mounted`);
+    },
+    readOnly: false,
+  });
+  releaseAttach(id);
+  return handle.element.parentNode;
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   FakeWebSocket.reset();
@@ -241,6 +257,37 @@ describe("the assembled cockpit", () => {
     expect(server.calls.worktrees).toBe(1);
   });
 
+  // RV24-A and RV24-B (task 24 review, I2). An empty list is a real answer, and every other
+  // fixture in this file has exactly one branch and one worktree, so nothing else can see a
+  // loader that read "no rows" as "not arrived". That loader refetches after EVERY store write,
+  // its own loading flag included: the self-feeding loop the failure memo exists to stop,
+  // reached through success instead. The stub parks every call past its cap, so the loop reads
+  // as 51 calls here rather than hanging the worker. A real control plane has no cap.
+  it("takes an empty branch list as an answer and does not ask for it again (RV24-A)", async () => {
+    // A project with no local branch lists []. A fresh `git init` plausibly does.
+    seedCatalogue();
+    server.branches.set("p-1", []);
+    render(<App />);
+    await settle();
+    act(() => useCockpit.getState().toggleProject("p-1"));
+    await settle(POLL_INTERVAL_MS * 2);
+    expect(server.calls.branches).toBe(1);
+    expect(useCockpit.getState().branchesByProject["p-1"]).toEqual([]);
+  });
+
+  it("takes an empty worktree list as an answer and does not ask for it again (RV24-B)", async () => {
+    seedCatalogue();
+    server.worktrees.set("b-1", []);
+    render(<App />);
+    await settle();
+    act(() => useCockpit.getState().toggleProject("p-1"));
+    await settle();
+    act(() => useCockpit.getState().selectBranch("p-1", "b-1"));
+    await settle(POLL_INTERVAL_MS * 2);
+    expect(server.calls.worktrees).toBe(1);
+    expect(useCockpit.getState().worktreesByBranch["b-1"]).toEqual([]);
+  });
+
   it("waits for a restored branch's project list before asking for its worktrees", async () => {
     // persist rehydrates `selection` before any fetch has run, so the branch id is known and
     // the branch list that says which project owns it is not. listWorktrees needs both (§4.4),
@@ -276,9 +323,19 @@ describe("the assembled cockpit", () => {
     expect(shownError()).toContain("projects answered 500");
     const firstTicks = server.calls.sessions;
 
+    // Every value written, not the end state (clause 7). The retry on each good tick fails again
+    // and re-reports, so a poller that wrongly cleared the report would leave the same message
+    // on screen at the end, having blanked the footer for the length of one retry on every
+    // tick. Measured: the end-state assertion alone let that poller through.
+    const written: (string | null)[] = [];
+    const unsubscribe = useCockpit.subscribe((next, prev) => {
+      if (next.lastError !== prev.lastError) written.push(next.lastError?.message ?? null);
+    });
     await settle(POLL_INTERVAL_MS);
     await settle(POLL_INTERVAL_MS);
+    unsubscribe();
     expect(server.calls.sessions).toBe(firstTicks + 2);           // two more good ticks
+    expect(written).not.toContain(null);
     expect(shownError()).toContain("projects answered 500");
     // Retried on those ticks — and never more than once per tick.
     expect(server.calls.projects).toBeGreaterThan(1);
@@ -360,6 +417,96 @@ describe("the assembled cockpit", () => {
     unsubscribe();
     expect(written).not.toContain(null);
     expect(shownError()).toContain("branches answered 500");
+  });
+
+  it("puts a list's report back when the poller clears the report that had replaced it (RV24-C)", async () => {
+    // The order the test above does not take (task 24 review, M1). The catalogue fails first,
+    // then the poller's failure takes the one slot, then the poller recovers. It clears its own
+    // report, as it must, and the slot empties while the projects list is still missing. The
+    // retry that same good tick starts is HELD here, and that is the case that matters: a hung
+    // list lasts up to the client's 10 s timeout. Before this fix the rail was empty and the
+    // footer clean for all of it. The loader now puts its outstanding report back.
+    seedCatalogue();
+    server.failing.set("projects", new Error("projects answered 500"));
+    render(<App />);
+    await settle();
+    expect(shownError()).toContain("projects answered 500");
+
+    server.failing.set("sessions", new Error("sessions answered 500"));
+    await settle(POLL_INTERVAL_MS);
+    expect(shownError()).toContain("sessions answered 500");
+
+    server.hanging.add("projects");
+    server.failing.delete("sessions");
+    await settle(POLL_INTERVAL_MS);
+    expect(useCockpit.getState().projects).toHaveLength(0);
+    expect(shownError()).toContain("projects answered 500");
+  });
+
+  it("puts back the newest of two outstanding reports", async () => {
+    // §3.2's slot holds "the last API failure", so a put-back picks the list that failed most
+    // recently. Machines and projects both fail at mount. Then only machines is retried to a
+    // fresh failure, because projects' retry is held. When the slot next empties, machines holds
+    // the newer report, though projects was the one on screen first.
+    seedCatalogue();
+    server.failing.set("machines", new Error("machines answered 500"));
+    server.failing.set("projects", new Error("projects answered 500"));
+    render(<App />);
+    await settle();
+    server.hanging.add("projects");
+    await settle(POLL_INTERVAL_MS);   // a good tick: machines fails again, projects is held
+    expect(shownError()).toContain("machines answered 500");
+
+    server.hanging.add("machines");   // from here no retry lands, so only the put-back writes
+    server.failing.set("sessions", new Error("sessions answered 500"));
+    await settle(POLL_INTERVAL_MS);
+    expect(shownError()).toContain("sessions answered 500");
+    server.failing.delete("sessions");
+    await settle(POLL_INTERVAL_MS);
+    expect(shownError()).toContain("machines answered 500");
+  });
+
+  it("does not put back the report of a list the user has since closed", async () => {
+    // The other half of putting a report back. p-1's branch list fails and the user collapses
+    // p-1, so the rail shows no branch rows because it shows none, not because a list is
+    // missing. A closed project's list is not retried, so a report put back for it would sit on
+    // the footer, unrefreshed, for as long as the project stays closed.
+    seedCatalogue();
+    server.failing.set("branches", new Error("branches answered 500"));
+    render(<App />);
+    await settle();
+    act(() => useCockpit.getState().toggleProject("p-1"));
+    await settle();
+    expect(shownError()).toContain("branches answered 500");
+    act(() => useCockpit.getState().toggleProject("p-1"));
+
+    // Empty the slot the only way a test can without touching the catalogue: the poller's own
+    // report replaces it, and the poller's recovery clears that.
+    server.failing.set("sessions", new Error("sessions answered 500"));
+    await settle(POLL_INTERVAL_MS);
+    expect(shownError()).toContain("sessions answered 500");
+    server.failing.delete("sessions");
+    await settle(POLL_INTERVAL_MS);
+    expect(useCockpit.getState().lastError).toBeNull();
+  });
+
+  it("does not put back the report of a worktree list whose branch the user has since closed", async () => {
+    // The same for the level below: the project stays open and only the branch closes, so only
+    // the worktree half of "can the user see it is missing" decides. Survived as mutant M1g.
+    seedCatalogue();
+    server.failing.set("worktrees", new Error("worktrees answered 500"));
+    useCockpit.setState({ expandedProjects: { "p-1": true }, expandedBranches: { "b-1": true } });
+    render(<App />);
+    await settle();
+    expect(shownError()).toContain("worktrees answered 500");
+    act(() => useCockpit.getState().toggleBranch("b-1"));
+
+    server.failing.set("sessions", new Error("sessions answered 500"));
+    await settle(POLL_INTERVAL_MS);
+    expect(shownError()).toContain("sessions answered 500");
+    server.failing.delete("sessions");
+    await settle(POLL_INTERVAL_MS);
+    expect(useCockpit.getState().lastError).toBeNull();
   });
 
   it("fills in the rail once a control plane that was down at launch starts answering", async () => {
@@ -485,6 +632,178 @@ describe("the assembled cockpit", () => {
     expect(reported.filter((m) => m.includes("projects answered 500"))).toHaveLength(1);
     expect(shownError()).toContain("projects answered 500");
   });
+
+  it("asks for a branch's worktrees under the project that lists it, not the first one open", async () => {
+    // Project 1 is open and its branch list has landed. Then a branch of project 2 is selected,
+    // from the palette, say, which selects without expanding. A lookup that took the first
+    // project it found, rather than the one whose list holds the branch, would ask
+    // /v1/projects/p-1/worktrees for p-2's branch at once, get [], and keep that empty answer
+    // for good, because a branch whose worktrees are defined is never fetched again.
+    //
+    // The order is set by hand, not left to request order, because request order is not
+    // landing order here: `run` writes its loading flag BEFORE it fetches, and that write
+    // re-enters `sync`, which fetches the second project's list first. With both projects open
+    // at mount, "the first entry" would be the right project by accident, and the lookup would
+    // survive. Measured: the first draft of this test did exactly that.
+    seedCatalogue();
+    server.projects = [aProject({ id: "p-1" }), aProject({ id: "p-2", name: "second" })];
+    server.branches.set("p-2", [aBranch({ id: "b-2", projectId: "p-2" })]);
+    server.worktrees.set("b-2", [aWorktree({ id: "w-2", projectId: "p-2", branchId: "b-2" })]);
+    render(<App />);
+    await settle();
+    act(() => useCockpit.getState().toggleProject("p-1"));
+    await settle();
+    expect(Object.keys(useCockpit.getState().branchesByProject)).toEqual(["p-1"]);
+
+    act(() => useCockpit.getState().selectBranch("p-2", "b-2"));
+    await settle();
+    expect(server.worktreeArgs).toEqual([["p-2", "b-2"]]);
+    expect(useCockpit.getState().worktreesByBranch["b-2"]).toHaveLength(1);
+  });
+
+  it("reports the control plane's refusal by its own code and its own sentence", async () => {
+    // One direction of asError (shared shape §3A.1 clause 3). Every other failure in this file
+    // is a plain Error, so the ApiError branch was never taken by any test. The rail footer
+    // renders `message` verbatim, so the server's sentence must arrive unprefixed, and the code
+    // is what task 12's problems.ts classifies on.
+    seedCatalogue();
+    server.hanging.add("sessions");   // no good tick: nothing retries and nothing clears
+    server.failing.set("projects", new ApiError("project_not_found", "No project has that id.", 404));
+    render(<App />);
+    await settle();
+    expect(useCockpit.getState().lastError).toEqual({
+      code: "project_not_found",
+      message: "No project has that id.",
+    });
+  });
+
+  it("reports anything that is not an ApiError as internal, with its class in the message", async () => {
+    // The other direction. The client converts every network failure to an ApiError, so this
+    // branch is for a defect in the cockpit itself, and "internal" plus the class name is what
+    // tells the owner which side of the wire to look at.
+    seedCatalogue();
+    server.hanging.add("sessions");
+    server.failing.set("projects", new TypeError("cannot read properties of undefined"));
+    render(<App />);
+    await settle();
+    expect(useCockpit.getState().lastError).toEqual({
+      code: "internal",
+      message: "TypeError: cannot read properties of undefined",
+    });
+  });
+
+  it("does not load the branches of a project the user collapsed, as persist restores it", async () => {
+    // expandedProjects is persisted (store.ts partialize), so a project expanded and then
+    // collapsed last session comes back as `false`, not absent. The key is there; the value
+    // says closed. Nothing else in this file writes a `false`, so no other test could see a
+    // loader that read the keys and ignored the values.
+    seedCatalogue();
+    useCockpit.setState({ expandedProjects: { "p-1": false } });
+    render(<App />);
+    await settle(POLL_INTERVAL_MS);
+    expect(server.calls.branches).toBe(0);
+  });
+
+  it("does not load the worktrees of a branch the user collapsed, inside a project that is open", async () => {
+    // The same for branches, with the project open so its branch list lands and the branch's
+    // project is known. Only the branch's own `false` stands between it and a fetch.
+    seedCatalogue();
+    useCockpit.setState({ expandedProjects: { "p-1": true }, expandedBranches: { "b-1": false } });
+    render(<App />);
+    await settle(POLL_INTERVAL_MS);
+    expect(useCockpit.getState().branchesByProject["p-1"]).toHaveLength(1);
+    expect(server.calls.worktrees).toBe(0);
+  });
+});
+
+describe("startCatalogue on its own", () => {
+  /** A client whose every list waits until the test answers it, so a test can stop the loader
+   *  with its requests still out — StrictMode's first mount, frozen at the moment it matters. */
+  function heldClient(): {
+    client: CockpitClient;
+    held: { list: string; resolve: (value: unknown) => void; reject: (error: unknown) => void }[];
+  } {
+    const held: { list: string; resolve: (value: unknown) => void; reject: (error: unknown) => void }[] = [];
+    const hold = (list: string) => (): Promise<never> =>
+      new Promise<never>((resolve, reject) =>
+        held.push({ list, resolve: resolve as (value: unknown) => void, reject }),
+      );
+    const client = {
+      listMachines: hold("machines"),
+      listProjects: hold("projects"),
+      listHarnesses: hold("harnesses"),
+      listBranches: hold("branches"),
+      listWorktrees: hold("worktrees"),
+    } as unknown as CockpitClient;
+    return { client, held };
+  }
+
+  it("writes nothing once stopped — no list, no error, not even a loading flag — and starts nothing", async () => {
+    // The StrictMode test above counts the LISTS a stopped loader writes. This counts every
+    // store write (clause 7), because the one a list count cannot see is the loading flag: a
+    // stopped loader that still cleared it would switch off the surviving loader's spinner
+    // while that loader's own request is in flight. And `retry` is called after `stop`, as a
+    // caller other than App's cleanup might, to pin "starts nothing after stop" directly.
+    const { client, held } = heldClient();
+    useCockpit.setState({ expandedProjects: { "p-1": true } });   // so a branch list is out too
+    const catalogue = startCatalogue(client, useCockpit);
+    expect(held.map((h) => h.list)).toEqual(["machines", "projects", "harnesses", "branches"]);
+
+    let writes = 0;
+    const unsubscribe = useCockpit.subscribe(() => {
+      writes += 1;
+    });
+    catalogue.stop();
+    held[0].resolve([aMachine()]);
+    held[1].reject(new Error("projects answered 500"));
+    held[2].resolve([]);
+    held[3].resolve([]);
+    await settle();
+    catalogue.retry();
+    await settle();
+    unsubscribe();
+
+    expect(writes).toBe(0);
+    expect(held).toHaveLength(4);
+  });
+
+  it("puts no report back once stopped, though a list is still outstanding", async () => {
+    // The put-back is the one store write that does not pass through `run`, so the test above
+    // cannot see it: there, the only failure lands after stop and is discarded. Here the list
+    // fails while the loader runs, the slot is emptied after stop, where no subscription can
+    // answer, and `retry` then reaches `sync` directly.
+    const { client, held } = heldClient();
+    const catalogue = startCatalogue(client, useCockpit);
+    held[1].reject(new Error("projects answered 500"));
+    await settle();
+    expect(shownError()).toContain("projects answered 500");
+
+    catalogue.stop();
+    useCockpit.getState().setError(null);
+    let writes = 0;
+    const unsubscribe = useCockpit.subscribe(() => {
+      writes += 1;
+    });
+    catalogue.retry();
+    await settle();
+    unsubscribe();
+    expect(writes).toBe(0);
+  });
+
+  it("asks for a restored selection's branches at once, without waiting for another reply", async () => {
+    // A rehydrated selection is navigation that already happened, so its branch list goes out
+    // with the three root lists rather than after the first of them lands. Held here, no
+    // reply ever lands, so nothing but startup itself can have asked. In the assembled app the
+    // poller's first tick writes the store within one round trip and would ask anyway, which
+    // is why no test there can see this.
+    const { client, held } = heldClient();
+    useCockpit.setState({
+      selection: { projectId: "p-1", branchId: null, worktreeId: null, sessionId: null },
+    });
+    const catalogue = startCatalogue(client, useCockpit);
+    expect(held.map((h) => h.list)).toEqual(["machines", "projects", "harnesses", "branches"]);
+    catalogue.stop();
+  });
 });
 
 describe("defect 1, in the assembled app", () => {
@@ -513,6 +832,8 @@ describe("defect 1, in the assembled app", () => {
     expect(FakeWebSocket.instances).toHaveLength(1);
     const term = grabTerm("s-1");
     term.write("the user is typing");
+    const host = hostOf("s-1");
+    expect(host?.isConnected).toBe(true);
 
     for (const status of ["running", "idle", "running"] as const) {
       server.sessions = [{ ...base, status, updatedAt: new Date().toISOString() }];
@@ -534,6 +855,13 @@ describe("defect 1, in the assembled app", () => {
     expect(after.written.join("")).toContain("the user is typing");
     expect(after.disposed).toBe(false);
     expect(FakeWebSocket.instances).toHaveLength(1);
+    // And the pane never remounted. A <Terminal> keyed on anything a tick changes (its status,
+    // say) survives every assertion above, because the registry hands the new mount the same
+    // terminal. But the remount lifts the element out of the DOM and puts it into a NEW host, and
+    // a detached element loses focus and its scroll offset. That is argued, not observed here,
+    // since jsdom lays nothing out. In a real window it is this defect by another route, and the
+    // old host staying the host is what rules it out.
+    expect(hostOf("s-1")).toBe(host);
   });
 });
 
@@ -549,7 +877,6 @@ const SOURCE = import.meta.glob<string>("/src/**/*.{ts,tsx}", {
   import: "default",
   eager: true,
 });
-const exists = (relPath: string): boolean => `/${relPath}` in SOURCE;
 function text(relPath: string): string {
   const source = SOURCE[`/${relPath}`];
   if (source === undefined) throw new Error(`missing: ${relPath}`);
@@ -597,8 +924,9 @@ interface Defect {
   /** §8's "Fixed by" column. */
   fixedBy: number[];
   /** §8's "Regression test" column: the files, not the titles. Titles are prose that authors
-   *  legitimately reword, and three already have; a manifest keyed on them would be red for a
-   *  reason that is not a regression, and a gate that cries wolf is a gate somebody deletes. */
+   *  legitimately reword, and seven of §8's eighteen already have (counted by task 24's review,
+   *  M6); a manifest keyed on them would be red for a reason that is not a regression, and a
+   *  gate that cries wolf is a gate somebody deletes. */
   tests: string[];
   anchors: Anchor[];
 }
@@ -730,45 +1058,109 @@ const DEFECTS: Defect[] = [
   },
 ];
 
+/** A file's text, or undefined when it does not exist. The two manifest checks take one of these
+ *  rather than reading SOURCE, so that the canaries below can hand them a planted tree: against
+ *  the real tree every weakening of a check passes, because the real tree has no fault to find. */
+type Source = (relPath: string) => string | undefined;
+const REAL_SOURCE: Source = (relPath) => SOURCE[`/${relPath}`];
+
+function testFileProblems(defects: readonly Defect[], source: Source): string[] {
+  const missing: string[] = [];
+  for (const defect of defects) {
+    for (const file of defect.tests) {
+      const body = source(file);
+      if (body === undefined) {
+        missing.push(`defect ${defect.n}: ${file} does not exist`);
+        continue;
+      }
+      if (!/\bit\s*\(/.test(body)) {
+        missing.push(`defect ${defect.n}: ${file} contains no tests`);
+      }
+    }
+  }
+  return missing;
+}
+
+function anchorRegressions(defects: readonly Defect[], source: Source): string[] {
+  const regressions: string[] = [];
+  for (const defect of defects) {
+    for (const anchor of defect.anchors) {
+      const body = source(anchor.file);
+      if (body === undefined) {
+        regressions.push(`defect ${defect.n}: ${anchor.file} does not exist`);
+        continue;
+      }
+      const code = codeOnly(body);
+      if (anchor.present !== undefined && !anchor.present.test(code)) {
+        regressions.push(`defect ${defect.n} (${defect.spec}): ${anchor.file} lost ${anchor.present}`);
+      }
+      if (anchor.absent !== undefined && anchor.absent.test(code)) {
+        regressions.push(`defect ${defect.n} (${defect.spec}): ${anchor.file} gained ${anchor.absent}`);
+      }
+    }
+  }
+  return regressions;
+}
+
 describe("the ten known defects", () => {
   it("covers all ten, numbered 1 to 10, with no gap and no duplicate", () => {
     expect(DEFECTS.map((d) => d.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
   it("names a regression test file for each, and every one of them exists and holds tests", () => {
-    const missing: string[] = [];
-    for (const defect of DEFECTS) {
-      for (const file of defect.tests) {
-        if (!exists(file)) {
-          missing.push(`defect ${defect.n}: ${file} does not exist`);
-          continue;
-        }
-        if (!/\bit\s*\(/.test(text(file))) {
-          missing.push(`defect ${defect.n}: ${file} contains no tests`);
-        }
-      }
-    }
-    expect(missing).toEqual([]);
+    expect(testFileProblems(DEFECTS, REAL_SOURCE)).toEqual([]);
   });
 
   it("still has every fix in the implementation", () => {
-    const regressions: string[] = [];
-    for (const defect of DEFECTS) {
-      for (const anchor of defect.anchors) {
-        if (!exists(anchor.file)) {
-          regressions.push(`defect ${defect.n}: ${anchor.file} does not exist`);
-          continue;
-        }
-        const code = codeOnly(text(anchor.file));
-        if (anchor.present !== undefined && !anchor.present.test(code)) {
-          regressions.push(`defect ${defect.n} (${defect.spec}): ${anchor.file} lost ${anchor.present}`);
-        }
-        if (anchor.absent !== undefined && anchor.absent.test(code)) {
-          regressions.push(`defect ${defect.n} (${defect.spec}): ${anchor.file} gained ${anchor.absent}`);
-        }
-      }
-    }
-    expect(regressions).toEqual([]);
+    expect(anchorRegressions(DEFECTS, REAL_SOURCE)).toEqual([]);
+  });
+});
+
+describe("the manifest's own checks, fed a planted tree", () => {
+  // Shared shape §3A.1 clause 1 applied to the checker itself. Each case plants the one fault a
+  // check exists to catch, where that check is the only thing that can catch it.
+  const planted =
+    (files: Record<string, string>): Source =>
+    (relPath) =>
+      files[relPath];
+  const scroll: Anchor = { file: "src/fix.ts", present: /scrollIntoView\s*\(/ };
+  const tab: Anchor = { file: "src/fix.ts", absent: /["']Tab["']/ };
+  const canary: Defect = {
+    n: 0,
+    spec: "canary",
+    fixedBy: [],
+    tests: ["src/empty.test.ts", "src/gone.test.ts"],
+    anchors: [scroll, tab],
+  };
+
+  it("blanks line and block comments, and keeps the code and the line count", () => {
+    const source = 'run(); // "Tab" permissionMode\n/* refs\n   memo( */ keep();\n';
+    const code = codeOnly(source);
+    expect(code).not.toMatch(/Tab|permissionMode|refs|memo\(/);
+    expect(code).toMatch(/run\(\);/);
+    expect(code).toMatch(/keep\(\);/);
+    expect(code.split("\n")).toHaveLength(source.split("\n").length);
+  });
+
+  it("does not let a comment stand in for a present anchor, and reports an absent one gained", () => {
+    const source = planted({ "src/fix.ts": '// scrollIntoView() used to live here\nconst key = "Tab";\n' });
+    expect(anchorRegressions([canary], source)).toEqual([
+      `defect 0 (canary): src/fix.ts lost ${scroll.present}`,
+      `defect 0 (canary): src/fix.ts gained ${tab.absent}`,
+    ]);
+  });
+
+  it("lets a comment name what an absent anchor bans, as useKeyboardMap.ts's header may", () => {
+    const source = planted({ "src/fix.ts": 'pane.scrollIntoView();\n// "Tab" belongs to the agent\n' });
+    expect(anchorRegressions([canary], source)).toEqual([]);
+  });
+
+  it("reports a regression file that is missing, and one that holds no test", () => {
+    const source = planted({ "src/empty.test.ts": 'describe("nothing yet", () => {});\n' });
+    expect(testFileProblems([canary], source)).toEqual([
+      "defect 0: src/empty.test.ts contains no tests",
+      "defect 0: src/gone.test.ts does not exist",
+    ]);
   });
 });
 
@@ -781,21 +1173,33 @@ const SOURCES = Object.keys(SOURCE)
   .filter((file) => !/\.test\.tsx?$/.test(file))
   .sort();
 
+/** Task 8's fix round made the Go side allocate unconditionally and pinned it with a
+ *  marshalled-bytes test, precisely because null.map() throws where [].map() returns [].
+ *  A defensive `?? []` on this side is dead code that would hide a regression on the other side
+ *  of the wire instead of reporting it. */
+const DEFENSIVE = /\b(?:harnesses|models|efforts|permissionModes)\s*\?\?\s*\[\s*\]/g;
+const defensiveFallbacks = (source: string): string[] =>
+  [...source.matchAll(DEFENSIVE)].map((m) => m[0]);
+
 describe("what Groups B and C settled after the UI contract was written", () => {
   it("treats the harness arrays as always present, because /v1/harnesses returns [] not null", () => {
-    // Task 8's fix round made the Go side allocate unconditionally and pinned it with a
-    // marshalled-bytes test, precisely because null.map() throws where [].map() returns [].
-    // A defensive `?? []` on this side is dead code that would hide a regression on the
-    // other side of the wire instead of reporting it.
-    const defensive = /\b(?:harnesses|models|efforts|permissionModes)\s*\?\?\s*\[\s*\]/g;
     const offenders: string[] = [];
     for (const file of SOURCES) {
-      for (const m of text(file).matchAll(defensive)) {
-        offenders.push(`${file}  ${m[0]}`);
+      for (const found of defensiveFallbacks(text(file))) {
+        offenders.push(`${file}  ${found}`);
       }
     }
     expect(SOURCES.length).toBeGreaterThanOrEqual(20);
     expect(offenders).toEqual([]);
+  });
+
+  it("recognises that fallback on each of the four arrays, which the real tree never shows it", () => {
+    // The canary for the test above: against a clean tree its regex could lose any name and stay
+    // green, so each name is planted once here.
+    for (const name of ["harnesses", "models", "efforts", "permissionModes"]) {
+      expect(defensiveFallbacks(`const xs = h.${name} ?? [];`)).toEqual([`${name} ?? []`]);
+    }
+    expect(defensiveFallbacks("const xs = h.harnesses;")).toEqual([]);
   });
 
   it("declares eighteen error codes: contract-go §3.2's fifteen, ruling 7's sixteenth, and the client's two", () => {

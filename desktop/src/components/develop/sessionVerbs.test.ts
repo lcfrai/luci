@@ -847,3 +847,75 @@ describe("markWorktreeReady and §10.2's verb", () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 });
+
+// Contract §3.2's `lastError` and §4.7: an operation clears only the report it raised itself.
+// ADDED BY TASK 24's FIX ROUND 1 (review I1), a declared departure into task 22's test file.
+// Rename and Restart used to clear ANY report on success, so a verb in one project wiped a
+// catalogue list's failure in another off the footer, and nothing here read `lastError` after
+// a success. The verbs are one operation, because they share `report`, and the module has three
+// success paths. Each clears a verb's report and leaves every other report alone.
+describe("sessionVerbs — the footer line is each operation's own", () => {
+  /** Another operation's report, as the catalogue loader or the poller writes one. */
+  const foreign = { code: "internal", message: "Error: projects answered 500" };
+
+  const SUCCEEDS: { path: string; succeed: () => Promise<void> }[] = [
+    {
+      path: "an immediate verb's success (Rename)",
+      succeed: async () => {
+        renameMock.mockResolvedValue(aSession({ title: "retention rules" }));
+        renameSessionTo(IDS.session, "retention rules");
+        await vi.runOnlyPendingTimersAsync();
+        expect(renameMock).toHaveBeenLastCalledWith(IDS.session, "retention rules");
+      },
+    },
+    {
+      path: "a deferred verb's success (Kill, once its window closes)",
+      succeed: async () => {
+        killMock.mockResolvedValue(aSession({ status: "exited", exitReason: "killed" }));
+        find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+        await vi.advanceTimersByTimeAsync(TOAST_TTL_UNDO);
+        expect(killMock).toHaveBeenCalledWith(IDS.session);
+      },
+    },
+    {
+      path: "Mark ready's success",
+      succeed: async () => {
+        const w = aWorktree({ ready: false });
+        useCockpit.getState().setWorktrees(IDS.branch, [w]);
+        readyMock.mockResolvedValue({ ...w, ready: true });
+        markWorktreeReady(w);
+        await vi.runOnlyPendingTimersAsync();
+        expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]?.ready).toBe(true);
+      },
+    },
+  ];
+
+  for (const { path, succeed } of SUCCEEDS) {
+    it(`${path} leaves another operation's report on the footer`, async () => {
+      seed({ status: "running" });
+      useCockpit.getState().setError(foreign);
+      await succeed();
+      expect(useCockpit.getState().lastError).toBe(foreign);
+    });
+
+    it(`${path} clears the report a verb's own failure left`, async () => {
+      seed({ status: "running" });
+      renameMock.mockRejectedValueOnce(new ApiError("conflict", "That title is taken.", 409));
+      renameSessionTo(IDS.session, "taken");
+      await vi.runOnlyPendingTimersAsync();
+      expect(useCockpit.getState().lastError).toEqual({ code: "conflict", message: "That title is taken." });
+      await succeed();
+      expect(useCockpit.getState().lastError).toBeNull();
+    });
+
+    it(`${path} writes nothing to the footer when there is nothing of its own to clear`, async () => {
+      // The act, not the end state (shared shape §3A.1 clause 7): with no report raised and an
+      // empty slot, `lastError === raised` is null === null, and without the `raised !== null`
+      // half the success would write setError(null) over nothing. Survived as mutant V5.
+      seed({ status: "running" });
+      const setError = vi.spyOn(useCockpit.getState(), "setError");
+      await succeed();
+      expect(setError).not.toHaveBeenCalled();
+    });
+  }
+});

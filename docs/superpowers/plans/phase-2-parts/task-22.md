@@ -519,6 +519,18 @@ function report(error: ApiError): void {
 }
 ```
 
+> **Amended 2026-09-24 by task 24's fix round 1, a declared departure into this file (UI contract
+> §3.2 `lastError` and §4.7, ruling B; task 24 review I1).** `report` above and `runImmediate` below
+> no longer read as shown. `report` now stores the object it writes in a module-level
+> `raised`, and a new `clearOwnReport()` clears `lastError` only while it is still that object. It
+> replaces `runImmediate`'s unconditional `useCockpit.getState().setError(null);`, which let a Rename
+> or a Restart wipe another operation's report off the footer, such as a failed branch list in
+> another project that still showed no branches. `clearOwnReport()` is also called after
+> `adopt?.(result)` in the deferred commit, and after Mark ready's `write`. Before this, neither
+> path cleared anything, so a failed Kill stayed on the footer after a Kill that worked.
+> `__resetSessionVerbs` resets `raised`. `desktop/src/components/develop/sessionVerbs.ts` is the
+> reference.
+
 And the two commit shapes, still the same file:
 
 ```ts
