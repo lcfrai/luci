@@ -301,6 +301,60 @@ Exec's environment and task 13's `PushEnv` sets `GIT_CONFIG_COUNT` itself.
 `Call` whose `Args[0]` starts with `-` (`ErrCallShape`), so the prefix stays Exec's alone and no
 caller can put its own `-c` ahead of it.
 
+**H2. Network calls take their proxy, TLS and helpers from the machine, never the repository.**
+This closes review C3, where the user's token reached whatever the agent wrote.
+- `cmd/api` reads the machine's git settings once at startup, from `git config --system` and then
+  `--global`: every `credential.*helper` entry in file order (`Hardening.Credential`), and
+  `http.proxy`. If neither file names a proxy, it reads `HTTPS_PROXY`, then `https_proxy`, then
+  `ALL_PROXY`, and otherwise uses `""`, which means no proxy (`Hardening.Proxy`). Task 13 step 3
+  wires this in `main.go`. The agent can write neither file.
+- A `Remote`-class call must carry `Call.RemoteURL`, the literal URL it talks to. Exec refuses
+  one without it. Exec then adds `-c http.sslVerify=true -c http.proxy=<Hardening.Proxy>` twice:
+  once generic, and once scoped to the exact URL (`-c http.<RemoteURL>.sslVerify=true`,
+  `-c http.<RemoteURL>.proxy=…`). git picks the most specific `http.<url>.*` match, whichever
+  file it is in, so a generic override alone loses to a repository key such as
+  `http.https://github.com.proxy`. At equal specificity, command scope is read last and wins.
+- The origin refresh (task 09) and lane sync (task 12) fetch between two local repositories. They
+  name the source by its literal path, taken from the lane index and never read from the clone's
+  `remote.origin.url`. A local path needs no credential, proxy or TLS.
+
+**H3. The config check: what the agent wrote is read before git acts on it.** A filter, diff or
+merge driver cannot be neutralised by name, because `.gitattributes` chooses the name. So before
+every call, Exec runs `git config --local --no-includes --list -z` in `Call.Dir` with the H1
+prefix. Reading config runs nothing. Records are `key\nvalue\0`: `-z` means a value holding a
+newline can neither forge a key nor hide one. Section and key names compare lowercased. What the
+check refuses depends on `Call.Scope`:
+
+| `Call.Scope` | Rule | Refusal |
+|---|---|---|
+| `Clone` (the zero value, so an unmarked call gets the strictest rule) | **closed allowlist.** It admits only: the `core.*` keys `git init` and `git clone` write (`repositoryformatversion`, `filemode`, `bare`, `logallrefupdates`, `symlinks`, `ignorecase`); the clone keys task 03 writes (`core.autocrlf`, `core.checkStat`, `core.trustctime`, per review C2); `remote.origin.url` and `remote.origin.fetch`; `branch.<b>.remote` and `branch.<b>.merge`; `user.name` and `user.email`; and a relative `core.hooksPath` with no `..` segment (husky writes `.husky/_`, and task 05's dispatcher reads it). Every other key is refused, including `include.*`, `includeIf.*`, `extensions.*` (`extensions.worktreeConfig` enables a `config.worktree` that `--local` never lists), `filter.*`, `diff.*`, `merge.*`, `credential.*`, `http.*` and `url.*` | `*UntrustedConfig{Scope: Clone}` → `conflict`, `reason: clone_config_untrusted`, `details.key` |
+| `Project` (the user's own repository, so a closed list would refuse their real config) | **refusal list**, applied on every call and not only while a primary-worktree session is live, because that state changes between two calls. It refuses: `include.*` and `includeIf.*`; the execution-capable keys H1 cannot neutralise by name (`filter.*`, `diff.*.textconv`, `diff.*.command`, `diff.external`, `merge.*.driver`, `core.gitProxy`, `core.alternateRefsCommand`, `extensions.worktreeConfig`); and review C3's credential families (`credential.*`, `http.*`, `remote.*.pushurl`, `url.*.insteadOf`, `url.*.pushInsteadOf`). The cockpit writes no project config key in phase 3, so no exception is needed. A user whose project config holds one of these keys moves it to `--global`, and the refusal names the key | `*UntrustedConfig{Scope: Project}` → `conflict`, `reason: project_config_untrusted`, `details.key` |
+| `None` | no check. Only for `git version`, and for a `Dir` under `Hardening.OwnedRoot`, such as task 13's `GitHelper` repository. Exec refuses `None` with any other `Dir` | — |
+
+A refused call never starts. `UntrustedConfig` carries the key, never the value, since a value may
+be a secret.
+
+**H4. Control-plane writes run no repository hooks.** H1's `core.hooksPath` applies to the land
+path too: task 09's `update-ref` and `commit-tree`, task 10's undo and revert, and task 12's push.
+That includes the user's own husky `pre-push` on a cockpit push. The reason is that the project's
+`.git` can be written by the sandbox whenever a primary-worktree session exists, so its hooks are
+not the user's to vouch for at the moment the cockpit acts. A cockpit push is therefore not the
+same as the user running `git push`: a check the user's `pre-push` enforces must run in CI.
+
+**H5. The checked config is the config git reads.** H3 reads the config a few milliseconds before
+the call. An agent that rewrites `.git/config` inside that window would defeat H3, though not H1
+or H2. So the sandbox cannot write that file at all. Whenever the worktree mount's host path holds
+a `.git` **directory** (every clone, and the project on a primary-worktree session), task 05's
+`sessionMounts` binds `<path>/.git/config` **read-only** over `/home/dev/work/.git/config`. Every
+file that could name a driver or an include is reached only through that `config`:
+`extensions.worktreeConfig` for `config.worktree`, `include.path`, and `filter.<x>.*`. With the
+file read-only, H3's check-then-call race has nothing to race. The cost is that the agent's own
+`git config` writes in its checkout fail. Plan Q-table row Q7 records that trade-off, and this
+option is built.
+*Unverified:* that Docker Desktop on this Windows host honours a read-only file bind nested in a
+read-write directory bind, and that git's lockfile rename onto it fails. Task 05's
+`TestSandboxCloneConfigIsReadOnly` pins both inside the real sandbox.
+
 #### Steps
 
 - [ ] **Step 1: Preflight.** Task 01's results document exists; read its Divergences section. If
