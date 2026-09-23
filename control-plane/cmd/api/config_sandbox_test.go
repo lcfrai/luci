@@ -139,8 +139,8 @@ func TestACABundleWithNoCertificateStopsStartupWithItsOwnSentence(t *testing.T) 
 		// nothing. Every other case here also fails x509's parse, so without
 		// this one, dropping the label check would pass every test.
 		"a real certificate under a label that is not CERTIFICATE": pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: caDER(t)}),
-		"a binary DER export, not PEM":          caDER(t),
-		"an empty file":                         {},
+		"a binary DER export, not PEM":                             caDER(t),
+		"an empty file":                                            {},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := loadConfig(env(map[string]string{envCABundle: caWrite(t, content)}))
