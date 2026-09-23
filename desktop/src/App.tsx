@@ -99,10 +99,11 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
     fetch: () => Promise<T>,
     commit: (value: T) => void,
   ): Promise<void> => {
-    // `stopped` is unreachable here and at the top of `sync` and `retry` today: their callers
-    // are startup, the subscription, and the poller's good tick, and App's cleanup stops this
-    // loader and the poller together, synchronously. It is the enforcement of "starts nothing
-    // after stop" for a caller that is none of those, and stops being dead code when one lands.
+    // Every request and every store write this loader makes passes through here, so this is
+    // the one `stopped` check that "starts nothing after stop" needs; `sync` and `retry` carry
+    // none of their own. App's callers never reach it after stop (its cleanup stops this loader
+    // and the poller together, synchronously), so defects.test.tsx pins it directly, by calling
+    // `retry` on a stopped loader.
     if (stopped || inFlight.has(key) || failed.has(key)) return;
     inFlight.add(key);
     store.getState().setLoading(key, true);
@@ -112,10 +113,12 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
       commit(value);
       arrived.add(key);
       // An error is cleared by the success of the operation that raised it, and only if it is
-      // still the one on screen: a later failure elsewhere keeps its own report.
-      const mine = raised.get(key);
-      raised.delete(key);
-      if (mine !== undefined && store.getState().lastError === mine) store.getState().setError(null);
+      // still the one on screen: a later failure elsewhere keeps its own report. Identity alone
+      // decides. A key that never failed has no entry, and undefined never equals `lastError`,
+      // which is an object or null. A key that failed and has since recovered keeps its old
+      // entry, which cannot match again, because setError is handed each Problem exactly once,
+      // at the failure that built it.
+      if (store.getState().lastError === raised.get(key)) store.getState().setError(null);
     } catch (error) {
       if (stopped) return;
       failed.add(key);
@@ -143,7 +146,6 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
   };
 
   const sync = (): void => {
-    if (stopped) return;
     const state = store.getState();
 
     for (const projectId of openProjects(state)) {
@@ -169,12 +171,10 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
 
   loadRoots();
   const unsubscribe = store.subscribe(sync);
-  // A rehydrated selection is navigation that already happened. MEASURED EQUIVALENT today, and
-  // kept as the statement of intent: deleting this call survives the suite, because the root
-  // loads above always write the store AFTER this subscription exists, and that write runs
-  // `sync` anyway. It stops being equivalent the moment startup can finish with no store write
-  // after `subscribe` — the root lists moving out of this loader, say — and a restored branch
-  // would then sit unloaded until the user touched something.
+  // A rehydrated selection is navigation that already happened, so its lists are asked for now,
+  // beside the root lists, rather than when the first store write after `subscribe` wakes
+  // `sync`. In the assembled app that write comes within one round trip anyway (a root reply,
+  // or the poller's first tick), so only defects.test.tsx's held-client test can see this call.
   sync();
 
   return {
@@ -183,7 +183,6 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
       unsubscribe();
     },
     retry: () => {
-      if (stopped) return;
       // Writes nothing when nothing failed and everything arrived, which is every quiet tick:
       // the poller's one-store-write-per-quiet-tick property holds with this hook attached.
       failed.clear();

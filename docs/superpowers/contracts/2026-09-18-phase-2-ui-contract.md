@@ -650,7 +650,10 @@ export interface DataSlice {
   sessionIdsByWorktree: Record<WorktreeId, SessionId[]>;
   harnesses: Harness[];
   loading: Partial<Record<LoadKey, boolean>>;
-  /** The last API failure, for the one status line in the rail footer. Cleared on success. */
+  /** The last API failure, for the one status line in the rail footer. Cleared only by
+   *  setError(null) (task 17, decision (a)), which the operation that RAISED it calls when it
+   *  next succeeds, and only while this is still its report; another operation's success
+   *  leaves it alone. Amended 2026-09-23 by task 24 (ruling B, §4.7). */
   lastError: { code: string; message: string } | null;
 
   setMachines(machines: Machine[]): void;
@@ -1256,8 +1259,13 @@ place: `desktop/src/api/poller.ts`.
 ```ts
 /** One interval for the whole app. Starts on mount of AppShell, stops on unmount, pauses
  *  while document.visibilityState === "hidden" (a laptop lid closed for eight hours must not
- *  wake to 14,000 queued requests). */
-export function startPolling(client: CockpitClient, store: typeof useCockpit): () => void;
+ *  wake to 14,000 queued requests). `onGoodTick` runs after every tick whose fetch succeeded,
+ *  and never after a failed, skipped or stopped one. */
+export function startPolling(
+  client: CockpitClient,
+  store: typeof useCockpit,
+  onGoodTick?: () => void,
+): () => void;
 
 export const POLL_INTERVAL_MS = 2000;
 ```
@@ -1267,6 +1275,16 @@ branch>` is wrong (N requests); it issues `GET /v1/sessions` unfiltered and call
 `replaceSessions(all, worktreeIdsSeen)`. Machines, projects, branches, worktrees and harnesses
 are fetched on navigation and on an explicit refresh, not on the poll — they change when the user
 acts, not when an agent does.
+
+**Two amendments, added 2026-09-23 by task 24 (ledger, "Task 24 rulings"), both declared
+departures into task 19's `poller.ts`.** (A) A catalogue list that **failed, or never arrived**,
+is retried on the poll after all: App passes the catalogue loader's `retry` as `onGoodTick`, so
+every good tick retries such a list, with at most one request in flight per list, and a list that
+has arrived is never fetched again. A good tick is the one proof the control plane answers, so a
+daemon that is down costs no extra request, and there is still one interval. (B) A good tick
+clears `lastError` **only if the poller raised it** and it is still on screen. It used to clear
+any error, so a catalogue failure was reported and then wiped 2 s later, leaving an empty rail and
+a clean footer. Each operation clears its own report when it next succeeds (§3.2's `lastError`).
 
 The poll must move zero pixels. Three things make that true, and all three are testable:
 `replaceSessions` preserves index position for known ids (§3.2), the server sorts and the client
