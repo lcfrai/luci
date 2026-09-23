@@ -311,11 +311,13 @@ without a cycle. Phase 4 imports only the Hub's
 | `control-plane/internal/statepath/statepath.go` (+ `writeatomic_test.go` moved in) | gains `WriteAtomic`, lifted from `registry/filestore.go:460` | 01 |
 | `control-plane/internal/registry/filestore.go`, `registry/writeatomic_test.go` | calls `statepath.WriteAtomic`; the test moves out | 01 |
 | `control-plane/internal/api/api.go` | `Deps.Materialiser` (required), `Deps.Discover` (optional `RouteMounter`), one validation branch, one mount line | 10 |
-| `control-plane/internal/api/sessions.go` | create and restart call `Materialise` before `Store.Create` / the restart's `Backend.Destroy`; stamp `ContextRef`; ignore the request's `contextRef`; accept `withoutBrief` on both and pass it to `Materialise` | 10 |
+| `control-plane/internal/api/sessions.go` | create and restart call `Materialise` before `Store.Create` / the restart's `Backend.Destroy`; stamp `ContextRef`; ignore the request's `contextRef`; accept `withoutBrief` on both and pass it to `Materialise`; `sessionLocate` returns an error, and an enumeration failure is `409 brief_not_written` `project_unknown` unless `withoutBrief` (review I2) | 10 |
 | `control-plane/internal/api/materialiser.go` (new file in `api`) | the interface, request, result and `*MaterialiseError` | 10 |
 | `control-plane/internal/httpx/problem.go` | one code, `CodeBriefNotWritten = "brief_not_written"` (409) | 10 |
 | `control-plane/internal/api/api_test.go`, `routes_audit_test.go` | the test `Deps` gain a fake `Materialiser`; the audit sees the Discover GETs | 10, 11 |
-| `control-plane/cmd/api/main.go`, `config.go` | wiring and configuration | 14 |
+| `control-plane/internal/api/attach_test.go`, `sessions_test.go` (`package api`) | each builds `Deps` itself and gains its own recording fake; `sessions_test.go` holds the `sessionLocate` tests (review I1, I2) | 10 |
+| `control-plane/cmd/api/materialiser_interim.go` (+ test) | `materialiserUntilTask14`: writes nothing, logs once at start-up; created by 10, **deleted by 14** (review I1) | 10, 14 |
+| `control-plane/cmd/api/main.go`, `config.go` | `Materialiser: newMaterialiserUntilTask14(log)` (10), then wiring and configuration (14) | 10, 14 |
 | `desktop/src/api/client.ts` | `ProblemCode` gains phase 4's and the Hub's relayed codes; `createSession`, `resumeSession`, `forkSession` stop sending `contextRef`; `restartSession` takes an optional `{withoutBrief}` | 15 |
 | `desktop/src/store/defaults.ts` | `toCreateRequest` stops setting `contextRef` | 15 |
 | `desktop/src/store/store.ts` | `CockpitState` gains the two slices; `partialize` unchanged | 16 |
@@ -340,7 +342,10 @@ without a cycle. Phase 4 imports only the Hub's
 
 ## 6. Tasks — dependencies and order
 
-Each task is 1–3 hours for one implementer who has read this file and the task's part.
+Each task is 1–3 hours for one implementer who has read this file and the task's part. Task 10
+is the exception, at 3.5 h, after review I1 and I2. It stays off the critical path only if it
+starts early: it has no dependencies, so it can start before Hub H0, while 09 waits for 07 (3 h
+after H0).
 
 | # | Task | Depends on | Est. |
 |---|---|---|---|
@@ -353,7 +358,7 @@ Each task is 1–3 hours for one implementer who has read this file and the task
 | 07 | `discoverhub`: binding and reads, against `hubclient.NewFake()` | 03, 05, 06, **Hub H0** | 3 h |
 | 08 | `discoverhub`: writes, the `4-D3` fan-out, archive and rebind | 07 | 3 h |
 | 09 | `contextwrite`: the Materialiser | 01, 05, 07, 10 (it imports `api`'s request, result and error types) | 3 h |
-| 10 | `api`: the `Materialiser` seam in create and restart (R1), `brief_not_written`, `RouteMounter` | — (declares its own interfaces; tests use fakes) | 2.5 h |
+| 10 | `api`: the `Materialiser` seam in create and restart (R1), `brief_not_written` (with `project_unknown`), `RouteMounter`; the binary's interim `materialiserUntilTask14` | — (declares its own interfaces; tests use fakes) | 3.5 h |
 | 11 | `discoverapi`: brief routes, the relay rule, the route audit | 07, 08, 10 | 3 h |
 | 12 | `discoverapi`: refs, branch provenance, materialisations | 09, 11 | 2 h |
 | 13 | `repoanalysis` and the drafted brief | 02, 03, 11 | 2.5 h |
@@ -421,8 +426,8 @@ encoding is the Hub's and carries its own `v` in the envelope (Hub contract §3.
 |---|---|---|
 | `worktree.Provider.Path` (`worktree/worktree.go:32`) | exact match | the Materialiser receives the resolved path from the handler; it never resolves one itself |
 | `project.Scanner.ProjectName`/`BranchName` (`project/project.go:172`, `:175`) | exact match | names in the title of the managed block |
-| `handleSessionCreate` (`api/sessions.go:277`): worktree `:291` → … → `sessionLocate` `:376` → `Store.Create` `:382` → `Backend.Create` `:422` | no hook | task 10 calls `Materialise` after `sessionLocate` and before `Store.Create`, so a refusal writes nothing |
-| `handleSessionRestart` (`:879`): worktree `:895` → argv rebuild → `Backend.Destroy` `:944` → record `:986` → `Backend.Create` `:1010` (at `2d6d95b`: `:956`, `:972`, `:998-1018`, `:1026`, `:1067`, `:1091`) | no hook; no request body | task 10 calls `Materialise` after the argv rebuild and **before `Backend.Destroy`**, so a refusal leaves the running sandbox alive (review C1), and stamps `ContextRef` in the restart's record write; an optional body carries `withoutBrief`, which reaches `Materialise` beside the restart's own `Worktrees.Path` result (re-review I1) |
+| `handleSessionCreate` (`api/sessions.go:277`): worktree `:291` → … → `sessionLocate` `:376` → `Store.Create` `:382` → `Backend.Create` `:422` | no hook; `sessionLocate` (at `2d6d95b`: `:544-567`, called `:452`) answers `"", ""` alike for "outside every project" and a failed enumeration | task 10 calls `Materialise` after `sessionLocate` and before `Store.Create`, so a refusal writes nothing; `sessionLocate` gains an error, and a failed enumeration is `409 project_unknown` unless `withoutBrief` (review I2) |
+| `handleSessionRestart` (`:879`): worktree `:895` → argv rebuild → `Backend.Destroy` `:944` → record `:986` → `Backend.Create` `:1010` (at `2d6d95b`: `:956`, `:972`, `:998-1018`, `:1026`, `:1067`, `:1091`) | no hook; no request body | task 10 calls `Materialise` after the argv rebuild and **before `Backend.Destroy`**, so a refusal leaves the running sandbox alive (review C1), and stamps `ContextRef` in the restart's record write; an optional body carries `withoutBrief`, which reaches `Materialise` beside the restart's own `Worktrees.Path` result (re-review I1); a record whose `ProjectID` is `""` is re-located first (review I2) |
 | The route recorder `routes` (`api/api.go` — unexported) and the §10a audit (`routes_audit_test.go`) | a package outside `api` cannot take `*routes` | `api.RouteMounter` hands `guarded.Handle` to `discoverapi.Mount`, so every Discover pattern is recorded and audited |
 | The `/api/v1/` alias (`api.go`, on `guarded`) | lives on the guarded mux | Discover mounts on the same mux, so the alias reaches it |
 | `writeAtomic` (`registry/filestore.go:460`, unexported) | — | lifted (R2, task 01) |

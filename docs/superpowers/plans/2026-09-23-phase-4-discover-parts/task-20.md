@@ -24,7 +24,8 @@ radius and motion as task 17. The owner's eyes are the visual acceptance (`OD-12
 ```ts
 // desktop/src/store/slices/discoverSlice.ts — additions
 export type BriefReason =
-  | "hub_unavailable" | "signed_out" | "write_failed" | "block_broken" | "tracked_elsewhere";
+  | "hub_unavailable" | "signed_out" | "write_failed" | "block_broken" | "tracked_elsewhere"
+  | "project_unknown"; // task 10's closed set, in the same order (review I2)
 
 export interface PendingStart {
   /** What to re-send. For a create, the request the person made; for a restart, the session. */
@@ -62,6 +63,7 @@ export function StartWithoutBrief(props: { pending: PendingStart }): JSX.Element
 | `write_failed` | the worktree name |
 | `block_broken` | `withoutBrief: false`: *The managed block in CLAUDE.md is damaged. Open the file and remove the marker lines, or start without the brief.* `withoutBrief: true`: *The managed block in CLAUDE.md is damaged, so the old brief cannot be removed. Open the file and remove the marker lines, then retry.* |
 | `tracked_elsewhere` | *This repository tracks both CLAUDE.md files, so the brief cannot be written without changing a tracked file.* (OQ-2) |
+| `project_unknown` | *The projects could not be read, so it is not known which brief this worktree inherits.* (review I2). The server raises it only when the request did **not** carry `withoutBrief: true` (task 10: the override does not need a project), so it has no `withoutBrief: true` variant, and *Start without the brief* stays on offer. |
 
 When `pendingStart.withoutBrief` is true, **Start without the brief** is not rendered for any
 reason; only **Retry** remains. Task 09 reports a broken marker as `block_broken` on the override's
@@ -76,7 +78,8 @@ strip too, so the person is told the real cause and the real repair.
 | `start without the brief sends withoutBrief` | the body adds `withoutBrief: true` and nothing else changes | an override that also drops options |
 | `the override is not the default focus` | after render, `document.activeElement` is Retry | a going-on-without made the easy path |
 | `restart routes the same way` | a 409 from `restartSession` sets `kind: "restart"`; the override calls `restartSession(id, {withoutBrief: true})` | restart silently starting without the brief |
-| `each reason shows its extra` — table | the five rows above, `block_broken` in both variants | one generic sentence for five different fixes |
+| `each reason shows its extra` — table | the six rows above, `block_broken` in both variants | one generic sentence for six different fixes |
+| `an unknown project offers the override` | a `project_unknown` 409 on a create and on a restart → the `project_unknown` sentence, **Retry** focused, **Start without the brief** present; the override re-sends with `withoutBrief: true` (review I2) | the new reason falling through to a toast or a generic sentence; the one recovery that works when the projects cannot be read left off |
 | `a refused override offers no second override` | a `block_broken` 409 answering a request that carried `withoutBrief: true` (create and restart) → `pendingStart.withoutBrief` is true; **Start without the brief** is absent; the sentence is the `withoutBrief: true` variant and does not contain "start without the brief"; Retry re-sends `withoutBrief: true` | a recovery offered that re-sends the request just refused (re-review I2) |
 | `other errors keep phase 2's behaviour` | a `backend_unavailable` still toasts through `sentenceFor` | a phase 2 regression |
 

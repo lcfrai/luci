@@ -21,7 +21,7 @@ plan did not open every one of them (§11).
 | §5.1 (session create order) | step "materialise" between resolve and record: `Deps.Materialiser.Materialise`, refusal `409 brief_not_written` writes nothing | task 10 |
 | §3.9 (create request) | `contextRef` ignored; `withoutBrief` added | task 10 |
 | §3.14 (restart) | optional body `{withoutBrief}`; `contextRef` restamped | task 10 |
-| §3.2 (error codes) | `brief_not_written`, `project_not_shared`, `fanout_too_large`, `branch_not_found` | tasks 10, 11 |
+| §3.2 (error codes) | `brief_not_written`, `project_not_shared`, `fanout_too_large`, `branch_not_found`; `brief_not_written`'s `details.reason` is task 10's closed set of six, `project_unknown` included (review I2) | tasks 10, 11 |
 | §10a (route audit) | `RouteMounter`; the Discover GETs and their reasons | tasks 10–12 |
 | §7.2 (`writeAtomic`) | lifted to `statepath.WriteAtomic` with a `Mode` | task 01 |
 

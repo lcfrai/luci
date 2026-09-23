@@ -9,8 +9,12 @@ below, so this task never waits silently and never fabricates.
 **Files:**
 - `control-plane/cmd/api/discover.go` — `wireDiscover`, the three adapters (new)
 - `control-plane/cmd/api/discover_test.go` (new)
-- `control-plane/cmd/api/main.go` — one call to `wireDiscover`, two `Deps` fields (modify)
+- `control-plane/cmd/api/main.go` — one call to `wireDiscover`, two `Deps` fields; the
+  `Materialiser` field's value `newMaterialiserUntilTask14(log)` (task 10) becomes
+  `wiring.Materialiser` (modify)
 - `control-plane/cmd/api/config.go` — the model variables (modify)
+- `control-plane/cmd/api/materialiser_interim.go` and `materialiser_interim_test.go` — task 10's
+  interim `materialiserUntilTask14` (**delete**, `git rm`; review I1)
 
 **Configuration** — every variable, read in `config.go` exactly as phase 2 reads its own:
 
@@ -74,6 +78,7 @@ type gitQuestions struct{ git project.Runner }
 | `TestGitQuestionsReadsUntrackedAsFalse` | a fake runner exiting 1 for `ls-files` → `(false, nil)` | every fresh repository read as "tracked" and every brief sent to `.claude/` |
 | `TestGitQuestionsNeverWrites` | the fake runner records only `remote`, `ls-files`, `rev-parse` subcommands | a write through the read-only runner |
 | `TestNoModelKeyIsNotFatal` | unset key → `wireDiscover` succeeds | a control plane that will not start without a model |
+| `TestTheInterimMaterialiserIsGone` | a source scan of `control-plane/cmd/api/*.go`, skipping `discover_test.go` itself, finds, case-insensitively, no `materialiserUntilTask14` (so no `newMaterialiserUntilTask14` either), and `materialiser_interim.go` does not exist. The test spells the name as `"materialiser" + "UntilTask14"`, so it does not match itself (review I1) | the interim left in place or still wired, so the binary starts and every session silently inherits nothing |
 | `TestOnlyProvenanceParsesKeys` | a source scan of `control-plane/internal/**/*.go` (excluding tests and `internal/provenance`, `internal/hub`) finds no `"brief:"` literal used with `strings.Split`/`Cut`/`TrimPrefix`/a regexp | P5, enforced by a test rather than a review |
 
 **Steps:**
@@ -83,8 +88,11 @@ type gitQuestions struct{ git project.Runner }
   Record each in the commit message.
 - [ ] **Step 2:** Write the tests; confirm they fail.
 - [ ] **Step 3:** `discover.go`; `config.go`'s three model variables; `main.go`: build the scanner
-  and runner as today, call `wireDiscover`, set `Deps.Materialiser` and `Deps.Discover`.
-- [ ] **Step 4:** Run the acceptance commands; commit by pathspec.
+  and runner as today, call `wireDiscover`, set `Deps.Materialiser: wiring.Materialiser` (it
+  replaces task 10's `newMaterialiserUntilTask14(log)`) and `Deps.Discover`. `git rm` task 10's
+  `materialiser_interim.go` and `materialiser_interim_test.go`.
+- [ ] **Step 4:** Run the acceptance commands; commit by pathspec. The two deleted files are in the
+  pathspec too.
 
 **Acceptance:**
 
@@ -95,6 +103,8 @@ $ go build -o $TEMP/pa-api.exe ./control-plane/cmd/api && echo built
 built
 $ git diff --stat HEAD -- control-plane/go.mod go.work
 (no output — G1)
+$ git grep -n "UntilTask14" -- control-plane
+(one line only: discover_test.go's split spelling, "materialiser" + "UntilTask14")
 ```
 
 **Does NOT claim:** a running Hub (task 23); a real sign-in (the Hub's C1 acceptance, and `OD-12`).

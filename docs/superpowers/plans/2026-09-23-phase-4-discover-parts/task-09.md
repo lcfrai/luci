@@ -71,7 +71,14 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     edit - including a stray or early end marker, which task 05 now counts
 //     as ErrUnterminatedBlock instead of stripping up to it and leaving the
 //     brief's tail behind a none:declined stamp.
-//  4. Otherwise ask Source. hubclient.ErrUnavailable → hub_unavailable;
+//  4. ProjectID "" is a worktree outside every project, which the handler
+//     enumerated cleanly (task 10's sessionLocate; review I2): there is no
+//     project, so nothing to inherit, and Source is NOT asked (a Locator
+//     would answer project.ErrUnknownProject, a plain error, a 500 on
+//     every start). An enumeration failure never reaches here as "": the
+//     handler refuses it as project_unknown, a reason in api's closed set
+//     that this package never returns.
+//     Otherwise ask Source. hubclient.ErrUnavailable → hub_unavailable;
 //     entraauth.ErrSignedOut, or a relayed 401 → signed_out;
 //     ErrHubOff, ErrNotBound, ErrNoRemote, or a Hub 404 → nothing to
 //     inherit. Any other error → a plain error.
@@ -153,6 +160,7 @@ func (m *Materialiser) Inspect(ctx context.Context, req api.MaterialiseRequest) 
 | `TestHubUnavailableIsARefusal` | `ErrUnavailable` → `hub_unavailable`; the file untouched | a silent `""` when a brief may exist — 4-D1's whole point |
 | `TestSignedOutIsARefusal` | `ErrSignedOut` → `signed_out` | as above |
 | `TestHubOffAndUnboundInheritNothing` | `ErrHubOff`, `ErrNotBound`, `ErrNoRemote` → `""`, no refusal | Develop blocked for everyone without a Hub (Hub contract §9.5: nothing blocks Develop) |
+| `TestNoProjectInheritsNothingWithoutAskingTheHub` | `ProjectID: ""` and an old block in `CLAUDE.md` → the block stripped, result `""`, no refusal, `Source` never called; `Inspect` on the same request never calls `Source` either (review I2) | `ProjectID ""` sent to the Hub, where `Locator.ProjectPath("")` is a plain error and every start outside a project is a 500 |
 | `TestUnterminatedBlockIsBlockBroken` | `block_broken`; the file byte-identical | the guess that deletes a person's writing |
 | `TestWithoutBriefOverAStrayEndMarkerIsBlockBroken` | a file holding begin, an early end, brief text, a second end; `WithoutBrief: true` → `*api.MaterialiseError{block_broken}`; the file byte-identical; `Source` never called | a strip that removes up to the first end and stamps `none:declined` over a file still holding brief text (review C2); a broken marker reported as `write_failed`, which names the wrong cause and offers no repair (re-review I2) |
 | `TestWithoutBriefWriteErrorIsWriteFailed` | `CLAUDE.md` is a **directory** in the worktree (a read error on every OS; the fake `Git` reports it untracked); `WithoutBrief: true` → `*api.MaterialiseError{write_failed}`; `Source` never called | every strip failure collapsed into `block_broken`, sending a person to repair markers in a file that has none |
