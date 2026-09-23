@@ -435,7 +435,8 @@ deploy/charts/edge/           Traefik (Gateway API), ClusterIssuer, Gateway, edg
 deploy/tests/netpolcover/     cross-chart render test: no workload sealed by default-deny          13
 deploy/charts/broker/         broker Deployment, SA, Role in panacea-sandboxes, HTTPRoute, PDB     29
 deploy/charts/hub/            Hub Deployment, migrate Job, SA (WI), HTTPRoute, PDB (contract §12)  29
-deploy/sql/hub-principals.sql.tpl   the Hub identities as Postgres principals                      29
+deploy/sql/hub-principals.sql.tpl   the Hub identities as Postgres principals, bound by object id  29
+pipelines/scripts/render-sql.sh     fills the SQL template; refuses an unfilled placeholder        29
 deploy/values/{dev,prod}/*.yaml     per-environment values; ids injected by the pipeline           29
 control-plane/internal/sandbox/manager.go      config, hardening, token Secret, machine mounts     14, 15
 control-plane/internal/sandbox/machine.go      a machine's disk, token, pod and PDB                19

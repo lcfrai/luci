@@ -203,7 +203,10 @@ attribute name is from training knowledge of azurerm 4.x, UNVERIFIED.** `terrafo
 first sees it in task 02's `bootstrap`, which rejects an unknown attribute.
 
 `pipelines/deploy.yml` — `trigger: none`, manual only; consumes an `infra-plan` run as a pipeline
-resource; parameters `environment`, `applyStacks` (bool), `deployCharts` (bool). Stages:
+resource; parameters `environment`, `applyStacks` (bool, default `false`), `deployCharts` (bool,
+default `false`), so a run does only what its operator ticked; the first `data`/`workloads` run of
+an environment ticks `applyStacks` alone, and charts wait for the database bootstrap (task 31 §6,
+§7, §7a; review I9). Stages:
 1. **guard** — the estate guard, including the consumed-resource rule: the `infra-plan` run and
    the `images` run must both come from an allowed branch.
 2. **approve** — an ADO **Environment** `panacea-app-<env>` with an approval check (the owner).
@@ -236,16 +239,29 @@ resource; parameters `environment`, `applyStacks` (bool), `deployCharts` (bool).
    `netpolcover` (task 13) renders with this exact table; a change to one is made to both in one
    commit. `cert-manager` is its own release and must return before `edge` starts: `edge`'s
    `ClusterIssuer` and `Certificate` need its CRDs mapped and its webhook serving (review C1,
-   task 13). A failed release stops the stage; nothing after it is attempted.
+   task 13). A failed release stops the stage; nothing after it is attempted. `hub` is last on
+   purpose: it is the only release that needs the database bootstrap, so a skipped task 31 §7
+   leaves the other four installed and fails on the Hub alone. When the `hub` release fails, the
+   step prints `kubectl logs job/hub-migrate -n panacea-hub --tail=50` before it exits (the Job
+   survives the rollback, since its delete policy is `before-hook-creation`, task 29; that the
+   cluster identity's namespace role may read pod logs is training knowledge, UNVERIFIED).
 5. **smoke** — `infra/smoke/run.sh <env>` (task 31), on the cluster connection.
 
 **No database stage** (review I8). The database bootstrap is `roles.sql` and the rendered
 `hub-principals.sql` (task 29), run once per environment. It is task 31 §7: a **human** member of
 the Postgres admin group runs it with their own Entra token, before the first `deploy` with
 `deployCharts: true`. No pipeline identity is in that group, so no pipeline can read or change the
-Hub's data as a database administrator. The ordering problem of review I9 (the Hub's first install
-must come after the roles) is resolved by that runbook order, not by a stage. I9's other two asks
-remain open for I9's own batch: an idempotent `roles.sql`, and a principal created by object id.
+Hub's data as a database administrator. Review I9 proposed a `database` stage between `apply` and
+`cluster`; it is not taken, because the stage would need a pipeline identity in the admin group,
+which review I8 removed. I9's ordering is held three ways instead: `deployCharts` defaults to
+`false` and the runbook's first `data`/`workloads` run leaves it off (§6); the bootstrap comes
+before the first chart run (§7, then §7a); and `hub` is the last release, so a skipped bootstrap
+fails the Hub alone, fail-closed, with the migrate Job's log printed. That failure **is** the
+check, and the only exact one: it is the Hub's own DDL identity trying the real server. No
+pipeline identity can see Postgres roles, and an ADO variable saying "bootstrapped" would be a
+claim, not an observation. I9's other two asks are met in task 29 and task 33: principals bound
+by object id (`pgaadauth_create_principal_with_oid`), and an idempotent `roles.sql` (ask HC-1),
+with `hub migrate` naming a missing bootstrap (ask HC-2).
 
 **The four service connections** (the plan's "Deploy identities" table has their roles). Every
 check below is an ADO setting outside the repository, which task 31 §3 makes:

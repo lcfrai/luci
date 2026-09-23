@@ -143,11 +143,16 @@ variable "namespaces" {
 
 output "hub_client_id" { value = module.hub.client_id }
 output "hub_identity_name" {
-  description = "The Postgres role name the database bootstrap creates with pgaadauth_create_principal (task 29's SQL), run by a human Postgres admin, never a pipeline (task 31 §7, review I8)."
+  description = "The Postgres role name the database bootstrap creates with pgaadauth_create_principal_with_oid (task 29's SQL), run by a human Postgres admin, never a pipeline (task 31 §7, review I8)."
   value       = module.hub.name
+}
+output "hub_principal_id" {
+  description = "The object id that role is bound to: names are not unique in a tenant, object ids are (review I9)."
+  value       = module.hub.principal_id
 }
 output "hub_migrate_client_id" { value = module.hub_migrate.client_id }
 output "hub_migrate_identity_name" { value = module.hub_migrate.name }
+output "hub_migrate_principal_id" { value = module.hub_migrate.principal_id }
 output "cert_manager_client_id" { value = module.cert_manager.client_id }
 output "helm_values" {
   description = "Exactly what the deploy pipeline passes to the charts with --set, so no chart hard-codes an id."

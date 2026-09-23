@@ -11,6 +11,7 @@ HA-5 "field by field"); nothing here sets a Hub variable that table does not lis
 - `deploy/charts/broker/{Chart.yaml,values.yaml,values.schema.json}`, `templates/{deployment,serviceaccount,rbac,service,httproute,pdb,networkpolicy}.yaml`, `tests/*_test.yaml` (new)
 - `deploy/charts/hub/{Chart.yaml,values.yaml,values.schema.json}`, `templates/{deployment,serviceaccount,migrate-job,service,httproute,pdb,networkpolicy}.yaml`, `tests/*_test.yaml` (new)
 - `deploy/sql/hub-principals.sql.tpl` — the Entra principals and grants for the Hub's two identities (new)
+- `pipelines/scripts/render-sql.sh`, `render-sql_test.sh`, `tests/fixtures/ids.env` — fills the template's `{{…}}` placeholders from a `KEY=value` file and refuses (exit 1, naming it) any placeholder left unfilled (new; review I9)
 - `deploy/values/dev/{platform,cert-manager,edge,broker,hub}.yaml`, `deploy/values/prod/…` — per-environment values holding **no id** (new)
 - `deploy/tests/netpolcover/netpolcover_test.go` — add `broker` and `hub` to the rendered charts; delete `testdata/backends.yaml`, which stood in for them (modify, task 13)
 
@@ -167,19 +168,38 @@ hook policy above, not by this one — `netpolcover`'s `hook_pods_are_allowed_be
 ```sql
 -- Run by a HUMAN member of the Postgres admin group (task 08), with their own Entra token,
 -- connected to the `postgres` database. No pipeline identity is in that group (review I8).
--- Idempotent. Placeholders are filled from the workloads stack's outputs; nothing here is a secret.
+-- Idempotent, and a re-run checks what exists rather than trusting it (review I9).
+-- Placeholders are filled from the workloads stack's outputs; nothing here is a secret.
 --
 -- 1. The Hub's own roles.sql, once per environment (Hub contract §10.1): the same person runs
---    control-plane/internal/hub/migrate/roles.sql first, in database `hub`.
--- 2. The two Entra principals, named exactly as the managed identities:
---    A DO block, because a function in a FROM clause runs before any WHERE could skip it.
+--    control-plane/internal/hub/migrate/roles.sql first, in database `hub`. The contract's file
+--    is a bare `CREATE ROLE`, which errors on a second run; ask HC-1 (task 33) makes it
+--    idempotent. Until the Hub answers, task 31 §7 runs it only when neither role exists.
+-- 2. The two Entra principals, bound by OBJECT ID, never looked up by name: a user-assigned
+--    identity's name is not unique in a tenant (review I9). The role name is still the
+--    identity's name, because it is the user in the Hub's connection string (appUser,
+--    migrateUser). A role that already exists must be bound to the expected object id, or the
+--    block stops. A DO block, because a function in a FROM clause runs before any WHERE could
+--    skip it.
 DO $$
+DECLARE
+  bound text;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{HUB_APP_IDENTITY}}') THEN
-    PERFORM pgaadauth_create_principal('{{HUB_APP_IDENTITY}}', false, false);
+    PERFORM pgaadauth_create_principal_with_oid('{{HUB_APP_IDENTITY}}', '{{HUB_APP_OBJECT_ID}}', 'service', false, false);
+  ELSE
+    SELECT objectid INTO bound FROM pgaadauth_list_principals(false) WHERE rolname = '{{HUB_APP_IDENTITY}}';
+    IF bound IS DISTINCT FROM '{{HUB_APP_OBJECT_ID}}' THEN
+      RAISE EXCEPTION 'role % exists bound to object id %, expected %', '{{HUB_APP_IDENTITY}}', bound, '{{HUB_APP_OBJECT_ID}}';
+    END IF;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{HUB_MIGRATE_IDENTITY}}') THEN
-    PERFORM pgaadauth_create_principal('{{HUB_MIGRATE_IDENTITY}}', false, false);
+    PERFORM pgaadauth_create_principal_with_oid('{{HUB_MIGRATE_IDENTITY}}', '{{HUB_MIGRATE_OBJECT_ID}}', 'service', false, false);
+  ELSE
+    SELECT objectid INTO bound FROM pgaadauth_list_principals(false) WHERE rolname = '{{HUB_MIGRATE_IDENTITY}}';
+    IF bound IS DISTINCT FROM '{{HUB_MIGRATE_OBJECT_ID}}' THEN
+      RAISE EXCEPTION 'role % exists bound to object id %, expected %', '{{HUB_MIGRATE_IDENTITY}}', bound, '{{HUB_MIGRATE_OBJECT_ID}}';
+    END IF;
   END IF;
 END
 $$;
@@ -189,9 +209,14 @@ GRANT hub_owner TO "{{HUB_MIGRATE_IDENTITY}}";
 GRANT hub_app   TO "{{HUB_APP_IDENTITY}}";
 ```
 
-`pgaadauth_create_principal` is Azure Database for PostgreSQL's function for Entra principals —
-**its exact signature (name, isAdmin, isMfa) is from training knowledge, UNVERIFIED**; task 31's
-runbook runs it by hand first.
+`pgaadauth_create_principal_with_oid` is Azure Database for PostgreSQL's function for an Entra
+principal bound to an object id, and `pgaadauth_list_principals` lists the principals with their
+object ids. **Both signatures — `(roleName, objectId, objectType, isAdmin, isMfa)` with
+`objectType` `'service'` for a managed identity, and a result with `rolname` and `objectid`
+columns — are from training knowledge, UNVERIFIED**; task 31 §7 runs `pgaadauth_list_principals(false)`
+by hand first and records its real columns. The object ids are the `workloads` outputs
+`hub_principal_id` and `hub_migrate_principal_id`: a user-assigned identity's `principal_id` is its
+service principal's object id, the `oid` its tokens carry (task 10).
 
 #### Tests to write first (helm-unittest; and a template test for the SQL)
 
@@ -210,7 +235,9 @@ runbook runs it by hand first.
 | `hub / migrate hooks exist before the Job` | `ServiceAccount/hub-migrate` and `NetworkPolicy/hub-migrate-egress` carry `helm.sh/hook: pre-install,pre-upgrade`, `before-hook-creation`, and a `hook-weight` lower than the Job's; the policy selects `component: migrate` and allows DNS, the PE CIDR on 5432 and 443 to world minus RFC 1918 | the SA or the policy as a regular template — the first install sealed by default-deny and rolled back, while upgrades pass |
 | `hub / two replicas and a 30 s grace` | `replicas: 2`; `terminationGracePeriodSeconds >= 30`; a PDB `minAvailable: 1` | a rollout that drops every in-flight request |
 | `hub / egress reaches Postgres and Entra only` | egress rules: DNS, the PE CIDR on 5432, 443 to world minus RFC 1918 | a Hub that can reach sandboxes |
-| `sql / principals and grants are rendered for both identities` | the template renders two `pgaadauth_create_principal` calls and the two grants, DDL to `hub_owner`, DML to `hub_app` | the grants swapped — the serving identity able to alter the schema (ADR-H1 G4) |
+| `sql / principals and grants are rendered for both identities` | the template renders two `pgaadauth_create_principal_with_oid` calls and the two grants, DDL to `hub_owner`, DML to `hub_app` | the grants swapped — the serving identity able to alter the schema (ADR-H1 G4) |
+| `sql / principals are bound by object id` | each `pgaadauth_create_principal_with_oid` call carries its own identity's object id from the fixture (the app's id with the app's name, the migrate id with the migrate name); the text contains no name-only `pgaadauth_create_principal(`; each existing-role branch compares against the same id and `RAISE`s on a mismatch | a principal resolved by display name, which binds whichever identity in the tenant shares it; the two ids swapped; a re-run that accepts a role bound to someone else (review I9) |
+| `sql / an unfilled placeholder fails the render` | a fixture missing `HUB_MIGRATE_OBJECT_ID` → `render-sql.sh` exits 1 naming the placeholder, and prints no SQL | a literal `{{…}}` sent to `psql`, which creates a role named after the placeholder |
 
 #### Steps
 
@@ -242,7 +269,8 @@ helm lint deploy/charts/broker -f deploy/charts/broker/tests/values-test.yaml   
 helm lint deploy/charts/hub -f deploy/charts/hub/tests/values-test.yaml         # 0 failed
 helm unittest deploy/charts/broker deploy/charts/hub                            # all suites pass
 go test ./deploy/tests/netpolcover/... -count=1                                  # ok, five charts rendered
-bash pipelines/scripts/render-sql.sh deploy/sql/hub-principals.sql.tpl tests/fixtures/ids.env   # prints the four statements
+bash pipelines/scripts/render-sql.sh deploy/sql/hub-principals.sql.tpl tests/fixtures/ids.env   # prints the DO block and the two grants, no {{ left
+bash pipelines/scripts/render-sql_test.sh                                        # render-sql_test: 3 of 3 passed
 ```
 
 #### What this task does not claim
