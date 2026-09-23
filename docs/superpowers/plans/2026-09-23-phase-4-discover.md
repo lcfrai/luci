@@ -242,10 +242,12 @@ without a cycle. Phase 4 imports only the Hub's
 | `provenance/ref.go` + test | `Ref`, `Build`, criterion digests, `Resolution` | 06 |
 | `discoverhub/binding.go` + test | local project → Hub project by repo key; local branch → `refs/heads/…` | 07 |
 | `discoverhub/read.go` + test | `View`, `History`, `Resolve(keys)`, `HeadRef`, `Inheritable`; the in-memory revision cache | 07 |
-| `discoverhub/write.go` + test | `Apply`: one domain op → one Hub batch, with the `4-D3` fan-out and its conflict retry; `ArchiveHead`, `Rebind` | 08 |
-| `contextwrite/materialise.go` + test | the `api.Materialiser`: target choice, exclude line, write, strip; `Inspect` for drift | 09 |
-| `discoverapi/api.go`, `briefs.go`, `provenance.go` + tests | the `/v1/discover` routes; the relay rule; `Mount` | 11, 12 |
-| `repoanalysis/scan.go`, `draft.go` + test | the mechanical scan; the drafted brief as one revision | 13 |
+| `discoverhub/service.go` | `Config`, `Service`, the in-memory revision cache | 07 |
+| `discoverhub/write.go`, `digest.go`, `lifecycle.go` + tests | `Apply`: one domain op → one Hub batch, with the `4-D3` fan-out and its conflict retry; the local digest until HA4-9; `ArchiveHead`, `Rebind` | 08 |
+| `contextwrite/materialise.go`, `inspect.go`, `git.go` + tests | the `api.Materialiser`: target choice, exclude line, write, strip; `Inspect` for drift; the two read-only git questions | 09 |
+| `discoverapi/api.go`, `briefs.go`, `provenance.go`, `analyse.go` + tests | the `/v1/discover` routes; the relay rule; `Mount` | 11, 12, 13 |
+| `repoanalysis/scan.go`, `draft.go` + test | the mechanical scan; the drafted answers | 13 |
+| `control-plane/cmd/api/discover.go` + test | `wireDiscover` and its three adapters | 14 |
 
 **New — desktop** (`desktop/src/…`):
 
@@ -253,10 +255,10 @@ without a cycle. Phase 4 imports only the Hub's
 |---|---|---|
 | `api/discover.ts` + test | the TypeScript mirror of every `/v1/discover` wire shape; `DiscoverClient` | 15 |
 | `store/slices/discoverSlice.ts`, `store/slices/provenanceSlice.ts` + tests | non-persisted: brief views by scope; refs by key, heads by brief, head refs by branch | 16 |
-| `provenance/loader.ts` + test | the one loader over key sources, called from the poller's tick | 16 |
-| `provenance/ContextChip.tsx`, `DefinitionOfDone.tsx`, `ShippedManifest.tsx`, `provenance.css` + tests | the three presentational surfaces; each takes a `ProvenanceRef` | 17 |
-| `discover/DiscoverLens.tsx`, `QuestionFlow.tsx`, `BriefPanel.tsx`, `discover.css` + tests | the lens: binding states, asking, the brief born, inheritance, follow-up, model off, unavailable | 18 |
-| `discover/BriefHistory.tsx`, `PastRevision.tsx`, `SessionsOnBrief.tsx`, `Materialisations.tsx` + tests | moved on, project changed, undo, past revision read-only, missing, erased, hand-edited block | 19 |
+| `provenance/loader.ts` + test; `api/hubFeed.ts` | the one loader over key sources, called from the poller's good tick; the Hub feed's control-plane route (Hub C2's) | 16 |
+| `provenance/ContextChip.tsx`, `SessionContextChip.tsx`, `DefinitionOfDone.tsx`, `ShippedManifest.tsx`, `ProvenanceDetail.tsx`, `provenance.css` + tests | the three presentational surfaces, each taking a `ProvenanceRef`; the one store-reading mount | 17 |
+| `discover/DiscoverLens.tsx`, `QuestionFlow.tsx`, `BriefPanel.tsx`, `BindingState.tsx`, `useBriefView.ts`, `discover.css` + tests | the lens: binding states, asking, the brief born, inheritance, follow-up, model off, unavailable | 18 |
+| `discover/BriefHistory.tsx`, `PastRevision.tsx`, `SessionsOnBrief.tsx`, `Materialisations.tsx`, `SectionChanges.tsx` + tests | moved on, project changed, undo, past revision read-only, missing, erased, hand-edited block | 19 |
 | `discover/StartWithoutBrief.tsx` + test | the `4-D1` refusal and override on session start and restart | 20 |
 | `discover/ImportRepo.tsx` + test | drafted from the code: accept or change each answer | 21 |
 
@@ -276,7 +278,9 @@ without a cycle. Phase 4 imports only the Hub's
 | `desktop/src/store/defaults.ts` | `toCreateRequest` stops setting `contextRef` | 15 |
 | `desktop/src/store/store.ts` | `CockpitState` gains the two slices; `partialize` unchanged | 16 |
 | `desktop/src/store/selectors.ts` | the key-source selectors and the provenance selectors | 16 |
-| `desktop/src/api/poller.ts` | after `replaceSessions`, calls the loader; its header comment is amended (UI contract §4.7) | 16 |
+| `desktop/src/api/poller.ts` | **header comment only**, amended (UI contract §4.7) | 16 |
+| `desktop/src/App.tsx` | the poller's good-tick callback also runs the loader | 16 |
+| `desktop/src/components/develop/sessionVerbs.ts` | restart routes `brief_not_written` to the refusal | 20 |
 | `desktop/src/components/develop/SessionPaneHeader.tsx` | mounts `ContextChip` | 17 |
 | `desktop/src/components/AppShell.tsx` | the `discover` arm returns `<DiscoverLens />` | 18 |
 | `desktop/src/hooks/useCreateSession.ts` | routes `brief_not_written` to the refusal surface instead of a toast | 20 |
@@ -306,7 +310,7 @@ Each task is 1–3 hours for one implementer who has read this file and the task
 | 06 | `provenance`: the key grammar, `Ref`, `Build`, criterion digests | 03, 05 | 2.5 h |
 | 07 | `discoverhub`: binding and reads, against `hubclient.NewFake()` | 03, 05, 06, **Hub H0** | 3 h |
 | 08 | `discoverhub`: writes, the `4-D3` fan-out, archive and rebind | 07 | 3 h |
-| 09 | `contextwrite`: the Materialiser | 01, 05, 07 | 3 h |
+| 09 | `contextwrite`: the Materialiser | 01, 05, 07, 10 (it imports `api`'s request, result and error types) | 3 h |
 | 10 | `api`: the `Materialiser` seam in create and restart (R1), `brief_not_written`, `RouteMounter` | — (declares its own interfaces; tests use fakes) | 2.5 h |
 | 11 | `discoverapi`: brief routes, the relay rule, the route audit | 07, 08, 10 | 3 h |
 | 12 | `discoverapi`: refs, branch provenance, materialisations | 09, 11 | 2 h |
@@ -332,11 +336,12 @@ Each task is 1–3 hours for one implementer who has read this file and the task
 - **Lane C (desktop):** 15 can start once 11's and 12's wire shapes are fixed in this plan (they
   are: parts 11 and 12), then 16 → 17 → 18 → 19, with 20 and 21 after.
 
-Then 07 → 08 → 09 → 11 → 12 → 13 → 14 as the Hub's H0 lands (`hubclient` interfaces and fake; ADR
-§5.9 ships them first), then 22 and 23 last. **UI branches (17–21) stay unmerged until the owner
-has looked** (`OD-1`).
+Then 07 → 08 → 09 (after lane B's 10) → 11 → 12 → 13 → 14 as the Hub's H0 lands (`hubclient`
+interfaces and fake; ADR §5.9 ships them first), then 22 and 23 last. **UI branches (17–21) stay
+unmerged until the owner has looked** (`OD-1`).
 
-**Critical path:** Hub H0 → 07 → 08 → 09 → 11 → 12 → 14 → 23, about 18 engineer-hours after H0.
+**Critical path:** Hub H0 → 07 → 08 → 09 → 11 → 12 → 14 → 23, about 18 engineer-hours after H0,
+provided 10 has merged before 09 starts.
 
 ---
 
@@ -394,7 +399,7 @@ encoding is the Hub's and carries its own `v` in the envelope (Hub contract §3.
 | S4-P3.3 | `DefinitionOfDone` takes an optional `onRecordEvidence?(criterionId)` | P4-5 |
 | S4-P3.4 | `provenance.Build` takes an optional `Evaluate func(Criterion) (State, Because)`; nil means every criterion `open` | P4-4 |
 | S4-P3.5 | the Materialiser appends `/CLAUDE.md` to the clone's `.git/info/exclude` on first write | P4-6 |
-| S4-P3.6 | **New ask of phase 3:** when task 11's `RenameBranch` succeeds, call `discoverhub.Service.Rebind(ctx, projectID, oldBranchID, newBranchID)`, so the brief follows the branch (Hub `PATCH /v1/briefs/{id}`). Without it a renamed branch shows *no brief* and its old brief sits on a ref nobody uses | — (not in phase 3's list) |
+| S4-P3.6 | **New ask of phase 3:** when task 11's `RenameBranch` succeeds, call `discoverhub.Service.Rebind(ctx, projectID, oldBranchName, newBranchName)` (names, because the old branch id may no longer resolve after the rename), so the brief follows the branch (Hub `PATCH /v1/briefs/{id}`). Without it a renamed branch shows *no brief* and its old brief sits on a ref nobody uses | — (not in phase 3's list) |
 | S4-P3.7 | `sessions.go`: phase 4's call is in the handlers' step order; phase 3 task 05's is inside `sessionEnv`. They do not contend | P4-7 |
 
 **A conflict between siblings, named, not phase 4's to settle:** phase 3's `githost.RepoKey` for
@@ -432,6 +437,8 @@ it is answered.
 | **HA4-5** | The relay rule (§4.3) is "implemented once in `hubclient`", but no function maps an error to a response | `func Relay(err error) (status int, p httpx.Problem, ok bool)` in `hubclient`, `ok` false for a non-Hub error | `discoverapi.relay` implements §4.3's table locally, one function, marked for deletion when `Relay` lands (task 11) |
 | **HA4-6** | One Azure DevOps repo-key form (§8.2 above) | either the Hub accepts `azure-devops/<org>/<project>/<repo>` or phase 3 emits `<org>.visualstudio.com/<project>/<repo>` | Azure DevOps repositories show *"this repository cannot be shared yet"* |
 | **HA4-7** | The fake's completeness rule must follow `content.status` exactly and expose `latestCompleteRevision` on heads, and `/v1/refs`'s `heads` must include `latestCompleteRevision` for every brief it names | as §7.1's `BriefHead` and §7.5's `heads` already show | — (a confirmation, not a change) |
+| **HA4-8** | The control plane polls the Hub's change feed (§9.3, task C2) but exposes no hook to other control-plane packages. `discoverhub` holds resolved revisions in memory and must drop one when a `brief.erased` event arrives | a subscription on C2's poller: `Subscribe(func(hubapi.Event)) (cancel func())`, called in commit order | the cache's TTL (default 5 minutes, task 07): an erasure reaches this process within the TTL, not at once |
+| **HA4-9** | A branch revision pins the digest of the project revision written **in the same batch**, so the digest must be computable before the Hub writes it | `func BriefRevisionDigest(briefID string, revision int, projectID, scope, branchRef string, content json.RawMessage) (string, error)` in `hubapi` | `discoverhub/digest.go` builds §3.4's envelope and calls `hubapi.Canonical`, pinned to §3.5's vector 1 by a test, and the write checks the Hub's returned digest against it (task 08) |
 
 ---
 
@@ -443,6 +450,8 @@ it is answered.
 | **OQ-2** | `.claude/CLAUDE.md` as the fallback when a repository tracks `CLAUDE.md` (P4-D). If task 23's canary shows the CLI does not read it, what then? | Refuse the start with `tracked_elsewhere` and offer *Start without the brief* — never edit a tracked file |
 | **OQ-3** | Should *Start without the brief* be remembered for a branch? | **No.** It is asked at each start, because `4-D1` makes going without the brief deliberate |
 | **OQ-4** | Can a person archive a brief by hand? | **Not in v1.** Phase 3 archives the head when the branch is deleted (P13) |
+| **OQ-5** | No prototype draws **erased**. Task 17 proposes a hollow square in `--ink-3` with *brief erased* | Accept the proposal at the batched visual pass, or name a shape |
+| **OQ-6** | The prototype's "what changed" is a `CLAUDE.md` file diff; task 19 draws a section-level before and after, computed from two resolved refs | The section view; if the owner wants the file diff, task 12 gains `GET /v1/discover/diff?from=&to=`, rendered server-side |
 
 Carried and **answered elsewhere**: contract Q4 (is `CLAUDE.md` committed?) — no, by phase 3's
 `3-D6`; contract Q5 (erasure) — ADR-H1 Q2, the `erased` state; contract Q6 (who owns control-plane
