@@ -62,7 +62,7 @@ sandboxes:
     maxMemory: 32Gi
     # What an unsized container gets (review I4): one session, never the max. MUST equal the
     # broker's PANACEA_APP_BROKER_SESSION_CPU_MILLIS / _MEMORY_MIB and warm.balloons (task 12);
-    # task 29 passes all three from one value.
+    # task 29's netpolcover case session_size_is_one_value holds all three equal per env.
     defaultCpu: 2000m
     defaultMemory: 4096Mi
 

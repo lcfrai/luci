@@ -308,7 +308,7 @@ From survey §7 (`:519-557`). None is in source; each arrives as a pipeline vari
 |---|---|---|
 | **One subscription per environment** (dev and prod never share one: a subscription carries one `panacea-app-estate` value, so a shared one can never pass the prod guard, plan re-review b03 M-6), each with its id, tenant id and region (recommended `australiaeast`, three zones) | `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`, `var.location`; `PANACEA_APP_<ENV>_SUBSCRIPTION_ID` | first `plan` |
 | The tag `panacea-app-estate=<env>` on each handed-over subscription, set by the owner (task 31 §1) | nothing in code: the estate guard reads it on every Terraform path and every workstation section, and refuses a subscription without it, so a Panacea subscription is never a Terraform target (task 30, review I3). Stages 4–5 and the image push do not read it; they rely on stage 1's read and their resource-scoped roles (task 30's stated residual, plan re-review b03 M-3) | bootstrap (task 31 §2) |
-| Kata vCPU quota: max sandbox nodes × 8 for `Standard_D8s_v5`, plus system and apps pools | `var.sandbox_pool.max_count`, `var.apps_pool` | first `apply` |
+| Kata vCPU quota: max sandbox nodes × the sandbox SKU's vCPUs (8 for dev's `Standard_D8s_v5`; 16 or 32 if task 32's P07 moves the pool to `Standard_D16s_v5` or `D32s_v5`, P8-D6's ceiling, review I5), plus system and apps pools | `var.sandbox_pool.max_count`, `var.apps_pool` | first `apply` |
 | **Four pipeline identities per environment** (plan, infra, cluster, push), created first with no role (task 31 §1a), outside `rg-panacea-app-<env>`, then each granted exactly its row of "Deploy identities" below as its scopes come to exist (§2a, §4a). The infra identity's role-assignment right is **scoped by an ABAC condition** to the five roles task 10 names for it, and excludes its own object id as a principal | `TF_VAR_state_writer_object_ids`, `TF_VAR_state_reader_object_ids` (task 02); `PANACEA_APP_<ENV>_CLUSTER_PRINCIPAL_OBJECT_ID`, `PANACEA_APP_<ENV>_PUSH_PRINCIPAL_OBJECT_ID` for the owner's `grant-pipeline-roles.sh` (task 30) | bootstrap (task 31 §2) |
 | The three custom role definitions, `panacea-app-cluster-deployer`, `panacea-app-sandboxes-deployer` and `panacea-app-plan-reader`, created from `infra/rbac/*.json` (task 30). No pipeline identity can write role definitions | the role names `grant-pipeline-roles.sh` assigns, and the plan identity's third role | task 31 §2a |
 | The owner's own grants: the cluster and push identities' roles, by `infra/rbac/grant-pipeline-roles.sh` after the first `foundation` apply; the prod Postgres server's `CanNotDelete` lock after the first prod `data` apply; the Deny policy on AKS local accounts (plan re-review I-2, I-4) | nothing in Terraform | task 31 §4a, §6a, §2a |
@@ -443,7 +443,7 @@ deploy/values/{dev,prod}/*.yaml     per-environment values; ids injected by the 
 control-plane/internal/sandbox/manager.go      config, hardening, token Secret, machine mounts     14, 15
 control-plane/internal/sandbox/machine.go      a machine's disk, token, pod and PDB                19
 control-plane/internal/backend/backend.go      KubeLabelOwner; MachineMount, Spec.Machine          14, 15
-control-plane/internal/backend/ready.go        ReadyWaiter, ErrQuotaExceeded                       22
+control-plane/internal/backend/ready.go        ReadyWaiter, ErrQuotaExceeded, ErrMachineFull       22
 control-plane/internal/backend/katabe/kata.go  owner scope, WorkDir, machine mounts               14, 15
 control-plane/internal/backend/dockerbe/docker.go  refuses MachineMounts                           15
 control-plane/internal/backend/remotebe/       Client and Backend over the broker                  22
@@ -456,7 +456,7 @@ control-plane/internal/machines/               the machine set (23); agent calls
 control-plane/internal/api/{api,sessions,attach}.go   route by machine                             23, 24
 control-plane/internal/api/{machines,cloudstore}.go   cloud machines, cloud conversation store     24
 control-plane/internal/api/catalog.go          machineId on the catalog routes                     24
-control-plane/internal/httpx/problem.go        machine_not_found (23), quota_exceeded (24)         23, 24
+control-plane/internal/httpx/problem.go        machine_not_found; quota_exceeded, machine_full     23, 24
 control-plane/internal/reaper/reaper.go        sweeps per machine                                  23
 control-plane/cmd/api/{config,main}.go         RUNTIME_CLASS (14); BROKER_URL, BROKER_SCOPE (23)   14, 23
 control-plane/internal/gitx/remote.go          phase 3's Machine for a cloud machine (S3-P8.1)     25
@@ -482,7 +482,7 @@ missing stops and reports it.
 |---|---|
 | `control-plane/go.mod` | none — this phase adds no dependency to it |
 | `go.work` | 13 only (`use ./deploy/tests/netpolcover`, a test-only module that ships in no image) |
-| `deploy/tests/netpolcover/*` | 13 → 29 (29 adds `broker` and `hub`, deletes the stand-in `testdata/backends.yaml`) |
+| `deploy/tests/netpolcover/*` | 13 → 29 (29 adds `broker` and `hub`, deletes the stand-in `testdata/backends.yaml`, and adds `session_size_is_one_value`; 13 also owns `every_sandbox_container_is_sized`, review I4) |
 | `pipelines/charts.yml` | 28 → 13 (13 adds the cross-chart `netpolcover` job) |
 | `internal/sandbox/manager.go` | 14 → 15 (and phase 3's task 05, which lands first — task 14 step 0) |
 | `internal/backend/backend.go` | 14 → 15 (and phase 3's task 05) |
@@ -632,7 +632,8 @@ for the same code locations, each cited to `file:line` in its part.
 
 - **Nothing about Azure.** No stack has been planned or applied. Every statement about how AKS Pod
   Sandboxing behaves — the RuntimeClass name, whether two Kata pods on one node can share an RWO
-  disk, per-pod Kata overhead, allocatable CPU on `Standard_D8s_v5`, cold-start time on a warm
+  disk, per-pod Kata overhead, allocatable CPU on `Standard_D8s_v5` (and so how many sessions one
+  machine holds, P8-D6's ceiling), cold-start time on a warm
   node, whether `pods` in a Kata sandbox mount CSI volumes at all — is **UNVERIFIED** and is task
   32's to prove.
 - **The Hub's code.** The Hub's shapes are taken from ADR-H1 and its contract as read on

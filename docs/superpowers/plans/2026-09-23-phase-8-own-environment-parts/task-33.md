@@ -45,6 +45,16 @@ prices**; the levers in order (warm floor, idle reaper, machine idle sleep, sess
 hours scale-down); and one table with an empty column for task 32's P07 result (sessions per node)
 and P16 (log ingest per day). No number in it is presented as measured until those are filled.
 
+It also states **the one-node ceiling** (P8-D6, review I5): a cloud machine's sessions all run on
+the node holding its machine pod, so the unit of cost is not "a session" but "a node that can
+hold a machine's sessions". On `Standard_D8s_v5` that is about three default sessions per machine
+(arithmetic, until P07 measures it), which leaves the per-user cap of 8 over 2 machines
+unreachable. The table therefore has one row per candidate sandbox SKU (`Standard_D8s_v5`,
+`Standard_D16s_v5`, `Standard_D32s_v5`), each with its sessions-per-machine column from P07 and
+the survey's per-node anchor, plus a row for a smaller default session on `D8s_v5`; the SKU P07
+selects (task 32) is marked, and its warm floor (`min_count`) is costed at that SKU's price, not
+`D8s_v5`'s.
+
 #### Questions this phase leaves with its siblings (recorded in `phase-8-results.md`)
 
 | To | Question | This phase assumed |

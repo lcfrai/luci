@@ -21,7 +21,7 @@ each without changing the seven methods:
 
 **Files:**
 - `control-plane/internal/backend/remotebe/{remote.go,errors.go,attach.go}` and `remote_test.go`, `attach_test.go` (new)
-- `control-plane/internal/backend/ready.go` — `ReadyWaiter`, `ErrQuotaExceeded` (new file, so `backend.go` — edited by tasks 14 and 15 and by phase 3 — is not touched again)
+- `control-plane/internal/backend/ready.go` — `ReadyWaiter`, `ErrQuotaExceeded`, `ErrMachineFull` and `MachineFullError` (new file, so `backend.go` — edited by tasks 14 and 15 and by phase 3 — is not touched again)
 
 #### Contract (complete)
 
@@ -40,6 +40,20 @@ type ReadyWaiter interface {
 // ErrQuotaExceeded: the caller is at a per-user limit the backend enforces
 // (the broker's MAX_SANDBOXES_PER_USER). The API maps it to 429 (task 24).
 var ErrQuotaExceeded = errors.New("backend: per-user limit reached")
+
+// ErrMachineFull: the node holding the machine pod has no room for another
+// session (the broker's 409 machine_full, review I5). A cloud machine is
+// bounded by one node (P8-D6), so this is not "unavailable" and a retry does
+// not help until a session ends. The API maps it to 409 machine_full (task 24).
+var ErrMachineFull = errors.New("backend: machine is full")
+
+// MachineFullError is what remotebe returns for machine_full: errors.Is(err,
+// ErrMachineFull) holds, and SessionsPerMachine carries the broker's
+// details.sessionsPerMachine (0 if the broker sent none or a non-number).
+type MachineFullError struct{ SessionsPerMachine int }
+
+func (e *MachineFullError) Error() string        // "backend: machine is full at N sessions"
+func (e *MachineFullError) Is(target error) bool // target == ErrMachineFull
 ```
 
 ```go
@@ -136,6 +150,7 @@ func RemoteEndpoint(id string) string { return "remote:" + id }
 | 400 `bad_request`, `invalid_json`, `image_not_allowed`, `resources_too_large` | `ErrUnsupported` (message carried) |
 | 403 `attach_rejected` | `ErrUnauthorized` |
 | 429 `quota_exceeded` | `ErrQuotaExceeded` |
+| 409 `machine_full` | `*backend.MachineFullError{SessionsPerMachine: <details.sessionsPerMachine>}` (`errors.Is(err, ErrMachineFull)`; review I5) |
 | 401 `unauthenticated`, 503, any 5xx, a network error, a `TokenSource` error | `ErrUnavailable` (wrapping `ErrSignedOut` when that was the cause) |
 
 #### Tests to write first
@@ -151,6 +166,7 @@ fake `TokenSource` that counts calls:
 | `TestEveryCallAsksForTheBrokerScope` | the token source was asked for `cfg.Scope` on each call | a Hub token sent to the broker (wrong audience — it would 401 anyway, but the laptop must not even ask for it) |
 | `TestEndpointIsOpaqueAndNonEmpty` | Get's `Endpoint == "remote:<id>"` | an empty Endpoint the attach handler reads as "not running" (`attach.go:182`) |
 | `TestErrorsMapByCode` | every row of the mapping table, driven by the stand-in | string matching; a quota error shown as "unavailable" |
+| `TestMachineFullCarriesTheCount` | a 409 `machine_full` with `details.sessionsPerMachine: "3"` → `errors.Is(err, backend.ErrMachineFull)`, `errors.As` gives `SessionsPerMachine == 3`, and **not** `ErrNotRunning` or `ErrAlreadyExists`; a body with no details → `SessionsPerMachine == 0` (review I5) | a full machine read as the 409s beside it (`conflict`, `machine_asleep`), so the cockpit says "already exists" or "not running" |
 | `TestSignedOutMakesNoRequest` | `SignedOut{}` → `ErrUnavailable` wrapping `ErrSignedOut`; zero requests | an unauthenticated request to the broker |
 | `TestListReturnsOnlyThisMachinesSandboxes` | two machines' sandboxes in the stand-in's list → only this one's | the reaper on machine A destroying machine B's sandboxes |
 | `TestWaitReadyPollsUntilRunning` | starting, starting, running → nil after the third GET | a WaitReady that returns before the pod is up |

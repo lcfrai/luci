@@ -97,6 +97,10 @@ func MachineClaimName(machineID string) string { return "machine-" + machineID }
 - when `Config.MachineAffinity`: `affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution`
   = one term, `labelSelector` `{panacea-app/component: machine, panacea-app/machine-id: <machine>}`,
   `topologyKey: kubernetes.io/hostname`.
+  The consequence (review I5): a machine is capped at what is free on its machine pod's node,
+  about three default sessions on `Standard_D8s_v5` (P8-D6). Past that the session is
+  `Unschedulable` for good; the broker refuses it with `409 machine_full` and deletes the pod
+  (task 18). This task only builds the affinity.
 
 `/home/dev` and `/tmp` stay `emptyDir` (`manager.go:171-187`): `~/.claude` outside `projects/`
 holds `/login`'s credentials, which must **not** land on the machine disk beside transcripts (the

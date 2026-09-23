@@ -38,8 +38,9 @@ warm:
   balloons:
     # How many sessions' worth of headroom to keep beyond what is running. 0 disables balloons.
     replicas: 1
-    # MUST equal the broker's default session size (PANACEA_APP_SESSION_CPU_MILLIS / _MEMORY_MIB);
-    # task 29 passes both from one value so they cannot differ.
+    # MUST equal the broker's default session size (PANACEA_APP_BROKER_SESSION_CPU_MILLIS /
+    # _MEMORY_MIB, task 17) and sandboxes.limitRange.default* (task 11); task 29's netpolcover
+    # case session_size_is_one_value fails if they differ in any env's values.
     cpu: 2000m
     memory: 4096Mi
   prepull:

@@ -21,7 +21,8 @@ right, and no screenshot is offered as evidence.
 - `desktop/src/store/store.ts` — `selectedMachineId` (persisted: version bump and migration, rule SX.3), `cloud`, `wakingSince` (modify)
 - `desktop/src/store/selectors.ts` — `selectCurrentMachine`, `selectCloudMachines` (modify)
 - `desktop/src/components/rail/MachineChip.tsx`, `MachinesPopover.tsx` (new), `rail.css` (modify)
-- tests beside each (new/modify)
+- tests beside each (new/modify), and `desktop/src/hooks/useCreateSession.test.ts` (new; the
+  `machine_full` case, review I5; `useCreateSession.ts` itself does not change)
 
 #### Contract — the TypeScript additions (complete; they go into `types.ts` and UI contract §2 verbatim)
 
@@ -99,6 +100,14 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
   (`api/problems.ts:13,37`, seam SX.7) with their own sentences, switched at the call site with a
   declared return type and no `default:` arm; `quota_exceeded` gets the sentence "You are at your
   cloud machine limit."
+- **A full machine (review I5).** A session create on a cloud machine whose node has no room
+  answers `409 machine_full` with the control plane's sentence (task 24: "This cloud machine is
+  full, so the session was not created: its 3 sessions use all the room on its node. Stop one of
+  them, then try again."). The cockpit renders it verbatim through `useCreateSession`'s existing
+  `server-said` arm (`hooks/useCreateSession.ts:37-46`), within seconds of the click (the broker
+  refuses on the scheduler's verdict, task 18), never after a two-minute wait. It needs no new
+  `ProblemKind`, and no `ProblemCode` member: `toProblem` passes an unknown server code through
+  intact (`api/client.ts:199-207`), so `types.ts` and UI contract §2 do not change for it.
 
 #### DESIGN-SYSTEM rules this task must meet (each checked by a test or by the owner)
 
@@ -125,6 +134,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 | `MachinesPopover / selecting a machine switches the rail` | click the cloud row → `selectedMachineId` set; the next poll calls `listProjects("m-…")` | the rail stuck on local projects |
 | `MachinesPopover / signed out shows the server's sentence verbatim` | `cloud.status: "signed_out"`, message `M` → the text `M` exactly, no cloud rows | a client-invented sign-in message |
 | `MachinesPopover / wake is offered only for a sleeping cloud machine` | Wake button present for `sleeping`, absent for `idle` and for `local` | a wake verb on the laptop |
+| `useCreateSession / a full machine shows the server's sentence verbatim` | the client rejects the create with `ApiError("machine_full", S, 409, {sessionsPerMachine: "3"})` → the surfaced text is `S` exactly, not the Docker or control-plane sentence (review I5) | `machine_full` classified as `backend-down`, which tells a cloud user "Docker is not running" |
 | `poller / ensure-default is called once, and only when signed in` | three `ok` snapshots with no cloud machine → one call; `signed_out` → none | a POST on every tick |
 | `store / the migration adds selectedMachineId and keeps everything` | a vN persisted blob → vN+1 with `selectedMachineId: null` and every old key equal | a migration that drops user state |
 | `selectors / a vanished selection falls back to the default` | `selectedMachineId` not in `machines` → the default | a blank rail after a machine is deleted |

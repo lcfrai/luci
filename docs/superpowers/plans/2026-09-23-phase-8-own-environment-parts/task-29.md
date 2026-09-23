@@ -34,7 +34,7 @@ sandbox:
   image: ""                  # the sandbox digest
   machineImage: ""           # the machine digest
   runtimeClass: kata-vm-isolation   # one value feeds the broker AND platform.sandboxes.runtimeClass
-  sessionCpuMillis: 2000            # one value feeds the broker's defaults AND platform.warm.balloons
+  sessionCpuMillis: 2000            # one value feeds the broker's defaults, platform.warm.balloons AND platform.sandboxes.limitRange.default* (review I4)
   sessionMemoryMib: 4096
 limits:
   maxCpuMillis: 8000
@@ -46,6 +46,10 @@ machines:
   storageClass: panacea-machine-disk
   affinity: true
   idleSleep: 30m
+timeouts:                    # task 17's table; the chart sets them so the cluster's values are read here, not inherited from code defaults
+  ready: 120s                # PANACEA_APP_BROKER_READY_TIMEOUT
+  unschedulableGrace: 5s     # PANACEA_APP_BROKER_UNSCHEDULABLE_GRACE (review I5); the schema cannot compare durations, the broker's config check refuses one not below `ready`
+  shutdownGrace: 20s         # PANACEA_APP_BROKER_SHUTDOWN_GRACE
 apiServer:                   # the same block, same keys and schema rule as task 13's cert-manager and edge charts (review I3)
   mode: entity               # entity: CiliumNetworkPolicy toEntities kube-apiserver; cidr: one ipBlock per cidrs entry on 443
   cidrs: []                  # cidr mode only; schema minItems 1 then; passed by pipelines/scripts/api-server-cidrs.sh (task 30)
@@ -275,7 +279,15 @@ with it.
   and filled by `deploy` (task 30) from Terraform outputs.
 - [ ] **Step 5:** Add `broker` and `hub` to `netpolcover`'s chart list and delete its
   `testdata/backends.yaml`; it must pass with the real charts, and `traefik_reaches_every_routed_backend`
-  now checks both `HTTPRoute`s. Mutation checks, each verified applied and red:
+  now checks both `HTTPRoute`s. Add the case `session_size_is_one_value` (review I4): for each
+  of `deploy/values/{dev,prod}/`, `platform.yaml`'s `warm.balloons.cpu` and
+  `sandboxes.limitRange.defaultCpu` both equal `broker.yaml`'s `sandbox.sessionCpuMillis` with an
+  `m` suffix, the two memories equal `sessionMemoryMib` with `Mi`, and `sandboxes.runtimeClass`
+  equals `sandbox.runtimeClass`. The two charts read separate files (task 30 passes
+  `-f deploy/values/<env>/<chart>.yaml`), so "one value" is this test, not a shared key. Mutation
+  checks, each verified applied and red:
+  - set dev's `platform.yaml` `sandboxes.limitRange.defaultCpu` to `1000m` →
+    `session_size_is_one_value`;
   - change the broker policy's Traefik peer label → `traefik_reaches_every_routed_backend`;
   - move `hub-migrate-egress` from a hook into `networkpolicy.yaml` as a regular template →
     `hook_pods_are_allowed_before_they_run` (task 13) and `hub / migrate hooks exist before the Job`;

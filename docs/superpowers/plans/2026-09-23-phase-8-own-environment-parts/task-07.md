@@ -508,6 +508,9 @@ zones                 = ["1", "2", "3"]
 system_pool  = { vm_size = "Standard_D2s_v5", min_count = 1, max_count = 2 }
 apps_pool    = { vm_size = "Standard_D4s_v5", min_count = 1, max_count = 3 }
 sandbox_pool = { vm_size = "Standard_D8s_v5", min_count = 1, max_count = 4, os_disk_size_gb = 128 }
+# ^ provisional: a machine holds about three default sessions on D8s_v5 (P8-D6's ceiling, review
+#   I5). Task 32's P07 decides the SKU (D16s_v5 / D32s_v5) or a smaller default session; this line
+#   and the vCPU-quota prerequisite change with it.
 maintenance = {
   day_of_week    = "Sunday"
   start_time     = "02:00"
