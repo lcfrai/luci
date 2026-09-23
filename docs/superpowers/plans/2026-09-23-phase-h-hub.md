@@ -84,7 +84,8 @@ Every task restates the ones it touches. None of them moves.
   constraints). Always:
   - unit: `go test ./sandboxd/... ./control-plane/... -race -count=1`
   - Hub integration (needs the local Postgres of task 09 on `127.0.0.1:5433`):
-    `go test -tags integration ./control-plane/internal/hub/... ./control-plane/internal/hubclient/... -race -count=1`
+    `go test -tags integration ./control-plane/internal/hub/... -race -count=1`
+    (`hubclient` lives at `control-plane/internal/hub/hubclient`, contract §2, so this covers it)
   - desktop: `cd desktop && npm test && npm run typecheck`
   An integration test file starts `//go:build integration`, so CI's untagged run
   (`azure-pipelines.yml:14`) never needs a database. Every integration test **skips, never fails**,
@@ -165,4 +166,177 @@ Two further facts, verified here, **close** items the contract and ADR left open
 And one the contract's threat model states wrongly, **not** fixed here because it is phase 2's:
 T7 cites *"the webview's CSP (`tauri.conf.json`)"*, but `desktop/src-tauri/tauri.conf.json` sets
 `"security": {"csp": null}` — there is no CSP. Recorded as seam S-CSP.
+
+---
+
+## File map
+
+Every file the phase creates or modifies, with the task that owns it. Paths are relative to the
+repository root. **Shared files** — touched by more than one task in this plan, or by a sibling
+phase's plan tonight — are marked ⚑; the tasks that touch them run in the order given, never in
+parallel worktrees (see §"Order and parallel lanes").
+
+### The Hub server — `control-plane/cmd/hub`, `control-plane/internal/hub/...`
+
+| Path | Responsibility | Status | Task |
+|---|---|---|---|
+| `control-plane/internal/ids/ids.go` ⚑ | `Wide(prefix)`: 16-hex ids for the Hub (contract §3.1) | modified | 01 |
+| `control-plane/internal/hub/hubapi/codes.go` | the Hub's error codes (contract §4.2), shared ones re-exported from `httpx` | new | 01 |
+| `control-plane/internal/hub/hubapi/keys.go` | key grammar, digests, branch refs, repo keys, id shapes — parse and format | new | 01 |
+| `control-plane/internal/hub/hubapi/canonical.go` | `Canonical` — RFC 8785 restricted (contract §3.4) | new | 02 |
+| `control-plane/internal/hub/hubapi/envelope.go` | the brief-revision and audit-event envelopes; `ValidateContent` | new | 02 |
+| `control-plane/internal/hub/hubapi/types.go` | one struct per JSON object and request body of contract §7 | new | 03 |
+| `control-plane/internal/hub/hubclient/hubclient.go` | the consumer interfaces, `Error`, `ErrUnavailable`, `TokenSource` | new | 04 |
+| `control-plane/internal/hub/hubclient/fake*.go` | `NewFake()` — every observable rule of §7, in memory | new | 04, 05 |
+| `control-plane/internal/hub/hubclient/conformance/conformance.go` | one table-driven suite for the fake and the real Hub; rows grow per task | new | 05; rows 15–27, 34 |
+| `control-plane/internal/hub/hubclient/{client,transport,relay}.go` | the HTTP client, its retry/idempotency/refresh rules, the relay rule (contract §4.3) | new | 33 |
+| `control-plane/internal/hub/hubclient/methods_*.go` | every interface method over HTTP, with the digest re-check | new | 34 |
+| `control-plane/internal/hub/migrate/{migrate.go,roles.sql,roles_local.sql}` | the runner under an advisory lock; the per-environment roles | new | 06 |
+| `control-plane/internal/hub/hubtest/hubtest.go` | integration harness: a scratch database per test, migrated, torn down | new | 06 |
+| `control-plane/internal/hub/migrate/sql/0001_init.sql` | the complete first schema, guards, RLS, owner functions, grants | new | 07 |
+| `control-plane/cmd/hub/{main,config,serve,verify}.go` | `hub serve`, `hub migrate`, `hub verify`; one config block | new | 08; `verify.go` extended 20, 27 |
+| `control-plane/internal/hub/server/server.go` | mux, middleware chain, `/healthz`, `/readyz`, 404/405, headers, request logging | new | 08 |
+| `control-plane/internal/hub/boundary_test.go` | the import boundary (ADR-H1 §4.1, contract §2) | new | 08; extended 11 |
+| `control-plane/cmd/hub/{compose.yaml,devstack.sh,README.md}` | the local stack: Postgres in Docker, the two binaries on the host (correction A2) | new | 09 |
+| `control-plane/internal/entra/*` | Entra access-token validation — **phase 8 task 16's files**; written here only if that task has not landed | new | 10 |
+| `control-plane/internal/devissuer/*` | the local OIDC issuer, as a package (correction A5) | new | 11, 12 |
+| `control-plane/cmd/devissuer/{main.go,dev-tenant.json}` | its `main`, and the fictional tenant | new | 11 |
+| `control-plane/internal/hub/server/{auth,ratelimit}.go` | Origin refusal, rate limits, token validation, principal resolution (contract §5.1) | new | 13 |
+| `control-plane/internal/hub/store/{store,orgs}.go` | the pool, the per-request transaction, org enrolment at start | new | 13 |
+| `control-plane/internal/hub/server/tx.go`, `store/{audit,idempotency}.go` | the one write-transaction shape (contract §10.6): audit lock, chain, idempotency | new | 14 |
+| `control-plane/internal/hub/server/{me,teams}.go`, `store/teams.go` | `/v1/me`, teams, members | new | 15 |
+| `control-plane/internal/hub/server/invites.go`, `store/invites.go` | invites and their binding | new | 16 |
+| `control-plane/internal/hub/server/matrix_integration_test.go` | the authorisation matrix (contract §5.3), every route × every principal | new | 16; rows 17–27 |
+| `control-plane/internal/hub/server/projects.go`, `store/projects.go` | projects and remotes | new | 17 |
+| `control-plane/internal/hub/server/briefs.go`, `store/briefs.go` | brief heads | new | 18 |
+| `control-plane/internal/hub/server/revisions.go`, `store/revisions.go` | the batch revision write and history | new | 19 |
+| `control-plane/internal/hub/server/refs.go`, `store/refs.go` | `/v1/refs` | new | 20; design half 22 |
+| `control-plane/internal/hub/blobstore/blobstore.go`, `server/blobs.go`, `store/blobs.go` | content-addressed blobs in Postgres behind an interface (G2) | new | 21 |
+| `control-plane/internal/hub/server/{approvals,sessionlinks}.go`, `store/{approvals,sessionlinks}.go` | design approvals and session links | new | 22 |
+| `control-plane/internal/hub/server/releases.go`, `store/releases.go` | reserve, confirm, abandon, the deployment join (G1) | new | 23, 24 |
+| `control-plane/internal/hub/server/janitor.go` | expiry, blob collection, idempotency cleanup, under an advisory lock | new | 24 |
+| `control-plane/internal/hub/server/evidence.go`, `store/evidence.go` | phase 3's evidence (H-2) | new | 25 |
+| `control-plane/internal/hub/server/changes.go`, `store/changes.go` | the change feed (G3) | new | 26 |
+| `control-plane/internal/hub/server/{audit,erase}.go`, `store/erase.go` | the audit route, erasure (G6) | new | 27 |
+| `control-plane/go.mod`, `go.sum` ⚑ | `pgx/v5 v5.7.5`; `x/time`, `x/sys` direct | modified | 06 (pgx), 13 (`x/time`), 28 (`x/sys`) |
+
+### The control plane — `control-plane/cmd/api`, `control-plane/internal/...`
+
+| Path | Responsibility | Status | Task |
+|---|---|---|---|
+| `control-plane/internal/credstore/{secrets,memory,chunk,targets}.go` | `Secrets`, the in-memory store, chunking, the target-name grammar | new | 28 |
+| `control-plane/internal/credstore/wincred_windows.go`, `wincred_other.go` | Windows Credential Manager over `advapi32.dll`; the non-Windows stub | new | 28 |
+| `control-plane/internal/credstore/credstore.go` ⚑ | **phase 3 task 13's file** (`Host`, `Credential`, `Store`, `None`, `Chain`); written here verbatim only if absent | new | 29 |
+| `control-plane/internal/credstore/{local,panacea}.go` | `Local` (GitHub) and `PanaceaTokens` over `Secrets` | new | 29 |
+| `control-plane/internal/entraauth/{oidc,pkce,listener,signin}.go` | discovery, PKCE, the one-shot listener, the code exchange | new | 30 |
+| `control-plane/internal/entraauth/{tokens,account,devops}.go` | `TokenSource`, refresh, rotation, sign-out, start-up; the Azure DevOps adapter | new | 31 |
+| `control-plane/internal/httpx/problem.go` ⚑ | four codes: `signed_out`, `hub_not_configured`, `local_key_required`, and `upstream_unavailable` if R4 has not landed | modified | 32 |
+| `control-plane/internal/api/auth.go` | `/v1/auth/*` | new | 32 |
+| `control-plane/internal/api/api.go` ⚑ | `Deps` fields; registrations; the local-key wrap | modified | 32, 35, 36, 37, 39 |
+| `control-plane/internal/api/routes_audit_test.go` ⚑ | new `GET`s in `catalogReadOnlyRoutes` | modified | 32, 35, 36, 39 |
+| `control-plane/cmd/api/{config,main}.go` ⚑ | the new variables; wiring | modified | 32, 35, 36, 37 |
+| `control-plane/internal/hublink/hublink.go`, `internal/api/hublink.go` | local project → Hub project; the share routes | new | 35 |
+| `control-plane/internal/hubfeed/poller.go`, `internal/api/hubchanges.go` | the change-feed poll and the cursor header | new | 36 |
+| `control-plane/internal/httpx/origin.go` ⚑ | expose `Panacea-Hub-Cursor`; allow the `Authorization` header (A4) | modified | 36, 37 |
+| `control-plane/internal/localkey/localkey.go` | the local caller key: mint, write, compare | new | 37 |
+| `control-plane/internal/api/credentials.go` | the write-only credential routes (A8) | new | 39 |
+
+### The desktop — `desktop/`
+
+| Path | Responsibility | Status | Task |
+|---|---|---|---|
+| `desktop/src-tauri/src/lib.rs` ⚑ | `local_key` command | modified | 38 |
+| `desktop/src/api/localKey.ts` | fetch the key once, hold it in memory | new | 38 |
+| `desktop/src/api/client.ts` ⚑ | the key on every call; auth, hub-link, credential and change functions; new codes | modified | 38, 40 |
+| `desktop/src/api/hubFeed.ts` | the one feed reader and its subscriber registry | new | 40 |
+| `desktop/src/api/poller.ts` ⚑ | reads the cursor off the sessions poll | modified | 40 |
+| `desktop/src/store/slices/authSlice.ts`, `store/store.ts` ⚑, `store/types.ts` ⚑ | sign-in state, never persisted | new, modified | 40 |
+| `desktop/src/components/rail/{RailFooter,AccountControl}.tsx`, `rail.css` ⚑ | the sign-in surface | modified, new | 41 |
+| `desktop/src/components/share/{SharePopover.tsx,share.css}`, `rail/ProjectRow.tsx` ⚑ | share a project with a team | new, modified | 42 |
+
+### Proof and documents
+
+| Path | Responsibility | Status | Task |
+|---|---|---|---|
+| `control-plane/internal/hub/e2e_integration_test.go` | sign-in through `devissuer`, then every consumer interface against the real Hub | new | 43 |
+| `docs/verification/2026-09-23-phase-h-results.md` | what was run, what was observed, what stays unverified | new | 43 |
+| `docs/PROGRAM.md`, `docs/superpowers/contracts/2026-09-23-hub-contract.md`, `…/2026-09-18-phase-2-ui-contract.md` | the amendments ADR-H1 §7.2 names, and A1–A8 folded into the contract | modified | 44 |
+
+---
+
+## Tasks
+
+Each task has its part file, `docs/superpowers/plans/2026-09-23-phase-h-hub-parts/task-NN.md`, and
+each is sized for one implementer in **1–3 hours**. Hours assume the implementer has read ADR-H1,
+the contract, and the part; they are the plan's estimate, not a measurement. Contract task ids
+(H0–H7, C1–C4) are given so the two documents can be read side by side.
+
+### The minimum Hub first — and where each sibling phase can start
+
+The minimum is what phases 4, 5 and 7 need to **integrate against a real Hub**, and nothing else.
+It is tasks **01–24** on the server and **28, 30–35, 37, 38** on the client — 33 of the 44 tasks,
+35 with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it:
+
+| Start line | After | Who can start | What they can do |
+|---|---|---|---|
+| **S0 — code against the fake** | 01–05 (≈ 13 h) | phases **3, 4, 5, 7** | build every Hub-backed handler against `hubclient`'s interfaces and `hubclient.NewFake()`, and run `hubclient/conformance` against the fake. Nothing below S0 changes an interface they code to |
+| **S4 — phase 4 integrates** | 06–20 (server), 28, 30–34 partial, 35 (client) | phase **4** | point its `discoverstore` Hub implementation at the local stack: create briefs, write revisions, resolve keys, with a real sign-in through `devissuer` |
+| **S5 — phase 5 integrates** | S4 + 21–22 | phase **5** | upload snapshots, approve designs, write session links, resolve `design:` keys |
+| **S7 — phase 7 integrates** | S5 + 23–24, 29, 39 | phase **7** | reserve → deploy → confirm/abandon, rollback, the deployment join; its `pnc_` token in the credential store |
+| S3 — phase 3's shared evidence | S4 + 25, 29, 31, 39 | phase **3** | `evidence.Store`'s Hub implementation (`Shared() == true`); push and PR with a token from the store (GitHub pasted; Azure DevOps from the Entra sign-in if Q5 is yes) |
+
+### The task list
+
+| # | Task | Contract id | Depends on | Hours | Min? |
+|---|---|---|---|---|---|
+| 01 | `ids.Wide`; `hubapi` codes, keys, digests, branch refs, repo keys | H0 | — | 2 | ✓ |
+| 02 | `hubapi.Canonical`, the envelopes, `ValidateContent`, the golden vectors | H0 | 01 | 2.5 | ✓ |
+| 03 | `hubapi` wire types for every object and request of §7 | H0 | 01 | 2.5 | ✓ |
+| 04 | `hubclient` interfaces, `Error`, `ErrUnavailable`; the fake, part 1 (projects, teams, briefs, refs) | H0 | 02, 03 | 3 | ✓ |
+| 05 | the fake, part 2 (designs, releases, evidence, feed); the conformance suite — **S0** | H0 | 04 | 3 | ✓ |
+| 06 | the migrate runner, `roles.sql`, the integration harness; `pgx` pinned | H0 | — | 3 | ✓ |
+| 07 | `sql/0001_init.sql` complete, with a database test for every guard | H0 | 06 | 3 | ✓ |
+| 08 | `cmd/hub`: config, `serve`, `migrate`, `verify` shell; the server chassis; the boundary test | H0 | 01, 06 | 3 | ✓ |
+| 09 | the local stack: Postgres-only compose, `devstack.sh`, the README (A2) | H0 | 07, 08, 12 | 2 | ✓ |
+| 10 | `internal/entra` — phase 8 task 16, verbatim, **only if it has not landed** | H1 | — | 3 (0 if landed) | ✓ |
+| 11 | `devissuer`, part 1: the package, config, discovery, JWKS, token minting; `cmd/devissuer` | H1 | — | 2.5 | ✓ |
+| 12 | `devissuer`, part 2: `/authorize`, `/token` (code + PKCE S256, rotating refresh) | H1 | 11 | 3 | ✓ |
+| 13 | the Hub's auth pipeline: Origin, rate limits, validation, principal, org enrolment (A7) | H1/H2 | 07, 08, 10 | 3 | ✓ |
+| 14 | the write transaction: audit lock, hash chain, idempotency (contract §10.6) | H2/H7 | 02, 13 | 3 | ✓ |
+| 15 | `/v1/me`, teams, members | H2 | 03, 14 | 3 | ✓ |
+| 16 | invites and binding; the authorisation matrix harness | H2 | 15 | 3 | ✓ |
+| 17 | projects and remotes (A1) | H3 | 16 | 2.5 | ✓ |
+| 18 | brief heads: create, list, for-branch, get, rebind, archive | H3 | 17 | 3 | ✓ |
+| 19 | the batch revision write and history | H3 | 18 | 3 | ✓ |
+| 20 | `/v1/refs`, brief half; `hub verify` re-checks revisions — **S4 (server side)** | H3 | 19 | 2.5 | ✓ |
+| 21 | blobs, behind `blobstore` (G2) | H4 | 17 | 3 | ✓ |
+| 22 | design approvals, session links, `/v1/refs` design half — **S5 (server side)** | H4 | 20, 21 | 3 | ✓ |
+| 23 | releases: reserve and the pin (G1); list and get | H5 | 22 | 3 | ✓ |
+| 24 | confirm, abandon, the deployment join; the janitor — **S7 (server side)** | H5 | 23 | 3 | ✓ |
+| 25 | evidence (H-2) | H6 | 20 | 1.5 | |
+| 26 | the change feed (G3) | H7 | 16 | 2 | |
+| 27 | the audit route, erasure (G6), the full `hub verify` | H7 | 26, 19 | 2.5 | |
+| 28 | `credstore`: `Secrets`, `Memory`, `WinCred` with chunking, target names | C1 | — | 3 | ✓ |
+| 29 | `credstore`: `Local` (GitHub), `PanaceaTokens`; phase 3's `credstore.go` if absent | C1 | 28 | 2 | S7 |
+| 30 | `entraauth`: discovery, PKCE, the one-shot listener, the exchange (A6) | C1 | 12, 28 | 3 | ✓ |
+| 31 | `entraauth`: `TokenSource`, refresh single-flight, rotation, sign-out, start-up; `DevOps` | C1 | 30 | 3 | ✓ |
+| 32 | the control plane's `/v1/auth/*`, its variables, its codes, the wiring | C1 | 31 | 2.5 | ✓ |
+| 33 | `hubclient` over HTTP: transport, retries, idempotency, refresh, the relay rule | C2 | 04 | 3 | ✓ |
+| 34 | `hubclient` methods, the digest re-check, conformance against the real Hub | C2 | 33, 20 (rows grow with 22–27) | 3 | ✓ |
+| 35 | `hublink`: local project → Hub project; the share routes | C2 | 32, 34 | 3 | ✓ |
+| 36 | the change-feed poller, `/v1/hub/changes`, the cursor header | C2 | 26, 35 | 2 | |
+| 37 | the local caller key, control-plane side (A3, A4) | C3 | 32 | 2 | ✓ |
+| 38 | the local caller key, desktop side | C3 | 37 | 2 | ✓ |
+| 39 | the credential routes: GitHub and Panacea tokens (A8) | C1 | 29, 37 | 2 | S7 |
+| 40 | the desktop's auth, share and feed client; `authSlice`; `hubFeed` | C4 | 36, 38, 39 | 3 | |
+| 41 | the sign-in surface in the rail footer — **UI** | C4 | 40 | 3 | |
+| 42 | share a project with a team — **UI** | C4 | 40, 41 | 3 | |
+| 43 | end-to-end proof through `devissuer`; the real-tenant checklist; the results record | all | 01–42 | 3 | |
+| 44 | the document amendments; A1–A8 folded into the contract; the seams handed over | — | 43 | 1.5 | |
+
+Totals: server 01–27 ≈ 73.5 h; client and desktop 28–42 ≈ 39.5 h; proof and documents 4.5 h;
+**≈ 117.5 engineer-hours**, against ADR-H1's 16 engineer-days (≈ 128 h). The difference is the
+ADR's day including review; this table is implementation time. The minimum (S7 reached) is
+tasks 01–24, 28–35, 37–39 ≈ 96 h: about **six working days for two engineers** — one on the server
+lane, one on identity then the client lane.
 
