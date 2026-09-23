@@ -75,7 +75,10 @@ export type StreamState = "connecting" | "open" | "reconnecting" | "closed";
 export interface EventStreamOptions {
   baseUrl: string; fetch: typeof globalThis.fetch; windowId: string;
   localKey: LocalKeySource;  // REQUIRED (Hub plan task 38): get() before every connect; a 401
-                             // local_key_required → refresh() and reconnect ONCE; a second → "closed"
+                             // local_key_required → refresh() and reconnect ONCE; a second
+                             // CONSECUTIVE 401 → "closed". The allowance resets to one on every
+                             // connect that answers 200, so a window outlives any number of
+                             // control-plane restarts (re-review M-1)
   onCanvas(e: CanvasEvent): void;
   onRender(r: RenderRequest): void;
   onGone(g: { topic: string; code: string }): void;
@@ -141,7 +144,7 @@ export function selectHiddenRendererCanvases(s: CockpitState): string[];
 | `events.test.ts › reconnect` (fake timers) | a drop reconnects after 0.5 s, then 1 s …; the second request's URL carries `@<last revision>` | reconnect replaying from zero, or never |
 | `events.test.ts › noInterval` | the module never calls `setInterval` (spy) | a second clock (G10) |
 | `events.test.ts › topicsReplace` | changing the topic set opens one new request and aborts the old | two streams per window |
-| `events.test.ts › authHeader` | the first connect and every reconnect carry `Authorization: Bearer <localKey.get()>`; a 401 `local_key_required` → `refresh()` once and a reconnect with the new key; a second 401 → state `closed` and `onGone` with code `local_key_required`, no further request | a stream the local key refuses; a restart that leaves the window deaf; an infinite retry |
+| `events.test.ts › authHeader` | the first connect and every reconnect carry `Authorization: Bearer <localKey.get()>`; a 401 `local_key_required` → `refresh()` once and a reconnect with the new key; a second consecutive 401 → state `closed` and `onGone` with code `local_key_required`, no further request; and the sequence 401 → `refresh()` → 200, the connection dropped, 401 → `refresh()` → 200 again ends `open` with `refresh()` called twice (the allowance reset by the 200, re-review M-1) | a stream the local key refuses; a restart that leaves the window deaf, including the second restart in one window's life; an infinite retry |
 | `design.test.ts › localKeyRequired` | `createDesignClient` without `localKey` throws; with it, every method's request carries the header (one assertion per method, the same table as the row below) | a design client that silently calls keyless and gets 401 on every route (review C1) |
 | `design.test.ts` (one row per method) | method, path and body; an error body becomes `ApiError` with its code | a route typo found only in the lens |
 | `designSlice.test.ts › undoWindow` (fake timers) | `designApprove` sends nothing for 5 s; `designCancelApproval` in that window sends nothing ever; after 5 s exactly one POST | an approval sent before Undo can stop it (P5-I) |

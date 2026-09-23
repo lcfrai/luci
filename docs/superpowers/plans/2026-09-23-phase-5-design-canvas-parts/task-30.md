@@ -61,21 +61,42 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
    `<id>` the canvas just created, `e2e_test.go` runs, through `docker exec <sandbox>`, each of:
 
    ```bash
-   curl -s -o /tmp/probe.body -w "%{http_code}" -H "Host: 127.0.0.1:<port>" \
+   curl -s --connect-timeout 3 --max-time 5 -o /tmp/probe.body -w "%{http_code}" -H "Host: 127.0.0.1:<port>" \
      -X POST http://host.docker.internal:<port>/v1/design/canvases/<id>/approvals -d '{"revision":1}'
-   curl -s -o /tmp/probe.body -w "%{http_code}" -H "Host: 127.0.0.1:<port>" \
+   curl -s --connect-timeout 3 --max-time 5 -o /tmp/probe.body -w "%{http_code}" -H "Host: 127.0.0.1:<port>" \
      -X POST http://host.docker.internal:<port>/v1/design/canvases/<id>/ops -d '{"ops":[],"label":"x","ifRevision":0}'
-   curl -s -o /tmp/probe.body -w "%{http_code}" -H "Host: 127.0.0.1:<port>" \
+   curl -s --connect-timeout 3 --max-time 5 -o /tmp/probe.body -w "%{http_code}" -H "Host: 127.0.0.1:<port>" \
      "http://host.docker.internal:<port>/v1/events?window=wn-000000000000"
    ```
 
-   No `Origin`, a spoofed `Host`, no key — exactly the review's failure scenario. Assert, for each:
-   **either** the connection is refused or times out (the host's loopback is not reachable from the
-   sandbox), **or** the status is `401` and the body's code is `local_key_required`. Any other
-   answer fails the test. Then, from the host **with** the key, assert the canvas's revision did not
-   move and route 22 is not `approved`. The report records which of the two it was — **whether the
-   host was reachable at all** from this fleet's Docker Desktop is the fact the review left
-   unverified. If it was not reachable, the test also sends the same three requests keyless from
+   Every call is bounded (re-review M-2): `--connect-timeout 3` for a host that drops packets, and
+   `--max-time 5` because a route 20 with no guard would open a live SSE stream and hang the e2e
+   until `go test` times out — past the agents' 180-second watchdog — instead of failing it. The
+   test runs each `docker exec` under a 15-second `context.WithTimeout` as well, and reads curl's
+   **own exit code** (from `docker exec`'s exit status, never through a pipe) with the body.
+
+   No `Origin`, a spoofed `Host`, no key — exactly the review's failure scenario. Classify each call
+   by curl's exit code, never by the `%{http_code}` text alone (curl prints `000` for every
+   no-answer case):
+   - **6** (`host.docker.internal` does not resolve), **7** (connection refused), or **28** (timed
+     out) with `%{http_code}` = `000` → *unreachable*: no response line ever arrived, so the host's
+     loopback is not reachable from the sandbox;
+   - **28 with any other `%{http_code}`** → **fail**: the host answered with a status and then held
+     the connection open — that is route 20 streaming to a keyless caller (its headers can arrive
+     with no body byte yet, so the body file is not the signal);
+   - **0** → the status must be `401` and the body's code `local_key_required`;
+   - any other exit code, or any other status → **fail**.
+
+   **Positive control, first** (the classifier must be able to see a live stream): the host runs
+   the same route 20 `curl`, with both timeouts, **with** the key against `127.0.0.1:<port>`, and
+   asserts exit code 28 with `%{http_code}` = `200`. That curl reports the received status on a
+   `--max-time` exit is unverified here; this control is what verifies it, and if it does not
+   hold, the classification above is wrong and the test fails rather than passing on `000`.
+
+   Then, from the host **with** the key, assert the canvas's revision did not
+   move and route 22 is not `approved`. The report records, per call, curl's exit code, the status
+   and which class it fell in — **whether the host was reachable at all** from this fleet's Docker
+   Desktop is the fact the review left unverified. If it was not reachable, the test also sends the same three requests keyless from
    the host itself and asserts each is `401 local_key_required`, so the key is proven either way.
 2. **Hub end to end** (when Hub H4 has landed): `docker compose -f control-plane/cmd/hub/compose.yaml up`,
    sign in through `devissuer`, bind the fixture project (phase 4), write a complete brief (phase 4),

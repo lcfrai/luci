@@ -19,6 +19,8 @@ UI contract §10.5). It also wires the whole canvas stack into `cmd/api/main.go`
 - `control-plane/internal/api/api.go` — `Deps.Design RouteMounter`; in `New`, after the Discover mount: `if d.Design != nil { d.Design.Mount(guarded.Handle) }`
 - `control-plane/internal/api/routes_audit_test.go` — the GET routes in `catalogReadOnlyRoutes`
 - `control-plane/cmd/api/config.go`, `main.go` — two variables; the wiring
+- `control-plane/cmd/api/design.go`, `design_test.go` (new) — `newDesignAPI`, the one builder
+  `main.go` uses, so the `KeyGuard` it passes is testable without `api.New`'s outer wrap (re-review I-2)
 
 If phase 4's task 10 has not landed, this task declares `RouteMounter` in `api` **exactly as phase 4
 writes it** (`interface { Mount(handle func(pattern string, h http.Handler)) }`) and adds the
@@ -186,7 +188,7 @@ type Config struct {
 	Identity  func(ctx context.Context) (displayName string) // the Hub's signed-in name, or "You"
 	Log       *slog.Logger
 
-	// KeyGuard is REQUIRED (review C1). main.go passes
+	// KeyGuard is REQUIRED (review C1). main.go's newDesignAPI (below) passes
 	//   func(h http.Handler) http.Handler { return localkey.Middleware(key, localkey.Exempt, h) }
 	// with the key localkey.Mint returned at start (Hub plan task 37). Mount wraps
 	// EVERY design handler in it — routes 1–27, tasks 21, 22 and 29's included — so a
@@ -217,9 +219,18 @@ func (a *API) Mount(handle func(pattern string, h http.Handler)) // api.RouteMou
 `mcp.NewServer(info, mcp.Instructions, []string{"127.0.0.1:8731", "localhost:8731"}, log)` →
 `mcp.RegisterAll(server, mcp.Deps{Authority, Briefs: designapi.BriefsPort(briefs), Approvals: …})`
 → `mcprelay.NewSupervisor{Sessions: store, Handler: server.Handler(), Release: auth.ReleaseSession}`
-run under the process context → `designapi.New(…)` with `KeyGuard` built from the key `main.go`
-already mints for `api.Deps.LocalKey` (Hub task 37; one key, one `Mint` call) into `api.Deps.Design`, and
+run under the process context → `newDesignAPI(cfg, key, deps)` into `api.Deps.Design`, and
 `api.Deps.CanvasMCP = cfg.CanvasMCP`. Shutdown closes the supervisor, then the authority.
+
+`newDesignAPI(cfg Config, key localkey.Key, deps designDeps) (*designapi.API, error)` (in
+`control-plane/cmd/api/design.go`) is the ONLY place `main.go` builds the design API (re-review
+I-2). It calls `designapi.New` with `KeyGuard` built from `key` — the key `main.go` already mints
+for `api.Deps.LocalKey` (Hub task 37; one key, one `Mint` call) — and returns its result unchanged.
+It exists so a test can check the guard `main.go` really passes without `api.New`'s outer wrap
+(Hub task 37, `.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub-parts/task-37.md:70`,
+wraps the whole guarded mux in `localkey.Middleware`). Through the
+real process that outer wrap answers 401 even when `KeyGuard` is the identity function, so no test
+over the process can tell the two apart.
 
 ## Tests first
 
@@ -237,10 +248,11 @@ already mints for `api.Deps.LocalKey` (Hub task 37; one key, one `Mint` call) in
 | `TestEvents_phantomRenderer` | a renderer topic that answers nothing: after two timeouts it gets `gone` and requests go elsewhere | a stale window starving agents |
 | `TestNew_refusesNoKeyGuard` | `New(Config{…everything but KeyGuard})` → `ErrNoKeyGuard`, no `*API` | the guard made optional again (review C1) |
 | `TestRoutes_localKeyRequired` (table, one row per route class: 5 human ops, 8 revert, 9 break claim, 17 selection, 19 render result, 20 the stream) | through `Mount` with a real `localkey.Middleware` over a key minted into `t.TempDir()`: no `Authorization` → 401 `local_key_required` and **the authority unchanged** (revision, claims, selection, pending render requests all as before); `Bearer <wrong key>` → the same; `Authorization: Bearer ` (empty) → the same (plan HA5-6); the right key → not 401. Requests carry **no `Origin`** and `Host: 127.0.0.1:8730` — exactly what a sandboxed `curl` sends | a sandbox editing as `human`, reverting another agent, breaking claims, forging the selection, answering screenshot requests, or reading the stream (review C1) |
-| `TestMount_wrapsEveryRoute` | walks every pattern `Mount` hands to `handle` (a recording `handle`) and sends each one keyless → 401; the count equals the route table's (20 here; tasks 21, 22 and 29 raise it to 27, and each extends this test) | one route mounted without the wrap |
+| `TestMount_wrapsEveryRoute` | walks every pattern `Mount` hands to `handle` (a recording `handle`) and sends each one keyless → 401; the count equals the route table's (20 here; task 21 raises it to 23, task 22 to 26 and task 29 to 27, and each of those parts carries its own row extending this test) | one route mounted without the wrap |
 | `TestBriefsPort_stub` | the stub answers `unavailable` with its sentence | a nil port panicking before phase 4 |
 | `TestConfig_canvasVars` | `PANACEA_APP_CANVAS_MCP=maybe` exits with a message; `off` sets `CanvasMCP` false; a relative `PANACEA_APP_CANVAS_DIR` exits | a silently ignored variable |
-| `TestMain_wiring` (the `main_test.go` pattern) | the process starts with a temp state dir and serves route 1 **with** the key read from `PANACEA_APP_LOCAL_KEY_FILE`; route 1 and route 5 **without** it, and with `Bearer ` (empty), → 401 `local_key_required` | a stack that compiles but is never mounted; `main.go` passing an identity `KeyGuard` |
+| `TestMain_wiring` (the `main_test.go` pattern) | the process starts with a temp state dir and serves route 1 **with** the key read from `PANACEA_APP_LOCAL_KEY_FILE`; route 1 and route 5 **without** it, and with `Bearer ` (empty), → 401 `local_key_required` | a stack that compiles but is never mounted (it cannot kill an identity `KeyGuard`: `api.New`'s outer `localkey.Middleware` answers 401 first — re-review I-2) |
+| `TestNewDesignAPI_guardsBareMux` (`control-plane/cmd/api/design_test.go`) | `newDesignAPI` with a key minted into `t.TempDir()` and fake deps; its result mounted with `Mount(mux.Handle)` on a bare `http.ServeMux` — **no `api.New`, no outer wrap**; route 5 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required` and the authority unchanged; `Bearer ` (empty) → the same; the right key → not 401 | `main.go` (through `newDesignAPI`) passing an identity `KeyGuard`, or a guard over some other key (re-review I-2) |
 
 ## Steps
 

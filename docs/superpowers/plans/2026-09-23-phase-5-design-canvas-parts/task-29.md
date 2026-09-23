@@ -57,6 +57,8 @@ more"*. The full report opens from the toast.
 |---|---|---|
 | `paste.go › sameAsWriteHTML` | the route's result for `testdata/card.html` equals `write_html`'s for the same fragment (nodes, ignoring ids) | a second, weaker sanitiser path for humans |
 | `paste.go › rejected` | `<script>x</script>` → 422 with the report | an empty success |
+| `paste.go › localKeyRequired` | through `Mount` with a real `localkey.Middleware` (task 20's harness): route 27 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required` and **the authority unchanged** (revision and node count as before); `Bearer <wrong key>` and `Bearer ` (empty) → the same; the right key → not 401 | a sandbox pasting into the canvas as `human` over REST (review C1, re-review M-3) |
+| `TestMount_wrapsEveryRoute` (task 20's test, extended) | the count of mounted design routes is now **27** (route 27 added); each answers 401 `local_key_required` with no key | a new route mounted around the guard (re-review M-3) |
 | `paste.test.ts › precedence` | a DataTransfer holding a PNG file and text/html plans `image` | a screenshot pasted as its HTML wrapper |
 | `paste.test.ts › noDomParse` | `planPaste` returns the HTML string untouched; nothing in `paste.ts` touches `DOMParser` or `innerHTML` | the desktop parsing pasted HTML (G7) |
 | `paste.test.ts › target` | each rule of `pasteTarget`, including the new-artboard case | paste doing nothing on an empty canvas |
