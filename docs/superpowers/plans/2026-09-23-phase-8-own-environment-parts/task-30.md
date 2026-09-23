@@ -26,6 +26,7 @@ The plan's "Deploy identities" table lists every principal, what it holds and at
 - `infra/terraform/stacks/foundation/{main,variables,outputs}.tf` and both tfvars — the `ci_pool` module call (modify, after task 07)
 - `pipelines/infra-plan.yml`, `pipelines/deploy.yml` (new)
 - `pipelines/scripts/estate-guard.sh`, `estate-guard_test.sh` (new)
+- `pipelines/scripts/lib/where.sh` — `is_pipeline`, the one rule for "pipeline or workstation", sourced by `estate-guard.sh` and `tf-stack.sh` (plan re-review b03 I-2; new)
 - `pipelines/scripts/tf-stack.sh`, `tf-stack_test.sh` — init/plan/apply one stack with the partial backend; plan with `-lock=false`, init with `-lockfile=readonly`; **runs `estate-guard.sh` first on every subcommand and every path**, pipeline or workstation (review I3; new)
 - `infra/rbac/cluster-deployer.json`, `infra/rbac/sandboxes-deployer.json` — the cluster identity's two custom role definitions, which the owner creates (review I8; new)
 - `infra/rbac/plan-reader.json` — the plan identity's custom role, `panacea-app-plan-reader`, which the owner creates (plan re-review M-2; new)
@@ -117,13 +118,18 @@ nothing to that path and must not add a public IP of its own.
 # pipelines/scripts/estate-guard.sh <environment> <plan|deploy> [<stack>…]
 # Called by tf-stack.sh before every subcommand, by grant-pipeline-roles.sh, by deploy's
 # guard stage, and first in every workstation section of the task 31 runbook (review I3).
-# A pipeline is TF_BUILD=True (set by ADO on every job, training knowledge, UNVERIFIED);
-# anything else is a workstation.
+# WHICH PATH (plan re-review b03 I-2: an error must land on the STRICTER path). The job is a
+# pipeline if TF_BUILD=True OR any of BUILD_SOURCEBRANCH, SYSTEM_JOBID, AGENT_ID is set and
+# non-empty (ADO sets all four on every job, training knowledge, UNVERIFIED). It is a
+# workstation only when ALL FOUR are unset or empty. On the pipeline path an empty
+# BUILD_SOURCEBRANCH is a refusal, never "no branch". The one function that decides this,
+# `is_pipeline`, lives in pipelines/scripts/lib/where.sh, which tf-stack.sh sources too, so the
+# two scripts cannot disagree about which path a job is on.
 # Refuses (exit 1, one sentence) unless ALL hold:
 #   - <environment> is dev or prod
 #   - ARM_SUBSCRIPTION_ID is set and non-empty (azurerm 4.x targets it; nothing falls back
 #     to whatever `az` has selected)
-#   - THE POSITIVE FINGERPRINT, on every path: the subscription ARM_SUBSCRIPTION_ID names
+#   - THE POSITIVE FINGERPRINT, on both of the guard's paths: the subscription ARM_SUBSCRIPTION_ID names
 #     carries the tag panacea-app-estate=<environment>, which the owner sets at handover
 #     (task 31 §1). Read with
 #       az rest --method get --url "https://management.azure.com/subscriptions/$ARM_SUBSCRIPTION_ID?api-version=2022-12-01" --query 'tags."panacea-app-estate"' -o tsv
@@ -140,7 +146,10 @@ nothing to that path and must not add a public IP of its own.
 #      and the plan connection can only read — review C3; a workstation has no branch, and
 #      its bound is the operator's own rights plus the fingerprint)
 #   - infra/terraform/stacks/<stack>/<environment>.tfvars exists for every stack named
-#     (default: the pipeline's `stacks` parameter)
+#     (default in a pipeline: the pipeline's `stacks` parameter; on a workstation with no
+#     stack named — the runbook's section-start call, grant-pipeline-roles.sh — the rule checks
+#     nothing, and an unset list is not an error under `set -u`; tf-stack.sh always names its
+#     stack, so the stack-bearing call is checked — plan re-review b03 M-1)
 #   - no infra/terraform/**/terraform.tfvars exists (guard G1, again, at the last moment)
 #   - every provider source is allowlisted (guard G9, again, at the last moment)
 #   - pipeline, deploy only: every consumed pipeline resource (the infra-plan run, the images run)
@@ -183,7 +192,8 @@ registered**; `pool: name: $(PANACEA_APP_CI_POOL)` (the Managed DevOps Pool); pa
 `environment` (`dev`|`prod`) and `stacks`. The default is `foundation`, `data` and `workloads`, in
 order. `bootstrap` is operator-run (task 31 §2). `identity` is **owner-run only** (task 09): the
 plan identity holds no Microsoft Graph permission, so it cannot refresh that stack's Entra
-objects. In a pipeline (`TF_BUILD=True`) `tf-stack.sh` refuses either name. On a workstation it
+objects. In a pipeline (`is_pipeline`, the estate guard's rule: `TF_BUILD=True` or any ADO agent
+variable set) `tf-stack.sh` refuses either name. On a workstation it
 refuses `bootstrap` (local state, task 31 §2, which runs the guard itself) and runs `identity` for
 the owner, after the guard like every other path, so the owner's own identity run is fingerprinted
 too (review I3). Steps: tools → the estate guard → per stack,
@@ -200,6 +210,12 @@ too (review I3). Steps: tools → the estate guard → per stack,
 - A plan made without the lock is still safe to apply. `terraform apply <planfile>` refuses a plan
   whose recorded state lineage or serial no longer matches (**from training knowledge,
   UNVERIFIED**). Task 31 §6 checks that refusal on purpose once.
+- **A workstation `apply <stack> <env>`** (the owner's `identity`, §4's workstation foundation
+  pass) applies the `<stack>.tfplan` that the same workstation's `tf-stack.sh plan <stack> <env>`
+  just wrote, and nothing else: it never re-plans, and never reads a pipeline artefact. No
+  `<stack>.tfplan` → exit 1 naming it, before `terraform apply` runs (plan re-review b03 M-2). The
+  24 h age rule of stage 3 is the pipeline's; on a workstation, the stale-plan refusal above is the
+  bound.
 
 **Authentication: the plan connection.** The `AzureCLI@2` task runs on
 `$(PANACEA_APP_<ENV>_PLAN_SERVICE_CONNECTION)` with `addSpnToEnvironment: true`. It exports
@@ -249,7 +265,15 @@ an environment ticks `applyStacks` alone, and charts wait for the database boots
 1. **guard** — the estate guard on the plan connection, including the consumed-resource rule:
    the `infra-plan` run and the `images` run must both come from an allowed branch. It runs again
    inside every `tf-stack.sh` call of stage 3, on the infra connection, so the fingerprint is
-   read by the identity that writes (review I3).
+   read by the identity that writes **Terraform** (review I3). **Residual, stated** (plan
+   re-review b03 M-3): the writers that are not Terraform never run the guard — stage 4 (Helm on
+   the cluster connection), stage 5, and `images.yml`'s `push` job (task 27). Their identities
+   hold nothing at subscription scope (the plan's "Deploy identities"), so they could not read the
+   tag. They rely on stage 1's read over the plan connection in the same run (the push job on
+   none), on branch control of their connections, and on their scopes: each holds roles only on
+   our cluster and our registry, both named from `stack-outputs` of our fingerprinted `foundation`
+   run, and an ACR login server is globally unique. "Every path" in this plan means every
+   Terraform path and every owner or operator workstation section, not these three.
 2. **approve** — an ADO **Environment** `panacea-app-<env>` with an approval check (the owner).
 3. **apply** — on `$(PANACEA_APP_<ENV>_INFRA_SERVICE_CONNECTION)`. Per stack,
    `tf-stack.sh apply <stack> <env>` applies **the saved plan artefact** from the consumed run and
@@ -323,8 +347,10 @@ change the check.
 #### Tests to write first
 
 `estate-guard_test.sh`. A stub `az` first on `PATH` answers the tag read and `az account show` from per-case fixtures;
-every case below not about the tag has the subscription tagged with its own environment, and
-every case not about the workstation sets `TF_BUILD=True`.
+every case below not about the tag has the subscription tagged with its own environment; every
+case not about the workstation or the discriminator sets `TF_BUILD=True` and `BUILD_SOURCEBRANCH`;
+and every "workstation" case unsets all four of `TF_BUILD`, `BUILD_SOURCEBRANCH`, `SYSTEM_JOBID`
+and `AGENT_ID`, so the runner's own environment cannot pick the path.
 
 | Case | Expect | Mutant it kills |
 |---|---|---|
@@ -332,8 +358,11 @@ every case not about the workstation sets `TF_BUILD=True`.
 | **dev on `refs/heads/dev`, matching subscription, no `panacea-app-estate` tag** | refused, naming the missing tag and the subscription's last 4 characters | a guard with no positive fingerprint, so a Panacea subscription whose id was copied into the variable passes (review I3) |
 | dev, subscription tagged `panacea-app-estate=prod` | refused, naming both values | a guard that checks only that the tag exists |
 | dev, the tag read fails (stub `az` exits 1, as on a 403) | refused, naming the failed read | a guard that treats an unreadable tag as absent and carries on, or skips the check when `az` fails |
-| workstation (`TF_BUILD` unset), `az account show` returns a different id from `ARM_SUBSCRIPTION_ID` | refused, naming both ids' last 4 characters | Terraform and the runbook's next `az` command aimed at different subscriptions |
+| workstation (all four ADO variables unset), `az account show` returns a different id from `ARM_SUBSCRIPTION_ID` | refused, naming both ids' last 4 characters | Terraform and the runbook's next `az` command aimed at different subscriptions |
 | workstation, `ARM_SUBSCRIPTION_ID` unset | refused | azurerm left to pick up whatever subscription the operator's `az` has selected |
+| workstation, `az account show` equals `ARM_SUBSCRIPTION_ID`, tagged `dev`, `dev deploy` with **no stack** | ok, and the line names `workstation` | a guard that refuses every workstation run (every other workstation case is a refusal), or a tfvars rule that exits 1 under `set -u` when no stack is named, which stops every runbook section (plan re-review b03 M-1) |
+| **`TF_BUILD` unset, `BUILD_SOURCEBRANCH=refs/heads/dev`**, deploy consuming an `infra-plan` run whose source branch is `refs/pull/12/merge` | refused, naming the resource and its branch | a discriminator on `TF_BUILD` alone, which sends a deploy job lacking it down the workstation path and skips the consumed-resource rule (plan re-review b03 I-2) |
+| `TF_BUILD` and `BUILD_SOURCEBRANCH` unset, `SYSTEM_JOBID` set, `dev deploy foundation` | refused, naming the empty source branch | a pipeline job with no branch treated as "no branch to check", or as a workstation |
 | prod on `refs/heads/dev` | refused, naming the branch | a feature branch deploying prod |
 | prod on `refs/heads/main`, subscription of dev | refused, naming both ids' last 4 characters only | the dev service connection pointed at prod (Panacea's same-AKS-name collision class) |
 | a stack missing `<env>.tfvars` | refused | a plan that silently falls back to defaults |
@@ -345,8 +374,8 @@ every case not about the workstation sets `TF_BUILD=True`.
 
 `tf-stack_test.sh` puts a stub `terraform` on `PATH` that records its arguments, and a stub
 `estate-guard.sh` (found through `PANACEA_APP_ESTATE_GUARD`, default the real script beside it)
-that records its arguments and exits with a per-case status. Cases run with `TF_BUILD=True`
-unless they say "workstation":
+that records its arguments and exits with a per-case status. Cases run with `TF_BUILD=True` and
+`BUILD_SOURCEBRANCH` set unless they say "workstation" (all four ADO variables unset):
 
 | Case | Expect | Mutant it kills |
 |---|---|---|
@@ -354,6 +383,9 @@ unless they say "workstation":
 | `apply foundation dev` | `apply` received no `-lock=false` | an apply that races another apply |
 | `plan identity dev`, `plan bootstrap dev` | exit 1, naming the stack as owner-run or operator-run | the identity stack reached from a pipeline (review I8) |
 | `plan foundation dev`, `apply foundation dev`, and workstation `plan foundation dev`, each with the guard stub exiting 1 | exit 1, and the `terraform` stub recorded **nothing** | the workstation path, or any subcommand, reaching `terraform` without the guard (review I3) |
+| workstation `apply foundation dev`, the guard stub exiting 1 | exit 1, and the `terraform` stub recorded **nothing** | a `tf-stack.sh` that guards workstation `plan` but not workstation `apply` — the owner's `apply identity` and §4's workstation foundation apply (plan re-review b03 M-2) |
+| workstation `apply foundation dev`, the guard stub exiting 0, `foundation.tfplan` present from the `plan` just run | `apply` received `foundation.tfplan` and no other plan source; with no `foundation.tfplan` → exit 1 naming it, `terraform` recorded no `apply` | a workstation apply that re-plans and applies unreviewed changes, or reaches for a pipeline artefact |
+| `TF_BUILD` unset, `AGENT_ID` set, `plan identity dev` | exit 1, naming the stack as owner-run | a `tf-stack.sh` with its own `TF_BUILD`-only test, which lets an agent job run the owner-only stack while the guard (via `where.sh`) calls it a pipeline (plan re-review b03 I-2) |
 | `apply foundation dev` with the guard stub exiting 0 | the guard received `dev deploy foundation`, before the first `terraform` call | the guard called in `plan` mode on the write path, which skips the branch and consumed-resource rules |
 | workstation `plan identity dev` | the guard received `dev plan identity`, then `init` and `plan` ran; workstation `plan bootstrap dev` still exits 1 | the owner's identity run left outside the guard, or bootstrap's local-state run forced through the partial backend |
 
@@ -461,7 +493,12 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
   Mutation checks for review I3, each verified applied and red: delete the tag comparison →
   the no-tag case; compare the tag's presence but not its value → the `prod`-tagged case; make a
   failed tag read fall through → the failed-read case; drop the guard call from `tf-stack.sh`'s
-  workstation branch only → the guard-first case's workstation row.
+  workstation branch only → the guard-first case's workstation row. For plan re-review b03:
+  guard workstation `plan` but not workstation `apply` → the workstation-apply guard row (M-2);
+  make `is_pipeline` test `TF_BUILD` alone → the `TF_BUILD`-unset consumed-resource case and
+  tf-stack's `AGENT_ID` case (I-2); treat an empty branch on the pipeline path as a pass → the
+  `SYSTEM_JOBID` case; make the tfvars rule `exit 1` on an empty stack list → the no-stack
+  workstation `ok` case (M-1).
 - [ ] **Step 3:** `infra/rbac/cluster-deployer.json`, `infra/rbac/sandboxes-deployer.json`,
   `infra/rbac/plan-reader.json`, `grant-pipeline-roles.sh` and its test, and
   `cluster-kinds_test.sh` (needs the charts of tasks 11–13, 26 and 29 to render).
@@ -471,8 +508,8 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
 
 ```bash
 bash infra/scripts/validate.sh infra/terraform/modules/ci-pool infra/terraform/stacks/foundation   # 2 ok
-bash pipelines/scripts/estate-guard_test.sh        # estate-guard_test: 14 of 14 passed
-bash pipelines/scripts/tf-stack_test.sh            # tf-stack_test: 6 of 6 passed
+bash pipelines/scripts/estate-guard_test.sh        # estate-guard_test: 17 of 17 passed
+bash pipelines/scripts/tf-stack_test.sh            # tf-stack_test: 9 of 9 passed
 bash infra/rbac/grant-pipeline-roles_test.sh       # grant-pipeline-roles_test: 6 of 6 passed
 bash pipelines/scripts/cluster-kinds_test.sh       # cluster-kinds: ok, the "can bind" line and the "sandboxes RBAC verbs" line
 bash pipelines/scripts/helm-values_test.sh         # helm-values_test: ok

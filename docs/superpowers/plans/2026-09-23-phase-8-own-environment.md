@@ -306,8 +306,8 @@ From survey §7 (`:519-557`). None is in source; each arrives as a pipeline vari
 
 | Input | Fills | Needed before |
 |---|---|---|
-| Subscription id, tenant id, region (recommended `australiaeast`, three zones) | `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`, `var.location` | first `plan` |
-| The tag `panacea-app-estate=<env>` on each handed-over subscription, set by the owner (task 31 §1) | nothing in code: the estate guard reads it on every path and refuses a subscription without it, so a Panacea subscription is never a target (task 30, review I3) | bootstrap (task 31 §2) |
+| **One subscription per environment** (dev and prod never share one: a subscription carries one `panacea-app-estate` value, so a shared one can never pass the prod guard, plan re-review b03 M-6), each with its id, tenant id and region (recommended `australiaeast`, three zones) | `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`, `var.location`; `PANACEA_APP_<ENV>_SUBSCRIPTION_ID` | first `plan` |
+| The tag `panacea-app-estate=<env>` on each handed-over subscription, set by the owner (task 31 §1) | nothing in code: the estate guard reads it on every Terraform path and every workstation section, and refuses a subscription without it, so a Panacea subscription is never a Terraform target (task 30, review I3). Stages 4–5 and the image push do not read it; they rely on stage 1's read and their resource-scoped roles (task 30's stated residual, plan re-review b03 M-3) | bootstrap (task 31 §2) |
 | Kata vCPU quota: max sandbox nodes × 8 for `Standard_D8s_v5`, plus system and apps pools | `var.sandbox_pool.max_count`, `var.apps_pool` | first `apply` |
 | **Four pipeline identities per environment** (plan, infra, cluster, push), created first with no role (task 31 §1a), outside `rg-panacea-app-<env>`, then each granted exactly its row of "Deploy identities" below as its scopes come to exist (§2a, §4a). The infra identity's role-assignment right is **scoped by an ABAC condition** to the five roles task 10 names for it, and excludes its own object id as a principal | `TF_VAR_state_writer_object_ids`, `TF_VAR_state_reader_object_ids` (task 02); `PANACEA_APP_<ENV>_CLUSTER_PRINCIPAL_OBJECT_ID`, `PANACEA_APP_<ENV>_PUSH_PRINCIPAL_OBJECT_ID` for the owner's `grant-pipeline-roles.sh` (task 30) | bootstrap (task 31 §2) |
 | The three custom role definitions, `panacea-app-cluster-deployer`, `panacea-app-sandboxes-deployer` and `panacea-app-plan-reader`, created from `infra/rbac/*.json` (task 30). No pipeline identity can write role definitions | the role names `grant-pipeline-roles.sh` assigns, and the plan identity's third role | task 31 §2a |
@@ -437,7 +437,8 @@ deploy/tests/netpolcover/     cross-chart render test: no workload sealed by def
 deploy/charts/broker/         broker Deployment, SA, Role in panacea-sandboxes, HTTPRoute, PDB     29
 deploy/charts/hub/            Hub Deployment, migrate Job, SA (WI), HTTPRoute, PDB (contract §12)  29
 deploy/sql/hub-principals.sql.tpl   the Hub identities as Postgres principals, bound by object id  29
-pipelines/scripts/render-sql.sh     fills the SQL template; refuses an unfilled placeholder        29
+pipelines/scripts/render-sql.sh     fills the SQL template from workloads outputs; refuses a gap   29
+pipelines/scripts/lib/where.sh      is_pipeline: one pipeline-or-workstation rule for two scripts  30
 deploy/values/{dev,prod}/*.yaml     per-environment values; ids injected by the pipeline           29
 control-plane/internal/sandbox/manager.go      config, hardening, token Secret, machine mounts     14, 15
 control-plane/internal/sandbox/machine.go      a machine's disk, token, pod and PDB                19

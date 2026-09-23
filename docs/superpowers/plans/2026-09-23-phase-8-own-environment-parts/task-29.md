@@ -174,7 +174,8 @@ hook policy above, not by this one — `netpolcover`'s `hook_pods_are_allowed_be
 -- 1. The Hub's own roles.sql, once per environment (Hub contract §10.1): the same person runs
 --    control-plane/internal/hub/migrate/roles.sql first, in database `hub`. The contract's file
 --    is a bare `CREATE ROLE`, which errors on a second run; ask HC-1 (task 33) makes it
---    idempotent. Until the Hub answers, task 31 §7 runs it only when neither role exists.
+--    idempotent. Until the Hub answers, task 31 §7 runs it (one transaction, ON_ERROR_STOP)
+--    only when neither role exists, and re-runs its GRANT CREATE alone when both do.
 -- 2. The two Entra principals, bound by OBJECT ID, never looked up by name: a user-assigned
 --    identity's name is not unique in a tenant (review I9). The role name is still the
 --    identity's name, because it is the user in the Hub's connection string (appUser,
