@@ -218,7 +218,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | **P5-N** | *Start a Develop session from this design* is **three desktop calls**: materialise the bundle, create the session through the existing route, then link it | the control plane never calls its own session handler (no import cycle, no second create path); phase 4's P4-A ignores a caller's `contextRef` anyway | a crash between the second and third call leaves an unlinked session, which the lens shows with a *Link* action |
 | **P5-O** | The canvas Go module is a **separate module in `go.work`**, required by the control plane through a `replace` | `OD-11` rule 4: ship and test alone. ADR-H1 §4.1 kept the Hub inside the control-plane module because it needs `httpx` and `ids`; the canvas needs neither | moving it into the control-plane module is a mechanical import rewrite |
 | **P5-P** | The **licence gate** allows `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `0BSD`, `ISC`; evaluates SPDX `AND`/`OR`; denies `tldraw` and `@tldraw/*` by name whatever they declare; **enforces** every Go module linked into a binary and every npm production dependency; **reports** npm dev dependencies. It is **our own stdlib-only program** (`tools/licencegate`) over `go list -deps -json` and `npm ls --json`, not `go-licenses` and `license-checker` (spec L22, L23), because both must be downloaded and the corporate proxy breaks downloads. **Open question OQ-P5-2** | `OD-11` rule 3 names four families; build tools never ship, and several ship data under CC licences (unverified which); a gate developers cannot run locally is met only after a push | enforcing dev dependencies is one flag in the gate |
-| **P5-Q** | The **hidden renderer** (spec OQ-7) is an off-screen renderer the desktop mounts for every canvas whose branch has a running Claude Code session, plus the one open in the lens | layout tools work while the lens is closed; `renderer-unavailable` means the desktop is not running | the registration rule is one selector |
+| **P5-Q** | The **hidden renderer** (spec OQ-7) is an off-screen renderer the desktop mounts for every canvas whose branch has a running Claude Code session, plus the one open in the lens. It keeps rendering while the cockpit window is minimised: patches flush by microtask in a hidden document, and the responder syncs its views before it measures or captures (task 24, review I4; spike S11 checks it in a minimised Edge) | layout tools work while the lens is closed or the window is minimised; `renderer-unavailable` means the desktop is not running | the registration rule is one selector |
 | **P5-R** | **No shared claim vocabulary with phase 3** (spec OQ-6) | phase 3's claims are *observed* from git (phase 3 task 07), not leases; there is no second lease to share a shape with | revisit when phase 3 adds a lease |
 | **P5-S** | `request_review` creates a **review request on the canvas**, shown in the Design lens and as a toast | the cockpit's ranked queue (`AGENTIC-UX.md` §4 rule 4) does not exist yet; seam S5-Q.1 | — |
 | **P5-T** | `get_font_info` is answered by the renderer from `document.fonts` and a manifest of the app's bundled families; no `fontkit` | availability is a renderer fact; axis introspection is v2 | — |
@@ -292,8 +292,11 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
   parses a canvas id and a design key. The desktop compares keys for equality and never splits one.
   **No TypeScript digest exists.**
 - **G10.** One `setInterval` for data (the poller) and one clock for display (`hooks/heartbeat.ts`).
-  Phase 5 adds **no** interval: the event stream is a `fetch`, the render queue is driven by
-  `requestAnimationFrame` only while a paint is pending, and presence pulses ride the heartbeat.
+  Phase 5 adds **no** interval and no timer: the event stream is a `fetch`; the render queue
+  queues one callback only while a patch is pending — `requestAnimationFrame` while
+  `document.visibilityState === "visible"`, `queueMicrotask` otherwise, since Chromium runs no rAF
+  in a hidden document and a minimised cockpit is the normal state (task 24 `schedulePatch`, review
+  I4); and presence pulses ride the heartbeat.
 - **G11.** One window `keydown` listener (`useKeyboardMap`). The canvas's single-letter tools are an
   element-scoped handler on the viewport, active only while focus is inside it (`OD-9`).
 - **G12.** Every UI task reads `docs/DESIGN-SYSTEM.md` first and holds its non-negotiables: no
@@ -395,7 +398,7 @@ tasks; each part says what it codes against until that task lands.
 
 | # | Task | Depends on | External | Hours |
 |---|---|---|---|---|
-| 01 | **Spike**: the script-less artboard iframe in WebView2 — measure, hit-test, text overlay, keys, PNG (fidelity and capture time per artboard, review I5), CSP | — | — | 2.5 |
+| 01 | **Spike**: the script-less artboard iframe in WebView2 — measure, hit-test, text overlay, keys, PNG (fidelity and capture time per artboard, review I5), CSP, a render request while minimised (S11, review I4) | — | — | 2.5 |
 | 02 | The `canvas/` Go module, `go.work`, the control plane's `replace`, CI build/test/vet | — | — | 1 |
 | 03 | The `canvas/editor` npm package, the desktop's `file:` dependency and its three declared config amendments | — | — | 1.5 |
 | 04 | **The licence gate**: `tools/licencegate`, SPDX evaluation, deny list, exceptions, CI step | 02, 03 | — | 2.5 |
@@ -520,8 +523,9 @@ is not committed — phase 3's 3-D6); OQ-11 (Figma via its MCP is v2, behind own
   names the symbol as well as the line.
 - **WebView2 behaviour**: a `srcdoc` iframe with `sandbox="allow-same-origin"` and no
   `allow-scripts` — that the parent can read its layout, that nothing inside runs, that a `<meta>`
-  CSP applies, and how a PNG is best captured. Task 01 is the spike; every later UI part names its
-  fallback.
+  CSP applies, how a PNG is best captured, and whether a minimised window reports itself hidden
+  and still lays out and captures (S11, review I4). Task 01 is the spike; every later UI part names
+  its fallback.
 - **Claude Code's flags**: that `--mcp-config` accepts an inline JSON string with `"type":"http"`,
   whether it and `--allowedTools` are variadic (they are emitted first for that reason, task 19),
   and that `mcp__panacea-canvas` allows every tool of the server. From knowledge of the CLI, not

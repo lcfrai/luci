@@ -64,15 +64,25 @@ export interface BuildStats { elements: number; refusedStyles: number; refusedTa
 
 // ArtboardView keeps id → Element for one artboard and reconciles it with a DocStore: nodes whose
 // revision changed are rebuilt in place (attributes and styles diffed, children re-ordered by the
-// store's order), new ones created, deleted ones removed. Work is batched into ONE
-// requestAnimationFrame per store version (G10: no interval; rAF only while a patch is pending).
+// store's order), new ones created, deleted ones removed. Work is batched into ONE scheduled
+// flush per store version, through schedulePatch below (G10: no interval; a callback is queued only
+// while a patch is pending).
 export class ArtboardView {
   constructor(frame: HTMLIFrameElement, store: DocStore, artboardId: string, assets: AssetCache);
   get root(): HTMLElement | null;
   element(nodeId: string): Element | null;
-  sync(): BuildStats;       // called by the rAF; idempotent
+  sync(): BuildStats;       // called by the scheduled flush and by the responder; idempotent
   dispose(): void;
 }
+
+// schedulePatch queues ONE flush per pending version: requestAnimationFrame while the top
+// document's visibilityState === "visible", queueMicrotask otherwise. Chromium runs no rAF callback
+// in a hidden document, and a minimised cockpit is the normal state while agents design
+// (AGENTIC-UX.md §3 step 2, review I4); a flush waiting on a frame that never comes would leave
+// every hidden-renderer view at a stale revision. A rAF already queued when the document turns
+// hidden is not waited on: a `visibilitychange` listener (one per view, removed in dispose)
+// flushes a pending patch at once. No setInterval and no setTimeout (G10).
+export function schedulePatch(flush: () => void, doc?: Document): void;
 ```
 
 ```ts
@@ -109,8 +119,11 @@ export function ArtboardFrame(props: {
 
 // canvas/editor/src/renderer/RenderResponder.ts
 // Registers with transport.onRenderRequest(canvasId, visible, …) for as long as it lives. A
-// request at the store's head uses the live views; one at another revision loads that document
-// into an off-screen store and frames, answers, and disposes them. Past the deadline → dropped.
+// request at the store's head uses the live views, and calls view.sync() on every view it reads
+// BEFORE it measures or captures, so the answer never waits on a scheduled flush (review I4: in a
+// hidden document the flush is a microtask, but a request arriving between the store write and
+// that microtask must still see the write); one at another revision loads that document
+// into an off-screen store and frames, syncs them, answers, and disposes them. Past the deadline → dropped.
 // A request carrying `progress` (the approval's one-artboard capture, task 13, review I5) calls
 // onProgress({canvasId, index, total, name}) as it starts; the desktop passes its slice's
 // designApprovalProgress (task 27), which the approval toast reads. The editor package keeps no
@@ -144,7 +157,11 @@ export function HiddenRenderer(props: { transport: CanvasTransport; canvasId: st
 | `patch.test.ts › minimal` | a `set_props` event on one node rebuilds that element only (identity of siblings kept) | a full re-render per event (flicker, lost scroll) |
 | `patch.test.ts › order` | a `move` event reorders children to the store's order | DOM order drifting from export order |
 | `patch.test.ts › oneFramePerVersion` | 10 events before the rAF fires → one `sync` | a render per event |
+| `patch.test.ts › hiddenUsesMicrotask` | `document.visibilityState` stubbed `"hidden"` (`Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" })`) and `requestAnimationFrame` stubbed to never fire: 10 events → one `sync` after `await Promise.resolve()`; the rAF stub was never called | a hidden renderer frozen at a stale revision (review I4) |
+| `patch.test.ts › turnsHidden` | visible, one event queues a rAF (stub never fires); the stub flips to `"hidden"` and `visibilitychange` is dispatched → the pending patch syncs once, with no rAF | a patch stranded on a frame queued just before minimise |
+| `patch.test.ts › noTimer` | `vi.spyOn(globalThis, "setInterval")` and `setTimeout` are never called by `schedulePatch`, visible or hidden | a polling fallback that breaks G10 |
 | `responder.test.ts › head` | a screenshot request at head answers from the live view (capture stubbed) | a reload for every screenshot |
+| `responder.test.ts › hiddenHead` | `visibilityState` stubbed `"hidden"`, `requestAnimationFrame` stubbed to never fire; a store write, then (same tick) a `kind: "computed"` request at head (task 13 `RenderComputed`) → the answer carries the written value, because the responder called `view.sync()` before measuring; a `kind: "screenshot"` request with capture stubbed asserts the same order, `sync` before `capture` | a minimised cockpit answering with the stale artboard, or timing out as `renderer-unavailable` (review I4) |
 | `responder.test.ts › pastRevision` | a request at revision 3 while head is 9 loads document 3 through the transport | an approved-revision screenshot of the head |
 | `responder.test.ts › deadline` | a request past its deadline gets no answer | late answers the server has already failed |
 | `responder.test.ts › progress` | a request with `progress: {purpose: "approval", index: 3, total: 12, name: "Billing"}` calls `onProgress` once, before capture starts; a request without it never calls it | an approval toast that cannot count (review I5) |

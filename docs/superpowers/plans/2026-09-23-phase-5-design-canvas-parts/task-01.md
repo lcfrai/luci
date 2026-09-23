@@ -13,7 +13,7 @@ work lean on it. It writes a throwaway page, a runner, and a report. It writes *
 
 ## Files
 
-- `canvas/editor/spike/artboard-spike.html` (new) — one page, the ten checks below, results into
+- `canvas/editor/spike/artboard-spike.html` (new) — one page, the eleven checks below, results into
   `window.__spike` as JSON and into a visible table.
 - `canvas/editor/spike/run.mjs` (new) — drives the page in the installed Microsoft Edge through
   `playwright-core`, headed, and prints `window.__spike`.
@@ -33,7 +33,7 @@ The page's result object — the runner prints it, the report transcribes it:
 interface SpikeResult {
   userAgent: string;                 // navigator.userAgent
   checks: Array<{
-    id: "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7" | "S8" | "S9" | "S10";
+    id: "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7" | "S8" | "S9" | "S10" | "S11";
     outcome: "pass" | "fail" | "partial";
     evidence: string;                // one sentence: the values measured
   }>;
@@ -58,7 +58,7 @@ The iframe under test, exactly as task 24 will build it (only the body differs):
 <style>html,body{margin:0;padding:0}</style></head><body>…</body></html>"></iframe>
 ```
 
-## The ten checks
+## The eleven checks
 
 | Id | Check | Pass when |
 |---|---|---|
@@ -72,6 +72,7 @@ The iframe under test, exactly as task 24 will build it (only the body differs):
 | S8 | PNG capture fidelity | `modern-screenshot`'s `domToPng` and `html-to-image`'s `toPng` of `contentDocument.documentElement`, against a fixture with a web font from a `blob:` URL, a `linear-gradient`, a `box-shadow`, `filter: blur(2px)`, `backdrop-filter: blur(8px)` and `border-radius` clipping an image. Record per feature: rendered, missing, or wrong. **And capture time per artboard** (review I5): a 1440×900 fixture artboard (about 200 nodes, the web font, two `blob:` images) and a 390×844 one, each captured five times at 1× and five at 2× with each library, each timed from the call to the `Blob` in hand (`performance.now()`), PNG encode included. Record the median and the slowest, in ms, per artboard, scale and library. The slowest 2× figure of the library task 24 adopts sets task 13's `ApprovalRenderTimeout` (`max(30 s, 3 × it)`); a slowest 2× over 10 s is written up as a finding, not tuned away |
 | S9 | A parent-made `blob:` URL loads inside | an `<img src="blob:…">` created by the parent from a PNG `Uint8Array` reaches `naturalWidth > 0` under the CSP |
 | S10 | Keys stay in the parent | after clicking the iframe's area, `document.activeElement` in the parent is the viewport element, not the iframe |
+| S11 | The renderer answers while the window is minimised (review I4) | the runner minimises Edge through CDP (`Browser.getWindowForTarget`, then `Browser.setWindowBounds` with `windowState: "minimized"`) and then sends a render request: `page.evaluate(() => window.__renderRequest(160))`, the spike's stand-in for task 13's request, which writes `width: 160px` to the S3 fixture node **through the page's copy of task 24's `schedulePatch` rule** (rAF while `document.visibilityState === "visible"`, `queueMicrotask` otherwise), calls the same flush before it measures (task 24's responder rule), and answers `{visibilityState, rafFiredWithin2s, width, captured}` — `rafFiredWithin2s` from a probe rAF queued at request time, `captured` whether S8's adopted library resolved a PNG within 10 s. Pass when `width` is 160 within 0.5 px and `captured` is true while minimised. The report records all four values as measured, whatever they are; `visibilityState` and `rafFiredWithin2s` are facts to record, not pass conditions |
 
 ## Tests first
 
@@ -83,20 +84,27 @@ so that it can fail:
 | S2 with the `sandbox` attribute removed | the runner's `--negative` flag rebuilds the iframe with no `sandbox` and **expects S2 to fail** | a check that cannot fail — a page whose flags are never set for another reason |
 | S6 with the meta CSP removed | `--negative` also drops the `<meta>` and expects S6 to see the request | a CSP check that passes because the host is simply unreachable |
 | S4 with the node moved | the fixture node moved to 200,200 makes S4 fail at 30,30 | an `elementFromPoint` that always returns `body` |
+| S11 with rAF-only scheduling | `--negative` also rebuilds `__renderRequest` with the scheduling forced to `requestAnimationFrame` and **no** pre-measure flush, minimised; it expects S11 to fail (width not 160) **when** the positive run recorded `visibilityState: "hidden"`. If Edge reported `"visible"` while minimised, the negative cannot fail, and the runner prints `S11-negative: not-applicable (minimised page stayed visible)` instead of asserting; the report states it and task 30's hands-on item re-checks the Tauri shell | an S11 that passes because the page never went hidden |
 
 ## Steps
 
-1. Write `artboard-spike.html`: the fixture bodies, the ten checks, `window.__spike`. No framework.
+1. Write `artboard-spike.html`: the fixture bodies, the eleven checks, `window.__spike`. S11 is driven from
+   outside: the page sets `window.__spikeReady` when S1–S10 have settled, the runner then minimises
+   the window, awaits `__renderRequest(160)`, restores the window, and the page sets
+   `window.__spike` once S11's answer is in. No framework.
    The two capture libraries are loaded from a `node_modules` path the runner serves locally — the
    page never fetches from the internet (`www.jsdelivr.com` is blocked on this network, spec §11.3).
 2. Write `run.mjs`: `npm install --prefix <scratchpad>/spike playwright-core@1 modern-screenshot@4
    html-to-image@1` (the registry is reachable, spec §11.3); serve `canvas/editor/spike/` and those
    packages from `http://127.0.0.1:<free port>/` with Node's `http` module; launch
    `chromium.launch({ channel: "msedge", headless: false })` (headless screenshots are blocked on the
-   corporate fleet, `CLAUDE.md`); open the page; wait for `window.__spike`; print it as JSON; exit
-   non-zero if any check is missing. `--negative` runs the three negative variants.
+   corporate fleet, `CLAUDE.md`); open the page; wait for `window.__spikeReady`; minimise the window
+   through a CDP session (`page.context().newCDPSession(page)`, `Browser.getWindowForTarget`,
+   `Browser.setWindowBounds({ windowId, bounds: { windowState: "minimized" } })`), run S11's
+   `__renderRequest`, restore the window (`windowState: "normal"`); wait for `window.__spike`; print
+   it as JSON; exit non-zero if any check is missing. `--negative` runs the four negative variants.
 3. Run it both ways. Record Edge's version from `userAgent`.
-4. Write the report: the result table, the three negative runs, the capture fidelity matrix (S8),
+4. Write the report: the result table, the four negative runs, the capture fidelity matrix (S8),
    the capture **time** matrix (S8's `captureMs`, four rows per library), and the **decision
    table** below with every row filled.
 5. Commit the four files by pathspec.
@@ -110,6 +118,7 @@ so that it can fail:
 | Text editing inside the iframe or over it? (S7) | S7 | over it: a parent `<textarea>` positioned from S3 (task 26 builds this by default) |
 | Which capture library? (S8) | S8 | the one with fewer "missing" rows; ties go to `modern-screenshot` (MIT, spec L14). Features neither renders are listed in task 24's `capture.ts` doc comment and in the guide (task 17) as *"not shown in screenshots"* |
 | Do `blob:` assets work? (S9) | S9 | `data:` URLs (larger, but same-origin by construction) |
+| Does the renderer answer while minimised? (S11) | S11 | task 24 still builds `schedulePatch` (microtask while hidden) and the responder's pre-measure `sync()`, which are right either way. A fail means layout or capture itself is suspended in a minimised window: the report goes to the orchestrator with the four S11 values, as a finding that needs the shell to keep the webview unthrottled (a WebView2/Tauri window setting, *unverified* which) or `renderer-unavailable` to say *"restore the cockpit window"* — an owner-visible choice, not a tuning (review I4) |
 | How long may one approval capture take? (S8 time) | S8 `captureMs`, the adopted library's slowest 2× row | task 13's `ApprovalRenderTimeout` = `max(30 s, 3 × that figure)`, the report citing the row; over 10 s is a finding for the orchestrator (task 21's one-artboard-per-request loop then needs a smaller scale), never a larger constant alone (review I5) |
 
 ## Acceptance
@@ -117,7 +126,7 @@ so that it can fail:
 ```bash
 cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5/canvas/editor/spike && node run.mjs
 ```
-Expected: one JSON object with ten `checks`, each with an `outcome`, and eight `captureMs` rows
+Expected: one JSON object with eleven `checks`, each with an `outcome`, and eight `captureMs` rows
 (2 libraries × 2 artboards × 2 scales, each row a median and a slowest); exit 0 (the runner exits
 non-zero if a `captureMs` row is missing).
 
@@ -125,12 +134,13 @@ non-zero if a `captureMs` row is missing).
 node run.mjs --negative
 ```
 Expected: S2 and S6 report `fail` for the unsandboxed and CSP-less variants, S4 reports `fail` for the
-moved node; exit 0 (the runner asserts that the negatives failed).
+moved node, and S11 reports `fail` for rAF-only scheduling (or prints `S11-negative: not-applicable`
+when the minimised page stayed `"visible"`); exit 0 (the runner asserts that the negatives failed).
 
 ```bash
 grep -c "^| S" /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5/docs/superpowers/planning/phase-5/spike-01-artboard-iframe.md
 ```
-Expected: `10` or more.
+Expected: `11` or more.
 
 ## Not claimed
 
