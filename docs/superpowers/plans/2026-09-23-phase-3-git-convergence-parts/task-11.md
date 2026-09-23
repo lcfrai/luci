@@ -37,7 +37,12 @@ type RemovalState struct {
 	Uncommitted  []string // paths from the clone's status; empty when its directory is gone
 	Unlanded     []string // short shas: LaneRef ^refs/heads/<branch>, at most 20, after a SyncLane
 	LaneTip      string
-	// Confirm is hex(sha256(sorted LiveSessions ‖ "\n" ‖ sorted Uncommitted ‖ "\n" ‖ LaneTip))[:16].
+	// Refused is the key task-02 §HGH refused in the clone's config, so its status was never
+	// run (Scope Clone). It is "" when the status was read. A refused clone must stay removable,
+	// or an agent could make its own worktree permanent. So Refused is not an error:
+	// NothingToLose is false and the question says the uncommitted files could not be listed.
+	Refused string
+	// Confirm is hex(sha256(sorted LiveSessions ‖ "\n" ‖ sorted Uncommitted ‖ "\n" ‖ Refused ‖ "\n" ‖ LaneTip))[:16].
 	// A DELETE carrying it proves the human saw this exact state.
 	Confirm string
 }
@@ -45,7 +50,9 @@ type RemovalState struct {
 // NothingToLose is true when there are no uncommitted paths and no unlanded commits.
 func (s RemovalState) NothingToLose() bool
 
-// Inspect gathers RemovalState. It syncs the lane first so Unlanded is current.
+// Inspect gathers RemovalState. It syncs the lane first so Unlanded is current. The clone's
+// status runs with Scope Clone (task-02 §HGH). When §HGH refuses the clone's config, it sets
+// Refused, and Unlanded comes from the project's existing lane ref, the last sweep's.
 func Inspect(ctx context.Context, m gitx.Machine, sync func(ctx context.Context, id string) error,
 	projectPath string, lane Lane, live []string) (RemovalState, error)
 
@@ -60,6 +67,7 @@ type Removed struct {
 //  2. update-ref -d refs/panacea/lanes/<id> <LaneTip>                                    (project)
 //  3. RemoveTree(CloneRoot, lane.Path) — skipped when the directory is already gone
 //  4. Store.Remove(id)
+// Steps 1-2 run with Scope Project (task-02 §HGH). Step 3 runs no git in the clone.
 // The caller (the handler) then clears the ready flag, deletes the worktree's exited session
 // records from the registry, and deletes its conversation store (OD-10).
 func Remove(ctx context.Context, m gitx.Machine, store Store, projectPath string, lane Lane, st RemovalState, now time.Time) (Removed, error)
@@ -151,6 +159,7 @@ edited. Audit line for the GET renames: *"Reads the lane index. Writes nothing."
 | `TestRemoveAsksWhenWorkWouldBeLost` | uncommitted `a.txt` and one unlanded commit → `confirm_required` with both and a 16-hex `confirm` | discarding work silently |
 | `TestRemoveHonoursOnlyTheTokenShown` | token from state 1; then the agent commits; DELETE with the old token → `confirm_stale`, directory intact | a confirmation of a question the human never saw |
 | `TestRemoveArchivesUnlandedCommits` | after removal, `refs/panacea/archive/lanes/<id>/<t>` names the old lane tip and `cat-file -e` finds every unlanded commit | unlanded work lost to `gc` (A7, R11) |
+| `TestRemoveAHostileCloneStillWorks` | task-02 §HGH, red first: the clone's config holds `core.fsmonitor=<marker script>` and `filter.x.clean=<marker script>` → `Inspect` sets `Refused` to the key and writes no marker; `NothingToLose()` is false; the DELETE with that `confirm` removes the clone | a hostile clone the cockpit can no longer remove |
 | `TestRemoveWithNothingToLoseNeedsNoToken` | clean, landed lane → 200 without `confirm` | a question with nothing in it |
 | `TestRemoveDeletesTheCloneTheLaneRefAndTheIndexEntry` | the directory, `refs/panacea/lanes/<id>` and the store entry are all gone | half a removal |
 | `TestRemoveIsRetryable` | `RemoveTree` fails once (a Runner/FS fake) → second DELETE completes | a lane stuck in the index with no directory |
