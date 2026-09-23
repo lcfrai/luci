@@ -21,6 +21,11 @@ deleted all three.
    `get`/`send` helpers the method table calls). Move them, unchanged, into an exported
    `createTransport(opts?: ClientOptions): Transport`; `createClient` calls it. Read `:172-300`
    before moving: this plan did not trace every helper's name.
+   **One addition (review I4): a per-call timeout.** `send` (`:242`) reads the client-wide
+   `timeoutMs` (`:235`, default `DEFAULT_TIMEOUT_MS = 10_000` at `:33`). The transport's `send`
+   gains an optional last parameter, `call?: { timeoutMs?: number }`, and uses
+   `call?.timeoutMs ?? timeoutMs` for its timer and for the `timeout` message at `:281`. Phase 2's
+   callers pass nothing, so their behaviour is byte-identical.
 2. **`ProblemCode` gains** (grouped by who emits them):
 
 ```ts
@@ -177,6 +182,16 @@ export interface DiscoverClient {
 }
 
 export function createDiscoverClient(opts?: ClientOptions): DiscoverClient;
+
+/**
+ * Per-call budgets (review I4). Each is ABOVE the control plane's route deadline for the same
+ * call (task 11's Budgets: 8 s, 28 s, 55 s), so a slow model or a black-holed Hub reaches the
+ * lens as the server's typed answer (model_failed, draft "model_failed", 503
+ * upstream_unavailable), never as this client's "timeout". Every other method keeps
+ * DEFAULT_TIMEOUT_MS (10 s).
+ */
+export const DISCOVER_FOLLOW_UP_TIMEOUT_MS = 30_000; // apply() when op.kind === "propose_follow_up"
+export const DISCOVER_ANALYSE_TIMEOUT_MS = 60_000;   // analyse()
 ```
 
 **Tests first** (`discover.test.ts`, a stubbed `fetch`):
@@ -187,6 +202,8 @@ export function createDiscoverClient(opts?: ClientOptions): DiscoverClient;
 | `refs sends each key as its own parameter` | `?key=a&key=b`, URL-encoded; an empty key is sent as `key=` | a comma-joined list the server reads as one key |
 | `refs refuses more than 100 keys before sending` | `ApiError("bad_request")`, no fetch | a request the server will 400 |
 | `apply sends baseRevision and op only` | the body is exactly `{"baseRevision":5,"op":{…}}` | an extra field the server's strict decoder rejects |
+| `a follow-up and an analyse wait longer than the default` | with fake timers and a `fetch` that never settles: `apply(…, {kind: "propose_follow_up"})` is still pending at 29 999 ms and rejects `ApiError("timeout")` at 30 000; `analyse` the same at 60 000; `apply(…, {kind: "record", …})` rejects at 10 000; the timeout message names the per-call value | a Discover client on the transport's 10 s default, which aborts a 20 s follow-up or a 35 s draft and makes Retry repeat the model call (review I4) |
+| `phase 2's calls keep the client-wide timeout` | `createClient({timeoutMs: 500})`'s `listMachines` rejects `timeout` at 500 ms, not 10 000 | a per-call override that leaks into every call |
 | `a Hub conflict arrives as an ApiError with details` | a 409 `revision_conflict` body → `code`, `details.headRevision` | a client that drops `details` |
 | `resume and fork no longer send contextRef` | the create body for both has no `contextRef` key | the desktop still asserting what the agent inherited (P6) |
 | `restart sends no body unless asked` | `restartSession(id)` sends no body; with `{withoutBrief: true}` sends that | a phase 2 regression |

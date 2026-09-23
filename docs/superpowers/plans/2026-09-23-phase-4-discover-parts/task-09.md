@@ -53,6 +53,16 @@ type Materialiser struct{ /* src, git, log, a mutex per worktree path */ }
 
 func New(src Source, git Git, log *slog.Logger) *Materialiser
 
+// HubBudget bounds step 4's Hub reads (review I4). A black-holed Hub costs
+// hubclient ~31 s per read (Hub contract §9.2: 10 s per attempt, two
+// retries), and the desktop's session start waits 10 s (client.ts:33), so
+// without it 4-D1's refusal would reach the person as the desktop's timeout.
+// 5 s leaves the other 5 s for the sandbox and the rest of the start.
+// Tests shorten it with WithHubBudget.
+const HubBudget = 5 * time.Second
+
+func (m *Materialiser) WithHubBudget(d time.Duration) *Materialiser
+
 var _ api.Materialiser = (*Materialiser)(nil)
 
 // Materialise, in order:
@@ -94,7 +104,15 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     every start). An enumeration failure never reaches here as "": the
 //     handler refuses it as project_unknown, a reason in api's closed set
 //     that this package never returns.
-//     Otherwise ask Source. hubclient.ErrUnavailable → hub_unavailable;
+//     Otherwise ask Source, under context.WithTimeout(ctx, HubBudget) (5 s,
+//     review I4): every Hub read Inheritable makes shares that one budget.
+//     hubclient.ErrUnavailable → hub_unavailable; the budget's OWN expiry
+//     (the child ctx's Err() is DeadlineExceeded while the caller's ctx.Err()
+//     is nil) → hub_unavailable too, whatever error type Source returned
+//     (HA4-10: hubclient's ctx handling is not stated); the caller's own ctx
+//     cancelled (the desktop went away) → a plain error, never a refusal
+//     reason. Only this step is budgeted: steps 1-3 and 5-7 are local git
+//     and disk, and an expiry there would be misnamed as the Hub's.
 //     entraauth.ErrSignedOut, or a relayed 401 → signed_out;
 //     ErrHubOff, ErrNotBound, ErrNoRemote, or a Hub 404 → nothing to
 //     inherit. Any other error → a plain error.
@@ -227,6 +245,8 @@ worktrees; the real `git ls-files` wiring is tested over real git in task 14):
 | `TestWithoutBriefStripsAndDeclines` | both candidates untracked and each holding a block → both stripped; result `none:declined`; `Source` never called | the override blocked by the Hub being down, the very case it exists for |
 | `TestNeverStripsATrackedFile` — table | `CLAUDE.md` **tracked** and holding a block, `.claude/CLAUDE.md` untracked. Row 1, something to inherit: the block is written to `.claude/CLAUDE.md`, the key is returned, and `CLAUDE.md` is byte-identical with an unchanged mtime. Row 2, nothing to inherit: result `""`, `CLAUDE.md` byte-identical. Row 3, `WithoutBrief`: result `none:declined`, `CLAUDE.md` byte-identical. Row 4, the tracked file's markers broken (begin only): rows 1-3 still succeed, not `block_broken`. In every row the fake `Git` asked `Tracked` of both paths, and `Inspect` on the same request gives `Path` the target `.claude/CLAUDE.md` with its own state, and `Committed` exactly one entry, `Path` the tracked `CLAUDE.md` (review I3, re-review R-M1) | "strip both candidates" rewriting a tracked `CLAUDE.md` on every start and leaving the worktree dirty, so an agent's `git add -A` commits the change (3-D6); a tracked file's broken markers refusing a start whose target is another file |
 | `TestHubUnavailableIsARefusal` | `ErrUnavailable` → `hub_unavailable`; the file untouched | a silent `""` when a brief may exist — 4-D1's whole point |
+| `TestABlackHoledHubIsARefusalWithinTheBudget` | a `Source` that blocks until `ctx.Done()` and returns a plain `ctx.Err()` (not `ErrUnavailable`), `WithHubBudget(100ms)` → `hub_unavailable` within 1 s, the file untouched; the same `Source` with the caller's `ctx` cancelled at 50 ms and the budget at 10 s → a plain error, not a `*api.MaterialiseError` | a Hub read on the caller's unbounded `ctx`, which reaches the desktop as `timeout` instead of 4-D1's refusal; or a desktop that went away recorded as a Hub outage (review I4) |
+| `TestTheHubBudgetIsBelowTheDesktopSessionTimeout` | `HubBudget < 10*time.Second` (the desktop's `DEFAULT_TIMEOUT_MS`, which session start uses) | a budget raised to the Hub's own 31 s, which re-opens I4 |
 | `TestSignedOutIsARefusal` | `ErrSignedOut` → `signed_out` | as above |
 | `TestHubOffAndUnboundInheritNothing` | `ErrHubOff`, `ErrNotBound`, `ErrNoRemote` → `""`, no refusal | Develop blocked for everyone without a Hub (Hub contract §9.5: nothing blocks Develop) |
 | `TestNoProjectInheritsNothingWithoutAskingTheHub` | `ProjectID: ""` and an old block in `CLAUDE.md` → the block stripped, result `""`, no refusal, `Source` never called; `Inspect` on the same request never calls `Source` either (review I2) | `ProjectID ""` sent to the Hub, where `Locator.ProjectPath("")` is a plain error and every start outside a project is a 500 |

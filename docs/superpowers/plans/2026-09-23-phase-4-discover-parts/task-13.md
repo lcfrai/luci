@@ -61,8 +61,16 @@ const (
 // discover.ReservedMarker ("panacea:discover:") is dropped, alone, so the
 // other drafts still land and Apply's marker rule never refuses model text
 // (plan §4 Security, S3; task 03 rule 12 stays the backstop). Nil model →
-// (nil, DraftModelOff).
+// (nil, DraftModelOff). The one Complete runs under
+// context.WithTimeout(ctx, DraftBudget); an expired budget is DraftFailed.
 func DraftAnswers(ctx context.Context, m modelclient.Completer, f Findings, now time.Time) ([]discover.Answer, DraftOutcome)
+
+// DraftBudget bounds the one model call (review I4). The analyse route runs
+// under discoverapi Budgets.Analyse (55 s, task 11), below the desktop's 60 s timeoutMs
+// (task 15); the model gets 35 s of it and the scan plus Apply's Hub read and
+// write the other 20 s, so a slow model reaches the desktop as
+// draft: "model_failed" and never as the desktop's timeout.
+const DraftBudget = 35 * time.Second
 ```
 
 ```go
@@ -75,13 +83,20 @@ type AnalyseResponse struct {
 	Draft    repoanalysis.DraftOutcome `json:"draft"`
 	View     discoverhub.View          `json:"view"`    // the project scope, after the draft revision (or unchanged)
 	Written  []string                  `json:"written"` // [] unless a draft revision was written
-	Note     string                    `json:"note"`    // model_off: "No model is configured, so nothing was drafted. Set PANACEA_APP_MODEL_API_KEY to have Discover draft a brief from the scan."
+	Note     string                    `json:"note"`    // model_off: "No model is configured, so nothing was drafted. Set PANACEA_APP_MODEL_API_KEY and PANACEA_APP_MODEL_BASE_URL to have Discover draft a brief from the scan."
 }
+
 ```
 
-The route scans the project's path (`Locator.ProjectPath`), drafts, and — when answers came back —
-calls `Service.Apply` with `Op{Kind: discover.OpDraft, Drafts: answers}` on the project scope at its
-current head. Errors map as in task 11. It is a POST: it costs a model call and writes a revision.
+The route runs under `context.WithTimeout(r.Context(), Config.Budgets.Analyse)` (55 s, task 11's
+`Budgets`; review I4), below the desktop's 60 s `timeoutMs` for analyse (task 15). Its expiry while
+a Hub call is in flight is 503 `upstream_unavailable`, `upstream: "hub"` (task 11's route-deadline
+row). A `Scan` error is 500 `internal` whatever it wraps: the scan runs before any Hub call and is
+bounded at 20 000 entries, so an expiry there is not the Hub's. It scans the project's path
+(`Locator.ProjectPath`), drafts (under `repoanalysis.DraftBudget`, 35 s), and — when answers came
+back — calls `Service.Apply` with `Op{Kind: discover.OpDraft, Drafts: answers}` on the project scope
+at its current head. Errors map as in task 11, including the route-deadline row. It is a POST: it
+costs a model call and writes a revision.
 
 **Tests first:**
 
@@ -96,7 +111,9 @@ current head. Errors map as in task 11. It is a POST: it costs a model call and 
 | `TestAnalyseWritesOneDraftRevision` | a bound project with no brief → one revision, `change.kind == "draft"`, status `open`, `step.kind == "review"` | a draft that completes the brief and is inherited unread |
 | `TestAnalyseNeverOverwritesAPerson` | a project brief with a person's purpose → the draft revision keeps it | the on-ramp clobbering typed text |
 | `TestADraftHoldingTheReservedSequenceIsDropped` | the model drafts five answers, one containing `panacea:discover:` → the revision holds the other four drafts and no fifth; the request is 200, not a 400 (plan §4 Security, S3; task 03 rule 12 stays the backstop) | model text reaching `Apply` and failing the whole on-ramp as a 400 on text the person never wrote |
-| `TestAnalyseWithNoModelWritesNothing` | `written: []`, `note` names the variable | a revision with no answers |
+| `TestAnalyseWithNoModelWritesNothing` | `written: []`, `note` names both variables | a revision with no answers |
+| `TestADraftRunsUnderItsOwnBudget` | the fake `Completer` records `ctx.Deadline()`: set, and no later than `DraftBudget` after the call began, when the caller's `ctx` has none; a fake that blocks until `ctx.Done()` gives `(nil, model_failed)` (the parent `ctx` is cancelled after 50 ms, so no test waits 35 s) | a model call holding the request past the desktop's 60 s timeout (review I4) |
+| `TestAnalyseAgainstAHubThatNeverAnswersIs503BeforeTheDesktopGivesUp` | a fake `Source` whose Hub calls block until `ctx.Done()`; the route is built with `Config.Budgets.Analyse` set to 200 ms → 503 `upstream_unavailable`, `upstream: "hub"`, within 1 s | a route with no deadline, which a black-holed Hub turns into the desktop's `timeout` (review I4) |
 
 **Steps:**
 

@@ -4,7 +4,7 @@
 still right, and the survey says so (§3): one `POST /v1/messages` over plain HTTP, no Anthropic
 Go SDK because `v1.73.0` declares `go 1.24` / `toolchain go1.25.8` and every module here is pinned
 to `go 1.23` (G1). Its test file (`:95-258`, seven tests) and implementation (`:268-560`) are
-**copied as written**, with the three amendments below. Read that region; this part does not
+**copied as written**, with the five amendments below. Read that region; this part does not
 repeat it.
 
 **Amendments:**
@@ -16,10 +16,29 @@ repeat it.
    likewise the old plan's value and is only a default: `PANACEA_APP_MODEL_ID` overrides it.
 2. **Add `var _ Completer = (*Client)(nil)`** at the foot of `client.go`, so the seam phase 6
    replaces is checked by the compiler, not by a caller.
-3. **"No model" is a nil `Completer`.** `ConfigFromEnv` returning `ErrNoCredentials` is not an
-   error at start-up: `cmd/api` (task 14) logs one line and passes a nil `Completer` to
+3. **"No model" is a nil `Completer`.** `ConfigFromEnv` returning `ErrNoCredentials` or
+   `ErrNoBaseURL` (amendment 4) is not an error at start-up: `cmd/api` (task 14) logs one line and passes a nil `Completer` to
    `discover.ProposeFollowUp` and `repoanalysis.DraftBrief`, both of which treat nil as "no model"
    and degrade. Nothing else in the process holds a key.
+4. **No default endpoint (review I13).** The old plan's `DefaultBaseURL = "https://api.anthropic.com"`
+   (`:299-302`) and both fallbacks to it (`ConfigFromEnv`'s `getenv(..., DefaultBaseURL)` at `:331`
+   and `New`'s `if cfg.BaseURL == ""` at `:389-391`) are **deleted, not copied**. A brief's answers
+   are engagement descriptions (client names, scope, constraints), and a key alone must never send
+   them to a public API. The model's destination is always a value someone chose:
+   - `ConfigFromEnv` reads the key first. Key unset: `ErrNoCredentials`, as before. Key set and
+     `PANACEA_APP_MODEL_BASE_URL` unset or blank: the new `ErrNoBaseURL`. Both mean "model off"
+     (amendment 3). Neither is a start-up failure.
+   - `New(Config{APIKey: "k"})` with an empty `BaseURL` returns `ErrNoBaseURL`. It does not guess.
+   - The old test at `:223` (`New(Config{BaseURL: "http://x"})` is `ErrNoCredentials`) is kept: the
+     key check still runs first.
+5. **The HTTP ceiling is shorter than every desktop budget (review I4).** The old plan's
+   `Timeout: 120 * time.Second` (`:335`, `:399-400`) becomes `DefaultTimeout = 45 * time.Second`.
+   It is a ceiling only; every caller also passes its own context: task 04's
+   `FollowUpBudget` (20 s) and task 13's `DraftBudget` (35 s), each inside a route deadline
+   (task 11's `Budgets`: 28 s and 55 s). The desktop waits 30 s for `apply` with
+   `propose_follow_up` and 60 s for `analyse` (task 15), so a slow model reaches the desktop as the
+   server's typed degrade, never as the desktop's `timeout`. The ordering rule is: model budget <
+   route deadline < desktop `timeoutMs`, for every Discover call that reaches a model.
 
 **Files:**
 - `control-plane/internal/modelclient/client.go` (new)
@@ -31,11 +50,13 @@ the bodies are the old plan's):
 ```go
 package modelclient
 
-const DefaultBaseURL = "https://api.anthropic.com"
+// No DefaultBaseURL: the endpoint is never defaulted (amendment 4, review I13).
 const DefaultModel = "claude-opus-5" // default only; PANACEA_APP_MODEL_ID overrides
+const DefaultTimeout = 45 * time.Second // HTTP ceiling; below every desktop timeoutMs (amendment 5)
 
 var (
 	ErrNoCredentials = errors.New("modelclient: PANACEA_APP_MODEL_API_KEY is not set")
+	ErrNoBaseURL     = errors.New("modelclient: PANACEA_APP_MODEL_API_KEY is set but PANACEA_APP_MODEL_BASE_URL is not")
 	ErrRefused       = errors.New("modelclient: the model declined the request")
 	ErrNoText        = errors.New("modelclient: response contained no text block")
 	ErrNoJSON        = errors.New("modelclient: no JSON object found in response text")
@@ -45,11 +66,11 @@ var (
 // or a corporate gateway key issued to them - never a Claude subscription
 // token, never shared between people (CLAUDE.md, "AI capacity").
 type Config struct {
-	BaseURL   string        // PANACEA_APP_MODEL_BASE_URL, an origin; /v1/messages is appended
+	BaseURL   string        // PANACEA_APP_MODEL_BASE_URL, an origin; /v1/messages is appended; mandatory, no default
 	APIKey    string        // PANACEA_APP_MODEL_API_KEY, mandatory
 	Model     string        // PANACEA_APP_MODEL_ID
 	MaxTokens int           // default 8192
-	Timeout   time.Duration // default 120 s
+	Timeout   time.Duration // default DefaultTimeout (45 s)
 }
 
 func ConfigFromEnv() (Config, error)
@@ -100,6 +121,8 @@ var _ Completer = (*Client)(nil)
 Add one:
 
 | `TestConfigFromEnvReadsOnlyPanaceaAppVariables` | with `ANTHROPIC_API_KEY` set and `PANACEA_APP_MODEL_API_KEY` unset, `ConfigFromEnv` is `ErrNoCredentials` | a fallback to a variable a developer's shell may hold for a different account (G4) |
+| `TestAKeyWithoutABaseURLIsModelOff` | with `PANACEA_APP_MODEL_API_KEY` set and `PANACEA_APP_MODEL_BASE_URL` unset, then set to `"  "`, `ConfigFromEnv` is `ErrNoBaseURL`; `New(Config{APIKey: "k"})` is `ErrNoBaseURL`; an `httptest` server counting requests sees none | the old `getenv(..., "https://api.anthropic.com")` fallback, in either `ConfigFromEnv` or `New` (I13) |
+| `TestTheDefaultTimeoutIsBelowEveryDesktopBudget` | `DefaultTimeout < 60*time.Second`; `New(Config{APIKey: "k", BaseURL: "http://x"})` (no `Timeout`) builds an `http.Client` whose `Timeout` is `DefaultTimeout` (an internal `package modelclient` test file, `timeout_internal_test.go`, reads the unexported field, so no test waits 45 s) | a default left at the old 120 s, which outlasts task 15's 60 s `analyse` budget (I4) |
 
 **Steps:**
 
@@ -107,7 +130,7 @@ Add one:
   the commit message. If a field is not accepted, drop it and its test assertion.
 - [ ] **Step 2:** Write the tests; run `go test ./control-plane/internal/modelclient/...` — expect
   a compile failure.
-- [ ] **Step 3:** Copy the implementation with the three amendments.
+- [ ] **Step 3:** Copy the implementation with the five amendments.
 - [ ] **Step 4:** Run the acceptance commands; commit by pathspec.
 
 **Acceptance:**

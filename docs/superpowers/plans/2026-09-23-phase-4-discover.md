@@ -204,7 +204,8 @@ without a cycle. Phase 4 imports only the Hub's
 - **G4.** The control plane listens on loopback only. Configuration comes from `PANACEA_APP_*`
   variables. No secret is in source; the model key is `PANACEA_APP_MODEL_API_KEY` and is the
   person's **own** key or a corporate gateway key — never a Claude subscription token, never pooled
-  across users (`CLAUDE.md`).
+  across users (`CLAUDE.md`). Where the model's text goes is §4 Security S5's rule, not this one:
+  `PANACEA_APP_MODEL_BASE_URL` has no default.
 - **G5.** No progress bar, percentage, ETA or "N of M met" anywhere. The one denominator is
   `QUESTION n OF 5`, over the closed base set; follow-ups carry none (`AGENTIC-UX.md` principle 10).
 - **G6.** Harnesses run unmodified and unwrapped. Discover writes a file the CLI reads at start; it
@@ -262,9 +263,16 @@ without a cycle. Phase 4 imports only the Hub's
 - **S4. Answer-length caps.** Reserved for review M6 (a cap per answer and per prompt, and the
   fan-out batch checked against the Hub's body cap). That fix lands in its own batch; until then,
   the Hub's own 64 KiB envelope limit (`hub-contract.md:742`) is the only bound.
-- **S5. Model egress.** Reserved for review I13: brief answers are client-confidential engagement
-  text, and where they may be sent is decided by `PANACEA_APP_MODEL_BASE_URL`, not by `G4`'s rule
-  on whose key is used. That fix lands in its own batch.
+- **S5. Model egress (review I13).** Brief answers are client-confidential engagement text: client
+  names, scope, constraints. The follow-up prompt carries the person's own answers (task 04), and
+  the repository draft carries file names and counts, never contents (task 13). `G4` decides whose
+  key is used. It does not decide where the text goes, and this rule does: **the model endpoint is
+  never defaulted.** `PANACEA_APP_MODEL_BASE_URL` has no default (task 02 amendment 4 deletes the
+  old `DefaultBaseURL = "https://api.anthropic.com"`). A key without a base URL is "model off":
+  Discover degrades exactly as with no key, and one start-up line names both variables, never the
+  key's value (task 14). Brief text therefore leaves the machine only for an origin that the
+  deployment's owner set by hand, in a regulated deployment the corporate gateway. No code path
+  guesses one.
 
 ---
 
@@ -486,6 +494,7 @@ it is answered.
 | **HA4-7** | The fake's completeness rule must follow `content.status` exactly and expose `latestCompleteRevision` on heads, and `/v1/refs`'s `heads` must include `latestCompleteRevision` for every brief it names | as §7.1's `BriefHead` and §7.5's `heads` already show | — (a confirmation, not a change) |
 | **HA4-8** | The control plane polls the Hub's change feed (§9.3, task C2) but exposes no hook to other control-plane packages. `discoverhub` holds resolved revisions in memory and must drop one when a `brief.erased` event arrives | a subscription on C2's poller: `Subscribe(func(hubapi.Event)) (cancel func())`, called in commit order | the cache's TTL (default 5 minutes, task 07): an erasure reaches this process within the TTL, not at once |
 | **HA4-9** | A branch revision pins the digest of the project revision written **in the same batch**, so the digest must be computable before the Hub writes it | `func BriefRevisionDigest(briefID string, revision int, projectID, scope, branchRef string, content json.RawMessage) (string, error)` in `hubapi` | `discoverhub/digest.go` builds §3.4's envelope and calls `hubapi.Canonical`, pinned to §3.5's vector 1 by a test, and the write checks the Hub's returned digest against it (task 08) |
+| **HA4-10** | §9.2 says each `hubclient` attempt times out at 10 s, with two retries after 250 ms and 1 s, but not that a caller's `ctx` stops them. Discover's route deadlines, and `Materialise`'s 5 s Hub budget, need that (review I4) | state in §9.2: every attempt is sent with the caller's `ctx`, and every back-off waits on `ctx.Done()`; add a conformance test that a `ctx` cancelled during back-off returns within 50 ms | callers classify by their own `ctx.Err()` (tasks 09 and 11). If `hubclient` ignores `ctx`, a black-holed Hub still costs the full ~31 s, and task 23 step 10 fails |
 
 ---
 

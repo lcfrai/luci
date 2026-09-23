@@ -21,7 +21,7 @@ below, so this task never waits silently and never fabricates.
 | Variable | Meaning | Default |
 |---|---|---|
 | `PANACEA_APP_MODEL_API_KEY` | the person's own key or a gateway key (G4) | unset → no model; Discover degrades |
-| `PANACEA_APP_MODEL_BASE_URL` | an origin | `https://api.anthropic.com` |
+| `PANACEA_APP_MODEL_BASE_URL` | an origin: the corporate gateway, or wherever the owner of the deployment chose | **none** (review I13, task 02 amendment 4): unset with a key set → no model, and the log line below names both variables. Brief answers are engagement text; a key alone never sends them to a public API |
 | `PANACEA_APP_MODEL_ID` | model id | `modelclient.DefaultModel` |
 | `PANACEA_APP_DISCOVER_CACHE_TTL` | the revision cache's TTL (task 07) | `5m` |
 | `PANACEA_APP_HUB_URL`, `PANACEA_APP_HUB_SCOPE`, `PANACEA_APP_ENTRA_*` | **the Hub's** (Hub contract §12.2), read by C1/C2's code, not here | unset → `hub_off` |
@@ -78,11 +78,13 @@ type gitQuestions struct{ git project.Runner }
 | C1 (`entraauth`) not merged | as above — no token source, no client | same |
 | phase 3 task 13 (`githost`) not merged | `gitRepos` returns no keys → every project is `no_remote`, and the start-up log says why; **it does not parse remotes itself** (no second canonicaliser — HA4-6's reason) | `TestNoGithostMeansNoRemote` |
 | `PANACEA_APP_MODEL_API_KEY` unset | nil `Completer`; one log line | `TestNoModelKeyIsNotFatal` |
+| `PANACEA_APP_MODEL_API_KEY` set, `PANACEA_APP_MODEL_BASE_URL` unset or blank (`modelclient.ErrNoBaseURL`) | nil `Completer`, not a start-up failure; one `Warn` line: `"model off: PANACEA_APP_MODEL_API_KEY is set but PANACEA_APP_MODEL_BASE_URL is not; Discover will not call a model. Set PANACEA_APP_MODEL_BASE_URL to the gateway's origin."`. The key's value is never logged | `TestAKeyWithoutABaseURLIsModelOff` |
 
 **Tests first** (`discover_test.go`):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
+| `TestAKeyWithoutABaseURLIsModelOff` | `t.Setenv("PANACEA_APP_MODEL_API_KEY", "sk-test-not-a-key")`, base URL unset: `wireDiscover` succeeds; the wired `propose_follow_up` answers `assist: "model_off"`; the captured log holds exactly one line naming both `PANACEA_APP_MODEL_API_KEY` and `PANACEA_APP_MODEL_BASE_URL`, and not `sk-test-not-a-key`; with the base URL then set to an `httptest` server's origin, the same op reaches that server exactly once (so the off state is the missing URL, not a broken wiring) | a key-only configuration that reaches `api.anthropic.com` (review I13), or a log line that leaks the key |
 | `TestWireDiscoverAlwaysGivesAMaterialiser` | with every dependency nil, `Materialiser` is non-nil and `api.New` accepts it | a wiring that passes nil and trips task 10's check at start-up |
 | `TestNilHubServesHubOff` | `GET /v1/discover/projects/{id}/brief` over the wired handler → `binding.state: "hub_off"` | a panic on the first lens open |
 | `TestGitQuestionsReadsUntrackedAsFalse` | a fake runner answering `ls-files` with empty output and a nil error → `(false, nil)`; answering `CLAUDE.md\n` → `(true, nil)`; the recorded args are exactly `--icase-pathspecs ls-files -- CLAUDE.md` (the worktree goes in `Run`'s `dir`, which `ExecRunner` sets as `cmd.Dir`, `gitrunner.go:55`; there is no `-C`), with no `--error-unmatch` and no `:(icase)` magic; a fake error holding `fatal: not a git repository` → `errors.Is(err, contextwrite.ErrNotARepo)`; any other fake error → returned, not `(false, nil)` | every fresh repository read as "tracked" and every brief sent to `.claude/`; an error swallowed as "untracked" |

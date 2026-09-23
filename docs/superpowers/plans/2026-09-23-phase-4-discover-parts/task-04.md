@@ -27,7 +27,7 @@ type AssistOutcome string
 
 const (
 	AssistProposed     AssistOutcome = "proposed"
-	AssistModelOff     AssistOutcome = "model_off"      // Completer is nil: no PANACEA_APP_MODEL_API_KEY
+	AssistModelOff     AssistOutcome = "model_off"      // Completer is nil: PANACEA_APP_MODEL_API_KEY or PANACEA_APP_MODEL_BASE_URL unset (task 02 amendment 4)
 	AssistFailed       AssistOutcome = "model_failed"   // transport, refusal, no JSON, invalid JSON, a reply holding panacea:discover:
 	AssistNothingToAsk AssistOutcome = "nothing_to_ask" // the model said the five answers suffice
 	AssistAlreadyAsked AssistOutcome = "already_asked"  // the brief already holds a follow-up
@@ -38,8 +38,17 @@ const (
 // the returned Question has FollowUp true, an empty Key (Apply mints it), at
 // most four options, and a Because the SERVER composes - "Suggested because
 // of your answer to “<prompt>”." - from the base key the model names, never
-// model prose. It calls the model at most once and returns within 20 s.
+// model prose. It calls the model at most once, under a context derived from
+// ctx with FollowUpBudget, and returns within that budget: an expired budget
+// is AssistFailed, never an error the caller must map.
 func ProposeFollowUp(ctx context.Context, m modelclient.Completer, c Content, s Scope, h Hint) (Question, AssistOutcome)
+
+// FollowUpBudget bounds the one model call. The ops route runs a
+// propose_follow_up under discoverapi Budgets.FollowUp (28 s, task 11),
+// below the desktop's 30 s timeoutMs (task 15); the model gets 20 s of it
+// and Apply's Hub reads the other 8 s, so a slow model reaches the desktop
+// as model_failed and never as the desktop's timeout (review I4).
+const FollowUpBudget = 20 * time.Second
 ```
 
 **The model's reply schema** (sent as `Request.JSONSchema`; validated again after `ExtractJSON`,
@@ -79,13 +88,14 @@ model text never reaches `Apply` as a 400 on text the person did not write.
 | `TestAModelThatSaysEnoughIsNothingToAsk` | `ask: false` → `AssistNothingToAsk` | a follow-up forced out of a model that declined |
 | `TestAReplyHoldingTheReservedSequenceDegrades` | a reply whose prompt, or any option, contains `panacea:discover:` is `AssistFailed` and an empty question (plan §4 Security, S3; task 03 rule 12 stays the backstop) | model text reaching `Apply` and surfacing to the person as a 400 on text they never wrote, or a picked option that forges a marker |
 | `TestOptionsAreCappedAtFour` | a reply with six options is `AssistFailed` (schema), never truncated | silent truncation that changes what the model proposed |
+| `TestTheFollowUpRunsUnderItsOwnBudget` | the fake `Completer` records `ctx.Deadline()`: it is set, and no later than `FollowUpBudget` after the call began, even when the caller's `ctx` has no deadline; a fake that blocks until `ctx.Done()` and returns `ctx.Err()` gives `AssistFailed` and an empty question (the test passes a parent `ctx` it cancels after 50 ms, so it never waits 20 s) | a call passed the request's own context, which a slow model holds past the desktop's 30 s timeout (review I4) |
 
 **Steps:**
 
 - [ ] **Step 1:** Write the tests; confirm they fail to compile.
 - [ ] **Step 2:** Port the old plan's `ProposeFollowUp` body (`:1360-1555`) to the new signature:
-  build the prompt from `Content` and `Hint`, one `Complete` call with a 20 s context, validate,
-  compose `Because`.
+  build the prompt from `Content` and `Hint`, one `Complete` call under
+  `context.WithTimeout(ctx, FollowUpBudget)` (20 s), validate, compose `Because`.
 - [ ] **Step 3:** Run the acceptance command; commit by pathspec.
 
 **Acceptance:**

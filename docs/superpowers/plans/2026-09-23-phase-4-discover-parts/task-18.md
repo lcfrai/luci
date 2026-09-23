@@ -87,7 +87,7 @@ owner's):
 | 3 | asking | `QUESTION n OF 5`, the prompt, help, options `1`–`4`, the free-text field, *Keep the project answer* (branch) or *Skip this question* (project), and the inherited project answer beside it |
 | 4 | the save that made the brief complete | the key, named, with one flash; `preview.block` verbatim in mono; where it is written (task 19's materialisations list) and who inherits it — *nobody yet* when no session runs |
 | 5 | a follow-up step | the question marked *drafted by the model*, its `because`, **no denominator**; *Not relevant — skip* dismisses it |
-| 6 | `assist: "model_off"` or `"model_failed"` | one sentence naming why follow-ups are missing (`PANACEA_APP_MODEL_API_KEY` for model_off), and the flow carries on |
+| 6 | `assist: "model_off"` or `"model_failed"` | one sentence naming why follow-ups are missing (`PANACEA_APP_MODEL_API_KEY` and `PANACEA_APP_MODEL_BASE_URL` for model_off: both must be set, task 02 amendment 4, review I13), and the flow carries on |
 | 14 | `control-plane-down`, or `upstream_unavailable` | *Not saved.* The typed text stays where it was typed, and **Retry** re-sends the same op |
 | — | `revision_conflict` | *Someone saved revision n first.* The view re-reads; the typed text stays; nothing is merged |
 | — | 400 `bad_request`, `details.field: "text"` (the marker rule, plan §4 Security, S3; task 11) | the server's `message` verbatim, inline at the answer field of the question `details.key` names (the current step's field when it is that question); the typed text stays; **no Retry**, because re-sending the same text is refused again. Typically a pasted copy of a `CLAUDE.md` block, not an attack |

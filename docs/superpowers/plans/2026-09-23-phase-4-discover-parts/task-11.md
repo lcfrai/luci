@@ -93,7 +93,35 @@ type OpsResponse struct {
 | `discover.ErrReservedText`, matched with `errors.Is`; the key from `errors.As(*discover.ReservedTextError)` (task 03 rule 12, plan §4 Security, S3) | 400 `bad_request`, message "Answers cannot contain the text panacea:discover:." | `field: "text"`, `key`: the question key |
 | `project.ErrUnknownProject` | 404 `project_not_found` | `projectId` |
 | a branch id not among the project's branches | 404 `branch_not_found` (**new**) | `branchId` |
+| the route's own deadline expired (`Budgets`, below) while a Hub call was in flight: the route's `ctx.Err() == context.DeadlineExceeded`, whatever error type the Hub call returned | 503 `upstream_unavailable` | `upstream: "hub"` |
 | `discoverhub.ErrDigestDisagreement`, anything else | 500 `internal`, generic sentence; the cause to the log | — |
+
+**Budgets — every Discover route runs under a deadline below the desktop's `timeoutMs` (review
+I4).** A black-holed Hub (VPN down, a proxy that swallows packets) does not refuse a connection:
+`hubclient` waits 10 s per attempt, with two retries after 250 ms and 1 s (Hub contract §9.2,
+`hub-contract.md:1337-1339` at hub `2f84662`), so one read can take about 31 s. The desktop's
+default is 10 s (`client.ts:33`). Without a server deadline the person sees the desktop's
+`timeout`, not the typed `upstream_unavailable` that the lens words as "the Hub cannot be reached".
+The rule: **server deadline < desktop `timeoutMs`, for every Discover call.**
+
+```go
+// control-plane/internal/discoverapi/api.go
+// Budgets are the route deadlines. Config.Budgets zero values take these
+// defaults; tests set them in milliseconds.
+type Budgets struct {
+	Default  time.Duration // 8 s: every GET, and ops other than propose_follow_up (desktop 10 s)
+	FollowUp time.Duration // 28 s: ops with op.kind propose_follow_up (desktop 30 s); discover.FollowUpBudget (20 s) is inside it
+	Analyse  time.Duration // 55 s: POST …/analyse (desktop 60 s, task 13); repoanalysis.DraftBudget (35 s) is inside it
+}
+```
+
+Each handler wraps `r.Context()` in `context.WithTimeout` from `Config.Budgets` before its first Hub
+call. A model call that outlasts its own inner budget degrades (`model_failed`) and is never this
+row. That `hubclient` stops its attempts and its back-off when `ctx` expires is **not stated** in
+§9.2. The row above therefore classifies by the route's own `ctx.Err()`, never by the error's type.
+If `hubclient` ignores `ctx`, a black-holed read still runs its full ~31 s and the budget cannot cut
+it short. Hub ask **HA4-10** (plan §9) records it: every attempt and every back-off honours `ctx`.
+Unverified until task 23 step 10 runs against the real `hubclient`.
 
 ```go
 // control-plane/internal/httpx/problem.go — three constants, beside CodeBriefNotWritten
@@ -132,6 +160,8 @@ for that ask — never a variant spelling.
 | `TestOpsEchoesWrittenKeys` | a record at base 4 → `written: ["brief:…@5"]` | a desktop that has to guess the new key |
 | `TestRelayTable` — one test per row | status, code, message and details for each source row | a Hub `revision_conflict` rewritten as `conflict`, losing `headRevision` |
 | `TestRelayNeverLeaksATransportError` | `ErrUnavailable` wrapping a dial error to `127.0.0.1:8750` → the message is the generic sentence; the address is only in the log | a Hub address or path in the problem body |
+| `TestAHubThatNeverAnswersIs503BeforeTheDesktopGivesUp` | a fake Hub whose every call blocks until `ctx.Done()`, `Budgets{Default: 200ms, FollowUp: 300ms}`: GET brief, a `record` op and a `propose_follow_up` op each return 503 `upstream_unavailable`, `upstream: "hub"`, within 1 s | a route with no deadline, which a black-holed Hub turns into the desktop's `timeout` (review I4) |
+| `TestTheDefaultBudgetsAreBelowTheDesktopTimeouts` | `New(Config{})` fills `Budgets{8s, 28s, 55s}`, each below task 15's 10 s, 30 s and 60 s | a budget raised past the desktop's, which re-opens I4 |
 | `TestUnknownFieldIsInvalidJSON` | an extra top-level field → 400 `invalid_json` (`httpx.DecodeJSON`) | a lenient decoder that accepts a typo'd `baseRevison` as 0 |
 | `TestAliasReachesDiscover` | `/api/v1/discover/…/brief` answers as `/v1/…` | a mount outside the guarded mux |
 

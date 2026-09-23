@@ -65,9 +65,36 @@ lists the control plane's own):
   container gone from `docker ps --filter label=panacea-app.sandbox-id=<old sandboxId>`, and no
   managed block left in that worktree's `CLAUDE.md`. A second 409 here means the restart dropped
   `withoutBrief` on its way to `Materialise`. Start the Hub again.
-- [ ] **Step 10: 4-D3.** Give the project brief five answers; confirm the branch brief moved to a
+- [ ] **Step 10: A black-holed Hub answers inside every desktop budget (review I4).** Step 9's
+  stopped Hub refuses connections at once, so it passes with or without any budget. This step
+  makes the Hub **silent** instead:
+  1. Pre-check that the address black-holes rather than refuses:
+     `curl -sS --connect-timeout 3 -o /dev/null http://10.255.255.1:8750/ > $OUT 2>&1; echo $? > $RC`.
+     Exit 28 (timed out) is the black hole this step needs. Exit 7 (refused) or any answer means
+     this network routes `10/8`. Then use `192.0.2.1` (RFC 5737 TEST-NET-1, never routed) and
+     re-check. If neither times out, record **not run** with both exit codes.
+  2. Kill the control plane by PID. Restart the same binary with
+     `PANACEA_APP_HUB_URL=http://<that address>:8750`, keeping every other variable (the
+     Docker-daemon lock and `PANACEA_APP_REAP_INTERVAL=24h` still apply: a restarted control
+     plane's reaper sweeps at start-up).
+  3. Each call below runs with `curl --max-time` set to the desktop's own budget, and records
+     `%{http_code}` and `%{time_total}`. A curl exit of 28 is a **fail**: the desktop would have
+     shown `timeout`.
+
+     | Call | `--max-time` (desktop) | Expected |
+     |---|---|---|
+     | `POST /v1/sessions` on the step-4 worktree | 10 (`DEFAULT_TIMEOUT_MS`) | `409 brief_not_written`, `reason: hub_unavailable`, in about 5 s (task 09's `HubBudget`); no record created |
+     | `GET …/branches/{b}/brief` | 10 | `503 upstream_unavailable`, `upstream: "hub"`, in about 8 s (task 11's `Budgets.Default`) |
+     | `POST …/branches/{b}/brief/ops` with `{"baseRevision": <head>, "op": {"kind": "propose_follow_up"}}` | 30 (`DISCOVER_FOLLOW_UP_TIMEOUT_MS`) | `503 upstream_unavailable`, in about 28 s at most (`Budgets.FollowUp`) |
+     | `POST …/analyse` | 60 (`DISCOVER_ANALYSE_TIMEOUT_MS`) | `503 upstream_unavailable`, in about 55 s at most (`Budgets.Analyse`) |
+
+  4. Restore the real `PANACEA_APP_HUB_URL` and restart the control plane by PID.
+  A time within 1.5 s of `--max-time`, or any row that overruns, means `hubclient` does not honour
+  `ctx` (Hub ask **HA4-10**). Record it as that, not as a flake. That `10.255.255.1` black-holes on
+  the corporate network is **unverified**, and sub-step 1 exists to find out.
+- [ ] **Step 11: 4-D3.** Give the project brief five answers; confirm the branch brief moved to a
   new revision whose `inherits.key` is the project's new key, in the **same** `written` list.
-- [ ] **Step 11: The suites and the guards.** `go test ./control-plane/... -race -count=1`;
+- [ ] **Step 12: The suites and the guards.** `go test ./control-plane/... -race -count=1`;
   `cd desktop && npx vitest run && npx tsc --noEmit`; task 06's and task 16's no-key-splitting
   scans; the `types.ts` byte gate (phase 2 task 15).
 
