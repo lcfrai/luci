@@ -2048,3 +2048,91 @@ default `READ COMMITTED`.
 | the audit is gapless and chained | the §10.6 recipe | `audit_append`; `CHECK hash = sha256(prev_hash ‖ canonical)` |
 | one org never reads another | org from the token, in every query | row-level security |
 | a team never reads another team's project | §5.3 checks | — (the matrix test) |
+
+---
+
+## 11. Security
+
+### 11.1 Threat model — the top ten
+
+| # | Threat | Asset | Controls | Residual |
+|---|---|---|---|---|
+| T1 | **A stolen access token** replayed against the Hub | a user's projects | 60–90 min lifetime; refresh token only in Credential Manager; the token never enters the renderer, a log, a sandbox or a URL; TLS only (deployed) | usable until `exp`; CAE not in v1 |
+| T2 | **A token minted for another API or app** presented to the Hub (confused deputy) | every route | `aud` = the Hub's id; `scp` ∋ `Hub.Access`; `azp` allowlist; `iss` per enrolled tenant (§6.3) | — |
+| T3 | **Cross-tenant read** — a missed `WHERE org_id` | another org's data | org from the token; row-level security (§10.3); the `X` column of the matrix test run with the Go check disabled | a bug in a `SECURITY DEFINER` function; there are three, each reviewed |
+| T4 | **Cross-team read inside an org** | another team's briefs | Go checks before any content read; 404 not 403; `missing` in `/v1/refs`; the matrix test | Go only — the one single-layer control (§10.7) |
+| T5 | **Rewriting history** — a revision, an approval, a pin | provenance (P3, P7) | §10.7's two layers; digests re-checked by `hubclient` (§9.2); `hub verify` walks the audit chain | the owner role can still rewrite; it is used only by the migrate Job; audit anchoring is later (ADR §5.9) |
+| T6 | **A local process or a sandboxed agent drives the control plane**, and so the Hub, as the user | everything the user can write | loopback bind; Host guard; Origin allowlist; the local caller key (§9.4); no MCP tool approves (phase 5) | another process of the same OS user (ADR R4) |
+| T7 | **The webview is compromised** (agent output, a design frame) and calls out | tokens | the renderer holds no Entra token; the Hub refuses `Origin` and sends no CORS; the webview's CSP (`tauri.conf.json`) is phase 2's | it can still call the control plane with the local key, as the user — as today |
+| T8 | **Injection** through a request — SQL, a blob served as HTML, a header | the Hub, other users | `pgx` parameters only, never string-built SQL; `DecodeJSON` rejects unknown fields; blobs served `attachment` + `CSP sandbox` + `nosniff`; content types allowlisted | — |
+| T9 | **Abuse and exhaustion** — floods, huge bodies, blob hoarding | availability, cost | §11.3's limits; 1 MiB JSON bodies; 16 MiB blobs; 1 GiB per project; 100 keys per resolve; 16 revisions per batch | a distributed flood is phase 8's edge |
+| T10 | **Secrets in source or state** | the database, tokens | no secret variables deployed: Entra-only Postgres via workload identity (P8-D10); `devissuer` config fictional; `compose.yaml` uses loopback trust auth; tokens never logged (`credstore.Credential` redacts, `task-13.md:71-73`) | a developer's local token cache, which is Credential Manager's to protect |
+
+### 11.2 Tenancy isolation, and least privilege
+
+- **Org** (an Entra tenant): row-level security **and** Go. **Team**: Go, tested exhaustively.
+- **The Hub process** holds: its DML role, through workload identity; outbound HTTPS to
+  `login.microsoftonline.com` for discovery and JWKS; nothing else. **No Microsoft Graph, no
+  client secret, no certificate, no storage account, no Key Vault access** in v1.
+- **The migrate Job** holds the DDL role and runs for seconds per release.
+- **The desktop client registration** has no credential. **The Hub API registration** has no
+  credential and requires assignment.
+- **Each user's git, Panacea and Claude credentials stay on that user's machine.** The Hub never
+  receives one, so it cannot pool them (`CLAUDE.md`, never pool; `OD-6`).
+
+### 11.3 Rate limits
+
+In process, `golang.org/x/time/rate` token buckets, per replica. With two replicas the effective
+limit is at most double; that is accepted, because the limits exist to stop runaway loops, not to
+meter.
+
+| Scope | Key | Rate · burst | Answer |
+|---|---|---|---|
+| pre-auth | remote IP (the gateway's `X-Forwarded-For` first hop, only when `PANACEA_APP_HUB_TRUST_PROXY=true`) | 20/s · 40 | 429 `rate_limited`, `scope: "ip"` — before token validation, so a flood of bad tokens is cheap |
+| user | `user_id` | 20/s · 60 | 429, `scope: "user"` |
+| user writes | `user_id`, non-GET | 5/s · 20 | 429, `scope: "user_write"` |
+| org | `org_id` | 200/s · 400 | 429, `scope: "org"` |
+| blob bytes | `user_id` | 64 MiB/min | 429, `scope: "blob_bytes"` |
+
+`Retry-After` is the bucket's wait, rounded up to a whole second. Every limit is a
+`PANACEA_APP_HUB_RATE_*` variable (§12.2).
+
+### 11.4 Origin, CORS and the webview
+
+The Hub is never called from a browser context (ADR §6.5, HA-6). So: **any `Origin` header is 403
+`forbidden_origin`**; no `Access-Control-Allow-*` header is ever sent; `OPTIONS` is 405. The
+control plane's own CORS grant (`httpx.Middleware`) is unchanged, plus one exposed header (§9.3).
+
+### 11.5 Logging
+
+JSON lines to stdout (`log/slog`), one per request: `requestId`, route pattern (never the raw path
+with ids and queries), status, duration, `orgId`, `userId`, and the problem code. **Never** a token,
+an `Authorization` header, a request or response body, brief content, blob bytes, or an email
+address outside the audit log. A 401 or `tenant_not_enrolled` logs the `tid` and the reason, not
+the token.
+
+---
+
+## 12. Operations
+
+### 12.1 The binary and the local stack
+
+```
+hub serve     listen on PANACEA_APP_HUB_ADDR; never migrates; runs the janitor (§12.5)
+hub migrate   apply embedded migrations (§10.1); exit 0 when current
+hub verify    walk every org's audit chain and re-check every stored revision digest; exit 1 at the first fault
+```
+
+`control-plane/cmd/hub/compose.yaml`, started with `docker compose -f control-plane/cmd/hub/compose.yaml up`:
+
+| Service | Image or build | Binds | Notes |
+|---|---|---|---|
+| `db` | `postgres:16-alpine` | `127.0.0.1:5433` | `POSTGRES_HOST_AUTH_METHOD=trust`, **loopback only**; an init script runs `roles.sql`'s local variant and creates database `hub`. 5433, not 5432, so a developer's own Postgres is not shadowed |
+| `devissuer` | built from `control-plane/cmd/devissuer` | `127.0.0.1:8740` | reads `dev-tenant.json` |
+| `migrate` | built from `control-plane/cmd/hub` | — | `hub migrate`, then exits; `serve` waits on it |
+| `hub` | built from `control-plane/cmd/hub` | `127.0.0.1:8750` | `PANACEA_APP_HUB_ENV=local`, `PANACEA_APP_HUB_DEV_ISSUER=true` |
+
+The control plane then needs four variables: `PANACEA_APP_HUB_URL=http://127.0.0.1:8750`,
+`PANACEA_APP_ENTRA_AUTHORITY=http://127.0.0.1:8740/<dev tenant id>`,
+`PANACEA_APP_ENTRA_CLIENT_ID=<dev desktop client id>`, `PANACEA_APP_HUB_SCOPE=api://<dev hub id>/Hub.Access`
+— all four values are in `dev-tenant.json`, which the compose README prints.
