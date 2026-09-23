@@ -630,3 +630,45 @@ all four keys locally, and left `status --porcelain` empty. `clone --local` gave
 **Unverified:** the sandbox's Linux git on a four-key clone, through the bind mount (task-01:63 is
 the check). That `checkStat=minimal` and `trustctime=false` stop the re-hash across the two
 systems (the probe ran on the host only). What `--no-hardlinks` costs on `~/Projects/Panacea`.
+
+### Fix batch b02, round 2 (2026-09-24): the re-review's open issues
+
+The re-review (`.superpowers/sdd/p3/plan-rereview-b02-1.md`) found I8 resolved and C2 resolved on
+the host only. Round 2 fixes its I-1 and M-1. It supersedes round 1's claim, in the C2 table's
+first row above, that "the sandbox's git reads the same keys later", and round 1's I8 row naming
+`fsck --connectivity-only`. Line numbers are for the tree at this round's last commit.
+
+#### I-1: the sandbox's git reads line endings from the session env, not the clone's config
+
+Facts re-checked: `5a4d0d8` is on `feat/phase-2-cockpit`, not on `fix/sandbox-git-ca`
+(`merge-base --is-ancestor` exits 1); that branch merged the fix at `f898f5e`. Its committed
+`sessionEnv` (`internal/api/sessions.go:173-187`) is a `pairs` slice: five pairs at `5a4d0d8`,
+six now (`gc.auto` was added later). The handlers ask `sessionGitLineEndings(ctx, path)` at
+`:543` and `:1142`, and the production resolver is `cmd/api/gitlineendings.go:36-62`.
+
+| Re-review's fix | Where it is now |
+|---|---|
+| 1. Restate the mechanism, naming `5a4d0d8`: env outranks the clone's keys; they agree because the resolver is asked in the clone; the local keys still serve the host's git and a session without the env | plan:74-81 (the invariant in bold at :79-80); parts/task-03.md:172-173 (the host reads the local keys), :179-202 (the full mechanism, the committed call sites, both probes, and why phase 2 and phase 3 differ on where the answer comes from) |
+| 2. A handler-level test, production-shaped under `WindowsInstallerSystem`, red against resolving in `Project.Path` | Split along the package line, because the production resolver lives in package `main`, which `internal/api` cannot import. parts/task-05.md:155 `TestALaneSessionSendsTheClonesLineEndings` (the handler: a lane session's `Spec.Env` carries `false`/`lf` on create and restart, found by key; red against the `Project.Path` mutant). :156 `TestTheResolverReadsALaneCloneAsLF` (cmd/api, production-shaped: the real resolver answers `false`/`lf` in a lane clone and `true`/`crlf` in its project under the installer's system file). Together they pin the composition. Red-first on arrival is covered at :186-188 |
+| 3. `TestSandboxCloneHasWorkingGit` gets the env `sessionEnv` produces, plus a checkout-bytes check | parts/task-01.md:57-68 (the six pairs as committed, valued as the resolver answers in the clone) and :72 (`rm a.txt`, `checkout -- a.txt`, no `\r`; control 1 drops the line-ending pairs so it cannot be clean for the wrong reason; control 2 records the `Project.Path` mutant). `gitx` cannot import `internal/api`, so task 01 writes the pairs out once; parts/task-05.md:160 `TestSandboxLaneCloneChecksOutLF` repeats the bytes check with the env read from `sessionEnv`, and :173-176 names where its `eol` comes from |
+| 4. One `sessionEnv` across the plan | plan:212 (the fix's pairs, phase 3 appends one); parts/task-05.md:53-74 (the append, not a three-entry map), :154 (`TestSessionEnvSetsHooksPath` asserts `n+1`, not `3`), :180-183 (preflight greps the fix's signature and `core.eol` pair, not `"GIT_CONFIG_COUNT":   "2"`); parts/task-01.md:74 (`core.hooksPath` appended last, not at index 2). G1 names `5a4d0d8`: plan:219-222 and :317 |
+| (knock-on) | plan:462: task 05 needs 04 for its lane tests, not only its Docker step (the order already runs 05 after 04). parts/task-05.md:26 and :202-203: the new test file and acceptance lines |
+
+The rest of I12 (plan:11 and :199 still cite `2d6d95b`; tasks 04 and 06 diffing the contract
+sections the fix already edited) is left to I12's batch. b02 changed only what describes
+`sessionEnv` and what G1 must contain.
+
+#### M-1: Q9's fallback named a check that cannot see I8's damage
+
+plan:377, the "Changes if overruled" column: `fsck --connectivity-only` is gone (git-fsck(1),
+checked at `C:/Program Files/Git/mingw64/share/doc/git-doc/git-fsck.html:534`: "in blob objects
+will not be detected at all"). It now names a full `git fsck` of the project, slow on a large
+repository, and says no check before a land closes the hole, because the files are the
+project's from the moment they are written.
+
+**Verified in round 2** (git 2.53.0.windows.2, host only; `scratchpad/p3/b02r2-probe.sh`, output
+`b02r2-probe.out`): with a test system file holding `core.autocrlf=true`, the resolver's two calls
+answer `true`/`native` in the project and `false`/`lf` in a clone made by task 03's argv. A
+checkout under `GIT_CONFIG_*` holding the clone's answer writes `x\ny\n`; under the project's
+answer it writes `x\r\ny\r\n`. **Unverified:** everything inside the sandbox image; the re-hash
+item above; the `--no-hardlinks` cost.
