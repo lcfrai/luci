@@ -308,6 +308,60 @@ describe("CanvasLayout", () => {
     expect(tileEl("s-1").style.transform).toBe("translate3d(72px, 58px, 0)");
   });
 
+  it("ends the gesture when the window loses focus mid-drag", () => {
+    // Alt-tab, a native dialog, the OS taking the pointer: no pointerup ever arrives. Left
+    // armed, the next pointermove over the plane drags a tile nobody is holding.
+    seed(1);
+    render(<CanvasLayout sessionIds={["s-1"]} />);
+
+    fireEvent(handleEl("s-1", "cv-grip"), pointer("pointerdown", 100, 100));
+    fireEvent(window, pointer("pointermove", 140, 130));
+    fireEvent(window, new Event("blur"));
+
+    expect(tileEl("s-1").getAttribute("data-cv-dragging")).toBe("none");
+    expect(useCockpit.getState().tiles["s-1"]).toEqual({ x: 72, y: 58, w: 460, h: 320 });
+    // Disarmed, not merely committed.
+    fireEvent(window, pointer("pointermove", 900, 900));
+    expect(tileEl("s-1").style.transform).toBe("translate3d(72px, 58px, 0)");
+  });
+
+  it("writes nothing when the window loses focus without a move", () => {
+    // The blur path has its own no-op guard, and until this case existed nothing measured it.
+    // The two-site mutant that would have caught it was refused as malformed — correctly, and
+    // refusing it left this unmeasured, which is the part that needed saying.
+    seed(1);
+    render(<CanvasLayout sessionIds={["s-1"]} />);
+
+    fireEvent(handleEl("s-1", "cv-grip"), pointer("pointerdown", 100, 100));
+    fireEvent(window, new Event("blur"));
+
+    expect(useCockpit.getState().tiles["s-1"]).toBeUndefined();
+  });
+
+  it("stops listening for blur once the gesture is over", () => {
+    // Counting WRITES, not comparing values: a leaked blur listener re-commits the position the
+    // tile already has, so the store's contents look identical and only the extra write shows
+    // it happened. Left registered, one listener leaks per gesture, each closed over a dead
+    // tile's origin.
+    seed(1);
+    render(<CanvasLayout sessionIds={["s-1"]} />);
+
+    let writes = 0;
+    const unsubscribe = useCockpit.subscribe((s, prev) => {
+      if (s.tiles !== prev.tiles) writes += 1;
+    });
+    try {
+      gesture(handleEl("s-1", "cv-grip"), [100, 100], [140, 130]);
+      expect(writes).toBe(1);
+
+      fireEvent(window, new Event("blur"));
+
+      expect(writes).toBe(1);
+    } finally {
+      unsubscribe();
+    }
+  });
+
   it("counts the tile's coordinates in the grip while a move runs", () => {
     seed(1);
     render(<CanvasLayout sessionIds={["s-1"]} />);
