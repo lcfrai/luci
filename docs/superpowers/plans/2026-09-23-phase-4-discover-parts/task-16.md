@@ -67,6 +67,10 @@ export interface ProvenanceSlice {
 
   putRefs(res: RefsResponse, tick: number): void;
   putHeads(heads: Record<string, Head>): void;
+  /** A brief.revised event's own data (loader step 1a2; re-review b06-1 R-I1). Moves an EXISTING
+   *  headsByBrief entry forwards only: headRevision = revision when revision > headRevision, and
+   *  latestCompleteRevision = revision when status is "complete" too. No entry: does nothing. */
+  applyRevised(briefId: string, revision: number, status: string): void;
   /** Also clears staleHeadRefs[targetKey] and, when ref.projectId !== "", sets
    *  hubProjectByTarget[targetKey]. */
   putHeadRef(targetKey: string, ref: ProvenanceRef): void;
@@ -181,6 +185,13 @@ export const NO_REF: Readonly<ProvenanceRef>;
  *  1. If hubCursor !== hubCursorRead: ONE hubFeed.changes(after) call. For each "brief.*"
  *     event (subject is the brief id, Hub contract §8 :1139-1143 at hub 2f84662):
  *     a. markStale([subject]);
+ *     a2. "brief.revised": applyRevised(subject, data.revision, data.status) moves the head
+ *        from the event itself (data {"key","revision","digest","status"}, Hub contract §8
+ *        :1140): headRevision = revision, and latestCompleteRevision = revision when status
+ *        is "complete". Only forwards: a revision at or below the entry's headRevision
+ *        changes nothing, and a brief with no entry gets none (the held key fetches it). The
+ *        markStale of a. still re-reads it, so a head the feed missed is corrected
+ *        (re-review b06-1 R-I1);
  *     b. "brief.erased": forgetBrief(subject, event.at) (review I10);
  *     c. markViewStale for EVERY view whose binding.hubProjectId equals event.projectId or is
  *        "", and markHeadRefsStale for EVERY target whose hubProjectByTarget equals
@@ -189,10 +200,16 @@ export const NO_REF: Readonly<ProvenanceRef>;
  *        brief: null), and the Hub contract invalidates the head reading for every brief.*
  *        (§9.3 :1373-1375; review I10). An event with projectId null matches every entry.
  *  2. Collect keys: union of keySources; drop "", keys in refsByKey, keys in flight, and keys
- *     unavailable fewer than 15 ticks ago; add one held key per stale-head brief. putRefs
- *     marks stale (markStale) the inherits.briefId of each resolved ref it stores whose brief
- *     has no entry in headsByBrief, so selectProvenanceState rule 4 gets the project head to
- *     compare with (review I8); the held key for it is ref.inherits.key. A held key is sent
+ *     unavailable fewer than 15 ticks ago; add one held key per stale-head brief. The held key
+ *     of brief B is the first refsByKey key whose ref.briefId is B; else the first
+ *     ref.inherits.key whose inherits.briefId is B (a project brief that sessions only
+ *     inherit, the usual case: sessions stamp branch keys); else there is none, no surface
+ *     shows B, and B's flag is cleared with no key. The control plane asks the Hub for a held
+ *     key's brief even when it has the content cached (task 07 rule 5; re-review b06-1 R-I1),
+ *     so the answer carries B's head. putRefs stores the answer's heads FIRST, then marks
+ *     stale (markStale) the inherits.briefId of each resolved ref it stores when that
+ *     INHERITED brief still has no headsByBrief entry, so selectProvenanceState rule 4 gets
+ *     the project head to compare with (review I8). A held key is sent
  *     ONCE per markStale: the call that carried it clears that brief from staleHeads whether
  *     or not a head came back, so a head the answer omits never becomes a request per tick.
  *     Add every key in staleCriteria (review I14), even one refsByKey holds; the call that
@@ -269,6 +286,7 @@ only through Discover's own writes and new keys).
 | `selectors: superseded compares with latest complete` | ref rev 5, head `{headRevision: 7, latestCompleteRevision: 5}` → `current`; `{…: 6}` → `superseded` | P4-B inverted: every chip superseded during an unfinished edit |
 | `selectors: superseded by the inherited project revision` (review I8) | branch ref `b-51@6`, own head `{headRevision: 7, latestCompleteRevision: 6}`, `inherits` `b-7@5`; project head `b-7` `{6, 6}` → `superseded`; `{5, 5}` → `current`; `{7, 5}` (project edit open) → `current`; `b-7` absent from `headsByBrief` → `current`; the ref's own `headRevision`/`latestCompleteRevision` fields set to 99 change none of these | an open branch head's latest complete revision (OQ-8), or a raced pin, shown `current` over replaced project text; or rule 4 reading the cached ref's frozen head numbers instead of `heads` |
 | `loader: a missing project head is fetched once` (review I8) | `putRefs` stores that branch ref with no `b-7` head → the next tick's one `refs` call carries `brief:…b7@5`; its answer carries no `b-7` head → the tick after makes **no** request | rule 4 never getting a project head; or a head the server omits turning into a request every 2 s |
+| `loader: a project edit reaches an inheriting branch chip` (re-review b06-1 R-I1) | one session stamps `b-51@6` (inherits `b-7@5`); tick 1 stores it, `headsByBrief["bf-…b7"]` `{5, 5}`, and no `refsByKey` entry has `briefId` `bf-…b7`. The feed brings `brief.revised` for `bf-…b7`, data `{revision: 6, status: "complete"}` → before any `refs` answer, `headsByBrief["bf-…b7"]` is `{6, 6}` and `selectProvenanceState("brief:…b51@6")` is `superseded`; the same tick's one `refs` call carries the held key `brief:…b7@5` (the inherits.key path); the fake control plane serves `b-7@5`'s content from its cache and still answers `heads["bf-…b7"]` `{6, 6}`, as task 07's `TestResolveCarriesCachedKeysForTheirHeads` pins; a `brief.revised` with `revision: 4` then changes nothing, and an `open` revision 7 moves `headRevision` only | a teammate's project edit that never reaches the chips of the branches inheriting it (the held key ignored for an inherited-only brief, or answered with no head from the control plane's cache), or a late event that moves a head backwards |
 | `selectors: the eight states` — table | each input → its state; `""` → `none`, `none:declined` resolved → `declined`, `invalid` → `missing` | two states merged, which the contract calls lying about one |
 | `selectors: no key is ever split` | a source scan of `desktop/src/**/*.ts(x)` finds no `.split("@")`, `.split(":")` or regex over a variable named `*key*`/`contextRef` | P5 on the desktop (G7) |
 
