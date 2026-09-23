@@ -68,7 +68,8 @@ type UndoResult struct {
 //   update-ref -m "panacea: undo land <id>" refs/heads/<branch> <sha>^1 <sha>   (compare-and-swap)
 //   SetWorktreeReady(<Panacea-Land id>, true) when that lane still exists  (exact means as before)
 //   the clones' origin/<branch> refresh, as Land's step 14
-// It serialises with Land on the same branch. Hardened per task-02 §HGH: the project calls use
+// It holds Locks.Lock(ctx, projectID) for the whole verb, as Land does, so it serialises with
+// every land, fetch, push and branch verb on the project (task-02 Locks; review I7). Hardened per task-02 §HGH: the project calls use
 // Scope Project, the refresh uses Scope Clone, and no hook runs (H4).
 func (l *Lander) Undo(ctx context.Context, projectPath, projectID, branch, sha, expectedTip string) (UndoResult, error)
 
@@ -86,7 +87,8 @@ type RevertResult struct {
 //   msg  = Message("Revert land <name> into <branch>", "This takes back <sha>.", [Panacea-Reverts: <sha>])
 //   rev  = commit-tree <tree> -p <tip> -F -                              (the user's identity)
 //   update-ref -m "panacea: revert <sha>" refs/heads/<branch> <rev> <tip>
-// The reverted lane's ready flag is not touched. Hardened per task-02 §HGH: every call uses Scope
+// The reverted lane's ready flag is not touched. It holds Locks.Lock(ctx, projectID) for the
+// whole verb, as Undo does (review I7). Hardened per task-02 §HGH: every call uses Scope
 // Project, and no hook or merge driver the repository names runs (H1, H3, H4).
 func (l *Lander) Revert(ctx context.Context, projectPath, projectID, branch, sha, expectedTip string) (RevertResult, error)
 ```
@@ -144,6 +146,7 @@ and rev-list, and the lane index for names. Writes nothing."*
 | `TestRevertConflictWritesNothing` | a later commit edits A's lines → `merge_conflict` with paths, tip unchanged | a half-written revert |
 | `TestRevertOfADirectCommitIsRefused` | → `undo_not_exact`/`not_a_land` | reverting arbitrary commits through the land route |
 | `TestUndoAndLandSerialise` | undo and a land on the same branch concurrently under `-race` → one wins, the other is refused, the tip is one of the two outcomes | an undo that moves the tip under a land |
+| `TestUndoAndRevertWaitOnTheProjectLock` (review I7) | the test holds `Locks.Lock(ctx, p)` → an undo and a revert on `p` run no git call 50 ms later (a recording Runner); release → both proceed | an undo or revert that skips the one lock push and fetch take |
 | `TestHistoryGETIsReadOnly` | the §10a audit passes; `for-each-ref` before and after a GET is identical | a GET that writes |
 
 #### Steps
