@@ -377,4 +377,43 @@ No `.github/` directory, though OD-7 made `github.com/lcfrai/panaceaapp` the bac
   "before Phase 8"; critique-2 records the owner of that boundary as unnamed
   (`…/completeness-critique-2.md:47`, `:524`). OD-6 plus the Hub answer who; phase 8 must host it.
 
+---
+
+## 4. The gaps
+
+### 4.0 The shape the gaps are measured against (recommendation, for the phase 8 plan to confirm)
+
+```
+ desktop (Tauri) ── control plane, 127.0.0.1 only (unchanged) ──┐  user's Entra token
+                                                                 ▼
+ our subscription ─ Australia East ─ one VNet ─ AKS (Overlay + Cilium, Entra RBAC, WI)
+   ├─ ingress (TLS, DNS)  ──►  apps pool:   Hub API · sandbox broker (katabe in-cluster)
+   │                           sandbox pool (Kata, tainted): one microVM pod per session
+   ├─ Postgres Flexible (Entra auth, private endpoint)   ├─ Key Vault (private endpoint)
+   ├─ ACR Premium (private endpoint, kubelet AcrPull)     └─ Log Analytics (+ DCR, cap)
+   └─ egress: NAT gateway (dev) or Firewall (prod) — OQ-3
+```
+
+### 4.1 Blocking — the plan cannot start its build tasks without an answer
+
+| Id | Gap | Evidence | Recommendation |
+|---|---|---|---|
+| **G-1** | **No environment in code.** No RG, VNet, cluster, registry, Key Vault, workspace, DNS or state backend; the one pool targets Panacea's dev cluster | `infra/terraform/variables.tf:1-4`, `dev.tfvars:4`, `providers.tf:1-13` | Stacks `bootstrap` → `foundation` → `data` → `identity` → `workloads`, one state each, in `infra/terraform/` |
+| **G-2** | **The laptop cannot reach a Kata pod.** The control plane binds loopback (`control-plane/cmd/api/config.go:54`), builds its Kubernetes client from the in-cluster service account only (`main.go:264`), and dials the **pod IP** (`katabe/kata.go:185-188`). From a laptop none of that resolves | as cited | An **in-cluster sandbox broker**: the same `katabe` code, deployed in the cluster, behind the ingress, authenticating the user's Entra token, which the local control plane calls as one more backend. **OQ-1** |
+| **G-3** | **The RuntimeClass name is unverified.** Code hardcodes `kata-mshv-vm-isolation` (`manager.go:20`) against a pool created with `KataVmIsolation` (`kata.tf:16`); already flagged in `docs/verification/2026-09-17-phase-1-results.md:64-65` and `phase-1-operator-runbook.md:126-132` | as cited | From training knowledge, **not verified**: the GA pairing is `KataVmIsolation` ↔ `kata-vm-isolation`, and `kata-mshv-vm-isolation` was the preview name. Make it a `PANACEA_APP_*` variable and make `kubectl get runtimeclass` the first smoke check |
+| **G-4** | **Sandbox pods are not network- or API-isolated.** No `automountServiceAccountToken: false`, no seccomp profile, no NetworkPolicy, no quota; one shared namespace (`manager.go:55-64`, `:153-202`). Kata isolates the kernel, not the network: an agent can reach the IMDS endpoint, the API server with the default token, and every other sandbox | as cited | Token off, `RuntimeDefault` seccomp, default-deny ingress except from the broker, deny sandbox↔sandbox and `169.254.169.254`, `ResourceQuota` per user namespace or per user label |
+| **G-5** | **No storage for a clone or a conversation.** Kata refuses mounts (`kata.go:84-86`); home is `emptyDir` (`manager.go:175-187`); the image expects a bind-mounted `~/.claude/projects` (`images/sandbox/Dockerfile:26-32`). Resume (OD-10), `/login` credentials and the phase 3 clone all vanish with the pod | as cited | A per-worktree PVC (Azure Disk CSI, RWO). **Whether AKS Pod Sandboxing supports CSI volumes is UNVERIFIED**; phase 8's first cluster task proves it |
+
+### 4.2 Needed for a usable environment, not blocking the first apply
+
+| Id | Gap | Evidence | Recommendation |
+|---|---|---|---|
+| **G-6** | **No warm pool.** `min_count = node_count = 1` (`kata.tf:19-20`), no balloon, no pre-pull. A pod-level pool (pre-booted, claimed later) is **not expressible today**: command, argv and the attach token are environment at pod start (`manager.go:98-127`) | as cited; open risk 1 (`docs/PROGRAM.md:137`) | Node-warm first (floor + low-priority Kata balloon + pre-pull DaemonSet), then **measure** cold start. Pod-warm only if the measurement demands it, as a sandboxd contract amendment |
+| **G-7** | **No egress design for agents.** Panacea's allowlist has no Anthropic, npm or model-provider host (`P:deploy/firewall.tf:170-207`); a coding agent needs package registries, git hosts (OD-4) and its provider | as cited | **OQ-3** |
+| **G-8** | **Identity is not configuration yet.** No Entra app registrations, groups or federated credentials in code; OD-6 needs a desktop public client (PKCE, loopback redirect) and the Hub needs an API with a scope | OD-6 (`…/2026-09-23-owner-decisions.md:17`) | An `identity` stack on the `azuread` provider, **if** the owner grants app-registration rights; otherwise the owner creates them and we import the ids as variables (section 7) |
+| **G-9** | **Nothing server-side is packaged.** No Dockerfile for the Hub or the broker, no chart or manifests, no ingress, no TLS | `ls images/` shows only `sandbox` | `images/hub`, `images/broker`; one Helm chart per service under `deploy/charts/` applied by the pipeline |
+| **G-10** | **No registry or image supply chain.** The sandbox image is built locally and never pushed; the CLI version pin (`Dockerfile:17`) is the OD-8 adapter's pin | as cited | ACR Premium, digest-pinned images, SBOM + scan in CI, kubelet `AcrPull` (no admin user) |
+| **G-11** | **No observability or budget guard.** | nothing in `infra/` | Log Analytics with a daily cap and a DCR in the first apply; kube-audit on, with the cap sized for it; a subscription budget alert |
+| **G-12** | **Defender for Containers cannot assess Kata pods** | `docs/PROGRAM.md:133` | Record as a compliance gap in the phase 8 plan, as `PROGRAM.md` already asks |
+
 
