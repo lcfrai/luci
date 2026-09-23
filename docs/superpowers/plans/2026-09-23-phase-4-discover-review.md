@@ -1402,3 +1402,64 @@ erased shows and materialises. The recommendation is built: the branch's own tex
   both paths: the pin's `erased` answer, and an eviction.
 - How task 17 words a chip whose pin is erased. That is left to the batched visual pass
   (`OD-12`).
+
+## Fix batch b07 (2026-09-24): I9, I12
+
+Commits: `8185da3` (I9), `32a9a2e` (I12), then this section. Line numbers are those at
+`32a9a2e`. The desktop citations were checked against the worktree's tree at `974ed4d`.
+`EmptyDevelop.tsx` and `SessionPane.tsx` have moved since `3303fd6` (+3 and +5 lines), so the
+review's `:41` is `:42` and its `:30-38` is `:31-40`. `useCreateSession.ts`, `sessionVerbs.ts` and
+`client.ts` have not moved.
+
+**I9: all six ways a session starts route the refusal.** Built as the review recommends, with
+three additions, each declared:
+- **`create` carries an `origin`** (`"new-session" | "empty-develop"`). Two surfaces can start a
+  create, and both are on screen together. Without the origin, both would render the one
+  refusal, or the empty state's refusal would appear at a control the person did not press.
+- **Session-bound refusals render in the pane.** The old step 3 mounted the refusal "where the
+  session menu renders". But `act` closes the menu before its verb runs
+  (`sessionVerbs.ts:303-306`), so nothing would be left to anchor to. `restart`, `resume` and
+  `fork` now render in the source session's `SessionPane`.
+- **Replay reads the source from the store.** Resume and fork build their body inside the
+  client (`client.ts:342-383`), so Retry re-calls the verb instead of re-sending a stored body.
+  The arms hold `sourceId`, as the review's shape says. A purged source sends nothing and says
+  so in one toast.
+
+The client change sits in task 15, which already owns `client.ts`. It does not go into task 20.
+
+| Fix | Where |
+|---|---|
+| The six call sites, each with its symbol, request, `catch` today and recorded attempt; why resume and fork cannot re-send a stored body | `task-20.md:9-25` |
+| Files: `startAttempt.ts`, `EmptyDevelop.tsx`, `SessionPane.tsx`, and one test file per call site | `task-20.md:34-48` |
+| `StartAttempt`, the tagged union `create{origin, request}` / `restart{sessionId}` / `resume{sourceId, harness}` / `fork{sourceId, targetWorktreeId, harness}`; `PendingStart = StartAttempt & {reason, message, withoutBrief}` | `task-20.md:58-84` |
+| `routeBriefRefusal` (checked first in every `catch`) and `replayStart` (an exhaustive switch; source gone; success; second refusal; other errors) | `task-20.md:87-114` |
+| Where each arm renders | `task-20.md:117-123` |
+| `StartWithoutBrief`'s comment points at `replayStart` | `task-20.md:127-133` |
+| One test per call site, plus `a replay whose source is gone sends nothing` | `task-20.md:160-166` |
+| Step 1: a grep for all four verbs, where a seventh call site counts as a finding; step 3: the six routing edits and `runImmediate`'s `refusal` | `task-20.md:174-182` |
+| `resumeSession` and `forkSession` take `{withoutBrief}` (step 5), with its test | `task-15.md:13-14`, `:56-62`, `:231` |
+| Restatements: the plan's file map | `plan.md:319-320`, `:337`, `:343-345` |
+| Restatements: UI contract §4's row | `task-22.md:33` |
+
+**I12: typing in the free-text field is text.** The review's target check is built as it
+stands, and `select` is added to it, as the prototype has it. For `Enter`, the review offered two
+choices: `Ctrl+Enter`, or a stated rule. This batch states a rule, the **prototype's**
+(`prototype/phase-4-discover.html:689-693`): `Enter` sends, `Shift+Enter` is a new line. Task 18
+names the prototype as its specification (`task-18.md:4`), and the owner reviewed it.
+`Ctrl+Enter` would have departed from that specification without the owner's ruling. So the
+"multi-line answer sent by `Enter`" part of the finding is met by a deliberate `Shift+Enter`
+new line. The batch also adds an IME guard (`isComposing`), because a CJK composition confirms
+with `Enter`.
+
+| Fix | Where |
+|---|---|
+| The region handler returns first for a form-field target; the field's `Enter` / `Shift+Enter` / IME rule; why the prototype's rule wins over `Ctrl+Enter` | `task-18.md:21-34` |
+| Test `typing digits and E in the field is text` (`userEvent`, already at `desktop/package.json:28`) | `task-18.md:121` |
+| Restatement: G9 | `plan.md:219-223` |
+
+**Still unverified:**
+- No TypeScript was run. This is a plan-only batch.
+- Whether `SessionPane` has room for the refusal above its exit bar and header. That is left to
+  the batched visual pass (`OD-12`).
+- Whether task 19's follow-up field (prototype `:513`) reuses task 18's region handler. Task 19
+  names no keyboard rule. If it has its own handler, the same target check applies to it.
