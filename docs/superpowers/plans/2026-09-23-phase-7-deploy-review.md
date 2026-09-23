@@ -624,6 +624,7 @@ the two after it. Line numbers are those after round 2.
 | R2 | Ship: `409 deploy_environment_unreadable`, never `deploy_not_found`; `TestShipEnvironmentUnreadable` | t05:231, t09:185-188, t09:246, t09:275, t13:263 |
 | R2 | The card's refusal state and test `refused names the refusal` | t15:86-90, t15:184 |
 | R2 | §12: the `%2F` path ends in a kept refusal and a card sentence | plan:748-755 |
+| R2 | LIVE-CHECK step 6 names the refusal sentence as the `%2F` failure | t20:420 |
 | R3 | `panaceatest.Server` answers the route from both seeds; `env` is omitted for a posture-only branch | t03:285-294, t04:187-192 |
 | R4 | `Assemble(s, same, now)`; `Watcher.SameEnvironment`; the view tests' `prod`/`production` stub | t07:87-89, t08:144-147, t08:204-209 |
 | R4 | Test `TestWatcherPassesSameEnvironment` | t07:207 |
