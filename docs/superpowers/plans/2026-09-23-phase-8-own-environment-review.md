@@ -823,3 +823,35 @@ and every runbook section. Recorded for the owner as an optional hardening, not 
 
 **Mutation checks:** none run. These are plan documents only. The new mutants are in task 30's
 Step 2 (four, for I3), task 29's two new `sql /` rows, and task 01's Step 4.
+
+## Fix batch b03, round 2 (2026-09-24) — re-review `plan-rereview-b03-1.md`
+
+Commits `694b3a4` (I-1, M-4, M-5) and `a92b81b` (I-2, M-1, M-2, M-3, M-6, M-7). Line numbers are
+at `a92b81b`. The I9 and I3 rows above stand; these close the re-review's open issues in them.
+
+| Re-review | Change | Where |
+|---|---|---|
+| **I-1** psql's default runs the GRANTs after the oid check fails | Both grants move **inside** the DO block, after both checks, as `EXECUTE format('GRANT … TO %I', …)`; a `RAISE` aborts the block, so no grant runs whatever psql's settings. Nothing but a comment follows `$$;`. §7 runs every file as `psql -v ON_ERROR_STOP=1 --single-transaction -f …`, with the exit code written to a file and read. New row `sql / no grant runs outside the checked block`. HC-1 asks the Hub to state the same flags in `roles.sql`'s header. The "or the §7 command lacks `ON_ERROR_STOP`" test is not built: it would test runbook prose; the grant-inside-the-block structure is the control, and it holds without the flag | `parts/task-29.md:205-215`, `:262`; `parts/task-31.md:37`; `parts/task-33.md:57` |
+| **I-2** the pipeline test rests on `TF_BUILD` alone and fails open | Root-cause option taken: a pipeline is `TF_BUILD=True` **or** any of `BUILD_SOURCEBRANCH`, `SYSTEM_JOBID`, `AGENT_ID`; a workstation only when all four are unset; an empty branch on the pipeline path is refused. One `is_pipeline` in `pipelines/scripts/lib/where.sh`, sourced by both `estate-guard.sh` and `tf-stack.sh`, so they cannot disagree. New guard cases: `TF_BUILD` unset with a branch, consuming a `refs/pull/*` run → refused; only `SYSTEM_JOBID` set → refused naming the empty branch. New `tf-stack` case: `AGENT_ID` alone, `plan identity` → refused. Workstation cases unset all four. §4 records that every pipeline `ok` line names a branch, and stops on `workstation` | `parts/task-30.md:29`, `:121-127`, `:195-196`, `:350-353`, `:364-365`, `:377-378`, `:388`, `:496-501`; `parts/task-31.md:32`; plan `:441` |
+| **M-1** no test proves a correct workstation passes; no stack on a workstation | No stack named on a workstation → the tfvars rule checks nothing, and an unset list is not an error under `set -u`. New case: workstation, ids agree, tagged `dev`, no stack → `ok` naming `workstation` | `parts/task-30.md:148-152`, `:363` |
+| **M-2** workstation `apply` untested and its plan source unstated | A workstation `apply` applies the `<stack>.tfplan` its own `plan` just wrote, never re-plans, never reads a pipeline artefact; no file → exit 1. Two new `tf-stack` cases: the guard stub exiting 1 on workstation `apply` → `terraform` recorded nothing; the plan-file source. Mutant named | `parts/task-30.md:213-218`, `:386-387`, `:496-501` |
+| **M-3** "every path" overclaims | Stated as a residual: stages 4–5 and `images.yml`'s push job never run the guard; their identities hold nothing at subscription scope; they rely on stage 1's read, branch control and resource-scoped roles on our fingerprinted cluster and registry. "Every path" now reads "every Terraform path and every workstation section". The commit title `fb10d54` cannot be changed (no amend); this row corrects it | `parts/task-30.md:132`, `:267-276`; `parts/task-31.md:27`; plan `:310` |
+| **M-4** at a count of 2 the §7 gate skips `GRANT CREATE ON DATABASE hub` | At 2, §7 re-runs that `GRANT` alone (safe to repeat), then checks `has_database_privilege('hub_owner','hub','CREATE')`. At 0, `roles.sql` runs in one transaction, so a failed `GRANT` leaves 0 roles, never 2 without it. HC-1's "correct for both files" is now true | `parts/task-31.md:37`; `parts/task-33.md:57`; `parts/task-29.md:176-178` |
+| **M-5** no mapping from render-sql's keys to Terraform outputs; fixture path unclear | `render-sql.sh <template> <workloads.json>` reads the `stack-outputs` artefact's `workloads.json` by output name through one written table (`HUB_APP_IDENTITY`←`hub_identity_name`, `HUB_APP_OBJECT_ID`←`hub_principal_id`, `HUB_MIGRATE_IDENTITY`←`hub_migrate_identity_name`, `HUB_MIGRATE_OBJECT_ID`←`hub_migrate_principal_id`, checked against task 10 `:145-155`), with `python3`'s `json` module (no `jq`). Each value must match a name pattern or a GUID, so no quote reaches the SQL. `stack-outputs` holds one `<stack>.json` per stack. The fixture is `pipelines/scripts/tests/fixtures/workloads-outputs.json` in both places. Two new rows; `render-sql_test: 6 of 6` | `parts/task-29.md:14`, `:227-241`, `:263-265`, `:297-298`; `parts/task-30.md:282-283`; `parts/task-31.md:37` |
+| **M-6** dev and prod must be separate subscriptions | The owner-inputs row now asks for one subscription per environment, and says why; §1 repeats it | plan `:309`; `parts/task-31.md:27` |
+| **M-7** `pg_has_role` raises on a missing role | HC-2 now runs two queries in order: the role's existence, then `pg_has_role`; not one `AND`, whose evaluation order Postgres does not promise. A missing role gives the one-line bootstrap message | `parts/task-33.md:58` |
+
+**Restatements checked** (grep over the plan and `parts/`): `ids.env`, `KEY=value`,
+`only when neither`, `stops on a role`, `two grants`, `14 of 14`, `tf-stack_test: 6`, `3 of 3`,
+`on every path`, `every path to Azure`, `TF_BUILD`, `render-sql`, `pg_has_role`. The stale ones
+are fixed; `task-29.md:259`'s "the two grants" is still true. `grant-pipeline-roles_test: 6 of 6`
+is a different script and is unchanged.
+
+**Still UNVERIFIED** (training knowledge; nothing was run):
+- psql's exit code under `ON_ERROR_STOP` (3 for a script error), and that it exits 0 without it; §7 records the real code.
+- That ADO sets `TF_BUILD`, `BUILD_SOURCEBRANCH`, `SYSTEM_JOBID` and `AGENT_ID` on every job, deployment jobs included. The guard no longer fails open if one is missing; §4 records which were set.
+- That `pg_has_role` raises on a missing role (the reason HC-2 splits its query), and that `GRANT` of an already-held role is a notice, not an error.
+- That `python3` is on the operator's workstation; §7 lists it as a prerequisite.
+
+**Mutation checks:** none run. Plan documents only. The new mutants are the five in task 30's
+Step 2 (`:496-501`) and the three new `sql /` rows of task 29.
