@@ -24,17 +24,21 @@ It builds `cmd/api` into a temp directory, sets `PANACEA_APP_STATE_DIR`, `PANACE
 and `PANACEA_APP_WORKTREES_DIR` to temp directories (the worktrees one **outside** the projects
 one), a fixed `PANACEA_APP_GIT_NAME`/`EMAIL`, `PANACEA_APP_LANE_SYNC_INTERVAL=1s`,
 `PANACEA_APP_FETCH_INTERVAL=0`, starts it on a free loopback port, and waits for `/v1/healthz`.
-It creates a project repository with a bare repository as its `origin`. Then, each step asserting
-the status code and the named facts, and recording both in the results document:
+It creates a project repository with a bare repository as its `origin`, laid out as husky's
+install step leaves one (review I11): the project's **local** config has `core.hooksPath=.husky/_`,
+and its working tree has an ignored `.husky/_/` holding `.gitignore` (`*`) and an executable
+`commit-msg` that appends `X-Husky: ran`. The run never writes a clone's config or hooks.
+Then, each step asserting the status code and the named facts, and recording both in the
+results document:
 
 | # | Step | Asserts |
 |---|---|---|
 | 1 | `POST …/worktrees` ×2 on `evidence-upload` | 201, `kind:"clone"`; both in `GET …/worktrees` under the branch |
 | 2 | a shell session on each; wait for `running` | the sandbox's `git status` exits 0 (`docker exec`) — **the linked-worktree failure is gone for cockpit worktrees** |
-| 3 | commit in A (`upload-ui`) and a conflicting commit in B (`upload-api`) | each commit's `Panacea-Session` equals its session's id |
+| 3 | commit in A (`upload-ui`) and a conflicting commit in B (`upload-api`) | each commit's `Panacea-Session` equals its session's id, and each carries `X-Husky: ran`: the project's hook ran in a clone the route made (task 03 step 6, task 05) |
 | 4 | mark both ready; `PUT …/queue` [A, B] | 200 |
 | 5 | `GET …/convergence` | A `clean`; B `conflicts`, `conflictsWith:[A]`, the path; both lanes' `commits[].sessions` |
-| 6 | `POST …/lands` A with `expectedTip = tip` | 201; a two-parent merge with `Panacea-Land: <A>`; A's ready flag false; B's clone `origin/evidence-upload` == the merge |
+| 6 | `POST …/lands` A with `expectedTip = tip` | 201; a two-parent merge with `Panacea-Land: <A>` and **no** `X-Husky` line (the host ran no repository hook: task-02 §HGH H1); A's ready flag false; B's clone `origin/evidence-upload` == the merge |
 | 7 | `POST …/lands` B | 409 `merge_conflict` with the path; the branch tip unchanged |
 | 8 | resolve in B: `git merge origin/evidence-upload`, fix, commit (`docker exec`) | the resolving commit carries B's session |
 | 9 | `POST …/lands` B | 201 |
@@ -74,8 +78,11 @@ unverified until then, and every report says so.**
    machine's credential manager; open one **draft** PR there, and one on an Azure DevOps
    repository the owner names; close both by hand (task 14's manual check — they create objects
    other people can see, so no agent runs them unasked).
-5. **A husky repository.** Clone a project that uses husky into the projects directory, make a
-   cockpit worktree, commit from a sandbox: its hooks ran and the trailer is present (task 05).
+5. **A husky repository.** Clone a project that uses husky into the projects directory and run
+   its install step on the host (`npm install`), so `.husky/_` exists; then make a cockpit
+   worktree and commit from a sandbox: its hooks ran and the trailer is present (task 05). The
+   e2e run's step 3 proves the same on a synthetic layout; this item proves it on a real husky
+   version. Record any `panacea: core.hooksPath names` line the commit printed.
 6. **The open questions** Q1–Q5 (the plan's table): confirm or overrule each.
 7. **Risk R4**, for the record: whether the managed Claude policy reaches the sandbox after
    `/login`. Phase 3 depends on neither answer (it uses no Claude hook or MCP).
