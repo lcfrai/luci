@@ -182,7 +182,7 @@ PUT /v1/projects/{projectId}/branches/{branchId}/queue
       "commits": [{ "sha": "…", "subject": "Resume from the last stored chunk", "authorName": "…",
                     "at": "…", "sessions": ["s-3f2a91c0"] }],
       "truncated": false, "changed": [{ "path": "src/upload/handler.ts", "status": "modified" }],
-      "uncommitted": [], "readError": "", "ready": true,
+      "uncommitted": [], "headElsewhere": "", "readError": "", "ready": true,
       "sessions": [{ "id": "s-3f2a91c0", "title": "…", "harness": "claude-code", "status": "running" },
                    { "id": "s-77aa0011", "title": "…", "harness": "shell", "status": "idle" }] }
   ],

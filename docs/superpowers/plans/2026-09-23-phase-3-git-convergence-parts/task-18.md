@@ -42,6 +42,7 @@ export interface LaneCommit {
 export interface LaneObservation {
   worktreeId: WorktreeId; name: string; synced: boolean; syncedAt: string; tip: string; base: string;
   commits: LaneCommit[]; truncated: boolean; changed: PathChange[]; uncommitted: PathChange[];
+  headElsewhere: string; // "" | "refs/heads/<other>" | a detached sha (task 07; review I6)
   readError: string;
 }
 

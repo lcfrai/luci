@@ -42,6 +42,11 @@ export function forecastLine(conv: Convergence, f: Forecast): string;
 /** The uncommitted note, or null: "Not committed: a.ts, b.ts — uncommitted work does not land." */
 export function uncommittedLine(lane: LaneView): string | null;
 
+/** Review I6: null when headElsewhere is ""; else "The agent is working on fix-x, not
+ *  evidence-upload. Only evidence-upload lands." ("on a detached commit 1a2b3c4" for a sha).
+ *  Shown on the row beside the uncommitted line, never hidden behind a click. */
+export function headElsewhereLine(lane: LaneView, branch: string): string | null;
+
 /** 3-D2: null unless two or more live sessions share the lane; else names them with their
  *  kind, e.g. "upload-api (agent) and a shell", for SHARED_INDEX_NOTE's lead-in. */
 export function sharedSessionsLine(lane: LaneView): string | null;
@@ -151,6 +156,7 @@ hidden until task 22 provides it).
 | `ResolveDialog offers a shell when the harness cannot take a prompt` | `supportsOpeningPrompt: false` → the sentence and Open a shell here → `{ harness: "shell" }` | a dead Start button |
 | `the shared-index warning names both sessions` | a lane with an agent and a shell session → "upload-api (agent) and a shell" + SHARED_INDEX_NOTE | the hazard invisible (3-D2) |
 | `uncommitted work is named on the row` | `uncommitted: [a.ts]` → the uncommitted line | "lands clean" hiding work that will not land |
+| `a head off the branch is named on the row` (review I6) | `headElsewhere: "refs/heads/fix-x"` → the line names `fix-x` and the branch; a 40-hex value → "detached" and the short sha; `""` → no line | "nothing to land" while the agent commits elsewhere |
 | `Mark ready is disabled for an empty lane, with its reason` | no commits → disabled, `title` is the reason | readiness offered for nothing |
 | `zero states` | no ready lanes → the m-empty text; no lanes → m-new's text | an empty white box |
 | `the lens adds no interval and no spinner` | no `setInterval`; no element with `role="progressbar"`; the landing-in-flight shape is `StatusDot status="running" live` | a spinner per row |
