@@ -193,3 +193,109 @@ reconstructions (§0).
 | Delivery risk | **5** | 1 | 2 | A has no component this team has not built before. B's Keycloak is a named outage class. C's event store is a rewrite-sized bet |
 | **Total /35** | **31** | 16 | 23 | |
 
+---
+
+## 4. Decision
+
+**Design A wins, with one structural amendment and six grafts.** A is the only candidate whose
+first route phase 4 can call exists in days, whose local twin is the real thing, and whose moving
+parts are ones this team already runs. Its two real weaknesses — authorisation enforced only in Go,
+and a release pin the caller asserts — are exactly what the runners-up are good at, and each fix is
+small enough to take.
+
+### 4.1 The structural amendment — the Hub lives in the control-plane module
+
+A, as written in §2.1, is a new `hub/` module in `go.work`. **The judge pass overrules that.** The
+Hub is a second binary in the existing module:
+
+```
+control-plane/cmd/hub/          main package: the Hub server            (new)
+control-plane/cmd/devissuer/    main package: the local OIDC issuer      (new)
+control-plane/internal/hub/...  the Hub's packages                       (new)
+control-plane/internal/entra/   Entra access-token validation            (phase 8 task 16; HA-1)
+control-plane/internal/httpx/   reused as-is: Problem, WriteJSON, DecodeJSON
+control-plane/internal/ids/     reused, plus one new function (contract §3.1)
+```
+
+Why, in order of weight:
+
+1. **`httpx` and `ids` are `internal`** (§1.5). A new module can import them only after they are
+   moved to a shared module, which rewrites the import block of every control-plane handler.
+   Phases 3, 4, 5 and 7 are editing those handlers tonight in four worktrees. A move is a
+   four-way merge collision for no behaviour change.
+2. **Phase 8 already made this call for the broker.** `control-plane/cmd/broker` imports
+   `control-plane/internal/entra` (phase 8 plan, file map `:306`, task 16). With the Hub in the same
+   module, HA-1 — *"the broker and the Hub must accept and reject the same tokens"* — is satisfied by
+   construction: it is one package, not two to reconcile.
+3. **Go links only what a `main` package imports.** The Hub binary does not carry `client-go` or the
+   Docker client because they share a `go.mod`. `pgx` joins the module's requirements; the
+   control-plane binary does not link it.
+
+The cost is a boundary the compiler does not draw. It is drawn by a test (contract §13, task H0.3):
+`go list -deps ./cmd/hub` may name only the standard library, `internal/hub/...`, `internal/httpx`,
+`internal/ids`, `internal/entra`, `pgx` and `golang.org/x/time/rate`; and no package outside
+`internal/hub/...` may import `internal/hub/server/...`. The control plane reaches the Hub only
+through `internal/hub/hubclient` and the wire types in `internal/hub/hubapi`.
+
+### 4.2 The grafts
+
+| # | Graft | From | What it fixes in A | Cost | Taken? |
+|---|---|---|---|---|---|
+| G1 | **Ship reservation.** `POST …/releases` makes the **Hub** resolve and fix the pin *before* the deploy call; the control plane then confirms the run or abandons it | C | A's release link is asserted by the caller after the fact — P7 (*"a release link written by a second call"*) is broken the moment the store is on another machine | ~1 day | **yes** |
+| G2 | **Content-addressed blobs** (`sha256`), **stored in Postgres** in v1 behind a `blobstore` interface | C (moved into Postgres) | A has no blobs, but phase 5 captures the approved snapshot into the Hub at approval (`paper-design-cleanroom-spec.md:474`) | ~1 day | **yes**, without C's object store |
+| G3 | **An ordered change feed.** Every write appends one row to the audit log under a lock; the feed is that log, filtered. The control plane polls it; SSE later serves the same rows | C, reduced | A's "changes cursor" was unspecified, and a `bigserial` cursor skips rows that commit out of order | ~½ day | **yes**, polling only |
+| G4 | **Postgres row-level security on `org_id`**, plus a DDL identity and a DML identity, plus immutability by grants **and** triggers | B, reduced | A's single line of tenancy defence (§3, security 3) | ~1 day | **yes**, org level only |
+| G5 | **Hash-chained audit log** | B and C | tampering with the audit is silent in A | ~½ day | **yes**; anchoring the head outside the database is later |
+| G6 | **An org-admin app role**, and **erasure as a tombstone** that keeps key and digest | B | A has no erasure and no role above team admin | ~½ day | **yes** |
+
+**Taken whole from neither.** Rejected grafts, each with its reason:
+
+- **C's event sourcing** — projections rebuilt from a log make every read path a second system to
+  test, and the property it buys (no lost history) G4's immutability already gives the only records
+  that need it.
+- **C's server-signed ledger entries** — worth it only when a manifest leaves our system and must
+  verify offline. Nothing does in v1. It is a key-management programme; later (§7).
+- **C's WebSocket presence and Yjs relay in v1** — phase 5 keeps live canvas documents in the control
+  plane in v1 (`paper-design-cleanroom-spec.md:735`, OQ-2) and names its v2 model as
+  server-authoritative per-property last-writer-wins, not Yjs (`:647`). The Hub will host *that Go
+  package* in v2, over the WebSocket library already in `go.mod`. A relay built tonight would be for
+  a protocol phase 5 is not using.
+- **B's Keycloak broker** — §6.1.
+- **B's API Management in front of the Hub** — rate limits live in the process (contract §11.3);
+  the WAF question is phase 8's edge, not the Hub's.
+- **B's envelope encryption and crypto-shredding** — needs a per-org key hierarchy in Key Vault with
+  no local twin. Azure Postgres encrypts at rest; erasure is a tombstone written by a dedicated
+  function (G6). Revisit when a customer contract requires customer-managed keys.
+- **B's Rust-held tokens** — §6.2.
+
+**Revised cost.** H-min (§5.9) is about **11 engineer-days**; the first route phase 4 can call
+(`POST …/brief-revisions`) is reachable on **day 3**. Estimates assume one engineer who has read
+this ADR and the contract, and that the phase 8 `internal/entra` package lands first or is written
+here to its interface.
+
+---
+
+## 5. The decision in detail — the nine questions
+
+Each answer is the decision; the contract holds the exact routes, JSON, DDL and variables.
+
+### 5.1 Service shape
+
+- **Where:** §4.1. One binary, `hub`, built from `control-plane/cmd/hub`. Stateless: two replicas
+  behind phase 8's gateway are safe, because every piece of shared state is in Postgres and the only
+  in-process state is the JWKS cache and the rate-limit buckets.
+- **API style:** REST + JSON under **`/v1`** (no `/api` prefix — the Hub serves nothing but its API,
+  and phase 8's `HTTPRoute` mounts it at the root of its own host). Versioning is the path segment;
+  a breaking change is `/v2` served beside `/v1` for one release. Additive fields are not breaking,
+  and every decoder on both sides tolerates them **except** the Hub's own request decoding, which
+  keeps `httpx.DecodeJSON`'s unknown-field rejection.
+- **Error model:** `httpx.Problem` — `{"error","message","details"}` — **byte-for-byte the control
+  plane's**, written through `httpx.WriteProblem`. The Hub's codes are its own constant block in
+  `internal/hub/hubapi`, disjoint from `httpx`'s sixteen except where the meaning is identical
+  (`invalid_json`, `bad_request`, `forbidden_origin`, `conflict`, `internal`). Contract §4.
+- **How a Hub error reaches the desktop:** the control plane relays a Hub 4xx problem **unchanged**
+  (same status, same code), so a teammate's `revision_conflict` reads the same in both places.
+  A Hub that cannot be reached, or answers 5xx, becomes the control plane's **503
+  `upstream_unavailable`, `details.upstream = "hub"`** — ruling R4's code and kind, with a third
+  upstream name. No new desktop `ProblemKind` is needed.
+
