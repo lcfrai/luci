@@ -95,10 +95,12 @@ control plane chooses, not by the renderer's tick.
    (`clients/kubernetes.go:5743`, `ID: pr.GetName()`, inside `ListDeployments` at `:5596`), so
    the join key is known before the row exists, and nothing is inferred.
 
-Panacea paths below are written relative to `~/Projects/Panacea/services/panacea-api/` and were
-read at Panacea commit `b33d15acb`. **Line numbers have moved since the survey** (`Rollback` was
-`projects.go:1629`, is `:1547`; `TriggerDeploy` was `:3024`, is `:2942`); every Panacea line cited
-in this plan was re-read on 2026-09-23.
+Panacea paths below are written relative to `~/Projects/Panacea/services/panacea-api/`, and their
+line numbers are those of Panacea commit `406d0da95`. **Line numbers have moved since the survey**,
+which read `b33d15acb`: `406d0da95` removed 82 lines from `projects.go` after `:1418` (`Rollback`
+was `projects.go:1629`, is `:1547`; `TriggerDeploy` was `:3024`, is `:2942`). Every Panacea line
+cited in this plan was re-read on 2026-09-23; the lines parts 17–20 cite, and a sample of the rest,
+were re-read at `b02424691` on 2026-09-24, which leaves every cited line where it was.
 
 ---
 
@@ -685,8 +687,8 @@ recorded Panacea bodies.
 - **No network call was made by this pass.** The Panacea dev address and version are the
   orchestrator's measurement (`orchestrator-rulings.md`, *Settled by measurement*). No token was
   used and no response body was observed; every Panacea shape is read from Go source at
-  `b33d15acb`, and a later Panacea commit may move any of it. Task 02 and task 20 re-check against
-  the live dev API.
+  `406d0da95` (§2), and a later Panacea commit may move any of it. Task 02 and task 20's
+  `LIVE-CHECK.md` re-check against the live dev API.
 - **Go on Windows trusts KPMG's interception root through the system store** (7P-10) — from
   knowledge; task 02's acceptance has the one live call that settles it.
 - **The value of `panacea.io/environment` for the production environment** — `"prod"` or

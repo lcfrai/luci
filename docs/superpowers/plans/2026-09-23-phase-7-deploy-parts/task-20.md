@@ -67,8 +67,13 @@ package panacea_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -82,6 +87,16 @@ import (
 
 func liveDeployer(t *testing.T) (deploy.Deployer, deploy.ProjectRef, string) {
 	t.Helper()
+	m, ref, env := liveManager(t)
+	return m.Current(), ref, env
+}
+
+// liveCAFile is the same variable the control plane reads (plan §6): step 1 of LIVE-CHECK.md
+// says to set it when this laptop's Go does not trust the corporate interception root (7P-10).
+func liveCAFile() string { return os.Getenv("PANACEA_APP_PANACEA_CA_FILE") }
+
+func liveManager(t *testing.T) (*connection.Manager, deploy.ProjectRef, string) {
+	t.Helper()
 	project, env := os.Getenv("PANACEA_APP_LIVE_PROJECT"), os.Getenv("PANACEA_APP_LIVE_ENV")
 	if project == "" || env == "" {
 		t.Skip("PANACEA_APP_LIVE_PROJECT and PANACEA_APP_LIVE_ENV name what to read")
@@ -89,14 +104,16 @@ func liveDeployer(t *testing.T) (deploy.Deployer, deploy.ProjectRef, string) {
 	m, err := connection.New(connection.Config{
 		Secrets:    credstore.WinCred(),
 		IsNotFound: func(err error) bool { return errors.Is(err, credstore.ErrNotFound) },
+		CAFile:     liveCAFile(),
 		NewClient: func(origin string, tokens panacea.TokenSource) (deploy.Deployer, error) {
-			return panacea.New(panacea.Config{Origin: origin, Tokens: tokens, UserAgent: "PanaceaApp/live-check"})
+			return panacea.New(panacea.Config{Origin: origin, Tokens: tokens, CAFile: liveCAFile(),
+				UserAgent: "PanaceaApp/live-check"})
 		},
 	})
 	if err != nil {
 		t.Fatalf("connection: %v", err)
 	}
-	return m.Current(), deploy.ProjectRef(project), env
+	return m, deploy.ProjectRef(project), env
 }
 
 func TestLiveWhoamiAndProjects(t *testing.T) {
@@ -183,7 +200,182 @@ func TestLiveReadinessStreamIsNotBuffered(t *testing.T) {
 }
 ```
 
-The build-log stream is checked by eye in step 6 below, because it needs a run in progress.
+```go
+// Task 03's promise: its recorded bodies were hand-written from source, and this is where they
+// meet the live answer — one raw GET per read route of plan §4 rows 2-9, with the stored token.
+// Never the diagnosis (row 9's third route): it may spend a Panacea model call.
+//
+// A key EVERY recorded item holds, and NO live item holds, fails for a route the connector
+// decodes. A key some recorded item lacks is optional (omitempty — environments.json's second
+// row has no `replicas`), so comparing first items would fail on a live list whose first row is
+// the other kind; the sets below compare all items. A key only live bodies hold is logged.
+func TestLiveBodiesMatchRecordedKeys(t *testing.T) {
+	m, ref, env := liveManager(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	token, err := m.PanaceaToken(ctx)
+	if err != nil {
+		t.Fatalf("token: %v", err)
+	}
+	origin := m.Status().Origin
+	if origin == "" {
+		t.Fatal("no Panacea address is stored: LIVE-CHECK.md step 2 comes first")
+	}
+	hc, err := panacea.BuildHTTPClient(liveCAFile(), 15*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := func(path string) (int, []byte) {
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, origin+path, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Accept", "application/json")
+		resp, err := hc.Do(req)
+		if err != nil {
+			t.Errorf("GET %s: %v", path, err) // *url.Error names the URL, never a header
+			return 0, nil
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+		return resp.StatusCode, b
+	}
+	type check struct {
+		path     string
+		recorded []string // their key sets are intersected: a key one of them lacks is optional
+		decoded  bool     // false: passed through, shape not interpreted (plan §4 row 9) — logs only
+	}
+	p := "/api/v1/projects/" + url.PathEscape(string(ref))
+	e := p + "/environments/" + url.PathEscape(env)
+	checks := []check{
+		{"/api/v1/me", []string{"me-approved.json", "me-pending.json"}, true},
+		{"/api/v1/projects", []string{"projects.json"}, true},
+		{p + "/environments", []string{"environments.json"}, true},
+		{p + "/deploys/latest", []string{"latest.json"}, true},
+		{p + "/deployments", []string{"deployments.json"}, true},
+		{e + "/pods", []string{"pods.json"}, false},
+		{e + "/events", []string{"events.json"}, false},
+	}
+	// Rows 7 and 8 need a run. A deployment's id IS its PipelineRun name (clients/kubernetes.go:5743,
+	// `ID: pr.GetName()`), spelled "id" (models/models.go:666); deployId takes that name
+	// (handlers/security_status.go:211-214). A project that never shipped answers 404 (row 5).
+	if code, b := get(p + "/deploys/latest"); code == http.StatusOK {
+		var latest struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(b, &latest) == nil && latest.ID != "" {
+			checks = append(checks,
+				check{p + "/pipelines/" + url.PathEscape(latest.ID), []string{"run-running.json", "run-failed.json"}, true},
+				check{p + "/security-status?deployId=" + url.QueryEscape(latest.ID), []string{"security-status.json"}, true})
+		}
+	} else {
+		t.Logf("deploys/latest answered %d: rows 7 and 8 are not compared", code)
+	}
+	for _, c := range checks {
+		code, b := get(c.path)
+		if code != http.StatusOK {
+			t.Errorf("GET %s: status %d, want 200", c.path, code) // 0 = the transport error above
+			continue
+		}
+		_, liveSome, n := keySets(t, b)
+		if n == 0 {
+			t.Logf("%s: no live item, so no keys to compare", c.path)
+			continue
+		}
+		var wantEvery, wantSome map[string]bool
+		for _, f := range c.recorded {
+			every, some, _ := keySets(t, mustRead(t, filepath.Join("testdata", f)))
+			wantEvery, wantSome = intersect(wantEvery, every), union(wantSome, some)
+		}
+		for k := range wantEvery {
+			switch {
+			case liveSome[k]:
+			case c.decoded:
+				t.Errorf("%s: recorded key %q is in no live item — task 03's DTO reads it", c.path, k)
+			default:
+				t.Logf("%s: recorded key %q is in no live item (passed through, so not a defect)", c.path, k)
+			}
+		}
+		for k := range liveSome {
+			if !wantSome[k] {
+				t.Logf("%s: live-only key %q", c.path, k) // a name, never a value
+			}
+		}
+	}
+}
+
+// keySets unwraps plan §4's envelopes — `list` {items,totalCount}, `data` {data,error,message},
+// a bare array, or a bare object — and returns the keys every item holds, the keys any item
+// holds, and the item count. A body that is not JSON fails the test; the body is never logged.
+func keySets(t *testing.T, b []byte) (every, some map[string]bool, n int) {
+	t.Helper()
+	var v any
+	if err := json.Unmarshal(b, &v); err != nil {
+		t.Fatalf("not JSON (%d bytes): %v", len(b), err)
+	}
+	if o, ok := v.(map[string]any); ok {
+		delete(o, "_source") // task 03's provenance key, stripped before serving; never live
+		if items, ok := o["items"].([]any); ok {
+			if _, ok := o["totalCount"]; ok {
+				v = items
+			}
+		} else if d, ok := o["data"]; ok && len(o) <= 3 {
+			v = d
+		}
+	}
+	items, ok := v.([]any)
+	if !ok {
+		items = []any{v}
+	}
+	some = map[string]bool{}
+	for _, it := range items {
+		o, ok := it.(map[string]any)
+		if !ok {
+			continue
+		}
+		keys := map[string]bool{}
+		for k := range o {
+			keys[k], some[k] = true, true
+		}
+		every, n = intersect(every, keys), n+1
+	}
+	return every, some, n
+}
+
+// intersect treats nil as "no set yet", so the first set passed in is kept whole.
+func intersect(a, b map[string]bool) map[string]bool {
+	if a == nil {
+		return b
+	}
+	out := map[string]bool{}
+	for k := range a {
+		if b[k] {
+			out[k] = true
+		}
+	}
+	return out
+}
+
+func union(a, b map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for k := range a {
+		out[k] = true
+	}
+	for k := range b {
+		out[k] = true
+	}
+	return out
+}
+
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("recorded body: %v", err) // task 03 writes every file this test names
+	}
+	return b
+}
+```
+
+The build-log stream is checked by eye in step 7 below, because it needs a run in progress.
 
 #### `LIVE-CHECK.md` — complete: the owner's one session (OD-12)
 
@@ -200,7 +392,7 @@ write below touches **only** that branch. Write down its posture and auto-deploy
 |---|---|---|---|---|
 | 1 | `go run ./control-plane/internal/deploy/panacea/cmd/versioncheck <dev origin>` | a version string. An `x509` error: stop, set `PANACEA_APP_PANACEA_CA_FILE` | 7P-10 on this laptop (task 02) | |
 | 2 | Deploy lens → paste the token → Connect | *connected*, or the awaiting-approval words; the field is empty after; `cmdkey /list` shows a `PanaceaApp/panacea/<host>` row | task 05, live | |
-| 3 | `PANACEA_APP_LIVE_PROJECT=<project> PANACEA_APP_LIVE_ENV=<an env> go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/` | `ok`; copy the logged environment names and the `withSlashInBranch` count here | repoUrl for a non-admin token (plan §12); `ParseRemote` on a real URL (task 06); `prod` vs `production` (7P-8); branch names with `/` (task 08); stream not buffered (task 12) | |
+| 3 | `PANACEA_APP_LIVE_PROJECT=<project> PANACEA_APP_LIVE_ENV=<an env> go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/` | `ok`; copy the logged environment names, the `withSlashInBranch` count and every `live-only key` line here | task 03's recorded bodies against live keys (plan §4 rows 2–9); repoUrl for a non-admin token (plan §12); `ParseRemote` on a real URL (task 06); `prod` vs `production` (7P-8); branch names with `/` (task 08); stream not buffered (task 12) | |
 | 4 | Select the project | *bound* to the Panacea project, with no question asked — or the one choice | task 06 | |
 | 5 | Compare the environment card with the Panacea portal for one environment | version, commit and pods ready agree; the three facts are three | tasks 08, 15 | |
 | 6 | On `live-check/p7`: Ship, then Undo inside 5 s | nothing new in the portal's pipeline list | 7P-15, task 16 | |
@@ -309,6 +501,9 @@ earlier parts. Until it runs, phase 7 is **built and tested against fakes, not v
 #### What this task does NOT claim
 
 - That the live check passed. It has not run; it runs once, with the owner, at the end (OD-12).
+- That matching keys prove matching meaning. `TestLiveBodiesMatchRecordedKeys` compares key
+  **names** only — not values, types or nesting below the first object — and it cannot see a key
+  that neither the recorded bodies nor this one project's live answer happens to hold.
 - That Panacea's team will say yes to any ask. Phase 7 needs none of them to work; each only makes a
   gap smaller, and each seam says what changes if it is granted.
 - That `LIVE-CHECK.md` covers visual acceptance. The owner's eyes on each lens state are the UI
