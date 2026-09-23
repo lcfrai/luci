@@ -367,3 +367,116 @@ with `@6` gives 366 bytes and `8208d6b8…86cc9b`. Both match the plan.
   it in `canvas-rules`, and state the corollary in the threat model: every sandbox process can act
   on the canvas as its session, within that session's scope.
 
+### Minor
+
+| # | Where | What is wrong | Why it matters | Fix |
+|---|---|---|---|---|
+| M1 | plan `:503-505` | says task 04 pins `go-licenses` and `license-checker`; P5-P (`:211`) and task 04 replaced both with `tools/licencegate` | a restated fact disagrees with itself | delete the bullet or restate it for the own gate |
+| M2 | plan `:384` vs `task-02.md:104`, G1 `:252-253` | row 02 says task 02 adds the control plane's `replace`; the part and G1 say task 19 | an implementer of 02 adds an unused `require`, which `go mod tidy` then removes | fix row 02 |
+| M3 | plan `:427-430` | *"the only shared files are …"* misses `designapi/routes.go` (tasks 20–22 in lane E, task 29 in the desktop lane, `task-29.md:14`), `canvas/editor/src/editor/keys.ts` (25 in lane D, 29, `task-29.md:15`) and `go.work` (02, 04) | parallel worktree agents collide on files the plan says are unshared | list them with their order |
+| M4 | plan `:353-354`, `:362` | the file map omits `desktop/src/design/docstores.ts`, `selectors.ts` (task 27), `DesignTop.tsx`, `Activity.tsx`, `DesignRenderers.tsx`, `DesignContextChip.tsx` (task 28), `editorPackage.test.tsx` (task 03), and `sandboxd/cmd/sandboxd/serve_posix.go` | the map is the lane-ownership source | complete it |
+| M5 | `task-18.md:27` | `newServer`'s signature must change to carry the MCP listener, but `sandboxd/cmd/sandboxd/serve_other.go:13` (the Windows stub) is not in the file list | `go build ./sandboxd/...` fails on the Windows dev machine, where task 18's own acceptance runs | add `serve_other.go` |
+| M6 | plan `:305-336` | the npm package `canvas/editor` sits **inside** the Go module `canvas/`; Go 1.23's `./canvas/...` walks `canvas/editor/node_modules` (the `ignore` directive arrives in Go 1.25) | every `go build/test/vet ./canvas/...`, the gate's `go list` and `TestBoundary` walk thousands of npm directories; a stray `.go` file in a package breaks them | add a one-line `canvas/editor/go.mod` (a module boundary Go stops at), or move the Go module to `canvas/core` |
+| M7 | `task-08.md:137` | the mutant reads *"`<` in place of `<`"*; it means `<` in place of `<` | the one test that pins `SetEscapeHTML(false)` has an unreadable description | fix the text |
+| M8 | `task-14.md:117` | `415` when `Content-Type` is *"not application/json"*; a client may send `application/json; charset=utf-8` | a correct client refused | compare the parsed media type (`mime.ParseMediaType`) |
+| M9 | plan `:187-189` | cites the phase-4 plan `:410`–`:412` for S4-P5.1–3; at phase-4 HEAD `c93fa04` they are `:457-459` | citations drift (the plan's own rule 5) | cite by id, re-check lines |
+| M10 | `task-21.md:171-174`; Hub contract `:886` | the Hub requires `snapshot.blobs` to be **distinct** digests; identical files (two identical PNGs or JSX files) share one digest | a 400/422 on a legal snapshot; `MaxFiles` counts files, the Hub counts digests | de-duplicate before `Approve`; count distinct digests |
+| M11 | `task-20.md:43-44` | route 11 does not say the body's SHA-256 must equal `{sha}`; route 12 serves SVG from the control plane's origin without the Hub's `Content-Disposition: attachment` and `CSP: sandbox` (Hub contract `:855-857`) | a mislabelled asset; an SVG opened from that origin | check the hash (400 on mismatch); add both headers |
+| M12 | `task-20.md:37` | route 5 accepts every op kind, including `add_asset` for bytes never stored and `review_mark` with any key | the editor needs six kinds (`task-23.md:153-156`); the rest have routes of their own | allowlist route 5's op kinds |
+| M13 | `task-12.md:157-161` | revert-by-session's skip rule (*"a property only if it still has the value the batch set"*) does not say it is checked against the **progressively reverted** state | S sets red, then blue; checked against the head, the red→original inverse is skipped and red remains | check each inverse against the batch's overlay; add that exact test |
+| M14 | `task-28.md:28`; prototype `:510` | *Open rev 5 / Open rev 6* needs Discover to render a past brief revision read-only, a phase-4 obligation not listed as task 28's external dependency | the superseded state ships with two dead buttons | add the dependency or hide the buttons until it lands |
+| M15 | `task-11.md:160-165`, `:220` | replayed change events must carry each revision's **post-state**, which needs the document at that revision; the contract does not say how, and `TestSubscribe_replay` checks only count and order | an implementer sends current state for old events | specify: replay the log forward from `At(after)` and emit each post-state; assert contents |
+| M16 | `task-09.md:49-50`, `:155` | JSX text goes in `{"…"}` but the escaping of `"` and `\` inside it is unstated; the test has neither | text `x"} {fetch(…)} {"` becomes code in the Develop agent's source | encode as a JSON string; test a quote and a backslash |
+| M17 | `task-20.md:81-87`; `task-27.md:76` | renderer id is `<window>/<canvasId>`, and a topic change opens the new stream before closing the old | closing the old stream detaches the renderer the new stream just registered | key registrations by stream instance |
+| M18 | `task-24.md:96-98`; `task-07.md:179-180` | fonts are the two bundled families plus system fonts; the dialect has no `@font-face` and no font asset, though the Hub already accepts `font/woff2` (`:841`) | *code-to-design* with a repository's brand font is impossible | record as a named v2 seam, or add font assets now |
+| M19 | `task-16.md:31` | agents can create pages but not rename or delete them | an agent's page mistakes need a human | add `rename_page`, or record the gap |
+| M20 | P5-S (`plan:214`); `task-28.md:91`, `:61` | a toast per `request_review` and counts in the lens sit against `AGENTIC-UX.md` §3 step 2 (*"does not stream notifications"*) and §4 rule 4 (*"fails if a count appears anywhere outside the queue"*); the newest-first activity feed has no scroll anchoring (`DESIGN-SYSTEM.md`: never scroll-jump; §4 rule 11) | small, visible regressions of the UX principles | toast off by default; no counts; anchor the feed when scrolled |
+| M21 | `task-07.md:333-335` | `go mod tidy` with `GOPROXY=off` may still need the checksum database for a new `go.sum` line | task 07 stops on a network error the cache could have avoided | copy x/net v0.26.0's two lines from `control-plane/go.sum` first |
+| M22 | goal 3 (`plan:40-43`), P5-L (`:207`), `task-30.md:73-74` | agents share a canvas only when sessions share `(project, branch)`. Phase 2's git worktrees cannot share a branch; phase 3's clones can (its plan: clones are *"checked out on the product branch's own name"*) | the claims feature is untestable end to end until phase 3 lands, or needs two sessions in one worktree | say which, in task 30's owner item 3 |
+| M23 | `task-14.md:121`, `:123` | under a negotiated `2025-03-26`, JSON-RPC batches are part of the transport; the table refuses them for every revision. Row `:123` calls a response "no `id`" (a response has one; it lacks `method`) | a deviation not recorded in the plan's "not verified" list; a wording error | refuse batches only for ≥ `2025-06-18`, or record the deviation; fix the wording |
+
+---
+
+## Other checks
+
+### Test strategy
+
+Every part has a *Tests first* table, and every row names the mutant it kills — the house style,
+kept. Negatives are present where the plan thought of the attack (script vectors, MPL, tldraw,
+exception laundering, torn logs, `Origin`, `Host`, oversized frames). The gaps are where it did not:
+no test is red for a sandbox calling the human surface (C1), for a hostile manifest path (C2), for a
+hostile clone (I1), or for a hostile token value (I2). Two tests cannot fail on the defect they sit
+beside: `svgWalk` (I8) and `TestSubscribe_replay` (M15). And two defects are invisible to every test
+the plan has, because jsdom and `httptest` enforce neither CORS (I3) nor visibility (I4); each
+needs a check in the spike or in task 30's end-to-end run.
+
+### Task sizing and order
+
+77 hours for 30 tasks is honest in total but uneven. Task 20 (twenty routes, the SSE broker,
+configuration and all wiring, 3 h), task 24 (renderer, assets, measurement, capture, responder,
+hidden renderer, fonts, 3 h) and task 26 (every panel, the token picker, the colour picker, text in
+place and the code panel, 3 h) are each about twice their estimate; split 20 as I6 says, 24 into
+renderer and capture/responder, 26 into layout, fill/border/effects, and type/tokens/code. The
+dependency graph is otherwise right: every depends-on was checked against the contracts each part
+consumes, and only task 20 (I6) and task 28's phase-4 dependency (M14) are wrong.
+
+### Security
+
+Strong where it was designed: no script path into any document (three lines, one grep gate), no
+message channel to validate, a loopback-only relay that parses nothing, identity from the channel,
+no approve tool, no secret in the sandbox beyond the attach token, logs that never hold design text.
+Weak where the plan relied on something outside itself: the local caller key (C1), the Hub's
+contents (C2), the agent-writable clone (I1) and the export as a second rendering context (I2).
+Recorded, not a defect: any process in a sandbox can call the MCP server as its session (I12) —
+acceptable, because the scope is the session's own canvas, but the plan should say it.
+
+### Design-system compliance (tasks 24–28)
+
+Each UI part reads `DESIGN-SYSTEM.md` first, uses only tokens that exist in
+`desktop/src/styles/tokens.css` (verified), forbids hex colours, gradients in chrome, `transition:
+all` and `backdrop-filter` by CSS grep, puts live dots on the one heartbeat, uses `tabular-nums`,
+and pairs every state colour with a shape. The flat `--canvas` has no dot grid. Remaining: M20's
+toast, counts and scroll anchoring.
+
+### What is missing
+
+Beyond the issues above: a branch-lifecycle seam (I7), a raster-upload path agents can use (I12),
+custom fonts (M18), page rename/delete for agents (M19), and a threat-model paragraph in the plan
+itself that names the three trust boundaries it crosses — sandbox → control plane, Hub → worktree,
+agent → exported file. Everything else the owner, the brief, the spec and the prototype ask for has
+a task.
+
+### The two defects a first implementer is most likely to hit
+
+1. **The `PUT` routes blocked by CORS (I3).** Certain to happen on the first real run: the method
+   list is hard-coded (`origin.go:169`), no test can see a browser's preflight, and phase 2 hit the
+   same class once. **The plan does not prevent it.**
+2. **The hidden renderer frozen by a hidden window (I4).** Likely on the first *"minimise the
+   cockpit and let agents design"* session: patches wait for animation frames that do not come.
+   **The plan does not prevent it**; its jsdom tests cannot show it, and task 01's spike never hides
+   the window.
+
+Runner-up: SVG icons without `xmlns` rendering as nothing (I8).
+
+---
+
+## Assessment
+
+The plan is thorough, cites the real tree accurately (the checked citations above hold, with four
+drifts), keeps the clean room (no AGPL source named or leaned on anywhere in 31 files), and its core
+architecture — a Go authority that is the only writer, a script-less renderer with no message
+channel, identity stamped from the relay channel — is sound. Its MCP surface matches the spec tool
+for tool. The review-digest vectors are correct.
+
+It is not ready to execute because of the two Critical issues: the human-only approval, the
+product's one hard provenance rule, depends on the Hub's local caller key, which the plan calls
+optional (C1); and the handoff writes files at paths any Hub teammate can choose (C2). Both are
+small to fix — a hard dependency plus negative tests, and a path allowlist plus negative tests —
+and neither changes the architecture. Of the Important issues, I1–I3 are security or certain-failure
+fixes to make before code; I4–I12 can be fixed in their parts before those tasks start. The Minor
+issues are edits.
+
+Fix C1, C2 and I1–I3 in the plan, re-check I6's dependency split, and the plan is ready.
+
+**Plan quality: Needs fixes**
+
