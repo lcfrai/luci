@@ -265,6 +265,42 @@ child's environment without trusting the code under test.
 | `TestLocalMachineFetchURLIsThePath` | `Local{Root: r}.FetchURL(p) == p`, `ID() == "local"` | a Local that rewrites paths |
 | `TestScriptFailsOnAnUnscriptedCall` | an unknown argv fails the calling test | a fake that silently succeeds |
 
+#### Host git hardening (HGH)
+
+*Fix batch b01 (review C1, C3). This is the rule's only copy. Every other part cites
+`task-02 §HGH` at the call site it hardens and restates none of it.*
+
+**Why.** A lane clone's `.git` sits inside the sandbox's read-write worktree mount
+(`sessionMounts`, `api/sessions.go`). So does the project's `.git` whenever a session runs on the
+primary worktree. The agent can therefore write any key into either `config`, and any file into
+either `hooks/`. The control plane runs the **host's** git in both repositories: task 07's
+observer, task 09's land and origin refresh, task 10's undo and revert, task 11's remove question,
+task 12's sync and push, and task 13's `credential fill`. Unhardened, each of those calls is code
+execution on the Windows host, as the user, outside the microVM. Each is also a path to the
+user's token, which breaks A4.
+
+**H1. The command-scope prefix.** `Exec.Run` puts these overrides in argv, between `git` and
+`Args`, on **every** call of every class. Command scope outranks repository config (task 01's
+`TestBehaviourLocalConfigHooksPathIgnoresEnvironment` proves the ordering), so no key the agent
+writes can undo them. They go in argv, never in `GIT_CONFIG_COUNT`, because `Call.Env` wins over
+Exec's environment and task 13's `PushEnv` sets `GIT_CONFIG_COUNT` itself.
+
+| Override | What it neutralises |
+|---|---|
+| `-c core.hooksPath=<Hardening.HooksDir>` | every hook in `.git/hooks` or in a repository-named `core.hooksPath`: `reference-transaction` on update-ref and fetch, `post-checkout`, and `pre-push` (see H4) |
+| `-c core.fsmonitor=false` | a `core.fsmonitor=<program>` that `status` and `diff` would run |
+| `-c core.sshCommand=` | a repository-named SSH program. An SSH remote fails closed, because phase 3's remotes are HTTPS (task 13) |
+| `-c protocol.ext.allow=never` | `ext::<command>` URLs |
+| `-c core.askPass=` | a repository-named askpass program. An empty value falls through to `GIT_TERMINAL_PROMPT=0`, which fails |
+| `-c commit.gpgSign=false -c tag.gpgSign=false` | a repository `gpg.program` run by task 09's and task 10's `commit-tree` |
+| `-c submodule.recurse=false -c fetch.recurseSubmodules=false` | a host fetch that recurses into `.git/modules/*`, whose config the agent also writes |
+| `-c credential.helper=`, then `-c credential.helper=<h>` for each machine helper (H2) | every helper a repository names, including URL-scoped `credential.<url>.helper`. The empty value clears the list read so far, and command scope is read last |
+| `--upload-pack=git-upload-pack` after `fetch` and `ls-remote`; `--receive-pack=git-receive-pack` after `push` | `remote.<name>.uploadpack` and `.receivepack`, which run as a local command when the remote is a path |
+
+`Args[0]` is always the subcommand, because `Call.Dir` carries the directory. Exec refuses a
+`Call` whose `Args[0]` starts with `-` (`ErrCallShape`), so the prefix stays Exec's alone and no
+caller can put its own `-c` ahead of it.
+
 #### Steps
 
 - [ ] **Step 1: Preflight.** Task 01's results document exists; read its Divergences section. If
