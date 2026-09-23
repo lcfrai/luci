@@ -944,3 +944,175 @@ Event `session_link.created`.
 
 **`GET /v1/projects/{projectId}/session-links?designKey=&sessionId=`** →
 `200 {"items":[SessionLink],"next":…}`, newest first.
+
+### 7.9 Releases — reserve, deploy, confirm (phase 7)
+
+**The Ship sequence.** This is how P7 (*"a release link written by a second call"* is prohibited)
+holds when the ledger is on another machine: **the Hub takes the pin before the deploy exists**,
+and the only thing written afterwards is which run it became.
+
+| Step | Who | Call |
+|---|---|---|
+| 1 | control plane, Ship handler | `POST /v1/projects/{projectId}/releases` → `201`, `state: "reserved"`, **the pin fixed** |
+| 2 | control plane | Panacea `POST …/deploy` (phase 7's client; with `releaseId` in metadata if ruling R7's ask is granted) |
+| 3a | control plane, on Panacea's 202 | `POST /v1/releases/{id}/confirm {"pipelineRun":…}` → `confirmed` |
+| 3b | control plane, on Panacea's refusal | `POST /v1/releases/{id}/abandon {"reason":"deploy_failed",…}` → `abandoned` |
+| 4 | control plane, deploy poller | the first time it sees the Deployment for that run: `POST /v1/releases/{id}/deployments` |
+
+If step 1 fails, **Ship does not happen**: the Ship handler answers the Hub's error and never calls
+Panacea. If step 3 cannot reach the Hub, the handler retries with the same `Idempotency-Key` for
+up to the reservation's lifetime; a reservation never confirmed becomes `expired` (ADR R3).
+
+```jsonc
+// Release
+{ "id": "rl-…", "projectId": "pj-…", "kind": "run" | "rollback",
+  "state": "reserved" | "confirmed" | "abandoned" | "expired",
+  "panaceaProject": "engagement-portal", "environment": "evidence-upload",
+  "branchRef": "refs/heads/evidence-upload" | "", "commit": "<40 hex>" | null,
+  "pipelineRun": "…" | null,
+  "sourceDeploymentId": null | "d-4d0", "sourceReleaseId": null | "rl-…",
+  "pin": { "status": "pinned" | "none",
+           "reason": "ship_head" | "inherited" | "no_brief" | "no_complete_revision" | "source_unpinned" | "source_unknown",
+           "briefKey": "brief:bf-…@6" | null, "briefDigest": "sha256:…" | null,
+           "headRevisionAtShip": 6 | null },
+  "designKey": null | "design:cv-…@11",
+  "deployments": [ { "deploymentId": "d-6f2", "joinedAt": "…" } ],
+  "reservedAt": "…", "reservedBy": User, "expiresAt": "…",
+  "confirmedAt": null | "…", "abandonedAt": null | "…",
+  "abandonReason": null | "deploy_failed" | "cancelled", "abandonMessage": null | "…" }
+```
+
+**`POST /v1/projects/{projectId}/releases`** — reserve.
+
+A **run** — Ship, or a redeploy or promote that re-runs an existing deployment:
+```json
+{ "kind": "run", "panaceaProject": "engagement-portal", "environment": "evidence-upload",
+  "branchRef": "refs/heads/evidence-upload", "commit": "4e7a91c0000000000000000000000000000000aa",
+  "briefId": null, "designKey": "design:cv-…@11", "sourceDeploymentId": null }
+```
+A **rollback** — R5's shape; it creates no PipelineRun:
+```json
+{ "kind": "rollback", "panaceaProject": "engagement-portal", "environment": "evidence-upload",
+  "sourceDeploymentId": "d-4d0" }
+```
+
+`panaceaProject` and `environment` are Panacea's names, 1–63 characters of `[a-z0-9-]`. `commit`
+is 40 lowercase hex, required for a run without `sourceDeploymentId`.
+
+**How the pin is taken — in the reservation's transaction, then never again:**
+
+| Case | Pin |
+|---|---|
+| `run`, no `sourceDeploymentId` | brief = `briefId` if given (a brief of this project, else 422 `key_unresolvable`), else the live branch brief for `branchRef`, else the live project brief, else none → `none` / `no_brief`. Revision = that brief's **latest complete revision** (ADR Q1), else `none` / `no_complete_revision`. Otherwise `pinned` / `ship_head`, with `headRevisionAtShip` = the head at this moment |
+| `run` or `rollback` with `sourceDeploymentId` | the **confirmed** release in this project joined to `(panaceaProject, sourceDeploymentId)`: pinned → `pinned` / `inherited`, copying its key, digest and `headRevisionAtShip`; unpinned → `none` / `source_unpinned`; no such release → `none` / `source_unknown`. `sourceReleaseId`, and for a rollback `commit`, `branchRef` and `designKey`, are copied from it |
+
+`designKey`, when given on a run, must have an approval in this project — else 422
+`design_not_approved`. The Hub never infers a design key.
+
+`expiresAt` = `reservedAt` + `PANACEA_APP_HUB_RESERVATION_TTL` (default 15 min). → `201 Release`.
+Event `release.reserved`.
+
+**Never pinned by observation** (P2) holds by construction: a pin exists only on a reserved
+release; the deployment join never changes it; a Panacea deployment no one reserved has no release,
+and the Deploy lens says *"no brief is recorded for this release"*.
+
+**`POST /v1/releases/{releaseId}/confirm`** — by the reserver only (else 403 `not_reserver`).
+Run: `{"pipelineRun":"engagement-portal-build-x7k2p"}`, 1–253 characters of `[a-z0-9.-]`.
+Rollback: `{}`, or `{"deploymentId":"d-7a1"}` when Panacea returns one, which also writes the
+deployment join.
+
+| Current state | Result |
+|---|---|
+| `reserved`, before `expiresAt` | `200 Release`, `confirmed`. Event `release.confirmed` |
+| `confirmed` with the same `pipelineRun` | `200 Release`, unchanged |
+| `confirmed` with a different one; `abandoned` | 409 `release_state` |
+| `reserved` after `expiresAt`, or `expired` | 409 `release_expired` |
+
+`(panaceaProject, pipelineRun)` is unique in the org: a second release confirming the same run is 409
+`conflict`.
+
+**`POST /v1/releases/{releaseId}/abandon`** `{"reason":"deploy_failed" | "cancelled","message":"…"}`
+— reserver only; `message` 0–500 characters, Panacea's refusal sentence. From `reserved` only,
+else 409 `release_state`. → `200 Release`. Event `release.abandoned`.
+
+**`POST /v1/releases/{releaseId}/deployments`** `{"deploymentId":"d-6f2"}` — the deploy poller's
+join (provenance contract §2.2's second record). Confirmed releases only (else 409
+`release_state`). `deploymentId` 1–128 characters. `(panaceaProject, deploymentId)` joins at most
+one release in the org: a different release already holding it is 409 `conflict`. → `201
+{"deploymentId":"d-6f2","joinedAt":"…"}`, or `200` if this release already holds it. Event
+`release.deployment_joined`.
+
+**`GET /v1/projects/{projectId}/releases?environment=&panaceaProject=&deploymentId=&pipelineRun=&state=`**
+→ `200 {"items":[Release],"next":…}`, newest `reservedAt` first. `deploymentId=` is how a Deploy row
+for a Panacea deployment finds its release: zero items means *no brief is recorded*.
+
+**`GET /v1/releases/{releaseId}`** → `200 Release`.
+
+### 7.10 Evidence — phase 3's H-2
+
+**`POST /v1/evidence`**
+```json
+{ "repo": "github.com/lcfrai/panaceaapp", "briefKey": "brief:bf-…@5",
+  "criterionId": "done:2", "criterionDigest": "sha256:…",
+  "commit": "77aa310000000000000000000000000000000abc",
+  "verdict": "settled" | "contested", "because": "Upload of a 40 MB PDF passes in test/upload.spec.ts" }
+```
+- `repo` must be a remote of a project the caller is a **member** of — else 422 `repo_not_linked`
+  (phase 3 keeps its local file store for a repository with no Hub project, `Shared() == false`).
+- `briefKey` must resolve in that project — else 422 `key_unresolvable`. It is stored verbatim.
+- `criterionId` 1–128 characters; `criterionDigest` `sha256:` + 64 hex; `commit` 40 lowercase hex;
+  `because` 1–2,000 characters after trimming (phase 3's P12 rule, `task-15.md:56`).
+- `recordedBy` is the principal (H-4). Phase 3's `Record.ProjectID` (a local id) is not sent.
+
+```jsonc
+// 201 — EvidenceRecord
+{ "id": "ev-…", "repo": "github.com/lcfrai/panaceaapp", "projectId": "pj-…",
+  "briefKey": "brief:bf-…@5", "criterionId": "done:2", "criterionDigest": "sha256:…",
+  "commit": "…", "verdict": "settled", "because": "…",
+  "recordedAt": "…", "recordedBy": User }
+```
+Append-only; no edit, no delete. Event `evidence.recorded`.
+
+**`GET /v1/evidence?repo=<repoKey>&digest=<d1>&digest=<d2>…`** — phase 3's `ByDigest`. 1–100
+`digest` values; the repo's project must be readable (else `200` with no items, never a 404 that
+confirms the repo is linked). → `200 {"items":[EvidenceRecord],"next":…}`, **oldest first**.
+
+### 7.11 The change feed
+
+**`GET /v1/changes?after=<seq | latest>&limit=<1–500, default 200>`**
+```jsonc
+// 200
+{ "events": [ Event ], "next": "1043", "more": false }
+// Event
+{ "seq": 1043, "at": "…", "kind": "brief.revised", "teamId": "tm-…" | null, "projectId": "pj-…" | null,
+  "subject": "bf-…", "actor": User | null, "data": { … §8 … } }
+```
+- The cursor is the caller's **org's** audit sequence: gapless, in commit order (§10.2). `next` is
+  the cursor to send next time; `more: true` means ask again at once.
+- `after=latest` returns no events and the current head as `next` — the control plane's first call
+  after sign-in.
+- The caller sees an event when its `projectId` is a project the caller can read, or its `teamId`
+  is a team the caller is in. Audit-only kinds (§8) never appear here.
+- **Why this is correct under failure**: an event is written in the same transaction as the change
+  it describes, under the org's audit lock, so a reader never sees a later event before an earlier
+  one commits.
+
+### 7.12 Audit and erasure — org admins
+
+**`GET /v1/audit?after=<seq>&limit=<1–500>`** — org admin only. The same shape as §7.11 plus
+`"hash":"<64 hex>"` and `"prevHash":"<64 hex>"` on each event, and it includes the audit-only kinds.
+`hub verify` (§12.1) walks the chain and exits non-zero at the first broken link.
+
+**`POST /v1/briefs/{briefId}/erase`** `{"reason":"Client request 2026-11-02, matter 4471"}` — org
+admin only; `reason` 1–500 characters; the brief must be in the admin's org (else 404
+`brief_not_found`). In one transaction, through `hub.erase_brief` (§10.4):
+
+- every revision's stored content is removed and `erased_at` set; **key, digest, revision number,
+  `savedAt` and `savedBy` stay**, so every link that names it still resolves — as `erased`;
+- the head is archived if it was not;
+- approvals, releases, evidence and session links are **not** changed: none of them holds brief
+  text. (Phase 5's snapshot holds no brief text either: there is no brief mirror,
+  `paper-design-cleanroom-spec.md:470`.)
+
+→ `200 {"briefId":"bf-…","erasedRevisions":6,"erasedAt":"…"}`. A second erase answers
+`erasedRevisions: 0`. Irreversible. Event `brief.erased` (in the feed, with no content).
