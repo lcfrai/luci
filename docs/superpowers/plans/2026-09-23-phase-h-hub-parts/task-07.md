@@ -646,7 +646,7 @@ named.
 - [ ] **Step 2:** Tests, then `0001_init.sql` exactly as above, `embed.go`, and `hubtest.Migrated`.
 - [ ] **Step 3:** Run against the task-06 container. Fix the SQL until every test passes; **any
   change to the SQL beyond the three names is recorded in the commit message** and in the
-  contract by task 44.
+  contract by task 44b (a build departure).
 - [ ] **Step 4:** Commit by pathspec, the four files.
 
 #### Acceptance

@@ -240,5 +240,6 @@ grep -n "json.Marshal" control-plane/internal/hub/hubapi/canonical.go   # at mos
   because floats are refused.
 - That phase 4's content stays inside the rules; the Hub refuses what breaks them with 400
   `bad_request`, and phase 4's plan owns writing times inside content in the Hub's format.
-- That the audit envelope with `teamId` matches the contract's current text: it deliberately does
-  not (A10), until task 44 folds the correction in.
+- That the contract's text carries the envelope's `teamId`: task 44a folds A10 in before task
+  01 runs; this task does not edit the contract, and if 44a has not merged, the two disagree by
+  design (A10) until it does.

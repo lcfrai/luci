@@ -125,7 +125,7 @@ grep -n "io.ReadSeeker" $P/task-04.md $P/task-34.md                         # Pu
 grep -n "func Relay" $P/task-33.md                                          # present
 grep -n "CursorSource" $P/task-36.md                                        # present
 grep -n "environment IS NOT NULL OR" $P/task-07.md                          # the HA7-1 check
-grep -rn "1–16" $P/                                                         # none left
+grep -rn "1–16" $P/ --exclude=task-00.md                                   # none left
 ```
 
 #### What this part does not claim

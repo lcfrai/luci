@@ -139,7 +139,10 @@ Every task restates the ones it touches. None of them moves.
 The contract says that where it and the ADR disagree, the ADR wins (contract `:4-5`). Reading the
 built tree and the sibling plans found **ten** places where the contract, as written, would fail
 when built. Each is a correction this plan builds, with the exact shape; none adds a Hub route.
-They are asks against the contract's text, to be folded into it by whoever next edits it.
+They are folded into the contract's text by **task 44a, which runs first** — on `feat/hub`, before
+task 01 and before any lane branches — so no sibling builds against the text this table calls
+wrong (review finding I11). The sibling phases' own asks of the Hub, and this plan's answer to
+each, are task 00's; 44a folds those in too.
 
 | # | Contract says | Why it fails | This plan builds | Task |
 |---|---|---|---|---|
@@ -154,8 +157,9 @@ They are asks against the contract's text, to be folded into it by whoever next 
 | **A9** | `hubapi` imports the standard library only; `hubclient` imports `hubapi` and the standard library (§2) | the same contract has `hubapi/codes.go` **import** the shared codes from `httpx` (§4.2), `hubclient.Error` carry an `httpx.Problem`, and `hubclient` mint idempotency keys with `ids.UUID()` (§9.2). Built as written, the boundary test fails the contract's own code | the boundary allows `hubapi` → `internal/httpx`; `hubclient` → `hubapi`, `internal/httpx`, `internal/ids`. Both `httpx` and `ids` import only the standard library, so the Hub still links nothing of the control plane's | 01, 09 |
 | **A10** | the audit envelope covers `v, kind, orgId, seq, at, actorUserId, event, projectId, subject, data` (§3.6) | `audit_events.team_id` is not in it, yet the change feed decides who sees an event by `team_id` or `project_id` (§7.11). An owner-role edit of `team_id` would move an event into another team's feed **without breaking the chain** | the envelope adds `"teamId"` (or `""`). `hub verify` also checks each row's `feed` flag against the kind table of §8, since `feed` is derived from `kind`. Golden vectors 3 and 4 (task 02) are computed with it | 02, 14, 27 |
 
-**Additions, not corrections** — shapes the contract did not name, which this plan adds and task 44
-folds in. None is a Hub route.
+**Additions, not corrections** — shapes the contract did not name, which this plan adds and task
+44a folds in first. None is a Hub route. The sibling asks' answers (task 00) are listed there, not
+here.
 
 | Addition | Exact shape | Why | Task |
 |---|---|---|---|
@@ -270,8 +274,8 @@ parallel worktrees (see §"Order and parallel lanes").
 | `control-plane/internal/api/routes_audit_test.go` ⚑ | new `GET`s in `catalogReadOnlyRoutes` | modified | 32, 35, 36, 39 |
 | `control-plane/cmd/api/{config,main}.go` ⚑ | the new variables; wiring | modified | 32, 35, 36, 37 |
 | `control-plane/internal/hublink/hublink.go`, `internal/api/hublink.go` | local project → Hub project; the share routes | new | 35 |
-| `control-plane/internal/hubfeed/poller.go`, `internal/api/hubchanges.go` | the change-feed poll; the cursor and auth-state headers | new | 36 |
-| `control-plane/internal/httpx/origin.go` ⚑ | expose `Panacea-Hub-Cursor` and `Panacea-Auth-State`; allow the `Authorization` header (A4) | modified | 36, 37 |
+| `control-plane/internal/hubfeed/poller.go`, `internal/api/hubchanges.go`, `internal/api/cursors.go` | the change-feed poll; `CursorSource`, the `Panacea-<Name>-Cursor` and auth-state headers and their expose list (HA7-4, task 00) | new | 36 |
+| `control-plane/internal/httpx/origin.go` ⚑ | allow the `Authorization` header (A4) | modified | 37 |
 | `control-plane/internal/hub/hubclient/hubclient.go` | the optional `Invalidator` | modified | 31 |
 | `control-plane/internal/localkey/localkey.go` | the local caller key: mint, write, compare | new | 37 |
 | `control-plane/internal/api/credentials.go` | the write-only credential routes (A8) | new | 39 |
@@ -310,12 +314,13 @@ the contract, and the part; they are the plan's estimate, not a measurement. Con
 ### The minimum Hub first — and where each sibling phase can start
 
 The minimum is what phases 4, 5 and 7 need to **integrate against a real Hub**, and nothing else.
-It is tasks **01–24** on the server and **28, 30–35, 37, 38** on the client — 33 of the 44 tasks,
-35 with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it:
+It is tasks **00 and 44a** (the sibling asks answered, and the contract corrected, before any
+code), **01–24** on the server and **28, 30–35, 37, 38** on the client — 35 of the 46 tasks, 37
+with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it:
 
 | Start line | After | Who can start | What they can do |
 |---|---|---|---|
-| **S0 — code against the fake** | 01–05 (≈ 13 h) | phases **3, 4, 5, 7** | build every Hub-backed handler against `hubclient`'s interfaces and `hubclient.NewFake()`, and run `hubclient/conformance` against the fake. Nothing below S0 changes an interface they code to |
+| **S0 — code against the fake** | 44a, 00, 01–05 (≈ 15 h) | phases **3, 4, 5, 7** | build every Hub-backed handler against `hubclient`'s interfaces and `hubclient.NewFake()`, and run `hubclient/conformance` against the fake. Nothing below S0 changes an interface they code to: task 00 answered every sibling ask (HA4-1…9, HA5-1…5, HA7-1…5) **before** S0 froze, and a later change that is not an added method, field or route reopens task 00 and is announced |
 | **S4 — phase 4 integrates** | 06–20 (server), 28, 30–34 partial, 35 (client) | phase **4** | point its `discoverstore` Hub implementation at the local stack: create briefs, write revisions, resolve keys, with a real sign-in through `devissuer` |
 | **S5 — phase 5 integrates** | S4 + 21–22 | phase **5** | upload snapshots, approve designs, write session links, resolve `design:` keys |
 | **S7 — phase 7 integrates** | S5 + 23–24, 29, 39 | phase **7** | reserve → deploy → confirm/abandon, rollback, the deployment join; its `pnc_` token in the credential store |
@@ -325,7 +330,9 @@ It is tasks **01–24** on the server and **28, 30–35, 37, 38** on the client 
 
 | # | Task | Contract id | Depends on | Hours | Min? |
 |---|---|---|---|---|---|
-| 01 | `ids.Wide`; `hubapi` codes, keys, digests, branch refs, repo keys | H0 | — | 2 | ✓ |
+| 44a | **first**: A1–A10, the additions and task 00's answers folded into the contract; documents only | — | — | 1.5 | ✓ |
+| 00 | S0 absorbs the sibling asks: every HA4/HA5/HA7 ask, its answer, the task that builds it (a planning part; no code of its own) | H0 | — | 0.5 | ✓ |
+| 01 | `ids.Wide`; `hubapi` codes, keys, digests, branch refs, repo keys; the contract-vs-code repo-key test | H0 | 44a | 2 | ✓ |
 | 02 | `hubapi.Canonical`, the envelopes, `ValidateContent`, the golden vectors | H0 | 01 | 2.5 | ✓ |
 | 03 | `hubapi` wire types for every object and request of §7 | H0 | 01 | 2.5 | ✓ |
 | 04 | `hubclient` interfaces, `Error`, `ErrUnavailable`; the fake, part 1 (projects, teams, briefs, refs) | H0 | 02, 03 | 3 | ✓ |
@@ -368,17 +375,21 @@ It is tasks **01–24** on the server and **28, 30–35, 37, 38** on the client 
 | 41 | the sign-in surface in the rail footer — **UI** | C4 | 40 | 3 | |
 | 42 | share a project with a team — **UI** | C4 | 40, 41 | 3 | |
 | 43 | end-to-end proof through `devissuer`; the real-tenant checklist; the results record | all | 01–42 | 3 | |
-| 44 | the document amendments; A1–A10 folded into the contract; the seams handed over | — | 43 | 1.5 | |
+| 44b | last: what the build changed, folded into the contract; the seams handed over | — | 43 | 1 | |
 
-Totals: server 01–27 ≈ 73.5 h; client and desktop 28–42 ≈ 39.5 h; proof and documents 4.5 h;
-**≈ 117.5 engineer-hours**, against ADR-H1's 16 engineer-days (≈ 128 h). The difference is the
-ADR's day including review; this table is implementation time. The minimum (S7 reached) is
-tasks 01–24, 28–35, 37–39 ≈ 96 h: about **six working days for two engineers** — one on the server
+Totals: server 01–27 ≈ 73.5 h; client and desktop 28–42 ≈ 39.5 h; proof and documents (00, 43,
+44a, 44b) 6 h; **≈ 119 engineer-hours**, against ADR-H1's 16 engineer-days (≈ 128 h). The
+difference is the ADR's day including review; this table is implementation time. Task 00's
+answers add rows to tasks 03–05, 07, 14, 18, 19, 23, 24, 33, 34, 36 and 40 inside their existing
+hours; that is the plan's estimate, not a measurement. The minimum (S7 reached) is tasks 44a, 00,
+01–24, 28–35, 37–39 ≈ 98 h: about **six working days for two engineers** — one on the server
 lane, one on identity then the client lane.
 
 ### Order and parallel lanes
 
-Four lanes, each its own git worktree branched from `feat/hub`, so they can run at once. **An
+Task 44a runs first, alone, on `feat/hub`, and the orchestrator announces its commit to phases 3,
+4, 5 and 7. Then four lanes, each its own git worktree branched from `feat/hub` **after 44a**, so
+they can run at once. **An
 implementer never merges**; the orchestrator merges a lane's finished tasks into `feat/hub`, in the
 order below, and a lane that needs another lane's task waits for that merge.
 
@@ -388,11 +399,12 @@ order below, and a lane that needs another lane's task waits for that merge.
 | **B — identity** | `feat/hub-identity` | 10 → 11 → 12 → 09 | 09 waits for 07 and 08 (lane A) |
 | **C — control plane** | `feat/hub-client` | 28 → 29 → 30 → 31 → 32 → 37 → 33 → 34 → 35 → 39 → 36 | 28 waits for 06 (go.mod); 30 for 12; 33 for 04; 34's rows for 20, 22, 24–27; 36 for 26 |
 | **D — desktop** | `feat/hub-desktop` | 38 → 40 → 41 → 42 | 38 for 37; 40 for 36 and 39 |
-| — | `feat/hub` | 43 → 44 | everything |
+| — | `feat/hub` | **44a first** (task 00 is read, not built); at the end 43 → 44b | 44a: nothing; 43: everything |
 
 **Why the lanes are cut this way — the shared files.** Five tasks edit the control plane's wiring
 (`internal/api/api.go`, `cmd/api/config.go`, `cmd/api/main.go`, `routes_audit_test.go`): 32, 35,
-36, 37, 39. Two edit `httpx/origin.go`: 36, 37. All are in lane C, one after another, so no two
+36, 37, 39. One edits `httpx/origin.go`: 37 (task 36's expose list is set by its own `api` wrap,
+task 00 HA7-4). All are in lane C, one after another, so no two
 worktrees ever edit those files at once. Four desktop tasks edit `client.ts` or the store: all in
 lane D. `control-plane/go.mod` is edited by 06 (pgx), 13 (`x/time` direct) and 28 (`x/sys` direct);
 28 waits for 06's merge, and 13 is in 06's own lane.
@@ -413,9 +425,9 @@ resolved by keeping both.
 |---|---|---|---|
 | **S-CRED** | **The credential store.** One machine store, Windows Credential Manager (`credstore.Secrets`, `WinCred()`; `Memory()` off Windows and in tests), **one target grammar** (`credstore/targets.go`), and one typed accessor per credential: the Entra refresh token (`entraauth`, task 31), a **GitHub** token (`credstore.Local`, phase 3's `Store`), an **Azure DevOps** bearer from the Entra sign-in (`entraauth.DevOps`, phase 3's `Store`, if Q5 is yes), and the **Panacea** `pnc_` token (`credstore.PanaceaTokens`, phase 7). The only write path for a pasted token is task 39's `POST /v1/credentials/{kind}`; nothing returns a secret | tasks 28, 29, 31, 39 | **phase 3** (`OD-4`: push and PR on both hosts), **phase 7** (`OD-13`: the Panacea API), **phase 6** (a future `kind` for the user's own Claude credentials — never pooled), **phase 8** (nothing: the broker reads no store) |
 | S-TOKEN | `entraauth.TokenSource` — `Token(ctx, scope)`, `ErrSignedOut` | task 31 | `hubclient` (task 33); phase 8's broker client `remotebe` (HA-2) |
-| S-HUB | `hubclient`'s consumer interfaces, `NewFake()`, the conformance suite, and `hubclient.WriteError` (the relay rule) | tasks 04, 05, 33, 34 | phases 3 (`Evidence`), 4 (`Briefs`), 5 (`Designs`), 7 (`Releases`) |
+| S-HUB | `hubclient`'s consumer interfaces, `NewFake()`, the conformance suite, and `hubclient.WriteError` / `hubclient.Relay` (the relay rule, as a write and as a value) — every sibling ask answered in task 00 before they freeze | tasks 00, 04, 05, 33, 34 | phases 3 (`Evidence`), 4 (`Briefs`), 5 (`Designs`), 7 (`Releases`) |
 | S-LINK | `hublink.Resolver.Project(ctx, localProjectID) (hubapi.Project, hublink.State, error)` — how a handler finds the Hub project behind a local one | task 35 | phases 3, 4, 5, 7: every Hub-backed handler starts here |
-| S-FEED | the control plane's `hubfeed.Poller.Subscribe(kindPrefix, fn)`; the desktop's `hubFeed.subscribe(kindPrefix, fn)` | tasks 36, 40 | phase 4's `provenanceSlice` (`brief.*`), phase 5's approvals (`design.*`), phase 7's releases (`release.*`) |
+| S-FEED | the control plane's `hubfeed.Poller.Subscribe(kindPrefix, fn)`; the desktop's `hubFeed.subscribe(kindPrefix, fn)`; and the generic cursor headers — `api.CursorSource` in `Deps.CursorSources`, one `Panacea-<Name>-Cursor` each, read by the desktop into `HubHeaders.cursors` (HA7-4) | tasks 36, 40 | phase 4's `provenanceSlice` (`brief.*`), phase 5's approvals (`design.*`), phase 7's releases (`release.*`) and its `Deploy` cursor source |
 | S-ENTRA | `internal/entra` — one validator for the Hub and the broker (HA-1) | task 10 / phase 8 task 16 | phase 8's `cmd/broker` |
 | S-CHART | `hub serve` / `hub migrate` / `hub verify`; `:8080`; `/healthz`, `/readyz`; `roles.sql`; `PANACEA_APP_HUB_*` | tasks 06–08 | phase 8 tasks 27 (image), 29 (chart, principals SQL), 30 (pipeline) |
 | S-CI | an integration job with a Postgres service, running `go test -tags integration ./control-plane/internal/hub/...` | not built here: `azure-pipelines.yml` runs no database today | phase 8's pipelines (ask) |
@@ -423,6 +435,7 @@ resolved by keeping both.
 | S-SSE | `GET /v1/changes/stream`, the same events, `Last-Event-ID` as the cursor | reserved | when the 5 s poll is noticed |
 | S-BYO | multi-tenant registrations, a second `PANACEA_APP_HUB_TENANTS` entry, an enrolment route | reserved (ADR-H1 §5.9 item 3) | the customer tier |
 | S-CSP | the webview has **no CSP** (`tauri.conf.json` `"csp": null`) | not ours; phase 2 or 9 | phase 5 renders design frames in that webview |
+| S-DEPLOY-TARGET | a shared deploy target on the project (`Project.deployTarget`, `PUT`/`DELETE …/deploy-target`, `project.deploy_target_set`) — phase 7's HA7-3, additive | reserved (task 00); phase 7's local file stands until it is built | phase 7 |
 
 ---
 
@@ -432,14 +445,15 @@ ADR-H1 §10's seven stand, and this plan builds each recommendation: **Q1** only
 is approved against or pinned; **Q2** erasure keeps key, digest, author and time and resolves
 `erased`; **Q3** a designer may approve their own design in v1; **Q4** teammates join by an email
 invite that binds at first sign-in; **Q5** Azure DevOps uses the same Entra sign-in; **Q6** writes
-never queue while the Hub is down; **Q7** the Hub holds no canvas documents in v1. Three more come
-from this plan:
+never queue while the Hub is down; **Q7** the Hub holds no canvas documents in v1. Four more come
+from this plan (Q11 from a sibling ask, task 00):
 
 | # | Question | Recommendation (what this plan builds) |
 |---|---|---|
 | **Q8** | How does a local project join the Hub? | **Explicitly**: a *Share with a team* action on the project row (task 42) creates the Hub project from the local project's remotes, in a team the user picks or creates in the same popover. A project whose remote is already some Hub project's links **automatically** on first sight (task 35), because that is the same repository. The alternative — auto-create a personal team for every local project — makes teams nobody chose |
 | **Q9** | Where does a GitHub token come from in v1? | **Pasted once** into the app (a fine-grained personal access token), stored by task 39, with phase 3's machine-credential-helper fallback behind it. A GitHub OAuth app would need an app registration under `kpmg-au-emu` and `lcfrai` — later |
 | **Q10** | Who runs the Hub's database tests in CI? | **Phase 8's pipeline** adds a Postgres service job (S-CI). Until then they run on a developer laptop against task 09's stack, and every report says so |
+| **Q11** | ADR-H1 R5 says *"every approval is audited with its session context"* (phase 5's HA5-4). The Hub can verify only the principal and the time. Delete the phrase, or add a client-asserted `surface` field? | **Delete the phrase.** The Hub records the principal and the time, which it verifies; a client-asserted field would sit in an audit row reading as evidence it is not. The contract states that reading (task 44a); an optional field stays an additive change behind `ApprovalRequest` if the owner wants it |
 
 ---
 
@@ -460,10 +474,34 @@ from this plan:
 - **Win32 facts from documentation recall:** `CRED_MAX_CREDENTIAL_BLOB_SIZE` = 2,560 bytes; the
   `CREDENTIALW` layout. Task 28's Windows-only test round-trips a 6,000-byte blob to prove the
   chunking, on the owner's laptop, since CI is Linux (`azure-pipelines.yml:6`).
-- **Sibling plans were read as they stood at about 21:30 on 2026-09-23.** Phase 3 (23 parts and a
-  review) and phase 8 (33 parts) were read by absolute path; phases 4, 5 and 7 had only 6, 13 and
-  34 lines of plan, so **their asks of the Hub are not known**. This plan satisfies the contract's
-  §0 table for them and gives each an S0 start line; any ask they raise later is additive.
+- **Sibling plans.** Phase 3 (23 parts and a review) and phase 8 (33 parts) were read by absolute
+  path at about 21:30 on 2026-09-23. Phases 4, 5 and 7 then had only a few lines of plan; their
+  full plans, read on 2026-09-24 from the sibling worktrees, name their Hub asks, and **task 00
+  answers every one before S0 freezes** (review finding C1). The earlier premise that a later ask
+  "is additive" was false for three of them (HA5-1, HA7-1 twice). In brief:
+
+  | Ask | Answer | Built by |
+  |---|---|---|
+  | HA4-1 `hubapi` structs | task 03's structs, frozen at S0 | 03 |
+  | HA4-2 `Briefs.List` | built; `BriefQuery.Page` rather than flat `After`/`Limit` | 03, 04, 05, 34 |
+  | HA4-3 batch 64, 4 MiB | built: `hubapi.MaxRevisionBatch`, `MaxRevisionBatchBytes`; reply cap 8 MiB | 03, 04, 14, 19, 33 |
+  | HA4-4 `latestComplete` | built on `BriefWithRevision` | 03, 04, 18 |
+  | HA4-5 `Relay` | built; `Error.RetryAfter` added | 04, 33 |
+  | HA4-6 ADO repo key | = A1 | 01, 17 |
+  | HA4-7, HA5-3 fake completeness | confirmed, no change | 04, 05 |
+  | HA4-8 `Subscribe` | this plan's `Subscribe(kindPrefix, fn)` stands; `""` is the ask | 36 |
+  | HA4-9 revision digest | met by `BriefEnvelope.Digest()` | 02 |
+  | HA5-1 `PutBlob` `io.ReadSeeker` | built; rewound before every attempt | 04, 05, 33, 34 |
+  | HA5-2 `Designs`' seven methods | 44a amends §9.2 | 44a |
+  | HA5-4 R5's "session context" | principal and time only; the ADR wording is an owner question | 44a |
+  | HA5-5 canvases in the Hub | reserved, S-CANVAS | — |
+  | HA7-1 nullable `environment` | built, with a kind-based CHECK and a set-once guard (task 00 says why the review's shape was corrected) | 03, 04, 05, 07, 23, 24, 34 |
+  | HA7-2 rollback confirm `{}` | built: naming its own source is 409 | 05, 24, 44a |
+  | HA7-3 shared deploy target | reserved, S-DEPLOY-TARGET | — |
+  | HA7-4 generic cursor | built: `CursorSource` | 36, 40 |
+  | HA7-5 `kind` filter | built | 03, 05, 23, 34 |
+
+  The sibling line numbers in task 00 move as those plans are edited; the ask ids do not.
 - **Phase 8 task 16** (`internal/entra`) and **phase 3 task 13** (`credstore.go`) are plans, not
   code. Tasks 10 and 29 write them from those parts verbatim only if they have not landed.
 - **Docker Desktop's reachability** of a host service bound to `127.0.0.1` from a container was not
