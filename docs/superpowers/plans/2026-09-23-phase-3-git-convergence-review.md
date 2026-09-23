@@ -770,13 +770,16 @@ Lane observation and task ordering. Line numbers are for the tree at this batch'
 
 The review's first option is adopted: `briefref` moves to task 03, and `gitx.Locks` is added to
 task 02. **The orchestrator's dependsOn needs no new edge.** 11 still depends on 07 (which
-follows 03), and 12 on 02 and 04. Nothing in lane (c) waits on lane (b) before task 14.
+follows 03), and 12 on 02 and 04. Lane (c) needs only 07 from lane (b) before task 14
+(corrected in round 2: task 11 waits on 07).
 
 Two changes go past the review, on the facts:
-- **The lock is keyed by project ID, not by path.** One path has several spellings on Windows
-  (8.3 names, case, junctions). Re-review b03 N-1 found this machine's `%TEMP%` is 8.3, so a
-  path key could give one repository two locks. Every caller already holds the ID
-  (`project.go:29`, `:102`).
+- **The lock is keyed by project ID, not by path.** Every caller takes the ID from the one
+  catalog entry, which has one spelling (`project.go:29`, `:102`); a path handed in by each caller
+  could be spelled several ways on Windows (re-review b03 N-1: this machine's `%TEMP%` is 8.3).
+  The ID does not normalise 8.3 or junction spellings itself (`project.go:86-97`: absolute,
+  clean, lowercase only), so two catalog entries for one repository still get two locks, and
+  compare-and-swap still refuses the double land (corrected in round 2).
 - **The instance needs an owner too.** Task 04 builds the only one, in `GitDeps.Locks`.
   Undo and revert (task 10) and the three branch verbs (task 11) take it as well, because they
   move `refs/heads/*` or `branch.<name>.*`, which a land or a push reads.
@@ -798,10 +801,11 @@ ref. The probe below shows git's refusal. So off-branch work goes to a sibling n
 `refs/panacea/archive/offbranch/<id>/<unix>/heads/<name>`, and a detached HEAD goes to
 `…/HEAD`. Contract Q5's erasure scope, `refs/panacea/archive/*`, still covers both.
 
-A second addition: a clone with a broken or hostile ref must stay removable. So `Inspect`
-probes the archive with `fetch --dry-run`, and a failure becomes `Unarchivable`. That value is in
-the question and in the token, so the human confirms the loss knowingly. A failure of the real
-archive fetch deletes nothing.
+A second addition: a clone with a broken or hostile ref must stay removable. So `Inspect` runs
+the archive itself, for real, and a failure becomes `Unarchivable`. Its presence is in the token
+and its sentence is in the question, so the human confirms the loss knowingly. (Round 1 probed
+with `fetch --dry-run` and fetched again at removal; round 2 replaced that, because a dry run
+cannot see a ref-write failure. See "Fix batch b04, round 2" below.)
 
 | Review's fix | Where it is now |
 |---|---|
@@ -824,7 +828,35 @@ archive fetch deletes nothing.
   detached commit.
 
 **Unverified.**
-- Whether `--dry-run` leaves the fetched objects in the project's object store (parts/task-11.md
-  says nothing depends on it).
 - Which call fails first for a loose ref that names a missing object: the listing, or the
-  wildcard probe. Either path ends in `Unarchivable`.
+  archive. Since round 2 the first ends in `Unlisted` (and a wildcard archive), the second in
+  `Unarchivable`; either way the human is asked.
+
+### Fix batch b04, round 2: re-review b04-1's five issues
+
+Source: `.superpowers/sdd/p3/plan-rereview-b04-1.md`. The dependency graph is unchanged by this
+round: **dependsOn stays 11←07, 12←02,04, 15←07,09**, and no new edge is added.
+
+| Re-review issue | Fix | Where it is now |
+|---|---|---|
+| 1 (Important): a dry run cannot see a ref-write failure, so step 1a failed on every retry | Root-cause option taken: `Inspect` runs the real named-refspec archive fetch into `OffBranchPrefix(id, now)` and sets `Unarchivable` from its failure; `Remove` step 1a runs no git and reports `st.ArchivedAt`; the 500 `git_failed` path is gone. The token hashes whether `Unarchivable` is set, not git's wording. One `now` per request feeds both `Inspect` and `Remove`. The D/F case is in the unarchivable test | parts/task-11.md:51-61 (`ArchivedAt`, `Unarchivable`, why not a dry run), :67-75 (token), :82-102 (`Inspect`, now with `now`), :108 (`ArchivedElsewhere`), :112 (`OffBranchPrefix`), :126-134 (step 1a, one `now`), :203-204 (wire: `confirm_stale` replaces the 500), :219-221 (handler), :238 (test: D/F pair, the same token a second apart, a fault in `Inspect`'s archive), :282-287 ("does not claim": repeated archives; the wording) |
+| 2 (Important): a failed listing was not in `RemovalState` | `Unlisted` (git's sentence) added, and put in `Confirm`, `NothingToLose`, the archive condition, `OffBranchRefspecs`' wildcard and `details.unlisted` | parts/task-11.md:47-50 (field), :68 (token), :79-80 (`NothingToLose`), :92-94 (set by the listing; archive condition), :120-121 (wildcard), :201 (wire), :239 (`TestRemoveWithAnUnlistedCloneArchivesTheWildcard`, a listing-fault Runner, red first); restated in parts/task-22.md:49 (`RemovalQuestion.unlisted`), :111-114 (the fourth heading), :124 (the test) |
+| 3 (Minor): no test proves the Lander and the Fetcher share `Git.Locks` | Tasks 09 and 12 each extend task 04's `TestServeWiresGit`, red first, with a same-pointer assertion | parts/task-09.md:19 (Files), :168 (test row), :187 (acceptance now runs `./control-plane/cmd/api/`); parts/task-12.md:26 (Files), :150-151 (the paragraph), :178 (test row) |
+| 4 (Minor): "lane (c) needs nothing from lane (b)" was false | Now "needs only 07 from lane (b) before 14" | plan:521-522; this file's round-1 text at :773-774 |
+| 5 (Minor): the lock-key reason overstated what the ID normalises | Reworded: the ID helps because every caller takes it from one catalog entry; `hashPath` only does Abs, Clean and lowercase, so two catalog entries for one repository still get two locks, and compare-and-swap still refuses the double land | parts/task-02.md:236-243 (checked against `project.go:86-102`); this file's round-1 text at :777-782 |
+
+**Verified on this machine** (git 2.53.0.windows.2, isolated config;
+`scratchpad/p3/b04r2-probe.sh`, output in `b04r2-probe.out`), on the re-reviewer's D/F clone:
+- The real `--quiet` fetch exits 1 with "error: some local refs could not be updated; try running
+  'git remote prune ../clone' …". The sentence is the same for prefixes `…/100` and `…/101`, and
+  again on a same-prefix retry, so it does not name the prefix under `--quiet`.
+- Without `--quiet`, git prints one line per ref naming `…/102/heads/d`, so the prefix does reach
+  git's output there. That, and a timeout's duration, is why the token hashes only presence.
+- Each failed attempt leaves `…/<unix>/heads/d/e` written and `…/heads/d` not. "It only adds refs"
+  (parts/task-11.md:98) holds.
+
+**Unverified.**
+- Issue 2's real-world trigger (a listing that fails while the wildcard archive succeeds) is
+  still unproven. The interface now covers it either way.
+- The path-length and held-lock variants of issue 1. They are ref-write failures like D/F, so the
+  real archive sees them, but no probe was run.
