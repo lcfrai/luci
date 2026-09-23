@@ -64,6 +64,10 @@ func (r Remote) CloneRoot() string { return MachineRoot + "/" + machineapi.DirLa
 // clone are on the same disk, so the fetch is local to the machine — the same
 // answer Local gives, for the same reason.
 func (r Remote) FetchURL(clonePath string) string { return clonePath }
+
+// Join is P3A-1's method (below): machine paths are slash-separated whatever
+// the control plane's OS. Local.Join is filepath.Join; Remote.Join is path.Join.
+func (r Remote) Join(elem ...string) string { return path.Join(elem...) }
 ```
 
 #### Two asks of phase 3, recorded here and in task 33 (phase 3's code is not edited silently)
