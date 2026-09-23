@@ -44,12 +44,15 @@ Three rules hold throughout, and every task restates the one it touches:
 
 **Tech stack.** Go 1.23 (the toolchain floor does not move; see the `go` directive constraint),
 `github.com/jackc/pgx/v5` **v5.7.5** (MIT, the only new direct requirement; contract §2),
-`golang.org/x/time/rate` and `golang.org/x/sys/windows` promoted from indirect to direct. pgx moves
-five `golang.org/x` modules up with it: x/crypto v0.37.0, x/text v0.24.0 and x/sync v0.13.0 (pgx's
-own requirements), and x/sys v0.32.0 and x/term v0.31.0 (x/crypto v0.37.0's). The last two are not
-in the module cache, so task 06's `go get` may need the network. x/sys becomes direct (task 28) **at
-whatever version the graph then holds**, by `go mod tidy`; no task names an x/sys version, because a
-lower one would downgrade x/crypto and pgx (review I8). Postgres 16
+`golang.org/x/time/rate` and `golang.org/x/sys/windows` promoted from indirect to direct. pgx brings
+five `golang.org/x` modules with it, **three bumped and two added** (all indirect): x/text v0.24.0,
+x/sys v0.32.0 and x/term v0.31.0 are bumped (from `control-plane/go.mod:54-56`'s v0.16.0, v0.24.0 and
+v0.21.0); x/crypto v0.37.0 and x/sync v0.13.0 are new lines (pgx requires x/crypto, x/text and
+x/sync; x/crypto v0.37.0 requires x/sys and x/term). x/sys v0.32.0 and x/term v0.31.0 are not in the
+module cache, so task 06's `go get` may need the network. x/sys and x/time become direct (tasks 28 and
+13) **at whatever version the graph then holds**, by an import and `go mod tidy`; no task names an
+x/ version, because a lower one would downgrade x/crypto and pgx (review I8, plan re-review b03 m2).
+Postgres 16
 (`postgres:16-alpine` locally, no extensions). The desktop adds no npm dependency and no Rust
 crate: sign-in opens the browser through `@tauri-apps/plugin-opener`, already a dependency
 (`desktop/package.json`, `desktop/src-tauri/Cargo.toml`) and already used
@@ -70,7 +73,7 @@ crate: sign-in opens the browser through `@tauri-apps/plugin-opener`, already a 
 | `OD-5` | our own server side, in this monorepo | the Hub is `control-plane/cmd/hub`; the environment is phase 8's |
 | `OD-6` | Entra, auth-code + PKCE, tokens in Windows Credential Manager, same store for ADO and GitHub | tasks 28–32; the credential-store seam (§"Seams", S-CRED) |
 | `OD-8` | harness transcript rule | not touched: the Hub never sees a terminal byte or a transcript (ADR-H1 §1.3) |
-| `OD-11` | permissive licences only | `pgx/v5` and its three `jackc` requirements are MIT; nothing else is added |
+| `OD-11` | permissive licences only | `pgx/v5` and its three `jackc` requirements are MIT; `golang.org/x/crypto` and `x/sync` arrive indirectly with pgx and are BSD-3-Clause, like the x/ modules already in `control-plane/go.mod`; nothing else is added |
 | `OD-12` | owner hands-on steps batched to the end | tasks 41 and 42's visual acceptance and task 43's real-tenant sign-in stay **unverified** until then |
 | `OD-13` | Panacea stays a separate API | the Panacea token is phase 7's, kept in this phase's store (S-CRED); the Hub stores no Panacea credential |
 | ADR-H1 §4 | Design A + amendment (Hub in the control-plane module) + grafts G1–G6 | the file map; G1 = task 23, G2 = task 21, G3 = tasks 14 and 26, G4 = task 07, G5 = tasks 14 and 27, G6 = task 27 |
@@ -85,8 +88,10 @@ crate: sign-in opens the browser through `@tauri-apps/plugin-opener`, already a 
 Every task restates the ones it touches. None of them moves.
 
 - **Module and paths.** Go module `github.com/kpmg-au-emu/panacea-app/control-plane`
-  (`control-plane/go.mod:1`). `go.work` lists `./control-plane` and `./sandboxd` and **gains
-  nothing**: the Hub is a second `main` package in the existing module (ADR-H1 §4.1).
+  (`control-plane/go.mod:1`). `go.work` lists `./control-plane` and `./sandboxd` and **gains no
+  `use` line**: the Hub is a second `main` package in the existing module (ADR-H1 §4.1). Its `go`
+  line follows control-plane's to `go 1.23.0` in task 06, and task 06 commits it (see "The `go`
+  directive"; plan re-review b03 N2).
 - **Test commands.** `go test ./...` is invalid at the workspace root (phase 2 plan, global
   constraints). Always:
   - unit: `go test ./sandboxd/... ./control-plane/... -race -count=1`
@@ -101,7 +106,12 @@ Every task restates the ones it touches. None of them moves.
   1.23 (`azure-pipelines.yml:11`). Task 06 adds `github.com/jackc/pgx/v5` **pinned at v5.7.5**,
   whose own directive is `go 1.23.0` (read from the module cache, 2026-09-23); `go` will rewrite
   the module's line to `go 1.23.0`. That is the same toolchain floor and is **accepted**; anything
-  above `1.23.0` is not. pgx `v5.10.0` (also cached) declares `go 1.25.0` and **must not be used**.
+  above `1.23.0` is not. **`go.work:1` must follow it to `go 1.23.0`** in the same commit: since Go
+  1.21 a workspace whose `go` line is below a member's refuses to load, and `go 1.23` sorts below
+  `1.23.0` (probed 2026-09-24 on a scratch workspace, go1.26.2, `GOTOOLCHAIN=local`: *"module a
+  listed in go.work file requires go >= 1.23.0, but go.work lists go 1.23"*, exit 1; `go work edit
+  -go=1.23.0` → exit 0). Left uncommitted, the implementer's tree works and every other checkout and
+  CI fails at the first root `go` command (plan re-review b03 N2). `sandboxd/go.mod:3` stays `go 1.23`. pgx `v5.10.0` (also cached) declares `go 1.25.0` and **must not be used**.
   The x/ modules pgx pulls up (see "Tech stack") move too: x/crypto v0.37.0, x/text v0.24.0 and
   x/sync v0.13.0 also declare `go 1.23.0` (read from the cache, 2026-09-24); x/sys v0.32.0's and
   x/term v0.31.0's directives are **unverified**, because neither is cached, and task 06's diff check
@@ -266,7 +276,8 @@ parallel worktrees (see §"Order and parallel lanes").
 | `control-plane/internal/hub/server/evidence.go`, `store/evidence.go` | phase 3's evidence (H-2) | new | 25 |
 | `control-plane/internal/hub/server/changes.go`, `store/changes.go` | the change feed (G3) | new | 26 |
 | `control-plane/internal/hub/server/{audit,erase}.go`, `store/erase.go` | the audit route, erasure (G6) | new | 27 |
-| `control-plane/go.mod`, `go.sum` ⚑ | `pgx/v5 v5.7.5`; `x/time`, `x/sys` direct | modified | 06 (pgx), 13 (`x/time`), 28 (`x/sys`) |
+| `control-plane/go.mod`, `go.sum` ⚑ | `pgx/v5 v5.7.5`; three x/ lines bumped and x/crypto, x/sync added (indirect); `go 1.23.0`; `x/time`, `x/sys` direct | modified | 06 (pgx), 13 (`x/time`), 28 (`x/sys`) |
+| `go.work` (and `go.work.sum` if written) ⚑ | the `go` line to `go 1.23.0`, following control-plane's; no `use` line added | modified | 06 |
 
 ### The control plane — `control-plane/cmd/api`, `control-plane/internal/...`
 
@@ -427,7 +438,9 @@ order below, and a lane that needs another lane's task waits for that merge.
 task 00 HA7-4). All are in lane C, one after another, so no two
 worktrees ever edit those files at once. Four desktop tasks edit `client.ts` or the store: all in
 lane D. `control-plane/go.mod` is edited by 06 (pgx), 13 (`x/time` direct) and 28 (`x/sys` direct);
-28 waits for 06's merge, and 13 is in 06's own lane.
+28 waits for 06's merge, and 13 is in 06's own lane. `go.work` is edited only by 06 (its `go` line);
+a sibling phase that also moves a member to `go 1.23.0` makes the same one-line change, which merges
+clean or conflicts identically.
 
 **Sibling phases edit the same wiring files tonight** — phases 3, 4, 5 and 7 each register routes
 in `api.go`, add fields to `Deps`, variables to `config.go` and codes to `httpx`. Every task here

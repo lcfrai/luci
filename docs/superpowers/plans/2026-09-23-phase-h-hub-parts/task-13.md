@@ -20,7 +20,7 @@ is the same bucket.
 - `control-plane/internal/hub/server/export_test.go` — a test-only route behind the pipeline (new)
 - `control-plane/internal/hub/store/orgs.go` + `orgs_integration_test.go` (new)
 - `control-plane/cmd/hub/serve.go` — build the validator, enrol the orgs, wire the middleware (modify)
-- `control-plane/go.mod` — `golang.org/x/time` becomes a direct requirement at **v0.3.0**, the version already in the graph (modify ⚑)
+- `control-plane/go.mod` — `golang.org/x/time` becomes a direct requirement **at the version the graph already holds** (v0.3.0 today, `control-plane/go.mod:57`), by an import and `go mod tidy`, never a named `go get` (modify ⚑)
 
 #### Contract — complete
 
@@ -159,9 +159,15 @@ Integration (`orgs_integration_test.go`, `//go:build integration`):
 
 - [ ] **Step 1:** Re-read contract §5.1, §6.3, §11.3, §11.5; phase 8 task 16's `Ready` and
   `ErrKeySetUnavailable`.
-- [ ] **Step 2:** `go get golang.org/x/time@v0.3.0` (already in the graph; this makes it direct).
-  `git diff control-plane/go.mod` shows only that line moving out of the indirect block.
-- [ ] **Step 3:** Tests; they fail. Then `ratelimit.go`, `auth.go`, `orgs.go`; wire `serve.go`:
+- [ ] **Step 2:** Record the version the graph already holds: `cd control-plane && go list -m
+  golang.org/x/time > $TEMP/xtime.txt` (v0.3.0 today, `control-plane/go.mod:57`). **Never `go get`
+  x/time at a named version**: a lane or sibling merged before this task may have raised it, and a
+  named pin would lower it and whatever requires it (plan re-review b03 m2; plan.md's "The `go`
+  directive"). `go get` also does not make a module direct; importing it does.
+- [ ] **Step 3:** Tests; they fail. Then `ratelimit.go` (which imports `golang.org/x/time/rate`),
+  `auth.go`, `orgs.go`; then `go mod tidy`. `git diff control-plane/go.mod` shows only the x/time line
+  moving from the indirect block to the direct block, **at the version Step 2 recorded**; any other
+  line moving is a defect to undo, not to commit. Wire `serve.go`:
   build `entra.New` from `Config` (`AllowInsecureAuthority` = `DevIssuer`), `EnsureOrgs`, wrap `/v1`
   in `Authenticate`, add the readiness check.
 - [ ] **Step 4:** By hand: `devstack.sh up` (task 09 — or its manual equivalent if task 09 has not
@@ -174,7 +180,7 @@ Integration (`orgs_integration_test.go`, `//go:build integration`):
 ```bash
 go test ./control-plane/internal/hub/server/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"                # 23 (11 from task 08 + 12)
 go test -tags integration ./control-plane/internal/hub/store/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # ≥ 4 (task 08's dbauth test + these 3)
-git diff control-plane/go.mod | grep "^[-+]" | grep -v "^[-+][-+]"                                         # only golang.org/x/time moving to the direct block
+git diff control-plane/go.mod | grep "^[-+]" | grep -v "^[-+][-+]"                                         # only golang.org/x/time moving to the direct block, at $TEMP/xtime.txt's version
 ```
 
 #### What this task does not claim
