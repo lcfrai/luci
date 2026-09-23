@@ -180,6 +180,13 @@ sandbox.Config{Namespace: "ns"})`.
 
 #### Steps
 
+- [ ] **Step 0: Phase 3 touches the same environment.** Phase 3's task 05 adds one variable to
+  `backend.Spec.EnvEntries()` and to `containerEnv`, and extends the same env-parity test (phase 3
+  plan, sibling `phase-3` worktree, file map: "`internal/backend/backend.go` (p2) EnvSessionID,
+  written by EnvEntries … `katabe/kata_test.go` (p2) the env-parity pin gains one variable").
+  Phase 3 lands first in program order. Check with `git grep -n EnvSessionID -- control-plane/`;
+  if present, the pod's env order below includes it and assertion 3 keeps it; if absent, record
+  that in the commit message so phase 3's task 05 knows the token entry moved to a Secret.
 - [ ] **Step 1:** Write `hardening_test.go` and the three config tests. They fail to compile
   (`Config`, `WithOwner` missing).
 - [ ] **Step 2:** Add `Config`, change `NewManager`, fix every caller (`main.go:231` and the tests).
