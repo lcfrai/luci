@@ -760,3 +760,71 @@ fn, since nil copies nothing.
 mount is still not run. The design no longer depends on it: a live or starting primary-worktree
 session stops the copy. The restart line number (`:1316`) is `10fa5fd`'s; task 04 re-locates both
 call sites by grep.
+
+## Fix batch b04 (2026-09-24): I6 and I7
+
+Lane observation and task ordering. Line numbers are for the tree at this batch's last commit.
+"parts/" means `2026-09-23-phase-3-git-convergence-parts/`.
+
+### I7: briefref and the lock get owners; no dependency edge changes
+
+The review's first option is adopted: `briefref` moves to task 03, and `gitx.Locks` is added to
+task 02. **The orchestrator's dependsOn needs no new edge.** 11 still depends on 07 (which
+follows 03), and 12 on 02 and 04. Nothing in lane (c) waits on lane (b) before task 14.
+
+Two changes go past the review, on the facts:
+- **The lock is keyed by project ID, not by path.** One path has several spellings on Windows
+  (8.3 names, case, junctions). Re-review b03 N-1 found this machine's `%TEMP%` is 8.3, so a
+  path key could give one repository two locks. Every caller already holds the ID
+  (`project.go:29`, `:102`).
+- **The instance needs an owner too.** Task 04 builds the only one, in `GitDeps.Locks`.
+  Undo and revert (task 10) and the three branch verbs (task 11) take it as well, because they
+  move `refs/heads/*` or `branch.<name>.*`, which a land or a push reads.
+
+| Review's fix | Where it is now |
+|---|---|
+| Move `briefref.go` into task 03 or 04 | parts/task-03.md:28-29 (Files), :338-374 (the interfaces, moved verbatim, with the reason), :420 (Step 3), :428 (`go vet`); removed from parts/task-09.md:15-23, which now consumes it (:22); plan:122 (package table), :430 (file map), :496 (task table row 03), :502 (row 09); plan:372, :374 (P4-1, P4-3 name the declaring task); parts/task-15.md:180 |
+| Add `gitx.Locks` (per project, one per process) to task 02 | parts/task-02.md:22-23 (Files), :226-250 (type, key, lock order), :364-366 (three tests), :548 (Step 3), acceptance 35 → 38 tests; plan:116 (package table), :421 (file map), :495 (row 02), :98-100 (the rule, beside the land paragraph) |
+| `Lander`, `Push` and `Fetch` all take it | Lander: parts/task-09.md:62-66 (field), :79 (step 0), :166 (`TestLandWaitsOnTheProjectLock`, through the handler too), :173-179 (preflight, wiring). Fetcher and Push: parts/task-12.md:40-53 (`ProjectRef`, `Locks`), :79, :116, :143-150 (the paragraph replacing "one `sync.Mutex` per project path"), :175 (`TestPushAndFetchWaitOnTheProjectLock`, which replaces `TestPushAndLandSerialise`, the test that needed task 09's `Lander`) |
+| (extension) one instance, and every branch mover | parts/task-04.md:67-71 (`GitDeps.Locks`), :248 (main.go builds it), :271 (`TestServeWiresGit` asserts it); parts/task-10.md:71-72, :90-91, :149; parts/task-11.md:129-132 and the two signatures after it, :230 (`TestBranchVerbsWaitOnTheProjectLock`), :235-236 (preflight) |
+| Or add the edges 11→09 and 12→09 and redraw the lanes | Not taken. plan:521-524 says why the lanes stay as drawn |
+
+### I6: a clone HEAD off the lane's branch is reported, and its work archived before removal
+
+The review's fix is adopted, with **one correction on the facts**. The review archives into
+`refs/panacea/archive/lanes/<id>/<unix>/<name>`. Git cannot write that: step 1 already writes
+`refs/panacea/archive/lanes/<id>/<unix>`, which is a ref, and git refuses a ref beneath another
+ref. The probe below shows git's refusal. So off-branch work goes to a sibling namespace,
+`refs/panacea/archive/offbranch/<id>/<unix>/heads/<name>`, and a detached HEAD goes to
+`…/HEAD`. Contract Q5's erasure scope, `refs/panacea/archive/*`, still covers both.
+
+A second addition: a clone with a broken or hostile ref must stay removable. So `Inspect`
+probes the archive with `fetch --dry-run`, and a failure becomes `Unarchivable`. That value is in
+the question and in the token, so the human confirms the loss knowingly. A failure of the real
+archive fetch deletes nothing.
+
+| Review's fix | Where it is now |
+|---|---|
+| `Observe` reads `symbolic-ref -q HEAD`; `LaneObservation` gains `headElsewhere` | parts/task-07.md:117-121 (field), :135-137 (the calls, Scope Clone); plan:91-93 |
+| The card says so | parts/task-19.md:45-48 (`headElsewhereLine`), :159; the wire at parts/task-08.md:185 and parts/task-18.md:45 |
+| `Inspect` archives every clone ref under `refs/heads/` the lane does not reach | parts/task-11.md:42-51 (`Elsewhere`, `Unarchivable`), :57-58 (token), :63-64 (`NothingToLose`), :70-79 (the listing and the dry-run probe), :87-100 (`ArchivedElsewhere`, `OffBranchPrefix`, `OffBranchRefspecs`), :104-108 (Remove step 1a), wire :176-181, intro :12-14, "does not claim" (stash, tags and reflog are not archived) |
+| `TestObserveReportsAHeadOffTheBranch` | parts/task-07.md:177 |
+| `TestRemoveArchivesOtherClonesBranches` | parts/task-11.md:212; also `TestRemoveIgnoresBranchesTheLaneContains` :213, `TestRemoveAnUnarchivableCloneIsAskedNotStuck` :214, and the hostile-clone row extended to the wildcard archive |
+| Restatements | parts/task-22.md:48-49 (`RemovalQuestion.elsewhere`, `.unarchivable`), :106-111 (four headings), :121 (the test, "names all four losses"); parts/task-23.md:65 (step 18) |
+
+**Verified on this machine** (git 2.53.0.windows.2, isolated config, script
+`scratchpad/p3/b04-probe.sh`):
+- `update-ref refs/panacea/archive/lanes/w1/100/fix` beside `…/100` fails: exit 128, "cannot
+  lock ref … 'refs/panacea/archive/lanes/w1/100' exists".
+- `for-each-ref --no-merged=refs/heads/main refs/heads/` lists `fix-x` and omits `old`, a branch
+  `main` contains.
+- `symbolic-ref -q HEAD` exits 1 when HEAD is detached.
+- `fetch --dry-run` with the named refspecs exits 0 and writes no ref.
+- The real fetch writes `…/offbranch/w1/100/heads/fix-x` and `…/HEAD`, and `HEAD` names the
+  detached commit.
+
+**Unverified.**
+- Whether `--dry-run` leaves the fetched objects in the project's object store (parts/task-11.md
+  says nothing depends on it).
+- Which call fails first for a loose ref that names a missing object: the listing, or the
+  wildcard probe. Either path ends in `Unarchivable`.
