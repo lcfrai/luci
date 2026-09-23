@@ -36,6 +36,13 @@ package main
 type discoverWiring struct {
 	Materialiser api.Materialiser
 	Discover     api.RouteMounter
+	// model is the one Completer that wireDiscover hands to both
+	// discover.ProposeFollowUp and repoanalysis.DraftBrief. It is an
+	// untyped nil interface when the model is off: never a nil
+	// *modelclient.Client, which would not compare equal to nil. main does not read it. It
+	// is the seam TestAKeyWithoutABaseURLIsModelOff asserts at (re-review
+	// b04-1 M3), so that test needs no bound project, remote or githost.
+	model modelclient.Completer
 }
 
 // wireDiscover builds phase 4's graph. hub may be nil (the Hub is not
@@ -84,7 +91,7 @@ type gitQuestions struct{ git project.Runner }
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestAKeyWithoutABaseURLIsModelOff` | `t.Setenv("PANACEA_APP_MODEL_API_KEY", "sk-test-not-a-key")`, base URL unset: `wireDiscover` succeeds; the wired `propose_follow_up` answers `assist: "model_off"`; the captured log holds exactly one line naming both `PANACEA_APP_MODEL_API_KEY` and `PANACEA_APP_MODEL_BASE_URL`, and not `sk-test-not-a-key`; with the base URL then set to an `httptest` server's origin, the same op reaches that server exactly once (so the off state is the missing URL, not a broken wiring) | a key-only configuration that reaches `api.anthropic.com` (review I13), or a log line that leaks the key |
+| `TestAKeyWithoutABaseURLIsModelOff` | `t.Setenv("PANACEA_APP_MODEL_API_KEY", "sk-test-not-a-key")`, base URL unset, `hub` nil: `wireDiscover` succeeds, and `w.model == nil` (the interface itself, so a typed-nil `*modelclient.Client` fails); the captured log holds exactly one line naming both `PANACEA_APP_MODEL_API_KEY` and `PANACEA_APP_MODEL_BASE_URL`, and not `sk-test-not-a-key`. Then, with the base URL set to an `httptest` server's origin (the server answers one minimal Messages response), `wireDiscover` again: `w.model != nil`, and one `w.model.Complete` reaches that server exactly once, with the test key in `x-api-key`. That proves the off state is the missing URL, not a broken wiring. The seam is the `model` field, not the `propose_follow_up` route: reaching the model there needs a Hub, a bound project and brief, a remote and phase 3's `githost` (task 08 `:75-83`; the fallback row above), and none of that is this test's subject. That a nil `Completer` answers `assist: "model_off"` is task 04's `TestNilCompleterIsModelOff` (`task-04.md:82`) | a key-only configuration that reaches `api.anthropic.com` (review I13), a typed-nil `Completer` that the model-off checks miss, or a log line that leaks the key |
 | `TestWireDiscoverAlwaysGivesAMaterialiser` | with every dependency nil, `Materialiser` is non-nil and `api.New` accepts it | a wiring that passes nil and trips task 10's check at start-up |
 | `TestNilHubServesHubOff` | `GET /v1/discover/projects/{id}/brief` over the wired handler → `binding.state: "hub_off"` | a panic on the first lens open |
 | `TestGitQuestionsReadsUntrackedAsFalse` | a fake runner answering `ls-files` with empty output and a nil error → `(false, nil)`; answering `CLAUDE.md\n` → `(true, nil)`; the recorded args are exactly `--icase-pathspecs ls-files -- CLAUDE.md` (the worktree goes in `Run`'s `dir`, which `ExecRunner` sets as `cmd.Dir`, `gitrunner.go:55`; there is no `-C`), with no `--error-unmatch` and no `:(icase)` magic; a fake error holding `fatal: not a git repository` → `errors.Is(err, contextwrite.ErrNotARepo)`; any other fake error → returned, not `(false, nil)` | every fresh repository read as "tracked" and every brief sent to `.claude/`; an error swallowed as "untracked" |

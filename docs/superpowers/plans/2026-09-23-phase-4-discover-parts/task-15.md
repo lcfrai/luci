@@ -24,8 +24,12 @@ deleted all three.
    **One addition (review I4): a per-call timeout.** `send` (`:242`) reads the client-wide
    `timeoutMs` (`:235`, default `DEFAULT_TIMEOUT_MS = 10_000` at `:33`). The transport's `send`
    gains an optional last parameter, `call?: { timeoutMs?: number }`, and uses
-   `call?.timeoutMs ?? timeoutMs` for its timer and for the `timeout` message at `:281`. Phase 2's
-   callers pass nothing, so their behaviour is byte-identical.
+   `const limit = timeoutMs > 0 ? (call?.timeoutMs ?? timeoutMs) : 0` for its timer (armed only when
+   `limit > 0`, as `:256` does today) and for the `timeout` message at `:281`. **A client-wide 0
+   wins:** `ClientOptions.timeoutMs` documents 0 as "disables" (`:127`), so a per-call value never
+   re-arms a timer on a client built with `timeoutMs: 0`. A per-call value replaces the default
+   otherwise, and a per-call 0 disables that one call. Phase 2's callers pass nothing, so their
+   behaviour is byte-identical.
 2. **`ProblemCode` gains** (grouped by who emits them):
 
 ```ts
@@ -204,6 +208,7 @@ export const DISCOVER_ANALYSE_TIMEOUT_MS = 60_000;   // analyse()
 | `apply sends baseRevision and op only` | the body is exactly `{"baseRevision":5,"op":{…}}` | an extra field the server's strict decoder rejects |
 | `a follow-up and an analyse wait longer than the default` | with fake timers and a `fetch` that never settles: `apply(…, {kind: "propose_follow_up"})` is still pending at 29 999 ms and rejects `ApiError("timeout")` at 30 000; `analyse` the same at 60 000; `apply(…, {kind: "record", …})` rejects at 10 000; the timeout message names the per-call value | a Discover client on the transport's 10 s default, which aborts a 20 s follow-up or a 35 s draft and makes Retry repeat the model call (review I4) |
 | `phase 2's calls keep the client-wide timeout` | `createClient({timeoutMs: 500})`'s `listMachines` rejects `timeout` at 500 ms, not 10 000 | a per-call override that leaks into every call |
+| `a client built with timeoutMs 0 never times out a Discover call` | a transport built with `{timeoutMs: 0}` and fake timers, with a `fetch` that never settles: `apply(…, {kind: "propose_follow_up"})` is still pending at 120 000 ms, and no timer is pending (`vi.getTimerCount()` is 0) | `call?.timeoutMs ?? timeoutMs` alone, which arms a 30 s timer on a client whose documented 0 means "disables" (`client.ts:127`) |
 | `a Hub conflict arrives as an ApiError with details` | a 409 `revision_conflict` body → `code`, `details.headRevision` | a client that drops `details` |
 | `resume and fork no longer send contextRef` | the create body for both has no `contextRef` key | the desktop still asserting what the agent inherited (P6) |
 | `restart sends no body unless asked` | `restartSession(id)` sends no body; with `{withoutBrief: true}` sends that | a phase 2 regression |

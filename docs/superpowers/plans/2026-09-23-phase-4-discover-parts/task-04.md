@@ -46,8 +46,15 @@ func ProposeFollowUp(ctx context.Context, m modelclient.Completer, c Content, s 
 // FollowUpBudget bounds the one model call. The ops route runs a
 // propose_follow_up under discoverapi Budgets.FollowUp (28 s, task 11),
 // below the desktop's 30 s timeoutMs (task 15); the model gets 20 s of it
-// and Apply's Hub reads the other 8 s, so a slow model reaches the desktop
-// as model_failed and never as the desktop's timeout (review I4).
+// and Apply's Hub reads before the model and its write after it (one
+// WriteRevisions, up to three rebuilds on a fan-out conflict, task 08) share
+// the other 8 s, so a slow model reaches the desktop as model_failed and
+// never as the desktop's timeout (review I4). A deadline that expires during
+// that write can answer 503 after the Hub has committed; the person's Retry
+// then carries a fresh Idempotency-Key (one per hubclient call, Hub contract
+// §9.2) and meets revision_conflict against their own revision. The same
+// ambiguity already exists when the desktop gives up; the budget does not add
+// it (re-review b04-1 M4).
 const FollowUpBudget = 20 * time.Second
 ```
 

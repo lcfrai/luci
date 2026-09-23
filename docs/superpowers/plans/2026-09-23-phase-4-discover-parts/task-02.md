@@ -22,7 +22,9 @@ repeat it.
    and degrade. Nothing else in the process holds a key.
 4. **No default endpoint (review I13).** The old plan's `DefaultBaseURL = "https://api.anthropic.com"`
    (`:299-302`) and both fallbacks to it (`ConfigFromEnv`'s `getenv(..., DefaultBaseURL)` at `:331`
-   and `New`'s `if cfg.BaseURL == ""` at `:389-391`) are **deleted, not copied**. A brief's answers
+   and `New`'s `if cfg.BaseURL == ""` at `:389-391`) are **deleted, not copied**. `ConfigFromEnv`'s
+   doc comment (`:327-328`, "Only the key is mandatory.") is **rewritten**, not copied: "the key and
+   the base URL are both mandatory; neither is defaulted". A brief's answers
    are engagement descriptions (client names, scope, constraints), and a key alone must never send
    them to a public API. The model's destination is always a value someone chose:
    - `ConfigFromEnv` reads the key first. Key unset: `ErrNoCredentials`, as before. Key set and
@@ -31,9 +33,11 @@ repeat it.
    - `New(Config{APIKey: "k"})` with an empty `BaseURL` returns `ErrNoBaseURL`. It does not guess.
    - The old test at `:223` (`New(Config{BaseURL: "http://x"})` is `ErrNoCredentials`) is kept: the
      key check still runs first.
-5. **The HTTP ceiling is shorter than every desktop budget (review I4).** The old plan's
-   `Timeout: 120 * time.Second` (`:335`, `:399-400`) becomes `DefaultTimeout = 45 * time.Second`.
-   It is a ceiling only; every caller also passes its own context: task 04's
+5. **The HTTP ceiling is below the longest desktop budget (analyse, 60 s) (review I4).** The old
+   plan's `Timeout: 120 * time.Second` (`:335`, `:399-400`) becomes `DefaultTimeout = 45 * time.Second`.
+   It is **not** below the 30 s follow-up budget or the 10 s default, and it does not need to be:
+   the per-call budgets keep each call under its own desktop timeout. Removing one of them would
+   not leave the ceiling to hold. It is a ceiling only; every caller also passes its own context: task 04's
    `FollowUpBudget` (20 s) and task 13's `DraftBudget` (35 s), each inside a route deadline
    (task 11's `Budgets`: 28 s and 55 s). The desktop waits 30 s for `apply` with
    `propose_follow_up` and 60 s for `analyse` (task 15), so a slow model reaches the desktop as the
@@ -52,7 +56,7 @@ package modelclient
 
 // No DefaultBaseURL: the endpoint is never defaulted (amendment 4, review I13).
 const DefaultModel = "claude-opus-5" // default only; PANACEA_APP_MODEL_ID overrides
-const DefaultTimeout = 45 * time.Second // HTTP ceiling; below every desktop timeoutMs (amendment 5)
+const DefaultTimeout = 45 * time.Second // HTTP ceiling; below the longest desktop budget (analyse, 60 s); the per-call budgets keep each call under its own (amendment 5)
 
 var (
 	ErrNoCredentials = errors.New("modelclient: PANACEA_APP_MODEL_API_KEY is not set")
@@ -121,8 +125,8 @@ var _ Completer = (*Client)(nil)
 Add one:
 
 | `TestConfigFromEnvReadsOnlyPanaceaAppVariables` | with `ANTHROPIC_API_KEY` set and `PANACEA_APP_MODEL_API_KEY` unset, `ConfigFromEnv` is `ErrNoCredentials` | a fallback to a variable a developer's shell may hold for a different account (G4) |
-| `TestAKeyWithoutABaseURLIsModelOff` | with `PANACEA_APP_MODEL_API_KEY` set and `PANACEA_APP_MODEL_BASE_URL` unset, then set to `"  "`, `ConfigFromEnv` is `ErrNoBaseURL`; `New(Config{APIKey: "k"})` is `ErrNoBaseURL`; an `httptest` server counting requests sees none | the old `getenv(..., "https://api.anthropic.com")` fallback, in either `ConfigFromEnv` or `New` (I13) |
-| `TestTheDefaultTimeoutIsBelowEveryDesktopBudget` | `DefaultTimeout < 60*time.Second`; `New(Config{APIKey: "k", BaseURL: "http://x"})` (no `Timeout`) builds an `http.Client` whose `Timeout` is `DefaultTimeout` (an internal `package modelclient` test file, `timeout_internal_test.go`, reads the unexported field, so no test waits 45 s) | a default left at the old 120 s, which outlasts task 15's 60 s `analyse` budget (I4) |
+| `TestAKeyWithoutABaseURLIsModelOff` | with `PANACEA_APP_MODEL_API_KEY` set and `PANACEA_APP_MODEL_BASE_URL` unset, then set to `"  "`, `ConfigFromEnv` is `ErrNoBaseURL`; `New(Config{APIKey: "k"})` is `ErrNoBaseURL` | the old `getenv(..., "https://api.anthropic.com")` fallback, in either `ConfigFromEnv` or `New` (I13) |
+| `TestTheDefaultTimeoutIsBelowTheLongestDesktopBudget` | `DefaultTimeout < 60*time.Second`; `New(Config{APIKey: "k", BaseURL: "http://x"})` (no `Timeout`) builds an `http.Client` whose `Timeout` is `DefaultTimeout` (an internal `package modelclient` test file, `timeout_internal_test.go`, reads the unexported field, so no test waits 45 s) | a default left at the old 120 s, which outlasts task 15's 60 s `analyse` budget (I4) |
 
 **Steps:**
 

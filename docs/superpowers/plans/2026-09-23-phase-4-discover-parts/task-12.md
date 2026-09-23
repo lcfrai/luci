@@ -79,7 +79,13 @@ for lists — so the desktop's type has no optional fields.
    desktop's 10 s. For the head readings, the deadline's expiry is task 11's route-deadline row
    (503 `upstream_unavailable`). For `refs`, it is "unreachable" in rule 1's sense: the cache
    answers what it can, the rest are `unavailable`, and the response is still 200, so a
-   black-holed Hub never turns the chip into the desktop's `timeout`.
+   black-holed Hub never turns the chip into the desktop's `timeout`. For `materialisations`, the
+   expiry is task 11's route-deadline row too (503 `upstream_unavailable`, `upstream: "hub"`),
+   classified by the route's `ctx.Err()`. That can name an expiry during `Inspect`'s local git and
+   file reads as the Hub's, the misnaming task 09 avoids by budgeting only its Hub step. It is
+   accepted here, and stated: those reads take milliseconds per worktree, so the 8 s can run out
+   during one only after `Inspect`'s `Source` reads have spent almost all of it, and then the Hub
+   is the cause (re-review b04-1, nit 3).
 
 **The route audit** gains four lines:
 
