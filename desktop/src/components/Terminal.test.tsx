@@ -16,6 +16,7 @@ import type { AttachHandle } from "../api/attachRegistry";
 import { resetCockpit, useCockpit } from "../store/store";
 import type { Session } from "../store/types";
 import { Terminal } from "./Terminal";
+import { TERMINAL_HOST_ATTRIBUTE, isInsideTerminal } from "../hooks/useKeyboardMap";
 
 // The factory takes a DYNAMIC import and does not close over the top-level `FakeTerm` binding
 // above. vi.mock is hoisted above this file's imports, so a factory that reads that binding can
@@ -407,5 +408,30 @@ describe("Terminal lets the cockpit's chords past xterm", () => {
 
   it.each(HANDLED_BY_XTERM)("xterm still handles %s, so it reaches the agent", (_name, init) => {
     expect(installedHandler()(new KeyboardEvent("keydown", init))).toBe(true);
+  });
+
+  /* OWNER DECISION OD-9. With "Send shortcut keys to the terminal" on, the same handler keeps
+   * every key, the chords included. The setting is turned on AFTER the terminal is built, which
+   * is the order a user meets it in: the registry builds a session's terminal once, so a handler
+   * that read the setting at construction would ignore every toggle made afterwards. */
+  it.each([...SKIPPED_BY_XTERM, ...SKIPPED_BY_XTERM_ON_META, ...HANDLED_BY_XTERM])(
+    "OD-9 on: xterm keeps %s, so it reaches the agent",
+    (_name, init) => {
+      const handler = installedHandler();
+      useCockpit.getState().setSendChordsToTerminal(true);
+      expect(handler(new KeyboardEvent("keydown", init))).toBe(true);
+      // And back off, to the answer the rows above pin for the default.
+      useCockpit.getState().setSendChordsToTerminal(false);
+      const handledWhenOff = HANDLED_BY_XTERM.some(([, handled]) => handled === init);
+      expect(handler(new KeyboardEvent("keydown", init))).toBe(handledWhenOff);
+    },
+  );
+
+  it("OD-9: the terminal's element sits inside a host the keyboard map recognises as a terminal", () => {
+    seed(session());
+    const { container } = render(<Terminal sessionId="s-1" readOnly={false} focused />);
+    const host = container.firstElementChild as HTMLElement;
+    expect([host.hasAttribute(TERMINAL_HOST_ATTRIBUTE), host.contains(grab().element), isInsideTerminal(grab().element)])
+      .toEqual([true, true, true]);
   });
 });

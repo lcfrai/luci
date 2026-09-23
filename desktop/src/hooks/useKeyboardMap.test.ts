@@ -1,7 +1,15 @@
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { CHORD_KEYS, SHIFTED_CHORD_KEYS, isCockpitChord, useKeyboardMap } from "./useKeyboardMap";
+import {
+  CHORD_KEYS,
+  SHIFTED_CHORD_KEYS,
+  TERMINAL_HOST_ATTRIBUTE,
+  isCockpitChord,
+  isInsideTerminal,
+  terminalKeepsKey,
+  useKeyboardMap,
+} from "./useKeyboardMap";
 import { __resetOverlays, hasOpenOverlay, useDismissable } from "./useDismissable";
 import { resetCockpit, useCockpit } from "../store/store";
 import { aBranch, aProject, aSession, aWorktree } from "../test/fixtures";
@@ -411,5 +419,156 @@ describe("isCockpitChord — the one list the map and the terminal both read", (
         "const key = chordKey(event); " +
         "return (event.shiftKey ? SHIFTED_CHORD_KEYS : CHORD_KEYS).includes(key); }",
     );
+  });
+});
+
+/* OWNER DECISION OD-9, "Keep, plus a toggle": the handler level. Both modes, both readers.
+ *
+ * The terminal stand-in here is the one real terminals have since OD-9: a host carrying
+ * TERMINAL_HOST_ATTRIBUTE, around a focused helper textarea. The bare textarea the tests above
+ * use has no host, which is correct for them (they predate the marker, and off mode never reads
+ * it) and would be wrong here: a map that ignored "inside a terminal" would pass on it. What real
+ * xterm does with each key in each mode is useKeyboardMap.xterm.test.tsx's. */
+describe("OD-9 — 'Send shortcut keys to the terminal', at the handler level", () => {
+  afterEach(() => {
+    document.querySelectorAll(`[${TERMINAL_HOST_ATTRIBUTE}]`).forEach((node) => node.remove());
+    document.querySelectorAll("input[data-od9]").forEach((node) => node.remove());
+  });
+
+  function focusedTerminalInHost(): HTMLTextAreaElement {
+    const host = document.createElement("div");
+    host.setAttribute(TERMINAL_HOST_ATTRIBUTE, "");
+    const term = document.createElement("textarea");
+    term.className = "xterm-helper-textarea";
+    host.appendChild(term);
+    document.body.appendChild(host);
+    term.focus();
+    return term;
+  }
+
+  /** Every chord in the two lists, on Ctrl and on Meta: §6.9's thirty. */
+  const EVERY_CHORD: KeyboardEventInit[] = [
+    ...CHORD_KEYS.map((key) => ({ key })),
+    ...SHIFTED_CHORD_KEYS.map((key) => ({ key: key.toUpperCase(), shiftKey: true })),
+  ].flatMap((init) => [{ ...init, ctrlKey: true }, { ...init, metaKey: true }]);
+
+  /** Everything a chord branch can change. Equal before and after means the map did nothing. */
+  const mapState = () => {
+    const s = useCockpit.getState();
+    return JSON.stringify([s.selection, s.paletteOpen, s.railCollapsed, s.machinesOpen, s.pickerOpen]);
+  };
+
+  const setting = (on: boolean) => useCockpit.getState().setSendChordsToTerminal(on);
+
+  it("is off by default, so a chord pressed inside a terminal is still the cockpit's", () => {
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(false);
+    const term = focusedTerminalInHost();
+    let claimed = 0;
+    for (const init of EVERY_CHORD) {
+      const event = pressOn(term, init.key ?? "", init);
+      if (event.defaultPrevented) claimed += 1;
+    }
+    expect(claimed).toBe(30);
+    useCockpit.getState().closePalette();
+    pressOn(term, "k", { ctrlKey: true });
+    expect(useCockpit.getState().paletteOpen).toBe(true);
+  });
+
+  it("on: the map ignores every chord pressed inside a terminal, and does not even cancel it", () => {
+    setting(true);
+    useCockpit.getState().focusSession("s-2");
+    const term = focusedTerminalInHost();
+    const before = mapState();
+    let checked = 0;
+    for (const init of EVERY_CHORD) {
+      const event = pressOn(term, init.key ?? "", init);
+      checked += 1;
+      expect([init, event.defaultPrevented, mapState() === before]).toEqual([init, false, true]);
+    }
+    expect(checked).toBe(30);
+    expect({ killed: killMock.mock.calls.length, created: createSessionMock.mock.calls.length })
+      .toEqual({ killed: 0, created: 0 });
+  });
+
+  it("on: ⌘K inside a terminal goes to the terminal, so the palette stays shut", () => {
+    setting(true);
+    const term = focusedTerminalInHost();
+    const event = pressOn(term, "k", { ctrlKey: true });
+    expect({ open: useCockpit.getState().paletteOpen, prevented: event.defaultPrevented, kept: terminalKeepsKey(event) })
+      .toEqual({ open: false, prevented: false, kept: true });
+  });
+
+  it("on: the same chords pressed outside a terminal are still the cockpit's", () => {
+    setting(true);
+    focusedTerminalInHost(); // present on the page, but not where the key is pressed
+    let claimed = 0;
+    for (const init of EVERY_CHORD) {
+      useCockpit.getState().closePalette();
+      useCockpit.getState().closeMachines();
+      if (press(init.key ?? "", init).defaultPrevented) claimed += 1;
+    }
+    expect(claimed).toBe(30);
+    useCockpit.getState().closePalette();
+    useCockpit.getState().closeMachines();
+    pressOn(document.body, "k", { ctrlKey: true });
+    expect(useCockpit.getState().paletteOpen).toBe(true);
+  });
+
+  it("on: ⌘K on the palette's own input still closes the palette, because the input is outside any terminal", () => {
+    setting(true);
+    focusedTerminalInHost();
+    useCockpit.getState().openPalette();
+    const input = document.createElement("input");
+    input.setAttribute("data-od9", "");
+    document.body.appendChild(input);
+    input.focus();
+    pressOn(input, "k", { ctrlKey: true });
+    expect(useCockpit.getState().paletteOpen).toBe(false);
+  });
+
+  it("terminalKeepsKey: off, it is exactly !isCockpitChord; on, xterm keeps every key", () => {
+    const cases = [...CHORDS, ...NOT_CHORDS].map(([, init]) => new KeyboardEvent("keydown", init));
+    expect(cases.map(terminalKeepsKey)).toEqual(cases.map((event) => !isCockpitChord(event)));
+    expect(cases.filter((event) => !terminalKeepsKey(event)).length).toBe(CHORDS.length);
+    setting(true);
+    expect(cases.map(terminalKeepsKey)).toEqual(cases.map(() => true));
+  });
+
+  it("terminalKeepsKey reads the setting per keystroke, so a terminal built earlier obeys a later toggle", () => {
+    const event = new KeyboardEvent("keydown", { key: "3", ctrlKey: true });
+    expect(terminalKeepsKey(event)).toBe(false);
+    setting(true);
+    expect(terminalKeepsKey(event)).toBe(true);
+    setting(false);
+    expect(terminalKeepsKey(event)).toBe(false);
+  });
+
+  it.each([false, true])("Escape, shift+Tab and / behave exactly as before with the setting %s", (on) => {
+    setting(on);
+    useCockpit.getState().focusSession("s-1");
+    const term = focusedTerminalInHost();
+    const before = mapState();
+    const escape = pressOn(term, "Escape");
+    const shiftTab = pressOn(term, "Tab", { shiftKey: true });
+    const slash = pressOn(term, "/");
+    const slashOutside = press("/");
+    expect({
+      prevented: [escape, shiftTab, slash, slashOutside].map((event) => event.defaultPrevented),
+      kept: [escape, shiftTab, slash].map(terminalKeepsKey),
+      mapUnchanged: mapState() === before,
+      permissionMode: useCockpit.getState().sessions["s-1"].permissionMode,
+    }).toEqual({ prevented: [false, false, false, false], kept: [true, true, true], mapUnchanged: true, permissionMode: "ask" });
+  });
+
+  it("isInsideTerminal is true in a terminal's host and its descendants, and false everywhere else", () => {
+    const term = focusedTerminalInHost();
+    const host = term.parentElement as HTMLElement;
+    expect([
+      isInsideTerminal(term),
+      isInsideTerminal(host),
+      isInsideTerminal(document.body),
+      isInsideTerminal(window),
+      isInsideTerminal(null),
+    ]).toEqual([true, true, false, false, false]);
   });
 });

@@ -404,9 +404,10 @@ describe("persistence", () => {
     "layout", "railCollapsed",
     "expandedProjects", "expandedBranches", "expandedWorktrees",
     "selection", "lens",
+    "sendChordsToTerminal",
   ];
 
-  it("partializes exactly the twelve keys §3.5 names, and nothing else", () => {
+  it("partializes exactly the thirteen keys §3.5 names, and nothing else", () => {
     const s = useCockpit.getState();
     s.setHarnesses(CATALOGUE);
     s.replaceSessions(sessionsOn("w-1", ["s-1"]), ["w-1"]);
@@ -433,11 +434,55 @@ describe("persistence", () => {
     expect(parsed.version).toBe(PERSIST_VERSION);
     expect(parsed.state.layout).toBe("canvas");
     // VALUES, not only key names: the key-set assertion above is satisfied by a partialize
-    // that writes a hole for any of the twelve, and nothing else round-trips one.
+    // that writes a hole for any of the thirteen, and nothing else round-trips one.
     expect(parsed.state.tiles).toEqual({ "s-1": { x: 8, y: 9, w: 480, h: 320 } });
     expect(parsed.state.pinned).toEqual(["s-1"]);
     expect("toasts" in parsed.state).toBe(false);
     expect("sessions" in parsed.state).toBe(false);
+  });
+
+  // OD-9. The setting is off by default, the toggle flips it both ways, and what it writes is
+  // what a restart reads back. A VALUE assertion, for the reason the comment above gives.
+  it("OD-9: 'Send shortcut keys to the terminal' is off by default, sets both ways, and survives a restart", () => {
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(false);
+    useCockpit.getState().setSendChordsToTerminal(true);
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(true);
+    const parsed = JSON.parse(localStorage.getItem(PERSIST_KEY) as string);
+    expect(parsed.state.sendChordsToTerminal).toBe(true);
+    expect(createCockpitStore().getState().sendChordsToTerminal).toBe(true);
+    // A setter, not a flip: setting the value it already holds leaves it held.
+    useCockpit.getState().setSendChordsToTerminal(true);
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(true);
+    useCockpit.getState().setSendChordsToTerminal(false);
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(false);
+    expect(createCockpitStore().getState().sendChordsToTerminal).toBe(false);
+  });
+
+  // Added after mutant M16 (the setter's no-op guard deleted) survived every other OD-9 test.
+  it("OD-9: setting the value the setting already holds notifies no subscriber", () => {
+    const seen = vi.fn();
+    const unsubscribe = useCockpit.subscribe(seen);
+    useCockpit.getState().setSendChordsToTerminal(false);
+    expect(seen).not.toHaveBeenCalled();
+    useCockpit.getState().setSendChordsToTerminal(true);
+    expect(seen).toHaveBeenCalledTimes(1);
+    useCockpit.getState().setSendChordsToTerminal(true);
+    unsubscribe();
+    expect(seen).toHaveBeenCalledTimes(1);
+  });
+
+  // No version bump came with the key, so a snapshot written by the build before OD-9 must
+  // rehydrate with the setting OFF — the behaviour that snapshot was written under — and must
+  // keep everything else it carried.
+  it("OD-9: a version 1 snapshot written before the setting existed rehydrates with it off", () => {
+    localStorage.setItem(
+      PERSIST_KEY,
+      JSON.stringify({ state: { layout: "canvas", railCollapsed: true }, version: 1 }),
+    );
+    const store = createCockpitStore();
+    expect(store.getState().sendChordsToTerminal).toBe(false);
+    expect(store.getState().layout).toBe("canvas");
+    expect(store.getState().railCollapsed).toBe(true);
   });
 
   it("drops a version 0 snapshot rather than translating a shape nobody documented", () => {

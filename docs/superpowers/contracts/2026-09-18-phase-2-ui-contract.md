@@ -285,7 +285,11 @@ first and cancels what it maps to data, so a chord pressed in a focused terminal
 as control bytes (§6.6, "The chord filter"). The file mounts the real `<Terminal/>` and asserts the
 end state — the map acts and the agent receives nothing, for every chord pressed with Ctrl and
 again with Meta (the Meta rows added by fix round 2); Escape, shift+Tab and Ctrl+C still reach
-the agent. It was allowed on one condition, that it is stable (five consecutive identical runs
+the agent. OD-9 (2026-09-24) added the other mode to the same file: with "Send shortcut keys to
+the terminal" on, every chord reaches the agent as the bytes xterm maps it to, or reaches nobody
+where xterm maps it to nothing, and the map does nothing either way; `⌘K` pressed outside the
+terminal still opens the palette; and Escape, shift+Tab, Ctrl+C and `/` behave identically in both
+modes. It was allowed on one condition, that it is stable (five consecutive identical runs
 before commit); **if it ever flakes it is deleted**, and `Terminal.test.tsx`'s handler-level tests
 stay. Nothing in it draws or measures a glyph, so the rule above is unchanged for rendering.
 
@@ -763,15 +767,21 @@ export interface PrefsSlice {
   /** The Canvas working set. Capped at CANVAS_MAX_TILES = 10 (docs/AGENTIC-UX.md §10 rule 5).
    *  Order is the order the user pinned in, and is never re-sorted. */
   pinned: SessionId[];
+  /** Owner decision OD-9, "Send shortcut keys to the terminal". Off by default. §6.9 says
+   *  what each value does; it is persisted (§3.5). */
+  sendChordsToTerminal: boolean;
 
   setDefaults(patch: SessionDefaultsOverride): void;
   setProjectDefaults(id: ProjectId, patch: SessionDefaultsOverride): void;
   setBranchDefaults(id: BranchId, patch: SessionDefaultsOverride): void;
   setTile(id: SessionId, tile: TilePosition): void;
   clearTile(id: SessionId): void;
-  /** No-ops past CANVAS_MAX_TILES and pushes a toast naming the cap. */
-  pinSession(id: SessionId): void;
+  /** No-ops past CANVAS_MAX_TILES **within `scopeIds`**, the sessions Canvas is showing, and
+   *  pushes a toast naming the cap. */
+  pinSession(id: SessionId, scopeIds: SessionId[]): void;
   unpinSession(id: SessionId): void;
+  /** A setter, not a flip, so the palette row's Undo restores the value it replaced. */
+  setSendChordsToTerminal(on: boolean): void;
 }
 
 export const CANVAS_MAX_TILES = 10;
@@ -801,6 +811,7 @@ type Persisted = Pick<
   | "layout" | "railCollapsed"
   | "expandedProjects" | "expandedBranches" | "expandedWorktrees"
   | "selection" | "lens"
+  | "sendChordsToTerminal"
 >;
 
 export const partialize = (s: CockpitState): Persisted => ({
@@ -816,6 +827,7 @@ export const partialize = (s: CockpitState): Persisted => ({
   expandedWorktrees: s.expandedWorktrees,
   selection: s.selection,
   lens: s.lens,
+  sendChordsToTerminal: s.sendChordsToTerminal,
 });
 
 /** Version 0 is any snapshot written before this contract existed — a pre-release dev build.
@@ -844,6 +856,13 @@ export const useCockpit = create<CockpitState>()(
   ),
 );
 ```
+
+**`sendChordsToTerminal` joined at version 1, with no bump and no migration** (OD-9, 2026-09-24).
+That is safe because of the flat shape: the shallow merge at the root leaves a key that a snapshot
+predates at its initial value, so a snapshot written before the setting existed rehydrates with it
+**off**, the behaviour it was written under. `store.test.ts` pins that case and the round trip.
+The persisted shape is `Persisted` here, in `store.ts`; `types.ts` (§2) declares no persisted shape,
+so §2 does not change.
 
 **Not persisted, on purpose:** every entity map (the server is truth, and a stale worktree list
 rendered before the first fetch is a lie the user has to un-learn), `loading`, `lastError`,
@@ -1791,7 +1810,7 @@ property 7: if you cannot name the fact that justifies the element, the element 
 
 | File | Props | Owns |
 |---|---|---|
-| `Terminal.tsx` | `{ sessionId: SessionId; readOnly: boolean; focused: boolean }` | Constructing the `XTerm`, installing **the chord filter** on it (below), calling `open()`, handing it to `attachRegistry`, and **vertical scrollback inside the pane**. Takes DOM focus **only when `focused`** — on mount and on a false→true transition. Unconditional focus-on-mount meant nine mounting panes each took the caret and the last one flushed kept it. |
+| `Terminal.tsx` | `{ sessionId: SessionId; readOnly: boolean; focused: boolean }` | Constructing the `XTerm`, installing **the chord filter** on it (below), marking its host element with `TERMINAL_HOST_ATTRIBUTE` so the keyboard map can tell a keystroke came from a terminal (OD-9, below), calling `open()`, handing it to `attachRegistry`, and **vertical scrollback inside the pane**. Takes DOM focus **only when `focused`** — on mount and on a false→true transition. Unconditional focus-on-mount meant nine mounting panes each took the caret and the last one flushed kept it. |
 
 ```tsx
 export function Terminal(props: {
@@ -1826,7 +1845,12 @@ chords never reached `useKeyboardMap`: `⌘3` went down the PTY as ESC and inter
 `makeTerm` therefore calls
 
 ```ts
-term.attachCustomKeyEventHandler((event) => !isCockpitChord(event));
+term.attachCustomKeyEventHandler(terminalKeepsKey);
+
+// hooks/useKeyboardMap.ts
+export function terminalKeepsKey(event: KeyboardEvent): boolean {
+  return useCockpit.getState().sendChordsToTerminal || !isCockpitChord(event);
+}
 ```
 
 `isCockpitChord` is exported by `hooks/useKeyboardMap.ts` and is also that hook's own early
@@ -1834,6 +1858,20 @@ return, so the chord list exists **once** and the terminal and the map cannot di
 Returning `false` makes xterm skip the event **without cancelling it**, so it bubbles to the map.
 Everything outside the predicate — Escape, shift+Tab, `/`, AltGr (Ctrl+Alt), Ctrl+C and every
 bare key — is still xterm's to send, which is what §6.9's two spelled-out entries require.
+
+**OD-9 (2026-09-24): the filter reads one setting.** With `sendChordsToTerminal` off, the default,
+`terminalKeepsKey` is exactly `!isCockpitChord` and everything above holds. With it on, it is
+`true` for every key, so xterm keeps the chords too: `⌘3` reaches the agent as ESC and `⌘W` as
+ETB, and xterm cancels what it sends, which is what keeps `⌘W` from closing the window in that
+mode. The store is read **per keystroke**, not in `makeTerm`: the registry builds a session's
+terminal once and keeps it, so a value captured at construction would ignore every later toggle.
+The second half of the setting, for chords xterm maps to nothing, is the map's (§6.9).
+
+`TERMINAL_HOST_ATTRIBUTE` (`"data-terminal-host"`) is exported beside it, with
+`isInsideTerminal(target)`, which is `target.closest("[data-terminal-host]") !== null` for an
+element and `false` for anything else. `Terminal` spreads the attribute onto its host `<div>` from
+the constant. The marker is ours rather than one of xterm's class names, so what counts as "inside a
+terminal" is decided in this repo and not by an xterm upgrade.
 
 **ADDED by task 19 — the `createTerm` seam, because neither §1.5 nor §1.7 describes it.** §1.5
 puts the xterm import in this component; §1.7 puts the *instance* in the registry. A factory
@@ -1928,10 +1966,22 @@ export interface Command {
   glyph: string;
   /** Shown inline so the palette teaches its own shortcuts. */
   hint?: string;
+  /** Set only on a toggle row: its CURRENT state. The palette renders it as the row's visible
+   *  "On" or "Off", in the meta slot, and as aria-checked. A toggle row sets no meta. OD-9. */
+  checked?: boolean;
   run(): void;
 }
 export function buildCommands(state: CockpitState): Command[];
 ```
+
+**One toggle row, added for OD-9 (2026-09-24).** `verb:send-chords-to-terminal`, labelled in the
+owner's words *"Send shortcut keys to the terminal"*, is always present and is the **last verb**.
+Its label never changes, so the query "shortcut" always finds it, and its state is `checked`, shown
+in the row. It has no `hint`, because a chord that toggled it would be one the setting hands away.
+The palette closes before `run`, so `run` also pushes a toast that says which way the keys now go,
+with an Undo that restores the value it replaced. Turning it **on** says how to get back here:
+*"Shortcut keys now go to the terminal. To open this palette, click outside the terminal and press
+⌘K."* There is no settings page yet, and the pane is deliberately not given a control for it.
 
 Palette ranking is **stable**: `buildCommands` returns a fixed order (verbs, then sessions, then
 worktrees, then branches, then projects) and filtering only *removes* rows; it never re-ranks.
@@ -1950,7 +2000,7 @@ known defect 10's class and the palette is where Phase 2 actually contains it.
 | Horizontal scroll of Columns | `ColumnsLayout` | `SessionRow` and the palette request it via `focusSession`; they never call `scrollIntoView` themselves |
 | Vertical scrollback inside a pane | xterm, via `attachRegistry`'s pinned rule (§7.2) | Nothing else calls `scrollToBottom()` |
 | Canvas pan/zoom | `CanvasLayout` | — |
-| The keydown listener | `useKeyboardMap`, mounted once in `AppShell` | No component adds a `window` keydown listener. Panes use React's own `onKeyDown` where they need one. xterm's own textarea handler is not a second owner of the table: it defers every chord to `useKeyboardMap`'s `isCockpitChord` (§6.6, "The chord filter") |
+| The keydown listener | `useKeyboardMap`, mounted once in `AppShell` | No component adds a `window` keydown listener. Panes use React's own `onKeyDown` where they need one. xterm's own textarea handler is not a second owner of the table: it defers every chord to `useKeyboardMap`'s `isCockpitChord`, through `terminalKeepsKey`, unless OD-9's setting hands the chords to the terminal, which is a value in the store and not a second table (§6.6, "The chord filter"; §6.9) |
 
 **Why two movers is not a violation, and what the rule actually is.** Earlier wording named
 `Terminal.tsx` as the only thing that calls `.focus()` inside a pane. **That was never true** —
@@ -1981,13 +2031,13 @@ was already focused throughout, so no transition fires and the first mover stays
 
 | Chord | Effect | Guard |
 |---|---|---|
-| `⌘K` | Toggle the palette | Always, including while a terminal has focus |
+| `⌘K` | Toggle the palette | Always, including while a terminal has focus. **Exception, OD-9:** with "Send shortcut keys to the terminal" on, `⌘K` pressed inside a terminal is the agent's; from anywhere else, the palette's own input included, it still toggles the palette |
 | `⌘⏎` | New default session in the focused worktree | Requires a selected branch; falls back to the branch's first worktree |
-| `⌘⇧M` | Machines popover | Always |
+| `⌘⇧M` | Machines popover | Always, except from inside a terminal with OD-9's setting on (below) |
 | `⌘1`–`⌘9` | Focus the *n*th session in `selectPaneSessionIds` | Via `idAtVisiblePosition`; no-op past the end |
 | `⌘\` | Focus the next session, wrapping | Same list |
 | `⌘W` | Kill the focused session (optimistic + Undo toast) | Requires a focused session. **Does not close the window** — `preventDefault` is mandatory or the webview closes |
-| `⌘B` | Toggle the rail | Always |
+| `⌘B` | Toggle the rail | Always, except from inside a terminal with OD-9's setting on (below) |
 | `Escape` | Close the topmost overlay; if none, **do nothing** | See below |
 | `shift+tab` | **Not intercepted.** Passed to the terminal | See below |
 | `/` | Not intercepted | Slash commands belong to the agent CLI |
@@ -1995,9 +2045,33 @@ was already focused throughout, so no transition fires and the first mover stays
 **"Including while a terminal has focus" needs the terminal's cooperation, and has it.** A
 focused xterm sees a keystroke before any `window` listener and cancels what it maps to data.
 The rows above marked `⌘` reach this map from inside a terminal only because `makeTerm` hands
-xterm the map's own predicate, `isCockpitChord`, and xterm skips what it claims (§6.6, "The chord
-filter"). So the predicate is the table: a key added to it is a key the agent stops receiving,
+xterm the map's own predicate, `isCockpitChord` (through `terminalKeepsKey`, which is exactly that
+predicate's negation while OD-9's setting is off, the default; below), and xterm skips what it
+claims (§6.6, "The chord filter"). So the predicate is the table: a key added to it is a key the agent stops receiving,
 and the table's last three rows — Escape, `shift+tab`, `/` — are kept out of it on purpose.
+
+**Owner decision OD-9, "Keep, plus a toggle" (2026-09-24).** Everything above is the default, and
+it is how VS Code behaves: with a terminal focused, the cockpit's chords go to the cockpit. One
+setting, `prefsSlice.sendChordsToTerminal`, *"Send shortcut keys to the terminal"*, persisted and
+reached from the palette (§6.7), hands every chord pressed **inside a terminal** to the agent. It
+takes two guards, one per kind of chord:
+
+- a chord xterm maps to data (`⌘K`, `⌘W`, `⌘B`, `⌘\`, `⌘⏎`, `⌘3`–`⌘8` on Ctrl, and `⌘⏎` on Meta)
+  is kept by `terminalKeepsKey` (§6.6), sent to the agent and cancelled by xterm, so it never
+  reaches this map;
+- a chord xterm maps to nothing (`⌘1`, `⌘2`, `⌘9`, `⌘⇧M`, and every other Meta chord off a Mac)
+  bubbles here whatever the handler says, so the map has a **second return**, straight after the
+  predicate: with the setting on, it returns when `isInsideTerminal(event.target)`, without
+  `preventDefault`. Without it, `⌘1` pressed in a pane would move focus out of that pane.
+
+The setting moves **no key in or out of the predicate**, so Escape, `shift+tab` and `/` behave
+identically in both modes, and a chord pressed **outside** a terminal is the cockpit's in both
+modes. That is how the palette stays reachable when the setting is on: `⌘K` from the rail, the top
+bar, the page, or the palette's own input (which is how an open palette still closes on `⌘K`).
+**Ruling:** `⌘K` inside a terminal, with the setting on, goes to the terminal. The setting means
+"every chord", `⌘K` included; the palette is one click outside the terminal away, and the toast
+that turns the setting on says so. A read-only (exited) terminal is still a terminal: with the
+setting on it receives the chord and, having no agent, drops it, as it drops every other key.
 
 Two entries need the reason spelled out, because both look like omissions:
 

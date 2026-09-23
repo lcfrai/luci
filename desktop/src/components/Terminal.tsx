@@ -9,7 +9,7 @@ import {
   updateAttachSession,
 } from "../api/attachRegistry";
 import type { AttachHandle, TermLike } from "../api/attachRegistry";
-import { isCockpitChord } from "../hooks/useKeyboardMap";
+import { TERMINAL_HOST_ATTRIBUTE, terminalKeepsKey } from "../hooks/useKeyboardMap";
 import { selectSession } from "../store/selectors";
 import { useCockpit } from "../store/store";
 import type { SessionId } from "../store/types";
@@ -56,8 +56,14 @@ function makeTerm(): TermLike {
    * false makes xterm skip the event WITHOUT cancelling it, so it bubbles to the map.
    *
    * The predicate is the map's own, so the two cannot disagree about what a chord is. Escape,
-   * shift+Tab, "/", AltGr and every bare key fall outside it and still reach the agent (§6.9). */
-  term.attachCustomKeyEventHandler((event) => !isCockpitChord(event));
+   * shift+Tab, "/", AltGr and every bare key fall outside it and still reach the agent (§6.9).
+   *
+   * EDITED FOR OWNER DECISION OD-9. The handler is terminalKeepsKey, which is `!isCockpitChord`
+   * while "Send shortcut keys to the terminal" is off, and true for every key while it is on.
+   * It reads the setting per keystroke, because this terminal is built once and outlives any
+   * toggle. The host div below carries TERMINAL_HOST_ATTRIBUTE, which is how the map knows a
+   * keydown came from in here. */
+  term.attachCustomKeyEventHandler(terminalKeepsKey);
   const fit = new FitAddon();
   term.loadAddon(fit);
   fitAddons.set(term, fit);
@@ -159,7 +165,9 @@ function TerminalImpl({
     if (focused) handleRef.current?.focus();
   }, [focused, sessionId]);
 
-  return <div ref={host} style={{ width: "100%", height: "100%" }} />;
+  // OD-9: the marker useKeyboardMap's isInsideTerminal looks for. Spread from the constant, so
+  // the attribute is named once.
+  return <div ref={host} {...{ [TERMINAL_HOST_ATTRIBUTE]: "" }} style={{ width: "100%", height: "100%" }} />;
 }
 
 /** memo'd per §8 row 1: a parent re-render with unchanged props never reaches the effects.

@@ -7,10 +7,18 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { JSX, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { buildCommands, filterCommands } from "./commands";
+import type { Command } from "./commands";
 import { useDismissable } from "../../hooks/useDismissable";
 import { idAtVisiblePosition } from "../../lib/immutable";
 import { useCockpit } from "../../store/store";
 import "./palette.css";
+
+/** A toggle row shows its state where other rows show their context, so the state is read in
+ *  the row itself and in the same place on every toggle (OD-9). */
+function metaText(command: Command): string {
+  if (command.checked === undefined) return command.meta ?? "";
+  return command.checked ? "On" : "Off";
+}
 
 export function CommandPalette(): JSX.Element | null {
   const open = useCockpit((s) => s.paletteOpen);
@@ -111,6 +119,8 @@ function PaletteBody(): JSX.Element {
                 id={`pal-row-${command.id}`}
                 role="option"
                 aria-selected={command.id === activeId}
+                // OD-9's toggle row. Undefined on every other row, so React omits the attribute.
+                aria-checked={command.checked}
                 className={command.id === activeId ? "pal-row pal-row-on" : "pal-row"}
                 // Keeps DOM focus in the input: a pointerdown that blurred it would fire
                 // useDismissable's focus return mid-click.
@@ -121,7 +131,7 @@ function PaletteBody(): JSX.Element {
                   {command.glyph}
                 </span>
                 <span className="pal-label">{command.label}</span>
-                <span className="pal-meta">{command.meta ?? ""}</span>
+                <span className="pal-meta">{metaText(command)}</span>
                 <kbd className="pal-hint" hidden={command.hint === undefined}>
                   {command.hint ?? ""}
                 </kbd>
