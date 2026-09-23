@@ -13,7 +13,7 @@ this pass unless it is marked *unverified*; §11 lists what was not verified.
 ## Supersedes `2026-09-18-phase-4-discover.md`, and what changed
 
 This plan **supersedes** `docs/superpowers/plans/2026-09-18-phase-4-discover.md` (written
-2026-09-17, 6,527 lines). That plan was written before the provenance contract
+2026-09-17, about 6,500 lines and 230 KB). That plan was written before the provenance contract
 (`planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md`) and before `OD-3`. Its question
 flow, its golden `CLAUDE.md` render and its model client are still right, and this plan keeps them
 by reference (each part says which old region it keeps and what it changes). Everything below
@@ -477,3 +477,8 @@ authentication) — the Hub (owner decisions `:35`).
   data model; it was not opened in a browser. The owner's eyes remain the visual acceptance.
 - **Whether `hubclient.NewFake()` models `revision_conflict` under concurrent batches** is the
   contract's promise (§9.2); task 08's tests depend on it.
+- **`entraauth.ErrSignedOut` is the Hub's task C1's.** Tasks 09 and 11 match it with `errors.Is`,
+  so they cannot compile before C1 lands unless `hubclient` re-exports the sentinel. If neither is
+  true when they start, they match a relayed 401 `signed_out` `*hubclient.Error` only and name the
+  gap in the commit message; the `signed_out` refusal then reaches the person one layer later, never
+  silently.
