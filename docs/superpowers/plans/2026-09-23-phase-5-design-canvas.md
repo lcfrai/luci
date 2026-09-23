@@ -65,7 +65,7 @@ pen tool, sketch boards.
       ▼                                                  │  tunnelled TCP streams, payload-blind framing
  sandboxd  127.0.0.1:8731 ──► mcprelay (mux) ═══════════╡
            :8080 /attach /healthz /mcp-channel           ▼
-                                                   canvas/mcp.Server (JSON-RPC, 33 tools) ── Caller{session} ─┐
+                                                   canvas/mcp.Server (JSON-RPC, 35 tools) ── Caller{session} ─┐
                                                                                                               │
  desktop (Tauri webview)                           canvas/authority.Service  ◄────────────────────────────────┤
  ───────────────────────                             one per process; canvases by (projectId, branchId)       │
@@ -204,7 +204,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | **P5-I** | *Approve*'s Undo is a **5-second delayed commit in the desktop**; nothing reaches the Hub until it lapses | the Hub has no revocation (contract §7.7), and `DESIGN-SYSTEM.md` asks for optimistic mutation with Undo, not a confirm dialog | closing the window inside 5 s drops the approval — stated in the toast |
 | **P5-J** | **No handle, marquee, code-editor or sanitiser library** in the editor: own handles and marquee, a read-only code panel, and a renderer that builds DOM from the Go-generated allowlist | `moveable`/`selecto` were last pushed 2024-06 (spec L7, L8); a read-only panel needs no editor; DOMPurify purifies HTML strings, and the renderer never has one | the spec's recommended libraries remain allowed and gated |
 | **P5-K** | **One revision per accepted batch**; a node's `revision` is the last revision that changed its own fields; `ifRevision` checks every node a batch modifies or deletes | a 30-node `write_html` is one step of undo and one entry in the feed; two agents on two artboards never conflict | — |
-| **P5-L** | **One canvas per branch**, created by the lens's *Create canvas* or by the first MCP write; a read on a branch with no canvas answers `not-found` with the sentence that says how to create one | spec §7.3; the prototype's state 1 | per-project canvases later are a binding change |
+| **P5-L** | **One canvas per branch**, created by the lens's *Create canvas* or by the agent's first `create_artboard`; a read on a branch with no canvas answers `not-found` with the sentence that says how to create one — except `get_canvas_info`, which answers `exists: false` so an agent can orient | spec §7.3; the prototype's state 1 | per-project canvases later are a binding change |
 | **P5-M** | The canvas has **no bound-brief field**. Its brief is its branch's, resolved at call time; an approval records the key it was reviewed against | a stored binding is a second copy of phase 4's inheritance rule | — |
 | **P5-N** | *Start a Develop session from this design* is **three desktop calls**: materialise the bundle, create the session through the existing route, then link it | the control plane never calls its own session handler (no import cycle, no second create path); phase 4's P4-A ignores a caller's `contextRef` anyway | a crash between the second and third call leaves an unlinked session, which the lens shows with a *Link* action |
 | **P5-O** | The canvas Go module is a **separate module in `go.work`**, required by the control plane through a `replace` | `OD-11` rule 4: ship and test alone. ADR-H1 §4.1 kept the Hub inside the control-plane module because it needs `httpx` and `ids`; the canvas needs neither | moving it into the control-plane module is a mechanical import rewrite |
@@ -268,7 +268,9 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
   mark or claim of compatibility appears in the UI, in a guide, or in `serverInfo`.
 - **G7.** **No script runs in the canvas.** No code path turns agent- or paste-supplied text into
   `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `srcdoc` markup, `document.write` or `eval`. The
-  renderer's only HTML string is the fixed artboard shell of task 24. A test in task 24 greps the
+  renderer's only HTML string is the fixed artboard shell of task 24. Its one other string-to-DOM
+  path is `DOMParser` over an SVG node's server-sanitised canonical markup, followed by an
+  allowlist walk that removes anything outside task 07's SVG lists. A test in task 24 greps the
   editor package for those identifiers and allows exactly the shell.
 - **G8.** Only the authority mutates a document. The desktop replaces nodes from events (P5-V); it
   never applies an op of its own, optimistic or otherwise. A human's drag is previewed as a
@@ -305,32 +307,33 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | Path | Holds | Task |
 |---|---|---|
 | `canvas/go.mod` | module, `go 1.23`; its one requirement (G1) is added by task 07, its first importer | 02, 07 |
-| `canvas/doc/` | `model.go` (Canvas, Page, Node, Token, Asset, Thread, Author), `ids.go`, `order.go` (fractional index), `key.go` (design key) | 05 |
-| `canvas/doc/` | `op.go`, `apply.go`, `invert.go`, `validate.go` | 06 |
-| `canvas/dialect/` | `parse.go`, `css.go`, `allowlist.go`, `report.go`, `allowlist.json` (generated) | 07 |
+| `canvas/boundary_test.go`, `canvas/doc/` | the module boundary; `model.go` (Page, Node, Token, Asset, Thread, ReviewRequest, Author, Document, Doc), `ids.go`, `key.go` (design key), `order.go` (fractional index), `validate.go` | 05 |
+| `canvas/doc/` | `op.go`, `apply.go` (Apply, Prepare, Commit), `invert.go` | 06 |
+| `canvas/dialect/` | `parse.go`, `css.go` (our tokenizer), `allowlist.go`, `svg.go`, `report.go`, `checker.go`, `gen.go`, `allowlist.json` (generated) | 07 |
 | `canvas/serialize/` | `html.go` (canonical dialect), `export.go` (standalone HTML), `canonjson.go`, `digest.go` | 08 |
-| `canvas/serialize/` | `jsx.go`, `tailwind.go`, `tree.go`; `canvas/tokens/` `css.go`, `dtcg.go` | 09 |
-| `canvas/store/` | `store.go` (interface), `filestore.go`, `memstore.go` | 10 |
-| `canvas/authority/` | `service.go`, `binding.go`, `apply.go`, `subscribe.go`, `activity.go` | 11 |
-| `canvas/authority/` | `claims.go`, `precondition.go`, `notices.go`, `undo.go`, `revert.go` | 12 |
+| `canvas/serialize/`, `canvas/tokens/` | `jsx.go`, `tailwind.go`, `tree.go`; `css.go`, `dtcg.go` | 09 |
+| `canvas/store/` | `store.go` (interface), `filestore.go`, `memstore.go`, `replay.go`, `storetest/suite.go` | 10 |
+| `canvas/authority/` | `service.go`, `binding.go`, `apply.go`, `subscribe.go`, `activity.go`, `errors.go` | 11 |
+| `canvas/authority/` | `claims.go`, `precondition.go`, `notices.go`, `presence.go`, `undo.go`, `revert.go` | 12 |
 | `canvas/authority/` | `render.go` (renderer registry), `selection.go` | 13 |
-| `canvas/mcp/` | `jsonrpc.go`, `transport.go`, `server.go`, `registry.go`, `errors.go`, `instructions.go` | 14 |
-| `canvas/mcp/` | `tools_read.go`, `brief.go` (the `Briefs` port) | 15 |
-| `canvas/mcp/` | `tools_write.go` | 16 |
-| `canvas/mcp/` | `tools_tokens.go`, `tools_comments.go`, `tools_export.go`, `guides/*.md` | 17 |
-| `canvas/handoff/` | `snapshot.go`, `manifest.go`, `bundle.go` | 21, 22 |
-| `canvas/canvastest/` | a fake renderer, a fake brief port, golden files | 11, 13, 15 |
+| `canvas/mcp/` | `jsonrpc.go`, `transport.go`, `server.go`, `registry.go`, `schema.go`, `errors.go`, `identity.go` | 14 |
+| `canvas/mcp/` | `tools.go` (the builder and the error table), `ports.go` (Briefs, Approvals), `views.go`, `tools_read.go` | 15 |
+| `canvas/mcp/` | `tools_write.go`, `place.go` | 16 |
+| `canvas/mcp/` | `tools_tokens.go`, `tools_comments.go`, `tools_export.go`, `guides.go`, `instructions.go`, `guides/*.md` | 17 |
+| `canvas/handoff/` | `snapshot.go`, `manifest.go`, `slug.go` (21); `bundle.go` (22) | 21, 22 |
+| `canvas/canvastest/` | `fixtures.go` (11), `renderer.go` (13), `ports.go` (15) | 11, 13, 15 |
 
 **New npm package `canvas/editor/`** (`@panacea-app/canvas-editor`, private):
 
 | Path | Holds | Task |
 |---|---|---|
-| `package.json`, `tsconfig.json`, `vitest.config.ts`, `src/index.ts` | scaffold; `react`/`react-dom` as peers | 03 |
-| `src/wire.ts`, `src/docstore.ts`, `src/transport.ts`, `src/memoryTransport.ts`, `src/allowlist.ts` | wire types, the document store, the transport port | 23 |
-| `src/renderer/` | `ArtboardFrame.tsx`, `buildDom.ts`, `assets.ts`, `measure.ts`, `capture.ts`, `RenderResponder.ts`, `HiddenRenderer.tsx` | 24 |
-| `src/editor/` | `CanvasEditor.tsx`, `viewport.ts`, `selection.ts`, `handles.tsx`, `snap.ts`, `hitTest.ts`, `keys.ts` | 25 |
-| `src/panels/` | `Layers.tsx`, `LayoutPanel.tsx`, `FillPanel.tsx`, `BorderPanel.tsx`, `EffectsPanel.tsx`, `TypePanel.tsx`, `TokenPicker.tsx`, `CodePanel.tsx`, `TextEdit.tsx` | 26 |
-| `src/editor/paste.ts` | clipboard read, HTML/SVG/image routing | 29 |
+| `package.json`, `package-lock.json`, `tsconfig.json`, `vitest.config.ts`, `src/index.ts`, `src/test/setup.ts`, `src/probe.tsx` (deleted by 23) | scaffold; `react`/`react-dom` as peers | 03 |
+| `spike/` (throwaway, outside the build) | the iframe spike page and its runner | 01 |
+| `src/wire.ts`, `ops.ts`, `docstore.ts`, `transport.ts`, `memoryTransport.ts`, `allowlist.ts`, `generated/allowlist.json`, `scripts/sync-allowlist.mjs`, `boundary.test.ts` | wire types, op builders, the document store, the transport port, the allowlist copy | 23 |
+| `src/renderer/` | `shell.ts`, `buildDom.ts`, `patch.ts`, `ArtboardFrame.tsx`, `assets.ts`, `measure.ts`, `capture.ts`, `fonts.ts`, `RenderResponder.ts`, `HiddenRenderer.tsx`; `src/g7.test.ts` | 24 |
+| `src/editor/` | `CanvasEditor.tsx`, `viewport.ts`, `hitTest.ts`, `selection.ts`, `handles.tsx`, `drag.ts`, `snap.ts`, `keys.ts`, `presence.tsx`, `ids.ts`, `editor.css`; `dev/index.html` (the hand-driven harness) | 25 |
+| `src/panels/` | `LeftPanel.tsx`, `Layers.tsx`, `ThemeTab.tsx`, `RightPanel.tsx`, `LayoutPanel.tsx`, `FillPanel.tsx`, `BorderPanel.tsx`, `EffectsPanel.tsx`, `TypePanel.tsx`, `TokenPicker.tsx`, `ColorField.tsx`, `LengthField.tsx`, `CodePanel.tsx`, `TextEdit.tsx`, `panels.css`, `virtualList.ts` | 26 |
+| `src/editor/paste.ts`, `copy.ts` | the paste event's routing; copy and cut | 29 |
 
 **Control plane** (`control-plane/`):
 
@@ -342,7 +345,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `internal/api/sessions.go` | set `CanvasMCP` in create and restart | 19 |
 | `internal/api/api.go` | `Deps.CanvasMCP bool` (19); `Deps.Design RouteMounter` (phase 4's interface, task 10 of its plan) (20) | 19, 20 |
 | `internal/events/` (new) | `broker.go`, `sse.go` — the window stream | 20 |
-| `internal/designapi/` (new) | `routes.go`, `canvas.go`, `ops.go`, `assets.go`, `comments.go`, `render.go`, `briefs.go` (adapter to `discoverhub`), `approve.go`, `handoff.go`, `links.go`, `problems.go` | 20–22 |
+| `internal/designapi/` (new) | `routes.go`, `mount.go`, `canvas.go`, `ops.go`, `assets.go`, `comments.go`, `render.go`, `export.go`, `briefs.go` (the neutral port; `briefs_phase4.go` adapts `discoverhub` once it exists), `problems.go` (20); `approve.go`, `approvals.go`, `hub.go` (21); `handoff.go`, `links.go`, `gitexclude.go` (22); `paste.go` (29); `e2e_test.go` (30) | 20–22, 29, 30 |
 | `internal/httpx/problem.go` | the design codes (task 20 lists them) | 20 |
 | `cmd/api/config.go`, `main.go` | `PANACEA_APP_CANVAS_*` variables; wiring | 19, 20 |
 | `internal/api/routes_audit_test.go` | the new GET routes in `catalogReadOnlyRoutes` | 20 |
@@ -358,7 +361,8 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `src/api/design.ts`, `src/api/events.ts` (new) | the design client; the SSE reader | 27 |
 | `src/design/` (new) | `designTypes.ts`, `designSlice.ts`, `transportAdapter.ts`, `DesignLens.tsx`, `ApprovalBar.tsx`, `DesignSide.tsx`, `Presence.tsx`, `Comments.tsx`, `design.css` | 27, 28 |
 | `src/store/store.ts`, `src/store/selectors.ts` | mount the slice (not persisted); one key-source selector (S4-P5.1) | 27 |
-| `src/components/AppShell.tsx` | the `design` arm renders `<DesignLens/>` in place of `LensPlaceholder` (`:36-43`) | 28 |
+| `src/components/AppShell.tsx` | the `design` arm renders `<DesignLens/>` in place of `LensPlaceholder` (`:36-43`); one `<DesignRenderers/>` beside `<Toasts/>` for the hidden renderers (P5-Q) | 28 |
+| `src/api/client.ts` | the `ProblemCode` union gains the design codes — **declared amendment** of UI contract §4.2 | 27 |
 
 **Repository**: `go.work` (task 02); `tools/licencegate/` (new module: `main.go`, `spdx.go`,
 `exceptions.json`, `testdata/`) and `azure-pipelines.yml` (tasks 02–04);
