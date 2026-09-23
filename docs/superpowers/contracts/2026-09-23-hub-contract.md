@@ -413,3 +413,139 @@ KPMG's registration can only carry `http://localhost` (§6.5).
   the first `Token` call proves it. Nothing is redeemed eagerly.
 - **Sign-out.** `POST /api/v1/auth/sign-out` deletes both entries and the in-memory tokens. It does
   not call Entra's logout endpoint in v1: the browser session is the user's, not ours.
+
+### 6.3 Token validation — `control-plane/internal/entra` (HA-1)
+
+Phase 8's task 16 owns this package; its part file did not exist on 2026-09-23. This is the
+interface the Hub needs. **If task 16 lands first with a different shape, the Hub adapts to it in
+one file (`internal/hub/server/auth.go`); the rules in the table must hold either way**, because the
+broker and the Hub must accept and reject the same tokens.
+
+```go
+// Package entra validates Microsoft Entra ID v2 access tokens for a resource API.
+// Standard library only: RS256 over crypto/rsa, JWKS over net/http.
+package entra
+
+type Config struct {
+	// AuthorityHost is "https://login.microsoftonline.com" in every deployed
+	// environment, or devissuer's base URL locally. The tenant id is appended.
+	AuthorityHost string
+	// TenantIDs are the enrolled tenants. A token from any other is ErrTenant.
+	TenantIDs []string
+	// Audience is the resource API's client id, a GUID: a v2 token's aud.
+	Audience string
+	// RequiredScope must appear in scp, e.g. "Hub.Access" or "Sandboxes.Access".
+	RequiredScope string
+	// AllowedClients is the azp allowlist: the desktop's client id.
+	AllowedClients []string
+	// ClockSkew defaults to 120 s.
+	ClockSkew time.Duration
+	// AllowInsecureAuthority permits an http AuthorityHost, and only a loopback one.
+	AllowInsecureAuthority bool
+	HTTPClient             *http.Client // default: 10 s timeout
+	Now                    func() time.Time
+}
+
+// Claims is what a validated token says. It holds no token text.
+type Claims struct {
+	TenantID          string   // tid
+	ObjectID          string   // oid
+	ClientID          string   // azp
+	Name              string   // name
+	PreferredUsername string   // preferred_username
+	Email             string   // email, when the optional claim is configured
+	Scopes            []string // scp, split on spaces
+	Roles             []string // roles
+	ExpiresAt         time.Time
+}
+
+type Validator interface {
+	Validate(ctx context.Context, bearer string) (Claims, error)
+}
+
+func New(cfg Config) (*JWKSValidator, error) // errors on an unusable Config; fetches nothing
+
+// Every rejection wraps exactly one of these. The Hub maps each to details.reason.
+var (
+	ErrMalformed   = errors.New("entra: malformed token")     // "malformed"
+	ErrSignature   = errors.New("entra: bad signature")        // "signature"
+	ErrExpired     = errors.New("entra: token expired")        // "expired"
+	ErrNotYetValid = errors.New("entra: token not yet valid")  // "not_yet_valid"
+	ErrIssuer      = errors.New("entra: wrong issuer")         // "issuer"
+	ErrAudience    = errors.New("entra: wrong audience")       // "audience"
+	ErrScope       = errors.New("entra: required scope absent") // "scope"
+	ErrClient      = errors.New("entra: client not allowed")   // "client"
+	ErrVersion     = errors.New("entra: not a v2 token")       // "version"
+	ErrTenant      = errors.New("entra: tenant not enrolled")  // 403 tenant_not_enrolled
+)
+```
+
+| Check, in order | Rule | Failure |
+|---|---|---|
+| shape | three base64url segments; header JSON has `alg` = `RS256` and a `kid`; anything else, including `none` and `HS*`, fails before claims are read | `ErrMalformed` |
+| tenant | `tid` present and in `TenantIDs` | `ErrTenant` |
+| signature | RS256 over `header.payload` with the JWKS key whose `kid` matches, from `<AuthorityHost>/<tid>/discovery/v2.0/keys`. JWKS cached 24 h per tenant; an unknown `kid` triggers one refetch, at most once per 5 min per tenant | `ErrSignature` |
+| `ver` | `"2.0"` | `ErrVersion` |
+| `iss` | exactly `<AuthorityHost>/<tid>/v2.0` | `ErrIssuer` |
+| `aud` | exactly `Audience` | `ErrAudience` |
+| `exp`, `nbf` | `now < exp + skew`; `nbf − skew ≤ now` | `ErrExpired`, `ErrNotYetValid` |
+| `azp` | in `AllowedClients` | `ErrClient` |
+| `scp` | contains `RequiredScope`. A token with `roles` but no `scp` (app-only) fails here | `ErrScope` |
+| `oid` | present, a GUID | `ErrMalformed` |
+
+### 6.4 `devissuer` — the local OIDC issuer (task H1)
+
+`control-plane/cmd/devissuer`, standard library only, **binds loopback only** and refuses any other
+address. It mirrors Entra's path layout, so the validator's issuer rule is the same string with a
+different host.
+
+| Path | Serves |
+|---|---|
+| `GET /<tid>/v2.0/.well-known/openid-configuration` | `issuer` `http://127.0.0.1:8740/<tid>/v2.0`, and the three endpoints below, `code_challenge_methods_supported: ["S256"]` |
+| `GET /<tid>/oauth2/v2.0/authorize` | an HTML page listing the tenant's configured users; choosing one redirects to `redirect_uri?code=…&state=…`. With `login_hint=<username>` and `PANACEA_APP_DEVISSUER_AUTO=true`, it redirects immediately — for end-to-end tests |
+| `POST /<tid>/oauth2/v2.0/token` | `authorization_code` (PKCE **S256 required**; a missing or wrong verifier is `invalid_grant`) and `refresh_token` (rotating, single use) |
+| `GET /<tid>/discovery/v2.0/keys` | the JWKS: one RSA-2048 key, generated at start, `kid` = first 16 hex of SHA-256 of its modulus |
+
+- **Configuration** is one JSON file, `PANACEA_APP_DEVISSUER_CONFIG` (default
+  `control-plane/cmd/devissuer/dev-tenant.json`, committed, fictional users only):
+  `{"tenants":[{"id":"<guid>","users":[{"oid","name","username","email","roles":[]}]}],
+  "clients":[{"clientId":"<guid>"}],"apis":[{"clientId":"<guid>","scopes":["Hub.Access"]}]}`.
+  It holds no secret.
+- **Tokens**: access tokens with `ver`, `iss`, `aud` (the API's client id), `azp`, `scp`, `tid`,
+  `oid`, `name`, `preferred_username`, `email`, `roles`, `iat`, `nbf`, `exp`; ID tokens with `aud` =
+  the client id and the request's `nonce`. Lifetimes `PANACEA_APP_DEVISSUER_ACCESS_TTL` (default
+  60 m; set 2 m to test refresh) and 24 h for refresh tokens.
+- **Redirect rule**: `http://127.0.0.1` or `http://localhost`, any port, the registered path — the
+  rule §6.1 relies on from Entra.
+- **Differences from Entra, known** — each is covered by H1's one real-tenant acceptance test, not
+  by `devissuer`: conditional access and MFA; consent prompts; real token sizes (R1); group overage
+  (unused); Entra keeping an old refresh token valid after rotation (`devissuer` is stricter);
+  Continuous Access Evaluation (not requested: the client declares no `cp1` capability).
+
+The Hub accepts `devissuer` only when `PANACEA_APP_HUB_DEV_ISSUER=true` **and**
+`PANACEA_APP_HUB_ENV=local`; otherwise an `http` authority is a start-up error.
+
+### 6.5 The registrations — exact values for phase 8's task 09 (HA-3)
+
+| Setting | Desktop — *PanaceaApp Desktop* | Hub API — *PanaceaApp Hub API* |
+|---|---|---|
+| Sign-in audience | `AzureADMyOrg` | `AzureADMyOrg` |
+| Platform | *Mobile and desktop applications* (`publicClient`) | none |
+| Redirect URIs | `http://127.0.0.1` and `http://localhost` | none |
+| Credentials | **none** | **none** |
+| `isFallbackPublicClient` | `false` | `false` |
+| Application ID URI | — | `api://<its own client id>` |
+| `api.requestedAccessTokenVersion` | — | `2` |
+| Exposed scope | — | `Hub.Access`, type *Admins and users*, admin display name *"Use PanaceaApp's shared workspace as the signed-in user"* |
+| Pre-authorised clients | — | the desktop's client id, for `Hub.Access` |
+| App roles | — | `Hub.OrgAdmin`, allowed member types *Users/Groups*, display name *"PanaceaApp org administrator"* |
+| Optional claims | — | access token: `email` |
+| `groupMembershipClaims` | `None` | `None` |
+| Required resource access | Microsoft Graph delegated `openid`, `profile`, `offline_access`, `email`; the Hub API `Hub.Access`; phase 8's broker `Sandboxes.Access`; if ADR Q5 is yes, Azure DevOps `user_impersonation` | none |
+| Admin consent | **granted tenant-wide** for every row above | — |
+| Enterprise app: assignment required | no | **yes**, group *PanaceaApp Users* |
+| Role assignments | — | `Hub.OrgAdmin` → group *PanaceaApp Org Admins* |
+
+**Unverified**: whether a registration's `http://127.0.0.1` redirect is accepted by the portal or
+needs the manifest; that Entra matches a loopback redirect on any port with the root path. If only
+`http://localhost` can be registered, set `PANACEA_APP_ENTRA_REDIRECT_HOST=localhost` (§6.1).
