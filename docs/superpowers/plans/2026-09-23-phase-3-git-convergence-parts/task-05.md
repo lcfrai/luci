@@ -21,7 +21,7 @@ the image before it ships.
 - `control-plane/internal/backend/backend.go` — `EnvSessionID`, written by `EnvEntries` (p2)
 - `control-plane/internal/backend/backend_test.go` — the order pin gains one entry (p2)
 - `control-plane/internal/sandbox/manager.go` — `containerEnv` writes the same variable (p2)
-- `control-plane/internal/api/sessions.go` — `sessionEnv` gains `core.hooksPath` (the fix's function)
+- `control-plane/internal/api/sessions.go` — `sessionEnv` gains `core.hooksPath` (the fix's function); `sessionMounts` binds `.git/config` read-only (task-02 §HGH H5)
 - `control-plane/internal/api/sessions_sandboxenv_test.go` — the fix's test, extended (the fix's file)
 - `control-plane/internal/api/hooks_docker_test.go` — `//go:build docker`, the real thing (new)
 - `docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md` — §2 `EnvSessionID`; §5.1 environment
@@ -62,6 +62,20 @@ const sessionHooksPath = "/opt/panacea/githooks" // images/sandbox/Dockerfile in
 		// every name first, so a husky repository keeps its hooks (risk R7).
 		"GIT_CONFIG_KEY_2":   "core.hooksPath",
 		"GIT_CONFIG_VALUE_2": sessionHooksPath,
+	}
+```
+
+```go
+// sessions.go — sessionMounts gains one entry (task-02 §HGH H5; review C1). When the worktree's
+// host path holds a .git DIRECTORY (every clone, and the project on a primary-worktree
+// session), its config is bound read-only over the worktree mount, so the config the control
+// plane checks is the config its git reads. A linked worktree's .git is a file: no entry.
+	if fi, err := os.Stat(filepath.Join(worktreePath, ".git")); err == nil && fi.IsDir() {
+		mounts = append(mounts, backend.Mount{
+			HostPath:      filepath.Join(worktreePath, ".git", "config"),
+			ContainerPath: sessionWorkDir + "/.git/config",
+			ReadOnly:      true,
+		})
 	}
 ```
 
@@ -131,6 +145,8 @@ RUN sed -i 's/\r$//' /opt/panacea/githooks/dispatch \
 | `TestThePodEnvironmentIsExactlySpecEnvEntries` (kata, unchanged) | still passes after `containerEnv` gains the variable | Docker and Kata environments diverging |
 | `TestSessionEnvSetsHooksPath` (fix's file, extended) | `GIT_CONFIG_COUNT=3`, `KEY_2=core.hooksPath`, `VALUE_2=/opt/panacea/githooks`; keys 0 and 1 unchanged | dropping the fix's two settings while adding a third |
 | `TestSessionCreateAndRestartCarryTheSessionID` | the `backend.Spec` recorded by the fake backend has `SessionID` equal to the new session's id, on create **and** restart | a restart exporting the old sandbox's id |
+| `TestSessionMountsBindGitConfigReadOnly` | a worktree with a `.git` directory → the mounts end with `{<wt>/.git/config, /home/dev/work/.git/config, ReadOnly: true}`; a `.git` file (a linked worktree) → no such entry | the H5 mount dropped, or bound read-write |
+| `TestSandboxCloneConfigIsReadOnly` (docker) | task-02 §HGH H5, red first without the entry: in the real sandbox, `git config filter.x.clean y` in `/home/dev/work` exits non-zero, and the host's `.git/config` is byte-identical afterwards; `git commit` still succeeds | a nested read-only bind that Docker Desktop ignores (unverified until this runs) |
 | `TestDispatchStampsTheSession` (docker) | a commit in a clone mounted at `/home/dev/work` with the session environment carries `Panacea-Session: s-test1` exactly once (`git log -1 --format=%(trailers:key=Panacea-Session,valueonly)`) | the hook not installed, not executable, or CRLF |
 | `TestDispatchSurvivesNoVerify` (docker) | `git commit --no-verify -m x` still carries the trailer | trusting `--no-verify` to skip only what we expect |
 | `TestDispatchKeepsAnAmendsSession` (docker) | commit with `s-a`, then `git commit --amend` with `PANACEA_APP_SESSION_ID=s-b` → the trailer is `s-a`, once | a rewritten commit claiming a new author |
@@ -162,6 +178,7 @@ than retyped.
 ```
 go test ./control-plane/... -race -count=1                                   → PASS
 go test ./control-plane/internal/api/ -tags docker -run Dispatch -count=1 -v → PASS, 8 tests; the cost numbers in the report
+go test ./control-plane/internal/api/ -tags docker -run TestSandboxCloneConfigIsReadOnly -count=1 -v → PASS (task-02 §HGH H5)
 git ls-files --eol images/sandbox/githooks/dispatch                          → i/lf  w/lf
 ```
 
