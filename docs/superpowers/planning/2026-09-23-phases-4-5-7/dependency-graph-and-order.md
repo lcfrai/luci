@@ -52,7 +52,7 @@ I ran no build, no `go test`, no `npm test`. Nothing here is behavioural evidenc
                   (Phase 7 WRITE path only; read path is independent)
 
    §10.5 event stream  ──► required by PHASE 5 (multiplayer), optional for PHASE 7
-   AGPL-3.0 clearance  ──► gates PHASE 5 external distribution, not internal build
+   AGPL-3.0 clearance  ──► gates PHASE 5 — §13 network use, not only distribution (see PROGRAM.md Phase 5)
 ```
 
 ### 1.2 The three edges that actually matter
@@ -207,7 +207,7 @@ There is no hard edge from 3 into 4 (§1.3). Phase 4's only worktree need, `Prov
 They have other people's lead time attached and consume none of ours:
 1. An additive `metadata map[string]string` on `TriggerDeployOptions` in `panacea-api` — without it the spine's last rung is held in our state dir, invisible in the Panacea portal, lost if the directory is lost.
 2. A public/PKCE Keycloak client in realm `panacea` — without it Phase 7 is capped at paste-a-token onboarding.
-3. AGPL-3.0 clearance for Paperdesign — a legal gate on *distribution*, not on internal build, so it does not block phase 5 starting, but the answer takes calendar time.
+3. AGPL-3.0 clearance for Paperdesign — **corrected 2026-09-23: not a gate on distribution alone.** Under the locked we-host model, **§13 Remote Network Interaction** can oblige us to offer source the moment a user's browser interacts with our modified copy, with no distribution involved. The question for legal is §13 under a hosted model. It may therefore gate phase 5 **shipping to any user**, not only external sale — and the answer takes calendar time, so ask now.
 4. One unauthenticated `GET /api/v1/version` to settle `api.dev.panacea.kpmg` against `dev.panacea.kpmg/api`. Two written sources disagree; no network call was made by anyone in this pass.
 
 ### 3.5 The decision that must be made before any Phase 4 task is written

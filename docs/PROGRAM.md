@@ -122,6 +122,8 @@ Audit trail, admin controls over permitted harnesses and models, signed MSI and 
 ## Open risks
 
 1. **Kata cold start** is seconds; warm pools are mandatory and their sizing is unproven at our concurrency.
-2. **Anthropic OAuth enforcement** — subscription tokens are restricted to Claude Code/Claude.ai server-side. Phase 3 must verify KPMG's plan type works via the supported path before building on it.
-3. **Tauri distribution at KPMG** — code signing and update channel need platform-team engagement early, not at Phase 8.
-4. **Paperdesign licence** — AGPL-3.0 is fine internally, blocking for sale.
+2. **Anthropic OAuth enforcement** — subscription tokens are restricted to Claude Code/Claude.ai server-side. Phase 6 (Capacity and credential rotation) must verify KPMG's plan type works via the supported path before building on it.
+3. **Tauri distribution at KPMG** — code signing and update channel need platform-team engagement early, not at Phase 9.
+4. **Paperdesign licence** — AGPL-3.0, and **not** "fine internally, blocking for sale" as this line said until 2026-09-23. Under the locked we-host model, **§13 Remote Network Interaction** can fire the moment a user's browser interacts with our modified copy, with no sale or distribution involved; the Tauri shell is classic distribution as well. See Phase 5 above for the verified licence text and the question to put to legal.
+
+*The three items above were corrected on 2026-09-23. Items 2 and 3 still carried the pre-renumber phase numbers — Capacity was phase 3 and hardening phase 8 in the old prose — because the renumber in `6bcc9af` swept the phase blocks and not this section below them.*
