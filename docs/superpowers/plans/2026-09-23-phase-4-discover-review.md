@@ -17,6 +17,8 @@ markers. It also has 14 Important and 13 Minor issues. It needs fixes before cod
   spec was checked at `:488` and `:553`.
 - The reviewer compiled and ran nothing either.
 - Claims drawn from the reviewer's own knowledge, not from this session, are marked as such.
+- In the file:line references below, `plan.md` means the main plan file and `task-NN.md` means
+  that task's part file.
 
 ---
 
@@ -187,3 +189,261 @@ start on a branch, and survive "Start without the brief".** There is no security
      - the marker rule above;
      - answer-length caps (M6);
      - model egress (I13).
+
+### Important
+
+**I1. Task 10 makes `Deps.Materialiser` required, but not everything that builds `Deps` is
+updated. The control plane cannot start from task 10 until task 14.**
+- *Where:* `task-10.md:18-25` (the file list) and `:103` (the validation entry).
+- *What is wrong:* `Deps` is built directly in three places the plan does not touch:
+  - `attach_test.go:303` and `sessions_test.go:575`, both `package api`. They call
+    `New(Deps{…})` and cannot see `api_test.go`'s builder, which is in `package api_test`.
+    Task 10's own acceptance command then fails.
+  - `cmd/api/main.go:122`. It gets `Materialiser` only in task 14, which waits on Hub C1/C2 and
+    phase 3 task 13. No test in `cmd/api` reaches `api.New`: `TestRunRefusesANonLoopbackBind`
+    exits first. So the break shows only when the binary starts: "api: Deps.Materialiser is nil".
+- *Why it matters:* the easy repair is a default no-op materialiser, which the plan itself names
+  as the mutant to kill (`TestNewRefusesANilMaterialiser`). The alternative is a phase branch whose
+  binary does not start for most of the phase.
+- *How to fix:*
+  1. Add both test files to task 10's file list, each given a recording fake.
+  2. Have task 10 wire `cmd/api/main.go` with an explicit, named interim value,
+     `materialiserUntilTask14`. It returns `""`, logs once at start-up that sessions inherit
+     nothing until phase 4 task 14, and is deleted by task 14.
+  3. Add a test to task 14 that the interim symbol no longer exists.
+
+**I2. A failed scan makes a session inherit nothing, silently.**
+- *Where:* `task-10.md:130-134`, which passes `sessionLocate`'s `projectID` and `branchID`.
+- *What is wrong:* `sessionLocate` (`sessions.go:467-490`) returns `"", ""` both when the worktree
+  is outside every project and when `Projects()` or `Worktrees()` **failed**. The failure is only
+  logged at Warn (`:474`, `:480`), and a git call can time out after 10 s (`gitrunner.go:17`).
+  Task 09 defines no behaviour for `ProjectID == ""`. `Locator.ProjectPath("")` either becomes a
+  plain error (a 500 on every start) or, if mapped to "nothing to inherit", a session with no brief
+  and no warning. That is R1's own failure: "the session inherits nothing, silently".
+- *How to fix:*
+  1. Task 10 adds an error return to `sessionLocate` (it already owns `sessions.go` for this
+     change).
+  2. An enumeration failure becomes `*MaterialiseError{Reason: "project_unknown"}`, added to the
+     closed reason set and to task 20's table.
+  3. `""` is kept for a worktree that is truly outside every project.
+  4. Test both paths.
+
+**I3. "Strip both candidates" can edit a tracked file, which the plan says never happens.**
+- *Where:* `task-09.md:61-70` (step 3: strip "from BOTH candidate files"; step 5: "strip the other
+  candidate"); OQ-2's recommendation, "A tracked file is never edited".
+- *What is wrong:* the candidate that is not the target is, by construction, often the **tracked**
+  one. Suppose `CLAUDE.md` is tracked and contains a block. The block may have been committed
+  before this phase, forced in with `git add -f`, or committed by an agent. Then every materialise,
+  and every `WithoutBrief`, rewrites the tracked `CLAUDE.md` and leaves the worktree dirty. This
+  repository tracks `CLAUDE.md` (P4-D), so the case is real here.
+- *How to fix:*
+  - Strip only candidates that `Git.Tracked` reports as untracked.
+  - A tracked file that contains a block gets a new `Inspect` state, `committed`, shown in task 19.
+  - Materialise leaves that file alone and still writes the untracked target.
+  - Add `TestNeverStripsATrackedFile`.
+
+**I4. Nothing budgets time. The 4-D1 refusal, the follow-up and the repository draft can all
+reach the desktop as a `timeout`.**
+- *Where:*
+  - `client.ts:33` sets `DEFAULT_TIMEOUT_MS = 10_000`. Task 15 reuses the transport unchanged
+    (`task-15.md:19-23`).
+  - Hub contract §9.2 (`hub-contract.md:1335-1339`): each `hubclient` attempt times out at 10 s,
+    with two retries after 250 ms and 1 s.
+  - The follow-up gets a 20 s context (`task-04.md:83`).
+  - The model client's default is 120 s (`task-02.md:52`), and `analyse` has no stated budget.
+- *What is wrong:*
+  - When the Hub is black-holed rather than refusing connections (VPN down, corporate proxy),
+    `Materialise` can take about 31 s across two to three Hub reads. The desktop gives up at 10 s
+    and shows `timeout`, not `brief_not_written`, so 4-D1's refusal surface never appears.
+  - A model follow-up that takes more than 10 s is aborted, and Retry repeats the model call.
+  - Task 23 step 9 stops the Hub, which refuses connections quickly, so it passes either way.
+- *How to fix:*
+  1. `Materialise` runs under a 5 s context. Its expiry is `hub_unavailable`.
+  2. The Discover client passes `timeoutMs` per call: 30 s for `apply` with
+     `propose_follow_up`, and 60 s for `analyse`.
+  3. The server's model contexts are shorter than those client timeouts.
+  4. Task 23 adds a step with a non-routable `PANACEA_APP_HUB_URL` (for example `10.255.255.1`).
+
+**I5. The rendered block is not a function of its key. Renames make every worktree report
+"edited by hand".**
+- *Where:* P4-G (`plan.md:175`); `task-07.md:359-360` (titles use the Hub project name and the
+  branch name); `task-05.md:58` (`Document.Title`); architecture rule 3 (`plan.md:97-100`: "Every
+  render … is computed from that key"); task 09's `StateEdited` ("the marker names the right key,
+  the text is not its render").
+- *What is wrong:* the title line comes from the Hub project's current name, which
+  `PATCH /v1/projects/{id}` changes, and from the branch's current name, which `Rebind` changes.
+  After either rename, a fresh render of the same key differs in its first line. `Inspect` then
+  shows `edited`, with a diff, on every worktree. P4-G's "cannot false-positive" holds only while
+  nothing is renamed. The agent also reads a title that no digest covers.
+- *How to fix:*
+  - Take the branch part of the title from the revision's own envelope `branchRef`. It is
+    immutable per revision, as §3.4 shows.
+  - Either leave the project name out of the block, or have `Inspect` compare the block with its
+    title line normalised.
+  - State the rule in task 05, and add `TestRenameDoesNotLookLikeAHandEdit`.
+
+**I6. What happens when the Hub fails during a resolve is defined three ways.**
+- *Where:*
+  - `task-07.md:368-371`, rule 5: every Hub error "reaches the caller **unchanged**". Rule 6: a
+    nil Hub gives `missing` for every brief key.
+  - `task-12.md:70-72`: slots that miss the cache become `unavailable`, with a 200.
+  - `task-06.md:69-72`: `Unavailable` exists.
+- *What is wrong:*
+  - `Service.Resolve` returns `(refs, heads, err)`. As written it cannot both pass the error
+    through and return per-slot `unavailable`.
+  - With rule 6, a configured-then-unset Hub, or `hub_off`, shows every chip as `missing`. The
+    chip's words for `missing` are *"this is data loss in our store"* (`task-17.md:104`). That is
+    a false alarm about data loss.
+  - `signed_out` during a resolve is not specified at all.
+- *How to fix:* one rule, stated in task 07 and restated in task 12:
+  - `Resolve` never returns a Hub error.
+  - A slot served from cache stays `resolved`. Any other slot gets `unavailable` on a Hub error,
+    `signed_out`, or a nil Hub.
+  - `missing` comes only from the Hub's own answer.
+  - Add `TestHubOffIsUnavailableNotMissing`.
+
+**I7. Detecting a tracked file through `project.Runner` depends on an exit code that the runner
+does not expose.**
+- *Where:* `task-09.md:87-96`, `task-14.md:52-56` ("Exit status 1 from ls-files is untracked"),
+  and the test `TestGitQuestionsReadsUntrackedAsFalse`.
+- *What is wrong:* `ExecRunner.Run` returns `fmt.Errorf("git %s in %s: %v: %s", …)`
+  (`gitrunner.go:87`). The `%v` drops the `*exec.ExitError`, so `errors.As` cannot find exit
+  status 1.
+  - An implementer who tries `errors.As` gets an error for every untracked `CLAUDE.md`. Every
+    session start becomes a 500, or every brief is sent to `.claude/`.
+  - The fake-runner test passes either way, because a fake can return any error type.
+- *How to fix:* use `git ls-files -- <rel>`, without `--error-unmatch`.
+  - It exits 0; empty output means untracked. No error parsing is needed.
+  - `rev-parse` failing with "not a git repository" is the only string match left. Say so.
+  - Add an integration test over `ExecRunner` in `t.TempDir()` with real git, which is already
+    used by phase 2's project tests.
+
+**I8. The 4-D3 fan-out misses two kinds of inheriting branch brief. Their sessions then show
+`current` over outdated project text.**
+- *Where:*
+  - `task-08.md:86-88`, step 6: only branch briefs "whose HEAD is complete" are re-revisioned.
+  - `TestFanOutSkipsOpenAndArchivedBranchBriefs` (`:124`).
+  - C4 (`plan.md:27`).
+  - The claim at `task-08.md:6-7` that "no session can start between the two and inherit a branch
+    key whose pinned project text is stale".
+- *What is wrong:*
+  1. **Open heads.** A branch brief whose head is open but has an earlier complete revision is
+     still inherited (P4-A: its latest complete revision), and that revision pins the **old**
+     project revision.
+     - An open head is common: a pending model draft, an unanswered follow-up, or an edit in
+       progress.
+     - The fan-out skips it. Sessions keep inheriting the old project text, and because
+       superseded compares only within the branch brief (P4-B), the chip says `current`.
+  2. **A race.** A teammate's branch op computes `Env.Inherits` from the project's latest complete
+     revision (`@5`) just before the project batch commits `@6`. The branch write locks only its
+     own head. It commits pinned to `@5`, after `List` has already run, and nothing re-pins it.
+- *Why it matters:* 4-D3 exists so the chip can never read `current` over outdated inherited
+  text. The immutability of each key still holds. What fails is that `current` means current.
+- *How to fix:*
+  1. Name the open-head case as a narrowing of 4-D3 in C4, and add it to §10 as an owner
+     question.
+  2. Recommend and build this: the fan-out also writes `reinherit` on an **open** head, so the
+     person finishing the edit inherits `@6`.
+  3. Add `selectProvenanceState` → `superseded` when the ref's `inherits.revision` is below the
+     project brief's `latestCompleteRevision`, with the head read through `heads`.
+  4. For the race, compare after the batch commits: re-list, and re-run the fan-out once for any
+     complete branch brief whose `inherits.key` is older.
+  5. Test both cases.
+
+**I9. Four of the six ways a session starts bypass the 4-D1 refusal.**
+- *Where:* `task-20.md:18-20`, `:30-34` (`PendingStart.kind: "create" | "restart"`) and `:77-79`.
+- *What is wrong:* a `brief_not_written` 409 from these call sites still becomes a toast, or is not
+  handled at all:
+  - `EmptyDevelop.tsx:41`, the second `api.createSession` call site, outside `useCreateSession`;
+  - `SessionPane.tsx:30-38`, the exit bar's own `restartSession`, which toasts through
+    `sentenceForRestart`;
+  - resume, `sessionVerbs.ts:317`;
+  - fork, `sessionVerbs.ts:353`.
+
+  Resume and fork build their create request **inside** `client.ts` (`:342-381`), so "Retry
+  re-sends the identical request" cannot be done with a `CreateSessionRequest` the desktop never
+  held.
+- *How to fix:*
+  1. List all six call sites in task 20.
+  2. Make `PendingStart` a tagged union:
+     - `create{request}`;
+     - `restart{sessionId}`;
+     - `resume{sourceId, harness}`;
+     - `fork{sourceId, targetWorktreeId, harness}`.
+  3. Give `resumeSession` and `forkSession` an options argument `{withoutBrief}`.
+  4. Add one test per call site.
+
+**I10. The desktop cache keeps erased text and never learns that a teammate created a brief.**
+- *Where:* `task-16.md:29-31` ("Filled once per key, never overwritten") and `:125-126` (feed:
+  `markStale` and `markViewStale` "for every view showing that brief"); Hub contract §9.3
+  (`:1373-1375`, which invalidates `headRefByBranch` for `brief.*`).
+- *What is wrong:*
+  1. On `brief.erased`, `refsByKey` keeps the resolved content until the app restarts. The
+     control plane expires it after its TTL; the renderer never does. Chips, the manifest and the
+     past-revision view go on showing erased text. Task 07 names this exact failure, citing ADR-H1
+     §6.8 (`task-07.md:389`); the reviewer did not open the ADR section itself.
+  2. On `brief.created` or `brief.rebound` for a branch that had no brief, no view "shows that
+     brief" (it shows `brief: null`), so nothing is marked stale. `headRefByTarget` is never
+     invalidated either, so `DefinitionOfDone` stays *no brief* until the person navigates away
+     and back.
+- *How to fix:*
+  - On `brief.erased`, delete every `refsByKey` entry whose `briefId` matches, then re-resolve.
+  - On any `brief.*` event, mark stale every view and every `headRefByTarget` entry whose
+    `binding.hubProjectId` equals the event's `projectId`.
+  - Test both.
+
+**I11. HA4-2 blocks tasks 07 **and** 08, and the plan contradicts itself on who adds it.**
+- *Where:* `plan.md:434` ("task 08 is blocked"); `task-07.md:10-12` ("add it to the fake in the
+  Hub's package as a separate commit") and `:168-172` (the `Hub` interface **embeds** `List`);
+  `plan.md:294-295` ("**Never touched:** … anything under `control-plane/internal/hub/`").
+- *What is wrong:*
+  - Task 07's `Hub` interface requires `List`, so task 07 cannot compile against `NewFake()`
+    without it.
+  - The plan both forbids and instructs a write into `internal/hub`.
+  - A grep of the Hub worktree's contract and plan for `HA4` or `Briefs.List` finds nothing, so no
+    ask has reached the Hub planner.
+- *How to fix:*
+  1. Mark task 07 blocked by HA4-2 too.
+  2. Pick one rule. The recommendation: the orchestrator carries HA4-1..9 to the Hub planner now.
+     Until then, task 07 declares `List` on phase 4's **own** interface, with a thin phase-4-owned
+     wrapper fake that embeds `hubclient.NewFake()`.
+  3. Delete the instruction to write into `internal/hub`.
+
+**I12. The number, Enter and `E` keys fire while typing in the free-text field.**
+- *Where:* `task-18.md:18-20` ("element-scoped handlers on the question region") and the test at
+  `:105`.
+- *What is wrong:* the free-text field sits inside the question region, so its keydown events
+  bubble to the region's `onKeyDown`. Typing "10 MB" picks option 1. Typing "Evidence" triggers
+  edit. `Enter` in a multi-line answer sends it. The test dispatches only on the region and on
+  `window`.
+- *How to fix:*
+  - The region handler returns early when the event target is an `input`, a `textarea` or
+    `[contenteditable]`.
+  - Inside the field, `Enter` sends only with `Ctrl+Enter`, or state the rule.
+  - Add `typing digits and E in the field is text`.
+
+**I13. The model's default endpoint sends client-confidential brief text to a public API.**
+- *Where:* `task-02.md:34` (`DefaultBaseURL = "https://api.anthropic.com"`), `task-14.md:20`,
+  `task-04.md:18` (the follow-up prompt carries "the person's own answers").
+- *What is wrong:*
+  - Setting only `PANACEA_APP_MODEL_API_KEY` sends every brief's answers to a public endpoint.
+    Those answers are engagement descriptions — client names, scope, constraints. The deployment
+    is a regulated one, where the corporate route is a gateway.
+  - G4 governs whose key is used, but not where the data goes.
+  - The ISM reasoning applied to file contents in task 13 is not applied to answers.
+- *How to fix:*
+  - Give `PANACEA_APP_MODEL_BASE_URL` no default. A key without a base URL is "model off", with a
+    log line naming both variables.
+  - Add a sentence to the new Security section (C2).
+
+**I14. Phase 3's criterion states would be cached for ever inside an immutable `Ref`.**
+- *Where:* `task-06.md:83-89` (`Criterion.State` inside `Ref`), `:98-101` ("Cacheable for ever
+  EXCEPT headRevision and latestCompleteRevision"); seam S4-P3.4; `task-16.md:29-31`.
+- *What is wrong:* `State` and `Because` come from phase 3's `Evaluate`, and they change as
+  evidence arrives. The desktop caches the whole `Ref` by key for ever, so once phase 3 plugs in, a
+  criterion's state never updates on screen.
+- *How to fix:*
+  - Take criterion state out of the forever-cached `Ref`, into a per-key moving map served beside
+    `heads`. Alternatively, declare `criteria[].state` a moving field and give the loader its
+    re-read rule.
+  - Record the decision in S4-P3.4 so phase 3 builds against it.
