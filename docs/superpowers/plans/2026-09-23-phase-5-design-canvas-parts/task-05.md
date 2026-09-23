@@ -82,6 +82,8 @@ type Node struct {
 	Alt      string            `json:"alt"`      // KindImage only; ≤ 500 runes
 	SVG      string            `json:"svg"`      // KindSVG only: canonical sanitised markup; ≤ 256 KiB
 	Attrs    map[string]string `json:"attrs"`    // AllowedAttrs only; {} not null
+	X        int               `json:"x"`        // KindArtboard only: its place on the page, CSS px (0 otherwise). Not design content: never serialised, never digested
+	Y        int               `json:"y"`
 	Locked   bool              `json:"locked"`
 	Hidden   bool              `json:"hidden"`
 	Revision int               `json:"revision"` // the last canvas revision that changed THIS node's fields (P5-K)

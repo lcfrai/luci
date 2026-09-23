@@ -389,7 +389,7 @@ tasks; each part says what it codes against until that task lands.
 | 11 | Authority I: canvases by branch, `Apply` with an author, subscriptions, the activity feed | 06, 10 | — | 3 |
 | 12 | Authority II: claims, `ifRevision`, notices, per-author undo and redo, revert by session | 11 | — | 3 |
 | 13 | The render bridge and the human's selection | 11 | — | 2 |
-| 14 | The MCP protocol layer | 02 | — | 2.5 |
+| 14 | The MCP protocol layer | 05 | — | 2.5 |
 | 15 | MCP read tools, `get_brief` and its port | 08, 09, 12, 13, 14 | phase 4 task 07 (coded against a port and a fake) | 3 |
 | 16 | MCP write tools | 07, 12, 14 | — | 3 |
 | 17 | MCP tokens, comments, export, guides, server instructions | 09, 15, 16 | — | 2.5 |
@@ -413,8 +413,8 @@ tasks; each part says what it codes against until that task lands.
 
 1. **01, 02, 03, 18** — the spike, both scaffolds, the relay framing. 01 gates 24–26; if it fails
    an item, its report names the fallback each later part already carries.
-2. **04, 05, 14** — the gate before any dependency is added; the model; the protocol layer.
-3. **06, 07** → **08, 10** → **09, 11**.
+2. **04, 05** — the gate before any dependency is added; the model.
+3. **06, 07, 14** → **08, 10** → **09, 11**.
 4. **12, 13, 19** → **15, 16, 20, 23**.
 5. **17, 21, 24** → **22, 25** → **26, 27** → **28, 29** → **30**.
 

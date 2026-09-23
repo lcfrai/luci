@@ -38,7 +38,7 @@ type HTMLOptions struct {
 //   - style is "prop: value" pairs sorted by property name, joined by "; ", no trailing ";";
 //   - text: & < > escaped as &amp; &lt; &gt;, "\n" as <br>; attribute values escape & < > " ;
 //   - image: src="<asset ref>" and alt; svg: Node.SVG verbatim;
-//   - Locked, Revision and EditedBy are never emitted;
+//   - Locked, X, Y, Revision and EditedBy are never emitted;
 //   - an <a> is emitted with href="#" as its first attribute after data-node.
 // The output parses back through dialect.Parse to the same nodes (ids aside) — the round trip.
 func HTML(d *doc.Doc, nodeID string, o HTMLOptions) (string, error)

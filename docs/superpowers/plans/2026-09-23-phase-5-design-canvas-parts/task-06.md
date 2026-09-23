@@ -30,7 +30,7 @@ const (
 	OpUpdatePage      OpKind = "update_page"       // PageID; Name and/or Order
 	OpDeletePage      OpKind = "delete_page"       // PageID; its artboards and their subtrees go too
 	OpCreateNode      OpKind = "create_node"       // Node, complete (Revision and EditedBy are stamped)
-	OpSetProps        OpKind = "set_props"         // NodeID; any of Styles, Attrs, Name, Tag, Text, Alt, Asset, SVG, Locked, Hidden
+	OpSetProps        OpKind = "set_props"         // NodeID; any of Styles, Attrs, Name, Tag, Text, Alt, Asset, SVG, Locked, Hidden, X, Y (X, Y: artboards only)
 	OpMove            OpKind = "move"              // NodeID; ParentID and Order
 	OpDeleteNode      OpKind = "delete_node"       // NodeID; the whole subtree
 	OpSetToken        OpKind = "set_token"         // Token (create or replace)
@@ -62,6 +62,8 @@ type Op struct {
 	SVG         *string            `json:"svg,omitempty"`
 	Locked      *bool              `json:"locked,omitempty"`
 	Hidden      *bool              `json:"hidden,omitempty"`
+	X           *int               `json:"x,omitempty"` // artboards only: the place on the page
+	Y           *int               `json:"y,omitempty"`
 	ParentID    *string            `json:"parentId,omitempty"`
 	Order       *string            `json:"order,omitempty"`
 	Token       *Token             `json:"token,omitempty"`
