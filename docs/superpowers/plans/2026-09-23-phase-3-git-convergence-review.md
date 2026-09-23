@@ -142,3 +142,101 @@ below was opened in the tree at `034232a` (whose control plane is `3303fd6`'s) o
      `sslVerify=false`, and an `origin` on an `httptest` smart-HTTP URL → after a land, neither
      test server received a request; a repo-local `credential.helper` that writes its stdin to a
      file → after a push and a `GitHelper.Credential`, the file does not exist.
+
+### Important
+
+#### I1. The OD-8 adapter declines every real transcript: a third of the lines carry no `version`
+
+- **Where:** task-17:20-22 ("every line carries `type`, `version`, `timestamp`, `uuid`, …"),
+  task-17:98-104 (decline when "any line's `version` is not PinnedVersion" or "more than 1% of
+  lines fail to parse"), task-17:154 (the synthetic fixture is hand-written to that shape).
+- **What is wrong:** verified 2026-09-23 with a read-only structural count over this machine's 40
+  newest transcripts (76,592 lines; Claude Code 2.1.236, 2.1.260, 2.1.267, 2.1.280; no text
+  printed): 25,111 lines have **no `version` field**, of eleven types — `last-prompt`, `mode`,
+  `permission-mode`, `atis-latch`, `ai-title`, `queue-operation`, `file-history-snapshot`,
+  `file-history-delta`, `cost-state`, `relocated`, `worktree-state`. Only `user`, `assistant`,
+  `system` and `attachment` lines carry one. Read literally, both decline rules fire on every
+  transcript, so tier 2 never appears. The synthetic fixture is written to the false shape, so
+  every task 17 test passes. OD-8's degradation is honoured, but the feature is dead on arrival,
+  and nothing in the plan would reveal it until the owner's session.
+- **Also:** `TestCapturedFixtureParses` skips until a file exists, so the "canary that fails
+  when the format moves" (OD-8, quoted at task-17:6-10) never fails. After a pin bump nothing
+  forces a new capture.
+- **How to fix:** check `version` only on `user` and `assistant` lines. Skip lines of any other
+  `type` without counting them as failures. Correct the verified-shape paragraph, and add the
+  eleven version-less types to the synthetic fixture. Name the captured fixture
+  `captured-<PinnedVersion>.jsonl`. The test **skips** only while `PinnedVersion == "2.1.274"`
+  and the OD-12 waiver constant is set; any other pin with no fixture **fails**. Add
+  `TestVersionlessLinesAreIgnored` (a fixture that is 40% `file-history-snapshot` → tier 2 still
+  links).
+
+#### I2. `merge-tree` output is parsed without `-z`, so any path git quotes breaks the forecast
+
+- **Where:** task-08:48, task-09:119, task-16:63 (`merge-tree --write-tree --name-only`, no
+  `-z`); task-04:65 (`details.paths` "newline-joined").
+- **What is wrong:** without `-z`, git C-quotes paths holding a space, a quote, a control
+  character or (under the default `core.quotePath=true`) any non-ASCII byte:
+  `"docs/r\303\251sum\303\251.md"`. Task 07 parses `diff` and `status` with `-z` (task-07:16), so
+  `ConflictsWith` (Paths ∩ a row's `Changed`) never matches such a path, and the lens blames the
+  branch itself. Newline-joined `details.paths` also cannot carry a path containing a newline,
+  which task 07's own `TestPathsWithNewlinesAndSpaces` treats as a real case.
+- **How to fix:** add `-z` to every `merge-tree` call and parse NUL-separated output (task 01
+  pins the `-z` form too). Carry paths in `details` as one JSON-encoded array string, or give
+  `gitConflict` a `[]string` field. Add a test with a conflicted `é`-named file.
+
+#### I3. "Exact" undo is not exact once another lane has merged the land
+
+- **Where:** task-10:41-45, 64-72 (exact means tip, a land, not pushed); plan:153-156 (decision
+  3 puts every land into every clone's `origin/<branch>`); task-19:49-53 (3-D3's prompt tells an
+  agent to merge `origin/<branch>`).
+- **What is wrong:** the plan's own conflict flow makes lane B merge land A's commit M. Undo of M
+  then moves the branch back, but `refs/panacea/lanes/B` still contains M. B's next land brings M
+  and A's work back without a word, and the forecast calls it clean. Task 23's steps 8-10 do
+  exactly this sequence and assert only the tip.
+- **How to fix:** before an exact undo, run
+  `for-each-ref --contains <sha> --format=%(refname) refs/panacea/lanes/`. When any lane contains
+  M, answer `undo_not_exact` with `why: merged_into_lane` and `details.worktrees`, and offer the
+  revert. History's `UndoWhy` gains the same value. Add test `TestUndoRefusesALandALaneHasMerged`.
+
+#### I4. The resolve prompt merges an `origin/<branch>` that is stale for every conflict not caused by a land
+
+- **Where:** plan:153-156 (clones refreshed "after every land" only); task-19:49-53
+  (`resolvePrompt`, including the case "conflicts with the branch itself").
+- **What is wrong:** the branch also moves by undo (task 10 refreshes), by revert (task 10 does
+  **not** say it refreshes), and by a user's own commit or `git pull` in a terminal (nothing
+  refreshes). In each case the agent merges an old ref, the conflict survives, and the lane
+  stays red after the agent reports success.
+- **How to fix:** the syncer already reads the branch tip each sweep. When a branch tip differs
+  from what the clones were last told, it refreshes their `origin/<branch>` (C3's
+  literal-path fetch). Revert refreshes like land and undo. `ResolveDialog` refreshes the one
+  lane before it starts the session. Add test `TestSweepRefreshesClonesAfterADirectCommit`.
+
+#### I5. There is no way to bring the remote's commits in, yet the copy promises one
+
+- **Where:** task-20:78-80 (`push_rejected`: "Fetch, then land or merge them in a worktree");
+  task-08:131-151 (`Behind` is shown); task-09 (a land takes only `refs/panacea/lanes/*`).
+- **What is wrong:** a clone's `refs/remotes/origin/*` mirrors the project's `refs/heads/*`, not
+  the project's `refs/remotes/origin/*`, and the clone's objects stop at clone time. So no lane can
+  see or merge a teammate's pushed commits. Landing takes lanes only, so the product branch
+  cannot take them either. The only way out is a terminal `git merge` in a checkout of the
+  branch, and that checkout switches landing off (A5, Q3). A diverged branch strands the user.
+- **How to fix:** have the origin refresh also copy the project's `refs/remotes/origin/<branch>`
+  into every clone as `refs/remotes/upstream/<branch>`, so a lane can merge it. Add a queue row
+  "Bring in origin/<branch>" when `behind > 0`: the same merge-tree, commit-tree and update-ref
+  land, refused on conflict (A2), with resolution in a lane through the refreshed ref. Correct the
+  `push_rejected` sentence. Or, if this is judged out of scope, record it as open question Q6 and
+  make the copy say "merge it in a terminal checkout, then switch that checkout away".
+
+#### I6. A lane sees only the clone's `refs/heads/<branch>`, so work committed on another branch in the clone is invisible
+
+- **Where:** task-07:69-77 (`SyncLane` reads `refs/heads/<branch>` in the clone only).
+- **What is wrong:** agents routinely `git switch -c fix-x` before committing. Those commits never
+  reach the lane, the row says "nothing to land", and removing the worktree calls it clean.
+  `Inspect` counts unlanded commits from the lane ref (task-11:38), so the confirm question omits
+  them and `RemoveTree` deletes them.
+- **How to fix:** in `Observe`, read `symbolic-ref -q HEAD` in the clone. When HEAD is not
+  `refs/heads/<branch>` (another branch, or detached), `LaneObservation` gains
+  `headElsewhere: "<ref or sha>"`, and the card says so. `Inspect` also archives every clone ref
+  under `refs/heads/` that is not reachable from the lane (`for-each-ref` in the clone, then a
+  fetch into `refs/panacea/archive/lanes/<id>/<unix>/<name>`). Add tests
+  `TestObserveReportsAHeadOffTheBranch` and `TestRemoveArchivesOtherClonesBranches`.
