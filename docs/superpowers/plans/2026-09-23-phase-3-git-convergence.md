@@ -5,7 +5,11 @@
 > `docs/superpowers/plans/2026-09-23-phase-3-git-convergence-parts/task-NN.md`. The part file is
 > the contract for that task; this file is the map. Steps use checkbox (`- [ ]`) syntax.
 
-**Status: DRAFT, being written.** This line is removed when the task list is complete.
+**Status: written 2026-09-23, not yet adversarially reviewed** (OD-1: every plan is reviewed
+before code). 23 tasks, each specified in its part file. Inputs: the owner's decisions OD-1–OD-13,
+`scope-and-risk-phase-3-git-convergence.md`, `survey-phase-3-git-convergence.md`,
+`prototype/phase-3-convergence.html`, the tree at `3303fd6`, and `fix/sandbox-git-ca` at `2d6d95b`
+plus its uncommitted `LinkedWorktreeNote`.
 
 ## Goal
 
@@ -399,6 +403,10 @@ desktop/src/
   components/lens/files/*           PathList, PathDiff, SpanDrawer, files.css                 21
   components/menu/ContextMenu.tsx   (p2) spread phase 3's items; project "New branch" enabled 22
   components/menu/lifecycleItems.ts the worktree and branch verbs                             22
+  components/lifecycle/*            forms, the remove question, actions.ts                    22
+  components/develop/EmptyDevelop.tsx (p2) "arrives in Phase 3" → a New worktree button       22
+  components/develop/SessionPane.tsx  (p2) SharedIndexNote mount (06), its onNewWorktree (22)  06 22
+  store/slices/{prefs,ui}Slice.ts   (p2) rebindBranch — keys moved, no persist version        22
   components/palette/commands.ts    (p2) append                                               22
   components/topbar/TopBar.tsx      (p2) line 29's title loses "Phase 3"                      22
   styles/tokens.css                 (p2) --diff-add, --diff-del (check first, rule 2)          21
@@ -434,7 +442,7 @@ is sized for one implementer in one to three hours.
 | 19 | Merge lens, part 1: the queue, forecasts, land, conflict resolution, banners | 18 | 3 h |
 | 20 | Merge lens, part 2: remote bar, push, PR, landed history with undo, evidence dialog | 19 | 3 h |
 | 21 | Files lens: changed paths, one path's hunks, back-links, the span drawer | 18 | 3 h |
-| 22 | Lifecycle verbs: new and remove worktree, branch create/rename/delete, palette, Authority's title | 18 | 2 h |
+| 22 | Lifecycle verbs: new and remove worktree, branch create/rename/delete, palette; the three "arrives in Phase 3" promises retired | 04, 06, 11, 18 | 3 h |
 | 23 | Proof: the end-to-end script on real git and Docker, the owner's batched checklist, the seams doc | all | 2 h |
 
 **Order.** 01 → 02 → 03 → 04 → then three lanes that can run in parallel worktrees:
