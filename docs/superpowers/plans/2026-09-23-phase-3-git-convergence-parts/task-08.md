@@ -128,7 +128,11 @@ type State struct {
 	Ahead     int    `json:"ahead"`     // 0 when Upstream is ""
 	Behind    int    `json:"behind"`
 	FetchedAt string `json:"fetchedAt"` // FETCH_HEAD's mtime, RFC 3339; "" when never fetched
-	ReadError string `json:"readError"`
+	// FetchError is git's sentence for the most recent fetch that failed, from task 12's
+	// Fetcher (its memory, not git); "" when the last fetch succeeded or none has run. Task 08
+	// always writes ""; task 12 fills it.
+	FetchError string `json:"fetchError"`
+	ReadError  string `json:"readError"`
 }
 
 // ReadState, all gitx.Read in the project:
@@ -158,7 +162,7 @@ PUT /v1/projects/{projectId}/branches/{branchId}/queue
   "projectId": "p-8c1d0e42", "branchId": "b-…", "branch": "evidence-upload",
   "tip": "a90d3f4c…", "checkedOutAt": "",
   "remote": { "remote": "origin", "upstream": "origin/evidence-upload", "ahead": 0, "behind": 0,
-              "fetchedAt": "2026-09-23T05:36:00Z", "readError": "" },
+              "fetchedAt": "2026-09-23T05:36:00Z", "fetchError": "", "readError": "" },
   "queue": [
     { "worktreeId": "w-ui", "forecast": { "state": "clean", "after": [], "conflictsWith": [], "paths": [], "why": "" } },
     { "worktreeId": "w-api", "forecast": { "state": "conflicts", "after": ["w-ui"], "conflictsWith": ["w-ui"],

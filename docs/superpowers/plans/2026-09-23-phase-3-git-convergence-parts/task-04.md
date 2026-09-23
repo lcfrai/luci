@@ -75,6 +75,7 @@ const (
 	ReasonBranchHasLanes    = "branch_has_worktrees"   // PATCH and DELETE branch; details.worktrees
 	ReasonBranchExists      = "branch_exists"          // POST branches, PATCH branch
 	ReasonNoRemote          = "no_remote"              // fetch, push, PR: the project has no origin
+	ReasonPushRejected      = "push_rejected"          // push: the remote has commits the branch lacks; details.gitSays
 	ReasonUnknownHost       = "unknown_host"           // PR: origin is neither GitHub nor Azure DevOps
 	ReasonNoCredential      = "no_credential"          // PR
 )
