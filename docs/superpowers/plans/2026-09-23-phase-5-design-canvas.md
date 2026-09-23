@@ -136,3 +136,81 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | Renderer (layout, computed styles, PNG) | the desktop webview: the Design lens, or a hidden renderer while the desktop runs | unchanged |
 | Approvals, design links, snapshots, session links | the Hub (contract §7.6–§7.8) | unchanged |
 | Cross-person co-editing | **not built**: one human, many agents (spec OQ-1) | Hub-hosted, server-authoritative per-property last-writer-wins (spec §4, [S26]) |
+
+---
+
+## The decisions this plan rests on
+
+### Owner decisions (`planning/2026-09-23-owner-decisions.md`)
+
+| Id | What it fixes here | Where |
+|---|---|---|
+| **OD-1** | Build now on the recommendations on file; this plan is adversarially reviewed before code; **every UI branch stays unmerged until the owner has looked at it** | throughout; tasks 23–28 |
+| **OD-3**, **OD-5**, **OD-6** | Approvals, design links, snapshots and session links are shared, so they live in the Hub; the control plane calls it as the signed-in user; phase 5 runs no sign-in of its own | tasks 21, 22 |
+| **OD-8** | Phase 5 reads **no** transcript and derives nothing from PTY bytes. Everything an agent does to the canvas arrives as a typed MCP call | global constraint G5 |
+| **OD-9** | The cockpit's chords win by default; the canvas's single-letter tools act only while focus is inside the viewport | task 25 |
+| **OD-11** | Clean-room (rule 1): nothing from `~/Projects/Paperdesign`, `kgoedecke/doop` or any AGPL/GPL canvas. Public behaviour only (rule 2): the spec. Licences (rule 3): the gate of task 04. Own package (rule 4): `canvas/` and `canvas/editor` | tasks 02–04; global constraint G6 |
+| **OD-12** | Every owner-observed step — a real agent designing in a sandbox, the visual pass — is batched to the end and stays **unverified** until then | task 29; every UI task's acceptance |
+| **OD-13** | No Panacea source and no Panacea call in phase 5 | — |
+
+### The phase 5 brief (`scope-and-risk-phase-5-design.md`), accepted under OD-1
+
+| Id | Decision | How this plan builds it |
+|---|---|---|
+| **D1**, **D2** | Moot under OD-11 (owner decisions `:31-32`) | — |
+| **D3** option A (`:194-206`) | **Pin and mark**: a brief edit never voids an approval; it shows as `superseded`, and a human re-reviews | there is no mirror to rewrite: *Re-review* appends a `review_mark` op (a new design revision whose digest covers the new brief key) and approves that revision (tasks 06, 21, 27) |
+| R4, R6 (script on a server; a frame forging edits) | Deleted by construction (spec §11.2) | the dialect (task 07), the renderer (task 24) |
+| R5 (parallel agents overwrite each other) | Designed out | claims and `ifRevision` (task 12) |
+| R7 (headless agents cannot complete MCP OAuth) | Removed | the relay channel is the credential (tasks 18, 19) |
+| R8 / P-g (a deleted canvas orphans design links) | Closed | the snapshot is captured into the Hub at approval (task 21) |
+| R9 (a second transport) | Closed | one SSE stream per window, canvas as its first topics (task 20) |
+
+### The Hub (ADR-H1 and the Hub contract), as built against
+
+| Id | What phase 5 takes | Where |
+|---|---|---|
+| contract §7.6 | `PUT`/`GET …/blobs/{sha}` — raw bytes, SHA-256-addressed, the ten content types, 16 MiB a blob, 1 GiB a project | tasks 21, 22 |
+| contract §7.7 | `POST …/design-approvals` writes approval, design link and snapshot in one call; the approver is the principal; immutable, no revocation; one approval per design key (`design_already_approved`) | task 21 |
+| contract §7.8 | `POST …/session-links` for *Start a Develop session from this design* | task 22 |
+| contract §3.2 | canvas ids minted `cv-` + 16 hex so they stay unique when v2 moves canvases into the Hub | task 05 |
+| contract §4.3, §9.2 | `hubclient.Designs` and its fake; the relay rule (a Hub 4xx passes through; 5xx and transport are `503 upstream_unavailable`, `upstream: "hub"`) | tasks 21, 22 |
+| ADR Q1 | an approval needs a **complete** brief revision (`brief_incomplete`) | task 21 |
+| ADR Q3 | a designer may approve their own design in v1 | task 21 |
+| ADR Q7, §5.5 | the Hub holds no canvas document in v1; v2 hosts this Go package | seam S5-H.1 |
+| ADR §5.4 | nothing Hub-derived is persisted on the machine: approvals are held in memory by the control plane and never written to the canvas store | tasks 10, 21 |
+| ADR R5 | no MCP tool approves; the approve route is reachable only from our chrome | tasks 16, 21 |
+
+### The sibling plans, as built against
+
+| Id | From | What phase 5 does with it |
+|---|---|---|
+| **P4-A**, **S4-P5.2** | phase 4 plan `:169`, `:411` | a session started from an approved design inherits the branch's latest complete brief like any other; phase 5 does **not** send `contextRef`, and records `session → design:` through the Hub's session links (task 22) |
+| **S4-P5.1** | phase 4 plan `:410` | one key-source selector for the canvas's approved brief key (task 23) |
+| **S4-P5.3** | phase 4 plan `:412` | `get_brief` resolves through `discoverhub.Service.HeadRef`; nothing is copied into the canvas (task 15) |
+| **3-D6**, **S3-P5.1** | phase 3 plan `:134`, `:330` | the handoff bundle is never committed; it is excluded through the clone's `.git/info/exclude` (task 22) |
+
+### Decisions this plan makes itself — recorded so a reviewer can overturn them
+
+| Id | Decision | Reason | Cost if wrong |
+|---|---|---|---|
+| **P5-A** | **Our own MCP protocol layer**, no SDK: JSON-RPC 2.0 over Streamable HTTP `POST` with `application/json` responses; `initialize`, `notifications/initialized`, `ping`, `tools/list`, `tools/call`; stateless (no `Mcp-Session-Id`) | the server needs five methods and no server-to-client request; the repository pins Go 1.23 (`go.work:1`, `azure-pipelines.yml` `GoTool@0 1.23`) and the SDK's minimum Go version is **unverified**; zero dependencies in the authority; the SDK's compound licence (spec L4) never reaches the gate | `modelcontextprotocol/go-sdk` drops in behind the same `http.Handler` and the same tool table (task 14 keeps them separate for this) |
+| **P5-B** | The window stream is **SSE** over `fetch`, not a WebSocket | UI contract §10.5 asked for SSE; a `GET` needs no §10a.1 exception; `fetch` carries the local caller key, `EventSource` and a browser WebSocket cannot | a WebSocket later is one transport swap in `desktop/src/api/events.ts` and `internal/events` |
+| **P5-C** | The relay is a **byte tunnel with our own stream framing**, not an HTTP proxy and not `hashicorp/yamux` | `yamux` is MPL-2.0, outside `OD-11` rule 3; a tunnel keeps `sandboxd` payload-blind (spec §7.7) and carries Streamable HTTP, keep-alive and any later SSE unchanged | the framing is ~300 lines in each module, pinned by shared golden vectors |
+| **P5-D** | **Canvas tools are pre-allowed** for the agent: `--allowedTools mcp__panacea-canvas` beside `--mcp-config` | every canvas write is attributed, claimable and revertible by session, and touches no file; a permission prompt per `update_styles` makes the canvas unusable. **Open question OQ-P5-1** | one flag; a setting to turn it off |
+| **P5-E** | Text nodes are **plain text** in v1 (newlines allowed). Mixed inline content (`<p>a <b>b</b></p>`) is flattened, with a `flattened-inline` entry in the dropped report | rich-text runs complicate every serialiser and the in-place editor; the guide teaches separate text nodes in a wrapping flex row | v2 adds `runs` to the text node; nothing else in the model moves |
+| **P5-F** | An **SVG is one node** holding sanitised markup, not a subtree of layers | vector editing is v2 (spec §9.2); one node keeps the sanitiser, the digest and the editor simple | v2 decomposes it |
+| **P5-G** | The handoff bundle lands in **`<worktree>/.panacea/design/<canvasId>@<rev>/`**, never `design/` | a repository may own a `design/` directory; a dot-directory excluded through `.git/info/exclude` (3-D6) collides with nothing | a path constant |
+| **P5-H** | An approval covers **every artboard of the canvas at one revision** | the design key names a canvas revision, not a subset; subsets need a second key form | v2 adds artboard selection to the digest envelope |
+| **P5-I** | *Approve*'s Undo is a **5-second delayed commit in the desktop**; nothing reaches the Hub until it lapses | the Hub has no revocation (contract §7.7), and `DESIGN-SYSTEM.md` asks for optimistic mutation with Undo, not a confirm dialog | closing the window inside 5 s drops the approval — stated in the toast |
+| **P5-J** | **No handle, marquee, code-editor or sanitiser library** in the editor: own handles and marquee, a read-only code panel, and a renderer that builds DOM from the Go-generated allowlist | `moveable`/`selecto` were last pushed 2024-06 (spec L7, L8); a read-only panel needs no editor; DOMPurify purifies HTML strings, and the renderer never has one | the spec's recommended libraries remain allowed and gated |
+| **P5-K** | **One revision per accepted batch**; a node's `revision` is the last revision that changed its own fields; `ifRevision` checks every node a batch modifies or deletes | a 30-node `write_html` is one step of undo and one entry in the feed; two agents on two artboards never conflict | — |
+| **P5-L** | **One canvas per branch**, created by the lens's *Create canvas* or by the first MCP write; a read on a branch with no canvas answers `not-found` with the sentence that says how to create one | spec §7.3; the prototype's state 1 | per-project canvases later are a binding change |
+| **P5-M** | The canvas has **no bound-brief field**. Its brief is its branch's, resolved at call time; an approval records the key it was reviewed against | a stored binding is a second copy of phase 4's inheritance rule | — |
+| **P5-N** | *Start a Develop session from this design* is **three desktop calls**: materialise the bundle, create the session through the existing route, then link it | the control plane never calls its own session handler (no import cycle, no second create path); phase 4's P4-A ignores a caller's `contextRef` anyway | a crash between the second and third call leaves an unlinked session, which the lens shows with a *Link* action |
+| **P5-O** | The canvas Go module is a **separate module in `go.work`**, required by the control plane through a `replace` | `OD-11` rule 4: ship and test alone. ADR-H1 §4.1 kept the Hub inside the control-plane module because it needs `httpx` and `ids`; the canvas needs neither | moving it into the control-plane module is a mechanical import rewrite |
+| **P5-P** | The **licence gate** allows `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `0BSD`, `ISC`; evaluates SPDX `AND`/`OR`; denies `tldraw` and `@tldraw/*` by name whatever they declare; **enforces** every Go module linked into a binary and every npm production dependency; **reports** npm dev dependencies. **Open question OQ-P5-2** | `OD-11` rule 3 names four families; build tools never ship, and several ship data under CC licences (unverified which) | enforcing dev dependencies is one flag in the gate |
+| **P5-Q** | The **hidden renderer** (spec OQ-7) is an off-screen renderer the desktop mounts for every canvas whose branch has a running Claude Code session, plus the one open in the lens | layout tools work while the lens is closed; `renderer-unavailable` means the desktop is not running | the registration rule is one selector |
+| **P5-R** | **No shared claim vocabulary with phase 3** (spec OQ-6) | phase 3's claims are *observed* from git (phase 3 task 07), not leases; there is no second lease to share a shape with | revisit when phase 3 adds a lease |
+| **P5-S** | `request_review` creates a **review request on the canvas**, shown in the Design lens and as a toast | the cockpit's ranked queue (`AGENTIC-UX.md` §4 rule 4) does not exist yet; seam S5-Q.1 | — |
+| **P5-T** | `get_font_info` is answered by the renderer from `document.fonts` and a manifest of the app's bundled families; no `fontkit` | availability is a renderer fact; axis introspection is v2 | — |
+| **P5-U** | The review digest uses **the canvas module's own canonical JSON** (struct fields in lexicographic tag order, `SetEscapeHTML(false)`), pinned by golden vectors | the canvas module cannot import `hubapi.Canonical` (control-plane `internal`), and the Hub never recomputes `reviewDigest` (contract §7.7, "What the Hub does not check") | — |
