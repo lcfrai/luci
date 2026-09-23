@@ -149,3 +149,124 @@ Entra's error codes — it says so.
   4. Tell the orchestrator that every sibling's API tests need the same one-line change when 37
      merges.
   5. Add `TestTheProcessRefusesToStartWithoutAKey` to `cmd/api/main_test.go`.
+
+### Important
+
+#### I1. Refresh-token rotation is not crash-safe: the chunks are overwritten in place
+
+- **Where:** task-28.md:100-104 (`PutChunked` writes `prefix+"0"`, `prefix+"1"`, … in place);
+  task-31.md:39-42 (*"If that write fails, Token returns the error and the old refresh token stays
+  in the store"*); task-30.md:110; task-31.md:107 (`TestAFailedRotationWriteKeepsTheOldToken`).
+- **What is wrong:** the account record (*"written last, so it marks a complete write"*) protects
+  only the **first** sign-in. On rotation the record already exists. Chunk 0 is overwritten with
+  the new token, and if chunk 1's `Put` then fails, or the process dies, the store holds new chunk 0
+  followed by old chunk 1 behind a valid record. That is neither token. The test passes only if
+  the fault is injected on the **first** `Put`, and a KPMG-sized token is three chunks (R1).
+- **Why it matters:** the contract's promise, *"a crash in between leaves the old one"* (§6.2 as
+  quoted), is broken exactly where it matters: large enterprise tokens. The user is signed out with
+  `reauth_required` and no cause anyone can find.
+- **How to fix:** give each write its own generation. Chunks go to `…/refresh/<gen>/<i>`; the
+  account record carries `refreshGen` and `refreshChunks` and is written last, pointing at the new
+  generation. Only then are the old generation's chunks deleted. Start-up deletes any generation
+  the record does not name. Change the test to fail the **second** chunk's `Put` of a 6,000-byte
+  token, and assert that the old token reads back whole.
+
+#### I2. A consent or conditional-access refusal on a **secondary** resource signs the user out of everything
+
+- **Where:** task-31.md:43-45 (*"invalid_grant or interaction_required → both entries deleted,
+  every cached token dropped, Status {signed_out, reauth_required}"*); task-43.md:63 (R-8).
+- **What is wrong:** one refresh token serves the Hub, phase 8's broker and, if Q5 is yes, Azure
+  DevOps. A refusal for **one resource** is not a dead refresh token. As I understand Entra's
+  behaviour (not observed here), an unconsented resource answers `invalid_grant` with
+  `suberror: consent_required` (AADSTS65001), and a conditional-access policy scoped to one
+  resource answers `interaction_required` (AADSTS50076/50079) for that resource only. Under
+  task 31's rule, either refusal deletes the refresh token that still works for the Hub.
+- **Why it matters:** enterprises often put a conditional-access policy on Azure DevOps. With
+  Q5 = yes, the first push would sign the user out of the Hub. Signing back in asks only for
+  `Hub.Access`, so the next push signs them out again: a loop. The same happens to the broker
+  scope whenever it is not consented.
+- **How to fix:** only a refusal while redeeming for `HubScope` means *reauth required*. For any
+  other scope, return a scope-specific error (`ErrScopeNeedsConsent` or
+  `ErrScopeNeedsInteraction`), keep the refresh token, and let the caller surface it. `DevOps`
+  maps these to a stopping error, not `ErrNoCredential`, per phase 3's `Chain` rule. Optionally
+  add the broker and ADO scopes to the authorize request so consent is asked once (the token
+  endpoint still answers for the first resource; `devissuer` rule 5 already allows several API
+  scopes, task-12.md:44). Add `TestASecondaryScopeRefusalKeepsTheSession`.
+
+#### I3. The attach WebSocket stays exempt from the key, and it is the one route that types into a terminal
+
+- **Where:** task-37.md:53-58 (`Exempt`), :119 (*"The attach WebSocket carrying the key … later
+  work"*); task-38.md:8-9. Session ids are 32 bits (`control-plane/internal/ids/ids.go:17-26`).
+- **What is wrong:** task 37 exists because *"a sandboxed agent that can reach the host's
+  loopback"* must not drive the control plane (task-37.md:5-10). The defences kept on attach —
+  loopback bind, the Host guard, the Origin allowlist — stop browsers. A non-browser process sets
+  `Host` and `Origin` to whatever it likes. So the exempt route lets such a process open another
+  session's PTY and type into it, once it has a session id. The only barrier is guessing 32 bits.
+  The "cannot carry a header" premise is also wrong: a browser WebSocket can carry a secret in its
+  subprotocol list (`new WebSocket(url, [...])` sets `Sec-WebSocket-Protocol`), which the part
+  itself names as the later fix.
+- **Why it matters:** the key protects every route **except** the most powerful one, against the
+  exact threat it names.
+- **How to fix:** do it now — about an hour on each side. The desktop opens
+  `new WebSocket(url, ["panacea.v1", "panacea.key." + key])`. The control plane checks the second
+  entry with `subtle.ConstantTimeCompare` and echoes only `panacea.v1`. `Exempt` shrinks to the
+  two health routes. `TestAttachIsExempt` becomes `TestAttachNeedsTheKeyInItsSubprotocol`.
+  Phase 2's `openAttach` gains the key source. If deferred, record it in the plan's unverified
+  list as an accepted risk.
+
+#### I4. `devissuer`'s page forbids the redirect it exists to perform
+
+- **Where:** task-12.md:49-52 — the page's CSP is `form-action 'self'`, each user button POSTs to
+  the same path, and the POST answers `302` to `http://127.0.0.1:<listener port>/?code=…`.
+- **What is wrong:** the listener's origin (a different port) is not `'self'`. As I understand it,
+  Chromium — and so Edge, the corporate system browser — applies `form-action` to redirects that
+  follow a form submission (not observed here). The click would be refused with a console error,
+  and the tab would not reach the listener.
+- **Why it matters:** every automated test uses a scripted non-browser client (task-30.md:116-119),
+  so all of them pass. The first real click — task 12 step 4, then tasks 41, 42 and 43 — fails.
+  That is the whole local-first sign-in.
+- **How to fix:** drop `form-action`, or allow `form-action 'self' http://127.0.0.1:* http://localhost:*`.
+  Or make each user a plain link: a `GET` with a one-time, page-scoped nonce. Add a check in step 4:
+  *"in Edge, clicking Grace lands on the listener URL"*.
+
+#### I5. Cross-org references are enforced by Go alone; the single-column foreign keys let an org-A row point at an org-B parent
+
+- **Where:** task-07.md:95-96 (`team_members.team_id`, `user_id`), :108 (`team_invites.team_id`),
+  :127 (`projects.team_id`), :148 (`briefs.project_id`), :171-173 (`brief_revisions.brief_id`,
+  `project_id`), :233-234 (the approval→revision FK), :259-260, :274, :302-304, :326, :337;
+  task-16.md:128 (`TestTheXColumnHoldsWithoutGoChecks`), :135-136 (`disableGoAuthz`).
+- **What is wrong:** row-level security checks only the row's **own** `org_id`
+  (task-07.md:498-500). Postgres checks foreign keys without row-level security. So a `hub_app`
+  insert whose `org_id` is the caller's org, but whose `team_id`, `brief_id` or `pin_brief_id`
+  belongs to another org, succeeds. Task 16's X-column test runs with the Go checks switched off.
+  What `TeamRole` answers in that mode is not specified. If it answers "allowed", then
+  `POST /v1/projects {teamId: <org 1's team>}` from Xavier inserts a project in org 2 pointing at
+  org 1's team, and the test gets 201, not 404. Either the test goes red and exposes the hole, or
+  the switch is defined so it hides it.
+- **Why it matters:** the plan's claim for the database layer — *"one org never sees another's
+  rows"* — holds for reads but not for links. Tenancy is the one line the plan says holds even
+  with every Go check off (§5.3, G4).
+- **How to fix:** add `UNIQUE (org_id, id)` to each parent table. Make every foreign key composite
+  and org-carrying:
+  - `FOREIGN KEY (org_id, team_id) REFERENCES teams (org_id, id)`, and the same for users,
+    projects and briefs.
+  - Add `org_id` to the `brief_revisions (brief_id, revision, digest)` target.
+
+  Define `disableGoAuthz` as "authorisation predicates answer allowed; lookups still run under
+  RLS". Add a DB test that inserts one cross-org reference per foreign key and expects `23503`.
+
+#### I6. Erasure leaves the brief's text in `idempotency_keys.response` for up to 24 hours
+
+- **Where:** task-07.md:539-554 (`erase_brief` touches only `brief_revisions` and `briefs`);
+  task-14.md:100 (the 2xx body is stored); task-03.md:187 and :301-302 (`WriteRevisionsResponse`
+  carries every revision's `Content`); task-24.md:53 and :73 (idempotency keys kept 24 h).
+- **What is wrong:** each `POST …/brief-revisions` response is stored whole, content included, and
+  `erase_brief` never touches that table.
+- **Why it matters:** G6's promise — erased means no text, for the case where a client's matter
+  number must go — fails for a day, and a backup taken that day keeps the text for the backup's
+  whole life.
+- **How to fix:** `erase_brief` also runs
+  `DELETE FROM idempotency_keys WHERE org_id = v_org AND path = '/v1/projects/' || <project> || '/brief-revisions'`,
+  or revision-write responses are stored without `content` and rebuilt on replay. Extend
+  `TestErasureKeepsKeyAndDigest` (task 27): after erasure, no `text` or `bytea` column of any
+  table holds a marker string from the erased content.
