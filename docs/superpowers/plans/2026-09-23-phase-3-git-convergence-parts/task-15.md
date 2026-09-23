@@ -107,7 +107,8 @@ type Evaluator struct {
 //                  the repository does not have — a teammate's unfetched commit — is not reachable)
 //   per digest: keep reachable records not a proper ancestor of another reachable record's commit;
 //   none → open; one verdict → that verdict; both verdicts → contested.
-// It never takes a branch id (contract §2.3).
+// It never takes a branch id (contract §2.3). merge-base runs in the project with Scope Project
+// (task-02 §HGH).
 func (e *Evaluator) States(ctx context.Context, repo, projectPath, subject string, criteria []briefref.Criterion) ([]State, error)
 
 // Settles returns the ids of criteria whose state is not settled at before and is settled at

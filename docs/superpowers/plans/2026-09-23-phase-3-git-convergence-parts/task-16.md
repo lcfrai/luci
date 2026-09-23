@@ -61,7 +61,8 @@ type Changes struct {
 // Read builds Changes from task 07's observations (read by the handler exactly as task 08's
 // GET reads them). For every pair of worktrees whose committed paths overlap it runs
 //   merge-tree --write-tree --name-only <laneA> <laneB>      (gitx.Local, OKExit 1)
-// and marks the overlapping paths merge-tree lists. Cached by the pair's tips.
+// and marks the overlapping paths merge-tree lists. Cached by the pair's tips. It runs in the
+// project with Scope Project (task-02 §HGH).
 func Read(ctx context.Context, m gitx.Machine, projectPath string, obs []converge.LaneObservation) (Changes, error)
 ```
 
@@ -124,7 +125,8 @@ type PathDiff struct {
 
 const MaxDiffLines = 2000
 
-// Diff reads one path for each worktree that touches it. All gitx.Read:
+// Diff reads one path for each worktree that touches it. All gitx.Read, with Scope Project in
+// the project and Scope Clone in the clone (task-02 §HGH; blame and log run in the project):
 //   diff --no-color --no-ext-diff -U3 <base> <laneTip> -- <path>                  (project)
 //   diff --no-color --no-ext-diff -U3 HEAD -- <path>                              (the clone)
 // An untracked file is read from disk as one all-added hunk (NUL byte in the first 8 KiB → Binary).
