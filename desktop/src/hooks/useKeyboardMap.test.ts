@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useKeyboardMap } from "./useKeyboardMap";
@@ -12,12 +13,19 @@ import { aBranch, aProject, aSession, aWorktree } from "../test/fixtures";
 // The fake returns task 22's SHAPE — a MenuItem[] with one `kill` entry — rather than a bare
 // function, because the shape is the seam: the hook finds the item by id and calls `run`, and
 // a fake that skipped the list would let a hook that called something else pass.
-const { killMock, createSessionMock } = vi.hoisted(() => ({
+//
+// `shape.retryRow` reproduces the one way task 22's real list changes shape under a session:
+// sessionVerbs.ts puts "retry-attach" ahead of the tail verbs while an attach has failed, so
+// Kill's POSITION moves by one. Any fixed index fails one of the two shapes; the id does not.
+const { killMock, retryMock, createSessionMock, shape } = vi.hoisted(() => ({
   killMock: vi.fn(),
+  retryMock: vi.fn(),
   createSessionMock: vi.fn(),
+  shape: { retryRow: false },
 }));
 vi.mock("../components/develop/sessionVerbs", () => ({
   sessionVerbs: (sessionId: string) => [
+    ...(shape.retryRow ? [{ id: "retry-attach", label: "Retry attach", run: () => retryMock(sessionId) }] : []),
     { id: "resume", label: "Resume", run: undefined },
     { id: "kill", label: "Kill", run: () => killMock(sessionId) },
   ],
@@ -32,10 +40,14 @@ function press(key: string, init: KeyboardEventInit = {}): KeyboardEvent {
   return event;
 }
 
+let mounted: { unmount: () => void };
+
 beforeEach(() => {
   resetCockpit();
   __resetOverlays();
+  shape.retryRow = false;
   killMock.mockReset().mockResolvedValue(undefined);
+  retryMock.mockReset();
   createSessionMock.mockReset().mockResolvedValue(undefined);
   useCockpit.setState({
     projects: [aProject({ id: "p-1", name: "engagement-portal", path: "C:\\work\\engagement-portal" })],
@@ -50,7 +62,7 @@ beforeEach(() => {
     sessionIdsByWorktree: { "w-1": ["s-1", "s-2", "s-3"] },
     selection: { projectId: "p-1", branchId: "b-1", worktreeId: null, sessionId: null },
   });
-  renderHook(() => useKeyboardMap());
+  mounted = renderHook(() => useKeyboardMap());
 });
 
 afterEach(() => {
@@ -78,6 +90,28 @@ describe("useKeyboardMap — the deliberate non-interceptions", () => {
   it("/ is not intercepted, because slash commands belong to the agent CLI", () => {
     expect(press("/").defaultPrevented).toBe(false);
   });
+
+  it("a bare letter, digit or Enter typed into the agent is never a chord", () => {
+    // Every key in the table, unmodified. With a session focused, a map that answered any of
+    // these would kill, refocus or create while the user is typing a prompt.
+    useCockpit.getState().focusSession("s-2");
+    for (const key of ["w", "k", "b", "M", "1", "\\", "Enter"]) {
+      expect(press(key).defaultPrevented).toBe(false);
+    }
+    expect(killMock).not.toHaveBeenCalled();
+    expect(createSessionMock).not.toHaveBeenCalled();
+    expect(useCockpit.getState().selection.sessionId).toBe("s-2");
+    expect(useCockpit.getState().paletteOpen).toBe(false);
+    expect(useCockpit.getState().railCollapsed).toBe(false);
+    expect(useCockpit.getState().machinesOpen).toBe(false);
+  });
+
+  it("AltGr composing a backslash is typing, not ⌘\\", () => {
+    // German and Swiss layouts compose "\" with AltGr, which Windows reports as Ctrl+Alt.
+    useCockpit.getState().focusSession("s-1");
+    expect(press("\\", { ctrlKey: true, altKey: true }).defaultPrevented).toBe(false);
+    expect(useCockpit.getState().selection.sessionId).toBe("s-1");
+  });
 });
 
 describe("useKeyboardMap — the chord table", () => {
@@ -92,11 +126,49 @@ describe("useKeyboardMap — the chord table", () => {
     expect(killMock).toHaveBeenCalledWith("s-2");
   });
 
+  it("⌘W still kills, and retries nothing, when a retry-attach row moves Kill down the list", () => {
+    shape.retryRow = true;
+    useCockpit.getState().focusSession("s-2");
+    press("w", { ctrlKey: true });
+    expect(killMock).toHaveBeenCalledWith("s-2");
+    expect(retryMock).not.toHaveBeenCalled();
+  });
+
+  it("⌘W swallows the key and kills nothing while an overlay is open", () => {
+    useCockpit.getState().focusSession("s-2");
+    renderHook(() => useDismissable<HTMLDivElement>(true, vi.fn()));
+    expect(hasOpenOverlay()).toBe(true);
+    expect(press("w", { ctrlKey: true }).defaultPrevented).toBe(true);
+    expect(killMock).not.toHaveBeenCalled();
+  });
+
+  it("mounted under StrictMode, one ⌘W is one kill", () => {
+    // The effect mounts, unmounts and mounts again under StrictMode, which main.tsx uses. A
+    // cleanup that did not remove the listener would leave two, and the kill would run twice
+    // with the same id: the call count is the only thing that differs.
+    mounted.unmount();
+    renderHook(() => useKeyboardMap(), { wrapper: StrictMode });
+    useCockpit.getState().focusSession("s-2");
+    press("w", { ctrlKey: true });
+    expect(killMock).toHaveBeenCalledTimes(1);
+  });
+
   it("⌘K toggles the palette, including while a terminal has focus", () => {
     expect(press("k", { ctrlKey: true }).defaultPrevented).toBe(true);
     expect(useCockpit.getState().paletteOpen).toBe(true);
     press("k", { ctrlKey: true });
     expect(useCockpit.getState().paletteOpen).toBe(false);
+  });
+
+  it("⌘K over an open overlay closes that overlay once and opens the palette", () => {
+    // Once, not "until the stack is empty": closeTopOverlay() does not pop the stack — the
+    // overlay's unmount does, after this handler returns — so a draining loop would call the
+    // same overlay's close() again and again. This stub never unmounts, so a loop shows here.
+    const close = vi.fn();
+    renderHook(() => useDismissable<HTMLDivElement>(true, close));
+    press("k", { ctrlKey: true });
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(useCockpit.getState().paletteOpen).toBe(true);
   });
 
   it("⌘1 focuses the first pane session and ⌘9 past the end is a no-op", () => {
@@ -138,5 +210,16 @@ describe("useKeyboardMap — the chord table", () => {
   it("⌘⏎ creates a session on the selected branch's first worktree", () => {
     press("Enter", { ctrlKey: true });
     expect(createSessionMock).toHaveBeenCalledWith("w-1");
+  });
+
+  it("⌘⏎ creates nothing when no branch is selected", () => {
+    useCockpit.setState({ selection: { projectId: null, branchId: null, worktreeId: null, sessionId: null } });
+    press("Enter", { ctrlKey: true });
+    expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("⌘⇧⏎ is not in the table, so it creates nothing and reaches the terminal", () => {
+    expect(press("Enter", { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(false);
+    expect(createSessionMock).not.toHaveBeenCalled();
   });
 });

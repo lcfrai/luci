@@ -11,6 +11,7 @@ import {
   selectSelectedBranch,
   selectSession,
   selectSessionIdsForWorktree,
+  selectTargetWorktreeId,
   selectWorktrees,
 } from "./selectors";
 import { resetCockpit, useCockpit } from "./store";
@@ -278,6 +279,28 @@ describe("selectors", () => {
         selection: { projectId: "p-1", branchId: "b-gone", worktreeId: null, sessionId: null },
       });
       expect(selectSelectedBranch(useCockpit.getState())).toBeUndefined();
+    });
+  });
+
+  // Task 23's addition to §3.7: ⌘⏎ and the palette's "New session…" row share this read.
+  describe("selectTargetWorktreeId", () => {
+    it("prefers the explicitly selected worktree over the branch's first", () => {
+      seed();
+      useCockpit.getState().selectWorktree("w-2");
+      expect(selectTargetWorktreeId(useCockpit.getState())).toBe("w-2");
+    });
+
+    it("falls back to the branch's first worktree, in server order", () => {
+      seed();
+      expect(selectTargetWorktreeId(useCockpit.getState())).toBe("w-1");
+    });
+
+    it("is null for a selected branch that has no worktrees, and with no branch at all", () => {
+      seed();
+      useCockpit.getState().setWorktrees("b-1", []);
+      expect(selectTargetWorktreeId(useCockpit.getState())).toBeNull();
+      resetCockpit();
+      expect(selectTargetWorktreeId(useCockpit.getState())).toBeNull();
     });
   });
 });

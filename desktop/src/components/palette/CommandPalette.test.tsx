@@ -103,6 +103,21 @@ describe("CommandPalette", () => {
     expect(selectedRowName()).toContain("orbit-one");
   });
 
+  it("a cursor that wrapped to the top holds its row when the query is cleared", async () => {
+    // Wrapping must land on the first row's ID. Landing on "no selection" looks identical while
+    // the query stands, because the fallback shows the first row anyway — but clearing the
+    // query puts the verbs back above it, and a null cursor would jump to "Switch to Canvas".
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    open();
+    await user.type(screen.getByRole("combobox"), "orbit");
+    await user.keyboard("{ArrowUp}{ArrowDown}");
+    expect(selectedRowName()).toContain("orbit-one");
+    await user.clear(screen.getByRole("combobox"));
+    expect(screen.getAllByRole("option").length).toBeGreaterThan(3);
+    expect(selectedRowName()).toContain("orbit-one");
+  });
+
   it("runs the row a click lands on", async () => {
     const user = userEvent.setup();
     render(<CommandPalette />);
@@ -110,6 +125,23 @@ describe("CommandPalette", () => {
     await user.type(screen.getByRole("combobox"), "orbit-three");
     await user.click(screen.getByRole("option", { name: /orbit-three/ }));
     expect(useCockpit.getState().selection.sessionId).toBe("s-3");
+  });
+
+  it("keeps the order it opened with when a poll reorders sessions mid-query", async () => {
+    // The list is built once, at open. A poll that lands while the user is typing must not
+    // re-rank the rows under the cursor on the next keystroke (§6.7, stable ranking).
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    open();
+    act(() => {
+      useCockpit.setState({ sessionIdsByWorktree: { "w-1": ["s-3", "s-1", "s-2"] } });
+    });
+    await user.type(screen.getByRole("combobox"), "orbit");
+    expect(screen.getAllByRole("option").map((row) => row.textContent)).toEqual([
+      expect.stringContaining("orbit-one"),
+      expect.stringContaining("orbit-two"),
+      expect.stringContaining("orbit-three"),
+    ]);
   });
 
   it("names the query instead of rendering an empty box", async () => {

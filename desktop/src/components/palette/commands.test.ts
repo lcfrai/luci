@@ -92,6 +92,47 @@ describe("buildCommands", () => {
     expect(ids).not.toContain("verb:new-session");
     expect(ids).toContain("verb:machines");
   });
+
+  it("offers no layout verb outside the Develop lens", () => {
+    // Columns and Canvas are Develop's layouts; from Merge the verb would change nothing on screen.
+    useCockpit.setState({ lens: "merge" });
+    const ids = buildCommands(useCockpit.getState()).map((c) => c.id);
+    expect(ids).not.toContain("verb:layout");
+    expect(ids).toContain("verb:new-session");
+  });
+
+  it("orders every block by id, not by the order the poller happened to insert keys", () => {
+    // Object.keys is insertion order, and a poll that replaces an entry moves its key to the
+    // end. Each Record below is written in REVERSE id order to stand in for that.
+    const P2 = aProject({ id: "p-2", name: "records-api", path: "C:\\work\\records-api" });
+    useCockpit.setState({
+      projects: [PROJECT, P2],
+      branchesByProject: {
+        "p-2": [aBranch({ id: "b-9", projectId: "p-2", name: "ingest" })],
+        "p-1": [BRANCH, aBranch({ id: "b-2", projectId: "p-1", name: "audit-trail" })],
+      },
+      worktreesByBranch: {
+        "b-2": [
+          aWorktree({ id: "w-3", projectId: "p-1", branchId: "b-2", name: "wt-three" }),
+          aWorktree({ id: "w-2", projectId: "p-1", branchId: "b-2", name: "wt-two" }),
+        ],
+        "b-1": [aWorktree({ id: "w-1", projectId: "p-1", branchId: "b-1", name: "wt-evidence" })],
+      },
+      sessions: {
+        ...useCockpit.getState().sessions,
+        "s-8": aSession({ id: "s-8", projectId: "p-1", branchId: "b-2", worktreeId: "w-2" }),
+        "s-9": aSession({ id: "s-9", projectId: "p-1", branchId: "b-2", worktreeId: "w-3" }),
+      },
+      sessionIdsByWorktree: { "w-3": ["s-9"], "w-2": ["s-8"], "w-1": ["s-1", "s-2", "s-3"] },
+    });
+    const ids = buildCommands(useCockpit.getState()).map((c) => c.id);
+    const of = (kind: string): string[] => ids.filter((id) => id.startsWith(`${kind}:`));
+    // The selected branch's panes first (selectPaneSessionIds), then the rest by worktree id.
+    expect(of("session")).toEqual(["session:s-1", "session:s-2", "session:s-3", "session:s-8", "session:s-9"]);
+    // Within a branch the server's order stands (w-3 before w-2); across branches, branch id.
+    expect(of("worktree")).toEqual(["worktree:w-1", "worktree:w-3", "worktree:w-2"]);
+    expect(of("branch")).toEqual(["branch:b-1", "branch:b-2", "branch:b-9"]);
+  });
 });
 
 describe("filterCommands", () => {
