@@ -9,7 +9,10 @@
 before code). 23 tasks, each specified in its part file. Inputs: the owner's decisions OD-1–OD-13,
 `scope-and-risk-phase-3-git-convergence.md`, `survey-phase-3-git-convergence.md`,
 `prototype/phase-3-convergence.html`, the tree at `3303fd6`, and `fix/sandbox-git-ca` at `2d6d95b`
-plus its uncommitted `LinkedWorktreeNote`.
+plus its then-uncommitted `LinkedWorktreeNote`. **Re-baselined 2026-09-24 (review I12):** the fix
+branch is at `4f6d698`, merged into `feat/phase-2-cockpit` at `f898f5e`, which is the commit
+`feat/phase-3-git` forks from; phase 2's later sandbox-git rounds run to `10fa5fd` ("How this plan
+supersedes the sandbox git fix" below).
 
 ## Goal
 
@@ -202,23 +205,44 @@ Each is small, stated so a reviewer can overturn it, and none changes what the o
 
 ## How this plan supersedes the sandbox git fix (`fix/sandbox-git-ca`)
 
-The fix (`2d6d95b` on `fix/sandbox-git-ca`, based on `69bbc02`, plus the uncommitted
-`LinkedWorktreeNote` in its worktree) is **the base this plan builds on**. Read on 2026-09-23 with
-`git log 3303fd6..fix/sandbox-git-ca` and `git show fix/sandbox-git-ca:<path>`.
+The fix is **the base this plan builds on**. Re-read on 2026-09-24 (review I12) with
+`git log 3303fd6..fix/sandbox-git-ca`, `git log f898f5e..feat/phase-2-cockpit` and
+`git show <ref>:<path>`:
+
+- `fix/sandbox-git-ca` is at `4f6d698`, five commits past `3303fd6`: `2d6d95b` (the fix, based on
+  `69bbc02`), `58d607f` (`LinkedWorktreeNote`, now committed), `5e32000` (the contracts swept;
+  `git diff --stat 3303fd6...fix/sandbox-git-ca` shows 55 lines in the Go contract, in §2.2,
+  §2.6, §4 and §5.1, and 7 in the UI contract, in §6.5 and §7.7), `73dd041` (`run()` in the
+  identity test made hermetic) and `4f6d698` (gofmt).
+- `feat/phase-2-cockpit` merged it at `f898f5e`, and `feat/phase-3-git` forks from `f898f5e`, so
+  those five are in phase 3's base.
+- Phase 2's later sandbox-git rounds are on `feat/phase-2-cockpit` only (head `10fa5fd`):
+  `5a4d0d8` (line endings from the host; a primary's linked-worktree metadata mounted read-only),
+  `d3a2824` (UI §6.5's `LinkedWorktreeNote` row), `57c3bf5` (`gc.auto=0`), and `d7e2dea` with
+  `10fa5fd` (the host's global excludes and attributes files, mounted read-only).
+- At `10fa5fd` the shapes are `sessionMounts(worktreePath, worktreeAdmin, conversationStore,
+  caBundle string, git sessionGitFiles)` and `sessionEnv(id GitIdentity, eol GitLineEndings, git
+  sessionGitFiles, caBundle string)` with eight `GIT_CONFIG_*` pairs. `Deps.GitIdentity` and
+  `LinkedWorktreeNote`'s condition (`worktree.isPrimary`) and sentence are unchanged.
 
 | The fix does | Phase 3 does | Kept, changed or superseded |
 |---|---|---|
-| Mounts the worktree at `/home/dev/work`, the conversation store, and the CA bundle read-only (`sessionMounts(worktreePath, conversationStore, caBundle)`) | Leaves all three mounts as they are, and adds one: when the worktree's `.git` is a directory (every clone, and a primary worktree), `<path>/.git/config` is bound read-only on top (task 05; task-02 §HGH H5; review C1). For a cockpit worktree the worktree mount's host path is the clone, whose `.git` is a directory, so no `.git` common-dir mount is ever added (brief 3-D1 option a is rejected) | **Kept, plus one read-only file.** The mount model the brief calls "linked-worktree mounts" is replaced by clones, not by more directory mounts |
-| `sessionEnv(id, eol, caBundle)` (as of `5a4d0d8` on `feat/phase-2-cockpit`, re-read 2026-09-24): a `pairs` slice numbered into `GIT_CONFIG_KEY_n`/`VALUE_n` (`safe.directory=/home/dev/work`, `user.useConfigOnly=true`, `gc.worktreePruneExpire=never`, `gc.auto=0`, `core.autocrlf` and `core.eol` from `Deps.GitLineEndings` asked in the session's worktree path), `GIT_CONFIG_COUNT` their number (six at the time of writing); `GIT_AUTHOR_*`/`GIT_COMMITTER_*` from the identity; `NODE_EXTRA_CA_CERTS` | Appends one pair, `core.hooksPath=/opt/panacea/githooks`, after the fix's own, which it never renumbers. Relies on the resolver being asked in the clone for a lane session, and pins it (task 05; plan re-review b02 I-1; "A clone shares no file" above). Adds `PANACEA_APP_SESSION_ID`, a reserved variable `EnvEntries` writes from `Spec.SessionID` (task 05) | **Extended.** `safe.directory` is still needed: a clone's bind mount has the same foreign owner |
+| Mounts the worktree at `/home/dev/work`, the conversation store, and the CA bundle read-only; since phase 2's later rounds also a primary's linked-worktree metadata and the host's global excludes and attributes files, each read-only (`sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle string, git sessionGitFiles)` at `10fa5fd`) | Leaves all of those mounts as they are, and adds one: when the worktree's `.git` is a directory (every clone, and a primary worktree), `<path>/.git/config` is bound read-only on top (task 05; task-02 §HGH H5; review C1). For a cockpit worktree the worktree mount's host path is the clone, whose `.git` is a directory, so no `.git` common-dir mount is ever added (brief 3-D1 option a is rejected) | **Kept, plus one read-only file.** The mount model the brief calls "linked-worktree mounts" is replaced by clones, not by more directory mounts |
+| `sessionEnv(id, eol, git, caBundle)` (as of `10fa5fd` on `feat/phase-2-cockpit`, re-read 2026-09-24, review I12): a `pairs` slice numbered into `GIT_CONFIG_KEY_n`/`VALUE_n` (`safe.directory=/home/dev/work`, `user.useConfigOnly=true`, `gc.worktreePruneExpire=never`, `gc.auto=0`, `core.autocrlf` and `core.eol` from `Deps.GitLineEndings` asked in the session's worktree path, `core.excludesFile` and `core.attributesFile`), `GIT_CONFIG_COUNT` their number (eight at `10fa5fd`; six at `57c3bf5`); `GIT_AUTHOR_*`/`GIT_COMMITTER_*` from the identity; `NODE_EXTRA_CA_CERTS` | Appends one pair, `core.hooksPath=/opt/panacea/githooks`, after the fix's own, which it never renumbers. Relies on the resolver being asked in the clone for a lane session, and pins it (task 05; plan re-review b02 I-1; "A clone shares no file" above). Adds `PANACEA_APP_SESSION_ID`, a reserved variable `EnvEntries` writes from `Spec.SessionID` (task 05) | **Extended.** `safe.directory` is still needed: a clone's bind mount has the same foreign owner |
 | `gitIdentityResolver` asks `git var GIT_AUTHOR_IDENT` in the worktree's host path | A clone does not inherit its source's `.git/config`, nor an `includeIf gitdir:` that matched the project's path. So clone creation asks `git var` **in the project repository** and writes the answer into the clone's local `user.name`/`user.email` (task 03). The fix's per-worktree resolution then gives the same answer in the clone that it gives in the project | **Kept, with one addition at clone time** |
 | `LinkedWorktreeNote` renders for every worktree with `isPrimary: false`, saying git "arrives in Phase 3" | The condition narrows to `kind === "linked"`: a worktree made with `git worktree add` outside the cockpit, where git is still unavailable. A clone is `kind: "clone"`, `isPrimary: false`, and renders no notice. The sentence is rewritten to name the fix the user can take, and stops promising a phase (task 06) | **Superseded** for clones; **kept and reworded** for linked worktrees |
 | Git over HTTPS "is phase 3's" (the fix's commit message) | Push and fetch run on the host, never in the sandbox; the sandbox holds no credential (A4). `NODE_EXTRA_CA_CERTS` does not affect git on the host, which uses whatever trust the host's git is already configured with (its `http.sslBackend` — not read for this plan) | **Answered**: nothing git-over-HTTPS happens in a sandbox |
 
-**Gate G1.** Task 04 and every later task assume the fix is merged into the branch phase 3 builds
-on. If the fix is still unmerged when task 04 starts, the implementer stops and reports; phase 3
-does not re-implement it. "The fix" includes its line-ending round, `5a4d0d8`, which landed on
-`feat/phase-2-cockpit` after that branch merged `fix/sandbox-git-ca` (`f898f5e`) and is not on
-`fix/sandbox-git-ca` itself: task 05's preflight greps for it. If the fix merges with a different
+**Gate G1.** Task 04 and every later task assume the fix is in the branch phase 3 builds on.
+Baseline (review I12): `fix/sandbox-git-ca` at `4f6d698`, which phase 3's base already holds
+(`git merge-base --is-ancestor 4f6d698 HEAD` exits 0, since `feat/phase-3-git` forks from
+`f898f5e`). "The fix" also includes phase 2's later sandbox-git rounds, `5a4d0d8` to `10fa5fd`
+on `feat/phase-2-cockpit`, which phase 3's base does **not** hold yet: task 05's preflight greps
+for the line-ending round. If they are not in phase 3's branch when task 04 starts, the
+implementer stops and reports; phase 3 does not re-implement them. Before tasks 04–06 append to a
+contract section, each preflight runs `git diff 3303fd6 HEAD -- docs/superpowers/contracts/` and
+reads every hunk in the sections it amends (Go §2, §3.1, §3.2, §5.1; UI §2, §6.5, §7.7), because
+the fix already edited §2.2, §5.1, §6.5 and §7.7. If the fix merges with a different
 shape from the one quoted above (`sessionEnv`'s pairs, `GitIdentity`'s signature,
 `LinkedWorktreeNote`'s condition), tasks 04–06
 re-read it and adjust their preflight greps, and the change is reported in the task's commit.
@@ -314,7 +338,7 @@ part file; task 18 restates them as TypeScript.
 
 | Gate | What | Blocks | If it has not landed |
 |---|---|---|---|
-| **G1** | `fix/sandbox-git-ca` merged into phase 3's base, with its line-ending round `5a4d0d8` (on `feat/phase-2-cockpit`) | tasks 04–06, and everything that starts a session | stop and report (above) |
+| **G1** | `fix/sandbox-git-ca` at `4f6d698` in phase 3's base (it is, through `f898f5e`), with phase 2's later sandbox-git rounds `5a4d0d8` to `10fa5fd` (on `feat/phase-2-cockpit`, not yet in phase 3's base) | tasks 04–06, and everything that starts a session | stop and report (above) |
 | **G2** | Phase 2 task 26 lands: `components/lens/FilesLens.tsx` and `MergeLens.tsx` exist and `AppShell.tsx` is closed (seam SX.1). **Verified absent on 2026-09-23**: `desktop/src/components/lens/` holds only `LensPlaceholder.tsx`, and `AppShell.tsx:44-58` still routes `files` and `merge` to `LensPlaceholder phase={3}` | tasks 19–21 | the desktop half waits. It never edits `AppShell.tsx`: that reopens the four-way collision `dependency-graph-and-order.md` §2.2 counts |
 | G3 (soft) | Phase 4's `provenance` slice zero: a `briefref.Resolver` implementation and `DefinitionOfDone` | the brief key on a land, evidence recording, the DoD above the queue | lands record no brief (`none`); evidence recording answers `brief_unresolvable`; the Merge lens renders the DoD slot's honest empty state |
 | G4 (soft) | The Hub's credential store (`credstore.Store`) | push and PR with a stored token | push uses the machine's git credential helper; PR creation uses the git-helper fallback (task 13) or says there is no credential |
@@ -494,7 +518,9 @@ made structural). `routes_audit_test.go` gets one line per GET, appended.
 ## What this plan does not claim
 
 - **Nothing here has been run.** The plan was written from reading the tree at `3303fd6`, the fix
-  branch at `2d6d95b` and its uncommitted notice, and one read-only look at a transcript file.
+  branch at `2d6d95b` and its then-uncommitted notice, and one read-only look at a transcript
+  file. The fix's citations were re-read on 2026-09-24 at `4f6d698` and `10fa5fd` (review I12);
+  `feat/phase-2-cockpit` is still moving, so G1's preflight re-reads them again.
 - **Verified while writing**: the transcript line shape on the host's Claude Code **2.1.267**
   (`version`, `timestamp`, `uuid`; `tool_use` with `input.file_path`, `old_string`, `new_string`
   or `content`; the result line's `toolUseResult.structuredPatch` with `oldStart`, `newStart`,
