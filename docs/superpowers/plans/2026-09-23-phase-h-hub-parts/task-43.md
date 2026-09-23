@@ -1,0 +1,99 @@
+### Task 43: the end-to-end proof — two teammates through `devissuer`; the real-tenant checklist; the results record
+
+**`feat/hub`, after every other task. Depends on: 01–42. About 3 hours. Contract tasks H1 (its manual step), all.**
+
+Every task so far proved its piece. This one proves **the thread**: two teammates, each with their
+own control plane and their own credential store, sign in through the real PKCE code, share one
+repository's project, and see each other's brief revision, design approval, release pin and
+evidence — through every layer that will run on the owner's laptop, with nothing mocked but the
+browser's click. Then it writes down, as a checklist for the owner's batched session (`OD-12`),
+what only a **real KPMG tenant** can prove, and records honestly what was and was not observed.
+
+**Files:**
+- `control-plane/internal/hub/e2e_integration_test.go` (new)
+- `docs/verification/2026-09-23-phase-h-results.md` — the record, named for the day it is run (new)
+
+#### The end-to-end test — `e2e_integration_test.go` (`//go:build integration`)
+
+One test, `TestTwoTeammatesShareTheThread`, in steps, each a `t.Run` so a failure names its step.
+The world: `hubtest.Migrated`; `devissuer` in-process with `Auto` and `AccessTTL` 90 s; the Hub's
+real handler (`server.New` + `entra.New`, `AllowInsecureAuthority`) on an `httptest.Server`; **two**
+control planes (`api.New`), one per teammate, each with its own `credstore.Memory()`, its own
+`entraauth.Authenticator`, `hubclient.Client`, `hublink.Resolver`, `hubfeed.Poller` (interval 1 s)
+and local key; a temporary git repository whose `origin` is `https://github.com/lcfrai/panaceaapp.git`
+as each control plane's only project.
+
+| Step | Does, through the control plane's HTTP surface where one exists | Asserts |
+|---|---|---|
+| 1 `grace_signs_in` | `POST /v1/auth/sign-in` → the scripted browser (`&login_hint=grace@example.test`) → poll `GET /v1/auth/status` | `signed_in` as Grace; her store holds the account record and chunks; every request carried her local key |
+| 2 `grace_shares` | `POST /v1/projects/{p}/hub-link` with a new team | `linked`; the Hub project's remote is `github.com/lcfrai/panaceaapp` |
+| 3 `grace_invites_vera` | `POST /v1/hub/teams/{tm}/invites` | 201 |
+| 4 `vera_signs_in_and_is_linked` | Vera's control plane signs in (her own store), then `GET /v1/projects/{p}/hub-link` | the **same** Hub project, found by the repository, not by any id — H-3 in practice |
+| 5 `the_brief_thread` | as Grace, through `hubclient.Briefs` (phase 4's calls): create a branch brief, write revision 1 `complete`; as Vera, `Resolve` its key | Vera resolves it `resolved` with the same digest; her feed subscriber received `brief.revised` **within 3 s** of the write (1 s poll ×2 + slack; ADR-H1 §5.5) |
+| 6 `the_design_thread` | as Grace (phase 5's calls): upload a manifest and a file, approve `design:cv-…@1` against revision 1 | Vera resolves the design key with the approval; `approvedBy` is Grace |
+| 7 `the_release_thread` | as Vera (phase 7's calls): reserve a run on the branch, confirm, join `d-e2e1` | the pin is revision 1 `ship_head`; Grace's `Releases(deploymentId: d-e2e1)` finds it; `reservedBy` is Vera |
+| 8 `the_evidence_thread` | as Grace (phase 3's call): record evidence against revision 1 on the repo | Vera's `EvidenceByDigest` returns it; `recordedBy` formats as `Grace Example <grace@example.test>` |
+| 9 `tokens_refresh_unseen` | advance past the access token's life (90 s), make a Hub call | it succeeds; `devissuer` saw one refresh grant; the store's refresh token rotated |
+| 10 `revocation_signs_out` | `devissuer.RevokeRefreshTokens(vera)`; expire her token; a Hub call | 401 `signed_out` from her control plane; `GET /v1/auth/status` → `reauth_required`; her store is empty |
+| 11 `the_local_key_holds` | a request to Grace's control plane without the key; one with Vera's key | both 401 `local_key_required` |
+| 12 `the_chain_verifies` | `hub verify` against the database | exit 0, `ok revisions`, `ok audit` |
+
+`hubclient/conformance`'s `TestAllGroupsAreDetected` and `TestTheRealHubConforms` (task 34) must
+also pass in this run, with **all eight groups**.
+
+#### The real-tenant checklist — written into the results record, run in the owner's batched session
+
+Nothing below can be run until KPMG IT has created the registrations of ADR-H1 §9 (items 1–6).
+Each item gets **expected**, **observed** and **verdict** columns in the record, left empty until
+the session. The configuration for it: the control plane with `PANACEA_APP_ENTRA_AUTHORITY=https://login.microsoftonline.com/<KPMG tenant>`,
+the desktop client id and the Hub scope; the Hub run **on the host** (so it uses the Windows
+certificate store, and the corporate proxy's CA, for `login.microsoftonline.com`) with
+`PANACEA_APP_HUB_ENV=local`, `PANACEA_APP_HUB_DEV_ISSUER=false`, the real tenant, audience and
+allowed client.
+
+| # | Check | Expected | Risk it retires |
+|---|---|---|---|
+| R-1 | The two registrations and the enterprise app match contract §6.5 row by row | every row | a misconfigured registration mistaken for a code bug |
+| R-2 | *Sign in* opens the default browser on Microsoft's page; after sign-in the tab says *"You're signed in to PanaceaApp"* | as described | ADR-H1 R2: conditional access blocking a public client with a loopback redirect |
+| R-3 | The loopback redirect is accepted on a random port with `127.0.0.1`; if not, with `PANACEA_APP_ENTRA_REDIRECT_HOST=localhost` | one of the two works; record which | contract §6.5's unverified redirect matching |
+| R-4 | A real Hub access token's **claim names** (never values beyond `ver`, `scp`) against task 11's table: `ver 2.0`, `aud` a GUID, `azp`, `scp` containing `Hub.Access`, `tid`, `oid`, `name`, `preferred_username`, `email` | all present | ADR-H1 R9: `devissuer` diverging from Entra |
+| R-5 | The refresh token's size in bytes, and so the chunk count | recorded | ADR-H1 R1 |
+| R-6 | `cmdkey /list` shows the `PanaceaApp/entra/…` entries, persisted on this machine | present | `OD-6`'s store actually used |
+| R-7 | After the access token expires (60–90 min), a Hub call still succeeds without a prompt | no prompt | refresh and rotation against Entra |
+| R-8 | `Token(Sandboxes.Access)` succeeds from the same sign-in; and Azure DevOps' scope if IT granted it (Q5) | success, or "not consented" recorded | one refresh token for three resources (ADR-H1 §11) |
+| R-9 | The owner's token carries `roles: ["Hub.OrgAdmin"]`; `GET /v1/audit` answers 200 for them | as stated | the app-role assignment |
+| R-10 | A colleague outside *PanaceaApp Users* cannot obtain a Hub token | Entra refuses | "assignment required" (ADR-H1 §9 item 4) |
+
+#### The results record
+
+`docs/verification/2026-09-23-phase-h-results.md` holds, in this order: the commit it was run at;
+every acceptance command of tasks 01–42 **as run**, with its output's last line; the end-to-end
+test's output; what the implementer observed in `npm run tauri dev` in tasks 38, 41 and 42 —
+labelled **the implementer's observation**; the real-tenant checklist with its three empty
+columns; and a closing list, **Unverified**, that names at least: the owner's visual acceptance of
+tasks 41 and 42 (`OD-12`), every R-item, Azure Postgres (only `postgres:16-alpine` was used), the
+workload-identity database login, and phase 8's deployed chart.
+
+#### Steps
+
+- [ ] **Step 1:** Merge state: every lane merged into `feat/hub`; `go test ./sandboxd/... ./control-plane/... -race -count=1` and `cd desktop && npm test` green.
+- [ ] **Step 2:** `devstack.sh up`; write and run the end-to-end test until every step passes.
+- [ ] **Step 3:** Run every task's acceptance block; write the record as above.
+- [ ] **Step 4:** Commit by pathspec, the test and the record.
+
+#### Acceptance
+
+```bash
+go test -tags integration ./control-plane/internal/hub/ -run TestTwoTeammatesShareTheThread -race -count=1 -v 2>&1 | grep -c "^    --- PASS"   # 12
+go test -tags integration ./control-plane/internal/hub/... ./control-plane/cmd/hub/ -race -count=1                                                 # ok
+grep -c "^| R-" docs/verification/2026-09-23-phase-h-results.md                                                                                   # 10
+grep -n "Unverified" docs/verification/2026-09-23-phase-h-results.md                                                                              # present
+```
+
+#### What this task does not claim
+
+- **Anything the R-list covers**: until the owner's session, every R-item is unverified, and the
+  record says so.
+- That the owner has seen the UI: the implementer's observation is not acceptance (`CLAUDE.md`,
+  working agreements).
+- That phase 8's environment runs this: the chart is phase 8's, never applied (`OD-5`).
