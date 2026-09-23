@@ -312,11 +312,13 @@ memory; the desktop slice is not persisted (provenance contract A5, widened by A
 only thing phase 7 writes to disk is the ambiguous-binding choice (7P-6), which is configuration,
 not Hub or Panacea data. **No persist version is claimed** (ruling R3).
 
-**7P-14 — SSE is relayed for one thing at a time.** The pipeline-log stream
-(`routes.go:2283`) and the readiness stream (`:2286`) are relayed by the control plane only for the
-one run or environment the user has drilled into, and the desktop reads them with `fetch` and a
-stream reader, because `EventSource` cannot send the Hub's local caller key header (Hub contract
-§9.4).
+**7P-14 — SSE is relayed for one thing at a time, in our own frames.** The pipeline-log stream
+(`routes.go:2283`) and the readiness stream (`:2286`) are opened by the control plane only for the
+one run or environment the user has drilled into; a second replaces the first. The connector parses
+Panacea's `data: <json>` frames into `deploy.StreamEvent`, and the control plane re-emits them as
+`event: log | readiness | problem | end` frames of its own, so the desktop never learns Panacea's
+stream shape and the lift does not touch it. The desktop reads them with `fetch` and a stream reader,
+because `EventSource` cannot send the Hub's local caller key header (Hub contract §9.4).
 
 **7P-15 — Undo is "not sent yet".** Panacea cannot un-start a pipeline or un-flip a Service, so
 the only honest undo for Ship, rollback, rebuild and access writes is to hold the request in the
@@ -344,7 +346,7 @@ connector decodes each exactly: `bare` = the object itself; `list` = `models.Lis
 | 7 | `GET P/pipelines/{run}` | 1290 | member | data `PipelineRunStatus` (`projects.go:3576-3612`) | 03, 07 |
 | 8 | `GET P/security-status?deployId=` | 1043 | member | data `SecurityStatus` (`models/security.go:205`; `handlers/security_status.go:204-254`); `deployId` is a PipelineRun name (`:211-214`) | 03, 12 |
 | 9 | `GET P/environments/{env}/pods` · `/events` · `/diagnose` | 1148, 1150, 1151 | member | passed through, shape not interpreted | 12 |
-| 10 | `GET P/pipelines/{run}/logs/stream` · `P/environments/{env}/readiness/stream` | 2283, 2286 | member | SSE, relayed byte for byte | 12 |
+| 10 | `GET P/pipelines/{run}/logs/stream` · `P/environments/{env}/readiness/stream` | 2283, 2286 | member | SSE, `data: <json>` frames (`handlers/readiness_stream.go:195`, `handlers/logs_stream.go:118-141`), parsed by the connector and re-emitted as **our** frames (task 12) | 12 |
 | 11 | `POST P/deploy` | 1286 | developer + `RequireSectionWritable("service")` | `202` data `{project,status,pipelineRun}` (`projects.go:2997-3005`) | 04, 09 |
 | 12 | `POST P/pipelines/{run}/cancel` | 1291 | developer | `200` data `{status: "cancelled" \| "already_completed", message}` (`projects.go:3668-3687`) | 04, 10 |
 | 13 | `POST P/deployments/{id}/rollback` | 1026 | developer | `200` data `Deployment` with `rollbackWarmth`, `coldStartSeconds`; `404`, `400` (no image), `409` (image pruned) (`projects.go:1547-1640`) | 04, 10 |
