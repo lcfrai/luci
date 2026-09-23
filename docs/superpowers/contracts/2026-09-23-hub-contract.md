@@ -710,8 +710,9 @@ given remote, so `repo=` returns zero or one item.
 → `201 Project`. `name` 1–120 characters, unique per team. `remotes` may be empty. A `repoKey`
 already linked anywhere in the org is 409 `repo_already_linked`. `repoKey` must match
 `^github\.com/[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$` for `github`, or
-`^[a-z0-9-]{1,50}\.visualstudio\.com/[^/\s]{1,64}/[^/\s]{1,64}$` for `azure-devops` — phase 3's two
-forms (`2026-09-23-phase-3-git-convergence.md:299`), lowercased by phase 3 before sending. Event
+`^[a-z0-9-]{1,50}\.visualstudio\.com/[^/]{1,64}/[^/]{1,64}$` for `azure-devops` (Azure DevOps
+project names may contain spaces) — phase 3's two forms (`2026-09-23-phase-3-git-convergence.md:299`),
+canonicalised by phase 3's `githost` before sending; the Hub compares them byte for byte. Event
 `project.created`.
 
 **`GET /v1/projects/{projectId}`** → `200 Project`.
@@ -726,3 +727,107 @@ under that repo stays (§7.10). Event `project.remote_removed`.
 
 There is **no project deletion** in v1 (provenance contract P13: a release outlives its branch, and
 its project).
+
+### 7.5 Briefs, revisions, and the resolver — phase 4
+
+**The division of labour.** Phase 4's domain logic — the questions, `discover.Resolve`'s
+inheritance, what makes a brief complete — stays in the control plane. The Hub stores heads and
+immutable revisions, numbers them, digests them, and resolves keys. It reads exactly one field of a
+revision's content: `status`.
+
+**`content`** is the object phase 4 writes: in v1, `discover.Brief`'s `questions`, `answers` and
+`status` fields as its plan defines them (`2026-09-18-phase-4-discover.md:969-980`), and nothing that
+the envelope already holds (`briefId`, `revision`, `projectId`, `scope`, `branchRef`). The Hub
+requires: a JSON object; `status` one of `open`, `complete`, `skipped`; integers only (§3.4); depth
+at most 16; canonical envelope at most **64 KiB**. Anything else inside is phase 4's to define and
+may grow additively. Phase 4 **should** write every time inside `content` in §1's format, because the
+Hub does not normalise inside `content` and the digest covers the bytes.
+
+**`POST /v1/projects/{projectId}/briefs`**
+```json
+{ "scope": "branch", "branchRef": "refs/heads/evidence-upload" }
+```
+→ `201 BriefHead` with `headRevision: 0`. `scope: "project"` requires `branchRef` absent or `""`.
+One live project brief per project, and one live branch brief per `(project, branchRef)`: a second
+is 409 `brief_exists` with the existing `briefId`. Event `brief.created`.
+
+**`GET /v1/projects/{projectId}/briefs?scope=&branchRef=&includeArchived=false`** →
+`200 {"items":[BriefHead],"next":…}`, oldest first.
+
+**`GET /v1/projects/{projectId}/briefs/for-branch?branchRef=refs/heads/…`** — the head reading
+(provenance contract §3.1's branch endpoint). **Never 404 for an absent brief**; 404 only for the
+project.
+```jsonc
+// 200
+{ "branchBrief":  { "head": BriefHead, "revision": BriefRevision | null } | null,
+  "projectBrief": { "head": BriefHead, "revision": BriefRevision | null } | null }
+```
+`revision` is the head revision (null while `headRevision` is 0). `branchBrief` is the live branch
+brief for that ref; `projectBrief` is the project's live project brief — both, because phase 4's
+`API.resolve` builds a branch's document from the pair (`:4250-4261`).
+
+**`GET /v1/briefs/{briefId}`** → `200 {"head": BriefHead, "revision": BriefRevision | null}`.
+
+**`PATCH /v1/briefs/{briefId}`** `{"branchRef":"refs/heads/new-name"}` → `200 BriefHead` — after a
+branch rename. Branch briefs only (a project brief is 400 `bad_request`); another live brief on the
+new ref is 409 `brief_exists`. Writes no revision; the next revision's envelope carries the new ref.
+Event `brief.rebound`.
+
+**`POST /v1/briefs/{briefId}/archive`** `{}` → `200 BriefHead` with `archivedAt` set. For branch
+deletion (provenance contract P13): **no revision is touched**, every key still resolves, and the
+ref is free for a new brief. Writing to an archived brief is 409 `brief_archived`. There is no
+un-archive in v1. Event `brief.archived`.
+
+**`GET /v1/briefs/{briefId}/revisions?after=&limit=`** → history, oldest first, **without content**:
+```jsonc
+{ "items": [ { "key": "brief:bf-…@1", "revision": 1, "digest": "sha256:…", "status": "open",
+               "savedAt": "…", "savedBy": User, "erasedAt": null } ], "next": "…" | null }
+```
+Discover's past-revision view (provenance contract §4.1's one click) fetches a revision's text through
+`/v1/refs`.
+
+**`POST /v1/projects/{projectId}/brief-revisions`** — **the only write of brief text**.
+```json
+{ "revisions": [
+    { "briefId": "bf-3f2a91c07b1e4d2a", "baseRevision": 5,
+      "content": { "status": "complete", "questions": [], "answers": [] } }
+] }
+```
+- 1–16 items, distinct `briefId`s, each a live brief of this project. The batch is **one
+  transaction, all or nothing**: a project-brief edit that re-revisions every inheriting branch brief
+  (critique-2 §7.1 #3, accepted under `OD-1`) is one call.
+- Heads are locked in `briefId` order. For each item, `baseRevision` must equal the head's
+  `headRevision`, else the whole batch is 409 `revision_conflict` naming the first brief that
+  failed and its `headRevision`. The caller re-reads and retries; the Hub never merges.
+- Each new revision is `baseRevision + 1`. Its envelope (§3.4) is built and stored; its digest is
+  computed; the head moves.
+- `201 {"revisions":[BriefRevision]}`, in request order. One `brief.revised` event per revision.
+- The control plane sends an `Idempotency-Key` (§1), so a retry after a lost response replays the
+  201 rather than tripping its own `revision_conflict`.
+
+**`GET /v1/refs?key=<k1>&key=<k2>…`** — the batch resolver (provenance contract §3.1's by-key
+endpoint, and ruling R6's one loader). 1–100 `key` parameters, `brief:` and `design:` mixed; a
+repeated key is answered in each slot.
+```jsonc
+// 200 — one result per key, in request order
+{ "results": [
+    { "key": "brief:bf-…@5",  "kind": "brief",  "resolution": "resolved", "revision": BriefRevision, "approval": null },
+    { "key": "brief:bf-…@9",  "kind": "brief",  "resolution": "missing",  "revision": null, "approval": null },
+    { "key": "brief:bf-…@2",  "kind": "brief",  "resolution": "erased",   "revision": BriefRevision /* content null */, "approval": null },
+    { "key": "design:cv-…@11","kind": "design", "resolution": "resolved", "revision": null, "approval": DesignApproval },
+    { "key": "b-42",          "kind": null,     "resolution": "invalid",  "revision": null, "approval": null }
+  ],
+  "heads": { "bf-…": { "headRevision": 6, "latestCompleteRevision": 6, "archived": false } } }
+```
+| `resolution` | When |
+|---|---|
+| `resolved` | the record exists, is readable by the caller, and (brief) its stored bytes still hash to its digest |
+| `missing` | no such record, **or one the caller cannot read** — indistinguishable on purpose (§4.2). Also a brief revision whose bytes no longer match its digest: that is data loss and is logged as an `internal` error |
+| `erased` | an org admin erased it (§7.12). Key, digest, `savedAt` and `savedBy` remain |
+| `invalid` | not a key in §3.2's grammar |
+
+`heads` has one entry for every brief named by a `resolved` or `erased` brief key, and for the brief
+of every resolved design approval's `briefKey`. It is the only time-varying part of the response:
+the `provenanceSlice` caches results forever and `heads` per brief (provenance contract §6.4).
+**`erased` is a new provenance state** (ADR §5.6), an amendment phase 4 makes to `Ref.resolution`
+and to the six-state table in provenance contract §4.1.
