@@ -74,22 +74,33 @@ Machines, projects, branches, worktrees, **many sessions per worktree**, the rai
 
 This is the prototype made real. Largest phase; split into its own sub-plans when written.
 
-### Phase 3 — Capacity
-Credential vault, per-user subscription registration, quota tracking from `anthropic-ratelimit-unified-*` headers, rotation on exhaustion, metered API/Bedrock backstop, per-session attribution and spend. Never pooled across users.
+> **Renumbered 2026-09-23 to match the revised table above, which it had drifted out of.** The table
+> was revised and this section was not, so the two disagreed on every phase from 3 onward and on the
+> total (nine against eight — the table splits Kata out as its own phase and this section had no
+> block for it). The table wins: it is the one marked *revised*, it carries the
+> needs-Azure column the reordering was built around, and `plans/2026-09-18-phase-4-discover.md`
+> already follows it. **The order is provisional** — the phases 4, 5 and 7 planning pass may surface
+> dependencies that change it, and if it does, both the table and this section move together.
 
-### Phase 4 — Git, coordination and convergence
+### Phase 3 — Git, worktrees, coordination and convergence
 Worktree lifecycle against real git, file-claim coordination between concurrent agents, diff review with transcript back-links, merge ordering, conflict resolution, landed history with undo, PR creation.
 
-### Phase 5 — Deploy connector
-Go client for `panacea-api`. Branch environments with arbitrary names, access control through EntraID groups, versions, rollback, auto-deploy, build and scan visibility.
-
-### Phase 6 — Discover
+### Phase 4 — Discover
 The question flow, generation of per-branch `CLAUDE.md`, inheritance project → branch → session, the provenance thread surfacing in Develop, Merge and Deploy.
 
-### Phase 7 — Design
+### Phase 5 — Design canvas
 Adapt `Paperdesign` (the doop fork — real-HTML frames, MCP agent editing, multiplayer, already Tauri-shelled). Handoff bundle: tokens, component tree, screens. **AGPL-3.0 must be cleared before any external distribution.**
 
-### Phase 8 — Enterprise hardening and distribution
+### Phase 6 — Capacity and credential rotation
+Credential vault, per-user subscription registration, quota tracking from `anthropic-ratelimit-unified-*` headers, rotation on exhaustion, metered API/Bedrock backstop, per-session attribution and spend. Never pooled across users.
+
+### Phase 7 — Deploy connector
+Go client for `panacea-api`. Branch environments with arbitrary names, access control through EntraID groups, versions, rollback, auto-deploy, build and scan visibility.
+
+### Phase 8 — Kata backend, Terraform and warm pools
+The first real spend. Turns on the Kata work already written and unit-tested in Phase 1 — Terraform, the pod manager, the read-only-root volume fix — which sits dormant behind the backend interface until this phase flips it.
+
+### Phase 9 — Enterprise hardening and distribution
 Audit trail, admin controls over permitted harnesses and models, signed MSI and update channel for the KPMG fleet, ISM evidence, optional customer-hosted tier.
 
 ## Cross-cutting constraints
