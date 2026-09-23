@@ -818,3 +818,64 @@ row too.
 **Still unverified:** no Go was run, because this round changes plan documents only. Where the
 re-locate lands in the restart body relative to the argv and `sessionEnv` rebuilds was not read. The
 plan requires only that it comes before `Materialise`, and so before the destroy.
+
+## Fix batch b03 (2026-09-24): I3, I7
+
+Commit `0b7a436` on `feat/phase-4-discover` (tasks 09, 14, 15, 19 and the plan). Line numbers are
+as of `0b7a436`; the commit that adds this section touches only this file. The review's cited lines
+had moved before this batch: I3's `task-09.md:61-70` was `:62-88` and I7's `task-09.md:87-96` was
+`:104-113`. The source citation was checked in this worktree: `ExecRunner.Run` is
+`control-plane/internal/project/gitrunner.go:46-78`, and its failure return is
+`fmt.Errorf("git %s in %s: %v: %s", …)` at `:74-75`. Phase 2's real-git helpers are
+`requireGit` and `makeGitRepo` at `gitrunner_test.go:16-53`.
+
+**I3: a tracked file is never stripped.** Fixed as the review said.
+
+| How to fix | Where it changed |
+|---|---|
+| 1. Strip only candidates `Git.Tracked` reports untracked | `task-09.md:34-39` (the commit rule: a tracked file is never opened for writing, not even to strip); `:61-70` (step 2 asks `Tracked` of both candidates once and keeps the answers as the *strippable* set; any other `Git` error is a 500, never a guess at "untracked"); `:71-78` (step 3, `WithoutBrief`, strips only strippable candidates); `:99-106` (step 5, both branches) |
+| 2. New `Inspect` state `committed` | `task-09.md:156` (`StateCommitted`); `:171-181` (`Inspect` doc: a tracked candidate holding a block, or a broken marker of one, gives `committed` with `Path` the tracked file; it wins over the target's own state); `task-15.md:75-77` (the desktop union gains `"committed"`) |
+| 3. Shown in task 19 | `task-19.md:55-59` (`Materialisations` doc); `:80` (the state row: the path in mono, *Remove it in a commit*, no action control); `:102` `committed block names the tracked file and offers nothing` |
+| 4. Materialise leaves it alone and still writes the untracked target | `task-09.md:99-106` (step 5: the target is written and the key returned; the tracked file is not opened) |
+| 5. `TestNeverStripsATrackedFile` | `task-09.md:197` (four rows: inherit, nothing to inherit, `WithoutBrief`, and a tracked file whose markers are broken; each checks the tracked file is byte-identical and that `Inspect` says `committed`) |
+| Restatements | `task-09.md:184-185` (the fake `Git` answers per path); `:196` `TestWithoutBriefStripsAndDeclines` (both candidates now stated untracked); `:208` `TestInspectStates` (eight states, and `committed` wins over `current`); `2026-09-23-phase-4-discover.md:172` (P4-D) |
+
+Two choices the review did not spell out:
+- **A committed block does not refuse a start.** Under `WithoutBrief`, and with something to
+  inherit, the start goes ahead and the tracked file is left as it is (`task-09.md:71-78`,
+  `:99-106`). The block is repository text that no Panacea write may remove (3-D6). Refusing
+  would block every start in that repository, with or without the brief, until someone commits a
+  removal. The cost is that the session reads both blocks. `committed` in task 19 says so. This is
+  recorded for the owner.
+- **A tracked file's broken markers are not `block_broken`.** The file is never opened, so only
+  `Inspect` reads its markers, and it reports them as `committed` with `MarkerKey: ""`. Row 4 of
+  `TestNeverStripsATrackedFile` pins this.
+
+**Left for review N1.** Step 2 still refuses `tracked_elsewhere` before step 3 runs
+(`task-09.md:61-70` says so). N1's first bullet, "under `WithoutBrief`, strip only untracked
+candidates", is now true. Its remaining bullets, on step order and the both-tracked case, stay with
+N1's own batch, because OQ-2 is open for the owner.
+
+**I7: tracked-ness is read from output, not from an exit code.** Fixed as the review said.
+
+| How to fix | Where it changed |
+|---|---|
+| 1. `git ls-files -- <rel>` without `--error-unmatch`: exit 0, empty output means untracked | `task-09.md:122-133` (the `Git` interface doc: no exit code is read, and why, citing `gitrunner.go:74`); `task-14.md:56-65` (`gitQuestions`: empty stdout is untracked, any output is tracked; any other error is returned) |
+| 2. The `rev-parse` "not a git repository" string match is the only one left, and the plan says so | `task-09.md:122-133`; `task-14.md:56-65`. Both commands can fail that way outside a repository, so the one string is matched on either |
+| 3. A real-git `ExecRunner` integration test in `t.TempDir()` | `task-14.md:84` `TestGitQuestionsOverARealRepository` (skipped without git, as `requireGit` is; config neutralised as `makeGitRepo` does; tracked, untracked, `.claude/CLAUDE.md`, `ExcludePath`, and a plain directory under `GIT_CEILING_DIRECTORIES` → `ErrNotARepo`) |
+| 4. Task 14's "exit status 1" wording and `TestGitQuestionsReadsUntrackedAsFalse` | `task-14.md:56-65` (the wording is gone); `:83` (empty output → `(false, nil)`, a path → `(true, nil)`, the exact args with no `--error-unmatch`, the not-a-repo error, and any other error returned rather than read as untracked) |
+| Guard | `task-14.md:114-115` (an acceptance `git grep` for `error-unmatch` and `ExitCode()` in non-test code under `cmd/api` and `contextwrite`) |
+| Restatement | `2026-09-23-phase-4-discover.md:172` (P4-D) |
+
+**Restatements checked.** A grep of the plan and its parts for "both candidate", "strip the
+other", "error-unmatch", "exit status 1", "exit 1", "at most one managed" and "tracked file" finds
+only the lines above. The last is OQ-2 (`2026-09-23-phase-4-discover.md:497`, "never edit a tracked
+file"), which now matches. `task-12.md:40,76` passes `contextwrite.Inspection` through unchanged,
+so it gains the state without an edit. `task-20.md:65` (`tracked_elsewhere`) is N1's.
+
+**Still unverified:**
+- No Go was run, because this batch changes plan documents only.
+- `git ls-files -- CLAUDE.md` on a case-insensitive checkout where the index holds `claude.md` was
+  not tried.
+- Whether Claude Code reads both a tracked `CLAUDE.md` and `.claude/CLAUDE.md` in one session is
+  OQ-2's canary (task 23). `committed`'s copy assumes that it does.
