@@ -456,3 +456,19 @@
   background: var(--hover-2);
   color: var(--ink);
 }
+
+/* ── The linked-worktree notice — the sandbox git fix ───────────────────────────────
+ * LinkedWorktreeNote.tsx. One sentence in two places: under a pane's terminal, where a
+ * session is read, and in the empty state, where one is started. Static: nothing about it
+ * changes while it is on screen, so it has no motion to explain. */
+.pane-gitnote {
+  margin: 0;
+  color: var(--ink-2);
+  font: 400 12px/1.5 var(--sans);
+}
+
+.pane > .pane-gitnote {
+  padding: 6px 10px;
+  background: var(--inset);
+  box-shadow: 0 -1px 0 0 var(--line-soft);
+}

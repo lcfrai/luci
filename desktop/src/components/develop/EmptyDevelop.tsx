@@ -7,6 +7,7 @@ import { toCreateRequest } from "../../store/defaults";
 import { selectResolvedDefaults, selectWorktrees } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
 import type { Branch, SessionDefaults, WorktreeId } from "../../store/types";
+import { LinkedWorktreeNote } from "./LinkedWorktreeNote";
 
 /** The create path for this surface's two named actions. It lived in `SessionPane.tsx` while
  *  that file's Restart was also a create; Restart is now `api.restartSession`, so these two
@@ -118,6 +119,8 @@ export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.El
   return (
     <div className="pane-empty">
       <p className="pane-empty-line">No sessions on {target.name}.</p>
+      {/* Before the buttons, so the user reads what a session here cannot do before starting one. */}
+      <LinkedWorktreeNote worktree={target} />
       <div className="pane-empty-actions">
         <button
           type="button"
