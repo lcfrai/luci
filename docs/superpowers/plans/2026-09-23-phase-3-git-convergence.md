@@ -88,12 +88,16 @@ syncer, on the control plane's own timer and never behind a GET, copies each clo
 `refs/heads/<branch>` into the project repository as `refs/panacea/lanes/<worktree-id>`. Every
 convergence fact (changed paths, `merge-tree` forecasts, lands, evidence ancestry) is computed in
 the project repository against those refs. Uncommitted paths are read from the clone with
-`git status` under `GIT_OPTIONAL_LOCKS=0`, which writes nothing.
+`git status` under `GIT_OPTIONAL_LOCKS=0`, which writes nothing. Only `refs/heads/<branch>`
+syncs, so a clone whose HEAD is on another branch or detached says so on its card
+(`headElsewhere`, task 07), and removing it archives that work first (task 11; review I6).
 
 **A land is plumbing with compare-and-swap (brief A5).** `merge-tree --write-tree`, then
 `commit-tree` with the merge link as trailers, then `update-ref <branch> <new> <old>`. No
 worktree and no index is touched, so the product branch must not be checked out anywhere, and a
-land refuses when it is.
+land refuses when it is. Every verb that moves a product branch or publishes one (land, undo,
+revert, the branch verbs, fetch, push) holds the project's one `gitx.Locks` lock, keyed by
+project ID (task 02, constructed once by task 04; review I7).
 
 **git is the truth for every git fact (brief A1).** Phase 3 persists no tip, dirty flag,
 ahead/behind or conflict. It persists four things git cannot hold: the lane index (which clone
@@ -109,13 +113,13 @@ stays exactly as it is (task 26 seam S3.1).
 
 | Package | Owns | Task |
 |---|---|---|
-| `internal/gitx` | the write-capable git runner, its timeout classes, `*gitx.Error` with git's own sentence, the `Machine` seam, trailer formatting | 02 |
+| `internal/gitx` | the write-capable git runner, its timeout classes, `*gitx.Error` with git's own sentence, the `Machine` seam, trailer formatting, `Locks` (the one per-project lock) | 02 |
 | `internal/lanes` | the lane index, clone create and remove, the composite catalog that lists clones beside `git worktree list` | 03, 04, 11 |
 | `internal/converge` | lane sync, observed claims, the chained forecast, land, history, undo, revert, branch create/rename/delete | 07–11 |
 | `internal/remote` | fetch (on demand and on a slow timer), ahead/behind, push | 12, 13 |
 | `internal/credstore` | the credential-store seam the Hub fills, plus a local fallback through the machine's git credential helper | 13 |
 | `internal/githost` | remote-URL recognition and the git auth header (13); one host interface with GitHub and Azure DevOps implementations (14) | 13, 14 |
-| `internal/briefref` | the two interfaces phase 3 needs from phase 4 and the Hub: resolve a brief key, archive a brief head. Phase 3 never parses a key (contract P5) | 09 |
+| `internal/briefref` | the two interfaces phase 3 needs from phase 4 and the Hub: resolve a brief key, archive a brief head. Phase 3 never parses a key (contract P5). Interfaces only; tasks 09, 11 and 15 import it (review I7) | 03 |
 | `internal/evidence` | evidence records, the store seam the Hub fills, the evaluator over git ancestry | 15 |
 | `internal/changes` | the Files read model: changed paths across lanes, per-path hunks, tier-1 back-links | 16 |
 | `internal/transcript/claudecode` | the OD-8 adapter: pinned, canary-tested, read-only, degrading to tier 1 | 17 |
@@ -365,9 +369,9 @@ phase 3 adapts in one file.
 
 | Ask | Detail |
 |---|---|
-| **P4-1** Satisfy `briefref.Resolver` (task 09) | `Resolve(ctx, key) (briefref.Revision, bool, error)` with the revision's digest and each criterion's id **and text digest** |
+| **P4-1** Satisfy `briefref.Resolver` (declared in task 03, called by task 09) | `Resolve(ctx, key) (briefref.Revision, bool, error)` with the revision's digest and each criterion's id **and text digest** |
 | **P4-2** Add `digest` to each criterion on `provenance.Ref` | the brief's §4.2 amendment and risk R14; phase 4 owns the `Ref` schema. Phase 3's desktop reads it and never computes it |
-| **P4-3** Satisfy `briefref.Archiver` (task 11) | `ArchiveHead(ctx, projectID, branchID) error`, called when a product branch is deleted (P13's "may archive"; revisions untouched) |
+| **P4-3** Satisfy `briefref.Archiver` (declared in task 03, called by task 11) | `ArchiveHead(ctx, projectID, branchID) error`, called when a product branch is deleted (P13's "may archive"; revisions untouched) |
 | **P4-4** Call `evidence.Evaluator` for a subject | the `Ref` served for `DefinitionOfDone` evaluates criterion states at the branch head through phase 3's evaluator (contract §2.3). Phase 4 returns `open` until it does |
 | **P4-5** An optional `onRecordEvidence?(criterionId)` prop on `DefinitionOfDone` | lets the Merge lens open its evidence dialog from the criterion row. Until it exists the dialog is reachable from the DoD slot's own control (task 20) |
 | **P4-6** Where the managed `CLAUDE.md` block goes in a clone | 3-D6 says never committed. Each clone has its own `.git/info/exclude`; phase 4's Materialiser writes the exclude line there on first materialise. A repository that already tracks `CLAUDE.md` still needs phase 4's other location |
@@ -414,6 +418,7 @@ control-plane/
   cmd/api/config.go                 (p2) three PANACEA_APP_* rows                          04 07 12
   cmd/api/main.go                   (p2) wire lanes, syncer, fetch timer, deps             04 07 12 13
   internal/gitx/                    runner.go error.go machine.go trailers.go harden.go (§HGH)
+                                    locks.go (the one per-project lock, review I7)
                                     gitxtest/repo.go  behaviour_test.go                     01 02
   internal/lanes/                   store.go clone.go catalog.go remove.go                  03 04 11
   internal/converge/                sync.go observe.go forecast.go land.go history.go
@@ -422,7 +427,7 @@ control-plane/
   internal/credstore/               credstore.go githelper.go chain.go                       13
   internal/githost/                 remote.go header.go                                      13
                                     githost.go github.go azuredevops.go                      14
-  internal/briefref/                briefref.go                                              09
+  internal/briefref/                briefref.go (interfaces only; used by 09, 11, 15)        03
   internal/evidence/                record.go store.go filestore.go evaluate.go              15
   internal/changes/                 changes.go diff.go blame.go                              16
   internal/transcript/claudecode/   adapter.go match.go testdata/                            17
@@ -487,14 +492,14 @@ is sized for one implementer in one to three hours.
 | # | Task | Depends on | Est. |
 |---|---|---|---|
 | 01 | Verify the git and sandbox behaviours the plan rests on; measure clones on this laptop (R12) | — | 2 h |
-| 02 | `gitx`: the write runner, timeout classes, `*gitx.Error`, the `Machine` seam, trailers, a real-git test helper | 01 | 2 h |
-| 03 | `lanes`: the lane index, clone create, identity copy, the composite catalog | 02 | 3 h |
+| 02 | `gitx`: the write runner, timeout classes, `*gitx.Error`, the `Machine` seam, trailers, `Locks`, a real-git test helper | 01 | 2 h |
+| 03 | `lanes`: the lane index, clone create, identity copy, the composite catalog; the `briefref` interfaces | 02 | 3 h |
 | 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1 | 2 h |
 | 05 | Git in the sandbox for clones: `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
 | 06 | The linked-worktree notice superseded: `kind` in `types.ts`, the notice narrowed, the shared-index note (3-D2) | 04, G1 | 2 h |
 | 07 | Lane sync and observed claims | 04 | 3 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 | 3 h |
-| 09 | Land, with the merge link, `briefref`, and the clones' origin refresh | 08 | 3 h |
+| 09 | Land, with the merge link and the clones' origin refresh | 08 | 3 h |
 | 10 | Landed history, exact undo, revert | 09 | 2 h |
 | 11 | Remove a worktree; create, rename and delete a branch | 07 | 3 h |
 | 12 | Fetch (on demand and on a slow timer) and push, with the machine's credential helper | 02, 04 | 2 h |
@@ -513,6 +518,10 @@ is sized for one implementer in one to three hours.
 **Order.** 01 → 02 → 03 → 04 → then three lanes that can run in parallel worktrees:
 **(a)** 05 → 06; **(b)** 07 → 08 → 09 → 10, then 15 and 16 → 17; **(c)** 11 (after 07), 12 → 13,
 then 14 once 10 has landed (its PR description lists the lands). The desktop track 18 → (19 → 20) ∥ 21 ∥ 22 starts once G2 holds. Task 23 is last.
+Lane (c) needs nothing from lane (b) before 14 (review I7): `briefref`, which task 11 imports,
+is task 03's; the one lock that tasks 09-12 all take is task 02's `gitx.Locks`, constructed once
+by task 04 in `GitDeps.Locks`. Each task tests its own side against that lock, so task 12 needs
+no `Lander` and no edge to task 09 exists or is needed.
 
 **Shared-file hazards inside phase 3.** Task 04 adds exactly two lines to `api/api.go`
 (`Deps.Git *GitDeps` and `a.registerGit(guarded)`); after that, phase 3's dependencies live in

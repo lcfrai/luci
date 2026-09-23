@@ -177,7 +177,7 @@ Writes nothing."*
 
 #### Steps
 
-- [ ] **Step 1: Preflight.** Tasks 07 and 09 merged (`briefref`, lane refs). R2's `statepath.WriteAtomic` exists.
+- [ ] **Step 1: Preflight.** Tasks 07 and 09 merged (lane refs, lands; `briefref` is task 03's since review I7). R2's `statepath.WriteAtomic` exists.
 - [ ] **Step 2:** tests; `record.go`, `store.go`, `evaluate.go`; the handlers; `Settles` in the
   convergence read.
 - [ ] **Step 3:** run; commit by pathspec.
