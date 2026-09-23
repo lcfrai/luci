@@ -61,7 +61,7 @@ function LensRouter(props: { lens: Lens }): JSX.Element {
       return (
         <LensPlaceholder
           lens="deploy"
-          phase={5}
+          phase={7}
           what="Ship the branch, with the spec attached to the release."
         />
       );
