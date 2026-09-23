@@ -65,6 +65,8 @@ var ErrNoRemote = errors.New("remote: the project has no origin")
 
 // Fetch runs `fetch --prune origin` (gitx.Remote) in the project. It records the failure's
 // sentence as the project's last error (ReadState's FetchError) and clears it on success.
+// Hardened per task-02 §HGH: Scope Project, and RemoteURL is `config --get remote.origin.url`,
+// read just before the call (H2).
 func (f *Fetcher) Fetch(ctx context.Context, projectPath string) (FetchResult, error)
 
 // LastError is the last failed fetch's sentence for a project, or "".
@@ -98,6 +100,9 @@ var ErrPushRejected = errors.New("remote: the remote has commits this branch doe
 // the second when the branch has no upstream, or its upstream's merge ref is not
 // refs/heads/<branch> (a branch the cockpit renamed; task 11's RemoteKeepsOldName). Nothing
 // else is ever passed. --porcelain's "!" line is ErrPushRejected; "=" is UpToDate.
+// Those are the Args Push gives Exec. Exec adds task-02 §HGH's prefix and --receive-pack itself.
+// The call uses Scope Project, and RemoteURL is `config --get remote.<remote>.url` (H2). No
+// hook runs, including the user's pre-push (H4).
 func Push(ctx context.Context, m gitx.Machine, projectPath, branch string, auth Auth) (PushResult, error)
 ```
 
@@ -143,6 +148,9 @@ Real git against a **bare repository on disk** as the remote, and, for the crede
 | `TestPushAfterARenameMovesTheUpstream` | upstream `refs/heads/old`, local name `new` → `--set-upstream` push of `new` | pushing a renamed branch over its old name |
 | `TestPushWithNoCredentialSaysSo` | remote is the 401 httptest URL, isolated config with no helper → `*gitx.Error` whose Sentence contains `terminal prompts disabled` (task 01 records the exact words); returns within `RemoteTimeout` | a push that hangs on a prompt |
 | `TestPushWithNoOrigin` | no remote → `ErrNoRemote` | a 500 for a local-only project |
+| `TestPushNeverRunsARepoCredentialHelper` | task-02 §HGH H1/H2 and review C3, red first: the project's config names `credential.helper=<script writing its stdin to a marker>` beside a machine helper (`Hardening.Credential`) that answers; the remote is the 401 httptest URL → the marker does not exist after the push, and the push is refused `project_config_untrusted` naming `credential.helper`. With the H3 check removed (the mutant), the marker still does not exist | a push that lets a repository helper see the user's token |
+| `TestPushAndFetchIgnoreARepoProxy` | review C3, red first: the project's config sets `http.https://127.0.0.1.proxy` to a second httptest server and `http.sslVerify=false` → with the H3 check mutated away, the proxy server receives no request | a generic-only H2 override |
+| `TestPushRunsNoPrePushHook` | task-02 §HGH H4: the project's `.git/hooks/pre-push` writes a marker → a push succeeds and no marker exists | a cockpit push that runs the repository's hooks |
 | `TestFetchWritesFetchHeadAndPrunes` | a branch deleted on the remote disappears from `refs/remotes/origin/*`; `FetchedAt` is FETCH_HEAD's new mtime | stale remote branches forever |
 | `TestFetchRecordsAndClearsTheLastError` | a failing fetch → `LastError` is git's sentence; a later success → `""`; `ReadState` reports the same through `FetchError` | a stale "fetched 15:36" with no hint it is failing |
 | `TestFetchTimerOnlyTouchesListedProjects` | `Projects` returns one of two repos → only that one's FETCH_HEAD changes over two intervals (shortened) | fetching every repository under the root |

@@ -319,9 +319,9 @@ child's environment without trusting the code under test.
 **Why.** A lane clone's `.git` sits inside the sandbox's read-write worktree mount
 (`sessionMounts`, `api/sessions.go`). So does the project's `.git` whenever a session runs on the
 primary worktree. The agent can therefore write any key into either `config`, and any file into
-either `hooks/`. The control plane runs the **host's** git in both repositories: task 07's
-observer, task 09's land and origin refresh, task 10's undo and revert, task 11's remove question,
-task 12's sync and push, and task 13's `credential fill`. Unhardened, each of those calls is code
+either `hooks/`. The control plane runs the **host's** git in both repositories: task 07's lane
+sync and observer, task 09's land and origin refresh, task 10's undo and revert, task 11's remove
+question, task 12's fetch and push, and task 13's `credential fill`. Unhardened, each of those calls is code
 execution on the Windows host, as the user, outside the microVM. Each is also a path to the
 user's token, which breaks A4.
 
@@ -361,9 +361,10 @@ This closes review C3, where the user's token reached whatever the agent wrote.
   `-c http.<RemoteURL>.proxy=…`). git picks the most specific `http.<url>.*` match, whichever
   file it is in, so a generic override alone loses to a repository key such as
   `http.https://github.com.proxy`. At equal specificity, command scope is read last and wins.
-- The origin refresh (task 09) and lane sync (task 12) fetch between two local repositories. They
-  name the source by its literal path, taken from the lane index and never read from the clone's
-  `remote.origin.url`. A local path needs no credential, proxy or TLS.
+- The origin refresh (task 09) and the lane sync (task 07) fetch between two local repositories.
+  They name the source by its literal path, taken from the lane index (the sync's `FetchURL(clone)`
+  is that path) and never read from `remote.origin.url` in the clone. A local path needs no
+  credential, proxy or TLS.
 
 **H3. The config check: what the agent wrote is read before git acts on it.** A filter, diff or
 merge driver cannot be neutralised by name, because `.gitattributes` chooses the name. So before
@@ -375,7 +376,7 @@ check refuses depends on `Call.Scope`:
 | `Call.Scope` | Rule | Refusal |
 |---|---|---|
 | `Clone` (the zero value, so an unmarked call gets the strictest rule) | **closed allowlist.** It admits only: the `core.*` keys `git init` and `git clone` write (`repositoryformatversion`, `filemode`, `bare`, `logallrefupdates`, `symlinks`, `ignorecase`); the clone keys task 03 writes (`core.autocrlf`, `core.checkStat`, `core.trustctime`, per review C2); `remote.origin.url` and `remote.origin.fetch`; `branch.<b>.remote` and `branch.<b>.merge`; `user.name` and `user.email`; and a relative `core.hooksPath` with no `..` segment (husky writes `.husky/_`, and task 05's dispatcher reads it). Every other key is refused, including `include.*`, `includeIf.*`, `extensions.*` (`extensions.worktreeConfig` enables a `config.worktree` that `--local` never lists), `filter.*`, `diff.*`, `merge.*`, `credential.*`, `http.*` and `url.*` | `*UntrustedConfig{Scope: Clone}` → `conflict`, `reason: clone_config_untrusted`, `details.key` |
-| `Project` (the user's own repository, so a closed list would refuse their real config) | **refusal list**, applied on every call and not only while a primary-worktree session is live, because that state changes between two calls. It refuses: `include.*` and `includeIf.*`; the execution-capable keys H1 cannot neutralise by name (`filter.*`, `diff.*.textconv`, `diff.*.command`, `diff.external`, `merge.*.driver`, `core.gitProxy`, `core.alternateRefsCommand`, `extensions.worktreeConfig`); and review C3's credential families (`credential.*`, `http.*`, `remote.*.pushurl`, `url.*.insteadOf`, `url.*.pushInsteadOf`). The cockpit writes no project config key in phase 3, so no exception is needed. A user whose project config holds one of these keys moves it to `--global`, and the refusal names the key | `*UntrustedConfig{Scope: Project}` → `conflict`, `reason: project_config_untrusted`, `details.key` |
+| `Project` (the user's own repository, so a closed list would refuse their real config) | **refusal list**, applied on every call and not only while a primary-worktree session is live, because that state changes between two calls. It refuses: `include.*` and `includeIf.*`; the execution-capable keys H1 cannot neutralise by name (`filter.*`, `diff.*.textconv`, `diff.*.command`, `diff.external`, `merge.*.driver`, `core.gitProxy`, `core.alternateRefsCommand`, `extensions.worktreeConfig`); and review C3's credential families (`credential.*`, `http.*`, `remote.*.pushurl`, `url.*.insteadOf`, `url.*.pushInsteadOf`). The cockpit's only project config writes are task 12's `branch.<b>.remote` and `.merge` (from `push --set-upstream`). Neither is on the list, so no exception is needed. A user whose project config holds one of these keys moves it to `--global`, and the refusal names the key | `*UntrustedConfig{Scope: Project}` → `conflict`, `reason: project_config_untrusted`, `details.key` |
 | `None` | no check. Only for `git version`, and for a `Dir` under `Hardening.OwnedRoot`, such as task 13's `GitHelper` repository. Exec refuses `None` with any other `Dir` | — |
 
 A refused call never starts. `UntrustedConfig` carries the key, never the value, since a value may
