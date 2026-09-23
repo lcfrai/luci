@@ -1,6 +1,6 @@
 # Task 11 — Authority I: canvases by branch, `Apply`, subscriptions, the activity feed
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 06, 10 · **Hours:** 3.5 (3, plus `resolve` over the branch lifecycle, review I7)
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 06, 10 · **Hours:** 4 (3, plus `resolve` over the branch lifecycle, review I7, and the whole-project replay with its nine test rows, re-review RR-I7-1 and RR-I7-2)
 
 ## Why
 
@@ -110,15 +110,18 @@ type BranchRename struct {
 type BranchLifecycle interface {
 	// Renames returns the project's rename map, oldest first.
 	Renames(ctx context.Context, projectID string) ([]BranchRename, error)
-	// LastDeleted returns when the cockpit last deleted branchID: the newest
-	// <unix> of phase 3's refs/panacea/archive/<branchID>/<unix>, written on
-	// every delete (phase 3 task-11.md:105,111). ok is false if never.
-	// Whole seconds, because the ref name is.
-	LastDeleted(ctx context.Context, projectID, branchID string) (at time.Time, ok bool, err error)
+	// Deletes returns EVERY cockpit delete of every branch of the project:
+	// branch id → the <unix> suffixes of phase 3's
+	// refs/panacea/archive/<branchID>/<unix>, written on every delete (phase 3
+	// task-11.md:105,111), ascending. Whole seconds, because the ref name is.
+	// Every delete, not the newest (re-review RR-I7-2): a replay needs the FIRST
+	// delete after a binding arrived, and a later delete of a recreated branch
+	// of the same name must not hide an earlier one. One git call per project.
+	Deletes(ctx context.Context, projectID string) (map[string][]time.Time, error)
 }
 
 // ErrBranchLifecycle wraps a BranchLifecycle error. The authority FAILS CLOSED
-// on it: no Bind, no Rebind, no Archive, no Ensure-create — guessing would
+// on it: no Bind, no Reconcile, no Ensure-create — guessing would
 // either hand a new branch the old canvas and its approvals, or strand the
 // approved design behind a fresh empty canvas.
 var ErrBranchLifecycle = errors.New("authority: the branch lifecycle could not be read")
@@ -127,26 +130,65 @@ var ErrBranchLifecycle = errors.New("authority: the branch lifecycle could not b
 **Resolving `(projectID, branchID)` to a canvas** — one function, `resolve`, behind `Ensure`,
 `ForBranch` and every session caller's canvas lookup (so the lens and MCP see the same answer):
 
-1. **Deleted?** `Lookup` hits and the lookup is *fresh* — every `Ensure` and `ForBranch` (the
-   lens's routes 1 and 2, task 20a, a human action) and a session's **first** call in this process
-   (the authority keeps the set of session ids it has checked) → `LastDeleted(p, b)`. `ok` and
-   `at ≥ binding.CreatedAt` truncated to the second → `Store.Archive(p, b, now)`, unload the canvas
-   from memory, and treat it as a miss. A binding `Ensure` creates gets `CreatedAt =
-   max(now, at + 1 s)` when `ok`, so a delete in the same second as a create is never read
-   backwards. A branch deleted through the cockpit had no worktrees (phase 3 refuses
-   `branch_has_worktrees`), so a session on the new branch of that name is always a new session,
-   and its first call runs the check.
-2. **Renamed?** On a miss, `Renames(p)`: every unarchived binding of `p` whose `BranchID` reaches
-   `b` through the map (follow `from → to` until no row matches, at most `len(map)` steps, so a
-   cycle ends) → `Store.Rebind(p, old, b)`, and the loaded canvas's `Summary.BranchID` becomes `b`.
-   The result is a hit. Phase 3 refuses a rename while the branch has worktrees (its Q4), so no
-   session is on the branch while it moves.
-3. **Neither** → none: `ForBranch` answers `ok: false`; `Ensure` creates.
+A lookup is **fresh** for every `Ensure` and `ForBranch` (the lens's routes 1 and 2, task 20a, a
+human action) and for a session's **first** call in this process (the authority keeps the set of
+session ids it has checked). A branch deleted or renamed through the cockpit had no worktrees
+(phase 3 refuses `branch_has_worktrees`, its Q4), so no session sits on a branch while it moves or
+goes, and a session on a recreated branch is a new session whose first call is fresh.
+
+A fresh lookup **reconciles the whole project first, on a hit as on a miss** (re-review RR-I7-1:
+following renames only on a miss let a recreated branch of the old name hit the renamed branch's
+binding and inherit its canvas and approvals). Under the authority's per-project mutex
+(`binding.go`), so two fresh lookups never reconcile one project at once:
+
+1. **Read.** `Renames(p)` and `Deletes(p)`, once each. An error → `ErrBranchLifecycle`, nothing
+   changed (the fail-closed rule above).
+2. **Replay each unarchived binding** of `p` from `(x, t) = (BranchID, BoundAt)` (task 10's
+   `BoundAt`: when it *arrived* at `x`; never `CreatedAt`, which a move keeps, re-review RR-I7-2).
+   Repeat:
+   - `r` = the first rename row, in map order and after the last row this replay used, with
+     `FromBranchID == x` and `At ≥ t`;
+   - `d` = the first delete of `x` in `Deletes(p)[x]` with `d > t` truncated to the second.
+   - **The tie rule.** Phase 3's delete times are whole seconds (the ref name), so a delete
+     stamped second `s` is taken to precede every bind and rename in second `s`: it counts
+     against an arrival only if `d > trunc(t)`, and it precedes a rename away if
+     `d ≤ trunc(r.At)`.
+   - `d` exists and (`r` does not, or `d ≤ trunc(r.At)`) → the fate is **archive at `d`**; stop.
+   - else `r` exists → `(x, t) = (r.ToBranchID, r.At)`; repeat.
+   - else → the fate is **bound to `(x, t)`**; stop.
+   Each step consumes a later row, so the replay ends within `len(map)` steps; a map that names
+   one id as `FromBranchID` in two rows (renamed away, recreated, renamed away again) is read in
+   time order, never as one `from → to` edge, and a name cycle (`a → b`, then `b → a`) is just
+   two steps.
+3. **One owner per branch.** Two replays that end bound on one branch are possible only when a
+   branch was deleted outside the cockpit (a bare `git branch -D` writes no archive ref). The
+   later arrival `t` keeps the branch; each other is archived at that arrival, and the log names
+   both canvas ids. The cockpit-only history the reviewer drew (`A → X`, `X` deleted, `C → X`)
+   never reaches this step: A's replay meets the delete and is archived.
+4. **Apply.** The fates that differ from the stored rows go to **one** `Store.Reconcile(p, fates)`
+   (task 10: one `bindings.json` write, so a chain or a swap never has two bindings on one
+   branch). Each loaded canvas that moved gets `Summary.BranchID = x`; each archived one is
+   unloaded from memory.
+5. **Look up.** `Lookup(p, b)` after the reconcile: a hit is the answer; a miss → `ForBranch`
+   answers `ok: false`, `Ensure` creates with `CreatedAt = BoundAt = max(now, newest delete of
+   b + 1 s)`, the tie rule's safety margin against a clock behind git's.
+
+A non-fresh lookup (a session's later calls) is `Lookup` alone. Cost: one rename-map read and one
+`for-each-ref` per fresh lookup, which is a human action or a session's first call.
+
+**Residual, declared.** The tie rule is wrong for a rename onto a name followed by a delete of
+that branch **in the same wall-clock second**: the delete reads as before the arrival, the canvas
+stays bound, and a recreated branch of that name would inherit it. It needs a rename and then a
+delete of the renamed branch inside one second. The reverse rule fails on the likelier order,
+"delete `X`, then rename another branch onto `X`" (a clean-up that takes over a name), and there
+it would archive the renamed canvas and strand its approved design. Phase 3 recording
+sub-second delete times in its archive refs would close it; it is recorded as seam S5-P3.2's open
+edge, not built.
 
 Scope (`apply.go` step 1) compares a session's `(ProjectID, BranchID)` with the **binding's**,
 after `resolve`, never with `Document.BranchID`, which keeps the branch the canvas was created on
 (it is in every snapshot; rewriting it would change past revisions' bytes).
-`Config.Branches == nil` skips steps 1 and 2.
+`Config.Branches == nil` skips the reconcile (steps 1–4).
 
 ```go
 // canvas/authority/apply.go
@@ -286,12 +328,17 @@ type ClaimedError struct { // task 12
 | `TestDocument_at` | `Document(At{Revision: 5})` equals the live capture at 5 | `at: approved` reading the head |
 | `TestActivity_truncates` | a 300-node batch's row lists 50 nodes and `more: 250` | an unbounded feed row |
 | `TestIdleUnload` | after `IdleUnload` with no call and no subscriber the canvas is evicted; the next call reloads it equal | every canvas held in memory for ever |
-| `TestResolve_followsRename` (review I7) | `Ensure(p, b-old)` → `cv-1`; a fake `BranchLifecycle` whose map is `{b-old → b-new}`; `ForBranch(p, b-new)` → `cv-1`, `Summary.BranchID = b-new`, and the store's `Bindings()` differs from before in that one row's `branchId` only; `ForBranch(p, b-old)` → none; `Ensure(p, b-new)` → `created: false` | the renamed branch showing state 1 while the approved design sits on a canvas no branch shows |
-| `TestResolve_followsRenameChain` | map `{a → b, b → c}` → `ForBranch(p, c)` finds the canvas bound to `a`; a map with a cycle `{a → b, b → a}` ends (the call returns within the test's 1 s deadline) and rebinds nothing | a second rename losing the canvas; a hostile map hanging the lookup |
-| `TestResolve_deleteArchives` (review I7) | `Ensure(p, b)` → `cv-1`, three batches applied (revision 3); the fake's `LastDeleted(p, b)` is 2 s after `cv-1`'s `CreatedAt`; `ForBranch(p, b)` → none; `Ensure(p, b)` → a **new** `cv-2`, `created: true`, revision 0; `Summary("cv-1")` still loads, unchanged; `Bindings()` holds `cv-1` archived | a new branch of a deleted branch's name inheriting its canvas and approvals |
-| `TestResolve_sessionFirstCallChecks` | a session's first `Apply` runs `LastDeleted` once; its next 10 calls do not; a second session's first call does | a session on the recreated branch writing into the deleted branch's canvas; a git read on every agent call |
-| `TestResolve_notDeletedKeeps` | `LastDeleted` not ok, or older than `cv-1`'s `CreatedAt` → `ForBranch` returns `cv-1`, nothing archived | a canvas archived on every open |
-| `TestResolve_lifecycleErrorFailsClosed` | `Renames` or `LastDeleted` returns an error → `Ensure` and `ForBranch` return `ErrBranchLifecycle`; no `Bind`, `Rebind`, `Archive` or create reached the store (a recording store) | a phase-3 read failure creating an empty canvas over the approved one, or handing a deleted branch's canvas to a new one |
+| `TestResolve_followsRename` (review I7) | `Ensure(p, b-old)` → `cv-1`; a fake `BranchLifecycle` whose map is `{b-old → b-new at t1}`; `ForBranch(p, b-new)` → `cv-1`, `Summary.BranchID = b-new`, and the store's `Bindings()` differs from before in that one row's `branchId` and `boundAt` (= t1) only; `ForBranch(p, b-old)` → none; `Ensure(p, b-new)` → `created: false` | the renamed branch showing state 1 while the approved design sits on a canvas no branch shows |
+| `TestResolve_renameThenRecreateOldFirst` (re-review RR-I7-1) | `cv-1` on `b-login`; the map gains `{b-login → b-sign-in}`; **nobody opens `b-sign-in`**; the user recreates `feature/login` (same id `b-login`); `ForBranch(p, b-login)` — a **hit** before the reconcile — → none, and `Ensure(p, b-login)` → a new `cv-2`; then `ForBranch(p, b-sign-in)` → `cv-1`; a batch applied on `cv-2` stays on `cv-2` after both opens | a recreated old name hitting the renamed branch's binding and showing its canvas and approvals; a later open of the new name dragging the canvas away from the recreated branch |
+| `TestResolve_followsRenameChain` | map `{a → b, b → c}` → `ForBranch(p, c)` finds the canvas bound to `a`; a name cycle `{a → b at t1, b → a at t2}` → the canvas is back on `a` with `BoundAt = t2`, and the call returns within the test's 1 s deadline; a map naming `a` as `from` twice (`a → b` at t1, recreate `a`, `a → c` at t3) with `cv-1` bound on `a` since before t1 and `cv-2` bound on `a` since t2 → `cv-1` on `b`, `cv-2` on `c` | a second rename losing the canvas; a hostile map hanging the lookup; one id read as one `from → to` edge |
+| `TestResolve_swapInOneWrite` (re-review RR-I7-2) | `cv-A` on `x`, `cv-B` on `y`; map `{x → tmp at r1, y → x at r2, tmp → y at r3}`; one fresh lookup → `cv-A` on `y`, `cv-B` on `x`; the recording store saw **one** `Reconcile` call | a row-at-a-time apply failing `ErrExists` on a legal swap and leaving the lens on the wrong canvas |
+| `TestResolve_deleteArchives` (review I7) | `Ensure(p, b)` → `cv-1`, three batches applied (revision 3); the fake's `Deletes(p)[b]` holds one time 2 s after `cv-1`'s `BoundAt`; `ForBranch(p, b)` → none; `Ensure(p, b)` → a **new** `cv-2`, `created: true`, revision 0; `Summary("cv-1")` still loads, unchanged; `Bindings()` holds `cv-1` archived | a new branch of a deleted branch's name inheriting its canvas and approvals |
+| `TestResolve_renameOntoDeletedName` (re-review RR-I7-2) | `feature/x` deleted at t1 (`Deletes(p)[b-x] = [t1]`); `cv-1` created on `b-login` at t0 < t1 and approved; map `{b-login → b-x at t2}`, t2 > t1; `ForBranch(p, b-x)` → `cv-1`; a **second** `ForBranch(p, b-x)` → `cv-1` again, nothing archived; the same with t2 in the same second as t1 → `cv-1` (the tie rule) | an approved canvas archived on its second open because the delete is compared with `CreatedAt`, which the move kept |
+| `TestResolve_deletedIncarnationNotRebound` (re-review RR-I7-2) | `cv-A` on `a`; map `{a → x at t1}`; `x` deleted at t2 (A's binding never reconciled in between); `cv-C` on `c`; map `{c → x at t3}`; one fresh lookup of `x` → `cv-C`, `cv-A` archived at t2, one `Reconcile`, no `ErrExists` | the deleted incarnation's canvas rebound first and the live one refused |
+| `TestResolve_outOfCockpitDeleteTieBreak` | two replays end on `x` (a delete with no archive ref) → the later arrival keeps `x`, the other is archived at that arrival, and the log line names both canvas ids | two unarchived bindings on one branch, or an arbitrary winner |
+| `TestResolve_sessionFirstCallChecks` | a session's first `Apply` runs `Renames` and `Deletes` once each; its next 10 calls do not; a second session's first call does | a session on the recreated branch writing into the deleted branch's canvas; a git read on every agent call |
+| `TestResolve_notDeletedKeeps` | no delete of `b`, or only deletes at or before `cv-1`'s `BoundAt` second → `ForBranch` returns `cv-1`, nothing archived, no `Reconcile` call | a canvas archived on every open |
+| `TestResolve_lifecycleErrorFailsClosed` | `Renames` or `Deletes` returns an error → `Ensure` and `ForBranch` return `ErrBranchLifecycle`; no `Bind`, `Reconcile` or create reached the store (a recording store) | a phase-3 read failure creating an empty canvas over the approved one, or handing a deleted branch's canvas to a new one |
 | `TestResolve_nilLifecycle` | `Config.Branches` nil → no port call; behaviour equals the tests above without a rename or a delete | phase 5 unusable before phase 3 lands |
 | `TestApply_scopeFollowsBinding` | after the rename above, a session on `b-new` applies to `cv-1`; a session on `b-old` → `ErrOutOfScope` | scope read from `Document.BranchID`, the creation branch |
 

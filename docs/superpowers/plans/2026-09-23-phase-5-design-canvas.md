@@ -404,8 +404,8 @@ tasks; each part says what it codes against until that task lands.
 | 07 | The dialect: HTML and inline CSS into nodes, the allowlist, the dropped report, `data:` into assets | 05 | — | 3 |
 | 08 | Canonical HTML, export HTML, canonical JSON, the review digest | 05, 07 | — | 2.5 |
 | 09 | JSX (inline and Tailwind), `tree.json`, `tokens.css`, DTCG `tokens.json` | 08 | — | 3 |
-| 10 | The store: op log, snapshots, reconstruction at a revision, crash safety; `Rebind` and `Archive` (S5-P3.2) | 06 | — | 3 |
-| 11 | Authority I: canvases by branch (following phase 3's renames and deletes, S5-P3.2), `Apply` with an author, subscriptions, the activity feed | 06, 10 | — | 3.5 |
+| 10 | The store: op log, snapshots, reconstruction at a revision, crash safety; `BoundAt` and the one-write `Reconcile` (S5-P3.2) | 06 | — | 3 |
+| 11 | Authority I: canvases by branch (following phase 3's renames and deletes, S5-P3.2), `Apply` with an author, subscriptions, the activity feed | 06, 10 | — | 4 |
 | 12 | Authority II: claims, `ifRevision`, notices, per-author undo and redo, revert by session | 11 | — | 3 |
 | 13 | The render bridge and the human's selection | 11 | — | 2 |
 | 14 | The MCP protocol layer; `ports.go`, the tool layer's port types (declarations only, re-review RR-I6-1) | 05 | — | 2.5 |
@@ -427,10 +427,12 @@ tasks; each part says what it codes against until that task lands.
 | 29 | Paste: HTML, SVG and images | 20a, 26 | — | 1.5 |
 | 30 | End to end, the phase 5 contract document, and the amendments | all | OD-12's hands-on session | 2 |
 
-**Total 80 hours**, the sum of the rows above (76 before b02; re-review RR-M1) (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
-sizing note; tasks 10, 11 and 20a gain 0.5 h each for seam S5-P3.2, review I7). Critical path: 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17 → 20b → 21 → 22 → 28 → 30
+**Total 80.5 hours**, the sum of the rows above (76 before b02; re-review RR-M1) (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
+sizing note; tasks 10, 11 and 20a gain 0.5 h each for seam S5-P3.2, review I7; task 11 a further
+0.5 h for the whole-project replay, re-review RR-I7-1 and RR-I7-2). Critical path (≈ 33 h by
+earliest finish): 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17 → 20b → 21 → 22 → 28 → 30
 (20a runs beside 15 and 16, off the path: it needs 14's `ports.go` and 19's `go.mod` lines, not 15 or 17,
-so it finishes at 20 h against 17's 21 h, re-review RR-I6-1; 20b waits for 17 because its `main.go` calls
+so it finishes at 20.5 h against 17's 21.5 h, re-review RR-I6-1; 20b waits for 17 because its `main.go` calls
 `mcp.Instructions` and `mcp.RegisterAll`, and for 19 because it calls `mcprelay.NewSupervisor`).
 
 **Order, in waves** (a wave's tasks are independent of each other):
@@ -465,7 +467,7 @@ is 20a's, then 21's, and `cmd/api/design.go` is 20b's, then 21's one `Hub` line.
 | **S5-H.1** | `authority.Service` over the `store.Store` interface; authors carry a `UserID` that is `"local"` in v1 | v2: the Hub hosts this package, with a Postgres `Store` and the Hub principal as `UserID`, behind `/v1/canvas/…` (ADR-H1 §5.5) | fork the op protocol for the Hub |
 | **S5-H.2** | The Hub's boundary test (`go list -deps ./cmd/hub`, contract §2) allows no canvas import in v1 | v2 adds `github.com/kpmg-au-emu/panacea-app/canvas/...` to its allowlist | host the canvas without amending the test |
 | **S5-P3.1** | The handoff writes into a worktree the caller names (S3-P5.1) | phase 3's *create a worktree from this design* calls task 22's route after its own create | commit `.panacea/` |
-| **S5-P3.2** | A canvas binding follows the branch, not its id (review I7): `authority.BranchLifecycle` (task 11) reads phase 3's rename map (`lanes.Store.Renames`, served as `GET /v1/projects/{projectId}/renames`) and its delete archive refs (`refs/panacea/archive/<branchId>/<unix>`); a rename **rebinds** (one row of `bindings.json`, temp file + rename, task 10); a delete **archives** the binding so a new branch of that name gets a new canvas, and the old canvas stays on disk for provenance; any read failure fails closed | phase 3 (task 11 of its plan) keeps both records; `designapi/branches_phase3.go` (task 20a) adapts them once phase 3 is in the tree, and a terminal `git branch -m`/`-D` stays out of scope as it is for phase 3 (its A8) | key a canvas by branch name, or delete a canvas with its branch |
+| **S5-P3.2** | A canvas binding follows the branch, not its id (review I7): `authority.BranchLifecycle` (task 11) reads phase 3's rename map (`lanes.Store.Renames`, served as `GET /v1/projects/{projectId}/renames`) and its delete archive refs (`refs/panacea/archive/<branchId>/<unix>`, every one, `Deletes`); on every fresh lookup, **hit or miss**, it replays both against each binding from the time the binding **arrived** at its branch (`BoundAt`, never `CreatedAt`; re-review RR-I7-1, RR-I7-2), so a rename **moves** the binding and a delete **archives** it, and applies every outcome in one `bindings.json` write (`Reconcile`, temp file + rename, task 10); a new branch of a deleted or renamed-away name gets a new canvas, and the old canvas stays on disk for provenance; any read failure fails closed. Open edge: whole-second delete times make a rename-then-delete inside one second read as delete-first (`task-11.md`, *Residual*); phase 3 writing sub-second times would close it | phase 3 (task 11 of its plan) keeps both records; `designapi/branches_phase3.go` (task 20a) adapts them once phase 3 is in the tree, and a terminal `git branch -m`/`-D` stays out of scope as it is for phase 3 (its A8) | key a canvas by branch name, or delete a canvas with its branch |
 | **S5-P6.1** | Every agent-caused op is attributed to a session | phase 6's activity and cost views read `list_activity` / the activity route | derive activity from PTY bytes |
 | **S5-P7.1** | `design:` keys resolve through the Hub's `/v1/refs` (contract §7.5) | phase 7's release manifest renders the approved design key | read the canvas for a release |
 | **S5-P8.1** | The relay dials `<endpoint>/mcp-channel`, and `Endpoint` is whatever the backend reports (`backend.Sandbox.Endpoint`) | phase 8's `katabe` pods serve the same path on `:8080` | open a port on the node for MCP |

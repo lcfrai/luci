@@ -50,10 +50,13 @@ authority.BranchLifecycle`:
 - `Renames(ctx, p)` returns phase 3's `lanes.Store.Renames(p)` (oldest first,
   `.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence-parts/task-03.md:72-96`)
   mapped field for field; it never errors, because phase 3's method does not.
-- `LastDeleted(ctx, p, b)` runs `for-each-ref --format=%(refname) refs/panacea/archive/<b>/` in the
+- `Deletes(ctx, p)` runs **one** `for-each-ref --format=%(refname) refs/panacea/archive/` in the
   project's repository through phase 3's `gitx.Machine` (Scope Project, no hook, phase 3's
-  hardened invocation) and returns the largest `<unix>` suffix; a suffix that is not decimal is
-  skipped and logged. `b` is checked against `^b-[a-z0-9-]+$` before it reaches git.
+  hardened invocation; a fixed argument list, so nothing caller-supplied reaches git) and parses
+  each `refs/panacea/archive/<branchID>/<unix>` into `branchID → [times]`, ascending (every
+  delete, not the newest: re-review RR-I7-2). A ref whose `<branchID>` fails `^b-[a-z0-9-]+$`, or
+  whose `<unix>` is not decimal, or that has another number of segments, is skipped and logged,
+  never guessed at.
 - A route whose `resolve` fails with `authority.ErrBranchLifecycle` answers `500 internal` (detail
   in the log); an MCP call answers `internal`. No new problem code.
 If phase 3 is not in the tree, `authority.Config.Branches` stays nil (task 20b) and the commit says so.
@@ -293,8 +296,8 @@ The two `PANACEA_APP_CANVAS_*` variables, `newDesignAPI` and the `main.go` wirin
 | `TestPreflightAllowsEveryRegisteredMethod` (`control-plane/internal/api/routes_audit_test.go`, review I3) | the same check over `api.New(d).RegisteredPatterns()` — every route the control plane registers, phase 2's included — sent through `api.New`'s real handler; a pattern with no method (`catalogMethodAgnosticRoutes`) is skipped by name, not by a missing prefix | a phase-2 or later route whose verb the preflight omits |
 | `TestBriefsPort_stub` | the stub answers `unavailable` with its sentence | a nil port panicking before phase 4 |
 | `TestPhase3Branches_renames` (only with phase 3 in the tree) | a real `lanes` file store with two `AddRename` rows → `Renames` returns both, oldest first, field for field | a rename map read in the wrong order (a chain followed backwards) |
-| `TestPhase3Branches_lastDeleted` (only with phase 3) | a temp repository with `refs/panacea/archive/b-x-1a2b3c4d/1790000000` and `…/1790000100` → `(1790000100 s, true)`; none → `ok: false`; a branch id `b-x;rm` → an error, git never run | a stale delete time; a branch id reaching git unchecked |
-| `TestRoutes_renameAndDelete` (review I7) | through `Mount` with a fake `BranchLifecycle`: route 2 creates `cv-1` on `b-old`; the fake renames `b-old → b-new`; route 1 on `b-new` → `cv-1`; the fake deletes `b-new` (a `LastDeleted` after `cv-1`'s creation); route 1 on `b-new` → `{"canvas": null}`, route 2 → a new canvas id; a failing fake → `500 internal`, no canvas created | the Design lens showing state 1 on a renamed branch, or a recreated branch showing the old approvals |
+| `TestPhase3Branches_deletes` (only with phase 3) | a temp repository with `refs/panacea/archive/b-x-1a2b3c4d/1790000100`, `…/1790000000` and `refs/panacea/archive/b-y-5e6f7a8b/1790000050` → `{b-x-1a2b3c4d: [1790000000 s, 1790000100 s], b-y-5e6f7a8b: [1790000050 s]}` (both, ascending); no refs → an empty map; a ref `refs/panacea/archive/B;rm/1` or `…/b-x-1a2b3c4d/12ab` → skipped with a log line, the rest still returned; the recorded git argument list is the fixed one | a newest-only delete time hiding an earlier delete; a malformed ref name guessed at |
+| `TestRoutes_renameAndDelete` (review I7, re-review RR-I7-3) | through `Mount` with a fake `BranchLifecycle`: route 2 creates `cv-1` on `b-old`; the fake renames `b-old → b-new`; route 1 on `b-new` → `cv-1`; the fake deletes `b-new` (a delete after `cv-1`'s `BoundAt`); route 1 on `b-new` → `{"canvas": null}`, route 2 → a new canvas id; a failing fake → `500 internal`, no canvas created. **Two more orderings** (task 11's RR-I7-1 and RR-I7-2 rows, through the routes): (a) `cv-1` on `b-login`, rename to `b-sign-in`, recreate the old name, route 1 on **`b-login` first** → `{"canvas": null}`, route 2 → a new id, then route 1 on `b-sign-in` → `cv-1`; (b) `b-x` deleted, then `cv-1` renamed onto `b-x`, route 1 on `b-x` **twice** → `cv-1` both times | the Design lens showing state 1 on a renamed branch, a recreated branch showing the old approvals, or an approved canvas archived on its second open |
 | `TestApprovals_noneUntilTask21` | `Approvals().Latest(ctx, anyCanvas)` → `(ApprovalInfo{}, false, nil)`; two calls return equal values (task 20b's wiring test compares them) | a stub that errors (every `at: "approved"` read would fail instead of saying "not approved yet") |
 
 `TestConfig_canvasVars`, `TestMain_wiring`, `TestNewDesignAPI_guardsBareMux` and the MCP wiring

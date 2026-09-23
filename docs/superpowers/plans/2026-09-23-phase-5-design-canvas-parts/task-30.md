@@ -137,7 +137,9 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
       **not run**): approve a design on a branch with no worktrees, rename the branch in the cockpit,
       and open Design on the new name — the same canvas and its approval show. Delete that branch,
       create a new branch with the same name, open Design — state 1, *no canvas*, and none of the old
-      approvals.
+      approvals. Then the order the first build missed (re-review RR-I7-1): on another approved
+      branch, rename it, **do not open the new name**, create a branch with the old name and open
+      Design on the old name first — state 1; then open the new name — the approved canvas.
 6. Commit by pathspec. **Do not merge** the branch (`OD-1`); the orchestrator pushes when asked.
 
 ## Acceptance
