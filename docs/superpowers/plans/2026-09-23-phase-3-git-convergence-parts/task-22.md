@@ -45,6 +45,8 @@ export interface RemovalQuestion {
   sessions: { id: SessionId; title: string }[]; // from details.sessions ("id\ttitle" lines)
   paths: string[];                               // details.paths
   commits: string[];                             // details.commits
+  elsewhere: string[];                           // details.elsewhere ("ref\tsha" lines; review I6)
+  unarchivable: string;                          // details.unarchivable, or ""
   confirm: string;                               // details.confirm; "" when only sessions block it
 }
 /** Kill each session, then DELETE with the token; a confirm_stale re-asks with the fresh facts. */
@@ -101,9 +103,12 @@ refs/panacea/archive/… so nothing it named is lost; the remote branch is not d
 question because the rail loses the branch and there is no undo verb for it in v1.
 
 **Remove worktree** is `RemoveWorktreeQuestion`: a window (`--r-window`, `--e-overlay`) listing,
-under three headings, the sessions that will be ended, the files that are not committed (these
-are lost), and the commits that never landed (these are kept under
-`refs/panacea/archive/lanes/…`). Buttons: **Remove** (danger) and **Keep it** (default focus).
+under four headings, the sessions that will be ended, the files that are not committed (these
+are lost), the commits that never landed (these are kept under
+`refs/panacea/archive/lanes/…`), and the agent's other branches or detached commit from
+`details.elsewhere` (kept under `refs/panacea/archive/offbranch/…`; review I6). When
+`details.unarchivable` is present, that fourth heading says those commits **cannot be kept and
+are lost**, and quotes git's sentence. Buttons: **Remove** (danger) and **Keep it** (default focus).
 
 #### The tests to write first
 
@@ -113,7 +118,7 @@ are lost), and the commits that never landed (these are kept under
 | `New branch is enabled` | the project menu's `new-branch` item has `run` and no `disabledReason` | the phase 2 placeholder left in |
 | `TopBar's Authority title names no phase` | the title does not match `/Phase \d/` and still names AGENTIC-UX §7 | 3-D10 unapplied |
 | `Remove worktree is disabled for primary and linked` | kinds `primary`, `linked` → disabled with the git worktree remove reason | the cockpit deleting a user's checkout |
-| `the removal question names all three losses` | `inspectRemoval` answered `confirm_required` with sessions, paths, commits → three headed lists in the window | a question that hides what is lost |
+| `the removal question names all four losses` | `inspectRemoval` answered `confirm_required` with sessions, paths, commits, elsewhere → four headed lists in the window; with `unarchivable` set, the fourth says those commits are lost and quotes it (review I6) | a question that hides what is lost |
 | `Remove kills the sessions first, then deletes with the token` | order of calls: `killSession(s-1)`, `killSession(s-2)`, `removeWorktree(p, w, confirm)` | a DELETE refused for live sessions, or sandboxes left running |
 | `a stale confirmation re-asks` | `confirm_stale` → the window re-renders with the fresh facts; no second DELETE until Remove again | removing on facts the human did not see |
 | `Keep it is the default focus` | on open, `document.activeElement` is Keep it | Enter destroying work |

@@ -62,7 +62,7 @@ results document:
 | 15 | a race: move the branch with `git update-ref` on the host, then land with the old tip | 409 `branch_moved` with the new tip |
 | 16 | check out `evidence-upload` in the project's primary; `GET …/convergence` and land | `checkedOutAt` is the primary's path; 409 `branch_checked_out`; check it back out |
 | 17 | `DELETE …/worktrees/{A}` while its session runs | 409 `live_sessions`; kill it; DELETE with nothing to lose → 200; clone dir, lane ref, conversation store gone |
-| 18 | an uncommitted file in B; `DELETE` → `confirm_required`; commit in B (state changes); DELETE with the old token → `confirm_stale`; DELETE with the fresh token → 200; `refs/panacea/archive/lanes/<B>/…` names B's unlanded tip |
+| 18 | an uncommitted file in B; `DELETE` → `confirm_required`; commit in B (state changes); DELETE with the old token → `confirm_stale`; DELETE with the fresh token → 200; `refs/panacea/archive/lanes/<B>/…` names B's unlanded tip; a commit S made in B after `switch -c side` (then `switch` back) is in the question's `details.elsewhere` and named by `refs/panacea/archive/offbranch/<B>/…/heads/side` (review I6) |
 | 19 | `POST …/branches` `throwaway`, `PATCH` rename, `GET …/renames`, `DELETE` | 201, 200 with `renamedFrom`, the map entry, 200 with `archivedAs` |
 | 20 | `git fsck --no-dangling` on the project | exit 0 — no corruption from any of it |
 
