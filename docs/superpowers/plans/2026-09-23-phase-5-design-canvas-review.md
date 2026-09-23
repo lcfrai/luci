@@ -240,3 +240,130 @@ with `@6` gives 366 bytes and `8208d6b8…86cc9b`. Both match the plan.
   `view.sync()` before it measures or captures. Add spike check S11 (minimise Edge, send a render
   request, record the result) and a responder test with `visibilityState` stubbed `"hidden"`.
 
+#### I5. Approval captures every artboard at 2× inside the agents' 15-second render budget
+
+- **Where:** `task-21.md:167-169` (step 4: *"2× screenshots of every artboard at that revision
+  (`authority.Render`, 50 per request)"*); `task-13.md:89-93` (`RenderTimeout = 15 * time.Second`,
+  `MaxRenderNodes = 50`); `task-01.md:64` (S8 records fidelity, not time).
+- **Failure scenario:** a twelve-screen settings flow; the approval sends one request for twelve
+  2× PNGs. Each DOM-to-image capture inlines fonts and images and encodes a PNG in the webview's
+  main thread; twelve of them plausibly exceed 15 s (*unverified* — nobody has measured it), and the
+  human gets `409 renderer_unavailable`, *"the renderer failed"*, on the one action the spine
+  depends on. The same budget serves an agent's one-node screenshot, so the constant cannot simply
+  grow.
+- **Fix:** approval renders **one artboard per request** with its own deadline (say 30 s), shows
+  progress in the approval toast, and fails naming the artboard that failed. Add capture time per
+  artboard at 1× and 2× to task 01's S8 matrix, so the deadline is a measured number.
+
+#### I6. Task 20's declared dependencies are wrong, and the waves run it too early
+
+- **Where:** `task-20.md:3` (*"Depends on: 11, 12, 13"*); `task-20.md:192-197` (the wiring calls
+  `mcp.NewServer` (task 14), `mcp.Instructions` (17), `mcp.RegisterAll` (15), and
+  `mcprelay.NewSupervisor` (19), and passes an `Approvals` port that task 21 creates); plan `:422`
+  (wave 4 runs 20 beside 15 and 16, before 17); plan `:425-430` (lane E is "20–22").
+- **Failure scenario:** a lane-E worktree agent starts task 20 when 11–13 land, as the plan says it
+  may; `cmd/api/main.go` does not compile because `RegisterAll`, `Instructions` and
+  `NewSupervisor` do not exist yet. It either stubs them (drift) or blocks, and the user's
+  "as much as you can in parallel" plan stalls on a dependency nobody declared.
+- **Fix:** split task 20 into **20a** (`designapi` routes, `events`, codes, audit — depends on
+  11–13) and **20b** (config and `main.go` wiring — depends on 17, 19 and 20a, with a stub
+  `Approvals` returning "none" until 21). Update the waves, the critical path and the lanes.
+
+#### I7. A canvas binding does not follow a branch rename, and outlives a branch delete
+
+- **Where:** `task-10.md:42-49` (`Binding` keyed by local `ProjectID`, `BranchID`); P5-L
+  (`plan:207`); `control-plane/internal/project/project.go:118-121` (`BranchID` is a pure function
+  of the project id and the branch **name**); phase 3's plan adds branch rename, a rename map
+  (`GET /v1/projects/{projectId}/renames`, *old branch id → new branch id*) and branch delete.
+- **Failure scenario:** the user renames `feature/login` to `feature/sign-in` (phase 3 allows it for
+  a branch with no worktrees); the renamed branch has a new `BranchID`, so the Design lens shows
+  state 1, *no canvas*, while the approved design and its Hub approvals sit on a canvas no branch
+  shows — a broken thread, which `CLAUDE.md` calls wrong whatever else is good. Conversely,
+  deleting `feature/login` and later creating a new `feature/login` derives the same id, so the new
+  branch silently inherits the old canvas and its approvals.
+- **Fix:** add seam S5-P3.2: `designapi` reads phase 3's rename map and rebinds (one line in
+  `bindings.json`, temp file + rename); a branch delete archives the binding so a new branch of the
+  same name gets a new canvas. Tests for both.
+
+#### I8. SVG nodes render as nothing without `xmlns`, and their ids collide inside an artboard
+
+- **Where:** `task-07.md:265-280` (`SanitiseSVG` keeps `id` and `url(#id)` verbatim and emits
+  `xmlns` only if the input had it); `task-24.md:51-53` (`DOMParser("image/svg+xml")`, then
+  `importNode`); `task-24.md:136` (`svgWalk` asserts only that a `d` attribute survives).
+- **Failure scenario 1:** an agent writes `<svg viewBox="0 0 24 24"><path d="…"/></svg>` — valid
+  inline SVG in HTML, no `xmlns`. The canonical markup has no `xmlns`; the XML parser puts the
+  elements in **no namespace**; imported into the artboard they are unknown elements and draw
+  nothing. `svgWalk` still passes because it checks for `d`, not for `namespaceURI`.
+- **Failure scenario 2:** two icons in one artboard each define `<linearGradient id="paint0_linear">`
+  (the Figma export default). Both live in one iframe document, so the second icon's
+  `fill="url(#paint0_linear)"` resolves to the first icon's gradient — wrong on the canvas, in the
+  PNG and in the exported HTML.
+- **Fix:** `SanitiseSVG` always writes the root `xmlns="http://www.w3.org/2000/svg"`, emits
+  well-formed XML (escaped `&`, `<`, `"`), and prefixes every kept `id` with the node id, rewriting
+  `url(#…)` to match. Tests assert `namespaceURI` in `svgWalk` and distinct ids across two SVG
+  nodes.
+
+#### I9. The licence gate has four ways to pass something it should fail
+
+- **Where:** `task-04.md:44-47` (`DeniedNames`, `FirstParty` as name strings), `:119-130`
+  (`Classify`), `:146-151` (`NpmDeps`), `:185` (`TestEvaluate_devDepReportsOnly`).
+- **What is wrong, each with its failure:**
+  1. **A runtime import of a devDependency is bundled but only reported.** Vite bundles whatever
+     `src/` imports, whatever `package.json` calls it. An implementer who adds `html-to-image` to
+     `canvas/editor`'s `devDependencies` (the file already mirrors the desktop's dev list) ships it
+     unchecked. `canvas/editor` ships **source** (`task-03.md:57-60`), so every import it makes ships.
+  2. **First party is matched by name.** `"desktop"` and `"@panacea-app/"` would exempt a registry
+     package named `desktop-notify` or `@panacea-app/x` if matching is by prefix, as `"@tldraw/"` in
+     the deny list implies. The contract does not say which.
+  3. **A Go module with no licence file** is not covered by any rule or test.
+  4. **`npm ls --json` carries no path**, so how an entry maps to its `package.json` (to read
+     `license`) is undefined; the natural guess, `node_modules/<name>`, is wrong for nested copies.
+- **Fix:** exempt first party structurally — an `npm ls` link node (`resolved: "file:…"`) and a Go
+  `.Module.Main` or local `replace` — never by name. Fail a Go module with no licence file. Read
+  `npm ls --all --json --long` (which carries `path`) or `npm query "*"`. Enforce every dependency
+  of `canvas/editor` (it ships source) and every devDependency that a file under `desktop/src`
+  imports. One test per hole.
+
+#### I10. OQ-P5-2 asks the owner not to scan Cargo without telling them what Cargo holds
+
+- **Where:** plan `:471` (OQ-P5-2) and `task-04.md:224-225` (*"Tauri's own crate tree predates
+  OD-11 and is outside this phase"*).
+- **What is wrong:** `desktop/src-tauri/Cargo.lock` already lists four MPL-2.0 crates:
+  `cssparser 0.36.0` (`:587`), `selectors 0.36.1` (`:2923`), `dtoa-short 0.3.5` (`:850`) and
+  `option-ext 0.2.0` (`:2382`) (verified present in the lock; *unverified* which link into the
+  release binary). The canvas ships inside that binary. The owner's rule says *"MIT, Apache-2.0,
+  BSD or ISC only"*; the recommendation hides a known exception instead of putting it to them.
+- **Fix:** have the gate **report** Cargo (`cargo metadata --offline`, report-only, like dev
+  dependencies), list the four crates in the first-run report, and rewrite OQ-P5-2 to state them
+  so the owner decides with the fact (MPL-2.0 is file-level copyleft; an exception entry may well
+  be the answer).
+
+#### I11. A token change restyles other agents' claimed artboards with no notice
+
+- **Where:** plan goal 3 (`:40-43`, *"Many writers never silently collide"*); `task-12.md:101-106`
+  (a notice is sent only for a change *"that touched an artboard the caller holds"*); `task-12.md:85`
+  and `:203` (tokens carry no revision and no precondition); `task-17.md:48` (`set_tokens`).
+- **Failure scenario:** agent S holds *Settings*, agent T holds *Billing*; both use `var(--brand)`.
+  T calls `set_tokens` to change `brand`. S's artboard changes colour; S's next result carries no
+  notice (no node in S's artboard changed), so S keeps designing against a palette it did not
+  choose and cannot see changed. That is a silent collision.
+- **Fix:** a token change produces a notice for every session holding an artboard whose subtree
+  uses the token (`serialize.TokensUsed`), naming the token and the author; add
+  `TestNotices_tokenChange`. Optionally let `set_tokens` take `ifRevision` against a per-token
+  revision.
+
+#### I12. Agents cannot realistically place a raster image
+
+- **Where:** `task-16.md:56-58` (`upload_asset` takes base64 in the tool's arguments, up to
+  13,981,016 characters); spec `:587` (*"Paper reads local paths"*).
+- **What is wrong:** the base64 must be written by the model as tool-call output. A 300 KB logo is
+  about 400,000 characters — far beyond a model's output budget for one call — so the
+  *code-to-design* flow (put the repository's logo on the canvas) fails for anything but tiny
+  images, and the guide does not say what to do instead.
+- **Fix (cheap, already possible):** the MCP endpoint is reachable by **any** process in the
+  sandbox and is stateless, with identity from the channel, so a shell command can upload a file as
+  the session. Ship a short helper in the image (`/usr/local/bin/canvas-upload <file>`, a Node
+  script POSTing `upload_asset` to `127.0.0.1:8731/mcp`; the image has Node, `Dockerfile:10`), teach
+  it in `canvas-rules`, and state the corollary in the threat model: every sandbox process can act
+  on the canvas as its session, within that session's scope.
+
