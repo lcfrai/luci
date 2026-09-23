@@ -626,3 +626,24 @@ task 31 already disclaims it (task-31.md:151).
 Unverified: nothing compiled or run (documents only). x/sys v0.32.0 and x/term v0.31.0 are not
 cached, so their `go` directives and the absence of Cred wrappers in x/sys v0.32.0 are inferred,
 not read. Task 06 Step 1 and task 28 Step 2 check both when they run.
+
+### Fix batch b03, round 2 — the re-review's N1, N2, m1, m2, m3 (2026-09-24)
+
+Source: `.superpowers/sdd/hub/plan-rereview-b03-1.md`. I8 and I1 stand as resolved. Commits
+`f0c8ce3` (N1, m3) and `82a85b6` (N2, m1, m2).
+
+| Finding | What changed | Where |
+|---|---|---|
+| **N1** a stored `refreshGen` reaches a panicking builder | Task 28 exports `ValidGeneration(gen) bool`, the builders' own rule, and says a stored gen is not validated configuration. `TestTargetPartsAreValidated` asserts it agrees with the panic rule. Task 31's start-up validates `refreshGen` (`ValidGeneration`) and `refreshChunks` (1 to 16; 16 × `MaxBlob` = 40,960 bytes) when it parses the record. An unparseable, gen-less or invalid record takes the "missing" branch: `signed_out`, record deleted, `SweepGenerations(…, "")`. It never panics. `TestAPartialWriteIsNotAnAccount` adds `"refreshGen":"XYZ"`, `"refreshChunks":0` and `17`. Test counts unchanged | task-28.md:99-109, :211; task-31.md:72-78, :143; plan.md:179 (A11); task-44a.md:40 |
+| **N2** `go.work` rewritten, never committed | Task 06's Files row, Step 1 and Step 5 name `go.work` (its `go` line to `go 1.23.0`; `go.work.sum` if written). Step 1 gives `go work edit -go=1.23.0` if `go get` did not rewrite it. Acceptance checks three things: the `go.work` diff is only `-go 1.23`/`+go 1.23.0`, `go.work` is in the commit, and `go list -m all` loads from the root. plan.md: `go.work` "gains no `use` line", and its `go` line follows. The `go` directive constraint states the rule. The file map gains a `go.work` row, and the lane note says only 06 edits it. **Probed here** (go1.26.2, `GOTOOLCHAIN=local`, scratch workspace): `go 1.23` over a `go 1.23.0` member → exit 1 with the quoted error; `go work edit -go=1.23.0` → `go list -m all` and `go build` exit 0 | task-06.md:20-24, :204-210, :217-220, :230-232; plan.md:91-94, :109-114, :280, :440-443 |
+| **m1** "five move" is three bumped, two added | Tech stack, task 06 Step 1 and the OD-11 row all say x/sys, x/term and x/text are **bumped**, and x/crypto and x/sync are **new** indirect lines. Both new ones are BSD-3-Clause. Cached `.mod` files re-read: x/crypto v0.37.0 requires x/net v0.21.0, below `control-plane/go.mod:52`'s v0.26.0, so x/net does not move. **Deferred:** the contract's §2 (*"Nothing else."*) stays. It lists direct requirements, and neither new module is direct | plan.md:47-55, :76; task-06.md:20-22, :188-200 |
+| **m2** task 13 pins x/time by name | Step 2 records `go list -m golang.org/x/time` and never runs a named `go get`. Step 3 imports `x/time/rate` in `ratelimit.go`, then runs `go mod tidy`. The diff must show only x/time moving to the direct block, at the recorded version. The Files row and acceptance say the same | task-13.md:23, :162-170, :183; plan.md:52-55 |
+| **m3** "absent" undefined; a sweep failure unassigned | Task 31's start-up names three outcomes, decided by `errors.Is(err, credstore.ErrNotFound)` alone. Any other `Get`/`List` error gives `{signed_out, ""}`, logged at warn, with nothing deleted and no sweep, so the next start retries. It adds no new `Reason` value, because task 30's enum is the UI contract's. A failed sweep is a warn, never fatal. `TestStartUpFromTheAccountRecord` adds a case: a non-`NotFound` `Get` leaves the store untouched | task-31.md:79-95, :142; plan.md:179; task-44a.md:40 |
+
+**The two restatements most likely to be missed**, both fixed: the file map row for `go.work`
+(plan.md:280), and task 44a's A11 fold-in (task-44a.md:40), which carries N1's and m3's start-up
+rules into the contract.
+
+Unverified: the pgx `go get` itself was not run, because x/sys v0.32.0 and x/term v0.31.0 are not
+cached. That it rewrites `go.work` is inferred from the probe. So is whether it writes
+`go.work.sum`. Task 06 handles both cases. Nothing was compiled.
