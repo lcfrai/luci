@@ -1724,12 +1724,22 @@ property 7: if you cannot name the fact that justifies the element, the element 
 | `Terminal.tsx` | `{ sessionId: SessionId; readOnly: boolean; focused: boolean }` | Constructing the `XTerm`, calling `open()`, handing it to `attachRegistry`, and **vertical scrollback inside the pane**. Takes DOM focus **only when `focused`** — on mount and on a false→true transition. Unconditional focus-on-mount meant nine mounting panes each took the caret and the last one flushed kept it. |
 
 ```tsx
-export function Terminal(props: { sessionId: SessionId; readOnly: boolean }): JSX.Element;
+export function Terminal(props: {
+  sessionId: SessionId;
+  readOnly: boolean;
+  focused: boolean;
+}): JSX.Element;
 ```
 
 The prop is a **session id, not a URL**. The old signature `{ url: string }` makes the socket a
 render-time concern; the registry keyed by session id is what makes "disconnect does not destroy"
 and "move a pane between layouts" both work.
+
+`focused` is the third and it is not cosmetic: without it this component focused on every mount,
+and React flushes passive effects children-before-parents in mount order, so Columns with nine
+panes left the **ninth** terminal holding the caret while the focus ring follows
+`selection.sessionId` — which is `null` on a cold open. `SessionPane` passes it; §6.8's focus row
+records why the two movers cannot disagree.
 
 `readOnly` is `session.status === "exited"`: the scrollback stays readable (the transcript is the
 artifact) but `onData` is not wired, so a keystroke into a dead session does nothing rather than
