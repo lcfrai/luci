@@ -73,10 +73,10 @@ schema **only here**, for `styles`, and checks each value's type), `ARTBOARDS` =
 | `set_text` | `set_props{Text}` per item; a non-text node is `invalid` at its index | `updated` | — |
 | `update_styles` | `set_props{Styles}` per node; each declaration through `dialect.CheckDeclaration` first — refused ones are **reported, not fatal**; if every declaration of every item is refused → `rejected-html`-style error with code `invalid` and the report | `updated`, `dropped` | — |
 | `rename_nodes` | `set_props{Name}` | `updated` | — |
-| `duplicate_nodes` | `create_node` × each subtree with new ids, placed right after its source (or at the end of `targetParentId`); a duplicated artboard is offset +80 px on X | `copies`: `[{"sourceId","copyId","idMap":{old:new}}]` (Paper's descendant map, spec §3.2 row 25) | — |
+| `duplicate_nodes` | `create_node` × each subtree with new ids (an svg copy's ids are re-prefixed to its new node id by `Checker.SVG` inside `Apply`, task 06, review I8), placed right after its source (or at the end of `targetParentId`); a duplicated artboard is offset +80 px on X | `copies`: `[{"sourceId","copyId","idMap":{old:new}}]` (Paper's descendant map, spec §3.2 row 25) | — |
 | `move_nodes` | `move` × n, in the given order, starting at `index` (default: last); ids preserved; a cycle → `invalid` (`cycle`) | `moved` | — |
 | `delete_nodes` | `delete_node` × n (a node inside another deleted node is skipped, not an error) | `deleted` | `destructiveHint` true |
-| `upload_asset` | store the bytes (`PutAsset`, magic-byte sniffed; SVG sanitised by task 07's `SanitiseSVG` first), then `add_asset` | `asset` (`doc.Asset`) — its `ref` goes in `<img src>` or `url()` | — |
+| `upload_asset` | store the bytes (`PutAsset`, magic-byte sniffed; SVG sanitised by task 07's `SanitiseSVG("", …)` first: an asset renders in its own image document, so its ids stay unprefixed), then `add_asset` | `asset` (`doc.Asset`) — its `ref` goes in `<img src>` or `url()` | — |
 | `start_working` | no batch: `authority.StartWorking` | `claims` | — |
 | `finish_working` | no batch: `authority.FinishWorking`; clears the working indicator | `released` (count) | — |
 | `request_review` | `request_review` op; **never approves** (plan rule 4, ADR-H1 R5) | `reviewId` | — |

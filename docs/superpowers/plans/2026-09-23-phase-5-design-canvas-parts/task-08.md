@@ -37,10 +37,13 @@ type HTMLOptions struct {
 //     (a boolean attribute, when Node.Hidden), style (last, if any);
 //   - style is "prop: value" pairs sorted by property name, joined by "; ", no trailing ";";
 //   - text: & < > escaped as &amp; &lt; &gt;, "\n" as <br>; attribute values escape & < > " ;
-//   - image: src="<asset ref>" and alt; svg: Node.SVG verbatim;
+//   - image: src="<asset ref>" and alt; svg: Node.SVG verbatim (canonical: root xmlns, well-formed,
+//     ids prefixed with the node id, so two icons in one exported artboard share no id, review I8);
 //   - Locked, X, Y, Revision and EditedBy are never emitted;
 //   - an <a> is emitted with href="#" as its first attribute after data-node.
 // The output parses back through dialect.Parse to the same nodes (ids aside) — the round trip.
+// "Ids aside" includes the node-id prefix inside an svg node's markup: Parse re-prefixes it to the
+// new node id, so the round trip compares svg markup as SanitiseSVG("", …) of each side.
 func HTML(d *doc.Doc, nodeID string, o HTMLOptions) (string, error)
 ```
 

@@ -100,8 +100,8 @@ type Report struct {
 | `p span h1–h6 small strong em b i code blockquote figcaption` with text | a **text** node with that tag |
 | the same holding block elements | a **frame** `div` (report `retagged`) |
 | `b strong i em span small code a br` **inside** a text node | flattened into the text; `br` is `"\n"` (report `flattened-inline` once per node, plan P5-E) |
-| `img` | an **image**: `src` is an existing `asset:sha256-…` (`HasAsset`), or a `data:image/png|jpeg|webp|svg+xml;base64,…` decoded through `Assets` (the bytes' magic must match the type; SVG bytes are sanitised by `svg.go` first). Any other `src` drops the element (`url`: *"remote images are not loaded: call upload_asset and use its ref"*) |
-| `svg` | an **svg** node: the subtree through `svg.go`, serialised canonically |
+| `img` | an **image**: `src` is an existing `asset:sha256-…` (`HasAsset`), or a `data:image/png|jpeg|webp|svg+xml;base64,…` decoded through `Assets` (the bytes' magic must match the type; SVG bytes are sanitised by `svg.go` first, as `SanitiseSVG("", …)`: an image document of its own, ids unprefixed). Any other `src` drops the element (`url`: *"remote images are not loaded: call upload_asset and use its ref"*) |
+| `svg` | an **svg** node: the subtree through `svg.go` as `SanitiseSVG(<the node's new id>, …)`, serialised canonically — root `xmlns` always written, well-formed XML, every kept `id` and `url(#…)` prefixed with the node id (review I8). The HTML-attribute rule below (*"ids are assigned by the canvas"*) is for HTML elements; ids inside an `<svg>` follow `svg.go`. A clone's svg nodes are re-sanitised under their new ids |
 | `input` | a **frame** tagged `input` (void) with `type`, `placeholder`, `value`, `checked` kept |
 | `x-clone ref="n-…"` | a deep copy of `Clone(ref)`'s subtree with new ids; its `style` is merged over the copy root's styles and its `name` over the root's name. Unknown ref: dropped (`element`) |
 | `html head body` | unwrapped; `head`'s content is dropped |
@@ -265,7 +265,11 @@ var Reasons = map[string]string{
 // canvas/dialect/svg.go
 
 // SVGElements and SVGAttrs are the SVG subset. href and xlink:href are never
-// kept (no <use>, no <image>); a url() attribute value may only be url(#id).
+// kept (no <use>, no <image>); a url() attribute value may only be url(#id), and
+// only for an id defined inside the same SVG. xmlns stays in SVGAttrs so the
+// renderer's walk (task 24) keeps it, but its value is never the input's: the
+// writer emits it on the root only, always as SVGNamespace (below).
+const SVGNamespace = "http://www.w3.org/2000/svg"
 var SVGElements = []string{"svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
 	"text", "tspan", "defs", "linearGradient", "radialGradient", "stop", "clipPath", "mask", "title", "desc"}
 var SVGAttrs = []string{"xmlns", "viewBox", "width", "height", "preserveAspectRatio", "id", "d", "x", "y",
@@ -275,8 +279,36 @@ var SVGAttrs = []string{"xmlns", "viewBox", "width", "height", "preserveAspectRa
 	"gradientUnits", "gradientTransform", "font-size", "font-family", "font-weight", "text-anchor"}
 
 // SanitiseSVG returns canonical markup: allowlisted elements and attributes
-// only, attributes sorted by name, no comments, no whitespace between tags.
-func SanitiseSVG(markup string) (canonical string, report Report, err error)
+// only, attributes sorted by name, no comments, no whitespace between tags. The
+// canonical form is WELL-FORMED XML in the SVG namespace, because the renderer
+// parses it with DOMParser("image/svg+xml") (task 24), where a missing xmlns puts
+// every element in no namespace and draws nothing (review I8):
+//   - the root is written `<svg xmlns="http://www.w3.org/2000/svg" …>` whatever
+//     the input had; no other element carries xmlns;
+//   - element and attribute names are written in SVG's case (linearGradient,
+//     clipPath, viewBox, gradientUnits, preserveAspectRatio): x/net/html lowercases
+//     them and restores SVG case in foreign content (x/net@v0.26.0 html/foreign.go,
+//     svgTagNameAdjustments :126-153, svgAttributeAdjustments :175-217), and the
+//     writer uses those names, since XML is case-sensitive;
+//   - attribute values escape & < " (as &amp; &lt; &quot;), text escapes & < >,
+//     and characters XML 1.0 forbids (C0 controls but tab, LF and CR) are removed;
+//     empty elements are written <path …/>.
+// Ids are made unique per node (review I8): SVG nodes of one artboard share one
+// iframe document, so two icons that each define id="paint0_linear" (Figma's
+// default) would both resolve url(#paint0_linear) to the first. Every kept id is
+// written "<nodeID>-<local>", where local is the input id with any leading
+// "n-<12 hex>-" removed first; every url(#x) attribute value is rewritten the
+// same way. So SanitiseSVG is idempotent, and re-sanitising under a new node id
+// (x-clone, duplicate_nodes, a desktop duplicate) re-prefixes instead of stacking:
+// SanitiseSVG(b, SanitiseSVG(a, m)) == SanitiseSVG(b, m). A local id outside
+// ^[A-Za-z_][A-Za-z0-9_.-]{0,63}$ is dropped (DropAttribute, reason "an SVG id is
+// a letter or _ then up to 63 of A-Z a-z 0-9 _ . -"), and so is a url(#x) whose
+// x no kept id of this SVG defines (DropAttribute, reason "a url(#…) must name an
+// id inside the same SVG") — no reference can reach another node's element. nodeID "" is
+// for an SVG asset (upload_asset, an <img src="data:image/svg+xml…">, task 16),
+// which renders in its own image document: ids are kept unprefixed; xmlns and
+// well-formedness are the same.
+func SanitiseSVG(nodeID, markup string) (canonical string, report Report, err error)
 ```
 
 ```go
@@ -287,7 +319,13 @@ type Checker struct{ Tokens map[string]doc.Token } // Tokens only for warnings
 
 func (Checker) Style(property, value string) error
 func (Checker) TokenValue(t doc.TokenType, value string) error
-func (Checker) SVG(markup string) error // markup must equal SanitiseSVG(markup)'s canonical output
+// SVG refuses markup from which SanitiseSVG(nodeID, markup) would drop anything
+// (a non-empty report or an error: a bypass of the parser, never silently
+// repaired), and otherwise returns the canonical form, which doc stores (task 06).
+// Differences that drop nothing (attribute order, the id prefix of another node
+// id) are canonicalised, not refused, so a duplicate under a new id is re-prefixed
+// in this one Go function rather than in each client (review I8).
+func (Checker) SVG(nodeID, markup string) (canonical string, err error)
 
 // CheckDeclaration is Style with the report entry the caller surfaces.
 func CheckDeclaration(property, value string) (kept bool, drop *Drop)
@@ -323,7 +361,14 @@ func CheckDeclaration(property, value string) (kept bool, drop *Drop)
 | `TestParse_nothingSurvives` | `<script>x</script>` → no roots, one drop (the caller's `rejected-html`) | an empty success |
 | `TestParse_tokens` | `color: var(--brand)` with no `brand` token is kept with a `unknown-token` warning | unknown tokens refused (agents create tokens after using them) |
 | `TestCSS_tokenizer` (table) | strings with `;` inside, nested functions, `url( "asset:sha256-…" )` with spaces and quotes, comments inside values | a naive `strings.Split(";")` |
-| `TestSVG_sanitise` | `<svg onload><use href="#x"/><path d="M0 0" fill="url(#g)" /></svg>` keeps the path and the fragment url, drops `onload` and `use`; attributes sorted | `href` kept |
+| `TestSVG_sanitise` | `SanitiseSVG("n-000000000001", `<svg onload><linearGradient id="g"/><use href="#x"/><path d="M0 0" fill="url(#g)" /></svg>`)` keeps the gradient, the path and the fragment url (as `url(#n-000000000001-g)`), drops `onload` and `use`; attributes sorted | `href` kept |
+| `TestSVG_namespace` | `<svg viewBox="0 0 24 24"><path d="M0 0"/></svg>` (no `xmlns`, valid inline HTML) → canonical starts `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">`; `xmlns="http://evil.example/"` on the root is replaced by the SVG namespace; `xmlns` on a child is not written; `encoding/xml`'s `Decoder` reads the output to EOF with no error and the root's `Name.Space` is `SVGNamespace` | an SVG node that draws nothing (review I8) |
+| `TestSVG_case` | `<svg><lineargradient gradientunits="userSpaceOnUse"/><clippath/></svg>` → `linearGradient`, `gradientUnits`, `clipPath`, and `viewbox` → `viewBox` | a lowercased name an XML parser does not know |
+| `TestSVG_wellFormed` | `<text>` content `a & b < c`, an attribute value holding `"` and `&`, and a U+0001 → `a &amp; b &lt; c`, `&quot;` and `&amp;` in the value, no U+0001; `encoding/xml` decodes it | ill-formed XML: DOMParser yields a `parsererror` document |
+| `TestSVG_idsPerNode` | the same markup with `<linearGradient id="paint0_linear">` and `fill="url(#paint0_linear)"` under `n-000000000001` and `n-000000000002` → ids `n-000000000001-paint0_linear` and `n-000000000002-paint0_linear`, each `url()` naming its own, both outputs equal byte for byte to the two literals task 24's `svgIdsDistinct` also holds; `SanitiseSVG(b, SanitiseSVG(a, m)) == SanitiseSVG(b, m)` and `SanitiseSVG(a, SanitiseSVG(a, m)) == SanitiseSVG(a, m)` | two icons in one artboard sharing one gradient; a clone stacking prefixes |
+| `TestSVG_danglingRef` | in an SVG that defines no `nope` and no `g`: `fill="url(#nope)"`, and `fill="url(#n-000000000009-g)"` naming another node's id, and `id="1bad"` → the two refs and the id each dropped as `attribute`, with the reasons `svg.go` names | one node's SVG reaching another node's element |
+| `TestParse_twoSVGs` | an artboard's HTML with two Figma-style icons, both `id="paint0_linear"` → two svg nodes whose canonical markup shares no id (every `id="…"` value across both is distinct) | the review I8 scenario end to end in Go |
+| `TestChecker_SVG` | `Checker.SVG(id, SanitiseSVG(id, m))` returns the same string; `Checker.SVG(b, SanitiseSVG(a, m))` returns `SanitiseSVG(b, m)` (re-prefixed, not refused); markup with `<script>` or `onload` errs (a drop is a refusal, never a repair) | the authority silently repairing a bypass, or refusing every duplicate |
 | `TestChecker_implementsDoc` | `var _ doc.Checker = dialect.Checker{}`; `Style("margin","0")` errs | the authority checking with a different list than the parser |
 | `TestTokenValue` (table, one row per token type) | `color: #2fb3bd` ✓, `color: 12px` ✗, `font-weight: 650` ✓, `radius: 8px` ✓, `line-height: 1.4` ✓ | a type check that accepts anything |
 | `TestAllowlistJSON_upToDate` | regenerating in memory equals the committed `allowlist.json` byte for byte | the TS renderer's copy drifting from Go (task 23 checks the other side) |

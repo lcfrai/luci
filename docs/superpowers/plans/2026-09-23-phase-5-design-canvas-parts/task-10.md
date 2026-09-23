@@ -131,7 +131,9 @@ from the nearest kept snapshot at or below `rev`, so a replay is at most 5,000 c
 
 // Replay applies one logged change to d. It re-runs doc.Apply with the
 // change's own ops, author and time and a Checker that accepts everything —
-// the ops were checked when they were accepted — and fails with ErrCorrupt
+// the ops were checked when they were accepted, and the logged ops already carry
+// the canonical SVG Apply wrote back (task 06; its SVG returns the markup
+// unchanged, review I8) — and fails with ErrCorrupt
 // unless the result's revision is c.Revision.
 func Replay(d *doc.Doc, c doc.Change) error
 ```

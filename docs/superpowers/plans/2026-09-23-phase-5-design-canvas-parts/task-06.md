@@ -83,7 +83,12 @@ type Op struct {
 type Checker interface {
 	Style(property, value string) error         // one declaration, against the allowlist
 	TokenValue(t TokenType, value string) error // a value valid for the type
-	SVG(markup string) error                    // markup is already canonical sanitised SVG
+	// SVG refuses markup the sanitiser would drop anything from, and returns the
+	// canonical form for THIS node id (root xmlns, well-formed XML, ids prefixed
+	// with nodeID; task 07, review I8). Apply stores the returned string, and
+	// writes it back into the op it records in the Change, so the event stream,
+	// every desktop DocStore and a replay apply the same bytes.
+	SVG(nodeID, markup string) (canonical string, err error)
 }
 
 // OpError is every refusal. Index is the op's position in the batch.
@@ -163,8 +168,8 @@ func (p *Pending) Commit()
 | `create_page` | id invalid or taken; order invalid or equal to a sibling page's; name over 120 runes |
 | `update_page` | page missing; new order collides |
 | `delete_page` | page missing; it is the last page (`invalid`: *"a canvas keeps at least one page"*) |
-| `create_node` | id invalid or taken; `Node.Validate()` fails; parent missing; an artboard's parent is not a page, or a non-artboard's parent is a page; the parent is `text`, `image`, `svg` or an `input`; order collides with a sibling; depth over 64; node count over 50,000; any style refused by `Checker.Style`; an image whose `Asset` is not a registered asset; an SVG refused by `Checker.SVG`; **an artboard without a `width` in `px`, or without a `height` in `px` or `fit-content`** |
-| `set_props` | node missing; a field that does not belong to its kind (e.g. `Text` on a frame); a `Tag` not allowed for the kind; `Tag` set to `input` on a node with children; any style refused; an artboard left without its size |
+| `create_node` | id invalid or taken; `Node.Validate()` fails; parent missing; an artboard's parent is not a page, or a non-artboard's parent is a page; the parent is `text`, `image`, `svg` or an `input`; order collides with a sibling; depth over 64; node count over 50,000; any style refused by `Checker.Style`; an image whose `Asset` is not a registered asset; an SVG refused by `Checker.SVG(op's node id, …)` (stored as its canonical return); **an artboard without a `width` in `px`, or without a `height` in `px` or `fit-content`** |
+| `set_props` | node missing; a field that does not belong to its kind (e.g. `Text` on a frame); a `Tag` not allowed for the kind; `Tag` set to `input` on a node with children; any style refused; an `SVG` refused by `Checker.SVG(nodeID, …)` (the stored value is its canonical return, as on `create_node`; without this row a `set_props` would store markup no sanitiser saw, review I8); an artboard left without its size |
 | `move` | node missing; new parent missing or of a kind that cannot hold it; the new parent is in the node's subtree (`cycle`); order collides; depth over 64 |
 | `delete_node` | node missing. Threads anchored in the subtree keep their `NodeID` (shown detached) |
 | `set_token` | name not `^[a-z][a-z0-9-]{0,62}$`; unknown type; `Checker.TokenValue` refuses |
@@ -210,6 +215,7 @@ func Invertible(k OpKind) bool
 | `TestApply_cycle` | moving `A` under its grandchild is `cycle` | a cycle that loops `ArtboardOf` for ever |
 | `TestApply_artboardSize` | an artboard with `height: fit-content` is accepted; with `width: 50%` refused; `set_props{width: null}` on one refused | an artboard that loses its size |
 | `TestApply_checkerCalled` | a strict fake `Checker` refusing `margin` turns `create_node` with `margin: 4px` into `style` at the right index | styles not checked on create |
+| `TestApply_svgCanonical` | a fake `Checker` whose `SVG(id, m)` returns `id + "|" + m`: `create_node` and `set_props` of an svg node store that return value, the recorded `Change`'s ops carry it too, and the fake saw the op's own node id; a fake that errs on `SVG` refuses `set_props{svg}` as well as `create_node` | an SVG stored unsanitised through `set_props`, or a replica applying different bytes than the authority stored (review I8) |
 | `TestInverse_restores` (property test, 2,000 random batches over a random document) | `Apply(ops)` then `Apply(change.Inverse)` gives a document whose content — every field except `Revision`, `EditedBy`, threads, reviews and assets — equals the original | an inverse that forgets a field or a subtree's order |
 | `TestInverse_deleteSubtreeOrder` | deleting a frame with 12 ordered children and applying the inverse restores their `Order` keys exactly | inverse creating children in the wrong order |
 | `TestChange_contentChanged` | a batch of only `create_thread` has `ContentChanged: false`; with one `set_props` added, `true` | comments counted as design changes (would wrongly trip *changed after approval*) |

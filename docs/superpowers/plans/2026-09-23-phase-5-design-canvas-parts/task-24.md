@@ -51,7 +51,12 @@ export interface BuildContext {
 //   assetUrl, alt; input → createElement("input") with the kept attrs; svg → DOMParser
 //   ("image/svg+xml") of node.svg, then importNode, then a walk that REMOVES any element or
 //   attribute outside task 07's SVG lists (the one other string→DOM path, stated here so G7's
-//   gate can name it); styles → for each [p, v] with allowedStyle(p, v), el.style.setProperty
+//   gate can name it). The server's canonical markup carries the root xmlns and is well-formed
+//   XML with ids already prefixed by the node id (task 07, review I8); the renderer does not
+//   repair a bypass: a parse whose root is a <parsererror>, or whose root's namespaceURI is not
+//   "http://www.w3.org/2000/svg", builds nothing and counts refusedTags. The walk also refuses
+//   (removes) an id that does not start with "<node id>-" and a url(#x) whose x is not an id in
+//   the same SVG, so no reference in one svg node resolves into another; styles → for each [p, v] with allowedStyle(p, v), el.style.setProperty
 //   (p, rewriteAssetUrls(v)); a refused style is dropped and counted (never thrown).
 //   Every element gets data-node=<id> for hit-testing; hidden → the hidden attribute.
 export function buildNode(ctx: BuildContext, n: Node): Element;
@@ -151,7 +156,9 @@ export function HiddenRenderer(props: { transport: CanvasTransport; canvasId: st
 | `g7.test.ts` | the package's sources contain `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval(`, `new Function` **nowhere**, and `srcdoc` only where `ArtboardFrame` assigns `ARTBOARD_SHELL` | a string of agent HTML reaching the DOM |
 | `buildDom.test.ts › noScript` | a wire node crafted with `tag: "script"` (a bypass of the server) builds nothing and counts `refusedTags` | a renderer trusting the server |
 | `buildDom.test.ts › styleRefused` | `styles: {margin: "4px", color: "red"}` → only `color` set, `refusedStyles: 1` | the renderer as a pass-through |
-| `buildDom.test.ts › svgWalk` | `svg: "<svg><script/><path d='M0 0' onload='x'/></svg>"` → a path with `d`, no script, no `onload` | DOMParser output inserted unwalked |
+| `buildDom.test.ts › svgWalk` | `svg: "<svg xmlns='http://www.w3.org/2000/svg'><script/><path d='M0 0' onload='x'/></svg>"` → a path with `d`, no script, no `onload`; the built root's and the path's `namespaceURI` are both `"http://www.w3.org/2000/svg"` | DOMParser output inserted unwalked; an SVG in no namespace, which draws nothing (review I8) |
+| `buildDom.test.ts › svgNoNamespace` | `svg: "<svg><path d='M0 0'/></svg>"` (no `xmlns`, a bypass of the server) and `svg: "<svg xmlns='http://www.w3.org/2000/svg'><path></svg>"` (ill-formed: a `parsererror` document) → nothing built, `refusedTags` 1 each | an invisible element counted as rendered, or a `parsererror` drawn into the artboard |
+| `buildDom.test.ts › svgIdsDistinct` | two svg nodes `n-000000000001` and `n-000000000002` in one document, each with the canonical markup task 07's `TestSVG_idsPerNode` produces for `<linearGradient id="paint0_linear">` + `fill="url(#paint0_linear)"` (the two exact canonical strings are literals in both tests, and the Go test asserts `SanitiseSVG` produces them byte for byte, so the sides cannot drift) → every `[id]` in the document is distinct, and each path's `fill` names a gradient whose `closest("svg")` is its own root; a third node whose markup carries `id="paint0_linear"` unprefixed, or `fill="url(#n-000000000001-paint0_linear)"`, has that id or ref removed | the second icon resolving to the first icon's gradient (review I8) |
 | `buildDom.test.ts › textNewlines` | `"a\nb"` → text, `<br>`, text | newlines collapsed |
 | `buildDom.test.ts › assetRewrite` | `background-image: url(asset:sha256-…)` → the cache's `blob:` URL | an `asset:` URL the CSP blocks |
 | `patch.test.ts › minimal` | a `set_props` event on one node rebuilds that element only (identity of siblings kept) | a full re-render per event (flicker, lost scroll) |

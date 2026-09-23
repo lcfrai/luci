@@ -80,7 +80,7 @@ type Node struct {
 	Text     string            `json:"text"`     // KindText only; ≤ 10,000 runes
 	Asset    string            `json:"asset"`    // KindImage only: an asset ref
 	Alt      string            `json:"alt"`      // KindImage only; ≤ 500 runes
-	SVG      string            `json:"svg"`      // KindSVG only: canonical sanitised markup; ≤ 256 KiB
+	SVG      string            `json:"svg"`      // KindSVG only: canonical sanitised markup (task 07: root xmlns, well-formed XML, ids prefixed with this node's id); ≤ 256 KiB
 	Attrs    map[string]string `json:"attrs"`    // AllowedAttrs only; {} not null
 	X        int               `json:"x"`        // KindArtboard only: its place on the page, CSS px (0 otherwise). Not design content: never serialised, never digested
 	Y        int               `json:"y"`

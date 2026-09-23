@@ -64,7 +64,9 @@ export function pick(views: Map<string, ArtboardView>, v: Viewport, sx: number, 
 //   resize (8 handles)         → setStyles({width, height}) in px (Shift keeps the ratio);
 //                                an artboard's height set this way leaves fit-content        "Resize"
 //   Alt/Option-drag            → duplicate with client-minted ids (ids.ts: n- + 12 hex from
-//                                crypto.getRandomValues; the authority refuses a collision)   "Duplicate"
+//                                crypto.getRandomValues; the authority refuses a collision;
+//                                an svg copy is sent verbatim and the authority re-prefixes
+//                                its ids to the new node id, task 06/07, review I8)          "Duplicate"
 //   a flex frame's gap handle  → setStyles({gap})                           "Change gap"
 
 // canvas/editor/src/editor/snap.ts — 4 screen px: artboard edges and centre, sibling edges and centres.
