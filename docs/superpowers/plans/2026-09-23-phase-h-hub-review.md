@@ -492,7 +492,7 @@ not.
 | — | plan.md:463-466 replaced by the ask/answer table | plan.md:477-502 |
 | HA4-1 | confirmed: task 03's structs, frozen at S0 | `parts/task-00.md` table |
 | HA4-2 | `BriefQuery` (with `Page PageRequest`, a declared difference from the ask's flat fields); `Briefs.List`; the fake's rule and test; the conformance row; the HTTP method | parts/task-03.md:285; task-04.md:82, :249-253, :281; task-05.md:202; task-34.md:28 |
-| HA4-3 | `MaxRevisionBatch` 64, `MaxRevisionBatchBytes` 4 MiB; route 26 through `WriteLimit`; the fake; `json.Compact` in the client | task-03.md:313; task-14.md:112, :184; task-19.md:6, :23-27, :87; task-04.md:256, :280; task-05.md:203; task-34.md:31 |
+| HA4-3 | `MaxRevisionBatch` 64, `MaxRevisionBatchBytes` 4 MiB; route 26 through `WriteLimit`; the fake; ~~`json.Compact` in the client~~ replaced in round 2 by the wire rule (R1 below) | task-03.md:313; task-14.md:112, :184; task-19.md:6, :23-27, :87; task-04.md:256, :280; task-05.md:203; task-34.md:31 |
 | HA4-3 (exposed) | `hubclient`'s JSON reply cap 1 MiB → **8 MiB**, derived from `/v1/refs` (100 × 64 KiB) and route 26's reply (64 × 64 KiB). At 1 MiB a **committed** 16-revision batch was already reported `ErrUnavailable` — a defect the review did not name | task-33.md:63, :139 |
 | HA4-4 | `BriefWithRevision.LatestComplete`; routes 21 and 22; tests (the with-revisions test sits in task 19, where revisions are written) | task-03.md:280; task-18.md:24-25, :70; task-19.md:92; task-04.md:282 |
 | HA4-5 | `Relay`; `WriteError` = `Relay` + write; `Error.RetryAfter` (without it `WriteError`'s *"Retry-After copied"* had nothing to copy) | task-33.md:98, :121, :141; task-04.md:145 |
@@ -510,7 +510,7 @@ not.
 null-environment run (each leaves `reserved` before any join) — a 500 on every refused first Ship.
 Built instead: `CHECK (environment IS NOT NULL OR (kind = 'run' AND source_deployment_id IS NULL))`.
 (2) The review let `guard_release` allow NULL → value *"on a reserved release"*; route 40 joins
-**confirmed** releases only (task-24.md:41-45), so that allowance would never fire. Built instead:
+**confirmed** releases only (task-24.md:46-47), so that allowance would never fire. Built instead:
 NULL → value once, while `reserved` or `confirmed`. Both are argued in `parts/task-00.md`
 *"HA7-1, exactly"*. Because the guard now compares explicit column tuples rather than `NEW IS
 DISTINCT FROM OLD`, `TestReleaseGuardCoversEveryColumn` (task-07.md:633) pins the tuples to the
@@ -529,3 +529,22 @@ table and to `hub_app`'s column grant.
 
 Unverified: the sibling plans' line numbers will move again as those plans are edited; nothing was
 compiled or run (documents only).
+
+### Fix batch b01, round 2 — the re-review's open issues (2026-09-24)
+
+This round answers `.superpowers/sdd/hub/plan-rereview-b01-1.md`, which is local and git-ignored.
+Line numbers are as committed by this round. The task list is unchanged from round 1.
+
+| Issue | Change | Where |
+|---|---|---|
+| **R1** (Important) | Took the re-review's option (a): name the encoder on both sides, so the caps stay 4 MiB and 8 MiB as HA4-3 asked. Task 00 now states **the wire rule**. Its evidence was read from go1.26.2's source on this machine: `encoding/json/encode.go:487` compacts a marshaller's output through `appendCompact(…, opts.escapeHTML)`, and `indent.go:57-71` escapes `<`, `>`, `&`, U+2028 and U+2029 only when that flag is set. (1) `hubclient` encodes each JSON request once, with `SetEscapeHTML(false)`, never `json.Marshal`. (2) `WriteRevisions` sends each `content` as `hubapi.Canonical`, not `json.Compact`, which kept a writer's `é` escapes. (3) The Hub's `server.WriteJSON` encodes without HTML escaping and no longer calls the shared `httpx.WriteJSON`, which is untouched. That is safe because every Hub response carries `application/json` and `nosniff`. "Guarantees" is gone. Every test the re-review named now uses `<>&`/U+2028-dense content, and task 19's test asserts the 201 reply is under 8 MiB | task-00.md:28 (HA4-3 row), :100-101, :103-125; task-08.md:212-221, :280; task-33.md:51-55, :143-144; task-34.md:31, :82; task-19.md:87; task-03.md:311-314; task-44a.md:51-52; plan.md:489 |
+| **m1** | task 01's header depends on 44a | task-01.md:3-4 |
+| **m2** | `release.deployment_joined`'s `data.environment` is the release's environment **after** the join, as task 24 already said. Task 00 and 44a now say so too, and the `{d-3}` step asserts `"feat-x"`. A join naming none on a null release asserts `""` | task-00.md:89-91; task-44a.md:54; task-24.md:123 |
+| **m3** | HA7-4's desktop half is recorded as a **declared difference**: one `onHubHeaders(h)` hook, `onCursor` not built, `h.cursors` keyed by the lowercased name (`deploy`). Phase 7 adds no second hook. Also found in passing: HTTP header names ignore case, so `Hub` and `HUB` are one header and one key. `api.New` now refuses a case-insensitive duplicate, and the test says so | task-00.md:43, :127-151; task-40.md:162-165; task-44a.md:55; task-36.md:79, :85-88, :141; plan.md:432, :503 |
+| **m4** | The 44a announcement carries the sha and the read path `git show <44a-sha>:docs/superpowers/contracts/2026-09-23-hub-contract.md`. It works from a sibling's own worktree because the worktrees share one object store. 44a step 3 records the sha and the path in `progress.md`, and the acceptance greps for them. 44b's reopened-ask notice does the same | plan.md:390-393; task-44a.md:3-4, :87-96, :109, :114-115; task-00.md:168-170; task-44b.md:22-24 |
+| **m5** | `TestReleaseGuardCoversEveryColumn` reads the installed function through `pg_get_functiondef('hub.guard_release'::regproc)`. It expects exactly two `NEW…IS DISTINCT FROM OLD…` pairs with matching lists, and requires every `information_schema.columns` column exactly once across immutable, mutable and `{environment}`. It keeps the grant check | task-07.md:633 |
+| **m6** | *"Siblings consume these interfaces and `NewFake()`; they never implement them"* is now in task 00, the S0 and S-HUB rows, and 44a's §9.2 row. I checked it by grepping the phase 3, 4, 5 and 7 plans for a type, a `var _` assertion or a stub that implements a `hubclient` interface. None exists | task-00.md:12-16; plan.md:323, :430; task-44a.md:40 |
+| **m7** | route 40's *"confirmed releases only"* cite corrected to task-24.md:46-47; round 1's HA4-3 row marks `json.Compact` as superseded by R1 | this file :513, :495 |
+
+Unverified: nothing was compiled or run (documents only). The encoder behaviour was read from the
+Go source, not executed. A sibling agent's use of `git show` was not tried from a sibling worktree.
