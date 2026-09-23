@@ -43,6 +43,8 @@ type Bindings interface {
 
 type Connection interface {
 	Observe(err error)
+	Status() connection.Status
+	Check(ctx context.Context) connection.Status
 }
 
 type Config struct {
@@ -103,6 +105,10 @@ type Snapshot struct {
 
 #### One cycle, for one bound project — the order is load-bearing
 
+0. **Connection gate** (once per cycle, before any project). `Connection.Status().State` is
+   `NotConnected` → poll nothing. `AwaitingApproval` or `TokenRejected` → poll nothing, and every
+   fourth cycle (60 s) call `Connection.Check`, so the lens's *"this screen checks again on its
+   own"* (prototype `phase-7-deploy.html:830-831`) is true without a desktop timer.
 1. **Binding.** `Bindings.Resolve` when the cached binding is not `Bound`, or every fourth cycle;
    else `Cached`. Not bound → the snapshot carries the binding and nothing else; stop.
 2. **`Environments`.** First, because a missing *project* surfaces here as its own error, which is
