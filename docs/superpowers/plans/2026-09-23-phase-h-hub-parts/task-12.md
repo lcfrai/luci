@@ -47,9 +47,20 @@ because the redirect target is not yet trusted; the rest redirect to `redirect_u
 A valid request with `login_hint` naming a user of this tenant **and** `Auto` set redirects at once
 with a code. Otherwise the page lists the tenant's users as buttons, plus *Cancel*. The page is
 static HTML with `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline';
-form-action 'self'`; each button is a form **POST** back to the same path carrying the query as
-hidden fields and `user=<oid>`. *Cancel* posts `cancel=1` and redirects with
-`error=access_denied`. A successful POST redirects `302` to `redirect_uri?code=<code>&state=<state>`.
+form-action 'self' <listener origin>`, where `<listener origin>` is the scheme, host and port of
+the `redirect_uri` that rule 2 has already accepted (`http://127.0.0.1:53123` for
+`redirect_uri=http://127.0.0.1:53123/`) — computed per request, never a wildcard, never a port
+other than that one. **Why the listener's origin is in `form-action`:** each button is a form
+**POST** back to the same path, and the POST answers `302` to the listener, a different origin
+(another port). Chromium, and so Edge, the corporate system browser, applies `form-action` to a
+redirect that follows a form submission; with `form-action 'self'` alone the click is refused
+with a console error and the tab never reaches the listener (review I4). Dropping `form-action`
+would fix the click but lets the page post anywhere (`form-action` does not fall back to
+`default-src`); `http://127.0.0.1:*` would admit every loopback port. The exact origin admits the
+one redirect this page exists to perform. Each button carries the query as hidden fields and
+`user=<oid>`. *Cancel* posts `cancel=1` and redirects with `error=access_denied`. A successful POST
+redirects `302` to `redirect_uri?code=<code>&state=<state>`. **Unverified here:** Chromium's
+redirect behaviour; step 4 is the evidence, and no Go test can stand in for it.
 
 A **code** is 32 random bytes, base64url; single use; lives 5 minutes; bound to the tenant, client,
 `redirect_uri`, `code_challenge`, the granted scopes, `nonce`, and the user.
@@ -88,6 +99,7 @@ URL, and an injected clock.
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestTheUserPageListsTheTenant` | GET with valid parameters → 200 HTML listing the five users of tenant 1 and not tenant 2's; the CSP header above | a page that signs in anyone from any tenant |
+| `TestTheFormMayPostOnlyToTheListener` | `redirect_uri=http://127.0.0.1:53123/` → the CSP's `form-action` is exactly `'self' http://127.0.0.1:53123`; `redirect_uri=http://localhost:1/` → exactly `'self' http://localhost:1`; neither contains `*` or another port; `default-src 'none'` is still present | `form-action 'self'` alone (review I4: the redirect to the listener is blocked in Edge); a dropped `form-action`; `http://127.0.0.1:*` |
 | `TestAnUntrustedRedirectIsNeverFollowed` | `redirect_uri` of `https://127.0.0.1:1/`, `http://evil.example:1/`, `http://127.0.0.1:1/cb`, `http://127.0.0.1:1/?x=1` → 400 page, **no `Location` header** | an open redirector carrying a code to another origin |
 | `TestAnyLoopbackPortIsAccepted` | `http://127.0.0.1:53123/` and `http://localhost:1/` → the page | a registration rule that only matches one port (the rule contract §6.1 relies on) |
 | `TestS256IsRequired` | `plain`, a missing challenge, a 42-character challenge → redirect with `invalid_request` and the `state` | a flow that works without PKCE locally and fails on Entra |
@@ -109,15 +121,20 @@ URL, and an injected clock.
 - [ ] **Step 2:** Tests; they fail.
 - [ ] **Step 3:** `authorize.go`, `page.go`, `token.go`; register the routes in `issuer.go`.
 - [ ] **Step 4:** By hand: `go run ./control-plane/cmd/devissuer`, then open
-  `http://127.0.0.1:8740/11111111-1111-4111-8111-111111111111/oauth2/v2.0/authorize?client_id=22222222-2222-4222-8222-222222222222&response_type=code&redirect_uri=http://127.0.0.1:9/&scope=openid%20api://33333333-3333-4333-8333-333333333333/Hub.Access&state=s&nonce=n&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256`
-  in a browser: the page lists Ada, Grace, Linus, Out Sider and Vera; clicking one lands on
-  `http://127.0.0.1:9/?code=…&state=s` (the connection fails; the URL is the evidence).
+  `http://127.0.0.1:8740/11111111-1111-4111-8111-111111111111/oauth2/v2.0/authorize?client_id=22222222-2222-4222-8222-222222222222&response_type=code&redirect_uri=http://127.0.0.1:53123/&scope=openid%20api://33333333-3333-4333-8333-333333333333/Hub.Access&state=s&nonce=n&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256`
+  **in Edge** (the corporate system browser, the one task 30 opens): the page lists Ada, Grace,
+  Linus, Out Sider and Vera. **In Edge, clicking Grace lands on the listener URL**
+  `http://127.0.0.1:53123/?code=…&state=s` — the address bar shows it (the connection fails,
+  since nothing listens; the URL is the evidence), and DevTools' console shows **no**
+  `Content-Security-Policy` / `form-action` violation. A tab that stays on the page with such a
+  console error is review I4 back: stop and fix the CSP. Port 53123, not a low port: Chromium
+  refuses its "unsafe" ports (9, among others) with `ERR_UNSAFE_PORT`, which would mask the result.
 - [ ] **Step 5:** Commit by pathspec.
 
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/devissuer/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 25 (10 from task 11 + 15)
+go test ./control-plane/internal/devissuer/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 26 (10 from task 11 + 16)
 go vet ./control-plane/internal/devissuer/                                                  # no output
 ```
 
