@@ -73,9 +73,10 @@ type Reader interface {
 	Events(ctx context.Context, p ProjectRef, env string) ([]Event, error)
 	// Diagnosis is the target's own prose diagnosis of an environment, rendered verbatim.
 	Diagnosis(ctx context.Context, p ProjectRef, env string) (Diagnosis, error)
-	// Stream opens a live stream. The caller closes it. The body is text/event-stream bytes,
-	// relayed and never interpreted by the control plane.
-	Stream(ctx context.Context, p ProjectRef, kind StreamKind, id string) (io.ReadCloser, error)
+	// Stream opens a live stream of typed events. The caller closes it. The connector parses the
+	// target's own wire format, so nothing above this interface — and nothing in the desktop —
+	// knows it.
+	Stream(ctx context.Context, p ProjectRef, kind StreamKind, id string) (Stream, error)
 	// SameEnvironment is the TARGET's rule for whether two environment names name one
 	// environment. It is here, not in the view, because the rule is the target's: Panacea's is
 	// exact equality plus prod == production (task 03); a native deployer brings its own.
@@ -276,6 +277,37 @@ const (
 	StreamRunLogs   StreamKind = "run-logs"  // id is a run name
 	StreamReadiness StreamKind = "readiness" // id is an environment name
 )
+
+// Stream yields events until the target ends it (io.EOF) or ctx is done.
+type Stream interface {
+	Next() (StreamEvent, error)
+	Close() error
+}
+
+// StreamEvent is exactly one of its three fields.
+type StreamEvent struct {
+	Log       *LogLine
+	Readiness *ReadinessTick
+	// Problem is the target's in-stream error sentence (e.g. "pipeline run not found: …"),
+	// rendered verbatim; the stream ends after it.
+	Problem string
+}
+
+type LogLine struct {
+	Step string // the pipeline step ("system" for the target's own notices), verbatim
+	Line string
+}
+
+// ReadinessTick is the environment's ready count now. Measured false = the target could not
+// look, which is never "down".
+type ReadinessTick struct {
+	Measured    bool
+	Ready       *int
+	CrashReason string // present only when measured down and the target knows why
+	Restarts    *int
+	OOMKilled   bool
+	ExitCode    *int
+}
 
 // ShipRequest names exactly what to build. Commit is 40 lowercase hex (ValidCommit).
 type ShipRequest struct {
