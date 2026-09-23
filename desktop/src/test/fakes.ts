@@ -9,6 +9,8 @@
  * under `noUnusedLocals`. Task 19 also added `addons`, a write callback with a moving `baseY`,
  * recorded resize handlers, and `opens` / `openedWhileConnected` — the last two because the
  * mutants "mount is not idempotent" and "mount before append" both survived without them.
+ * TASK 23's fix round 1 adds `attachCustomKeyEventHandler` and the handler it records, because
+ * makeTerm now calls it and a fake without it throws on construction.
  *
  * This module imports nothing on purpose. It is loaded from inside `vi.mock` factories, and
  * the safe form of that is a dynamic import inside the factory, because `vi.mock` is hoisted
@@ -46,10 +48,16 @@ export class FakeTerm {
    *  node yields a zero-column terminal. Records whether the host was in the document. */
   openedWhileConnected: boolean | null = null;
   buffer = { active: { viewportY: 0, baseY: 0 } };
+  /** task 23 fix round 1: makeTerm hands xterm the cockpit's chord filter, and a test must be
+   *  able to call it. Recorded, not run — this fake has no key path of its own. */
+  customKeyEventHandler: ((event: KeyboardEvent) => boolean) | null = null;
   private dataHandlers: ((d: string) => void)[] = [];
   private resizeHandlers: ((size: { cols: number; rows: number }) => void)[] = [];
 
   loadAddon(addon: unknown) { this.addons.push(addon); }
+  attachCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean) {
+    this.customKeyEventHandler = handler;
+  }
   open(parent: HTMLElement) {
     this.openedIn = parent;
     this.opens += 1;

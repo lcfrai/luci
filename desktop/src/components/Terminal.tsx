@@ -9,6 +9,7 @@ import {
   updateAttachSession,
 } from "../api/attachRegistry";
 import type { AttachHandle, TermLike } from "../api/attachRegistry";
+import { isCockpitChord } from "../hooks/useKeyboardMap";
 import { selectSession } from "../store/selectors";
 import { useCockpit } from "../store/store";
 import type { SessionId } from "../store/types";
@@ -44,6 +45,19 @@ function makeTerm(): TermLike {
     // Let the agent CLI own the screen; we never reinterpret its output.
     convertEol: false,
   });
+  /* EDITED BY TASK 23's FIX ROUND 1, as a declared departure — task 19 is closed and this file
+   * is its own. The change is this one call, and nothing else.
+   *
+   * WHY. xterm handles keydown on its own focused helper textarea, and for any key it maps to
+   * data it sends the bytes to the agent and CANCELS the event, stopPropagation included. So
+   * with a terminal focused — the state the cockpit lives in — six of useKeyboardMap's chords
+   * never reached its window listener and went to the PTY as control bytes instead: ⌘3 as ESC,
+   * which interrupts the agent, and ⌘⏎ as CR, which submits its half-typed prompt. Returning
+   * false makes xterm skip the event WITHOUT cancelling it, so it bubbles to the map.
+   *
+   * The predicate is the map's own, so the two cannot disagree about what a chord is. Escape,
+   * shift+Tab, "/", AltGr and every bare key fall outside it and still reach the agent (§6.9). */
+  term.attachCustomKeyEventHandler((event) => !isCockpitChord(event));
   const fit = new FitAddon();
   term.loadAddon(fit);
   fitAddons.set(term, fit);

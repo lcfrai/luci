@@ -70,6 +70,18 @@ function clampTile(t: TilePosition, gesture: "move" | "resize"): TilePosition {
   return { x, y, w: Math.min(w, PLANE_W - x), h: Math.min(h, PLANE_H - y) };
 }
 
+/** The z-stack's one updater: `id` moves to the top. Added by task 23's fix round 1, under
+ *  carry 1's existing departure, and exported so its contract can be pinned outside rendering.
+ *
+ *  The id ALREADY on top returns `prev` ITSELF — the same reference, not an equal copy. A click
+ *  raises twice (the tile's capture-phase raise, then the focus effect's echo), and React bails
+ *  out of the echo only because the state it gets back is the state it had. A fresh array with
+ *  the same contents defeats that and re-renders every tile on every click. Reference identity
+ *  is asserted directly (CanvasLayout.test.tsx), so no memoisation of the tiles can hide it. */
+export function raiseToTop(prev: SessionId[], id: SessionId): SessionId[] {
+  return prev[prev.length - 1] === id ? prev : [...prev.filter((x) => x !== id), id];
+}
+
 export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.Element {
   const paneIds = useCockpit(useShallow(selectPaneSessionIds));
   const tiles = useCockpit((s) => s.tiles);
@@ -124,9 +136,7 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
   const visible = sessionIds.slice(0, CANVAS_MAX_TILES);
 
   const raise = useCallback((id: SessionId): void => {
-    setStack((prev) =>
-      prev[prev.length - 1] === id ? prev : [...prev.filter((x) => x !== id), id],
-    );
+    setStack((prev) => raiseToTop(prev, id));
   }, []);
 
   /* A focus that arrives without a pointer raises its tile too. ⌘1-9, ⌘\, a palette row and a
@@ -144,8 +154,9 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
    * later.
    *
    * A click raises twice: the tile's capture-phase raise, then this effect when the pane's
-   * pointerdown moves focus. The second is a no-op only because `raise` returns `prev` for the
-   * tile already on top; drop that check and every click writes the same stack twice. */
+   * pointerdown moves focus. The second is a no-op only because `raiseToTop` returns `prev`
+   * itself for the tile already on top; drop that check and every click writes the same stack
+   * twice. */
   const focusedTile = focusedId !== null && visible.includes(focusedId) ? focusedId : null;
   useEffect(() => {
     if (focusedTile !== null) raise(focusedTile);

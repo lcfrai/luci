@@ -15,6 +15,10 @@
 //     while an overlay is open. With nothing open there is no listener, xterm sends \x1b down
 //     the PTY and the agent interrupts itself (§6.9). This hook READS hasOpenOverlay() and
 //     CALLS closeTopOverlay(); it never re-derives either.
+//
+// All three are kept out by isCockpitChord below, which is ALSO what the terminal consults
+// before it handles a key (Terminal.tsx, makeTerm). One list, two readers: a chord this map
+// claims is a chord xterm lets past, and anything else is xterm's to send to the agent.
 import { useEffect } from "react";
 import { sessionVerbs } from "../components/develop/sessionVerbs";
 import { useCreateSession } from "./useCreateSession";
@@ -28,25 +32,47 @@ import { useCockpit } from "../store/store";
  *  one verb this file runs (Kill) calls deps.close() before it commits anything. */
 const NOOP = (): void => {};
 
+/** §6.9's unshifted chord keys. ⌘⇧M is the one shifted chord and is matched separately. */
+const CHORD_KEYS: readonly string[] = ["w", "k", "b", "Enter", "\\", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+/** Shifted letters arrive as "M", not "m", so the table is matched in lower case. */
+function chordKey(event: KeyboardEvent): string {
+  return event.key.length === 1 ? event.key.toLowerCase() : event.key;
+}
+
+/** True for exactly the chords this map handles, and for nothing else.
+ *
+ *  TWO readers, and that is why it is exported. The map below returns on false. Terminal.tsx
+ *  hands `!isCockpitChord(e)` to xterm's attachCustomKeyEventHandler, because xterm handles
+ *  keydown on its own focused textarea first and CANCELS what it maps to data: Ctrl-3 is ESC,
+ *  which interrupts the agent, and Ctrl-Enter is CR, which submits its prompt, and neither ever
+ *  bubbled to this map while a terminal had focus. Returning false there makes xterm skip the
+ *  event without cancelling it. So a key added here is a key the agent stops receiving. */
+export function isCockpitChord(event: KeyboardEvent): boolean {
+  // ⌘ is metaKey || ctrlKey — the app runs on Windows, where the physical key is Ctrl.
+  if (!(event.metaKey || event.ctrlKey)) return false;
+  // AltGr on several European layouts reports ctrlKey AND altKey; claiming it would eat
+  // composed characters the user is typing into the agent.
+  if (event.altKey) return false;
+  const key = chordKey(event);
+  return event.shiftKey ? key === "m" : CHORD_KEYS.includes(key);
+}
+
 export function useKeyboardMap(): void {
   const createSession = useCreateSession();
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      // ⌘ is metaKey || ctrlKey — the app runs on Windows, where the physical key is Ctrl.
-      // Everything without it leaves here, which is where the three non-interceptions live.
-      if (!(event.metaKey || event.ctrlKey)) return;
-      // AltGr on several European layouts reports ctrlKey AND altKey; hijacking it would eat
-      // composed characters the user is typing into the agent.
-      if (event.altKey) return;
+      // Everything that is not a chord leaves here, which is where the three
+      // non-interceptions live — and it is the same test the terminal applies.
+      if (!isCockpitChord(event)) return;
 
-      // Shifted letters arrive as "M", not "m", so the table is matched in lower case.
-      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+      const key = chordKey(event);
       const state = useCockpit.getState();
 
       // ⌘W FIRST, and preventDefault BEFORE every guard: without it WebView2 closes the
       // window, and "no session is focused" must still swallow the key (§6.9).
-      if (key === "w" && !event.shiftKey) {
+      if (key === "w") {
         event.preventDefault();
         if (hasOpenOverlay()) return;
         const focused = state.selection.sessionId;
@@ -64,7 +90,7 @@ export function useKeyboardMap(): void {
 
       // ⌘K works from anywhere, including a focused terminal and an open overlay. The palette
       // is a peer of the picker and the menus, never a child, so the topmost one closes.
-      if (key === "k" && !event.shiftKey) {
+      if (key === "k") {
         event.preventDefault();
         if (state.paletteOpen) {
           state.closePalette();
@@ -83,7 +109,7 @@ export function useKeyboardMap(): void {
       // §6.9 marks ⌘B "Always", and it can be honoured literally: the rail is beside the
       // palette, not behind it, so toggling it while an overlay is open changes something the
       // user can see. This branch is therefore ABOVE the overlay bail-out.
-      if (key === "b" && !event.shiftKey) {
+      if (key === "b") {
         event.preventDefault();
         state.toggleRail();
         return;
@@ -97,13 +123,13 @@ export function useKeyboardMap(): void {
       // overlay is open because openMachines() opens a SECOND overlay and .pal-scrim is
       // z-index 60 over the whole viewport: obeying the table literally would put the
       // machines popover under the palette's backdrop, where the user cannot see or click
-      // it and Escape closes the wrong surface. Step 7's test pins this.
-      if (key === "m" && event.shiftKey) {
+      // it and Escape closes the wrong surface. Step 7's test pins this. Only the SHIFTED m
+      // gets this far — isCockpitChord decides shift for every chord, so no branch here does.
+      if (key === "m") {
         event.preventDefault();
         state.openMachines();
         return;
       }
-      if (event.shiftKey) return;
 
       if (key === "Enter") {
         event.preventDefault();

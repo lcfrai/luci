@@ -349,3 +349,53 @@ describe("Terminal focus is conditional", () => {
     }
   });
 });
+
+/* ADDED BY TASK 23's FIX ROUND 1, alongside the key handler in Terminal.tsx's makeTerm.
+ *
+ * The defect: xterm handles keydown on its focused textarea and cancels every key it maps to
+ * data, so with a terminal focused ⌘3 went to the agent as ESC and ⌘⏎ as CR, and the keyboard
+ * map never saw either. The handler is how xterm is told which keys are the cockpit's.
+ *
+ * Structure only. FakeTerm records the handler and has no key path of its own, so this pins
+ * THAT makeTerm installs one and WHICH WAY it points: false tells xterm to skip the event
+ * without cancelling it. What real xterm does with that false is useKeyboardMap.xterm.test.tsx's.
+ * Both lists are written out rather than read from isCockpitChord, so a predicate that drifted
+ * is caught here as well as at the map. */
+type KeyCase = [string, KeyboardEventInit];
+
+const SKIPPED_BY_XTERM: KeyCase[] = [
+  ["⌘W", { key: "w", ctrlKey: true }],
+  ["⌘K", { key: "k", ctrlKey: true }],
+  ["⌘B", { key: "b", ctrlKey: true }],
+  ["⌘⇧M", { key: "M", ctrlKey: true, shiftKey: true }],
+  ["⌘⏎", { key: "Enter", ctrlKey: true }],
+  ["⌘\\", { key: "\\", ctrlKey: true }],
+  ...Array.from({ length: 9 }, (_, i): KeyCase => [`⌘${i + 1}`, { key: `${i + 1}`, ctrlKey: true }]),
+];
+
+const HANDLED_BY_XTERM: KeyCase[] = [
+  ["Escape, the agent's interrupt", { key: "Escape" }],
+  ["shift+Tab, the agent's permission cycle", { key: "Tab", shiftKey: true }],
+  ["/, the agent's slash commands", { key: "/" }],
+  ["a bare w", { key: "w" }],
+  ["AltGr composing a backslash (Ctrl+Alt+\\)", { key: "\\", ctrlKey: true, altKey: true }],
+  ["Ctrl+C", { key: "c", ctrlKey: true }],
+];
+
+describe("Terminal lets the cockpit's chords past xterm", () => {
+  function installedHandler(): (event: KeyboardEvent) => boolean {
+    seed(session());
+    render(<Terminal sessionId="s-1" readOnly={false} focused />);
+    const handler = (grab().term as unknown as FakeTerm).customKeyEventHandler;
+    expect(handler).not.toBeNull();
+    return handler as (event: KeyboardEvent) => boolean;
+  }
+
+  it.each(SKIPPED_BY_XTERM)("xterm skips %s, so it bubbles to the keyboard map", (_name, init) => {
+    expect(installedHandler()(new KeyboardEvent("keydown", init))).toBe(false);
+  });
+
+  it.each(HANDLED_BY_XTERM)("xterm still handles %s, so it reaches the agent", (_name, init) => {
+    expect(installedHandler()(new KeyboardEvent("keydown", init))).toBe(true);
+  });
+});

@@ -5,7 +5,7 @@
 // No jest-dom (shared-shape §3C): plain DOM property assertions only.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { CanvasLayout } from "./CanvasLayout";
+import { CanvasLayout, raiseToTop } from "./CanvasLayout";
 import { DevelopLens } from "./DevelopLens";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { aBranch, aProject, aSession, aWorktree } from "../../test/fixtures";
@@ -14,8 +14,10 @@ import type { Session, SessionId } from "../../store/types";
 
 // SessionPane is task 20's, with task 20's suite. It builds a real <Terminal/>, and §1.5 keeps
 // xterm out of jsdom. The stub also makes `variant` assertable directly, and counts its renders:
-// a tile re-renders its pane every time the plane renders, so the count is how a stack write
-// that changed nothing becomes visible (shared-shape §3A.1 clause 7).
+// a tile re-renders its pane whenever the plane re-renders past React's same-state bailout, so
+// the count is how a stack write that changed nothing becomes visible (shared-shape §3A.1
+// clause 7). It counts PANES, not the plane: React may call the plane again for a same-state
+// write and still bail out before its children.
 const { paneRenders } = vi.hoisted(() => ({ paneRenders: new Map<string, number>() }));
 vi.mock("./SessionPane", () => ({
   SessionPane: ({ sessionId, variant }: { sessionId: string; variant: string }) => {
@@ -483,10 +485,11 @@ describe("CanvasLayout", () => {
 
     expect(z("s-1")).toBeGreaterThan(z("s-3"));
     // The final stack is identical whether the effect's second raise wrote or not, so the
-    // count of plane renders is the observable: one for the click, none for the echo. It reads
-    // them through the tiles, which re-render with the plane only because CanvasTile is not
-    // memoised and gets a fresh `position` object; give a tile stable props behind memo() and
-    // this passes with the check in `raise` deleted, so count the plane some other way first.
+    // observable is the act: PANE renders, one for the click and none for the echo. The plane
+    // itself is called again for the echo either way — React bails out of a same-state write
+    // after calling the component and before its children — so counting the plane sees nothing.
+    // This is the integration check, the click and the focus it causes together. The identity
+    // that makes the echo free is raiseToTop's, and "raiseToTop" below pins it directly.
     expect(paneRenders.get("s-1")).toBe(1);
   });
 
@@ -511,6 +514,25 @@ describe("CanvasLayout", () => {
     });
 
     expect(z("s-2")).toBeGreaterThan(z("s-1"));
+  });
+});
+
+// Task 23's fix round 1 (review, Minor 4). The render test above can only see a redundant stack
+// write while the tiles re-render with the plane; this sees it however the tiles are memoised,
+// because it asks the updater directly and compares references, not contents.
+describe("raiseToTop", () => {
+  it("returns the stack ITSELF when the id is already on top, so the focus echo writes nothing", () => {
+    const stack: SessionId[] = ["s-2", "s-1"];
+    expect(raiseToTop(stack, "s-1")).toBe(stack);
+  });
+
+  it("moves an id to the top once, as a new array, and leaves the old stack untouched", () => {
+    const stack: SessionId[] = ["s-1", "s-2", "s-3"];
+    const next = raiseToTop(stack, "s-1");
+    expect(next).toEqual(["s-2", "s-3", "s-1"]);
+    expect(next).not.toBe(stack);
+    expect(stack).toEqual(["s-1", "s-2", "s-3"]);
+    expect(raiseToTop([], "s-4")).toEqual(["s-4"]);
   });
 });
 

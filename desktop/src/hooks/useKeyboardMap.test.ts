@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useKeyboardMap } from "./useKeyboardMap";
+import { isCockpitChord, useKeyboardMap } from "./useKeyboardMap";
 import { __resetOverlays, hasOpenOverlay, useDismissable } from "./useDismissable";
 import { resetCockpit, useCockpit } from "../store/store";
 import { aBranch, aProject, aSession, aWorktree } from "../test/fixtures";
@@ -37,6 +37,23 @@ vi.mock("./useCreateSession", () => ({ useCreateSession: () => createSessionMock
 function press(key: string, init: KeyboardEventInit = {}): KeyboardEvent {
   const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
   window.dispatchEvent(event);
+  return event;
+}
+
+/** A stand-in for xterm's helper textarea, focused, so an event can pass THROUGH the element
+ *  that has focus on its way to the window listener, as a real keystroke does. It has no key
+ *  handler of its own; what real xterm does on that element is useKeyboardMap.xterm.test.tsx's. */
+function focusedTerminal(): HTMLTextAreaElement {
+  const term = document.createElement("textarea");
+  term.className = "xterm-helper-textarea";
+  document.body.appendChild(term);
+  term.focus();
+  return term;
+}
+
+function pressOn(target: EventTarget, key: string, init: KeyboardEventInit = {}): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+  target.dispatchEvent(event);
   return event;
 }
 
@@ -77,14 +94,15 @@ describe("useKeyboardMap — the deliberate non-interceptions", () => {
   });
 
   it("Escape is not intercepted while a terminal has focus and no overlay is open", () => {
-    const term = document.createElement("textarea");
-    term.className = "xterm-helper-textarea";
-    document.body.appendChild(term);
-    term.focus();
+    const term = focusedTerminal();
+    expect(document.activeElement).toBe(term);
     expect(hasOpenOverlay()).toBe(false);
-    const event = press("Escape");
+    const event = pressOn(term, "Escape");
     expect(event.defaultPrevented).toBe(false);
     expect(useCockpit.getState().paletteOpen).toBe(false);
+    // The terminal's half: the map's predicate is what xterm is told to let past, so Escape
+    // must be outside it or xterm would skip it and \x1b would never reach the agent.
+    expect(isCockpitChord(event)).toBe(false);
   });
 
   it("/ is not intercepted, because slash commands belong to the agent CLI", () => {
@@ -154,9 +172,12 @@ describe("useKeyboardMap — the chord table", () => {
   });
 
   it("⌘K toggles the palette, including while a terminal has focus", () => {
-    expect(press("k", { ctrlKey: true }).defaultPrevented).toBe(true);
+    // Through the focused element, not straight at the window: dispatched at the window, this
+    // name was true of a listener that no focused terminal ever let a chord reach.
+    const term = focusedTerminal();
+    expect(pressOn(term, "k", { ctrlKey: true }).defaultPrevented).toBe(true);
     expect(useCockpit.getState().paletteOpen).toBe(true);
-    press("k", { ctrlKey: true });
+    pressOn(term, "k", { ctrlKey: true });
     expect(useCockpit.getState().paletteOpen).toBe(false);
   });
 
@@ -221,5 +242,81 @@ describe("useKeyboardMap — the chord table", () => {
   it("⌘⇧⏎ is not in the table, so it creates nothing and reaches the terminal", () => {
     expect(press("Enter", { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(false);
     expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
+  // The review's four (task-23-review.md, Importants 2 and 3), bodies as written.
+  it("⌘⏎, ⌘1 and ⌘\\ act on nothing while an overlay is open", () => {
+    useCockpit.getState().focusSession("s-2");
+    renderHook(() => useDismissable<HTMLDivElement>(true, vi.fn()));
+    expect(hasOpenOverlay()).toBe(true);
+    press("Enter", { ctrlKey: true });
+    press("1", { ctrlKey: true });
+    press("\\", { ctrlKey: true });
+    expect(createSessionMock).not.toHaveBeenCalled();
+    expect(useCockpit.getState().selection.sessionId).toBe("s-2");
+  });
+
+  it("⌘⇧W is not in the table, so it kills nothing", () => {
+    useCockpit.getState().focusSession("s-2");
+    press("W", { ctrlKey: true, shiftKey: true });
+    expect(killMock).not.toHaveBeenCalled();
+  });
+
+  it("⌘⇧K is not in the table, so the palette stays shut", () => {
+    press("K", { ctrlKey: true, shiftKey: true });
+    expect(useCockpit.getState().paletteOpen).toBe(false);
+  });
+
+  it("⌘⇧B is not in the table, so the rail stays put", () => {
+    press("B", { ctrlKey: true, shiftKey: true });
+    expect(useCockpit.getState().railCollapsed).toBe(false);
+  });
+});
+
+/* The predicate is read twice: by the map, and by xterm through Terminal.tsx's key handler.
+ * A key it claims is a key the agent never receives, so both directions are pinned here, where
+ * the predicate is the thing that decides. The terminal's end is Terminal.test.tsx (the handler
+ * is installed and inverts this) and useKeyboardMap.xterm.test.tsx (real xterm). */
+const CHORDS: Array<[string, KeyboardEventInit]> = [
+  ["⌘W", { key: "w", ctrlKey: true }],
+  ["⌘W on the Meta key", { key: "w", metaKey: true }],
+  ["⌘K", { key: "k", ctrlKey: true }],
+  ["⌘B", { key: "b", ctrlKey: true }],
+  ["⌘⇧M", { key: "M", ctrlKey: true, shiftKey: true }],
+  ["⌘⏎", { key: "Enter", ctrlKey: true }],
+  ["⌘\\", { key: "\\", ctrlKey: true }],
+  ...Array.from({ length: 9 }, (_, i): [string, KeyboardEventInit] => [`⌘${i + 1}`, { key: `${i + 1}`, ctrlKey: true }]),
+];
+const NOT_CHORDS: Array<[string, KeyboardEventInit]> = [
+  ["Escape", { key: "Escape" }],
+  ["shift+Tab", { key: "Tab", shiftKey: true }],
+  ["/", { key: "/" }],
+  ["a bare w", { key: "w" }],
+  ["AltGr composing a backslash (Ctrl+Alt+\\)", { key: "\\", ctrlKey: true, altKey: true }],
+  ["⌘⇧W", { key: "W", ctrlKey: true, shiftKey: true }],
+  ["⌘⇧K", { key: "K", ctrlKey: true, shiftKey: true }],
+  ["⌘⇧B", { key: "B", ctrlKey: true, shiftKey: true }],
+  ["an unshifted ⌘M", { key: "m", ctrlKey: true }],
+  ["⌘0, past the table", { key: "0", ctrlKey: true }],
+  ["Ctrl+C, the agent's own interrupt", { key: "c", ctrlKey: true }],
+];
+
+describe("isCockpitChord — the one list the map and the terminal both read", () => {
+  it.each(CHORDS)("claims %s", (_name, init) => {
+    expect(isCockpitChord(new KeyboardEvent("keydown", init))).toBe(true);
+  });
+
+  it.each(NOT_CHORDS)("leaves %s to the agent", (_name, init) => {
+    expect(isCockpitChord(new KeyboardEvent("keydown", init))).toBe(false);
+  });
+
+  it("the map intercepts exactly what it claims, and nothing it does not", () => {
+    // Agreement, not a second list. If the map's early return ever grows a copy of its own,
+    // this is what fails the day the two drift. No overlay is open, so every chord branch
+    // reaches its preventDefault.
+    for (const [name, init] of [...CHORDS, ...NOT_CHORDS]) {
+      const event = press(init.key ?? "", init);
+      expect([name, event.defaultPrevented]).toEqual([name, isCockpitChord(event)]);
+    }
   });
 });
