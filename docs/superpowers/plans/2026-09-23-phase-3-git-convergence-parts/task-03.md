@@ -140,7 +140,12 @@ type Creator struct {
 //     ErrUnknownBranch, and nothing on disk;
 //  3. Path = <CloneRoot>/<ProjectID>/<Name>; ErrNameTaken when the index has the name OR
 //     anything exists at Path — an existing directory is never removed or reused;
-//  4. `clone --local --branch <Branch> --origin origin -- <Project.Path> <Path>` (Local);
+//  4. `clone --no-hardlinks --config core.autocrlf=false --config core.eol=lf
+//     --config core.checkStat=minimal --config core.trustctime=false
+//     --branch <Branch> --origin origin -- <Project.Path> <Path>` (Local). `--no-hardlinks`
+//     copies every object file, so none is the project's file (review I8, plan Q9). Clone's
+//     own `--config` (git's `clone -c`) writes the four keys into the clone's local config
+//     before the checkout, so the checkout itself runs under them ("Line endings" below);
 //  5. `var GIT_AUTHOR_IDENT` in the PROJECT (Read); when ParseIdent accepts it,
 //     `config user.name` and `config user.email` in the clone (Local). No identity is not an
 //     error: the sandbox fix's resolver logs it at session create;
@@ -158,6 +163,36 @@ func (c *Creator) Create(ctx context.Context, req CreateRequest) (Lane, error)
 // the walk and then removes. It refuses a path that is not under root.
 func RemoveTree(root, path string) error
 ```
+
+*Line endings (review C2).* Git for Windows' installer writes `core.autocrlf=true` into the
+**system** config, and this machine has it. `git clone` copies no `core.autocrlf` into the new
+repository, so a plain clone of an LF blob is CRLF on disk. The sandbox's Linux git has no such
+setting, re-hashes every file (the stat data Windows wrote never matches through the bind mount),
+and sees the whole tree modified; an agent's `git add -A` then rewrites every text file to CRLF.
+Step 4's four keys fix it at the root. `core.autocrlf=false` and `core.eol=lf` make the working
+tree hold the blobs' bytes, and both gits read those keys from the clone's own config.
+`core.checkStat=minimal` and `core.trustctime=false` stop the two systems' differing stat fields
+from forcing a full re-hash on every host `status` (task 07's poll). A repository whose
+`.gitattributes` asks for `eol=crlf` keeps CRLF for those paths, because attributes outrank
+`core.autocrlf`. Phase 2's sandbox-git fix handles the same system setting for a
+**primary-worktree** mount differently: it passes the host's effective `autocrlf` into the
+sandbox. The two routes differ because a lane clone is ours to configure and the user's primary
+checkout is not. All four keys are on task-02 §HGH H3's `Clone` allowlist.
+Verified on git 2.53.0.windows.2 on 2026-09-24, with a test system file holding
+`core.autocrlf=true`: a plain `clone --local` checked `a.txt` out as `x\r\ny\r\n` and wrote no
+local `core.autocrlf`. Step 4's argv checked it out as `x\ny\n`, wrote all four keys locally,
+left `status --porcelain` empty, and checked a `*.bat eol=crlf` path out CRLF.
+
+*Object files (review I8, plan Q9).* `clone --local` hard-links the project's object files into
+the clone. A hard link is one file with two names, so the agent, through the bind mount, could
+clear the read-only attribute (as `RemoveTree` does) and rewrite a pack **in the user's
+repository**. OD-2's "blast radius is its own clone" is false while that holds. `--no-hardlinks`
+copies the files instead. Verified on the same run: after `clone --local`, the clone's pack,
+`.idx`, `.rev`, `info/packs` and `info/commit-graph` had the source's file ids, with a link count
+of 2. After `--no-hardlinks`, every file id differed. Neither clone had `objects/info/alternates`.
+The cost is disk and clone time, which task 01's Step 5 measures on `~/Projects/Panacea`. The
+argv is built in one unexported function, `cloneArgv(branch, src, dst)`: that function is the seam
+Q9's answer changes, and no configuration switches it back.
 
 ```go
 package lanes
@@ -221,6 +256,8 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestFileStoreFailedWriteLeavesMemoryUnchanged` | a read-only dir makes Add fail → List unchanged | memory and disk disagreeing after a full disk |
 | `TestOpenFileStoreRefusesACorruptFile` | `{not json` → error containing the path | an empty index orphaning every clone |
 | `TestCreateClonesOnTheBranch` | clone's `rev-parse HEAD` equals the project's `refs/heads/feat` and `symbolic-ref HEAD` is `refs/heads/feat`; `Lane.ID == project.WorktreeID(Path)`; the lane is in the store | a clone on the default branch |
+| `TestCreateWritesLineEndingConfig` | production-shaped (`UseSystemConfig(WindowsInstallerSystem)`), project with LF blobs `a.txt` and `b.bat` and `.gitattributes` `*.bat eol=crlf`: the clone's `config --local` holds `core.autocrlf=false`, `core.eol=lf`, `core.checkStat=minimal` and `core.trustctime=false`; `a.txt`'s bytes on disk equal its blob (no `\r`); `b.bat`'s are CRLF; `status --porcelain` is empty. Red first against a `--local` argv without the four `--config` | a clone that checks out CRLF under the system `autocrlf` (review C2) |
+| `TestCreateSharesNoObjectFileWithTheProject` | walk the clone's `.git/objects`; for every file, the same relative path in the project is absent or not `os.SameFile`. Red first against `--local` (task 01 pins that it shares them) | an agent rewriting the user's history through a hard-linked pack (review I8) |
 | `TestCreateCopiesTheProjectsIdentity` | project has local `user.name=Ada`; the clone's `git var GIT_AUTHOR_IDENT` starts `Ada <` | agents committing as the machine-wide identity in a repo that sets its own |
 | `TestCreateWithoutAnIdentityStillCreates` | no identity anywhere (isolated config, `user.useConfigOnly`) → lane created, clone config has no `user.name` | failing a create for a commit-time problem |
 | `TestCreateUnknownBranchTouchesNothing` | `Branch: "nope"` → ErrUnknownBranch, `<root>/<p>` has no entry | a half-made clone |
@@ -259,5 +296,8 @@ go test ./control-plane/internal/registry/ ./control-plane/internal/statepath/ -
 - Nothing serves the catalog yet (task 04), so the rail does not show clones yet.
 - A lane whose product branch was deleted outside the cockpit still lists, under a branch id no
   branch has; the rail shows it nowhere. Task 11's remove clears it; nothing detects it here.
-- Clone creation on a second volume copies objects instead of hard-linking them; task 01's
-  measurement says whether that matters on the owner's laptop.
+- Every clone copies the project's objects (`--no-hardlinks`, Q9), so a lane costs the size of
+  the project's `.git/objects` on disk plus a copy's time. Task 01's Step 5 measures both on
+  `~/Projects/Panacea`; this task does not.
+- This task's line-ending tests run on the host only. That the sandbox's Linux git sees the clone
+  as clean is task 01's `TestSandboxCloneHasWorkingGit`.
