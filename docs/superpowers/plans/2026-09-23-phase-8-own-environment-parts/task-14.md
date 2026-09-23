@@ -68,8 +68,13 @@ func NewManager(client kubernetes.Interface, cfg Config) *Manager
 
 // WithOwner returns a view of m that stamps backend.KubeLabelOwner = owner on
 // every pod and Secret it creates, and whose Get and List select on it, so one
-// owner can neither see nor reach another's sandbox. owner must come from
-// OwnerLabelValue. It panics on "" — an owner view with no owner is the bug
+// owner can neither see nor reach another's sandbox. It also names objects
+// "sandbox-<owner[:8]>-<id>" (and "…-attach" for the Secret) instead of
+// "sandbox-<id>", so two owners whose laptops happen to mint the same id never
+// collide — and a collision cannot reveal that another owner's id exists. The
+// longest pod name is 8 + 8 + 1 + 40 = 57 characters, inside the 63 a pod's
+// hostname is cut to; names are DNS subdomains, so the Secret's 64 is fine.
+// owner must come from OwnerLabelValue. It panics on "" — an owner view with no owner is the bug
 // this method exists to prevent.
 func (m *Manager) WithOwner(owner string) *Manager
 
@@ -145,6 +150,7 @@ New, in `hardening_test.go` (fake clientset, the package's existing `growthSpec(
 | `TestDeleteRemovesPodAndSecretAndIsIdempotent` | after `Delete` both are gone; a second `Delete` returns nil | a leaked Secret, or a 500 on the reaper's second pass |
 | `TestOwnerViewStampsTheLabel` | `WithOwner("o1").Create` → pod and Secret labelled `panacea-app/owner=o1` | an unlabelled pod the owner cannot find again |
 | `TestOwnerViewsCannotSeeEachOther` | create under `o1`; `WithOwner("o2").Get(id)` → `ErrNotFound`; `.List` → empty; the unscoped manager lists it | the cross-user read OQ-1 names |
+| `TestTwoOwnersMayUseTheSameID` | `o1` and `o2` both create id `s-1234abcd` → both succeed, two pods, each view gets its own | `sandbox-<id>` names, where the second owner's create fails with a conflict that proves the first exists |
 | `TestWithOwnerRefusesAnEmptyOwner` | `WithOwner("")` panics | a silently unscoped "scoped" view |
 | `TestOwnerLabelValueIsStableAndLabelSafe` | same inputs → same 32-hex value; different `oid` → different; matches `^[a-f0-9]{32}$` | a value that changes per call, or embeds the raw oid |
 | `TestSessionPodIsNotSafeToEvict` | the annotation is `"false"` | the autoscaler killing a running agent to save a node |

@@ -102,6 +102,7 @@ const (
 	CodeQuotaExceeded     = "quota_exceeded"      // 429 — the owner is at MAX_SANDBOXES / MAX_MACHINES
 	CodeMachineAsleep     = "machine_asleep"      // 409 — a session create on a sleeping machine; wake it first
 	CodeMachineBusy       = "machine_busy"        // 409 — sleep or delete while sessions run
+	CodeAttachRejected    = "attach_rejected"     // 403 — sandboxd refused the attach token (backend.ErrUnauthorized)
 )
 ```
 
