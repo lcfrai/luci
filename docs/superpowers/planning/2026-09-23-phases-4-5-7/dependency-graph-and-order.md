@@ -208,7 +208,7 @@ They have other people's lead time attached and consume none of ours:
 1. An additive `metadata map[string]string` on `TriggerDeployOptions` in `panacea-api` — without it the spine's last rung is held in our state dir, invisible in the Panacea portal, lost if the directory is lost.
 2. A public/PKCE Keycloak client in realm `panacea` — without it Phase 7 is capped at paste-a-token onboarding.
 3. AGPL-3.0 clearance for Paperdesign — **corrected 2026-09-23: not a gate on distribution alone.** Under the locked we-host model, **§13 Remote Network Interaction** can oblige us to offer source the moment a user's browser interacts with our modified copy, with no distribution involved. The question for legal is §13 under a hosted model. It may therefore gate phase 5 **shipping to any user**, not only external sale — and the answer takes calendar time, so ask now.
-4. One unauthenticated `GET /api/v1/version` to settle `api.dev.panacea.kpmg` against `dev.panacea.kpmg/api`. Two written sources disagree; no network call was made by anyone in this pass.
+4. ✅ **SETTLED 2026-09-23 by the orchestrator, one call each.** The API base is **`https://dev.panacea.kpmg/api`**: `GET https://dev.panacea.kpmg/api/v1/version` returns **HTTP 200, `application/json`, `{"version":"v1.163.0"}`**, unauthenticated. `GET https://api.dev.panacea.kpmg/api/v1/version` returns **HTTP 307 to `https://dev.panacea.kpmg/oauth2/sign_in?rd=…`** — that host sits behind the SSO proxy and is not the API. (Also checked: `…/api/api/v1/version` is a 404, so the base does not carry a doubled `/api`.) Phase 7's connector targets `https://dev.panacea.kpmg/api`.
 
 ### 3.5 The decision that must be made before any Phase 4 task is written
 
