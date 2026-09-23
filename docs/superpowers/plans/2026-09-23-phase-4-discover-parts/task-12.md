@@ -25,11 +25,14 @@ package discoverapi
 
 // RefsResponse is one Ref per requested key, in request order (a repeated
 // key is answered in each slot), plus the time-varying heads of every brief
-// named. The desktop caches refs by key for ever and heads per brief
-// (contract §6.4) - except slots whose resolution is "unavailable".
+// named, plus the time-varying criterion states of every resolved key. The
+// desktop caches refs by key for ever and heads per brief (contract §6.4) -
+// except slots whose resolution is "unavailable" - and OVERWRITES a key's
+// criterion states on every answer that carries them (review I14).
 type RefsResponse struct {
-	Refs  []provenance.Ref           `json:"refs"`
-	Heads map[string]provenance.Head `json:"heads"`
+	Refs            []provenance.Ref                         `json:"refs"`
+	Heads           map[string]provenance.Head               `json:"heads"`
+	CriterionStates map[string][]provenance.CriterionReading `json:"criterionStates"` // by key; resolved slots only
 }
 
 // Materialisations is every worktree of the branch and the state of its
@@ -54,12 +57,13 @@ type Materialisations struct {
       "headline": "Let client users upload evidence files against an open request.",
       "audience": "KPMG staff broadly", "constraints": "Existing uploads and their download links",
       "outOfScope": "Bulk upload; the reviewer side of evidence",
-      "sections": [ … ], "criteria": [ { "id": "c-…", "text": "Tests pass", "digest": "sha256:…", "state": "open", "because": "" } ],
+      "sections": [ … ], "criteria": [ { "id": "c-…", "text": "Tests pass", "digest": "sha256:…" } ],
       "savedAt": "…", "savedBy": "Dylan Mackie", "erasedAt": "" },
     { "key": "none:declined", "resolution": "none", "noneReason": "declined", "present": false, … },
     { "key": "brief:bf-…40@5", "resolution": "missing", "present": false, … },
     { "key": "", "resolution": "none", "noneReason": "", "present": false, … } ],
-  "heads": { "bf-…a2": { "headRevision": 6, "latestCompleteRevision": 6, "archived": false } } }
+  "heads": { "bf-…a2": { "headRevision": 6, "latestCompleteRevision": 6, "archived": false } },
+  "criterionStates": { "brief:bf-…a2@5": [ { "id": "c-…", "state": "open", "because": "" } ] } }
 ```
 
 Every `Ref` field is present in every slot — empty strings, zeroes, `null` for `inherits`, `[]`
@@ -83,6 +87,9 @@ for lists — so the desktop's type has no optional fields.
 3. `materialisations` lists the branch's worktrees through the scanner and calls
    `contextwrite.Materialiser.Inspect` for each. It **reads files and writes nothing**.
 4. Criterion states come from `Config.Evaluate` (phase 3's seam, S4-P3.4); nil → all `open`.
+   They are **not** in any `Ref`: `Resolve`'s `states` becomes `criterionStates`, keyed by key,
+   one entry per `resolved` slot, recomputed on every call (review I14). `criterionStates` is
+   `{}`, never `null`, when no slot is resolved.
 5. **Every route here runs under task 11's `Budgets.Default` (8 s; review I4)**, below the
    desktop's 10 s. For the head readings, the deadline's expiry is task 11's route-deadline row
    (503 `upstream_unavailable`). For `refs`, it is "unreachable" in rule 1's sense: the cache
@@ -114,6 +121,7 @@ for lists — so the desktop's type has no optional fields.
 | `TestRefsServesCachedSlotsWhenTheHubIsDown` | resolve once; fake goes unavailable; resolve the same key plus a new one → 200, first `resolved`, second `unavailable` | a whole Develop column of chips blanked by one unreachable Hub (ADR-H1 §5.4) |
 | `TestRefsWithTheHubOffOrSignedOutIsUnavailable` (review I6) | a `discoverhub.Service` built with a nil `discoverhub.Config.Hub`, and one whose fake returns `entraauth.ErrSignedOut` → 200 (not 401, not 503), every uncached brief slot `unavailable`, **none** `missing` | the route relaying a `Resolve` error, or `hub_off` shown as data loss on every chip (task 07's `TestHubOffIsUnavailableNotMissing` is the unit half) |
 | `TestRefsJSONHasEveryFieldInEverySlot` | each slot's JSON object has the same key set as the golden `Ref` of task 06 | optional fields the desktop has to guard |
+| `TestRefsServesCriterionStatesBesideTheRefs` (review I14) | a resolved key, a `missing` one and `""` → `criterionStates` has exactly the resolved key, with one `{id, state, because}` per `criteria` item of its slot, same ids and order; no slot's `criteria` item has `state` or `because`; zero resolved slots → `"criterionStates": {}` | a verdict inside the cached `Ref`, or a `null` the desktop has to guard |
 | `TestHeadReadingIsNeverCached` | two reads with the head moved between them return different revisions | a stale `DefinitionOfDone` |
 | `TestHeadReadingOfAnUnreachableHubIs503` | `upstream_unavailable`, `upstream: "hub"` | a head served from memory |
 | `TestHeadReadingWithTheHubOffIsNone` (re-review b05-1 N2) | a `discoverhub.Service` built with a nil `discoverhub.Config.Hub` → 200, `resolution: "none"`, every `Ref` field present | a nil Hub mapped to 503, which puts an error on Develop's `DefinitionOfDone` for a Hub nobody configured |

@@ -379,9 +379,13 @@ func (s *Service) History(ctx context.Context, briefID string, after string, lim
 // keys not in the cache, and one for the project revisions the branch
 // revisions among them inherit. "", none:declined and invalid keys never
 // reach the Hub. heads holds one entry per brief the Hub's answers named.
+// states holds provenance.Readings(key, src, Config.Evaluate) for every
+// resolved slot, cached revision or not, and nothing for any other slot:
+// criterion state moves, so it is computed on every call and is never part
+// of the cached Ref (review I14).
 // There is no error result: a Hub failure, a signed-out user or a nil Hub
 // makes each slot the cache cannot answer "unavailable" (rule 5, review I6).
-func (s *Service) Resolve(ctx context.Context, keys []string) (refs []provenance.Ref, heads map[string]provenance.Head)
+func (s *Service) Resolve(ctx context.Context, keys []string) (refs []provenance.Ref, heads map[string]provenance.Head, states map[string][]provenance.CriterionReading)
 
 // HeadRef is the Ref of what a session on t would inherit now - the head
 // reading for DefinitionOfDone and Discover (contract §3.1). resolution
@@ -468,6 +472,7 @@ project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins o
 | `TestResolveBatchesInTwoCallsAtMost` | twelve keys, six branch revisions pinning three project revisions: the fake records ≤ 2 `Resolve` calls | a call per key, or per inherited key (P8's cost, one layer down) |
 | `TestResolveNeverSendsLocalForms` | `""`, `none:declined`, `b-42` → `none`, `none`, `invalid`, and the fake saw none of them | a local form leaking to the Hub, which answers `invalid` for `none:declined` |
 | `TestResolveCachesOnlyResolved` | a `missing` key asked twice reaches the Hub twice; a `resolved` one once | a cached `missing` hiding a teammate's write |
+| `TestCriterionStatesAreRecomputedOnACachedKey` (review I14) | `Config.Evaluate` answers `open` on the first call and `settled, "CI run 88 passed"` on the second; `Resolve` the same resolved key twice → the second reaches the Hub zero times, its `refs` slot is equal to the first, and `states[key]` changes from `open` to `settled`; a `missing`, `none` or `unavailable` slot has no `states` entry | a verdict cached with the revision, so evidence never moves it |
 | `TestErasedIsNeverServedFromCache` | resolve, erase in the fake, advance the injected clock past `CacheTTL`, resolve: `erased`, no sections | erased text outliving its erasure on a laptop (ADR-H1 §6.8) |
 | `TestViewOfABranchShowsWhatItInherits` | `Inherited` is `b-7`'s latest complete; `Preview.Block` equals `claudemd.Render` of `Inheritable`'s document | a preview the materialiser would not write |
 | `TestHistoryIsOldestFirstWithChanges` | six rows, `Change.Kind` from each content, erased rows marked | a history that has to diff revisions |

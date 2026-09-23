@@ -24,8 +24,9 @@ and there stay two.
 ```ts
 // desktop/src/store/slices/provenanceSlice.ts
 // NOT PERSISTED (contract A5, widened by ADR-H1 §5.4; ruling R3: phase 4 claims no persist
-// version). A cache of control-plane truth: refs are immutable once filled, heads move.
-import type { ProvenanceRef, Head, RefsResponse } from "../../api/discover";
+// version). A cache of control-plane truth: refs are immutable once filled; heads and
+// criterion states move, and are kept beside the refs, never inside them (review I14).
+import type { ProvenanceRef, Head, RefsResponse, CriterionReading } from "../../api/discover";
 
 export interface ProvenanceSlice {
   /** Filled once per key, never overwritten except by an identical ref, and emptied of a whole
@@ -34,6 +35,14 @@ export interface ProvenanceSlice {
   refsByKey: Record<string, ProvenanceRef>;
   /** The one moving number per brief (P4-B compares with latestCompleteRevision). */
   headsByBrief: Record<string, Head>;
+  /** key -> phase 3's criterion states for it (S4-P3.4; review I14). MOVING, unlike refsByKey:
+   *  putRefs OVERWRITES a key's entry whenever res.criterionStates carries it, and forgetBrief
+   *  deletes the brief's entries. Never read from a ProvenanceRef, which holds no state. */
+  criterionStatesByKey: Record<string, CriterionReading[]>;
+  /** Keys whose criterion states must be re-read. Written only through markCriteriaStale,
+   *  phase 3's seam: its evidence path calls it when a verdict on a key may have moved. Phase 4
+   *  has no caller (every state is open), so it adds no request of its own. */
+  staleCriteria: Record<string, true>;
   /** Head readings by targetKey ("<projectId>/<branchId or empty>"). */
   headRefByTarget: Record<string, ProvenanceRef>;
   /** targetKey -> the Hub project id it belongs to, learnt from setBriefView's
@@ -63,8 +72,12 @@ export interface ProvenanceSlice {
   putHeadRef(targetKey: string, ref: ProvenanceRef): void;
   markStale(briefIds: readonly string[]): void;
   markHeadRefsStale(targetKeys: readonly string[]): void;
+  /** S4-P3.4, phase 3's seam (review I14): the loader's next tick re-requests these keys, even
+   *  though refsByKey holds them, and putRefs overwrites only their criterion states. */
+  markCriteriaStale(keys: readonly string[]): void;
   /** brief.erased: deletes every refsByKey entry whose briefId is briefId (every key of the
-   *  brief, whatever its revision), records erasedBriefs[briefId] = erasedAt, and marks the
+   *  brief, whatever its revision) and the criterionStatesByKey entries of those keys, records
+   *  erasedBriefs[briefId] = erasedAt, and marks the
    *  brief's head stale. The loader's next step 2 re-resolves the keys a surface still shows. */
   forgetBrief(briefId: string, erasedAt: string): void;
   setHubCursor(cursor: string): void;
@@ -72,8 +85,9 @@ export interface ProvenanceSlice {
 }
 
 export const initialProvenanceState: Pick<ProvenanceSlice,
-  "refsByKey" | "headsByBrief" | "headRefByTarget" | "hubProjectByTarget" | "staleHeadRefs"
-  | "erasedBriefs" | "unavailableAt" | "staleHeads" | "hubCursor" | "hubCursorRead">;
+  "refsByKey" | "headsByBrief" | "criterionStatesByKey" | "staleCriteria" | "headRefByTarget"
+  | "hubProjectByTarget" | "staleHeadRefs" | "erasedBriefs" | "unavailableAt" | "staleHeads"
+  | "hubCursor" | "hubCursorRead">;
 ```
 
 ```ts
@@ -140,6 +154,13 @@ export type ProvenanceState =
  *  A head absent from headsByBrief decides nothing in rule 3 or 4; the loader fetches it (step 2). */
 export const selectProvenanceState: (key: string) => (s: CockpitState) => ProvenanceState;
 export const selectRef: (key: string) => (s: CockpitState) => ProvenanceRef | undefined;
+/** The criterion states of one key, by criterion id, from criterionStatesByKey and never from
+ *  the ref (review I14). A criterion id absent from the result reads as { state: "open",
+ *  because: "" }, phase 4's only state and the one P12 allows without a reason; a key with no
+ *  entry returns one frozen empty record. Memoised per key on the entry's identity, so a
+ *  surface re-renders only when the states change. */
+export const selectCriterionStates: (key: string) =>
+  (s: CockpitState) => Readonly<Record<string, CriterionReading>>;
 export const selectHead: (briefId: string) => (s: CockpitState) => Head | undefined;
 export const selectSessionRefState: (sessionId: SessionId) =>
   (s: CockpitState) => { key: string; state: ProvenanceState; ref: ProvenanceRef | undefined; head: Head | undefined };
@@ -174,6 +195,8 @@ export const NO_REF: Readonly<ProvenanceRef>;
  *     compare with (review I8); the held key for it is ref.inherits.key. A held key is sent
  *     ONCE per markStale: the call that carried it clears that brief from staleHeads whether
  *     or not a head came back, so a head the answer omits never becomes a request per tick.
+ *     Add every key in staleCriteria (review I14), even one refsByKey holds; the call that
+ *     carried it clears it, the same once-per-mark rule.
  *  3. None left: return. ZERO requests on a steady tick.
  *  4. Otherwise ONE discover.refs() per 100 keys (in practice one), then putRefs.
  *  A failed call marks its keys unavailable at this tick and raises no toast: every chip already
@@ -239,6 +262,8 @@ only through Discover's own writes and new keys).
 | `loader: feed event marks the head stale and re-reads it` | cursor moves; one `changes` call; a `brief.revised` for `bf-…a2` → next `refs` call carries one held `bf-…a2` key; `headsByBrief` updated | a teammate's edit never reaching the chips |
 | `loader: brief.erased drops the brief's text and re-resolves` (review I10) | `refsByKey` holds `brief:…a2@5` and `@6` resolved and `brief:…b7@5`; a `brief.erased` for `bf-…a2` → both `a2` entries gone, `b7@5` kept; the next tick's one `refs` call carries `a2@5` (a session still shows it); the fake answers it **`resolved`** with its old sections (the control plane's cache, until HA4-8) → stored `erased`, `sections` `[]`, `headline` `""`, key and digest kept; `selectProvenanceState` → `erased` | erased text on a laptop until restart (ADR-H1 §6.8; `task-07.md` rule 4), or a desktop that trusts the control plane's pre-HA4-8 cache over the Hub's own event |
 | `loader: brief.* marks every view and head reading of the project stale` (review I10) | views `pj-1/b-9` (`brief: null`, binding `pj-hub-1`), `pj-1/` (binding `pj-hub-1`), `pj-2/` (binding `pj-hub-2`) and head readings for the same three targets (`pj-1/b-9`'s a `none` Ref, known only through its view's binding); a `brief.created` for a new brief of `pj-hub-1` → `discoverStale` and `staleHeadRefs` name `pj-1/b-9` and `pj-1/`, never `pj-2/`; a target with no known Hub project is named too; a `projectId: null` event names all | a teammate's new branch brief never reaching `DefinitionOfDone` (*no brief* until navigation), or an event for one project re-reading every project |
+| `loader: criterion states move, the ref does not` (review I14) | tick 1 answers `a2@5` with `criterionStates` `open`; `markCriteriaStale(["brief:…a2@5"])` → tick 2's one `refs` call carries that key although `refsByKey` holds it; it answers `settled, "CI run 88 passed"` → `selectCriterionStates` gives `settled` and its `because`; `refsByKey["brief:…a2@5"]` is the same object as after tick 1; tick 3 makes **no** request | a verdict frozen in the forever-cached ref, or a states re-read that becomes a request per tick |
+| `selectors: criterion states come from the map, never the ref` (review I14) | a ref whose `criteria` items carry a stray `state: "settled"` and no map entry → every id reads `open`; the same frozen empty record on two calls | a reader that falls back to a field the wire no longer has |
 | `useHeadRef: one read per stale mark` (review I10) | two mounted readers of one target, no entry → one `headRef` call; `markHeadRefsStale([t])` → one more call, and the old reading is returned until it lands; the answer clears the flag → no third call; a failed call → no retry until the next mark | a `DefinitionOfDone` that never re-reads, one that blanks on every event, or a head read per render |
 | `loader: no timer` | `vi.getTimerCount()` is unchanged by importing and running the loader | a third interval (G8) |
 | `selectors: superseded compares with latest complete` | ref rev 5, head `{headRevision: 7, latestCompleteRevision: 5}` → `current`; `{…: 6}` → `superseded` | P4-B inverted: every chip superseded during an unfinished edit |

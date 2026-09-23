@@ -42,13 +42,13 @@ plan did not open every one of them (§11).
 |---|---|---|
 | §1.2 | brief ids are the Hub's `bf-` + 16 hex; the grammar is the Hub's plus `none:declined` | task 06 |
 | §1.3 | a revision's content is `discover.Content` v1; the Hub's envelope and digest | tasks 03, 07 |
-| §1.4 | `Ref` as task 06 declares it; `contextPath` removed; superseded is `revision < latestCompleteRevision` (P4-B) | tasks 06, 16 |
+| §1.4 | `Ref` as task 06 declares it, holding no criterion state (review I14); `contextPath` removed; superseded is `revision < latestCompleteRevision` (P4-B), or an inherited project revision below the project's latest complete one (review I8) | tasks 06, 16 |
 | §2.1 | the brief store and ledger are the Hub's (`OD-3`); nothing is on the laptop | tasks 07, 08 |
 | §2.4 | Materialise writes the latest complete branch revision, else the project's, else nothing (P4-A); `none:declined` | tasks 07, 09, 10 |
 | §3.1 | the paths of task 12; `unavailable` slots | task 12 |
 | §3.3 | the target rule (P4-D); the content drift check | task 09 |
 | §4.1 | eight states: adds `declined` and `erased` | task 17 |
-| §6.4 | key sources (R6); the Hub change feed replaces "head refs are not polled" | task 16 |
+| §6.4 | key sources (R6); the Hub change feed replaces "head refs are not polled"; a `brief.*` event marks stale every view and head reading of its Hub project, and `brief.erased` drops the brief's cached text (review I10); criterion states are served beside `heads` and overwritten, never cached in a `Ref` (review I14) | task 16 |
 | §8.1 | marked **done** row by row, each with its task | — |
 
 **Steps:**

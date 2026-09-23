@@ -73,6 +73,9 @@ export function SessionContextChip(props: { sessionId: SessionId }): JSX.Element
 export interface DefinitionOfDoneProps {
   refValue: ProvenanceRef;             // the HEAD reading (contract §4.4), read by the mount through task 16's useHeadRef (review I10)
   state: ProvenanceState;
+  /** selectCriterionStates(refValue.key): each criterion's state and because, by id. The ref's
+   *  criteria carry text only; a state is never read from them (review I14). */
+  criterionStates: Readonly<Record<string, CriterionReading>>;
   onOpenDiscover(key: string): void;
   onRecordEvidence?(criterionId: string): void; // phase 3 ask P4-5
 }
@@ -126,6 +129,7 @@ record of the review.
 | `resolving has no spinner` | no `role="progressbar"`, no element with an `animation` class | a spinner per pane |
 | `no denominator anywhere` | rendered text of all three components never matches `/\b\d+\s*(of\|\/)\s*\d+\b/` | "2 of 4 met" |
 | `criteria read open with no evidence` | each criterion *open — no evidence recorded yet* | an implied verdict (P12) |
+| `a criterion's state comes from criterionStates` (review I14) | `criterionStates` names one id `settled` with a `because` → that criterion shows its `because`, the rest read open; re-rendered with the entry `open` → it reads open again | a DefinitionOfDone that renders a state frozen in the cached ref |
 | `the manifest leads with the pin and shows the head beside it` | pinned rev 5, head latest-complete 6 → first line names revision 5; a second line names 6 | P1: a release painted with the head |
 | `the manifest shows disagreement as disagreement` | `mergeRef` at rev 5 beside a pin at 6 → both revisions visible, neither hidden | a silent reconciliation (contract §3.4) |
 | `open in Discover passes the exact key` | clicking calls `onOpenDiscover("brief:bf-…a2@5")` | a chip opening the head |

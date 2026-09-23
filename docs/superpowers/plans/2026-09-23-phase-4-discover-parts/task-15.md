@@ -135,9 +135,11 @@ export interface History { rows: HistoryRow[]; next: string }
 export interface Section {
   key: string; heading: string; body: string; items: Criterion[]; origin: Origin; replaced: string;
 }
-export interface RefCriterion {
-  id: string; text: string; digest: string; state: CriterionState; because: string;
-}
+/** provenance.Criterion: what the key fixes. No state: that moves (review I14). */
+export interface RefCriterion { id: string; text: string; digest: string }
+/** provenance.CriterionReading: phase 3's verdict, served beside the refs and never cached with
+ *  them (task 16's criterionStatesByKey). */
+export interface CriterionReading { id: string; state: CriterionState; because: string }
 export interface InheritedRef { key: string; briefId: string; revision: number; digest: string }
 /** provenance.Ref. Every field is always present (task 12's rule). */
 export interface ProvenanceRef {
@@ -149,7 +151,10 @@ export interface ProvenanceRef {
   savedAt: string; savedBy: string; erasedAt: string;
 }
 export interface Head { headRevision: number; latestCompleteRevision: number; archived: boolean }
-export interface RefsResponse { refs: ProvenanceRef[]; heads: Record<string, Head> }
+export interface RefsResponse {
+  refs: ProvenanceRef[]; heads: Record<string, Head>;
+  criterionStates: Record<string, CriterionReading[]>; // by key; resolved slots only; {} when none
+}
 
 export interface DiffLine { op: "same" | "added" | "removed"; text: string }
 /** A block, or a marker of one, in a file git TRACKS; task 09's CommittedBlock (review I3). */

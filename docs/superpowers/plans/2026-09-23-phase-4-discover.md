@@ -34,7 +34,7 @@ changed:
 | C11 | `DiscoverView({api, view, …, onChange})`, prop-controlled, owned by "Phase 2's branch shell" (`:4966`) | A prop-less `DiscoverLens` in `AppShell.tsx`'s `discover` arm, reading a non-persisted `discoverSlice` | survey §4.2 |
 | C12 | Task 10 creates `desktop/vitest.config.ts` and installs test tooling | Neither. The file exists with `setupFiles`, `clearMocks` and the `?raw` CSS include; this plan never writes it | survey §4.3; phase 2 UI contract §11 |
 | C13 | `contextwrite` carries its own `writeAtomic` (`:2438`) | `writeAtomic` is **lifted** from `registry/filestore.go:460` into `statepath` with its tests, and `contextwrite` calls it | ruling **R2** |
-| C14 | `Ref.contextPath`; `present` | `Ref` gains `key`, `digest`, `resolution` (`resolved` · `missing` · `erased` · `invalid` · `none`), `noneReason`, `latestCompleteRevision`, `inherits`, per-criterion `digest`; `contextPath` is dropped for a per-worktree materialisations route | contract §1.4; Hub contract §7.5 (`erased`); phase 3 P4-2 |
+| C14 | `Ref.contextPath`; `present` | `Ref` gains `key`, `digest`, `resolution` (`resolved` · `missing` · `erased` · `invalid` · `none`), `noneReason`, `latestCompleteRevision`, `inherits`, per-criterion `digest`; criterion `state`/`because` leave the `Ref` for `criterionStates` beside `heads` (review I14); `contextPath` is dropped for a per-worktree materialisations route | contract §1.4; Hub contract §7.5 (`erased`); phase 3 P4-2 |
 | C15 | `CLAUDE.md` always, never excluded | `CLAUDE.md` when the repository does not track it, with `/CLAUDE.md` added to the clone's `.git/info/exclude`; `.claude/CLAUDE.md` when `CLAUDE.md` is tracked; refused when both are | phase 3 ask P4-6; `3-D6` (the managed block is never committed) |
 | C16 | Model-tailored options on every question (Task 3, `TailorOptions`) | **Dropped from v1.** The model paths are the follow-up question and the repo draft (brief S4). Options are the static `BaseQuestions()` set | a model call on every step for options nobody asked for in S1–S10; a GET cannot trigger one, and tailored options would need storing to survive a reload |
 | C17 | Task 14's real-agent test run by the implementer | The scripted parts run in task 23; the real `claude` sign-in and the "does the agent know the codeword" step join the **owner's batched session** and stay unverified until then | `OD-12` |
@@ -291,7 +291,7 @@ without a cycle. Phase 4 imports only the Hub's
 | `discover/inherit.go` + test | `Resolve(project, branch *Revision) Document` — project → branch, with origins; `Title(branch *Revision)`, the block title's one rule | 05 |
 | `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`; the golden blocks; the `<!--` neutraliser and the marker count (S3) | 05 |
 | `provenance/key.go` + test | the key grammar — the only parser (P5): `brief:`, `design:`, `none:` | 06 |
-| `provenance/ref.go` + test | `Ref`, `Build`, criterion digests, `Resolution` | 06 |
+| `provenance/ref.go` + test | `Ref`, `Build`, criterion digests, `Resolution`; `CriterionReading` and `Readings`, the moving criterion states kept out of the `Ref` (review I14) | 06 |
 | `discoverhub/binding.go` + test | local project → Hub project by repo key; local branch → `refs/heads/…` | 07 |
 | `discoverhub/read.go` + test | `View`, `History`, `Resolve(keys)`, `HeadRef`, `Inheritable`; the in-memory revision cache | 07 |
 | `discoverhub/service.go` | `Config`, `Service`, the in-memory revision cache | 07 |
@@ -415,7 +415,7 @@ it. This table is the index.
 | `modelclient.Completer`, `Request`, `Response`, `Config` | task 02 | 04, 13, phase 6 |
 | `discover.Content` (the Hub `content` object, **version 1**), `Question`, `Answer`, `Author`, `Criterion`, `Step`, `Op`, `Apply` | task 03 | everything |
 | `discover.Document`, `Section`, `Origin`, `Resolve`; `claudemd.Render`/`Merge`/`Strip`/`Inspect`, the markers, the golden block | task 05 | 06, 09, 12 |
-| `provenance` key grammar, `Key`, `Parse`, `Ref`, `Resolution`, `Criterion`, `Build` | task 06 | 07, 11, 12, phase 3 |
+| `provenance` key grammar, `Key`, `Parse`, `Ref`, `Resolution`, `Criterion`, `Build`, `CriterionReading`, `Readings` | task 06 | 07, 11, 12, phase 3 |
 | `discoverhub.Service`, `Binding`, `View`, `RepoIdentity` | tasks 07, 08 | 09, 11, 12, 13, phase 3 (`briefref`) |
 | `api.Materialiser`, `MaterialiseRequest`, `MaterialiseResult`, `*MaterialiseError`, `api.RouteMounter`; `brief_not_written` | task 10 | 09, 11, 14, 20 |
 | `/v1/discover/…` routes and every JSON body | tasks 11, 12 | 15 |
@@ -456,7 +456,7 @@ encoding is the Hub's and carries its own `v` in the envelope (Hub contract §3.
 | S4-P3.1 | `discoverhub.Service` satisfies `briefref.Resolver` — digest and each criterion's id and text digest | P4-1, P4-2 |
 | S4-P3.2 | `discoverhub.Service` satisfies `briefref.Archiver.ArchiveHead(ctx, projectID, branchID)` — archives the Hub head; revisions untouched | P4-3 |
 | S4-P3.3 | `DefinitionOfDone` takes an optional `onRecordEvidence?(criterionId)` | P4-5 |
-| S4-P3.4 | `provenance.Build` takes an optional `Evaluate func(Criterion) (State, Because)`; nil means every criterion `open` | P4-4 |
+| S4-P3.4 | `provenance.Readings(key, src, eval)` takes an optional `provenance.Evaluate`, `func(briefKey string, c discover.Criterion) (CriterionState, string)` (task 06); nil means every criterion `open`. **Criterion state is not in the `Ref`** (review I14): a verdict moves as evidence arrives, and the desktop caches a `Ref` for ever. It is a per-key `CriterionReading` list, recomputed on every `/v1/discover/refs` answer (`criterionStates`, beside `heads`; tasks 07, 12) and overwritten on the desktop (`criterionStatesByKey`, task 16). Phase 3 builds against two things: its `Evaluate`, and a call to `markCriteriaStale(keys)` (task 16) whenever its evidence may have moved a verdict, which makes the loader re-read those keys once on its next tick | P4-4 |
 | S4-P3.5 | the Materialiser appends `/CLAUDE.md` to the clone's `.git/info/exclude` on first write | P4-6 |
 | S4-P3.6 | **New ask of phase 3:** when task 11's `RenameBranch` succeeds, call `discoverhub.Service.Rebind(ctx, projectID, oldBranchName, newBranchName)` (names, because the old branch id may no longer resolve after the rename), so the brief follows the branch (Hub `PATCH /v1/briefs/{id}`). Without it a renamed branch shows *no brief* and its old brief sits on a ref nobody uses | — (not in phase 3's list) |
 | S4-P3.7 | `sessions.go`: phase 4's call is in the handlers' step order; phase 3 task 05's is inside `sessionEnv`. They do not contend | P4-7 |

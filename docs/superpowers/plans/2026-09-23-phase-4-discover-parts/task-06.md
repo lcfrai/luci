@@ -84,10 +84,21 @@ const (
 	StateContested CriterionState = "contested"
 )
 
+// Criterion is the part of a criterion the key fixes: a function of the key
+// alone, so it lives in the Ref and is cached for ever (review I14).
 type Criterion struct {
-	ID      string         `json:"id"`
-	Text    string         `json:"text"`
-	Digest  string         `json:"digest"`  // "sha256:" + hex(SHA-256(UTF-8 of Text)) — phase 3's P4-2
+	ID     string `json:"id"`
+	Text   string `json:"text"`
+	Digest string `json:"digest"` // "sha256:" + hex(SHA-256(UTF-8 of Text)) — phase 3's P4-2
+}
+
+// CriterionReading is the part that MOVES: phase 3's verdict on one
+// criterion of one key, which changes as evidence arrives (S4-P3.4). It is
+// never inside a Ref. It is served beside heads, per key
+// (RefsResponse.criterionStates, task 12), and the desktop overwrites it on
+// every answer (task 16). Review I14.
+type CriterionReading struct {
+	ID      string         `json:"id"`      // a Criterion.ID of the same key
 	State   CriterionState `json:"state"`   // "open" throughout phase 4
 	Because string         `json:"because"` // required when State != open; "" when open
 }
@@ -101,6 +112,8 @@ type InheritedRef struct {
 
 // Ref is one brief key, resolved. Cacheable for ever EXCEPT headRevision and
 // latestCompleteRevision, which the desktop keeps per brief (contract §6.4).
+// It holds no criterion state: that moves, so it is a CriterionReading
+// served beside the Ref, never cached with it (review I14).
 // Superseded is not a resolution: it is revision < latestCompleteRevision,
 // derived by the desktop from the per-brief heads (P4-B).
 type Ref struct {
@@ -162,9 +175,18 @@ type Source struct {
 // and Ref.Title = discover.Title(&src.Revision) for a branch revision or
 // discover.Title(nil) for a project one - task 05's one copy of the rule,
 // never a string written here (re-review b05-1 R-M2).
-// An Evaluate that returns a non-open state with an empty because is
-// overridden to open: an unexplained verdict is not shown (P12).
-func Build(key string, src Source, head Head, eval Evaluate) Ref
+// Build takes no Evaluate: nothing in a Ref may depend on evidence
+// (review I14).
+func Build(key string, src Source, head Head) Ref
+
+// Readings is the moving part of one resolved key: one CriterionReading per
+// Criterion of Build(key, src, …), in the same order, each from eval(key, c)
+// on the done section's discover.Criterion. Nil eval means every state open
+// with because "". An Evaluate that returns a non-open state with an empty
+// because is overridden to open: an unexplained verdict is not shown (P12).
+// Called on EVERY answer, cached revision or not, so a verdict is never older
+// than the refs call that carried it.
+func Readings(key string, src Source, eval Evaluate) []CriterionReading
 
 func MissingRef(key string) Ref
 func InvalidRef(key string) Ref
@@ -187,8 +209,9 @@ func CriterionDigest(text string) string
 | `TestBuildTitlesAnOpenRevisionByTheOneRule` (re-review b05-1 R-M2) | `Build` over an open branch revision on `refs/heads/evidence-upload` → `Title` equals `discover.Title` of it (`Branch brief — evidence-upload`) and `BranchRef` equals `Revision.BranchRef`; an open project revision → `Project brief` | an open history row titled `""`, or by a second hand-written copy of task 05's rule that drifts from it |
 | `TestBuildCarriesCriterionDigests` | each criterion's digest is `CriterionDigest(text)`; ids are the content's | phase 3 matching evidence by a digest phase 4 never computed |
 | `TestCriterionDigestVector` | `CriterionDigest("Tests pass")` is `sha256:` + the SHA-256 of those 10 bytes, checked against a literal computed by `printf 'Tests pass' \| sha256sum` when the test is written | a digest over a trimmed, lower-cased or JSON-quoted text |
-| `TestNilEvaluateMeansOpen` | every state `open`, every `because` `""` | a default of `settled` |
-| `TestUnexplainedVerdictIsShownOpen` | an `Evaluate` returning `settled, ""` gives `open` | P12 |
+| `TestNilEvaluateMeansOpen` | `Readings(key, src, nil)`: one reading per criterion of `Build`, same ids and order, every state `open`, every `because` `""` | a default of `settled` |
+| `TestUnexplainedVerdictIsShownOpen` | an `Evaluate` returning `settled, ""` gives a reading `open` | P12 |
+| `TestRefHoldsNoCriterionState` (review I14) | the JSON of a built `Ref` has no `state` or `because` key at any depth under `criteria`; an `Evaluate` that answers `settled` then `contested` for the same key gives two different `Readings` and byte-identical `Build` JSON | a verdict frozen inside a `Ref` the desktop caches for ever |
 | `TestRefHasNoDenominator` | the JSON of a built `Ref` has no key matching `(?i)met\|total\|percent\|ratio\|count` | a count sneaking back (G5) |
 | `TestErasedKeepsKeyAndDigest` | `ErasedRef` has key, digest, savedBy and erasedAt, no sections, `present: true` | an erased brief shown as missing (critique-2 §6.2 item 5) |
 | `TestRefGoldenJSON` | a built `Ref` for the fact sheet's `b-42@5` marshals to a checked-in golden — **the wire contract task 15 mirrors** | a field renamed on one side only |
@@ -198,7 +221,8 @@ func CriterionDigest(text string) string
 - [ ] **Step 1:** Write both test files and `testdata/ref-golden.json`; confirm they fail.
 - [ ] **Step 2:** `key.go`: three anchored regexps, compiled once.
 - [ ] **Step 3:** `ref.go`: `Build` calls `discover.Resolve`, maps sections to the four named
-  fields, criteria from the done section's `Items`, digests, `eval`.
+  fields, criteria from the done section's `Items`, digests. `Readings` walks the same `Items`
+  and calls `eval`.
 - [ ] **Step 4:** Run the acceptance commands; commit by pathspec.
 
 **Acceptance:**
