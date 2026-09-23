@@ -29,7 +29,8 @@ terraform {
 # backend.tf — partial; guard G5 keeps it empty. The first apply cannot init this block without
 # the account it creates, so task 31 §2 writes an uncommitted backend_override.tf
 # (`terraform { backend "local" {} }`, git-ignored, guard G1 refuses it tracked), applies with
-# local state, deletes the override and runs `init -migrate-state` into this backend (review I2)
+# local state, deletes the override and runs `init -migrate-state -force-copy -input=false` into
+# this backend (review I2; -input=false alone refuses the copy, plan re-review b04 round 1)
 terraform {
   backend "azurerm" {}
 }
