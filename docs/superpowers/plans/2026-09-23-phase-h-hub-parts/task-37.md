@@ -179,7 +179,7 @@ func WithTestKey(r *http.Request) *http.Request {
 ```
 
 It is the only way an API test sends the key. A test that needs a wrong key, or the subprotocol
-form, builds its request by hand in `localkey_test.go`.
+form, builds its request by hand in `internal/api/localkey_test.go`.
 
 **The file's path** is `PANACEA_APP_LOCAL_KEY_FILE`, default `statepath.Dir("auth")` +
 `/local-key` — so `%LOCALAPPDATA%\PanaceaApp\state\auth\local-key` on Windows, following
@@ -206,8 +206,8 @@ table.
 | `TestTheKeyNeverPrints` | `%v`, `%+v`, `%#v`, `slog` of a `Key` → `redacted`; no response body in any test below contains it | the key in a log |
 | `TestEveryGuardedRouteNeedsTheKey` | for **every** pattern in `API.RegisteredPatterns()`, attach included, with no exceptions, a request with ids filled in and no key → 401 `local_key_required`; with the key → not 401 | a route added later that forgets the key (the §10a audit's own technique); an exemption list growing back |
 | `TestNewRefusesAZeroLocalKey` (`api_test.go`, through `catalogNewDeps`) | `d.LocalKey = localkey.Key{}` → `New` returns an error containing `Deps.LocalKey is zero` and a nil handler (C2) | a zero key treated as *no check*: fails open, every test still green |
-| `TestAZeroKeyMatchesNothing` (`localkey_test.go`) | `Middleware(localkey.Key{}, next)`: no header, `Bearer ` (empty), `Bearer <43 × "A">` → all 401, `next` never called | the same fail-open, one layer down |
-| `TestNoCommandUsesForTest` (`localkey_test.go`) | no non-test `.go` file under `control-plane/cmd/` contains `localkey.ForTest` | production wired with the public test key |
+| `TestAZeroKeyMatchesNothing` (`internal/localkey/localkey_test.go`) | `Middleware(localkey.Key{}, next)`: no header, `Bearer ` (empty), `Bearer <43 × "A">` → all 401, `next` never called | the same fail-open, one layer down |
+| `TestNoCommandUsesForTest` (`internal/localkey/localkey_test.go`) | no non-test `.go` file under `control-plane/cmd/` contains `localkey.ForTest` | production wired with the public test key |
 | `TestAWrongKeyIs401` | `Bearer <another key>`, `Bearer`, `Basic …` → 401 | a prefix match or an empty-string match |
 | `TestHealthzNeedsNoKey` | `GET /v1/healthz` and `GET /api/v1/healthz` → 200 without a key (A3) | a supervisor restarting a healthy control plane |
 | `TestAttachNeedsTheKeyInItsSubprotocol` (review I3; replaces `TestAttachIsExempt`) | through `New`'s handler, on `/v1/sessions/{id}/attach` and the `/api` alias, against a running fixture session served by `httptest.NewServer(a)`: a `websocket.Dial` with no subprotocols → 401 `local_key_required`; with `{"panacea.v1", "panacea.key.<wrong>"}` → 401; with the two entries swapped → 401; with `{"panacea.v1"}` only → 401; with `localkey.ForTestSubprotocols()` → the socket opens and `c.Subprotocol()` is `panacea.v1`; the handshake response's `Sec-WebSocket-Protocol` header and every captured log line contain no `panacea.key.` text | a PTY any local process can type into after guessing 32 bits; a prefix or ordering match; the key echoed back or logged |

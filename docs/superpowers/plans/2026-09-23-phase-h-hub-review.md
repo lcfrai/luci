@@ -548,3 +548,25 @@ Line numbers are as committed by this round. The task list is unchanged from rou
 
 Unverified: nothing was compiled or run (documents only). The encoder behaviour was read from the
 Go source, not executed. A sibling agent's use of `git show` was not tried from a sibling worktree.
+
+## Fix batch b02 — C2 and I3 (2026-09-24)
+
+The local caller key now fails closed on a zero key, every API test file has one helper, and the
+attach WebSocket carries the key in its subprotocol.
+
+| Finding | What changed | Where |
+|---|---|---|
+| **C2.1** fail closed | `api.New` returns `api: Deps.LocalKey is zero; …` from a `LocalKey.IsZero()` check. It sits directly after the nil table, in the style of `ConversationsDir`'s check, because a `Key` is a value and the table only tests nil. The table is `api.go:264-283` on `feat/hub`, not `:213-231`: the phase-2 merge moved it 51 lines. `Middleware` also matches nothing with a zero key, so there is no *"zero means no check"* branch at either layer | task-37.md:76, :82-83, :155-166; plan.md:273 |
+| **C2.2** `ForTest` + one helper | `localkey.ForTest()`, `ForTestHeader()` and `ForTestSubprotocols()`. No method on `Key` returns its text. `export_test.go` gains `WithTestKey(r)`, the one way an API test sends the key | task-37.md:85-94, :169-182 |
+| **C2.3** every API test file | All eight files on `feat/hub` are listed, not five. Each is changed only by `localkey.ForTest()` in its `Deps` builder and `WithTestKey` at its request sites through `New`. Five need no edit because they inherit a shared builder: `catalog_test.go`, `routes_audit_test.go`, `sandboxenv_new_test.go`, `sessions_sandboxenv_test.go` and `sessions_resume_test.go`. **Correction to the review's premise:** `sessions_test.go`'s `do` drives the bare recorder, not `New`, so it needs no key. Only `throughNew` (`:1215`) does. `:1245` stays keyless on purpose (the Host guard answers first). **Ledger note:** `sessions_sandboxenv_test.go` and `sandboxenv_new_test.go` are the two files the review did not count; `sessions_resume_test.go` is a third, also unchanged | task-37.md:40-58; plan.md:275 |
+| **C2.4** siblings | A Files note and Step 4 tell the orchestrator that every sibling phase's API test files need the same one-line change per builder and per request site when 37 merges. Phase 2's uncommitted `sessions_gitfiles_test.go` is named, but its shape is unverified | task-37.md:60-65, :231-235 |
+| **C2.5** the process | `TestTheProcessRefusesToStartWithoutAKey` in `cmd/api/main_test.go`. `Mint` is the first thing `serve` (`main.go:66`) does, so the test needs no Docker. Added `TestNoCommandUsesForTest`: production wired with the public test key is the one fail-open the zero check cannot see | task-37.md:210, :215 |
+| **I3** attach keyed | The desktop offers `["panacea.v1", "panacea.key." + key]`. `Middleware` accepts that exact two-entry list, in constant time and **only on a WebSocket upgrade**. `attach.go`'s `Accept` gains `Subprotocols: []string{"panacea.v1"}`. coder/websocket v1.8.12's `selectSubprotocol` (`accept.go:240-250`, read) can then echo only that. `TestAttachIsExempt` becomes `TestAttachNeedsTheKeyInItsSubprotocol` (wrong key, swapped, one entry, none → 401; right → opens, `Subprotocol()=="panacea.v1"`, no `panacea.key.` in the response or logs). Added `TestTheSubprotocolKeyIsOnlyForUpgrades` | task-37.md:13-20, :96-121, :131-141, :213-214 |
+| **I3** `Exempt` | **Deviation, declared.** The review says `Exempt` should *shrink* to the two health routes. It is **deleted** instead, with `Middleware`'s exemption parameter. The health routes never reach the middleware (they are mounted on `root`, `api.go:358-361`), so a list naming them would be dead code, and a dead exemption list is where the next exemption gets added. `TestEveryGuardedRouteNeedsTheKey` now walks every pattern with no exceptions | task-37.md:124-129, :207 |
+| **I3** desktop (`openAttach` gains the key source) | `openAttach` becomes `Promise<WebSocket>` and reads the key with `refresh()` on **every** handshake. A refused handshake reaches the browser as a bare 1006 with no 401, so a fresh read is the only way a terminal reattaches after a restart. The injected `webSocket` gains `protocols`. `attachRegistry.ts` `connect` awaits it, and closes a socket opened for a destroyed or superseded entry. The five fake clients are made `async`, nothing more. There are four new tests | task-38.md:1-10, :18-22, :72-84, :98-114, :131-134, :144-156 |
+| **I3** restatements | The plan's A3 row and file map; task 44a's §9.4 fold-in row and UI contract §4.5 note (the attach socket carries the key; *"later work"* is gone); task 37's `api.go:303-306` → `:358-361` | plan.md:151, :274, :291-292; task-44a.md:32, :66-69; task-37.md:23-24 |
+
+Unverified: nothing compiled or run (documents only). WebView2 failing a handshake whose offered
+subprotocol is not echoed is Chromium behaviour from memory. The echo is planned either way, and
+task 38 Step 4 observes it. How many phase-2 desktop tests read a fake socket in the same tick as
+the attach, and so need one awaited microtask, is not known until task 38 Step 2 runs them.
