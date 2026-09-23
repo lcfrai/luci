@@ -56,7 +56,11 @@ earlier stack never reads a later one.
 #   2. stacks:  terraform init -backend=false -input=false -lockfile=readonly
 #      modules: terraform init -backend=false -input=false
 #   3. terraform validate -no-color
-#   4. if tests/ has a *.tftest.hcl:  terraform test -no-color
+#   4. if tests/ has a *.tftest.hcl:
+#        modules: terraform test -no-color
+#        stacks:  terraform test -no-color -var-file=<env>.tfvars, once per <env>.tfvars in the
+#                 stack, so every committed tfvars file is proven to plan against mocks. The
+#                 test files supply only what tfvars may not hold (ids, as TF_VAR_* would).
 #
 # Output, one line per directory:   validate: OK   <dir>
 #                                   validate: FAIL <dir> (<step>)
