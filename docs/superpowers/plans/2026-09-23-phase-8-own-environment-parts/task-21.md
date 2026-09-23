@@ -113,9 +113,10 @@ needs.
    rows. It refuses to start (exit 2, naming the key) if `MachineHardening` finds any system or
    global credential helper, so the only credential a call can carry is the one in its `Env`.
 2. **`Scope` follows `Dir`, and `machined` checks it.** A `Dir` under `lanes/` must be
-   `"clone"`, and `Dir` equal to `projects/<name>` must be `"project"`. `"none"` is admitted for
-   exactly two shapes: `Args == ["version"]`, and the add-project clone below. Any other pairing
-   is `400` before gitx sees the call. The laptop names the scope (task 25), but `machined` does
+   `"clone"`, a `Dir` equal to `projects/<name>` must be `"project"`, and `Dir: ""` (the owned
+   root) must be `"none"`. Any other `Dir` is `400`. `"none"` is admitted for exactly two shapes:
+   `Args == ["version"]`, and the add-project clone below. Any other pairing is `400` before
+   gitx sees the call. The laptop names the scope (task 25), but `machined` does
    not take it on trust, because the scope decides whether a lane is read against the closed
    allowlist and whether the token may enter it.
 3. **An explicit `Env` allowlist.** Only these keys are admitted:
@@ -200,7 +201,11 @@ with a fake `git` first on `PATH` that writes a marker on any start. A marker sc
 - [ ] **Step 1:** Confirm phase 3 task 02 has landed **with §HGH**: `git grep -n "type Runner interface\|func MachineHardening\|type UntrustedConfig" -- control-plane/internal/gitx/` returns three lines. If not, stop.
 - [ ] **Step 2:** Wire types; tests, each shown red first; the route over `gitx.NewExec(h)`; the scrub in `main.go`; all pass.
 - [ ] **Step 3: Mutation check** (rule 7), each on a `$TEMP` copy, each turning the named test red:
-  (1) the `Env` allowlist replaced by `^GIT_[A-Z0-9_]+$` → `TestGitRefusesGITDIRInEnv`;
+  (1) the `Env` allowlist replaced by `^GIT_[A-Z0-9_]+$` → `TestGitEnvIsAnExplicitAllowlist`,
+  on its `GIT_EXEC_PATH`, `GIT_SSH_COMMAND` and `GIT_CONFIG_PARAMETERS` rows. Not
+  `TestGitRefusesGITDIRInEnv`: `GIT_DIR` is refused twice, by `machined` and then by phase 3's
+  H5 (`ErrCallShape`, also a `400`), so no single mutant turns that test red. That is the
+  intended depth, and the reason this mutant is checked against the other test;
   (2) the bare `http.extraHeader` admitted → `TestGitEnvIsAnExplicitAllowlist`;
   (3) the header host not compared with `RemoteURL`'s → `TestGitEnvIsAnExplicitAllowlist`;
   (4) credential `Env` admitted on a `clone` call → `TestGitCredentialEnvIsRefusedInALane`;
