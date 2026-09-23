@@ -114,6 +114,11 @@ type LaneObservation struct {
 	Truncated   bool         `json:"truncated"`
 	Changed     []PathChange `json:"changed"`     // committed: base..lane
 	Uncommitted []PathChange `json:"uncommitted"` // the clone's status
+	// HeadElsewhere is where the clone's HEAD is when it is NOT refs/heads/<branch> (review I6):
+	// "refs/heads/fix-x" for another branch, the full sha for a detached HEAD, "" when HEAD is on
+	// the lane's branch. Only refs/heads/<branch> syncs, so commits made there never reach the
+	// lane and never land; the card says so (task 19), and removal archives them (task 11).
+	HeadElsewhere string `json:"headElsewhere"`
 	// ReadError is git's sentence when this lane could not be read. The other lanes are read
 	// regardless (the prototype's m-gitfail state).
 	ReadError string `json:"readError"`
@@ -127,6 +132,9 @@ const MaxCommits = 50
 //   merge-base refs/heads/<b> <LaneRef>
 //   diff --name-status -z --find-renames <base> <LaneRef>
 //   status --porcelain=v2 -z --untracked-files=all          (in the clone, Scope Clone: task-02 §HGH)
+//   symbolic-ref -q HEAD, OKExit 1                           (in the clone, Scope Clone; review I6)
+//     exit 0 and not refs/heads/<b> → HeadElsewhere = that ref;
+//     exit 1 (detached) → rev-parse --verify -q HEAD in the clone → HeadElsewhere = the sha
 // A §HGH refusal is the lane's ReadError, which names clone_config_untrusted and the key.
 func Observe(ctx context.Context, m gitx.Machine, projectPath, branch string, lane lanes.Lane, st SyncState, synced bool) LaneObservation
 ```
@@ -166,6 +174,7 @@ an agent would make them. `Script` runners only where the claim is "this call is
 | `TestObserveChangedIsSinceTheMergeBase` | the branch changes `a.txt` after the fork, the lane changes `b.txt` → `Changed` is `[b.txt]` only | `diff branch lane`, which reports the branch's work reversed |
 | `TestObserveCapsCommits` | 60 lane commits → 50 and `Truncated` | an unbounded payload on the poll |
 | `TestObserveParsesRenamesAndUntracked` | a committed rename → `renamed` with `From`; an untracked file → `untracked` | a `-z` parser that splits a rename wrong |
+| `TestObserveReportsAHeadOffTheBranch` (review I6) | in the clone, `switch -c fix-x` and commit → `HeadElsewhere == "refs/heads/fix-x"`, and `Commits` does not hold that commit; `switch --detach` and commit → `HeadElsewhere` is that commit's full sha; `switch <b>` → `""` | a lane card that says "nothing to land" while the agent's work sits on another branch |
 | `TestObserveTakesNoLock` | after `Observe`, the clone's `.git/index` bytes and mtime are unchanged | a status that refreshes the index beside an agent |
 | `TestObserveNeverSyncedLane` | `synced == false` → `Synced:false`, empty `Tip`, no git call against `LaneRef` | a fatal "unknown revision" shown as an error |
 | `TestObserveReadErrorIsThisLanesOnly` | the clone directory is gone → `ReadError` is git's sentence, `Commits` empty | a panic or a whole-request 500 |
