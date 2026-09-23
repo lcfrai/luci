@@ -51,20 +51,25 @@ type Fetch func(digest string) ([]byte, error)
 //
 //  1. Fetch the manifest by its digest; ≤ MaxFileBytes; its SHA-256 is the
 //     digest; it decodes strictly (unknown fields refused) as task 21's
-//     Manifest with Kind "design-handoff" and V 1.
-//  2. It names THIS approval: manifest.DesignKey == rec.DesignKey, and
-//     manifest.CanvasID and manifest.DesignRevision are the canvas id and
-//     revision rec.DesignKey carries (doc.DesignKey's form, task 21);
-//     manifest.ReviewDigest == rec.ReviewDigest; manifest.BriefKey ==
-//     rec.BriefKey. BundleDir is built from rec (the Hub's record), never from
-//     the manifest. Any mismatch → ErrTampered.
-//  3. Every Files[].Path passes handoff.SafePath (task 21's paths.go); no path
-//     appears twice; every ManifestArtboard HTML/PNG/JSX/TailwindJSX path is one
-//     of Files; ContentType == ContentTypeFor(Path); an "assets/<hex>.<ext>"
-//     path's hex is that file's own SHA-256 (assets are content-addressed,
-//     task 05). Any failure → ErrUnsafePath.
-//  4. len(Files)+1 ≤ MaxFiles (500); every Size ≤ MaxFileBytes; the sum of
-//     Size, manifest included, ≤ MaxSnapshotBytes (512 MiB) → else ErrTooLarge.
+//     Manifest (over MaxFileBytes → ErrTooLarge; a digest or decode failure
+//     → ErrTampered).
+//  2–4. handoff.CheckManifest(m, int64(len(manifestBytes)), ManifestWant{
+//     CanvasID: canvasID, DesignKey: rec.DesignKey, BriefKey: rec.BriefKey,
+//     ReviewDigest: rec.ReviewDigest}) — task 21's paths.go, the SAME function
+//     BuildSnapshot runs on its own output, so the rule the approval was built
+//     under and the rule the handoff enforces cannot drift (re-review I-1).
+//     It checks, in order: Kind "design-handoff" and V 1; that the manifest
+//     names THIS approval — rec.DesignKey goes through doc.ParseDesignKey
+//     (task 05, task-05.md:241-242), a key that fails to parse → ErrTampered,
+//     and its canvas id must equal canvasID (the route's {canvasId}), which
+//     ties BundleDir to the local canvas; the manifest's designKey, canvasId,
+//     designRevision, reviewDigest and briefKey equal rec's and the parsed
+//     key's (→ ErrTampered); every path SafePath, none twice, the artboard
+//     table inside Files, content types, asset hexes (→ ErrUnsafePath); and
+//     len(Files)+1 ≤ MaxFiles (500), every Size ≤ MaxFileBytes, the sum with
+//     the manifest ≤ MaxSnapshotBytes (512 MiB) (→ ErrTooLarge).
+//     BundleDir is built from the parsed rec.DesignKey (the Hub's record),
+//     never from the manifest.
 //     Steps 1–4 run BEFORE any file is fetched or anything is created on disk.
 //  5. Fetch every file; its length is its declared Size and its SHA-256 its
 //     declared digest, else ErrTampered.
@@ -76,7 +81,7 @@ type Fetch func(digest string) ([]byte, error)
 //     replacing an existing bundle only if its manifest differs.
 //
 // Every error writes nothing: tmp is removed and the worktree is as before.
-func Materialise(fs FS, worktree string, manifestDigest string, fetch Fetch, rec ApprovalRecord) (Result, error)
+func Materialise(fs FS, worktree, canvasID, manifestDigest string, fetch Fetch, rec ApprovalRecord) (Result, error)
 
 type Result struct {
 	Dir     string   `json:"dir"`     // BundleDir, "/"-separated
@@ -92,9 +97,9 @@ type FS interface { // os in production; a temp dir in tests; phase 8 supplies o
 	RemoveAll(path string) error
 }
 
-var ErrTampered = errors.New("handoff: a snapshot file does not match its digest")
-// ErrUnsafePath and ErrTooLarge are task 21's (paths.go, snapshot.go); Materialise
-// returns them wrapped, naming the offending path or limit. The route answers all
+// ErrTampered, ErrUnsafePath and ErrTooLarge are task 21's (paths.go,
+// snapshot.go; ErrTampered sits in paths.go because CheckManifest returns it).
+// Materialise returns them wrapped, naming the offending path or limit. The route answers all
 // three as 422 handoff_snapshot_invalid with details.reason
 // ("tampered" | "unsafe_path" | "too_large") and writes nothing.
 ```
@@ -112,8 +117,9 @@ var ErrTampered = errors.New("handoff: a snapshot file does not match its digest
 **on the canvas's branch** (else `409 conflict`: *"that worktree is on another branch"*);
 `git -C <worktree> ls-files -- .panacea` is empty (else `409 handoff_path_tracked`); then
 `Materialise`, whose `Fetch` reads each blob through `io.LimitReader(body, MaxFileBytes+1)` so a Hub
-answer longer than any legal blob is refused unread (`ErrTooLarge`), and whose `rec` is the Hub's
-approval record just fetched — never a field of the request body; any of its three errors is
+answer longer than any legal blob is refused unread (`ErrTooLarge`), whose `canvasID` is the route's
+`{canvasId}`, and whose `rec` is the Hub's approval record just fetched — never a field of the
+request body; any of its three errors is
 `422 handoff_snapshot_invalid` and nothing is written; then, if `/.panacea/` is not already a line of the clone's exclude file (found with
 `git -C <worktree> rev-parse --git-path info/exclude`, which works for a clone and a linked
 worktree), it is appended. A Hub failure mid-way writes nothing (the temporary directory is removed).
@@ -140,7 +146,9 @@ The link records **both** keys; they may differ, and that difference is the poin
 | `TestMaterialise_verifies` | a fake fetch returning one altered file → `ErrTampered`, nothing under the worktree | a tampered snapshot handed to an agent |
 | `TestMaterialise_hostilePaths` (table; each row a manifest with **correct** digests for every file, one `Files[].Path` replaced) | `../x`, `/x`, `C:\x`, `a\..\..\x`, `assets/../../x`, `CON.html`, `con.html`, `x.html:s`, `../../../../AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/x.cmd` → `errors.Is(err, ErrUnsafePath)`; **nothing written anywhere**: the worktree's parent directory (a `t.TempDir()` holding the worktree) lists exactly what it did before, no tmp sibling survives, and the fake `Fetch` was called for the manifest only | a teammate's manifest writing outside the worktree — code run at the victim's next sign-in (review C2) |
 | `TestMaterialise_manifestLies` | a duplicate path; an artboard `HTML` path not in `Files`; `tokens.css` labelled `text/html`; an `assets/<hex>.png` whose bytes hash to another hex → `ErrUnsafePath`, nothing written | a second file overwriting the first; a path smuggled through the artboard table |
-| `TestMaterialise_otherDesign` | a valid manifest whose `canvasId`, `designRevision`, `designKey`, `reviewDigest` or `briefKey` differs from the approval record → `ErrTampered`, nothing written | one approval materialising another design's files |
+| `TestMaterialise_otherDesign` | a valid manifest whose `canvasId`, `designRevision`, `designKey`, `reviewDigest` or `briefKey` differs from the approval record → `ErrTampered`, nothing written; a `rec.DesignKey` that `doc.ParseDesignKey` refuses → `ErrTampered`; a manifest and record that agree but whose canvas id ≠ the `canvasID` argument → `ErrTampered` (re-review M-4) | one approval materialising another design's files; a bundle directory named for another canvas |
+| `TestMaterialise_sharesCheckManifest` | a manifest `handoff.CheckManifest` refuses (each of its three sentinels, one row each, reusing task 21's `TestCheckManifest` fixtures) → Materialise returns the same sentinel, and the fake `Fetch` was called for the manifest only | Materialise keeping its own copy of the manifest rule (re-review I-1) |
+| `TestMount_wrapsEveryRoute` (task 20's test, extended) | the count of mounted design routes is now **26** (routes 24–26 added); each answers 401 `local_key_required` with no key | a new route mounted around the guard (re-review M-3) |
 | `TestMaterialise_limits` | 500 files + the manifest → `ErrTooLarge`; sizes summing to `MaxSnapshotBytes` + 1 → `ErrTooLarge`, **before** any file fetch; a fetched blob longer than its declared `Size` → `ErrTampered` | a manifest that fills the disk |
 | `TestHandoff_invalidSnapshot` | the route over a Hub fake holding the `../x` manifest → 422 `handoff_snapshot_invalid`, `details.reason: "unsafe_path"`; `info/exclude` untouched | the error flattened to 500, or a half-done handoff |
 | `TestHandoff_localKeyRequired` | routes 24 and 25 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required`; no `Fetch`, no file, no `LinkSession` call (task 20's harness) | a sandbox materialising files into a worktree or linking a session as the human (review C1) |

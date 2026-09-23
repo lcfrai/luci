@@ -15,7 +15,8 @@ brief R8 / P-g closed — and a release's design key always resolves.
 ## Files
 
 - `canvas/handoff/snapshot.go`, `manifest.go`, `slug.go`, `paths.go` + tests (new) — `paths.go` is the
-  one bundle-path rule task 22's `Materialise` also enforces (review C2)
+  one bundle-path and manifest rule (`SafePath`, `CheckManifest`) that `BuildSnapshot` runs on its
+  own output and task 22's `Materialise` runs on the Hub's (review C2, re-review I-1)
 - `control-plane/internal/designapi/approve.go`, `approvals.go` (the in-memory `Approvals` port),
   `hub.go` (the `Designs` port and the relay), `approve_test.go` (new); `routes.go` gains three routes
 
@@ -65,14 +66,23 @@ const (
 	MaxFiles         = 500       // the Hub's snapshot.blobs cap, manifest included (contract §7.7 check 5)
 	MaxFileBytes     = 16 << 20  // the Hub's blob cap (contract §7.6)
 	MaxSnapshotBytes = 512 << 20 // every file's Size summed, manifest included; half the Hub's 1 GiB
-	                             // project quota (contract §7.6). Task 22's Materialise refuses the same
-	                             // number, so no snapshot is built that a handoff would refuse (review C2)
+	                             // project quota (contract §7.6). Both BuildSnapshot and task 22's
+	                             // Materialise enforce it through CheckManifest (paths.go), so no
+	                             // snapshot is built that a handoff would refuse (review C2, re-review I-1)
 )
 var ErrTooLarge = errors.New("handoff: snapshot over the Hub's limits")
 
-// canvas/handoff/paths.go (review C2) — the ONE definition of a bundle path,
-// shared by BuildSnapshot (which asserts every path it writes passes) and
-// task 22's Materialise (which refuses any that does not).
+// BuildSnapshot's last step, before it returns: CheckManifest(snap.Manifest,
+// int64(len(snap.ManifestFile.Data)), ManifestWant{CanvasID: the canvas id
+// in.DesignKey carries, DesignKey: in.DesignKey, BriefKey: in.BriefKey,
+// ReviewDigest: snap.ReviewDigest}). It returns that error unchanged. So a
+// snapshot the handoff would refuse is never returned, by construction.
+
+// canvas/handoff/paths.go (review C2) — the ONE definition of a bundle path
+// and of an acceptable manifest, shared by BuildSnapshot (which runs
+// CheckManifest on its own output, so every Files path passes SafePath) and
+// task 22's Materialise (which runs the same CheckManifest on the Hub's
+// manifest and refuses whatever fails it).
 //
 // PathPattern is exactly the set of names BuildSnapshot produces, and nothing
 // else: "/"-separated, relative, lowercase, no "..", no "\", no ":", no drive.
@@ -95,6 +105,42 @@ var ErrUnsafePath = errors.New("handoff: a snapshot path is not one BuildSnapsho
 // .tailwind.jsx text/plain; charset=utf-8, tokens.css text/css; charset=utf-8,
 // .json application/json, assets by extension). Materialise requires it.
 func ContentTypeFor(p string) string
+
+// ManifestWant is what a manifest must name. Task 22 fills it from the Hub's
+// approval record and the route's {canvasId}; BuildSnapshot fills it from its
+// own input.
+type ManifestWant struct {
+	CanvasID     string // the LOCAL canvas: the route's {canvasId}
+	DesignKey    string
+	BriefKey     string
+	ReviewDigest string
+}
+
+// CheckManifest is the ONE statement of what a handoff accepts (re-review
+// I-1). It reads the manifest only — no blob — so it runs before any file is
+// fetched or anything is created on disk. In order:
+//
+//  1. m.Kind == "design-handoff" and m.V == 1.
+//  2. doc.ParseDesignKey(want.DesignKey) (task 05) succeeds, and the canvas id
+//     it yields == want.CanvasID; m.DesignKey == want.DesignKey; m.CanvasID and
+//     m.DesignRevision are the canvas id and revision it yields;
+//     m.ReviewDigest == want.ReviewDigest; m.BriefKey == want.BriefKey.
+//     Steps 1–2: any failure → ErrTampered.
+//  3. Every Files[].Path passes SafePath; no path appears twice; every
+//     ManifestArtboard HTML/PNG/JSX/TailwindJSX path is one of Files, and no
+//     two artboards share a Slug; ContentType == ContentTypeFor(Path); an
+//     "assets/<hex>.<ext>" path's hex is that file's own declared SHA256
+//     (assets are content-addressed, task 05). Any failure → ErrUnsafePath.
+//  4. len(Files)+1 ≤ MaxFiles; every Size ≤ MaxFileBytes; the sum of every
+//     Size plus manifestSize ≤ MaxSnapshotBytes. Any failure → ErrTooLarge.
+//
+// Each error wraps its sentinel and names the offending field, path or limit.
+func CheckManifest(m Manifest, manifestSize int64, want ManifestWant) error
+
+// ErrTampered is a manifest (or, in task 22, a fetched blob) that does not
+// match the approval it is handed off under. Moved here from task 22 because
+// CheckManifest returns it.
+var ErrTampered = errors.New("handoff: a snapshot file does not match its digest")
 ```
 
 ```go
@@ -142,11 +188,21 @@ type ManifestFile struct {
 // Slug: lowercase; every run of characters outside [a-z0-9] becomes "-";
 // trimmed of "-"; cut to 60 bytes and trimmed of "-" again; "" becomes
 // "artboard"; a Windows device name (con, prn, aux, nul, com0–com9,
-// lpt0–lpt9) gets "-artboard" ("con" → "con-artboard"); a repeat within one
-// canvas gets "-2", "-3", … in page-then-artboard order, the base cut first so
-// the result is still at most 60 bytes. Every slug therefore passes SafePath
-// as "<slug>.html" (review C2) — the slug tests assert it for each rule.
+// lpt0–lpt9) gets "-artboard" ("con" → "con-artboard"). Uniqueness is
+// measured against the slugs ALREADY GIVEN OUT, not counted per base name
+// (re-review I-1): walking in page-then-artboard order with one `taken` set,
+// a base not yet taken is used as it is; otherwise the artboard gets the
+// smallest n >= 2 for which "<base cut to 60-len("-n") bytes, trimmed of
+// "-">-<n>" is not taken — whether the taken slug came from a name or from an
+// earlier suffix. "Home", "Home", "Home 2" → home, home-2, home-2-2; "Home 2",
+// "Home", "Home" → home-2, home, home-3. The result is at most 60 bytes, and
+// every slug is distinct. Every slug therefore passes SafePath as
+// "<slug>.html" (review C2) — the slug tests assert it for each rule.
 func Slugs(artboards []doc.Node) map[string]string // artboard id → slug
+
+// slugsFn is what BuildSnapshot calls (default Slugs). It is unexported and
+// only TestBuildSnapshot_selfChecks swaps it, to prove the self-check fires.
+var slugsFn = Slugs
 ```
 
 ```go
@@ -201,8 +257,11 @@ type ApprovalState struct {
 4. The document at `revision` (`authority.Document`), then **2× screenshots of every artboard at
    that revision** (`authority.Render`, 50 per request), else `409 renderer_unavailable` — the lens is
    open when a human approves, so this means the renderer failed.
-5. `handoff.BuildSnapshot`; over `MaxFiles`, `MaxFileBytes` or `MaxSnapshotBytes` → `413 design_too_large`.
-   A path failing `SafePath` inside `BuildSnapshot` is a bug in `slug.go` — `500 internal`, nothing uploaded.
+5. `handoff.BuildSnapshot` (called through the API's unexported `buildSnapshot` field, which only
+   `TestApprove_snapshotBug` replaces); over `MaxFiles`, `MaxFileBytes` or `MaxSnapshotBytes` → `413 design_too_large`.
+   `ErrTampered` or `ErrUnsafePath` from `BuildSnapshot`'s own `CheckManifest` (a path failing
+   `SafePath`, a path repeated, a content type or asset hex that disagrees) is a bug in `slug.go` or
+   `snapshot.go` — `500 internal`, nothing uploaded, no approval asked of the Hub (re-review I-1).
 6. `PutBlob` for every file and the manifest, each from a `*bytes.Reader` (HA5-1), retried once on
    `ErrUnavailable` with a fresh reader.
 7. `Approve` with `designKey`, `reviewDigest`, `briefKey`, `briefDigest`, `branchRef`
@@ -232,7 +291,11 @@ loader; this cache does not poll it).
 | `TestBuildSnapshot_limits` | 501 files → `ErrTooLarge`; files summing past `MaxSnapshotBytes` → `ErrTooLarge` | a 422 from the Hub after 500 uploads; a snapshot task 22 would refuse to write |
 | `TestBuildSnapshot_pathsSafe` | a fixture whose artboards are named `"../../x"`, `"C:\\x"`, `"CON"`, `"a:b"`, `"Ünïcode"` and a 200-character name: every `File.Path` and every `ManifestArtboard` path passes `SafePath`, and `ContentTypeFor(path) == File.ContentType` | BuildSnapshot writing a name Materialise refuses (review C2) |
 | `TestSafePath` | accepts each name the contract table lists; refuses `../x`, `/x`, `C:\x`, `a\..\..\x`, `assets/../../x`, `CON.html`, `con.html`, `lpt1.png`, `x.html:s`, `x.HTML`, `-x.html`, `assets/abc.png` (short hex), `manifest.json`, `approval.json`, `""` → each wraps `ErrUnsafePath` | a hostile manifest path accepted (review C2) |
-| `TestSlugs` | `"Settings / Profile"`, `"Settings: Profile"` → `settings-profile`, `settings-profile-2`; `""` → `artboard`; `"Con"` → `con-artboard`; a 70-character name repeated → two slugs of at most 60 bytes, the second ending `-2` | two artboards writing one file; a device name or an over-long slug written to disk |
+| `TestSlugs` | `"Settings / Profile"`, `"Settings: Profile"` → `settings-profile`, `settings-profile-2`; `""` → `artboard`; `"Con"` → `con-artboard`; a 70-character name repeated → two slugs of at most 60 bytes, the second ending `-2`; `"Home"`, `"Home"`, `"Home 2"` → `home`, `home-2`, `home-2-2`, and `"Home 2"`, `"Home"`, `"Home"` → `home-2`, `home`, `home-3` (re-review I-1); every case asserts the slugs are pairwise distinct | two artboards writing one file; a per-base-name counter (it gives `home-2` twice); a device name or an over-long slug written to disk |
+| `TestCheckManifest` (table over one valid manifest, one field changed per row) | the valid manifest → nil; `kind` ≠ `design-handoff`, `v: 2`, a `designKey` that fails `doc.ParseDesignKey`, a `want.CanvasID` other than the key's canvas id, and a changed `canvasId`, `designRevision`, `designKey`, `reviewDigest` or `briefKey` → `ErrTampered`; a duplicate `Files` path, an artboard path not in `Files`, two artboards sharing a slug, `tokens.css` labelled `text/html`, an asset hex ≠ its `sha256` → `ErrUnsafePath`; 500 files + the manifest, one `Size` of `MaxFileBytes`+1, sizes plus `manifestSize` summing to `MaxSnapshotBytes`+1 → `ErrTooLarge` | the two manifest rules — BuildSnapshot's and Materialise's — drifting apart (re-review I-1) |
+| `TestBuildSnapshot_selfChecks` | a fixture with artboards named `"Home"`, `"Home"`, `"Home 2"` builds, and `CheckManifest` on its output is nil; with `Slugs` replaced by a per-base-name counter (a test seam, `slugsFn`) `BuildSnapshot` returns an error wrapping `ErrUnsafePath` and no `Snapshot` | BuildSnapshot skipping its own `CheckManifest`: an approval the handoff can never materialise (re-review I-1) |
+| `TestApprove_snapshotBug` | the route with its `buildSnapshot` field (default `handoff.BuildSnapshot`) replaced by one returning an error wrapping `handoff.ErrUnsafePath`, then one wrapping `handoff.ErrTampered` → `500 internal` each time; the Hub fake received no `PutBlob` and no `Approve` | an immutable Hub approval that no handoff can use |
+| `TestMount_wrapsEveryRoute` (task 20's test, extended) | the count of mounted design routes is now **23** (routes 21–23 added); each answers 401 `local_key_required` with no key | a new route mounted around the guard (re-review M-3) |
 | `TestApprove_happy` (Hub fake) | blobs uploaded before the approval; `ApprovalRequest` has the right keys and digests; the review request is closed; route 22 then says `approved` | an approval with no snapshot |
 | `TestApprove_notShared` | an unbound project → 409 `design_not_shared` and **no** Hub call | blobs uploaded for a project the Hub cannot hold |
 | `TestApprove_incompleteBrief` | head brief `open` → 409 `design_no_brief`, no upload | an approval against an unfinished brief (ADR Q1) |
