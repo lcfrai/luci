@@ -5,12 +5,18 @@ import type { JSX } from "react";
 import { useCockpit } from "../../store/store";
 import { selectHarness, selectSession } from "../../store/selectors";
 import { StatusDot } from "../common/StatusDot";
+import { useSessionPending } from "../develop/sessionVerbs";
 import type { SessionId } from "../../store/types";
 import "./rail.css";
 
 export function SessionRow(props: { sessionId: SessionId; selected: boolean }): JSX.Element {
   const { sessionId, selected } = props;
   const session = useCockpit(selectSession(sessionId));
+  // A deferred commit is in flight for this row. During the Undo window the row already shows
+  // the optimistic state — a killed session reads `exited` — but nothing else says the request
+  // has not been sent yet, so a user who clicks Kill twice in six seconds cannot see why the
+  // second click changed nothing.
+  const pending = useSessionPending(sessionId);
   const command = useCockpit((s) => {
     const found = session === undefined ? undefined : selectHarness(session.harness)(s);
     return found?.command ?? session?.harness ?? "";
@@ -28,6 +34,14 @@ export function SessionRow(props: { sessionId: SessionId; selected: boolean }): 
       aria-selected={selected}
       data-kind="session"
       data-id={session.id}
+      // `undefined` omits the attribute entirely rather than rendering data-pending="false",
+      // which keeps a CSS selector written later honest and keeps the DOM snapshot in task 24's
+      // defect suite unchanged for the ordinary case. The opacity is inline because rail.css is
+      // task 18's and shared-shape §2 sanctions only menu/ CSS for this task; it carries no
+      // transition, so the change is instant — correct here, because the fade is a state
+      // readout and not a causal animation.
+      data-pending={pending ? "true" : undefined}
+      style={pending ? { opacity: 0.55 } : undefined}
       className="rail-row rail-level-4"
       onClick={() => focusSession(session.id)}
       onContextMenu={(event) => {
@@ -35,11 +49,6 @@ export function SessionRow(props: { sessionId: SessionId; selected: boolean }): 
         openContextMenu({ kind: "session", id: session.id, x: event.clientX, y: event.clientY });
       }}
     >
-      {/* TASK 22 NOTE — the rail's session verbs arrive through ContextMenu.tsx's
-          sessionItems(); this row's dispatch is already complete and needs no change. If task
-          22 wants an optimistic "kill in flight" affordance on the row, it belongs here and
-          nowhere else. Anchored guard if it adds one:
-            grep -cE '^[[:space:]]+data-pending=' src/components/rail/SessionRow.tsx */}
       <StatusDot
         status={session.status}
         live={session.status === "running"}

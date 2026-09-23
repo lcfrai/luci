@@ -3,9 +3,10 @@
 // whose sessions have all exited stays expandable and its transcripts stay reachable.
 // The count itself is NEVER printed (AGENTIC-UX §10 rule 10).
 //
-// TASK 22 NOTE — this file is in task 22's modify list (shared-shape §1). Its right-click
-// dispatch is already complete: every row kind goes through openContextMenu and the one
-// <ContextMenu/>, so task 22's verbs land in menu/ContextMenu.tsx and NOT here.
+// Task 22's right-click VERBS are not here and never were: every row kind goes through
+// openContextMenu and the one <ContextMenu/>. What task 22 did add is the ready MARK below —
+// the visible effect of §10.2's "Mark ready", without which the verb writes a flag with nowhere
+// to show. Task 18 reserved no point for it, so it carries its own anchored guard.
 import type { JSX } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useCockpit } from "../../store/store";
@@ -57,6 +58,19 @@ export function WorktreeRow(props: { worktree: Worktree; expanded: boolean }): J
           {expanded ? "▾" : "▸"}
         </span>
         <span className="rail-name">{worktree.name}</span>
+        {/* "Mark ready" writes a flag the rail is the only place to see, and §10.2's whole
+            point is that it survives a restart — a user who marks a worktree ready, quits and
+            comes back must be able to tell that they did. A glyph with a title, not a count:
+            AGENTIC-UX §10 rule 10 bans counts outside the queue and a tick is not one.
+            `.rail-ready` deliberately has no rule in task 18's rail.css: an unstyled span
+            inherits the row's type and colour, which is right for a mark that must not compete
+            with the status dot. The class name exists so a later task can style it without
+            re-finding the element. */}
+        {worktree.ready === true ? (
+          <span className="rail-ready" title="Marked ready to merge" aria-label="ready">
+            ✓
+          </span>
+        ) : null}
         <button
           type="button"
           className="rail-add"

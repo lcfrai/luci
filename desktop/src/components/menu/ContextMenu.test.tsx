@@ -34,7 +34,9 @@ function seed(target: ContextMenuTarget, withWorktree = true): void {
     projects: [project],
     branchesByProject: { "p-1": [branch] },
     worktreesByBranch: withWorktree ? { "b-1": [worktree] } : {},
-    sessions: { "s-1": aSession({ id: "s-1", worktreeId: "w-1" }) },
+    // branchId matches the seeded branch: a session naming a branch the store does not hold is
+    // a fixture the control plane cannot produce, and task 22's Fork reads through it.
+    sessions: { "s-1": aSession({ id: "s-1", worktreeId: "w-1", branchId: "b-1" }) },
     sessionIdsByWorktree: { "w-1": ["s-1"] },
     contextMenu: target,
   });
@@ -68,16 +70,46 @@ describe("ContextMenu", () => {
     ]);
     second.unmount();
 
+    // "Mark ready" is UNCONDITIONAL — §10.2 landed, so `ready` is always on the wire and there
+    // is no world in which the row is absent (contract §6.2, §8 defect 9 as amended).
     seed({ kind: "worktree", id: "w-1", ...at });
     const third = render(<ContextMenu />);
-    expect(labels()).toEqual(["New session here", "Open a shell here", "Copy path"]);
+    expect(labels()).toEqual([
+      "New session here",
+      "Open a shell here",
+      "Copy path",
+      "Mark ready",
+    ]);
     third.unmount();
 
-    // Task 22 replaces this body with the six lifecycle verbs. Until then the only session
-    // verb is the one that mutates nothing — build order is not put in front of a user.
+    // Task 22's lifecycle verbs, from ../develop/sessionVerbs. Resume is disabled because no
+    // harness is seeded here, and Fork because "b-1" has a single worktree — both render with
+    // a reason rather than vanishing, which is §6.4.
     seed({ kind: "session", id: "s-1", ...at });
     render(<ContextMenu />);
-    expect(labels()).toEqual(["Copy session id"]);
+    expect(labels()).toEqual([
+      "Resume",
+      "Fork into…",
+      "Restart",
+      "Rename…",
+      "Open a shell here",
+      "Kill",
+      "Forget",
+      "Copy session id",
+    ]);
+  });
+
+  // The §6.7 amendment this task argues for: <SessionMenu/> is mounted HERE, not in AppShell,
+  // because shared-shape §1 gives AppShell's edit row to task 23. Unproven anywhere else, and
+  // the ⋯ menu must be able to open while no right-click menu is up — the normal case.
+  it("mounts the ⋯ menu from sessionMenuFor, with no right-click menu open", () => {
+    seed({ kind: "session", id: "s-1", ...at });
+    useCockpit.getState().closeContextMenu();
+    useCockpit.getState().openSessionMenu("s-1");
+    render(<ContextMenu />);
+
+    expect(useCockpit.getState().contextMenu).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Kill" })).not.toBeNull();
   });
 
   // §6.4 and §7.7: a control the user cannot operate must say WHY, and §6.2 puts that reason

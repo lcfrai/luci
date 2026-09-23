@@ -36,3 +36,30 @@
   margin: 4px 6px;
   background: var(--line);
 }
+
+/* ── task 22: the inline rename input ──────────────────────────────────────────────────
+   Shared-shape §2 sanctions this file for task 22 by name, and §3B binds what these rules may
+   contain. All of it holds: the tokens import stays first because this block appends at the
+   foot; every colour is a var(--token) and each one already exists in task 14's set, so
+   nothing is added there; no colour function and no literal hex; no background-image of any
+   kind; and this block declares no motion at all, so the banned shorthand cannot arise.
+   Elevation is the 1px ring --e-hair already carries, which is why border is 0.
+   The clause names are deliberately NOT spelled out above: §3A's own worked example is that a
+   stylesheet comment reciting the banned strings satisfies the grep that hunts them. */
+.menu-rename {
+  gap: 4px;
+  padding: 6px;
+}
+.menu-rename-label {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.menu-rename-input {
+  background: var(--inset);
+  border: 0;
+  border-radius: var(--r-ctl);
+  box-shadow: var(--e-hair);
+  color: var(--ink);
+  font: inherit;
+  padding: 5px 8px;
+}

@@ -1,9 +1,14 @@
 // The one right-click menu, for all four row kinds. Contract §6.2 and §6.7.
 //
-// TASK 22 INSERTION POINTS: sessionItems() and the "Mark ready" entry in worktreeItems().
-// Both are marked below. Task 22 must add its call IN THE SAME STEP that defines what the
-// call reaches (shared-shape rule 2), and its pre-commit guard must be ANCHORED (rule 3) —
-// an unanchored grep for "sessionVerbs" matches this comment.
+// The session verbs and the worktree ready mark come from ../develop/sessionVerbs (task 22).
+// MenuItem is declared here and imported back by that module as a TYPE ONLY, so the cycle is
+// erased at compile time and the value edge runs one way: ContextMenu -> SessionMenu ->
+// sessionVerbs.
+//
+// This file also MOUNTS <SessionMenu/>, which amends contract §6.7. §6.7 lists the overlays by
+// file and does not say who mounts which; the natural home was AppShell.tsx, but shared-shape
+// §1 gives that file's edit row to task 23, and this is the only file task 22 may edit that
+// AppShell already mounts exactly once. The two menus are the same concern.
 import { Fragment, useMemo } from "react";
 import type { JSX } from "react";
 import { useCockpit } from "../../store/store";
@@ -15,6 +20,8 @@ import {
 } from "../../store/selectors";
 import { useCreateSession } from "../../hooks/useCreateSession";
 import { Popover } from "../common/Popover";
+import { SessionMenu, anchorRectFor } from "../develop/SessionMenu";
+import { sessionVerbs, worktreeReadyItems } from "../develop/sessionVerbs";
 import "./menu.css";
 
 /** One row of the menu. `run: undefined` means disabled, and `disabledReason` is then
@@ -37,11 +44,14 @@ function revealInExplorer(path: string): void {
   void import("@tauri-apps/plugin-opener").then((mod) => mod.revealItemInDir(path));
 }
 
-export function ContextMenu(): JSX.Element | null {
+export function ContextMenu(): JSX.Element {
   const target = useCockpit((s) => s.contextMenu);
   const closeContextMenu = useCockpit((s) => s.closeContextMenu);
   const selectBranch = useCockpit((s) => s.selectBranch);
   const openPicker = useCockpit((s) => s.openPicker);
+  const sessionMenuFor = useCockpit((s) => s.sessionMenuFor);
+  const closeSessionMenu = useCockpit((s) => s.closeSessionMenu);
+  const openSessionMenu = useCockpit((s) => s.openSessionMenu);
   // Shared-shape rule 4: the derived reads live in selectors.ts, never inline here. Each hook
   // call is UNCONDITIONAL — the `kind` test is inside the selector argument, so the hook order
   // is identical on every render — and each returns the store's own object, so a poll that
@@ -69,7 +79,16 @@ export function ContextMenu(): JSX.Element | null {
     [target],
   );
 
-  if (target === null) return null;
+  // useMemo is NOT an optimisation here, it is a correctness fix. Popover's positioning effect
+  // depends on [anchor, ref] and ends with el.focus(); a fresh DOMRect on every render re-fires
+  // it and pulls focus out of the rename input mid-keystroke — §6.8's "overlays capture focus
+  // on open" turned into "overlays capture focus forever". Reading the DOM in an effect instead
+  // would render the popover at the fallback position for one frame and then jump, which is the
+  // layout shift docs/AGENTIC-UX.md §10 rule 7 bans.
+  const sessionAnchor = useMemo(
+    () => (sessionMenuFor === null ? null : anchorRectFor(sessionMenuFor)),
+    [sessionMenuFor],
+  );
 
   const act = (fn: () => void) => (): void => {
     closeContextMenu();
@@ -126,64 +145,74 @@ export function ContextMenu(): JSX.Element | null {
         run: act(() => void createSession(worktree.id, { harness: "shell" })),
       },
       { id: "copy-path", label: "Copy path", run: act(() => copyText(worktree.path)) },
-      // ── TASK 22 INSERTION POINT ──────────────────────────────────────────────────────
-      // Task 22 appends "Mark ready" here, UNCONDITIONALLY. §10.2 was requested and has
-      // SHIPPED: store/types.ts records that catalog.go's worktreeJSON carries `Ready bool`
-      // with no `omitempty`, so the flag is always on the wire as true or false — never
-      // absent, never null. Task 22's contingency is resolved and there is no world to
-      // check for: render the verb always, and PATCH …/worktrees/{id} with {"ready": bool}.
-      // `Worktree.ready` stays OPTIONAL in the type only because that safely accepts an
-      // always-present boolean; it is NOT a signal the field may be absent, and a guard on
-      // `worktree.ready !== undefined` would be dead code that is always true against the
-      // real server. Do not seed `ready: undefined` in a test to pin "the verb is hidden" —
-      // that pins a state the control plane cannot produce.
-      // The flag must survive the next list. Anchored guard for task 22's commit step:
-      //   grep -cE '^[[:space:]]+id: "mark-ready"' src/components/menu/ContextMenu.tsx
-      // ─────────────────────────────────────────────────────────────────────────────────
+      // Unconditional: §10.2 landed, so `ready` is always on the wire. The row's object literal
+      // lives beside its runner in sessionVerbs.ts rather than here, because contract §8 defect
+      // 9's regression test sits in sessionVerbs.test.ts and task 22 writes no ContextMenu test
+      // — a gate expressed as JSX here could not be reached from there.
+      ...worktreeReadyItems(worktree, closeContextMenu),
     ];
   };
 
   const sessionItems = (id: string): MenuItem[] => {
-    // ── TASK 22 INSERTION POINT ──────────────────────────────────────────────────────
-    // Task 22 replaces this body with the six lifecycle verbs — Resume, Fork into…,
-    // Restart, Rename…, Kill, Forget — built by components/develop/sessionVerbs.ts with
-    // optimistic mutation and an Undo toast. Per shared-shape rule 2, the step that adds
-    // the call here is the step that defines sessionVerbs.ts; do not add the import first
-    // and the module later. Anchored guard for task 22's commit step:
-    //   grep -cE '^[[:space:]]+return sessionVerbs\(' src/components/menu/ContextMenu.tsx
-    // Until then the only session verb is the one that mutates nothing.
-    // ─────────────────────────────────────────────────────────────────────────────────
-    return [{ id: "copy-session-id", label: "Copy session id", run: act(() => copyText(id)) }];
+    return sessionVerbs(id, {
+      createSession,
+      close: closeContextMenu,
+      // The rail row has no room for a text field, so Rename re-routes to the ⋯ menu, which
+      // owns the only rename surface in the app. One surface, two ways in. The close is HERE
+      // rather than in sessionVerbs' `act` wrapper: `act` would also close SessionMenu's own
+      // menu, which is the surface the rename input has to appear in.
+      beginRename: (sessionId) => {
+        closeContextMenu();
+        openSessionMenu(sessionId);
+      },
+    });
   };
 
   const items =
-    target.kind === "project"
-      ? projectItems()
-      : target.kind === "branch"
-        ? branchItems()
-        : target.kind === "worktree"
-          ? worktreeItems()
-          : sessionItems(target.id);
+    target === null
+      ? []
+      : target.kind === "project"
+        ? projectItems()
+        : target.kind === "branch"
+          ? branchItems()
+          : target.kind === "worktree"
+            ? worktreeItems()
+            : sessionItems(target.id);
 
+  // A fragment rather than an early return: the ⋯ menu must be able to open while no
+  // right-click menu is up, which is the normal case. The return type narrows from
+  // `JSX.Element | null` to `JSX.Element`, a widening of what it can render and not of its
+  // contract — AppShell mounts it as a bare element.
   return (
-    <Popover anchor={anchor} onClose={closeContextMenu}>
-      <div className="menu" role="menu">
-        {items.map((item) => (
-          <Fragment key={item.id}>
-            {item.separatorBefore === true ? <div className="menu-sep" /> : null}
-            <button
-              type="button"
-              role="menuitem"
-              className={item.danger === true ? "menu-item menu-item-danger" : "menu-item"}
-              disabled={item.run === undefined}
-              title={item.disabledReason}
-              onClick={item.run}
-            >
-              {item.label}
-            </button>
-          </Fragment>
-        ))}
-      </div>
-    </Popover>
+    <>
+      {sessionMenuFor === null ? null : (
+        <SessionMenu
+          sessionId={sessionMenuFor}
+          anchor={sessionAnchor}
+          onClose={closeSessionMenu}
+        />
+      )}
+      {target === null ? null : (
+        <Popover anchor={anchor} onClose={closeContextMenu}>
+          <div className="menu" role="menu">
+            {items.map((item) => (
+              <Fragment key={item.id}>
+                {item.separatorBefore === true ? <div className="menu-sep" /> : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={item.danger === true ? "menu-item menu-item-danger" : "menu-item"}
+                  disabled={item.run === undefined}
+                  title={item.disabledReason}
+                  onClick={item.run}
+                >
+                  {item.label}
+                </button>
+              </Fragment>
+            ))}
+          </div>
+        </Popover>
+      )}
+    </>
   );
 }
