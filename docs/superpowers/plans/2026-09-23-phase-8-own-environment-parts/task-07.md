@@ -80,11 +80,20 @@ variable "ci_agent_allowed_fqdns" {
     "charts.jetstack.io",
     "traefik.github.io",
     "github.com",
-    "objects.githubusercontent.com",
-    # The agent image's OS packages
-    "azure.archive.ubuntu.com",
+    "objects.githubusercontent.com",          # release downloads, historically
+    "release-assets.githubusercontent.com",   # where GitHub release downloads now redirect (training knowledge, UNVERIFIED; P22 sees the deny log either way)
+    # The agent image's OS packages over HTTPS. Ubuntu's archive is plain HTTP: see ci_agent_allowed_http_fqdns.
     "packages.microsoft.com",
   ]
+}
+variable "ci_agent_allowed_http_fqdns" {
+  type        = list(string)
+  description = "Hosts the CI agents may reach on HTTP 80 only, from ci_agent_source_cidrs only. apt fetches Ubuntu's archive over http by default and verifies each package by its signed Release file, so the transport is not the integrity control. Nothing else goes here; a 443 host never moves to this list."
+  default     = ["azure.archive.ubuntu.com"]   # review M4: on the 443-only rule, apt fails (Panacea's build egress hit exactly this)
+  validation {
+    condition     = alltrue([for f in var.ci_agent_allowed_http_fqdns : !strcontains(f, "*")])
+    error_message = "ci_agent_allowed_http_fqdns takes exact hosts only: no wildcard is allowed out in the clear."
+  }
 }
 variable "source_cidrs" {
   type        = list(string)
@@ -140,7 +149,9 @@ one `azurerm_firewall_policy_rule_collection_group` with, in priority order:
    (`login.microsoftonline.com`, `graph.microsoft.com`) on 443;
 3. application rules — **`var.agent_allowed_fqdns` on 443, from `var.source_cidrs`**;
 4. application rules — **`var.ci_agent_allowed_fqdns` on 443, from `var.ci_agent_source_cidrs`
-   only** (review C2: the CI pool's agents in `snet-agents`);
+   only** (review C2: the CI pool's agents in `snet-agents`); and, in the same collection,
+   **`var.ci_agent_allowed_http_fqdns` on `Http:80`, from `var.ci_agent_source_cidrs` only**
+   (re-review M4: Ubuntu's archive for apt);
 5. nothing else: the policy's default is deny.
 
 And `azurerm_route_table.egress` (`bgp_route_propagation_enabled = false`, one route `0.0.0.0/0`
@@ -461,7 +472,8 @@ against someone else's domain.
 |---|---|---|
 | `default_route_goes_to_the_firewall` | one route `0.0.0.0/0`, `next_hop_type == "VirtualAppliance"`, next hop = the firewall's private IP (override_resource) | a route to `Internet` that bypasses the firewall |
 | `every_egress_subnet_is_routed` | four associations for the four `routed_subnet_ids` (system, apps, sandbox, agents); a map missing `agents` → `expect_failures = [var.routed_subnet_ids]` | the sandbox subnet left on the default route, or **the CI agents left with no route at all (C2)** |
-| `ci_agents_get_their_allowlist_from_their_subnet_only` | the CI rule's `destination_fqdns == var.ci_agent_allowed_fqdns`, HTTPS 443 only, `source_addresses == var.ci_agent_source_cidrs`; the coding-agent rule does not contain `management.azure.com` | the CI list granted to the whole VNet, so a sandbox can reach Azure Resource Manager |
+| `ci_agents_get_their_allowlist_from_their_subnet_only` | the CI rule's `destination_fqdns == var.ci_agent_allowed_fqdns`, HTTPS 443 only, `source_addresses == var.ci_agent_source_cidrs`; the CI HTTP rule's `destination_fqdns == var.ci_agent_allowed_http_fqdns`, `Http:80` only, the same source; the coding-agent rule does not contain `management.azure.com` | the CI list granted to the whole VNet, so a sandbox can reach Azure DevOps, the `*.queue.core.windows.net` wildcard, GitHub and the Terraform and Helm registries. (Re-review M5: it does **not** by itself keep Azure Resource Manager from a sandbox. Rule 2's `AzureKubernetesService` FQDN tag already admits `management.azure.com` from the nodes, and a sandbox pod leaves as its node's address — training knowledge of AKS's required egress, UNVERIFIED. What keeps ARM from a sandbox is that it holds no Azure credential: task 14's pod mounts no token, and IMDS is denied by task 11's `egress-internet`.) |
+| `ci_http_takes_exact_hosts_only` | `ci_agent_allowed_http_fqdns = ["*.ubuntu.com"]` → `expect_failures = [var.ci_agent_allowed_http_fqdns]` | a wildcard allowed out in the clear (re-review M4) |
 | `acr_is_allowed_by_data_endpoint_not_blob_wildcard` | the ACR rule's FQDNs contain the data endpoints and no `*.blob.core.windows.net` | the wildcard that lets a sandbox exfiltrate to any storage account |
 | `agents_get_exactly_the_allowlist` | the agent rule's `destination_fqdns == var.agent_allowed_fqdns` and its protocol is HTTPS 443 only | an allow-all application rule |
 | `dns_goes_only_to_azure_dns` | the DNS network rule's destination is `["168.63.129.16"]` | DNS to `*`, a classic tunnel |
@@ -479,14 +491,15 @@ with all-ones GUIDs):
 | `prod_must_be_private` | `environment = "prod"`, `api_private = false` → `expect_failures` | I5 dropped |
 | `nat_mode_allowlists_its_own_address_on_the_api` | `command = apply` with `override_resource` giving the NAT IP `20.0.0.1` → the AKS module's authorised ranges include `20.0.0.1/32` | the in-VNet pool locked out of its own cluster |
 | `firewall_mode_allowlists_its_own_address_on_the_api` | the run pins `environment = "dev"`, `api_private = false`, `egress_mode = "firewall"` (so it means the same under either tfvars file: a private cluster has no authorised ranges, review I1/I5), `command = apply` with `override_resource` giving the firewall's public IP `20.0.0.2` → the authorised ranges include `20.0.0.2/32` | the same lock-out in firewall mode, where the agents egress through the firewall, not a NAT |
-| `agents_egress_in_both_modes` | nat mode: `module.network.egress_subnet_ids` has key `agents`; firewall mode: `module.egress_firewall[0].routed_subnet_keys == ["agents", "apps", "sandbox", "system"]` | the two modes drifting apart, so one of them strands the CI pool (C2) |
+| `agents_egress_in_nat_mode` | a `run` block pinning `egress_mode = "nat"`: `module.network.egress_subnet_ids` has key `agents` (task 03's `nat_mode_puts_nat_on_every_egress_subnet` pins one NAT association per key) | nat mode stranding the CI pool (C2) |
+| `agents_egress_in_firewall_mode` | a second `run` block pinning `egress_mode = "firewall"` (and `environment = "dev"`, `api_private = false`, as the authorised-ranges run): `module.egress_firewall[0].routed_subnet_keys == ["agents", "apps", "sandbox", "system"]` | the two modes drifting apart, so firewall mode strands the CI pool (C2). Re-review M5: one row was two `run` blocks in one; each `egress_mode` needs its own |
 | `firewall_mode_uses_udr_and_has_no_nat` | `egress_mode = "firewall"` → `module.egress_firewall` has one instance and the cluster's `outbound_type == "userDefinedRouting"` | a UDR cluster without the firewall, which boots with no egress |
 | `edge_records_alias_the_edge_ip` | one A record per hostname, each `target_resource_id == azurerm_public_ip.edge.id`, `ttl == 300` | a literal IP record that goes stale on the first re-create |
 | `kubelet_pulls_and_deploy_pushes` | an `AcrPull` assignment to the kubelet identity and an `AcrPush` to the deploy principal, both scoped to the registry | the shared admin credential's replacement missing |
 
 #### Steps
 
-- [ ] **Step 1:** `modules/egress-firewall`: variables, tests, resources, outputs — its six runs pass.
+- [ ] **Step 1:** `modules/egress-firewall`: variables, tests, resources, outputs — its seven runs pass.
 - [ ] **Step 2:** The stack's variables, the invariants and the test file; the invariant runs pass
   before any module is called (the preconditions need no module).
 - [ ] **Step 3:** Module calls, `edge.tf`, `grants.tf`, outputs; the remaining runs pass.
