@@ -900,3 +900,30 @@ Commit `c71ccbb`. Line numbers are at `c71ccbb`.
 - That Advanced Container Networking's FQDN policy enforces per pod on the Kata pool.
 
 **Mutation checks:** none run beyond the precedence probe. These are plan documents only. The new mutants are those in the three new guard/test rows (`parts/task-01.md:148`, `:158`; `parts/task-07.md:544-545`).
+
+## Fix batch b04, round 2 (2026-09-24) — re-review b04 round 1, findings 1–7
+
+Commits `0cc9e8b` (findings 1, 2, 6) and `debac7d` (findings 3, 4, 5, 7). Line numbers are at `debac7d`.
+The re-review is `.superpowers/sdd/env/plan-rereview-b04-1.md` (local, git-ignored).
+
+| # | Finding | Change | Where |
+|---|---|---|---|
+| 1 | (I2) step (d)'s `-input=false` refuses the migration, exit 1 | **`-force-copy` chosen**, not a hand-answered prompt, so the step runs the same on a workstation or a pipeline agent. Step (d) now reads `init -migrate-state -force-copy -input=false …` and quotes the refusal it prevents. The local→azurerm case stays UNVERIFIED, with an instruction to record its output. `backend.tf`'s comment says the same | `parts/task-31.md:29` (d); `parts/task-02.md:29-33` |
+| 2 | (I1) G10's `^  <key> =` misses the `=` alignment `fmt` writes | G10 matches `^  <key> *=` and says why the `*` matters. The `g10_…` fixture is a two-key block of different lengths (`state_writer_object_ids`, then `api_private` with 13 spaces before `=`), committed as `fmt` leaves it. It names "a single-space key pattern" as a mutant it kills, and asserts that only `api_private` is named | `parts/task-01.md:114`, `:158` |
+| 3 | (I1) three firewall-mode runs fail I4 | **I4 is retired**, and its id is not reused, so I5 keeps its name everywhere. Since C2, `authorized_ip_ranges` adds the egress /32 in both modes (`parts/task-07.md:433-434`), so a public cluster's list is never empty and I4 was dead weight that refused valid plans. A comment in `terraform_data.invariants` records this. `firewall_mode_uses_udr_and_has_no_nat` pins `environment` and `api_private`. `firewall_mode_allowlists_its_own_address_on_the_api` now names "I4 restored" as a mutant it kills. Neither tfvars sets `api_authorized_ip_ranges` (`:493-529`), so no run needs that pin. Making admin ranges mandatory would be a new invariant and is not in scope | `parts/task-07.md:402-406`, `:593`, `:596` |
+| 4 | (I10) the `acr_login_server` validation fails the firewall-mode apply runs under a bare mock | foundation's `mock_provider "azurerm"` gains `mock_resource "azurerm_container_registry"` with `login_server` and `data_endpoint_host_names` defaults (task 05 `:79`'s dev name). A paragraph says why: the validation is deferred to apply for a computed value, and it names the three runs. The fallback is an `override_resource` on `module.registry.azurerm_container_registry.this` (task 05 `:72`, `:79`) | `parts/task-07.md:557-583` |
+| 5 | (Minor) stale `12 runs × 2 tfvars` | now `14 runs × 2 tfvars`, because of finding 7 | `parts/task-09.md:188` |
+| 6 | (Minor) G1 and `.gitignore` miss the bare `override.tf` / `override.tf.json` | both lists name all four override forms. `g1_tracked_override_fails` adds a tracked bare `stacks/y/override.tf` and names "G1 matching only `*_override.tf`" as a mutant | `parts/task-01.md:26`, `:105`, `:148` |
+| 7 | (Minor) one row, two environments | **two pinned runs** chosen, not a `var.environment` assertion, so each tfvars pass checks both names: `names_carry_the_environment_outside_prod` (pins dev) and the new `prod_names_carry_no_suffix` (pins prod). Identity goes 13 → 14 runs. This supersedes round 1's "12 → 13" (`:872` above) | `parts/task-09.md:171-172`, `:182`, `:188` |
+
+**Verified this round.** Offline probes on Terraform 1.15.8 in scratchpad `env/b04r2-probe` (`out.txt`), with no provider and no Azure:
+- `fmt` rewrote `api_private = false` under `state_writer_object_ids = ["x"]` to `  api_private             = false`. Against the block, `^  api_private *=` matched (exit 0) and `^  api_private =` did not (exit 1).
+- With `backend.tf` holding `backend "azurerm" {}`, a bare `override.tf` holding `backend "local" {}` let `terraform init -input=false` succeed (exit 0). Without the file, init failed with `One of access_key, sas_token, use_azuread_auth and resource_group_name must be specified` (exit 1).
+- I did not re-run the `-force-copy` probe; the re-reviewer's (`out.*.txt` in `env/b04rr-probe`) stands.
+
+**Still UNVERIFIED:**
+- That `mock_resource` defaults reach `module.registry`'s registry, and what a bare azurerm mock generates for `login_server`. Both need the azurerm provider, which was not downloaded. The fallback is written into `parts/task-07.md:581-583`.
+- `init -migrate-state -force-copy` from local to azurerm with `use_azuread_auth`.
+- The round-1 items stand: the RBAC propagation delay, and ACNS per-pod FQDN enforcement on Kata.
+
+**Mutation checks:** both probes above are the red/green halves of two named mutants: the single-space G10 pattern, and override matching that sees only `*_override.tf`. Before running them I named those two as the likeliest survivors. Both would have survived round 1's fixtures, and both are now killed by the case rows at `parts/task-01.md:148` and `:158`. No `guards.sh` exists yet to mutate; these are plan documents.
