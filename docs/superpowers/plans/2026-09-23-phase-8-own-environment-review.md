@@ -385,3 +385,136 @@ kept exactly; S8.3 is closed the right way round (the refusal and its test stay)
   FQDN in the ACR rule starts with `*`. Say in Q1 and task 07 that sources cannot be told apart
   under Overlay SNAT, and that real per-sandbox FQDN control needs Cilium FQDN policy on pod
   identity (the Advanced Container Networking option the plan already names as UNVERIFIED).
+
+### Minor
+
+Ranked; each is one edit.
+
+**Citations and internal consistency**
+- **m1. ADR-H1 line citations have drifted.** The plan read ADR-H1 at `67609ab` (653+ lines); it
+  is now 776 lines. Checked: `:543-546` (plan `:255-257`, "none is ever forwarded") now holds the
+  deploy summary, and the sentence is at `:552`. `:439-449` (C3's key, plan `:258-259`,
+  `task-26.md:139-141`) now opens "Who calls the Hub"; the key is at `:449`. `:286-288` (plan
+  `:250`) is a section heading. The same applies to `task-16.md:5-6` and `task-18.md:157`. **Fix:**
+  cite `67609ab:<path>:<line>` or § numbers.
+- **m2. The wave table breaks its own dependencies** (plan `:484-491`). Wave 1 holds 01 and 28, but
+  28 depends on 01, and its `infra.yml` also calls `role-allowlist.sh`, which task 10 (wave 6)
+  writes. Wave 8 holds 31, 32 (which depends on 31) and 33 (which depends on all). **Fix:** move 28
+  to wave 2, then 32 and 33 into waves 9 and 10.
+- **m3. The shared-file table misses one edit.** `task-18.md:167` (step 3) edits
+  `backend.go:29-37`; the table (plan `:389`) lists `backend.go` for 14 → 15 only, and
+  `task-22.md:24` says `backend.go` "is not touched again". **Fix:** add 18 to the row.
+- **m4. P8-D6 (plan `:132`) still says `managed-csi-premium` (LRS).** Task 11 creates
+  `panacea-machine-disk` on `Premium_ZRS` (`task-11.md:65-67`), and task 17 makes that class the
+  default. ZRS is the right call, because sandbox pools span three zones. **Fix:** update P8-D6.
+- **m5. Q3 (plan `:294`) says one variable feeds two things.** It says `allowed_ingress_cidrs`
+  feeds both `loadBalancerSourceRanges` and the dev API server. Task 07 (`:153-157`, `:346-347`)
+  uses a separate `api_authorized_ip_ranges` for the API server, and the writer's return repeats
+  Q3's version. **Fix:** pick one; keeping the two separate is better, since admin workstations
+  are not edge users.
+- **m6. OD-11's row (plan `:104`) overclaims the licence gate.** It says the gate covers
+  Terraform providers and Helm chart dependencies. Task 28 gates Go, npm and Cargo only, and task
+  13 records chart licences in comments. **Fix:** add a `Chart.lock` licence check to
+  `charts.yml`, or narrow the claim.
+- **m7. P8-D11 (plan `:137`) says "no long-lived secret anywhere".** State still holds the Log
+  Analytics shared keys and the state account's access keys, which exist but are disabled for use
+  (from training knowledge of azurerm's exported attributes). **Fix:** say "no usable long-lived
+  secret", and treat state as sensitive.
+
+**Feasibility**
+- **m8. The AKS create can race the NAT association.** `userAssignedNATGateway` needs the
+  subnet's NAT association at create time (from training knowledge). `module.network.subnet_ids`
+  (`task-03.md:93-105`) come from `azurerm_subnet`, not from the associations. **Fix:** output the
+  ids through the association resources, or add `depends_on = [module.network]` on the AKS call
+  (`task-07.md:343-349`).
+- **m9. Smoke check S50.2 tests nothing of P8-D12.** It runs in `panacea-smoke`
+  (`task-31.md:40`, `:52`), which has no default-deny and none of the sandbox policies, so IMDS
+  answers and S50.2 fails for the wrong reason. **Fix:** probe from `panacea-sandboxes` with the
+  sandbox labels, or defer to P08.
+- **m10. The balloon priority sits exactly on the cutoff.** `-10` (`task-11.md:98`) equals the
+  cluster autoscaler's default expendable cutoff; anything lower stops triggering scale-up (from
+  training knowledge). **Fix:** add a test that pins `value >= -10`, with the reason.
+- **m11. Broker concurrency has check-then-create races.** Two replicas (`task-29.md:19`) each run
+  the sleeper (`task-19.md:88-95`). Ensure-default (`:71`) is check-then-create with a minted id
+  (`:47`), and the per-user caps are check-then-create too. **Fix:** a default-machine id derived
+  from the owner (`m-` + 8 hex of `sha256(owner + "/default")`), so a lost race is
+  `AlreadyExists` → 200; a `coordination.k8s.io` Lease for the sleeper (the Role gains `leases`);
+  `TestConcurrentEnsureDefaultMakesOne`.
+- **m12. Machine objects carry no owner segment in their name.** They are `machine-<id>`
+  (`task-19.md:24-27`), unlike task 14's owner-prefixed sandbox names, so a conflict on create can
+  reveal another owner's id. The impact is low because the broker mints the ids. **Fix:** retry on
+  conflict, or prefix the name as task 14 does.
+- **m13. Machine disks have no data protection.** The claim is `reclaimPolicy: Delete`
+  (`task-11.md:126`); the snapshot controller is on (`task-06.md:226-228`) but there is no
+  `VolumeSnapshotClass` and no schedule. Unpushed lane work and conversations live only on that
+  disk. **Fix:** add a daily snapshot, or record it as a seam.
+- **m14. One code comment goes stale.** `backend.go:76` comments `KubeLabelComponent` as
+  `// always "sandbox"`; tasks 12 and 19 add `balloon` and `machine`. **Fix:** update the comment.
+- **m15. The sandbox base image is past end of life.** It is `node:20-bookworm-slim`
+  (`images/sandbox/Dockerfile:10`), and Node 20 reached end of life on 2026-04-30 (from training
+  knowledge). Task 27 publishes it to a regulated environment for the first time. **Fix:** record a
+  base upgrade as its own task, since it moves the OD-8 pin.
+- **m16. The `.invalid` placeholder may not fail where the plan says.** It is said to "fail at
+  apply" (`task-07.md:401-402`), but Azure DNS may accept the zone (UNVERIFIED either way), and
+  then cert-manager fails later and less clearly. **Fix:** make the estate guard refuse any
+  `.invalid` value on `apply`.
+
+**Sizing**
+- **m17. Tasks 24 and 07 are underestimated.** Task 24 changes four catalog routes, adds
+  `machines.go`, `cloudstore`, wake-before-create and the OD-10 fallback, with 14 tests. Task 07 is
+  a module plus a nine-file stack whose test runs take minutes each, twice over. Each is nearer
+  5 h than 3 h. **Fix:** split task 24 into "list, ensure-default, wake" and "catalog, create,
+  cloudstore".
+- **m18. Reduced motion is not tested for the waking ring.** Task 26's design-system table omits
+  `prefers-reduced-motion` (`DESIGN-SYSTEM.md:90`). **Fix:** add one test that the waking ring and
+  counter respect it.
+
+---
+
+## Assessment
+
+**Test strategy.** Strong where it can be. Red-before-green is a step in every task, every test
+names its mutant, and negative cases are everywhere: `expect_failures`, 404 for another owner,
+escaping paths, tokens absent from logs. The gaps are the ones unit tests cannot see: cross-chart
+behaviour (C1), `terraform test`'s variable precedence (I1), concurrency in the broker (m11), and
+multi-laptop behaviour (I6). A render-both-charts policy test (C1 fix c) and G9 (I1) close the
+first two cheaply.
+
+**Security.** The in-cluster design is sound: owner scoping, a namespaced Role, no exec, no
+tokens forwarded, `restricted` Pod Security, IMDS blocked. The weaknesses are all at the edges of
+trust: the CI identity model (C3, I8), the machine pod as a place where agent-written git config
+runs (I7), and the firewall's real strength (I10).
+
+**Kata constraints.** Explicit resources everywhere except the pre-pull init containers (I4); no
+host networking; the Defender gap is recorded. Warm-pool sizing is honestly left to P06/P07, but
+the one-node machine ceiling (I5) is a design limit, not a sizing number, and belongs in P8-D6
+now.
+
+**Design system (task 26).** Compliant. The one heartbeat, no spinner, tabular numerals, accent
+only on the current row, `Popover`'s existing elevation, and owner's-eyes acceptance with the
+branch left unmerged. Its `DESIGN-SYSTEM.md` line citations (`:27-29`, `:38`, `:61-64`, `:73`,
+`:90`) were opened and are right. Only m18 is open.
+
+**What is missing, in one place:** an edge NetworkPolicy and a separate cert-manager release (C1);
+egress for the agents subnet (C2); a plan/apply identity split with ADO-side checks (C3); a table
+of what each deploy identity holds (I8); a positive subscription fingerprint (I3); a per-machine
+session ceiling (I5); machine-disk snapshots (m13).
+
+### The two defects a first implementer is most likely to hit
+
+1. **The edge will not come up (C1).** Whoever runs task 30's `deploy` for the first time installs
+   `platform`, and its default-deny silences `panacea-edge`. In the same `edge` release,
+   cert-manager's CRDs and webhook race its own `ClusterIssuer`. **The plan does not prevent
+   this.** No part writes an edge policy, and helm-unittest renders each chart alone, so every
+   suite is green.
+2. **`terraform test` behaves differently from what the parts say (I1, verified).** The task 02
+   implementer copies the test file as written, and `validate.sh` reports "OK" for `prod.tfvars`
+   while testing dev twice. The task 07 implementer then hits a red NAT-/32 run under
+   `prod.tfvars` that the part promises is green, and cannot fix it without tripping invariant I5.
+   **The plan does not prevent this.** Task 01 states the right rule in a comment
+   (`task-01.md:62-63`), but nothing enforces it, and task 02 breaks it.
+
+A close third, also verified: runbook §2's bootstrap `terraform init` fails on the committed
+partial backend (I2).
+
+**Plan quality: Needs fixes**
