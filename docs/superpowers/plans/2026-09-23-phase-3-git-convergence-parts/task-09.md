@@ -126,8 +126,12 @@ type Lander struct {
 //     — refused: re-read the tip; moved → branch_moved (details.tip, details.gitSays); else git_failed
 // 13. Flags.SetWorktreeReady(id, false); a failure is logged and ReadyCleared = false
 // 14. for every lane of the branch: in its clone,
-//     fetch --no-tags --quiet origin +refs/heads/<branch>:refs/remotes/origin/<branch>  (Local)
-//     — each failure goes to RefreshErrors, never fails the land (plan decision 3)
+//     fetch --no-tags --quiet <ProjectPath> +refs/heads/<branch>:refs/remotes/origin/<branch>  (Local)
+//     — <ProjectPath> is the literal path from the lane index, never the clone's configured
+//     origin (task-02 §HGH H2; review C3). Each failure goes to RefreshErrors, never fails the
+//     land (plan decision 3)
+// Hardened per task-02 §HGH: steps 6-12 run with Scope Project (a refusal there is
+// project_config_untrusted, before any ref moves), step 14 with Scope Clone, and no hook runs (H4).
 func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 ```
 
@@ -189,7 +193,9 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestLandTellsEveryClone` | after landing clone A, clone B's `refs/remotes/origin/<b>` equals the merge | 3-D3's prompt naming a stale `origin/<b>` |
 | `TestLandRefreshFailureDoesNotFailTheLand` | clone B's directory removed → 201, `refreshErrors[B]` holds git's sentence | failing a land that happened |
 | `TestLandSerialisesPerBranch` | two concurrent lands of different lanes on one branch under `-race` → one succeeds, the other gets `branch_moved` or lands after it; never both on the same `old` | a double land on one tip |
-| `TestLandRouteMapsEveryRefusal` | table test over the handler: each `*Refusal` → 409 with its reason; each `*gitx.Error` → `git_failed` | a refusal that surfaces as 500 |
+| `TestLandRouteMapsEveryRefusal` | table test over the handler: each `*Refusal` → 409 with its reason; each `*gitx.Error` → `git_failed`; a `*gitx.UntrustedConfig` → 409 `project_config_untrusted` with `details.key` | a refusal that surfaces as 500 |
+| `TestLandRunsNoProjectHook` | task-02 §HGH, red first against an unhardened `Exec`: the project's `.git/hooks/reference-transaction` writes a marker → a land succeeds and no marker exists | a land that honours the repository's hooks |
+| `TestLandRefreshNeverUsesTheClonesOrigin` | task-02 §HGH H2 and review C3, red first. (a) Clone B's config sets only `remote.origin.url` (an allowlisted key) to an `httptest` smart-HTTP server → after a land, B's `refs/remotes/origin/<b>` equals the merge and the server received no request. (b) B's config also sets `http.proxy` to a second `httptest` server, `http.sslVerify=false` and `remote.origin.uploadpack=<marker script>` → neither server received a request, no marker exists, and `refreshErrors[B]` names `clone_config_untrusted` | a refresh that fetches `origin` |
 
 #### Steps
 
