@@ -126,6 +126,15 @@ func (e *FanoutTooLargeError) Error() string
 //     discover.OpReinherit at the new head through writeBatch. A
 //     revision_conflict here is dropped: whoever moved the head pinned
 //     the project revision current at their own step 3.
+//     In steps 8 and 9 a NULL pin (Content.Inherits nil: written before
+//     the project brief's first completion, or racing it) counts as below
+//     every revision, so it is re-pinned like any stale one (re-review
+//     b06-1 R-M1). Step 6 already catches it as "a different project key".
+//     Result.View is read AFTER step 9 (and after step 8), so it shows the
+//     head step 9 moved, and the person's next op carries that head as its
+//     BaseRevision instead of meeting a revision_conflict our own re-pin
+//     caused (re-review b06-1 R-M3). A failed step 8 or 9 leaves
+//     Result.View at the step-7 head.
 //     Why both: a branch write that commits AFTER the project batch is
 //     seen by step 9; one that commits BEFORE it was either in step 6's
 //     batch (so step 7 retried) or created after step 6's List (so step
@@ -169,8 +178,10 @@ func (s *Service) Rebind(ctx context.Context, projectID, oldBranchName, newBranc
 | `TestFanOutReinheritsOpenHeadsAndSkipsArchived` | `b-42` complete, `b-51` **open** at rev 7 (rev 6 complete) and `b-60` archived, all pinning `b-7@5`; edit project audience → one batch with 3 items: `b-7@6`, `b-42@7` complete (it was complete at 6) and `b-51@8` **open**, both pinning `b-7@6`; `b-51@8`'s change is `reinherit` and its answers equal rev 7's; `b-60` untouched | a fan-out that skips open heads, so the edit in progress keeps the old project text (review I8); or one that re-revisions an archived head nobody can inherit |
 | `TestFanOutLeavesAnOpenHeadsLatestCompletePinned` | after the batch above, `b-51`'s `latestCompleteRevision` is still 6 and `brief:…b51@6` still pins `b-7@5` | a fan-out that rewrites an immutable revision, or a test that hides the `4-D3` narrowing (OQ-8) |
 | `TestARacingBranchWriteCommittedAfterTheListIsRepinned` | the fake runs a hook after the first `List` and before the batch commits: it creates `b-70` with rev 1 complete pinning `b-7@5` → after `Apply`, `List` was called twice and `b-70@2` pins `b-7@6` with change `reinherit` | the step-8 re-list missing, so a brief created mid-batch keeps the old pin |
-| `TestABranchWriteThatLosesTheRaceRepinsItself` | a branch op on `b-42` reads `b-7@5` at step 3; the fake commits the project's `b-7@6` batch between step 3 and the branch write → after `Apply`, `b-42`'s head is one above the person's revision, change `reinherit`, pinning `b-7@6`; `Written` names only the person's revision | the step-9 check missing, so a teammate's branch op commits a pin the project batch already superseded |
-| `TestPostCommitChecksRunOnce` | the fake moves the project again during step 8's write → `List` is called exactly twice and step 9 writes at most one extra revision | a re-pin loop between two writers |
+| `TestABranchWriteThatLosesTheRaceRepinsItself` (re-review b06-1 R-M2, R-M3) | a first answer on a new branch creates `b-80` and reads `b-7@5` at step 3; the fake's hook then commits `b-7@6` before `b-80@1` commits. The case step 9 really covers is a brief that the project's step-6 `List` and step-8 re-list both missed, whose first revision commits after them; the hook's bare `b-7@6` stands in for that project batch (a real batch that carried an existing brief would make that brief's own write meet `revision_conflict` instead) → after `Apply`, `b-80`'s head is 2, change `reinherit`, pinning `b-7@6`; `Written` names only `b-80@1`; `Result.View`'s head revision is 2 | the step-9 check missing, so a teammate's branch op commits a pin the project batch already superseded; or a `Result.View` read before step 9, whose stale head makes the person's next op meet a conflict our own re-pin caused |
+| `TestANullPinIsRepinned` (re-review b06-1 R-M1) | `b-90`'s rev 1 is complete with `inherits` nil (written before `b-7` ever completed); `b-7`'s first complete revision → the batch carries `b-90@2` `reinherit` pinning it (step 6). And a first answer on a new branch that reads no complete project revision at step 3, while the hook commits `b-7@1` complete before it → its head is 2, `reinherit`, pinning `b-7@1` (step 9) | a null pin that steps 8-9 never see as "below", so a branch inherits no project text after the project first completes, and no chip can flag it (OQ-8) |
+| `TestProjectPostCommitCheckRunsOnce` (re-review b06-1 R-M2) | project scope: the fake creates a brief pinning `b-7@5` after step 6's `List`, and another during step 8's write → `List` is called exactly twice, the first is re-pinned, and the second is left as it is | a re-list loop |
+| `TestBranchPostCommitCheckRunsOnce` (re-review b06-1 R-M2) | branch scope: the fake commits `b-7@6` before the branch write and `b-7@7` during step 9's write → step 9 reads the project once and writes exactly one extra revision, pinning `b-7@6` | a re-pin loop between two writers |
 | `TestAnIncompleteProjectEditDoesNotFanOut` | adding a follow-up to the project (status open) → a one-item batch | branch revisions pinning a project revision no session may inherit |
 | `TestBranchOpsPinTheCurrentProjectRevision` | an answer on `b-42` after `b-7` moved to 6 writes `inherits.key == brief:…b7@6` | a branch revision pinning whatever the last one pinned |
 | `TestPinnedDigestEqualsTheHubsDigest` | after the fan-out, `inherits.digest` equals the digest the fake returned for `b-7@6` | a pin to a digest nothing answers |

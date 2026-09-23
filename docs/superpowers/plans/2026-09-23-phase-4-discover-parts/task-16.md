@@ -39,7 +39,9 @@ export interface ProvenanceSlice {
   /** key -> phase 3's criterion states for it (S4-P3.4; review I14). MOVING, unlike refsByKey:
    *  putRefs OVERWRITES a key's entry whenever res.criterionStates carries it, putHeadRef
    *  whenever a head reading carries it (re-review b06-1 R-I3), and forgetBrief deletes the
-   *  brief's entries. Never read from a ProvenanceRef, which holds no state. */
+   *  brief's entries. An answer equal to the entry item by item (id, state, because) keeps the
+   *  old array, so selectCriterionStates's memo on identity holds (re-review b06-1 nit 3).
+   *  Never read from a ProvenanceRef, which holds no state. */
   criterionStatesByKey: Record<string, CriterionReading[]>;
   /** Keys whose criterion states must be re-read. Written only through markCriteriaStale,
    *  phase 3's seam: its evidence path calls it when a verdict on a key may have moved. Phase 4

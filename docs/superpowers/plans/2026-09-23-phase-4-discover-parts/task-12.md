@@ -72,12 +72,18 @@ type Materialisations struct {
     { "key": "none:declined", "resolution": "none", "noneReason": "declined", "present": false, … },
     { "key": "brief:bf-…40@5", "resolution": "missing", "present": false, … },
     { "key": "", "resolution": "none", "noneReason": "", "present": false, … } ],
-  "heads": { "bf-…a2": { "headRevision": 6, "latestCompleteRevision": 6, "archived": false } },
+  "heads": { "bf-…a2": { "headRevision": 6, "latestCompleteRevision": 6, "archived": false },
+             "bf-…b7": { "headRevision": 5, "latestCompleteRevision": 5, "archived": false } },
   "criterionStates": { "brief:bf-…a2@5": [ { "id": "c-…", "state": "open", "because": "" } ] } }
 ```
 
 Every `Ref` field is present in every slot — empty strings, zeroes, `null` for `inherits`, `[]`
 for lists — so the desktop's type has no optional fields.
+
+`heads` names the pinned project brief (`bf-…b7`) as well as the slot's own: `Resolve` sends every
+pin to the Hub, cached or not, and the Hub names every brief a resolved key names (Hub contract
+§7.5 :829; task 07). A pin's brief is absent only when the call that carried it failed (task 07
+rule 5), and then the desktop's rule 4 decides nothing until it arrives (re-review b06-1 R-M4).
 
 **Rules:**
 
