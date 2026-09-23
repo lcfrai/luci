@@ -98,7 +98,15 @@ func PanaceaTarget(apiHost string) string
 // GitHubTarget's owner), contain "/", "*", a space or a control character, or
 // exceed 128 bytes; a gen is exactly 16 lowercase hex characters. The builders
 // panic on a bad one, because every caller passes a validated value and a bad one
-// is a programming error.
+// is a programming error. A gen has two sources: NewGeneration, and the account
+// record read back from the store. The second is NOT validated configuration (a
+// newer format read after a downgrade, a hand-edited or corrupted entry), so task
+// 31 passes a stored gen to ValidGeneration before any builder sees it, and a gen
+// that fails is handled as a missing one, never a panic (plan re-review b03 N1).
+
+// ValidGeneration reports whether gen is exactly 16 lowercase hex characters: the
+// rule the builders enforce, exported so a parser can check a stored value first.
+func ValidGeneration(gen string) bool
 ```
 
 ```go
@@ -200,7 +208,7 @@ unique `PanaceaApp/test-<8 hex>/` prefix and a cleanup that deletes everything u
 | `TestSweepKeepsOnlyTheNamedGeneration` | generations A (3 chunks), B (1) and a stray C (2, no marker); `SweepGenerations(prefix, B)` → `List(prefix)` is exactly B's chunk 0; `SweepGenerations(prefix, "")` → empty; a chunk under a **different account's** prefix is untouched | a sweep that deletes the named generation; a stale generation left for ever; a sweep that crosses accounts |
 | `TestAMissingChunkIsNotFound` | delete chunk 1 of 3; `GetChunked(3)` → `ErrNotFound` | a corrupted token sent to Entra |
 | `TestTargetsAreExact` | each builder's output byte for byte, e.g. `EntraRefreshTarget("t","c","0123456789abcdef",2)` = `PanaceaApp/entra/t/c/refresh/0123456789abcdef/2`, `EntraRefreshGenPrefix("t","c","0123456789abcdef")` = `PanaceaApp/entra/t/c/refresh/0123456789abcdef/`, `GitHubTarget("")` = `PanaceaApp/git/github/*` | two components spelling one target differently |
-| `TestTargetPartsAreValidated` | a part with `/`, `*`, a space, a newline, or 129 bytes → panic; a gen of 15 or 17 characters, or with an uppercase or non-hex character → panic | a caller-supplied owner that escapes its namespace |
+| `TestTargetPartsAreValidated` | a part with `/`, `*`, a space, a newline, or 129 bytes → panic; a gen of 15 or 17 characters, or with an uppercase or non-hex character → panic, and `ValidGeneration` of each of those → false (of `"0123456789abcdef"` → true) | a caller-supplied owner that escapes its namespace; a `ValidGeneration` that accepts what a builder panics on |
 | `TestWinCredPersistsOnThisMachineOnly` (Windows only) | after `Put`, a raw `CredReadW` shows `Persist == 2` and `Type == 1` | enterprise persistence roaming the token (ADR-H1 §5.2) |
 | `TestWinCredUnsupportedOffWindows` (non-Windows only) | every method → `ErrUnsupported` | a Linux build that pretends to have stored a token |
 

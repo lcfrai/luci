@@ -69,14 +69,30 @@ func (a *Authenticator) SignOut(ctx context.Context) error
 // control-plane/internal/entraauth/account.go — start-up (contract §6.2).
 //
 // New reads EntraAccountTarget(tid, ClientID) for the configured authority's tenant.
-// Present, and the refreshChunks chunks of its refreshGen all readable → Status
-// {signed_in}, Account set, NOTHING redeemed eagerly: the first Token call proves
-// it; then SweepGenerations(EntraRefreshPrefix, refreshGen) deletes every generation
-// the record does not name (a rotation that failed or died before its record Put, or
-// after it but before the old generation's delete). Absent, or a chunk of the named
-// generation missing → {signed_out}, the record (if any) deleted, then
-// SweepGenerations(…, "") deletes every generation. A record without refreshGen (none exists before this plan ships) is
-// treated as absent.
+// Parsing the record validates it BEFORE any target builder sees a stored value
+// (plan re-review b03 N1): refreshGen must pass credstore.ValidGeneration and
+// refreshChunks must be 1 to 16 (16 × MaxBlob = 40,960 bytes, far above the 6,000
+// of R1). A record that fails, or does not parse, or has no refreshGen (none exists
+// before this plan ships), is INVALID. The builders panic on a bad gen, and a
+// stored gen is not validated configuration, so it never reaches one unchecked.
+//
+// Three outcomes, decided by errors.Is(err, credstore.ErrNotFound) and nothing
+// looser (plan re-review b03 m3):
+//   - Present, valid, and the refreshChunks chunks of its refreshGen all readable →
+//     Status {signed_in}, Account set, NOTHING redeemed eagerly: the first Token call
+//     proves it; then SweepGenerations(EntraRefreshPrefix, refreshGen) deletes every
+//     generation the record does not name (a rotation that failed or died before its
+//     record Put, or after it but before the old generation's delete).
+//   - The record's Get → ErrNotFound, or the record INVALID, or a chunk Get of the
+//     named generation → ErrNotFound → {signed_out}, the record (if any) deleted,
+//     then SweepGenerations(…, "") deletes every generation.
+//   - ANY other error from a Get or a List (a CredReadW failure that is not
+//     ERROR_NOT_FOUND, such as ERROR_NO_SUCH_LOGON_SESSION) → {signed_out, ""} with
+//     the error logged at warn (no new Reason value: task 30's enum is the UI
+//     contract's), and NOTHING deleted, NOTHING swept: the next start retries, and
+//     one transient read error never destroys a valid refresh token.
+// A failed SweepGenerations, in either branch, is logged at warn and never fatal:
+// the named generation is intact, and the next start sweeps again.
 ```
 
 ```go
@@ -123,8 +139,8 @@ injected clock.
 | `TestInvalidGrantSignsOut` | `devissuer.RevokeRefreshTokens(grace)` → `ErrSignedOut`; `Status` `reauth_required`; the store is empty | a dead refresh token retried on every call |
 | `TestInteractionRequiredSignsOut` | `RequireInteraction(grace, true)` → the same | a conditional-access sign-in frequency never surfaced to the user |
 | `TestAnUnreachableEntraKeepsTheToken` | the issuer stopped → `ErrEntraUnavailable`; `Status` still `signed_in`; the store unchanged | a network blip signing the user out |
-| `TestStartUpFromTheAccountRecord` | a store pre-filled by a previous sign-in; `New` → `signed_in` with the account, **no** request until `Token` | an eager redemption at every start |
-| `TestAPartialWriteIsNotAnAccount` | chunks but no account record → `signed_out`, every generation deleted; and a record whose named generation lacks a chunk → `signed_out`, record and every generation deleted | a half-written sign-in treated as complete |
+| `TestStartUpFromTheAccountRecord` | a store pre-filled by a previous sign-in; `New` → `signed_in` with the account, **no** request until `Token`. A second case wraps the same store in a faulting `Secrets` whose `Get` of the record returns an error that is **not** `ErrNotFound` → `New` returns `signed_out` without error, and the store, compared entry by entry before and after, is **untouched**: no `Delete`, no sweep (plan re-review b03 m3) | an eager redemption at every start; a transient read failure treated as "absent", which deletes a valid refresh token |
+| `TestAPartialWriteIsNotAnAccount` | chunks but no account record → `signed_out`, every generation deleted; a record whose named generation lacks a chunk → `signed_out`, record and every generation deleted; and a record with `"refreshGen":"XYZ"`, and one with `"refreshChunks":0` and one with `17`, each over a valid generation's chunks → `New` returns `signed_out` **without panicking**, record and every generation deleted (plan re-review b03 N1) | a half-written sign-in treated as complete; a stored gen passed unchecked to a builder, which panics at every start |
 | `TestSignOutDeletesEverything` | → store empty, `Token` → `ErrSignedOut` without a request | a refresh token left behind (the machine's next user) |
 | `TestInvalidateForcesARedemption` | a fresh cached token; `Invalidate`; `Token` → a request | the 401-expired retry of contract §4.3 retrying with the same token |
 | `TestOneRefreshTokenServesTwoResources` | after one sign-in, `Token(HubScope)` and `Token(brokerScope)` both succeed, each `aud` its API | a second sign-in for the broker (phase 8) |
