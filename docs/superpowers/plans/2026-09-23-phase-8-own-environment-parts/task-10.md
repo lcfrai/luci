@@ -8,16 +8,29 @@ pods touch Azure in this phase: the **Hub** (Postgres, and Key Vault if HA-4 say
 identity at all**: the broker speaks only to the Kubernetes API with its service account, and
 sandboxes run with no service-account token (task 14).
 
-This stack also holds the **role allowlist**: the exact set of role names any stack in this repo
-**assigns**. It is what the owner's ABAC condition on the **infra** identity should permit (owner
-input, survey §7.1 item 3), so that identity can grant these and no others. The condition also
-excludes the infra identity's own object id as a principal: it may grant the other identities
-their roles, never itself. The allowlist is **not** the list of roles any identity **holds**. Those
-roles are the owner's grants, not a stack's, and they are in the plan's "Deploy identities" table
-(review I8).
+This stack also holds the **role allowlist**: the exact set of role names any Terraform stack in
+this repo **assigns**. Five of its seven lines are what the owner's ABAC condition on the **infra**
+identity should permit (owner input, survey §7.1 item 3): the roles the stacks that identity
+applies (`foundation`, `data`, `workloads`) assign to the pods' and the cluster's own identities.
+The other two, the Storage Blob Data roles, are `bootstrap`'s, which the operator applies (task 31
+§2), so the condition leaves them out. The condition also excludes the infra identity's own
+object id as a principal.
 
-Since review I8, the allowlist no longer holds **Azure Kubernetes Service RBAC Cluster Admin**. No
-stack assigns it, and no pipeline identity holds it.
+The allowlist is **not** the list of roles any identity **holds**. The pipeline identities' roles
+are the owner's grants, not a stack's, and they are in the plan's "Deploy identities" table
+(review I8). **No stack grants a pipeline identity anything** (plan re-review I-2 of fix batch
+b02). The cluster and push identities' roles are granted by the owner's
+`infra/rbac/grant-pipeline-roles.sh` (task 30), which is a script the owner runs, not a stack, so
+they are not on this list. This matters because an ABAC condition limits the role and the
+principal, not the scope of the assignment (**training knowledge, UNVERIFIED**). With
+`Azure Kubernetes Service RBAC Admin` on the list, the infra identity could assign it at cluster
+scope, or on `panacea-sandboxes`, to an identity it created, and read every user's token.
+
+So the allowlist holds **no AKS data-plane role and no AcrPush**: not RBAC Cluster Admin (review
+I8), not RBAC Admin, not Cluster User Role, not the two `panacea-app-*-deployer` custom roles. The
+infra identity has no route to an AKS data-plane role **through a role assignment**. It keeps
+other routes, because it manages the resources those roles protect. The plan's "Deploy
+identities" residual 1 lists them.
 
 **Files:**
 - `infra/terraform/modules/workload-identity/{versions,main,variables,outputs}.tf`, `tests/workload-identity.tftest.hcl` (new)
@@ -160,21 +173,25 @@ Storage Blob Data Reader
 Network Contributor
 Managed Identity Operator
 AcrPull
-AcrPush
-Azure Kubernetes Service RBAC Admin
-Azure Kubernetes Service Cluster User Role
-panacea-app-cluster-deployer
-panacea-app-sandboxes-deployer
 DNS Zone Contributor
 Key Vault Secrets User
 ```
 
-`Storage Blob Data Reader` is the plan identity's read on the state container (task 02).
-`Azure Kubernetes Service RBAC Admin` and the two `panacea-app-*-deployer` custom roles are the
-cluster identity's namespace-scoped and cluster-scoped grants (task 07's `grants.tf`, task 30).
-`bootstrap`'s two state assignments are made by the operator under their own credentials (task 31
-§2), not by the infra identity. They are listed because `role-allowlist.sh` checks every literal
-under `infra/terraform`.
+Who assigns each: the two Storage Blob Data roles are `bootstrap`'s state grants, to the infra
+identity (write) and the plan identity (read) (task 02). The operator makes them under their own
+credentials (task 31 §2), not the infra identity, so the ABAC condition leaves them out. They are
+listed because `role-allowlist.sh` checks every literal under `infra/terraform`.
+`Network Contributor` is the AKS control plane's, on the VNet (task 06) and on the edge IP
+(`foundation`'s `grants.tf`, task 07); `AcrPull` is the kubelet's (`grants.tf`);
+`Managed Identity Operator` is task 06's control-plane grant on the kubelet identity;
+`DNS Zone Contributor` and `Key Vault Secrets User` are this stack's. Those five are the ABAC
+condition's list.
+
+Not on the list, and never assigned by a stack (plan re-review I-2): `AcrPush`,
+`Azure Kubernetes Service RBAC Admin`, `Azure Kubernetes Service Cluster User Role`,
+`panacea-app-cluster-deployer`, `panacea-app-sandboxes-deployer`, and
+`Azure Kubernetes Service RBAC Cluster Admin`. The first five are the owner's
+`grant-pipeline-roles.sh` (task 30). The last is granted by nobody.
 
 `role-allowlist.sh` greps every `role_definition_name = "…"` literal under `infra/terraform` (and
 every `role_definition_name` value in a `role_assignments` list literal) and prints
@@ -206,7 +223,7 @@ names, not by the script.
 | `no_identity_for_the_broker_or_sandboxes` | no module or identity whose subject names `panacea-broker` or `panacea-sandboxes` | a broker identity added "in case" |
 | `helm_values_carry_every_client_id` | `command = apply` → `output.helm_values` has the three keys, each non-empty | a chart left with an empty client id |
 
-And `bash infra/scripts/role-allowlist.sh` → `role-allowlist: 12 roles used, all allowed`.
+And `bash infra/scripts/role-allowlist.sh` → `role-allowlist: 7 roles used, all allowed`.
 
 #### Steps
 
@@ -215,7 +232,9 @@ And `bash infra/scripts/role-allowlist.sh` → `role-allowlist: 12 roles used, a
 - [ ] **Step 2:** Module: variables, tests, resources, outputs.
 - [ ] **Step 3:** Stack: remote states, calls, outputs, tfvars, lock, tests.
 - [ ] **Step 4:** `role-allowlist.txt` and its script; run it over the whole of `infra/terraform`
-  (tasks 02–10) — it must list exactly the twelve roles, or a task introduced a role nobody listed.
+  (tasks 02–10) — it must list exactly the seven roles, or a task introduced a role nobody listed.
+  A mutant that puts `AcrPush` or `Azure Kubernetes Service RBAC Admin` back into `grants.tf` must
+  turn it red (plan re-review I-2).
 - [ ] **Step 5:** guards, validate, commit.
 
 #### Acceptance
@@ -224,7 +243,7 @@ And `bash infra/scripts/role-allowlist.sh` → `role-allowlist: 12 roles used, a
 bash infra/scripts/validate.sh infra/terraform/modules/workload-identity infra/terraform/stacks/workloads
 # validate: 2 ok, 0 failed
 bash infra/scripts/role-allowlist.sh
-# role-allowlist: 12 roles used, all allowed
+# role-allowlist: 7 roles used, all allowed
 ```
 
 #### What this task does not claim
@@ -233,3 +252,8 @@ bash infra/scripts/role-allowlist.sh
   `Microsoft.Authorization/roleAssignments/write` constrained by role definition id is the
   documented pattern **from training knowledge, UNVERIFIED**; the owner's identity team writes it.
 - That cert-manager's namespace is `panacea-edge`: task 13 fixes it, and this default must match.
+- That the infra identity cannot act as the Hub or as cert-manager. It applies this stack, so it
+  writes these identities' federated credentials, and could make one trust an issuer it controls
+  (Contributor covering `federatedIdentityCredentials/write` is **training knowledge, UNVERIFIED**).
+  No allowlist bounds that. Whoever deploys an identity can act as it. The bound is the infra
+  connection's ADO checks (the plan's "Deploy identities" residual 1, plan re-review I-2).

@@ -28,6 +28,8 @@ The plan's "Deploy identities" table lists every principal, what it holds and at
 - `pipelines/scripts/estate-guard.sh`, `estate-guard_test.sh` (new)
 - `pipelines/scripts/tf-stack.sh`, `tf-stack_test.sh` — init/plan/apply one stack with the partial backend; plan with `-lock=false`, init with `-lockfile=readonly` (new)
 - `infra/rbac/cluster-deployer.json`, `infra/rbac/sandboxes-deployer.json` — the cluster identity's two custom role definitions, which the owner creates (review I8; new)
+- `infra/rbac/plan-reader.json` — the plan identity's custom role, `panacea-app-plan-reader`, which the owner creates (plan re-review M-2; new)
+- `infra/rbac/grant-pipeline-roles.sh`, `grant-pipeline-roles_test.sh` — the owner's script that grants the cluster and push identities their roles once `foundation` has made the cluster and the registry. It is the only place those grants are made (plan re-review I-2, I-3; new)
 - `pipelines/scripts/cluster-kinds_test.sh` — the two roles checked against what the charts render (new)
 - `pipelines/scripts/helm-values.sh`, `helm-values_test.sh` — Terraform outputs → `--set` flags (new)
 - `pipelines/scripts/api-server-cidrs.sh`, `api-server-cidrs_test.sh` — the API server's addresses → `--set apiServer.cidrs=…` for a chart in `cidr` mode (review I3; new)
@@ -166,19 +168,33 @@ objects. `tf-stack.sh` refuses either name. Steps: tools → the estate guard �
 from the task's `idToken`. **The variable names the task exposes are from training knowledge,
 UNVERIFIED.** No secret is read anywhere.
 
-The plan identity holds **Reader** on the subscription and **Storage Blob Data Reader** on the
-state container, and nothing else. It is in no Entra group and holds no Graph, Key Vault
-data-plane or AKS data-plane role. This is the only connection a PR build can reach, so a hostile
-PR can read the estate's configuration and its state, never change either (review C3). State
-holds no secret by construction (P8-D10, P8-D11, guard G8).
+The plan identity holds **Reader** on the subscription, **Storage Blob Data Reader** on the
+state container and the custom role **`panacea-app-plan-reader`** on `rg-panacea-app-<env>`, and
+nothing else. It is in no Entra group and holds no Graph, Key Vault data-plane or AKS data-plane
+role. This is the only connection a PR build can reach, so a hostile PR can read the estate's
+configuration and its state, never change either (review C3). State holds no secret by
+construction (P8-D10, P8-D11, guard G8). A PR build still runs on the pool inside the VNet; the
+plan's "Deploy identities" residual 5 declares that network position.
 
-Reader may not be enough for every refresh. Some azurerm reads are POST actions that Reader lacks:
+Reader is not enough for every refresh. Some azurerm reads are POST actions that Reader lacks:
 AKS `listClusterUserCredential`, a storage account's `listKeys`, a registry's `listCredentials`.
-Which ones the provider calls at plan time is **UNVERIFIED**. The first dev plan in task 31 §6
-records every 403 the plan identity meets. An action that returns no secret may be added to a
-custom role `panacea-app-plan-reader`. An action that returns a secret, such as `listKeys` or
-`listCredentials`, is **never** added. Instead the resource is changed so the provider has no
-reason to call it: shared keys off (task 02 already does this for state), ACR admin user off.
+The AKS one is needed from the first `foundation` PR plan: azurerm's cluster read calls it on
+every refresh (**training knowledge, UNVERIFIED**). So `infra/rbac/plan-reader.json` exists from
+day one (plan re-review M-2), with exactly one action,
+`Microsoft.ContainerService/managedClusters/listClusterUserCredential/action`, and
+`AssignableScopes` naming the `rg-panacea-app-<env>` groups only, never a subscription. With local accounts off (P8-D2) the user
+credential is a kubeconfig that names `kubelogin` and holds no token, key or certificate secret.
+**That it holds none is UNVERIFIED:** task 31 §6 decodes the credential the plan identity
+receives and records that it carries no `client-key-data` and no `token`. If it carries either,
+the action comes out of the role. Holding it gives no data-plane access: the kubeconfig is useless
+without an AKS data-plane role, and the plan identity holds none.
+
+Which other actions the provider calls at plan time is **UNVERIFIED**. The first dev plan in task
+31 §6 records every 403 the plan identity meets. An action that returns no secret may be added to
+`plan-reader.json`, and the plan's "Deploy identities" plan row changes in the same commit. An
+action that returns a secret, such as `listKeys` or `listCredentials`, is **never** added. Instead
+the resource is changed so the provider has no reason to call it: shared keys off (task 02
+already does this for state), ACR admin user off.
 
 The azurerm 4.x provider registers resource providers when it starts, and that needs
 `*/register/action`, which Reader lacks. So every stack's `provider "azurerm"` block sets
@@ -260,6 +276,7 @@ change the check.
 | plan mode, dev, on `refs/pull/12/merge` | ok | PR validation of `infra-plan` that can never pass |
 | deploy on `refs/heads/dev` consuming an `infra-plan` run whose source branch is `refs/pull/12/merge` | refused, naming the resource and its branch | a PR author's plan artefact applied by the infra identity (review C3) |
 | a module requiring `hashicorp/external` | refused, naming guard G9 | a provider that runs a program at plan time |
+| deploy on `refs/heads/dev` consuming an `images` run whose source branch is `refs/pull/12/merge` (the `infra-plan` run from `refs/heads/dev`) | refused, naming `images` and its branch | a guard that checks only the `infra-plan` alias, so a PR-built `image-digests` naming an older digest in the environment's own registry passes both the guard and `helm-values.sh`'s registry check (plan re-review M-1) |
 
 `tf-stack_test.sh` puts a stub `terraform` on `PATH` that records its arguments:
 
@@ -275,20 +292,63 @@ and `infra/rbac/sandboxes-deployer.json`, against what the charts actually rende
 - every cluster-scoped kind rendered has a matching data action in `cluster-deployer.json`, and
   that file names no namespaced kind and no `*`;
 - every object rendered into `panacea-sandboxes` is a kind `sandboxes-deployer.json` names;
-- neither file ever names `secrets`, `pods`, `pods/exec` or `serviceaccounts/token`;
-- every release's namespace is one of the four RBAC Admin scopes of task 07.
+- neither file ever names `secrets`, `pods`, `pods/exec` or `serviceaccounts/token` as a
+  **resource**;
+- every release's namespace is one of the four RBAC Admin namespaces that
+  `grant-pipeline-roles.sh` declares (it reads the script's `RBAC_ADMIN_NAMESPACES` array, so the
+  two cannot drift).
 
-This kills a chart change that needs a grant nobody gave. It also kills a role widened to read
-users' tokens. The test prints one line, `cluster-kinds: the cluster identity can bind: <kinds>`,
-listing the ClusterRole and ClusterRoleBinding objects the upstream cert-manager and Traefik charts
-bring. This is what it means:
+This kills a chart change that needs a grant nobody gave, and a role file that **names** a token
+resource. It does **not** prove the cluster identity cannot read users' tokens (plan re-review
+I-1). The `broker` release renders a `Role` and `RoleBinding` into `panacea-sandboxes` whose
+rules name `pods` and `secrets` (task 29). Kubernetes lets an identity create such a Role only if
+it already holds those rights or holds `escalate` on `roles`, and bind it only with `bind` on
+`roles` (**training knowledge of Kubernetes RBAC with the AKS Azure RBAC webhook, UNVERIFIED**).
+`sandboxes-deployer.json` therefore carries the `escalate` and `bind` data actions on
+`rbac.authorization.k8s.io/roles` in that namespace, and with them the identity can write itself
+a Role that reads every Secret there. So the test prints a second line,
+`cluster-kinds: sandboxes RBAC verbs: <verbs>`, naming every RBAC verb in `sandboxes-deployer.json`,
+and task 31 §7a records whether the `broker` release installs with them and fails without them.
+
+The first printed line, `cluster-kinds: the cluster identity can bind: <kinds>`, lists the
+ClusterRole and ClusterRoleBinding objects the upstream cert-manager and Traefik charts bring. This
+is what it means:
 - To create those objects, Kubernetes' RBAC escalation check requires `bind` (or `escalate`) on
   the identity. That lets the identity bind `cluster-admin` to itself (**training knowledge of
   Kubernetes RBAC with the AKS Azure RBAC webhook, UNVERIFIED**).
-- So the split removes Azure RBAC, state and database rights from the cluster identity. It does
-  **not** prove that identity cannot reach cluster-admin.
-- The boundary around it is the ADO checks above. The stricter option, cluster-scoped RBAC
-  installed by an owner-run release, is an owner question (the plan's "Deploy identities" table).
+- So the split removes Azure RBAC, state and database-administrator rights from the cluster
+  identity. It does **not** prove that identity cannot reach cluster-admin, and it does not stop
+  it reaching users' tokens: it deploys the broker, so it can act as the broker (above, and task
+  07).
+- The boundary around both is the ADO checks above. The stricter option, cluster-scoped RBAC
+  installed by an owner-run release, is owner question Q4. Q4 would close the cluster-admin route
+  only; the token route through the broker stays for as long as the pipeline deploys the broker.
+
+`grant-pipeline-roles.sh <env> [--dry-run]` is run by the **owner** under their own credentials,
+never by a pipeline (task 31 §4a). It reads the two object ids from
+`PANACEA_APP_<ENV>_CLUSTER_PRINCIPAL_OBJECT_ID` and `PANACEA_APP_<ENV>_PUSH_PRINCIPAL_OBJECT_ID`,
+looks up the cluster and registry ids with `az aks show` and `az acr show` in
+`rg-panacea-app-<env>`, and makes exactly the eight assignments of task 07's list: AcrPush on the
+registry, Cluster User Role on the cluster, RBAC Admin on each of the four namespaces in
+`RBAC_ADMIN_NAMESPACES` (`default`, `panacea-edge`, `panacea-broker`, `panacea-hub`),
+`panacea-app-cluster-deployer` on the cluster, `panacea-app-sandboxes-deployer` on
+`<cluster id>/namespaces/panacea-sandboxes`. For each it runs `az role assignment list` first
+and creates only what is missing (`az role assignment create --assignee-object-id …
+--assignee-principal-type ServicePrincipal`), printing `grant: <role> @ <scope> — created|present`.
+`--dry-run` prints the eight lines and creates nothing. The namespaced assignments are made before
+`platform` creates the namespaces. That Azure accepts a namespace scope that does not exist yet is
+**training knowledge, UNVERIFIED**; task 31 §4a records it. A re-created cluster has a new id, so
+the owner runs the script again (task 31 §4a).
+
+`grant-pipeline-roles_test.sh` puts a stub `az` on `PATH` that records its arguments:
+
+| Case | Expect | Mutant it kills |
+|---|---|---|
+| `--dry-run dev` | exactly the eight lines above; none names `Azure Kubernetes Service RBAC Cluster Admin`; no RBAC Admin scope ends in `/namespaces/panacea-sandboxes` | the old single-principal grant, which reads every Secret in the cluster (review I8); RBAC Admin widened to the namespace that holds users' tokens (moved from task 07's `cluster_identity_is_not_cluster_admin`) |
+| `--dry-run dev` | AcrPush's only principal is the push id, and the push id has no other line | the push identity given more than the registry (moved from task 07) |
+| `dev`, the stub reporting AcrPush already present | seven `create` calls, and one `present` line | a script that fails with a conflict, or duplicates a grant, on its second run |
+| `dev`, the cluster and push ids equal | exit 1 before any `az` call, naming both variables | one principal holding both rows (review I8) |
+| `dev`, an object id unset | exit 1 before any `az` call, naming the variable | a grant to an empty principal |
 
 `helm-values_test.sh`: a fixture `terraform output -json` for each stack and a digests file →
 exactly the expected `--set` list per release (every id the charts need, nothing else; kills a
@@ -323,7 +383,8 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
 
 - [ ] **Step 1:** `ci-pool` module and tests; the foundation call; validate both.
 - [ ] **Step 2:** `estate-guard.sh`, `tf-stack.sh`, `helm-values.sh`, `api-server-cidrs.sh` and their tests.
-- [ ] **Step 3:** `infra/rbac/cluster-deployer.json`, `infra/rbac/sandboxes-deployer.json` and
+- [ ] **Step 3:** `infra/rbac/cluster-deployer.json`, `infra/rbac/sandboxes-deployer.json`,
+  `infra/rbac/plan-reader.json`, `grant-pipeline-roles.sh` and its test, and
   `cluster-kinds_test.sh` (needs the charts of tasks 11–13, 26 and 29 to render).
 - [ ] **Step 4:** The two pipeline files; `lint.sh`; commit. **Do not register either pipeline.**
 
@@ -331,9 +392,10 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
 
 ```bash
 bash infra/scripts/validate.sh infra/terraform/modules/ci-pool infra/terraform/stacks/foundation   # 2 ok
-bash pipelines/scripts/estate-guard_test.sh        # estate-guard_test: 8 of 8 passed
+bash pipelines/scripts/estate-guard_test.sh        # estate-guard_test: 9 of 9 passed
 bash pipelines/scripts/tf-stack_test.sh            # tf-stack_test: 3 of 3 passed
-bash pipelines/scripts/cluster-kinds_test.sh       # cluster-kinds: ok, and the "can bind" line
+bash infra/rbac/grant-pipeline-roles_test.sh       # grant-pipeline-roles_test: 5 of 5 passed
+bash pipelines/scripts/cluster-kinds_test.sh       # cluster-kinds: ok, the "can bind" line and the "sandboxes RBAC verbs" line
 bash pipelines/scripts/helm-values_test.sh         # helm-values_test: ok
 bash pipelines/scripts/api-server-cidrs_test.sh    # api-server-cidrs_test: 4 of 4 passed
 bash pipelines/scripts/lint.sh                     # lint: 7 of 7 rules pass over 9 pipeline files
@@ -344,9 +406,13 @@ bash pipelines/scripts/lint.sh                     # lint: 7 of 7 rules pass ove
 - **That either pipeline works.** Neither has run; neither can until the subscription, the service
   connection, the pool and the environment approvals exist. Task 31 is the first run, by hand.
 - That the four identities get the roles in the plan's "Deploy identities" table. Those are owner
-  inputs (survey §7.1 item 3). No pipeline identity joins the Postgres admin group (review I8).
-- That the plan identity's Reader is enough for every refresh (task 31 §6 records the 403s).
+  inputs (survey §7.1 item 3), made in task 31 §2a and §4a. No pipeline identity joins the Postgres
+  admin group (review I8).
+- That the plan identity's Reader and `panacea-app-plan-reader` are enough for every refresh
+  (task 31 §6 records the 403s), or that the AKS user credential holds no secret (task 31 §6).
 - That the cluster identity cannot reach cluster-admin through Kubernetes RBAC `bind`; see
   `cluster-kinds_test.sh` above.
+- That the cluster identity cannot read users' tokens. It deploys the broker, so it can act as
+  the broker (plan re-review I-1). The ADO checks are the bound.
 - That ADO's branch control check behaves as described. Its settings are named from training
   knowledge, UNVERIFIED.
