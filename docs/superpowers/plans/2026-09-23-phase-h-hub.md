@@ -310,7 +310,8 @@ parallel worktrees (see §"Order and parallel lanes").
 ## Tasks
 
 Each task has its part file, `docs/superpowers/plans/2026-09-23-phase-h-hub-parts/task-NN.md`, and
-each is sized for one implementer in **1–3 hours**. Hours assume the implementer has read ADR-H1,
+each is sized for one implementer in **1–3 hours**, except task 38 at 3.5 (its pending-read guards,
+re-review b02 N1, are about 30 minutes and belong with the `await` that creates the need). Hours assume the implementer has read ADR-H1,
 the contract, and the part; they are the plan's estimate, not a measurement. Contract task ids
 (H0–H7, C1–C4) are given so the two documents can be read side by side.
 
@@ -371,8 +372,8 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 34 | `hubclient` methods, the digest re-check, conformance against the real Hub | C2 | 33, 20 (rows grow with 22–27) | 3 | ✓ |
 | 35 | `hublink`: local project → Hub project; the share routes | C2 | 32, 34; phase 3 task 13's `githost` (or its copy) | 3 | ✓ |
 | 36 | the change-feed poller, `/v1/hub/changes`, the cursor header | C2 | 26, 35 | 2 | |
-| 37 | the local caller key, control-plane side (A3, A4) | C3 | 32 | 2 | ✓ |
-| 38 | the local caller key, desktop side | C3 | 37 | 2 | ✓ |
+| 37 | the local caller key, control-plane side (A3, A4); the attach subprotocol (I3) | C3 | 32 | 3 | ✓ |
+| 38 | the local caller key, desktop side; the keyed async attach and its pending-read guards (I3, N1) | C3 | 37 | 3.5 | ✓ |
 | 39 | the credential routes: GitHub and Panacea tokens (A8) | C1 | 29, 37 | 2 | S7 |
 | 40 | the desktop's auth, share and feed client; `authSlice`; `hubFeed` | C4 | 36, 38, 39 | 3 | |
 | 41 | the sign-in surface in the rail footer — **UI** | C4 | 40 | 3 | |
@@ -380,12 +381,13 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 43 | end-to-end proof through `devissuer`; the real-tenant checklist; the results record | all | 01–42 | 3 | |
 | 44b | last: what the build changed, folded into the contract; the seams handed over | — | 43 | 1 | |
 
-Totals: server 01–27 ≈ 73.5 h; client and desktop 28–42 ≈ 39.5 h; proof and documents (00, 43,
-44a, 44b) 6 h; **≈ 119 engineer-hours**, against ADR-H1's 16 engineer-days (≈ 128 h). The
+Totals: server 01–27 ≈ 73.5 h; client and desktop 28–42 ≈ 42 h (39.5 before review I3 and
+re-review N1 added 1 h to task 37 and 1.5 h to task 38); proof and documents (00, 43,
+44a, 44b) 6 h; **≈ 121.5 engineer-hours**, against ADR-H1's 16 engineer-days (≈ 128 h). The
 difference is the ADR's day including review; this table is implementation time. Task 00's
 answers add rows to tasks 03–05, 07, 14, 18, 19, 23, 24, 33, 34, 36 and 40 inside their existing
 hours; that is the plan's estimate, not a measurement. The minimum (S7 reached) is tasks 44a, 00,
-01–24, 28–35, 37–39 ≈ 98 h: about **six working days for two engineers** — one on the server
+01–24, 28–35, 37–39 ≈ 100.5 h: about **six working days for two engineers** — one on the server
 lane, one on identity then the client lane.
 
 ### Order and parallel lanes

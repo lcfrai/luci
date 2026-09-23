@@ -1,7 +1,7 @@
 ### Task 38: the local caller key — desktop side: one Tauri command, one header on every call, one subprotocol on attach (review I3)
 
-**Lane D. Depends on: 37 (land together). About 3 hours (1 more than first planned: the attach
-subprotocol, review I3). Contract task C3.**
+**Lane D. Depends on: 37 (land together). About 3.5 hours (1.5 more than first planned: the attach
+subprotocol, review I3, and the pending-read guards, re-review N1). Contract task C3.**
 
 The renderer learns the key task 37 minted through **one** Tauri command, keeps it **in memory
 only**, and `client.ts` sends it on every request (contract §9.4). A control plane restarted under
@@ -177,8 +177,10 @@ and `/tmp/s/auth/local-key` (`PANACEA_APP_STATE_DIR=/tmp/s`), which task 37's Go
 
 #### Steps
 
-- [ ] **Step 1:** Re-read contract §9.4; `client.ts` in full; `lib.rs`; `attachRegistry.ts:375-430`
-  (`openIfLive` and `connect`). Re-derive the fake-client list in Files with its `git grep`.
+- [ ] **Step 1:** Re-read contract §9.4; `client.ts` in full; `lib.rs`; `attachRegistry.ts:375-446`
+  (`openIfLive` and `connect`), and the other sites re-review N1 touches: `Entry` `:95-110`, its
+  literal `:139-159`, `updateAttachSession` `:204-221`, `retryAttach` `:244-276`, `destroy`
+  `:643`. Re-derive the fake-client list in Files with its `git grep`.
 - [ ] **Step 2:** Tests; they fail. Then `localKey.ts`, the three `send` changes, the codes, the
   comment, the async `openAttach` and its subprotocols, `connect`'s `await`, the `openSeq` /
   `opening` generation and the `inFlight` predicate at its three sites (re-review N1),

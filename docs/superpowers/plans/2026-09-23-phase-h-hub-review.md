@@ -570,3 +570,29 @@ Unverified: nothing compiled or run (documents only). WebView2 failing a handsha
 subprotocol is not echoed is Chromium behaviour from memory. The echo is planned either way, and
 task 38 Step 4 observes it. How many phase-2 desktop tests read a fake socket in the same tick as
 the attach, and so need one awaited microtask, is not known until task 38 Step 2 runs them.
+
+### Fix batch b02, round 2 — the re-review's open issues (2026-09-24)
+
+This round answers `.superpowers/sdd/hub/plan-rereview-b02-1.md`, which is local and git-ignored.
+Line numbers are as committed by this round.
+
+| Issue | Change | Where |
+|---|---|---|
+| **N1** (Important) | The re-review's fix, taken whole. `Entry` gains `openSeq` (a handshake generation that only increases) and `opening` (the generation of the pending key read, 0 when none). One predicate, `inFlight = ws !== null \|\| opening !== 0`, replaces the bare `entry.ws` test at the three sites that mean *"a handshake is in flight"*: `connect` `:386`, `retryAttach` `:259`, `updateAttachSession` `:212`. The socket handlers' `entry.ws !== ws` guards stay, because they ask *which* socket. After the `await`, the call compares its generation, not `attempts` (which `:276` and `:421` reset, hence the ABA). A read that settles for an exited session closes the socket and lets `scheduleRetry`'s exited branch (`:503`) publish `ended`, so the handshake never publishes over it. `destroy()` zeroes `opening`. Three tests, one per guard mutant: *a retry while the key is read opens one socket*, *a stale rung firing during the key read opens nothing*, *a session that exits while the key is read ends once*. The generation compare is a **declared equivalent mutant** while the three guards hold, which is stated. *"The one new race"* is gone. Task 38 is 3.5 h (it was 3), and the task table now carries 37 at 3 and 38 at 3.5, which round 1's part headers already said and the table did not. Totals: 121.5 h, minimum 100.5 h | task-38.md:3-4, :18, :114-147, :168-170, :180-186; plan.md:292, :313-314, :375-376, :384-390 |
+| **m1** | `Middleware`'s contract now defines both words. *Upgrade* is `isWebSocketUpgrade`'s rule (`attach.go:350-352`, verified): a `Connection` token plus a case-insensitive `Upgrade`, restated because `localkey` cannot import `api`. *The list* is the tokens of every `Sec-WebSocket-Protocol` line, split on `,` and trimmed, as coder/websocket's `headerTokens` does (`accept.go:331`, v1.8.12, verified in the module cache). New `TestTheSubprotocolListIsReadAsTokens`: the browser's `", "`, Dial's `","`, two header lines, and the two upgrade-detection edges | task-37.md:110-130, :208-211, :227 |
+| **m2** | The zero check comes before either comparison, and the contract says why (`ConstantTimeCompare` of two empty slices is 1). `TestAZeroKeyMatchesNothing` adds the upgrade path with `panacea.key.` (empty) and `panacea.key.<43 × A>` | task-37.md:128-130, :225 |
+| **m3** | Task 44a edits UI contract §4.4's row (`:1169`, now `Promise<WebSocket>`) and §4.6's paragraph (`:1219-1221`, now the key read and `protocols`) **in place**, both citations verified. ADR-H1 is **not** edited: its §5.4 (`ADR-H1-hub-architecture.md:451`, verified) is the owner's text. The plan's ADR-H1 §5.4 coverage row records the departure instead | task-44a.md:18, :71-92; plan.md:73 |
+| **m4** | `TestTheProcessRefusesToStartWithoutAKey` is written as `:392-402` is, through `runHermetic` (`config_sandbox_test.go:228-240`, verified). The row says why: while the test is red, or under the mutant that moves `Mint` after `newBackend`, only `runHermetic`'s refused `kata` backend keeps the default Docker backend's reaper (`main.go:85-97`, verified) off the shared daemon. The `net.Dial` assertion is dropped: `run` returns only after `serve` does, so a dial after it proves nothing. `envLocalKeyFile` sits beside `envAddr` and `envBackend` (`config.go:28-30`, verified) | task-37.md:232 |
+| **m5** | (1) `New`'s error now says *"build it with localkey.Mint (localkey.ForTest in a test)"*. A note says a zero key would *refuse* every route, not open it. (2) `TestNoCommandUsesForTest` walks the whole `control-plane/` module outside `internal/localkey`, not just `cmd/`. (3) The ledger's batch row says 8 | task-37.md:87-88, :174-182, :208, :226; `progress.md:66` (local) |
+| **Outside b02** | `TestEveryGuardedRouteNeedsTheKey`: *"with the key"* now asserts not 401 **with code `local_key_required`**, so a signed-out Hub route's 401 `signed_out` cannot fail it falsely. It is fixed here because it is one cell in a table this batch owns | task-37.md:223 |
+
+Found in passing and **not** changed: task-32.md:86 gives `PANACEA_APP_LOCAL_KEY_FILE`'s default
+as `<state dir>/local-key`. Tasks 37 and 38 say `statepath.Dir("auth")` + `/local-key`, which is
+`<state dir>/auth/local-key`. Task 32 is outside this batch's parts, so this is left for its owner.
+The fix is one cell: make task 32 say `auth/local-key`, because both sides of the key pin that
+path in their tests.
+
+Unverified: nothing compiled or run (documents only). Chromium's `", "` join is from memory. The
+token parse accepts both spellings, so the plan does not depend on which one is right. That the
+three N1 tests go red against their mutants is argued from `attachRegistry.ts`'s current code, not
+run.
