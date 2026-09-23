@@ -68,6 +68,7 @@ type Document struct {
 	// Title is a function of the key alone (review I5). A branch key:
 	// "Branch brief — " + the branch revision's BranchRef minus "refs/heads/"
 	// ("Branch brief — evidence-upload"). A project key: "Project brief".
+	// Computed by Title below, the rule's only copy (re-review b05-1 R-M2).
 	// No project name and no current branch name, so a rename changes no byte
 	// of any block, and every title byte is covered by the key's digest.
 	Title           string    `json:"title"`
@@ -98,10 +99,19 @@ var ErrIncomplete = errors.New("discover: only a complete revision can be resolv
 // Sections follow the base heading order, then follow-ups - project first,
 // then branch - in the order they were added.
 //
-// Title follows Document.Title's rule, from branch.BranchRef when branch !=
-// nil, else "Project brief". Resolve takes no name argument: nothing mutable
-// can reach the block.
+// Title follows Document.Title's rule: Resolve sets Document.Title to
+// Title(branch). Resolve takes no name argument: nothing mutable can reach
+// the block.
 func Resolve(project, branch *Revision) (Document, error)
+
+// Title is Document.Title's rule, and the only copy of it (re-review b05-1
+// R-M2): "Branch brief — " + branch.BranchRef minus "refs/heads/" when
+// branch != nil, else "Project brief". It reads nothing but BranchRef, and
+// it does not look at Content.Status, so an open revision gets the same
+// title its complete successor on the same ref will: provenance.Build calls
+// it for an open history row, which Resolve refuses with ErrIncomplete
+// (task 06). No package writes "Branch brief" or "Project brief" itself.
+func Title(branch *Revision) string
 ```
 
 ```go
@@ -247,7 +257,7 @@ renders the same bytes on every branch and every teammate's machine.
 |---|---|---|
 | `TestResolveBranchOverProjectGolden` | `Render(Resolve(…))` equals `golden-branch.md` byte for byte | any drift in wording, order or spacing |
 | `TestResolveProjectAloneGolden` | equals `golden-project.md` | a project render that prints a branch-only line |
-| `TestTitleComesFromTheRevision` (review I5) | branch `BranchRef` `refs/heads/evidence-upload` → `Title` `Branch brief — evidence-upload`; a project revision → `Project brief`; a Go-level check that `Resolve`'s signature is `func(project, branch *Revision) (Document, error)` (no name can be passed) | a title read from the project's or the branch's current name, which a rename changes under an unchanged key (the rename end to end is task 07's `TestRenameDoesNotLookLikeAHandEdit`) |
+| `TestTitleComesFromTheRevision` (review I5) | branch `BranchRef` `refs/heads/evidence-upload` → `Title` `Branch brief — evidence-upload`; a project revision → `Project brief`; `Title` of an **open** branch revision on the same ref → `Branch brief — evidence-upload`, equal to `Resolve`'s title for its complete successor (re-review b05-1 R-M2); `Title(nil)` → `Project brief`; a Go-level check that `Resolve`'s signature is `func(project, branch *Revision) (Document, error)` (no name can be passed) | a title read from the project's or the branch's current name, which a rename changes under an unchanged key (the rename end to end is task 07's `TestRenameDoesNotLookLikeAHandEdit`); a `Title` that refuses or blanks an open revision, which leaves `provenance.Build` to hand-write the rule a second time |
 | `TestResolveRefusesAProjectRevisionTheBranchDidNotPin` | branch `Inherits` = `…b7@5`, project passed = `…b7@6` → `ErrInheritMismatch` | a caller that resolves against the project head — critique-2 §1.1 |
 | `TestResolveRefusesAnIncompleteRevision` | an open branch revision → `ErrIncomplete` | materialising half a brief |
 | `TestSkippedBranchAnswerInheritsTheProject` | branch skips audience → section `OriginProject` with the project's text | a skip rendered as an empty section |
@@ -268,7 +278,7 @@ renders the same bytes on every branch and every teammate's machine.
 - [ ] **Step 1:** Write both test files and the three golden files. Confirm they fail to compile.
 - [ ] **Step 2:** `inherit.go`: port the old `Resolve` (`:1787-1831`) to revisions; add the
   pinned-revision check, the skip, draft and completeness rules; follow-up headings from
-  `Prompt` minus `?` (`:1745-1762`).
+  `Prompt` minus `?` (`:1745-1762`); `Title`, which `Resolve` calls for `Document.Title`.
 - [ ] **Step 3:** `render.go`: port `Render` and `Merge` (`:2030-2101`); the marker is
   `brief=<briefId> rev=<n>`; items render from `Section.Items[i].Text`; add the footer's second
   sentence; add `Strip`, `Inspect`, `DiffLines`. The old `Merge` finds the first begin and the

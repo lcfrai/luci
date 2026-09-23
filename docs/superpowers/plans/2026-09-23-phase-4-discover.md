@@ -288,7 +288,7 @@ without a cycle. Phase 4 imports only the Hub's
 | `discover/content.go` + test | `Content`, `Question`, `Answer`, `Criterion`, `Author`, `BaseQuestions()`, `Step`, `Recompute` | 03 |
 | `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes; the marker rule (`ErrReservedText`, S3) | 03 |
 | `discover/assist.go` + test | `ProposeFollowUp` over a `Completer`, degrading to nothing | 04 |
-| `discover/inherit.go` + test | `Resolve(project, branch *Revision) Document` — project → branch, with origins | 05 |
+| `discover/inherit.go` + test | `Resolve(project, branch *Revision) Document` — project → branch, with origins; `Title(branch *Revision)`, the block title's one rule | 05 |
 | `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`; the golden blocks; the `<!--` neutraliser and the marker count (S3) | 05 |
 | `provenance/key.go` + test | the key grammar — the only parser (P5): `brief:`, `design:`, `none:` | 06 |
 | `provenance/ref.go` + test | `Ref`, `Build`, criterion digests, `Resolution` | 06 |

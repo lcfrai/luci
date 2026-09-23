@@ -403,7 +403,8 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
 1. Local ids never reach the Hub; Hub ids never reach `Locator`.
 2. **Titles come from the revision, never from a name** (review I5, task 05's `Document.Title`):
    every `discover.Revision` this package builds carries the envelope's own `branchRef`, and
-   `discover.Resolve` titles a branch key `Branch brief — <branchRef minus refs/heads/>` and a
+   `discover.Resolve` (through `discover.Title`, the rule's one copy) titles a branch key
+   `Branch brief — <branchRef minus refs/heads/>` and a
    project key `Project brief`. Neither the Hub project's current name (`PATCH /v1/projects/{id}`)
    nor the branch's current ref (`Rebind`) is read for a render, so a key renders the same bytes on
    every teammate's machine, before and after a rename (P4-G).

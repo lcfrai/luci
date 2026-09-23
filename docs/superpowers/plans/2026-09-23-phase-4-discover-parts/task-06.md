@@ -68,7 +68,9 @@ const (
 	None     Resolution = "none"     // "" or none:declined — no brief was inherited
 	// Unavailable is a slot the server could not answer because the Hub did
 	// not: any Hub error, signed_out, or no Hub configured (task 07 rule 5,
-	// review I6). A key already cached is still answered (ADR-H1 §5.4).
+	// review I6). A key already cached is still answered (ADR-H1 §5.4); a
+	// branch key counts as cached only with its pinned project revision
+	// cached too (task 07 rule 5, re-review b05-1 R-M1).
 	// Missing is never used for these: it comes only from the Hub's answer.
 	// Never cached by the desktop; the loader retries it (task 16).
 	Unavailable Resolution = "unavailable"
@@ -116,7 +118,7 @@ type Ref struct {
 	HeadRevision           int               `json:"headRevision"`
 	LatestCompleteRevision int               `json:"latestCompleteRevision"`
 	Inherits               *InheritedRef     `json:"inherits"`
-	Title                  string            `json:"title"`    // Document.Title: a function of the key alone (task 05, review I5)
+	Title                  string            `json:"title"`    // discover.Title of the revision the key names: a function of the key alone (task 05, review I5), open revisions included
 	Headline               string            `json:"headline"` // the purpose section's body
 	Audience               string            `json:"audience"`
 	Constraints            string            `json:"constraints"`
@@ -145,16 +147,21 @@ type Source struct {
 	Project   *discover.Revision // its pinned project revision (branch keys), or nil
 	Digest    string
 	ProjectID string
-	BranchRef string
 	SavedAt   string
 	SavedBy   string
 	// No Names: discover.Resolve takes none, and the title comes from
 	// Revision.BranchRef, the envelope's own ref (review I5, task 05).
+	// No BranchRef either: Ref.BranchRef is Revision.BranchRef, so the fact
+	// has one carrier and two copies cannot disagree (re-review b05-1 R-M2).
 }
 
 // Build resolves a complete revision through discover.Resolve and fills
-// every field. An open revision (only a history row can name one) gets
-// Sections from its own settled answers, no inheritance, and Status "open".
+// every field; Ref.Title is the Document's Title and Ref.BranchRef is
+// src.Revision.BranchRef. An open revision (only a history row can name one)
+// gets Sections from its own settled answers, no inheritance, Status "open",
+// and Ref.Title = discover.Title(&src.Revision) for a branch revision or
+// discover.Title(nil) for a project one - task 05's one copy of the rule,
+// never a string written here (re-review b05-1 R-M2).
 // An Evaluate that returns a non-open state with an empty because is
 // overridden to open: an unexplained verdict is not shown (P12).
 func Build(key string, src Source, head Head, eval Evaluate) Ref
@@ -177,6 +184,7 @@ func CriterionDigest(text string) string
 | `TestEmptyIsNotAKeyButIsNone` | `Parse("")` is `ErrInvalidKey`; `NoneRef("")` is `resolution: none`, `noneReason: ""` | an empty `contextRef` read as data loss |
 | `TestDeclinedIsNoneWithAReason` | `NoneRef(Declined)` → `none`, `declined`, `present: false` | the override indistinguishable from "no brief" |
 | `TestBuildBranchKeyShowsInheritedText` | a branch revision that skips audience, with its pinned project revision: `Audience` is the project's text and its section is `OriginProject` | critique-2 §1.1's second consequence — a chip with no audience |
+| `TestBuildTitlesAnOpenRevisionByTheOneRule` (re-review b05-1 R-M2) | `Build` over an open branch revision on `refs/heads/evidence-upload` → `Title` equals `discover.Title` of it (`Branch brief — evidence-upload`) and `BranchRef` equals `Revision.BranchRef`; an open project revision → `Project brief` | an open history row titled `""`, or by a second hand-written copy of task 05's rule that drifts from it |
 | `TestBuildCarriesCriterionDigests` | each criterion's digest is `CriterionDigest(text)`; ids are the content's | phase 3 matching evidence by a digest phase 4 never computed |
 | `TestCriterionDigestVector` | `CriterionDigest("Tests pass")` is `sha256:` + the SHA-256 of those 10 bytes, checked against a literal computed by `printf 'Tests pass' \| sha256sum` when the test is written | a digest over a trimmed, lower-cased or JSON-quoted text |
 | `TestNilEvaluateMeansOpen` | every state `open`, every `because` `""` | a default of `settled` |
