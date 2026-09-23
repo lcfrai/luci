@@ -1246,3 +1246,108 @@ stands.
 - The Hub fake's surface is read from the Hub **plan**. None of it is built.
 - The fact sheet's pins for `b-42@5` were not read. The "second call fails" row seeds its own pair
   of branch revisions with different pins, so it does not depend on them.
+
+## Fix batch b06 (2026-09-24): I8, I10, I14
+
+Commits: `808fd58` (I8), `cfcf9c3` (I10), `fc44b31` (I14), then this section. Line numbers are
+those at `fc44b31`.
+
+**I8: the fan-out re-pins open heads and raced writes; a stale inherited pin reads
+`superseded`.** Built as the review recommends. The race fix is two post-commit checks, not
+one. A re-list after the project batch (step 8) catches a branch write that committed **before**
+the batch but after step 6's `List`. It cannot see a branch write that commits **after** the
+batch while pinned to the old project revision, because that write read the project at its own
+step 3. Step 9 covers that write on the branch side: after committing, it re-reads the project's
+latest complete revision. Each check runs once. Whatever a third concurrent writer still leaves
+stale reads `superseded` through the new chip rule, never `current`.
+
+| Fix | Where |
+|---|---|
+| The `:6-7` claim, rewritten: what the batch buys for complete heads, what it does not buy for open ones, and the race | `task-08.md:6-18` |
+| Step 6 covers complete **and open** live heads; an open head keeps its status, and only `Inherits` moves (`task-03.md:319`) | `task-08.md:105-111` |
+| Step 8: re-list after the commit, then one more fan-out | `task-08.md:116-121` |
+| Step 9: the branch side re-reads the project and writes one `reinherit`; a conflict is dropped; a failure logs at warn and does not fail `Apply` | `task-08.md:122-137` |
+| Race hooks on the wrapper fake: `afterList`, `beforeWrite` | `task-08.md:44-51` |
+| `TestFanOutSkipsOpenAndArchivedBranchBriefs` replaced by `TestFanOutReinheritsOpenHeadsAndSkipsArchived` | `task-08.md:169` |
+| Tests: the narrowing, both races, run-once | `task-08.md:170-173` |
+| The 16-item limit counts open heads | `task-08.md:180`; HA4-3 `plan.md:508` |
+| C4 names the narrowing | `plan.md:27` |
+| The 4-D3 row | `plan.md:144` |
+| Owner question **OQ-8**, with the refusal seam if the owner rules "no narrowing" | `plan.md:530` |
+| `selectProvenanceState` rule 4: `inherits.revision` below the inherited brief's `latestCompleteRevision`, read through `headsByBrief` | `task-16.md:141-155` |
+| The loader fetches a missing project head once | `task-16.md:192-197` |
+| Tests: rule 4, including the ref's own frozen head numbers being ignored; fetched once | `task-16.md:270-271` |
+| Restatements | `task-04.md:50-52` (the follow-up budget covers steps 8-9); `task-22.md:45` |
+
+**I10: an erasure empties the desktop's cache; a `brief.*` event re-reads every view of its
+project.** One addition to the review's fix. Deleting `refsByKey` and re-resolving is not enough
+until HA4-8 lands, because the control plane may answer from its own cache for up to `CacheTTL`
+(HA4-8's fallback, `plan.md:513`) and would hand the erased text back. The desktop therefore
+records the erasure (`erasedBriefs`). Every revision is erased and erasure cannot be undone
+(Hub contract §7.12 at hub `2f84662`, `:1106-1118`), so `putRefs` stores any `resolved` answer
+for that brief in its erased form. Nothing wrote head readings into `headRefByTarget` before
+this, so marking them stale would have done nothing. `useHeadRef` is now their one reader.
+
+| Fix | Where |
+|---|---|
+| `refsByKey`'s rule now includes `forgetBrief` | `task-16.md:32-34` |
+| `hubProjectByTarget`, `staleHeadRefs`, `erasedBriefs` | `task-16.md:48-59` |
+| `putHeadRef`, `markHeadRefsStale` and `forgetBrief`; the `setBriefView` binding | `task-16.md:69-84`, `:110-111` |
+| Loader step 1: `brief.erased` → `forgetBrief`; every `brief.*` marks stale every view and head reading whose Hub project matches the event, or is not known yet (`projectId: null` matches all) | `task-16.md:181-190` |
+| `useHeadRef` | `task-16.md:13-14`, `:212-221` |
+| Tests | `task-16.md:263-264` (the erased text is dropped even when the control plane answers `resolved`; views and head readings are matched by project), `:267` (`useHeadRef`) |
+| DefinitionOfDone's head reading comes through `useHeadRef` | `task-17.md:74` |
+| Plan file map and interface table | `plan.md:311-312`, `:423`; `task-22.md:51` |
+
+**I14: criterion state leaves the `Ref`.** Of the review's two options, this batch takes the
+per-key moving map. The `Ref` stays a function of its key (architecture rule 3), and the
+`identical ref` rule of `refsByKey` is kept.
+
+| Fix | Where |
+|---|---|
+| `Criterion` keeps `id`, `text`, `digest`; new `CriterionReading {id, state, because}` | `task-06.md:87-104` |
+| The `Ref` comment: no criterion state | `task-06.md:113-118` |
+| `Build` takes no `Evaluate`; new `Readings(key, src, eval)` holds the nil-means-open and P12 rules and runs on every answer | `task-06.md:178-189`; step 3 `:223-225` |
+| Tests | `task-06.md:212-214` (`TestRefHoldsNoCriterionState` is new) |
+| `Resolve` returns `states`, recomputed on every call, whether or not the revision is cached | `task-07.md:378-388`; test `:475` |
+| `RefsResponse.criterionStates`, the JSON example, rule 4 | `task-12.md:26-36`, `:60`, `:66`, `:89-92`; test `:124` |
+| The TypeScript mirror | `task-15.md:139-142`, `:154-157` |
+| `criterionStatesByKey` (moving, overwritten), `staleCriteria`, `markCriteriaStale` (phase 3's seam), `selectCriterionStates` | `task-16.md:27-28`, `:38-45`, `:75-77`, `:157-163`; loader step 2 `:198-199` |
+| Tests | `task-16.md:265-266` |
+| `DefinitionOfDone` takes `criterionStates` | `task-17.md:76-78`; test `:132` |
+| **S4-P3.4** records the decision, and what phase 3 builds against (`Evaluate` and `markCriteriaStale`) | `plan.md:459` |
+| Restatements | `plan.md:37` (C14), `:294`, `:418`; `task-22.md:45`, `:51` |
+
+S4-P3.4 now quotes task 06's `Evaluate` signature. That also resolves the mismatch **M4**
+reports. M4 is not in this batch; whoever takes it only needs to confirm it.
+
+**Found here, not fixed: N-b06-1.** Some cached keys can no longer move a head.
+- *Where:*
+  - `task-07.md:381`: "`heads` holds one entry per brief the Hub's answers named";
+  - `task-07.md:474`: `TestResolveCachesOnlyResolved`, where a `resolved` key reaches the Hub
+    once.
+- *What is wrong:* a key the control plane holds in its cache produces no Hub call, so its answer
+  carries no head. Two mechanisms re-read a head by sending a held key through `refs`:
+  - task 16's step 2, the old stale-head path;
+  - this batch's project-head fetch for rule 4.
+
+  While the control plane has that key cached, neither returns a new head. The once-per-mark rule
+  (`task-16.md:195-197`) stops this becoming a request every tick. It does not make the head
+  move.
+- *Suggested fix, for task 07's owner:* `Resolve` reads a head from the Hub for every brief a
+  requested key names, even when the content comes from cache. One way is a heads-only Hub call.
+  Another is to count a key as cached only for its content. On Hub failure, the cached slots stay
+  `resolved` with no head (rule 5).
+
+**Carried to the owner:** **OQ-8** (`plan.md:530`), the 4-D3 narrowing for an open head's latest
+complete revision. The recommendation is built: `reinherit` at the open head, and the chip reads
+`superseded`. The refusal seam is named in the row.
+
+**Still unverified:**
+- No Go or TypeScript was run. This is a plan-only batch.
+- Read-after-write: that a Hub `List` or `Brief` read issued after a commit returns sees that
+  commit. Steps 8 and 9 depend on it. It is the Hub contract's promise and is stated in task 08's
+  **Does NOT claim**.
+- That the Hub's `/v1/refs` puts the inherited project brief's head in `heads` whenever it
+  answers a pin. HA4-7 (`plan.md:512`) asks for `latestCompleteRevision` in `heads`. The Hub
+  plan was not re-read for this.
