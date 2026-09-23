@@ -210,7 +210,8 @@ The fix is **the base this plan builds on**. Re-read on 2026-09-24 (review I12) 
 `git show <ref>:<path>`:
 
 - `fix/sandbox-git-ca` is at `4f6d698`, five commits past `3303fd6`: `2d6d95b` (the fix, based on
-  `69bbc02`), `58d607f` (`LinkedWorktreeNote`, now committed), `5e32000` (the contracts swept;
+  `69bbc02`), `58d607f` (`LinkedWorktreeNote`, now committed), `5e32000` (the contracts swept:
+  Go §2.2, UI §6.5 and §7.7; across the fix branch (`2d6d95b`, `5e32000`),
   `git diff --stat 3303fd6...fix/sandbox-git-ca` shows 55 lines in the Go contract, in §2.2,
   §2.6, §4 and §5.1, and 7 in the UI contract, in §6.5 and §7.7), `73dd041` (`run()` in the
   identity test made hermetic) and `4f6d698` (gofmt).
@@ -237,9 +238,12 @@ The fix is **the base this plan builds on**. Re-read on 2026-09-24 (review I12) 
 Baseline (review I12): `fix/sandbox-git-ca` at `4f6d698`, which phase 3's base already holds
 (`git merge-base --is-ancestor 4f6d698 HEAD` exits 0, since `feat/phase-3-git` forks from
 `f898f5e`). "The fix" also includes phase 2's later sandbox-git rounds, `5a4d0d8` to `10fa5fd`
-on `feat/phase-2-cockpit`, which phase 3's base does **not** hold yet: task 05's preflight greps
-for the line-ending round. If they are not in phase 3's branch when task 04 starts, the
-implementer stops and reports; phase 3 does not re-implement them. Before tasks 04–06 append to a
+on `feat/phase-2-cockpit`, which phase 3's base does **not** hold yet. Tasks 04 and 05 each open
+with the same two greps for the line-ending round (`func sessionEnv(id GitIdentity, eol
+GitLineEndings` and `{"core.eol", eol.EOL}` in `sessions.go`; both 1 at `10fa5fd`, the first 0 at
+`8236ba1`), so the stop fires where it is written (re-review b03 I-4). If they are not in phase
+3's branch when task 04 starts, the implementer stops and reports; phase 3 does not re-implement
+them. Task 04 needs them itself: it edits session create and restart (its mount guard). Before tasks 04–06 append to a
 contract section, each preflight runs `git diff 3303fd6 HEAD -- docs/superpowers/contracts/` and
 reads every hunk in the sections it amends (Go §2, §3.1, §3.2, §5.1; UI §2, §6.5, §7.7), because
 the fix already edited §2.2, §5.1, §6.5 and §7.7. If the fix merges with a different
@@ -396,7 +400,7 @@ named task changes.
 | **Q4** | Rename a product branch that has cockpit worktrees? | **Refused in v1** with the sentence "Remove or land this branch's worktrees first". Renaming a checked-out branch under a running agent is a change nobody asked that agent for | task 11 renames in every clone too |
 | **Q5** | Contract Q6 / risk R6: phase 3 adds push behind a loopback boundary with no authentication | **Accept for now**, as the brief does; the Hub owns control-plane authentication (OD-6). Push only ever uses the signed-in user's own credential, so another local process could push *as the user*, never as anyone else | the Hub's authentication lands before task 12 |
 | **Q6** | Review C1's residual: phase 2's scanner and `project.ExecRunner` run host git in the primary worktree's repository, whose `.git` the sandbox can write on a primary-worktree session. task-02 §HGH hardens `gitx.Exec` only. Are phase 2's read-only commands (`worktree list`, `for-each-ref`, `status`) exposed to `core.fsmonitor`, hooks or filters? | **Phase 2 checks, and adopts §HGH's H1 prefix in `ExecRunner` if they are.** `status` honours `core.fsmonitor`, so that exposure is likely. It is **not verified here**, and phase 2's files are not this plan's to edit. H5's read-only `.git/config` mount covers that one file only: a `.git/commondir` the agent writes moves the config git reads (verified on git 2.53.0.windows.2, task-02 §HGH H5). So phase 2's launcher needs H5's layout pin (`GIT_DIR`, `GIT_COMMON_DIR`) as well as the H1 prefix | phase 3 lifts H1 into `project.ExecRunner` itself (one prefix, both launchers) |
-| **Q7** | task-02 §HGH H5 makes a checkout's `.git/config` read-only inside the sandbox. An agent's `git config`, `git branch --set-upstream-to` and `git remote add` then fail there. So, by the same reasoning and not verified, do an agent's `git branch -m` (it moves `branch.<old>.*`) and husky's `prepare` script, which runs `git config core.hooksPath` when the agent runs `npm install` (task 05's `TestSandboxCannotWriteHooksPath` pins that write failing; so task 03's Create copies a relative `core.hooksPath` and the generated, ignored directory it names at create time, review I11). Accept that? | **Yes.** It is the only rule that closes H3's check-then-call race. The sandbox holds no git credential (A4), so it never needs a remote, and identity arrives through the session environment. The agent's `git commit`, `branch` and `checkout -b` keep working | H5 is dropped, and H3 becomes a best-effort check with a documented race. Filter drivers in a clone are then a residual host-execution risk |
+| **Q7** | task-02 §HGH H5 makes a checkout's `.git/config` read-only inside the sandbox. An agent's `git config`, `git branch --set-upstream-to` and `git remote add` then fail there. So, by the same reasoning and not verified, do an agent's `git branch -m` (it moves `branch.<old>.*`) and husky's `prepare` script, which runs `git config core.hooksPath` when the agent runs `npm install` (task 05's `TestSandboxCannotWriteHooksPath` pins that write failing; so task 03's Create copies a relative `core.hooksPath` and the generated, ignored directory it names at create time, the directory only while no primary-worktree session is live or starting, review I11 and re-review b03 I-2). Accept that? | **Yes.** It is the only rule that closes H3's check-then-call race. The sandbox holds no git credential (A4), so it never needs a remote, and identity arrives through the session environment. The agent's `git commit`, `branch` and `checkout -b` keep working | H5 is dropped, and H3 becomes a best-effort check with a documented race. Filter drivers in a clone are then a residual host-execution risk |
 | **Q8** | task-02 §HGH H1 clears a repository's own credential helper, so a cockpit fetch or push authenticates as the account the machine's helpers (system, then global) answer for that URL, not the one a repo-local `credential.<url>.helper` chooses. On this repository that is the global helper's account, not the repo-local `lcfrai/panaceaapp` one. Accept that? | **Yes.** A repository helper is a program the sandbox may have written, and the machine's config is the only config the agent cannot write. A user who wants the repo-local account moves that key to `--global`; it is URL-scoped, so it still applies to that repository alone | task 12 lets a push run the repository's own helper when no session has ever mounted that repository's `.git`, which needs a per-repository record of mounts |
 | **Q9** | OD-2 says a lane clone's objects are hard-linked. A hard link is one file with two names, so through the bind mount an agent can clear a pack's read-only attribute and rewrite the **project's** pack, which makes OD-2's "blast radius is its own clone" false (review I8; verified on git 2.53.0.windows.2: `clone --local` gives the pack, `.idx`, `.rev` and commit-graph a link count of 2). Copy the objects instead? | **Yes: `clone --no-hardlinks`, built** (task 03 step 4, one function `cloneArgv`). The cost is disk and clone time per lane. Task 01's Step 5 measures both on `~/Projects/Panacea`; **not measured yet**. Recommend keeping the copy unless that clone is too slow on the owner's laptop | task 03 goes back to `clone --local`, and **no check closes the hole**. The files an agent rewrites are the project's from the moment it writes them, so a check at land time leaves the user's repository exposed between lands; and `git fsck --connectivity-only` cannot see the damage at all (git-fsck(1), git 2.53: "Corruption in blob objects will not be detected at all"). The nearest mitigation is a full `git fsck` of the project before each land (task 09), which checks every object's hash and is slow on a large repository. This plan's "does not claim" then says plainly: the user's object files are writable from the sandbox, and no check before a land closes that (plan re-review b02 M-1) |
 
@@ -431,8 +435,11 @@ control-plane/
   internal/api/gitdeps.go           GitDeps (one block per task), reasons, problem helpers   04 onward
   internal/api/gitroutes.go         phase 3's route table (one block per task)               04 onward
   internal/httpx/problem.go         (p2) CodeGitFailed, CodeHostFailed                        04
-  internal/api/sessions.go          (p2, post-fix) sessionEnv gains core.hooksPath;
+  internal/api/sessions.go          (p2, post-fix) create and restart admit through
+                                    MountGuard (re-review b03 I-2)                           04
+                                    sessionEnv gains core.hooksPath;
                                     sessionMounts binds .git/config read-only (§HGH H5)       05
+  internal/api/mounts.go            MountGuard: lane hooks copy vs sandbox start             04
   internal/api/catalog.go           (p2) worktreeJSON.Kind                                   04
   internal/api/routes_audit_test.go (p2) one line per new GET                                08 10 11 15 16 17
   internal/api/{worktrees,convergence,lands,branches,remote,pullrequests,
