@@ -706,6 +706,22 @@ Replace `desktop/src/App.tsx` in full:
 > `startPolling` as its third argument. The loader clears only the error it raised itself. The
 > step-10 table's "Comment out `startPolling(api, useCockpit)`" row therefore targets
 > `startPolling(api, useCockpit, catalogue.retry)`. `desktop/src/App.tsx` is the reference.
+>
+> **Three facts in this block are now reversed or stale, which "App.tsx is the reference" did not
+> say** (added 2026-09-24 by task 24's fix round 1, review M5):
+> - **The in-flight guard.** It was `store.getState().loading[key] === true`. It is now a private
+>   `inFlight` set. No loader reads the store's `loading`, so StrictMode's two loaders cannot act on
+>   each other's flags.
+> - **The loading-flag rationale is reversed.** The comment "Cleared even when stopped…" argued
+>   that a stopped loader must clear its flag. The shipped loader does the opposite: once stopped,
+>   it writes nothing, not even `setLoading(key, false)`. The flag it would clear belongs to the
+>   surviving loader's request, which is still in flight. defects.test.tsx pins this as "writes
+>   nothing once stopped".
+> - **Step 10's "14 passed"** is now 43 for `src/defects.test.tsx`, measured at fix round 1.
+>
+> Fix round 1 also changed the loader. Its `raised` map now holds only lists that are still
+> failing. When the one `lastError` slot is empty and such a list is visible, `sync` puts that
+> list's latest report back (UI contract §4.7).
 
 ```tsx
 // Contract §9 (task 24) and §4.7. This file renders nothing of its own: it mounts

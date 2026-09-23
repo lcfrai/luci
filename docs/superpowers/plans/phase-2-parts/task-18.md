@@ -1104,6 +1104,17 @@ Notes for review. The menu imports no type from `store/types.ts`: `tsconfig.json
 
 The hook reads the store through `getState()` inside the callback rather than subscribing. That is not a micro-optimisation: `selectResolvedDefaults` builds a fresh object on every call, so a subscribing component would re-render on every 2 s poll, and the rail's context menu is mounted whenever the shell is.
 
+> **Amended 2026-09-24 by task 24's fix round 1, a declared departure into this file (UI contract
+> §3.2 `lastError` and §4.7, ruling B; task 24 review I1).** One line of the block below no longer
+> holds. The unconditional `state.setError(null);` after `upsertSession` is now
+> `if (raised !== null && useCockpit.getState().lastError === raised) state.setError(null);`, where
+> `raised` is a module-level `let` holding the report this create path last wrote, which the catch
+> now assigns before it calls `setError(raised)`. A create's success clears the create's own report
+> and nothing else. Before this, it wiped a catalogue list's failure off the footer while that list
+> was still missing from the rail. The read is live (`useCockpit.getState()`), because `state` is the
+> snapshot from before the await. A test-only `__resetCreateSession()` export clears `raised`,
+> mirroring `__resetSessionVerbs`. `desktop/src/hooks/useCreateSession.ts` is the reference.
+
 Create `desktop/src/hooks/useCreateSession.ts`:
 
 ```ts

@@ -653,7 +653,11 @@ export interface DataSlice {
   /** The last API failure, for the one status line in the rail footer. Cleared only by
    *  setError(null) (task 17, decision (a)), which the operation that RAISED it calls when it
    *  next succeeds, and only while this is still its report; another operation's success
-   *  leaves it alone. Amended 2026-09-23 by task 24 (ruling B, §4.7). */
+   *  leaves it alone. The operations are: the poller; each catalogue list; the session verbs,
+   *  which are one operation because they share one reporter; and the create path. While a
+   *  catalogue list the user can see is still failing, the loader also puts that list's report
+   *  back whenever this is null. Amended 2026-09-23 by task 24 (ruling B, §4.7), and
+   *  2026-09-24 by its fix round 1. */
   lastError: { code: string; message: string } | null;
 
   setMachines(machines: Machine[]): void;
@@ -1284,7 +1288,19 @@ has arrived is never fetched again. A good tick is the one proof the control pla
 daemon that is down costs no extra request, and there is still one interval. (B) A good tick
 clears `lastError` **only if the poller raised it** and it is still on screen. It used to clear
 any error, so a catalogue failure was reported and then wiped 2 s later, leaving an empty rail and
-a clean footer. Each operation clears its own report when it next succeeds (§3.2's `lastError`).
+a clean footer. Each operation clears its own report when it next succeeds, and only while that
+report is still on screen. §3.2's `lastError` lists the operations.
+
+**Task 24's fix round 1 (2026-09-24) finished (B).** Two call sites still cleared any report on
+success: the session verbs (task 22's `sessionVerbs.ts`) and the create path (task 18's
+`useCreateSession.ts`). Both now keep the report they last wrote and clear only that. Both are
+declared departures. The verbs' deferred commit and Mark ready now clear their own report too;
+before, neither cleared anything. The loader also **puts a report back**. The footer has one slot,
+so a catalogue failure that the poller's own failure replaced disappeared when the poller
+recovered, even though the list was still missing. Now, whenever the slot is empty and a list the
+user can see is still failing, the loader puts that list's latest report back. A list in a
+collapsed project or branch is not put back. It is not retried while closed, so its report would
+sit on the footer without being refreshed.
 
 The poll must move zero pixels. Three things make that true, and all three are testable:
 `replaceSessions` preserves index position for known ids (§3.2), the server sorts and the client
@@ -2229,7 +2245,7 @@ untouched.
 | **21** | Canvas layout and persisted tiles | The 2400×1600 plane, pointer-driven drag and resize on `transform`, z-order, the 10-tile pin cap, `TilePosition` written through to `prefsSlice` | C `components/develop/CanvasLayout.tsx`; M `components/develop/develop.css`, `components/develop/DevelopLens.tsx`; T `develop/CanvasLayout.test.tsx` | 20 |
 | **22** | Session lifecycle verbs | `SessionMenu` and the rail's context verbs wired to the client: Resume, Fork into…, Restart, Rename…, Kill, Forget, Open a shell here, Copy session id, Mark ready; optimistic mutation with an Undo window, in **two** commit shapes — deferred (Kill, Forget: the request is held for the window and Undo cancels it) and immediate (Rename, Restart: sent at once, snapshot restored on refusal). A deferred verb's ids are held in `lib/pendingSessions` and `replaceSessions` suppresses the poller for them, or the 2 s tick undoes the patch inside the 6 s window | C `components/develop/SessionMenu.tsx`, `components/develop/sessionVerbs.ts`, `lib/pendingSessions.ts`; M `components/menu/ContextMenu.tsx`, `components/menu/menu.css`, `components/rail/*Row.tsx`, `store/slices/dataSlice.ts` *(declared departure — task 17's)*, `api/attachRegistry.ts` *(declared departure — task 19's; the `retryAttach` export of §6.6, which answers the terminal `failed` state)*; T `develop/sessionVerbs.test.ts`, `develop/SessionMenu.test.tsx`, and edits to `menu/ContextMenu.test.tsx` (whose verb-list assertions this task necessarily breaks) and `api/attachRegistry.test.ts` | 20 |
 | **23** | The command palette and the keyboard map | `buildCommands`, `CommandPalette` with stable ranking and id-based selection, `useKeyboardMap` with the full chord table and the two deliberate non-interceptions | C `components/palette/{CommandPalette.tsx,commands.ts,palette.css}`, `hooks/useKeyboardMap.ts`; M `components/AppShell.tsx`; T `palette/CommandPalette.test.tsx`, `palette/commands.test.ts`, `hooks/useKeyboardMap.test.ts` | 20, 22 |
-| **24** | Wire the cockpit to the live control plane, and prove the ten | `App.tsx` rewritten to mount `AppShell` + start the poller + load the catalogue; the defect regression suite as one file; the design-system audit (no literal hex, no `transition: all`, no banned hue) | M `desktop/src/App.tsx`, `desktop/src/main.tsx` (imports `app.css`); D `desktop/src/App.css`; C `desktop/src/defects.test.tsx`, `desktop/src/styles/designsystem.test.ts`; T the two above | 21, 22, 23 |
+| **24** | Wire the cockpit to the live control plane, and prove the ten | `App.tsx` rewritten to mount `AppShell` + start the poller + load the catalogue; the defect regression suite as one file; the design-system audit (no literal hex, no named colour, no `transition: all`, no banned hue, and no transition off shared shape §3B's list in a stylesheet or in any inline style) | M `desktop/src/App.tsx`, `desktop/src/main.tsx` (imports `app.css`), `desktop/src/api/poller.ts` *(declared departure, task 19's file: §4.7's `onGoodTick` and ruling B)*, and, in fix round 1, `desktop/src/hooks/useCreateSession.ts` *(declared departure, task 18's file)* and `desktop/src/components/develop/sessionVerbs.ts` *(declared departure, task 22's file)*, both for §3.2's own-report rule; D `desktop/src/App.css`; C `desktop/src/defects.test.tsx`, `desktop/src/styles/designsystem.test.ts`; T the two above, which also pin `poller.ts`'s departure, plus fix round 1's edits to `develop/sessionVerbs.test.ts` and `topbar/NewSessionButton.test.tsx` | 21, 22, 23 |
 
 Every task runs `npm test` from `desktop/` and `npm run typecheck`, and every task's commit step
 ends with:
