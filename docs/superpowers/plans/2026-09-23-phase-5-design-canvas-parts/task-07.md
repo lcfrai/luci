@@ -1,0 +1,357 @@
+# Task 07 — The dialect: HTML and inline CSS into nodes
+
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 05 · **Hours:** 3
+
+## Why
+
+This is the first of the three lines that keep script out of the canvas (architecture rule 2), and
+the reason agents can write the language they know (spec §2.2, §3.3, §7.3). `write_html` (task 16)
+and paste (task 29) both come through here. Two properties matter more than any list:
+
+1. **A write never fails silently.** Every dropped element, attribute, property and value is
+   reported with a sentence the agent can act on (spec §7.3), and a write where nothing valid
+   survives is `rejected-html`, not an empty success.
+2. **The output is our model, never an HTML string.** The sanitiser does not clean HTML and pass it
+   on; it walks the parse tree and builds `doc.Node`s from allowlisted kinds. Nothing it does not
+   understand can reach a renderer.
+
+`golang.org/x/net/html` parses (BSD-3-Clause, spec L1; the version already in the module cache, G1).
+The inline-CSS tokenizer is ours (G1: `tdewolff/parse` would need a download).
+
+## Files
+
+- `canvas/dialect/parse.go`, `css.go`, `allowlist.go`, `svg.go`, `report.go`, `checker.go`,
+  `gen.go` (`//go:generate`), `allowlist.json` (generated, committed) — new
+- `canvas/dialect/*_test.go`, `testdata/*.html` — new
+- `canvas/go.mod` — `require golang.org/x/net v0.26.0`; `canvas/go.sum`
+
+## Contracts
+
+```go
+// canvas/dialect/parse.go
+package dialect
+
+const MaxHTMLBytes = 64 << 10 // spec §8.4
+
+// AssetSink stores decoded image bytes and returns their record. The
+// authority passes one backed by the store (task 10).
+type AssetSink func(mediaType string, data []byte) (doc.Asset, error)
+
+type Input struct {
+	HTML   string
+	NewID  func(prefix string) string          // doc.NewID in production
+	Tokens map[string]doc.Token                // for unknown-token warnings
+	Assets AssetSink                           // nil: every data: image is dropped
+	Clone  func(nodeID string) ([]doc.Node, bool) // the subtree for <x-clone ref>, pre-order
+	HasAsset func(ref string) bool             // an asset: ref must already exist
+}
+
+type Output struct {
+	Roots  []string   // ids of the top-level nodes, in document order
+	Nodes  []doc.Node // every node, pre-order. Roots have ParentID "" and Order ""; the caller places them
+	Report Report
+}
+
+var ErrTooLarge = errors.New("dialect: html over 64 KiB")
+
+// Parse never returns an HTML string. An Output with no Roots and a
+// non-empty Report is the caller's rejected-html (spec §8.4).
+func Parse(in Input) (Output, error)
+```
+
+```go
+// canvas/dialect/report.go
+
+type DropKind string
+
+const (
+	DropElement   DropKind = "element"          // a whole element and its subtree
+	DropUnwrapped DropKind = "unwrapped"        // an unknown element removed, its children kept
+	DropAttribute DropKind = "attribute"
+	DropProperty  DropKind = "property"         // a CSS property not in the dialect
+	DropValue     DropKind = "value"            // a property allowed, this value not
+	DropImportant DropKind = "important"        // !important stripped, the declaration kept
+	DropFlattened DropKind = "flattened-inline" // inline formatting inside text flattened (plan P5-E)
+	DropRetagged  DropKind = "retagged"         // e.g. a <p> holding block elements became a <div> frame
+	DropWrapped   DropKind = "wrapped-text"     // loose text beside elements wrapped in a <span> text node
+	DropURL       DropKind = "url"              // a url() or src that is not an asset: or data: image
+	WarnToken     DropKind = "unknown-token"    // var(--x) with no token x (a warning, the value is kept)
+)
+
+type Drop struct {
+	Kind   DropKind `json:"kind"`
+	What   string   `json:"what"`   // "script", "onclick", "margin", "url(https://…)" — at most 120 bytes
+	Where  string   `json:"where"`  // a path from the fragment root, e.g. "div[2] > p[1]"
+	Reason string   `json:"reason"` // one sentence, e.g. "margin is not in the dialect: use padding on the parent and gap"
+}
+
+type Report struct {
+	Dropped  []Drop `json:"dropped"`  // [] not null
+	Warnings []Drop `json:"warnings"` // [] not null
+}
+```
+
+### Elements
+
+| HTML | Becomes |
+|---|---|
+| `div section header footer nav main aside article ul ol li button a label` with element children | a **frame** with that tag |
+| the same with only text (and inline formatting) | a **text** node with that tag (`li`, `button`, `a`, `label`) or, for the frame-only tags, a frame containing one `span` text node (report `wrapped-text`) |
+| `p span h1–h6 small strong em b i code blockquote figcaption` with text | a **text** node with that tag |
+| the same holding block elements | a **frame** `div` (report `retagged`) |
+| `b strong i em span small code a br` **inside** a text node | flattened into the text; `br` is `"\n"` (report `flattened-inline` once per node, plan P5-E) |
+| `img` | an **image**: `src` is an existing `asset:sha256-…` (`HasAsset`), or a `data:image/png|jpeg|webp|svg+xml;base64,…` decoded through `Assets` (the bytes' magic must match the type; SVG bytes are sanitised by `svg.go` first). Any other `src` drops the element (`url`: *"remote images are not loaded: call upload_asset and use its ref"*) |
+| `svg` | an **svg** node: the subtree through `svg.go`, serialised canonically |
+| `input` | a **frame** tagged `input` (void) with `type`, `placeholder`, `value`, `checked` kept |
+| `x-clone ref="n-…"` | a deep copy of `Clone(ref)`'s subtree with new ids; its `style` is merged over the copy root's styles and its `name` over the root's name. Unknown ref: dropped (`element`) |
+| `html head body` | unwrapped; `head`'s content is dropped |
+| `script style iframe object embed form link meta base template noscript canvas video audio source track math frame frameset portal` | **dropped with the subtree** (`element`) |
+| `table thead tbody tfoot tr td th caption colgroup col` | dropped with the subtree: *"tables are not in the dialect: use flex frames"* |
+| `textarea select option` | dropped with the subtree: *"form controls other than input are not in the dialect"* |
+| any other element | `unwrapped` |
+| comments, doctype, processing instructions | removed, not reported |
+| whitespace-only text between elements | ignored |
+
+### Attributes
+
+Kept: `style` (parsed below), `name` (the layer name), `aria-label`, `alt` (on `img`), and
+`doc.AllowedAttrs["input"]` on `input` with `type` in `doc.AllowedInputTypes`. **Every other
+attribute is dropped and reported**, with these reasons: `class` — *"classes are not in the dialect:
+inline styles only"*; `id` — *"ids are assigned by the canvas"*; any `on*` — *"event handlers never
+run on the canvas"*; `href` — *"links are exported as href=\"#\""*.
+
+### Inline CSS
+
+`css.go` tokenizes one `style` attribute (CSS Syntax Level 3's tokens, restricted: idents, numbers,
+dimensions, percentages, hashes, strings, functions, commas, slashes, whitespace). A declaration is
+**refused whole** (`value`) if its value contains any of: a backslash, `<`, `>`, `{`, `}`, `@`,
+`expression`, `javascript:`, `behavior`, `-moz-binding`, a function not in `Functions`, or a
+`url()` whose target is not an `asset:sha256-…` ref (a `data:image/…` URL is decoded into an asset
+and rewritten to its ref). Property names are lowercased; `!important` is stripped and reported.
+
+```go
+// canvas/dialect/allowlist.go
+
+type Rule string
+
+const (
+	RuleKeyword Rule = "keyword" // Keywords[property] only
+	RuleLength  Rule = "length"  // px % em rem, 0, auto, fit-content, min-content, max-content, calc/min/max/clamp of those, var()
+	RuleColor   Rule = "color"   // hex (3,4,6,8), named, transparent, currentcolor, rgb/rgba/hsl/hsla/hwb/lab/lch/oklab/oklch/color()/color-mix(), var()
+	RuleNumber  Rule = "number"
+	RuleInteger Rule = "integer"
+	RuleAny     Rule = "any"     // any value that passes the global checks above (composite properties)
+)
+
+// Properties is the whole dialect (spec §7.3). A property absent here is
+// dropped with Reasons[property] if present, else "<p> is not in the dialect".
+var Properties = map[string]Rule{
+	// layout — flex, padding, absolute, size
+	"display": RuleKeyword, "flex-direction": RuleKeyword, "flex-wrap": RuleKeyword, "flex-flow": RuleAny,
+	"flex": RuleAny, "flex-grow": RuleNumber, "flex-shrink": RuleNumber, "flex-basis": RuleLength,
+	"gap": RuleAny, "row-gap": RuleLength, "column-gap": RuleLength,
+	"align-items": RuleKeyword, "align-self": RuleKeyword, "align-content": RuleKeyword, "justify-content": RuleKeyword,
+	"box-sizing": RuleKeyword, "position": RuleKeyword,
+	"top": RuleLength, "right": RuleLength, "bottom": RuleLength, "left": RuleLength, "inset": RuleAny, "z-index": RuleInteger,
+	"width": RuleLength, "height": RuleLength, "min-width": RuleLength, "max-width": RuleLength,
+	"min-height": RuleLength, "max-height": RuleLength, "aspect-ratio": RuleAny,
+	"overflow": RuleKeyword, "overflow-x": RuleKeyword, "overflow-y": RuleKeyword,
+	"padding": RuleAny, "padding-top": RuleLength, "padding-right": RuleLength, "padding-bottom": RuleLength,
+	"padding-left": RuleLength, "padding-inline": RuleAny, "padding-block": RuleAny,
+	// fills, borders, effects
+	"background": RuleAny, "background-color": RuleColor, "background-image": RuleAny, "background-size": RuleAny,
+	"background-position": RuleAny, "background-repeat": RuleKeyword, "background-clip": RuleKeyword,
+	"-webkit-background-clip": RuleKeyword, "background-origin": RuleKeyword, "background-blend-mode": RuleKeyword,
+	"opacity": RuleNumber, "mix-blend-mode": RuleKeyword, "isolation": RuleKeyword,
+	"border": RuleAny, "border-width": RuleAny, "border-style": RuleKeyword, "border-color": RuleAny,
+	"border-top": RuleAny, "border-right": RuleAny, "border-bottom": RuleAny, "border-left": RuleAny,
+	"border-top-width": RuleLength, "border-right-width": RuleLength, "border-bottom-width": RuleLength, "border-left-width": RuleLength,
+	"border-top-color": RuleColor, "border-right-color": RuleColor, "border-bottom-color": RuleColor, "border-left-color": RuleColor,
+	"border-top-style": RuleKeyword, "border-right-style": RuleKeyword, "border-bottom-style": RuleKeyword, "border-left-style": RuleKeyword,
+	"border-radius": RuleAny, "border-top-left-radius": RuleAny, "border-top-right-radius": RuleAny,
+	"border-bottom-right-radius": RuleAny, "border-bottom-left-radius": RuleAny,
+	"outline": RuleAny, "outline-width": RuleLength, "outline-style": RuleKeyword, "outline-color": RuleColor, "outline-offset": RuleLength,
+	"box-shadow": RuleAny, "filter": RuleAny, "backdrop-filter": RuleAny,
+	"transform": RuleAny, "transform-origin": RuleAny, "rotate": RuleAny, "scale": RuleAny, "translate": RuleAny,
+	"clip-path": RuleAny, "object-fit": RuleKeyword, "object-position": RuleAny,
+	"list-style": RuleAny, "list-style-type": RuleKeyword, "list-style-position": RuleKeyword,
+	// typography
+	"color": RuleColor, "-webkit-text-fill-color": RuleColor, "font": RuleAny, "font-family": RuleAny, "font-size": RuleLength,
+	"font-weight": RuleAny, "font-style": RuleKeyword, "font-stretch": RuleAny, "font-variation-settings": RuleAny,
+	"font-feature-settings": RuleAny, "font-optical-sizing": RuleKeyword, "font-variant-numeric": RuleAny,
+	"font-variant-caps": RuleKeyword, "line-height": RuleAny, "letter-spacing": RuleLength, "word-spacing": RuleLength,
+	"text-align": RuleKeyword, "text-transform": RuleKeyword, "text-decoration": RuleAny, "text-decoration-line": RuleAny,
+	"text-decoration-color": RuleColor, "text-decoration-style": RuleKeyword, "text-decoration-thickness": RuleLength,
+	"text-underline-offset": RuleLength, "text-overflow": RuleKeyword, "text-shadow": RuleAny, "text-wrap": RuleKeyword,
+	"white-space": RuleKeyword, "word-break": RuleKeyword, "overflow-wrap": RuleKeyword, "hyphens": RuleKeyword,
+}
+
+// Keywords for every RuleKeyword property; "inherit", "initial" and "unset" are
+// accepted for all of them.
+var Keywords = map[string][]string{
+	"display":        {"flex", "inline-flex", "block", "inline-block", "inline", "none"},
+	"position":       {"static", "relative", "absolute"}, // fixed and sticky: Reasons
+	"flex-direction": {"row", "row-reverse", "column", "column-reverse"},
+	"flex-wrap":      {"nowrap", "wrap", "wrap-reverse"},
+	"align-items":    {"stretch", "flex-start", "flex-end", "start", "end", "center", "baseline", "normal"},
+	"align-self":     {"auto", "stretch", "flex-start", "flex-end", "start", "end", "center", "baseline", "normal"},
+	"align-content":  {"stretch", "flex-start", "flex-end", "start", "end", "center", "space-between", "space-around", "space-evenly", "normal"},
+	"justify-content": {"flex-start", "flex-end", "start", "end", "center", "space-between", "space-around", "space-evenly", "normal", "left", "right"},
+	"box-sizing":     {"border-box", "content-box"},
+	"overflow":       {"visible", "hidden", "clip", "auto", "scroll"},
+	"overflow-x":     {"visible", "hidden", "clip", "auto", "scroll"},
+	"overflow-y":     {"visible", "hidden", "clip", "auto", "scroll"},
+	"background-repeat": {"repeat", "no-repeat", "repeat-x", "repeat-y", "space", "round"},
+	"background-clip":   {"border-box", "padding-box", "content-box", "text"},
+	"-webkit-background-clip": {"border-box", "padding-box", "content-box", "text"},
+	"background-origin": {"border-box", "padding-box", "content-box"},
+	"background-blend-mode": blendModes, "mix-blend-mode": blendModes,
+	"isolation":      {"auto", "isolate"},
+	"border-style":   borderStyles, "border-top-style": borderStyles, "border-right-style": borderStyles,
+	"border-bottom-style": borderStyles, "border-left-style": borderStyles, "outline-style": borderStyles,
+	"object-fit":     {"fill", "contain", "cover", "none", "scale-down"},
+	"list-style-type": {"none", "disc", "circle", "square", "decimal", "lower-alpha", "upper-alpha", "lower-roman", "upper-roman"},
+	"list-style-position": {"inside", "outside"},
+	"font-style":     {"normal", "italic", "oblique"},
+	"font-optical-sizing": {"auto", "none"},
+	"font-variant-caps": {"normal", "small-caps", "all-small-caps", "petite-caps", "all-petite-caps", "unicase", "titling-caps"},
+	"text-align":     {"left", "right", "center", "justify", "start", "end"},
+	"text-transform": {"none", "uppercase", "lowercase", "capitalize"},
+	"text-decoration-style": {"solid", "double", "dotted", "dashed", "wavy"},
+	"text-overflow":  {"clip", "ellipsis"},
+	"text-wrap":      {"wrap", "nowrap", "balance", "pretty", "stable"},
+	"white-space":    {"normal", "nowrap", "pre", "pre-wrap", "pre-line", "break-spaces"},
+	"word-break":     {"normal", "break-all", "keep-all", "break-word"},
+	"overflow-wrap":  {"normal", "break-word", "anywhere"},
+	"hyphens":        {"none", "manual", "auto"},
+}
+
+var blendModes = []string{"normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn",
+	"hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"}
+var borderStyles = []string{"none", "hidden", "solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset"}
+
+// Functions is every CSS function a value may call.
+var Functions = []string{
+	"rgb", "rgba", "hsl", "hsla", "hwb", "lab", "lch", "oklab", "oklch", "color", "color-mix",
+	"calc", "min", "max", "clamp", "var", "url",
+	"linear-gradient", "radial-gradient", "conic-gradient",
+	"repeating-linear-gradient", "repeating-radial-gradient", "repeating-conic-gradient",
+	"blur", "brightness", "contrast", "drop-shadow", "grayscale", "hue-rotate", "invert", "opacity", "saturate", "sepia",
+	"rotate", "rotatez", "scale", "scalex", "scaley", "translate", "translatex", "translatey",
+	"skew", "skewx", "skewy", "matrix", "inset", "circle", "ellipse", "polygon",
+}
+
+// Reasons is the sentence for each deliberately excluded property, keyed by
+// name or by prefix ending in "*".
+var Reasons = map[string]string{
+	"margin*":     "margin is not in the dialect: use padding on the parent and gap",
+	"grid*":       "CSS Grid arrives in v2: use flex frames",
+	"float":       "float is not in the dialect: use flex",
+	"clear":       "clear is not in the dialect: use flex",
+	"content":     "generated content is not in the dialect",
+	"animation*":  "motion is not part of a design frame",
+	"transition*": "motion is not part of a design frame",
+	"visibility":  "use the layer's hidden flag",
+	"order":       "layer order is the layer tree's: use move_nodes",
+	"cursor":      "the canvas is inert: cursors are not drawn",
+	"pointer-events": "the canvas is inert",
+	"user-select": "the canvas is inert",
+	"position:fixed":  "fixed positioning is not in the dialect: use absolute inside the artboard",
+	"position:sticky": "sticky positioning is not in the dialect: use absolute inside the artboard",
+}
+```
+
+```go
+// canvas/dialect/svg.go
+
+// SVGElements and SVGAttrs are the SVG subset. href and xlink:href are never
+// kept (no <use>, no <image>); a url() attribute value may only be url(#id).
+var SVGElements = []string{"svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
+	"text", "tspan", "defs", "linearGradient", "radialGradient", "stop", "clipPath", "mask", "title", "desc"}
+var SVGAttrs = []string{"xmlns", "viewBox", "width", "height", "preserveAspectRatio", "id", "d", "x", "y",
+	"x1", "y1", "x2", "y2", "cx", "cy", "r", "rx", "ry", "points", "transform", "fill", "fill-opacity",
+	"fill-rule", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "stroke-dasharray",
+	"stroke-opacity", "clip-rule", "clip-path", "mask", "opacity", "offset", "stop-color", "stop-opacity",
+	"gradientUnits", "gradientTransform", "font-size", "font-family", "font-weight", "text-anchor"}
+
+// SanitiseSVG returns canonical markup: allowlisted elements and attributes
+// only, attributes sorted by name, no comments, no whitespace between tags.
+func SanitiseSVG(markup string) (canonical string, report Report, err error)
+```
+
+```go
+// canvas/dialect/checker.go
+
+// Checker implements doc.Checker with this allowlist.
+type Checker struct{ Tokens map[string]doc.Token } // Tokens only for warnings
+
+func (Checker) Style(property, value string) error
+func (Checker) TokenValue(t doc.TokenType, value string) error
+func (Checker) SVG(markup string) error // markup must equal SanitiseSVG(markup)'s canonical output
+
+// CheckDeclaration is Style with the report entry the caller surfaces.
+func CheckDeclaration(property, value string) (kept bool, drop *Drop)
+```
+
+```jsonc
+// canvas/dialect/allowlist.json — generated by `go generate ./canvas/dialect`, committed. Task 23
+// copies it into the editor package, and a test on each side fails if the copies differ.
+{ "v": 1,
+  "properties": { "display": "keyword", "…": "…" },
+  "keywords": { "display": ["flex", "…"] },
+  "functions": ["rgb", "…"],
+  "tags": { "artboard": ["div"], "frame": ["div", "…"], "text": ["p", "…"], "image": ["img"], "svg": ["svg"] },
+  "attrs": { "*": ["aria-label"], "input": ["type", "placeholder", "value", "checked"] } }
+```
+
+## Tests first
+
+| Test | Asserts | Kills the mutant |
+|---|---|---|
+| `TestParse_scriptVectors` (`testdata/xss.html`: `<script>`, `<img src=x onerror>`, `<a href="javascript:">`, `<svg><script>`, `<svg onload>`, `<style>@import</style>`, `<iframe srcdoc>`, `<meta http-equiv=refresh>`, `<object>`, `<base href>`, `style="background:url(javascript:…)"`, `style="width:expression(…)"`, `style="background:url(https://x)"`, CSS escapes `\75rl(`) | no node carries any of them; every one appears in `Report.Dropped` | any single vector reaching a node |
+| `TestParse_flexCard` (`testdata/card.html`, a settings card an agent would write) | the exact node list: kinds, tags, names, styles, text, pre-order | a mapping-table row implemented wrong |
+| `TestParse_margin` | `margin: 8px` dropped with the margin reason; `padding: 8px` kept | the headline dialect rule |
+| `TestParse_grid` | `display: grid` → `value` drop; `grid-template-columns` → `property` drop with the grid reason | grid leaking into v1 |
+| `TestParse_positionFixed` | dropped with its reason; `absolute` kept | fixed allowed |
+| `TestParse_important` | `color: red !important` keeps `color: red` and reports `important` | `!important` stored |
+| `TestParse_inlineFlattened` | `<p>By continuing you agree to the <a>Terms</a></p>` → one text node `"By continuing you agree to the Terms"`, one `flattened-inline` | inline formatting building nested text nodes |
+| `TestParse_br` | `<p>a<br>b</p>` → text `"a\nb"` | `<br>` dropped silently |
+| `TestParse_dataImage` | a 1×1 PNG `data:` URL becomes an asset ref through `Assets`; a `data:image/png` whose bytes are JPEG is dropped | a sink called with unsniffed bytes |
+| `TestParse_remoteImage` | `src="https://…"` drops the element with the `url` reason | a remote fetch (there is no fetcher; the test asserts the drop) |
+| `TestParse_clone` | `<x-clone ref="n-…" style="background:red" name="Card 2">` copies a 5-node subtree with new ids, the root's background replaced and name set | clone sharing ids with its source |
+| `TestParse_tooLarge` | 64 KiB + 1 → `ErrTooLarge` | a missing cap |
+| `TestParse_nothingSurvives` | `<script>x</script>` → no roots, one drop (the caller's `rejected-html`) | an empty success |
+| `TestParse_tokens` | `color: var(--brand)` with no `brand` token is kept with a `unknown-token` warning | unknown tokens refused (agents create tokens after using them) |
+| `TestCSS_tokenizer` (table) | strings with `;` inside, nested functions, `url( "asset:sha256-…" )` with spaces and quotes, comments inside values | a naive `strings.Split(";")` |
+| `TestSVG_sanitise` | `<svg onload><use href="#x"/><path d="M0 0" fill="url(#g)" /></svg>` keeps the path and the fragment url, drops `onload` and `use`; attributes sorted | `href` kept |
+| `TestChecker_implementsDoc` | `var _ doc.Checker = dialect.Checker{}`; `Style("margin","0")` errs | the authority checking with a different list than the parser |
+| `TestTokenValue` (table, one row per token type) | `color: #2fb3bd` ✓, `color: 12px` ✗, `font-weight: 650` ✓, `radius: 8px` ✓, `line-height: 1.4` ✓ | a type check that accepts anything |
+| `TestAllowlistJSON_upToDate` | regenerating in memory equals the committed `allowlist.json` byte for byte | the TS renderer's copy drifting from Go (task 23 checks the other side) |
+
+## Steps
+
+1. Add `golang.org/x/net v0.26.0` to `canvas/go.mod`; run `go mod tidy` inside `canvas/` with
+   `GOFLAGS=-mod=mod GOPROXY=off` so it resolves from the module cache (G1). If it fails, stop and
+   report: the version pin is the plan's assumption.
+2. Write the tests and fixtures. 3. Implement `css.go`, `allowlist.go`, `svg.go`, `parse.go`,
+   `checker.go`, `gen.go`; run `go generate ./canvas/dialect`.
+4. Run the licence gate (task 04): `x/net` must pass. Acceptance; commit by pathspec.
+
+## Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5 && go test ./canvas/dialect/... -race -count=1 && go run ./tools/licencegate -root . >/dev/null; echo "gate $?"
+```
+Expected: `ok  	…/canvas/dialect`, then `gate 0` (or the first-run report's known violations only).
+
+```bash
+grep -c '"margin' canvas/dialect/allowlist.json
+```
+Expected: `0`.
+
+## Not claimed
+
+- This is the first line, not the only one. The renderer re-checks (task 24) and the iframe
+  sandbox and CSP are the third (task 01's S2, S6).
+- Media queries, pseudo-classes and `<style>` blocks do not exist in the dialect.
+- Visual fidelity of what survives is the renderer's question, not this task's.
