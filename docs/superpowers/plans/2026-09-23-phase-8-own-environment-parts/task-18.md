@@ -153,7 +153,7 @@ will ever use the pod.
     201 it lost carries the same token, and that pod is the session it asked for.
   - The token is compared, never logged (`TestTheAttachTokenIsNeverLogged` covers the new path).
 - **Which answer, in this order:** `stop()` reported `fired` → `409 machine_full` (only when the
-  watcher was armed, below). Else the request context's `Err()` is set → the caller is gone, and
+  watcher was armed, above). Else the request context's `Err()` is set → the caller is gone, and
   the broker logs `create abandoned` and writes nothing. Else map by `errors.Is`. katabe's own
   behaviour is unchanged.
 - The prediction the review asked for survives as a **number, not a gate**: P8-D6 states the

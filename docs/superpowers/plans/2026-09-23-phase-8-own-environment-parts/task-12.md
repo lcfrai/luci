@@ -60,6 +60,11 @@ The schema requires both images to match `^[a-z0-9.\-]+(:[0-9]+)?/[a-z0-9._/\-]+
   (a balloon occupies a Kata slot the way a session does, overhead included),
   `nodeSelector: {panacea-app/role: sandbox}`, the `panacea-app/sandbox=true:NoSchedule` toleration;
 - `automountServiceAccountToken: false`, `enableServiceLinks: false`;
+- **`terminationGracePeriodSeconds: 0`** (b05 re-review, outside its count). `sleep` as PID 1 has
+  no SIGTERM handler, and the kernel ignores a signal PID 1 does not handle (training knowledge,
+  **UNVERIFIED** inside a Kata guest), so a preempted balloon would hold its slot for the default
+  30 s. The session waiting on that preemption (task 18's nominated-node path) would wait too.
+  A balloon holds nothing worth a graceful stop;
 - one container `balloon`, **image `warm.images.sandbox`**, `command: ["/bin/sleep", "infinity"]` —
   the real sandbox image, so a balloon also proves the image boots under Kata;
 - `resources.requests == resources.limits == {cpu, memory}` from values (Kata sizes the guest VM
@@ -100,7 +105,7 @@ this sentence says why.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `balloon_is_lowest_priority_and_evictable` | `priorityClassName: panacea-balloon`; the safe-to-evict annotation is `"true"` | a balloon at session priority, which the next session cannot displace |
+| `balloon_is_lowest_priority_and_evictable` | `priorityClassName: panacea-balloon`; the safe-to-evict annotation is `"true"`; `terminationGracePeriodSeconds` is `0` | a balloon at session priority, which the next session cannot displace; a preempted balloon holding its slot for 30 s while the session that preempted it waits |
 | `balloon_runs_under_kata` | `runtimeClassName` equals `sandboxes.runtimeClass` | a runc balloon that holds CPU but not a Kata slot's overhead, under-sizing headroom |
 | `balloon_is_exactly_one_session` | requests == limits == `2000m` / `4096Mi` with default values | requests ≠ limits (Kata sizes the guest from them) |
 | `balloon_lands_only_on_sandbox_nodes` | the sandbox nodeSelector and toleration are present | balloons spilling onto the apps pool |
