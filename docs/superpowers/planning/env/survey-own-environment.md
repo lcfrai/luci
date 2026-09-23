@@ -16,6 +16,22 @@ Terraform is **written and planned, never applied**, until the owner provides th
 worktree. Every `file:line` below was opened in this session unless the line says **UNVERIFIED**.
 The last section lists what was not opened.
 
+## The answer, in six lines
+
+1. **Panacea's estate** is one AKS cluster with five tainted pools, Traefik, cert-manager, Vault,
+   Keycloak and Argo CD from Terraform, and a 6,400-line script for everything else (§1).
+2. **Most of the hardening Panacea wants is already written behind default-false flags**, because
+   its cluster predates it. We have no cluster, so we take all of it at create time (§2).
+3. **This repo has one Kata node pool pointed at Panacea's dev cluster**, a dormant but tested Kata
+   backend, an unpublished sandbox image, and Go-only CI (§3).
+4. **Five gaps block the build**: no environment in code; the laptop cannot reach a Kata pod (G-2,
+   an in-cluster broker is recommended); an unverified RuntimeClass name; no network isolation for
+   sandbox pods; no storage for clones (§4.1).
+5. **Kata nodes are the cost**: requests equal limits, so about 3 default sessions per D8s_v5,
+   roughly AUD 120–200 per always-on slot a month on Panacea's own estimate (§6).
+6. **The owner provides** a subscription, Kata vCPU quota, a deploy identity that can assign roles,
+   an OIDC service connection, and Entra app-registration rights or pre-made registrations (§7).
+
 ---
 
 ## 1. What Panacea's live estate is made of
@@ -539,5 +555,46 @@ own in-code estimates, marked with their file. Treat everything else as order of
 - The Azure Policy assignments on the subscription, and exemptions if they block Kata SKUs,
   public IPs or the chosen CNI.
 - Who is on call, and the log-retention period ISM requires.
+
+---
+
+## 8. Open questions, each with the recommendation the plan proceeds on
+
+Rule 7 of this task: a genuine owner decision is recorded with a recommendation, and planning goes
+ahead on the recommendation. **Owner** marks the ones only the owner can make; the rest are the
+orchestrator's to rule.
+
+| Id | Question | Recommendation | Who | Why |
+|---|---|---|---|---|
+| **OQ-1** | How does the desktop reach a Kata sandbox (G-2)? | An **in-cluster sandbox broker** running `katabe`, exposed through the ingress, authenticating the user's Entra token; the local control plane gains a `remote` backend that calls it. The broker **scopes every Get/List to the caller** — today `Manager.List` returns every sandbox in the namespace (`manager.go:240-246`) | Orchestrator, with the Hub ADR | The alternative — each user holds a kubeconfig and port-forwards — hands every user the cluster API. The broker keeps the control plane loopback-only (rule 6) |
+| **OQ-2** | Where does the Hub run: AKS or Azure Container Apps? | **The same AKS**, on an `apps` pool | Orchestrator | The broker must be in-cluster anyway (OQ-1); one platform to run and secure |
+| **OQ-3** | Sandbox egress: open, NAT with network policy, or an FQDN-allowlist firewall? | **Dev:** NAT gateway; sandboxes may reach the internet but not IMDS, the cluster or each other (G-4). **Prod:** Azure Firewall with a maintained agent allowlist (package registries, git hosts, model providers), if the classification requires it | **Owner** (classification, §7.2 item 5) | An allowlist that misses one registry breaks agents silently; an open egress may fail a PROTECTED assessment. Cost gap ~A$1.5–2k/month (`P:deploy/firewall.tf:35-37`) |
+| **OQ-4** | A server-side identity broker (Keycloak) in front of Entra? | **None in v1**; the Hub validates Entra tokens | Hub ADR (owner decisions `:117-119`) | Removes Panacea's SSO outage class (`P:deploy/main.tf:930-1018`); customer BYO-IdP can add a broker later |
+| **OQ-5** | Private cluster from day one? | **Prod: yes**, with the in-VNet pool. **Dev: public API with authorised IP ranges + Entra RBAC**, so the first environment is reachable while the pool is proven | Orchestrator | Private is create-time immutable (`P:deploy/main.tf:247-251`); dev can be rebuilt, prod cannot |
+| **OQ-6** | How many environments at first? | **One (`dev`)**, with every stack parameterised by environment so `prod` is a second tfvars, never a copy | Orchestrator | Panacea's dev/prod confusion came from a shared RG name and an auto-loaded prod tfvars (`P:deploy/terraform.tfvars:1-12`). Rule: **no `terraform.tfvars` in any stack**, only named `<env>.tfvars` |
+
+---
+
+## 9. What this survey did not verify
+
+- **Nothing was run against Azure.** No `terraform init`, `plan`, `validate` or `apply`, no `az`,
+  no `kubectl`. Every statement about Panacea's *running* estate is what its code and comments say.
+- **The AKS Pod Sandboxing facts** — the RuntimeClass name (G-3), CSI volume support (G-5), per-pod
+  Kata overhead and allocatable CPU (§6.1), feature-registration needs — are from the repo's own
+  unverified notes or training knowledge. The phase 8 plan's first cluster task must prove them.
+- **Prices** (§6) were not fetched; only Panacea's in-code estimates are quoted.
+- **Managed DevOps Pools** availability in KPMG's ADO organisation (§5).
+- **Files listed but not opened:** `P:deploy/acr-cmk.tf` past its index lines, `P:deploy/outputs.tf`,
+  `P:deploy/variables.tf`, `P:deploy/v2-hardening-vars.tf`, `P:deploy/pipelines/*.yaml`, the other
+  four `P:azure-pipelines-*.yml`, and all but the phase headers of `P:deploy/cloud-shell-deploy.sh`
+  and `P:deploy/panacea-deploy.sh`. How oauth2-proxy, CNPG, MinIO and Tekton are deployed was not
+  read (§1.7, §1.9, §1.10).
+- **`P:terraform/`** (the aspirational tree) was deliberately not read; `CLAUDE.md` warns it
+  disagrees with the live tree.
+- **Sibling worktrees** under `.claude/worktrees/` were not read. The Hub planner's ADR may decide
+  OQ-1, OQ-2 and OQ-4 differently; where it does, it wins on the Hub's shape and this survey's
+  infrastructure follows.
+- **Secrets:** estate files were read for variable **names** and non-secret booleans only; no value
+  that could be a credential was printed.
 
 
