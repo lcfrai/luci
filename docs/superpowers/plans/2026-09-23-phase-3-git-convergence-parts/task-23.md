@@ -24,10 +24,22 @@ It builds `cmd/api` into a temp directory, sets `PANACEA_APP_STATE_DIR`, `PANACE
 and `PANACEA_APP_WORKTREES_DIR` to temp directories (the worktrees one **outside** the projects
 one), a fixed `PANACEA_APP_GIT_NAME`/`EMAIL`, `PANACEA_APP_LANE_SYNC_INTERVAL=1s`,
 `PANACEA_APP_FETCH_INTERVAL=0`, starts it on a free loopback port, and waits for `/v1/healthz`.
-It creates a project repository with a bare repository as its `origin`, laid out as husky's
-install step leaves one (review I11): the project's **local** config has `core.hooksPath=.husky/_`,
-and its working tree has an ignored `.husky/_/` holding `.gitignore` (`*`) and an executable
-`commit-msg` that appends `X-Husky: ran`. The run never writes a clone's config or hooks.
+It creates a project repository with a bare repository as its `origin`, in husky 9's shape
+(review I11; re-review b03 Minor 2): the project's **local** config has `core.hooksPath=.husky/_`;
+the branch tracks `.husky/commit-msg` (appends `X-Husky: ran`) and `.husky/reference-transaction`;
+and the working tree has an ignored `.husky/_/` holding `.gitignore` (`*`), a stub per name
+(`commit-msg`, `reference-transaction`: the one line `. "${0%/*}/h"`) and task 05's stand-in `h`.
+The fixture adds the `reference-transaction` stub itself; whether husky 9 generates that name was
+not checked. The tracked `.husky/reference-transaction` is
+`d=<marker dir>; [ -d "$d" ] && echo ran >> "$d/host-hook-ran"; exit 0`, with `<marker dir>` an
+absolute host temp directory outside the projects and worktrees directories, written into the
+script when the fixture is made. In a Linux sandbox that path names no directory, so the agent's
+commits skip it; only a **host** git that runs the project's hooks writes the marker
+(re-review b03 Minor 1). Control, before step 1: the test runs its own plain
+`git update-ref refs/e2e/probe HEAD` in the project, with no §HGH prefix, and asserts the marker
+now exists (the hook fires on this host, so step 6's absence means something); it then deletes
+the ref and, after that (the delete fires the hook too), the marker. The control is the
+test's last git call in the project; from then on only the control plane runs git there. The run never writes a clone's config or hooks.
 Then, each step asserting the status code and the named facts, and recording both in the
 results document:
 
@@ -38,7 +50,7 @@ results document:
 | 3 | commit in A (`upload-ui`) and a conflicting commit in B (`upload-api`) | each commit's `Panacea-Session` equals its session's id, and each carries `X-Husky: ran`: the project's hook ran in a clone the route made (task 03 step 6, task 05) |
 | 4 | mark both ready; `PUT …/queue` [A, B] | 200 |
 | 5 | `GET …/convergence` | A `clean`; B `conflicts`, `conflictsWith:[A]`, the path; both lanes' `commits[].sessions` |
-| 6 | `POST …/lands` A with `expectedTip = tip` | 201; a two-parent merge with `Panacea-Land: <A>` and **no** `X-Husky` line (the host ran no repository hook: task-02 §HGH H1); A's ready flag false; B's clone `origin/evidence-upload` == the merge |
+| 6 | `POST …/lands` A with `expectedTip = tip` | 201; a two-parent merge with `Panacea-Land: <A>`; `<marker dir>/host-hook-ran` does **not** exist, although the land's `update-ref` and every lane fetch-back fire `reference-transaction` in the project (the host ran no repository hook: task-02 §HGH H1; the merge itself is `commit-tree`, which runs no hook either way, so no trailer can show this); A's ready flag false; B's clone `origin/evidence-upload` == the merge |
 | 7 | `POST …/lands` B | 409 `merge_conflict` with the path; the branch tip unchanged |
 | 8 | resolve in B: `git merge origin/evidence-upload`, fix, commit (`docker exec`) | the resolving commit carries B's session |
 | 9 | `POST …/lands` B | 201 |
