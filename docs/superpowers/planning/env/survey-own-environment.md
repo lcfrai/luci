@@ -305,3 +305,76 @@ OD-13 forbids copying. Everything in the left column is re-written from scratch 
 | A 6,406-line deploy script, 20 subcommands | Terraform + a thin pipeline + one `smoke` script per stack | A deploy is reviewable in a diff |
 | Many pools on one `/23` workload subnet, `max_pods = 30` (`P:deploy/ci-pool.tf:25-31`) | Overlay pod CIDR; subnets sized for nodes only | The IP ceiling was Panacea's scheduling limiter |
 
+---
+
+## 3. What this repo already has
+
+### 3.1 Terraform — one node pool, attached to someone else's cluster
+
+`infra/terraform/` is four files and a lock file (`ls -a`; no `.terraform/`, no state). It was
+committed in `21c174e` on 2026-09-17 and last touched in `e475d6a`.
+
+- `kata.tf:4-42` — one `azurerm_kubernetes_cluster_node_pool` named `katapool`: `AzureLinux`
+  (`:8`), `workload_runtime = "KataVmIsolation"` (`:16`), autoscaling `node_count`…`max_count`
+  (`:18-21`), label `panacea-app/role=sandbox` (`:23-25`), taint
+  `panacea-app/sandbox=true:NoSchedule` (`:27-29`), `ignore_changes = [node_count]` (`:36-41`).
+  The comment at `:10-15` records that the brief's `KataMshvVmIsolation` was rejected by provider
+  v4.81.0.
+- `providers.tf:1-13` — `azurerm ~> 4.0`, Terraform `>= 1.9.0`, **no backend block** (local state).
+- `variables.tf:1-21` — `aks_cluster_id` (no default), `node_count = 1`, `max_count = 4`,
+  `vm_size = "Standard_D8s_v5"`.
+- `dev.tfvars:1-7` — the cluster id is supplied from
+  `az aks show -g rg-aks-panacea-dev -n aks-panacea-dev` (`:4`), i.e. **Panacea's dev cluster**.
+  OD-5 makes that target obsolete: the pool now belongs in our own cluster.
+- `.gitignore:7-9` ignores `.terraform/`, `*.tfstate`, `*.tfstate.backup`.
+
+### 3.2 The Kata backend — complete for one pod, dormant
+
+- `control-plane/internal/backend/katabe/kata.go:1-4` — "DORMANT … turning it on in Phase 8 is a
+  configuration change and not a rewrite". It satisfies `backend.Backend` (`:25`); `Create` refuses
+  `Mounts` and `WorkDir` rather than dropping them (`:75-89`), waits for scheduling and then
+  `/healthz` (`:108-119`, `:128-149`); the endpoint is **the pod IP** on port 8080 (`:185-188`);
+  `Attach` dials it with the bearer token (`:232-241`); `Destroy` is idempotent (`:245-257`).
+- `control-plane/internal/sandbox/manager.go:139-210` — the pod: `runtimeClassName`
+  `kata-mshv-vm-isolation` (`:20`, `:160`), no host network (`:161-162`), `RestartPolicy: Never`
+  (`:163`), the sandbox toleration and nodeSelector (`:164-170`), `emptyDir` for `/home/dev` and
+  `/tmp` under a read-only root (`:171-187`), requests = limits (`:188-193`), non-root uid 1001,
+  no privilege escalation, all capabilities dropped (`:194-200`). One namespace per manager
+  (`:55-64`), default `panacea-app` (`control-plane/cmd/api/config.go:57`).
+- Tests: 20 in `katabe/kata_test.go` (`:154`–`:606`) and 14 in `sandbox/*_test.go`, all against a
+  fake clientset. **None has ever run against a cluster.**
+- Selection: `PANACEA_APP_BACKEND=kata` (`control-plane/cmd/api/config.go:25`, `:164-165`); main
+  builds the client from **the in-cluster service account only** and refuses
+  `PANACEA_APP_KUBECONFIG` (`control-plane/cmd/api/main.go:225-233`, `:241-271`), on the stated
+  assumption that "the real Kata deployment runs inside the cluster" (`:248`).
+- Default session size is 2 vCPU / 4 GiB (`control-plane/internal/backend/backend.go:110`).
+
+### 3.3 The sandbox image
+
+`images/sandbox/Dockerfile:1-34`: sandboxd built from the vendored tree because the corporate proxy
+breaks `go mod download` (`:3-8`); `node:20-bookworm-slim` with git, ripgrep, curl (`:10-13`);
+Claude Code pinned to `2.1.274` (`:15-17`, the version OD-8's adapter pins to); user `dev` uid 1001
+(`:19`); `~/.claude/projects` pre-created for the Docker bind-mount of the conversation store
+(`:26-32`). `entrypoint.sh:1-17` execs sandboxd on `:8080` with the `PANACEA_APP_*` argv contract.
+**The image is not published anywhere**: there is no registry and no image build in CI.
+
+### 3.4 CI
+
+`azure-pipelines.yml:1-17` — triggers on `main` and `dev` only, `ubuntu-latest`, Go 1.23, then
+`go build`, `go test -race -count=1` and `go vet` over `./sandboxd/...` and `./control-plane/...`.
+**Nothing** for `desktop/` (which has `typecheck`, `test` and `build` scripts,
+`desktop/package.json:7-13`), `infra/`, `images/`, licences or secrets. No PR trigger for `feat/*`.
+No `.github/` directory, though OD-7 made `github.com/lcfrai/panaceaapp` the backup remote.
+
+### 3.5 What else the environment must host, from other phases
+
+- **The Hub** (Phase H): identity, briefs, approvals, ledger, releases, teams, built local-first on
+  Docker Postgres and "hosted in our own environment once phase 8 stands it up"
+  (`docs/PROGRAM.md:94-95`). Its decomposition is its own ADR (owner decisions `:49-50`).
+- **Clones in pods:** phase 3 rules a worktree is a local clone, and "Getting a clone into a Kata pod"
+  is assigned to phase 8 (`docs/superpowers/planning/2026-09-23-phases-4-5-7/scope-and-risk-phase-3-git-convergence.md:30`, `:288`).
+- **Control-plane authentication:** `desktop/src/api/client.ts:6-8` says no `Authorization` header
+  "before Phase 8"; critique-2 records the owner of that boundary as unnamed
+  (`…/completeness-critique-2.md:47`, `:524`). OD-6 plus the Hub answer who; phase 8 must host it.
+
+
