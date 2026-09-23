@@ -340,7 +340,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `internal/mcprelay/` (new) | `frame.go` (the tunnel framing), `tunnel.go` (a `net.Listener` over one channel), `supervisor.go` | 18, 19 |
 | `internal/harness/argv.go`, `harness.go` | `Request.CanvasMCP`, `Descriptor.SupportsMCPConfig`, the two flags | 19 |
 | `internal/api/sessions.go` | set `CanvasMCP` in create and restart | 19 |
-| `internal/api/api.go` | `Deps.Design RouteMounter` (phase 4's interface, task 10 of its plan) | 20 |
+| `internal/api/api.go` | `Deps.CanvasMCP bool` (19); `Deps.Design RouteMounter` (phase 4's interface, task 10 of its plan) (20) | 19, 20 |
 | `internal/events/` (new) | `broker.go`, `sse.go` — the window stream | 20 |
 | `internal/designapi/` (new) | `routes.go`, `canvas.go`, `ops.go`, `assets.go`, `comments.go`, `render.go`, `briefs.go` (adapter to `discoverhub`), `approve.go`, `handoff.go`, `links.go`, `problems.go` | 20–22 |
 | `internal/httpx/problem.go` | the design codes (task 20 lists them) | 20 |
@@ -421,7 +421,7 @@ tasks; each part says what it codes against until that task lands.
 **Parallel lanes for worktree agents.** Lane A (Go core): 05–13. Lane B (MCP): 14–17, after 12 and
 13. Lane C (relay): 18–19. Lane D (editor): 23–26, after 01 and 03. Lane E (control-plane HTTP and
 provenance): 20–22. The desktop lane (27–29) joins D and E. **Two lanes never edit one file**: the
-only shared files are `control-plane/go.mod` (19 only), `internal/api/api.go` (20 only),
+only shared files are `control-plane/go.mod` (19 only), `internal/api/api.go` (19, then 20),
 `internal/api/sessions.go` (19 only), `internal/httpx/problem.go` (20 only) and
 `azure-pipelines.yml` (02, then 03, then 04, in that order).
 
