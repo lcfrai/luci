@@ -647,3 +647,49 @@ rules into the contract.
 Unverified: the pgx `go get` itself was not run, because x/sys v0.32.0 and x/term v0.31.0 are not
 cached. That it rewrites `go.work` is inferred from the probe. So is whether it writes
 `go.work.sum`. Task 06 handles both cases. Nothing was compiled.
+
+## Fix batch b04 — I2, I9 and I10 (2026-09-24)
+
+A refusal for one resource no longer signs the user out of the Hub. The refresh skew follows the
+token's lifetime, and the end-to-end test runs on one clock. The one store holds an Azure DevOps PAT
+from v1. Commits `289bde3` (I10 parts) and `f3d122c` (I2, I9 and the plan). The batch was resumed
+from a previous attempt's uncommitted edits; each one was re-read before it was committed.
+
+| Finding | What changed | Where |
+|---|---|---|
+| **I2** the rule (task 31) | A refusal is read by the scope being redeemed. For `HubScope`, `invalid_grant` or `interaction_required` keeps the contract's sign-out. For any other scope: `consent_required` or 65001 → `ErrScopeNeedsConsent`; `interaction_required`, or 50076/50079 → `ErrScopeNeedsInteraction`. Each wraps a `*ScopeRefusal`. Nothing is deleted, only that scope's cached token is dropped, and `Status` does not change. A plain `invalid_grant` on another scope may be a dead token or a per-resource refusal, so one `HubScope` redemption under the same lock decides. **Beyond the review:** `invalid_scope` on another scope is `ErrScopeNeedsConsent` (task 32 predicts exactly that for Azure DevOps without consent). Any other 4xx on any scope deletes nothing, because only `invalid_grant` and `interaction_required` for the Hub prove the token dead | task-31.md:34-50, :75-109 |
+| **I2** `DevOps` (task 31) | Both refusals are returned as they are and stop the `Chain`. They are never `ErrNoCredential`, so a push never falls through to the machine's helper as someone else. `TestDevOpsCredential` checks that a recording second store is never asked | task-31.md:173-177; the test row |
+| **I2** tests (task 31) | `TestASecondaryScopeRefusalKeepsTheSession` has 4 cases: consent, interaction, devissuer's own body, and `invalid_scope`. `TestAPlainInvalidGrantOnASecondaryScopeAsksTheHub` has 2 cases. New: `TestAnUnlistedRefusalDeletesNothing`. The count is 38 (18 + 20) | task-31.md:207-209, :228 |
+| **I2** optional authorize scopes | **Declined, with the reason recorded.** The client is admin-consented for each resource (contract §6.2 `:404-407`, §6.5), so asking at sign-in adds no consent. One unconsented scope (Azure DevOps while Q5 is open) would fail the whole sign-in, the Hub's included. Task 30's step 8 also sends step 4's scope unchanged | task-31.md:248-253 |
+| **I2** R-8 (task 43) | Calls `Token` for Azure DevOps whether or not IT consented. Records any refusal's `error`, `suberror` and `error_codes`. Checks that `Status` is still `signed_in` and that a Hub call succeeds with no prompt | task-43.md:75 |
+| **I2** contract | New correction **A12**, which task 44a folds into §6.2 *"Failure"* (`hub-contract.md:408-411`). The plan's unverified list names the refusal bodies | plan.md:180, :553-556; task-44a.md:41 |
+| **I9** the skew (task 31) | `refreshSkew(lifetime) = min(5 min, lifetime / 2)`. `lifetime` is `exp` minus the `Config.Now()` at which the response arrived, never `time.Now`. `TestTheRefreshSkewIsHalfAShortLifetime` tests a table (60 min, 10 min, 9 min, 90 s, 0), then a 90 s token through `Token`: 44 s gives the cached token, 46 s gives one redemption | task-31.md:52-59, :199 |
+| **I9** the e2e test (task 43) | `AccessTTL` 10 min. One `clk` is passed to devissuer (`Config.Now`, task-11.md:115), both `entraauth.Config.Now` (task-30.md:70), `entra.Config.Now` (task-10.md:57) and `server.AuthConfig.Now` (task-13.md:58). It stays frozen through steps 1–8. Step 5's 3 s bound is on the wall clock. Step 9 checks both counts are 0, advances `clk` by 10 min and makes one Hub call. It then asserts exactly one refresh grant per teammate, counted by a `RoundTripper` on each teammate's `HTTPClient` (devissuer keeps no count), and a new `refreshGen`. Step 10 expires Vera's token with `Invalidate`, not the clock, so Grace is not touched | task-43.md:19-36, :44, :48-49 |
+| **I9** contract | New correction **A13**, folded into §6.2 (`hub-contract.md:397-398`) | plan.md:181, :557-559; task-44a.md:42 |
+| **I10** the kind (task 39) | `azure-devops`: the scope is the organisation. It is required, and must match `^[a-z0-9-]{1,50}$` after lowercasing. The token must match `^[A-Za-z0-9]{52,256}$`: generous on purpose and **unverified**. Stored by `DevOpsTokens.Put` and read by `LocalDevOps` with `Scheme: BasicPAT`. New test `TestStoreAnAzureDevOpsPAT`. `TestShapesAreChecked` adds the ADO scope and token refusals. The count is 10 | task-39.md:1, :11-14, :35, :45-46, :57-58, :76, :83-85 |
+| **I10** the target (task 28) | `AzureDevOpsTarget(org)` builds `PanaceaApp/git/azure-devops/<org>`. It has no wildcard, so `""` panics. `TestTargetsAreExact` gains its string | task-28.md:94-97, :215 |
+| **I10** the accessor (task 29) | Adds `DevOpsTokens`, and `LocalDevOps`, which is `ErrNoCredential` for GitHub, for `Org ""` and for an organisation with no PAT, and does a case-insensitive lookup. `Inventory` derives the kind from the namespace. The chain is `Local → LocalDevOps → entraauth.DevOps → GitHelper`, so a pasted PAT wins. Two new tests. The count is corrected to **18 / 21**: the old text said "task 28's 7", but task 28 has run 8 on Linux since b03 | task-29.md:3, :7-11, :22-23, :136-144, :158-160, :179-188, :192-209, :226-228, :243 |
+| **I10** the chain (task 31) | `DevOps` states its place after `LocalDevOps`. With `Enabled` false, the store still serves Azure DevOps | task-31.md:161-163 |
+| **I10** the plan and the rest | A8's `kind` set and store. S-CRED names both ADO accessors and the order. Also changed: the file-map rows, S3, Q5 and two unverified lines. Task 32's `PANACEA_APP_ENTRA_DEVOPS` row names the PAT path. Task 40's `CredentialKind`. Task 43 gains **R-11**, which has a real PAT pasted, measured by length and character set (never by value), and pushed with `ls-remote`. The R count becomes 11. 44a folds A8's ADO half into §9.1 | plan.md:176, :291, :357, :462, :483-485, :551-552, :564; task-32.md:84; task-40.md:57; task-43.md:78, :102; task-44a.md:43 |
+| restatements | The correction count goes from eleven to thirteen, and A1–A11 becomes A1–A13 (plan.md:160, :332, :363; task-44a.md:1, :8). Hours: task 31 is 3 → 4 and task 29 is 2 → 2.5, in the table and in the part headers. The totals become 43.5 h, **≈ 123 h**, and a minimum of **≈ 102 h** (plan.md:393, :395, :410-417). The phase-3 citation `:171-185` was stale; it is now `:177-185` and `:222`, read in the phase-3 worktree | as listed; task-29.md:189 |
+
+**Sibling asks for phase 3.** These are recorded, not built:
+
+1. Wire `hub` as `credstore.Chain{Local, LocalDevOps, entraauth.DevOps}` in the deps block (`task-13.md:177-185`). Put `GitHelper` after it for `Credentials` (`:222`).
+2. Make `PushAuth` (`:187-190`) fail the push on any error that is not `ErrNoCredential`. That includes `ErrScopeNeedsConsent`, `ErrScopeNeedsInteraction` and `ErrEntraUnavailable`. It must not fall back to the zero `Auth` and the machine's helper.
+3. Show `*ScopeRefusal` as *"Azure DevOps needs your consent"* or *"… an interactive sign-in"*, and never as *"sign in again"*.
+
+**Found, not changed (outside the batch).** Task 40 appends wire types to `desktop/src/store/types.ts`
+(task-40.md:13, :23), but phase 2's gate SX.2 requires that file to be byte-identical to UI contract §2
+(`phase-2-parts/task-26.md:549-558`, :941). Task 40 names no §2 amendment, so SX.2 goes red as soon as
+task 40 lands. Either task 40 amends §2 in the same commit, or its types move to a file of their own.
+The `CredentialKind` line this batch touched is one of those types.
+
+Unverified:
+
+- Entra's per-resource refusal bodies: `consent_required`/65001, 50076/50079, `invalid_scope`/70011.
+- The claim that a token request naming two resources is refused.
+- The Azure DevOps PAT lengths.
+
+All three come from knowledge; task 43's R-8 and R-11 are the first real look. Nothing was compiled
+or run: this batch changes only documents.
