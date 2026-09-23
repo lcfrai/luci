@@ -115,10 +115,8 @@ func Match(calls []ToolCall, path string, added []string, commitAt time.Time) (c
 ```
 
 ```go
-// changes/diff.go — task 16's BackLink gains three fields, and Diff takes an optional Linker.
-	ToolUseID string `json:"toolUseId"` // tier 2
-	ToolName  string `json:"toolName"`
-	SpanAt    string `json:"spanAt"`    // the call's timestamp, RFC 3339
+// changes/diff.go — task 16 declared BackLink's ToolUseID, ToolName and SpanAt, always empty
+// there; this task fills them. Diff gains one trailing parameter, `linker Linker`.
 
 // Linker upgrades a tier-1 link to tier 2. Diff calls it for each committed hunk whose tier-1
 // link names exactly one session; ok false leaves tier 1 and sets Reason to reason. A nil

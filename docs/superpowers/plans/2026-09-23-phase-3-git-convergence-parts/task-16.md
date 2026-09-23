@@ -87,7 +87,11 @@ type BackLink struct {
 	// Reason is why the tier stopped where it did: "uncommitted", "no session recorded",
 	// "deletion: the newest commit that touched this file", or task 17's adapter reasons.
 	Reason string `json:"reason"`
-	// Task 17 adds: ToolUseID, ToolName, SpanAt.
+	// Tier 2, declared here so the wire shape never changes; always "" from this task, and
+	// filled by task 17's Linker.
+	ToolUseID string `json:"toolUseId"`
+	ToolName  string `json:"toolName"`
+	SpanAt    string `json:"spanAt"` // the tool call's timestamp, RFC 3339
 }
 
 // Hunk is one @@ block.

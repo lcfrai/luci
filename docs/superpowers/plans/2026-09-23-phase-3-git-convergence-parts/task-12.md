@@ -157,7 +157,8 @@ Real git against a **bare repository on disk** as the remote, and, for the crede
 - [ ] **Step 1: Preflight.** Task 02 merged; task 01's sandbox test recorded that fetch fails
   *inside* a sandbox (the design), which this task never attempts.
 - [ ] **Step 2:** tests; `fetch.go`, `push.go`; the `FetchError` fill in `ReadState`.
-- [ ] **Step 3:** handlers, routes, deps, config row, `main.go` start/stop.
+- [ ] **Step 3:** handlers, routes, deps, config row, `main.go` start/stop; the Go contract's §4
+  table gains `PANACEA_APP_FETCH_INTERVAL` (default `10m`, `0` off, minimum `1m`).
 - [ ] **Step 4:** run; commit by pathspec.
 
 #### Acceptance

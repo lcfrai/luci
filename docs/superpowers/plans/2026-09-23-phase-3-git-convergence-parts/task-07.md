@@ -174,7 +174,8 @@ an agent would make them. `Script` runners only where the claim is "this call is
   and `TestBehaviourStatusWithoutOptionalLocksLeavesTheIndex` passing. If either diverged, stop:
   the sync refspec or the status read has to change before anything builds on it.
 - [ ] **Step 2:** tests, then `parse.go`, `sync.go`, `observe.go`.
-- [ ] **Step 3:** the `gitdeps.go` block, config row, and `main.go` start/stop.
+- [ ] **Step 3:** the `gitdeps.go` block, config row, and `main.go` start/stop; the Go contract's
+  §4 table gains `PANACEA_APP_LANE_SYNC_INTERVAL` (default `5s`, minimum `1s`).
 - [ ] **Step 4:** run and commit by pathspec.
 
 #### Acceptance

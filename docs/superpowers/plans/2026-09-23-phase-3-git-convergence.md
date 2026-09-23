@@ -127,7 +127,7 @@ Owner decisions are in `docs/superpowers/planning/2026-09-23-owner-decisions.md`
 | **OD-10** | Removing a worktree deletes its conversation store | task 11 |
 | **OD-3 / OD-5** | Shared stores live in the Hub. Phase 3's evidence store has the brief's shape and the Hub's location | task 15 (seam), open question Q2 |
 | **OD-12** | Owner hands-on checks are batched at the end; until then every owner-observed item is **unverified** | task 23 |
-| 3-D2 | Two agents in one worktree: allowed, and the worktree says so, with one click to start in a new worktree instead | tasks 06, 19 |
+| 3-D2 | Two agents in one worktree: allowed, and the worktree says so, with one click to start in a new worktree instead | tasks 06, 19, 22 |
 | 3-D3 | A conflict is resolved in the lane: one click starts a session there with an opening prompt, shown and editable first | task 19 |
 | 3-D4 | A lane lands as a merge commit (`--no-ff` in effect: two parents, always) | task 09 |
 | 3-D5 | Evidence is recorded by a human, at a commit, with a required *because* | task 15, 20 |

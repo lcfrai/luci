@@ -181,7 +181,8 @@ func PushEnv(r Remote, cred credstore.Credential) map[string]string
 `main.go` builds `PushAuth` (task 12's hook): read `origin`'s URL; `ParseRemote`; an SSH or
 unrecognised remote → the zero `Auth`; else `HubCredentials.Credential(remote.Host())`;
 `ErrNoCredential` → the zero `Auth` (the machine's helper, task 12's behaviour); a credential →
-`remote.Auth{Env: githost.PushEnv(r, cred)}`.
+`remote.Auth{Env: githost.PushEnv(r, cred)}`. The same function is the `Fetcher`'s `AuthFor`, so a
+timer fetch of an HTTPS remote uses the stored token too (a private repository needs one to fetch).
 
 #### The tests to write first
 
