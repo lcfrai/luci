@@ -406,7 +406,11 @@ read-write directory bind, and that git's lockfile rename onto it fails. Task 05
 **The §HGH tests.** Each is written first and shown **red** against an `Exec` with no §HGH: the
 marker file appears, or the call runs. Markers are written by a script in `t.TempDir()`, and each
 test asserts that the marker path does not exist after the call. They use real git (`gitxtest`),
-except the argv tests, which use the helper process.
+except the argv tests, which use the helper process. **Each layer is tested alone.** A test of an
+H1 or H2 override runs with a `Scope` whose H3 rule admits the key: `Project` for
+`core.fsmonitor`, `remote.*.uploadpack` and `.receivepack`, and `None`, with `OwnedRoot` set to
+the test's temp directory, for `credential.helper` and `http.*`. Otherwise H3 would refuse first,
+and an H1 mutant would survive.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
