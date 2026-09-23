@@ -18,6 +18,7 @@ so plan and deploy run **in the VNet**; and the service connection is **OIDC**, 
 - `pipelines/scripts/estate-guard.sh`, `estate-guard_test.sh` (new)
 - `pipelines/scripts/tf-stack.sh` — init/plan/apply one stack with the partial backend (new)
 - `pipelines/scripts/helm-values.sh`, `helm-values_test.sh` — Terraform outputs → `--set` flags (new)
+- `pipelines/scripts/api-server-cidrs.sh`, `api-server-cidrs_test.sh` — the API server's addresses → `--set apiServer.cidrs=…` for a chart in `cidr` mode (review I3; new)
 - `pipelines/templates/tools.yml` — `kubelogin`, `psql` (modify)
 
 #### Contract — `modules/ci-pool` (Managed DevOps Pool in the `agents` subnet)
@@ -133,10 +134,21 @@ resource; parameters `environment`, `applyStacks` (bool), `deployCharts` (bool).
    from the consumed run and nothing newer; a plan older than 24 h is refused.
 4. **cluster** — `az aks get-credentials` (**without** `--admin`: local accounts are off, P8-D2),
    `kubelogin convert-kubeconfig -l azurecli`; then `helm upgrade --install --atomic --wait` for
-   `platform` → `cert-manager` → `edge` → `broker` → `hub`, one release at a time, each with
-   `-f deploy/values/<env>/<chart>.yaml` and the `--set` flags `helm-values.sh` produces from
-   `terraform output -json` of the stacks and from the `image-digests` artefact (task 27).
-   `cert-manager` is its own release and must return before `edge` starts: `edge`'s
+   each release in this order, one at a time, each with `-f deploy/values/<env>/<chart>.yaml`, the
+   `--set` flags `helm-values.sh` produces from `terraform output -json` of the stacks and from
+   the `image-digests` artefact (task 27), and, for a chart whose values set `apiServer.mode:
+   cidr`, the flag `api-server-cidrs.sh <chart> <env>` prints:
+
+   | # | Release | `--namespace` | Why this namespace |
+   |---|---|---|---|
+   | 1 | `platform` | `default` | it creates the four namespaces itself and names each object's namespace explicitly (task 11), so `--namespace` only holds the release record. Never `--create-namespace` into one of the four: Helm would then refuse to create the `Namespace` document it does not own |
+   | 2 | `cert-manager` | `panacea-edge` | the upstream chart renders into `.Release.Namespace` |
+   | 3 | `edge` | `panacea-edge` | the Traefik chart renders into `.Release.Namespace` (review M2) |
+   | 4 | `broker` | `panacea-broker` | its own |
+   | 5 | `hub` | `panacea-hub` | its own |
+
+   `netpolcover` (task 13) renders with this exact table; a change to one is made to both in one
+   commit. `cert-manager` is its own release and must return before `edge` starts: `edge`'s
    `ClusterIssuer` and `Certificate` need its CRDs mapped and its webhook serving (review C1,
    task 13). A failed release stops the stage; nothing after it is attempted.
 5. **database** — once per environment and idempotent: `psql` as the deploy identity (a member of
@@ -162,6 +174,20 @@ chart deployed with an empty client id). `cert_manager_client_id` appears twice,
 `cert-manager`'s `identity.clientId` and `edge`'s `certManagerIdentity.clientId`: kills an issuer
 and a service account that name different identities.
 
+`api-server-cidrs.sh <chart> <env>` (review I3): reads `apiServer.mode` from
+`deploy/values/<env>/<chart>.yaml`; for `entity` prints nothing; for `cidr` runs
+`kubectl get endpointslices -n default -l kubernetes.io/service-name=kubernetes -o jsonpath=…`
+(no `jq`), and prints one `--set apiServer.cidrs={<a>/32,<b>/32}` flag (IPv6 as `/128`). **No
+address, or a `kubectl` failure, exits non-zero naming the chart** — it never prints an empty list,
+and the chart schemas refuse one anyway. `api-server-cidrs_test.sh` stubs `kubectl` on `PATH`:
+
+| Case | Expect | Mutant it kills |
+|---|---|---|
+| `entity` mode | no output, exit 0 | a `cidr` flag passed to a chart in `entity` mode |
+| `cidr` mode, two addresses | `--set apiServer.cidrs={10.1.2.3/32,10.1.2.4/32}` | a single address when the API server has two |
+| `cidr` mode, no address | exit 1, message names the chart | an empty list reaching `helm` (a peerless rule if a schema is ever loosened) |
+| `cidr` mode, `kubectl` fails | exit 1 | a deploy that continues with no API server allow |
+
 `modules/ci-pool/tests/ci-pool.tftest.hcl`: `agents_are_stateless` (`stateless_agent` present,
 `stateful_agent` absent — kills credentials left on an agent between runs);
 `pool_lives_in_the_agents_subnet`; `bad_org_url_is_rejected`.
@@ -171,7 +197,7 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
 #### Steps
 
 - [ ] **Step 1:** `ci-pool` module and tests; the foundation call; validate both.
-- [ ] **Step 2:** `estate-guard.sh`, `tf-stack.sh`, `helm-values.sh` and their tests.
+- [ ] **Step 2:** `estate-guard.sh`, `tf-stack.sh`, `helm-values.sh`, `api-server-cidrs.sh` and their tests.
 - [ ] **Step 3:** The two pipeline files; `lint.sh`; commit. **Do not register either pipeline.**
 
 #### Acceptance
@@ -180,6 +206,7 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
 bash infra/scripts/validate.sh infra/terraform/modules/ci-pool infra/terraform/stacks/foundation   # 2 ok
 bash pipelines/scripts/estate-guard_test.sh        # estate-guard_test: 5 of 5 passed
 bash pipelines/scripts/helm-values_test.sh         # helm-values_test: ok
+bash pipelines/scripts/api-server-cidrs_test.sh    # api-server-cidrs_test: 4 of 4 passed
 bash pipelines/scripts/lint.sh                     # lint: 6 of 6 rules pass over 9 pipeline files
 ```
 

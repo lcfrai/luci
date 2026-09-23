@@ -105,8 +105,10 @@ not merely missed by a review.
 `panacea-sandboxes` (below). Every other chart that puts a pod in a denied namespace brings its own
 allows: `cert-manager` and `edge` in `panacea-edge` (task 13), `broker` and `hub` in theirs
 (task 29). Because helm-unittest cannot see across charts, `deploy/tests/netpolcover` (task 13)
-renders this chart with the others and fails if any workload in a denied namespace has no allow
-(review C1: without it, `panacea-edge` was silently sealed).
+renders this chart with the others and fails if any workload in a denied namespace lacks an allow
+in a direction it needs (egress always; ingress when a Service or webhook points at it), or if a
+`pre-install` hook's allow does not exist before the hook runs (review C1: without it,
+`panacea-edge` was silently sealed; re-review I1, I2).
 
 `networkpolicy-sandboxes.yaml` — in `panacea-sandboxes` (standard `networking.k8s.io/v1`,
 enforced by Cilium):

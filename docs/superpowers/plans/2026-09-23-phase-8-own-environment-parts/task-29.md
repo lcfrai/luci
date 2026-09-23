@@ -44,6 +44,9 @@ machines:
   storageClass: panacea-machine-disk
   affinity: true
   idleSleep: 30m
+apiServer:                   # the same block, same keys and schema rule as task 13's cert-manager and edge charts (review I3)
+  mode: entity               # entity: CiliumNetworkPolicy toEntities kube-apiserver; cidr: one ipBlock per cidrs entry on 443
+  cidrs: []                  # cidr mode only; schema minItems 1 then; passed by pipelines/scripts/api-server-cidrs.sh (task 30)
 resources:                   # the broker's own pod
   cpu: 500m
   memory: 512Mi
@@ -74,10 +77,14 @@ and `list`/`watch` on `secrets` (the broker reads a machine's token Secret by na
 Traefik pods in `panacea-edge` on 8080 (the peer is namespace `panacea-edge` **and** Traefik's pod
 labels, the same labels task 13's `traefik-*` policies select; `netpolcover` fails if they
 drift); egress to kube-dns, to `panacea-sandboxes` pods labelled
-`panacea-app/component` in (`sandbox`, `machine`) on 8080/8081, to the API server (a
-`CiliumNetworkPolicy` with `toEntities: [kube-apiserver]` — **AKS-managed Cilium's support for that
-entity is UNVERIFIED**; fallback is an `ipBlock` for the API server's address, looked up at deploy),
-and 443 to `0.0.0.0/0` except the RFC 1918 ranges (Entra's JWKS).
+`panacea-app/component` in (`sandbox`, `machine`) on 8080/8081, to the API server (policy
+`broker-api-server`, from the `apiServer` block: `mode: entity` renders a `CiliumNetworkPolicy`
+with `toEntities: [kube-apiserver]` — **AKS-managed Cilium's support for that entity is
+UNVERIFIED** — and `mode: cidr` renders one `ipBlock` per `apiServer.cidrs` entry on 443, with the
+schema's `minItems: 1` and the template's `fail` guard of task 13, so an empty list never renders
+a peerless rule), and 443 to `0.0.0.0/0` except the RFC 1918 ranges (Entra's JWKS). Switching
+the broker after P20 is a one-value change in `deploy/values/<env>/broker.yaml`, as for the other
+two charts; no chart change.
 
 **`httproute.yaml`** — `HTTPRoute/broker`, `parentRefs` the Gateway, `hostnames: [host]`, one rule
 to `Service/broker:8080`, timeouts `request: 0s` (a WebSocket attach is one long request).
@@ -127,19 +134,32 @@ annotation make the webhook inject `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`,
 webhook adds — **whether the webhook's projection works with automount off is UNVERIFIED**;
 the test pins the choice and task 31's smoke observes it.
 
-**`migrate-job.yaml`** — a Helm `pre-install,pre-upgrade` hook Job, `hook-delete-policy:
-before-hook-creation`, service account `hub-migrate` (its own WI client id), command
-`["/hub", "migrate"]`, env `PANACEA_APP_HUB_MIGRATE_DATABASE_URL=postgres://<migrateUser>@<host>:5432/hub?sslmode=verify-full`
-and `PANACEA_APP_HUB_DB_AUTH=entra`, `backoffLimit: 0` (a failed migration stops the upgrade;
-`--atomic` rolls back).
+**`migrate-job.yaml`** — three Helm hook resources, all `helm.sh/hook: pre-install,pre-upgrade`
+and `helm.sh/hook-delete-policy: before-hook-creation`, created in `helm.sh/hook-weight` order.
+Helm runs `pre-install` hooks **before any of the release's regular resources exist**, and
+platform's `default-deny` (task 11) is already in `panacea-hub`. So everything the Job's pod needs
+to start and to reach the database is a hook of the same phase with a lower weight, never a regular
+template:
 
-**`networkpolicy.yaml`** (in `panacea-hub`): ingress from Traefik on 8080 (namespace
+| Weight | Resource | Why it must be a hook |
+|---|---|---|
+| `-10` | `ServiceAccount/hub-migrate`, annotation `azure.workload.identity/client-id: <migrate.serviceAccount.clientId>` | a regular SA does not exist yet on the first install; the Job's pod cannot be created and Helm waits out the hook timeout |
+| `-5` | `NetworkPolicy/hub-migrate-egress`, selecting `app.kubernetes.io/component: migrate` only, `policyTypes: [Egress]`: kube-dns (UDP and TCP 53), `network.privateEndpointsCidr` on 5432, 443 to `0.0.0.0/0` except RFC 1918 and `169.254.0.0/16` (Entra) | a regular policy does not exist yet on the first install; the Job cannot resolve or reach Postgres, fails once (`backoffLimit: 0`) and `--atomic` rolls the release back. Upgrades would hide this, because the previous release's policy is still there |
+| `0` | `Job/hub-migrate`, pod label `app.kubernetes.io/component: migrate` and `azure.workload.identity/use: "true"`, service account `hub-migrate`, command `["/hub", "migrate"]`, env `PANACEA_APP_HUB_MIGRATE_DATABASE_URL=postgres://<migrateUser>@<host>:5432/hub?sslmode=verify-full` and `PANACEA_APP_HUB_DB_AUTH=entra`, `backoffLimit: 0` | a failed migration stops the upgrade; `--atomic` rolls back |
+
+Hook resources are not owned by the release: `helm uninstall hub` leaves the SA and the policy
+behind. That is harmless: `before-hook-creation` replaces both on the next install, and no task in
+this phase uninstalls a release (anyone who does deletes the two by name). **Helm's hook order is
+from training knowledge and was not rendered, UNVERIFIED**; the `hub / migrate hooks exist before
+the Job` test pins the weights, and task 31's first install observes it.
+
+**`networkpolicy.yaml`** (in `panacea-hub`, a regular template; it selects the **serving** pods
+only, `app.kubernetes.io/component: server`): ingress from Traefik on 8080 (namespace
 `panacea-edge` **and** Traefik's pod labels, as the broker's); egress to kube-dns, to
 the private-endpoint subnet on 5432 (`network.privateEndpointsCidr`, the same value task 11
-takes), and 443 to `0.0.0.0/0` except RFC 1918 (Entra). The egress policy selects the migrate
-Job's pods as well as the serving pods (the Job needs DNS, Postgres and Entra too; the ingress
-policy selects the serving pods only) — `netpolcover`'s `every_denied_workload_has_an_allow` fails
-on a hook Job with no allow. **No CORS anywhere** (HA-6).
+takes), and 443 to `0.0.0.0/0` except RFC 1918 (Entra). The migrate Job's pod is covered by the
+hook policy above, not by this one — `netpolcover`'s `hook_pods_are_allowed_before_they_run`
+(task 13) fails if the Job's only allow is a regular template. **No CORS anywhere** (HA-6).
 
 #### Contract — `deploy/sql/hub-principals.sql.tpl` (complete; rendered and run by `deploy`, task 30)
 
@@ -182,9 +202,11 @@ runbook runs it by hand first.
 | `broker / images are digests` | `image: x:latest` → render fails (schema) | a mutable broker |
 | `broker / one value feeds the runtime class` | `PANACEA_APP_RUNTIME_CLASS` equals `sandbox.runtimeClass` (and the deploy pipeline passes the same value to `platform`) | broker and balloons on different RuntimeClasses |
 | `broker / the route has no timeout` | `timeouts.request: 0s` | attach cut at the gateway's default |
+| `broker / the API server is reachable in both modes` | `broker-api-server` selects the broker; default renders `toEntities: [kube-apiserver]`; `apiServer.mode: cidr` with two `cidrs` renders exactly those two `ipBlock`s on 443; `mode: cidr` with `cidrs: []` → render fails with the schema message | a broker that cannot create pods (sealed), or `cidr` mode with an empty list rendered as 443 to anywhere (review I3) |
 | `broker / no workload identity` | the SA has no `azure.workload.identity/client-id` and pods no `use` label | an Azure identity on the one pod that can create pods |
 | `hub / env is the contract's deployed column` | every `PANACEA_APP_HUB_*` key rendered is in the Hub contract's §12.2 table; `DB_AUTH=entra`; `sslmode=verify-full`; `TRUST_PROXY=true`; `ENV` is `dev` or `prod` | a Hub started with `ENV=local` (which allows an `http` authority) |
 | `hub / migrate runs before serve, as the DDL identity` | the Job is a `pre-install,pre-upgrade` hook, SA `hub-migrate` with the migrate client id, command `hub migrate`, `backoffLimit: 0` | migrations run by the serving (DML) identity |
+| `hub / migrate hooks exist before the Job` | `ServiceAccount/hub-migrate` and `NetworkPolicy/hub-migrate-egress` carry `helm.sh/hook: pre-install,pre-upgrade`, `before-hook-creation`, and a `hook-weight` lower than the Job's; the policy selects `component: migrate` and allows DNS, the PE CIDR on 5432 and 443 to world minus RFC 1918 | the SA or the policy as a regular template — the first install sealed by default-deny and rolled back, while upgrades pass |
 | `hub / two replicas and a 30 s grace` | `replicas: 2`; `terminationGracePeriodSeconds >= 30`; a PDB `minAvailable: 1` | a rollout that drops every in-flight request |
 | `hub / egress reaches Postgres and Entra only` | egress rules: DNS, the PE CIDR on 5432, 443 to world minus RFC 1918 | a Hub that can reach sandboxes |
 | `sql / principals and grants are rendered for both identities` | the template renders two `pgaadauth_create_principal` calls and the two grants, DDL to `hub_owner`, DML to `hub_app` | the grants swapped — the serving identity able to alter the schema (ADR-H1 G4) |
@@ -200,8 +222,17 @@ runbook runs it by hand first.
   and filled by `deploy` (task 30) from Terraform outputs.
 - [ ] **Step 5:** Add `broker` and `hub` to `netpolcover`'s chart list and delete its
   `testdata/backends.yaml`; it must pass with the real charts, and `traefik_reaches_every_routed_backend`
-  now checks both `HTTPRoute`s. Mutation check: change the broker policy's Traefik peer label, and
-  `traefik_reaches_every_routed_backend` goes red. Commit.
+  now checks both `HTTPRoute`s. Mutation checks, each verified applied and red:
+  - change the broker policy's Traefik peer label → `traefik_reaches_every_routed_backend`;
+  - move `hub-migrate-egress` from a hook into `networkpolicy.yaml` as a regular template →
+    `hook_pods_are_allowed_before_they_run` (task 13) and `hub / migrate hooks exist before the Job`;
+  - drop the `helm.sh/hook` annotations from `ServiceAccount/hub-migrate` →
+    `hook_pods_are_allowed_before_they_run`;
+  - delete `broker-api-server` → `broker / the API server is reachable in both modes`
+    (`netpolcover`'s `every_denied_workload_has_an_allow` stays green, because the broker keeps
+    other egress allows; record that it does — the per-chart test is the guard, review I2).
+
+  Commit.
 
 #### Acceptance
 

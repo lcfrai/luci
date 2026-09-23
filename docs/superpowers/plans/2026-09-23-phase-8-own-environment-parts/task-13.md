@@ -37,7 +37,7 @@ client IPs (`:131-132`). Both carry over, written from scratch.
 - `deploy/charts/edge/tests/*_test.yaml` (new)
 - `deploy/tests/netpolcover/{go.mod,go.sum,netpolcover_test.go,testdata/backends.yaml}` — the cross-chart NetworkPolicy coverage test, its own Go module (`go 1.23`; one dependency, `sigs.k8s.io/yaml`, already in the control plane's module graph) (new)
 - `go.work` — `use ./deploy/tests/netpolcover` (modify)
-- `pipelines/charts.yml` — one job after the per-chart jobs: Go 1.23 (`GoTool@0`), `helm` at task 28's pin, `go test ./deploy/tests/netpolcover/... -count=1` (modify, task 28)
+- `pipelines/charts.yml` — one job after the per-chart jobs: Go 1.23 (`GoTool@0`), `helm` at task 28's pin, `go test ./deploy/tests/netpolcover/... -count=1`. The test's `TestMain` runs `helm dependency build` for every chart it renders, so the job works on a fresh agent with no `charts/*.tgz` (review M1) (modify, task 28)
 
 #### Contract — `deploy/charts/cert-manager/Chart.yaml` (versions pinned exactly at implementation; no ranges)
 
@@ -52,26 +52,42 @@ dependencies:
   - name: cert-manager
     repository: https://charts.jetstack.io
     version: "<exact, pinned in step 1>"     # Apache-2.0
-    alias: certManager
+    alias: certManager                       # a Go-template-friendly values key; the names below are pinned lowercase
 ```
+
+**The alias renames the subchart** (review I4). Helm sets an aliased subchart's `.Chart.Name` to
+the alias, and the upstream `cert-manager.fullname` helper builds every resource name from it, so
+`alias: certManager` alone renders `cert-manager-certManager`, `cert-manager-certManager-webhook`
+and so on. Uppercase is not a DNS-1123 name: the API server refuses them, and `helm template`,
+helm-unittest and `kubeconform` do not check the pattern. The values contract therefore sets
+`certManager.fullnameOverride: cert-manager` (names read `cert-manager`, `cert-manager-webhook`,
+`cert-manager-cainjector`, `cert-manager-startupapicheck`) and `certManager.nameOverride:
+cert-manager` (the `app.kubernetes.io/name` and `app` labels read `cert-manager`, not
+`certManager`). **The helper's behaviour and both override keys are from training knowledge of the
+cert-manager chart, UNVERIFIED**; `netpolcover`'s `rendered_names_are_dns_1123` renders the real
+subchart and fails on any uppercase name, whatever the helper does.
 
 #### Contract — `deploy/charts/cert-manager/values.yaml` (complete)
 
 ```yaml
 identity:
   clientId: ""                   # workloads output cert_manager_client_id; schema minLength 1
-apiServer:                       # the same seam task 29 uses for the broker
+apiServer:                       # the same block, same keys, in the edge and broker charts (task 29)
   mode: entity                   # entity: CiliumNetworkPolicy toEntities/fromEntities kube-apiserver; cidr: ipBlock below
-  cidrs: []                      # cidr mode only: the API server's address(es), looked up by deploy
-  webhookSourceCidrs: []         # cidr mode only: where the API server's calls to the webhook arrive from (task 32 finds out)
+  cidrs: []                      # cidr mode only; schema minItems 1 then. Passed by deploy: pipelines/scripts/api-server-cidrs.sh (task 30)
+  webhookSourceCidrs: []         # cidr mode only; schema minItems 1 then. Committed in deploy/values/<env>/cert-manager.yaml from task 32's P20 finding
 
 certManager:
+  fullnameOverride: cert-manager # review I4: without it the alias puts "certManager" into every resource name
+  nameOverride: cert-manager     # the same, for the app.kubernetes.io/name label the policies and tests read
   namespace: panacea-edge
   crds:
     enabled: true
     keep: true                   # uninstalling the release never deletes every Certificate in the cluster
   global:
     priorityClassName: panacea-platform-critical
+  prometheus:
+    enabled: false               # nothing in this environment scrapes it; its metrics Service would need an ingress allow nobody uses (netpolcover counts Service-backed pods)
   nodeSelector:
     panacea-app/role: apps
   podLabels:
@@ -92,11 +108,38 @@ certManager:
       panacea-app/role: apps
 ```
 
-**The upstream key names (`global.priorityClassName`, `webhook.securePort`, `crds.keep`,
-`startupapicheck.enabled`, the per-component `nodeSelector`s) and the pod labels the policy selects
+**The upstream key names (`fullnameOverride`, `nameOverride`, `global.priorityClassName`,
+`prometheus.enabled`, `webhook.securePort`, `crds.keep`, `startupapicheck.enabled`, the
+per-component `nodeSelector`s) and the pod labels the policy selects
 on are from training knowledge of the cert-manager chart, UNVERIFIED**; the tests assert the
 rendered pods, not the keys, and `netpolcover` matches every policy selector against the pods the
 upstream templates actually render.
+
+**The `apiServer` seam fails closed, never open** (review I3). Kubernetes reads an egress rule
+with no `to` peer, or an ingress rule with no `from` peer, as "every destination" or "every
+source". A template that writes one rule and fills its peers with `range` over an empty list would
+turn `mode: cidr` with `cidrs: []` into 443 to anywhere, and `webhookSourceCidrs: []` into a
+webhook open to every pod. Three guards, each tested:
+- **Schema.** `values.schema.json` holds `if: {properties: {apiServer: {properties: {mode:
+  {const: cidr}}}}}` / `then:` `apiServer.cidrs` and `apiServer.webhookSourceCidrs` `required`,
+  `minItems: 1`, each item a CIDR `pattern`. The edge and broker schemas carry the same rule for
+  `cidrs` (JSON Schema draft 7 `if`/`then`, which Helm 3's validator supports — training knowledge,
+  UNVERIFIED; the `cidr_mode_with_an_empty_list_is_refused` runs prove it either way).
+- **Template.** Each peer list is guarded with `{{- if not .Values.apiServer.cidrs }}{{ fail
+  "apiServer.cidrs is empty in cidr mode" }}{{- end }}` before the rule, so a schema that is ever
+  loosened still does not render an open rule.
+- **Cross-chart.** `netpolcover`'s `no_allow_rule_is_peerless` fails on any rendered rule with no
+  peer, in any chart.
+
+**Where the values come from** (review I3). `apiServer.mode` and `webhookSourceCidrs` are non-id
+settings, committed per environment in `deploy/values/<env>/{cert-manager,edge,broker}.yaml`
+(task 29 step 4). `apiServer.cidrs` is looked up at deploy time, because Terraform does not export
+the API server's address and it can change: task 30's `pipelines/scripts/api-server-cidrs.sh`
+reads the addresses of `EndpointSlice`s labelled `kubernetes.io/service-name=kubernetes` in
+`default`, after `get-credentials`, and emits one `--set apiServer.cidrs={<ip>/32,…}` for each of
+the three charts, only when that environment's values set `mode: cidr`. **That the `kubernetes`
+EndpointSlice holds the address Cilium sees for API-server traffic on AKS is training knowledge,
+UNVERIFIED**; P20 (task 32) checks it before `cidr` mode is chosen.
 
 `templates/serviceaccount.yaml` — `ServiceAccount/cert-manager` in `panacea-edge` with
 `azure.workload.identity/client-id: {{ .Values.identity.clientId }}`; the upstream chart's RBAC
@@ -161,8 +204,8 @@ routeNamespaceLabel:
   value: "true"
 apiServer:                       # the same seam as the cert-manager chart and task 29
   mode: entity                   # entity | cidr
-  cidrs: []                      # cidr mode only
-backends:                        # what Traefik may send to; each must match a policy task 29 lays in that namespace
+  cidrs: []                      # cidr mode only; schema minItems 1 then; passed by api-server-cidrs.sh (task 30)
+backends:                        # schema minItems 1 (an empty list must not render a peerless egress rule); each must match a policy task 29 lays in that namespace
   - namespace: panacea-broker
     podLabels: {app.kubernetes.io/name: broker}
     port: 8080
@@ -268,6 +311,7 @@ names are from training knowledge, UNVERIFIED; the test asserts the rendered arg
 | `edge_does_not_bundle_cert_manager` | `Chart.yaml` has exactly one dependency, `traefik`; no rendered document is a cert-manager Deployment or CRD | cert-manager folded back into `edge`, racing its own `ClusterIssuer` (C1) |
 | `traefik_ingress_is_the_allowlist_on_8443` | `traefik-ingress` has one port, 8443/TCP, and its `from` is exactly one `ipBlock` per `allowedSourceRanges` entry | a `from: []` or `0.0.0.0/0` that makes the allowlist a load-balancer-only control |
 | `traefik_egress_is_backends_and_api_server_only` | `traefik-backends` has one peer per `backends` entry, each namespace **and** pod selector on its port; `traefik-api-server` renders `toEntities: [kube-apiserver]` by default and one `ipBlock` per `apiServer.cidrs` with `mode: cidr`; no `ipBlock` `0.0.0.0/0` in any edge policy | a Traefik that can reach sandboxes or the internet |
+| `cidr_mode_with_an_empty_list_is_refused` | `apiServer.mode: cidr` with `cidrs: []` → render fails with the schema message; `backends: []` → render fails the same way | a peerless egress rule: 443 to anywhere, or every port to anywhere (review I3) |
 
 `deploy/charts/cert-manager/tests/`:
 
@@ -279,20 +323,34 @@ names are from training knowledge, UNVERIFIED; the test asserts the rendered arg
 | `crds_install_and_are_kept` | CRDs render with `helm.sh/resource-policy: keep` | an uninstall that deletes every `Certificate` |
 | `startupapicheck_is_on` | the post-install hook Job renders | `--wait` returning before the webhook serves, so `edge` races it again |
 | `webhook_ingress_only_from_the_api_server` | `cert-manager-webhook-ingress` selects only the webhook, one port equal to `webhook.securePort` and to the webhook container's port, `fromEntities: [kube-apiserver]` by default, `ipBlock`s from `webhookSourceCidrs` in `cidr` mode | a webhook open to every pod, or a policy port that drifted from the container port |
+| `every_component_reaches_dns_and_the_api_server` | `cert-manager-dns` selects every cert-manager pod (controller, cainjector, webhook, startupapicheck) with egress to `kube-system` `k8s-app: kube-dns` on UDP and TCP 53; `cert-manager-api-server` selects the same four, `toEntities: [kube-apiserver]` by default and one `ipBlock` per `apiServer.cidrs` on 443 in `cidr` mode (review I2) | either policy deleted or narrowed: every component still has *an* egress allow, so `netpolcover` stays green, and on a cluster cert-manager is sealed again and rolled back at `--atomic` (C1) |
+| `cidr_mode_with_an_empty_list_is_refused` | `apiServer.mode: cidr` with `cidrs: []` → render fails; with `cidrs` set and `webhookSourceCidrs: []` → render fails; both with the schema message (review I3) | a peerless rule: controller egress to anywhere on 443, or the webhook open to every pod |
 | `controller_egress_excludes_imds_and_private_ranges` | `cert-manager-controller-egress` selects only the controller; ports 443/TCP and 53/UDP+TCP; `except` holds `169.254.169.254/32`, `168.63.129.16/32` and the three RFC 1918 blocks | the node's identity token readable from cert-manager |
 | `dependencies_are_pinned_exactly` | as the edge's | as the edge's |
 
 `deploy/tests/netpolcover` (Go, `go test ./deploy/tests/netpolcover/... -count=1`; needs `helm` on
-`PATH` and **fails**, never skips, without it). It runs `helm template` on `platform`,
-`cert-manager` and `edge` with each chart's `tests/values-test.yaml` (hooks included), parses every
-document, and asserts across charts:
+`PATH` and **fails**, never skips, without it). Its `TestMain` first runs `helm dependency build`
+for every chart it renders (review M1: `charts/*.tgz` is git-ignored, so a fresh agent has no
+subcharts and `helm template` would fail with "missing in charts/ directory"). It then runs
+`helm template <release> deploy/charts/<chart> --namespace <ns>` on `platform`, `cert-manager` and
+`edge` with each chart's `tests/values-test.yaml` (hooks included), **using the release names and
+namespaces of task 30's stage 4** (review M2: `cert-manager` and `edge` in `panacea-edge`; the
+Traefik chart renders into `.Release.Namespace`, so without `--namespace` it lands in `default`,
+which has no `default-deny`, and the coverage cases pass it unchecked). The release → namespace
+list is one Go table, a copy of task 30's stage 4 table; its doc comment names `pipelines/deploy.yml`
+as the source, and a change to either is made to both in one commit. It parses every
+document, records each hook's `helm.sh/hook` phase and `hook-weight`, and asserts across charts:
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `every_denied_workload_has_an_allow` | for every namespace where `platform` renders `default-deny`, every pod template rendered into it by any chart (Deployment, StatefulSet, DaemonSet, Job, hooks included) is selected by at least one `NetworkPolicy` or `CiliumNetworkPolicy` other than `default-deny` | **C1 itself**: an edge chart with no policy, silenced by `platform` |
+| `every_denied_workload_has_an_allow` | for every namespace where `platform` renders `default-deny`, every pod template rendered into it by any chart (Deployment, StatefulSet, DaemonSet, Job, hooks included) is selected by an allow **in each direction it needs**, counted separately (review I2): an **Egress** allow (a `NetworkPolicy` with `Egress` in `policyTypes` and a rule, or a `CiliumNetworkPolicy` with `egress`) for every pod; an **Ingress** allow for every pod selected by a rendered `Service` or behind a `Validating`/`MutatingWebhookConfiguration`. `default-deny` never counts | **C1 itself**: an edge chart with no policy, silenced by `platform`; and a pod with an ingress allow but no egress allow (or the reverse), which a one-direction count passes |
+| `every_workload_is_in_a_denied_namespace` | every pod template rendered by any release sits in a namespace where `platform` renders `default-deny` (the test's exemption list is empty) (review M2) | a release rendered without `--namespace`: its pods land in `default` and every coverage case passes them unchecked |
+| `hook_pods_are_allowed_before_they_run` | for every `pre-install` / `pre-upgrade` hook pod (review I1): its `ServiceAccount` and every allow that satisfies `every_denied_workload_has_an_allow` for it is either a hook of the same phase with a **lower** `hook-weight`, or rendered by a release earlier in stage 4's order. A `post-install` hook may rely on the release's regular templates (Helm loads them first) | a pre-install hook whose allow or service account is a regular template of its own release: static render green, first install sealed by `default-deny` (the Hub's migrate Job, task 29) |
+| `no_allow_rule_is_peerless` | every `ingress` rule of an allow policy has a non-empty `from` (or `fromEntities`), every `egress` rule a non-empty `to` (or `toEntities`) (review I3) | an empty list in `cidr` mode, or `backends: []`, rendered as "allow every source/destination" |
 | `every_selector_matches_a_pod` | every allow policy's `podSelector` / `endpointSelector` matches at least one rendered pod template in its namespace | a policy written against labels the upstream chart does not render (it passes helm-unittest and allows nothing) |
-| `the_webhook_is_reachable` | a policy admits ingress to the pods behind the `ValidatingWebhookConfiguration`'s service, on that service's `targetPort` | the API server unable to call the webhook, so every `ClusterIssuer` create fails |
+| `the_webhook_is_reachable` | a policy admits ingress to the pods behind the `ValidatingWebhookConfiguration`'s service, on that service's `targetPort`. The upstream webhook Service targets a **named** port (`https`, training knowledge, UNVERIFIED), so the test resolves a named `targetPort` through the selected pod's `containers[].ports[].name` to its `containerPort` before comparing; a name that resolves to nothing fails (review M3) | the API server unable to call the webhook, so every `ClusterIssuer` create fails |
 | `traefik_reaches_every_routed_backend` | for each `backends` entry: the Traefik egress peer matches a rendered pod, and a policy in that namespace admits ingress from Traefik's pod labels in `panacea-edge` on that port | label drift between the edge and the broker/Hub charts: a front door to a wall |
+| `rendered_names_are_dns_1123` | every rendered document's `metadata.name` in the `cert-manager` and `edge` releases (both wrapper charts, their subcharts included), and later in all five, matches `^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$` and is at most 253 characters; a `Service`'s name at most 63 and without `.` (review I4) | `alias: certManager` without `fullnameOverride`: `cert-manager-certManager-webhook`, which the API server refuses at the first install while `helm template`, helm-unittest and `kubeconform` pass it |
 
 Task 29 adds `broker` and `hub` to the chart list, at which point `traefik_reaches_every_routed_backend`
 also checks every rendered `HTTPRoute` `backendRef` against `backends`; until then
@@ -313,11 +371,26 @@ ingress NetworkPolicy per backend, written from task 29's contract), and task 29
   red run is C1 reproduced; keep its output in the task report.
 - [ ] **Step 4:** Templates until every suite and `netpolcover` pass; `helm lint` both with test
   values.
-- [ ] **Step 5:** Mutation check on a `$TEMP` copy: delete `edge/templates/networkpolicy.yaml`
-  (`every_denied_workload_has_an_allow` goes red); change the Traefik policy's pod label
-  (`every_selector_matches_a_pod`); change `webhook.securePort` in the policy only
-  (`the_webhook_is_reachable`, `webhook_ingress_only_from_the_api_server`); add `cert-manager` back
-  as an `edge` dependency (`edge_does_not_bundle_cert_manager`). Commit.
+- [ ] **Step 5:** Mutation check on a `$TEMP` copy, each verified applied and the named test red:
+  - delete `edge/templates/networkpolicy.yaml` → `every_denied_workload_has_an_allow`;
+  - change the Traefik policy's pod label → `every_selector_matches_a_pod`;
+  - change `webhook.securePort` in the policy only → `the_webhook_is_reachable`,
+    `webhook_ingress_only_from_the_api_server`;
+  - add `cert-manager` back as an `edge` dependency → `edge_does_not_bundle_cert_manager`;
+  - delete `cert-manager-api-server` → `every_component_reaches_dns_and_the_api_server` (review I2:
+    `netpolcover` stays green, because every pod keeps an egress allow; record that it does);
+  - delete `cert-manager-dns` → `every_component_reaches_dns_and_the_api_server` (the same);
+  - drop `policyTypes: [Egress]` and the egress rules from `traefik-api-server` and
+    `traefik-backends`, leaving `traefik-ingress` → `every_denied_workload_has_an_allow` (the
+    direction count);
+  - make the `cidr`-mode template `range` over `apiServer.cidrs` with no `fail` guard and loosen
+    the schema's `minItems`, then render `mode: cidr` with `cidrs: []` → `no_allow_rule_is_peerless`
+    and `cidr_mode_with_an_empty_list_is_refused`;
+  - delete `certManager.fullnameOverride` and `nameOverride` → `rendered_names_are_dns_1123`;
+  - drop `--namespace` for `edge` from the Go table → `every_workload_is_in_a_denied_namespace`
+    (Traefik lands in `default`, where no case would otherwise look; review M2).
+
+  Commit.
 
 #### Acceptance
 
@@ -328,9 +401,9 @@ helm lint deploy/charts/cert-manager -f deploy/charts/cert-manager/tests/values-
 helm lint deploy/charts/edge -f deploy/charts/edge/tests/values-test.yaml
 # 1 chart(s) linted, 0 chart(s) failed   (each)
 helm unittest deploy/charts/cert-manager
-# Tests: 8 passed, 8 total
+# Tests: 10 passed, 10 total
 helm unittest deploy/charts/edge
-# Tests: 12 passed, 12 total
+# Tests: 13 passed, 13 total
 go test ./deploy/tests/netpolcover/... -count=1
 # ok
 ```
