@@ -166,8 +166,8 @@ func (a *API) registerGit(mux *routes) {
 // loadConfig refuses, each with its own sentence: a relative path; a path inside
 // PANACEA_APP_PROJECTS_DIR, or one containing it (compared cleaned and, on Windows,
 // case-insensitively) — the scanner would list every clone as a project; and a path that is
-// an existing file. It warns, and starts, when the two are on different volumes: clones then
-// copy their objects instead of hard-linking them (task 01's measurement).
+// an existing file. The two may sit on different volumes: task 03 copies objects on every
+// clone (`--no-hardlinks`, plan Q9), so no hard link needs one volume and nothing warns.
 ```
 
 ```go

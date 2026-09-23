@@ -25,13 +25,19 @@ one-line `doc.go` so the test package has a home.
 Each test builds its repositories in `t.TempDir()` with the host's `git` (skip with a clear
 message if `git` is not on `PATH`), runs git with `GIT_TERMINAL_PROMPT=0`, `GIT_CONFIG_NOSYSTEM=1`,
 `GIT_CONFIG_GLOBAL=<tempdir>/empty` and a fixed identity, so the owner's global config cannot make a
-test pass or fail. The "mutant" column names the plan assumption the test exists to catch being
-false.
+test pass or fail. **Production-shaped tests are the exception** (review C2): they replace
+`GIT_CONFIG_NOSYSTEM=1` with `GIT_CONFIG_SYSTEM=<tempdir>/system` holding `core.autocrlf=true`.
+That is the setting Git for Windows' installer writes, and this machine's system config holds it
+(`file:C:/Program Files/Git/etc/gitconfig true`, 2026-09-23). A hermetic run removes exactly the
+setting that breaks a real clone. The "mutant" column names the plan assumption the test exists to
+catch being false.
 
 | Test | Asserts | Assumption it would catch being false | Consumed by |
 |---|---|---|---|
-| `TestBehaviourLocalCloneHardLinksObjects` | after `git clone --local <src> <dst>`, a loose object file and a pack file in `dst/.git/objects` satisfy `os.SameFile` with the same file in `src` | clones are cheap (R12) | 03 |
-| `TestBehaviourLocalCloneHasNoAlternates` | `dst/.git/objects/info/alternates` does not exist | a `gc` in the source cannot break a clone | 03 |
+| `TestBehaviourLocalCloneHardLinksObjects` | after `git clone --local <src> <dst>`, a loose object file and a pack file in `dst/.git/objects` satisfy `os.SameFile` with the same file in `src` | that `--local` shares the project's object files, which is why task 03 does not use it (review I8) | 03 |
+| `TestBehaviourNoHardlinksCloneSharesNoObjectFile` | after `git clone --no-hardlinks <src> <dst>`, no file under `dst/.git/objects` satisfies `os.SameFile` with the same relative path in `src` | an agent's write to a clone's pack reaching the project (I8, Q9) | 03 |
+| `TestBehaviourLocalCloneHasNoAlternates` | after either clone above, `dst/.git/objects/info/alternates` does not exist | a `gc` in the source cannot break a clone | 03 |
+| `TestBehaviourSystemAutocrlfReachesAClone` | **production-shaped**. `src` holds LF blobs `a.txt` and `b.bat` and a `.gitattributes` of `*.bat eol=crlf`. A plain `clone --no-hardlinks` writes `a.txt` as `x\r\ny\r\n`, and its `config --local --get core.autocrlf` exits 1. Adding `--config core.autocrlf=false --config core.eol=lf --config core.checkStat=minimal --config core.trustctime=false` writes `a.txt` as `x\ny\n` and `b.bat` as CRLF, lists all four keys in `config --local`, and leaves `status --porcelain` empty | that a clone inherits no line-ending setting, and that task 03's four keys undo the system one (review C2) | 03 |
 | `TestBehaviourCloneBranchSetsUpstream` | `clone --branch feat/x` checks out `feat/x`; `branch.feat/x.remote` is `origin` and `.merge` is `refs/heads/feat/x` | the agent's `git status` shows ahead/behind of `origin/feat/x` | 03, 09 |
 | `TestBehaviourMergeTreeCleanExitsZeroWithATree` | `merge-tree --write-tree --name-only A B` exits 0, stdout is exactly one line, a 40-hex tree id | forecast parsing | 08 |
 | `TestBehaviourMergeTreeConflictExitsOneWithPaths` | on a conflict: exit **1**, line 1 a tree id, then each conflicted path once, then an empty line, then informational messages | forecast parsing, and that exit 1 is not an error | 08, 09 |
@@ -54,7 +60,7 @@ clone bind-mounted at `/home/dev/work` and the fix's environment (`GIT_CONFIG_CO
 
 | Test | Asserts | Consumed by |
 |---|---|---|
-| `TestSandboxCloneHasWorkingGit` | `git status` exits 0; `git commit --allow-empty -m x` exits 0 and the commit's author is the injected identity | 03, 04 |
+| `TestSandboxCloneHasWorkingGit` | the host clones a repository of LF blobs with task 03's argv, **production-shaped** (host `core.autocrlf=true`). In the sandbox, `git status --porcelain` prints **nothing** (an exit code of 0 is not enough: review C2); `git commit --allow-empty -m x` exits 0 and the commit's author is the injected identity. Control, run first: a plain `clone --local` under the same host config makes the sandbox's `status --porcelain` list every LF file as modified. Record the count; if the control is clean, record that C2's mechanism did not reproduce | 03, 04 |
 | `TestSandboxCloneCannotFetch` | `git fetch` exits non-zero; record the sentence verbatim | 04, and the agent-facing docs of task 23 |
 | `TestSandboxGitHonoursEnvHooksPath` | with `GIT_CONFIG_KEY_2=core.hooksPath` pointing at a bind-mounted directory holding a `prepare-commit-msg`, a commit carries the hook's line; record `git --version` from the image | 05 |
 
@@ -77,11 +83,13 @@ image and skips with a sentence if `panacea-app/sandbox:dev` is absent.
 - [ ] **Step 4:** write `sandbox_docker_test.go` and run it with `-tags docker` (PowerShell tool,
   per phase 2's Docker rule).
 - [ ] **Step 5: Measure clones (R12).** On the owner's laptop, for this repository and for
-  `~/Projects/Panacea` (the large one), record in the results document: wall-clock of
-  `git clone --local`, disk before and after (`Get-PSDrive C` free space, or `du -sh` on the clone
-  **and** the source), whether the state directory and the projects root are on the same volume
-  (hard links need one), the longest path in the checkout plus the clone root's length against
-  260, and whether `core.longpaths` is set. No antivirus configuration is changed.
+  `~/Projects/Panacea` (the large one), record in the results document, for **both**
+  `git clone --local` and `git clone --no-hardlinks` (task 03 uses the second; Q9): wall-clock,
+  disk before and after (`Get-PSDrive C` free space, or `du -sh` on the clone **and** the source),
+  the size of the source's `.git/objects`, whether the state directory and the projects root are on
+  the same volume (hard links need one), the longest path in the checkout plus the clone root's
+  length against 260, and whether `core.longpaths` is set. Q9's answer rests on the
+  `--no-hardlinks` wall-clock for `~/Projects/Panacea`. No antivirus configuration is changed.
 - [ ] **Step 6:** write the results document: one row per test, the recorded sentences verbatim,
   the measurements, and a **Divergences** section naming each later task that must change.
 - [ ] **Step 7:** commit `doc.go`, both test files and the document, by pathspec.
@@ -89,7 +97,7 @@ image and skips with a sentence if `panacea-app/sandbox:dev` is absent.
 #### Acceptance
 
 ```
-go test ./control-plane/internal/gitx/ -run Behaviour -count=1 -v   → PASS, 17 tests (or the recorded, inverted form)
+go test ./control-plane/internal/gitx/ -run Behaviour -count=1 -v   → PASS, 19 tests (or the recorded, inverted form)
 go test ./control-plane/internal/gitx/ -tags docker -run Sandbox -count=1 -v → PASS, 3 tests, or SKIP naming the missing image
 go vet ./control-plane/...                                           → no output
 ```
