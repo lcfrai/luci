@@ -129,4 +129,34 @@ describe("where a session is STARTED: EmptyDevelop", () => {
     expect(container.querySelector(".pane-empty-actions")).not.toBeNull();
     expect(notesIn(container)).toHaveLength(0);
   });
+
+  // The note is keyed to the SELECTED worktree, not the branch's first. With one worktree per
+  // branch the two are the same object, so these seed two on one branch, each way round: a note
+  // keyed to worktrees[0] shows the wrong answer in both.
+  function seedTwo(first: boolean, selectedIsPrimary: boolean): void {
+    const primary = aWorktree({ id: "w-p", projectId: "p-1", branchId: "b-1", name: "primary", isPrimary: true });
+    const linked = aWorktree({ id: "w-l", projectId: "p-1", branchId: "b-1", name: "linked", isPrimary: false });
+    const selected = selectedIsPrimary ? primary : linked;
+    useCockpit.setState({
+      harnesses: [CLAUDE],
+      worktreesByBranch: { "b-1": first ? [primary, linked] : [linked, primary] },
+      sessions: {},
+      sessionIdsByWorktree: { "w-p": [], "w-l": [] },
+      selection: { projectId: "p-1", branchId: "b-1", worktreeId: selected.id, sessionId: null },
+    });
+  }
+
+  it("shows the notice for a selected linked worktree listed after the primary", () => {
+    seedTwo(true, false);
+    const { container } = render(<EmptyDevelop branch={BRANCH} />);
+    expect(container.textContent).toContain("No sessions on linked.");
+    expect(notesIn(container)).toHaveLength(1);
+  });
+
+  it("shows nothing for a selected primary worktree listed after a linked one", () => {
+    seedTwo(false, true);
+    const { container } = render(<EmptyDevelop branch={BRANCH} />);
+    expect(container.textContent).toContain("No sessions on primary.");
+    expect(notesIn(container)).toHaveLength(0);
+  });
 });
