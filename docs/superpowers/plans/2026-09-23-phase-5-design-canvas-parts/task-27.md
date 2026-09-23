@@ -107,6 +107,12 @@ export interface DesignSlice {
     // Set by the render responder (task 24) from a RenderRequest's progress (task 13) while the
     // approval POST is in flight; cleared when it settles. The toast reads it (task 28, review I5).
     approvalProgress: { canvasId: string; index: number; total: number; name: string } | null;
+    // The canvas under approval, from designApprove until the POST settles (or Undo). While set,
+    // the window keeps a hidden renderer for it, so leaving the lens mid-capture hands the next
+    // re-sent artboard to that renderer instead of failing the approval (task 21 step 4,
+    // re-review RR-I5-1). Set at the Undo window's start, so the stream swap it causes lands
+    // before any capture request.
+    approving: string | null;
     stream: StreamState;
     lastUndo: { canvasId: string; message: string } | null;
   };
@@ -136,7 +142,9 @@ export function createCockpitTransport(client: DesignClient, stream: EventStream
 export const selectDesignBriefKeys: KeySource;   // every loaded approval's briefKey (S4-P5.1)
 // selectHiddenRendererCanvases (P5-Q): the canvas ids of branches that have at least one
 // running or idle claude-code session (from the poller's sessions) and a loaded canvas —
-// excluding the canvas the Design lens is showing (it has a visible renderer).
+// excluding the canvas the Design lens is showing (it has a visible renderer) — plus
+// design.approving, INCLUDING when the lens shows it: that hidden renderer is the approval's
+// fallback when the lens closes mid-capture (re-review RR-I5-1). Render still prefers visible.
 export function selectHiddenRendererCanvases(s: CockpitState): string[];
 ```
 
@@ -157,7 +165,8 @@ export function selectHiddenRendererCanvases(s: CockpitState): string[];
 | `designSlice.test.ts › startDevelop` | three calls in order; a failing third leaves `linked: false` and the retry path works | an unlinked session nobody can fix |
 | `transportAdapter.test.ts › gapReload` | a DocStore `gap` triggers exactly one `document()` | a canvas stuck behind after a drop |
 | `transportAdapter.test.ts › renderRoundTrip` | a render event runs the handler and POSTs its result to route 19 | render requests that time out server-side |
-| `selectors.test.ts` | `selectDesignBriefKeys` lists approved keys; `selectHiddenRendererCanvases` includes a branch with a running claude-code session and excludes the lens's canvas | hidden renderers for every branch, or none |
+| `selectors.test.ts` | `selectDesignBriefKeys` lists approved keys; `selectHiddenRendererCanvases` includes a branch with a running claude-code session and excludes the lens's canvas; with `approving` set to the lens's own canvas it includes that canvas, and with `approving` null it drops it again | hidden renderers for every branch, or none; an approval whose only renderer closes with the lens (re-review RR-I5-1) |
+| `designSlice.test.ts › approving` | `designApprove(c, 5)` sets `approving: c` at once (inside the Undo window); `designCancelApproval` clears it; the approve POST settling, with success or an `ApiError`, clears it | a hidden renderer kept for ever, or one attached only after capture has started |
 
 ## Steps
 

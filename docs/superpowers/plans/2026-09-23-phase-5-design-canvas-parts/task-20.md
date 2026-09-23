@@ -153,8 +153,11 @@ data: {"topic":"canvas:cv-…@41","code":"canvas_not_found"}
 - The desktop **replaces** its stream when its topic set changes (a new request, then it closes the
   old). One stream per window (P5-B). On reconnect it resends each canvas's last revision; the
   authority replays or resets (task 11).
-- Closing the stream detaches its renderers (task 13). A renderer that lets **two** requests time
-  out is detached and gets `gone` for its topic — a phantom renderer cannot starve agents.
+- Closing the stream detaches its renderers (task 13). A renderer that takes **two** strikes is
+  detached and gets `gone` for its topic — a phantom renderer cannot starve agents. A strike is
+  task 13's (`AttachRenderer`): an agent request that times out while its renderer held no
+  approval capture outstanding. An approval capture's own timeout, and an agent request that timed
+  out queued behind one, are not strikes (re-review RR-I5-1).
 - **Why a GET is right here** (§10a, `httpx/origin.go`'s *"no side-effecting GET"*): the stream
   changes no stored state; a renderer registration is a subscription that ends with the connection,
   like the attach WebSocket's. It is listed in `catalogReadOnlyRoutes` with that sentence.
@@ -290,7 +293,7 @@ The two `PANACEA_APP_CANVAS_*` variables, `newDesignAPI` and the `main.go` wirin
 | `TestEvents_sseFormat` | a subscriber sees `event: canvas`, `id:`, `data:` lines, flushed per event, and a ping within 15 s (injected ticker) | buffered events arriving in bursts |
 | `TestEvents_replayOnReconnect` | reconnect with `@41` after revisions 42–45 → four events | missed changes after a drop |
 | `TestEvents_topicLimit` | 17 topics → 400 | unbounded fan-out |
-| `TestEvents_phantomRenderer` | a renderer topic that answers nothing: after two timeouts it gets `gone` and requests go elsewhere | a stale window starving agents |
+| `TestEvents_phantomRenderer` | a renderer topic that answers nothing: after two agent-request timeouts it gets `gone` and requests go elsewhere; a renderer holding an approval capture while two agent requests expire keeps its topic (task 13's `TestRender_strikesSkipApproval` owns the full table) | a stale window starving agents; an approval detaching its own lens (re-review RR-I5-1) |
 | `TestNew_refusesNoKeyGuard` | `New(Config{…everything but KeyGuard})` → `ErrNoKeyGuard`, no `*API` | the guard made optional again (review C1) |
 | `TestRoutes_localKeyRequired` (table, one row per route class: 5 human ops, 8 revert, 9 break claim, 17 selection, 19 render result, 20 the stream) | through `Mount` with a real `localkey.Middleware` over a key minted into `t.TempDir()`: no `Authorization` → 401 `local_key_required` and **the authority unchanged** (revision, claims, selection, pending render requests all as before); `Bearer <wrong key>` → the same; `Authorization: Bearer ` (empty) → the same (plan HA5-6); the right key → not 401. Requests carry **no `Origin`** and `Host: 127.0.0.1:8730` — exactly what a sandboxed `curl` sends | a sandbox editing as `human`, reverting another agent, breaking claims, forging the selection, answering screenshot requests, or reading the stream (review C1) |
 | `TestMount_wrapsEveryRoute` | walks every pattern `Mount` hands to `handle` (a recording `handle`) and sends each one keyless → 401; the count equals the route table's (20 here; task 21 raises it to 23, task 22 to 26 and task 29 to 27, and each of those parts carries its own row extending this test) | one route mounted without the wrap |

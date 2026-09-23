@@ -77,6 +77,12 @@ type Snapshot struct {
 // then manifest.json. A missing PNG for any artboard is an error.
 func BuildSnapshot(in SnapshotInput) (Snapshot, error)
 
+// FileCount is len(Files)+1 of the snapshot BuildSnapshot would write for doc,
+// computed without any PNG: 4 per artboard + 3 + one per distinct asset + the
+// manifest. Route 21 checks it against MaxFiles before capturing anything
+// (re-review RR-I5-2); TestFileCount_matchesBuild keeps the two from drifting.
+func FileCount(d *doc.Doc) int
+
 const (
 	MaxFiles         = 500       // the Hub's snapshot.blobs cap, manifest included (contract §7.7 check 5)
 	MaxFileBytes     = 16 << 20  // the Hub's blob cap (contract §7.6)
@@ -269,21 +275,45 @@ type ApprovalState struct {
 1. `revision` is 1 … head, else `400 bad_request`.
 2. `Briefs.Binding(projectId)` is `bound`, else `409 design_not_shared` `{state}`.
 3. `Briefs.Head(projectId, branchId)` is `resolved` with status `complete`, else `409 design_no_brief`.
-4. The document at `revision` (`authority.Document`), then **2× screenshots of every artboard at
+4. The document at `revision` (`authority.Document`). Then **the count half of step 5's limit,
+   before any capture** (re-review RR-I5-2): `handoff.FileCount(doc)` — four files per artboard,
+   `tokens.css`, `tokens.json`, `tree.json`, one per distinct asset the document references, and
+   the manifest, which is exactly the list `BuildSnapshot` writes — over `MaxFiles` →
+   `413 design_too_large` and no render request is sent. The byte limits stay in step 5, since the
+   PNGs are most of the bytes. Then **2× screenshots of every artboard at
    that revision, one artboard per request** (review I5): for artboard *i* of *n*, in document
    order, `authority.RenderWithin(ctx, canvasId, {Kind: screenshot, NodeIDs: [id], Scale: 2,
    Revision: revision, Progress: {approval, i, n, name}}, ApprovalRenderTimeout)` (task 13), so each
    capture has its own deadline and the agents' 15 s `RenderTimeout` is untouched. The requests run
    one after another (a renderer captures on its main thread; parallel requests would share it).
    The log records each artboard's capture time (`artboard`, `ms`, `scale`), the figure task 30
-   compares with S8. The first failure stops the loop: `409 renderer_unavailable` with
-   `details.artboardId`, `details.artboardName`, `details.index`, `details.total` and, for a
-   `*RenderError`, `details.renderError` (its code), and the sentence *"The renderer could not
-   capture artboard "<name>" (<i> of <n>). Nothing was approved."* — the lens is open when a human
-   approves, so this means the renderer failed on that artboard. Nothing is uploaded before every
-   capture has succeeded (step 6 comes after), so a failure leaves the Hub untouched.
+   compares with S8.
+   - **A detach is re-sent once** (re-review RR-I5-1). A capture lasts long enough for the
+     desktop to replace its stream (its topic set changed: another branch gained a session, a
+     canvas subscription was added, task 20) or for the person to leave the lens, and either
+     detaches the renderer holding the request. So a request failing `ErrRendererDetached`
+     (task 13) is re-sent **once**, with a fresh `ApprovalRenderTimeout`, to whichever renderer is
+     preferred now: the same window's renderer on its new stream, or the hidden renderer the
+     desktop keeps for a canvas under approval (task 27's `approving`). Only a detach is
+     re-sent. A timeout or a `*RenderError` is the renderer's answer about that artboard, and
+     re-sending it would double the wait for the same answer.
+   - **Any other failure stops the loop**: `409 renderer_unavailable` with `details.artboardId`,
+     `details.artboardName`, `details.index`, `details.total`, `details.cause`, and for a
+     `*RenderError` also `details.renderError` (its code). The sentence names the cause the route
+     knows, not a guess:
+
+     | `cause` | when | sentence |
+     |---|---|---|
+     | `no_renderer` | `ErrNoRenderer` on artboard 1, before any detach | *"No canvas is open to capture this design. Open it in the Design lens and approve again. Nothing was approved."* |
+     | `renderer_gone` | a second `ErrRendererDetached` on one artboard, or `ErrNoRenderer` after a detach or on artboard 2 onwards | *"The canvas closed while artboard "<name>" (<i> of <n>) was being captured. Keep the window open until capture ends. Nothing was approved."* |
+     | `timeout` | `ErrRenderTimeout` | *"Artboard "<name>" (<i> of <n>) was not captured within <s> seconds. Nothing was approved."* (`<s>` from `ApprovalRenderTimeout`) |
+     | `render_error` | a `*RenderError` | *"The renderer could not capture artboard "<name>" (<i> of <n>): <message>. Nothing was approved."* |
+
+     Nothing is uploaded before every capture has succeeded (step 6 comes after), so a failure
+     leaves the Hub untouched.
 5. `handoff.BuildSnapshot` (called through the API's unexported `buildSnapshot` field, which only
-   `TestApprove_snapshotBug` replaces); over `MaxFiles`, `MaxFileBytes` or `MaxSnapshotBytes` → `413 design_too_large`.
+   `TestApprove_snapshotBug` replaces); over `MaxFiles` (already refused in step 4, kept as the
+   backstop), `MaxFileBytes` or `MaxSnapshotBytes` → `413 design_too_large`.
    `ErrTampered` or `ErrUnsafePath` from `BuildSnapshot`'s own `CheckManifest` (a path failing
    `SafePath`, a path repeated, a content type or asset hex that disagrees) is a bug in `slug.go` or
    `snapshot.go` — `500 internal`, nothing uploaded, no approval asked of the Hub (re-review I-1).
@@ -324,10 +354,14 @@ loader; this cache does not poll it).
 | `TestApprove_happy` (Hub fake) | blobs uploaded before the approval; `ApprovalRequest` has the right keys and digests; the review request is closed; route 22 then says `approved` | an approval with no snapshot |
 | `TestApprove_notShared` | an unbound project → 409 `design_not_shared` and **no** Hub call | blobs uploaded for a project the Hub cannot hold |
 | `TestApprove_incompleteBrief` | head brief `open` → 409 `design_no_brief`, no upload | an approval against an unfinished brief (ADR Q1) |
-| `TestApprove_noRenderer` | no renderer → 409 `renderer_unavailable`, no upload | an approval whose PNGs are blank |
+| `TestApprove_noRenderer` | no renderer → 409 `renderer_unavailable`, `details.cause: "no_renderer"` and its sentence, no upload | an approval whose PNGs are blank |
+| `TestApprove_rendererSwapMidApproval` (re-review RR-I5-1; a recording renderer fake, 12 artboards, a visible and a hidden renderer attached) | the visible renderer detaches while holding artboard 4 → artboard 4 is re-sent once, with a fresh `ApprovalRenderTimeout`, to the hidden renderer, which answers; artboards 5–12 go to the hidden one → 201, twelve PNGs; the same with the visible renderer re-attached under its own id (a stream replacement) instead of a hidden one → 201, artboard 4 captured by the re-attached renderer | a stream swap or a lens switch failing the spine's one action (re-review RR-I5-1) |
+| `TestApprove_rendererGoneMidApproval` (re-review RR-I5-1) | the only renderer detaches holding artboard 4 of 12 → `409 renderer_unavailable`, `details.cause: "renderer_gone"`, index 4, the *"The canvas closed while …"* sentence; artboard 4 re-sent to a renderer that detaches again → the same; a `*RenderError` or a timeout on artboard 4 → exactly one request for artboard 4 (no re-send) and cause `render_error` / `timeout`; no `PutBlob`, no `Approve` in any row | an error blaming the renderer for a closed window; a re-send loop; a timeout re-sent, doubling the wait |
+| `TestApprove_tooManyFilesBeforeCapture` (re-review RR-I5-2) | a document whose `FileCount` is `MaxFiles` + 1 → `413 design_too_large`, and the renderer fake saw **no** request, no `PutBlob`; at exactly `MaxFiles` it proceeds to capture | a canvas over the cap captured artboard by artboard before it is refused |
+| `TestFileCount_matchesBuild` | for the two-artboard fixture, a fixture sharing one asset between artboards, and the `"Home"`, `"Home"`, `"Home 2"` fixture, `FileCount(doc) == len(BuildSnapshot(…).Files) + 1` | the pre-check and the build counting different files |
 | `TestApprove_onePerArtboard` (a recording renderer fake, 12 artboards) | twelve requests, one after another (the next is sent only after the last `CompleteRender`), each with one node id, `Scale: 2`, `Revision` the approved one, `Progress{approval, i, 12, name}` in document order, and a `Deadline` of now + `ApprovalRenderTimeout` (injected clock) | the old one-request-for-every-artboard capture held to 15 s; parallel captures fighting over one main thread (review I5) |
-| `TestApprove_slowArtboardWithinItsDeadline` (injected clock) | each artboard answered at 20 s → 201; the same with `Render`'s 15 s budget would have failed (asserted by a row that calls `Render` directly) | the approval routed through `Render`, not `RenderWithin` |
-| `TestApprove_failureNamesArtboard` | artboard 3 of 5 (*"Billing"*) unanswered → at 30 s, `409 renderer_unavailable` with `details.artboardId`, `artboardName: "Billing"`, `index: 3`, `total: 5`, the sentence naming it; artboards 4–5 never requested; **no** `PutBlob`, **no** `Approve`; a `*RenderError{too-large}` on artboard 2 → the same shape with `details.renderError: "too-large"` | a failure the human cannot act on; blobs uploaded for an approval that failed |
+| `TestApprove_slowArtboardWithinItsDeadline` (injected clock) | each artboard answered at `RenderTimeout + 5 s` → 201; the same with `Render`'s `RenderTimeout` budget would have failed (asserted by a row that calls `Render` directly) | the approval routed through `Render`, not `RenderWithin` |
+| `TestApprove_failureNamesArtboard` | artboard 3 of 5 (*"Billing"*) unanswered → at `ApprovalRenderTimeout` (the constant, never a literal, so S8 resetting it leaves the test true: re-review RR-I5-3), `409 renderer_unavailable` with `details.artboardId`, `artboardName: "Billing"`, `index: 3`, `total: 5`, `cause: "timeout"`, the timeout sentence naming it with `ApprovalRenderTimeout`'s seconds; artboards 4–5 never requested; **no** `PutBlob`, **no** `Approve`; a `*RenderError{too-large}` on artboard 2 → the same shape with `cause: "render_error"` and `details.renderError: "too-large"` | a failure the human cannot act on; blobs uploaded for an approval that failed |
 | `TestApprove_hubErrorsPassThrough` | fake answers `design_already_approved` → the same 409 and code reach the desktop; a fake 500 → 503 `upstream_unavailable` `upstream: hub` | Hub codes rewritten |
 | `TestApprove_noHub` (review I6) | `Config.Hub` nil (the process with `PANACEA_APP_HUB_URL` unset): route 21, and route 22 on a cache miss, → `503 hub_not_configured`, no panic, no blob or approval, authority unchanged; `Approvals().Latest` → not found | a nil `Hub` dereferenced on the one action the spine depends on |
 | `TestNew_refusesTypedNilHub` (re-review RR-I6-3) | `New(Config{…, Hub: (*fakeDesigns)(nil)})` → `ErrTypedNilHub`, no `*API`; an untyped nil `Hub` → builds | a nil pointer inside a non-nil interface reaching route 21 |

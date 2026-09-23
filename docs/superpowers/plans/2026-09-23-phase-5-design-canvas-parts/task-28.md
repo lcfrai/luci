@@ -41,9 +41,11 @@ canvas"*), not shared (phase 4's OQ-1 sentence: *"this repository has no shared 
 cannot be approved"*), no brief (*"this branch has no complete brief yet; approval needs one"* with
 *Open Discover*), signed out (*Sign in to approve*), capturing (after the Undo window, the same
 toast reads *"Capturing 3 of 12 · Billing"* from the slice's `approvalProgress`, `tabular-nums`,
-no spinner: the count is the progress, review I5), renderer failure during approval (the problem's
-sentence, which names the artboard and its index, task 21 step 4), and success (the approval toast
-with **Undo**, P5-I).
+no spinner: the count is the progress, review I5; its second line reads *"Keep this window open
+until capture ends; you can leave the Design lens"*, P5-I as extended by re-review RR-I5-1),
+renderer failure during approval (the server's sentence, which names the artboard, its index and
+the cause — no renderer, the canvas closed, a timeout or a render error, task 21 step 4), and
+success (the approval toast with **Undo**, P5-I).
 
 ## Contracts
 
@@ -106,7 +108,7 @@ on revisions, counts and times.
 | `DesignLens.test.tsx › hubDown` | a 503 `upstream_unavailable` `upstream: hub` → canvas editable, three actions disabled with the sentence | the canvas locked because the Hub is down |
 | `DesignLens.test.tsx › notShared` | `design_not_shared` → phase 4's OQ-1 sentence | a raw code on screen |
 | `approve.test.tsx` (fake timers) | *Approve* shows a toast with Undo; Undo within 5 s sends nothing | a confirm dialog, or an approval that cannot be undone |
-| `approve.test.tsx › capturing` | with `approvalProgress` `{index: 3, total: 12, name: "Billing"}` the toast reads *"Capturing 3 of 12 · Billing"*; a `409 renderer_unavailable` whose details name artboard *"Billing"* (3 of 12) shows the server's sentence | a silent twelve-artboard wait, or a failure that does not say which artboard (review I5) |
+| `approve.test.tsx › capturing` | with `approvalProgress` `{index: 3, total: 12, name: "Billing"}` the toast reads *"Capturing 3 of 12 · Billing"* and *"Keep this window open until capture ends; you can leave the Design lens"*; a `409 renderer_unavailable` whose details name artboard *"Billing"* (3 of 12) shows the server's sentence, for each `details.cause` (`no_renderer`, `renderer_gone`, `timeout`, `render_error`) unchanged | a silent twelve-artboard wait, or a failure that does not say which artboard or why (review I5, re-review RR-I5-1) |
 | `Presence.test.tsx` | rows use `beatDelayStyle`/`useHeartbeat`; no `setInterval`; *Release claim* calls route 9 | a per-row timer |
 | `Activity.test.tsx` | *Revert {handle}'s changes* calls route 8 with that session id | revert by the wrong author |
 | `AppShell.test.tsx` (amended) | the design arm renders `DesignLens`; the phase 2 guard `grep -cE '^[[:space:]]+return <DevelopLens' …` is still `1` | the Develop arm disturbed |

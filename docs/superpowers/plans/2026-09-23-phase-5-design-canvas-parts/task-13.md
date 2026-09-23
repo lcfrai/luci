@@ -109,15 +109,35 @@ const (
 	ApprovalRenderTimeout = 30 * time.Second
 )
 
+// The three causes of ErrRendererUnavailable (task 11). Each wraps it, so a
+// caller asking only errors.Is(err, ErrRendererUnavailable) is unchanged; task
+// 21's approval tells them apart, re-sends on ErrRendererDetached, and names
+// the cause in its failure sentence (re-review RR-I5-1).
+var (
+	ErrNoRenderer       = fmt.Errorf("%w: none attached", ErrRendererUnavailable)                   // nothing attached for the canvas when the request was made
+	ErrRendererDetached = fmt.Errorf("%w: the renderer detached", ErrRendererUnavailable)           // the renderer it was sent to detached with it outstanding
+	ErrRenderTimeout    = fmt.Errorf("%w: unanswered at its deadline", ErrRendererUnavailable)      // no CompleteRender before r.Deadline
+)
+
 // AttachRenderer registers one renderer for one canvas. visible is true for
 // the lens's renderer, false for the hidden one; Render prefers visible. The
 // channel carries requests; detach removes the renderer and fails its
-// outstanding requests with ErrRendererUnavailable.
+// outstanding requests with ErrRendererDetached.
+//
+// Strikes (task 20's phantom rule): the Service itself detaches a renderer,
+// closing its channel so task 20 sends `gone`, at its SECOND strike. A strike
+// is an AGENT request (Progress nil) that reaches its deadline unanswered AND
+// whose renderer held no approval request (Progress set) outstanding at any
+// moment of that request's life. So an approval request's own timeout is
+// never a strike (it has its own bound, and the approval stops at it), and an
+// agent request that waited behind an approval capture on the renderer's one
+// main thread is not one either. Answering any request resets the count to 0.
 func (s *Service) AttachRenderer(canvasID, rendererID string, visible bool) (requests <-chan RenderRequest, detach func())
 
 // Render sends a request to the preferred attached renderer and waits for
-// its result, the deadline, or ctx. No renderer, or a timeout, is
-// ErrRendererUnavailable. A result with Error set is returned as
+// its result, the deadline, or ctx. No renderer is ErrNoRenderer, a timeout
+// ErrRenderTimeout, a detach ErrRendererDetached (all three are
+// ErrRendererUnavailable). A result with Error set is returned as
 // *RenderError{Code, Message}.
 func (s *Service) Render(ctx context.Context, canvasID string, r RenderRequest) (RenderResult, error)
 
@@ -163,15 +183,16 @@ func (s *Service) GetSelection(canvasID string) Selection
 
 | Test | Asserts | Kills the mutant |
 |---|---|---|
-| `TestRender_noRenderer` | `Render` with none attached → `ErrRendererUnavailable` at once, not after the timeout | an agent waiting 15 s to learn the desktop is closed |
+| `TestRender_noRenderer` | `Render` with none attached → `ErrNoRenderer` (and `errors.Is(…, ErrRendererUnavailable)`) at once, not after the timeout | an agent waiting 15 s to learn the desktop is closed |
 | `TestRender_prefersVisible` | with a hidden and a visible renderer attached, the request goes to the visible one | screenshots from a renderer without the lens's loaded fonts |
 | `TestRender_fallsBackToHidden` | with only the hidden one, it answers | layout tools dead while the lens is closed (P5-Q) |
-| `TestRender_timeout` (injected clock) | an unanswered request fails `ErrRendererUnavailable` after 15 s; a late `CompleteRender` is `ErrNotFound` | a leaked waiter |
+| `TestRender_timeout` (injected clock) | an unanswered request fails `ErrRenderTimeout` (and `ErrRendererUnavailable`) after 15 s; a late `CompleteRender` is `ErrNotFound` | a leaked waiter |
 | `TestRender_wrongRenderer` | renderer B completing A's request → `ErrNotFound` | one window answering for another |
-| `TestRender_detachFailsOutstanding` | detaching with a request in flight fails it immediately | a request orphaned by a closed lens |
+| `TestRender_detachFailsOutstanding` | detaching with a request in flight fails it immediately with `ErrRendererDetached` (and `ErrRendererUnavailable`), neither `ErrNoRenderer` nor `ErrRenderTimeout` | a request orphaned by a closed lens; a detach task 21 cannot tell from a timeout, so it never re-sends (re-review RR-I5-1) |
+| `TestRender_strikesSkipApproval` (injected clock, one renderer) | two agent requests left unanswered to their deadlines → detached at the second, channel closed; on a fresh renderer, two approval requests (`Progress` set) left unanswered → still attached; on a third, an approval request outstanding while two agent requests expire behind it → still attached, and an agent request answered between two expiries resets the count | an approval capture, or the agent requests queued behind it, detaching the lens mid-approval (re-review RR-I5-1) |
 | `TestRender_errorPassthrough` | a result with `Error: "not-rendered"` → `*RenderError` | a failed render reported as an empty success |
 | `TestRender_limits` | 51 node ids, scale 3 → `ErrTooLarge` before any renderer sees it | an unbounded request |
-| `TestRenderWithin_ownDeadline` (injected clock) | `RenderWithin(…, ApprovalRenderTimeout)` answered at 20 s → the result, and the request's `Deadline` is now + 30 s; unanswered → `ErrRendererUnavailable` at 30 s, not 15 s; `Render` still fails at 15 s | an approval capture held to the agents' 15 s budget, or the agents' budget grown (review I5) |
+| `TestRenderWithin_ownDeadline` (injected clock) | `RenderWithin(…, ApprovalRenderTimeout)` answered at `RenderTimeout + 5 s` → the result, and the request's `Deadline` is now + `ApprovalRenderTimeout`; unanswered → `ErrRenderTimeout` at `ApprovalRenderTimeout`, not at `RenderTimeout`; `Render` still fails at `RenderTimeout`. Every time is written from the two constants, never as a literal, so S8 resetting `ApprovalRenderTimeout` leaves the test true (re-review RR-I5-3) | an approval capture held to the agents' 15 s budget, or the agents' budget grown (review I5) |
 | `TestRenderWithin_bounds` | a timeout of 0, a negative one, and `ApprovalRenderTimeout + 1ns` → an error, and no renderer saw a request | a caller holding a renderer indefinitely |
 | `TestRender_progressPassesThrough` | a request with `Progress{approval, 3, 12, "Billing"}` reaches the renderer channel unchanged; an agent's request (`Render`) carries `nil` | a toast with no count, or an agent request dressed as an approval |
 | `TestSelection_humanOnly` | a session caller → refused; a human sets `[a, b, missing]` → `[a, b]` | an agent writing the human's selection |

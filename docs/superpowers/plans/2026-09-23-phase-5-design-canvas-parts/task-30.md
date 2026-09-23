@@ -126,7 +126,10 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
       the brief in Discover (*superseded*); re-review and approve again. Then approve a canvas of
       twelve artboards: the toast counts *"Capturing 3 of 12 · <name>"*, and the log's per-artboard
       capture times are noted beside S8's (task 01) — the WebView2 figure `ApprovalRenderTimeout`
-      was set without (review I5).
+      was set without (review I5). Edit one of its artboards, approve the new revision, and switch to the Develop lens at
+      *"Capturing 4 of 12"*: the count carries on and the approval lands (the hidden renderer
+      takes over, re-review RR-I5-1); the log shows one re-send for the artboard that was in
+      flight.
    6. *Start a Develop session from this design*; the Develop agent reads
       `.panacea/design/<canvas>@<rev>/manifest.json` and implements the screen; `git status` shows
       nothing under `.panacea/`.
