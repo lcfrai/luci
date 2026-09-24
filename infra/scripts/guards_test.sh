@@ -415,6 +415,33 @@ EOF
   guards
   expect_only 9
   expect_line "guard G9: FAIL $TF/modules/net/versions.tf:"
+  # An entry with no source is inferred as hashicorp/<name>, so it is checked as that.
+  # kills: G9 that skips an entry without a source (predicted survivor P1)
+  put "$TF/modules/net/versions.tf" <<'EOF'
+terraform {
+  required_providers {
+    azurerm = {
+      source = "hashicorp/azurerm"
+    }
+    external = {
+      version = "~> 2.3"
+    }
+  }
+}
+EOF
+  guards
+  expect_only 9
+  expect_line "guard G9: FAIL $TF/modules/net/versions.tf: provider \"external\" has source hashicorp/external"
+  # fmt leaves a one-argument block on one line (fmt -check exits 0, Terraform 1.15.8 probe).
+  # kills: a required_providers reader that sees only the spread-out layout (predicted P2)
+  put "$TF/modules/net/versions.tf" <<'EOF'
+terraform {
+  required_providers { external = { source = "hashicorp/external" } }
+}
+EOF
+  guards
+  expect_only 9
+  expect_line "guard G9: FAIL $TF/modules/net/versions.tf: provider \"external\" has source hashicorp/external"
 }
 
 case_g9_lockfile_provider_fails() {  # kills: G9 that reads only required_providers
