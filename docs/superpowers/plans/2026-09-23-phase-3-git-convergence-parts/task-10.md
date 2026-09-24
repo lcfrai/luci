@@ -81,7 +81,16 @@ type UndoResult struct {
 // Undo takes back the land at the tip, exactly. Refusals (*Refusal, nothing written):
 // branch_checked_out; undo_not_exact with details.why "not_a_land" | "not_the_tip" | "pushed" |
 // "merged_into_lane"; branch_moved when the tip is not expectedTip. merged_into_lane (review I3)
-// comes from, under the lock and after the tip check:
+// comes from, under the lock and after the tip check, first:
+//   l.Syncer.SyncLane(ctx, id) for every lane of the branch in the lane index, in id order, as
+//   Land's step 4 does for one (re-review b06-1 issue 1). Without it the lane refs are up to one
+//   sweep old, and a lane whose agent merged origin/<branch> since the last sweep reads as not
+//   containing the land. The project lock is held; SyncLane's per-lane lock comes after it,
+//   which task-02's lock order allows. A SyncLane error ends the undo with that error's code
+//   (git_failed with gitSays, or clone_config_untrusted) before anything is written, as at
+//   Land's step 4, with the message "worktree <name> could not be synced, so the cockpit cannot
+//   tell whether it has merged this land". Fail closed: an unsynced lane may hold the land. The
+//   revert stays offered, because a revert is right whatever a lane holds. Then:
 //   for-each-ref --contains <sha> --format=%(refname) refs/panacea/lanes/   (project, Read)
 //   (no lane contains it → empty output and exit 0, not a non-zero exit: probed, review b06)
 // Any ref other than the land's own lane (refs/panacea/lanes/<Panacea-Land id>) refuses, with
@@ -173,6 +182,7 @@ and rev-list, and the lane index for names. Writes nothing."*
 | `TestUndoRefusesAPushedLand` | pushed → `undo_not_exact`/`pushed`, nothing moved | a force-push by the back door (A3) |
 | `TestUndoRefusesANonTip` | a land under a later commit → `undo_not_exact`/`not_the_tip` | rewriting history below a newer commit |
 | `TestUndoRefusesALandALaneHasMerged` (review I3) | land A → M; lane B's clone runs `git merge origin/<branch>` (M) and a lane sync makes `refs/panacea/lanes/B` contain M; undo M → `undo_not_exact`/`merged_into_lane`, `details.worktrees == "B"`, the tip still M, no `refs/panacea/undone/<M>`; History's tip row → `undo:"revert"`, `undoWhy:"merged_into_lane"`; the revert of M then lands | an undo that only checks the tip, after which B's next land brings A's work back unannounced |
+| `TestUndoSyncsTheLanesFirst` (re-review b06-1 issue 1) | land A → M; lane B's clone runs `git merge origin/<branch>` (M) and commits; no sweep and no `SyncLane` has run since, so `refs/panacea/lanes/B` does not contain M; undo M → `undo_not_exact`/`merged_into_lane`, `details.worktrees == "B"`, the tip still M; `refs/panacea/lanes/B` now contains M. With B's clone directory removed instead → the undo fails with SyncLane's error, the tip still M, no `refs/panacea/undone/<M>` | an undo that reads lane refs one sweep old and calls a land exact that a lane has already merged (mirrors task 09's `TestLandSyncsTheLaneFirst`) |
 | `TestUndoExemptsTheLandsOwnLane` (review I3) | land A → M; A's own clone merges origin/<branch> and syncs, so `refs/panacea/lanes/A` contains M → History's tip row `undo:"exact"`, and Undo succeeds | refusing every undo whose lane later pulled the branch, which leaves the user only a revert for no reason |
 | `TestHistoryMergedIntoLaneIsReadFresh` (review I3) | History (tip row exact); lane B merges M and syncs, the tip unchanged; History again → `undoWhy:"merged_into_lane"` | a lane-containment answer cached under a key that a lane sync does not change |
 | `TestUndoRefusesAStaleView` | `expectedTip` ≠ tip → `branch_moved` | undoing a land the human no longer sees |
@@ -204,5 +214,12 @@ go test ./control-plane/internal/converge/ ./control-plane/internal/api/ -race -
   merge: the lane's commits are already in history, so a second land brings nothing back. The
   worktree's agent must revert the revert, or make new commits. The Merge lens says so on a
   reverted row (task 20); nothing here automates it.
+- **An exact undo cannot see a merge committed after it**, nor one in progress in a clone
+  (MERGE_HEAD = the land) or one a failed refresh leaves possible (that clone's origin/<branch>
+  still names the land). Undo syncs every lane first, so it sees every merge already committed.
+  The later ones are caught where the harm would happen: the forecast (task 08) and Land (task 09)
+  name each undone land a lane carries (`carriesUndone`, `broughtBack`; re-review b06-1 issue 1b).
+- An agent can make an exact undo on its branch fail by breaking its own clone, since Undo fails
+  closed when a lane cannot be synced. The revert still works; nothing is lost.
 - Undo does not reach the remote. After a push, the only undo is a revert, then a push.
 - `refs/panacea/undone/*` is never pruned by phase 3; retention is contract Q5's erasure question.

@@ -77,7 +77,7 @@ export function EvidenceDialog(props: { conv: Convergence; briefKey: string;
 **Push failures** (`m-push`). `git_failed` on push shows: *"Push did not run: <message>."* then
 git's sentence verbatim in mono, then *"The control plane pushes with this machine's own git
 sign-in and never opens a sign-in prompt. Sign in once with git in a terminal on this machine,
-then push again. The land stays; its undo is still exact."* — the same text for every `git_failed`
+then push again. The land stays, and so does its undo."* — the same text for every `git_failed`
 on push, so it never depends on reading git's words. `push_rejected`: *"The remote has commits
 evidence-upload does not have. Fetch, then bring them in above the queue, and push again; the
 cockpit never force-pushes."* with git's sentence, and **Fetch** (`api.fetchProject`, then
@@ -104,7 +104,10 @@ because a revert of pushed history has no exact undo; `undo: "none"` → no verb
 branch back would not take it back. A revert does."* An Undo refused with
 `undo_not_exact`/`merged_into_lane` (the row was fetched before a lane merged it) reloads the
 history, names the worktrees from `details.worktrees` (one id per line) and opens the same inline
-Revert line.
+Revert line. An Undo that fails with any other code (a lane that could not be synced first,
+task 10; re-review b06-1 issue 1) shows *"Undo did not run: <message>."*, git's sentence in mono
+when `gitSays` is set, and the same inline Revert line, since a revert does not depend on what
+a lane holds.
 
 **Evidence.** `DoDSlot` (task 19) gains, once phase 4's `DefinitionOfDone` mounts there, a
 *Record evidence…* control per criterion (through phase 4's `onRecordEvidence` prop, ask P4-5; if
@@ -135,6 +138,7 @@ the report says so.
 | `Undo undoes with the tip the human saw` | click → `undoLand(sha, expectedTip = conv.tip)` | undoing a land that is no longer the tip |
 | `Revert asks inline, then reverts` | Revert… → the inline line; Keep it → no call; Revert → `revertLand(sha, conv.tip)` | an unasked history-changing commit |
 | `an undo a lane has merged turns into a revert` (review I3) | a row with `undoWhy: "merged_into_lane"` → Revert… whose title names the merge; an Undo rejected with `undo_not_exact`, `details.why "merged_into_lane"`, `details.worktrees "w-b"` → history reloads, the row names w-b's worktree and shows the inline Revert line, no second undo call | an Undo that fails silently, or retries, when another lane has merged the land |
+| `an undo whose lane sync failed still offers the revert` (re-review b06-1 issue 1) | an Undo rejected with `git_failed`, message "worktree upload-ui could not be synced, …", `gitSays` set → "Undo did not run: …", git's sentence in mono, the inline Revert line, no second undo call | an Undo failure that leaves the user with no way to take the land back |
 | `a reverted land says it cannot simply re-land` | a land followed by a revert naming it → the "reverted by …" sentence on the land's row | a user re-landing and seeing nothing happen |
 | `EvidenceDialog requires a because` | empty or whitespace → Record disabled; typed → enabled; 2001 chars → refused with the limit | a non-open state without its because (P12) |
 | `EvidenceDialog records at the chosen commit` | choose "in upload-ui" → `recordEvidence` with that lane's tip and the criterion's id and digest | evidence at a commit the human did not pick |
