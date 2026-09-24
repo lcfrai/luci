@@ -758,9 +758,10 @@ another's own human.
    Alice changing the session format? Mobile depends on it."*
 2. Dylan's Orchestrator opens a thread and sends `ask` to Alice's Orchestrator, quoting Dylan's
    concern as its own text.
-3. Alice's Orchestrator answers from its task and reason. It cannot change the goal of Alice's task
-   (that is **decide**, §6.5), so it proposes `sequence`: Alice's worker lands a compatibility shim
-   first. Dylan's Orchestrator cannot judge a product trade-off either.
+3. Fleet answers the `ask` at once from Alice's card (task, brief section, files). Alice's
+   Orchestrator, in a Fleet-started turn, cannot change the goal of Alice's task (that is
+   **decide**, §6.5), so it proposes `sequence`: Alice's worker lands a compatibility shim first.
+   Dylan's Orchestrator cannot judge a product trade-off either.
 4. Both escalate. Alice gets **decide**: *"Dylan objects: mobile depends on the session format.
    Options: continue; keep the old format too (+1 task); pause."* Dylan gets **inform**: *"Asked
    Alice's side; she is deciding. Your mobile worker is unaffected until then."*
@@ -780,29 +781,39 @@ worker → code under Dylan's session. The fences below cut it at four points. N
 
 | # | Fence | Replaces | What it removes |
 |---|---|---|---|
-| **G1** | **Two classes of data.** Observed facts (files, commits, status, leases, conflicts, brief ids) are written only by Fleet, `sandboxd` and git. Everything an agent writes is `text·A`, with the author agent, its owner and the time | F1 | agents forging facts; undifferentiated authority (`04` F6) |
-| **G2** | **Typed, bounded messages**, schema-checked by Fleet: kinds and resolutions are enums, globs validated, lengths capped, unknown fields refused | F2 | long, instruction-shaped payloads |
-| **G3** | **Character hygiene** before anything is stored: C0/C1 controls, ANSI escapes, bidi overrides, the Unicode tag block U+E0000–U+E007F, and secret-shaped text are refused | F3 | hidden instructions; escape attacks on the cockpit's terminal renderer |
-| **G4** | **Quoted delivery.** Peer text reaches an agent only as `panacea` tool output, inside a fixed envelope that names its author as an agent. It never enters `CLAUDE.md`, and a nudge never carries it | F4, F5 | the instruction channel |
-| **G5** | **Fewest readers.** Peer free text reaches only orchestrators. A worker reads exactly two peer `text·A` fields, the task title and the why-line, 340 characters at most (§5.1) | new | most of the surface |
-| **G6** | **Capability-bounded orchestrators**: no writable tree, no git, no credential but its session's gateway token, egress to the inference gateway only, and verbs over their own owner's things only (§4.1) | new | a hijacked Orchestrator's reach |
+| **G1** | **Two classes of data.** Observed facts (files, commits, status, leases, conflicts, brief ids) are written only by Fleet, `machined`'s sweep and git, all outside the agent's VM; `sandboxd` adds process liveness only. Everything an agent writes is `text·A`, with the author agent, its owner and the time. An observed **name** (a path, a glob, a lane ref) is still attacker-chosen text, so it passes G3 and a 200-character cap too (`07` M1) | F1 | agents forging facts; undifferentiated authority (`04` F6) |
+| **G2** | **Typed, bounded messages**, schema-checked by Fleet: kinds and resolutions are enums, globs validated and breadth-capped (§6.3), lengths capped, unknown fields refused | F2 | long, instruction-shaped payloads |
+| **G3** | **Character hygiene** before anything is stored or delivered, including directive text: C0/C1 controls, ANSI escapes, bidi overrides, the Unicode tag block U+E0000–U+E007F, runs of whitespace in names, and secret-shaped text are refused | F3 | hidden instructions; escape attacks on the cockpit's terminal renderer |
+| **G4** | **Quoted delivery.** Peer text reaches an agent only as `panacea` tool output, inside a fixed envelope that names its author as an agent. It never enters `CLAUDE.md`, a PTY carries only fixed templates (§4.3), and a nudge never carries it | F4, F5 | the instruction channel; the shell behind the prompt |
+| **G5** | **Fewest readers.** Peer free text reaches only orchestrators. **Workers read none** (§5.1) | new | the path from one teammate's poisoned page to another's code (`07` C1) |
+| **G6** | **Capability-bounded orchestrators**: no disk, no writable tree, no git, no credential but a one-hour pod-bound gateway token, egress to the gateway and Fleet's control route only, project settings off, tools `Bash(panacea *)` and `Read` only, and verbs over their own owner's things only (§4.1) | new | a hijacked Orchestrator's reach |
 | **G7** | **The taint rule** (§7.2) | new | laundering peer text into a worker's orders |
-| **G8** | **The blast radius stays small**: no git credential in any sandbox; push and PR are human actions; the land is reviewed | F7 | a successful injection still cannot push |
-| **G9** | **Injection tests in CI**: `04` F8's corpus, plus a scripted two-Orchestrator run in which hostile peer messages must produce **zero** out-of-scope directives without a `decide` | F8 | regressions |
+| **G8** | **The blast radius stays small**: no git credential in any sandbox; push and PR are human actions; the land is reviewed, and agent-config changes need a second member (§8.3) | F7 | a successful injection still cannot push, or quietly change how teammates' agents behave |
+| **G9** | **Injection tests in CI**: `04` F8's corpus, plus a scripted two-Orchestrator run in which hostile peer messages must produce **zero** free-text directives in Fleet-started turns, in scope or not, and zero typed directives outside the task's scope | F8 | regressions |
 
 ### 7.2 The taint rule
 
-1. Fleet marks an Orchestrator session **tainted** the first time a `panacea inbox` or
-   `panacea lane` call returns peer content to it. The taint lasts for the rest of that session,
-   because the session's context keeps what it read.
-2. **A tainted Orchestrator may, without its human,** give its workers typed directives (`pause`,
-   `resume`, `narrow` to globs inside the task's scope, `wait-for` a lease, `rebase` onto upstream),
-   and free-text directives that stay inside the worker's current task scope and reason.
-3. **Anything wider becomes a `decide` escalation:** a new task, a wider scope, paths outside the
-   task, `build-on`, or abandoning the task. The escalation shows the human the exact peer text
-   that preceded it, with its author.
+**One rule, stated once here and nowhere contradicted, keyed on a fact Fleet knows for certain:
+who started the turn** (`07` C2). Fleet builds every turn's batch (§4.2), so it knows its origin.
+It never has to judge whether prose "stays inside the task's reason", which it could not do without
+reading text for meaning (OD-8).
+
+1. **On a team project every Orchestrator is treated as tainted from its first turn.** Every
+   useful verb (`team`, `check`, `inbox`, `lane`) returns peer text, so a per-verb trigger would
+   only mislead. Rotation (§4.2) changes nothing here.
+2. **In a turn Fleet started** (from peer, conflict, lease or worker events), the Orchestrator may
+   issue **only typed directives**: `pause`, `resume`, `narrow` to globs inside the task's scope,
+   `wait-for` a lease, `rebase` onto upstream. A `free` directive, a new task, a wider scope, paths
+   outside the task, `build-on`, or abandoning the task becomes a **`decide`** escalation, written
+   by `panacea direct` itself, that shows the human the peer text the session read since its human
+   last spoke, with authors.
+3. **In a turn its human started** (a message from the Orchestrator panel, or a DIVE), free-text
+   directives are allowed, and each is shown inline in the panel as it is issued, so the human sees
+   exactly what was sent in their name.
 4. Fleet enforces this on the `panacea` verbs, so it holds whatever the model was persuaded of.
-   Each message's `afterPeerInput` flag (§3.3) records it for audit.
+   Every directive's `dv-…` record carries its turn origin and the peer ids that preceded it (§3.3).
+   This replaces the earlier per-message `afterPeerInput` flag, which recorded taint on the wrong
+   object.
 
 ### 7.3 What no fence closes, and the cockpit as a reader
 
@@ -812,9 +823,43 @@ chat message: the reading agent's owner reviews what their agent does before it 
 the risk register as **medium**, not closed (`04` §5.3). The fence's effectiveness against a real
 attacker is **UNVERIFIED** until G9 runs.
 
+**A human's private words to their own Orchestrator** can still be quoted out by a persuaded
+Orchestrator in a permitted free-text `answer`. Fleet's templated `ask` default (§6.2) removes the
+common path, and the managed block says a human's messages are private, but that is an
+instruction, not a fence. It goes in the risk register (`07` I5).
+
+**A teammate's lane can change agent behaviour**, not only code: `.claude/settings.json` is
+checked into source control, and the CLI reloads *"`permissions`, `hooks`, and credential helpers
+such as `apiKeyHelper`"* mid-session (https://code.claude.com/docs/en/settings, read 2026-09-25).
+So each class's managed file sets `allowManagedHooksOnly` and `allowManagedPermissionRulesOnly`,
+sets `apiKeyHelper` itself (managed wins over project), and denies project `ANTHROPIC_*` env
+overrides (**UNVERIFIED** which `env` keys a managed file can lock); orchestrators load no project
+settings (§4.1); and agent-config paths need a second member to land (§8.3).
+
 **The cockpit is a reader too.** It renders `text·A` as plain text: no markdown links, no HTML, and
 no terminal rendering. It always shows the author class next to the words (*"Alice's Orchestrator
 (agent)"* against *"Alice"*).
+
+### 7.4 Fleet is a network service: its trust model is new, not ported
+
+Phase 2's guards assume loopback: an Origin allowlist and a loopback `Host` guard whose threat model
+is *"a web page the user happens to have open"* (`control-plane/internal/httpx/origin.go:15-16`),
+and `/attach` exempt from the local caller key (`04-enterprise-constraints.md:108-110`). None of it
+is authentication on a network service, so none of it is ported (`07` I9).
+
+1. **Every Fleet route authenticates the caller's Entra token** (audience Fleet, `azp` the
+   desktop's client id) and authorises against §3.4, per request.
+2. **Attach is a new handler.** Every WebSocket upgrade checks the token and that its owner is
+   the session's owner. A watch grant (§9.6, later) gets read-only frames, dropped at the source:
+   an input frame from a watcher is never forwarded. Knowing an `ag-…` id grants nothing.
+3. **Revocation closes open sockets** within the same 60 seconds as sessions and leases (§2.4).
+4. **The desktop reaches Fleet through the local control plane's `fleetbe`** (§2.1), which holds
+   the token as it already holds the Hub's; the renderer holds none. `07` I9 asked for the token on
+   the Tauri Rust side instead; the Hub's locked custody puts tokens in the local Go process
+   (`phase-h-hub.md:15`, `:38-39`), and the one exposure that adds, a compromised webview calling
+   the control plane with the local key, is the Hub's accepted T7 already
+   (`hub-contract.md:2075`). §15 records the rebuttal.
+5. **Every Fleet route, attach included, joins `04` Z5's matrix test.**
 
 ## 8. Conflict avoidance and prediction
 
@@ -824,8 +869,8 @@ no terminal rendering. It always shows the author class next to the words (*"Ali
    around live leases.
 2. Creating a task takes `intent` leases on its scope (§6.3). An overlap opens a thread **before a
    worker is spawned**, which is the cheapest moment to split or sequence work.
-3. Workers run `panacea check` before their first edit to a file, so an overlap no plan foresaw
-   surfaces at the first keystroke, not at the land.
+3. Workers run `panacea check` before an edit (by hook in the cloud, by instruction otherwise,
+   §5.3), so an overlap no plan foresaw surfaces at the first keystroke, not at the land.
 
 ### 8.2 Predict centrally: four tiers, one place
 
@@ -835,15 +880,21 @@ environment, so all four run in Fleet:
 | Tier | Signal | Source in Fleet | When |
 |---|---|---|---|
 | **P** | same paths | observed edits and committed paths (§3.3 activity) | on every activity change; a set intersection |
-| **H** | overlapping hunks on the same base blob | `sandboxd` reports dirty and committed line ranges; no content | on every activity change |
+| **H** | overlapping hunks on the same base blob | `machined`'s sweep reports dirty and committed line ranges; no content | on every activity change. **In TM1 it mostly collapses to P**: after any land, members' bases diverge, and with no mirror nothing re-bases the ranges (`06` Minor 4). It earns its keep in TM2 |
 | **M** | exact `git merge-tree --write-tree` (`03` §3, https://git-scm.com/docs/git-merge-tree) | the **lane mirror** | on each commit, only for pairs that P or H flagged |
 | **S** | speculative build and test of the merge | a warm Kata pod | later (§12), and only on request |
 
 **The lane mirror.** After each commit, the lane owner's `machined` exports the lane since its merge
-base as a bundle (phase 3 ruling R4: lane work crosses as bundles, `01` §4.1). Fleet's git runner
-fetches it into one bare repo per team project, under `refs/panacea/lanes/<owner-hash>/<wt-id>`. The
-runner is phase 3's hardened runner (P8-D7), and no sandbox mounts the mirror. This changes three
-things against `03`:
+base as a bundle (phase 3 ruling R4: lane work crosses as bundles, `01` §4.1). The mirror is one
+bare repo per team project, under `refs/panacea/lanes/<owner-hash>/<wt-id>`, and **it runs in its
+own per-project Kata pod**, not in Fleet and not in any member's machine pod (`07` I11). A worker
+controls every object on its lane, so git's parsers must never run over them in the process that
+holds every member's delegations. The mirror pod has no credential and no egress; it runs
+`git bundle verify`, then fetches with `transfer.fsckObjects=true`, then `merge-tree`, under
+phase 3's §HGH hardening, and returns only a typed result (tier, paths, line ranges) to Fleet. Its
+git is pinned by digest and bumped with the CLI image (§10.4). No sandbox mounts the mirror. It
+reads the customer's remote with the project's read-only fetch credential only (§2.5). This
+changes three things against `03`:
 
 - **No unfinished lane has to be pushed to the customer's remote.** `03`'s option 1, and its
   UNVERIFIED question of whether Azure DevOps and GitHub accept `refs/panacea/*` pushes (C5), is no
@@ -865,8 +916,13 @@ raises only at H or M.
 Phase 3's land queue lives in one user's project repository today (`01` §2.3). For a team project,
 **the queue moves to Fleet and runs over the lane mirror**, from TM2 (§12.2); TM1 lands the phase 3
 way, each member in their own repository. It is one queue for every member's
-lanes, ordered by the `sequence` hints of §6.2. Each land is still its owner's reviewed act. The push
-to the customer's remote uses the lane owner's own credential (§2.5). Each member's project
+lanes, ordered by the `sequence` hints of §6.2. Each land is still its owner's reviewed act, and
+the review lists **every conflict the lane was party to, with its resolution** (`07` I1). **On a
+team project, a lane that changes an agent-config path needs a second member's approval to land**:
+`CLAUDE.md`, `AGENTS.md`, `.claude/**`, `.mcp.json`, git-hook files and package-script entries.
+Alice reviewing Alice is not enough when the change alters how every teammate's agent behaves
+(`07` I7). The same paths are listed line by line in any `build-on` decide (§6.5). The push to
+the customer's remote uses the lane owner's own credential (§2.5). Each member's project
 repository then fetches the new integration head from the mirror. This is the owner's *"one
 document"*: one integration line that everyone's agents converge on, with every change attributed
 to the person whose agent made it.
