@@ -190,10 +190,13 @@ func TestDigestWireForm(t *testing.T) {
 		if _, err := ParseDigest(s); !errors.Is(err, ErrInvalidDigest) {
 			t.Errorf("ParseDigest(%q): %v, want ErrInvalidDigest", s, err)
 		}
-		// The JSON path refuses the same, with the same error.
+		// The JSON path refuses the same, as a *json.UnmarshalTypeError that names
+		// the field, so httpx.DecodeJSON answers 400 bad_request and not
+		// invalid_json (task 03: contract §4.2 and §7.7 check 1).
 		var w wire
-		if err := json.Unmarshal([]byte(`{"digest":`+strconv.Quote(s)+`}`), &w); !errors.Is(err, ErrInvalidDigest) {
-			t.Errorf("json.Unmarshal of %q: %v, want ErrInvalidDigest", s, err)
+		var te *json.UnmarshalTypeError
+		if err := json.Unmarshal([]byte(`{"digest":`+strconv.Quote(s)+`}`), &w); !errors.As(err, &te) || te.Field != "digest" {
+			t.Errorf("json.Unmarshal of %q: %v, want an UnmarshalTypeError at \"digest\"", s, err)
 		}
 	}
 }

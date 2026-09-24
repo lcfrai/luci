@@ -3,6 +3,7 @@ package hubapi
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"regexp"
 	"strconv"
@@ -116,6 +117,11 @@ func (d Digest) String() string { return "sha256:" + hex.EncodeToString(d[:]) }
 
 func (d Digest) Hex() string { return hex.EncodeToString(d[:]) }
 
+// IsZero reports Digest{}: what encoding/json leaves in a Digest field that was
+// absent or null. No input hashes to it (SHA-256 of nothing is e3b0c442…), so
+// in a request it means "not sent"; RequireDigests refuses it.
+func (d Digest) IsZero() bool { return d == Digest{} }
+
 var digestRe = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 func ParseDigest(s string) (Digest, error) {
@@ -132,10 +138,17 @@ func ParseDigestHex(s string) (Digest, error) { return ParseDigest("sha256:" + s
 
 func (d Digest) MarshalText() ([]byte, error) { return []byte(d.String()), nil }
 
+// UnmarshalText takes the wire form only. Its refusal is a
+// *json.UnmarshalTypeError because that is the one error encoding/json adds the
+// field's path to; httpx.DecodeJSON then answers 400 bad_request naming the
+// field. Any other error type comes back bare, and DecodeJSON answers
+// invalid_json, which says the body is not one JSON object when it is
+// (contract §4.2; §7.7 check 1). Task 03 departure; ParseDigest keeps
+// ErrInvalidDigest.
 func (d *Digest) UnmarshalText(b []byte) error {
 	p, err := ParseDigest(string(b))
 	if err != nil {
-		return err
+		return &json.UnmarshalTypeError{Value: `a string that is not "sha256:" and 64 lowercase hex`, Type: digestType}
 	}
 	*d = p
 	return nil
