@@ -9,11 +9,16 @@ moves the pin even when the Claude Code version does not change. It must therefo
 canary on its own, and not ride inside another change.
 
 **The choice (recommended; one `ARG` is the seam).** `node:24-trixie-slim`, pinned by digest.
-Node 24 is the Active LTS line, with end of life on 2028-04-30. Debian 13 "trixie" is the current
-stable. Bookworm's regular security support ended in 2026-06 and it is now in Debian LTS, which
-covers fewer packages. All three facts are from training knowledge, UNVERIFIED, and step 1 checks
-them. `node:22-bookworm-slim` is the smaller move, but Node 22 reaches end of life in 2027-04 and
-bookworm stays on LTS coverage, so that move would have to be made again within a year.
+Node 24 is the Active LTS line; it enters maintenance on 2026-10-20 and reaches end of life on
+2028-04-30. Debian 13 "trixie" is the current stable. Bookworm's regular security support ended in
+2026-06 and it is now in Debian LTS, which covers fewer packages. All these facts are from
+training knowledge, UNVERIFIED, and step 1 checks them. The trigger for the next move is **end of
+life, not maintenance** (seam S8-I.1: at least six months before the line's end of life; plan
+re-review b08-1 issue 4). A maintenance trigger would ask for a new move about four weeks after
+this one lands, while Node 24 still has security fixes for 18 months. On that trigger Node 24's
+next move falls due by 2027-10-30. `node:22-bookworm-slim` is the smaller move, but Node 22
+reaches end of life on 2027-04-30, so its move would fall due by 2026-10-30, about a month from
+now, and bookworm stays on LTS coverage.
 
 **The ripple into the machine image.** Task 27 installs git from `bookworm-backports`, because
 bookworm's git is 2.39 and `gitx.MinVersion` is 2.40.0 (task 27 `:25-31`). Trixie's own git is
@@ -42,9 +47,10 @@ still pass.
 #### Steps
 
 - [ ] **Step 1:** Confirm the facts above from the source: the Node release schedule
-  (github.com/nodejs/Release), Debian's security-support dates, and `git --version` in
-  `node:24-trixie-slim`. Record the three answers and the base's digest in the task report. A
-  different answer changes the recommended tag, and the report says which.
+  (github.com/nodejs/Release: Node 24's maintenance-start date **and** its end-of-life date),
+  Debian's security-support dates, and `git --version` in `node:24-trixie-slim`. Record the four
+  answers and the base's digest in the task report; the end-of-life date is what S8-I.1's trigger
+  counts back from. A different answer changes the recommended tag, and the report says which.
 - [ ] **Step 2:** The four rows; `images_test.sh` fails on the first and second (the base is
   still `node:20-bookworm-slim`, by tag).
 - [ ] **Step 3:** The two Dockerfile edits; `bash images/build.sh`; `images_test.sh` passes.
@@ -71,5 +77,6 @@ bash images/images_test.sh            # images_test: 11 of 11 passed
 - That the new base has no CRITICAL finding on the day `images` first scans it (task 27's rule
   still fails the run if it does).
 - A policy for the next end of life. The plan's seam S8-I.1 (task 33 writes it into
-  `docs/SEAMS.md`) says the base is re-chosen whenever its Node line enters maintenance, and that
-  each move is its own task, because of OD-8.
+  `docs/SEAMS.md`) says the base is re-chosen at least six months before its Node line's end of
+  life (not when it enters maintenance, plan re-review b08-1 issue 4), and that each move is its
+  own task, because of OD-8.
