@@ -69,9 +69,13 @@ export function bringInLine(conv: Convergence): string | null;
 /** Why Bring in is disabled, or null: checked out, control plane down, or a forecast not clean. */
 export function bringInBlock(conv: Convergence | undefined, controlPlaneDown: boolean): string | null;
 /** The resolve prompt for a bring-in conflict, run in a lane the user picks:
- *  "Merge upstream/<branch> into this branch and resolve the conflicts in <paths>.
- *   upstream/<branch> is origin/<branch> as of the last fetch: commits someone else pushed.
- *   Commit the merge when the conflicts are resolved." Landing that lane then brings them in. */
+ *  "Merge origin/<branch>, then upstream/<branch>, into this branch and resolve the conflicts
+ *   in <paths>. origin/<branch> is <branch> as it is now in the project; upstream/<branch> is
+ *   the remote's <branch> as of the last fetch: commits someone else pushed. Commit each merge
+ *   when its conflicts are resolved." Landing that lane then brings them in.
+ *  Both merges, in that order (re-review b05 issue 1): the conflict is between the project tip
+ *  and the upstream, so a lane older than the tip's conflicting commit merges upstream/<branch>
+ *  clean, and the conflict would return on land. origin/<branch> first gives the lane that commit. */
 export function bringInResolvePrompt(conv: Convergence): string;
 ```
 
@@ -80,9 +84,17 @@ export function bringInResolvePrompt(conv: Convergence): string;
 // exactly until pushed (task 10), so DESIGN-SYSTEM.md's "optimistic mutation with an Undo window"
 // applies — the verb runs, and its toast carries Undo.
 export interface LandOutcome {
+  kind: "land";
   landed: LandResult[];
   /** The first refusal, if any, with its reason and the worktree it stopped at. */
   stopped?: { worktreeId: string; reason: ConflictReason | undefined; message: string; gitSays?: string };
+}
+/** A bring-in has no worktree (re-review b05 issue 4), so it is its own outcome, not a land's. */
+export interface BringInOutcome {
+  kind: "bring-in";
+  result?: BringInResult;
+  /** The refusal, if any: the tips it was refused against ride in `details` for Bring in again. */
+  stopped?: { reason: ConflictReason | undefined; message: string; gitSays?: string; details?: Record<string, string> };
 }
 
 /** Land one row with expectedTip = conv.tip and the head brief key (selectHeadBriefKey), then
@@ -96,14 +108,14 @@ export function landAllInOrder(conv: Convergence, briefKey: string, briefDigest:
 
 /** api.bringIn with expectedTip = conv.tip and expectedUpstream = conv.bringIn.tip, then
  *  reload(), then a toast "Brought origin/evidence-upload into evidence-upload." with no Undo:
- *  task 10 refuses it as not_a_land. A refusal comes back as the stopped outcome, as a land's. */
-export function bringInOne(conv: Convergence, reload: () => void): Promise<BringInResult | LandOutcome["stopped"]>;
+ *  task 10 refuses it as not_a_land. A refusal comes back as BringInOutcome.stopped. */
+export function bringInOne(conv: Convergence, reload: () => void): Promise<BringInOutcome>;
 ```
 
 ```tsx
 // Component props. Each reads the store through selectors.ts only (shared-shape rule 4).
 export function MergeLens(): JSX.Element;                       // mounts useConvergenceLoader("merge")
-export function MergeBanner(props: { conv: Convergence | undefined; lastOutcome: LandOutcome | null; down: boolean; readAt: string }): JSX.Element | null;
+export function MergeBanner(props: { conv: Convergence | undefined; lastOutcome: LandOutcome | BringInOutcome | null; down: boolean; readAt: string }): JSX.Element | null;
 export function DoDSlot(props: { branchId: string }): JSX.Element; // the phase 4 seam, below
 export function QueueList(props: { conv: Convergence; down: boolean; onLand(id: string): void; onResolve(entry: QueueEntry): void }): JSX.Element;
 export function LaneCard(props: { conv: Convergence; entry: QueueEntry; position: number; lane: LaneView; down: boolean;
@@ -146,9 +158,13 @@ it is where the prompt is written.
 above the queue, outside its numbering, since it is not a worktree: `bringInLine`, and a
 **Bring in origin/<branch>** button that `bringInBlock` disables with its reason. It never offers
 force, and a bring-in is never part of Land all. A conflicting forecast shows *Resolve in a
-worktree…* in place of the button: a picker of `conv.lanes` (none → "Create a worktree on this
-branch first"), then `ResolveDialog` with `bringInResolvePrompt(conv)`. Landing that lane
-later carries the remote's commits, and the next GET drops the row (`behind` is 0 then).
+worktree…* in place of the button: a picker whose first entry is **New worktree on this branch**
+(task 22's action, hidden until task 22 provides it: a fresh clone already holds the tip, and it
+starts no second session beside a live agent, 3-D2), then `conv.lanes` (none and no task 22 →
+"Create a worktree on this branch first"), then `ResolveDialog` with `bringInResolvePrompt(conv)`.
+The prompt merges `origin/<branch>` before `upstream/<branch>`, so a lane of any age holds both
+sides of the conflict. Landing that lane later carries the remote's commits, and the next GET
+drops the row (`behind` is 0 then).
 
 **Banners**, one at a time, in this precedence: control plane down (the last reading dimmed,
 landing off: "The control plane is not answering, so nothing below is current — it is the reading
@@ -160,6 +176,20 @@ against 1c9e2f0." + git's sentence + **Land upload-ui again**); checked out (`co
 touching any checkout, and that checkout's files would then describe the old commit. Switch that
 checkout to another branch, or merge there with git merge."); any other refusal of the last land
 (`no_git_identity`, `brief_unresolvable`, `git_failed`: the server's message and `gitSays`).
+
+A refused **bring-in** (`lastOutcome.kind === "bring-in"`, re-review b05 issue 4) takes the lost-race
+slot with its own copy, never a land's, and a **Bring in again** button that re-sends with the
+fresh tips from the reload:
+- `upstream_moved`: "Nothing came in. <remote>/<branch> moved from <old> to <details.upstream>
+  since this reading, so the bring-in was refused. The forecast below is recomputed against it."
+- `branch_moved`: "Nothing came in. <branch> moved from <old> to <details.tip> while the remote's
+  commits were coming in, so git refused to move it again. The forecast below is recomputed."
+- `no_remote`: "Nothing came in. <branch> no longer tracks a remote branch." (no button)
+- `nothing_to_land`: "Nothing came in. <branch> already holds every commit <remote>/<branch> has." (no button)
+- `merge_conflict`, `git_failed`: the server's message and `gitSays`, then *Resolve in a worktree…*.
+
+`<remote>/<branch>` is `conv.remote.upstream` (issue 6: never a literal "origin"). The copy is
+the owner's to accept (OD-12); these sentences only need to exist.
 
 **Zero states** (prototype `m-empty`, `m-new`): "Nothing is waiting to land into <branch>." with
 "<names> are on this branch and none is marked ready. A worktree is ready when a person says so;
@@ -183,8 +213,8 @@ hidden until task 22 provides it).
 | `control plane down dims the last reading` | loader error `network_unavailable` with a last value → content has the stale class, Land/Mark ready disabled, banner time is the last `readAt` | a blank lens, or live-looking stale data |
 | `a conflict opens ResolveDialog and starts a session with the prompt` | edit the text, Start → `useCreateSession` called with the worktree and the edited prompt; no attach socket is written | writing into a running agent's PTY (3-D3) |
 | `the bring-in row appears only when behind` (review I5) | `bringIn: null` → no row; a clean `bringIn` with `behind: 2` → the sentence and an enabled button; `checkedOutAt` set → disabled with the checkout's reason | a diverged branch with no way in, or a button that lands into a checkout |
-| `Bring in sends both expected tips and offers no Undo` | click → `api.bringIn(p, b, conv.tip, conv.bringIn.tip)` once, then reload; the toast has no Undo action; `upstream_moved` → the banner, as `branch_moved`'s | a bring-in of commits nobody saw forecast |
-| `a bring-in conflict resolves in a picked lane` | conflicting `bringIn` → no button; pick lane `w-api` → `ResolveDialog` with `worktreeId "w-api"` and a prompt naming `upstream/<branch>` and the paths | a prompt naming `origin/<branch>`, which in a clone is the project's branch, not the remote |
+| `Bring in sends both expected tips and offers no Undo` | click → `api.bringIn(p, b, conv.tip, conv.bringIn.tip)` once, then reload; the toast has no Undo action; `upstream_moved` with `details.upstream` → `lastOutcome.kind === "bring-in"`, the bring-in banner naming `conv.remote.upstream` and both shas (no "landing" and no "Land … again"), and **Bring in again** re-sends with the reloaded `conv.tip` and `conv.bringIn.tip`; `no_remote` and `nothing_to_land` → their sentences with no button (re-review b05 issue 4) | a bring-in of commits nobody saw forecast, or a bring-in refusal shown with a land's copy |
+| `a bring-in conflict resolves in a picked lane` | conflicting `bringIn` → no button; pick lane `w-api` → `ResolveDialog` with `worktreeId "w-api"` and a prompt naming `origin/<branch>` before `upstream/<branch>` (index of one < index of the other), and the paths; the picker's first entry is New worktree when task 22's action exists | a prompt naming only `origin/<branch>` (in a clone, the project's branch, not the remote), or only `upstream/<branch>`, which a lane older than the tip merges clean and then conflicts on land (re-review b05 issue 1) |
 | `Land all never brings in` | a queue of two and a `bringIn` → `landAllInOrder` makes two `land` calls and no `bringIn` call | the remote's commits taken without the button |
 | `ResolveDialog offers a shell when the harness cannot take a prompt` | `supportsOpeningPrompt: false` → the sentence and Open a shell here → `{ harness: "shell" }` | a dead Start button |
 | `the shared-index warning names both sessions` | a lane with an agent and a shell session → "upload-api (agent) and a shell" + SHARED_INDEX_NOTE | the hazard invisible (3-D2) |
