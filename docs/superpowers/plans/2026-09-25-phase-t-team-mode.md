@@ -241,4 +241,39 @@ twice and pinned by one set of golden fixtures that both modules' tests read.
 | `desktop/src/components/team/QuotaAdmin.tsx` | Quotas admin view | 67 |
 | `docs/verification/2026-09-25-phase-t-tm2-results.md` | TM2's proof | 69 |
 
+### Deltas on sibling code, built here after that branch's sync-merge
+
+"Built" means the file exists on the sibling branch as read on 2026-09-25. "Planned" means only
+the sibling **plan** names it; the part cites the plan row and marks the path **UNVERIFIED until
+merge**.
+
+| Sibling | Path it extends | State on 2026-09-25 | What this plan adds | Task |
+|---|---|---|---|---|
+| Hub (`feat/hub`) | `docs/superpowers/adr/ADR-H1-hub-architecture.md` (`:252-253`, `:370-372`, `:434-435`, `:467-474`) | built (doc) | the "delegated callers" amendment | 01 |
+| Hub | `docs/superpowers/contracts/2026-09-23-hub-contract.md` §5.3, §7 (a new §7.13 onward), §8 | built (doc) | the team records' routes, matrix rows and events | 01 |
+| Hub | `cp/internal/hub/hubapi/{types.go,codes.go,keys.go}` | built (Hub tasks 01–03) | `team.go`: every team record and request; the new id prefixes and codes | 03 |
+| Hub | `cp/internal/hub/migrate/sql/0001_init.sql` | planned (Hub task 07a/07b) | `00NN_team.sql`, numbered after the Hub's last migration at merge | 04 |
+| Hub | `cp/internal/hub/server/auth.go` (Hub task 13), `cp/internal/devissuer/*` (tasks 11–12) | planned | delegated-caller authentication; a client-credentials grant | 05 |
+| Hub | `cp/internal/hub/server/*.go`, `cp/internal/hub/store/*.go` (the Hub task 14 write shape) | planned | `delegations.go`, `teamtasks.go`, `agents.go`, `leaseevents.go`, `conflicts.go`, `threads.go`, `escalations.go`, `directives.go`, `turns.go`, `humanmsgs.go`, `notes.go`, `teampolicy.go` | 06, 07, 43, 46 |
+| Hub | `cp/internal/hub/store/changes.go` (Hub task 26) | planned | the new feed kinds and a per-org subscription for Fleet | 08 |
+| Hub | `cp/internal/hub/hubclient/{hubclient.go,fake*.go,conformance/conformance.go}` | built (tasks 04–05), HTTP half planned (33–34) | team methods, the fake's team half, conformance rows | 08 |
+| Hub | `cp/internal/hub/server/matrix_integration_test.go` (Hub task 16b) | planned | a row per team route, per principal, incl. *auditor* and *compliance* | 43 |
+| Hub | Hub task 27's audit route and chain | planned | the Sentinel stream and the anchored chain head | 45 |
+| Hub | Hub tasks 23–24's release records | planned | per-lane attribution on a team release | 68 |
+| Phase 8 (`feat/env`) | `cp/internal/sandbox/manager.go` (`Spec` at `:69-83`) | built (task 14, `09ae70a`) | `Spec.Class`; the `orchestrator` and `mirror` shapes; the policy Secret mount; the control token | 15, 58 |
+| Phase 8 | `sbx/internal/server/server.go` (`:85-86` serve `/attach`, `/healthz` only) | built (phase 2) | the `/control` route beside them | 16 |
+| Phase 8 | `cp/cmd/broker/*` (tasks 17–19) | planned | Fleet as a second caller under a delegation; the `control` relay kind; each pod's source address | 17 |
+| Phase 8 | `deploy/charts/platform/templates/*` (task 11), `deploy/charts/{broker,hub}` (task 29) | planned | the sandbox→gateway allow; the Orchestrator class's egress; the AU allowlist; the mirror pod's zero egress | 32, 47, 58 |
+| Phase 8 | `infra/terraform/modules/keyvault` (task 05), `stacks/workloads` (task 10) | planned | Fleet's identity; the fetch credential's secret, readable by the broker only | 32, 48 |
+| Phase 8 | `cp/cmd/machined/*` (tasks 20–21) | planned | the activity sweep; lane bundle export to the mirror | 34, 60 |
+| Phase 8 | `pipelines/images.yml` (task 27) | planned | the CLI bump job and its four gates | 65 |
+| Phase 8 | `infra/smoke/kata/*` (task 32) | planned | the five added probes (§11.2 last row) | 47 |
+| Phase 3 (`feat/phase-3-git`) | `cp/internal/converge/{claims.go,forecast.go,land.go}` (tasks 07–09) | planned; no `gitx` or `lanes` code yet | the sweep as a library; the forecast as a library; the team land review | 34, 49, 59 |
+| Phase 3 | `cp/internal/remote/*` (task 12), `cp/internal/githost/*` (tasks 13–14) | planned | the read-only fetch credential in the cloud | 48 |
+| Phase 3 | `cp/internal/changes/*` (task 16), `desktop/src/components/{merge,files}/*` (tasks 19, 21) | planned | conflicts in the land review; lenses by Hub principal | 49, 63 |
+| Phase 4 (`feat/phase-4-discover`) | `cp/internal/claudemd/render.go` | built | the fixed team pointer paragraph | 50 |
+| Phase 6 (`feat/phase-6-gateway`) | `sbx/cmd/panacea/main.go`, `images/sandbox/managed-settings.gateway.json` (task 14, seam S6.6) | planned, plan in progress | the policy layer merges the fragment; every other verb joins the binary | 13, 18 |
+| Phase 6 | `cp/internal/gatewayclient/client.go` (task 15), keysmith's API (task 08) | planned | Fleet mints per-session tokens with team tags | 20 |
+| Phase 6 | `cp/internal/budget/*`, `cp/internal/usage/*` (tasks 06, 09), `desktop/src/components/inference/*` (task 22) | planned | per-counterpart tags; team quotas; the route badge reuses the panel's state | 37, 56, 66 |
+
 ---
