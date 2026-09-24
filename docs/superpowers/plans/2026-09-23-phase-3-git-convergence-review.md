@@ -1165,3 +1165,34 @@ Source: `.superpowers/sdd/p3/plan-rereview-b07-1.md`. Commits 77d9412, 97f407f, 
 route lines, and `grep -wE attach` counts 0 on a `{"type":"attachment"}` line. **Unverified:** git 2.40's
 behaviour, and the cost of one full walk on a large repository.
 
+## Fix batch b08 (2026-09-24): Minors 2, 7, 13, 14 and 15
+
+Clone-setup Minors in tasks 03 and 01, and task 10's use of the lane id. Line numbers are for the
+tree at this batch's last commit. "parts/" means `2026-09-23-phase-3-git-convergence-parts/`.
+Probes: git 2.53.0.windows.2, host only, `scratchpad/p3/b08/probe.out`, `probe2.out`, `probe3.out`.
+
+**Two of the review's facts do not hold on this machine**, and the fixes do not depend on them:
+- Minor 13: this machine's system config defines **no** `filter.lfs.*`, and `git lfs version`
+  answers "'lfs' is not a git command". The installer can define it where LFS is selected, so
+  the fix stands; the plan says "can define".
+- Minor 15: this machine's system config holds `core.symlinks=true`, and a clone here made a
+  **real** Windows symlink and wrote no local `core.symlinks`. The review's `symlinks=false` is
+  what a clone writes without that system key (probed). The behaviour differs by machine, which
+  is why the fix writes the key rather than stating one behaviour.
+
+| Finding | Where it is now |
+|---|---|
+| 2: "two call sites" of `writeAtomic` | parts/task-03.md:512-513: one call site, `filestore.go:401` in `saveLocked` (the definition moves from `:460`), plus the test file's five calls. Verified by grep of `internal/registry` |
+| 7: a re-created lane reuses its id | The review's first option, a creation nonce in the directory name, because it keeps every id `project.WorktreeID(Path)`, phase 2's one rule; a generation in the index would make a lane's id the one id not derived from its path. parts/task-03.md:54-60 (why, and every record keyed on the id), :62 and :66 (`ID` new per creation; `Path` = `<CloneRoot>/<ProjectID>/<Name>-<Nonce>`), :145 (`Creator.Nonce`, 6 hex from crypto/rand), :164-169 (step 3: redraw when the directory exists, at most 4; the residual chance, 1 in 16.7 million, named), :394-395 (the catalog serves `lane.Name`), :496-497 (`TestCreateNeverReusesAnExistingDirectory` pins the redraw; `TestCreateAgainAfterRemoveGivesANewID`, red first against `<Name>` alone), :503 (the catalog test). parts/task-10.md:39-42 (`worktreeName` by `store.ByID`), :107-108 (undo's `SetWorktreeReady` leaves a re-created lane unready), :187 (`TestHistoryAndUndoIgnoreARecreatedLane`) |
+| 13: Git LFS paths look modified in the sandbox | Neither of the review's two options. "Say so" leaves C2's shape wherever LFS is installed, and adding `git-lfs` to the image gives the sandbox a smudge that reaches for a server it has no credential for (A4). The root cause is C2's: the host's config turns a blob into other bytes. So the checkout writes the pointer. parts/task-03.md:173-175 (step 4 runs with `NoFilterEnv`), :213-218 (`NoFilterEnv`: empty `filter.lfs.smudge` and `.process`, `required=false`, as env because H3's Clone allowlist refuses a local `filter.*`), :331-347 (the facts, the probe, the residual: an agent's real content in an LFS path), :483 (`TestCreateWritesBlobBytes`, red first without it), :540. parts/task-01.md:42 (`TestBehaviourEmptyFilterEnvChecksOutTheBlob`), :77 (the sandbox fixture holds an LFS pointer). plan:81-83, :590-598 |
+| 14: the clone's origin is a Windows path | Depends on b01's C3, which holds: parts/task-02.md:445-448 (the refresh and lane sync fetch the literal project path; no host call reads a clone's `remote.origin.url`). parts/task-03.md:178-182 (step 4a), :204-211 (`NoFetchURL`, `NoPushURL`), :360-368 (why, the host's probed sentence, `branch.<b>.remote` kept), :484 (`TestCreateSetsASelfDescribingOrigin`). parts/task-01.md:78 (`TestSandboxCloneCannotFetch` records the fetch, pull and push sentences, with the Windows path as a control). parts/task-02.md:468 (the Clone allowlist admits `remote.origin.pushurl`; "every `remote.*` key but those three"), :546. plan:71-73 |
+| 15: `core.symlinks` and `core.longpaths` | parts/task-03.md:172 (`--config core.longpaths=true --config core.symlinks=false`), :317-330 (the symlink behaviour, probed both ways, and why `false` on every machine), :348-359 (the 77-plus-48 prefix, `statepath.go:30-44`, and the probed "Filename too long"), :483, :540. parts/task-01.md:41 and :43 (two behaviour pins), :106 (Step 5), :115 (22 tests, was 19). parts/task-02.md:318-319 (gitxtest drops `core.longpaths` as a clone-refused sentinel), :468 (admitted), :546 |
+
+**Observed, not in this batch.** H1 neutralises no **system or global** filter or textconv driver.
+This machine's system config holds `diff.astextplain.textconv=astextplain`, and an agent's
+`.gitattributes` can name it, or a system `filter.lfs`, on a host `diff` or `status` in its clone.
+Each is a program the user installed, not one the agent wrote, fed a file the agent wrote. NoFilterEnv
+covers only the clone's checkout. Minor 9's `--no-textconv` covers task 16's `diff` and `blame`. Whether
+every Scope Clone call should carry `NoFilterEnv` (and `--no-textconv` where it applies) belongs to
+task-02 §HGH, which R2 keeps in one place. Raised to the orchestrator, not changed here.
+
