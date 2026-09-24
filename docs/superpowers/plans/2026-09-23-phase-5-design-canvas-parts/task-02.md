@@ -126,6 +126,17 @@ grep -c "canvas" azure-pipelines.yml
 ```
 Expected: `3`.
 
+```bash
+tr -d '\r' < azure-pipelines.yml | grep -Fxc \
+  -e "  - script: go build ./canvas/... ./sandboxd/... ./control-plane/..." \
+  -e "  - script: go test ./canvas/... ./sandboxd/... ./control-plane/... -race -count=1" \
+  -e "  - script: go vet ./canvas/... ./sandboxd/... ./control-plane/..."
+```
+Expected: `3`. The count above only counts the word: a Build step left at `./canvas` (no `/...`)
+still prints `3`, and that line, run as written, exits 1 with `no Go files in …/canvas` (observed
+2026-09-25 on go1.26.2). This one pins the three lines of the contract. `tr` strips the CR a
+Windows checkout (`core.autocrlf`) adds.
+
 ## Not claimed
 
 - The sandbox image is unaffected and is not rebuilt: it copies only `sandboxd/` and builds with
