@@ -234,7 +234,7 @@ variable "allowed_ingress_cidrs" {
 }
 variable "api_authorized_ip_ranges" {
   type        = list(string)
-  description = "Extra CIDRs allowed to the public API server (the owner's admin workstations). The environment's own egress /32 (the NAT gateway's in nat mode, the firewall's in firewall mode) is added automatically: the in-VNet agent pool egresses through it (task 03's egress_subnets include agents), so that is the address the API server sees."
+  description = "Extra CIDRs allowed to the public API server (the owner's admin workstations; Q3's admin half, kept apart from allowed_ingress_cidrs, which is the edge's). The environment's own egress /32 (the NAT gateway's in nat mode, the firewall's in firewall mode) is added automatically: the in-VNet agent pool egresses through it (task 03's egress_subnets include agents), so that is the address the API server sees."
   default     = []
 }
 variable "api_private" {
