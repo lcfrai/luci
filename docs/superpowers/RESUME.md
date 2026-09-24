@@ -18,12 +18,12 @@ Then type: **Continue — read docs/superpowers/RESUME.md**.
 
 | Stream | Worktree / branch | Last run id | Script | args |
 |---|---|---|---|---|
-| Phase 2 fix rounds (continuation 2) | main tree, `feat/phase-2-cockpit` | `wf_2c55a7b6-f23` | `.superpowers/workflows/phase2-fix-rounds.js` | none |
+| Phase 2 fix rounds (**continuation 3**, the OD-10 then fork review loops) | main tree, `feat/phase-2-cockpit` | `wf_07e1a9f6-d45` | the session's `workflows/scripts/phase2-fix-rounds-wf_f13e23da-5aa.js` (resume from that path; the `.superpowers` copy predates continuation 3) | none |
 | p3 — git, worktrees, convergence | `.claude/worktrees/phase-3`, `feat/phase-3-git` | `wf_0feefc44-791` | `.superpowers/workflows/build-stream-current.js` | `{"stream":"p3"}` |
 | env — phase 8, own environment | `.claude/worktrees/env`, `feat/env` | `wf_5c36d742-153` | `.superpowers/workflows/build-stream-as-launched.js` | `{"stream":"env"}` |
 | hub — Phase H | `.claude/worktrees/hub`, `feat/hub` | `wf_b4bd0092-bcc` | `…/build-stream-as-launched.js` | `{"stream":"hub"}` |
 | p5 — clean-room canvas | `.claude/worktrees/phase-5`, `feat/phase-5-canvas` | `wf_a97b9908-eab` | `…/build-stream-as-launched.js` | `{"stream":"p5"}` |
-| p4 — Discover | `.claude/worktrees/phase-4`, `feat/phase-4-discover` | `wf_23f7be7c-382` | `…/build-stream-as-launched.js` | `{"stream":"p4"}` |
+| p4 — Discover | `.claude/worktrees/phase-4`, `feat/phase-4-discover` | `wf_23f7be7c-382` | **`…/build-stream-p4.js`** (p4 built tasks 01-02 before the carry-index patch; this exact copy keeps its cache. Never resume p4 from the as-launched copy) | `{"stream":"p4"}` |
 | p7 — Deploy connector | `.claude/worktrees/phase-7`, `feat/phase-7-deploy` | `wf_63db912c-42f` | `…/build-stream-as-launched.js` | `{"stream":"p7"}` |
 
 Script paths are relative to the repo root: `C:\Users\au-dev-dmackie1\Projects\PanaceaApp\`.
