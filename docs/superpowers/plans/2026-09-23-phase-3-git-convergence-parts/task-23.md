@@ -117,7 +117,9 @@ unverified until then, and every report says so.**
 
 For each row of the plan's *Seams phase 3 leaves for later phases*, and each Hub and phase 4 ask,
 the results document records the file and line where the seam now lives in the tree (e.g.
-`internal/gitx/machine.go:<n>` for S3-P8.1), found with `git grep`, not recalled. A seam whose
+for S3-P8.1: `testdata/gitrunner/limits.json`, and `control-plane/internal/lanegit/client.go:<n>`
+for `Runner` and `pool.go:<n>` for `Lanes.For`; not `gitx.Machine`, which stays project-only
+after R4, plan "Seams", review r4-3 M-2), found with `git grep`, not recalled. A seam whose
 anchor cannot be found is a finding, reported, not papered over.
 
 #### Steps
