@@ -1,4 +1,14 @@
-# 05 — Design: team mode, centrally managed (OD-14 to OD-17)
+# 05 — Design: team mode, centrally managed (OD-14 to OD-20)
+
+**Revised 2026-09-25 for OD-18 to OD-20** (`2026-09-23-owner-decisions.md:130-141`). The cloud is
+Azure (AKS + Kata), so phase 8 stands. **No personal Claude subscription is used anywhere:** every
+agent's inference goes through one org-level, zero-data-retention gateway, on a token scoped to its
+session and attributed to its owner, team and project. Global (the direct Anthropic API) is the
+default; AU (Bedrock in Sydney) is forced by a project's data classification or chosen by the user.
+**The desktop is the portal to the cloud, and no user needs Docker.** Laptop Docker survives only
+as the solo, offline and development mode (§10.3). Every earlier line of this file that said "the
+owner's own subscription" or "never pool" is rewritten below to say *attributed to the owner, with a
+quota at the gateway*.
 
 **Status:** design, 2026-09-24, **rewritten after OD-14 to OD-17**. The earlier draft of this file
 (commits `28a65d1` to `7b094c5`) assumed each teammate's agents ran on that teammate's laptop and
@@ -25,17 +35,18 @@ updating that document, they are able to communicate and understand each other."
 |---|---|---|---|
 | **C1** | share a project with a team | planned in the Hub, not built | the Hub plan, unchanged, plus a team project hosted by Fleet (§2, §3) |
 | **C2** | everyone sees each member's work and each agent's focus | absent by design (`ADR-H1:88`) | agents see every task card; humans see a calm team strip (§5, §9) |
-| **C3** | each member runs their own agents on the same repo | per machine; fleets never met | every member's agents run in one managed Fleet, each on its owner's subscription (§4, §10) |
+| **C3** | each member runs their own agents on the same repo | per machine; fleets never met | every member's agents run in one managed Fleet, launched from their own desktop, with inference attributed to them at the org gateway (§4, §10) |
 | **C4** | agents understand each other | absent; phase 3 cut claims (A9) | task cards, leases and an orchestrator protocol (§5, §6) |
 
 ## 0. The design in ten lines
 
 1. **One managed control plane per org, called Fleet,** runs every team agent as a managed session in
-   a Kata sandbox in our environment. The desktop becomes a client of Fleet. Laptop Docker stays as
-   the solo, offline and development mode (OD-14).
-2. **Every user has one Orchestrator per team project.** It is an unmodified Claude Code session on
-   that user's own subscription, in its own sandbox. It plans the work and spawns and directs only
-   that user's **workers** (OD-16).
+   a Kata sandbox on AKS in our environment. The desktop is the portal: a client of Fleet. Laptop
+   Docker stays only as the solo, offline and development mode (OD-14, OD-18, OD-20).
+2. **Every user has one Orchestrator per team project.** It is an unmodified Claude Code session in
+   its own sandbox. Like every agent, it reaches the model only through the org's inference gateway,
+   on a per-session token attributed to that user (OD-19). It plans the work and spawns and directs
+   only that user's **workers** (OD-16).
 3. **Every agent has a task card**: its task; its reason, which is a link to the brief section the
    task serves (the provenance thread); its status; the files it is touching, as observed by the
    platform; and the leases it holds. Every agent on the project can read every card (OD-15).
@@ -68,8 +79,8 @@ updating that document, they are able to communicate and understand each other."
 |---|---|---|---|
 | P1 | **Team agents run where the platform can see them**: in Fleet, in Kata sandboxes | the owner's model is one shared document, not N laptops | OD-14 (`owner-decisions.md:125`) |
 | P2 | **One principal per human, from the token.** Fleet acts for a user only under a delegation that the user's own token created and the Hub records | a teammate, or Fleet itself, cannot write "Dylan's agent is doing X" | `ADR-H1:372`, `:434-435` (via `04` §2.1) |
-| P3 | **Only a user and that user's Orchestrator direct that user's agents** | Consumer Terms §2: *"You also may not make your Account available to anyone else"* | OD-16; `04` §2.2 (read 2026-09-24) |
-| P4 | **Every token is paid by the agent's owner.** A reader pays to read a peer's message, so senders are rate-limited | nothing is pooled; teammates cannot drain each other's quota | OD-16; `docs/PROGRAM.md:17`; `03` §7 D2 |
+| P3 | **Only a user and that user's Orchestrator direct that user's agents** | accountability: what an agent does is on its owner's record. (`04` §2.2's Consumer Terms reason is moot, because OD-19 uses no consumer account) | OD-16; OD-19 |
+| P4 | **Every token is attributed to the agent's owner, team and project, against a quota at the gateway.** A reader spends quota to read a peer's message, so senders are rate-limited | org keys are shared, so attribution and quotas replace "never pool"; no teammate can drain another's quota | OD-16; OD-19 (`owner-decisions.md:140`); `03` §7 D2 |
 | P5 | **Observed facts beat narration.** Files, commits and status come from git and `sandboxd`; anything an agent says about itself is labelled agent text | agents misreport; structured shared state beats chat | `03` §2 I2–I3; `03` §5.2 (MetaGPT, MAST) |
 | P6 | **Agent text is data, never authority.** This replaces `04`'s F1 (*"agents never publish"*), which OD-16 overturns by making orchestrators speak | an agent-to-agent channel is an injection channel | `04` §5.2–5.3; OD-16 |
 | P7 | **Awareness is advisory; the land queue decides** | hard pre-write admission serialised 96.7% of runs | `03` §5.2 (arXiv 2608.00947) |
@@ -90,6 +101,7 @@ updating that document, they are able to communicate and understand each other."
 | **`machined`** (P8-D7) | each user's machine pod | that user's worktree clones (OD-2) and git runner, on that user's machine disk (P8-D6) | phase 8, in flight |
 | **`sandboxd`** | each sandbox pod | runs the harness PTY; gains the server end of the `panacea` command and the read-only team file (§5) | phase 1–2, extended |
 | **Lane mirror** (new) | one bare repo per team project, on a project disk | holds every member's lane heads for cross-user forecasts; git runs there only through Fleet's hardened runner (§8.2) | **new** |
+| **Inference gateway** (phase 6, re-scoped by OD-19) | in-cluster, LiteLLM-style | holds the org's Anthropic and Bedrock credentials; exposes one Anthropic-format endpoint; routes Global or AU per session; meters and caps per user, team and project (§2.5) | **new** |
 
 Fleet is **one deployment per environment**, multi-tenant. Every row and every sandbox is keyed by
 org (`tid`) and owner (`tid` + `oid`), exactly as the broker already keys sandboxes
@@ -135,15 +147,41 @@ others only once its work is pushed. The label is honest, and nothing is silentl
 This changes one Hub rule: today the laptop's control plane is the Hub's only caller, always with
 the user's own token (`01` §4.3). §11.1 records the change.
 
-### 2.5 Each user's own subscription and own git credential, inside Fleet
+### 2.5 Inference through the org gateway, and each user's own git credential
 
-- **Claude.** The user signs in with `/login` once, in a sign-in session on their own machine. The
-  CLI's credential lives on that user's machine disk (P8-D6) and is mounted only into that user's
-  sandboxes. Fleet never reads, copies or holds it. Per-user rotation (`docs/PROGRAM.md:17`) picks
-  among that user's own credential slots on the same disk. The metered API backstop bills that
-  user's cost centre, never a teammate's. **UNVERIFIED:** whether one CLI credential can be used by
-  several of the user's sandboxes at once without its token refresh racing; and whether the
-  tenant's managed policy applies inside the sandbox after `/login` (`03` C3; OD-12).
+*Rewritten for OD-19. The earlier text had each user `/login` with their own subscription.*
+
+- **One gateway, two routes, zero data retention.** The gateway holds the org's keys and nothing
+  else holds them. It exposes a single Anthropic-format endpoint, so the route can change without
+  touching a sandbox: the docs list *"Provider switching: change the provider in gateway
+  configuration, without touching developer machines"*, which *"depends on the gateway exposing a
+  single Anthropic-format endpoint regardless of upstream"*
+  (https://code.claude.com/docs/en/llm-gateway, read 2026-09-25). **Global** forwards to the direct
+  Anthropic API and is the default. **AU** forwards to Bedrock in `ap-southeast-2`. The ZDR terms
+  of each upstream are the org's contracts; this file has not read them (**UNVERIFIED**).
+- **A token per session, never a key.** At launch Fleet mints a gateway token scoped to one
+  session and tagged `tid`, `oid`, team, project, agent id and route. It enters the sandbox as
+  `ANTHROPIC_BASE_URL` plus `ANTHROPIC_AUTH_TOKEN`, which Claude Code sends as
+  `Authorization: Bearer` (https://code.claude.com/docs/en/llm-gateway-connect, read 2026-09-25).
+  The token dies with the session, and removing a member revokes theirs (§2.4 step 4). A leaked
+  token spends one session's quota on one route, and nothing more.
+- **Which route.** The project's data classification sets a floor: "AU data only" forces AU for
+  every member's agents on that project, with no override. Otherwise the user picks, per project or
+  per launch, and the default is Global. Fleet re-checks the floor at every launch, and the gateway
+  refuses a Global call carrying an AU-only project's tag, so a stale client cannot leak a prompt
+  offshore. This replaces `04` §3.3's two controls (account class and inference policy).
+- **Attribution and quotas replace "never pool".** Every call is metered against its tags. Quotas
+  sit at the gateway per user, per team and per project; a team admin sets them in team policy
+  (§3.3). OD-19 notes that the never-pool rule existed only because consumer subscriptions forbid
+  sharing, and no consumer subscription is used (`owner-decisions.md:140`).
+- **What it retires.** `/login` in every sandbox; per-user rotation across a user's own
+  subscriptions (`docs/PROGRAM.md:17`, `:113-114`); open risk 2's subscription enforcement
+  (`docs/PROGRAM.md:138`); and phase 8's precondition that users' own subscriptions work from Azure
+  egress IPs (`phase-8-own-environment.md:330`). **UNVERIFIED:** whether KPMG's managed policy,
+  which today arrives with a claude.ai sign-in, reaches a sandbox that authenticates only by
+  gateway token. If it does not, the sandbox image must carry the product's own
+  `managed-settings.json`, at least as strict as the tenant's, so a cloud agent is never less
+  governed than a laptop one (§14). The `panacea` channel (§5.2) works either way.
 - **Git.** `04`'s A4 still holds: no git credential enters any sandbox. Fetch and push run in the
   owner's `machined` git runner (P8-D7), with the **lane owner's** credential. For Azure DevOps the
   source is an Entra on-behalf-of token for the Azure DevOps resource (**UNVERIFIED** for git over
