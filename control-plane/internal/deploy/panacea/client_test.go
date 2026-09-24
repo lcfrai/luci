@@ -526,28 +526,33 @@ func versionServer(t *testing.T, h http.HandlerFunc) (*httptest.Server, *atomic.
 }
 
 func TestRedirectNotFollowed(t *testing.T) {
-	srv, hits := versionServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/version" {
-			http.Redirect(w, r, "/oauth2/sign_in?rd=%2Fapi%2Fv1%2Fversion", http.StatusTemporaryRedirect)
-			return
+	// Any redirect (task-02.md:63-64, the 3xx row): the api.dev host 307s, oauth2-proxy and nginx's
+	// auth-signin 302, and a portal may 301, 303 or 308.
+	for _, code := range []int{301, 302, 303, 307, 308} {
+		srv, hits := versionServer(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/api/v1/version" {
+				http.Redirect(w, r, "/oauth2/sign_in?rd=%2Fapi%2Fv1%2Fversion", code)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte("<html>Sign in with Entra</html>"))
+		})
+		// srv.Client() follows redirects by default: Version must not, whichever client it is given.
+		v, err := Version(context.Background(), srv.Client(), srv.URL)
+		if v != "" || !errors.Is(err, ErrSignInRedirect) {
+			t.Errorf("%d: Version = %q, %v; want ErrSignInRedirect", code, v, err)
+			continue
 		}
-		w.Header().Set("Content-Type", "text/html")
-		_, _ = w.Write([]byte("<html>Sign in with Entra</html>"))
-	})
-	// srv.Client() follows redirects by default: Version must not, whichever client it is given.
-	v, err := Version(context.Background(), srv.Client(), srv.URL)
-	if v != "" || !errors.Is(err, ErrSignInRedirect) {
-		t.Fatalf("Version = %q, %v; want ErrSignInRedirect", v, err)
-	}
-	e := asDeployError(t, err)
-	if e.Kind != deploy.KindRejected || e.Message != ErrSignInRedirect.Message || e.Status != 307 || e.Op != "version" {
-		t.Errorf("redirect error = %+v; want rejected, ErrSignInRedirect's sentence, Status 307", e)
-	}
-	if ErrSignInRedirect.Status != 0 || ErrSignInRedirect.Cause != nil {
-		t.Errorf("the shared ErrSignInRedirect was mutated: %+v", ErrSignInRedirect)
-	}
-	if n := hits.Load(); n != 1 {
-		t.Errorf("the server saw %d requests, want 1", n)
+		e := asDeployError(t, err)
+		if e.Kind != deploy.KindRejected || e.Message != ErrSignInRedirect.Message || e.Status != code || e.Op != "version" {
+			t.Errorf("%d: redirect error = %+v; want rejected, ErrSignInRedirect's sentence, Status %d", code, e, code)
+		}
+		if ErrSignInRedirect.Status != 0 || ErrSignInRedirect.Cause != nil {
+			t.Errorf("%d: the shared ErrSignInRedirect was mutated: %+v", code, ErrSignInRedirect)
+		}
+		if n := hits.Load(); n != 1 {
+			t.Errorf("%d: the server saw %d requests, want 1", code, n)
+		}
 	}
 }
 
@@ -812,6 +817,8 @@ func TestUnusable2xxIsUnavailable(t *testing.T) {
 		{"empty 200 into out", 200, "", nil, true, true},
 		{"body over 8 MiB", 200, big, nil, true, true},
 		{"200 where only 202 is accepted", 200, `{"ok":true}`, []int{202}, true, true},
+		// okStatus does not depend on out: a DELETE or a rollback that needs a 202 and reads no body.
+		{"200 where only 202 is accepted, no out", 200, "", []int{202}, false, true},
 		{"202 where 202 is accepted", 202, `{"ok":true}`, []int{202}, true, false},
 		{"204 with no out", 204, "", nil, false, false},
 		{"HTML 200 with no out", 200, "<html>", nil, false, false},
@@ -873,5 +880,143 @@ func TestOneLogLinePerFailedCall(t *testing.T) {
 	_ = ok.c.do(context.Background(), "environments", http.MethodGet, "/api/v1/projects/p", nil, nil)
 	if strings.Contains(ok.log.String(), "level=WARN") {
 		t.Errorf("a successful call logged a warning: %s", ok.log.String())
+	}
+}
+
+// sleepWithin runs sleepCtx(ctx, time.Hour) and returns its error and how long it took, or fails
+// the test when it has not returned after 2 s (the goroutine is then left to the process's end).
+func sleepWithin(t *testing.T, name string, ctx context.Context) (error, time.Duration, bool) {
+	t.Helper()
+	done := make(chan error, 1)
+	start := time.Now()
+	go func() { done <- sleepCtx(ctx, time.Hour) }()
+	select {
+	case err := <-done:
+		return err, time.Since(start), true
+	case <-time.After(2 * time.Second):
+		t.Errorf("%s: sleepCtx(ctx, 1h) had not returned after 2s; the sleep ignores ctx", name)
+		return nil, 0, false
+	}
+}
+
+// TestSleepCtxReturnsOnCancel pins the production sleep that the Client contract calls ctx-aware
+// (task-02.md:48) and that task 07's cycle budget relies on (task-07.md:334-335).
+func TestSleepCtxReturnsOnCancel(t *testing.T) {
+	// A live ctx waits d out, and returns nil.
+	start := time.Now()
+	if err := sleepCtx(context.Background(), 10*time.Millisecond); err != nil {
+		t.Errorf("sleepCtx(live, 10ms) = %v, want nil", err)
+	}
+	if took := time.Since(start); took < 10*time.Millisecond {
+		t.Errorf("sleepCtx(live, 10ms) returned after %v; it must wait d out", took)
+	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	during, cancelDuring := context.WithCancel(context.Background())
+	defer cancelDuring()
+	time.AfterFunc(20*time.Millisecond, cancelDuring)
+	// Task 07's CycleDeadline is a deadline: the sleep hands back ctx's own error, not a made-up one.
+	deadline, cancelDeadline := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancelDeadline()
+	for _, c := range []struct {
+		name string
+		ctx  context.Context
+		want error
+	}{
+		{"already cancelled", cancelled, context.Canceled},
+		{"cancelled during the wait", during, context.Canceled},
+		{"deadline during the wait", deadline, context.DeadlineExceeded},
+	} {
+		err, took, ok := sleepWithin(t, c.name, c.ctx)
+		if !ok {
+			continue
+		}
+		if !errors.Is(err, c.want) || took >= time.Second {
+			t.Errorf("%s: sleepCtx(ctx, 1h) = %v after %v; want %v at once", c.name, err, took, c.want)
+		}
+	}
+}
+
+// TestCancelDuringRetryWaitReturnsAtOnce keeps the production sleep. A GET waiting out a 503's
+// Retry-After when its ctx is cut returns at once, with the answer it already has: Panacea's
+// failure, KindUnavailable with Status 503 (task-07.md:330-335), never a second request.
+func TestCancelDuringRetryWaitReturnsAtOnce(t *testing.T) {
+	hs := newHarness(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "2")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"error":"upstream"}`))
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var asked atomic.Int64
+	hs.c.sleep = func(ctx context.Context, d time.Duration) error {
+		asked.CompareAndSwap(0, int64(d))
+		// The cut lands 50 ms into the wait, not before it, so do's ctx.Err check ahead of the
+		// sleep cannot stand in for a sleep that ignores ctx.
+		time.AfterFunc(50*time.Millisecond, cancel)
+		return sleepCtx(ctx, d)
+	}
+	start := time.Now()
+	err := hs.c.do(ctx, "environments", http.MethodGet, "/api/v1/projects", nil, nil)
+	took := time.Since(start)
+	e := asDeployError(t, err)
+	if e.Kind != deploy.KindUnavailable || e.Status != 503 || e.Op != "environments" {
+		t.Errorf("cut during the retry wait: %+v; want unavailable, Status 503, the answer already had", e)
+	}
+	if took >= time.Second {
+		t.Errorf("cut 50ms into a 2s retry wait: do returned after %v; want at once", took)
+	}
+	if n := hs.hits.Load(); n != 1 {
+		t.Errorf("the server saw %d requests; a cut retry must not be sent", n)
+	}
+	if d := time.Duration(asked.Load()); d != 2*time.Second {
+		t.Errorf("the first wait asked for %v; want Retry-After's 2s", d)
+	}
+}
+
+// TestCancelDuringAttemptIsNotRetried: a ctx cut while an attempt is in flight ends the loop
+// before any wait, whatever the sleep does with ctx (the harness's recorder ignores it).
+func TestCancelDuringAttemptIsNotRetried(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	hs := newHarness(t, func(w http.ResponseWriter, r *http.Request) {
+		cancel()
+		w.WriteHeader(http.StatusServiceUnavailable)
+	})
+	err := hs.c.do(ctx, "environments", http.MethodGet, "/api/v1/projects", nil, nil)
+	if deploy.KindOf(err) != deploy.KindUnavailable {
+		t.Errorf("cut during the attempt: %v; want unavailable", err)
+	}
+	if got := hs.sl.got(); len(got) != 0 {
+		t.Errorf("cut during the attempt: do waited %v before giving up; want no wait", got)
+	}
+	if n := hs.hits.Load(); n != 1 {
+		t.Errorf("the server saw %d requests, want 1", n)
+	}
+}
+
+// TestVersionHonoursCtx: the connect form passes its request's ctx (task-05.md:90, :115), so a
+// cancelled connect ends at once instead of waiting out the client's timeout.
+func TestVersionHonoursCtx(t *testing.T) {
+	srv, hits := versionServer(t, func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(3 * time.Second): // bounded, so a Version that drops ctx fails, not hangs
+		}
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	time.AfterFunc(50*time.Millisecond, cancel)
+	start := time.Now()
+	v, err := Version(ctx, srv.Client(), srv.URL)
+	took := time.Since(start)
+	if v != "" || !errors.Is(err, context.Canceled) || deploy.KindOf(err) != deploy.KindUnavailable {
+		t.Errorf("Version with a ctx cancelled at 50ms = %q, %v; want unavailable wrapping context.Canceled", v, err)
+	}
+	if took >= time.Second {
+		t.Errorf("Version returned %v after its ctx was cancelled at 50ms; want at once", took)
+	}
+	if n := hits.Load(); n != 1 {
+		t.Errorf("the server saw %d requests, want 1", n)
 	}
 }
