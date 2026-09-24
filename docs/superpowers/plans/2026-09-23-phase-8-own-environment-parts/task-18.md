@@ -135,7 +135,8 @@ Owner: owner, ReadyTimeout})` → `Create` under a context that `watchUnschedula
 cancel, **armed only when `Cfg.MachineAffinity` is true** → on failure, **delete the pod this
 request created** (below) → on success, **re-count** the owner's session pods by consistent read
 (no `resourceVersion`, never an informer cache; pods with a `deletionTimestamp` not counted): over
-`MAX_SANDBOXES_PER_USER` → delete this request's pod and answer 429 `quota_exceeded`. The count
+`MAX_SANDBOXES_PER_USER` → delete this request's pod and its Secret through `deleteIfOurs`
+(below; the same identity check) and answer 429 `quota_exceeded`. The count
 before the create is only the cheap early refusal: two replicas (task 29) can both pass it, and
 the re-count is what keeps the owner at or under the cap (both racers may roll back, which fails
 closed; task 19 applies the same rule to machines, review m11) → answer in the order below, mapping errors by `errors.Is` (never by
@@ -173,7 +174,8 @@ will ever use the pod.
   sandbox`, `panacea-app/machine-id: <machine>`, `panacea-app/owner: <owner>` — a machine id is
   unique per owner only, since task 19's names carry the owner (review m12) — not terminating, and
   not this request's own pod,
-  which it excludes by name because the count runs **before** `deleteIfOurs`), then deletes, then
+  which it excludes by name, `sandbox.PodName(owner, id)` (task 14), because the count runs
+  **before** `deleteIfOurs`), then deletes, then
   answers `409 machine_full`
   with `details.sessionsPerMachine` = that count as a decimal string, and a message naming it.
 - **Delete what this request created, decided by identity, not by the error's class (b05
@@ -185,20 +187,37 @@ will ever use the pod.
   itself. The same holds for a caller who leaves during the pod create at `:91-105`, which the API
   server may already have stored. And one error class holds both kinds of pod: a create of an id
   the owner already runs, refused at admission (the `ResourceQuota` is full, or the LimitRange
-  refuses the size), is a 403 that katabe also wraps as `ErrUnavailable`, and there the pod named
-  `sandbox-<id>` is the owner's running session. The rule:
+  refuses the size), is a 403 that katabe also wraps as `ErrUnavailable` (admission runs before
+  the API server's name check, so a refused duplicate is a 403, not a 409), and there the pod
+  named `sandbox.PodName(owner, id)` is the owner's running session. The rule:
   - After **every** `Create` error except `ErrAlreadyExists`, the broker runs
-    `deleteIfOurs(ctx, pods, "sandbox-"+id, spec.AttachToken)` under a fresh 10 s context, then
-    answers.
-  - `deleteIfOurs` gets the pod and compares its `backend.EnvToken` env value
-    (`manager.go:110` puts the attach token there) with this request's token, using
-    `subtle.ConstantTimeCompare`. It deletes the pod only on a match, with
-    `Preconditions{UID: pod.UID}`, so a pod that replaced it between the `Get` and the `Delete`
-    is not touched.
-  - Every create carries a fresh token (`ValidateSpec` refuses an empty one, `backend.go:232`),
-    so only this request's pod matches. A missing pod, or a pod with another token, is a no-op.
-    That covers the running session behind an admission refusal, and the `ErrUnsupported`
-    refusals (`ValidateSpec` and `kata.go:81-89`), which return before any pod exists.
+    `deleteIfOurs(ctx, pods, secrets, owner, id, spec.AttachToken)` under a fresh 10 s context,
+    then answers. The names come from task 14's exported `sandbox.PodName` and
+    `sandbox.AttachSecretName`, the same functions the owner view creates with, so the rollback
+    names the pod this request made (`sandbox-<owner[:8]>-<id>`), never a bare `sandbox-<id>`
+    that no broker pod has (b09 re-review 2).
+  - **The identity is the token in the pod's Secret, not in the pod.** Since task 14 the pod's
+    `backend.EnvToken` entry is a `secretKeyRef` with an empty `value` (`manager.go:110` holds the
+    literal only until then), so the pod spec carries no token to compare. `deleteIfOurs` gets
+    the Secret `AttachSecretName(owner, id)` (`secrets get`, task 29) and compares its
+    `Data[sandbox.AttachSecretKey]` with this request's token, using
+    `subtle.ConstantTimeCompare`. A missing Secret, or another token, is a no-op that returns nil.
+    On a match it gets the pod `PodName(owner, id)` and deletes it with
+    `Preconditions{UID: pod.UID}` (a missing pod is skipped), then deletes the Secret with
+    `Preconditions{UID: secret.UID}`.
+  - **Why the Secret proves it.** Task 14 creates the Secret before the pod, a create whose
+    Secret exists fails there with `AlreadyExists` and leaves it alone, and an ambiguous pod
+    create keeps the Secret. So while the Secret holds this request's token, no other request
+    can have created that pod. Every create carries a fresh token (`ValidateSpec` refuses an
+    empty one, `backend.go:232`), so only this request matches. That covers the running session
+    behind an admission refusal (its Secret holds the old token), and the `ErrUnsupported`
+    refusals (`ValidateSpec` and `kata.go:81-89`), which return before any Secret exists.
+  - **A late-stored pod.** If the API server stores an ambiguous pod create after the rollback
+    has deleted the Secret, that pod can never start (its `secretKeyRef` names a missing
+    Secret), and it carries the control-plane label, so the laptop's reaper, which lists by
+    `?controlPlane=` and destroys what its registry does not hold, removes it. The window is the
+    API server's own request timeout. UNVERIFIED on a cluster; offline, a fake clientset cannot
+    store late.
   - Never after `ErrAlreadyExists`, even on a token match. A laptop that re-sends a create whose
     201 it lost carries the same token, and that pod is the session it asked for.
   - The token is compared, never logged (`TestTheAttachTokenIsNeverLogged` covers the new path).
@@ -249,8 +268,8 @@ var (
 // capacity.go — review I5. The scheduler is the one authority on whether a
 // session fits beside its machine pod; the broker only listens to it.
 
-// watchUnschedulable calls cancel once pod name (katabe's "sandbox-<id>",
-// kata_test.go:387) has reported PodScheduled=False, reason Unschedulable, with
+// watchUnschedulable calls cancel once pod name (sandbox.PodName(owner, id),
+// the owner view's "sandbox-<owner[:8]>-<id>", task 14; b09 re-review 2) has reported PodScheduled=False, reason Unschedulable, with
 // an empty status.nominatedNodeName, continuously for grace. A nominated node,
 // a scheduled pod or a deleted pod resets or ends the watch. It returns a func
 // that stops the watch and reports whether it fired.
@@ -263,10 +282,14 @@ func watchUnschedulable(ctx context.Context, pods corev1client.PodInterface, nam
 // before its delete).
 func machineSessions(ctx context.Context, pods corev1client.PodInterface, owner, machine, except string) (int, error)
 
-// deleteIfOurs deletes pod name only if its backend.EnvToken env value equals
-// token (constant-time), with a UID precondition. A missing pod or another
-// token is a no-op and returns nil (b05 re-review 1).
-func deleteIfOurs(ctx context.Context, pods corev1client.PodInterface, name, token string) error
+// deleteIfOurs deletes owner's sandbox id only if the Secret
+// sandbox.AttachSecretName(owner, id) holds token under sandbox.AttachSecretKey
+// (constant-time): then the pod sandbox.PodName(owner, id), if present, and the
+// Secret, each with a UID precondition. A missing Secret or another token is a
+// no-op and returns nil (b05 re-review 1; b09 re-review 2: the pod spec holds
+// no token since task 14).
+func deleteIfOurs(ctx context.Context, pods corev1client.PodInterface,
+	secrets corev1client.SecretInterface, owner, id, token string) error
 ```
 
 #### Tests to write first
@@ -285,14 +308,15 @@ sandboxd stand-in (the pattern `katabe/kata_test.go`'s `runningSandbox` already 
 | `TestCreateRefusesAHostMountField` | a body with `"mounts": [...]` → 400 `invalid_json` (unknown field) | host paths smuggled through |
 | `TestCreateNeedsAnAwakeOwnedMachine` | checker says not found → 404 `machine_not_found`; asleep → 409 `machine_asleep`; no pod either way | a session pod that can never schedule (no machine pod to be near) |
 | `TestCreateEnforcesThePerUserCap` | owner at 8 pods → 429 `quota_exceeded`, `details.limit = "8"`; another owner at 0 → 201 | a cap counted across all owners |
-| `TestTwoReplicasNeverTakeAnOwnerPastTheCap` | owner at 7 pods; two broker servers on **one** fake clientset each create a session, with a `PrependReactor` on pod `create` holding both at a barrier until both have made the early count → at most one 201, the other 429; afterwards the owner has at most 8 non-terminating session pods, and a rolled-back request's pod is deleted by UID (review m11) | a count-then-create cap, which two replicas overrun together |
-| `TestAFullMachineIs409MachineFullInSeconds` | affinity on; three running session pods of this owner on machine `m-1`, and beside them, none of which may count (b05 re-review 7): a session pod of this owner on `m-2`, another owner's session pod on its machine `m-3`, a third owner's session pod on **its own** `m-1` (machine ids are unique per owner only, since task 19's names carry the owner, review m12), the `m-1` machine pod itself (component `machine`), and a terminating session pod on `m-1`; the reactor marks the new pod `PodScheduled=False/Unschedulable`, no nomination, never Running; grace 50 ms, `READY_TIMEOUT` 5 s → 409 `machine_full`, `details.sessionsPerMachine = "3"`, answered in under 1 s, and the new pod is gone; a `delete pods` reactor records the one delete of the new pod, whose `DeleteOptions.Preconditions.UID` equals that pod's UID (review I5; b05 re-review 1) | the two-minute hang and generic 503; a Pending pod left holding the owner's cap |
+| `TestTwoReplicasNeverTakeAnOwnerPastTheCap` | owner at 7 pods; two broker servers on **one** fake clientset each create a session, with a `PrependReactor` on pod `create` holding both at a barrier until both have made the early count → at most one 201, the other 429; afterwards the owner has at most 8 non-terminating session pods, and a rolled-back request's pod and Secret are deleted by UID through `deleteIfOurs` (review m11; b09 re-review 2) | a count-then-create cap, which two replicas overrun together |
+| `TestAFullMachineIs409MachineFullInSeconds` | affinity on; three running session pods of this owner on machine `m-1`, and beside them, none of which may count (b05 re-review 7): a session pod of this owner on `m-2`, another owner's session pod on its machine `m-3`, a third owner's session pod on **its own** `m-1` (machine ids are unique per owner only, since task 19's names carry the owner, review m12), the `m-1` machine pod itself (component `machine`), and a terminating session pod on `m-1`; the reactor marks the new pod `PodScheduled=False/Unschedulable`, no nomination, never Running; grace 50 ms, `READY_TIMEOUT` 5 s → 409 `machine_full`, `details.sessionsPerMachine = "3"`, answered in under 1 s, and the new pod and its Secret are gone (the pod was created through the owner view, so its token lives only in the Secret, b09 re-review 2); a `delete pods` reactor records the one delete of the new pod, whose `DeleteOptions.Preconditions.UID` equals that pod's UID (review I5; b05 re-review 1) | the two-minute hang and generic 503; a Pending pod left holding the owner's cap |
 | `TestABriefUnschedulableIsNotFull` | the new pod is `Unschedulable` with no nomination for 20 ms (grace 200 ms), then Running → 201, the pod kept | a watcher that fires on the first `Unschedulable` event and ignores the grace, refusing a session whose room was freeing up (a terminating pod on the node) |
 | `TestPreemptionUnderWayIsNotFull` | the new pod is `Unschedulable` **with** `nominatedNodeName` set for 200 ms (grace 50 ms), then Running → 201 | a refusal every time a session preempts a balloon, which is the warm path task 12 builds |
 | `TestAReadyTimeoutDeletesThePod` | the pod stays Pending with no scheduling condition; `READY_TIMEOUT` 400 ms → 503 `backend_unavailable`, `details.reason = "not_ready"`, and the pod is gone | katabe's keep-the-pod rule carried into the broker, where the pod is an orphan counting against the cap |
-| `TestAConflictNeverDeletesTheExistingPod` | a running pod already has the id → 409 `conflict`, and that pod is still there; once with another token, and once with **the same token** (a laptop re-sending a create whose 201 it lost, b05 re-review 1) | a cleanup after `ErrAlreadyExists`, which the token match alone would not stop: it kills the owner's running session |
+| `TestAConflictNeverDeletesTheExistingPod` | a running session already has the id, created through the owner view (so its Secret exists and the new create fails there with `AlreadyExists`) → 409 `conflict`, and that pod and its Secret are still there; once with another token, and once with **the same token** (a laptop re-sending a create whose 201 it lost, b05 re-review 1) | a cleanup after `ErrAlreadyExists`, which the token match alone would not stop: it kills the owner's running session |
 | `TestAFullMachineIs409EvenWhenKatabeHidesTheCancel` | affinity on; the new pod is `Unschedulable`, no nomination; a `get pods` reactor holds the first `Get` of the new pod (katabe's first poll, made at once after the create, `kata.go:130`, so it is in flight when the watcher fires) for 3× the grace, returns `errors.New("client rate limiter Wait returned an error: context canceled")` unwrapped, as the real client does when its context is cancelled mid-call, and lets every later `Get` through (so `deleteIfOurs`'s own `Get` works). katabe's error then wraps `ErrUnavailable`, not `context.Canceled`, which a test-only `serverDeps.onCreateError` hook records and the test asserts, so the test proves it took the path it names → 409 `machine_full` and the pod is gone (b05 re-review 1) | the old "`ErrNotRunning` or a context error" cleanup rule, which keeps the pod and answers 503 or a `machine_full` whose "the pod is deleted" is false |
-| `TestAnAdmissionRefusalNeverDeletesTheRunningSession` | the owner's running pod `sandbox-x` carries token `tok-A`; a create of `x` with token `tok-B` meets a `create pods` reactor returning `403 Forbidden` (exceeded quota) → 503 `backend_unavailable`, and `sandbox-x` still runs with `tok-A` (b05 re-review 1) | a cleanup keyed on the error class ("every error except `ErrAlreadyExists` and `ErrUnsupported`"), which destroys the owner's running session behind a refused duplicate |
+| `TestAnAdmissionRefusalNeverDeletesTheRunningSession` | the owner's running session `x` is created **through the owner view** (`katabe.Config{Owner: o}`), so its pod is `sandbox.PodName(o, "x")`, its token env value is empty, and its Secret `AttachSecretName(o, "x")` holds `tok-A`; a create of `x` with token `tok-B` meets a `create secrets` reactor returning `403 Forbidden` (exceeded quota: admission answers before the name check) → 503 `backend_unavailable`, and the pod still runs and its Secret still holds `tok-A` (b05 re-review 1; b09 re-review 2) | a cleanup keyed on the error class ("every error except `ErrAlreadyExists` and `ErrUnsupported`"), which destroys the owner's running session behind a refused duplicate |
+| `TestDeleteIfOursReadsTheSecret` | pods and Secrets made through the owner view: (a) Secret holds `tok-A`, call with `tok-A` → the pod and the Secret are deleted, and a `delete` reactor records `Preconditions.UID` equal to each object's UID; (b) with `tok-B` → both kept; (c) no Secret, pod present → no-op, nil; (d) Secret holds `tok-A`, no pod → the Secret is deleted, nil (b09 re-review 2) | the env-value match, which under task 14 compares `""` with the token and never deletes, so every failed, `machine_full` or over-cap create keeps its pod |
 | `TestWithoutAffinityUnschedulableWaitsForTheTimeout` | `Cfg.MachineAffinity` false; the new pod is `Unschedulable` with no nomination for 10× the grace (grace 50 ms, `READY_TIMEOUT` 5 s), then Running → 201, the pod kept (b05 re-review 3) | a watcher armed whatever the affinity, which refuses every session in the NFS fallback that the autoscaler would have placed |
 | `TestTheCallerLeavingDeletesThePod` | the client cancels its request while the pod is Pending → the pod is gone within 1 s | an orphan per abandoned create |
 | `TestAnotherOwnersSandboxIs404Everywhere` | owner B: `GET`, `DELETE` (→ 204 but the pod survives), `attach` on A's id → 404 / no-op / 404 | the cross-user access the broker exists to prevent |
@@ -336,7 +360,11 @@ the key).
   after `ErrAlreadyExists` too → `TestAConflictNeverDeletesTheExistingPod` (its same-token case).
   **b05 re-review:** restore the old rule, cleanup only after `ErrNotRunning` or a context error →
   `TestAFullMachineIs409EvenWhenKatabeHidesTheCancel`; drop the token match from `deleteIfOurs`
-  (delete by name) → `TestAnAdmissionRefusalNeverDeletesTheRunningSession`; arm
+  (delete by name) → `TestAnAdmissionRefusalNeverDeletesTheRunningSession`,
+  `TestDeleteIfOursReadsTheSecret` (b); **b09 re-review 2:** match the pod's env value instead of
+  the Secret → `TestDeleteIfOursReadsTheSecret` (a), `TestAFullMachineIs409MachineFullInSeconds`;
+  name the rollback's pod `"sandbox-"+id` → `TestAFullMachineIs409MachineFullInSeconds`; skip
+  the Secret's delete → `TestDeleteIfOursReadsTheSecret` (a, d); arm
   `watchUnschedulable` whatever `Cfg.MachineAffinity` is →
   `TestWithoutAffinityUnschedulableWaitsForTheTimeout`; `machineSessions` without the
   `machine-id` selector, without the `owner` selector (the third owner's `m-1` pod counts),

@@ -92,10 +92,19 @@ func (m *Manager) WithOwner(owner string) *Manager
 // stable across sessions, and not an object id anyone can read back.
 func OwnerLabelValue(tenantID, objectID string) string
 
-// The Secret holding one sandbox's attach token.
-func attachSecretName(id string) string { return "sandbox-" + id + "-attach" }
+// PodName is the one place a sandbox id becomes a pod name (it replaces
+// podNameFor, manager.go:69). owner "" (the unscoped manager) gives
+// "sandbox-<id>"; an OwnerLabelValue gives "sandbox-<owner[:8]>-<id>", the name
+// WithOwner(owner) creates. Exported because the broker's rollback (task 18,
+// deleteIfOurs) must name the pod its request created (b09 re-review 2).
+func PodName(owner, id string) string
 
-const attachSecretKey = "token"
+// AttachSecretName is PodName(owner, id) + "-attach": the Secret holding that
+// sandbox's attach token.
+func AttachSecretName(owner, id string) string
+
+// AttachSecretKey is the Secret's one data key.
+const AttachSecretKey = "token"
 ```
 
 ```go
@@ -131,15 +140,31 @@ envRuntimeClass = "PANACEA_APP_RUNTIME_CLASS" // kata only; default sandbox.Defa
   `fsGroup: 1001`, `fsGroupChangePolicy: OnRootMismatch` (task 15's disk must be writable by uid
   1001), `seccompProfile: {type: RuntimeDefault}`.
 - container `securityContext` gains `seccompProfile: {type: RuntimeDefault}`.
-- env `PANACEA_APP_ATTACH_TOKEN` becomes `valueFrom.secretKeyRef {name: sandbox-<id>-attach, key: token}`
+- env `PANACEA_APP_ATTACH_TOKEN` becomes `valueFrom.secretKeyRef {name: AttachSecretName(owner, id), key: token}`
+  (`sandbox-<id>-attach` unscoped, `sandbox-<owner[:8]>-<id>-attach` in an owner view)
   with an empty `value`; the other entries, and their order, are unchanged.
 
 **Create's order:** Secret (labels as the pod's) → Pod → update the Secret's `ownerReferences` to
-the Pod (`controller: false`, `blockOwnerDeletion: false`). If the Pod create fails, the Secret is
-deleted before the error returns. If the owner-reference update fails, the Pod is kept and the
-Secret is deleted by `Delete`, which now removes **both** and treats either's absence as success.
-A token Secret with no owner reference can therefore exist only between a failed update and the
-next `Delete` or reap.
+the Pod (`controller: false`, `blockOwnerDeletion: false`).
+- **The Secret is the id's claim.** A create of a name whose Secret exists fails at the Secret
+  with `AlreadyExists`, returned unwrapped (katabe maps it to `ErrAlreadyExists`, `kata.go:102-103`),
+  and the existing Secret is not touched. So only the request that created the Secret can go on
+  to create the pod, and the token in the Secret names that request (task 18's `deleteIfOurs`
+  relies on this, b09 re-review 2).
+- **A refused Pod create** (an `apierrors.APIStatus` reached by `errors.As`, other than
+  `IsTimeout` and `IsServerTimeout`: the API server answered, so the pod was not stored): the
+  Secret is deleted before the error returns.
+- **An ambiguous Pod create** (any other error: transport, the context ending, a timeout status;
+  the pod may have been stored): the Secret is **kept** and the error returned. The caller holds
+  the proof of which pod is its own, and `Delete` removes both. Deleting the Secret here would
+  leave a stored pod with no identity to check, which the broker could then never roll back.
+- If the owner-reference update fails, the Pod is kept and the Secret is deleted by `Delete`,
+  which now removes **both** and treats either's absence as success.
+
+A token Secret with no owner reference can therefore exist only between a failed update or an
+ambiguous create and the next `Delete` or reap (the broker's rollback is such a `Delete`; in the
+unscoped path, an ambiguous create whose pod was never stored leaves an inert Secret that no pod
+reads, until that id's `Delete`).
 
 #### Tests to write first
 
@@ -155,7 +180,10 @@ New, in `hardening_test.go` (fake clientset, the package's existing `growthSpec(
 | `TestPodSecurityContextOwnsItsVolumesAsTheAgentUser` | `FSGroup == 1001`, `RunAsGroup == 1001` | a disk the agent cannot write (task 15) |
 | `TestAttachTokenIsInASecretNotThePodSpec` | the token env entry has `Value == ""` and a `SecretKeyRef` to `sandbox-<id>-attach`/`token`; that Secret's `Data["token"]` is the token; **no** env `Value` anywhere in the pod equals the token | the token back in the spec |
 | `TestTheTokenSecretIsOwnedByItsPod` | the Secret's single owner reference is `Kind: Pod`, `Name: sandbox-<id>` | an orphan secret that outlives the sandbox |
-| `TestCreateDeletesTheSecretWhenThePodIsRefused` | a reactor fails pod creation → error returned, no Secret left | a token left behind by every failed create |
+| `TestCreateDeletesTheSecretWhenThePodIsRefused` | a reactor fails pod creation with `apierrors.NewForbidden(…)` → error returned, no Secret left | a token left behind by every refused create |
+| `TestCreateKeepsTheSecretWhenThePodCreateIsAmbiguous` | a reactor fails pod creation with `context.DeadlineExceeded` → error returned, the Secret is still there with the token (b09 re-review 2) | the Secret deleted on every error, which leaves a stored pod with no identity for the broker's rollback |
+| `TestCreateLeavesAnExistingSecretAlone` | a Secret `AttachSecretName("", id)` holding `tok-A` exists; a create of `id` with `tok-B` → `apierrors.IsAlreadyExists(err)`, no pod created, and the Secret still holds `tok-A` | a create that overwrites or deletes another request's claim |
+| `TestPodNameIsWhatTheOwnerViewCreates` | `PodName("", "s-1")` is `sandbox-s-1`; `WithOwner(o).Create` of `s-1` makes a pod named `PodName(o, "s-1")` = `sandbox-<o[:8]>-s-1` and a Secret named `AttachSecretName(o, "s-1")` | a broker that names its rollback's pod differently from the pod it created, so the rollback is a no-op |
 | `TestDeleteRemovesPodAndSecretAndIsIdempotent` | after `Delete` both are gone; a second `Delete` returns nil | a leaked Secret, or a 500 on the reaper's second pass |
 | `TestOwnerViewStampsTheLabel` | `WithOwner("o1").Create` → pod and Secret labelled `panacea-app/owner=o1` | an unlabelled pod the owner cannot find again |
 | `TestOwnerViewsCannotSeeEachOther` | create under `o1`; `WithOwner("o2").Get(id)` → `ErrNotFound`; `.List` → empty; the unscoped manager lists it | the cross-user read OQ-1 names |
