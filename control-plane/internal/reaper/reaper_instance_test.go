@@ -220,4 +220,8 @@ func TestAReaperWithNoInstanceOwnsNothing(t *testing.T) {
 	if !strings.Contains(logs.String(), "no instance id") {
 		t.Errorf("a reaper that can destroy nothing said nothing about why; logs:\n%s", logs.String())
 	}
+	// Said once, at New — not once per sandbox as though each were a finding.
+	if strings.Contains(logs.String(), "sparing a foreign sandbox") {
+		t.Errorf("a reaper with no instance logged sandboxes as foreign; with no instance nothing is ours, so that says nothing New did not; logs:\n%s", logs.String())
+	}
 }
