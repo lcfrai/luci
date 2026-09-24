@@ -52,7 +52,11 @@ var _ Machine = Remote{}
 func (r Remote) ID() string { return r.MachineID }
 
 // Git runs on the machine agent. Call.Dir must be absolute under MachineRoot
-// (slash-separated); it is sent relative. Call.Scope and Call.RemoteURL are
+// (slash-separated); it is sent relative. The one exception is a Scope None
+// call, whose Call.Dir must be "" and is sent as "": machined runs it in its own
+// <OwnedRoot>/clone, never in MachineRoot itself (task 21 item 2); a Scope None
+// call with any other Dir, or any other scope with Dir "", is ErrCallShape here,
+// before any request. Call.Scope and Call.RemoteURL are
 // sent as GitCall.Scope ("clone" | "project" | "none") and RemoteURL; an Unset
 // scope is ErrCallShape here, before any request. A problem "git_failed" becomes a
 // *Error with ExitCode, Stderr (= details.gitSays) and TimedOut from the
@@ -91,6 +95,7 @@ func (r Remote) Join(elem ...string) string { return path.Join(elem...) }
 | `TestRemoteRefusesADirOutsideTheRoot` | `Dir: "C:\\Users\\x"` or `"/etc"` → error, no call | a laptop path leaking to the machine |
 | `TestRemoteCarriesClassStdinEnvAndOKExit` | each field arrives; `Class` as `"read" | "local" | "remote"`; `Scope` as `"clone" | "project" | "none"`; `RemoteURL` | a Read call taking optional locks on the machine; a lane call sent as `project` |
 | `TestRemoteRefusesAnUnsetScope` | `Scope: Unset` → `ErrCallShape`, no call | a call the machine must guess the scope of |
+| `TestRemoteSendsAnEmptyDirOnlyForScopeNone` | `Scope: None, Dir: ""` → `GitCall.Dir == ""`, `Scope == "none"`; `Scope: None, Dir: "/machine"` and `Scope: Project, Dir: ""` → `ErrCallShape`, no call | the laptop sending `/machine` to mean `machined`'s owned root, which `machined` reads as the disk root |
 | `TestGitFailedBecomesAGitxError` | problem `git_failed` with details → `*Error{ExitCode, Stderr, TimedOut}`, `AsError` finds it, `Sentence()` is `gitSays` | the cockpit's `details.gitSays` empty for cloud machines |
 | `TestAnUntrustedConfigBecomesAGitxUntrustedConfig` | problem `conflict`, `reason: clone_config_untrusted`, `key: filter.x.clean` → `*UntrustedConfig{Key: "filter.x.clean", Scope: Clone}`; the `project_…` reason → `Scope: Project` | a refused filter shown as a network failure, or as "git said" |
 | `TestAnUnreachableAgentIsNotAGitError` | the fake returns `backend.ErrUnavailable` → the error is not an `*Error` | "git said" shown for a network failure |

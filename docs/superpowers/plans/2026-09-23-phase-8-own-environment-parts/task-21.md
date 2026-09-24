@@ -28,8 +28,11 @@ heading, not line). If it has not landed, this task does not start: no local cop
 ```go
 package machineapi
 
-// GitCall is POST /v1/git's body: gitx.Call on the wire, with Dir relative to
-// the machine root. Class is "read" | "local" | "remote" (gitx.Read/Local/Remote).
+// GitCall is POST /v1/git's body: gitx.Call on the wire. A non-empty Dir is
+// relative to the machine root (/machine). Dir "" is the one exception: it maps
+// to machined's own <OwnedRoot>/clone (/tmp/machined-git/clone), never to
+// /machine, and it is admitted only with Scope "none".
+// Class is "read" | "local" | "remote" (gitx.Read/Local/Remote).
 // Scope is "clone" | "project" | "none" (gitx.Clone/Project/None, phase 3 §HGH
 // H3); it has no default, and it must follow Dir (below). RemoteURL is
 // gitx.Call.RemoteURL: required for Class "remote", an https URL.
@@ -81,7 +84,7 @@ const (
 
 | Route | Answer | Failures |
 |---|---|---|
-| `POST /v1/git` | `200 GitResult` | `400 bad_request` (a `Dir` that escapes the root, an unknown `Class` or `Scope`, a `Scope` that does not follow `Dir`, an `Env` key outside the allowlist, credential `Env` on a `clone`-scope call, empty `Args`, or `gitx.ErrCallShape`; the message names the field or key, never a value) · `409 conflict` with `reason` and `key` (phase 3's H3 refused the repository's config; git never ran) · `422 git_failed` with the three details · `413` above 16 MiB of stdin |
+| `POST /v1/git` | `200 GitResult` | `400 bad_request` (a `Dir` that escapes the root, an unknown `Class` or `Scope`, a `Scope` that does not follow `Dir`, an `Env` key outside the allowlist, credential `Env` on a `clone`-scope call, a `clone` outside its two shapes, empty `Args`, or `gitx.ErrCallShape`; the message names the field or key, never a value) · `409 conflict` with `reason` and `key` (phase 3's H3 refused the repository's config; git never ran) · `422 git_failed` with the three details · `413` above 16 MiB of stdin |
 
 **What `machined` does to every call (review I7).** A lane clone's `.git` is inside that lane's
 session mount. So is a project's `.git` whenever a session runs on the project's primary
@@ -113,12 +116,41 @@ needs.
    rows. It refuses to start (exit 2, naming the key) if `MachineHardening` finds any system or
    global credential helper, so the only credential a call can carry is the one in its `Env`.
 2. **`Scope` follows `Dir`, and `machined` checks it.** A `Dir` under `lanes/` must be
-   `"clone"`, a `Dir` equal to `projects/<name>` must be `"project"`, and `Dir: ""` (the owned
-   root) must be `"none"`. Any other `Dir` is `400`. `"none"` is admitted for exactly two shapes:
-   `Args == ["version"]`, and the add-project clone below. Any other pairing is `400` before
-   gitx sees the call. The laptop names the scope (task 25), but `machined` does
-   not take it on trust, because the scope decides whether a lane is read against the closed
-   allowlist and whether the token may enter it.
+   `"clone"`, a `Dir` equal to `projects/<name>` must be `"project"`, and `Dir: ""` must be
+   `"none"`. Any other `Dir` is `400`. **`Dir: ""` never means the disk root `/machine`.**
+   `machined` runs a `none`-scope call in `<OwnedRoot>/clone` (`/tmp/machined-git/clone`), an
+   empty directory it creates at start beside phase 3's `no-hooks`, as phase 3's `GitHelper`
+   runs in `<OwnedRoot>/credential` (phase-3 `task-13.md:108`). It is a subdirectory, not
+   `OwnedRoot` itself, because phase 3's `None` rule admits "a `Dir` under
+   `Hardening.OwnedRoot`" (phase-3 `task-02.md:452`), and that wording does not settle whether
+   the root itself counts. The laptop's `Call` for such a call carries `Dir: ""` (task 25).
+   `"none"` is admitted for exactly two shapes: `Args == ["version"]`, and the add-project clone
+   below. Any other pairing is `400` before gitx sees the call. The laptop names the scope
+   (task 25), but `machined` does not take it on trust, because the scope decides whether a lane
+   is read against the closed allowlist and whether the token may enter it.
+
+   **Two `clone` shapes, one per scope.** Any call whose `Args[0]` is `clone` must be one of
+   them; any other `clone` is `400`, naming the argument:
+   - `Scope: "none"`: the add-project clone below.
+   - `Scope: "project"`: **phase 3's lane create** (its `lanes.Creator` step 4, built by the
+     unexported `cloneArgv(branch, src, dst)`, phase-3 `task-03.md:157-160`, `:286`; run with
+     `Dir` the project and `Scope Project`, `:179-181`). It is admitted when all of these hold:
+     `Dir` is `projects/<name>`; `Class` is `"local"`; `Env` is empty (a lane create carries no
+     credential); the options before `--` are drawn only from `--no-hardlinks`, `--origin origin`,
+     `--branch <b>` with `<b>` not starting with `-`, and `--config <k>=<v>` with `<k>` one of the
+     four clone keys H3's Clone allowlist admits (`core.autocrlf`, `core.eol`,
+     `core.checkStat`, `core.trustctime`); after `--` come exactly two paths (`/machine` below is
+     `machined`'s root, `PANACEA_APP_MACHINED_ROOT`, task 20, and a test's temp root); the first
+     equals `/machine/<Dir>`, so H3 checked the very repository being cloned; and the second is
+     `/machine/lanes/<a>/<b>`, two path elements, each non-empty, neither `.` nor `..`, holding no
+     `/`, `\` or NUL, that does not exist yet, and whose parent, with symlinks resolved, is still
+     under `/machine/lanes`. The option list is closed because a clone's `--config` is written
+     into the new clone **before its checkout**, and H3 first reads that clone on the next call:
+     `--config filter.x.smudge=<cmd>` would run on the machine pod during the clone itself. The
+     destination is confined because a clone anywhere else would plant a repository in
+     `projects/` (read under the Project rule) or in `/tmp/machined-git` (where `None` calls run
+     unchecked). A change to phase 3's `cloneArgv` needs the matching change here first (seam
+     S8-P3.3, task 33).
 3. **An explicit `Env` allowlist, derived from phase 3's call sites.** Every `Call.Env` phase 3
    writes, found by grepping its parts for `Env`, `GIT_AUTHOR`, `GIT_COMMITTER` and
    `commit-tree` at phase-3 `e816a59` (2026-09-24): task 08's `forecastCommit` (identity and a
@@ -172,14 +204,15 @@ Responses are capped at 64 MiB of stdout; a call that would exceed it fails `git
 `gitSays: "output exceeds 64 MiB"`, so a runaway `git log` cannot exhaust the pod.
 
 **Adding a project to a cloud machine** is this route with one fixed shape: `Scope: "none"`,
-`Dir: ""` (`machined` runs it in its owned root, `/tmp/machined-git`, where phase 3 admits
-`Scope None`), `Class: "remote"`, `RemoteURL` the https URL, and `Args` exactly
+`Dir: ""` (`machined` runs it in `<OwnedRoot>/clone`, `/tmp/machined-git/clone`, item 2, a
+`Dir` under `OwnedRoot`, where phase 3 admits `Scope None`), `Class: "remote"`, `RemoteURL` the https URL, and `Args` exactly
 `["clone", "--", <RemoteURL>, "/machine/projects/<name>"]`. `<name>` must match
 `^[a-z0-9][a-z0-9._-]{0,62}$`, and `projects/<name>` must not exist yet. The user's host token
 arrives in `Env`, host-scoped to `RemoteURL` (from phase 3's credential store, which the Hub's C1
 builds, ADR-H1 `:344-352`). H3 has nothing to read, because no repository exists yet. The next
-call in the new repository is a `project`-scope call, and H3 checks it then. Any other `clone`,
-and any other `none`-scope call, is `400`. No clone-specific route exists; the cockpit surface
+call in the new repository is a `project`-scope call, and H3 checks it then. Any other
+`none`-scope call is `400`. The only other `clone` admitted is phase 3's lane create, a
+`project`-scope call (item 2). No clone-specific route exists; the cockpit surface
 that starts it belongs to whichever phase owns "add project" (recorded as seam S8-P3.2, task 33).
 
 #### Tests to write first (`git_test.go`; real `git`, skipped with a message if absent)
@@ -202,11 +235,13 @@ with a fake `git` first on `PATH` that writes a marker on any start. A marker sc
 | `TestGitLaneFilterNeverRuns` | review I7 (d): a lane clone under `lanes/p-1/w-2` whose `.git/config` sets `filter.x.clean=<marker script>`, `.gitattributes` `* filter=x`, one modified file; `status --porcelain`, `Scope: "clone"` → 409 `conflict`, `reason: clone_config_untrusted`, `key: filter.x.clean`, and no marker | a lane's filter driver run on the machine pod; a lane checked under the Project rule (the `reason` differs) |
 | `TestGitPrimaryWorktreeFilterNeverRuns` | the same in `projects/a` with `Scope: "project"` → 409, `reason: project_config_untrusted`, no marker | the review's "`lanes/` only" rule: a session on the primary worktree writes `projects/a/.git` |
 | `TestGitIncludedConfigIsRefused` | `projects/a` whose config sets only `include.path=../evil` (a file that sets the filter) → 409, `key: include.path`, no marker | an included file's filter read past the check |
-| `TestGitScopeMustFollowDir` | `lanes/…` with `"project"`; `projects/a` with `"clone"`; `projects/a` with `"none"`; `"none"` with `Args: ["status"]`; `Scope: ""` → each 400, git never ran | the laptop's scope taken on trust |
+| `TestGitScopeMustFollowDir` | `lanes/…` with `"project"`; `projects/a` with `"clone"`; `projects/a` with `"none"`; `"none"` with `Args: ["status"]`; `Dir: ""` with `"project"`; `Scope: ""` → each 400, git never ran | the laptop's scope taken on trust; `Dir: ""` read as the disk root under a checked scope |
 | `TestGitCredentialEnvIsRefusedInALane` | `Scope: "clone"`, `Class: "remote"`, one host-scoped header pair → 400, git never ran | the user's token handed to a git whose config is the agent's |
 | `TestGitNeverSeesTheMachinedToken` | `machined` started through the function `main` calls, with `PANACEA_APP_MACHINED_TOKEN` and `PANACEA_APP_LOG_LEVEL` set; one route call to a fake `git` that dumps its environment → no `PANACEA_APP_` key in it | the scrub dropped; a scrub of the token alone; a scrub in a helper `main` never calls |
 | `TestGitStartRefusesAMachineCredentialHelper` | a `HOME` whose `.gitconfig` sets `credential.helper=store` → start exits 2 naming `credential.helper` | a machine helper answering for the user's host |
-| `TestGitAddProjectCloneHasOneShape` | the exact shape → the fake `git` saw `clone -- <url> /machine/projects/n` in the owned root; an existing `projects/n`, a name with `/`, an extra argument, `Class: "read"` → each 400, git never ran | a `none`-scope call used to skip H3 |
+| `TestGitAddProjectCloneHasOneShape` | the exact shape → the fake `git` saw `clone -- <url> /machine/projects/n` with its cwd `<owned root>/clone`, never `/machine`; an existing `projects/n`, a name with `/`, an extra argument, `Class: "read"` → each 400, git never ran | a `none`-scope call used to skip H3; `Dir: ""` resolved to the disk root |
+| `TestGitLaneCreateCloneIsAdmitted` | real git: `projects/a` a repository with branch `main`; phase 3's exact argv, `clone --no-hardlinks --config core.autocrlf=false --config core.eol=lf --config core.checkStat=minimal --config core.trustctime=false --branch main --origin origin -- /machine/projects/a /machine/lanes/p-1/w-2` (with the test's root for `/machine`), `Dir: "projects/a"`, `Scope: "project"`, `Class: "local"` → 200, and `lanes/p-1/w-2/.git` is a directory whose `core.eol` is `lf` | the one-shape rule keyed on `Args[0] == "clone"`, which refuses every lane create on a cloud machine |
+| `TestGitCloneOutsideItsTwoShapesIsRefused` | table, each `Scope: "project"`, `Dir: "projects/a"` → 400 and git never ran: destination `/machine/projects/b`; destination `/tmp/machined-git/x`; destination `/machine/lanes/p-1` (one element); destination `/machine/lanes/p-1/../../projects/b`; an existing destination; source `/machine/projects/b` (not the call's `Dir`); `--config filter.x.smudge=<marker script>`; `--template=/machine/projects/a`; `--separate-git-dir=/tmp/x`; `Class: "remote"`; one host-scoped header pair in `Env` | a lane create that plants a repository where H3 reads it under the wrong rule or not at all; a clone-time filter run before H3 first reads the clone |
 | `TestGitFailureIsGitFailedWithGitsOwnSentence` | `rev-parse nosuchref` → 422, `details.gitSays` begins `fatal:`, `exitCode` non-zero, no `args` in details | a generic 500; argv (which may hold a URL) in the body |
 | `TestGitOKExitIsAnAnswer` | a `merge-tree --write-tree` conflict with `OKExit: [1]` → 200, `exitCode: 1` | a forecast conflict reported as a failure |
 | `TestGitStdinReachesGit` | `hash-object --stdin` with stdin `x` → the known hash | stdin dropped (commit-tree -F - in phase 3) |
