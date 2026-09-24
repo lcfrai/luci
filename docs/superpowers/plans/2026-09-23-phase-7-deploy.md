@@ -520,7 +520,7 @@ silently ignored (`config.go:69-70`).
 | `PANACEA_APP_DEPLOY_POLL_INTERVAL` | `15s` | the watcher's cycle for every bound project | 07 |
 | `PANACEA_APP_DEPLOY_ACTIVE_POLL_INTERVAL` | `3s` | the cycle for a project with a run this user shipped that is not terminal | 07 |
 | `PANACEA_APP_DEPLOY_HISTORY_INTERVAL` | `60s` | the most often `GET …/deployments` is read when nothing else changed (7P-5) | 07 |
-| `PANACEA_APP_DEPLOY_CYCLE_DEADLINE` | `15s` | the most one watcher cycle — every project's reads together — may take; its expiry is the cycle's `KindUnavailable` (review M14). One per-attempt timeout, so a hung GET costs one attempt, not `do`'s three | 07 |
+| `PANACEA_APP_DEPLOY_CYCLE_DEADLINE` | `30s` | one watcher cycle's budget — every project's reads together (review M14). Unset: `PANACEA_APP_PANACEA_TIMEOUT` + `PANACEA_APP_DEPLOY_POLL_INTERVAL`. A value below `PANACEA_APP_PANACEA_TIMEOUT` + `PANACEA_APP_DEPLOY_ACTIVE_POLL_INTERVAL` exits at start. A read begins only with one whole attempt left, so a read that fails is Panacea's failure; running out of budget is a **budget stop**, which stales nothing (plan re-review b09-1, I-1; task 07 "The cycle budget") | 07 |
 
 ---
 
@@ -812,7 +812,7 @@ cause named.
 | **S7-P1** the criterion evaluator | the manifest's criteria render `open` + *"no evidence recorded yet"* | phase 3's `evidence.Evaluator` at `Deployment.Commit` (`S3-P7.5`) | evaluate at the branch head (P12) |
 | **S7-P2** the merge link | task 17's `PinManifest` passes no `mergeRef` | whichever phase records a merge link in the Hub adds a field to the release or a route; `PinManifest` passes it | infer a merge from a commit being on `main` |
 | **S7-S1** sessions by trailer | task 19's `sessions.Reader.Read` | phase 3's hook stays the only writer of `Panacea-Session` (`S3-P7.1`) | infer a session from a commit's time |
-| **S7-R1** a caller that waits out a long `Retry-After` (b07 round 2, M-3) | task 02's `do` honours `Retry-After` only up to 2 s and returns a longer one on `Error.RetryAfter`; task 07's watcher does not read it, so its 3 s or 15 s cadence overrides it | open, not t07's per-cycle deadline (M14 bounds a cycle; it does not back off). Today's reach is low: at `b02424691` the `Retry-After` writers on phase-7 paths are the log streams (`handlers/logs_stream.go:100`, `logs_app_stream.go:115`, `"5"` on a 429); whether task 12's stream goes through `do` is unverified. The fix: the watcher's next cycle for that project waits `max(cadence, RetryAfter)` | block inside `do` on a long `Retry-After`; retry a POST, PUT or DELETE |
+| **S7-R1** a caller that waits out a long `Retry-After` (b07 round 2, M-3) | task 02's `do` honours `Retry-After` only up to 2 s and returns a longer one on `Error.RetryAfter`; task 07's watcher does not read it, so its 3 s or 15 s cadence overrides it | open, not t07's cycle budget (M14 bounds a cycle; it does not back off). Today's reach is low: at `b02424691` the `Retry-After` writers on phase-7 paths are the log streams (`handlers/logs_stream.go:100`, `logs_app_stream.go:115`, `"5"` on a 429); whether task 12's stream goes through `do` is unverified. The fix: the watcher's next cycle for that project waits `max(cadence, RetryAfter)` | block inside `do` on a long `Retry-After`; retry a POST, PUT or DELETE |
 
 Task 20's `SEAMS.md` restates these rows with the file, line and test that hold each one, as built.
 

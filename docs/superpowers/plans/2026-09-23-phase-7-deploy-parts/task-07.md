@@ -59,9 +59,14 @@ type Config struct {
 	Me         Me
 	// Interval, ActiveInterval, HistoryInterval: plan §6. Zero = 15s, 3s, 60s.
 	Interval, ActiveInterval, HistoryInterval time.Duration
-	// CycleDeadline bounds one whole cycle, every project's reads together (review M14). Zero =
-	// 15s: one per-attempt timeout (PANACEA_APP_PANACEA_TIMEOUT), so a hung GET costs one
-	// attempt, never do's three (t02:95, about 46 s).
+	// ReadTimeout is the Panacea client's per-attempt timeout (PANACEA_APP_PANACEA_TIMEOUT, 15 s);
+	// main.go passes the same value it gives panacea.Config.Timeout (t02). HubReadTimeout bounds one
+	// Hub read, applied by the watcher itself (zero = ReadTimeout). See "The cycle budget".
+	ReadTimeout, HubReadTimeout time.Duration
+	// CycleDeadline is one cycle's budget, every project's reads together (review M14; plan
+	// re-review b09-1, I-1). Zero = ReadTimeout + Interval (30 s at the defaults). New refuses a
+	// value below ReadTimeout + ActiveInterval: the budget must hold one whole attempt, so a read
+	// that hangs ends as its own timeout (Panacea's failure) and never as a budget stop.
 	CycleDeadline time.Duration
 	Now func() time.Time
 	Log *slog.Logger
@@ -73,7 +78,7 @@ func New(cfg Config) (*Watcher, error)
 
 // Run blocks until ctx is done. ONE goroutine, one time.Ticker at ActiveInterval; each project
 // is polled when it is due (Interval, or ActiveInterval while it has a tracked run). Each cycle
-// runs under context.WithTimeout(ctx, CycleDeadline) — see "The per-cycle deadline" below.
+// runs under context.WithTimeout(ctx, CycleDeadline) — see "The cycle budget" below.
 func (w *Watcher) Run(ctx context.Context)
 
 // Snapshot is the newest reading for one local project; ok false before the first cycle.
@@ -133,15 +138,18 @@ type Snapshot struct {
 	ReleasesMore  bool                          // that page's next was non-null: older releases exist and are not in Releases (review M11)
 	ReleasesAt    time.Time                     // the last successful Releases read for this binding; zero = never, so no pin can be known yet
 	// PinsByRun is deployment id → the confirmed run release whose pipelineRun is that id, from a
-	// targeted Releases(…, {PipelineRun: id}) read (step 6), made only while ReleasesMore. A nil
-	// value is the Hub's answer "none"; an absent id is "not read yet". Cached for the binding's
-	// life: a deployment old enough to fall off the page had its release confirmed long before.
+	// targeted Releases(…, {PipelineRun: id}) read (step 6), made only while ReleasesMore and only
+	// for a settled deployment. A nil value is the Hub's answer "none"; an absent id is "not read
+	// yet". Cached for the binding's life, which is safe only because of the settle rule: the entry
+	// is written when the read is made, so the read waits until the deployment is older than the
+	// reservation's life plus skew, when its release can no longer be confirmed (plan re-review
+	// b09-1, M-1).
 	PinsByRun     map[string]*hubapi.Release
 	ReleasesState string                        // "ok" | "no_hub" | "no_hub_project" | "hub_key_spelling" | "signed_out" | "unavailable"
 	OwnerControls string                        // "yes" | "no" | "unknown" (7P-9)
-	FetchedAt     time.Time                     // the last cycle in which every Panacea read succeeded
-	Stale         bool                          // the last cycle's Panacea reads failed; data is FetchedAt old
-	LastError     *deploy.Error                 // that failure, for the lens's sentence
+	FetchedAt     time.Time                     // the end of the last poll in which every Panacea read for this project succeeded
+	Stale         bool                          // the data is FetchedAt old and not current: the last poll failed (the failure rule), or Panacea refused Environments (step 2); a budget stop never sets it
+	LastError     *deploy.Error                 // why Stale, for the lens's sentence; task 08 maps its Kind to staleReason.code
 	Version       uint64                        // increases when anything above except FetchedAt changes
 }
 ```
@@ -213,7 +221,9 @@ type Snapshot struct {
    answers 400 for an empty project name and 200 otherwise (`handlers/security_status.go:204-254`)
    — so live this path is taken only by a refusal, never by an unseeded or mangled `env` (that
    gets a 200 with `NOT_RUN` or empty rows).
-6. **Hub releases** — `Releases(HubProjectID, {PanaceaProject: <ref>, Limit: 200})` when the
+6. **Hub releases** — run in the cycle's **Hub phase**, after every project's Panacea reads (see
+   "Order within a cycle"; plan re-review b09-1, I-1).
+   `Releases(HubProjectID, {PanaceaProject: <ref>, Limit: 200})` when the
    Deployments were re-read, a tracked run changed, a `release.*` event for this Hub project
    arrived through `HubEvents` since the last read (review M12), or `HistoryInterval` passed.
    `Binding.HubProjectID == ""` → by `Binding.HubMiss` (task 06): `"not_linked"` →
@@ -222,27 +232,36 @@ type Snapshot struct {
    re-review b05 R-4; `Releases == nil` is `"no_hub"` before this step); `entraauth.ErrSignedOut` →
    `"signed_out"`; `hubclient.ErrUnavailable` → `"unavailable"`, **keeping the previous releases**.
    A good read sets `ReleasesAt` and `ReleasesMore = page.Next != nil` (Hub contract §1 *Lists*,
-   `:48-49` at 6b873d0: `limit` at most 200, `{"items","next"}`).
+   `:48-49` at 6b873d0: `limit` at most 200, `{"items","next"}`). A snapshot whose step 6 has not
+   run yet has a zero `ReleasesState`; task 08 reads it as not loaded (rule 5b).
    **Beyond the page** (review M11). The Hub returns the 200 newest releases, runs and rollbacks
    together, so a project with more has deployments whose release is not in `Releases`, and the
-   view would call a real pin absent. While `ReleasesMore`, for each deployment in `Deployments`
-   that matches no release in the page by task 08 rule 5 and has no `PinsByRun` entry, newest
-   first and **at most 20 per project per cycle**, the watcher reads
+   view would call a real pin absent. While `ReleasesMore`, for each deployment `d` in
+   `Deployments` that matches no release in the page by task 08 rule 5, has no `PinsByRun` entry,
+   and is **settled**, newest first and **at most 20 per project per cycle**, the watcher reads
    `Releases(HubProjectID, {PanaceaProject: <ref>, PipelineRun: d.ID, State: "confirmed", Limit: 1})`
    (§7.9 lists `pipelineRun=`; the review's option) and stores the `kind "run"` item, or `nil` for
    none, in `PinsByRun[d.ID]`. `pipelineRun=` and not `deploymentId=`: the join is written only by
    the reserver's own watcher (step 7), so a release whose reserver never saw the deployment has no
-   `deployments[]` entry, but always has its `pipelineRun` (confirm carries it). These reads run in every
-   cycle that still owes one, whether or not the page itself was re-read, and **last**: after
-   every project's steps 1-9, so a slow Hub never spends the Panacea reads' share of
-   `CycleDeadline`. One cut by the deadline is not a failure of any kind: its id stays absent and
-   the cycle simply ends. A project whose `PinsByRun` changed is compared (step 9) again after
-   them, so its `Version` and the cursor still move. A failure of this
-   read leaves the id absent (retried next cycle) and does not change `ReleasesState`. 200 history
-   rows cost at most 200 reads once, spread over ten cycles; a project with fewer than 200
-   releases costs none. Until a row's read answers, task 08 says *"pin not loaded"*, never *"no
-   brief is recorded"*. `PinsByRun` is emptied with the rest of the Hub data when the binding changes
-   (step 1).
+   `deployments[]` entry, but always has its `pipelineRun` (confirm carries it).
+   **Settled** (plan re-review b09-1, M-1): `d.CreatedAt` is more than `pinSettle` before `Now()`,
+   where `pinSettle` is the longest `expiresAt − reservedAt` in the current page — the Hub's
+   `PANACEA_APP_HUB_RESERVATION_TTL`, 15 min by default (Hub contract §7.9 `:1021` at 6b873d0) —
+   plus 5 minutes for clock skew between the Hub and Panacea. A release is reserved before its run
+   exists (plan §2 steps 3-4), and a confirm after `expiresAt` is refused (`:1038`, `409
+   release_expired`), so once `d` is settled its release, if it has one, is confirmed for good and a
+   `nil` answer is final. That is why a `nil` may be cached for the binding's life. Before that, a
+   release still `reserved` (a confirm retried in the background, t09:259-263, or a teammate's Ship
+   between Panacea's answer and their confirm) would answer zero items and cache a false `nil`; so an
+   unsettled deployment gets no targeted read, its id stays absent, and task 08 says *"pin not
+   loaded"* — true — until it settles.
+   These reads run in every cycle that still owes one, whether or not the page itself was re-read,
+   after the Hub phase's page reads. One not begun for lack of budget is a budget stop, not a
+   failure: its id stays absent. A failure of this read leaves the id absent (retried next cycle)
+   and does not change `ReleasesState`. 200 history rows cost at most 200 reads once, spread over
+   ten cycles; a project with fewer than 200 releases costs none. Until a row's read answers, task
+   08 says *"pin not loaded"*, never *"no brief is recorded"*. `PinsByRun` is emptied with the rest
+   of the Hub data when the binding changes (step 1).
 7. **The join** (`join.go`): for each release in `Releases` or `PinsByRun` with `state == "confirmed"`, `kind == "run"`,
    `reservedBy.id == Me.id`, a `pipelineRun`, and no `deployments[]` entry — if a deployment with
    `ID == pipelineRun` is in `Deployments` or `Latest`, call `JoinDeployment(release.id,
@@ -256,33 +275,63 @@ type Snapshot struct {
 9. **Compare** the new snapshot with the old, ignoring `FetchedAt`; if different, `Version++` and
    the global cursor `++`.
 
-**Failure rule.** The first `KindUnavailable` in a cycle ends the cycle for **every** project
-(Panacea is down; ten projects times three timeouts would stall the loop for minutes). Each keeps
-its last data with `Stale: true` and `LastError` set, and the cursor bumps once. `KindUnauthorized`
+**Failure rule.** The first `KindUnavailable` in a cycle ends the cycle's Panacea phase for
+**every** project (Panacea is down; ten projects times three timeouts would stall the loop for
+minutes); the Hub phase still runs ("Order within a cycle"). Each project keeps
+its last data with `Stale: true` and `LastError` set, and the cursor bumps once. A budget stop — a read not begun for
+lack of budget — is never this rule's ("The cycle budget", rules 1 and 3). `KindUnauthorized`
 is reported with `Connection.Observe` and likewise ends the cycle. A later good cycle clears both
 and calls `Observe(nil)`. An `EnvironmentFor` refusal of any other kind is not a cycle failure:
 it is recorded per branch (step 2) and the cycle goes on. Nor is an `Environments` refusal
 (`KindNotFound`, `KindForbidden`, or any kind but those two): it stales that one project, re-resolves its
 binding next cycle, and the cycle goes on (step 2, review M13).
 
-**The per-cycle deadline** (review M14). One goroutine means one hung read holds every project:
-`do` retries a GET twice after 250 ms and 1 s (t02:95), each attempt up to
-`PANACEA_APP_PANACEA_TIMEOUT` (15 s, plan §6), so one read could hold the loop for about 46 s.
-So each cycle — the connection gate, every project's steps 1-8, and the Hub reads — runs under
-**one** `context.WithTimeout(ctx, CycleDeadline)` (zero = 15 s), cancelled when the cycle returns.
-Its expiry cancels the read in flight; `do`'s sleep is ctx-aware (t02:48), so a pending retry
-returns at once. A Panacea read cut this way is the cycle's first `KindUnavailable` (a transport
-failure, Status 0): the failure rule above applies unchanged — the cycle ends for every project,
-each is `Stale` with that `LastError`, the cursor bumps once. A Hub read cut this way is
-`hubclient.ErrUnavailable`: step 6's rule, previous releases kept. The next tick starts a fresh
-cycle with a fresh deadline; `time.Ticker` drops the ticks missed meanwhile, so nothing queues.
-**Order within a cycle:** projects with a tracked run first, then the rest in rotation, starting
-after the last project the previous cycle reached — so a cycle cut short starves no project, and
-a hang in another project's reads never comes before a tracked run's. The 3 s active cadence
-holds while Panacea answers; while it hangs, every cycle ends within `CycleDeadline`, so the loop
-tries again no later than `CycleDeadline` + 3 s after the last try began, and the lens says stale, never a frozen
-*"running"*. What this does **not** do is back off on
-`Retry-After`: that is seam S7-R1 (t02:103-105).
+**The cycle budget** (review M14; plan re-review b09-1, I-1). One goroutine means one hung read
+holds every project: `do` retries a GET twice after 250 ms and 1 s (t02:95), each attempt up to
+`ReadTimeout` (`PANACEA_APP_PANACEA_TIMEOUT`, 15 s, plan §6), so one read could hold the loop for
+about 46 s. So each cycle runs under **one** `context.WithTimeout(ctx, CycleDeadline)` (zero =
+`ReadTimeout + Interval`, 30 s), cancelled when the cycle returns. The budget bounds the loop. It
+is **not** evidence about Panacea, and three rules keep the two apart:
+
+1. **A read begins only with a whole attempt left.** Before each Panacea read the watcher checks
+   the budget: less than `ReadTimeout` remaining → the read is not begun, and the cycle makes a
+   **budget stop** (rule 3). So every Panacea read that begins has one whole attempt before the
+   budget can cut it. A Panacea read that fails — its own timeout, a transport failure, a 5xx, or
+   a retry the budget cuts after such a failure — is therefore Panacea's failure: `KindUnavailable`,
+   and the failure rule above applies unchanged. `do`'s sleep is ctx-aware (t02:48), so a retry
+   pending at the cut returns at once.
+2. **A Hub read** (the Hub phase, below) runs under its own `context.WithTimeout(cycleCtx,
+   HubReadTimeout)` and begins only with `HubReadTimeout` left. So a Hub that does not answer ends
+   as that read's own timeout, `hubclient.ErrUnavailable`: step 6's rule (`"unavailable"`, previous
+   releases kept) — never a budget stop that hides a dead Hub, and never blamed on Panacea.
+3. **A budget stop is not a failure of any kind.** The cycle ends. Nothing is marked `Stale`, no
+   `LastError` is set, `Connection.Observe` is not called. A project polled to the end this cycle
+   keeps the fresh data it got. The project the stop came in the middle of discards this cycle's
+   partial reads and keeps its previous snapshot whole, `Stale` and `LastError` unchanged. It, and
+   every due project not reached, stay due. A Hub read not begun leaves its project's releases due,
+   its `PinsByRun` ids absent and `ReleasesState` unchanged. Step 9 still runs for every project
+   polled to the end, so their data is published. The next cycle begins with what was stopped
+   (the order below).
+
+**Order within a cycle.** The **Panacea phase** first: steps 0-1 once, then steps 2-5 and 8 for
+each due project — projects with a tracked run first, then the rest in rotation, beginning with
+the first project the previous cycle did not finish (the one a budget stop came in, else the one
+after the last polled). So a stopped cycle starves no project, and a hang in another project's
+reads never comes before a tracked run's. Then the **Hub phase**, which runs whether or not the
+Panacea phase ended on the failure rule (the Hub is not Panacea): step 6's page reads for every
+bound project whose releases are due, in the same order; then step 6's targeted reads; then step
+7's joins. Then step 9 for every project whose snapshot changed. So a slow Hub never spends the
+Panacea reads' share of the budget (the fixer's survivor 1, re-review b09-1). One exception keeps
+either phase from starving the other: a cycle that follows a budget stop in the Panacea phase —
+so its Hub phase was never reached — runs its Hub phase **first**, then the Panacea phase. Under
+sustained load the two phases therefore alternate, and neither goes more than one cycle without
+running.
+
+The 3 s active cadence holds while Panacea answers. While it hangs, a cycle ends at its first
+read's failure, within `CycleDeadline`, so the loop tries again no later than `CycleDeadline` +
+`ActiveInterval` after the last try began, and the lens says stale, never a frozen *"running"*.
+`time.Ticker` drops the ticks missed meanwhile, so nothing queues. What this does **not** do is
+back off on `Retry-After`: that is seam S7-R1 (t02:103-105).
 
 #### The cursor on `GET /v1/sessions` (HA7-4)
 
@@ -343,7 +392,8 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestTrackedRunDrivesActiveCadence` | `Track(p, run)`; the project is polled every 3 s until the fake advances the run to succeeded, then every 15 s | a run that stays on 3 s forever, or never gets it |
 | `TestUnavailableEndsCycleForAll` | two bound projects; the first `Environments` fails `KindUnavailable` → the second project saw **no** call this cycle; both `Stale`, one cursor bump | a cycle that stalls for N × timeout in an outage |
 | `TestEnvironmentsRefusedReResolves` | two bound projects, one good cycle; then A's `Environments` fails `KindNotFound` → in that cycle B is still read, A makes no `Latest` call, A is `Stale` with `LastError.Kind == KindNotFound` and its old `Environments` kept, `FetchedAt` the good cycle's. The resolver's `Deployer` is the fake wrapped so that `Projects` then omits A's project (the Fake has `AddProject` and no removal, t01:567) → the next tick (3 s, not 15 s) re-resolves A through `ResolveMany`, and A's binding is `NoMatch`, and A's snapshot holds no `Environments`, `Latest` or `Deployments`. Repeated with `KindForbidden`, and with a second Panacea project that now matches A's repository → `Bound` to it, and A's snapshot holds none of the first project's rows (review M13) | a refusal read as Panacea down, ending every project's cycle; a deleted project drawn fresh (`Stale false`) or its rows kept after the binding moved; a re-resolve that waits for the every-fourth-cycle count |
-| `TestCycleDeadlineCutsAHungRead` | `CycleDeadline` 50 ms of real time (the one test off the fake clock); two bound projects; the watcher's Reader is the fake wrapped so that project A's `Environments` blocks until its `ctx` is done and then returns `KindUnavailable`, Status 0 (what `do` returns for a cancelled transport). One cycle returns within 1 s; B saw no call; both `Stale`, `LastError.Kind == KindUnavailable`; one cursor bump. Then `Track(B, run)`: the next cycle's first call is B's `Environments`, before A's (review M14) | a cycle with no deadline, so one hung read holds the loop for `do`'s three attempts (about 46 s); a deadline per read, not per cycle, so ten projects' hangs add up; a fixed project order that puts a tracked run behind a hanging project every cycle |
+| `TestCycleDeadlineCutsAHungRead` | `ReadTimeout` 20 ms, `ActiveInterval` 10 ms, `CycleDeadline` 50 ms of real time (the tests off the fake clock); two bound projects; the watcher's Reader is the fake wrapped so that project A's `Environments` blocks until its `ctx` is done and then returns `KindUnavailable`, Status 0 (what `do` returns for a cancelled transport). A's read began with a whole attempt left, so the cut is Panacea's failure: one cycle returns within 1 s; B saw no call; both `Stale`, `LastError.Kind == KindUnavailable`; one cursor bump. Then `Track(B, run)`: the next cycle's first call is B's `Environments`, before A's (review M14). `New` with `CycleDeadline` 25 ms (below `ReadTimeout + ActiveInterval`) → an error (plan re-review b09-1, I-1) | a cycle with no deadline, so one hung read holds the loop for `do`'s three attempts (about 46 s); a deadline per read, not per cycle, so ten projects' hangs add up; a fixed project order that puts a tracked run behind a hanging project every cycle; a budget no larger than one attempt |
+| `TestBudgetStopIsNotAnOutage` | `ReadTimeout` 20 ms, `CycleDeadline` 60 ms, real time; three bound projects A, B, C, one good cycle each; then each one's `Deployments` is due and the fake wrapped to take 22 ms (a third of the budget plus a little) and answer. The cycle polls A and B to the end and stops before C's first read (38 ms left is not below 20 ms, but after B, 16 ms is): **no** project is `Stale`, no `LastError`, `Connection.Observe` not called; A and B carry the new `Deployments` and moved `FetchedAt`; C's snapshot is exactly its previous one, and `ReleasesState` stays `"ok"` for all three. The next cycle's first call is the Hub page read owed to A (the phase the stop kept from running goes first), then C's first Panacea read, before A's or B's. With the Hub fake wrapped to block until `ctx` is done, `HubReadTimeout` 20 ms → `ReleasesState "unavailable"`, previous releases kept, Panacea data fresh (plan re-review b09-1, I-1) | a cycle that runs out of budget reported as *"Panacea has not answered"* for every project, every cycle, under normal load; a stopped project's partial reads published as current; a Hub that never answers hidden behind budget stops; a slow Hub read spending the Panacea reads' budget |
 | `TestUnauthorizedObserved` | `KindUnauthorized` → `Connection.Observe` called with it; the cycle ends | a lens that keeps drawing "connected" while every read 401s |
 | `TestStaleKeepsLastData` | a good cycle, then a failing one → `Environments` unchanged, `Stale == true`, `FetchedAt` is the good cycle's time | clearing the lens during a blip |
 | `TestJoinOnlyOwnConfirmedRuns` | releases: mine confirmed, mine reserved, a teammate's confirmed, mine rollback — only the first is joined, and only once across three cycles | joining a teammate's release, a reservation, or a rollback (7P-4: a rollback has no deployment of its own) |
@@ -363,7 +413,12 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
   *"The Hub change poller feeds `HubEvents`"*.
 - [ ] Tests first; then `watcher.go`, `join.go`; then the cursor wiring.
 - [ ] `config.go`: the three intervals and `PANACEA_APP_DEPLOY_CYCLE_DEADLINE` (plan §6) through
-  `parseDuration` (`config.go:317`), each refusing a value under 1 s. `main.go`: `go watcher.Run(ctx)` after `connection.Check`.
+  `parseDuration` (`config.go:317`), each refusing a value under 1 s; an unset cycle deadline is
+  `PANACEA_APP_PANACEA_TIMEOUT` + the poll interval, and one below `PANACEA_APP_PANACEA_TIMEOUT` +
+  the active interval exits at start with *"PANACEA_APP_DEPLOY_CYCLE_DEADLINE must be at least the
+  Panacea timeout plus the active poll interval."* (plan re-review b09-1, I-1). `main.go`: the
+  watcher's `ReadTimeout` is the value given to `panacea.Config.Timeout` (t02); `go watcher.Run(ctx)`
+  after `connection.Check`.
 - [ ] Run the control-plane suite; commit by pathspec.
 
 #### Acceptance

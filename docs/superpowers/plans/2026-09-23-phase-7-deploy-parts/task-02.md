@@ -102,7 +102,7 @@ func BuildHTTPClient(caFile string, timeout time.Duration) (*http.Client, error)
 //     is not retried at all; it returns with RetryAfter set. The watcher's next cycle then comes
 //     3 s or 15 s later whatever RetryAfter says, so a longer Retry-After is overridden by the
 //     cadence. That caller-side wait is its own open item, seam S7-R1 (plan §10.2), not t07's
-//     per-cycle deadline (M14, which bounds a cycle and does not back off).
+//     cycle budget (M14, which bounds a cycle and does not back off).
 //   - A 2xx body is read up to 8 MiB into out (json.Unmarshal); an unreadable 2xx body is
 //     KindUnavailable with Op set, never a zero value handed back as success.
 //   - A non-2xx is readProblem + mapStatus. Its sentence reaches Error.Message by the table
