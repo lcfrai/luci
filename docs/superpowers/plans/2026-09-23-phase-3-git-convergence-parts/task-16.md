@@ -60,8 +60,10 @@ type Changes struct {
 
 // Read builds Changes from task 07's observations (read by the handler exactly as task 08's
 // GET reads them). For every pair of worktrees whose committed paths overlap it runs
-//   merge-tree --write-tree --name-only <laneA> <laneB>      (gitx.Local, OKExit 1)
-// and marks the overlapping paths merge-tree lists. Cached by the pair's tips. It runs in the
+//   converge.MergeTreeArgs + <laneA> <laneB>   (merge-tree --write-tree --name-only -z;
+//                                               gitx.Local, OKExit 1) → converge.ParseMergeTree
+// and marks the overlapping paths merge-tree lists, compared byte for byte with the -z
+// PathChange paths (review I2: never the C-quoted form). Cached by the pair's tips. It runs in the
 // project with Scope Project (task-02 §HGH).
 func Read(ctx context.Context, m gitx.Machine, projectPath string, obs []converge.LaneObservation) (Changes, error)
 ```
@@ -136,6 +138,9 @@ const MaxDiffLines = 2000
 //     log -1 --format=<TrailerFormat(Session)> <commit>
 // A pure-deletion hunk takes the newest commit in base..laneTip touching the path, Reason
 // "deletion: the newest commit that touched this file" (it cannot be blamed on the new side).
+// The path is always the argument (a PathRow.Path, raw -z bytes). The parsers never read a
+// path back from a `diff --git`, `---`/`+++` or porcelain `filename` line, because git C-quotes
+// those the way it quotes merge-tree without -z (review I2).
 func Diff(ctx context.Context, m gitx.Machine, projectPath, path string, obs []converge.LaneObservation, kinds func(sessionID string) (string, bool)) (PathDiff, error)
 ```
 
@@ -180,6 +185,7 @@ files a worktree changed. merge-tree writes only content-addressed objects reach
 |---|---|---|
 | `TestReadListsChangedPathsOnly` | three lanes; unchanged files absent; each path's `Touches` lists exactly the lanes that change it | a full file tree (3-D9 option b) |
 | `TestReadMarksACommittedConflict` | two lanes commit conflicting edits to `h.ts` → `Mark "conflicts"`, `ConflictBetween [[a,b]]` | overlap reported as a conflict without merge-tree |
+| `TestReadMarksAConflictOnANonASCIIPath` (review I2) | the same with `docs/résumé.md` → that row's `Mark "conflicts"`; no second row appears under the quoted name | `merge-tree` without `-z`: the quoted path matches no row, and the conflict reads as "merges" |
 | `TestReadDoesNotMarkCleanOverlap` | two lanes edit different parts of one file, both committed → `Mark ""` | a suspicion drawn as a fact |
 | `TestReadMarksUncommittedOverlapAsBothEdit` | lane a committed, lane b uncommitted on `limits.ts` → `Mark "both-edit"` | an uncommitted overlap forecast as clean (R9) |
 | `TestReadWithholdsAnUnreadableLane` | one clone gone → its paths absent, `Unreadable` names it with git's sentence; the other lane's paths present | one failure blanking the lens |

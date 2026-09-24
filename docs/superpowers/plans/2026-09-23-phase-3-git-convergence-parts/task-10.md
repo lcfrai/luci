@@ -82,8 +82,9 @@ type RevertResult struct {
 
 // Revert lands a commit that takes back one land. Refusals: branch_checked_out; branch_moved;
 // undo_not_exact/not_a_land for a sha that is not a land on this branch's first-parent line;
-// no_git_identity; merge_conflict (details.paths). Then:
-//   tree = merge-tree --write-tree --merge-base=<sha> <tip> <sha>^1        (git ≥ 2.40; OKExit 1)
+// no_git_identity; merge_conflict (details.paths = detailList, task 04; review I2). Then:
+//   tree = MergeTreeArgs + --merge-base=<sha> <tip> <sha>^1, OKExit 1 → ParseMergeTree
+//          (merge-tree --write-tree --name-only -z; task 07; git ≥ 2.40)
 //   msg  = Message("Revert land <name> into <branch>", "This takes back <sha>.", [Panacea-Reverts: <sha>])
 //   rev  = commit-tree <tree> -p <tip> -F -                              (the user's identity)
 //   update-ref -m "panacea: revert <sha>" refs/heads/<branch> <rev> <tip>
@@ -143,7 +144,7 @@ and rev-list, and the lane index for names. Writes nothing."*
 | `TestUndoRefusesAStaleView` | `expectedTip` ≠ tip → `branch_moved` | undoing a land the human no longer sees |
 | `TestUndoLosesARaceCleanly` | the branch moves between the check and `update-ref` → `branch_moved`; the tip is the racer's | `update-ref` without its old value |
 | `TestRevertTakesBackTheLandsChange` | after landing A then B, revert A → the tree equals "B applied without A", one parent, `Panacea-Reverts: <A>` | a revert of the wrong side of the merge |
-| `TestRevertConflictWritesNothing` | a later commit edits A's lines → `merge_conflict` with paths, tip unchanged | a half-written revert |
+| `TestRevertConflictWritesNothing` | a later commit edits A's lines, in a file named `docs/résumé.md` → `merge_conflict`, `json.Unmarshal(details.paths) == ["docs/résumé.md"]` (review I2), tip unchanged | a half-written revert; a revert's merge-tree without `-z` |
 | `TestRevertOfADirectCommitIsRefused` | → `undo_not_exact`/`not_a_land` | reverting arbitrary commits through the land route |
 | `TestUndoAndLandSerialise` | undo and a land on the same branch concurrently under `-race` → one wins, the other is refused, the tip is one of the two outcomes | an undo that moves the tip under a land |
 | `TestUndoAndRevertWaitOnTheProjectLock` (review I7) | the test holds `Locks.Lock(ctx, p)` → an undo and a revert on `p` run no git call 50 ms later (a recording Runner); release → both proceed | an undo or revert that skips the one lock push and fetch take |
