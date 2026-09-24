@@ -1196,3 +1196,25 @@ covers only the clone's checkout. Minor 9's `--no-textconv` covers task 16's `di
 every Scope Clone call should carry `NoFilterEnv` (and `--no-textconv` where it applies) belongs to
 task-02 §HGH, which R2 keeps in one place. Raised to the orchestrator, not changed here.
 
+### Fix batch b08, round 2 (2026-09-24): the re-review's open issues
+
+Re-review `.superpowers/sdd/p3/plan-rereview-b08-1.md`, issues 1 to 7. Commits d7dba71, 90b9dd4,
+83d0452, e793aa7, b4aa8ad and 13bc3c7. Line numbers are for the tree at 13bc3c7. "parts/" as above.
+
+| Issue | Where it is now |
+|---|---|
+| 1: the `TestCreateWritesBlobBytes` fixture (`required=true`, no clean) kills its own `status` | parts/task-03.md:502: the system `filter.lfs` has `clean = cat`, `required=true` and no `process`, with the reason (exit 128, `clean filter 'lfs' failed`, as the re-review probed) and the real-git-lfs shape that fails the same way. parts/task-01.md:42: the behaviour pin uses the same fixture |
+| 2: the nonce leaks into a lane session's default title | parts/task-03.md:430-439 (project.go's `Name` comment is now the display name: the base name for primary and linked, the lane's Name for a clone). parts/task-04.md:27-28 (Files: `sessions.go`, `sessions_test.go`), :33 (contract §2.11), :272-304 (why, the citations on both branches, and the shape: `sessionLocate` returns the catalog `Name` and runs before the title; the base name is the fallback only for an unlisted worktree), :325 (`TestSessionCreateDefaultTitleUsesTheWorktreeName`, red first against today's `upload-api-3fa9c1`), :338-345 (Step 3: re-locate greps; the existing :742 assertion stays green because its fixture's `Name` is the base name), :347-348 (Step 5 rewords go-contract:1351). Both contracts already say "harness name · worktree name" (go-contract:1750, ui-contract:910), so neither §3.9 nor `types.ts` changes. The fix went to task 04, not 05, because task 04 is the one that makes the catalog `Deps.Projects` (:250-251) |
+| 3: the 201 example's path lacks the nonce | parts/task-04.md:191-192: `…\p-8c1d0e42\upload-api-3fa9c1`, and a comment that `name` never carries the nonce |
+| 4: "the same order" odds | parts/task-03.md:164-172: 1 in 16^6 (16,777,216) per draw against 1 in 16^8 (4,294,967,296), "256 times likelier", and the residual named: a repeat gives the new lane the removed lane's Path and so its ID, accepted at those odds |
+| 5: "task 23's agent docs" dangles | parts/task-03.md:210-212: the sentence is recorded in task 01's results document for a later agent-docs task. parts/task-01.md:78: the same, with no task 23 citation. A grep of plan and parts for "task 23's agent" and "docs of task 23" finds nothing |
+| 6: the symlink claim is broader than it proves | parts/task-03.md:333-343: the host never checks out a link into a **lane clone**; "both hold for lane clones only"; the user's checkout follows the user's `core.symlinks` and the agent can make a link through the bind mount; the edited-symlink hazard. plan:437 (Q13 asks the owner about that hazard; recommended: accept, stated) |
+| 7: two ambiguous sentences | plan:81-89: the sandbox's git reads `core.longpaths` and `core.symlinks` from the clone's local config; only the line-ending keys are sent as `GIT_CONFIG_*` (`sessions.go:367-374` at `960457d`). parts/task-03.md:221 (NoFilterEnv's comment) and :345-351, :361-363 (the LFS residual): "system or global", with the global config checked on this machine (`scratchpad/p3/b08r2-global.out`, exit 1: no `filter.*`) |
+
+**Verified in round 2:** every citation above against the tree at 13bc3c7, and task 04's
+sessions.go citations against both `feat/phase-3-git` (`:442-445`) and `feat/phase-2-cockpit`
+at `960457d` (`:824-827`, `sessionLocate` at :834 and :926; the test at :774). **Not verified:**
+the new test has not been written or run, since this is a plan batch. The re-review's H1 observation,
+filters and textconv from the system or global config on host Scope Clone calls, still belongs to
+task-02 §HGH and is not changed here.
+
