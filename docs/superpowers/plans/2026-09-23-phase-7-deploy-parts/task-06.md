@@ -56,7 +56,10 @@ const (
 type Binding struct {
 	ProjectID    string            // local "p-…"
 	RepoKey      string            // githost.Remote.RepoKey(); "" in NoOrigin and UnknownHost
-	HubProjectID string            // "pj-…"; "" when the repository is not a Hub project — reads work, Ship does not
+	HubProjectID string            // "pj-…"; "" when the repository is not a Hub project — reads work, Ship does not.
+	//                                The fix is the Hub's share (Hub task 35's POST …/hub-link, task 42's screen;
+	//                                task 14 links to it, review M17); the next resolve after its project.* event
+	//                                picks the new id up (task 07 HubEvents)
 	// HubMiss says why HubProjectID is "". Three values, and readiness (task 09) gives each its
 	// own sentence:
 	//   ""             — HubProjectID is set; or no Hub is configured; or the Hub has never
