@@ -31,8 +31,9 @@ preflight is still answered 204 before any key is asked for (`origin.go:231-237`
 **Files:**
 - `control-plane/internal/localkey/localkey.go` + `localkey_test.go` (new)
 - `control-plane/internal/localkey/private_windows.go` + `private_windows_test.go`, `private_other.go` — the owner-only DACL on Windows, the 0600/0700 path elsewhere (new; review M9). `golang.org/x/sys/windows` is already a direct requirement by then (task 28, `control-plane/go.mod`), so no `go.mod` change
-- `control-plane/internal/httpx/origin.go` + `origin_test.go` — `corsHeaders` (modify ⚑: one constant)
-- `control-plane/internal/api/api.go` — `Deps.LocalKey`; the zero-key refusal in `New`; the wrap (modify ⚑)
+- `control-plane/internal/httpx/origin.go` + `origin_test.go` — `corsHeaders` (modify ⚑: one constant, and its comment at `:164-167`, review M13)
+- `control-plane/internal/api/api.go` — `Deps.LocalKey`; the zero-key refusal in `New`; the wrap; the package comment at `:9-13` (modify ⚑; review M13)
+- `control-plane/internal/api/routes_audit_test.go` — the comment at `:27` only (modify ⚑; review M13; task 32 adds this file's `GET` row, so land after it)
 - `control-plane/internal/api/attach.go` — `AcceptOptions.Subprotocols` echoes `panacea.v1` (modify ⚑, one field; review I3)
 - `control-plane/internal/api/localkey_test.go` — every route walked; attach's subprotocol (new)
 - `control-plane/internal/api/export_test.go` — `WithTestKey`, the one header helper (modify)
@@ -225,6 +226,30 @@ form, builds its request by hand in `internal/api/localkey_test.go`.
 
 The `client.ts:6-8` comment (*"no Authorization header … before Phase 8"*) is replaced by task 38.
 
+**Three phase 2 comments this task makes false, rewritten in the same commit (review M13).**
+Each says there is no authentication, or no `Authorization`, on this hop "before Phase 8". After
+this task every route but `/healthz` requires the key, so each would mislead the next reader
+into weakening a check that is no longer the only one:
+
+- `api.go:9-13` (*"THERE IS NO AUTHENTICATION ON THIS SURFACE and none is intended before Phase
+  8. The entire boundary is three things: …"*) becomes: *"EVERY ROUTE BUT /healthz REQUIRES THE
+  LOCAL CALLER KEY (Hub plan task 37; contract §9.4): `Authorization: Bearer <key>`, or, on the
+  attach upgrade alone, the key as the second WebSocket subprotocol. It proves the caller can
+  read the user's key file; it is not a user identity, which is Entra's, on the Hub hop. Around it
+  the boundary is still three things: task 13 binds the listener to loopback, httpx.OriginPolicy
+  rejects a Host that is not loopback, and it rejects an Origin that is not allowlisted. Every
+  route but /healthz sits behind all of them."* The `AND SO: NO GET MAY CHANGE STATE` paragraph
+  after it stays word for word.
+- `origin.go:164-167` (*"Headers is Content-Type alone, because the desktop sends no custom
+  header and no Authorization on this hop"*) becomes: *"Headers is Content-Type and
+  Authorization: the desktop sends the local caller key as `Authorization: Bearer` on every call
+  (Hub plan task 37, A4), and a preflight that did not allow it would fail every request; 600
+  is ten minutes of not asking again, which is the only thing a cached preflight is for."*
+- `routes_audit_test.go:27`'s last sentence (*"There is no token on this hop before Phase 8."*)
+  becomes: *"Since Hub plan task 37 the local caller key is on this hop too, and an `<img>`
+  cannot send it; the rule stands anyway, because a side-effecting GET would then be one key
+  leak away from a CSRF."* Nothing else in the file changes here.
+
 #### Tests to write first
 
 Where each lives: `TestMint…`, `TestTheKey…`, `TestAZeroKeyMatchesNothing`, `TestNoCommandUsesForTest`
@@ -285,6 +310,7 @@ go test ./control-plane/internal/localkey/ ./control-plane/internal/api/ ./contr
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8730/v1/sessions                                             # 401
 curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $(cat "$LOCALAPPDATA/PanaceaApp/state/auth/local-key")" http://127.0.0.1:8730/v1/sessions   # 200
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8730/v1/healthz                                              # 200
+git grep -n -i "before Phase 8\|NO AUTHENTICATION\|Content-Type alone" -- control-plane/internal/api/api.go control-plane/internal/api/routes_audit_test.go control-plane/internal/httpx/origin.go   # no output (review M13)
 ```
 
 #### What this task does not claim

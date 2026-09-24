@@ -136,6 +136,14 @@ and the comment at `:6-8` becomes: *"Every REST call carries the local caller ke
 header, so it offers the key as its second subprotocol, never in its URL; the control plane echoes
 only `panacea.v1`."*
 
+The same stale sentence is in `client.test.ts:95-96` (*"There is no token on this hop and there
+is not meant to be one before Phase 8 (contract §4.5)"*), inside the test *defaults to the
+loopback base URL and sends no Authorization header*. The test stays and still passes, because
+its client has no `localKey` source; its comment becomes: *"This client has no localKey source
+(phase 2's own tests pre-date the key, Hub plan task 38), so a GET carries no headers at all.
+With a source, every call carries `Authorization: Bearer` (`sends the key on every verb`)."*
+(Plan review M13's desktop half, beyond the review's three Go comments.)
+
 **`openAttach` (`client.ts:385-391`) changes (review I3).** It reads the key with
 `localKey.refresh()`, not `get()`: **every handshake reads the key afresh**. A browser reports a
 refused handshake as a bare close (1006) with no status, so the socket has no 401 to react to; a
@@ -245,6 +253,7 @@ cd desktop && npm test 2>&1 | tail -3           # all passed
 cd desktop && npm run typecheck                  # no output
 cd desktop/src-tauri && cargo test key_path      # 1 passed
 git grep -n "No Authorization header\|no Authorization header" -- desktop/src/api/client.ts desktop/src/api/attachRegistry.ts   # no output
+git grep -n "before Phase 8" -- desktop/src/api/                                                  # no output (review M13)
 git grep -n "panacea.key." -- desktop/src/api/client.ts   # the one site that builds the subprotocol
 ```
 

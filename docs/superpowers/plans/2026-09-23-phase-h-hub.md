@@ -317,15 +317,15 @@ parallel worktrees (see §"Order and parallel lanes").
 | `control-plane/internal/entraauth/{tokens,account,devops}.go` | `TokenSource`, refresh, rotation, sign-out, start-up, scope-aware refusals (A12), the lifetime-aware skew (A13); the Azure DevOps adapter | new | 31 |
 | `control-plane/internal/httpx/problem.go` ⚑ | four codes: `signed_out`, `hub_not_configured`, `local_key_required`, and `upstream_unavailable` if R4 has not landed | modified | 32 |
 | `control-plane/internal/api/auth.go` | `/v1/auth/*` | new | 32 |
-| `control-plane/internal/api/api.go` ⚑ | `Deps` fields; registrations; the local-key wrap; `New` refuses a zero `LocalKey` (review C2) | modified | 32, 35, 36, 37, 39 |
+| `control-plane/internal/api/api.go` ⚑ | `Deps` fields; registrations; the local-key wrap; `New` refuses a zero `LocalKey` (review C2); the package comment's "no authentication" paragraph rewritten (37, review M13) | modified | 32, 35, 36, 37, 39 |
 | `control-plane/internal/api/attach.go` ⚑ | one field: `AcceptOptions.Subprotocols` echoes `panacea.v1` (review I3) | modified | 37 |
 | `control-plane/internal/api/{export,api,attach,sessions}_test.go` ⚑ | `WithTestKey`; `localkey.ForTest()` in each `Deps` builder, the helper at each request site through `New`, nothing else (review C2; the full list of eight files is task 37's) | modified | 37 |
-| `control-plane/internal/api/routes_audit_test.go` ⚑ | new `GET`s in `catalogReadOnlyRoutes` | modified | 32, 35, 36, 39 |
+| `control-plane/internal/api/routes_audit_test.go` ⚑ | new `GET`s in `catalogReadOnlyRoutes`; one comment sentence (37, review M13) | modified | 32, 35, 36, 37, 39 |
 | `control-plane/cmd/api/{config,main}.go` ⚑ | the new variables; wiring | modified | 32, 35, 36, 37 |
 | `control-plane/internal/hublink/hublink.go`, `internal/api/hublink.go` | local project → Hub project; the share routes | new | 35 |
 | `control-plane/internal/hubfeed/poller.go`, `internal/api/hubchanges.go`, `internal/api/cursors.go` | the change-feed poll; `CursorSource`, the `Panacea-<Name>-Cursor` and auth-state headers and their expose list (HA7-4, task 00) | new | 36 |
-| `control-plane/internal/httpx/origin.go` ⚑ | allow the `Authorization` header (A4) | modified | 37 |
-| `control-plane/internal/localkey/localkey.go` | the local caller key: mint, write, compare | new | 37 |
+| `control-plane/internal/httpx/origin.go` ⚑ | allow the `Authorization` header (A4), and the comment that said none is sent (review M13) | modified | 37 |
+| `control-plane/internal/localkey/localkey.go`, `private_windows.go`, `private_other.go` | the local caller key: mint, write, compare; the key file owner-only, by a protected one-entry DACL on Windows (review M9) and 0600/0700 elsewhere | new | 37 |
 | `control-plane/internal/api/credentials.go` | the write-only credential routes (A8) | new | 39 |
 
 ### The desktop — `desktop/`
