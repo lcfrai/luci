@@ -1540,3 +1540,34 @@ eyes remain the check (`OD-12`). Round 1's survivor (2), a count as a word, also
 hours (plan `:457`) are unchanged: `handleFor` is one function and one test. Unverified: whether
 phase 4's provenance loader resolves a head key it did not itself produce. `selectDesignBriefKeys`
 hands it one, as it already does for approval keys (S4-P5.1).
+
+## Fix batch b09 (2026-09-24) — M10, M11, M12, M17
+
+designapi and approval minors. Line numbers are the parts' after this batch's three commits (the
+review's own locations predate batches b01–b08, so they had drifted: M11's `task-20.md:43-44` is
+now routes 11–12 at `:100-101`, M12's `:37` is route 5 at `:94`).
+
+| Finding | The change | Where |
+|---|---|---|
+| M17 | Renderer registrations are keyed by stream instance, as the review said. The broker mints `es-` + 12 hex per accepted `GET /v1/events`; the id is `<window>/<es>/<canvasId>:<visible\|hidden>`, so the old stream's close detaches only its own ids, and a stream holding both a visible and a hidden renderer for one canvas (task 27's `approving` case, a second collision the old id also had) registers two. The fix needed a wire path the plan lacked: route 19 had only `{requestId}` while `CompleteRender(rendererID, …)` (task 13) needs the renderer, so the `render` event now carries `"renderer"` and route 19 echoes it as `?renderer=` (missing → 400; another renderer's → 404 `render_not_found`). Task 27's `onRender`, `renderResult` and the adapter carry it; `setTopics` keeps "open new, then abort old" and says why it is now safe. Task 13 records the id as opaque, one per live registration. | `task-20.md:108`, `:156`, `:166-177`, `:321-322`; `task-27.md:50`, `:84-85`, `:90-93`, `:142-146`, `:182`; `task-13.md:125-128` |
+| M11 | Route 11: `{sha}` is 64 lowercase hex and the body's SHA-256, hashed as it streams, must equal it, else `400 bad_request` `details.field: "sha"`, nothing stored or applied. Route 12 adds the Hub's `Content-Disposition: attachment; filename="<sha>"` and `Content-Security-Policy: sandbox; default-src 'none'` (verified at `hub-contract.md:854-857`, the Hub worktree). `fetch()` ignores both, so `assetBytes` → `blob:` is unchanged. | `task-20.md:100-101`, `:318-319` |
+| M12 | Route 5 accepts exactly the editor's six kinds (`create_node`, `set_props`, `move`, `delete_node`, `set_token`, `delete_token`; the list at `task-23.md:153-157`, checked against the `ops.ts` builders at `:88-97` and task 29's paste, which sends `create_node`) as `humanOpKinds` in `ops.go`; any other → `400 bad_request` `details.field: "ops[<i>].kind"`, nothing applied. The paragraph names each refused kind's own route. The page kinds have no human UI in this phase, so they are refused too. Verified: sixteen `OpKind` constants at `task-06.md:28-45`. Task 23 notes the two lists move together. | `task-20.md:94`, `:111-123`, `:317`; `task-23.md:158-160` |
+| M10 | `Snapshot.Blobs()` de-duplicates by digest (manifest included, sorted); route 21 step 6 uploads each distinct digest once and step 7 sends exactly those digests as `snapshot.blobs`. Verified that the Hub refuses a repeat: `400` `field: snapshot.blobs` (Hub plan `task-22.md:30`, contract `:886`). **The second half of the review's fix was not taken as written**, on the facts: counting distinct digests for `MaxFiles` cannot run where re-review RR-I5-2 puts the check (step 4, before capture, when no PNG digest exists), and the handoff writes one file per manifest entry, so a digest count would let a manifest list any number of empty files under one digest. `MaxFiles` stays a **file** count, re-described as our own bound. Distinct digests never exceed files, so a snapshot within it is always within the Hub's 1–500. The cost: a canvas of more than 500 files, some of them duplicates, is refused locally (`413`, before capture), even when its distinct digests would fit the Hub. | `task-21.md:69-76`, `:102-109`, `:177-180`, `:352-360`, `:392-393` |
+
+**The two mutants expected to survive (named first, per rule 7), and the test text that now kills
+each.**
+
+1. The adapter posts route 19 with the renderer id of the window's **current** stream, not the
+   event's. With one stream the two are equal, so `renderRoundTrip` passed. A late event from the
+   old stream would then be answered under the new id and get a `404`. Killed by its new clause:
+   an event delivered on the old stream after the swap posts the old id (`task-27.md:182`).
+2. Route 11 answers "already stored" for a known `{sha}` before hashing the body. The mismatch test
+   used a digest nobody had stored, so it passed. Killed by `TestAssets_shaMismatch`'s second
+   clause: the same mismatched POST after the named bytes are stored is still `400`
+   (`task-20.md:319`).
+
+**Not done, and why.** Only the plan text changed; nothing was built or run. The main plan's
+diagram (`:86-88`) shows `render-results/{id}` and `PutBlob × n` in shorthand, which stays true, so
+it was not edited. The handoff (task 22) still fetches one blob per file, and duplicates fetch the
+same digest twice. That is correct but wasteful, and it is out of this batch's scope. Deferred as
+a Minor.
