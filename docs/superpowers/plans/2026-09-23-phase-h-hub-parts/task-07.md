@@ -78,44 +78,57 @@ CREATE TABLE users (
   email        text        NOT NULL DEFAULT '' CHECK (email = lower(email) AND char_length(email) <= 254),
   created_at   timestamptz NOT NULL DEFAULT now(),
   last_seen_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT users_org_id_entra_oid_key UNIQUE (org_id, entra_oid)
+  CONSTRAINT users_org_id_entra_oid_key UNIQUE (org_id, entra_oid),
+  UNIQUE (org_id, id)                      -- the target of every org-carrying user link (I5)
 );
 CREATE INDEX users_org_email ON users (org_id, email);
 
+-- I5 (review): every foreign key below, except the one to orgs, carries org_id. Postgres
+-- checks a foreign key without row-level security, so a single-column link would let an
+-- org-A row point at an org-B parent. The composite key makes the database refuse it (23503)
+-- with every Go check off. Each parent table carries UNIQUE (org_id, id) as the target.
 CREATE TABLE teams (
   id         text        PRIMARY KEY CHECK (id ~ '^tm-[0-9a-f]{16}$'),
   org_id     text        NOT NULL REFERENCES orgs (id),
   name       text        NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
   created_at timestamptz NOT NULL DEFAULT now(),
-  created_by text        NOT NULL REFERENCES users (id)
+  created_by text        NOT NULL,
+  UNIQUE (org_id, id),
+  FOREIGN KEY (org_id, created_by) REFERENCES users (org_id, id)
 );
 CREATE UNIQUE INDEX teams_org_name ON teams (org_id, lower(name));
 
 CREATE TABLE team_members (
   org_id   text        NOT NULL REFERENCES orgs (id),
-  team_id  text        NOT NULL REFERENCES teams (id),
-  user_id  text        NOT NULL REFERENCES users (id),
+  team_id  text        NOT NULL,
+  user_id  text        NOT NULL,
   role     team_role   NOT NULL,
   added_at timestamptz NOT NULL DEFAULT now(),
-  added_by text        REFERENCES users (id),
-  PRIMARY KEY (team_id, user_id)
+  added_by text,                           -- nullable as before; a NULL skips the check (MATCH SIMPLE)
+  PRIMARY KEY (team_id, user_id),
+  FOREIGN KEY (org_id, team_id)  REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, user_id)  REFERENCES users (org_id, id),
+  FOREIGN KEY (org_id, added_by) REFERENCES users (org_id, id)
 );
 CREATE INDEX team_members_user ON team_members (user_id);
 
 CREATE TABLE team_invites (
   id            text         PRIMARY KEY CHECK (id ~ '^iv-[0-9a-f]{16}$'),
   org_id        text         NOT NULL REFERENCES orgs (id),
-  team_id       text         NOT NULL REFERENCES teams (id),
+  team_id       text         NOT NULL,
   email         text         NOT NULL CHECK (email = lower(email) AND char_length(email) BETWEEN 3 AND 254),
   role          team_role    NOT NULL,
   state         invite_state NOT NULL DEFAULT 'pending',
   created_at    timestamptz  NOT NULL DEFAULT now(),
-  created_by    text         NOT NULL REFERENCES users (id),
-  bound_user_id text         REFERENCES users (id),
+  created_by    text         NOT NULL,
+  bound_user_id text,
   bound_at      timestamptz,
   revoked_at    timestamptz,
   CHECK ((state = 'bound')   = (bound_user_id IS NOT NULL AND bound_at IS NOT NULL)),
-  CHECK ((state = 'revoked') = (revoked_at IS NOT NULL))
+  CHECK ((state = 'revoked') = (revoked_at IS NOT NULL)),
+  FOREIGN KEY (org_id, team_id)       REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, created_by)    REFERENCES users (org_id, id),
+  FOREIGN KEY (org_id, bound_user_id) REFERENCES users (org_id, id)
 );
 CREATE UNIQUE INDEX team_invites_one_pending ON team_invites (team_id, email) WHERE state = 'pending';
 CREATE INDEX team_invites_binding ON team_invites (org_id, email) WHERE state = 'pending';
@@ -124,29 +137,34 @@ CREATE INDEX team_invites_binding ON team_invites (org_id, email) WHERE state = 
 CREATE TABLE projects (
   id         text        PRIMARY KEY CHECK (id ~ '^pj-[0-9a-f]{16}$'),
   org_id     text        NOT NULL REFERENCES orgs (id),
-  team_id    text        NOT NULL REFERENCES teams (id),
+  team_id    text        NOT NULL,
   name       text        NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
   created_at timestamptz NOT NULL DEFAULT now(),
-  created_by text        NOT NULL REFERENCES users (id)
+  created_by text        NOT NULL,
+  UNIQUE (org_id, id),
+  FOREIGN KEY (org_id, team_id)    REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, created_by) REFERENCES users (org_id, id)
 );
 CREATE UNIQUE INDEX projects_team_name ON projects (team_id, lower(name));
 
 CREATE TABLE project_remotes (
   org_id     text        NOT NULL REFERENCES orgs (id),
-  project_id text        NOT NULL REFERENCES projects (id),
+  project_id text        NOT NULL,
   repo_key   text        NOT NULL CHECK (char_length(repo_key) BETWEEN 3 AND 300),
   host       git_host    NOT NULL,
   added_at   timestamptz NOT NULL DEFAULT now(),
-  added_by   text        NOT NULL REFERENCES users (id),
+  added_by   text        NOT NULL,
   PRIMARY KEY (project_id, repo_key),
-  UNIQUE (org_id, repo_key)                -- a repository is one project's, org-wide
+  UNIQUE (org_id, repo_key),               -- a repository is one project's, org-wide
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, added_by)   REFERENCES users (org_id, id)
 );
 
 -- ── briefs ───────────────────────────────────────────────────────────────────
 CREATE TABLE briefs (
   id                       text        PRIMARY KEY CHECK (id ~ '^bf-[0-9a-f]{16}$'),
   org_id                   text        NOT NULL REFERENCES orgs (id),
-  project_id               text        NOT NULL REFERENCES projects (id),
+  project_id               text        NOT NULL,
   scope                    brief_scope NOT NULL,
   branch_ref               text        NOT NULL DEFAULT '',
   head_revision            integer     NOT NULL DEFAULT 0 CHECK (head_revision >= 0),
@@ -154,12 +172,15 @@ CREATE TABLE briefs (
   archived_at              timestamptz,
   erased_at                timestamptz,
   created_at               timestamptz NOT NULL DEFAULT now(),
-  created_by               text        NOT NULL REFERENCES users (id),
+  created_by               text        NOT NULL,
   updated_at               timestamptz NOT NULL DEFAULT now(),
   CHECK ((scope = 'project' AND branch_ref = '')
       OR (scope = 'branch'  AND branch_ref LIKE 'refs/heads/_%' AND octet_length(branch_ref) <= 255)),
   CHECK (latest_complete_revision BETWEEN 0 AND head_revision),
-  CHECK (erased_at IS NULL OR archived_at IS NOT NULL)
+  CHECK (erased_at IS NULL OR archived_at IS NOT NULL),
+  UNIQUE (org_id, id),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, created_by) REFERENCES users (org_id, id)
 );
 CREATE UNIQUE INDEX briefs_live_project ON briefs (project_id)
   WHERE scope = 'project' AND archived_at IS NULL;
@@ -168,19 +189,23 @@ CREATE UNIQUE INDEX briefs_live_branch ON briefs (project_id, branch_ref)
 
 CREATE TABLE brief_revisions (
   org_id     text         NOT NULL REFERENCES orgs (id),
-  brief_id   text         NOT NULL REFERENCES briefs (id),
+  brief_id   text         NOT NULL,
   revision   integer      NOT NULL CHECK (revision >= 1),
-  project_id text         NOT NULL REFERENCES projects (id),
+  project_id text         NOT NULL,
   scope      brief_scope  NOT NULL,
   branch_ref text         NOT NULL,
   status     brief_status NOT NULL,
   canonical  bytea,                                   -- contract §3.4's C; NULL exactly when erased
   digest     bytea        NOT NULL CHECK (octet_length(digest) = 32),
   saved_at   timestamptz  NOT NULL DEFAULT now(),
-  saved_by   text         NOT NULL REFERENCES users (id),
+  saved_by   text         NOT NULL,
   erased_at  timestamptz,
   PRIMARY KEY (brief_id, revision),
-  UNIQUE (brief_id, revision, digest),                -- the target of every digest-carrying link
+  UNIQUE (org_id, brief_id, revision),                -- the target of every revision link (I5)
+  UNIQUE (org_id, brief_id, revision, digest),        -- the target of every digest-carrying link
+  FOREIGN KEY (org_id, brief_id)   REFERENCES briefs (org_id, id),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, saved_by)   REFERENCES users (org_id, id),
   CONSTRAINT brief_revisions_erased_iff_no_content CHECK ((canonical IS NULL) = (erased_at IS NOT NULL)),
   CONSTRAINT brief_revisions_canonical_hashes
     CHECK (canonical IS NULL OR (octet_length(canonical) <= 65536 AND sha256(canonical) = digest))
@@ -202,13 +227,16 @@ CREATE TABLE blobs (
 
 CREATE TABLE project_blobs (
   org_id       text        NOT NULL REFERENCES orgs (id),
-  project_id   text        NOT NULL REFERENCES projects (id),
+  project_id   text        NOT NULL,
   digest       bytea       NOT NULL,
   content_type text        NOT NULL CHECK (char_length(content_type) BETWEEN 3 AND 100),
   uploaded_at  timestamptz NOT NULL DEFAULT now(),
-  uploaded_by  text        NOT NULL REFERENCES users (id),
+  uploaded_by  text        NOT NULL,
   PRIMARY KEY (project_id, digest),
-  FOREIGN KEY (org_id, digest) REFERENCES blobs (org_id, digest)
+  UNIQUE (org_id, project_id, digest),     -- the target of every org-carrying blob link (I5)
+  FOREIGN KEY (org_id, digest)      REFERENCES blobs (org_id, digest),
+  FOREIGN KEY (org_id, project_id)  REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, uploaded_by) REFERENCES users (org_id, id)
 );
 CREATE INDEX project_blobs_janitor ON project_blobs (uploaded_at);
 
@@ -216,7 +244,7 @@ CREATE INDEX project_blobs_janitor ON project_blobs (uploaded_at);
 CREATE TABLE design_approvals (
   id              text        PRIMARY KEY CHECK (id ~ '^ap-[0-9a-f]{16}$'),
   org_id          text        NOT NULL REFERENCES orgs (id),
-  project_id      text        NOT NULL REFERENCES projects (id),
+  project_id      text        NOT NULL,
   design_key      text        NOT NULL CHECK (design_key ~ '^design:[a-z]{2,4}-[0-9a-f]{4,32}@[1-9][0-9]{0,8}$'),
   canvas_id       text        NOT NULL,
   design_revision integer     NOT NULL CHECK (design_revision >= 1),
@@ -227,44 +255,54 @@ CREATE TABLE design_approvals (
   branch_ref      text        NOT NULL,
   manifest_digest bytea       NOT NULL,
   approved_at     timestamptz NOT NULL DEFAULT now(),
-  approved_by     text        NOT NULL REFERENCES users (id),
+  approved_by     text        NOT NULL,
   UNIQUE (project_id, design_key),
+  UNIQUE (org_id, project_id, design_key), -- the target of every org-carrying design link (I5)
+  UNIQUE (org_id, id),
   CHECK (design_key = 'design:' || canvas_id || '@' || design_revision),
-  FOREIGN KEY (brief_id, brief_revision, brief_digest)
-    REFERENCES brief_revisions (brief_id, revision, digest),
-  FOREIGN KEY (project_id, manifest_digest) REFERENCES project_blobs (project_id, digest)
+  FOREIGN KEY (org_id, project_id)  REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, approved_by) REFERENCES users (org_id, id),
+  FOREIGN KEY (org_id, brief_id, brief_revision, brief_digest)
+    REFERENCES brief_revisions (org_id, brief_id, revision, digest),
+  FOREIGN KEY (org_id, project_id, manifest_digest)
+    REFERENCES project_blobs (org_id, project_id, digest)
 );
 
 CREATE TABLE design_approval_blobs (
   org_id      text  NOT NULL REFERENCES orgs (id),
-  approval_id text  NOT NULL REFERENCES design_approvals (id),
+  approval_id text  NOT NULL,
   project_id  text  NOT NULL,
   digest      bytea NOT NULL,
   PRIMARY KEY (approval_id, digest),
-  FOREIGN KEY (project_id, digest) REFERENCES project_blobs (project_id, digest)
+  FOREIGN KEY (org_id, approval_id)        REFERENCES design_approvals (org_id, id),
+  FOREIGN KEY (org_id, project_id, digest) REFERENCES project_blobs (org_id, project_id, digest)
 );
 
 CREATE TABLE session_links (
   id             text        PRIMARY KEY CHECK (id ~ '^ln-[0-9a-f]{16}$'),
   org_id         text        NOT NULL REFERENCES orgs (id),
-  project_id     text        NOT NULL REFERENCES projects (id),
+  project_id     text        NOT NULL,
   design_key     text        NOT NULL,
   brief_id       text        NOT NULL,
   brief_revision integer     NOT NULL,
   session_id     text        NOT NULL CHECK (session_id ~ '^[a-z]{1,4}-[0-9a-f]{8,32}$'),
   branch_ref     text        NOT NULL,
   created_at     timestamptz NOT NULL DEFAULT now(),
-  created_by     text        NOT NULL REFERENCES users (id),
+  created_by     text        NOT NULL,
   UNIQUE (created_by, session_id, design_key),
-  FOREIGN KEY (project_id, design_key) REFERENCES design_approvals (project_id, design_key),
-  FOREIGN KEY (brief_id, brief_revision) REFERENCES brief_revisions (brief_id, revision)
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, created_by) REFERENCES users (org_id, id),
+  FOREIGN KEY (org_id, project_id, design_key)
+    REFERENCES design_approvals (org_id, project_id, design_key),
+  FOREIGN KEY (org_id, brief_id, brief_revision)
+    REFERENCES brief_revisions (org_id, brief_id, revision)
 );
 
 -- ── releases ─────────────────────────────────────────────────────────────────
 CREATE TABLE releases (
   id                        text          PRIMARY KEY CHECK (id ~ '^rl-[0-9a-f]{16}$'),
   org_id                    text          NOT NULL REFERENCES orgs (id),
-  project_id                text          NOT NULL REFERENCES projects (id),
+  project_id                text          NOT NULL,
   kind                      release_kind  NOT NULL,
   panacea_project           text          NOT NULL CHECK (panacea_project ~ '^[a-z0-9-]{1,63}$'),
   -- nullable (HA7-1, task 00): a never-deployed branch's run learns it at the join
@@ -272,7 +310,7 @@ CREATE TABLE releases (
   branch_ref                text          NOT NULL DEFAULT '',
   commit_sha                text          CHECK (commit_sha ~ '^[0-9a-f]{40}$'),
   source_deployment_id      text          CHECK (char_length(source_deployment_id) BETWEEN 1 AND 128),
-  source_release_id         text          REFERENCES releases (id),
+  source_release_id         text,
   -- the pin: written by the reservation, never updated (guard_release)
   pin_reason                pin_reason    NOT NULL,
   pin_brief_id              text,
@@ -283,7 +321,7 @@ CREATE TABLE releases (
   state                     release_state NOT NULL DEFAULT 'reserved',
   pipeline_run              text          CHECK (pipeline_run ~ '^[a-z0-9.-]{1,253}$'),
   reserved_at               timestamptz   NOT NULL DEFAULT now(),
-  reserved_by               text          NOT NULL REFERENCES users (id),
+  reserved_by               text          NOT NULL,
   expires_at                timestamptz   NOT NULL,
   confirmed_at              timestamptz,
   abandoned_at              timestamptz,
@@ -303,9 +341,15 @@ CREATE TABLE releases (
   CHECK ((state = 'confirmed') = (confirmed_at IS NOT NULL)),
   CHECK ((state = 'abandoned') = (abandoned_at IS NOT NULL AND abandon_reason IS NOT NULL)),
   CHECK ((state = 'expired')   = (expired_at IS NOT NULL)),
-  FOREIGN KEY (pin_brief_id, pin_brief_revision, pin_brief_digest)
-    REFERENCES brief_revisions (brief_id, revision, digest),
-  FOREIGN KEY (project_id, design_key) REFERENCES design_approvals (project_id, design_key)
+  UNIQUE (org_id, id),
+  FOREIGN KEY (org_id, project_id)        REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, reserved_by)       REFERENCES users (org_id, id),
+  FOREIGN KEY (org_id, source_release_id) REFERENCES releases (org_id, id),
+  -- a NULL pin or design_key skips its check (MATCH SIMPLE); the CHECKs above keep the pin whole
+  FOREIGN KEY (org_id, pin_brief_id, pin_brief_revision, pin_brief_digest)
+    REFERENCES brief_revisions (org_id, brief_id, revision, digest),
+  FOREIGN KEY (org_id, project_id, design_key)
+    REFERENCES design_approvals (org_id, project_id, design_key)
 );
 CREATE UNIQUE INDEX releases_one_per_run ON releases (org_id, panacea_project, pipeline_run)
   WHERE pipeline_run IS NOT NULL;
@@ -314,20 +358,22 @@ CREATE INDEX releases_to_expire ON releases (expires_at) WHERE state = 'reserved
 
 CREATE TABLE release_deployments (
   org_id          text        NOT NULL REFERENCES orgs (id),
-  release_id      text        NOT NULL REFERENCES releases (id),
+  release_id      text        NOT NULL,
   panacea_project text        NOT NULL,
   deployment_id   text        NOT NULL CHECK (char_length(deployment_id) BETWEEN 1 AND 128),
   joined_at       timestamptz NOT NULL DEFAULT now(),
-  joined_by       text        NOT NULL REFERENCES users (id),
+  joined_by       text        NOT NULL,
   PRIMARY KEY (release_id, deployment_id),
-  UNIQUE (org_id, panacea_project, deployment_id)   -- a deployment belongs to one release
+  UNIQUE (org_id, panacea_project, deployment_id),  -- a deployment belongs to one release
+  FOREIGN KEY (org_id, release_id) REFERENCES releases (org_id, id),
+  FOREIGN KEY (org_id, joined_by)  REFERENCES users (org_id, id)
 );
 
 -- ── evidence (phase 3, H-2) ──────────────────────────────────────────────────
 CREATE TABLE evidence (
   id               text        PRIMARY KEY CHECK (id ~ '^ev-[0-9a-f]{16}$'),
   org_id           text        NOT NULL REFERENCES orgs (id),
-  project_id       text        NOT NULL REFERENCES projects (id),
+  project_id       text        NOT NULL,
   repo_key         text        NOT NULL,          -- verbatim; survives the remote's removal
   brief_id         text        NOT NULL,
   brief_revision   integer     NOT NULL,
@@ -337,8 +383,11 @@ CREATE TABLE evidence (
   verdict          verdict     NOT NULL,
   because          text        NOT NULL CHECK (char_length(btrim(because)) BETWEEN 1 AND 2000),
   recorded_at      timestamptz NOT NULL DEFAULT now(),
-  recorded_by      text        NOT NULL REFERENCES users (id),
-  FOREIGN KEY (brief_id, brief_revision) REFERENCES brief_revisions (brief_id, revision)
+  recorded_by      text        NOT NULL,
+  FOREIGN KEY (org_id, project_id)  REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, recorded_by) REFERENCES users (org_id, id),
+  FOREIGN KEY (org_id, brief_id, brief_revision)
+    REFERENCES brief_revisions (org_id, brief_id, revision)
 );
 CREATE INDEX evidence_by_digest ON evidence (org_id, repo_key, criterion_digest, recorded_at);
 
@@ -358,19 +407,20 @@ CREATE TABLE audit_events (
   team_id       text,
   project_id    text,
   subject       text        NOT NULL,
-  actor_user_id text        REFERENCES users (id),
+  actor_user_id text,
   canonical     bytea       NOT NULL,             -- contract §3.6, with teamId (plan A10)
   prev_hash     bytea       NOT NULL CHECK (octet_length(prev_hash) = 32),
   hash          bytea       NOT NULL,
   PRIMARY KEY (org_id, seq),
-  CONSTRAINT audit_events_hash_chains CHECK (hash = sha256(prev_hash || canonical))
+  CONSTRAINT audit_events_hash_chains CHECK (hash = sha256(prev_hash || canonical)),
+  FOREIGN KEY (org_id, actor_user_id) REFERENCES users (org_id, id)
 );
 CREATE INDEX audit_feed_by_project ON audit_events (org_id, project_id, seq) WHERE feed;
 CREATE INDEX audit_feed_by_team    ON audit_events (org_id, team_id, seq)    WHERE feed;
 
 CREATE TABLE idempotency_keys (
   org_id         text        NOT NULL REFERENCES orgs (id),
-  user_id        text        NOT NULL REFERENCES users (id),
+  user_id        text        NOT NULL,
   key            text        NOT NULL CHECK (key ~ '^[A-Za-z0-9_-]{1,64}$'),
   method         text        NOT NULL,
   path           text        NOT NULL,
@@ -378,7 +428,8 @@ CREATE TABLE idempotency_keys (
   status         smallint    NOT NULL DEFAULT 0,   -- 0 while the first request is in flight
   response       bytea,
   created_at     timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (user_id, key)
+  PRIMARY KEY (user_id, key),
+  FOREIGN KEY (org_id, user_id) REFERENCES users (org_id, id)
 );
 CREATE INDEX idempotency_keys_janitor ON idempotency_keys (created_at);
 ```
@@ -567,6 +618,15 @@ BEGIN
                     erased_at   = coalesce(erased_at, now()),
                     updated_at  = now()
    WHERE id = p_brief;
+  -- I6 (review): a stored 2xx of route 26 (task 14's StoreResponse) is a second copy of the
+  -- text, kept 24 h (task 24). Purge every stored response in this org that names the brief.
+  -- A brief id matches ^bf-[0-9a-f]{16}$, ASCII that JSON never escapes, so a byte search of
+  -- the stored JSON is exact. No route string is named here, so a renamed route cannot
+  -- re-open the leak. Every write holds the org's audit-head lock (task 14), and so does the
+  -- erase route, so no response for this brief is stored between this DELETE and COMMIT.
+  DELETE FROM idempotency_keys
+   WHERE org_id = v_org AND response IS NOT NULL
+     AND position(convert_to(p_brief, 'UTF8') IN response) > 0;
   RETURN v_n;
 END $$;
 
@@ -637,6 +697,9 @@ named.
 | `TestResolvePrincipal` | an unknown tenant → no row; a new oid → `created = true`; again → `created = false`, same id; a changed name → refreshed | provisioning twice, or never refreshing the display name |
 | `TestEnsureOrgIsIdempotent` | twice with two fresh ids → the first id both times; one `audit_heads` row | a second org row per restart |
 | `TestEraseBriefChecksTheOrg` | with `hub.org_id` = B, erasing A's brief → `P0002` (`no_data_found`), and A's revisions keep their content | the owner function bypassing RLS without its own check (T3's residual) |
+| `TestEveryForeignKeyCarriesTheOrg` | from `pg_constraint` (`contype = 'f'`, schema `hub`), every foreign key whose `confrelid` is not `hub.orgs` has `org_id` in `conkey` and `org_id` in `confkey` **at the same position**; and every such key's target is a `UNIQUE` or primary key that holds `org_id`. The test prints the offending constraint's name (review I5) | a single-column link added by a later edit (`team_id REFERENCES teams (id)`), which Postgres checks without row-level security; a key that carries `org_id` but pairs it with another column |
+| `TestACrossOrgReferenceIsRefused` | two orgs A and B, each seeded with one parent of every kind (user, team, project, brief, revision, blob, project blob, approval, release). As `hub_app` with `hub.org_id` = A, **one `INSERT` per foreign key** of the catalog query above: an org-A row whose every column is A's, except the one link under test, which names B's parent → `23503` (`foreign_key_violation`). The same row with A's parent → ok, so the refusal is the key and nothing else. The set of constraint names exercised equals the catalog's set, so a new foreign key with no case goes red (review I5) | a cross-org link that row-level security lets through: `INSERT INTO projects (org_id, team_id, …) VALUES (A, <B's team>, …)`, which the single-column key accepted |
+| `TestEraseBriefPurgesTheStoredResponsesThatNameIt` | org A, one project, briefs A1 and A2. Four `idempotency_keys` rows, three of them with the same route-26 `path`: r1's `response` names A1 and holds a marker string; r2's names A2 only; r3's `response` is `NULL` (in flight); r4 is **in org B**, and its response contains A1's id. `erase_brief(A1)` with `hub.org_id` = A → r1 deleted; r2, r3, r4 kept; no `idempotency_keys` row in A holds the marker (review I6) | no purge, so A1's text survives 24 h (task 24's retention); a purge without `org_id = v_org`, which deletes r4; a purge by `path`, which deletes r2 and turns A2's retry into a 409 |
 | `TestHubAppGrantsAreExactlyTheList` | `information_schema.role_table_grants` and `column_privileges` for `hub_app` equal §10.5's list, table by table, column by column | a grant nobody reviewed |
 
 #### Steps
@@ -652,7 +715,7 @@ named.
 #### Acceptance
 
 ```bash
-go test -tags integration ./control-plane/internal/hub/migrate/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 27 (10 from task 06 + 17)
+go test -tags integration ./control-plane/internal/hub/migrate/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 34 (10 from task 06 + 24)
 go build ./control-plane/...                                                                               # ok
 grep -c "CREATE TABLE" control-plane/internal/hub/migrate/sql/0001_init.sql                                # 20
 ```

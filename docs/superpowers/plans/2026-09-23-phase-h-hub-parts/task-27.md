@@ -38,7 +38,11 @@ archived if it was not; `erased_at` set on the head); `Emit brief.erased {"erase
 `erasedRevisions` is the count **this** call erased (a second erase answers `0`, and is still
 audited: an erasure attempt is a security event, ADR-H1 §5.6), `erasedAt` the brief's first erasure
 time. Irreversible. **Nothing else changes**: approvals, releases, evidence and session links hold
-keys and digests, never brief text (§7.12).
+keys and digests, never brief text (§7.12). The one exception is the second copy of the text: every
+stored idempotency response in the org that names the brief is deleted by the same function (review
+I6, task 07). Such a response is route 26's `WriteRevisionsResponse`, which carries each revision's
+`content`. A retry of that request after erasure is therefore not replayed: it runs again, and it
+meets the archived head (409 `brief_archived`), never the text.
 
 **`hub verify`'s `audit` check.** For each org, walk `audit_events` by `seq`:
 
@@ -62,7 +66,7 @@ prints `ok audit (<n> events in <m> orgs)`.
 | `TestTheAuditIsForOrgAdminsOnly` | Grace (team admin) → 403 `required: org_admin`; Ada → 200 | a team admin reading every team's history |
 | `TestTheAuditShowsEverythingWithHashes` | after a refused write and a blob upload, Ada's page holds `auth.forbidden` and `blob.uploaded`, and each event's `prevHash` is the previous one's `hash` | an audit that hides security events |
 | `TestReadingTheAuditIsAudited` | read page 1; read again → the second page ends with an `audit.read` event naming the first read's `after` and `count` | an unaccountable reader of everyone's actions |
-| `TestErasureKeepsKeyAndDigest` | a brief with two revisions, an approval against `@1` and a release pinned to `@2`; Ada erases → `erasedRevisions: 2`; `/v1/refs` of both keys → `erased`, content `null`, digests unchanged; the approval and the release still read, their keys resolving `erased` | an erasure that breaks the thread (`missing`), or one that leaves text behind |
+| `TestErasureKeepsKeyAndDigest` | a brief A with two revisions, each written by route 26 with an `Idempotency-Key` (`kA1`, `kA2`) and content holding the marker `ZQX-MATTER-4471`; a brief B in the same project written with `kB`; an approval against A`@1` and a release pinned to A`@2`. **Before** erasure, `markerHits` finds the marker in exactly `brief_revisions.canonical` and `idempotency_keys.response` (this proves the scan can see it). Ada erases A, with a `reason` that does not hold the marker (the audit keeps the reason by design) → `erasedRevisions: 2`; `/v1/refs` of both keys → `erased`, content `null`, digests unchanged; the approval and the release still read, their keys resolving `erased`. **After** erasure, `markerHits` is empty. `kA2` sent again with its body → 409 `brief_archived`, no `Idempotent-Replay`, no marker in the body; `kB` again → 201, `Idempotent-Replay: true`, the byte-identical body. `markerHits(t, adminURL, marker)` lists every `text`, `varchar`, `jsonb` and `bytea` column of schema `hub` from `information_schema.columns` and counts rows holding the marker (`strpos` on text, `position(convert_to(…))` on bytea), as the administrator (`hubtest.DB.AdminURL`), so row-level security hides nothing | an erasure that breaks the thread (`missing`); one that leaves text behind in `brief_revisions` **or in a stored response** (review I6: drop task 07's `DELETE FROM idempotency_keys` and `markerHits` names `idempotency_keys.response`); a purge by project, which runs `kB` again and answers 409 `revision_conflict` in place of the replay |
 | `TestErasureIsForOrgAdminsOnly` | Grace → 403 `required: org_admin` | a team member destroying provenance |
 | `TestAnOrgAdminCannotEraseAcrossOrgs` | Ada erasing a brief Xavier created in org 2 → 404 `brief_not_found` | an owner function reaching another tenant (T3's residual) |
 | `TestASecondErasureIsZeroAndAudited` | erase twice → `2`, then `0`; two `brief.erased` events | an attempt that leaves no trace |
