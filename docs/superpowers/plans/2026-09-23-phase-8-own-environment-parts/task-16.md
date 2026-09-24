@@ -234,11 +234,14 @@ unchanged. Departures, each declared in the task report:
      header, a header or payload that is not a JSON object, a claim of the wrong JSON type (an
      array `aud` included), `exp`/`nbf` outside 0…9999-12-31. At the time step, a missing `exp` or
      `nbf` is `ErrMalformed`.
-   - A JWKS key with `alg` present and not `RS256` is skipped. A set with no usable key is
+   - A JWKS key with `alg` present and not `RS256`, padded `n`/`e`, or an exponent over four bytes
+     (which `big.Int.Int64` would truncate into a valid-looking one) is skipped; of two keys under
+     one `kid`, the first wins. A set with no usable key, or a body over 1 MiB, is
      `ErrKeySetUnavailable`, so `Ready` never says ready with nothing to verify with.
    - A set older than 24 h is not used when its refresh fails (`ErrKeySetUnavailable`). A refetch an
      unknown `kid` caused that fails is `ErrKeySetUnavailable`, and still spends the 5-min budget.
      On a cold cache the fetch that fills it is the one lookup: no immediate second fetch.
-   - The fetch runs detached from the caller's context, capped at 10 s, so a caller that gives up
-     does not fail the others waiting on it.
+   - The fetch runs detached from the caller's context, capped at 10 s by the validator itself
+     (whatever `HTTPClient` is configured), so a caller that gives up does not fail the others
+     waiting on it, and a server that never answers cannot hold a fetch open.
    - Two `Authorization` headers are `ErrMalformed`; an error that is none of the eleven is 500.
