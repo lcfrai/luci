@@ -70,8 +70,9 @@ updating that document, they are able to communicate and understand each other."
 9. **Humans get a calm team strip:** who is on the repo, one line each, and the files touched.
    Conflicts appear only when an Orchestrator escalates. There is no teammate terminal by default
    (OD-15, §9).
-10. **The minimum lovable slice (TM1)** is about 30 focused days after the current wave. It
-    re-scopes the Hub, phase 8 and phase 3 in the exact ways listed in §11 (OD-17, §12).
+10. **The minimum lovable slice (TM1)** is about 53 focused days after the current wave, roughly 5
+    working weeks on four parallel streams, including phase 6 re-scoped as the inference gateway.
+    It re-scopes the Hub, phase 8 and phase 3 in the exact ways listed in §11 (OD-17, §12).
 
 ## 1. Principles, each with its source
 
@@ -938,3 +939,53 @@ release attribution (1).
 - Tier S speculative builds, on the requester's quota.
 - An MCP front for customers whose admin allowlists our binary (§5.5).
 - Citation-checked, expiring project memory on the provenance thread (`02`, idea 4).
+
+## 13. Open owner questions, each with a recommendation
+
+`03` §7's D1–D5 are folded in: D2 (teammates spending my quota) is answered by P4 and §6.6, and D3
+(WIP lanes on the customer's remote) by the lane mirror (§8.2).
+
+### 13.1 Decide before TM1 starts
+
+| # | Question | Recommendation |
+|---|---|---|
+| **Q1** | Which gateway: LiteLLM, as the owner suggested, or Anthropic's own *"self-hosted gateway with SSO sign-in and OTLP telemetry"* (Claude apps gateway, https://code.claude.com/docs/en/llm-gateway, read 2026-09-25)? | **A one-day spike on each** against three tests: mint a tagged per-session token from an API; route to Bedrock Sydney; forward the latest CLI's headers. Pick LiteLLM unless the Anthropic gateway passes all three. Neither has been tested (**UNVERIFIED**) |
+| **Q2** | Must every team project choose a data classification when it is shared? | **Yes, one required click in Share:** *Global* or *AU data only*. The default stays Global (OD-19), but nobody reaches it by not choosing |
+| **Q3** | Who sets quotas? | **The org admin sets a ceiling per person; a team admin sets project budgets inside it.** Coordination counts against the member whose Orchestrator spent it (§4.4) |
+| **Q4** | Accept §6.5's defaults for what an Orchestrator may agree to without asking? | **Accept them as defaults.** Each user may tighten, never loosen, the two always-decide rows (`build-on` and post-peer-text directives) |
+| **Q5** | Are opening prompts shared with the team (`03` D1)? | **No.** Teammates and their agents see the task title and reason. A prompt may say things its author would not say to the team |
+
+### 13.2 Decide later
+
+| # | Question | Recommendation |
+|---|---|---|
+| **Q6** | Should local mode use the gateway too, retiring `/login` everywhere? | **Yes, once the gateway is live** (§10.3); `/login` stays for developers of the product only |
+| **Q7** | How long does the lane mirror keep a member's lanes after they leave? | **Deleted at removal**, after the member's own open lands are pushed or abandoned; the mirror goes with the project |
+| **Q8** | Build the watch view at all (`03` D5)? | **Not in TM1 or TM2.** Revisit after the TM1 proof, only if teams ask for it |
+| **Q9** | Who pays for tier S speculative builds (`03` D4)? | **The member who asks**, from their quota, and only on request |
+| **Q10** | Guests from another Entra tenant? | **No.** The Hub's invites are same-tenant (`ADR-H1:402-408`, via `01` §2.1); keep it |
+
+## 14. What is unverified, and the test that settles each
+
+### 14.1 Before TM1 code
+
+| Claim | Test |
+|---|---|
+| KPMG's managed policy reaches a sandbox that signs in only with a gateway token (§2.5) | run `/status` in a gateway-token sandbox during OD-12's hands-on session |
+| the `panacea` command runs without a permission prompt inside the sandbox (§5.2) | the same session |
+| inotify in a Kata guest sees every write through the sub-path mount (§3.3 rule 4) | phase 8 task 32's checklist, one added row |
+| the gateway can reach Bedrock Sydney from Azure without a long-lived AWS key (§11.2) | the Q1 spike |
+| the ZDR terms on both routes cover what the product sends | read the org's contracts; not read here |
+
+### 14.2 During TM1
+
+| Claim | Test |
+|---|---|
+| a resumed interactive session re-reads `CLAUDE.md` (only `-p` was observed, `03` C1) | canary in the Orchestrator loop's test suite |
+| the inbox socket accepts a poster that is not the CLI's descendant (§4.3, `03` C4) | canary; TM1 does not depend on it |
+| coordination overhead stays under 10% of a member's spend (§4.4) | G9's scripted run |
+| a warm-pool team launch reaches first output in under 10 s (§10.2) | phase 8 task 32 |
+| an Entra on-behalf-of token works for Azure DevOps git over HTTPS (§2.5) | a one-hour check against the dev organisation |
+
+**Not claimed by this file:** that any of it is built (none is); that the fences stop a determined
+attacker (§7.3); and any figure from a vendor or paper beyond what `02` and `03` cite.
