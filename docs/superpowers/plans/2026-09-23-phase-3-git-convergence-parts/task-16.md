@@ -132,7 +132,7 @@ type LaneDiff struct {
 	// second meaning for Truncated, so the lens can say which cap it hit, and both can be true
 	// (re-review b11-1 issue 2).
 	UntrackedCut bool  `json:"untrackedCut"`
-	ReadError   string `json:"readError"` // git's sentence, or readUntracked's refusal (below)
+	ReadError   string `json:"readError"` // git's or the runner's sentence, or readUntracked's refusal (below)
 }
 
 // PathDiff is GET …/changes/diff's body.

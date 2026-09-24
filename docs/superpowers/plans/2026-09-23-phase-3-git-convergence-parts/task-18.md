@@ -173,7 +173,7 @@ export interface LaneDiff {
   binary: boolean;
   truncated: boolean;    // the 2000-line cap (task 16 MaxDiffLines)
   untrackedCut: boolean; // an untracked file past task 16's 1 MiB MaxUntrackedBytes (re-review b11-1 issue 2)
-  readError: string;     // git's sentence, or task 16's refusal to read a link or non-regular file
+  readError: string;     // git's or the lane runner's sentence (task 24), or task 16's refusal to read a link or non-regular file
 }
 export interface PathDiff { path: string; lanes: LaneDiff[] }
 export interface TranscriptSpan {

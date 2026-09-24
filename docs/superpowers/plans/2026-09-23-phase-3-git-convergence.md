@@ -566,7 +566,7 @@ under three.
 | 13 | The credential-store seam (H-1), the git-helper fallback, push with a stored token | 12 | 2 h |
 | 14 | `githost`: GitHub and Azure DevOps behind one interface; the PR route | 10, 13 | 3 h |
 | 15 | Evidence: records, the store seam (H-2), the evaluator over ancestry | 07, 09 | 3 h |
-| 16 | Files read model: changed paths across lanes, per-path hunks, tier-1 back-links | 08 | 3 h |
+| 16 | Files read model: changed paths across lanes, per-path hunks, tier-1 back-links; the uncommitted hunk through the runner (R4) | 08, 24 | 3 h |
 | 17 | The OD-8 transcript adapter: pinned, canary-tested, tier 2, degrading | 16 | 3 h |
 | 18 | Desktop: phase 3 wire types, client functions, the convergence slice on the poll tick | G2; parts 04, 08–17 | 3 h |
 | 19 | Merge lens, part 1: the queue, forecasts, land, conflict resolution, banners | 18 | 3 h |

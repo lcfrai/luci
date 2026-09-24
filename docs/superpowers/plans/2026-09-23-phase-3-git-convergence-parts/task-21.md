@@ -87,7 +87,8 @@ b11-1 issue 2):
   its first 1 MiB, so none of it is shown."*
 
 A lane's own `readError` is shown in that lane's place in the diff, as *"<name>'s change to this
-file is not shown."* with the server's sentence verbatim as text beneath it: git's, or task 16's
+file is not shown."* with the server's sentence verbatim as text beneath it: git's, the lane
+runner's (task 24), or task 16's
 *"<path> is a link or not a regular file in this worktree; not read"*. This is apart from the
 path-list `Unreadable` banner above. The lane keeps its heading, so the user never sees an empty
 lane with no reason. The other lanes render as usual.
