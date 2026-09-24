@@ -723,4 +723,66 @@ thread closes `escalated` after two rounds with no new typed content (§6.6). Te
 an `ask` gets a Fleet answer with no Orchestrator turn; a free-text `answer` without permission is
 refused.
 
+**29 — Resolutions `yield`, `sequence`, `proceed-both`; DECIDED WITHOUT YOU.**
+`protocol/resolve.go`: when every party has accepted a proposal, Fleet applies its typed
+parameters and nothing else: `yield` releases the sender's leases on the named globs; `sequence`
+records who goes first as a land-order hint (consumed by phase 3's queue in TM1, task 61's in TM2)
+and turns the second side's lease to `intent` until the first lands; `proceed-both` marks the
+conflict `accepted` (tier P or S only here; H and M are always a decide, task 30). Each Orchestrator
+then directs **its own** workers (task 31); neither side can move the other's. For every accepted
+resolution Fleet itself writes a DECIDED WITHOUT YOU item for **both** humans from the thread's
+typed state, whether or not either Orchestrator informs (§6.2, `07` I1). Tests: `yield` releases
+only the named globs; a resolution cannot touch the other side's worker; both humans get the item
+when neither Orchestrator calls `human inform`.
+
+**30 — Escalations.** `cp/internal/fleet/escalate` and `verbs/human.go`: `human inform` and `human
+ask` write `es-…` records to the Orchestrator's own human only; **Fleet sets every decide's
+default (always the safe one) and deadline (≥ 30 minutes)**, whatever the Orchestrator asked
+for. `rules.go` holds §6.5's table as data, keyed on typed action, with each user's rows (tighten
+only) and team-admin floors (add asking only); the always-decide rows (`build-on`, `proceed-both`
+on H or M, free text in a Fleet-started turn, deadline exhaustion) cannot be loosened (OD-24).
+**A `peer accept` on a decide row becomes the escalation itself**, so an Orchestrator cannot skip
+it. On rounds or deadline exhausted, Fleet writes a decide to both humans with the thread's typed
+state. When a decide's deadline passes unanswered, the safe default applies: the contested worker
+(task 23) pauses; nothing is deleted or reverted. Tests: an Orchestrator's `default: continue,
+deadline: 60s` is overridden; accepting a split that moves edited paths becomes a decide; an expired
+decide pauses exactly the contested worker.
+
+**31 — Directives and the taint rule.** `cp/internal/fleet/directive` and `verbs/direct.go`:
+`direct <ag-id> <kind>` with kinds `pause`, `resume`, `narrow` (globs), `wait-for` (a lease),
+`rebase`, `free` (text ≤ 600 `text·A`), to the caller's **own** workers only. Every directive is a
+`dv-…` Hub record **before** delivery, carrying turn origin, the ids of peer messages and cards the
+session read since its human last spoke, and the approving `es-…` if any. `taint.go`: on a team
+project every Orchestrator is tainted from its first turn; in a `fleet`-origin turn only `pause`,
+`resume`, `narrow` inside the task's scope, `wait-for` and `rebase` pass; `free`, a new task, a
+wider scope, out-of-scope paths, `build-on` or abandoning the task become a **decide written by
+`direct` itself**, showing the human the peer text read since they last spoke, with authors. In a
+`human`-origin turn free text passes and is shown inline in the panel as issued. Delivery rung 1
+(piggyback): every `panacea` call a worker makes returns its pending directives first, as tool
+output, the only way directive text reaches a worker. Tests: a `free` in a Fleet turn produces a
+decide and no directive; a `narrow` outside scope is refused; a directive is readable in the Hub
+before the worker sees it.
+
+**32 — Phase 8 delta: Fleet's chart and the private gateway path.** `deploy/charts/fleet/**`, new,
+beside phase 8's `broker` and `hub` charts (task 29, **UNVERIFIED until merge**): two replicas, a
+PDB, the Fleet workload identity (phase 8 task 10's module), its Postgres schema on the Hub's
+Flexible Server under its own Entra role (P8-D10), Australia East only. Phase 8's platform chart
+(task 11) gains: one allow from sandbox pods to the gateway's service port and nothing else on the
+service CIDR; the `orchestrator` class's egress to the gateway and Fleet's control route only; no
+public ingress to the gateway (P8-D12, P6-D1). Chart tests: `helm template` output checked by phase
+8's `netpolcover` test; a sandbox pod cannot reach any other service port. Patterns only from
+Panacea (OD-13). Does not apply anything to a cluster (task 33 does, by the owner's runbook).
+
+**33 — TM1-α on the real cluster.** `infra/smoke/team/*.sh` and
+`docs/verification/2026-09-25-phase-t-alpha-results.md`: on the real environment, one Orchestrator
+and one worker for each of two identities; a scripted overlapping plan (two tasks whose scopes
+overlap) raises a tier-P conflict **before** either worker is spawned; the Orchestrators settle it
+with `yield` or `sequence`; one human gets an `inform`, the other a `decide`; the pod-kill test
+(task 27) on a real pod; `/status` in a worker and in the Orchestrator shows the rendered managed
+file, and nothing else, in force (OD-23); whether the `PreToolUse` hook in a file-based managed
+file raises an approval dialog in an interactive worker (§5.3); whether an empty working directory
+keeps project settings out (§4.1); the PTY round trip through `fleetbe`; a first G9 pass. The
+record states each observation, what was not observed, and the verdict. **If it fails, TM1 is
+re-planned before task 34 starts.** A screenshot is not evidence; the record says what ran.
+
 ---
