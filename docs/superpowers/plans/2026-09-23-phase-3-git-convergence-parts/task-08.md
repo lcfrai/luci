@@ -36,10 +36,32 @@ type Forecast struct {
 	ConflictsWith []string `json:"conflictsWith"`
 	Paths         []string `json:"paths"` // conflicted paths, sorted
 	Why           string   `json:"why"`
+	// CarriesUndone is each land that was undone exactly and that this lane's tip still
+	// contains, because its agent merged origin/<branch> while that land was the tip (re-review
+	// b06-1 issue 1b). Landing this row brings that work back, so the lens names it rather than
+	// calling the row plain clean. Lands whose Panacea-Land is this lane's own id are left out:
+	// re-landing its own work is what landing it means (task 10's own-lane rule). Always a list,
+	// [] when none, never null.
+	CarriesUndone []UndoneLand `json:"carriesUndone"`
 	// ForecastCommit is the deterministic forecast commit a clean row produced: the branch as
 	// it would be after this row lands. Internal; task 15 evaluates evidence at it.
 	ForecastCommit string `json:"-"`
 }
+
+// UndoneLand is one entry of CarriesUndone: the undone land's merge and the lane it landed.
+type UndoneLand struct {
+	Sha        string `json:"sha"`        // the merge kept at refs/panacea/undone/<sha> (task 10)
+	WorktreeID string `json:"worktreeId"` // its Panacea-Land trailer, verbatim
+}
+
+// CarriedUndone is the one reader of CarriesUndone; Forecast and Land (task 09 step 7a) both
+// call it. One call in the project (Read, Scope Project):
+//   for-each-ref --merged <laneTip> --format=%(objectname) %(trailers:key=Panacea-Land,valueonly)
+//                refs/panacea/undone/
+// → one "<sha> <id>" line per undone land the lane contains; empty output with exit 0 when none
+// (probed, scratchpad/p3/b06r2-trailer-probe.out, git 2.53.0.windows.2). Lines whose id is
+// ownID are dropped; the rest are sorted by sha. A line that does not parse is an error.
+func CarriedUndone(ctx context.Context, m gitx.Machine, projectPath, laneTip, ownID string) ([]UndoneLand, error)
 
 // ForecastQueue walks the queue in order:
 //
@@ -51,6 +73,9 @@ type Forecast struct {
 //	  conflicts → conflicts, Paths; ConflictsWith = assumed lanes whose observation's Changed
 //	              meets Paths (byte-equal: both sides are -z, unquoted); base does not advance
 //	              (the rows below assume this one does not land)
+//	  clean or conflicts → CarriesUndone = CarriedUndone(laneTip, lane id); its error makes the
+//	              row unknown with Why = its sentence (never "clean" on an unread answer);
+//	              nothing and unknown rows carry []
 //
 // forecastCommit is `commit-tree <tree> -p <base> -p <laneTip> -m "panacea forecast"` with
 // GIT_AUTHOR_NAME/COMMITTER_NAME "panacea-forecast", EMAIL "forecast@panacea.invalid" and
@@ -58,7 +83,9 @@ type Forecast struct {
 // TestBehaviourFixedDateCommitTreeIsDeterministic). It is reachable from no ref.
 //
 // Results are cached in memory keyed by (branch tip, the ordered lane tips); a repeat of the
-// same key runs no git at all. Every call runs in the project with Scope Project (task-02 §HGH).
+// same key runs no git at all. The key covers CarriesUndone too: a ref is added under
+// refs/panacea/undone/ only by an undo, which moves the branch tip in the same verb, and phase 3
+// never deletes one (task 10). Every call runs in the project with Scope Project (task-02 §HGH).
 func ForecastQueue(ctx context.Context, m gitx.Machine, projectPath, branchTip string, queue []LaneObservation) []Forecast
 
 // CheckedOutAt returns the path of a worktree of the project repository that has refs/heads/<branch>
@@ -120,6 +147,9 @@ type Convergence struct {
 // expectedUpstream. Forecast is one
 // ForecastQueue step with laneTip = Tip against the branch tip alone: "clean" | "conflicts"
 // (Paths; ConflictsWith always [], since it conflicts with the branch itself) | "unknown".
+// Its CarriesUndone is always [], and not read: a pushed land is never undone exactly (task 10),
+// so the upstream holds an undone land only if a terminal pushed one, which phase 3 does not
+// claim to see.
 // It is not chained into the queue, and the queue is not chained after it: landing it is the
 // human's choice, and the next GET recomputes every row (the cache is keyed by the tip).
 // FastForward is Remote.Ahead == 0: the bring-in will move the tip to Tip, making no commit.
@@ -197,10 +227,11 @@ PUT /v1/projects/{projectId}/branches/{branchId}/queue
               "fetchedAt": "2026-09-23T05:36:00Z", "fetchError": "", "readError": "" },
   "bringIn": null,
   "queue": [
-    { "worktreeId": "w-ui", "forecast": { "state": "clean", "after": [], "conflictsWith": [], "paths": [], "why": "" },
-      "settles": [] },
+    { "worktreeId": "w-ui", "forecast": { "state": "clean", "after": [], "conflictsWith": [], "paths": [], "why": "",
+                                          "carriesUndone": [] }, "settles": [] },
     { "worktreeId": "w-api", "forecast": { "state": "conflicts", "after": ["w-ui"], "conflictsWith": ["w-ui"],
-                                           "paths": ["src/upload/handler.ts"], "why": "" }, "settles": [] }
+                                           "paths": ["src/upload/handler.ts"], "why": "",
+                                           "carriesUndone": [{ "sha": "d5f0a17…", "worktreeId": "w-db" }] }, "settles": [] }
   ],
   "lanes": [
     { "worktreeId": "w-api", "name": "upload-api", "synced": true, "syncedAt": "…", "tip": "…", "base": "…",
@@ -234,6 +265,7 @@ changes."* The PUT is a write and needs no line.
 | `TestForecastBlamesTheRowAboveForANonASCIIPath` (review I2) | the same as above with `f` = `docs/résumé.md` → `Paths == ["docs/résumé.md"]` (raw UTF-8) and `ConflictsWith == [a]`, not `[]` | `merge-tree` without `-z`: the quoted path meets no `Changed`, and the lens blames the branch itself |
 | `TestForecastConflictWithTheBranchItself` | the branch and lane edit the same line → conflicts, `ConflictsWith == []` | blaming a row above for the branch's own change |
 | `TestForecastAConflictDoesNotAdvanceTheBase` | a conflicts, b depends only on the tip → b clean with `After == []` | rows below assuming a conflicting row landed |
+| `TestForecastNamesAnUndoneLandTheLaneCarries` (re-review b06-1 issue 1b) | land A → M; lane B merges M and commits; A's land undone exactly (`refs/panacea/undone/<M>`, the tip back to M^1) → B's row `clean`, `carriesUndone == [{sha: M, worktreeId: A}]`; A's own row (A's clone also merged M) → `carriesUndone == []`; a lane that never merged M → `[]`, and its JSON holds `"carriesUndone":[]`, not `null` | a lens that calls a row plain clean while landing it brings back work the user undid |
 | `TestForecastNothingToLand` | lane tip is an ancestor of the tip → `nothing` | offering Land for an empty lane |
 | `TestForecastUnsyncedIsUnknown` | a lane never synced → `unknown`, `Why` non-empty, no git call for it | a fatal shown as a conflict |
 | `TestForecastIsDeterministic` | two calls with identical inputs → identical results, and the project's loose-object count is unchanged by the second | decision 6: a GET that grows the object store every poll |
