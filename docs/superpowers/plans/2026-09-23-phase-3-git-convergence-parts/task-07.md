@@ -79,7 +79,8 @@ type Syncer struct {
 	Refresher CloneRefresher
 	// unexported: per-lane mutexes, the state map; told: worktree id → the origin/<branch> sha
 	// that clone was last read back holding (Told, below); forgot: the ids Forget cleared, whose
-	// next refresh skips the lane's claim (task 09); failedAt, retryAt and the backoff:
+	// next refresh skips the lane's claim (task 09); broken: worktree id → its SyncState.Tip when
+	// it answered lane_broken (Broken, below); failedAt, retryAt and the backoff:
 	// worktree id → the tip its last refresh failed at, when the sweep may try it again, and the
 	// current wait (Run, c). All memory only, so a restarted control plane refreshes every clone
 	// once, on its first sweep. That refresh, and a new lane's first, is incremental: with no told
@@ -97,8 +98,8 @@ type CloneRefresher interface {
 // RefreshLanes calls it after each clone's fetch succeeds, with the sha it read back from the
 // clone (the `refs` map task 24's runner `fetch` returns), not the tip it read before the
 // fetches. So told is what the clone has, even when the branch moves away and back between the
-// two reads (re-review b06-1 issue 5, the ABA case). Told also clears that lane's failure record
-// and its deferral.
+// two reads (re-review b06-1 issue 5, the ABA case). Told also clears that lane's failure record,
+// its deferral and its Broken mark.
 func (s *Syncer) Told(worktreeID, received string)
 
 // Defer records that RefreshLanes left worktreeID unfetched at tip because no session is live
@@ -109,6 +110,14 @@ func (s *Syncer) Told(worktreeID, received string)
 // Both are memory only, as told is.
 func (s *Syncer) Defer(worktreeID, tip string)
 func (s *Syncer) Forget(worktreeID string)
+
+// Broken records that worktreeID's clone answered task 24's lane_broken (a ref outside the
+// runner's namespace names a missing object; task 09, review r4-3 I-2), with the lane's
+// SyncState.Tip at that moment. Run's step b leaves the lane out of stale while its Tip still
+// equals the recorded one, whatever the branch tip does: no bundle can mend the lane, so a
+// retry would only repeat a bundle create under the project lock. A lane commit, which moves
+// Tip, or Told clears it. Memory only, as told is.
+func (s *Syncer) Broken(worktreeID string)
 
 const (
 	DefaultSyncInterval = 5 * time.Second
@@ -132,7 +141,8 @@ const (
 //     exit 1 (the branch is gone) → skip, since task 11's branch verbs handle that;
 //  b. stale = the lanes of the branch with told != tip, less each lane that is backing off: its
 //     failedAt (c) equals tip and its retryAt has not come, and less each lane task 09 deferred
-//     (Defer(id, tip): no live session) while it still has none, by Live. A deferred lane
+//     (Defer(id, tip): no live session) while it still has none, by Live, and less each lane
+//     marked Broken whose SyncState.Tip has not moved since (task 09, lane_broken). A deferred lane
 //     whose session is live again is stale at once, so it is refreshed within one Interval of
 //     the session starting. stale empty → nothing more: no lock and no git beyond (a);
 //  c. else unlock, ok := Locks.TryLock(projectID) (task 02; re-review b06-1 issue 6). !ok → skip
