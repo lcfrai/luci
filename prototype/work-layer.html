@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panacea App · Work layer prototype</title>
+<!--
+  Work layer, minimum lovable slice. Prototype for the owner's eyes, 2026-09-25.
+  Design: docs/superpowers/planning/2026-09-25-linear-parity/05-design.md (revision 2).
+  Tokens match prototype/app.html so it reads as one product. One file, no external requests.
+  All data is sample data. Nothing here talks to a Hub, Fleet or a model.
+-->
+<style>
+:root{
+  /* surfaces, back to front (DESIGN-SYSTEM token structure; values from prototype/app.html) */
+  --page:#0a0908; --canvas:#0e0c0b; --surface:#141210; --inset:#1a1715; --hover:#1f1c19; --hover-2:#25211d; --field:#1c1916;
+  /* ink ramp. A fact is --ink-2 or stronger (05 §4.4 C3); --ink-3 never carries one */
+  --ink:#f2ede7; --ink-2:#a79f97; --ink-3:#6c645d; --ink-4:#453f39;
+  --line:rgba(255,248,240,.075); --line-strong:rgba(255,248,240,.15); --line-soft:rgba(255,248,240,.04);
+  /* accent: interactive and current state only */
+  --accent:#2fb3bd; --accent-hi:#74d9e0; --accent-tint:rgba(47,179,189,.11);
+  /* status vocabulary, each with a shape as well */
+  --run:#43b95e; --need:#e2a33c; --fail:#ef5f45;
+  --run-tint:rgba(67,185,94,.1); --need-tint:rgba(226,163,60,.1); --fail-tint:rgba(239,95,69,.1);
+  /* the thread: the signature (02 C2) */
+  --thread:rgba(255,241,224,.16); --thread-lit:rgba(255,241,224,.58);
+  /* radius tied to element size */
+  --r-chip:6px; --r-ctl:8px; --r-card:10px; --r-win:14px;
+  /* elevation: 1px ring plus layered shadow, never a flat border */
+  --e-hair:0 0 0 1px var(--line);
+  --e-btn:0 0 0 1px var(--line),0 1px 1px rgba(0,0,0,.35);
+  --e-card:0 0 0 1px var(--line),0 1px 2px rgba(0,0,0,.35),0 6px 16px rgba(0,0,0,.22);
+  --e-raised:0 0 0 1px var(--line-strong),0 2px 4px rgba(0,0,0,.4),0 12px 28px rgba(0,0,0,.38);
+  --e-overlay:0 0 0 1px var(--line-strong),0 8px 16px rgba(0,0,0,.45),0 30px 70px rgba(0,0,0,.6);
+  /* type: sans for meaning, mono for facts at 12px (05 §4.4 C3). 11px mono is for kbd hints only */
+  --mono:"Berkeley Mono","Commit Mono","Cascadia Mono",ui-monospace,Consolas,monospace;
+  --sans:"Segoe UI Variable Text","Segoe UI",-apple-system,system-ui,sans-serif;
+  --t-fact:12px; --t-kbd:11px; --t-body:13px; --t-title:13.5px;
+  --row-h:32px;
+  /* motion: one house curve, under 300ms; flash decays over ~600ms */
+  --ease:cubic-bezier(.23,1,.32,1); --dur-fast:140ms; --dur:200ms; --dur-flash:600ms; --beat:2400ms;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font:var(--t-body)/1.45 var(--sans);
+  -webkit-font-smoothing:antialiased;overflow:hidden;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:3px}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:rgba(255,248,240,.07);border:3px solid transparent;border-radius:8px;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,248,240,.15);background-clip:padding-box}
+.mono{font-family:var(--mono);font-size:var(--t-fact)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* GRAIN: ~2%, dark only, one fixed layer (DESIGN-SYSTEM). Inline SVG data URI, no request. */
+.grain{position:fixed;inset:0;pointer-events:none;z-index:400;opacity:.022;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+
+/* THE ONE HEARTBEAT. Every live mark uses this one animation; JS pins every instance to one
+   phase (see beat() in the script), so ten agents breathe together, not ten spinners. */
+@keyframes beat{0%,100%{opacity:.4}50%{opacity:1}}
+.live{animation:beat var(--beat) var(--ease) infinite}
+@keyframes flash{0%{opacity:1}100%{opacity:0}}
+@keyframes rise{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+
+/* SHELL */
+.app{display:flex;height:100vh}
+/* RAIL: navigation only, names and no counts. chrome.dim: labels ink-2, icons ink-3 (02 C5) */
+.rail{width:236px;flex:0 0 236px;background:var(--canvas);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.acct{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line-soft)}
+.mark{width:22px;height:22px;border-radius:var(--r-chip);background:var(--ink);color:var(--page);
+  display:grid;place-items:center;font-weight:800;font-size:11.5px;flex:0 0 auto}
+.acct .a1{font-size:12px;font-weight:650;color:var(--ink-2)} .acct .a2{font-family:var(--mono);font-size:var(--t-kbd);color:var(--ink-3)}
+.rs{flex:1;overflow:auto;padding:6px 6px 12px}
+.mhd{padding:12px 8px 5px;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--ink-3)}
+.nav{display:flex;align-items:center;gap:9px;width:100%;padding:5px 8px;border-radius:var(--r-ctl);color:var(--ink-2);
+  font-size:12.5px;text-align:left;position:relative;transition:background-color var(--dur-fast) var(--ease)}
+.nav:hover{background:var(--hover)}
+.nav svg{color:var(--ink-3);flex:0 0 auto}
+.nav.cur{color:var(--ink);background:var(--inset)}
+.nav.cur::before{content:"";position:absolute;left:-6px;top:6px;bottom:6px;width:2px;border-radius:2px;background:var(--accent)}
+.nav.cur svg{color:var(--ink-2)}
+.nav .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav .br{display:block;font-family:var(--mono);font-size:var(--t-kbd);color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav .need{width:7px;height:7px;transform:rotate(45deg);background:var(--need);border-radius:1px;flex:0 0 auto}
+.kids{margin-left:15px;padding-left:8px;border-left:1px solid var(--thread)}
+.kids .nav{font-size:12px}
+.rfoot{border-top:1px solid var(--line);padding:8px 10px;display:flex;align-items:center;gap:8px}
+.me{width:22px;height:22px;border-radius:50%;background:var(--inset);box-shadow:var(--e-hair);
+  display:grid;place-items:center;font-size:9.5px;font-weight:700;color:var(--ink-2);flex:0 0 auto}
+.rfoot .who{flex:1;font-size:11.5px;color:var(--ink-2)}
+.kbd{font-family:var(--mono);font-size:var(--t-kbd);padding:1px 5px;border-radius:4px;background:var(--inset);
+  box-shadow:var(--e-hair);color:var(--ink-3);white-space:nowrap;line-height:1.35}
+
+/* MAIN + the one ViewHeader (02 C5): title, scope chips, route badge, controls */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--page);position:relative}
+.vh{min-height:44px;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.vh .ttl{font-size:13.5px;font-weight:650;letter-spacing:-.005em;white-space:nowrap}
+.vh .sp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border-radius:var(--r-chip);background:var(--surface);
+  box-shadow:var(--e-hair);font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);white-space:nowrap}
+.chip.brief{cursor:pointer} .chip.brief:hover{box-shadow:0 0 0 1px var(--line-strong)}
+.route{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:var(--r-chip);
+  font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);box-shadow:var(--e-hair)}
+.route i{width:6px;height:6px;border-radius:50%;box-shadow:0 0 0 1px var(--ink-2)}
+.seg{display:flex;gap:1px;background:var(--surface);box-shadow:var(--e-hair);border-radius:var(--r-ctl);padding:2px}
+.seg button{padding:3px 10px;border-radius:var(--r-chip);font-size:12px;color:var(--ink-2);transition:background-color var(--dur-fast) var(--ease)}
+.seg button:hover{color:var(--ink)} .seg button.on{background:var(--hover-2);color:var(--ink);font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--r-ctl);font-size:12px;font-weight:600;
+  background:var(--surface);box-shadow:var(--e-btn);white-space:nowrap;transition:background-color var(--dur-fast) var(--ease)}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);color:#04201f;box-shadow:none} .btn.pri:hover{background:var(--accent-hi)}
+.btn.ghost{background:none;box-shadow:none;color:var(--ink-2)} .btn.ghost:hover{color:var(--ink);background:var(--hover)}
+.btn .kbd{background:rgba(0,0,0,.18);box-shadow:none;color:inherit;opacity:.8}
+.body{flex:1;overflow:auto;position:relative}
+.view{display:none;min-height:100%} .view.on{display:block}
+.inner{max-width:1040px;padding:18px 20px 60px}
+
+/* WORK LENS, grouped by criterion (05 §4.1). The skeleton is the thread. */
+.lede{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;color:var(--ink-2);font-size:12.5px}
+.lede b{color:var(--ink);font-weight:600}
+.grp{margin-bottom:10px}
+.gh{display:flex;align-items:center;gap:9px;padding:7px 8px 6px 4px;border-radius:var(--r-ctl);cursor:default}
+.tnode{width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1px var(--thread);background:var(--page);flex:0 0 auto;margin-left:5px;
+  transition:box-shadow var(--dur) var(--ease)}
+.gh .gt{font-size:13px;font-weight:600;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conv{font-size:12px;color:var(--ink-2)}
+.conv.uncovered,.conv.contested{color:var(--ink)}
+.gh .gs{margin-left:auto;font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);white-space:nowrap}
+.gh .held{color:var(--ink)}
+.rows{position:relative;padding-left:22px}
+.rows::before{content:"";position:absolute;left:9px;top:0;bottom:6px;width:1px;background:var(--thread);transform-origin:top;
+  transition:opacity var(--dur) var(--ease)}
+.grp.none .rows::before{display:none}
+/* lit is not selected (05 §4.1 D I1): the gutter brightens, no row rings */
+.grp.lit .tnode{box-shadow:0 0 0 1px var(--thread-lit)}
+.grp .rows::after{content:"";position:absolute;left:9px;top:0;bottom:6px;width:1px;background:var(--thread-lit);opacity:0;
+  transition:opacity var(--dur) var(--ease)}
+.grp.lit .rows::after{opacity:1}
+.ir{display:grid;grid-template-columns:16px 22px 62px minmax(0,1fr) auto 86px;align-items:center;gap:8px;
+  height:var(--row-h);padding:0 10px 0 6px;border-radius:var(--r-ctl);position:relative;cursor:pointer;outline:none;
+  transition:background-color var(--dur-fast) var(--ease)}
+.ir:hover{background:var(--surface)}
+.ir.cur{background:var(--inset)}
+.ir.cur::before{content:"";position:absolute;left:-1px;top:7px;bottom:7px;width:2px;border-radius:2px;background:var(--accent)}
+.ir.sel{background:var(--accent-tint);box-shadow:inset 0 0 0 1px rgba(47,179,189,.32)}
+.ir .ck{color:var(--accent);opacity:0} .ir.sel .ck{opacity:1}
+.ir .id{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2)}
+.ir .ti{font-size:var(--t-title);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ir .own{font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
+.ir .own .files{font-family:var(--mono);font-size:var(--t-fact)}
+.ir .rt{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);text-align:right;white-space:nowrap}
+.ir .rt.need{color:var(--need)}
+.ir.gone{height:26px;grid-template-columns:1fr auto;color:var(--ink-2);font-size:12px;cursor:default;padding-left:48px}
+.ir.gone:hover{background:none}
+/* a state change flashes and decays; opacity only */
+.ir .fl{position:absolute;inset:0;border-radius:inherit;background:rgba(255,248,240,.07);opacity:0;pointer-events:none}
+.ir.flash .fl{animation:flash var(--dur-flash) var(--ease) forwards}
+.ir .tick{position:absolute;left:-1px;top:8px;bottom:8px;width:2px;background:var(--ink);opacity:0}
+/* one agent line, yours only: who.label in mono, then MEANING in sans */
+.al{display:grid;grid-template-columns:16px 22px minmax(0,1fr) 86px;gap:8px;align-items:center;min-height:24px;
+  padding:0 10px 4px 6px;margin-top:-4px;font-size:12.5px;color:var(--ink)}
+.al .wl{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);margin-right:8px}
+.al .lv{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);text-align:right}
+.al .mean{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.al.new{animation:rise var(--dur) var(--ease)}
+.cause{padding:0 10px 5px 98px;margin-top:-5px;font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2)}
+.neg{padding:0 10px 6px 98px;margin-top:-4px;font-size:12.5px;color:var(--ink)}
+.neg .mono{color:var(--ink-2)}
+.holdbar{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:7px 10px;border-radius:var(--r-ctl);
+  background:var(--surface);box-shadow:var(--e-hair);font-size:12.5px;color:var(--ink-2)}
+.holdbar b{color:var(--ink);font-weight:600} .holdbar .sp{flex:1}
+
+/* GLYPHS: drawn, one distinct shape per state, in ink; none fills with progress (05 §4.4 C6) */
+.g{width:22px;height:16px;display:inline-flex;align-items:center;gap:2px;color:var(--ink-2)}
+.g svg{width:16px;height:16px;flex:0 0 auto}
+.pn{width:2px;border-radius:1px;background:var(--ink-2);flex:0 0 auto}
+.pn.p0{height:0} .pn.p4{height:3px} .pn.p3{height:6px} .pn.p2{height:9px} .pn.p1{height:12px;box-shadow:2px -4px 0 -1px var(--ink)}
+.dot{width:9px;height:9px;flex:0 0 auto;display:inline-block;position:relative}
+/* running: a disc inside a 1px open ring, so shape alone separates it from idle (D C4) */
+.dot.run{border-radius:50%;box-shadow:inset 0 0 0 1px var(--run);clip-path:polygon(0 0,62% 0,62% 38%,100% 38%,100% 100%,0 100%)}
+.dot.run::after{content:"";position:absolute;inset:2.5px;border-radius:50%;background:var(--run)}
+.dot.idle{border-radius:50%;box-shadow:inset 0 0 0 1px var(--ink-3)}
+.dot.need{transform:rotate(45deg) scale(.8);background:var(--need);border-radius:1px}
+.dot.fail::before,.dot.fail::after{content:"";position:absolute;left:4px;top:0;width:1.5px;height:9px;background:var(--fail);transform:rotate(45deg)}
+.dot.fail::after{transform:rotate(-45deg)}
+.pn.p1{height:12px;box-shadow:none;position:relative;background:var(--ink)}
+.pn.p1::after{content:"";position:absolute;top:0;left:0;width:5px;height:2px;border-radius:1px;background:var(--ink)}
+
+/* BOARD: columns are criteria too, so a board is still the thread (C13 structural check) */
+.board{display:flex;gap:12px;align-items:flex-start;padding:16px 20px 40px;overflow-x:auto;min-height:100%}
+.bcol{width:292px;flex:0 0 292px;background:var(--canvas);border-radius:var(--r-card);box-shadow:var(--e-hair);display:flex;flex-direction:column}
+.bcol .bh{padding:10px 12px 8px;border-bottom:1px solid var(--line-soft)}
+.bcol .bh .gt{font-size:12.5px;font-weight:600;line-height:1.35;display:flex;gap:8px;align-items:flex-start}
+.bcol .bh .tnode{margin:3px 0 0}
+.bcol .bh .m{display:flex;gap:8px;margin-top:5px;padding-left:17px;font-size:12px;color:var(--ink-2)}
+.bcol .bh .m .mono{margin-left:auto}
+.bcol.lit .tnode{box-shadow:0 0 0 1px var(--thread-lit)}
+.bcards{padding:8px;display:flex;flex-direction:column;gap:6px;min-height:40px}
+.card{background:var(--surface);border-radius:var(--r-ctl);box-shadow:var(--e-card);padding:9px 10px 8px;cursor:pointer;position:relative;outline:none;
+  transition:box-shadow var(--dur-fast) var(--ease)}
+.card:hover{box-shadow:0 0 0 1px var(--line-strong),0 1px 2px rgba(0,0,0,.35),0 6px 16px rgba(0,0,0,.22)}
+.card.cur{box-shadow:0 0 0 1px var(--accent),0 6px 16px rgba(0,0,0,.25)}
+.card .r1{display:flex;align-items:center;gap:7px}
+.card .r1 .id{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2)}
+.card .r1 .rt{margin-left:auto;font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2)}
+.card .ti{font-size:13px;margin:5px 0 6px;line-height:1.35}
+.card .own{font-size:12px;color:var(--ink-2)}
+.card .al{padding:4px 0 0;margin:0;grid-template-columns:12px minmax(0,1fr) auto;gap:7px;font-size:12px}
+.card .fl{position:absolute;inset:0;border-radius:inherit;background:rgba(255,248,240,.07);opacity:0;pointer-events:none}
+.card.flash .fl{animation:flash var(--dur-flash) var(--ease) forwards}
+.bempty{padding:10px 8px 12px;font-size:12px;color:var(--ink-2);line-height:1.5}
+.bempty .kbd{margin:0 2px}
+
+/* ISSUE VIEW */
+.iv{display:flex;min-height:100%}
+.iv .ivm{flex:1;min-width:0;padding:18px 28px 60px;max-width:820px}
+.iv .ivs{width:280px;flex:0 0 280px;border-left:1px solid var(--line);background:var(--canvas);padding:16px 16px 40px}
+.ivhead{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.ivhead .id{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2)}
+.ivt{font-size:21px;line-height:1.28;letter-spacing:-.015em;font-weight:650;margin:2px 0 10px}
+.ivd{font-size:13.5px;line-height:1.62;color:var(--ink);max-width:66ch}
+.ivd p{margin-bottom:10px} .ivd code{font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--inset);padding:1px 5px;border-radius:4px}
+.ivd .by{font-size:12px;color:var(--ink-2)}
+.sech{font-size:10px;font-weight:700;letter-spacing:.11em;color:var(--ink-3);margin:22px 0 10px;display:flex;align-items:center;gap:9px}
+.sech::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+.sech .mono{letter-spacing:0;font-weight:400;color:var(--ink-2)}
+/* the provenance thread: brief, criterion, design, issue, worktrees, evidence, release */
+.thr{position:relative;padding-left:26px}
+.thr .ln{position:absolute;left:8px;top:10px;bottom:14px;width:1px;background:var(--thread-lit);transform-origin:top}
+.thr.trace .ln{animation:grow 320ms var(--ease) both}
+.tn{position:relative;padding:5px 10px 7px;border-radius:var(--r-ctl);cursor:pointer;margin-bottom:2px;transition:background-color var(--dur-fast) var(--ease)}
+.tn:hover{background:var(--surface)}
+.tn::before{content:"";position:absolute;left:-22px;top:10px;width:9px;height:9px;border-radius:50%;background:var(--page);box-shadow:0 0 0 1px var(--thread-lit)}
+.tn.here::before{background:var(--ink);box-shadow:0 0 0 1px var(--ink),0 0 0 4px var(--page)}
+.tn.open::before{box-shadow:0 0 0 1px var(--thread)} .tn.open{color:var(--ink-2)}
+.tn .k{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--ink-3)}
+.tn .v{font-size:13px;color:var(--ink);margin-top:1px}
+.tn .f{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);margin-top:2px}
+.tn .f b{color:var(--ink);font-weight:400}
+.tn.open .v{color:var(--ink-2)}
+.prop{display:grid;grid-template-columns:86px 1fr;gap:6px 10px;font-size:12.5px;align-items:center;margin-bottom:16px}
+.prop dt{color:var(--ink-2)} .prop dd{color:var(--ink);display:flex;align-items:center;gap:6px;min-width:0}
+.prop dd .mono{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ivs .sech{margin-top:4px}
+.act{border-radius:var(--r-card);background:var(--surface);box-shadow:var(--e-card);padding:10px 12px;margin-bottom:8px}
+.act .ah{display:flex;align-items:center;gap:9px;font-size:12.5px}
+.act .ah .wl{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2)}
+.act .ah .lv{margin-left:auto;font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2)}
+.act .files{margin:6px 0 0 18px;font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);line-height:1.6}
+.ev{display:flex;gap:10px;align-items:baseline;padding:6px 0 6px 18px;font-size:12.5px;border-top:1px solid var(--line-soft)}
+.ev:first-of-type{border-top:0}
+.ev .mono{color:var(--ink-2)} .ev .sp{flex:1}
+.ev .tag{font-size:11.5px;color:var(--ink-2);white-space:nowrap}
+.note{font-size:12.5px;color:var(--ink);padding:6px 0 0 18px}
+.note .src{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);margin-right:6px}
+.cm{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line-soft);font-size:13px;line-height:1.55}
+.cm .me{margin-top:1px} .cm .who{font-size:12px;color:var(--ink-2);margin-bottom:2px} .cm .who .mono{margin-left:6px}
+.compose{margin-top:10px;background:var(--field);box-shadow:var(--e-hair);border-radius:var(--r-card);padding:9px 12px;
+  font-size:13px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.compose:focus-within{box-shadow:0 0 0 1px var(--accent)}
+.compose input{flex:1;background:none;border:0;outline:none;color:var(--ink)}
+
+/* DESK: every row answers in place and never navigates (AX §5) */
+.dsec{margin-bottom:22px}
+.dcard{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:12px 14px;margin-bottom:8px;position:relative}
+.dcard.need{box-shadow:0 0 0 1px rgba(226,163,60,.34),0 1px 2px rgba(0,0,0,.35),0 6px 16px rgba(0,0,0,.22)}
+.nrow{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);flex-wrap:wrap}
+.nrow .sep{color:var(--ink-3)} .nrow .by{margin-left:auto;color:var(--need)}
+.dq{font-size:14px;font-weight:600;line-height:1.4;margin:8px 0 4px}
+.dwhy{font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-bottom:10px;max-width:74ch}
+.dwhy b{color:var(--ink);font-weight:600}
+.opt{display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;padding:8px 10px;border-radius:var(--r-ctl);
+  background:var(--inset);box-shadow:var(--e-hair);margin-bottom:5px;transition:background-color var(--dur-fast) var(--ease)}
+.opt:hover{background:var(--hover)} .opt.on{box-shadow:0 0 0 1px var(--accent);background:var(--accent-tint)}
+.opt .kbd{margin-top:1px}
+.opt .tx{flex:1;font-size:12.5px} .opt .tx small{display:block;color:var(--ink-2);font-size:12px;margin-top:2px}
+.opt .rec{font-size:11.5px;color:var(--ink-2);white-space:nowrap}
+.dfoot{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12px;color:var(--ink-2)}
+.dfoot .sp{flex:1}
+.drow{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r-ctl);font-size:12.5px;background:var(--surface);box-shadow:var(--e-hair);margin-bottom:5px}
+.drow .mono{color:var(--ink-2)} .drow .sp{flex:1}
+.drow.fold{cursor:pointer} .drow.fold:hover{background:var(--hover)}
+.zero{padding:20px 0 6px;font-size:13px;color:var(--ink-2)}
+.zero b{color:var(--ink);font-weight:600}
+
+/* ORCHESTRATOR THREAD: typed moves only, never the other side's transcript (OD-15) */
+.nx{display:grid;grid-template-columns:1fr 112px 1fr;gap:0 0;position:relative}
+.nx .colh{padding:0 4px 10px;font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.nx .colh b{color:var(--ink);font-weight:600}
+.nx .mid{position:relative}
+.nx .mid::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--thread)}
+.mv{grid-column:1;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:9px 12px;margin-bottom:10px;animation:rise var(--dur) var(--ease)}
+.mv.r{grid-column:3} .mv.c{grid-column:1 / span 3;justify-self:center;max-width:560px;background:var(--canvas);text-align:center}
+.mv .ty{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink)}
+.mv .ty .t2{color:var(--ink-2);margin-left:6px}
+.mv .tx{font-size:12.5px;color:var(--ink);margin-top:4px;line-height:1.5}
+.mv .tx .mono{color:var(--ink-2)}
+.mv.esc{box-shadow:0 0 0 1px rgba(226,163,60,.34),0 6px 16px rgba(0,0,0,.22)}
+.mv.ok{box-shadow:0 0 0 1px rgba(67,185,94,.3),0 6px 16px rgba(0,0,0,.22)}
+.mvgap{grid-column:1 / span 3;height:0}
+.fence{font-size:12px;color:var(--ink-2);margin:6px 0 16px;line-height:1.55;max-width:80ch}
+
+/* TEAM: the calm summary. People and files, one line each; no dots for other people's agents (OD-15) */
+.calm{font-size:17px;line-height:1.5;letter-spacing:-.01em;color:var(--ink);max-width:62ch;margin:6px 0 20px}
+.calm .q{color:var(--ink-2)}
+.pp{display:grid;grid-template-columns:28px 120px minmax(0,1fr);gap:4px 12px;align-items:start;padding:11px 12px;border-radius:var(--r-ctl);cursor:pointer;
+  transition:background-color var(--dur-fast) var(--ease)}
+.pp:hover{background:var(--surface)} .pp + .pp{box-shadow:0 -1px 0 var(--line-soft)}
+.pp .nm{font-size:13px;font-weight:600;padding-top:3px} .pp .nm small{display:block;font-weight:400;font-size:12px;color:var(--ink-2)}
+.pp .ln1{font-size:13px;padding-top:3px} .pp .ln2{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);margin-top:3px}
+.pp .ln2 .ov{color:var(--ink)}
+.av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--ink-2);
+  background:var(--inset);box-shadow:var(--e-hair)}
+.crit{display:flex;flex-direction:column;gap:2px}
+.crow{display:grid;grid-template-columns:14px minmax(0,1fr) 92px auto;gap:10px;align-items:center;padding:6px 10px;border-radius:var(--r-ctl);font-size:12.5px;cursor:pointer}
+.crow:hover{background:var(--surface)}
+.crow .conv{text-align:left} .crow .mono{color:var(--ink-2)}
+
+/* PALETTE: scoped to the selection; stable ranking; rows never reflow while filtering */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:none;align-items:flex-start;justify-content:center;padding-top:12vh}
+.scrim.on{display:flex}
+.pal{width:620px;max-width:92vw;background:var(--surface);border-radius:var(--r-win);box-shadow:var(--e-overlay);overflow:hidden;
+  animation:pop var(--dur) var(--ease)}
+.pal .pin{display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line-soft)}
+.pal .pin input{flex:1;background:none;border:0;outline:none;font-size:15px;padding:15px 0;color:var(--ink)}
+.pal .scope{display:flex;gap:6px;padding:9px 14px 0;font-size:12px;color:var(--ink-2);align-items:center}
+.palist{max-height:380px;overflow:auto;padding:6px}
+.pgh{padding:8px 10px 4px;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--ink-3)}
+.pit{display:flex;align-items:center;gap:10px;padding:0 10px;height:34px;border-radius:var(--r-ctl);cursor:pointer;font-size:13px;color:var(--ink)}
+.pit .ic{width:16px;color:var(--ink-2);display:grid;place-items:center}
+.pit .sp{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pit .sub{font-size:12px;color:var(--ink-2);margin-left:8px}
+.pit.on{background:var(--hover-2);box-shadow:inset 2px 0 0 var(--accent)}
+.pit .agent{font-size:11.5px;color:var(--ink-2)}
+.pfoot{display:flex;gap:14px;padding:8px 14px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink-2)}
+.pfoot .sp{flex:1}
+.pnone{padding:18px 12px;font-size:12.5px;color:var(--ink-2)}
+
+/* TOAST with an Undo window (optimistic, not a confirm dialog) */
+.toast{position:fixed;left:50%;bottom:22px;z-index:320;transform:translate(-50%,8px);opacity:0;pointer-events:none;
+  background:var(--hover);border-radius:var(--r-card);box-shadow:var(--e-raised);padding:9px 12px;display:flex;gap:12px;align-items:center;
+  font-size:12.5px;min-width:320px;overflow:hidden;transition:transform var(--dur) var(--ease),opacity var(--dur) var(--ease)}
+.toast.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+.toast .sp{flex:1} .toast .bar{position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--ink-2);transform-origin:left}
+.toast.on .bar{animation:shrink 5s linear forwards}
+@keyframes shrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+/* PEEK: the evidence a decision rests on, not the record */
+.peek{position:fixed;z-index:310;width:440px;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-overlay);padding:12px 14px;
+  opacity:0;transform:translateY(4px);pointer-events:none;transition:opacity var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease)}
+.peek.on{opacity:1;transform:none;pointer-events:auto}
+.peek pre{font-family:var(--mono);font-size:var(--t-fact);line-height:1.6;color:var(--ink-2);white-space:pre-wrap;margin-top:8px;
+  background:var(--page);border-radius:var(--r-ctl);padding:8px 10px;box-shadow:var(--e-hair)}
+.peek pre b{color:var(--ink);font-weight:400}
+.sheet{width:560px}
+.sheet .kr{display:grid;grid-template-columns:130px 1fr;gap:6px 14px;padding:12px 16px 16px;font-size:12.5px;color:var(--ink-2)}
+.sheet .kr b{color:var(--ink);font-weight:400}
+.live-region{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+::view-transition-old(root),::view-transition-new(root){animation-duration:180ms;animation-timing-function:cubic-bezier(.23,1,.32,1)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  /* the flash becomes a static 2px leading tick in ink that stays until the row is seen (D C4) */
+  .ir.flash .tick,.ir.unseen .tick{opacity:1}
+}
+@media (forced-colors:active){
+  .grain{display:none}
+  .card,.dcard,.drow,.act,.opt,.chip,.route,.btn,.seg,.pal,.peek,.toast,.bcol,.mv{border:1px solid CanvasText;box-shadow:none}
+  .ir.sel{outline:2px solid Highlight} .ir.cur{outline:1px solid Highlight}
+  .rows::before,.thr .ln{background:CanvasText} .tnode,.tn::before{border:1px solid CanvasText;box-shadow:none}
+  .dot.run,.dot.idle{border:1px solid CanvasText;box-shadow:none} .dot.run::after,.dot.need{background:CanvasText}
+}
+</style>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<!-- Drawn glyphs, about 12 (05 §4.4 C6). One distinct shape per issue state, ink only, none fills with progress. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="g-triage" viewBox="0 0 16 16"><path d="M8 2.6 13.4 8 8 13.4 2.6 8Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="g-backlog" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="1.6 2.2"/></symbol>
+    <symbol id="g-todo" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+    <symbol id="g-started" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7 5.9 10.2 8 7 10.1Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="g-review" viewBox="0 0 16 16"><rect x="2.7" y="2.7" width="10.6" height="10.6" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/></symbol>
+    <symbol id="g-landed" viewBox="0 0 16 16"><rect x="2.7" y="2.7" width="10.6" height="10.6" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.7 5.6 8 7.9l2.3-2.3M8 7.9v2.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="g-done" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.6 8.1 7.3 9.8 10.5 6.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="g-dnp" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="1.6 2.2"/><path d="M5.6 8.1 7.3 9.8 10.5 6.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="g-cancel" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4.4 11.6 11.6 4.4" stroke="currentColor" stroke-width="1.4"/></symbol>
+    <symbol id="g-check" viewBox="0 0 16 16"><path d="M3.6 8.4 6.5 11.3 12.4 4.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="g-orch" viewBox="0 0 16 16"><path d="M8 2.4 12.9 5.2v5.6L8 13.6 3.1 10.8V5.2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/></symbol>
+    <symbol id="g-swap" viewBox="0 0 16 16"><path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-desk" viewBox="0 0 16 16"><path d="M2.5 9.5h3l1 1.8h3l1-1.8h3M2.5 9.5 4 4h8l1.5 5.5v3h-11Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+    <symbol id="i-team" viewBox="0 0 16 16"><circle cx="6" cy="6" r="2.3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2 13c.4-2.3 2-3.5 4-3.5s3.6 1.2 4 3.5M10.5 3.9a2.2 2.2 0 0 1 0 4.2M11.8 9.7c1.2.5 2 1.6 2.2 3.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="i-plan" viewBox="0 0 16 16"><rect x="2.6" y="2.6" width="4.4" height="4.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2.6" width="4.4" height="4.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2.6" y="9" width="4.4" height="4.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="4.4" height="4.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="i-work" viewBox="0 0 16 16"><circle cx="3.6" cy="4" r="1.2" fill="currentColor"/><path d="M3.6 5.4v7" stroke="currentColor" stroke-width="1.1"/><path d="M6.5 4h7M6.5 8h7M6.5 12h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="i-branch" viewBox="0 0 16 16"><circle cx="4.5" cy="3.8" r="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="4.5" cy="12.2" r="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="11.5" cy="5.5" r="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 5.3v5.4M11.5 7c0 2.6-2.2 3.4-5.6 4.1" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.3" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m10.2 10.2 3.3 3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-run" viewBox="0 0 16 16"><path d="M5 3.6 12 8l-7 4.4Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <nav class="rail" aria-label="Navigation">
+    <div class="acct"><div class="mark">P</div><div><div class="a1">Panacea</div><div class="a2">kpmg · au</div></div></div>
+    <div class="rs">
+      <button class="nav" data-go="desk"><svg width="16" height="16"><use href="#i-desk"/></svg><span class="t">Desk</span><i class="need" id="rail-need" title="A decision needs you"></i></button>
+      <button class="nav" data-go="team"><svg width="16" height="16"><use href="#i-team"/></svg><span class="t">Team</span></button>
+      <button class="nav" data-go="orch"><svg width="16" height="16"><use href="#g-orch"/></svg><span class="t">My Orchestrator</span></button>
+      <div class="mhd">PROJECTS</div>
+      <button class="nav" data-go="plan"><svg width="16" height="16"><use href="#i-plan"/></svg><span class="t">Evidence Portal</span></button>
+      <div class="kids">
+        <button class="nav" data-go="work"><svg width="16" height="16"><use href="#i-work"/></svg>
+          <span class="t">Resumable uploads<span class="br">feat/resumable-uploads</span></span></button>
+        <div class="kids" id="rail-wt">
+          <button class="nav" data-go="issue:EP-142"><svg width="16" height="16"><use href="#i-branch"/></svg><span class="t"><span class="br" style="color:var(--ink-2)">ep-142-resume-handler</span></span></button>
+        </div>
+        <button class="nav" data-go="work2"><svg width="16" height="16"><use href="#i-work"/></svg>
+          <span class="t">Reviewer queue<span class="br">feat/reviewer-queue</span></span></button>
+      </div>
+    </div>
+    <div class="rfoot"><div class="me">DM</div><div class="who">Dylan Mackie</div><button class="kbd" id="open-pal" title="Command menu">Ctrl K</button></div>
+  </nav>
+
+  <main class="main">
+    <header class="vh" id="vh"></header>
+    <div class="body" id="body">
+      <section class="view" id="v-work" aria-label="Work"></section>
+      <section class="view" id="v-board" aria-label="Board"></section>
+      <section class="view" id="v-issue" aria-label="Issue"></section>
+      <section class="view" id="v-desk" aria-label="Desk"></section>
+      <section class="view" id="v-orch" aria-label="My Orchestrator"></section>
+      <section class="view" id="v-team" aria-label="Team"></section>
+      <section class="view" id="v-plan" aria-label="Plan"></section>
+    </div>
+  </main>
+</div>
+
+<div class="scrim" id="scrim" role="dialog" aria-modal="true" aria-label="Command menu">
+  <div class="pal" id="pal">
+    <div class="pin"><svg width="16" height="16" style="color:var(--ink-2)"><use href="#i-search"/></svg>
+      <input id="pal-in" autocomplete="off" spellcheck="false" placeholder="Type a command or search. # issues, @ people, > commands" aria-controls="pal-list" aria-activedescendant="" /></div>
+    <div class="scope" id="pal-scope"></div>
+    <div class="palist" id="pal-list" role="listbox"></div>
+    <div class="pfoot"><span><span class="kbd">↑</span> <span class="kbd">↓</span> move</span><span><span class="kbd">Enter</span> run</span><span><span class="kbd">Esc</span> close</span><span class="sp"></span><span>Stable order: rows filter, they never re-rank</span></div>
+  </div>
+</div>
+<div class="scrim" id="sheet-scrim" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+  <div class="pal sheet" id="sheet"></div>
+</div>
+<div class="toast" id="toast" role="status"><span class="sp" id="toast-t"></span><button class="btn ghost" id="toast-u">Undo <span class="kbd">U</span></button><i class="bar"></i></div>
+<div class="peek" id="peek" aria-hidden="true"></div>
+<div class="live-region" id="live" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ---------- SAMPLE DATA: one coherent project, Evidence Portal (EP). Nothing here is real. ---------- */
+const P = {
+  dylan:{n:'Dylan Mackie',s:'Dylan',ini:'DM',me:true},
+  alice:{n:'Alice Chen',s:'Alice',ini:'AC'},
+  priya:{n:'Priya Raman',s:'Priya',ini:'PR'},
+  marco:{n:'Marco Ruiz',s:'Marco',ini:'MR'},
+};
+const BRIEF = {id:'bf-3a7c',rev:6,name:'Evidence Portal',sec:'§3 Uploads',by:'Dylan',when:'12 Sep'};
+const CRIT = [
+  {id:'c-91e2',t:'A 40 MB upload resumes after a dropped connection',conv:'open'},
+  {id:'c-b3f1',t:'No chunk is stored twice',conv:'contested'},
+  {id:'c-40aa',t:'A reviewer sees how old each piece of evidence is',conv:'settled'},
+  {id:'c-7d05',t:'Upload progress is announced to screen readers',conv:'uncovered'},
+];
+const STATES = {
+  triage:{g:'g-triage',w:'triage'}, backlog:{g:'g-backlog',w:'backlog'}, todo:{g:'g-todo',w:'todo'},
+  started:{g:'g-started',w:'started'}, review:{g:'g-review',w:'in review'}, landed:{g:'g-landed',w:'landed'},
+  done:{g:'g-done',w:'done'}, dnp:{g:'g-dnp',w:'done, not proven'}, cancelled:{g:'g-cancel',w:'cancelled'},
+};
+const STATE_ORDER = ['triage','backlog','todo','started','review','landed','done','dnp'];
+const I = [
+  {id:'EP-142',t:'Resume handler for cut uploads',st:'started',pr:2,own:'dylan',serves:['c-91e2'],rev:3,
+   wt:'ep-142-resume-handler',sess:'s-7f3a',since:'09:12',
+   agent:{who:'dylan · agent 1',mean:'writing the resume handler in upload.go',last:0},
+   files:['services/api/upload.go','store/chunks.go','store/chunks_test.go','api/routes.go'],
+   desc:'When a connection drops mid-upload, the client resumes from the last chunk the server confirmed, not from byte zero. The handler reads the offset from the chunk record and answers <code>308 Resume Incomplete</code> with a <code>Range</code> header.'},
+  {id:'EP-150',t:'Chunked upload API',st:'started',pr:2,own:'alice',serves:['c-91e2','c-b3f1'],touch:'upload/*.go, store/chunks.go',
+   desc:'Replace the single-request upload with 8 MB chunks behind a <code>ChunkStore</code> interface.'},
+  {id:'EP-144',t:'Expire resume tokens after 24 hours',st:'todo',pr:3,own:'dylan',serves:['c-91e2'],
+   desc:'A resume token older than 24 hours is refused with <code>410 Gone</code>, and the client starts a fresh upload. The brief sets the lifetime in §3.2.'},
+  {id:'EP-139',t:'Retry budget per chunk',st:'done',pr:3,own:'priya',serves:['c-91e2'],proof:'7c1f0a2 · retry test, exit 0 · 09:58',
+   desc:'Each chunk retries at most five times with backoff before the upload reports failure.'},
+  {id:'EP-147',t:'Dedupe chunks by content hash',st:'review',pr:2,own:'alice',serves:['c-b3f1'],touch:'store/chunks.go',
+   desc:'Store each chunk under its SHA-256, so a resumed upload never writes a chunk twice.'},
+  {id:'EP-153',t:'Reject a chunk whose hash does not match',st:'backlog',pr:4,own:'marco',serves:['c-b3f1'],desc:'Answer <code>422</code> when the body hash differs from the declared one.'},
+  {id:'EP-131',t:'Evidence age column',st:'done',pr:3,own:'priya',serves:['c-40aa'],proof:'b20e9d4 · age column test, exit 0 · yesterday',
+   desc:'The reviewer queue shows how long ago each item was uploaded.'},
+  {id:'EP-133',t:'Age shown in the reviewer’s time zone',st:'dnp',pr:4,own:'marco',serves:['c-40aa'],reason:'checked by hand in staging',
+   desc:'Render the age relative to the reviewer’s own time zone.'},
+  {id:'EP-158',t:'Upload fails on a file name with a colon',st:'triage',pr:1,own:'dylan',serves:[],tie:'support',from:'Priya, from an audit team',
+   desc:'<code>Q3:board-pack.pdf</code> fails at the first chunk. Reported by an engagement team this morning.'},
+  {id:'EP-155',t:'Bump the chunk-store client',st:'todo',pr:0,own:'dylan',serves:[],tie:'chore',desc:'Move to the 2.4 client; no behaviour change.'},
+];
+const GHOSTS = [{id:'EP-128',why:'cancelled by Alice · duplicate of EP-150'}];
+const byId = id => I.find(x => x.id === id);
+
+/* ---------- STATE ---------- */
+const S = {
+  view:'work', prev:'work', mode:'list', group:'criterion', cur:0, sel:new Set(), lit:null,
+  held:[], undo:null, peekOn:false, seq:null, seqT:0, negStep:0, decided:null, clock:new Date(2026,8,25,10,38,0),
+  seen:{neg:false}, desk:{opt:0},
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $ = s => document.querySelector(s);
+const hhmm = d => String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+const now = () => hhmm(S.clock);
+const glyph = (st, pr) => `<span class="g" aria-label="${esc(STATES[st].w)}"><i class="pn p${pr ?? 0}"></i><svg><use href="#${STATES[st].g}"/></svg></span>`;
+const critOf = id => CRIT.find(c => c.id === id);
+function live(msg){ const r = $('#live'); r.textContent = ''; setTimeout(() => r.textContent = msg, 30); }
+/* ONE HEARTBEAT: every .live mark is pinned to the same phase of one clock (DESIGN-SYSTEM). */
+function beatSync(){
+  requestAnimationFrame(() => {
+    if (document.getAnimations) {   // pin every beat animation to the timeline origin: one phase for all
+      document.getAnimations().forEach(a => { if (a.animationName === 'beat' && a.startTime !== 0) a.startTime = 0; });
+    } else {                        // fallback: negative delay from one clock
+      const ph = performance.now() % 2400;
+      document.querySelectorAll('.live').forEach(el => { el.style.animationDelay = (-ph) + 'ms'; });
+    }
+  });
+}
+</script>
+<script>
+/* ---------- VIEW HEADER: one component on every view (02 C5) ---------- */
+const briefChip = () => `<button class="chip brief" data-peek="brief" title="Peek the brief section">brief:${BRIEF.id}@${BRIEF.rev}</button>`;
+const routeBadge = () => `<span class="route" title="Inference route for this project (OD-19): Global = Anthropic API, zero retention"><i></i>${S.route || 'Global'}</span>`;
+function header(){
+  const v = S.view, h = $('#vh');
+  const palBtn = `<button class="btn ghost" data-act="pal"><svg width="14" height="14"><use href="#i-search"/></svg><span class="kbd">Ctrl K</span></button>`;
+  if (v === 'work' || v === 'board') {
+    h.innerHTML = `<span class="ttl">Resumable uploads</span><span class="chip">feat/resumable-uploads</span>${briefChip()}${routeBadge()}<span class="sp"></span>
+      <div class="seg" role="group" aria-label="Layout"><button data-act="mode:list" class="${S.mode==='list'?'on':''}">List</button><button data-act="mode:board" class="${S.mode==='board'?'on':''}">Board</button></div>
+      <div class="seg" role="group" aria-label="Group by"><button data-act="group:criterion" class="${S.group==='criterion'?'on':''}">By criterion</button><button data-act="group:state" class="${S.group==='state'?'on':''}" title="A saved view for people who want the tracker shape. Not the default.">By state</button></div>
+      <button class="btn" data-act="new"><svg width="14" height="14"><use href="#i-plus"/></svg>Issue <span class="kbd">C</span></button>${palBtn}`;
+  } else if (v === 'issue') {
+    const x = byId(S.issue);
+    const run = x.own === 'dylan' && !x.agent && ['todo','backlog','triage'].includes(x.st)
+      ? `<button class="btn pri" data-act="run"><svg width="13" height="13"><use href="#i-run"/></svg>Run an agent <span class="kbd">Shift R</span></button>` : '';
+    h.innerHTML = `<button class="btn ghost" data-act="back">Work <span class="kbd">Esc</span></button><span class="ttl">${x.id}</span>${briefChip()}${routeBadge()}<span class="sp"></span>${run}${palBtn}`;
+  } else {
+    const t = {desk:'Desk',orch:'My Orchestrator',team:'Team',plan:'Evidence Portal · Plan'}[v];
+    const chips = v === 'desk' ? `<span class="chip">all projects</span>` : `<span class="chip">team · Evidence Portal</span>${routeBadge()}`;
+    h.innerHTML = `<span class="ttl">${t}</span>${chips}<span class="sp"></span>${palBtn}`;
+  }
+}
+
+/* ---------- WORK LENS: grouped by criterion, rows never move under the reader ---------- */
+function homeGroups(x){
+  if (S.group === 'criterion') return x.serves.length ? x.serves : ['none'];
+  return [x.hold || x.st];                     // moves.hold: a changed row stays until N
+}
+function groups(){
+  if (S.group === 'criterion') {
+    const gs = CRIT.map(c => ({key:c.id, c, items:I.filter(x => homeGroups(x).includes(c.id))}));
+    gs.push({key:'none', none:true, items:I.filter(x => homeGroups(x).includes('none'))});
+    return gs;
+  }
+  return STATE_ORDER.map(st => ({key:st, st, items:I.filter(x => homeGroups(x).includes(st))})).filter(g => g.items.length);
+}
+function ownerText(x){
+  if (x.own === 'dylan') return 'You';
+  return `${P[x.own].s}${x.touch ? ` · touching <span class="files">${esc(x.touch)}</span>` : ''}`;
+}
+function rightFact(x){
+  if (x.st === 'triage' && x.own === 'dylan') return ['needs you','need'];
+  if (x.st === 'dnp') return ['not proven',''];
+  if (x.st === 'done') return ['proven',''];
+  if (x.st === 'review') return ['review · Priya',''];
+  if (!x.serves.length && x.tie) return ['not tied · ' + x.tie,''];
+  return ['',''];
+}
+function liveness(a){
+  const s = (performance.now() - a.last) / 1000;
+  return s < 10 ? 'live' : 'quiet ' + Math.max(1, Math.round(s / 60)) + 'm';
+}
+function agentLine(x, cls){
+  const a = x.agent; if (!a || x.own !== 'dylan') return '';
+  const d = a.done ? `<span class="dot idle" aria-hidden="true"></span>` : `<span class="dot run live" aria-hidden="true"></span>`;
+  return `<div class="al ${cls||''}"><span></span><span style="display:grid;place-items:center">${d}</span>
+    <span class="mean"><span class="wl">${esc(a.who)}</span>${esc(a.mean)}</span><span class="lv" data-lv="${x.id}">${a.done ? 'exited' : liveness(a)}</span></div>`;
+}
+function rowHTML(x, gk, i){
+  const [rt, rc] = rightFact(x);
+  const cls = ['ir', i === S.cur ? 'cur' : '', S.sel.has(x.id) ? 'sel' : '', x.flash ? 'flash' : '', x.unseen ? 'unseen' : ''].join(' ');
+  let h = `<div class="${cls}" role="row" tabindex="-1" data-id="${x.id}" data-i="${i}" data-g="${gk}" aria-selected="${S.sel.has(x.id)}">
+    <span class="ck" aria-hidden="true"><svg width="14" height="14"><use href="#g-check"/></svg></span>${glyph(x.st, x.pr)}
+    <span class="id">${x.id}</span><span class="ti">${esc(x.t)}</span><span class="own">${ownerText(x)}${x.negDone ? ` <svg width="12" height="12" style="vertical-align:-2px" aria-label="agreed between Orchestrators"><use href="#g-swap"/></svg>` : ''}</span>
+    <span class="rt ${rc}">${rt}</span><i class="fl"></i><i class="tick"></i></div>`;
+  h += agentLine(x, x.agentNew ? 'new' : '');
+  if (x.cause) h += `<div class="cause">→ ${esc(x.cause)}</div>`;
+  if (x.neg && !(S.seen.neg && S.decided)) h += `<div class="neg"><svg width="13" height="13" style="vertical-align:-2px;color:var(--ink-2)"><use href="#g-swap"/></svg> ${x.neg}</div>`;
+  return h;
+}
+function groupHead(g){
+  const n = g.items.length, moving = g.items.filter(x => x.hold && x.hold !== x.st).length;
+  const size = `${n} issue${n === 1 ? '' : 's'}${moving ? `<span class="held"> · ${moving} moving</span>` : ''}`;
+  if (g.c) return `<div class="gh" data-lit="${g.key}"><span class="tnode" aria-hidden="true"></span><span class="gt">${esc(g.c.t)}</span>
+    <span class="conv ${g.c.conv}">${g.c.conv}</span><span class="gs">${size}</span></div>`;
+  if (g.none) return `<div class="gh"><span class="tnode" style="opacity:.4" aria-hidden="true"></span><span class="gt" style="color:var(--ink-2)">Serves no criterion</span><span class="gs">${size}</span></div>`;
+  return `<div class="gh"><span style="width:14px"></span>${glyph(g.st, 0)}<span class="gt">${STATES[g.st].w}</span><span class="gs">${size}</span></div>`;
+}
+function renderWork(){
+  const gs = groups(); let i = 0; S.rows = [];
+  const held = S.held.length + (S.group === 'criterion' ? GHOSTS.length : 0);
+  let h = `<div class="inner"><div class="lede"><span>Serving <b>${BRIEF.name} ${BRIEF.sec}</b>, revision ${BRIEF.rev}. Issues hang from the criterion they prove.</span></div>`;
+  if (held) h += `<div class="holdbar"><span><b>${held === 1 ? 'One change is' : held + ' changes are'} held</b>, so no row moves under you.</span><span class="sp"></span><button class="btn" data-act="apply">Apply <span class="kbd">N</span></button></div>`;
+  h += `<div role="grid" aria-label="Issues by criterion" aria-rowcount="${I.length}">`;
+  for (const g of gs) {
+    h += `<div class="grp ${g.none ? 'none' : ''} ${S.lit === g.key ? 'lit' : ''}" data-gk="${g.key}">${groupHead(g)}<div class="rows">`;
+    for (const x of g.items) { S.rows.push({id:x.id, gk:g.key}); h += rowHTML(x, g.key, i++); }
+    if (g.c && g.c.conv === 'uncovered') h += `<div class="ir gone"><span>No issue serves this yet, so the brief has a visible gap.</span><span><span class="kbd">C</span> files one that does</span></div>`;
+    if (S.group === 'criterion' && g.key === 'c-91e2') for (const gh of GHOSTS) h += `<div class="ir gone"><span><span class="mono">${gh.id}</span> left this view · ${esc(gh.why)}</span><span><span class="kbd">N</span> applies</span></div>`;
+    h += `</div></div>`;
+  }
+  h += `</div></div>`;
+  $('#v-work').innerHTML = h;
+  S.cur = Math.min(S.cur, S.rows.length - 1);
+}
+/* ---------- BOARD: columns are criteria (or states, as a saved view) ---------- */
+function renderBoard(){
+  const gs = groups(); let i = 0; S.rows = [];
+  let h = `<div class="board" role="grid" aria-label="Board">`;
+  for (const g of gs) {
+    const title = g.c ? esc(g.c.t) : g.none ? 'Serves no criterion' : STATES[g.st].w;
+    const meta = g.c ? `<span class="conv ${g.c.conv}">${g.c.conv}</span>` : '';
+    h += `<div class="bcol ${S.lit === g.key ? 'lit' : ''}" data-gk="${g.key}"><div class="bh" data-lit="${g.key}"><div class="gt">${g.st ? glyph(g.st,0) : `<span class="tnode" aria-hidden="true"></span>`}<span>${title}</span></div>
+      <div class="m">${meta}<span class="mono">${g.items.length} issue${g.items.length === 1 ? '' : 's'}</span></div></div><div class="bcards">`;
+    for (const x of g.items) {
+      S.rows.push({id:x.id, gk:g.key});
+      const [rt] = rightFact(x);
+      const a = x.agent && x.own === 'dylan' ? `<div class="al"><span class="dot ${x.agent.done ? 'idle' : 'run live'}" aria-hidden="true"></span><span class="mean"><span class="wl">${esc(x.agent.who)}</span>${esc(x.agent.mean)}</span><span class="lv" data-lv="${x.id}">${x.agent.done ? 'exited' : liveness(x.agent)}</span></div>` : '';
+      h += `<div class="card ${i === S.cur ? 'cur' : ''} ${x.flash ? 'flash' : ''}" tabindex="-1" data-id="${x.id}" data-i="${i++}">
+        <div class="r1">${glyph(x.st, x.pr)}<span class="id">${x.id}</span><span class="rt">${rt}</span></div>
+        <div class="ti">${esc(x.t)}</div><div class="own">${ownerText(x)}</div>${a}<i class="fl"></i></div>`;
+    }
+    if (!g.items.length) h += `<div class="bempty">No issue serves this criterion. <span class="kbd">C</span> files one.</div>`;
+    h += `</div></div>`;
+  }
+  $('#v-board').innerHTML = h + `</div>`;
+  S.cur = Math.min(S.cur, S.rows.length - 1);
+}
+</script>
+<script>
+/* ---------- ISSUE VIEW: the provenance thread, brief to release (05 §2.3) ---------- */
+const DESIGN = {'c-91e2':['Upload panel, interrupted state','design:cv-2e81@4 · frame 3 cites c-91e2'],
+                'c-40aa':['Reviewer queue, age column','design:cv-19d0@2 · frame 1 cites c-40aa']};
+function threadNodes(x){
+  const n = [], own = P[x.own].s;
+  n.push({k:'BRIEF',v:`${BRIEF.name} · ${BRIEF.sec}`,f:`brief:${BRIEF.id}@${BRIEF.rev} · approved by ${BRIEF.by}, ${BRIEF.when}`,p:'brief'});
+  if (x.serves.length) x.serves.forEach(cid => { const c = critOf(cid);
+    n.push({k:'CRITERION',v:c.t,f:`${c.id} · <b>${c.conv}</b>${cid === 'c-91e2' && byId('EP-150').st !== 'done' ? ' · EP-150 not landed' : ''}`,p:'crit:' + cid});
+    if (DESIGN[cid]) n.push({k:'DESIGN FRAME',v:DESIGN[cid][0],f:DESIGN[cid][1],p:'design'}); });
+  else n.push({k:'CRITERION',v:`Not tied · ${x.tie}`,f:'an open end is allowed, a silent one is not · T attaches a criterion',open:true});
+  n.push({k:'ISSUE',v:`${x.id}, revision ${x.rev || 1}`,f:`issue:is-${x.id.slice(3)}@${x.rev || 1} · ${own} · the revision the agent was told`,here:true});
+  if (x.wt) n.push({k:'WORKTREE',v:x.wt,f:`session ${x.sess} · ${S.route || 'Global'} route · started ${x.since}${x.agent ? ' · ' + esc(x.agent.who) : ''}`,p:'span:' + x.id});
+  else if (x.own !== 'dylan' && ['started','review'].includes(x.st)) n.push({k:'WORKTREE',v:`${own}'s worktree`,f:'her agents, her call · you see files touched, never the terminal (OD-15)',open:true});
+  else n.push({k:'WORKTREE',v:'None yet',f:x.own === 'dylan' ? 'Shift R starts a worktree and a managed session' : 'not started',open:true});
+  if (x.proof) n.push({k:'EVIDENCE',v:'Observed by the platform, so no click',f:x.proof,p:'span:' + x.id});
+  else if (x.st === 'dnp') n.push({k:'EVIDENCE',v:'Done, not proven',f:`set by hand by ${own}: “${esc(x.reason)}”`,open:true});
+  else n.push({k:'EVIDENCE',v:'Not yet',f:'the platform runs the criterion’s test at the land commit; that run is the proof',open:true});
+  if (x.st === 'done' && x.noShip) n.push({k:'RELEASE',v:'Landed, not shipped yet',f:'the next release to staging will list it; shipped is derived, never set',open:true});
+  else if (x.st === 'done') n.push({k:'RELEASE',v:'In release 2026.09.25-1 to staging',f:`pinned brief:${BRIEF.id}@${BRIEF.rev} · manifest lists ${x.id} · 10:05`,p:'release'});
+  else n.push({k:'RELEASE',v:'Not shipped',f:'derived from the release manifest, never from moving a card',open:true});
+  return n;
+}
+function renderIssue(trace){
+  const x = byId(S.issue), st = STATES[x.st], pr = ['none','urgent','high','medium','low'][x.pr];
+  const nodes = threadNodes(x).map(t => `<div class="tn ${t.here ? 'here' : ''} ${t.open ? 'open' : ''}" ${t.p ? `data-peek="${t.p}" tabindex="0"` : ''}>
+    <div class="k">${t.k}</div><div class="v">${esc(t.v)}</div><div class="f">${t.f}</div></div>`).join('');
+  let agent = '';
+  if (x.agent && x.own === 'dylan') {
+    const a = x.agent;
+    agent = `<div class="sech">YOUR AGENTS ON THIS ISSUE <span class="mono">one voice: your Orchestrator writes the notes</span></div>
+      <div class="act"><div class="ah"><span class="dot ${a.done ? 'idle' : 'run live'}" aria-hidden="true"></span><span class="wl">${esc(a.who)}</span>
+      <span>${esc(a.mean)}</span><span class="lv" data-lv="${x.id}">${a.done ? 'exited' : liveness(a)}</span></div>
+      ${x.files ? `<div class="files">files  ${x.files.map(esc).join('  ')}</div>` : ''}
+      ${(x.evid || []).map(e => `<div class="ev"><span>${e[0]}</span><span class="mono">${esc(e[1])}</span><span class="sp"></span><span class="tag">${e[2]}</span></div>`).join('')}
+      ${(x.notes || []).map(t => `<div class="note"><span class="src">note · text·A</span>${esc(t)}</div>`).join('')}</div>`;
+  }
+  const neg = x.negDone ? `<div class="sech">BETWEEN ORCHESTRATORS</div><div class="drow"><svg width="14" height="14" style="color:var(--ink-2)"><use href="#g-swap"/></svg><span>${x.negDone}</span><span class="sp"></span><button class="btn ghost" data-go="orch">Typed thread</button></div>`
+    : x.neg ? `<div class="sech">BETWEEN ORCHESTRATORS</div><div class="drow"><svg width="14" height="14" style="color:var(--ink-2)"><use href="#g-swap"/></svg><span>${x.neg}</span><span class="sp"></span><button class="btn ghost" data-go="orch">Typed thread</button></div>` : '';
+  const cms = (x.id === 'EP-142' ? [['PR','Priya','09:40','Can the resume reply include the confirmed offset? The client team asked for it in the design review.'],
+    ['DM','You','09:44','Yes. It goes in the Range header, per the design frame.']] : []).map(c =>
+    `<div class="cm"><div class="me">${c[0]}</div><div><div class="who">${c[1]}<span class="mono">${c[2]}</span></div>${esc(c[3])}</div></div>`).join('');
+  $('#v-issue').innerHTML = `<div class="iv"><div class="ivm">
+    <div class="ivhead">${glyph(x.st, x.pr)}<span class="id">${x.id}</span><span style="font-size:12.5px;color:var(--ink-2)">${st.w} · ${pr} · ${x.own === 'dylan' ? 'you' : P[x.own].s}</span></div>
+    <h1 class="ivt">${esc(x.t)}</h1><div class="ivd"><p>${x.desc || ''}</p>${x.from ? `<p class="by">Filed by ${esc(x.from)}. Waiting in triage for you: 1 accept, 2 duplicate, 3 decline, 4 snooze.</p>` : ''}</div>
+    <div class="sech">THE THREAD <span class="mono">each node opens its source</span></div>
+    <div class="thr ${trace ? 'trace' : ''}"><i class="ln" aria-hidden="true"></i>${nodes}</div>
+    ${agent}${neg}
+    <div class="sech">COMMENTS</div>${cms}
+    <label class="compose"><input placeholder="Comment. People read this; agents read it only as data, never as instructions." /></label>
+    </div><aside class="ivs">${issueSide(x)}</aside></div>`;
+  beatSync();
+}
+function issueSide(x){
+  const pr = ['No priority','Urgent','High','Medium','Low'][x.pr];
+  const serves = x.serves.length ? x.serves.map(c => `<span class="mono">${c}</span>`).join(' ') : `<span style="color:var(--ink-2)">not tied · ${x.tie}</span>`;
+  const cost = x.cost ? `<dt>Spend</dt><dd><span class="mono">${x.cost}</span></dd>` : '';
+  return `<div class="sech">PROPERTIES</div><dl class="prop">
+    <dt>State</dt><dd>${glyph(x.st, 0)}${STATES[x.st].w}</dd>
+    <dt>Priority</dt><dd><span class="g"><i class="pn p${x.pr}"></i></span>${pr}</dd>
+    <dt>Assignee</dt><dd><span class="me" style="width:18px;height:18px;font-size:8px">${P[x.own].ini}</span>${x.own === 'dylan' ? 'You' : P[x.own].n}</dd>
+    <dt>Serves</dt><dd>${serves}</dd>
+    <dt>Feature</dt><dd>Resumable uploads</dd>
+    <dt>Branch</dt><dd><span class="mono">${x.wt ? x.wt : 'feat/resumable-uploads'}</span></dd>
+    <dt>Route</dt><dd>${routeBadge()}</dd>${cost}
+    ${x.id === 'EP-142' || x.id === 'EP-150' ? `<dt>Related</dt><dd><span class="mono">${x.id === 'EP-142' ? 'EP-150' : 'EP-142'}</span></dd>` : ''}</dl>
+    <div class="sech">KEYS</div><dl class="prop" style="font-size:12px">
+    <dt><span class="kbd">S</span> <span class="kbd">P</span></dt><dd>state, priority</dd>
+    <dt><span class="kbd">A</span> <span class="kbd">I</span></dt><dd>assignee, assign to me</dd>
+    <dt><span class="kbd">T</span></dt><dd>attach a criterion</dd>
+    <dt><span class="kbd">Shift R</span></dt><dd>run an agent (yours only)</dd>
+    <dt><span class="kbd">Shift A</span></dt><dd>ask your Orchestrator</dd></dl>`;
+}
+
+/* ---------- DESK: answers in place, never navigates; never live while you are on it ---------- */
+const OPTS = [
+  ['Split, as both Orchestrators propose','EP-150 owns store/chunks.go. Your agent adds ResumeOffset() through its ChunkStore interface and stops editing the file.','both agree'],
+  ['Sequence: EP-142 waits for EP-150 to land','Your agent pauses its store edits and keeps working on upload.go.',''],
+  ['Ask Alice to let EP-142 go first','Your Orchestrator asks hers. It is a request to Alice, never an instruction to her agents.',''],
+  ['Hold, the safe default','Nobody edits store/chunks.go until you answer. Nothing is paused or deleted.','default at 11:30'],
+];
+function decisionCard(){
+  return `<div class="dcard need" id="decide"><div class="nrow"><svg width="13" height="13"><use href="#g-orch"/></svg>you · orch<svg width="13" height="13"><use href="#g-swap"/></svg>alice · orch
+      <span class="sep">·</span>store/chunks.go<span class="sep">·</span>round 2 of 3<span class="by">decide by 11:30</span></div>
+    <div class="dq">Who edits store/chunks.go while EP-142 and EP-150 both need it?</div>
+    <div class="dwhy">Fleet caught the overlap at plan time, before either agent wrote to the file. Both Orchestrators accept a split. Yours escalated because a split makes
+      <b>EP-142 depend on EP-150’s ChunkStore interface, which has not landed</b>, and your policy makes that your call. Alice’s policy let hers agree without asking her.</div>
+    ${OPTS.map((o, i) => `<button class="opt ${S.desk.opt === i ? 'on' : ''}" data-opt="${i}"><span class="kbd">${i + 1}</span><span class="tx">${o[0]}<small>${o[1]}</small></span><span class="rec">${o[2]}</span></button>`).join('')}
+    <div class="dfoot"><span>Answering tells your Orchestrator. It tells Alice’s. Alice is informed, not asked.</span><span class="sp"></span>
+      <button class="btn ghost" data-go="orch">Typed thread</button><button class="btn ghost" data-act="defer">Defer <span class="kbd">H</span></button></div></div>`;
+}
+function renderDesk(){
+  const need = [];
+  if (S.negStep >= NEG.length && !S.decided) need.push(decisionCard());
+  const t = byId('EP-158');
+  if (t.st === 'triage') need.push(`<div class="drow" style="background:var(--surface)"><i class="dot need" aria-hidden="true"></i>${glyph('triage', 1)}<span class="mono">EP-158</span><span>${esc(t.t)}</span>
+    <span style="color:var(--ink-2);font-size:12px">urgent · from ${esc(t.from)}</span><span class="sp"></span>
+    <button class="btn" data-tri="1">Accept <span class="kbd">1</span></button><button class="btn ghost" data-tri="4">Snooze <span class="kbd">4</span></button></div>`);
+  const mine = I.filter(x => x.own === 'dylan' && x.agent);
+  const changed = mine.filter(x => x.agent.changed && !x.agent.done), steady = mine.filter(x => !x.agent.changed && !x.agent.done);
+  const cards = changed.map(x => `<div class="dcard"><div class="nrow"><span class="dot run live" aria-hidden="true"></span>${esc(x.agent.who)}<span class="sep">·</span>EXECUTING<span class="sep">·</span>${x.id}<span class="by" style="color:var(--ink-2)">${liveness(x.agent)}</span></div>
+    <div class="dq" style="font-weight:500;font-size:13.5px">${esc(x.agent.mean)}</div><div class="dwhy" style="margin:0">${esc(x.agent.next || 'Works alone until the tests pass, then marks the worktree ready.')}</div></div>`).join('');
+  const fold = steady.length ? `<div class="drow fold" data-act="unfold"><span class="dot run live" aria-hidden="true"></span><span>${steady.length} steady, all live</span><span class="sp"></span><span class="mono">${S.unfold ? steady.map(x => x.agent.who + ' · ' + x.id).join('   ') : 'Enter expands'}</span></div>` : '';
+  const landed = S.landed.length ? S.landed.map(l => `<div class="drow">${glyph('done', 0)}<span class="mono">${l[0]}</span><span>${l[1]}</span><span class="sp"></span><span class="mono">${l[2]}</span></div>`).join('')
+    : `<div class="zero">Nothing of yours landed since you last looked.</div>`;
+  const dwy = S.dwy.map(l => `<div class="drow"><svg width="14" height="14" style="color:var(--ink-2)"><use href="#g-swap"/></svg><span>${l[0]}</span><span class="sp"></span><span class="mono">${l[1]}</span>${l[2] ? `<button class="btn ghost" data-act="undo-dwy">Undo</button>` : ''}</div>`).join('');
+  const informs = S.informs.map(l => `<div class="drow"><span>${l[0]}</span><span class="sp"></span><span class="mono">${l[1]}</span></div>`).join('');
+  const zero = need.length ? '' : `<div class="zero"><b>Nothing needs you.</b> ${S.landed.length ? esc(S.landed[0][0]) + ' landed and proven at ' + S.landed[0][2] + '. ' : ''}Your agents are live on ${mine.filter(x => !x.agent.done).length} issues.</div>`;
+  $('#v-desk').innerHTML = `<div class="inner" style="max-width:860px">${S.deskHeld ? `<div class="holdbar"><span><b>A new item arrived.</b> The Desk does not re-rank while you read it.</span><span class="sp"></span><button class="btn" data-act="desk-apply">Show <span class="kbd">N</span></button></div>` : ''}
+    <div class="dsec"><div class="sech">NEEDS YOU</div>${need.join('') || zero}</div>
+    <div class="dsec"><div class="sech">DECIDED WITHOUT YOU</div>${dwy || '<div class="zero">Nothing was decided for you.</div>'}</div>
+    <div class="dsec"><div class="sech">FAILED</div><div class="zero">Nothing failed.</div></div>
+    <div class="dsec"><div class="sech">LANDED</div>${landed}</div>
+    <div class="dsec"><div class="sech">RUNNING</div>${cards}${fold}</div>
+    <div class="dsec"><div class="sech">SINCE YOU LAST LOOKED</div>${informs}</div></div>`;
+  S.deskHeld = false; beatSync();
+}
+</script>
+<script>
+/* ---------- ORCHESTRATORS: typed moves only (TM-05 §6.2), each directs only its own workers ---------- */
+const NEG = [
+  {s:'c',ty:'fleet · lease overlap',tx:'Intent leases overlap on <span class="mono">store/chunks.go</span>: EP-142 (Dylan) and EP-150 (Alice). Caught at plan time, before either agent wrote to it.'},
+  {s:'l',ty:'open · conflict thread',tx:'EP-142 needs a resume offset on each chunk record in <span class="mono">store/chunks.go</span>. It serves c-91e2.'},
+  {s:'r',ty:'propose · sequence',tx:'EP-150 goes first. It replaces the chunk record with a <span class="mono">ChunkStore</span> interface. EP-142 waits for it to land. It serves c-91e2 and c-b3f1.'},
+  {s:'l',ty:'counter · split',tx:'EP-150 owns the file. EP-142 adds <span class="mono">ResumeOffset()</span> through the new interface and never edits it. Both proceed now.'},
+  {s:'r',ty:'accept · split',t2:'within Alice’s policy',tx:'Alice’s policy allows a split without asking her. She will be informed.'},
+  {s:'l',ty:'escalate · decide',t2:'Dylan’s policy',tx:'The split adds a dependency on work that has not landed. Dylan’s policy makes that his call. Four options sent to his Desk.',esc:true},
+  {s:'c',ty:'fleet · holding',tx:'Until Dylan answers, nobody edits <span class="mono">store/chunks.go</span>. Nothing is paused or deleted. Safe default at 11:30: hold.'},
+];
+const NEG_AFTER = o => [
+  {s:'l',ty:'decided · ' + ['split','sequence','ask to go first','hold'][o],t2:'Dylan, ' + now(),tx:['Dylan chose the split. Directing my own workers: dylan · agent 1 moves to ResumeOffset() on ChunkStore.','Dylan chose to wait. dylan · agent 1 stops store edits and stays on upload.go.','Dylan asks to go first. Sending the request to Alice’s Orchestrator, which will ask her.','Dylan holds. Nobody edits store/chunks.go.'][o],ok:true},
+  {s:'r',ty:'ack',tx:'Directing my own workers to match. Alice informed on her Desk.',ok:true},
+  {s:'c',ty:'fleet · leases updated',tx:o === 0 ? '<span class="mono">store/chunks.go</span> → EP-150. <span class="mono">upload.go, resume.go</span> → EP-142. c-b3f1 is no longer contested.' : 'Leases follow the decision. Both issues show the outcome.'},
+];
+function renderOrch(){
+  const all = NEG.slice(0, S.negStep).concat(S.decided != null ? NEG_AFTER(S.decided) : []);
+  S.orchLen = all.length;
+  const moves = S.replay != null ? all.slice(0, S.replay) : all;
+  const mv = m => `<div class="mv ${m.s === 'r' ? 'r' : m.s === 'c' ? 'c' : ''} ${m.esc ? 'esc' : ''} ${m.ok ? 'ok' : ''}"><div class="ty">${m.ty}${m.t2 ? `<span class="t2">${m.t2}</span>` : ''}</div><div class="tx">${m.tx}</div></div>`;
+  const waiting = (S.negStep < NEG.length || (S.replay != null && S.replay < all.length)) ? `<div class="mv c" style="animation:none"><div class="tx" style="color:var(--ink-2)"><span class="dot run live" aria-hidden="true" style="margin-right:8px"></span>Negotiating. A new move arrives on the beat.</div></div>` : '';
+  $('#v-orch').innerHTML = `<div class="inner" style="max-width:980px">
+    <p class="fence">Orchestrators are the only channel between owners. They trade typed moves (<span class="mono">split · sequence · yield · build-on · proceed-both</span>), never each other’s transcripts, and each directs only its own workers. Nobody steers another person’s agent.</p>
+    <div class="dcard" style="margin-bottom:18px"><div class="nrow">your escalation policy<span class="sep">·</span>set by you, 22 Sep</div>
+      <div class="dwhy" style="margin:6px 0 0"><b>Ask me</b> when a resolution adds a dependency on unlanded work, or holds my issue for another owner. <b>Tell me</b> about anything else inside my scope. <b>Never</b> accept a yield on a criterion I own without asking.</div></div>
+    <div class="nx"><div class="colh"><svg width="14" height="14"><use href="#g-orch"/></svg><b>Your Orchestrator</b> · EP-142, EP-144</div><div></div>
+      <div class="colh"><svg width="14" height="14"><use href="#g-orch"/></svg><b>Alice’s Orchestrator</b> · EP-150, EP-147</div>
+      ${moves.map(mv).join('')}${waiting}</div>
+    <div style="margin-top:14px;display:flex;gap:8px">${S.negStep >= NEG.length && S.decided == null ? `<button class="btn pri" data-go="desk">Answer on your Desk</button>` : ''}<button class="btn ghost" data-act="replay">Replay the negotiation</button></div></div>`;
+  beatSync();
+}
+
+/* ---------- TEAM: the calm summary (OD-15). Who, one line of what, which files. ---------- */
+function renderTeam(){
+  const pending = S.negStep >= NEG.length && S.decided == null;
+  const ep144 = byId('EP-144'), ov = f => pending && f === 'store/chunks.go' ? `<span class="ov">${f}</span>` : f;
+  const people = [
+    ['dylan','You','Resume handler for cut uploads' + (ep144.agent && !ep144.agent.done ? '; an agent is on token expiry' : ep144.st === 'done' ? '; token expiry is done' : ''),
+      ['services/api/upload.go','resume.go'].concat(S.decided === 0 ? [] : ['store/chunks.go'])],
+    ['alice','Alice Chen','Building the chunked upload API. Chunk dedupe is in review.',['upload/*.go','store/chunks.go']],
+    ['priya','Priya Raman','Reviewing chunk dedupe. Closed the retry budget this morning.',['web/review/age.tsx']],
+    ['marco','Marco Ruiz','Quiet since 09:20. Hash rejection waits in backlog.',[]],
+  ];
+  const calm = `Four people on Evidence Portal. Alice and Priya are steady. ${pending ? '<span>One decision waits on you: who edits <span class="mono" style="font-size:15px">store/chunks.go</span>.</span>' : '<span class="q">Nothing waits on you.</span>'} <span class="q">The retry budget landed and was proven at 09:58.</span>`;
+  const rows = people.map(p => `<div class="pp" data-person="${p[0]}" tabindex="0"><div class="av">${P[p[0]].ini}</div><div class="nm">${p[1]}</div>
+    <div><div class="ln1">${esc(p[2])}</div><div class="ln2">${p[3].length ? 'touching ' + p[3].map(ov).join(', ') : 'touching nothing'}</div></div></div>`).join('');
+  const crit = CRIT.map(c => { const n = I.filter(x => x.serves.includes(c.id)).length;
+    return `<div class="crow" data-go="work"><span class="tnode" aria-hidden="true" style="margin:0"></span><span>${esc(c.t)}</span><span class="conv ${c.conv}">${c.conv}</span><span class="mono">${n} issue${n === 1 ? '' : 's'}</span></div>`; }).join('');
+  $('#v-team').innerHTML = `<div class="inner" style="max-width:860px"><p class="calm">${calm}</p>
+    <div class="sech">PEOPLE <span class="mono">Space peeks a person: issues, reasons, files. Never a terminal.</span></div>${rows}
+    <div class="sech">THE BRIEF’S CRITERIA</div><div class="crit">${crit}</div></div>`;
+}
+function renderPlan(){
+  const t = byId('EP-158');
+  $('#v-plan').innerHTML = `<div class="inner" style="max-width:860px">
+    <div class="sech">TRIAGE <span class="mono">1 accept · 2 duplicate · 3 decline · 4 snooze</span></div>
+    ${t.st === 'triage' ? `<div class="drow">${glyph('triage', 1)}<span class="mono">EP-158</span><span>${esc(t.t)}</span><span class="sp"></span><span style="font-size:12px;color:var(--ink-2)">from ${esc(t.from)}</span><button class="btn" data-tri="1">Accept <span class="kbd">1</span></button></div>` : '<div class="zero">Triage is empty.</div>'}
+    <div class="sech">FEATURES <span class="mono">a feature and its branch are one row</span></div>
+    <div class="drow fold" data-go="work"><svg width="14" height="14"><use href="#i-work"/></svg><span>Resumable uploads</span><span class="mono">feat/resumable-uploads</span><span class="sp"></span><span class="mono">4 criteria</span></div>
+    <div class="drow"><svg width="14" height="14"><use href="#i-work"/></svg><span>Reviewer queue</span><span class="mono">feat/reviewer-queue</span><span class="sp"></span><span style="font-size:12px;color:var(--ink-2)">not drawn in this prototype</span></div></div>`;
+}
+</script>
+<script>
+/* ---------- NAVIGATION + RENDER ---------- */
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+function render(trace){
+  const v = S.view, ae = document.activeElement;
+  if (v === 'issue' && !trace && ae && ae.matches && ae.matches('#v-issue input')) { header(); return; }   // never wipe a comment being typed
+  document.querySelectorAll('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
+  header();
+  ({work:renderWork, board:renderBoard, issue:() => renderIssue(trace), desk:renderDesk, orch:renderOrch, team:renderTeam, plan:renderPlan})[v]();
+  const key = v === 'board' ? 'work' : v === 'issue' ? 'issue:' + S.issue : v;
+  document.querySelectorAll('.rail .nav').forEach(n => n.classList.toggle('cur', n.dataset.go === key || (v === 'issue' && n.dataset.go === 'work' && !document.querySelector(`.rail [data-go="issue:${S.issue}"]`))));
+  $('#rail-need').style.display = (byId('EP-158').st === 'triage' || (S.negStep >= NEG.length && S.decided == null)) ? '' : 'none';
+  if (v === 'orch' || v === 'desk') S.seen.neg = true;
+  beatSync(); if (S.listFocus) focusCur();
+}
+function go(v){
+  hidePeek();
+  if (v.startsWith('issue:')) { S.issue = v.slice(6); v = 'issue'; }
+  if (v === 'work2') v = 'plan';
+  if (v === 'work' && S.mode === 'board') v = 'board';
+  const change = () => { if (v === 'issue' && S.view !== 'issue') S.prev = S.view; S.view = v; S.listFocus = (v === 'work' || v === 'board'); render(v === 'issue'); };
+  if (document.startViewTransition && !reduced()) {
+    const t = document.querySelector(`.ir[data-id="${S.issue}"] .ti, .card[data-id="${S.issue}"] .ti`);
+    if (v === 'issue' && t) t.style.viewTransitionName = 'issue-title';      // shared element: row title → issue title
+    document.startViewTransition(() => { change(); const n = document.querySelector('.ivt'); if (n && v === 'issue') n.style.viewTransitionName = 'issue-title'; });
+  } else change();
+}
+const listEls = () => [...document.querySelectorAll(S.view === 'board' ? '#v-board .card' : '#v-work .ir[data-id]')];
+function focusCur(){ const el = listEls()[S.cur]; if (el) { el.focus({preventScroll:true}); el.scrollIntoView({block:'nearest'}); } }
+function moveCur(d){
+  const els = listEls(); if (!els.length) return;
+  els[S.cur] && els[S.cur].classList.remove('cur');
+  S.cur = Math.max(0, Math.min(els.length - 1, S.cur + d));
+  els[S.cur].classList.add('cur'); S.listFocus = true; focusCur(); setLit(S.rows[S.cur] && S.rows[S.cur].gk);
+}
+function setLit(gk){          // lit is not selected: brighten the criterion's thread, never ring a row
+  if (S.group !== 'criterion') gk = null;
+  S.lit = gk;
+  document.querySelectorAll('.grp,.bcol').forEach(g => g.classList.toggle('lit', g.dataset.gk === gk));
+}
+const curId = () => S.view === 'issue' ? S.issue : (S.rows && S.rows[S.cur] ? S.rows[S.cur].id : null);
+
+/* ---------- TOAST: optimistic, with an Undo window ---------- */
+function toast(msg, undo){
+  const t = $('#toast'); $('#toast-t').innerHTML = msg; $('#toast-u').style.display = undo ? '' : 'none';
+  t.classList.remove('on'); void t.offsetWidth; t.classList.add('on');
+  clearTimeout(S.toastT); S.undo = undo || null;
+  S.toastT = setTimeout(() => { t.classList.remove('on'); S.undo = null; }, 5000);
+  live(msg.replace(/<[^>]+>/g, '') + (undo ? '. Undo, U' : ''));
+}
+function doUndo(){ if (!S.undo) return; const f = S.undo; S.undo = null; $('#toast').classList.remove('on'); f(); }
+function flash(x){ x.flash = true; setTimeout(() => { x.flash = false; }, 700); if (reduced()) x.unseen = true; }
+
+/* ---------- PEEK: the evidence a decision rests on (02 C9). Every thread node opens its source. ---------- */
+const SPAN = {
+  'EP-142':`<span class="mono">s-7f3a · dylan · agent 1 · lines 212-223 of the managed session</span><pre>212  read services/api/upload.go
+213  read store/chunks.go  (ChunkRecord, 41 lines)
+214  plan: offset = last confirmed chunk * 8 MB
+215  note: the brief does not set a chunk size; assume 8 MB
+216  edit services/api/upload.go  +38 −4
+217    func (h *Handler) Resume(w, r) {
+218      off, err := h.store.ConfirmedOffset(r.Context(), id)
+219      w.Header().Set("Range", fmt.Sprintf("bytes=0-%d", off-1))
+220      w.WriteHeader(308)
+<b>221  go test ./services/api/... -run TestResume</b>
+222  --- PASS: TestResumeAfterDrop (0.84s)
+223  ok   services/api  1.02s</pre>`,
+  'EP-139':`<span class="mono">evidence · observed by the platform at 7c1f0a2 · 09:58</span><pre>runner   panacea-eval (not the agent)
+commit   7c1f0a2  Panacea-Issue: EP-139
+test     go test ./store/... -run TestRetryBudget
+<b>exit     0</b>
+cites    c-91e2 · EP-139
+recorded by the platform: no click needed</pre>`,
+};
+function peekHTML(kind){
+  if (kind === 'brief') return `<span class="mono">brief:${BRIEF.id}@${BRIEF.rev} · ${BRIEF.sec} · approved by Dylan, 12 Sep</span><pre>§3.1 <b>An upload of up to 40 MB survives a dropped connection</b>
+     and resumes from the last chunk the server confirmed.
+§3.2 A resume token lives 24 hours.
+§3.3 <b>No chunk is stored twice.</b>
+§3.4 A reviewer sees how old each piece of evidence is.
+§3.5 Upload progress is announced to screen readers.</pre>`;
+  if (kind.startsWith('crit:')) { const c = critOf(kind.slice(5)); const by = I.filter(x => x.serves.includes(c.id)).map(x => x.id).join(', ') || 'no issue';
+    return `<span class="mono">${c.id} · ${c.conv} · from brief:${BRIEF.id}@${BRIEF.rev} ${BRIEF.sec}</span><pre><b>${esc(c.t)}</b>
+served by   ${by}
+settles     when all of its evidence holds at the head</pre>`; }
+  if (kind === 'design') return `<span class="mono">design:cv-2e81@4 · frame 3 · Upload panel, interrupted state</span><pre>cites     c-91e2
+shows     "Connection lost at 23.6 MB. Resuming when you are back."
+states    interrupted · resuming · resumed · failed after 5 tries</pre>`;
+  if (kind === 'release') return `<span class="mono">release 2026.09.25-1 · staging · 10:05</span><pre>pins      brief:${BRIEF.id}@${BRIEF.rev}
+issues    EP-131, EP-139
+derived   from Panacea-Issue trailers in the shipped range</pre>`;
+  if (kind.startsWith('span:')) { const id = kind.slice(5), x = byId(id);
+    return SPAN[id] || (x.agent ? `<span class="mono">${x.sess} · ${esc(x.agent.who)} · latest lines</span><pre>${(x.log || []).slice(-12).map((l, i) => `${String(i + 1).padStart(3)}  ${esc(l)}`).join('\n') || 'starting'}</pre>` : 'No span yet.'); }
+  if (kind.startsWith('person:')) { const p = kind.slice(7), mine = I.filter(x => x.own === p && !['done','dnp'].includes(x.st));
+    return `<span class="mono">${P[p].n} · issues, reasons and files. Never a terminal (OD-15).</span><pre>${mine.map(x => `${x.id}  ${esc(x.t)}\n       serves ${x.serves.join(', ') || 'no criterion'}${x.touch ? '\n       touching ' + esc(x.touch) : ''}`).join('\n') || 'no open issues'}</pre>`; }
+  const x = byId(kind); if (!x) return '';
+  if (x.own === 'dylan' && x.agent) return peekHTML('span:' + x.id);
+  if (x.proof) return SPAN[x.id] || `<span class="mono">evidence · ${esc(x.proof)}</span>`;
+  if (x.own !== 'dylan') return peekHTML('person:' + x.own);
+  return `<span class="mono">${x.id} · ${STATES[x.st].w} · ${x.serves.length ? 'on the thread' : 'not tied · ' + x.tie}</span><pre>${esc(x.t)}\n${x.serves.map(c => 'serves ' + c + '  ' + critOf(c).t).join('\n')}</pre>`;
+}
+function showPeek(kind, anchor){
+  const p = $('#peek'); p.innerHTML = peekHTML(kind); if (!p.innerHTML) return;
+  const r = anchor.getBoundingClientRect();
+  const top = Math.min(innerHeight - 280, r.bottom + 6), left = Math.min(innerWidth - 460, Math.max(12, r.left));
+  p.style.top = top + 'px'; p.style.left = left + 'px'; p.classList.add('on'); p.setAttribute('aria-hidden', 'false'); S.peekOn = kind;
+}
+function hidePeek(){ const p = $('#peek'); p.classList.remove('on'); p.setAttribute('aria-hidden', 'true'); S.peekOn = false; }
+</script>
+<script>
+/* ---------- AN AGENT TEAMMATE TAKES AN ISSUE (05 §2.1). States come from facts, never from agent text. ---------- */
+const SIM = [
+  {m:'acknowledged · reading EP-144 and criterion c-91e2'},
+  {m:'reading the brief’s §3.2: a resume token lives 24 hours'},
+  {m:'planning an expiry check in resume.go and a test at 24 h plus 1 s'},
+  {m:'writing resume_expiry_test.go', files:['services/api/resume.go','services/api/resume_expiry_test.go']},
+  {m:'running go test ./services/api/... · 1 failing, as planned'},
+  {m:'writing the expiry check in resume.go'},
+  {m:'running go test ./services/api/... · exit 0'},
+  {m:'worktree marked ready · in the merge queue, behind EP-147 (review)', st:'review', cause:'in review · worktree ep-144 entered the merge queue'},
+  {m:'landed as 9e41b7d', st:'landed', cause:'landed · 9e41b7d carries Panacea-Issue: EP-144'},
+  {m:'exited · the platform ran the test at the land commit', st:'done', end:true},
+];
+function setState(x, st, cause){
+  if (S.group === 'state' && !x.hold && x.st !== st) { x.hold = x.st; S.held.push(x.id); }
+  x.st = st; x.cause = cause; flash(x);
+}
+function runAgent(id){
+  const x = byId(id || curId());
+  if (!x) return;
+  if (x.own !== 'dylan') { toast(`${x.id} is ${P[x.own].s}’s. You can ask your Orchestrator to raise it with hers (<span class="kbd">Shift A</span>), never run her agents.`); return; }
+  if (x.agent || !['todo','backlog','triage'].includes(x.st)) { toast(`${x.id} already has your agent on it.`); return; }
+  const before = {st:x.st, cause:x.cause};
+  const wt = 'ep-144-expire-resume-tokens';
+  x.wt = wt; x.sess = 's-81c0'; x.since = now(); x.rev = 1; x.tok = 0;
+  x.agent = {who:'dylan · agent 2', mean:'starting a managed session on the Global route', last:performance.now(), changed:true, next:'Works alone until the test passes, then marks the worktree ready.'};
+  x.agentNew = true; x.log = ['session s-81c0 started · Global route · token scoped to this session'];
+  x.notes = [];
+  setState(x, 'started', `started · worktree ${wt} bound, written as you · ${now()}`);
+  $('#rail-wt').insertAdjacentHTML('beforeend', `<button class="nav" data-go="issue:${x.id}" id="rw-${x.id}"><svg width="16" height="16"><use href="#i-branch"/></svg><span class="t"><span class="br" style="color:var(--ink-2)">${wt}</span></span></button>`);
+  S.sim = {id:x.id, step:-1, t0:performance.now()};
+  render();
+  setTimeout(() => { x.agentNew = false; }, 400);
+  toast(`Started <span class="mono">${x.id}</span> · worktree ${wt} · managed session`, () => {
+    S.sim = null; x.agent = null; x.wt = null; x.st = before.st; x.cause = before.cause; x.log = null;
+    const rw = $('#rw-' + x.id); rw && rw.remove(); render(); toast(`${x.id} is back in todo. No session ran.`);
+  });
+  // first sign of work within the 10 s budget (02 C8 budget.ack)
+  setTimeout(() => { if (S.sim && S.sim.id === x.id && S.sim.step < 0) simStep(x, true); }, 1200);
+}
+function simStep(x, ack){
+  const s = S.sim; if (!s || !x || s.id !== x.id) return; s.step++;
+  const st = SIM[s.step]; if (!st) { S.sim = null; return; }
+  const a = x.agent; a.mean = st.m; a.last = performance.now();
+  if (ack) x.notes.push(`first sign of work ${((performance.now() - s.t0) / 1000).toFixed(1)} s after Start`);
+  if (s.step === 2) x.notes.push('token lifetime read from the brief §3.2: 24 hours');
+  x.log.push(st.m); x.tok += 41000 + s.step * 3000;
+  x.cost = `$${(x.tok * 0.0000092).toFixed(2)} · ${Math.round(x.tok / 1000)}k tokens`;
+  if (st.files) x.files = st.files;
+  if (st.st && !st.end) setState(x, st.st, st.cause + ' · ' + now());
+  if (st.end) {
+    a.done = true; a.changed = false; x.noShip = true;
+    x.proof = `9e41b7d · resume_expiry_test, exit 0 · run by the platform · ${now()}`;
+    x.evid = [['observed evidence', `c-91e2 at 9e41b7d · resume_expiry_test, exit 0 · ${now()}`, 'no click needed']];
+    setState(x, 'done', `done · own evidence at 9e41b7d (test run, exit 0) · ${now()}`);
+    S.landed.unshift([x.id, esc(x.t) + ' · landed and proven', now()]);
+    live(`${x.id} landed and proven at ${now()}.`);
+    S.sim = null;
+  }
+  if (S.view !== 'desk') render();
+}
+
+/* ---------- TWO OWNERS' ORCHESTRATORS NEGOTIATE, THEN ESCALATE TO A HUMAN ---------- */
+function negTick(){
+  if (S.negStep >= NEG.length) return;
+  S.negStep++;
+  const a = byId('EP-142'), b = byId('EP-150');
+  if (S.negStep === 1) { a.neg = b.neg = 'Your Orchestrator and Alice’s are negotiating <span class="mono">store/chunks.go</span>. Nothing is paused.'; }
+  if (S.negStep === NEG.length) {
+    a.neg = 'Your Orchestrator asks you to decide who edits <span class="mono">store/chunks.go</span> · <span class="mono">decide by 11:30</span>';
+    b.neg = 'Alice’s Orchestrator agreed a split; yours asked you · <span class="mono">decide by 11:30</span>';
+    live('Your Orchestrator asks you to decide who edits store/chunks.go. It is on your Desk.');
+    if (S.view === 'desk') { S.deskHeld = true; const h = document.querySelector('#v-desk .inner'); if (h && !h.querySelector('.holdbar')) h.insertAdjacentHTML('afterbegin', `<div class="holdbar"><span><b>A new item arrived.</b> The Desk does not re-rank while you read it.</span><span class="sp"></span><button class="btn" data-act="desk-apply">Show <span class="kbd">N</span></button></div>`); }
+  }
+  if (S.view !== 'desk') render();
+  $('#rail-need').style.display = '';
+}
+const OUTCOME = o => [
+  `Split with EP-150 (Alice’s): EP-150 owns <span class="mono">store/chunks.go</span>. Agreed by both Orchestrators ${now()}; you decided, Alice informed.`,
+  `Sequenced after EP-150 (Alice’s) for <span class="mono">store/chunks.go</span>. Agreed ${now()}; you decided, Alice informed.`,
+  `Asked Alice to let EP-142 go first. Her Orchestrator is asking her.`,
+  `Held: nobody edits <span class="mono">store/chunks.go</span> until you choose.`][o];
+function decide(o){
+  if (S.decided != null || S.negStep < NEG.length) return;
+  const a = byId('EP-142'), b = byId('EP-150'), crit = critOf('c-b3f1');
+  const before = {mean:a.agent.mean, files:a.files.slice(), conv:crit.conv};
+  S.decided = o; S.desk.opt = o;
+  a.negDone = b.negDone = OUTCOME(o); a.neg = b.neg = null;
+  if (o === 0) { a.agent.mean = 'building ResumeOffset() on EP-150’s ChunkStore interface'; a.files = a.files.filter(f => f !== 'store/chunks.go'); crit.conv = 'open'; }
+  if (o === 1) a.agent.mean = 'working on upload.go; store edits wait for EP-150';
+  a.agent.last = performance.now(); flash(a); flash(b);
+  render();
+  toast(['Split agreed. Your Orchestrator tells Alice’s; Alice is informed','Sequenced after EP-150. Alice is informed','Request sent to Alice’s Orchestrator','Holding. Nobody edits store/chunks.go'][o], () => {
+    S.decided = null; a.agent.mean = before.mean; a.files = before.files; crit.conv = before.conv; a.negDone = b.negDone = null;
+    a.neg = 'Your Orchestrator asks you to decide who edits <span class="mono">store/chunks.go</span> · <span class="mono">decide by 11:30</span>'; render();
+  });
+}
+
+/* ---------- THE ONE CLOCK: every live thing changes on this beat ---------- */
+const T0 = performance.now(), BASE = S.clock.getTime();
+let beats = 0;
+setInterval(() => {
+  beats++;
+  S.clock = new Date(BASE + (performance.now() - T0));
+  if (beats >= 2) negTick();
+  if (S.sim && S.sim.step >= 0) simStep(byId(S.sim.id));
+  if (S.replay != null) { S.replay++; if (S.replay > S.orchLen) S.replay = null; if (S.view === 'orch') renderOrch(); }
+  if (beats % 5 === 0) {                                   // your steady agent on EP-142 reports on the same beat
+    const a = byId('EP-142').agent, lines = S.decided === 0
+      ? ['building ResumeOffset() on EP-150’s ChunkStore interface','running go test ./services/api/... -run TestResume','writing the 308 reply with the confirmed offset']
+      : ['writing the resume handler in upload.go','running go test ./services/api/... -run TestResume','writing the Range header from the confirmed offset'];
+    a.mean = lines[(beats / 5) % lines.length]; a.last = performance.now();
+    if (S.view === 'work' || S.view === 'board' || (S.view === 'issue' && S.issue === 'EP-142')) render();
+  }
+  document.querySelectorAll('[data-lv]').forEach(el => {        // liveness coarsens, and only on the beat
+    const x = byId(el.dataset.lv); if (x && x.agent && !x.agent.done) el.textContent = liveness(x.agent);
+  });
+}, 2400);
+</script>
+<script>
+/* ---------- COMMAND MENU (Ctrl K): scoped to the selection, stable order, chords shown inline ---------- */
+function askOrch(x){
+  if (!x) return;
+  const other = x.own !== 'dylan';
+  toast(other ? `Asked your Orchestrator about <span class="mono">${x.id}</span>. If it matters, it raises it with ${P[x.own].s}’s Orchestrator. You never steer ${P[x.own].s}’s agents.`
+              : `Asked your Orchestrator about <span class="mono">${x.id}</span>. Its answer lands on your Desk.`);
+}
+function palItems(){
+  const x = curId() && byId(curId()), L = [];
+  const add = (g, l, k, f, o) => L.push(Object.assign({g, l, k, f}, o || {}));
+  if (x) {
+    const g = `THIS ISSUE · ${x.id}`;
+    if (x.own === 'dylan' && !x.agent && ['todo','backlog','triage'].includes(x.st)) add(g, `Run an agent on ${x.id}`, 'Shift R', () => runAgent(x.id), {ic:'i-run', sub:'a worktree and a managed session, as you', agent:true});
+    add(g, `Ask my Orchestrator about ${x.id}`, 'Shift A', () => askOrch(x), {ic:'g-orch', agent:true});
+    if (S.view !== 'issue') add(g, `Open ${x.id}`, 'Enter', () => go('issue:' + x.id), {ic:'i-work'});
+    add(g, 'Peek the evidence behind it', 'Space', () => { const el = document.querySelector(`[data-id="${x.id}"]`) || $('.ivt'); el && showPeek(x.id, el); }, {ic:'i-search'});
+    add(g, 'Assign to me', 'I', () => toast(x.own === 'dylan' ? `${x.id} is already yours.` : `Reassigning ${P[x.own].s}’s in-flight issue asks her first (05 §3.7). Not drawn here.`), {ic:'i-team'});
+    add(g, 'Attach a criterion', 'T', () => toast('Criterion picker: not drawn in this prototype.'), {ic:'g-triage'});
+  }
+  add('GO TO', 'Desk', 'G I', () => go('desk'), {ic:'i-desk'});
+  add('GO TO', 'Work · Resumable uploads', 'G W', () => go('work'), {ic:'i-work'});
+  add('GO TO', 'Plan · Evidence Portal', 'G P', () => go('plan'), {ic:'i-plan'});
+  add('GO TO', 'My Orchestrator', 'G O', () => go('orch'), {ic:'g-orch'});
+  add('GO TO', 'Team', 'G E', () => go('team'), {ic:'i-team'});
+  add('VIEW', S.mode === 'list' ? 'Show as a board' : 'Show as a list', '', () => setMode(S.mode === 'list' ? 'board' : 'list'), {ic:'i-plan'});
+  add('VIEW', S.group === 'criterion' ? 'Group by state (a saved view)' : 'Group by criterion', '', () => setGroup(S.group === 'criterion' ? 'state' : 'criterion'), {ic:'i-work'});
+  add('VIEW', 'Apply held changes', 'N', applyHeld, {ic:'g-check'});
+  add('VIEW', 'Keyboard shortcuts', '?', openSheet, {ic:'i-search'});
+  add('PROJECT', S.route === 'AU' ? 'Route inference Global (Anthropic API, zero retention)' : 'Route inference AU (Bedrock, Sydney, zero retention)', '', toggleRoute, {ic:'i-branch'});
+  add('PROJECT', 'New issue on this feature', 'C', newIssue, {ic:'i-plus'});
+  for (const i of I) add('ISSUES', `${i.id}  ${i.t}`, '', () => go('issue:' + i.id), {ic:STATES[i.st].g, sub:STATES[i.st].w + ' · ' + (i.own === 'dylan' ? 'you' : P[i.own].s), kind:'#'});
+  for (const p of ['alice','priya','marco']) add('PEOPLE', `${P[p].n}: issues and files`, '', () => { go('team'); setTimeout(() => { const el = document.querySelector(`[data-person="${p}"]`); el && showPeek('person:' + p, el); }, 60); }, {ic:'i-team', kind:'@'});
+  add('SESSIONS', 's-7f3a · dylan · agent 1 · EP-142', '', () => go('issue:EP-142'), {ic:'i-branch', kind:'~'});
+  if (byId('EP-144').sess) add('SESSIONS', 's-81c0 · dylan · agent 2 · EP-144', '', () => go('issue:EP-144'), {ic:'i-branch', kind:'~'});
+  return L;
+}
+function palFilter(){
+  const raw = $('#pal-in').value, pre = /^[#@>~]/.test(raw) ? raw[0] : '', q = raw.slice(pre ? 1 : 0).trim().toLowerCase();
+  return S.palAll.filter(it => {
+    if (pre === '>' && it.kind) return false;
+    if (pre && pre !== '>' && it.kind !== pre) return false;
+    if (!pre && !q && it.kind) return false;            // with no query, commands only
+    return !q || (it.l + ' ' + (it.sub || '') + ' ' + it.k).toLowerCase().includes(q);
+  });
+}
+function palRender(){
+  const L = S.palList = palFilter(); S.palSel = Math.min(S.palSel, Math.max(0, L.length - 1));
+  let h = '', g = null;
+  L.forEach((it, i) => {
+    if (it.g !== g) { g = it.g; h += `<div class="pgh">${g}</div>`; }
+    h += `<div class="pit ${i === S.palSel ? 'on' : ''}" role="option" id="pi-${i}" data-pi="${i}" aria-selected="${i === S.palSel}">
+      <span class="ic"><svg width="14" height="14"><use href="#${it.ic || 'i-search'}"/></svg></span>
+      <span class="sp">${esc(it.l)}${it.sub ? `<span class="sub">${esc(it.sub)}</span>` : ''}</span>${it.agent ? '<span class="agent">starts or asks an agent</span>' : ''}${it.k ? `<span class="kbd">${it.k}</span>` : ''}</div>`;
+  });
+  $('#pal-list').innerHTML = h || `<div class="pnone">Nothing matches. Try <span class="kbd">#</span> for issues or <span class="kbd">@</span> for people.</div>`;
+  $('#pal-in').setAttribute('aria-activedescendant', L.length ? 'pi-' + S.palSel : '');
+  const on = $('#pal-list .pit.on'); on && on.scrollIntoView({block:'nearest'});
+}
+function openPal(prefix){
+  S.palAll = palItems(); S.palSel = 0;
+  const x = curId() && byId(curId());
+  $('#pal-scope').innerHTML = x ? `Scoped to <span class="chip">${x.id}</span><span>${esc(x.t)}</span>` : `<span>No issue selected</span>`;
+  $('#pal-in').value = prefix || ''; $('#scrim').classList.add('on'); palRender(); $('#pal-in').focus();
+}
+function closePal(){ $('#scrim').classList.remove('on'); if (S.listFocus) focusCur(); }
+function palRun(i){ const it = S.palList[i]; if (!it) return; closePal(); it.f(); }
+
+/* ---------- SMALL VERBS ---------- */
+function setMode(m){ S.mode = m; S.cur = 0; go('work'); }
+function setGroup(g){ S.group = g; I.forEach(x => { x.hold = null; }); S.held = []; S.cur = 0; render(); }
+function applyHeld(){
+  if (S.view === 'desk') { renderDesk(); return; }
+  const n = S.held.length + GHOSTS.length; if (!n) { toast('Nothing is held.'); return; }
+  I.forEach(x => { x.hold = null; x.cause = null; x.unseen = false; }); S.held = []; GHOSTS.length = 0; render();
+  toast('Applied. Rows now sit where they belong.');
+}
+function toggleRoute(){
+  S.route = S.route === 'AU' ? 'Global' : 'AU'; render();
+  toast(S.route === 'AU' ? 'Evidence Portal now routes inference AU: Amazon Bedrock, Sydney, zero retention. New sessions use it.' : 'Evidence Portal routes inference Global: the Anthropic API, zero retention.');
+}
+function newIssue(){
+  const c = S.rows && S.rows[S.cur] ? S.rows[S.cur].gk : 'c-91e2';
+  toast(`A new issue would open here, already serving <span class="mono">${c === 'none' ? 'no criterion' : c}</span>. The composer is not drawn in this prototype.`);
+}
+function triage(n){
+  const x = byId('EP-158'); if (x.st !== 'triage') return;
+  if (n === 1) { x.st = 'todo'; x.serves = ['c-91e2']; x.tie = null; flash(x); render();
+    toast('EP-158 accepted into todo, serving <span class="mono">c-91e2</span>', () => { x.st = 'triage'; x.serves = []; x.tie = 'support'; render(); }); }
+  else if (n === 4) { x.st = 'backlog'; render(); toast('EP-158 snoozed until tomorrow 09:00', () => { x.st = 'triage'; render(); }); }
+  else toast('Duplicate and decline need a pick. Not drawn in this prototype.');
+}
+function openSheet(){
+  const k = [['J K · ↑ ↓','move, in any list'],['Enter · Esc','open · back'],['Space','peek the evidence behind a row'],['X · Shift ↓','select · extend the selection'],
+    ['C','new issue, already serving the criterion you are in'],['S P L E · T','state · priority · label · estimate · attach a criterion'],['Shift R','run an agent on your issue. Upper case hands work to agents'],
+    ['Shift A','ask your Orchestrator about this row'],['Shift D E P M S','do nothing here, so Linear muscle memory never starts an agent or a bill'],
+    ['G then I W P O E','Desk · Work · Plan · my Orchestrator · Team'],['N · U · H','apply held changes · undo · defer'],['1 2 3 4','on the Desk: answer a decision. In triage: accept, duplicate, decline, snooze'],['Ctrl K · /','command menu · search issues']];
+  $('#sheet').innerHTML = `<div class="pin" style="padding:14px 16px;font-size:14px;font-weight:650">Keyboard</div><div class="kr">${k.map(r => `<b><span class="kbd">${r[0]}</span></b><span>${r[1]}</span>`).join('')}</div>
+    <div class="pfoot"><span>Single keys fire only when focus is in a list, never in a text field or a terminal.</span></div>`;
+  $('#sheet-scrim').classList.add('on');
+}
+function act(a){
+  if (a === 'pal') return openPal();
+  if (a === 'back') return go(S.prev && S.prev !== 'issue' ? S.prev : 'work');
+  if (a.startsWith('mode:')) return setMode(a.slice(5));
+  if (a.startsWith('group:')) return setGroup(a.slice(6));
+  if (a === 'new') return newIssue();
+  if (a === 'run') return runAgent(S.issue);
+  if (a === 'apply' || a === 'desk-apply') return applyHeld();
+  if (a === 'defer') return toast('Deferred to 11:15 with the reason “after standup”. The safe default still holds at 11:30.');
+  if (a === 'unfold') { S.unfold = !S.unfold; return renderDesk(); }
+  if (a === 'undo-dwy') { S.dwy = []; renderDesk(); return toast('Undone. Your Orchestrator tells Alice’s that EP-147’s review order is open again.'); }
+  if (a === 'replay') { S.replay = 0; return renderOrch(); }
+}
+
+/* ---------- KEYBOARD: single keys only when focus is in a list; agent keys test event.code ---------- */
+document.addEventListener('keydown', e => {
+  const pal = $('#scrim').classList.contains('on'), sheet = $('#sheet-scrim').classList.contains('on'), k = e.key;
+  if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === 'k') { e.preventDefault(); pal ? closePal() : openPal(); return; }
+  if (pal) {
+    if (k === 'ArrowDown' || k === 'ArrowUp') { e.preventDefault(); S.palSel = Math.max(0, Math.min(S.palList.length - 1, S.palSel + (k === 'ArrowDown' ? 1 : -1))); palRender(); }
+    else if (k === 'Enter') { e.preventDefault(); palRun(S.palSel); }
+    else if (k === 'Escape') { e.preventDefault(); closePal(); }
+    return;
+  }
+  if (sheet) { if (k === 'Escape' || k === '?') $('#sheet-scrim').classList.remove('on'); return; }
+  if (e.target.matches && e.target.matches('input,textarea')) { if (k === 'Escape') e.target.blur(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (k === 'Escape') {
+    if (S.peekOn) return hidePeek();
+    if (S.view === 'issue') return act('back');
+    if (S.sel.size) { S.sel.clear(); return render(); }
+    return;
+  }
+  if (S.gPending) { S.gPending = false; const m = {i:'desk',w:'work',p:'plan',o:'orch',e:'team',t:'plan',b:'plan',m:'work'}[k.toLowerCase()]; if (m) { e.preventDefault(); go(m); } return; }
+  if (e.shiftKey && e.code === 'KeyR') { e.preventDefault(); return runAgent(); }
+  if (e.shiftKey && e.code === 'KeyA') { e.preventDefault(); return askOrch(byId(curId())); }
+  if (e.shiftKey && e.code === 'KeyO') { e.preventDefault(); return toast('Delegating to your Orchestrator arrives with team mode (W3). <span class="kbd">Shift R</span> runs one agent now.'); }
+  if (e.shiftKey && ['KeyD','KeyE','KeyP','KeyM','KeyS'].includes(e.code)) { e.preventDefault(); return; }   // Linear's chords: deliberately nothing
+  if (k === '?') return openSheet();
+  if (k === '/') { e.preventDefault(); return openPal('#'); }
+  if (k === 'g' || k === 'G') { S.gPending = true; setTimeout(() => { S.gPending = false; }, 1200); return; }
+  if (k === 'u' || k === 'U') return doUndo();
+  if (k === 'n' || k === 'N') return applyHeld();
+  if (S.view === 'desk' || S.view === 'plan') {
+    const n = +k;
+    if (n >= 1 && n <= 4) { if (S.view === 'desk' && S.negStep >= NEG.length && S.decided == null) return decide(n - 1); return triage(n); }
+    if (k === 'h' || k === 'H') return act('defer');
+    return;
+  }
+  if (S.view === 'issue') { if (k === ' ') { e.preventDefault(); S.peekOn ? hidePeek() : showPeek('span:' + S.issue, $('.ivt')); } return; }
+  if (S.view !== 'work' && S.view !== 'board') return;
+  const id = curId(), x = id && byId(id);
+  if (k === 'j' || k === 'ArrowDown') { e.preventDefault(); if (e.shiftKey && x) S.sel.add(id); moveCur(1); if (e.shiftKey) { S.sel.add(curId()); markSel(); } return; }
+  if (k === 'k' || k === 'ArrowUp') { e.preventDefault(); if (e.shiftKey && x) S.sel.add(id); moveCur(-1); if (e.shiftKey) { S.sel.add(curId()); markSel(); } return; }
+  if (S.view === 'board' && (k === 'ArrowRight' || k === 'ArrowLeft')) { e.preventDefault(); return jumpCol(k === 'ArrowRight' ? 1 : -1); }
+  if (k === 'Enter' && x) return go('issue:' + id);
+  if (k === 'x' && x) { S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id); return markSel(); }
+  if (k === ' ' && x) { e.preventDefault(); const el = listEls()[S.cur]; return S.peekOn === id ? hidePeek() : showPeek(id, el); }
+  if (k === 'c') return newIssue();
+  if (k === 'i' && x) return toast(x.own === 'dylan' ? `${x.id} is already yours.` : `Reassigning ${P[x.own].s}’s in-flight issue asks her first. Not drawn here.`);
+  if ('splet'.includes(k) && k.length === 1 && x) return toast(`${{s:'State',p:'Priority',l:'Label',e:'Estimate',t:'Criterion'}[k]} picker for ${x.id}: not drawn in this prototype.`);
+});
+function markSel(){
+  listEls().forEach(el => { const on = S.sel.has(el.dataset.id); el.classList.toggle('sel', on); el.setAttribute('aria-selected', on); });
+  if (S.sel.size) live(`${S.sel.size} selected`);
+}
+function jumpCol(d){
+  const gk = S.rows[S.cur] && S.rows[S.cur].gk, keys = [...new Set(S.rows.map(r => r.gk))], ni = keys.indexOf(gk) + d;
+  if (ni < 0 || ni >= keys.length) return;
+  const idx = S.rows.findIndex(r => r.gk === keys[ni]); if (idx >= 0) moveCur(idx - S.cur);
+}
+
+/* ---------- POINTER ---------- */
+document.addEventListener('click', e => {
+  if (e.target.closest('#pal') && !e.target.closest('.pit')) return;
+  if (e.target === $('#scrim')) return closePal();
+  if (e.target === $('#sheet-scrim')) return $('#sheet-scrim').classList.remove('on');
+  if (e.target.closest('#toast-u')) return doUndo();
+  if (e.target.closest('#open-pal')) return openPal();
+  const ck = e.target.closest('.ir .ck');
+  if (ck) { const id = ck.parentElement.dataset.id; S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id); return markSel(); }
+  const t = e.target.closest('.pit,[data-opt],[data-tri],[data-peek],[data-person],[data-go],[data-act],.ir[data-id],.card[data-id]');
+  if (!t) { if (!e.target.closest('#peek')) hidePeek(); return; }
+  if (t.matches('.pit')) return palRun(+t.dataset.pi);
+  if (t.dataset.opt) return decide(+t.dataset.opt);
+  if (t.dataset.tri) return triage(+t.dataset.tri);
+  if (t.dataset.peek) return S.peekOn === t.dataset.peek ? hidePeek() : showPeek(t.dataset.peek, t);
+  if (t.dataset.person) return showPeek('person:' + t.dataset.person, t);
+  if (t.dataset.go) return go(t.dataset.go);
+  if (t.dataset.act) return act(t.dataset.act);
+  if (t.dataset.id) { S.cur = +t.dataset.i; return go('issue:' + t.dataset.id); }
+});
+document.addEventListener('mousemove', e => {
+  const it = e.target.closest('.pit');
+  if (it && +it.dataset.pi !== S.palSel) { S.palSel = +it.dataset.pi; document.querySelectorAll('.pit').forEach(p => p.classList.toggle('on', p === it)); }
+});
+document.addEventListener('mouseover', e => {
+  const g = e.target.closest('.grp[data-gk],.bcol[data-gk]');
+  const gk = g ? g.dataset.gk : (S.rows && S.rows[S.cur] && S.listFocus ? S.rows[S.cur].gk : null);
+  if (gk !== S.lit && (S.view === 'work' || S.view === 'board')) setLit(gk && gk !== 'none' ? gk : null);
+});
+$('#pal-in').addEventListener('input', () => { S.palSel = 0; palRender(); });
+document.addEventListener('focusin', e => { const g = e.target.closest && e.target.closest('.grp[data-gk]'); if (g) setLit(g.dataset.gk === 'none' ? null : g.dataset.gk); });
+
+/* ---------- INIT ---------- */
+S.landed = []; S.unfold = false; S.route = 'Global'; S.replay = null;
+S.dwy = [['Your Orchestrator and Alice’s put EP-147’s review after EP-150 lands. Inside your policy.', '10:21', true]];
+S.informs = [
+  ['Priya commented on EP-142: can the resume reply include the confirmed offset?', '09:40'],
+  ['EP-139 (Priya’s) was proven at 09:58. c-91e2 stays open until EP-142 and EP-150 land.', '09:58'],
+  ['Alice linked EP-150 to EP-142. Her Orchestrator opened a thread with yours; the link paused nothing.', '10:36'],
+];
+(function(){ const a = byId('EP-142'); a.agent.last = performance.now() - 3000; a.cost = '$3.42 · 372k tokens'; })();
+negTick();                                   // Fleet has just caught the overlap at plan time
+S.view = 'work'; S.listFocus = true; render();
+live('Work, Resumable uploads. Issues grouped by the brief’s criteria.');
+</script>
+</body>
+</html>
