@@ -110,8 +110,11 @@ RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/canvas-upload
 
 (the `COPY` after `:21`'s, and `:22`'s `chmod` gains the second path). The image runs Node 20
 (`FROM node:20-bookworm-slim`, `Dockerfile:10`), so the helper needs nothing installed. It is
-**CommonJS** (`.cjs`, `require`), with the shebang `#!/usr/bin/env node`: Node reads an extensionless
-file as CommonJS, so an ES-module helper would fail once copied to `canvas-upload`. It uses only
+**CommonJS** (`.cjs`, `require`), with the shebang `#!/usr/bin/env node`. Installed without an
+extension and with no `package.json` above it, it is CommonJS to any Node, while ES-module syntax
+runs only on a Node that detects module syntax. The host's Node 24.15.0 does (an extensionless
+`import` probe ran, 2026-09-24); whether the image's Node 20 does is unverified. So a host run
+cannot catch ES-module syntax, and the test pins the source statically. It uses only
 `node:fs`, `node:path` and `node:http`. About 60 lines:
 
 `canvas-upload <file>`
@@ -127,7 +130,9 @@ file as CommonJS, so an ES-module helper would fail once copied to `canvas-uploa
    "arguments":{"data":<base64>,"mediaType":<type>}}}` with `Content-Type: application/json` and
    `Accept: application/json, text/event-stream`. **No `Origin` header** (`task-14.md:122` answers
    one with 403) and no `MCP-Protocol-Version` (optional outside `initialize`, `:127`). That is why it
-   uses `node:http`, which sends only the headers it is given, not `fetch`. The body is at most
+   uses `node:http`, which adds no `Origin` of its own, not `fetch`, whose headers are the Fetch
+   standard's to decide; the success case of `TestCanvasUpload_helper` is the proof, since the real
+   server refuses an `Origin`. The body is at most
    about 14 MB, under the server's 16 MiB cap (`:125`).
 5. `200` with `result.isError: false` → `result.structuredContent` as one JSON line on stdout
    (`asset`, `revision`, `notices`), exit 0. The agent puts `asset.ref` in `<img src>` or `url()`.
@@ -160,7 +165,7 @@ can do through MCP, and no more. The helper adds no power; it names one that alr
 | `TestMove_cycle` | moving a frame into its own child → `invalid`, `cycle` | a corrupted tree |
 | `TestDelete_nested` | deleting a parent and its child together succeeds once | an error for a redundant id |
 | `TestUploadAsset_sniff` | PNG bytes declared `image/jpeg` → `invalid`; an SVG with `<script>` is stored sanitised | a mislabelled or scripted asset |
-| `TestCanvasUpload_helper` (`canvasupload_test.go`) | the real server with the write tools behind an `httptest` server (unstarted first, so its `127.0.0.1:<port>` goes into `allowedHosts`; each request's context gets `WithIdentity` of session S), then `node ../../images/sandbox/canvas-upload.cjs` with `PANACEA_APP_CANVAS_MCP_URL` pointed at it: a 300 KB PNG fixture → exit 0, stdout's `asset.ref` is in the document, its bytes equal the file's, the `add_asset` batch's author is S; the same PNG renamed `.jpg` → exit 1, stderr names `invalid`; a `.gif` and a file of 10 MiB + 1 byte → exit 2, and the server counted **no** request; nothing listening → exit 1, *"not reachable"*. No `node` on `PATH` fails the test, naming `Dockerfile:10`: it is never skipped | the review's I12 (no way to place a real image); a helper that sends `Origin` (403) or ES-module syntax; a size check after the upload |
+| `TestCanvasUpload_helper` (`canvasupload_test.go`) | the real server with the write tools behind an `httptest` server (unstarted first, so its `127.0.0.1:<port>` goes into `allowedHosts`; each request's context gets `WithIdentity` of session S), then `node <tmp>/canvas-upload`, a copy of `../../images/sandbox/canvas-upload.cjs` with **no extension**, as the image installs it, with `PANACEA_APP_CANVAS_MCP_URL` pointed at it. First, statically: the source's first line is `#!/usr/bin/env node` and no line begins `import ` or `export ` (the host's Node would run either, the image's may not). Then: a 300 KB PNG fixture → exit 0, stdout's `asset.ref` is in the document, its bytes equal the file's, the `add_asset` batch's author is S; the same PNG renamed `.jpg` → exit 1, stderr names `invalid`; a `.gif` and a file of 10 MiB + 1 byte → exit 2, and the server counted **no** request; nothing listening → exit 1, *"not reachable"*. No `node` on `PATH` fails the test, naming `Dockerfile:10`: it is never skipped | the review's I12 (no way to place a real image); a helper that sends `Origin` (403) or ES-module syntax; a size check after the upload |
 | `TestImage_shipsCanvasUpload` | `../../images/sandbox/Dockerfile` has the line `COPY images/sandbox/canvas-upload.cjs /usr/local/bin/canvas-upload`, and a `chmod +x` line naming `/usr/local/bin/canvas-upload` | a helper the guide teaches but the image lacks |
 | `TestRequestReview_neverApproves` | after `request_review`, the fake `Approvals` port has no call and the review is `open` | a tool path to approval |
 | `TestNoApproveTool` | `tools/list` has no tool whose name contains `approve`, `bind`, `delete_canvas` or `break` | a forbidden tool added later |
