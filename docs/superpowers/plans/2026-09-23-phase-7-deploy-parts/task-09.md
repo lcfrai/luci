@@ -135,9 +135,13 @@ type Precondition struct {
 func (p *Precondition) Error() string
 
 // Ship runs the sequence below. It returns *Precondition, *deploy.Error, a hubclient error, or
-// a Result. A repeat with the same IdempotencyKey within 15 minutes returns the first Result (or
-// the first error) without calling anything, across a restart too: the record is the Ship
-// journal on disk (step 1, review M22).
+// a Result. A repeat with the same IdempotencyKey settles from the Ship journal's stage on disk
+// (step 1, review M22), across a restart too: while the first act is live it answers 409 conflict
+// (or, for a live confirm loop, the 202 confirmed:false it answered); a done record answers the
+// stored Result or error with no call; a reserved record continues at step 6, a shipping one
+// abandons, a started one confirms. An error before the reserve (steps 2 to 5) writes no record,
+// so a repeat re-checks it. Records are pruned at New (step 1), so the window lasts as long as
+// the process does.
 func (o *Orchestrator) Ship(ctx context.Context, req Request) (Result, error)
 
 // Readiness is steps 3 and 4 of the sequence — the SAME function Ship calls — plus a preview of
@@ -199,19 +203,46 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    `statepath`'s `writeAtomic` (ruling R2) at each stage of `withReservation` (task 10), and
    holding `requestHash`, a sha256 of the act's request as the desktop sent it (`Request` without
    `IdempotencyKey`; task 10's requests likewise):
-   - `reserved` `{releaseId, expiresAt}` — written as soon as Reserve returns;
+   - `reserved` `{releaseId, expiresAt, reserve, act}` — written as soon as Reserve returns.
+     `reserve` is the `hubapi.ReserveRequest` as sent (`panaceaProject`, `environment`, `commit`,
+     …) and `act` is task 10's `ActSpec` (`kind`, `ref`, `branch`, `commit`, `noCache`,
+     `deploymentId`), so step 6 runs from the record alone, with no binding, branch or snapshot
+     read, after a restart as before one (plan re-review b10 M-4);
    - `shipping` — written **before** `Actor.Ship` is called;
-   - `started` `{run}` — written when `Actor.Ship` returns a run;
+   - `started` `{run, answer}` — written when the act returns: `run` for a Ship or Rebuild, `""`
+     for a Rollback, and `answer` the act's Panacea answer as the route needs it (task 10's
+     `RollbackResult` fields for a rollback), so a confirm settled after a restart can answer;
    - `done` `{result | error code, message, details}` — written after the confirm or the abandon.
 
-   A retry that finds a record: a different `requestHash` → `400 bad_request` *"This Idempotency-Key was used for another Ship."* (the Hub's
-   `idempotency_mismatch` rule, contract §1). Otherwise, by stage:
-   - `reserved`, `expiresAt` not passed → take step 2's lock, then continue at step 6 with that
-     release and the commit it reserved. No second Reserve.
+   **The live set** (plan re-review b10 I-1). The journal holds, in memory, the keys of the acts
+   now running in this process. Step 1 claims the key in it (check-and-insert under the journal's
+   mutex) before it reads the record, and the claim is held from there until the record is `done`
+   or its background confirm loop (step 7) ends; an act that stops before the reserve releases it.
+   A retry that finds its key live **never settles the record**: it answers `409 conflict` with the
+   act's own lock sentence (step 2's *"A Ship of this branch is already in progress."* for a Ship;
+   task 10's *"Something is already changing this environment."* for a Rollback or Rebuild), since
+   to the user it is the same act still running, or, when the record is `started` and its confirm
+   loop runs, the `202` with `confirmed: false`, the record's release and run, that the act itself
+   answered. Only
+   a record no live act holds (one left by a stopped process) is settled by stage, and the settler
+   holds the claim while it settles. `Resume` claims each key the same way, so `Resume`, a retry and
+   the act that wrote the record never settle one record twice. Without the live set, a desktop
+   that gives up after its 10 s timeout (`desktop/src/api/client.ts:33`) while Panacea is still
+   inside `POST …/deploy` would retry, find `shipping`, and abandon a Ship that then starts.
+
+   A retry that finds a record no live act holds: a different `requestHash` → `400 bad_request`
+   *"This Idempotency-Key was used for another Ship."* That is this route's own answer: the
+   control plane's code set has no `idempotency_mismatch`, and the case is a client bug. The Hub
+   answers its own form of the case `422 idempotency_mismatch` (contract §1, `:53`); the two codes
+   differ (plan re-review b10 M-2). Otherwise, by stage:
+   - `reserved`, `expiresAt` not passed → take step 2's lock, then continue at step 6 from the
+     record's `reserve` and `act`. No second Reserve.
    - `reserved`, `expiresAt` passed → the Hub has expired it; the retry starts again at step 3.
-   - `shipping` → Panacea may have started the build, and nothing records its run, so it is
-     **never** called again: `Abandon` with step 6's no-answer sentence, and answer as step 6's no
-     answer (`503 upstream_unavailable`, `details.status` 0, `reserved: true`). No second build.
+   - `shipping` → Panacea may have started the act, and nothing records its answer, so it is
+     **never** called again: `Abandon` with the `NoAnswer` sentence of the record's `act.kind`
+     (task 10's `BuildWords` for a Ship or Rebuild, `RollbackWords` for a Rollback), and answer as
+     step 6's no answer (`503 upstream_unavailable`, `details.status` 0, `reserved: true`). No
+     second build.
    - `started` → continue at step 7 with that run. No second build.
    - `done` → the stored answer, with no call.
 
@@ -219,10 +250,11 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    stopped process left behind: every `started` record restarts its confirm loop until
    `expiresAt` (step 7), so a Hub blip at the moment the app quit no longer loses the pin of a
    run this cockpit started; every `shipping` record is abandoned as above. A `reserved` record
-   is left for a retry until the Hub expires it. `Resume` and a retry settle a record through one
-   function under one per-key mutex, so a record is settled once. Records are deleted at `New`
-   once `expiresAt` + 5 min has passed (the Hub refuses a late confirm, contract §7.9) and, for
-   `done`, 15 min after they were written.
+   is left for a retry until the Hub expires it: `Resume` never abandons it. `Resume` and a retry
+   settle a record through one function, under the live-set claim above, so a record is settled
+   once. Records are deleted at `New` once `expiresAt` + 5 min has passed (the Hub refuses a late
+   confirm, contract §7.9) and, for `done`, 15 min after they were written; `New` is the only
+   prune, so a long-running process keeps its `done` records until it restarts.
 
    The one window left: a crash after the Hub stored the reservation and before `reserved` is
    written. That reservation expires on its own at `expiresAt` (15 min, contract §7.9 `:1021`,
@@ -340,7 +372,8 @@ POST /v1/projects/{projectId}/deploy/ship
             "confirmed": true | false, "message": "" }
   400 bad_request                 missing/invalid Idempotency-Key; the key reused for another Ship (step 1); unknown field; missing branchId
   404 project_not_found           unknown local project
-  409 conflict                    a Ship of this branch is in progress
+  409 conflict                    a Ship of this branch is in progress, or this key's own Ship is still
+                                  running in this process (step 1's live set; never settled by a retry)
   409 deploy_precondition         details.reason ∈ not_bound | no_hub_project | branch_unreadable |
                                   never_pushed | unpushed | behind | stale_commit | bad_commit;
                                   no_hub_project may carry details.cause "key_spelling" (HA7-6)
@@ -375,7 +408,9 @@ is retried with the same key.
 | `TestBudgetRefusalAbandonsWithSentence` | the fake's `Ship` answers `KindConflict`, `Status 402`, *"new deploys are paused: this project has reached its monthly hosting budget; …"* (task 04's `ship-402-budget.json`) → `Abandon` once, `reason "deploy_failed"`, exactly that message; no `Confirm`, no `Track`; the route answers `409 deploy_conflict` with the sentence, and `details.upstream` is absent | a 402 treated as an outage: `503 upstream_unavailable`, the lens switching acts off, and a reservation left to expire after 15 minutes (review I2) |
 | `TestTimeoutAbandonsAmbiguously` | Panacea times out → `Abandon` message is the ambiguous sentence; no confirm; the route answers `503 upstream_unavailable` with `details.status 0` and `details.reserved true`. A `KindUnavailable` `Status 503` from `Ship` → `details.status 503`, `details.reserved true`. `EnvironmentFor` timing out (step 4) → `details.status 0` and no `reserved` key | confirming a run the control plane never saw named; a 503 without `status` or `reserved`, which makes the desktop say *"the release was not started"* of a build Panacea may have started, or say a build may have started when nothing was sent (review M26) |
 | `TestAnswerClassPicksAbandon` | the fake's `Ship` answers `KindUnavailable` with `Status` `504` → the ambiguous sentence; `202` (task 04's run-less 202) → *"Panacea accepted the build but did not name its run. …"*; `500` → *"Panacea could not start the build."*. Each route answer carries that `details.status` and `details.reserved true` | a gateway's 504 told "could not start" of a build Panacea may be creating; a run-less 202 told "could not start" after Panacea said *"deployment started"* (re-review I-2, M-4) |
-| `TestJournalRetryAfterRestartReservesOnce` | a first `Orchestrator` reserves `rl-1` and stops (the `deploytest.Fake`'s `Ship` hook cancels before answering); a **new** `Orchestrator` on the same `JournalDir` — the in-memory state gone — gets `Ship` with the same key → the Hub fake saw **one** `Reserve`, and `Confirm(rl-1, {pipelineRun})` follows the second process's `Actor.Ship` (review M22) | an in-memory idempotency cache, which reserves twice after a restart |
+| `TestJournalRetryAfterRestartReservesOnce` | the process that stopped after the reserve and before `shipping`: the test reserves `rl-1` on the Hub fake for the request, then writes the `reserved` record for the key (with its `reserve` and `act`) through the journal's own writer, as that process would have left it. A **new** `Orchestrator` on the same `JournalDir`, whose binding source has **not** resolved the project yet, runs `Resume` → the record is still `reserved`, with zero `Abandon`. Then `Ship` with the same key → the Hub fake saw **one** `Reserve` in all, `deploytest.Fake` **one** `Actor.Ship` with the record's `ref`, branch, commit and `NoCache`, then `Confirm(rl-1, {pipelineRun})`, and the record is `done` (review M22; plan re-review b10 I-2, M-4) | an in-memory idempotency cache, which reserves twice after a restart; a `Resume` that abandons `reserved` records; a `reserved` continuation that reads the binding, which is not resolved yet after a restart |
+| `TestJournalLiveRetryConflicts` | inside the `deploytest.Fake`'s `Ship` hook (the first act is live, its record `shipping`), `Ship` again with the same key → `409 conflict` *"A Ship of this branch is already in progress."*, zero `Abandon`, and the hook's own call is the only `Actor.Ship`. The hook then answers run `r1` → the first act's `Confirm(rl-1, {pipelineRun:"r1"})` succeeds and its answer is `202 confirmed:true` (plan re-review b10 I-1) | a retry that settles a live act's record by stage: it abandons `rl-1` while Panacea is still creating the run, the first act's confirm gets `409 release_state`, and the cockpit's own build shows unpinned |
+| `TestJournalLiveConfirmLoopNotDoubled` | the Hub fake refuses the first `Confirm` with 503, so the act answers `202 confirmed:false` and its background loop runs; `Ship` again with the same key before the 2 s back-off → the same `202 confirmed:false` with `rl-1` and `r1`, and the Hub fake's `Confirm` count is unchanged; after the fake clock passes 2 s → exactly **one** more `Confirm` (plan re-review b10 I-1) | a retry that starts a second confirm loop for one release |
 | `TestJournalWritesShippingBeforePanacea` | inside the `deploytest.Fake`'s `Ship` hook, the journal file for the key reads stage `shipping` with `rl-1`'s id | a `shipping` record written after the call, so a crash during it leaves `reserved` and the retry builds twice |
 | `TestJournalShippingNeverBuildsTwice` | a `shipping` record for `rl-1` → `Ship` with that key makes **zero** `Actor.Ship` calls, `Abandon(rl-1)` once with step 6's no-answer sentence, and the error carries `details.status 0`, `reserved: true`; `Resume` on such a record does the same | a retry that calls Panacea again after a crash mid-call — two builds of one press |
 | `TestJournalResumesConfirm` | a `started` record `{rl-1, run r1}`, the Hub fake refusing the first `Confirm` with 503 → `Resume` → `Confirm(rl-1, {pipelineRun:"r1"})` again after the 2 s back-off (fake clock), then the record is `done`; `Ship` with the key then answers the stored result with zero calls | a confirm loop that dies with the process, leaving a cockpit-started run unpinned |

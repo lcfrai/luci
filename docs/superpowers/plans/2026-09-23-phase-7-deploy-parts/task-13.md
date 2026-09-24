@@ -105,6 +105,7 @@ export interface ReleasePin {
   designKey: string | null;
   reservedBy: { id: string; displayName: string };
   reservedAt: string;
+  confirmedAt: string | null; // the Hub's verbatim field; task 17's Not found sentence (plan re-review b10 M-1)
 }
 
 export interface ReleaseRow {

@@ -29,22 +29,37 @@ there is one implementation of it. Cancel produces no release.
 package ship
 
 // withReservation is the one reserve → act → confirm-or-abandon sequence (task 09, steps 5-8).
-// act returns the run it started ("" for a rollback, which starts none) or a *deploy.Error.
-// confirm builds the ConfirmRequest from act's result: {pipelineRun} for a run, {} for a rollback.
+// The act is data, not a closure (plan re-review b10 M-4): spec is written into the journal's
+// reserved record, and o.act(ctx, spec) runs it from the record alone, so a retry after a restart
+// continues at step 6 before the binding or the snapshot has resolved. o.act returns the run it
+// started ("" for a rollback, which starts none) and the act's answer, or a *deploy.Error;
+// confirmFor(spec.Kind, run) builds {pipelineRun} for a run and {} for a rollback; wordsFor(spec.Kind)
+// picks BuildWords or RollbackWords, and step 6's sentence by the error's class.
 // Every error it returns after the reserve succeeded is wrapped with ErrAfterReserve (task 09
 // step 6), for Rollback and Rebuild as for Ship, so each route passes {"reserved": true}
-// (re-review I-2). words picks step 6's abandon sentence by the error's class.
+// (re-review I-2).
 // idempotencyKey names the act's Ship-journal record (task 09 step 1, review M22):
-// withReservation writes reserved, shipping, started and done there, so Rollback and Rebuild
-// survive a restart as Ship does. A rollback's "started" record has run "" and confirms {}.
+// withReservation writes reserved, shipping, started and done there, and holds the key in the
+// journal's live set from step 1 until done or the confirm loop ends (plan re-review b10 I-1),
+// so Rollback and Rebuild survive a restart as Ship does, and a retry of a live Rollback or
+// Rebuild answers 409 conflict instead of abandoning it. A rollback's "started" record has run ""
+// and its RollbackResult fields as the answer, and confirms {}.
 func (o *Orchestrator) withReservation(
 	ctx context.Context,
 	projectID, hubProjectID, idempotencyKey string,
 	reserve hubapi.ReserveRequest,
-	act func(ctx context.Context) (run string, err error),
-	confirm func(run string) hubapi.ConfirmRequest,
-	words AbandonWords,
+	spec ActSpec,
 ) (hubapi.Release, string, bool, error)
+
+// ActSpec is everything step 6 needs, serialisable into the journal's reserved record.
+type ActSpec struct {
+	Kind         string // "ship" | "rebuild" | "rollback"
+	Ref          deploy.ProjectRef
+	Branch       string // Ship: Branch.Name; Rebuild: the branch its preconditions resolved (below); "" for a rollback
+	Commit       string // "" for a rollback
+	NoCache      *bool
+	DeploymentID string // Rollback: the deployment to roll back TO; "" otherwise
+}
 
 // AbandonWords are step 6's abandon messages, one per class of act error (task 05's classes).
 // A refusal (KindForbidden … KindUnauthorized) always abandons with e.Message, never these.
@@ -95,7 +110,8 @@ type RollbackResult struct {
 //     Panacea is never called. Task 08 rule 1b's label join is display only and is not read;
 //   reserve {kind:"rollback", panaceaProject, environment: <that deployment's environment>,
 //            sourceDeploymentId: DeploymentID}  — the Hub copies the source's pin (R5);
-//   act: Actor.Rollback(ref, DeploymentID); a result whose SourceDeploymentID != DeploymentID
+//   act: ActSpec{Kind:"rollback", Ref: ref, DeploymentID}, which o.act runs as
+//     Actor.Rollback(ref, DeploymentID); a result whose SourceDeploymentID != DeploymentID
 //     is treated as KindUnavailable (task 04, Status 200) and abandoned; words: RollbackWords;
 //   confirm: {} — NEVER a deploymentId (HA7-2);
 //   then Tracker.Nudge.
@@ -127,7 +143,9 @@ type RebuildRequest struct {
 //   reserve {kind:"run", panaceaProject, environment: source.Environment, branchRef, commit:
 //            source.Commit, briefId: null, designKey: <the source release's designKey or null>,
 //            sourceDeploymentId: source.ID} — the Hub pins "inherited" (Hub contract §7.9);
-//   act: Actor.Ship(ref, {branch, source.Commit, NoCache}); words: BuildWords (a Rebuild is a Ship);
+//   act: ActSpec{Kind:"rebuild", Ref: ref, Branch: branch, Commit: source.Commit, NoCache}, which
+//     o.act runs as Actor.Ship(ref, {branch, source.Commit, NoCache}); words: BuildWords (a
+//     Rebuild is a Ship);
 //   confirm: {pipelineRun}; Tracker.Track + Nudge.
 func (o *Orchestrator) Rebuild(ctx context.Context, req RebuildRequest) (Result, error)
 
@@ -196,6 +214,8 @@ Rebuild because the code is `deploy_conflict` on a rollback, and prints the sent
 | `TestCancelAlreadyFinished` | `AlreadyFinished` → `200 {outcome:"already_finished"}` | an error toast when Undo loses the race to the build's end |
 | `TestOneActPerEnvironment` | a rollback and a rebuild of one environment at once → one `409 conflict` | two releases racing one environment |
 | `TestRollbackIsJournalled` | a rollback whose `Actor.Rollback` answered and whose `Confirm` the Hub fake refuses with 503; a **new** `Orchestrator` on the same `JournalDir` → `Resume` sends `Confirm(rl-1, {})` (no `pipelineRun`), and a retry with the same key makes zero `Actor.Rollback` calls (task 09 step 1, review M22) | a rollback repeated after a restart, or its confirm lost with the process |
+| `TestRollbackShippingAbandonsWithRollbackWords` | a `shipping` record whose `act.kind` is `rollback`, no live act → a retry with the key, and `Resume` on such a record, each `Abandon(rl-1)` with `RollbackWords.NoAnswer` and zero `Actor.Rollback` calls (plan re-review b10 M-4) | a rollback's crash abandoned with the build sentence, so the Hub's `abandonMessage` says *"It may still have started the build"* of a rollback |
+| `TestRollbackLiveRetryConflicts` | inside the Panacea fake's `Rollback` hook, a retry with the same key → `409 conflict` *"Something is already changing this environment."*, zero `Abandon`; the first act then confirms `{}` (plan re-review b10 I-1) | a retry that abandons a rollback still in flight |
 | `TestShipStillPasses` | task 09's whole suite, unchanged, after the `withReservation` extraction | a refactor that changes Ship |
 
 #### Steps

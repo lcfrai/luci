@@ -22,15 +22,21 @@ unverified**, and its report says so.
 - `desktop/src/deploy/BindingPanel.tsx` (new) — the six unbound answers and the one choice
 - `desktop/src/deploy/deploy.css` (new) — `@import "../styles/tokens.css";` first (`designsystem.test.ts:299`)
 - `desktop/src/deploy/DeployLens.test.tsx`, `ConnectPanel.test.tsx`, `BindingPanel.test.tsx` (new)
-- `desktop/src/components/AppShell.tsx` (modified) — `case "deploy": return <DeployLens />;`
+- `desktop/src/components/AppShell.tsx` (modified) — `case "deploy": return <DeployLens />;`. If
+  Hub task 42 has merged when this task is built, the line is `<DeployLens onShare={openShare} />`,
+  with `openShare` read from the store by a selector in `AppShell`; if not, it passes nothing, and
+  adding `onShare` is the one-line wiring recorded in plan §10's Hub C2/C4 row (plan re-review b10 M-5)
 
 #### Component contracts — complete
 
 ```tsx
 /** The Deploy lens. Reads the selected project from the store and its view from the deploy slice
  *  (task 13). On mount, and when the selected project changes while mounted, it calls
- *  loadDeployView ONCE — the only fetch it starts; every later refresh is the cursor's (task 13). */
-export function DeployLens(): JSX.Element;
+ *  loadDeployView ONCE — the only fetch it starts; every later refresh is the cursor's (task 13).
+ *  onShare is the seam to the Hub's share screen (review M17; plan re-review b10 M-5): the lens
+ *  never reads openShare from the store itself, so it type-checks before and after Hub task 42.
+ *  The host passes it; absent → no Share button (the no_hub_project row below). */
+export function DeployLens(props: { onShare?: (projectId: ProjectId) => void }): JSX.Element;
 
 /** The first-run form. Posts once; clears both fields on every outcome; never stores the token in
  *  state beyond the input's own value, and never in the zustand store. */
@@ -63,7 +69,7 @@ OD-3 or this plan changed a fact** (marked †).
 | binding `no_origin` · `unknown_host` · `no_match` · `not_connected` · `unavailable` | `BindingPanel`, one sentence | `binding.message` verbatim (task 06's table) |
 | binding `ambiguous` · `no_repo_info` | `BindingPanel` with a radio list of `candidates` (display name, then `ref` in mono, then `repoUrl` in `--ink-3`) and one *Use this project* button | `binding.message` verbatim |
 | binding `bound` | task 15 | — |
-| `releasesState: "no_hub_project"` | a quiet line above task 15's content, and one **Share with a team…** button (review M17) | *"This repository is not a shared project in the Hub yet, so releases show no brief and Ship is off. Share it with a team to turn Ship on."* The button calls the store's `openShare(projectId)`, which opens the Hub's `SharePopover` (Hub task 42, the project menu's own *Share with a team…*). That popover links the project through `POST /v1/projects/{projectId}/hub-link` `{teamId, name}` (Hub task 35, seam S-LINK), which calls `CreateProject` (Hub contract §7.4, `:705` at 6b873d0), or links to the team's existing project for this repository. Phase 7 creates no Hub project itself and writes no second share form. If Hub task 42 has not landed (`openShare` is absent from the store), the button is not drawn and the sentence ends *"…Ship is off. Sharing a project arrives with the Hub's share screen."*, which is true and makes no promise. After a share, the watcher re-resolves on the Hub's `project.*` event (task 07 `HubEvents`), so Ship turns on without a restart |
+| `releasesState: "no_hub_project"` | a quiet line above task 15's content, and one **Share with a team…** button (review M17) | *"This repository is not a shared project in the Hub yet, so releases show no brief and Ship is off. Share it with a team to turn Ship on."* The button calls the lens's `onShare(projectId)` prop, which the host wires to the store's `openShare` (Hub task 42), which opens the Hub's `SharePopover` (Hub task 42, the project menu's own *Share with a team…*). That popover links the project through `POST /v1/projects/{projectId}/hub-link` `{teamId, name}` (Hub task 35, seam S-LINK), which calls `CreateProject` (Hub contract §7.4, `:705` at 6b873d0), or links to the team's existing project for this repository. Phase 7 creates no Hub project itself and writes no second share form. If Hub task 42 has not landed, the host passes no `onShare`, the button is not drawn and the sentence ends *"…Ship is off. Sharing a project arrives with the Hub's share screen."*, which is true and makes no promise. After a share, the watcher re-resolves on the Hub's `project.*` event (task 07 `HubEvents`), so Ship turns on without a restart |
 | `releasesState: "hub_key_spelling"` | the same line | *"The Hub cannot hold this repository yet — the cockpit names it in a form the Hub does not accept — so releases show no brief and Ship is off."* No host is named: the cause is any key `hubapi.HostOfRepoKey` refuses, GitHub or Azure DevOps (HA7-6, review I6; plan re-review b05 R-3) |
 | `releasesState: "signed_out"` | the same line | *"Sign in to see which brief each release was shipped against."* — the rail footer (Hub C4) holds the control |
 
@@ -85,7 +91,7 @@ under the field before submit; the server checks again (task 05).
 | `token cleared on failure` | `connect` rejects `deploy_token_rejected` → the input is empty and the problem's message is shown | a failed paste left sitting in the field |
 | `locked origin read-only` | `originLocked: true` → the address input is `readOnly` with the origin | a user override of an administrator's address |
 | `ambiguous chooses once` | two candidates; choosing one calls `bind` with its `ref`; the button is disabled while it runs | a double submit binding twice |
-| `not shared names the way forward` | `releasesState "no_hub_project"` with the store's `openShare` present → a **Share with a team…** button; clicking it calls `openShare("p-1")` once and nothing else (no `DeployApi` call, no Hub route); with `openShare` absent → no button, the *"arrives with the Hub's share screen"* sentence; `"hub_key_spelling"` → no button either, because no share can fix a key the Hub refuses (review M17) | a Ship that is off with no way forward; a second share form in the Deploy lens; a Share offered for a key no Hub project can ever hold |
+| `not shared names the way forward` | `releasesState "no_hub_project"` with an `onShare` spy passed as the prop → a **Share with a team…** button; clicking it calls `onShare("p-1")` once and nothing else (no `DeployApi` call, no Hub route); with no `onShare` prop → no button (absence injected through the seam, no cast; plan re-review b10 M-5), the *"arrives with the Hub's share screen"* sentence; `"hub_key_spelling"` → no button either, because no share can fix a key the Hub refuses (review M17) | a Ship that is off with no way forward; a second share form in the Deploy lens; a Share offered for a key no Hub project can ever hold |
 | `binding message verbatim` | each non-bound state shows `binding.message` exactly | rewording the control plane's sentence in the desktop |
 | `no spinner` | the loading state's DOM contains no element with `role="progressbar"` or a class matching `/spin/` | a per-component spinner (DESIGN-SYSTEM *many live processes*) |
 | `design-system guard` | the existing `styles/designsystem.test.ts` passes over `deploy.css` | a literal hex, `transition: all`, a missing token import |
