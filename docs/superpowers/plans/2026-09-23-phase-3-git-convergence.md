@@ -68,8 +68,9 @@ Three places hold git, and the control plane is the only process that runs git i
 on the product branch's own name. The clone's `.git` is a directory inside the clone, so the
 bind mount phase 2 already makes (`sessionMounts` in `api/sessions.go`) carries a complete,
 working repository into the sandbox. Nothing about the mount changes: its host path becomes the
-clone's directory. The clone's `origin` names the project repository by host path, which the
-sandbox cannot reach. The agent sees `origin/<branch>` as the control plane last refreshed it and
+clone's directory. The clone's `origin` is a self-describing path that exists on neither machine
+(task 03's step 4a, review Minor 14), so a `git pull` or `git push` in the sandbox fails with a
+sentence naming the cockpit; no host call reads it (task-02 §HGH H2). The agent sees `origin/<branch>` as the control plane last refreshed it and
 cannot fetch or push, and that is the design (brief A4).
 
 **A clone shares no file with the project, and holds the blobs' bytes.** Task 03 clones with
@@ -77,7 +78,9 @@ cannot fetch or push, and that is the design (brief A4).
 writes `core.autocrlf=false`, `core.eol=lf`, `core.checkStat=minimal` and `core.trustctime=false`
 into the clone's local config before the checkout, so the working tree holds the blobs' bytes
 under the system `core.autocrlf=true` Git for Windows installs (review C2; task 03 "Line
-endings"). The host's git reads those local keys. The sandbox's git does not: on a base with
+endings"). It also writes `core.longpaths=true` and `core.symlinks=false` and runs with no LFS
+filter, so a symlink is its target's text and an LFS path its pointer, on every machine, on both
+sides (review Minors 13 and 15; task 03 "Blob bytes on disk"). The host's git reads those local keys. The sandbox's git does not: on a base with
 phase 2's `5a4d0d8`, `sessionEnv` sends `core.autocrlf` and `core.eol` as `GIT_CONFIG_*`, and
 command scope outranks every config file. The two gits agree only because `Deps.GitLineEndings`
 is asked in the session's worktree path, which for a lane is the clone, and there the host's git
@@ -584,6 +587,15 @@ made structural). `routes_audit_test.go` gets one line per GET, appended.
   a clone under the real session env (task 01's and task 05's Docker tests), whether
   `checkStat=minimal` and `trustctime=false` stop the cross-system re-hash, and what
   `--no-hardlinks` costs on `~/Projects/Panacea` (task 01 Step 5, Q9).
+- **Verified in fix batch b08** (git 2.53.0.windows.2, 2026-09-24, host only;
+  `scratchpad/p3/b08/probe*.out`): this machine's system config holds `core.symlinks=true` and
+  no `filter.lfs.*`, and `git-lfs` is not installed. Under `core.symlinks=true` a clone made a
+  real link and wrote no local key; without it the clone wrote `core.symlinks=false` and a plain
+  file. An LFS-shaped system filter smudged a plain clone and did nothing under task 03's
+  NoFilterEnv. A 359-character checkout failed "Filename too long" without `core.longpaths` and
+  succeeded with it. A host `fetch` and `push` against step 4a's origin exit 128 naming the path.
+  **Not verified**: real `git-lfs`, the sandbox's sentence for step 4a's origin, and a deep or
+  linked tree through the bind mount (task 01's Docker tests).
 - **Every git behaviour the brief took from documentation** is task 01's to verify before any
   task relies on it, and task 01's results document replaces this plan's assumptions wherever they
   differ.
