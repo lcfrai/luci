@@ -14,6 +14,8 @@ survey §8.3), or says why it cannot: uncommitted, or no session recorded. Task 
 - `control-plane/internal/changes/diff.go` + test — `PathDiff`, `LaneDiff`, `Hunk`, `Line`, `BackLink`, `Diff` (new)
 - `control-plane/internal/changes/blame.go` + test — tier 1 (new)
 - `control-plane/internal/changes/parse.go` + test — unified-diff and `blame --porcelain` parsers (new)
+- `control-plane/internal/changes/untracked.go` + test — `readUntracked`, `MaxUntrackedBytes`, `openForRead` (new); `finalpath_windows.go` / `finalpath_other.go` — the opened handle's final path (new; review Minor 9)
+- `control-plane/go.mod` — `golang.org/x/sys` moves from indirect to direct (same v0.24.0)
 - `control-plane/internal/api/changes.go` + test — the two GETs (new)
 - `control-plane/internal/api/gitdeps.go`, `gitroutes.go`, `routes_audit_test.go` — `// ── task 16 ──`
 
@@ -115,7 +117,7 @@ type LaneDiff struct {
 	Committed   []Hunk `json:"committed"`   // base..lane
 	Uncommitted []Hunk `json:"uncommitted"` // the clone's working tree against its HEAD; Back.Tier 0, Reason "uncommitted"
 	Binary      bool   `json:"binary"`
-	Truncated   bool   `json:"truncated"` // more than MaxDiffLines across both lists
+	Truncated   bool   `json:"truncated"` // more than MaxDiffLines across both lists, or an untracked file past MaxUntrackedBytes
 	ReadError   string `json:"readError"`
 }
 
@@ -129,11 +131,17 @@ const MaxDiffLines = 2000
 
 // Diff reads one path for each worktree that touches it. All gitx.Read, with Scope Project in
 // the project and Scope Clone in the clone (task-02 §HGH; blame and log run in the project):
-//   diff --no-color --no-ext-diff -U3 <base> <laneTip> -- <path>                  (project)
-//   diff --no-color --no-ext-diff -U3 HEAD -- <path>                              (the clone)
-// An untracked file is read from disk as one all-added hunk (NUL byte in the first 8 KiB → Binary).
+//   diff --no-color --no-ext-diff --no-textconv -U3 <base> <laneTip> -- <path>    (project)
+//   diff --no-color --no-ext-diff --no-textconv -U3 HEAD -- <path>                (the clone)
+// --no-textconv is on every diff and blame here (review Minor 9, the C1 class). Both run a
+// textconv driver by default, and a .gitattributes the agent wrote can name one the host
+// defines: this machine's system config holds diff.astextplain.textconv. Probe (git 2.53,
+// scratchpad/p3/b11-probe.out): a marker driver ran on diff and on blame, and on neither with
+// the flag. H1 refuses an agent-written diff.* key; the flag stops a host-defined driver.
+// An untracked file is never read through git: readUntracked (below) reads it as one all-added
+// hunk (NUL byte in the first 8 KiB → Binary).
 // Tier 1 per committed hunk:
-//   blame --porcelain -L <newStart>,<newStart+newLines-1> <laneTip> -- <path>
+//   blame --porcelain --no-textconv -L <newStart>,<newStart+newLines-1> <laneTip> -- <path>
 //   → the commit blamed for most "+" lines (ties: newest); its sessions from
 //     log -1 --format=<TrailerFormat(Session)> <commit>
 // A pure-deletion hunk takes the newest commit in base..laneTip touching the path, Reason
@@ -144,6 +152,33 @@ const MaxDiffLines = 2000
 // literally, never as a glob, by task-02 §HGH H1's --literal-pathspecs (re-review b05 issue 9);
 // test `TestDiffBracketedPathIsLiteral` below.
 func Diff(ctx context.Context, m gitx.Machine, projectPath, path string, obs []converge.LaneObservation, kinds func(sessionID string) (string, bool)) (PathDiff, error)
+
+// MaxUntrackedBytes caps what readUntracked reads of one file (review Minor 9).
+const MaxUntrackedBytes = 1 << 20
+
+// readUntracked reads <cloneTop>/<path> for an untracked row. The clone is mounted into a live
+// sandbox, so a check on the name alone loses a race to the agent (the A4 class, re-review b03
+// I-2), and every check below that matters is made on the file actually opened:
+//   1. os.Lstat of every component from cloneTop to <path>: each a real directory and <path> a
+//      regular file, by task-03 CopyGeneratedHooks' rule (no symlink, no junction or other
+//      reparse point; under `go 1.23` a junction reports ModeIrregular and not IsDir, a
+//      symlink ModeSymlink: probe scratchpad/p3/b11-go.out, Go 1.26.2 toolchain).
+//   2. open through the unexported seam openForRead (default os.Open); f.Stat() must be a
+//      regular file.
+//   3. the opened handle's final path must lie under cloneTop's final path, both read the same
+//      way (Windows: GetFinalPathNameByHandle, golang.org/x/sys/windows, already in go.mod as
+//      indirect v0.24.0; elsewhere: readlink of /proc/self/fd/<n>), compared case-insensitively
+//      on Windows with a separator after the prefix. Step 3, not step 1, is what defeats a parent
+//      folder swapped for a junction between the check and the open. os.SameFile cannot: on
+//      Windows it loads an Lstat's file id lazily, by path, at compare time (GOROOT
+//      src/os/types_windows.go loadFileId), so it compares the swapped-in target with itself.
+//      Probed (b11-go.out): Lstat p/f, p swapped for a junction to an outside folder, open p/f
+//      → the outside file's bytes, and SameFile(Lstat, f.Stat()) = true.
+//   4. read through io.LimitReader(f, MaxUntrackedBytes+1), so a 2 GB untracked file costs
+//      1 MiB, never the whole file. Past the cap → Truncated, the text cut at its last whole line.
+// A refusal at 1 to 3 → no hunk, LaneDiff.ReadError "<path> is a link or not a regular file in
+// this worktree; not read". Nothing is ever read outside the clone.
+func readUntracked(cloneTop, path string) (lines []Line, binary, truncated bool, err error)
 ```
 
 ```go
@@ -201,6 +236,10 @@ files a worktree changed. merge-tree writes only content-addressed objects reach
 | `TestDiffPureDeletion` | a hunk of only removals → the newest commit touching the file, the deletion reason | a blame of an empty range erroring |
 | `TestDiffUncommittedIsTierZero` | an edit in the clone → in `uncommitted`, `Tier 0`, `reason "uncommitted"`; the clone's index unchanged | an uncommitted hunk claiming a session |
 | `TestDiffUntrackedFile` | a new untracked file → one all-added hunk; a file with a NUL byte → `Binary` | untracked files missing from Files |
+| `TestDiffUntrackedRefusesALink` (review Minor 9) | in the clone, untracked `s.txt` a symlink to a file outside the clone, and `j/f.txt` under `j` a junction (`mklink /J`) to an outside folder → each `ReadError` names the path, no hunk, and no byte of either outside file is in the body; `t.txt` a regular file → read | an untracked file read by name, following a link the agent made |
+| `TestDiffUntrackedChecksTheOpenedFile` (review Minor 9) | through the seam `openForRead`: a hook that, after step 1's Lstat walk, renames `d` aside and makes `d` a junction to an outside folder holding `f.txt`, then opens → `ReadError`, no outside byte. Red first with step 3 removed and step 2 checked by `os.SameFile` instead (it passes on Windows: `b11-go.out`) | a check on the name the agent swaps between check and open |
+| `TestDiffUntrackedCapsTheRead` (review Minor 9) | a 3 MiB untracked text file, read through `openForRead` wrapped in a counting reader → at most `MaxUntrackedBytes+1` bytes read, `Truncated`, the last line whole | the whole file read, then cut |
+| `TestDiffRunsNoTextconv` (review Minor 9) | a test system file holding `diff.x.textconv=<marker script>`, the lane's `.gitattributes` holding `*.txt diff=x`, a committed and an uncommitted edit to `a.txt` → `Diff` returns both, blame included, and no marker exists. Red first without the flag on each of the three calls | a host-defined textconv driver the agent's attributes name, run on the host |
 | `TestDiffTruncates` | 3000 changed lines → 2000 and `Truncated` | an unbounded response |
 | `TestDiffRefusesAPathNoWorktreeChanges` | `path=../../etc/hosts`, an absolute path, a backslash → 400; a real unchanged file → 400 with the "No worktree … changes that path" message | the route reading any file |
 | `TestChangesGETsAreReadOnly` | the §10a audit passes; `for-each-ref` of the project unchanged | a GET that writes |
@@ -228,3 +267,10 @@ go test ./control-plane/internal/changes/ ./control-plane/internal/api/ -race -c
   remote's files in its `Changed` until it lands, so the Files lens can mark a path only a
   teammate touched as "both edit this file" against another lane (re-review b05 issue 7). The
   pairing is advisory; the forecast and the land are exact. After the land the pairing clears.
+- `--no-textconv` stops textconv only. The clone's `diff HEAD` and `status` hash the working tree
+  through any **clean** filter the host's system or global config defines, when the agent's
+  `.gitattributes` names it (review b08, "Observed, not in this batch"). Whether every Scope Clone
+  call carries a no-filter env belongs to task-02 §HGH, which R2 keeps in one place; it is raised
+  to the orchestrator and is not changed here. This machine's system and global configs define no
+  `filter.*` (task-03's LFS note).
+- An untracked file past `MaxUntrackedBytes` shows its first 1 MiB of lines, marked `Truncated`.
