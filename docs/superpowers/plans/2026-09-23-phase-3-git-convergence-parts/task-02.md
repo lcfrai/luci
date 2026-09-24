@@ -345,7 +345,7 @@ package gitxtest
 // NewRepo is a PROJECT, so its local config also holds keys real projects carry:
 // branch.main.vscode-merge-base=origin/main, pull.rebase=true, credential.useHttpPath=true.
 // §HGH H3's Project refusal list admits them, so a project check tightened past that list goes
-// red in its own task's tests (b01 re-review R1). There is no Scope Clone to run them under
+// red in its own task's tests (b01 re-review R1). No host scope names a lane clone to run them under
 // (ruling R4.2). CloneOf's repo holds only what git clone writes, since clone copies no local
 // config from its source; it stands in for a lane clone, which host git never runs in.
 // Runner()'s Hardening has LaneRoot "", so a test of ErrLaneDir sets LaneRoot itself.

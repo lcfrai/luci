@@ -6,7 +6,7 @@
 > the contract for that task; this file is the map. Steps use checkbox (`- [ ]`) syntax.
 
 **Status: written 2026-09-23, not yet adversarially reviewed** (OD-1: every plan is reviewed
-before code). 23 tasks, each specified in its part file. Inputs: the owner's decisions OD-1–OD-13,
+before code). 24 tasks (task 24, ruling R4's runner, sits before 07), each specified in its part file. Inputs: the owner's decisions OD-1–OD-13,
 `scope-and-risk-phase-3-git-convergence.md`, `survey-phase-3-git-convergence.md`,
 `prototype/phase-3-convergence.html`, the tree at `3303fd6`, and `fix/sandbox-git-ca` at `2d6d95b`
 plus its then-uncommitted `LinkedWorktreeNote`. **Re-baselined 2026-09-24 (review I12):** the fix
@@ -229,7 +229,7 @@ Each is small, stated so a reviewer can overturn it, and none changes what the o
    ruling R4). No sandbox mounts the project, so its `.git` is host-private (R4.1). A lane clone
    is agent-writable, and Exec refuses any call in one (`ErrLaneDir`, R4.2). Task-02 §HGH hardens
    project calls: its scopes are Project, Read and Local, all on host-private repositories, and
-   `Scope: Clone` is gone. Every host git
+   no scope names a lane clone. Every host git
    call, on the project or a host-owned repository, carries a command-scope prefix that disables
    hooks, fsmonitor, ssh commands, askpass, signing and repository credential helpers, and allows
    only the `file` transport (plus `https` on a network call). A config check refuses driver,
@@ -472,12 +472,16 @@ exact insertion.
 control-plane/
   cmd/api/config.go                 (p2) three PANACEA_APP_* rows                          04 07 12
   cmd/api/main.go                   (p2) wire lanes, syncer, fetch timer, deps;
-                                    phase 2's resolvers unchanged (R4.6, gate G5)            04 07 12 13
+                                    phase 2's resolvers unchanged (R4.6, gate G5);
+                                    the lanegit pool, its HeldSet before the reaper          04 07 12 13 24
+  cmd/api/lanegit_spy_test.go       TestHostNeverRunsGitInALane (R4.2)                       24
   internal/gitx/                    runner.go error.go machine.go trailers.go harden.go (§HGH)
                                     locks.go (the one per-project lock, review I7)
                                     internal/spawnseam/seam.go (Exec's process seam, R4)
                                     gitxtest/repo.go (+ Spy)  behaviour_test.go             01 02
   internal/lanes/                   store.go clone.go catalog.go remove.go                  03 04 11
+  internal/lanegit/                 client.go pool.go bundle.go wire.go behaviour_test.go
+                                    lanegittest/fake.go (the host side of R4.3, R4.4)        24
   internal/converge/                sync.go observe.go parse.go forecast.go land.go
                                     bringin.go history.go undo.go branches.go inspect.go    07-11
   internal/remote/                  fetch.go push.go aheadbehind.go                          08 12 13
@@ -492,6 +496,8 @@ control-plane/
   internal/gitx/ident.go            ParseIdent, the one parser of git's ident line           03
   internal/statepath/               (p2) atomic.go, if R2's lift has not happened            03
   internal/backend/backend.go       (p2) EnvSessionID, written by EnvEntries                 05
+                                    GitPath = "/git/v1/", beside AttachPath                  24
+  internal/reaper/reaper.go         (p2) Config.Held: the pool's sandboxes are not orphans   24
   internal/backend/katabe/kata_test.go (p2) the env-parity pin gains one variable            05
   internal/api/api.go               (p2) two lines: Deps.Git, a.registerGit                   04
   internal/api/gitdeps.go           GitDeps (one block per task), reasons, problem helpers   04 onward
@@ -499,12 +505,21 @@ control-plane/
   internal/httpx/problem.go         (p2) CodeGitFailed, CodeHostFailed                        04
   internal/api/sessions.go          (p2, post-fix) the default title takes the worktree's
                                     catalog Name (re-review b08-1 issue 2)                   04
-                                    sessionEnv gains core.hooksPath; every session in a
-                                    lane (R4.1); .git/config bind is hygiene (R4)            05
+                                    sessionEnv gains core.hooksPath; sessionMounts binds
+                                    .git/config read-only (hygiene, R4); primary and linked
+                                    sessions mount their backing lane (R4.1)                 05
   internal/api/catalog.go           (p2) worktreeJSON.Kind                                   04
   internal/api/routes_audit_test.go (p2) one line per new GET                                08 10 11 15 16 17
   internal/api/{worktrees,convergence,lands,branches,remote,pullrequests,
                 evidence,changes,transcript}.go  + tests                                     04-17
+sandboxd/
+  internal/gitrunner/               runner.go ops.go wire.go limits.go + tests (the /git/v1/
+                                    RPC, R4.3)                                                24
+  internal/server/server.go         (p2) Config.GitWorktree; the /git/v1/ route beside
+                                    /attach, behind s.authorised                              24
+  cmd/sandboxd/main.go              (p2) -git-worktree flag, default /home/dev/work;
+                                    serve_posix.go, serve_other.go (p2) pass it through       24
+testdata/gitrunner/*.json           the wire golden fixtures both modules read               24
 images/sandbox/
   Dockerfile                        (p2) COPY githooks, chmod                                05
   githooks/dispatch                 the one script; githooks/<hook-name> → dispatch          05
@@ -548,11 +563,12 @@ desktop/src/
 ## Task list
 
 Local-only first: nothing before task 13 needs a credential, a network or the Hub. Tasks 01–17
-are the Go track; 18–22 the desktop track, which starts when G2 holds and task 18's types match
+and 24 are the Go track (24 also edits `sandboxd`); 18–22 the desktop track, which starts when G2 holds and task 18's types match
 the Go parts (it codes against the part files' shapes and fakes, not a running server). Each task
 is sized for one implementer in one to three hours, except task 07 at three and a half since
-review I4 added the sweep's tip-change refresh, and task 09 at four and a half since review I5
-added `BringIn` and review I4 the refresh route. Task 09 splits cleanly at its `#### Bring in origin/<branch>` heading if one lane must stay
+review I4 added the sweep's tip-change refresh, task 24 at three and a half since ruling R4 puts
+both halves of the runner (sandbox and host) in one task, and task 09 at four and a half since
+review I5 added `BringIn` and review I4 the refresh route. Task 09 splits cleanly at its `#### Bring in origin/<branch>` heading if one lane must stay
 under three.
 
 | # | Task | Depends on | Est. |
@@ -563,6 +579,7 @@ under three.
 | 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1 | 2 h |
 | 05 | Git in the sandbox for clones: every session in a lane (R4.1), `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1, G5; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
 | 06 | The linked-worktree notice deleted (R4.1): `kind` in `types.ts`, the shared-index note (3-D2) | 04, 05, G1 | 2 h |
+| 24 | sandboxd git runner: the /git/v1/ RPC on the attach token, status/refs/bundle/fetch/diff, bundle verify and limits, the host client and runner pool (R4) | 02, 04 | 3.5 h |
 | 07 | Lane sync and observed claims; the sweep's tip-change clone refresh (review I4) | 04, 24 | 3.5 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 (24 through 07) | 3 h |
 | 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4), a bundle into each lane's runner (R4.5) | 08, 24 | 4.5 h |
@@ -581,16 +598,19 @@ under three.
 | 22 | Lifecycle verbs: new and remove worktree, branch create/rename/delete, palette; the four phase 2 promises of phase 3 retired (review Minor 10 found the fourth) | 04, 06, 11, 18, 19 | 3 h |
 | 23 | Proof: the end-to-end script on real git and Docker, the owner's batched checklist, the seams doc | all | 2 h |
 
+**Total: 67 h** over 24 tasks (63.5 h before task 24's 3.5 h, ruling R4).
+
 **Order.** 01 → 02 → 03 → 04 → then three lanes that can run in parallel worktrees:
-**(a)** 05 → 06; **(b)** 07 → 08 → 09 → 10, then 15 and 16 → 17; **(c)** 11 (after 08), 12 → 13,
+**(a)** 05 → 06; **(b)** 24 → 07 → 08 → 09 → 10, then 15 and 16 → 17 (24, the runner, is
+lane (b)'s first task: 07, 09, 11 and 16 wait on it); **(c)** 11 (after 08), 12 → 13,
 then 14 once 10 has landed (its PR description lists the lands). The desktop track 18 → 21 ∥ (19 → (20 ∥ 22)) starts once G2 holds. Task 23 is last.
 Task 22 waits on 19 (review Minor 10): it wires 19's `MergeBanner.tsx`, and its `sessionVerbs.ts`
 copy names 19's Not ready button. This costs the desktop track nothing: 18 → 19 → 22 is as long
 as 18 → 19 → 20, three 3 h tasks each.
-Lane (c) needs only 07 and 08 from lane (b) before 14 (review I7; re-review b04-1 issue 4;
-review Minor 16): task 11 waits on 07, lane (b)'s first task, and on 08, whose `CheckedOutAt`
-its branch rename and delete refuse by, and nothing else in lane (c) waits on lane (b). Its
-edge to 24 (the runner its removal reads the lane through) adds nothing: 07 already waits on 24. This
+Lane (c) needs only 24, 07 and 08 from lane (b) before 14 (review I7; re-review b04-1 issue 4;
+review Minor 16): task 11 waits on 24 (the runner its removal reads the lane through), on 07,
+and on 08, whose `CheckedOutAt` its branch rename and delete refuse by, and nothing else in
+lane (c) waits on lane (b). Its edge to 24 adds nothing: 07 already waits on 24. This
 costs the schedule nothing: task 18 waits on 17, which follows 08 in lane (b). `briefref`, which task 11 imports,
 is task 03's; the one lock that tasks 09-12 all take is task 02's `gitx.Locks`, constructed once
 by task 04 in `GitDeps.Locks`. Each task tests its own side against that lock, so task 12 needs
@@ -604,9 +624,13 @@ both 10 and 13.
 appends a **contiguous, commented block** (`// ── task NN ──`) to `GitDeps`, to `gitRoutes()`
 and to `serve`'s phase 3 wiring in `cmd/api/main.go`, never between another task's lines, so
 parallel lanes merge mechanically (`dependency-graph-and-order.md` §4.2's rule for `api.go`,
-made structural). `routes_audit_test.go` gets one line per GET, appended. There is no exception:
-task 05 no longer touches `main.go`, since phase 2's resolvers are the phase-2 stream's (R4.6,
-gate G5).
+made structural). `routes_audit_test.go` gets one line per GET, appended. Task 05 no longer
+touches `main.go`, since phase 2's resolvers are the phase-2 stream's (R4.6, gate G5). Task 24
+adds one `main.go` block after task 04's, before `api.New` (`main.go:132`), and one edit outside
+it: phase 2's reaper line (`main.go:87`) gains one argument, `laneHeld.Has`, from a `HeldSet`
+made on the line above (`task-24.md:438-458`). In `sandboxd`, which no other phase 3 task edits,
+task 24 adds one route, `s.mux.HandleFunc("/git/v1/", s.git)`, beside `/attach`
+(`sandboxd/internal/server/server.go:85`), and one flag beside `main.go:40-48`.
 
 ## What this plan does not claim
 
@@ -649,4 +673,15 @@ gate G5).
   task relies on it, and task 01's results document replaces this plan's assumptions wherever they
   differ.
 - The Merge and Files lenses' look is **unverified** until the owner sees them (OD-12).
+- **A runner's answer is the agent's claim, not a fact.** Task 24's `status`, `refs` and `diff`
+  come from inside a sandbox the agent controls, so the host parses them as untrusted data under
+  task 24's limits and derives no host state from them. Only a bundle the host has checked with
+  `git bundle verify` in the project moves a host ref (R4.4; `task-24.md:34`, `:547-548`).
+- **The Kata runner is phase 8's.** Phase 3 builds the Docker half of R4.3. On `katabe` a lane
+  with no live session answers `ErrNoRunner`; phase 8's `machined` serves the runner in the
+  machine pod (P8-D7; `task-24.md:545-546`).
+- **The read-only `.git/config` bind is claimed as nothing.** Task 05 keeps it as hygiene (R4).
+  No host call depends on it, because the host never runs git in a lane (R4.2). Task 05's two
+  Docker tests that touch it (`TestSandboxCloneConfigIsReadOnly`,
+  `TestSandboxCannotWriteHooksPath`) pin sandbox behaviour, not a security property.
 
