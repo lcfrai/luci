@@ -8,6 +8,9 @@ worktree of the branch is changing (task 07); whether the branch is checked out 
 turns landing off, brief A5); and where the branch stands against its remote — ahead, behind,
 never pushed, and when it was last fetched (obligation 6; phase 7's seam S3-P7.3).
 
+**Depends on:** task 07, and through it task 24 (`lanegit.Lanes`, the runner Observe reads a
+lane through). Every host git call here is already in the project with Scope Project.
+
 **Files:**
 - `control-plane/internal/converge/forecast.go` — `Forecast`, `ForecastQueue`, the fixed-identity forecast commit, the cache (new)
 - `control-plane/internal/converge/convergence.go` — `Convergence`, `QueueEntry`, `LaneView`, `BringIn` (review I5), `Read` (new)
@@ -165,6 +168,7 @@ type BringIn struct {
 type Inputs struct {
 	Machine     gitx.Machine
 	Syncer      *Syncer
+	LaneGit     *lanegit.Lanes // task 24's pool, GitDeps.LaneGit; Observe's runner (task 07)
 	Lanes       lanes.Store
 	Flags       map[string]registry.WorktreeFlags
 	Sessions    []registry.Session
@@ -177,6 +181,10 @@ type Inputs struct {
 
 // Read assembles Convergence. It errors only when the branch itself cannot be resolved;
 // every per-lane failure is that lane's ReadError, and a remote failure is Remote.ReadError.
+// Each lane's observation comes through task 07's runner path: a lane with a live session in
+// in.Sessions gets in.LaneGit.For's runner, released after Observe; any other lane is observed
+// with r == nil from its SyncState.Observed. So the GET's per-lane cost is one runner call or a
+// cached observation, never host git in a clone (R4.2).
 func Read(ctx context.Context, in Inputs) (Convergence, error)
 ```
 
