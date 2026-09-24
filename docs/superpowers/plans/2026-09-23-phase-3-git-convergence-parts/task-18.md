@@ -98,6 +98,8 @@ export interface RevertResult {
   revert: string; before: string; reverts: string;
   refreshed: WorktreeId[]; refreshErrors: Record<WorktreeId, string>; // review I4
 }
+/* task 09 — the refresh route's body (review I4) */
+export interface RefreshResult { refreshed: WorktreeId[]; refreshErrors: Record<WorktreeId, string> }
 
 /* task 11 — lanes.Removed, converge.RenameResult, DeleteResult, lanes.Rename */
 export interface Removed { worktreeId: WorktreeId; archivedAs: string }
@@ -190,7 +192,7 @@ export function detailList(error: unknown, key: string): string[];
 // "server-said" through classify's existing catch-all; no ProblemKind changes).
 // send(method, route, body?, timeoutMs?) — the fourth argument overrides DEFAULT_TIMEOUT_MS for
 // the calls that run git against a remote or clone a repository.
-export const GIT_WRITE_TIMEOUT_MS = 150_000;  // create worktree, land, bring-in, undo, revert, branch writes, evidence
+export const GIT_WRITE_TIMEOUT_MS = 150_000;  // create worktree, land, bring-in, refresh, undo, revert, branch writes, evidence
 // bring-in is here (re-review b05 issue 3): after its merge it runs one fetch per clone
 // (RefreshClones), like a land, so the 10 s default could report a failure for one that happened.
 export const GIT_REMOTE_TIMEOUT_MS = 200_000; // fetch, push, PR — above the server's 3-minute gitx.Remote
@@ -207,6 +209,8 @@ export interface CockpitClient {
   setQueue(projectId: ProjectId, branchId: BranchId, order: WorktreeId[]): Promise<WorktreeId[]>;
   land(projectId: ProjectId, branchId: BranchId, req: LandRequest): Promise<LandResult>;
   bringIn(projectId: ProjectId, branchId: BranchId, expectedTip: string, expectedUpstream: string): Promise<BringInResult>;
+  // review I4: POST …/branches/{branchId}/refresh; ResolveDialog's first call (task 19)
+  refreshBranch(projectId: ProjectId, branchId: BranchId): Promise<RefreshResult>;
   listLands(projectId: ProjectId, branchId: BranchId, limit?: number): Promise<HistoryEntry[]>;
   undoLand(projectId: ProjectId, branchId: BranchId, sha: string, expectedTip: string): Promise<UndoResult>;
   revertLand(projectId: ProjectId, branchId: BranchId, sha: string, expectedTip: string): Promise<RevertResult>;
@@ -284,7 +288,7 @@ export const selectHeadBriefKey = (branchId: BranchId | null) => (s: CockpitStat
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `every phase 3 method sends the method, path and body its part names` | a fake `fetch` records each call; one row per method, e.g. `land` → `POST /v1/projects/p-1/branches/b-1/lands` with the `LandRequest` JSON | a route typo that only a live run finds |
+| `every phase 3 method sends the method, path and body its part names` | a fake `fetch` records each call; one row per method, e.g. `land` → `POST /v1/projects/p-1/branches/b-1/lands` with the `LandRequest` JSON, and `refreshBranch` → `POST /v1/projects/p-1/branches/b-1/refresh` with `{}` and `GIT_WRITE_TIMEOUT_MS` (review I4) | a route typo that only a live run finds |
 | `path segments are encoded` | a branch id with `/` and a path with `#` reach the URL encoded | a diff route reading the wrong path |
 | `remote and write calls use their longer timeouts` | a fake that never answers: `pushBranch` is not aborted at 10 s and is at 200 s; `bringIn` is not aborted at 10 s and is at 150 s (fake timers; re-review b05 issue 3) | a push aborted by the client mid-flight, or a bring-in reported failed while its clone refresh runs |
 | `git_failed and host_failed classify as server-said` | `classify(new ApiError("git_failed", …))` → `"server-said"` | a new ProblemKind by accident (R4 rules one for upstream-down only) |
