@@ -5,7 +5,7 @@
 # guards.sh in, runs it with INFRA_ROOT pointed at the fixture, and asserts on the exit status
 # and the named line. Every case is a mutant guards.sh must kill (task 01's table).
 #
-#   bash infra/scripts/guards_test.sh                 all fourteen cases
+#   bash infra/scripts/guards_test.sh                 all fifteen cases
 #   bash infra/scripts/guards_test.sh <case>…         just these (names as listed at the end)
 #
 # Last line:  guards_test: <n> cases, <p> passed        exit 0 iff p == n
@@ -165,6 +165,11 @@ EOF
   put "infra/terraform/README.md" <<'EOF'
 # infra/terraform (fixture)
 EOF
+  # Not Terraform: task 30 keeps custom role definitions as JSON under infra/rbac/, so only
+  # the two Terraform JSON forms (*.tf.json, *.tfvars.json) may fail G1, not every *.json.
+  put "infra/rbac/plan-reader.json" <<'EOF'
+{"Name": "panacea-app-plan-reader", "IsCustom": true}
+EOF
   git init -q "$T" >/dev/null 2>&1
   git -C "$T" config core.autocrlf false
   track "$TF/stacks/x/.terraform.lock.hcl"
@@ -176,7 +181,9 @@ track() {
 }
 
 # guards — copy guards.sh into the fixture and run it there. Output: $T/out.txt; status: $RC.
+# A case that sets STUB to a directory puts it first on guards.sh's PATH (stub commands).
 RC=""
+STUB=""
 guards() {
   if [ ! -f "$GUARDS" ]; then
     RC="missing"
@@ -186,7 +193,7 @@ guards() {
     return
   fi
   cp "$GUARDS" "$T/infra/scripts/guards.sh"
-  INFRA_ROOT="$T/infra" bash "$T/infra/scripts/guards.sh" > "$T/out.txt" 2>&1
+  PATH="${STUB:+$STUB:}$PATH" INFRA_ROOT="$T/infra" bash "$T/infra/scripts/guards.sh" > "$T/out.txt" 2>&1
   RC=$?
   mapfile -t OUT < "$T/out.txt"
 }
@@ -219,11 +226,18 @@ expect_no_line() {     # expect_no_line <fixed string>
 expect_ok() {          # expect_ok <n>: the exact line "guard G<n>: ok"
   has_exact "guard G$1: ok" || note "expected 'guard G$1: ok'"
 }
+expect_scan_failed() { # expect_scan_failed <line>: exit 2, that exact line, and no rule reported
+  [ "$RC" = "2" ] || note "expected exit 2 from a failed scan, got $RC"
+  has_exact "$1" || note "no line '$1'"
+  expect_no_line "guard G"
+  expect_no_line " of 10 passed"
+}
 
 # case <name> — run the function case_<name> and tally it.
 case_run() {
   CASES=$((CASES + 1))
   FAILED=""
+  STUB=""
   "case_$1"
   if [ -z "$FAILED" ]; then
     PASSED=$((PASSED + 1))
@@ -256,6 +270,15 @@ case_g1_terraform_tfvars_fails() {   # kills: G1 deleted, or matching only *.aut
   guards
   expect_only 1
   expect_line "guard G1: FAIL $TF/stacks/x/dev.auto.tfvars:"
+  # JSON configuration is refused outright: G3, G5, G9 and G10 read HCL only (review M3).
+  # kills: G1 without the JSON rule, or one that refuses only *.tf.json
+  rm -f "$T/$TF/stacks/x/dev.auto.tfvars"
+  put "$TF/stacks/x/extra.tf.json" <<< '{"locals": {"a": 1}}'
+  put "$TF/stacks/x/prod.tfvars.json" <<< '{"environment": "prod"}'
+  guards
+  expect_only 1
+  expect_line "guard G1: FAIL $TF/stacks/x/extra.tf.json: JSON configuration"
+  expect_line "guard G1: FAIL $TF/stacks/x/prod.tfvars.json: JSON configuration"
 }
 
 case_g1_tracked_override_fails() {   # kills: no override check; *_override.tf only; untracked fails
@@ -271,6 +294,16 @@ case_g1_tracked_override_fails() {   # kills: no override check; *_override.tf o
   expect_line "guard G1: FAIL $TF/stacks/x/backend_override.tf:"
   expect_line "guard G1: FAIL $TF/stacks/y/override.tf:"
   expect_line "guard G1: FAIL $TF/stacks/y/override.tf.json:"
+  # Outside a git work tree tracking cannot be read, so G1 and G7 fail closed (review M2).
+  # kills: G1 or G7 passing when git ls-files fails
+  rm -rf "$T/.git"
+  if git -C "$T" rev-parse --git-dir > /dev/null 2>&1; then
+    note "fixture: $T is still inside a git work tree after removing .git"
+  fi
+  guards
+  expect_fail
+  expect_line "guard G1: FAIL infra: not inside a git work tree"
+  expect_line "guard G7: FAIL $TF/stacks/x/.terraform.lock.hcl: not inside a git work tree"
 }
 
 case_g2_guid_in_tfvars_fails() {     # kills: G2 matching only lowercase hex
@@ -307,6 +340,22 @@ EOF
   guards
   expect_only 3
   expect_line "guard G3: FAIL $TF/stacks/x/tests/x.tftest.hcl: no mock_provider \"azuread\""
+  # `terraform test` runs a root-level file too, and it needs the same mocks (review I2).
+  # kills: G3 reading only tests/ (a root-level file checked against stacks/, which requires
+  # nothing)
+  put "$TF/stacks/x/tests/x.tftest.hcl" < "$WORK/template/$TF/stacks/x/tests/x.tftest.hcl"
+  put "$TF/stacks/x/x.tftest.hcl" <<'EOF'
+mock_provider "azurerm" {}
+mock_provider "azapi" {}
+
+run "committed_tfvars_plan" {
+  command = plan
+}
+EOF
+  guards
+  expect_only 3
+  expect_line "guard G3: FAIL $TF/stacks/x/x.tftest.hcl: no mock_provider \"azuread\""
+  expect_no_line "guard G3: FAIL $TF/stacks/x/tests/"
 }
 
 case_g4_helm_provider_fails() {      # kills: G4 that only greps required_providers
@@ -346,6 +395,13 @@ EOF
   guards
   expect_only 5
   expect_line "guard G5: FAIL $TF/stacks/x/backend.tf:"
+  # No backend.tf at all: `terraform init -backend-config=<file>` on a configuration with no
+  # backend block exits 0 with a warning and uses local state (review I3), so missing fails.
+  # kills: G5 that checks only the backend.tf files that exist
+  rm -f "$T/$TF/stacks/x/backend.tf"
+  guards
+  expect_only 5
+  expect_line "guard G5: FAIL $TF/stacks/x/backend.tf: missing"
 }
 
 case_g6_local_exec_fails() {         # kills: G6 deleted
@@ -566,6 +622,34 @@ EOF
   expect_pass
 }
 
+# A read that fails must not be taken for "nothing found" (review I1): with an awk that failed,
+# seven rules printed ok having checked nothing. The tree breaks G2, so a fail-open run shows.
+# stub <name> <status> — a command that prints to stderr only and exits <status>.
+stub() {
+  mkdir -p "$STUB"
+  printf '#!/bin/sh\necho "%s: stub failure" >&2\nexit %s\n' "$1" "$2" > "$STUB/$1"
+  chmod +x "$STUB/$1"
+}
+# kills: awk's exit status unread (a scanner failure reported as ok); the inventory's unread
+case_scanner_failure_fails_closed() {
+  new_tree scan
+  put "$TF/stacks/x/dev.tfvars" <<'EOF'
+environment = "dev"
+location    = "australiaeast"
+tenant_id   = "7A3F9C2E-1B4D-4E8A-9C6B-2D5E8F1A3B7C"
+EOF
+  guards                             # control: with the real awk, the GUID fails G2
+  expect_only 2
+  STUB="$T/stub"
+  stub awk 2
+  guards
+  expect_scan_failed "guards: scanner failed (awk exit 2)"
+  rm -f "$STUB/awk"
+  stub find 1
+  guards
+  expect_scan_failed "guards: inventory failed (find | sort exit 1)"
+}
+
 # ---------------------------------------------------------------------------------------------
 
 ALL=(
@@ -583,6 +667,7 @@ ALL=(
   g9_lockfile_provider_fails
   g10_tftest_file_level_tfvars_key_fails
   g10_one_line_file_level_variables_fails
+  scanner_failure_fails_closed
 )
 [ "$#" -gt 0 ] && ALL=("$@")
 for c in "${ALL[@]}"; do
