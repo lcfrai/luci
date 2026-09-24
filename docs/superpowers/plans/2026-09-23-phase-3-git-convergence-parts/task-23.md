@@ -86,8 +86,9 @@ unverified until then, and every report says so.**
    small edit and a commit. Confirm the commit carries `Panacea-Session`, and that Files shows a
    **tier 2** link for it.
 3. **The transcript canary.** From that session's conversation store, copy one Edit and one Write
-   exchange into `control-plane/internal/transcript/claudecode/testdata/captured-2.1.274.jsonl`,
-   redacting user text, reviewed for secrets; `TestCapturedFixtureParses` then runs instead of
+   exchange into `control-plane/internal/transcript/claudecode/testdata/captured-<PinnedVersion>.jsonl`
+   (`captured-2.1.274.jsonl` while the image pins 2.1.274; task 17, review I1), keeping the
+   exchange's version-less lines as they fall, redacting user text, reviewed for secrets; `TestCapturedFixtureParses` then runs instead of
    skipping (task 17).
 4. **Push and PRs.** Push a throwaway branch to `github.com/lcfrai/panaceaapp` through the
    machine's credential manager; open one **draft** PR there, and one on an Azure DevOps
