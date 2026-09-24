@@ -286,3 +286,46 @@ these. Team mode is where it is most likely to be broken by accident.
    which strips hooks and MCP on the laptop (phase 3 risk R4, `scope-and-risk-phase-3-git-convergence.md:389`,
    unverified inside a sandbox). Two teammates on differently-managed accounts get different agent
    behaviour on the same repo. Coordination must therefore work with **no hooks and no MCP** (§5.3).
+
+## 5. Isolation, and prompt injection across teammates' agents
+
+### 5.1 A teammate's agent must never reach my machine or sandbox
+
+| Path | Rule | Where it is already enforced, or not |
+|---|---|---|
+| teammate → my laptop | **no inbound connection to any laptop, ever.** Every control plane dials out; nothing dials in | phase 2's control plane is loopback-only with a `Host` guard (`phase-2-go-contract.md:2234`, `hub-contract.md:2074`). Team mode must add no listener |
+| teammate's sandbox → my sandbox (cloud) | denied | phase 8's `default-deny` plus sandbox policy: *"No rule allows a sandbox to reach another pod, so sandbox↔sandbox and sandbox→Hub/broker traffic is denied"* (`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment-parts/task-11.md:155-159`). Cilium's `ipBlock` behaviour is **UNVERIFIED** there (`:162-164`) |
+| teammate's sandbox → my sandbox (local Docker) | not applicable: the two sandboxes are on two different laptops | — |
+| any sandbox → the Hub | denied (same line). **This is a feature:** no agent can write a coordination record directly | phase 8 task 11; locally, the Hub token never enters a sandbox (`ADR-H1…:551-552`) |
+| teammate's code → my host | a teammate's lane arrives through the **remote**, and my host fetches it into the project under phase 3 ruling R4's hardening. Their commits are **data** until something executes them, and execution happens **only in a sandbox** | ruling R4 rules 1, 2 and 4 (`orchestrator-rulings.md:14-36`) |
+| teammate's code → my sandbox | **accepted risk.** Running tests on a merged teammate lane runs their code, in my sandbox, with my Claude session. Same as pulling a colleague's branch today | the Kata boundary (cloud) or phase 1's container (local). No git credential is in the sandbox (A4, `scope-and-risk-phase-3-git-convergence.md:186`) |
+
+Two consequences for `05-design`:
+
+1. **The Hub is the only rendezvous.** Presence, coordination and watch grants go laptop → Hub
+   and Hub → laptop on the laptop's own outbound poll (the change feed, `ADR-H1…:252`). No design
+   may add peer-to-peer between laptops or sandboxes.
+2. **An agent cannot publish.** Because sandboxes cannot reach the Hub and hold no Hub token, every
+   coordination record is written by a **control plane**, from a **human's** input or from
+   **deterministic** facts (git, session status). That single rule removes the worst injection
+   path in §5.2, and it costs nothing: it is already true of the network.
+
+### 5.2 Coordination data is untrusted input: the injection chain
+
+The owner wants every agent to *"understand what each other are doing"*. Mechanically, that means
+text written on behalf of one person is placed where another person's agent will read it. That is
+**indirect prompt injection** as OWASP defines it: *"when an LLM accepts input from external
+sources, such as websites or files"* (https://genai.owasp.org/llmrisk/llm01-prompt-injection/,
+read 2026-09-24).
+
+**The chain to design against.** A web page or a dependency README injects Alice's agent → Alice's
+agent writes something that becomes a coordination record → Dylan's agent reads it → Dylan's agent
+writes code or runs a command under Dylan's session in Dylan's sandbox → Dylan lands and pushes.
+Every agent is both a reader and, indirectly, a writer, so an unfenced design lets one poisoned
+page **propagate across the whole team's agents**. The attacker gains Dylan's session, Dylan's
+egress and a chance of a commit under Dylan's name.
+
+Anthropic's own guidance lists, for untrusted content, *"Avoid piping untrusted content directly
+to Claude"* and notes that *"no system is completely immune to all attacks"*
+(https://code.claude.com/docs/en/security, read 2026-09-24). So the fences below reduce the risk;
+none of them closes it alone, and the ranking in §9 says so.
