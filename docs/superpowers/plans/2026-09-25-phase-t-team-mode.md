@@ -521,4 +521,74 @@ the Hub's pin), and `storetest.Suite` both pass (phase 2's `registrytest` shape)
 except as an outbox payload. Tests: the suite; two concurrent `ClaimTurn` calls for one Orchestrator
 yield one winner (the two-replica property). Does not start a server.
 
+**11 — Fleet as a delegated Hub caller.** `cp/internal/fleet/outbox`: every Hub-bound write goes
+to the outbox in the same transaction as the Fleet state change, then a delivery loop sends it with
+an idempotency key (the Hub's contract §10.6 shape) and marks it sent; after 10 minutes of Hub
+failure Fleet pauses negotiation (threads stop advancing; workers keep running) and resumes on
+recovery (§2.2 item 3). `cp/internal/fleet/delegation`: Fleet's workload-identity token source,
+a delegation cache keyed by owner and project, `X-Panacea-Delegation` on every call; `feed.go`
+consumes task 08's per-org subscription and, on a revoked or lapsed delegation, calls a
+`Revoker` interface (stop sessions, close sockets, withdraw leases, mark cards *ended: access
+removed*) within 60 seconds; `rebuild.go` reloads Hub-owned state into memory at start (Fleet
+persists no Hub record, `ADR-H1:467-474`). Tests on task 08's fake: a Hub outage of 11 minutes
+pauses negotiation and loses no write; a revocation reaches the `Revoker` inside 60 s of fake time.
+
+**12 — `cmd/fleetd` chassis.** `cp/cmd/fleetd/{main.go,config.go}` (every `PANACEA_APP_FLEET_*`
+variable parsed once, a bad value fails start with its name) and `cp/internal/fleet/server`:
+the mux, phase 2's problem body, `/healthz`, `/readyz` (Postgres and Hub reachable), and
+`authz.go`: every route validates an Entra token with phase 8's `internal/entra` (built on
+`feat/env`, task 16), audience Fleet, `azp` the desktop's client id, principal `(tid, oid)`;
+membership and role come from the Hub (cached ≤ 60 s) and are checked against §3.4's table per
+request. Singleton loops (outbox delivery, deadline sweeper, feed consumer) take a Postgres
+advisory lock so two replicas never both run one. Tests: a viewer's launch is 403; a token for
+another audience is 401; two `fleetd` processes on one database run one feed consumer.
+
+**13 — OD-23 mechanism, part 1: the policy layers.** `cp/internal/policy`: a policy is Claude Code
+managed settings, as JSON. `Render(layers Layers, class model.Class) (file []byte, digest string,
+err error)` merges, in order: the embedded minimal default for the class (`defaults/*.json`), phase
+6's gateway fragment (S6.6, `images/sandbox/managed-settings.gateway.json`, read as input once
+merged), the org's current version, the project's current version, then **class invariants that no
+layer can remove**: `permissions.allow` contains `Bash(panacea *)`; `apiKeyHelper` is `panacea
+token`; `allowManagedHooksOnly` and `allowManagedPermissionRulesOnly` are true; the worker class's
+`PreToolUse` hook on `Edit|Write|MultiEdit` runs `panacea check`; `env` sets
+`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`; `permissions.defaultMode` is pinned per class; the
+Orchestrator's allowed tools are `Bash(panacea *)` and `Read`; `forceLoginMethod` is absent. A
+later layer may add rules and tighten; an attempt to drop an invariant is an error naming it. The
+minimal defaults are those invariants and nothing else: **no drafted policy** (OD-23). Digest is
+SHA-256 over the canonical bytes. Tests: each invariant has a mutant (a project layer that removes
+`Bash(panacea *)` must fail); rendering is deterministic. Which `env` keys a managed file can lock
+is **UNVERIFIED** (§7.3).
+
+**14 — OD-23 mechanism, part 2: versions, routes, audit.** `cp/internal/policy/store.go` over
+task 10's store: append-only versions `pv-…` per org and per project, each with author, time,
+bytes and digest; `cp/internal/fleet/server/policy.go`: `GET`/`POST /v1/orgs/{org}/policy` (org
+admin) and `/v1/projects/{p}/policy` (team admin), a `POST` creating version n+1 after `Render`
+succeeds for every class. Each version writes a metadata-only Hub audit event `policy.version`
+(id, scope, digest, author) through the outbox, and every agent-start record (task 06) carries the
+rendered digest, so *"which policy governed this agent"* is answerable from the Hub. Tests: a
+member's `POST` is 403; a layer that fails `Render` creates no version; the same bytes twice give
+one digest. Does not deliver files into pods (task 15).
+
+**15 — Phase 8 delta: sandbox classes and the policy mount.** Extends `cp/internal/sandbox/manager.go`
+on `feat/env` (built, task 14, `Spec` at `:69-83`) with `Spec.Class` and `Spec.PolicyFile`:
+the `orchestrator` class mounts **no machine disk and sets no affinity** (task 14b), has its own
+requests (proposed 250m / 512 MiB, measured in task 47), and its PTY command is
+`panacea-orchestrator`; every class gets a per-pod Secret `<pod>-policy` mounted read-only at
+`/etc/claude-code/` holding `managed-settings.json` (the Linux managed path, **UNVERIFIED** at the
+pinned CLI version; task 33's `/status` check settles it) and `PANACEA_APP_POLICY_SHA256` in the
+env. `sbx/internal/policycheck` makes `sandboxd` refuse to start the harness if the file is absent
+or its digest differs. Tests on the fake clientset: an orchestrator pod has no volume from the
+machine disk and no affinity; a worker pod keeps phase 8 task 15's; `sandboxd` with a tampered file
+exits non-zero before the PTY starts.
+
+**16 — Phase 8 delta: `sandboxd` `/control`.** `sbx/internal/control`: a `/control` WebSocket route
+beside `/attach` and `/healthz` (`sbx/internal/server/server.go:85-86`, built), bearer-authorised
+with a control token distinct from the attach token; one Unix socket at `/run/panacea/control.sock`
+(mode 0600, the agent's uid) that the `panacea` binary dials; every request on it is stamped with
+the pod's session id and class before it is forwarded up the control stream, so the credential is
+the channel (§3.3 rule 1). `snapshot.go` writes `/panacea/team.json` (worker-visible fields only,
+with `generatedAt`) to a read-only `tmpfs` mount outside the worktree whenever Fleet pushes one.
+When the stream is down every request is answered `unavailable` with `since`. Tests: a request with
+a forged session id in its body is re-stamped; the snapshot never contains a `text·A` field.
+
 ---
