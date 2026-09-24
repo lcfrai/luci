@@ -91,7 +91,7 @@ surface — and therefore the only thing behind "only a human approves" (review 
 | 2 | POST | `/v1/design/projects/{projectId}/branches/{branchId}/canvas` | `{}` | `201 Summary` (created) or `200 Summary` |
 | 3 | GET | `/v1/design/canvases/{canvasId}` | — | `200 Summary` |
 | 4 | GET | `/v1/design/canvases/{canvasId}/document?at=head\|<n>` | — | `200 doc.Document` |
-| 5 | POST | `/v1/design/canvases/{canvasId}/ops` | `{"ops":[doc.Op],"label":"…","ifRevision":0}` | `200 authority.ApplyResult` |
+| 5 | POST | `/v1/design/canvases/{canvasId}/ops` | `{"ops":[doc.Op],"label":"…","ifRevision":0}`; every op's `kind` is one of **the editor's six** (review M12, below) | `200 authority.ApplyResult` |
 | 6 | POST | `/v1/design/canvases/{canvasId}/undo` | `{}` | `200 authority.UndoResult` |
 | 7 | POST | `/v1/design/canvases/{canvasId}/redo` | `{}` | `200 authority.UndoResult` |
 | 8 | POST | `/v1/design/canvases/{canvasId}/revert` | `{"sessionId":"s-…","sinceRevision":0}` | `200 authority.RevertResult` |
@@ -107,6 +107,20 @@ surface — and therefore the only thing behind "only a human approves" (review 
 | 18 | GET | `/v1/design/canvases/{canvasId}/export?nodeId=&format=html\|jsx-inline\|jsx-tailwind&at=` | — | `200 {"format":"…","text":"…"}` (the code panel) |
 | 19 | POST | `/v1/design/render-results/{requestId}?renderer=<rendererId>` | `authority.RenderResult`, ≤ 32 MiB (its own decoder, not `httpx.DecodeJSON`'s 1 MiB); `renderer` is the `render` event's (review M17, below) | `204` |
 | 20 | GET | `/v1/events?window={id}&topic=…` | — | `200 text/event-stream` (below) |
+
+**Route 5's op allowlist (review M12).** Route 5 accepts exactly the kinds the editor sends
+(`task-23.md:153-157`, the memory transport's list): `create_node`, `set_props`, `move`,
+`delete_node`, `set_token`, `delete_token`, held as one `var humanOpKinds =
+map[doc.OpKind]bool{…}` in `ops.go`. Any other kind, before anything is applied, is `400
+bad_request` with `details.field: "ops[<i>].kind"` for the first offender, and the batch is not
+applied. Every other kind has a route of its own that does its own work first, which route 5 would
+skip: `add_asset` is route 11's, after the bytes are stored and hashed (M11), so on route 5 it would
+record an asset with no bytes; `review_mark` is route 23's, which takes the key from the branch's
+head brief (task 21), so on route 5 it would carry any key the caller wrote; `create_thread`,
+`add_message`, `set_thread_status` and `close_review` are routes 13–16's; `request_review` is an
+agent's MCP tool (`task-16.md:89`), never a human op. The page kinds (`create_page`, `update_page`,
+`delete_page`) have no human UI in this phase, so they are refused too; a later editor that needs
+one adds it to `humanOpKinds` and to this test in the same commit.
 
 Every human route builds `authority.Caller{Author: {Kind: human, UserID: "local", Handle: <the
 signed-in name from the Hub's /v1/auth/status, else "You">}}` — **no body field sets it** (plan
@@ -300,6 +314,7 @@ The two `PANACEA_APP_CANVAS_*` variables, `newDesignAPI` and the `main.go` wirin
 | `TestRoutes_audit` (`routes_audit_test.go`) | routes 1, 3, 4, 10, 12, 18, 20 are in `catalogReadOnlyRoutes`; the audit passes | a GET added outside the audit |
 | `TestOps_authorIsHuman` | a body with `"author":{…}` is `400 bad_request` (unknown field); the applied change's author is `human` | an actor field in a request (plan rule 4) |
 | `TestOps_conflictAndRejected` | stale `ifRevision` → 409 `canvas_conflict` with `currentRevision`; a cycle → 422 `op_rejected` with `index` | errors flattened to 500 |
+| `TestOps_kindAllowlist` (review M12, a table of all sixteen `doc.OpKind` constants, `task-06.md:28-45`) | each of the six editor kinds is applied; each of the other ten (`add_asset`, `review_mark`, the three page kinds, `create_thread`, `add_message`, `set_thread_status`, `close_review` and `request_review`) → 400 `bad_request`, `details.field: "ops[<i>].kind"`, and the revision is unchanged — including a batch whose first op is allowed and second is not. The list is positive, so a kind `doc` gains later is refused until someone adds it | an `add_asset` for bytes never stored; a `review_mark` carrying any key; a new op kind reachable from route 5 by default |
 | `TestAssets_postGet` | POST a PNG → asset + revision; GET returns the bytes with `nosniff`, `Content-Disposition: attachment; filename="<sha>"` and `Content-Security-Policy: sandbox; default-src 'none'` (an SVG asset too); a JPEG body labelled PNG → 415; 10 MiB + 1 → 413 | a mislabelled asset served to the renderer; an SVG that runs script on the control plane's origin (review M11) |
 | `TestAssets_shaMismatch` (review M11) | a PNG POSTed under the SHA-256 of other bytes → 400 `bad_request`, `details.field: "sha"`; the store holds no blob under either digest and the canvas revision is unchanged; an uppercase or 63-hex `{sha}` → 400 | a mislabelled asset: bytes stored under a digest they do not hash to, then served as another image |
 | `TestRenderResults_bigBody` | a 20 MiB result is accepted (its own limit); 33 MiB → 413 | screenshots refused by the 1 MiB JSON cap |

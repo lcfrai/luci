@@ -155,6 +155,9 @@ export class TransportError extends Error { constructor(public code: string, mes
 // an in-memory canvas that accepts batches, bumps revisions and emits events with resulting
 // state. It implements the ops the EDITOR sends (set_props, move, delete_node, create_node,
 // set_token, delete_token) — enough to test the editor, and deliberately not the authority.
+// These six are also route 5's allowlist (task 20a's humanOpKinds, review M12): the control
+// plane refuses any other kind from submit(), so an editor feature that needs another kind
+// amends humanOpKinds and TestOps_kindAllowlist in the same commit.
 export function createMemoryTransport(seed: Document): CanvasTransport & { events: CanvasEvent[] };
 ```
 

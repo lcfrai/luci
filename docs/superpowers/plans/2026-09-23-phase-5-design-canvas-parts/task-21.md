@@ -66,6 +66,15 @@ type Snapshot struct {
 	ReviewDigest string // serialize.ReviewDigest(Doc, BriefKey)
 }
 
+// Blobs is what the Hub stores (review M10): ManifestFile and Files
+// de-duplicated by SHA256 — each digest once, the first file by Path standing
+// for the rest — sorted by digest. Identical files are common: a duplicated
+// artboard exports byte-identical HTML, JSX and PNG. Route 21 uploads exactly
+// these (step 6) and sends exactly their digests as snapshot.blobs (step 7),
+// because the Hub requires the digests there to be distinct (contract §7.7
+// check 5, hub-contract.md:886). Files keeps every path; only uploads dedupe.
+func (s Snapshot) Blobs() []File
+
 // BuildSnapshot writes, per artboard (in page, then artboard, order), with
 // slug s from slug.go:
 //   <s>.html          serialize.ExportHTML, assets at "assets/<hex>.<ext>"  text/html; charset=utf-8
@@ -90,7 +99,14 @@ func BuildSnapshot(in SnapshotInput) (Snapshot, error)
 func FileCount(d *doc.Doc) int
 
 const (
-	MaxFiles         = 500       // the Hub's snapshot.blobs cap, manifest included (contract §7.7 check 5)
+	MaxFiles         = 500       // FILES, manifest included: our own bound, not the Hub's measure (review M10).
+	                             // The Hub caps snapshot.blobs at 1–500 DISTINCT digests (contract §7.7
+	                             // check 5, hub-contract.md:886); identical files share a digest, so
+	                             // distinct digests ≤ files and a snapshot within MaxFiles is always
+	                             // within the Hub's cap. Files, not digests, because the pre-capture
+	                             // check (route 21 step 4) runs before any PNG digest exists, and the
+	                             // handoff writes one file per entry (task 22): a digest count would let
+	                             // a manifest list any number of empty files under one digest
 	MaxFileBytes     = 16 << 20  // the Hub's blob cap (contract §7.6)
 	MaxSnapshotBytes = 512 << 20 // every file's Size summed, manifest included; half the Hub's 1 GiB
 	                             // project quota (contract §7.6). Both BuildSnapshot and task 22's
@@ -158,8 +174,10 @@ type ManifestWant struct {
 //     two artboards share a Slug; ContentType == ContentTypeFor(Path); an
 //     "assets/<hex>.<ext>" path's hex is that file's own declared SHA256
 //     (assets are content-addressed, task 05). Any failure → ErrUnsafePath.
-//  4. len(Files)+1 ≤ MaxFiles; every Size ≤ MaxFileBytes; the sum of every
-//     Size plus manifestSize ≤ MaxSnapshotBytes. Any failure → ErrTooLarge.
+//  4. len(Files)+1 ≤ MaxFiles (files, not digests: MaxFiles, review M10);
+//     every Size ≤ MaxFileBytes; the sum of every Size plus manifestSize ≤
+//     MaxSnapshotBytes (every file counted, duplicates too, since the handoff
+//     writes each). Any failure → ErrTooLarge.
 //
 // Each error wraps its sentinel and names the offending field, path or limit.
 func CheckManifest(m Manifest, manifestSize int64, want ManifestWant) error
@@ -331,10 +349,15 @@ type ApprovalState struct {
    `ErrTampered` or `ErrUnsafePath` from `BuildSnapshot`'s own `CheckManifest` (a path failing
    `SafePath`, a path repeated, a content type or asset hex that disagrees) is a bug in `slug.go` or
    `snapshot.go` — `500 internal`, nothing uploaded, no approval asked of the Hub (re-review I-1).
-6. `PutBlob` for every file and the manifest, each from a `*bytes.Reader` (HA5-1), retried once on
-   `ErrUnavailable` with a fresh reader.
+6. `PutBlob` once per `snap.Blobs()` entry — each **distinct** digest once, the manifest included
+   (review M10) — each from a `*bytes.Reader` (HA5-1), retried once on `ErrUnavailable` with a
+   fresh reader. Identical files (a duplicated artboard's HTML, JSX and PNG) share one upload.
 7. `Approve` with `designKey`, `reviewDigest`, `briefKey`, `briefDigest`, `branchRef`
-   (`Briefs.BranchRef`), `snapshot.manifest` and every digest in `snapshot.blobs`. **No approver
+   (`Briefs.BranchRef`), `snapshot.manifest`, and as `snapshot.blobs` exactly the digests of
+   `snap.Blobs()`: each once, the manifest's among them. The Hub refuses a repeated digest there
+   with `400 bad_request` `field: snapshot.blobs` (contract §7.7 check 5, `hub-contract.md:886`;
+   Hub plan `task-22.md:30`), so sending one digest per file would fail every snapshot that holds
+   two identical files (review M10). **No approver
    field exists** (contract §7.7); the Hub records the principal. Its 4xx pass through unchanged
    (`brief_incomplete`, `digest_mismatch`, `blob_missing`, `design_already_approved`); its 5xx and
    transport failures are `503 upstream_unavailable` `upstream: "hub"`.
@@ -366,6 +389,8 @@ loader; this cache does not poll it).
 | `TestApprove_snapshotBug` | the route with its `buildSnapshot` field (default `handoff.BuildSnapshot`) replaced by one returning an error wrapping `handoff.ErrUnsafePath`, then one wrapping `handoff.ErrTampered` → `500 internal` each time; the Hub fake received no `PutBlob` and no `Approve` | an immutable Hub approval that no handoff can use |
 | `TestMount_wrapsEveryRoute` (task 20a's test, extended) | the count of mounted design routes is now **23** (routes 21–23 added); each answers 401 `local_key_required` with no key | a new route mounted around the guard (re-review M-3) |
 | `TestApprove_happy` (Hub fake) | blobs uploaded before the approval; `ApprovalRequest` has the right keys and digests; the review request is closed; route 22 then says `approved` | an approval with no snapshot |
+| `TestApprove_duplicateFiles` (review M10; a Hub fake that applies contract §7.7 check 5 and answers a repeated digest `400` `field: snapshot.blobs`) | a document with an artboard and its unedited duplicate (byte-identical HTML, JSX, Tailwind JSX and, from the renderer fake, PNG): `Files` keeps all eight artboard paths; `PutBlob` is called once per distinct digest (never twice for one); `snapshot.blobs` has no repeat, includes `snapshot.manifest` and equals the set of every file's digest plus the manifest's; the approval succeeds | a legal snapshot refused by the Hub with `400` because two files share a digest; one upload per file for identical bytes |
+| `TestSnapshotBlobs` | `Blobs()` on a snapshot with two files sharing a digest returns that digest once (the first by `Path`), the manifest once, sorted by digest; with no duplicates it is `len(Files)+1` long | a de-duplication that drops the manifest or keeps a repeat |
 | `TestApprove_notShared` | an unbound project → 409 `design_not_shared` and **no** Hub call | blobs uploaded for a project the Hub cannot hold |
 | `TestApprove_incompleteBrief` | head brief `open` → 409 `design_no_brief`, no upload | an approval against an unfinished brief (ADR Q1) |
 | `TestApprove_noRenderer` | no renderer → 409 `renderer_unavailable`, `details.cause: "no_renderer"` and its sentence, no upload | an approval whose PNGs are blank |
