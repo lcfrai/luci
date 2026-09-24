@@ -255,8 +255,8 @@ minute otherwise. *Cost if wrong:* rates are variables.
 **7P-6 — A local project is bound to its Panacea project automatically, by repository.** The
 watcher lists the Panacea projects the token can see (`GET /api/v1/projects`, `ListResponse` of
 `Project` with `repoUrl`, `models/models.go:567`) and matches `githost.ParseRemote(repoUrl).RepoKey()`
-against the local project's `origin`. One match binds silently. None says *"No Panacea project
-deploys this repository"*. Several — Panacea allows projects that share a repo slug
+against the local project's `origin`. One match binds silently. None says *"No Panacea project your
+key can see deploys this repository. …"* (the full sentence is task 06's table, t06:154). Several — Panacea allows projects that share a repo slug
 (`models/models.go:2388-2389`, the `ProjectName`/`ProjectNamespace` comments) — ask the user once;
 the choice is stored **locally**, in `statepath.Dir("deploy")/bindings.json`, written with the
 shared `writeAtomic` (ruling R2). A shared binding in the Hub is Hub ask HA7-3 (§9), not a blocker.
@@ -323,7 +323,9 @@ groups would be a second reader of a namespace whose own file says it has exactl
 in the routes phase 7 uses — so a viewer's Ship is refused by Panacea and rendered verbatim, after
 the reservation is abandoned. A key restricted to one project (review I5, Q-P7-7) meets the same
 routes: the probe always answers `403` (a scoped key is capped at Developer,
-`models/models.go:547-559`), a *Read only* key's Ship is refused with Panacea's own sentence, and
+`models/models.go:547-559`), a *Read only* key's Ship, Roll back, Rebuild, Cancel and posture change
+are each refused with Panacea's own sentence (all `authedProjectDeveloper`, `routes/routes.go:1286`,
+`:1026`, `:1291`, `:1431`), and
 `/me` and `/projects` carry no mark of the scope. So the owner-only and no-match sentences name the
 key as well as the role (tasks 18 and 06), and nothing tries to detect the scope.
 
@@ -786,7 +788,7 @@ Task 20's `SEAMS.md` restates these rows with the file, line and test that hold 
 | **Q-P7-4** | The branch posture offers **`none` — public on the internet** — to any developer, because Panacea's API does (`routes.go:1431` is developer-gated). Should the cockpit offer it? | **Yes, as Panacea does**, held for 5 s with the consequence printed first: *"Anyone on the internet will be able to open this branch."* Overrule to hide `none` and `password` from the cockpit |
 | **Q-P7-5** | A rollback made **outside the cockpit** cannot be seen (7P-4). Acceptable for v1, said in the lens's help text? | **Yes**; Q-P7-2 is the fix |
 | **Q-P7-6** (b02 round 2, R1) | Ask Panacea to make `branchEnv` (`handlers/branch_security.go:29-37`) resolve the production branch with `ResolveProjectProductionBranch`, as its deploy and its posture path already do? Until then, for a project whose production branch is annotation-only or mislabelled, Ship records the Hub release against the access route's answer and the lens flags it after the deploy (7P-8, §12) | **Yes**, in the same note as Q-P7-2 and Q-P7-3. Phase 7 builds the after-the-fact flag and corrects nothing; a Hub-side correction at the deployment join would be a new Hub ask, and is not built |
-| **Q-P7-7** (review I5) | Which `pnc_` key does the connect panel tell people to mint: **unrestricted** (*No restriction — full access, same as you*), or one **restricted to a project at *Deploy***? A restricted key sees one project (`clients/kubernetes.go:1237-1249`), is capped at Developer (`models/models.go:547-559`), so every owner control reads *"no"*, and a *Read only* one — the portal's default once a project is picked — cannot Ship (`middleware/rbac.go:265-276`). The connection holds **one** key, so a restricted key means one project per cockpit | **Unrestricted.** The lens spans every local repository's project and draws the owner controls, and the key is the user's own, in Credential Manager, never in a sandbox, revocable in the portal. Built behind one constant (`KEY_ADVICE`, task 14); either answer leaves the no-match and owner-only sentences true, because both already name the key (tasks 06, 18). Overrule to restricted-at-*Deploy*: change `KEY_ADVICE`, and accept one project per cockpit and no owner controls |
+| **Q-P7-7** (review I5) | Which `pnc_` key does the connect panel tell people to mint: **unrestricted** (*No restriction — full access, same as you*), or one **restricted to a project at *Deploy***? A restricted key sees one project (`clients/kubernetes.go:1237-1249`), is capped at Developer (`models/models.go:547-559`), so every owner control reads *"no"*, and a *Read only* one — the portal's default once a project is picked — can only read: it cannot Ship, roll back, rebuild, cancel or change who can open a branch (`middleware/rbac.go:265-276`; `routes/routes.go:1286`, `:1026`, `:1291`, `:1431`). The connection holds **one** key, so a restricted key means one project per cockpit. **What the recommended key costs:** an unrestricted key carries every right its holder has, on every project — platform admin included, for an administrator (`IsSuperAdmin` reads the holder's own groups, `models/models.go:218-228`). Phase 7 uses at most owner rights, and only on the bound projects; no route it calls needs admin rights. A third option, one restricted key per bound project, is **not built**: the connection holds one key | **Unrestricted.** The lens spans every local repository's project and draws the owner controls, and the key is the user's own, in Credential Manager, never in a sandbox, revocable in the portal. Built behind one constant (`KEY_ADVICE`, task 14); either answer leaves the no-match and owner-only sentences true, because both already name the key (tasks 06, 18). Overrule to restricted-at-*Deploy*: change `KEY_ADVICE`, and accept one project per cockpit and no owner controls |
 
 **What the owner provides, and when (OD-12, batched to the end):** one `pnc_` token minted in the
 Panacea dev portal (Account → API keys, with no project restriction unless Q-P7-7 is overruled), pasted into the connect panel during the hands-on session;

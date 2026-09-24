@@ -636,13 +636,15 @@ func Conformance(t *testing.T, h Harness)
 go test ./control-plane/internal/deploy/... -race -count=1
 → ok  …/internal/deploy  and  ok  …/internal/deploy/deploytest
 
-grep -nE '"/api/|"/projects|json:"|"(Succeeded|Pending|Failed|Running|Unknown)"|pnc_|/deploy/panacea"' control-plane/internal/deploy/*.go control-plane/internal/deploy/deploytest/*.go
+grep -nE '["`]/api/|["`]/projects|json:"|["`](Succeeded|Pending|Failed|Running|Unknown)["`]|pnc_|/deploy/panacea["`]' control-plane/internal/deploy/*.go control-plane/internal/deploy/deploytest/*.go
 → only TestErrorNeverRendersCause's lines in deploy_test.go: its "Bearer pnc_abc" cause and its "pnc_" assertion
   (case-sensitive on purpose, review I1: the domain's own constants are lowercase — "pending",
   "succeeded" — and comments may name Panacea, its PipelineRuns and its line numbers. The grep
   guards code: a route literal, a JSON tag, a Panacea status word, a token prefix, an import of
   the connector. Run against this part's code blocks it prints nothing; each of those five
-  planted as a line prints that line. The PostureMode values at :400-404 equal Panacea's
+  planted as a line prints that line. Each quote class is ["`] so a Go raw string is caught too:
+  `/api/v1/projects`, `Succeeded` and a raw-string import each print, where the "-only form
+  printed none of them — plan re-review b06 M-6, planted and run. The PostureMode values at :400-404 equal Panacea's
   accessMode words by design — the control plane's own API and the desktop type use the same five
   (t11:46, t13:179) — and the grep does not name them.)
 
