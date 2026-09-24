@@ -85,9 +85,11 @@ including *"no Keycloak user found for grantee …"* (`clients/keycloak.go:189`)
 5xx sentence. So `panacea.Client.Grant` (task 04), the only code that may know Panacea's wording,
 maps a 500 whose body begins `"failed to add access binding: "` and contains either phrase to
 `KindRejected` with **our** sentence, *"No Panacea user matches that name or email."* — never the rest
-of the body. This is reading an error string, which the plan otherwise refuses; it is confined to
-one connector method, pinned by a test that quotes both source lines, and any other 500 stays
-`KindUnavailable`. This route then answers `422 deploy_rejected` through `writeDeployError` like any
+of the body. This is reading an error string, which the plan otherwise refuses; plan 7P-12 names it
+as the **single exception** to "no Panacea sentence is ever parsed" (review M8). It is kept because
+it fails safe: a reworded phrase falls back to `KindUnavailable`, never to a wrong refusal. It is
+confined to one connector method, pinned by a test that quotes both source lines, and any other 500
+stays `KindUnavailable`. This route then answers `422 deploy_rejected` through `writeDeployError` like any
 other refusal.
 
 **Never logged:** `password`, any `bypassTokens` value. The request struct's `Password` field has a
@@ -100,7 +102,7 @@ redacting `String()`; the handler test captures the log and greps for the passwo
 | `TestBranchIsAQueryParam` | `?branch=feat%2Fx` reaches the fake as `"feat/x"` | a path-segment branch that splits at the `/` |
 | `TestUnknownModeNeverSent` | `{"mode":"public"}` → 400; the fake saw no `SetPosture` | forwarding a word Panacea would fail closed on, or worse, a future synonym |
 | `TestPasswordOnlyWithPasswordMode` | `{"mode":"kpmg-sso","password":"x"}` → 400 | a stray password persisted against the wrong mode |
-| `TestNotEnforcedCarried` | the fake returns `Enforced:false` + message → 200 with `"enforced": false` and the message | the lens drawing a saved-but-unapplied posture as done |
+| `TestNotEnforcedCarried` | the fake returns `Enforced:false` + message → 200 with `"enforced": false` and the message. The message is the connector's own sentence (task 04 writes it; Panacea's embeds an `err.Error()`, review M7), so this handler passes it through and adds nothing | the lens drawing a saved-but-unapplied posture as done |
 | `TestMintedTokenOnceNotLogged` | the fake mints `bt_123` → it is in the 200 body, not in the captured log, and a second `GET` does not carry it | a token in a log or a cache |
 | `TestGranteeIsOnePerson` | `"a@x, b@y"` → 400 with *"One person at a time."* | a comma-joined list that Panacea would read as two groups (survey §4) |
 | `TestGrantRereads` | `POST` → the response is the fake's `Access` after the write | a UI that shows what it asked for instead of what Panacea holds |

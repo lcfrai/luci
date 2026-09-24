@@ -129,7 +129,8 @@ words from Panacea's own definitions (`handlers/access_mode.go:11-24`):
 - A result with `bypassTokens` → each token once, in mono, with **Copy**, and *"Shown once. The
   cockpit does not keep it."* It lives in the component's state only, and is dropped on unmount.
 - `enforced false` → the result's `message` verbatim, as a warning: the mode is recorded but the
-  route has not caught up.
+  route has not caught up. That `message` is the connector's own sentence, never Panacea's, whose
+  not-enforced text embeds an internal error (task 04, review M7).
 - `409` → Panacea's SSO-lock sentence verbatim (*"access mode cannot be relaxed: …"*,
   `project_security.go:733-735`), and the radio returns to the mode Panacea still holds.
 

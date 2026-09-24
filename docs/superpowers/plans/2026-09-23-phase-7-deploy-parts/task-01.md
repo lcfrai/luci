@@ -434,7 +434,9 @@ type PostureResult struct {
 	// still meets the OLD mode. The lens must say so; a saved-but-not-enforced posture drawn as
 	// done is the silent-override class this program keeps paying for.
 	Enforced bool
-	// Message is the target's own sentence about the outcome, verbatim.
+	// Message is a sentence about the outcome. It is the target's own only when that sentence holds
+	// no internal error text; Panacea's not-enforced sentence embeds one, so the connector writes
+	// that one itself (task 04, review M7).
 	Message string
 	// BypassTokens are freshly minted tokens, returned exactly once. Empty when none was minted.
 	// The control plane passes them to the desktop once and never keeps them.

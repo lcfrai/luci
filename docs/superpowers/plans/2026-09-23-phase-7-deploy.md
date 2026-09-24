@@ -371,9 +371,22 @@ table: transport failure, timeout, `5xx` and `429` → `503 upstream_unavailable
 its sentence (the deploy route's budget and risk gates, `projects.go:2856`, `:2916-2918` — a
 refusal to abandon, not an outage; review I2); `400`/`422` → `422 deploy_rejected`. The
 `message` is Panacea's sentence, trimmed to 500 bytes; **a `5xx` sentence is never shown** (Panacea
-appends `err.Error()` to them, e.g. `projects.go:1529`), only logged. *"Waiting for team approval"*
+appends `err.Error()` to them, e.g. `projects.go:1529`), only logged. The same holds for a `200`
+sentence that embeds one: `SetBranchAccessMode`'s not-enforced message carries `reconcileErr`
+(`project_security.go:818-821`, `:837-839`), so the connector keys on the structured `enforced`
+field and writes its own sentence (task 04; review M7). *"Waiting for team approval"*
 is read from `GET /api/v1/me`'s `approved` field (`handlers/me.go:48-59`), **never** by matching the
 403 sentence.
+
+**No Panacea sentence is ever parsed, with one exception.** `AccessHandler.Add` answers **500** for
+every `AddProjectAccess` error (`handlers/access.go:57`), including an empty grantee
+(`clients/keycloak.go:182`) and one that matches no Keycloak user (`:189`) — a typo, not an outage. `panacea.Client.Grant`
+alone reads that 500's body: one that begins `"failed to add access binding: "` and contains either
+source phrase becomes `KindRejected` with **our** sentence, *"No Panacea user matches that name or
+email."*; every other 500 stays `KindUnavailable` with no sentence. It fails safe: if Panacea
+rewords either phrase, the typo is shown as *Panacea unavailable*, never a wrong refusal and never
+Panacea's text. It is pinned by `TestGrantUnknownUserIsRejected`, which quotes both source lines
+(task 04; task 11 explains the route; review M8).
 
 **7P-13 — Nothing Panacea says is persisted.** Deploy data is server truth held in the watcher's
 memory; the desktop slice is not persisted (provenance contract A5, widened by ADR-H1 §5.4). The

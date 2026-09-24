@@ -82,8 +82,10 @@ type setPostureDTO struct {
 	RotateBypassTokens bool   `json:"rotateBypassTokens,omitempty"`
 }
 
-// setPostureResponseDTO mirrors SetBranchAccessMode's data (handlers/project_security.go:824-845);
-// the envelope's message is the outcome sentence, including "SAVED … BUT NOT YET ENFORCED".
+// setPostureResponseDTO mirrors SetBranchAccessMode's data (handlers/project_security.go:824-845).
+// The envelope's message is carried only when enforced is true ("access mode set to …", :835).
+// When enforced is false Panacea's sentence embeds the reconcile error's err.Error() (:818-821,
+// :837-839), so it is logged at warn and never carried; SetPosture writes notEnforcedSentence.
 type setPostureResponseDTO struct {
 	Branch       string   `json:"branch"`
 	Env          string   `json:"env"`
@@ -131,7 +133,7 @@ type urlPrefixResponseDTO struct {
 | `AutoDeploy` | `GET B/auto-deploy` (1308) | 200 | — |
 | `SetAutoDeploy` | `PUT B/auto-deploy` (1309) | 200 | response is `data` with the GET's five keys, read from source (`projects.go:4192-4198`, review M6), decoded into `autoDeployDTO`; `enabled` is a bool, the value just written (`:4194`), never null. A 409 *"branch has no environment yet — …"* (`:4178`) is `KindConflict` with the sentence |
 | `Posture` | `GET B/access` (1430) | 200 | `Mode, ModeKnown = deploy.ParsePostureMode(AccessMode)` |
-| `SetPosture` | `PUT B/access` (1431) | 200 | `Password` sent only for `PosturePassword`; `Enforced` and the envelope `message` carried through |
+| `SetPosture` | `PUT B/access` (1431) | 200 | `Password` sent only for `PosturePassword`; `Enforced` carried through. `Message` is the envelope `message` when `enforced` is true. When it is false, `Message` is **our** sentence, built from the structured `enforced` and the mode and branch this call sent: *"Access mode saved as `<mode>` for `<branch>`, but not yet enforced: the route could not be updated, so traffic still meets the previous mode. Re-apply, and do not treat the new mode as active until it succeeds."* Panacea's own sentence is logged at warn, never carried, because it embeds `reconcileErr`, an `err.Error()` (`project_security.go:818-821`, `:837-839`; review M7) |
 | `Access` | `GET P/access` (1407) | 200 | role word → domain: `viewer`→`RoleViewer`, `editor` or `developer`→`RoleDeveloper`, `owner`→`RoleOwner`, else `RoleUnknown` (`models/project_groups.go:9-12`) |
 | `Grant` | `POST P/access` (1408) | **201** (`handlers/access.go:61`) | domain → wire: `RoleDeveloper` → **`"editor"`**; `RoleUnknown` refused before sending |
 | `Revoke` | `DELETE P/access/{group}` (1409) | 200 | the grantee path-escaped (an email contains `@`) |
@@ -157,8 +159,9 @@ or the fallback built at `handlers/risk_capability_apply.go:536-539`, whose labe
 `projects.go:1603-1604`), `rollback-400-noimage.json` (`:1575`), `rollback-404.json` (`:1570`),
 `autodeploy.json`, `autodeploy-409-noenv.json` (`:4133`), `autodeploy-set.json` (the PUT's `data`,
 `:4192-4198`, `enabled` a bool), `posture.json`,
-`posture-set-not-enforced.json` (the message of `project_security.go:836-839`, `enforced: false`),
-`posture-set-minted.json`, `posture-409-locked.json` (`:733-735`), `access.json` (one person grant,
+`posture-set-not-enforced.json` (the message of `project_security.go:836-839`, `enforced: false`,
+branch `feat/fix(ui)` — git allows the `(`, `git check-ref-format --branch` accepts it — and a
+stand-in `reconcileErr` that itself holds a `(`), `posture-set-minted.json` (`enforced: true`), `posture-409-locked.json` (`:733-735`), `access.json` (one person grant,
 one legacy group binding with empty `grantee`), `urlprefix.json`, `urlprefix-409.json`.
 
 #### Conformance rows added
@@ -181,11 +184,11 @@ one legacy group binding with empty `grantee`), `urlprefix.json`, `urlprefix-409
 | `TestRollbackCarriesWarmth` | warm → `WarmthWarm`, 0 s; cold → `WarmthCold`, the seconds | dropping the only hint of how long the flip takes |
 | `TestRollbackRefusalsVerbatim` | the 409, 400 and 404 bodies → `KindConflict`, `KindRejected`, `KindNotFound`, each `Message` equal to the file's sentence | a generic "rollback failed", which hides *"redeploy from source instead"* |
 | `TestSetAutoDeployDecodesPut` | `SetAutoDeploy(ctx, p, "feat/x", true)` against `autodeploy-set.json` → the recorded body is `{"enabled":true}`, and the result has `*Explicit == true` (non-nil), `ProjectDefault`, `Effective` and `ProductionBranch` from the file | a decoder written for a different PUT shape (the response was once marked unverified, review M6), or `enabled` read back as "no explicit label" |
-| `TestPostureNotEnforced` | `posture-set-not-enforced.json` → `Enforced == false`, `Message` is the full sentence | reporting a saved-but-unapplied posture as done |
+| `TestPostureNotEnforced` | `posture-set-not-enforced.json` (its `reconcileErr` a stand-in `dial tcp 10.0.0.9:6443: i/o timeout (retry 3)`, on branch `feat/fix(ui)`) → `Enforced == false`, `Message` equal to our sentence for that mode and branch, containing neither `10.0.0.9` nor `retry`; the captured warn log carries Panacea's sentence; `posture-set-minted.json` (`enforced: true`) keeps Panacea's *"access mode set to …"* | reporting a saved-but-unapplied posture as done; an internal error shown to the user (review M7); a cut at the first `(`, which the branch's own `(` defeats |
 | `TestPostureMintedTokenReturnedNotLogged` | `posture-set-minted.json` → `BypassTokens` has the token; the captured log lacks it | a token in the control plane's log |
 | `TestPasswordOnlyForPasswordMode` | `SetPosture(Mode: kpmg-sso, Password: "x")` sends no `password` key | sending a stale password field that Panacea might persist |
 | `TestGrantEditorSpelling` | `Grant(RoleDeveloper)` body has `"role":"editor"` | the domain word leaking onto the wire |
-| `TestGrantUnknownUserIsRejected` | a 500 `{"error":"failed to add access binding: resolve grantee \"x\": … / no Keycloak user found for grantee \"x\""}` → `KindRejected`, `Message` *"No Panacea user matches that name or email."*; any other 500 → `KindUnavailable`, `Message ""`. The test quotes `handlers/access.go:57` and `clients/keycloak.go:182`, `:189` | a typo shown as an outage — or, the opposite mutant, any 500 body shown to the user (task 11 explains the one exception) |
+| `TestGrantUnknownUserIsRejected` | a 500 `{"error":"failed to add access binding: resolve grantee \"x\": … / no Keycloak user found for grantee \"x\""}` → `KindRejected`, `Message` *"No Panacea user matches that name or email."*; any other 500 → `KindUnavailable`, `Message ""`. The test quotes `handlers/access.go:57` and `clients/keycloak.go:182`, `:189` | a typo shown as an outage — or, the opposite mutant, any 500 body shown to the user (plan 7P-12 names this as the single parsed sentence; task 11 explains the route; review M8) |
 | `TestRevokeEscapesEmail` | `Revoke("a.b@kpmg.com.au")` requests `/access/a.b%40kpmg.com.au` | an unescaped path segment |
 | `TestAccessLegacyGroup` | the legacy row → `Grantee == ""`, `Group` set | drawing a group name as a person |
 | `TestNoWriteIsRetried` | every method of this task against a server answering 503 once, then 200: each saw one request | — the whole file's rule |
