@@ -534,7 +534,7 @@ under three.
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 | 3 h |
 | 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4) | 08 | 4.5 h |
 | 10 | Landed history, exact undo (refused once another lane has merged the land, review I3), revert | 09 | 2.5 h |
-| 11 | Remove a worktree; create, rename and delete a branch | 07 | 3 h |
+| 11 | Remove a worktree; create, rename and delete a branch | 07, 08 (`CheckedOutAt`) | 3 h |
 | 12 | Fetch (on demand and on a slow timer) and push, with the machine's credential helper | 02, 04 | 2 h |
 | 13 | The credential-store seam (H-1), the git-helper fallback, push with a stored token | 12 | 2 h |
 | 14 | `githost`: GitHub and Azure DevOps behind one interface; the PR route | 10, 13 | 3 h |
@@ -549,10 +549,12 @@ under three.
 | 23 | Proof: the end-to-end script on real git and Docker, the owner's batched checklist, the seams doc | all | 2 h |
 
 **Order.** 01 → 02 → 03 → 04 → then three lanes that can run in parallel worktrees:
-**(a)** 05 → 06; **(b)** 07 → 08 → 09 → 10, then 15 and 16 → 17; **(c)** 11 (after 07), 12 → 13,
+**(a)** 05 → 06; **(b)** 07 → 08 → 09 → 10, then 15 and 16 → 17; **(c)** 11 (after 08), 12 → 13,
 then 14 once 10 has landed (its PR description lists the lands). The desktop track 18 → (19 → 20) ∥ 21 ∥ 22 starts once G2 holds. Task 23 is last.
-Lane (c) needs only 07 from lane (b) before 14 (review I7; re-review b04-1 issue 4): task 11
-waits on 07, lane (b)'s first task, and nothing else in lane (c) waits on lane (b). `briefref`, which task 11 imports,
+Lane (c) needs only 07 and 08 from lane (b) before 14 (review I7; re-review b04-1 issue 4;
+review Minor 16): task 11 waits on 07, lane (b)'s first task, and on 08, whose `CheckedOutAt`
+its branch rename and delete refuse by, and nothing else in lane (c) waits on lane (b). This
+costs the schedule nothing: task 18 waits on 17, which follows 08 in lane (b). `briefref`, which task 11 imports,
 is task 03's; the one lock that tasks 09-12 all take is task 02's `gitx.Locks`, constructed once
 by task 04 in `GitDeps.Locks`. Each task tests its own side against that lock, so task 12 needs
 no `Lander` and no edge to task 09 exists or is needed. The one line that joins them,

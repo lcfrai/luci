@@ -97,9 +97,12 @@ rebindBranch(fromId: BranchId, toId: BranchId): void;
 
 **The forms** are popovers anchored to the menu row (phase 2's `Popover`), each one text field or
 select plus its verb: *New branch* (name, and "from" defaulting to the checked-out branch;
-`branch_exists` and git's `check-ref-format` answer shown under the field), *Rename branch*
-(`branch_has_worktrees` names them: "Remove or land this branch's worktrees first — upload-api,
-scan-hook."), *Delete branch* (the one line: "Delete evidence-upload? Its tip is kept as
+`branch_exists` and the `bad_request` answer shown under the field: git's `check-ref-format`
+sentence, or the control plane's own for shorthand such as `@{-1}`; task 11 `ValidBranchName`),
+*Rename branch* (the same name answers; `branch_has_worktrees` names them: "Remove or land this
+branch's worktrees first — upload-api, scan-hook."; `branch_checked_out`, review Minor 16:
+"evidence-upload is checked out in <path>. Renaming it would move that checkout to the new name.
+Switch that checkout to another branch first."), *Delete branch* (the one line: "Delete evidence-upload? Its tip is kept as
 refs/panacea/archive/… so nothing it named is lost; the remote branch is not deleted.") — a
 question because the rail loses the branch and there is no undo verb for it in v1.
 
@@ -127,6 +130,7 @@ quotes git's sentence. Buttons: **Remove** (danger) and **Keep it** (default foc
 | `Keep it is the default focus` | on open, `document.activeElement` is Keep it | Enter destroying work |
 | `rename rebinds branch-keyed state` | branchDefaults, expandedBranches and selection under `b-old` move to `b-new`; PERSIST_VERSION unchanged | a renamed branch losing its defaults (A8) |
 | `rename warns the remote keeps its old name` | `remoteKeepsOldName: true` → the toast says so | a silent divergence |
+| `rename names the checkout it refuses for` (review Minor 16) | a 409 `branch_checked_out` with `details.path` → the form shows the path and the "Switch that checkout" sentence; no rebind happens | a refusal shown as a bare failure, or a rebind for a rename that did not happen |
 | `delete asks, then deletes` | the one-line question; Delete → `deleteBranch`; Keep → nothing | a branch gone on one click with no undo |
 | `sessionInNewWorktree creates then starts` | `createWorktree` then `createSession(newId, …)` in that order | a session started in the old, shared worktree |
 | `the palette carries no destructive verb` | no command id starts with `remove:` or `delete:`; `land:` rows only for clean forecasts | a destructive verb one keystroke away (SX.6) |
