@@ -10,6 +10,18 @@ as the solo, offline and development mode (§10.3). Every earlier line of this f
 owner's own subscription" or "never pool" is rewritten below to say *attributed to the owner, with a
 quota at the gateway*.
 
+**Revision 3, 2026-09-25: after the two critiques** (`06-critique-feasibility.md`,
+`07-critique-security.md`). Every Critical and Important finding in both is fixed in place, in the
+section it names, or rebutted with evidence. §15 maps each finding to its fix. The largest
+changes: the Orchestrator runs as a product-owned runner in a small pod with no machine disk
+(§4.2); activity is observed from `machined`, outside the VM (§3.3); one taint rule keyed on who
+started the turn (§7.2); nothing an agent writes is ever typed into a PTY (§4.3); workers read no
+peer free text (§5.1); every directive is a Hub record (§3.3); the cloud image ships the product's
+own managed settings (§2.5); and TM1 is re-planned at about 68 focused days behind a two-week
+TM1-α spike (§12). The owner's relayed words for this run (*"Idk why Docker is needed … The app on
+device should be the portal to the cloud"*) are answered in §10.3: no user needs Docker. The
+owner's lean towards AWS is put back to the owner as Q0 with the corrected trade-off (§13.1).
+
 **Status:** design, 2026-09-24, **rewritten after OD-14 to OD-17**. The earlier draft of this file
 (commits `28a65d1` to `7b094c5`) assumed each teammate's agents ran on that teammate's laptop and
 that only facts met in the Hub. OD-14 reverses that: team agents run centrally. That draft is
@@ -43,49 +55,57 @@ updating that document, they are able to communicate and understand each other."
 1. **One managed control plane per org, called Fleet,** runs every team agent as a managed session in
    a Kata sandbox on AKS in our environment. The desktop is the portal: a client of Fleet. Laptop
    Docker stays only as the solo, offline and development mode (OD-14, OD-18, OD-20).
-2. **Every user has one Orchestrator per team project.** It is an unmodified Claude Code session in
-   its own sandbox. Like every agent, it reaches the model only through the org's inference gateway,
-   on a per-session token attributed to that user (OD-19). It plans the work and spawns and directs
-   only that user's **workers** (OD-16).
+2. **Every user has one Orchestrator per team project.** It is unmodified Claude Code, run one
+   headless turn at a time by a product-owned runner in a small sandbox with no machine disk, and
+   re-seeded daily from Fleet's typed state (§4.2). Like every agent, it reaches the model only
+   through the org's inference gateway, on a short-lived, pod-bound token attributed to that user
+   (OD-19, §2.5). It plans the work and spawns and directs only that user's **workers** (OD-16).
 3. **Every agent has a task card**: its task; its reason, which is a link to the brief section the
    task serves (the provenance thread); its status; the files it is touching, as observed by the
    platform; and the leases it holds. Every agent on the project can read every card (OD-15).
-4. **Agents reach the platform through one channel that survives the KPMG policy:** a `panacea`
-   command inside each sandbox, answered by `sandboxd` from Fleet. It needs no MCP and no hooks. An
-   MCP front can be added later for a customer whose admin allowlists it (§5.2).
+4. **Agents reach the platform through one channel:** a `panacea` command inside each sandbox,
+   answered by `sandboxd` from Fleet. It needs no MCP, and no hook is required for it to work. The
+   cloud image ships the product's own `managed-settings.json`, which allows `Bash(panacea *)` and
+   pins each class's permission mode, because a gateway-token session does not receive KPMG's
+   server-managed settings (§2.5). A cloud-only `PreToolUse` hook makes the first-edit check
+   deterministic once InfoSec approves the file (§5.3).
 5. **Orchestrators are the only cross-user speakers.** They talk through a typed protocol on Fleet:
    announce, ask, answer, propose, accept, reject, yield. Fleet detects conflicts itself and opens a
    **conflict thread** between the orchestrators involved (§6).
 6. **Each Orchestrator escalates only to its own human,** either to **inform** (a line in the
    RETURN handover) or to **ask for a decision** (an ADJUDICATE item), under a policy that human
    sets in advance. No human steers another human's agent (OD-16, §6.5).
-7. **Coordination text is untrusted input.** Facts are observed by the platform. Agent text is typed,
-   bounded, attributed and quoted. A teammate's free text reaches only orchestrators, and an
-   orchestrator that has read it may give its workers only typed directives without asking its
-   human. The sandbox and the verb set enforce this, not the prompt (§7).
+7. **Coordination text is untrusted input.** Facts are observed by the platform, from outside the
+   agent's VM. Agent text is typed, bounded, attributed and quoted. A teammate's free text reaches
+   only orchestrators; workers read none. Every team Orchestrator is treated as tainted, so in a
+   turn Fleet started it may give its workers only typed directives; free text to a worker needs
+   its human. Nothing an agent writes is ever typed into a PTY, and every directive is a Hub
+   record. Fleet enforces this on the verbs, not the prompt (§7).
 8. **Conflicts are predicted centrally.** Paths and hunks come from observed activity. Exact
    `merge-tree` forecasts run over a per-project **lane mirror** that Fleet holds, so no unfinished
    lane has to be pushed to the customer's remote. Leases are soft; the reviewed land is the
    backstop (§8).
 9. **Humans get a calm team strip:** who is on the repo, one line each, and the files touched.
-   Conflicts appear only when an Orchestrator escalates. There is no teammate terminal by default
-   (OD-15, §9).
-10. **The minimum lovable slice (TM1)** is about 53 focused days after the current wave, roughly 5
-    working weeks on four parallel streams, including phase 6 re-scoped as the inference gateway.
-    It re-scopes the Hub, phase 8 and phase 3 in the exact ways listed in §11 (OD-17, §12).
+   A conflict reaches a human when an Orchestrator escalates it, and **Fleet itself** writes a
+   DECIDED WITHOUT YOU line to both humans for every conflict closed without them. There is no
+   teammate terminal by default (OD-15, §9).
+10. **The minimum lovable slice (TM1)** is about 68 focused days after the current wave, roughly 8
+    working weeks on four streams, behind a two-week **TM1-α** spike on the real cluster that
+    proves the runner, the product managed settings and Hub delegation first. It re-scopes the
+    Hub, phase 8 and phase 3 in the exact ways listed in §11 (OD-17, §12).
 
 ## 1. Principles, each with its source
 
 | # | Principle | Why it binds | Source |
 |---|---|---|---|
 | P1 | **Team agents run where the platform can see them**: in Fleet, in Kata sandboxes | the owner's model is one shared document, not N laptops | OD-14 (`owner-decisions.md:125`) |
-| P2 | **One principal per human, from the token.** Fleet acts for a user only under a delegation that the user's own token created and the Hub records | a teammate, or Fleet itself, cannot write "Dylan's agent is doing X" | `ADR-H1:372`, `:434-435` (via `04` §2.1) |
+| P2 | **One principal per human, from the token.** Fleet acts for a user only under a 24-hour delegation that the user's own token created and the Hub records, and the Hub checks every Fleet write's agent id against that delegation's owner | a teammate cannot write "Dylan's agent is doing X". **Fleet is a trusted deputy:** it can write within a live delegation, so its compromise is total and sits in the risk register (§2.4) | `ADR-H1:372`, `:434-435`, **amended** by the "delegated callers" amendment (§11.1) |
 | P3 | **Only a user and that user's Orchestrator direct that user's agents** | accountability: what an agent does is on its owner's record. (`04` §2.2's Consumer Terms reason is moot, because OD-19 uses no consumer account) | OD-16; OD-19 |
-| P4 | **Every token is attributed to the agent's owner, team and project, against a quota at the gateway.** A reader spends quota to read a peer's message, so senders are rate-limited | org keys are shared, so attribution and quotas replace "never pool"; no teammate can drain another's quota | OD-16; OD-19 (`owner-decisions.md:140`); `03` §7 D2 |
-| P5 | **Observed facts beat narration.** Files, commits and status come from git and `sandboxd`; anything an agent says about itself is labelled agent text | agents misreport; structured shared state beats chat | `03` §2 I2–I3; `03` §5.2 (MetaGPT, MAST) |
+| P4 | **Every token is attributed to the agent's owner, team and project, against a non-zero default quota at the gateway.** A reader spends quota to read a peer's message, so peer-triggered cost is metered per counterpart and capped, and a human's own events never wait behind it (§4.4) | org keys are shared, so attribution and quotas replace "never pool"; no teammate can drain another's quota or starve another's Orchestrator | OD-16; OD-19 (`owner-decisions.md:140`); `03` §7 D2; `07` I3 |
+| P5 | **Observed facts beat narration.** Files and commits come from git run by `machined`, outside the agent's VM; process facts from `sandboxd`; anything an agent says about itself is labelled agent text | agents misreport, and a hijacked agent can tamper with anything in its own VM | `03` §2 I2–I3; `03` §5.2 (MetaGPT, MAST); `06` I1 |
 | P6 | **Agent text is data, never authority.** This replaces `04`'s F1 (*"agents never publish"*), which OD-16 overturns by making orchestrators speak | an agent-to-agent channel is an injection channel | `04` §5.2–5.3; OD-16 |
 | P7 | **Awareness is advisory; the land queue decides** | hard pre-write admission serialised 96.7% of runs | `03` §5.2 (arXiv 2608.00947) |
-| P8 | **No hook or MCP dependency for delivery** | the managed policy sets `allowedMcpServers: []` and strips settings hooks | `03` §1.1; `04` §5.3 |
+| P8 | **No hook or MCP dependency for delivery.** Hooks may *enhance* the cloud path, never carry it | the laptop policy sets `allowedMcpServers: []` and strips settings hooks; the cloud image's product managed settings may define a hook, but only after InfoSec approves the file (§2.5) | `03` §1.1; `04` §5.3; `06` C3, I2 |
 | P9 | **Nothing requires the transcript adapter or reads PTY bytes** | OD-8 | `owner-decisions.md:19`, `:58-79` |
 | P10 | **The Hub still never sees a terminal byte.** Fleet carries PTY streams only to the session owner's own clients | the Hub's erasure and audit story stays intact | `ADR-H1:88` (via `01` §2.2) |
 
@@ -95,14 +115,14 @@ updating that document, they are able to communicate and understand each other."
 
 | Piece | Where | Role in team mode | Status |
 |---|---|---|---|
-| **Cockpit** (Tauri/React) | the user's desktop | a client. Signs in with Entra PKCE (OD-6). For a team project it talks to **Fleet**; for a solo project, to the local control plane as today | phase 2, nearly done |
-| **Fleet** (`control-plane/cmd/fleetd`, new) | our environment (OD-5) | the team project's control plane: sessions, the Orchestrator turn loop, task cards, leases, protocol threads, presence, forecasts. Built from phase 2's `registry`, `harness` and supervisor packages, made multi-user | **new** (§11.4) |
+| **Cockpit** (Tauri/React) plus the **thin local control plane** | the user's desktop | the portal. The renderer talks only to `127.0.0.1:8730`, as today. The local Go process holds the user's Entra tokens (the Hub's custody, `phase-h-hub.md:15`, `:38-39`) and, for a team project, reaches Fleet through a new **`fleetbe`** backend behind phase 8's unchanged `backend.Backend` seam (S8.1, `phase-8-own-environment.md:657`). No Docker (§10.3) | phase 2, nearly done; `fleetbe` **new** |
+| **Fleet** (`control-plane/cmd/fleetd`, new) | our environment (OD-5) | the team project's control plane, in two parts: a stateless **coordination core** (task cards, leases, protocol threads, the Orchestrator turn queue, presence, forecasts), whose state lives in Fleet's own Postgres schema, and a separate **PTY relay** that carries a session's terminal only to its owner. A **new** multi-user attach handler, not phase 2's loopback one (§7.4) | **new** (§11.4) |
 | **Hub** (Phase H) | our environment | the system of record: teams, members, projects, briefs, approvals, the provenance ledger, plus the durable coordination records in §3 | planned; `hubapi` only (`01` gaps) |
 | **Broker** (`cmd/broker`, P8-D4) | in-cluster | still the only holder of Kubernetes credentials for sandboxes; every object labelled with its owner | phase 8, in flight |
-| **`machined`** (P8-D7) | each user's machine pod | that user's worktree clones (OD-2) and git runner, on that user's machine disk (P8-D6) | phase 8, in flight |
-| **`sandboxd`** | each sandbox pod | runs the harness PTY; gains the server end of the `panacea` command and the read-only team file (§5) | phase 1–2, extended |
-| **Lane mirror** (new) | one bare repo per team project, on a project disk | holds every member's lane heads for cross-user forecasts; git runs there only through Fleet's hardened runner (§8.2) | **new** |
-| **Inference gateway** (phase 6, re-scoped by OD-19) | in-cluster, LiteLLM-style | holds the org's Anthropic and Bedrock credentials; exposes one Anthropic-format endpoint; routes Global or AU per session; meters and caps per user, team and project (§2.5) | **new** |
+| **`machined`** (P8-D7) | each user's machine pod | that user's worktree clones (OD-2) and git runner, on that user's machine disk (P8-D6). **Gains the activity sweep:** every 5 to 10 s, a hardened `git status` / `diff --numstat` over each live worktree, from outside the agent's VM (§3.3) | phase 8, in flight; sweep **new** |
+| **`sandboxd`** | each sandbox pod | runs the one PTY command (the harness, or the Orchestrator runner, §4.2); gains a control route that serves the `panacea` command and mints the session's gateway token. Reports **process** facts only (§5) | phase 1–2, extended |
+| **Lane mirror** (new) | one bare repo per team project, in its **own per-project Kata pod** with no credential and no egress | holds every member's lane heads for cross-user forecasts; fetches with `transfer.fsckObjects` after `git bundle verify`, and returns only typed results to Fleet (§8.2) | **new** |
+| **Inference gateway** (phase 6, re-scoped by OD-19) | in-cluster, LiteLLM-style, on a **private** service path only | holds the org's Anthropic and Bedrock credentials; exposes one Anthropic-format endpoint; routes Global or AU per **project**; accepts only pod-bound, one-hour tokens; meters and caps per user, team and project (§2.5) | **new** |
 
 Fleet is **one deployment per environment**, multi-tenant. Every row and every sandbox is keyed by
 org (`tid`) and owner (`tid` + `oid`), exactly as the broker already keys sandboxes
@@ -114,9 +134,15 @@ A project is a row, not a deployment. Sharding by project comes later if load de
 1. **The Hub's invariant stays true.** `ADR-H1:88` says the Hub never sees a terminal byte (`01`
    §2.2). Fleet carries PTY streams, so it must not be the Hub. Erasure and audit stay simple.
 2. **They scale differently.** Fleet scales with running sessions; the Hub scales with records.
-3. **They fail differently.** If Fleet goes down, agents pause and no record is lost. If the Hub goes
-   down, Fleet keeps sessions running and queues its writes for up to 10 minutes (proposed), then
-   pauses every Orchestrator so no negotiation proceeds unrecorded.
+3. **They fail differently.** Fleet's core runs as two stateless replicas over its own Postgres
+   schema (leases, turn queues, threads, the Hub outbox), as phase 8 already runs the Hub
+   (`phase-8-own-environment.md:264`), so a rollout or a crash loses no lease and no queued turn.
+   **Workers do not pause when Fleet is unreachable**: each is an interactive CLI in its own pod.
+   What happens instead is defined: `panacea check` answers *"team view unavailable since <t>"*,
+   and the worker's managed block tells it to report `blocked` and not edit a path it holds no
+   lease on; Orchestrator turns simply stop until Fleet returns. If the **Hub** goes down, Fleet
+   keeps sessions running and writes Hub-bound records to a durable outbox in its Postgres schema;
+   after 10 minutes (proposed) it pauses negotiation, so none proceeds unrecorded for long.
 4. **Rejected: the earlier draft's design,** where each laptop ran its own fleet and the Hub joined
    the facts. OD-14 overturned it.
 
@@ -132,21 +158,35 @@ others only once its work is pushed. The label is honest, and nothing is silentl
 
 1. **Desktop to Fleet:** an Entra access token with Fleet's API as audience. Fleet derives the owner
    as `tid` + `oid`, the same way the broker does (P8-D4, `phase-8-own-environment.md:133`).
-2. **Launch creates a delegation.** While the user's token is present, Fleet uses the Entra
-   on-behalf-of flow to call the Hub and create a `delegation` record: owner, project, session
-   class (`orchestrator` or `worker`), the Hub routes it may call, and an expiry of at most 7 days,
-   renewed at each sign-in. Afterwards Fleet calls the Hub as its own workload identity and names
-   the delegation. The Hub checks that the delegation exists, is live and covers the route, then
+2. **Launch creates a delegation.** The desktop's local control plane calls the Hub **as the user**
+   (the Hub's normal path, `phase-h-hub.md:15`) to create a `delegation` record: owner, project,
+   session class (`orchestrator` or `worker`), the Hub routes it may call, and an expiry of **24
+   hours**, renewed silently while the desktop is signed in. No on-behalf-of exchange is needed,
+   because the user's own call creates it. Afterwards Fleet calls the Hub as its own workload
+   identity and names the delegation. The Hub checks that the delegation exists, is live and
+   covers the route, **and that the agent id in the write belongs to the delegation's owner**
+   (agent start is already a Hub row, §3.3), so a Fleet mis-stamp fails closed at the Hub. It then
    records **actor = the owner, via = Fleet and the delegation id**.
 3. **Why not keep refresh tokens server-side:** a store of user refresh tokens is a pool of user
-   credentials. A delegation is narrow (one project, listed routes), audited and revocable.
-4. **Revocation.** Removing a member revokes that member's delegations for the project. Fleet sees
-   the revocation on the change feed and, within 60 seconds, stops their sessions there, withdraws
-   their leases and marks their cards *ended: access removed*. Freshness is a security property
-   (`04` §5.3).
+   credentials. A delegation is narrow (one project, listed routes, one day), audited and revocable.
+4. **Revocation and leavers.** Removing a member revokes that member's delegations for the project.
+   Fleet sees the revocation on its per-org change-feed subscription and, within 60 seconds, stops
+   their sessions there, **closes their open sockets**, withdraws their leases and marks their
+   cards *ended: access removed*. A leaver disabled in Entra but never removed from a team is
+   caught two ways: the 24-hour delegation lapses unless a signed-in desktop renews it, and Fleet
+   checks each owner's account state at renewal and daily. Which Graph read KPMG's tenant permits
+   for that check is **UNVERIFIED** (§14). A lapsed delegation pauses its sessions and withdraws its
+   leases. Freshness is a security property (`04` §5.3).
+5. **Fleet is a trusted deputy, and this says so.** Within a live delegation Fleet can write in a
+   member's name; the Hub's agent-id check bounds that to the member's own agents and routes, but a
+   compromised Fleet is still total for the day. That sits in the risk register with its controls:
+   workload identity only, no user token held, 24-hour delegations, the Hub-side check, and every
+   Fleet write in the audit chain.
 
-This changes one Hub rule: today the laptop's control plane is the Hub's only caller, always with
-the user's own token (`01` §4.3). §11.1 records the change.
+This changes Hub rules that ADR-H1 states: the laptop's control plane is the only caller (`01`
+§4.3), `azp` must be the desktop's client id (`ADR-H1:370`), no request body carries an actor
+(`:434-435`), and tenancy comes from the token under RLS (G4, `:253`). §11.1 writes the
+"delegated callers" amendment that changes each of them.
 
 ### 2.5 Inference through the org gateway, and each user's own git credential
 
@@ -160,35 +200,69 @@ the user's own token (`01` §4.3). §11.1 records the change.
   (https://code.claude.com/docs/en/llm-gateway, read 2026-09-25). **Global** forwards to the direct
   Anthropic API and is the default. **AU** forwards to Bedrock in `ap-southeast-2`. The ZDR terms
   of each upstream are the org's contracts; this file has not read them (**UNVERIFIED**).
-- **A token per session, never a key.** At launch Fleet mints a gateway token scoped to one
-  session and tagged `tid`, `oid`, team, project, agent id and route. It enters the sandbox as
-  `ANTHROPIC_BASE_URL` plus `ANTHROPIC_AUTH_TOKEN`, which Claude Code sends as
-  `Authorization: Bearer` (https://code.claude.com/docs/en/llm-gateway-connect, read 2026-09-25).
-  The token dies with the session, and removing a member revokes theirs (§2.4 step 4). A leaked
-  token spends one session's quota on one route, and nothing more.
-- **Which route.** The project's data classification sets a floor: "AU data only" forces AU for
-  every member's agents on that project, with no override. Otherwise the user picks, per project or
-  per launch, and the default is Global. Fleet re-checks the floor at every launch, and the gateway
-  refuses a Global call carrying an AU-only project's tag, so a stale client cannot leak a prompt
-  offshore. This replaces `04` §3.3's two controls (account class and inference policy).
+- **A token per session, never a key, and useless off its pod.** `sandboxd` mints a gateway token
+  over its broker channel, tagged `tid`, `oid`, team, project, agent id and route, with a **one-hour
+  TTL**. The CLI fetches it through the product managed settings' `apiKeyHelper` (`panacea token`),
+  so it is not an environment variable that every test suite and `postinstall` inherits; the docs
+  say the helper's credential *"is sent as the `Authorization` header"* and is refreshed on
+  `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` (https://code.claude.com/docs/en/settings-reference, read
+  2026-09-25). A process in the sandbox can still ask `panacea token`, so the token is also
+  **bound to its pod**: the gateway accepts it only from the source address the broker recorded for
+  that pod, or with the pod's broker-minted client certificate if AKS's network path rewrites the
+  source (**UNVERIFIED** which; phase 8 task 32 probes it). Each Orchestrator turn gets a fresh
+  token. A token carried off the pod works nowhere.
+- **A private path only.** The gateway has no public ingress. P8-D12 gains one explicit rule, from
+  sandbox pods to the gateway's service port, and nothing else on the service CIDR
+  (`phase-8-own-environment.md:141`).
+- **Which route: per project on a team project.** A solo project keeps the user's choice. On a team
+  project the route is **project-wide**, because team text crosses launches
+  (`04-enterprise-constraints.md:236-238`): any member may raise it to AU for everyone, a one-way ratchet announced on the
+  strip; only an org-level compliance role may lower it, audited. "AU data only" forces AU with no
+  override, and the gateway refuses a Global call carrying an AU project's tag. AU projects also get
+  a sandbox egress allowlist (package registries and the git host only), since AU governs inference,
+  not `curl`. A CI test fails on any gateway model id on the AU route that is not an `au.` profile
+  or in-region: Bedrock's `au.` profiles reportedly span Sydney and Melbourne, while `apac.` and
+  `global.` leave Australia (`07` I6, search summaries only, **UNVERIFIED**).
+- **Where AU data sits.** The AU route stays onshore only if every team-mode component is onshore.
+  **Invariant: Fleet, its Postgres, the lane mirror, the gateway and its usage store, and every
+  sandbox run in Australia East**, as the Hub does (`04-enterprise-constraints.md:216`; phase 8
+  recommends the region, `phase-8-own-environment.md:43`).
 - **Attribution and quotas replace "never pool".** Every call is metered against its tags. Quotas
-  sit at the gateway per user, per team and per project; a team admin sets them in team policy
-  (§3.3). OD-19 notes that the never-pool rule existed only because consumer subscriptions forbid
-  sharing, and no consumer subscription is used (`owner-decisions.md:140`).
+  sit at the gateway per user, per team and per project, and **team policy ships a non-zero
+  default for each**, because an unset quota is the org pool by another name (`07` I3). An admin may
+  change them. OD-19 notes that the never-pool rule existed only because consumer subscriptions
+  forbid sharing, and no consumer subscription is used (`owner-decisions.md:140`).
+- **The product's own managed settings govern the cloud (TM0).** The docs are explicit: a
+  non-default `ANTHROPIC_BASE_URL` means *"Server-managed settings are bypassed"*, and *"Neither
+  keys returned by an `apiKeyHelper` script … trigger the settings fetch"*; a self-hosted session
+  instead reads *"the managed settings file in the runner image"*
+  (https://code.claude.com/docs/en/server-managed-settings, read 2026-09-25). So KPMG's laptop
+  policy does not reach a cloud sandbox, and this is decided, not a test. The image ships a product
+  `managed-settings.json` derived from the tenant's live file (144 allow rules, 49 ask rules,
+  `allowManagedPermissionRulesOnly`, `disableBypassPermissionsMode`; `06` C3). It **adds**
+  `Bash(panacea *)` to `allow`; pins `permissions.defaultMode` per class, so a headless
+  Orchestrator never needs a prompt; sets `apiKeyHelper`, `allowManagedHooksOnly: true` and the
+  I2 hook (§5.3); denies project `ANTHROPIC_*` env overrides (§7.3); sets
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`; and leaves `forceLoginMethod` unset, which a gateway
+  session cannot satisfy. It goes to **KPMG InfoSec for approval** with the gateway's audit export
+  as the replacement trail. `/status` then checks that this file, and nothing else, is in force.
+  A self-hosted Claude apps gateway would instead deliver managed settings centrally to
+  gateway-signed-in clients (same page); Q1 weighs that.
 - **What it retires.** `/login` in every sandbox; per-user rotation across a user's own
   subscriptions (`docs/PROGRAM.md:17`, `:113-114`); open risk 2's subscription enforcement
   (`docs/PROGRAM.md:138`); and phase 8's precondition that users' own subscriptions work from Azure
-  egress IPs (`phase-8-own-environment.md:330`). **UNVERIFIED:** whether KPMG's managed policy,
-  which today arrives with a claude.ai sign-in, reaches a sandbox that authenticates only by
-  gateway token. If it does not, the sandbox image must carry the product's own
-  `managed-settings.json`, at least as strict as the tenant's, so a cloud agent is never less
-  governed than a laptop one (§14). The `panacea` channel (§5.2) works either way.
-- **Git.** `04`'s A4 still holds: no git credential enters any sandbox. Fetch and push run in the
-  owner's `machined` git runner (P8-D7), with the **lane owner's** credential. For Azure DevOps the
-  source is an Entra on-behalf-of token for the Azure DevOps resource (**UNVERIFIED** for git over
-  HTTPS). For GitHub, the desktop hands over a short-lived token from Windows Credential Manager
-  (OD-6) for each push, held in memory only. **Push and PR stay human actions** (`04` F7). An
-  Orchestrator may propose one; its human decides.
+  egress IPs (`phase-8-own-environment.md:330`). The earlier open question, whether KPMG's policy
+  reaches a gateway-token sandbox, is closed by the docs above: it does not.
+- **Git: read without the human, write only with them.** `04`'s A4 still holds: no git credential
+  enters any sandbox. The cloud must **fetch** with nobody present (the Orchestrator's view, a
+  typed `rebase` directive, phase 3's slow-timer fetch, `2026-09-23-phase-3-git-convergence.md:561`),
+  and on-behalf-of fails in exactly that case. So each team project gets a **read-only,
+  project-scoped fetch credential**: a GitHub App installation token with `contents: read`, or an
+  Azure DevOps identity with read on the one repo, held by the broker and used only by `machined`
+  runners and the lane mirror, every fetch audited to the project (owner question Q6, §13.1).
+  **Write** (push, PR) uses the lane owner's own token, handed over by the desktop from Windows
+  Credential Manager (OD-6) for each act and held in memory only. **Push and PR stay human
+  actions** (`04` F7). An Orchestrator may propose one; its human decides.
 
 ## 3. The data model
 
