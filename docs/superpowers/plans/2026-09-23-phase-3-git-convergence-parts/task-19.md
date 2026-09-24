@@ -154,6 +154,17 @@ harness has `supportsOpeningPrompt: false`, the dialog says so and offers **Open
 instead (`{ harness: "shell" }`). This is the one dialog in the lens, and it is not a confirmation:
 it is where the prompt is written.
 
+**The dialog refreshes the lane first** (review I4). A conflict the last land did not cause (an
+undo, a revert, the user's own commit or `git pull` in a terminal) leaves the clone's
+`origin/<branch>` wherever the last refresh put it, and the prompt says to merge that ref. So on
+open, `ResolveDialog` calls `api.refreshBranch(conv.projectId, conv.branchId)` (task 18; the route is task
+09's) before Start (or **Open a shell here**) is enabled. While it runs, both are disabled and the line under it reads
+*"Bringing upload-ui up to date with evidence-upload…"*, in text, with no spinner (the lens's one
+heartbeat, DESIGN-SYSTEM.md). When `refreshed` names the dialog's `worktreeId`, Start enables. When
+`refreshErrors[worktreeId]` is set, or the call fails, the dialog shows git's sentence (or the
+server's message) and **Try again**, and both stay disabled: a session told to merge a stale
+ref resolves the wrong conflict and reports success over the one it never saw.
+
 **Bring in <upstream>** (review I5). When `conv.bringIn` is not null, `BringInRow` stands
 above the queue, outside its numbering, since it is not a worktree: `bringInLine`, and a
 **Bring in <upstream>** button that `bringInBlock` disables with its reason. `<upstream>` is
@@ -213,7 +224,8 @@ hidden until task 22 provides it).
 | `a lost race shows the banner and Land again` | a land rejected `branch_moved` with `details.tip` → the banner text with both shas and git's sentence; the button re-lands with the new tip | a race shown as a crash |
 | `a checked-out branch turns landing off with the path` | `checkedOutAt` set → the banner with the path; every Land disabled with its reason | a land that moves a checkout's branch |
 | `control plane down dims the last reading` | loader error `network_unavailable` with a last value → content has the stale class, Land/Mark ready disabled, banner time is the last `readAt` | a blank lens, or live-looking stale data |
-| `a conflict opens ResolveDialog and starts a session with the prompt` | edit the text, Start → `useCreateSession` called with the worktree and the edited prompt; no attach socket is written | writing into a running agent's PTY (3-D3) |
+| `a conflict opens ResolveDialog and starts a session with the prompt` | (the fake's `refreshBranch` answers `refreshed: [worktreeId]`) edit the text, Start → `useCreateSession` called with the worktree and the edited prompt; no attach socket is written | writing into a running agent's PTY (3-D3) |
+| `ResolveDialog refreshes the lane before it can start` (review I4) | open → `api.refreshBranch(p, b)` called once, before any `useCreateSession`; while it is pending, Start and Open a shell here are disabled with the "Bringing … up to date" line; `refreshed` naming the lane → Start enables; `refreshErrors[w]` = `"fatal: …"` → that sentence and Try again, Start still disabled; Try again → a second `refreshBranch`; a rejected call → the server's message, Start disabled | a resolve session that merges an origin/<branch> older than the branch, then reports success while the lane stays red |
 | `the bring-in row appears only when behind` (review I5) | `bringIn: null` → no row; a clean `bringIn` with `behind: 2` → the sentence and an enabled button; `checkedOutAt` set → disabled with the checkout's reason | a diverged branch with no way in, or a button that lands into a checkout |
 | `Bring in sends both expected tips and offers no Undo` | click → `api.bringIn(p, b, conv.tip, conv.bringIn.tip)` once, then reload; the toast has no Undo action; `upstream_moved` with `details.upstream` → `lastOutcome.kind === "bring-in"`, the bring-in banner naming `conv.remote.upstream` and both shas (no "landing" and no "Land … again"), and **Bring in again** re-sends with the reloaded `conv.tip` and `conv.bringIn.tip`; `no_remote` and `nothing_to_land` → their sentences with no button (re-review b05 issue 4) | a bring-in of commits nobody saw forecast, or a bring-in refusal shown with a land's copy |
 | `a bring-in conflict resolves in a picked lane` | conflicting `bringIn` → no button; pick lane `w-api` → `ResolveDialog` with `worktreeId "w-api"` and a prompt naming `origin/<branch>` before `upstream/<branch>` (index of one < index of the other), and the paths; the picker's first entry is New worktree when task 22's action exists | a prompt naming only `origin/<branch>` (in a clone, the project's branch, not the remote), or only `upstream/<branch>`, which a lane older than the tip merges clean and then conflicts on land (re-review b05 issue 1) |
