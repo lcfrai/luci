@@ -98,13 +98,14 @@ func (g *MountGuard) WhileUnmounted(ctx context.Context, dir string, fn func() e
 const (
 	ReasonNameTaken         = "name_taken"          // POST worktrees
 	ReasonGitTooOld         = "git_too_old"         // any phase 3 route that runs git
-	ReasonBranchCheckedOut  = "branch_checked_out"  // lands, undo, revert, rename, delete; details.path
-	ReasonBranchMoved       = "branch_moved"        // lands, undo, revert; details.tip
-	ReasonMergeConflict     = "merge_conflict"      // lands, revert; details.paths (detailList)
-	ReasonNothingToLand     = "nothing_to_land"     // lands
+	ReasonBranchCheckedOut  = "branch_checked_out"  // lands, bring-in, undo, revert, rename, delete; details.path
+	ReasonBranchMoved       = "branch_moved"        // lands, bring-in, undo, revert; details.tip
+	ReasonUpstreamMoved     = "upstream_moved"      // bring-in (task 09; review I5); details.upstream
+	ReasonMergeConflict     = "merge_conflict"      // lands, bring-in, revert; details.paths (detailList)
+	ReasonNothingToLand     = "nothing_to_land"     // lands, bring-in
 	ReasonNotReady          = "not_ready"           // lands
 	ReasonBriefUnresolvable = "brief_unresolvable"  // lands, evidence; details.why: no_resolver | missing | digest_mismatch | no_such_criterion
-	ReasonNoGitIdentity     = "no_git_identity"     // lands, revert
+	ReasonNoGitIdentity     = "no_git_identity"     // lands, bring-in, revert
 	ReasonUndoNotExact      = "undo_not_exact"      // undo, revert; details.why: pushed | built_upon | not_a_land | not_the_tip
 	ReasonLiveSessions      = "live_sessions"       // DELETE worktree; details.sessions — the desktop kills them first
 	ReasonConfirmRequired   = "confirm_required"    // DELETE worktree; details.paths, .commits, .confirm
@@ -112,7 +113,7 @@ const (
 	ReasonNotCockpit        = "not_a_cockpit_worktree" // DELETE worktree of kind primary or linked
 	ReasonBranchHasLanes    = "branch_has_worktrees"   // PATCH and DELETE branch; details.worktrees
 	ReasonBranchExists      = "branch_exists"          // POST branches, PATCH branch
-	ReasonNoRemote          = "no_remote"              // fetch, push, PR: the project has no origin
+	ReasonNoRemote          = "no_remote"              // fetch, push, PR: the project has no origin; bring-in: the branch has no upstream
 	ReasonPushRejected      = "push_rejected"          // push: the remote has commits the branch lacks; details.gitSays
 	ReasonUnknownHost       = "unknown_host"           // PR: origin is neither GitHub nor Azure DevOps
 	ReasonNoCredential      = "no_credential"          // PR; details.host
@@ -130,7 +131,8 @@ func gitConflict(w http.ResponseWriter, reason, msg string, details map[string]s
 // "[]" for none (review I2). Phase 2's problem envelope keeps details a map[string]string
 // (httpx.WriteProblem), so a list cannot be a []string there, and a newline-joined value
 // cannot carry a path that holds a newline (task 07's TestPathsWithNewlinesAndSpaces). Every
-// details.paths goes through it: merge_conflict (tasks 09, 10) and confirm_required (task 11).
+// details.paths goes through it: merge_conflict (tasks 09, 10; the land and the bring-in) and
+// confirm_required (task 11).
 // The desktop reads it with JSON.parse (task 18's detailList in api/convergence.ts). The other list-valued details
 // keep their line formats: commits and elsewhere hold shas and ref names, and git refuses a
 // control character in a ref name (check-ref-format).
