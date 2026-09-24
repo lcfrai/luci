@@ -193,7 +193,11 @@ const (
 
 // Step is what the flow shows next. Total is the size of the closed base set
 // for StepQuestion and ZERO otherwise; the only legal rendering of it is the
-// literal "QUESTION n OF m" (G5).
+// literal "QUESTION n OF m" (G5). Ordinal is likewise zero for every kind
+// but StepQuestion. Pending is c.Pending() on every kind; Options and
+// Pending are never nil. The walk stops at the first question whose answer
+// is neither settled nor a pending draft, so StepComplete holds exactly when
+// the derived Status is complete (as built, task 03).
 type Step struct {
 	Kind    StepKind `json:"kind"`
 	Ordinal int      `json:"ordinal"`
@@ -372,9 +376,12 @@ func Apply(c Content, op Op, env Env) (Content, error)
     and nothing is written. Task 11 maps it to 400 `bad_request` with `field: "text"` and
     `key`. The two model paths filter first, so a person never
     sees a 400 for text the model wrote: task 04's `ProposeFollowUp` degrades to no question and
-    task 13's on-ramp drops that one draft; this check is their backstop. Without it, one answer carrying a pasted
-    `<!-- panacea:discover:begin … -->` makes every later `Merge` on that branch `block_broken`, for
-    every teammate, and "Start without the brief" cannot escape it.
+    task 13's on-ramp drops that one draft; this check is their backstop. Without it, a pasted
+    `<!-- panacea:discover:begin … -->` would still reach the file only through task 05's
+    neutraliser, which keeps every `Merge` well formed; what this rule adds is the refusal at the
+    answer, naming which one to fix, instead of text that is silently rewritten in every
+    teammate's `CLAUDE.md` (re-review b01-2 R2-M2 item 3: the old sentence said `Merge` would go
+    `block_broken`, which contradicted the neutraliser being the guarantee).
 13. **The length caps (review M6, plan §4 Security, S4).** Over the same strings as rule 12 (in
     the result, added or changed by the op, so `draft`, `add_follow_up` and `restore` are
     covered and a head the Hub stored unchecked stays editable): an answer `Text` over
@@ -445,7 +452,7 @@ func Apply(c Content, op Op, env Env) (Content, error)
 **Acceptance:**
 
 ```
-$ go test ./control-plane/internal/discover/... -race -count=1 -run 'Content|Step|Apply|Edit|Skip|Draft|Accept|Criterion|Restore|Reinherit|NoChange|FollowUp|Base|Decode|Marker|Reserved|Capped|LongText|OnlyLF'
+$ go test ./control-plane/internal/discover/... -race -count=1 -run 'Content|Step|Apply|Edit|Skip|Draft|Accept|Criterion|Restore|Reinherit|NoChange|FollowUp|Base|Decode|Marker|Reserved|Capped|LongText|OnlyLF|Prompt|Pending|Settled|AnswerFor|Split|FormatTime|Record|Status|Minted|Pins|Env'
 ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/discover
 $ grep -n "omitempty" control-plane/internal/discover/content.go
 (no output — no field of Content may be omitted, or the canonical bytes change)
@@ -456,3 +463,49 @@ $ grep -c "Revision" control-plane/internal/discover/content.go control-plane/in
 **Does NOT claim:** anything about storage, numbering or digests (the Hub's, task 07); anything
 about rendering (task 05). The golden JSON pins field names, not the Hub's canonical encoding,
 which sorts keys itself.
+
+**As built** (task 03, commits `8ea49b3`, `754fa8b` and after; report
+`.superpowers/sdd/p4/task-t03-report.md`). Where this differs from the text above, this wins.
+
+- Rules the part left open, now fixed (each has a test):
+  - `record` with a `Source` other than `picked` or `typed` is `ErrBadOp`: a person's answer
+    never claims `drafted`.
+  - A `done` answer whose `SplitCriteria` gives no item (`";"`) is `ErrEmptyAnswer`, for
+    `record`, `edit` and `draft`: a definition of done with nothing to evaluate is empty.
+  - `edit` checks the key first (`ErrUnknownKey`), then the answer (`ErrNotAnswered`), then the
+    text (`ErrEmptyAnswer`). `accept` and `skip` check the key first too.
+  - `add_follow_up` needs a non-blank `Prompt(env.Scope)` (`ErrBadOp`); it copies the caller's
+    question and overwrites any key the caller set.
+  - `accept` leaves `AnsweredAt` as it was (rule 4: only the author changes).
+  - `draft` replaces only an answer that is not `Settled()`: never a person's, a skip, or a
+    `model_accepted` one. An unknown draft key is `ErrUnknownKey`; an empty draft text is
+    `ErrEmptyAnswer`; a draft op with nothing to write is `ErrNoChange`.
+  - `restore` needs `RestoreRevision >= 1` and a `Restore` (`ErrBadOp`); it copies what it
+    restores and does not trim it.
+  - A minted id (`f-`, `c-`) is never one already in use: a follow-up key never matches a
+    question or answer key, and a criterion id is never one the previous criteria held. After
+    eight collisions `Apply` returns an unexported error (a 500, not a 400).
+  - An `env.Scope` that is neither `project` nor `branch` is an unexported error (a server fault).
+  - Status: complete needs at least one question. A stored answer with no author is neither
+    settled nor pending: `Step` asks it again, so `StepComplete` and `StatusComplete` never
+    disagree.
+  - `Decode` refuses a missing or zero `v` (unexported error, not `ErrUnknownVersion`) and fills
+    every null slice with `[]`.
+  - Rule 14 also normalises `Help`, each option and `Because` when the op adds or changes them;
+    rules 12 and 13 still skip `Because`, and rule 12 checks prompts, answer text and criterion
+    text only (task 05 renders nothing else).
+  - On any error `Apply` returns the zero `Content`.
+- Tests beyond the table: `TestPromptPicksTheScopesWording`, `TestDecodeGivesEverySliceAValue`,
+  `TestNewContentIsTheBaseSetOpenAndUnanswered`, `TestPendingFollowsQuestionOrderNotAnswerOrder`,
+  `TestSettledIsSkippedOrAPersonsText`, `TestAnswerForFindsByKey`, `TestSplitCriteria`,
+  `TestFormatTimeIsUTCWithThreeFractionalDigits`, `TestRecordTrimsSetsThePersonAndStamps`,
+  `TestRecordRefusals`, `TestEditNeedsASettledTypedOrPickedAnswer`,
+  `TestStatusIsDerivedNeverCarried`, `TestMintedIdsNeverCollide`,
+  `TestAddFollowUpMintsTheKeyAndAppends`, `TestDismissFollowUpRemovesTheQuestionAndItsAnswer`,
+  `TestEveryBranchOpPinsTheCurrentProjectRevision`,
+  `TestUnchangedPromptsAndCriteriaDoNotBlockOtherOps`, `TestAnEnvWithNoScopeIsRefused`,
+  `TestStepAndStatusAgreeOnAnAnswerWithNoAuthor`, `TestAFollowUpKeyNeverMatchesAnExistingAnswer`,
+  `TestADraftsDraftedFromIsCopied`. The acceptance `-run` pattern above names them all.
+- The table's `TestFollowUpsCarryNoDenominator` also pins `Ordinal == 0` for a follow-up, and
+  `TestAnswersAreCappedAt4000Characters` skips the "spaces around 4,000" row for `restore`
+  (nothing trims a restore).

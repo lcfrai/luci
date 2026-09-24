@@ -304,8 +304,8 @@ without a cycle. Phase 4 imports only the Hub's
 | Path | Responsibility | Task |
 |---|---|---|
 | `modelclient/client.go` + `client_test.go` + `timeout_internal_test.go` | one `POST /v1/messages`, no SDK, no default endpoint (`ErrNoBaseURL`); `Completer`, the seam phase 6 replaces | 02 |
-| `discover/content.go` + test | `Content`, `Question`, `Answer`, `Criterion`, `Author`, `BaseQuestions()`, `Step`, `Recompute` | 03 |
-| `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes; the marker rule (`ErrReservedText`, S3); the length caps (`ErrTooLong`, S4); stored text holds only LF (rule 14, b10 re-review M-5) | 03 |
+| `discover/content.go` + `content_test.go` | `Content`, `Question`, `Answer`, `Criterion`, `Author`, `Inherit`, `Change`, `BaseQuestions()`, `NewContent`, `Decode`, `Step`, `Pending`, `SplitCriteria`, `FormatTime` (no `Recompute`: status is derived inside `Apply`, task 03 as built) | 03 |
+| `discover/ops.go` + `ops_test.go` | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit, draft — the only way content changes; the marker rule (`ErrReservedText`, S3); the length caps (`ErrTooLong`, S4); stored text holds only LF (rule 14, b10 re-review M-5) | 03 |
 | `discover/assist.go` + test | `ProposeFollowUp` over a `Completer`, degrading to nothing | 04 |
 | `discover/inherit.go` + test | `Resolve(project, branch *Revision) Document` — project → branch, with origins; `Title(branch *Revision)`, the block title's one rule | 05 |
 | `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`, `SameText`, `DiffLines`; the golden blocks (`testdata/.gitattributes` `* -text` keeps them LF on checkout); the `<!--` neutraliser and the marker count (S3); CRLF files read as LF ones (review M7), a render that holds no `\r` (b10 re-review M-5), and a `Strip` that also removes the blank line an appended block brought (M-6) | 05 |
