@@ -214,3 +214,37 @@ four amendments (task 08); **Q14** Segoe UI Variable (`OD-28`).
 - Commit messages end with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
 
 ---
+
+## File map
+
+Every file the phase creates or modifies, with the task that owns it. Paths are relative to the
+repository root. **Shared files**, touched by more than one task here or owned by a sibling plan,
+are marked ⚑; the tasks that touch them run in task order, never in parallel worktrees. Hub server
+files (`server/`, `store/`, `migrate/`) are **planned by the Hub plan and not yet on `feat/hub`**
+at this writing (only `hubapi/` and `hubclient/` exist there); their paths follow the Hub plan's
+file map (`2026-09-23-phase-h-hub.md:260-362`) and a WH task that finds them moved follows the
+move (rule H1). Where a slice adds to a W1 file, the later task is listed in the same row.
+
+### The Hub: `control-plane/internal/hub/...` (stream WH)
+
+| Path | Responsibility | Status | Task |
+|---|---|---|---|
+| `hubapi/keys.go` ⚑ | the `issue:` case in the key grammar the Hub mints and accepts (Hub task 01's file; W0's proposal) | modified | 02 |
+| `hubapi/workids.go` | the Work id prefixes (`is-` … `df-`); `DisplayAlias(projectKey, n)`, which is never parsed as a key | new | 02 |
+| `hubapi/workcanonical.go`, `hubapi/testdata/issue-revision/*.json` | the `issue-revision` canonical kind; golden vectors | new | 02 |
+| `hubapi/work.go` | W1 wire types: issue head and revision, `serves`, states, thread state, relations, labels, policies, comments, subscriptions, imports | new | 03 |
+| `hubapi/work_plan.go`, `work_roadmap.go`, `work_intake.go` | W2, W4 and W5 wire types | new | 72, 104, 133 |
+| `hubclient/work.go` | the `Work` interface, one sub-interface per slice | new | 04; 72, 104, 133 |
+| `hubclient/hubclient.go` ⚑ | one line: `Hub` embeds `Work` (`hub-contract.md:1329`) | modified | 04 |
+| `hubclient/fake_work*.go` | the fake's Work rules, in memory | new | 04, 05; 73, 105, 134 |
+| `hubclient/conformance/work*.go` | Work conformance rows, run against the fake and the real Hub | new | 05; 73, 105, 134 |
+| `hubclient/methods_work*.go` | the Work methods over HTTP, with the digest re-check | new | 16; 80, 112, 141 |
+| `migrate/sql/NNNN_work_*.sql` | one migration per slice, **next free number at sync time**: tables, RLS, grants, guards | new | 06, 07; 74, 106, 135 |
+| `store/work_*.go`, `server/work_*.go` | the store and routes, one pair per aggregate | new | 08-15; W2-W5 Hub tasks |
+| `server/matrix_integration_test.go` ⚑ | authorisation-matrix rows for every Work route | modified | 07 and every WH route task |
+| `server/changes.go` ⚑ | the change feed carries Work kinds, filtered per caller | modified | 13 |
+| `server/erase.go` ⚑ | erase for issues, comments, requests and notes | modified | 14; 136 |
+| `server/janitor.go` ⚑ | cycle rollover and closure proposals (W2); recurring issues and reminders (W4); loop triggers (W5) | modified | 77; 110; 146 |
+| `work_e2e_integration_test.go` | W1's Hub end to end through `devissuer` | new | 17 |
+
+---
