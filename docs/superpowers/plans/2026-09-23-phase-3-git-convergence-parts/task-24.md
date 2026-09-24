@@ -146,7 +146,12 @@ type StatusResponse struct {
 }
 
 type RefsRequest struct {
-	Names      []string `json:"names"`      // for-each-ref patterns; each passes check-ref-format
+	// Names are for-each-ref prefixes, never globs: a full refname, or a hierarchy with no
+	// trailing slash such as "refs/heads", which for-each-ref matches "from the beginning up to a
+	// slash", so it lists refs/heads/a and refs/heads/b/c. Each passes plain check-ref-format,
+	// which "refs/heads" does and "refs/heads/*" does not (both exit codes probed, git 2.39.5 and
+	// 2.53; review r4-3 C-1).
+	Names      []string `json:"names"`
 	MergedInto string   `json:"mergedInto"` // a refname; "" leaves every Merged false
 }
 type Ref struct {
@@ -176,8 +181,10 @@ type DiffRequest struct {
 // ErrorResponse is every non-2xx answer except 401, whose body is phase 2's plain text.
 type ErrorResponse struct {
 	Code    string `json:"code"`              // bad_request, path_outside_lane, unknown_op,
-	                                           // bundle_empty, too_large, git_failed, git_timeout
-	GitSays string `json:"gitSays,omitempty"` // git_failed only; see Errors
+	                                           // bundle_empty, too_large, git_failed, git_timeout,
+	                                           // lane_broken
+	GitSays string `json:"gitSays,omitempty"` // git_failed and lane_broken; see Errors
+	Ref     string `json:"ref,omitempty"`     // lane_broken only: the ref git called a bad object
 }
 ```
 
@@ -199,7 +206,9 @@ core.fsmonitor=false -c core.alternateRefsCommand=true -C <GitWorktree> --litera
    evidence: a ref naming a missing object is in neither `--merged` nor `--no-merged` (task 11
    probed it, git 2.53, both exit 0), so "absent from `--no-merged`" would call it `Merged` and
    task 11 would drop it from Elsewhere (review r4-2 I-3). Then Head.
-   An empty `Names` is 400: the runner never lists every ref by default.
+   An empty `Names` is 400: the runner never lists every ref by default. Task 11 lists a
+   lane's branches with `Names: [refs/heads]`, a prefix; `refs/heads/*` is 400 (Validation),
+   and runner test 11 pins both (review r4-3 C-1).
 3. **`bundle`** (task 09's landing and task 11's archive, through U2). An empty `Refs` is 400
    `bad_request`, as `refs` refuses an empty `Names`, before any git call (review r4-2 M-3).
    Keep the `Basis` shas that
@@ -216,13 +225,28 @@ core.fsmonitor=false -c core.alternateRefsCommand=true -C <GitWorktree> --litera
    fetches it here). The body is a bundle, read through `http.MaxBytesReader(MaxBundleBytes)` into
    a mode-0600 file in a fresh `os.MkdirTemp("/tmp", "gitrunner-")` directory. Headers: one
    `X-Panacea-Refspec` per refspec, `[+]<src>:<dst>`, at least one; one `X-Panacea-Delete` per
-   ref to delete, any number. The runner runs `G bundle verify -q <file>`, then `G fetch
+   ref to delete, any number. **Repair first** (review r4-3 I-2): `G for-each-ref
+   --format=%(objectname)%00%(symref)%00%(refname) refs/remotes/origin/ refs/remotes/upstream/`,
+   the runner's own namespace (Validation limits every `<dst>` and delete to it); the shas of
+   the rows whose `%(symref)` is empty go on stdin to `G cat-file --batch-check`, and each ref
+   whose line ends ` missing` is `G update-ref -d <ref>`. A symref is never deleted: once its
+   target is gone it dangles, which git skips, and the fetch rewrites the target. On git
+   2.39.5 one such ref anywhere makes `bundle verify` and `fetch` exit 128, `fatal: bad object
+   <ref>`, even for a bundle with no prerequisite; on 2.53 verify passes and the fetch exits 1
+   with the same `fatal:` line. After the repair both exit 0, and `refs/remotes/origin/HEAD`
+   resolves again (fix round 4 probe, both gits). Then the runner runs `G bundle verify -q
+   <file>`, then `G fetch
    --no-auto-maintenance --no-recurse-submodules --no-tags --quiet <file> <refspecs…>` (no
    recursion: `fetch.recurseSubmodules` defaults to on-demand, and a bundle that moves a gitlink
    would start a fetch in a submodule; review r4-2 M-2), then `G update-ref -d <ref>` for
    each delete, removes the directory, and answers `FetchResponse` from
    `G for-each-ref --format=%(refname)%00%(objectname) <each dst and delete…>`. A failed verify
-   is `git_failed` and nothing is fetched. The runner never writes `refs/heads/…`: product-branch
+   is `git_failed` and nothing is fetched, except that a verify or fetch whose `fatal:` line is
+   `fatal: bad object <ref>`, `<ref>` being `HEAD` or beginning `refs/`, is 409
+   **`lane_broken`** with `Ref` = `<ref>`, whatever git's exit code. After the repair that ref is
+   outside the runner's namespace (`refs/heads/bad` in the probe): the agent's to fix, and no
+   bundle the host sends can mend it. The runner deletes only what it owns, so it never
+   repairs that one. The runner never writes `refs/heads/…`: product-branch
    commits arrive as remote-tracking refs, and what the lane does with them is the agent's.
 5. **`diff`** (task 16). `G diff --no-color --no-ext-diff --no-textconv -U3 HEAD -- <Path>`; its
    stdout is the body, `200`, `Content-Type: text/x-diff`. Past `MaxJSONBytes` it is 413
@@ -231,10 +255,20 @@ core.fsmonitor=false -c core.alternateRefsCommand=true -C <GitWorktree> --litera
 **Validation**, before the op lock and before any git call in the lane; each failure is 400 `bad_request`
 unless named otherwise.
 - **Refs.** Every refname the host sends (`Names`, `MergedInto`, `Refs`, both sides of a
-  refspec, each delete) begins `refs/` and passes `git check-ref-format <ref>`, run without `-C`
-  (it needs no repository). One exception: a `BundleRequest.Refs` entry may be exactly `HEAD`,
-  which task 11's archive carries for a detached HEAD (`ArchiveLane`, U2). `HEAD` is refused
-  everywhere else, and `bundle` is read-only in the lane, so admitting it moves nothing there.
+  refspec, each delete) begins `refs/` and passes plain `git check-ref-format <ref>` (no
+  `--refspec-pattern`, so a `*` is refused), run without `-C` (it needs no repository). A
+  `Names` entry is a prefix (`RefsRequest`), and `refs/heads` passes. One exception: a
+  `BundleRequest.Refs` entry may be exactly `HEAD`, which task 11's archive carries for a
+  detached HEAD (`ArchiveLane`, U2). `HEAD` is matched literally and never given to
+  `check-ref-format`, which refuses it (exit 1, git 2.39.5 and 2.53; review r4-3 M-1). `HEAD`
+  is refused everywhere else, and `bundle` is read-only in the lane, so admitting it moves
+  nothing there.
+- **Shared goldens** (review r4-3 C-1). Each rule on this list has cases in
+  `testdata/gitrunner/validation/*.json`, one file per case: `{"op", "request", "code"}`, where
+  `request` is the op's JSON body, or for `fetch` its `refspecs` and `deletes`, and `code` is
+  `""` (admitted) or the 400 code. Runner test 7 runs every case through the runner's
+  Validation, and `lanegittest.Fake` runs the same Validation before its git (U2). So a
+  request the runner refuses fails the host test that sends it, not only task 23.
 - **Destinations.** A refspec's `<dst>` and every delete sit under `refs/remotes/origin/` or
   `refs/remotes/upstream/`. A refspec is `[+]<src>:<dst>` with exactly one `:`.
 - **Shas** match `^[0-9a-f]{40}$` or `^[0-9a-f]{64}$`.
@@ -275,7 +309,9 @@ then `error: b` it answers `error: b` where the runner answers `fatal: a`. The r
 `fatal:` because git's `fatal:` is the cause and a later `error:` is usually cleanup. It is
 written in `sandboxd`, not imported, for the same reason as the limits, and the
 `error.git_failed.json` golden pins the variant, in the runner's tests only (test 7); the host
-passes `gitSays` through as received, capped, and never recomputes it.
+passes `gitSays` through as received, capped, and never recomputes it. A `lane_broken` answer
+(409, `fetch` only) carries the same `gitSays` and its `Ref`, capped at `MaxSentence`, and
+`error.lane_broken.json` pins it.
 
 **Wiring (p2 files).** `server.Config` gains `GitWorktree string`. `New` mounts
 `s.mux.HandleFunc("/git/v1/", s.git)` beside `/attach` (`server.go:85`) only when `GitWorktree`
@@ -300,7 +336,8 @@ git runner serves")` beside the flags at `main.go:40-48` and passes `*gitWorktre
 **Wire golden fixtures**, `testdata/gitrunner/` at the repo root: `limits.json`, and one file
 per shape (`status.response.json`, `refs.request.json`, `refs.response.json`,
 `bundle.request.json`, `fetch.response.json`, `diff.request.json`, `error.git_failed.json`,
-`error.path_outside_lane.json`). Each module's test decodes every fixture into its own type with
+`error.path_outside_lane.json`, `error.lane_broken.json`), and `validation/`, the Validation
+cases above. Each module's test decodes every fixture into its own type with
 `DisallowUnknownFields`, re-encodes it, and compares with the fixture's compacted bytes, so a
 field renamed on either side fails a test on that side. `sandboxd/internal/gitrunner` reads them
 at `../../../testdata/gitrunner`.
@@ -336,7 +373,10 @@ test is red before its code exists.
 7. **The fixtures.** Every `testdata/gitrunner/*.json` round-trips through its type;
    `limits.json` equals the four constants; `error.git_failed.json`'s `gitSays` is the last
    `fatal:` line of a stderr that also holds `error:` lines, and a 3000-byte `fatal:` line is
-   cut to 2048 bytes on a rune boundary.
+   cut to 2048 bytes on a rune boundary. Every `validation/*.json` case gets its `code` from
+   the runner's Validation, with no git call on a refusal; the cases hold at least
+   `refs/heads` (admitted), `refs/heads/*`, `HEAD` as a `Names` entry and as a refspec side
+   (each 400), and `HEAD` as a `BundleRequest.Refs` entry (admitted).
 8. **`TestRunnerRunsNoLaneHook`.** The lane's `.git/config` sets `core.hooksPath=.hooks` and
    `core.fsmonitor=<marker script>`; `.hooks/reference-transaction` writes a second marker. A
    `status`, a `fetch` of a valid bundle and a `fetch` with one `X-Panacea-Delete` leave both
@@ -351,6 +391,18 @@ test is red before its code exists.
 10. **`bundle` takes `HEAD` and refuses nothing to carry.** A detached HEAD and `refs/heads/x`
     as `Refs` answer a bundle whose `list-heads` names both. An empty `Refs` is 400 and the
     recorder holds no call (review r4-2 M-3).
+11. **`refs` takes a prefix, not a glob** (review r4-3 C-1). A lane with `refs/heads/a`,
+    `refs/heads/b/c` and `main`: `Names: [refs/heads]` lists all three; `Names:
+    [refs/heads/*]` is 400 and the recorder holds only `check-ref-format`.
+12. **`fetch` repairs its own refs, and names a broken lane** (review r4-3 I-2). Red first
+    without the repair. A lane whose `refs/remotes/origin/main` file names a missing object,
+    `refs/remotes/origin/HEAD` a symref to it, and `refs/remotes/origin/other` a second
+    missing one: a `fetch` of a whole-history bundle into `origin/main` is 200, answers
+    `origin/main` at the bundle's tip, `other` is gone and `origin/HEAD` is still a symref and
+    resolves. A lane whose `refs/heads/bad` names a missing object: the same `fetch` is 409
+    `lane_broken`, `Ref` `refs/heads/bad`, `refs/heads/bad` untouched, the origin refs
+    unmoved. Which step fails depends on the git (verify on 2.39.5, the fetch on 2.53), so
+    the test asserts the answer and the refs, not the step.
 
 #### The host side: `control-plane/internal/lanegit` (edit unit U2)
 
@@ -365,6 +417,8 @@ two bundle moves. Host git in this half runs only in the **project** or under
 - `control-plane/internal/lanegit/pool.go` — `Lanes`, `For`, the runner-only sandbox (new)
 - `control-plane/internal/lanegit/bundle.go` — `FetchLane`, `ArchiveLane`, `SendBranch`, `BundleRefused` (new)
 - `control-plane/internal/lanegit/lanegittest/fake.go` — `Fake`, a test-only `Runner` (new)
+- `control-plane/internal/lanegit/lanegittest/validate.go` — the Fake's copy of the runner's
+  Validation, held to `testdata/gitrunner/validation` (new)
 - `control-plane/internal/lanegit/*_test.go` — the tests below, and `behaviour_test.go`, the
   pins (new)
 - `control-plane/internal/backend/backend.go` (p2) — `GitPath = "/git/v1/"` in the const block
@@ -406,15 +460,22 @@ type RunnerError struct {
 	Status  int
 	Code    string
 	GitSays string
+	Ref     string // lane_broken only, checked as a refname or "HEAD"
 }
 
 // ErrBundleEmpty is what errors.Is finds on a RunnerError with Code "bundle_empty" (409).
 var ErrBundleEmpty = errors.New("lanegit: the lane has nothing the basis lacks")
+
+// ErrLaneBroken is what errors.Is finds on a RunnerError with Code "lane_broken" (409): a ref
+// outside the runner's namespace names a missing object, so no bundle can refresh the lane.
+var ErrLaneBroken = errors.New("lanegit: a lane ref names a missing object")
 ```
 
 **How a caller answers a `RunnerError`.** `git_failed` 500, `details.gitSays` = `GitSays`, through
 task 04's `gitFailed` (`task-04.md:125-128`), which gains that one case. So decision 8 still has
 two codes. `ErrBundleEmpty` is not an error to the user: task 09 reads it as nothing to land.
+`ErrLaneBroken` is `git_failed` like any other to a route; task 09's refresh reads it and stops
+sending that lane bundles (`Syncer.Broken`, task 07; review r4-3 I-2).
 
 ```go
 // pool.go — a Runner for a lane: the live session's sandbox when one is on the lane, else a
@@ -521,10 +582,11 @@ func FetchLane(ctx context.Context, git *gitx.Exec, projectPath string, runner R
 // ArchiveLane is task 11's archive of off-branch work (review I6), and FetchLane's only sibling.
 // refs each begin refs/heads/ or are exactly "HEAD"; each refspec is +<one of refs>:<dst> with
 // dst under prefix+"/", and prefix is refs/panacea/archive/offbranch/<lane id>/<unix> (task 11's
-// OffBranchPrefix, no trailing slash). No basis: an archive carries every object. Same answers
-// as FetchLane.
+// OffBranchPrefix, no trailing slash). basis is shas the project holds, as FetchLane's is: the
+// archive lands in the project, so any project-held sha is a valid prerequisite (review r4-3
+// I-1). Same answers as FetchLane.
 func ArchiveLane(ctx context.Context, git *gitx.Exec, projectPath string, runner Runner,
-	refs []string, prefix string, refspecs []string) (map[string]string, error)
+	refs, basis []string, prefix string, refspecs []string) (map[string]string, error)
 
 // SendBranch writes a bundle of refs over basis from the project into OwnedRoot, for task 09's
 // refresh to hand to Runner.Fetch. The caller calls done, which deletes the file.
@@ -556,17 +618,27 @@ func SendBranch(ctx context.Context, git *gitx.Exec, projectPath string,
    `Read`), which is the answer. Nothing here reads the lane's `.git`.
 
 **`ArchiveLane`, in order** (review r4-2 C-1). The same six steps and one shared body, with
-three changes, so neither entry point widens the other's namespace:
+four changes, so neither entry point widens the other's namespace and an archive carries only
+what the project lacks:
 1. **Arguments.** `prefix` passes `check-ref-format` and begins
    `refs/panacea/archive/offbranch/`, with the lane id and a decimal `<unix>` as its next two
-   and last segments. Each ref is `HEAD` or under `refs/heads/`. Each refspec is
+   and last segments. Each ref is `HEAD` or under `refs/heads/`; `HEAD` is matched literally
+   and skips `check-ref-format`, which refuses it (exit 1 on both gits; review r4-3 M-1), and
+   every other ref passes it. Each refspec is
    `+<ref>:<dst>` with `dst` under `prefix + "/"`, so a `dst` under `refs/panacea/lanes/` or any other
    namespace is `*BundleRefused`, and FetchLane still refuses every `dst` outside
-   `refs/panacea/lanes/`. `basis` is always empty.
+   `refs/panacea/lanes/`. Each `basis` sha is 40 or 64 hex and kept only when `cat-file -e
+   <sha>^{commit}` finds it in the project (Class `Read`), as SendBranch keeps its basis; the
+   runner then drops the ones the lane lacks (the `bundle` op).
 2. **List-heads (step 4).** The set of refnames must equal `refs` exactly, as for FetchLane, but
    `HEAD` is admitted when `refs` holds it. That is the only place `HEAD` is admitted.
 3. **The runner check.** `BundleRequest.Refs` admits exactly `HEAD` (Validation above), so the
    runner answers the archive's bundle rather than 400.
+4. **One retry with no basis** (review r4-3 I-1). When step 3's `bundle verify` fails with a
+   non-empty kept basis, ArchiveLane asks the runner once more with `Basis: []` and runs steps
+   2 to 6 again; a second failure is the answer. Every prerequisite is an ancestor of a
+   project-held sha, so this should not happen; the retry keeps a project with a missing
+   ancestor object archivable, at the old whole-history cost, rather than `Unarchivable`.
 
 The fetch keeps `--atomic`, so a failed archive writes no ref. The spy row is task 11's
 (remove), and it sees only project calls here.
@@ -612,8 +684,14 @@ project call stays `git_failed`, and a `RunnerError` is `git_failed` 500 as abov
 is one argument.
 
 **`lanegittest.Fake`** is a `Runner` for tests. It runs plain `os/exec` git with `-C <Dir>` in a
-test clone, the same argv as the runner's ops above. It never goes through `gitx.Exec`, so the
-spy below sees only production calls. `Fake.BundleOverride []byte`, when set, is what `Bundle`
+test clone, the same argv as the runner's ops above, `fetch`'s repair step and its
+`lane_broken` rule included. Before any git it runs the runner's **Validation**
+(`lanegittest/validate.go`: the host's copy, since Go's internal rule keeps `control-plane`
+from importing the runner's), and a refusal is `RunnerError{Status: 400, Code}`, as the client
+decodes the runner's. `TestFakeValidatesAsTheRunner` runs every
+`testdata/gitrunner/validation/*.json` case through it, and runner test 7 runs the same files
+through the runner, so the two copies cannot drift apart unseen (review r4-3 C-1). It never
+goes through `gitx.Exec`, so the spy below sees only production calls. `Fake.BundleOverride []byte`, when set, is what `Bundle`
 writes, so a test can hand `FetchLane` a truncated or hostile bundle.
 
 **The seam behind `Lanes.For`.** `lanegittest.Fakes` maps a lane path to its `*Fake`; its
@@ -650,7 +728,8 @@ runner):
 |---|---|---|
 | `TestBundleFetchRefusesABadBundle` | each of: a truncated file; an extra ref beyond the ones asked for; a ref outside `refs/heads/`; a missing prerequisite; one byte over `MaxBundleBytes` (lowered by an unexported option); a corrupt blob caught by fsck → `*BundleRefused`. Every case: `for-each-ref` of the project byte-identical before and after, and `<OwnedRoot>/bundles` empty | a `FetchLane` that fetches without `verify` and `list-heads` |
 | `TestBundleRoundTrip` | a lane commit on `refs/heads/b` → `FetchLane` → task 07's `LaneRef(<id>)`, `refs/panacea/lanes/<id>` (`task-07.md:36`; not `…/<id>/b`, which git cannot hold beside it), in the project at the lane's sha; `SendBranch` of a project commit → `Fake.Fetch` → the lane's `refs/remotes/origin/main` at that sha; with nothing new, `ErrBundleEmpty` both ways | a round trip that loses a ref or a prerequisite |
-| `TestArchiveRoundTrip` | red first (review r4-2 C-1). A lane with a detached HEAD at a commit no branch holds and a second branch `refs/heads/x` → `ArchiveLane(refs: [HEAD, refs/heads/x], prefix: OffBranchPrefix(id, 1700000000), refspecs: +HEAD:<prefix>/HEAD, +refs/heads/x:<prefix>/heads/x)` → both refs in the project at the lane's shas. Refused, as `*BundleRefused` with the project's `for-each-ref` byte-identical: a `dst` under `refs/panacea/lanes/`; a prefix outside `refs/panacea/archive/offbranch/`; and `FetchLane` given `HEAD` or an archive `dst` | an archive that goes through `FetchLane`'s namespace check, or a `FetchLane` widened to take it |
+| `TestArchiveRoundTrip` | red first (review r4-2 C-1). A lane with a detached HEAD at a commit no branch holds and a second branch `refs/heads/x` → `ArchiveLane(refs: [HEAD, refs/heads/x], prefix: OffBranchPrefix(id, 1700000000), refspecs: +HEAD:<prefix>/HEAD, +refs/heads/x:<prefix>/heads/x)` → both refs in the project at the lane's shas. Refused, as `*BundleRefused` with the project's `for-each-ref` byte-identical: a `dst` under `refs/panacea/lanes/`; a prefix outside `refs/panacea/archive/offbranch/`; and `FetchLane` given `HEAD` or an archive `dst`. With a basis (review r4-3 I-1): the project holds LaneTip, and `refs/heads/y` is one commit past it → `ArchiveLane(refs: [refs/heads/y], basis: [LaneTip, a sha the project lacks], …)` → the Fake records a `BundleRequest.Basis` of `[LaneTip]` only, and the spooled bundle's `rev-list --count` over its heads, less LaneTip, is 1; a Fake whose first bundle fails the project's `verify` → one more `Bundle` with `Basis: []`, and the archive lands | an archive that goes through `FetchLane`'s namespace check, or a `FetchLane` widened to take it; an archive of the whole history on every removal |
+| `TestFakeValidatesAsTheRunner` | red first (review r4-3 C-1): every `testdata/gitrunner/validation/*.json` case through `lanegittest.Fake` → its `code` (`""` means the op ran), and a refused case runs no git; `Fake.Refs(Names: [refs/heads/*])` → `RunnerError{Status: 400, Code: "bad_request"}` | a Fake that runs whatever the host sends, so task 11's glob passes every host test and fails only task 23 |
 | `TestBundleMovesUseTheBundleBudget` | through `gitxtest.Spy` (U3), whose `Spawn.Env` holds `GIT_OPTIONAL_LOCKS=0` on a `Read` call only (`TestExecReadClassSetsNoOptionalLocks`) and no Remote prefix on these: `SendBranch`'s `bundle create` and the `fetch` of `FetchLane` and `ArchiveLane` are `Local`; `verify`, `list-heads`, `cat-file -e`, `rev-list --count` and the read-back are `Read` (review r4-2 I-2). Task 02's `TestExecTimeoutIsPerClass` already proves a `Local` call outlives the `Read` budget | a `bundle create` as `Read`, which times out at 10 s on a large refresh |
 | `TestPoolStartsOneRunnerForASessionlessLane` | a fake `Backend`: two concurrent `For` on a lane with no session → one `Create`, with `Command "sleep"`, `Args ["infinity"]`, one mount of `lane.Path` at `/home/dev/work`, a 64-hex token; `Held.Has` true; after both releases and `Idle`, one `Destroy` and `Has` false; a lane `ByID` lacks → error, no `Create` | a pool that starts a sandbox per call, or never destroys it |
 | `TestPoolUsesTheLiveSession` | a registry `Session` on the lane with `SandboxID`, `Endpoint`, `AttachToken` → no `Create`; the runner's requests carry that token to that endpoint | a pool that ignores the running session |
