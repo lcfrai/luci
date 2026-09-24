@@ -323,3 +323,51 @@ var ErrBundleEmpty = errors.New("lanegit: the lane has nothing the basis lacks")
 **How a caller answers a `RunnerError`.** `git_failed` 500, `details.gitSays` = `GitSays`, through
 task 04's `gitFailed` (`task-04.md:143-146`), which gains that one case. So decision 8 still has
 two codes. `ErrBundleEmpty` is not an error to the user: task 09 reads it as nothing to land.
+
+```go
+// pool.go — a Runner for a lane: the live session's sandbox when one is on the lane, else a
+// runner-only sandbox this pool starts and destroys.
+type Lanes struct {
+	Backend      backend.Backend
+	Sessions     registry.Store // List, registry.go:51
+	Image        string         // cfg.SandboxImage, as api.Deps.Image
+	Resources    backend.Resources
+	ReadyTimeout time.Duration  // cfg.ReadyTimeout, for backend.WaitReady (dial.go:75)
+	Idle         time.Duration  // 60 s; a field so tests can shorten it
+	Log          *slog.Logger
+}
+
+// ErrNoRunner: no live session is on the lane and this backend cannot start a runner-only
+// sandbox (katabe refuses Mounts, backend.go:129-131). Phase 8's machined is that half (P8-D7).
+var ErrNoRunner = errors.New("lanegit: no git runner can reach this lane")
+
+// For returns a Runner for lane and a release the caller must call exactly once.
+func (p *Lanes) For(ctx context.Context, lane lanes.Lane) (Runner, func(), error)
+
+// Holds reports whether id is a runner-only sandbox this pool holds. reaper.Config.Held is
+// this method, so the reaper's rule 4 does not destroy it as an orphan.
+func (p *Lanes) Holds(sandboxID string) bool
+```
+
+1. **A live session.** A registry `Session` whose `WorktreeID` (`session.go:48`) is `lane.ID`
+   and whose `SandboxID`, `Endpoint` and `AttachToken` (`session.go:71-74`) are set, confirmed
+   by `Backend.Get(ctx, s.SandboxID)` (`backend.go:291`) answering a non-empty `Endpoint`. For
+   answers `NewRunner(sb.Endpoint, s.AttachToken)` and a no-op release. The token is read from
+   the registry and never logged, as phase 2 does for `/attach`.
+2. **Otherwise, a runner-only sandbox.** `Backend.Create` (`backend.go:290`) with
+   `Spec{ID: "lg-" + 16 random hex, Image, Command: "sleep", Args: ["infinity"], AttachToken:
+   32 random bytes (crypto/rand) as hex, Resources, WorkDir: "/home/dev/work", Mounts:
+   [{HostPath: lane.Path, ContainerPath: "/home/dev/work"}]}` (`Spec` at `backend.go:141-152`;
+   `Mounts` is docker only, `:151`). `/home/dev/work` is `sessionWorkDir` and the runner's
+   `-git-worktree` default. Then `backend.WaitReady(ctx, sb.Endpoint, ReadyTimeout)`. The token
+   lives only in the pool's memory. On katabe this step is `ErrNoRunner`.
+3. **One per lane, reused, then destroyed.** The pool keeps one entry per lane with a count of
+   holders; two concurrent `For` calls start one sandbox. The last release starts a timer of
+   `Idle` (60 s); a `For` inside it reuses the sandbox, and when it fires the pool calls
+   `Backend.Destroy`. When a session is live on a lane that also has an idle runner-only
+   sandbox, `For` uses the session and destroys the idle one.
+4. **The reaper.** The reaper's rule 4 (`reaper.go:363-409`) destroys a managed sandbox with no
+   session record once `createGrace` has passed. A runner-only sandbox has no record, so
+   `reaper.Config` gains `Held func(sandboxID string) bool`, and rule 4 skips an id for which
+   it answers true. After a restart nothing holds the old ones, and rule 4 reaps them, which is
+   the crash path it already is.
