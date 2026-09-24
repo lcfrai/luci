@@ -112,3 +112,40 @@ Read, not copied (OD-13). Line references verified 2026-09-25 in `~/Projects/Pan
 7. **The CLI is untouched.** Claude Code runs unmodified; it is configured only through documented settings and environment variables (task 14). No wrapper, no patched binary, no PTY read.
 8. **UI** follows `docs/DESIGN-SYSTEM.md`: budgets are words and `tabular-nums` figures, never a progress bar; one accent, for interactive state only.
 9. **Clean room** (OD-11) does not bite here: nothing in this phase touches canvas or Linear material.
+
+## File map
+
+`cp/` is `control-plane/` (module `github.com/kpmg-au-emu/panacea-app/control-plane`, `control-plane/go.mod:1`).
+
+| Path | Responsibility | Status | Task |
+|---|---|---|---|
+| `cp/internal/dataclass/dataclass.go` | `Level`, `Residency`, `Class`, `Route`; `Decide`; `CanChange` (the ratchet); the Hub wire shape | new | 01 |
+| `cp/internal/inference/catalogue/{catalogue.go,models.yaml}` | The model catalogue, embedded: public id → Global upstream id, AU Bedrock profile id; `ForRoute`; `ModelsResponse` for `/v1/models` | new | 02 |
+| `cp/cmd/gatewaygen/main.go` | Renders LiteLLM `config.yaml` from the catalogue for `local` and `cloud`; never hand-edited | new | 02 |
+| `cp/internal/inference/wire/wire.go` | Every wire shape between the pieces: mint, refresh, revoke, binding, usage, problem codes; `HashToken`; `MessagesURL`; the `BindingReader` and `RouteSource` interfaces | new | 03 |
+| `cp/internal/litellmadmin/client.go` | LiteLLM's admin API, typed: keys, users, teams, spend. Own deadlines; master key from a file | new | 04 |
+| `cp/internal/binding/{binding.go,memstore.go,pgstore.go,migrations/0001_keysmith.sql}` | The binding `Store`, in memory and in Postgres (`keysmith` schema) | new | 05 |
+| `cp/internal/binding/bindingtest/suite.go` | The behaviour suite both stores pass (phase 2's `registrytest` shape) | new | 05 |
+| `cp/internal/budget/budget.go` | Three dimensions, defaults on, `Slice` (the per-key cap), `Policy` source interface, static fallback | new | 06 |
+| `cp/internal/keysmith/keysmith.go` | `Mint`, `Refresh`, `Revoke`, `RevokeSession`; idempotent on alias; budget pre-check | new | 07 |
+| `cp/cmd/keysmith/{main.go,config.go,api.go,callerauth.go}` | keysmith's HTTP API, caller authentication, config, fail-closed start | new | 08 |
+| `cp/internal/usage/usage.go` | Spend rolled up per person, project, team; the team-budget reader | new | 09 |
+| `cp/internal/gatekeeper/authz/authz.go` | One request → allow, deny, route: credential, binding, source address, expiry, live route | new | 10 |
+| `cp/internal/gatekeeper/proxy/{proxy.go,rewrite.go}` | Path allowlist, `model` rewrite, header hygiene, unbuffered streaming | new | 11 |
+| `cp/cmd/gatekeeper/{main.go,config.go}` | Wiring, `/v1/models`, `HEAD /api/hello`, health, body-free logging | new | 12 |
+| `cp/internal/routesource/{hub.go,file.go,cache.go}` | The live project route: from the Hub, from a local file, cached, failing closed | new | 13 |
+| `sandboxd/cmd/panacea/main.go` | `panacea token`: prints the session token from the mounted token directory, waits for a slow mint | new | 14 |
+| `images/sandbox/{Dockerfile,managed-settings.gateway.json}` | Installs `panacea`; the gateway settings fragment for OD-23's mechanism | modified, new | 14 |
+| `cp/internal/gatewayclient/client.go` | The keysmith client every launcher uses: mint beside start, atomic token-file write, refresh, revoke | new | 15 |
+| `cp/internal/backend/backend.go`, `cp/internal/backend/dockerbe/docker.go` | `Spec.Network` (docker only); join the gateway network | modified | 15 |
+| `cp/internal/api/sessions.go`, `cp/cmd/api/config.go` | Local control plane: mint on create, revoke on delete, the gateway variables | modified | 15 |
+| `cp/cmd/fakeanthropic/main.go` | A zero-spend Anthropic-format upstream for tests and local mode: SSE with pings, request capture, a route label | new | 16 |
+| `deploy/local/gateway/{compose.yaml,init.sh,litellm.config.yaml,projects.json}` | Local mode: LiteLLM, Postgres, keysmith, gatekeeper, two fakes, one network; `.env` gitignored | new | 17 |
+| `deploy/local/gateway/probe.sh`, `docs/verification/2026-09-25-phase-6-litellm-probe.md` | What the pinned LiteLLM actually does, measured | new | 18 |
+| `deploy/charts/gateway/**` | Helm chart: three Deployments, Services, PDBs, NetworkPolicies, SecretProviderClass; no route | new | 19 |
+| `infra/terraform/modules/bedrock-federation/**` | AWS side of the AU route: OIDC trust, one role, `au.` profiles in-region only. Written, never applied | new | 20 |
+| `cp/internal/api/inference.go` | `GET`/`PATCH /v1/projects/{id}/inference` on the local control plane | new | 21 |
+| `desktop/src/components/inference/*`, `desktop/src/api/client.ts`, `desktop/src/store/types.ts` | The cockpit's inference panel: class, route, raise to AU, spend against budget | new, modified | 22 |
+| `docs/verification/2026-09-25-phase-6-local-e2e.md` | The local end-to-end proof with unmodified Claude Code, by hand | new | 23 |
+| `infra/smoke/gateway/*.sh` | Cloud proving scripts, tested on canned output, **not run** | new | 24 |
+| `docs/PROGRAM.md` | Phase 6 rewritten; open risk 2 closed; the never-pool line amended | modified | 25 |
