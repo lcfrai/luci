@@ -87,12 +87,12 @@ type OpsResponse struct {
 | `hubclient.ErrUnavailable` | 503 `upstream_unavailable` (R4's code) | `upstream: "hub"` |
 | `discoverhub.ErrHubOff` on a write | 503 `hub_not_configured` (C1's code) | — |
 | `discoverhub.ErrNotBound`, `ErrNoRemote` on a write | 409 `project_not_shared` (**new**) | `state`: `unbound` · `no_remote` |
-| `*discoverhub.FanoutTooLargeError` | 409 `fanout_too_large` (**new**) | `needed`, `limit`; and `bytes`, `limitBytes` when the body size is what failed (task 08, review M6) |
+| `*discoverhub.FanoutTooLargeError` | 409 `fanout_too_large` (**new**), with one message per cause (b10 re-review M-3), the numbers written with thousands separators: the count, "Nothing was saved. This change would update {needed} branch briefs, and the Hub takes {limit} in one save."; the body, "Nothing was saved. This change would send {bytes} bytes to the Hub, and it takes {limitBytes} in one save."; one branch, "Nothing was saved. The brief for branch {branchRef} is too large to carry this change ({bytes} bytes; the Hub takes {limitBytes}). Its answers must be shortened first." | `needed`, `limit`; `bytes`, `limitBytes` when a size is what failed (task 08, review M6); `branchRef` when one branch brief's own revision is what failed (b10 re-review M-2) |
 | `discoverhub.ErrErasedRestore` | 409 `conflict` | `reason: "erased"` |
 | `discover.ErrEmptyAnswer`, `ErrUnknownKey`, `ErrNotAnswered`, `ErrNotDrafted`, `ErrNotFollowUp`, `ErrBadOp`, a disallowed `op.kind` | 400 `bad_request` | `field` |
 | `discover.ErrReservedText`, matched with `errors.Is`; the key from `errors.As(*discover.ReservedTextError)` (task 03 rule 12, plan §4 Security, S3) | 400 `bad_request`, message "Answers cannot contain the text panacea:discover:." | `field: "text"`, `key`: the question key |
 | `discover.ErrTooLong`, matched with `errors.Is`; key and limit from `errors.As(*discover.TooLongError)` (task 03 rule 13, plan §4 Security, S4, review M6) | 400 `bad_request`, message "This answer is too long. Keep it to 4,000 characters." (`limit` 300: "This question is too long. Keep it to 300 characters.") | `field: "text"`, `key`, `limit` |
-| `*discoverhub.RevisionTooLargeError` (task 08, S4) | 400 `bad_request`, message "This brief is too long to share. Shorten an answer and try again." | `field: "text"`, `key`: the op's question key, `bytes`, `limit` |
+| `*discoverhub.RevisionTooLargeError` (task 08, S4) | 400 `bad_request`, message "This brief is too long to share. Shorten an answer and try again." | `field: "text"`, `key`: the op's question key, or `""` for an op with none (restore, reinherit: the brief as a whole, b10 re-review M-2), `bytes`, `limit` |
 | `project.ErrUnknownProject` | 404 `project_not_found` | `projectId` |
 | a branch id not among the project's branches | 404 `branch_not_found` (**new**) | `branchId` |
 | the route's own deadline expired (`Budgets`, below) while a Hub call was in flight: the route's `ctx.Err() == context.DeadlineExceeded`, whatever error type the Hub call returned | 503 `upstream_unavailable` | `upstream: "hub"` |
@@ -139,7 +139,7 @@ the fallback HA4-10 declares: each Hub call runs in a goroutine and the route re
 ```go
 // control-plane/internal/httpx/problem.go — three constants, beside CodeBriefNotWritten
 	CodeProjectNotShared = "project_not_shared" // 409 the project has no Hub project (Discover)
-	CodeFanoutTooLarge   = "fanout_too_large"   // 409 a project edit would re-revision more branch briefs than one Hub batch holds
+	CodeFanoutTooLarge   = "fanout_too_large"   // 409 a project edit one Hub batch cannot carry: too many branch briefs, too many bytes, or one branch brief too large
 	CodeBranchNotFound   = "branch_not_found"   // 404
 ```
 
@@ -171,7 +171,7 @@ for that ask — never a variant spelling.
 | `TestOpsRejectsServerKinds` | `reinherit`, `draft`, `add_follow_up` → 400, `details.field: "op.kind"` | a client forging a fan-out |
 | `TestOpsRefusesReservedText` | a `record` whose text holds `<!-- panacea:discover:end -->` → 400 `bad_request`, `details.field: "text"`, `details.key` the recorded question's key; the fake Hub received no revision write | the marker rule enforced in `Apply` but lost at the route, or mapped to a 500 (review C2) |
 | `TestOpsEchoesWrittenKeys` | a record at base 4 → `written: ["brief:…@5"]` | a desktop that has to guess the new key |
-| `TestRelayTable` — one test per row | status, code, message and details for each source row | a Hub `revision_conflict` rewritten as `conflict`, losing `headRevision` |
+| `TestRelayTable` — one test per row | status, code, message and details for each source row; `fanout_too_large` gets one per cause (count, body, branch), each asserting its own message and that `branchRef` is present only for the branch cause (b10 re-review M-3); `RevisionTooLargeError` with `Key ""` sends `key: ""` | a Hub `revision_conflict` rewritten as `conflict`, losing `headRevision` |
 | `TestRelayNeverLeaksATransportError` | `ErrUnavailable` wrapping a dial error to `127.0.0.1:8750` → the message is the generic sentence; the address is only in the log | a Hub address or path in the problem body |
 | `TestAHubThatNeverAnswersIs503BeforeTheDesktopGivesUp` | a fake Hub whose every call blocks until `ctx.Done()`, `Budgets{Default: 200ms, FollowUp: 300ms}`: GET brief, a `record` op and a `propose_follow_up` op each return 503 `upstream_unavailable`, `upstream: "hub"`, within 1 s | a route with no deadline, which a black-holed Hub turns into the desktop's `timeout` (review I4) |
 | `TestTheDefaultBudgetsAreBelowTheDesktopTimeouts` | `New(Config{})` fills `Budgets{8s, 28s, 55s}`, each below task 15's 10 s, 30 s and 60 s | a budget raised past the desktop's, which re-opens I4 |
