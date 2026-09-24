@@ -37,7 +37,7 @@ in the task (MIT, Apache-2.0, BSD, ISC or OFL only; `OD-11`).
 **Spec:** `docs/superpowers/planning/2026-09-25-linear-parity/05-design.md` (revision 2) and
 `00-summary.md`; the parity matrix `01-linear-feature-inventory.md` (257 items); the design craft
 `02-linear-design-language.md`; the critiques `06` and `07`; `docs/DESIGN-SYSTEM.md`;
-`docs/AGENTIC-UX.md` with the four `Q13` amendments (task 08); `prototype/work-layer.html`.
+`docs/AGENTIC-UX.md` with the four `Q13` amendments (task 01); `prototype/work-layer.html`.
 
 ---
 
@@ -105,8 +105,10 @@ team mode's stream B; the desktop streams sit beside its stream F and **share on
 | **WH, Hub deltas** | 02-17 (W1), then each slice's Hub tasks | Hub task 43 merged into `feat/hub`, synced here (rule H1) | `feat/work-layer`, merged into `feat/hub` by the orchestrator |
 | **WP, phases 3 and 4** | 18-19, 21-25 | phase 4 tasks 06, 09-10, 16-17; phase 3 tasks 05, 07-09 | `feat/work-layer`, each file's owner phase wins (rule H2) |
 | **WD1, look and Work lens** | 20, 26-45 | task 01; the look needs no Hub | `feat/work-layer` |
-| **WD2, issue view, keys, replica, Desk** | 46-70 | tasks 16 and 20 (the fake is enough to start) | `feat/work-layer` |
-| **W2-W5** | 72 onward | the slice before, per the table | `feat/work-layer` |
+| **WD2, issue view, keys, replica, Desk** | 46-70 | tasks 05 and 20 (the fake is enough to start; task 16 brings the real relay) | `feat/work-layer` |
+| **W1b** | 71 | task 22 and phase 7 task 19 | `feat/work-layer` |
+| **W2-W5** | 72-172 | the slice before, per the table | `feat/work-layer` |
+| **WL, the design's *later* rows** | 173-185 | W5's proof (task 172); nothing depends on WL | `feat/work-layer` |
 
 ---
 
@@ -118,8 +120,8 @@ Owner decisions are in `docs/superpowers/planning/2026-09-23-owner-decisions.md`
 |---|---|---|
 | `OD-25` | Built **alongside** team mode on its own streams; W1 demos in local mode first; team mode's critical path is untouched | the streams table; no task edits a Phase T task |
 | `OD-26` | **Everything, W1 to W5**: every MATCH, EXCEED and PARTIAL item of the 257 is built; the 27 SKIPs stand (Q6) | the coverage map; the SKIP list |
-| `OD-27` | **Proof per criterion and plain counts; no percentage, bar, ETA or "N of M"**; `AGENTIC-UX.md` gets Q13's four one-line amendments | rule 5; task 20's `expectNoPrediction`; task 08 writes the amendments |
-| `OD-28` | **Commit Mono** (OFL) for every id, path and time; **Segoe UI Variable** for the sans | tasks 27-28 (faces bundled as files, licences recorded) |
+| `OD-27` | **Proof per criterion and plain counts; no percentage, bar, ETA or "N of M"**; `AGENTIC-UX.md` gets Q13's four one-line amendments | rule 5; task 20's `expectNoPrediction`; task 01 writes the amendments |
+| `OD-28` | **Commit Mono** (OFL) for every id, path and time; **Segoe UI Variable** for the sans | task 27 (Commit Mono bundled as files, its licence recorded; Segoe UI Variable is the system face, never bundled) |
 | `OD-1` | The review gate is waived for phases 3, 4, 5 and 7 **only**; Phase W keeps it: the in-app prototype (task 38) is shown before the Work surfaces are sized, and `feat/work-layer` is not merged onward until the owner has looked. Q3, Q4, Q5, Q7, Q8, Q9, Q11 and Q12 take their recommended answers under it | tasks 38-39; merge policy |
 | `OD-3`, `OD-5` | Shared state lives in **the Hub**, our own server; issues are Hub records from day one | stream WH |
 | `OD-6` | The desktop signs in with Entra PKCE; every Hub write is as a person | authorisation rows, tasks 06-07 |
@@ -137,7 +139,7 @@ enters the agent's context with guards (rule 6); **Q4** the Desk frame is in W1 
 **Q5** the replica is in memory (tasks 55-58); **Q6** the skips stand; **Q7** Linear's project is
 our *feature*; **Q8** no title slug in AU-only branch names; **Q9** build our own, sync one way
 in (W5); **Q10** → `OD-28`; **Q11** option B (`OD-25`); **Q12** cross-team in W4; **Q13** the
-four amendments (task 08); **Q14** Segoe UI Variable (`OD-28`).
+four amendments (task 01); **Q14** Segoe UI Variable (`OD-28`).
 
 ---
 
@@ -145,8 +147,9 @@ four amendments (task 08); **Q14** Segoe UI Variable (`OD-28`).
 
 **Merging and sibling files**
 
-- **H1, the sync-merge rule for Hub deltas** (the rule team mode's Hub deltas follow; Phase T's
-  skeleton at `afc5b5d` does not yet spell it out, so its wording there is **UNVERIFIED**). The
+- **H1, the sync-merge rule for Hub deltas** (the rule team mode's Hub deltas follow, as Phase T
+  words it at `2026-09-25-phase-t-team-mode.md:118-125` on `feat/team-mode`, read at `9a12da6`:
+  *"A delta task starts only after the sync-merge of its sibling branch"*). The
   Hub route table says *"Nothing else is routed"* (`hub-contract.md:609`), so the work layer arrives
   as **new Hub tasks after Hub task 43, never edits to a Hub task in flight** (05 §5.5). Before a
   WH task starts, the orchestrator **sync-merges** the current `feat/hub` into `feat/work-layer`;
@@ -233,18 +236,18 @@ move (rule H1). Where a slice adds to a W1 file, the later task is listed in the
 | `hubapi/workids.go` | the Work id prefixes (`is-` … `df-`); `DisplayAlias(projectKey, n)`, which is never parsed as a key | new | 02 |
 | `hubapi/workcanonical.go`, `hubapi/testdata/issue-revision/*.json` | the `issue-revision` canonical kind; golden vectors | new | 02 |
 | `hubapi/work.go` | W1 wire types: issue head and revision, `serves`, states, thread state, relations, labels, policies, comments, subscriptions, imports | new | 03 |
-| `hubapi/work_plan.go`, `work_roadmap.go`, `work_intake.go` | W2, W4 and W5 wire types | new | 72, 104, 133 |
-| `hubclient/work.go` | the `Work` interface, one sub-interface per slice | new | 04; 72, 104, 133 |
+| `hubapi/work_plan.go`, `work_agents.go`, `work_roadmap.go`, `work_intake.go` | W2, W3, W4 and W5 wire types | new | 72, 99, 114, 143 |
+| `hubclient/work.go` | the `Work` interface, one sub-interface per slice | new | 04; 72, 99, 114, 143 |
 | `hubclient/hubclient.go` ⚑ | one line: `Hub` embeds `Work` (`hub-contract.md:1329`) | modified | 04 |
-| `hubclient/fake_work*.go` | the fake's Work rules, in memory | new | 04, 05; 73, 105, 134 |
-| `hubclient/conformance/work*.go` | Work conformance rows, run against the fake and the real Hub | new | 05; 73, 105, 134 |
-| `hubclient/methods_work*.go` | the Work methods over HTTP, with the digest re-check | new | 16; 80, 112, 141 |
-| `migrate/sql/NNNN_work_*.sql` | one migration per slice, **next free number at sync time**: tables, RLS, grants, guards | new | 06, 07; 74, 106, 135 |
+| `hubclient/fake_work*.go` | the fake's Work rules, in memory | new | 04, 05; 73, 99, 115, 144 |
+| `hubclient/conformance/work*.go` | Work conformance rows, run against the fake and the real Hub | new | 05; 73, 99, 115, 144 |
+| `hubclient/methods_work*.go` | the Work methods over HTTP, with the digest re-check | new | 16; 82, 100, 124, 167 |
+| `migrate/sql/NNNN_work_*.sql` | one migration per slice, **next free number at sync time**: tables, RLS, grants, guards | new | 06, 07; 74, 100, 116, 145 |
 | `store/work_*.go`, `server/work_*.go` | the store and routes, one pair per aggregate | new | 08-15; W2-W5 Hub tasks |
 | `server/matrix_integration_test.go` ⚑ | authorisation-matrix rows for every Work route | modified | 07 and every WH route task |
 | `server/changes.go` ⚑ | the change feed carries Work kinds, filtered per caller | modified | 13 |
-| `server/erase.go` ⚑ | erase for issues, comments, requests and notes | modified | 14; 136 |
-| `server/janitor.go` ⚑ | cycle rollover and closure proposals (W2); recurring issues and reminders (W4); loop triggers (W5) | modified | 77; 110; 146 |
+| `server/erase.go` ⚑ | erase for issues, comments, requests and notes | modified | 14; 146 |
+| `server/janitor.go` ⚑ | cycle rollover and closure proposals (W2); recurring issues and reminders (W4); loop triggers (W5) | modified | 77; 121; 162 |
 | `work_e2e_integration_test.go` | W1's Hub end to end through `devissuer` | new | 17 |
 
 ---
