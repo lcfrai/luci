@@ -371,3 +371,52 @@ func (p *Lanes) Holds(sandboxID string) bool
    `reaper.Config` gains `Held func(sandboxID string) bool`, and rule 4 skips an id for which
    it answers true. After a restart nothing holds the old ones, and rule 4 reaps them, which is
    the crash path it already is.
+
+```go
+// bundle.go — lane work in, product commits out. Both run host git in the PROJECT only, through
+// gitx.Exec, with Scope Project. The bundle file lives in <Hardening.OwnedRoot>/bundles (mode
+// 0700), named <16 random hex>.bundle, created O_EXCL mode 0600, and removed by a defer on
+// every path, success included.
+
+// BundleRefused is every reason FetchLane will not take a bundle. No ref has moved.
+type BundleRefused struct{ Why string }
+
+// FetchLane asks runner for a bundle of refs over basis, checks it in the project, and fetches
+// it with refspecs. refs each begin refs/heads/; each refspec is +<one of refs>:<dst> with dst
+// under refs/panacea/lanes/. It answers the fetched refs, ErrBundleEmpty, a *BundleRefused, or
+// a *gitx.Error from a project call.
+func FetchLane(ctx context.Context, git *gitx.Exec, projectPath string, runner Runner,
+	refs, basis, refspecs []string) (map[string]string, error)
+
+// SendBranch writes a bundle of refs over basis from the project into OwnedRoot, for task 09's
+// refresh to hand to Runner.Fetch. The caller calls done, which deletes the file.
+func SendBranch(ctx context.Context, git *gitx.Exec, projectPath string,
+	refs, basis []string) (bundle *os.File, done func(), err error)
+```
+
+**`FetchLane`, in order.** Any failure stops it; the file goes with the defer.
+1. **Arguments.** `refs` and `refspecs` are checked as above, and each ref passes
+   `check-ref-format` in the project (Class `Read`). A failure is `*BundleRefused` and the runner
+   is not called.
+2. **Spool.** `runner.Bundle` writes through a counting writer into the file. Byte
+   `MaxBundleBytes + 1` stops the copy and is `*BundleRefused{"larger than MaxBundleBytes"}`;
+   the runner's own 413 is the same refusal. `ErrBundleEmpty` returns as itself.
+3. **`bundle verify <file>`** in the project (Class `Read`). It checks the header and that every
+   prerequisite is in the project, so a truncated file or a missing prerequisite fails here.
+4. **`bundle list-heads <file>`** (Class `Read`), parsed as `<sha> SP <refname>` lines. The set of
+   refnames must equal `refs` exactly: no extra, none missing, no duplicate, no `HEAD`, each under
+   `refs/heads/`, each sha 40 or 64 hex. Otherwise `*BundleRefused`.
+5. **The fetch** (Class `Local`): `fetch --atomic --no-auto-maintenance --no-tags
+   --no-write-fetch-head --quiet <file> <refspecs…>`, with `transfer.fsckObjects=true` given as
+   `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0`, `GIT_CONFIG_VALUE_0` in `Call.Env`, the way task 13's
+   `PushEnv` sets config. Not `-c`: task 02 refuses a caller's `Args[0] == "-c"` with
+   `ErrCallShape` (`TestHGHCallShape`). `--atomic` makes a partial failure move no ref. A failed
+   fetch, fsck's included, is `*BundleRefused` carrying git's sentence.
+6. **Read back** with `for-each-ref --format=%(refname)%00%(objectname)` over each `dst` (Class
+   `Read`), which is the answer. Nothing here reads the lane's `.git`.
+
+**`SendBranch`, in order.** Each call in the project. Keep the `basis` shas `cat-file -e` finds
+(Class `Read`), as the runner does. `rev-list --count <refs…> --not <kept…>` of `0` is
+`ErrBundleEmpty`, decided before `bundle create` for the runner's reason. Then `bundle create
+<file> <refs…> --not <kept…>` (Class `Read`: it writes only the file). A file past
+`MaxBundleBytes` is deleted and refused, because the runner's `fetch` would 413 it.
