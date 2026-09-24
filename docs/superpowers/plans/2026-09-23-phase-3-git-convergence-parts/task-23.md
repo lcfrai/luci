@@ -40,13 +40,23 @@ commits skip it; only a **host** git that runs the project's hooks writes the ma
 now exists (the hook fires on this host, so step 6's absence means something); it then deletes
 the ref and, after that (the delete fires the hook too), the marker. The control is the
 test's last git call in the project; from then on only the control plane runs git there. The run never writes a clone's config or hooks.
+**The R4 check** (R4.1, R4.2), run after each create (rows 1 and 2) and again at row 17:
+(a) no git exec under the clone root. The binary keeps no gitx exec log (task-02 defines only
+`gitxtest.Spy`), so this half is the Go twin: task 24's `TestHostNeverRunsGitInALane`, the Spy
+over the `api.Deps` `serve` builds, with its create, sweep, observe, land, refresh, undo, remove and
+diff rows (`task-24.md:500-511`), green in Step 1's run. The results document cites that pass and does
+not claim a trace of this binary. (b) `docker inspect --format '{{json .Mounts}}'` of every
+session container, the runner-only sandboxes included: no mount's `Source` equals or lies under
+`Project.Path` (both cleaned, compared with `filepath.Rel`, case-folded on Windows). Docker
+Desktop may report a host path as `/run/desktop/mnt/host/c/…`; the check maps that form back
+before comparing, and which form this host reports is recorded, not assumed.
 Then, each step asserting the status code and the named facts, and recording both in the
 results document:
 
 | # | Step | Asserts |
 |---|---|---|
-| 1 | `POST …/worktrees` ×2 on `evidence-upload` | 201, `kind:"clone"`; both in `GET …/worktrees` under the branch |
-| 2 | a shell session on each; wait for `running` | the sandbox's `git status` exits 0 (`docker exec`) — **the linked-worktree failure is gone for cockpit worktrees** |
+| 1 | `POST …/worktrees` ×2 on `evidence-upload` | 201, `kind:"clone"`; both in `GET …/worktrees` under the branch; the R4 check (a) |
+| 2 | a shell session on each; wait for `running` | the sandbox's `git status` exits 0 (`docker exec`) — **the linked-worktree failure is gone for cockpit worktrees**; the R4 check (b): neither session mounts the project |
 | 3 | commit in A (`upload-ui`) and a conflicting commit in B (`upload-api`) | each commit's `Panacea-Session` equals its session's id, and each carries `X-Husky: ran`: the project's hook ran in a clone the route made (task 03 step 6, task 05) |
 | 4 | mark both ready; `PUT …/queue` [A, B] | 200 |
 | 5 | `GET …/convergence` | A `clean`; B `conflicts`, `conflictsWith:[A]`, the path; both lanes' `commits[].sessions` |
@@ -64,7 +74,7 @@ results document:
 | 15a | wait at most two `PANACEA_APP_LANE_SYNC_INTERVAL`s after step 15 (review I4) | both clones' `refs/remotes/origin/evidence-upload` (`docker exec … git rev-parse`) equal step 15's commit, which the cockpit did not make: the sweep's tip-change refresh |
 | 16 | check out `evidence-upload` in the project's primary; `GET …/convergence` and land | `checkedOutAt` is the primary's path; 409 `branch_checked_out`; check it back out |
 | 16a | `POST …/lands/{step 11's merge}/revert` with `expectedTip` = step 15's commit (review I4) | 201; one parent, `Panacea-Reverts: <step 11's merge>`; both clones' `origin/evidence-upload` == `revert`, and `refreshed` names both |
-| 17 | `DELETE …/worktrees/{A}` while its session runs | 409 `live_sessions`; kill it; DELETE with nothing to lose → 200; clone dir, lane ref, conversation store gone |
+| 17 | `DELETE …/worktrees/{A}` while its session runs | the R4 check, (b) while A's session runs; 409 `live_sessions`; kill it; DELETE with nothing to lose → 200; clone dir, lane ref, conversation store gone |
 | 18 | an uncommitted file in B; `DELETE` → `confirm_required`; commit in B (state changes); DELETE with the old token → `confirm_stale`; DELETE with the fresh token → 200; `refs/panacea/archive/lanes/<B>/…` names B's unlanded tip; a commit S made in B after `switch -c side` (then `switch` back) is in the question's `details.elsewhere` and named by `refs/panacea/archive/offbranch/<B>/…/heads/side` (review I6) |
 | 19 | `POST …/branches` `throwaway`, `PATCH` rename, `GET …/renames`, `DELETE` | 201, 200 with `renamedFrom`, the map entry, 200 with `archivedAs` |
 | 20 | `git fsck --no-dangling` on the project | exit 0 — no corruption from any of it |
