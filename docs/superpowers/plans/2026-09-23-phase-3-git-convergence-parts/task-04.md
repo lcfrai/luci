@@ -106,7 +106,7 @@ const (
 	ReasonNotReady          = "not_ready"           // lands
 	ReasonBriefUnresolvable = "brief_unresolvable"  // lands, evidence; details.why: no_resolver | missing | digest_mismatch | no_such_criterion
 	ReasonNoGitIdentity     = "no_git_identity"     // lands, bring-in, revert
-	ReasonUndoNotExact      = "undo_not_exact"      // undo, revert; details.why: pushed | built_upon | not_a_land | not_the_tip
+	ReasonUndoNotExact      = "undo_not_exact"      // undo, revert; details.why: pushed | built_upon | not_a_land | not_the_tip | merged_into_lane (+ details.worktrees; task 10, review I3)
 	ReasonLiveSessions      = "live_sessions"       // DELETE worktree; details.sessions — the desktop kills them first
 	ReasonConfirmRequired   = "confirm_required"    // DELETE worktree; details.paths, .commits, .confirm
 	ReasonConfirmStale      = "confirm_stale"       // DELETE worktree: the state changed since the question; fresh details

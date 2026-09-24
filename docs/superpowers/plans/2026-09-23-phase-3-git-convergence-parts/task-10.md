@@ -43,9 +43,15 @@ type HistoryEntry struct {
 	Sessions []string `json:"sessions"`
 	Reverts  string   `json:"reverts"` // revert: the land it takes back
 	Pushed   bool     `json:"pushed"`  // reachable from the upstream; false when never pushed
-	// Undo: "exact" (this is the tip, a land, not pushed), "revert" (a land that is pushed or
-	// built upon), or "none" (not a land). UndoWhy says why an exact undo is not offered:
-	// "pushed" | "built_upon" | "".
+	// Undo: "exact" (this is the tip, a land, not pushed, and no other lane contains it),
+	// "revert" (a land that is pushed, built upon, or merged into another lane), or "none" (not a
+	// land). UndoWhy says why an exact undo is not offered:
+	// "pushed" | "built_upon" | "merged_into_lane" | "".
+	// merged_into_lane (review I3): a refs/panacea/lanes/<id> other than the land's own contains
+	// the land, typically
+	// because that lane's agent merged origin/<branch> to resolve a conflict (task-19
+	// resolvePrompt). Moving the branch back would not take the land back: that lane's next land
+	// brings it, and its worktree's work, back without a word, and the forecast calls it clean.
 	Undo    string `json:"undo"`
 	UndoWhy string `json:"undoWhy"`
 }
@@ -54,7 +60,12 @@ type HistoryEntry struct {
 //   log --first-parent -n <limit> --format=%H%x00%P%x00%an%x00%aI%x00%s%x00<Land>%x00<Brief>%x00<BriefDigest>%x00<Session>%x00<Reverts>%x00<BringIn>%x1e
 //   rev-list --first-parent refs/heads/<branch> ^<upstream>   (the unpushed set; skipped when never pushed)
 //   log --format=<Session>%x1e -n 20 <sha>^1..<sha>^2         (per land row)
-// all gitx.Read, cached by (tip, upstream tip, limit).
+//   for-each-ref --contains <tip> --format=%(refname) refs/panacea/lanes/
+//                                                             (only when the tip row is an unpushed land)
+// all gitx.Read. The first three are cached by (tip, upstream tip, limit). The for-each-ref is
+// not: a lane sync moves a lane ref without moving the tip, so a cached answer would go stale.
+// An answer naming any lane but the land's own makes the tip row undo "revert", undoWhy
+// "merged_into_lane" (review I3), by the same rule Undo refuses with.
 func History(ctx context.Context, m gitx.Machine, projectPath, branch string, store lanes.Store, limit int) ([]HistoryEntry, error)
 
 // UndoResult is an exact undo.
@@ -67,8 +78,15 @@ type UndoResult struct {
 }
 
 // Undo takes back the land at the tip, exactly. Refusals (*Refusal, nothing written):
-// branch_checked_out; undo_not_exact with details.why "not_a_land" | "not_the_tip" | "pushed";
-// branch_moved when the tip is not expectedTip. Then, in order:
+// branch_checked_out; undo_not_exact with details.why "not_a_land" | "not_the_tip" | "pushed" |
+// "merged_into_lane"; branch_moved when the tip is not expectedTip. merged_into_lane (review I3)
+// comes from, under the lock and after the tip check:
+//   for-each-ref --contains <sha> --format=%(refname) refs/panacea/lanes/   (project, Read)
+// Any ref other than the land's own lane (refs/panacea/lanes/<Panacea-Land id>) refuses, with
+// details.worktrees = the lane ids, sorted, one per line (an id is a ref-name component, so git
+// refuses a newline in it; task-04's line format), and the desktop offers the revert. The land's
+// own lane is exempt: its next land brings back only its own work, which is what landing it again
+// means, and the forecast shows that work as its own. Then, in order:
 //   update-ref refs/panacea/undone/<sha> <sha>                           (keeps it and its trailer resolvable)
 //   update-ref -m "panacea: undo land <id>" refs/heads/<branch> <sha>^1 <sha>   (compare-and-swap)
 //   SetWorktreeReady(<Panacea-Land id>, true) when that lane still exists  (exact means as before)
@@ -81,9 +99,11 @@ func (l *Lander) Undo(ctx context.Context, projectPath, projectID, branch, sha, 
 
 // RevertResult is a revert commit that landed.
 type RevertResult struct {
-	Revert  string `json:"revert"`
-	Before  string `json:"before"`
-	Reverts string `json:"reverts"`
+	Revert        string            `json:"revert"`
+	Before        string            `json:"before"`
+	Reverts       string            `json:"reverts"`
+	Refreshed     []string          `json:"refreshed"`     // as UndoResult (review I4)
+	RefreshErrors map[string]string `json:"refreshErrors"`
 }
 
 // Revert lands a commit that takes back one land. Refusals: branch_checked_out; branch_moved;
@@ -94,9 +114,12 @@ type RevertResult struct {
 //   msg  = Message("Revert land <name> into <branch>", "This takes back <sha>.", [Panacea-Reverts: <sha>])
 //   rev  = commit-tree <tree> -p <tip> -F -                              (the user's identity)
 //   update-ref -m "panacea: revert <sha>" refs/heads/<branch> <rev> <tip>
+//   l.RefreshClones(ctx, projectPath, branch), as Undo does (review I4): a revert moves the
+//   branch, and an agent told to merge origin/<branch> must merge the branch as it now is
 // The reverted lane's ready flag is not touched. It holds Locks.Lock(ctx, projectID) for the
-// whole verb, as Undo does (review I7). Hardened per task-02 §HGH: every call uses Scope
-// Project, and no hook or merge driver the repository names runs (H1, H3, H4).
+// whole verb, as Undo does (review I7). Hardened per task-02 §HGH: the project calls use Scope
+// Project, the refresh uses Scope Clone, and no hook or merge driver the repository names runs
+// (H1, H3, H4).
 func (l *Lander) Revert(ctx context.Context, projectPath, projectID, branch, sha, expectedTip string) (RevertResult, error)
 ```
 
@@ -147,11 +170,15 @@ and rev-list, and the lane index for names. Writes nothing."*
 | `TestUndoRestoresReady` | ready false after the land → true after undo | a lane that silently drops out of the queue |
 | `TestUndoRefusesAPushedLand` | pushed → `undo_not_exact`/`pushed`, nothing moved | a force-push by the back door (A3) |
 | `TestUndoRefusesANonTip` | a land under a later commit → `undo_not_exact`/`not_the_tip` | rewriting history below a newer commit |
+| `TestUndoRefusesALandALaneHasMerged` (review I3) | land A → M; lane B's clone runs `git merge origin/<branch>` (M) and a lane sync makes `refs/panacea/lanes/B` contain M; undo M → `undo_not_exact`/`merged_into_lane`, `details.worktrees == "B"`, the tip still M, no `refs/panacea/undone/<M>`; History's tip row → `undo:"revert"`, `undoWhy:"merged_into_lane"`; the revert of M then lands | an undo that only checks the tip, after which B's next land brings A's work back unannounced |
+| `TestUndoExemptsTheLandsOwnLane` (review I3) | land A → M; A's own clone merges origin/<branch> and syncs, so `refs/panacea/lanes/A` contains M → History's tip row `undo:"exact"`, and Undo succeeds | refusing every undo whose lane later pulled the branch, which leaves the user only a revert for no reason |
+| `TestHistoryMergedIntoLaneIsReadFresh` (review I3) | History (tip row exact); lane B merges M and syncs, the tip unchanged; History again → `undoWhy:"merged_into_lane"` | a lane-containment answer cached under a key that a lane sync does not change |
 | `TestUndoRefusesAStaleView` | `expectedTip` ≠ tip → `branch_moved` | undoing a land the human no longer sees |
 | `TestUndoLosesARaceCleanly` | the branch moves between the check and `update-ref` → `branch_moved`; the tip is the racer's | `update-ref` without its old value |
 | `TestRevertTakesBackTheLandsChange` | after landing A then B, revert A → the tree equals "B applied without A", one parent, `Panacea-Reverts: <A>` | a revert of the wrong side of the merge |
 | `TestRevertConflictWritesNothing` | a later commit edits A's lines, in a file named `docs/résumé.md` → `merge_conflict`, `json.Unmarshal(details.paths) == ["docs/résumé.md"]` (review I2), tip unchanged | a half-written revert; a revert's merge-tree without `-z` |
 | `TestRevertOfADirectCommitIsRefused` | → `undo_not_exact`/`not_a_land` | reverting arbitrary commits through the land route |
+| `TestRevertRefreshesTheClones` (review I4) | two live lanes; revert a land → each clone's `refs/remotes/origin/<branch>` equals `RevertResult.Revert`, and `Refreshed` names both lanes | a revert that leaves every clone's origin/<branch> at the reverted land, so a resolve prompt merges the land back in |
 | `TestUndoAndLandSerialise` | undo and a land on the same branch concurrently under `-race` → one wins, the other is refused, the tip is one of the two outcomes | an undo that moves the tip under a land |
 | `TestUndoAndRevertWaitOnTheProjectLock` (review I7) | the test holds `Locks.Lock(ctx, p)` → an undo and a revert on `p` run no git call 50 ms later (a recording Runner); release → both proceed | an undo or revert that skips the one lock push and fetch take |
 | `TestHistoryGETIsReadOnly` | the §10a audit passes; `for-each-ref` before and after a GET is identical | a GET that writes |
