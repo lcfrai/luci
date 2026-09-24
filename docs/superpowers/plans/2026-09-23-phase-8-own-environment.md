@@ -371,6 +371,24 @@ are hygiene, not a boundary.
      `Microsoft.Authorization/*/Write`). **Both are training knowledge, UNVERIFIED.** AKS run
      command is the same kind of route, and whether a cluster with local accounts off runs it
      with the caller's own rights is **UNVERIFIED**. Task 31 §4a probes both routes.
+     **Those two are examples, not the bound** (plan re-review b02-2 M-2). The plan treats
+     Contributor on the cluster as able to reach cluster-admin. Its write on `managedClusters`
+     also covers, among others (**all training knowledge, UNVERIFIED**):
+     - cluster extensions and Flux configurations (`Microsoft.KubernetesConfiguration/*` on the
+       cluster), whose controllers apply arbitrary manifests with cluster-wide rights;
+     - node SSH access (an SSH key on the cluster's Linux profile, or a node pool's SSH setting),
+       reachable from the in-VNet pool that `deploy` runs on (residual 5). Root on a node that runs
+       the broker gives the broker's token;
+     - on the registry, `importImage` or turning the admin user back on, which pushes without
+       AcrPush (low impact while every deploy pins digests, task 27).
+
+     A Deny policy on local accounts and a role without `runCommand/action` would not close this
+     route. If the owner later asks for a custom infra role in place of Contributor, its real
+     scope is: `notActions` naming `Microsoft.KubernetesConfiguration/*` on clusters,
+     `Microsoft.ContainerService/managedClusters/runCommand/action`, and
+     `Microsoft.DBforPostgreSQL/flexibleServers/administrators/*` (plan re-review b02-2 I-1); and,
+     because the SSH settings sit inside `managedClusters/write`, an Azure Policy Deny on them,
+     beside the local-accounts one.
 
    What bounds all three is the infra connection's branch control and the Environment approval.
    Whoever deploys an identity or a cluster can act as it: this is inherent in one pipeline
@@ -403,9 +421,16 @@ are hygiene, not a boundary.
 6. **Contributor on one resource group may be too little for AKS.** Creating a cluster whose node
    resource group is `rg-panacea-app-<env>-nodes` may require the caller to be allowed to create
    that group. **UNVERIFIED**: the AKS resource provider may create it on its own authority. If
-   task 31's first `foundation` apply fails for this reason, the owner widens the infra identity's
-   Contributor to the subscription and records it as a widening in the results file. A role
-   cannot be scoped to a group that does not yet exist.
+   task 31's first `foundation` apply fails for this reason, the owner does **not** widen the
+   infra identity's Contributor to the subscription (plan re-review b02-2 M-5). That would put
+   every other resource group in the subscription in reach, and `rg-panacea-app-<env>-nodes`
+   with it, where Contributor on the scale sets can run commands on the nodes as root: every token
+   on every node (**training knowledge, UNVERIFIED**). The fallback is a custom role,
+   `panacea-app-rg-creator`, assigned at subscription scope, with exactly two actions:
+   `Microsoft.Resources/subscriptions/resourceGroups/write` and `.../resourceGroups/read`. The
+   owner creates it with `az role definition create`, assigns it, and records both in the results
+   file. Creating a group gives no rights over what AKS later puts in it. A role cannot be scoped
+   to a group that does not yet exist, which is why the fallback sits at the subscription.
 
 
 ---
