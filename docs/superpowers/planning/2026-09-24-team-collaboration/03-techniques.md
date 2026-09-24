@@ -17,20 +17,26 @@ what they are working on"*. This file covers the **techniques** only. Product pr
    (phase 3 task 07, `.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence-parts/task-07.md:1-11`).
    Across machines, the only new piece is **relaying those facts through the Hub**, which is already
    specified as an ordered change feed (`.claude/worktrees/hub/docs/superpowers/adr/ADR-H1-hub-architecture.md:476-488`).
-2. **Getting those facts into the agent's head has exactly one channel that works under every
-   constraint today: a file on disk the harness reads by itself** — a managed `CLAUDE.md` block
-   (phase 4 already writes one, `.claude/worktrees/phase-4/docs/superpowers/plans/2026-09-18-phase-4-discover.md:5,42`)
-   plus a refreshable file the agent is told to re-read. It is passive and read at session start,
-   so it goes stale. §1 has the evidence.
-3. **An MCP coordination server is the better channel, and it is blocked on this laptop's policy.**
-   The managed policy has `allowManagedMcpServersOnly: true` with `allowedMcpServers: []` and
-   `strictPluginOnlyCustomization: ["hooks", "mcp"]` (§1.1). Build the server anyway, behind the
-   same facts, because customer tenants and the in-sandbox policy may differ — and ship the file
-   channel as the floor that always works.
-4. **Awareness is advisory. Nothing is enforced.** Enforcement needs a wrapped CLI or filesystem,
+2. **The floor that works under every constraint today is files the harness reads by itself**:
+   phase 4's `CLAUDE.md` brief block
+   (`.claude/worktrees/phase-4/docs/superpowers/plans/2026-09-18-phase-4-discover.md:5,42`), plus
+   git-excluded rule files the control plane rewrites — one board loaded at launch, and
+   **path-scoped rules that load when the agent reads a file a teammate is changing** (§1.2).
+   Read at launch, after `/compact`, and — **observed** — again on `--resume`.
+3. **The best push channel needs no MCP and no hook: Claude Code's own inbox socket**, which
+   delivers text *"between tool calls"* and is documented for scripts to post into (§1.3). It is
+   same-machine only, so a relay in `sandboxd` posts the Hub's events. Three details are
+   **UNVERIFIED** and need one canary.
+4. **An MCP coordination server is the richest channel, and it is blocked for KPMG accounts**:
+   `allowedMcpServers: []` blocks user, project **and plugin** servers (§1.1). Build it for tenants
+   whose admin allowlists one binary; never bake in a file that routes around their policy.
+5. **Awareness is advisory. Nothing is enforced.** Enforcement needs a wrapped CLI or filesystem,
    which is forbidden (`docs/superpowers/planning/2026-09-23-phases-4-5-7/survey-phase-3-git-convergence.md:277-292`).
-   The research literature (§5) agrees that structured, shared, mechanically checked artefacts beat
-   agents chatting to each other.
+   The literature (§5) agrees: shared structured facts beat agent chat, hard admission kills the
+   parallelism, and the most useful single message is *"a change that affects you just landed"*
+   (82% of runs recovered, https://arxiv.org/abs/2609.25396).
+6. **Build order T1–T6, about 11–12 days, needs no policy change** (§6). Five owner decisions and
+   six canaries are in §7.
 
 ## Constraints every technique is scored against
 
@@ -262,8 +268,8 @@ marketplaces, none ours (§1.1). So the path is a **Panacea plugin published int
 approved marketplace** — a procurement step, not an engineering one. Two more cautions:
 - A hook that **denies** an edit is enforcement by the back door. Keep hooks to adding context,
   never `deny`; the product's rule is that claims are readings (task 07 `:11`).
-- The user's device notes record that settings hooks silently stopped firing here once the policy
-  arrived. A feature that assumes hooks fails silently, which is the failure the phase 4 plan warns
+- The owner's device notes (`~/.claude/CLAUDE.md` §1, not in this repo) record that settings hooks
+  silently stopped firing here once the policy arrived: one logged hook row, ever. A feature that assumes hooks fails silently, which is the failure the phase 4 plan warns
   about for `CLAUDE.md` (`:42`). Hooks may only **add** to rank 1, never replace it.
 
 **Cost:** ~1 day for the plugin once rank 1's files exist (the hook reads the same excluded file;
@@ -571,4 +577,59 @@ this research went; the task's "agent collision" did not match a named paper. Bo
 Caution on 3: STALE's own real-PR sample showed interference in 1 of 834 runs, so the 97% is a
 constructed-task ceiling, not a field rate. The field rate for **our** users is unknown until we
 measure it.
+
+---
+
+## 6. The recommended stack, in build order
+
+Estimates are focused build time for one agent-driven stream, tests included, **after** phase 3
+task 07 and the Hub's H-min exist. Prototype review before UI work still applies.
+
+| # | Build | Serves ask | Depends on | Estimate |
+|---|---|---|---|---|
+| T1 | **Lane summaries to the Hub** (I1 + I2 + I3 paths) and a project **board** read model | 2, 4 | task 07; Hub feed | ~2 days |
+| T2 | **Rank-1 files** in each clone: `panacea-team.md` rule, `.panacea/team.md`, path-scoped hot rules, `.git/info/exclude`; `--name` and one appended sentence | 4 | T1 | ~1.5 days |
+| T3 | **Tier P/H forecasts** in the Hub, written to the feed as forecast events | 4 | T1 | ~1.5 days |
+| T4 | **Presence** (`PUT`/`GET /v1/presence`, 45 s TTL) and the cockpit's team board | 2 | Hub | ~2 days + prototype review |
+| T5 | **Inbox-socket relay** in `sandboxd`: "a teammate landed changes to your paths", "new conflict with your lane" | 4 | T3; canary C4 | ~2 days |
+| T6 | **Tier M**: lanes pushed under a namespace, teammates' lanes fetched, `merge-tree` per own lane | 4 | canary C5 | ~2–3 days |
+| T7 | **Coordination MCP server** (stdio, in sandbox), six tools | 4 | T1, T3 | ~3 days, ships per tenant allowlist |
+
+**T1–T6 is about 11–12 days** and needs no policy change anywhere. T7 adds ~3 days and a
+customer-admin conversation. Later, each on its own evidence: the hooks plugin (§1.5), tier S,
+symbols, the terminal view (§4.3), an A2A face (§1.8).
+
+## 7. Unknowns to settle before building on them
+
+**Canaries** — each is small; none has been run except where marked:
+
+| # | Question | How to settle | Blocks |
+|---|---|---|---|
+| C1 | Does the **interactive** TUI re-read `CLAUDE.md` on `--resume` (observed only in `-p`)? | the §1.2 script, interactively, in OD-12's session | nothing; T2 degrades to "at launch" |
+| C2 | Does a path-scoped rule **written after launch** load on first match, and does a rewritten one reload? | two-turn test in a sandbox | T2's hot-file rules |
+| C3 | Does KPMG's server-managed policy apply **inside the sandbox** after `/login`? | `/status` in a sandbox session | T5, T7 expectations |
+| C4 | Can `sandboxd` find a session's inbox socket, what is the message line's schema, and is it delivered in `bypassPermissions` with `crossSessionInbound: "accept"`? | adapter spike against the pinned CLI | T5 |
+| C5 | Do Azure DevOps and GitHub accept pushes to `refs/panacea/*`? | one push per host | T6 |
+| C6 | Does an agent actually re-read `.panacea/team.md` when told to? | N scripted runs, count Reads | how much T2 is worth alone |
+
+**Owner decisions:**
+
+- **D1.** Teammates see a session's **title and brief** by default; its **opening prompt** only if
+  its owner opts in. Agree?
+- **D2.** A teammate's event may message *my* agent, spending *my* quota. Default **conflicts and
+  lands on my paths only**, user-changeable. Agree?
+- **D3.** Lanes, work in progress included, are pushed to the **customer's shared remote** under a
+  private namespace, visible to anyone who can read the repository. Acceptable?
+- **D4.** Tier S speculative builds spend compute per lane pair. Whose budget?
+- **D5.** Build the relayed terminal view at all? If yes, opt-in per session, and price end-to-end
+  encryption.
+
+## 8. What this document does not claim
+
+- Nothing here is built or run end to end. The only runs are §1.2's resume test and §1.3's
+  environment check, both on this laptop, Claude Code 2.1.273.
+- Adherence is behaviour. No channel in §1 **makes** an agent coordinate. The facts, the
+  forecasts and the human's land queue are what hold regardless.
+- The literature numbers are the papers' own, from abstracts read on 2026-09-24. The full papers
+  were not read.
 
