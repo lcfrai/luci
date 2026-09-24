@@ -83,8 +83,9 @@ type Config struct {
 
 	// Instance is this control plane's instance id (internal/instance).
 	// Required: New refuses an empty or malformed one. Create stamps it on
-	// every container as backend.LabelInstance, and List returns only the
-	// containers that carry it — see List for what happens to the rest.
+	// every container as backend.LabelInstance, and List returns the
+	// containers that carry it and the legacy ones that carry none, never
+	// another instance's — see List for why.
 	Instance string
 }
 
@@ -96,11 +97,15 @@ type Backend struct {
 	instance     string
 	log          *slog.Logger
 
-	// legacy is every container ID List has already warned about as a
-	// managed container with no instance label, so the warning is written once
-	// per container and not once per sweep.
-	legacyMu sync.Mutex
-	legacy   map[string]bool
+	// exposed is every container ID List has already logged as published off
+	// loopback, so the line is written once per container and not once per
+	// sweep. A LAN-published sandbox this control plane does not destroy — a
+	// legacy one no registry here tracks, or another instance's — stays on the
+	// daemon, and a line a minute about it forever is how an operator stops
+	// reading the log. The reaper's own error on a failed destroy still repeats
+	// every sweep, which is the line that must.
+	exposedMu sync.Mutex
+	exposed   map[string]bool
 }
 
 // New returns a Docker backend, or fails with backend.ErrUnavailable and a
@@ -159,7 +164,7 @@ func New(cfg Config) (*Backend, error) {
 		readyTimeout: readyTimeout,
 		instance:     cfg.Instance,
 		log:          logger,
-		legacy:       make(map[string]bool),
+		exposed:      make(map[string]bool),
 	}, nil
 }
 
@@ -398,22 +403,27 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 // the container does not have. Get and Attach on the same id still refuse
 // loudly with ErrNonLoopbackPublish.
 //
-// OURS MEANS THIS INSTANCE'S. The daemon is asked for every managed container,
-// and only those whose backend.LabelInstance is this backend's own are
-// returned. Two kinds are left out, and neither reaches the reaper:
+// OURS MEANS THIS INSTANCE'S, AND LEGACY IS FOR THE REGISTRY TO JUDGE. The
+// daemon is asked for every managed container, and three kinds come back:
 //
-//   - Another instance's container: another control plane on this daemon owns
-//     it, and its own List and reaper look after it. Silent, because on a
-//     shared host this is the normal case.
+//   - This instance's (backend.LabelInstance is this backend's own): returned,
+//     Instance set.
 //   - A managed container with no instance label: made before per-instance
-//     ownership existed, so no control plane can prove it is its own, and
-//     nothing will ever destroy it automatically. Warned about once per
-//     container, because a person has to decide what to do with it.
+//     ownership existed. Returned, with Instance "". This backend cannot tell
+//     whose it is, but a registry can: its sandbox id was minted at random by
+//     one control plane (ids.New) and its name, panacea-app-<id>, is unique on
+//     the daemon, so the registry that holds that id made it. Dropping it here
+//     is what used to make restart recovery write `exited` over a session whose
+//     container was still running (reaper-scope fix round, I1). The reaper's
+//     owns() makes the ownership call and is the one place that logs it.
+//   - Another instance's container: skipped. Another control plane owns it and
+//     its own List and reaper look after it. Silent, because on a shared host
+//     that is the normal case — unless it is published off loopback, which is
+//     logged once at error (below), because nothing here will close it.
 //
 // The instance is matched here rather than in the daemon's filter so that the
-// second kind is seen at all: a label filter on the instance would make a
-// legacy container invisible, and an invisible container is one nobody is
-// ever told about.
+// last two kinds are seen at all: a label filter on the instance would make a
+// legacy container invisible, and an exposed one nobody is ever told about.
 func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	opts := container.ListOptions{
 		All:     true, // include exited containers; the reaper needs to see them
@@ -423,35 +433,44 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	if err != nil {
 		return nil, fmt.Errorf("dockerbe: list: %v: %w", err, backend.ErrUnavailable)
 	}
-	b.forgetLegacy(summaries)
+	b.forgetExposed(summaries)
 	out := make([]backend.Sandbox, 0, len(summaries))
 	for _, s := range summaries {
 		owner := s.Labels[backend.LabelInstance]
-		if owner == "" {
-			b.warnLegacy(s)
+		id := s.Labels[backend.LabelSandboxID]
+		endpoint, epErr := b.endpointFromSummaryPorts(s.Ports)
+		nonLoopback := epErr != nil
+		hostIP := ""
+		if nonLoopback {
+			var off offLoopbackError
+			if errors.As(epErr, &off) {
+				hostIP = off.hostIP
+			}
+		}
+		if owner != "" && owner != b.instance {
+			// Another control plane's. Not listed, so its reaper and not this
+			// one destroys it; but a LAN-published sandbox is the one defect
+			// that must not go unsaid just because it is someone else's, and
+			// its owner may be a build from before per-instance ownership, or
+			// not running at all (reaper-scope fix round, m2).
+			if nonLoopback && b.firstExposure(s.ID) {
+				b.log.Error("another control plane's sandbox on this Docker daemon is published off loopback, where the LAN can reach it; this control plane does not list it, so only the control plane that owns it destroys it",
+					"sandbox", id, "container", s.ID, "owner", owner, "host_ip", hostIP, "err", epErr)
+			}
 			continue
 		}
-		if owner != b.instance {
-			continue // another control plane's
-		}
-		id := s.Labels[backend.LabelSandboxID]
 		if id == "" {
 			continue // managed-looking but not ours to manage
 		}
-		endpoint, epErr := b.endpointFromSummaryPorts(s.Ports)
-		nonLoopback := epErr != nil
 		if nonLoopback {
 			// Not returned: erroring the sweep blinds the reaper. Not hidden
 			// either: NonLoopback plus no endpoint means nothing attaches to it
 			// and nothing mistakes it for a normal starting container.
 			endpoint = ""
-			hostIP := ""
-			var off offLoopbackError
-			if errors.As(epErr, &off) {
-				hostIP = off.hostIP
+			if b.firstExposure(s.ID) {
+				b.log.Warn("sandbox port is published off loopback; refusing to expose it",
+					"sandbox", id, "container", s.ID, "owner", owner, "host_ip", hostIP, "err", epErr)
 			}
-			b.log.Warn("sandbox port is published off loopback; refusing to expose it",
-				"sandbox", id, "container", s.ID, "host_ip", hostIP, "err", epErr)
 		}
 		out = append(out, backend.Sandbox{
 			ID:          id,
@@ -468,37 +487,34 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	return out, nil
 }
 
-// warnLegacy writes List's one line about a managed container with no instance
-// label, the first time List sees that container.
-func (b *Backend) warnLegacy(s container.Summary) {
-	b.legacyMu.Lock()
-	seen := b.legacy[s.ID]
-	b.legacy[s.ID] = true
-	b.legacyMu.Unlock()
-	if seen {
-		return
+// firstExposure reports whether List is seeing this off-loopback container for
+// the first time, and marks it seen.
+func (b *Backend) firstExposure(containerID string) bool {
+	b.exposedMu.Lock()
+	defer b.exposedMu.Unlock()
+	if b.exposed[containerID] {
+		return false
 	}
-	b.log.Warn("a foreign sandbox is on this Docker daemon: it is managed but carries no "+backend.LabelInstance+
-		" label, so it was made before per-instance ownership and this control plane neither lists nor destroys it; remove it by hand once its owner is known",
-		"container", s.ID, "names", s.Names, "sandbox", s.Labels[backend.LabelSandboxID])
+	b.exposed[containerID] = true
+	return true
 }
 
-// forgetLegacy drops the warned-once mark of every container that is no longer
-// on the daemon, so the set is the size of what is there and not of everything
-// that ever was.
-func (b *Backend) forgetLegacy(summaries []container.Summary) {
-	b.legacyMu.Lock()
-	defer b.legacyMu.Unlock()
-	if len(b.legacy) == 0 {
+// forgetExposed drops the logged-once mark of every container that is no
+// longer on the daemon, so the set is the size of what is there and not of
+// everything that ever was.
+func (b *Backend) forgetExposed(summaries []container.Summary) {
+	b.exposedMu.Lock()
+	defer b.exposedMu.Unlock()
+	if len(b.exposed) == 0 {
 		return
 	}
 	present := make(map[string]bool, len(summaries))
 	for _, s := range summaries {
 		present[s.ID] = true
 	}
-	for id := range b.legacy {
+	for id := range b.exposed {
 		if !present[id] {
-			delete(b.legacy, id)
+			delete(b.exposed, id)
 		}
 	}
 }

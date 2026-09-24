@@ -112,11 +112,13 @@ func (d *destroyedBy) set() map[string]bool {
 
 // A managed sandbox with no instance label was made by a control plane from
 // before this label existed — another agent's older build on this machine, or
-// this user's own pre-upgrade session. Nothing can prove whose it is, so
-// nothing destroys it: not rule 4 as an orphan, and not rule 1a either, even
-// published off loopback, because destroying it would be destroying someone
-// else's sandbox on a guess. It is logged once as foreign, so an operator can
-// find it; a line per sweep would be two a minute forever.
+// this user's own pre-upgrade session. When this registry does not hold its
+// sandbox id, nothing here can prove whose it is, so nothing destroys it: not
+// rule 4 as an orphan, and not rule 1a either, even published off loopback,
+// because destroying it would be destroying someone else's sandbox on a
+// guess. It is logged once as foreign, so an operator can find it; a line per
+// sweep would be two a minute forever. (One this registry DOES hold is ours:
+// TestALegacySandboxThisRegistryHoldsIsOurs.)
 func TestALegacySandboxWithNoInstanceLabelIsNeverDestroyed(t *testing.T) {
 	t.Parallel()
 	store := newStore(t)
@@ -143,12 +145,67 @@ func TestALegacySandboxWithNoInstanceLabelIsNeverDestroyed(t *testing.T) {
 	if !strings.Contains(logs.String(), "foreign") {
 		t.Errorf("the spared sandboxes were not called foreign; logs:\n%s", logs.String())
 	}
-	// Warn, not debug: nothing will ever collect a legacy sandbox, so the one
-	// line is the only way a person learns it is there to remove.
+	// Warn, not debug: nothing may ever collect an untracked legacy sandbox,
+	// so the one line is the only way a person learns it is there to remove.
+	// The LAN-published one at ERROR, naming where (reaper-scope fix round,
+	// m2): the LAN can reach it and this control plane will not close that.
 	for _, line := range strings.Split(logs.String(), "\n") {
-		if strings.Contains(line, "sparing a foreign sandbox") && !strings.Contains(line, "level=WARN") {
+		if !strings.Contains(line, "sparing a foreign sandbox") {
+			continue
+		}
+		switch {
+		case strings.Contains(line, "sandbox=sb-exposed"):
+			if !strings.Contains(line, "level=ERROR") || !strings.Contains(line, offendingHost) {
+				t.Errorf("the LAN-published legacy sandbox was not logged at error naming %s: %s", offendingHost, line)
+			}
+		case !strings.Contains(line, "level=WARN"):
 			t.Errorf("a legacy sandbox was logged below warn: %s", line)
 		}
+	}
+}
+
+// Reaper-scope fix round, I1. A legacy sandbox (no instance label) whose
+// sandbox id THIS registry holds is provably this control plane's: the id was
+// minted here at random (ids.New) and panacea-app-<id> is unique on the
+// daemon, so no other control plane made it. It is a pre-upgrade session of
+// this state directory, and it is treated exactly as ours:
+//
+//   - its session stays alive (rule 2 finds it; nothing writes `exited` over
+//     a running container);
+//   - it is not called foreign;
+//   - LAN-published, rule 1a destroys it and says why — the security rule
+//     must not lapse for the sessions an upgrade carries over.
+func TestALegacySandboxThisRegistryHoldsIsOurs(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{ID: "s-old", SandboxID: "sb-old", Status: registry.StatusRunning, Endpoint: "127.0.0.1:49711"})
+	seed(t, store, registry.Session{ID: "s-exposed", SandboxID: "sb-exposed", Status: registry.StatusRunning})
+	running := ownedBy("", "sb-old", backend.StateRunning)
+	exposed := ownedBy("", "sb-exposed", backend.StateRunning)
+	exposed.Endpoint = ""
+	exposed.NonLoopback = true
+	be := &fakeBackend{sandboxes: []backend.Sandbox{running, exposed}}
+	r, logs := newReaper(t, store, be, 0, 0)
+
+	for i := 0; i < 2; i++ {
+		if err := r.Sweep(context.Background()); err != nil {
+			t.Fatalf("Sweep %d: %v", i, err)
+		}
+	}
+	if be.wasDestroyed("sb-old") {
+		t.Error("destroyed a running pre-upgrade sandbox this registry holds")
+	}
+	if got := get(t, store, "s-old"); got.Status != registry.StatusRunning || got.ExitReason != "" {
+		t.Errorf("s-old = %q (%q), want running: its container is still there", got.Status, got.ExitReason)
+	}
+	if !be.wasDestroyed("sb-exposed") {
+		t.Error("a LAN-published sandbox this registry holds survived: it is ours, and rule 1a is a security rule")
+	}
+	if got := get(t, store, "s-exposed"); got.Status != registry.StatusExited || !strings.Contains(got.ExitReason, "127.0.0.1") {
+		t.Errorf("s-exposed = %q (%q), want exited with the non-loopback reason", got.Status, got.ExitReason)
+	}
+	if strings.Contains(logs.String(), "foreign") {
+		t.Errorf("a sandbox this registry holds was called foreign; logs:\n%s", logs.String())
 	}
 }
 

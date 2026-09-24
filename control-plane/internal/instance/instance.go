@@ -42,6 +42,10 @@ const FileName = "instance-id"
 // another process win the mint at exactly the one moment it can.
 var beforeLink = func() {}
 
+// link is os.Link, a variable so a test can be a filesystem without hard
+// links (FAT/exFAT, some SMB shares) on one that has them.
+var link = os.Link
+
 // Load returns this state directory's instance id, minting and persisting one
 // if there is none yet. minted reports which happened, so the caller can log
 // the one start that created an identity.
@@ -57,7 +61,8 @@ var beforeLink = func() {}
 // fails rather than replaces if the name exists: a crash leaves at most a stray
 // temporary file and never an empty id file, and a control plane that loses a
 // race to another on the same directory reads the winner's id rather than
-// overwriting it.
+// overwriting it. On a filesystem with no hard links the final name is created
+// exclusively instead (createExclusive), which still never replaces an id.
 func Load(path string) (id string, minted bool, err error) {
 	id, err = read(path)
 	if err == nil {
@@ -87,16 +92,47 @@ func Load(path string) (id string, minted bool, err error) {
 	}
 
 	beforeLink()
-	if err := os.Link(tmpName, path); err != nil {
+	if err := link(tmpName, path); err != nil {
 		if errors.Is(err, fs.ErrExist) {
 			// Another control plane on this directory minted first. Its id is
 			// the directory's id now; ours was never visible to anything.
 			won, rerr := read(path)
 			return won, false, rerr
 		}
-		return "", false, fmt.Errorf("instance: persist the new instance id at %s: %w", path, err)
+		// No hard links on this filesystem: FAT/exFAT, and some SMB shares
+		// (Azure Files over SMB among them). Fall back to creating the final
+		// name exclusively, which keeps the one rule that matters — an id that
+		// is already there is never replaced. What it gives up is the
+		// no-empty-file guarantee: a crash between the create and the sync, or
+		// a racing reader in that instant, sees an empty file, and read refuses
+		// that loudly rather than minting over it, so the failure stays safe.
+		if ferr := createExclusive(path, id); ferr != nil {
+			if errors.Is(ferr, fs.ErrExist) {
+				won, rerr := read(path)
+				return won, false, rerr
+			}
+			return "", false, fmt.Errorf("instance: persist the new instance id at %s (hard link refused: %v): %w", path, err, ferr)
+		}
 	}
 	return id, true, nil
+}
+
+// createExclusive writes id to path only if path does not exist yet, and
+// removes what it created if the write does not complete: the file is this
+// call's own, since O_EXCL made it.
+func createExclusive(path, id string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	_, werr := f.WriteString(id + "\n")
+	serr := f.Sync()
+	cerr := f.Close()
+	if err := errors.Join(werr, serr, cerr); err != nil {
+		_ = os.Remove(path)
+		return err
+	}
+	return nil
 }
 
 func read(path string) (string, error) {
@@ -109,7 +145,7 @@ func read(path string) (string, error) {
 	}
 	id := strings.TrimSpace(string(raw))
 	if err := backend.ValidateInstance(id); err != nil {
-		return "", fmt.Errorf("instance: %s does not hold a valid instance id (%v). It names which sandboxes this control plane owns, so it is never replaced automatically: restore it, or delete it to start a new identity, after which every sandbox the old one made is foreign and has to be removed by hand", path, err)
+		return "", fmt.Errorf("instance: %s does not hold a valid instance id (%v). It names which sandboxes this control plane owns, so it is never replaced automatically: restore it, or delete it to start a new identity, after which every sandbox the old one made is foreign: its sessions are reported exited (deleting one removes its container), and one no session holds has to be removed by hand", path, err)
 	}
 	return id, nil
 }

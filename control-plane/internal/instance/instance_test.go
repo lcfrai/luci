@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -130,5 +131,54 @@ func TestTheLoserOfAMintRaceAdoptsTheWinnersID(t *testing.T) {
 	raw, _ := os.ReadFile(path)
 	if strings.TrimSpace(string(raw)) != winner {
 		t.Errorf("the winner's file was overwritten with %q", raw)
+	}
+}
+
+// Reaper-scope fix round, m1. FAT/exFAT and some SMB shares (Azure Files over
+// SMB, for one) have no hard links, and os.Link fails there with an error that
+// is not ErrExist. The mint must not stop the control plane on its first start
+// for that: it falls back to an exclusive create of the final name, which
+// still never replaces an existing id.
+func TestLoadMintsOnAFilesystemWithoutHardLinks(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "instance", FileName)
+	link = func(string, string) error {
+		return &os.LinkError{Op: "link", Err: errors.New("the file system does not support hard links")}
+	}
+	t.Cleanup(func() { link = os.Link })
+
+	id, minted, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load without hard links = %v, want a minted id", err)
+	}
+	if !minted || backend.ValidateInstance(id) != nil {
+		t.Fatalf("Load = (%q, minted %v), want a freshly minted valid id", id, minted)
+	}
+	again, minted, err := Load(path)
+	if err != nil || minted || again != id {
+		t.Errorf("reload = (%q, %v, %v), want the same id %q, not minted", again, minted, err, id)
+	}
+	entries, _ := os.ReadDir(filepath.Dir(path))
+	if len(entries) != 1 || entries[0].Name() != FileName {
+		t.Errorf("the fallback left %v in the directory, want only %s", entries, FileName)
+	}
+}
+
+// The fallback keeps the mint's one rule: an id that is already there is never
+// replaced. With no hard links and another process's id at the final name,
+// the loser adopts it.
+func TestTheFallbackMintNeverReplacesAnExistingID(t *testing.T) {
+	path := filepath.Join(t.TempDir(), FileName)
+	const winner = "44444444-4444-4444-8444-444444444444"
+	link = func(string, string) error {
+		if err := os.WriteFile(path, []byte(winner+"\n"), 0o600); err != nil {
+			t.Errorf("write the winner: %v", err)
+		}
+		return &os.LinkError{Op: "link", Err: errors.New("the file system does not support hard links")}
+	}
+	t.Cleanup(func() { link = os.Link })
+
+	got, minted, err := Load(path)
+	if err != nil || minted || got != winner {
+		t.Fatalf("Load = (%q, minted %v, %v), want the winner's %q adopted", got, minted, err, winner)
 	}
 }

@@ -14,9 +14,10 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/instance"
 )
 
-// newBackend must hand the Docker backend the instance id serve loaded. It is
-// the one line of that wiring a unit test can reach without a daemon, because
-// dockerbe.New refuses a missing instance (ErrUnsupported) BEFORE it pings:
+// newBackend must hand the Docker backend the instance id serve loaded. This
+// pins newBackend's body without any daemon, because dockerbe.New refuses a
+// missing instance (ErrUnsupported) BEFORE it pings (serve's own arguments to
+// newBackend and reaperConfigFor are pinned in fakedaemon_test.go):
 // pointed at a port nothing listens on, a wired id fails at the ping
 // (ErrUnavailable), and a dropped one fails at the validation instead. Nothing
 // here reaches a real Docker daemon — the host is explicit and dead.

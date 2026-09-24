@@ -532,10 +532,11 @@ func TestListReturnsEverySandboxAsABackendSandbox(t *testing.T) {
 const kataInstance = "11111111-1111-4111-8111-111111111111"
 
 // dockerbe.List's ownership rule, on the other backend: two control planes
-// sharing a namespace see each other's pods through the manager, and List is
-// what the reaper destroys from, so only this instance's pods come back. A pod
-// with no instance label is skipped as well.
-func TestListReturnsOnlyThisInstancesPods(t *testing.T) {
+// sharing a namespace see each other's pods through the manager, and another
+// instance's never come back. A pod with no instance label does come back,
+// with Instance "" (reaper-scope fix round, I1): whether it is ours is the
+// reaper's call, by whether this registry holds its sandbox id.
+func TestListReturnsThisInstancesAndUnlabelledPodsButNotAnothers(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	m := sandbox.NewManager(client, namespace)
 	for id, instance := range map[string]string{
@@ -555,8 +556,16 @@ func TestListReturnsOnlyThisInstancesPods(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if len(list) != 1 || list[0].ID != "s-ours" || list[0].Instance != kataInstance {
-		t.Fatalf("List = %+v, want only s-ours owned by %s", list, kataInstance)
+	got := map[string]string{}
+	for _, sb := range list {
+		got[sb.ID] = sb.Instance
+	}
+	want := map[string]string{"s-ours": kataInstance, "s-legacy": ""}
+	if len(got) != len(want) || got["s-ours"] != kataInstance {
+		t.Fatalf("List = %+v, want s-ours owned by %s and the unlabelled s-legacy, never s-theirs", list, kataInstance)
+	}
+	if inst, ok := got["s-legacy"]; !ok || inst != "" {
+		t.Fatalf("List = %+v, want the unlabelled s-legacy with Instance \"\"", list)
 	}
 }
 

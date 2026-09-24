@@ -43,8 +43,9 @@ type Config struct {
 	Port int
 	// Instance is this control plane's instance id (internal/instance), the
 	// same seam dockerbe has. Required. Create stamps it on every pod as
-	// backend.KubeLabelInstance, and List returns only the pods that carry
-	// it, so two control planes sharing a namespace cannot reap each other.
+	// backend.KubeLabelInstance, and List returns the pods that carry it (and
+	// any that carry no instance label) and never another instance's, so two
+	// control planes sharing a namespace cannot reap each other.
 	Instance string
 }
 
@@ -172,18 +173,16 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 	return b.sandboxFromPod(pod), nil
 }
 
-// List returns every sandbox THIS instance created: the manager lists every
-// sandbox pod in the namespace, and only the ones whose KubeLabelInstance is
-// this backend's own come back. It is dockerbe.List's rule, and for the same
-// reason — List is what the reaper destroys from.
+// List returns every sandbox THIS instance created, plus any sandbox pod with
+// no instance label (Instance ""), and skips another instance's. It is
+// dockerbe.List's rule, and for the same reason: an unlabelled pod predates
+// per-instance ownership, and whether it is ours is for the registry to
+// judge (the reaper's owns(): ours if this registry holds its sandbox id),
+// not for this backend to decide by dropping it.
 //
-// One difference, and it is recorded rather than built: dockerbe warns once
-// about a managed container with no instance label, and this does not, because
-// katabe has no logger and no such pod can exist. Kata has never been deployed
-// (it is dormant until Phase 8), so every Kata pod ever made carries the
-// label. A pod without one is skipped silently. The reaper would not destroy
-// it anyway: rule 4 matches backend.LabelManaged, which Kata pods do not carry
-// (contract §5.3).
+// No such pod can exist in practice. Kata has never been deployed (it is
+// dormant until Phase 8), so every Kata pod ever made carries the label; the
+// arm is here so the two backends answer the one List contract the same way.
 func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	pods, err := b.mgr.List(ctx)
 	if err != nil {
@@ -191,8 +190,8 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	}
 	out := make([]backend.Sandbox, 0, len(pods))
 	for i := range pods {
-		if pods[i].Labels[backend.KubeLabelInstance] != b.instance {
-			continue // another control plane's, or unlabelled
+		if owner := pods[i].Labels[backend.KubeLabelInstance]; owner != "" && owner != b.instance {
+			continue // another control plane's
 		}
 		out = append(out, b.sandboxFromPod(&pods[i]))
 	}

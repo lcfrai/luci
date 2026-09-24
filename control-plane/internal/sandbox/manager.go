@@ -246,7 +246,7 @@ func (m *Manager) Get(ctx context.Context, id string) (*corev1.Pod, error) {
 }
 
 // List returns every pod this manager created in its namespace — every
-// control plane's. katabe.List narrows it to its own instance.
+// control plane's. katabe.List drops another instance's.
 func (m *Manager) List(ctx context.Context) ([]corev1.Pod, error) {
 	list, err := m.client.CoreV1().Pods(m.namespace).List(ctx, metav1.ListOptions{LabelSelector: selector("")})
 	if err != nil {

@@ -154,9 +154,11 @@ type Config struct {
 
 	// Instance is this control plane's instance id (internal/instance), and
 	// the two rules that destroy a sandbox the registry did not ask them to —
-	// rule 1a and rule 4 — act only on a sandbox whose Instance equals it.
-	// Everything else on the daemon is foreign: another control plane's, or a
-	// legacy one from before the label, and either way not ours to judge.
+	// rule 1a and rule 4 — act only on a sandbox whose Instance equals it, or
+	// on a legacy one (no instance label) whose sandbox id this registry holds
+	// (owns). Everything else on the daemon is foreign: another control
+	// plane's, or a legacy one no record here holds, and either way not ours
+	// to judge.
 	//
 	// Empty means this reaper owns NOTHING, not everything. Read the other way,
 	// "" == "" would make every legacy sandbox on the daemon ours. cmd/api
@@ -231,21 +233,49 @@ func New(cfg Config) *Reaper {
 }
 
 // owns reports whether rule 1a or rule 4 may destroy sb, and logs a sandbox it
-// may not, once. The comparison is against a non-empty instance only: an empty
-// one owns nothing (Config.Instance), and that is what stops "" == "" handing
-// this control plane every legacy sandbox on the daemon.
-func (r *Reaper) owns(sb backend.Sandbox) bool {
-	if r.instance != "" && sb.Instance == r.instance {
+// may not, once. A sandbox is ours in two ways:
+//
+//   - its Instance is this control plane's, which is the label saying so; or
+//   - it carries no instance label (it predates per-instance ownership) and
+//     this registry holds its sandbox id. That is proof, not a guess: the id
+//     was minted here at random (ids.New), and panacea-app-<id> is unique on
+//     the daemon, so no other control plane made that container. Reading it
+//     as foreign is what used to leave a pre-upgrade session's own
+//     LAN-published sandbox standing (reaper-scope fix round, I1).
+//
+// A legacy sandbox this registry does NOT hold is foreign: another control
+// plane's registry may hold it, and nothing here can tell. The comparison is
+// against a non-empty instance only: an empty one owns nothing
+// (Config.Instance), and that is what stops "" == "" handing this control
+// plane every legacy sandbox on the daemon.
+func (r *Reaper) owns(ctx context.Context, sb backend.Sandbox, tracked map[string]registry.Session) bool {
+	if r.instance == "" {
+		return false // New has already said why
+	}
+	if sb.Instance == r.instance {
 		return true
 	}
-	if r.instance == "" || r.foreign[sb.Ref] {
-		return false // New has already said why; or this one is already logged
+	if sb.Instance == "" && sb.ID != "" {
+		if _, ours := tracked[sb.ID]; ours {
+			return true
+		}
+	}
+	if r.foreign[sb.Ref] {
+		return false // already logged
 	}
 	r.foreign[sb.Ref] = true
+	if sb.Instance == "" && sb.NonLoopback {
+		// Error, with the address: the LAN can reach it and nothing here will
+		// close that. Its owner's rule 1a would, if its owner is a fix-era
+		// control plane that is running; nothing on this side can know.
+		r.log.Error("sparing a foreign sandbox that is published outside 127.0.0.1, where the LAN can reach it: it carries no "+backend.LabelInstance+" label and this registry does not hold its sandbox id, so this control plane cannot prove it is its own and does not destroy it",
+			"sandbox", sb.ID, "ref", sb.Ref, "published", r.publishedAt(ctx, sb.ID))
+		return false
+	}
 	if sb.Instance == "" {
-		// Warn, because nothing will ever collect it: its owner is unknowable
-		// from here, so a person has to decide.
-		r.log.Warn("sparing a foreign sandbox: it carries no "+backend.LabelInstance+" label, so it predates per-instance ownership and no control plane can prove it is its own; it is never destroyed automatically",
+		// Warn: if no control plane's registry holds it, nothing will ever
+		// collect it, and a person has to.
+		r.log.Warn("sparing a foreign sandbox: it carries no "+backend.LabelInstance+" label and this registry does not hold its sandbox id, so it predates per-instance ownership and is another control plane's or nobody's; it is never destroyed as an orphan, and if no control plane's registry holds it, it has to be removed by hand",
 			"sandbox", sb.ID, "ref", sb.Ref)
 		return false
 	}
@@ -367,13 +397,14 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 	// given the create grace the other two destructive rules get — a sandbox on
 	// the LAN is a defect whether or not its session has finished starting.
 	//
-	// Ours only (Config.Instance). Another control plane's exposed sandbox is
-	// its reaper's to destroy, and a legacy one is nobody's we can name.
+	// Ours only (owns): this instance's, or a legacy one this registry holds.
+	// Another control plane's exposed sandbox is its reaper's to destroy, and a
+	// legacy one no record here holds is one we cannot prove is ours.
 	for _, sb := range live {
 		if !sb.NonLoopback {
 			continue
 		}
-		if !r.owns(sb) {
+		if !r.owns(ctx, sb, tracked) {
 			continue
 		}
 		sess, known := tracked[sb.ID]
@@ -459,8 +490,10 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		}
 		// "Ours" means THIS control plane's, not merely a Panacea one's.
 		// LabelManaged alone made every other control plane's live sandboxes
-		// orphans here, because this registry has no record of them.
-		if !r.owns(sb) {
+		// orphans here, because this registry has no record of them. A legacy
+		// sandbox owns() accepts is one this registry holds, so the tracked
+		// check below always spares it: rule 4 never reaps a legacy sandbox.
+		if !r.owns(ctx, sb, tracked) {
 			continue
 		}
 		id := sb.Labels[backend.LabelSandboxID]

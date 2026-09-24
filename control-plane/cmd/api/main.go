@@ -219,10 +219,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 }
 
 // reaperConfigFor is the Config-to-reaper.Config mapping, extracted from serve
-// so that a test can see it. serve itself cannot be unit-tested — it builds a
-// backend, and dockerbe.New pings a real daemon inside New — which would
-// otherwise leave the one line below that is a decision rather than a copy
-// asserted by nothing at all.
+// so that a test can see its body. serve's CALL of it — that serve hands it the
+// id it loaded — is pinned separately, by running serve against a fake Docker
+// API (TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers): a helper
+// test cannot see which argument its caller passes.
 //
 // CreateGrace is DERIVED from the ready timeout and is deliberately longer than
 // it: reaper.CreateGraceFor owns the reasoning, and going through it means this

@@ -74,8 +74,12 @@ const envReservedPrefix = "PANACEA_APP_"
 // LabelInstance names the control plane: its value is the id minted once per
 // state directory (internal/instance), so a restart keeps ownership of what it
 // made and a second state directory owns nothing of the first's. A managed
-// sandbox without it predates per-instance ownership; nothing may destroy it,
-// because nothing can prove whose it is.
+// sandbox without it predates per-instance ownership. List returns it with
+// Instance "", because a registry can prove it is its own when a label cannot:
+// its sandbox id was minted by one control plane at random (ids.New), and its
+// name, panacea-app-<id>, is unique on the daemon. The reaper treats one whose
+// id its registry holds as its own, and spares every other one: nothing can
+// prove whose that is (reaper-scope fix round, I1).
 const (
 	LabelManaged   = "panacea-app.managed"    // always "true"
 	LabelInstance  = "panacea-app.instance"   // the owning control plane's instance id
@@ -312,9 +316,10 @@ type Sandbox struct {
 	// Instance is the owning control plane's instance id, read by each backend
 	// from its own spelling of the label (LabelInstance, KubeLabelInstance), so
 	// the reaper can check ownership without knowing which backend it sweeps.
-	// Empty means the sandbox carries no instance label. List returns only
-	// sandboxes whose Instance is the backend's own; Get reports whatever the
-	// sandbox carries.
+	// Empty means the sandbox carries no instance label. List returns the
+	// sandboxes whose Instance is the backend's own and the ones with none (a
+	// registry decides whether those are its own), never another instance's;
+	// Get reports whatever the sandbox carries.
 	Instance string
 
 	State     State

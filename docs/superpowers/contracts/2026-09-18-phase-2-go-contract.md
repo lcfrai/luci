@@ -63,7 +63,7 @@ flags. None of those binaries exists on this machine, and
 | `control-plane/internal/api/sessions.go` | Session create / list / get / patch / delete / restart | 11 |
 | `control-plane/internal/api/attach.go` | The WebSocket upgrade, origin check, read limit, relay, last-output accounting | 12 |
 | `control-plane/internal/proxy/proxy.go` | **modified** — `RelayHooked` adds per-message byte counters; `Relay` keeps its signature | 12 |
-| `control-plane/internal/reaper/reaper.go` | The periodic sweep: orphans, disappeared sandboxes, idle derivation, idle TTL. AMENDED by the reaper-scope fix (2026-09-24): destroys only this instance's sandboxes (§5.3) | 13 |
+| `control-plane/internal/reaper/reaper.go` | The periodic sweep: orphans, disappeared sandboxes, idle derivation, idle TTL. AMENDED by the reaper-scope fix (2026-09-24): destroys only this instance's sandboxes (§5.3); fix round: "this instance's" includes a legacy sandbox this registry holds | 13 |
 | `control-plane/internal/instance/instance.go` | **added by the reaper-scope fix (2026-09-24)** — this state directory's instance id: minted once, persisted, read back (§2.7) | — |
 | `control-plane/cmd/api/config.go` | Every `PANACEA_APP_*` variable, parsed once, with defaults | 13 |
 | `control-plane/cmd/api/main.go` | **modified** — wiring, restart recovery, listener, graceful shutdown | 13 |
@@ -252,6 +252,16 @@ The id is **this state directory's**, minted once and persisted (§2.7 amendment
 sandboxes that carry this instance's id, and the reaper destroys only those (§5.3). A managed
 sandbox with **no** instance label predates this amendment; nothing can prove whose it is, so
 nothing destroys it automatically — it is logged once as foreign.
+
+AMENDED AGAIN by the reaper-scope fix round (2026-09-24, review I1), superseding the paragraph
+above where they differ. **A registry can prove what a label cannot.** A legacy sandbox's
+`panacea-app.sandbox-id` was minted by one control plane at random (`ids.New`), and its name,
+`panacea-app-<id>`, is unique on the daemon, so the registry that holds that id made it. So
+`List` returns this instance's sandboxes **and** every one with no instance label (with
+`Instance == ""`), and never another instance's. The reaper treats a legacy sandbox whose id its
+registry holds as its own (restart recovery keeps its session; rule 1a destroys it if it is
+LAN-published) and spares every other legacy sandbox, logging it once: that one is another
+control plane's, or nobody's, and nothing here can tell which (§5.3).
 
 ```go
 // Kind names a backend implementation. It is persisted in the registry and
@@ -598,7 +608,8 @@ type Config struct {
 	// AMENDED by the reaper-scope fix (2026-09-24). Required: New refuses an
 	// invalid one with ErrUnsupported (backend.ValidateInstance) BEFORE it
 	// pings the daemon. Create stamps it as LabelInstance; List returns only
-	// containers that carry it.
+	// containers that carry it. AMENDED AGAIN (fix round, I1): and the legacy
+	// ones that carry no instance label, never another instance's (§2.2).
 	Instance string
 }
 
@@ -733,6 +744,18 @@ the sandbox-id check, so that a legacy container is seen at all:
 - `LabelInstance` absent → skipped, and warned about **once per container ID** as a foreign sandbox
   made before per-instance ownership, which nothing will destroy automatically. The warned-once set
   is pruned each call to the containers still on the daemon.
+  **AMENDED AGAIN by the reaper-scope fix round (2026-09-24, review I1): returned, mapped as above
+  with `Instance == ""`, and `List` logs nothing about it.** Skipping it made restart recovery
+  (§5.5) write `exited` over a pre-upgrade session whose container was still running. Whether it
+  is this control plane's is the registry's call, so the one line about an untracked legacy
+  sandbox is the reaper's (§5.3), not this backend's.
+
+AMENDED by the reaper-scope fix round (review m2): **an off-loopback publish is logged once per
+container ID, whoever owns the container.** This instance's and legacy ones, which are returned,
+get the existing warn line (now once, not once per call; the reaper's own error on a failed destroy
+still repeats every sweep). Another instance's, which is skipped, gets one line at **error** naming
+`owner`, `host_ip` and the sandbox, because nothing on this side will close it. The logged-once set
+is pruned each call to the containers still on the daemon.
 
 A daemon-side filter on the instance label was rejected: it would make a legacy container
 invisible, and nobody would ever be told it is there. `Get` is unchanged except that it reports
@@ -899,6 +922,10 @@ func (b *Backend) Kind() backend.Kind { return backend.KindKata }
   Kata has never been deployed. Separately, and older than this fix: Kata pods do not carry
   `backend.LabelManaged`, so §5.3 rule 4 never reaps a Kata orphan. Phase 8 decides whether the
   pod carries `LabelManaged` or rule 4 learns the Kube spelling.
+  AMENDED AGAIN by the reaper-scope fix round (2026-09-24, review I1): `List` returns an
+  unlabelled pod too, with `Instance == ""`, and still never another instance's, so both backends
+  answer the one `List` rule of §2.2. The "recorded, not built" difference is gone: neither backend
+  logs about an unlabelled sandbox now; the reaper does, for both.
 ### 2.7 `internal/statepath` — one answer to "where does state live"
 
 ```go
@@ -973,9 +1000,16 @@ func Load(path string) (id string, minted bool, err error)
 - **Crash-safe and race-safe.** The id is written to a temporary file in the same directory,
   synced, then hard-linked to `instance-id`, which fails rather than replaces: a crash leaves no
   empty id file, and the loser of a race between two starts on one directory adopts the winner's id.
+  AMENDED by the reaper-scope fix round (2026-09-24, review m1): on a filesystem with no hard
+  links (FAT/exFAT, some SMB shares such as Azure Files), `Link` fails with something other than
+  `ErrExist`, and `Load` falls back to creating `instance-id` with `O_CREATE|O_EXCL`, writing and
+  syncing it. That still never replaces an id. It gives up only the no-empty-file guarantee: a
+  crash mid-write leaves an empty file, which `Load` refuses loudly, so the failure stays safe.
 - **A file that does not hold a valid id is an error, never replaced.** A new id would make every
   sandbox the old one made foreign — never collected — and its sessions would read as gone while
-  their containers ran. An operator who means that deletes the file.
+  their containers ran. An operator who means that deletes the file. (Fix round: deleting such a
+  session still removes its container, because restart recovery keeps its endpoint and token and
+  `Destroy` is keyed by name; only a container no session holds needs removing by hand.)
 - `serve` calls `Load` **first**, before `newBackend`, because both the backend and the reaper
   need the id. It logs the one start that mints one, and the id on the "listening" line.
 
@@ -2287,6 +2321,9 @@ One sweep, in order:
 4. For every live sandbox with `LabelManaged == "true"` whose `LabelSandboxID` matches
    no registry record: `backend.Destroy`, log at info with the sandbox id. This is the
    crash-recovery path, and it is why the record is written before the container.
+   AMENDED (reaper-scope fix): **and whose `Sandbox.Instance` is this control plane's** —
+   another instance's sandbox and an untracked legacy one are foreign and never reaped; see the
+   amendment below this list.
 5. Idle derivation, only when `IdleAfter > 0`: a session with status `running` and
    `Now().Sub(LastOutputAt) > IdleAfter` becomes `idle`. A session with status `idle`
    whose `LastOutputAt` has moved goes back to `running`.
@@ -2318,6 +2355,28 @@ starting a second control plane destroyed the first's sandboxes older than the c
   run, since they act only on records this registry holds.
 
 Rules 2, 3, 5 and 6 are unchanged: they are keyed on this registry's own sandbox ids.
+
+AMENDED AGAIN by the reaper-scope fix round (2026-09-24, review I1 and m2), superseding the
+"foreign" bullet above where they differ. **Ownership is the label, or this registry's own id.**
+A sandbox is this control plane's when its `Instance` equals `Config.Instance`, **or** when it
+carries no instance label and its `LabelSandboxID` is held by a record in this registry. That is
+proof, not a guess: the id was minted here at random, and `panacea-app-<id>` is unique on the
+daemon. `List` returns legacy sandboxes now (§2.2, §2.4), so this is a live path, not one only an
+unscoped test fake reaches:
+
+- A tracked legacy sandbox is ours. Rule 2 finds it, so its session is not marked `exited`; rule 3
+  applies as to any of ours; rule 1a destroys it if it is `NonLoopback`; rule 4 never sees it as an
+  orphan, because a record holds it.
+- An untracked legacy sandbox is foreign, logged once: at **warn** ("another control plane's or
+  nobody's; if no control plane's registry holds it, it has to be removed by hand"), or at
+  **error** with the published address when it is `NonLoopback`, because the LAN can reach it and
+  this control plane will not close that.
+- Another instance's sandbox: unchanged (debug, once), and `dockerbe.List` does not return it.
+  When it is published off loopback, `dockerbe.List` logs it once at error (§2.4).
+
+**Recorded for the owner, not built (review m2):** whether rule 1a should destroy **any**
+managed LAN-published sandbox on the daemon, whoever owns it. That closes an exposure at the price
+of destroying another control plane's running agent; today it is left to its owner, and named.
 
 ### 5.4 How `idle` is derived, without reading a byte
 
@@ -2389,6 +2448,15 @@ so step 4 marks the session `exited` with `"sandbox disappeared while the app wa
 its container — foreign, so never reaped — keeps running until someone removes it by hand. Phase 2
 has not shipped, so the only such containers are development ones; the warning `List` writes names
 each one.
+
+AMENDED AGAIN by the reaper-scope fix round (2026-09-24, review I1): **that consequence is gone,
+and the paragraph above is history.** `live` is this instance's sandboxes plus the legacy ones
+(§2.4). A pre-fix session's container is matched by its sandbox id, so step 4 finds it alive: the
+session keeps its status, endpoint and token, attach works, and the reaper treats the container as
+this control plane's (§5.3). A legacy container **no** session here holds is left alone and
+logged once by the reaper. (The paragraph was also wrong on its own terms: restart recovery kept
+the endpoint and token of the session it marked `exited`, so a DELETE of that session still
+destroyed the container by name; nobody needed `docker rm`.)
 
 ### 5.6 The complete status machine
 
