@@ -8,7 +8,10 @@ control plane (`control-plane/`). Binding: OD-1 to OD-20
 (`../2026-09-23-owner-decisions.md`). Line numbers into the worktrees may drift, because those trees
 are live. **UNVERIFIED** marks every claim this file did not check against a source or a run.
 
-**Status:** in progress. Findings are appended below as they are checked.
+**Verdict: sound in shape, not yet buildable as written.** The model implements OD-14 to OD-17
+(the table near the end of this file). But three Critical gaps sit exactly where the first build
+starts: the Orchestrator's runtime (C1, C2) and the `panacea` channel's permission policy (C3).
+Fix those, plus I1 to I5, before TM1 is planned in tasks. **3 Critical, 11 Important, 8 Minor.**
 
 ## Critical
 
@@ -257,3 +260,102 @@ are live. **UNVERIFIED** marks every claim this file did not check against a sou
   Fleet's typed state (`panacea team`, open threads, the owner's policy), never from the old
   transcript. Its taint then resets for free (`05-design.md:563-565`). Budget coordination spend
   per turn, not only per hour (`05-design.md:319`).
+
+### I10. Azure is the orchestrator's call, and one of its stated reasons is out of date
+
+- **Claim:** *"The cloud is Azure (AKS + Kata), so phase 8 stands"* (`05-design.md:3-4`, `:822`).
+- **The record:** OD-18's answer is *"Orchestrator's call, on that criterion: Azure"*. Part of its
+  reason is *"Kata on EKS needs metal instances"* (`owner-decisions.md:139`). The owner's words
+  relayed into this run lean the other way: *"We would look at hosting this probably in AWS, as
+  that would allow Bedrock for AU inferencing with ZDR"*.
+- **Out of date:** AWS announced nested virtualization on **virtual** EC2 instances (C8i, M8i,
+  R8i, all commercial regions) on 2026-02-16
+  (https://aws.amazon.com/about-aws/whats-new/2026/02/amazon-ec2-nested-virtualization-on-virtual
+  and https://www.infoq.com/news/2026/03/aws-ec2-nested-virtualization/, both seen as search
+  results on 2026-09-25; the pages themselves were not fetched, so **UNVERIFIED** in detail). So
+  Kata on EKS no longer needs metal. It is still **self-managed**, whereas AKS Pod Sandboxing is
+  managed, and phase 8's other reasons (written and part-built for AKS, Entra, Panacea on Azure)
+  still stand.
+- **Also:** the AU route stays onshore only if Fleet, the gateway and the sandboxes all run in
+  Australia East. Phase 8 recommends that region (`phase-8-own-environment.md:43`, `:317`), but
+  `05` never makes it a requirement of the AU route. And Azure → Bedrock is a cross-cloud hop with
+  an identity federation still to be designed (`05-design.md:835-837`).
+- **Fix:** put the corrected trade-off back to the owner as one line before TM1 (it is not a
+  design defect). Make "Australia East for every team-mode component" a stated invariant of the AU
+  route. List which parts are cloud-bound (Kata Pod Sandboxing, workload identity, Key Vault,
+  Sentinel) so an AWS move later is a known cost.
+
+### I11. TM1's "about 5 weeks" leaves out the pieces that fail first, and TM0 is further off than it reads
+
+- **Claim:** TM0 *"are the current wave, not new work"*, and TM1 takes ≈ 53.5 focused days with a
+  23-day critical path (`05-design.md:889-913`).
+- **The current wave's state, read 2026-09-25:** phase 3 has **no** `gitx` or `lanes` package yet
+  (`.claude/worktrees/phase-3/control-plane/internal/` holds only phase 2's packages). Phase 8's
+  latest code commit is task 14 (`09ae70a`, `36b5c25` on the `env` branch). The broker, `machined`
+  and `remotebe` (tasks 17-22) are unbuilt, and first apply needs owner-run steps (Entra, DNS
+  delegation, the Postgres bootstrap; `phase-8-own-environment.md:317-329`). Task 32 may yet flip
+  the disk model to NFS with no affinity (P8-D6, `:135`), which changes C2.
+- **Missing from the 53.5 days:** the Orchestrator runner and its transcript home (C1, ~3); the
+  product `managed-settings.json` and its InfoSec approval (C3); the `fleetbe` transport (I5,
+  ~3-4); the Hub delegation amendment (I4, +2-3); Fleet's persistence (I7, ~2); the Orchestrator's
+  instructions and an eval loop to tune them. G9 is assumed to pass *"first time"*
+  (`05-design.md:913`), and nothing is budgeted for when it does not.
+- **Order:** D (Fleet, 19 days) cannot be integration-tested until B's delegation and C's second
+  broker caller exist, so the real critical path is max(B, C) + D's integration + G. Stream E is in
+  none of the four streams (`05-design.md:906`, `:911`).
+- **Fix:** re-plan TM1 at about 65 to 70 focused days (7 to 8 weeks on four streams). Put C1, C3 and
+  I4 first, as a two-week **TM1-α** spike: one Orchestrator and one worker per person, two people,
+  and a scripted conflict, on the real cluster.
+
+## Minor
+
+1. **The ask list is 49 rules, not 63** (`05-design.md:377`; `~/.claude/remote-settings.json`,
+   read 2026-09-25). And being off an `ask` list is not the same as being allowed (C3).
+2. **§11.2 omits two phase 8 changes the `panacea` channel needs.** `sandboxd` serves only
+   `/attach` and `/healthz` (`sandboxd/internal/server/server.go:85-86`), and the broker relays
+   only attach (task 18, `phase-8-own-environment.md:585`). The control stream needs a new
+   `sandboxd` route and a second broker relay kind. §11.4's 3 days half-counts them, and
+   `05-design.md:355-359` reads as if nothing changes.
+3. **The Orchestrator class re-scopes phase 8 task 14, which is already built** (`09ae70a` on the
+   `env` branch; `05-design.md:827`). Name it as a reopened task, or as a new task 14b.
+4. **Tier H needs the same base blob** (`05-design.md:606`). After any land, members' bases
+   diverge, so in TM1 (no mirror, `05-design.md:915-917`) H mostly collapses to P. Say so in §8.2.
+5. **A 7-day delegation outlives an Entra disable** (`05-design.md:137-138`). Removing a member
+   revokes it (`:143-146`), but HR disabling the account does not remove team membership. Use 24
+   hours, or a daily Graph `accountEnabled` check.
+6. **P2 cites `ADR-H1:372` and `:434-435` as its source** (`05-design.md:82`), but §2.4 amends
+   both. Label it "amended, §11.1", so a reader does not take the ADR as already satisfied.
+7. **"Egress to the gateway only"** (`05-design.md:259-260`). The CLI makes non-inference calls
+   too: update checks, telemetry, feature flags (**UNVERIFIED** which ones at 2.1.27x). Set
+   `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` in the image, or they fail noisily.
+8. **A directive typed into a worker's PTY** (`05-design.md:310-312`) arrives as a user turn, with
+   the human's authority. Prefix every typed directive with a fixed `[your Orchestrator]` tag, so
+   the transcript and the owner can tell whose words they were.
+
+## The two things most likely to fail in the first build
+
+1. **The Orchestrator does not run on phase 8's sandbox as designed.** It has no process model for
+   per-turn `claude -p` (C1), no transcript home (C1), and it takes a worker slot on a machine
+   node that has about three (C2). **Prevented by the design? No.** §11.2 and §11.4 cost the class
+   and the loop without meeting `sandboxd`'s one-command contract or P8-D6's affinity. The first
+   two-person run would hit `machine_full`, or a loop with nowhere to exec.
+2. **The awareness channel is not called, not permitted, or not truthful.** The `panacea` verb has
+   no allow rule in any policy (C3). The first-edit check rests on model obedience, with C6
+   unmeasured (I2). The "observed" facts come from a process the agent owns (I1). **Prevented by
+   the design? Partly.** The observed-edit `hold` lease (`05-design.md:470-472`) and the reviewed
+   land (P7) catch a collision late, but only once I1 is fixed. Nothing catches a denied
+   `panacea` call in a headless Orchestrator: it just does nothing.
+
+## Does `05` implement OD-14 to OD-17, not the old per-user fleet?
+
+| OD | Verdict | Evidence |
+|---|---|---|
+| OD-14 central | **Yes, in shape.** One Fleet, Kata sandboxes, the desktop as client (`05-design.md:43-45`, `:94-110`). **Residue:** per-user machines and per-user git credentials remain (`:102`, `:186-191`); that is right, but C2 and I3 are the single-user assumptions they carry | `05` §2 |
+| OD-15 agent-first, calm humans | **Yes.** Assembled lines, observed files, no teammate terminal (`05-design.md:650-689`). **At risk** from I8: deadline escalations flood two Desks | `05` §9 |
+| OD-16 orchestrators only | **Yes.** Workers cannot cross users (`05-design.md:294`), resolutions move only one's own workers (`:462-463`), inform vs decide (`:491-513`). **Replaced correctly:** "never pool" becomes attribution plus quotas, per OD-19 (`:174-177`) | `05` §4, §6 |
+| OD-17 buildable next, re-scopes named | **Partly.** §11 names changes per plan, but misses the `sandboxd`/broker control relay (Minor 2), the reopened task 14 (Minor 3), the Hub's `azp`/RLS/feed changes (I4) and the desktop transport (I5). TM0 is further off than "the current wave" implies (I11) | `05` §11-12 |
+
+**What holds up:** the placement rule (§3.2); the typed protocol and resolutions (§6.2); the taint
+rule enforced on verbs rather than prompts (§7.2); the `panacea` binary as the harness-neutral
+channel (§5.2); the lane mirror, so no WIP is pushed to the customer's remote (§8.2); the
+CLAUDE.md pointer being fixed text, so `03`'s re-read question does not matter (`03-techniques.md:113-125`).
