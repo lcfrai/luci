@@ -25,7 +25,8 @@ required *because* at a commit.
  *  no remote     → "evidence-upload · this project has no remote"
  *  never pushed  → "evidence-upload · never pushed"
  *  ahead > 0     → "1 commit not pushed · origin/evidence-upload fetched 15:36"
- *  behind > 0    → "…, and 2 commits on origin/evidence-upload are not here"
+ *  behind > 0    → "…, and 2 commits on origin/evidence-upload are not here" (task 19's
+ *                  Bring in row is the way in; review I5)
  *  up to date    → "origin/evidence-upload · up to date · fetched 15:36"
  *  never fetched → "… · never fetched"
  *  fetchError    → appended: " · the last fetch failed" (the sentence is the bar's title text)
@@ -76,8 +77,11 @@ git's sentence verbatim in mono, then *"The control plane pushes with this machi
 sign-in and never opens a sign-in prompt. Sign in once with git in a terminal on this machine,
 then push again. The land stays; its undo is still exact."* — the same text for every `git_failed`
 on push, so it never depends on reading git's words. `push_rejected`: *"The remote has commits
-evidence-upload does not have. Fetch, then land or merge them in a worktree; the cockpit never
-force-pushes."* with git's sentence. **Push again** retries.
+evidence-upload does not have. Fetch, then bring them in above the queue, and push again; the
+cockpit never force-pushes."* with git's sentence, and **Fetch** (`api.fetchProject`, then
+reload), after which task 19's **Bring in origin/evidence-upload** row appears. **Push again**
+retries. Every verb that sentence names exists (review I5: the old copy promised a way in the
+cockpit did not have).
 
 **Open PR** is disabled while down or with no remote. `not_pushed` shows *"Push first: the pull
 request would not show the commits that are only here."* with **Push**. `no_credential`: *"No
@@ -113,6 +117,7 @@ the report says so.
 | `Push is disabled with its reason` | up to date → disabled, title "Nothing to push: the branch matches origin" | a push offered for nothing |
 | `a push failure shows git's sentence and the fixed why` | `git_failed` with `gitSays` → the banner with the sentence in mono and the fixed text | parsing git's words to decide the advice |
 | `a rejected push never offers force` | `push_rejected` → the banner; no element in the lens contains "force" as an action | a force-push button |
+| `a rejected push leads to Bring in` (review I5) | `push_rejected` → the sentence names "bring them in" and a **Fetch** button; click → `api.fetchProject` once, then a reload whose `bringIn` is set → task 19's row is present | copy that promises a way in the lens does not offer |
 | `Open PR asks for a push first` | `not_pushed` → the sentence and a Push button that calls `pushBranch` | a PR against the remote's stale commits |
 | `Open PR opens the browser once` | success → `openUrl(webUrl)` called once; `existing: true` → the "already open" toast | a PR link the user has to hunt for |
 | `no credential says where to sign in` | `no_credential` with `details.host` → the sentence naming the host | "Something went wrong" |
