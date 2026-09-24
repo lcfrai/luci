@@ -200,6 +200,8 @@ func TestAnEnvWithNoNewIDIsAServerFault(t *testing.T) {
 // one would become the latest complete revision every branch pins. Step
 // agrees with the status: nothing to ask, and not complete.
 func TestAContentWithNoQuestionsIsNeverComplete(t *testing.T) {
+	orphan := Answer{Key: KeyPurpose, Text: "settled, but no question asks it", Source: SourceTyped,
+		Author: AuthorPerson, Criteria: []Criterion{}, DraftedFrom: []string{}, AnsweredAt: stamp}
 	for name, tc := range map[string]struct {
 		c   Content
 		op  Op
@@ -207,6 +209,9 @@ func TestAContentWithNoQuestionsIsNeverComplete(t *testing.T) {
 	}{
 		"restore of {v:1}":   {NewContent(), Op{Kind: OpRestore, RestoreRevision: 1, Restore: &Content{V: 1}}, projectEnv()},
 		"reinherit of {v:1}": {Content{V: 1}, Op{Kind: OpReinherit}, branchEnv(projRev2)},
+		// Answers with no questions: a guard keyed on the answers passes these.
+		"restore of an answer with no question":   {NewContent(), Op{Kind: OpRestore, RestoreRevision: 1, Restore: &Content{V: 1, Answers: []Answer{orphan}}}, projectEnv()},
+		"reinherit of an answer with no question": {Content{V: 1, Answers: []Answer{orphan}}, Op{Kind: OpReinherit}, branchEnv(projRev2)},
 	} {
 		out := mustApply(t, tc.c, tc.op, tc.env)
 		if len(out.Questions) != 0 || out.Status != StatusOpen {
