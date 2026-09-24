@@ -320,3 +320,146 @@ We keep **intake** (requests from people outside the team) and skip the CRM.
 | 177 | Magic word in a PR body files an issue | MATCH | For PRs made outside the product, on both hosts | W5 |
 | 178 | Agent files issues from a support thread | MATCH | Intake from a Teams or email thread keeps the quote (L-132) | W5 |
 
+### M. Agent platform (L-179 to L-197)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 179 | Agents are app users, not seats | MATCH | An agent is a session **owned by a person**; its cost is gateway usage (OD-19), never a seat | exists |
+| 180 | Admin installs an agent per team | MATCH | A per-team harness allow-list (Claude Code first, others as adapters) | W5 |
+| 181 | Delegate is not assignee | MATCH | The same principle, and OD-16 makes it structural | W1 |
+| 182 | Agent pages; filter by delegate | EXCEED | Filter "my agents" or "Alice's agents"; an agent's page is its **task card**: task, reason (a brief link), status, files observed, leases (TM-05 §0) | W3 |
+| 183 | Agent guidance with team override | MATCH | Guidance records with history, org → team → person | W3 |
+| 184 | Session states derived from activity | EXCEED | Ours derive from **facts observed outside the agent** (waiting on input, permission prompt, exit code; AX §8.1), not from what the agent reports; one closed set of 7 (AX anti-pattern 4) | exists |
+| 185 | Activity grammar (thought, action, …) | EXCEED | Tool-call steps folded from the transcript adapter (OD-8): `pytest -q · 43s · exit 1 · 812 lines` (AX §8.3). Degrades to commit-level facts when the adapter cannot read | W3 |
+| 186 | Ephemeral activities | MATCH | One live line per agent row (02 `row.three`), on the one heartbeat clock | W3 |
+| 187 | Agent plan checklist | EXCEED | The plan is the Orchestrator's tasks `tk-`, each with its reason and scope globs, which take leases (TM-05 §6.3). No "3 of 7" count (02, DON'T COPY) | TM / W3 |
+| 188 | External URLs from a session | MATCH | Session, lane and preview links on the issue | W3 |
+| 189 | Signals: stop, auth, select | MATCH | Stop is pause or abandon; select is a Desk item with up to 4 options (TM-05 §6.5); auth is not needed because the gateway token replaces `/login` (OD-19) | exists |
+| 190 | 5 s webhook, 10 s first activity, idle | MATCH | `budget.ack ≤10s` (02 C8); "last output 3s ago" as the honest idle fact (AX §8.8) | W3 |
+| 191 | Ready-made prompt context | EXCEED | The managed block names `issue:is-…@r` beside the brief's key (04 §4.2), so **what the agent was told** is recoverable byte for byte | W1 |
+| 192 | Repository suggestions with confidence | EXCEED | A project already knows its repos; with several, the Orchestrator proposes one, with no confidence number unless calibrated (AX anti-pattern 12) | W3 |
+| 193 | Agent-initiated sessions | MATCH | An Orchestrator may file an issue (`source: orchestrator`, 04 §2.4); it lands in `triage` for a person | W3 |
+| 194 | Published agent interaction rules | MATCH | We publish ours, drawn from `AGENTIC-UX.md` and TM-05 §7 (owner, evidence, fences) | W3 |
+| 195 | Partner agent directory | SKIP | Third-party SaaS agents bring their own inference and break the ZDR promise (OD-19). We run harnesses as unmodified CLIs in our sandboxes; more harness adapters later | — |
+| 196 | Hosted MCP server, read-only mode | MATCH | A Work MCP server on the Hub behind Entra OAuth, with read-only mode. Agents **inside** our sandboxes use the `panacea` verb instead (TM-05 §0) | W5 |
+| 197 | MCP connectors for the assistant | MATCH | Behind the admin allow-list (L-256) | W5 |
+
+### N. Integrations (L-198 to L-220)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 198 | Copy branch name; auto-assign, auto-start | EXCEED | **Start** makes the lane and branch itself. For work outside the product, copy `ep-142-slug`; the first push is the `started` fact | W1 / W5 |
+| 199 | Closing and non-closing magic words | MATCH | For PRs made outside the product, on both hosts | W5 |
+| 200 | Commit linking by webhook | EXCEED | In-product commits carry trailers the product writes (L-146); host webhooks cover outside commits | W1 / W5 |
+| 201 | PR-stage automations with branch rules | EXCEED | Our states follow lane facts (bound, queued, landed); host PR stages apply to outside PRs | W1 / W5 |
+| 202 | GitHub Issues sync | MATCH | GitHub Issues **and Azure Boards**, one-way or two-way, so teams can keep their tracker (03's open tension) | W5 |
+| 203 | PR linkback comments, autolinks | MATCH | Both hosts | W5 |
+| 204 | GitHub Enterprise Cloud and Server | MATCH | Phase 3's host interface (OD-4); **UNVERIFIED** that Server is in its plan | phase 3 |
+| 205 | GitLab | SKIP | OD-4 names Azure DevOps and GitHub. GitLab fits the same host interface later | — |
+| 206 | Slack | MATCH | After Teams; KPMG runs on Microsoft | later |
+| 207 | Microsoft Teams | EXCEED | First-class: intake, feature feeds, the Desk digest, and asking **your own** Orchestrator from Teams (OD-16) | W5 |
+| 208 | Figma frame previews and plugin | EXCEED | Our own canvas (OD-11): frames are native, cite brief sections, and agents edit them over MCP. Figma link previews later | phase 5 |
+| 209 | Sentry | MATCH | Alert intake: Azure Monitor first (OD-18), Sentry next | later |
+| 210 | Zendesk | SKIP | Support desk (group J's reason) | — |
+| 211 | Intercom | SKIP | Support desk | — |
+| 212 | Front | SKIP | Support desk | — |
+| 213 | Salesforce | SKIP | CRM (L-131's reason) | — |
+| 214 | Gong | SKIP | Sales calls; also puts client voice data in scope | — |
+| 215 | Jira coexistence sync | MATCH | Two-way with Jira, as L-202, so adoption needs no big bang | W5 |
+| 216 | Notion embeds | SKIP | L-128's embed reason; notion.com is also blocked on the corporate network (03) | — |
+| 217 | Zapier, Discord, Airbyte, Sheets, GUS | SKIP | The API and webhooks cover them; a Power Automate connector is the Microsoft-native answer, later | — |
+| 218 | Incident tools for triage rotation | MATCH | Rotation import from PagerDuty or Opsgenie | later |
+| 219 | Directory of 250+ integrations | SKIP | A short curated set (Azure DevOps, GitHub, Teams, Entra, Jira) serves regulated teams better than breadth; the API and MCP let others build | — |
+| 220 | Importers | MATCH | Jira, Azure Boards, GitHub Issues, Linear (through its public API) and CSV; others later | W5 |
+
+### O. Keyboard, speed, apps (L-221 to L-235)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 221 | Contextual command menu `Ctrl+K` | MATCH | The palette is built (phase 2); W1 makes it open beside a row for that row's actions. Cockpit chords win over a focused terminal, with OD-9's toggle | exists / W1 |
+| 222 | Command-menu prefixes | MATCH | Prefixes scope to issues, people, sessions or commands (§4.3) | W1 |
+| 223 | Key grammar: property letters, `G`, `O`, `M` | EXCEED | The same grammar, live **only when focus is in a list**, never in a terminal (02; extends `isCockpitChord` in `useKeyboardMap.ts`); it also reaches agents: `S` Start, `D` Delegate (§4.3) | W1 |
+| 224 | `?` shortcut sheet | MATCH | Generated from the same key map, so it cannot drift | W1 |
+| 225 | Multi-select and bulk bar | EXCEED | Bulk acts include *Start 4 lanes* and *Delegate 4 to my Orchestrator*; irreversible bulk acts confirm in place (02 `confirm.inplace`) | W1 |
+| 226 | Menus show every shortcut | MATCH | Every menu item renders its chord from the key map | W1 |
+| 227 | Safe-triangle submenus | MATCH | 02 S7's pattern | W1 |
+| 228 | Local-first client database | MATCH | An in-memory **Hub replica** with optimistic reversible writes (02 C8). In memory only, because no client persists Hub data (ADR-H1:467-474) | W1 |
+| 229 | Sync log with checkpoint delta sync | MATCH | The Hub's `/v1/changes` is already a gapless per-org feed (hub-contract:1089-1107): reconnect with the last sequence seen, receive only later changes | exists / W1 |
+| 230 | Offline queue that survives restart | SKIP | Surviving a restart means writing Hub data to disk, which ADR-H1 forbids, and the product is cloud-first (OD-20). The in-memory queue survives a network drop, not a restart | — |
+| 231 | Desktop apps with tabs | EXCEED | Tauri desktop on Windows now; the same code builds for macOS **and Linux**, which Linear lacks (01 §23.6). **UNVERIFIED**: neither build has been made. Tabs later | exists / later |
+| 232 | Mobile apps | SKIP | A separate product. The phone's job, the 10-second check (AX §5), is served first by the Desk digest and answer-in-Teams (L-207). Revisit (Q6) | — |
+| 233 | Web app and PWA | SKIP | The desktop is the portal (OD-20). The Hub serves only intake forms and read-only issue pages for people without the app | — |
+| 234 | Light, dark, custom themes, gallery | EXCEED | 02 C1: themes **generated in LCH from three seeds**, four shipped (graphite, paper, and a high-contrast pair). No gallery | W1 / W2 |
+| 235 | Personal preferences | MATCH | Font size, send key, auto-assign. The home view is always the Desk (AX §5, "the default landing surface, always") | W2 |
+
+### P. Enterprise and admin (L-236 to L-247)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 236 | Roles, including guest | MATCH | Org admin; team `admin`·`member`·`viewer` (hub-contract:324-333); guest later | exists |
+| 237 | SSO with domain enforcement and JIT | MATCH | Entra, auth code with PKCE (OD-6); the org **is** the Entra tenant, so JIT is inherent. SAML for other IdPs later | exists |
+| 238 | SCIM, IdP group to team | MATCH | Entra group → team mapping. **UNVERIFIED** whether the Hub plan has it | later |
+| 239 | Audit log, API, SIEM streaming | EXCEED | Every Hub write appends its event in the same transaction (hub-contract:1133-1134); each event says **person or agent, and whose agent** (03's `actor_is_agent` idea); fact moves name the person whose act caused them. Sentinel streaming later | exists / W5 |
+| 240 | Data regions US or EU | EXCEED | We place our own environment (OD-5), and inference has an **AU path** (Bedrock Sydney, OD-19). **UNVERIFIED**: phase 8 has not fixed the hosting region | phase 8 |
+| 241 | SOC 2, GDPR, HIPAA | SKIP | An organisational programme, not a build item; KPMG's technology risk assessment is our gate | — |
+| 242 | IP restrictions | MATCH | Edge allowlist in phase 8's environment, as Panacea does | phase 8 |
+| 243 | Domain claiming | MATCH | Nothing to claim: an org is an Entra tenant, so a rogue workspace cannot exist | exists |
+| 244 | Third-party app approvals | MATCH | Admin approval of OAuth apps on the Hub API and MCP | W5 |
+| 245 | Admin control of API keys | MATCH | Personal and team-scoped keys, admin-revocable | W5 |
+| 246 | AI toggles, assistant kill switch | MATCH | As L-158 | W3 |
+| 247 | Uptime SLA, support, migration help | SKIP | Commercial terms, not product | — |
+
+### Q. API and platform (L-248 to L-252)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 248 | The public API is the apps' own API | MATCH | The desktop calls the Hub's REST API as the user (ADR-H1); the same API is the public one | exists |
+| 249 | TypeScript SDK | MATCH | Generated from the Hub contract, with a Go client | W5 |
+| 250 | OAuth, actor-as-app, manifests | MATCH | Entra OAuth; an app acts as a person, never as a free agent | W5 |
+| 251 | Webhooks with actor, previous values, HMAC | EXCEED | Built on the change feed, which is **metadata only** (hub-contract:1089-1107): payloads carry ids and changed fields, never customer text; the receiver fetches text by key with its own rights | W5 |
+| 252 | Published rate limits with headers | MATCH | Per token, with headers | W5 |
+
+### R, S. Method, cadence and AI spend (L-253 to L-257)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 253 | A published product method | EXCEED | `AGENTIC-UX.md` and `DESIGN-SYSTEM.md` are our method, with **numeric** anti-patterns a reviewer can check; a user-facing version ships in W4 | exists / W4 |
+| 254 | Weekly public changelog | MATCH | An in-app changelog; making it public is KPMG's call | later |
+| 255 | AI spend limits, usage by feature and user | EXCEED | Quotas per user, team and project (OD-19), plus spend **per issue and per loop** (04 §7.7) | phase 6 |
+| 256 | Admin allow-list for MCP connectors | MATCH | Each user connects their own accounts; the admin allows the connector | W5 |
+| 257 | Transparent AI pricing | MATCH | The gateway shows cost at the provider's rate per session and issue, and Fleet shows sandbox minutes. Pricing itself is the owner's commercial call | phase 6 |
+
+### The tally
+
+Counted from the rows above (257 rows, numbering checked gapless on 2026-09-25):
+
+| Verdict | Items | Share |
+|---|---|---|
+| **MATCH** | 155 | 60% |
+| **EXCEED** | 75 | 29% |
+| **SKIP** | 27 | 11% |
+
+**When each lands** (first slice named in the row): W1 42, W2 52, W3 16, W4 37, W5 36; **22 exist**
+in plans already in flight; 13 arrive through other phases (team mode 3, phases 3, 5, 6 and 8: 10);
+12 are *later*; 27 are skipped.
+
+**The 27 skips, by reason.** Each is reversible by the owner (Q6).
+
+| Reason | Items | Count |
+|---|---|---|
+| A support desk, CRM or sales feature; our users build apps, they do not run help desks | L-131, 134-136, 141, 142, 210-214 | 11 |
+| Third-party embeds and long-tail connectors defeat egress control; the API covers them | L-128, 216, 217, 219 | 4 |
+| Needs per-object or cross-team grants, which Hub v1 does not have | L-4, 6, 86 | 3 |
+| A platform choice already made: no Hub data on disk (ADR-H1), desktop as portal (OD-20) | L-230, 232, 233 | 3 |
+| A prediction, which `AGENTIC-UX.md` bans (AX:237) | L-62, 73 | 2 |
+| Not a build item (certification, commercial terms) | L-241, 247 | 2 |
+| Third-party SaaS agents bring their own inference and break ZDR (OD-19) | L-195 | 1 |
+| Outside OD-4's two git hosts | L-205 | 1 |
+
+**Conditional rows.** Seven rows carry **(Q1)**: L-62, 63, 73, 85, 150, 151 and 152. They follow the
+recommended answer to Q1 (progress displays). If the owner chooses Linear-style graphs instead,
+L-62 and L-73 become MATCH, L-63 and L-85 become MATCH, and `AGENTIC-UX.md` anti-pattern 2 is
+amended.
+
+---
+
