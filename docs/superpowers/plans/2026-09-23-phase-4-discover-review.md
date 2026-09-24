@@ -1461,5 +1461,124 @@ with `Enter`.
 - No TypeScript was run. This is a plan-only batch.
 - Whether `SessionPane` has room for the refusal above its exit bar and header. That is left to
   the batched visual pass (`OD-12`).
-- Whether task 19's follow-up field (prototype `:513`) reuses task 18's region handler. Task 19
-  names no keyboard rule. If it has its own handler, the same target check applies to it.
+- ~~Whether task 19's follow-up field (prototype `:513`) reuses task 18's region handler.~~
+  Corrected in round 2 (re-review b07-1 R-M3): the follow-up is prototype state 5, which is
+  **task 18's** (`task-18.md:4`), not task 19's. Task 18 now applies the target check and the
+  `Enter` rule to both of its answer fields.
+
+## Fix batch b07, round 2 (2026-09-24): the re-review's open issues
+
+Source: `.superpowers/sdd/p4/plan-rereview-b07-1.md` (1 Important, 6 Minors, 4 Nits). Every one
+is fixed; none is deferred. Commits `dc74c5a` (task 20, task 15, plan) and `4dc86da` (task 18,
+plan). Line numbers are at `4dc86da`.
+
+**R-I1: a session-bound refusal could render nowhere.** Confirmed against the tree: `TopBar` and
+the rail are mounted in every lens (`AppShell.tsx:89`, `:92`, `:97`), and a pane is not
+(`AppShell.tsx:17-27`, `selectors.ts:72-83`, `CanvasLayout.tsx:394`). The fix is the review's
+option (a). Each refusal has a **home**, and `TopBar` is the **fallback** whenever that home is
+not mounted, with one line naming what was refused. Option (b) is rejected because it navigates
+the person away from where they acted, against the AGENTIC-UX "answerable in place" principle.
+"Mounted" is read from a host count that each home keeps (`useRefusalHost`, `refusalHosts`). It
+is not re-derived from the layout rules, because a second copy of `DevelopLens`'s rules would
+drift. The same gap existed for `EmptyDevelop` when the person changes lens before the 409 lands,
+so it is a host too. The `new-session` home, which was "where the new-session control renders",
+is now named: `TopBar`, below `NewSessionButton` (`TopBar.tsx:41`).
+
+| Fix | Where |
+|---|---|
+| Homes, fallback, why a fallback, (b) rejected, the host registry and its disjoint render conditions | `task-20.md:150-203` |
+| `refusalHosts`, `hostRefusal`, `releaseRefusal` in the slice | `task-20.md:90-94` |
+| `anchorKey` and `useRefusalHost` | `task-20.md:136-147` |
+| Files: `TopBar.tsx` added; `EmptyDevelop` and `SessionPane` host their keys; the fallback test in `AppShell.test.tsx` | `task-20.md:36-52` |
+| Test `a rail restart refused while no pane is mounted still renders the refusal` (Discover lens, another branch, unpinned in Canvas; then the refusal moves into the pane) | `task-20.md:250` |
+| Test `the host count survives a remount` | `task-20.md:251` |
+| Step 3 mounts in the three components by key | `task-20.md:262-267` |
+| Restatements: the plan's file map | `plan.md:323`, `:348-349` |
+
+**R-M1: no exhaustiveness guard.** Fixed as the review's third option. The per-kind send moves
+into `sendAttempt(...): Promise<Session | null>`, whose return type excludes `undefined`, so
+TS2366 applies. `null` means the source is gone. This was probed, not asserted:
+`scratchpad/p4/ts2366/probe-b07r2.ts`, compiled with the desktop's TypeScript 6.0.3 and
+`--strict`. The async `Promise<Session | null>` switch with an unhandled fifth kind failed with
+TS2366 at line 13 (rc 2). The same switch with all four kinds handled compiled clean. The
+comment is corrected. The switch-free `replayStart` says why the switch is not there.
+
+| Fix | Where |
+|---|---|
+| `sendAttempt` and its shape note; `replayStart` awaits it | `task-20.md:108-127` |
+| Restatement: the plan's file map | `plan.md:323` |
+
+**R-M2: Retry's body was not identical.** `opts` is now `withoutBrief ? { withoutBrief: true } :
+undefined`. The create arm is `withoutBrief ? { ...request, withoutBrief: true } : request`. So a
+retry of a first refusal sends exactly the first request. Both of the review's options are
+taken: task 15 also states that `{withoutBrief: false}` sends what no options sends, and tests it.
+
+| Fix | Where |
+|---|---|
+| The `opts` rule and the create arm | `task-20.md:113-119` |
+| Test rows: create (no `withoutBrief` key), resume and fork Retry with `undefined` | `task-20.md:235`, `:243`, `:244` |
+| Task 15: "asked" means `=== true` | `task-15.md:54-57` |
+| Task 15's two tests gain the `false` case | `task-15.md:232-233` |
+
+**R-M3: the follow-up field is task 18's.** Task 18 now applies the target check and the field
+rule to every answer field in the region, the base and the follow-up. The follow-up's `Enter`
+behaviour is stated: the same rule. The prototype's missing handler there (`:690` is bound to
+`id="free"`; the `:513` textarea has none, and its ↵ is unwired) is a gap in the prototype, not a
+second rule. The I12 test runs on both fields. The b07 "Still unverified" note is corrected.
+
+| Fix | Where |
+|---|---|
+| Every answer field; the follow-up follows the same rule | `task-18.md:21-24`, `:57-62` |
+| The I12 test runs on the follow-up field too | `task-18.md:154` |
+| The corrected unverified note | this file, b07 "Still unverified" |
+| Restatement: G9 | `plan.md:219-225` |
+
+**R-M4: where focus lands.** Each new step focuses the question region (`tabIndex={-1}`,
+`aria-labelledby` the prompt), never a field. It does so only when focus is already in the lens
+or on `body`, so a re-read never pulls focus out of the rail. A failed save keeps focus in the
+field. The `:120` test (now `:152`) types `"2"` after render, with no manual dispatch.
+
+| Fix | Where |
+|---|---|
+| The focus rule | `task-18.md:42-48` |
+| The test, typed through `userEvent.keyboard` | `task-18.md:152` |
+| Restatement: G9 | `plan.md:224-225` |
+
+**R-M5: `Enter` on a focused button could act twice.** The region's `Enter` returns when
+`event.defaultPrevented`, or when the target is inside `button, a[href], [role="button"]`. Each
+button's single act is stated from the prototype, so the test has a defined outcome: an option
+sends at once (`:481`), ↵ Save sends the typed answer (`:482`), and *Edit* opens (`:433`).
+
+| Fix | Where |
+|---|---|
+| The rule and each button's act | `task-18.md:32-41` |
+| Test `Enter on a focused button acts once` | `task-18.md:153` |
+
+**R-M6: task 20's title and size.** Retitled "on every session start (six paths)" and
+re-estimated at 4 h. §6's "1–3 hours" sentence now names task 20 as the second exception.
+
+| Fix | Where |
+|---|---|
+| Title | `task-20.md:1` |
+| Order table row | `plan.md:394` |
+| The exceptions sentence | `plan.md:367-370` |
+
+**Nits.**
+
+| Nit | Fix | Where |
+|---|---|---|
+| N1 | Step 1 counts code hits and names the three comment hits. Re-run at `4dc86da`: exactly six code hits, plus the three comments | `task-20.md:255-260` |
+| N2 | `selectSession(sourceId)(useCockpit.getState())`, curried (`selectors.ts:52-54`) | `task-20.md:119-121` |
+| N3 | `instanceof Element` narrowing before `closest` | `task-18.md:25-31` |
+| N4 | An empty or whitespace-only field sends nothing on `Enter`; test row extended | `task-18.md:49-56`, `:154` |
+
+**Owner question (carried over, widened):** plain `Enter` sends (the prototype's rule, built)
+versus `Ctrl+Enter`. The question now covers the follow-up field too.
+
+**Still unverified:**
+- No vitest was run. This is a plan-only batch. R-M2's `toEqual` reasoning is from vitest's
+  documented semantics. Only R-M1's TS2366 claim was compiled.
+- The host registry's behaviour under React 19 StrictMode is reasoned (cleanup runs before the
+  re-mount's effect), not run. The `the host count survives a remount` test is what will prove it.
+- The fallback's placement below `NewSessionButton`, and whether `TopBar` has room for it, go to
+  the batched visual pass (`OD-12`).
