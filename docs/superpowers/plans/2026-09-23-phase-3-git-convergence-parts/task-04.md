@@ -199,7 +199,8 @@ func (a *API) registerGit(mux *routes) {
 
 | Refusal | Status, code | details |
 |---|---|---|
-| body not JSON, unknown field | 400 `invalid_json` | — (httpx.DecodeJSON) |
+| body not one JSON object, or over 1 MiB | 400 `invalid_json` | — (httpx.DecodeJSON) |
+| unknown field, or a field of the wrong type | 400 `bad_request` | — (httpx.DecodeJSON; `decodeCode`, `internal/httpx/problem.go:165-173`) |
 | `branchId` missing, or names no branch of the project | 400 `bad_request` | — |
 | `name` fails `lanes.ErrBadName` | 400 `bad_request` | message is `ErrBadName`'s rule |
 | unknown project | 404 `project_not_found` | `projectId` |
