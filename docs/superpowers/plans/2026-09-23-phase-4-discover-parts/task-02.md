@@ -157,6 +157,7 @@ all six of its mutants (R1 to R6) survived:
 | `TestExtractJSON` (+ row) | `}{"a":{"b":1}}` gives the whole object | R5: the `depth > 0` guard removed (returns the inner `{"b":1}`) |
 | `TestCompleteCapsTheBodyItQuotesInAnError` | a 64 KiB error body is quoted to exactly its first 2 KiB, with its full length named | the whole body, up to 8 MiB, quoted into an error that lands in logs |
 | `TestTheQuotedBodyIsCutOnARuneBoundary` | the 2 KiB cut backs up to the start of a character it would split; the error is valid UTF-8 | a byte cut that leaves half a character in a log line |
+| `TestTheQuoteCutHoldsAtItsEdges` | a body of exactly 2 KiB, before or after trimming, is quoted whole; a body with no character start in its first 2 KiB is quoted as nothing, with its length | `<=` becoming `<` (reads one byte past a 2 KiB body: a panic); the back-off's `cut > 0` guard removed (reads `body[-1]`: a panic); the body not trimmed |
 
 A blank key is "model off" (`ErrNoCredentials`), in `ConfigFromEnv` and in `New`, the same way a
 blank base URL is `ErrNoBaseURL`; the key and the model id are trimmed, in both. This is a

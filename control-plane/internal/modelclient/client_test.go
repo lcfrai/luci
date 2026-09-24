@@ -487,6 +487,41 @@ func TestTheQuotedBodyIsCutOnARuneBoundary(t *testing.T) {
 	}
 }
 
+// TestTheQuoteCutHoldsAtItsEdges: the two edges of the cut, each of which
+// would otherwise panic inside Complete. A body of exactly 2 KiB is quoted
+// whole, with no "truncated" (the cut path would read one byte past its end);
+// the 2 KiB is counted after the body is trimmed. A body that is not UTF-8 at
+// all, every byte a continuation byte, backs the cut off to nothing rather
+// than past the start of the body.
+func TestTheQuoteCutHoldsAtItsEdges(t *testing.T) {
+	const quoted = 2 << 10
+	cases := []struct {
+		name, body, want string
+	}{
+		{"exactly 2 KiB is quoted whole", strings.Repeat("a", quoted), ": " + strings.Repeat("a", quoted)},
+		{"exactly 2 KiB once trimmed is quoted whole", "\n  " + strings.Repeat("a", quoted) + " \n", ": " + strings.Repeat("a", quoted)},
+		{"no character start in the first 2 KiB", strings.Repeat("\x80", quoted+952), ": ... (3000 bytes, truncated)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusBadGateway)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			c, _ := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
+			_, err := c.Complete(context.Background(), modelclient.Request{User: "x"})
+			if err == nil {
+				t.Fatal("expected an error for 502")
+			}
+			if msg := err.Error(); !strings.HasSuffix(msg, tc.want) {
+				t.Errorf("error ends %q, want it to end %q", msg[max(0, len(msg)-60):], tc.want[max(0, len(tc.want)-60):])
+			}
+		})
+	}
+}
+
 // TestNewRejectsAMissingKey keeps the old plan's row (a base URL but no key)
 // and adds New(Config{}): with both missing, the key check runs first.
 func TestNewRejectsAMissingKey(t *testing.T) {
