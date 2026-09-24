@@ -139,7 +139,7 @@ phase already delivers it. `TM` names team mode's own delivery (TM-05 §12).
 | L | Linear item (short) | Verdict | How, or why not | Slice |
 |---|---|---|---|---|
 | 46 | Per-team Triage inbox | MATCH | `triage` state and a Triage view on the Work surface. Items that name a person also join that person's Desk (§4.2) | W1 |
-| 47 | Number-key triage actions | EXCEED | `1` accept, `2` duplicate, `3` decline, `4` snooze, list focus only; plus `S` **accept and Start**, which binds a lane at once | W1 |
+| 47 | Number-key triage actions | EXCEED | `1` accept, `2` duplicate, `3` decline, `4` snooze, list focus only; plus `Shift+S` **accept and Start**, which binds a lane at once | W1 |
 | 48 | Priority required to leave Triage | MATCH | Team policy, checked by the Hub on the state change | W1 |
 | 49 | Ordered triage rules | MATCH | Intake rules, first match wins, each with its author on the event | W5 |
 | 50 | Triage duty with rotation from incident tools | MATCH | A Hub-held rotation; syncing it from PagerDuty and the like is L-218 | W4 |
@@ -218,7 +218,7 @@ phase already delivers it. `TM` names team mode's own delivery (TM-05 §12).
 | 103 | Ordering options, shared manual order | MATCH | Uses L-14's rank | W2 |
 | 104 | Per-row display toggles | MATCH | Display menu on every list | W1 |
 | 105 | "Set as default" for everyone | MATCH | A team admin action on a shared view | W2 |
-| 106 | Search `/`, view search, jump to issue | MATCH | `/` searches the in-memory Hub replica; `G I` then a number jumps (§4.3) | W1 |
+| 106 | Search `/`, view search, jump to issue | MATCH | `/` searches the in-memory Hub replica; `O` `I` then a number opens an issue (§4.3) | W1 |
 | 107 | `@`-mentions become filters | MATCH | `@person`, `#label`, `EP-` prefixes in search | W2 |
 | 108 | Peek on `Space` | EXCEED | 02's `peek.span`, `peek.hunk`, `peek.person`: peek shows the **evidence** behind a row, not only the record. `peek.person` never shows a teammate's transcript (OD-15) | W1 |
 | 109 | Favourites with folders | MATCH | Favourites in the rail, names only, no counts (AX:144) | W2 |
@@ -378,7 +378,7 @@ We keep **intake** (requests from people outside the team) and skip the CRM.
 |---|---|---|---|---|
 | 221 | Contextual command menu `Ctrl+K` | MATCH | The palette is built (phase 2); W1 makes it open beside a row for that row's actions. Cockpit chords win over a focused terminal, with OD-9's toggle | exists / W1 |
 | 222 | Command-menu prefixes | MATCH | Prefixes scope to issues, people, sessions or commands (§4.3) | W1 |
-| 223 | Key grammar: property letters, `G`, `O`, `M` | EXCEED | The same grammar, live **only when focus is in a list**, never in a terminal (02; extends `isCockpitChord` in `useKeyboardMap.ts`); it also reaches agents: `S` Start, `D` Delegate (§4.3) | W1 |
+| 223 | Key grammar: property letters, `G`, `O`, `M` | EXCEED | The same grammar, live **only when focus is in a list**, never in a terminal (02; extends `isCockpitChord` in `useKeyboardMap.ts`); it also reaches agents: `Shift+S` Start, `Shift+D` Delegate (§4.3) | W1 |
 | 224 | `?` shortcut sheet | MATCH | Generated from the same key map, so it cannot drift | W1 |
 | 225 | Multi-select and bulk bar | EXCEED | Bulk acts include *Start 4 lanes* and *Delegate 4 to my Orchestrator*; irreversible bulk acts confirm in place (02 `confirm.inplace`) | W1 |
 | 226 | Menus show every shortcut | MATCH | Every menu item renders its chord from the key map | W1 |
@@ -474,11 +474,11 @@ subsection ends with why Linear cannot follow quickly, and what is still unprove
 
 An issue goes to a **person**. Giving it to agents is that person's own act (04 §4.1):
 
-- **Solo: Start.** One key (`S`) on EP-142 picks the feature's branch or cuts `ep-142-<slug>`,
+- **Solo: Start.** One chord (`Shift+S`) on EP-142 picks the feature's branch or cuts `ep-142-<slug>`,
   creates a lane (a local clone, OD-2), and starts a managed cloud session whose record carries
   `IssueRef = issue:is-…@r` beside the brief's `ContextRef` (04 §4.2). The issue moves to
   `started`, written as that person, with the lane as the cause.
-- **Team: Delegate.** `D` sends EP-142 to **your own** Orchestrator. It reads the issue with
+- **Team: Delegate.** `Shift+D` sends EP-142 to **your own** Orchestrator. It reads the issue with
   `panacea issue show`, plans tasks with `--issue`, and spawns workers whose sessions carry the
   issue (04 §4.3). Nobody can delegate to someone else's agents (OD-16).
 
@@ -740,4 +740,61 @@ managed block. An agent reads it only as data.
   `df-` collide with none. Milestones take `ml-` because `ms-` is TM-05's.
 
 ---
+
+## 4. The experience: one app, not a tracker bolted on
+
+### 4.1 Where the work layer appears
+
+The rail stays navigation only: project → branch → worktree → session, names and no counts
+(AX:144). The work layer adds **one lens and one project surface**, and chips everywhere else.
+
+| Surface | Scope | What it holds | New? |
+|---|---|---|---|
+| **The Desk** | the account, above projects | issues only when they need you, in the Desk's existing sections (§4.2) | Desk designed, **not built** (§5.4) |
+| **Work** (project surface) | one project | Triage, Backlog, the current cycle, the features board, initiatives, saved views, *My issues* | new |
+| **Work lens** | one feature (its branch) | its issues, **the brief's criteria with the issues that serve each**, who is on each issue now | new; `Lens` gains `"work"`, the seventh lens |
+| **Issue view** | one issue | head, revision history, `serves`, relations, comments, the live agent line, proposed evidence, *shipped to* | new |
+| **Discover, Design, Develop, Merge, Deploy** | a branch | an issue chip beside the brief chip on every artefact that carries one (§4.5) | chips new |
+| **Palette** `Ctrl+K` | everywhere | every work verb, with its chord shown (L-226) | built; gains commands |
+
+The Work surface, drawn to the design system's rules (plain group sizes follow Q1's option A):
+
+```
+┌ EP · Evidence Portal ─ Work                        Global ▾   view: Current cycle ▾   ⌘K ┐
+│ CYCLE 14 · 22 Sep – 3 Oct                        scope log: +3 on day 4 (Priya, Dylan)   │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│ IN REVIEW 2                                                                              │
+│ ◇ EP-142  Uploads survive a dropped connection      Dylan   ● 2 agents · last 3s  ┊c-91e2 │
+│ ◇ EP-139  Reviewer sees evidence age                Priya   queued 2nd            ┊c-40aa │
+│ STARTED 3                                                                                │
+│ ▷ EP-150  Chunked upload API                        Alice   ● 1 agent · Alice's   ┊c-91e2 │
+│   ⇄ sequenced after EP-142 · agreed 10:41 · you were informed                           │
+│ TODO 4                                                                        R to show │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- `┊c-91e2` is a `thread.node` (02 C2): the criterion the issue serves, in mono. Hovering it lights
+  every issue, frame and lane on the same criterion (`thread.lit`).
+- The agent line is Fleet state, on the one heartbeat (02 `fleet.beat`); a teammate's agents are
+  labelled as theirs (02 `who.label`) and are never steerable from here (OD-16).
+- The `⇄` row is 02's `negotiation.row`: the outcome, with a link to the typed thread.
+- "R to show" is 02's `arrivals.hold`: new rows wait behind one line and never push the list.
+- The state glyphs (`◇` in review, `▷` started) are placeholders for our own drawn set (§4.4). Each
+  is a distinct shape per state; none fills as work progresses (02 C13).
+
+### 4.2 The Desk absorbs Inbox, My Issues and triage-for-me
+
+No new Desk section (TM-05 §9.3). Issue rows join the fixed ones (AX §5):
+
+| Desk section | Issue rows that join it |
+|---|---|
+| NEEDS YOU | assigned to you in `triage`; an urgent issue assigned to you; `in_review` where you are the reviewer; a comment naming you with a question; **your issue is blocking someone's agent** (with the cost of the wait); a `decide` escalation about an issue |
+| DECIDED WITHOUT YOU | an Orchestrator agreement within your policy that changed your issue (sequenced, split), with Undo |
+| FAILED | a lane bound to your issue failed; an intake rule could not route a request |
+| LANDED | your issue landed; a criterion it serves became settled; your issue **shipped** |
+| RUNNING | your agents on your issues, one line each |
+
+Every row answers in place and never navigates (AX §5): accept, snooze with a reason, record
+proposed evidence, answer a question in one line. The zero state stays reachable: *"Nothing needs
+you. 7 agents on 4 issues. Next decision expected ~14:22."*
 
