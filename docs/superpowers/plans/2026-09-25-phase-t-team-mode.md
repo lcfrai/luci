@@ -1027,4 +1027,60 @@ copied off its pod is refused; (7) a killed Orchestrator pod loses no lease, thr
 the gate before the first real teammate: Z5 passes, attach tests pass, audit streams to Sentinel.
 Holds the 3-day G9 contingency.
 
+### TM2
+
+**58 — Phase 8 delta: the lane mirror's Kata pod.** Extends `cp/internal/sandbox/manager.go` (task
+15's `Spec.Class`) with the `mirror` class: one pod per team project, in Kata, with its own project
+disk, **no credential beyond the read-only fetch credential** (task 48) and no other egress (a
+platform-chart NetworkPolicy with Fleet's control route as its only ingress, P8-D12), git pinned by
+digest in its image, no sandbox mounting its disk (§8.2, `07` I11). The mirror's disk and lanes are
+deleted when the project goes, and a member's lanes when they leave (Q7's recommendation, not an
+owner decision: the part marks it so). Tests on the fake clientset: the mirror pod mounts no
+machine disk, has no gateway egress and no token Secret.
+
+**59 — Phase 3 delta: the forecast as a library; the mirror runner.** Phase 3 task 08's chained
+forecast (`cp/internal/converge/forecast.go`, **UNVERIFIED until merge**) becomes a library the
+owner's control plane runs for a solo project and the mirror runs for a team one.
+`sbx/cmd/panacea-mirror` (the mirror's PTY-less command) and `cp/internal/fleet/mirror`: for each
+incoming lane bundle, `git bundle verify`, then fetch with `transfer.fsckObjects=true` under phase
+3's §HGH hardening into `refs/panacea/lanes/<owner-hash>/<wt-id>`, then `git merge-tree
+--write-tree` for the pairs asked, returning **only** ST.7's typed result (tier, paths, line ranges,
+basis shas) to Fleet. Nothing under `refs/panacea/*` is ever pushed to the customer's remote. Tests:
+a bundle that fails `verify` is dropped and reported; a corrupt object fails `fsckObjects`; the
+result carries no file content.
+
+**60 — Tier-M forecasts; lane bundles into the mirror.** After each commit on a team lane, the lane
+owner's `machined` exports the lane since its merge base as a bundle (phase 3 ruling R4) to the
+mirror through the broker; Fleet asks the mirror for tier M **only for pairs P or H flagged**
+(§8.2), so work grows with activity, not the square of the team; the forecaster raises or updates
+`cf-…` at tier `M`. Tests: an unflagged pair never reaches `merge-tree`; a clean textual merge on a
+P-flagged pair still yields a conflict record if paths overlap, marked mergeable.
+
+**61 — The team land queue over the mirror.** `cp/internal/fleet/landq`: one queue per team
+project for every member's lanes, ordered by task 29's `sequence` hints; each land is still its
+owner's reviewed act (task 49's review); the integration head is built in the mirror, handed as a
+bundle to the lane owner's `machined`, and pushed with **that owner's own credential** (phase 3
+task 13); every member's repository then fetches the new head from the mirror. Tests: a `sequence`
+hint orders two lands; a land with an unresolved agent-config approval is refused; the push uses the
+lane owner's token and never the fetch credential.
+
+**62 — Resolutions `counter`, `split`, `build-on`.** Extends task 29: `counter` replaces the
+proposal and counts as a round; `split` re-issues each side's leases to its own globs; `build-on`
+brings the named lane into the other side's worktree as a bundle through the mirror and is
+**always a decide** (task 30), with every agent-config path it changes on its own line (§6.5,
+§8.3). Tests: a `counter` past the round cap escalates; a `build-on` accept without the human's
+answer applies nothing; the decide lists `.claude/settings.json` when the lane changes it.
+
+**63 — Phase 3 delta: lenses by principal.** Phase 3's merge and files lenses (tasks 16, 19, 21,
+**UNVERIFIED until merge**) name lane owners by Hub principal, never git author (`04` §7.3), and
+show teammates' lanes from the mirror (paths and line counts only). Tests: two lanes with the same
+git author and different principals show two names; no file content from a teammate's lane is
+fetched for display.
+
+**64 — "Move my lanes to the cloud".** `cp/internal/api/lanesmove.go`: on a shared project, the
+owner's explicit click exports each unpushed laptop lane as a bundle (phase 3 task 24's runner, R4)
+into the owner's cloud machine, where Fleet takes it over; nothing moves without that click
+(§10.1 item 4). Not costed in `05-design.md` §12; this plan places it in TM2 and says so. Tests: no
+lane moves without the call; a lane already on the machine is not duplicated.
+
 ---
