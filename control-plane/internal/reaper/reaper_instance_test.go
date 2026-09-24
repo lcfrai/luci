@@ -143,6 +143,13 @@ func TestALegacySandboxWithNoInstanceLabelIsNeverDestroyed(t *testing.T) {
 	if !strings.Contains(logs.String(), "foreign") {
 		t.Errorf("the spared sandboxes were not called foreign; logs:\n%s", logs.String())
 	}
+	// Warn, not debug: nothing will ever collect a legacy sandbox, so the one
+	// line is the only way a person learns it is there to remove.
+	for _, line := range strings.Split(logs.String(), "\n") {
+		if strings.Contains(line, "sparing a foreign sandbox") && !strings.Contains(line, "level=WARN") {
+			t.Errorf("a legacy sandbox was logged below warn: %s", line)
+		}
+	}
 }
 
 // The logged-once set follows the daemon: a foreign sandbox that has gone is
