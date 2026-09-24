@@ -436,9 +436,22 @@ review and this table is implementation time only, so the plan now runs past the
 review M4's re-sizing (+6.5 h) is what crossed it. Task 00's
 answers add rows to tasks 03–05, 07a, 07b, 14, 18, 19, 23, 24, 33, 34, 36 and 40 inside their existing
 hours; that is the plan's estimate, not a measurement. The minimum (S7 reached) is tasks 44a, 00,
-01–24 (07a, 07b, 16a and 16b included), 28–35, 37–39 ≈ 109 h (104.5 before review M4): about
-**seven working days for two engineers** — one on the server
-lane, one on identity then the client lane.
+01–24 (07a, 07b, 16a and 16b included), 28–35, 37–39 ≈ 109 h (104.5 before review M4).
+
+**The critical path, not the average, sets the date (review M3).** Two engineers work it: one on
+the server lane, one on identity then the client lane. Halving 109 h to ≈ 55 h is wrong, because
+lane A is one implementer in series. Its path to S7 is tasks 01–08 (07a and 07b included) and
+13–24 (16a and 16b included): **≈ 63.5 h**, summed from the table above, after task 44a's 1.5 h
+alone, so **≈ 65 h**. At the ADR's 8-hour day that is **a little over eight working days**, and
+more once review is counted, because this table is implementation time only. Lane A's one
+cross-lane wait costs it nothing: 13 needs 10 and 11 (lane B), which are done by ≈ 7 h on the
+clock, long before lane A reaches 13 at ≈ 27 h. The second engineer's share of the minimum is
+≈ 44 h (00, 09–12, 28–35, 37–39). Its one long wait is task 34, which needs 20 (done at ≈ 53 h on
+the clock), and 34, 35 and 39 (8 h) still finish by ≈ 61 h, before lane A's 24. The lanes, not
+the dependencies, make the path this long: 06, 07a and 07b (9.5 h) need nothing from lane A, and
+moving them to the second engineer would give ≈ 55.5 h on lane A and ≈ 53.5 h on the other,
+about seven working days. That is a lane change for the orchestrator; this plan does not make it.
+All of these figures were summed by script from the table above.
 
 ### Order and parallel lanes
 
