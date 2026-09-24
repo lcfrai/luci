@@ -254,3 +254,69 @@ phase already delivers it. `TM` names team mode's own delivery (TM-05 §12).
 | 129 | Copy as Markdown for AI tools | MATCH | Copy carries the issue's Hub key, so pasted text keeps its provenance | W2 |
 | 130 | Agent edits with changes highlighted | EXCEED | An agent's edit to a brief or issue is a **proposal** (`text·A`), shown as a diff, that a person accepts | W4 |
 
+### J. Customers, Asks, SLAs (L-131 to L-142)
+
+Our users are teams building an application for a business owner or a client, not support desks.
+We keep **intake** (requests from people outside the team) and skip the CRM.
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 131 | Customer object with revenue and tier | SKIP | CRM data. "Who is it for" is already the brief's `audience` answer, and revenue data does not belong in a delivery tool's classification | — |
+| 132 | Requests with the source quote, linked | EXCEED | Intake `it-` keeps the requester and the verbatim quote, linked to issues **and to the brief criterion** the ask became (§3.5) | W5 |
+| 133 | Mark a request important | MATCH | A flag on the intake record | W5 |
+| 134 | Customer pages | SKIP | Goes with L-131 | — |
+| 135 | Prioritise by count, tier, revenue | SKIP | Revenue and tier go with L-131. An issue lists its requesters by name instead | — |
+| 136 | Customer attribute sync | SKIP | Goes with L-131 | — |
+| 137 | Asks from chat with a synced thread | MATCH | Teams first, Slack next; the thread syncs to the intake record | W5 |
+| 138 | Asks by email | MATCH | As L-31 | W5 |
+| 139 | Web forms behind IdP sign-in | MATCH | A Hub-hosted form behind Entra (OD-6) | W5 |
+| 140 | Requester kept updated where they asked | EXCEED | The requester hears when it **shipped**, with the release that proves it (manifest, §2.3), not only that a ticket closed | W5 |
+| 141 | SLA rules, business days | SKIP | A support-desk feature. Triage age is shown everywhere as "waiting 2d 4h" (AX §6.7), which covers an internal team. Revisit if a support team adopts us | — |
+| 142 | SLA risk states and analytics | SKIP | Goes with L-141 | — |
+
+### K. Releases and analytics (L-143 to L-154)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 143 | Release pipelines, continuous or scheduled | EXCEED | Phase 7 **deploys**, not only records: reserve, confirm, and the Hub pins the brief revision (04 §1). Linear records a release that CI made | exists |
+| 144 | Freezable release stages | MATCH | A freeze flag per environment on the Deploy lens | W4 |
+| 145 | Monorepo path filters | EXCEED | Path globs **and** several repositories per project (a Hub project binds several remotes) | W4 |
+| 146 | Issues attach from CI commit scans | EXCEED | From the `Panacea-Issue` trailers **the product writes** at land (04 §5.2), not from words a person typed in a commit message | W1 |
+| 147 | Agent-drafted release notes, changelog | EXCEED | Notes grouped by the **brief criteria this release settles**, each line linked to its evidence; drafted through the ZDR gateway | W4 |
+| 148 | Release events drive status and tools | EXCEED | "Shipped" is a fact the manifest proves, shown on the issue: "in release to production, 14:02, pinned `brief:bf-…@6`" (04 §2.4); webhooks carry it (L-251) | W4 |
+| 149 | Release CLI and CI action | MATCH | `panacea release` plus an Azure Pipelines task and a GitHub Action, for CI outside us | W5 |
+| 150 | Insights: count, effort, cycle, lead, triage time | MATCH | Measured durations and counts only, on a secondary surface; never on the rail or the Desk (Q1) | W4 |
+| 151 | Scatter with percentiles; points open issues | MATCH | Same, and every point opens its issue (AX Principle 7) (Q1) | W4 |
+| 152 | Dashboards | MATCH | A secondary surface under Work, never the landing page; the Desk stays primary (AX §5) (Q1) | later |
+| 153 | CSV export | MATCH | Issues, views, features and intake | W2 |
+| 154 | Warehouse and spreadsheet sync | MATCH | Through the API and webhooks; named connectors later | later |
+
+### L. Linear's own AI (L-155 to L-178)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 155 | Assistant chat with workspace context | EXCEED | Your **Orchestrator** is the assistant, and it can act: plan, spawn and direct your workers (TM-05 §4). Its panel is not chat-bubble chrome (AX anti-pattern 14) | TM |
+| 156 | `@assistant` in comments and chat | MATCH | `@me:orchestrator` in a comment routes to **your own** Orchestrator only (OD-16) | W3 |
+| 157 | Acts only within the invoker's permissions | MATCH | Every agent runs as its user, on a gateway token attributed to that user (OD-19; TM-05 §2.4-2.5) | exists |
+| 158 | Guidance at two levels; admin kill switch | MATCH | Org, team and personal guidance; an org switch disables Orchestrators; *pause all* on the horizon bar (AX §5) | W3 |
+| 159 | Saved Skills, personal or team | MATCH | Claude Code's own skills, shipped in the sandbox image or a team library; the harness is unmodified | W5 |
+| 160 | Loops: event or schedule triggers | EXCEED | Scheduled and event turns of **your** Orchestrator (TM-05 §4.2 is already event-driven), bounded by your autonomy grid (AX §7) and billed to you | W5 |
+| 161 | Loop permissions, history, versions, run now | MATCH | Each loop is a Hub record with versions and a run log | W5 |
+| 162 | Grounded codebase Q&A | MATCH | An **ask** worker: read-only session on the repo; answers link files and lines | W3 |
+| 163 | Coding sessions in a managed sandbox, draft PRs | EXCEED | Long-lived, steerable, **many in parallel** per person, one clone each (OD-2), Kata microVMs, Azure DevOps **and** GitHub (OD-4), landed through a reviewed queue (phase 3) | exists / TM |
+| 164 | Per-repo environment, secrets, prep scripts | MATCH | Phase 8's sandbox image plus a per-project environment spec. **UNVERIFIED** that phase 8's plan has prep scripts | phase 8 |
+| 165 | Per-repo agent and model choice | MATCH | Harness per session; model per project through the gateway (OD-19) | phase 6 |
+| 166 | Verification artefacts, browser testing | EXCEED | Artefacts become **proposed evidence on a criterion**, recorded by a person (04 §4.6). Browser testing in the sandbox is later and **UNVERIFIED** on Kata | W3 / later |
+| 167 | Steer a running session; notify for input | EXCEED | Take the keyboard in the real PTY at the point of difficulty (AX §8.7); the Desk shows the ask with 12 lines of transcript (AX anti-pattern 6) | exists |
+| 168 | First-pass bug fixing from Triage | MATCH | A triage loop: "on accept, Start" for a label, within the owner's grid; evidence is still a person's act | W5 |
+| 169 | Shared AI credit pool | EXCEED | Org gateway with attribution per user, team, project **and issue** (04 §7.7), quotas, no consumer subscription (OD-19) | phase 6 |
+| 170 | Code review inside, merge from inside | EXCEED | The Merge lens reviews lanes before land; each hunk links to the span that wrote it and why (AX §8.5); both git hosts (OD-4) | phase 3 |
+| 171 | Syntax-aware diff, file categories | MATCH | Later, through a permissively licensed differ (licence gate, OD-11 rule 3) | later |
+| 172 | Guided review of a large change | EXCEED | Review grouped by **the criterion each change serves**, core first; each hunk has its span | later |
+| 173 | Agent review comments with name and model | MATCH | Every agent comment names owner, agent, model and session; team mode always shows the owner ("Alice's agent") | W3 |
+| 174 | PR risk score | EXCEED | **Named risk facts, not a score** (AX anti-pattern 12): touches prod config, runs a migration, edits outside declared scope (AX §7.6) | W3 |
+| 175 | Open an issue in Claude Code or Cursor | EXCEED | **Start** opens it in a managed cloud session with the issue in context (04 §4.2); local mode stays (OD-20) | W1 |
+| 176 | Signed commits for agent sessions | MATCH | Signed land commits; **UNVERIFIED** whether phase 3's plan signs today | later |
+| 177 | Magic word in a PR body files an issue | MATCH | For PRs made outside the product, on both hosts | W5 |
+| 178 | Agent files issues from a support thread | MATCH | Intake from a Teams or email thread keeps the quote (L-132) | W5 |
+
