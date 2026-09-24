@@ -832,8 +832,9 @@ I3 was re-checked against Panacea at `~/Projects/Panacea` (read only) before any
 backfilled row has neither a duration nor an outcome (`clients/deployment_backfill.go:167-175`,
 `Status "historical"`). I7 holds as written. Phase 3's desktop surface was read in the phase-3
 worktree's plan (read only): `RemoteState {upstream, ahead, behind}` and `Convergence.tip`
-(phase 3 t18:50-64), `pushBranch` (t18:198), `addGoodTickListener` (t18:208-213),
-`useConvergenceLoader` with `reload()` (t18:246-255) and `selectConvergence` (t18:259). That
+(phase 3 t18:50-53 and :65-68), `pushBranch` (t18:208), `addGoodTickListener` (t18:218-223),
+`useConvergenceLoader` with `reload()` (t18:255-265) and `selectConvergence` (t18:269) — lines
+re-checked in round 2 (re-review b04-1, M-5: phase 3's t18 gained `bringIn` in 79527d6). That
 loader is mounted only by Merge and Files, so nothing refreshed convergence inside the Deploy lens.
 
 ### I3 — current is the newest succeeded build by completion, or a later rollback
@@ -892,8 +893,12 @@ loader is mounted only by Merge and Files, so nothing refreshed convergence insi
 This batch changes plan text; no phase 7 code exists, so no mutant was run. Two named as most
 likely to survive once code exists:
 1. **Ordering the live candidate by `CreatedAt` while filtering on `succeeded`.** It passes every
-   test where creation and completion order agree. Only `TestBuildLiveAfterRollbackIsCurrent`
-   kills it (d2 created before the rollback, completed after).
+   test where creation and completion order agree. *Corrected in round 2 (re-review b04-1, I-2):*
+   `TestBuildLiveAfterRollbackIsCurrent` kills only the form that also compares `CreatedAt` with
+   the rollback. The natural form — take the first `succeeded` row in Panacea's served order
+   (newest by creation), then compare its `CompletedAt` with `confirmedAt` — passed every t08
+   test. `TestCurrentOrdersByCompletion` (t08:254) kills it: `d1` created first and completed
+   last is current.
 2. **A convergence edge that compares the whole `Load` object, or `readAt`.** It fires on every
    tick and passes the Push test. It is killed by the ten-same-value-ticks clause of `readiness
    on the four edges` and the `readAt`-only clause of `a push elsewhere…`.
@@ -905,9 +910,60 @@ and the running half of `TestFailedNewestIsNotCurrent`), and Roll back gated on 
 ### Left open
 
 - Whether any Panacea task after the rollout can fail a run whose pods serve (t08 does-not-claim).
-- t17's **Follow readiness** is offered for an `isCurrent` run row. After a rollback, the current row
-  is the `rollback` row, so no run row offers it. This is out of scope for I3, deferred as a Minor:
-  task 17 can key it on `current.deploymentId` the way t16 now does.
+- ~~t17's **Follow readiness** is offered for an `isCurrent` run row. After a rollback, the current
+  row is the `rollback` row, so no run row offers it. This is out of scope for I3, deferred as a
+  Minor.~~ *Withdrawn in round 2:* the re-review (b04-1, I-1) ruled it a defect of this batch, and
+  task 17 now keys both drill-ins on "serves now" (t17:118-128).
 - M29 (t19's "previous release") names "the I3 rule". It can now cite t08 rule 6. Left to its own
   batch.
 - Nothing was compiled or run. This is plan text.
+
+### Fix batch b04, round 2 — the re-review's open issues (2026-09-24)
+
+Source: `.superpowers/sdd/p7/plan-rereview-b04-1.md` (I-1, I-2, M-1 to M-5). Panacea was re-read
+at `~/Projects/Panacea` (read only) for I-2 and M-4 before editing: the cross-path comment is at
+`services/panacea-api/clients/pipeline.go:102-112`; `deployment_store.go:56` and `:88` keep the
+earliest `CreatedAt`; `:338-341` serve newest by `CreatedAt`; `deployment_backfill.go:172` sets
+`CreatedAt: r.MintedAt`. Phase 3's t18 was re-read in the phase-3 worktree (read only) for M-5.
+
+| Finding | Change | Where |
+|---|---|---|
+| I-1 | *Why it is down* and *Log* are shown when the row **serves now**: `isCurrent`, or its `deploymentId` is its environment's `current.deploymentId` (the Roll back gate's key). The rollback row gets *Why it is down* and **Follow readiness**; the target's run row gets both plus **Follow build log** | t17:118-128 |
+| I-1 | Test `rollback target keeps its drill-ins` (target run row, rollback row, an older row) | t17:239 |
+| I-1 | The round-1 "Left open" deferral withdrawn | review:913-916 |
+| I-2 | Test `TestCurrentOrdersByCompletion`: `d1` created 10:00, completed 10:20; `d2` created 10:05, completed 10:10; served order `d2` first → `d1` is current | t08:254 |
+| I-2 | Mutants paragraph corrected: `TestBuildLiveAfterRollbackIsCurrent` kills only the form that also compares `CreatedAt` with the rollback; the new test kills the natural form | review:895-901 |
+| M-1 | Phase 3 tasks 18 and 12 are hard dependencies of task 16 (Push and edge 4 both come from task 18); the fallback sentence is deleted; the Push condition no longer names task 12 | t16:3-8, t16:89, plan:572, plan:582-585 |
+| M-2 | Baseline rule: an edge-4 load records the value that moved; any other load clears the baseline and notes when it was sent; the first ready value with `Load.at` at or after that is recorded without a reload | t16:106-107, t16:117-128 |
+| M-2 | Edges test extended: one good tick after a lens open, and after Push (old value, then the `reload()` value), each make zero further calls; two successive moves call once each; the terminal-push test names its baseline | t16:187, t16:189 |
+| M-2 | Step names the per-branch send instant and baseline; does-not-claim states the one-convergence-read window | t16:194-199, t16:223-227 |
+| M-3 | Does-not-claim: `CompletedAt` (API server clock) and `confirmedAt` (Hub clock) are two clocks; skew unmeasured; not new | t08:305-309 |
+| M-4 | Does-not-claim: `CompletedAt` reads early for a backfilled row merged with a live one; gap unverified | t08:310-318 |
+| M-4 | The same qualification in the mapper comment and the port field comment | t03:95-97, t01:201-204 |
+| M-5 | Phase 3 t18 citations updated to :50-53, :65-68, :208, :218-223, :255-265, :269 | review:834-837 |
+
+**Line numbers of round-1 rows that moved** (t16 grew by 3 lines at its head and 11 in the readiness
+section): the Roll back gate is now t16:137, `roll back follows what is serving` t16:184, the edges
+section t16:94-128, the three I7 tests t16:187-189, the step t16:194-199, does-not-claim
+t16:213-227. t08's new tests run t08:252-256 and its does-not-claim t08:296-318.
+
+**Deviation, declared.** M-2's fix said *"Have Push record the result of its `reload()`"*. Phase
+3's `reload()` returns `void` (phase 3 t18:264), so Push cannot hold its result. The rule above
+reaches the same outcome — the value `reload()` brings back becomes the baseline, with no second
+call — through `Load.at` (phase 3 t18:231), which phase 3 already stamps.
+
+**Mutants (plan text; none run, as no phase 7 code exists).** Named as most likely to survive:
+1. **"Serves now" keyed on `row.deploymentId === env.current.deploymentId` alone.** It passes the
+   target-row half of `rollback target keeps its drill-ins`. It is killed by the rollback-row half
+   (`deploymentId: null`, `isCurrent: true`) and by `prod row keeps its drill-ins`.
+2. **A baseline taken from whatever ready value is in the store when a load is sent.** It passes
+   every edges assertion except the Push half: the pre-push value would be the baseline, and the
+   `reload()` value's arrival would read as a move. The new Push clause of `readiness on the four
+   edges` kills it.
+
+Also named: sorting by `CompletedAt` but reading only the first `succeeded` row in served order
+(killed by `TestCurrentOrdersByCompletion`), and an edge-4 load that clears the baseline instead of
+recording the moved value, which would record the next move silently as a baseline (killed by the
+two-successive-moves clause added to `readiness on the four edges`, t16:187).
+
+**Left open after round 2.** M29 (t19) stays in its own batch. Nothing was compiled or run.
