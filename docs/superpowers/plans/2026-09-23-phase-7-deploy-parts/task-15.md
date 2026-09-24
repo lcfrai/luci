@@ -22,7 +22,7 @@ caller), and elapsed time reads `useHeartbeat()` (`heartbeat.ts:64`), **never a 
 - `desktop/src/deploy/EnvironmentCard.tsx` (new) — the three facts for the selected branch's environment
 - `desktop/src/deploy/EnvironmentList.tsx` (new) — the project's other environments, one line each
 - `desktop/src/deploy/ReleaseTable.tsx` (new) — history, windowed
-- `desktop/src/deploy/PinCell.tsx` (new) — the pin table's nine states
+- `desktop/src/deploy/PinCell.tsx` (new) — the pin table's ten states
 - `desktop/src/deploy/usePinRef.ts` (new) — the adapter over phase 4's cache
 - `desktop/src/deploy/Banners.tsx` (new) — stale, collision
 - `desktop/src/components/common/StatusDot.tsx`, `common.css` (modified) — the fact statuses below
@@ -45,13 +45,16 @@ export type DotStatus = SessionStatus | MachineState | FactStatus;
 // shaped differently, this file changes and PinCell does not.
 export type PinRef =
   | { state: "resolving" }
+  | { state: "not_wired" } // the stub's only answer: phase 4's cache is not in this build (review M27)
   | { state: "unavailable"; message: string }
   | { state: "resolved"; revision: number; headRevision: number; headline: string }
   | { state: "missing" }
   | { state: "erased"; erasedAt: string };
 
 /** Reads the cached resolution for an OPAQUE key. Never fetches (R6: the loader does that on the
- *  tick), never parses the key (P5). A key the cache has never seen is "resolving". */
+ *  tick), never parses the key (P5). A key the cache has never seen is "resolving". The stub
+ *  written when phase 4 has not merged answers "not_wired" for every key, never "resolving": a
+ *  state that will never resolve must not look like a slow tick (review M27). */
 export function usePinRef(briefKey: string | null): PinRef | null; // null ⇔ briefKey null
 ```
 
@@ -123,10 +126,10 @@ falsy, so `name || …` or `if (name)` would drop the group.
 | CURRENT | `current.source == "rollback"` | — | a line under BUILD: *"Serving `<version>` since `<time>` — rolled back from this cockpit."* |
 | CURRENT | `current.source == "deployment"` and `current.deploymentId != build.deploymentId` | — | a line under BUILD: *"Serving `<version>` since `<time>` — the newest build has not replaced it."* (task 08 rule 6: a failed or running newest build is never current, review I3) |
 
-#### The pin cell — nine states, none merged (provenance contract §4.1; ADR-H1 Q2 adds `erased`; rule 5b adds *"pin not loaded"*)
+#### The pin cell — ten states, none merged (provenance contract §4.1; ADR-H1 Q2 adds `erased`; rule 5b adds *"pin not loaded"*; review M27 adds `not_wired`)
 
-Nine rows below, one state each: the two `release == null` rows, `none`, `resolving`, the two
-`resolved` rows, `missing`, `erased`, `unavailable`.
+Ten rows below, one state each: the two `release == null` rows, `none`, `resolving`,
+`not_wired`, the two `resolved` rows, `missing`, `erased`, `unavailable`.
 
 | `row.release` / `usePinRef` | Drawn |
 |---|---|
@@ -134,6 +137,7 @@ Nine rows below, one state each: the two `release == null` rows, `none`, `resolv
 | `release == null`, `!releaseLoaded` | *"pin not loaded"*, quiet, in the same fixed width as `resolving` — never *"no brief is recorded"*: the cockpit holds no answer from the Hub about this release — not read yet, not readable while signed out, or not readable under this binding's key; the drawer (task 17) names which (task 08 rule 5b, review M11; plan re-review b09-1, M-2) |
 | `pin.status "none"` | the same words, and a reason line: `no_brief` *"no brief was bound to this branch"*; `no_complete_revision` *"the brief had no complete revision yet"*; `source_unpinned` *"rolled back or rebuilt from a release with no brief"*; `source_unknown` *"rolled back or rebuilt from a release shipped outside any cockpit"* |
 | `resolving` | a fixed-width placeholder the width of *"rev 12 · brief now at rev 13"*; **the cell never changes width** when it resolves |
+| `not_wired` (the stub; review M27) | *"pinned"*, quiet, in the same fixed width, with the title *"This version of the cockpit cannot read briefs yet."*; and **one** note above the table, drawn once however many rows are pinned: *"Brief revisions are not shown yet: this version of the cockpit cannot read briefs. The Hub has recorded each pin."* It never reads as `resolving` (a tick that will never land) and never draws a revision, which only phase 4's cache can supply (P1) |
 | `resolved`, `revision == headRevision` | *"rev 6"* (current) |
 | `resolved`, `revision < headRevision` | `drift` half-disc + *"rev 5 · brief now at rev 6"* (superseded) |
 | `missing` | `fail` square + the key in mono + *"not found"* — *"data loss in our own store"* in its title |
@@ -195,7 +199,8 @@ pinned-none release, and *"outside any cockpit"* for `release == null` with `rel
 | `failed newest names what serves` | `build {state:"failed", deploymentId:"d2"}`, `current {source:"deployment", deploymentId:"d1"}`, `d1`'s row `version "manual-4e7a91c0"` → BUILD says *"Failed at …"* and the line *"Serving `manual-4e7a91c0` since … — the newest build has not replaced it."*; `current.deploymentId == build.deploymentId` → no such line (review I3) | a card that shows only the failed build, leaving the user to guess what is live |
 | `not run is not pass` | `scans.state "not_run"` → the not-run sentence; the DOM lacks *"Pass"* | absence read as clean |
 | `version unknown` | `version: null` → *"version unknown"* | a blank cell |
-| `pin: nine states` | one test per row of the pin table (nine) | two provenance states merged |
+| `pin: ten states` | one test per row of the pin table (ten) | two provenance states merged |
+| `the stub says not wired` | the stub `usePinRef` for any key → `{state:"not_wired"}`; three pinned rows → each cell *"pinned"*, the DOM holds the note *"Brief revisions are not shown yet"* exactly once and no `resolving` placeholder (review M27) | a stub answering `resolving`, so every pin looks like a slow tick for ever |
 | `pin never from head` | a row pinned to rev 5 with the cache's head at 6 → *"rev 5 · brief now at rev 6"*, and nowhere *"rev 6"* alone | rendering a release from the head (P1) |
 | `resolving keeps width` | the cell's width style is identical in `resolving` and `resolved` | layout shift when the tick lands (AGENTIC-UX §10 rule 7) |
 | `key never parsed` | `usePinRef.ts` and `PinCell.tsx` contain no `split(`, `indexOf(`, `match(` or `RegExp` applied to a key (a source grep in the test) | P5 |
@@ -222,7 +227,8 @@ pinned-none release, and *"outside any cockpit"* for `release == null` with `rel
   reuse its rule; otherwise amend it here to *"references it only in `common.css` for
   `dot-tone-drift`"*.
 - [ ] Tests first; `StatusDot` amendment; `usePinRef` (over phase 4's selector, or a stub returning
-  `resolving` for every key if phase 4 has not merged — say which in the commit message); the
+  `not_wired` for every key if phase 4 has not merged, review M27 — say which in the commit
+  message); the
   components; the banners.
 - [ ] `npx tsc --noEmit`, `npx vitest run`; commit by pathspec with *"Visual acceptance pending the
   owner (OD-12)."*
@@ -238,5 +244,7 @@ pin, a release with no brief — against the prototype. **Unverified until then.
 
 #### What this task does NOT claim
 
-- That phase 4's cache exists. With the stub every pin reads `resolving` — honest, never a head.
+- That phase 4's cache exists. With the stub every pin reads `not_wired` (*"pinned"*, and the one
+  note above the table) — honest, never a head, and never the `resolving` placeholder, which
+  would look like a slow tick for ever (review M27).
 - Pixel fidelity to the prototype. The prototype is the owner's reference; the owner judges.

@@ -387,4 +387,5 @@ cd desktop && npx vitest run          → all suites pass, including phase 2's
 
 - Anything on screen. Tasks 14–18.
 - That phase 4's loader exists. If it has not merged, `selectReleasePinKeys` is exported and
-  unused, and the pin cell (task 15) renders `resolving` for every key — never a head (P1).
+  unused, and the pin cell (task 15) renders `not_wired` for every key (*"pinned"* and one note,
+  review M27) — never a head (P1), and never `resolving`, which would never resolve.
