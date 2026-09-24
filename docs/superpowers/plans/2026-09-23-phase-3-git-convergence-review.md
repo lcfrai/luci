@@ -930,3 +930,43 @@ Two choices past the review, on the facts:
 - Task 23's end-to-end script does not exercise a bring-in yet. Deferred to the proof batch.
 - The I4 batch still owns refreshing a lane just before `ResolveDialog` starts. Until then, a
   bring-in conflict resolves against the upstream as of the last land, undo, bring-in or fetch.
+
+### Fix batch b05, round 2 (2026-09-24): the re-review's open issues
+
+The re-review (`.superpowers/sdd/p3/plan-rereview-b05-1.md`) found I2 resolved and I5 resolved in
+substance, with one Important defect in its resolution path and seven Minors and nits. Round 2
+fixes all of them; none is deferred. Paths are under `docs/superpowers/plans/`.
+
+| Re-review issue | Change (file:line) |
+|---|---|
+| **1 (Important)** the bring-in resolve prompt merged only `upstream/<branch>`, so a lane older than the tip's conflicting commit merged clean and conflicted on land | the prompt merges `origin/<branch>`, then `upstream/<branch>`, with the reason: parts/task-19.md:71-79; the picker's first entry is **New worktree on this branch** (a fresh clone holds the tip; no second session beside a live agent, 3-D2), and the order is stated: :162-169; the test pins `origin/` before `upstream/` and names the old mutant and the new one: :219; task 09's comment: parts/task-09.md:204-205; Q10's answer: 2026-09-23-phase-3-git-convergence.md:417 |
+| **2 (Minor)** the HTTP surface table had no bring-in route | new row: plan:336; the lands (:335), undo (:338) and fetch (:340) rows name the clones' `upstream/<branch>` (undo too, since task-10:75 calls `RefreshClones`) |
+| **3 (Minor)** `bringIn` got the 10 s default timeout | `GIT_WRITE_TIMEOUT_MS` lists bring-in, with the reason: parts/task-18.md:189-191; the timeout test covers `bringIn` at 150 s: :285 |
+| **4 (Minor)** a bring-in refusal had no banner copy and borrowed a land's outcome type | `LandOutcome` gains `kind: "land"`; a new `BringInOutcome` with no worktree: parts/task-19.md:86-98; `bringInOne` returns it: :112; `MergeBanner` takes either: :118; the bring-in banner copy for `upstream_moved`, `branch_moved`, `no_remote`, `nothing_to_land`, `merge_conflict`/`git_failed`, and **Bring in again**: :182-194; the test: :218 |
+| **5 (Minor)** history called the cockpit's bring-in "committed directly" | a merge-mode bring-in writes `Panacea-Bring-In: <upTip>`: parts/task-09.md:207-209, :213-215, test :258; the key constant: parts/task-02.md:266-268; history kind `bring-in`, its sentence, `Undo "none"`, and the log field: parts/task-10.md:28-35, :54; the classification test: :140; the desktop union: parts/task-18.md:85; the row and its test: parts/task-20.md:93-95, :125 |
+| **6 (Minor)** the row showed for a local upstream, and its label said a literal "origin" | `Convergence.BringIn` is nil unless the upstream is under `refs/remotes/`, the rule BringIn step 2 refuses by: parts/task-08.md:107-111; the label comes from `Upstream`: :127; test `TestReadOffersNoBringInForALocalUpstream`: :233; task 09's message names the real upstream: parts/task-09.md:206-207; task 19's row and sentence: parts/task-19.md:65-66, :157-161; decision 3: plan:184-185 |
+| **7 (Minor)** a lane that merged `upstream/<branch>` shows the remote's commits and files as its own until it lands | stated, not fixed, in both "does not claim" lists: parts/task-19.md:265-271 and parts/task-16.md:227-230. Why not the review's second option: excluding `^refs/remotes/origin/<b>` from `Observe`'s log alone would leave `Changed` (measured from the merge-base) disagreeing with `Commits`, and a `Changed` that excludes the remote's files needs a base that is neither the merge-base nor the tip. The forecast and the land stay exact, and the residue clears on land |
+| **8 (Minor)** two new behaviours had tests a no-op passes | `TestServeFetchRefreshesClones` (cmd/api) runs serve's `Fetcher.Fetch` after a teammate's push and asserts a clone's `upstream/main` moved: parts/task-14.md:20-21, :167; `TestRemoveConfirmPathsAreAJSONArray` decodes `details.paths` for `docs/résumé.md` and `a b.txt`: parts/task-11.md:235, with the `-z` status source named at :39 |
+| **9 (Minor)** a raw path passed as a pathspec matched other files (`app/[slug]/page.tsx` also matched `app/s/page.tsx`) | `--literal-pathspecs` joins task-02 §HGH H1's prefix, so it covers every path-taking call in every task (16 and 17 included) once: parts/task-02.md:406; test `TestHGHPathspecsAreLiteral`: :526; Step 3a's "drop each H1 override" mutant now covers it; task 16 cites H1 at the call site (R2's one line): parts/task-16.md:143-145, with `TestDiffBracketedPathIsLiteral` at :197 |
+| **10 (nits)** | the quoting claim (a space is not quoted): parts/task-07.md:144-146 and parts/task-01.md:43 (assert only the résumé path's quoting); `mktree -z` for a `\n` name: parts/task-07.md:199; Q10's fallback lists tasks 04, 10 and 20: plan:417; the Scope slips at parts/task-09.md:103-105 and :218-219 now say `RefreshClones` runs one Scope Project read, then Scope Clone fetches. Review:235's "a space" is this review's own text and is left as written; the plan no longer repeats it |
+
+**Choices past the re-review, on the facts.**
+- **`Panacea-Bring-In` holds the upstream tip, not the branch name** (issue 5). `gitx.Message`
+  refuses a trailer value outside `[A-Za-z0-9._:@/+=-]` (parts/task-02.md:277-282), and a git branch name
+  may hold other bytes, so a name-valued trailer would fail some bring-ins. A 40-hex sha always
+  passes, and the subject still names the remote branch.
+- **The fork remote stays offered** (issue 6). A row for `upstream/main` (a remote other than
+  `origin`) still shows, because `BringIn` handles any `refs/remotes/` upstream. Task 12's `Fetch`
+  fetches only `origin`, so that upstream moves only when the user fetches in a terminal; the
+  `upstream_moved` compare-and-swap covers that race.
+
+**Verified in round 2** (git 2.53.0.windows.2, host only, `scratchpad/p3/`):
+- `b05r2-lit-probe.out`: `diff --name-only -- 'app/[slug]/page.tsx'` lists both files without
+  `--literal-pathspecs` and one with it, placed as `git --literal-pathspecs -c … diff`;
+  `rev-parse` and `for-each-ref` are unaffected.
+- `b05r2-mktree-probe.out`: `mktree -z` accepts `a b\nc.txt`; plain `mktree` refuses it
+  (`fatal: input format error: c.txt`).
+
+**Unverified.** Nothing was built or run as Go or TypeScript. The two-merge prompt was not re-run
+against the re-reviewer's probe here; its second-lane case (`origin/main`, then `upstream/main`,
+exit 1 in the lane) is the re-review's own evidence (`rr-b05-bringin-probe.out`).
