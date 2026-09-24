@@ -902,3 +902,116 @@ rather than asserted until the owner accepts the numbers (02 C8).
 
 ---
 
+## 5. Phased delivery: the minimum lovable slice first
+
+Proposed as **Phase W, the work layer**, lettered like Phase H so no phase number moves (04 §7.6).
+Sizes are **focused days for one implementer who knows the code**, estimated from the existing
+plans' task sizes (04 §6.1) and 02 D2. **None is measured.** A prototype comes first and the owner
+reviews it before any plan (`CLAUDE.md`); OD-1's waiver covered phases 3, 4, 5 and 7 only.
+
+### 5.1 The slices at a glance
+
+| Slice | The promise, in one line | Size | Depends on |
+|---|---|---|---|
+| **W0** now | Two one-line changes that are cheap today and rework later | < 0.5 d | nothing |
+| **W1** minimum lovable | *"I file it, my agent takes it, and it is done only when it is proven"* | ~27.5 d | Hub through task 43; phase 4 tasks 06, 09, 16-17; phase 3 tasks 05, 09; phase 7 task 19 |
+| **W2** planning | Cycles, features, sub-issues, comments, views: a team can plan in it | ~24.5 d | W1 |
+| **W3** agents on the work | Delegate, Orchestrator notes, proposed evidence, negotiation on issues | ~11.5 d | W1 and team mode's TM1 |
+| **W4** roadmap and release | Initiatives, timeline, updates, release notes by criterion, insights, AI assists | ~22.5 d | W2; phase 6's gateway for the AI rows; phase 7 |
+| **W5** intake and ecosystem | Requests, tracker sync and import, Teams, public API, MCP, Loops | ~30.5 d | W2 |
+| | **Total** | **~117 d** | |
+
+About **23 weeks for one implementer**; on three streams (Hub, pipeline phases, desktop) W1 is
+about **3 weeks elapsed**, with the desktop the long pole. The whole layer is the size of a large
+phase. That is the honest cost of the owner's "everything they are doing"; §6 Q2 offers smaller
+stopping points.
+
+### 5.2 W0: now, inside the current wave (04 §7.1)
+
+1. Add `issue:` to phase 4 task 06's key parser (`provenance/key.go`, not yet built) and to the
+   Hub's key grammar (hub-contract:114-128). One more case now; a change to a built parser later.
+2. Fix the stale example `criterionId: "done:2"` at hub-contract:1065 and :1079 to a `c-` id.
+3. Optional, unblocked: 02 D2 step 1, the missing tokens (`--dur-flash`, `--dur-peek`,
+   `--undo-window`, `--s-*`, `--row-h*`, `--t-*`, `--icon*`) in `tokens.css`, about 2 hours.
+
+### 5.3 W1: the minimum lovable slice, solo mode (~27.5 d)
+
+**The demo that makes it lovable.** Press `C`, type a title, pick the criterion it serves. Press
+`Shift+S`. Within 10 seconds a cloud agent is working on it and its line is live on the issue. It
+lands; the issue shows `landed`. You record one piece of evidence; the issue turns `done` by itself,
+because its criterion is settled. Deploy, and the issue says *shipped to production, 14:02*.
+
+| # | Work | Where | Size |
+|---|---|---|---|
+| 1 | Issue head and revision, `issue-revision` canonical kind, the `issue:` key in `/v1/refs`, `project.key` and numbers | Hub | 3.5 d |
+| 2 | Relations (`blocks`, `duplicates`, `relates`), team labels, `triage` and team policies | Hub | 1.5 d |
+| 3 | Events for every write, authorisation rows, issue erase, title search | Hub | 2.5 d |
+| 4 | `Session.IssueRef`, the Materialiser's second key, `provenance.Ref` kind `issue` | phase 4 | 2 d |
+| 5 | `Panacea-Issue` trailer, land trailers and the `landed` move, coverage data, the `done` rule | phase 3 | 2 d |
+| 6 | Issues in the release manifest; *shipped to* derived | phase 7 | 1 d |
+| 7 | Prototype of Work, the issue view and the Desk rows, for owner review | desktop | 1.5 d |
+| 8 | Work surface: Triage, list and board, grouping, display options, bulk bar | desktop | 3 d |
+| 9 | Issue view: head, revisions, `serves` with `thread.node`, relations, the live agent line | desktop | 2 d |
+| 10 | `keys.list` grammar, number-key triage, `peek.span`, the `?` sheet, palette commands | desktop | 2.5 d |
+| 11 | In-memory Hub replica for issues on `/v1/changes`, `optimistic.undo`, `confirm.inplace` | desktop | 2.5 d |
+| 12 | Issue chips in Develop and Merge; Start from an issue | desktop | 0.5 d |
+| 13 | **A minimal Desk** with NEEDS YOU and LANDED, issue rows, answer in place, zero state (§5.6) | desktop | 3 d |
+| | Hub 7.5 · phases 3, 4, 7: 5 · desktop 15 | | **~27.5 d** |
+
+**Out of W1, on purpose:** comments, cycles, features, views (W2); anything that needs team mode
+or the `panacea` verb channel (W3); anything that needs the gateway (W4).
+
+### 5.4 W2 to W5
+
+**W2, planning (~24.5 d).** A team can run its fortnight in it.
+
+| Work | Size |
+|---|---|
+| Comments `ic-`: mentions, reactions, anchors (text, criterion, span, hunk), resolve; subscriptions (Hub) | 2 d |
+| Features `ft-`: branch reservation, *promote to feature*, the features board and tabs (Hub 1.5, desktop 2) | 3.5 d |
+| Cycles `cy-`: janitor rollover, cooldowns, iCal feed, the scope log, convergence per criterion (Hub 1.5, desktop 1.5) | 3 d |
+| Sub-issues, templates `tp-`, label groups, estimates, due dates, rank, move, drafts `df-` (Hub 2, desktop 1.5) | 3.5 d |
+| Views `vw-`: nested filters, `panacea://` links, ad hoc lists, favourites, set as default (Hub 1, desktop 2.5) | 3.5 d |
+| The editor (Markdown, slash menu, tables), comment UI, attachments | 2.5 d |
+| The digest (desktop and email); defer with a reason; CSV export | 1.5 d |
+| 02 D2 steps 2, 3 and 5: `chrome.dim` and one `ViewHeader`, `voice.split`, generated themes | 5 d |
+
+**W3, agents on the work (~11.5 d; ships with TM1).**
+
+| Work | Size |
+|---|---|
+| Fleet: `panacea issue show`/`note`, `panacea evidence propose`, the `issue.delegated` event, `task.issueId` | 2 d |
+| `Shift+D` Delegate; Orchestrator notes on the issue, one voice per owner | 1.5 d |
+| Proposed evidence under each criterion in the Merge lens; *Record* as the person (phase 3) | 1 d |
+| `negotiation.row` on both issues; `blocks` across owners seeds a `sequence` proposal (Fleet 1, desktop 1) | 2 d |
+| Agent task-card pages, "whose agents" filters, `who.label`, `step.fold` on the issue | 1.5 d |
+| Guidance records, the org kill switch, our published agent rules | 1 d |
+| The read-only *ask* worker; named risk facts on lanes | 1 d |
+| The same verbs for solo mode through phase 3's runner (**UNVERIFIED** that it can host them, 04 §4.5) | 1.5 d |
+
+**W4, roadmap, release and reporting (~22.5 d).**
+
+| Work | Size |
+|---|---|
+| Initiatives `in-`, updates `nt-` with health and a pinned brief, reminders (Hub 1.5, desktop 2) | 3.5 d |
+| Timeline: zoom, drag to reschedule, the cycle band, grouping, feature dependencies | 3 d |
+| Milestones `ml-` as named criterion subsets (Hub 0.5, desktop 1) | 1.5 d |
+| Release notes grouped by criterion; freeze per environment; *shipped* for requesters (phase 7) | 1.5 d |
+| Insights panel and scatter: measured counts and durations only (Q1) (Hub 1, desktop 2) | 3 d |
+| Gateway-backed assists: triage suggestions with `serves` and a "why", the calibrated dial, duplicates, natural-language filters, composer hints | 4 d |
+| Drafted updates and thread summaries as span-linked indexes; *propose issues per criterion*; *propose the next cycle* | 3 d |
+| "Since you last looked" names issues; recurring issues; triage rotation; the user-facing method page | 3 d |
+
+**W5, intake and the ecosystem (~30.5 d).**
+
+| Work | Size |
+|---|---|
+| Requests `rq-`: Entra web form, email per team, intake rules, updates to the requester | 5 d |
+| Tracker sync and import: Azure Boards, GitHub Issues and Jira one way into `triage` (4 d), then two way (3 d); Linear and CSV import (1 d) | 8 d |
+| Outside PRs on both hosts: webhooks, magic words, linkbacks, branch-name start | 2.5 d |
+| A Teams app: intake, feature feeds, the Desk digest, ask **your own** Orchestrator | 3 d |
+| Public API: docs, generated TypeScript and Go clients, HMAC webhooks, app approvals, keys, rate limits | 3 d |
+| The Work MCP server with a read-only mode; the connector allow-list | 2 d |
+| Loops `lp-`: triggers, versions, run log, run now; the first-pass triage loop | 3.5 d |
+| Release CLI, an Azure Pipelines task, a GitHub Action; harness allow-list and team skills; audit to Sentinel | 3.5 d |
+
