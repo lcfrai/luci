@@ -194,10 +194,8 @@ const (
 // Step is what the flow shows next. Total is the size of the closed base set
 // for StepQuestion and ZERO otherwise; the only legal rendering of it is the
 // literal "QUESTION n OF m" (G5). Ordinal is likewise zero for every kind
-// but StepQuestion. Pending is c.Pending() on every kind; Options and
-// Pending are never nil. The walk stops at the first question whose answer
-// is neither settled nor a pending draft, so StepComplete holds exactly when
-// the derived Status is complete (as built, task 03).
+// but StepQuestion. Pending is c.Pending() on every kind, so a question step
+// can say drafts are waiting; Options and Pending are never nil.
 type Step struct {
 	Kind    StepKind `json:"kind"`
 	Ordinal int      `json:"ordinal"`
@@ -210,6 +208,14 @@ type Step struct {
 	Pending []Key    `json:"pending"`
 }
 
+// Step returns the next thing to show. It walks the questions in order and
+// stops at the first whose answer is neither settled nor a pending draft; a
+// model_drafted answer does not stop the walk (it waits for review) and does
+// not count as settled. With no such question left it is StepComplete when
+// the derived Status is complete, and StepReview otherwise: while drafts are
+// pending, and for a content with no questions (a head or a restored revision
+// written straight to route 26), which has nothing to ask and is never
+// complete. So StepComplete holds exactly when the derived Status is complete.
 func (c Content) Step(s Scope) Step
 
 // SplitCriteria is the old plan's (:1186-1202), unchanged.
@@ -261,7 +267,7 @@ type Env struct {
 	// resolves against; nil for a project brief or when none is complete.
 	Inherits *Inherit
 	Now      time.Time
-	NewID    func(prefix string) string // ids.New in production
+	NewID    func(prefix string) string // ids.New in production; nil is a server fault
 }
 
 var (
@@ -288,12 +294,11 @@ var (
 // The length caps (review M6), counted in Unicode code points
 // (utf8.RuneCountInString) on the string as stored (rule 14's LF, then rule
 // 1's trim for an answer; prompts, help and options are not trimmed; rule
-// 13): the unit JSON Schema's
-// maxLength uses, so task 04's and task 13's schemas (200/120 and 400) sit
-// inside them and model text never meets the cap. They make the Hub's 64 KiB
-// envelope refusal (hub-contract.md:742) unreachable for ordinary text and
-// give a person a refusal that names the answer; task 08's size check is the
-// bound itself (S4).
+// 13): the unit JSON Schema's maxLength uses, so task 04's and task 13's
+// schemas (200/120 and 400) sit inside them and model text never meets the
+// cap. They make the Hub's 64 KiB envelope refusal (hub-contract.md:751 at
+// hub 53583f2) unreachable for ordinary text and give a person a refusal
+// that names the answer; task 08's size check is the bound itself (S4).
 const (
 	MaxAnswerRunes = 4000
 	MaxPromptRunes = 300
@@ -464,7 +469,7 @@ $ grep -c "Revision" control-plane/internal/discover/content.go control-plane/in
 about rendering (task 05). The golden JSON pins field names, not the Hub's canonical encoding,
 which sorts keys itself.
 
-**As built** (task 03, commits `8ea49b3`, `754fa8b` and after; report
+**As built** (task 03, commits `8ea49b3`, `754fa8b`, fix round 1 `0372ae0`, and after; report
 `.superpowers/sdd/p4/task-t03-report.md`). Where this differs from the text above, this wins.
 
 - Rules the part left open, now fixed (each has a test):
@@ -486,9 +491,14 @@ which sorts keys itself.
     question or answer key, and a criterion id is never one the previous criteria held. After
     eight collisions `Apply` returns an unexported error (a 500, not a 400).
   - An `env.Scope` that is neither `project` nor `branch` is an unexported error (a server fault).
+    So is a nil `env.NewID`, checked before the op runs, whether or not the op mints: there is
+    no default generator, so this package reads no randomness of its own (fix round 1, review
+    M-2).
   - Status: complete needs at least one question. A stored answer with no author is neither
-    settled nor pending: `Step` asks it again, so `StepComplete` and `StatusComplete` never
-    disagree.
+    settled nor pending: `Step` asks it again. `Step` ends on the derived status, so a content
+    with no questions (a head or a restored revision written straight to route 26) is
+    `StepReview` with nothing pending, never `StepComplete` (fix round 1, review I-1). So
+    `StepComplete` and `StatusComplete` never disagree.
   - `Decode` refuses a missing or zero `v` (unexported error, not `ErrUnknownVersion`) and fills
     every null slice with `[]`.
   - Rule 14 also normalises `Help`, each option and `Because` when the op adds or changes them;
@@ -505,7 +515,10 @@ which sorts keys itself.
   `TestEveryBranchOpPinsTheCurrentProjectRevision`,
   `TestUnchangedPromptsAndCriteriaDoNotBlockOtherOps`, `TestAnEnvWithNoScopeIsRefused`,
   `TestStepAndStatusAgreeOnAnAnswerWithNoAuthor`, `TestAFollowUpKeyNeverMatchesAnExistingAnswer`,
-  `TestADraftsDraftedFromIsCopied`. The acceptance `-run` pattern above names them all.
+  `TestADraftsDraftedFromIsCopied`, and from fix round 1 `TestAnEnvWithNoNewIDIsAServerFault`,
+  `TestAContentWithNoQuestionsIsNeverComplete` and `TestApplyReturnsTheZeroContentOnAnyError`.
+  `TestMintedIdsNeverCollide` also has a dropped-id row: an id the edit dropped is never minted
+  again. The acceptance `-run` pattern above names them all.
 - The table's `TestFollowUpsCarryNoDenominator` also pins `Ordinal == 0` for a follow-up, and
   `TestAnswersAreCappedAt4000Characters` skips the "spaces around 4,000" row for `restore`
   (nothing trims a restore).
