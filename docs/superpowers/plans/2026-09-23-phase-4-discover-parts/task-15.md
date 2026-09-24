@@ -178,6 +178,8 @@ export interface WorktreeInspection {
   committed: CommittedBlock[]; // beside the target's own state, never instead of it (re-review R-M1)
   /** "/CLAUDE.md" | "/.claude/CLAUDE.md" | "": task 09's Excluded, the info/exclude line (review M9). */
   excluded: string;
+  /** task 09's AltTracked: git tracks ".claude/CLAUDE.md" (re-review b09 I-1). */
+  altTracked: boolean;
 }
 export interface Materialisations { expectedKey: string; worktrees: WorktreeInspection[] }
 

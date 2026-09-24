@@ -230,6 +230,14 @@ type Inspection struct {
 	// the exclude file. Task 19 says with it that git stops listing the file,
 	// text of the person's own in it included (review M9).
 	Excluded    string              `json:"excluded"`
+	// AltTracked is step 2's Git.Tracked answer for AltFileName
+	// (.claude/CLAUDE.md), kept, not asked again. It is false when git does
+	// not manage the directory. Task 19 needs it: when the target is
+	// FileName and AltTracked is true, committing CLAUDE.md makes both
+	// candidates tracked, and step 2 then refuses every start in this
+	// worktree (tracked_elsewhere, review N1), so the view must not offer
+	// that commit as a way back (re-review b09 I-1).
+	AltTracked  bool                `json:"altTracked"`
 }
 // Committed holds at most one entry today: an Inspection is returned only
 // when one candidate is the untracked target, so at most the other is
@@ -286,7 +294,7 @@ worktrees; the real `git ls-files` wiring is tested over real git in task 14):
 | `TestConcurrentStartsOnOneWorktreeSerialise` | two goroutines, two keys: the file ends as one complete render of one of them and `Merge` never sees a half-written file | interleaved writes |
 | `TestInspectStates` — table | each of the seven states from a constructed file and expected key, with `Committed` `[]` (not `nil`: it marshals as `[]`); `edited` carries a diff with the changed line (a rename is not a changed line: `Source`'s document carries no name, so this package cannot be fed one; the rename end to end is task 07's `TestRenameDoesNotLookLikeAHandEdit`, review I5) | a drift check that only compares keys (brief §4.2 gap 3) |
 | `TestInspectListsCommittedBesideTheTargetsState` — table | a tracked `CLAUDE.md` holding a block, and the untracked target `.claude/CLAUDE.md` in turn `current`, `edited`, `broken` and `superseded`: `State` is the target's own each time (`edited` still carries its diff), and `Committed` is one entry, the tracked file's path and marker key. A tracked `CLAUDE.md` holding only a begin marker → its entry has `MarkerKey ""`. Both candidates tracked, each holding a block → `tracked_elsewhere`, as `TestBothTrackedIsRefused` (re-review R-M1) | a committed block hidden behind the target's `current`; a committed block hiding an `edited` target, so the next start silently overwrites a hand edit; a broken target reported only as committed, so the person removes the committed block and every start is still refused `block_broken` |
-| `TestInspectReportsTheExcludeLine` (review M9) — table | `CLAUDE.md` untracked → `Excluded: "/CLAUDE.md"`; `CLAUDE.md` tracked → `"/.claude/CLAUDE.md"`; the fake `Git` answering `ErrNotARepo` → `""`; in every row the fake `Git.ExcludePath` is never called | a view that says git stops listing a file in a directory git does not manage; an `Excluded` naming the other candidate |
+| `TestInspectReportsTheExcludeLine` (review M9) — table | both untracked → `Excluded: "/CLAUDE.md"`, `AltTracked: false`; `CLAUDE.md` untracked and `.claude/CLAUDE.md` tracked → `Excluded: "/CLAUDE.md"`, `AltTracked: true` (re-review b09 I-1); `CLAUDE.md` tracked → `"/.claude/CLAUDE.md"`, `AltTracked: false`; the fake `Git` answering `ErrNotARepo` → `""`, `AltTracked: false`; in every row the fake `Git.ExcludePath` is never called, and the fake `Git.Tracked` is called once per candidate | a view that says git stops listing a file in a directory git does not manage; an `Excluded` naming the other candidate; an `AltTracked` hard-wired false, which lets task 19 offer a commit that stops every start |
 
 **Steps:**
 
