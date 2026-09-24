@@ -94,7 +94,8 @@ func (s RemovalState) NothingToLose() bool
 // or Unlisted or Refused is set, the archive, in the PROJECT (Local, Scope Project; the clone is
 // only the upload-pack source, which task-02's TestHGHUploadPackSourceRunsNothing pins as
 // running nothing of the clone's), into prefix = OffBranchPrefix(lane.ID, now.Unix()):
-//   fetch --no-tags --no-write-fetch-head --quiet <FetchURL(clone)> <OffBranchRefspecs(st, prefix)>
+//   fetch --no-auto-maintenance --no-tags --no-write-fetch-head --quiet <FetchURL(clone)> <OffBranchRefspecs(st, prefix)>
+// (--no-auto-maintenance for task 07's reason: no detached gc in the project; review Minor 8.)
 // It sets ArchivedAt to prefix, and on failure Unarchivable to git's sentence. It only adds refs,
 // so what a failed fetch did write stays. Each attempt has its own <unix>; an earlier attempt's
 // archive is kept, like every archive ref (Q5), and a same-second retry force-updates the same refs.
@@ -143,8 +144,23 @@ package converge
 // BranchJSON is project.Branch as the rail reads it.
 type BranchJSON = project.Branch
 
-// CreateBranch: `check-ref-format --branch <name>` (Read; refused → bad_request with git's
-// sentence); from = rev-parse refs/heads/<fromBranch>^{commit}; create-only
+// ValidBranchName is the one name check, for CreateBranch's name and RenameBranch's new name
+// (review Minor 6). In the project (Read, Scope Project):
+//   out = check-ref-format --branch <name>
+// Refused unless git exits 0 AND out is exactly <name> + "\n". The --branch form keeps two
+// rules `check-ref-format refs/heads/<name>` lacks: it refuses a leading "-" and the name HEAD,
+// saying "fatal: '<name>' is not a valid branch name", where the refs/heads/ form passes both
+// and refuses `a..b` with exit 1 and nothing on stderr (probed, git 2.53). But --branch also
+// EXPANDS: after a switch, `@{-1}` prints the previous branch's name and exits 0. The exit alone
+// would pass a name update-ref then refuses (a 500), and `branch -m` expands it the same way, so
+// a rename would take another branch's name. A printed name that differs is refused with the
+// control plane's own sentence, "'<name>' is git shorthand for another branch; choose a literal
+// name". Task 01 pins all three behaviours. A refusal is *BadBranchName{GitSays}, which the
+// handlers answer 400 bad_request with details.gitSays.
+func ValidBranchName(ctx context.Context, m gitx.Machine, projectPath, name string) error
+
+// CreateBranch: ValidBranchName(name) (below; refused → bad_request); from = rev-parse
+// refs/heads/<fromBranch>^{commit}; create-only
 // `update-ref refs/heads/<name> <from> 0000000000000000000000000000000000000000` (Local) —
 // refused → branch_exists. No commit is made, so no identity is needed.
 // All three branch verbs hold locks.Lock(ctx, projectID) for the whole verb: they move
@@ -161,10 +177,16 @@ type RenameResult struct {
 	RemoteKeepsOldName bool `json:"remoteKeepsOldName"`
 }
 
-// RenameBranch refuses branch_has_worktrees (details.worktrees = the lanes' names; open question
-// Q4) and branch_exists; otherwise `branch -m <old> <new>` (Local), which moves the reflog and
-// branch.<old>.* config and updates any checkout's HEAD; then Store.AddRename and
-// Store.Retarget(projectID, old, new). Scope Project (task-02 §HGH), and no hook runs (H4).
+// RenameBranch refuses, in this order: ValidBranchName(new) (bad_request); branch_has_worktrees
+// (details.worktrees = the lanes' names; open question Q4); branch_checked_out when
+// CheckedOutAt(old) != "" (task 08; details.path), as DeleteBranch does (review Minor 16); and
+// branch_exists. Otherwise `branch -m <old> <new>` (Local), which moves the reflog and
+// branch.<old>.* config; then Store.AddRename and Store.Retarget(projectID, old, new). Scope
+// Project (task-02 §HGH), and no hook runs (H4). The checked-out refusal is needed because
+// `branch -m` also rewrites the HEAD of every worktree on <old>, exit 0 and no message (probed,
+// git 2.53: the primary's HEAD became refs/heads/<new>), so the user's own checkout would move
+// branch under them. The check and the rename both run under the project lock, but a checkout
+// made in a terminal between them is not seen, the same window DeleteBranch and a land have.
 func RenameBranch(ctx context.Context, m gitx.Machine, locks *gitx.Locks, store lanes.Store, projectPath, projectID, old, new string, now time.Time) (RenameResult, error)
 
 // DeleteResult is a deletion that happened.
@@ -177,10 +199,18 @@ type DeleteResult struct {
 //   tip = rev-parse refs/heads/<name>
 //   update-ref refs/panacea/archive/<branchID>/<unix> <tip> 0000…      (create-only)
 //   update-ref -d refs/heads/<name> <tip>                              (compare-and-swap)
-//   config --remove-section branch.<name>                              (absent section is fine)
+//   config --remove-section branch.<name>                              (OKExit 128; below)
 //   Store.SetQueue(projectID, name, nil); Archiver.ArchiveHead(projectID, branchID) when non-nil
 // The remote branch is not deleted. Every git call runs in the project with Scope Project
 // (task-02 §HGH), and no hook runs (H4).
+// remove-section on an absent section is not a success to git: it exits 128, "fatal: no such
+// section: branch.<name>" (review Minor 12; task 01 pins it). A branch CreateBranch made has no
+// section, since update-ref writes no config, so OKExit 128. Any other failure (exit 255 when
+// .git/config.lock is held) comes after the ref is deleted and archived, so the verb still
+// answers 200 and logs at warn "branch <name> deleted; its config section stayed: <git's
+// sentence>". That is git's own rule: `git branch -D` with the config locked deletes the branch,
+// prints "warning: update of config-file failed" and exits 0 (task 01 pins it). 128 is also
+// git's exit for a config file it cannot parse; that case leaves the section too, unlogged.
 func DeleteBranch(ctx context.Context, m gitx.Machine, locks *gitx.Locks, store lanes.Store, arch briefref.Archiver, projectPath, projectID, branchID, name string, now time.Time) (DeleteResult, error)
 ```
 
@@ -209,7 +239,8 @@ DELETE /v1/projects/{projectId}/worktrees/{worktreeId}[?confirm=<token>]
 POST   /v1/projects/{projectId}/branches              { "name": "fix-session-timeout", "fromBranchId": "b-…" }
   201 Branch                                          400 bad_request (gitSays); 409 branch_exists
 PATCH  /v1/projects/{projectId}/branches/{branchId}   { "name": "evidence-upload-v2" }
-  200 RenameResult                                    409 branch_has_worktrees | branch_exists
+  200 RenameResult                                    400 bad_request (gitSays);
+                                                      409 branch_has_worktrees | branch_checked_out | branch_exists
 DELETE /v1/projects/{projectId}/branches/{branchId}
   200 DeleteResult                                    409 branch_has_worktrees | branch_checked_out
 GET    /v1/projects/{projectId}/renames
@@ -234,6 +265,7 @@ edited. Audit line for the GET renames: *"Reads the lane index. Writes nothing."
 | `TestRemoveAsksWhenWorkWouldBeLost` | uncommitted `a.txt` and one unlanded commit → `confirm_required` with both and a 16-hex `confirm` | discarding work silently |
 | `TestRemoveConfirmPathsAreAJSONArray` (handler; re-review b05 issue 8) | a clone with uncommitted `docs/résumé.md` and `a b.txt` → 409 `confirm_required`; `JSON.parse`-equivalent `json.Unmarshal(details["paths"])` gives exactly `["a b.txt", "docs/résumé.md"]` in status order, unquoted | a newline-joined `details.paths` in the removal handler, or a C-quoted `"docs/r\303\251sum\303\251.md"` |
 | `TestRemoveHonoursOnlyTheTokenShown` | token from state 1; then the agent commits; DELETE with the old token → `confirm_stale`, directory intact | a confirmation of a question the human never saw |
+| `TestRemoveArchiveStartsNoMaintenance` (review Minor 8) | red first: the project's `.git/config` holds `maintenance.auto=true`; a clone with `fix-x` at X, `Inspect` under `t.Setenv("GIT_TRACE", <file>)` → the trace file holds the archive `fetch` and no `run_command: git maintenance` line | a removal leaving a detached gc on the project's `packed-refs.lock` that fails the next land |
 | `TestRemoveArchivesUnlandedCommits` | after removal, `refs/panacea/archive/lanes/<id>/<t>` names the old lane tip and `cat-file -e` finds every unlanded commit | unlanded work lost to `gc` (A7, R11) |
 | `TestRemoveArchivesOtherClonesBranches` (review I6) | in the clone, `switch -c fix-x`, commit X, `switch <b>`; then `switch --detach`, commit Y. DELETE → `confirm_required` whose `details.elsewhere` names `refs/heads/fix-x` and `HEAD`; with that token → 200, `<archivedElsewhere>/heads/fix-x` names X and `<archivedElsewhere>/HEAD` names Y, `cat-file -e` finds both in the project, and the project's `for-each-ref refs/heads` is unchanged. Red first against `Inspect` without the listing: the first DELETE on a landed lane answers 200 and X is gone | work an agent committed on another branch deleted with its clone |
 | `TestRemoveIgnoresBranchesTheLaneContains` | a clone branch `old` whose tip `refs/heads/<b>` contains → not in `Elsewhere`; a clean, landed lane with it → 200 without `confirm` | a question about work that is not at risk |
@@ -248,20 +280,28 @@ edited. Audit line for the GET renames: *"Reads the lane index. Writes nothing."
 | `TestRemoveRefusesPrimaryAndLinked` | a primary or linked worktree id → `not_a_cockpit_worktree`, nothing touched | the cockpit deleting a user's own checkout |
 | `TestCreateBranchIsCreateOnly` | an existing name → `branch_exists`, the existing ref unmoved | overwriting a branch |
 | `TestCreateBranchRefusesAnIllegalName` | `a..b` → 400 with git's `check-ref-format` answer | a ref git cannot store |
+| `TestValidBranchNameRefusesShorthand` (review Minor 6) | the project switched `feature` then `main`. Table: `@{-1}` → 400 `bad_request` with the shorthand sentence (red first against an exit-only `--branch` check, which passes it, then fails `update-ref` as a 500); `-x` and `HEAD` → 400 with git's "not a valid branch name" (red against the `refs/heads/<name>` form, which passes both); `fix-session-timeout` and `a@b` → pass. After the table, `for-each-ref refs/heads` is unchanged | a name git expands to another branch's, or a branch named like an option |
 | `TestRenameRecordsTheIdMap` | rename → `GET renames` holds `{from: b-old, to: b-new}`; `BranchID` of the new name equals `toBranchId` | branch-keyed stores seeing a delete plus a create (A8) |
 | `TestRenameRefusesWithWorktrees` | a lane on the branch → `branch_has_worktrees` naming it | renaming under a running agent (Q4) |
+| `TestRenameRefusesACheckedOutBranch` (review Minor 16) | red first: the project's primary has `old` checked out → 409 `branch_checked_out`, `details.path` is the primary's path; `refs/heads/old` still exists, the primary's `symbolic-ref HEAD` is still `refs/heads/old`, and `GET renames` is empty | `branch -m` moving the user's own checkout to the new name |
+| `TestRenameRefusesShorthandForTheNewName` (review Minor 6) | the project switched `feature` then `main`; rename `x` to `@{-1}` → 400 `bad_request`; `x` is not renamed and `feature` is unmoved | a rename that takes another branch's name, because `branch -m` expands `@{-N}` too |
 | `TestRenameKeepsTheUpstreamFlag` | a branch with an upstream → `remoteKeepsOldName: true` | a silent divergence from the remote |
 | `TestDeleteArchivesTheTip` | after delete, the archive ref names the old tip; `refs/heads/<b>` is gone; `branch.<b>.*` config gone | unpushed commits becoming unreachable (R11) |
 | `TestDeleteCallsTheArchiverOnce` | a fake Archiver records `(projectID, branchID)` once; a nil Archiver → `archivedBrief: false` | P13's archive request never sent |
 | `TestDeleteRefusesACheckedOutBranch` | → `branch_checked_out` | deleting the branch a checkout is on |
+| `TestDeleteABranchWithNoConfigSection` (review Minor 12) | red first against OKExit {0}: a branch `CreateBranch` made (no `branch.<b>` section) → 200, `refs/heads/<b>` gone, the archive ref names its tip | every cockpit-made branch failing its delete as `git_failed` after the ref is already gone |
+| `TestDeleteWithALockedConfigStillAnswers` (review Minor 12) | `branch.<b>.remote` set and `.git/config.lock` held → 200, `refs/heads/<b>` gone, the archive ref names the tip, one warn line holding git's sentence, and `branch.<b>.remote` still set | a 500 for a delete that happened, whose retry then finds no branch |
 | `TestBranchVerbsWaitOnTheProjectLock` (review I7) | the test holds `Locks.Lock(ctx, p)` → a create, a rename and a delete on `p` run no git call 50 ms later (a recording Runner); release → all three proceed | a rename moving `branch.<name>.*` under a push |
 | `TestDeleteLosesARaceCleanly` | the branch moves between read and delete → git refuses; the branch still exists | `update-ref -d` without its old value |
 
 #### Steps
 
-- [ ] **Step 1: Preflight.** Tasks 04 and 07 merged, so `briefref` (task 03), `gitx.Locks`
-  (task 02) and `GitDeps.Locks` (task 04) exist; nothing here waits on task 09 (review I7). Task 01's `TestBehaviourRemoveAllOnAClone`
-  and `TestBehaviourUpdateRefCreateOnlyRefusesAnExistingRef` read.
+- [ ] **Step 1: Preflight.** Tasks 04, 07 and 08 merged, so `briefref` (task 03), `gitx.Locks`
+  (task 02), `GitDeps.Locks` (task 04) and `converge.CheckedOutAt` (task 08, which DeleteBranch
+  and RenameBranch refuse by; review Minor 16) exist; nothing here waits on task 09 (review I7).
+  Task 01's `TestBehaviourRemoveAllOnAClone`, `TestBehaviourUpdateRefCreateOnlyRefusesAnExistingRef`,
+  `TestBehaviourCheckRefFormatBranchExpandsShorthand`, `TestBehaviourRemoveSectionExitCodes` and
+  `TestBehaviourBranchRenameMovesACheckoutsHead` read.
 - [ ] **Step 2:** tests; `remove.go`, `branches.go`; handlers, routes, deps, audit line.
 - [ ] **Step 3:** run and commit by pathspec.
 
