@@ -461,3 +461,80 @@ Ruling R4 says the host never runs git in a directory a sandbox can write
   control plane then acts on. X-1 was exactly "agent-controlled text chooses a host file"
   (`docs/superpowers/RESUME.md:88-94`); a teammate-controlled field is the same class one hop
   further out. F2's schema enforces repo-relative paths only.
+
+**Git author is not identity.** A commit's author is whatever the committer's config says, so a
+teammate can author a commit "as" Dylan. Team mode must attribute lane heads by the **Hub
+principal** that published them (the presence row, written with the publisher's token), and show
+that, not the git author, as "whose work this is". Signed commits would close it on the git side;
+not proposed for v1.
+
+## 8. The risks, ranked, and the control that closes each
+
+Ranked by likelihood × impact for a KPMG team using team mode in its first quarter. "Residual" is
+what remains once the control is built; every control is **unbuilt and untested**.
+
+### 8.1 Must be designed in before any team-mode code (ranks 1–5)
+
+| Rank | Risk | L · I | Closing control | Residual |
+|---|---|---|---|---|
+| **1** | **Cross-teammate prompt injection** through coordination data, propagating agent to agent across the team (§5.2) | high · high | **F1** (agents cannot publish; only humans and git-derived facts), then **F4** (never in `CLAUDE.md`), **F5** (read-only mount), **F2/F3** (schema, character hygiene), **F7** (no credential in the sandbox) | **medium**: persuasive, well-formed human text. Owner review before land |
+| **2** | **Secrets or client data exposed by a live terminal watch** (§3.1) | medium · high | watch **default off**, per session, per person, time-boxed (Z3); no replay unless the owner opts in; relay stores nothing; `watch.*` audited | what a viewer saw cannot be un-seen; Forget cannot reach it. Stated on the share screen |
+| **3** | **Subscription pooling or account sharing by feature drift** — "team capacity", hand-off of a running agent, a teammate steering my agent (§4) | medium · high (terms breach; Anthropic *"may [enforce] without prior notice"*, legal page) | launcher fixed at start (Z1); **steering owner-only**; no Hub API starts a session for another principal; no Claude credential ever on the Hub | a user signing a sandbox in to a colleague's account is invisible to the product. Policy and wording only |
+| **4** | **An inbound path to a laptop or sandbox** — exposing `/attach`, or any listener, so a teammate can watch or steer (§2.2, §5.1) | medium · critical (`0x01` stdin is remote code execution in my sandbox under my account) | **outbound-only relay**, a separate service from the Hub; the source drops `0x01`/`0x02` frames; no new listener on the control plane; sandbox↔sandbox denied (phase 8 task 11) | Cilium `ipBlock` semantics UNVERIFIED until phase 8 task 32 probes them |
+| **5** | **Cross-project or cross-team read through a new route** (roster, coordination, watch grants) | medium · high | 404-not-403 on every new route; **Z5**: every new route in the H2 matrix test as V, M, A, O, N, X | T4 stays Go-only inside an org (`hub-contract.md:2072`) |
+
+### 8.2 Must be closed before team mode reaches anyone but the owner (ranks 6–10)
+
+| Rank | Risk | L · I | Closing control | Residual |
+|---|---|---|---|---|
+| **6** | **Stale presence and claims** after a session dies, a member is removed or a laptop is lost (actor A4) | medium · medium | claims expire; withdrawn on `session.ended` and on `team.member_removed`; removal also revokes that user's watch grants and closes their relay connections | access tokens live 60–90 min; CAE is not in v1 (`hub-contract.md:2069`) |
+| **7** | **My text reaches Anthropic under a teammate's account** — training on, or offshore inference (§3.3) | medium · medium-high for client matters | project policy: **commercial accounts or training off**, attested at join; **project inference policy** (e.g. Bedrock Sydney) checked by each control plane before launch | consumer training settings are unreadable by the product |
+| **8** | **The audit trail fails an IRAP assessment** — hash chain in the same database, not centralised, head not anchored (§6.3) | high · medium | stream audit to Sentinel; anchor the chain head there (Design B's graft, `ADR-H1…:163`) | ISM control ids UNVERIFIED |
+| **9** | **A teammate-controlled field drives a host action** — the X-1 class one hop out (§7.3) | low · critical | F2: no host path, config key or URL fields; repo-relative globs only; ruling R4 for every fetch | — |
+| **10** | **Lane impersonation or overwrite on the remote** (§7.2) | medium · medium | per-user ref prefix; host branch protection on it; lane ownership shown by Hub principal, not git author | per-prefix protection on both hosts UNVERIFIED |
+
+### 8.3 Watch, do not build yet (ranks 11–12)
+
+| Rank | Risk | Control |
+|---|---|---|
+| **11** | Workplace-surveillance or privacy-law exposure from watching a colleague (§3.1) | owner-initiated, visible, per-session sharing; **KPMG legal review before rollout**. UNVERIFIED law |
+| **12** | Managed Claude policy strips hooks/MCP and silently breaks coordination for some teammates (§5.3) | file-based delivery only; no hook or MCP dependency |
+
+## 9. What `05-design` must take from this, and where `03-techniques` conflicts
+
+### 9.1 Requirements, in one list
+
+1. The Hub brokers **facts**, never compute, credentials, transcripts or terminal bytes (§2.3, §4.2).
+2. Only the launcher steers; a teammate watches, with the owner's per-session consent (§2.2, §3.1).
+3. Coordination records are written by control planes, from humans or git, never by agents (F1).
+4. Team data reaches an agent as attributed, schema-checked, quoted data in a read-only file,
+   never inside `CLAUDE.md` (F2–F6).
+5. No inbound path anywhere; the watch relay is outbound-only and separate from the Hub (§3.3, §5.1).
+
+### 9.2 Conflicts with `03-techniques.md` (read at this run's head, 2026-09-24)
+
+| `03` says | Constraint here | Reconciliation |
+|---|---|---|
+| Channel 1: *"Managed instruction file (`CLAUDE.md` block + a team file the agent re-reads)"* (`03-techniques.md:58`) | F4: team text never in `CLAUDE.md` | **compatible** if the block holds only one fixed, product-written pointer sentence and the team data lives in the separate read-only file (F5). **Incompatible** if teammates' intents are rendered into the block |
+| Channel 2: an inbox socket *"posted to from inside the sandbox"* (`03-techniques.md:59`) | F1; sandbox↔sandbox denied | only the **control plane** may post, only records that passed F2/F3, with attribution and the "not instructions" framing. A message arriving mid-conversation likely carries more authority than a file (**UNVERIFIED** how Claude Code presents it), so this channel ranks **highest** for injection and needs F8's corpus before it ships |
+| Channel 3: an MCP server with `claim_paths`, `post_note`, `ask_teammate` (`03-techniques.md:60`) | F1 | read tools (`whoami`, `team_activity`) are fine. **Write tools must queue for the owner's confirmation** before anything reaches the Hub (OWASP 5). `ask_teammate` must reach the **teammate human**, never the teammate's agent. The server runs in the control plane or `sandboxd`, since a sandbox cannot reach the Hub |
+| Awareness is advisory; nothing is enforced (`03-techniques.md:30`) | agrees | the Hub may still **refuse** a claim that overlaps a live claim; that is enforcement on the record, not on the CLI |
+
+## 10. What this document did not verify
+
+- **Every control named here is a design, not code.** None is built or tested.
+- **Commercial Terms and account sharing.** The fetch of the Commercial Terms found no explicit
+  clause (§2.2). A Team or Enterprise seat's rules on colleague use are UNVERIFIED.
+- **Inference residency.** Anthropic's regional-compliance page was blocked by the corporate
+  network; the residency claims in §3.3 are from third-party pages found by search, not read in full.
+- **ISM control ids.** The ISM monitoring guideline was located by search, not read (§6.3).
+- **Australian law.** The *Workplace Surveillance Act 2005* (NSW) and the *Privacy Act 1988* (Cth)
+  APP 11 were not read. §3.1 needs KPMG legal.
+- **Git hosts.** Custom `refs/panacea/…` pushes and per-user-prefix protection on GitHub and Azure
+  DevOps (§7.2).
+- **Claude Code behaviour.** How an inbox message is presented to the model (§9.2), and whether the
+  managed policy applies inside a sandbox (phase 3 risk R4, pending OD-12's hands-on session,
+  `owner-decisions.md:23`).
+- **Cilium `ipBlock` semantics on AKS** (phase 8 task 11's own UNVERIFIED, §5.1).
+- **Line citations** into the `hub` and `phase-3` worktrees are at the heads in §0; both are
+  moving, and a later head may shift them.
