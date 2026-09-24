@@ -40,3 +40,72 @@ in the task (MIT, Apache-2.0, BSD, ISC or OFL only; `OD-11`).
 `docs/AGENTIC-UX.md` with the four `Q13` amendments (task 08); `prototype/work-layer.html`.
 
 ---
+
+## Architecture
+
+No new service. The work layer is **a new Hub aggregate** (`Work`), **a relay and a binding** in
+the local control plane, **small deltas to phases 3 and 4** that put the issue on the thread, and
+**a new cockpit lens plus the Desk frame** on the desktop. Fleet (Phase T) joins in W3 only.
+
+```
+desktop (the portal)                 control plane (loopback, per user)       the Hub (Phase H + Work)
+┌───────────────────────────┐ REST  ┌───────────────────────────────────┐ REST ┌────────────────────────┐
+│ Work lens · Plan · issue  │ ────► │ /v1/hub/work/* relay (contract    │ ───► │ issues is-, revisions  │
+│ view · Desk frame         │       │   §4.3 relay rule, unchanged)     │      │ comments ic-, features │
+│ replica: in memory only,  │ ◄──── │ Panacea-Hub-Cursor on /v1/sessions│ ◄─── │ cycles, views, … lp-   │
+│   cursor on /v1/changes   │       │ session ⇄ issue binding (IssueRef)│      │ one event per write    │
+│ optimistic write + Undo   │       │ Materialiser: brief key + issue   │      │ authz rows, erase      │
+└───────────────────────────┘       │ phase 3: Panacea-Issue trailer,   │      │ janitor: cycles, loops │
+                                    │   land → landed, done evaluator   │      └───────────┬────────────┘
+                                    └───────────────┬───────────────────┘                  │ W3: Fleet reads
+                                                    │ local mode (OD-20) now;              ▼ issues, writes
+                                                    ▼ cloud when phase 6 A + phase 8 C land   notes as owner
+                                              sandbox · agent CLI (never parsed, OD-8)
+```
+
+Seven rules shape every task. A task that breaks one is wrong however good it is alone.
+
+1. **The issue is on the thread.** An issue head `is-` is mutable; an issue revision
+   `issue:is-…@r` is immutable and digested, and its `serves [{briefKey, criterionId}]` is what
+   joins it to Define. `EP-142` is a display alias from `project.key` and a number, **never a
+   key**, because an admin can change the project key (05 §3.6).
+2. **Done means proven.** `started`, `in_review`, `landed` and `done` are **facts**, written as the
+   person whose act caused them. `done` needs the issue's **own** evidence, at or after its **own**
+   land commit, for each criterion it serves; observed evidence (a watched test run's exit code at
+   the landed commit) closes it with no click. A hand-set `done` needs a one-line reason and reads
+   *done, not proven*. **No sync or integration token may write a fact state or `done`**, and an
+   authorisation row plus a test pins it (05 §3.3, §3.6).
+3. **Three homes, never mixed** (05 §3.1). A decision or accountability fact is a Hub record; a fact
+   about now (who is on an issue, which files, the live line) is Fleet or control-plane state,
+   derived and never stored on the issue; a preference is the desktop's. **The desktop keeps no Hub
+   data on disk** (`ADR-H1:467-474`), so the replica is in memory (Q5).
+4. **Rows never move under the reader.** Arrivals and moves are held (`arrivals.hold` on `N`,
+   `moves.hold`), a landed row flashes in place, and a row carries **one** agent line, the reader's
+   own; a teammate shows as a person and the files they touch, never as dots (05 §4.4).
+5. **Proof per criterion, no predictions** (`OD-27`). Surfaces show which criteria are proven and
+   plain counts per group. No percentage, progress bar, ETA or "N of M" completion figure appears
+   anywhere; every surface task's tests call the shared `expectNoPrediction` helper (task 20).
+6. **Agent CLIs are never modified, wrapped or parsed** (`OD-8`). The live line and every status
+   come from mechanically observed facts (session status, lane events, observed files, exit codes),
+   never from PTY bytes. Issue text enters an agent's managed block only as spec-class text its
+   owner adopted (Start or Delegate), after the Hub's schema and character checks; comments and
+   requests are never rendered into it (05 §3.4, `Q3`).
+7. **Nobody steers another person's agent** (`OD-16`). An edit to someone's in-flight issue reaches
+   its owner as a Desk *inform*, never their agents; a reassign is a *decide* for the owner; a
+   cross-owner relation is a proposal from the editor's own Orchestrator (W3) (05 §3.7).
+
+### Streams, and where each slice can start
+
+Phase W runs on its own streams beside Phase T (`OD-25`, Q11 option B). The Hub stream reviews with
+team mode's stream B; the desktop streams sit beside its stream F and **share one Desk frame**
+(05 §5.6): team mode adds rows to the frame task 62 builds, never a second Desk.
+
+| Stream | Tasks | Starts after | Lands in |
+|---|---|---|---|
+| **WH, Hub deltas** | 02-17 (W1), then each slice's Hub tasks | Hub task 43 merged into `feat/hub`, synced here (rule H1) | `feat/work-layer`, merged into `feat/hub` by the orchestrator |
+| **WP, phases 3 and 4** | 18-19, 21-25 | phase 4 tasks 06, 09-10, 16-17; phase 3 tasks 05, 07-09 | `feat/work-layer`, each file's owner phase wins (rule H2) |
+| **WD1, look and Work lens** | 20, 26-45 | task 01; the look needs no Hub | `feat/work-layer` |
+| **WD2, issue view, keys, replica, Desk** | 46-70 | tasks 16 and 20 (the fake is enough to start) | `feat/work-layer` |
+| **W2-W5** | 72 onward | the slice before, per the table | `feat/work-layer` |
+
+---
