@@ -264,6 +264,62 @@ test is red before its code exists.
    `fatal:` line of a stderr that also holds `error:` lines, and a 3000-byte `fatal:` line is
    cut to 2048 bytes on a rune boundary.
 
-The host half of this part follows as edit unit U2: the client, its reading of every answer as
-untrusted data under the same limits, host-side `bundle verify` in the project under §HGH, the
-fetch into `refs/panacea/lanes/…`, and this part's steps, acceptance and non-claims.
+#### The host side: `control-plane/internal/lanegit` (edit unit U2)
+
+The host half: a client for the runner, a pool that finds or starts a runner for a lane, and the
+two bundle moves. Host git in this half runs only in the **project** or under
+`Hardening.OwnedRoot`, never in a lane (R4.2); every call goes through task 02's `gitx.Exec`.
+
+**Files (host side):**
+- `control-plane/internal/lanegit/wire.go` — the shapes of `wire.go` above, field for field, and
+  the four limits of `limits.go` above, checked against `testdata/gitrunner` (new)
+- `control-plane/internal/lanegit/client.go` — `Runner`, `NewRunner`, `RunnerError` (new)
+- `control-plane/internal/lanegit/pool.go` — `Lanes`, `For`, the runner-only sandbox (new)
+- `control-plane/internal/lanegit/bundle.go` — `FetchLane`, `SendBranch`, `BundleRefused` (new)
+- `control-plane/internal/lanegit/lanegittest/fake.go` — `Fake`, a test-only `Runner` (new)
+- `control-plane/internal/lanegit/*_test.go` — the tests below (new)
+- `control-plane/internal/backend/backend.go` (p2) — `GitPath = "/git/v1/"` in the const block
+  at `backend.go:40-45`, beside `AttachPath` (`:42`) and `HealthPath` (`:43`)
+- `control-plane/internal/reaper/reaper.go` (p2) — `Config` (`reaper.go:120`) gains `Held`; see
+  the pool
+- `control-plane/cmd/api/main.go` (p2) — one `// ── task 24 ──` block; see Wiring
+- `control-plane/cmd/api/lanegit_spy_test.go` — `TestHostNeverRunsGitInALane` (new)
+
+Stdlib and packages already in `control-plane/go.mod` only. No new dependency on either side.
+
+```go
+// client.go — the host's view of one sandbox's runner. Every answer is the agent's claim (the
+// trust note above): decoded with DisallowUnknownFields under the same limits, checked (refnames
+// begin refs/ and match what was asked, shas are 40 or 64 hex), and never a permission.
+type Runner interface {
+	Status(ctx context.Context) (StatusResponse, error)
+	Refs(ctx context.Context, req RefsRequest) (RefsResponse, error)
+	// Bundle streams the answer into w and stops at MaxBundleBytes; it returns the byte count.
+	Bundle(ctx context.Context, req BundleRequest, w io.Writer) (int64, error)
+	Fetch(ctx context.Context, bundle io.Reader, refspecs, deletes []string) (FetchResponse, error)
+	Diff(ctx context.Context, req DiffRequest) ([]byte, error)
+}
+
+// NewRunner is the HTTP client for one sandbox. endpoint is backend.Sandbox.Endpoint, host:port,
+// the value backend.Dial takes (dial.go:38); token is the sandbox's AttachToken. Each op is
+// POST "http://" + endpoint + backend.GitPath + op, with "Authorization: Bearer " + token.
+// The http.Client follows no redirect (CheckRedirect returns http.ErrUseLastResponse) and its
+// context deadline is the op's runner timeout plus 5 s.
+func NewRunner(endpoint, token string) Runner
+
+// RunnerError is every failed op. Code is the runner's ErrorResponse.Code; GitSays is capped at
+// gitx.MaxSentence. A runner that does not answer (refused, reset, timed out, a body that is not
+// an ErrorResponse) has Status 0, Code "" and GitSays one sentence naming what failed.
+type RunnerError struct {
+	Status  int
+	Code    string
+	GitSays string
+}
+
+// ErrBundleEmpty is what errors.Is finds on a RunnerError with Code "bundle_empty" (409).
+var ErrBundleEmpty = errors.New("lanegit: the lane has nothing the basis lacks")
+```
+
+**How a caller answers a `RunnerError`.** `git_failed` 500, `details.gitSays` = `GitSays`, through
+task 04's `gitFailed` (`task-04.md:143-146`), which gains that one case. So decision 8 still has
+two codes. `ErrBundleEmpty` is not an error to the user: task 09 reads it as nothing to land.
