@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spike 01: the script-less artboard iframe</title>
+<!-- Throwaway (phase 5 task 01). Served by run.mjs; never imported by the package. -->
+<style>
+  body { font: 13px/18px system-ui, sans-serif; margin: 16px; color: #1b1b1b; background: #f4f4f2; }
+  table { border-collapse: collapse; margin-bottom: 16px; font-variant-numeric: tabular-nums; }
+  td, th { padding: 3px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid #ddd; }
+  td.pass { color: #1d6b2f; } td.fail { color: #a3261b; } td.partial { color: #8a5a00; }
+  #stage { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  .cell { position: relative; background: #fff; box-shadow: 0 0 0 1px #d6d6d2; }
+  .cell > .label { position: absolute; top: -16px; left: 0; font-size: 11px; color: #666; }
+  #viewport { outline: none; }
+  #viewport:focus { box-shadow: 0 0 0 2px #2f6fd6; }
+</style>
+<script src="/lib/modern-screenshot/dist/index.js"></script>
+<script src="/lib/html-to-image/dist/html-to-image.js"></script>
+</head>
+<body>
+<h1>Spike 01: the script-less artboard iframe</h1>
+<p id="mode"></p>
+<table id="results"><thead><tr><th>Id</th><th>Outcome</th><th>Evidence</th></tr></thead><tbody></tbody></table>
+<div id="stage">
+  <div class="cell" id="viewport" tabindex="0"><span class="label">A: S1 S3 S4 S5 S7 S10 S11</span></div>
+</div>
+<script>
+"use strict";
+// ---------------------------------------------------------------- setup
+const NEG = new URLSearchParams(location.search).has("negative");
+document.getElementById("mode").textContent = NEG
+  ? "Mode: --negative (no sandbox on S2, no CSP on S6, S4 node moved, S11 rAF-only)"
+  : "Mode: positive";
+const CSP = `default-src 'none'; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'`;
+const checks = [];
+const extras = { negative: NEG, devicePixelRatio: devicePixelRatio, legs: {} };
+function record(id, outcome, evidence) {
+  checks.push({ id, outcome, evidence });
+  const tr = document.createElement("tr");
+  for (const [text, cls] of [[id], [outcome, outcome], [evidence]]) {
+    const td = document.createElement("td");
+    td.textContent = text;
+    if (cls) td.className = cls;
+    tr.appendChild(td);
+  }
+  document.querySelector("#results tbody").appendChild(tr);
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function withTimeout(p, ms, what) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`${what}: timeout ${ms} ms`)), ms))]);
+}
+const px = (v) => Math.round(v * 100) / 100;
+// The artboard document, exactly as task 24 builds it; only the body differs.
+function srcdocFor(body, { csp = true, head = "" } = {}) {
+  const meta = csp ? `<meta http-equiv=Content-Security-Policy content="${CSP}">` : "";
+  return `<!doctype html><html><head><meta charset=utf-8>${meta}` +
+    `<style>html,body{margin:0;padding:0}</style>${head}</head><body>${body}</body></html>`;
+}
+// Mount one artboard iframe; resolves once its srcdoc document has loaded.
+function mountFrame(id, body, { w = 390, h = 844, sandbox = true, csp = true, head = "", into = null, label = "" } = {}) {
+  let cell = into;
+  if (!cell) {
+    cell = document.createElement("div");
+    cell.className = "cell";
+    const l = document.createElement("span");
+    l.className = "label";
+    l.textContent = label || id;
+    cell.appendChild(l);
+    document.getElementById("stage").appendChild(cell);
+  }
+  const f = document.createElement("iframe");
+  f.id = id;
+  if (sandbox) f.setAttribute("sandbox", "allow-same-origin");
+  f.setAttribute("tabindex", "-1");
+  f.setAttribute("style", "pointer-events:none;border:0;display:block");
+  f.setAttribute("width", String(w));
+  f.setAttribute("height", String(h));
+  const loaded = new Promise((r) => f.addEventListener("load", () => r(f), { once: true }));
+  f.setAttribute("srcdoc", srcdocFor(body, { csp, head }));
+  cell.appendChild(f);
+  return loaded;
+}
+// ---------------------------------------------------------------- fixtures (filled after the checks)
+// The expected values below are the tests; the fixture bodies are what they measure.
+const FIX = {
+  A: "",            // S1 S3 S4 S5 S7 S10 S11: a flex row holding n1 (120x40 at 24,24) and a paragraph
+  A_CHILDREN: 2,    // S1: body.childElementCount the fixture must have
+  S2: (sfx) => "",  // S2: script, img onerror, javascript: link; flags suffixed per leg
+  S2_HEAD: "",      // S2: the meta refresh, in the head
+  S6: "",           // S6: an https img and an https background
+  S9: (url) => "",  // S9: one img whose src is the parent's blob: URL
+  FONT_HEAD: (fontUrl) => "",  // S8: the @font-face rule for SpikeFont from a blob: URL
+  S8: (imgUrl) => "",          // S8: font, gradient, shadow, blur, backdrop blur, radius-clipped image
+  BOARD: (cards, img1, img2) => "", // S8 time: an artboard of `cards` cards and two blob: images
+};
+const S8_W = 480, S8_H = 200;
+// ---------------------------------------------------------------- S1 S3 S4: read, measure, hit-test
+let fA, docA, winA, n1;
+async function checkS1S3S4() {
+  fA = await mountFrame("frameA", FIX.A, { into: document.getElementById("viewport") });
+  docA = fA.contentDocument;
+  winA = fA.contentWindow;
+  const count = docA ? docA.body.childElementCount : null;
+  record("S1", docA && count === FIX.A_CHILDREN ? "pass" : "fail",
+    `contentDocument ${docA ? "non-null" : "null"}; body.childElementCount ${count}, fixture has ${FIX.A_CHILDREN}`);
+
+  n1 = docA && docA.getElementById("n1");
+  if (!n1) {
+    record("S3", "fail", "fixture node n1 not found in contentDocument");
+  } else {
+    const r = n1.getBoundingClientRect();
+    const cs = winA.getComputedStyle(n1);
+    const boxOk = [[r.x, 24], [r.y, 24], [r.width, 120], [r.height, 40]].every(([a, b]) => Math.abs(a - b) <= 0.5);
+    const styleOk = cs.display === "flex" && cs.backgroundColor.startsWith("oklch(");
+    record("S3", boxOk && styleOk ? "pass" : "fail",
+      `rect ${px(r.x)},${px(r.y)} ${px(r.width)}x${px(r.height)} (want 24,24 120x40 within 0.5 px); ` +
+      `computed display "${cs.display}", background-color "${cs.backgroundColor}"`);
+  }
+
+  const pe = getComputedStyle(fA).pointerEvents;
+  const hit = docA && docA.elementFromPoint(30, 30);
+  const hitName = hit ? (hit.id ? "#" + hit.id : hit.tagName.toLowerCase()) : "null";
+  record("S4", n1 && hit === n1 && pe === "none" ? "pass" : "fail",
+    `elementFromPoint(30, 30) is ${hitName} (want #n1) while the iframe's pointer-events is "${pe}"`);
+}
+// ---------------------------------------------------------------- S2: nothing inside runs
+async function checkS2() {
+  // S2a is the artboard as task 24 builds it (sandbox + CSP). S2b drops the CSP, so the
+  // sandbox is measured on its own: is it a real line without the CSP behind it?
+  const legs = [];
+  for (const v of [{ id: "S2a", csp: true, sfx: "" }, { id: "S2b", csp: false, sfx: "_nocsp" }]) {
+    const f = await mountFrame("frame" + v.id, FIX.S2(v.sfx), {
+      w: 220, h: 120, sandbox: !NEG, csp: v.csp, head: FIX.S2_HEAD,
+      label: `${v.id}: ${NEG ? "no sandbox" : "sandbox"}, ${v.csp ? "CSP" : "no CSP"}`,
+    });
+    const doc = f.contentDocument;
+    const sel = ["script", "img[onerror]", "a[href^='javascript:']", "meta[http-equiv=refresh]"];
+    const probes = sel.map((s) => !!(doc && doc.querySelector(s)));
+    const a = doc && doc.querySelector("a[href^='javascript:']");
+    if (a) a.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    await sleep(1000);
+    const flags = [1, 2, 3].map((i) => window["__ran" + i + v.sfx]);
+    const unchanged = !!doc && f.contentDocument === doc && !!doc.getElementById("mark");
+    legs.push({ id: v.id, probes, flags, unchanged });
+    extras.legs[v.id] = { probes, flags: flags.map((x) => (x === undefined ? "undefined" : String(x))), unchanged };
+  }
+  const allProbes = legs.every((l) => l.probes.every(Boolean));
+  const quiet = legs.every((l) => l.flags.every((x) => x === undefined) && l.unchanged);
+  const ev = legs.map((l) => `${l.id}: probes ${l.probes.filter(Boolean).length}/4, flags ` +
+    `[${l.flags.map((x) => (x === undefined ? "undefined" : x)).join(", ")}], document ${l.unchanged ? "unchanged" : "CHANGED"}`);
+  record("S2", allProbes && quiet ? "pass" : "fail", (allProbes ? "" : "a probe is missing from the fixture; ") + ev.join("; ") + " after 1 s");
+}
+// ---------------------------------------------------------------- S5: a parent textarea over the paragraph
+function checkS5() {
+  const p = docA && docA.getElementById("para");
+  if (!p) { record("S5", "fail", "fixture paragraph #para not found"); return; }
+  const r = p.getBoundingClientRect();
+  const cs = winA.getComputedStyle(p);
+  const lh = parseFloat(cs.lineHeight);
+  const vp = document.getElementById("viewport");
+  const fr = fA.getBoundingClientRect(), vr = vp.getBoundingClientRect();
+  const ta = document.createElement("textarea");
+  Object.assign(ta.style, {
+    position: "absolute", left: `${fr.left - vr.left + r.left}px`, top: `${fr.top - vr.top + r.top}px`,
+    width: `${r.width}px`, height: "0px", margin: "0", padding: "0", border: "0", boxSizing: "content-box",
+    resize: "none", overflow: "hidden", whiteSpace: "pre-wrap", overflowWrap: "break-word",
+    background: "transparent", fontFamily: cs.fontFamily, fontSize: cs.fontSize, fontWeight: cs.fontWeight,
+    fontStyle: cs.fontStyle, lineHeight: cs.lineHeight, letterSpacing: cs.letterSpacing, wordSpacing: cs.wordSpacing,
+  });
+  ta.value = p.textContent;
+  vp.appendChild(ta);
+  const taLines = Math.round(ta.scrollHeight / lh);
+  const ifLines = Math.round(r.height / lh);
+  const ok = Number.isFinite(lh) && ifLines > 1 && taLines === ifLines;
+  record("S5", ok ? "pass" : "fail",
+    `paragraph ${px(r.width)} px wide wraps to ${ifLines} lines (height ${px(r.height)} / line-height ${lh}); ` +
+    `parent textarea styled from "${cs.fontSize} ${cs.fontFamily}" wraps to ${taLines} (scrollHeight ${ta.scrollHeight})` +
+    (ifLines > 1 ? "" : "; the fixture must wrap onto more than one line"));
+  ta.remove();
+}
+// ---------------------------------------------------------------- S6: the meta CSP holds
+async function checkS6() {
+  const f = await mountFrame("frameS6", FIX.S6, { w: 220, h: 120, csp: !NEG, label: `S6: ${NEG ? "no CSP" : "CSP"}` });
+  const doc = f.contentDocument;
+  const img = doc && doc.getElementById("ext");
+  const bg = doc && doc.getElementById("bg");
+  await sleep(1500);
+  const bgImage = bg ? f.contentWindow.getComputedStyle(bg).backgroundImage : "";
+  const probesOk = !!img && img.src.startsWith("https://example.invalid/") && bgImage.includes("https://example.invalid/");
+  const nw = img ? img.naturalWidth : -1;
+  const seen = typeof window.__netSeen === "function" ? await window.__netSeen("example.invalid") : null;
+  extras.legs.S6 = { naturalWidth: nw, requests: seen };
+  const outcome = !probesOk ? "fail" : seen === null ? "partial" : nw === 0 && seen.length === 0 ? "pass" : "fail";
+  record("S6", outcome, (probesOk ? "" : "a probe is missing from the fixture; ") +
+    `https img naturalWidth ${nw}; requests to example.invalid seen by Playwright: ` +
+    (seen === null ? "not observed (no runner)" : `${seen.length}${seen.length ? " (" + seen.join(", ") + ")" : ""}`));
+}
+// ---------------------------------------------------------------- S7: parent listeners inside the document
+function checkS7() {
+  if (!n1) { record("S7", "fail", "fixture node n1 not found"); return; }
+  let fired = 0;
+  const f = () => { fired += 1; };
+  let a = 0, b = 0, err = "";
+  try {
+    docA.body.addEventListener("click", f);
+    n1.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    a = fired;
+    n1.dispatchEvent(new winA.MouseEvent("click", { bubbles: true }));
+    b = fired - a;
+  } catch (e) { err = String(e); }
+  docA.body.removeEventListener("click", f);
+  extras.s7ListenerFires = a + b > 0;
+  record("S7", err ? "fail" : "pass",
+    `${a + b > 0 ? "FIRES" : "DOES NOT FIRE"}: a parent listener on contentDocument.body ran ${a} time(s) for a parent-realm ` +
+    `MouseEvent and ${b} for an iframe-realm one${err ? "; error " + err : ""} (either answer is acceptable)`);
+}
+// ---------------------------------------------------------------- S9: a parent blob: URL loads inside
+async function makePng(w, h, paint) {
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  paint(c.getContext("2d"), w, h);
+  const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  return URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
+}
+let redPngUrl = "";
+async function checkS9() {
+  redPngUrl = await makePng(60, 60, (x, w, h) => { x.fillStyle = "rgb(220,20,60)"; x.fillRect(0, 0, w, h); });
+  const f = await mountFrame("frameS9", FIX.S9(redPngUrl), { w: 120, h: 80, label: "S9" });
+  const img = f.contentDocument && f.contentDocument.getElementById("blobimg");
+  let t = 0;
+  while (img && !img.complete && t < 2000) { await sleep(50); t += 50; }
+  const nw = img ? img.naturalWidth : -1;
+  record("S9", img && img.src.startsWith("blob:") && nw > 0 ? "pass" : "fail",
+    `${img ? "img src " + img.src.slice(0, 5) + "… (parent-made from a PNG Uint8Array)" : "img #blobimg missing"}; ` +
+    `naturalWidth ${nw} after ${t} ms under the CSP`);
+}
+// ---------------------------------------------------------------- S8: capture libraries and the pixel classifier
+const LIBS = {
+  "modern-screenshot": {
+    ready: () => typeof modernScreenshot === "object",
+    png: (n, o) => modernScreenshot.domToPng(n, { width: o.w, height: o.h, scale: o.scale }),
+    blob: (n, o) => modernScreenshot.domToBlob(n, { width: o.w, height: o.h, scale: o.scale, type: "image/png" }),
+  },
+  "html-to-image": {
+    ready: () => typeof htmlToImage === "object",
+    png: (n, o) => htmlToImage.toPng(n, { width: o.w, height: o.h, pixelRatio: o.scale }),
+    blob: (n, o) => htmlToImage.toBlob(n, { width: o.w, height: o.h, pixelRatio: o.scale }),
+  },
+};
+async function imageDataFrom(src) {
+  const img = new Image();
+  img.src = src;
+  await img.decode();
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  return x.getImageData(0, 0, c.width, c.height);
+}
+// Sample the capture at a CSS point, composited over white.
+function sampler(d, scale) {
+  return (cx, cy) => {
+    const X = Math.min(d.width - 1, Math.floor(cx * scale)), Y = Math.min(d.height - 1, Math.floor(cy * scale));
+    const i = (Y * d.width + X) * 4, a = d.data[i + 3] / 255;
+    const [r, g, b] = [0, 1, 2].map((k) => Math.round(d.data[i + k] * a + 255 * (1 - a)));
+    return { r, g, b, v: (r + g + b) / 3 };
+  };
+}
+// Per feature: rendered, missing or wrong. `m` holds the live widths of the web-font and fallback runs.
+function classify(d, scale, m) {
+  const at = sampler(d, scale), out = {};
+  // web font: where the dark run of "iiiiiiiiii" ends, against the live web-font and fallback widths
+  let maxX = -1;
+  for (let x = 10; x < 10 + Math.max(m.fontW, m.fbW) + 30; x += 0.5)
+    for (let y = 14; y < 46; y += 1) if (at(x, y).v < 128) maxX = Math.max(maxX, x);
+  out.webFont = maxX < 0 ? "missing" : Math.abs(maxX - (10 + m.fontW)) < Math.abs(maxX - (10 + m.fbW)) ? "rendered" : "wrong";
+  out.webFontEndX = maxX;
+  const gl = at(15.5, 75.5), gr = at(124.5, 75.5);
+  out.linearGradient = gl.r > 200 && gl.b < 70 && gr.b > 200 && gr.r < 70 ? "rendered" : gl.v > 245 && gr.v > 245 ? "missing" : "wrong";
+  const sh = at(157.5, 75.5);
+  out.boxShadow = sh.g > 110 && sh.r < 70 && sh.b < 70 ? "rendered" : sh.v > 245 ? "missing" : "wrong";
+  const bo = at(229.5, 75.5), bc = at(245.5, 75.5);
+  // an absent square or an unblurred (sharp) edge is missing; dark beyond the edge is wrong
+  out.filterBlur = bc.v > 80 ? "missing" : bo.v > 30 && bo.v < 235 ? "rendered" : bo.v >= 235 ? "missing" : "wrong";
+  let lo = 255, hi = 0, sum = 0, n = 0;
+  for (let x = 306.5; x < 358; x += 1) { const v = at(x, 90.5).v; lo = Math.min(lo, v); hi = Math.max(hi, v); sum += v; n += 1; }
+  const mean = sum / n;
+  // stripes absent (all white) or still crisp are missing; smoothed to a mid grey is rendered
+  out.backdropFilterBlur = mean > 245 || hi - lo > 180 ? "missing" : hi - lo < 90 && mean > 50 && mean < 210 ? "rendered" : "wrong";
+  const cc = at(420.5, 90.5), cn = at(392.5, 62.5);
+  const red = (p) => p.r > 180 && p.g < 80 && p.b < 110;
+  out.radiusClippedImage = !red(cc) ? "missing" : cn.v > 240 ? "rendered" : "wrong";
+  out.samples = { backdropRange: [Math.round(lo), Math.round(hi)], blurOutside: Math.round(bo.v), corner: Math.round(cn.v) };
+  return out;
+}
+const FEATURES = ["webFont", "linearGradient", "boxShadow", "filterBlur", "backdropFilterBlur", "radiusClippedImage"];
+// ---------------------------------------------------------------- S8: fidelity, capture egress, capture time
+let adopted = "modern-screenshot", s8Measure = null, fontUrl = "";
+const captureMs = [];
+async function loadFontUrl() {
+  try {
+    const res = await fetch("/font/spike.ttf");
+    if (!res.ok) return "";
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    return URL.createObjectURL(new Blob([bytes], { type: "font/ttf" }));
+  } catch { return ""; }
+}
+async function checkS8() {
+  fontUrl = await loadFontUrl();
+  const f = await mountFrame("frameS8", FIX.S8(redPngUrl), { w: S8_W, h: S8_H, head: FIX.FONT_HEAD(fontUrl), label: "S8 fidelity" });
+  const doc = f.contentDocument;
+  try { await doc.fonts.load("32px SpikeFont"); await doc.fonts.ready; } catch {}
+  const ft = doc.getElementById("ft"), fb = doc.getElementById("ffb");
+  // fonts.check() is true for a family no @font-face names, so the face's own status decides,
+  // and the live widths must differ (Consolas "i" is about twice a serif "i").
+  const face = [...doc.fonts].find((x) => x.family.replace(/"/g, "") === "SpikeFont");
+  s8Measure = { fontW: ft ? ft.getBoundingClientRect().width : 0, fbW: fb ? fb.getBoundingClientRect().width : 0,
+    faceStatus: face ? face.status : "no @font-face" };
+  s8Measure.fontLoaded = !!fontUrl && s8Measure.faceStatus === "loaded" && s8Measure.fbW > 0 && s8Measure.fontW / s8Measure.fbW > 1.3;
+  const matrix = {};
+  for (const [name, lib] of Object.entries(LIBS)) {
+    if (!lib.ready()) { matrix[name] = { error: "library not loaded" }; continue; }
+    try {
+      const png = await withTimeout(lib.png(doc.documentElement, { w: S8_W, h: S8_H, scale: 1 }), 20000, name);
+      const d = await imageDataFrom(png);
+      matrix[name] = { ...classify(d, d.width / S8_W, s8Measure), size: `${d.width}x${d.height}` };
+    } catch (e) { matrix[name] = { error: String(e && e.message || e) }; }
+  }
+  extras.s8Matrix = matrix;
+  extras.s8Measure = s8Measure;
+  const missing = (n) => matrix[n].error ? 99 : FEATURES.filter((k) => matrix[n][k] === "missing").length;
+  adopted = missing("html-to-image") < missing("modern-screenshot") ? "html-to-image" : "modern-screenshot";
+  extras.adopted = adopted;
+  await probeCaptureEgress();
+  await timeCaptures();
+  const a = matrix[adopted];
+  const bothFailed = Object.values(matrix).every((m) => m.error);
+  const allRendered = !a.error && FEATURES.every((k) => a[k] === "rendered");
+  const row = (n) => matrix[n].error ? `${n}: ERROR ${matrix[n].error}` : `${n} (${matrix[n].size}): ` + FEATURES.map((k) => `${k} ${matrix[n][k]}`).join(", ");
+  const slow2 = captureMs.filter((r) => r.library === adopted && r.scale === 2).map((r) => r.slowestMs).filter(Number.isFinite);
+  record("S8", bothFailed || !s8Measure.fontLoaded ? "fail" : allRendered ? "pass" : "partial",
+    `${row("modern-screenshot")}; ${row("html-to-image")}; live web font ${s8Measure.fontLoaded ? "loaded" : "NOT loaded"} ` +
+    `(${px(s8Measure.fontW)} px vs fallback ${px(s8Measure.fbW)} px); adopted ${adopted}; its slowest 2x capture ` +
+    `${slow2.length ? Math.max(...slow2) + " ms" : "not measured"}`);
+}
+// Does a parent-side capture fetch what the artboard's own CSP refused? (frame S6 holds https URLs)
+async function probeCaptureEgress() {
+  const f6 = document.getElementById("frameS6");
+  extras.captureEgress = {};
+  if (!f6 || typeof window.__netSeen !== "function") { extras.captureEgress.note = "not observed (no runner or no S6 frame)"; return; }
+  for (const [name, lib] of Object.entries(LIBS)) {
+    if (!lib.ready()) continue;
+    const before = (await window.__netSeen("example.invalid")).length;
+    let err = "";
+    try { await withTimeout(lib.png(f6.contentDocument.documentElement, { w: 220, h: 120, scale: 1 }), 20000, name); }
+    catch (e) { err = String(e && e.message || e); }
+    await sleep(300);
+    const after = await window.__netSeen("example.invalid");
+    extras.captureEgress[name] = { newRequests: after.slice(before), error: err || undefined };
+  }
+}
+// Five captures per library x artboard x scale, each timed from the call to the Blob in hand.
+async function timeCaptures() {
+  const paint = (c1, c2) => (x, w, h) => {
+    const g = x.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, c1); g.addColorStop(1, c2);
+    x.fillStyle = g; x.fillRect(0, 0, w, h);
+  };
+  const img1 = await makePng(320, 200, paint("#2d6a4f", "#f4a261"));
+  const img2 = await makePng(320, 200, paint("#264653", "#e9c46a"));
+  const boards = [
+    { artboard: "1440x900", w: 1440, h: 900, cards: 48 },
+    { artboard: "390x844", w: 390, h: 844, cards: 12 },
+  ];
+  extras.boards = {};
+  for (const b of boards) {
+    const f = await mountFrame("frameT" + b.w, FIX.BOARD(b.cards, img1, img2), {
+      w: b.w, h: b.h, head: FIX.FONT_HEAD(fontUrl), label: `S8 time ${b.artboard}` });
+    b.doc = f.contentDocument;
+    try { await b.doc.fonts.ready; } catch {}
+    for (let t = 0; t < 2000 && [...b.doc.images].some((i) => !i.complete); t += 50) await sleep(50);
+    extras.boards[b.artboard] = { nodes: b.doc.querySelectorAll("*").length, images: b.doc.images.length,
+      imagesLoaded: [...b.doc.images].filter((i) => i.naturalWidth > 0).length };
+  }
+  extras.captureRuns = [];
+  for (const [name, lib] of Object.entries(LIBS)) {
+    for (const b of boards) for (const scale of [1, 2]) {
+      const times = [];
+      let err = lib.ready() ? "" : "library not loaded", dims = "";
+      for (let i = 0; i < 5 && !err; i++) {
+        try {
+          const t0 = performance.now();
+          const blob = await withTimeout(lib.blob(b.doc.documentElement, { w: b.w, h: b.h, scale }), 30000, name);
+          const dt = performance.now() - t0;
+          if (!blob || !blob.size) throw new Error("empty blob");
+          times.push(dt);
+          if (i === 0) { const bm = await createImageBitmap(blob); dims = `${bm.width}x${bm.height}`; bm.close(); }
+        } catch (e) { err = String(e && e.message || e); }
+      }
+      const s = [...times].sort((p, q) => p - q), full = s.length === 5;
+      captureMs.push({ library: name, artboard: b.artboard, scale,
+        medianMs: full ? Math.round(s[2]) : null, slowestMs: full ? Math.round(s[4]) : null });
+      extras.captureRuns.push({ library: name, artboard: b.artboard, scale, runsMs: times.map(Math.round), dims, error: err || undefined });
+    }
+  }
+}
+// ---------------------------------------------------------------- S10: keys stay in the parent
+const keyLog = [];
+document.addEventListener("keydown", (e) => {
+  const name = (el) => (el ? el.id || el.tagName.toLowerCase() : "null");
+  keyLog.push({ key: e.key, target: name(e.target), active: name(document.activeElement) });
+}, true);
+function armS10() {
+  return new Promise((resolve) => {
+    window.__s10Finish = () => { resolve(); return true; };
+    window.__s10Armed = true;
+  });
+}
+function checkS10() {
+  const vp = document.getElementById("viewport");
+  const act = document.activeElement;
+  const actName = act ? act.id || act.tagName.toLowerCase() : "null";
+  const k = keyLog.find((x) => x.key === "k");
+  const inner = docA ? docA.hasFocus() : null;
+  const ok = act === vp && !!k && k.target === "viewport" && inner === false;
+  extras.keyLog = keyLog;
+  record("S10", ok ? "pass" : "fail",
+    `after a real click on the iframe's area the parent's activeElement is ${actName} (want viewport); key "k" ` +
+    `${k ? "reached the parent's keydown with target " + k.target : "never reached the parent"}; contentDocument.hasFocus() ${inner}`);
+}
+// ---------------------------------------------------------------- S11: a render request while minimised
+// The page's copy of task 24's schedulePatch rule: rAF while visible, queueMicrotask while hidden,
+// and a turn to hidden flushes a stranded rAF. No timer. --negative forces rAF only.
+let pending = [], rafId = 0;
+function flushPatches() {
+  if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+  const p = pending;
+  pending = [];
+  for (const fn of p) fn();
+}
+function schedulePatch(fn) {
+  pending.push(fn);
+  if (NEG || document.visibilityState === "visible") {
+    if (!rafId) rafId = requestAnimationFrame(() => { rafId = 0; flushPatches(); });
+  } else {
+    queueMicrotask(flushPatches);
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (!NEG && document.visibilityState === "hidden" && pending.length) flushPatches();
+});
+// Resolves on the first visibilitychange to "hidden" (at once if hidden already), or after a bounded 5 s.
+window.__armHidden = () => new Promise((resolve) => {
+  const t0 = performance.now();
+  if (document.visibilityState === "hidden") { resolve({ hidden: true, waitMs: 0 }); return; }
+  let timer = 0;
+  const on = () => {
+    if (document.visibilityState !== "hidden") return;
+    document.removeEventListener("visibilitychange", on);
+    clearTimeout(timer);
+    resolve({ hidden: true, waitMs: Math.round(performance.now() - t0) });
+  };
+  document.addEventListener("visibilitychange", on);
+  timer = setTimeout(() => { document.removeEventListener("visibilitychange", on); resolve({ hidden: false, waitMs: 5000 }); }, 5000);
+});
+let s11Answer = null;
+// The spike's stand-in for task 13's render request: patch n1's width, measure, capture.
+window.__renderRequest = async (w) => {
+  const t0 = performance.now();
+  const visibilityState = document.visibilityState;
+  if (!n1) return (s11Answer = { visibilityState, rafFiredWithin2s: false, width: null, captured: false, hiddenCaptureMs: null, error: "n1 missing" });
+  let rafAt = null;
+  requestAnimationFrame(() => { rafAt = performance.now() - t0; });
+  schedulePatch(() => { n1.style.width = `${w}px`; });
+  if (NEG) await Promise.race([new Promise((r) => requestAnimationFrame(r)), sleep(2000)]); // waits a frame, never flushes
+  else flushPatches(); // the responder's sync() before it measures (task 24)
+  const width = px(n1.getBoundingClientRect().width);
+  let captured = false, hiddenCaptureMs = null, captureError = "";
+  const c0 = performance.now();
+  try {
+    const b = await withTimeout(LIBS[adopted].blob(docA.documentElement, { w: 390, h: 844, scale: 2 }), 10000, adopted);
+    captured = !!b && b.size > 0;
+    hiddenCaptureMs = captured ? Math.round(performance.now() - c0) : null;
+  } catch (e) { captureError = String(e && e.message || e); }
+  const left = 2000 - (performance.now() - t0);
+  if (left > 0 && rafAt === null) await sleep(left);
+  s11Answer = { visibilityState, rafFiredWithin2s: rafAt !== null && rafAt <= 2000, width, captured, hiddenCaptureMs,
+    rafAtMs: rafAt === null ? null : Math.round(rafAt), captureError: captureError || undefined,
+    visibilityAtAnswer: document.visibilityState, totalMs: Math.round(performance.now() - t0) };
+  return s11Answer;
+};
+// The runner's half of S11 (armed wait, window state, command line), then the result object.
+window.__finishS11 = (runner) => {
+  const a = s11Answer || { visibilityState: "unknown", rafFiredWithin2s: false, width: null, captured: false, hiddenCaptureMs: null };
+  const minimised = runner.windowState === "minimized";
+  const ok = a.width !== null && Math.abs(a.width - 160) <= 0.5 && a.captured;
+  record("S11", !minimised ? "partial" : ok ? "pass" : "fail",
+    `window ${runner.windowState}; armed wait ${runner.hidden ? "saw hidden" : "timed out visible"} after ${runner.waitMs} ms; ` +
+    `visibilityState "${a.visibilityState}", width ${a.width} (want 160), rAF probe ${a.rafFiredWithin2s ? "fired" : "did not fire"} within 2 s, ` +
+    `${adopted} capture ${a.captured ? "resolved in " + a.hiddenCaptureMs + " ms" : "did not resolve within 10 s" + (a.captureError ? " (" + a.captureError + ")" : "")}`);
+  extras.s11 = { ...a, hidden: runner.hidden, windowState: runner.windowState };
+  const order = (c) => Number(c.id.slice(1)) || 99;
+  window.__spike = {
+    userAgent: navigator.userAgent,
+    checks: [...checks].sort((p, q) => order(p) - order(q)),
+    captureMs,
+    s11: { visibilityState: a.visibilityState, rafFiredWithin2s: a.rafFiredWithin2s, width: a.width, captured: a.captured,
+      hiddenCaptureMs: a.hiddenCaptureMs, waitMs: runner.waitMs, commandLine: runner.commandLine },
+    extras,
+  };
+  return true;
+};
+window.__classifyNative = async (b64) => {
+  const d = await imageDataFrom("data:image/png;base64," + b64);
+  extras.s8Native = { ...classify(d, d.width / S8_W, s8Measure), size: `${d.width}x${d.height}` };
+  return extras.s8Native;
+};
+// ---------------------------------------------------------------- main: S1-S10 settle, then the runner drives S11
+async function main() {
+  await checkS1S3S4();
+  await checkS2();
+  checkS5();
+  await checkS6();
+  checkS7();
+  await checkS9();
+  await checkS8();
+  await Promise.race([armS10(), sleep(120000)]);
+  checkS10();
+  window.__spikeReady = true;
+}
+main().catch((e) => {
+  window.__spikeError = String(e && e.stack || e);
+  record("ERR", "fail", window.__spikeError);
+  window.__spikeReady = true;
+});
+</script>
+</body>
+</html>
