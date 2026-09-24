@@ -44,7 +44,7 @@ UNVERIFIED here.
    evidence at the landed commit, not when a PR merges. Linear moves an issue to Done on merge.
 5. **Object model** (§3): `issue is-` (mutable head, immutable digested revision), `feature ft-`
    (Linear's "project"; our `project` is the product), `cycle cy-`, `initiative in-`, `view vw-`,
-   `comment ic-`, `intake it-`, plus team mode's `task tk-`. All live in the Hub. Live activity
+   `comment ic-`, `request rq-`, plus team mode's `task tk-`. All live in the Hub. Live activity
    stays Fleet state and is derived onto the issue, never stored on it.
 6. **One app, not two** (§4). Work is a seventh lens, not a separate product. The Desk absorbs
    Linear's Inbox, My Issues and triage-for-me. The palette gains the key grammar. The thread is
@@ -118,7 +118,7 @@ phase already delivers it. `TM` names team mode's own delivery (TM-05 §12).
 | 28 | Different defaults for members and non-members | MATCH | Intake form default versus team default | W5 |
 | 29 | Create from anywhere (`C`, selection) | EXCEED | `C` in any list, never in a terminal (02 keyboard rule); palette everywhere. **Create from a transcript span or a diff hunk**: the issue carries the span link (AX §8.2) | W1 |
 | 30 | `linear.new` prefill URL | MATCH | `panacea://issue/new?title=…&project=EP` deep link, plus a web form on the Hub | W2 |
-| 31 | Email intake per team or template | MATCH | Intake `it-` by email address per team | W5 |
+| 31 | Email intake per team or template | MATCH | An intake request `rq-` by email address per team (§3.5) | W5 |
 | 32 | Recurring issues | MATCH | A schedule on a template; created by the janitor with `actor: null` and the schedule's author on the event | W4 |
 | 33 | Drafts kept six months | MATCH | Drafts held **in the Hub** as private records, because no client persists Hub text to disk (ADR-H1:467-474) | W2 |
 | 34 | Description autosave, history, restore | EXCEED | Every text change is an **immutable, digested revision** `issue:is-…@r`; restore writes a new revision. An agent's context names the exact revision it read (04 §2.4) | W1 |
@@ -262,7 +262,7 @@ We keep **intake** (requests from people outside the team) and skip the CRM.
 | L | Linear item (short) | Verdict | How, or why not | Slice |
 |---|---|---|---|---|
 | 131 | Customer object with revenue and tier | SKIP | CRM data. "Who is it for" is already the brief's `audience` answer, and revenue data does not belong in a delivery tool's classification | — |
-| 132 | Requests with the source quote, linked | EXCEED | Intake `it-` keeps the requester and the verbatim quote, linked to issues **and to the brief criterion** the ask became (§3.5) | W5 |
+| 132 | Requests with the source quote, linked | EXCEED | An intake request `rq-` keeps the requester and the verbatim quote, linked to issues **and to the brief criterion** the ask became (§3.5) | W5 |
 | 133 | Mark a request important | MATCH | A flag on the intake record | W5 |
 | 134 | Customer pages | SKIP | Goes with L-131 | — |
 | 135 | Prioritise by count, tier, revenue | SKIP | Revenue and tier go with L-131. An issue lists its requesters by name instead | — |
@@ -619,4 +619,68 @@ No rival has more than two of the five parts of the whole line: brief, design, p
 cross-person negotiation, and release on one thread (03 §12.5). **The combination is the product.**
 
 ---
+
+## 3. The object model, and where each object lives
+
+This section adopts 04's recommendation unchanged (04 §2, §3) and adds the records the parity
+matrix needs beyond it: request, template, label, milestone, loop and draft.
+
+### 3.1 The placement rule
+
+TM-05's rule decides every row: *if losing it would lose a decision or an accountability fact, it
+is a Hub record; if it is a fact about now, it is Fleet state* (TM-05 §3.2). A third home exists
+for preferences only: the desktop, which may keep **no Hub data on disk** (ADR-H1:467-474).
+
+```
+org ─ team ─┬─ project pj- (the product and its repos) ─┬─ project brief ─ criteria c-
+            │                                           ├─ feature ft- ─ branch brief bf- ─ criteria c-
+            │                                           │    ├─ milestone ml- (a named subset of criteria)
+            │                                           │    └─ issue is- ─ issue (child) ─ task tk- (agent)
+            │                                           ├─ issue is- with no feature (backlog, triage, fixes)
+            │                                           └─ request rq- ─► becomes or joins an issue
+            ├─ cycle cy-       ◄── an issue points at one cycle, across the team's projects
+            ├─ initiative in-  ◄── a feature points at one initiative
+            └─ labels lb-, templates tp-, views vw-, loops lp-
+```
+
+### 3.2 The records
+
+| Record | Id | Home | Shape | New or from |
+|---|---|---|---|---|
+| issue head | `is-` | Hub | mutable: state, assignee (a person), priority, estimate, labels, parent, feature, cycle, due date, relations, rank, `source` | 04 §2.4 |
+| issue revision | `issue:is-…@r` | Hub | **immutable, digested**: title, description, `serves [{briefKey, criterionId}]`, `implements [design:…]`, each text with its author class | 04 §2.4, §5.5 |
+| comment | `ic-` | Hub | append-only; `text·H` or `text·A`; kinds `note`, `evidence_proposal`, `negotiation`; an optional anchor (text range, criterion, span, hunk) | 04 §2.2, extended |
+| feature | `ft-` | Hub | lead, target date, state, initiative, `branchRef`, `briefId`; the spec **is** the branch brief | 04 §2.5 |
+| milestone | `ml-` | Hub | name, date, a list of criterion ids on the feature's brief | 04 §2.5 (named "later") |
+| cycle | `cy-` | Hub | per team: number, start, end, state; the janitor rolls it over | 04 §2.5 |
+| initiative | `in-` | Hub | per team in v1: owner, target, state, updates | 04 §2.5 |
+| status update | `nt-`, `kind: update` | Hub | immutable; health word; `text·H`; **pins the brief revision** it reports on | TM-05's `note`, reused |
+| request | `rq-` | Hub | requester (a person or an email address), verbatim quote, channel, linked issue | **new** (§3.5) |
+| label | `lb-` | Hub | team-owned; optional group with `exclusive` | **new** |
+| template | `tp-` | Hub | issue or brief template; may pre-fill `serves`; optional schedule (recurring issues) | **new** |
+| view | `vw-` | Hub if shared; desktop if personal | a filter and a layout | 04 §2.2 |
+| loop | `lp-` | Hub | trigger (event or schedule), the owner, its autonomy bound, versions, run log | **new** (L-160) |
+| draft | `df-` | Hub, private to its author | unsent issue or comment text; expires after 6 months | **new** (L-33) |
+| agent task | `tk-` | Hub (Fleet writes it) | team mode's task, which **gains `issueId`** | TM-05 §3.3 |
+| who is on an issue now: lanes, files, leases, the live line | — | **Fleet state**, derived | never stored on the issue | 04 §2.2 |
+
+### 3.3 The issue's states, and "done means proven"
+
+| State | Set by | The fact behind it |
+|---|---|---|
+| `triage` | intake, an Orchestrator's proposal, a person outside the team | nobody has accepted it |
+| `backlog`, `todo` | a person | accepted, not started |
+| `started` | **a fact**, written as the person who caused it | a lane or task was bound to it |
+| `in_review` | **a fact** | a bound lane was marked ready or entered the merge queue |
+| `landed` | **a fact**, written as the lander | a land commit carries its `Panacea-Issue` trailer |
+| `done` | a person, **or** automatically at landing | every criterion in `serves` is `settled` at that commit |
+| `cancelled`, `duplicate` | a person | closed without work |
+
+**The rule.** An issue with a non-empty `serves` moves to `done` by itself only when phase 3's
+evaluator finds every served criterion settled by recorded evidence at a commit containing the
+issue's landed work (04 §5.3). An issue with an empty `serves` (a small fix) stops at `landed` and a
+person closes it. *Shipped* is never a state; it is derived from the release manifest (04 §5.4).
+
+These nine are **issue** states. `AGENTIC-UX.md` anti-pattern 4's closed set of seven is the
+**agent** status set; the two never share a column, an icon family or a colour (§4.4).
 
