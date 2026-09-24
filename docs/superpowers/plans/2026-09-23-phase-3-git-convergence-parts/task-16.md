@@ -14,8 +14,8 @@ survey §8.3), or says why it cannot: uncommitted, or no session recorded. Task 
 - `control-plane/internal/changes/diff.go` + test — `PathDiff`, `LaneDiff`, `Hunk`, `Line`, `BackLink`, `Diff` (new)
 - `control-plane/internal/changes/blame.go` + test — tier 1 (new)
 - `control-plane/internal/changes/parse.go` + test — unified-diff and `blame --porcelain` parsers (new)
-- `control-plane/internal/changes/untracked.go` + test — `readUntracked`, `MaxUntrackedBytes`, `openForRead` (new); `finalpath_windows.go` / `finalpath_other.go` — the opened handle's final path (new; review Minor 9)
-- `control-plane/go.mod` — `golang.org/x/sys` moves from indirect to direct (same v0.24.0)
+- `control-plane/internal/changes/untracked.go` + test — `readUntracked`, `MaxUntrackedBytes`, `openForRead` (new); `finalpath_windows.go` / `finalpath_linux.go` / `finalpath_other.go` — `openForRead`'s default and the opened handle's final path, per OS (new; review Minor 9, re-review b11-1 issue 4)
+- `control-plane/go.mod` — `golang.org/x/sys` moves from indirect to direct (same v0.24.0; `go.sum` unchanged, the plan's one exception to "no Go module dependency", `2026-09-23-phase-3-git-convergence.md` §Global constraints)
 - `control-plane/internal/api/changes.go` + test — the two GETs (new)
 - `control-plane/internal/api/gitdeps.go`, `gitroutes.go`, `routes_audit_test.go` — `// ── task 16 ──`
 
@@ -120,8 +120,13 @@ type LaneDiff struct {
 	Committed   []Hunk `json:"committed"`   // base..lane
 	Uncommitted []Hunk `json:"uncommitted"` // the clone's working tree against its HEAD; Back.Tier 0, Reason "uncommitted"
 	Binary      bool   `json:"binary"`
-	Truncated   bool   `json:"truncated"` // more than MaxDiffLines across both lists, or an untracked file past MaxUntrackedBytes
-	ReadError   string `json:"readError"`
+	Truncated   bool   `json:"truncated"` // more than MaxDiffLines across both lists; this cause only
+	// UntrackedCut: the untracked file was past MaxUntrackedBytes, so its lines stop at the last
+	// whole line inside the cap (none, when the cap holds no line break). A second bool, not a
+	// second meaning for Truncated, so the lens can say which cap it hit, and both can be true
+	// (re-review b11-1 issue 2).
+	UntrackedCut bool  `json:"untrackedCut"`
+	ReadError   string `json:"readError"` // git's sentence, or readUntracked's refusal (below)
 }
 
 // PathDiff is GET …/changes/diff's body.
@@ -166,22 +171,37 @@ const MaxUntrackedBytes = 1 << 20
 //      regular file, by task-03 CopyGeneratedHooks' rule (no symlink, no junction or other
 //      reparse point; under `go 1.23` a junction reports ModeIrregular and not IsDir, a
 //      symlink ModeSymlink: probe scratchpad/p3/b11-go.out, Go 1.26.2 toolchain).
-//   2. open through the unexported seam openForRead (default os.Open); f.Stat() must be a
-//      regular file.
+//   2. open through the unexported seam openForRead, whose default is per OS, in the
+//      build-tagged finalpath files; the opened file must be a regular file:
+//      - Windows (finalpath_windows.go): os.Open, then f.Stat(). A FIFO or device the sandbox
+//        makes lands as an `irregular` reparse point Windows cannot open (re-review b11-1,
+//        rr-b11-go-run.out).
+//      - Linux (finalpath_linux.go): unix.Open(O_PATH|O_NOFOLLOW|O_CLOEXEC), which opens no FIFO,
+//        device or link target; unix.Fstat must say S_IFREG; then reopen /proc/self/fd/<n>
+//        O_RDONLY|O_NONBLOCK, and its dev and inode must equal the checked one. A plain os.Open
+//        would block on a FIFO swapped in after step 1, and no context can cancel open(2)
+//        (re-review b11-1 issue 4). Probed (scratchpad/p3/b11r2-fifo-run.out, alpine:3.20 on
+//        Docker Desktop's kernel, x/sys v0.24.0): os.Open on a FIFO blocked past 2 s; this path
+//        refused the FIFO, a symlink and a char device at once, and read a regular file.
+//      - any other OS (finalpath_other.go, !windows && !linux): no open. The lane gets
+//        ReadError "reading an untracked file is not supported on this host", fail-closed,
+//        until a probed open exists there.
 //   3. the opened handle's final path must lie under cloneTop's final path, both read the same
 //      way (Windows: GetFinalPathNameByHandle, golang.org/x/sys/windows, already in go.mod as
-//      indirect v0.24.0; elsewhere: readlink of /proc/self/fd/<n>), compared case-insensitively
-//      on Windows with a separator after the prefix. Step 3, not step 1, is what defeats a parent
+//      indirect v0.24.0; Linux: readlink of /proc/self/fd/<n> on the O_PATH fd), compared
+//      case-insensitively on Windows with a separator after the prefix. Step 3, not step 1, is what defeats a parent
 //      folder swapped for a junction between the check and the open. os.SameFile cannot: on
 //      Windows it loads an Lstat's file id lazily, by path, at compare time (GOROOT
 //      src/os/types_windows.go loadFileId), so it compares the swapped-in target with itself.
 //      Probed (b11-go.out): Lstat p/f, p swapped for a junction to an outside folder, open p/f
 //      → the outside file's bytes, and SameFile(Lstat, f.Stat()) = true.
 //   4. read through io.LimitReader(f, MaxUntrackedBytes+1), so a 2 GB untracked file costs
-//      1 MiB, never the whole file. Past the cap → Truncated, the text cut at its last whole line.
+//      1 MiB, never the whole file. Past the cap → cut (LaneDiff.UntrackedCut, not Truncated), the
+//      text ending at its last whole line inside the cap. A cap with no line break in it (a
+//      one-line minified bundle) → no hunk and cut, never a 1 MiB partial line.
 // A refusal at 1 to 3 → no hunk, LaneDiff.ReadError "<path> is a link or not a regular file in
 // this worktree; not read". Nothing is ever read outside the clone.
-func readUntracked(cloneTop, path string) (lines []Line, binary, truncated bool, err error)
+func readUntracked(cloneTop, path string) (lines []Line, binary, cut bool, err error)
 ```
 
 ```go
@@ -205,7 +225,7 @@ GET /v1/projects/{projectId}/branches/{branchId}/changes/diff?path=src%2Fupload%
 ```json
 { "path": "src/upload/handler.ts",
   "lanes": [
-    { "worktreeId": "w-api", "name": "upload-api", "binary": false, "truncated": false, "readError": "",
+    { "worktreeId": "w-api", "name": "upload-api", "binary": false, "truncated": false, "untrackedCut": false, "readError": "",
       "committed": [
         { "oldStart": 12, "oldLines": 3, "newStart": 12, "newLines": 5, "header": "export async function receiveChunk(req: ChunkRequest) {",
           "lines": [ { "kind": " ", "text": "export async function receiveChunk(req: ChunkRequest) {" },
@@ -242,9 +262,11 @@ files a worktree changed. merge-tree writes only content-addressed objects reach
 | `TestDiffUntrackedFile` | a new untracked file → one all-added hunk; a file with a NUL byte → `Binary` | untracked files missing from Files |
 | `TestDiffUntrackedRefusesALink` (review Minor 9) | `Diff` given a LaneObservation that names each path below as untracked (so git's own listing is not what refuses it); in the clone, `s.txt` a symlink to a file outside the clone, and `j/f.txt` under `j` a junction (`mklink /J`) to an outside folder → each `ReadError` names the path, no hunk, and no byte of either outside file is in the body; `t.txt` a regular file → read | an untracked file read by name, following a link the agent made |
 | `TestDiffUntrackedChecksTheOpenedFile` (review Minor 9) | through the seam `openForRead`: a hook that, after step 1's Lstat walk, renames `d` aside and makes `d` a junction to an outside folder holding `f.txt`, then opens → `ReadError`, no outside byte. Red first with step 3 removed and step 2 checked by `os.SameFile` instead (it passes on Windows: `b11-go.out`) | a check on the name the agent swaps between check and open |
-| `TestDiffUntrackedCapsTheRead` (review Minor 9) | a 3 MiB untracked text file, read through `openForRead` wrapped in a counting reader → at most `MaxUntrackedBytes+1` bytes read, `Truncated`, the last line whole | the whole file read, then cut |
+| `TestOpenForReadRefusesAFIFOWithoutBlocking` (re-review b11-1 issue 4; `//go:build linux`) | the default `openForRead`, not the seam, on a FIFO with no writer, a symlink and a regular file in `t.TempDir()`, each under a 2 s deadline → the FIFO and the link refused (not regular), the regular file read. Red first with the default set to `os.Open`: the FIFO call passes the deadline. **Skipped on this Windows host**; it runs in a Linux CI job or container, as `b11r2-fifo-run.out` did | an open that hangs the GET on a FIFO the agent swaps in |
+| `TestUntrackedFailsClosedElsewhere` (`//go:build !windows && !linux`) | `readUntracked` → the "not supported on this host" `ReadError`, no hunk | an unprobed open on an OS nobody tested |
+| `TestDiffUntrackedCapsTheRead` (review Minor 9) | a 3 MiB untracked text file, read through `openForRead` wrapped in a counting reader → at most `MaxUntrackedBytes+1` bytes read, `UntrackedCut` true and `Truncated` false, the last line whole; then a 3 MiB file with no line break → no hunk, `UntrackedCut` true | the whole file read, then cut; or a byte cap reported as the 2000-line cap |
 | `TestDiffRunsNoTextconv` (review Minor 9) | a test system file holding `diff.x.textconv=<marker script>`, the lane's `.gitattributes` holding `*.txt diff=x`, a committed and an uncommitted edit to `a.txt` → `Diff` returns both, blame included, and no marker exists. Red first without the flag on each of the three calls | a host-defined textconv driver the agent's attributes name, run on the host |
-| `TestDiffTruncates` | 3000 changed lines → 2000 and `Truncated` | an unbounded response |
+| `TestDiffTruncates` | 3000 changed lines → 2000 and `Truncated`, `UntrackedCut` false | an unbounded response |
 | `TestDiffRefusesAPathNoWorktreeChanges` | `path=../../etc/hosts`, an absolute path, a backslash → 400; a real unchanged file → 400 with the "No worktree … changes that path" message | the route reading any file |
 | `TestChangesGETsAreReadOnly` | the §10a audit passes; `for-each-ref` of the project unchanged | a GET that writes |
 
@@ -277,4 +299,5 @@ go test ./control-plane/internal/changes/ ./control-plane/internal/api/ -race -c
   call carries a no-filter env belongs to task-02 §HGH, which R2 keeps in one place; it is raised
   to the orchestrator and is not changed here. This machine's system and global configs define no
   `filter.*` (task-03's LFS note).
-- An untracked file past `MaxUntrackedBytes` shows its first 1 MiB of lines, marked `Truncated`.
+- An untracked file past `MaxUntrackedBytes` shows its whole lines inside the first 1 MiB (none,
+  when that 1 MiB holds no line break), marked `UntrackedCut`.

@@ -291,7 +291,13 @@ still binds. Restated where phase 3 leans on it, and added where phase 3 is the 
   agent runs goes through `~/.claude/tools/claudezsh/claudezsh`.
 - **The `go` directive stays `go 1.23`** in `go.work` and both modules. Phase 3 adds **no Go
   module dependency**: HTTP clients are `net/http`, JSON is `encoding/json`, and git is a
-  subprocess. `git diff` on the `go.mod` files before every commit.
+  subprocess. `git diff` on the `go.mod` files before every commit. **One exception, and it adds
+  no module:** task 16 moves `golang.org/x/sys` in `control-plane/go.mod:54` from `// indirect` to
+  a direct require, at the same v0.24.0, for its per-OS open and final-path checks (`windows`,
+  `unix`). `go.sum` does not change: `:145-146` already hold both v0.24.0 hashes. In task 16's
+  commit, the `go.mod` diff is that one line losing `// indirect` (and moving to the direct block,
+  if `go mod tidy` moves it), and `git diff -- control-plane/go.sum` is empty. Any other `go.mod`
+  or `go.sum` change, in any task, stops the task.
 - **Commit trailer**, exactly: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
   Commit by pathspec (`git commit -F <file> -- <paths>`); never `add -A`, stash, reset, checkout,
   rebase, amend or push.
