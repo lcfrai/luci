@@ -277,7 +277,8 @@ two bundle moves. Host git in this half runs only in the **project** or under
 - `control-plane/internal/lanegit/pool.go` — `Lanes`, `For`, the runner-only sandbox (new)
 - `control-plane/internal/lanegit/bundle.go` — `FetchLane`, `SendBranch`, `BundleRefused` (new)
 - `control-plane/internal/lanegit/lanegittest/fake.go` — `Fake`, a test-only `Runner` (new)
-- `control-plane/internal/lanegit/*_test.go` — the tests below (new)
+- `control-plane/internal/lanegit/*_test.go` — the tests below, and `behaviour_test.go`, the
+  pins (new)
 - `control-plane/internal/backend/backend.go` (p2) — `GitPath = "/git/v1/"` in the const block
   at `backend.go:40-45`, beside `AttachPath` (`:42`) and `HealthPath` (`:43`)
 - `control-plane/internal/reaper/reaper.go` (p2) — `Config` (`reaper.go:120`) gains `Held`; see
@@ -490,3 +491,60 @@ runner):
 | `TestPoolStartsOneRunnerForASessionlessLane` | a fake `Backend`: two concurrent `For` on a lane with no session → one `Create`, with `Command "sleep"`, `Args ["infinity"]`, one mount of `lane.Path` at `/home/dev/work`, a 64-hex token; `Held.Has` true; after both releases and `Idle`, one `Destroy` and `Has` false; a lane `ByID` lacks → error, no `Create` | a pool that starts a sandbox per call, or never destroys it |
 | `TestPoolUsesTheLiveSession` | a registry `Session` on the lane with `SandboxID`, `Endpoint`, `AttachToken` → no `Create`; the runner's requests carry that token to that endpoint | a pool that ignores the running session |
 | `TestWireMatchesTheGoldens` | the fixtures paragraph above | a field renamed on the host side only |
+
+"A corrupt blob caught by fsck" is built as a commit whose author has no email (fsck's
+`missingEmail`, an error), carried in a hand-made bundle. Fsck never reads a blob's bytes (bar
+`.gitmodules`), and a blob whose bytes do not match its id fails `index-pack` with fsck off, so
+it would not show that fsck is on.
+
+**The spy test** (`cmd/api/lanegit_spy_test.go`, over the `api.Deps` that `serve` builds at
+`main.go:132`, with `gitxtest.Spy` from U3 as `gitx.Exec`'s process seam and
+`lanegittest.Fake` as every lane's runner):
+
+| Test | Asserts | Red against |
+|---|---|---|
+| `TestHostNeverRunsGitInALane` | the spy records the argv, `Dir` and env of every process `gitx.Exec` starts through create, sweep, observe, land, refresh, undo, remove and diff. For each, none of: `Dir`; the value after `-C`, `--git-dir`, `--work-tree` (either spelling, `=` or next arg); `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`; nor any other argv element, is a path under `CloneRoot` (`cfg.WorktreesDir`, cleaned, compared with `filepath.Rel`, case-folded on Windows). The one exception: `lanes.Create`'s `Call.NewLane` calls (U3) before its `Store.Add` | task 07's pre-R4 step 1, host `rev-parse --verify --quiet refs/heads/<branch>` in the clone (`task-07.md:117`), planted as a flow; and a `fetch <lane path>` from the project, which runs upload-pack in the lane |
+
+The argv rule is wider than the four flags because a local `fetch <path>` reads the lane's `.git`
+through upload-pack, which R4.4 retires. Task 24 lands the harness, the `create` row and the two
+planted mutants. The task that builds each other flow (07 sweep and observe, 09 land and
+refresh, 10 undo, remove, 16 diff) appends its row, and that row is in its acceptance.
+
+#### Behaviour pins (task 01's style, `control-plane/internal/lanegit/behaviour_test.go`)
+
+Real host git, no `gitx`. Each records git's exact words in a comment, as task 01 does.
+1. `bundle create <file> <ref> --not <ref's own sha>` exits 128 and writes no file; its sentence
+   is recorded. `SendBranch` and the runner decide emptiness first and never rely on it.
+2. `bundle verify <file>` in a repository lacking a prerequisite exits non-zero; its sentence
+   is recorded.
+3. `fetch --no-auto-maintenance --no-write-fetch-head <file> <refspec>` with `GIT_TRACE=1`: the
+   trace names no `upload-pack` and no `maintenance` or `gc`.
+4. The same fetch with `transfer.fsckObjects=true` from `Call.Env`'s `GIT_CONFIG_*` refuses the
+   `missingEmail` bundle, and without it takes it. Not run here. If it fails at `MinVersion`
+   (2.40, `task-02.md:192`), task 02's `MinVersion` rises to the first release it passes on;
+   `FetchLane` does not work around it.
+
+#### Steps
+
+- [ ] **Step 1: Preflight.** Tasks 02 and 04 merged: `gitx.Exec`, `gitxtest` with U3's `Spy`,
+  `lanes.Store`, `api.GitDeps`, task 04's `main.go` block. `git --version` ≥ 2.40.
+- [ ] **Step 2: Pins.** Write `behaviour_test.go`; run; paste git's sentences into its comments.
+- [ ] **Step 3: sandboxd, red.** The runner's tests; each fails for its named reason.
+- [ ] **Step 4: sandboxd, green.** `limits.go`, `wire.go`, `ops.go`, `runner.go`; `server.go`'s
+  route and `s.git`; `main.go`'s flag and `newServer`. `go test ./sandboxd/... -race` in WSL or
+  CI (the package is `linux || darwin`).
+- [ ] **Step 5: lanegit, red.** The host's tests and the fixtures test.
+- [ ] **Step 6: lanegit, green.** `wire.go`, `client.go`, `pool.go`, `bundle.go`,
+  `lanegittest`; `backend.GitPath`; `reaper.Config.Held` and `reaperConfigFor`; the `main.go`
+  block. `go test ./control-plane/... -race`.
+- [ ] **Step 7: The spy test, last.** Red with each planted mutant, green without.
+- [ ] **Step 8: Commit by pathspec**, the files listed in both halves.
+
+#### What this task does not claim
+
+- **The Kata runner.** On katabe a sessionless lane is `ErrNoRunner`. Phase 8's `machined`
+  serves the runner in the machine pod (P8-D7).
+- **That a runner's answer is true.** `status`, `refs` and `diff` are the agent's claim about
+  its own lane (the trust note). Only a bundle the host verified moves a host ref.
+- **That the runner protects the host.** Its validation protects the lane and the runner.
+- **That the Docker pin runs in CI.** It runs by hand, behind its build tag.
