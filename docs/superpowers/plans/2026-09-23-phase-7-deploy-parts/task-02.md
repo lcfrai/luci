@@ -177,9 +177,14 @@ says**, takes `error`, falls back to `message`, trims to 500 bytes on a rune bou
 #### Acceptance
 
 ```
-go test ./control-plane/internal/deploy/panacea/ -race -count=1 -run 'Origin|Bearer|Token|Status|Retried|RetryAfter|Redirect|CAFile|Proxy|Timeout|Version|NotConnected|FiveHundred'
+go test ./control-plane/internal/deploy/panacea/ -race -count=1 -run 'Origin|Bearer|Token|Status|Retried|RetryAfter|Redirect|CAFile|Proxy|Timeout|Version|NotConnected|FiveHundred|Payment'
 → ok
+```
 
+*As built (t02):* `Payment` was added to the pattern. Without it the pattern skipped
+`TestPaymentRequiredIsConflict`, one of the tests this part names.
+
+```
 go vet ./control-plane/internal/deploy/panacea/cmd/versioncheck
 → (nothing; it compiles and is not run: its live run is LIVE-CHECK.md step 1, task 20)
 
