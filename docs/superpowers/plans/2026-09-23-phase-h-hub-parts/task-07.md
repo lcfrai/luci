@@ -8,13 +8,17 @@ This task applies it and proves, **in the database and without any Go handler**,
 pin never moves, append-only tables are append-only, the audit chain is gapless and hashed, one
 org never sees another's rows, **and no row links to another org's row**.
 
-**Two corrections that change behaviour**, folded into the contract by task 44a before this task
+**One correction that changes behaviour**, folded into the contract by task 44a before this task
 runs, so the contract and this SQL agree:
 - **A16 (review I5):** every foreign key except the one to `orgs` carries `org_id`, onto a
   `UNIQUE (org_id, …)` target. Row-level security checks only a row's own `org_id`, and Postgres
   checks a foreign key without it, so a single-column key let an org-A row name an org-B parent.
-- **A17 (review I6):** `erase_brief` also deletes every stored idempotency response in the org
-  that names the brief, which is where route 26's stored response kept the text for 24 hours.
+
+**A17 (review I6) leaves this SQL as the contract has it.** Route 26's stored response kept the
+text for 24 hours. The fix is that it no longer stores the text at all: tasks 14 and 19 store it
+with every `content` null and rebuild the content on replay from `brief_revisions`. So
+`erase_brief` deletes nothing from `idempotency_keys`, and `TestEraseBriefLeavesEveryStoredResponse`
+pins that (re-review b06 N1).
 
 **Three changes from the contract's text**, each so a test can name what it tamper-tests, none
 changing behaviour:
@@ -626,15 +630,11 @@ BEGIN
                     erased_at   = coalesce(erased_at, now()),
                     updated_at  = now()
    WHERE id = p_brief;
-  -- I6 (review): a stored 2xx of route 26 (task 14's StoreResponse) is a second copy of the
-  -- text, kept 24 h (task 24). Purge every stored response in this org that names the brief.
-  -- A brief id matches ^bf-[0-9a-f]{16}$, ASCII that JSON never escapes, so a byte search of
-  -- the stored JSON is exact. No route string is named here, so a renamed route cannot
-  -- re-open the leak. Every write holds the org's audit-head lock (task 14), and so does the
-  -- erase route, so no response for this brief is stored between this DELETE and COMMIT.
-  DELETE FROM idempotency_keys
-   WHERE org_id = v_org AND response IS NOT NULL
-     AND position(convert_to(p_brief, 'UTF8') IN response) > 0;
+  -- I6 (review), A17: idempotency_keys is NOT touched. No stored response holds brief text:
+  -- route 26 stores its reply with every content null and rebuilds content on replay from
+  -- these rows (tasks 14, 19), so a replay after this call answers content null, as /v1/refs
+  -- does. A purge here would delete the replays of approvals, evidence, releases, co-batched
+  -- briefs and this erase itself (re-review b06 N1), and turn their retries into second writes.
   RETURN v_n;
 END $$;
 
@@ -707,15 +707,15 @@ named.
 | `TestEraseBriefChecksTheOrg` | with `hub.org_id` = B, erasing A's brief → `P0002` (`no_data_found`), and A's revisions keep their content | the owner function bypassing RLS without its own check (T3's residual) |
 | `TestEveryForeignKeyCarriesTheOrg` | from `pg_constraint` (`contype = 'f'`, schema `hub`), every foreign key whose `confrelid` is not `hub.orgs` has `org_id` in `conkey` and `org_id` in `confkey` **at the same position**; and every such key's target is a `UNIQUE` or primary key that holds `org_id`. The test prints the offending constraint's name (review I5) | a single-column link added by a later edit (`team_id REFERENCES teams (id)`), which Postgres checks without row-level security; a key that carries `org_id` but pairs it with another column |
 | `TestACrossOrgReferenceIsRefused` | two orgs A and B, each seeded with one parent of every kind (user, team, project, brief, revision, blob, project blob, approval, release). As `hub_app` with `hub.org_id` = A, **one `INSERT` per foreign key** of the catalog query above: an org-A row whose every column is A's, except the one link under test, which names B's parent → `23503` (`foreign_key_violation`). The same row with A's parent → ok, so the refusal is the key and nothing else. The set of constraint names exercised equals the catalog's set, so a new foreign key with no case goes red (review I5) | a cross-org link that row-level security lets through: `INSERT INTO projects (org_id, team_id, …) VALUES (A, <B's team>, …)`, which the single-column key accepted |
-| `TestEraseBriefPurgesTheStoredResponsesThatNameIt` | org A, one project, briefs A1 and A2. Four `idempotency_keys` rows, three of them with the same route-26 `path`: r1's `response` names A1 and holds a marker string; r2's names A2 only; r3's `response` is `NULL` (in flight); r4 is **in org B**, and its response contains A1's id. `erase_brief(A1)` with `hub.org_id` = A → r1 deleted; r2, r3, r4 kept; no `idempotency_keys` row in A holds the marker (review I6) | no purge, so A1's text survives 24 h (task 24's retention); a purge without `org_id = v_org`, which deletes r4; a purge by `path`, which deletes r2 and turns A2's retry into a 409 |
+| `TestEraseBriefLeavesEveryStoredResponse` | org A, one project, briefs A1 and A2. Four `idempotency_keys` rows, each byte-copied before the call: r1 is route 26's stored form of a batch that wrote A1 **and** A2 together (every `content` null, as task 19 stores it); r2 is a stored route-30 `DesignApproval` body naming `brief:<A1>@1` (text-free); r3's `response` is `NULL` (in flight); r4 is **in org B**, and its response contains A1's id. `erase_brief(A1)` with `hub.org_id` = A → all four rows kept, byte for byte (review I6, re-review b06 N1) | a purge by the brief id, which deletes r1 and r2: A2's co-batched retry becomes 409 `brief_archived` and the approval's retry re-runs into 422 `key_unresolvable`; a purge by `path`, which deletes r1; a purge without `org_id = v_org`, which also deletes r4 |
 | `TestHubAppGrantsAreExactlyTheList` | `information_schema.role_table_grants` and `column_privileges` for `hub_app` equal §10.5's list, table by table, column by column | a grant nobody reviewed |
 
 #### Steps
 
 - [ ] **Step 1:** Re-read contract §10.1–§10.7. If it changed after this part was written, the
-  contract's words win except for the three named constraints above. A16 and A17 are already in
-  the contract (task 44a); a contract that still shows a single-column key or an `erase_brief`
-  without the purge is stale, and this SQL wins.
+  contract's words win except for the three named constraints above. A16 is already in the
+  contract (task 44a); a contract that still shows a single-column key, or an `erase_brief` that
+  deletes from `idempotency_keys`, is stale, and this SQL wins.
 - [ ] **Step 2:** Tests, then `0001_init.sql` exactly as above, `embed.go`, and `hubtest.Migrated`.
 - [ ] **Step 3:** Run against the task-06 container. Fix the SQL until every test passes; **any
   change to the SQL beyond the three names is recorded in the commit message** and in the
