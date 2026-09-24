@@ -553,9 +553,21 @@ CREATE TRIGGER releases_guard BEFORE UPDATE OR DELETE ON releases
   FOR EACH ROW EXECUTE FUNCTION guard_release();
 
 -- ── the audit chain: gapless, in order, and it advances its own head ─────────
-CREATE FUNCTION audit_append() RETURNS trigger LANGUAGE plpgsql AS $$
+-- M11 (review), A19: SECURITY DEFINER, so the head moves only here. hub_app holds no UPDATE
+-- on audit_heads (grants below), so a compromised Hub cannot move a head by a direct
+-- UPDATE. As the owner this function is not bound by row-level security, so it checks the
+-- org itself, FIRST, before it locks anything: without that check an org-A session could
+-- lock, and for a moment move, org B's head. WITH CHECK would still refuse the row, but only
+-- after BEFORE triggers have run (from knowledge; TestAuditAppendChecksTheOrgFirst pins the
+-- lock half).
+CREATE FUNCTION audit_append() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
 DECLARE h hub.audit_heads%ROWTYPE;
 BEGIN
+  IF NEW.org_id IS DISTINCT FROM current_setting('hub.org_id', true) THEN
+    RAISE EXCEPTION 'hub: audit event for org %, not this session''s', NEW.org_id
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
   SELECT * INTO h FROM hub.audit_heads WHERE org_id = NEW.org_id FOR UPDATE;
   IF NOT FOUND OR NEW.seq <> h.seq + 1 OR NEW.prev_hash <> h.hash THEN
     RAISE EXCEPTION 'hub: audit event % out of order', NEW.seq USING ERRCODE = 'serialization_failure';
@@ -580,8 +592,17 @@ BEGIN
                     WITH CHECK (org_id = current_setting(''hub.org_id'', true))', t);
   END LOOP;
 END $$;
+-- M10 (review): orgs is keyed by id, not org_id, so it sits outside the loop. hub_app may
+-- only SELECT it (no INSERT or UPDATE grant), so the policy needs no WITH CHECK. The owner
+-- functions below read and write orgs as hub_owner, the table's owner, which this policy
+-- does not bind (row-level security is ENABLEd, never FORCEd), so ensure_org and
+-- resolve_principal are unaffected.
+ALTER TABLE hub.orgs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY org_isolation ON hub.orgs TO hub_app
+  USING (id = current_setting('hub.org_id', true));
 
--- ── the three functions that run as the owner (contract §10.4) ───────────────
+-- ── the five functions hub_app calls that run as the owner (contract §10.4; ─────
+-- ── the contract's three, and A18's org_ids and A19's lock_audit_head) ──────────
 CREATE FUNCTION ensure_org(p_tenant uuid, p_name text, p_id text) RETURNS text
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
 DECLARE v_id text;
@@ -638,10 +659,35 @@ BEGIN
   RETURN v_n;
 END $$;
 
+-- M11 (review), A19: the org's write lock (contract §10.6's first statement after set_config).
+-- SELECT … FOR UPDATE needs UPDATE privilege on at least one column of the table (from
+-- knowledge; TestTheHeadLockNeedsTheFunction pins it), so with hub_app's UPDATE on
+-- audit_heads revoked the lock is taken here, as the owner, and only on the session's org:
+-- there is no parameter to name another. The row lock belongs to the calling transaction.
+CREATE FUNCTION lock_audit_head() RETURNS TABLE (seq bigint, hash bytea)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE v_org text := current_setting('hub.org_id', true);
+BEGIN
+  RETURN QUERY SELECT h.seq, h.hash FROM audit_heads h WHERE h.org_id = v_org FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'hub: no audit head for org %', v_org USING ERRCODE = 'no_data_found';
+  END IF;
+END $$;
+
+-- M10 (review), A18: the org ids, and nothing else, for the two callers that must visit
+-- every org before any hub.org_id is set: the janitor (task 24) and hub verify (tasks 20,
+-- 27), both on hub_app's connection. With orgs under row-level security, a plain SELECT
+-- there sees no org at all, and the janitor would sweep nothing and hub verify would pass
+-- on an empty walk. No name and no tenant id leaves this function.
+CREATE FUNCTION org_ids() RETURNS SETOF text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+  SELECT id FROM orgs ORDER BY id
+$$;
+
 REVOKE ALL ON FUNCTION ensure_org(uuid, text, text), resolve_principal(uuid, uuid, text, text, text),
-                       erase_brief(text) FROM PUBLIC;
+                       erase_brief(text), lock_audit_head(), org_ids() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ensure_org(uuid, text, text), resolve_principal(uuid, uuid, text, text, text),
-                          erase_brief(text) TO hub_app;
+                          erase_brief(text), lock_audit_head(), org_ids() TO hub_app;
 
 -- ── grants: what hub_app may do, and nothing else (contract §10.5) ───────────
 GRANT USAGE ON SCHEMA hub TO hub_app;
@@ -662,10 +708,11 @@ GRANT UPDATE (branch_ref, head_revision, latest_complete_revision, archived_at, 
 GRANT UPDATE (state, pipeline_run, confirmed_at, abandoned_at, abandon_reason, abandon_message,
               expired_at, environment)                         ON releases         TO hub_app;  -- environment: HA7-1's join
 GRANT DELETE                                                   ON blobs, project_blobs TO hub_app;
-GRANT UPDATE (seq, hash)                                       ON audit_heads      TO hub_app;
 GRANT UPDATE (status, response), DELETE                        ON idempotency_keys TO hub_app;
 -- No UPDATE or DELETE on: orgs, users, brief_revisions, design_approvals,
--- design_approval_blobs, session_links, release_deployments, evidence, audit_events.
+-- design_approval_blobs, session_links, release_deployments, evidence, audit_events,
+-- audit_heads. audit_heads moves only inside audit_append and is locked only through
+-- lock_audit_head, both SECURITY DEFINER (M11, A19).
 -- A later migration that adds a table grants on it explicitly: there are no default privileges.
 ```
 
@@ -687,7 +734,7 @@ named.
 |---|---|---|
 | `TestMigrationAppliesAndReappliesClean` | `Apply` → `[1]`; again → `[]`; `Current` = `Latest()` = 1 | a migration that is not idempotent to the runner |
 | `TestNamedConstraintsExist` | `pg_constraint` holds `users_org_id_entra_oid_key`, `brief_revisions_canonical_hashes`, `brief_revisions_erased_iff_no_content`, `audit_events_hash_chains` | `resolve_principal` depending on a default name |
-| `TestHubAppCannotUpdateOrDeleteImmutableTables` | as `hub_app`, `UPDATE`/`DELETE` on `brief_revisions`, `design_approvals`, `session_links`, `release_deployments`, `evidence`, `audit_events`, `orgs`, `users` → `42501` | a grant widened by accident (G4's grant layer) |
+| `TestHubAppCannotUpdateOrDeleteImmutableTables` | as `hub_app`, `UPDATE`/`DELETE` on `brief_revisions`, `design_approvals`, `session_links`, `release_deployments`, `evidence`, `audit_events`, `orgs`, `users`, `audit_heads` → `42501` | a grant widened by accident (G4's grant layer); for `audit_heads`, the review's M11 grant `UPDATE (seq, hash)` put back |
 | `TestAppendOnlyTriggersHoldEvenForTheOwner` | as `hub_owner`, `UPDATE`, `DELETE`, `TRUNCATE` on each of the six append-only tables → `42501` from `forbid_change` | append-only enforced by grants alone |
 | `TestARevisionMustHashToItsDigest` | `INSERT` a revision whose `digest` is not `sha256(canonical)` → `23514` | a digest the Go side computed wrong, stored anyway |
 | `TestOnlyEraseBriefCanEraseARevision` | as the owner outside the function, an erasure-shaped `UPDATE` passes `guard_revision` only because `current_user` is `hub_owner`; any other column change → `42501`; `erase_brief` as `hub_app` erases and returns the count | the revision guard trusting the caller |
@@ -700,15 +747,19 @@ named.
 | `TestTheEnvironmentIsSetOnce` | a NULL-environment run: `SET environment = 'feat-x'` while `confirmed` → ok; then `= 'feat-y'` → `42501`; then `= NULL` → `42501`; a NULL one `abandoned` then `SET environment` → `42501`; a non-NULL reserved one `SET environment` → `42501` | a join that re-points a release at another environment, or a deleted one |
 | `TestReleaseGuardCoversEveryColumn` | reads **the installed function**, not a copy: `SELECT pg_get_functiondef('hub.guard_release'::regproc)`. From that text it takes every `( NEW.a, NEW.b, … ) IS DISTINCT FROM ( OLD.a, OLD.b, … )` pair and expects exactly two. The first is the immutable tuple and the second the mutable one. In each pair the `NEW` list equals the `OLD` list, name for name and in order. `NEW.environment IS DISTINCT FROM OLD.environment` appears exactly once, outside both. Then, against `information_schema.columns` for `hub.releases`, every column appears **exactly once** across immutable, mutable and `{environment}`, and no name appears there that is not a column. Last, mutable ∪ `{environment}` = `hub_app`'s `UPDATE` columns (`information_schema.column_privileges`) | a column `x` added to `releases`, and to any Go list, but not to the trigger's tuple: the test goes red on the missing column, where a copied list would stay green. `x` would otherwise stay mutable after confirmation for the owner role, which bypasses the grant. The old `NEW IS DISTINCT FROM OLD` caught this; the tuples do not. It also kills a `NEW`/`OLD` mismatch (`NEW.pin_brief_digest` beside `OLD.pin_brief_id`) |
 | `TestTheAuditChainIsGaplessAndHashed` | insert seq 1 then 2 correctly → ok and `audit_heads` advanced; seq 3 with the wrong `prev_hash`, or seq 4 skipping 3 → `40001`; a `hash` not equal to `sha256(prev_hash ‖ canonical)` → `23514` | a chain the Go side can fork (G5) |
-| `TestRowLevelSecuritySeparatesOrgs` | two orgs with a user each; `set_config('hub.org_id', A, true)`; `SELECT` from each of the 19 tables sees only A; `INSERT` of an org-B row → `42501` (WITH CHECK) | a table missing from the RLS loop (T3) |
-| `TestAnUnsetOrgSeesNothingEvenOnAReusedConnection` | on one connection: a transaction that sets org A and commits; then a new transaction that sets nothing → zero rows from `users` | a pooled connection carrying one request's org into the next |
+| `TestRowLevelSecuritySeparatesOrgs` | two orgs with a user each; `set_config('hub.org_id', A, true)`; `SELECT` from each of the 20 tables sees only A: the loop's 19, and `orgs`, where `SELECT id, display_name FROM hub.orgs` returns A's one row (review M10); `INSERT` of an org-B row → `42501` (WITH CHECK) | a table missing from the RLS loop (T3); `orgs` without its policy, which returns both orgs' ids and names |
+| `TestAnUnsetOrgSeesNothingEvenOnAReusedConnection` | on one connection: a transaction that sets org A and commits; then a new transaction that sets nothing → zero rows from `users` and zero from `orgs` | a pooled connection carrying one request's org into the next |
 | `TestResolvePrincipal` | an unknown tenant → no row; a new oid → `created = true`; again → `created = false`, same id; a changed name → refreshed | provisioning twice, or never refreshing the display name |
 | `TestEnsureOrgIsIdempotent` | twice with two fresh ids → the first id both times; one `audit_heads` row | a second org row per restart |
 | `TestEraseBriefChecksTheOrg` | with `hub.org_id` = B, erasing A's brief → `P0002` (`no_data_found`), and A's revisions keep their content | the owner function bypassing RLS without its own check (T3's residual) |
 | `TestEveryForeignKeyCarriesTheOrg` | from `pg_constraint` (`contype = 'f'`, schema `hub`), every foreign key whose `confrelid` is not `hub.orgs` has `org_id` in `conkey` and `org_id` in `confkey` **at the same position**; and every such key's target is a `UNIQUE` or primary key that holds `org_id`. The test prints the offending constraint's name (review I5) | a single-column link added by a later edit (`team_id REFERENCES teams (id)`), which Postgres checks without row-level security; a key that carries `org_id` but pairs it with another column |
 | `TestACrossOrgReferenceIsRefused` | two orgs A and B, each seeded with one parent of every kind (user, team, project, brief, revision, blob, project blob, approval, release). As `hub_app` with `hub.org_id` = A, **one `INSERT` per foreign key** of the catalog query above: an org-A row whose every column is A's, except the one link under test, which names B's parent → `23503` (`foreign_key_violation`). The same row with A's parent → ok, so the refusal is the key and nothing else. The set of constraint names exercised equals the catalog's set, so a new foreign key with no case goes red (review I5) | a cross-org link that row-level security lets through: `INSERT INTO projects (org_id, team_id, …) VALUES (A, <B's team>, …)`, which the single-column key accepted |
 | `TestEraseBriefLeavesEveryStoredResponse` | org A, one project, briefs A1 and A2. Four `idempotency_keys` rows, each byte-copied before the call: r1 is route 26's stored form of a batch that wrote A1 **and** A2 together (every `content` null, as task 19 stores it); r2 is a stored route-30 `DesignApproval` body naming `brief:<A1>@1` (text-free); r3's `response` is `NULL` (in flight); r4 is **in org B**, and its response contains A1's id. `erase_brief(A1)` with `hub.org_id` = A → all four rows kept, byte for byte (review I6, re-review b06 N1) | a purge by the brief id, which deletes r1 and r2: A2's co-batched retry becomes 409 `brief_archived` and the approval's retry re-runs into 422 `key_unresolvable`; a purge by `path`, which deletes r1; a purge without `org_id = v_org`, which also deletes r4 |
-| `TestHubAppGrantsAreExactlyTheList` | `information_schema.role_table_grants` and `column_privileges` for `hub_app` equal §10.5's list, table by table, column by column | a grant nobody reviewed |
+| `TestHubAppGrantsAreExactlyTheList` | `information_schema.role_table_grants` and `column_privileges` for `hub_app` equal §10.5's list, table by table, column by column. The list is this part's grants, so `audit_heads` is `SELECT` only: no `UPDATE` on any column (review M11, A19), and `orgs` is `SELECT` only | a grant nobody reviewed; `GRANT UPDATE (seq, hash) ON audit_heads` put back, which lets a compromised Hub move a head outside `audit_append` |
+| `TestAuditAppendChecksTheOrgFirst` | orgs A and B. Connection 1, as `hub_app`: `BEGIN`, `hub.org_id` = A, `INSERT` an event with `org_id` = B, correctly chained on B's head → `42501`; the transaction is left open (aborted, not rolled back). Connection 2, as `hub_owner`: `SELECT 1 FROM hub.audit_heads WHERE org_id = B FOR UPDATE NOWAIT` → ok, and B's head is unchanged. Then connection 1 rolls back (review M11, A19) | an `audit_append` without its org check: it runs as the owner, bypasses row-level security, locks B's head before `WITH CHECK` refuses the row, and connection 2 gets `55P03` (`lock_not_available`) |
+| `TestTheHeadLockNeedsTheFunction` | as `hub_app` with `hub.org_id` = A: `SELECT seq, hash FROM hub.audit_heads WHERE org_id = A FOR UPDATE` → `42501` (no `UPDATE` privilege); `SELECT seq, hash FROM hub.lock_audit_head()` → A's head; then, on a second connection as the owner, the same row `FOR UPDATE NOWAIT` → `55P03` until the first commits. With `hub.org_id` unset, `lock_audit_head()` → `P0002` (review M11, A19) | a lock that no longer locks: `lock_audit_head` without `FOR UPDATE`, so two writers read one head and one gets `40001` from the trigger instead of waiting its turn |
+| `TestOrgIdsListsEveryOrgAndOnlyIds` | orgs A and B; as `hub_app` with `hub.org_id` unset: `SELECT id FROM hub.orgs` → zero rows; `SELECT * FROM hub.org_ids()` → exactly A's and B's ids, in id order, and the result has one column (review M10, A18) | an `org_ids` that returns `display_name` or `entra_tenant_id`; the janitor or `hub verify` reading `orgs` directly and walking no org at all |
+| `TestHubAppExecutesExactlyTheOwnerFunctions` | `information_schema.role_routine_grants` for `hub_app` in schema `hub` = `ensure_org`, `resolve_principal`, `erase_brief`, `lock_audit_head`, `org_ids`, and no other; `PUBLIC` holds `EXECUTE` on none of them | an owner function left executable by `PUBLIC` (Postgres's default on `CREATE FUNCTION`), or a sixth one nobody reviewed |
 
 #### Steps
 
@@ -725,7 +776,7 @@ named.
 #### Acceptance
 
 ```bash
-go test -tags integration ./control-plane/internal/hub/migrate/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 34 (10 from task 06 + 24)
+go test -tags integration ./control-plane/internal/hub/migrate/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 38 (10 from task 06 + 28)
 go build ./control-plane/...                                                                               # ok
 grep -c "CREATE TABLE" control-plane/internal/hub/migrate/sql/0001_init.sql                                # 20
 ```
