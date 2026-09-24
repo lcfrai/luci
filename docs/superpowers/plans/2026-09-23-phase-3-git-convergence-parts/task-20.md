@@ -35,6 +35,8 @@ export function remoteLine(conv: Convergence, down: boolean, lastReadAt: string)
 
 /** One history row's second line, e.g.
  *  land   → "reviewed against <chip> · sessions s-3f2a91c0 · not pushed — undo is exact"
+ *           (undoWhy "merged_into_lane", review I3: "… · not pushed — another worktree has
+ *           merged it, so undo is a revert")
  *  direct → "no brief — not a land · no session recorded"
  *  revert → "takes back d5f0a17"
  *  A land a later row reverts adds: "reverted by 9ab01c2 — landing this worktree again brings

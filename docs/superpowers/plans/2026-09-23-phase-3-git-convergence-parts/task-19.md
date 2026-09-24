@@ -81,8 +81,11 @@ export function bringInResolvePrompt(conv: Convergence): string;
 
 ```ts
 // merge/landing.ts — the two landing verbs. Neither opens a confirm dialog: a land is undoable
-// exactly until pushed (task 10), so DESIGN-SYSTEM.md's "optimistic mutation with an Undo window"
-// applies — the verb runs, and its toast carries Undo.
+// exactly until pushed, built upon or merged into another lane (task 10; review I3), so
+// DESIGN-SYSTEM.md's "optimistic mutation with an Undo window" applies — the verb runs, and its
+// toast carries Undo. A toast Undo the server refuses with undo_not_exact names details.why in
+// the toast ("another worktree has merged it; revert it from the history instead" for
+// merged_into_lane) and reloads, so the history row offers the Revert (task 20).
 export interface LandOutcome {
   kind: "land";
   landed: LandResult[];
@@ -220,7 +223,7 @@ hidden until task 22 provides it).
 | `reorder goes through moveWithinVisible and PUTs the whole order` | Alt+↓ on the first card → `setQueue` called with [a, b]; spy on `moveWithinVisible` called once | known defect 10's index-across-a-filter |
 | `Land sends the tip the human saw` | click Land → `api.land` with `expectedTip === conv.tip` and the head brief key | landing against a newer tip silently |
 | `Land all stops at the first refusal` | second land rejects with `merge_conflict` → one land, `stopped.worktreeId` the second, a toast naming the first only | continuing past a conflict |
-| `a landed toast offers Undo that undoes` | after a land, the toast's undo calls `api.undoLand(merge, merge)` | an Undo that does nothing |
+| `a landed toast offers Undo that undoes` | after a land, the toast's undo calls `api.undoLand(merge, merge)`; when it rejects with `undo_not_exact`/`merged_into_lane`, a toast names the merge and the history reloads (review I3) | an Undo that does nothing, or fails silently |
 | `a lost race shows the banner and Land again` | a land rejected `branch_moved` with `details.tip` → the banner text with both shas and git's sentence; the button re-lands with the new tip | a race shown as a crash |
 | `a checked-out branch turns landing off with the path` | `checkedOutAt` set → the banner with the path; every Land disabled with its reason | a land that moves a checkout's branch |
 | `control plane down dims the last reading` | loader error `network_unavailable` with a last value → content has the stale class, Land/Mark ready disabled, banner time is the last `readAt` | a blank lens, or live-looking stale data |

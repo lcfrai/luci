@@ -2,8 +2,9 @@
 
 `AGENTIC-UX.md` §3's LANDED is "bulk-acceptable, low attention", and `DESIGN-SYSTEM.md` wants an
 Undo window on optimistic actions. A land has **two** undos and the UI must not pretend they are
-one (survey §7.4): while the land is the branch's tip and has not been pushed, moving the ref back
-is exact; once something is built on it or it is pushed, the only honest undo is a revert commit,
+one (survey §7.4): while the land is the branch's tip, has not been pushed, and no other lane has
+merged it, moving the ref back is exact; once something is built on it, it is pushed, or another
+lane carries it (review I3), the only honest undo is a revert commit,
 landed like any other — and never a force-push (A3). This task serves the history the LANDED list
 draws, with each row's undo state computed from git, and performs both undos.
 

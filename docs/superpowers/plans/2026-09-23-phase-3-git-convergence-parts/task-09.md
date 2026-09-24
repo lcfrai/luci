@@ -326,7 +326,7 @@ git log --first-parent -1 --format="%P%n%(trailers)" refs/heads/<b>   (manual, a
 - Brief keys reach git only once phase 4 provides a `briefref.Resolver` (gate G3). Until then every
   land renders `none` — correctly: no brief was shown.
 - A land moves a **local** branch. Nothing is pushed (task 12), and the undo is exact until it is
-  (task 10).
+  pushed, built upon, or merged into another lane (task 10; review I3).
 - The merge link is forgeable by anyone who can commit (survey §7.2); it is a record of what the
   cockpit did, not a signature.
 - The sweep refresh (task 07) keys on the branch tip only. A terminal `git fetch` in the project
