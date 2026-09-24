@@ -24,7 +24,8 @@ import (
 // sandbox is shown one more file, the source's transcript, read-only, at the
 // path the pinned CLI reads it from. The CLI then forks it into the fork's own
 // store exactly as it does for a Resume — a whole copy, re-keyed to the new id
-// (od10-forget-report.md §3) — and the source is never written.
+// (od10-forget-report.md §3, observed in `-p` mode) — and the source is never
+// written.
 //
 // The file is shown from a STAGED copy, never from the source's store, and that
 // is the security property of this file. A bind mount's host path is resolved

@@ -144,7 +144,16 @@ var sessionLstat = os.Lstat
 // written is false only when the file is certainly absent. Any other failure
 // to stat comes back as err, and every caller degrades on it rather than
 // refusing, as OD-8 requires: nothing may need this look to work.
+//
+// A conversation id not spelled the one way ids.UUID mints is certainly
+// absent, and nothing is looked at for it. Build refuses such an id, so no CLI
+// ever wrote a transcript under it, and joined onto the store it would name
+// some other file — "../x" climbs out — whose existence would then pass for a
+// conversation: a resume would pick it, and a restart would list it.
 func sessionTranscriptState(store, conversation string) (written bool, err error) {
+	if !harness.IsConversationID(conversation) {
+		return false, nil
+	}
 	if _, err := sessionStat(sessionTranscriptPath(store, conversation)); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
@@ -167,6 +176,8 @@ func sessionTranscriptState(store, conversation string) (written bool, err error
 // --session-id B` writes B as a whole copy of A's history re-keyed to B
 // (od10-forget-report.md §3), and a resume resolves only the resumed record's
 // own ids (sessionResumableConversation), so forgetting A leaves B resumable.
+// Observed in `-p` mode; the interactive fork before its first turn is
+// unverified until OD-12's hands-on session (go-contract §3.15).
 //
 // Two refusals, both about an id joined onto a path:
 //
@@ -180,7 +191,13 @@ func sessionTranscriptState(store, conversation string) (written bool, err error
 //   - The directory the CLI keeps transcripts in is inside the mount, so the
 //     agent can replace it with a link. Deleting through a link deletes on the
 //     host at the agent's choosing, so anything there but a real directory
-//     fails the Forget.
+//     fails the Forget. The look is not enough on its own: the store is
+//     mounted into every OTHER live session in the worktree too, so an agent
+//     there can swap the directory for a link after the look. So each file is
+//     deleted by sessionRemoveIn, which deletes only the file actually in the
+//     store's directory and fails otherwise. The names deleted are not all
+//     this session's own — carriedConversationId is the fork's SOURCE's id —
+//     so without it a well-timed link would delete the source's transcript.
 //
 // A fork into another worktree left two more things, and both go too: the
 // staged copy of its source's transcript (sessionForgetCarried), and the empty
@@ -232,9 +249,11 @@ func (a *API) sessionForgetStoreTranscripts(sess registry.Session) error {
 		return fmt.Errorf("the transcript directory %s is a %v, not a directory; deleted nothing through it", dir, info.Mode().Type())
 	}
 
+	// Every id is tried, a failure or not, and the failures come back
+	// together: the record is kept either way, so the retry finds the rest.
 	var errs []error
 	for _, id := range ids {
-		if err := os.Remove(sessionTranscriptPath(store, id)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := sessionRemoveIn(store, sessionTranscriptDirName, id+".jsonl"); err != nil && !errors.Is(err, os.ErrNotExist) {
 			errs = append(errs, fmt.Errorf("delete the transcript of conversation %s: %w", id, err))
 		}
 	}
@@ -1732,8 +1751,15 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 	// the record — the one thing that names the file — so the 500 is true, the
 	// cockpit puts the row back, and asking again finds the file again. The
 	// other order would answer 204 over a transcript nothing names any more,
-	// kept forever: the state OD-10 exists to end. The sandbox is destroyed by
-	// now, so no CLI is writing the file this removes.
+	// kept forever: the state OD-10 exists to end. This session's sandbox is
+	// destroyed by now, so its CLI is not writing the file this removes. The
+	// worktree's other sessions still have the store mounted, which is why the
+	// deletes cannot be steered through a link (sessionForgetTranscripts).
+	//
+	// Below the purge check and below the destroy, both on purpose and both
+	// pinned: above the first, every Kill would erase the conversation Resume
+	// needs; above the second, a 503 would come back over a live session whose
+	// conversation was already gone.
 	if err := a.sessionForgetTranscripts(updated); err != nil {
 		a.internal(w, r, "delete the session's transcript", err)
 		return

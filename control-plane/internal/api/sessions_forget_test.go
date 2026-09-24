@@ -5,10 +5,13 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
 )
 
@@ -261,11 +264,133 @@ func TestAForgetThatCannotDeleteTheTranscriptKeepsTheRecordAndSaysSo(t *testing.
 	}
 }
 
+// forgetCarried is the conversation a fork carried from its source: the
+// source's id, which a Forget of the fork deletes by name from the fork's own
+// store (the empty mount point Docker made there) and from its staging.
+const forgetCarried = "c0ffee00-0000-4000-8000-0000ca441ed0"
+
+// forgetEverything seeds rec, a Claude Code session in the env's worktree, as
+// a record naming every kind of id Forget deletes by — current, earlier,
+// carried — and puts on disk every file a Forget of it deletes. It returns
+// those files' paths, so a test can say which verbs must leave all of them.
+func forgetEverything(t *testing.T, env *sessionsEnv, rec registry.Session) []string {
+	t.Helper()
+	rec.ConversationID = sessionsConversation
+	rec.EarlierConversationIDs = []string{forgetEarlier}
+	rec.CarriedConversationID = forgetCarried
+	sessionsSeed(t, env.st, rec)
+	paths := []string{
+		forgetTranscript(env, sessionsConversation),
+		forgetTranscript(env, forgetEarlier),
+		forgetTranscript(env, forgetCarried),
+		forkStaged(env, rec.ID, forgetCarried),
+	}
+	for _, p := range paths {
+		forkWrite(t, p, []byte("{}\n"))
+	}
+	return paths
+}
+
+// Kill is not Forget. A plain DELETE ends the sandbox and keeps every file a
+// Resume, a Restart or a later Forget reads — docs/FUNCTIONAL-SPEC.md "Session
+// lifecycle", contract §5.2 — so the forget sits below the purge check, and
+// this is what holds it there: above it, every Kill would erase the
+// conversation Resume needs, for good.
+func TestAKillDeletesNoneOfWhatAForgetWould(t *testing.T) {
+	env := sessionsNewEnv(t)
+	paths := forgetEverything(t, env, sessionsStarting("s-0000000b"))
+
+	if code := env.do(t, http.MethodDelete, "/v1/sessions/s-0000000b", "").Code; code != http.StatusOK {
+		t.Fatalf("kill status = %d, want 200", code)
+	}
+	for _, p := range paths {
+		if !forgetExists(t, p) {
+			t.Errorf("a Kill deleted %s", p)
+		}
+	}
+
+	// The killed record still names all of it, so the Forget that comes later
+	// finds all of it.
+	if code := forgetPurge(t, env, "s-0000000b"); code != http.StatusNoContent {
+		t.Fatalf("the Forget after the Kill = %d, want 204", code)
+	}
+	for _, p := range paths {
+		if forgetExists(t, p) {
+			t.Errorf("the Forget after a Kill left %s", p)
+		}
+	}
+}
+
+// A Forget whose destroy fails has not ended the sandbox. The CLI in it is
+// probably still running and still writing, and the record is kept still
+// saying so — and the files are kept with it, so the forget sits below the
+// destroy. Above it, a 503 would come back over a live session whose
+// conversation was already gone.
+func TestAForgetWhoseDestroyFailsDeletesNothing(t *testing.T) {
+	env := sessionsNewEnv(t)
+	paths := forgetEverything(t, env, sessionsStarting("s-0000000b"))
+	env.be.destroyErr = backend.ErrUnavailable
+
+	if code := forgetPurge(t, env, "s-0000000b"); code != http.StatusServiceUnavailable {
+		t.Fatalf("purge status = %d, want 503", code)
+	}
+	for _, p := range paths {
+		if !forgetExists(t, p) {
+			t.Errorf("a Forget whose destroy failed deleted %s", p)
+		}
+	}
+	if stored, err := env.st.Get("s-0000000b"); err != nil || stored.Status != registry.StatusStarting {
+		t.Errorf("the record after a failed destroy = %+v, %v; want it kept as it was", stored, err)
+	}
+
+	// The daemon back, the same Forget deletes all of it.
+	env.be.destroyErr = nil
+	if code := forgetPurge(t, env, "s-0000000b"); code != http.StatusNoContent {
+		t.Fatalf("the retried purge status = %d, want 204", code)
+	}
+	for _, p := range paths {
+		if forgetExists(t, p) {
+			t.Errorf("the retried Forget left %s", p)
+		}
+	}
+}
+
+// Forget is one pass over every file, and a deletion that fails does not stop
+// it: each of the others is tried, and the failures come back together. The
+// record is kept either way, so nothing is lost by stopping — but the pass is
+// what the handler's comment and the report promise, and this holds it, in both
+// halves: the store's loop, and the staged copy after it.
+func TestAForgetThatCannotDeleteOneFileStillDeletesTheRest(t *testing.T) {
+	env := sessionsNewEnv(t)
+	paths := forgetEverything(t, env, resumeSource("s-0000000b"))
+	// The first file the pass reaches, made undeletable: a non-empty directory.
+	blocked := paths[0]
+	if err := os.Remove(blocked); err != nil {
+		t.Fatalf("clear the file: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(blocked, "held"), 0o700); err != nil {
+		t.Fatalf("make the blocker: %v", err)
+	}
+
+	if code := forgetPurge(t, env, "s-0000000b"); code != http.StatusInternalServerError {
+		t.Fatalf("purge status = %d, want 500", code)
+	}
+	for _, p := range paths[1:] {
+		if forgetExists(t, p) {
+			t.Errorf("one failed deletion stopped the Forget before %s", p)
+		}
+	}
+	if _, err := env.st.Get("s-0000000b"); err != nil {
+		t.Errorf("a Forget with a failed deletion removed the record: %v", err)
+	}
+}
+
 // A resume forks: the new session gets a conversation of its own, and the CLI
 // writes that fork as a whole copy of the source's history re-keyed to the new
-// id (observed in panacea-app/sandbox:dev, claude 2.1.274; od10-forget-report.md
-// §3). So forgetting the source leaves the fork's file, and the fork can still
-// be resumed.
+// id (observed in panacea-app/sandbox:dev, claude 2.1.274, in `-p` mode;
+// od10-forget-report.md §3; the interactive fork is unverified until OD-12). So
+// forgetting the source leaves the fork's file, and the fork can still be
+// resumed.
 func TestForgettingTheSourceLeavesAResumeOfItWhole(t *testing.T) {
 	env := sessionsNewEnv(t)
 	sessionsStubReady(t, nil)
@@ -334,6 +459,224 @@ func TestForgetRefusesToDeleteThroughALinkTheAgentPutInTheStore(t *testing.T) {
 	}
 	if _, err := env.st.Get("s-0000000b"); err != nil {
 		t.Errorf("a Forget that refused to delete removed the record anyway: %v", err)
+	}
+}
+
+// forgetLink makes link a link to the directory target, the way an agent's
+// swap would leave it, and removes the link itself — never what it points at —
+// before the test's directories go. A junction on Windows, which needs no
+// privilege; a symlink elsewhere. It reports whether it could.
+func forgetLink(t *testing.T, link, target string) bool {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		if out, err := exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput(); err != nil {
+			t.Logf("mklink /J %s: %v: %s", link, err, out)
+			return false
+		}
+	} else if err := os.Symlink(target, link); err != nil {
+		t.Logf("symlink %s: %v", link, err)
+		return false
+	}
+	t.Cleanup(func() {
+		if err := os.Remove(link); err != nil && !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("remove the link %s: %v", link, err)
+		}
+	})
+	return true
+}
+
+// The look at the directory and the deletes are two steps, and the store is
+// live between them: it is mounted into every other session's sandbox in the
+// worktree. An agent there that swaps the directory for a link after the look
+// must get no deletion through it. The name a deletion carries is not only the
+// session's own id: a fork's record names its SOURCE's conversation
+// (carriedConversationId), so a link to the source worktree's transcript
+// directory would have deleted the source's conversation. The swap here lands
+// exactly in that gap.
+func TestForgetDeletesNothingThroughALinkSwappedInAfterItsLook(t *testing.T) {
+	env := sessionsNewEnv(t)
+	probe := filepath.Join(t.TempDir(), "probe")
+	if !forgetLink(t, probe, t.TempDir()) {
+		t.Skip("this platform will not make a directory link here")
+	}
+	sessionsSeed(t, env.st, resumeSource("s-0000000b"))
+	resumeSpeak(t, env, sessionsConversation)
+	dir := filepath.Dir(forgetTranscript(env, sessionsConversation))
+	elsewhere := filepath.Join(filepath.Dir(env.conversations), "elsewhere")
+	victim := filepath.Join(elsewhere, sessionsConversation+".jsonl")
+	forkWrite(t, victim, []byte("{}\n"))
+
+	prev := sessionLstat
+	swapped := false
+	sessionLstat = func(name string) (os.FileInfo, error) {
+		info, err := prev(name)
+		if name == dir && !swapped {
+			swapped = true
+			if err := os.Rename(dir, dir+"-moved"); err != nil {
+				t.Errorf("move the real directory aside: %v", err)
+			} else if !forgetLink(t, dir, elsewhere) {
+				t.Errorf("swap the link in")
+			}
+		}
+		return info, err
+	}
+	t.Cleanup(func() { sessionLstat = prev })
+
+	rec := env.do(t, http.MethodDelete, "/v1/sessions/s-0000000b?purge=true", "")
+	if !swapped {
+		t.Fatalf("Forget never looked at %s", dir)
+	}
+	if !forgetExists(t, victim) {
+		t.Errorf("Forget deleted %s through a link swapped in after its look", victim)
+	}
+	if !forgetExists(t, filepath.Join(dir+"-moved", sessionsConversation+".jsonl")) {
+		t.Errorf("the real transcript went although Forget refused")
+	}
+	if _, err := env.st.Get("s-0000000b"); err != nil {
+		t.Errorf("a Forget that refused to delete removed the record anyway: %v", err)
+	}
+	if code := sessionsProblemCode(t, rec, http.StatusInternalServerError); code != "internal" {
+		t.Errorf("error = %q, want internal", code)
+	}
+}
+
+// A link in the directory's place is refused even when nothing behind it
+// carries the name: the look refuses it, not the deletes. Otherwise the
+// deletes would find no file, call the transcript already gone and answer 204
+// — over a transcript the agent only moved out of the way.
+func TestForgetRefusesALinkInTheStoreWithNothingBehindIt(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsSeed(t, env.st, resumeSource("s-0000000b"))
+	store := filepath.Join(env.conversations, "local", "w-4a77b1c9")
+	if err := os.MkdirAll(store, 0o700); err != nil {
+		t.Fatalf("make the store: %v", err)
+	}
+	if !forgetLink(t, filepath.Join(store, "-home-dev-work"), t.TempDir()) {
+		t.Skip("this platform will not make a directory link here")
+	}
+
+	rec := env.do(t, http.MethodDelete, "/v1/sessions/s-0000000b?purge=true", "")
+	if code := sessionsProblemCode(t, rec, http.StatusInternalServerError); code != "internal" {
+		t.Errorf("error = %q, want internal", code)
+	}
+	if _, err := env.st.Get("s-0000000b"); err != nil {
+		t.Errorf("a Forget that refused a link removed the record anyway: %v", err)
+	}
+}
+
+// A link at a transcript's own name is the link, not a way through: it is
+// unlinked and what it points at is left alone.
+func TestForgetUnlinksALinkAtTheTranscriptsNameAndLeavesItsTarget(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsSeed(t, env.st, resumeSource("s-0000000b"))
+	target := filepath.Join(t.TempDir(), "precious.txt")
+	forkWrite(t, target, []byte("keep\n"))
+	link := forgetTranscript(env, sessionsConversation)
+	if err := os.MkdirAll(filepath.Dir(link), 0o700); err != nil {
+		t.Fatalf("make the transcript dir: %v", err)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("this platform will not make a file symlink here: %v", err)
+	}
+
+	if code := forgetPurge(t, env, "s-0000000b"); code != http.StatusNoContent {
+		t.Errorf("purge status = %d, want 204", code)
+	}
+	if _, err := os.Lstat(link); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the link at the transcript's name is still there: %v", err)
+	}
+	if !forgetExists(t, target) {
+		t.Fatalf("Forget deleted the link's target %s", target)
+	}
+}
+
+// What os.Remove deleted, Forget still deletes: a transcript made read-only,
+// and an empty directory where a transcript would be. Either left would make a
+// Forget that fails on every retry.
+func TestForgetDeletesAReadOnlyTranscriptAndAnEmptyDirectoryInOnesPlace(t *testing.T) {
+	env := sessionsNewEnv(t)
+	rec := resumeSource("s-0000000b")
+	rec.EarlierConversationIDs = []string{forgetEarlier}
+	sessionsSeed(t, env.st, rec)
+	resumeSpeak(t, env, sessionsConversation)
+	readOnly := forgetTranscript(env, sessionsConversation)
+	if err := os.Chmod(readOnly, 0o400); err != nil {
+		t.Fatalf("make the transcript read-only: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(readOnly, 0o600) })
+	empty := forgetTranscript(env, forgetEarlier)
+	if err := os.Mkdir(empty, 0o700); err != nil {
+		t.Fatalf("make the empty directory: %v", err)
+	}
+
+	if code := forgetPurge(t, env, "s-0000000b"); code != http.StatusNoContent {
+		t.Errorf("purge status = %d, want 204", code)
+	}
+	if forgetExists(t, readOnly) {
+		t.Errorf("Forget left the read-only transcript")
+	}
+	if forgetExists(t, empty) {
+		t.Errorf("Forget left the empty directory in a transcript's place")
+	}
+}
+
+// A store deep enough that its transcripts' paths run past Windows' MAX_PATH
+// (260) is forgotten like any other. os.Remove reached such a file; a deletion
+// that could not would find "no such path", call the transcript already gone,
+// and answer 204 over it.
+func TestForgetReachesATranscriptPastMaxPath(t *testing.T) {
+	st := sessionsMustStore(t)
+	deep := filepath.Join(t.TempDir(), strings.Repeat("d", 120), strings.Repeat("e", 60))
+	env := sessionsNewEnvOver(t, deep, st, st)
+	env.st = st
+	sessionsSeed(t, env.st, resumeSource("s-0000000b"))
+	resumeSpeak(t, env, sessionsConversation)
+	transcript := forgetTranscript(env, sessionsConversation)
+	if len(transcript) <= 260 {
+		t.Fatalf("the transcript's path is %d long; the test needs one past 260", len(transcript))
+	}
+
+	if code := forgetPurge(t, env, "s-0000000b"); code != http.StatusNoContent {
+		t.Errorf("purge status = %d, want 204", code)
+	}
+	if forgetExists(t, transcript) {
+		t.Errorf("Forget answered but left the transcript %d characters deep", len(transcript))
+	}
+}
+
+// The look at whether a transcript was written joins the record's id onto the
+// store too, and Build's spelling rule holds there as it does for Forget: an id
+// no mint produces names no transcript, whatever its join would find. "../x"
+// joined on is <store>/x.jsonl.
+func TestAnIDNoMintProducesNamesNoTranscriptForTheLook(t *testing.T) {
+	store := t.TempDir()
+	forkWrite(t, filepath.Join(store, "x.jsonl"), []byte("{}\n"))
+	written, err := sessionTranscriptState(store, "../x")
+	if written || err != nil {
+		t.Errorf("sessionTranscriptState(../x) = %v, %v; want certainly absent", written, err)
+	}
+}
+
+// So a resume of a record naming such an id finds nothing to continue and says
+// so, before any sandbox starts — rather than choosing whatever the join
+// reached and failing later.
+func TestAResumeOfARecordNamingAnIDNoMintProducesContinuesNothing(t *testing.T) {
+	env := sessionsNewEnv(t)
+	src := resumeSource("s-0000000b")
+	src.ConversationID = "../x"
+	src.Args = []string{"--model", "opus"}
+	sessionsSeed(t, env.st, src)
+	forkWrite(t, filepath.Join(env.conversations, "local", "w-4a77b1c9", "x.jsonl"), []byte("{}\n"))
+
+	rec := env.do(t, http.MethodPost, "/v1/sessions", resumeBody("s-0000000b"))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("resume status = %d, want 409; body = %s", rec.Code, rec.Body.String())
+	}
+	env.be.mu.Lock()
+	created := len(env.be.specs)
+	env.be.mu.Unlock()
+	if created != 0 {
+		t.Errorf("%d sandboxes were created for a resume with nothing to continue", created)
 	}
 }
 

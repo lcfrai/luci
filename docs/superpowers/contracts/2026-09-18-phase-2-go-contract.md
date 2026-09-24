@@ -26,7 +26,7 @@ binary on this machine. Nothing here is recalled.
 | coder/websocket's origin check is host-only and permits a **missing** Origin | `coder/websocket@v1.8.12/accept.go` lines 206–234 |
 | Tauri webview origin string | tauri `dev` branch, `crates/tauri/src/manager/webview.rs` (`window_origin`) and `crates/tauri-utils/src/config.rs` (`use_https_scheme`, "Defaults to `false`") |
 | Claude Code flags | `claude --help` on this machine, version **2.1.267**; the sandbox image pins **2.1.274** |
-| `--session-id`, `--fork-session`, where transcripts live — AMENDED by the resume fix (2026-09-23), and by OD-10 (2026-09-24): a fork survives its source's deletion | `claude --help` and the CLI's behaviour **inside `panacea-app/sandbox:dev`, version 2.1.274**: transcript at `~/.claude/projects/-home-dev-work/<uuid>.jsonl`; `--session-id` of an existing conversation → `Session ID <id> is already in use`; `--resume A --session-id B` without `--fork-session` → refused; `--resume A --fork-session --session-id B` → B written with A's history; `--resume <missing>` → `No conversation found with session ID: <id>`. OD-10 (2026-09-24, `od10-forget-report.md` §3): B is a whole copy — 24 lines, every one naming B, none naming A — so after deleting A's file, `--resume B --fork-session --session-id C` still works and C holds A's turn and B's. The CLI also writes `-home-dev-work/memory/` (per project directory, not per session) and `~/.claude/telemetry/*.<session id>.*.json` (outside the store). AMENDED by the fork-carries fix (2026-09-24, `fork-carries-report.md` §3, image `469a07f6c43d`): with A's file bind-mounted **read-only** at its path inside ANOTHER store, `--resume A --fork-session --session-id B` forks exactly as with it writable — B written, A's turn in it twice, no line naming A, A byte-identical after; when the mount point's parent `-home-dev-work` is missing, Docker makes it `root:root 0755` inside the sandbox, `dev` cannot write beside A, and the fork exits writing nothing; after the container is gone Docker has left an empty 0-byte file at the mount point on the host |
+| `--session-id`, `--fork-session`, where transcripts live — AMENDED by the resume fix (2026-09-23), and by OD-10 (2026-09-24): a fork survives its source's deletion — observed in `-p` mode; the interactive fork before its first turn is unverified until OD-12 (§3.15) | `claude --help` and the CLI's behaviour **inside `panacea-app/sandbox:dev`, version 2.1.274**: transcript at `~/.claude/projects/-home-dev-work/<uuid>.jsonl`; `--session-id` of an existing conversation → `Session ID <id> is already in use`; `--resume A --session-id B` without `--fork-session` → refused; `--resume A --fork-session --session-id B` → B written with A's history; `--resume <missing>` → `No conversation found with session ID: <id>`. OD-10 (2026-09-24, `od10-forget-report.md` §3): B is a whole copy — 24 lines, every one naming B, none naming A — so after deleting A's file, `--resume B --fork-session --session-id C` still works and C holds A's turn and B's. The CLI also writes `-home-dev-work/memory/` (per project directory, not per session) and `~/.claude/telemetry/*.<session id>.*.json` (outside the store). AMENDED by the fork-carries fix (2026-09-24, `fork-carries-report.md` §3, image `469a07f6c43d`): with A's file bind-mounted **read-only** at its path inside ANOTHER store, `--resume A --fork-session --session-id B` forks exactly as with it writable — B written, A's turn in it twice, no line naming A, A byte-identical after; when the mount point's parent `-home-dev-work` is missing, Docker makes it `root:root 0755` inside the sandbox, `dev` cannot write beside A, and the fork exits writing nothing; after the container is gone Docker has left an empty 0-byte file at the mount point on the host |
 
 **Not verified, and marked as such throughout:** Codex, OpenCode and Gemini CLI
 flags. None of those binaries exists on this machine, and
@@ -1958,6 +1958,12 @@ continue. Start a new session instead." — the alternative is a terminal that p
 conversation found with session ID` and exits. A `stat` that fails any other way is not a
 refusal: that candidate is passed and the CLI judges, because OD-8 lets no feature require
 the look to work. A refused resume creates no directory, not even the store.
+AMENDED by the OD-10 fix round (od10-forget-review-c m-5, 2026-09-24): an id **not spelled the
+one way `ids.UUID` mints** (`harness.IsConversationID`) is certainly absent, and nothing is
+looked at for it — `Build` refuses such an id, so no CLI wrote a transcript under it, and joined
+onto the store it names another file (`../x` is `<store>/x.jsonl`). A resume whose candidates
+are all such ids is the 409 above; a restart does not list such an id in
+`earlierConversationIds`. The same rule as Forget's (§3.15).
 
 AMENDED by the fork-carries fix (2026-09-24; the Resume fix's concern 5, "Fork does not carry
 the conversation", ruled a defect under OD-8's list) — **a `resume` whose source ran in another
@@ -2147,6 +2153,29 @@ nothing) and never lists the store, so no other session's file is reachable from
 - **The transcript directory must be a real directory.** It is inside the mount, so the agent can
   replace it with a link, and deleting through a link deletes a host file at the agent's choosing.
   A link there is a deletion failure.
+  - AMENDED by the OD-10 fix round (od10-forget-review-c m-3, 2026-09-24) — **a link swapped in
+    after the look deletes nothing either.** The store is per worktree, so while one session's Forget
+    runs, every other live session in that worktree has the store mounted read-write, and an agent
+    there can swap the directory for a link between the look and the deletes. The names deleted are
+    not only the forgotten session's: a fork's `carriedConversationId` is its **source's**
+    conversation id, so a well-timed link to the source worktree's directory would have deleted the
+    source's transcript (the reviewer's bound, "only this session's minted uuid", held before the
+    fork-carries fix, not after; `TestForgetDeletesNothingThroughALinkSwappedInAfterItsLook` did
+    exactly that before the fix). So each file is deleted by `sessionRemoveIn`, which deletes only the
+    file really in the store's directory: on Windows it opens the file without following a link at
+    its own name, asks the filesystem where the opened file is, and deletes by that handle only if it
+    is `<store>\-home-dev-work\<id>.jsonl`; on a unix it opens the directory `O_NOFOLLOW` and
+    `unlinkat`s relative to it; elsewhere it deletes nothing and fails. `os.Root` (Go 1.24) is not
+    needed, and `go 1.23` stays. A read-only file and an empty directory at the name still go, as
+    they did under `os.Remove`, and so does a path past `MAX_PATH`. The unix branch is compiled for
+    linux and darwin here and not yet run.
+  - **One link disables Forget for the whole worktree** (m-4). Every Forget of every session in that
+    worktree then answers 500 `internal`, which the cockpit shows as its generic failure, until a
+    person deletes the link by hand; no product verb clears it in phase 2. Phase 3's worktree-removal
+    verb, which deletes the whole store, and OD-12's hands-on session should look for it.
+  - **Unverified, related:** a sibling CLI's own in-app `/resume` picker lists every transcript in the
+    shared store, so a sibling that resumed a forgotten conversation in-CLI could write its file again
+    after Forget. That is CLI behaviour the control plane does not observe (OD-8).
 - **A deletion failure is reported by not forgetting.** The transcripts go **before** the record, so
   a failure — the file will not go, the directory is a link, the look at it fails any way but
   "absent" — answers 500 `internal` (the op and the path are in the log, `a.internal`) with the
@@ -2159,7 +2188,13 @@ nothing) and never lists the store, so no other session's file is reachable from
   `panacea-app/sandbox:dev`, claude 2.1.274, on 2026-09-24: with A's file deleted, `--resume B
   --fork-session --session-id C` still worked and C held A's turn and B's; `--resume A` answered `No
   conversation found`. §3.9 resolves only the resumed record's own ids, so a forgotten source is never
-  asked for. Fork into another worktree ~~(phase 2's client starts a fresh session there) has its own
+  asked for. AMENDED by the OD-10 fix round (od10-forget-review-c m-2, 2026-09-24): **observed in
+  `-p` mode**, where the fork writes its whole copy inside the one process; the interactive fork
+  before its first turn — when it writes B, and whether it re-reads A then — is unverified until
+  OD-12's hands-on session. So is the window where a Resume in the same worktree has not yet loaded
+  A when A is forgotten: it would answer `No conversation found`, and the cockpit's deferred hold on
+  Forget narrows that window without closing it. (A Fork into another worktree reads the staged copy
+  under its own session id, which A's Forget does not touch.) Fork into another worktree ~~(phase 2's client starts a fresh session there) has its own
   id in its own store, and is untouched by construction~~ — AMENDED by the fork-carries fix
   (2026-09-24): a fork now carries its source's conversation (§3.9), and is still untouched by its
   source's Forget: its own transcript is a whole copy in its own store, and the staged copy it was

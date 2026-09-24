@@ -185,10 +185,11 @@ func validatePermission(d Descriptor, mode PermissionMode) error {
 var conversationPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 // IsConversationID is whether id is a conversation id in the one spelling
-// ids.UUID mints — the check Build makes. It is exported for the one other
-// place a record's id meets the filesystem: Forget, which deletes the
-// transcript named after it (OD-10) and must never join anything else onto a
-// path.
+// ids.UUID mints — the check Build makes. It is exported for the places a
+// record's id is joined onto a path in the conversation store, which must
+// never join anything else: the look at whether a transcript was written
+// (sessionTranscriptState, for resume and restart), and Forget, which deletes
+// the transcript named after it (OD-10).
 func IsConversationID(id string) bool { return conversationPattern.MatchString(id) }
 
 // validateResume checks the two conversation ids together, because their
