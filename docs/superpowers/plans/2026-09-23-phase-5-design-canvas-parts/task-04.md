@@ -69,23 +69,51 @@ var AllowedExceptions = map[string]bool{"LLVM-exception": true}
 // rule allows.
 func Denied(eco Ecosystem, name string) bool
 
-// First party is decided by structure, never by name (review I9). There is no
-// name list. A package is first party, and never checked, when:
-//   - Go: its package's .Module.Main is true (under go.work every workspace
-//     module is Main: verified 2026-09-24, control-plane and sandboxd both
-//     report "Main": true), or .Module.Replace is a directory replacement
-//     (Replace.Version "") whose Replace.Dir lies inside -root;
-//   - npm: it is the project's root node, or it is a link node, "resolved"
-//     starting "file:", whose target lies inside -root. The target is the rest
-//     of "resolved" joined to the node's "path" (verified on npm 11.12.1: a
-//     link at a/node_modules/@panacea-app/b carries "resolved": "file:../../../b",
-//     which is a sibling b/);
-//   - Cargo: a package with "source": null whose manifest_path lies inside -root.
-// "Inside -root" is filepath.Rel with no leading "..", after filepath.Abs on
-// both. A registry package named "desktop-notify", "@panacea-app/x" or
-// "github.com/kpmg-au-emu/panacea-app/x" (a published copy with Main false) is
-// third party; so is a file: link or a replace directory outside -root.
-// Each source in sources.go applies its line of this rule, through one helper:
+// First party is decided by structure, never by name (review I9), and it means
+// "a project this gate scans", never "a path inside -root" (re-review RR-I9-2:
+// a vendored third-party copy lives inside the repository too). There is no
+// name list. A package is first party, and never checked, only when:
+//   - Go: its package's .Module.Main is true. Under go.work every workspace
+//     module is Main (verified 2026-09-24: control-plane and sandboxd both
+//     report "Main": true), so every first-party Go module is a go.work
+//     member. A directory replace, inside -root or outside it, is classified
+//     from its directory like any module (neither go.mod has a replace today,
+//     read 2026-09-24);
+//   - npm: it is the root node of a project in the scan list (the command
+//     line's "scans"), or a link whose target is exactly the root of such a
+//     project. A link is read from what npm states about structure, never
+//     from npm ls's "resolved" (re-review RR-I9-1): the project's
+//     package-lock.json entry for the node's location has "link": true, and
+//     its "resolved" is the target relative to the project directory
+//     (verified on npm 11.12.1: "node_modules/@panacea-app/b": {"resolved":
+//     "../b", "link": true} and "node_modules/c": {"resolved": "sub/c",
+//     "link": true}). npm ls --long's own "resolved" is relative to a
+//     different base per kind ("file:../../../b" from the link's parent for a
+//     link, "file:vendor/g-1.0.0.tgz" from the project for a tarball), so the
+//     gate never reads it. A file: tarball has no "link" and installs as a real
+//     copy: it is third party and checked. A link to a directory inside -root
+//     that is not a scanned project fails with "first-party link <path> is not
+//     a scanned project: add it to the scan list, or install a vendored copy
+//     as a file: tarball, which is checked like a registry package". A link
+//     outside -root is third party: classified from its target's package.json,
+//     and descended;
+//   - Cargo: its id is in "workspace_members". A path crate that is not a
+//     member is reported like any crate.
+// Paths are compared after canon: filepath.Abs, then filepath.EvalSymlinks,
+// which also expands an 8.3 short name (verified 2026-09-24, go1.26.2 on
+// Windows; how Go reports go list's Module.Dir under a short working
+// directory is unverified, and canon makes it not matter: C:/Users/AU-DEV~1/
+// AppData/Local/Temp became C:\Users\au-dev-dmackie1\AppData\Local\Temp; npm
+// prints "path" in the long form, re-review RR-M1), then, on Windows,
+// strings.EqualFold per element. "Inside -root" is filepath.Rel of the two
+// canon forms with no leading "..". A registry package named "desktop-notify",
+// "@panacea-app/x" or "github.com/kpmg-au-emu/panacea-app/x" (a published copy
+// with Main false) is third party.
+// EvalSymlinks needs the path to exist, so canon of a missing path (a link
+// whose target is gone) is an error, and the run exits 2, never a skip.
+// Each source in sources.go applies its line of this rule through these:
+func canon(p string) (string, error)
+func samePath(a, b string) bool   // canon forms equal
 func insideRoot(root, dir string) bool
 
 type Ecosystem string
@@ -168,7 +196,14 @@ func ParseSPDX(s string) (Expr, error)
 
 // Classify reads the licence files of one Go module directory (LICENSE,
 // LICENSE.md, LICENSE.txt, LICENCE, COPYING, LICENSE-MIT, LICENSE-APACHE) and
-// returns an SPDX expression. Rules:
+// returns an SPDX expression. The names match case-insensitively, over the
+// entries os.ReadDir returns (strings.EqualFold), never by opening a fixed
+// name (re-review RR-I9-3): github.com/josharian/intern v1.0.0, in the shipped
+// closure, holds only "license.md". Opening "LICENSE.md" finds it on Windows,
+// whose filesystem ignores case, and misses it on the ubuntu-latest CI agent,
+// so an exact-name gate passes locally and fails the first push. source
+// carries the entry's real name, "license.md", which is how a test on Windows
+// tells a directory read from an open of a fixed name. Rules:
 //   - each file is matched against fixed fingerprints of MIT, Apache-2.0,
 //     BSD-2-Clause, BSD-3-Clause, ISC and 0BSD; copyleft markers (GNU GENERAL
 //     PUBLIC, GNU LESSER, GNU AFFERO, Mozilla Public License, European Union
@@ -194,8 +229,9 @@ type Runner func(dir string, name string, args ...string) ([]byte, error)
 //   go list -deps -json ./canvas/... ./control-plane/cmd/... ./sandboxd/cmd/...
 // from the repository root, keeping each package's .Module (not the standard
 // library, .Standard true; not first party by the structural rule in gate.go),
-// de-duplicated by path@version, and classifies each .Module.Dir, or the
-// .Module.Replace.Dir of a non-local replacement. All Enforced. A module whose
+// de-duplicated by path@version, and classifies .Module.Replace.Dir when
+// .Module.Replace is set (a directory replace included, wherever it points:
+// re-review RR-I9-2), else .Module.Dir. All Enforced. A module whose
 // directory holds no licence file fails (Classify's "none").
 func GoDeps(root string, run Runner) ([]Dep, error)
 
@@ -215,20 +251,32 @@ func GoDeps(root string, run Runner) ([]Dep, error)
 // first from a file under src/ (no src/ directory has a node_modules), and its
 // production closure are Enforced, Via "imported by <file>". An imported name
 // with no node there fails: "imported by <file> but not installed". Every
-// other node is reported. The project root and in-root file: links are skipped
-// (gate.go); a first-party link is not descended, because its own project is
-// scanned as its own From.
-func NpmDeps(root, dir, from string, run Runner) ([]Dep, error)
+// other node is reported. Links are read from <dir>/package-lock.json, keyed
+// by each node's location, filepath.ToSlash(filepath.Rel(canon(dir),
+// canon(path))). No lockfile is exit 2. A node with no entry is not a link,
+// so it is checked: only a positive "link": true can exempt anything. The project
+// root, and a link whose target is a scanned project's root (the scanned
+// argument: the command line's list), are skipped and not descended, because
+// that project is scanned as its own From; an imported name that resolves to
+// one is skipped the same way. Every other link follows gate.go's rule: in
+// -root, it fails "not a scanned project"; outside, it is classified.
+func NpmDeps(root, dir, from string, scanned []string, run Runner) ([]Dep, error)
 
 // CargoDeps reports one Cargo workspace (review I10):
 //   cargo metadata --offline --locked --format-version 1 --filter-platform x86_64-pc-windows-msvc
 // run in desktop/src-tauri. --locked refuses to rewrite Cargo.lock and
 // --offline refuses the network; the filter keeps the Windows target, the one
-// the owner's machines run. Each package in "packages" that is not first party
+// the owner's machines run. Each package in "packages" whose id is not in
+// "workspace_members" (today one member, desktop@0.1.0: read 2026-09-24)
 // becomes a Dep with Declared = its "license" (or "" with Source
 // "license_file: <path>" when only license_file is set), Enforced =
-// CargoEnforced. Cargo's deprecated "/" separator (e.g. "Unlicense/MIT") is
-// read as OR, here only, because Cargo documents it so; ParseSPDX is unchanged.
+// CargoEnforced. Cargo's deprecated "/" separator is read as OR, with or
+// without spaces around it, here only, because Cargo documents it so;
+// ParseSPDX is unchanged. The tree holds both forms today (read 2026-09-24):
+// "Unlicense/MIT" (2 crates), "MIT/Apache-2.0" (11), "BSD-3-Clause/MIT"
+// (brotli-decompressor 5.0.3) and "Apache-2.0 / MIT" (fnv 1.0.7; re-review
+// RR-M2), so a split that misses the spaced form reports fnv falsely today and
+// fails it once CargoEnforced flips.
 // Why names the crate's first chain to the root through normal (not build,
 // not dev) edges in resolve.nodes, e.g. "tauri 2.11.5 → tauri-utils 2.9.3 →
 // dom_query 0.27.0", and "(proc-macro)" when the crate's only target is a
@@ -247,7 +295,8 @@ func CargoDeps(root, dir string, run Runner) (deps []Dep, notScanned string, err
 
 // ShippedImports returns each bare package name the shipped source of one npm
 // project imports, with the first file that imports it (review I9, hole 1).
-// The walk starts at every .ts/.tsx/.js/.jsx/.mjs/.css file under srcDir that
+// The walk starts at every .ts/.tsx/.mts/.cts/.js/.jsx/.mjs/.cjs/.css file
+// (Vite bundles all eight script forms; re-review RR-M4) under srcDir that
 // is not a test file (the name matches *.test.* or *.spec.*, or the file lies
 // under a directory named "test"), and follows relative imports from a walked
 // file to a fixed point, so a test helper that shipped code imports is walked
@@ -284,6 +333,9 @@ func ShippedImports(dir, srcDir string, run Runner) (map[string]string, error)
 licencegate [-root <repo>] [-exceptions tools/licencegate/exceptions.json] [-json]
 scans   Go: GoDeps from -root. npm: NpmDeps and ShippedImports for desktop (src: desktop/src) and
         for canvas/editor (src: canvas/editor/src). Cargo: CargoDeps in desktop/src-tauri.
+        This list is also the npm first-party list (gate.go): a link is exempt only when its
+        target is one of these project roots. A new first-party package is added here, in one
+        line, or the gate fails its link as "not a scanned project".
 exit 0  every enforced dep is pass or excepted
 exit 1  at least one enforced dep failed (each printed: FAIL <eco> <name> <version> <declared> — <why>)
 exit 2  the gate could not run (a command failed, a file is unreadable)
@@ -295,14 +347,23 @@ and never changes the exit code; the Cargo lines print whether or not cargo ran 
 # azure-pipelines.yml — appended after "Canvas editor"
   - script: cd desktop && npm ci
     displayName: Desktop dependencies
+  - script: |
+      if command -v cargo >/dev/null; then cargo fetch --locked --manifest-path desktop/src-tauri/Cargo.toml; else echo "cargo not on PATH: the licence gate prints REPORT cargo: not scanned"; fi
+    displayName: Cargo registry cache (licence report only)
+    continueOnError: true
   - script: go run ./tools/licencegate -root .
     displayName: Licence gate
 ```
 
 The gate needs `node` (for `npm ls` and `imports.cjs`, already on the agent for the desktop steps)
-and, for the Cargo report only, `cargo` with a populated registry cache. Whether the CI agent has
-`cargo` is **unverified**; without it the run prints `REPORT cargo: not scanned: …` and still exits
-on the enforced ecosystems alone, so a missing tool is visible, never silent.
+and, for the Cargo report only, `cargo` **and a populated registry cache**, because `--offline`
+reads only the cache (re-review RR-M3). A fresh hosted `ubuntu-latest` agent starts with an empty
+cache, so without the `cargo fetch --locked` step every CI run would print `REPORT cargo: not
+scanned` whether or not `cargo` is installed. The fetch step fills it; `continueOnError` keeps a
+report-only step from failing the build, and the gate's own line still says when the report did
+not run. Whether the hosted agent has `cargo`, and whether its fetch gets through, are
+**unverified**; either way the run prints `REPORT cargo: not scanned: …` and still exits on the
+enforced ecosystems alone, so a missing report is visible, never silent.
 
 ## Tests first
 
@@ -317,14 +378,15 @@ on the enforced ecosystems alone, so a missing tool is visible, never silent.
 | `TestEvaluate_devDepReportsOnly` | a non-enforced `GPL-3.0` dep (a devDependency no shipped file reaches) → `report`, exit code 0 | P5-P reversed silently |
 | `TestEvaluate_denyMatchesExactly` (table) | `tldraw` ✗ and `@tldraw/editor` ✗ whatever they declare; `tldraw-helpers` declaring `MIT` ✓; `@tldrawx/y` declaring `MIT` ✓; Go `github.com/tldraw/tldraw-go` ✗; Go `github.com/tldrawx/y` declaring `MIT` ✓ | a deny list matched by string prefix, or by substring |
 | `TestNpmDeps_importedDevDepIsEnforced` (hole 1; fixture tree + injected `Runner`) | `html-to-image` declared only in `devDependencies`, declaring `GPL-3.0`, imported by `src/export/png.ts` → `Enforced`, `Via` names that file, verdict `fail`; its production child is `Enforced` too; `vitest`, imported only by `src/a.test.ts` and `src/test/setup.ts`, stays `report`; an imported name with no `node_modules/<name>` node → `fail` "not installed" | the review's case: a bundled dev import only reported; a closure that stops at the direct package |
-| `TestShippedImports` (hole 1; table, injected `Runner` for `imports.cjs`) | `import type` skipped, `import { type A, b }` kept; `@s/n/sub` → `@s/n`, `n/sub` → `n`, `x?raw` → `x`; `./`, `node:`, `virtual:` skipped; `a.test.tsx`, `a.spec.ts` and `src/test/x.ts` not walked; `src/test/helper.ts` **is** walked when a shipped file imports it; `src/latest/x.ts` and `src/contest.tsx` **are** walked (a directory named exactly `test`, not a substring); CSS `@import "pkg/a.css"` → `pkg`, and one inside `/* */` is not | a walk that trusts file names alone; a test helper that ships unscanned |
+| `TestShippedImports` (hole 1; table, injected `Runner` for `imports.cjs`) | `import type` skipped, `import { type A, b }` kept; `@s/n/sub` → `@s/n`, `n/sub` → `n`, `x?raw` → `x`; `./`, `node:`, `virtual:` skipped; `a.test.tsx`, `a.spec.ts` and `src/test/x.ts` not walked; `src/test/helper.ts` **is** walked when a shipped file imports it; `src/latest/x.ts` and `src/contest.tsx` **are** walked (a directory named exactly `test`, not a substring); a bare import in each of `a.mts`, `a.cts` and `a.cjs` is found (RR-M4); CSS `@import "pkg/a.css"` → `pkg`, and one inside `/* */` is not | a walk that trusts file names alone; a test helper that ships unscanned |
 | `imports.test.cjs` (`node --test`, real `typescript` from the project) | a fixture holding a comment `// import x from "c"`, JSX text `<p>Can't "d"</p>`, a regex `/"/g` and five real import forms yields exactly the five | a regex scanner substituted for the parser |
-| `TestNpmDeps_firstPartyIsStructural` (hole 2) | registry packages named `desktop-notify` and `@panacea-app/x` (`resolved: "https://registry…"`) are checked, and a `GPL-3.0` one fails; a `file:` link inside `-root` is skipped and not descended; a `file:` link outside `-root` declaring `UNLICENSED` fails, including one into `<root>-fork`, a sibling whose path starts with the root's; the project root is skipped | first party matched by name or prefix; `insideRoot` as a string-prefix test |
-| `TestGoDeps_firstPartyIsStructural` (hole 2) | `Main: true` skipped; `github.com/kpmg-au-emu/panacea-app/x` with `Main: false` is checked; a directory `replace` inside `-root` skipped, one outside checked; `.Standard` skipped; a module under two packages is one `Dep` | first party matched by module path; first-party code failing its own gate |
+| `TestNpmDeps_firstPartyIsStructural` (hole 2; RR-I9-1, RR-I9-2) | every fixture's `npm ls --long` JSON and `package-lock.json` is copied from a real npm run, and the test's comment names the npm version and the command, because a fixture composed from the rule's own words agrees with a wrong rule. Registry packages named `desktop-notify` and `@panacea-app/x` (`resolved: "https://registry…"`) are checked, and a `GPL-3.0` one fails; a link (lockfile `"link": true`) whose target is a scanned project's root is skipped and not descended; a link into `<root>/vendor/x`, not a scanned project, declaring `GPL-3.0`, fails "not a scanned project"; a link into `<root>-fork/x` declaring `UNLICENSED` fails (npm ls prints `resolved: "file:../../../<root>-fork/x"` for it, which joined to the node's `path` lands inside `-root`); a `file:vendor/g-1.0.0.tgz` tarball declaring `GPL-3.0`, no `link` in the lockfile, is checked and fails; a node with no lockfile entry is checked; the project root is skipped | first party matched by name or prefix; `insideRoot` as a string-prefix test; the link target joined to `path` (or to `filepath.Dir(path)`) from npm ls's `resolved`; any `file:` read as a link; "inside -root" read as "ours" |
+| `TestCanon` (RR-M1) | `samePath` of a path and its case-flipped form is true on Windows, false elsewhere; `insideRoot("<r>", "<r>-fork/x")` false; on Windows, when `os.TempDir()` holds a `~` (it does on the owner's machine: `C:\Users\AU-DEV~1\…`), `canon` of it has no `~` and `insideRoot(short, long form of a child)` is true; the case is skipped, and says so, where TEMP has no short element | a root given in 8.3 form putting every in-root link outside the root |
+| `TestGoDeps_firstPartyIsStructural` (hole 2; RR-I9-2) | `Main: true` skipped; `github.com/kpmg-au-emu/panacea-app/x` with `Main: false` is checked; a directory `replace` into `<root>/third_party/gpl-lib` holding a `GPL-3.0` text is classified from `Replace.Dir` and fails, and one outside `-root` is classified too; `.Standard` skipped; a module under two packages is one `Dep` | first party matched by module path; a vendored fork inside the repository exempted as first party; first-party code failing its own gate |
 | `TestClassify_noLicenceFile` + `TestGoDeps_noLicenceFileFails` (hole 3) | an empty module dir → `("", "none", nil)`; that module's `Dep` fails with why "no licence file in …", exit 1, not 2 | a module with no licence passing, or aborting the run |
 | `TestNpmDeps_readsEachCopyAtItsPath` (hole 4) | `node_modules/x` 1.0.0 `MIT` and `node_modules/y/node_modules/x` 2.0.0 `GPL-3.0` are two `Dep`s, each `license` read from its own `path`; the nested one fails; a node printed twice at one path, once without children, keeps its children | a `node_modules/<name>` guess; one copy shadowing another |
-| `TestCargoDeps` (I10; fixture `cargo metadata` JSON) | every non-first-party package is a `Dep` with `Enforced` = `CargoEnforced` (false); `MPL-2.0` → `report`, exit 0; `Unlicense/MIT` read as `Unlicense OR MIT` → pass; a `source: null` member inside `-root` skipped; why carries the normal-edge chain, and "(proc-macro)" for a proc-macro-only crate; the runner failing → `notScanned` set, `err` nil | Cargo enforced by accident; a missing cargo aborting the gate, or skipped with no line |
-| `TestClassify` (fixtures in `testdata/licenses/`) | the six allowed texts each classify to their id; a GPL-3.0 text → `GPL-3.0-only`; MPL text → `MPL-2.0`; Apache + a CC-BY-4.0 section in one file → `Apache-2.0 AND LicenseRef-unclassified`; `LICENSE-MIT` + `LICENSE-APACHE` → `MIT OR Apache-2.0` | a classifier that returns MIT for any permissive-looking text |
+| `TestCargoDeps` (I10; fixture `cargo metadata` JSON) | every non-first-party package is a `Dep` with `Enforced` = `CargoEnforced` (false); `MPL-2.0` → `report`, exit 0; `Unlicense/MIT` read as `Unlicense OR MIT` → pass, and so do `Apache-2.0 / MIT` and `BSD-3-Clause/MIT` (RR-M2); the one id in `workspace_members` skipped, and a path crate (`source: null`) inside `-root` that is not a member is a `Dep`; why carries the normal-edge chain, and "(proc-macro)" for a proc-macro-only crate; the runner failing → `notScanned` set, `err` nil | Cargo enforced by accident; a missing cargo aborting the gate, or skipped with no line |
+| `TestClassify` (fixtures in `testdata/licenses/`) | the six allowed texts each classify to their id; a GPL-3.0 text → `GPL-3.0-only`; MPL text → `MPL-2.0`; Apache + a CC-BY-4.0 section in one file → `Apache-2.0 AND LicenseRef-unclassified`; `LICENSE-MIT` + `LICENSE-APACHE` → `MIT OR Apache-2.0`; a directory holding only `license.md` (the MIT text, as in `josharian/intern` v1.0.0) → `MIT` with source `license.md`, the entry's real name (RR-I9-3) | a classifier that returns MIT for any permissive-looking text; names matched exactly, by `==` over the entries or by opening `LICENSE.md` (on Windows the open finds the file, but source then reads `LICENSE.md`, so the assertion on source kills it there too) |
 | `TestNpmDeps` (fixture `npm ls --long` JSON + fixture `package.json` files) | `--omit=dev` entries are enforced; dev-only entries no shipped file imports are not; `licenses: [{type:"MIT"},{type:"ISC"}]` → `MIT AND ISC` | dev deps enforced by accident |
 | `TestMain_exitCodes` | runs `run()` with fixtures: 0 when clean, 1 with the MPL fixture, 2 when the Go or npm runner errors; 0 with an `MPL-2.0` crate in the Cargo fixture (a `REPORT cargo` line printed); 0 with the cargo runner failing (a `REPORT cargo: not scanned` line printed) | a gate that exits 0 on a tool failure; Cargo flipping the exit code before the owner rules |
 
