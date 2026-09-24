@@ -42,7 +42,9 @@ the Azure DevOps key form is phase 3's `azure-devops/<org>/<project>/<repo>`, va
 
 // ProjectRole returns the caller's role in the team that owns projectID; ok=false
 // when the caller cannot read it (not a member, another org, or no such project —
-// indistinguishable, all 404 project_not_found).
+// indistinguishable, all 404 project_not_found). With task 16's disableGoAuthz on
+// it still reads the project row under row-level security (invisible: ok=false),
+// and answers admin for a visible one without the membership query (review I5).
 func ProjectRole(ctx context.Context, tx *Tx, projectID string) (role hubapi.Role, teamID string, ok bool, err error)
 ```
 

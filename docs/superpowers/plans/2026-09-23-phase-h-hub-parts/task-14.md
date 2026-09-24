@@ -97,7 +97,9 @@ type WriteResult struct {
 //                                     → seen with a different one: 422 idempotency_mismatch
 //   fn(tx)                            → *APIError: ROLLBACK, answer the problem
 //   store.Append(each pending event)
-//   store.StoreResponse(key, status, body)   (2xx only; a refusal is never stored)
+//   store.StoreResponse(key, status, body)   (2xx only; a refusal is never stored. Route 26's
+//                                        body carries brief text; hub.erase_brief deletes every
+//                                        stored body naming the brief, A17, task 07)
 //   COMMIT                            → failure: 500 internal (nothing was sent yet)
 //   write the response
 // The request body (≤ httpx.MaxBodyBytes) is read once, before BEGIN, into a

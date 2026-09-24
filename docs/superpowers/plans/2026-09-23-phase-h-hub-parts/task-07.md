@@ -1,12 +1,20 @@
 ### Task 07: `sql/0001_init.sql` — the complete first schema, and a database test for every guard
 
-**Lane A. Depends on: 06. About 3 hours. Contract task H0 (and the database half of G4, G5).**
+**Lane A. Depends on: 06. About 4 hours (3 before review I5's cross-org key tests). Contract task H0 (and the database half of G4, G5).**
 
 The contract's §10.2–§10.5 is the schema, written from knowledge and never applied (contract §15).
 This task applies it and proves, **in the database and without any Go handler**, each guarantee of
 §10.7's "Database" column: a revision never changes, a head moves one step onto a real revision, a
-pin never moves, append-only tables are append-only, the audit chain is gapless and hashed, and one
-org never sees another's rows.
+pin never moves, append-only tables are append-only, the audit chain is gapless and hashed, one
+org never sees another's rows, **and no row links to another org's row**.
+
+**Two corrections that change behaviour**, folded into the contract by task 44a before this task
+runs, so the contract and this SQL agree:
+- **A16 (review I5):** every foreign key except the one to `orgs` carries `org_id`, onto a
+  `UNIQUE (org_id, …)` target. Row-level security checks only a row's own `org_id`, and Postgres
+  checks a foreign key without it, so a single-column key let an org-A row name an org-B parent.
+- **A17 (review I6):** `erase_brief` also deletes every stored idempotency response in the org
+  that names the brief, which is where route 26's stored response kept the text for 24 hours.
 
 **Three changes from the contract's text**, each so a test can name what it tamper-tests, none
 changing behaviour:
@@ -705,7 +713,9 @@ named.
 #### Steps
 
 - [ ] **Step 1:** Re-read contract §10.1–§10.7. If it changed after this part was written, the
-  contract's words win except for the three named constraints above.
+  contract's words win except for the three named constraints above. A16 and A17 are already in
+  the contract (task 44a); a contract that still shows a single-column key or an `erase_brief`
+  without the purge is stale, and this SQL wins.
 - [ ] **Step 2:** Tests, then `0001_init.sql` exactly as above, `embed.go`, and `hubtest.Migrated`.
 - [ ] **Step 3:** Run against the task-06 container. Fix the SQL until every test passes; **any
   change to the SQL beyond the three names is recorded in the commit message** and in the

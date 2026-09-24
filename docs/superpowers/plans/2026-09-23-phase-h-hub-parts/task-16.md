@@ -142,7 +142,7 @@ most likely to be skipped.
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestAuthorisationMatrix` | every row × every column → the expected status (and code where named), each cell on a fresh fixture | any missing check in any handler (T4 — the one single-layer control, §10.7) |
-| `TestTheXColumnHoldsWithoutGoChecks` | with `disableGoAuthz` on, every row's `X` cell still answers 404 (or an empty list) | a tenancy line held by Go alone (G4, T3) |
+| `TestTheXColumnHoldsWithoutGoChecks` | with `disableGoAuthz` on (defined in step 2: every authorisation predicate answers "allowed", and every lookup still runs under row-level security), every row's `X` cell still answers 404 (or an empty list). A 500 in an `X` cell is a failure too: it means a handler wrote a link it never looked up, and task 07's composite key refused it with `23503`. Afterwards, as the administrator, no org-2 row holds an org-1 id | a tenancy line held by Go alone (G4, T3); a switch defined so it hides the hole (review I5: a `TeamRole` that answers "allowed" **without** reading the team, so the insert, not the lookup, meets org 1's id) |
 | `TestEveryRouteHasAMatrixRow` | the meta-rule above | a later route added with no authorisation test |
 
 #### Steps
@@ -150,7 +150,14 @@ most likely to be skipped.
 - [ ] **Step 1:** Re-read contract §5.3, §7.2, §7.3, §8, §13 (the matrix paragraph).
 - [ ] **Step 2:** Tests; they fail. Then `store/invites.go`, `invites.go`, the binding in `me.go`,
   the `disableGoAuthz` switch (an unexported package variable that `authz.go`'s `Require` and
-  `TeamRole` consult; set only from `export_test.go`).
+  `TeamRole` consult; set only from `export_test.go`). Its meaning (review I5): **authorisation
+  predicates answer "allowed"; lookups still run under row-level security.** With it on, `Require`
+  returns `nil` whatever the role. `TeamRole` skips the membership query but still reads the team
+  row itself: a team the org cannot see answers `ok = false` (the route's 404), and a visible one
+  answers `admin, ok = true`. Every other query runs as written. Task 17's `ProjectRole` honours it
+  the same way, reading the project row. So the switch removes the Go layer and only that layer:
+  the `X` column then tests row-level security, and task 07's `TestACrossOrgReferenceIsRefused`
+  tests the composite keys with no Go at all.
 - [ ] **Step 3:** Commit by pathspec.
 
 #### Acceptance
@@ -159,7 +166,7 @@ most likely to be skipped.
 go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
   -run 'TestInvite|TestASecondPending|TestInvitingAMember|TestRevokeKeeps|TestBinding|TestAGuestCannotBind|TestAuthorisationMatrix|TestTheXColumn|TestEveryRoute' \
   2>&1 | grep -c "^--- PASS"                                                                     # 12
-grep -rn "disableGoAuthz" control-plane/internal/hub/server/ --include=*.go | grep -v _test.go    # only authz.go's declaration and its two uses
+grep -rn "disableGoAuthz" control-plane/internal/hub/server/ --include=*.go | grep -v _test.go    # only authz.go's declaration and its two uses (task 17 adds a third, in ProjectRole)
 ```
 
 #### What this task does not claim
