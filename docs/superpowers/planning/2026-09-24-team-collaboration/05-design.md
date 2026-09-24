@@ -17,8 +17,8 @@ changes: the Orchestrator runs as a product-owned runner in a small pod with no 
 (§4.2); activity is observed from `machined`, outside the VM (§3.3); one taint rule keyed on who
 started the turn (§7.2); nothing an agent writes is ever typed into a PTY (§4.3); workers read no
 peer free text (§5.1); every directive is a Hub record (§3.3); the cloud image ships the product's
-own managed settings (§2.5); and TM1 is re-planned at about 68 focused days behind a two-week
-TM1-α spike (§12). The owner's relayed words for this run (*"Idk why Docker is needed … The app on
+own managed settings (§2.5); and TM1 is re-planned at about 95 focused days (was 53.5), roughly 7
+to 8 weeks on five streams, behind a two-week TM1-α spike (§12). The owner's relayed words for this run (*"Idk why Docker is needed … The app on
 device should be the portal to the cloud"*) are answered in §10.3: no user needs Docker. The
 owner's lean towards AWS is put back to the owner as Q0 with the corrected trade-off (§13.1).
 
@@ -89,8 +89,8 @@ updating that document, they are able to communicate and understand each other."
    A conflict reaches a human when an Orchestrator escalates it, and **Fleet itself** writes a
    DECIDED WITHOUT YOU line to both humans for every conflict closed without them. There is no
    teammate terminal by default (OD-15, §9).
-10. **The minimum lovable slice (TM1)** is about 68 focused days after the current wave, roughly 8
-    working weeks on four streams, behind a two-week **TM1-α** spike on the real cluster that
+10. **The minimum lovable slice (TM1)** is about 95 focused days after the current wave, roughly 7
+    to 8 working weeks on five streams, behind a two-week **TM1-α** spike on the real cluster that
     proves the runner, the product managed settings and Hub delegation first. It re-scopes the
     Hub, phase 8 and phase 3 in the exact ways listed in §11 (OD-17, §12).
 
@@ -956,6 +956,9 @@ at most 5 rows, then *"+3 more"*. Nothing else about teammates is on screen by d
   A path that someone else also holds shows a 1px ring, never a colour flood.
 - **Status is one dot per row on the global heartbeat clock**, never a spinner per row
   (`docs/DESIGN-SYSTEM.md:61-62`). `●` working, `○` waiting, and the waiting line names on whom.
+  *"Waiting on Priya"* appears only when the agent itself reported `blocked --on human` (shown as
+  the agent's words) or the cloud hook saw a permission `Notification`; otherwise the row says
+  `idle`, as phase 2 refuses to guess this state (`control-plane/internal/registry/session.go:10-13`).
 - **It shows change, not state.** A row flashes and decays over ~600 ms when its task, files or
   status change (`docs/DESIGN-SYSTEM.md:63`), and is otherwise still. Counts use `tabular-nums`.
 - **Zero state:** *"Only you on this project."* The band collapses to that one line.
@@ -983,18 +986,22 @@ The Desk stays account-level and keeps its fixed section order
 
 | Where | What appears | Source |
 |---|---|---|
-| **HORIZON** | *"Alice's worker and yours converge on `auth/session.go`, ~20 min"* | tier P or H forecasts (§8.2), as the horizon bar's *"collisions between agents"* (`docs/AGENTIC-UX.md:149`) |
-| **NEEDS YOU** | a `decide` escalation: the question, up to 4 options with consequences, the deadline, and the safe default | §6.5; answered in place, never navigating (`docs/AGENTIC-UX.md:147`) |
-| **SINCE YOU LAST LOOKED** | `inform` items, batched: *"Yielded `store/cache.go` to Alice's side; nothing lost."* | §6.5; a digest, never a toast (`docs/AGENTIC-UX.md:171`) |
-| **DECIDED WITHOUT YOU** | what your Orchestrator agreed with a peer inside your legislated authority, with [Undo] where the resolution can be reversed | §6.5; the handover's *"because"* line is the thread's typed resolution |
+| **HORIZON** | *"Alice's worker and yours converge on `auth/session.go`, ~20 min"*; stays until the conflict is `resolved` or `cleared`, never dropped on `accepted` | tier P, H or M forecasts (§8.2), written by **Fleet**, as the horizon bar's *"collisions between agents"* (`docs/AGENTIC-UX.md:149`) |
+| **NEEDS YOU** | a `decide` escalation: the question, up to 4 options with consequences, the Fleet-set deadline, and the safe default | §6.5; answered in place, never navigating (`docs/AGENTIC-UX.md:147`) |
+| **SINCE YOU LAST LOOKED** | `inform` items, batched: *"Yielded `store/cache.go` to Alice's side; nothing lost."*; and each free-text `answer` your Orchestrator sent a peer | §6.5; a digest, never a toast (`docs/AGENTIC-UX.md:171`) |
+| **DECIDED WITHOUT YOU** | every conflict closed without you, with [Undo] where the resolution can be reversed | written by **Fleet** from the thread's typed resolution for every accepted resolution, whether or not your Orchestrator informed (`07` I1) |
 
-A teammate's agent never appears on your Desk by itself. It reaches you only through your
-Orchestrator, which is OD-16's *"they raise them to the users"* in product form.
+A teammate's agent never appears on your Desk by itself. It reaches you through your Orchestrator,
+or through Fleet's own record of what your Orchestrator agreed, which is OD-16's *"they raise them
+to the users"* in product form, with no way for an agent to stay quiet.
 
 ### 9.4 Your Orchestrator panel
 
 Opened from the project view or with ⌘K. It is a conversation with **your** Orchestrator: you type,
-it answers, and its prose is shown verbatim (§4.2). Beside it sits a list of its open threads with
+it answers, and its prose is shown verbatim and kept with the turn's record (§4.2). Your messages
+are private: readable by you and an org auditor only (§3.4). Every free-text directive your
+Orchestrator issues in a turn you started is shown inline as it is issued, *"→ told mobile worker:
+…"* (§7.2). Beside it sits a list of its open threads with
 other orchestrators, as typed state only: the other party, the subject, *"round 2 of 3"*, and the
 deadline in `tabular-nums`. Opening a thread shows its messages with the author class on every
 line (*"Alice's Orchestrator (agent)"*), rendered as plain text (§7.3). **DIVE** opens the
@@ -1007,7 +1014,9 @@ Orchestrator's own terminal, for its owner only (§4.2).
   consent is informed at the moment of sharing, not buried.
 - **The route badge** sits in the project header: `Global` or `AU`. A project classified
   *AU data only* shows `AU · required` and has no switch. Otherwise the badge is the user's
-  trigger: *"Use AU for this project"*, or for one launch from the launch dialog (OD-19).
+  trigger (OD-19): on a solo project *"Use AU for this project"*, or for one launch from the
+  launch dialog; on a **team** project *"Use AU for everyone on this project"*, a one-way ratchet
+  that the strip announces, which only an org compliance role can lower (§2.5).
 - **Spend** is one line in the project's settings, split *workers* and *coordination*
   (§4.4), against the user's quota. It is not on the Desk.
 
@@ -1044,7 +1053,10 @@ Priya accepts the invite. Her machine runs only the cockpit.
 2. **Her cloud machine clones the repo with her git credential,** not the owner's (§2.5; `04`
    §7.1). The git host's own permissions are the gate: team membership never grants repo access.
    If she lacks it, the cockpit says so and stops: *"You're on the team, but not on the repository.
-   Ask its admin in Azure DevOps."*
+   Ask its admin in Azure DevOps."* Later fetches into her clone use the project's read-only
+   credential (§2.5), but only while her own access is re-proven with her token at each sign-in;
+   a failed re-check stops fetches into her clones, so the project credential never outlives her
+   repository permission by more than one sign-in cycle.
 3. **She tells her own Orchestrator what she wants:** *"Add PDF export for evidence."* It runs
    `panacea team`, creates her task with its brief section as the reason, takes `intent` leases on
    its scope, and spawns a worker (§4).
@@ -1058,9 +1070,22 @@ pool. It is **UNVERIFIED** until phase 8 task 32 measures Kata cold start and wa
 
 ### 10.3 Local mode, and why no user needs Docker
 
-The desktop is the portal (OD-20). **Team projects never run on a laptop.** Laptop Docker is kept
-for three cases only: a solo project run offline; developing Panacea App itself; and the time before
-phase 8's environment is first applied. A user who never does one of those never installs Docker.
+The owner, relayed into this run: *"Idk why Docker is needed … The app on device should be the
+portal to the cloud, for them to build solutions."* **It is not needed.** The desktop is the portal
+(OD-20). **Team projects never run on a laptop**: every team agent, Orchestrator and worker, runs in
+a Kata sandbox in our environment, on the org's gateway, with no personal subscription.
+
+**What the portal is, exactly** (`06` I5): the Tauri cockpit plus **one thin local Go process**,
+the control plane the desktop already ships. It is not Docker and runs no agent. It exists because
+the Hub's locked design keeps the user's Entra tokens out of the renderer, in that process
+(`phase-h-hub.md:15`, `:38-39`); for a team project it relays to Fleet through `fleetbe`. A team
+session's terminal then crosses desktop → local control plane → Fleet's PTY relay → broker →
+`sandboxd`. That round trip is **UNVERIFIED**; phase 8 task 32 measures it, with a proposed budget
+of 150 ms at the 95th percentile from Australia.
+
+Laptop Docker is kept for three cases only: a solo project run offline; developing Panacea App
+itself; and the time before phase 8's environment is first applied. A user who never does one of
+those never installs Docker.
 
 **Recommendation:** local mode should reach the model through the same gateway, with a
 user-scoped token the cockpit obtains after sign-in, so that no path in the product uses a
@@ -1095,15 +1120,17 @@ additions or re-aimings, and none throws away built work.
 |---|---|---|
 | **Unchanged:** teams, members, invites, projects, remotes, briefs, the change feed, share (tasks 15, 17, 18, 26, 35, 42) | they are C1 | 0 |
 | **Unchanged:** *"The Hub never sees a terminal byte"* (`ADR-H1:88`) and Design C's presence stays rejected (`ADR-H1:264-268`); presence lives in Fleet | P10; §3.2 | 0 |
-| **New records and routes:** `task`, agent start and end, lease state changes, `conflict`, `thread`, `message`, `escalation`, `note`, team policy, the daily usage roll-up (§3.3), each with its contract section, audit event and feed kind | the durable half of team mode | ~5 days |
-| **A second caller: Fleet.** Today the laptop's control plane is the only caller, always with the user's own token (`01` §4.3). Fleet calls as its workload identity, naming a `delegation`; the Hub records *actor = owner, via = Fleet* (§2.4) | OD-14 | ~2 days |
+| **New records and routes:** `task`, agent start and end, lease state changes, `conflict`, `thread`, `message`, `escalation`, `note`, team policy, the daily usage roll-up, and the three accountability records `directive`, `orchestrator turn` and `human message` (§3.3), each with its contract section, metadata-only audit event and feed kind; erasure tombstones notes, messages and human messages | the durable half of team mode; `04-enterprise-constraints.md:377-379`, `:383`, `:389` | ~7 days |
+| **ADR-H1 amendment, "delegated callers"** (`06` I4), written before TM1 code. It changes: (a) `azp` (`ADR-H1:370`): Fleet's workload identity joins the allowed callers, for delegation-naming requests only; (b) actor (`:372`, `:434-435`): the actor comes from the named delegation, never from a body field, and the Hub checks the write's `ag-…` against the delegation's owner; (c) RLS (`:253`): the Hub sets `org_id` per request from the delegation's org; (d) the feed (`:252`): a per-org subscription for Fleet, scoped to team projects; (e) `devissuer` (`phase-h-hub.md:412`) gains a client-credentials grant so task 43's offline proof covers Fleet. Delegations are created by the user's own call (§2.4), so no on-behalf-of exchange is needed | OD-14 | ~4.5 days |
+| **Role-to-verb rows and two org capabilities**, *auditor* and *compliance* (§3.4); escalations, directives and human messages readable by their owner and an auditor only | `07` I8; `hub-contract.md:328` | ~1.5 days |
+| **Leavers:** a daily account-state check for owners with live delegations, beside the 24-hour delegation expiry (§2.4) | `07` I10; `hub-contract.md:523` (no CAE) | ~1 day |
 | **Records carry `ag-…` ids, never a machine-local session id** (`hub-contract.md:941-942`); `session_link` stays for solo projects only | §3.3 rule 2 | ~0.5 day |
-| **The Z5 authorisation matrix gains the new rows**: nobody writes another person's task, lease, message or escalation, whatever their role (`04` §2.4) | §3.3 rule 5 | ~1 day |
+| **The Z5 authorisation matrix gains the new rows**: nobody writes another person's task, lease, message, directive or escalation, whatever their role (`04` §2.4) | §3.3 rule 5 | ~1 day |
 | **Audit leaves the building** before team mode reaches anyone but the owner: stream to Sentinel and anchor the chain head there (`04` §6, Design B's graft, `ADR-H1:163`) | a hash chain inside its own Postgres proves little | ~1 day |
 
 `ADR-H1:467-474`'s rule that no client persists Hub data holds. Fleet keeps Hub records in memory
-only and rebuilds from the Hub after a restart; its snapshot holds Fleet state (§3.2) and nothing
-else.
+only and rebuilds from the Hub after a restart; its Postgres schema holds Fleet state and the
+outbox of Hub-bound writes (§3.2), and nothing else.
 
 ### 11.2 Phase 8 (our environment)
 
@@ -1112,13 +1139,21 @@ OD-18 keeps phase 8 on AKS with Kata, unchanged in shape (`owner-decisions.md:13
 | Change | Plan anchor | Size |
 |---|---|---|
 | **A second broker caller.** OD-14 reverses owner-only broker visibility. Every object is still labelled with its owner (P8-D4); Fleet may act for an owner only under a live delegation, which the broker checks against the Hub (cached ≤ 60 s) and writes into its audit line | task 18; `phase-8-own-environment.md:133-134` | ~2 days |
-| **An `orchestrator` sandbox class**: read-only project view, no worktree, no git, egress to the gateway only | task 14; P8-D12 (`:141`) | ~1.5 days |
-| **Every sandbox reaches the gateway** through one explicit network-policy allow to its in-cluster service; P8-D12's VNet and pod-CIDR denials otherwise stand | task 11 | ~0.5 day |
-| **Charts for Fleet and the gateway**, beside the broker and Hub charts; the org's Anthropic and Bedrock credentials in Key Vault, reachable only by the gateway's identity | tasks 05, 10, 29 | ~3 days |
-| **A project disk per team project** for the lane mirror, owned by the project, not a user | task 15's machine volumes | ~1 day |
+| **Task 14b, reopening built task 14** (`09ae70a` on `env`; `06` Minor 3): an `orchestrator` class with **no machine disk and no affinity**, its own size (proposed 250m / 512 MiB), the `panacea-orchestrator` runner as its PTY command, egress to the gateway and Fleet only | task 14; P8-D6 (`:135`); P8-D12 (`:141`) | ~2 days |
+| **The `panacea` control path:** a new `sandboxd` route, `/control`, beside `/attach` and `/healthz`, and a second broker relay kind for it; `sandboxd` mints the session's one-hour gateway token over it | `sandboxd/internal/server/server.go:85-86`; task 18 (`:585`) | ~2 days |
+| **Each class's product `managed-settings.json` in the image** (§2.5): derived from the tenant's live file, per-class permission mode, `Bash(panacea *)`, `apiKeyHelper`, `allowManagedHooksOnly`, the check hook, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`; submitted to KPMG InfoSec (Q12) | task 12 (image) | ~1.5 days plus InfoSec time |
+| **A private gateway path:** one P8-D12 allow from sandbox pods to the gateway's service port; no public ingress; the broker records each pod's source address for token binding | task 11 | ~1 day |
+| **Charts for Fleet (two replicas, its Postgres schema) and the gateway**, beside the broker and Hub charts; the org's Anthropic and Bedrock credentials in Key Vault, reachable only by the gateway's identity; the project read-only git credential held by the broker (§2.5) | tasks 05, 10, 29 | ~3.5 days |
+| **A per-project Kata pod for the lane mirror**, with its project disk, no credential beyond the read-only fetch and no other egress (§8.2) | task 15's machine volumes | ~1.5 days |
+| **AU projects:** the sandbox egress allowlist; **every team-mode component in Australia East**, a stated invariant (§2.5) | P8-D12; `:43`, `:317` | ~1 day |
 | **The CLI bump job** (§10.4) | tasks 27, 27a | ~2 days |
 | **Retired:** the precondition that users' own subscriptions work from Azure egress IPs | `:330`; task 32 | −1 |
-| **Task 32 also measures** team launch latency from the warm pool (§10.2) | task 32 | ~0.5 day |
+| **Task 32 also measures:** team launch latency from the warm pool (§10.2); the PTY round trip through `fleetbe` (§10.3); the Orchestrator pod's real size; whether guest writes reach `machined`'s sweep within one sweep (§3.3); whether pod source addresses survive to the gateway (§2.5) | task 32 | ~1.5 days |
+
+**What stays cloud-bound, so a later AWS move is a known cost** (`06` I10): AKS Pod Sandboxing
+(Kata, managed), workload identity, Key Vault, Sentinel, Entra, and phase 8's Terraform. Fleet, the
+Hub, the gateway, `sandboxd`, `machined` and the `panacea` channel are plain Kubernetes workloads
+and move as they are.
 
 **UNVERIFIED:** how the gateway, running on Azure, authenticates to Bedrock in `ap-southeast-2`
 without a long-lived AWS key. Federating the gateway's workload identity to an AWS IAM role is
@@ -1133,8 +1168,10 @@ finished as planned**, with four re-aimings. Plan rows are in
 | Change | Plan task | Size |
 |---|---|---|
 | **Unchanged foundations:** `gitx`, lanes, R4's `sandboxd` runner, one clone per worktree (OD-2), push with the machine's credential | 02–05, 12–13 | 0 |
-| **Observed claims (task 07) feed Fleet.** The same lane facts go to the owner's control plane for a solo project, and to Fleet's activity table (§3.3) for a team project | 07 | ~0.5 day |
-| **The forecast and queue become a library** that runs in the owner's control plane (solo) or in Fleet over the lane mirror (team, §8.3). The team land builds the integration head in the mirror, then hands it as a bundle to the lane owner's `machined`, which pushes with that owner's credential | 08, 09 | ~2 days |
+| **Observed claims (task 07) become `machined`'s sweep.** The same hardened `status` / `diff --numstat`, run outside the VM every 5 to 10 s with `core.fsmonitor` and other config-driven commands forced off, feeds the owner's control plane for a solo project and Fleet's activity table for a team project (§3.3 rule 4) | 07 | ~1.5 days |
+| **The forecast and queue become a library** that runs in the owner's control plane (solo) or, for a team, in the mirror's own Kata pod (§8.2) with only typed results reaching Fleet. The team land builds the integration head in the mirror, then hands it as a bundle to the lane owner's `machined`, which pushes with that owner's credential | 08, 09 | ~2.5 days |
+| **The land review on a team project** lists every conflict the lane was party to, with its resolution, and requires a second member's approval for any agent-config path (§8.3) | 09, 16 | ~1.5 days |
+| **The slow-timer fetch** (task 12) uses the project's read-only fetch credential in the cloud, not Git Credential Manager (§2.5); push keeps task 13's per-act user credential | 12, 13 | ~1 day |
 | **Leases return.** Phase 3 cut declared file claims (A9) *"to a later phase, if an agent channel exists"* (`scope-and-risk-phase-3-git-convergence.md:287`, via `01` §2.4). Team mode is that phase; leases live in Fleet (§6.3), not in phase 3 | none in phase 3 | 0 |
 | **The merge and files lenses name lane owners by Hub principal, not git author** (`04` §7.3, `:468`), and show teammates' lanes from the mirror | 16, 19, 21 | ~1.5 days |
 
@@ -1150,13 +1187,22 @@ phase 2's packages, made multi-user:
 | Part | Built from | Size |
 |---|---|---|
 | sessions keyed by owner, over the broker | phase 2's `registry` (whose `Session` has no owner field today, `01` §2.2), `harness`, supervisor; phase 8's `remotebe` (task 22) | ~4 days |
-| the delegation client and Entra on-behalf-of (§2.4) | Hub task 30's `entraauth` | ~1.5 days |
-| task cards, leases, activity, presence | new | ~3 days |
-| the control stream to `sandboxd`, the `panacea` binary and its verbs (§5.2) | phase 5's stamped-channel pattern (`01` §2.4) | ~3 days |
-| the Orchestrator turn loop, TM1 headless (§4.2) | new | ~3 days |
-| protocol threads, the escalation policy, the taint rule (§6, §7.2) | new | ~3 days |
+| **Fleet's Postgres schema** (leases, turn queues, threads, the Hub outbox), two stateless replicas, and the split between the coordination core and the PTY relay (§2.2) | new | ~2.5 days |
+| the delegation client: Fleet's workload identity naming a delegation (§2.4) | Hub task 30's client code | ~1 day |
+| task cards, leases (breadth cap, bulk, per-path expiry, narrower right of way), activity from `machined`, presence | new | ~4 days |
+| the control stream to `sandboxd`, the `panacea` binary and its verbs, class-filtered output (§5.1, §5.2) | phase 5's stamped-channel pattern (`01` §2.4) | ~3.5 days |
+| **the `panacea-orchestrator` runner**, rotation seeded from typed state, turn origin, and the pod-kill test (§4.2) | new | ~3 days |
+| **the Orchestrator's instructions and an eval loop** that replays scripted team events and scores its verb calls | new | ~3 days |
+| protocol threads; Fleet-answered `ask`; Fleet-written escalations and DECIDED WITHOUT YOU; verb-enforced decide rows; the taint rule by origin (§6, §7.2) | new | ~4.5 days |
+| **directives**: `panacea direct`, `dv-…` and `ot-…` records, the template-only PTY writer and its test (§4.3) | new | ~1.5 days |
+| turn budgets, human bypass, per-counterpart metering and digests (§4.4) | new | ~1 day |
+| **the new attach handler**, per-upgrade authorisation, socket revocation (§7.4) | new, not phase 2's `api/attach.go` | ~1.5 days |
 | the forecaster, tiers P, H and M (§8.2) | phase 3's library (§11.3) | ~2 days |
-| gateway token minting per session (§2.5) | phase 6's gateway (§11.5) | ~1 day |
+| gateway token minting per session, pod binding (§2.5) | phase 6's gateway (§11.5) | ~1.5 days |
+
+**In the desktop's local control plane:** a `fleetbe` backend behind phase 8's unchanged
+`backend.Backend` seam (S8.1, `phase-8-own-environment.md:657`), plus the team routes the cockpit
+calls (§2.1, §10.3). About 3.5 days, in stream F.
 
 ### 11.5 Phases 4, 5, 6 and 7
 
@@ -1165,18 +1211,37 @@ phase 2's packages, made multi-user:
 - **Phase 5 (canvas).** Its artboard lease is the same shape as a path lease. In a team project the
   canvas uses Fleet's lease table, so one table answers "who holds this". About 1 day, later.
 - **Phase 6** becomes **the inference gateway** (OD-19): deploy a LiteLLM-style gateway, the
-  per-session token API for Fleet, the route policy, metering, quotas, and the ZDR contracts on
-  both routes. It is a TM1 prerequisite. About 6 days, **UNVERIFIED** until a gateway is chosen
-  (§13, Q1).
+  per-session token API for Fleet, pod binding and one-hour TTLs, the project-wide route with its
+  AU ratchet, the AU model-map CI test, metering with counterpart tags, non-zero default quotas,
+  and the ZDR contracts on both routes. It is a TM1 prerequisite. About 8.5 days, **UNVERIFIED**
+  until a gateway is chosen (§13, Q1).
 - **Phase 7 (Deploy).** A release in a team project lists, per lane landed into it, the person whose
   agent made it and the task and brief section it served. That is the provenance thread, carried to
   the release with its people. About 1 day.
 
 ## 12. Delivery: the minimum lovable slice first (OD-17)
 
-**TM0, the prerequisites, are the current wave, not new work:** the Hub through its task 43 (C1,
-share); phase 3 through tasks 09 and 12–14 (lanes, observed claims, forecast, land, push); phase 8
-through first apply and the Kata proving checklist (tasks 31–32); phase 4's Materialiser.
+**TM0, the prerequisites, are the current wave, and they are further off than "current wave"
+suggests** (`06` I11, read 2026-09-25): the Hub through its task 43 (C1, share); phase 3 through
+tasks 09 and 12–14, which has **no** `gitx` or `lanes` package yet; phase 8 through first apply
+and the Kata proving checklist (tasks 31–32), whose latest code commit is task 14, with the broker,
+`machined` and `remotebe` (tasks 17–22) unbuilt and first apply waiting on owner-run steps (Entra,
+DNS delegation, the Postgres bootstrap; `phase-8-own-environment.md:317-329`); phase 4's
+Materialiser. **Two TM0 items are new and design-only:** the product `managed-settings.json`
+submitted to KPMG InfoSec (§2.5, Q12), and the ADR-H1 "delegated callers" amendment (§11.1). If
+task 32 flips the disk model to NFS with no affinity (P8-D6), §4.1's slot argument gets easier, not
+harder.
+
+### 12.0 TM1-α: a two-week spike on the real cluster, first
+
+The three things most likely to fail are the ones nothing has run (`06`, "the two things most
+likely to fail"): the Orchestrator runner on phase 8's sandbox, the `panacea` channel under the
+product managed file, and Fleet as a delegated Hub caller. TM1-α builds just those, thin: one
+Orchestrator and one worker for each of two identities, a scripted overlapping plan, and the
+negotiation through to one `inform` and one `decide`. It also runs the pod-kill test (§4.2), the
+hook approval check (§5.3), the PTY round trip (§10.3) and a first G9 pass. Its work is not thrown
+away: it is the first slice of streams B, C and D. **If TM1-α fails, TM1 is re-planned before its
+remaining streams start.**
 
 ### 12.1 TM1: two people, one repo, agents that know each other
 
@@ -1185,20 +1250,27 @@ Orchestrator what they want. Their agents see each other's tasks, reasons and fi
 caught before any code is written, the two Orchestrators settle it or ask, and each human hears
 only from their own.
 
-| Stream | What | Focused days |
-|---|---|---|
-| A. Gateway (phase 6) | deploy; Global and AU routes; per-session tokens with tags; a per-user daily quota; an AU-only project fails closed if the AU route is down, never falling back to Global | 5 |
-| B. Hub | new records and routes; Fleet as a delegated caller; `ag-…` ids; Z5 rows; Sentinel anchoring (§11.1) | 9.5 |
-| C. Phase 8 | the second broker caller; the `orchestrator` class; the gateway allow; Fleet and gateway charts; launch latency in task 32 (§11.2) | 7.5 |
-| D. Fleet | sessions, delegation, cards, leases, activity, presence, the `panacea` channel, the headless turn loop, threads with `ask`·`answer`·`inform`·`propose`·`accept`·`reject` and the `yield` and `sequence` resolutions, escalation, the taint rule, tiers P and H, token minting (§11.4) | 19 |
-| E. Phase 3 and 4 | claims feed Fleet; the pointer paragraph | 1 |
-| F. Cockpit | the prototype first, owner-reviewed; then the team strip, click-in, the Desk rows, the Orchestrator panel, the Share line and the route badge (§9) | 7.5 |
-| G. Proof | G9's corpus and the scripted two-Orchestrator run; a two-person end-to-end run on the real environment | 4 |
-| | **Total** | **≈ 53.5** |
+| Stream | What | Focused days | Was |
+|---|---|---|---|
+| A. Gateway (phase 6) | deploy; Global and AU routes; pod-bound one-hour tokens with tags; project-wide route and AU ratchet; AU model-map test; non-zero default quotas; counterpart metering; an AU project fails closed if the AU route is down (§11.5) | 8.5 | 5 |
+| B. Hub | new records incl. `directive`, `ot`, `hm`; the delegated-callers amendment; roles to verbs; leavers; `ag-…` ids; Z5 rows; Sentinel anchoring (§11.1) | 16.5 | 9.5 |
+| C. Phase 8 | second broker caller; task 14b; `/control` and its relay; per-class managed files; private gateway path; charts; AU egress and region; task 32's added probes (§11.2) | 14.5 | 7.5 |
+| D1. Fleet core | sessions; Postgres and replicas; delegation client; the `panacea` channel; the runner; directives and the PTY writer; the new attach handler; token minting (§11.4) | 18.5 | 19 (D) |
+| D2. Fleet coordination | cards and leases; threads, Fleet-written escalations, the taint rule; budgets; tiers P and H; the Orchestrator's instructions and eval loop (§11.4) | 14 | — |
+| E. Phase 3 and 4 | the `machined` sweep; the land review's conflicts and second approver; the read-only fetch; the pointer paragraph (§11.3, §11.5) | 4.5 | 1 |
+| F. Cockpit and `fleetbe` | the prototype first, owner-reviewed; then `fleetbe`, the team strip, click-in, the Desk rows, the Orchestrator panel with inline directives, the Share line and the route badge (§9, §10.3) | 12 | 7.5 |
+| G. Proof | G9's corpus and the scripted two-Orchestrator run; a two-person end-to-end run on the real environment; **3 days budgeted for G9 not passing first time** | 7 | 4 |
+| | **Total** | **≈ 95.5** | 53.5 |
 
-With four streams in parallel (A and C, B, D, F and G), the critical path is D then G: about 23
-focused days, so roughly **5 working weeks**. That is an estimate, not a measurement; it assumes TM0
-has landed and G9 passes first time.
+**Why it grew by 42 days:** the two critiques' own costs (`06` about +15, `07` about +16.5, with
+about 1.5 of overlap on delegation), plus what both flagged as uncounted: the `/control` relay, the
+read-only fetch, the sweep, AU egress, task 32's probes and G9 contingency. Every added line is in
+§11 with its section.
+
+**Five streams in parallel** (A then C; B then E; D1; D2; F), G at the end. The critical path is
+D1, then D2's integration (about 5 days), then G: about 30 focused days, so **roughly 7 working
+weeks, 8 with slack**. TM1-α is the first two weeks of B, C and D1, not extra time. That is an
+estimate, not a measurement; it assumes TM0 has landed.
 
 **TM1 lands the phase 3 way.** Each member lands in their own project repository and pushes with
 their own credential; a teammate's work arrives through phase 3's remote reading. The shared lane
@@ -1208,18 +1280,29 @@ mirror waits for TM2.
 
 1. an overlapping plan raises a tier-P conflict **before** either worker is spawned;
 2. the Orchestrators settle it with `yield` or `sequence`, and one human gets an `inform`, the other
-   a `decide`, each on their own Desk only;
-3. G9's hostile peer messages produce **zero** out-of-scope directives without a `decide`;
-4. the gateway's usage rows attribute every token to the right person and project, and coordination
-   overhead is measured (§4.4);
-5. an AU-only project never makes a Global call.
+   a `decide`, each on their own Desk only, and Fleet's DECIDED WITHOUT YOU line reaches both;
+3. G9's hostile peer messages produce **zero** free-text directives in Fleet-started turns and
+   zero out-of-scope typed directives; the PTY writer test refuses every non-template byte;
+4. the median thread resolves without a deadline escalation, with hop time measured (§6.4);
+5. the gateway's usage rows attribute every token to the right person, project and counterpart,
+   and coordination overhead is measured (§4.4);
+6. an AU project never makes a Global call, and a token copied off its pod is refused;
+7. killing an Orchestrator pod between two turns loses no lease, thread or directive (§4.2);
+8. every directive in the run is a `dv-…` record whose turn origin and preceding peer ids answer
+   *"who asked for this?"* (§3.3).
 
-### 12.2 TM2: one document (≈ 14 focused days, about 3 weeks)
+**The gate before the first real teammate** (`07` §3, `04` §8.2): §3.4's role matrix passes Z5,
+§7.4's attach tests pass, the lane-mirror isolation is in place if TM2 has started, audit streams
+to Sentinel, and KPMG InfoSec has approved the product managed file (Q12).
 
-The lane mirror and its project disk (3 days); tier M forecasts (1); the team land queue in Fleet
-(2); `counter`, `split` and `build-on` (1.5); the phase 3 lenses by principal (1.5); the CLI bump
-job (2, §10.4); team and project quotas with an admin view, and the spend split (2); phase 7's
-release attribution (1).
+### 12.2 TM2: one document
+
+The lane mirror in its own per-project Kata pod, with its project disk, `fsckObjects` and bundle
+verification (4.5 days); tier M forecasts (1); the team land queue over the mirror (2);
+`counter`, `split` and `build-on`, with agent-config paths listed in the `build-on` decide (2);
+the phase 3 lenses by principal (1.5); the CLI bump job (2, §10.4); team and project quotas with an
+admin view, and the spend split (2); phase 7's release attribution (1). **≈ 16 focused days, about
+3.5 weeks.**
 
 ### 12.3 TM3: later, each one opt-in
 
