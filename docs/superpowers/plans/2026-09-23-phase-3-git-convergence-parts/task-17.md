@@ -122,14 +122,15 @@ func (a *Adapter) ToolCalls(ctx context.Context, worktreeID, conversationID stri
 func (a *Adapter) Span(ctx context.Context, worktreeID, conversationID, toolUseID string) (Span, error)
 
 // Match picks the call that wrote a hunk's added lines: calls on the same path, at or before
-// commitAt, scored by how many of the hunk's normalised "+" lines appear in the call's Added.
+// commitAt, scored by how many of the hunk's normalised "+" lines appear in the call's Added;
+// the best score wins if it covers at least half the hunk's added lines (ties: the latest call).
+// ok false means none did — a shell command, a formatter, or a region edited again later.
+//
 // commitAt is task 16's BackLink.CommitAt, the committer date (%cI), never the author date:
 // `commit --amend` and rebase keep the author date, so an edit made after it and then amended
 // in would be excluded, and tier 2 would decline (review Minor 11; probe
 // scratchpad/p3/b11-dates.out). A commit made in the sandbox is dated by the sandbox's clock,
 // as the transcript is.
-// the best score wins if it covers at least half the hunk's added lines (ties: the latest call).
-// ok false means none did — a shell command, a formatter, or a region edited again later.
 func Match(calls []ToolCall, path string, added []string, commitAt time.Time) (call ToolCall, ok bool)
 ```
 
