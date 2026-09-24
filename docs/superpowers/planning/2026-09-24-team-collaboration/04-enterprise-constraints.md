@@ -145,3 +145,144 @@ to commit- and session-level facts, which is exactly OD-8's required fallback
 
 Z1 to Z5 add no role. The one new *kind* of permission is Z3, and it is granted by a person to a
 person for one session, never by role.
+
+## 3. Consent, privacy and residency
+
+### 3.1 Live-streaming another person's terminal
+
+The owner wants teammates to *"see the work I am doing on it, the agents I have running, and what
+their focus is"*. That splits cleanly in two, and the split is the whole privacy design:
+
+- **The roster** (who, which agent, which lane, stated focus, status, last activity) is
+  **work metadata**. Showing it to the team is the point of team mode and needs no per-view
+  consent. Joining a team is the consent, and the invite screen should say so in one sentence.
+- **The terminal** is **content**. It shows whatever the agent printed: file contents, a `.env`
+  it `cat`ed, a token in an error message, a colleague's name in a test fixture. Phase 2 cannot
+  redact it: redaction means scanning PTY bytes for meaning, which OD-8 forbids
+  (`owner-decisions.md:73`), and pattern-based redaction is unreliable anyway.
+
+So a watch is governed like screen-sharing, not like a dashboard:
+
+| Control | Rule |
+|---|---|
+| **Default off** | no session is watchable until its owner shares it |
+| **Per session, per person, time-boxed** | the Z3 grant (§2.4): one session, named teammates or "my team", an expiry (suggest 60 minutes, renewable) |
+| **Visible while live** | the owner's row shows who is watching now, from the relay's own connection count, not from the viewer's claim |
+| **Revocable at once** | revoking closes the relay connection, not just the next one |
+| **Never stored** | the relay holds no scrollback and writes no bytes to disk or logs. The Hub's logging rule already bans bodies (`hub-contract.md:2115-2121`); the relay inherits it |
+| **Replay is the owner's call** | on connect, a viewer gets live output only. The 256 KiB scrollback replay frame (`phase-2-go-contract.md:186`) is sent only if the owner ticked "include recent output" |
+| **Audited** | `watch.granted`, `watch.started`, `watch.ended`, `watch.revoked`, each with both principals (§8) |
+
+**Workplace-surveillance law — UNVERIFIED, needs KPMG legal.** Watching an employee's terminal
+may be "computer surveillance" under state law (for example the *Workplace Surveillance Act 2005*
+(NSW), which is understood to require notice to the employee). This was not read for this
+document. The design above (owner-initiated, visible, per-session) is chosen so the owner is
+always the one sharing, which is the posture least likely to engage it. It is not legal advice.
+
+**Privacy Act 1988 (Cth), APP 11 — UNVERIFIED.** Terminals and coordination text can carry
+personal information (client names in test data, colleagues' emails). APP 11 requires reasonable
+steps to protect it. This was not read for this document; the controls that address it are §3.1
+(no storage) and §3.3 (residency).
+
+### 3.2 Transcripts and secrets: Forget must stay local and total
+
+OD-10's Forget deletes the session's `<id>.jsonl` files on the owner's machine
+(`owner-decisions.md:21`). Team mode must not create a copy Forget cannot reach. That rules out:
+
+- **Transcript upload** to the Hub, for any feature (§2.3).
+- **Transcript text in coordination records.** A control plane writing an intent must not
+  summarise the transcript into it. The intent is what the **human** typed as the session's
+  opening prompt or focus (`openingPrompt`, `title`, `phase-2-go-contract.md:2027`, `:2018`), or a
+  one-line status the human edited. Anything auto-derived is from git (paths, commits), per OD-8's
+  fallback.
+- **Secrets in coordination records.** The Hub should run a secret-pattern check on every
+  coordination write and refuse a match (`409 looks_like_secret`, suggested). This is a server-side
+  check on text a person submitted, not a PTY scan, so it does not collide with OD-8.
+
+What Forget **cannot** undo, and the design must say so on screen: anything a teammate already
+**watched** live, and anything a teammate's agent already **read** from a coordination record. So
+the second is kept free of secrets by construction (above), and the first is gated by consent
+(§3.1).
+
+**Erasure of coordination records.** The Hub's erasure is a tombstone that keeps key and digest
+(`ADR-H1…:255`), audit rows hold no content (`ADR-H1…:520-523`), and only an org admin erases. For
+coordination text, which the author typed, the author should also be able to tombstone their own
+record. That is a new route, and it needs the same `SECURITY DEFINER` path as brief erasure.
+
+### 3.3 Data residency
+
+| Data | Where it lives | Residency |
+|---|---|---|
+| Roster, coordination records, watch grants, audit | the Hub | **Australia East**, geo-backup only to Australia Southeast (`ADR-H1…:524-526`) |
+| Live terminal bytes while watched | the relay, in transit only | must run in the Hub's region; **never** a third-party relay (for example a hosted TURN or tunnelling service) |
+| Transcripts, code, the lane clone | the owner's machine or sandbox | unchanged by team mode |
+| Prompts, including a teammate's coordination text an agent reads | **Anthropic**, under the *reading* agent's owner's account | **not in Australia via the direct Claude service** — see below |
+
+The last row is the new flow team mode creates: **text I wrote reaches Anthropic under my
+teammate's account and settings.** Two consequences:
+
+1. **Training settings differ per account.** The Consumer Terms §4 say Anthropic may use Materials
+   for training *"unless you opt out of training through your account settings"*
+   (https://www.anthropic.com/legal/consumer-terms, read 2026-09-24). A teammate on a consumer Pro
+   or Max plan with training on would send my coordination text into training. **Control: a
+   project policy that team-mode members run agents only on commercial accounts (Team, Enterprise,
+   API, or a cloud provider), or on consumer accounts with training off.** The product cannot read a
+   consumer account's training setting, so this is a policy and an attestation, not a check.
+2. **Inference geography.** Third-party pages say the direct Claude API processes in the US or EU
+   and that Australian residency comes through AWS Bedrock in Sydney
+   (https://www.padiso.co/blog/deploying-claude-australia-data-residency-compliance-latency/ and
+   https://www.futureability.com/claude-data-residency-australia, both found by search 2026-09-24,
+   not read in full). Anthropic's own page, https://claude.com/regional-compliance, was **blocked by
+   the corporate network** on 2026-09-24. **UNVERIFIED.** Team mode does not change this for a
+   person's own work, but it widens it: my text now travels under whichever route my teammate
+   chose. A project whose data must stay onshore needs a **project-level inference policy**
+   ("Bedrock Sydney only") that every member's control plane enforces before launching an agent.
+
+**The relay and the Hub are different services.** ADR-H1 states *"The Hub never sees a terminal
+byte"* (`ADR-H1…:88`). A watch relay through the Hub's process would break that and put terminal
+content next to the audit database. The relay should be its own stateless service in the same
+region, authorising each connection by asking the Hub for the Z3 grant. If `05-design` routes
+watch bytes through the Hub instead, ADR-H1 §1.3 must be amended first.
+
+## 4. Subscription terms: "spin up an agent in my project" means on *your* account
+
+### 4.1 What the terms say (read 2026-09-24)
+
+| Source | Text |
+|---|---|
+| Consumer Terms §2 (https://www.anthropic.com/legal/consumer-terms, effective 8 Oct 2025) | *"You may not share your Account login information, Anthropic API key, or Account credentials with anyone else."* *"You also may not make your Account available to anyone else."* |
+| Claude Code legal page (https://code.claude.com/docs/en/legal-and-compliance) | Hosted Claude Code needs the Commercial Terms; *"Customers may not pay for, resell, or intermediate Claude usage on their end users' behalf. Each end user must authenticate with their own Anthropic API key, Claude subscription plan credentials, or 3P inference provider credential"* |
+| same page | developers may not *"route requests through Free, Pro, or Max plan credentials on behalf of their users"*, nor *"collect, store, or intermediate Claude.ai credentials or session tokens — sign-in to a Claude account must complete through Anthropic's own flow"* |
+| same page | it does not *"prevent an end user from signing in to the unmodified Claude Code binary with their own Claude subscription, including where a platform hosts Claude Code"* |
+| same page | *"Advertised usage limits for Pro and Max plans assume ordinary, individual usage of Claude Code and the Agent SDK."* |
+| same page | Claude Code is under the Commercial Terms for Team, Enterprise and API users, the Consumer Terms for Free, Pro and Max |
+
+The product's rule (`CLAUDE.md`, "never pool subscriptions across users") is consistent with all of
+these. Team mode is where it is most likely to be broken by accident.
+
+### 4.2 What it means for team mode
+
+1. **An agent's account is its launcher's, fixed at launch.** "Alice spins up an agent in Dylan's
+   project" runs on **Alice's** machine or sandbox, signed in to **Alice's** Claude account, in
+   **Alice's** lane clone. The Hub records the launcher principal on the presence row (Z1), and that
+   principal can never change for the life of the session.
+2. **No "run this on the project's capacity".** A project has no subscription. Any feature shaped
+   as "the team's agents", "the project's quota" or "borrow a teammate's spare capacity" is the
+   pooling the terms forbid. Per-user rotation (`CLAUDE.md`, "AI capacity") rotates across one
+   person's **own** accounts only.
+3. **No hand-off of a running agent.** "Give my agent to Alice while I am on leave" is making my
+   account available to her. The supported move is: Alice starts **her own** agent on the same lane,
+   reading the lane's coordination records and commits. The lane is shared; the session is not.
+4. **No credential crosses the Hub.** The Hub stores no git or Panacea credential (`ADR-H1…:356-358`)
+   and must never store a Claude one either: sign-in completes in Anthropic's own flow, inside the
+   unmodified CLI, in the launcher's sandbox (`owner-decisions.md:23`, OD-12's `/login`).
+5. **Server-side enforcement exists only for what the Hub can see.** The Hub can refuse a presence
+   row whose launcher is not the caller, and can refuse any API that would start a session for
+   someone else. It **cannot** see which Claude account a CLI inside a sandbox signed in to. So a
+   user who signs a sandbox in to a colleague's Claude account is out of the product's reach. The
+   control is the terms, the sign-in screen's wording, and audit, not code. **This gap should be
+   stated to the owner as residual, not claimed closed.**
+6. **Managed policy follows the account.** A KPMG Claude account fetches KPMG's managed policy,
+   which strips hooks and MCP on the laptop (phase 3 risk R4, `scope-and-risk-phase-3-git-convergence.md:389`,
+   unverified inside a sandbox). Two teammates on differently-managed accounts get different agent
+   behaviour on the same repo. Coordination must therefore work with **no hooks and no MCP** (§5.3).
