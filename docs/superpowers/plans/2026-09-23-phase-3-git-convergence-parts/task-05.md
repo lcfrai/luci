@@ -78,8 +78,8 @@ A lane session's line endings are task 03's step-4 constants, `core.autocrlf=fal
 holds them once, as `laneLineEndings = GitLineEndings{AutoCRLF: "false", EOL: "lf"}`, and create
 and restart pass it to `sessionEnv` as `eol`, so the fix's `core.autocrlf` and `core.eol` pairs
 send them through `GIT_CONFIG_KEY_n`/`VALUE_n`. **No git is asked**: the two handlers no longer
-call `sessionGitLineEndings` (R4.2). *Open for the orchestrator:* R4.6's text says the host's
-*global* value; this task sends task 03's constants, which are what the lane was checked out with.
+call `sessionGitLineEndings` (R4.2). R4.6's text says the host's *global* value; this task sends
+task 03's constants, which are what the lane was checked out with (plan open question Q16).
 
 #### Phase 2's resolvers read host-owned config only (R4.6)
 
@@ -285,8 +285,8 @@ git ls-files --eol images/sandbox/githooks/dispatch                          →
   and for commits made outside the cockpit, in the same words, because we cannot tell them apart.
 - A commit in a worktree shared by two sessions names the one that ran `git commit`, not whose
   lines are in it (survey §5.3 item 2; 3-D2's notice, task 06).
-- **Phase 2's resolvers reading host-owned config only is phase 2's fix** (R4.6, gate G5; plan
-  Q14). This task relies on it and changes none of phase 2's resolver files.
+- **Phase 2's resolvers reading host-owned config only is phase 2's fix** (R4.6, gate G5,
+  which was plan Q14). This task relies on it and changes none of phase 2's resolver files.
 - **A backing lane is made once**, on the branch the primary or linked worktree had checked out
   at the first start. A later `git checkout` there does not move it; bringing commits in is
   task 09's.

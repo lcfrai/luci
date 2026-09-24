@@ -638,8 +638,9 @@ git diff --stat control-plane/go.mod go.work                     → empty
 - `CheckVersion` is not yet wired; task 04 calls it at startup.
 - `Machine` has no second implementation; phase 8 owns it (seam S3-P8.1).
 - §HGH hardens `gitx.Exec` only. Phase 2's `project.ExecRunner`, and the scanner that runs git
-  in the primary worktree's repository, are not covered here. Whether their read-only commands
-  are exposed is phase 2's to check, and is not verified (plan Q-table row Q6).
+  in the primary worktree's repository, are not covered here. Since ruling R4.1 no sandbox
+  mounts that repository, so its config is the user's and the cockpit's (plan Q-table row Q6,
+  closed by R4.1); whether phase 2 adopts H1's prefix there is phase 2's to decide, not verified.
 - §HGH hardens project and host-owned calls only. It claims nothing from task 05's read-only
   `.git/config` bind (H5), because the host never reads a lane's config (R4.2).
 - `ErrLaneDir` reads `Dir`, the `-C`, `--git-dir` and `--work-tree` flags and five `Env` keys. It
