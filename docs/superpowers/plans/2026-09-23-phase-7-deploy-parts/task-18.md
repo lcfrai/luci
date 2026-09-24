@@ -108,7 +108,7 @@ Idempotency-Key — governance routes take none (task 11).
 | State | Drawn |
 |---|---|
 | `ok` | a switch, *"Deploy `<branch>` automatically on every push"*; under it *"On."* / *"Off."* and, always, *"Every release a push makes will say “no brief is recorded for this release” — a push is not a Ship, so nothing is pinned."* `explicit null` adds *"Follows the project default (`on` / `off`)."*; `productionBranch` adds *"This is the production branch."* |
-| `owner_only`, or `ownerControls "no"` | the switch disabled; *"Only a project owner can change this. Panacea refuses it for developers."* |
+| `owner_only`, or `ownerControls "no"` | the switch disabled; *"Only a project owner can change this, with a key that is not restricted to one project. Panacea refuses it to developers and to every restricted key."* Both halves, always: the owner probe (7P-9) gets the same `403` for a developer and for a real owner holding a restricted key — every scoped key is capped at Developer (`models/models.go:547-559`) and `IsOwner` is false for one (`:247-249`) — and the watcher records only `"no"`: telling the two apart would mean matching Panacea's prose (task 03's `error-scope-owner-403.txt`; review I5) |
 | `refused` | the switch disabled; Panacea's sentence verbatim (*"branch has no environment yet — deploy it once, or set the project default"*, `projects.go:4132-4134`) |
 
 **Who can reach it** (`PostureControl`; developer route, `routes.go:1431`) — one radio per mode,
@@ -157,7 +157,7 @@ verbatim. **Release** is held.
 | `closed panel reads nothing` | mounted collapsed → zero API calls; opened → one `autoDeploy`, one `posture`, one `access` | three reads per lens render, whether or not anyone looks |
 | `no timer, no cursor` | open, then 60 s of fake time and three cursor changes → still one read each; **Refresh** → two | a governance poll — a second clock |
 | `late answer for an old branch dropped` | switch branch while `posture` is pending; resolve the old one → the new branch's posture is shown | branch A's posture drawn under branch B's name |
-| `owner-only before the press` | `ownerControls "no"` → the auto-deploy switch, **Add a person**, **Remove** and **Claim** disabled, each with the owner line; posture still enabled | a live 403 discovered instead of designed (brief R7), or posture wrongly owner-gated |
+| `owner-only before the press` | `ownerControls "no"` → the auto-deploy switch, **Add a person**, **Remove** and **Claim** disabled, each with the owner line, exactly, naming both the role and the restricted key; posture still enabled | a live 403 discovered instead of designed (brief R7), or posture wrongly owner-gated, or an owner line that tells a real owner holding a restricted key they are not one (review I5) |
 | `403 is owner-only, not an error` | `autoDeploy` rejects `deploy_forbidden` → the owner line; no error banner | a developer shown a red failure for a control they were never offered |
 | `none is held, with its consequence first` | idle radio on `none` shows the consequence sentence before any press; choose it → nothing sent for 4.9 s; Undo → nothing ever sent | a public branch one misclick away (Q-P7-4) |
 | `kpmg-sso is not held` | choose `kpmg-sso` from `password` → one `setPosture` at once | a delay on tightening, which has no downside |

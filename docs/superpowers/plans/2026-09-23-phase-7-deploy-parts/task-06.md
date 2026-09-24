@@ -42,7 +42,7 @@ const (
 	Bound          State = "bound"
 	NoOrigin       State = "no_origin"       // the local repository has no origin remote
 	UnknownHost    State = "unknown_host"    // origin is neither GitHub nor Azure DevOps (githost.ErrUnknownHost)
-	NoMatch        State = "no_match"        // no Panacea project this token can see deploys this repository
+	NoMatch        State = "no_match"        // no Panacea project this key can see deploys this repository (a restricted key sees one)
 	Ambiguous      State = "ambiguous"       // several do; the user chooses once
 	NoRepoInfo     State = "no_repo_info"    // Panacea reported no repoUrl for any project; the user chooses from all
 	NotConnected   State = "not_connected"   // connection.Manager has no working credential
@@ -151,7 +151,7 @@ func (r *Resolver) Choose(ctx context.Context, projectID string, p deploy.Projec
 |---|---|
 | `NoOrigin` | *"This repository has no origin remote, so there is nothing for Panacea to build."* |
 | `UnknownHost` | *"Panacea builds from GitHub or Azure DevOps; this repository's origin is neither."* |
-| `NoMatch` | *"No Panacea project you can see deploys this repository. Create one in the Panacea portal, then come back."* |
+| `NoMatch` | *"No Panacea project your key can see deploys this repository. A key restricted to one project sees only that project; otherwise, create one in the Panacea portal, then come back."* — **your key**, because a restricted key's `/projects` holds one project whatever its owner can see (task 03's `projects-scoped.json`; review I5), and the connector cannot tell which kind of key it holds: no body phase 7 reads says so |
 | `Ambiguous` | *"Several Panacea projects deploy this repository. Choose the one this cockpit should use."* |
 | `NoRepoInfo` | *"Panacea did not say which repository each project deploys. Choose the one for this repository."* |
 | `NotConnected` | *"Connect to Panacea to see this project's deployments."* |
@@ -215,6 +215,7 @@ desktop's binding type does not change (review I6).
 | `TestStaleChoiceDropped` | the chosen project disappears from `Projects` → `Ambiguous` again (or `Bound` to the one left) | binding to a project the token can no longer see |
 | `TestChooseOutsideCandidates` | `Choose("other")` → `KindRejected`; nothing written | a free-text binding that points Ship at any project name |
 | `TestNoRepoInfoOffersAll` | every project lacks `repoUrl` → `NoRepoInfo`, all projects in `Candidates` | an empty-handed `NoMatch` when Panacea simply withholds the field (plan §12) |
+| `TestNoMatchUnderARestrictedKey` | `projects-scoped.json` (one project) and a second local repository whose origin is not that project's → `NoMatch` with the table's sentence exactly, which names the key (review I5) | a sentence that tells the holder of a one-project key that the project does not exist |
 | `TestPanaceaDownKeepsLastBinding` | `Bound`, then `Projects` fails `KindUnavailable` → returns the previous `Panacea` with `State Unavailable` | the lens flipping to "not bound" during a Panacea blip |
 | `TestHubDownKeepsPanaceaBinding` | the Hub fails, Panacea answers → `Bound`, `HubProjectID` kept from the last good read, `Message` says the Hub was unreachable. Two more cases: a binding whose last answer was `HubMiss "key_spelling"` keeps `"key_spelling"` through a Hub failure; a key whose **first** Hub read fails reads `HubMiss ""`, never `"not_linked"` (plan re-review b05 R-4) | Ship disabled by a Hub blip that the Ship path would detect anyway; a blip resetting `HubMiss`, so the Ship bar and the lens flip to *"not a shared project"* for one cycle; a first-read failure reported as *"not a shared project"* about a repository that may be one |
 | `TestUnreadableChoicesFile` | garbage in `bindings.json` → `New` succeeds, the file is renamed, one warning logged | a crash at start |

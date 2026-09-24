@@ -440,7 +440,7 @@ write below touches **only** that branch. Write down its posture and auto-deploy
 | 9 | Ship a second commit; then **Roll back to** the first release | the warmth line; the lens says the first is serving; the portal lists **no** rollback deployment | 7P-4, plan §12 | |
 | 10 | **Rebuild** the first release | a new run of the first release's commit; its pin says *inherited* | 7P-3, task 10 | |
 | 11 | Governance on the scratch branch: posture → `none`, Undo; → `password`, then back; deploy on push on, then off; claim an address, then release it | each held act sends nothing before 5 s; each refusal is Panacea's sentence | tasks 11, 18 | |
-| 12 | If a second, non-owner account is available, open the panel with it | the owner-only lines, before any press | 7P-9 | |
+| 12 | If a second, non-owner account is available, open the panel with it. Then, as yourself, mint a second key restricted to this project at *Read only*, connect with it, and afterwards reconnect with your first key and revoke the second | non-owner: the owner-only lines, before any press. Restricted key: the owner-only lines although you own the project; the no-match line on any other local repository; Ship refused with Panacea's *"… does not permit developer access to this project"* | 7P-9, Q-P7-7, review I5 | |
 | 13 | Put the scratch branch's posture and auto-deploy back as written down | as they were | — | |
 
 **After:** date, Panacea version (step 1) and this repository's commit at the top; commit this

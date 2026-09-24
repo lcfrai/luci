@@ -321,7 +321,11 @@ status as `ownerControls: "yes" | "no" | "unknown"`. Parsing `project-<name>-own
 groups would be a second reader of a namespace whose own file says it has exactly one
 (`models/project_groups.go:5`). Developer rights are **not** probed — no developer-only GET exists
 in the routes phase 7 uses — so a viewer's Ship is refused by Panacea and rendered verbatim, after
-the reservation is abandoned.
+the reservation is abandoned. A key restricted to one project (review I5, Q-P7-7) meets the same
+routes: the probe always answers `403` (a scoped key is capped at Developer,
+`models/models.go:547-559`), a *Read only* key's Ship is refused with Panacea's own sentence, and
+`/me` and `/projects` carry no mark of the scope. So the owner-only and no-match sentences name the
+key as well as the role (tasks 18 and 06), and nothing tries to detect the scope.
 
 **7P-10 — Corporate TLS through the operating system's trust store; no "insecure" switch.**
 `panacea-mcp` needed `PANACEA_TLS_INSECURE=1` (`src/index.ts:69-71`) because Node carries its own
@@ -782,9 +786,10 @@ Task 20's `SEAMS.md` restates these rows with the file, line and test that hold 
 | **Q-P7-4** | The branch posture offers **`none` — public on the internet** — to any developer, because Panacea's API does (`routes.go:1431` is developer-gated). Should the cockpit offer it? | **Yes, as Panacea does**, held for 5 s with the consequence printed first: *"Anyone on the internet will be able to open this branch."* Overrule to hide `none` and `password` from the cockpit |
 | **Q-P7-5** | A rollback made **outside the cockpit** cannot be seen (7P-4). Acceptable for v1, said in the lens's help text? | **Yes**; Q-P7-2 is the fix |
 | **Q-P7-6** (b02 round 2, R1) | Ask Panacea to make `branchEnv` (`handlers/branch_security.go:29-37`) resolve the production branch with `ResolveProjectProductionBranch`, as its deploy and its posture path already do? Until then, for a project whose production branch is annotation-only or mislabelled, Ship records the Hub release against the access route's answer and the lens flags it after the deploy (7P-8, §12) | **Yes**, in the same note as Q-P7-2 and Q-P7-3. Phase 7 builds the after-the-fact flag and corrects nothing; a Hub-side correction at the deployment join would be a new Hub ask, and is not built |
+| **Q-P7-7** (review I5) | Which `pnc_` key does the connect panel tell people to mint: **unrestricted** (*No restriction — full access, same as you*), or one **restricted to a project at *Deploy***? A restricted key sees one project (`clients/kubernetes.go:1237-1249`), is capped at Developer (`models/models.go:547-559`), so every owner control reads *"no"*, and a *Read only* one — the portal's default once a project is picked — cannot Ship (`middleware/rbac.go:265-276`). The connection holds **one** key, so a restricted key means one project per cockpit | **Unrestricted.** The lens spans every local repository's project and draws the owner controls, and the key is the user's own, in Credential Manager, never in a sandbox, revocable in the portal. Built behind one constant (`KEY_ADVICE`, task 14); either answer leaves the no-match and owner-only sentences true, because both already name the key (tasks 06, 18). Overrule to restricted-at-*Deploy*: change `KEY_ADVICE`, and accept one project per cockpit and no owner controls |
 
 **What the owner provides, and when (OD-12, batched to the end):** one `pnc_` token minted in the
-Panacea dev portal (Account → API keys), pasted into the connect panel during the hands-on session;
+Panacea dev portal (Account → API keys, with no project restriction unless Q-P7-7 is overruled), pasted into the connect panel during the hands-on session;
 one dev Panacea project whose repository is also a Hub project; the owner's eyes on the lens.
 Nothing blocks development: every task runs against `deploytest.Fake`, `hubclient.NewFake()` and
 recorded Panacea bodies.
