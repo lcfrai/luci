@@ -43,8 +43,20 @@ else's zone.
 
 `run.sh <env>` runs every numbered script in order, prints one line per check —
 `smoke <id>: PASS|FAIL <detail>` — and exits non-zero if any failed. They use `kubectl` through
-`kubelogin` (never an admin credential), `curl`, and `openssl`; they create nothing except in
-`50-kata.sh`, which uses a namespace `panacea-smoke` it creates and deletes.
+`kubelogin` (never an admin credential), `curl`, and `openssl`; they create nothing except
+`50-kata.sh`'s one pod, `smoke-kata-<random>` in **`panacea-sandboxes`**, which an `EXIT` trap
+deletes. It runs there, not in a namespace of its own, so that task 11's P8-D12 policies
+(`default-deny`, `allow-dns`, `egress-internet`) select it exactly as they select a session
+(review m9: a `panacea-smoke` namespace has no default-deny, so IMDS would answer and S50.2 would
+fail for the wrong reason, or pass for one). The pod carries `panacea-app/component: sandbox` and
+`panacea-app/smoke: "true"`, and **no** `panacea-app/owner`, so no owner view lists it (task 14).
+It uses the sandbox image by the digest of the `images` run that §7a deployed, whose `curl` does
+the probes, with its entrypoint replaced by the probe command. It is restricted-compliant: UID
+1001, `runAsNonRoot`, no privilege escalation, `drop: [ALL]`, `seccompProfile: RuntimeDefault`.
+It is sized (explicit CPU and memory requests and limits, which Kata needs to size the microVM and
+which task 13's `every_sandbox_container_is_sized` requires in this namespace). The script reads
+the results with `kubectl logs`, so it needs `pods` create, get and delete and `pods/log` get in
+`panacea-sandboxes`, and no `exec`.
 
 | Id | Script | Check |
 |---|---|---|
@@ -56,7 +68,7 @@ else's zone.
 | S30.1 | `30-broker.sh` | `/readyz` 200; `/v1/whoami` with no token → 401 with `WWW-Authenticate: Bearer`; with `Origin:` and no token → 403 `forbidden_origin` |
 | S40.1 | `40-hub.sh` | `/readyz` 200 (so Postgres, the schema version and the JWKS all answered, Hub contract §12.4) |
 | S50.1 | `50-kata.sh` | a pod with the RuntimeClass, the sandbox toleration and node selector runs `uname -r`; the value **differs** from the node's kernel (a microVM, not a container) |
-| S50.2 | `50-kata.sh` | from that pod: `169.254.169.254` does not answer; `kubernetes.default.svc` does not answer; `https://registry.npmjs.org` does |
+| S50.2 | `50-kata.sh` | from that pod in `panacea-sandboxes`, each probe `curl --max-time 3`: `http://169.254.169.254/metadata/instance` does not answer (`egress-internet`'s `except`); `https://kubernetes.default.svc` does not answer (no allow to the API server); `https://registry.npmjs.org` does (`allow-dns` plus `egress-internet`). This is P8-D12's smoke only. Task 32's P08 is the full probe set (another session's 8080, a machine's 8081, the VNet, the Azure wire server) |
 
 **Authenticated end-to-end** (a real user's token through the broker, a session in a Kata pod) is
 **not** in the scripts: it needs a signed-in user, and it is the owner's batched hands-on item
@@ -69,7 +81,10 @@ canned outputs: `S00.2 passes when the configured class is listed and prints eve
 `S00.2 fails naming the classes it saw when the configured one is absent` (kills a smoke that
 passes on `kata-mshv-vm-isolation` when `kata-vm-isolation` was configured, or vice versa),
 `S50.1 fails when uname matches the node` (kills a runc pod counted as Kata), `S20.2 fails if port
-80 answers`, and one case per remaining check. `shellcheck` over `infra/smoke/*.sh` runs in task
+80 answers`, `S50 creates its pod in panacea-sandboxes with the sandbox labels and no owner label`
+(reads the manifest `run_cmd` was handed; kills a probe moved back to a namespace with no
+default-deny, review m9), `S50.2 fails naming IMDS when IMDS answers`, and one case per remaining
+check. `shellcheck` over `infra/smoke/*.sh` runs in task
 28's `infra` pipeline.
 
 #### Steps
