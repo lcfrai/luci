@@ -52,15 +52,18 @@ results document:
 | 5 | `GET …/convergence` | A `clean`; B `conflicts`, `conflictsWith:[A]`, the path; both lanes' `commits[].sessions` |
 | 6 | `POST …/lands` A with `expectedTip = tip` | 201; a two-parent merge with `Panacea-Land: <A>`; `<marker dir>/host-hook-ran` does **not** exist, although the land's `update-ref` and every lane fetch-back fire `reference-transaction` in the project (the host ran no repository hook: task-02 §HGH H1; the merge itself is `commit-tree`, which runs no hook either way, so no trailer can show this); A's ready flag false; B's clone `origin/evidence-upload` == the merge |
 | 7 | `POST …/lands` B | 409 `merge_conflict` with the path; the branch tip unchanged |
-| 8 | resolve in B: `git merge origin/evidence-upload`, fix, commit (`docker exec`) | the resolving commit carries B's session |
+| 8 | resolve in B: `git merge origin/evidence-upload`, fix, commit (`docker exec`) | the resolving commit carries B's session; after the next sweep, the project's `refs/panacea/lanes/<B>` contains A's merge (`merge-base --is-ancestor`) |
 | 9 | `POST …/lands` B | 201 |
-| 10 | `POST …/lands/{B's merge}/undo` | 200; tip back to A's merge; B ready again; `refs/panacea/undone/<sha>` exists |
+| 10 | `POST …/lands/{B's merge}/undo` | 200; tip back to A's merge; B ready again; `refs/panacea/undone/<sha>` exists; `refs/panacea/lanes/<B>` is unchanged by the undo; both clones' `origin/evidence-upload` == A's merge (`refreshed` names both); `GET …/convergence` has B `clean` with its resolving commit in `commits` |
+| 10a | `POST …/lands/{A's merge}/undo` with `expectedTip` = A's merge (review I3) | 409 `undo_not_exact`, `details.why "merged_into_lane"`, `details.worktrees` = B's id; the tip unchanged; no `refs/panacea/undone/<A's merge>`; `GET …/lands` gives A's row `undo:"revert"`, `undoWhy:"merged_into_lane"`. B merged A's land at step 8, so moving the branch back would not take it back |
 | 11 | land B again, then `POST …/push` | 200, `setUpstream:true`; the bare remote's branch equals the tip |
 | 12 | `GET …/lands` | both lands `pushed:true`, `undo:"revert"`, `undoWhy:"pushed"` |
 | 13 | `POST …/lands/{B}/undo` | 409 `undo_not_exact`/`pushed` |
 | 14 | `GET …/changes`, `…/changes/diff?path=<p>` | the path; a committed hunk with `tier:1` naming A's session and `sessionKinds` `shell`; `reason` for tier 2 "transcript links exist for Claude Code only" |
-| 15 | a race: move the branch with `git update-ref` on the host, then land with the old tip | 409 `branch_moved` with the new tip |
+| 15 | a race: move the branch with `git update-ref` on the host to an empty commit on the tip (`commit-tree <tip>^{tree} -p <tip>`, so it changes no file), then land with the old tip | 409 `branch_moved` with the new tip |
+| 15a | wait at most two `PANACEA_APP_LANE_SYNC_INTERVAL`s after step 15 (review I4) | both clones' `refs/remotes/origin/evidence-upload` (`docker exec … git rev-parse`) equal step 15's commit, which the cockpit did not make: the sweep's tip-change refresh |
 | 16 | check out `evidence-upload` in the project's primary; `GET …/convergence` and land | `checkedOutAt` is the primary's path; 409 `branch_checked_out`; check it back out |
+| 16a | `POST …/lands/{step 11's merge}/revert` with `expectedTip` = step 15's commit (review I4) | 201; one parent, `Panacea-Reverts: <step 11's merge>`; both clones' `origin/evidence-upload` == `revert`, and `refreshed` names both |
 | 17 | `DELETE …/worktrees/{A}` while its session runs | 409 `live_sessions`; kill it; DELETE with nothing to lose → 200; clone dir, lane ref, conversation store gone |
 | 18 | an uncommitted file in B; `DELETE` → `confirm_required`; commit in B (state changes); DELETE with the old token → `confirm_stale`; DELETE with the fresh token → 200; `refs/panacea/archive/lanes/<B>/…` names B's unlanded tip; a commit S made in B after `switch -c side` (then `switch` back) is in the question's `details.elsewhere` and named by `refs/panacea/archive/offbranch/<B>/…/heads/side` (review I6) |
 | 19 | `POST …/branches` `throwaway`, `PATCH` rename, `GET …/renames`, `DELETE` | 201, 200 with `renamedFrom`, the map entry, 200 with `archivedAs` |
@@ -120,7 +123,7 @@ anchor cannot be found is a finding, reported, not papered over.
 #### Acceptance
 
 ```
-go test ./control-plane/e2e/ -tags e2e -run TestPhase3EndToEnd -count=1 -v -timeout 20m   → PASS, 20 steps (or SKIP naming Docker)
+go test ./control-plane/e2e/ -tags e2e -run TestPhase3EndToEnd -count=1 -v -timeout 20m   → PASS, 24 steps: 1-20 with 10a, 15a and 16a (or SKIP naming Docker)
 git grep -n "S3-P8.1\|S3-P7.1\|H-1\|P4-1" -- docs/verification/                            → every seam and ask has a row with a file:line
 ```
 
