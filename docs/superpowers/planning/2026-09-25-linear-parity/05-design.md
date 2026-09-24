@@ -1015,3 +1015,59 @@ or the `panacea` verb channel (W3); anything that needs the gateway (W4).
 | Loops `lp-`: triggers, versions, run log, run now; the first-pass triage loop | 3.5 d |
 | Release CLI, an Azure Pipelines task, a GitHub Action; harness allow-list and team skills; audit to Sentinel | 3.5 d |
 
+### 5.5 Exactly what changes in the in-flight plans
+
+All changes are **additive**; none throws away built work or interrupts the current wave. The Hub's
+route table says *"Nothing else is routed"* (hub-contract:609), so the work layer arrives as **new
+Hub tasks after task 43**, not edits to tasks in flight (04 §7).
+
+| Plan | Change | Anchor | Slice |
+|---|---|---|---|
+| **Hub (Phase H)** | `issue:` in the key grammar the Hub mints and accepts | hub-contract:114-128 | **W0** |
+| | Example `criterionId: "done:2"` → a `c-` id | :1065, :1079 | **W0** |
+| | New tasks: id prefixes (§3.6); `issue-revision` canonical kind with golden vectors; `project.key` and numbers; routes for issues, comments, features, cycles, initiatives, views, requests, templates, labels, loops, drafts; the `Hub` interface gains `Work` | :103-112, :199-205, :561-607, :638 | W1-W5 |
+| | Authorisation rows and events per write; erase for issues, comments and requests | :335-359, :1115-1160 | W1 |
+| | The janitor gains cycle rollover, closure proposals, recurring issues | :2209 | W2, W4 |
+| **Phase 4** | Task 06: the parser gains `issue:`; `provenance.Ref` gains `kind: "issue"` | `provenance/key.go` (not yet built) | **W0** |
+| | Tasks 09-10: `Session.IssueRef`; the Materialiser renders from its keys | plan rules 2-3 | W1 |
+| | Tasks 16-17: the loader's second key source; the issue chip; coverage in the definition of done | plan :330, :55, :483 | W1 |
+| | After task 18: *promote to feature* drafts a branch brief (`model_drafted`); later *propose issues per criterion* | `4-D2` | W2, W4 |
+| **Phase 3** | Task 05: the hook stamps `Panacea-Issue` | plan :26-27, :138 | W1 |
+| | Tasks 07-08: a worktree made from an issue records it in the lane index | :116 | W1 |
+| | Task 09: land trailers per issue, the `landed` move, the `done` rule's evaluator | :32-35, :108, :135 | W1 |
+| | Task 19: lane rows name their issue. Tasks 15, 20: proposed evidence, *Record* as the person | :515-516; 3-D5, :414 | W1; W3 |
+| **Phase 7** | Task 19: the manifest lists issues from trailers. Task 17: the drawer shows them | plan :150, :606 | W1 |
+| | Release notes by criterion; freeze per environment | — | W4 |
+| **Team mode (TM-05)** | `task.issueId`; two Orchestrator event kinds; three verbs; the strip line is the issue title; issue rows on the Desk; plan the Hub's new records together with W1's | TM-05 §3.3, §4.2, §5.2, §9.1, §9.3, §11.1 | W3 |
+| **Phase 5** | An issue revision's `implements: [design:…]`; a design approval can close a design issue | 04 §7.7 | later (0.5 d) |
+| **Phase 6** | The per-session token carries the issue id: spend per issue and per loop | 04 §7.7 | W4 (0.5 d) |
+| **Phase 8** | A per-project environment spec with prep scripts (**UNVERIFIED** it is planned); the Hub's web forms behind the edge allowlist | — | W5 |
+| **Cockpit** | `Lens` gains `"work"` (`desktop/src/store/types.ts:173`); `isCockpitChord` extended for list keys; palette commands | `useKeyboardMap.ts`, `commands.ts` | W1 |
+| **Docs** | `FUNCTIONAL-SPEC.md` object model gains Feature and Issue; `PROGRAM.md` gains Phase W; `AGENTIC-UX.md:245` one-line amendment (if Q1 is A) | FUNCTIONAL-SPEC:5-16; PROGRAM:54-65 | W1 |
+| **02 (this folder)** | C8's replica "on disk" → in memory (§4.4), unless Q5 amends ADR-H1; `arrivals.hold` moves from `R` to `N` | 02 C7, C8 | W1 |
+
+### 5.6 A gap this design found: the Desk has no plan
+
+`AGENTIC-UX.md` §5 makes the Desk the default landing surface, and TM-05's cockpit stream adds
+rows to it (TM-05 §9.3, §12). **No plan builds it**: a search of `docs/superpowers/plans` for it
+found nothing, and 04 found no `Desk` in `desktop/src`. W1 row 13 builds the minimum the work
+layer needs (NEEDS YOU and LANDED, answer in place, the zero state). The full Desk (all five
+sections, the horizon bar, quiet mode) needs its own slice, owned by whichever of Phase W or team
+mode goes first (Q4).
+
+### 5.7 Order, and where the owner can stop
+
+1. **Now:** W0, and W1's prototype (row 7), which needs no Hub code and goes to the owner first.
+2. **After Hub task 43:** W1's build on three streams (Hub; phases 3, 4, 7; desktop).
+3. **Then** W2; W3 lands with TM1; W4 once phase 6's gateway exists; W5's requests and sync can run
+   beside W4.
+
+| Stop after | Focused days | What the owner has |
+|---|---|---|
+| W1 | ~28 | the demo in §5.3: file, Start, land, prove, ship, for one person |
+| W2 + W3 | ~64 | a team plans and ships in it, and agents across owners negotiate on its issues. **Recommended first target** |
+| W1-W5 | ~117 | the matrix in §1, less its 27 skips |
+| W1 + W5's sync only | ~36 | keep Azure Boards or Jira as the plan and mirror into our issues. Cheaper, but the thread stops at the mirror |
+
+---
+
