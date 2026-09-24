@@ -16,6 +16,8 @@
   --page:#0a0908; --canvas:#0e0c0b; --surface:#141210; --inset:#1a1715; --hover:#1f1c19; --hover-2:#25211d; --field:#1c1916;
   /* ink ramp. A fact is --ink-2 or stronger (05 §4.4 C3); --ink-3 never carries one */
   --ink:#f2ede7; --ink-2:#a79f97; --ink-3:#6c645d; --ink-4:#453f39;
+  /* caps section labels: quieter than a fact, still >= 4.5:1 on --inset (ink-3 is 3.1:1, so it carries no text) */
+  --ink-label:#8a8279;
   --line:rgba(255,248,240,.075); --line-strong:rgba(255,248,240,.15); --line-soft:rgba(255,248,240,.04);
   /* accent: interactive and current state only */
   --accent:#2fb3bd; --accent-hi:#74d9e0; --accent-tint:rgba(47,179,189,.11);
@@ -73,9 +75,9 @@ input,textarea{font:inherit;color:inherit}
 .acct{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line-soft)}
 .mark{width:22px;height:22px;border-radius:var(--r-chip);background:var(--ink);color:var(--page);
   display:grid;place-items:center;font-weight:800;font-size:11.5px;flex:0 0 auto}
-.acct .a1{font-size:12px;font-weight:650;color:var(--ink-2)} .acct .a2{font-family:var(--mono);font-size:var(--t-kbd);color:var(--ink-3)}
+.acct .a1{font-size:12px;font-weight:650;color:var(--ink-2)} .acct .a2{font-family:var(--mono);font-size:var(--t-kbd);color:var(--ink-2)}
 .rs{flex:1;overflow:auto;padding:6px 6px 12px}
-.mhd{padding:12px 8px 5px;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--ink-3)}
+.mhd{padding:12px 8px 5px;font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--ink-label)}
 .nav{display:flex;align-items:center;gap:9px;width:100%;padding:5px 8px;border-radius:var(--r-ctl);color:var(--ink-2);
   font-size:12.5px;text-align:left;position:relative;transition:background-color var(--dur-fast) var(--ease)}
 .nav:hover{background:var(--hover)}
@@ -84,21 +86,21 @@ input,textarea{font:inherit;color:inherit}
 .nav.cur::before{content:"";position:absolute;left:-6px;top:6px;bottom:6px;width:2px;border-radius:2px;background:var(--accent)}
 .nav.cur svg{color:var(--ink-2)}
 .nav .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nav .br{display:block;font-family:var(--mono);font-size:var(--t-kbd);color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav .br{display:block;font-family:var(--mono);font-size:var(--t-kbd);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nav .need{width:7px;height:7px;transform:rotate(45deg);background:var(--need);border-radius:1px;flex:0 0 auto}
 .kids{margin-left:15px;padding-left:8px;border-left:1px solid var(--thread)}
 .kids .nav{font-size:12px}
 .rfoot{border-top:1px solid var(--line);padding:8px 10px;display:flex;align-items:center;gap:8px}
 .me{width:22px;height:22px;border-radius:50%;background:var(--inset);box-shadow:var(--e-hair);
-  display:grid;place-items:center;font-size:9.5px;font-weight:700;color:var(--ink-2);flex:0 0 auto}
+  display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--ink-2);flex:0 0 auto}
 .rfoot .who{flex:1;font-size:11.5px;color:var(--ink-2)}
 .kbd{font-family:var(--mono);font-size:var(--t-kbd);padding:1px 5px;border-radius:4px;background:var(--inset);
-  box-shadow:var(--e-hair);color:var(--ink-3);white-space:nowrap;line-height:1.35}
+  box-shadow:var(--e-hair);color:var(--ink-label);white-space:nowrap;line-height:1.35}
 
 /* MAIN + the one ViewHeader (02 C5): title, scope chips, route badge, controls */
 .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--page);position:relative}
 .vh{min-height:44px;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid var(--line);flex:0 0 auto}
-.vh .ttl{font-size:13.5px;font-weight:650;letter-spacing:-.005em;white-space:nowrap}
+.vh .ttl{font-size:14px;font-weight:650;letter-spacing:-.005em;white-space:nowrap}
 .vh .sp{flex:1}
 .chip{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border-radius:var(--r-chip);background:var(--surface);
   box-shadow:var(--e-hair);font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);white-space:nowrap}
@@ -167,8 +169,13 @@ input,textarea{font:inherit;color:inherit}
 .al .lv{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);text-align:right}
 .al .mean{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .al.new{animation:rise var(--dur) var(--ease)}
-.cause{padding:0 10px 5px 98px;margin-top:-5px;font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2)}
-.neg{padding:0 10px 6px 98px;margin-top:-4px;font-size:12.5px;color:var(--ink)}
+.cause{padding:0 10px 5px 60px;margin-top:-5px;font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2)}
+.neg{padding:0 10px 6px 60px;margin-top:-4px;font-size:12.5px;color:var(--ink);display:flex;align-items:center;gap:6px}
+.neg .btn{padding:1px 8px;font-size:11.5px}
+/* a run affordance on your own unstarted rows: shown on hover or cursor by opacity, so layout never shifts */
+.runk{opacity:0;padding:1px 7px;border-radius:var(--r-chip);font-family:var(--sans);font-size:11.5px;color:var(--ink);background:var(--hover-2);
+  box-shadow:var(--e-hair);transition:opacity var(--dur-fast) var(--ease)}
+.ir:hover .runk,.ir.cur .runk,.runk:focus-visible{opacity:1}
 .neg .mono{color:var(--ink-2)}
 .holdbar{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:7px 10px;border-radius:var(--r-ctl);
   background:var(--surface);box-shadow:var(--e-hair);font-size:12.5px;color:var(--ink-2)}
@@ -181,7 +188,8 @@ input,textarea{font:inherit;color:inherit}
 .pn.p0{height:0} .pn.p4{height:3px} .pn.p3{height:6px} .pn.p2{height:9px} .pn.p1{height:12px;box-shadow:2px -4px 0 -1px var(--ink)}
 .dot{width:9px;height:9px;flex:0 0 auto;display:inline-block;position:relative}
 /* running: a disc inside a 1px open ring, so shape alone separates it from idle (D C4) */
-.dot.run{border-radius:50%;box-shadow:inset 0 0 0 1px var(--run);clip-path:polygon(0 0,62% 0,62% 38%,100% 38%,100% 100%,0 100%)}
+.dot.run::before{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 0 1px var(--run);
+  clip-path:polygon(0 0,58% 0,58% 42%,100% 42%,100% 100%,0 100%)}
 .dot.run::after{content:"";position:absolute;inset:2.5px;border-radius:50%;background:var(--run)}
 .dot.idle{border-radius:50%;box-shadow:inset 0 0 0 1px var(--ink-3)}
 .dot.need{transform:rotate(45deg) scale(.8);background:var(--need);border-radius:1px}
@@ -225,7 +233,7 @@ input,textarea{font:inherit;color:inherit}
 .ivd{font-size:13.5px;line-height:1.62;color:var(--ink);max-width:66ch}
 .ivd p{margin-bottom:10px} .ivd code{font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--inset);padding:1px 5px;border-radius:4px}
 .ivd .by{font-size:12px;color:var(--ink-2)}
-.sech{font-size:10px;font-weight:700;letter-spacing:.11em;color:var(--ink-3);margin:22px 0 10px;display:flex;align-items:center;gap:9px}
+.sech{font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--ink-label);margin:22px 0 10px;display:flex;align-items:center;gap:9px}
 .sech::after{content:"";flex:1;height:1px;background:var(--line-soft)}
 .sech .mono{letter-spacing:0;font-weight:400;color:var(--ink-2)}
 /* the provenance thread: brief, criterion, design, issue, worktrees, evidence, release */
@@ -237,7 +245,7 @@ input,textarea{font:inherit;color:inherit}
 .tn::before{content:"";position:absolute;left:-22px;top:10px;width:9px;height:9px;border-radius:50%;background:var(--page);box-shadow:0 0 0 1px var(--thread-lit)}
 .tn.here::before{background:var(--ink);box-shadow:0 0 0 1px var(--ink),0 0 0 4px var(--page)}
 .tn.open::before{box-shadow:0 0 0 1px var(--thread)} .tn.open{color:var(--ink-2)}
-.tn .k{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--ink-3)}
+.tn .k{font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--ink-label)}
 .tn .v{font-size:13px;color:var(--ink);margin-top:1px}
 .tn .f{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);margin-top:2px}
 .tn .f b{color:var(--ink);font-weight:400}
@@ -269,7 +277,7 @@ input,textarea{font:inherit;color:inherit}
 .dcard{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:12px 14px;margin-bottom:8px;position:relative}
 .dcard.need{box-shadow:0 0 0 1px rgba(226,163,60,.34),0 1px 2px rgba(0,0,0,.35),0 6px 16px rgba(0,0,0,.22)}
 .nrow{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);flex-wrap:wrap}
-.nrow .sep{color:var(--ink-3)} .nrow .by{margin-left:auto;color:var(--need)}
+.nrow .sep{color:var(--ink-label)} .nrow .by{margin-left:auto;color:var(--need)}
 .dq{font-size:14px;font-weight:600;line-height:1.4;margin:8px 0 4px}
 .dwhy{font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-bottom:10px;max-width:74ch}
 .dwhy b{color:var(--ink);font-weight:600}
@@ -288,13 +296,15 @@ input,textarea{font:inherit;color:inherit}
 .zero b{color:var(--ink);font-weight:600}
 
 /* ORCHESTRATOR THREAD: typed moves only, never the other side's transcript (OD-15) */
-.nx{display:grid;grid-template-columns:1fr 112px 1fr;gap:0 0;position:relative}
-.nx .colh{padding:0 4px 10px;font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
-.nx .colh b{color:var(--ink);font-weight:600}
-.nx .mid{position:relative}
-.nx .mid::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--thread)}
-.mv{grid-column:1;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);padding:9px 12px;margin-bottom:10px;animation:rise var(--dur) var(--ease)}
-.mv.r{grid-column:3} .mv.c{grid-column:1 / span 3;justify-self:center;max-width:560px;background:var(--canvas);text-align:center}
+/* one move per row, in time order: yours on the left, theirs on the right, what Fleet observed in the middle */
+.nxh{display:flex;justify-content:space-between;padding:0 2px 10px}
+.nxh .colh{font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.nxh .colh b{color:var(--ink);font-weight:600}
+.nx{display:flex;flex-direction:column;position:relative;padding:4px 0}
+.nx::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--thread)}
+.mv{position:relative;align-self:flex-start;width:calc(50% - 40px);background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e-card);
+  padding:9px 12px;margin-bottom:10px;animation:rise var(--dur) var(--ease)}
+.mv.r{align-self:flex-end} .mv.c{align-self:center;width:auto;max-width:560px;background:var(--canvas);text-align:center}
 .mv .ty{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink)}
 .mv .ty .t2{color:var(--ink-2);margin-left:6px}
 .mv .tx{font-size:12.5px;color:var(--ink);margin-top:4px;line-height:1.5}
@@ -313,7 +323,7 @@ input,textarea{font:inherit;color:inherit}
 .pp .nm{font-size:13px;font-weight:600;padding-top:3px} .pp .nm small{display:block;font-weight:400;font-size:12px;color:var(--ink-2)}
 .pp .ln1{font-size:13px;padding-top:3px} .pp .ln2{font-family:var(--mono);font-size:var(--t-fact);color:var(--ink-2);margin-top:3px}
 .pp .ln2 .ov{color:var(--ink)}
-.av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--ink-2);
+.av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--ink-2);
   background:var(--inset);box-shadow:var(--e-hair)}
 .crit{display:flex;flex-direction:column;gap:2px}
 .crow{display:grid;grid-template-columns:14px minmax(0,1fr) 92px auto;gap:10px;align-items:center;padding:6px 10px;border-radius:var(--r-ctl);font-size:12.5px;cursor:pointer}
@@ -329,7 +339,7 @@ input,textarea{font:inherit;color:inherit}
 .pal .pin input{flex:1;background:none;border:0;outline:none;font-size:15px;padding:15px 0;color:var(--ink)}
 .pal .scope{display:flex;gap:6px;padding:9px 14px 0;font-size:12px;color:var(--ink-2);align-items:center}
 .palist{max-height:380px;overflow:auto;padding:6px}
-.pgh{padding:8px 10px 4px;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--ink-3)}
+.pgh{padding:8px 10px 4px;font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--ink-label)}
 .pit{display:flex;align-items:center;gap:10px;padding:0 10px;height:34px;border-radius:var(--r-ctl);cursor:pointer;font-size:13px;color:var(--ink)}
 .pit .ic{width:16px;color:var(--ink-2);display:grid;place-items:center}
 .pit .sp{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -501,6 +511,9 @@ const I = [
   {id:'EP-155',t:'Bump the chunk-store client',st:'todo',pr:0,own:'dylan',serves:[],tie:'chore',desc:'Move to the 2.4 client; no behaviour change.'},
 ];
 const GHOSTS = [{id:'EP-128',why:'cancelled by Alice · duplicate of EP-150'}];
+// your agents on your other feature (Reviewer queue): shown only folded on the Desk, to show many agents on one beat
+const OTHER_AGENTS = [['dylan · agent 3','EP-163','sorting the reviewer queue by evidence age'],
+  ['dylan · agent 4','EP-164','running the reviewer queue tests'],['dylan · agent 5','EP-166','reading the design frame for an empty queue']];
 const byId = id => I.find(x => x.id === id);
 
 /* ---------- STATE ---------- */
@@ -544,7 +557,8 @@ function header(){
     const x = byId(S.issue);
     const run = x.own === 'dylan' && !x.agent && ['todo','backlog','triage'].includes(x.st)
       ? `<button class="btn pri" data-act="run"><svg width="13" height="13"><use href="#i-run"/></svg>Run an agent <span class="kbd">Shift R</span></button>` : '';
-    h.innerHTML = `<button class="btn ghost" data-act="back">Work <span class="kbd">Esc</span></button><span class="ttl">${x.id}</span>${briefChip()}${routeBadge()}<span class="sp"></span>${run}${palBtn}`;
+    const back = {desk:'Desk',team:'Team',orch:'My Orchestrator',plan:'Plan'}[S.prev] || 'Work';
+    h.innerHTML = `<button class="btn ghost" data-act="back">${back} <span class="kbd">Esc</span></button><span class="ttl">${x.id}</span>${briefChip()}${routeBadge()}<span class="sp"></span>${run}${palBtn}`;
   } else {
     const t = {desk:'Desk',orch:'My Orchestrator',team:'Team',plan:'Evidence Portal · Plan'}[v];
     const chips = v === 'desk' ? `<span class="chip">all projects</span>` : `<span class="chip">team · Evidence Portal</span>${routeBadge()}`;
@@ -588,15 +602,18 @@ function agentLine(x, cls){
     <span class="mean"><span class="wl">${esc(a.who)}</span>${esc(a.mean)}</span><span class="lv" data-lv="${x.id}">${a.done ? 'exited' : liveness(a)}</span></div>`;
 }
 function rowHTML(x, gk, i){
-  const [rt, rc] = rightFact(x);
+  let [rt, rc] = rightFact(x);
+  if (!rt && x.own === 'dylan' && !x.agent && ['todo','backlog'].includes(x.st))
+    rt = `<button class="runk" data-act="run:${x.id}" tabindex="-1">Run <span class="kbd">Shift R</span></button>`;
   const cls = ['ir', i === S.cur ? 'cur' : '', S.sel.has(x.id) ? 'sel' : '', x.flash ? 'flash' : '', x.unseen ? 'unseen' : ''].join(' ');
-  let h = `<div class="${cls}" role="row" tabindex="-1" data-id="${x.id}" data-i="${i}" data-g="${gk}" aria-selected="${S.sel.has(x.id)}">
+  let h = `<div class="${cls}" role="option" tabindex="-1" data-id="${x.id}" data-i="${i}" data-g="${gk}" aria-selected="${S.sel.has(x.id)}">
     <span class="ck" aria-hidden="true"><svg width="14" height="14"><use href="#g-check"/></svg></span>${glyph(x.st, x.pr)}
     <span class="id">${x.id}</span><span class="ti">${esc(x.t)}</span><span class="own">${ownerText(x)}${x.negDone ? ` <svg width="12" height="12" style="vertical-align:-2px" aria-label="agreed between Orchestrators"><use href="#g-swap"/></svg>` : ''}</span>
     <span class="rt ${rc}">${rt}</span><i class="fl"></i><i class="tick"></i></div>`;
   h += agentLine(x, x.agentNew ? 'new' : '');
   if (x.cause) h += `<div class="cause">→ ${esc(x.cause)}</div>`;
-  if (x.neg && !(S.seen.neg && S.decided)) h += `<div class="neg"><svg width="13" height="13" style="vertical-align:-2px;color:var(--ink-2)"><use href="#g-swap"/></svg> ${x.neg}</div>`;
+  if (x.neg) h += `<div class="neg"><svg width="13" height="13" style="color:var(--ink-2)"><use href="#g-swap"/></svg><span>${x.neg}</span>${
+    x.own === 'dylan' && S.negStep >= NEG.length && S.decided == null ? `<button class="btn" data-go="desk">Answer <span class="kbd">G I</span></button>` : ''}</div>`;
   return h;
 }
 function groupHead(g){
@@ -611,8 +628,9 @@ function renderWork(){
   const gs = groups(); let i = 0; S.rows = [];
   const held = S.held.length + (S.group === 'criterion' ? GHOSTS.length : 0);
   let h = `<div class="inner"><div class="lede"><span>Serving <b>${BRIEF.name} ${BRIEF.sec}</b>, revision ${BRIEF.rev}. Issues hang from the criterion they prove.</span></div>`;
+  if (!S.guideOff) h += `<div class="holdbar guide"><span><b>Prototype.</b> Try <span class="kbd">J</span> <span class="kbd">K</span> and <span class="kbd">Enter</span>, then <span class="kbd">Shift R</span> on EP-144 to hand it to an agent. Your Orchestrator will ask you something soon.</span><span class="sp"></span><button class="btn ghost" data-act="guide-off">Hide</button></div>`;
   if (held) h += `<div class="holdbar"><span><b>${held === 1 ? 'One change is' : held + ' changes are'} held</b>, so no row moves under you.</span><span class="sp"></span><button class="btn" data-act="apply">Apply <span class="kbd">N</span></button></div>`;
-  h += `<div role="grid" aria-label="Issues by criterion" aria-rowcount="${I.length}">`;
+  h += `<div role="listbox" aria-multiselectable="true" aria-label="Issues by ${S.group}">`;
   for (const g of gs) {
     h += `<div class="grp ${g.none ? 'none' : ''} ${S.lit === g.key ? 'lit' : ''}" data-gk="${g.key}">${groupHead(g)}<div class="rows">`;
     for (const x of g.items) { S.rows.push({id:x.id, gk:g.key}); h += rowHTML(x, g.key, i++); }
@@ -708,7 +726,7 @@ function issueSide(x){
   return `<div class="sech">PROPERTIES</div><dl class="prop">
     <dt>State</dt><dd>${glyph(x.st, 0)}${STATES[x.st].w}</dd>
     <dt>Priority</dt><dd><span class="g"><i class="pn p${x.pr}"></i></span>${pr}</dd>
-    <dt>Assignee</dt><dd><span class="me" style="width:18px;height:18px;font-size:8px">${P[x.own].ini}</span>${x.own === 'dylan' ? 'You' : P[x.own].n}</dd>
+    <dt>Assignee</dt><dd><span class="me" style="width:20px;height:20px;font-size:10px">${P[x.own].ini}</span>${x.own === 'dylan' ? 'You' : P[x.own].n}</dd>
     <dt>Serves</dt><dd>${serves}</dd>
     <dt>Feature</dt><dd>Resumable uploads</dd>
     <dt>Branch</dt><dd><span class="mono">${x.wt ? x.wt : 'feat/resumable-uploads'}</span></dd>
@@ -750,7 +768,10 @@ function renderDesk(){
   const changed = mine.filter(x => x.agent.changed && !x.agent.done), steady = mine.filter(x => !x.agent.changed && !x.agent.done);
   const cards = changed.map(x => `<div class="dcard"><div class="nrow"><span class="dot run live" aria-hidden="true"></span>${esc(x.agent.who)}<span class="sep">·</span>EXECUTING<span class="sep">·</span>${x.id}<span class="by" style="color:var(--ink-2)">${liveness(x.agent)}</span></div>
     <div class="dq" style="font-weight:500;font-size:13.5px">${esc(x.agent.mean)}</div><div class="dwhy" style="margin:0">${esc(x.agent.next || 'Works alone until the tests pass, then marks the worktree ready.')}</div></div>`).join('');
-  const fold = steady.length ? `<div class="drow fold" data-act="unfold"><span class="dot run live" aria-hidden="true"></span><span>${steady.length} steady, all live</span><span class="sp"></span><span class="mono">${S.unfold ? steady.map(x => x.agent.who + ' · ' + x.id).join('   ') : 'Enter expands'}</span></div>` : '';
+  // steady agents fold into one line that expands in place; every dot breathes on the one heartbeat
+  const all = steady.map(x => [x.agent.who, x.id, x.agent.mean]).concat(OTHER_AGENTS);
+  const fold = `<div class="drow fold" data-act="unfold" role="button" aria-expanded="${!!S.unfold}"><span class="dot run live" aria-hidden="true"></span><span>${all.length} steady, all live</span><span class="sp"></span><span style="font-size:12px;color:var(--ink-2)">${S.unfold ? 'Fold' : 'Expand'}</span></div>`
+    + (S.unfold ? all.map(a => `<div class="drow" style="margin-left:18px"><span class="dot run live" aria-hidden="true"></span><span class="mono" style="min-width:118px">${esc(a[0])}</span><span class="mono">${a[1]}</span><span>${esc(a[2])}</span><span class="sp"></span><span class="mono">live</span></div>`).join('') : '');
   const landed = S.landed.length ? S.landed.map(l => `<div class="drow">${glyph('done', 0)}<span class="mono">${l[0]}</span><span>${l[1]}</span><span class="sp"></span><span class="mono">${l[2]}</span></div>`).join('')
     : `<div class="zero">Nothing of yours landed since you last looked.</div>`;
   const dwy = S.dwy.map(l => `<div class="drow"><svg width="14" height="14" style="color:var(--ink-2)"><use href="#g-swap"/></svg><span>${l[0]}</span><span class="sp"></span><span class="mono">${l[1]}</span>${l[2] ? `<button class="btn ghost" data-act="undo-dwy">Undo</button>` : ''}</div>`).join('');
@@ -792,9 +813,9 @@ function renderOrch(){
     <p class="fence">Orchestrators are the only channel between owners. They trade typed moves (<span class="mono">split · sequence · yield · build-on · proceed-both</span>), never each other’s transcripts, and each directs only its own workers. Nobody steers another person’s agent.</p>
     <div class="dcard" style="margin-bottom:18px"><div class="nrow">your escalation policy<span class="sep">·</span>set by you, 22 Sep</div>
       <div class="dwhy" style="margin:6px 0 0"><b>Ask me</b> when a resolution adds a dependency on unlanded work, or holds my issue for another owner. <b>Tell me</b> about anything else inside my scope. <b>Never</b> accept a yield on a criterion I own without asking.</div></div>
-    <div class="nx"><div class="colh"><svg width="14" height="14"><use href="#g-orch"/></svg><b>Your Orchestrator</b> · EP-142, EP-144</div><div></div>
-      <div class="colh"><svg width="14" height="14"><use href="#g-orch"/></svg><b>Alice’s Orchestrator</b> · EP-150, EP-147</div>
-      ${moves.map(mv).join('')}${waiting}</div>
+    <div class="nxh"><div class="colh"><svg width="14" height="14"><use href="#g-orch"/></svg><b>Your Orchestrator</b> · EP-142, EP-144</div>
+      <div class="colh"><b>Alice’s Orchestrator</b> · EP-150, EP-147<svg width="14" height="14"><use href="#g-orch"/></svg></div></div>
+    <div class="nx">${moves.map(mv).join('')}${waiting}</div>
     <div style="margin-top:14px;display:flex;gap:8px">${S.negStep >= NEG.length && S.decided == null ? `<button class="btn pri" data-go="desk">Answer on your Desk</button>` : ''}<button class="btn ghost" data-act="replay">Replay the negotiation</button></div></div>`;
   beatSync();
 }
@@ -863,6 +884,7 @@ function moveCur(d){
   els[S.cur] && els[S.cur].classList.remove('cur');
   S.cur = Math.max(0, Math.min(els.length - 1, S.cur + d));
   els[S.cur].classList.add('cur'); S.listFocus = true; focusCur(); setLit(S.rows[S.cur] && S.rows[S.cur].gk);
+  const r = byId(curId()); if (r && r.unseen) { r.unseen = false; els[S.cur].classList.remove('unseen'); }   // the read cursor clears the tick
 }
 function setLit(gk){          // lit is not selected: brighten the criterion's thread, never ring a row
   if (S.group !== 'criterion') gk = null;
@@ -1166,9 +1188,11 @@ function act(a){
   if (a.startsWith('group:')) return setGroup(a.slice(6));
   if (a === 'new') return newIssue();
   if (a === 'run') return runAgent(S.issue);
+  if (a.startsWith('run:')) return runAgent(a.slice(4));
   if (a === 'apply' || a === 'desk-apply') return applyHeld();
   if (a === 'defer') return toast('Deferred to 11:15 with the reason “after standup”. The safe default still holds at 11:30.');
   if (a === 'unfold') { S.unfold = !S.unfold; return renderDesk(); }
+  if (a === 'guide-off') { S.guideOff = true; return render(); }
   if (a === 'undo-dwy') { S.dwy = []; renderDesk(); return toast('Undone. Your Orchestrator tells Alice’s that EP-147’s review order is open again.'); }
   if (a === 'replay') { S.replay = 0; return renderOrch(); }
 }
