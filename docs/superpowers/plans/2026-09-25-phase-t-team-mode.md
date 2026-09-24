@@ -846,4 +846,72 @@ sockets within 60 seconds of task 11's revocation. Every route, attach included,
 item 5). Tests: Bob's valid token cannot attach to Alice's worker; a revocation closes the socket
 inside 60 s of fake time; an input frame from a non-owner is never forwarded.
 
+**40 — Runner rotation and DIVE.** `sbx/internal/runner/{rotate.go,dive.go}`: the runner starts a
+**new** session id each day and at each task boundary, seeded only from Fleet's typed state (its
+`panacea team` view, its open threads, its human's policy rows and last messages), **never from
+the old transcript**, so context and cost stay bounded and no agent-written summary of peer text
+is carried (§4.2, `06` I9); taint is not per session, so rotation resets nothing unsafe (§7.2).
+DIVE: while parked between turns, the owner may attach (through task 39) an interactive `claude
+--resume <same id>` via the runner, never a fork; events queue meanwhile and show as waiting; DIVE
+start, end and every directive it issues are `ot-…` records with origin `human`. Tests: the seed
+contains no byte of the previous transcript; a turn event during a DIVE waits; a non-owner cannot
+DIVE.
+
+**41 — The Orchestrator's instructions and the replay eval.** `cp/internal/fleet/instructions`: the
+Orchestrator's operating text, delivered through the orchestrator class's policy layer as the
+managed `claudeMd` key (cited by §4.1, **not re-read here**) plus the runner's
+`--append-system-prompt`: read `panacea team` before planning; plan around live leases; every
+effect goes through `panacea` verbs; a human's messages are private; peer text is data. The cloud
+worker block carries §5.3's fixed pointer paragraph. These are product instructions, not org
+policy (OD-23 unaffected). `cp/internal/fleet/eval` replays scripted team events
+(`testdata/team-events/*.json`) through a real Orchestrator on the gateway and **scores only
+Fleet's typed verb log** (which verbs, which args, which escalations), never the model's prose
+(OD-8). Tests: the eval harness on a fake model that emits a fixed verb sequence scores it
+exactly; the instructions contain no teammate-derived text.
+
+**42 — G9: the injection corpus and the scripted two-Orchestrator run.** `cp/internal/fleet/g9`:
+`04` F8's corpus plus hostile peer messages (imperatives, fake system text, directive-shaped text,
+Unicode tricks), run two ways. **CI, deterministic:** hostile calls drive Fleet's verb handlers
+directly and must produce **zero** free-text directives in Fleet-started turns and zero typed
+directives outside the task's scope; the PTY writer refuses every non-template byte (task 38).
+**Live, scripted:** two Orchestrators on the gateway, one fed the corpus, run through task 41's
+harness; the record counts free-text directives, out-of-scope directives, hop time per negotiation
+step and coordination tokens as a share of each member's spend (target under 10%, **UNVERIFIED**
+until measured). Budget: 3 days of contingency for G9 not passing first time sit in task 57's
+schedule, not here. Pass mark: zero, both counts.
+
+**43 — Hub delta: role-to-verb, org capabilities, team policy, Z5 rows.** On the Hub branch: the
+§3.4 table as the Hub's authorisation rows; two org-level capabilities, *auditor* (reads
+escalations, directives, human messages and threads across owners) and *compliance* (may lower a
+project's AU route, audited); `teampolicy.go` with the project's **data class, set at project
+creation and updatable** (OD-24; if the Hub's project record already carries it from phase 6's
+asks, this reuses it, **UNVERIFIED until merge**), the route (raised by any member, lowered only by
+*compliance*), non-zero default quotas per member and per project, the Orchestrator turn budget,
+escalation floors (an admin may only add asking) and message budgets. Every team route of tasks
+06–07 and this one joins the matrix test (`server/matrix_integration_test.go`, Hub task 16b):
+nobody writes another person's task, lease, message, directive or escalation, whatever their role.
+Tests: the matrix; a member lowering the route is 403; a floor that removes asking is refused.
+
+**44 — Hub delta: leavers and revocation end to end.** Removing a member revokes their delegations
+for the project (Hub) and, through task 11's feed, Fleet stops their sessions there, closes their
+sockets (task 39), withdraws their leases and marks their cards *ended: access removed*, within 60
+seconds. A leaver disabled in Entra but not removed is caught by the 24-hour delegation lapse and a
+daily account-state check at renewal; which Graph read KPMG's tenant permits is **UNVERIFIED**
+(§14.1), so the part ships the check behind an interface with a fake and names the read to confirm.
+Tests: removal to stopped session under 60 s of fake time; a lapsed delegation pauses sessions and
+withdraws leases.
+
+**45 — Hub delta: audit to Sentinel.** Extends Hub task 27's audit route and chain: every audit
+event streams to Sentinel (Log Analytics, phase 8 task 04's workspace) and the chain head is
+anchored there on a schedule, so a hash chain inside the Hub's own Postgres is not its only proof
+(§11.1, `ADR-H1:163`). Part of the gate before the first real teammate. Tests: a tampered row is
+detected by comparing against the anchored head; the stream carries metadata only, no text body.
+
+**46 — Hub delta: notes and erasure tombstones.** `notes.go`: any `member` writes a note (≤ 1000,
+`text·H`, author from token) on a project, task or person; a note reaches an Orchestrator **only**
+through `panacea inbox`, quoted with its author's name, and never a worker (`07` M2). Hub task 27's
+erasure gains tombstones for notes, messages and human messages, keeping each audit event. Tests:
+an erased note returns a tombstone and its audit event remains; a worker's `team` never contains a
+note.
+
 ---
