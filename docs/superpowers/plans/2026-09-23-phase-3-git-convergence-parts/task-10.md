@@ -67,7 +67,8 @@ type UndoResult struct {
 //   update-ref refs/panacea/undone/<sha> <sha>                           (keeps it and its trailer resolvable)
 //   update-ref -m "panacea: undo land <id>" refs/heads/<branch> <sha>^1 <sha>   (compare-and-swap)
 //   SetWorktreeReady(<Panacea-Land id>, true) when that lane still exists  (exact means as before)
-//   the clones' origin/<branch> refresh, as Land's step 14
+//   l.RefreshClones(ctx, projectPath, branch), as Land's step 14 (origin/<branch> and, since
+//   review I5, upstream/<branch>; task 09)
 // It holds Locks.Lock(ctx, projectID) for the whole verb, as Land does, so it serialises with
 // every land, fetch, push and branch verb on the project (task-02 Locks; review I7). Hardened per task-02 §HGH: the project calls use
 // Scope Project, the refresh uses Scope Clone, and no hook runs (H4).
