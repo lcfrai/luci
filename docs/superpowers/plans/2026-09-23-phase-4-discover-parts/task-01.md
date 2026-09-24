@@ -5,7 +5,9 @@ shared by the registry and by phase 4's `contextwrite` — never a second copy t
 hard-won test (the `FILE_SHARE_DELETE` finding of phase 2 task 7). Under `OD-3` phase 4 has no
 revision store on disk, so its only caller is the `CLAUDE.md` write (task 09). **Phase 3's task 03
 step 1 does the same lift "if phase 4 has not done it first"** (phase 3 plan `:138`): whichever
-lands first does it, the other drops its step. Check before starting (step 1).
+lands first does the move, and the other drops the move. Phase 3's move has no `Mode` and no
+parameterised temp pattern, so this task still adds those if phase 3 lands first. Check before
+starting (step 1).
 
 **One real change, not only a move.** The registry's version chmods the temp file `0o600` and
 creates directories `0o700` (`registry/filestore.go:462` for the `MkdirAll`, `:488` for the
@@ -86,7 +88,23 @@ it is the proof the registry's behaviour did not move.
 
 - [ ] **Step 1: Check the lift has not already landed.**
   `grep -n "func WriteAtomic" control-plane/internal/statepath/*.go` — expect no match. If phase 3
-  has landed it, confirm it takes a mode (or add `Mode` as a separate commit) and skip to step 5.
+  has landed it (its task 03 moves `writeAtomic` as it is: no `Mode`, and a fixed
+  `.sessions-*.json` temp pattern), the file names already match, but the behaviour this task
+  exists for does not. Do **not** skip to step 5; take this path instead, as its own commit:
+  1. Add `TestSharedModeWritesAWorldReadableFile` and `TestTempNameFollowsTheTarget` to
+     `statepath/atomic_test.go`, and change the moved tests' calls to `WriteAtomic(p, d, Private)`.
+     Run `go test ./control-plane/internal/statepath/...` and expect a compile failure: too many
+     arguments to `WriteAtomic`.
+  2. Add `Mode`, `FilePerm` and `DirPerm` to `atomic.go`, and parameterise the two permissions and
+     the temp pattern as step 3 says.
+  3. Give every caller `statepath.Private`. Find them with `grep -rn "statepath.WriteAtomic("
+     control-plane/`. The registry writes its file from one place, the `writeAtomic` call at
+     `filestore.go:401` at `3303fd6`, so after phase 3's lift it has one caller: either that call
+     or the one-line wrapper it goes through. `Private` keeps each caller's behaviour byte for byte.
+  4. Go to step 5. The step 6 commit carries `atomic.go`, `atomic_test.go` and `filestore.go`,
+     and no deletion.
+  If the lift has landed **with** a mode, check that both new tests exist and pass, add whichever
+  is missing, then go to step 5.
 - [ ] **Step 2: Move the tests.** `git mv control-plane/internal/registry/writeatomic_test.go
   control-plane/internal/statepath/atomic_test.go`, change `package registry` to `package
   statepath`, `writeAtomic(p, d)` to `WriteAtomic(p, d, Private)`, the error string to

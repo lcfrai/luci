@@ -10,6 +10,15 @@ and every result is recorded honestly, failures included. **A screenshot is not 
 **Files:**
 - `docs/verification/2026-09-23-phase-4-results.md` (new)
 - `docs/verification/phase-4-e2e.sh` — the scripted part, one `curl` per step (new)
+- `images/sandbox/Dockerfile` — a comment only, directly above the `RUN npm install -g
+  @anthropic-ai/claude-code@…` line (`:17` at `3303fd6`), so a pin bump cannot miss OQ-10.
+  A comment starts no build step, so no build changes:
+  ```dockerfile
+  # Phase 4 OQ-10: at 2.1.277 or later Claude Code reads AGENTS.md, and a materialised
+  # CLAUDE.md displaces it. A bump to that range re-runs canaries O2 and O6
+  # (docs/superpowers/plans/2026-09-23-phase-4-discover-parts/task-23.md) and lands
+  # the OQ-10 import batch in the same change.
+  ```
 
 **Preconditions, each checked and recorded** (a missing one is a recorded **not run**, never a
 fabricated pass):
@@ -118,7 +127,7 @@ unverified until the owner runs them:**
 | O3 | Edit the brief, then `--resume` the session (the cockpit's Resume) and ask again | whether a resumed conversation acts on the restamped file (brief R7) |
 | O4 | Look at every Discover state, the eight chip states on a real pane header, the refusal, the import | the visual acceptance: the owner's eyes, and nothing else |
 | O5 | Sign in as two teammates through `devissuer`; one edits, the other watches the chip go superseded within one feed poll | `OD-3`'s "a teammate sees the same brief" |
-| O6 | In a repository that has a tracked `AGENTS.md` holding a second codeword and no `CLAUDE.md`, repeat O1, then ask for that codeword | whether the materialised `CLAUDE.md` displaces the repository's `AGENTS.md` on the pinned CLI, as Claude Code's memory page says it does from v2.1.277 (P4-D, OQ-10) |
+| O6 | A repository that tracks a root `AGENTS.md` holding a second codeword (*"The AGENTS codeword is TOURMALINE."*) and has no `CLAUDE.md` or `.claude/AGENTS.md`. First open and close one throwaway session in the same sandbox, because the memory page says the first session after a CLI upgrade reads only `CLAUDE.md` files; below v2.1.281, none of the sessions may be on Bedrock or have telemetry disabled, for the same reason. **Baseline arm:** a session on the same clone and the same CLI with **no** brief, so nothing is materialised; run `/memory` and look for `AGENTS.md`'s path, then ask for the second codeword. **Brief arm**, only when the CLI from step 6 is v2.1.277 or later: repeat O1, run `/memory` again, and ask for the second codeword | **Below v2.1.277** (the pin is 2.1.274, `images/sandbox/Dockerfile:17`) only the baseline arm runs, and it checks the premise OQ-10's recommendation rests on: the docs say that CLI reads no `AGENTS.md` at all. The brief arm is recorded **not applicable**, with the version. A baseline that lists `AGENTS.md` or answers TOURMALINE disproves that premise, and OQ-10 goes back to the owner. **At v2.1.277 or later**, displacement is shown only when the baseline arm lists `AGENTS.md` and answers TOURMALINE and the brief arm does neither. A baseline that does neither makes O6 **inconclusive**, never "displaces" (P4-D, OQ-10) |
 
 **Acceptance:** `docs/verification/2026-09-23-phase-4-results.md` exists and holds, for every
 step: the command, its output (trimmed), and **pass**, **fail** or **not run** with the reason;

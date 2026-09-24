@@ -13,6 +13,10 @@ below, so this task never waits silently and never fabricates.
   `Materialiser` field's value `newMaterialiserUntilTask14(log)` (task 10) becomes
   `wiring.Materialiser` (modify)
 - `control-plane/cmd/api/config.go` — the model variables (modify)
+- `control-plane/cmd/api/evidence.go` + `evidence_test.go` — the adapter to phase 3's
+  `evidence.Evaluator` (task 06, "The adapter"; S4-P3.4), **only if** step 1 finds phase 3's
+  `evidence` package. Otherwise `discoverhub.Config.Evaluate` stays nil and phase 3's task 15
+  writes this file (new, conditional)
 - `control-plane/cmd/api/materialiser_interim.go` and `materialiser_interim_test.go` — task 10's
   interim `materialiserUntilTask14` (**delete**, `git rm`; review I1)
 
@@ -104,8 +108,12 @@ type gitQuestions struct{ git project.Runner }
 **Steps:**
 
 - [ ] **Step 1:** Check what has landed: `go doc ./control-plane/internal/hub/hubclient New`,
-  `go doc ./control-plane/internal/entraauth`, `go doc ./control-plane/internal/githost ParseRemote`.
-  Record each in the commit message.
+  `go doc ./control-plane/internal/entraauth`, `go doc ./control-plane/internal/githost ParseRemote`,
+  `go doc ./control-plane/internal/evidence Evaluator`. Record each in the commit message. When
+  the last one answers, write `evidence.go` by task 06's four key-to-subject steps, set
+  `discoverhub.Config.Evaluate: evidenceEvaluate(…)`, and test each step's failure. Each failure
+  test asserts an error, which `Readings` shows as `open`, and one bound clone with the branch
+  asserts the `(repo, projectPath, subject)` that reaches a fake `States`.
 - [ ] **Step 2:** Write the tests; confirm they fail.
 - [ ] **Step 3:** `discover.go`; `config.go`'s three model variables; `main.go`: build the scanner
   and runner as today, call `wireDiscover`, set `Deps.Materialiser: wiring.Materialiser` (it

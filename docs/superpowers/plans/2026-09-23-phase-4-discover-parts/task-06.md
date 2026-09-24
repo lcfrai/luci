@@ -153,9 +153,32 @@ type Head struct {
 	Archived               bool `json:"archived"`
 }
 
-// Evaluate is phase 3's seam (ask P4-4): the state of one criterion of one
-// brief key. Nil means every criterion is open - phase 4's only behaviour.
-type Evaluate func(briefKey string, c discover.Criterion) (CriterionState, string)
+// EvalQuery is one brief key's criteria, and what the key itself says about
+// where they live. Every field is a function of the key, so Resolve and
+// HeadRef ask the same question for the same key and cannot disagree.
+type EvalQuery struct {
+	BriefKey  string               // brief:<id>@<rev>
+	ProjectID string               // the HUB project id, pj-… (Source.ProjectID)
+	BranchRef string               // refs/heads/… (Source.Revision.BranchRef); never "" here
+	Criteria  []Criterion          // Build's, digests included (P4-2), in order
+}
+
+// Verdict is phase 3's evidence.State narrowed to what a reading shows
+// (phase 3 task-15.md:87-95 at a255408).
+type Verdict struct {
+	CriterionID string
+	State       CriterionState
+	Because     []string // evidence.State.Because, verbatim; Readings joins it
+}
+
+// Evaluate is the seam phase 3's evidence.Evaluator fills (ask P4-4, S4-P3.4).
+// It has the shape of (*evidence.Evaluator).States (phase 3
+// task-15.md:112 at a255408): one call for every criterion of one key,
+// a ctx, an error, and a []string because. The adapter
+// (control-plane/cmd/api/evidence.go, below) maps the query to States'
+// (repo, projectPath, subject) and converts types; it decides nothing else.
+// Nil means every criterion is open - phase 4's only behaviour.
+type Evaluate func(ctx context.Context, q EvalQuery) ([]Verdict, error)
 
 // Source is a resolved revision as discoverhub hands it over.
 type Source struct {
@@ -192,13 +215,21 @@ type Source struct {
 func Build(key string, src Source, head Head) Ref
 
 // Readings is the moving part of one resolved key: one CriterionReading per
-// Criterion of Build(key, src, …), in the same order, each from eval(key, c)
-// on the done section's discover.Criterion. Nil eval means every state open
-// with because "". An Evaluate that returns a non-open state with an empty
-// because is overridden to open: an unexplained verdict is not shown (P12).
+// Criterion of Build(key, src, …), in the same order. Its rules (S4-P3.4):
+//  1. ONE eval call per key, with every criterion of the done section in
+//     order, never one call per criterion.
+//  2. Every state is open with because "" when eval is nil, when the key is a
+//     project key (src.Revision.BranchRef "": phase 3 evaluates only at a
+//     branch head and never takes a branch id, so eval is not called), when
+//     eval returns an error, and when its verdicts do not match the criteria
+//     one for one, by id and in order. An error is not the refs call's error.
+//  3. because is the verdict's Because, each element trimmed, empty ones
+//     dropped, joined with "; " in phase 3's order.
+//  4. A non-open verdict whose because is then "" is shown open: an
+//     unexplained verdict is not shown (P12).
 // Called on EVERY answer, cached revision or not, so a verdict is never older
 // than the refs call that carried it.
-func Readings(key string, src Source, eval Evaluate) []CriterionReading
+func Readings(ctx context.Context, key string, src Source, eval Evaluate) []CriterionReading
 
 func MissingRef(key string) Ref
 func InvalidRef(key string) Ref
@@ -208,6 +239,41 @@ func ErasedRef(key string, briefID string, revision int, digest, savedAt, savedB
 
 func CriterionDigest(text string) string
 ```
+
+**The adapter to phase 3's evaluator (S4-P3.4; re-review b08-1 R-I1).** Phase 3's counterpart is
+`func (e *Evaluator) States(ctx context.Context, repo, projectPath, subject string, criteria
+[]briefref.Criterion) ([]State, error)` (phase 3 `task-15.md:112`, its answer to ask P4-4 at
+phase 3 `plan.md:382`, both at phase 3 worktree `a255408`). `Evaluate` above has its shape, so the
+adapter holds only the one rule `Readings` cannot: **key to subject**.
+- **File:** `control-plane/cmd/api/evidence.go` (new),
+  `func evidenceEvaluate(ev evidenceStates, hub *discoverhub.Service, scan *project.Scanner, loc discoverhub.Locator, git gitx.Machine) provenance.Evaluate`,
+  where `evidenceStates` is a one-method interface holding `States`' signature, so that
+  `*evidence.Evaluator` satisfies it and a test can pass a fake
+  (`gitx.Machine` is phase 3 plan text, the type of `Evaluator.Machine`),
+  with `evidence_test.go`, wired as `discoverhub.Config.Evaluate` in `main.go`.
+- **Who writes it:** whichever of phase 4 task 14 (the wiring) and phase 3 task 15 (the
+  evaluator) lands **second**, since it needs both. Task 14 checks with `go doc
+  ./control-plane/internal/evidence Evaluator`. No match means `Config.Evaluate` stays nil, every
+  criterion is open, and the adapter goes to phase 3's task 15 under ask P4-4, which must carry
+  this section (cross-phase ask, below).
+- **Key to subject**, in order, each failure returning an error so `Readings` shows `open`:
+  1. The local project is the one project in `scan.Projects(ctx)` (`project.go:184`) whose
+     `hub.Binding` has `HubProjectID == q.ProjectID` (memoised 60 s, task 07). None, or more
+     than one, is an error: an ambiguous clone is shown open, never guessed.
+  2. `projectPath` is `loc.ProjectPath(ctx, id)`.
+  3. `repo` is the key phase 3 records evidence under for that project, computed by phase 3's
+     own rule (`githost.Remote.RepoKey()`, else `"local:<projectId>"`, phase 3 `task-15.md:49`),
+     never a phase 4 copy of it.
+  4. `subject` is the commit `q.BranchRef` names in that clone at call time: `git rev-parse
+     --verify --end-of-options <ref>^{commit}` through `gitx.Read` with Scope Project. A ref the
+     clone lacks is an error. A key names a revision, not a commit, so an older revision's
+     criteria are evaluated at today's head, which is phase 3's "at the branch head".
+- **Types:** `briefref.Criterion{ID: c.ID, Digest: c.Digest}` in; `Verdict{CriterionID,
+  State, Because}` from each `evidence.State` out. `Evidence`, `RecordedAgainst` and `Commits` are
+  dropped, because a `CriterionReading` shows none of them.
+- **Cross-phase ask (phase 3's stream; this plan cannot edit it):** phase 3's P4-4 row and task
+  15 name this adapter, its file and its second-lander rule, so both plans carry one shape.
+  Recorded in the ledger (`progress.md`, b08 round 2).
 
 **Tests first:**
 
@@ -222,8 +288,12 @@ func CriterionDigest(text string) string
 | `TestBuildTitlesAnOpenRevisionByTheOneRule` (re-review b05-1 R-M2) | `Build` over an open branch revision on `refs/heads/evidence-upload` → `Title` equals `discover.Title` of it (`Branch brief — evidence-upload`) and `BranchRef` equals `Revision.BranchRef`; an open project revision → `Project brief` | an open history row titled `""`, or by a second hand-written copy of task 05's rule that drifts from it |
 | `TestBuildCarriesCriterionDigests` | each criterion's digest is `CriterionDigest(text)`; ids are the content's | phase 3 matching evidence by a digest phase 4 never computed |
 | `TestCriterionDigestVector` | `CriterionDigest("Tests pass")` is `sha256:` + the SHA-256 of those 10 bytes, checked against a literal computed by `printf 'Tests pass' \| sha256sum` when the test is written | a digest over a trimmed, lower-cased or JSON-quoted text |
-| `TestNilEvaluateMeansOpen` | `Readings(key, src, nil)`: one reading per criterion of `Build`, same ids and order, every state `open`, every `because` `""` | a default of `settled` |
-| `TestUnexplainedVerdictIsShownOpen` | an `Evaluate` returning `settled, ""` gives a reading `open` | P12 |
+| `TestNilEvaluateMeansOpen` | `Readings(ctx, key, src, nil)`: one reading per criterion of `Build`, same ids and order, every state `open`, every `because` `""` | a default of `settled` |
+| `TestUnexplainedVerdictIsShownOpen` | an `Evaluate` returning `settled` with `Because` `nil`, and another with `[]string{"  "}`, each gives a reading `open` | P12 |
+| `TestOneEvaluateCallPerKey` (re-review b08-1 R-I1) | a counting `Evaluate` over a key with three criteria is called once, with all three in order, `BriefKey` the key, `ProjectID` and `BranchRef` from `src` | a per-criterion loop: three git walks for one chip |
+| `TestEvaluateFailureShowsOpen` (re-review b08-1 R-I1) | an `Evaluate` returning an error, one returning two verdicts for three criteria, and one returning them out of order, each gives every reading `open` with `because` `""` | a git error surfacing as a verdict, or a verdict pinned to the wrong criterion |
+| `TestBecausesJoin` (re-review b08-1 R-I1) | `contested` with `Because` `{" CI run 88 passed ", "", "review said no"}` gives `because` `"CI run 88 passed; review said no"` | only the first because shown, or an empty one joined in |
+| `TestProjectKeyIsNotEvaluated` (re-review b08-1 R-I1) | a project revision (`BranchRef` `""`) with a non-nil `Evaluate`: `Evaluate` is never called and every reading is `open` | a subject guessed for a key that names no branch |
 | `TestRefHoldsNoCriterionState` (review I14) | the JSON of a built `Ref` has no `state` or `because` key at any depth under `criteria`; an `Evaluate` that answers `settled` then `contested` for the same key gives two different `Readings` and byte-identical `Build` JSON | a verdict frozen inside a `Ref` the desktop caches for ever |
 | `TestRefHasNoDenominator` | the JSON of a built `Ref` has no key matching `(?i)met\|total\|percent\|ratio\|count` | a count sneaking back (G5) |
 | `TestErasedKeepsKeyAndDigest` | `ErasedRef` has key, digest, savedBy and erasedAt, no sections, `present: true` | an erased brief shown as missing (critique-2 §6.2 item 5) |
@@ -234,8 +304,9 @@ func CriterionDigest(text string) string
 - [ ] **Step 1:** Write both test files and `testdata/ref-golden.json`; confirm they fail.
 - [ ] **Step 2:** `key.go`: three anchored regexps, compiled once.
 - [ ] **Step 3:** `ref.go`: `Build` calls `discover.Resolve`, maps sections to the four named
-  fields, criteria from the done section's `Items`, digests. `Readings` walks the same `Items`
-  and calls `eval`.
+  fields, criteria from the done section's `Items`, digests. `Readings` builds the same
+  criteria, calls `eval` once with all of them, and applies its four rules. The adapter is not
+  this task's; see "The adapter to phase 3's evaluator" above, and task 14.
 - [ ] **Step 4:** Run the acceptance commands; commit by pathspec.
 
 **Acceptance:**
@@ -247,5 +318,6 @@ $ grep -rn "strings.Split\|strings.Cut\|regexp" --include=*.go control-plane/int
 (no output — no other package splits a key; re-run in task 14 and task 23)
 ```
 
-**Does NOT claim:** criterion evaluation (phase 3's, S4-P3.4); the `design:` kind's resolution
+**Does NOT claim:** criterion evaluation (phase 3's, S4-P3.4); the adapter's key-to-subject rule
+(`cmd/api/evidence.go`, written by the second of phase 4 task 14 and phase 3 task 15); the `design:` kind's resolution
 (the Hub resolves design keys for phase 5; phase 4 only parses them so the grammar is one).
