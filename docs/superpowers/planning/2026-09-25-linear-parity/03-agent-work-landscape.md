@@ -128,3 +128,261 @@ host is GitHub, which rules it out as the whole answer under OD-4 (Azure DevOps 
 the issue exists, and the three-agent race is parallel waste, not coordination.
 
 ---
+
+## 3. Atlassian — Jira, Rovo agents and Rovo Dev
+
+**How an agent gets work.** "Agents in Jira" (announced 25 Feb 2026 [A1]; GA for Standard,
+Premium and Enterprise in May 2026, search summary, UNVERIFIED) gives four routes: the **Agent
+picker**, "@mention an agent in a comment", a **workflow transition** so the agent triggers "when
+any team member moves a work item to the allocated status", and, in team-managed spaces, "add an
+agent to a column on the board" [A2]. Unlike Linear, **the agent is the assignee**, "with the same
+fields and patterns your teams already know" [A1]. Jira Automation has an "Invoke Rovo Agent"
+action, and since August 2026 "Claude, GitHub Copilot, and Cursor are now native action steps
+inside Jira Automation rules" [A3] (third-party blog). "GitHub Copilot coding agent, the first of
+many partner agents" is assignable from Jira [A2]. **Rovo Dev** starts a coding session from a
+"Generate code with Rovo Dev" panel on the work item (search summary of [A4], UNVERIFIED).
+
+**How progress is shown.** An **Agents** section on the work item [A2]; the board shows which
+items are delegated to agents and their status [A1]. Rovo Dev notifies in-app and in Slack when
+work is ready and pushes a draft PR to Bitbucket [A4] (UNVERIFIED).
+
+**How humans stay in control.** A sharp and unusual rule: "only the person who adds the agent as
+an assignee … can interact with the agent directly. However, anyone with access to the work item
+can see that an agent has been triggered" [A2]. That is close to OD-16 (nobody steers another
+user's agent), but enforced per work item, not per user. Agents respect existing "permissions,
+project configurations, workflows, and audit trails" [A1]. Admins govern who can create agents
+and mark agents as verified [A5]. Each invocation spends **Rovo credits**, with overage policies
+set in Atlassian Administration [A2].
+
+**How multiple agents coordinate.** Jira is pitched as "the center of gravity" for mixed teams,
+against "agent sprawl" where "most agent work today happens in one-off chats that never make it
+back to where the work lives" [A1]. The mechanism is still the workflow: one agent per transition,
+hand-off by status change. The Teamwork Graph gives every agent the same org context [A6]. No
+agent-to-agent negotiation was found. Whether two agents can sit on one work item is not stated
+[A2].
+
+**How work links to code, review and release.** Bitbucket natively, GitHub via the Copilot agent,
+and "Code Context" that lets Rovo and coding agents "reason across multi-repo codebases" through
+the Teamwork Graph (Aug 2026) [A3]. Confluence holds the spec, so a brief-to-code chain exists
+across two products, joined by links rather than one artefact.
+
+**Enterprise posture: the strongest AI data terms of the trackers.** "The LLM providers we use do
+not retain your inputs and outputs, or use them to improve their services"; models include
+Anthropic Claude, OpenAI GPT and Google Gemini plus open models; Enterprise can "elect to use only
+Atlassian-hosted LLMs" inside the Atlassian Cloud boundary; data residency covers Rovo [A7].
+Atlassian's residency list includes Australia (prior knowledge, UNVERIFIED today).
+
+**Where Atlassian stops.** The agent is a workflow step. Zero-retention inference, residency and
+agents-as-assignees are already shipped here, so **ZDR alone is not white space**. What is
+missing: agents running a whole lane inside the product, a per-user orchestrator, live awareness
+between agents, and one artefact from brief to release.
+
+---
+
+## 4. Asana — AI Teammates and "Agentic Work Management"
+
+**How an agent gets work.** Assign a task to an AI Teammate "as you would team members",
+@mention it, or trigger it from rules [S1]. 4 Jun 2026 relaunch as "Agentic Work Management", an
+"operating system for human-agent teams" with **Dash**, an agent that "understands goals,
+priorities and what work needs attention across teams and tools" and routes alerts to people [S2].
+More than 30 prebuilt teammates [S1] (search summaries say 12 or 21 at earlier dates).
+
+**How progress is shown.** "A real-time indicator of its work" plus "AI action logs – a full trail
+of every action such as tasks created, comments posted, searches performed, objects modified".
+Results are "visible to anyone with access, not solely the person who triggered the agent" [S3].
+
+**How humans stay in control.** Checkpoints: "Before performing any privacy-sensitive action,
+Teammates must get explicit user approval, a hard constraint built into the system." Users can
+ask "why" and get an explanation "from the same context they used to make the decision". Memory is
+"fully inspectable … every memory their Teammate holds, right on its profile" [S3]. Teammates are
+**team-scoped, not personal**: "Only a specific set of people (often an Asana team) is permitted to
+trigger action from a teammate" [S3]. Permissions follow Asana's own model [S1].
+
+**How multiple agents coordinate.** "Multiple AI Teammates can work on the same initiatives
+simultaneously" [S1], but no page read describes one Teammate talking to another [S3]. Dash is the
+closest thing to an orchestrator, and it routes to humans, not to agents [S2].
+
+**How work links to code, review and release.** Weak. A developer-facing "Command" app was
+announced [S2]; integrations are Gmail, Outlook, Slack, HubSpot, Figma, Canva and similar [S2]. No
+coding agent, PR or release link was found.
+
+**Enterprise posture.** Customer data "not used to train AI models"; Enterprise customers "can
+select preferred AI partners"; configurable data residency [S1]. No zero-retention statement found
+on the pages read (UNVERIFIED either way).
+
+**Where Asana stops.** Best human-control vocabulary of the set (checkpoint, ask-why, inspectable
+memory, team-scoped agent), no software delivery at all.
+
+---
+
+## 5. Notion — Custom Agents and External Agents
+
+**Network note.** Every `notion.com` page (releases, help) returned a 302 to the KPMG intranet on
+2026-09-25. **Everything in this section is from search-result summaries and is UNVERIFIED.**
+
+**How an agent gets work.** **Custom Agents** (Notion 3.3, 24 Feb 2026 [N1]) are given "a job,
+set a trigger or schedule" and run "completely autonomous (no manual prompting)" [N2]; since 31
+Jul 2026 a finished AI Meeting Note can trigger one [N3]. **External Agents** (Notion 3.6, 1 Jul
+2026) bring in agents "from Claude, Cursor, Codex, and Decagon", which a team can "assign them
+tasks on a shared board, mention them the way you'd mention a teammate, and watch execution happen
+inside the same workspace" [N4]. Notion 3.7 (15 Sep 2026) adds "Agent skills for your whole team"
+[N5].
+
+**How progress is shown.** Execution is watched on the board [N4]; run logs, version history and
+usage analytics exist for Custom Agents (third-party summary [N6]).
+
+**How humans stay in control.** "Each Custom Agent gets its own permissions, just like a
+teammate"; they "operate only on the pages, databases, and external tools you explicitly grant"
+[N2]. Kill switches and AI activity logs by user and event (third-party summaries [N6], [N7]).
+
+**How multiple agents coordinate.** Through a shared board, which one third-party post calls
+using Notion "to coordinate agents" [N4]. No agent-to-agent protocol found.
+
+**How work links to code, review and release.** Only through the External Agents' own products
+(Cursor, Claude, Codex). Notion is the brief and the board, not the repository.
+
+**Enterprise posture.** Enterprise: LLM providers (Anthropic for queries, OpenAI for embeddings)
+under zero data retention; other plans up to 30 days [N7]. SOC 2 Type II and ISO 27001 [N8].
+Custom Agents use Notion credits on Business and Enterprise from 4 May 2026 [N2].
+
+**Where Notion stops.** It is the closest to our **Define** phase (docs plus agents plus board), and
+it now hosts outside coding agents, but it owns no sandbox, no code and no release.
+
+---
+
+## 6. ClickUp — Super Agents, plus Codegen
+
+**How an agent gets work.** Super Agents can be triggered "automatically or manually" [C1]; a
+search summary says you can set one "as a task assignee", @mention it, or message it directly
+(UNVERIFIED). ClickUp **acquired Codegen** (a coding-agent start-up) on 23 Dec 2025 and retired
+the standalone product on 16 Jan 2026 [C2] (search summaries). Codegen "reads the surrounding task
+context, writes the code, opens a pull request, and reports its progress inside ClickUp" [C3]
+(search summary, UNVERIFIED); ClickUp's own post promises details "in the months ahead" and names
+no git host or sandbox [C4].
+
+**How progress is shown.** A "Super Agent Activity" view exists, not described on the page read
+[C1].
+
+**How humans stay in control.** Super Agents "seek human approval for critical decisions"; admins
+choose "which tools and data sources they can access and who in your Workspace can trigger and
+manage them" [C1].
+
+**How multiple agents coordinate.** Not described [C1].
+
+**How work links to code, review and release.** Task → Codegen → PR is the stated path [C3]; no
+release link found.
+
+**Enterprise posture.** Not established from pages read today (UNVERIFIED).
+
+**Where ClickUp stops.** It bought a coding agent to close the gap to code. That shows the
+direction of the market: trackers are buying execution. Nine months after the deal, no shipped
+coding product was found on the pages read.
+
+---
+
+## 7. Shortcut — Korey and "Shortcut for Agents"
+
+**How an agent gets work.** "Shortcut for Agents" (6 May 2025 release note; blog 20 May 2025):
+"Agents can be treated just like team members in Shortcut: assigned Stories, tagged in comments,
+tracked in workflows, and visible in updates" [H1], [H2]. Devin is activated by making it the
+**Story owner**; Claude and others connect through the Shortcut MCP server (24 Mar 2025) [H1],
+[H2]. **Korey**, Shortcut's own agent (30 Sep 2025), "writes specs, tracks progress" and is reached
+by assignment, `@korey` in Slack, a right-click menu (10 Feb 2026) and a Chrome extension (20 Apr
+2026) [H2].
+
+**How progress is shown.** Assigned agents such as Devin "automatically progress Stories through
+key workflow stages, such as 'In Development' and 'Ready for Review'", keeping "all communication
+and updates within Story comments" (search summary of [H3], UNVERIFIED).
+
+**How humans stay in control.** "You stay in control" [H1]; no governance mechanism is described.
+
+**How multiple agents coordinate.** Korey shapes the story; Devin builds it. That is a two-agent
+relay by role, joined by the Story, and the only explicit spec-agent-then-code-agent hand-off
+found among the trackers [H1].
+
+**How work links to code, review and release.** Via the agent's own PR (Devin) and Shortcut's
+existing GitHub integration. API v4 alpha (12 May 2026) is "to … optimize agent compatibility"
+[H2].
+
+**Enterprise posture.** Not established from pages read today (UNVERIFIED).
+
+**Where Shortcut stops.** A small vendor that pioneered agents-as-owners in May 2025, a year before
+Jira, but has shipped little since beyond Korey entry points.
+
+---
+
+## 8. Plane — public docs and blog only (source is AGPL and was not opened)
+
+**How an agent gets work.** "Agents in Plane" launched **18 Sep 2026**: assignment to a work item,
+a mention in a conversation, or a schedule or event [P1]. The product page says an agent can be
+added "as an assignee, the same as any teammate" (search summary of [P2], UNVERIFIED). Templates
+include a Spec Writer and a Standup Summarizer (search summary, UNVERIFIED).
+
+**How progress is shown.** Not described in the launch post [P1].
+
+**How humans stay in control.** Each agent is defined by "objective, scope, permissible actions,
+constraints, and escalation points"; "anything outside it comes back to a human" [P1]. Plane's
+enterprise guidance lays out an autonomy ladder, **Read → Recommend → Draft → Approval-gated →
+Bounded autonomous**, and a permission chain "identity → Plane permission → tool exposure → action
+authorization → approval → write execution" [P3]. Enterprise Grid adds approval flows, transition
+conditions and workspace audit logs [P3].
+
+**How multiple agents coordinate.** Not described. Plane's guidance does name the failure modes
+multi-agent systems hit: "stale state", "repeated execution", "concurrent changes", "event loops:
+depth limits and circuit breakers", and prompt injection from retrieved content [P3].
+
+**How work links to code, review and release.** An MCP server with 28 tools covers "work items,
+cycles, and releases" [P3]; the coding itself is someone else's agent.
+
+**Enterprise posture: the self-hosting outlier.** Plane runs self-hosted and air-gapped, and
+states: "Project-system location, agent-runtime location, network path, and inference location
+should each be documented separately"; inference can be local, private endpoint, external API or
+hybrid [P3]. Agent credits are a shared workspace pool, 100 to 200 per seat per month [P1].
+
+**Where Plane stops.** The only tracker a regulated customer can host alone, with the clearest
+written agent-governance model. But its agents are bounded tracker jobs, not builders.
+
+---
+
+## 9. Azure Boards with the Copilot cloud agent — what KPMG already has
+
+Not on the brief's list, but it is the incumbent for a Microsoft shop, so it is the real baseline.
+Source: Microsoft Learn page, dated 17 Jun 2026, updated 23 Jul 2026 [M1].
+
+- **Gets work:** from a work item, "Create a pull request with GitHub Copilot", pick a repository
+  and branch, add optional instructions [M1]. GitHub custom agents appear in Azure DevOps (Sprint
+  269 notes, search summary [M2], UNVERIFIED).
+- **Progress:** three states on the work item, **In Progress, Ready for Review, Error**, and a
+  Copilot icon on the board card; "expect the Copilot operation to take 5-15 minutes" [M1].
+- **Control:** a hard gap: "After starting a GitHub Copilot operation from a work item, **you
+  can't cancel it**. The Copilot coding agent runs to completion" [M1].
+- **Coordination:** none: "Copilot doesn't handle dependencies between work items. Keep each
+  work item self-contained" [M1].
+- **Code link:** branch, draft PR and merge commit link back to the work item [M1]. But
+  "**Azure Repos (Azure DevOps Git repositories) aren't supported**" [M1]; the code must be on
+  GitHub.
+- **Context passed:** only "the work item title, large text fields, comments, and the work item
+  link" [M1]. The brief, the design and the other agents are not in it.
+
+For KPMG this is the sharpest competitor gap: the tracker is Microsoft's, but its agent cannot
+touch Azure Repos, cannot be stopped, and knows nothing beyond one work item.
+
+---
+
+## 10. New entrants: agent-first boards
+
+These are not trackers that added agents; they are agent runners that grew a board.
+
+| Product | What it is | Evidence |
+|---|---|---|
+| **Cline Kanban** (26 Mar 2026) | "a CLI-agnostic app for multi-agent orchestration": Cline, "Claude Code, Codex, etc."; "When a parent task completes, its dependent tasks can automatically kick off" | [E1] |
+| **Vibe Kanban** (Bloop) | Plan, prompt, review; parallel agents in "automated git worktrees"; status updates "when agents start work or PRs merge". Now **"sunsetting"**, continuing as community open source | [E2] |
+| **Devin, Cursor, Codex, Factory** | Coding-agent vendors that attach to Linear, Jira, Shortcut or Notion as delegates; covered in 02-product-prior-art §2, §3, §5, §7 | 02 |
+| Conductor, Claude Squad, Nimbalyst, Superset | Local parallel-session managers named in a vendor round-up (search summary, UNVERIFIED) | [E3] |
+
+**The pattern.** Cline Kanban's task dependencies are the only automatic agent-to-agent hand-off
+found in the whole survey, and it is a local, single-user tool. Vibe Kanban proved the "board of
+worktrees" shape and is winding down, which suggests the shape alone is not a business. None of
+these has a team model, a cross-user channel, or an enterprise posture found in the pages read.
+
+---
