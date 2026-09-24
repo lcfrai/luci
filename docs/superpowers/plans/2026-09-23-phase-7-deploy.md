@@ -390,7 +390,9 @@ Panacea's text. It is pinned by `TestGrantUnknownUserIsRejected`, which quotes b
 
 **7P-13 — Nothing Panacea says is persisted.** Deploy data is server truth held in the watcher's
 memory; the desktop slice is not persisted (provenance contract A5, widened by ADR-H1 §5.4). The
-only thing phase 7 writes to disk is the ambiguous-binding choice (7P-6), which is configuration,
+only things phase 7 writes to disk, besides the token row in the secret store, are the Panacea
+origin (`statepath.Dir("deploy")/connection.json`, task 05; review M10) and the ambiguous-binding
+choice (7P-6). Both are configuration,
 not Hub or Panacea data. **No persist version is claimed** (ruling R3).
 
 **7P-14 — SSE is relayed for one thing at a time, in our own frames.** The pipeline-log stream
@@ -535,9 +537,9 @@ New unless marked. `cp/` is `control-plane/`, `d/` is `desktop/src/`.
 | `cp/internal/deploy/panacea/panaceatest/server.go` | 03, 04 | a fake `panacea-api` over `httptest`, serving the recorded bodies |
 | `cp/internal/deploy/panacea/testdata/*.json` | 03, 04 | response bodies, one per route and state |
 | `cp/internal/deploy/panacea/live_test.go` (`//go:build live`), `live_guard_test.go` | 20 | the read-only half of the owner's live check; the guard that keeps it tagged and secret-free |
-| `cp/internal/deploy/connection/connection.go`, `current.go` | 05 | `Manager`: address, token in the secret store, status; `Current`, the delegating `Deployer` |
+| `cp/internal/deploy/connection/connection.go`, `current.go` | 05 | `Manager`: the address in `statepath.Dir("deploy")/connection.json` (configuration, not a secret: Hub contract §9.1 lists no row for it; review M10), the token in the secret store, status; `Current`, the delegating `Deployer` |
 | `cp/internal/deploy/binding/binding.go`, `choices.go` | 06 | `Resolver`, `Binding`, `State`; the local choice file |
-| `cp/internal/statepath/atomic.go` *(only if ruling R2's lift has not landed)* | 06 | the atomic write the choice file uses |
+| `cp/internal/statepath/atomic.go` *(only if ruling R2's lift has not landed)* | 05 | the atomic write the origin file (task 05) and the choice file (task 06) use |
 | `cp/internal/deploy/deploywatch/watcher.go`, `join.go` | 07 | `Watcher`, `Snapshot`, its cycle, the cursor; the deployment join |
 | `cp/internal/deploy/deploywatch/view.go` | 08 | `View` assembly: environments, releases, pins, collisions, serving-after-rollback |
 | `cp/internal/deploy/ship/ship.go`, `confirm.go` | 09 | `Orchestrator.Ship`, `Readiness`, `PinPreview`; the confirm retry loop |
@@ -775,7 +777,7 @@ cause named.
 | From | Seam | Used in | If it is not there |
 |---|---|---|---|
 | Phase 2 | `routes.Handle` recorder (`api.go:174-184`); `catalogReadOnlyRoutes` (`routes_audit_test.go:32`); `httpx.WriteProblem` (`problem.go:93`); `statepath.Dir` (`statepath.go:30`); `LensPlaceholder` for `deploy` (`AppShell.tsx:60-67`, already `phase={7}`) | every task | — (all exist) |
-| Phase 2 / R2 | the shared `writeAtomic` (ruling R2 lifts it into `statepath`) | 06 | if phase 4 has not lifted it yet, task 06 does the lift, as R2 describes, **with its tests** |
+| Phase 2 / R2 | the shared `writeAtomic` (ruling R2 lifts it into `statepath`) | 05, 06 | if phase 4 has not lifted it yet, task 05 does the lift, as R2 describes, **with its tests**, because its origin file is the first writer (review M10); task 06 uses it |
 | Hub H0 | `hubapi`, `hubclient.Releases`, `hubclient.Projects`, `NewFake()` (contract §9.2); `hubapi.HostOfRepoKey` (Hub task 01, correction A1, in S0) | 06–10 | nothing phase 7 can compile against; H0 is first in the Hub's order (ADR-H1 §5.9) |
 | Hub C1 | `credstore.Secrets` (§9.1) | 05 | part 05 declares `connection.Secrets` — `Get`, `Put`, `Delete`, the same signatures — which `credstore.Secrets` satisfies, and wires `credstore.Memory()` in tests |
 | Hub C2 | the relay and the cursor mechanism | 07, 13 | HA7-4's *meanwhile* |

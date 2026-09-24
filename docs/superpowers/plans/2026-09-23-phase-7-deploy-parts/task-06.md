@@ -17,7 +17,7 @@ key, Hub contract §7.4). The Panacea project is found by matching repository ke
 - `control-plane/internal/api/deploy_binding.go` (new) — `PUT /v1/projects/{projectId}/deploy/binding`
 - `control-plane/internal/api/deploy_binding_test.go` (new)
 - `control-plane/internal/api/api.go`, `control-plane/cmd/api/main.go` (modified) — `Deps.DeployBinding` (the one `*binding.Resolver`; the watcher, task 07, and tasks 09, 11 and 12 read the same one) and `a.registerDeployBinding(guarded)` in `New`; `main.go` builds the resolver over phase 3's `gitx` remotes and `hubclient.Projects`
-- `control-plane/internal/statepath/atomic.go` (new, **only if ruling R2's lift has not landed**) — see Steps
+- No `statepath` change: task 05 does ruling R2's lift, if phase 4 has not, because its origin file is the first writer (review M10)
 
 #### Interfaces — complete
 
@@ -225,11 +225,9 @@ desktop's binding type does not change (review I6).
 
 #### Steps
 
-- [ ] **R2 check first.** `grep -rn "func WriteAtomic\|func writeAtomic" control-plane/internal`.
-  If only `registry/filestore.go:460` has it, do R2's lift in this task: move it with its tests to
-  `control-plane/internal/statepath/atomic.go` as `WriteAtomic`, make `registry` call it, and say so
-  in the commit message as a declared departure into phase 2's closed file. If `statepath` already
-  exports it, use it.
+- [ ] **R2 check first.** `grep -rn "func WriteAtomic" control-plane/internal/statepath` finds task
+  05's lift (or phase 4's). Use `statepath.WriteAtomic`. If it is missing, task 05 is not done:
+  stop, because this task depends on it (review M10 moved the lift there).
 - [ ] Tests first, with a fake `Remotes`, `deploytest.Fake` for `Identity`, and `hubclient.NewFake()`.
 - [ ] `binding.go`, `choices.go`, `deploy_binding.go`; register through `routes`.
 - [ ] Run; commit by pathspec.

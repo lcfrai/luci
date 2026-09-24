@@ -21,6 +21,7 @@ response carries it, no log line prints it, it never reaches the Hub or a sandbo
 - `control-plane/internal/httpx/origin.go` (modified) — `PUT` in `corsMethods`, `Idempotency-Key` in `corsHeaders`, and the comment above them (review C1; a declared amendment to phase 2 and Hub C3, below)
 - `control-plane/internal/httpx/origin_test.go` (modified) — the exact-value row updated; two new preflight rows
 - `control-plane/cmd/api/config.go`, `config_test.go`, `main.go` (modified) — three variables, the wiring
+- `control-plane/internal/statepath/atomic.go`, `atomic_test.go` (new, **only if ruling R2's lift has not landed**), and `control-plane/internal/registry/filestore.go` (modified to call it) — the origin file (`connection.json`) is the first phase 7 file written, so this task, not task 06, does the lift (review M10); see Steps
 
 #### Interfaces — complete
 
@@ -38,11 +39,14 @@ type Secrets interface {
 	Delete(target string) error
 }
 
-// Targets. The token row is the one the Hub contract reserves; the origin row is non-secret
-// and holds {"origin","savedAt"} as JSON.
+// The token row is the one Hub contract §9.1 reserves (PanaceaApp/panacea/<api host>, :1175 at
+// a6ccd77). The origin is not a secret and §9.1 lists no row for it, so it is NOT in the
+// credential store: it is configuration, the file statepath.Dir("deploy")/connection.json,
+// {"origin","savedAt"}, written with statepath.WriteAtomic (review M10). A credstore row named
+// "current" would also share the <api host> namespace with a token row.
 const (
-	targetOrigin    = "PanaceaApp/panacea/current"
 	targetTokenBase = "PanaceaApp/panacea/" // + lowercased host
+	originFile      = "connection.json"     // in Config.StateDir
 )
 
 type State string
@@ -68,6 +72,10 @@ type Status struct {
 type Config struct {
 	Secrets    Secrets
 	IsNotFound func(error) bool // errors.Is(err, credstore.ErrNotFound), wired in main.go
+	// StateDir is statepath.Dir("deploy"), the directory task 06's bindings.json shares. The
+	// origin file lives here; an absent file is "no origin", a malformed one is logged at warn
+	// and treated as absent (the user re-enters the address; the token row is untouched).
+	StateDir string
 	// LockedOrigin is PANACEA_APP_PANACEA_URL after ParseOrigin; "" = the user chooses.
 	LockedOrigin string
 	CAFile       string
@@ -97,17 +105,19 @@ func (m *Manager) PanaceaToken(ctx context.Context) (string, error)
 func (m *Manager) Current() *Current
 
 // Connect proves origin and token before storing either:
-//   1. ParseOrigin (or the locked origin; an origin that differs from a locked one is refused).
+//   1. ParseOrigin (or the locked origin). An origin that differs from a locked one after
+//      ParseOrigin returns ErrOriginLocked, a package sentinel the PUT handler maps to
+//      400 bad_request before writeDeployError runs (review M9); "" or an equal one is accepted.
 //   2. Version(origin) — KindRejected (incl. ErrSignInRedirect) or KindUnavailable stop here.
 //   3. Whoami with the candidate token, through a throwaway client — 401 stops here.
-//   4. Put the token row, then the origin row (the origin is written LAST, so a crash between
-//      the two leaves no origin pointing at a missing token).
+//   4. Put the token row, then write the origin file (the origin is written LAST, so a crash
+//      between the two leaves no origin pointing at a missing token).
 //   5. Swap Current; Status becomes Connected or AwaitingApproval.
 // Nothing is stored unless step 3 answered 200.
 func (m *Manager) Connect(ctx context.Context, origin, token string) (Status, error)
 
 // Disconnect deletes the token row (absent is not an error) and swaps Current to not-connected.
-// The origin row is kept, so reconnecting asks only for a token.
+// The origin file is kept, so reconnecting asks only for a token.
 func (m *Manager) Disconnect(ctx context.Context) error
 
 // Check re-runs Version and Whoami with the stored token and updates Status. Called at start
@@ -152,7 +162,10 @@ PUT /v1/deploy/connection
   request { "origin": "https://dev.panacea.kpmg", "token": "pnc_…" }   ("origin" optional when originLocked)
   200 the GET body, after the checks
   400 bad_request               — "token" missing or empty; "origin" missing while not locked;
-                                  a token not starting "pnc_": "A Panacea API key starts with pnc_. Copy it from the portal: Account → API keys."
+                                  a token not starting "pnc_": "A Panacea API key starts with pnc_. Copy it from the portal: Account → API keys.";
+                                  "origin" given while locked and different from the locked origin after ParseOrigin
+                                  (an equal one is accepted): "This cockpit's Panacea address is set by PANACEA_APP_PANACEA_URL.
+                                  Send the key alone." — nothing stored (review M9)
   422 deploy_rejected           — ParseOrigin's sentence, or "That address answered, but not as the Panacea API.", or ErrSignInRedirect's
   409 deploy_token_rejected     — Panacea's 401 sentence; nothing was stored
   503 upstream_unavailable      — details.upstream "panacea"; nothing was stored
@@ -162,6 +175,9 @@ POST /v1/deploy/connection/check
 
 DELETE /v1/deploy/connection
   204
+
+Every route above, and every other phase 7 route, when Deps.DeployConnection is nil:
+  409 deploy_not_connected      — "Connect to Panacea first." (the code's one status, problem.go below; review M9)
 ```
 
 `PUT` is `http.MaxBytesReader`-bounded by `httpx.DecodeJSON` (1 MiB) and decoded into a struct
@@ -276,8 +292,9 @@ The Hub rows compile only once Hub C2's `hubclient` exists; until then they are 
 |---|---|---|
 | `TestConnectStoresNothingOn401` | a server answering `/me` 401 → `Connect` returns `KindUnauthorized`; `Secrets` holds no row | storing a token that does not work, so the next start shows "connected" |
 | `TestConnectStoresNothingOnBadOrigin` | `Version` fails → no row, and `Whoami` was never called (the token never left) | sending the token to an address that is not Panacea — a paste into the wrong field would leak it |
-| `TestOriginWrittenAfterToken` | a `Secrets` fake that fails the second `Put` → no origin row exists | an origin pointing at a missing token |
-| `TestLockedOriginRefusesAnother` | `LockedOrigin` set, `Connect` with a different origin → 400 | a user override of an administrator's address |
+| `TestOriginWrittenAfterToken` | a `Secrets` fake whose token `Put` fails → `StateDir` holds no `connection.json`; a successful `Connect` → the file holds `{"origin","savedAt"}` and `Secrets` saw exactly one `Put`, to `PanaceaApp/panacea/<host>` | an origin pointing at a missing token; the origin written to a credential-store row §9.1 does not list (review M10) |
+| `TestLockedOriginRefusesAnother` | `LockedOrigin` set: `Connect` with a different origin → `errors.Is(err, ErrOriginLocked)`, nothing stored, no request sent; the `PUT` → 400 `bad_request` with the wire's sentence; `Connect` with `HTTPS://Dev.Panacea.KPMG/` (equal after `ParseOrigin`) proceeds | a user override of an administrator's address; the refusal sent through `writeDeployError` as a 422 the wire does not list (review M9) |
+| `TestNilConnectionIs409` | `Deps.DeployConnection == nil` → `GET`, `PUT`, `POST …/check` and `DELETE /v1/deploy/connection` each answer 409 `deploy_not_connected` with *"Connect to Panacea first."* | a 503 for a code the table declares 409 (review M9) |
 | `TestAwaitingApproval` | `/me` with `approved: false` → token stored, `State == AwaitingApproval` | treating a pending account as connected |
 | `TestNewMakesNoNetworkCall` | `New` with a stored token against a server that fails the test on any request | a startup that hangs on Panacea |
 | `TestCurrentWhenDisconnected` | every method of `Current` that can fail (all 24 but `SameEnvironment`, which answers exact equality when disconnected; review b02 added `EnvironmentFor` to the 24; by reflection over `deploy.Deployer`) returns `deploy.ErrNotConnected` | one delegating method forgotten |
@@ -304,6 +321,11 @@ goes red.
 
 #### Steps
 
+- [ ] **R2 check first.** `grep -rn "func WriteAtomic\|func writeAtomic" control-plane/internal`.
+  If only `registry/filestore.go:460` has it, do R2's lift in this task: move it with its tests to
+  `control-plane/internal/statepath/atomic.go` as `WriteAtomic`, make `registry` call it, and say so
+  in the commit message as a declared departure into phase 2's closed file. If `statepath` already
+  exports it, use it. (Moved here from task 06 by review M10: the origin file is written first.)
 - [ ] Tests first; they fail to compile.
 - [ ] The two preflight rows first, against today's `origin.go`: both go red (`PUT` and
   `Idempotency-Key` are missing). Then change the two constants and their comment (above) and the
@@ -311,9 +333,10 @@ goes red.
   the Hub stream can see the amendment as one diff.
 - [ ] `connection.go`, `current.go`; then the codes in `problem.go`; then `deploy_errors.go` and
   `deploy_connection.go`; register through `routes`; one `Deps` field `DeployConnection
-  *connection.Manager` — **nil disables every phase 7 route with 503 `deploy_not_connected`**
+  *connection.Manager` — **nil disables every phase 7 route with 409 `deploy_not_connected`**
+  (the code's one status, listed in the wire above; review M9)
   rather than failing `api.New`, so phase 2's wiring tests are unchanged.
-- [ ] `config.go` and `main.go`: `connection.New` with `credstore.WinCred()` on Windows and
+- [ ] `config.go` and `main.go`: `connection.New` with `StateDir: statepath.Dir("deploy")` and `credstore.WinCred()` on Windows and
   `credstore.Memory()` elsewhere (Hub contract §9.1, `PANACEA_APP_CREDSTORE`); `go Check(ctx)`
   after the listener is up.
 - [ ] Run the control-plane suite; commit by pathspec.
