@@ -118,7 +118,7 @@ it was.
 |---|---|
 | **OD-1** | Built on the briefs' recommendations; UI branch stays unmerged until the owner has looked |
 | **OD-3** | Releases and their pins live in the **Hub**, not the state directory. This **answers brief decision `D1`** (per person vs per project) with its option *b* and **without** the Panacea metadata ask: a teammate's Ship reserved its pin in the same Hub my cockpit reads, so their release shows its brief on my screen |
-| **OD-4** | The binding (§3.3, 7P-6) matches a Panacea project's `repoUrl` against the local remote through phase 3's `githost.ParseRemote`, which recognises GitHub and Azure DevOps. Nothing in phase 7 parses a host. The one place that names the two is task 06's copy of the Hub's published repoKey pattern (§7.4), which only chooses a sentence. **Azure DevOps Ship is blocked on HA7-6** (§9): phase 3's `RepoKey()` spells Azure DevOps differently from the Hub (review I6) |
+| **OD-4** | The binding (§3.3, 7P-6) matches a Panacea project's `repoUrl` against the local remote through phase 3's `githost.ParseRemote`, which recognises GitHub and Azure DevOps. Nothing in phase 7 parses a host or copies a key pattern: task 06 asks the Hub's own `hubapi.HostOfRepoKey` whether a missed key is in a form the Hub accepts, and that only chooses a sentence. **Azure DevOps Ship rests on HA7-6** (§9): phase 3's `RepoKey()` and the Hub must spell Azure DevOps alike. The plans agree (the Hub's correction A1 takes phase 3's form); the Hub contract's §7.4 text and phase 3's H-3 row still show the old form (review I6, plan re-review b05 R-1) |
 | **OD-6** | Identity is the Hub's. Phase 7 never runs a sign-in; it takes `hubclient.Releases` (which carries the Entra token) and `credstore.Secrets` (which holds the `pnc_` token) from the Hub's tasks C1/C2 |
 | **OD-12** | Every owner-observed step — the live Ship against dev Panacea, the lens's look — is batched to the end and stays **unverified** until then |
 | **OD-13** | Panacea is called as a client over its existing API; **no Panacea source is copied**; the deploy side is the `deploy.Deployer` interface so the lift is a swap (§2, S7-N1) |
@@ -675,35 +675,61 @@ returns runs and rollbacks together, newest `reservedAt` first, 200 at most; the
 the `upstream_unavailable` relay (§4.3); the credential-store row for the `pnc_` token (§9.1); the
 local caller key (§9.4); `release.*` events in the change feed (§8).
 
-**HA7-6 — one Azure DevOps repo-key spelling (BLOCKING OD-4's Azure DevOps Ship; to phase 3 and
-the Hub; review I6).** *This paragraph used to say phase 7 "only ever compares keys it computed
-itself with `githost` on both sides, so it is unaffected". That was false, and is withdrawn.* Task 06
-step 3 sends phase 3's `RepoKey()` to the Hub's `ProjectForRepo`. The two spellings:
-- **The Hub** stores and compares `<org>.visualstudio.com/<project>/<repo>`, *"byte for byte"*, and
-  refuses any other Azure DevOps form at `POST /v1/projects` (`^[a-z0-9-]{1,50}\.visualstudio\.com/[^/]{1,64}/[^/]{1,64}$`,
-  Hub contract §7.4 `:711-715`; H-3 `:2263`). It cites phase 3 for that form.
-- **Phase 3** disagrees with itself. Its plan's H-3 row gives the Hub's form
-  (`2026-09-23-phase-3-git-convergence.md:372`), but the code its task 13 specifies spells
-  `azure-devops/<org>/<project>/<repo>` (`RepoKey`, phase 3 task-13 `:140-143`).
+**HA7-6 — one Azure DevOps repo-key spelling (to phase 3 and the Hub; review I6, plan re-review
+b05 R-1).** *This paragraph first said phase 7 "only ever compares keys it computed itself with
+`githost` on both sides, so it is unaffected". That was false, and is withdrawn. Its round-1
+replacement recommended that phase 3 change `RepoKey()`; that left out the evidence below, and is
+withdrawn too.* Task 06 step 3 sends phase 3's `RepoKey()` to the Hub's `ProjectForRepo`, and the
+Hub compares keys *"byte for byte"*, so the two must spell Azure DevOps alike or OD-4's Azure
+DevOps Ship is off. The documents, cited by anchor because both sibling trees are committing now:
+- **Phase 3 task 13**, the `RepoKey` doc comment: `azure-devops/<org>/<project>/<repo>`, lowercased,
+  for the `dev.azure.com` and the `visualstudio.com` remote forms alike (feat/phase-3-git at 6a71014).
+- **Phase 3's plan, the H-3 row**, still gives `<org>.visualstudio.com/<project>/<repo>`. Phase 3's
+  own review **I10** (*"Hub ask H-3's repository key has two formats"*) rules the task-13 form the
+  better one, *"because `dev.azure.com/<org>` and `<org>.visualstudio.com` are one organisation"*,
+  and fixes the H-3 row to quote it. I10 is still open.
+- **The Hub contract**, §7.4 `POST /v1/projects`, still gives the old regex
+  `^[a-z0-9-]{1,50}\.visualstudio\.com/[^/]{1,64}/[^/]{1,64}$`, citing phase 3's plan as its
+  source. Its own **H-3** row says `project_remotes.repo_key` is *"`githost.RepoKey` verbatim"*:
+  the Hub meant to follow phase 3's key, and the regex copied the H-3 row that I10 calls wrong.
+- **The Hub plan, correction A1** (feat/hub at 52f0773), replaces that regex with
+  `^azure-devops/[a-z0-9-]{1,50}/[^/]{1,64}/[^/]{1,64}$`, refuses a non-lowercase key, publishes
+  the rule as `hubapi.ValidRepoKey` and `HostOfRepoKey` (Hub task 01), applies it in the fake at
+  `CreateProject` (Hub task 04 step 2), and folds A1 into §7.4 in Hub task 44a, before any code.
+  Phase 4's HA4-6 was answered *"= A1"*.
 
-So, as specified today, no Hub project can ever hold an Azure DevOps key that phase 3 computes.
-Every Azure DevOps repository gets `HubProjectID ""`, and Ship is off (`no_hub_project`), which
-breaks OD-4. **Asked:** phase 3's task 13 makes `RepoKey()` spell Azure DevOps as its own H-3 row
-and the Hub already do, `<lower(org)>.visualstudio.com/<project>/<repo>`, for both the
-`dev.azure.com` and the `visualstudio.com` remote forms. That is the recommended answer: it changes
-one function to match two documents that already agree. The alternative is for the Hub to widen
-§7.4 to accept `azure-devops/…` as well. That would give the org two spellings of one repository
-and break §7.4's uniqueness, so it is not recommended. Phase 7 builds nothing that assumes either
-answer:
-- the key sent is `RepoKey()` verbatim, chosen in one function, `hubKey` (task 06);
-- a miss whose key fails the Hub's published pattern reads `HubMiss "key_spelling"`, so readiness,
-  the Ship refusal and the lens line all name the cause (tasks 06, 07, 09, 14);
-- `TestHubBindsADOWithTheHubsSpelling` (task 06) seeds the Hub fake with the Hub's spelling and
-  runs the real `githost`. **HA7-6 is closed when that test takes its bind branch.** Task 20 records
-  which branch ran.
+**The two answers.** (a) Phase 3 changes `RepoKey()` to `<lower(org)>.visualstudio.com/…`, and the
+Hub keeps the contract's regex. (b) The Hub **replaces** its Azure DevOps pattern with task 13's
+form, as A1 does. It does not widen the pattern to take both: one spelling per repository, and
+§7.4's uniqueness holds under either answer. **Recommended: (b).** It keeps a host-neutral key that
+does not name the legacy `visualstudio.com` host for a `dev.azure.com` remote (phase 3's I10), it
+changes no code anyone has planned (task 13 already spells it), and the Hub has already planned it.
+Its cost is text in two documents: Hub task 44a rewrites the §7.4 regex, and phase 3's I10 fix
+rewrites its H-3 row. (a) would keep the Hub contract as written, but would change phase 3's code,
+contradict phase 3's own review, and undo the Hub's A1.
 
-*Meanwhile:* GitHub repositories Ship. Azure DevOps repositories bind to Panacea and read their
-deployments, but cannot Ship from the cockpit.
+**Asked:**
+- **Of phase 3:** fix review I10 by quoting task 13's form in the H-3 row, as I10 says. It is the
+  only change left, and it should see this ask before it edits the H-3 row.
+- **Of the Hub:** keep A1, and fold it into §7.4 in task 44a as planned.
+
+**Phase 7 builds nothing that assumes either answer:**
+- the key sent is `RepoKey()` verbatim, chosen in one function, `hubKey` (task 06). Both answers
+  keep it verbatim, so neither changes `hubKey`.
+- a miss sets `HubMiss "key_spelling"` only when `hubapi.HostOfRepoKey` refuses the key. Phase 7
+  copies no pattern, so readiness, the Ship refusal and the lens line (tasks 06, 07, 09, 14) follow
+  whatever rule the Hub builds, and name no host.
+- `TestHubBindsADOWithPhase3sKey` (task 06) seeds the Hub fake, through `CreateProject`, with the
+  real `githost`'s own `RepoKey()`, never a literal, and must bind. It passes under either answer and
+  goes red only if phase 3's key and the Hub's rule disagree. **HA7-6 is closed when it passes
+  against the built code** (task 20).
+- Under (a), the two Azure DevOps literals in `TestHubMissNotLinked` flip. Nothing else in phase 7
+  changes.
+
+**Status:** the plans agree, so HA7-6 no longer blocks OD-4, but it stays open until the binding
+test passes against built code. *If the built code disagrees:* GitHub repositories still Ship;
+Azure DevOps repositories bind to Panacea and read their deployments, but Ship is off with the
+cause named.
 
 ---
 
@@ -715,14 +741,14 @@ deployments, but cannot Ship from the cockpit.
 |---|---|---|---|
 | Phase 2 | `routes.Handle` recorder (`api.go:174-184`); `catalogReadOnlyRoutes` (`routes_audit_test.go:32`); `httpx.WriteProblem` (`problem.go:93`); `statepath.Dir` (`statepath.go:30`); `LensPlaceholder` for `deploy` (`AppShell.tsx:60-67`, already `phase={7}`) | every task | — (all exist) |
 | Phase 2 / R2 | the shared `writeAtomic` (ruling R2 lifts it into `statepath`) | 06 | if phase 4 has not lifted it yet, task 06 does the lift, as R2 describes, **with its tests** |
-| Hub H0 | `hubapi`, `hubclient.Releases`, `hubclient.Projects`, `NewFake()` (contract §9.2) | 06–10 | nothing phase 7 can compile against; H0 is first in the Hub's order (ADR-H1 §5.9) |
+| Hub H0 | `hubapi`, `hubclient.Releases`, `hubclient.Projects`, `NewFake()` (contract §9.2); `hubapi.HostOfRepoKey` (Hub task 01, correction A1, in S0) | 06–10 | nothing phase 7 can compile against; H0 is first in the Hub's order (ADR-H1 §5.9) |
 | Hub C1 | `credstore.Secrets` (§9.1) | 05 | part 05 declares `connection.Secrets` — `Get`, `Put`, `Delete`, the same signatures — which `credstore.Secrets` satisfies, and wires `credstore.Memory()` in tests |
 | Hub C2 | the relay and the cursor mechanism | 07, 13 | HA7-4's *meanwhile* |
 | Hub C3 | the local caller key on every request | 14 | the lens works without it; the §6.6 exposure is C3's to close |
 | Phase 2 task 09; Hub C3 (task 37) | the preflight constants in `origin.go:168-172`, which both already write | 05 | **amended by phase 7:** `PUT` and `Idempotency-Key` are added. Whichever of task 05 and Hub task 37 lands second adds its entry to the list it finds and does not paste its own literal; task 05's membership rows go red if an entry is dropped (review C1) |
 | Phase 3 task 08 | `remote.State{Upstream, Ahead, Behind}`, `Convergence.Tip` | 09 | 7b does not merge |
 | Phase 3 task 12 | `POST …/push` | 16 (offered beside a disabled Ship) | Ship says *"push first"* without the button |
-| Phase 3 task 13 | `githost.ParseRemote`, `Remote.RepoKey()` | 06 | 7a's binding cannot match; the connect screen asks for the Panacea project by name instead (part 06). **Plus HA7-6 (§9, blocking):** `RepoKey()`'s Azure DevOps spelling must be the Hub's §7.4 form, or no Azure DevOps repository finds its Hub project and Ship stays off with the cause named (`HubMiss "key_spelling"`, part 06) |
+| Phase 3 task 13 | `githost.ParseRemote`, `Remote.RepoKey()` | 06 | 7a's binding cannot match; the connect screen asks for the Panacea project by name instead (part 06). **Plus HA7-6 (§9):** `RepoKey()`'s Azure DevOps spelling must agree with the rule the Hub builds (`hubapi.ValidRepoKey`; the Hub's correction A1 takes task 13's `azure-devops/…` form), or no Azure DevOps repository finds its Hub project and Ship stays off with the cause named (`HubMiss "key_spelling"`, part 06) |
 | Phase 3 task 05 | the `Panacea-Session` trailer on agent commits (3-D6, `S3-P7.1`) | 19 | the manifest says *"sessions are not recorded for commits made before phase 3"* |
 | Phase 4 | the key-source loader (R6) and the `Ref` cache it fills; Discover opening a past revision read-only (provenance contract §4.1) | 13, 15, 17 | the pin cell renders `resolving` for a key it cannot resolve — never a head — and part 15 states it |
 | Phase 5 | an approved `design:` key for the branch, to pass as `designKey` at reserve | 09 | Ship reserves with `designKey: null`; the Hub never infers one (§7.9) |
@@ -865,12 +891,14 @@ recorded Panacea bodies.
   `KindConflict` with the sentence, so task 09 abandons the reservation with Panacea's reason. The
   posture gate composed after the risk gate answers **403** (`project_security.go:155-157`), so it
   is `KindForbidden`. Neither 402 was observed live.
-- **HA7-6 — the Azure DevOps repo-key split (review I6).** Read from plan and contract text, not
-  code: phase 3 task-13 `:140-143` and phase 3 plan `:372` (phase 3 worktree, read only), and Hub
-  contract §7.4 `:711-715`. Not checked: whether phase 3's code already differs from its task text;
-  whether the Hub fake enforces §7.4's pattern at `CreateProject` (the contract says the fake
-  implements *"every rule in §7 that a caller can observe"*, `:1343`); and whether a `DefaultCollection`
-  remote keeps the same project segment.
+- **HA7-6 — the Azure DevOps repo-key split (review I6, plan re-review b05 R-1).** Read from plan,
+  review and contract text, not code, and cited by anchor with the commit because both sibling
+  trees move: phase 3 task 13's `RepoKey` doc comment, its plan's H-3 row and its review's I10
+  (feat/phase-3-git at 6a71014); the Hub contract's §7.4 `POST /v1/projects` and H-3 rows, and the
+  Hub plan's correction A1, task 01's *"repository keys"* block and task 04 step 2 (feat/hub at
+  52f0773). The Hub fake applying `hubapi.ValidRepoKey` at `CreateProject` is read from Hub task 04
+  step 2's text. Not checked: whether either sibling's code exists or matches its text; and
+  whether a `DefaultCollection` remote keeps the same project segment.
 
 
 
