@@ -463,4 +463,30 @@ writes, so a test can hand `FetchLane` a truncated or hostile bundle.
 
 **Fixtures.** `lanegit`'s wire test reads `testdata/gitrunner` at `../../../testdata/gitrunner`,
 round-trips every fixture through its own types with `DisallowUnknownFields`, and compares
-`limits.json` with its four constants: rule 7 of the runner's tests, from the host side.
+`limits.json` with its four constants: the runner's test 7, from the host side
+(`TestWireMatchesTheGoldens`).
+
+#### The tests, by name
+
+**The runner's** (sandboxd, the numbered list above; each red first against the named mutant):
+
+| Test | Asserts | Red against |
+|---|---|---|
+| `TestRunnerRefusesAPathOutsideTheLane` | test 1: `../x`, `/etc/passwd`, `:(top)x`, `a/../../x`, `a\b` (and the rest of test 1's list) → 400 `path_outside_lane`; the runner's exec recorder holds no call | a runner that passes the path through to `git diff` |
+| `TestRunnerNeedsTheToken` | test 6: no bearer, or a wrong one → 401, the runner never reached | a `/git/v1/` route mounted outside `s.git` |
+| `TestRunnerRefusesAnUnknownOp` | `POST /git/v1/push`, `/git/v1/`, `/git/v1/status/x` → 404 `unknown_op`; `GET /git/v1/status` → 405; no exec | a router that falls through to a default op |
+| `TestRunnerRefusesARefspecOutsideItsNamespace` | test 3's second half: a `dst` of `refs/heads/main`, `refs/panacea/lanes/x`, `refs/remotes/origin`, or two `:` → 400, no exec | a `fetch` that trusts the host's refspec |
+| `TestRunnerCapsOutputAndTimesOut` | test 5 | a cap that truncates to a 200 |
+| `TestRunnerFetchStartsNoMaintenance` | the recorded `fetch` argv holds `--no-auto-maintenance`; with `GIT_TRACE` on the runner's git, no `maintenance` or `gc` child starts | a `fetch` that auto-gcs the agent's lane mid-op |
+| `TestSandboxRunnerStatusIsPorcelainV2Z` | Docker, behind a `docker` build tag (no test in either module starts Docker today, grep 2026-09-24; this is the first), run by hand with `go test -tags docker ./sandboxd/internal/gitrunner/`: in the built image (`images/sandbox/Dockerfile:10-12`, bookworm's git), `status` on a lane with one change of each kind answers `1 `, `2 `, `u `, `? ` records, NUL-terminated, and `# branch.oid` headers absent | a runner, or a bookworm git, that answers another shape |
+
+**The host's** (`lanegit`, real git through `gitxtest` for the project, `lanegittest.Fake` as the
+runner):
+
+| Test | Asserts | Red against |
+|---|---|---|
+| `TestBundleFetchRefusesABadBundle` | each of: a truncated file; an extra ref beyond the ones asked for; a ref outside `refs/heads/`; a missing prerequisite; one byte over `MaxBundleBytes` (lowered by an unexported option); a corrupt blob caught by fsck → `*BundleRefused`. Every case: `for-each-ref` of the project byte-identical before and after, and `<OwnedRoot>/bundles` empty | a `FetchLane` that fetches without `verify` and `list-heads` |
+| `TestBundleRoundTrip` | a lane commit on `refs/heads/b` → `FetchLane` → `refs/panacea/lanes/<id>/b` in the project at the lane's sha; `SendBranch` of a project commit → `Fake.Fetch` → the lane's `refs/remotes/origin/main` at that sha; with nothing new, `ErrBundleEmpty` both ways | a round trip that loses a ref or a prerequisite |
+| `TestPoolStartsOneRunnerForASessionlessLane` | a fake `Backend`: two concurrent `For` on a lane with no session → one `Create`, with `Command "sleep"`, `Args ["infinity"]`, one mount of `lane.Path` at `/home/dev/work`, a 64-hex token; `Held.Has` true; after both releases and `Idle`, one `Destroy` and `Has` false; a lane `ByID` lacks → error, no `Create` | a pool that starts a sandbox per call, or never destroys it |
+| `TestPoolUsesTheLiveSession` | a registry `Session` on the lane with `SandboxID`, `Endpoint`, `AttachToken` → no `Create`; the runner's requests carry that token to that endpoint | a pool that ignores the running session |
+| `TestWireMatchesTheGoldens` | the fixtures paragraph above | a field renamed on the host side only |
