@@ -503,7 +503,7 @@ This closes review C3, where the user's token reached whatever the agent wrote.
   `http.proxy` (verified by the b01 re-review on git 2.53.0.windows.2, loopback ports only). No
   `http.*` override can reach it, and fetch and push go by remote name (task 12). So H2 does not
   claim it. H3 refuses `remote.*.proxy`, `remote.*.proxyAuthMethod` and `remote.*.vcs` on every
-  Project call, and the clone allowlist never admits them.
+  Project call. No host call runs in a lane clone at all (R4.2).
 - The origin refresh (task 09) fetches between two local repositories. It names the source by
   its literal path, never read from `remote.origin.url` in a clone. The lane sync (task 07) never
   names the clone at all: it fetches from a bundle file task 24's runner wrote into a host-owned
@@ -519,18 +519,19 @@ parser splits on `\0` only, takes the key up to the first `\n` or the end, and a
 every key, valued or not. So a value holding a newline can neither forge a key nor hide one.
 Section and key names compare lowercased.
 
-`Call.Scope` has no default (`Unset` is `ErrCallShape`). It follows `Dir`: a path under
-`Machine.CloneRoot()` is `Clone`, a project path is `Project`, and a `Dir` under
-`Hardening.OwnedRoot` is `None`. `clone` itself runs with `Dir` set to the source project and
-`Scope Project`: H3 checks the source under the Project rule, and the next call in the new clone
-checks it as `Clone`. Every call site names its scope in its own task. What the check refuses
-depends on `Call.Scope` and, for `Project`, on `Call.Class`:
+`Call.Scope` has no default (`Unset` is `ErrCallShape`). It follows `Dir`: a project path is
+`Project`, and a `Dir` under `Hardening.OwnedRoot` is `None`. A path under `Machine.CloneRoot()`
+has no scope: Exec refuses it with `ErrLaneDir` before any check (ruling R4.2), and its git runs
+in the sandbox through task 24's runner. `clone` itself runs with `Dir` set to the source project
+and `Scope Project`, so H3 checks the source under the Project rule. `lanes.Create`'s next calls
+in the new clone (task 03's steps 4a to 6) carry `Call.NewLane` and `Scope None`; after
+`Store.Add`, no host call runs there again (R4.5). Every call site names its scope in its own
+task. What the check refuses depends on `Call.Scope` and, for `Project`, on `Call.Class`:
 
 | `Call.Scope` | Rule | Refusal |
 |---|---|---|
-| `Clone` (a lane clone: every key in it is the cockpit's or the agent's) | **closed allowlist.** It admits only: the `core.*` keys `git init` and `git clone` write (`repositoryformatversion`, `filemode`, `bare`, `logallrefupdates`, `symlinks`, `ignorecase`); the clone keys task 03 writes (`core.autocrlf`, `core.eol`, `core.checkStat`, `core.trustctime`, per review C2; `core.longpaths`, per review Minor 15; `core.symlinks` is already above); `remote.origin.url`, `remote.origin.pushurl` (task 03's step 4a writes both; no host call reads either, H2) and `remote.origin.fetch`; `branch.<b>.remote` and `branch.<b>.merge`; `user.name` and `user.email`; and a relative `core.hooksPath` with no `..` segment (husky writes `.husky/_`, task 03's Create copies it from the project through `CopyableHooksPath`, which applies this rule, review I11, and task 05's dispatcher reads it). Every other key is refused, including `include.*`, `includeIf.*`, `extensions.*` (`extensions.worktreeConfig` enables a `config.worktree` that `--local` never lists), `filter.*`, `diff.*`, `merge.*`, `credential.*`, `http.*`, `url.*` and every `remote.*` key but those three | `*UntrustedConfig{Scope: Clone}` → `conflict`, `reason: clone_config_untrusted`, `details.key` |
 | `Project` (the user's own repository, so a closed list would refuse their real config) | **refusal list**, applied whether or not a primary-worktree session is live, because that state changes between two calls. **On every call** it refuses: `include.*` and `includeIf.*`; the execution-capable keys H1 cannot neutralise by name (`filter.*`, `diff.*.textconv`, `diff.*.command`, `diff.external`, `merge.*.driver`, `core.gitProxy`, `core.alternateRefsCommand`, `extensions.worktreeConfig`); the URL rewrites H2 cannot neutralise (`remote.*.pushurl`, `url.*.insteadOf`, `url.*.pushInsteadOf`); and the per-remote transport keys that beat H2 (`remote.*.proxy`, `remote.*.proxyAuthMethod`, `remote.*.vcs`). **On a `Remote` call only** it also refuses every `http.*` key (they shape that call's TLS, proxy and name resolution, for example `http.sslCAInfo` and `http.curloptResolve`, and H2 forces only two of them) and every `credential.*` key except four. The machine's helper runs in the project on a `Remote` call, and a helper reads its own settings from that repository's config: Git Credential Manager's `credential.trace` and `credential.traceSecrets` would write the token to a file the sandbox can read (from GCM's documentation; not exercised here). The four admitted keys are inert: `credential.helper` and `credential.<url>.helper` (H1's reset clears them) and `credential.useHttpPath` and `credential.<url>.useHttpPath` (they choose only whether the path is part of the query). On a `Read` or `Local` call, `http.*` and `credential.*` are inert, because no helper runs (H1) and https is not allowed (H1's protocol row), so they are admitted there. This repository's own `.git/config` (`credential.usehttppath` and a `credential.https://github.com/lcfrai/panaceaapp.helper`) passes every call. The cockpit's own project config writes are task 12's `branch.<b>.remote` and `.merge` (from `push --set-upstream`), task 11's `branch -m` (it moves `branch.<old>.*`) and task 11's `config --remove-section branch.<b>`. None is on the list, so no exception is needed. A user whose project config holds a refused key moves it to `--global`, and the refusal names the key | `*UntrustedConfig{Scope: Project}` → `conflict`, `reason: project_config_untrusted`, `details.key` |
-| `None` | no check. Only for `git version`, and for a `Dir` under `Hardening.OwnedRoot`, such as task 13's `GitHelper` repository. Exec refuses `None` with any other `Dir` | — |
+| `None` | no check. Only for `git version`, for a `Dir` under `Hardening.OwnedRoot`, such as task 13's `GitHelper` repository, and for `Dir == Call.NewLane`, the clone `lanes.Create` is making, before any sandbox mounts it (R4.5). Exec refuses `None` with any other `Dir`. `CopyableHooksPath` (task 03) keeps the one rule the retired clone allowlist had: a relative `core.hooksPath` with no `..` segment | — |
 
 A refused call never starts. `UntrustedConfig` carries the key, never the value, since a value may
 be a secret.
@@ -605,17 +606,15 @@ and an H1 mutant would survive.
 | `TestHGHReferenceTransactionHookNeverRuns` | `.git/hooks/reference-transaction` writes a marker; `update-ref` through Exec → no marker, and the ref moved | `core.hooksPath` pointed at the repository's own directory |
 | `TestHGHUploadPackIsNeverTheRepositorys` | `remote.origin.uploadpack=<marker script>` with origin a local path; `fetch origin` through Exec → no marker, and the fetch succeeded | the `--upload-pack` insertion dropped |
 | `TestHGHReceivePackIsNeverTheRepositorys` | the same with `remote.origin.receivepack` and `push` | `--receive-pack` missing |
-| `TestHGHFilterDriverIsRefused` | clone config `filter.x.clean=<marker script>`, `.gitattributes` `* filter=x`, and a modified file; `status` with `Scope: Clone` → `*UntrustedConfig{Key: "filter.x.clean"}` and no marker | the H3 check skipped for `Read` |
-| `TestHGHCloneAllowlistAdmitsAFreshClone` | `git clone` of a `gitxtest` repo, plus the task 03 keys (with `core.longpaths=true`, `core.symlinks=false` and step 4a's `remote.origin.url` and `.pushurl`), plus `branch.x.remote`/`.merge`, plus `core.hooksPath=.husky/_` → the check passes | an allowlist missing a key git writes on Windows (`core.symlinks`, `core.ignorecase`) |
-| `TestHGHCloneAllowlistRefuses` | table: `include.path`, `includeIf.gitdir:/x.path`, `extensions.worktreeConfig`, `core.hooksPath=/abs`, `core.hooksPath=../x`, `http.proxy`, `credential.helper`, `url.x.insteadOf` → each refused, naming the key | a denylist where an allowlist was specified |
+| `TestHGHFilterDriverIsRefused` | project config `filter.x.clean=<marker script>`, `.gitattributes` `* filter=x`, and a modified file; `status` with `Scope: Project` → `*UntrustedConfig{Key: "filter.x.clean"}` and no marker | the H3 check skipped for `Read` |
 | `TestHGHProjectRefusalList` | table over `Class`: every "every call" key in H3's `Project` row (including `remote.origin.proxy`, `.proxyAuthMethod` and `.vcs`) → refused on `Read`, `Local` and `Remote`; `http.sslCAInfo`, `http.<url>.proxy` and `credential.trace` → refused on `Remote`, admitted on `Read` and `Local`; `core.autocrlf`, `lfs.url`, `remote.origin.url` → admitted everywhere | a `Project` scope that refuses the user's ordinary config, or admits a per-remote proxy |
 | `TestHGHProjectAdmitsRealConfig` | b01 re-review R1 and R2, red first against round 1's rule (`credential.*` refused on every Project call): a project holding this repository's shape (`credential.usehttppath=true`, `credential.https://github.com/lcfrai/panaceaapp.helper=<marker script>`) plus `branch.main.vscode-merge-base`, `remote.origin.gh-resolved`, `core.longpaths` and `pull.rebase` → a `Read`, a `Local` and a `Remote` call with `Scope Project` all pass H3, and the helper's marker never appears | a project call refused for ordinary config; a repo-local helper that runs |
-| `TestHGHConfigParseIsNULSafe` | `user.name` set to `"a\nfilter.x.clean=y"` → admitted, with no key `filter.x.clean` seen; a real `filter.x.clean` beside it → refused; a valueless `filter.x.required` (listed as `key\0`) under `Clone` → refused, naming it | line-splitting the listing; a parser that drops a key with no value |
+| `TestHGHConfigParseIsNULSafe` | `user.name` set to `"a\nfilter.x.clean=y"` → admitted, with no key `filter.x.clean` seen; a real `filter.x.clean` beside it → refused; a valueless `filter.x.required` (listed as `key\0`) under `Project` → refused, naming it | line-splitting the listing; a parser that drops a key with no value |
 | `TestHGHUntrustedConfigHidesTheValue` | a refused `credential.helper=s3cr3t` → `"s3cr3t"` in neither `Error()` nor any problem field | echoing the value |
 | `TestHGHRemoteNeedsAURL` | `Class: Remote` with `RemoteURL: ""` → `ErrCallShape`, git never starts | a remote call on the repository's `origin` |
 | `TestHGHRemoteOverridesBeatAURLScopedKey` | transport level, loopback only. `O` is a bare `httptest.NewTLSServer`, not `HTTPSRemote`, so no config trusts its certificate, and `U` is exactly its URL plus `/r.git`; `P` is a plain `httptest` listener that counts connections. A `Scope None` repository under `OwnedRoot` holds `remote.origin.url=U`, `http.<U>.sslVerify=false` and `http.<U>.proxy=<P's URL>`, keyed at exactly `U` (scheme, host, port and path). **Precondition**, raw git with no Exec: `config --get-urlmatch http.sslVerify U` → `false` and `http.proxy` → P, so the keys match. Then `ls-remote origin` through Exec with `RemoteURL: U` and `Hardening.Proxy: ""` → a certificate error, `P` saw no connection, and `O` served no request | the generic-only override (b01 re-review R4: a key keyed short of `U` never matched, and the old test could not fail) |
 | `TestHGHRepoCredentialHelperNeverRuns` | table: repo config `credential.helper=<script that writes its stdin to a marker>`, then the URL-scoped `credential.https://example.invalid.helper=<same>`; `credential fill` for `host=example.invalid` through Exec → no marker, and the machine helper from `Hardening.Credential` answered | the empty `credential.helper=` reset dropped, or a reset that clears only the generic key |
-| `TestHGHCallShape` | `Args[0] == "-c"` → `ErrCallShape`; `Scope` left `Unset` → `ErrCallShape`; `Scope: None` with a `Dir` outside `OwnedRoot` → `ErrCallShape`; `Call.Env` naming `GIT_DIR`, `GIT_COMMON_DIR` or `GIT_WORK_TREE` → `ErrCallShape`; `Exec{}` (no HooksDir) → `ErrCallShape`. Git never starts | a caller's own `-c` ahead of the prefix; an unmarked call that silently gets a rule (b01 re-review R1) |
+| `TestHGHCallShape` | `Args[0] == "-c"` → `ErrCallShape`; `Scope` left `Unset` → `ErrCallShape`; `Scope: None` with a `Dir` outside `OwnedRoot` that is not its `NewLane` → `ErrCallShape`; `Call.Env` naming `GIT_DIR`, `GIT_COMMON_DIR` or `GIT_WORK_TREE` → `ErrCallShape`; `Exec{}` (no HooksDir) → `ErrCallShape`. Git never starts | a caller's own `-c` ahead of the prefix; an unmarked call that silently gets a rule (b01 re-review R1) |
 | `TestHGHCommondirCannotRedirect` | b01 re-review R5, red first without the pin: a clone whose `.git/commondir` names a copy of its `.git` whose `config` sets `user.name=EVIL` and `filter.x.clean=<marker script>`, with `.gitattributes` `* filter=x` → `rev-parse --git-common-dir` through Exec prints `<Dir>/.git`, `config user.name` prints the real name, H3 admits the call, and `status` leaves no marker | a layout pin dropped, or set before `Call.Env` |
 | `TestHGHUploadPackSourceRunsNothing` | a git-behaviour pin in task 01's style, not a mutant killer: a source repository whose config sets `uploadpack.packObjectsHook=<marker script>`, and whose `.git/hooks/` holds a marker script under every hook name; a local fetch from it through Exec → no marker | a git upgrade that honours the source's repository config |
 
@@ -628,15 +627,15 @@ the land and origin refresh, the push, and `GitHelper`), citing this section.
   it records merge-tree's exit code or output format differently from the table above, this
   task's `OKExit` guidance and task 08's parser follow the document.
 - [ ] **Step 2:** write the tests above, the helper process first.
-- [ ] **Step 2a:** write the 18 §HGH tests. Run them against an `Exec` built without `harden.go`,
+- [ ] **Step 2a:** write the 16 §HGH tests (the two clone-allowlist tests went with `Scope Clone`, R4.2). Run them against an `Exec` built without `harden.go`,
   and record in the task report each marker that appeared and each call that ran: red first.
 - [ ] **Step 3:** implement `runner.go`, `error.go`, `version.go`, `machine.go`, `trailers.go`,
-  `locks.go`, `harden.go`, then `gitxtest`. The body of `Run` follows `gitrunner.go:46-78` line for line,
+  `locks.go`, `harden.go`, `internal/spawnseam`, then `gitxtest`. The body of `Run` follows `gitrunner.go:46-78` line for line,
   except for the class switch, `OKExit`, and the §HGH prefix and check that run before `exec`.
 - [ ] **Step 3a: Mutants for §HGH**, on a `$TEMP` copy. Drop each H1 override in turn. Drop the
-  `--upload-pack` insertion. Make `Clone` scope use the `Project` list. Split the config listing on
+  `--upload-pack` insertion. Check `ErrLaneDir` on `Dir` only, or on an uncleaned path. Split the config listing on
   `\n` instead of `\0`. Drop a valueless record's key. Keep only the generic H2 override. Treat
-  `Unset` as `Clone`. Drop the layout pin. Apply the Project `Remote`-only refusals on every call.
+  `Unset` as `Project`. Drop the layout pin. Apply the Project `Remote`-only refusals on every call.
   Allow https on every class. Each must turn a named §HGH test red (`TestHGHUploadPackSourceRunsNothing`
   is a git-behaviour pin and has no mutant).
 - [ ] **Step 4:** amend `gitrunner.go:19-20`'s comment to "the launcher for phase 2's read-only
