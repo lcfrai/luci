@@ -1,24 +1,23 @@
-### Task 07: `sql/0001_init.sql` — the complete first schema, and a database test for every guard
+### Task 07a: `sql/0001_init.sql`, part 1 — the tables, row-level security and the grants, and a database test for each
 
-**Lane A. Depends on: 06. About 4 hours (3 before review I5's cross-org key tests). Contract task H0 (and the database half of G4, G5).**
+**Lane A. Depends on: 06. About 3 hours. Contract task H0 (and the database half of G4).**
 
-The contract's §10.2–§10.5 is the schema, written from knowledge and never applied (contract §15).
-This task applies it and proves, **in the database and without any Go handler**, each guarantee of
-§10.7's "Database" column: a revision never changes, a head moves one step onto a real revision, a
-pin never moves, append-only tables are append-only, the audit chain is gapless and hashed, one
-org never sees another's rows, **and no row links to another org's row**.
+Review M4 split task 07 in two: a ~330-line schema and 28 database tests, debugged against a live
+Postgres, do not fit one task. The contract's §10.2–§10.5 is the schema, written from knowledge
+and never applied (contract §15). This task writes the tables, row-level security and the grants,
+and proves, **in the database and without any Go handler**, the tenancy half of §10.7's "Database"
+column: one org never sees another's rows, **no row links to another org's row**, and `hub_app`
+holds exactly the grants listed and no more. Task 07b appends the guards and the owner functions
+to the same file, and tests those.
 
-**One correction that changes behaviour**, folded into the contract by task 44a before this task
+**Two corrections that change behaviour**, folded into the contract by task 44a before this task
 runs, so the contract and this SQL agree:
 - **A16 (review I5):** every foreign key except the one to `orgs` carries `org_id`, onto a
   `UNIQUE (org_id, …)` target. Row-level security checks only a row's own `org_id`, and Postgres
   checks a foreign key without it, so a single-column key let an org-A row name an org-B parent.
-
-**A17 (review I6) leaves this SQL as the contract has it.** Route 26's stored response kept the
-text for 24 hours. The fix is that it no longer stores the text at all: tasks 14 and 19 store it
-with every `content` null and rebuild the content on replay from `brief_revisions`. So
-`erase_brief` deletes nothing from `idempotency_keys`, and `TestEraseBriefLeavesEveryStoredResponse`
-pins that (re-review b06 N1).
+- **A18 (review M10), A19 (review M11), the grants half:** `orgs` has its own policy, and
+  `hub_app` holds no `UPDATE` on `audit_heads`. Task 07b builds the rest of both: `hub.org_ids()`,
+  a `SECURITY DEFINER` `audit_append`, and `hub.lock_audit_head()`.
 
 **Three changes from the contract's text**, each so a test can name what it tamper-tests, none
 changing behaviour:
@@ -447,137 +446,8 @@ CREATE INDEX idempotency_keys_janitor ON idempotency_keys (created_at);
 ```
 
 ```sql
--- 0001_init.sql, continued: the guards, row-level security, the owner functions, the grants.
--- ── append-only tables ───────────────────────────────────────────────────────
-CREATE FUNCTION forbid_change() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-  RAISE EXCEPTION 'hub: % is append-only', TG_TABLE_NAME USING ERRCODE = 'insufficient_privilege';
-END $$;
-
-DO $$
-DECLARE t text;
-BEGIN
-  FOREACH t IN ARRAY ARRAY['design_approvals', 'design_approval_blobs', 'session_links',
-                           'release_deployments', 'evidence', 'audit_events'] LOOP
-    EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON hub.%I
-                    FOR EACH ROW EXECUTE FUNCTION hub.forbid_change()', t || '_append_only', t);
-    EXECUTE format('CREATE TRIGGER %I BEFORE TRUNCATE ON hub.%I
-                    FOR EACH STATEMENT EXECUTE FUNCTION hub.forbid_change()', t || '_no_truncate', t);
-  END LOOP;
-END $$;
-
--- ── a brief revision changes once, by erasure, and only inside hub.erase_brief ─
-CREATE FUNCTION guard_revision() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    RAISE EXCEPTION 'hub: brief revisions are never deleted' USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  IF current_user <> 'hub_owner'
-     OR OLD.canonical IS NULL OR NEW.canonical IS NOT NULL OR NEW.erased_at IS NULL
-     OR (NEW.org_id, NEW.brief_id, NEW.revision, NEW.project_id, NEW.scope, NEW.branch_ref,
-         NEW.status, NEW.digest, NEW.saved_at, NEW.saved_by)
-        IS DISTINCT FROM
-        (OLD.org_id, OLD.brief_id, OLD.revision, OLD.project_id, OLD.scope, OLD.branch_ref,
-         OLD.status, OLD.digest, OLD.saved_at, OLD.saved_by)
-  THEN
-    RAISE EXCEPTION 'hub: a brief revision is immutable' USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  RETURN NEW;
-END $$;
-CREATE TRIGGER brief_revisions_guard BEFORE UPDATE OR DELETE ON brief_revisions
-  FOR EACH ROW EXECUTE FUNCTION guard_revision();
-CREATE TRIGGER brief_revisions_no_truncate BEFORE TRUNCATE ON brief_revisions
-  FOR EACH STATEMENT EXECUTE FUNCTION forbid_change();
-
--- ── a head moves forward one revision at a time, onto a revision that exists ──
-CREATE FUNCTION guard_brief() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    RAISE EXCEPTION 'hub: briefs are archived, never deleted' USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  IF (NEW.id, NEW.org_id, NEW.project_id, NEW.scope, NEW.created_at, NEW.created_by)
-       IS DISTINCT FROM (OLD.id, OLD.org_id, OLD.project_id, OLD.scope, OLD.created_at, OLD.created_by)
-     OR NEW.head_revision NOT IN (OLD.head_revision, OLD.head_revision + 1)
-     OR NEW.latest_complete_revision < OLD.latest_complete_revision
-     OR (OLD.archived_at IS NOT NULL AND (NEW.archived_at IS DISTINCT FROM OLD.archived_at
-                                          OR NEW.head_revision <> OLD.head_revision
-                                          OR NEW.branch_ref <> OLD.branch_ref))
-     OR (OLD.erased_at IS NOT NULL AND NEW.erased_at IS DISTINCT FROM OLD.erased_at)
-     OR (NEW.head_revision <> OLD.head_revision AND NOT EXISTS
-           (SELECT 1 FROM hub.brief_revisions r WHERE r.brief_id = NEW.id AND r.revision = NEW.head_revision))
-  THEN
-    RAISE EXCEPTION 'hub: illegal change to brief %', OLD.id USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  RETURN NEW;
-END $$;
-CREATE TRIGGER briefs_guard BEFORE UPDATE OR DELETE ON briefs
-  FOR EACH ROW EXECUTE FUNCTION guard_brief();
-
--- ── a release's pin and identity never change; only a reserved release moves ─
-CREATE FUNCTION guard_release() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    RAISE EXCEPTION 'hub: releases are never deleted' USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  IF (NEW.id, NEW.org_id, NEW.project_id, NEW.kind, NEW.panacea_project,
-      NEW.branch_ref, NEW.commit_sha, NEW.source_deployment_id, NEW.source_release_id,
-      NEW.pin_reason, NEW.pin_brief_id, NEW.pin_brief_revision, NEW.pin_brief_digest,
-      NEW.pin_head_revision_at_ship, NEW.design_key, NEW.reserved_at, NEW.reserved_by, NEW.expires_at)
-     IS DISTINCT FROM
-     (OLD.id, OLD.org_id, OLD.project_id, OLD.kind, OLD.panacea_project,
-      OLD.branch_ref, OLD.commit_sha, OLD.source_deployment_id, OLD.source_release_id,
-      OLD.pin_reason, OLD.pin_brief_id, OLD.pin_brief_revision, OLD.pin_brief_digest,
-      OLD.pin_head_revision_at_ship, OLD.design_key, OLD.reserved_at, OLD.reserved_by, OLD.expires_at)
-  THEN
-    RAISE EXCEPTION 'hub: a release''s pin never changes' USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  -- the environment is written once (HA7-1, task 00): a value never changes or returns
-  -- to NULL; NULL -> a value only while reserved or confirmed (the join is confirmed-only)
-  IF NEW.environment IS DISTINCT FROM OLD.environment AND
-     (OLD.environment IS NOT NULL OR OLD.state NOT IN ('reserved', 'confirmed')) THEN
-    RAISE EXCEPTION 'hub: release %''s environment is set once', OLD.id USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  -- a non-reserved release takes no change but that one
-  IF OLD.state <> 'reserved' AND
-     (NEW.state, NEW.pipeline_run, NEW.confirmed_at, NEW.abandoned_at, NEW.abandon_reason,
-      NEW.abandon_message, NEW.expired_at)
-     IS DISTINCT FROM
-     (OLD.state, OLD.pipeline_run, OLD.confirmed_at, OLD.abandoned_at, OLD.abandon_reason,
-      OLD.abandon_message, OLD.expired_at)
-  THEN
-    RAISE EXCEPTION 'hub: release % is %, not reserved', OLD.id, OLD.state USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  RETURN NEW;
-END $$;
-CREATE TRIGGER releases_guard BEFORE UPDATE OR DELETE ON releases
-  FOR EACH ROW EXECUTE FUNCTION guard_release();
-
--- ── the audit chain: gapless, in order, and it advances its own head ─────────
--- M11 (review), A19: SECURITY DEFINER, so the head moves only here. hub_app holds no UPDATE
--- on audit_heads (grants below), so a compromised Hub cannot move a head by a direct
--- UPDATE. As the owner this function is not bound by row-level security, so it checks the
--- org itself, FIRST, before it locks anything: without that check an org-A session could
--- lock, and for a moment move, org B's head. WITH CHECK would still refuse the row, but only
--- after BEFORE triggers have run (from knowledge; TestAuditAppendChecksTheOrgFirst pins the
--- lock half).
-CREATE FUNCTION audit_append() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
-DECLARE h hub.audit_heads%ROWTYPE;
-BEGIN
-  IF NEW.org_id IS DISTINCT FROM current_setting('hub.org_id', true) THEN
-    RAISE EXCEPTION 'hub: audit event for org %, not this session''s', NEW.org_id
-      USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  SELECT * INTO h FROM hub.audit_heads WHERE org_id = NEW.org_id FOR UPDATE;
-  IF NOT FOUND OR NEW.seq <> h.seq + 1 OR NEW.prev_hash <> h.hash THEN
-    RAISE EXCEPTION 'hub: audit event % out of order', NEW.seq USING ERRCODE = 'serialization_failure';
-  END IF;
-  UPDATE hub.audit_heads SET seq = NEW.seq, hash = NEW.hash WHERE org_id = NEW.org_id;
-  RETURN NEW;
-END $$;
-CREATE TRIGGER audit_events_append BEFORE INSERT ON audit_events
-  FOR EACH ROW EXECUTE FUNCTION audit_append();
-
+-- 0001_init.sql, continued: row-level security and the grants. Task 07b appends the guards
+-- and the owner functions after the grants.
 -- ── row-level security (contract §10.3) ──────────────────────────────────────
 DO $$
 DECLARE t text;
@@ -593,101 +463,14 @@ BEGIN
   END LOOP;
 END $$;
 -- M10 (review): orgs is keyed by id, not org_id, so it sits outside the loop. hub_app may
--- only SELECT it (no INSERT or UPDATE grant), so the policy needs no WITH CHECK. The owner
--- functions below read and write orgs as hub_owner, the table's owner, which this policy
+-- only SELECT it (no INSERT or UPDATE grant), so the policy needs no WITH CHECK. Task 07b's
+-- owner functions read and write orgs as hub_owner, the table's owner, which this policy
 -- does not bind (row-level security is ENABLEd, never FORCEd), so ensure_org and
--- resolve_principal are unaffected.
+-- resolve_principal are unaffected. The janitor and hub verify list orgs through 07b's
+-- hub.org_ids() (A18).
 ALTER TABLE hub.orgs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY org_isolation ON hub.orgs TO hub_app
   USING (id = current_setting('hub.org_id', true));
-
--- ── the five functions hub_app calls that run as the owner (contract §10.4; ─────
--- ── the contract's three, and A18's org_ids and A19's lock_audit_head) ──────────
-CREATE FUNCTION ensure_org(p_tenant uuid, p_name text, p_id text) RETURNS text
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
-DECLARE v_id text;
-BEGIN
-  INSERT INTO orgs (id, entra_tenant_id, display_name) VALUES (p_id, p_tenant, p_name)
-  ON CONFLICT (entra_tenant_id) DO UPDATE SET display_name = EXCLUDED.display_name
-  RETURNING id INTO v_id;
-  INSERT INTO audit_heads (org_id) VALUES (v_id) ON CONFLICT (org_id) DO NOTHING;
-  RETURN v_id;
-END $$;
-
-CREATE FUNCTION resolve_principal(p_tenant uuid, p_oid uuid, p_name text, p_email text,
-                                  p_new_user_id text)
-RETURNS TABLE (org_id text, user_id text, created boolean)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
-DECLARE v_org text; v_user text; v_name text := left(p_name, 256); v_email text := lower(left(p_email, 254));
-BEGIN
-  SELECT o.id INTO v_org FROM orgs o WHERE o.entra_tenant_id = p_tenant;
-  IF v_org IS NULL THEN RETURN; END IF;
-  INSERT INTO users (id, org_id, entra_oid, display_name, email)
-  VALUES (p_new_user_id, v_org, p_oid, v_name, v_email)
-  ON CONFLICT ON CONSTRAINT users_org_id_entra_oid_key DO NOTHING
-  RETURNING users.id INTO v_user;
-  IF v_user IS NOT NULL THEN
-    RETURN QUERY SELECT v_org, v_user, true; RETURN;
-  END IF;
-  UPDATE users u SET display_name = v_name, email = v_email, last_seen_at = now()
-   WHERE u.org_id = v_org AND u.entra_oid = p_oid
-     AND (u.display_name IS DISTINCT FROM v_name OR u.email IS DISTINCT FROM v_email
-          OR u.last_seen_at < now() - interval '1 hour');
-  SELECT u.id INTO v_user FROM users u WHERE u.org_id = v_org AND u.entra_oid = p_oid;
-  RETURN QUERY SELECT v_org, v_user, false;
-END $$;
-
-CREATE FUNCTION erase_brief(p_brief text) RETURNS integer
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
-DECLARE v_org text := current_setting('hub.org_id', true); v_n integer;
-BEGIN
-  IF v_org IS NULL OR NOT EXISTS (SELECT 1 FROM briefs b WHERE b.id = p_brief AND b.org_id = v_org) THEN
-    RAISE EXCEPTION 'hub: no brief % in this org', p_brief USING ERRCODE = 'no_data_found';
-  END IF;
-  UPDATE brief_revisions SET canonical = NULL, erased_at = now()
-   WHERE brief_id = p_brief AND canonical IS NOT NULL;
-  GET DIAGNOSTICS v_n = ROW_COUNT;
-  UPDATE briefs SET archived_at = coalesce(archived_at, now()),
-                    erased_at   = coalesce(erased_at, now()),
-                    updated_at  = now()
-   WHERE id = p_brief;
-  -- I6 (review), A17: idempotency_keys is NOT touched. No stored response holds brief text:
-  -- route 26 stores its reply with every content null and rebuilds content on replay from
-  -- these rows (tasks 14, 19), so a replay after this call answers content null, as /v1/refs
-  -- does. A purge here would delete the replays of approvals, evidence, releases, co-batched
-  -- briefs and this erase itself (re-review b06 N1), and turn their retries into second writes.
-  RETURN v_n;
-END $$;
-
--- M11 (review), A19: the org's write lock (contract §10.6's first statement after set_config).
--- SELECT … FOR UPDATE needs UPDATE privilege on at least one column of the table (from
--- knowledge; TestTheHeadLockNeedsTheFunction pins it), so with hub_app's UPDATE on
--- audit_heads revoked the lock is taken here, as the owner, and only on the session's org:
--- there is no parameter to name another. The row lock belongs to the calling transaction.
-CREATE FUNCTION lock_audit_head() RETURNS TABLE (seq bigint, hash bytea)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
-DECLARE v_org text := current_setting('hub.org_id', true);
-BEGIN
-  RETURN QUERY SELECT h.seq, h.hash FROM audit_heads h WHERE h.org_id = v_org FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'hub: no audit head for org %', v_org USING ERRCODE = 'no_data_found';
-  END IF;
-END $$;
-
--- M10 (review), A18: the org ids, and nothing else, for the two callers that must visit
--- every org before any hub.org_id is set: the janitor (task 24) and hub verify (tasks 20,
--- 27), both on hub_app's connection. With orgs under row-level security, a plain SELECT
--- there sees no org at all, and the janitor would sweep nothing and hub verify would pass
--- on an empty walk. No name and no tenant id leaves this function.
-CREATE FUNCTION org_ids() RETURNS SETOF text
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = hub, pg_temp AS $$
-  SELECT id FROM orgs ORDER BY id
-$$;
-
-REVOKE ALL ON FUNCTION ensure_org(uuid, text, text), resolve_principal(uuid, uuid, text, text, text),
-                       erase_brief(text), lock_audit_head(), org_ids() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION ensure_org(uuid, text, text), resolve_principal(uuid, uuid, text, text, text),
-                          erase_brief(text), lock_audit_head(), org_ids() TO hub_app;
 
 -- ── grants: what hub_app may do, and nothing else (contract §10.5) ───────────
 GRANT USAGE ON SCHEMA hub TO hub_app;
@@ -712,80 +495,71 @@ GRANT UPDATE (status, response), DELETE                        ON idempotency_ke
 -- No UPDATE or DELETE on: orgs, users, brief_revisions, design_approvals,
 -- design_approval_blobs, session_links, release_deployments, evidence, audit_events,
 -- audit_heads. audit_heads moves only inside audit_append and is locked only through
--- lock_audit_head, both SECURITY DEFINER (M11, A19).
+-- lock_audit_head, both SECURITY DEFINER and both task 07b's (M11, A19).
 -- A later migration that adds a table grants on it explicitly: there are no default privileges.
 ```
 
 **Two Postgres facts the tests pin rather than trust** (both from knowledge, unverified here):
 `current_setting('hub.org_id', true)` returns `NULL` in a session that never set it, but `''`
-after a transaction-local `set_config` has committed on the same pooled connection — either way
-no `org-…` id equals it, so policies match nothing (`TestAnUnsetOrgSeesNothingEvenOnAReusedConnection`);
-and inside a `SECURITY DEFINER` function `current_user` is the owner, which is what lets
-`erase_brief` pass `guard_revision` (`TestOnlyEraseBriefCanEraseARevision`).
+after a transaction-local `set_config` has committed on the same pooled connection. Either way no
+`org-…` id equals it, so policies match nothing (`TestAnUnsetOrgSeesNothingEvenOnAReusedConnection`).
+And a table's owner is not bound by a policy that is `ENABLE`d but not `FORCE`d, which is how the
+seed helper writes `orgs`, `users` and `audit_heads`, and how task 07b's owner functions work.
+Task 07b pins the others.
 
 #### Tests to write first — `schema_integration_test.go` (`//go:build integration`)
 
-Each runs on `hubtest.Migrated(t)`. Seeding (an org via `ensure_org`, users via
-`resolve_principal`, rows by plain `INSERT` as `hub_app` with `hub.org_id` set) is a helper in
-the test file. "Refused" means the statement returns a `*pgconn.PgError` whose `Code` is the one
-named.
+Each runs on `hubtest.Migrated(t)`. The seed helper lives in this file, and task 07b's tests use
+it too. It writes orgs, users and `audit_heads` rows by plain `INSERT` as `hub_owner`, since
+`hub_app` may not insert them and task 07b's `ensure_org` and `resolve_principal` do not exist
+yet. Every other row goes in by plain `INSERT` as `hub_app` with `hub.org_id` set, **in the order
+the Hub writes**, so task 07b's guards accept the same seed: audit events chained from each org's
+head (`seq` 1, 2, … with `prev_hash` the previous `hash`), and a brief's head moved one step only
+after its revision exists. "Refused" means the statement returns a `*pgconn.PgError` whose `Code`
+is the one named.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestMigrationAppliesAndReappliesClean` | `Apply` → `[1]`; again → `[]`; `Current` = `Latest()` = 1 | a migration that is not idempotent to the runner |
 | `TestNamedConstraintsExist` | `pg_constraint` holds `users_org_id_entra_oid_key`, `brief_revisions_canonical_hashes`, `brief_revisions_erased_iff_no_content`, `audit_events_hash_chains` | `resolve_principal` depending on a default name |
 | `TestHubAppCannotUpdateOrDeleteImmutableTables` | as `hub_app`, `UPDATE`/`DELETE` on `brief_revisions`, `design_approvals`, `session_links`, `release_deployments`, `evidence`, `audit_events`, `orgs`, `users`, `audit_heads` → `42501` | a grant widened by accident (G4's grant layer); for `audit_heads`, the review's M11 grant `UPDATE (seq, hash)` put back |
-| `TestAppendOnlyTriggersHoldEvenForTheOwner` | as `hub_owner`, `UPDATE`, `DELETE`, `TRUNCATE` on each of the six append-only tables → `42501` from `forbid_change` | append-only enforced by grants alone |
 | `TestARevisionMustHashToItsDigest` | `INSERT` a revision whose `digest` is not `sha256(canonical)` → `23514` | a digest the Go side computed wrong, stored anyway |
-| `TestOnlyEraseBriefCanEraseARevision` | as the owner outside the function, an erasure-shaped `UPDATE` passes `guard_revision` only because `current_user` is `hub_owner`; any other column change → `42501`; `erase_brief` as `hub_app` erases and returns the count | the revision guard trusting the caller |
-| `TestAHeadMovesOneStepOntoARealRevision` | `head_revision` +2 → `42501`; +1 with no revision row → `42501`; +1 after inserting that revision → ok; `latest_complete_revision` backwards → `42501` | a head pointing at nothing (P3) |
-| `TestAnArchivedBriefIsFrozen` | after `archived_at` is set: head, ref and `archived_at` changes → `42501`; a new live brief on the same ref → ok | branch deletion that frees the ref but not the old brief |
-| `TestAPinNeverMoves` | as `hub_app`, `UPDATE releases SET pin_brief_revision = …` → `42501` (column grant); as the owner → `42501` (trigger) | P7 held by one layer only |
-| `TestOnlyAReservedReleaseMoves` | confirm a release; any further `UPDATE` of `state` → `42501` | a confirmed release re-confirmed with another run |
 | `TestANullEnvironmentIsARunsOnly` | `INSERT` a run with `environment` NULL and no source → ok; a rollback, or a run with `source_deployment_id`, with NULL → `23514` (check) | a rollback recorded with no environment (HA7-1) |
-| `TestANullEnvironmentReleaseConfirmsAbandonsAndExpires` | three NULL-environment runs: `UPDATE` to `confirmed` (with `pipeline_run`), to `abandoned`, to `expired` → each ok, `environment` still NULL | the review's `state = 'reserved'` check, which refuses all three (task 00) |
-| `TestTheEnvironmentIsSetOnce` | a NULL-environment run: `SET environment = 'feat-x'` while `confirmed` → ok; then `= 'feat-y'` → `42501`; then `= NULL` → `42501`; a NULL one `abandoned` then `SET environment` → `42501`; a non-NULL reserved one `SET environment` → `42501` | a join that re-points a release at another environment, or a deleted one |
-| `TestReleaseGuardCoversEveryColumn` | reads **the installed function**, not a copy: `SELECT pg_get_functiondef('hub.guard_release'::regproc)`. From that text it takes every `( NEW.a, NEW.b, … ) IS DISTINCT FROM ( OLD.a, OLD.b, … )` pair and expects exactly two. The first is the immutable tuple and the second the mutable one. In each pair the `NEW` list equals the `OLD` list, name for name and in order. `NEW.environment IS DISTINCT FROM OLD.environment` appears exactly once, outside both. Then, against `information_schema.columns` for `hub.releases`, every column appears **exactly once** across immutable, mutable and `{environment}`, and no name appears there that is not a column. Last, mutable ∪ `{environment}` = `hub_app`'s `UPDATE` columns (`information_schema.column_privileges`) | a column `x` added to `releases`, and to any Go list, but not to the trigger's tuple: the test goes red on the missing column, where a copied list would stay green. `x` would otherwise stay mutable after confirmation for the owner role, which bypasses the grant. The old `NEW IS DISTINCT FROM OLD` caught this; the tuples do not. It also kills a `NEW`/`OLD` mismatch (`NEW.pin_brief_digest` beside `OLD.pin_brief_id`) |
-| `TestTheAuditChainIsGaplessAndHashed` | insert seq 1 then 2 correctly → ok and `audit_heads` advanced; seq 3 with the wrong `prev_hash`, or seq 4 skipping 3 → `40001`; a `hash` not equal to `sha256(prev_hash ‖ canonical)` → `23514` | a chain the Go side can fork (G5) |
 | `TestRowLevelSecuritySeparatesOrgs` | two orgs with a user each; `set_config('hub.org_id', A, true)`; `SELECT` from each of the 20 tables sees only A: the loop's 19, and `orgs`, where `SELECT id, display_name FROM hub.orgs` returns A's one row (review M10); `INSERT` of an org-B row → `42501` (WITH CHECK) | a table missing from the RLS loop (T3); `orgs` without its policy, which returns both orgs' ids and names |
 | `TestAnUnsetOrgSeesNothingEvenOnAReusedConnection` | on one connection: a transaction that sets org A and commits; then a new transaction that sets nothing → zero rows from `users` and zero from `orgs` | a pooled connection carrying one request's org into the next |
-| `TestResolvePrincipal` | an unknown tenant → no row; a new oid → `created = true`; again → `created = false`, same id; a changed name → refreshed | provisioning twice, or never refreshing the display name |
-| `TestEnsureOrgIsIdempotent` | twice with two fresh ids → the first id both times; one `audit_heads` row | a second org row per restart |
-| `TestEraseBriefChecksTheOrg` | with `hub.org_id` = B, erasing A's brief → `P0002` (`no_data_found`), and A's revisions keep their content | the owner function bypassing RLS without its own check (T3's residual) |
 | `TestEveryForeignKeyCarriesTheOrg` | from `pg_constraint` (`contype = 'f'`, schema `hub`), every foreign key whose `confrelid` is not `hub.orgs` has `org_id` in `conkey` and `org_id` in `confkey` **at the same position**; and every such key's target is a `UNIQUE` or primary key that holds `org_id`. The test prints the offending constraint's name (review I5) | a single-column link added by a later edit (`team_id REFERENCES teams (id)`), which Postgres checks without row-level security; a key that carries `org_id` but pairs it with another column |
 | `TestACrossOrgReferenceIsRefused` | two orgs A and B, each seeded with one parent of every kind (user, team, project, brief, revision, blob, project blob, approval, release). As `hub_app` with `hub.org_id` = A, **one `INSERT` per foreign key** of the catalog query above: an org-A row whose every column is A's, except the one link under test, which names B's parent → `23503` (`foreign_key_violation`). The same row with A's parent → ok, so the refusal is the key and nothing else. The set of constraint names exercised equals the catalog's set, so a new foreign key with no case goes red (review I5) | a cross-org link that row-level security lets through: `INSERT INTO projects (org_id, team_id, …) VALUES (A, <B's team>, …)`, which the single-column key accepted |
-| `TestEraseBriefLeavesEveryStoredResponse` | org A, one project, briefs A1 and A2. Four `idempotency_keys` rows, each byte-copied before the call: r1 is route 26's stored form of a batch that wrote A1 **and** A2 together (every `content` null, as task 19 stores it); r2 is a stored route-30 `DesignApproval` body naming `brief:<A1>@1` (text-free); r3's `response` is `NULL` (in flight); r4 is **in org B**, and its response contains A1's id. `erase_brief(A1)` with `hub.org_id` = A → all four rows kept, byte for byte (review I6, re-review b06 N1) | a purge by the brief id, which deletes r1 and r2: A2's co-batched retry becomes 409 `brief_archived` and the approval's retry re-runs into 422 `key_unresolvable`; a purge by `path`, which deletes r1; a purge without `org_id = v_org`, which also deletes r4 |
 | `TestHubAppGrantsAreExactlyTheList` | `information_schema.role_table_grants` and `column_privileges` for `hub_app` equal §10.5's list, table by table, column by column. The list is this part's grants, so `audit_heads` is `SELECT` only: no `UPDATE` on any column (review M11, A19), and `orgs` is `SELECT` only | a grant nobody reviewed; `GRANT UPDATE (seq, hash) ON audit_heads` put back, which lets a compromised Hub move a head outside `audit_append` |
-| `TestAuditAppendChecksTheOrgFirst` | orgs A and B. Connection 1, as `hub_app`: `BEGIN`, `hub.org_id` = A, `INSERT` an event with `org_id` = B, correctly chained on B's head → `42501`; the transaction is left open (aborted, not rolled back). Connection 2, as `hub_owner`: `SELECT 1 FROM hub.audit_heads WHERE org_id = B FOR UPDATE NOWAIT` → ok, and B's head is unchanged. Then connection 1 rolls back (review M11, A19) | an `audit_append` without its org check: it runs as the owner, bypasses row-level security, locks B's head before `WITH CHECK` refuses the row, and connection 2 gets `55P03` (`lock_not_available`) |
-| `TestTheHeadLockNeedsTheFunction` | as `hub_app` with `hub.org_id` = A: `SELECT seq, hash FROM hub.audit_heads WHERE org_id = A FOR UPDATE` → `42501` (no `UPDATE` privilege); `SELECT seq, hash FROM hub.lock_audit_head()` → A's head; then, on a second connection as the owner, the same row `FOR UPDATE NOWAIT` → `55P03` until the first commits. With `hub.org_id` unset, `lock_audit_head()` → `P0002` (review M11, A19) | a lock that no longer locks: `lock_audit_head` without `FOR UPDATE`, so two writers read one head and one gets `40001` from the trigger instead of waiting its turn |
-| `TestOrgIdsListsEveryOrgAndOnlyIds` | orgs A and B; as `hub_app` with `hub.org_id` unset: `SELECT id FROM hub.orgs` → zero rows; `SELECT * FROM hub.org_ids()` → exactly A's and B's ids, in id order, and the result has one column (review M10, A18) | an `org_ids` that returns `display_name` or `entra_tenant_id`; the janitor or `hub verify` reading `orgs` directly and walking no org at all |
-| `TestHubAppExecutesExactlyTheOwnerFunctions` | `information_schema.role_routine_grants` for `hub_app` in schema `hub` = `ensure_org`, `resolve_principal`, `erase_brief`, `lock_audit_head`, `org_ids`, and no other; `PUBLIC` holds `EXECUTE` on none of them | an owner function left executable by `PUBLIC` (Postgres's default on `CREATE FUNCTION`), or a sixth one nobody reviewed |
 
 #### Steps
 
 - [ ] **Step 1:** Re-read contract §10.1–§10.7. If it changed after this part was written, the
-  contract's words win except for the three named constraints above. A16 is already in the
-  contract (task 44a); a contract that still shows a single-column key, or an `erase_brief` that
-  deletes from `idempotency_keys`, is stale, and this SQL wins.
-- [ ] **Step 2:** Tests, then `0001_init.sql` exactly as above, `embed.go`, and `hubtest.Migrated`.
-- [ ] **Step 3:** Run against the task-06 container. Fix the SQL until every test passes; **any
-  change to the SQL beyond the three names is recorded in the commit message** and in the
+  contract's words win except for the three named constraints above. A16 and A18 are already in
+  the contract (task 44a). A contract that still shows a single-column key, `orgs` without a
+  policy, or `UPDATE (seq, hash)` on `audit_heads` for `hub_app` is stale, and this SQL wins.
+- [ ] **Step 2:** The tests first. Run them and see them fail, since no table exists. Then
+  `0001_init.sql` exactly as above, `embed.go`, and `hubtest.Migrated`.
+- [ ] **Step 3:** Run against the task-06 container. Fix the SQL until every test passes. **Any
+  change to the SQL beyond the three names is recorded in the commit message**, and in the
   contract by task 44b (a build departure).
-- [ ] **Step 4:** Commit by pathspec, the four files.
+- [ ] **Step 4:** Commit by pathspec, the four files. Do not migrate a persistent database
+  (`hub-pg-dev`) from this commit: task 07b edits the same migration, and task 06's runner then
+  refuses it (`ErrEdited`). The orchestrator merges 07a and 07b together.
 
 #### Acceptance
 
 ```bash
-go test -tags integration ./control-plane/internal/hub/migrate/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 38 (10 from task 06 + 28)
+go test -tags integration ./control-plane/internal/hub/migrate/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 20 (10 from task 06 + 10)
 go build ./control-plane/...                                                                               # ok
 grep -c "CREATE TABLE" control-plane/internal/hub/migrate/sql/0001_init.sql                                # 20
+grep -c "CREATE POLICY" control-plane/internal/hub/migrate/sql/0001_init.sql                               # 2 (the loop's, and orgs')
 ```
 
 #### What this task does not claim
 
 - That this schema runs on **Azure** Postgres Flexible Server 16 unchanged; it is tested on
   `postgres:16-alpine`. Phase 8's first apply is the check (ADR-H1 §11).
-- Performance of the per-org audit lock under load (ADR-H1 R10): measured later, not here.
-- That the owner role cannot rewrite history: it can, by dropping a constraint or disabling a
-  trigger. `hub verify` (tasks 20, 27) is what catches that afterwards (contract T5).
+- Any guard: a revision, a head, a pin, the append-only tables and the audit chain are held by
+  grants alone until task 07b. Until then the owner can change any of them, and so can `hub_app`
+  where it holds a column grant.
 
