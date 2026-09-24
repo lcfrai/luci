@@ -56,6 +56,9 @@ type SyncState struct {
 	// after the lane's last sandbox stopped is current, and Observe reads it instead of a runner.
 	Observed   *lanegit.StatusResponse
 	ObservedAt time.Time
+	// QuietAt is ObservedAt when that SyncLane succeeded with no session live on the lane
+	// (LaneGit.Live before For), else zero. The sweep's quiet-lane skip reads it (Run).
+	QuietAt time.Time
 }
 
 // Syncer keeps refs/panacea/lanes/* current. One goroutine sweeps; SyncLane may be called
@@ -92,23 +95,42 @@ type CloneRefresher interface {
 // RefreshLanes calls it after each clone's fetch succeeds, with the sha it read back from the
 // clone (the `refs` map task 24's runner `fetch` returns), not the tip it read before the
 // fetches. So told is what the clone has, even when the branch moves away and back between the
-// two reads (re-review b06-1 issue 5, the ABA case). Told also clears that lane's failure record.
+// two reads (re-review b06-1 issue 5, the ABA case). Told also clears that lane's failure record
+// and its deferral.
 func (s *Syncer) Told(worktreeID, received string)
+
+// Defer records that RefreshLanes left worktreeID unfetched at tip because no session is live
+// on it (task 09; review r4-1 I-6). Run's step b skips it while Live says so. Forget clears
+// worktreeID's told, so task 09's next refresh sends that lane the no-basis bundle (a clone
+// that lost objects its told claimed; review r4-1 I-8). Both are memory only, as told is.
+func (s *Syncer) Defer(worktreeID, tip string)
+func (s *Syncer) Forget(worktreeID string)
 
 const (
 	DefaultSyncInterval = 5 * time.Second
 	MinSyncInterval     = 1 * time.Second
 )
 
-// Run sweeps every lane each Interval until ctx is done. A sweep never overlaps another. After
-// it syncs the lanes and has released every lane lock (task-02 Locks' lock order), the sweep
-// refreshes stale clones (review I4). For each (project, branch)
+// Run sweeps every lane each Interval until ctx is done. A sweep never overlaps another.
+// A quiet lane is skipped (review r4-1 I-6): the sweep asks LaneGit.Live(lane) first (task 24;
+// registry only), and does not call SyncLane when no session is live on the lane, the lane's
+// last SyncLane succeeded with no session live (SyncState.QuietAt set), and lastExit is before
+// QuietAt. Only a sandbox writes the clone, so such a lane cannot have changed; without the
+// skip every sessionless lane would hold a runner-only container for as long as the control
+// plane runs. A land or removal calls SyncLane directly and is never skipped, so the skip can
+// only delay what the cockpit shows, never what a verb acts on. Residual: a session that
+// starts, commits, exits and has its record deleted (sessions.go:1203) inside one Interval is
+// not seen until the next land or removal.
+// After it syncs the lanes and has released every lane lock (task-02 Locks' lock order), the
+// sweep refreshes stale clones (review I4). For each (project, branch)
 // that has lanes:
 //  a. tip = rev-parse --verify --quiet refs/heads/<branch> in the PROJECT (Read, Scope Project);
 //     exit 1 (the branch is gone) → skip, since task 11's branch verbs handle that;
 //  b. stale = the lanes of the branch with told != tip, less each lane that is backing off: its
-//     failedAt (c) equals tip and its retryAt has not come. stale empty → nothing more: no lock
-//     and no git beyond (a);
+//     failedAt (c) equals tip and its retryAt has not come, and less each lane task 09 deferred
+//     (Defer(id, tip): no live session) while it still has none, by Live. A deferred lane
+//     whose session is live again is stale at once, so it is refreshed within one Interval of
+//     the session starting. stale empty → nothing more: no lock and no git beyond (a);
 //  c. else unlock, ok := Locks.TryLock(projectID) (task 02; re-review b06-1 issue 6). !ok → skip
 //     the branch this sweep: whoever holds the lock (a land, a push, a fetch) is moving the tip
 //     or refreshing, and the next sweep looks again, so a busy project costs the sweep nothing.
@@ -138,6 +160,17 @@ func (s *Syncer) Run(ctx context.Context)
 //     in the sandbox and runs `bundle verify`, `bundle list-heads` and a fsck'd
 //     fetch --atomic --no-auto-maintenance --no-tags --no-write-fetch-head --quiet <bundle file>
 //     in the PROJECT (task 24). A `*BundleRefused` is `Err`, and the lane ref does not move.
+//  3b. on `lanegit.ErrBundleEmpty` (the agent moved the branch BACK, e.g. `reset --hard HEAD~2`
+//     or `reset --hard origin/<branch>`, so the claimed tip C is reachable from the basis and
+//     the runner answers 409): C is a commit the project already holds. In the PROJECT (Scope
+//     Project, Read): `cat-file -e C^{commit}`, then `merge-base --is-ancestor C <b>` for each
+//     basis sha b until one exits 0; then (Local) `update-ref refs/panacea/lanes/<id> C <old>`,
+//     <old> the lane ref's sha from step 2, so a concurrent move fails rather than lands. If
+//     neither check passes, it is `Err` ("the lane's tip is not in the project"), and the ref
+//     does not move. This moves a host ref only to an object the host already reached from its
+//     own refs, so R4.4 is not weakened (task 24's non-claims; review r4-1 I-1). Without it the
+//     lane ref stays on the discarded commits, the convergence GET lists them, a land merges
+//     them, and every sweep asks for a bundle again.
 // The "+" follows a lane an agent rebased or amended. --no-write-fetch-head keeps FETCH_HEAD
 // meaning "the last fetch from origin", which task 08 reads as the fetch time.
 // --no-auto-maintenance (review Minor 8; git ≥ 2.29, under task-02's MinVersion): a plain fetch
@@ -252,12 +285,15 @@ waits for `reaperDone`. The syncer's `LaneGit` is task 24's `laneGit`, so it is 
 
 Real git through `gitxtest` for the project, and `lanegittest.Fake` (task 24) as every lane's
 runner: a project repo, `lanes.Creator` clones, commits made in the clone as an agent would make
-them, the `Fake` reading that clone. `Script` runners only where the claim is "this call is not
+them, the `Fake` reading that clone, reached through `Lanes{Dial: fakes.Dial, Backend:
+lanegittest.Backend{}}` (task 24's seam). `Script` runners only where the claim is "this call is not
 made". The two `…RunsNoHostGitInTheLane` rows use `gitxtest.Spy` (U3) on `gitx.Exec` and are
 task 07's rows (sweep and observe) of task 24's `TestHostNeverRunsGitInALane`.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
+| `TestSyncFollowsAResetToAnAncestor` (review r4-1 I-1), red first | a lane synced at C3; in the clone, `reset --hard HEAD~2` (C1), then `SyncLane` → the runner's `Bundle` is 409 `bundle_empty`, and `refs/panacea/lanes/<id>` is C1, moved by one project `update-ref … C1 C3`; the same after `reset --hard origin/<b>`; a claimed tip the project lacks (a `Fake` answering a made-up sha) → `Err` "the lane's tip is not in the project", the ref unchanged; a second `SyncLane` makes no `Bundle` call | a `SyncLane` that treats `ErrBundleEmpty` as nothing to do, so a land merges the discarded commits |
+| `TestSweepSkipsAQuietLane` (review r4-1 I-6) | a lane with no session, synced once through a runner-only sandbox (`lanegittest.Backend` counting `Create`); three more sweeps → no `Create`, no runner call, no project git for that lane; an exited session record on the lane with `UpdatedAt` after `QuietAt` → the next sweep syncs it once, then skips again; a direct `SyncLane` (as a land calls it) always syncs | a sweep that holds a container per sessionless lane forever |
 | `TestSyncCopiesTheCloneTip` | commit in the clone; `SyncLane` → the project's `refs/panacea/lanes/<id>` equals the clone's `refs/heads/<b>` | a lane that never reaches the project |
 | `TestSyncIsANoOpWhenNothingMoved` | the second `SyncLane` makes one runner `Refs` and `Status`, one project `rev-parse`, and no `Bundle` and no `fetch` (Script runner for the project, a counting `Fake`) | a fetch on every sweep |
 | `TestSyncRefusesABadBundle` | a commit in the clone; `Fake.BundleOverride` is a bundle holding one ref beyond `refs/heads/<b>` → `SyncLane`'s lane ref is unmoved (`for-each-ref` of the project byte-identical), `State.Err` names `bundle_refused`, and `<OwnedRoot>/bundles` is empty | a sync that fetches whatever the sandbox sends |
