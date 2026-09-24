@@ -18,6 +18,9 @@ silently.
 - `images/sandbox/canvas-upload.cjs` — new: the upload helper (below; review I12)
 - `images/sandbox/Dockerfile` — one `COPY` line, and `canvas-upload` added to the existing `chmod`
   (`:21-22`). No other phase 5 task edits this file
+- `.gitattributes` — new, at the repository root: one line, `images/sandbox/** text eol=lf`, so the
+  helper's shebang (and the existing `entrypoint.sh`'s) stays LF on a Windows checkout (below;
+  re-review RR-I12-1)
 - `canvas/mcp/canvasupload_test.go` — new: runs the helper against the real tool
 
 ## Contracts
@@ -115,11 +118,27 @@ extension and with no `package.json` above it, it is CommonJS to any Node, while
 runs only on a Node that detects module syntax. The host's Node 24.15.0 does (an extensionless
 `import` probe ran, 2026-09-24); whether the image's Node 20 does is unverified. So a host run
 cannot catch ES-module syntax, and the test pins the source statically. It uses only
-`node:fs`, `node:path` and `node:http`. About 60 lines:
+`node:fs`, `node:path` and `node:http`. About 60 lines.
+
+**Line endings (re-review RR-I12-1).** This machine's Git sets `core.autocrlf=true` (from
+`C:/Program Files/Git/etc/gitconfig`), the repository has no `.gitattributes`, and this worktree
+already checks out `images/sandbox/Dockerfile` and `entrypoint.sh` as `i/lf w/crlf`
+(`git ls-files --eol images/sandbox/`, 2026-09-24). The image is built from the working tree
+(`docker build -f images/sandbox/Dockerfile .`, `docs/verification/phase-1-operator-runbook.md:54`),
+so a CRLF checkout installs `#!/usr/bin/env node\r` and the kernel's shebang parse fails:
+`/usr/bin/env: 'node\r': No such file or directory`, exit 127, which no guide row teaches. A host
+test cannot see it: `node <file>` drops a hashbang line whatever its ending, and `bufio.Scanner`
+strips a trailing `\r`. So the root fix is the attribute, not a `sed` in the Dockerfile: this task
+adds the root `.gitattributes` line `images/sandbox/** text eol=lf`, which also repairs the
+existing `entrypoint.sh` on the next fresh checkout, and the test reads the helper's raw bytes and
+refuses any `\r` (below). A worktree checked out before the attribute keeps its CRLF copies until
+they are checked out again; the raw-byte check fails on such a copy, which is the point, since it
+reads the same bytes `docker build` copies.
 
 `canvas-upload <file>`
 1. The URL is `PANACEA_APP_CANVAS_MCP_URL`, default `http://127.0.0.1:8731/mcp` (the default is the
-   only value a sandbox uses; the variable exists for the test).
+   only value a sandbox uses; the variable exists for the test). The control plane never reads it,
+   and it is not task 20b's on/off `PANACEA_APP_CANVAS_MCP` (plan G4; re-review RR-I12-3).
 2. The media type comes from the extension: `.png` `image/png`, `.jpg` and `.jpeg` `image/jpeg`,
    `.webp` `image/webp`, `.svg` `image/svg+xml`. Any other → stderr *"canvas-upload: .gif is not an
    image type the canvas takes (png, jpeg, webp, svg)"*, exit 2. The server sniffs the bytes anyway
@@ -136,9 +155,15 @@ cannot catch ES-module syntax, and the test pins the source statically. It uses 
    about 14 MB, under the server's 16 MiB cap (`:125`).
 5. `200` with `result.isError: false` → `result.structuredContent` as one JSON line on stdout
    (`asset`, `revision`, `notices`), exit 0. The agent puts `asset.ref` in `<img src>` or `url()`.
-6. `result.isError: true` → the result's text content on stderr, exit 1. A JSON-RPC `error`, any
-   other status, or a refused connection → one stderr line, exit 1; a refused connection reads
-   *"canvas-upload: the design canvas is not reachable at <url>"*.
+6. `result.isError: true` → one stderr line
+   `canvas-upload: <result.structuredContent.error.code>: <the result's text content>`, exit 1.
+   The code is printed because a `ToolError` carries it only in `structuredContent.error.code`;
+   the text is the message alone (`task-14.md:85-87`), and `canvas-rules` teaches what to do per
+   code (`task-17.md:79`; re-review RR-I12-2). A JSON-RPC `error`, any other status, or a failed
+   transport → one stderr line, exit 1. A refused connection, and a connection closed or reset
+   before a response (what `sandboxd`'s listener does after 30 s with no channel attached,
+   `task-18.md:101-107`), both read *"canvas-upload: the design canvas is not reachable at
+   <url>"*.
 
 It holds no token and names no session: the batch is the session's because the channel is.
 
@@ -165,8 +190,8 @@ can do through MCP, and no more. The helper adds no power; it names one that alr
 | `TestMove_cycle` | moving a frame into its own child → `invalid`, `cycle` | a corrupted tree |
 | `TestDelete_nested` | deleting a parent and its child together succeeds once | an error for a redundant id |
 | `TestUploadAsset_sniff` | PNG bytes declared `image/jpeg` → `invalid`; an SVG with `<script>` is stored sanitised | a mislabelled or scripted asset |
-| `TestCanvasUpload_helper` (`canvasupload_test.go`) | the real server with the write tools behind an `httptest` server (unstarted first, so its `127.0.0.1:<port>` goes into `allowedHosts`; each request's context gets `WithIdentity` of session S), then `node <tmp>/canvas-upload`, a copy of `../../images/sandbox/canvas-upload.cjs` with **no extension**, as the image installs it, with `PANACEA_APP_CANVAS_MCP_URL` pointed at it. First, statically: the source's first line is `#!/usr/bin/env node` and no line begins `import ` or `export ` (the host's Node would run either, the image's may not). Then: a 300 KB PNG fixture → exit 0, stdout's `asset.ref` is in the document, its bytes equal the file's, the `add_asset` batch's author is S; the same PNG renamed `.jpg` → exit 1, stderr names `invalid`; a `.gif` and a file of 10 MiB + 1 byte → exit 2, and the server counted **no** request; nothing listening → exit 1, *"not reachable"*. No `node` on `PATH` fails the test, naming `Dockerfile:10`: it is never skipped | the review's I12 (no way to place a real image); a helper that sends `Origin` (403) or ES-module syntax; a size check after the upload |
-| `TestImage_shipsCanvasUpload` | `../../images/sandbox/Dockerfile` has the line `COPY images/sandbox/canvas-upload.cjs /usr/local/bin/canvas-upload`, and a `chmod +x` line naming `/usr/local/bin/canvas-upload` | a helper the guide teaches but the image lacks |
+| `TestCanvasUpload_helper` (`canvasupload_test.go`) | the real server with the write tools behind an `httptest` server (unstarted first, so its `127.0.0.1:<port>` goes into `allowedHosts`; each request's context gets `WithIdentity` of session S), then `node <tmp>/canvas-upload`, a copy of `../../images/sandbox/canvas-upload.cjs` with **no extension**, as the image installs it, with `PANACEA_APP_CANVAS_MCP_URL` pointed at it. First, statically, on the raw bytes of `../../images/sandbox/canvas-upload.cjs` read with `os.ReadFile` (never `bufio.Scanner`, which strips a trailing `\r`): the bytes contain no `\r` at all, the file begins with exactly `#!/usr/bin/env node\n`, and no line begins `import ` or `export ` (the host's Node would run either, the image's may not). Then: a 300 KB PNG fixture → exit 0, stdout's `asset.ref` is in the document, its bytes equal the file's, the `add_asset` batch's author is S; the same PNG renamed `.jpg` → exit 1, stderr is one line beginning `canvas-upload: invalid: `; a `.gif` and a file of 10 MiB + 1 byte → exit 2, and the server counted **no** request; nothing listening, and a listener that accepts and closes without answering (as `sandboxd`'s does with no channel), → exit 1, *"not reachable"* each. No `node` on `PATH` fails the test, naming `Dockerfile:10`: it is never skipped | the review's I12 (no way to place a real image); a helper that sends `Origin` (403) or ES-module syntax; a size check after the upload; a CRLF helper whose shebang fails only once installed (re-review RR-I12-1); a stderr line without the error code (RR-I12-2) |
+| `TestImage_shipsCanvasUpload` | `../../images/sandbox/Dockerfile` has the line `COPY images/sandbox/canvas-upload.cjs /usr/local/bin/canvas-upload`, and a `chmod +x` line naming `/usr/local/bin/canvas-upload`; `../../.gitattributes` has the line `images/sandbox/** text eol=lf` | a helper the guide teaches but the image lacks; the attribute dropped, which the raw-byte check alone would catch only on a Windows checkout (re-review RR-I12-1) |
 | `TestRequestReview_neverApproves` | after `request_review`, the fake `Approvals` port has no call and the review is `open` | a tool path to approval |
 | `TestNoApproveTool` | `tools/list` has no tool whose name contains `approve`, `bind`, `delete_canvas` or `break` | a forbidden tool added later |
 

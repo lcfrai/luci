@@ -277,7 +277,10 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
   claims, no approve tool): identity comes from the channel, and the listener takes no credential.
   A build script or a prompt-injected dependency can do what the agent can do through MCP, and no
   more. `canvas-upload` (task 16, review I12) relies on it and adds no power. Configuration comes from `PANACEA_APP_*`
-  variables (task 20b lists every new one). No secret is in source. No subscription is pooled: the
+  variables: task 20b lists the control plane's two new ones, and task 16 adds
+  `PANACEA_APP_CANVAS_MCP_URL`, read only by the sandbox helper `canvas-upload`, for its test; the
+  control plane never reads it, and it is not the on/off `PANACEA_APP_CANVAS_MCP` (re-review
+  RR-I12-3). No secret is in source. No subscription is pooled: the
   canvas never calls a model, and its agents are the user's own sessions (`CLAUDE.md`). **Every
   design route sits behind the local caller key** (Hub C3; rule 4): none is exempt, and no mode,
   variable or build runs the design surface without it (review C1). **The handoff writes only names
@@ -384,6 +387,9 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 **`images/sandbox/`**: `canvas-upload.cjs` (new, installed as `/usr/local/bin/canvas-upload`) and
 `Dockerfile` (one `COPY`; `canvas-upload` added to the `chmod`) — task 16, review I12. Its test is
 `canvas/mcp/canvasupload_test.go` (task 16).
+
+**Repository root**: `.gitattributes` (new, one line `images/sandbox/** text eol=lf`, so the helper's
+shebang stays LF under this machine's `core.autocrlf=true`) — task 16, re-review RR-I12-1.
 
 **Desktop** (`desktop/`):
 
