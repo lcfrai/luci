@@ -354,6 +354,7 @@ export const selectReleasePinKeys = (s: CockpitState): string[];
 | `scans send the environment` | `scans("p-1", "feat-x", "d-feat")` requests `/v1/projects/p-1/deploy/scans?environment=feat-x&deploymentId=d-feat`; `scans("p-1", "", "d1")` still sends `environment=` (the route requires the key, task 12) (review C3) | dropping `environment`, which reads production's scan verdict for a branch release |
 | `branch goes in the query` | `autoDeploy("p", "feat/x")` requests `/v1/projects/p/deploy/auto-deploy?branch=feat%2Fx` | a path-segment branch |
 | `ship sends the idempotency key` | `ship(…, "k1")` sets `Idempotency-Key: k1` | a retried Ship reserving twice |
+| `revoke sends the group` | `revoke("p", "project-p-viewer")` requests `DELETE /v1/projects/p/deploy/access?group=project-p-viewer`, and `revoke("p", "a.b@kpmg.com.au")` sends `group=a.b%40kpmg.com.au`; no request carries a `grantee` parameter | the old `?grantee=` name kept with the group's value, which task 11 answers 400, and which no test above the client can see (review M30; this batch's named survivor 1) |
 | `connect drops the token` | after `connect`, no store field, closure or module variable holds the token (the test searches the store's JSON and the module's exports) | a token kept in renderer memory, the most exposed process (ADR-H1 §6.5) |
 | `stream parses our frames` | a `ReadableStream` of `event: log\ndata: {…}\n\n` chunks split mid-frame → one `log` frame per event | a parser that assumes one frame per chunk |
 
