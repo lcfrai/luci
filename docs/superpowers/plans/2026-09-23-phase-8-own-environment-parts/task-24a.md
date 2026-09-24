@@ -48,7 +48,12 @@ found the whole nearer 5 h than 3.
   error`; `message` only with `error`. The list is cached **5 s** per process, so the desktop's
   poll does not become a broker call per tick. A successful ensure-default or wake **drops the
   cache**, so the next poll shows the new machine or the waking state rather than 5 s of the old
-  one.
+  one. The drop lives **in the shared functions, not the handlers** (plan re-review b08-1 issue
+  5): `machines.go` has one `wakeMachine(ctx, id)` and one `ensureDefaultMachine(ctx)`, each of
+  which calls the broker and, on success, drops the list cache before it returns. The two POST
+  handlers call them; so does task 24b's implicit wake before a create. A drop written in a
+  handler would miss that wake, and the rail would show `sleeping` for up to 5 s while the
+  session starts.
 - `signed_out`: the token source said so (`remotebe.ErrSignedOut`). `unavailable`: any other
   failure. Neither is an error status: `GET /v1/machines` still answers 200 with the local machine.
 
@@ -72,7 +77,7 @@ found the whole nearer 5 h than 3.
 | `TestEnsureDefaultIsAPost` | `GET /v1/machines` never calls the broker's ensure-default; `POST /v1/machines/default` does | a side-effecting GET (`routes_audit_test.go:133`'s rule) |
 | `TestEnsureDefaultAnswersWithTheBrokersOutcome` | broker "existing" → 200; "created" → 201; `ErrQuotaExceeded` → 429 `quota_exceeded` with `details.limit`; signed out → 503 `backend_unavailable`, `details.cloud = "signed_out"` | a created machine reported as existing; a quota shown as "unavailable" |
 | `TestWakeIsAPostThatReachesTheBroker` | `POST /v1/machines/m-…/wake` → exactly one broker wake, 202 with the machine; an id the machine set does not know → 404 `machine_not_found`, no broker call | a 202 that never woke anything |
-| `TestEnsureDefaultAndWakeDropTheListCache` | a cached list, then either POST, then `GET /v1/machines` → a fresh broker call | the rail showing `sleeping` for 5 s after the user woke the machine |
+| `TestEnsureDefaultAndWakeDropTheListCache` | a cached list, then either POST, then `GET /v1/machines` → a fresh broker call; and a cached list, then `wakeMachine` called directly (no handler), then `GET /v1/machines` → a fresh broker call | the rail showing `sleeping` for 5 s after the user woke the machine; a drop written in the POST handler, which task 24b's implicit wake would bypass |
 
 #### Steps
 

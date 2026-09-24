@@ -12,7 +12,7 @@ m17):
    of S8.3; task 15 was the Kata half. `katabe`'s host-mount refusal is still there, still tested,
    and now never reached by a cloud create.
 3. **Implicit wake** (`docs/FUNCTIONAL-SPEC.md:44`): a create on a sleeping machine wakes it
-   first, through task 24a's wake call.
+   first, through task 24a's `wakeMachine`, which also drops the machine list's cache.
 
 **Files:**
 - `control-plane/internal/api/catalog.go` — `machineId` on the catalog routes (modify, after task 24a moved `handleMachines` out)
@@ -70,9 +70,11 @@ func (a *API) conversationStoreFor(ctx context.Context, machineID string) (conve
    `GET /v1/worktrees/{worktreeId}/path` → `machinePath` and `gitConfig` (404 → the existing
    `worktree_not_found`; 409 `git_config_not_a_file` → `409 conflict` with that reason, and no
    sandbox is created).
-2. If the machine is `sleeping`: wake it through the same call task 24a's
-   `POST /v1/machines/{machineId}/wake` makes, then poll the machine every 500 ms until `idle` or
-   `running`, bounded by the ready timeout. The session record is `starting` throughout, so the
+2. If the machine is `sleeping`: wake it through task 24a's `wakeMachine(ctx, id)`, the same
+   function `POST /v1/machines/{machineId}/wake` calls, which drops the 5 s list cache on success
+   (plan re-review b08-1 issue 5). Then poll the machine every 500 ms until `idle` or `running`,
+   bounded by the ready timeout; the poll asks the broker for that one machine, never through the
+   cached list, so it cannot read 5 s of `sleeping`. The session record is `starting` throughout, so the
    cockpit's inline "waking…" (task 26) is truthful.
 3. `conversationStoreFor(machine).Mounts(worktree)` → `MachineMounts`; `WorkDir: sessionWorkDir`
    (`sessions.go:33`), `Mounts: nil`, `Machine: machineID`. When `gitConfig` is set, the
@@ -126,7 +128,7 @@ follow-up uses the interface. Either way a cloud session's Forget reaches the ma
 | `TestCloudCreateSendsMachineMountsNeverHostMounts` | a stand-in agent whose `WorktreePath` has no `gitConfig`: the fake backend received `Mounts == nil`, two `MachineMounts` with the agent's path and `conversations/<w>`, `WorkDir == "/home/dev/work"` | S8.3 "fixed" by dropping katabe's refusal |
 | `TestCloudCreateBindsTheCloneConfigReadOnly` | the stand-in answers `gitConfig: "lanes/p-1/w-2/.git/config"` → three `MachineMounts`, the second exactly `{MachinePath: "lanes/p-1/w-2/.git/config", ContainerPath: "/home/dev/work/.git/config", ReadOnly: true}`, listed after the worktree mount; the same for `projects/a`; the stand-in answering 409 `git_config_not_a_file` → `409 conflict` with that reason and no `Create` | H5's read-only half dropped on cloud machines, so an agent races `machined`'s H3 with a config it rewrites; the bind made writable; a session created over a config Kubernetes would make a directory |
 | `TestCloudCreateMakesTheStoreBeforeTheSandbox` | the agent saw `POST /v1/dirs` for `conversations/<w>` before the backend saw `Create` | a root-owned store the agent cannot write |
-| `TestCreateOnASleepingMachineWakesItFirst` | wake, then polls, then `Create`; the record was `starting` meanwhile | "machine asleep" shown to a user who just typed |
+| `TestCreateOnASleepingMachineWakesItFirst` | wake, then polls, then `Create`; the record was `starting` meanwhile; with the list cached beforehand, the next `GET /v1/machines` after the wake makes a fresh broker call (plan re-review b08-1 issue 5) | "machine asleep" shown to a user who just typed; an implicit wake that leaves the rail at `sleeping` for 5 s, so task 26's waking state never shows |
 | `TestQuotaIs429WithTheLimit` | `ErrQuotaExceeded` from the backend's `Create` → 429 `quota_exceeded`, `details.limit` | a quota shown as "unavailable" |
 | `TestAFullMachineIs409MachineFullWithASentence` | the fake backend returns `&backend.MachineFullError{SessionsPerMachine: 3}` → 409 `machine_full`, `details.sessionsPerMachine = "3"`, the message exactly the first form above; with `1` → `"1"` and exactly the singular form (never "1 sessions"); with `0` → no `sessionsPerMachine` key and exactly the third form, which says nothing of stopping a session (review I5; b05 re-review 6) | a full machine shown as "backend unavailable" or as `conflict` |
 | `TestLocalCreateIsUnchanged` | a local create still sends phase 2's host mounts (`TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv`, `sessions_test.go:749`, passes unchanged) | the local machine broken by the cloud branch |
