@@ -61,21 +61,26 @@ type Syncer struct {
 	// refresh and logs that once at warn. The interface is here because task 09 comes later.
 	Locks     *gitx.Locks
 	Refresher CloneRefresher
-	// unexported: per-lane mutexes, the state map, and told: worktree id → the branch tip that
-	// clone was last sent (Told, below). told is memory only, so a restarted control plane
-	// refreshes every clone once, on its first sweep.
+	// unexported: per-lane mutexes, the state map; told: worktree id → the origin/<branch> sha
+	// that clone was last read back holding (Told, below); failedAt, retryAt and the backoff:
+	// worktree id → the tip its last refresh failed at, when the sweep may try it again, and the
+	// current wait (Run, c). All memory only, so a restarted control plane refreshes every clone
+	// once, on its first sweep.
 }
 
-// CloneRefresher is task 09's Lander.RefreshClones. The caller holds Locks.Lock.
+// CloneRefresher is task 09's Lander.RefreshLanes: RefreshClones for the named lanes of the
+// branch only, so a sweep never re-fetches a clone that is already fresh (re-review b06-1
+// issue 2). The caller holds the project's Locks lock.
 type CloneRefresher interface {
-	RefreshClones(ctx context.Context, projectPath, branch string) (refreshed []string, errs map[string]string)
+	RefreshLanes(ctx context.Context, projectPath, branch string, ids []string) (refreshed []string, errs map[string]string)
 }
 
-// Told records that worktreeID's clone was sent refs/heads/<branch> at tip. RefreshClones calls
-// it for each clone it refreshed, with the tip it read BEFORE its fetches: when the branch moves
-// in between, told is older than the clone, the next sweep refreshes once more, and a clone is
-// never recorded as fresher than it is.
-func (s *Syncer) Told(worktreeID, tip string)
+// Told records that worktreeID's clone now holds received as refs/remotes/origin/<branch>.
+// RefreshLanes calls it after each clone's fetch succeeds, with the sha it read back from the
+// clone (rev-parse refs/remotes/origin/<branch>, Scope Clone), not the tip it read before the
+// fetches. So told is what the clone has, even when the branch moves away and back between the
+// two reads (re-review b06-1 issue 5, the ABA case). Told also clears that lane's failure record.
+func (s *Syncer) Told(worktreeID, received string)
 
 const (
 	DefaultSyncInterval = 5 * time.Second
@@ -88,12 +93,20 @@ const (
 // that has lanes:
 //  a. tip = rev-parse --verify --quiet refs/heads/<branch> in the PROJECT (Read, Scope Project);
 //     exit 1 (the branch is gone) → skip, since task 11's branch verbs handle that;
-//  b. when every lane of the branch has told == tip, nothing more;
-//  c. else unlock, err := Locks.Lock(lctx, projectID), lctx = ctx bounded by one Interval: a land
-//     or a push holding the lock refreshes on its own or is retried next sweep, and one busy
-//     project never stalls the sweep for the others. Then Refresher.RefreshClones(ctx, path,
-//     branch), unlock(). Each error is logged with the worktree id and git's sentence; that
-//     clone's told stays as it was, so the next sweep retries it.
+//  b. stale = the lanes of the branch with told != tip, less each lane that is backing off: its
+//     failedAt (c) equals tip and its retryAt has not come. stale empty → nothing more: no lock
+//     and no git beyond (a);
+//  c. else unlock, ok := Locks.TryLock(projectID) (task 02; re-review b06-1 issue 6). !ok → skip
+//     the branch this sweep: whoever holds the lock (a land, a push, a fetch) is moving the tip
+//     or refreshing, and the next sweep looks again, so a busy project costs the sweep nothing.
+//     Then Refresher.RefreshLanes(ctx, path, branch, stale), unlock(). For each id in errs:
+//     failedAt[id] = tip and retryAt[id] = now + backoff, where backoff starts at 1 min and
+//     doubles on each failure at the same tip, to at most 10 min; the error is logged once per
+//     (lane, tip), with the worktree id and git's sentence. A tip move makes the lane stale
+//     again at once. So a clone that always fails (its directory gone, or a config the
+//     allowlist refuses, which an agent can write on purpose) costs one fetch per tip move or
+//     per backoff, never one per sweep, and never a fetch into the healthy clones beside it
+//     (re-review b06-1 issue 2).
 // This is what catches a branch the cockpit did not move: a user's commit or `git pull` in a
 // terminal checkout, or a `git reset` or `commit --amend` there. Without it, a resolve prompt (task 19) tells an
 // agent to merge an origin/<branch> the branch has left behind.
@@ -219,11 +232,9 @@ an agent would make them. `Script` runners only where the claim is "this call is
 | `TestSyncClearsTheErrorOnSuccess` | recreate the branch in the clone → next sweep clears `Err` | a stale error forever on screen |
 | `TestSyncLaneSerialisesPerLane` | two concurrent `SyncLane`s on one lane under `-race` → one fetch | two fetches racing on one ref lock |
 | `TestRunStopsWhenTheContextEnds` | cancel → `Run` returns within one interval | a goroutine that outlives shutdown |
-| `TestSweepAsksForARefreshWhenTheTipMoves` (review I4) | a recording `CloneRefresher` that calls `Told` for each lane; a commit on the project's `refs/heads/<b>` made with plain git, as a terminal would → the next sweep calls `RefreshClones(path, b)` once, holding `Locks` (the test's `Lock` on the project blocks until the sweep releases) | a sweep that never looks at the branch, so a user's own commit reaches no clone |
-| `TestSweepDoesNotRefreshAnUnmovedTip` (review I4) | two more sweeps with the tip unchanged → no further `RefreshClones` call, and one project `rev-parse` per sweep for the branch (Script runner) | a fetch into every clone every five seconds |
-| `TestSweepRetriesAFailedRefresh` (review I4) | the refresher returns an error for lane B and calls `Told` for A only → the next sweep calls it again; once B succeeds, no further call | a clone marked fresh after its fetch failed |
-| `TestSweepSkipsABusyProjectAndSyncsTheRest` (review I4) | the test holds project P's lock; lanes of P and of Q → Q's lanes sync and Q refreshes within one sweep, P's refresh is skipped, then made the sweep after the lock is released | one long push stalling every lane on the machine |
-| `TestObserveRunsNothingTheCloneNames` | task-02 §HGH end to end, red first against an unhardened `Exec`: clone config `core.fsmonitor=<marker script>` → `Observe` writes no marker; then `filter.x.clean=<marker script>` with `.gitattributes` `* filter=x` and a modified file → no marker, and `ReadError` names `clone_config_untrusted` and `filter.x.clean` | an observer built on an `Exec` without §HGH |
+| `TestSweepAsksForARefreshWhenTheTipMoves` (review I4) | a recording `CloneRefresher` that calls `Told` for each lane; a commit on the project's `refs/heads/<b>` made with plain git, as a terminal would → the next sweep calls `RefreshLanes(path, b, [A, B])` once, holding `Locks` (a `TryLock` by the test from inside the recording refresher is refused) | a sweep that never looks at the branch, so a user's own commit reaches no clone |
+| `TestSweepDoesNotRefreshAnUnmovedTip` (review I4) | two more sweeps with the tip unchanged → no further `RefreshLanes` call, and one project `rev-parse` per sweep for the branch (Script runner) | a fetch into every clone every five seconds |
+| `TestSweepRetriesAFailedRefresh` (review I4; re-review b06-1 issue 2) | the refresher returns an error for lane B and calls `Told` for A only; a fake `Now` → sweeps before 1 min make no `RefreshLanes` call and no project git call but (a)'s `rev-parse` (Script runner), and log B's error no second time; the first sweep after 1 min calls `RefreshLanes(…, [B])`, B only; B fails again → the next retry waits 2 min; a tip move instead → the next sweep calls `RefreshLanes(…, [A, B])` at once; once B succeeds, no further call | a clone marked fresh after its fetch failed, or never retried || `TestSweepSkipsABusyProjectAndSyncsTheRest` (review I4; re-review b06-1 issue 6) | the test holds projects P's and R's locks; lanes of P, R and Q → Q's lanes sync and Q refreshes within one sweep, P's and R's refreshes are skipped, and the sweep returns in under one interval (a sweep that waited on each busy lock would take two); both are refreshed the sweep after the locks are released | one long push stalling every lane on the machine, or K busy projects making a sweep K intervals long || `TestObserveRunsNothingTheCloneNames` | task-02 §HGH end to end, red first against an unhardened `Exec`: clone config `core.fsmonitor=<marker script>` → `Observe` writes no marker; then `filter.x.clean=<marker script>` with `.gitattributes` `* filter=x` and a modified file → no marker, and `ReadError` names `clone_config_untrusted` and `filter.x.clean` | an observer built on an `Exec` without §HGH |
 | `TestObserveListsCommitsTheBranchLacks` | two lane commits, one carrying `Panacea-Session: s-1` → `Commits` newest first, `Sessions` `[s-1]` and `[]` | reading the branch's own commits as the lane's |
 | `TestObserveChangedIsSinceTheMergeBase` | the branch changes `a.txt` after the fork, the lane changes `b.txt` → `Changed` is `[b.txt]` only | `diff branch lane`, which reports the branch's work reversed |
 | `TestObserveCapsCommits` | 60 lane commits → 50 and `Truncated` | an unbounded payload on the poll |
@@ -259,7 +270,8 @@ go test ./control-plane/... -race -count=1                  → PASS
 - A lane's view is up to one sync interval old between sweeps; every write that depends on it
   (land, remove) calls `SyncLane` first.
 - A clone's `origin/<branch>` is likewise up to one interval behind a branch move the cockpit did
-  not make (review I4). The cockpit's own moves refresh at once (tasks 09, 10), and
+  not make (review I4), or up to one backoff (at most 10 min) behind when its last refresh
+  failed at this tip (re-review b06-1 issue 2). The cockpit's own moves refresh at once (tasks 09, 10), and
   `ResolveDialog` refreshes before it starts a session (task 19), so no resolve prompt names a
   stale ref. Until task 09 sets `Refresher`, the sweep refreshes nothing.
 - Unreachable lane commits (a lane an agent rewrote) are left for `git gc` in the project
