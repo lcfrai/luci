@@ -1,0 +1,75 @@
+# pipelines/charts.yml — the Helm charts under deploy/charts/ (phase 8 task 28).
+#   licences  first, once: chart-licences_test.sh (its nine fixture cases, so a weakened script
+#             fails here), then chart-licences.sh: every Chart.lock dependency has a row in
+#             licences/charts.yaml whose licence is allowed (OD-11 rule 3, review m6)
+#   chart     per chart, as a job matrix read from the tree: helm dependency build, helm lint,
+#             helm unittest, helm template | kubeconform -strict -summary
+# Task 13 adds one cross-chart job: Go 1.23 and go test ./deploy/tests/netpolcover/... -count=1.
+# kubeconform validates against its default schema set until task 31 records the cluster's
+# Kubernetes minor; then pass -kubernetes-version with it.
+#
+# pr: is the record of the pull-request path filter: Azure Repos reads the branch policy's filter,
+# not this block (UNVERIFIED, see azure-pipelines.yml); task 31's runbook copies it there.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include:
+      - deploy/**
+      - licences/**
+      - pipelines/charts.yml
+      - pipelines/scripts/chart-licences.sh
+      - pipelines/scripts/chart-licences_test.sh
+      - pipelines/scripts/lib/**
+      - pipelines/scripts/testdata/chart-licences/**
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include:
+      - deploy/**
+      - licences/**
+      - pipelines/charts.yml
+      - pipelines/scripts/chart-licences.sh
+      - pipelines/scripts/chart-licences_test.sh
+      - pipelines/scripts/lib/**
+      - pipelines/scripts/testdata/chart-licences/**
+
+pool:
+  vmImage: ubuntu-24.04
+
+jobs:
+  - job: licences
+    steps:
+      - template: templates/tools.yml
+        parameters:
+          tools: [yq]
+      - script: bash pipelines/scripts/chart-licences_test.sh
+        displayName: chart-licences_test (the gate's own cases)
+      - script: bash pipelines/scripts/chart-licences.sh
+        displayName: chart-licences (every chart dependency recorded and allowed)
+
+  - job: directories
+    steps:
+      - script: bash pipelines/scripts/matrix.sh charts
+        name: dirs
+        displayName: one leg per chart
+
+  - job: chart
+    dependsOn: [licences, directories]
+    condition: and(succeeded(), ne(dependencies.directories.outputs['dirs.count'], '0'))
+    strategy:
+      matrix: $[ dependencies.directories.outputs['dirs.legs'] ]
+    steps:
+      - template: templates/tools.yml
+        parameters:
+          tools: [helm, helm-unittest, kubeconform]
+      - script: |
+          set -euo pipefail
+          helm dependency build "$CHART"
+          helm lint "$CHART"
+          helm unittest "$CHART"
+          helm template "${CHART##*/}" "$CHART" | kubeconform -strict -summary
+        displayName: $(dir)
+        env:
+          CHART: $(dir)

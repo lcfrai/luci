@@ -1,0 +1,7 @@
+# Fixture: one npm exception, so the pass case proves exceptions are read for npm.
+exceptions:
+  - name: mpl-thing
+    ecosystem: npm
+    licence: MPL-2.0
+    why: fixture only
+    approved: 0000000

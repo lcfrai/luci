@@ -1,0 +1,9 @@
+# The Rust toolchain for the desktop, pinned (phase 8 task 28): pipelines/desktop.yml runs
+# `cargo clippy -- -D warnings`, and a hosted image's Rust moves with each image update, so an
+# unpinned clippy can turn a green branch red with no change in it. rustup reads this file for any
+# cargo run from desktop/src-tauri (the pipeline's working directory, and the Tauri CLI's). 1.98.1
+# is the toolchain on the build laptop on 2026-09-25.
+[toolchain]
+channel = "1.98.1"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

@@ -534,7 +534,7 @@ bash infra/rbac/grant-pipeline-roles_test.sh       # grant-pipeline-roles_test: 
 bash pipelines/scripts/cluster-kinds_test.sh       # cluster-kinds: ok, the "can bind" line and the "sandboxes RBAC verbs" line
 bash pipelines/scripts/helm-values_test.sh         # helm-values_test: ok
 bash pipelines/scripts/api-server-cidrs_test.sh    # api-server-cidrs_test: 4 of 4 passed
-bash pipelines/scripts/lint.sh                     # lint: 7 of 7 rules pass over 9 pipeline files
+bash pipelines/scripts/lint.sh                     # lint: 8 of 8 rules pass over 9 pipeline files
 ```
 
 #### What this task does not claim

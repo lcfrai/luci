@@ -197,7 +197,8 @@ FNR == 1 { endfile(); cur = FILENAME; curkind = kind; reset() }
     else if (code ~ (W "dotnet[ \t]+tool[ \t]+install") || code ~ (W "(npm|pnpm|yarn)[ \t]+(install|i|add)[ \t].*(-g|--global)" E) || code ~ (W "yarn[ \t]+global[ \t]+add")) what = "a global install"
     else if (code ~ /helm[ \t]+plugin[ \t]+install/ || code ~ /tflint[ \t]+--init/) what = "a plugin install"
     else if (code ~ /task[ \t]*:[ \t]*[A-Za-z]*Installer@/) what = "an installer task"
-    else if (code ~ /install-tool\.sh/) what = "install-tool.sh outside the template"
+    else if (code ~ /install-tool\.sh/ && code !~ /^[ \t]*-[ \t]+["']?[^ \t"']+["']?[ \t]*$/)
+      what = "a call to install-tool.sh"   # a bare path in a list (a trigger path) is not a call
     if (what != "") emit("R2", cur ":" FNR ": " what " outside templates/tools.yml (" trim(code) ")")
   }
 

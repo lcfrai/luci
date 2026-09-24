@@ -1,0 +1,82 @@
+# pipelines/infra.yml — infra/ and the pipelines themselves (phase 8 task 28). No Azure call, no
+# credentials, no service connection: safe on every pull request. validate.sh scrubs ARM_*, the
+# Azure SDK variables and TF_CLI_ARGS*, and points AZURE_CONFIG_DIR at an empty directory (task 01).
+#   guards  lint_test, lint, the script tests, guards_test, guards.sh, shellcheck, tflint (azurerm
+#           ruleset, pinned), trivy config failing on HIGH (its bundled checks: --skip-check-update)
+#   validate.sh once per module or stack directory, as a job matrix: each terraform test takes
+#           minutes. The matrix is read from the tree (matrix.sh), so a new directory needs no edit.
+# Task 10 adds `bash infra/scripts/role-allowlist.sh` after guards.sh in the same commit that
+# writes it, so this file never calls a script that does not exist (lint.sh R7).
+#
+# pr: is the record of the pull-request path filter: Azure Repos reads the branch policy's filter,
+# not this block (UNVERIFIED, see azure-pipelines.yml); task 31's runbook copies it there.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include:
+      - infra/**
+      - pipelines/**
+      - azure-pipelines.yml
+      - images/*.sh
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include:
+      - infra/**
+      - pipelines/**
+      - azure-pipelines.yml
+      - images/*.sh
+
+pool:
+  vmImage: ubuntu-24.04
+
+jobs:
+  - job: guards
+    steps:
+      - template: templates/tools.yml
+        parameters:
+          tools: [yq, shellcheck, tflint, tflint-ruleset-azurerm, trivy]
+      - script: bash pipelines/scripts/lint_test.sh
+        displayName: lint_test (the lint rules' own cases)
+      - script: bash pipelines/scripts/lint.sh
+        displayName: lint (the rules every pipeline file follows)
+      - script: |
+          set -euo pipefail
+          bash pipelines/scripts/install-tool_test.sh
+          bash pipelines/scripts/matrix_test.sh
+        displayName: the pipeline scripts' tests
+      - script: bash infra/scripts/guards_test.sh
+        displayName: guards_test (one fixture per rule)
+      - script: bash infra/scripts/guards.sh
+        displayName: guards (the ten infra rules)
+      - script: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          shellcheck -x infra/**/*.sh images/*.sh pipelines/scripts/*.sh pipelines/scripts/lib/*.sh
+        displayName: shellcheck
+      - script: tflint --chdir=infra/terraform --recursive --config="$(Build.SourcesDirectory)/pipelines/tflint.hcl"
+        displayName: tflint (azurerm ruleset)
+      - script: trivy config --exit-code 1 --severity HIGH,CRITICAL --skip-check-update infra/terraform
+        displayName: trivy config (IaC misconfiguration, HIGH and above)
+
+  - job: directories
+    steps:
+      - script: bash pipelines/scripts/matrix.sh terraform
+        name: dirs
+        displayName: one leg per module and stack
+
+  - job: validate
+    dependsOn: [guards, directories]
+    condition: and(succeeded(), ne(dependencies.directories.outputs['dirs.count'], '0'))
+    strategy:
+      matrix: $[ dependencies.directories.outputs['dirs.legs'] ]
+    steps:
+      - template: templates/tools.yml
+        parameters:
+          tools: [terraform]
+      - script: bash infra/scripts/validate.sh "$DIR"
+        displayName: validate $(dir)
+        env:
+          DIR: $(dir)

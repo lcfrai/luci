@@ -8,9 +8,10 @@
 #                               without all five fields (name, ecosystem, licence, why, approved)
 #                               returns 1 with the reason(s), one per line, in ALLOW_ERR.
 #   spdx_ok <expression>        0 iff the SPDX expression is satisfied by ALLOWED: AND needs every
-#                               side, OR any side, parentheses group, "<id> WITH <exception>" counts
-#                               as <id> (an exception only adds permissions). Anything that does
-#                               not parse is not satisfied.
+#                               side, OR any side, parentheses group, and "<id> WITH <exception>"
+#                               is satisfied only if that whole text is in ALLOWED, as cargo-deny
+#                               reads it, so the three ecosystems agree. Anything that does not
+#                               parse is not satisfied.
 #   licence_ok <eco> <name> <expression>
 #                               spdx_ok, or an exception that names exactly this ecosystem, name
 #                               and licence text (a relicensed package fails again).
@@ -72,7 +73,8 @@ _atom() {
   esac
   _I=$((_I + 1))
   if [ "${_T[_I]:-}" = WITH ]; then
-    [ -n "${_T[_I + 1]:-}" ] || { _BAD=1; return 1; }
+    case "${_T[_I + 1]:-}" in ''|'('|')'|AND|OR|WITH) _BAD=1; return 1 ;; esac
+    t="$t WITH ${_T[_I + 1]}"
     _I=$((_I + 2))
   fi
   allowed_id "$t"

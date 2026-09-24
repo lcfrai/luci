@@ -1,0 +1,43 @@
+# .gitleaks.toml — the secret scanner's allowlist of known test fixtures (phase 8 task 28).
+# The default rules stay on. Each allowlist below is BY PATH AND EXACT VALUE (condition AND: the
+# file must be one of its paths and the secret must be exactly one of its values), never a broad
+# regex, so a real secret in the same file, or the same value anywhere else, still fails.
+# Found by `gitleaks detect` over the whole history on 2026-09-25 (8 findings, all below).
+title = "PanaceaApp"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Entra resource-API ids made up for the validator's tests (task 16), not credentials"
+condition = "AND"
+paths = ['''^control-plane/internal/entra/testkey_test\.go$''']
+regexes = [
+  '''^3e9f4d6b-8c5a-4fbd-8ba4-6a7c8d9eafb0$''',
+  '''^4fa05e7c-9d6b-4ace-9cb5-7b8d9eafb0c1$''',
+]
+
+[[allowlists]]
+description = "RFC 6455's sample WebSocket nonce (base64 of 'the sample nonce') in a curl example"
+condition = "AND"
+paths = ['''^docs/superpowers/plans/phase-2-parts/task-25\.md$''']
+regexes = ['''^dGhlIHNhbXBsZSBub25jZQ==$''']
+
+[[allowlists]]
+description = "The attach tests' fixed fake token, and the plan text that quotes it"
+condition = "AND"
+paths = [
+  '''^control-plane/internal/api/attach_test\.go$''',
+  '''^docs/superpowers/plans/phase-2-parts/task-12\.md$''',
+]
+regexes = ['''^t-0123456789abcdef0123456789abcdef$''']
+
+[[allowlists]]
+description = "A placeholder token (base64 of BO_WILL_BE_REPLACED_BY_32_RANDOM_) in a test and two plan texts"
+condition = "AND"
+paths = [
+  '''^control-plane/internal/registry/session_test\.go$''',
+  '''^docs/superpowers/plans/phase-2-parts/task-07\.md$''',
+  '''^docs/superpowers/contracts/2026-09-18-phase-2-go-contract\.md$''',
+]
+regexes = ['''^Qk9fV0lMTF9CRV9SRVBMQUNFRF9CWV8zMl9SQU5ET01f$''']

@@ -1,0 +1,87 @@
+# pipelines/licences.yml — OD-11 rule 3, applied repo-wide (phase 8 task 28): every linked
+# dependency graph (Go modules, the desktop's production npm graph, Cargo) against
+# licences/allow.yaml. A PR that narrows allow.yaml re-runs all three (plan re-review b08-1).
+# The Helm half is charts.yml's. The gate is never loosened to pass a run: a dependency outside
+# the list is a replacement task or an exception the owner approves (licences/exceptions.yaml).
+#
+# pr: is the record of the pull-request path filter: Azure Repos reads the branch policy's filter,
+# not this block (UNVERIFIED, see azure-pipelines.yml); task 31's runbook copies it there.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include:
+      - '**/go.mod'
+      - '**/go.sum'
+      - go.work
+      - desktop/package.json
+      - desktop/package-lock.json
+      - desktop/src-tauri/Cargo.toml
+      - desktop/src-tauri/Cargo.lock
+      - licences/**
+      - pipelines/licences.yml
+      - pipelines/scripts/licences.sh
+      - pipelines/scripts/licences_test.sh
+      - pipelines/scripts/lib/**
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include:
+      - '**/go.mod'
+      - '**/go.sum'
+      - go.work
+      - desktop/package.json
+      - desktop/package-lock.json
+      - desktop/src-tauri/Cargo.toml
+      - desktop/src-tauri/Cargo.lock
+      - licences/**
+      - pipelines/licences.yml
+      - pipelines/scripts/licences.sh
+      - pipelines/scripts/licences_test.sh
+      - pipelines/scripts/lib/**
+
+pool:
+  vmImage: ubuntu-24.04
+
+jobs:
+  - job: rules
+    displayName: the comparator's own tests
+    steps:
+      - template: templates/tools.yml
+        parameters:
+          tools: [yq]
+      - script: bash pipelines/scripts/lib/allow_test.sh
+        displayName: allow_test
+      - script: bash pipelines/scripts/licences_test.sh
+        displayName: licences_test
+
+  - job: go
+    dependsOn: rules
+    steps:
+      - task: GoTool@0
+        inputs:
+          version: '1.23'
+      - template: templates/tools.yml
+        parameters:
+          tools: [yq, go-licenses]
+      - script: bash pipelines/scripts/licences.sh go
+        displayName: Go modules
+
+  - job: npm
+    dependsOn: rules
+    steps:
+      - template: templates/tools.yml
+        parameters:
+          tools: [yq]
+      - script: bash pipelines/scripts/licences.sh npm
+        displayName: the desktop's production npm graph (package-lock.json)
+
+  - job: cargo
+    dependsOn: rules
+    steps:
+      - template: templates/tools.yml
+        parameters:
+          tools: [yq, cargo-deny]
+      - script: bash pipelines/scripts/licences.sh cargo
+        displayName: Cargo (cargo deny check licenses)

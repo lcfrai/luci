@@ -1,0 +1,18 @@
+# OD-11 rule 3: dependencies are MIT, Apache-2.0, BSD or ISC only — applied to every linked
+# dependency graph in this repository (Go modules, the desktop's production npm graph, Cargo)
+# and to every Helm chart dependency (each Chart.lock entry, recorded in licences/charts.yaml).
+# Tools that run in CI or at apply but are not shipped (terraform, helm, scanners) are not
+# dependencies. Terraform providers are tools too: MPL-2.0, run by Terraform as separate
+# processes, shipped in nothing, pinned by hash in each stack's .terraform.lock.hcl.
+allowed:
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+# A dependency outside this list fails the gate unless licences/exceptions.yaml names it, its
+# licence, why it is needed, and the owner's approval (a commit reference). The file starts empty.
+# Excluded by name: tldraw (commercial licence), and anything AGPL or GPL (owner decisions :96-98).
+denied_packages:
+  - tldraw
+  - "@tldraw/*"

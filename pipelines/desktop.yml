@@ -1,0 +1,69 @@
+# pipelines/desktop.yml — the desktop cockpit (phase 8 task 28): npm ci, typecheck and the tests
+# on Linux and on Windows; on Windows also cargo clippy with warnings as errors; the Tauri build
+# on main only (Windows minutes, survey §6.2 :515). Signing is phase 9 (PROGRAM.md open risk 3).
+# Node is pinned here; Rust by desktop/src-tauri/rust-toolchain.toml, which rustup reads because
+# every cargo call runs from desktop/src-tauri.
+#
+# pr: is the record of the pull-request path filter: Azure Repos reads the branch policy's filter,
+# not this block (UNVERIFIED, see azure-pipelines.yml); task 31's runbook copies it there.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include:
+      - desktop/**
+      - pipelines/desktop.yml
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include:
+      - desktop/**
+      - pipelines/desktop.yml
+
+jobs:
+  - job: linux
+    pool:
+      vmImage: ubuntu-24.04
+    steps:
+      - task: NodeTool@0
+        inputs:
+          versionSpec: '24.15.0'
+      - script: npm ci
+        workingDirectory: desktop
+        displayName: npm ci
+      - script: npm run typecheck
+        workingDirectory: desktop
+        displayName: typecheck
+      - script: npm test
+        workingDirectory: desktop
+        displayName: test
+
+  - job: windows
+    pool:
+      vmImage: windows-2022
+    steps:
+      - task: NodeTool@0
+        inputs:
+          versionSpec: '24.15.0'
+      - script: npm ci
+        workingDirectory: desktop
+        displayName: npm ci
+      - script: npm run typecheck
+        workingDirectory: desktop
+        displayName: typecheck
+      - script: npm test
+        workingDirectory: desktop
+        displayName: test
+      # tauri::generate_context! reads frontendDist (../dist) at compile time, so the web build
+      # comes before clippy.
+      - script: npm run build
+        workingDirectory: desktop
+        displayName: web build
+      - script: cargo clippy --manifest-path Cargo.toml -- -D warnings
+        workingDirectory: desktop/src-tauri
+        displayName: cargo clippy -D warnings
+      - script: npm run tauri build
+        workingDirectory: desktop
+        displayName: tauri build (main only)
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))

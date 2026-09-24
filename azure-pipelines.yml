@@ -1,17 +1,59 @@
+# azure-pipelines.yml — the Go pipeline (phase 8 task 28). It stays at the root so the definition
+# already registered against this path keeps working (P8-D13); every other pipeline is under
+# pipelines/. Build, test and vet are the three steps it always ran; govulncheck and the go.mod
+# diff are new.
+#
+# pr: is the record of the pull-request path filter. Azure Repos does not read a YAML pr: block
+# (training knowledge, UNVERIFIED against KPMG's organisation): there, PR validation is the branch
+# policy's build validation, and its path filter must copy pr.paths below (task 31's runbook). A
+# definition connected to GitHub honours pr: as written.
 trigger:
   branches:
     include: [main, dev]
+  paths:
+    include:
+      - go.work
+      - go.work.sum
+      - control-plane/**
+      - sandboxd/**
+      - azure-pipelines.yml
+      - pipelines/templates/tools.yml
+      - pipelines/scripts/install-tool.sh
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include:
+      - go.work
+      - go.work.sum
+      - control-plane/**
+      - sandboxd/**
+      - azure-pipelines.yml
+      - pipelines/templates/tools.yml
+      - pipelines/scripts/install-tool.sh
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: ubuntu-24.04
 
 steps:
   - task: GoTool@0
     inputs:
       version: '1.23'
+  - template: pipelines/templates/tools.yml
+    parameters:
+      tools: [govulncheck]
   - script: go build ./sandboxd/... ./control-plane/...
     displayName: Build
   - script: go test ./sandboxd/... ./control-plane/... -race -count=1
     displayName: Test
   - script: go vet ./sandboxd/... ./control-plane/...
     displayName: Vet
+  - script: |
+      set -euo pipefail
+      (cd control-plane && govulncheck ./...)
+      (cd sandboxd && govulncheck ./...)
+    displayName: govulncheck, both modules
+  # The "go 1.23" directive rule: nothing above may rewrite go.work or a go.mod (a newer toolchain
+  # would, silently, on a dependency bump).
+  - script: git diff --exit-code -- go.work go.work.sum '*/go.mod' '*/go.sum'
+    displayName: go.work and every go.mod unchanged

@@ -7,6 +7,7 @@ trigger:
     include:
       - go.work
       - control-plane/**
+      - pipelines/scripts/install-tool.sh   # a path filter names the script; that is no call
 pr:
   branches:
     include: ['*']

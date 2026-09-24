@@ -160,9 +160,9 @@ call**. It does not prove the recorded licence is right; that is the reviewer's 
 #### Acceptance
 
 ```bash
-bash pipelines/scripts/lint.sh                   # lint: 7 of 7 rules pass over 6 pipeline files (images.yml, task 27, comes after)
+bash pipelines/scripts/lint.sh                   # lint: 8 of 8 rules pass over 6 pipeline files (images.yml, task 27, comes after)
 bash pipelines/scripts/install-tool.sh gitleaks && gitleaks detect --no-banner   # no leaks found
-bash pipelines/scripts/chart-licences_test.sh    # chart-licences_test: 8 of 8 cases passed
+bash pipelines/scripts/chart-licences_test.sh    # chart-licences_test: 9 of 9 cases passed (the eight below, and a ninth: As built)
 bash pipelines/scripts/chart-licences.sh         # 0 chart dependencies (task 13 adds the first)
 ```
 
@@ -174,3 +174,55 @@ checklist item, after the owner registers them.
 - That KPMG's ADO organisation allows the Microsoft-hosted Windows agent or has the parallel jobs
   (owner input, survey §7.1 item 4).
 - That the npm and Cargo graphs pass the gate today (step 3 finds out).
+
+#### As built (task 28, 2026-09-25)
+
+Departures from the text above, each for the root cause named:
+
+- **Eight lint rules, not seven** (carried: plan re-review b08-2 "seen", b07-1 issue 2). The rule
+  table always had eight rows; the acceptance line here and task 30's `:537` now say `8 of 8`.
+- **Hosted images are pinned** (`ubuntu-24.04`, `windows-2022`), not `ubuntu-latest` /
+  `windows-latest`: the rule "no `latest` anywhere under `pipelines/`" forbids the label the table
+  names, and the label moves with each image release. R3 reads `azure-pipelines.yml` too.
+- **Each pipeline's own file is in its paths** (and the Go pipeline's also names the template and
+  `install-tool.sh`), the same reasoning as the b08-1 fixes, so an edit to a pipeline re-runs it.
+- **`pr:` does not trigger anything on Azure Repos** (training knowledge, UNVERIFIED against
+  KPMG's organisation): Azure Repos PR validation is the branch policy's build validation, with its
+  own path filter. Every file keeps its `pr:` block as the record that task 31's runbook copies
+  into the policy; a definition connected to GitHub honours it as written.
+- **Tools: 15, not 14.** `tflint-ruleset-azurerm` has its own pin, so `tflint --init` (an unpinned
+  download) never runs; `pipelines/tflint.hcl` names the same version. Versions: terraform 1.15.8,
+  helm 4.3.0, helm-unittest 1.1.2, kubeconform 0.8.0, kubelogin 0.2.20, gitleaks 8.30.1,
+  govulncheck v1.1.4 (the newest `golang.org/x/vuln` that builds on Go 1.23), shellcheck 0.11.0,
+  tflint 0.64.0 + azurerm ruleset 0.32.0, trivy 0.74.0, syft 1.52.0, go-licenses v2.0.1,
+  cargo-deny 0.20.2, yq 4.53.6. `install-tool.sh` has linux-amd64 (CI) and windows-amd64 (the
+  laptop) rows, and "any" for the two Go modules, which it builds from the verified
+  proxy.golang.org zip (`GOTOOLCHAIN=local`, `GOWORK=off`, `-mod=readonly`).
+- **New scripts the part's files need but did not name:** `licences.sh` (the three reports and the
+  comparison, `licences.yml` runs it), `lib/allow.sh` (the allowlist, the SPDX evaluator and the
+  exceptions, shared with `chart-licences.sh`), `matrix.sh` (the job matrix, read from the tree,
+  for `infra.yml` and `charts.yml`), and a test for each and for `install-tool.sh`
+  (`lint_test.sh`, `install-tool_test.sh`, `licences_test.sh`, `lib/allow_test.sh`,
+  `matrix_test.sh`). `infra.yml` also runs task 01's `guards_test.sh`, as `charts.yml` runs
+  `chart-licences_test.sh`.
+- **npm's production graph is read from `desktop/package-lock.json`**: every package not marked
+  `dev` or `devOptional`, with the licence npm recorded. That is exactly what `npm ci` installs,
+  and it needs no `node_modules`.
+- **`WITH` is strict**: `Apache-2.0 WITH LLVM-exception` is not `Apache-2.0` unless that whole text
+  is allowed, as cargo-deny reads it, so the three ecosystems agree.
+- **A ninth chart-licences case**: a `Chart.yaml` with dependencies and no `Chart.lock` fails,
+  because without the lock `helm dependency build` resolves versions nobody recorded.
+- **`publish = false`** in `desktop/src-tauri/Cargo.toml`: how cargo-deny knows the crate is ours
+  (otherwise it is "unlicensed"). **`desktop/src-tauri/rust-toolchain.toml`** pins Rust 1.98.1, so
+  `clippy -D warnings` cannot turn red on an image update; `desktop.yml` runs cargo from
+  `desktop/src-tauri`, where rustup reads it. The Windows job runs `npm run build` before clippy:
+  `tauri::generate_context!` reads `frontendDist` at compile time.
+- **deploy.yml's R8 attribution**: the outputs-only job must be named `outputs` (PLAN); stage
+  `apply` INFRA; `cluster` and `smoke` CLUSTER; any other stage PLAN; outside a stage, none.
+  Templates name no connection. Task 30 amends this row if its layout differs.
+
+What the first local runs found (step 3), recorded in the commit that adds `licences/`:
+Go 66 packages and npm 8 production packages, all allowed; **Cargo 26 crates outside the list**
+(Tauri's graph: 18 `Unicode-3.0`, `unicode-ident` `(MIT OR Apache-2.0) AND Unicode-3.0`, 5
+`MPL-2.0`, `foldhash` `Zlib`, `target-lexicon` `Apache-2.0 WITH LLVM-exception`), an owner
+decision; `gitleaks detect` 8 findings, all test fixtures, allowlisted by path and exact value.

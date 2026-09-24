@@ -1,0 +1,10 @@
+# licences/exceptions.yaml — dependencies the owner has approved outside licences/allow.yaml
+# (OD-11 rule 3). Empty until the owner approves one; the gate is never loosened to pass a run.
+# Every row needs all five fields, or the gate fails:
+#   name       the package, module, crate or chart name
+#   ecosystem  go | npm | cargo | helm
+#   licence    the licence text exactly as the report shows it; a relicensed package fails again
+#              (cargo: each licence id the text names is allowed for that crate)
+#   why        why it is needed and why no allowed alternative will do
+#   approved   the commit that records the owner's approval
+exceptions: []

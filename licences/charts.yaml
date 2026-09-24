@@ -1,0 +1,9 @@
+# licences/charts.yaml — one row per (name, repository, version) in any deploy/charts/*/Chart.lock.
+# licence is an SPDX id and must be in licences/allow.yaml (or named in exceptions.yaml).
+# source is where the licence was read: the chart's LICENSE file or its repository's licence.
+dependencies: []
+#  - name: traefik                      # example shape only; task 13 writes the real rows
+#    repository: https://traefik.github.io/charts
+#    version: "<the pinned version>"
+#    licence: <SPDX id read from source>
+#    source: <URL of the LICENSE file read>
