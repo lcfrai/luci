@@ -217,7 +217,7 @@ export function StartWithoutBrief(props: { pending: PendingStart }): JSX.Element
 | `details.reason` | Extra |
 |---|---|
 | `hub_unavailable` | — |
-| `signed_out` | *Sign in*, pointing at the rail footer (the Hub's task C4) |
+| `signed_out` | *Sign in*, **first** (OQ-11; review M10): the first control and the default focus, ahead of **Retry** and *Start without the brief*. It runs the rail footer's own sign-in action (the Hub's task C4, contract §9.5), imported, never a second copy. If C4 exports no such action when this task starts, *Sign in* moves focus to the rail footer's control, and the commit names the gap. After sign-in, **Retry** re-sends; nothing sends on its own |
 | `write_failed` | the worktree name |
 | `block_broken` | `withoutBrief: false`: *The managed block in CLAUDE.md is damaged. Open the file and remove the marker lines, or start without the brief.* `withoutBrief: true`: *The managed block in CLAUDE.md is damaged, so the old brief cannot be removed. Open the file and remove the marker lines, then retry.* |
 | `tracked_elsewhere` | *This repository tracks both CLAUDE.md files, so the brief cannot be written without changing a tracked file.* (OQ-2) |
@@ -234,7 +234,8 @@ strip too, so the person is told the real cause and the real repair.
 | `a brief_not_written create does not toast` | the 409 sets `pendingStart`; `pushToast` is not called | 4-D1's refusal reduced to a sentence that fades |
 | `retry re-sends the identical request` | the second `createSession` body equals the first, and neither has a `withoutBrief` key (re-review b07-1 R-M2); a retried `restartSession` gets `undefined` options | a retry that drops the person's harness or prompt; a retry that adds `withoutBrief: false` |
 | `start without the brief sends withoutBrief` | the body adds `withoutBrief: true` and nothing else changes | an override that also drops options |
-| `the override is not the default focus` | after render, `document.activeElement` is Retry | a going-on-without made the easy path |
+| `the override is not the default focus` | for every reason but `signed_out`, after render, `document.activeElement` is Retry | a going-on-without made the easy path |
+| `signed out puts Sign in first` (OQ-11; review M10) | a `signed_out` 409 → the refusal's buttons in DOM order are *Sign in*, **Retry**, *Start without the brief*; `document.activeElement` is *Sign in*; clicking it calls the imported C4 sign-in action once (a spy) and sends no session request; a later **Retry** re-sends the identical request | a signed-out person meeting the refusal on every start with sign-in the last thing offered (the wall-of-configuration bar); a sign-in that starts the session on its own |
 | `restart routes the same way` | a 409 from `restartSession` sets `kind: "restart"`; the override calls `restartSession(id, {withoutBrief: true})` | restart silently starting without the brief |
 | **Call site 1** (`useCreateSession.test.ts`): `the new-session hook routes the refusal` | a 409 `brief_not_written` → `pendingStart` is `{kind: "create", origin: "new-session", request}` with `request` equal to the body sent; `pushToast` and `setError` are not called | call site 1 still toasting (review I9) |
 | **Call site 2** (`EmptyDevelop.test.tsx`): `the empty state's start routes the refusal` | `startSessionOnWorktree` answered by the 409 → `pendingStart` is `{kind: "create", origin: "empty-develop", request}` with the body sent; no toast; the refusal renders in `EmptyDevelop` and not at the new-session control | the second `api.createSession` call site left on `sentenceForCreate` (review I9) |

@@ -117,7 +117,9 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     cancelled (the desktop went away) → a plain error, never a refusal
 //     reason. Only this step is budgeted: steps 1-3 and 5-7 are local git
 //     and disk, and an expiry there would be misnamed as the Hub's.
-//     entraauth.ErrSignedOut, or a relayed 401 → signed_out;
+//     entraauth.ErrSignedOut, or a relayed 401 → signed_out (a brief may
+//     exist and cannot be read: 4-D1 refuses; the owner's OQ-11, plan §10,
+//     recommended option, with Sign in first in task 20; review M10);
 //     ErrHubOff, ErrNotBound, ErrNoRemote, or a Hub 404 → nothing to
 //     inherit. Any other error → a plain error.
 //  5. Nothing to inherit: strip every strippable candidate; return "".
