@@ -224,6 +224,14 @@ func reaperConfigFor(cfg Config, store registry.Store, be backend.Backend, log *
 	}
 }
 
+// managerConfigFor is the Kata pod manager's configuration. It is a function
+// rather than a literal inside newBackend for the reason reaperConfigFor is:
+// newBackend's kata arm needs an in-cluster client, so no test reaches it, and
+// a configured PANACEA_APP_RUNTIME_CLASS dropped there would pass every test.
+func managerConfigFor(cfg Config) sandbox.Config {
+	return sandbox.Config{Namespace: cfg.Namespace, RuntimeClass: cfg.RuntimeClass}
+}
+
 func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
 	switch cfg.Backend {
 	case string(backend.KindDocker):
@@ -241,7 +249,7 @@ func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
 			return nil, fmt.Errorf("kata backend: %w", err)
 		}
 		return katabe.New(katabe.Config{
-			Manager:      sandbox.NewManager(client, sandbox.Config{Namespace: cfg.Namespace, RuntimeClass: cfg.RuntimeClass}),
+			Manager:      sandbox.NewManager(client, managerConfigFor(cfg)),
 			ReadyTimeout: cfg.ReadyTimeout,
 		})
 	default:

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"testing"
@@ -209,6 +210,12 @@ func failPodCreate(client *fake.Clientset, err error) {
 
 var podsResource = schema.GroupResource{Resource: "pods"}
 
+// timeoutStatus is a status error with a timeout reason on a code the
+// constructors never pair it with, so the reason alone is what is tested.
+func timeoutStatus(code int32, reason metav1.StatusReason) error {
+	return &apierrors.StatusError{ErrStatus: metav1.Status{Status: metav1.StatusFailure, Code: code, Reason: reason}}
+}
+
 // The API server answered 4xx, so the pod was not stored: the token must not
 // outlive the request.
 func TestCreateDeletesTheSecretWhenThePodIsRefused(t *testing.T) {
@@ -217,6 +224,8 @@ func TestCreateDeletesTheSecretWhenThePodIsRefused(t *testing.T) {
 		apierrors.NewInvalid(schema.GroupKind{Kind: "Pod"}, "sandbox-s-3f2a91c0", nil),
 		apierrors.NewAlreadyExists(podsResource, "sandbox-s-3f2a91c0"),
 		apierrors.NewTooManyRequests("slow down", 1),
+		// The lower edge of the range (predicted survivor P3).
+		apierrors.NewBadRequest("malformed pod"),
 	} {
 		client, m := hardenedManager(sandbox.Config{})
 		failPodCreate(client, refusal)
@@ -241,6 +250,10 @@ func TestCreateKeepsTheSecretWhenThePodCreateIsAmbiguous(t *testing.T) {
 		apierrors.NewServerTimeout(podsResource, "create", 1),
 		apierrors.NewInternalError(errors.New("etcdserver: request timed out")),
 		apierrors.NewServiceUnavailable("etcd leader changed"),
+		// A timeout reason decides even on a 4xx code: apimachinery says of
+		// it "the operation may still complete" (predicted survivor P2).
+		timeoutStatus(http.StatusRequestTimeout, metav1.StatusReasonTimeout),
+		timeoutStatus(http.StatusTooManyRequests, metav1.StatusReasonServerTimeout),
 	} {
 		client, m := hardenedManager(sandbox.Config{})
 		failPodCreate(client, ambiguous)

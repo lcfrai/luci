@@ -424,3 +424,22 @@ func TestRuntimeClassMustBeADNSSubdomain(t *testing.T) {
 		t.Errorf("the exit-2 message does not name the variable: %q", out.String())
 	}
 }
+
+// newBackend's kata arm needs an in-cluster client, so no test reaches it; the
+// wiring it uses is pinned here instead (task 14's predicted survivor P1: a
+// configured runtime class dropped on the way to the pod manager).
+func TestTheKataManagerGetsTheConfiguredRuntimeClass(t *testing.T) {
+	t.Parallel()
+	cfg, err := loadConfig(env(map[string]string{
+		"PANACEA_APP_BACKEND":       "kata",
+		"PANACEA_APP_NAMESPACE":     "panacea-sessions",
+		"PANACEA_APP_RUNTIME_CLASS": "rc-x",
+	}))
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	want := sandbox.Config{Namespace: "panacea-sessions", RuntimeClass: "rc-x"}
+	if got := managerConfigFor(cfg); got != want {
+		t.Fatalf("managerConfigFor = %+v, want %+v", got, want)
+	}
+}
