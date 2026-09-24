@@ -18,8 +18,15 @@ comment at `sessions.go:39-42` and the Go contract's source table). On the host 
 read, and nothing here derives meaning from terminal output.
 
 **The line shape, verified 2026-09-23 on the host's Claude Code 2.1.267** (one read-only pass over
-this machine's own transcripts; **not** on 2.1.274): every line carries `type`, `version`,
-`timestamp`, `uuid`, `sessionId`, `cwd`; an `assistant` line's `message.content[]` holds
+this machine's own transcripts; **not** on 2.1.274), **corrected by review I1** (a read-only
+structural count over the 40 newest transcripts, 76,592 lines, Claude Code 2.1.236, 2.1.260,
+2.1.267 and 2.1.280, no text printed): every line carries `type`, but **only `user`,
+`assistant`, `system` and `attachment` lines carry `version`**. `user` and `assistant` lines
+carry `timestamp`, `uuid`, `sessionId` and `cwd` (the 2.1.267 pass; review I1 counted `version`
+only, so no other key's presence on the version-less types is claimed). 25,111 of those lines (about a third) carry no `version`, of eleven types:
+`last-prompt`, `mode`, `permission-mode`, `atis-latch`, `ai-title`, `queue-operation`,
+`file-history-snapshot`, `file-history-delta`, `cost-state`, `relocated`, `worktree-state`. The
+adapter reads only `user` and `assistant` lines (below). An `assistant` line's `message.content[]` holds
 `tool_use` items with `id`, `name`, `input`; `Edit`'s input has `file_path`, `old_string`,
 `new_string`, `replace_all`, and `Write`'s has `file_path`, `content`; the following `user` line
 carries `toolUseResult` with `filePath` and `structuredPatch[]` of `{oldStart, oldLines, newStart,
@@ -97,9 +104,16 @@ func (a *Adapter) Path(worktreeID, conversationID string) string
 
 // ToolCalls reads every file-writing tool call. It declines with *Unreadable when: the file
 // does not exist ("the transcript is gone — Forget and worktree removal delete it"); it is over
-// MaxBytes; any line's `version` is not PinnedVersion ("written by claude <v>; the adapter
-// reads <PinnedVersion>"); or more than 1% of lines fail to parse ("the transcript's format is
-// not the one the adapter reads"). It opens the file read-only, reads it whole, and closes it
+// MaxBytes; any line that carries a `version` carries one other than PinnedVersion ("written by
+// claude <v>; the adapter reads <PinnedVersion>"); or more than 1% of non-empty lines fail
+// ("the transcript's format is not the one the adapter reads"). Review I1 fixes what counts:
+//   - a line fails when it is not a JSON object with a string `type`, or when it is a `user` or
+//     `assistant` line with no `version` or with a shape the parser cannot read;
+//   - a line of any other `type` that carries no `version` (the eleven types in the shape
+//     paragraph above, and any new one) is skipped: not read, not a failure, still in the
+//     denominator; one that carries a `version` is checked against the pin and otherwise skipped.
+// So the pin is enforced on every line that names a version and required on the two types the
+// adapter reads; a transcript with no user or assistant line yields no calls and no error. It opens the file read-only, reads it whole, and closes it
 // before returning — on Windows an open handle would block Forget's delete (OD-10). Results
 // are cached by (path, size, mtime).
 func (a *Adapter) ToolCalls(ctx context.Context, worktreeID, conversationID string) ([]ToolCall, error)
@@ -150,10 +164,13 @@ file, read-only, through the OD-8 adapter. Writes nothing."*
 |---|---|---|
 | `TestPinnedVersionMatchesTheImage` | reads `images/sandbox/Dockerfile`, finds `@anthropic-ai/claude-code@<v>`, `v == PinnedVersion` | an image bump the adapter never re-validated |
 | `TestWorkDirMatchesSessions` (api package) | `claudecode.WorkDir == sessionWorkDir` | a mount point moved without the adapter |
-| `TestCapturedFixtureParses` | **skipped, with the message "capture testdata/captured-2.1.274.jsonl in the owner's hands-on session (OD-12)", until that file exists**; then: it yields ≥ 1 Edit and ≥ 1 Write with non-empty `Added` | the real 2.1.274 format differing from the 2.1.267 shape |
-| `TestSyntheticFixtureParses` | `testdata/synthetic-2.1.267-shape.jsonl` — lines written by hand to the shape verified on 2.1.267, `version` set to the pin, **its README says so** — yields the Edit, the Write and the MultiEdit with their `Added` | a parser broken on the known shape |
+| `TestCapturedFixtureParses` | reads `testdata/captured-` + `PinnedVersion` + `.jsonl`. When it is absent the test **skips only while** `PinnedVersion == "2.1.274"` **and** the test file's `const od12CaptureWaiver = "2.1.274"` equals it, with the message "capture testdata/captured-2.1.274.jsonl in the owner's hands-on session (OD-12)"; with any other pin it **fails** ("the pin moved to <v> and no captured-<v>.jsonl exists"), so a pin bump forces a new capture (review I1). Present: it yields ≥ 1 Edit and ≥ 1 Write with non-empty `Added`, and no `*Unreadable` | the real format differing from the synthetic shape; a canary that never fails |
+| `TestSyntheticFixtureParses` | `testdata/synthetic-shape.jsonl` — lines written by hand to the shape review I1 counted: `user`, `assistant`, `system` and `attachment` lines with `version` set to the pin, and one line of each of the eleven version-less types carrying no `version`; **its README says so** — yields the Edit, the Write and the MultiEdit with their `Added`, and no `*Unreadable` | a parser broken on the known shape; a fixture written to a shape no transcript has |
+| `TestVersionlessLinesAreIgnored` (review I1) | a fixture that is 40% `file-history-snapshot` lines with no `version`, plus one Edit exchange → `ToolCalls` returns the Edit, and `Linker` gives the hunk tier 2 | the 1% failure rule or the pin check firing on every real transcript |
+| `TestAnAssistantLineWithoutAVersionFails` | the Edit's `assistant` line has its `version` removed and it is the only failing line of 50 → counted: 2% fails → `*Unreadable` format reason | the pin skipped on the very lines the adapter reads |
+| `TestAVersionedOtherLineIsPinned` | an `attachment` line with `version: 2.1.300` → `*Unreadable` naming both versions | checking the pin on `user` and `assistant` lines only |
 | `TestPrefersTheStructuredPatch` | a result line whose structuredPatch adds a line new_string does not show verbatim (context trimmed) → `Added` is the patch's `+` lines | matching on a string the file never held |
-| `TestAnotherVersionDegrades` | one line with `version: 2.1.300` → `*Unreadable` naming both versions | reading a format the adapter was not pinned to |
+| `TestAnotherVersionDegrades` | one `assistant` line with `version: 2.1.300` → `*Unreadable` naming both versions | reading a format the adapter was not pinned to |
 | `TestMissingFileDegrades` | → `*Unreadable` "the transcript is gone …" | a 500 after Forget |
 | `TestGarbageDegrades` | 5% unparseable lines → `*Unreadable` format reason | a partial parse producing wrong links |
 | `TestCallsOutsideTheWorktreeAreDropped` | `file_path: /home/dev/.claude/x` → not in the result | linking a hunk to a config write |
@@ -171,16 +188,20 @@ file, read-only, through the OD-8 adapter. Writes nothing."*
 #### Steps
 
 - [ ] **Step 1: Preflight.** Task 16 merged. `grep -n "claude-code@" images/sandbox/Dockerfile`
-  still reads `2.1.274`; if not, the pin moves with it and the captured-fixture test is
-  re-armed for the new version.
+  still reads `2.1.274`; if not, `PinnedVersion` moves with it and `od12CaptureWaiver` does
+  **not**, so `TestCapturedFixtureParses` fails until `testdata/captured-<new pin>.jsonl` exists
+  (review I1). Only the owner may move the waiver, and only by an OD-12 decision on record.
 - [ ] **Step 2: Try to capture the real fixture.** In `panacea-app/sandbox:dev`, a transcript with
   an Edit needs a signed-in Claude Code, which is the owner's hands-on step (OD-12). If a real
   2.1.274 transcript already exists in a conversation store on this machine, copy **one** Edit
   and one Write exchange into `testdata/captured-2.1.274.jsonl`, with every line of user text
   replaced by `"redacted"` and the file reviewed for secrets before commit. If none exists, do not
   fabricate one: leave the test skipping and put the capture on task 23's owner checklist.
-- [ ] **Step 3:** the synthetic fixture and its `testdata/README.md` ("hand-written to the line
-  shape verified on claude 2.1.267 on 2026-09-23; not captured from 2.1.274").
+- [ ] **Step 3:** the synthetic fixture `testdata/synthetic-shape.jsonl` and its
+  `testdata/README.md` ("hand-written to the line shape counted on claude 2.1.236–2.1.280 on
+  2026-09-23 (review I1): versioned `user`, `assistant`, `system` and `attachment` lines, and one
+  line of each of the eleven version-less types; not captured from 2.1.274"). No line of it is
+  copied from a real transcript.
 - [ ] **Step 4:** tests; `adapter.go`, `match.go`; `Linker`; the span handler; audit line; the new
   reason `transcript_unreadable` in `gitdeps.go`.
 - [ ] **Step 5:** run; commit by pathspec.
@@ -196,7 +217,7 @@ git grep -n "internal/proxy\|attach" -- control-plane/internal/transcript   → 
 #### What this task does not claim
 
 - **Tier 2 is unverified against the pinned CLI** until the captured fixture exists; it is built
-  and tested against the 2.1.267 shape. Because a match needs the file path **and** the added
+  and tested against the shape counted on 2.1.236–2.1.280 (review I1). Because a match needs the file path **and** the added
   lines to agree, a format difference makes tier 2 decline (tier 1 stays), not link wrongly —
   that is inferred from the matching rule, and the captured-fixture test is what proves it.
 - Claude Code only (3-D7 c). Codex, OpenCode and Gemini CLI get tier 1.
