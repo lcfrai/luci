@@ -183,7 +183,7 @@ each, are task 00's; 44a folds those in too.
 | **A14** | the per-IP key is *"the gateway's `X-Forwarded-For` first hop, only when `PANACEA_APP_HUB_TRUST_PROXY=true`"* (§11.3, `hub-contract.md:2091`; §12.2 `:2165`, default `false`) | an ingress **appends** to `X-Forwarded-For`, so the first (left-most) entry is whatever the client sent. A made-up value per request is a fresh bucket, and the per-IP limit — the one that runs **before** token validation to bound the cost of bad tokens — is gone behind phase 8's ingress (review I7) | `PANACEA_APP_HUB_TRUSTED_HOPS`, an integer in [0, 5], default `0` (the header ignored; the peer address is the key — the local-first path, which has no proxy). With N ≥ 1, every `X-Forwarded-For` line is joined in order and the key is the N-th entry from the **right**; fewer than N entries, or one that is not an IP, and the peer address is the key. Phase 8's single ingress sets `1`. A set `TRUST_PROXY` is refused by name, so an old deployment fails loudly. One variable, not `TRUST_PROXY` plus a hop count, so the two cannot disagree. **Sibling ask for phase 8** (plan re-review b05 N2): its chart still sets the retired name — `PANACEA_APP_HUB_TRUST_PROXY=true` (`worktrees/env` `…/phase-8-own-environment-parts/task-29.md:134`), asserted by its test `hub / env is the contract's deployed column` (`:259`, *"`TRUST_PROXY=true`"*). Both become `PANACEA_APP_HUB_TRUSTED_HOPS=1`. Kept, the Hub refuses to start; deleted without the replacement, the key is the ingress pod's address and every client shares one pre-auth bucket | 08, 13 |
 | **A15** | *"`email` is the token's `email` claim if present, else `preferred_username`, lowercased. It is used for one thing: binding invites"* (§5.1, `hub-contract.md:317-318`); binding matches it (§7.2 `:655-657`); the Hub API's optional claims are `email` only (§6.5 `:542`) | both claims are mutable and, for a B2B guest, not verified by the tenant; Microsoft says not to authorise by either. An invite is a grant, and team membership is the only authorisation inside an org (T4). Binding stays in the org, which rules out the cross-tenant case but not a guest or a renamed account in the same tenant, nor the multi-tenant tier (S-BYO) (review I12) | binding reads a separate `BindEmail`: the `email` claim alone, lowercased, and only when the token shows `acct` = the JSON number `0` (a member) or `xms_edov` = the JSON boolean `true` (email domain owner verified); otherwise `""` and nothing binds. Never `preferred_username`, never the stored `users.email`; §5.1's `email` stays, as display text only. §6.5's optional claims (access token) become `email`, `acct`, `xms_edov`. `devissuer` emits both claims (members `acct: 0`), so every matrix column still binds locally. The Hub reads the two claims in `auth.go` (`bindingClaims`) from the token `Validate` has just accepted, because `entra.Claims` (phase 8's package) carries neither — the seam. **Sibling ask for phase 8:** add `Member bool` (`acct == 0`) and `EmailVerified bool` (`xms_edov == true`) to `entra.Claims`, both failing closed; `bindingClaims` then reads them. **Second sibling ask for phase 8** (plan re-review b05 N1): `acct` and `xms_edov` are optional claims, which Entra emits only once the registration configures them, and phase 8's Terraform configures `email` alone (`worktrees/env` `…/phase-8-own-environment-parts/task-09.md:44`, `:136-137`). Its Hub registration's `optional_claims.access_token` gains `acct` and `xms_edov` beside `email`, and its test `email_is_an_optional_claim_on_the_hub` (`:170`) asserts all three. Without them every deployed token fails closed, and no invite ever binds with no error — the silent-override class. **ADR-H1, amended in two places by task 44a** (owner question Q12): §9 item 3, IT's registration spec (`ADR-H1-hub-architecture.md:725`, *"Optional claim **`email`**"*), names all three claims; §5.3's invite row (`:406`, *"a matching `preferred_username` or `email`"*) names `bindEmail`. The contract says the ADR wins where the two disagree (`hub-contract.md:4-5`), so leaving `:406` unedited would make the fallback I12 removes the governing text | 11, 13, 16, 43, 44a |
 | **A16** | every link is a single-column foreign key: `team_id … REFERENCES teams (id)` (§10.2, `hub-contract.md:1501`, `:1513`, `:1532`, and every other link); the digest target is `brief_revisions (brief_id, revision, digest)` (§10.7 `:2044`); tenancy is *"row-level security"* (§10.7 `:2049`) | row-level security checks only a row's **own** `org_id` (§10.3 `:1907-1909`), and Postgres checks a foreign key without row-level security. So a `hub_app` insert whose `org_id` is the caller's org but whose `team_id`, `brief_id` or `pin_brief_id` names another org's row succeeds. The contract's tenancy line holds for reads, not for links, and the `X` column's *"Go check disabled"* (§11.1 T3) is undefined, so it could hide the hole (review I5) | every parent table gains `UNIQUE (org_id, id)` (`project_blobs (org_id, project_id, digest)`, `design_approvals (org_id, project_id, design_key)`, `brief_revisions (org_id, brief_id, revision)` and `(org_id, brief_id, revision, digest)` for the composite targets), and every foreign key except the one to `orgs` carries `org_id`: `FOREIGN KEY (org_id, team_id) REFERENCES teams (org_id, id)`, and the same for users, projects, briefs, revisions, blobs, approvals and releases. The database then refuses a cross-org link (`23503`) with every Go check off. Two task 07 tests pin it: the catalog says every key pairs `org_id` with `org_id`, and one `INSERT` per key naming the other org's parent is refused. `disableGoAuthz` is defined: authorisation predicates answer "allowed"; lookups still run under row-level security | 07, 16, 17 |
-| **A17** | `erase_brief` removes the revisions' content and archives the head; *"approvals, releases, evidence and session links are **not** changed"* (§7.12 `:1113`, §10.4 `:1969`) | each route-26 response is stored whole in `idempotency_keys.response` for 24 hours (§10.6 `:2030`, task 24), and `WriteRevisionsResponse` carries every revision's `content`. So the text survives erasure for a day, and a backup taken that day keeps it for the backup's whole life (review I6) | `erase_brief` also deletes every stored idempotency response in the org that names the brief (a byte match on the brief id, which is ASCII that JSON never escapes). **Not the review's match on route 26's path**: that also deletes the replays of every other brief in the project, turning their retries into `409 revision_conflict`, and it writes a route string into SQL that a rename would silently break. A retry of an erased brief's write runs again and meets the archived head. Task 27's `TestErasureKeepsKeyAndDigest` scans every `text`, `jsonb` and `bytea` column for a marker from the erased content, before and after | 07, 27 |
+| **A17** | `erase_brief` removes the revisions' content and archives the head; *"approvals, releases, evidence and session links are **not** changed"* (§7.12 `:1113`, §10.4 `:1969`) | each route-26 response is stored whole in `idempotency_keys.response` for 24 hours (§10.6 `:2030`, task 24), and `WriteRevisionsResponse` carries every revision's `content`. So the text survives erasure for a day, and a backup taken that day keeps it for the backup's whole life (review I6) | Route 26 **stores no text**: `idempotency_keys.response` keeps its reply with every `content` null, and a replay rebuilds each `content` and `erasedAt` from `brief_revisions` (task 14's `WriteReplayable`, task 19's `rebuildRevisions`). A replay is the first answer byte for byte until an erasure; after one, the erased revision replays with `content: null`, as `/v1/refs` answers, and `erase_brief` deletes nothing from `idempotency_keys`. This is the review's second option. **Not a purge**, by path or by brief id: the brief id is in far more stored replies than route 26's (every `briefKey`, and so approvals, evidence, releases, heads, and the erase's own reply), and a batch names several briefs. A purge deleted all those text-free replays, so a retry became a second write (a second, permanent evidence row) or a refusal of a success (`409 brief_archived` for a co-batched brief whose revision was written), and it was an unindexed byte scan under the org's lock (re-review b06 N1, m2). Tasks 07, 19 and 27 pin that the replays survive; task 27's `TestErasureKeepsKeyAndDigest` scans every `text`, `jsonb` and `bytea` column for a marker from the erased content, before and after | 03, 07, 14, 19, 24, 27 |
 
 **Additions, not corrections** — shapes the contract did not name, which this plan adds and task
 44a folds in first. None is a Hub route. The sibling asks' answers (task 00) are listed there, not
@@ -341,9 +341,14 @@ parallel worktrees (see §"Order and parallel lanes").
 ## Tasks
 
 Each task has its part file, `docs/superpowers/plans/2026-09-23-phase-h-hub-parts/task-NN.md`, and
-each is sized for one implementer in **1–3 hours**, except task 38 at 3.5 (its pending-read guards,
-re-review b02 N1, are about 30 minutes and belong with the `await` that creates the need) and task
-07 at 4 (review I5's cross-org key tests belong in the commit that writes the keys they prove). Hours assume the implementer has read ADR-H1,
+each is sized for one implementer in **1–3 hours**, except five: task 31 at 4.5 (A12's
+scope-aware refusals, review I2, A13's lifetime-aware skew, review I9, the `DevOps` source, review
+I10, and re-review b04 m4's remembered refusal all change the `TokenSource` itself, so they belong
+with it); task 07 at 4 (review I5's cross-org key tests belong in the commit that
+writes the keys they prove); task 38 at 3.5 (its pending-read guards, re-review b02 N1, are about
+30 minutes and belong with the `await` that creates the need); and tasks 14 and 19 at 3.5 each
+(the replay that stores no brief text, re-review b06 N1: `WriteReplayable` belongs with the write
+shape it extends, and the stored form and its rebuild with the route that writes the text). Hours assume the implementer has read ADR-H1,
 the contract, and the part; they are the plan's estimate, not a measurement. Contract task ids
 (H0–H7, C1–C4) are given so the two documents can be read side by side.
 
@@ -381,12 +386,12 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 11 | `devissuer`, part 1: the package, config, discovery, JWKS, token minting; `cmd/devissuer` | H1 | — | 2.5 | ✓ |
 | 12 | `devissuer`, part 2: `/authorize`, `/token` (code + PKCE S256, rotating refresh) | H1 | 11 | 3 | ✓ |
 | 13 | the Hub's auth pipeline: Origin, rate limits, validation, principal, org enrolment (A7) | H1/H2 | 07, 08, 10 | 3 | ✓ |
-| 14 | the write transaction: audit lock, hash chain, idempotency (contract §10.6) | H2/H7 | 02, 13 | 3 | ✓ |
+| 14 | the write transaction: audit lock, hash chain, idempotency (contract §10.6) | H2/H7 | 02, 13 | 3.5 | ✓ |
 | 15 | `/v1/me`, teams, members | H2 | 03, 14 | 3 | ✓ |
 | 16 | invites and binding; the authorisation matrix harness | H2 | 15 | 3 | ✓ |
 | 17 | projects and remotes (A1) | H3 | 16 | 2.5 | ✓ |
 | 18 | brief heads: create, list, for-branch, get, rebind, archive | H3 | 17 | 3 | ✓ |
-| 19 | the batch revision write and history | H3 | 18 | 3 | ✓ |
+| 19 | the batch revision write and history; the replay that stores no brief text (A17) | H3 | 18 | 3.5 | ✓ |
 | 20 | `/v1/refs`, brief half; `hub verify` re-checks revisions — **S4 (server side)** | H3 | 19 | 2.5 | ✓ |
 | 21 | blobs, behind `blobstore` (G2) | H4 | 17 | 3 | ✓ |
 | 22 | design approvals, session links, `/v1/refs` design half — **S5 (server side)** | H4 | 20, 21 | 3 | ✓ |
@@ -413,16 +418,17 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 43 | end-to-end proof through `devissuer`; the real-tenant checklist; the results record | all | 01–42 | 3 | |
 | 44b | last: what the build changed, folded into the contract; the seams handed over | — | 43 | 1 | |
 
-Totals: server 01–27 ≈ 74.5 h (73.5 before review I5's cross-org key tests added 1 h to task
-07); client and desktop 28–42 ≈ 44 h (39.5 before review I3 and
+Totals: server 01–27 ≈ 75.5 h (73.5 before review I5's cross-org key tests added 1 h to task
+07, and re-review b06 N1's replay that stores no brief text added 0.5 h each to tasks 14 and 19);
+client and desktop 28–42 ≈ 44 h (39.5 before review I3 and
 re-review N1 added 1 h to task 37 and 1.5 h to task 38, review I2, I9 and I10 added 1 h to
 task 31 and 0.5 h to task 29, and re-review b04 m4's remembered refusal added 0.5 h to task 31);
-proof and documents (00, 43, 44a, 44b) 6 h; **≈ 124.5
+proof and documents (00, 43, 44a, 44b) 6 h; **≈ 125.5
 engineer-hours**, against ADR-H1's 16 engineer-days (≈ 128 h). The
 difference is the ADR's day including review; this table is implementation time. Task 00's
 answers add rows to tasks 03–05, 07, 14, 18, 19, 23, 24, 33, 34, 36 and 40 inside their existing
 hours; that is the plan's estimate, not a measurement. The minimum (S7 reached) is tasks 44a, 00,
-01–24, 28–35, 37–39 ≈ 103.5 h: about **six and a half working days for two engineers** — one on the server
+01–24, 28–35, 37–39 ≈ 104.5 h: about **six and a half working days for two engineers** — one on the server
 lane, one on identity then the client lane.
 
 ### Order and parallel lanes
@@ -522,9 +528,9 @@ from this plan (Q11 from a sibling ask, task 00; Q12 from review I12):
   `current_user` test (task 27). Also (A16, A17): that Postgres checks a foreign key without
   row-level security (the premise of review I5; task 07's `TestACrossOrgReferenceIsRefused` meets
   it both ways, since a same-org row must insert and a cross-org one must fail `23503`); and that
-  `position(bytea IN bytea)` exists as `erase_brief` uses it (task 07's
-  `TestEraseBriefPurgesTheStoredResponsesThatNameIt` runs it).
-- **Physical erasure** (A17): `erase_brief`'s `UPDATE` and `DELETE` leave dead tuples, which hold
+  `position(bytea IN bytea)` exists as task 27's `markerHits` uses it (its hit on
+  `brief_revisions.canonical` before the erasure proves it runs).
+- **Physical erasure** (A17): `erase_brief`'s `UPDATE` leaves dead tuples, which hold
   the text on disk until `VACUUM` reclaims them, and a backup taken **before** the erasure keeps it
   for the backup's life. Both were true of `brief_revisions.canonical` before this plan; neither is
   closed here. G6's promise is that no live row and no replay answer holds the text.

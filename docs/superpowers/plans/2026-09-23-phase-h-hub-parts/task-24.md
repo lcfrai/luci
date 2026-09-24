@@ -90,8 +90,9 @@ type JanitorConfig struct {
 //      {"size","contentType"} (audit only);
 //   3. blobs of the org with no project_blobs row left → deleted;
 //   4. idempotency_keys older than Retention → deleted (no event: not a record change
-//      anyone reads). Erasure does not wait for this sweep: hub.erase_brief deletes the
-//      stored responses that name the erased brief at once (A17, task 07).
+//      anyone reads). Erasure owes this sweep nothing: no stored response holds brief
+//      text, since route 26 stores its reply with every content null and rebuilds the
+//      content on replay (A17, tasks 14 and 19).
 // The lock is released and the connection returned on every path.
 func RunJanitor(ctx context.Context, st *store.Store, blobs blobstore.Store, cfg JanitorConfig)
 

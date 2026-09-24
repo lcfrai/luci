@@ -54,8 +54,9 @@ rebuild. It decodes the stored form, and for each item, in order, reads the `bri
 `(briefId, revision)` under row-level security (`store.RevisionAt`) and sets `content` and
 `erasedAt` from `renderRevision(row, the stored savedBy)`. Every other field is the stored one. So a replay before erasure is
 the first answer byte for byte. After erasure, an erased revision replays with `content: null` and
-its `erasedAt`, which is what `/v1/refs` answers for it. A co-batched brief that was not erased
-replays whole. A row that is not found, or a stored form that does not decode, is 500 `internal`,
+its `erasedAt`, which is what `/v1/refs` answers for it; `hubclient` takes it, since its re-check
+skips a revision whose content is null (task 34's `VerifyRevision`). A co-batched brief that was
+not erased replays whole. A row that is not found, or a stored form that does not decode, is 500 `internal`,
 never the stored bytes: revisions are never deleted, so that is corruption.
 
 Why rebuilt and not purged: `hub.erase_brief` then deletes no stored response (task 07). A purge

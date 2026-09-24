@@ -321,8 +321,9 @@ type WriteRevisionsRequest struct {
 	Revisions []RevisionWrite `json:"revisions"` // 1–MaxRevisionBatch, distinct briefIds
 }
 
-// WriteRevisionsResponse carries every revision's Content, and task 14 stores it
-// for replay; hub.erase_brief deletes that stored copy (A17, task 07).
+// WriteRevisionsResponse carries every revision's Content. The copy stored for
+// replay has every Content null, and a replay rebuilds it from brief_revisions
+// (A17, tasks 14 and 19), so no stored response holds brief text.
 type WriteRevisionsResponse struct {
 	Revisions []BriefRevision `json:"revisions"` // in request order
 }
