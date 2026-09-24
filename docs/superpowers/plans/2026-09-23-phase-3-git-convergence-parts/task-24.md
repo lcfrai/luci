@@ -17,15 +17,40 @@ part is the sandbox side. The host side (the client, host-side `bundle verify` a
 
 R4.3 names this as the seam phase 8's `machined` reuses (P8-D7: "the machine agent serves the
 catalog and the git runner inside the machine pod"). Phase 3 builds the Docker half. P8-D7 is
-R4's citation; no document in this tree carries it (grep, 2026-09-24).
+not in this tree; it is in the env stream's worktree (`.claude/worktrees/env/docs/superpowers/
+plans/2026-09-23-phase-8-own-environment.md:136`, checked 2026-09-25), and it says something else:
+`machined` "reuses … phase 3's local git runner unchanged, on Linux paths, with phase 3's §HGH
+hardening". After R4 that describes nothing phase 3 builds: `gitx.Exec` refuses lane
+directories (`ErrLaneDir`), `Scope Clone` is gone, and `sandboxd/internal/gitrunner` cannot be
+imported by `control-plane/cmd/machined` (Go's internal rule, and separate modules). **The
+contract phase 8 must serve instead** is recorded as cross-stream dependency S3-P8.1 (plan):
+- the `/git/v1/` wire of this part, with bearer auth, the five ops, the error envelope and the
+  four limits;
+- `testdata/gitrunner/*.json` as the shared goldens, which are **the only shared artifact**:
+  the op code lives in `sandboxd/internal/gitrunner` and is not importable from
+  `control-plane`, so `machined` either vendors `sandboxd` as a module or writes its own
+  server against the goldens; phase 8 chooses;
+- bundle crossing (R4.4): lane work reaches the host only as a bundle the host verifies;
+- on the host, the Kata half is a `Lanes.For` that answers a `Runner` pointed at `machined`,
+  not a `gitx.Machine`, which lane git no longer goes through.
 
-**Order.** Deps: 02 (the pinned git, `gitx.MaxSentence` and `Sentence`, which the runner's error
-copies), 04 (the lane clone the runner serves, mounted at `sessionWorkDir`). Users: 07 (`status`,
-`refs` for the lane head), 09 (`bundle` out for landing, `fetch` in for refresh) and 10 through
-09, 11 (`refs` for Elsewhere), 16 (`diff`). Plan order: after 06, before 07.
+**Order.** Deps: 02 (the pinned git, `gitx.MaxSentence` and `Sentence`, of which the runner's
+error rule is a variant), 04 (the lane clone the runner serves, mounted at `sessionWorkDir`).
+Users:
+- 07 (`status`, `refs` for the lane head);
+- 08 (`LaneGit.For`, the runner Observe reads through, `task-08.md:171`, `:185`);
+- 09 (`bundle` out for landing, `fetch` in for refresh), and 10 through 09's refresh;
+- 11 (`refs` for Elsewhere, and `Lanes.Drop` before removal);
+- 12, through `AfterFetch`, which is 09's refresh;
+- 14 (its tests, through the `Lanes.Dial` seam);
+- 16 (`diff`).
+
+Plan order: after 04, first in lane (b), before 07 (plan "Order"). It does not depend on lane
+(a)'s 05 or 06.
 
 **Trust note.** Every runner answer is the agent's claim about its own lane. The agent runs as the
-same uid as `sandboxd` (`dev`, uid 1001, `images/sandbox/Dockerfile:19` and `:24`; the entrypoint
+same uid as `sandboxd` (`dev`, uid 1001: `images/sandbox/Dockerfile`'s `useradd -m -u 1001` and
+`USER dev` lines, cited by content because task 05 inserts above `USER dev`; the entrypoint
 `exec`s `sandboxd`, `images/sandbox/entrypoint.sh:13`), so it can read `sandboxd`'s token from
 the process environment (`PANACEA_APP_ATTACH_TOKEN`, `sandboxd/cmd/sandboxd/main.go:44`). That is
 true since phase 2 and this task does not change it. It follows that:
@@ -47,6 +72,8 @@ true since phase 2 and this task does not change it. It follows that:
   `s.mux.HandleFunc("/git/v1/", s.git)` beside `/attach` at `server.go:85`; `s.git` checks
   `s.authorised(r)` (`server.go:105-116`) first and answers 401 without it, exactly as
   `s.attach` does at `server.go:166-171`
+- `sandboxd/internal/server/server_test.go` (p2) — test 6's cases (auth on `/git/v1/`, and the
+  route absent without `GitWorktree`), appended; no existing case changes
 - `sandboxd/cmd/sandboxd/main.go` (p2) — flag `-git-worktree`, default `/home/dev/work`, beside
   the flags at `main.go:40-48`; `serve_posix.go:11-18` and `serve_other.go:13` (p2) pass it
   through `newServer` into `server.Config`
@@ -65,11 +92,32 @@ control plane's `sessionWorkDir` (`control-plane/internal/api/sessions.go:33` in
 Another method is 405; another op is 404 `unknown_op`. Every op takes JSON in, except `fetch`,
 whose body is a bundle. Every op answers JSON, except `bundle` (a bundle) and `diff` (bytes).
 **The request never names a directory.** The runner has one, `Config.GitWorktree`, and every git
-call it makes is `git -C <GitWorktree> --literal-pathspecs …`, with `GIT_OPTIONAL_LOCKS=0` in the
-environment on the reads (`status`, `refs`, `bundle`, `diff`) and `--no-auto-maintenance` on
-`fetch`. That the lane's own config, hooks and filters run here is by construction: they run as
-the agent, in the agent's sandbox, which the agent could already do. None of it reaches the host.
-The git is the image's (`images/sandbox/Dockerfile:10-12`, Debian bookworm's package); every
+call it makes is `G …` (defined under "The ops"), with `GIT_OPTIONAL_LOCKS=0` in the environment
+on the reads (`status`, `refs`, `bundle`, `diff`) and `--no-auto-maintenance` on `fetch`.
+- **`-c safe.directory=<GitWorktree>`** is what lets git open the lane at all. The lane is a bind
+  mount of a host-created directory, whose owner is not `dev`, and git refuses it: `fatal:
+  detected dubious ownership in repository at '/home/dev/work'`, exit 128, measured with this
+  image and mount; `-c safe.directory=/home/dev/work` gave exit 0
+  (`scope-and-risk-phase-3-git-convergence.md:373-375`). A session sandbox also carries it in
+  `GIT_CONFIG_*` (`control-plane/internal/api/sessions.go:118-143`), but a runner-only sandbox
+  (U2's pool) carries no session env. So the runner sets it itself, on the command line, which
+  git counts as protected configuration. Both sandbox kinds then behave the same.
+- **`-c core.hooksPath=/dev/null` and `-c core.fsmonitor=false`**, unconditionally. `/dev/null`
+  is not a directory, so no hook path under it can exist, and `dev` cannot create one in `/dev`;
+  no image change is needed. The runner's own writes are remote-tracking refs and deletes of
+  them, and no hook is owed on them. Without these, a lane-local `core.hooksPath` would run
+  `reference-transaction` on the runner's `fetch` and `update-ref -d`, and a lane
+  `core.fsmonitor` would run on `status`, on every sweep and refresh. In a session sandbox that
+  is only what the agent can already do. In a **runner-only** sandbox it is not: the control
+  plane starts that one after the session has ended, with no session record, and nothing in the
+  cockpit shows it, so planted code would keep running after "stop". That breaks "stopped means
+  stopped", though never the host, which trusts only a bundle it verified itself (U2).
+- **Residual, recorded:** lane-defined clean and smudge filter drivers (`filter.<name>.clean`
+  named by a lane `.gitattributes`) still run on `status` in a runner-only sandbox. `diff` sets
+  `--no-ext-diff --no-textconv`; `status` has no equivalent flag. Non-claims, U2.
+
+None of the lane's config reaches the host. The git is the image's
+(`images/sandbox/Dockerfile`, the `apt-get install … git` line, Debian bookworm's package); every
 flag above predates its release series (checked against the git docs, not run in the image).
 
 ```go
@@ -125,7 +173,9 @@ type ErrorResponse struct {
 }
 ```
 
-**The ops.** `G` below is `git -C <GitWorktree> --literal-pathspecs`.
+**The ops.** `G` below is `git -c safe.directory=<GitWorktree> -c core.hooksPath=/dev/null -c
+core.fsmonitor=false -C <GitWorktree> --literal-pathspecs` (the reasons are under "The
+endpoint").
 
 1. **`status`** (task 07's observer). `G status --porcelain=v2 -z --untracked-files=all`, whose
    stdout is `PorcelainV2Z` byte for byte; the runner does not parse it (task 07 does, on the
@@ -200,10 +250,15 @@ const (
   past `MaxJSONBytes` either one is 413 `too_large`. So is a request body past its cap.
 
 **Errors.** A git exit the op does not expect is 422 `git_failed` with `gitSays`: the last stderr
-line that starts `fatal:`; else task 02's `Sentence` rule (the last `error:` or `remote:` line,
-else the last non-empty line, else `git exited <code>`, `task-02.md:178-181`); capped at 2048
-bytes on a UTF-8 boundary (`gitx.MaxSentence`, `task-02.md:163`). The rule is copied, not
-imported, for the same reason as the limits, and a golden fixture pins it for both modules.
+line that starts `fatal:`; else the last `error:` or `remote:` line, else the last non-empty
+line, else `git exited <code>`; capped at 2048 bytes on a UTF-8 boundary (`gitx.MaxSentence`,
+`task-02.md:194-195`). This is a **variant** of task 02's `Sentence` (`task-02.md:210-213`),
+not a copy: `Sentence` takes the last line with any of the three prefixes, so on `fatal: a`
+then `error: b` it answers `error: b` where the runner answers `fatal: a`. The runner prefers
+`fatal:` because git's `fatal:` is the cause and a later `error:` is usually cleanup. It is
+written in `sandboxd`, not imported, for the same reason as the limits, and the
+`error.git_failed.json` golden pins the variant, in the runner's tests only (test 7); the host
+passes `gitSays` through as received, capped, and never recomputes it.
 
 **Wiring (p2 files).** `server.Config` gains `GitWorktree string`. `New` mounts
 `s.mux.HandleFunc("/git/v1/", s.git)` beside `/attach` (`server.go:85`) only when `GitWorktree`
@@ -246,7 +301,8 @@ test is red before its code exists.
    and the recorder holds no call.
 2. **The request never names a directory.** A body with `dir`, `cwd`, `gitDir` or `worktree` is
    400 (unknown field). Across a run of all five ops, every recorded argv after `git` begins
-   `-C <GitWorktree> --literal-pathspecs`, except `check-ref-format`, which has no `-C` at all.
+   `-c safe.directory=<GitWorktree> -c core.hooksPath=/dev/null -c core.fsmonitor=false -C
+   <GitWorktree> --literal-pathspecs`, except `check-ref-format`, which has no `-C` at all.
 3. **`fetch` refuses a bad bundle.** A truncated bundle and random bytes are each 422
    `git_failed`; the lane's refs are byte-identical before and after, and the temp directory is
    gone. A destination `refs/heads/main`, `refs/panacea/lanes/x` or `refs/remotes/origin` (no
@@ -263,6 +319,10 @@ test is red before its code exists.
    `limits.json` equals the four constants; `error.git_failed.json`'s `gitSays` is the last
    `fatal:` line of a stderr that also holds `error:` lines, and a 3000-byte `fatal:` line is
    cut to 2048 bytes on a rune boundary.
+8. **`TestRunnerRunsNoLaneHook`.** The lane's `.git/config` sets `core.hooksPath=.hooks` and
+   `core.fsmonitor=<marker script>`; `.hooks/reference-transaction` writes a second marker. A
+   `status`, a `fetch` of a valid bundle and a `fetch` with one `X-Panacea-Delete` leave both
+   markers absent, and the refs moved. Red with either `-c` dropped from `G`.
 
 #### The host side: `control-plane/internal/lanegit` (edit unit U2)
 
@@ -284,6 +344,9 @@ two bundle moves. Host git in this half runs only in the **project** or under
 - `control-plane/internal/reaper/reaper.go` (p2) — `Config` (`reaper.go:120`) gains `Held`; see
   the pool
 - `control-plane/cmd/api/main.go` (p2) — one `// ── task 24 ──` block; see Wiring
+- `control-plane/internal/api/gitdeps.go` (task 04's) — outside task 24's own block: one case in
+  `gitFailed` for a `*lanegit.RunnerError` (see "How a caller answers"), and `bundle_refused`
+  in the closed reason list (see "Reason codes")
 - `control-plane/cmd/api/lanegit_spy_test.go` — `TestHostNeverRunsGitInALane` (new)
 
 Stdlib and packages already in `control-plane/go.mod` only. No new dependency on either side.
@@ -322,7 +385,7 @@ var ErrBundleEmpty = errors.New("lanegit: the lane has nothing the basis lacks")
 ```
 
 **How a caller answers a `RunnerError`.** `git_failed` 500, `details.gitSays` = `GitSays`, through
-task 04's `gitFailed` (`task-04.md:143-146`), which gains that one case. So decision 8 still has
+task 04's `gitFailed` (`task-04.md:125-128`), which gains that one case. So decision 8 still has
 two codes. `ErrBundleEmpty` is not an error to the user: task 09 reads it as nothing to land.
 
 ```go
@@ -338,7 +401,21 @@ type Lanes struct {
 	ReadyTimeout time.Duration  // cfg.ReadyTimeout, for backend.WaitReady (dial.go:75)
 	Idle         time.Duration  // 60 s; a field so tests can shorten it
 	Log          *slog.Logger
+	// Dial builds the Runner for a sandbox. nil means NewRunner. It is THE test seam: tasks 11,
+	// 14 and 16's tests and TestHostNeverRunsGitInALane set it to lanegittest.Fake.Dial, and
+	// pair it with lanegittest.Backend (below), so For runs its real lookup, pool and release
+	// logic with no HTTP and no Docker.
+	Dial func(endpoint, token string) Runner
 }
+
+// Drop destroys the lane's runner-only sandbox, if the pool holds one, waiting for any caller
+// still holding it to release, and refuses For for laneID from then on (ErrLaneDropped). Task
+// 11's Remove calls it before RemoveTree, so no bind mount is live on a directory being
+// deleted, and no sweep can start a sandbox on a path that is going away. A live session's
+// sandbox is not the pool's, and Drop leaves it alone: Remove stops sessions first.
+func (p *Lanes) Drop(ctx context.Context, laneID string) error
+
+var ErrLaneDropped = errors.New("lanegit: the lane is being removed")
 
 // ErrNoRunner: no live session is on the lane and this backend cannot start a runner-only
 // sandbox (katabe refuses Mounts, backend.go:129-131). Phase 8's machined is that half (P8-D7).
@@ -381,6 +458,13 @@ func (h *HeldSet) Has(sandboxID string) bool
    it answers true; `reaperConfigFor` (`main.go:215`) takes it as a fifth argument, and a nil
    `Held` holds nothing, so phase 2's reaper tests are unchanged. After a restart nothing holds
    the old ones, and rule 4 reaps them, which is the crash path it already is.
+5. **Drop.** `Drop(laneID)` marks the id dropped under the pool's mutex (a later `For` is
+   `ErrLaneDropped`, before any lookup), waits for the entry's holders to release, then
+   destroys the runner-only sandbox, if any, without the `Idle` wait. A `Destroy` failure is
+   returned, and task 11 stops before `RemoveTree`. The mark lives as long as the pool; lane ids
+   are never reused (task 03), so it never needs clearing. This also closes a window: Docker's
+   `Binds` creates a missing host path as an empty directory (from memory, not run), so a sweep
+   that reached step 2 after `RemoveTree` would leave an orphan directory under `CloneRoot`.
 
 ```go
 // bundle.go — lane work in, product commits out. Both run host git in the PROJECT only, through
@@ -462,6 +546,14 @@ test clone, the same argv as the runner's ops above. It never goes through `gitx
 spy below sees only production calls. `Fake.BundleOverride []byte`, when set, is what `Bundle`
 writes, so a test can hand `FetchLane` a truncated or hostile bundle.
 
+**The seam behind `Lanes.For`.** `lanegittest.Fakes` maps a lane path to its `*Fake`; its
+`Dial(endpoint, token string) lanegit.Runner` is what a test puts in `Lanes.Dial`.
+`lanegittest.Backend` is a `backend.Backend` whose `Create` answers `Sandbox{Endpoint:
+"fake:" + <the Spec's one mount's HostPath>}` and whose `Get`, `Destroy` and `List` keep a map,
+so `Fakes.Dial` finds the lane's `Fake` from the endpoint. Tasks 11, 14 and 16's tests and the
+spy test below build `Lanes{Dial: fakes.Dial, Backend: lanegittest.Backend{}, …}`: the pool's
+real `For`, reuse, release and `Drop`, with no HTTP and no Docker.
+
 **Fixtures.** `lanegit`'s wire test reads `testdata/gitrunner` at `../../../testdata/gitrunner`,
 round-trips every fixture through its own types with `DisallowUnknownFields`, and compares
 `limits.json` with its four constants: the runner's test 7, from the host side
@@ -479,7 +571,7 @@ round-trips every fixture through its own types with `DisallowUnknownFields`, an
 | `TestRunnerRefusesARefspecOutsideItsNamespace` | test 3's second half: a `dst` of `refs/heads/main`, `refs/panacea/lanes/x`, `refs/remotes/origin`, or two `:` → 400, no exec | a `fetch` that trusts the host's refspec |
 | `TestRunnerCapsOutputAndTimesOut` | test 5 | a cap that truncates to a 200 |
 | `TestRunnerFetchStartsNoMaintenance` | the recorded `fetch` argv holds `--no-auto-maintenance`; with `GIT_TRACE` on the runner's git, no `maintenance` or `gc` child starts | a `fetch` that auto-gcs the agent's lane mid-op |
-| `TestSandboxRunnerStatusIsPorcelainV2Z` | Docker, behind a `docker` build tag (no test in either module starts Docker today, grep 2026-09-24; this is the first), run by hand with `go test -tags docker ./sandboxd/internal/gitrunner/`: in the built image (`images/sandbox/Dockerfile:10-12`, bookworm's git), `status` on a lane with one change of each kind answers `1 `, `2 `, `u `, `? ` records, NUL-terminated, and `# branch.oid` headers absent | a runner, or a bookworm git, that answers another shape |
+| `TestSandboxRunnerStatusIsPorcelainV2Z` | Docker, behind a `docker` build tag (no test in either module starts Docker today, grep 2026-09-24; this is the first), run by hand with `go test -tags docker ./sandboxd/internal/gitrunner/`: in the built image (`images/sandbox/Dockerfile`, its `apt-get install … git` line, bookworm's git), started as a **runner-only** sandbox is (no session env, `sleep infinity`, `docker exec` of `sandboxd`), with the lane a host-created `t.TempDir()` bind-mounted by `-v <tempdir>:/home/dev/work`, so its owner is not `dev`: `status` on a lane with one change of each kind answers `1 `, `2 `, `u `, `? ` records, NUL-terminated, and `# branch.oid` headers absent | a `G` without `-c safe.directory` (git's `dubious ownership`, exit 128, is 422 `git_failed`); a runner, or a bookworm git, that answers another shape |
 
 **The host's** (`lanegit`, real git through `gitxtest` for the project, `lanegittest.Fake` as the
 runner):
@@ -487,9 +579,11 @@ runner):
 | Test | Asserts | Red against |
 |---|---|---|
 | `TestBundleFetchRefusesABadBundle` | each of: a truncated file; an extra ref beyond the ones asked for; a ref outside `refs/heads/`; a missing prerequisite; one byte over `MaxBundleBytes` (lowered by an unexported option); a corrupt blob caught by fsck → `*BundleRefused`. Every case: `for-each-ref` of the project byte-identical before and after, and `<OwnedRoot>/bundles` empty | a `FetchLane` that fetches without `verify` and `list-heads` |
-| `TestBundleRoundTrip` | a lane commit on `refs/heads/b` → `FetchLane` → `refs/panacea/lanes/<id>/b` in the project at the lane's sha; `SendBranch` of a project commit → `Fake.Fetch` → the lane's `refs/remotes/origin/main` at that sha; with nothing new, `ErrBundleEmpty` both ways | a round trip that loses a ref or a prerequisite |
+| `TestBundleRoundTrip` | a lane commit on `refs/heads/b` → `FetchLane` → task 07's `LaneRef(<id>)`, `refs/panacea/lanes/<id>` (`task-07.md:36`; not `…/<id>/b`, which git cannot hold beside it), in the project at the lane's sha; `SendBranch` of a project commit → `Fake.Fetch` → the lane's `refs/remotes/origin/main` at that sha; with nothing new, `ErrBundleEmpty` both ways | a round trip that loses a ref or a prerequisite |
 | `TestPoolStartsOneRunnerForASessionlessLane` | a fake `Backend`: two concurrent `For` on a lane with no session → one `Create`, with `Command "sleep"`, `Args ["infinity"]`, one mount of `lane.Path` at `/home/dev/work`, a 64-hex token; `Held.Has` true; after both releases and `Idle`, one `Destroy` and `Has` false; a lane `ByID` lacks → error, no `Create` | a pool that starts a sandbox per call, or never destroys it |
 | `TestPoolUsesTheLiveSession` | a registry `Session` on the lane with `SandboxID`, `Endpoint`, `AttachToken` → no `Create`; the runner's requests carry that token to that endpoint | a pool that ignores the running session |
+| `TestPoolDropDestroysAndRefuses` | a runner-only sandbox held by one caller: `Drop` blocks until that release, then one `Destroy` with no `Idle` wait and `Held.Has` false; a later `For` on the id → `ErrLaneDropped` and no `Create`; `Drop` on a lane with a live session → no `Destroy` of the session's sandbox | a `Drop` that waits for `Idle`, or a `For` that restarts a dropped lane |
+| `TestPoolDialSeam` | `Lanes{Dial: fake.Dial, Backend: lanegittest.Backend{}}` → `For` on a sessionless lane answers the Fake, and the Fake saw the pool's endpoint and token; `Dial` nil → the Runner is `NewRunner`'s | a `For` that builds `NewRunner` whatever `Dial` holds |
 | `TestWireMatchesTheGoldens` | the fixtures paragraph above | a field renamed on the host side only |
 
 "A corrupt blob caught by fsck" is built as a commit whose author has no email (fsck's
@@ -503,7 +597,7 @@ it would not show that fsck is on.
 
 | Test | Asserts | Red against |
 |---|---|---|
-| `TestHostNeverRunsGitInALane` | the spy records the argv, `Dir` and env of every process `gitx.Exec` starts through create, sweep, observe, land, refresh, undo, remove and diff. For each, none of: `Dir`; the value after `-C`, `--git-dir`, `--work-tree` (either spelling, `=` or next arg); `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`; nor any other argv element, is a path under `CloneRoot` (`cfg.WorktreesDir`, cleaned, compared with `filepath.Rel`, case-folded on Windows). The one exception: `lanes.Create`'s `Call.NewLane` calls (U3) before its `Store.Add` | task 07's pre-R4 step 1, host `rev-parse --verify --quiet refs/heads/<branch>` in the clone (`task-07.md:117`), planted as a flow; and a `fetch <lane path>` from the project, which runs upload-pack in the lane |
+| `TestHostNeverRunsGitInALane` | the spy records the argv, `Dir` and env of every process `gitx.Exec` starts through create, sweep, observe, land, refresh, undo, remove and diff. For each, none of: `Dir`; the value after `-C`, `--git-dir`, `--work-tree` (either spelling, `=` or next arg); `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`; nor any other argv element, is a path under `CloneRoot` (`cfg.WorktreesDir`, cleaned, compared with `filepath.Rel`, case-folded on Windows). The exceptions are R4.5's creation window, before this `Create`'s `Store.Add`, and nothing else: (a) the calls whose `Call.NewLane` is the `Path` this `Create` drew (Scope None, U3); (b) exactly one Scope Project call, `Dir` the project, `NewLane` "", whose `Args[0]` is `clone` and whose last argument is that same `Path` (task 03 step 4). Exec admits (b) as it stands, since it parses no positional (`task-02.md:142`); task 02's `TestExecRunsTheCreateCloneInTheProject` pins that. A second `clone`, or one after `Store.Add`, fails the row | task 07's pre-R4 step 1, host `rev-parse --verify --quiet refs/heads/<branch>` in the clone (`task-07.md:117`), planted as a flow; and a `fetch <lane path>` from the project, which runs upload-pack in the lane |
 
 The argv rule is wider than the four flags because a local `fetch <path>` reads the lane's `.git`
 through upload-pack, which R4.4 retires. Task 24 lands the harness, the `create` row and the two
@@ -520,14 +614,16 @@ Real host git, no `gitx`. Each records git's exact words in a comment, as task 0
 3. `fetch --no-auto-maintenance --no-write-fetch-head <file> <refspec>` with `GIT_TRACE=1`: the
    trace names no `upload-pack` and no `maintenance` or `gc`.
 4. The same fetch with `transfer.fsckObjects=true` from `Call.Env`'s `GIT_CONFIG_*` refuses the
-   `missingEmail` bundle, and without it takes it. Not run here. If it fails at `MinVersion`
-   (2.40, `task-02.md:192`), task 02's `MinVersion` rises to the first release it passes on;
+   `missingEmail` bundle, and without it takes it. Not run here. Bundle fsck arrived in git
+   2.48.0 (`RelNotes/2.48.0.adoc`, read, not run), so task 02's `MinVersion` is 2.48.0
+   (`task-02.md:222-227`) and `TestCheckVersion` refuses anything older; CI's git must meet it.
+   If the pin fails at 2.48.0, `MinVersion` rises to the first release it passes on;
    `FetchLane` does not work around it.
 
 #### Steps
 
 - [ ] **Step 1: Preflight.** Tasks 02 and 04 merged: `gitx.Exec`, `gitxtest` with U3's `Spy`,
-  `lanes.Store`, `api.GitDeps`, task 04's `main.go` block. `git --version` ≥ 2.40.
+  `lanes.Store`, `api.GitDeps`, task 04's `main.go` block. `git --version` ≥ 2.48.0.
 - [ ] **Step 2: Pins.** Write `behaviour_test.go`; run; paste git's sentences into its comments.
 - [ ] **Step 3: sandboxd, red.** The runner's tests; each fails for its named reason.
 - [ ] **Step 4: sandboxd, green.** `limits.go`, `wire.go`, `ops.go`, `runner.go`; `server.go`'s
@@ -543,8 +639,17 @@ Real host git, no `gitx`. Each records git's exact words in a comment, as task 0
 #### What this task does not claim
 
 - **The Kata runner.** On katabe a sessionless lane is `ErrNoRunner`. Phase 8's `machined`
-  serves the runner in the machine pod (P8-D7).
+  serves the runner in the machine pod, against the contract above (S3-P8.1), not P8-D7's
+  "phase 3's local git runner unchanged, with §HGH", which phase 3 no longer builds.
 - **That a runner's answer is true.** `status`, `refs` and `diff` are the agent's claim about
-  its own lane (the trust note). Only a bundle the host verified moves a host ref.
+  its own lane (the trust note). A host lane ref moves in exactly two ways: to a tip a bundle
+  the host verified brought in, or (task 07's `ErrBundleEmpty` branch) back to a commit the
+  project already holds and that is an ancestor of one of the project's own basis shas,
+  checked in the project with `cat-file -e` and `merge-base --is-ancestor`. The second moves a
+  host ref only to an object the host already reached from its own refs, so R4.4's "only a
+  verified bundle brings objects in" is not weakened (review r4-1 I-1).
+- **That a stopped agent runs nothing.** `G`'s `core.hooksPath=/dev/null` and
+  `core.fsmonitor=false` stop hooks and fsmonitor in a runner-only sandbox. Lane-defined clean
+  filter drivers still run on `status` there (review r4-1 I-5, residual).
 - **That the runner protects the host.** Its validation protects the lane and the runner.
 - **That the Docker pin runs in CI.** It runs by hand, behind its build tag.
