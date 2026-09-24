@@ -56,3 +56,69 @@ Stdlib only (`net/http`, `os/exec`, `encoding/json`, `context`, `sync`). No new 
 re-vendoring. The entrypoint passes no `-git-worktree`, and needs none: the default is the
 control plane's `sessionWorkDir` (`control-plane/internal/api/sessions.go:33` in this tree;
 `:35` at `feat/phase-2-cockpit`, which is not an ancestor of this branch; the value is the same).
+
+#### Interfaces — complete
+
+**The endpoint.** `POST /git/v1/<op>`, `<op>` one of `status`, `refs`, `bundle`, `fetch`, `diff`.
+Another method is 405; another op is 404 `unknown_op`. Every op takes JSON in, except `fetch`,
+whose body is a bundle. Every op answers JSON, except `bundle` (a bundle) and `diff` (bytes).
+**The request never names a directory.** The runner has one, `Config.GitWorktree`, and every git
+call it makes is `git -C <GitWorktree> --literal-pathspecs …`, with `GIT_OPTIONAL_LOCKS=0` in the
+environment on the reads (`status`, `refs`, `bundle`, `diff`) and `--no-auto-maintenance` on
+`fetch`. That the lane's own config, hooks and filters run here is by construction: they run as
+the agent, in the agent's sandbox, which the agent could already do. None of it reaches the host.
+The git is the image's (`images/sandbox/Dockerfile:10-12`, Debian bookworm's package); every
+flag above predates its release series (checked against the git docs, not run in the image).
+
+```go
+// wire.go — the JSON shapes. Requests are decoded with DisallowUnknownFields; a body past
+// MaxJSONBytes, an unknown field or trailing data is 400 bad_request.
+
+// Head is where the lane's HEAD points. Ref is "" when HEAD is detached; Sha is "" when
+// the branch is unborn.
+type Head struct {
+	Ref string `json:"ref"`
+	Sha string `json:"sha"`
+}
+
+type StatusRequest struct{}
+type StatusResponse struct {
+	PorcelainV2Z []byte `json:"porcelainV2Z"` // raw git bytes; base64 in JSON, as encoding/json does []byte
+	Head         Head   `json:"head"`
+}
+
+type RefsRequest struct {
+	Names      []string `json:"names"`      // for-each-ref patterns; each passes check-ref-format
+	MergedInto string   `json:"mergedInto"` // a refname; "" leaves every Merged false
+}
+type Ref struct {
+	Name   string `json:"name"`
+	Sha    string `json:"sha"`
+	Merged bool   `json:"merged"` // reachable from MergedInto
+}
+type RefsResponse struct {
+	Refs []Ref `json:"refs"`
+	Head Head  `json:"head"`
+}
+
+type BundleRequest struct {
+	Refs  []string `json:"refs"`  // full refnames to carry; each passes check-ref-format
+	Basis []string `json:"basis"` // shas the host already has; 40 or 64 hex
+}
+
+// FetchResponse is read back after the fetch and the deletes. A deleted ref is absent.
+type FetchResponse struct {
+	Refs map[string]string `json:"refs"` // destination refname → sha
+}
+
+type DiffRequest struct {
+	Path string `json:"path"` // relative to the lane root; see Validation
+}
+
+// ErrorResponse is every non-2xx answer except 401, whose body is phase 2's plain text.
+type ErrorResponse struct {
+	Code    string `json:"code"`              // bad_request, path_outside_lane, unknown_op,
+	                                           // bundle_empty, too_large, git_failed, git_timeout
+	GitSays string `json:"gitSays,omitempty"` // git_failed only; see Errors
+}
+```
