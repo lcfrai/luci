@@ -91,8 +91,9 @@ control plane chooses, not by the renderer's tick.
 3. `hubclient.Releases.Reserve` → **the Hub fixes the pin**. Failure → Ship does not happen.
 4. `Deployer.Ship` → Panacea `POST /api/v1/projects/{name}/deploy {branch, commit}` (plus
    `noCache` only when set; never a scan override) → `202` with `pipelineRun`.
-5. `hubclient.Releases.Confirm {pipelineRun}` — or, on Panacea's refusal, `Abandon {reason,
-   message}` carrying Panacea's sentence verbatim.
+5. `hubclient.Releases.Confirm {pipelineRun}` — or, on **any** Panacea failure, `Abandon {reason,
+   message}`: Panacea's sentence verbatim for a refusal, a fixed sentence for every other error
+   (task 09 step 6, which has no branch that leaves a reservation to expire; plan re-review b05 R-2).
 6. The watcher, the first time a `Deployment` with `ID == pipelineRun` appears, writes the
    deployment join (`JoinDeployment`). **`Deployment.ID` is the PipelineRun name**
    (`clients/kubernetes.go:5743`, `ID: pr.GetName()`, inside `ListDeployments` at `:5596`), so

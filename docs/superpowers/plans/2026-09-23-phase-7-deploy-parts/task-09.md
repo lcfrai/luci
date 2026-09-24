@@ -105,7 +105,7 @@ type Result struct {
 type Precondition struct {
 	Reason  string            // see the table below
 	Message string            // the sentence the lens shows
-	Details map[string]string // "ahead", "behind" when relevant; "cause" = "key_spelling" on no_hub_project (HA7-6)
+	Details map[string]string // "ahead", "behind" when relevant; "cause" = "key_spelling" (HA7-6) or "hub_unanswered" on no_hub_project
 }
 
 func (p *Precondition) Error() string
@@ -166,8 +166,9 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    | Check | `Precondition.Reason` | Message |
    |---|---|---|
    | binding not `Bound` | `not_bound` | the binding's own `Message` (task 06) |
-   | `HubProjectID == ""`, `HubMiss != "key_spelling"` | `no_hub_project` | *"This repository is not a shared project in the Hub yet, so the release could not be recorded. Ship stays off until it is."* |
-   | `HubProjectID == ""`, `HubMiss == "key_spelling"` (task 06; HA7-6) | `no_hub_project`, `details.cause "key_spelling"` | *"The Hub cannot match this Azure DevOps repository yet: the cockpit names it `<RepoKey>`, and the Hub accepts only names like `<org>.visualstudio.com/<project>/<repo>`. Ship stays off until the two agree."* — the cause, never *"not a shared project"* for a repository that may be one (review I6) |
+   | `HubProjectID == ""`, `HubMiss == "not_linked"` | `no_hub_project` | *"This repository is not a shared project in the Hub yet, so the release could not be recorded. Ship stays off until it is."* — only when the Hub has answered no (plan re-review b05 R-4) |
+   | `HubProjectID == ""`, `HubMiss == "key_spelling"` (task 06; HA7-6) | `no_hub_project`, `details.cause "key_spelling"` | *"The Hub cannot hold this repository yet: the cockpit names it `<RepoKey>`, which is not a form the Hub accepts. Ship stays off until the two agree."* — the cause, never *"not a shared project"* for a repository that may be one, and no host named, because `missCause` is not host-specific (review I6; plan re-review b05 R-3) |
+   | `HubProjectID == ""`, `HubMiss == ""` (no Hub configured, or the Hub has never answered for this key) | `no_hub_project`, `details.cause "hub_unanswered"` | *"The Hub has not answered for this repository, so the cockpit cannot tell whether it is a shared project. Ship stays off until it does."* — never *"not a shared project"* about a repository the Hub has not been asked about. The lens line names which of the two it is, from the view's `releasesState` (`no_hub` or `unavailable`, task 14) (plan re-review b05 R-4) |
    | `Branch.ReadError != ""` | `branch_unreadable` | phase 3's sentence |
    | `Upstream == ""` | `never_pushed` | *"This branch has never been pushed, so Panacea has nothing to build."* |
    | `Ahead > 0` | `unpushed` | *"N commits are not pushed, so they would not ship. Push first."* (`details.ahead`) |
@@ -223,6 +224,14 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
      `POST …/deploy` spends up to 15 s creating the PipelineRun (`projects.go:2985-2993`), and a
      run created after our timeout would show unpinned — honestly, because confirming it by
      branch and commit would be pinning by observation (P2).
+   - **Any other error** — every `*deploy.Error` the three branches above do not name (task 02's
+     table gives `KindUnavailable` with `0 < Status < 500` for a 429 and for its *"any other"*
+     row, such as a proxy's 405, 408 or 410), and any error that is not a `*deploy.Error` at all →
+     `Abandon(…, message: "Panacea could not start the build.")`; return the error. The branches are
+     exhaustive: no error from `Actor.Ship` leaves a reservation to expire in 15 minutes with no
+     reason (plan re-review b05 R-2). Panacea's API does not answer 429 on this route
+     (`routes.go:1286` is not wrapped by `middleware.Heavy`, whose 429 is `heavy.go:38`; Panacea
+     at 8292f3f26); whether an edge in front of it can is unverified.
    - An `Abandon` that fails is logged; the reservation then expires on its own (Hub contract
      §7.9, `expiresAt`).
 7. **Confirm** — `Releases.Confirm(release, {pipelineRun: run})`. `hubclient` retries a transport
@@ -248,6 +257,7 @@ POST /v1/projects/{projectId}/deploy/ship
   409 deploy_precondition         details.reason ∈ not_bound | no_hub_project | branch_unreadable |
                                   never_pushed | unpushed | behind | stale_commit | bad_commit;
                                   no_hub_project may carry details.cause "key_spelling" (HA7-6)
+                                  or "hub_unanswered" (the Hub has not answered for the key)
   409 deploy_environment_invalid  Panacea's name for the branch's environment breaks the Hub's §7.9 rule (step 4)
   409 deploy_environment_unreadable  Panacea did not name the branch's environment (EnvironmentFor 404/422; step 4); nothing reserved
   409 deploy_not_connected · deploy_token_rejected
@@ -272,7 +282,8 @@ is retried with the same key.
 | `TestRefusalAbandonsWithSentence` | Panacea `409` *"…"* → `Abandon` with `reason "deploy_failed"` and exactly that message; the route answers `409 deploy_conflict` | a refused Ship leaving a reservation that expires silently |
 | `TestBudgetRefusalAbandonsWithSentence` | the fake's `Ship` answers `KindConflict`, `Status 402`, *"new deploys are paused: this project has reached its monthly hosting budget; …"* (task 04's `ship-402-budget.json`) → `Abandon` once, `reason "deploy_failed"`, exactly that message; no `Confirm`, no `Track`; the route answers `409 deploy_conflict` with the sentence, and `details.upstream` is absent | a 402 treated as an outage: `503 upstream_unavailable`, the lens switching acts off, and a reservation left to expire after 15 minutes (review I2) |
 | `TestTimeoutAbandonsAmbiguously` | Panacea times out → `Abandon` message is the ambiguous sentence; no confirm | confirming a run the control plane never saw named |
-| `TestADOKeySpellingNamesTheCause` | a binding `Bound` with `HubProjectID ""`, `HubMiss "key_spelling"`, `RepoKey "azure-devops/kpmgcomau/engagement portal/portal"` → `GET …/ship-readiness` answers `ready: false`, `reason "no_hub_project"`, the key-spelling sentence with that `RepoKey`; `POST …/ship` answers `409 deploy_precondition`, `details.reason "no_hub_project"`, `details.cause "key_spelling"`; neither the Hub nor Panacea called. `HubMiss "not_linked"` → the *"not a shared project"* sentence and no `cause` (review I6) | every Azure DevOps repository told it is *"not a shared project in the Hub yet"* when the real cause is the spelling split, so nobody knows to fix it |
+| `TestOtherErrorAbandons` | the fake's `Ship` answers `KindUnavailable`, `Status 429` (and, as a second case, a plain `errors.New`) → `Abandon` once, `reason "deploy_failed"`, message *"Panacea could not start the build."*; no `Confirm`, no `Track`; the error is returned (plan re-review b05 R-2) | a step 6 with no catch-all, so a 429 or a proxy's 405 leaves the reservation to expire after 15 minutes with no reason — I2's second half by another status |
+| `TestADOKeySpellingNamesTheCause` | a binding `Bound` with `HubProjectID ""`, `HubMiss "key_spelling"`, `RepoKey "kpmgcomau.visualstudio.com/engagement portal/portal"` (a form the Hub refuses under its correction A1) → `GET …/ship-readiness` answers `ready: false`, `reason "no_hub_project"`, the key-spelling sentence with that `RepoKey`, and the sentence contains neither `Azure DevOps` nor `GitHub`; `POST …/ship` answers `409 deploy_precondition`, `details.reason "no_hub_project"`, `details.cause "key_spelling"`; neither the Hub nor Panacea called. `HubMiss "not_linked"` → the *"not a shared project"* sentence and no `cause`. `HubMiss ""` → the *"has not answered"* sentence and `details.cause "hub_unanswered"` (review I6; plan re-review b05 R-3, R-4) | a repository told it is *"not a shared project in the Hub yet"* when the real cause is the spelling split, so nobody knows to fix it; a readiness keyed on `HubMiss != "key_spelling"`, which says *"not a shared project"* about a key the Hub never answered for; a sentence that names Azure DevOps for a GitHub key |
 | `TestNeverPushedPrecondition` | `Upstream ""` → `409 deploy_precondition` `never_pushed`; neither Hub nor Panacea called | reserving a release for a commit Panacea cannot clone |
 | `TestUnpushedPrecondition` | `Ahead 2` → `unpushed`, `details.ahead "2"` | shipping the upstream while the user thinks they shipped their work |
 | `TestStaleCommitPrecondition` | `Commit` ≠ `Tip` → `stale_commit` | shipping a commit other than the one the screen showed |
