@@ -118,8 +118,8 @@ func (d Digest) String() string { return "sha256:" + hex.EncodeToString(d[:]) }
 func (d Digest) Hex() string { return hex.EncodeToString(d[:]) }
 
 // IsZero reports Digest{}: what encoding/json leaves in a Digest field that was
-// absent or null. No input hashes to it (SHA-256 of nothing is e3b0c442…), so
-// in a request it means "not sent"; RequireDigests refuses it.
+// absent or null. No known input hashes to it (SHA-256 of nothing is
+// e3b0c442…), so in a request it means "not sent"; RequireDigests refuses it.
 func (d Digest) IsZero() bool { return d == Digest{} }
 
 var digestRe = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)

@@ -77,11 +77,17 @@ func contractObject(t *testing.T, section, label string) string {
 	if at < 0 {
 		t.Fatalf("§%s has no example labelled %q", section, label)
 	}
-	body := text[at:]
-	start := strings.IndexByte(body, '{')
+	return firstObject(t, section, text[at:])
+}
+
+// firstObject returns the first balanced {…} in text, braces inside strings
+// ignored.
+func firstObject(t *testing.T, section, text string) string {
+	t.Helper()
+	start := strings.IndexByte(text, '{')
 	depth, inString := 0, false
-	for i := start; i < len(body); i++ {
-		switch body[i] {
+	for i := max(start, 0); start >= 0 && i < len(text); i++ {
+		switch text[i] {
 		case '"':
 			inString = !inString
 		case '{':
@@ -91,12 +97,12 @@ func contractObject(t *testing.T, section, label string) string {
 		case '}':
 			if !inString {
 				if depth--; depth == 0 {
-					return body[start : i+1]
+					return text[start : i+1]
 				}
 			}
 		}
 	}
-	t.Fatalf("§%s's %q example never closes", section, label)
+	t.Fatalf("§%s: no complete {…} object in %.80q", section, text)
 	return ""
 }
 
@@ -209,8 +215,11 @@ func jsonFields(t reflect.Type) []jsonField {
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		tag, tagged := f.Tag.Lookup("json")
-		if f.Anonymous && !tagged && f.Type.Kind() == reflect.Struct {
-			out = append(out, jsonFields(f.Type)...)
+		if ft := f.Type; f.Anonymous && !tagged && (ft.Kind() == reflect.Struct || ft.Kind() == reflect.Pointer && ft.Elem().Kind() == reflect.Struct) {
+			if ft.Kind() == reflect.Pointer {
+				ft = ft.Elem()
+			}
+			out = append(out, jsonFields(ft)...)
 			continue
 		}
 		if !f.IsExported() || tag == "-" {
@@ -386,8 +395,11 @@ func TestRequestsRejectUnknownFields(t *testing.T) {
 	for _, v := range requestTypes {
 		typ := reflect.TypeOf(v)
 		// No request body carries an actor, approver or recorder: the principal is
-		// the only one (§5.3), so a field that could name another is refused.
-		for _, smuggled := range []string{"actor", "actorUserId", "createdBy", "approvedBy", "recordedBy", "reservedBy", "savedBy", "addedBy"} {
+		// the only one (plan global rule 2, ADR-H1 §5.3; per route, contract §7.7 "There is
+		// no approver field", §7.10 "recordedBy is the principal"), so a field that
+		// could name another is refused. TestEveryBodyHasTheContractsKeys is the
+		// exact net; this is the second one.
+		for _, smuggled := range []string{"actor", "actorUserId", "createdBy", "approvedBy", "recordedBy", "reservedBy", "savedBy", "addedBy", "approver", "recorder", "reserver"} {
 			rec, ok := decodeInto(reflect.New(typ).Interface(), `{"`+smuggled+`":"u-0123456789abcdef"}`)
 			if ok || rec.Code != http.StatusBadRequest || problemOf(t, rec).Error != CodeBadRequest {
 				t.Errorf("%s with %q: ok=%v %d %s, want 400 bad_request", typ.Name(), smuggled, ok, rec.Code, rec.Body)
@@ -397,8 +409,9 @@ func TestRequestsRejectUnknownFields(t *testing.T) {
 		allKeys(typ, "", &keys)
 		for _, k := range keys {
 			last := k[strings.LastIndex(k, ".")+1:]
-			if strings.HasPrefix(last, "actor") || strings.HasSuffix(last, "By") || last == "userId" {
-				t.Errorf("%s carries %q; no request body names a principal (§5.3)", typ.Name(), k)
+			if strings.HasPrefix(last, "actor") || strings.HasSuffix(last, "By") || last == "userId" ||
+				strings.HasSuffix(strings.ToLower(last), "approver") || strings.HasSuffix(strings.ToLower(last), "recorder") || strings.HasSuffix(strings.ToLower(last), "reserver") {
+				t.Errorf("%s carries %q; no request body names a principal (plan global rule 2)", typ.Name(), k)
 			}
 		}
 	}
@@ -542,8 +555,15 @@ func digestPaths(t reflect.Type, prefix string, out *[]string) {
 			*out = append(*out, prefix+f.name+"[]")
 		case ft.Kind() == reflect.Struct:
 			digestPaths(ft, prefix+f.name+".", out)
+		case ft.Kind() == reflect.Pointer && ft.Elem().Kind() == reflect.Struct:
+			// A present optional object's digests are required too (review M5).
+			digestPaths(ft.Elem(), prefix+f.name+".", out)
 		case ft.Kind() == reflect.Slice && ft.Elem().Kind() == reflect.Struct:
 			digestPaths(ft.Elem(), prefix+f.name+"[].", out)
+		case ft.Kind() == reflect.Map && (ft.Elem() == digest || ft.Elem().Kind() == reflect.Struct):
+			// RequireDigests does not walk a map (no request type has one), so a
+			// digest in one would go unchecked: this path can have no row.
+			*out = append(*out, prefix+f.name+"{} (a map RequireDigests does not walk)")
 		}
 	}
 }
@@ -552,11 +572,17 @@ func digestPaths(t reflect.Type, prefix string, out *[]string) {
 // sha256:000…0 and would be stored for good (evidence is append-only, §7.10).
 // The decoder cannot see it; RequireDigests does, and names the field.
 func TestARequiredDigestAbsentOrNullIsNamed(t *testing.T) {
-	var last Digest
-	last[31] = 1
-	if !(Digest{}).IsZero() || DigestOf(nil).IsZero() || last.IsZero() {
-		t.Fatalf("IsZero: Digest{} %v, DigestOf(nil) %v, last byte set %v; want true, false, false",
-			(Digest{}).IsZero(), DigestOf(nil).IsZero(), last.IsZero())
+	if !(Digest{}).IsZero() || DigestOf(nil).IsZero() {
+		t.Fatalf("IsZero: Digest{} %v, DigestOf(nil) %v; want true, false", (Digest{}).IsZero(), DigestOf(nil).IsZero())
+	}
+	// Any one byte set is a digest, not an absence: an IsZero that reads a few
+	// bytes would refuse 1 real digest in 2^16 as missing (review M1).
+	for i := range len(Digest{}) {
+		var one Digest
+		one[i] = 1
+		if one.IsZero() {
+			t.Errorf("IsZero() of a digest with only byte %d set = true, want false", i)
+		}
 	}
 	del := func(k string) func(map[string]any) { return func(m map[string]any) { delete(m, k) } }
 	null := func(k string) func(map[string]any) { return func(m map[string]any) { m[k] = nil } }
@@ -624,6 +650,52 @@ func TestARequiredDigestAbsentOrNullIsNamed(t *testing.T) {
 	if err := RequireDigests(skipped{Sent: DigestOf(nil)}); err != nil {
 		t.Errorf("RequireDigests with a json:\"-\" digest = %v, want nil: the wire never carries it", err)
 	}
+	// It reaches what encoding/json reaches, by the name encoding/json uses
+	// (review M5): a present optional object's digests are required, and an
+	// embedded struct's fields are the parent's.
+	type optionalSnapshot struct {
+		Snapshot *SnapshotRequest `json:"snapshot"`
+		Blobs    []*Digest        `json:"blobs"`
+	}
+	full := DigestOf([]byte("abc"))
+	for _, r := range []struct {
+		req   any
+		field string
+	}{
+		{&optionalSnapshot{}, ""},
+		{&optionalSnapshot{Blobs: []*Digest{nil, {}}}, ""}, // a *Digest is optional, even zero
+		{&optionalSnapshot{Snapshot: &SnapshotRequest{Blobs: []Digest{full}}}, "snapshot.manifest"},
+		{&optionalSnapshot{Snapshot: &SnapshotRequest{Manifest: full, Blobs: []Digest{full, {}}}}, "snapshot.blobs[1]"},
+		{&struct{ EvidenceRequest }{}, "criterionDigest"},
+		{&struct {
+			*SnapshotRequest
+			Other Digest `json:"other"`
+		}{SnapshotRequest: &SnapshotRequest{Manifest: full}, Other: full}, ""},
+		{&struct{ *SnapshotRequest }{&SnapshotRequest{Blobs: []Digest{full}}}, "manifest"},
+		{&struct {
+			Items []struct {
+				S []SnapshotRequest `json:"s"`
+			} `json:"items"`
+		}{Items: []struct {
+			S []SnapshotRequest `json:"s"`
+		}{{}, {S: []SnapshotRequest{{Manifest: full, Blobs: []Digest{full}}, {Manifest: full}}}}}, ""},
+		{&struct {
+			Items []struct {
+				S []SnapshotRequest `json:"s"`
+			} `json:"items"`
+		}{Items: []struct {
+			S []SnapshotRequest `json:"s"`
+		}{{}, {S: []SnapshotRequest{{Manifest: full}, {Blobs: []Digest{full}}}}}}, "items[1].s[1].manifest"},
+	} {
+		err := RequireDigests(r.req)
+		var fe *FieldError
+		switch {
+		case r.field == "" && err != nil:
+			t.Errorf("RequireDigests(%T) = %v, want nil", r.req, err)
+		case r.field != "" && (!errors.As(err, &fe) || fe.Field != r.field || !errors.Is(err, ErrRequired)):
+			t.Errorf("RequireDigests(%T) = %v, want ErrRequired at %q", r.req, err, r.field)
+		}
+	}
 	// Every required digest of every request type has a row above.
 	for _, v := range requestTypes {
 		var paths []string
@@ -632,6 +704,34 @@ func TestARequiredDigestAbsentOrNullIsNamed(t *testing.T) {
 			if name := reflect.TypeOf(v).Name() + "." + p; !covered[name] {
 				t.Errorf("%s is a required digest with no absent-field row", name)
 			}
+		}
+	}
+}
+
+// RequireDigests runs on every decoded body (task 14's Decode), and route 26
+// decodes holding the org's write lock (task 19). A batch of 64 maximum-size
+// revisions holds no Digest, so the walk must cost nothing however large the
+// content: walking content byte by byte cost 8,381,696 allocations and 1.75 s
+// per call (task 03 review I1). Nor may a clean body pay for paths it never
+// reports.
+func TestRequireDigestsCostsNothingOnACleanBody(t *testing.T) {
+	content := json.RawMessage(`{"status":"open","pad":"` + strings.Repeat("x", 64<<10-32) + `"}`)
+	batch := WriteRevisionsRequest{Revisions: make([]RevisionWrite, MaxRevisionBatch)}
+	for i := range batch.Revisions {
+		batch.Revisions[i] = RevisionWrite{BriefID: "bf-3f2a91c07b1e4d2a", BaseRevision: i, Content: content}
+	}
+	blobs := make([]Digest, 500)
+	for i := range blobs {
+		blobs[i] = DigestOf([]byte{byte(i), byte(i >> 8)})
+	}
+	approval := ApprovalRequest{ReviewDigest: blobs[0], BriefDigest: blobs[1], Snapshot: SnapshotRequest{Manifest: blobs[0], Blobs: blobs}}
+	for _, r := range []struct {
+		name string
+		req  any
+	}{{"a batch of 64 × 64 KiB revisions", &batch}, {"an approval of 500 blobs", &approval}} {
+		var err error
+		if n := testing.AllocsPerRun(1, func() { err = RequireDigests(r.req) }); n > 0 || err != nil {
+			t.Errorf("RequireDigests(%s) = %v with %.0f allocations, want nil with none", r.name, err, n)
 		}
 	}
 }
@@ -677,5 +777,179 @@ func TestAMalformedDigestIsBadRequestNamingItsField(t *testing.T) {
 	var te *json.UnmarshalTypeError
 	if !errors.As(err, &te) || te.Field != "snapshot.manifest" {
 		t.Errorf("json.Unmarshal of a malformed manifest = %#v, want an UnmarshalTypeError at snapshot.manifest", err)
+	}
+}
+
+// ── every body, request and response, against the contract text (review I2) ──
+
+// fencedObject returns the first {…} of the n-th ```<fence> block of a contract
+// section, fence "json" or "jsonc", counted from 0.
+func fencedObject(t *testing.T, section, fence string, n int) string {
+	t.Helper()
+	parts := strings.Split(contractSection(t, section), "```"+fence+"\n")[1:]
+	if n >= len(parts) {
+		t.Fatalf("§%s has %d ```%s blocks, want at least %d", section, len(parts), fence, n+1)
+	}
+	return firstObject(t, section, parts[n][:strings.Index(parts[n], "```")])
+}
+
+// inlineObject returns the first {…} after each anchor in turn: a body §7
+// writes inline, as in **`POST /v1/teams`** `{"name":"Engagement Portal"}`.
+func inlineObject(t *testing.T, section string, anchors ...string) string {
+	t.Helper()
+	text := contractSection(t, section)
+	for _, a := range anchors {
+		i := strings.Index(text, a)
+		if i < 0 {
+			t.Fatalf("§%s has no %q", section, a)
+		}
+		text = text[i+len(a):]
+	}
+	return firstObject(t, section, text)
+}
+
+// namedObjects are the objects §7 writes by name inside a body ("user": User,
+// "teams": [Team]). Each has its own example (contractExamples), so a body's
+// key set stops at them, as the contract's text does.
+var namedObjects = map[reflect.Type]bool{
+	reflect.TypeFor[User](): true, reflect.TypeFor[Org](): true, reflect.TypeFor[Team](): true,
+	reflect.TypeFor[Member](): true, reflect.TypeFor[BriefHead](): true, reflect.TypeFor[BriefRevision](): true,
+	reflect.TypeFor[DesignApproval](): true, reflect.TypeFor[Event](): true,
+}
+
+// typeKeyPaths is jsoncKeyPaths for a Go type: every key path encoding/json
+// writes or reads for it, through pointers, slices and structs, a map's keys as
+// "*", stopping at a named object.
+func typeKeyPaths(t reflect.Type) []string {
+	var paths []string
+	var walk func(t reflect.Type, prefix string)
+	walk = func(t reflect.Type, prefix string) {
+		for _, f := range jsonFields(t) {
+			ft, p := f.typ, prefix+f.name
+			paths = append(paths, p)
+			for k := ft.Kind(); k == reflect.Pointer || k == reflect.Slice || k == reflect.Array || k == reflect.Map; k = ft.Kind() {
+				if k == reflect.Map {
+					p += ".*"
+					paths = append(paths, p)
+				}
+				ft = ft.Elem()
+			}
+			if ft.Kind() == reflect.Struct && !namedObjects[ft] {
+				walk(ft, p+".")
+			}
+		}
+	}
+	walk(t, "")
+	sort.Strings(paths)
+	return slices.Compact(paths)
+}
+
+// pendingAmendment is a key task 00 added to a type (a sibling's ask, answered)
+// that the contract text gains only in task 44a. Each entry must still be in
+// the type and still be absent from the text: once task 44a writes it in, the
+// entry is stale and this test says to delete it.
+type pendingAmendment struct{ path, ask string }
+
+// Every request body and every response body has exactly the keys the contract
+// shows for it, at every depth. Equality, not inclusion: a renamed tag and an
+// added field both fail, so no client-controlled input (an approver, a
+// client-chosen revision number) can arrive under a name the contract never
+// granted (task 03 review I2). The §7.1–§7.11 objects are pinned by
+// TestFieldNamesMatchTheContractExamples; this covers every other body.
+func TestEveryBodyHasTheContractsKeys(t *testing.T) {
+	joinRoute := "**`POST /v1/releases/{releaseId}/deployments`**"
+	confirm := "**`POST /v1/releases/{releaseId}/confirm`**"
+	rows := []struct {
+		typ     any
+		objects []string          // the contract's bodies for the type; its keys are their union
+		cut     []string          // a key whose members are phase data, not fields ("content")
+		rename  map[string]string // an example's map key → "*"
+		pending []pendingAmendment
+	}{
+		// Requests (§7.3–§7.12).
+		{typ: CreateTeamRequest{}, objects: []string{inlineObject(t, "7.3", "**`POST /v1/teams`**")}},
+		{typ: RenameTeamRequest{}, objects: []string{inlineObject(t, "7.3", "**`PATCH /v1/teams/{teamId}`**")}},
+		{typ: SetMemberRequest{}, objects: []string{inlineObject(t, "7.3", "**`PUT /v1/teams/{teamId}/members/{userId}`**")}},
+		{typ: CreateInviteRequest{}, objects: []string{inlineObject(t, "7.3", "**`POST /v1/teams/{teamId}/invites`**")}},
+		{typ: CreateProjectRequest{}, objects: []string{fencedObject(t, "7.4", "json", 0)}},
+		{typ: RenameProjectRequest{}, objects: []string{inlineObject(t, "7.4", "**`PATCH /v1/projects/{projectId}`**")}},
+		{typ: RemoteRequest{}, objects: []string{inlineObject(t, "7.4", "**`POST /v1/projects/{projectId}/remotes`**")}},
+		{typ: CreateBriefRequest{}, objects: []string{fencedObject(t, "7.5", "json", 0)}},
+		{typ: RebindRequest{}, objects: []string{inlineObject(t, "7.5", "**`PATCH /v1/briefs/{briefId}`**")}},
+		{typ: ArchiveRequest{}, objects: []string{inlineObject(t, "7.5", "**`POST /v1/briefs/{briefId}/archive`**")}},
+		{typ: WriteRevisionsRequest{}, objects: []string{fencedObject(t, "7.5", "json", 1)}, cut: []string{"revisions.content"}},
+		{typ: ApprovalRequest{}, objects: []string{fencedObject(t, "7.7", "json", 0)}},
+		{typ: SessionLinkRequest{}, objects: []string{fencedObject(t, "7.8", "json", 0)}},
+		{typ: ReserveRequest{}, objects: []string{fencedObject(t, "7.9", "json", 0), fencedObject(t, "7.9", "json", 1)}},
+		{typ: ConfirmRequest{}, objects: []string{inlineObject(t, "7.9", confirm, "Run: "), inlineObject(t, "7.9", confirm, "Rollback: `{}`, or ")}},
+		{typ: AbandonRequest{}, objects: []string{inlineObject(t, "7.9", "**`POST /v1/releases/{releaseId}/abandon`**")}},
+		{typ: DeploymentJoinRequest{}, objects: []string{inlineObject(t, "7.9", joinRoute)},
+			pending: []pendingAmendment{{"environment", "HA7-1"}}},
+		{typ: EvidenceRequest{}, objects: []string{fencedObject(t, "7.10", "json", 0)}},
+		{typ: EraseRequest{}, objects: []string{inlineObject(t, "7.12", "**`POST /v1/briefs/{briefId}/erase`**")}},
+		// Responses (§7.2–§7.12, §12.4).
+		{typ: Me{}, objects: []string{fencedObject(t, "7.2", "jsonc", 0)}},
+		{typ: Page[Team]{}, objects: []string{inlineObject(t, "7.3", "**`GET /v1/teams`** → `200 ")}},
+		{typ: TeamDetail{}, objects: []string{inlineObject(t, "7.3", "**`GET /v1/teams/{teamId}`** → `200 ")}},
+		{typ: ForBranch{}, objects: []string{fencedObject(t, "7.5", "jsonc", 0)},
+			pending: []pendingAmendment{{"branchBrief.latestComplete", "HA4-4"}, {"projectBrief.latestComplete", "HA4-4"}}},
+		{typ: BriefWithRevision{}, objects: []string{inlineObject(t, "7.5", "**`GET /v1/briefs/{briefId}`** → `200 ")},
+			pending: []pendingAmendment{{"latestComplete", "HA4-4"}}},
+		{typ: Page[RevisionSummary]{}, objects: []string{fencedObject(t, "7.5", "jsonc", 1)}},
+		{typ: WriteRevisionsResponse{}, objects: []string{inlineObject(t, "7.5", "- `201 ")}},
+		{typ: RefsResponse{}, objects: []string{fencedObject(t, "7.5", "jsonc", 2)}, rename: map[string]string{"heads.bf-…": "heads.*"}},
+		{typ: Blob{}, objects: []string{fencedObject(t, "7.6", "jsonc", 0)}},
+		{typ: DeploymentJoin{}, objects: []string{inlineObject(t, "7.9", joinRoute, "→ `201")}},
+		{typ: ChangesPage{}, objects: []string{fencedObject(t, "7.11", "jsonc", 0)}},
+		{typ: EraseResponse{}, objects: []string{inlineObject(t, "7.12", "→ `200 ")}},
+		{typ: Healthz{}, objects: []string{inlineObject(t, "12.4", "`GET /healthz` → `200 ")}},
+		{typ: Readyz{}, objects: []string{inlineObject(t, "12.4", "`GET /readyz` → `200 "), inlineObject(t, "12.4", "else `503 ")}},
+	}
+	seen := map[reflect.Type]bool{}
+	for _, r := range rows {
+		typ := reflect.TypeOf(r.typ)
+		seen[typ] = true
+		var want []string
+		for _, o := range r.objects {
+			for _, p := range jsoncKeyPaths(o) {
+				if slices.ContainsFunc(r.cut, func(c string) bool { return strings.HasPrefix(p, c+".") }) {
+					continue
+				}
+				for from, to := range r.rename {
+					if p == from || strings.HasPrefix(p, from+".") {
+						p = to + p[len(from):]
+					}
+				}
+				want = append(want, p)
+			}
+		}
+		got := typeKeyPaths(typ)
+		for _, a := range r.pending {
+			switch {
+			case slices.Contains(want, a.path):
+				t.Errorf("%s: the contract now shows %q, so task 44a has written %s in: delete its pendingAmendment", typ, a.path, a.ask)
+			case !slices.Contains(got, a.path):
+				t.Errorf("%s: pendingAmendment %q (%s) is not a key of the type", typ, a.path, a.ask)
+			}
+			want = append(want, a.path)
+		}
+		sort.Strings(want)
+		if want = slices.Compact(want); !slices.Equal(got, want) {
+			t.Errorf("%s against the contract:\n got keys %v\nwant keys %v", typ, got, want)
+		}
+	}
+	// Every request type has a row: a new body cannot join the package unpinned.
+	for _, v := range requestTypes {
+		if !seen[reflect.TypeOf(v)] {
+			t.Errorf("%T has no row: pin its key set to its body in the contract", v)
+		}
+	}
+	// §7.12: the audit page is the change feed's shape (its events are Event plus
+	// hash and prevHash: TestResponsesNeverOmitAField).
+	top := func(paths []string) []string {
+		return slices.DeleteFunc(paths, func(p string) bool { return strings.Contains(p, ".") })
+	}
+	if got, want := top(typeKeyPaths(reflect.TypeFor[AuditPage]())), top(typeKeyPaths(reflect.TypeFor[ChangesPage]())); !slices.Equal(got, want) {
+		t.Errorf("AuditPage keys %v, want ChangesPage's %v", got, want)
 	}
 }
