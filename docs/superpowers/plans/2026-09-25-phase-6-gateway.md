@@ -276,3 +276,56 @@ Each paragraph is what the part file `2026-09-25-phase-6-gateway-parts/task-NN.m
 **24 — Cloud proving scripts, written and not run.** Files: `infra/smoke/gateway/{lib.sh,p01-no-public-route.sh,p02-sandbox-reaches-gatekeeper-only.sh,p03-pod-source-address.sh,p04-au-route-bedrock.sh,p05-zdr-config.sh,p06-budgets-on.sh}` and `*_test.sh` over canned output, in phase 8's proving style (`phase-8-own-environment.md:464`); depends on 19, 20. P01 no route resolves the gateway from outside; P02 a sandbox pod reaches the gatekeeper and not LiteLLM or keysmith; **P03 the source address the gatekeeper sees equals the pod's** (the open item at `05-design.md:212-214`; if not, seam S6.10's mTLS); **P04 an AU session's real Claude Code requests succeed through LiteLLM's Bedrock translation** (P6-D3; if not, seam S6.4); P05 LiteLLM's live config has no callbacks, spend logs hold no prompt text, and the AWS account's Bedrock model-invocation logging is off; P06 a new project gets non-zero budgets. Tests: each script's verdict on canned passing and failing output. Does not claim: that any script has run.
 
 **25 — Close the phase.** Files: `docs/PROGRAM.md`, and this plan's "Seams and asks" section brought up to date; depends on all. Rewrite phase 6 at `docs/PROGRAM.md:113-114` as the inference gateway; close open risk 2 (`:138`) as retired by OD-19; amend the cross-cutting "Never pool subscriptions across users" line to OD-19's reading (no consumer subscription is used; attribution and budgets per person, team and project). List, for the owner rather than editing them, the stale lines in other files: `CLAUDE.md`'s "per-user rotation across that user's OWN Claude subscriptions" and phase 8's precondition at `phase-8-own-environment.md:330`, both in trees or files this phase does not own. Record what stays **UNVERIFIED**, from every part's "does not claim". Does not claim: that any ask has been accepted.
+
+## Seams and asks
+
+### Seams this phase leaves
+
+| Id | Seam | Tasks | Who closes it |
+|---|---|---|---|
+| **S6.1** | The project's `dataClass` and `inferenceRoute` come from the Hub (`routesource.Hub`, task 21's Hub store) | 01, 13, 21 | phase H, through ask H-1 |
+| **S6.2** | Budgets come from the Hub's team policy (`budget.Policy`) | 06, 09, 21 | phase H, ask H-2 |
+| **S6.3** | The broker mints for cloud sessions through `POST /v1/mint` | 03, 08, 15 | phase 8, ask P8-1 |
+| **S6.4** | Bedrock-format connection for AU sessions (`CLAUDE_CODE_USE_BEDROCK=1`, `ANTHROPIC_BEDROCK_BASE_URL` at the gatekeeper), if task 24's P04 fails | 11, 24 | a follow-up task, sized then |
+| **S6.5** | Fleet as a mint caller, with a fresh token per Orchestrator turn (`05-design.md:214-215`) | 03, 08 | team mode |
+| **S6.6** | OD-23's policy mechanism merges task 14's settings fragment | 14 | whichever phase builds OD-23's mechanism |
+| **S6.7** | Phase 7 maps the data class to required scans | 01 | phase 7, ask P7-1 |
+| **S6.8** | Phase 4's create flow requires the data class | 01, 22 | phase 4, ask P4-1 |
+| **S6.9** | Phase 8's `netpolcover` renders the gateway chart too | 19 | phase 8, once both trees merge |
+| **S6.10** | Pod binding by a broker-minted client certificate, if the source address is rewritten | 10, 24 | a follow-up task, if P03 fails |
+
+### Asks of the Hub (phase H)
+
+- **H-1: the data class on the project record.** `POST /v1/projects` (contract route 14, `.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md:576`) **requires** `dataClass` (OD-24: set at creation) and sets `inferenceRoute` to `dataclass.Floor` of it unless the creator asks for `au`. `PATCH /v1/projects/{projectId}` (route 16, `:578`) accepts both, enforcing task 01's rule: raise by any member, lower only by an org compliance role and never below the floor. Each change is audited and published on the change feed. The JSON is task 01's `ProjectInferenceFields`, exactly.
+- **H-2: budgets in team policy.** Person, team and project monthly budgets, each non-zero by default (OD-24), editable by an admin.
+- **H-3: workload readers.** The gatekeeper's and keysmith's workload identities may read H-1's fields and H-2's policy, and nothing else. This is a delegated caller of the kind `05-design.md:188-191` says ADR-H1 must be amended to allow.
+- **H-4: a compliance role** at org level, which H-1's lowering needs.
+
+### Asks of phase 8
+
+- **P8-1: the broker launches with a token.** After the pod has an address, the broker calls keysmith's `POST /v1/mint` with it, writes the token into a Secret owned by the pod and mounted as the **directory** `/run/panacea/gateway/`, sets `ANTHROPIC_BASE_URL` (and `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1` on an AU project), refreshes at 45 minutes, and revokes on destroy. Whether a Kata pod sees an updated Secret volume is **UNVERIFIED** and belongs in task 32's proving list. The platform chart creates `panacea-gateway`.
+- **P8-2: identities and secrets.** Three user-assigned identities with federated credentials (`litellm`, `keysmith`, `gatekeeper`), `Key Vault Secrets User` on task 19's four secrets, and the client ids as chart values.
+- **P8-3: network.** P8-D12 gains one rule, sandbox pods to the gatekeeper's service port and nothing else in the namespace (`05-design.md:216-218`). Firewall mode's allowlist gains `api.anthropic.com` and `bedrock-runtime.ap-southeast-2.amazonaws.com` (plus STS, and `ap-southeast-4` if P04 shows it is used) **for the gateway's pods only**. AU projects' sandboxes get the registries-and-git-host allowlist (`05-design.md:223-225`), which also blocks the CLI's direct calls to `api.anthropic.com`.
+- **P8-4: the gateway database.** Database `gateway` on the Flexible Server. Phase 8 makes Postgres Entra-only (`phase-8-own-environment.md:452`), and LiteLLM's support for an Entra token login is **UNVERIFIED**, so phase 8 decides between a password login for this one database, kept in Key Vault and rotated, and a separate server.
+- **P8-5: the AKS OIDC issuer** as an output, for task 20.
+
+### Asks of phase 7 and phase 4
+
+- **P7-1: scans by class.** Phase 7 reads `dataClass` from the Hub project record (H-1) and maps it to Panacea's required scan posture. Phase 6 owns only the enum (task 01); the mapping table is phase 7's.
+- **P4-1: the create flow** requires a data class, shows its meaning in one line, and posts it with the project.
+
+## Owner questions
+
+1. **Q1: the data class levels.** Task 01's `public`, `internal`, `confidential`, `restricted` plus `au-only` residency is a proposal. What is KPMG's scheme, and which levels force AU?
+2. **Q2: the budget defaults.** US$200 a person, US$1,000 a project, US$2,000 a team per month, and US$25 per session, are placeholders.
+3. **Q3: the accounts.** Which Anthropic organisation, with which ZDR agreement, and which AWS account for Bedrock in Sydney, and who owns each.
+4. **Q4: local mode for users, not developers.** The cloud gateway has no public ingress (`05-design.md:216`), so a session on a user's laptop cannot reach it. Recommendation: phase 6 serves local mode for **development only**, and a user-facing path (an Entra-authenticated edge route bound to the user rather than a pod) is decided later. Until then, a user's local session has no org inference.
+
+## Open risks
+
+1. **Anthropic format to Bedrock** (P6-D3): Claude Code sends fields Bedrock may reject; proven only by task 24's P04. Fallback: seam S6.4.
+2. **Pod binding** depends on the source address surviving AKS's network path; task 24's P03. Fallback: seam S6.10.
+3. **LiteLLM's open-source feature set** may lack what tasks 04, 07 and 09 assume; task 18 measures before anything depends on it in the cloud.
+4. **Budget overrun** is bounded, not zero: concurrent sessions × the slice, plus one 60-second sweep (tasks 06, 09).
+5. **Direct calls from the CLI** to `api.anthropic.com` (the fast-mode check, the WebFetch domain check) bypass the gateway by design. What they carry is **UNVERIFIED**; AU sandboxes block them (P8-3).
+6. **`docs/PROGRAM.md:132`** still states the never-pool rule as a consumer-terms constraint; task 25 amends it.
