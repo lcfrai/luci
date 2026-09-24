@@ -1,6 +1,6 @@
 ### Task 30: `entraauth` — sign-in: discovery, PKCE, the one-shot loopback listener, the exchange (correction A6)
 
-**Lane C. Depends on: 12, 28. About 3 hours. Contract task C1.**
+**Lane C. Depends on: 04 (`hubclient.ErrSignedOut`, `ErrUnavailable`; review M15), 12, 28. About 3 hours. Contract task C1.**
 
 `OD-6`: the desktop signs the user in with Entra, OAuth 2.0 authorization code + PKCE, in the
 **system browser**. ADR-H1 §5.2 puts the flow and the tokens **in the control plane**: the renderer

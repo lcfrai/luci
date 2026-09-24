@@ -1,6 +1,6 @@
 ### Task 31: `entraauth` — the `TokenSource`: refresh, rotation, sign-out, start-up; and the Azure DevOps credential (HA-2, H-1)
 
-**Lane C. Depends on: 30. About 4.5 hours. Contract task C1; corrections A12 and A13.**
+**Lane C. Depends on: 30; 04 (`hubclient.Invalidator` and `ErrSignedOut`, through 30 too). About 4.5 hours. Contract task C1; corrections A12 and A13.**
 
 After sign-in, every Hub call, every phase 8 broker call and — if ADR-H1 Q5 is yes — every Azure
 DevOps push asks `Token(ctx, scope)` for the user's own access token (contract §6.2). **One refresh
@@ -16,7 +16,9 @@ reads the refresh token current at its start; callers of one scope still share o
 
 **Files:**
 - `control-plane/internal/entraauth/{tokens.go,account.go,devops.go}` + `{tokens_test.go,devops_test.go}` (new)
-- `control-plane/internal/hub/hubclient/hubclient.go` — the optional `Invalidator` (modify: one declaration)
+
+(No `hubclient.go` edit: task 04 declares `Invalidator`, so this lane-C task touches no lane-A file,
+review M15.)
 
 #### Contract — complete
 
@@ -198,15 +200,10 @@ type DevOps struct {
 func (d DevOps) Credential(ctx context.Context, h credstore.Host) (credstore.Credential, error)
 ```
 
-```go
-// control-plane/internal/hub/hubclient/hubclient.go — added.
-
-// Invalidator is optionally implemented by a TokenSource (entraauth does). The
-// client calls it before its one retry on 401 unauthenticated, reason "expired".
-type Invalidator interface {
-	Invalidate(scope string)
-}
-```
+`hubclient.Invalidator` (`Invalidate(scope string)`) is declared by **task 04**, in lane A's
+`hubclient.go` (review M15). This task only implements it: `*Authenticator` gets
+`func (a *Authenticator) Invalidate(scope string)`, and a compile-time
+`var _ hubclient.Invalidator = (*Authenticator)(nil)` in `tokens.go` holds the two together.
 
 #### Tests to write first — `tokens_test.go`, `devops_test.go`
 
@@ -240,7 +237,7 @@ injected clock.
 #### Steps
 
 - [ ] **Step 1:** Re-read contract §6.2 and §9.1; phase 8's HA-2 (`2026-09-23-phase-8-own-environment.md:220-238`, as ADR-H1 cites it); phase 3 task 13's `Chain`.
-- [ ] **Step 2:** Tests; they fail. Then `tokens.go`, `account.go`, `devops.go`, the `Invalidator`.
+- [ ] **Step 2:** Tests; they fail. Then `tokens.go`, `account.go`, `devops.go`, and `Invalidate` with its compile-time check against task 04's `hubclient.Invalidator`.
 - [ ] **Step 3:** Commit by pathspec.
 
 #### Acceptance

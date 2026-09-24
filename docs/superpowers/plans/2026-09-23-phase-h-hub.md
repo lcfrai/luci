@@ -266,7 +266,7 @@ parallel worktrees (see §"Order and parallel lanes").
 | `control-plane/internal/hub/hubapi/canonical.go` | `Canonical` — RFC 8785 restricted (contract §3.4) | new | 02 |
 | `control-plane/internal/hub/hubapi/envelope.go` | the brief-revision and audit-event envelopes; `ValidateContent` | new | 02 |
 | `control-plane/internal/hub/hubapi/types.go` | one struct per JSON object and request body of contract §7 | new | 03 |
-| `control-plane/internal/hub/hubclient/hubclient.go` | the consumer interfaces, `Error`, `ErrUnavailable`, `TokenSource` | new | 04 |
+| `control-plane/internal/hub/hubclient/hubclient.go` | the consumer interfaces, `Error`, `ErrUnavailable`, `ErrSignedOut`, `TokenSource`, the optional `Invalidator` (moved here from task 31, review M15) | new | 04 |
 | `control-plane/internal/hub/hubclient/fake*.go` | `NewFake()` — every observable rule of §7, in memory | new | 04, 05 |
 | `control-plane/internal/hub/hubclient/conformance/conformance.go` | one table-driven suite for the fake and the real Hub; rows grow per task | new | 05; rows 15–27, 34 |
 | `control-plane/internal/hub/hubclient/{client,transport,relay}.go` | the HTTP client, its retry/idempotency/refresh rules, the relay rule (contract §4.3) | new | 33 |
@@ -325,7 +325,6 @@ parallel worktrees (see §"Order and parallel lanes").
 | `control-plane/internal/hublink/hublink.go`, `internal/api/hublink.go` | local project → Hub project; the share routes | new | 35 |
 | `control-plane/internal/hubfeed/poller.go`, `internal/api/hubchanges.go`, `internal/api/cursors.go` | the change-feed poll; `CursorSource`, the `Panacea-<Name>-Cursor` and auth-state headers and their expose list (HA7-4, task 00) | new | 36 |
 | `control-plane/internal/httpx/origin.go` ⚑ | allow the `Authorization` header (A4) | modified | 37 |
-| `control-plane/internal/hub/hubclient/hubclient.go` | the optional `Invalidator` | modified | 31 |
 | `control-plane/internal/localkey/localkey.go` | the local caller key: mint, write, compare | new | 37 |
 | `control-plane/internal/api/credentials.go` | the write-only credential routes (A8) | new | 39 |
 
@@ -404,7 +403,7 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 10 | `internal/entra` — phase 8 task 16's part, **only if it has not landed**; phase 8's wins the merge | H1 | — | 3 (0 if landed) | ✓ |
 | 11 | `devissuer`, part 1: the package, config, discovery, JWKS, token minting; `cmd/devissuer` | H1 | — | 2.5 | ✓ |
 | 12 | `devissuer`, part 2: `/authorize`, `/token` (code + PKCE S256, rotating refresh) | H1 | 11 | 3 | ✓ |
-| 13 | the Hub's auth pipeline: Origin, rate limits, validation, principal, org enrolment (A7) | H1/H2 | 07b, 08, 10 | 3 | ✓ |
+| 13 | the Hub's auth pipeline: Origin, rate limits, validation, principal, org enrolment (A7) | H1/H2 | 07b, 08, 10, 11 (review M15) | 3 | ✓ |
 | 14 | the write transaction: audit lock, hash chain, idempotency (contract §10.6) | H2/H7 | 02, 13 | 3.5 | ✓ |
 | 15 | `/v1/me`, teams, members | H2 | 03, 14 | 3 | ✓ |
 | 16a | invites and binding, routes 10–12 (review M4) | H2 | 15 | 2.5 | ✓ |
@@ -422,11 +421,11 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 27 | the audit route, erasure (G6), the full `hub verify` | H7 | 26, 19 | 2.5 | |
 | 28 | `credstore`: `Secrets`, `Memory`, `WinCred` with chunking, target names | C1 | — | 3 | ✓ |
 | 29 | `credstore`: `Local` (GitHub), `LocalDevOps` and `DevOpsTokens` (an Azure DevOps PAT, review I10), `PanaceaTokens`; phase 3's `credstore.go` if absent | C1 | 28 | 2.5 | S7 |
-| 30 | `entraauth`: discovery, PKCE, the one-shot listener, the exchange (A6) | C1 | 12, 28 | 3 | ✓ |
-| 31 | `entraauth`: `TokenSource`, refresh single-flight, rotation, sign-out, start-up; scope-aware refusals (A12), remembered per scope, and the lifetime-aware skew (A13); `DevOps` | C1 | 30 | 4.5 | ✓ |
+| 30 | `entraauth`: discovery, PKCE, the one-shot listener, the exchange (A6) | C1 | 04 (review M15), 12, 28 | 3 | ✓ |
+| 31 | `entraauth`: `TokenSource`, refresh single-flight, rotation, sign-out, start-up; scope-aware refusals (A12), remembered per scope, and the lifetime-aware skew (A13); `DevOps`; implements task 04's `Invalidator` | C1 | 30 (and 04 through it) | 4.5 | ✓ |
 | 32 | the control plane's `/v1/auth/*`, its variables, its codes, the wiring | C1 | 31 | 2.5 | ✓ |
 | 33 | `hubclient` over HTTP: transport, retries, idempotency, refresh, the relay rule | C2 | 04 | 3 | ✓ |
-| 34 | `hubclient` methods, the digest re-check, conformance against the real Hub | C2 | 33, 20 (rows grow with 22–27) | 3 | ✓ |
+| 34 | `hubclient` methods, the digest re-check, conformance against the real Hub | C2 | 33, 20 (rows grow with 22–27), 11 (review M15) | 3 | ✓ |
 | 35 | `hublink`: local project → Hub project; the share routes | C2 | 32, 34; phase 3 task 13's `githost` (or its copy) | 3 | ✓ |
 | 36 | the change-feed poller, `/v1/hub/changes`, the cursor header | C2 | 26, 35 | 2 | |
 | 37 | the local caller key, control-plane side (A3, A4); the attach subprotocol (I3) | C3 | 32 | 3 | ✓ |
@@ -462,11 +461,12 @@ alone, so **≈ 65 h**. At the ADR's 8-hour day that is **a little over eight wo
 more once review is counted, because this table is implementation time only. Lane A's one
 cross-lane wait costs it nothing: 13 needs 10 and 11 (lane B), which are done by ≈ 7 h on the
 clock, long before lane A reaches 13 at ≈ 27 h. The second engineer's share of the minimum is
-≈ 44 h (00, 09–12, 28–35, 37–39). Its one long wait is task 34, which needs 20 (done at ≈ 53 h on
-the clock), and 34, 35 and 39 (8 h) still finish by ≈ 61 h, before lane A's 24. The lanes, not
-the dependencies, make the path this long: 06, 07a and 07b (9.5 h) need nothing from lane A, and
-moving them to the second engineer would give ≈ 55.5 h on lane A and ≈ 53.5 h on the other,
-about seven working days. That is a lane change for the orchestrator; this plan does not make it.
+≈ 44 h (00, 09–12, 28–35, 37–39). It waits twice: 28 needs 06's `go.mod` (merged at ≈ 17.5 h on
+the clock, after ≈ 7 h idle), and 34 needs 20 (≈ 53 h). Even so, 34, 35 and 39 (8 h) finish by
+≈ 61 h, before lane A's 24. The lanes, not the dependencies, make the path this long: 06, 07a and
+07b (9.5 h) need nothing from lane A, and moving them to the second engineer would give ≈ 55.5 h
+on lane A and ≈ 53.5 h of work on the other, about seven working days, with no idle wait for
+`go.mod`. That is a lane change for the orchestrator; this plan does not make it.
 All of these figures were summed by script from the table above.
 
 ### Order and parallel lanes
@@ -481,9 +481,9 @@ order below, and a lane that needs another lane's task waits for that merge.
 
 | Lane | Worktree branch | Tasks, in order | Waits for |
 |---|---|---|---|
-| **A — contract in code, then server** | `feat/hub-server` | 01 → 02 → 03 → 04 → 05 → 06 → 07a → 07b → 08 → 13 → 14 → 15 → 16a → 16b → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 24 → 25 → 26 → 27 | 13 waits for 10 (lane B) |
+| **A — contract in code, then server** | `feat/hub-server` | 01 → 02 → 03 → 04 → 05 → 06 → 07a → 07b → 08 → 13 → 14 → 15 → 16a → 16b → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 24 → 25 → 26 → 27 | 13 waits for 10 and 11 (lane B) |
 | **B — identity** | `feat/hub-identity` | 10 → 11 → 12 → 09 | 09 waits for 07b and 08 (lane A) |
-| **C — control plane** | `feat/hub-client` | 28 → 29 → 30 → 31 → 32 → 37 → 33 → 34 → 35 → 39 → 36 | 28 waits for 06 (go.mod); 30 for 12; 33 for 04; 34's rows for 20, 22, 24–27; 36 for 26 |
+| **C — control plane** | `feat/hub-client` | 28 → 29 → 30 → 31 → 32 → 37 → 33 → 34 → 35 → 39 → 36 | 28 waits for 06 (go.mod); 30 for 04 and 12; 33 for 04; 34 for 11, and its rows for 20, 22, 24–27; 36 for 26 |
 | **D — desktop** | `feat/hub-desktop` | 38 → 40 → 41 → 42 | 38 for 37; 40 for 36 and 39 |
 | — | `feat/hub` | **44a first** (task 00 is read, not built); at the end 43 → 44b | 44a: nothing; 43: everything |
 
@@ -498,7 +498,9 @@ of `feat/hub` onward does. Owner question Q13.
 (`internal/api/api.go`, `cmd/api/config.go`, `cmd/api/main.go`, `routes_audit_test.go`): 32, 35,
 36, 37, 39. One edits `httpx/origin.go`: 37 (task 36's expose list is set by its own `api` wrap,
 task 00 HA7-4). All are in lane C, one after another, so no two
-worktrees ever edit those files at once. Four desktop tasks edit `client.ts` or the store: all in
+worktrees ever edit those files at once. `hubclient/hubclient.go` is lane A's alone: task 04
+declares every name in it, `Invalidator` included, so task 31 in lane C only implements it (review
+M15). Four desktop tasks edit `client.ts` or the store: all in
 lane D. `control-plane/go.mod` is edited by 06 (pgx), 13 (`x/time` direct) and 28 (`x/sys` direct);
 28 waits for 06's merge, and 13 is in 06's own lane. `go.work` is edited only by 06 (its `go` line);
 a sibling phase that also moves a member to `go 1.23.0` makes the same one-line change, which merges

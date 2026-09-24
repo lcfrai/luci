@@ -60,7 +60,7 @@ var ErrTokenUnavailable = errors.New("hubclient: no token: Entra could not be re
    before each attempt — a failed `Seek` ends the call with that error, never an attempt with a
    short body.
 4. A 401 whose `details.reason` is `expired` → `Invalidate(scope)` if `tokens` is an
-   `Invalidator` (task 31), a fresh `Token`, **one** retry; a second 401 → `*Error` as answered.
+   `Invalidator` (declared by task 04, implemented by task 31), a fresh `Token`, **one** retry; a second 401 → `*Error` as answered.
 5. Any other non-2xx with a problem body → `*Error{Status, Problem}`; a 500 or 501 → `ErrUnavailable`
    (not retried: a Hub bug is not transient). A non-2xx without a parseable problem → `*Error` with
    code `internal` and the status.

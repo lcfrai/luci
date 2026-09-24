@@ -55,6 +55,14 @@ type TokenSource interface {
 	Token(ctx context.Context, scope string) (string, error)
 }
 
+// Invalidator is optionally implemented by a TokenSource (entraauth does, task 31).
+// The client (task 33) calls it before its one retry on 401 unauthenticated,
+// reason "expired". Declared here, in lane A, so that no lane-C task edits this
+// file (review M15; it was task 31's one-declaration edit).
+type Invalidator interface {
+	Invalidate(scope string)
+}
+
 type Projects interface {
 	Me(ctx context.Context) (hubapi.Me, error)
 	// ProjectForRepo answers the one project in the caller's org whose remote is

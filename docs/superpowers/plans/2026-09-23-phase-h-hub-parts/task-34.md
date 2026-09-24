@@ -1,6 +1,6 @@
 ### Task 34: `hubclient` methods, the digest re-check, and the conformance suite against the real Hub
 
-**Lane C. Depends on: 33, 20 (more groups run as 22–27 land). About 3 hours. Contract task C2.**
+**Lane C. Depends on: 33, 20 (more groups run as 22–27 land), 11 (`devissuer.New`, `MintAccessToken`; review M15). About 3 hours. Contract task C2.**
 
 Every `hubclient.Hub` method over HTTP, each mapped to its contract §7 route, and the one
 guarantee the client adds on read: it **re-computes the digest of every brief revision it
