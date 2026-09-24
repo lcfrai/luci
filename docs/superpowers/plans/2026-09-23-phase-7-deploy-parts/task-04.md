@@ -47,10 +47,12 @@ type cancelResponseDTO struct {
 // Its ID is the deployment rolled back TO (clients/kubernetes.go:5982, :6030).
 type rollbackResponseDTO = deploymentDTO
 
-// autoDeployDTO mirrors GetBranchAutoDeploy's data (handlers/projects.go:4136-4142).
+// autoDeployDTO mirrors GetBranchAutoDeploy's data (handlers/projects.go:4136-4142) and
+// SetBranchAutoDeploy's (:4192-4198): the same five keys in a data envelope. On the PUT,
+// enabled is the bool just written (*body.Enabled, :4194), never null (review M6).
 type autoDeployDTO struct {
 	Branch             string `json:"branch"`
-	Enabled            *bool  `json:"enabled"` // null = no explicit label
+	Enabled            *bool  `json:"enabled"` // GET: null = no explicit label; PUT: always set
 	ProjectDefault     bool   `json:"projectDefault"`
 	Effective          bool   `json:"effective"`
 	IsProductionBranch bool   `json:"isProductionBranch"`
@@ -127,14 +129,14 @@ type urlPrefixResponseDTO struct {
 | `Cancel` | `POST P/pipelines/{run}/cancel` (1291) | 200 | `already_completed` → `AlreadyFinished` |
 | `Rollback` | `POST P/deployments/{id}/rollback` (1026) | 200 | `SourceDeploymentID = data.ID`; if `data.ID != id` → `KindUnavailable` and a log line, because 7P-4's premise no longer holds and the Hub confirm must not guess |
 | `AutoDeploy` | `GET B/auto-deploy` (1308) | 200 | — |
-| `SetAutoDeploy` | `PUT B/auto-deploy` (1309) | 200 | response is `data` like the GET — **unverified**, read the handler tail at `projects.go:4168`ff before writing the decoder |
+| `SetAutoDeploy` | `PUT B/auto-deploy` (1309) | 200 | response is `data` with the GET's five keys, read from source (`projects.go:4192-4198`, review M6), decoded into `autoDeployDTO`; `enabled` is a bool, the value just written (`:4194`), never null. A 409 *"branch has no environment yet — …"* (`:4178`) is `KindConflict` with the sentence |
 | `Posture` | `GET B/access` (1430) | 200 | `Mode, ModeKnown = deploy.ParsePostureMode(AccessMode)` |
 | `SetPosture` | `PUT B/access` (1431) | 200 | `Password` sent only for `PosturePassword`; `Enforced` and the envelope `message` carried through |
 | `Access` | `GET P/access` (1407) | 200 | role word → domain: `viewer`→`RoleViewer`, `editor` or `developer`→`RoleDeveloper`, `owner`→`RoleOwner`, else `RoleUnknown` (`models/project_groups.go:9-12`) |
 | `Grant` | `POST P/access` (1408) | **201** (`handlers/access.go:61`) | domain → wire: `RoleDeveloper` → **`"editor"`**; `RoleUnknown` refused before sending |
 | `Revoke` | `DELETE P/access/{group}` (1409) | 200 | the grantee path-escaped (an email contains `@`) |
 | `SetURLPrefix` | `PUT B/url-prefix` (1313) | 200 | a 409 carries *"url prefix already taken: …"* (`projects.go:4321`) verbatim |
-| `ClearURLPrefix` | `DELETE B/url-prefix` (1314) | 200 | clearing a branch with no prefix is success (`projects.go:4380-4382`) |
+| `ClearURLPrefix` | `DELETE B/url-prefix` (1314) | 200 | clearing a branch with no prefix is success (`projects.go:4380-4382`); the body is `data {branch, routeReverted}` plus a `message` (`:4448-4451`), read from source (b07), and only the status is used |
 
 **Never logged, anywhere in this file:** `PostureChange.Password`, any `bypassTokens` value, the
 token. `do` already omits bodies; these two methods also pass `logBody: false` explicitly and a test
@@ -153,7 +155,8 @@ or the fallback built at `handlers/risk_capability_apply.go:536-539`, whose labe
 `cancel-cancelled.json`, `cancel-already.json`,
 `rollback-warm.json`, `rollback-cold.json`, `rollback-409-pruned.json` (the sentence of
 `projects.go:1603-1604`), `rollback-400-noimage.json` (`:1575`), `rollback-404.json` (`:1570`),
-`autodeploy.json`, `autodeploy-409-noenv.json` (`:4133`), `posture.json`,
+`autodeploy.json`, `autodeploy-409-noenv.json` (`:4133`), `autodeploy-set.json` (the PUT's `data`,
+`:4192-4198`, `enabled` a bool), `posture.json`,
 `posture-set-not-enforced.json` (the message of `project_security.go:836-839`, `enforced: false`),
 `posture-set-minted.json`, `posture-409-locked.json` (`:733-735`), `access.json` (one person grant,
 one legacy group binding with empty `grantee`), `urlprefix.json`, `urlprefix-409.json`.
@@ -177,6 +180,7 @@ one legacy group binding with empty `grantee`), `urlprefix.json`, `urlprefix-409
 | `TestShip402IsARefusalWithSentence` | `ship-402-budget.json` and `ship-402-risk.json` → each `KindConflict`, `Status == 402`, `Message` equal to the file's sentence, exactly one request | a paused budget or a risk block read as `KindUnavailable` with `Message ""`: the lens says Panacea is offline, and task 09's abandon branches never match, so the reservation lingers 15 minutes and the reason is lost (review I2) |
 | `TestRollbackCarriesWarmth` | warm → `WarmthWarm`, 0 s; cold → `WarmthCold`, the seconds | dropping the only hint of how long the flip takes |
 | `TestRollbackRefusalsVerbatim` | the 409, 400 and 404 bodies → `KindConflict`, `KindRejected`, `KindNotFound`, each `Message` equal to the file's sentence | a generic "rollback failed", which hides *"redeploy from source instead"* |
+| `TestSetAutoDeployDecodesPut` | `SetAutoDeploy(ctx, p, "feat/x", true)` against `autodeploy-set.json` → the recorded body is `{"enabled":true}`, and the result has `*Explicit == true` (non-nil), `ProjectDefault`, `Effective` and `ProductionBranch` from the file | a decoder written for a different PUT shape (the response was once marked unverified, review M6), or `enabled` read back as "no explicit label" |
 | `TestPostureNotEnforced` | `posture-set-not-enforced.json` → `Enforced == false`, `Message` is the full sentence | reporting a saved-but-unapplied posture as done |
 | `TestPostureMintedTokenReturnedNotLogged` | `posture-set-minted.json` → `BypassTokens` has the token; the captured log lacks it | a token in the control plane's log |
 | `TestPasswordOnlyForPasswordMode` | `SetPosture(Mode: kpmg-sso, Password: "x")` sends no `password` key | sending a stale password field that Panacea might persist |
@@ -188,9 +192,10 @@ one legacy group binding with empty `grantee`), `urlprefix.json`, `urlprefix-409
 
 #### Steps
 
-- [ ] **Read first:** `handlers/projects.go:4168-4262` (the rest of `SetBranchAutoDeploy`) and
-  `:4383-4420` (`ClearBranchURLPrefix`), and record their response envelopes in this part's
-  table before writing the decoders. The table above marks the one it did not read.
+- [ ] **Re-read before writing the decoders:** `handlers/projects.go:4192-4198`
+  (`SetBranchAutoDeploy`'s response) and `:4448-4451` (`ClearBranchURLPrefix`'s). Both are
+  recorded in the table above, read from source at `b02424691` (review M6); if either has moved,
+  correct the table first.
 - [ ] Write the testdata and the tests; they fail to compile.
 - [ ] Write the DTOs, `acts.go`, `governance.go`; extend `panaceatest.Server`. Its
   `GET B/access` already answers `env` from task 03's `BranchEnvironment` table; `PostureWord`
