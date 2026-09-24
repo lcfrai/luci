@@ -78,7 +78,7 @@ memory and bumps a per-process **deploy cursor** when anything in it changes. Th
 `Panacea-Deploy-Cursor: <n>` on its `GET /v1/sessions` response — the one request `poller.ts` makes
 each tick — exactly as the Hub contract §9.3 does for `Panacea-Hub-Cursor`. When the desktop sees
 the cursor change it makes **one** `GET /v1/projects/{id}/deploy`. So the steady state adds **zero**
-requests per tick, the one-clock rule holds (two `setInterval` sites, `poller.ts:84` and
+requests per tick, the one-clock rule holds (two `setInterval` sites, `poller.ts:90` and
 `hooks/heartbeat.ts:34`, and phase 7 adds none), and Panacea is polled by one process at a rate the
 control plane chooses, not by the renderer's tick.
 

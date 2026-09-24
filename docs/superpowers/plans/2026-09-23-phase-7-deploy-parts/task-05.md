@@ -324,8 +324,13 @@ goes red.
 go test ./control-plane/... -race -count=1
 → ok, including internal/api's routes audit
 
-grep -rn 'pnc_' control-plane/internal --include=*.go | grep -v _test.go
-→ only the prefix check in deploy_connection.go and the constant's comment
+grep -rnE '"pnc_"|pnc_[0-9a-f]{8}' control-plane/internal --include=*.go | grep -v _test.go
+→ exactly one line: deploy_connection.go's prefix check, strings.HasPrefix(token, "pnc_")
+  (review I1. The pattern guards two things: a real key — Panacea mints pnc_<32 hex>,
+  handlers/api_keys.go:360-368 at b33d15acb — pasted into any non-test source, and a second
+  place that tests the prefix. It does not match the lines that only name the prefix: the
+  TokenSource comment (t02:25), panaceatest's "pnc_test" (t03:288, a non-test file) and the
+  refusal sentence "A Panacea API key starts with pnc_." (:155). A bare 'pnc_' prints all three.)
 
 grep -n 'corsMethods =\|corsHeaders =' control-plane/internal/httpx/origin.go
 → corsMethods lists PUT; corsHeaders lists Idempotency-Key (and Authorization, if Hub C3 is in)

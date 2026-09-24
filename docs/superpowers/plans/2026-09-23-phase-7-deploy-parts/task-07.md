@@ -3,7 +3,7 @@
 **Half:** 7a. **Hours:** 3. **Depends on:** 03, 06. **Elsewhere:** Hub H0 (`hubclient.Releases`
 fake); Hub C2's cursor mechanism (ask HA7-4 — this part says what to do if C2 has not built it).
 
-Plan decision 7P-5. The desktop's one-clock rule (`poller.ts:84`, `hooks/heartbeat.ts:34` — the only
+Plan decision 7P-5. The desktop's one-clock rule (`poller.ts:90`, `hooks/heartbeat.ts:34` — the only
 two `setInterval` sites) is about the **renderer**. The control plane is a different process and
 already runs its own timers (the reaper, `PANACEA_APP_REAP_INTERVAL`; the Hub's change-feed poll,
 Hub contract §9.3). The watcher is one more, and it is the only thing that polls Panacea.
@@ -254,8 +254,12 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 go test ./control-plane/internal/deploy/deploywatch/ ./control-plane/internal/api/ -race -count=1
 → ok
 
-grep -rn 'setInterval' desktop/src --include=*.ts --include=*.tsx | grep -v test
-→ exactly the two lines poller.ts:84 and hooks/heartbeat.ts:34 (unchanged by this task)
+grep -rn 'setInterval(' desktop/src --include=*.ts --include=*.tsx | grep -v '\.test\.'
+→ exactly two lines, both unchanged by this task: api/poller.ts's
+  `const handle = setInterval(() => void tick(), POLL_INTERVAL_MS);` and hooks/heartbeat.ts's
+  `timer = setInterval(() => {` (at a92c3b0: poller.ts:90 and heartbeat.ts:34; a later merge may
+  move the numbers, not the count). The `(` is the anchor, review I1: a bare 'setInterval' also
+  prints heartbeat.ts:29, `ReturnType<typeof setInterval>`, which is a type, not a timer.
 ```
 
 #### What this task does NOT claim

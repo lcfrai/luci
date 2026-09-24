@@ -206,8 +206,12 @@ one legacy group binding with empty `grantee`), `urlprefix.json`, `urlprefix-409
 go test ./control-plane/internal/deploy/... -race -count=1
 → ok
 
-grep -nE 'Mode"|ScanMode|dastMode|sastMode' control-plane/internal/deploy/panacea/wire.go
-→ only the comment on shipRequestDTO
+grep -niE '(secretscan|dast|sast|checks|iacscan|scascan|licensescan|modelscan|nuclei|schemathesis)mode' control-plane/internal/deploy/panacea/wire.go
+→ (nothing): no field and no tag carries any of TriggerDeployOptions' ten scan-mode spellings
+  (models/models.go:2356-2372 at b33d15acb). Anchored to those ten, not to `Mode"`, which matches
+  the posture DTOs' json:"accessMode" (review I1). -i on purpose: encoding/json matches keys
+  case-insensitively, so an untagged `DASTMode` field would still reach Panacea as dastMode. The
+  shipRequestDTO comment spells "scan-mode", which the pattern does not match.
 ```
 
 #### What this task does NOT claim

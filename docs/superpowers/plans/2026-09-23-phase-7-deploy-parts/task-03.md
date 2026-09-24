@@ -68,7 +68,7 @@ type environmentDTO struct {
 	} `json:"replicas"`
 }
 
-// branchEnvDTO is the ONE field EnvironmentFor reads from GetBranchAccessMode's data
+// branchEnvDTO mirrors the ONE field EnvironmentFor reads from GetBranchAccessMode's data
 // (handlers/project_security.go:668-677): Panacea's own environment name for any branch.
 type branchEnvDTO struct {
 	Env string `json:"env"`
@@ -355,8 +355,10 @@ A pair seeded in neither form is a test bug, answered `500` with
 go test ./control-plane/internal/deploy/... -race -count=1
 → ok for deploy, deploy/deploytest, deploy/panacea, deploy/panacea/panaceatest
 
-grep -c '// mirrors' control-plane/internal/deploy/panacea/wire.go
-→ at least 17 (one per DTO above)
+grep -cE '^// [a-z][A-Za-z]*DTO mirrors ' control-plane/internal/deploy/panacea/wire.go
+grep -cE '^type [a-z][A-Za-z]*DTO(\[T any\])? struct' control-plane/internal/deploy/panacea/wire.go
+→ 17, then 17: every read DTO above opens with "// xDTO mirrors <Panacea source>" (review I1;
+  counted at this task's commit — task 04's write half adds more DTOs to the same file)
 ```
 
 #### What this task does NOT claim
