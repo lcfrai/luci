@@ -1,7 +1,9 @@
 ### Task 06: The binding — which Panacea project deploys this repository
 
 **Half:** 7a. **Hours:** 2. **Depends on:** 03, 05. **Elsewhere:** phase 3 task 13
-(`githost.ParseRemote`, `Remote.RepoKey()`); Hub H0 (`hubclient.Projects` and its fake).
+(`githost.ParseRemote`, `Remote.RepoKey()`) — **hard, no fallback**: this task does not start
+until it is merged, and there is no by-name binding to fall back on (plan §10.1, review M15);
+Hub H0 (`hubclient.Projects` and its fake).
 
 Plan decision 7P-6. The owner's bar is *"powerful but a wall of configuration has failed"*, so the
 common case — one Panacea project deploys this repository — binds with **no question asked**. A
