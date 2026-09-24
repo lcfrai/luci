@@ -271,6 +271,13 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
    `false` (its build is history); task 16 hides Roll back on it through `current.deploymentId`.
    The rollback appears in `history` as its own row with the source's release pin (the Hub copied
    it at reserve, R5).
+   The rule is one exported function, `CurrentAt(s Snapshot, same func(a, b string) bool,
+   environment string, before time.Time) CurrentView` (the view's `current` object; `environment`
+   an `environments[]` row's `name`, or an unmatched group's raw name): the same two candidates,
+   counting only a build whose `CompletedAt` and a rollback whose `confirmedAt` is strictly
+   before `before`. `Assemble` calls it with the
+   zero `before`, which means no cut-off. Task 19 calls it with a row's go-live instant, to find
+   what served just before that row (review M29), so the two can never disagree.
 7. **Pending rows**: a confirmed run release of this Panacea project whose `pipelineRun` matches
    no deployment yet. Removed once the deployment appears (rule 5 then takes over).
    **The age cap** (review M18): the row is `pending` only while `DeploymentsAt` (the last good
@@ -341,6 +348,7 @@ the watcher passes its `Reader.SameEnvironment`, not the stub.
 | `TestBuildLiveAfterRollbackIsCurrent` | `d1` succeeded (completed 09:04); `d2` created 10:00; a rollback to `d1` confirmed 10:05; `d2` succeeded with `CompletedAt` 10:08 → `current {source:"deployment", deploymentId:"d2", since:"…10:08…"}`; with `d2` still `running` at the same snapshot → `current` is the rollback (review I3) | ordering by `CreatedAt`, which says the rollback is serving after the Ship it undid went live on top of it |
 | `TestCurrentOrdersByCompletion` | `d1` created 10:00 and completed 10:20, `d2` created 10:05 and completed 10:10, both `succeeded`, no rollback, listed in Panacea's served order (`d2` first, newest by creation) → `current {source:"deployment", deploymentId:"d1", since:"…10:20…"}`, only `d1` `isCurrent` (plan re-review b04-1, I-2: Panacea's `cancel-superseded` fires only within one trigger path, `clients/pipeline.go:102-112` *"CROSS-PATH RESIDUAL"*, so a push run and a Ship can overlap on one environment and the one created first can finish last) | taking the first `succeeded` row in served order (newest by creation) and only then comparing its `CompletedAt` — which passes every other test here, because in them creation order and completion order agree |
 | `TestCurrentTieGoesToRollback` | `d2` `CompletedAt` 10:05:00 and a rollback to `d1` confirmed 10:05:00.000 → `source "rollback"`; `d2` `CompletedAt` 10:05:01 → `d2` | a tie broken by list order, so the answer flips between cycles |
+| `TestCurrentAtCutOff` | `d1` completed 09:04, `d2` completed 09:30, a rollback to `d1` confirmed 10:05, `d3` completed 10:14: `CurrentAt(…, "production", 10:14)` → the rollback (`deploymentId "d1"`); at 10:05 exactly → `d2` (strictly before); at zero → `d3`, equal to `Assemble`'s `current` (review M29) | a cut-off that counts the row itself or an event at the same instant; a second copy of rule 6 in task 19 that drifts from this one |
 | `TestHistoricalOnlyIsNone` | the environment's only deployment is a backfilled `historical` row (zero `CompletedAt`) and no rollback → `current {source:"none", deploymentId:null, since:null}`, no row `isCurrent` | calling a reconstructed row live because it is the only one |
 | `TestPendingRowUntilDeploymentAppears` | a confirmed release for run `r9` with no deployment → a `pending` row; add `r9` → the pending row is gone and `r9` has the pin | a Ship that shows nothing for the ~seconds before Panacea lists the run |
 | `TestPendingRowAgesToNotFound` | a confirmed release for run `r9`, `confirmedAt` 10:00, no deployment `r9`: `DeploymentsAt` 10:04 → `pending`; exactly 10:05:00.000 → still `pending` (*"no later than"*; plan re-review b10 M-3a); 10:06 → `kind "not_found"`, `deploymentId "r9"`, the release pin kept, `isCurrent false`; `DeploymentsAt` zero, and `DeploymentsAt` 10:04 with `now` 12:00 (Panacea down since) → still `pending`; `r9` listed again at 10:07 → the `run` row with the pin, no `not_found` row (review M18) | a confirmed run whose deployment never appears read as *"pending"* for ever; an age measured against `now`, which calls a run gone while Panacea is down |

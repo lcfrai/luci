@@ -6,7 +6,8 @@
 
 Decision `D3` (b): the manifest lists **the sessions whose commits a release shipped**, read from
 the trailers in the shipped range — never inferred from a commit's time (`S3-P7.1`, *Must not*).
-The range is **the previous release's commit on the same environment, exclusive, to this release's
+The range is **the commit the environment served just before this release went live, exclusive
+(task 08 rule 6 at that instant, so a rollback's target counts; review M29), to this release's
 commit, inclusive**: what this release put in front of people that the one before it did not
 (prototype `viewThread`, `:861`: *"Sessions whose commits fall between the previous release on
 this environment and `<sha>`"*). Git is read in the local clone; nothing is asked of Panacea or the
@@ -34,8 +35,9 @@ package sessions
 // MaxCommits bounds one read. A range longer than this is read to this many and marked Truncated.
 const MaxCommits = 200
 
-// Range is one release's shipped range. From "" means there is no earlier release on the
-// environment: the range is Commit's own history, to MaxCommits.
+// Range is one release's shipped range. From is the commit the environment served just before
+// this release went live (the route's rule, below). From "" means the environment has no earlier
+// row at all: the range is Commit's own history, to MaxCommits.
 type Range struct {
 	Dir    string // the local project's path (project.Project.Path)
 	From   string // 40 hex, or ""
@@ -58,7 +60,7 @@ type Known struct {
 }
 
 type Result struct {
-	State string `json:"state"` // "ok" | "commit_not_local" | "previous_not_local"
+	State string `json:"state"` // "ok" | "commit_not_local" | "previous_not_local" | "previous_unknown" (the route's, no git read; review M29)
 	// Message is "" for "ok"; else the sentence the drawer shows.
 	Message   string    `json:"message"`
 	From      string    `json:"from"` // "" when there is no earlier release
@@ -95,7 +97,9 @@ never takes an optional lock, so it cannot race an agent's own git for `index.lo
 commit whose trailer carries two ids counts once for each. `MaxCommits + 1` rows read →
 `Truncated true`, and the extra row is dropped.
 
-**The two sentences:**
+**The three sentences** (the third is the route's, below):
+- `previous_unknown`: *"The cockpit cannot tell which release was serving before this one, so
+  the range cannot be drawn."* — no git read, and **Look again** re-reads after the next poll.
 - `commit_not_local`: *"This clone does not have commit `<short>`. Fetch, then look again."*
 - `previous_not_local`: *"This clone does not have the previous release's commit `<short>`, so the
   range cannot be drawn. Fetch, then look again."* — **never** a fallback to the commit's whole
@@ -104,12 +108,32 @@ commit whose trailer carries two ids counts once for each. `MaxCommits + 1` rows
 #### Which release is "the previous one" — in the route, from the view
 
 The route assembles the view (`deploywatch.Assemble(snapshot, w.SameEnvironment, now)`, task 08)
-and finds the row whose `deploymentId` is the query's. **From** is the `commit` of the newest row
-that is older (`at`) than it, has the **same `environmentRow`** (the view's own join, so `prod`
-and `production` rows are one environment; when both are `null`, the same raw `environment`, which
-is how `unmatched` groups them — review I8, never a second join on raw names), `kind "run"`, `build "succeeded"` and a 40-hex
-`commit`. Rollback rows are skipped (they ship no new code); failed builds are skipped (their
-commit never served). None → `From ""`.
+and finds the row whose `deploymentId` is the query's. **From** is the commit of **whatever the
+environment served just before this row went live** (review M29): task 08 rule 6's own function,
+`deploywatch.CurrentAt(snapshot, w.SameEnvironment, env, cut)`, never a second copy of it.
+- `env` is the row's `environmentRow` (the view's own join, so `prod` and `production` rows are
+  one environment), or, when it is `null`, the row's raw `environment`, which is how `unmatched`
+  groups them (review I8; never a second join on raw names).
+- `cut` is the row's go-live instant: its deployment's `CompletedAt` when `build "succeeded"` and
+  non-zero; otherwise (running, failed, historical) its `CreatedAt`. `CurrentAt` counts only
+  events strictly before it, so the row never counts itself.
+- `current.source "deployment"` → From is that deployment's `Commit`.
+- `current.source "rollback"` → From is the `Commit` of the deployment it returned **to**
+  (`current.deploymentId`, looked up in the snapshot). After d1 (c1), d2 (c2), a rollback to d1,
+  then d3 (c3), c1 was serving before d3, so d3's range is c1..c3 and credits the sessions
+  between c1 and c2 that d3 put back in front of people. The old rule, *"the newest older
+  succeeded run"*, took c2 and left them uncredited.
+- `current.source "none"` and **no** row of this environment older than `cut` → `From ""` (the
+  first release here).
+- Any other case → `state "previous_unknown"`, and **no git read**: `current.source "none"`
+  while older rows exist (backfilled `historical` rows, never current by rule 6), a rollback
+  whose target is not in the snapshot (past the 200-row history, or pruned), or a From commit
+  that is not 40 hex (`deploy.ValidCommit`). Never a fallback to an older row or to the whole
+  history, which would credit this release with sessions an earlier one shipped.
+
+A failed build is never current, so it is never a From (its commit never served). A running
+row's range can change once, if a rollback lands before it goes live; after it goes live, its
+`cut` is fixed.
 
 #### Control-plane route — complete wire
 
@@ -137,7 +161,7 @@ GET {P}/sessions?deploymentId=engagement-portal-build-x7k2p
 ```ts
 // types.ts — mirrors sessions.Result field for field.
 export interface ReleaseSessions {
-  state: "ok" | "commit_not_local" | "previous_not_local";
+  state: "ok" | "commit_not_local" | "previous_not_local" | "previous_unknown";
   message: string;
   from: string;
   commit: string;
@@ -168,7 +192,7 @@ export function ReleaseSessions(props: { projectId: string; row: ReleaseRow }): 
 | `truncated` | *"Showing the newest 200 commits of the range."* |
 | `from == ""` | under the list: *"The first release on this environment: its whole history, to 200 commits."* |
 | not `ok` | `message` verbatim, and **Look again** |
-| always | *"Commits between the previous release on this environment and `<short commit>`."* |
+| always | *"Commits between the release that was serving on this environment before it and `<short commit>`."* (review M29: a rollback's target counts) |
 
 The block reads once when the drawer opens on the row — never on the cursor, never on a timer: a
 release's range does not change after it ships.
@@ -187,7 +211,10 @@ release's range does not change after it ships.
 | `TestReadClassOnly` (`gitxtest.Script`) | every call is `Class Read`, `Scope Project` | a lock-taking call racing an agent's git |
 | `TestUnknownSessionNotGuessed` | registry `ErrNotFound` for `s-9` → `known: null` | a teammate's session shown as a local one, or dropped |
 | `TestGitFailureIsAnError` | the script fails `git log` (exit 128) → `Read` returns an error; the route `500` | a broken read drawn as an empty, confident list |
-| `TestPreviousSkipsRollbackAndFailed` (route) | history: run d1 ok (c1), run d2 failed (c2), rollback, run d3 ok (c3) → the read for d3 has `From c1` | a range starting at a commit that never served |
+| `TestPreviousSkipsFailed` (route) | history: run d1 succeeded (c1, completed 09:04), run d2 failed (c2), run d3 succeeded (c3, completed 10:14) → the read for d3 has `From c1` | a range starting at a commit that never served |
+| `TestPreviousIsWhatServedAfterRollback` (route) | d1 (c1, completed 09:04), d2 (c2, completed 09:30), a rollback to d1 confirmed 10:05, d3 (c3, completed 10:14) → the read for d3 has `From c1`, not `c2`; the read for d2 has `From c1` (review M29) | *"the newest older succeeded run"*, which skips the rollback and leaves the c1..c2 sessions d3 re-shipped uncredited |
+| `TestPreviousUsesGoLiveNotCreation` (route) | d1 (c1, completed 09:04), d2 (c2, completed 09:30), d3 created 10:00, a rollback to d1 confirmed 10:05, d3 completed 10:14 → `From c1` (the rollback's target was serving when d3 went live) | cutting at `CreatedAt`, which takes d2 because the rollback came after d3 was created |
+| `TestPreviousUnknownNeverWidens` (route) | a rollback serving before d3 whose target `d0` is not in the snapshot → `state "previous_unknown"`, its sentence, `sessions []`, and the `gitxtest.Script` saw no call; the same for an environment whose older rows are all `historical` | a fallback to an older row or to the whole history, crediting sessions an earlier release shipped |
 | `TestPreviousIsSameEnvironment` (route) | an older run on another environment is ignored | two environments' histories spliced into one range |
 | `TestSessionsRouteIsReadOnly` | the route is in `catalogReadOnlyRoutes`; the §10a audit passes | a GET registered outside the recorder |
 | `reads once` (desktop) | drawer open → one `api.sessions`; three cursor changes → still one | a git log per cursor tick |
@@ -224,3 +251,8 @@ release; read both sessions and the outside count. **Unverified until then.**
   `Commit`. They agree whenever the clone has fetched both commits, which the two refusals enforce.
 - A range across a rewritten history. If `From` is not an ancestor of `Commit` (a force-push),
   `git log From..Commit` lists what `Commit` has that `From` lacks — still true, and not labelled.
+  After a rollback, `From` can be older than a build that served in between: d3 after a rollback
+  from d2 to d1 reads `c1..c3`, which lists d2's commits again. That is the point of review M29:
+  those sessions reach people again with d3, so d3 credits them, and so does d2.
+- That what served before a row is exact to the second. `CompletedAt` can lag go-live (task 08's
+  *Does NOT claim*), so a rollback confirmed inside that lag can be ordered either side of it.
