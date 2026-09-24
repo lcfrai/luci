@@ -33,6 +33,7 @@ func sampleSession() Session {
 		ConversationID: "0f3c2b1a-9d8e-4f7a-8b6c-5d4e3f2a1b0c",
 		// Two, so a store that kept only the first or only the last fails.
 		EarlierConversationIDs: []string{"1a2b3c4d-0000-4000-8000-00000000e001", "1a2b3c4d-0000-4000-8000-00000000e002"},
+		CarriedConversationID:  "2b3c4d5e-0000-4000-8000-00000000ca01",
 		Status:                 StatusRunning,
 		ExitReason:             "",
 		Backend:                "docker",
@@ -118,6 +119,11 @@ func TestSessionsSurviveAReopen(t *testing.T) {
 	if !slices.Equal(got.EarlierConversationIDs, want.EarlierConversationIDs) {
 		t.Fatalf("earlierConversationIds = %v after a reopen, want %v", got.EarlierConversationIDs, want.EarlierConversationIDs)
 	}
+	// A fork's carried conversation: lose it and a Forget after a control-plane
+	// restart leaves the staged copy of another session's transcript behind.
+	if want.CarriedConversationID == "" || got.CarriedConversationID != want.CarriedConversationID {
+		t.Fatalf("carriedConversationId = %q after a reopen, want %q", got.CarriedConversationID, want.CarriedConversationID)
+	}
 	if got.Status != want.Status || got.AttachCount != want.AttachCount {
 		t.Fatalf("status/attachCount = %q/%d, want %q/%d", got.Status, got.AttachCount, want.Status, want.AttachCount)
 	}
@@ -160,7 +166,7 @@ func TestDocumentUsesTheContractFieldNames(t *testing.T) {
 	for _, key := range []string{
 		"id", "title", "machineId", "projectId", "branchId", "worktreeId",
 		"harness", "model", "effort", "permissionMode", "openingPrompt",
-		"command", "args", "conversationId", "status", "exitReason", "backend", "sandboxId",
+		"command", "args", "conversationId", "carriedConversationId", "status", "exitReason", "backend", "sandboxId",
 		"sandboxRef", "endpoint", "attachToken", "createdAt", "updatedAt",
 		"lastOutputAt", "attachCount", "contextRef",
 	} {

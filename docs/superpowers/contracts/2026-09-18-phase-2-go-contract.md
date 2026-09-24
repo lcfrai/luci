@@ -26,7 +26,7 @@ binary on this machine. Nothing here is recalled.
 | coder/websocket's origin check is host-only and permits a **missing** Origin | `coder/websocket@v1.8.12/accept.go` lines 206–234 |
 | Tauri webview origin string | tauri `dev` branch, `crates/tauri/src/manager/webview.rs` (`window_origin`) and `crates/tauri-utils/src/config.rs` (`use_https_scheme`, "Defaults to `false`") |
 | Claude Code flags | `claude --help` on this machine, version **2.1.267**; the sandbox image pins **2.1.274** |
-| `--session-id`, `--fork-session`, where transcripts live — AMENDED by the resume fix (2026-09-23), and by OD-10 (2026-09-24): a fork survives its source's deletion | `claude --help` and the CLI's behaviour **inside `panacea-app/sandbox:dev`, version 2.1.274**: transcript at `~/.claude/projects/-home-dev-work/<uuid>.jsonl`; `--session-id` of an existing conversation → `Session ID <id> is already in use`; `--resume A --session-id B` without `--fork-session` → refused; `--resume A --fork-session --session-id B` → B written with A's history; `--resume <missing>` → `No conversation found with session ID: <id>`. OD-10 (2026-09-24, `od10-forget-report.md` §3): B is a whole copy — 24 lines, every one naming B, none naming A — so after deleting A's file, `--resume B --fork-session --session-id C` still works and C holds A's turn and B's. The CLI also writes `-home-dev-work/memory/` (per project directory, not per session) and `~/.claude/telemetry/*.<session id>.*.json` (outside the store) |
+| `--session-id`, `--fork-session`, where transcripts live — AMENDED by the resume fix (2026-09-23), and by OD-10 (2026-09-24): a fork survives its source's deletion | `claude --help` and the CLI's behaviour **inside `panacea-app/sandbox:dev`, version 2.1.274**: transcript at `~/.claude/projects/-home-dev-work/<uuid>.jsonl`; `--session-id` of an existing conversation → `Session ID <id> is already in use`; `--resume A --session-id B` without `--fork-session` → refused; `--resume A --fork-session --session-id B` → B written with A's history; `--resume <missing>` → `No conversation found with session ID: <id>`. OD-10 (2026-09-24, `od10-forget-report.md` §3): B is a whole copy — 24 lines, every one naming B, none naming A — so after deleting A's file, `--resume B --fork-session --session-id C` still works and C holds A's turn and B's. The CLI also writes `-home-dev-work/memory/` (per project directory, not per session) and `~/.claude/telemetry/*.<session id>.*.json` (outside the store). AMENDED by the fork-carries fix (2026-09-24, `fork-carries-report.md` §3, image `469a07f6c43d`): with A's file bind-mounted **read-only** at its path inside ANOTHER store, `--resume A --fork-session --session-id B` forks exactly as with it writable — B written, A's turn in it twice, no line naming A, A byte-identical after; when the mount point's parent `-home-dev-work` is missing, Docker makes it `root:root 0755` inside the sandbox, `dev` cannot write beside A, and the fork exits writing nothing; after the container is gone Docker has left an empty 0-byte file at the mount point on the host |
 
 **Not verified, and marked as such throughout:** Codex, OpenCode and Gemini CLI
 flags. None of those binaries exists on this machine, and
@@ -318,7 +318,9 @@ func (r Resources) KubeMemory() string { return strconv.Itoa(r.MemoryMiB) + "Mi"
 // can prune or rewrite the host's linked-worktree metadata (§5.1 step 5), and —
 // AMENDED by its fix round (gitfix-rereview I-A, 2026-09-24) — the host git's global
 // excludes and attributes files, read-only, each when the host's git reads one, so a
-// commit in the sandbox holds what it would on the host (§5.1 step 5).
+// commit in the sandbox holds what it would on the host (§5.1 step 5), and — AMENDED
+// by the fork-carries fix (2026-09-24) — for a fork's first sandbox, a staged copy of
+// its source's transcript, read-only, one file inside the conversation store (§3.9).
 // Five things, then. Kata ignores Mounts and returns ErrUnsupported if any are set,
 // because a host path on an AKS node is meaningless (§2.6 lists what Phase 8 must
 // supply instead).
@@ -881,7 +883,9 @@ func (b *Backend) Kind() backend.Kind { return backend.KindKata }
   scoped **per user and per worktree** (the host layout's `<owner>` segment is where
   the user goes), and holding `projects/` only: `~/.claude` itself is where `/login`
   writes credentials. Until then this refusal fails every Kata create, as the worktree
-  mount already did.
+  mount already did. AMENDED by the fork-carries fix (2026-09-24): a Fork's first pod also
+  needs its source's transcript, read-only, at `projects/-home-dev-work/<id>.jsonl`, from a
+  copy no agent can redirect (§3.9) — the source's volume belongs to another worktree.
 - AMENDED by the sandbox git fix (2026-09-23): **and one more.** When `PANACEA_APP_CA_BUNDLE`
   is set (§4), every session also carries a **read-only** mount of that PEM bundle at
   `/etc/panacea-app/ca-bundle.pem` (`sessionCABundlePath`), named by `NODE_EXTRA_CA_CERTS`
@@ -1086,6 +1090,16 @@ type Session struct {
 	// ConversationID: persisted, never on the REST surface, additive inside
 	// schemaVersion 1; an older record decodes it as nil.
 	EarlierConversationIDs []string `json:"earlierConversationIds"`
+
+	// CarriedConversationID — AMENDED by the fork-carries fix (2026-09-24). Set on
+	// a Fork only, a session whose `resume` named a session in ANOTHER worktree
+	// (§3.9): that source's conversation, whose transcript the fork's first
+	// sandbox was shown as a staged, read-only copy. NOT this session's
+	// conversation, and nothing resumes it. Kept for Forget alone (§3.15), which
+	// deletes by it the staged copy and the empty mount point Docker leaves for it
+	// in this worktree's store. Same rules as ConversationID: persisted, never on
+	// the REST surface, additive inside schemaVersion 1; "" on every other record.
+	CarriedConversationID string `json:"carriedConversationId"`
 
 	Status     Status `json:"status"`
 	ExitReason string `json:"exitReason"`
@@ -1913,7 +1927,7 @@ Request:
 | `permissionMode` | string | no | `"ask"` |
 | `openingPrompt` | string | no | `""` |
 | `title` | string | no | derived: harness name + " · " + worktree name |
-| `resume` | string | no | `""` — AMENDED by the resume fix (2026-09-23): the **cockpit id** of the session to resume, which is what the desktop has always sent. The control plane resolves it to that session's stored `conversationId` and never passes it to the CLI. The source must be on the same harness and in the same worktree. |
+| `resume` | string | no | `""` — AMENDED by the resume fix (2026-09-23): the **cockpit id** of the session to resume, which is what the desktop has always sent. The control plane resolves it to that session's stored `conversationId` and never passes it to the CLI. The source must be on the same harness ~~and in the same worktree~~. AMENDED by the fork-carries fix (2026-09-24): **a source in another worktree is a Fork, not an error** — the new session forks the source's conversation into this worktree (below). |
 | `contextRef` | string | no | `""`; stored, never interpreted (§8.3) |
 
 201 with the session object of §3.10 and `Location: /v1/sessions/s-3f2a91c0`.
@@ -1925,8 +1939,8 @@ Errors: 400 `bad_request` (no `worktreeId`), 400 `unknown_harness`, 400
 AMENDED by the resume fix (2026-09-23) — a `resume` that cannot work is refused before
 anything is recorded or created, each with a sentence the user can act on: 404
 `session_not_found` (the source is no longer in the list), 400 `bad_request` (the
-source ran on another harness, or in another worktree — the conversation store is per
-worktree), 409 `conflict` (the source has no `conversationId`: it predates this
+source ran on another harness ~~, or in another worktree — the conversation store is per
+worktree~~ — the worktree refusal is withdrawn by the fork-carries fix, below), 409 `conflict` (the source has no `conversationId`: it predates this
 field). A harness that cannot resume still answers 400 `unsupported_option` from
 `Build`, unchanged.
 
@@ -1944,6 +1958,44 @@ continue. Start a new session instead." — the alternative is a terminal that p
 conversation found with session ID` and exits. A `stat` that fails any other way is not a
 refusal: that candidate is passed and the CLI judges, because OD-8 lets no feature require
 the look to work. A refused resume creates no directory, not even the store.
+
+AMENDED by the fork-carries fix (2026-09-24; the Resume fix's concern 5, "Fork does not carry
+the conversation", ruled a defect under OD-8's list) — **a `resume` whose source ran in another
+worktree is the cockpit's Fork**, and it carries the conversation: docs/FUNCTIONAL-SPEC.md's
+"branch the session from this point into a new worktree". The argv is Resume's, word for word —
+`--resume <source's conversation> --fork-session --session-id <new id>` — and the refusals are
+Resume's, from the same resolver: a fork of a session nobody spoke in gets the same 409 and the
+same sentence. What differs is that the fork's sandbox mounts the OTHER worktree's store, which
+does not hold the source's transcript, so the create does three more things, after the ids are
+minted and before the record (`sessions_fork.go`):
+
+1. **Stage a copy.** `<ConversationsDir>/local/.forks/<new session id>/<source conversation>.jsonl`,
+   a byte-for-byte copy of the source's transcript. Never mounted from the source's store: a bind
+   mount's host path is resolved by the Docker daemon, following links, and the source's store is
+   read-write in the source's sandbox, which may still be running — an agent there could swap its
+   transcript for a link to any host file between a check and the daemon's resolution. So only a
+   regular file is copied (the transcript directory must be a real directory, and the file a
+   regular file, both by `lstat`), and the file opened must be the file looked at
+   (`os.SameFile`); the copy is created `O_EXCL`, 0o600, in a directory no sandbox mounts (a
+   worktree id cannot begin with `.`). OD-8 allows it: read-only towards the harness's file, byte
+   for byte, nothing parsed or rewritten, and dependent on the location alone, which the canary
+   pins. **A copy that fails refuses the fork** — 500 `internal`, nothing recorded, no sandbox,
+   nothing staged — and never starts it fresh, because a fork that silently did not carry is this
+   defect.
+2. **Make the CLI's transcript directory** `<fork's store>/-home-dev-work`, 0o700, on the host.
+   Observed: Docker makes a mount point's missing parent root-owned 0755 inside the sandbox, and
+   the CLI, as `dev`, then cannot write the fork — it exits and writes nothing.
+3. **Mount the copy read-only** at `/home/dev/.claude/projects/-home-dev-work/<source
+   conversation>.jsonl`, after the store (§5.1 step 5's mount list gains this one entry, for a
+   fork's first sandbox only). Observed: the pinned CLI forks a read-only source exactly as a
+   writable one — B written with A's history, no line naming A, A unchanged.
+
+The record stores the source's conversation as `carriedConversationId` (§2.8), for Forget alone
+(§3.15). A **Resume** in its own worktree carries nothing: no copy, no extra mount, an empty
+`carriedConversationId`. A **restart** of a fork mounts no copy and passes no `--resume` — clean
+context — and keeps `carriedConversationId`, because what carrying left is still there for Forget.
+A **shell** fork is unchanged: the desktop sends no `resume` for a harness without
+`supportsResume`, and `Build` still refuses one.
 
 **The response is returned as soon as the record exists and the sandbox has been
 created — status `starting` — not after the sandbox is ready.** A create that blocks
@@ -2107,8 +2159,19 @@ nothing) and never lists the store, so no other session's file is reachable from
   `panacea-app/sandbox:dev`, claude 2.1.274, on 2026-09-24: with A's file deleted, `--resume B
   --fork-session --session-id C` still worked and C held A's turn and B's; `--resume A` answered `No
   conversation found`. §3.9 resolves only the resumed record's own ids, so a forgotten source is never
-  asked for. Fork into another worktree (phase 2's client starts a fresh session there) has its own
-  id in its own store, and is untouched by construction.
+  asked for. Fork into another worktree ~~(phase 2's client starts a fresh session there) has its own
+  id in its own store, and is untouched by construction~~ — AMENDED by the fork-carries fix
+  (2026-09-24): a fork now carries its source's conversation (§3.9), and is still untouched by its
+  source's Forget: its own transcript is a whole copy in its own store, and the staged copy it was
+  shown is under its own session id.
+- **A fork's Forget also deletes what carrying left** — AMENDED by the fork-carries fix
+  (2026-09-24). By `carriedConversationId` (§2.8): `<fork's store>/-home-dev-work/<that id>.jsonl`,
+  the empty file Docker makes on the host as the mount point for the staged copy (observed), deleted
+  by the minted id like the session's own and under the same link rule; and the staging directory
+  `<ConversationsDir>/local/.forks/<session id>`, removed whole — a directory only the control plane
+  writes, found by the session's own id, so nothing else is reachable from it. A record with no
+  `carriedConversationId` removes no staging directory, even one its id would name. The source's
+  transcript, in the source's store, is the source's to forget.
 - **Not deleted, on purpose:** `-home-dev-work/memory/`, which the CLI writes per project directory —
   the worktree's, shared by every session in it, not one session's. Files the CLI keeps outside
   `~/.claude/projects` (its `telemetry/`, named by session id) were never in the store; they live in
@@ -2234,8 +2297,15 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    `<ConversationsDir>/<owner>/<worktreeId>` with `<owner>` = `local` in Phase 2 — all
    before step 4, so a failure costs nothing. (AMENDED by OD-10, 2026-09-24: what deletes
    from the store is §3.15 — Forget, each session's own `<id>.jsonl`; worktree removal, the
-   whole store, a seam phase 3 wires.)
+   whole store, a seam phase 3 wires.) (AMENDED by the fork-carries fix, 2026-09-24: the source
+   may be in another worktree — that is a Fork, and step 3a carries its transcript.)
 3. Mint `sessionID := ids.New("s")` and `token := ids.Token()`.
+3a. AMENDED by the fork-carries fix (2026-09-24). **A Fork** — a `resume` whose source ran in
+   another worktree — makes the CLI's transcript directory in its own store, stages a copy of
+   the source's transcript under `<ConversationsDir>/local/.forks/<sessionID>/`, and adds the
+   copy to step 5's mounts, read-only (§3.9 has the checks and why). Last before step 4, so the
+   one later failure that must undo it is the record's own: a `store.Create` that fails removes
+   the staged copy, which no record names.
 4. `store.Create(session)` with `Status: StatusStarting`. **The record exists before
    the sandbox does.** If step 5 fails the record is the only evidence of what
    happened, and without it a half-created container becomes an orphan nobody can name.
@@ -2279,7 +2349,9 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    `gc.auto=0` stops the sandbox starting a detached auto gc, whose failure would leave a
    `.git/gc.log` that makes the host's own auto gc stand down for a day. The host's git keeps
    the repository. The mount order is the worktree, then
-   that mount, then the conversation store, then the CA bundle, then (AMENDED by the fix round below)
+   that mount, then the conversation store, then (AMENDED by the fork-carries fix, 2026-09-24:
+   for a fork's first sandbox only) the staged copy of its source's transcript, read-only, at
+   `/home/dev/.claude/projects/-home-dev-work/<source conversation>.jsonl`, then the CA bundle, then (AMENDED by the fix round below)
    the excludes file, then the attributes file. AMENDED by the sandbox git fix's round-1 fix round
    (gitfix-rereview I-A, 2026-09-24): git reads a **global excludes file** even when
    `core.excludesFile` is unset, `$XDG_CONFIG_HOME/git/ignore` or else `~/.config/git/ignore`, and
@@ -2334,7 +2406,9 @@ the transcript `--resume` reads is in the worktree's conversation store, mounted
 `~/.claude/projects`, so it survives even the three permitted destroys. Without that,
 Resume — which always runs in a NEW sandbox — found nothing.) (AMENDED by OD-10, 2026-09-24:
 it survives every destroy **except Forget's**. `?purge=true` deletes the session's own
-transcripts after the destroy, and removing a worktree deletes its whole store, §3.15.) The relay goroutine's
+transcripts after the destroy, and removing a worktree deletes its whole store, §3.15.)
+(AMENDED by the fork-carries fix, 2026-09-24: a Fork, which runs in another worktree's store,
+is shown a staged, read-only copy of its source's transcript, §3.9.) The relay goroutine's
 `defer` decrements `attachCount` and flushes `lastOutputAt`; that is all it does.
 
 ### 5.3 The reaper

@@ -75,8 +75,11 @@ var sessionStoreSegment = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 //
 //	<Deps.ConversationsDir>/<owner>/<worktree id>
 //
-// Per worktree because resume is same-worktree by design, so nothing ever needs
-// to read another worktree's transcripts. 0o700 because a transcript holds
+// Per worktree because a Resume continues in the worktree it ran in, and its
+// sandbox needs no other worktree's transcripts. The one crossing is a Fork —
+// a resume into another worktree — and it is given one file, a staged copy of
+// its source's transcript, read-only, never another store (sessions_fork.go).
+// 0o700 because a transcript holds
 // whatever the agent read. On Windows that mode is advisory — Go's MkdirAll
 // ignores it, and Docker Desktop shows the bind as root 777 inside the sandbox
 // — so the boundary there is the ACL of the user's own profile, under which the
@@ -117,8 +120,12 @@ const sessionTranscriptCLIVersion = "2.1.274"
 // "/" made "-". Observed in panacea-app/sandbox:dev, and recorded in the
 // go-contract's verification table: ~/.claude/projects/-home-dev-work/<uuid>.jsonl.
 func sessionTranscriptPath(store, conversation string) string {
-	return filepath.Join(store, strings.ReplaceAll(sessionWorkDir, "/", "-"), conversation+".jsonl")
+	return filepath.Join(store, sessionTranscriptDirName, conversation+".jsonl")
 }
+
+// sessionTranscriptDirName is that directory's name: sessionWorkDir with every
+// "/" made "-", which is how the pinned CLI names it.
+var sessionTranscriptDirName = strings.ReplaceAll(sessionWorkDir, "/", "-")
 
 // sessionStat is os.Stat, a variable only so a test can make the stat fail in
 // a way this platform's filesystem cannot be made to.
@@ -175,11 +182,25 @@ func sessionTranscriptState(store, conversation string) (written bool, err error
 //     host at the agent's choosing, so anything there but a real directory
 //     fails the Forget.
 //
+// A fork into another worktree left two more things, and both go too: the
+// staged copy of its source's transcript (sessionForgetCarried), and the empty
+// file Docker made in this store as the mount point for that copy — named by
+// the source's conversation id, CarriedConversationID, and deleted by it here
+// like the session's own. The source's transcript, in the source's store, is
+// the source's to forget, and nothing here can reach it.
+//
 // Any failure to delete comes back as the error, and the caller keeps the
 // record that names the file.
 func (a *API) sessionForgetTranscripts(sess registry.Session) error {
+	return errors.Join(a.sessionForgetStoreTranscripts(sess), a.sessionForgetCarried(sess))
+}
+
+// sessionForgetStoreTranscripts is the half of sessionForgetTranscripts inside
+// the session's worktree store.
+func (a *API) sessionForgetStoreTranscripts(sess registry.Session) error {
 	var ids []string
-	for _, id := range append([]string{sess.ConversationID}, sess.EarlierConversationIDs...) {
+	named := append([]string{sess.ConversationID}, sess.EarlierConversationIDs...)
+	for _, id := range append(named, sess.CarriedConversationID) {
 		if id == "" {
 			continue
 		}
@@ -282,16 +303,21 @@ type sessionGitFiles struct {
 // sessionMounts is everything of the host a sandbox sees: its worktree; a
 // primary worktree's linked-worktree metadata, read-only over itself, when
 // sessionWorktreeAdmin found one; its worktree's conversation store when the
-// harness has a conversation; the operator's CA bundle, read-only, when there
-// is one; and the host's global git excludes and attributes files, read-only,
-// each when the host's git reads one.
-func sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle string, git sessionGitFiles) []backend.Mount {
+// harness has a conversation; for a fork's first sandbox, the staged copy of
+// its source's transcript, read-only, inside that store (carried, see
+// sessions_fork.go; the zero Mount otherwise); the operator's CA bundle,
+// read-only, when there is one; and the host's global git excludes and
+// attributes files, read-only, each when the host's git reads one.
+func sessionMounts(worktreePath, worktreeAdmin, conversationStore string, carried backend.Mount, caBundle string, git sessionGitFiles) []backend.Mount {
 	mounts := []backend.Mount{{HostPath: worktreePath, ContainerPath: sessionWorkDir}}
 	if worktreeAdmin != "" {
 		mounts = append(mounts, backend.Mount{HostPath: worktreeAdmin, ContainerPath: sessionWorktreeAdminDir, ReadOnly: true})
 	}
 	if conversationStore != "" {
 		mounts = append(mounts, backend.Mount{HostPath: conversationStore, ContainerPath: sessionConversationDir})
+	}
+	if carried.HostPath != "" {
+		mounts = append(mounts, carried)
 	}
 	if caBundle != "" {
 		mounts = append(mounts, backend.Mount{HostPath: caBundle, ContainerPath: sessionCABundlePath, ReadOnly: true})
@@ -761,15 +787,19 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	// desktop has; the harness needs that session's own conversation id, and
 	// sessionResolveResume looks it up on the record. For a harness with no
 	// conversation the raw value goes to Build untranslated, and Build refuses
-	// it — unavailable, or cannot resume — in the contract's order.
+	// it — unavailable, or cannot resume — in the contract's order. The source
+	// may be in this worktree (Resume) or another (Fork); step 3a is the
+	// difference.
 	resume := strings.TrimSpace(req.Resume)
 	var conversation, conversationStore string
+	var source sessionResumeSource
 	if sessionHasConversation(desc) {
 		if resume != "" {
 			var ok bool
-			if resume, ok = a.sessionResolveResume(w, r, resume, harnessID, req.WorktreeID); !ok {
+			if source, ok = a.sessionResolveResume(w, r, resume, harnessID); !ok {
 				return
 			}
+			resume = source.conversation
 		}
 		// Minted here and TOLD to the CLI with --session-id. The alternative,
 		// learning the id the CLI picked, means reading its output.
@@ -815,11 +845,24 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID, path), lineEndings, gitFiles, a.deps.CABundle)
-	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, a.deps.CABundle, gitFiles)
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
 	token := ids.Token()
+
+	// 3a. A Fork carries its source's conversation into this worktree. Last
+	// before the record, so the one failure left that must undo it is the
+	// record's own. sessions_fork.go says why it is a staged copy.
+	var carried backend.Mount
+	var carriedConversation, staging string
+	if source.conversation != "" && source.worktreeID != req.WorktreeID {
+		if carried, staging, err = a.sessionCarry(source, sessionID, conversationStore); err != nil {
+			a.internal(w, r, "carry the conversation of session "+source.id+" into worktree "+req.WorktreeID, err)
+			return
+		}
+		carriedConversation = source.conversation
+	}
+	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, carried, a.deps.CABundle, gitFiles)
 
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
@@ -857,7 +900,16 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		SandboxID:      sessionID,
 		AttachToken:    token,
 		ContextRef:     req.ContextRef,
+
+		CarriedConversationID: carriedConversation,
 	}); err != nil {
+		// No record names the staged copy, so nothing would ever remove it.
+		if staging != "" {
+			if rerr := os.RemoveAll(staging); rerr != nil {
+				a.sessionLog().Error("remove the staged transcript of a fork that was never recorded",
+					"sessionId", sessionID, "err", rerr)
+			}
+		}
 		// Task 7's decision 3 fixes these two: an empty id is ErrInvalidID and
 		// answers 400, not 409 and not 500. Neither is reachable while
 		// sessionID comes from ids.New over crypto/rand, and both are mapped
@@ -957,7 +1009,13 @@ func (a *API) sessionLocate(ctx context.Context, worktreeID string) (projectID, 
 // Every refusal is a sentence the user can act on. The alternative is worse
 // than an error: a resume the CLI cannot honour starts a sandbox whose
 // terminal prints one line and exits.
-func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourceID string, harnessID harness.ID, worktreeID string) (string, bool) {
+//
+// Resume and Fork both come through here, and are refused alike: a Fork is a
+// resume whose request names another worktree. That used to be refused, when
+// the per-worktree store left a fork nothing to read; step 3a of the create
+// now carries the source's transcript across (sessions_fork.go), so where the
+// source ran is returned instead of checked.
+func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourceID string, harnessID harness.ID) (sessionResumeSource, bool) {
 	details := map[string]string{"resume": sourceID}
 	src, err := a.deps.Store.Get(sourceID)
 	if err != nil {
@@ -965,10 +1023,10 @@ func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourc
 			httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeSessionNotFound,
 				"The session to resume is no longer in the list, so there is no conversation to continue. Start a new session instead.",
 				details)
-			return "", false
+			return sessionResumeSource{}, false
 		}
 		a.internal(w, r, "read the session to resume", err)
-		return "", false
+		return sessionResumeSource{}, false
 	}
 	if src.Harness != string(harnessID) {
 		name := src.Harness
@@ -978,34 +1036,26 @@ func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourc
 		details["harness"] = src.Harness
 		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
 			"A session resumes on the harness it ran, and that one ran "+name+".", details)
-		return "", false
-	}
-	// Same work, same worktree — and the conversation store is per worktree, so
-	// a resume anywhere else would find no conversation to continue.
-	if src.WorktreeID != worktreeID {
-		details["worktreeId"] = src.WorktreeID
-		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
-			"A session resumes in the worktree it ran in, because that is where its conversation is kept.", details)
-		return "", false
+		return sessionResumeSource{}, false
 	}
 	if src.ConversationID == "" {
 		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
 			"That session has no saved conversation to continue: it was started before the app recorded one. Start a new session instead.",
 			details)
-		return "", false
+		return sessionResumeSource{}, false
 	}
 	conversation, found, err := a.sessionResumableConversation(src)
 	if err != nil {
 		a.internal(w, r, "find the conversation of the session to resume", err)
-		return "", false
+		return sessionResumeSource{}, false
 	}
 	if !found {
 		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
 			"Nothing has been said in that session yet, so there is no conversation to continue. Start a new session instead.",
 			details)
-		return "", false
+		return sessionResumeSource{}, false
 	}
-	return conversation, true
+	return sessionResumeSource{id: src.ID, worktreeID: src.WorktreeID, conversation: conversation}, true
 }
 
 // sessionResumableConversation is the conversation a resume of src continues:
@@ -1465,7 +1515,9 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID, path), lineEndings, gitFiles, a.deps.CABundle)
-	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, a.deps.CABundle, gitFiles)
+	// No carried transcript: a restart starts clean, so even a fork's restart
+	// resumes nothing and needs no source to read.
+	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, backend.Mount{}, a.deps.CABundle, gitFiles)
 
 	// One of contract §5.2's three permitted destroys.
 	if sess.SandboxID != "" {

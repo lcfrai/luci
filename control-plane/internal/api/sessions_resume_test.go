@@ -273,8 +273,8 @@ func TestAResumedSessionCanItselfBeResumed(t *testing.T) {
 func TestResumeRefusesWithASentenceTheUserCanActOn(t *testing.T) {
 	legacy := resumeSource("s-0000000c")
 	legacy.ConversationID = ""
-	elsewhere := resumeSource("s-0000000d")
-	elsewhere.WorktreeID = "w-99999999"
+	// A source in another worktree is no longer refused: that is a Fork, and it
+	// carries the conversation (sessions_fork_test.go).
 	shell := resumeSource("s-0000000e")
 	shell.Harness, shell.Command, shell.Args, shell.ConversationID, shell.Model = "shell", "/bin/bash", []string{"-l"}, "", ""
 	// A conversation the CLI never wrote, and a restart's earlier one that it
@@ -297,10 +297,6 @@ func TestResumeRefusesWithASentenceTheUserCanActOn(t *testing.T) {
 		"the source predates conversation ids": {
 			seed: &legacy, body: resumeBody(legacy.ID), wantStatus: http.StatusConflict,
 			wantCode: "conflict", wantPhrase: "no saved conversation",
-		},
-		"the source ran in another worktree": {
-			seed: &elsewhere, body: resumeBody(elsewhere.ID), wantStatus: http.StatusBadRequest,
-			wantCode: "bad_request", wantPhrase: "worktree it ran in",
 		},
 		"the source ran on another harness": {
 			seed: &shell, body: resumeBody(shell.ID), wantStatus: http.StatusBadRequest,

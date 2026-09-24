@@ -74,6 +74,17 @@ type Session struct {
 	// persisted, and never on the REST surface.
 	EarlierConversationIDs []string `json:"earlierConversationIds"`
 
+	// CarriedConversationID is set on a Fork only: a session whose `resume`
+	// named a session in ANOTHER worktree. It is that source's conversation,
+	// which the fork's first sandbox was shown read-only so the CLI could fork
+	// it (`--resume` this id). It is NOT this session's conversation and nothing
+	// resumes it: the fork's own is ConversationID, a whole copy the CLI wrote.
+	// It is kept for Forget alone, which deletes by it what carrying left behind
+	// — the staged copy, and the empty mount point Docker makes for the file in
+	// this worktree's store. Same rules as ConversationID: persisted, and never
+	// on the REST surface.
+	CarriedConversationID string `json:"carriedConversationId"`
+
 	Status     Status `json:"status"`
 	ExitReason string `json:"exitReason"`
 

@@ -64,6 +64,7 @@ func sessionsFullRecord() registry.Session {
 		Args:                   []string{"--model", "opus", "--session-id", sessionsConversation, "add tests, then refactor"},
 		ConversationID:         sessionsConversation,
 		EarlierConversationIDs: []string{sessionsEarlierConversation},
+		CarriedConversationID:  sessionsCarriedConversation,
 		Status:                 registry.StatusRunning,
 		ExitReason:             "",
 		Backend:                "docker",
@@ -83,6 +84,11 @@ func sessionsFullRecord() registry.Session {
 // reason and in the same shape as sessionsConversation.
 const sessionsEarlierConversation = "ea71e700-0000-4000-8000-5ec2e7ea71e7"
 
+// sessionsCarriedConversation is the conversation a fork was forked from, in
+// another worktree: persisted for Forget, and no more a wire value than the
+// fork's own.
+const sessionsCarriedConversation = "ca771ed0-0000-4000-8000-5ec2e7ca771e"
+
 // This is the test contract §3.10 asks for and the reason api.sessionJSON
 // exists. It searches the BYTES. Asserting that a field you remembered is empty
 // proves nothing about the field the next person adds.
@@ -96,6 +102,7 @@ func TestSessionJSONLeaksNeitherTheTokenNorTheEndpoint(t *testing.T) {
 		"attach token":         sessionsToken,
 		"conversation":         sessionsConversation,
 		"earlier conversation": sessionsEarlierConversation,
+		"carried conversation": sessionsCarriedConversation,
 		"endpoint":             sessionsEndpoint,
 		"sandbox ref":          sessionsRef,
 	} {
@@ -105,7 +112,7 @@ func TestSessionJSONLeaksNeitherTheTokenNorTheEndpoint(t *testing.T) {
 	}
 	// command and args are forbidden for a different reason: they would put the
 	// opening prompt in two places and invite the desktop to rebuild argv.
-	for _, fragment := range []string{`"command"`, `"args"`, `"sandboxId"`, `"sandboxRef"`, `"endpoint"`, `"attachToken"`, `"conversationId"`, `"earlierConversationIds"`} {
+	for _, fragment := range []string{`"command"`, `"args"`, `"sandboxId"`, `"sandboxRef"`, `"endpoint"`, `"attachToken"`, `"conversationId"`, `"earlierConversationIds"`, `"carriedConversationId"`} {
 		if strings.Contains(body, fragment) {
 			t.Errorf("forbidden key %s is present: %s", fragment, body)
 		}
