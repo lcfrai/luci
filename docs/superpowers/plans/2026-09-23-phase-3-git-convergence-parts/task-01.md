@@ -55,6 +55,10 @@ catch being false.
 | `TestBehaviourRevListLeftRightCountFormat` | `rev-list --left-right --count A...B` prints `<n>\t<m>\n` | ahead/behind parsing | 08 |
 | `TestBehaviourGitVarInACloneMissesTheSourcesLocalIdentity` | with `user.name`/`user.email` set only in the source's `.git/config`, `git var GIT_AUTHOR_IDENT` in the clone does **not** print them | the identity copy of task 03 is needed | 03 |
 | `TestBehaviourNoWriteFetchHeadLeavesFetchHeadAlone` | `fetch --no-write-fetch-head <clone> +refs/heads/b:refs/panacea/lanes/w` leaves `FETCH_HEAD` absent or unchanged; a plain `fetch origin` writes it | lane syncs never masquerade as the last remote fetch | 07, 08, 12 |
+| `TestBehaviourCheckRefFormatBranchExpandsShorthand` (review Minor 6) | after `switch -c feature` then `switch main`: `check-ref-format --branch @{-1}` exits 0 and prints `feature\n`; `check-ref-format 'refs/heads/@{-1}'` exits 1; `update-ref 'refs/heads/@{-1}' HEAD 0000…` exits 128 "refusing to update ref with bad name"; `--branch -x` and `--branch HEAD` exit 128 "fatal: '<name>' is not a valid branch name", while `refs/heads/-x` and `refs/heads/HEAD` exit 0; `refs/heads/a..b` exits 1 with empty stderr. Probed 2026-09-24, git 2.53, `b10-probe.out` and `b10-probe2.out` | that ValidBranchName needs `--branch` and the printed-name equality both | 11 |
+| `TestBehaviourRemoveSectionExitCodes` (review Minor 12) | `config --remove-section branch.nope` exits 128, stderr `fatal: no such section: branch.nope`; a present section exits 0; with `.git/config.lock` held, remove-section exits 255 `error: could not lock config file .git/config`, and `branch -D x` exits 0, prints `warning: update of config-file failed` and leaves `branch.x.*` in place. Probed 2026-09-24 | DeleteBranch's OKExit 128 and its warn-and-answer rule | 11 |
+| `TestBehaviourBranchRenameMovesACheckoutsHead` (review Minor 16) | with `main` checked out, `branch -m main renamed` exits 0 with no output and `symbolic-ref HEAD` then prints `refs/heads/renamed`. Probed 2026-09-24 | that RenameBranch must refuse `branch_checked_out` | 11 |
+| `TestBehaviourFetchStartsAutoMaintenance` (review Minor 8) | under `GIT_TRACE=1`, `fetch --no-tags --quiet <src> +refs/heads/main:refs/x` logs `run_command: git maintenance run --auto --quiet --detach`; with `--no-auto-maintenance` no `maintenance` line, even with `maintenance.auto=true` in the repository's `.git/config`. Probed 2026-09-24 | that every host fetch needs the flag | 07, 09, 11, 12 |
 | `TestBehaviourRemoveAllOnAClone` | `os.RemoveAll(clone)` succeeds — **or** fails on read-only object files on Windows; record which, and the fix that makes it succeed (clear `FILE_ATTRIBUTE_READONLY` with `os.Chmod(p, 0o600)` during a walk) | worktree removal | 11 |
 
 `sandbox_docker_test.go` (`//go:build docker`), each against `panacea-app/sandbox:dev` with the
@@ -112,7 +116,7 @@ image and skips with a sentence if `panacea-app/sandbox:dev` is absent.
 #### Acceptance
 
 ```
-go test ./control-plane/internal/gitx/ -run Behaviour -count=1 -v   → PASS, 22 tests (or the recorded, inverted form)
+go test ./control-plane/internal/gitx/ -run Behaviour -count=1 -v   → PASS, 26 tests: the table's 26 `TestBehaviour*` rows (or the recorded, inverted form)
 go test ./control-plane/internal/gitx/ -tags docker -run Sandbox -count=1 -v → PASS, 3 tests, or SKIP naming the missing image
 go vet ./control-plane/...                                           → no output
 ```
