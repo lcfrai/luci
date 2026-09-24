@@ -105,6 +105,15 @@ the sandbox.
 which workflow `wf_edf4498c-78e` (p3-ruling-r4) applies. When its re-review passes, resume p3's
 build stream with `args {"stream":"p3","cleared":["b02"]}`.
 
+**Also running (21:45):**
+- **Team-collaboration research**, run `wf_939b83b5-17a`, task `w1k373knn`. It is the session's
+  `workflows/scripts/team-collab-research-wf_939b83b5-17a.js`, with no args, and resumes by prefix
+  only within the same session. Its output is `docs/superpowers/planning/2026-09-24-team-collaboration/`:
+  00-summary, 01-04 research, 05-design, 06-07 critiques. The owner asked for multi-user projects:
+  a team sees each member's work, agents and focus, and spins up its own agents that know what
+  every other agent is doing.
+- **p3-ruling-r4**, run `wf_edf4498c-78e`.
+
 ## 4. After phase 2's fix rounds finish
 
 Still to do for phase 2:
