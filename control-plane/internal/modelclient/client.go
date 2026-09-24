@@ -138,7 +138,9 @@ type Client struct {
 
 // New returns a Client. It does not contact the network. The key is checked
 // first (ErrNoCredentials), then the base URL (ErrNoBaseURL); neither is
-// guessed.
+// guessed. The key, the base URL and the model id are trimmed, as in
+// ConfigFromEnv, because a Config may be built in code (phase 6) rather than
+// read from the environment.
 func New(cfg Config) (*Client, error) {
 	cfg.APIKey = strings.TrimSpace(cfg.APIKey)
 	if cfg.APIKey == "" {
@@ -148,6 +150,7 @@ func New(cfg Config) (*Client, error) {
 	if cfg.BaseURL == "" {
 		return nil, ErrNoBaseURL
 	}
+	cfg.Model = strings.TrimSpace(cfg.Model)
 	if cfg.Model == "" {
 		cfg.Model = DefaultModel
 	}
@@ -175,10 +178,12 @@ type wireFormat struct {
 	Schema json.RawMessage `json:"schema"`
 }
 
-// wireOutputConfig is output_config. Both fields were checked against the
-// Messages API reference on 2026-09-24 (task 02 step 1): effort is GA inside
-// output_config, and format {type: json_schema, schema} is the current
-// structured-output field (the top-level output_format is the deprecated one).
+// wireOutputConfig is output_config. Both fields were checked on 2026-09-24
+// (task 02 step 1) against the bundled claude-api skill reference, cached
+// 2026-06-24: not the live docs, and unverified at the gateway until task 23.
+// Per that reference, effort is GA inside output_config, and format
+// {type: json_schema, schema} is the current structured-output field (the
+// top-level output_format is the deprecated one).
 type wireOutputConfig struct {
 	Effort string      `json:"effort,omitempty"`
 	Format *wireFormat `json:"format,omitempty"`
@@ -253,7 +258,7 @@ func (c *Client) Complete(ctx context.Context, req Request) (Response, error) {
 	}
 	if resp.StatusCode != http.StatusOK {
 		return Response{}, fmt.Errorf("modelclient: model returned %d: %s",
-			resp.StatusCode, strings.TrimSpace(string(raw)))
+			resp.StatusCode, quoteBody(raw))
 	}
 
 	var decoded wireResponse
@@ -281,14 +286,31 @@ func (c *Client) Complete(ctx context.Context, req Request) (Response, error) {
 	}, nil
 }
 
+// maxErrorBody caps how much of a failed reply's body an error quotes. An
+// error lands in logs, and the body can be a gateway's HTML page or an echo
+// of the request, which carries a brief's answers.
+const maxErrorBody = 2 << 10
+
+// quoteBody is the trimmed body, cut to maxErrorBody bytes with its full
+// length named when it is longer.
+func quoteBody(raw []byte) string {
+	body := strings.TrimSpace(string(raw))
+	if len(body) <= maxErrorBody {
+		return body
+	}
+	return fmt.Sprintf("%s... (%d bytes, truncated)", body[:maxErrorBody], len(body))
+}
+
 // ExtractJSON returns the first balanced top-level JSON object in text.
 // output_config.format constrains first-party Anthropic replies, but a gateway
 // may ignore it and wrap the object in prose or a fenced code block, so every
 // JSON-shaped call goes through here rather than straight into json.Unmarshal.
 //
 // It balances braces and skips braces inside double-quoted strings; it does
-// not validate what it returns. Callers unmarshal and schema-check the result
-// and degrade on any failure (task 04), so a wrong guess costs a degrade, not
+// not validate what it returns. It tracks strings in the prose around the
+// object too, so a lone double quote before it (`a 5" screen: {...}`) hides
+// the object: ErrNoJSON. Callers unmarshal and schema-check the result and
+// degrade on any failure (task 04), so a wrong guess costs a degrade, not
 // wrong data.
 func ExtractJSON(text string) ([]byte, error) {
 	depth, start, inString, escaped := 0, -1, false, false

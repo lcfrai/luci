@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -131,6 +132,40 @@ func TestNewFillsTheDefaults(t *testing.T) {
 	}
 }
 
+// TestNewTrimsTheModelID (review M5): New trims the model id as ConfigFromEnv
+// does, so a Config built in code (phase 6's rotation engine builds its own)
+// cannot send "  " as the model and fail every call as a 400. Blank gives
+// DefaultModel.
+func TestNewTrimsTheModelID(t *testing.T) {
+	cases := []struct {
+		name, model, want string
+	}{
+		{"blank", " \t", modelclient.DefaultModel},
+		{"padded", " claude-sonnet-5 ", "claude-sonnet-5"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotBody map[string]any
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_ = json.NewDecoder(r.Body).Decode(&gotBody)
+				_, _ = w.Write([]byte(`{"stop_reason":"end_turn","content":[{"type":"text","text":"ok"}]}`))
+			}))
+			defer srv.Close()
+
+			c, err := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k", Model: tc.model})
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			if _, err := c.Complete(context.Background(), modelclient.Request{User: "x"}); err != nil {
+				t.Fatalf("Complete: %v", err)
+			}
+			if gotBody["model"] != tc.want {
+				t.Errorf("model = %#v, want %q", gotBody["model"], tc.want)
+			}
+		})
+	}
+}
+
 // TestCompleteReportsNoTextBlock: a 200 whose content holds no text block (a
 // reply that spent its tokens thinking, or an empty one) is ErrNoText, never
 // a success with empty text.
@@ -160,20 +195,116 @@ func TestCompleteReportsNoTextBlock(t *testing.T) {
 
 // TestCompleteBoundsTheReplyItReads: the reply is read through an 8 MiB
 // limit, so a runaway body is a decode error, not an unbounded allocation.
+// Both sides of the bound are pinned to the byte (review M1): a body of
+// exactly 8 MiB is read whole, and one byte more is an error. The upper row
+// alone let a shift typo (8<<10) cap every reply at 8 KiB.
 func TestCompleteBoundsTheReplyItReads(t *testing.T) {
-	huge := strings.Repeat("a", 8<<20)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"stop_reason":"end_turn","content":[{"type":"text","text":"` + huge + `"}]}`))
-	}))
-	defer srv.Close()
+	const limit = 8 << 20
+	const head, tail = `{"stop_reason":"end_turn","content":[{"type":"text","text":"`, `"}]}`
+	cases := []struct {
+		name   string
+		size   int // the whole body, in bytes
+		accept bool
+	}{
+		{"a body of exactly 8 MiB is read whole", limit, true},
+		{"a body one byte over 8 MiB is an error", limit + 1, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			text := strings.Repeat("a", tc.size-len(head)-len(tail))
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(head + text + tail))
+			}))
+			defer srv.Close()
 
-	c, _ := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
-	resp, err := c.Complete(context.Background(), modelclient.Request{User: "x"})
-	if err == nil {
-		t.Fatalf("a reply over 8 MiB was accepted (%d bytes of text)", len(resp.Text))
+			c, _ := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
+			resp, err := c.Complete(context.Background(), modelclient.Request{User: "x"})
+			switch {
+			case tc.accept && err != nil:
+				t.Fatalf("a %d-byte body was refused: %v", tc.size, err)
+			case tc.accept && len(resp.Text) != len(text):
+				t.Fatalf("Text is %d bytes, want the whole %d", len(resp.Text), len(text))
+			case !tc.accept && err == nil:
+				t.Fatalf("a %d-byte body was accepted (%d bytes of text)", tc.size, len(resp.Text))
+			}
+		})
 	}
 }
 
+// TestCompleteHonoursTheCallersContext: the caller's context is the budget
+// that keeps each Discover call under its own desktop timeout (task 02
+// amendment 5, review I4, review I1). DefaultTimeout (45 s) is only a
+// ceiling, longer than task 04's FollowUpBudget (20 s) and than the desktop's
+// 30 s wait, so a client that dropped ctx would turn a slow model into the
+// desktop's timeout. Tasks 04 and 13 test with a fake Completer; only this
+// package can pin that the real Client obeys ctx. The handler holds the call
+// open until the client goes away, so only the caller's context can end it
+// inside the bound.
+func TestCompleteHonoursTheCallersContext(t *testing.T) {
+	cases := []struct {
+		name string
+		want error
+		ctx  func(started <-chan struct{}) (context.Context, context.CancelFunc)
+	}{
+		{"a deadline", context.DeadlineExceeded, func(<-chan struct{}) (context.Context, context.CancelFunc) {
+			return context.WithTimeout(context.Background(), 50*time.Millisecond)
+		}},
+		{"a cancel once the call is in flight", context.Canceled, func(started <-chan struct{}) (context.Context, context.CancelFunc) {
+			ctx, cancel := context.WithCancel(context.Background())
+			go func() {
+				select {
+				case <-started:
+					cancel()
+				case <-ctx.Done():
+				}
+			}()
+			return ctx, cancel
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			started, release := make(chan struct{}), make(chan struct{})
+			var once sync.Once
+			srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+				once.Do(func() { close(started) })
+				select {
+				case <-r.Context().Done():
+				case <-release:
+				}
+			}))
+			defer srv.Close()
+			// Deferred after Close, so it runs first: a handler still held
+			// open (the failing case) is released and cannot hang Close.
+			defer close(release)
+
+			c, err := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			ctx, cancel := tc.ctx(started)
+			defer cancel()
+
+			done := make(chan error, 1)
+			go func() {
+				_, err := c.Complete(ctx, modelclient.Request{User: "x"})
+				done <- err
+			}()
+			select {
+			case err := <-done:
+				if !errors.Is(err, tc.want) {
+					t.Fatalf("err = %v, want one that wraps %v", err, tc.want)
+				}
+			case <-time.After(10 * time.Second):
+				t.Fatalf("Complete still running 10 s after the caller's context ended: only the client's own %v ceiling would end it", modelclient.DefaultTimeout)
+			}
+		})
+	}
+}
+
+// TestCompleteSendsJSONSchemaWhenSupplied sends an effort with the schema
+// (review M6): both Discover callers send a schema, and an effort set beside
+// it must reach the body too, or it is silently ignored and the call runs at
+// the model's default inside a 20 s budget.
 func TestCompleteSendsJSONSchemaWhenSupplied(t *testing.T) {
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -185,12 +316,16 @@ func TestCompleteSendsJSONSchemaWhenSupplied(t *testing.T) {
 	c, _ := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
 	if _, err := c.Complete(context.Background(), modelclient.Request{
 		User:       "x",
+		Effort:     "low",
 		JSONSchema: json.RawMessage(`{"type":"object"}`),
 	}); err != nil {
 		t.Fatalf("Complete: %v", err)
 	}
 
 	oc := gotBody["output_config"].(map[string]any)
+	if oc["effort"] != "low" {
+		t.Errorf("output_config.effort = %#v, want low beside the schema", oc["effort"])
+	}
 	format, ok := oc["format"].(map[string]any)
 	if !ok {
 		t.Fatalf("output_config.format missing: %#v", oc)
@@ -236,15 +371,86 @@ func TestCompleteSurfacesHTTPErrors(t *testing.T) {
 	}
 }
 
+// TestCompleteReportsRefusal has a row with partial text (review M2): a
+// refusal can fire after some output, and that output is discarded, never
+// returned as a complete answer. The refusal check must run before the text
+// is read, not only when there is none.
 func TestCompleteReportsRefusal(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"no content", `{"stop_reason":"refusal","content":[],"usage":{}}`},
+		{"partial text", `{"stop_reason":"refusal","content":[{"type":"text","text":"partial"}],"usage":{}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			c, _ := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
+			resp, err := c.Complete(context.Background(), modelclient.Request{User: "x"})
+			if !errors.Is(err, modelclient.ErrRefused) {
+				t.Fatalf("err = %v (Text %q), want ErrRefused", err, resp.Text)
+			}
+			if resp.Text != "" {
+				t.Errorf("Text = %q, want nothing from a refused reply", resp.Text)
+			}
+		})
+	}
+}
+
+// TestCompleteJoinsEveryTextBlock: the reply's text is every text block, in
+// order, with the thinking block skipped. The API splits text into several
+// blocks (with citations, for one), and a client that kept only the first
+// block would return part of the answer as the whole.
+func TestCompleteJoinsEveryTextBlock(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"stop_reason":"refusal","content":[],"usage":{}}`))
+		_, _ = w.Write([]byte(`{"stop_reason":"end_turn","content":[
+			{"type":"thinking","thinking":"hmm","signature":"sig"},
+			{"type":"text","text":"a"},{"type":"text","text":"b"}]}`))
 	}))
 	defer srv.Close()
 
 	c, _ := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
-	if _, err := c.Complete(context.Background(), modelclient.Request{User: "x"}); !errors.Is(err, modelclient.ErrRefused) {
-		t.Fatalf("err = %v, want ErrRefused", err)
+	resp, err := c.Complete(context.Background(), modelclient.Request{User: "x"})
+	if err != nil {
+		t.Fatalf("Complete: %v", err)
+	}
+	if resp.Text != "ab" {
+		t.Errorf("Text = %q, want \"ab\", both text blocks in order", resp.Text)
+	}
+}
+
+// TestCompleteCapsTheBodyItQuotesInAnError: a failed reply's body is quoted
+// in the error, and an error lands in logs. The body can be a gateway's HTML
+// page or an echo of the request, which carries a brief's answers, so at most
+// 2 KiB of it is quoted, not the 8 MiB the read allows.
+func TestCompleteCapsTheBodyItQuotesInAnError(t *testing.T) {
+	const quoted = 2 << 10
+	body := strings.Repeat("a", 64<<10)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+
+	c, _ := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
+	_, err := c.Complete(context.Background(), modelclient.Request{User: "x"})
+	if err == nil {
+		t.Fatal("expected an error for 502")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "502") {
+		t.Errorf("error = %.80q..., want the status", msg)
+	}
+	if !strings.Contains(msg, body[:quoted]) || strings.Contains(msg, body[:quoted+1]) {
+		t.Errorf("error quotes %d bytes of the body, want exactly the first %d", strings.Count(msg, "a"), quoted)
+	}
+	if !strings.Contains(msg, "65536 bytes") {
+		t.Errorf("error does not name the body's full length, 65536 bytes (it is %d bytes long)", len(msg))
 	}
 }
 
@@ -283,6 +489,9 @@ func TestExtractJSON(t *testing.T) {
 		// greedy first-{-to-last-} extractor returns the same bytes for every
 		// one of them. This row is the one that tells the two apart.
 		{"first of two objects", `{"a":1} and then {"b":2}`, `{"a":1}`},
+		// A stray close brace before the object must not unbalance the count:
+		// without the depth > 0 guard, this returns the INNER {"b":1}.
+		{"a stray close brace first", `}{"a":{"b":1}}`, `{"a":{"b":1}}`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
