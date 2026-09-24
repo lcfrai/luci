@@ -238,12 +238,14 @@ func TestTokenNeverInErrors(t *testing.T) {
 		hs := newHarness(t, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(status)
-			_, _ = w.Write([]byte(`{"error":"api key pnc_test revoked or expired (got ` + r.Header.Get("Authorization") + `)"}`))
+			got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+			_, _ = w.Write([]byte(`{"error":"api key ` + got + ` revoked or expired (also pnc_te)"}`))
 		})
 		err := hs.c.do(context.Background(), "whoami", http.MethodGet, "/api/v1/me", nil, nil)
 		e := asDeployError(t, err)
 		for what, s := range map[string]string{"Error()": err.Error(), "Message": e.Message, "log": hs.log.String()} {
-			if strings.Contains(s, testToken) || strings.Contains(s, "Bearer") {
+			// "pnc_te" also catches the truncated key the body quotes.
+			if strings.Contains(s, "pnc_te") || strings.Contains(s, "Bearer") {
 				t.Errorf("%d: %s carries the credential: %s", status, what, s)
 			}
 		}
@@ -603,8 +605,9 @@ func TestProxyFromEnvironmentHonoured(t *testing.T) {
 			tr.MaxIdleConns, def.MaxIdleConns, tr.ExpectContinueTimeout, def.ExpectContinueTimeout)
 	}
 	tc := tr.TLSClientConfig
-	if tc == nil || tc.MinVersion != tls.VersionTLS12 || tc.RootCAs != nil || tc.InsecureSkipVerify {
-		t.Errorf("TLSClientConfig = %+v; want MinVersion TLS 1.2, platform roots, verification on", tc)
+	// Verification being on is TestCAFileAddsRoot's: without the CA file the handshake must fail.
+	if tc == nil || tc.MinVersion != tls.VersionTLS12 || tc.RootCAs != nil {
+		t.Errorf("TLSClientConfig = %+v; want MinVersion TLS 1.2 and the platform roots", tc)
 	}
 	if hc.Timeout != 5*time.Second || hc.Jar != nil || hc.CheckRedirect == nil ||
 		hc.CheckRedirect(nil, nil) != http.ErrUseLastResponse {
@@ -690,6 +693,8 @@ func TestNewValidatesConfig(t *testing.T) {
 		{"negative timeout", Config{Origin: "https://dev.panacea.kpmg", Tokens: tokens, Timeout: -time.Second}, "timeout"},
 		{"unreadable CA file", Config{Origin: "https://dev.panacea.kpmg", Tokens: tokens,
 			CAFile: filepath.Join(t.TempDir(), "absent.pem")}, "absent.pem"},
+		{"a test client would drop the CA file", Config{Origin: "https://dev.panacea.kpmg", Tokens: tokens,
+			CAFile: "ca.pem", HTTPClient: &http.Client{}}, "CAFile"},
 	}
 	for _, r := range refused {
 		if c, err := New(r.cfg); err == nil || c != nil || !strings.Contains(err.Error(), r.want) {
