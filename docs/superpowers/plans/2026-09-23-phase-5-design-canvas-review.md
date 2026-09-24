@@ -1243,3 +1243,65 @@ Every hit was changed, or already agreed with this batch. `task-24.md:23-24` add
 
 Nothing was built. This batch changes documents only.
 
+## Fix batch b05, round 2 (2026-09-24) — the re-review's open issues (`plan-rereview-b05-1.md`)
+
+Commits `d0151fa` (RR-I9-1, RR-I9-2, RR-I9-3, RR-M2, RR-M3, RR-M4, and RR-M1's first form),
+`c9a0016` (RR-M1 as built: `canon` keeps junctions), and this section's commit. Paths are relative
+to `docs/superpowers/plans/`; `parts/` is `2026-09-23-phase-5-design-canvas-parts/`. Lines are as
+of this section's commit. **This section supersedes round 1's row for hole 2** (`:1182`) and its
+first named mutant (`:1227-1228`): first party is no longer "inside `-root`".
+
+| Finding | Change | Where |
+|---|---|---|
+| RR-I9-1 the link target read one level too deep, any `file:` read as a link | A link is what the project's `package-lock.json` states: the entry at the node's location has `"link": true`, and its `resolved` is the target relative to the project (read in the re-review's fixture: `"node_modules/c": {"resolved": "sub/c", "link": true}`). `npm ls`'s own `resolved` is never read: it is relative to the link's parent for a link and to the project for a tarball. A `file:` tarball has no `link`, so it is third party and checked. A node with no lockfile entry is checked, so only a positive `"link": true` exempts | `parts/task-04.md:84-99` (rule), `:266-274` (`NpmDeps`); plan `:220` (P5-P), `:541-545` (the old "relative to the link" wording corrected) |
+| RR-I9-1 tests | `TestNpmDeps_firstPartyIsStructural` requires fixtures copied from a real npm run, the version and command named in the test's comment; adds the `<root>-fork` link, whose `npm ls` `resolved` joined to `path` lands inside `-root`, and the `GPL-3.0` `file:vendor/g-1.0.0.tgz` tarball | `parts/task-04.md:395` |
+| RR-I9-2 inside the repository is not ours | First party means a project the gate scans. Go: `.Module.Main` only; a directory `replace`, inside `-root` or out, is classified from `Replace.Dir` (neither `go.mod` has a `replace` today). npm: the root of a scanned project, or a link whose target is exactly one; any other in-root link fails "first-party link <path> is not a scanned project", with both remedies named (add it to the scan list, or ship a vendored copy as a `file:` tarball, which is checked); a link outside `-root` is classified and descended. Cargo: `workspace_members` only (today one member, `desktop@0.1.0`) | `parts/task-04.md:74-101` (rule), `:244-246` (`GoDeps`), `:266-275` (`NpmDeps`, which gains a `scanned []string` parameter), `:281-282` (`CargoDeps`), `:348-350` (the scan list is the npm first-party list); plan `:220` |
+| RR-I9-2 tests | the Go row flipped: a directory `replace` into `<root>/third_party/gpl-lib` is classified and fails; the npm row adds a `GPL-3.0` link into `<root>/vendor/x`, which fails "not a scanned project"; the Cargo row skips only the `workspace_members` id, and an in-root path crate that is not a member is a `Dep` | `parts/task-04.md:395`, `:397`, `:400` |
+| RR-I9-3 `license.md` on a case-sensitive CI agent | `Classify` matches its names case-insensitively over `os.ReadDir` (`strings.EqualFold`), never by opening a fixed name, and `source` is the entry's real name. Read on 2026-09-24: `github.com/josharian/intern@v1.0.0` in the module cache holds `README.md`, `go.mod`, `intern.go`, `intern_test.go` and `license.md` (the MIT text), nothing else | `parts/task-04.md:209-218` |
+| RR-I9-3 test | `TestClassify` adds a directory holding only `license.md` → `MIT`, source `license.md`. The source assertion kills the open-a-fixed-name mutant on Windows too, because the open succeeds there but reports `LICENSE.md` | `parts/task-04.md:401` |
+| RR-M1 8.3 short paths | `canon`: `filepath.Abs`, then on Windows `syscall.GetLongPathName` (standard library, so the module stays stdlib-only), then `filepath.Clean`; compared with `strings.EqualFold` on Windows. New files `canon_windows.go`, `canon_other.go`. A missing path is exit 2. `TestCanon` covers case, the `<r>-fork` prefix, a short `os.TempDir()`, and a junction | `parts/task-04.md:40-41`, `:102-129`, `:396`; plan `:384-385`, `:546-547` |
+| RR-M2 Cargo `/` with spaces | `/` is OR with or without spaces; the tree's four forms are named with counts (`Unlicense/MIT` 2, `MIT/Apache-2.0` 11, `BSD-3-Clause/MIT` 1, `Apache-2.0 / MIT` 1, read from the re-review's saved `cargo metadata`); `TestCargoDeps` asserts the spaced form | `parts/task-04.md:285-291`, `:400` |
+| RR-M3 the CI Cargo cache | a `cargo fetch --locked` step before the gate, `continueOnError: true`, which prints a line when `cargo` is absent; the text now says the cache, not `cargo` alone, decides whether CI's report runs | `parts/task-04.md:362-365` (YAML), `:370-378`; plan `:552-555` |
+| RR-M4 the walk's extensions | `.mts`, `.cts` and `.cjs` join the walk; `TestShippedImports` finds a bare import in each | `parts/task-04.md:310-311`, `:393` |
+
+**Where I departed from the re-review's fix, and why.**
+- RR-I9-1: the re-review offered `npm query ":link"` or the lockfile. I took the lockfile. On the
+  re-review's own fixture, `npm query ":link"` returns the link **targets** (`location: "../b"`,
+  `"sub/c"`, with `path` equal to `realpath`), not the link nodes. So its output cannot be joined
+  to the `npm ls --long` node that sits at `node_modules/c`. The lockfile keys each link by that
+  node's own location. Both projects already commit their lockfiles (`parts/task-03.md:148`,
+  `:170-171`), and `npm ci` requires them.
+- RR-M1: the re-review said to canonicalise both sides, and my first form in `d0151fa` used
+  `filepath.EvalSymlinks`. That is wrong for this program. A worktree's `desktop/node_modules` is a
+  junction into the main tree (the program's rule 5), so resolving links would move every node's
+  location out of its project. The first-party link to `canvas/editor` would then find no lockfile
+  entry, get checked, and fail as `UNLICENSED` in every worktree. A probe on 2026-09-24 (go1.26.2,
+  Windows, a junction made with `mklink /J` in the scratchpad) showed `GetLongPathName` keeping
+  `\j\f.txt` and expanding `AU-DEV~1`. On the same probe, `EvalSymlinks` returned "The system
+  cannot find the path specified". Commit `c9a0016` replaced it.
+- Hours stay at 4. The round's changes are contract wording, one small platform file and test
+  rows inside the existing tests, so the plan's total (`:433`) is unchanged.
+
+**Mutants named for the next implementer (the two most likely to survive, named before any run).**
+1. **`canon` as `filepath.EvalSymlinks`.** It passes every fixture that has no junction in it, and
+   a Linux CI run has none. `TestCanon`'s junction case kills it on Windows (`parts/task-04.md:396`).
+2. **`Classify` opening fixed names instead of reading entries.** It passes on Windows because the
+   filesystem ignores case. `TestClassify`'s assertion that `source` is `license.md` kills it there,
+   and the directory holding only `license.md` kills it on Linux (`parts/task-04.md:401`).
+
+**Restatement greps run** over the plan and every part, for:
+`first.party|in-root|file: link|Replace|insideRoot|resolved|joined to|source: null|LICENSE\.md|\.mjs|registry cache|licencegate|NpmDeps\(`.
+Every hit was changed, or already agreed with this round. The gate's later callers
+(`parts/task-07.md:480`, `parts/task-24.md:190`, `:195`, `parts/task-26.md:107`, `parts/task-30.md:111`,
+`:164`) run `go run ./tools/licencegate -root .` and need no change.
+
+**Unverified:**
+- How `npm ls` prints the nodes under a worktree's junctioned `node_modules`. The gate takes links
+  from the lockfile alone, so a node that npm shows as a link but the lockfile does not is checked.
+- How `go list` prints `Module.Dir` under a short working directory. `canon` makes it not matter.
+- Whether the hosted CI agent has `cargo`, and whether its `cargo fetch --locked` gets through.
+- The case of the other 56 third-party Go modules' licence file names on Linux. Case-insensitive
+  matching makes it not matter.
+
+Nothing was built. This round changes documents only.
+
