@@ -278,13 +278,22 @@ not dropped.** `GET …/environments` (`projects.go:1997-2153`) names the base e
 (`clients/kubernetes.go:5681`). On the deploy path its value for production is `"prod"`:
 `TriggerPipelineRun` computes `env := environmentForBranch(branch, prodBranch)`
 (`clients/pipeline.go:237`, the function at `:2195-2207`) and writes it unchanged as the label at
-`:608` (read from source in review b02; the `TargetEnv` path at `:842` was not traced). Other
+`:608` (read from source in review b02). A push writes `"prod"` too (`webhook-receiver/models/
+event.go:116-129`, the label at `pipeline/trigger.go:1271`). The one other writer, the
+security-advisory run's `TargetEnv` label (`pipeline.go:842`), never becomes a deployment:
+`ListDeployments` drops every advisory run before it builds a row (`clients/kubernetes.go:5633-5642`,
+`isAdvisoryRun` at `:140-142`). So production's label is `"prod"`, settled from source (review M5,
+§12 *Settled from source*). Other
 handlers also use `"prod"` (`canonicalStageEnv`, `projects.go:4124-4126`). Panacea's own `tenantNamespace`
 (`clients/kubernetes.go:4210-4217`) treats `prod` and `production` as **the same** environment
 (both map to `tenant-<project>`), so the view joins by exact name **plus that one equivalence**,
 cited to that function and pinned by a test that quotes it. Any other deployment whose environment
 matches no row appears in its own group, titled with its raw name — never merged, never dropped —
-and task 20's live check records the real spelling. The join is done **once, in the control
+and task 20's live check records the real spelling. **A legacy run with no environment label**
+reads back as `""` (`kubernetes.go:5681`; every current writer sets one, task 12). It is joined the
+way Panacea's own environments list attributes it: by its run's branch label, exactly equal to a
+row's `branch` (`kubernetes.go:5396-5415`, looked up at `:5455`). One that matches no row goes to
+one group titled *"no environment recorded"*, never `""` (task 08 rule 1b, review M5). The join is done **once, in the control
 plane** (task 08): every `ReleaseRow` carries its matched row's name as `environmentRow`, and the
 desktop never joins again (review I8).
 
@@ -809,10 +818,6 @@ recorded Panacea bodies.
 - **Go on Windows trusts KPMG's interception root through the system store** (7P-10) — from
   knowledge; `LIVE-CHECK.md` step 1 (task 20) has the one live call that settles it. Task 02 only
   writes the command (review I9).
-- **The value of `panacea.io/environment` for the production environment** — `"prod"` on the
-  deploy path, from source (`clients/pipeline.go:237`, `:608`; review b02). Not run live, and the
-  `TargetEnv` path (`:842`) not traced (7P-8). Task 08 surfaces a mismatch instead of hiding it;
-  task 20 records the live answer.
 - **Whether `%2F` in `GET P/branches/{branch}/access` reaches Panacea's handler as `/`.** Panacea
   reads the segment with `r.PathValue("branch")` (`project_security.go:636`), and the Go 1.22+
   `ServeMux` unescapes a wildcard segment (per the `net/http` documentation; not run here). The ingress in front of it (Traefik) was not checked
@@ -899,6 +904,16 @@ recorded Panacea bodies.
   `KindConflict` with the sentence, so task 09 abandons the reservation with Panacea's reason. The
   posture gate composed after the risk gate answers **403** (`project_security.go:155-157`), so it
   is `KindForbidden`. Neither 402 was observed live.
+- **The value of `panacea.io/environment` for the production environment is `"prod"` (review M5,
+  settled from source 2026-09-24, Panacea `b02424691`).** The API's deploy writes
+  `environmentForBranch` (`clients/pipeline.go:237`, `:608`, the function at `:2195-2207`), a push
+  writes `TargetEnvironment` (`webhook-receiver/models/event.go:116-129`, `pipeline/trigger.go:760`,
+  `:1271`), and both answer `"prod"` for the production branch. The advisory run's `TargetEnv` label
+  (`pipeline.go:842`) never reaches the deployments list (`clients/kubernetes.go:5633-5642`). A run
+  with **no** label is legacy: it reads back `""` (`:5681`) and is joined by its branch label as
+  Panacea's environments list does (`:5396-5415`, `:5455`), else shown under *"no environment
+  recorded"* (7P-8, task 08 rule 1b). Not run live: task 08 still surfaces any other spelling under
+  `unmatched`, and task 20 records the live names.
 - **HA7-6 — the Azure DevOps repo-key split (review I6, plan re-review b05 R-1).** Read from plan,
   review and contract text, not code, and cited by anchor with the commit because both sibling
   trees move: phase 3 task 13's `RepoKey` doc comment, its plan's H-3 row and its review's I10

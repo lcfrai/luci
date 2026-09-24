@@ -246,6 +246,10 @@ from `"Unknown"` when a run has no condition yet (`clients/kubernetes.go:5662`),
 // equivalence Panacea itself applies — tenantNamespace treats "prod" and "production" as the
 // base namespace (clients/kubernetes.go:4210-4217). deploywatch calls it through the interface,
 // so the orchestration layer never imports this package.
+// tenantNamespace sends "" to the base namespace as well (:4213), and that is NOT adopted: "" is
+// a legacy run with no environment label, which Panacea's own environments list attributes by
+// its branch label (:5396-5415), not to production. So "" is the same as no other name; task 08
+// rule 1b joins it by label (review M5).
 func (c *Client) SameEnvironment(a, b string) bool
 ```
 
@@ -335,7 +339,7 @@ A pair seeded in neither form is a test bug, answered `500` with
 | `TestGatesAbsentIsNil` | a row without `scanStatus` → `Gates == nil` | `make(map…)` in the mapper |
 | `TestCompletedAtFromDuration` | `createdAt "2026-09-23T10:00:00Z"`, `duration "4m12s"` → `CompletedAt` 10:04:12Z; `duration "1h2m3s"` → 11:02:03Z; a row without `duration`, with `""`, or with `"soon"` → `CompletedAt.IsZero()`; a `historical` backfilled row → zero (review I3) | `CompletedAt = CreatedAt` when the duration is missing, which makes a running build read as live the moment it starts |
 | `TestStatusMappingTable` | every row of the status table, both DTOs; and `Pending` maps to a state whose `Terminal()` is false | `Pending` read as terminal, e.g. mapped to `BuildFailed` (the "not `True` is failure" reading of `pipeline.go:2073-2084`, where `Pending` is a run whose condition is neither `True` nor `False`, so still running). Then `Track` stops driving the 3 s cadence while the build runs (t07:75-76) and `Advance` writes a result for a build that has none (t01:562). (Mapping `Pending` to `BuildPending` instead is caught by the row check only: both are non-terminal and keep the 3 s cadence, review M4) |
-| `TestSameEnvironment` | `("prod","production")`, `("production","prod")` → true; `("prod","prod-eu")`, `("feat-a","feat-b")` → false; the test's comment quotes `clients/kubernetes.go:4213` | a prefix match that joins `production` to `production-eu` |
+| `TestSameEnvironment` | `("prod","production")`, `("production","prod")` → true; `("prod","prod-eu")`, `("feat-a","feat-b")` → false; `("","production")`, `("","prod")`, `("production","")` → false; the test's comment quotes `clients/kubernetes.go:4213` | a prefix match that joins `production` to `production-eu`; or a full copy of `tenantNamespace`'s condition, which reads a legacy run with no environment label as production's (review M5) |
 | `TestPathEscapesBranchAndEnv` | `Pods(p, "feat/x")` requests `/environments/feat%2Fx/pods` | an unescaped `/` routing to a different Panacea handler |
 | `TestEnvironmentForReadsPanaceasName` | the three `branch-access-*.json` bodies: `EnvironmentFor(p, "feat/x")` requests `GET /api/v1/projects/engagement-portal/branches/feat%2Fx/access` and returns `"feat-x"`; the 31-character branch returns `"lane-7-deploy-connec"`; `main` returns `"prod"`; a body with `"env": ""` → `KindUnavailable`; and **no** request to `/environments` is made | returning the branch unchanged, or a fourth `sanitizeBranchEnv` in the connector (review C2) |
 | `TestEnvironmentForRouteNotFound` | the route answering Go's router body `404 page not found` → `KindNotFound` with the message *"Panacea could not read this branch name. It may contain `/`, which the route cannot carry."*, never the router's text (b02 round 2, R2) | a refusal that tells the user their project does not exist |

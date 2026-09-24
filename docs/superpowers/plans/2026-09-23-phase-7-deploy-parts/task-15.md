@@ -98,7 +98,11 @@ with `environmentMismatch` set carries one `warn` line: *"The release was record
 `<recorded>`, but Panacea deployed it to `<deployed>`."* Both names verbatim, in mono. The row sits
 under its `environmentRow` (the deployment's), never under `recorded`.
 
-`unmatched` groups render in `EnvironmentList` under their raw names, never folded into a row.
+`unmatched` groups render in `EnvironmentList` under their raw names, never folded into a row. The
+one group whose name is `""` (task 08 rule 1b: legacy runs with no environment label that no row's
+branch label claims) is titled *"no environment recorded"*, never a blank title (review M5). Its
+React key is not `""` alone (prefix it, `unmatched:`), and nothing tests it for truth: `""` is
+falsy, so `name || …` or `if (name)` would drop the group.
 
 #### The three facts — words (from `prototype/phase-7-deploy.html:617-661`, kept where true)
 
@@ -196,6 +200,7 @@ which was true only while releases were per-laptop.
 | `refused names the refusal` | `selected {branch:"live-check/p7", target:null, environment:null, error:{code:"not_found", message:"Panacea could not read this branch name. It may contain \`/\`, which the route cannot carry."}}` → *"Panacea did not name this branch's environment: "* + the message verbatim, and the DOM lacks *"Asking Panacea"* (b02 round 2, R2) | a refusal drawn as the asking state for ever |
 | `no selection, no card` | `selected: null` → `EnvironmentCard` renders nothing; the DOM lacks *"Asking Panacea"* and *"Not deployed yet"*; the list still renders (b02 round 2, R6) | a lens that says it is asking when it sent no branch |
 | `mismatch is drawn` | a row `{environmentRow:"production", environmentMismatch:{recorded:"develop", deployed:"prod"}}` → *"The release was recorded against `develop`, but Panacea deployed it to `prod`."*, under `production` (b02 round 2, R1) | a false provenance record shown as if it held |
+| `no environment recorded is titled` | `unmatched: [{name:""}, {name:"legacy"}]` → two groups, titled *"no environment recorded"* and `legacy`; no group has an empty title (review M5) | a blank group heading, or `""` dropped as falsy |
 | `no branch comparisons` | a source grep of `desktop/src/deploy/*.tsx` (b02 round 2, R5, widened): no identifier `branchName` or `selectedBranch`; no `.branch` on either side of `===`, `!==`, `==` or `!=` (`/\.branch\s*[!=]==?/` and `/[!=]==?\s*[\w.?]*\.branch\b/`); no `.includes(`, `.startsWith(` or `.endsWith(` whose receiver or argument ends in `branch` or `branchesSeen` | a later edit re-introducing the name join, in either operand order |
 | `drift guard` | `designsystem.test.ts` allows `var(--drift)` in `common.css`'s `dot-tone-drift` and nowhere else | drift colour leaking to decoration |
 

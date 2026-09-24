@@ -153,8 +153,9 @@ func TestLiveWhoamiAndProjects(t *testing.T) {
 	t.Fatalf("project %s is not visible to this token", ref)
 }
 
-// Records two answers the plan could not read from source (plan §12; task 08; 7P-8). It logs
-// them for LIVE-CHECK.md; it fails only when a read fails.
+// Records two answers the plan could not read from source (plan §12; task 08; 7P-8), and the
+// environment labels it did read from source (review M5). It logs them for LIVE-CHECK.md; it
+// fails only when a read fails.
 func TestLiveEnvironmentsAndBranches(t *testing.T) {
 	d, ref, _ := liveDeployer(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -186,6 +187,14 @@ func TestLiveEnvironmentsAndBranches(t *testing.T) {
 	// keeps "_", so withUnderscoreInBranch > 0 is the live sign that push-to-deploy runs reach this
 	// project's list (re-review b03 I-1; unverified from source whether the dev estate runs it).
 	t.Logf("deployments=%d withSlashInBranch=%d withUnderscoreInBranch=%d", len(deps), slashed, underscored)
+	// Review M5: from source, production's label is "prod" and "" is legacy-only (plan §12,
+	// Settled from source). Log each distinct environment label with its count, so the owner
+	// sees "prod" and how many legacy rows task 08 rule 1b has to join by label.
+	envCount := map[string]int{}
+	for _, x := range deps {
+		envCount[x.Environment]++
+	}
+	t.Logf("deploymentEnvironments=%v withEmptyEnvironment=%d", envCount, envCount[""])
 	// Review b02: Panacea's own environment name for a slash branch, read through the ingress with
 	// the branch %2F-escaped (plan §12). A read failure here is the answer: it fails the test.
 	name, err := d.EnvironmentFor(ctx, ref, "live-check/p7")
@@ -430,7 +439,7 @@ write below touches **only** that branch. Write down its posture and auto-deploy
 |---|---|---|---|---|
 | 1 | `go run ./control-plane/internal/deploy/panacea/cmd/versioncheck <dev origin>` | a version string. An `x509` error: stop, set `PANACEA_APP_PANACEA_CA_FILE`. A dial error or timeout where a browser reaches the address: stop, set `HTTPS_PROXY` to the corporate proxy, because Go reads no Windows or PAC proxy (t02:84-86, review M2) | 7P-10 on this laptop, and whether this network needs a proxy (the command task 02 writes and does not run; review I9) | |
 | 2 | Deploy lens → paste the token → Connect | *connected*, or the awaiting-approval words; the field is empty after; `cmdkey /list` shows a `PanaceaApp/panacea/<host>` row | task 05, live, including the `PUT` preflight (review C1) | |
-| 3 | `PANACEA_APP_LIVE_PROJECT=<project> PANACEA_APP_LIVE_ENV=<an env> go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/` | `ok`; copy the logged environment names, the `withSlashInBranch` and `withUnderscoreInBranch` counts and every `live-only key` line here | task 03's recorded bodies against live keys (plan §4 rows 2–9); repoUrl for a non-admin token (plan §12); `ParseRemote` on a real URL (task 06); `prod` vs `production` (7P-8); branch names with `/` (task 08); push-to-deploy labels that keep `_` (task 08 rule 9, re-review b03 I-1); stream not buffered (task 12) | |
+| 3 | `PANACEA_APP_LIVE_PROJECT=<project> PANACEA_APP_LIVE_ENV=<an env> go test -tags live -run Live -count=1 -v ./control-plane/internal/deploy/panacea/` | `ok`; copy the logged environment names, the `withSlashInBranch` and `withUnderscoreInBranch` counts, the `deploymentEnvironments` line and every `live-only key` line here | task 03's recorded bodies against live keys (plan §4 rows 2–9); repoUrl for a non-admin token (plan §12); `ParseRemote` on a real URL (task 06); `prod` vs `production` (7P-8: `"prod"` from source, review M5; this confirms it live, and `withEmptyEnvironment` counts the legacy rows task 08 rule 1b joins by label); branch names with `/` (task 08); push-to-deploy labels that keep `_` (task 08 rule 9, re-review b03 I-1); stream not buffered (task 12) | |
 | 4 | Select the project | *bound* to the Panacea project, with no question asked — or the one choice | task 06 | |
 | 5 | Compare the environment card with the Panacea portal for one environment | version, commit and pods ready agree; the three facts are three | tasks 08, 15 | |
 | 5a | Read the project's production branch in the portal's settings; rerun step 3 with `PANACEA_APP_LIVE_PROD_BRANCH=<it>` added | the log line `environmentFor productionBranch="prod" joinsProduction=true` | whether the access route agrees with the deploy for this project (plan §12, Q-P7-6; b02 round 2, R1). `joinsProduction=false` is the Panacea defect live: record it and send it with the Q-P7-2 note | |

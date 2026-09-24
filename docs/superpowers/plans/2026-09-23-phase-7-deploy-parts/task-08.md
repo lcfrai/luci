@@ -40,7 +40,7 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
     "error": null | { "code": "not_found" | "rejected" | "forbidden", "message": "…" }  // Snapshot.BranchEnvErrs[branch]: Panacea refused to name this branch's environment; target is then null (b02 round 2, R2)
   },
   "environments": [ EnvironmentView ],   // Panacea’s order; production is always first (clients/kubernetes.go:5154-5155)
-  "unmatched": [ EnvironmentView ],      // deployments whose environment names no row (plan 7P-8); usually []
+  "unmatched": [ EnvironmentView ],      // deployments whose environment names no row (plan 7P-8), one group per raw name; a legacy deployment with environment "" that rule 1b cannot join is in ONE group whose name is "" verbatim (the desktop titles it "no environment recorded", task 15); usually []
   "history": [ ReleaseRow ],             // newest "at" first, at most 200
   "runs": { "<run>": RunView }           // runs this user started and the watcher is tracking
 }
@@ -48,7 +48,7 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 // EnvironmentView — three facts, never merged (plan §5 rule 9)
 {
   "name": "feat-evidence-upload",        // 20 characters: sanitizeBranchEnv cuts only past 20 (projects.go:3818-3820)
-  "branch": "feat-evidence-upload",      // Panacea's row LABEL (projects.go:2118): == name for every non-base row, the real branch only for production (:2109-2111). Display only; NEVER a join key
+  "branch": "feat-evidence-upload",      // Panacea's row LABEL (projects.go:2118): == name for every non-base row, the real branch only for production (:2109-2111). Display only; never a join key, save rule 1b's one case (a deployment with environment "", joined by its run label as Panacea does)
   "branchesSeen": ["feat-evidence-upload"], // distinct Deployment.branch values in this environment's history, newest first — Panacea's run LABELS as written, never normalised (a Ship: sanitizeLabelValue, / and _ → -, pipeline.go:609, :2351-2364; a push: sanitizeLabel, keeps _, webhook-receiver trigger.go:1270, :1553-1574), not git branch names
   "collision": false,                    // branchesSeen has more than one entry: more than one LABEL in this environment — two branches, or one branch pushed and Shipped (rule 9; brief D2 a)
   "primary": false,
@@ -158,6 +158,21 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
    depends on the writer (the environment and a Ship's run label fold it into `-`; a push's run
    label keeps it: rule 9, plan §12), so no string comparison with the git name can be right, and
    deriving the label would be a fourth copy of Panacea's rules.
+1b. **No environment recorded** (review M5). A deployment whose `Environment` is `""` (a legacy
+   run with no `panacea.io/environment` label, read back as `""` at `clients/kubernetes.go:5681`;
+   every current writer sets one, task 12) is joined **by its run label**: to the row whose
+   `branch` equals its `Deployment.branch` exactly, byte for byte, with no normalising. That is
+   Panacea's own attribution: its environments list indexes runs by `panacea.io/branch` and looks
+   each row up by its branch key (`kubernetes.go:5396-5415`, `:5455`), so the row already counts
+   that run in its `status`. It compares two Panacea labels, never a git branch (rule 1a). The
+   joined `ReleaseRow` keeps `environment:""` and carries `environmentRow` as usual. A deployment
+   with `""` whose label matches no row's `branch`, or is `""` too, goes to **one** `unmatched`
+   group whose `name` is `""`, verbatim; the desktop titles it *"no environment recorded"*
+   (task 15), and its rows carry `environmentRow:null`. It never joins a row by `SameEnvironment`,
+   which is false for `""` against every name (task 03). Panacea's `tenantNamespace` does send `""`
+   to the base namespace (`kubernetes.go:4213`; the scan read too, `handlers/tier_store.go:106-113`),
+   but that is a default for a missing argument: the environments list, where the rows come from,
+   attributes the run by its label, so a feature branch's legacy run is never production's.
 2. **Newest per environment** is the first deployment in Panacea's newest-first list whose
    environment joins. Only it contributes `serving` and `scans`; historical rows carry `gates` as
    recorded and **never** `serving` (`models/models.go:720-722`).
@@ -243,6 +258,7 @@ the watcher passes its `Reader.SameEnvironment`, not the stub.
 | `TestSelectedNeverDeployed` | `BranchEnvs{"feat/new": "feat-new"}`, no such row → `selected {target:"feat-new", environment:null}`; `BranchEnvs` without the branch → `target:null` | reading "no row" as "not resolved", or the reverse |
 | `TestReleaseRowCarriesItsRow` | a deployment labelled `prod` → its `ReleaseRow` has `environment:"prod"`, `environmentRow:"production"`; a confirmed rollback release with `environment:"prod"` → the `rollback` row has `environmentRow:"production"`; an `unmatched` deployment → `environmentRow:null` | a desktop left to re-join `prod` to `production` by exact name, losing *Why it is down* and *Follow readiness* (review I8) |
 | `TestUnmatchedNeverDropped` | a deployment in environment `"legacy"` with no row appears under `unmatched` | a join that silently discards what it cannot place |
+| `TestNoEnvironmentJoinsByLabel` | rows `production` (`branch "main"`) and `feat-evidence-upload` (`branch "feat-evidence-upload"`, the name `sanitizeBranchEnv` gives `feat/evidence-upload`). Deployments with `environment ""`: label `main` → joins `production` (`environmentRow:"production"`, `environment:""` kept); label `feat-evidence-upload` → joins that row; labels `feat_evidence_upload` (a push's label, `_` kept) and `""` → both in **one** `unmatched` group with `name ""`, `environmentRow:null`; nothing joins by `SameEnvironment` | a group titled `""` per deployment, a legacy run dropped, a label normalised before the compare (a fourth copy of Panacea's rules), or `""` read as production (review M5) |
 | `TestServingOnlyFromNewest` | the second-newest row's `LiveReady: &3` does not reach `serving`; the newest's nil → `measured:false` | painting yesterday's health on today |
 | `TestServingZeroIsDown` | newest `LiveReady: &0` → `{measured:true, ready:0}` while `build.state == "succeeded"` | a green tick over a dead site (survey §3.3) |
 | `TestReleaseByRunNameOnly` | a confirmed release whose `pipelineRun` is `"r1"`; deployments `"r1"` and `"r2"` on the same branch → only `r1` has the pin; `r2.release == null` | attaching a pin to the next deploy on the same branch — pinning by observation (P2) |

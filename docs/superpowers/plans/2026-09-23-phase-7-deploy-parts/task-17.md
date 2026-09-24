@@ -128,13 +128,15 @@ moment the user most wants to watch the pods come back (plan re-review b04-1, I-
 offer both.
 
 The row's environment is `view.environments.find(e => e.name === row.environmentRow)` — the row
-name the view already joined with `SameEnvironment` (task 08 rule 1), never `row.environment`
+name the view already joined (task 08 rule 1, `SameEnvironment`; or rule 1b, the run label, for
+a row with no environment recorded), never `row.environment`
 and never re-derived from the branch. The drawer does no join of its own: a production
 deployment's `environment` is `prod` while its row is named `production` (`environmentForBranch`,
 `clients/pipeline.go:2195-2207`, called at `:237`; `projects.go:2116-2118`), so an exact compare with `row.environment` lost *Why it is
 down* and *Follow readiness* for every production release (review I8). `environmentRow == null`
 (an `unmatched` row) → neither block, and the Release table says *"Panacea lists no environment
-named `<row.environment>`."*
+named `<row.environment>`."* When `row.environment` is `""` (task 08 rule 1b) it says instead
+*"Panacea recorded no environment for this release."*, never an empty name (review M5).
 
 **`PinManifest` — the rules, none merged** (provenance contract §4.5; task 15's pin states):
 
@@ -237,7 +239,7 @@ Panacea's diagnosis may consult its AI and then answers `source "rules+ai"`
 | `off is not a pass` | a scan with `status "SKIPPED"`, `mode "off"` → the unmeasured dot and the footnote; the DOM lacks *"pass"* for it | absence read as clean |
 | `prod row keeps its drill-ins` | `row {environment:"prod", environmentRow:"production", isCurrent:true}`, `view.environments` holds `production` serving `{measured:true, ready:0}` → *Why it is down* is open and **Follow readiness** is offered for `production` | `e.name === row.environment`, which found no row for any production release (review I8) |
 | `rollback target keeps its drill-ins` | `view.environments` holds `feat-x` with `current {source:"rollback", deploymentId:"d1"}`, serving `{measured:true, ready:0}`; `d1`'s run row `{kind:"run", deploymentId:"d1", environmentRow:"feat-x", isCurrent:false}` → *Why it is down* is open, **Follow build log** and **Follow readiness** are offered; the rollback row `{kind:"rollback", deploymentId:null, environmentRow:"feat-x", isCurrent:true}` → *Why it is down* and **Follow readiness**, no **Follow build log**; an older succeeded run row `d0` of `feat-x` → neither (plan re-review b04-1, I-1) | gating on `isCurrent` alone, which leaves no row offering **Follow readiness** after a rollback |
-| `unmatched row has no drill-ins` | `environmentRow: null` → neither *Why it is down* nor **Follow readiness**, and the *"Panacea lists no environment named"* line | a drawer that guesses a row by name |
+| `unmatched row has no drill-ins` | `environmentRow: null` → neither *Why it is down* nor **Follow readiness**, and the *"Panacea lists no environment named"* line; with `environment: ""` too → *"Panacea recorded no environment for this release."* and no *"named"* line (review M5) | a drawer that guesses a row by name |
 | `diagnose only on press` | mount → `pods` and `events` once each, `diagnosis` zero; press **Diagnose** → one | an AI call on Panacea's side every time a drawer opens |
 | `one stream in the window` | open `run-logs r1`, then `readiness env-a` → the first handle's `onEnd("replaced")` once, its `AbortSignal` aborted, `currentDrillTarget()` is `env-a` | two live streams — a second clock (plan 7P-14) |
 | `onEnd exactly once` | `close()` twice, then an `end` frame → `onEnd` called once, with `"closed"` | a double "stream ended" line, or a leaked listener |

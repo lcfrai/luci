@@ -329,7 +329,7 @@ grep -rnE '["`]pnc_["`]|pnc_[0-9a-fA-F]{8}' control-plane/internal --include=*.g
   (review I1. The pattern guards two things: a real key — Panacea mints pnc_<32 hex>,
   handlers/api_keys.go:360-368 at b33d15acb — pasted into any non-test source, and a second
   place that tests the prefix. It does not match the lines that only name the prefix: the
-  TokenSource comment (t02:25), panaceatest's "pnc_test" (Server.Token, t03:291, a non-test
+  TokenSource comment (t02:25), panaceatest's "pnc_test" (Server.Token, t03:295, a non-test
   file) and the refusal sentence "A Panacea API key starts with pnc_." (:155). A bare 'pnc_'
   prints all three. The quote class is ["`], so a second check written with a raw string,
   strings.HasPrefix(token, `pnc_`), prints as well; the "-only form missed it — plan re-review
