@@ -73,10 +73,14 @@ type Briefs interface {
 	ForBranch(ctx context.Context, projectID, branchRef string) (hubapi.ForBranch, error)
 }
 
-// EnvironmentNamer is the one Reader method Ship needs: Panacea's own environment name for the
-// branch being shipped (task 01). deploy.Reader satisfies it.
+// EnvironmentNamer is the two Reader methods Ship, Rollback and Rebuild need: Panacea's own
+// environment name for the branch being shipped, and the target's rule for whether two names
+// name one environment, which the per-environment lock (step 2, review M25) compares with, so
+// a Ship reserving "prod" and a rollback of a "production" row hold one lock (task 01, task 03's
+// prod == production). deploy.Reader satisfies it.
 type EnvironmentNamer interface {
 	EnvironmentFor(ctx context.Context, p deploy.ProjectRef, branch string) (string, error)
+	SameEnvironment(a, b string) bool
 }
 
 type Config struct {
@@ -100,7 +104,7 @@ type Config struct {
 	Log *slog.Logger
 }
 
-type Orchestrator struct{ /* cfg; per-(project,branch) mutex; the Ship journal and its live set of keys (step 1) */ }
+type Orchestrator struct{ /* cfg; the per-environment lock set (step 2); the Ship journal and its live set of keys (step 1) */ }
 
 func New(cfg Config) (*Orchestrator, error)
 
@@ -220,8 +224,8 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    mutex) before it reads the record, and the claim is held from there until the record is `done`
    or its background confirm loop (step 7) ends; an act that stops before the reserve releases it.
    A retry that finds its key live **never settles the record**: it answers `409 conflict` with the
-   act's own lock sentence (step 2's *"A Ship of this branch is already in progress."* for a Ship;
-   task 10's *"Something is already changing this environment."* for a Rollback or Rebuild), since
+   lock sentence of the record's own act (step 2's, for its `act.kind`: *"A Ship to this
+   environment is already in progress."*, or the rebuild's or rollback's), since
    to the user it is the same act still running, or, when the record is `started` and its confirm
    loop runs, the `202` with `confirmed: false`, the record's release and run, that the act itself
    answered. Only
@@ -236,8 +240,9 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    control plane's code set has no `idempotency_mismatch`, and the case is a client bug. The Hub
    answers its own form of the case `422 idempotency_mismatch` (contract §1, `:53`); the two codes
    differ (plan re-review b10 M-2). Otherwise, by stage:
-   - `reserved`, `expiresAt` not passed → take step 2's lock, then continue at step 6 from the
-     record's `reserve` and `act`. No second Reserve.
+   - `reserved`, `expiresAt` not passed → take step 2's lock on the record's
+     `reserve.environment` for its `act.kind`, then continue at step 6 from the record's `reserve`
+     and `act`. No second Reserve.
    - `reserved`, `expiresAt` passed → the Hub has expired it; the retry starts again at step 3.
    - `shipping` → Panacea may have started the act, and nothing records its answer, so it is
      **never** called again: `Abandon` with the `NoAnswer` sentence of the record's `act.kind`
@@ -267,8 +272,23 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    keeps every renamed record, which is the case the journal is for; a power cut can lose the
    newest stage write. That is a property of the shared `writeAtomic` (ruling R2), not of this
    journal, and is not changed here (plan re-review b10, *Unverified*).
-2. **One Ship per branch at a time.** A per-`(ProjectID, BranchID)` mutex, `TryLock`; held →
-   `409 conflict` *"A Ship of this branch is already in progress."*
+2. **One act per environment at a time** (review M25). Ship, Rollback and Rebuild (task 10) share
+   **one** lock set in the `Orchestrator`, keyed by `(ProjectID, environment)`: under one mutex, an
+   act is refused when a held entry has the same `ProjectID` and
+   `Environments.SameEnvironment(held.environment, environment)`. The environment is the one the
+   act reserves, so the key is resolved as in C2, never from a branch name: Ship's is step 4's
+   `env` (Panacea's own name); Rebuild's `source.Environment`; Rollback's the deployment's
+   `Environment`; a `reserved` retry's the record's `reserve.environment`. The target's rule makes
+   `prod` and `production` one key (task 03). A per-branch lock let a Ship and a rollback of one
+   environment reserve and act at once, in an order neither the Hub nor Panacea records. Ship
+   takes the lock at the end of step 4, once `env` is known and before the reserve; steps 1 to 4
+   send nothing that changes state, so nothing races before it. The lock is held until the act's
+   route answers (the abandon, or step 7's first confirm returning); the background confirm loop
+   does not hold it. Held → `409 conflict` with the sentence of the act that **holds** it, one per
+   act: a Ship *"A Ship to this environment is already in progress."*, a Rebuild *"A rebuild of
+   this environment is already in progress."*, a Rollback *"A rollback of this environment is
+   already in progress."* Two Ships of one branch still refuse the second, because one branch
+   names one environment.
 3. **Preconditions** (nothing has left the process):
 
    | Check | `Precondition.Reason` | Message |
@@ -313,6 +333,8 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
      primary row's `branch`, which is the newest production run's label, not a reliable git name
      (`kubernetes.go:5191-5202`, task 08 rule 1a); the view flags the pair after the deploy
      (task 08, rule 5a).
+   - Then take step 2's lock on `(ProjectID, env)` for `ship`. Held → `409 conflict`, and nothing
+     is reserved.
 5. **Reserve** — `Releases.Reserve(HubProjectID, {kind:"run", panaceaProject: <ref>, environment,
    branchRef: Branch.Ref, commit, briefId: null, designKey: DesignKey|null, sourceDeploymentId:
    null})`. Any error → returned as is (the relay rule, Hub contract §4.3). **Ship stops. Panacea is
@@ -379,7 +401,8 @@ POST /v1/projects/{projectId}/deploy/ship
             "confirmed": true | false, "message": "" }
   400 bad_request                 missing/invalid Idempotency-Key; the key reused for another Ship (step 1); unknown field; missing branchId
   404 project_not_found           unknown local project
-  409 conflict                    a Ship of this branch is in progress, or this key's own Ship is still
+  409 conflict                    a Ship, rebuild or rollback of this environment is in progress, in the
+                                  holder's sentence (step 2), or this key's own Ship is still
                                   running in this process (step 1's live set; never settled by a retry)
   409 deploy_precondition         details.reason ∈ not_bound | no_hub_project | branch_unreadable |
                                   never_pushed | unpushed | behind | stale_commit | bad_commit;
@@ -416,7 +439,7 @@ is retried with the same key.
 | `TestTimeoutAbandonsAmbiguously` | Panacea times out → `Abandon` message is the ambiguous sentence; no confirm; the route answers `503 upstream_unavailable` with `details.status 0` and `details.reserved true`. A `KindUnavailable` `Status 503` from `Ship` → `details.status 503`, `details.reserved true`. `EnvironmentFor` timing out (step 4) → `details.status 0` and no `reserved` key | confirming a run the control plane never saw named; a 503 without `status` or `reserved`, which makes the desktop say *"the release was not started"* of a build Panacea may have started, or say a build may have started when nothing was sent (review M26) |
 | `TestAnswerClassPicksAbandon` | the fake's `Ship` answers `KindUnavailable` with `Status` `504` → the ambiguous sentence; `202` (task 04's run-less 202) → *"Panacea accepted the build but did not name its run. …"*; `500` → *"Panacea could not start the build."*. Each route answer carries that `details.status` and `details.reserved true` | a gateway's 504 told "could not start" of a build Panacea may be creating; a run-less 202 told "could not start" after Panacea said *"deployment started"* (re-review I-2, M-4) |
 | `TestJournalRetryAfterRestartReservesOnce` | the process that stopped after the reserve and before `shipping`: the test reserves `rl-1` on the Hub fake for the request, then writes the `reserved` record for the key (with its `reserve` and `act`) through the journal's own writer, as that process would have left it. A **new** `Orchestrator` on the same `JournalDir`, whose binding source has **not** resolved the project yet, runs `Resume` → the record is still `reserved`, with zero `Abandon`. Then `Ship` with the same key → the Hub fake saw **one** `Reserve` in all, `deploytest.Fake` **one** `Actor.Ship` with the record's `ref`, branch, commit and `NoCache`, then `Confirm(rl-1, {pipelineRun})`, and the record is `done` (review M22; plan re-review b10 I-2, M-4) | an in-memory idempotency cache, which reserves twice after a restart; a `Resume` that abandons `reserved` records; a `reserved` continuation that reads the binding, which is not resolved yet after a restart |
-| `TestJournalLiveRetryConflicts` | inside the `deploytest.Fake`'s `Ship` hook (the first act is live, its record `shipping`), `Ship` again with the same key → `409 conflict` *"A Ship of this branch is already in progress."*, zero `Abandon`, and the hook's own call is the only `Actor.Ship`; `Resume` run from inside the hook too → still zero `Abandon` (it skips a live key); the same key with another `commit` while live → `409 conflict`, not `400` (the live check comes first). The hook then answers run `r1` → the first act's `Confirm(rl-1, {pipelineRun:"r1"})` succeeds and its answer is `202 confirmed:true` (plan re-review b10 I-1) | a retry that settles a live act's record by stage: it abandons `rl-1` while Panacea is still creating the run, the first act's confirm gets `409 release_state`, and the cockpit's own build shows unpinned |
+| `TestJournalLiveRetryConflicts` | inside the `deploytest.Fake`'s `Ship` hook (the first act is live, its record `shipping`), `Ship` again with the same key → `409 conflict` *"A Ship to this environment is already in progress."*, zero `Abandon`, and the hook's own call is the only `Actor.Ship`; `Resume` run from inside the hook too → still zero `Abandon` (it skips a live key); the same key with another `commit` while live → `409 conflict`, not `400` (the live check comes first). The hook then answers run `r1` → the first act's `Confirm(rl-1, {pipelineRun:"r1"})` succeeds and its answer is `202 confirmed:true` (plan re-review b10 I-1) | a retry that settles a live act's record by stage: it abandons `rl-1` while Panacea is still creating the run, the first act's confirm gets `409 release_state`, and the cockpit's own build shows unpinned |
 | `TestJournalLiveConfirmLoopNotDoubled` | the Hub fake refuses the first `Confirm` with 503, so the act answers `202 confirmed:false` and its background loop runs; `Ship` again with the same key before the 2 s back-off → the same `202 confirmed:false` with `rl-1` and `r1`, and the Hub fake's `Confirm` count is unchanged; after the fake clock passes 2 s → exactly **one** more `Confirm` (plan re-review b10 I-1) | a retry that starts a second confirm loop for one release |
 | `TestJournalWritesShippingBeforePanacea` | inside the `deploytest.Fake`'s `Ship` hook, the journal file for the key reads stage `shipping` with `rl-1`'s id | a `shipping` record written after the call, so a crash during it leaves `reserved` and the retry builds twice |
 | `TestJournalShippingNeverBuildsTwice` | a `shipping` record for `rl-1` → `Ship` with that key makes **zero** `Actor.Ship` calls, `Abandon(rl-1)` once with step 6's no-answer sentence, and the error carries `details.status 0`, `reserved: true`; `Resume` on such a record does the same | a retry that calls Panacea again after a crash mid-call — two builds of one press |
@@ -436,12 +459,14 @@ is retried with the same key.
 | `TestShipReservesTheAccessRoutesAnswer` | the fake's `EnvironmentFor("develop") → "develop"` (what Panacea's access route answers for an annotation-only `primary-branch=develop` project) → the reserve's `environment` is `develop` verbatim; Ship makes no other environment read and no comparison with the primary row (b02 round 2, R1: the divergence is pinned here and in task 03, and flagged by task 08 rule 5a after the deploy) | a Ship that "corrects" the name with a copy of `ResolveProductionBranch` |
 | `TestShipNeverDerivesTheName` | the fake's `EnvironmentFor` unseeded for the branch → Ship fails with the fake's error; `Reserve` not called | a fallback that computes the name when Panacea has not given one (a fourth `sanitizeBranchEnv`) |
 | `TestIdempotentShip` | the same key twice → one reserve, one Panacea call, equal results | a desktop retry after a lost response double-shipping |
-| `TestConcurrentShipSameBranch` | two goroutines, one branch → one proceeds, one gets `409 conflict` | two reservations racing one branch |
+| `TestConcurrentShipSameBranch` | two goroutines, one branch → one proceeds, one gets `409 conflict` *"A Ship to this environment is already in progress."* | two reservations racing one branch |
+| `TestShipLocksTheEnvironmentNotTheBranch` | the `EnvironmentNamer` is `deploytest.Fake` wrapped so `SameEnvironment` answers task 03's rule (`prod` == `production`) and `EnvironmentFor` names branch `main` `prod` and branch `release` `production`; inside the Fake's `Ship` hook for `main`, a Ship of `release` → `409 conflict` *"A Ship to this environment is already in progress."*, and the Hub fake saw one `Reserve` (review M25; task 10's `TestShipAndRollbackShareTheLock` covers the cross-act case) | a per-branch lock, under which two branches that name one environment reserve and deploy at once; or a lock keyed by the raw string, so `prod` and `production` race |
+| `TestLockReleasedWhenRouteAnswers` | a Ship whose first `Confirm` fails (the confirm loop runs in the background) → a second Ship of the branch with a new key is **not** refused by the lock | a lock held by the background confirm loop for up to 15 minutes |
 | `TestConfirmRetriedInBackground` | the Hub fails confirm three times, then succeeds → the route answered `202 confirmed:false`; the fake Hub eventually holds a `confirmed` release; the loop stopped | a Ship that reports success while the release stays reserved forever |
 | `TestConfirmStopsAtExpiry` | the Hub answers `409 release_expired` → the loop stops, one error log | a loop that retries past the reservation's life |
 | `TestTracksRun` | after success, `Tracker.Track(p, "r1")` and `Nudge(p)` called | a 15 s wait before the lens shows the build |
 | `TestReadinessIsShipsPreconditions` | for every row of the step-3 table, `Readiness(…).Reason` equals the `Precondition.Reason` a `Ship` of the same state returns | a second copy of the checks that drifts, so the button is on and the server refuses |
-| `TestReadinessReservesNothing` | a ready branch → `Ready true`; the Hub fake saw no `Reserve`, `deploytest.Fake.Calls()` is empty, no mutex is held | a readiness call that reserves, so every lens refresh leaves a release to expire |
+| `TestReadinessReservesNothing` | a ready branch → `Ready true`; the Hub fake saw no `Reserve`, `deploytest.Fake.Calls()` is empty, no environment lock is held | a readiness call that reserves, so every lens refresh leaves a release to expire |
 | `TestPinPreviewAppliesTheHubRule` | the fake brief has revisions 5 (complete) and 6 (incomplete) → `{pinned, ship_head, bf-…, 5}`; no complete revision → `{none, no_complete_revision}`; no brief → `{none, no_brief}`; Hub down → `PinPreview nil`, `Ready` unchanged | previewing the head instead of the latest complete revision (ADR-H1 Q1), or a Hub outage switching Ship off by itself |
 | `TestPinPreviewMatchesTheHubsPin` | on **one** Hub fake (`hubclient.NewFake()`), for each case — a branch brief with revisions 5 complete and 6 incomplete; a project brief only; both (the branch brief wins); a branch brief with no complete revision; no brief; the branch brief archived — call `Readiness` and then `Releases.Reserve({kind:"run", branchRef})` on the same fake: `PinPreview.Status` and `.Reason` equal the reserved release's `pin.status` and `pin.reason`, and `"brief:" + BriefID + "@" + Revision` equals its `pin.briefKey` (null ⇔ `BriefID ""`; the Release carries the key, not the id, Hub contract §7.9 `:983-986` at 6b873d0), in every case (review M20). `Config.Briefs` nil → `PinPreview nil` and `Ready` unchanged | a client copy of the Hub's pin rule that drifts from the Hub's: the project brief ignored, the branch brief not preferred, an archived brief previewed |
 | `TestReadinessRouteIsReadOnly` | `GET …/ship-readiness` is in `catalogReadOnlyRoutes`; the §10a audit passes | a readiness route registered outside the recorder |

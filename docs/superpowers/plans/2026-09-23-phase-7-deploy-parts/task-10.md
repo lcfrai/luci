@@ -108,6 +108,8 @@ type RollbackResult struct {
 //     (handlers/projects.go:1612) and tenantNamespace sends "" to the base namespace
 //     (clients/kubernetes.go:5887, :4213). Checked BEFORE the reserve: nothing is reserved,
 //     Panacea is never called. Task 08 rule 1b's label join is display only and is not read;
+//   lock: task 09 step 2's lock on (ProjectID, that deployment's Environment) for "rollback",
+//     taken here, after the preconditions and before the reserve (review M25);
 //   reserve {kind:"rollback", panaceaProject, environment: <that deployment's environment>,
 //            sourceDeploymentId: DeploymentID}  — the Hub copies the source's pin (R5);
 //   act: ActSpec{Kind:"rollback", Ref: ref, DeploymentID}, which o.act runs as
@@ -140,6 +142,8 @@ type RebuildRequest struct {
 //       (webhook-receiver/pipeline/trigger.go:1270, :1553-1574: feat/x reads feat-x, feat_x
 //       stays feat_x), and whether a label equals its branch cannot be told without a copy of
 //       those rules (b02 round 2, R8; review I4 and M23; re-review b03 I-1; plan §12).
+//   lock: task 09 step 2's lock on (ProjectID, source.Environment) for "rebuild", taken after
+//     the preconditions and before the reserve (review M25);
 //   reserve {kind:"run", panaceaProject, environment: source.Environment, branchRef, commit:
 //            source.Commit, briefId: null, designKey: <the source release's designKey or null>,
 //            sourceDeploymentId: source.ID} — the Hub pins "inherited" (Hub contract §7.9);
@@ -153,9 +157,16 @@ func (o *Orchestrator) Rebuild(ctx context.Context, req RebuildRequest) (Result,
 func (o *Orchestrator) Cancel(ctx context.Context, projectID, run string) (deploy.CancelResult, error)
 ```
 
-The same per-`(project, environment)` `TryLock` as Ship's per-branch lock guards Rollback and
-Rebuild: two acts on one environment at once are `409 conflict` *"Something is already changing this
-environment."*
+Ship's lock set (task 09 step 2, review M25) guards Rollback and Rebuild too: **one** lock per
+`(project, environment)`, compared with `Environments.SameEnvironment`, shared by all three acts.
+Rollback locks the deployment's `Environment` and Rebuild `source.Environment`, each after its
+preconditions and before its reserve, which is the environment each reserves (C2: never a branch
+name). So a Ship and a rollback of one environment can no longer reserve and act at once. Held →
+`409 conflict` with the holder's sentence, one per act (task 09 step 2): *"A Ship to this
+environment is already in progress."*, *"A rebuild of this environment is already in
+progress."*, *"A rollback of this environment is already in progress."* The abandon sentences
+are per act as well: `BuildWords` for Ship and Rebuild, `RollbackWords` for Rollback (above;
+plan re-review b10 M-4), so a failed rollback never says *"could not start the build"*.
 
 #### Control-plane routes — complete wire
 
@@ -172,7 +183,8 @@ POST /v1/projects/{projectId}/deploy/deployments/{deploymentId}/rollback
   422 deploy_rejected             Panacea: "deployment has no image tag — cannot rollback" (projects.go:1575)
   409 deploy_precondition         reason ∈ not_bound | no_hub_project | no_environment (the target's
                                   Environment is "": Panacea would roll it into production, b07 round 2, I-1)
-  409 conflict · deploy_not_connected · deploy_token_rejected
+  409 conflict                    this environment's lock is held: the holder's sentence (task 09 step 2)
+  deploy_not_connected · deploy_token_rejected
   503 upstream_unavailable        panacea (abandoned: details.status, and details.reserved true, re-review I-2)
                                   or hub (nothing happened)
 
@@ -212,10 +224,11 @@ Rebuild because the code is `deploy_conflict` on a rollback, and prints the sent
 | `TestRebuildInheritsPin` | the reserve carries `sourceDeploymentId`; the Hub fake returns `inherited` | a rebuild pinned to today's head |
 | `TestCancelNoHubCall` | `Cancel` → the Hub fake saw no call | abandoning a confirmed release (the Hub allows abandon only from `reserved`) |
 | `TestCancelAlreadyFinished` | `AlreadyFinished` → `200 {outcome:"already_finished"}` | an error toast when Undo loses the race to the build's end |
-| `TestOneActPerEnvironment` | a rollback and a rebuild of one environment at once → one `409 conflict` | two releases racing one environment |
+| `TestOneActPerEnvironment` | inside the Panacea fake's `Rollback` hook, a rebuild of a deployment in the same environment → `409 conflict` *"A rollback of this environment is already in progress."*; the reverse order, inside the `Ship` hook of the rebuild → *"A rebuild of this environment is already in progress."* (review M25) | two releases racing one environment; one shared sentence that names the wrong act |
+| `TestShipAndRollbackShareTheLock` | the `EnvironmentNamer` is `deploytest.Fake` wrapped so `SameEnvironment` answers task 03's rule (`prod` == `production`); inside the Fake's `Ship` hook for branch `main` (env `prod`), `Rollback` of a snapshot deployment whose `Environment` is `production` → `409 conflict` *"A Ship to this environment is already in progress."*, the Hub fake saw one `Reserve` and the Fake no `Rollback`; after the Ship answers, the same `Rollback` proceeds (review M25) | a Ship lock per branch beside a rollback lock per environment, so a Ship and a rollback of one environment reserve and act at once; a lock keyed by the raw string, so `prod` and `production` race |
 | `TestRollbackIsJournalled` | a rollback whose `Actor.Rollback` answered and whose `Confirm` the Hub fake refuses with 503; a **new** `Orchestrator` on the same `JournalDir` → `Resume` sends `Confirm(rl-1, {})` (no `pipelineRun`), and a retry with the same key makes zero `Actor.Rollback` calls and answers the `sourceDeploymentId`, `image`, `warmth` and `coldStartSeconds` the `started` record holds from Panacea's answer (task 09 step 1, review M22; plan re-review b10 M-4) | a rollback repeated after a restart, or its confirm lost with the process; a settled rollback that answers without Panacea's `warmth`, which is known only from that response |
 | `TestRollbackShippingAbandonsWithRollbackWords` | a `shipping` record whose `act.kind` is `rollback`, no live act → a retry with the key, and `Resume` on such a record, each `Abandon(rl-1)` with `RollbackWords.NoAnswer` and zero `Actor.Rollback` calls (plan re-review b10 M-4) | a rollback's crash abandoned with the build sentence, so the Hub's `abandonMessage` says *"It may still have started the build"* of a rollback |
-| `TestRollbackLiveRetryConflicts` | inside the Panacea fake's `Rollback` hook, a retry with the same key → `409 conflict` *"Something is already changing this environment."*, zero `Abandon`; the first act then confirms `{}` (plan re-review b10 I-1) | a retry that abandons a rollback still in flight |
+| `TestRollbackLiveRetryConflicts` | inside the Panacea fake's `Rollback` hook, a retry with the same key → `409 conflict` *"A rollback of this environment is already in progress."*, zero `Abandon`; the first act then confirms `{}` (plan re-review b10 I-1) | a retry that abandons a rollback still in flight |
 | `TestShipStillPasses` | task 09's whole suite, unchanged, after the `withReservation` extraction | a refactor that changes Ship |
 
 #### Steps
