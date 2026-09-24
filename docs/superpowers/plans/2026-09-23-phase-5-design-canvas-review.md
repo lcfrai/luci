@@ -1397,3 +1397,66 @@ agreed. `task-23.md:71` types `notices` as `unknown[]`, so `Notice.Tokens` needs
 
 Nothing was built. This batch changes documents only.
 
+## Fix batch b06, round 2 (2026-09-24) — the re-review's open issues (`plan-rereview-b06-1.md`)
+
+Commits `d0acb9d` (RR-I12-1, RR-I12-2, RR-I12-3), `da791e4` (RR-I11-1, RR-I11-2), and this
+section's commit (two more test rows, named in the mutants below, and this section). Paths are
+relative to `docs/superpowers/plans/`; `parts/` is `2026-09-23-phase-5-design-canvas-parts/`.
+Lines are as of this section's commit. Round 1's line numbers for `parts/task-12.md` and
+`parts/task-16.md` are as of `9dd8277`; this round moved them, and this table supersedes them.
+
+| Finding | Change | Where |
+|---|---|---|
+| RR-I12-1 (Important) CRLF shebang once installed | Re-verified first: `git config --show-origin --get core.autocrlf` is `true` from `C:/Program Files/Git/etc/gitconfig`; `git ls-files --eol images/sandbox/` shows `i/lf w/crlf` for both files; no `.gitattributes` is tracked. Task 16 adds a root `.gitattributes` with `images/sandbox/** text eol=lf` (the root fix, which also repairs `entrypoint.sh` on a fresh checkout), and a paragraph saying why a host test cannot see the failure and why a Dockerfile `sed` is not the fix | `parts/task-16.md:21-23` (Files), `:123-136` (line endings); plan `:392-393` (file map) |
+| RR-I12-1 tests | `TestCanvasUpload_helper`'s static check reads the raw bytes with `os.ReadFile` (never `bufio.Scanner`), refuses any `\r`, and requires the file to begin with exactly `#!/usr/bin/env node\n`. `TestImage_shipsCanvasUpload` also requires the `.gitattributes` line, so dropping the attribute fails on every OS, not only on a Windows checkout | `parts/task-16.md:193`, `:194` |
+| RR-I12-2 the error code on stderr | The helper prints `canvas-upload: <structuredContent.error.code>: <text>`, since a `ToolError`'s text is the message alone (`parts/task-14.md:85-87`). `canvas-rules` says exit 1's stderr has that shape, and that the code is one from its error table. The re-review's optional note is taken too: a connection closed or reset before a response (what `sandboxd` does after `HoldTimeout`, `parts/task-18.md:101-107`) reads "not reachable", like a refused one | `parts/task-16.md:158-166`; `parts/task-17.md:79` |
+| RR-I12-2 tests | The sniff case asserts a line beginning `canvas-upload: invalid: `. A stub-handler case (`isError: true`, code `conflict`, a real code from `parts/task-15.md:105`) requires exactly `canvas-upload: conflict: m`. An accept-and-close listener joins the "not reachable" case | `parts/task-16.md:193` |
+| RR-I12-3 G4's "task 20b lists every new one" | G4 now says 20b lists the control plane's two, and names `PANACEA_APP_CANVAS_MCP_URL` as task 16's, read only by the sandbox helper for its test, never by the control plane, and not the on/off `PANACEA_APP_CANVAS_MCP`. Task 16's URL step says the same | plan `:281-284`; `parts/task-16.md:139-141` |
+| RR-I11-1 pruning against present sessions | An entry is pruned only at or below every mark the service holds for the canvas, present or not. The check runs when a mark advances and in `ReleaseSession`, which now drops the session's marks as well as its claims. Presence never prunes | `parts/task-12.md:57-61` (`ReleaseSession`), `:137-144` (pruning); plan `:43-46` (goal 3: "even after a quiet spell (until a restart)") |
+| RR-I11-1 test | New `TestNotices_tokenUsesOutliveAbsence` (injected clock). S holds *Settings*; T sets `brand` at +60 s; S is silent for 11 minutes while T keeps calling; S's next call gets the notice. The in-package test reads the record's length: 0 once S's mark passes the entry, and in a second run 1 before `ReleaseSession(S)` and 0 after it | `parts/task-12.md:221` |
+| RR-I11-2 transitive only two levels deep | `TokensUsed` is the closure over token values: a fixed point, however deep, with a visited set so a cycle terminates and each token appears once. Task 12's comment and plan goal 3 ("however deep") say the same | `parts/task-08.md:83-87`; `parts/task-12.md:131-134`; plan `:43-44` |
+| RR-I11-2 tests | `TestTokensUsed_transitive` has four rows: a three-level chain, a 40-token chain, a two-token cycle run under a 1 s timeout, and a chain through an unknown name. `TestNotices_tokenTransitiveAndDelete` uses `button → primary → brand`, so a one-hop reading misses `brand` | `parts/task-08.md:171`; `parts/task-12.md:220` |
+
+**Where I departed from the re-review's fix, and why.**
+- RR-I11-1: the re-review said *"`ReleaseSession` drops them"* about marks. The plan did not say
+  so. `parts/task-12.md:57-58` spoke of claims only. So I made it a contract rather than assuming
+  it. Without it, a session that never calls again would pin the record for ever.
+- RR-I11-1: the re-review suggested a row in `TestNotices_tokenTransitiveAndDelete`. I made it a
+  separate test instead, because it needs an injected clock and in-package access to the record,
+  and neither of the other test's rows needs either.
+- Hours stay as they were: 08 at its figure, 12 at 3.5 h, 16 at its figure. The changes are
+  contract wording, one attribute file and test rows, so the plan's total and critical path are
+  unchanged: 85 h and 35.5 h, as the re-review recomputed them.
+
+**Mutants named for the next implementer (the two most likely to survive, named before the
+rows were added).**
+1. **A helper that prints a fixed code** (`canvas-upload: invalid: <text>` for every
+   `isError`). It would survive a test that asserts only the sniff case. Killed by the
+   stub-handler case, which requires `canvas-upload: conflict: m` (`parts/task-16.md:193`).
+2. **A closure capped at a fixed depth**, used instead of a visited set to stop cycles. It
+   passes a three-level chain and a two-token cycle. Killed by the 40-token chain row
+   (`parts/task-08.md:171`).
+
+The rows as written also kill:
+- pruning against the caller's mark alone, or against claim holders only: S's notice is lost in
+  `TestNotices_tokenUsesOutliveAbsence`'s first run;
+- a `ReleaseSession` that keeps marks: the second run's 0 goes red;
+- pruning only in `ReleaseSession`: the first run's 0 goes red;
+- a CRLF on any line of the helper: the raw-byte `\r` check.
+
+**Restatement greps run** over the plan and every part, for:
+`transitive|tokens those tokens|present session|one level deep|TokensUsed|task 20b lists every new
+one|CANVAS_MCP_URL|stderr names|isError|gitattributes|canvas-upload.cjs|TestNotices_token`. Every
+hit was changed or already agreed. The re-review's cited `task-17.md:79` was the only other place
+that stated the stderr shape.
+
+**Unverified:**
+- That Node reports a connection closed before a response as `ECONNRESET` or "socket hang up",
+  and so can be mapped to "not reachable". The accept-and-close case in `TestCanvasUpload_helper`
+  is where this gets proven.
+- That a fresh checkout under the new attribute writes `images/sandbox/*` as LF on this machine.
+  This follows from gitattributes' `eol=lf` overriding `core.autocrlf`. No file was checked out to
+  test it, because `.gitattributes` is task 16's to create, not this batch's.
+
+Nothing was built. This batch changes documents only.
+
