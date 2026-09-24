@@ -27,7 +27,7 @@ clone's local config; the fix's resolver then gives the clone the answer the pro
 - `control-plane/internal/lanes/*_test.go` (new)
 - `control-plane/internal/briefref/briefref.go` — `Revision`, `Criterion`, `Resolver`, `Archiver`;
   interfaces only, moved here from task 09 so tasks 09, 11 and 15 share one owner (review I7) (new)
-- `control-plane/internal/project/project.go` — `Worktree.Kind`, set in `parseWorktrees` (p2; no git)
+- `control-plane/internal/project/project.go` — `Worktree.Kind`, set in `parseWorktrees`, and `Name`'s comment reworded (p2; no git)
 - `control-plane/internal/project/project_test.go` — one test for `Kind` (p2, appended)
 
 #### Interfaces — complete
@@ -428,12 +428,15 @@ func (c *Catalog) Path(ctx context.Context, worktreeID string) (string, error)
 ```
 
 ```go
-// project.go — the one field this task adds, and the only change to that package.
+// project.go — the one field this task adds, plus one reworded comment, and the only changes
+// to that package. Name's comment was "base name of the worktree directory" (project.go:45);
+// a clone's directory adds the creation nonce, so Name is now the display name, the only
+// field anything shows or titles a session with (re-review b08-1 issue 2; task 04's title).
 type Worktree struct {
 	ID        string `json:"id"`
 	ProjectID string `json:"projectId"`
 	BranchID  string `json:"branchId"`
-	Name      string `json:"name"`
+	Name      string `json:"name"` // the display name: the directory's base name for "primary" and "linked", the lane's Name for "clone"
 	Path      string `json:"path"`
 	IsPrimary bool   `json:"isPrimary"`
 	// Kind is "primary" for the repository's main worktree, "linked" for one made with
