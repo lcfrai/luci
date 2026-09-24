@@ -525,8 +525,12 @@ Develop phase directly. Read §12.4 to §12.6 as competitive, not as nice-to-hav
   description or document; `@Linear` in Slack (and Microsoft Teams, per the coding-sessions
   page).
 - **Control:** workspace and personal **guidance** (instructions); admin kill switch at
-  Settings → AI → Linear Agent. Admins connect **MCP servers** to extend it
-  (`/docs/connect-mcp-servers`, not read separately).
+  Settings → AI → Linear Agent.
+- **MCP connectors:** 16 pre-built (Amplitude, Attio, Better Stack, Datadog, GitHub, Glean,
+  Granola, HubSpot, incident.io, Intercom, Jam, Notion, PostHog, Sentry, Slack, Stripe) plus any
+  custom server by URL. Admins allow all servers or an allow-list; each user then connects their
+  own (no auth, OAuth, or custom headers) under Settings → Agent personalization. Usable in chat,
+  comments and automations. (https://linear.app/docs/connect-mcp-servers)
 - **Src:** https://linear.app/docs/linear-agent
 
 ### 12.2 Skills
@@ -574,10 +578,15 @@ Develop phase directly. Read §12.4 to §12.6 as competitive, not as nice-to-hav
 - **Steer:** open the session to steer or follow up, or let it run; "you'll be notified when your
   input is needed". Review in the Reviews tab; approve, or **delegate review fixes back** to the
   agent. No explicit stop control documented (UNVERIFIED).
-- **Credits:** a shared workspace pool, launched at $20 per active user, top-ups by admins,
-  credits expire after 12 months, optional auto-replenish (Settings → AI & Agents).
+- **Credits:** usage-based, separate from seats. Only coding sessions and loops consume them;
+  other AI features are included. Coding session = model tokens **at provider rates with no
+  markup** plus sandbox runtime at **$0.25 per 20-minute block**. Loop run without coding
+  typically $0.07 to $0.20. A promotional pool launched at $20 per active user. Add credits
+  (minimum $10), auto-reload (minimum $50), 12-month expiry. **Spend limits at workspace,
+  per-user and per-loop level** (daily, weekly, monthly), usage by feature and by user, 3-month
+  transaction history (Settings → Usage & limits).
 - **Src:** https://linear.app/docs/coding-sessions, https://linear.app/docs/loops,
-  https://linear.app/docs/ai-credits (listed; not read separately)
+  https://linear.app/docs/ai-credits
 
 ### 12.6 Diffs and Reviews (code review inside Linear)
 - **Does:** a Reviews area (`G` then `R`; `O` then `R`) with "For me" and "Created" tabs, group by
@@ -1378,7 +1387,118 @@ should cite these numbers (for example "L-162") when mapping PanaceaApp parity a
 253. A published product method that justifies every default (§19)
 254. A weekly public changelog; "build in public" (§13.7, §19)
 
-**Count:** 254 features. Items with "UNVERIFIED detail" exist per Linear's doc tree but were
+### S. Late additions (numbered after the main list to keep numbers stable)
+255. AI spend limits at workspace, per-user and per-loop level, with usage by feature and user (§12.5)
+256. Admin allow-list for agent MCP connectors; each user connects their own accounts (§12.1)
+257. Transparent AI pricing: provider token rates with no markup plus sandbox minutes (§12.5)
+
+**Count:** 257 features. Items with "UNVERIFIED detail" exist per Linear's doc tree but were
 not read in full.
 
-<!-- APPEND -->
+---
+
+## 22. Cross-cutting qualities (why it feels good, not just what it does)
+
+These recur across the pages above and are what "prettier, better" has to beat, not only match.
+
+1. **Everything is local and instant.** The sync engine (§15.2) makes every action a local
+   write. Polish on top of a slow core would not feel like Linear.
+2. **One key grammar everywhere.** Property letters, `G` go, `O` open, `M` relate, `X` select,
+   `Space` peek, `H` snooze, number keys in triage (§15.1). Menus teach the keys.
+3. **Opinionated defaults with a published reason.** Five priorities, fixed status categories,
+   self-running cycles, one owner per issue (§19). Fewer choices, less configuration.
+4. **The system updates itself.** Git events move issues (§14.1), releases close them (§11.1),
+   blockers downgrade (§2.6), cycles roll over (§4), sub-issues close parents (§2.5).
+5. **AI proposes with a reason, and trust is a per-property dial** (§3.4). Agents never take
+   accountability (§13.1, §18.4).
+6. **Every screen is a link.** Filters in the URL, `linear.new`, `linear.review` (§7.2, §2.8,
+   §12.6).
+7. **Status reporting is written for you and staleness is visible** (§5.8, §8.4).
+
+## 23. Where Linear's public material stops (observations for the "and more")
+
+Observations from what was read, not claims by Linear. The synthesizer should verify before
+promising "more".
+
+1. **No cross-owner agent coordination.** Each agent session is one human, one agent, one
+   issue (§13.7). Nothing read describes two people's agents negotiating, detecting that they
+   are about to collide, or escalating a conflict to the right human. This is OD-14 to OD-16
+   territory, and Linear has no counterpart as read today.
+2. **No Define or Design phase with provenance.** Linear has project specs as documents (§5.2)
+   and a Figma plugin (§14.4), but no brief-to-design-to-code-to-release thread. Releases
+   (§11.1) link issues to a SHA, not to the brief the work came from.
+3. **Deploy stops at "release happened".** Linear records a release from CI (§11.1); it does
+   not deploy, host previews for non-developers, or own the environment. Coding-session
+   "preview links" exist (§13.7) but the details were not published.
+4. **Coding sessions are single-repo, GitHub-only, one agent at a time** (§12.5: one environment
+   per repository; GitHub account required). No first-party Azure DevOps integration was found
+   (not in the doc tree; a site search on 2026-09-25 surfaced only third-party backup tools);
+   no multi-repo change; no parallel agent fleet per user described.
+5. **Data residency is US or EU only**, with some metadata always in the US (§16.6). No
+   Australian region was found. Inference is through Linear's providers; no customer-chosen
+   zero-data-retention path was found (Linear says it does not train on customer data, §3.4).
+   OD-19 (org-level ZDR, AU path through Bedrock Sydney) is a real enterprise differentiator.
+6. **Offline is a failsafe, not a feature** (§15.2), and there is no Linux desktop (§15.3).
+7. **Watching an agent work is thin.** The activity timeline is text activities and a plan
+   checklist (§13.2); rich live output is pushed out to `externalUrls`. A cockpit that shows many
+   live agents on one heartbeat is outside what Linear shows.
+
+## 24. Gaps, blocked pages and unverified claims
+
+- **Method caveat:** every page was read through WebFetch, which returns a model summary, not
+  raw HTML. Two summaries of the same pricing page disagreed (§17). Treat tier gating and exact
+  numbers as "check before building against".
+- **Returned nothing useful:** `/docs/github-integration` (heading only; `/docs/github` used
+  instead); `/docs/start-guide` (onboarding only, no keyboard detail);
+  `/docs/billing-and-plans` (defers to pricing); `/now/scaling-the-linear-sync-engine` (talk
+  page, no text); `/features` (headings only); `/docs/integration-directory` (no list).
+- **404:** `/changelog/2026-08-20-coding-sessions-environments` (URL guessed; the entry is known
+  only from the changelog index).
+- **Listed in the sitemap, not opened (UNVERIFIED detail):** project-priority, project-labels,
+  label-views, user-views, default-team-pages, linear-asks-slack, -email, -web-forms, releases
+  sub-detail, login-methods, invite-members, workspaces, third-party-application-approvals,
+  team-issue-limit, profile, security-and-access, discord, front, zapier, airbyte,
+  google-sheets, gus-integration, github-enterprise-cloud-beta, open-issues-with-custom-scripts,
+  jira-to-linear and other importer guides, `/developers/*` pages other than agents,
+  agent-interaction, agent-signals, agent-best-practices, webhooks, rate-limiting, aig;
+  `/mobile`, `/insights`, `/asks`, `/customer-requests`, `/coding-sessions` product pages.
+- **Specific UNVERIFIED items:** cycle-success formula (§4); exact coding-session model list
+  (§12.5); Claude Code's absence from the partner page (§13.3); full `G`/`O` shortcut list
+  (§15.1); Entra ID for SCIM (§16.3); whether EU/US region move is now possible (§16.6); Skills
+  details (§12.2); whether semantic search exists (§7.4); Pulse being AI-generated (the
+  ai-at-linear page says so; the Pulse doc summary did not).
+- **Corporate network:** no page was blocked by the KPMG network during this run; all Linear
+  URLs fetched returned content or a 404. No headless browser or screenshots were used.
+- **Clean room:** no Linear code, assets or copy reproduced; short quoted fragments only. Plane
+  was not consulted at all.
+
+## 25. Sources (all read 2026-09-25)
+
+Docs: `https://linear.app/docs/` + conceptual-model, configuring-workflows, priority,
+estimates, labels, parent-and-sub-issues, issue-relations, issue-templates, creating-issues,
+editing-issues, due-dates, comment-on-issues, select-issues, triage, triage-intelligence,
+use-cycles, cycle-graph, update-cycles, projects, project-overview, project-status,
+project-milestones, project-graph, project-dependencies, project-templates,
+project-notifications, initiative-and-project-updates, initiatives, sub-initiatives, timeline,
+custom-views, filters, display-options, search, peek, my-issues, inbox, notifications, pulse,
+documents, editor, customer-requests, linear-asks, sla, insights, dashboards, releases,
+exporting-data, linear-agent, loops, agents-in-linear, assigning-issues, coding-sessions,
+code-intelligence, diffs, code-and-reviews, mcp, connect-mcp-servers, ai-credits, ai-at-linear,
+github, gitlab, slack, figma, sentry, zendesk, intercom, microsoft-teams, jira, gong, notion,
+salesforce, import-issues, get-the-app, teams, sub-teams, favorites, account-preferences,
+members-roles, saml-and-access-control, scim, audit-log, security, private-teams,
+api-and-webhooks, billing-and-plans, integration-directory, start-guide.
+
+Developers: `https://linear.app/developers/` + agents, agent-interaction, agent-signals,
+agent-best-practices, webhooks, rate-limiting, aig.
+
+Product and other: https://linear.app/sitemap.xml, https://linear.app/pricing,
+https://linear.app/agents, https://linear.app/ai, https://linear.app/features,
+https://linear.app/method, https://linear.app/method/introduction, https://linear.app/changelog,
+https://linear.app/changelog/2026-06-11-coding-sessions,
+https://linear.app/changelog/2025-08-14-product-intelligence-technology-preview,
+https://linear.app/changelog/2019-10-07-contextual-command-menu,
+https://linear.app/now/invisible-details, https://linear.app/now/rebuilding-delta-sync-read-path,
+https://linear.app/now/how-we-built-multi-region-support-for-linear,
+https://linear.app/now/scaling-the-linear-sync-engine. Web searches (site:linear.app) for
+changelog entries, keyboard shortcuts, the sync engine and Azure DevOps.
