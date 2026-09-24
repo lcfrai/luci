@@ -194,7 +194,12 @@ type Deployment struct {
 	BuildRaw    string // the target's own word, for the tooltip
 	FailedStep  string
 	ErrorText   string
-	CreatedAt   time.Time
+	CreatedAt   time.Time // when the run was CREATED (Panacea: the PipelineRun's creationTimestamp), not when it went live
+	// CompletedAt is when the build finished: CreatedAt plus the target's recorded duration
+	// (Panacea: completionTime − creationTimestamp, rounded to a second, kubernetes.go:5683-5689).
+	// Zero = not finished, or the target recorded no duration (a running build; a reconstructed
+	// row). The view's "what is serving now" rule reads it (task 08 rule 6, review I3).
+	CompletedAt time.Time
 	DeployedBy  string // "" = not recorded, never guessed
 	Trigger     string // the target's word ("manual", "git-push", …); "" = not recorded
 	// LiveReady is the environment's ready-pod count NOW, and only on the newest deployment per
@@ -591,6 +596,7 @@ func Conformance(t *testing.T, h Harness)
 | `LatestOfEmptyProject` | `Latest` on a project with `NoDeployments` returns `(Deployment{}, false, nil)` | an implementation that turns "never deployed" into an error, which the lens would draw as a failure |
 | `LiveReadyNilStaysNil` | a seeded deployment with `LiveReady: nil` reads back `nil`, and one with `&0` reads back `&0` | flattening the pointer to `int`, which makes "not measured" read as "down" |
 | `GatesNilStaysNil` | `Gates: nil` reads back `nil`, not an empty map | "no gate ran" becoming "all gates clean" |
+| `CompletedAtSurvives` | a seeded `Succeeded` deployment with `CompletedAt` 4 m 12 s after `CreatedAt` reads back the same instant (to the second: Panacea rounds); one with zero `CompletedAt` reads back zero (panaceatest serves `duration` from it, and omits the key for zero) | dropping `duration`, so no deployment is ever current (task 08 rule 6, review I3) |
 | `RollbackCreatesNoDeployment` | after `Rollback(d1)`, `Deployments` has the same length and `SourceDeploymentID == "d1"` | a fake that invents a rollback row, hiding 7P-4 from every test above it |
 | `ShipNamesTheRun` | `Ship` returns a non-empty `Run`, and the next `Deployments` either lacks it or has it with `ID == Run` | a Run name that is not the Deployment id, which breaks the join (§2 step 6) |
 | `UnknownPostureFailsClosed` | an environment seeded with posture word `"open-to-all"` reads `Mode == PostureKPMGSSO`, `ModeKnown == false` | mapping an unknown word to public |

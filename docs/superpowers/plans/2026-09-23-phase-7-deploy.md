@@ -229,10 +229,13 @@ values set anywhere are `git-push`, `redeploy`, `prod-branch-change` and `manual
 - confirms with **`{}`**. Sending Panacea's returned id would try to join the **source's** id,
   which the source release already holds — Hub contract §7.9 answers that with `409 conflict`;
 - and a rollback **appears in no Panacea list**. `deploys/latest` still reports the newer build
-  after a rollback. The lens therefore reads "what is serving" as the later of the environment's
-  newest `Deployment.createdAt` and its newest **confirmed rollback release**'s `confirmedAt` from
-  the Hub (task 08). A rollback made in the Panacea portal is invisible to us, and the lens's help
-  text says so.
+  after a rollback. The lens therefore reads "what is serving" as the later of two facts (task 08
+  rule 6, review I3): the environment's newest **succeeded** deployment by **completion**
+  (`createdAt` + Panacea's `duration`, `models/models.go:682`; computed at
+  `clients/kubernetes.go:5683-5689`), and its newest **confirmed rollback release**'s
+  `confirmedAt` from the Hub. `createdAt` alone is PipelineRun creation (`kubernetes.go:5680`,
+  `:5754`), not go-live, and a failed or running build is never current. A rollback made in the
+  Panacea portal is invisible to us, and the lens's help text says so.
 
 Two more facts from the same reading, both drawn in task 10: `Rollback` finds its target only in
 `K8s.ListDeployments` — the **live** PipelineRuns (`projects.go:1555-1572`) — so a rollback to a

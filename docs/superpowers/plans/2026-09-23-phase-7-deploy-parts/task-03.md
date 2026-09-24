@@ -87,6 +87,13 @@ type deploymentDTO struct {
 	FailedStep        string                 `json:"failedStep"`
 	ErrorMessage      string                 `json:"errorMessage"`
 	CreatedAt         time.Time              `json:"createdAt"`
+	// Duration is Go's time.Duration.String() of completionTime − creationTimestamp, rounded to a
+	// second ("4m12s"), and "" while the run has no completionTime (clients/kubernetes.go:5683-5689;
+	// kept by the durable store, clients/deployment_store.go:83; absent on a backfilled row,
+	// clients/deployment_backfill.go:167-175). The mapper sets Deployment.CompletedAt =
+	// CreatedAt + time.ParseDuration(Duration); "" or an unparseable value → zero, never a guess
+	// (review I3).
+	Duration          string                 `json:"duration"`
 	Provisioning      []provisioningDTO      `json:"provisioning"`
 	RollbackWarmth    string                 `json:"rollbackWarmth"`
 	ColdStartSeconds  int                    `json:"coldStartSeconds"`
@@ -320,6 +327,7 @@ A pair seeded in neither form is a test bug, answered `500` with
 | `TestLatest404IsNotAnError` | `latest-404.json` → `ok == false`, `err == nil` | a red error banner on a project that has simply never shipped |
 | `TestLiveReadyPointer` | the newest row's `liveReadyReplicas: 0` → `*LiveReady == 0`; a row without the key → `nil` | `LiveReadyReplicas int` in the DTO |
 | `TestGatesAbsentIsNil` | a row without `scanStatus` → `Gates == nil` | `make(map…)` in the mapper |
+| `TestCompletedAtFromDuration` | `createdAt "2026-09-23T10:00:00Z"`, `duration "4m12s"` → `CompletedAt` 10:04:12Z; `duration "1h2m3s"` → 11:02:03Z; a row without `duration`, with `""`, or with `"soon"` → `CompletedAt.IsZero()`; a `historical` backfilled row → zero (review I3) | `CompletedAt = CreatedAt` when the duration is missing, which makes a running build read as live the moment it starts |
 | `TestStatusMappingTable` | every row of the status table, both DTOs | mapping `Pending` to `BuildPending`, which leaves the watcher's 3 s cadence on for the whole build |
 | `TestSameEnvironment` | `("prod","production")`, `("production","prod")` → true; `("prod","prod-eu")`, `("feat-a","feat-b")` → false; the test's comment quotes `clients/kubernetes.go:4213` | a prefix match that joins `production` to `production-eu` |
 | `TestPathEscapesBranchAndEnv` | `Pods(p, "feat/x")` requests `/environments/feat%2Fx/pods` | an unescaped `/` routing to a different Panacea handler |

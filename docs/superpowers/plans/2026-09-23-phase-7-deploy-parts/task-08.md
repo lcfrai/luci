@@ -73,7 +73,7 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "current": {                           // what the environment serves now (plan 7P-4)
     "source": "deployment" | "rollback" | "none",
     "deploymentId": "…" | null,          // for "rollback": the deployment rolled back TO
-    "since": "…" | null                  // the deployment's createdAt, or the rollback's confirmedAt
+    "since": "…" | null                  // the deployment's completedAt (createdAt + duration), or the rollback's confirmedAt (rule 6)
   }
 }
 
@@ -99,7 +99,7 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "reconstructed": false,
   "gates": { "trivy": { "verdict": "failed", "criticals": 2, "highs": null, "findings": null } } | null,
   "provisioning": [ { "component": "database", "status": "failed", "detail": "…" } ],
-  "isCurrent": false,                    // this row is its environment's current
+  "isCurrent": false,                    // this row is its environment's current (rule 6): the run row of the current succeeded deployment, or the current rollback row — never the run row a rollback returned to
   "rollbackOf": null | { "sourceDeploymentId": "…", "sourceVersion": "…" | null },
   "refusal": null | { "message": "…" },  // refused rows: the Hub's abandonMessage, which is Panacea's sentence
   "release": ReleasePin | null,          // null ⇒ "no brief is recorded for this release" (P9: shown, never hidden)
@@ -177,10 +177,27 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
    reached. This is how phase 7 sees Panacea's access route disagree with its deploy (task 03's
    `EnvironmentFor` row: `branchEnv` reads the production-branch label only), from facts after the
    deploy, with no copy of `ResolveProductionBranch`.
-6. **Current**: the newest deployment, unless a confirmed rollback release for this environment
-   has `confirmedAt` later than that deployment's `createdAt` — then `source "rollback"` and the
-   rollback's `sourceDeploymentId`. The rollback appears in `history` as its own row with the
-   source's release pin (the Hub copied it at reserve, R5).
+6. **Current** is what the environment serves now (review I3). It is the later of two candidates:
+   - **the live build**: the environment's deployment with `build "succeeded"` and a non-zero
+     `CompletedAt` whose `CompletedAt` is latest. Ordered by completion, never by `CreatedAt`:
+     `createdAt` is PipelineRun creation (`clients/kubernetes.go:5680`, `:5754`), so a build
+     Shipped before a rollback can go live after it. A `failed`, `running`, `pending`,
+     `historical` or `unknown` deployment is **never** current, however new: a failed build left
+     the old pods serving, and a running one has not replaced them yet. `build` (FACT 1) still
+     reports the newest deployment, so the card can say both *"the newest build failed"* and
+     what is serving.
+   - **the rollback**: the confirmed rollback release, joined to this environment by `same`,
+     whose `confirmedAt` is latest.
+   The later wins: `{source:"deployment", deploymentId, since: CompletedAt}` or
+   `{source:"rollback", deploymentId: sourceDeploymentId, since: confirmedAt}`. An equal instant
+   goes to the rollback (Panacea rounds `duration` to a second; the Hub confirms after Panacea's
+   flip). Neither candidate → `{source:"none", deploymentId:null, since:null}`, never a guess;
+   an environment whose only rows are backfilled `historical` rows reads `none`.
+   `isCurrent` is `true` on exactly one row per environment: the current deployment's `run` row,
+   or the current `rollback` row. The `run` row of the deployment rolled back **to** stays
+   `false` (its build is history); task 16 hides Roll back on it through `current.deploymentId`.
+   The rollback appears in `history` as its own row with the source's release pin (the Hub copied
+   it at reserve, R5).
 7. **Pending rows**: a confirmed run release of this Panacea project whose `pipelineRun` matches
    no deployment yet. Removed once the deployment appears (rule 5 then takes over).
 8. **Refused rows**: this user's `abandoned` releases with `abandonedAt` in the last 24 h.
@@ -203,7 +220,7 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
      `false` while the two overwrite each other. Panacea records nothing that tells them apart,
      and deriving it would copy its rule, so the view cannot see these twins; task 15 says so
      under the banner.
-10. **Times** are the facts' own (`createdAt`, `confirmedAt`, `reservedAt`), RFC 3339 UTC with three
+10. **Times** are the facts' own (`createdAt`, `completedAt`, `confirmedAt`, `reservedAt`), RFC 3339 UTC with three
     fractional digits, like the Hub (brief B4: absolute, never relative).
 11. **`history` is capped at 200 rows**, newest first; a project with more says so with the
     watcher's `DeploymentsAt` — the desktop virtualises past 50 (DESIGN-SYSTEM.md "Floor").
@@ -230,8 +247,12 @@ the watcher passes its `Reader.SameEnvironment`, not the stub.
 | `TestServingZeroIsDown` | newest `LiveReady: &0` → `{measured:true, ready:0}` while `build.state == "succeeded"` | a green tick over a dead site (survey §3.3) |
 | `TestReleaseByRunNameOnly` | a confirmed release whose `pipelineRun` is `"r1"`; deployments `"r1"` and `"r2"` on the same branch → only `r1` has the pin; `r2.release == null` | attaching a pin to the next deploy on the same branch — pinning by observation (P2) |
 | `TestReservedIsNotAPin` | a `reserved` (unconfirmed) release with `pipelineRun: null` → no deployment gets it | a reservation that never became a run claiming a deployment |
-| `TestRollbackIsCurrent` | newest deployment `d2` at 10:00; a confirmed rollback to `d1` confirmed 10:05 → `current {source:"rollback", deploymentId:"d1"}`; a `rollback` row carries `d1`'s release pin | the lens saying `d2` is serving after the user rolled back |
-| `TestRollbackBeforeNewerDeploy` | the same rollback, then `d3` at 10:10 → `current` is `d3` | a rollback that sticks after a newer ship |
+| `TestRollbackIsCurrent` | `d1` succeeded (created 09:00, completed 09:04); `d2` succeeded (created 10:00, completed 10:03); a confirmed rollback to `d1` confirmed 10:05 → `current {source:"rollback", deploymentId:"d1", since:"…10:05…"}`; the `rollback` row has `isCurrent:true` and `d1`'s release pin; the `d1` and `d2` run rows have `isCurrent:false` | the lens saying `d2` is serving after the user rolled back |
+| `TestRollbackBeforeNewerDeploy` | the same rollback, then `d3` created 10:10 and completed 10:14, succeeded → `current {source:"deployment", deploymentId:"d3", since:"…10:14…"}`; only `d3`'s row is `isCurrent` | a rollback that sticks after a newer build went live |
+| `TestFailedNewestIsNotCurrent` | `d1` succeeded (completed 09:04); `d2` created 10:00, `build "failed"`, `CompletedAt` 10:02 → `current {source:"deployment", deploymentId:"d1", since:"…09:04…"}`, `d1` `isCurrent:true`, `d2` `isCurrent:false`, `build.state "failed"`; the same with `d2` `running` (zero `CompletedAt`) → still `d1` (review I3) | the newest deployment read as current, which marks a failed build as serving and hides *Roll back* on the one that is |
+| `TestBuildLiveAfterRollbackIsCurrent` | `d1` succeeded (completed 09:04); `d2` created 10:00; a rollback to `d1` confirmed 10:05; `d2` succeeded with `CompletedAt` 10:08 → `current {source:"deployment", deploymentId:"d2", since:"…10:08…"}`; with `d2` still `running` at the same snapshot → `current` is the rollback (review I3) | ordering by `CreatedAt`, which says the rollback is serving after the Ship it undid went live on top of it |
+| `TestCurrentTieGoesToRollback` | `d2` `CompletedAt` 10:05:00 and a rollback to `d1` confirmed 10:05:00.000 → `source "rollback"`; `d2` `CompletedAt` 10:05:01 → `d2` | a tie broken by list order, so the answer flips between cycles |
+| `TestHistoricalOnlyIsNone` | the environment's only deployment is a backfilled `historical` row (zero `CompletedAt`) and no rollback → `current {source:"none", deploymentId:null, since:null}`, no row `isCurrent` | calling a reconstructed row live because it is the only one |
 | `TestPendingRowUntilDeploymentAppears` | a confirmed release for run `r9` with no deployment → a `pending` row; add `r9` → the pending row is gone and `r9` has the pin | a Ship that shows nothing for the ~seconds before Panacea lists the run |
 | `TestRefusedOnlyMineAndRecent` | my abandon 1 h ago → shown with its message; my abandon 25 h ago and a teammate's → absent | a teammate's failure appearing in my history |
 | `TestCollisionExactStrings` | two deployments in one environment (`feat-phase-7-deploy`: the 20-character cut leaves a trailing `-`, which `TrimRight` removes) whose `Deployment.branch` labels are `feat-phase-7-deploy-connector-a` and `feat-phase-7-deploy-connector-b` — the run labels Panacea writes for `feat/phase-7-deploy-connector-a`/`-b`, never the git names (b02 round 2, R7) → `collision: true`, both in `branchesSeen`; the same label twice → `false` | detecting collision by comparing sanitised names — a fourth copy of the rule |
@@ -272,5 +293,13 @@ go test ./control-plane/internal/deploy/deploywatch/ ./control-plane/internal/ap
 - That `collision` counts branches. It counts distinct labels (rule 9): one branch pushed and then
   Shipped can show two, and two branches can show one. "This branch's environment" comes from
   `selected` (rule 1a), never from `environments[].branch` or `Deployment.branch`.
+- That `CompletedAt` is the instant the new pods took traffic (rule 6, review I3). It is when the
+  PipelineRun finished, and Panacea runs some tasks *"beside/after the deploy"*
+  (`clients/pipeline.go:1302-1306`), so it can lag go-live. A rollback confirmed inside that lag
+  reads as undone by the build although the rollback flipped last. And a run whose rollout
+  succeeded but whose status is `Failed` because of a later task would read as not current while
+  its pods serve. Whether any such task can fail the run is **unverified** (it turns on each
+  task's `onError`). FACT 2 (`serving`) still shows the pods either way; Panacea records nothing
+  closer to go-live on a deployment row.
 - Anything about how a pinned revision reads. The view carries `briefKey` and nothing of the brief;
   the text comes from phase 4's loader (R6) in the desktop.

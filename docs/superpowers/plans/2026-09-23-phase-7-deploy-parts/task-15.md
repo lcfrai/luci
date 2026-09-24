@@ -117,6 +117,7 @@ under its `environmentRow` (the deployment's), never under `recorded`.
 | SCANS | `INCOMPLETE` | `warn` | *"Incomplete — "* + scans; *"ran and produced no result … Not a pass."* |
 | SCANS | `WARN` / `PASS` / `SKIPPED` | `warn` / `ok` / `unmeasured` | the word, and `detailsSource` when it is `unverified`: *"findings not attributable to this release"* |
 | CURRENT | `current.source == "rollback"` | — | a line under BUILD: *"Serving `<version>` since `<time>` — rolled back from this cockpit."* |
+| CURRENT | `current.source == "deployment"` and `current.deploymentId != build.deploymentId` | — | a line under BUILD: *"Serving `<version>` since `<time>` — the newest build has not replaced it."* (task 08 rule 6: a failed or running newest build is never current, review I3) |
 
 #### The pin cell — seven states, none merged (provenance contract §4.1; ADR-H1 Q2 adds `erased`)
 
@@ -176,6 +177,7 @@ which was true only while releases were per-laptop.
 |---|---|---|
 | `three facts always three` | a view with build `succeeded`, serving `ready 0`, scans `FAIL` renders three separate fact blocks with `ok`, `fail`, `fail` | a single "status" pill (survey §3.3) |
 | `unmeasured is not down` | `serving {measured:false}` → *"Not measured"*, hollow ring; never the word *"Down"* | nil painted as 0 |
+| `failed newest names what serves` | `build {state:"failed", deploymentId:"d2"}`, `current {source:"deployment", deploymentId:"d1"}`, `d1`'s row `version "manual-4e7a91c0"` → BUILD says *"Failed at …"* and the line *"Serving `manual-4e7a91c0` since … — the newest build has not replaced it."*; `current.deploymentId == build.deploymentId` → no such line (review I3) | a card that shows only the failed build, leaving the user to guess what is live |
 | `not run is not pass` | `scans.state "not_run"` → the not-run sentence; the DOM lacks *"Pass"* | absence read as clean |
 | `version unknown` | `version: null` → *"version unknown"* | a blank cell |
 | `pin: seven states` | one test per row of the pin table | two provenance states merged |
