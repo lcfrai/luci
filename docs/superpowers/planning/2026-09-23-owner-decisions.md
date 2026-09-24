@@ -151,6 +151,29 @@ From the team-mode design's owner questions (`2026-09-24-team-collaboration/00-s
 | **OD-23** | Cloud agents' Claude Code policy | Owner: *"For the time being, don't draft too much policy. Just give the control plane a way to put our policies in."* | **Build the mechanism, not the policy.** The control plane gets a way to supply a policy (Claude Code managed settings and permissions) per org, and per project where that matters, into every cloud sandbox at session start, versioned and audited. Ship a minimal default. No InfoSec policy document is drafted now. |
 | **OD-24** | The four team defaults | **All four accepted**: budgets on by default; the escalation defaults (tighten, never loosen); opening prompts private; a data classification required. Owner, on the last: *"Data class should be set on creation, and can be updated as needed. It will also determine what security scans are needed from a deployment stand point."* | **The data classification is set when a project is CREATED, not at Share, and can be updated.** It drives two things: AU vs Global inference (OD-19), and **which security scans the deploy side requires** (phase 7 and Panacea's scan posture). The project model, phase 4's create flow and phase 7's release gates all carry it. |
 
+## The work layer (Linear parity-plus) — 2026-09-25, OD-25 to OD-28
+
+The owner's ask, verbatim: *"make sure that we are doing everything they are doing and more. Make
+it prettier, better, everything. Mixed with the other benefits we have found, and the ability for
+agents across owners to work together."* The design is in `2026-09-25-linear-parity/`.
+
+| Id | Question | Answer | Consequence |
+|---|---|---|---|
+| **OD-25** | When the work layer is built, relative to team mode | **Alongside team mode** | Phase W runs on its own streams beside Phase T (team mode). W1's demo works in local mode first, then moves to the cloud when the gateway and environment land. Team mode's critical path is untouched. |
+| **OD-26** | How far to commit | **Everything: W1 to W5** | Full parity-plus: about 138 focused days plus team mode, across all 257 Linear items (MATCH 139, EXCEED 67, PARTIAL 24, SKIP 27). The 27 skips stand as the design argues (Q6), until the owner overrules. |
+| **OD-27** | Progress displays | **Proof per criterion, no predictions** | Show which acceptance criteria are proven, and plain counts per group. Still banned: percentages, progress bars, ETAs and "N of M" completion predictions. `AGENTIC-UX.md` gets the design's four one-line amendments (Q13). |
+| **OD-28** | The mono face for machine facts | **Commit Mono** (OFL, free) | Every id, path and time is set in Commit Mono. The sans is **Segoe UI Variable** (Q14's recommendation, accepted under OD-1). |
+
+The Linear design's other questions take their recommended answers under OD-1:
+- Q3: issue text goes into the agent's context, with guards.
+- Q4: the Desk frame is in W1.
+- Q5: the replica lives in memory.
+- Q7: Linear's "project" is called a *feature*.
+- Q8: no title slug in AU-only branch names.
+- Q9: build our own, and sync one way in.
+- Q11: option B.
+- Q12: cross-team work comes in W4.
+
 ## Where the older documents now disagree, and what wins
 
 - `CLAUDE.md` → "Design canvas: adopt `Projects/Paperdesign`": **superseded by OD-11.**
