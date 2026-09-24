@@ -1460,3 +1460,31 @@ that stated the stderr shape.
 
 Nothing was built. This batch changes documents only.
 
+
+---
+
+## Fix batch b07 (2026-09-24) — M1, M2, M3, M4, M6, M9
+
+Plan-document minors. Line numbers are the plan's and the parts' after this batch's two commits
+(`b00cce8`, then the one after it).
+
+| Finding | The change | Where |
+|---|---|---|
+| M1 | **Already fixed by b05** (its I9 row: *"That list named `go-licenses` and `license-checker` as tools task 04 'pins'"*). The bullet the review cited at `:503-505` is now the unverified-list item that restates the gate as our own program. Re-checked: no line in the plan or the parts says task 04 pins either tool; the only two mentions say it uses neither. No edit. | plan `:235` (P5-P), `:585-586`; `task-04.md:14` |
+| M2 | Row 02 no longer claims the control plane's `replace`; it says the `require` and `replace` are task 19's (G1), matching `task-02.md` "Not claimed" and the file map. | plan `:435` |
+| M3 | The shared-file list gains `go.work` (02, then 04), `designapi/routes.go` (20a, 21, 22, then 29) and `canvas/editor/src/editor/keys.ts` (25, then 29), with the rule that a later task starts its edit only after the earlier one is merged. The waves run 22 and 29 together, so the lane text says 29's `routes.go` line waits for 22's merge. Also completed while there: `mount.go` and `cmd/api/design.go` gain 22's `HandoffGit` (`task-22.md:27`, `:30-31`), which the old text left out. Task 29 names `routes.go` (it was absent from its file list although `TestMount_wrapsEveryRoute` counts route 27) and both waits. | plan `:492-503`; `task-29.md:14-17` |
+| M4 | The file map names `editorPackage.test.tsx` (03), `docstores.ts`, `selectors.ts` (27), `DesignTop.tsx`, `Activity.tsx`, `DesignRenderers.tsx`, `DesignContextChip.tsx` (28), and `cmd/sandboxd/serve_posix.go` (18). The Repository line's `go.work` now names task 04's edit too. Each file checked against its part's file list: `task-03.md:25`, `task-27.md:22-23`, `task-28.md:15-17`, `task-18.md:27`; `serve_posix.go` exists in the tree. | plan `:397`, `:412`, `:417` |
+| M6 | The review's first option, not the move to `canvas/core` (that rewrites canvas paths in 15 part files, 87 mentions, counted). Task 02 adds `canvas/editor/go.mod` (a comment and one `module` line), which `go.work` never `use`s. **Red, then green**, run 2026-09-24 on go1.26.2 against a `go 1.23` module in a scratch copy with a `go.work`: with a broken-syntax `editor/node_modules/stray/stray.go`, `go list ./canvas/...` named `…/editor/node_modules/stray` and `go vet` exited 1; with the file, `go list` named only `…/doc`, and `go vet`, `go build`, `go work sync` and `GOWORK=off go list ./...` exited 0. Task 05's `TestBoundary_editorModule` pins the file and that the workspace does not `use` it; the second half was checked the same way (`go list -m -f {{.Path}}` names `…/canvas/editor` only once `go.work` uses it). Task 03 is told the file is not its own. Restated in the architecture, the commands and the file map. Unverified: a go1.23 toolchain itself (none installed; the nested-module skip predates it). | `task-02.md:9-10`, `:16-17`, `:54-78`, `:101-105`, `:117`; `task-05.md:18-19`, `:311`; `task-03.md:17-19`; plan `:102-105`, `:252-255`, `:351` |
+| M9 | The sibling-plan rows cite each id and its section, with the line where it stood at a named commit. Re-checked: at `feat/phase-4-discover` `64664b7` (the review's `c93fa04` is no longer HEAD), P4-A is `:171` (was cited `:169`) and S4-P5.1–3 are `:486-488` (the review's `:457-459` had drifted again). The phase 3 row had drifted the same way: at `feat/phase-3-git` `6c6b20f`, 3-D6 is `:157` (cited `:134`) and S3-P5.1 is `:407` (cited `:330`); fixed in the same edit. A paragraph names both plan files and says the ids, not the lines, are the citation. | plan `:201-214` |
+
+**Mutants an implementer should expect to survive (named first, per rule 7).** (1) A
+`canvas/editor/go.mod` holding only the comment, no `module` line: the go command's walk still
+stops at it (checked in the same scratch copy: `go list` named only `…/doc`, `go vet` exited 0),
+so no build test goes red; only `TestBoundary_editorModule`'s `module`-line check does. The
+mutant is harmless to the walk; the check keeps the file a well-formed module file. (2) Moving the file to
+`canvas/editor/src/go.mod`: `go list ./canvas/...` still names nothing under `editor` while no npm
+package ships a `.go` file, so only the existence check at `editor/go.mod` catches it.
+
+**Not done, and why.** M5 (`serve_other.go` missing from task 18's files) is not this batch's; when
+it is fixed, the plan's `sandboxd` line (`:397`) must name `serve_other.go` too. Nothing was built
+or run in the tree; the Go probes ran in the stream's scratch directory.
