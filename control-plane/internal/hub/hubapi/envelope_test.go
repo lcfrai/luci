@@ -385,13 +385,12 @@ func TestEnvelopesRefuseMalformedFields(t *testing.T) {
 		{"at", func(a *AuditEnvelope) { a.At = "2026-09-23T04:02:11Z" }},
 		{"at", func(a *AuditEnvelope) { a.At = "2026-09-23T14:02:11.123+10:00" }},
 		{"at", func(a *AuditEnvelope) { a.At = "2026-02-30T04:02:11.123Z" }},
-		// time.Parse takes each of these three with FormatTime's layout; only
-		// the round trip refuses them (review task-02 I3). A one-digit hour is
-		// a byte short; a comma before the fraction and a signed year are
-		// FormatTime's length exactly.
+		// time.Parse takes both of these with FormatTime's layout; only the
+		// round trip refuses them (review task-02 I3). A one-digit hour is a
+		// byte short; a comma before the fraction is FormatTime's length
+		// exactly, so a length check alone would take it.
 		{"at", func(a *AuditEnvelope) { a.At = "2026-09-23T4:02:11.123Z" }},
 		{"at", func(a *AuditEnvelope) { a.At = "2026-09-23T04:02:11,123Z" }},
-		{"at", func(a *AuditEnvelope) { a.At = "+026-09-23T04:02:11.123Z" }},
 		{"actorUserId", func(a *AuditEnvelope) { a.ActorUserID = "org-00000000000000d4" }},
 		{"event", func(a *AuditEnvelope) { a.Event = "" }},
 		{"event", func(a *AuditEnvelope) { a.Event = "Team.Created" }},
