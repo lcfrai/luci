@@ -126,7 +126,7 @@ func (e *FanoutTooLargeError) Error() string
 // fan-out item over the limit is a *FanoutTooLargeError with BranchRef.
 // Nothing is written.
 type RevisionTooLargeError struct {
-	Key   string // Request.Op.Key; "" for an op with none (restore, reinherit): the brief, not one answer
+	Key   string // Request.Op.Key; "" for an op with none (restore, propose_follow_up): the brief, not one answer
 	Bytes int
 	Limit int // MaxEnvelopeBytes
 }

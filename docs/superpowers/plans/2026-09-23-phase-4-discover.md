@@ -277,7 +277,7 @@ without a cycle. Phase 4 imports only the Hub's
   `field: "text"` with `key` and `limit`; the model paths' schemas sit inside the caps);
   **(2)** each revision's canonical envelope at most 64 KiB, the real bound, because code points
   are not bytes (task 08, `*RevisionTooLargeError` → 400 `field: "text"` with the op's `key`,
-  `""` for a restore or reinherit; a fan-out item over 64 KiB is the branch's text, not the
+  `""` for a restore or a proposed follow-up; a fan-out item over 64 KiB is the branch's text, not the
   editor's, so it is check (3)'s error naming `branchRef`);
   **(3)** the batch body, measured with `json.Marshal`, at most 1 MiB (task 08,
   `*FanoutTooLargeError` → 409 `fanout_too_large` with `bytes` and `limitBytes`, and a message
