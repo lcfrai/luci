@@ -827,4 +827,211 @@ counterpart in Linear's public material as read today.
   custom views, initiatives and statuses, varying by source. A Jira terminology guide exists.
 - **Src:** https://linear.app/docs/import-issues
 
+## 15. Keyboard model, command menu, speed, sync engine, apps
+
+### 15.1 Command menu and keyboard model
+- **Command menu** `Cmd/Ctrl+K`: every action, searchable. It is **contextual**: it acts on the
+  current view or selection, and when opened from a UI element it appears next to that element
+  like a dropdown while staying searchable and keyboard-driven. Prefix letters in the menu scope
+  results (`i` issues, `p` projects, `u` users, `t` teams, `l` labels, `f` favourites, `d`
+  documents).
+- **Grammar:** single letters set properties (`P` priority, `L` labels, `Shift+E` estimate,
+  `Shift+D` due date, `Shift+P` project, `Shift+M` milestone, `H` snooze or remind); **`G` then
+  a key goes somewhere** (`G I` inbox, `G M` my issues, `G T` triage, `G V` current cycle, `G B`
+  backlog, `G R` reviews); **`O` then a key opens a picker** (`O F` favourites, `O P` projects,
+  `O C` cycles, `O I` issue, `O D` docs, `O R` review); **`M` then a key makes a relation**
+  (`M B`, `M X`, `M R`, `M M`). `?` shows every shortcut.
+- **Selection:** `J`/`K` or arrows to move, `X` to select, `Shift`+arrows or `Shift`+click to
+  extend, `Cmd/Ctrl+A` all; bulk actions via `Cmd/Ctrl+K`, right-click, or a toolbar at the
+  bottom; `Esc` clears. `Space` peeks (§7.5).
+- **Contextual menus** show the keyboard shortcut next to every mouse action, so the mouse
+  teaches the keyboard. Submenus use a **"safe triangle"** so a diagonal mouse path to a submenu
+  does not close it.
+- **Good because:** a small, learnable grammar (verb letters, G for go, O for open, M for
+  relate) covers the whole product, and every mouse path advertises its shortcut.
+- **Src:** https://linear.app/docs/select-issues, https://linear.app/docs/search,
+  https://linear.app/now/invisible-details,
+  https://linear.app/changelog/2019-10-07-contextual-command-menu; `G`/`O` examples from a
+  web-search summary of Linear docs (UNVERIFIED as a complete list)
+
+### 15.2 Speed and the sync engine (local-first)
+- **Does:** every client keeps a **local database**, so creating an issue, changing a status or
+  navigating needs no network round trip; the UI feels immediate. Each change is a **sync
+  action** (ordered ID, model, change type, routing metadata) in an application-level log that
+  clients replay into their local store. On reconnect a client sends a **checkpoint** (last
+  applied ID) and gets a **delta**, not the whole workspace. Large workspaces generate close to a
+  million sync actions a day; Linear rebuilt the delta read path so latency stays flat as
+  workspaces grow, filtering by permissions and subscriptions.
+- **Offline:** changes queue locally and retry on reconnect, even after restart. Linear itself
+  calls offline "a failsafe", not a full feature: bulk offline edits can overwrite teammates'
+  concurrent changes (no timestamp checking).
+- **Good because:** speed is architectural, not a coat of paint; every interaction is local.
+- **Src:** https://linear.app/now/rebuilding-delta-sync-read-path,
+  https://linear.app/docs/get-the-app, https://linear.app/now/scaling-the-linear-sync-engine
+  (talk page; content not in text form)
+
+### 15.3 Desktop, web and mobile
+- **Desktop:** macOS (Intel and Apple Silicon) and Windows; no Linux (browser instead). OS
+  notifications, dock or taskbar badge, fewer shortcut clashes than a browser, **tabs** (with
+  per-tab history since 2026-06-18), near-full offline. A preference opens Linear links in the
+  desktop app.
+- **Web:** Chrome, Firefox, Safari; installable PWA.
+- **Mobile (iOS, Android):** Home (assigned, created, favourites, team queues), Inbox (synced
+  read state), create issues with camera-roll media, search, settings. Since mid-2026: code
+  review iteration on mobile (2026-07-30) and document editing (2026-09-03).
+- **Src:** https://linear.app/docs/get-the-app, https://linear.app/changelog,
+  https://linear.app/mobile (listed; not read)
+
+## 16. Enterprise, security and administration
+
+### 16.1 Roles
+- **Workspace owner** (Enterprise): billing, security, audit log, exports; decides which roles
+  may do workspace-level actions. **Admin**: routine workspace management (everyone is admin on
+  Free). **Team owner** (Business, Enterprise): runs one team, can restrict who manages its
+  labels, templates, settings and members; alone can delete it, change privacy or reparent it.
+  **Member**: no workspace admin pages. **Guest** (Business, Enterprise; billed as a member):
+  only the teams they are added to; no Code Intelligence. Suspended users drop off billing but
+  stay visible for history. Agents are app users, not seats (§13.1).
+- **Src:** https://linear.app/docs/members-roles
+
+### 16.2 SAML SSO (Enterprise per the SAML doc)
+- Any mainstream IdP (Okta, Entra, OneLogin and others). SAML is enforced for approved domains
+  (verified by DNS TXT), with non-SAML login allowed for other domains (contractors). JIT
+  provisioning (profile set only at first login). Stop non-admins creating other workspaces on
+  the claimed domain. Existing sessions are not killed on enablement.
+- **Src:** https://linear.app/docs/saml-and-access-control
+
+### 16.3 SCIM (Enterprise)
+- Create, update and suspend users from the IdP (tested with Okta and OneLogin; Entra not named,
+  UNVERIFIED). Role push groups `linear-owners`, `linear-admins`, `linear-guests`. **IdP groups
+  map 1:1 to Linear teams**; a linked team's membership is then managed only in the IdP.
+- **Src:** https://linear.app/docs/scim
+
+### 16.4 Audit log (Enterprise per the audit-log doc)
+- Account access, subscription and settings changes, with actor IP and country. 90-day
+  retention in UI and API. Owners only. Filter by event type; hide session events. GraphQL
+  queries by actor, email, IP, date, type. **Stream to a webhook** for SIEM, with a signing
+  secret.
+- **Src:** https://linear.app/docs/audit-log
+
+### 16.5 Private teams and private issue sharing
+- Private teams (Business, Enterprise): invisible to non-members; admins can see them in
+  settings with a warning before joining; no mentions of non-members inside. Private or
+  restricted sub-teams. **Private issue sharing** (Enterprise): share one issue with a
+  non-member who may comment and edit but not re-share. Several integrations (Sheets, Intercom,
+  Sentry, Zendesk) cannot see private-team data.
+- **Src:** https://linear.app/docs/private-teams
+
+### 16.6 Security posture and data regions
+- SOC 2 Type II, GDPR, HIPAA (BAA on Enterprise). Encrypted in transit and at rest. **Data
+  region US or EU**, chosen at workspace creation (default from timezone). The whole production
+  stack is replicated per region, not sharded. Some metadata (workspace info, credentials, API
+  keys, notification emails, analytics, crash logs) stays in the US regardless. No region move
+  for existing workspaces as of the blog post (date of post not captured; UNVERIFIED whether
+  that changed). Trust Center; published egress IPs.
+- **Src:** https://linear.app/docs/security,
+  https://linear.app/now/how-we-built-multi-region-support-for-linear
+
+### 16.7 Other admin controls (pages listed, partly read)
+- Login methods (Google SSO on all plans per pricing), invite controls, domain claiming, IP
+  restrictions, **third-party application approvals** (admins approve OAuth apps), workspace
+  settings for AI (per-feature toggles, Linear Agent kill switch), team issue limit, AI credits.
+- **Src:** https://linear.app/pricing, sitemap entries `/docs/login-methods`,
+  `/docs/third-party-application-approvals`, `/docs/team-issue-limit`, `/docs/ai-credits`
+  (not read separately: UNVERIFIED details)
+
+## 17. Pricing tiers (read 2026-09-25, via summary)
+
+| Plan | Price | Limits |
+|---|---|---|
+| Free | $0 | unlimited members, 2 teams, 250 issues, 10 MB uploads |
+| Basic | $10 per user per month, billed yearly | 5 teams, unlimited issues and uploads |
+| Business | $16 per user per month, billed yearly | unlimited teams |
+| Enterprise | custom, annual only | adds SCIM, IP restrictions, HIPAA, uptime SLA, invoice billing, migration help, priority support |
+
+- **Free already includes** (per the pricing summary): the agent platform, MCP access, Linear
+  Agent, Diffs and Guided Reviews, API and webhooks, Pulse, import and export, Microsoft Teams,
+  Google SSO. That is aggressive: agent integration is a free-tier feature.
+- **Business adds:** private teams, guests, Triage Intelligence, Loops, Code Intelligence,
+  Insights, Asks, Zendesk and Intercom, unlimited release pipelines, coding sessions.
+- **Coding sessions and Loops also draw AI credits** on top of the seat price.
+- **Conflicts to resolve before relying on tiers (UNVERIFIED):** two reads of the pricing page
+  disagreed with each other and with feature docs on audit log (doc: Enterprise), dashboards
+  (doc: Enterprise), sub-initiatives (doc: Enterprise), web forms (doc: Enterprise), SAML (doc:
+  Enterprise; pricing: Business "Google + SAML"), Diffs and Guided Reviews (doc: Guided Reviews
+  Business+). Feature docs are more specific and should win.
+- **Src:** https://linear.app/pricing, https://linear.app/docs/billing-and-plans
+
+## 18. API, SDK and webhooks
+
+### 18.1 GraphQL API
+- **Does:** the public API is "the same API" Linear's own apps use; full query and mutation,
+  cursor pagination, filtering (`/developers/pagination`, `/developers/filtering`), attachments,
+  file upload, customer management, deprecation policy. Personal API keys (Account → Security &
+  Access) with permissions Read, Write, Admin, Create issues, Create comments, optionally scoped
+  to teams; admins decide whether members may create keys. OAuth 2.0 apps, **OAuth actor
+  authorization** (act as the app, §13.2), **OAuth app manifests**. A TypeScript **SDK** (with
+  webhook helpers; v1 to v2 migration guide).
+- **Rate limits per hour:** API key 2,500 requests and 3,000,000 complexity points per user;
+  OAuth app 5,000 requests and 2,000,000 points per user or app user; unauthenticated 600
+  requests and 100,000 points per IP; 10,000 points per query. Rate-limit and complexity
+  headers on every response.
+- **Src:** https://linear.app/docs/api-and-webhooks, https://linear.app/developers/rate-limiting,
+  developer page list from the sitemap (`/developers/graphql`, `/developers/sdk`,
+  `/developers/oauth-2-0-authentication`, `/developers/oauth-actor-authorization`,
+  `/developers/oauth-app-manifests`; not read separately)
+
+### 18.2 Webhooks
+- **Models:** issues, attachments, comments, labels, reactions, projects, project updates,
+  documents, initiatives, initiative updates, cycles, customers, customer requests, users; plus
+  issue SLA events, OAuth app revoked, and the agent events of §13.2 (`AgentSessionEvent`,
+  `PermissionChange`).
+- **Payload:** action (create, update, remove), type, **actor** (user, OAuth client or
+  integration), createdAt, data, url, **`updatedFrom` (previous values)**, webhookTimestamp,
+  organisation and webhook IDs.
+- **Delivery:** `Linear-Signature` header, HMAC-SHA256 of the raw body; 5-second timeout; up to
+  3 retries at 1 minute, 1 hour and 6 hours.
+- **Good because:** every event carries who did it and what it was before, so consumers can
+  build audit and diff views without extra calls.
+- **Src:** https://linear.app/developers/webhooks
+
+### 18.3 Other developer surfaces
+- `linear.new` URL scheme (§2.8), "create issues using linear.new" guide; `linear-release` CLI
+  and GitHub Action (§11.1); agent APIs (§13.2); AI gateway page `/developers/aig` (listed; not
+  read, UNVERIFIED what it is); integration directory submission.
+- **Src:** sitemap; https://linear.app/developers/create-issues-using-linear-new (not read)
+
+### 18.4 Agent Interaction Guidelines (AIG)
+- A public, six-point design code for agents in any product: an agent **discloses it is an
+  agent**; **inhabits the platform natively** (the same actions and UI patterns humans use);
+  gives **instant feedback** on invocation; is **transparent about its state** (thinking,
+  waiting, executing, done) with inspectable reasoning; **respects requests to disengage** until
+  clearly re-engaged; and **cannot be held accountable**, so a human always is.
+- **Good because:** it is short enough to be a checklist, and it doubles as a positioning claim
+  ("we set the rules for agents in the workplace").
+- **Src:** https://linear.app/developers/aig
+
+## 19. The Linear Method (published philosophy)
+
+- **Principles (paraphrased):** build for the people doing the work, not for reports;
+  purpose-built over infinitely configurable; create momentum, do not sprint; meaningful
+  direction (daily work tied to goals); aim for clarity (standard words); say no to busy work;
+  simple first, then powerful; decide and move on.
+- **Practices (paraphrased):** set strategic initiatives while reserving capacity for the
+  unplanned; connect daily work to goals through projects; work in n-week cycles (typically
+  two); keep the backlog manageable; mix feature and quality work every cycle; name one owner
+  per project and issue; write short project specs (why, what, how); understand users
+  systematically; scope issues as small as possible; measure progress by real output such as
+  diffs; run cross-functional teams; write a changelog.
+- **Direction and building chapters:** set product direction, set useful goals, prioritise
+  enablers and blockers, scope projects down, generate momentum, **write issues not user
+  stories**, manage design projects, build with users, launch and keep launching, build in
+  public.
+- **Why it matters for parity:** the Method is the reason Linear's defaults are opinionated
+  (five priorities, fixed status categories, automatic cycles). The product encodes a
+  philosophy; that is much of why it "feels" better than configurable tools. The synthesizer
+  should decide what PanaceaApp's equivalent published method is (Define → Deploy with one
+  provenance thread is a natural candidate).
+- **Src:** https://linear.app/method, https://linear.app/method/introduction
+
 <!-- APPEND -->
