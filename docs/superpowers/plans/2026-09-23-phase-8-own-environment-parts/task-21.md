@@ -109,8 +109,16 @@ needs.
      `Scope: Clone` that is a closed allowlist. For `Scope: Project` it is the refusal list,
      which refuses `filter.*`, `diff.*.textconv`, `diff.*.command`, `diff.external`,
      `merge.*.driver`, `include.*`, `includeIf.*` and `extensions.worktreeConfig`, among others;
-   - H5's layout pin: Exec sets `GIT_DIR`, `GIT_COMMON_DIR` and `GIT_WORK_TREE` itself, so a
-     planted `commondir` cannot swap the config that H3 checked.
+   - H5, both halves. The layout pin: Exec sets `GIT_DIR`, `GIT_COMMON_DIR` and
+     `GIT_WORK_TREE` itself, so a planted `commondir` cannot swap the config that H3 checked.
+     And the read-only config (phase-3 `task-02.md:482-487`): H3 reads `.git/config` a few
+     milliseconds before git does, so an agent that rewrites it inside that window would defeat
+     H3. Phase 3 closes that window by binding `<path>/.git/config` read-only in the sandbox, in
+     its task 05's `sessionMounts`, which builds only the laptop's Docker mounts. A cloud session
+     gets its mounts from task 24 instead, so **task 24 binds that file read-only** (from
+     task 20's `WorktreePath.GitConfig`), and `machined` depends on it: without the bind, a lane
+     or primary-worktree agent that loops a `filter.*` write and removal would sometimes pass H3
+     with a config git then reads dirty.
 
    `machined` writes no `-c` of its own. The two it wrote before this batch are H1's first two
    rows. It refuses to start (exit 2, naming the key) if `MachineHardening` finds any system or

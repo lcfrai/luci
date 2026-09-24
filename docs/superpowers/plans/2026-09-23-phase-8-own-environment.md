@@ -283,7 +283,7 @@ beyond. The two differences phase 8 introduces are recorded for the Hub's review
 |---|---|---|---|
 | **P3A-1** | Machine paths are slash-separated on every OS: `gitx.Machine` gains `Join(elem ...string) string` (`Local` → `filepath.Join`, `Remote` → `path.Join`), and phase 3 joins clone paths through it — the control plane runs on Windows | the method is added in phase 3's task 02, or by task 25 in one commit if phase 3 has landed | 25 |
 | **P3A-2** | The lane index for a cloud machine is keyed by machine id | laptop-side, keyed by `(machineId, projectId)`; the single-laptop limitation is stated in the cockpit. It holds for sessions too: a cloud sandbox carries its creator's install id, and only that control plane reaps it (review I6, tasks 18, 22, 23) | 25 |
-| **P3A-3** | *Answered by phase 3 (review I7, b06):* its task 02 §HGH (H1–H5) hardens every `gitx.Exec` call, hooks and `core.fsmonitor` among many; `machined` runs that hardening unchanged, and adds an explicit `Env` allowlist, the scope-follows-`Dir` check, no credential `Env` in a lane, and an environment without `PANACEA_APP_*` | phase 3's §HGH lands before task 21 starts (task 21 step 1 checks) | 21, 33 |
+| **P3A-3** | *Answered by phase 3 (review I7, b06):* its task 02 §HGH (H1–H5) hardens every `gitx.Exec` call, hooks and `core.fsmonitor` among many; `machined` runs that hardening unchanged, and adds an explicit `Env` allowlist, the scope-follows-`Dir` check, no credential `Env` in a lane, and an environment without `PANACEA_APP_*`. H5's read-only `.git/config`, which phase 3 builds only in its Docker `sessionMounts`, task 24 builds for cloud sessions (b06 re-review 1) | phase 3's §HGH lands before task 21 starts (task 21 step 1 checks) | 20, 21, 24, 33 |
 | **P3A-4** | Phase 3's task 05 and this phase's task 14 both edit the sandbox environment and its parity test | phase 3 lands first; task 14 step 0 checks | 14 |
 
 ---
@@ -547,7 +547,7 @@ implementer who has read this file and the part, and assume the part's tests are
 | # | Task | Depends on | Hours |
 |---|---|---|---|
 | 20 | `cmd/machined`: the catalog on the machine disk, store deletion (OD-10), authentication | 15 | 2.5 |
-| 21 | `machined` git: phase 3's runner with its §HGH hardening, an explicit `Env` allowlist, no token in a lane, a scrubbed environment, and a credentialed clone (review I7) | 20, **phase 3 task 02 with §HGH** | 3.5 |
+| 21 | `machined` git: phase 3's runner with its §HGH hardening, an explicit `Env` allowlist derived from phase 3's call sites, no token in a lane, a scrubbed environment, a credentialed add-project clone, and phase 3's lane-create clone confined to `lanes/` (review I7, b06 re-review) | 20, **phase 3 task 02 with §HGH** | 3.5 |
 
 ### Group F — the laptop's control plane serves cloud machines
 
@@ -555,7 +555,7 @@ implementer who has read this file and the part, and assume the part's tests are
 |---|---|---|---|
 | 22 | `remotebe`: `backend.Backend` over the broker, with the Hub's token source (HA-2) | 18 | 3 |
 | 23 | `internal/machines`: a backend per machine through sessions, attach, reaper and `main`; the install id, and a reaper that destroys only its own cloud sandboxes (review I6) | 22 | 3.5 |
-| 24 | Machine-scoped catalog, cloud machines in `GET /v1/machines`, session create on a cloud machine (closes S8.3) | 23, 20 | 3 |
+| 24 | Machine-scoped catalog, cloud machines in `GET /v1/machines`, session create on a cloud machine with `.git/config` bound read-only (phase 3 H5; closes S8.3) | 23, 20 | 3 |
 | 25 | Phase 3's `gitx.Machine` for a cloud machine (S3-P8.1) | 24, 21, **phase 3 tasks 02–04 and 11** | 2.5 |
 | 26 | The cockpit shows cloud machines: states, implicit wake, the isolation badge (S8.5), signed-out | 24 | 3 |
 

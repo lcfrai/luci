@@ -87,8 +87,11 @@ wakes a machine (a GET must not), and the cockpit shows the machine asleep.
 // cloudstore.go — the conversation store on a cloud machine (SX.10), and the OD-10 deletes.
 type conversationStore interface {
 	// Mounts returns what the sandbox for worktreeID gets, creating the store
-	// first if needed. Local: phase 2's host mounts (sessionMounts). Cloud: two
-	// MachineMounts — the worktree's machine path at /home/dev/work, and
+	// first if needed. Local: phase 2's host mounts (sessionMounts). Cloud: the
+	// worktree's machine path at /home/dev/work; when the agent's WorktreePath
+	// names a GitConfig (task 20), that file read-only at
+	// /home/dev/work/.git/config (phase 3 §HGH H5's first half, which phase 3
+	// builds in task 05's sessionMounts for Docker only); and
 	// "conversations/<worktreeID>" at /home/dev/.claude/projects — after
 	// POST /v1/dirs on the machine agent creates the latter (task 15's rule).
 	Mounts(ctx context.Context, worktreeID string) ([]backend.Mount, []backend.MachineMount, error)
@@ -103,13 +106,25 @@ func (a *API) conversationStoreFor(ctx context.Context, machineID string) (conve
 #### Create on a cloud machine, in order
 
 1. Resolve the backend (task 23); resolve the worktree **on that machine**: machine agent
-   `GET /v1/worktrees/{worktreeId}/path` → `machinePath` (404 → the existing
-   `worktree_not_found`).
+   `GET /v1/worktrees/{worktreeId}/path` → `machinePath` and `gitConfig` (404 → the existing
+   `worktree_not_found`; 409 `git_config_not_a_file` → `409 conflict` with that reason, and no
+   sandbox is created).
 2. If the machine is `sleeping`: `POST …/wake`, then poll the machine every 500 ms until `idle` or
    `running`, bounded by the ready timeout. The session record is `starting` throughout, so the
    cockpit's inline "waking…" (task 26) is truthful.
 3. `conversationStoreFor(machine).Mounts(worktree)` → `MachineMounts`; `WorkDir: sessionWorkDir`
-   (`sessions.go:33`), `Mounts: nil`, `Machine: machineID`.
+   (`sessions.go:33`), `Mounts: nil`, `Machine: machineID`. When `gitConfig` is set, the
+   `MachineMounts` are three, in this order: `{MachinePath: machinePath, ContainerPath:
+   "/home/dev/work"}`, `{MachinePath: gitConfig, ContainerPath: "/home/dev/work/.git/config",
+   ReadOnly: true}`, and the conversation store. The file mount is listed after the worktree
+   mount it sits inside. The runtime must mount the parent first; containerd's CRI sorts a
+   container's mounts by destination depth, from its source (**UNVERIFIED** here, and on Kata). **Why (review I7, b06 re-review 1):**
+   `machined`'s H3 reads `.git/config` a few milliseconds before git does, so an agent that
+   writes `filter.x.clean` into it and removes it again, in a loop, would sometimes pass the
+   check with a file git then reads dirty, and the cockpit's lane observer calls `status`
+   often enough to give it many tries. With the file read-only in the sandbox, the agent
+   cannot write it at all. The cost is phase 3's (its Q7): the agent's own `git config` in its
+   checkout fails.
 4. `be.Create` — the broker answers after the pod is ready (task 18).
 
 An `ErrQuotaExceeded` from the backend is `429 quota_exceeded` with the broker's
@@ -151,7 +166,8 @@ follow-up uses the interface. Either way a cloud session's Forget reaches the ma
 | `TestCatalogWithoutMachineIDIsUnchanged` | every existing catalog test passes; local objects gain only `machineId: "local"` | a changed phase 2 shape |
 | `TestCloudCatalogComesFromTheMachineAgent` | `?machineId=m-…` → the stand-in agent's projects, each with `machineId` | a cloud catalog read from the laptop's disk |
 | `TestASleepingMachinesCatalogIs409AndDoesNotWake` | 409, `details.state = "sleeping"`, no wake call | a GET that boots a VM |
-| `TestCloudCreateSendsMachineMountsNeverHostMounts` | the fake backend received `Mounts == nil`, two `MachineMounts` with the agent's path and `conversations/<w>`, `WorkDir == "/home/dev/work"` | S8.3 "fixed" by dropping katabe's refusal |
+| `TestCloudCreateSendsMachineMountsNeverHostMounts` | a stand-in agent whose `WorktreePath` has no `gitConfig`: the fake backend received `Mounts == nil`, two `MachineMounts` with the agent's path and `conversations/<w>`, `WorkDir == "/home/dev/work"` | S8.3 "fixed" by dropping katabe's refusal |
+| `TestCloudCreateBindsTheCloneConfigReadOnly` | the stand-in answers `gitConfig: "lanes/p-1/w-2/.git/config"` → three `MachineMounts`, the second exactly `{MachinePath: "lanes/p-1/w-2/.git/config", ContainerPath: "/home/dev/work/.git/config", ReadOnly: true}`, listed after the worktree mount; the same for `projects/a`; the stand-in answering 409 `git_config_not_a_file` → `409 conflict` with that reason and no `Create` | H5's read-only half dropped on cloud machines, so an agent races `machined`'s H3 with a config it rewrites; the bind made writable; a session created over a config Kubernetes would make a directory |
 | `TestCloudCreateMakesTheStoreBeforeTheSandbox` | the agent saw `POST /v1/dirs` for `conversations/<w>` before the backend saw `Create` | a root-owned store the agent cannot write |
 | `TestCreateOnASleepingMachineWakesItFirst` | wake, then polls, then `Create`; the record was `starting` meanwhile | "machine asleep" shown to a user who just typed |
 | `TestQuotaIs429WithTheLimit` | `ErrQuotaExceeded` → 429 `quota_exceeded`, `details.limit` | a quota shown as "unavailable" |
@@ -181,3 +197,16 @@ go test ./control-plane/internal/api/ -run 'TestRoutes|TestNoRegisteredGet' -cou
   task 26 amends `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` §2 and `types.ts`
   together (rule SX.2).
 - Adding a project to a cloud machine (a clone through task 21's route): seam S8-P3.2.
+- **UNVERIFIED:** that a Kata guest enforces a `readOnly` `subPath` **file** mount, so that the
+  agent's `git config` write and git's `config.lock` rename onto `/home/dev/work/.git/config`
+  both fail inside the microVM. Phase 3's `TestSandboxCloneConfigIsReadOnly` covers Docker
+  only. Nothing here runs against a cluster (the stream's rule); the first live Kata session
+  must run `sh -c 'echo x >> /home/dev/work/.git/config'` and `git config x.y z` in the sandbox
+  and see both refused, and task 33 carries that check into the results doc.
+- **UNVERIFIED:** whether renaming `.git` itself, the directory that holds the bind, gets the
+  agent a writable `config` at the old path. Phase 3's H5 has the same open question on Docker.
+- **Stated, and safe:** `machined`'s own git still writes the file while a session holds the
+  bind (phase 3 task 03's `config user.*`, task 11's `branch -m`, task 12's
+  `push --set-upstream`). Git writes config by renaming `config.lock` over it, which replaces the
+  inode; a `subPath` bind keeps the old inode, so the running session sees the config as it was
+  when the sandbox started until its next start. The machine's git and H3 read the new file.

@@ -58,8 +58,16 @@ type Worktrees struct {
 
 // WorktreePath answers GET /v1/worktrees/{worktreeId}/path. MachinePath is
 // relative to the root — the form backend.MachineMount takes (task 15).
+// GitConfig is MachinePath + "/.git/config" when, read with Lstat (no symlink
+// followed), MachinePath/.git is a directory and its config a regular file;
+// otherwise "". Task 24 binds it read-only over the sandbox's
+// /home/dev/work/.git/config (phase 3 §HGH H5, review I7). A .git directory
+// whose config is missing or is not a regular file is 409 conflict with
+// details.reason "git_config_not_a_file": a Kubernetes subPath that does not
+// exist is created as a directory, and one that is a symlink binds its target.
 type WorktreePath struct {
 	MachinePath string `json:"machinePath"`
+	GitConfig   string `json:"gitConfig,omitempty"`
 }
 
 // EnsureDirs is POST /v1/dirs' body: machine paths to create if absent, owned
@@ -77,7 +85,7 @@ type EnsureDirs struct {
 | `GET /v1/projects` | `200 Projects` — `project.Scanner` over `<root>/projects` | 401, 500 `internal` |
 | `GET /v1/projects/{projectId}/branches` | `200 Branches` | 404 `project_not_found` |
 | `GET /v1/projects/{projectId}/worktrees` | `200 Worktrees` | 404 `project_not_found` |
-| `GET /v1/worktrees/{worktreeId}/path` | `200 WorktreePath` | 404 `worktree_not_found` |
+| `GET /v1/worktrees/{worktreeId}/path` | `200 WorktreePath` | 404 `worktree_not_found` · 409 `conflict`, `details.reason: git_config_not_a_file` |
 | `POST /v1/dirs` | `204` | 400 `bad_request` — an escaping or absolute path, naming it |
 | `DELETE /v1/conversations/{worktreeId}/{conversationId}` | `204` — removes every `<conversationId>.jsonl` under `conversations/<worktreeId>/` (Claude Code writes them one directory down, e.g. `-home-dev-work/`, per `internal/api/sessions.go:38-43`); `204` also when none existed | 400 if either id fails its pattern (`^w-[a-f0-9]{8}$`, a UUID) |
 | `DELETE /v1/conversations/{worktreeId}` | `204` — removes the whole store (worktree removal, OD-10) | 400 |
@@ -99,6 +107,7 @@ phase 2's project tests do):
 | `TestProjectsListsReposUnderProjectsOnly` | a repo in `projects/a` is listed; one in `lanes/` is not | lane clones listed as projects (phase 3 S3-P8.2's warning) |
 | `TestTheJSONIsPhase2sShape` | the body decodes into `machineapi.Projects` and each project's keys are exactly `id`, `name`, `path` | a second, drifting project shape |
 | `TestWorktreePathIsRelativeToTheRoot` | `machinePath == "projects/a"` for the primary worktree, no leading `/` | an absolute path that fails task 15's validation |
+| `TestWorktreePathNamesTheGitConfigOnlyWhenItIsAFile` | a clone → `gitConfig == "projects/a/.git/config"`; a worktree whose `.git` is a file → `gitConfig` absent; `.git/config` replaced by a symlink to `../../b/.git/config`, or removed → 409 `git_config_not_a_file` | a subPath bind that follows an agent's symlink, or that Kubernetes creates as a directory (review I7, b06 re-review 1) |
 | `TestAnUnknownWorktreeIs404` | → `worktree_not_found` | a 500 |
 
 `dirs_test.go`:
