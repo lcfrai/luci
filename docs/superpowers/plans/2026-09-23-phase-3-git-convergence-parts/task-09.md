@@ -19,6 +19,12 @@ commit byte for byte and never parsed (contract P5). Without a resolver a land r
 - `control-plane/internal/api/gitdeps.go`, `gitroutes.go` — `// ── task 09 ──` blocks
 - `control-plane/cmd/api/main.go` — wire `Lander`; task 04's `TestServeWiresGit`, in the test file task 04 put it in, gains one assertion (re-review b04-1 issue 3)
 
+**Depends on:** task 08, and task 24 (`lanegit.Lanes`, `Runner.Fetch`, `SendBranch`,
+`BundleRefused`, `lanegittest.Fake`): RefreshClones sends a bundle from the project into each
+lane's runner (R4.5), and no host git runs in a lane (R4.2). `Lander.LaneGit` is set from
+`GitDeps.LaneGit` where step 3 builds the `Lander`. No new module dependency: `sandboxd/vendor/`
+is untouched.
+
 #### Interfaces — complete
 
 `briefref.Resolver` and `briefref.Revision` are task 03's (review I7 moved the package there, so
@@ -81,6 +87,7 @@ type Lander struct {
 	Lanes    lanes.Store
 	Flags    registry.WorktreeFlagStore
 	Resolver briefref.Resolver // nil until phase 4 provides one
+	LaneGit  *lanegit.Lanes    // task 24's pool, GitDeps.LaneGit: RefreshLanes' runner per lane (R4.3)
 	// Identity is api.Deps.GitIdentity (the sandbox fix's resolver), asked for the PROJECT's
 	// path: the land is the user's act, committed as the user.
 	Identity func(ctx context.Context, path string) (gitx.Ident, error)
@@ -92,7 +99,8 @@ type Lander struct {
 //  1. the lane belongs to this project and branch                 (else bad_request)
 //  2. it is marked ready                                          (not_ready)
 //  3. CheckedOutAt(branch) == ""                                  (branch_checked_out, details.path)
-//  4. Syncer.SyncLane                                             (git_failed)
+//  4. Syncer.SyncLane                                             (git_failed; a *BundleRefused
+//     → bundle_refused, details.why)
 //  5. BriefKey: Resolver nil → brief_unresolvable/no_resolver; !ok → /missing;
 //     rev.Digest != BriefDigest → /digest_mismatch
 //  6. old = rev-parse refs/heads/<branch>; old != ExpectedTip     (branch_moved, details.tip = old)
@@ -116,9 +124,9 @@ type Lander struct {
 //     empty, never nil, re-review b06-1 issue 3). Each
 //     failure goes to RefreshErrors, never fails the land (plan decision 3)
 // Hardened per task-02 §HGH: steps 6-12 run with Scope Project (a refusal there is
-// project_config_untrusted, before any ref moves); step 14 is RefreshClones, whose upstream
-// rev-parse runs with Scope Project and whose per-clone fetches and read-backs run with Scope
-// Clone; no hook runs (H4).
+// project_config_untrusted, before any ref moves). The lane is read by task 07's SyncLane
+// (runner and bundle, step 4) and refreshed by RefreshClones (a bundle into each lane's runner,
+// step 14); every host call is Scope Project, and none runs in a lane (R4.2); no hook runs (H4).
 func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 
 // RefreshClones tells every clone of the branch what the project holds. It is the ONE origin
@@ -130,26 +138,40 @@ func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 // the branch is skipped. First, once, in the project (Scope Project):
 //   up  = rev-parse --verify -q --symbolic-full-name <branch>@{upstream}, OKExit 1
 //         (exit 1 or not under refs/remotes/ → up = "")
-// Then, for each lane asked for, in its clone (Scope Clone), one fetch:
-//   fetch --no-auto-maintenance --no-tags --quiet <ProjectPath> +refs/heads/<branch>:refs/remotes/origin/<branch>
-//         [+<up>:refs/remotes/upstream/<branch>   — only when up != ""]            (Local)
-//   and when up == "": update-ref -d refs/remotes/upstream/<branch> (a no-op when absent),
-//   so a clone never offers a remote branch the project no longer tracks.
-// <ProjectPath> is the literal path from the lane index, never the clone's configured origin
-// (task-02 §HGH H2; review C3). refs/remotes/upstream/<branch> is review I5: a clone's
-// origin/* mirrors the project's refs/heads/*, so without it no lane can see, merge or
-// resolve against a teammate's pushed commits. It carries objects and a ref, no credential
-// and no URL (brief A4): the project's remote is never named to the clone.
-// --no-auto-maintenance (review Minor 8), as on task 07's lane fetch: a plain fetch starts a
-// detached `maintenance run --auto` in the clone, whose gc holds packed-refs.lock while the next
-// refresh's update-ref -d (above) or a land's step-14 refresh runs, and fails it.
-// After each clone's fetch succeeds, in that clone (Read, Scope Clone):
-//   got = rev-parse --verify -q refs/remotes/origin/<branch>
+// Then, once per call, in the project (Scope Project), task 24's bundle out (R4.5):
+//   bundle, done = lanegit.SendBranch(refs: [refs/heads/<branch>] + [<up> when up != ""],
+//                                     basis: the told shas of the lanes asked for)
+//   — `bundle create` into <Hardening.OwnedRoot>/bundles. basis is task 07's unexported told
+//   map, read under the Syncer's lock (Syncer and Lander share package converge).
+// Then, for each lane asked for, r, release = l.LaneGit.For(lane), and one runner call (task 24):
+//   r.Fetch(bundle, refspecs: +refs/heads/<branch>:refs/remotes/origin/<branch>
+//                             [+<up>:refs/remotes/upstream/<branch>   — only when up != ""],
+//           deletes: [refs/remotes/upstream/<branch>]                 — only when up == "")
+//   The delete (a no-op when absent) keeps a clone from offering a remote branch the project
+//   no longer tracks. The bundle file is rewound for each lane.
+// A lane missing one of basis's prerequisites (its runner's fetch fails on it), or a
+// SendBranch that answers ErrBundleEmpty (the branch went back to a commit every lane holds,
+// as task 10's Undo does), is retried once with no basis: a second SendBranch, then that
+// lane's Fetch. done() deletes each bundle file after the last lane that reads it. When no
+// asked id is a lane of the branch, nothing is sent.
+// No host git runs in a lane, and the runner is told no path of the project's (R4.2):
+// sandboxd fetches from the bundle file it is streamed. refs/remotes/upstream/<branch> is
+// review I5: a clone's origin/* mirrors the project's refs/heads/*, so without it no lane can
+// see, merge or resolve against a teammate's pushed commits. It carries objects and a ref, no
+// credential and no URL (brief A4): the project's remote is never named to the clone.
+// --no-auto-maintenance (review Minor 8) is now the runner's flag on its fetch (task 24,
+// TestRunnerFetchStartsNoMaintenance): a plain fetch starts a detached `maintenance run --auto`
+// in the clone, whose gc holds packed-refs.lock while the next refresh's delete (above) or a
+// land's step-14 refresh runs, and fails it.
+// After each lane's Fetch succeeds:
+//   got = FetchResponse.Refs["refs/remotes/origin/<branch>"]   (the runner's read-back)
 // then l.Syncer.Told(id, got), so the next sweep knows what this clone holds (task 07; review
 // I4). got is what the fetch delivered, not a tip read before it, so a branch that moves, or
 // moves away and back, while the fetches run leaves told unequal to the tip and costs one more
-// refresh, never a missed one (re-review b06-1 issue 5). A failed read-back is that clone's
-// errs entry. refreshed and errs are made empty before the first fetch, never nil (issue 3).
+// refresh, never a missed one (re-review b06-1 issue 5). A Fetch error, a runner that does not
+// answer (RunnerError, Status 0), a For error (ErrNoRunner included) or a read-back missing
+// that ref is that lane's errs entry. refreshed and errs are made empty before SendBranch,
+// never nil (issue 3). A SendBranch failure is every asked lane's errs entry.
 func (l *Lander) RefreshClones(ctx context.Context, projectPath, branch string) (refreshed []string, errs map[string]string)
 func (l *Lander) RefreshLanes(ctx context.Context, projectPath, branch string, ids []string) (refreshed []string, errs map[string]string)
 
@@ -167,9 +189,10 @@ func (l *Lander) RefreshProject(ctx context.Context, projectPath, projectID stri
 	Lander   *converge.Lander
 	Resolver briefref.Resolver // nil until phase 4; Lander holds the same value
 	// and, where step 3 builds the Lander (review I4): Syncer.Refresher = Lander and
-	// Syncer.Locks = Locks, so task 07's sweep refreshes on a tip change. Leaving either unset
+	// Syncer.Locks = Locks, so task 07's sweep refreshes on a tip change; and Lander.LaneGit =
+	// GitDeps.LaneGit (task 24), the runners RefreshLanes fetches through. Leaving any unset
 	// is the silent-no-op failure this program keeps paying for; TestMainWiresTheSweepRefresh
-	// pins both.
+	// pins all three.
 ```
 
 ```go
@@ -192,8 +215,8 @@ own rev-parse fails. A clone's failure is a refreshErrors entry, never a failed 
 ```
 
 Audit line: *"Tells each of this branch's worktrees what the project's branch and its upstream
-hold now, with git fetch from the project's path into each clone's origin/ and upstream/ refs.
-Writes those refs only."*
+hold now, with a bundle from the project into each lane's runner, which fetches it into the
+clone's origin/ and upstream/ refs. Writes those refs only."*
 
 **Wire: `POST /v1/projects/{projectId}/branches/{branchId}/lands`**
 
@@ -214,7 +237,8 @@ Writes those refs only."*
 | worktree not a cockpit worktree of this branch | 400 `bad_request` | — |
 | unknown project | 404 `project_not_found` | `projectId` |
 | every `*Refusal` | 409 `conflict` | `reason` plus the table in `Land`'s comment |
-| sync, merge-tree, commit-tree or a non-race update-ref failure | 500 `git_failed` | `gitSays` |
+| step 4's sync got a `*lanegit.BundleRefused` from task 24's `FetchLane` (a truncated, oversized, extra-ref or fsck-failing bundle); no ref moved | 409 `conflict` | `reason: bundle_refused`, `why` (task 24) |
+| sync, merge-tree, commit-tree or a non-race update-ref failure; a lane runner that does not answer (`RunnerError`, Status 0) or fails an op | 500 `git_failed` | `gitSays` |
 
 "Land all in order" is the desktop calling this once per queued worktree, top down, passing the
 previous response's `merge` as the next `expectedTip`, and stopping at the first refusal. There is
@@ -273,9 +297,9 @@ type BringInResult struct {
 // Panacea-Land trailer is written, so undo and revert refuse it as not_a_land (task 10). A merge
 // carries Panacea-Bring-In instead, so task 10's history files it as "bring-in", not "direct"
 // (re-review b05 issue 5): the cockpit made that commit, not someone outside it.
-// Hardened per task-02 §HGH: 1-6 Scope Project; 7 is RefreshClones, whose upstream rev-parse
-// runs with Scope Project and whose fetches and read-backs run with Scope Clone; no hook or
-// merge driver runs.
+// Hardened per task-02 §HGH: 1-6 Scope Project; 7 is RefreshClones, a bundle from the project
+// into each lane's runner (task 24), so every host call is Scope Project and none runs in a
+// lane (R4.2); no hook or merge driver runs.
 func (l *Lander) BringIn(ctx context.Context, req BringInRequest) (BringInResult, error)
 ```
 
@@ -287,7 +311,9 @@ git failures are `git_failed`, as the land route.
 #### The tests to write first
 
 Real repositories: a project, two clones made by `lanes.Creator`, agent commits made in the clones,
-a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
+a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`. Every lane's runner is
+task 24's `lanegittest.Fake` over its clone, as task 24's spy test wires it (R4.3); a "Runner
+wrapper" or "recording Runner" below is task 02's `gitx.Runner`, on project calls only.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
@@ -310,17 +336,19 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestLandCommitsAsTheUser` | author and committer of the merge equal `Identity`'s answer; no identity → `no_git_identity`, nothing written | a merge by `dev@container` or by nobody |
 | `TestLandClearsReady` | after the land, the flag store holds `ready:false` for the worktree | a landed lane sitting in the queue (decision 2) |
 | `TestLandTellsEveryClone` | after landing clone A, clone B's `refs/remotes/origin/<b>` equals the merge | 3-D3's prompt naming a stale `origin/<b>` |
-| `TestLandRefreshFailureDoesNotFailTheLand` | clone B's directory removed → 201, `refreshErrors[B]` holds git's sentence | failing a land that happened |
+| `TestLandRefreshFailureDoesNotFailTheLand` | clone B's directory removed, so B's `Fake.Fetch` fails → 201, `refreshErrors[B]` holds the runner's `gitSays` | failing a land that happened |
 | `TestRefreshGivesEveryCloneTheUpstream` (review I5) | a bare "remote", the project fetched after a teammate's push → after a land, clone B's `refs/remotes/upstream/<b>` equals the project's `refs/remotes/origin/<b>`, and `git merge upstream/<b>` in B exits 0; B's `config --get-regexp ^remote\.` is unchanged | a lane that cannot see a teammate's commits |
 | `TestRefreshWithoutAnUpstreamStillRefreshesOrigin` | no upstream configured → clone B's `origin/<b>` refreshed, no `upstream/<b>`, no RefreshError; then unset the upstream after one refresh → the next refresh deletes B's `upstream/<b>` | a fetch of a missing source ref (exit 128) failing every refresh of a never-pushed branch |
-| `TestRefreshStartsNoMaintenance` (review Minor 8) | red first (a plain fetch starts maintenance by default: `maintenance.auto` defaults to true, and the clone allowlist would refuse the key set explicitly, task-02 §HGH H3); `RefreshClones` under `t.Setenv("GIT_TRACE", <file>)` → the trace file holds B's `fetch` and no `run_command: git maintenance` line | a refresh leaving a detached gc on the clone's `packed-refs.lock` that fails the next refresh |
+| `TestRefreshStartsNoMaintenance` (review Minor 8; the no-maintenance proof moved to task 24's `TestRunnerFetchStartsNoMaintenance`, since the fetch now runs in the runner) | `RefreshClones` with upstream set, then unset → each lane's recorded `Fake.Fetch` request is exactly refspecs `+refs/heads/<b>:refs/remotes/origin/<b>` and `+<up>:refs/remotes/upstream/<b>`, deletes `[]`; then refspec `+refs/heads/<b>:refs/remotes/origin/<b>` only, deletes `[refs/remotes/upstream/<b>]`; the bundle's `list-heads` are exactly the refs asked for | a refresh that asks the runner for another namespace, or a fetch path that bypasses the runner's maintenance-free fetch |
 | `TestRefreshProjectTakesNoLock` | called while the test holds `Locks.Lock(ctx, p)` → returns (a deadlock fails the test's 5 s deadline) | AfterFetch deadlocking inside Fetch |
-| `TestSweepRefreshesClonesAfterADirectCommit` (review I4) | real git, a real `Syncer` with this `Lander` as `Refresher`: two lanes; a commit made with plain `git commit` in a checkout of the project's branch, as a user's terminal would; one `Run` sweep → both clones' `refs/remotes/origin/<b>` equal the new tip, and a second sweep runs no clone fetch (recording Runner) | a resolve prompt that merges an origin/<branch> the user's own commit has left behind |
-| `TestRefreshClonesRecordsWhatItSent` (review I4) | after a land, `Syncer`'s told for both lanes is the merge; with clone B's directory removed, B's told is unchanged and A's is the merge | a clone recorded fresh after its fetch failed, which the sweep then never retries |
-| `TestRefreshRecordsWhatTheCloneReceived` (re-review b06-1 issue 5) | real git, a Runner wrapper that moves the project's `refs/heads/<b>` from T1 to T0 just before clone A's fetch and back to T1 just after it → `Told(A, T0)`, A's `origin/<b>` is T0, and the next sweep refreshes A to T1; `RefreshLanes(…, [A])` touches no other clone; `RefreshLanes(…, ["w-gone"])` for an id that is not a lane of the branch → no fetch, `refreshed == []`, `errs == {}` | a told taken from a tip read before the fetch, which the away-and-back case leaves stale for good |
-| `TestSweepDoesNotHammerAFailingClone` (re-review b06-1 issue 2) | real git, a real `Syncer` with this `Lander` as `Refresher`, a recording Runner and a fake `Now`: lanes A and B; B's clone directory removed; a direct commit; the first sweep fetches into A and B once each, B fails, and B's error is logged once; three more sweeps inside the backoff with the tip unchanged → no fetch into A or B, no second log line; a second direct commit → exactly one fetch into each of A and B. The same with B's `.git/config` holding `core.fsmonitor` (refused, `clone_config_untrusted`) instead of a removed directory, where each "fetch into B" is one attempt that §HGH refuses before git runs | one broken clone, which an agent can make on purpose, re-fetching every clone of the branch under the project lock every five seconds |
+| `TestSweepRefreshesClonesAfterADirectCommit` (review I4) | real git, a real `Syncer` with this `Lander` as `Refresher`: two lanes; a commit made with plain `git commit` in a checkout of the project's branch, as a user's terminal would; one `Run` sweep → both clones' `refs/remotes/origin/<b>` equal the new tip, and a second sweep makes no `Fake.Fetch` call and no `SendBranch` (a recording Fake and Runner) | a resolve prompt that merges an origin/<branch> the user's own commit has left behind |
+| `TestRefreshClonesRecordsWhatItSent` (review I4) | after a land, `Syncer`'s told for both lanes is the merge; with clone B's directory removed (B's `Fake.Fetch` fails), B's told is unchanged and A's is the merge | a clone recorded fresh after its fetch failed, which the sweep then never retries |
+| `TestRefreshRecordsWhatTheCloneReceived` (re-review b06-1 issue 5) | real git, a Runner wrapper that moves the project's `refs/heads/<b>` from T1 to T0 just before `SendBranch`'s `bundle create` and back to T1 just after it → the bundle carries T0, A's `Fake.Fetch` answers `refs["refs/remotes/origin/<b>"] == T0`, `Told(A, T0)`, A's `origin/<b>` is T0, and the next sweep refreshes A to T1; a Fake whose `Fetch` answers a `refs` map without that ref → A's errs entry, told unchanged; `RefreshLanes(…, [A])` touches no other clone; `RefreshLanes(…, ["w-gone"])` for an id that is not a lane of the branch → no `SendBranch`, no fetch, `refreshed == []`, `errs == {}` | a told taken from a tip read before the fetch, which the away-and-back case leaves stale for good |
+| `TestSweepDoesNotHammerAFailingClone` (re-review b06-1 issue 2) | real git, a real `Syncer` with this `Lander` as `Refresher`, a recording `Fake` per lane and a fake `Now`: lanes A and B; B's runner does not answer (a `Fake` wrapper whose every op returns `RunnerError{Status: 0}`, as a dead `sandboxd` does); a direct commit; the first sweep calls `Fetch` on A's and B's runner once each, B fails, and B's error is logged once; three more sweeps inside the backoff with the tip unchanged → no `Fetch` on A or B and no `SendBranch`, no second log line; a second direct commit → exactly one `Fetch` on each of A and B. The same with B's clone directory removed instead, so B's `Fake.Fetch` answers a failed git | one broken clone, which an agent can make on purpose, re-fetching every clone of the branch under the project lock every five seconds |
+| `TestRefreshRunsNoHostGitInTheLane` (R4.2) | red first: planted as the pre-R4 flow, a host `fetch <ProjectPath> …` run through `gitx.Exec` with `Dir` = clone B fails it. `gitxtest.Spy` (task 02) on the `Lander`'s `gitx.Exec` through a land, `RefreshClones` with and without an upstream, and `RefreshBranch` → no recorded process has `Dir`, `-C`, `--git-dir`, `--work-tree`, `GIT_DIR`, `GIT_WORK_TREE` or any argv element under the clone root (task 24's `TestHostNeverRunsGitInALane` rule), and every lane was reached only through its `Fake` | a refresh that runs host git in a lane, where the agent's config, hooks and upload-pack run on the host |
+| `TestRefreshSendsOneBundlePerBranch` (R4.5) | three lanes of `b`, one `RefreshClones` → the spy records exactly one `bundle create`, in the project, with refs `refs/heads/<b>` [+ `<up>`] and `--not` the lanes' told shas; each `Fake.Fetch` got the same bytes; `<OwnedRoot>/bundles` is empty after. A lane whose clone lacks a basis prerequisite (its told commit pruned in the test) → one more `bundle create` with no `--not`, that lane refreshed, the others fetched once; an Undo back to a commit every lane holds (`ErrBundleEmpty`) → one full bundle, every lane at the old tip | a bundle per lane, a bundle file left behind, or a lane never refreshed because its basis was stale |
 | `TestRefreshRouteRefreshesTheBranchsClones` (review I4) | a direct commit, then `POST …/refresh` → 200, `refreshed` names both lanes, both clones' `origin/<b>` equal the tip, and the raw body contains `"refreshErrors":{}` (re-review b06-1 issue 3); a branch with no lanes → the raw body contains `"refreshed":[]` and `"refreshErrors":{}`; with the test holding `Locks.Lock(ctx, p)` the request stays unanswered until release; an unknown branch → 404 | a ResolveDialog whose refresh skips the lock or lies about which clones it reached |
-| `TestMainWiresTheSweepRefresh` (review I4; `cmd/api`) | step 3's wiring function, called as `main.go` calls it → `Syncer.Refresher` is the built `Lander` and `Syncer.Locks` is `GitDeps.Locks` | a sweep refresh that ships switched off because one assignment was left out |
+| `TestMainWiresTheSweepRefresh` (review I4; `cmd/api`) | step 3's wiring function, called as `main.go` calls it → `Syncer.Refresher` is the built `Lander`, `Syncer.Locks` is `GitDeps.Locks`, and `Lander.LaneGit` is `GitDeps.LaneGit` (task 24) | a sweep refresh that ships switched off because one assignment was left out |
 | `TestBringInFastForwardsWhenOnlyBehind` | branch 0 ahead, 2 behind → `Mode "fast-forward"`, tip == the upstream tip, no new commit object | a needless merge commit that makes the branch ahead of origin |
 | `TestBringInMergesWhenDiverged` | 1 ahead, 1 behind → `Mode "merge"`, parents `[old, upTip]`, no `Panacea-Land` trailer, `%(trailers)` reads `Panacea-Bring-In: <upTip>` (re-review b05 issue 5); undo of it → `undo_not_exact/not_a_land` | a bring-in undo treats as a land |
 | `TestBringInConflictWritesNothing` | the teammate and the branch edit one line of `docs/résumé.md` → `merge_conflict`, `json.Unmarshal(details.paths) == ["docs/résumé.md"]`, tip unchanged, no ref moved | a conflicted product branch (A2) |
@@ -331,7 +359,7 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestServeWiresGit` (cmd/api; task 04's test, extended; re-review b04-1 issue 3) | red first against a `main.go` that gives the `Lander` `&gitx.Locks{}`: `Git.Lander.Locks` is the same pointer as `Git.Locks` | a Lander given a lock of its own, which every handler test (each builds its own Deps) would miss |
 | `TestLandRouteMapsEveryRefusal` | table test over the handler: each `*Refusal` → 409 with its reason; each `*gitx.Error` → `git_failed`; a `*gitx.UntrustedConfig` → 409 `project_config_untrusted` with `details.key` | a refusal that surfaces as 500 |
 | `TestLandRunsNoProjectHook` | task-02 §HGH, red first against an unhardened `Exec`: the project's `.git/hooks/reference-transaction` writes a marker → a land succeeds and no marker exists | a land that honours the repository's hooks |
-| `TestLandRefreshNeverUsesTheClonesOrigin` | task-02 §HGH H2 and review C3, red first. (a) Clone B's config sets only `remote.origin.url` (an allowlisted key) to an `httptest` smart-HTTP server → after a land, B's `refs/remotes/origin/<b>` equals the merge and the server received no request. (b) B's config also sets `http.proxy` to a second `httptest` server, `http.sslVerify=false` and `remote.origin.uploadpack=<marker script>` → neither server received a request, no marker exists, and `refreshErrors[B]` names `clone_config_untrusted` | a refresh that fetches `origin` |
+| `TestLandRefreshNeverUsesTheClonesOrigin` | review C3, red first; R4.4-4.5. (a) Clone B's config sets `remote.origin.url` to an `httptest` smart-HTTP server → after a land, B's `refs/remotes/origin/<b>` equals the merge and the server received no request: B's runner fetched the bundle file, and no refspec or argument named a remote. (b) B's config also sets `http.proxy` to a second `httptest` server, `http.sslVerify=false` and `remote.origin.uploadpack=<marker script>` → neither server received a request, no marker exists, `refreshErrors` is `{}`, and the spy shows no host process read B's config (the lane's config is the agent's own, inside its sandbox, R4.2) | a refresh that fetches `origin`, or names a remote to the runner |
 
 #### Steps
 
