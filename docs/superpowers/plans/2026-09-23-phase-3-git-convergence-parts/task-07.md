@@ -78,10 +78,12 @@ type Syncer struct {
 	Locks     *gitx.Locks
 	Refresher CloneRefresher
 	// unexported: per-lane mutexes, the state map; told: worktree id → the origin/<branch> sha
-	// that clone was last read back holding (Told, below); failedAt, retryAt and the backoff:
+	// that clone was last read back holding (Told, below); forgot: the ids Forget cleared, whose
+	// next refresh skips the lane's claim (task 09); failedAt, retryAt and the backoff:
 	// worktree id → the tip its last refresh failed at, when the sweep may try it again, and the
 	// current wait (Run, c). All memory only, so a restarted control plane refreshes every clone
-	// once, on its first sweep.
+	// once, on its first sweep. That refresh, and a new lane's first, is incremental: with no told
+	// and no forgot, task 09 takes the basis from the lane's own claim (review r4-2 I-1).
 }
 
 // CloneRefresher is task 09's Lander.RefreshLanes: RefreshClones for the named lanes of the
@@ -101,8 +103,10 @@ func (s *Syncer) Told(worktreeID, received string)
 
 // Defer records that RefreshLanes left worktreeID unfetched at tip because no session is live
 // on it (task 09; review r4-1 I-6). Run's step b skips it while Live says so. Forget clears
-// worktreeID's told, so task 09's next refresh sends that lane the no-basis bundle (a clone
-// that lost objects its told claimed; review r4-1 I-8). Both are memory only, as told is.
+// worktreeID's told and adds it to forgot, so task 09's next refresh sends that lane the
+// no-basis bundle without asking its claim (a clone that lost objects its told claimed, review
+// r4-1 I-8; or a claim that failed verify, review r4-2 I-1). Told removes the id from forgot.
+// Both are memory only, as told is.
 func (s *Syncer) Defer(worktreeID, tip string)
 func (s *Syncer) Forget(worktreeID string)
 
