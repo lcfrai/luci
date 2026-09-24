@@ -1552,7 +1552,7 @@ now routes 11–12 at `:100-101`, M12's `:37` is route 5 at `:94`).
 | M17 | Renderer registrations are keyed by stream instance, as the review said. The broker mints `es-` + 12 hex per accepted `GET /v1/events`; the id is `<window>/<es>/<canvasId>:<visible\|hidden>`, so the old stream's close detaches only its own ids, and a stream holding both a visible and a hidden renderer for one canvas (task 27's `approving` case, a second collision the old id also had) registers two. The fix needed a wire path the plan lacked: route 19 had only `{requestId}` while `CompleteRender(rendererID, …)` (task 13) needs the renderer, so the `render` event now carries `"renderer"` and route 19 echoes it as `?renderer=` (missing → 400; another renderer's → 404 `render_not_found`). Task 27's `onRender`, `renderResult` and the adapter carry it; `setTopics` keeps "open new, then abort old" and says why it is now safe. Task 13 records the id as opaque, one per live registration. | `task-20.md:108`, `:156`, `:166-177`, `:321-322`; `task-27.md:50`, `:84-85`, `:90-93`, `:142-146`, `:182`; `task-13.md:125-128` |
 | M11 | Route 11: `{sha}` is 64 lowercase hex and the body's SHA-256, hashed as it streams, must equal it, else `400 bad_request` `details.field: "sha"`, nothing stored or applied. Route 12 adds the Hub's `Content-Disposition: attachment; filename="<sha>"` and `Content-Security-Policy: sandbox; default-src 'none'` (verified at `hub-contract.md:854-857`, the Hub worktree). `fetch()` ignores both, so `assetBytes` → `blob:` is unchanged. | `task-20.md:100-101`, `:318-319` |
 | M12 | Route 5 accepts exactly the editor's six kinds (`create_node`, `set_props`, `move`, `delete_node`, `set_token`, `delete_token`; the list at `task-23.md:153-157`, checked against the `ops.ts` builders at `:88-97` and task 29's paste, which sends `create_node`) as `humanOpKinds` in `ops.go`; any other → `400 bad_request` `details.field: "ops[<i>].kind"`, nothing applied. The paragraph names each refused kind's own route. The page kinds have no human UI in this phase, so they are refused too. Verified: sixteen `OpKind` constants at `task-06.md:28-45`. Task 23 notes the two lists move together. | `task-20.md:94`, `:111-123`, `:317`; `task-23.md:158-160` |
-| M10 | `Snapshot.Blobs()` de-duplicates by digest (manifest included, sorted); route 21 step 6 uploads each distinct digest once and step 7 sends exactly those digests as `snapshot.blobs`. Verified that the Hub refuses a repeat: `400` `field: snapshot.blobs` (Hub plan `task-22.md:30`, contract `:886`). **The second half of the review's fix was not taken as written**, on the facts: counting distinct digests for `MaxFiles` cannot run where re-review RR-I5-2 puts the check (step 4, before capture, when no PNG digest exists), and the handoff writes one file per manifest entry, so a digest count would let a manifest list any number of empty files under one digest. `MaxFiles` stays a **file** count, re-described as our own bound. Distinct digests never exceed files, so a snapshot within it is always within the Hub's 1–500. The cost: a canvas of more than 500 files, some of them duplicates, is refused locally (`413`, before capture), even when its distinct digests would fit the Hub. | `task-21.md:69-76`, `:102-109`, `:177-180`, `:352-360`, `:392-393` |
+| M10 | `Snapshot.Blobs()` de-duplicates by digest (manifest included, sorted); route 21 step 6 uploads each distinct digest once and step 7 sends exactly those digests as `snapshot.blobs`. Verified that the Hub plan refuses a repeat: `400` `field: snapshot.blobs` (Hub plan `task-22.md:30`; the contract at `:886` requires distinct digests but names only `422 blob_missing`, corrected in round 2, RR-M10-1). **The second half of the review's fix was not taken as written**, on the facts: counting distinct digests for `MaxFiles` cannot run where re-review RR-I5-2 puts the check (step 4, before capture, when no PNG digest exists), and the handoff writes one file per manifest entry, so a digest count would let a manifest list any number of empty files under one digest. `MaxFiles` stays a **file** count, re-described as our own bound. Distinct digests never exceed files, so a snapshot within it is always within the Hub's 1–500. The cost: a canvas of more than 500 files, some of them duplicates, is refused locally (`413`, before capture), even when its distinct digests would fit the Hub. | `task-21.md:69-76`, `:102-109`, `:177-180`, `:352-360`, `:392-393` |
 
 **The two mutants expected to survive (named first, per rule 7), and the test text that now kills
 each.**
@@ -1571,3 +1571,47 @@ diagram (`:86-88`) shows `render-results/{id}` and `PutBlob × n` in shorthand, 
 it was not edited. The handoff (task 22) still fetches one blob per file, and duplicates fetch the
 same digest twice. That is correct but wasteful, and it is out of this batch's scope. Deferred as
 a Minor.
+
+### Fix batch b09, round 2 (2026-09-24) — re-review `plan-rereview-b09-1.md`
+
+Commit `8107aac`, plus this section's own commit, which also states `DetachAll`'s lock boundary
+(`task-13.md:137-141`, same lines). Line numbers are the parts' after both. All four issues were
+fixed as the re-review said; one addition goes beyond it (the broker's `Source` gains `DetachAll`, because the
+close order is otherwise unenforceable at the broker: its only detach handle was one func per id).
+
+| Issue | The change | Where |
+|---|---|---|
+| RR-M17-1 (Important) | Task 13: among attached renderers of the preferred visibility, the **most recently attached** wins (an attach sequence, never slice, map or id order). New `DetachAll(ids)`: one critical section removes every listed registration, then fails their outstanding requests, so a re-send cannot land on the dying stream's sibling; a detach func is `DetachAll` of its own id. Task 20: the three swap orderings are rules (attach every renderer topic before flushing `200`; the desktop aborts the old stream only after the new `200`; a close is one `DetachAll`), and `Source` gains `DetachAll`. Task 27: `setTopics` states the order, keeps the old stream when the new request fails, and a newer `setTopics` aborts only the pending request. Task 21: the re-send cites task 13's two rules. | `task-13.md:130-141`, `:153-155`, `:210-211`; `task-20.md:185-194`, `:196`, `:222-224`, `:339`; `task-27.md:94-100`, `:180`; `task-21.md:326-330`, `:402` |
+| RR-M17-2 (Minor) | The selection clears only when the canvas's **last** visible renderer detaches. `TestSelection_clearedOnDetach` has two visible renderers: the older one's detach keeps it, the last one's clears it, and an attached hidden renderer does not keep it. | `task-13.md:196-200`, `:223` |
+| RR-M12-1 (Minor) | Route 5 checks each op's raw `kind` string against `humanOpKinds` before `doc` decodes the op, so an unknown name is route 5's own `400`. `TestOps_kindAllowlist` gains `kind: "bogus_kind"` → `400`, `details.field: "ops[0].kind"`, revision unchanged. That row kills a denylist of the ten refused kinds. | `task-20.md:116-119`, `:334` |
+| RR-M10-1 (Minor) | The `400` `field: snapshot.blobs` is attributed to the Hub plan only (`task-22.md:30`). The contract (`hub-contract.md:885-886`) requires distinct digests and names only `422 blob_missing`. Both verified at Hub worktree HEAD `1e03ea3`. The `TestApprove_duplicateFiles` fake is described as the Hub plan's behaviour. This review's round-1 M10 row is corrected. The disagreement is recorded in this stream's ledger, addressed to the Hub stream, and in the batch report to the orchestrator. The Hub worktree is read-only here. Phase 5's code is unchanged. | `task-21.md:358-363`, `:397`; this file's M10 row in the b09 table |
+
+**The two mutants expected to survive (named first, per rule 7), and the test text that now kills
+each.**
+
+1. The Service breaks a tie by the **largest renderer id**. The ids end in random `es-` hex, so
+   the later stream's id sorts last about half the time, and a single-order test passes on those
+   runs. Killed: `TestRender_prefersNewestOfEqualVisibility` runs each case twice, with the later
+   id sorting first and then last (`task-13.md:210`).
+2. The broker writes and flushes `200` **before** it attaches. A request sent right after the
+   headers usually still finds B attached, because attaching is fast, so the overlap clause alone
+   races. Killed: the test's `Source` holds B's `AttachRenderer` on a gate, and headers arriving
+   while the gate is shut fail the test (`task-20.md:339`).
+
+The other mutants the new text names:
+- slice-order or first-attached tie-break (`:210`)
+- per-id detach at close (`task-13.md:211`, `task-20.md:339`, `task-21.md:402`)
+- aborting before the new `200`, or aborting after a `503` (`task-27.md:180`)
+- clearing the selection on any visible detach (`task-13.md:223`)
+- a route 5 denylist (`task-20.md:334`)
+
+**Not done, and why.** This round changed plan text only; nothing was built or run. Deferred:
+the re-review's two adjacent, pre-existing items, which were offered for a later batch and are
+outside b09.
+- `set_props` can point an image at an unregistered asset ref (`task-06.md:172`).
+- Route 11 does not sanitise SVG, which `upload_asset` does (`task-16.md:86`).
+
+`TestRender_detachAllBeforeFail` has the caller re-send from inside its error path, which
+deadlocks if `DetachAll` fails the requests while holding the lock that `Render` takes. So the
+comment at `task-13.md:137-141` states the lock boundary too: remove in one critical section,
+release the lock, then fail the requests.

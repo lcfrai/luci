@@ -134,11 +134,11 @@ var (
 // attach sequence number, never slice or map order), so a request made during
 // the overlap goes to the new stream (re-review RR-M17-1).
 //
-// DetachAll(rendererIDs) is a stream's close: in ONE critical section it
-// removes every listed registration, and only then fails their outstanding
-// requests with ErrRendererDetached. So a re-send made on that failure can
-// never land on a sibling registration of the same dying stream. A detach
-// func is DetachAll of its own id.
+// DetachAll(rendererIDs) is a stream's close: ONE critical section removes
+// every listed registration; the lock is released; only then are their
+// outstanding requests failed with ErrRendererDetached (so a waiter that
+// re-sends at once can take the lock), and a re-send never lands on a sibling
+// of the same dying stream. A detach func is DetachAll of its own id.
 //
 // Strikes (task 20's phantom rule): the Service itself detaches a renderer,
 // closing its channel so task 20 sends `gone`, at its SECOND strike. A strike
