@@ -1766,7 +1766,9 @@ CRLF-block row (and a `Render` that passes `\r` through, by its first row). This
 (3) a `DefaultName` that qualifies every name, not only a binding with `Matches`, is killed by
 "with no Matches, `DefaultName` is `portal`"; (4) a `Strip` that removes the blank line above
 every block is killed by the text-above-and-below shape (`A\n\n<old block>\nB\n` → `A\n\nB\n`).
-This is plan text: none was run.
+This is plan text: none was run. *Corrected by task 05 (b10 re-review R-I1):* with `<old block>`
+holding its own line ending, that shape demands survivor (4); the shape that kills it is
+`"A\n\n" + old + "B\n"` → `"A\n\nB\n"`, and task 05 ran it (`B2-strip-blank-always` in its report).
 
 **Still unverified:** nothing was built or run. The Hub's code for a duplicate project name
 (HA4-12; `isNameTaken` matches any 409 with `details.field == "name"`, so either answer works).

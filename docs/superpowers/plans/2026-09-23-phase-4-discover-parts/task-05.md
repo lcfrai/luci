@@ -387,9 +387,15 @@ Where this differs from the text above, this wins:
    the render's line (removed) before the file's (added) at a change, and is never nil. The 400-line
    cap counts from the top.
 9. **A follow-up's heading** is its prompt for the holding revision's scope, trimmed, minus a final
-   `?`; the key itself when that leaves nothing.
+   `?`; the key itself when that leaves nothing. When both revisions hold the key, the revision
+   whose answer the section shows is asked first: an `OriginProject` section is headed in the
+   project's words, an override or branch section in the branch's (mutation round 1's X7 found the
+   old plan's branch-first rule heading an inherited project answer with the branch's wording;
+   fixed in `c2005fd`).
 10. **Tests beyond the table:** `TestResolveOverrideCarriesTheReplacedText`,
     `TestResolveOrdersSectionsAndHeadsFollowUps`, `TestResolveNamesTheKeyAndThePin`,
     `TestResolveRefusesAMalformedRevision`, `TestAllSkippedRendersTheKeyAndNoSection`,
-    `TestOverrideNoteIsOneLine`, `TestDiffLinesIsCapped`. The Strip row's third shape is spelled in
-    Go (b10 re-review R-I1, above).
+    `TestOverrideNoteIsOneLine`, `TestDiffLinesIsCapped`, `TestDiffLineWireShape` (the `op` strings
+    are wire values task 12 carries). The Strip row's third shape is spelled in Go (b10 re-review
+    R-I1, above). `TestMergeAppendsAfterABlankLine` has two mixed-ending rows: the first line
+    ending decides.
