@@ -1,6 +1,7 @@
 package claudemd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -185,6 +186,9 @@ func TestMergeAppendsAfterABlankLine(t *testing.T) {
 		{"# Notes\n\n", "# Notes\n\n\n" + block},
 		{"# Notes\r\n", "# Notes\r\n\r\n" + crlf(block)},
 		{"# Notes\r\nMore", "# Notes\r\nMore\r\n\r\n" + crlf(block)},
+		// Mixed endings: the first line ending decides.
+		{"# Notes\nMore\r\n", "# Notes\nMore\r\n\n" + block},
+		{"# Notes\r\nMore\n", "# Notes\r\nMore\n\r\n" + crlf(block)},
 	}
 	for _, tc := range cases {
 		got, err := Merge(tc.existing, block)
@@ -497,6 +501,7 @@ func TestInspectReadsTheMarker(t *testing.T) {
 		BeginPrefix + " rev=5 brief=" + branchID + " -->",
 		BeginPrefix + "  brief=" + branchID + " rev=5 -->",
 		BeginPrefix + " brief=" + branchID + " rev=5-->",
+		BeginPrefix + " brief=" + branchID + " rev=5",
 		BeginPrefix + " brief=" + branchID + " rev=5 --> trailing",
 		BeginPrefix + " brief=" + branchID + " rev=5 extra=1 -->",
 		BeginPrefix + "x brief=" + branchID + " rev=5 -->",
@@ -547,6 +552,44 @@ func TestDiffLinesShowsAHandEdit(t *testing.T) {
 	extra := strings.Replace(block, "KPMG staff broadly\n", "KPMG staff broadly\nand me\n", 1)
 	onlyOps(t, DiffLines(block, extra), DiffAdded, "and me")
 	onlyOps(t, DiffLines(extra, block), DiffRemoved, "and me")
+
+	// Two edits far apart: each shows in place, and every line between them
+	// is same, not the stretch reported removed and added again.
+	two := strings.Replace(edited, "Bulk upload; the reviewer side of evidence\n", "Bulk upload\n", 1)
+	var changed []DiffLine
+	same := 0
+	for _, l := range DiffLines(block, two) {
+		if l.Op == DiffSame {
+			same++
+		} else {
+			changed = append(changed, l)
+		}
+	}
+	wantChanged := []DiffLine{
+		{Op: DiffRemoved, Text: "KPMG staff broadly"}, {Op: DiffAdded, Text: "KPMG staff, broadly"},
+		{Op: DiffRemoved, Text: "Bulk upload; the reviewer side of evidence"}, {Op: DiffAdded, Text: "Bulk upload"},
+	}
+	if !reflect.DeepEqual(changed, wantChanged) || same != len(lines)-2 {
+		t.Errorf("two edits: changed %+v, %d same; want %+v and %d same", changed, same, wantChanged, len(lines)-2)
+	}
+}
+
+func TestDiffLineWireShape(t *testing.T) {
+	for op, want := range map[DiffOp]string{
+		DiffSame:    `{"op":"same","text":"x"}`,
+		DiffAdded:   `{"op":"added","text":"x"}`,
+		DiffRemoved: `{"op":"removed","text":"x"}`,
+	} {
+		raw, err := json.Marshal(DiffLine{Op: op, Text: "x"})
+		if err != nil || string(raw) != want {
+			t.Errorf("DiffLine %s marshals to %s (err %v), want %s", op, raw, err, want)
+		}
+	}
+	// Added is the file's line, removed the render's.
+	d := DiffLines("render\n", "file\n")
+	if !reflect.DeepEqual(d, []DiffLine{{Op: "removed", Text: "render"}, {Op: "added", Text: "file"}}) {
+		t.Errorf("DiffLines(render, file) = %+v", d)
+	}
 }
 
 func onlyOps(t *testing.T, d []DiffLine, op DiffOp, text string) {
@@ -577,6 +620,12 @@ func TestDiffLinesIsCapped(t *testing.T) {
 	}
 	if d := DiffLines(want, want); len(d) != 400 {
 		t.Errorf("%d diff lines for 3000 equal lines, want the cap of 400", len(d))
+	} else {
+		for i, l := range d {
+			if l != (DiffLine{Op: DiffSame, Text: a[i]}) {
+				t.Fatalf("3000 equal lines: line %d = %+v, want same %q", i, l, a[i])
+			}
+		}
 	}
 	if d := DiffLines("", ""); d == nil || len(d) != 0 {
 		t.Errorf("DiffLines of nothing = %#v, want []", d)

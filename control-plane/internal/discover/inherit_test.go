@@ -338,6 +338,30 @@ func TestResolveOrdersSectionsAndHeadsFollowUps(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("sections\n got %q\nwant %q", got, want)
 	}
+
+	// One follow-up key held by both revisions (a restore, or an id that
+	// collided): the heading is the wording of the revision whose answer the
+	// section shows.
+	shared := Question{Key: "f-0000000s", ProjectPrompt: "Which team owns it?", BranchPrompt: "Which team owns this branch?", Options: []string{}, FollowUp: true}
+	withShared := func(r *Revision, a Answer) *Revision {
+		r.Content.Questions = append(r.Content.Questions, shared)
+		return rvSet(r, a)
+	}
+	for _, tc := range []struct {
+		name    string
+		branch  Answer
+		heading string
+		origin  Origin
+	}{
+		{"the branch answers", rvPerson("f-0000000s", "Payments"), "Which team owns this branch", OriginOverride},
+		{"the branch skips", rvSkip("f-0000000s"), "Which team owns it", OriginProject},
+	} {
+		doc := mustResolve(t, withShared(rvProject(), rvPerson("f-0000000s", "Audit")), withShared(rvBranch(), tc.branch))
+		s, ok := rvSection(t, doc, "f-0000000s")
+		if !ok || s.Heading != tc.heading || s.Origin != tc.origin {
+			t.Errorf("%s: section %+v (found %v), want heading %q, origin %s", tc.name, s, ok, tc.heading, tc.origin)
+		}
+	}
 }
 
 func TestResolveNamesTheKeyAndThePin(t *testing.T) {

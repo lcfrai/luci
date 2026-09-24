@@ -104,7 +104,8 @@ var headings = []struct {
 //
 // Sections follow the base heading order, then follow-ups - project first,
 // then branch - in the order they were added. A follow-up's heading is its
-// prompt for the scope of the revision that holds it, minus a final "?".
+// prompt for the scope of the revision that holds it, minus a final "?";
+// when both hold the key, the revision whose answer the section shows wins.
 //
 // An override's Replaced is the project answer's text; for the definition of
 // done it is the project's criteria joined by "; ", so the note Render puts
@@ -152,14 +153,16 @@ func Resolve(project, branch *Revision) (Document, error) {
 		case haveBranch && haveProject:
 			s = section(k, ba, OriginOverride)
 			s.Replaced = replacedText(pa)
+			s.Heading = headingFor(k, branch, project)
 		case haveBranch:
 			s = section(k, ba, OriginBranch)
+			s.Heading = headingFor(k, branch, project)
 		case haveProject:
 			s = section(k, pa, OriginProject)
+			s.Heading = headingFor(k, project, branch)
 		default:
 			continue
 		}
-		s.Heading = headingFor(k, branch, project)
 		doc.Sections = append(doc.Sections, s)
 	}
 	return doc, nil
@@ -273,15 +276,17 @@ func orderedKeys(project, branch *Revision) []Key {
 }
 
 // headingFor is a base key's heading, else the prompt of the question that
-// holds the key - the branch's first - for that revision's scope, minus a
-// final "?"; the key itself when there is no wording.
-func headingFor(k Key, branch, project *Revision) string {
+// holds the key, for that revision's scope, minus a final "?"; the key
+// itself when there is no wording. shown is the revision whose answer the
+// section shows, asked first, so a key both revisions hold is headed in the
+// words its text was written against; other is asked when shown lacks it.
+func headingFor(k Key, shown, other *Revision) string {
 	for _, h := range headings {
 		if h.Key == k {
 			return h.Heading
 		}
 	}
-	for _, r := range []*Revision{branch, project} {
+	for _, r := range []*Revision{shown, other} {
 		if r == nil {
 			continue
 		}
