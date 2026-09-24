@@ -104,7 +104,8 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "isCurrent": false,                    // this row is its environment's current (rule 6): the run row of the current succeeded deployment, or the current rollback row — never the run row a rollback returned to
   "rollbackOf": null | { "sourceDeploymentId": "…", "sourceVersion": "…" | null },
   "refusal": null | { "message": "…" },  // refused rows: the Hub's abandonMessage, which is Panacea's sentence
-  "release": ReleasePin | null,          // null ⇒ "no brief is recorded for this release" (P9: shown, never hidden)
+  "release": ReleasePin | null,          // null with releaseLoaded ⇒ "no brief is recorded for this release" (P9: shown, never hidden)
+  "releaseLoaded": true,                 // false ⇒ release is null because the watcher has not read it yet, NOT because none exists: "pin not loaded" (rule 5b, review M11)
   "environmentMismatch": null | { "recorded": "develop", "deployed": "prod" }
   // run rows only (rule 5a, b02 round 2, R1): the joined Hub release's `environment` and this
   // deployment's `environment` are not SameEnvironment — the Hub recorded the release against one
@@ -191,6 +192,7 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 5. **Release for a deployment**: the Hub release with `kind "run"`, `state "confirmed"` and
    `pipelineRun == deployment.id`; else one whose `deployments[]` holds the id; else `null`. **Never**
    a release chosen by branch, environment or time — that would be pinning by observation (P2).
+   The page is searched first, then `Snapshot.PinsByRun[deployment.id]` (task 07 step 6).
 5a. **Recorded against another environment** (b02 round 2, R1): when rule 5 joins a release to a
    deployment and `!same(release.environment, deployment.Environment)`, the row carries
    `environmentMismatch {recorded: release.environment, deployed: deployment.Environment}`. The
@@ -200,6 +202,15 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
    reached. This is how phase 7 sees Panacea's access route disagree with its deploy (task 03's
    `EnvironmentFor` row: `branchEnv` reads the production-branch label only), from facts after the
    deploy, with no copy of `ResolveProductionBranch`.
+5b. **A pin not loaded is not a pin absent** (review M11). A `run` row's `releaseLoaded` is `false`,
+   and `release` `null`, when rule 5 finds nothing **and** the snapshot cannot say none exists:
+   (a) `ReleasesAt` is zero and `ReleasesState` is `unavailable` or `signed_out` (no release read
+   has succeeded for this binding yet) or `hub_key_spelling` (a Hub project may hold the
+   repository under the other spelling, and none was read); or (b) `ReleasesMore` is true and
+   `PinsByRun` has no entry for the id. Otherwise `releaseLoaded` is `true` and a `null` `release`
+   is an answer, *"no brief is recorded"*: a `nil` `PinsByRun` entry, a complete page
+   (`ReleasesMore` false, `ReleasesAt` set), `no_hub` (nothing records briefs) or `no_hub_project`
+   (the Hub answered: no project). Every non-`run` row is `true`: its release is the row.
 6. **Current** is what the environment serves now (review I3). It is the later of two candidates:
    - **the live build**: the environment's deployment with `build "succeeded"` and a non-zero
      `CompletedAt` whose `CompletedAt` is latest. Ordered by completion, never by `CreatedAt`:
@@ -270,6 +281,7 @@ the watcher passes its `Reader.SameEnvironment`, not the stub.
 | `TestServingOnlyFromNewest` | the second-newest row's `LiveReady: &3` does not reach `serving`; the newest's nil → `measured:false` | painting yesterday's health on today |
 | `TestServingZeroIsDown` | newest `LiveReady: &0` → `{measured:true, ready:0}` while `build.state == "succeeded"` | a green tick over a dead site (survey §3.3) |
 | `TestReleaseByRunNameOnly` | a confirmed release whose `pipelineRun` is `"r1"`; deployments `"r1"` and `"r2"` on the same branch → only `r1` has the pin; `r2.release == null` | attaching a pin to the next deploy on the same branch — pinning by observation (P2) |
+| `TestPinNotLoadedIsNotAbsent` | `ReleasesMore: true`, `ReleasesAt` set, a page matching `r1` only, `PinsByRun {"r2": <release pinned to r2>, "r3": nil}`, and a fourth deployment `r4` with no entry → `r1` and `r2` carry their pins with `releaseLoaded true`; `r3` is `release null, releaseLoaded true`; `r4` is `release null, releaseLoaded false`. `ReleasesMore: false` → `r4` becomes `releaseLoaded true`. `ReleasesAt` zero with `ReleasesState "unavailable"`, `"signed_out"` or `"hub_key_spelling"` → every unmatched run row `false`; with `"no_hub"` or `"no_hub_project"` → `true` (review M11) | a deployment older than the 200th release, or a Hub that never answered, drawn as *"no brief is recorded"* — a real pin reading as absent, P9 inverted |
 | `TestReservedIsNotAPin` | a `reserved` (unconfirmed) release with `pipelineRun: null` → no deployment gets it | a reservation that never became a run claiming a deployment |
 | `TestRollbackIsCurrent` | `d1` succeeded (created 09:00, completed 09:04); `d2` succeeded (created 10:00, completed 10:03); a confirmed rollback to `d1` confirmed 10:05 → `current {source:"rollback", deploymentId:"d1", since:"…10:05…"}`; the `rollback` row has `isCurrent:true` and `d1`'s release pin; the `d1` and `d2` run rows have `isCurrent:false` | the lens saying `d2` is serving after the user rolled back |
 | `TestRollbackBeforeNewerDeploy` | the same rollback, then `d3` created 10:10 and completed 10:14, succeeded → `current {source:"deployment", deploymentId:"d3", since:"…10:14…"}`; only `d3`'s row is `isCurrent` | a rollback that sticks after a newer build went live |

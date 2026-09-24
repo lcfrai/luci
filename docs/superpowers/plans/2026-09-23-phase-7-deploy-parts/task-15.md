@@ -127,7 +127,8 @@ falsy, so `name || …` or `if (name)` would drop the group.
 
 | `row.release` / `usePinRef` | Drawn |
 |---|---|
-| `release == null` | *"no brief is recorded for this release"*, quiet — **shown, never hidden** (P9) |
+| `release == null`, `releaseLoaded` | *"no brief is recorded for this release"*, quiet — **shown, never hidden** (P9) |
+| `release == null`, `!releaseLoaded` | *"pin not loaded"*, quiet, in the same fixed width as `resolving` — never *"no brief is recorded"*: the Hub has not been asked about this release yet (task 08 rule 5b, review M11) |
 | `pin.status "none"` | the same words, and a reason line: `no_brief` *"no brief was bound to this branch"*; `no_complete_revision` *"the brief had no complete revision yet"*; `source_unpinned` *"rolled back or rebuilt from a release with no brief"*; `source_unknown` *"rolled back or rebuilt from a release shipped outside any cockpit"* |
 | `resolving` | a fixed-width placeholder the width of *"rev 12 · brief now at rev 13"*; **the cell never changes width** when it resolves |
 | `resolved`, `revision == headRevision` | *"rev 6"* (current) |
@@ -142,8 +143,9 @@ the cockpit never guesses it afterwards."* The prototype's *"a teammate's cockpi
 teammate's Ship reserves its pin in the same Hub (plan §3.1, OD-3).
 
 **The origin column** (who shipped it) reads `release.reservedBy.displayName` for a pinned or
-pinned-none release, and *"outside any cockpit"* for `release == null` — never *"this cockpit"*,
-which was true only while releases were per-laptop.
+pinned-none release, and *"outside any cockpit"* for `release == null` with `releaseLoaded` — never
+*"this cockpit"*, which was true only while releases were per-laptop. With `!releaseLoaded` it reads
+*"not loaded yet"*: who shipped it is not known yet (review M11). Test `origin is the reserver` gains that case.
 
 #### Banners
 
@@ -196,7 +198,7 @@ which was true only while releases were per-laptop.
 | `key never parsed` | `usePinRef.ts` and `PinCell.tsx` contain no `split(`, `indexOf(`, `match(` or `RegExp` applied to a key (a source grep in the test) | P5 |
 | `elapsed uses the one clock` | the building fact re-renders on the heartbeat tick; `EnvironmentCard.tsx` contains no `setInterval`/`setTimeout` | a timer per card |
 | `table windows past 50` | 200 rows → fewer than 60 `role="row"` in the DOM; scrolling reveals later rows | 200 live rows re-rendering each tick |
-| `origin is the reserver` | a teammate's pinned release → their display name; `release: null` → *"outside any cockpit"* | the per-laptop "this cockpit" wording surviving OD-3 |
+| `origin is the reserver` | a teammate's pinned release → their display name; `release: null` → *"outside any cockpit"*; `release: null, releaseLoaded: false` → the origin *"not loaded yet"* and the pin cell's *"pin not loaded"*, never *"outside any cockpit"* or *"no brief is recorded"* (review M11) | the per-laptop "this cockpit" wording surviving OD-3; a release not yet read claimed to have been shipped outside any cockpit |
 | `collision banner words` | two labels seen (`feat-a-x`, `feat-a-y`) → the banner with both labels after *"under more than one branch label:"* and the cited rule, and neither label inside an `<a>` or a button; one label → none | a silent overwrite (brief R2), or a label presented as a git branch the user could act on (review I4) |
 | `push and Ship labels are not two branches` | `branchesSeen ["feat-x","feat_x"]` (one branch `feat_x`, pushed then Shipped; re-review b03, I-1) → the banner is drawn; it contains `feat_x` with its `_` and `feat-x`, and the sentence *"A Ship and a push write the label differently"*; the DOM lacks *"more than one branch."*, *"deployed from more than one branch"* and *"two branches"* | a banner that counts labels as branches (a false claim for one branch), or a desktop that folds `_` into `-` and so hides the push label |
 | `slash branch finds its card` | `selected {branch:"feat/x", target:"feat-x", environment:"feat-x", error:null}`, a row `{name:"feat-x", branch:"feat-x", branchesSeen:["feat-x"]}` → the card for `feat-x`, and **no** collision banner | `e.branch === branchName`, which drew the empty state and a false collision for every `/` branch (review C2) |

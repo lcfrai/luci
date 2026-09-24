@@ -132,6 +132,8 @@ export interface ReleaseRow {
   rollbackOf: { sourceDeploymentId: string; sourceVersion: string | null } | null;
   refusal: { message: string } | null;
   release: ReleasePin | null;
+  /** false: release is null because the watcher has not read it yet, not because none exists — "pin not loaded" (task 08 rule 5b, review M11). */
+  releaseLoaded: boolean;
 }
 
 export interface RunView {

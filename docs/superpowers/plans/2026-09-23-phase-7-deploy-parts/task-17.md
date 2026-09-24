@@ -142,7 +142,8 @@ named `<row.environment>`."* When `row.environment` is `""` (task 08 rule 1b) it
 
 | Condition | Drawn |
 |---|---|
-| `release == null` | *"No brief is recorded for this release. It was shipped outside any cockpit — auto-deploy on push, or the Panacea portal — so no brief was pinned when it shipped, and none is pinned now."* (prototype `:783-784`, corrected for OD-3 as task 15's footnote is) |
+| `release == null`, `!releaseLoaded` | *"The cockpit has not loaded this release's pin from the Hub yet. It is read in the background; this shows it when it arrives."* — never the sentence below, which would call a real pin absent (task 08 rule 5b, review M11) |
+| `release == null`, `releaseLoaded` | *"No brief is recorded for this release. It was shipped outside any cockpit — auto-deploy on push, or the Panacea portal — so no brief was pinned when it shipped, and none is pinned now."* (prototype `:783-784`, corrected for OD-3 as task 15's footnote is) |
 | `pin.status "none"` | *"No brief is recorded for this release."* + task 15's reason line for `pin.reason` |
 | `pinned`, phase 4 merged | `<ShippedManifest refValue state head version={row.version ?? "This release"} designKey={release.designKey ?? undefined} onOpenDiscover={openPast} />` from `usePinManifest(pin.briefKey)`. **No `mergeRef`**: phase 7 holds no merge link (see *does NOT claim*) |
 | `pinned`, phase 4 merged, `headRevisionAtShip` ≠ `refValue.revision` | one line under it: *"When it shipped, the brief's head was revision `<headRevisionAtShip>`. The Hub pinned the latest complete revision (ADR-H1 Q1)."* (plan §3.2 Q1) |
@@ -160,7 +161,7 @@ phase 3's evaluator exists (seam S7-P1). The drawer adds no criterion words of i
 | environment | `environment`, or *"—"* |
 | shipped | `at`, absolute, `tabular-nums`; *"Reconstructed from Panacea's record"* when `reconstructed` |
 | deployed by | `deployedBy` as Panacea recorded it, or *"not recorded"* |
-| origin | task 15's origin rule: `release.reservedBy.displayName`, or *"outside any cockpit"* when `release == null` |
+| origin | task 15's origin rule: `release.reservedBy.displayName`, or *"outside any cockpit"* when `release == null` and `releaseLoaded`, or *"not loaded yet"* when `!releaseLoaded` |
 | trigger | `trigger` verbatim |
 | gates | one line per `gates` entry: name, `verdict`, and `criticals` / `highs` / `findings` where non-null |
 | provisioning | one line per note: `component`, `status`, `detail` |
@@ -228,7 +229,7 @@ Panacea's diagnosis may consult its AI and then answers `source "rules+ai"`
 |---|---|---|
 | `pin comes first` | a pinned row → the first child of the drawer body is the pin block, above design and facts | a manifest that leads with the build and buries the thread |
 | `pinned renders the pinned ref` (phase 4 merged) | the store holds ref rev 5 and head 6 → `ShippedManifest` receives `refValue.revision 5`, and the drawer's text nowhere says *"rev 6"* without *"brief now at"* | rendering a release from the head (P1) |
-| `no brief is shown, never hidden` | `release: null` → the outside-any-cockpit sentence; `pin.status "none"`, `no_complete_revision` → task 15's reason line | an absent pin drawn as an empty block (P9) |
+| `no brief is shown, never hidden` | `release: null` → the outside-any-cockpit sentence; `release: null, releaseLoaded: false` → the not-loaded sentence and **not** the outside-any-cockpit one (review M11); `pin.status "none"`, `no_complete_revision` → task 15's reason line | an absent pin drawn as an empty block (P9); a pin not yet read drawn as absent |
 | `fallback is honest` (phase 4 absent) | the fallback sentence and a `PinCell`; no criteria list; no Discover link | a fallback that fakes the brief's text or a link that goes nowhere |
 | `head at ship is shown when it differs` | `headRevisionAtShip 7`, ref rev 6 → the Q1 line with *"7"*; equal → no line | hiding that the Hub skipped an incomplete head |
 | `no merge link is claimed` | `ShippedManifest`'s props have no `mergeRef`; the DOM lacks *"merge"* | inventing a merge link phase 7 never read |

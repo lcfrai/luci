@@ -117,7 +117,14 @@ type Snapshot struct {
 	DeploymentsAt time.Time
 	Runs          map[string]deploy.RunProgress // tracked runs only
 	Scans         map[string]deploy.ScanReport  // by deployment id; newest deployment per environment only
-	Releases      []hubapi.Release              // newest reservedAt first, at most 200
+	Releases      []hubapi.Release              // newest reservedAt first, at most 200: the first page only
+	ReleasesMore  bool                          // that page's next was non-null: older releases exist and are not in Releases (review M11)
+	ReleasesAt    time.Time                     // the last successful Releases read for this binding; zero = never, so no pin can be known yet
+	// PinsByRun is deployment id → the confirmed run release whose pipelineRun is that id, from a
+	// targeted Releases(…, {PipelineRun: id}) read (step 6), made only while ReleasesMore. A nil
+	// value is the Hub's answer "none"; an absent id is "not read yet". Cached for the binding's
+	// life: a deployment old enough to fall off the page had its release confirmed long before.
+	PinsByRun     map[string]*hubapi.Release
 	ReleasesState string                        // "ok" | "no_hub" | "no_hub_project" | "hub_key_spelling" | "signed_out" | "unavailable"
 	OwnerControls string                        // "yes" | "no" | "unknown" (7P-9)
 	FetchedAt     time.Time                     // the last cycle in which every Panacea read succeeded
@@ -152,7 +159,8 @@ type Snapshot struct {
    the every-fourth-cycle count says. Then: not `Bound` → step 1's rule, the snapshot carries the
    binding and nothing else, and the old project's data is **dropped**, not kept stale; `Bound` to a
    **different** Panacea project → step 1's reset (`Environments`, `BranchEnvs`, `BranchEnvErrs`,
-   `Latest`, `Deployments`, `Runs`, `Scans`, `Releases` emptied; `OwnerControls "unknown"` until the
+   `Latest`, `Deployments`, `Runs`, `Scans`, `Releases`, `PinsByRun` emptied, `ReleasesAt` zero;
+   `OwnerControls "unknown"` until the
    probe re-runs); still `Bound` to the same one
    (the list shows it, the read refuses) → it stays `Stale` with the refusal, re-resolved every
    fourth cycle, and a later good `Environments` clears it.
@@ -196,7 +204,25 @@ type Snapshot struct {
    `""` → `"unavailable"`, because a configured Hub has not yet answered for this key (plan
    re-review b05 R-4; `Releases == nil` is `"no_hub"` before this step); `entraauth.ErrSignedOut` →
    `"signed_out"`; `hubclient.ErrUnavailable` → `"unavailable"`, **keeping the previous releases**.
-7. **The join** (`join.go`): for each release with `state == "confirmed"`, `kind == "run"`,
+   A good read sets `ReleasesAt` and `ReleasesMore = page.Next != nil` (Hub contract §1 *Lists*,
+   `:48-49` at 6b873d0: `limit` at most 200, `{"items","next"}`).
+   **Beyond the page** (review M11). The Hub returns the 200 newest releases, runs and rollbacks
+   together, so a project with more has deployments whose release is not in `Releases`, and the
+   view would call a real pin absent. While `ReleasesMore`, for each deployment in `Deployments`
+   that matches no release in the page by task 08 rule 5 and has no `PinsByRun` entry, newest
+   first and **at most 20 per project per cycle**, the watcher reads
+   `Releases(HubProjectID, {PanaceaProject: <ref>, PipelineRun: d.ID, State: "confirmed", Limit: 1})`
+   (§7.9 lists `pipelineRun=`; the review's option) and stores the `kind "run"` item, or `nil` for
+   none, in `PinsByRun[d.ID]`. `pipelineRun=` and not `deploymentId=`: the join is written only by
+   the reserver's own watcher (step 7), so a release whose reserver never saw the deployment has no
+   `deployments[]` entry, but always has its `pipelineRun` (confirm carries it). These reads run in every
+   cycle that still owes one, whether or not the page itself was re-read. A failure of this
+   read leaves the id absent (retried next cycle) and does not change `ReleasesState`. 200 history
+   rows cost at most 200 reads once, spread over ten cycles; a project with fewer than 200
+   releases costs none. Until a row's read answers, task 08 says *"pin not loaded"*, never *"no
+   brief is recorded"*. `PinsByRun` is emptied with the rest of the Hub data when the binding changes
+   (step 1).
+7. **The join** (`join.go`): for each release in `Releases` or `PinsByRun` with `state == "confirmed"`, `kind == "run"`,
    `reservedBy.id == Me.id`, a `pipelineRun`, and no `deployments[]` entry — if a deployment with
    `ID == pipelineRun` is in `Deployments` or `Latest`, call `JoinDeployment(release.id,
    pipelineRun)` once. `409 conflict` is logged and not retried. Only the reserver's own watcher
@@ -281,6 +307,7 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestStaleKeepsLastData` | a good cycle, then a failing one → `Environments` unchanged, `Stale == true`, `FetchedAt` is the good cycle's time | clearing the lens during a blip |
 | `TestJoinOnlyOwnConfirmedRuns` | releases: mine confirmed, mine reserved, a teammate's confirmed, mine rollback — only the first is joined, and only once across three cycles | joining a teammate's release, a reservation, or a rollback (7P-4: a rollback has no deployment of its own) |
 | `TestJoinWaitsForDeployment` | a confirmed release whose run has no deployment yet → no join; next cycle it appears → one join | joining by observation of a run name that does not yet exist |
+| `TestPinsBeyondThePage` | the Hub fake holds 201 confirmed run releases for one Panacea project; `Deployments` holds 25 rows, the oldest, `d-old`, being the pipelineRun of the oldest release (not in the first page of 200) and 24 others with no release → the page read gives `ReleasesMore == true`; cycle 1 makes exactly 20 `Releases` calls with `PipelineRun` set, newest rows first; cycle 2 makes the other 5, one of them `d-old`, and `PinsByRun["d-old"]` is that release, the rest `nil`; cycle 3 makes none. With 199 releases → `ReleasesMore == false` and no `PipelineRun` call ever (review M11) | a pin beyond the 200th release read as *"no brief is recorded"* (P9 inverted); a targeted read per row per cycle; a targeted read made when the page was complete |
 | `TestHubDownKeepsReleases` | `hubclient` fake failing → `ReleasesState "unavailable"`, previous releases kept, Panacea data still fresh | the lens's pins vanishing when the Hub blips |
 | `TestOwnerProbe` | `AutoDeploy` → `KindForbidden` ⇒ `"no"`, including a `KindForbidden` whose `Message` is the scope sentence of task 03's `error-scope-owner-403.txt` — a real owner holding a restricted key (review I5); `KindConflict` ⇒ `"yes"`; success ⇒ `"yes"`; `KindUnavailable` ⇒ `"unknown"` | inferring owner from `/me` groups (7P-9) |
 | `TestCursorMonotonic` | the cursor never decreases across 50 random fake cycles, and is unchanged across two identical ones | a cursor that resets when a project unbinds, making the desktop miss a change |
@@ -314,8 +341,10 @@ grep -rn 'setInterval(' desktop/src --include=*.ts --include=*.tsx | grep -v '\.
 - That 15 s is the right cadence for the owner's team. It is a variable.
 - The exact spelling of `hubapi.ReleaseQuery`'s fields. The Hub contract names the type (§9.2)
   and the query parameters (§7.9: `environment`, `panaceaProject`, `deploymentId`, `pipelineRun`,
-  `state`), not the Go fields; this part assumes `PanaceaProject` and `Limit` and the compiler will
-  say otherwise.
+  `state`), not the Go fields; this part assumes `PanaceaProject`, `PipelineRun`, `State`, `Limit`
+  and `Page.Next` (a `*string`, from §1's `"next": "<cursor>" | null`) and the compiler will say
+  otherwise. Nor that the Hub fake honours `pipelineRun=` and pages at 200: `TestPinsBeyondThePage`
+  is red until it does.
 - That the watcher sees a rollback. Nothing in Panacea records one (plan 7P-4); task 08 reads the
   Hub's rollback releases for that.
 - Anything the desktop does with the cursor. Task 13.
