@@ -53,8 +53,8 @@ Three places hold git, and the control plane is the only process that runs git i
                                                   statepath.Dir("worktrees"))
  ┌───────────────────────────────┐   git clone --no-hardlinks (objects copied, Q9)
  │ refs/heads/evidence-upload     │ ─────────────────────────────►  ┌──────────────────────────┐
- │ refs/panacea/lanes/<w-id>      │ ◄──── lane sync: git fetch ───  │ refs/heads/evidence-upload│ ◄── agent's git,
- │ refs/panacea/archive/…         │       (control plane, host)     │ refs/remotes/origin/…     │     inside the sandbox,
+ │ refs/panacea/lanes/<w-id>      │ ◄──── lane sync: git bundle ──  │ refs/heads/evidence-upload│ ◄── agent's git,
+ │ refs/panacea/archive/…         │     (sandboxd bundle → host)    │ refs/remotes/origin/…     │     inside the sandbox,
  │ refs/panacea/undone/<sha>      │ ───── origin refresh ─────────► │ refs/remotes/upstream/<b> │     bind-mounted at
  │ refs/remotes/origin/*          │  whenever the branch moves (I4) │ .git is a DIRECTORY       │     /home/dev/work
  │                                │  (+ upstream/<b>, review I5)    └──────────────────────────┘
@@ -98,10 +98,13 @@ session started without that environment.
 
 **The control plane converges by fetching, never by sharing a filesystem.** A background lane
 syncer, on the control plane's own timer and never behind a GET, copies each clone's
-`refs/heads/<branch>` into the project repository as `refs/panacea/lanes/<worktree-id>`. Every
+`refs/heads/<branch>` into the project repository as `refs/panacea/lanes/<worktree-id>`: task 24's
+runner bundles the branch inside the sandbox, and the host verifies and fetches the bundle in the
+project (`lanegit.FetchLane`, R4.4). Every
 convergence fact (changed paths, `merge-tree` forecasts, lands, evidence ancestry) is computed in
-the project repository against those refs. Uncommitted paths are read from the clone with
-`git status` under `GIT_OPTIONAL_LOCKS=0`, which writes nothing. Only `refs/heads/<branch>`
+the project repository against those refs. Uncommitted paths are read inside the sandbox by the
+runner's `status --porcelain=v2 -z` under `GIT_OPTIONAL_LOCKS=0`, which writes nothing; the host
+parses the bytes and never runs git in the clone (R4.2). Only `refs/heads/<branch>`
 syncs, so a clone whose HEAD is on another branch or detached says so on its card
 (`headElsewhere`, task 07), and removing it archives that work first (task 11; review I6).
 
@@ -553,8 +556,8 @@ under three.
 | 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1 | 2 h |
 | 05 | Git in the sandbox for clones: every session in a lane (R4.1), `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1, G5; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
 | 06 | The linked-worktree notice deleted (R4.1): `kind` in `types.ts`, the shared-index note (3-D2) | 04, 05, G1 | 2 h |
-| 07 | Lane sync and observed claims; the sweep's tip-change clone refresh (review I4) | 04 | 3.5 h |
-| 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 | 3 h |
+| 07 | Lane sync and observed claims; the sweep's tip-change clone refresh (review I4) | 04, 24 | 3.5 h |
+| 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 (24 through 07) | 3 h |
 | 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4) | 08 | 4.5 h |
 | 10 | Landed history, exact undo (refused once another lane has merged the land, review I3), revert | 09 | 2.5 h |
 | 11 | Remove a worktree; create, rename and delete a branch | 07, 08 (`CheckedOutAt`) | 3 h |

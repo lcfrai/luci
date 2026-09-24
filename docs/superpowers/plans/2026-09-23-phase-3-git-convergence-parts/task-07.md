@@ -19,7 +19,7 @@ Nothing here is enforced and nothing asks an agent anything (brief A9). These ar
 **Files:**
 - `control-plane/internal/converge/sync.go` — `Syncer`, `SyncState`, `LaneRef`, `CloneRefresher` (new)
 - `control-plane/internal/converge/observe.go` — `LaneObservation`, `Commit`, `PathChange`, `Observe` (new)
-- `control-plane/internal/converge/parse.go` — the `-z` parsers for `log`, `diff --name-status`, `status --porcelain=v2`, and `ParseMergeTree`, the one `merge-tree -z` parser tasks 08, 09, 10 and 16 call (review I2) (new)
+- `control-plane/internal/converge/parse.go` — the `-z` parsers for `log`, `diff --name-status`, `status --porcelain=v2` (`ParseStatus`, over the runner's `PorcelainV2Z`), and `ParseMergeTree`, the one `merge-tree -z` parser tasks 08, 09, 10 and 16 call (review I2) (new)
 - `control-plane/internal/converge/*_test.go` (new)
 - `control-plane/internal/api/gitdeps.go` — `// ── task 07 ──` block (phase 3's file)
 - `control-plane/cmd/api/config.go` — `PANACEA_APP_LANE_SYNC_INTERVAL` (p2)
