@@ -131,7 +131,7 @@ func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 //   up  = rev-parse --verify -q --symbolic-full-name <branch>@{upstream}, OKExit 1
 //         (exit 1 or not under refs/remotes/ → up = "")
 // Then, for each lane asked for, in its clone (Scope Clone), one fetch:
-//   fetch --no-tags --quiet <ProjectPath> +refs/heads/<branch>:refs/remotes/origin/<branch>
+//   fetch --no-auto-maintenance --no-tags --quiet <ProjectPath> +refs/heads/<branch>:refs/remotes/origin/<branch>
 //         [+<up>:refs/remotes/upstream/<branch>   — only when up != ""]            (Local)
 //   and when up == "": update-ref -d refs/remotes/upstream/<branch> (a no-op when absent),
 //   so a clone never offers a remote branch the project no longer tracks.
@@ -140,6 +140,9 @@ func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 // origin/* mirrors the project's refs/heads/*, so without it no lane can see, merge or
 // resolve against a teammate's pushed commits. It carries objects and a ref, no credential
 // and no URL (brief A4): the project's remote is never named to the clone.
+// --no-auto-maintenance (review Minor 8), as on task 07's lane fetch: a plain fetch starts a
+// detached `maintenance run --auto` in the clone, whose gc holds packed-refs.lock while the next
+// refresh's update-ref -d (above) or a land's step-14 refresh runs, and fails it.
 // After each clone's fetch succeeds, in that clone (Read, Scope Clone):
 //   got = rev-parse --verify -q refs/remotes/origin/<branch>
 // then l.Syncer.Told(id, got), so the next sweep knows what this clone holds (task 07; review
@@ -310,6 +313,7 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestLandRefreshFailureDoesNotFailTheLand` | clone B's directory removed → 201, `refreshErrors[B]` holds git's sentence | failing a land that happened |
 | `TestRefreshGivesEveryCloneTheUpstream` (review I5) | a bare "remote", the project fetched after a teammate's push → after a land, clone B's `refs/remotes/upstream/<b>` equals the project's `refs/remotes/origin/<b>`, and `git merge upstream/<b>` in B exits 0; B's `config --get-regexp ^remote\.` is unchanged | a lane that cannot see a teammate's commits |
 | `TestRefreshWithoutAnUpstreamStillRefreshesOrigin` | no upstream configured → clone B's `origin/<b>` refreshed, no `upstream/<b>`, no RefreshError; then unset the upstream after one refresh → the next refresh deletes B's `upstream/<b>` | a fetch of a missing source ref (exit 128) failing every refresh of a never-pushed branch |
+| `TestRefreshStartsNoMaintenance` (review Minor 8) | red first (a plain fetch starts maintenance by default: `maintenance.auto` defaults to true, and the clone allowlist would refuse the key set explicitly, task-02 §HGH H3); `RefreshClones` under `t.Setenv("GIT_TRACE", <file>)` → the trace file holds B's `fetch` and no `run_command: git maintenance` line | a refresh leaving a detached gc on the clone's `packed-refs.lock` that fails the next refresh |
 | `TestRefreshProjectTakesNoLock` | called while the test holds `Locks.Lock(ctx, p)` → returns (a deadlock fails the test's 5 s deadline) | AfterFetch deadlocking inside Fetch |
 | `TestSweepRefreshesClonesAfterADirectCommit` (review I4) | real git, a real `Syncer` with this `Lander` as `Refresher`: two lanes; a commit made with plain `git commit` in a checkout of the project's branch, as a user's terminal would; one `Run` sweep → both clones' `refs/remotes/origin/<b>` equal the new tip, and a second sweep runs no clone fetch (recording Runner) | a resolve prompt that merges an origin/<branch> the user's own commit has left behind |
 | `TestRefreshClonesRecordsWhatItSent` (review I4) | after a land, `Syncer`'s told for both lanes is the merge; with clone B's directory removed, B's told is unchanged and A's is the merge | a clone recorded fresh after its fetch failed, which the sweep then never retries |

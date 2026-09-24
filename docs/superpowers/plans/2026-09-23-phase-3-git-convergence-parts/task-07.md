@@ -117,9 +117,13 @@ func (s *Syncer) Run(ctx context.Context)
 //  1. `rev-parse --verify --quiet refs/heads/<branch>` in the CLONE (Read);
 //  2. `rev-parse --verify --quiet refs/panacea/lanes/<id>` in the PROJECT (Read);
 //  3. when they differ, in the PROJECT (Local):
-//     fetch --no-tags --no-write-fetch-head --quiet <FetchURL(clone)> +refs/heads/<branch>:refs/panacea/lanes/<id>
+//     fetch --no-auto-maintenance --no-tags --no-write-fetch-head --quiet <FetchURL(clone)> +refs/heads/<branch>:refs/panacea/lanes/<id>
 // The "+" follows a lane an agent rebased or amended. --no-write-fetch-head keeps FETCH_HEAD
 // meaning "the last fetch from origin", which task 08 reads as the fetch time.
+// --no-auto-maintenance (review Minor 8; git ≥ 2.29, under task-02's MinVersion): a plain fetch
+// starts `git maintenance run --auto --detach` in the project, the user's repository, and a
+// detached gc that holds packed-refs.lock fails a concurrent land's update-ref as git_failed.
+// The flag beats a repository-local maintenance.auto=true (task 01 pins both).
 // Hardened per task-02 §HGH: step 1 runs with Scope Clone, steps 2 and 3 with Scope Project.
 func (s *Syncer) SyncLane(ctx context.Context, worktreeID string) (SyncState, error)
 
@@ -227,6 +231,7 @@ an agent would make them. `Script` runners only where the claim is "this call is
 | `TestSyncIsANoOpWhenNothingMoved` | the second `SyncLane` issues two `rev-parse`s and no `fetch` (Script runner) | a fetch on every sweep |
 | `TestSyncFollowsARewrittenLane` | `commit --amend` in the clone → the lane ref follows (non-fast-forward) | a refspec without `+` |
 | `TestSyncNeverWritesFetchHead` | the project's `FETCH_HEAD` is absent after a sync | lane syncs posing as the last remote fetch |
+| `TestSyncStartsNoMaintenance` (review Minor 8) | red first: the project's `.git/config` holds `maintenance.auto=true`; a `SyncLane` that fetches, under `t.Setenv("GIT_TRACE", <file>)` (Exec starts from `os.Environ()`, task-02:69) → the trace file holds the `fetch` and no `run_command: git maintenance` line | a lane sync leaving a detached gc on `packed-refs.lock` that fails the next land |
 | `TestSyncNeverCreatesAHead` | `for-each-ref refs/heads` in the project is unchanged by a sync | a refspec typo that puts lanes in the rail |
 | `TestSyncRecordsAVanishedClone` | delete one clone; a sweep → its `State.Err` is git's sentence; the other lane still syncs | one bad clone stopping the sweep |
 | `TestSyncClearsTheErrorOnSuccess` | recreate the branch in the clone → next sweep clears `Err` | a stale error forever on screen |
