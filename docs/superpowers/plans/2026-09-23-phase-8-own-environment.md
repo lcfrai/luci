@@ -474,7 +474,8 @@ docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md §2   amended with 
 images/{broker,hub,machine}/Dockerfile  images/build.sh  images/images_test.sh                    27 (+27a)
 images/sandbox/Dockerfile                      the base off Node 20, by digest (OD-8 pin moves)    27a
 azure-pipelines.yml                             the Go pipeline: PR trigger, path filter, govulncheck 28
-pipelines/templates/tools.yml  pipelines/scripts/{install-tool,lint,chart-licences}.sh            28 (+27, 30)
+pipelines/templates/tools.yml  pipelines/scripts/{install-tool,lint,chart-licences,chart-licences_test}.sh  28 (+27, 30)
+pipelines/scripts/testdata/chart-licences/<case>/   the eight fixture trees chart-licences_test.sh runs  28
 pipelines/{desktop,licences,secrets,infra,charts}.yml  licences/  .gitleaks.toml                  28 (+10, 13)
 pipelines/images.yml                                                                               27
 pipelines/{infra-plan,deploy}.yml  pipelines/scripts/{estate-guard,tf-stack,helm-values}.sh  written, NOT registered  30

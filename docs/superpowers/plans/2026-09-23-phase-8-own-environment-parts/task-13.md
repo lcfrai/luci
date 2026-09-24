@@ -52,7 +52,7 @@ appVersion: "0.1.0"
 dependencies:
   - name: cert-manager
     repository: https://charts.jetstack.io
-    version: "<exact, pinned in step 1>"     # Apache-2.0
+    version: "<exact, pinned in step 1>"     # licence: licences/charts.yaml (task 13 step 1)
     alias: certManager                       # a Go-template-friendly values key; the names below are pinned lowercase
 ```
 
@@ -179,7 +179,7 @@ appVersion: "0.1.0"
 dependencies:
   - name: traefik
     repository: https://traefik.github.io/charts
-    version: "<exact, pinned in step 1>"     # MIT
+    version: "<exact, pinned in step 1>"     # licence: licences/charts.yaml (task 13 step 1)
 ```
 
 #### Contract — `deploy/charts/edge/values.yaml` (complete)

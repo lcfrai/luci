@@ -22,7 +22,8 @@ listed in task 31's runbook.
 - `pipelines/scripts/lint.sh` — the rules every pipeline file must follow, as a script (new)
 - `licences/allow.yaml`, `licences/exceptions.yaml` — the OD-11 allowlist and the (empty) exception list (new)
 - `licences/charts.yaml` — one row per Helm chart dependency, starting empty; task 13 adds the first rows (new)
-- `pipelines/scripts/chart-licences.sh` — the Helm half of the OD-11 gate, with its cases (new)
+- `pipelines/scripts/chart-licences.sh` — the Helm half of the OD-11 gate (new)
+- `pipelines/scripts/chart-licences_test.sh` and `pipelines/scripts/testdata/chart-licences/<case>/` — its eight fixture trees, run in `charts.yml` before the real check (new)
 - `.gitleaks.toml` — the secret scanner's allowlist of known test fixtures (new)
 
 #### Contract — `pipelines/templates/tools.yml` parameters (complete)
@@ -57,7 +58,7 @@ runs locally, so CI and laptop cannot disagree.
 | `pipelines/licences.yml` | any `go.mod`/`go.sum`, `desktop/package*.json`, `desktop/src-tauri/Cargo.*` | `ubuntu-latest` | Go: `go-licenses report` for each module; npm: the **production** dependency graph's licences; Cargo: `cargo deny check licenses`; each compared with `licences/allow.yaml` | PR — **OD-11 rule 3, applied repo-wide** |
 | `pipelines/secrets.yml` | all | `ubuntu-latest` | `gitleaks` over the PR's commits (`--log-opts=<base>..HEAD`), and over full history on `main` | PR |
 | `pipelines/infra.yml` | `infra/**` | `ubuntu-latest` | `guards.sh`, then `validate.sh` **per directory as a job matrix** (both task 01's; task 10, which writes `role-allowlist.sh`, adds its step between the two in the same commit, so this task never calls a script that does not exist yet) (each `terraform test` takes minutes); `tflint` with the azurerm ruleset; `trivy config` (IaC misconfiguration) failing on HIGH; `shellcheck` over `infra/**/*.sh`, `images/*.sh`, `pipelines/scripts/*.sh` — **no Azure call, no credentials, safe on every PR** | PR |
-| `pipelines/charts.yml` | `deploy/**`, `licences/**` | `ubuntu-latest` | first, once: **`bash pipelines/scripts/chart-licences.sh`** (every `deploy/charts/*/Chart.lock` dependency has a row in `licences/charts.yaml` whose licence is in `licences/allow.yaml`; review m6); then per chart: `helm dependency build`, `helm lint`, `helm unittest`, `helm template … \| kubeconform -strict -summary`. Task 13 later adds one cross-chart job: Go 1.23 and `go test ./deploy/tests/netpolcover/... -count=1` (every workload in a default-denied namespace has an allow in each direction it needs, and every `pre-install` hook's allow exists before the hook runs; the test runs `helm dependency build` itself) | PR |
+| `pipelines/charts.yml` | `deploy/**`, `licences/**`, `pipelines/charts.yml`, `pipelines/scripts/chart-licences*.sh`, `pipelines/scripts/testdata/chart-licences/**` (so a PR that edits only the gate or its fixtures re-runs it, plan re-review b08-1 issue 2) | `ubuntu-latest` | first, once: **`bash pipelines/scripts/chart-licences_test.sh`** (the eight fixture cases below, so a weakened script fails here), then **`bash pipelines/scripts/chart-licences.sh`** (every `deploy/charts/*/Chart.lock` dependency has a row in `licences/charts.yaml` whose licence is in `licences/allow.yaml`; review m6); then per chart: `helm dependency build`, `helm lint`, `helm unittest`, `helm template … \| kubeconform -strict -summary`. Task 13 later adds one cross-chart job: Go 1.23 and `go test ./deploy/tests/netpolcover/... -count=1` (every workload in a default-denied namespace has an allow in each direction it needs, and every `pre-install` hook's allow exists before the hook runs; the test runs `helm dependency build` itself) | PR |
 
 `images.yml` is task 27's; `infra-plan.yml` and `deploy.yml` are task 30's and are **not
 registered** until the environment exists.
@@ -109,10 +110,14 @@ dependencies: []
 #    source: <URL of the LICENSE file read>
 ```
 
-`chart-licences.sh` parses every `deploy/charts/*/Chart.lock`'s `dependencies:` list (with
+`chart-licences.sh [<root>]` takes one optional argument, the tree to check, defaulting to the
+repository root (`git rev-parse --show-toplevel`). It reads `<root>/deploy/charts/*/Chart.lock`,
+`<root>/licences/charts.yaml`, `<root>/licences/allow.yaml` and `<root>/licences/exceptions.yaml`,
+and nothing outside `<root>`, so `chart-licences_test.sh` points it at one fixture tree per case.
+It parses every `Chart.lock`'s `dependencies:` list (with
 `yq`, pinned in `install-tool.sh` like every tool) and fails, naming the chart and the entry, when:
 
-| Case (a fixture under `pipelines/scripts/testdata/chart-licences/`) | Expected |
+| Case (a fixture tree under `pipelines/scripts/testdata/chart-licences/<case>/`, run by `chart-licences_test.sh`) | Expected |
 |---|---|
 | a `Chart.lock` entry with no row in `licences/charts.yaml` | fail, names the entry |
 | a row whose `version` differs from the lock's (a bump with no re-read licence) | fail |
@@ -121,9 +126,10 @@ dependencies: []
 | a row with no `source` | fail |
 | every entry recorded, every licence allowed | pass |
 | no `Chart.lock` in the tree (true until task 13) | pass, printing `0 chart dependencies` |
+| a row in `licences/charts.yaml` that matches no `Chart.lock` entry | fail, names the row as stale (kills a script with the stale check deleted) |
 
-Rows that match no `Chart.lock` entry are reported as stale and fail too, so the file cannot
-drift into a list of licences nobody uses. The check reads only the repository: **no network
+Rows that match no `Chart.lock` entry are reported as stale and fail too (the eighth case), so the
+file cannot drift into a list of licences nobody uses. The check reads only the repository: **no network
 call**. It does not prove the recorded licence is right; that is the reviewer's read of the
 `source` URL, and is stated as such in the task report.
 
@@ -143,7 +149,8 @@ call**. It does not prove the recorded licence is right; that is the reviewer's 
 #### Steps
 
 - [ ] **Step 1:** `lint.sh` and its cases; `install-tool.sh` with the pinned rows;
-  `chart-licences.sh` and its seven fixture cases, each shown failing before the script exists.
+  `chart-licences_test.sh` and its eight fixture trees, each case shown failing before
+  `chart-licences.sh` exists; then the script until all eight pass.
 - [ ] **Step 2:** The template; the Go pipeline edit; the five new pipelines; `lint.sh` passes.
 - [ ] **Step 3:** Run the three licence reports and `gitleaks detect` locally; record the findings;
   write `.gitleaks.toml` for the test fixtures (the all-ones GUIDs, the fake tokens in tests) —
@@ -155,6 +162,7 @@ call**. It does not prove the recorded licence is right; that is the reviewer's 
 ```bash
 bash pipelines/scripts/lint.sh                   # lint: 7 of 7 rules pass over 6 pipeline files (images.yml, task 27, comes after)
 bash pipelines/scripts/install-tool.sh gitleaks && gitleaks detect --no-banner   # no leaks found
+bash pipelines/scripts/chart-licences_test.sh    # chart-licences_test: 8 of 8 cases passed
 bash pipelines/scripts/chart-licences.sh         # 0 chart dependencies (task 13 adds the first)
 ```
 
