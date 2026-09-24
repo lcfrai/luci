@@ -569,7 +569,7 @@ reading and push, because Panacea builds only pushed commits (7P-7 settles the i
 | 13 | Desktop data layer: types, client, slice, cursor-driven fetch, `upstream-down`, R6 key selector | 7a | 3 | 08 | Hub C2 poller cursor (HA7-4); phase 4's key-source loader (R6); Hub C3 local key in `client.ts` |
 | 14 | Desktop: the lens frame, its four connection states, and the binding | 7a | 2.5 | 05, 13 | Hub C3 local key in `client.ts` (the lens works without it) |
 | 15 | Desktop: the environment card, the release table, the pin cell, stale and collision banners | 7a | 3 | 14 | phase 4's `Ref` cache (R6) |
-| 16 | Desktop: the Ship bar and the held acts (ship, rollback, rebuild, cancel) | 7b | 3 | 15, 09, 10 | phase 3 task 18 (`addGoodTickListener`, `selectConvergence`, `useConvergenceLoader`: readiness edge 4, review I7); without it edge 4 is off |
+| 16 | Desktop: the Ship bar and the held acts (ship, rollback, rebuild, cancel) | 7b | 3 | 15, 09, 10 | **hard, no fallback:** phase 3 task 18 (`pushBranch`, `addGoodTickListener`, `selectConvergence`, `useConvergenceLoader`: the Push button and readiness edge 4, review I7) and phase 3 task 12 (the server push), both merged before task 16 starts (re-review b04-1, M-1) |
 | 17 | Desktop: the release drawer (manifest), scans, why it is down, the log pane | 7a | 3 | 15, 12 | phase 4 tasks 16–17's `ShippedManifest` and selectors, if merged (part 17 says what if not) |
 | 18 | Desktop: the governance panel | 7a | 2.5 | 15, 11 (uses 16's `useHeldAct` contract; lands the file if 16 has not) | — |
 | 19 | Sessions in a release, from `Panacea-Session` trailers | 7b | 2 | 08, 17 | phase 3 task 02 (`gitx`) and task 05 (the hook, `S3-P7.1`) |
@@ -580,7 +580,9 @@ reading and push, because Panacea builds only pushed commits (7P-7 settles the i
 
 **Parallel lanes.** After 08, the control-plane routes (11, 12) and the desktop (13 onward) are
 independent. 7b starts when phase 3's tasks 08 and 12 are merged; until then 09 and 10 can be built
-and tested against fakes of `ship.BranchState` and `hubclient.Releases`, but are not merged.
+and tested against fakes of `ship.BranchState` and `hubclient.Releases`, but are not merged. Task
+16 also waits for phase 3's task 18 (its Push button and readiness edge 4 come from it; no
+fallback, re-review b04-1 M-1).
 
 **Total:** about 51 engineer-hours — roughly **7 working days for one engineer, 4 for two** (one on
 the control plane, one on the desktop after task 08). Add a day if Hub C1/C2 have not landed and
