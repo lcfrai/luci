@@ -684,3 +684,60 @@ person closes it. *Shipped* is never a state; it is derived from the release man
 These nine are **issue** states. `AGENTIC-UX.md` anti-pattern 4's closed set of seven is the
 **agent** status set; the two never share a column, an icon family or a colour (§4.4).
 
+### 3.4 How the issue joins team mode
+
+| Team-mode object (TM-05) | What the work layer adds |
+|---|---|
+| task `tk-` | `issueId`. Its reason now reads task → issue → criterion → brief (04 §7.5) |
+| Orchestrator events (TM-05 §4.2) | two kinds: *an issue was delegated to you*, and *a blocker you wait on landed* |
+| verbs (TM-05 §5.2) | `panacea issue show`, `panacea issue note`, `panacea evidence propose`; `panacea team` shows each agent's issue and criterion |
+| leases and conflicts (TM-05 §6.3-6.4) | a conflict thread cites both issues; `blocks` across owners seeds a `sequence` proposal (§2.2) |
+| the team strip (TM-05 §9.1) | the line is the **issue title** (`text·H`) where one exists, instead of the task title (`text·A`) |
+| the Desk (TM-05 §9.3) | *issues that need you* join its existing sections; no new section |
+
+**What an agent may read.** An issue revision is spec-class: it enters the agent's managed block
+only after its owner adopted it (Start or Delegate), with attribution, after the Hub's schema and
+character checks. A `text·A` revision is never rendered until a person accepts it. Comments are
+coordination-class and are never rendered; an agent reads them only as data, through
+`panacea issue show` (04 §4.4). This waits on the owner's ruling (Q3) and on TM-05's injection
+corpus covering hostile issue text.
+
+### 3.5 Requests: work from outside the team
+
+A **request** `rq-` is how a business owner, a client or another team asks for something without
+being a member (L-27, L-31, L-137 to L-140):
+
+1. It arrives by an Entra-protected web form, an email address per team, or a Teams message.
+2. It keeps the requester and the **verbatim quote**, as `text·H` of that requester.
+3. Intake rules (L-49) route it to a team's `triage`, where a person accepts it into a new issue or
+   links it to an existing one. Triage suggestions may propose **which criterion** it serves.
+4. The requester is told, where they asked, when the issue **shipped**, with the release name,
+   because shipped is a fact the manifest proves (§2.3).
+
+A request is customer content: it has the issue's erase, and its text never enters an agent's
+managed block. An agent reads it only as data.
+
+### 3.6 Keys, events, authorisation, erase
+
+- **One new key**, `issue:(is-[0-9a-f]{16})@([1-9][0-9]{0,8})`, in the grammar the Hub mints and
+  `/v1/refs` resolves; `provenance.Ref` gains `kind: "issue"` (04 §5.1). **`EP-142` is a display
+  alias, never a key**, because an admin can change the project's key.
+- **Every write appends one metadata-only event in the same transaction** (hub-contract:1133-1134),
+  so the desktop replica and every Orchestrator learn of changes through `/v1/changes`. Webhooks
+  (L-251) are the same events, delivered out.
+- **Authorisation rows** (04 §7.1): a team member writes issues; only a person moves an issue to
+  `done` by hand; an agent writes only comments on its own owner's behalf, and in team mode only
+  its Orchestrator does; `landed` and `started` moves are written as the person whose act caused
+  them. Nothing writes as "the system" except janitor acts, whose events carry `actor: null` and
+  name the policy's author.
+- **Erase.** Issues, comments and requests get the brief's erase: org admin only; text removed;
+  keys, digests and revision numbers kept, so every trailer and chip still resolves, as *erased*
+  (04 §5.5). Trailers and branch names carry ids, never titles (04 §5.2).
+- **Id prefixes, checked 2026-09-25.** The Hub's own (`org-`, `u-`, `tm-`, `pj-`, `bf-`, `ap-`,
+  `ln-`, `iv-`, `rl-`, `ev-` and the single-letter ones, hub-contract:105-112 in the `feat/hub`
+  worktree) and TM-05's (`ag-`, `tk-`, `ls-`, `cf-`, `th-`, `ms-`, `es-`, `nt-`, `dl-`, per 04
+  §7.1): the new `is-`, `ic-`, `ft-`, `ml-`, `cy-`, `in-`, `rq-`, `lb-`, `tp-`, `vw-`, `lp-`,
+  `df-` collide with none. Milestones take `ml-` because `ms-` is TM-05's.
+
+---
+
