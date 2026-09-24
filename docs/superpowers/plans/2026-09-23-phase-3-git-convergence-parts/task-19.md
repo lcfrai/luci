@@ -39,6 +39,13 @@ export function laneName(conv: Convergence, id: string): string;
  *  unknown   → "not read yet" | the forecast's why, verbatim */
 export function forecastLine(conv: Convergence, f: Forecast): string;
 
+/** Re-review b06-1 issue 1b: null when f.carriesUndone is []; else, on the row beside the
+ *  forecast line and never behind a click, "Landing this also brings back upload-db's land
+ *  (d5f0a17), which was undone: this worktree merged it first." (laneName for each worktreeId,
+ *  the short sha; several → "the lands of upload-db (d5f0a17) and upload-ui (1c9e2f0)").
+ *  It does not block Land: the land is exactly undoable, and its toast names them again. */
+export function carriesUndoneLine(conv: Convergence, f: Forecast): string | null;
+
 /** The uncommitted note, or null: "Not committed: a.ts, b.ts — uncommitted work does not land." */
 export function uncommittedLine(lane: LaneView): string | null;
 
@@ -101,12 +108,15 @@ export interface BringInOutcome {
 }
 
 /** Land one row with expectedTip = conv.tip and the head brief key (selectHeadBriefKey), then
- *  reload(), then a toast "Landed upload-ui into evidence-upload." with Undo → api.undoLand. */
+ *  reload(), then a toast "Landed upload-ui into evidence-upload." with Undo → api.undoLand.
+ *  A non-empty result.broughtBack adds "It brought back upload-db's land (d5f0a17), which was
+ *  undone." (re-review b06-1 issue 1b); the same Undo takes this land, and so that work, back. */
 export function landOne(conv: Convergence, worktreeId: string, briefKey: string, briefDigest: string, reload: () => void): Promise<LandOutcome>;
 
 /** Land every queued row top down, each with the previous result's merge as expectedTip,
- *  stopping at the first refusal. One toast at the end names what landed; Undo is offered only
- *  for the last land, the one an exact undo can reach. */
+ *  stopping at the first refusal. One toast at the end names what landed, and every undone land
+ *  any of them brought back (broughtBack, as landOne); Undo is offered only for the last land,
+ *  the one an exact undo can reach. */
 export function landAllInOrder(conv: Convergence, briefKey: string, briefDigest: string, reload: () => void): Promise<LandOutcome>;
 
 /** api.bringIn with expectedTip = conv.tip and expectedUpstream = conv.bringIn.tip, then
@@ -163,7 +173,8 @@ undo, a revert, the user's own commit or `git pull` in a terminal) leaves the cl
 open, `ResolveDialog` calls `api.refreshBranch(conv.projectId, conv.branchId)` (task 18; the route is task
 09's) before Start (or **Open a shell here**) is enabled. While it runs, both are disabled and the line under it reads
 *"Bringing upload-ui up to date with evidence-upload…"*, in text, with no spinner (the lens's one
-heartbeat, DESIGN-SYSTEM.md). When `refreshed` names the dialog's `worktreeId`, Start enables. When
+heartbeat, DESIGN-SYSTEM.md). When `refreshed` names the dialog's `worktreeId`, Start enables
+(the client has already turned a Go `null` into `[]` or `{}`, task 18, re-review b06-1 issue 3). When
 `refreshErrors[worktreeId]` is set, or the call fails, the dialog shows git's sentence (or the
 server's message) and **Try again**, and both stay disabled: a session told to merge a stale
 ref resolves the wrong conflict and reports success over the one it never saw.
@@ -218,6 +229,7 @@ hidden until task 22 provides it).
 |---|---|---|
 | `forecastLine pins every state` | the five sentences above from fixtures, byte for byte | a forecast shown as a percentage or a count |
 | `forecastLine names the row that causes a conflict` | `conflictsWith: [ui]` → "lands after upload-ui and then conflicts with it in …" | "conflicts" with no cause |
+| `a row that carries an undone land says so` (re-review b06-1 issue 1b) | a clean row with `carriesUndone: [{ sha: "d5f0a17…", worktreeId: db }]` → the row shows "Landing this also brings back upload-db's land (d5f0a17), which was undone: …" beside "lands clean", and Land stays enabled; `carriesUndone: []` → no such line; after `landOne` answers `broughtBack` with that entry, the toast adds "It brought back upload-db's land (d5f0a17), which was undone." and still offers Undo | a row called plain clean while landing it restores work the user undid |
 | `resolvePrompt names origin, the paths and the cause` | a conflicting entry → the prompt above; a conflict with the branch itself → no "landed first" clause | a prompt telling the agent to merge a ref it cannot see |
 | `the queue renders in the server's order with positions` | queue [b, a] → cards b, a with 1, 2 in `tabular-nums` | the desktop re-sorting the queue |
 | `reorder goes through moveWithinVisible and PUTs the whole order` | Alt+↓ on the first card → `setQueue` called with [a, b]; spy on `moveWithinVisible` called once | known defect 10's index-across-a-filter |
@@ -227,7 +239,7 @@ hidden until task 22 provides it).
 | `a lost race shows the banner and Land again` | a land rejected `branch_moved` with `details.tip` → the banner text with both shas and git's sentence; the button re-lands with the new tip | a race shown as a crash |
 | `a checked-out branch turns landing off with the path` | `checkedOutAt` set → the banner with the path; every Land disabled with its reason | a land that moves a checkout's branch |
 | `control plane down dims the last reading` | loader error `network_unavailable` with a last value → content has the stale class, Land/Mark ready disabled, banner time is the last `readAt` | a blank lens, or live-looking stale data |
-| `a conflict opens ResolveDialog and starts a session with the prompt` | (the fake's `refreshBranch` answers `refreshed: [worktreeId]`) edit the text, Start → `useCreateSession` called with the worktree and the edited prompt; no attach socket is written | writing into a running agent's PTY (3-D3) |
+| `a conflict opens ResolveDialog and starts a session with the prompt` | (the fake's `refreshBranch` answers `{ refreshed: [worktreeId], refreshErrors: {} }`, the whole `RefreshResult`; a `null` from Go becomes `{}` in task 18's `withEmpties`, pinned there, re-review b06-1 issue 3) edit the text, Start → `useCreateSession` called with the worktree and the edited prompt; no attach socket is written | writing into a running agent's PTY (3-D3) |
 | `ResolveDialog refreshes the lane before it can start` (review I4) | open → `api.refreshBranch(p, b)` called once, before any `useCreateSession`; while it is pending, Start and Open a shell here are disabled with the "Bringing … up to date" line; `refreshed` naming the lane → Start enables; `refreshErrors[w]` = `"fatal: …"` → that sentence and Try again, Start still disabled; Try again → a second `refreshBranch`; a rejected call → the server's message, Start disabled | a resolve session that merges an origin/<branch> older than the branch, then reports success while the lane stays red |
 | `the bring-in row appears only when behind` (review I5) | `bringIn: null` → no row; a clean `bringIn` with `behind: 2` → the sentence and an enabled button; `checkedOutAt` set → disabled with the checkout's reason | a diverged branch with no way in, or a button that lands into a checkout |
 | `Bring in sends both expected tips and offers no Undo` | click → `api.bringIn(p, b, conv.tip, conv.bringIn.tip)` once, then reload; the toast has no Undo action; `upstream_moved` with `details.upstream` → `lastOutcome.kind === "bring-in"`, the bring-in banner naming `conv.remote.upstream` and both shas (no "landing" and no "Land … again"), and **Bring in again** re-sends with the reloaded `conv.tip` and `conv.bringIn.tip`; `no_remote` and `nothing_to_land` → their sentences with no button (re-review b05 issue 4) | a bring-in of commits nobody saw forecast, or a bring-in refusal shown with a land's copy |
