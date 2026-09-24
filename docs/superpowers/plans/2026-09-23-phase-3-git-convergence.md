@@ -54,8 +54,9 @@ Three places hold git, and the control plane is the only process that runs git i
  │ refs/heads/evidence-upload     │ ─────────────────────────────►  ┌──────────────────────────┐
  │ refs/panacea/lanes/<w-id>      │ ◄──── lane sync: git fetch ───  │ refs/heads/evidence-upload│ ◄── agent's git,
  │ refs/panacea/archive/…         │       (control plane, host)     │ refs/remotes/origin/…     │     inside the sandbox,
- │ refs/panacea/undone/<sha>      │ ───── origin refresh ─────────► │ .git is a DIRECTORY       │     bind-mounted at
- │ refs/remotes/origin/*          │       after every land          └──────────────────────────┘     /home/dev/work
+ │ refs/panacea/undone/<sha>      │ ───── origin refresh ─────────► │ refs/remotes/upstream/<b> │     bind-mounted at
+ │ refs/remotes/origin/*          │  after land/undo/bring-in/fetch │ .git is a DIRECTORY       │     /home/dev/work
+ │                                │  (+ upstream/<b>, review I5)    └──────────────────────────┘
  └──────────────┬────────────────┘
                 │ fetch / push (control plane, host, the user's credentials)
                 ▼
@@ -115,7 +116,7 @@ stays exactly as it is (task 26 seam S3.1).
 |---|---|---|
 | `internal/gitx` | the write-capable git runner, its timeout classes, `*gitx.Error` with git's own sentence, the `Machine` seam, trailer formatting, `Locks` (the one per-project lock) | 02 |
 | `internal/lanes` | the lane index, clone create and remove, the composite catalog that lists clones beside `git worktree list` | 03, 04, 11 |
-| `internal/converge` | lane sync, observed claims, the chained forecast, land, history, undo, revert, branch create/rename/delete | 07–11 |
+| `internal/converge` | lane sync, observed claims, the one `merge-tree -z` parser, the chained forecast, land, the clone refresh, bring-in, history, undo, revert, branch create/rename/delete | 07–11 |
 | `internal/remote` | fetch (on demand and on a slow timer), ahead/behind, push | 12, 13 |
 | `internal/credstore` | the credential-store seam the Hub fills, plus a local fallback through the machine's git credential helper | 13 |
 | `internal/githost` | remote-URL recognition and the git auth header (13); one host interface with GitHub and Azure DevOps implementations (14) | 13, 14 |
@@ -176,7 +177,11 @@ Each is small, stated so a reviewer can overturn it, and none changes what the o
    branch.** It writes only a remote-tracking ref, which the agent does not write. This is what
    makes 3-D3's opening prompt ("merge `origin/evidence-upload` into this branch") true. The
    refresh fetches from the project's literal path, taken from the lane index, and never from the
-   clone's configured `origin`, which the agent can rewrite (review C3; task-02 §HGH H2).
+   clone's configured `origin`, which the agent can rewrite (review C3; task-02 §HGH H2). The same
+   one fetch (task 09's `RefreshClones`, run after a land, an undo, a bring-in and a project
+   fetch) also copies the project's `<branch>@{upstream}` into the clone as
+   `refs/remotes/upstream/<branch>`, so a lane can see and merge a teammate's pushed commits,
+   and task 09's **Bring in origin/<branch>** takes them into the product branch (review I5, Q10).
 4. **A land or an evidence record that names a brief key is refused when no resolver is
    configured.** Writing an unverifiable key into immutable history is worse than writing none. A
    land with no key records no brief trailer and renders `none`.
@@ -407,6 +412,7 @@ named task changes.
 | **Q7** | task-02 §HGH H5 makes a checkout's `.git/config` read-only inside the sandbox. An agent's `git config`, `git branch --set-upstream-to` and `git remote add` then fail there. So, by the same reasoning and not verified, do an agent's `git branch -m` (it moves `branch.<old>.*`) and husky's `prepare` script, which runs `git config core.hooksPath` when the agent runs `npm install` (task 05's `TestSandboxCannotWriteHooksPath` pins that write failing; so task 03's Create copies a relative `core.hooksPath` and the generated, ignored directory it names at create time, the directory only while no primary-worktree session is live or starting, review I11 and re-review b03 I-2). Accept that? | **Yes.** It is the only rule that closes H3's check-then-call race. The sandbox holds no git credential (A4), so it never needs a remote, and identity arrives through the session environment. The agent's `git commit`, `branch` and `checkout -b` keep working | H5 is dropped, and H3 becomes a best-effort check with a documented race. Filter drivers in a clone are then a residual host-execution risk |
 | **Q8** | task-02 §HGH H1 clears a repository's own credential helper, so a cockpit fetch or push authenticates as the account the machine's helpers (system, then global) answer for that URL, not the one a repo-local `credential.<url>.helper` chooses. On this repository that is the global helper's account, not the repo-local `lcfrai/panaceaapp` one. Accept that? | **Yes.** A repository helper is a program the sandbox may have written, and the machine's config is the only config the agent cannot write. A user who wants the repo-local account moves that key to `--global`; it is URL-scoped, so it still applies to that repository alone | task 12 lets a push run the repository's own helper when no session has ever mounted that repository's `.git`, which needs a per-repository record of mounts |
 | **Q9** | OD-2 says a lane clone's objects are hard-linked. A hard link is one file with two names, so through the bind mount an agent can clear a pack's read-only attribute and rewrite the **project's** pack, which makes OD-2's "blast radius is its own clone" false (review I8; verified on git 2.53.0.windows.2: `clone --local` gives the pack, `.idx`, `.rev` and commit-graph a link count of 2). Copy the objects instead? | **Yes: `clone --no-hardlinks`, built** (task 03 step 4, one function `cloneArgv`). The cost is disk and clone time per lane. Task 01's Step 5 measures both on `~/Projects/Panacea`; **not measured yet**. Recommend keeping the copy unless that clone is too slow on the owner's laptop | task 03 goes back to `clone --local`, and **no check closes the hole**. The files an agent rewrites are the project's from the moment it writes them, so a check at land time leaves the user's repository exposed between lands; and `git fsck --connectivity-only` cannot see the damage at all (git-fsck(1), git 2.53: "Corruption in blob objects will not be detected at all"). The nearest mitigation is a full `git fsck` of the project before each land (task 09), which checks every object's hash and is slow on a large repository. This plan's "does not claim" then says plainly: the user's object files are writable from the sandbox, and no check before a land closes that (plan re-review b02 M-1) |
+| **Q10** | Review I5: a land takes lanes only and a clone sees only the project's heads, so a teammate's pushed commits reach the product branch only through a terminal `git merge` in a checkout of it, which switches landing off (A5, Q3), and a push is rejected until then. Should phase 3 give the lens a way in? | **Yes, built**: every clone refresh also copies `<branch>@{upstream}` to `refs/remotes/upstream/<branch>` (task 09 `RefreshClones`, wired after a fetch by task 14); task 08's `bringIn` row appears when `behind > 0`; task 09's `BringIn` fast-forwards when the branch is only behind, else lands a clean merge, and refuses a conflict (A2), which resolves in a lane through `upstream/<branch>` (task 19). Task 20's `push_rejected` copy names that way | tasks 08, 09, 12, 14, 18, 19 drop the row, `BringIn`, `upstream_moved` and `AfterFetch`; the refresh copies `origin/<branch>` only; and task 20's copy says *"Merge them in a terminal checkout of evidence-upload, then switch that checkout away; the cockpit never force-pushes."* |
 
 ## File map
 
@@ -421,8 +427,8 @@ control-plane/
                                     locks.go (the one per-project lock, review I7)
                                     gitxtest/repo.go  behaviour_test.go                     01 02
   internal/lanes/                   store.go clone.go catalog.go remove.go                  03 04 11
-  internal/converge/                sync.go observe.go forecast.go land.go history.go
-                                    undo.go branches.go                                     07-11
+  internal/converge/                sync.go observe.go parse.go forecast.go land.go
+                                    bringin.go history.go undo.go branches.go               07-11
   internal/remote/                  fetch.go push.go aheadbehind.go                          08 12 13
   internal/credstore/               credstore.go githelper.go chain.go                       13
   internal/githost/                 remote.go header.go                                      13
@@ -467,7 +473,7 @@ desktop/src/
   store/selectors.ts                (p2) append                                               18
   api/poller.ts                     (p2) one call on the existing tick                        18
   components/lens/MergeLens.tsx     (task 26's stub) filled                                   19 20
-  components/lens/merge/*           LaneCard, QueueList, LandedList, RemoteBar,
+  components/lens/merge/*           LaneCard, QueueList, BringInRow, LandedList, RemoteBar,
                                     ResolveDialog, EvidenceDialog, merge.css                  19 20
   components/lens/FilesLens.tsx     (task 26's stub) filled                                   21
   components/lens/files/*           PathList, PathDiff, SpanDrawer, files.css                 21
