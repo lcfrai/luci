@@ -6,7 +6,9 @@ HA7-4); phase 4's key-source loader (ruling R6); Hub C3's local key in `client.t
 Everything the Deploy lens reads, and nothing it draws. It adds **no `setInterval`, no per-row
 `useEffect` fetch, and nothing to `partialize`** (plan §5 rules 7 and 8; 7P-13). A fetch happens on
 exactly three edges: the deploy cursor changed on a poll tick, the selected project changed, or the
-Deploy lens was opened. It is phase 2's poller that ticks; this code only listens.
+Deploy lens was opened. It is phase 2's poller that ticks; this code only listens. (Task 16's Ship
+readiness load, added to this loader, has a fourth edge of its own — the branch's git facts moving
+on the good tick, or Push completing — because a push bumps no deploy cursor; review I7.)
 
 **Files:**
 - `desktop/src/deploy/types.ts` (new) — the wire types below, complete

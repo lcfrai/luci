@@ -1,6 +1,8 @@
 ### Task 16: Desktop — the Ship bar and the held acts
 
-**Half:** 7b. **Hours:** 3. **Depends on:** 15, 09, 10.
+**Half:** 7b. **Hours:** 3. **Depends on:** 15, 09, 10. **Elsewhere:** phase 3 task 18
+(`addGoodTickListener`, `selectConvergence`, `useConvergenceLoader`) for readiness edge 4 (review
+I7); phase 3 task 12 for Push.
 
 Ship, rollback and rebuild are **held for five seconds with Undo, not confirmed in a dialog**
 (DESIGN-SYSTEM *Interaction standards*: *"Optimistic mutation with an Undo window, not confirm
@@ -24,7 +26,8 @@ while sending: the button's label reads *"Sending…"* and the row appears when 
 - `desktop/src/deploy/ActBanners.tsx` (new) — the outcome of the last act
 - `*.test.tsx` beside each
 - `desktop/src/deploy/DeployLens.tsx` (modified, task 14's) — mounts `ShipBar` above the environment card, and passes `RollbackButton` / `RebuildButton` into task 17's `ReleaseDrawer` `acts` slot
-- `desktop/src/deploy/types.ts`, `api.ts`, `deploySlice.ts`, `loader.ts` (modified, task 13's) — `ShipReadiness`, `DeployApi.shipReadiness(projectId, branchId)`, `deployReadiness`, and the readiness load on the loader's three edges
+- `desktop/src/deploy/types.ts`, `api.ts`, `deploySlice.ts`, `loader.ts` (modified, task 13's) — `ShipReadiness`, `DeployApi.shipReadiness(projectId, branchId)`, `deployReadiness`, and the readiness load on its four edges (below; review I7)
+- `desktop/src/deploy/DeployLens.tsx` also mounts phase 3's `useConvergenceLoader("merge")` (phase 3 task 18), so the selected branch's convergence is read on the existing good tick while the lens is open
 
 #### Contracts — complete
 
@@ -85,6 +88,31 @@ the row shows what it actually took.
 Label: *"Ship"*; *"Ship anyway"* in `--need` on a collision; *"Sends in 4 s · Undo"* while held;
 *"Sending…"* while sending.
 
+#### When readiness reloads — four edges, no timer (review I7)
+
+`ahead`, `behind` and the tip are phase 3's **local** git facts (task 09's `Branch`, plan 7P-7).
+A push changes them and bumps no deploy cursor, so the first three edges alone leave Ship reading
+*"2 commits are not pushed"* after the user pressed **Push** beside it. Readiness for the selected
+branch is loaded, once per edge and never stacked behind a load in flight, when:
+
+1. the deploy cursor changes on a poll tick (task 13);
+2. the branch selection changes;
+3. the Deploy lens opens;
+4. **the branch's git facts move.** On each good poll tick — phase 3's `addGoodTickListener`
+   (phase 3 task 18), the existing tick, never a new interval — the loader reads
+   `selectConvergence(branchId)`. When its ready value's `tip`, `remote.upstream`, `remote.ahead`
+   or `remote.behind` differs from the four values the last readiness load saw, it reloads
+   readiness. The value is fresh because `DeployLens` mounts phase 3's own
+   `useConvergenceLoader("merge")` for the selected branch while it is open (reuse, not a copy:
+   phase 3's hook, unchanged). A `loading` or `error` value is not a move. **And Push
+   completing:** the Push button beside Ship (phase 3's `pushBranch`) reloads readiness when it
+   resolves, and calls the convergence loader's `reload()`, so Ship turns on without waiting for
+   a tick. A rejected push reloads nothing.
+
+A tick with no move sends nothing, so the one-clock rule holds: readiness has no clock of its own.
+If phase 3 task 18 is not merged, edge 4 is off and the Push edge still works (Push is shown only
+once phase 3 task 12 is merged, row 5 above); the loader test pins both.
+
 **Cancel run** is not held — it is the undo of a Ship already sent. It calls `cancel` once;
 `already_finished` shows *"The build had already finished."*
 
@@ -142,14 +170,19 @@ branch instead."*.
 | `roll back follows what is serving` | environment `production` with newest `d2` `build "failed"` and `current {source:"deployment", deploymentId:"d1"}`; rows `d1` (`succeeded`, `isCurrent:true`) and `d0` (`succeeded`) → **Roll back** is not offered on `d1` (*"This is what `production` is serving."*) and is offered on `d0`; with `current {source:"rollback", deploymentId:"d0"}` and the `rollback` row current → `d0`'s run row (`isCurrent:false`) says *"This is what `production` is serving."* and `d1` offers Roll back (review I3) | reading "current" as the newest row, so a failed build hides Roll back on the release that really serves, or a rollback's target offers a rollback to itself |
 | `rebuild needs a Hub release` | a 40-hex row with `release: null` → **Rebuild** disabled with *"Panacea recorded only a label for this release's branch. Ship the branch instead."*; with a release → offered (b02 round 2, R8) | offering a Rebuild the control plane can only refuse |
 | `cancel not held` | pressing Cancel run calls `cancel` at once | a 5 s delay on the one act that must be immediate |
-| `readiness on the three edges` (`loader.test.ts`) | a cursor change, a branch selection and a lens open each call `api.shipReadiness` once for the selected branch; 60 s of fake time with none of them → zero calls | a readiness poll on a timer — a second clock (DESIGN-SYSTEM one-clock rule) |
+| `readiness on the four edges` (`loader.test.ts`) | a cursor change, a branch selection and a lens open each call `api.shipReadiness` once for the selected branch; a good tick whose convergence has `remote.ahead` 2 → 0 calls it once; 60 s of fake time and ten good ticks with the same convergence value, or with it `loading`, → zero calls | a readiness poll on a timer — a second clock (DESIGN-SYSTEM one-clock rule) — or one fired on every tick |
+| `push, then Ship turns on with no reselect` (`ShipBar.test.tsx`) | readiness `{ready:false, reason:"unpushed"}` → Ship disabled with Push beside it; press Push, `pushBranch` resolves, `shipReadiness` now answers `{ready:true}` → Ship is enabled, with no branch selection, lens reopen or cursor change in between; `pushBranch` rejecting `push_rejected` → no second `shipReadiness` call (review I7) | readiness reloaded only on the cursor, selection and lens edges, so Ship keeps saying *"2 commits are not pushed"* after the push |
+| `a push elsewhere turns Ship on on the next tick` (`loader.test.ts`) | readiness `unpushed` at `{tip:T, ahead:2}`; the store's convergence becomes `{tip:T, ahead:0}` (a terminal `git push`) and a good tick fires → one `shipReadiness` call, and Ship is enabled; a tick where only `readAt` changed → none (review I7) | a Push-button-only edge that misses a push from the terminal |
 | `readiness failure keeps the bar honest` | `shipReadiness` rejects `upstream_unavailable` → `readiness null`, Ship off with the stale line, the old readiness not shown | a Ship button left on from a readiness the server no longer vouches for |
 
 #### Steps
 
 - [ ] Extend task 13's `loadDeployView` to also load task 09's `ship-readiness` for the selected
-  branch, on the same three edges (cursor, selection, lens open) — never on a timer. The slice gains
-  `deployReadiness: Record<branchId, ShipReadiness>`, not persisted.
+  branch, on the four edges above (cursor, selection, lens open, and the branch's git facts moving
+  on the good tick or Push completing; review I7) — never on a timer. The slice gains
+  `deployReadiness: Record<branchId, ShipReadiness>`, not persisted, and the loader keeps, per
+  branch, the `{tip, upstream, ahead, behind}` its last readiness load saw (in memory, not in the
+  store).
 - [ ] Tests first; `useHeldAct`; `ShipBar`; `ReleaseActs`; `ActBanners`.
 - [ ] `npx tsc --noEmit`, `npx vitest run`; commit by pathspec with *"Visual acceptance pending the
   owner (OD-12)."*
@@ -169,3 +202,9 @@ and wait, see the run appear; roll back and read the warmth line. **Unverified u
 - That the pin preview is the pin. The Hub takes the pin at reserve (G1); the preview reads the same
   rule a moment earlier, and a teammate's edit in between makes the row differ — which the row then
   shows truthfully.
+- That mounting phase 3's `useConvergenceLoader("merge")` in the Deploy lens is cheap (edge 4,
+  review I7). It is the load the Merge lens already makes on every good tick (a convergence read,
+  and history only when the tip moved). Its cost in the Deploy lens is **unmeasured**. If phase 3
+  later offers a lighter `what` that reads only `remote` and `tip`, the swap is one argument.
+- That edge 4 sees a push the moment it happens. It sees it on the next good tick after phase 3's
+  convergence read reflects it; a push from this lens's Push button is seen at once.
