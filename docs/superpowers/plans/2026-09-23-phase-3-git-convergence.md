@@ -401,7 +401,7 @@ part file; task 18 restates them as TypeScript.
 | **G2** | Phase 2 task 26 lands: `components/lens/FilesLens.tsx` and `MergeLens.tsx` exist and `AppShell.tsx` is closed (seam SX.1). **Verified absent on 2026-09-23**: `desktop/src/components/lens/` holds only `LensPlaceholder.tsx`, and `AppShell.tsx:44-58` still routes `files` and `merge` to `LensPlaceholder phase={3}` | tasks 19–21 | the desktop half waits. It never edits `AppShell.tsx`: that reopens the four-way collision `dependency-graph-and-order.md` §2.2 counts |
 | G3 (soft) | Phase 4's `provenance` slice zero: a `briefref.Resolver` implementation and `DefinitionOfDone` | the brief key on a land, evidence recording, the DoD above the queue | lands record no brief (`none`); evidence recording answers `brief_unresolvable`; the Merge lens renders the DoD slot's honest empty state |
 | G4 (soft) | The Hub's credential store (`credstore.Store`) | push and PR with a stored token | push uses the machine's git credential helper; PR creation uses the git-helper fallback (task 13) or says there is no credential |
-| **G5** | Phase 2's resolvers (`GitIdentity`, `GitGlobalFiles`, `GitLineEndings`) run `--global`/`--system` outside any repository, never `-C <worktree>` (R4.6; the X-1 primary half, phase-2 stream; was open question Q14). Named G5 because G3 is phase 4's | task 05, and everything that starts a session in a lane | stop and report: a lane session would run host git in a directory the sandbox writes (R4.2) |
+| **G5** | Phase 2's resolvers (`GitIdentity`, `GitGlobalFiles`, `GitLineEndings`) run `--global`/`--system` outside any repository, never `-C <worktree>` (R4.6; the X-1 primary half, phase-2 stream; was open question Q14). Named G5 because G3 is phase 4's | tasks 04 and 05, and everything that starts a session in a lane. Task 04 is the first: after it the catalog lists lanes and `sessionLocate` finds them, so phase 2's `gitIdentityResolver` would run `git var` in a lane on create and restart (review r4-3 M-4) | stop and report: a lane session would run host git in a directory the sandbox writes (R4.2) |
 
 ### What phase 3 asks of the Hub (Phase H) — no Hub contract existed on 2026-09-23
 
@@ -435,7 +435,7 @@ phase 3 adapts in one file.
 |---|---|---|---|
 | **S3-P8.1** the lane git runner contract | `testdata/gitrunner/*.json`; `control-plane/internal/lanegit` (`Runner`, `Lanes.For`) | phase 8's `machined` serves task 24's contract in the machine pod: the `/git/v1/` wire (bearer auth, the five ops, the error envelope, the four limits; `refs`
 takes `Merged` from `--merged` only; `bundle` admits `HEAD` in `Refs`, which task 11's archive
-through `ArchiveLane` carries for a detached HEAD, review r4-2 C-1), with `testdata/gitrunner` as the goldens, which are **the only shared artifact** (`sandboxd/internal/gitrunner` is not importable from `control-plane`: Go's internal rule, and separate modules; `machined` vendors `sandboxd` or writes its own server against the goldens, phase 8's choice); lane work crosses as a bundle the host verifies (R4.4). The host's Kata half is a `Lanes.For` answering a `Runner` at `machined`. `gitx.Machine` stays project-only | run lane git on the host through `gitx.Machine` or §HGH, which R4.2 forbids and `ErrLaneDir` refuses; or take P8-D7's "phase 3's local git runner unchanged" at its word |
+through `ArchiveLane` carries for a detached HEAD, review r4-2 C-1; `refs` takes prefixes such as `refs/heads`, never a glob; `fetch` first deletes the dangling non-symref refs in its own `refs/remotes/{origin,upstream}/` namespace and answers 409 `lane_broken` for a bad object outside it, review r4-3 C-1 and I-2), with `testdata/gitrunner` as the goldens (`validation/` holds a case for every Validation rule), which are **the only shared artifact** (`sandboxd/internal/gitrunner` is not importable from `control-plane`: Go's internal rule, and separate modules; `machined` vendors `sandboxd` or writes its own server against the goldens, phase 8's choice); lane work crosses as a bundle the host verifies (R4.4). The host's Kata half is a `Lanes.For` answering a `Runner` at `machined`. `gitx.Machine` stays project-only | run lane git on the host through `gitx.Machine` or §HGH, which R4.2 forbids and `ErrLaneDir` refuses; or take P8-D7's "phase 3's local git runner unchanged" at its word |
 | **S3-P8.2** `lanes.Store` location | `PANACEA_APP_WORKTREES_DIR` | phase 8 puts cloud clones on the pod's volume, behind S3-P8.1 | move local clones under the projects root (the scanner would list each one as a project) |
 | **S3-P7.1** Session trailers in a shipped range | `git log --format=%(trailers:key=Panacea-Session)` | phase 7's manifest lists the sessions that produced a release (`7-D3`) | infer a session from a commit's time |
 | **S3-P7.2** Merge-link trailers | `Panacea-Brief`/`Panacea-Brief-Digest` on first-parent merges | phase 7 shows "reviewed against rev N at land" | parse the key (P5) |
@@ -490,7 +490,9 @@ control-plane/
                                     gitxtest/repo.go (+ Spy)  behaviour_test.go             01 02
   internal/lanes/                   store.go clone.go catalog.go remove.go                  03 04 11
   internal/lanegit/                 client.go pool.go bundle.go wire.go behaviour_test.go
-                                    lanegittest/fake.go (the host side of R4.3, R4.4)        24
+                                    lanegittest/fake.go validate.go (the host side of R4.3,
+                                    R4.4; validate.go is the Fake's copy of the runner's
+                                    Validation, held to the goldens)                         24
   internal/converge/                sync.go observe.go parse.go forecast.go land.go
                                     bringin.go history.go undo.go branches.go inspect.go    07-11
   internal/remote/                  fetch.go push.go aheadbehind.go                          08 12 13
@@ -530,6 +532,8 @@ sandboxd/
   cmd/sandboxd/main.go              (p2) -git-worktree flag, default /home/dev/work;
                                     serve_posix.go, serve_other.go (p2) pass it through       24
 testdata/gitrunner/*.json           the wire golden fixtures both modules read               24
+testdata/gitrunner/validation/      one case per Validation rule: the runner's test 7 and
+                                    lanegittest.Fake both run them (review r4-3 C-1)         24
 images/sandbox/
   Dockerfile                        (p2) COPY githooks, chmod                                05
   githooks/dispatch                 the one script; githooks/<hook-name> → dispatch          05
@@ -587,10 +591,10 @@ under three.
 | 01 | Verify the git and sandbox behaviours the plan rests on; measure clones on this laptop (R12) | — | 2 h |
 | 02 | `gitx`: the write runner, timeout classes, `*gitx.Error`, the `Machine` seam, trailers, `Locks`, a real-git test helper | 01 | 2 h |
 | 03 | `lanes`: the lane index, clone create, identity copy, the composite catalog; the `briefref` interfaces | 02 | 3 h |
-| 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1 | 2 h |
+| 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1, G5 | 2 h |
 | 05 | Git in the sandbox for clones: every session in a lane (R4.1), `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1, G5; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
 | 06 | The linked-worktree notice deleted (R4.1): `kind` in `types.ts`, the shared-index note (3-D2) | 04, 05, G1 | 2 h |
-| 24 | sandboxd git runner: the /git/v1/ RPC on the attach token, status/refs/bundle/fetch/diff, bundle verify and limits, the host client and runner pool with `Drop`, `Live` and the `Dial` test seam (R4; review r4-1) | 02, 04 | 5 h |
+| 24 | sandboxd git runner: the /git/v1/ RPC on the attach token, status/refs/bundle/fetch/diff, bundle verify and limits, the host client and runner pool with `Drop`, `Live` and the `Dial` test seam (R4; review r4-1); the ref repair, `lane_broken` and the shared Validation goldens (review r4-3) | 02, 04 | 5.5 h |
 | 07 | Lane sync and observed claims; the sweep's tip-change clone refresh (review I4) | 04, 24 | 3.5 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 (24 through 07) | 3 h |
 | 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4), a bundle into each lane's runner (R4.5) | 08, 24 | 5 h |
@@ -609,9 +613,11 @@ under three.
 | 22 | Lifecycle verbs: new and remove worktree, branch create/rename/delete, palette; the four phase 2 promises of phase 3 retired (review Minor 10 found the fourth) | 04, 06, 11, 18, 19 | 3 h |
 | 23 | Proof: the end-to-end script on real git and Docker, the owner's batched checklist, the seams doc | all | 2 h |
 
-**Total: 69 h** over 24 tasks (64 h before task 24's 5 h, ruling R4; review r4-1 added the
+**Total: 69.5 h** over 24 tasks (64 h before task 24's 5.5 h, ruling R4; review r4-1 added the
 pool's `Drop`, `Live` and `Dial` seam, 1 h; review r4-2 added `ArchiveLane` to task 24 and the
-claim basis to task 09, half an hour each).
+claim basis to task 09, half an hour each; review r4-3 added the runner's ref repair,
+`lane_broken` and the shared Validation goldens to task 24, half an hour, and `Syncer.Broken`
+and the archive basis inside tasks 07, 09 and 11's hours).
 
 **Order.** 01 → 02 → 03 → 04 → then three lanes that can run in parallel worktrees:
 **(a)** 05 → 06; **(b)** 24 → 07 → 08 → 09 → 10, then 15 and 16 → 17 (24, the runner, is
