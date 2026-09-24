@@ -507,4 +507,324 @@ Each feature is one row or one short block:
   export.
 - **Src:** https://linear.app/docs/exporting-data
 
+## 12. Linear's own AI: Linear Agent, Skills, Loops, Code Intelligence, coding sessions, Diffs
+
+**Headline for the synthesizer.** As of 2026-09-25 Linear is no longer only a tracker with AI
+sprinkled on. Its own docs describe a first-party agent that runs **coding sessions in a
+managed sandbox**, opens draft PRs, and hosts **code review inside Linear**. That overlaps our
+Develop phase directly. Read §12.4 to §12.6 as competitive, not as nice-to-haves.
+
+### 12.1 Linear Agent (first-party assistant)
+- **Does:** a chat assistant with workspace context (teams, initiatives, projects, milestones,
+  cycles, issues and relations, comments, activity history, documents). It creates and updates
+  issues, projects, milestones and initiatives; summarises threads and customer feedback;
+  answers questions about the workspace; posts and edits comments; drafts docs, status updates
+  and stakeholder messages; recommends ("what should I prioritise this week?"). Keeps **chat
+  history**. Acts **within the invoking user's permissions only**.
+- **Reach:** `Cmd/Ctrl+J` chat (can be the **default home view**); `@Linear` in any comment,
+  description or document; `@Linear` in Slack (and Microsoft Teams, per the coding-sessions
+  page).
+- **Control:** workspace and personal **guidance** (instructions); admin kill switch at
+  Settings → AI → Linear Agent. Admins connect **MCP servers** to extend it
+  (`/docs/connect-mcp-servers`, not read separately).
+- **Src:** https://linear.app/docs/linear-agent
+
+### 12.2 Skills
+- **Does:** save a conversation that worked as a reusable, named shortcut; personal skills or
+  team-shared skills for repeatable processes.
+- **Src:** https://linear.app/docs/linear-agent (no separate page found; details UNVERIFIED)
+
+### 12.3 Loops (paid plans)
+- **Does:** standing agent automations. **Triggers:** events on issues (status, priority,
+  assignee, cycle, project, labels), projects, initiatives, cycles and **releases**; schedules
+  (hourly to yearly, timezone-aware); triage loops for issues entering Triage that match
+  conditions. **Can:** follow written instructions, read and post in Slack, use Code
+  Intelligence, **start coding sessions that open draft PRs**, call MCP connectors (GitHub,
+  Notion, Sentry named), create, update and comment on issues, write summaries into documents.
+- **Permissions per loop:** which teams it reads and writes; web access; code intelligence;
+  coding sessions; run on externally created issues or not; write beyond the triggering object;
+  write to synced threads.
+- **Operate:** run history for audit, version history with restore, enable, disable, run now.
+  Loops that only set fields cost no AI credits; loops that use the agent draw on credits.
+- **Examples given:** bug triage with root-cause investigation; post-incident RCA with
+  follow-up issues; customer message after close; weekly project review to Slack.
+- **Good because:** "the automation" and "the agent" are one object with an explicit,
+  reviewable permission list and an audit trail per run.
+- **Src:** https://linear.app/docs/loops
+
+### 12.4 Code Intelligence (Business, Enterprise)
+- **Does:** grounded questions over connected GitHub repos ("how does auth work", "who wrote
+  payments", "when was search added") with links to the files, commits and PRs behind the
+  answer. Permission-aware (you see only repos you can reach in GitHub); admins pick which repos;
+  admins can extend access to non-GitHub members (support, sales, product). Not for guests.
+- **Src:** https://linear.app/docs/code-intelligence
+
+### 12.5 Coding sessions (Basic, Business, Enterprise; AI credits)
+- **Does:** delegate an issue and Linear runs an implementation session in **a managed
+  development sandbox** (Python, Ruby, Go, Rust, Java, Node; dependencies from lockfiles), which
+  drafts a **pull request** with diffs and **verification artifacts (screenshots, recordings)**.
+  Only explicit implementation asks start coding; "investigate" or "plan" asks do not.
+- **Start from:** issue delegation; `@linear` in Slack or Teams; triage automations and loops.
+- **Models (as listed on the page, read via summary, UNVERIFIED exact list):** a GPT default,
+  with Claude (Opus 5.5, Fable 5, Opus 5, Opus 4.8, Sonnet 5), other GPT variants and GLM
+  selectable by the workspace owner.
+- **Environments:** one environment per repository: runtimes and versions, env vars, **secrets
+  held apart** from visible vars, preparation scripts, guidance files, agent and model per repo.
+  Requires the user's GitHub account linked.
+- **Steer:** open the session to steer or follow up, or let it run; "you'll be notified when your
+  input is needed". Review in the Reviews tab; approve, or **delegate review fixes back** to the
+  agent. No explicit stop control documented (UNVERIFIED).
+- **Credits:** a shared workspace pool, launched at $20 per active user, top-ups by admins,
+  credits expire after 12 months, optional auto-replenish (Settings → AI & Agents).
+- **Src:** https://linear.app/docs/coding-sessions, https://linear.app/docs/loops,
+  https://linear.app/docs/ai-credits (listed; not read separately)
+
+### 12.6 Diffs and Reviews (code review inside Linear)
+- **Does:** a Reviews area (`G` then `R`; `O` then `R`) with "For me" and "Created" tabs, group by
+  status, author or repo. Unified or split diff (`Cmd/Ctrl+B`), **syntax-aware structural
+  highlighting**, files categorised by `.gitattributes` (implementation, tests, docs, generated,
+  localisation, assets). Inline threads and reactions; approve, request changes or comment,
+  **synced both ways with GitHub**; merge from Linear with a chosen merge strategy. Replace
+  `github.com` with `linear.review` in a PR URL to open it in Linear.
+- **Guided Reviews (Business, Enterprise):** AI splits a large PR into sections, core
+  implementation first, supporting and low-signal changes grouped after, each with an
+  explanation.
+- **Agent attribution:** coding agents (Claude Code, Codex, Linear, Pi, OpenCode named) can post
+  review comments with **agent name, avatar and model** shown. **Risk scoring:** connected tools
+  can attach a low-to-very-high risk rating with reasons to a PR.
+- **Settings:** notifications for comments, reviews, team review requests (teams of 10 or
+  fewer), failed checks, merge-queue removals; bot filtering; colour-blind diff theme;
+  auto-ready draft PRs when review is requested; enforce **signed commits** for session commits;
+  "open issue in" Claude Code, Cursor or a custom script.
+- **Good because:** the issue, the agent's PR and the review are one thread in one tool.
+- **Src:** https://linear.app/docs/diffs, https://linear.app/docs/code-and-reviews,
+  https://linear.app/docs/open-issues-with-custom-scripts (listed; not read)
+
+## 13. Linear for Agents: the third-party agent platform
+
+### 13.1 Agents as workspace members (user view)
+- **Does:** admins install third-party agents from the integrations directory and choose which
+  teams each may access. Agents are **not billable seats**, cannot sign in, reach admin, or
+  manage users. Anyone on those teams can `@mention` an agent in a comment or description, or
+  **delegate** an issue to it.
+- **Delegate versus assignee:** delegating does not transfer ownership. "The human assignee
+  remains responsible for the issue, even after delegation." Delegated issues stay in the
+  human's My Issues; views, filters and Insights can slice by **Delegate**; each agent has a
+  profile page of its contributions.
+- **Guidance:** Settings → Agents → Additional guidance, Markdown with history; team guidance
+  overrides workspace guidance (for example: which repo, commit conventions, review rules).
+- **Good because:** a clean accountability rule (a human always owns it) that makes letting an
+  agent loose socially safe.
+- **Src:** https://linear.app/docs/agents-in-linear, https://linear.app/docs/assigning-issues
+  (listed; not read)
+
+### 13.2 Agent developer model (API)
+- **App actor:** an OAuth app installed with `actor=app` gets its own identity per workspace;
+  scopes `app:assignable` (can be delegated to) and `app:mentionable` (can be mentioned); cannot
+  hold admin scope. `PermissionChange` webhook on access changes.
+- **AgentSession:** created automatically on mention or delegation (or proactively by the agent
+  on an issue or comment). States, **derived by Linear from the latest activity**, never set by
+  the agent: `pending`, `active`, `awaitingInput`, `error`, `complete`, `stale`.
+- **Webhooks:** `created` carries a ready-made `promptContext` (issue, comments, guidance) plus
+  structured fields; `prompted` carries a new human message. Receiver must answer within
+  **5 seconds**; the agent must emit a first activity within **10 seconds**, then may keep
+  emitting for up to 30 minutes between activities (timeout recoverable).
+- **AgentActivity types:** `thought`, `action` (with "Searching" → "Searched" progression and a
+  result), `elicitation` (moves the session to awaitingInput), `response` (done), `error` (with
+  remediation), `prompt` (human only). `thought` and `action` can be **ephemeral** (replaced by
+  the next activity). Activities are immutable records, unlike comments.
+- **Plans (preview):** a session checklist of steps with `pending`, `inProgress`, `completed`,
+  `canceled`; the agent replaces the whole plan on each update.
+- **externalUrls:** labelled links out (for example to the agent's own UI or the PR); adding a PR
+  URL "unlocks PR-specific features".
+- **Signals:** human-to-agent `stop` (halt now, no more code changes or API calls, then emit a
+  final response or error). Agent-to-human `auth` (render an account-link button, optionally only
+  for one user) and `select` (render option buttons; free-text answers still allowed).
+- **Repository suggestions:** `issueRepositorySuggestions` ranks the repos an agent can reach
+  against the issue, guidance and signals, with confidence scores.
+- **Best practice:** acknowledge instantly with a thought; move the issue to the first Started
+  status; set yourself as delegate if none; leave assignment to humans; read history from
+  activities, not comments.
+- **Good because:** a small, strict protocol lets any vendor's agent look native: one timeline
+  grammar, one state machine, one stop button.
+- **Src:** https://linear.app/developers/agents, https://linear.app/developers/agent-interaction,
+  https://linear.app/developers/agent-signals, https://linear.app/developers/agent-best-practices
+
+### 13.3 Agent partners named on the public agents page
+- Linear Agent (first party), Cursor, OpenAI Codex, Devin, Sentry (Seer root-cause and fix),
+  ChatPRD (requirements), Oz by Warp, Factory, Charlie (TypeScript PRs), Ranger (bug formatting,
+  test plans), Tembo (routes work to any coding agent). Claude Code appears as a supported
+  MCP client and a review-comment author (§12.6), not in this partner list (read via summary;
+  UNVERIFIED completeness).
+- **Positioning lines (paraphrased):** agents are full workspace members; delegate the issue,
+  not the accountability; humans stay in the loop with visibility into agent actions and
+  reasoning.
+- **Src:** https://linear.app/agents
+
+### 13.4 Linear MCP server
+- **Does:** a hosted remote MCP server at `mcp.linear.app/mcp` (Streamable HTTP; deprecated SSE
+  fallback). Auth: OAuth 2.1 with dynamic client registration, or a bearer token or API key;
+  Okta-managed auth for enterprise clients. A **read-only** endpoint (`/mcp/readonly`) or `read`
+  scope. Tools find, create and update issues, projects, comments and more (tool list not
+  enumerated on the page). Setup guides for Claude, Claude Code, Codex, Cursor, Jules, VS Code,
+  v0, Windsurf, Zed.
+- **Good because:** any agent, including an unmodified Claude Code, can read and write the
+  tracker with the user's own permissions and no custom integration.
+- **Src:** https://linear.app/docs/mcp
+
+### 13.5 AI features as marketed (product page)
+- Linear Agent (context across projects, issues, customer requests, docs and code); create
+  issues from a Slack or Teams conversation; draft project updates; **plan the next cycle**
+  (reads the backlog, finds themes, suggests items); check project status (at-risk work);
+  reusable **skills** (chat or slash command); triage automation; Triage Intelligence;
+  automated rules; coding sessions ("streams reviewable diffs"); Guided Reviews; codebase Q&A;
+  MCP server.
+- **Src:** https://linear.app/ai
+
+### 13.6 Product Intelligence (name history)
+- "Product Intelligence" shipped as a technology preview on 2025-08-14 and is now called
+  **Triage Intelligence** (§3.4): routing suggestions, likely duplicates, related issues, hover
+  for reasoning, guidance at workspace, team and sub-team level. Auto-apply followed on
+  2025-09-19. "Similar issues" in the owner's list maps to this duplicate and related-issue
+  detection; no separate "similar issues" feature was found.
+- **Src:** https://linear.app/changelog/2025-08-14-product-intelligence-technology-preview,
+  https://linear.app/changelog/2025-09-19-auto-apply-triage-suggestions (title from search
+  result only; page not opened)
+
+### 13.7 Recent agent trajectory (changelog, newest first)
+- 2026-09-14: loops react to workspace changes, edit documents, post to Slack; callout blocks.
+- 2026-09-03: **priority inbox**; agent drafts whole projects; document editing on mobile.
+- 2026-08-20: coding sessions get configurable environments, **browser testing**, and
+  published pricing (token charges plus sandbox runtime fees; amounts not captured, UNVERIFIED).
+- 2026-08-13: teams can lead initiatives; private teams; MCP with Okta-managed identity.
+- 2026-07-30: code review on mobile; Guided Reviews for larger PRs; GitHub team review requests.
+- 2026-07-23: document **author attribution**; agent edits with change highlighting; issue
+  sidebar pins diffs at top.
+- 2026-07-20: **Loops** launched.
+- 2026-07-02: initiative statuses, priority, label groups; MCP via Okta; shareable filtered views.
+- 2026-06-18: agent-drafted project updates; **desktop tabs** with per-tab history; private
+  sub-teams.
+- 2026-06-11: **coding sessions** in the cloud, using **Claude Code and Codex** under the hood;
+  review diffs, iterate in-thread with preview links. Linear says it resolves roughly 30% of
+  its own incoming bug reports this way, mostly first pass. No multi-agent coordination
+  described.
+- 2026-05-14: Code Intelligence. 2026-04-23: Linear Agent MCP support. 2026-03-24: Linear Agent
+  introduced.
+- **Src:** https://linear.app/changelog, https://linear.app/changelog/2026-06-11-coding-sessions;
+  other entry URLs from a web search result list (titles only)
+
+**Gap worth naming for the synthesizer (observation, not a Linear claim):** nothing read
+describes agents from **different owners coordinating with each other**. Each Linear agent
+session is one human, one agent, one issue. Cross-owner agent negotiation (OD-16) has no
+counterpart in Linear's public material as read today.
+
+## 14. Integrations
+
+### 14.1 GitHub
+- **Linking:** copy a branch name containing the issue ID (`Cmd/Ctrl+Shift+.`); optional
+  **auto-assign and move to Started when you copy the branch**. Magic words in PR title or body:
+  closing words (close, fix, resolve and variants) advance on merge; non-closing words (ref,
+  part of, contributes to) link only; "relates to" associates. `TEAM-NEW` in a PR body creates
+  and links a new issue (AI writes title and description on paid plans). **Commit linking** by
+  webhook: push moves to In Progress, reaching the default branch moves to Done.
+- **Workflow automations** (Settings → Team → Workflows & automations): per PR stage Drafted,
+  Open, Review requested, **Ready for merge** (checks pass), Merged. **Branch-specific rules** by
+  regex (merge to `staging` → In QA; `main` → Deployed).
+- **GitHub Issues sync:** one-way (many repos into one team) or two-way (one repo per team);
+  syncs title, description, status, assignees, labels, sub-issues, comments. Personal account
+  linking for correct attribution. **Linkback** comment on the PR with the issue title and
+  description (can be hidden for private teams). GitHub autolinks for issue IDs.
+- **Enterprise:** GitHub Enterprise Cloud (`*.ghe.com`) integration; GitHub Enterprise Server
+  with reduced features (PR linking and description magic words only). One Linear workspace per
+  GitHub org.
+- **Good because:** the tracker updates itself from the developer's normal git actions; nobody
+  drags cards.
+- **Src:** https://linear.app/docs/github (the `/docs/github-integration` URL returned only a
+  heading)
+
+### 14.2 GitLab
+- MR linking by branch name, MR title or magic words (several issues per MR). Status automations
+  on Draft, Open, Review requested, Ready for merge, Merged, with branch-specific rules.
+  GitLab.com and self-managed (must be publicly reachable; 15.6 or later). No GitLab issue import.
+- **Src:** https://linear.app/docs/gitlab
+
+### 14.3 Slack
+- Create an issue from any message (template aware); `@Linear` natural-language filing ("file a
+  bug, assign me"); `/linear` quick create. **Rich unfurls** with inline actions (assign,
+  comment, subscribe); bare issue IDs get a threaded reply. **Synced threads** both ways, with
+  close, cancel and duplicate mirrored. Channel notifications per team, project, initiative or
+  view; personal DMs; auto-created project channels. Linear Agent in channels and group DMs with
+  admin guidance. Loops can read and post. Slackbot MCP connection. Asks for non-users (§10.2).
+  Private team content never unfurls.
+- **Src:** https://linear.app/docs/slack
+
+### 14.4 Figma
+- Paste a frame link to get a preview snapshot (static; refresh on demand). A **Linear plugin
+  inside Figma**: select elements to create linked issues, link existing issues, edit team,
+  status, assignee and project from Figma, list all issues linked to the file and jump between
+  frame and issue.
+- **Src:** https://linear.app/docs/figma
+
+### 14.5 Sentry
+- Create or link Linear issues from Sentry (prefilled). Completing the Linear issue **resolves
+  the Sentry issue**; assignee changes sync when emails match. Sentry icon on list and board rows.
+  Public teams only; one Sentry org; cloud only. Sentry's Seer agent is a Linear agent partner.
+- **Src:** https://linear.app/docs/sentry
+
+### 14.6 Zendesk (Business, Enterprise)
+- Ticket sidebar app to create or link issues; when the issue completes or cancels, the ticket
+  **reopens with an internal note** so the support agent can tell the customer. Linear Agent can
+  read a whole support conversation and file the right issues. Up to 10 templates; customer
+  requests created; duplicates consolidate onto the canonical issue.
+- **Src:** https://linear.app/docs/zendesk
+
+### 14.7 Intercom (Business, Enterprise)
+- Create and link issues from conversations; linked issues shown in Intercom's sidebar (ID,
+  status, assignee). Linear Agent reads the whole conversation (messages, replies, attachments)
+  to draft the issue. Customer requests created from contact and company data. **Internal note
+  posted back** when the issue completes or cancels. Filter views to Intercom-linked issues.
+- **Src:** https://linear.app/docs/intercom
+
+### 14.8 Microsoft Teams
+- `@Linear` in Teams: file and assign bugs, ask project status, batch ("an issue per feature
+  request in this thread"). Project updates posted to a Teams channel. Members only (guests in
+  shared channels ignored); shared channels unsupported.
+- **Src:** https://linear.app/docs/microsoft-teams
+
+### 14.9 Jira (coexistence sync)
+- One-way (Jira-created issues mirror into Linear, updates both ways) or two-way. Syncs title,
+  description, assignee, creator, priority, status, labels, due date; Jira epics become Linear
+  projects. Framed for pilots and gradual migration.
+- **Src:** https://linear.app/docs/jira
+
+### 14.10 Gong (Enterprise)
+- Automatically files issues from **customer call recordings** (customer-facing calls over 10
+  minutes), with speaker-attributed transcript excerpts and a link to the exact moment; lands in
+  Triage; non-actionable items filtered out.
+- **Src:** https://linear.app/docs/gong
+
+### 14.11 Salesforce (Enterprise add-on)
+- Create issues from cases (with templates) or link cases to issues and projects; status and
+  priority sync in real time; roles Admin, Create issues, Link only; account attributes mapped to
+  Linear customers; triage rules; optional case reopen on resolution.
+- **Src:** https://linear.app/docs/salesforce
+
+### 14.12 Notion
+- Paste Linear links into Notion for live previews (detailed, mention or URL) of issues,
+  projects, initiatives and views; auto-refresh; per-member setup.
+- **Src:** https://linear.app/docs/notion
+
+### 14.13 Others in the doc tree (pages listed, not read: UNVERIFIED details)
+- Airbyte (warehouse sync), Discord, Front (support; customer requests), Google Sheets
+  (reporting sync), Zapier, GUS, GitHub Enterprise Cloud (beta), incident tools for triage
+  rotation (PagerDuty, Opsgenie, Rootly, incident.io, from §3.3). The integration directory
+  claims over 250 integrations and lets third parties build and submit their own.
+- **Src:** sitemap; https://linear.app/docs/integration-directory
+
+### 14.14 Importers
+- Jira, GitHub Issues, Asana, Shortcut, Linear-to-Linear (workspace merge), and a CLI importer.
+  Imports issues (filter active, stale, completed or all), projects, labels, users (mapped),
+  custom views, initiatives and statuses, varying by source. A Jira terminology guide exists.
+- **Src:** https://linear.app/docs/import-issues
+
 <!-- APPEND -->
