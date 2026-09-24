@@ -829,3 +829,33 @@ Unverified: that Postgres checks a foreign key without row-level security (the r
 task 07's cross-org test meets it both ways), and that `position(bytea IN bytea)` behaves as used.
 Both are from knowledge. Nothing was compiled or run: this batch changes only documents, so there
 were no mutants to run.
+
+### Fix batch b06, round 2 — re-review N1, m1, m2 (2026-09-24)
+
+This answers `.superpowers/sdd/hub/plan-rereview-b06-1.md`. Route 26 no longer stores brief text,
+so `erase_brief` purges nothing, and every stored replay survives an erasure. Commits `9606f60`
+(task 07), `c6e5450` (tasks 14 and 19) and `269dcf2` (the plan, the contract fold, tasks 03, 24
+and 27). I5 was resolved in round 1 and is not touched. Round 1's I6 rows above (the purge, its
+test, and the "other copies" row) are **superseded** by this section.
+
+| Finding | What changed | Where |
+|---|---|---|
+| **N1** the fix | The re-review's option 1, which is the review's second option. Route 26's `WriteResult.Stored` is its reply with every `content` null, so `idempotency_keys.response` never holds brief text. A replay rebuilds each `content` and `erasedAt` from the `brief_revisions` row through task 18's `renderRevision`, and keeps every other stored field. Before an erasure, the replay is the first answer byte for byte (step 8 now renders from the inserted row, never from the request). After one, the erased revision replays with `content: null`, as `/v1/refs` answers. `hubclient` accepts that, because `VerifyRevision` skips a null content (task-34.md:49-52, checked). A co-batched brief replays whole. A missing row or an undecodable stored form is 500, never the stored bytes | task-19.md:3-4, :46-65, :98-108 |
+| **N1** the seam (task 14) | `WriteResult.Stored`, the `Rebuild` type, and `WriteReplayable`. The rebuild runs in the replay's own transaction, with the org set and the head locked, before the ROLLBACK. `WriteLimit` is `WriteReplayable` with a nil rebuild. A `Stored` with a nil rebuild is 500 and nothing is committed, because its replay would answer the wrong body. A rebuild error is 500 | task-14.md:3-4, :82-96, :98-120, :128-134, :193-194 |
+| **N1** the purge removed (task 07) | `erase_brief` deletes nothing from `idempotency_keys`. Its comment says why: a purge by id also deleted approvals, evidence, releases, co-batched briefs and the erase's own reply. A17 no longer changes task 07's SQL, so the intro says so, and step 1 treats an `erase_brief` that deletes from `idempotency_keys` as stale | task-07.md:11-21, :633-638, :716-718 |
+| **N1** tests | Task 07: `TestEraseBriefLeavesEveryStoredResponse`, with a co-batched route-26 form (A1 and A2), a text-free `DesignApproval` body naming A1 (the row the re-review asked for), an in-flight row, and an org-B row. All four survive byte for byte. Task 14: `TestAStoredFormIsRebuiltOnReplay`. Task 19: `TestTheStoredReplayHoldsNoContent` (two markers, one batch, then an erasure, then the replay). Task 27: `TestErasureKeepsKeyAndDigest` now has one batch naming A and B, an approval with `kP` and the erase with `kE`. Before erasure the marker is in `brief_revisions.canonical` only. After it, `markerHits` is empty, every `idempotency_keys` row is still there, and `kA2`, `kP` and `kE` each replay (`kE`: still `erasedRevisions: 2` and one `brief.erased`). Each row names the id purge as a mutant, with the wrong answer it gives | task-07.md:710; task-14.md:220; task-19.md:129; task-27.md:70 |
+| **N1** A17 and the contract fold | A17 now reads "route 26 stores no text", and gives why neither a path purge nor an id purge is used. Task 44a folds it into §1's idempotency bullet (`hub-contract.md:50-55`), §7.5, §10.6's `UPDATE hub.idempotency_keys` line (`:2030`), and §7.12's list (`:1113`), noting that §3.4's *"never from a second copy"* (`:170-171`) now holds for replays. §10.4's `erase_brief` (`:1969`) is **unchanged**. Every citation was re-read in the contract | plan.md:186; task-44a.md:47 |
+| **N1** restatements | Route 45's *"Nothing else changes"* now includes stored responses, and says a retried write still replays. Task 24's janitor step 4 and task 03's `WriteRevisionsResponse` comment no longer name a purge. The plan's unverified list now pins `position(bytea IN bytea)` to `markerHits`. The residual names `erase_brief`'s `UPDATE` only, since there is no `DELETE`. A grep of the plan and parts for "purge", the old test name and "names the brief" finds only the new reasons | task-27.md:40-45; task-24.md:92-95; task-03.md:324-326; plan.md:528-536 |
+| **m1** sizing | The sentence names all five exceptions: task 31 at 4.5 (A12/I2, A13/I9, the `DevOps` source/I10, and b04 m4's remembered refusal; task-31.md:3, checked), 07 at 4, 38 at 3.5, and 14 and 19 at 3.5 | plan.md:344-350 |
+| **m2** the unindexed scan | Gone with the purge. Erasure takes no scan of `idempotency_keys` | task-07.md:633-638 |
+| hours | Tasks 14 and 19 go from 3 to 3.5 h each (the seam and its test; the stored form, the rebuild and its test). Task 07 stays at 4: the purge it loses was a few lines, and its test row is rewritten, not removed. Task 27 stays at 2.5. Server 74.5 → 75.5 h, total 124.5 → 125.5 h, and the S7 minimum 103.5 → 104.5 h. I re-summed these from the table with a script: server 75.5, client 44, documents 6, list 104.5. Test counts: task 14's integration run goes 11 → 12, task 19's 15 → 16, and task 07's 34 and task 27's 11 are unchanged. The hours are my judgement, not measured | task-14.md:3, :239; task-19.md:3, :151-152; plan.md:389, :394, :421-431 |
+
+**The behaviour change, declared.** A route-26 replay after an erasure is not byte-identical to the
+first answer, because the erased revision's `content` is `null`. That departs from §1's *"returns the
+stored status and body"*, which is why A17 amends §1. The departure is the point: the write
+succeeded, and the text is gone.
+
+Unverified: that Go's encoder writes the rebuilt `WriteRevisionsResponse` to the same bytes as the
+first answer, given the same values. It is deterministic for structs and `json.RawMessage`, from
+knowledge, and task 19's test checks it. Nothing was compiled or run: this batch changes only
+documents, so there were no mutants to run.
