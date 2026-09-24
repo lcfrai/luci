@@ -1221,3 +1221,49 @@ Asking for it would be an owner question like Q4.
 - That `kubectl auth can-i` answers through the AKS Azure RBAC webhook (§8 records it).
 - That IMDS answers 400 without the `Metadata` header.
 - Node 24's maintenance date of 2026-10-20 (27a step 1 reads it).
+
+## Fix batch b09 (2026-09-24) — m10, m11, m12, m13, m14, m18
+
+Minor findings on cluster and broker robustness, plus one UI test. Commits: `f55f641` (m10),
+`41af5f1` (m14), `fe087ae` (m11 and m12, which share task 19's hunks), `c198135` (m13, and
+m11's rollback by UID), `a1e05f3` (m18). This section's commit is the sixth. Task 19 is re-sized
+from 3 h to 4 h. No task moves wave, and no task gains a file another task in its wave holds.
+
+| Finding | Fix | Where |
+|---|---|---|
+| m10 the balloon's `-10` sits on the expendable cutoff | **The review's fix.** A note says why `-10` is a floor: below the cluster autoscaler's default `--expendable-pods-priority-cutoff` (`-10`), a Pending balloon triggers no scale-up, so the warm pool stops refilling. AKS's `auto_scaler_profile` does not expose the cutoff (UNVERIFIED). New helm-unittest case `priority_test / balloon_is_not_expendable` pins `value >= -10`, with the reason. Task 32's P06 (d) proves it on a cluster: the preempted balloon must log `TriggeredScaleUp` | `parts/task-11.md:110-119`, `:198`; `task-32.md:30` |
+| m11 check-then-create races across two replicas | **The review's fix, plus the caps it named without fixing.** (1) The default id is derived: `defaultMachineID(owner) = "m-" + 8 hex of sha256(owner + "/default")`. A lost race is `AlreadyExists` and answers 200 once the claim's owner label and default annotation check out. (2) Every create tolerates `AlreadyExists`, and the token is only read back from the Secret. (3) **Caps are re-counted after the create** by consistent read, for machines (task 19) and sessions (task 18). Over the cap, the request rolls back only its own object, by `Preconditions.UID`, and answers 429. Two racers can both roll back, which fails closed, but neither can leave the owner over the cap. (4) A wake on a terminating pod re-creates the pod rather than reading `AlreadyExists` as "done". (5) The sleeper runs only on the holder of the `coordination.k8s.io` Lease `broker-sleeper` (client-go `leaderelection`, `LeaseLock`, no new module), and re-reads sessions before it deletes. **Where the Role goes departs from the review, on the facts:** the review said the sandbox Role gains `leases`. Instead a separate `Role/broker-lease` sits in `panacea-broker`, with `create`, plus `get`/`update` on `resourceNames: [broker-sleeper]`. The Lease is broker coordination, not a sandbox object; the sandbox Role keeps its "four rules exactly" test; the cluster identity is already RBAC Admin there. Task 17 gains `LEASE_NAMESPACE` and `POD_NAME` (downward API). New tests: `TestConcurrentEnsureDefaultMakesOne` and the two cap tests, each forcing the interleaving with a create-reactor barrier; `TestDefaultMachineIDIsDerivedFromTheOwner`; `TestAWakeOnATerminatingPodRecreatesIt`; `TestOnlyTheLeaseHolderSleeps`; `TestALostLeaseStopsTheLoop`; `TestTheSleeperRereadsSessionsBeforeDeleting`; `TestTheLeaseVariablesAreRequiredOnlyWhenTheSleeperRuns`; chart test `broker / the lease role is narrow and in the broker's namespace` | `parts/task-19.md:97-127`, `:141-157`, `:174-178`, `:191-198`, `:226-231`; `task-18.md:136-141`, `:288`; `task-17.md:50-51`, `:169-172`; `task-29.md:67-69`, `:85-101`, `:273`; `task-31.md:38`; plan `:561` |
+| m12 machine names carry no owner | **The review's second option (prefix), plus its first (retry) for a second machine's random id.** Every object is `machine-<owner[:8]>-<id>`, as task 14's sandbox names are, and `MachineClaimName` takes the owner. An unscoped Manager given a machine refuses. **Found in the fix:** machine ids are now unique per owner only, so every selector on `panacea-app/machine-id` also selects on `panacea-app/owner`: the PDB, task 15's pod affinity, task 18's `machineSessions` and the sleeper. Task 18's `machine_full` test used to rely on ids being unique across the namespace. It now adds a third owner's pod on its own `m-1`, and a mutant drops the owner selector | `parts/task-19.md:24-27`, `:29-39`, `:177`; `task-15.md:82-86`, `:95-98`, `:103-105`, `:150`, `:153`; `task-18.md:173-175`, `:260-264`, `:289`, `:342` |
+| m13 machine disks have no data protection | **Recorded as seam S8-D6.1, with an owner question, rather than built.** A daily snapshot collides with OD-10: Forget *deletes* a transcript, and a disk snapshot would keep it for its whole retention. So the retention window is the owner's to accept. v1 takes no snapshot, and task 11, task 06 and task 19 say so. The seam carries the ready design: an incremental `VolumeSnapshotClass`; a daily `CronJob` with its own service account and Role, never the broker's; the owner's retention; snapshots deleted with their machine; the `cluster-kinds` data action; a restore runbook and probe. **Found in the fix:** the disk holds the only copy of unpushed lane commits too, because the fetch-back is local to the machine (`task-21.md:7-8`), not to the laptop | `parts/task-11.md:165-166`, `:171-184`; `task-06.md:227-231`; `task-19.md:220-225`; plan `:656` |
+| m14 `KubeLabelComponent`'s comment goes stale | **The review's fix**, in task 14, which already edits the line beside it: the contract gives the new comment (`sandbox`, `machine`, `balloon`), and step 4 rewrites it and greps that `always "sandbox"` is gone | `parts/task-14.md:25`, `:36-44`, `:208-210` |
+| m18 reduced motion untested for the waking ring | **The review's fix.** The design-system table gains `:90`'s row. New test `MachineChip / waking respects prefers-reduced-motion` reads the CSS source, as `StatusDot.test.tsx:82-88` does, because jsdom applies no media query. It checks three things. The waking dot is `live`, so `common.css:119-123`'s reduced-motion halo keeps it apart from a sleeping ring by shape. The counter keeps counting, because it runs on the JS heartbeat (`heartbeat.ts:29-34`). `.rail-waking` has no motion of its own. **Found in the fix:** the chip said the dot was `live` "when `running`" only, which contradicted its own "the `provisioning` ring is the one live signal", so waking is now `live` too. The acceptance count was already stale at 13 (the table had 14 rows); it is now 15 | `parts/task-26.md:83-84`, `:88-100`, `:131`, `:144`, `:171` |
+
+**Restatements checked** by grep over the plan and the parts (citations to the real tree were
+checked against it: `backend.go:76`, `common.css:119-123`, `tokens.css:173-174`,
+`heartbeat.ts:29-34`, `StatusDot.test.tsx:82-88`):
+- `-10` and `panacea-balloon`: only task 11's table, note and test, and task 32's P06;
+- `always "sandbox"`: only the review and task 14's instruction to remove it (`:36`, `:209-210`);
+- `machine-<id>` and `MachineClaimName(machine)`: gone, except where task 19 names the old form
+  as what the fix replaced (`:31`) and as its test's mutant (`:177`);
+- "namespace-unique" and "two-label selector": both gone;
+- "minted by the broker": only the plan's `:140`, about tokens, which is still true;
+- task 19's hours: only the plan's `:561`;
+- "the 13 above": gone.
+
+**Owner questions (new):**
+- **Machine-disk snapshots against OD-10** (m13, seam S8-D6.1). May machine disks get daily
+  incremental snapshots with a retention of N days? The cost of saying yes: a Forgotten
+  conversation, or a deleted worktree's store, survives in snapshots for up to N days, which
+  amends OD-10's "Forget deletes it" to "deletes it now, and from backups within N days". v1 is
+  built with no snapshots, so OD-10 holds exactly as written. The recommendation is yes, with
+  N = 7, once go-live makes real user work depend on the disk. The alternative is to keep v1's
+  position and tell users that a machine's unpushed work has one copy.
+
+**Still UNVERIFIED (new this batch):**
+- The cluster autoscaler's default expendable cutoff of `-10`, that pods at the cutoff still
+  trigger scale-up, that AKS does not expose it, and the `TriggeredScaleUp` event reason (P06 (d)).
+- That client-go's `LeaseLock` needs only `get`, `create` and `update`, and that RBAC Admin in
+  `panacea-broker` lets the cluster identity create `Role/broker-lease` (task 31 §7a).
+- That a fake clientset's `AlreadyExists` and reactor barrier model the API server's behaviour
+  closely enough for the concurrency tests. The real race needs two replicas on a cluster.
+- The sleeper-versus-new-session window is narrowed, not closed (task 19 records it).
