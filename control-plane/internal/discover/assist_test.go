@@ -215,11 +215,17 @@ func TestAtMostOneFollowUp(t *testing.T) {
 	answeredFU := mustApply(t, asked, Op{Kind: OpRecord, Key: fu, Text: "Only the web app", Source: SourceTyped}, branchEnv(nil))
 	first := three(t)
 	first.Questions = append([]Question{asked.Questions[len(asked.Questions)-1]}, first.Questions...)
+	// already_asked is checked before not_yet (fix round 1, review M3): a
+	// follow-up beside fewer than three settled answers is already asked.
+	// Apply never un-settles an answer, but it does not refuse this head.
+	besideTwo := mustApply(t, answered(t, branchEnv(nil), KeyPurpose, KeyAudience), Op{Kind: OpAddFollowUp,
+		Question: &Question{BranchPrompt: "Which clients call it?", Options: []string{}}}, branchEnv(nil))
 
 	for name, c := range map[string]Content{
-		"an unanswered follow-up":            asked,
-		"an answered follow-up":              answeredFU,
-		"a follow-up ahead of the base ones": first,
+		"an unanswered follow-up":                asked,
+		"an answered follow-up":                  answeredFU,
+		"a follow-up ahead of the base ones":     first,
+		"a follow-up beside two settled answers": besideTwo,
 	} {
 		f := &fakeModel{reply: valid}
 		q, out := ProposeFollowUp(context.Background(), f, c, ScopeBranch, testHint)
@@ -250,6 +256,19 @@ func TestNoFollowUpBeforeThreeSettledAnswers(t *testing.T) {
 		return mustApply(t, c, Op{Kind: OpAccept, Key: KeyConstraints}, branchEnv(nil))
 	}
 	skipped := func() Content { return mustApply(t, two(), Op{Kind: OpSkip, Key: KeyConstraints}, branchEnv(nil)) }
+	skips := func(c Content, keys ...Key) Content {
+		for _, k := range keys {
+			c = mustApply(t, c, Op{Kind: OpSkip, Key: k}, branchEnv(nil))
+		}
+		return c
+	}
+	// Three skips are three settled answers, but none holds the person's
+	// words: an ask reply could only be model_failed (basedOn needs an
+	// answer), so the model is not called (fix round 1, review M5).
+	threeSkips := func() Content { return skips(NewContent(), KeyPurpose, KeyAudience, KeyConstraints) }
+	oneTyped := func() Content {
+		return skips(answered(t, branchEnv(nil), KeyPurpose), KeyAudience, KeyConstraints)
+	}
 
 	for name, tc := range map[string]struct {
 		content func() Content
@@ -262,11 +281,13 @@ func TestNoFollowUpBeforeThreeSettledAnswers(t *testing.T) {
 		"three settled answers":                    {content: func() Content { return three(t) }, want: AssistProposed},
 		"two settled and an accepted draft":        {content: accepted, want: AssistProposed},
 		"two settled and a skip, which is settled": {content: skipped, want: AssistProposed},
+		"three skips: none of the person's words":  {content: threeSkips, want: AssistNothingToAsk},
+		"one typed answer and two skips":           {content: oneTyped, want: AssistProposed},
 	} {
 		f := &fakeModel{reply: based}
 		_, out := ProposeFollowUp(context.Background(), f, tc.content(), ScopeBranch, testHint)
 		wantCalls := 1
-		if tc.want == AssistNotYet {
+		if tc.want == AssistNotYet || tc.want == AssistNothingToAsk {
 			wantCalls = 0
 		}
 		if out != tc.want || f.calls != wantCalls {
@@ -382,6 +403,17 @@ func TestThePromptCarriesNoFileContents(t *testing.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("JSONSchema = %s, want the part's schema", f.last.JSONSchema)
 		}
+		// The model names basedOn by key, so each answered question reaches it
+		// under its key, and exactly those keys are offered (fix round 1,
+		// review M1): purpose, audience and constraints, indexes 0-2.
+		for i, k := range []Key{KeyPurpose, KeyAudience, KeyConstraints} {
+			if want := "\n[" + string(k) + "] " + c.Questions[i].BranchPrompt + "\n"; !strings.Contains(f.last.User, want) {
+				t.Errorf("side %s: User does not carry %q:\n%s", tag, want, f.last.User)
+			}
+		}
+		if want := "\nbasedOn must be one of: purpose, audience, constraints\n"; !strings.Contains(f.last.User, want) {
+			t.Errorf("side %s: User does not offer exactly the answered keys, %q:\n%s", tag, want, f.last.User)
+		}
 		s.user, s.system = f.last.User, f.last.System
 		return s
 	}
@@ -432,19 +464,92 @@ func TestThePromptCarriesNoFileContents(t *testing.T) {
 	}
 }
 
-// partSchema is task 04's reply schema, as the part writes it.
+// partSchema is task 04's reply schema as sent, as the part writes it. The
+// limits are not in it (fix round 1, review I1): they are checked after
+// ExtractJSON and stated in the system prompt.
 const partSchema = `{
   "type": "object",
   "additionalProperties": false,
   "required": ["ask", "question", "help", "options", "basedOn"],
   "properties": {
     "ask":      { "type": "boolean" },
-    "question": { "type": "string", "maxLength": 200 },
-    "help":     { "type": "string", "maxLength": 200 },
-    "options":  { "type": "array", "maxItems": 4, "items": { "type": "string", "maxLength": 120 } },
+    "question": { "type": "string" },
+    "help":     { "type": "string" },
+    "options":  { "type": "array", "items": { "type": "string" } },
     "basedOn":  { "type": "string", "enum": ["purpose", "audience", "constraints", "done", "out_of_scope"] }
   }
 }`
+
+// TestTheFollowUpSchemaSendsOnlyWhatStructuredOutputsSupport walks the schema
+// the model is sent (fix round 1, review I1). Structured outputs support no
+// string or array length keyword (the structured-outputs page's JSON Schema
+// limitations: not minLength or maxLength, and no array constraint beyond a
+// limited minItems), and modelclient is raw HTTP, so nothing strips one on
+// the way as the SDKs do. Every keyword must be one the API supports, and
+// every object must say additionalProperties false.
+func TestTheFollowUpSchemaSendsOnlyWhatStructuredOutputsSupport(t *testing.T) {
+	f := &fakeModel{reply: replyJSON(t, proposal())}
+	if _, out := ProposeFollowUp(context.Background(), f, three(t), ScopeBranch, testHint); out != AssistProposed {
+		t.Fatalf("outcome %q, want proposed", out)
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(f.last.JSONSchema, &schema); err != nil {
+		t.Fatalf("JSONSchema does not decode: %v", err)
+	}
+	supported := map[string]bool{"type": true, "additionalProperties": true, "required": true,
+		"properties": true, "items": true, "enum": true}
+	var walk func(path string, s map[string]any)
+	sub := func(path string, v any) {
+		m, ok := v.(map[string]any)
+		if !ok {
+			t.Errorf("%s is not a schema object: %#v", path, v)
+			return
+		}
+		walk(path, m)
+	}
+	walk = func(path string, s map[string]any) {
+		if s["type"] == "object" && s["additionalProperties"] != false {
+			t.Errorf("%s: an object without additionalProperties false", path)
+		}
+		for k, v := range s {
+			if !supported[k] {
+				t.Errorf("%s: sends %q, which structured outputs do not support", path, k)
+			}
+			switch k {
+			case "properties":
+				props, _ := v.(map[string]any)
+				for name, p := range props {
+					sub(path+".properties."+name, p)
+				}
+			case "items":
+				sub(path+".items", v)
+			}
+		}
+	}
+	walk("$", schema)
+}
+
+// TestTheSystemPromptLetsTheModelDeclineAndStatesTheLimits pins what the
+// system prompt must say (fix round 1, review M2): that the model may decline
+// and should prefer to, how basedOn is named, and every limit decodeFollowUp
+// checks. With the limits out of the schema (review I1), this is the only
+// place the model reads them. Whether the wording is good is the owner's to
+// judge (OD-12).
+func TestTheSystemPromptLetsTheModelDeclineAndStatesTheLimits(t *testing.T) {
+	f := &fakeModel{reply: `{"ask":false,"question":"","help":"","options":[],"basedOn":"purpose"}`}
+	ProposeFollowUp(context.Background(), f, three(t), ScopeBranch, testHint)
+	for _, want := range []string{
+		"Otherwise set ask to false.", "Prefer false",
+		"ending in a question mark, at most 200 characters",
+		"under the question, at most 200 characters",
+		"up to 4 short answers", "each at most 120 characters",
+		"basedOn is the key of the one answer", "keys shown in brackets",
+	} {
+		if !strings.Contains(f.last.System, want) {
+			t.Errorf("System does not say %q:\n%s", want, f.last.System)
+		}
+	}
+}
 
 func TestAModelThatSaysEnoughIsNothingToAsk(t *testing.T) {
 	for name, reply := range map[string]map[string]any{

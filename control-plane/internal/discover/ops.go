@@ -86,7 +86,7 @@ const mintAttempts = 8
 // (utf8.RuneCountInString) on the string as stored (rule 14's LF, then rule
 // 1's trim for an answer; prompts, help and options are not trimmed; rule
 // 13): the unit JSON Schema's maxLength uses, so task 04's and task 13's
-// schemas (200/120 and 400) sit inside them and model text never meets the
+// reply limits (200/120 and 400) sit inside them and model text never meets the
 // cap. They make the Hub's 64 KiB envelope refusal (hub-contract.md:751 at
 // hub 53583f2) unreachable for ordinary text and give a person a refusal
 // that names the answer; task 08's size check is the bound itself (S4).

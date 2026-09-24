@@ -27,7 +27,7 @@ const (
 	AssistProposed     AssistOutcome = "proposed"
 	AssistModelOff     AssistOutcome = "model_off"      // Completer is nil: PANACEA_APP_MODEL_API_KEY or PANACEA_APP_MODEL_BASE_URL unset (task 02 amendment 4)
 	AssistFailed       AssistOutcome = "model_failed"   // transport, refusal, no JSON, invalid JSON, a reply holding panacea:discover:
-	AssistNothingToAsk AssistOutcome = "nothing_to_ask" // the model said the five answers suffice
+	AssistNothingToAsk AssistOutcome = "nothing_to_ask" // the model said the five answers suffice, or every settled answer is a skip (no call: nothing of the person's to follow up)
 	AssistAlreadyAsked AssistOutcome = "already_asked"  // the brief already holds a follow-up
 	AssistNotYet       AssistOutcome = "not_yet"        // fewer than three base answers are settled
 )
@@ -52,9 +52,12 @@ const FollowUpBudget = 20 * time.Second
 // counts, as Answer.Settled says) before a follow-up is asked.
 const followUpMinSettled = 3
 
-// The reply schema's bounds. maxLength counts Unicode code points, so these
-// are checked with utf8.RuneCountInString, never len. All sit inside task 03's
-// rule 13 caps (MaxPromptRunes), so a follow-up never meets them in Apply.
+// The reply's bounds. They are not in followUpSchema, because structured
+// outputs support no maxLength or maxItems (review I1): decodeFollowUp checks
+// them after ExtractJSON, and followUpSystem states them to the model. They
+// count Unicode code points (utf8.RuneCountInString, never len), the unit
+// JSON Schema's maxLength uses. All sit inside task 03's rule 13 caps
+// (MaxPromptRunes), so a follow-up never meets them in Apply.
 const (
 	followUpQuestionMax = 200
 	followUpHelpMax     = 200
@@ -67,30 +70,36 @@ const (
 // FollowUpBudget. The model's default (high) spends that on thinking.
 const followUpEffort = "medium"
 
-// followUpSchema is sent as Request.JSONSchema and checked again by
-// decodeFollowUp, because a schema is a request, not a guarantee (a gateway
-// may ignore output_config.format).
+// followUpSchema is sent as Request.JSONSchema. It carries only what
+// structured outputs support: type, enum, required and additionalProperties
+// false. They support no minLength, maxLength or maxItems, and modelclient is
+// raw HTTP, so nothing strips those on the way as the SDKs do (review I1).
+// decodeFollowUp checks the reply again, limits included, because a schema is
+// a request, not a guarantee (a gateway may ignore output_config.format).
 var followUpSchema = json.RawMessage(`{
   "type": "object",
   "additionalProperties": false,
   "required": ["ask", "question", "help", "options", "basedOn"],
   "properties": {
     "ask":      { "type": "boolean" },
-    "question": { "type": "string", "maxLength": 200 },
-    "help":     { "type": "string", "maxLength": 200 },
-    "options":  { "type": "array", "maxItems": 4, "items": { "type": "string", "maxLength": 120 } },
+    "question": { "type": "string" },
+    "help":     { "type": "string" },
+    "options":  { "type": "array", "items": { "type": "string" } },
     "basedOn":  { "type": "string", "enum": ["purpose", "audience", "constraints", "done", "out_of_scope"] }
   }
 }`)
 
-// followUpSystem asks for at most one extra question, and permits none.
-const followUpSystem = `You are reviewing a person's answers to a short, fixed interview that sets up a brief for the coding agents working on their project or branch.
+// followUpSystem asks for at most one extra question, and permits none. It
+// is the one place the model reads the reply's limits, so they are written
+// from the constants decodeFollowUp checks and cannot drift from them.
+var followUpSystem = fmt.Sprintf(`You are reviewing a person's answers to a short, fixed interview that sets up a brief for the coding agents working on their project or branch.
 
 If one further question would materially change how an agent works here, propose exactly one. Otherwise set ask to false. Prefer false: every extra question costs the person time.
 
-A proposed question is one sentence ending in a question mark, at most 200 characters, and must not repeat one of the interview's own questions. help is one short sentence the person sees under the question. options are up to four short answers the person could pick, each at most 120 characters, or none: a free-text field is always shown beside them. basedOn is the key of the one answer that prompted the question, and must be one of the keys shown in brackets.
+A proposed question is one sentence ending in a question mark, at most %d characters, and must not repeat one of the interview's own questions. help is one short sentence the person sees under the question, at most %d characters. options are up to %d short answers the person could pick, each at most %d characters, or none: a free-text field is always shown beside them. basedOn is the key of the one answer that prompted the question, and must be one of the keys shown in brackets.
 
-When ask is false, send empty strings, an empty options list, and any listed key as basedOn.`
+When ask is false, send empty strings, an empty options list, and any listed key as basedOn.`,
+	followUpQuestionMax, followUpHelpMax, followUpOptionsMax, followUpOptionMax)
 
 // followUpReply is a reply that passed the schema.
 type followUpReply struct {
@@ -114,9 +123,12 @@ type followUpReply struct {
 // On every outcome but AssistProposed the Question is the zero value. The
 // order of the checks is: a nil Completer (model_off, the one reason a
 // person can act on); a follow-up already held (already_asked); fewer than
-// three settled base answers (not_yet); then the one call. "Returns within
-// the budget" holds for a Completer that honours ctx, as modelclient.Client
-// does (task 02); a reply that lands after the budget is still AssistFailed.
+// three settled base answers (not_yet); no settled answer that holds the
+// person's words, every one a skip (nothing_to_ask: basedOn needs one, so an
+// ask reply could only fail); then the one call. None of the four calls the
+// model. "Returns within the budget" holds for a Completer that honours ctx,
+// as modelclient.Client does (task 02); a reply that lands after the budget
+// is still AssistFailed.
 func ProposeFollowUp(ctx context.Context, m modelclient.Completer, c Content, s Scope, h Hint) (Question, AssistOutcome) {
 	if m == nil {
 		return Question{}, AssistModelOff
@@ -134,6 +146,9 @@ func ProposeFollowUp(ctx context.Context, m modelclient.Completer, c Content, s 
 	}
 	if settled < followUpMinSettled {
 		return Question{}, AssistNotYet
+	}
+	if len(personAnswered(c)) == 0 {
+		return Question{}, AssistNothingToAsk
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, FollowUpBudget)
@@ -275,8 +290,11 @@ func jsonArray(raw json.RawMessage, out *[]json.RawMessage) bool {
 // refuses it: an empty question, one that repeats a base prompt, an empty
 // option, the reserved sequence anywhere in the model's text (plan §4
 // Security, S3: model text never reaches Apply as a 400 on text the person
-// did not write; task 03 rule 12 stays the backstop), or a basedOn with no
-// words of the person's behind it. Every string is trimmed; nothing is cut
+// did not write), or a basedOn with no words of the person's behind it.
+// Task 03's rule 12 backs up only the question: it checks neither help nor
+// options (ops.go:464, :468), and a picked option meets it only as the
+// answer's text (ops.go:476), so this check alone keeps the sequence out of
+// a follow-up's help and options (review M4). Every string is trimmed; nothing is cut
 // or dropped, so the person sees what the model proposed or nothing.
 func buildFollowUp(r followUpReply, c Content, s Scope) (Question, bool) {
 	question := strings.TrimSpace(r.question)
