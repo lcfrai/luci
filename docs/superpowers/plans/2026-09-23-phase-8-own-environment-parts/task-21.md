@@ -89,7 +89,7 @@ const (
 **What `machined` does to every call (review I7).** A lane clone's `.git` is inside that lane's
 session mount. So is a project's `.git` whenever a session runs on the project's primary
 worktree: its `machinePath` is `projects/<name>` (task 20, `TestWorktreePathIsRelativeToTheRoot`),
-and task 24 mounts the worktree's machine path read-write at `/home/dev/work`. The agent can
+and task 24b mounts the worktree's machine path read-write at `/home/dev/work`. The agent can
 therefore write any key into either `config`, any file into either `hooks/`, and any
 `.gitattributes`. A git that obeyed them would run code the agent chose **in the machine pod**,
 which holds the whole disk (every project, lane and conversation, where a session sees only its
@@ -115,7 +115,7 @@ needs.
      milliseconds before git does, so an agent that rewrites it inside that window would defeat
      H3. Phase 3 closes that window by binding `<path>/.git/config` read-only in the sandbox, in
      its task 05's `sessionMounts`, which builds only the laptop's Docker mounts. A cloud session
-     gets its mounts from task 24 instead, so **task 24 binds that file read-only** (from
+     gets its mounts from task 24b instead, so **task 24b binds that file read-only** (from
      task 20's `WorktreePath.GitConfig`), and `machined` depends on it: without the bind, a lane
      or primary-worktree agent that loops a `filter.*` write and removal would sometimes pass H3
      with a config git then reads dirty.

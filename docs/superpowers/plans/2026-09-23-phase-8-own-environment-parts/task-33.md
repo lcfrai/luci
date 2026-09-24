@@ -15,7 +15,7 @@ Phase 2's task 26 learned that a seam written only in a plan is rediscovered by 
 | ID | Where | The next phase does | Must not | Anchor |
 |---|---|---|---|---|
 | S8.1 | `backend.Backend` — now three implementations (`dockerbe`, `katabe`, `remotebe`) | add a fourth behind the same seven methods | widen the interface for one backend — use an optional interface, as `backend.ReadyWaiter` does | the phase 2 reflection test, unchanged |
-| S8.3 | cloud create sends `MachineMounts` (`api/sessions.go`, task 24); `katabe` still refuses host `Mounts` | — (closed) | drop the host-mount refusal | `TestCreateRejectsMountsAndCreatesNoPod`, `TestCloudCreateSendsMachineMountsNeverHostMounts` |
+| S8.3 | cloud create sends `MachineMounts` (`api/sessions.go`, task 24b); `katabe` still refuses host `Mounts` | — (closed) | drop the host-mount refusal | `TestCreateRejectsMountsAndCreatesNoPod`, `TestCloudCreateSendsMachineMountsNeverHostMounts` |
 | S8.4 | `PANACEA_APP_RUNTIME_CLASS` | set it from task 32's P01 | reintroduce a constant | seams manifest anchor on `sandbox.DefaultRuntimeClass` |
 | S8.6 | the desktop hop carries the Hub's local caller key; the Entra token never enters the webview | — | send a user token to the renderer | `client.ts` anchor |
 | S8-P6.1 | `~/.claude` outside `projects/` is an `emptyDir` in every session pod | phase 6 supplies **the user's own** credentials to that user's pods | put credentials on the machine disk; pool them; bake them into an image | anchor on the `home` emptyDir in `manager.go` |
@@ -63,7 +63,7 @@ selects (task 32) is marked, and its warm floor (`min_count`) is costed at that 
 |---|---|---|
 | phase 3 | P3A-1: join machine paths with `path.Join` (or add `Machine.Join`) | `Machine.Join` added (task 25) |
 | phase 3 | P3A-2: the lane index keyed by machine | laptop-side, keyed by `(machineId, projectId)`; single-laptop limitation stated, for lanes and, since review I6, for sessions (only the control plane whose install id a sandbox carries reaps it, task 23) |
-| phase 3 | P3A-3: answered by phase 3's task 02 §HGH (H1–H5), which hardens every `gitx.Exec` call; `machined` runs it unchanged (task 21, review I7), and task 24 builds H5's first half on cloud sessions: `.git/config` bound read-only in the sandbox, which phase 3 builds only in its Docker `sessionMounts` (b06 re-review 1). What stays open: a git code path §HGH does not list is a finding for both phases, because on the machine it runs with the whole disk in reach | §HGH lands before task 21 |
+| phase 3 | P3A-3: answered by phase 3's task 02 §HGH (H1–H5), which hardens every `gitx.Exec` call; `machined` runs it unchanged (task 21, review I7), and task 24b builds H5's first half on cloud sessions: `.git/config` bound read-only in the sandbox, which phase 3 builds only in its Docker `sessionMounts` (b06 re-review 1). What stays open: a git code path §HGH does not list is a finding for both phases, because on the machine it runs with the whole disk in reach | §HGH lands before task 21 |
 | Hub | Display names carry an environment suffix outside prod; the broker API is assignment-required (task 09) | as stated |
 | Hub | `entra` adds `ErrKeySetUnavailable`, `Middleware`, `Ready`, `Claims.Key` beside the contract's interface (task 16) | additive; the Hub may ignore them |
 | Hub | **HC-1** (review I9): `roles.sql` (contract §10.1, `:1421-1430`) begins `CREATE ROLE hub_owner NOLOGIN;`, which errors on a second run. Wrap both role creations in `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '…') THEN CREATE ROLE … NOLOGIN; END IF; … END $$;`, so a re-run after a restore or a half-finished bootstrap is safe. `GRANT CREATE ON DATABASE hub TO hub_owner` is already safe to repeat. Also state, in the file's header comment, that it runs as `psql -v ON_ERROR_STOP=1 --single-transaction -f roles.sql` (plan re-review b03 I-1: psql's default carries on after an error and exits 0) | not answered: task 31 §7 runs `roles.sql` in one transaction with `ON_ERROR_STOP` only when neither role exists; when both do, it re-runs `GRANT CREATE ON DATABASE hub TO hub_owner` alone and checks `has_database_privilege('hub_owner','hub','CREATE')`; it stops when exactly one exists. That is correct for both the current file and the amended one, and a first run that fails at the `GRANT` leaves no role behind (plan re-review b03 M-4) |
@@ -76,7 +76,7 @@ selects (task 32) is marked, and its warm floor (`min_count`) is costed at that 
   rows into the results document.
 - [ ] **Step 2:** `PROGRAM.md`; `cost-model.md`; `phase-8-results.md` with, per task, what was
   proven where (Go test, `terraform test` against mocks, helm-unittest, script against canned
-  output) and every owner-gated row `NOT RUN`. One such row is task 24's live Kata check: in
+  output) and every owner-gated row `NOT RUN`. One such row is task 24b's live Kata check: in
   the first cloud session, `echo x >> /home/dev/work/.git/config` and `git config x.y z` are
   both refused (a read-only `subPath` file mount enforced inside the microVM).
 - [ ] **Step 3:** Run the whole suite one last time; commit.

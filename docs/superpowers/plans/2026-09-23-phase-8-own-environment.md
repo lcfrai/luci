@@ -132,7 +132,7 @@ Q1 below.
 | **P8-D3** | **No `kubernetes` or `helm` provider in any stack.** In-cluster objects are Helm charts in `deploy/charts/`, installed by the `deploy` pipeline with `kubelogin` (Entra), `helm upgrade --install --atomic` | Panacea's Helm provider authenticates with the local admin certificate and breaks the day local accounts are disabled (survey §1.3, `:93-95`) — which P8-D2 does on day one |
 | **P8-D4** | **The broker** (`control-plane/cmd/broker`) is the only thing with Kubernetes credentials for sandboxes. It validates an Entra access token (issuer = our tenant, audience = the broker API, scope `Sandboxes.Access`), derives **owner = `tid` + `oid`**, labels every object it creates with a hash of that owner, and filters every read by it | The alternative — per-user kubeconfigs and port-forwards — hands every user the cluster API (survey OQ-1). The laptop keeps no cluster credential, so the control plane's `PANACEA_APP_KUBECONFIG` refusal (`control-plane/cmd/api/main.go:241-271`) stays exactly as it is (seam S8.2) |
 | **P8-D5** | **One sandbox namespace, `panacea-sandboxes`.** The broker's RBAC is a namespaced `Role` there and nowhere else. Users are separated by owner labels enforced in the broker, by NetworkPolicy (no sandbox reaches another), and by per-owner limits in the broker | A namespace per user needs the broker to hold cluster-scoped RBAC to create namespaces and bind roles in them, which is a larger blast radius than the one it removes |
-| **P8-D6** | **A cloud machine is one Azure Disk (RWO, task 11's `panacea-machine-disk` class on `Premium_ZRS`, the broker's default through `PANACEA_APP_BROKER_MACHINE_STORAGE_CLASS`, task 17) plus one machine pod.** Zone-redundant, not the built-in `managed-csi-premium` (LRS), because the sandbox pool spans three zones and a sleeping machine's disk must re-attach wherever its next pod lands; `Premium_ZRS` in the region is task 32's P14, **UNVERIFIED**, with `Premium_LRS` and zone-pinned machines as the fallback. Every session pod of that machine mounts **sub-paths** of the same disk and is co-scheduled with the machine pod by **required pod affinity** on `panacea-app/machine-id`. Layout on the disk: `projects/`, `lanes/`, `conversations/<worktree id>/`. Sleeping = the disk with no pods | Clones hard-link objects only within one filesystem (OD-2); small-file I/O (`npm install` in a worktree) is far better on a block disk than on NFS. A machine bounded by one node is also what the word means. **The ceiling that follows (review I5):** every session of a machine must fit on the one node that holds its machine pod, beside whatever else that node runs (other users' machines and sessions, the DaemonSets), and neither a balloon nor the autoscaler can add room there, because a new node does not hold the machine pod. On dev's `Standard_D8s_v5` (8 vCPU, allocatable a little under 8) with the machine pod at `500m`/`1Gi` and 2 CPU / 4 GiB sessions, that is **about three sessions per machine on an otherwise empty node**, fewer on a shared one (arithmetic; allocatable and the per-pod Kata overhead are task 32's P07, **UNVERIFIED**). The per-user cap of 8 sessions over 2 machines (task 17) is therefore not reachable on one machine. A session's size is server policy: remotebe sends none, so every cloud session takes the broker's `PANACEA_APP_BROKER_SESSION_*`, and the largest a caller may ask for (`PANACEA_APP_BROKER_MAX_*`, equal to the LimitRange `max`) is **derived from the sandbox SKU**, the largest session that fits beside a machine pod on an empty node (`6000m` / `20480Mi` on `Standard_D8s_v5`, arithmetic, P07 measures; tasks 11, 17, 22, 29; b05 re-review 2, 4). Under the affinity, the broker refuses the session that does not fit with **`409 machine_full`** (`details.sessionsPerMachine`) within seconds, on the scheduler's own `Unschedulable` verdict, and deletes the pod it tried, identified by its attach token; a readiness timeout deletes its pod too (task 18). With the affinity off (the fallback below) it never answers `machine_full`, because the autoscaler can then place the session (b05 re-review 3). The control plane maps it (tasks 22, 24) and the cockpit shows its one sentence (task 26); P07 decides between a larger sandbox SKU and a smaller default session. **Fallback**, if task 32 finds Kata cannot share one RWO disk between two pods on a node: Azure Files NFS (RWX), selected by `PANACEA_APP_BROKER_MACHINE_STORAGE_CLASS` with affinity off. **Kata support for either is UNVERIFIED** (survey G-5) |
+| **P8-D6** | **A cloud machine is one Azure Disk (RWO, task 11's `panacea-machine-disk` class on `Premium_ZRS`, the broker's default through `PANACEA_APP_BROKER_MACHINE_STORAGE_CLASS`, task 17) plus one machine pod.** Zone-redundant, not the built-in `managed-csi-premium` (LRS), because the sandbox pool spans three zones and a sleeping machine's disk must re-attach wherever its next pod lands; `Premium_ZRS` in the region is task 32's P14, **UNVERIFIED**, with `Premium_LRS` and zone-pinned machines as the fallback. Every session pod of that machine mounts **sub-paths** of the same disk and is co-scheduled with the machine pod by **required pod affinity** on `panacea-app/machine-id`. Layout on the disk: `projects/`, `lanes/`, `conversations/<worktree id>/`. Sleeping = the disk with no pods | Clones hard-link objects only within one filesystem (OD-2); small-file I/O (`npm install` in a worktree) is far better on a block disk than on NFS. A machine bounded by one node is also what the word means. **The ceiling that follows (review I5):** every session of a machine must fit on the one node that holds its machine pod, beside whatever else that node runs (other users' machines and sessions, the DaemonSets), and neither a balloon nor the autoscaler can add room there, because a new node does not hold the machine pod. On dev's `Standard_D8s_v5` (8 vCPU, allocatable a little under 8) with the machine pod at `500m`/`1Gi` and 2 CPU / 4 GiB sessions, that is **about three sessions per machine on an otherwise empty node**, fewer on a shared one (arithmetic; allocatable and the per-pod Kata overhead are task 32's P07, **UNVERIFIED**). The per-user cap of 8 sessions over 2 machines (task 17) is therefore not reachable on one machine. A session's size is server policy: remotebe sends none, so every cloud session takes the broker's `PANACEA_APP_BROKER_SESSION_*`, and the largest a caller may ask for (`PANACEA_APP_BROKER_MAX_*`, equal to the LimitRange `max`) is **derived from the sandbox SKU**, the largest session that fits beside a machine pod on an empty node (`6000m` / `20480Mi` on `Standard_D8s_v5`, arithmetic, P07 measures; tasks 11, 17, 22, 29; b05 re-review 2, 4). Under the affinity, the broker refuses the session that does not fit with **`409 machine_full`** (`details.sessionsPerMachine`) within seconds, on the scheduler's own `Unschedulable` verdict, and deletes the pod it tried, identified by its attach token; a readiness timeout deletes its pod too (task 18). With the affinity off (the fallback below) it never answers `machine_full`, because the autoscaler can then place the session (b05 re-review 3). The control plane maps it (tasks 22, 24b) and the cockpit shows its one sentence (task 26); P07 decides between a larger sandbox SKU and a smaller default session. **Fallback**, if task 32 finds Kata cannot share one RWO disk between two pods on a node: Azure Files NFS (RWX), selected by `PANACEA_APP_BROKER_MACHINE_STORAGE_CLASS` with affinity off. **Kata support for either is UNVERIFIED** (survey G-5) |
 | **P8-D7** | **The machine agent** (`control-plane/cmd/machined`) serves the catalog and the git runner **inside the machine pod**, on the pod network, behind a per-machine bearer token held in a Kubernetes Secret. Only the broker can reach it. **Nothing uses `pods/exec`** | Reuses `internal/project.Scanner` and phase 3's local git runner unchanged, on Linux paths, with phase 3's §HGH hardening and, on top, an explicit `Env` allowlist, no credential in a lane, and no `PANACEA_APP_*` in git's environment (task 21, review I7). `pods/exec` would put git arguments (and, on a clone, credentials) into the API server's audit log and would need an SPDY dependency |
 | **P8-D8** | **Images are built from binaries compiled outside Docker** (`CGO_ENABLED=0 GOOS=linux go build`) and copied into the image, and every image is referenced **by digest**. The machine image is `FROM` the sandbox image's digest plus the `machined` binary, so one image pin covers the CLI version (OD-8) | The corporate proxy breaks `go mod download` inside a container (`images/sandbox/Dockerfile:3-8`); the control-plane module is not vendored and should not become so to build two binaries |
 | **P8-D9** | **Ingress is the Kubernetes Gateway API, implemented by Traefik**, with TLS from cert-manager (DNS-01 against our Azure DNS zone, workload identity). **Terraform owns the public IP and the A records**, so no DNS step is manual and no external-dns runs | Panacea's wildcard A record is a manual step after Traefik gets an IP (survey §1.5, `:124-125`). The AKS application-routing add-on is built on ingress-nginx, whose upstream announced its retirement — **from training knowledge, UNVERIFIED**; Gateway API resources keep the implementation swappable either way |
@@ -291,7 +291,7 @@ beyond. The two differences phase 8 introduces are recorded for the Hub's review
 |---|---|---|---|
 | **P3A-1** | Machine paths are slash-separated on every OS: `gitx.Machine` gains `Join(elem ...string) string` (`Local` → `filepath.Join`, `Remote` → `path.Join`), and phase 3 joins clone paths through it — the control plane runs on Windows | the method is added in phase 3's task 02, or by task 25 in one commit if phase 3 has landed | 25 |
 | **P3A-2** | The lane index for a cloud machine is keyed by machine id | laptop-side, keyed by `(machineId, projectId)`; the single-laptop limitation is stated in the cockpit. It holds for sessions too: a cloud sandbox carries its creator's install id, and only that control plane reaps it (review I6, tasks 18, 22, 23) | 25 |
-| **P3A-3** | *Answered by phase 3 (review I7, b06):* its task 02 §HGH (H1–H5) hardens every `gitx.Exec` call, hooks and `core.fsmonitor` among many; `machined` runs that hardening unchanged, and adds an explicit `Env` allowlist, the scope-follows-`Dir` check, no credential `Env` in a lane, and an environment without `PANACEA_APP_*`. H5's read-only `.git/config`, which phase 3 builds only in its Docker `sessionMounts`, task 24 builds for cloud sessions (b06 re-review 1) | phase 3's §HGH lands before task 21 starts (task 21 step 1 checks) | 20, 21, 24, 33 |
+| **P3A-3** | *Answered by phase 3 (review I7, b06):* its task 02 §HGH (H1–H5) hardens every `gitx.Exec` call, hooks and `core.fsmonitor` among many; `machined` runs that hardening unchanged, and adds an explicit `Env` allowlist, the scope-follows-`Dir` check, no credential `Env` in a lane, and an environment without `PANACEA_APP_*`. H5's read-only `.git/config`, which phase 3 builds only in its Docker `sessionMounts`, task 24b builds for cloud sessions (b06 re-review 1) | phase 3's §HGH lands before task 21 starts (task 21 step 1 checks) | 20, 21, 24b, 33 |
 | **P3A-4** | Phase 3's task 05 and this phase's task 14 both edit the sandbox environment and its parity test | phase 3 lands first; task 14 step 0 checks | 14 |
 
 ---
@@ -460,11 +460,12 @@ control-plane/internal/brokerapi/              codes (17), sandbox wire (18), ma
 control-plane/cmd/broker/                      the broker                                          17-19
 control-plane/internal/machineapi/             machine-agent wire: catalog (20), git (21)          20, 21
 control-plane/cmd/machined/                    the machine agent                                   20, 21, 25
-control-plane/internal/machines/               the machine set and InstallID (23); agent calls (24, 25)   23-25
-control-plane/internal/api/{api,sessions,attach}.go   route by machine                             23, 24
-control-plane/internal/api/{machines,cloudstore}.go   cloud machines, cloud conversation store     24
-control-plane/internal/api/catalog.go          machineId on the catalog routes                     24
-control-plane/internal/httpx/problem.go        machine_not_found; quota_exceeded, machine_full     23, 24
+control-plane/internal/machines/               the machine set and InstallID (23); agent calls (24b, 25)   23, 24b, 25
+control-plane/internal/api/{api,sessions,attach}.go   route by machine; the machine routes (24a); cloud create (24b)   23, 24a, 24b
+control-plane/internal/api/machines.go         cloud machines: list, ensure-default, wake          24a
+control-plane/internal/api/cloudstore.go       the cloud conversation store                        24b
+control-plane/internal/api/catalog.go          handleMachines moves out (24a); machineId on the catalog routes (24b)   24a, 24b
+control-plane/internal/httpx/problem.go        machine_not_found; quota_exceeded, machine_full     23, 24a, 24b
 control-plane/internal/reaper/reaper.go        sweeps per machine; rule 4 on a cloud machine acts on its own install id only (review I6)   23
 control-plane/cmd/api/{config,main}.go         RUNTIME_CLASS (14); BROKER_URL, BROKER_SCOPE (23)   14, 23
 control-plane/internal/gitx/remote.go          phase 3's Machine for a cloud machine (S3-P8.1)     25
@@ -498,11 +499,12 @@ missing stops and reports it.
 | `internal/sandbox/manager.go` | 14 → 15 → 18 (and phase 3's task 05, which lands first — task 14 step 0) |
 | `internal/backend/backend.go` | 14 → 15 → 18 (18 adds `KubeLabelControlPlane` and `Spec.ControlPlane`, and updates the `MaxMessageBytes` comment at `:29-37` to name five sites; and phase 3's task 05) |
 | `internal/backend/katabe/kata.go` | 14 → 15 → 18 |
-| `internal/api/{sessions,attach,api}.go` | 23 → 24 |
-| `internal/httpx/problem.go` | 23 → 24 |
+| `internal/api/{sessions,attach,api}.go` | 23 → 24a (`api.go`: the machine routes) → 24b (`sessions.go`: cloud create) |
+| `internal/api/catalog.go` | 24a (`handleMachines` moves out) → 24b (`machineId`) |
+| `internal/httpx/problem.go` | 23 → 24a (`quota_exceeded`) → 24b (`machine_full`) |
 | `cmd/broker/server.go`, `internal/brokerapi/wire.go` | 17 → 18 → 19 |
 | `cmd/machined/*`, `internal/machineapi/wire.go` | 20 → 21 → 25 |
-| `internal/machines/agent.go` | 24 → 25 |
+| `internal/machines/agent.go` | 24b → 25 |
 | `stacks/foundation/*` | 07 → 30 |
 | `deploy/charts/platform/*` | 11 → 12 |
 | `pipelines/templates/tools.yml`, `pipelines/scripts/lint.sh` | 28 → 27 → 30 |
@@ -512,8 +514,11 @@ missing stops and reports it.
 
 ## Task list
 
-Every part is in `2026-09-23-phase-8-own-environment-parts/task-NN.md`. Hours are for one
-implementer who has read this file and the part, and assume the part's tests are written first.
+Every part is in `2026-09-23-phase-8-own-environment-parts/task-NN.md`. Three ids carry a letter
+so that no other number moved (review m15, m17): `task-24a.md` and `task-24b.md` are the two
+halves of what was task 24, and `task-27a.md` is the base-image task inserted after 27. Hours are
+for one implementer who has read this file and the part, and assume the part's tests are written
+first.
 
 ### Group A — Terraform, written and validated (no Azure call)
 
@@ -525,7 +530,7 @@ implementer who has read this file and the part, and assume the part's tests are
 | 04 | `modules/observability`: Log Analytics with a daily cap, the Container Insights DCR, action group, budget | 01 | 2 |
 | 05 | `modules/registry` and `modules/keyvault`: ACR Premium and Key Vault, private endpoints, no admin user, RBAC only | 01, 03 | 2 |
 | 06 | `modules/aks`: the cluster (Overlay + Cilium, Entra RBAC, local accounts off, WI) and three pools, the Kata pool among them | 01, 03 | 3 |
-| 07 | `stacks/foundation`: the composition, `modules/egress-firewall`, the DNS zone, the edge IP and its A records, role assignments, checks, `dev`/`prod` tfvars | 02–06 | 3 |
+| 07 | `stacks/foundation`: the composition, `modules/egress-firewall`, the DNS zone, the edge IP and its A records, role assignments, checks, `dev`/`prod` tfvars | 02–06 | 5 (review m17: a module plus a nine-file stack whose `terraform test` runs take minutes each, once per tfvars) |
 | 08 | `modules/postgres` and `stacks/data`: Flexible Server for the Hub, Entra-only | 07 | 2 |
 | 09 | `stacks/identity`: the Entra registrations and groups (HA-3) | 01 | 2.5 |
 | 10 | `modules/workload-identity` and `stacks/workloads`: the pods' identities and their grants; the `role-allowlist.sh` step in `pipelines/infra.yml` | 07, 08, 09, 28 | 2 |
@@ -567,9 +572,10 @@ implementer who has read this file and the part, and assume the part's tests are
 |---|---|---|---|
 | 22 | `remotebe`: `backend.Backend` over the broker, with the Hub's token source (HA-2) | 18 | 3 |
 | 23 | `internal/machines`: a backend per machine through sessions, attach, reaper and `main`; the install id, and a reaper that destroys only its own cloud sandboxes (review I6) | 22 | 3.5 |
-| 24 | Machine-scoped catalog, cloud machines in `GET /v1/machines`, session create on a cloud machine with `.git/config` bound read-only (phase 3 H5; closes S8.3) | 23, 20 | 3 |
-| 25 | Phase 3's `gitx.Machine` for a cloud machine (S3-P8.1) | 24, 21, **phase 3 tasks 02–04 and 11** | 2.5 |
-| 26 | The cockpit shows cloud machines: states, implicit wake, the isolation badge (S8.5), signed-out | 24 | 3 |
+| 24a | Cloud machines in `GET /v1/machines`, `POST /v1/machines/default` (ensure-default) and `POST /v1/machines/{machineId}/wake`; the list cache and its invalidation (review m17 split task 24) | 23 | 2 |
+| 24b | Machine-scoped catalog, session create on a cloud machine with wake-before-create and `.git/config` bound read-only (phase 3 H5), the cloud conversation store (`cloudstore`, OD-10); closes S8.3 | 24a, 20 | 3 |
+| 25 | Phase 3's `gitx.Machine` for a cloud machine (S3-P8.1) | 24b, 21, **phase 3 tasks 02–04 and 11** | 2.5 |
+| 26 | The cockpit shows cloud machines: states, implicit wake, the isolation badge (S8.5), signed-out | 24b (and so 24a) | 3 |
 
 ### Group G — packaging and CI/CD
 
@@ -604,14 +610,14 @@ wave 2   02  03  04  09  11  15  17  28
 wave 3   05  06  12  13  18  20
 wave 4   07  19  22  27
 wave 5   08  23  27a  29     21 (when phase 3 task 02 has landed)
-wave 6   10  24  30
-wave 7   25 (when phase 3 tasks 02–04 and 11 have landed)  26
-wave 8   31                  (owner-gated, OD-12)
+wave 6   10  24a  30
+wave 7   24b
+wave 8   25 (when phase 3 tasks 02–04 and 11 have landed)  26  31 (owner-gated, OD-12)
 wave 9   32                  (owner-gated, OD-12; depends on 31)
 wave 10  33                  (depends on every task)
 ```
 
-**The critical path** is 14 → 15 → 18 → 19 and 16 → 17 → 18 → 22 → 23 → 24 → 26: the cloud machine
+**The critical path** is 14 → 15 → 18 → 19 and 16 → 17 → 18 → 22 → 23 → 24a → 24b → 26: the cloud machine
 end to end. The Terraform groups can finish in parallel with it and gate nothing in Go.
 
 ---
@@ -624,12 +630,12 @@ end to end. The Terraform groups can finish in parallel with it and gate nothing
 |---|---|---|
 | **S8.1** `backend.Backend`, seven methods | `remotebe` implements it; the interface does not change | 22 |
 | **S8.2** kata → in-cluster client only; `PANACEA_APP_KUBECONFIG` refused | **Unchanged.** The laptop never holds a cluster credential (P8-D4); only the broker builds an in-cluster client, and it is a different binary | 17 |
-| **S8.3** create sends a host mount and `WorkDir`; `katabe` refuses both | Resolved the right way round: a cloud-machine create sends `MachineMounts`, never `Mounts`; `katabe` keeps refusing host mounts and **now honours `WorkDir`**. `TestCreateRejectsMountsAndCreatesNoPod` stays green; `TestCreateRejectsAWorkDir` is replaced, in the same commit, by a test that `WorkDir` becomes the container's `workingDir` | 15, 24 |
+| **S8.3** create sends a host mount and `WorkDir`; `katabe` refuses both | Resolved the right way round: a cloud-machine create sends `MachineMounts`, never `Mounts`; `katabe` keeps refusing host mounts and **now honours `WorkDir`**. `TestCreateRejectsMountsAndCreatesNoPod` stays green; `TestCreateRejectsAWorkDir` is replaced, in the same commit, by a test that `WorkDir` becomes the container's `workingDir` | 15, 24b |
 | **S8.4** `runtimeClass` hardcoded | Becomes `PANACEA_APP_RUNTIME_CLASS` (P8-D15) | 14 |
-| **S8.5** `isolationFor` → `microvm` for Kata | A cloud machine reports `microvm`; the rail drops the `unsandboxed` badge for it (`MachineChip.tsx:45`) | 24, 26 |
+| **S8.5** `isolationFor` → `microvm` for Kata | A cloud machine reports `microvm`; the rail drops the `unsandboxed` badge for it (`MachineChip.tsx:45`) | 24a, 26 |
 | **S8.6** no `Authorization` header in `desktop/src/api/client.ts` | **Unchanged on the desktop hop.** The token travels control plane → broker, never webview → control plane; `client.ts:6-8`'s comment is updated to say where the auth went | 22, 26 |
 | **S8.7** `proxy.RelayHooked`, the one relay | The broker relays laptop ↔ pod through it; no second relay is written | 18 |
-| **SX.10** the conversation store outlives its sandbox | On a cloud machine the store is `conversations/<worktree id>/` on the machine disk, mounted at `/home/dev/.claude/projects` | 15, 24 |
+| **SX.10** the conversation store outlives its sandbox | On a cloud machine the store is `conversations/<worktree id>/` on the machine disk, mounted at `/home/dev/.claude/projects` | 15, 24b |
 | **S3-P8.1** `gitx.Machine` | A cloud machine's `Machine`: `Git()` runs on `machined` through the broker; `CloneRoot()` is `/machine/lanes`; `FetchURL` is the path, unchanged, because clone and repo share one disk | 25 |
 | **S3-P8.2** `lanes.Store` location | Cloud clones live under `/machine/lanes` on the machine disk, behind S3-P8.1 | 21, 25 |
 

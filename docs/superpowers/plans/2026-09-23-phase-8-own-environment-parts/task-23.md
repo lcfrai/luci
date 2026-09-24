@@ -10,7 +10,7 @@ recovery take one backend too (`cmd/api/main.go:202-212`, `:277`).
 This task makes the machine id **route**: sessions on `"local"` go to today's backend, unchanged;
 sessions on `m-…` go to that machine's `remotebe.Backend`. It changes no route, no JSON and no
 status code, and with no broker configured the control plane behaves byte-for-byte as in phase 2.
-Task 24 then puts cloud machines in front of the user.
+Tasks 24a and 24b then put cloud machines in front of the user.
 
 **Files:**
 - `control-plane/internal/machines/{machines.go,cloud.go,installid.go}` and `machines_test.go`, `installid_test.go` (new)
@@ -168,7 +168,7 @@ source adapted to `remotebe.TokenSource` if the Hub's C1 has landed, else `remot
 | readiness, `sessions.go:569-610` | always `sessionWaitReady(endpoint)` | if the session's backend implements `backend.ReadyWaiter`, `WaitReady(id, timeout)`; else unchanged. The empty-endpoint SECURITY branch (`:597-602`) is untouched and still runs first |
 
 `/healthz`'s `backend` field and `handleMachines` keep reporting the **local** backend in this
-task; task 24 changes `handleMachines`.
+task; task 24a moves `handleMachines`.
 
 #### Tests to write first
 
@@ -265,7 +265,7 @@ git grep -n "a.deps.Backend\." -- control-plane/internal/api/ ':!*_test.go'
 
 #### What this task does not claim
 
-- That a user can see or choose a cloud machine — task 24 lists them, task 26 draws them.
+- That a user can see or choose a cloud machine — task 24a lists them, task 26 draws them.
 - That the Hub's token source exists: until C1 lands, every cloud call is signed-out, and the
   reaper skips cloud machines, which is the safe reading.
 - **More than one laptop per user, for sessions (review I6).** A cloud session belongs to the

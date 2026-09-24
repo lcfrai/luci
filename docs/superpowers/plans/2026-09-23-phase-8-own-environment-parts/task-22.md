@@ -38,13 +38,13 @@ type ReadyWaiter interface {
 }
 
 // ErrQuotaExceeded: the caller is at a per-user limit the backend enforces
-// (the broker's MAX_SANDBOXES_PER_USER). The API maps it to 429 (task 24).
+// (the broker's MAX_SANDBOXES_PER_USER). The API maps it to 429 (task 24b).
 var ErrQuotaExceeded = errors.New("backend: per-user limit reached")
 
 // ErrMachineFull: the node holding the machine pod has no room for another
 // session (the broker's 409 machine_full, review I5). A cloud machine is
 // bounded by one node (P8-D6), so this is not "unavailable" and a retry does
-// not help until a session ends. The API maps it to 409 machine_full (task 24).
+// not help until a session ends. The API maps it to 409 machine_full (task 24b).
 var ErrMachineFull = errors.New("backend: machine is full")
 
 // MachineFullError is what remotebe returns for machine_full: errors.Is(err,
@@ -109,7 +109,7 @@ func NewClient(cfg Config) (*Client, error)
 func (c *Client) Do(ctx context.Context, method, path string, in, out any) error
 
 // Stream sends body as-is and returns the response for the caller to read and
-// close; a non-2xx answer is decoded and mapped as in Do. Task 24 and 25 use it
+// close; a non-2xx answer is decoded and mapped as in Do. Tasks 24b and 25 use it
 // for the machine agent (/v1/machines/{id}/agent/...).
 func (c *Client) Stream(ctx context.Context, method, path string, contentType string, body io.Reader) (*http.Response, error)
 

@@ -9,7 +9,7 @@ project repository and its lane clones share the machine's disk (OD-2, P8-D6), s
 call, including the fetch-back, runs on the machine**, through task 21's `POST /v1/git`.
 
 **Depends on** phase 3 tasks 02–04 and 11 (the runner, the lane store, clone create/remove, the
-composite catalog) and on tasks 21 and 24 here. If any is missing, this task does not start.
+composite catalog) and on tasks 21 and 24b here. If any is missing, this task does not start.
 
 **Files:**
 - `control-plane/internal/gitx/remote.go`, `remote_test.go` — `gitx.Remote` (new file in phase 3's package: the seam's own home)
@@ -107,7 +107,7 @@ machine lists a lane clone under `lanes/` as a worktree of its project (S3-P8.2)
 
 #### Steps
 
-- [ ] **Step 1:** Confirm the dependencies: `git grep -n "type Machine interface" -- control-plane/internal/gitx/`, phase 3's lane store and composite catalog exist, tasks 21 and 24 landed. Resolve P3A-1 as the table says.
+- [ ] **Step 1:** Confirm the dependencies: `git grep -n "type Machine interface" -- control-plane/internal/gitx/`, phase 3's lane store and composite catalog exist, tasks 21 and 24b landed. Resolve P3A-1 as the table says.
 - [ ] **Step 2:** Tests; `remote.go`; `machines.Agent.Git`.
 - [ ] **Step 3:** The resolver arm for cloud ids; `machined`'s catalog switch.
 - [ ] **Step 4:** Full run, including phase 3's suites; commit.

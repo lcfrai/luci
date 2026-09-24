@@ -32,7 +32,7 @@ refuses to start if the root is not writable.
 
 ```go
 // Package machineapi is the machine agent's wire contract, shared by
-// cmd/machined and the laptop's remote catalog (task 24).
+// cmd/machined and the laptop's remote catalog (task 24b).
 package machineapi
 
 import "github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
@@ -60,7 +60,7 @@ type Worktrees struct {
 // relative to the root — the form backend.MachineMount takes (task 15).
 // GitConfig is MachinePath + "/.git/config" when, read with Lstat (no symlink
 // followed), MachinePath/.git is a directory and its config a regular file;
-// otherwise "". Task 24 binds it read-only over the sandbox's
+// otherwise "". Task 24b binds it read-only over the sandbox's
 // /home/dev/work/.git/config (phase 3 §HGH H5, review I7). A .git directory
 // whose config is missing or is not a regular file is 409 conflict with
 // details.reason "git_config_not_a_file": a Kubernetes subPath that does not

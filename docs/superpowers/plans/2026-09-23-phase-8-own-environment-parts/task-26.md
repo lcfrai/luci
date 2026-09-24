@@ -27,7 +27,7 @@ right, and no screenshot is offered as evidence.
 #### Contract — the TypeScript additions (complete; they go into `types.ts` and UI contract §2 verbatim)
 
 ```ts
-/** GET /v1/machines' "cloud" block (task 24). Absent from a server with no broker. */
+/** GET /v1/machines' "cloud" block (task 24a). Absent from a server with no broker. */
 export type CloudStatus = "ok" | "signed_out" | "unavailable";
 
 export interface CloudState {
@@ -83,7 +83,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 - **The chip** (`MachineChip`): the current machine's name, its `StatusDot` (`live` when
   `running`), and the `unsandboxed` badge exactly when `isolation !== "microvm"` (unchanged,
   `MachineChip.tsx:45-47`) — so a cloud machine carries no badge (S8.5) and the local one keeps it.
-- **Waking.** From a wake (explicit, or a session create on a sleeping machine — task 24 wakes it
+- **Waking.** From a wake (explicit, or a session create on a sleeping machine — task 24b wakes it
   server-side, and the client records `wakingSince` when it sends that create) until the machine
   reports `idle` or `running`, the chip shows `waking… {n}s`, `n` from **one**
   `useHeartbeat()` subscription in the chip (`hooks/heartbeat.ts:64`, seam SX.8), in
@@ -101,7 +101,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
   declared return type and no `default:` arm; `quota_exceeded` gets the sentence "You are at your
   cloud machine limit."
 - **A full machine (review I5).** A session create on a cloud machine whose node has no room
-  answers `409 machine_full` with one of the control plane's three sentences (task 24, chosen by
+  answers `409 machine_full` with one of the control plane's three sentences (task 24b, chosen by
   the count; for 3: "This cloud machine's node has no room for another session right now (it
   already runs this machine's 3 sessions), so the session was not created. Stop one of them, or
   try again later."). The cockpit renders it verbatim through `useCreateSession`'s existing
@@ -135,7 +135,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 | `MachinesPopover / selecting a machine switches the rail` | click the cloud row → `selectedMachineId` set; the next poll calls `listProjects("m-…")` | the rail stuck on local projects |
 | `MachinesPopover / signed out shows the server's sentence verbatim` | `cloud.status: "signed_out"`, message `M` → the text `M` exactly, no cloud rows | a client-invented sign-in message |
 | `MachinesPopover / wake is offered only for a sleeping cloud machine` | Wake button present for `sleeping`, absent for `idle` and for `local` | a wake verb on the laptop |
-| `useCreateSession / a full machine shows the server's sentence verbatim` | three cases, each `S` one of task 24's forms copied exactly: `ApiError("machine_full", S3, 409, {sessionsPerMachine: "3"})`, `S1` with `"1"` (the singular form), and `S0` with no details → the surfaced text is that `S` exactly each time, not the Docker or control-plane sentence and not re-pluralised from the count (review I5; b05 re-review 6) | `machine_full` classified as `backend-down`, which tells a cloud user "Docker is not running" |
+| `useCreateSession / a full machine shows the server's sentence verbatim` | three cases, each `S` one of task 24b's forms copied exactly: `ApiError("machine_full", S3, 409, {sessionsPerMachine: "3"})`, `S1` with `"1"` (the singular form), and `S0` with no details → the surfaced text is that `S` exactly each time, not the Docker or control-plane sentence and not re-pluralised from the count (review I5; b05 re-review 6) | `machine_full` classified as `backend-down`, which tells a cloud user "Docker is not running" |
 | `poller / ensure-default is called once, and only when signed in` | three `ok` snapshots with no cloud machine → one call; `signed_out` → none | a POST on every tick |
 | `store / the migration adds selectedMachineId and keeps everything` | a vN persisted blob → vN+1 with `selectedMachineId: null` and every old key equal | a migration that drops user state |
 | `selectors / a vanished selection falls back to the default` | `selectedMachineId` not in `machines` → the default | a blank rail after a machine is deleted |
@@ -143,7 +143,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 
 #### Steps
 
-- [ ] **Step 1:** Read the current `PERSIST_VERSION` and the UI contract §2; confirm task 24 has
+- [ ] **Step 1:** Read the current `PERSIST_VERSION` and the UI contract §2; confirm tasks 24a and 24b have
   landed (`GET /v1/machines` has `cloud`).
 - [ ] **Step 2:** Amend UI contract §2 and `types.ts` together; the SX.2 gate passes.
 - [ ] **Step 3:** Tests; client, poller, store, selectors; chip; popover; CSS through tokens only.

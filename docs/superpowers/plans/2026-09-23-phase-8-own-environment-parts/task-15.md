@@ -10,7 +10,7 @@ Kata must supply it "as a volume that outlives the pod, scoped per user and per 
 
 P8-D6 answers both: a cloud machine owns one disk, and a session mounts **sub-paths of it**. This
 task adds the vocabulary for that to the backend seam and teaches `katabe` to render it. It does
-**not** decide which sub-paths a session gets — that is the control plane's, in task 24 — and it
+**not** decide which sub-paths a session gets — that is the control plane's, in task 24b — and it
 does **not** drop the host-mount refusal: that stays, and its test stays green, exactly as S8.3
 says ("the refusal stays until that design replaces the mount, never the other way round").
 
@@ -108,7 +108,7 @@ resume fix's own reason, `sessions.go:44-48`; seam S8-P6.1).
 
 **Sub-path directories must exist before the pod starts.** If a sub-path is missing, the kubelet
 creates it — as root — and the agent (uid 1001) cannot write to it. The machine agent creates
-both directories, owned by 1001, before the control plane creates the session (task 24 calls
+both directories, owned by 1001, before the control plane creates the session (task 24b calls
 task 20's `POST /v1/dirs`). Whether `fsGroup` repairs a root-created sub-path under Kata is
 **UNVERIFIED** and is on task 32's list; the design does not rely on it.
 
@@ -180,7 +180,7 @@ grep -c "func TestCreateRejectsAWorkDir" control-plane/internal/backend/katabe/k
 
 #### What this task does not claim
 
-- That session create uses any of this: until task 24 it still sends host mounts, so under
+- That session create uses any of this: until task 24b it still sends host mounts, so under
   `PANACEA_APP_BACKEND=kata` it is still refused — correctly.
 - That two Kata pods on one node can mount sub-paths of one RWO disk at the same time
   (**UNVERIFIED**, P8-D6, task 32).
