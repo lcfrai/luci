@@ -1,6 +1,7 @@
 # 05 — Design: the parity-plus work layer
 
-**Date:** 2026-09-25. **Status:** design for the owner's review. Not a plan, and nothing in it is
+**Date:** 2026-09-25. **Status:** design for the owner's review, **revision 2** (answers
+`06-critique-product.md` and `07-critique-design.md`; §8). Not a plan, and nothing in it is
 built. **Branch:** `feat/phase-2-cockpit`.
 
 **The owner's ask, verbatim:** *"I have just seen a product called linear.app. I need you to make
@@ -32,42 +33,52 @@ UNVERIFIED here.
 1. **We build the work layer, not an integration.** An issue becomes a Hub object that points at
    the brief and the criteria it serves (04 §3). That pointer is what Linear cannot copy quickly:
    the work item is *on the provenance thread*, not beside it.
-2. **Parity, counted.** Of Linear's 257 features: **MATCH 155, EXCEED 75, SKIP 27** (§1). Every
-   SKIP has a reason. Eleven are support-desk, CRM and sales features; the rest are embeds and
-   long-tail connectors, grants Hub v1 lacks, predictions `AGENTIC-UX.md` bans, mobile and web
-   apps, and non-build items.
+2. **Parity, counted, and priced per stop** (revision 2). Of Linear's 257 features: **MATCH 139,
+   EXCEED 67, PARTIAL 24, SKIP 27** (§1). At the recommended stop (W1-W3), **115 are complete and
+   136 reached**; "everything they are doing" is W5, with 188 complete. Every SKIP has a reason:
+   eleven are support-desk, CRM and sales features; the rest are embeds and long-tail connectors,
+   grants Hub v1 lacks, predictions `AGENTIC-UX.md` bans, mobile and web apps, partner agents that
+   bring their own inference, a third git host, and non-build items.
 3. **The magic is four things Linear does not have** (§2): agents that are real teammates on the
    issue (they take it through their owner, report in one live line, and *propose* evidence);
    Orchestrators that negotiate across owners and escalate to inform or to ask; **one thread** from
    a brief through a design frame, issue, session, commit and land to the release; and managed
    zero-retention inference with an AU switch.
-4. **Done means proven.** An issue closes when every criterion it serves is settled by recorded
-   evidence at the landed commit, not when a PR merges. Linear moves an issue to Done on merge.
+4. **Done means proven** (rule revised, §3.3). An issue is `done` when its **own** work landed and
+   its **own** evidence holds, observed by the platform where it can be (a watched test run), so
+   it needs no click; the criterion settles separately, and siblings never hold each other
+   hostage. A hand-set `done` shows as *done, not proven*; sync can never write it; an issue that
+   serves nothing closes on landing, as Linear closes on merge.
 5. **Object model** (§3): `issue is-` (mutable head, immutable digested revision), `feature ft-`
    (Linear's "project"; our `project` is the product), `cycle cy-`, `initiative in-`, `milestone
    ml-`, `view vw-`, `comment ic-`, `request rq-`, `template tp-`, `label lb-`, `loop lp-`, plus
    team mode's `task tk-`. All live in the Hub. Live activity stays Fleet state, derived onto the
    issue, never stored on it.
-6. **One app, not two** (§4). Work is a seventh lens plus a project surface, not a separate
-   product; every other lens shows an issue chip. The Desk absorbs Linear's Inbox, My Issues and
-   triage-for-me. Lower-case keys edit the record; `Shift` hands work to your agents. The thread is
-   the visual signature that says "this is not a Linear clone".
+6. **One app, not two, and not Linear in teal** (§4). The Work lens is **grouped by criterion**, so
+   its skeleton is the thread, which Linear has no object to build; Plan is the project surface;
+   every other lens shows an issue chip. The Desk absorbs Linear's Inbox and My Issues. Keys match
+   Linear's letters on purpose; `Shift` plus a letter hands work to your agents, and no agent key
+   sits on a chord Linear uses (`Shift+R` Run, `Shift+O` Orchestrator). Rows never move under the
+   reader, and a teammate's agents never breathe on your screen.
 7. **Fast is architecture.** An in-memory Hub replica on the Hub's existing change feed, optimistic
    writes with undo for reversible acts (02 C8), in-row confirmation for irreversible ones. This
    corrects 02 C8, which put the replica on disk against ADR-H1 (§4.4, Q5).
-8. **Minimum lovable slice W1** (§5.3): file an issue, `Shift+R` starts a cloud agent on it, it
-   lands, a person records evidence, it turns `done` by itself, and the release shows it shipped.
-   About **28 focused days** (3 weeks elapsed on three streams). **W1-W3 is about 64 days; all of
-   W1-W5 about 117.** None is measured.
+8. **W1, the first slice a team can adopt** (§5.3): import a Linear backlog, comment, write in
+   Markdown, in the new look; `Shift+R` runs an agent on any row; it lands, the platform observes
+   the proof, it turns `done`, and the Desk says so. About **48.5 focused days, ~4-5 weeks** to a
+   local-mode demo; the cloud path comes with TM1's streams A and C. **W1-W3 is ~82.5 days plus
+   TM1's ≈95.5, ~10-12 weeks elapsed; all of W1-W5 ~138.** None is measured.
 9. **Changes now** (§5.2): add `issue:` to the phase 4 key parser and the Hub key grammar; fix the
    stale `criterionId: "done:2"` example. **One gap found:** no plan builds the Desk (§5.6).
-10. **Ten owner questions** (§6), five before W1. The biggest: progress displays (Q1, recommend
-    convergence plus plain group sizes, nothing that predicts) and how far to build (Q2,
-    recommend W1-W3 first).
+10. **Fourteen owner questions** (§6), nine before W1. The biggest: the order against OD-17 (Q11,
+    recommend W1 beside TM1), how far to build (Q2, W1-W3) and progress displays (Q1).
+
+**Revision 2** (2026-09-25) answers both critiques, `06-critique-product.md` and
+`07-critique-design.md`; §8 maps every Critical and Important finding to its fix.
 
 **How to read this file.** §1 is the full parity matrix and is long; read its tally first. §2 is
 the "more". §3 to §5 are the design and the delivery. §6 is what the owner decides; §7 is what is
-unverified.
+unverified; §8 answers the two critiques, finding by finding.
 
 ---
 
@@ -388,7 +399,7 @@ We keep **intake** (requests from people outside the team) and skip the CRM.
 | 222 | Command-menu prefixes | MATCH | Prefixes scope to issues, people, sessions or commands (§4.3) | W1 |
 | 223 | Key grammar: property letters, `G`, `O`, `M` | EXCEED | The same grammar, live **only when focus is in a list**, never in a terminal (02; extends `isCockpitChord` in `useKeyboardMap.ts`); it also reaches agents: `Shift+R` Start, `Shift+O` Delegate (§4.3) | W1 |
 | 224 | `?` shortcut sheet | MATCH | Generated from the same key map, so it cannot drift | W1 |
-| 225 | Multi-select and bulk bar | EXCEED | Bulk acts include *Start 4 lanes* and *Delegate 4 to my Orchestrator*; irreversible bulk acts confirm in place (02 `confirm.inplace`) | W1 |
+| 225 | Multi-select and bulk bar | EXCEED | Bulk acts include *Start 4 worktrees* and *Delegate 4 to my Orchestrator*; irreversible bulk acts confirm in place (02 `confirm.inplace`) | W1 |
 | 226 | Menus show every shortcut | MATCH | Every menu item renders its chord from the key map | W1 |
 | 227 | Safe-triangle submenus | MATCH | 02 S7's pattern | W1 |
 | 228 | Local-first client database | MATCH | An in-memory **Hub replica** with optimistic reversible writes (02 C8). In memory only, because no client persists Hub data (ADR-H1:467-474) | W1 |
@@ -860,7 +871,7 @@ everywhere else. Two surfaces named *Work* in revision 1 are now two names.
 |---|---|---|---|
 | **The Desk** | the account, above projects | issues only when they need you, in the Desk's existing sections (§4.2) | Desk designed, **not built** (§5.6) |
 | **Plan** (project surface, `G P`) | one project | Triage, Backlog, all criteria with their issues, the features board, cycles, initiatives, saved views, *My issues* | new |
-| **Work lens** | one feature (its branch) | its issues, **the brief's criteria with the issues that serve each**, who is on each issue now | new; `Lens` gains `"work"`, the seventh lens |
+| **Work** (the feature's home, `G W`) | one feature (its branch) | its issues **grouped under the brief's criteria**, who is on each issue now | new. `Lens` gains `"work"` in code, but Work is **not a seventh tab** in the lens row, since AX §9 item 1 removed module tabs because tabs read as stages (D M7); it opens from `G W`, from Plan and from every issue chip |
 | **Issue view** | one issue | head, revision history, `serves`, relations, comments, the live agent line, proposed evidence, *shipped to* | new |
 | **Discover, Design, Develop, Merge, Deploy** | a branch | an issue chip beside the brief chip on every artefact that carries one (§4.5) | chips new |
 | **Palette** `Ctrl+K` | everywhere | every work verb, with its chord shown (L-226) | built; gains commands |
@@ -1107,7 +1118,7 @@ rather than asserted until the owner accepts the numbers (02 C8).
 
 ---
 
-## 5. Phased delivery: the minimum lovable slice first
+## 5. Phased delivery: an adoptable slice first
 
 Proposed as **Phase W, the work layer**, lettered like Phase H so no phase number moves (04 §7.6).
 Sizes are **focused days for one implementer who knows the code**, estimated from the existing
@@ -1344,11 +1355,15 @@ Under option A, add about 8 weeks to every row. Under option C, W1 is ~4-5 weeks
 
 | # | Question | Options | Recommendation |
 |---|---|---|---|
-| **Q1** | Progress displays. Linear shows percentages, burn-ups and predicted dates; `AGENTIC-UX.md` bans them (AX:237, :245) | **A** convergence per criterion plus plain group sizes for sets people committed to; **B** convergence only, no counts; **C** Linear's full set | **A.** A cycle is a human commitment, so its size is a number we can defend; anything that predicts stays banned. Needs one line added to AX:245 (04 §6.3) |
-| **Q2** | How far to build | stop after W1 (~28 d); W1-W3 (~64 d); everything (~117 d); W1 plus sync only (~36 d) (§5.7) | **W1-W3 as the first target**, then decide W4 and W5 on what the first teams use. W1 alone is a demo; W3 is where the cross-owner magic shows |
+| **Q1** | Progress displays. Linear shows percentages, burn-ups and predicted dates; `AGENTIC-UX.md` bans them (AX:237, :245) | **A** convergence per criterion plus plain group sizes for sets people committed to; **B** convergence only, no counts; **C** Linear's full set | **A.** A cycle is a human commitment, so its size is a number we can defend. What stays banned is a **completion prediction**: a percentage, a progress bar, an ETA, "N of M" (AX:237). A projection that names its rule and source span (*"next decision ~14:22 · rule: migration gate"*, AX:145, :149) is allowed. Needs the first of Q13's amendments |
+| **Q2** | How far to build | stop after W1 (~48.5 d, ~4-5 weeks); W1-W3 (~82.5 d **plus TM1's ≈95.5**, ~10-12 weeks); everything (~137.5 d, ~15-18 weeks); W1 plus sync only (~55 d) (§5.7) | **W1-W3 as the first target**, under Q11 B. W1 is now a slice a team can adopt, not a demo; W3 is where the cross-owner magic shows. Parity there: 115 of 257 complete, 136 reached (§1) |
 | **Q3** | May an issue's text enter the agent's managed block once its owner started or delegated it? | yes with guards; no, agents read issues only as data | **Yes, with 04 §4.4's four guards**, and only after TM-05's injection corpus covers hostile issue text |
-| **Q4** | Who builds the Desk, which no plan owns (§5.6)? | Phase W builds a minimum in W1; a separate Desk slice first; team mode's cockpit stream | **Phase W's minimum in W1**, then a full Desk slice before TM1's cockpit stream needs it |
+| **Q4** | Who builds the Desk, which no plan owns (§5.6)? | Phase W builds the frame in W1; a separate Desk slice first; team mode's cockpit stream | **The frame in W1 (row 16)**, which TM1's stream F adds its rows to: one Desk build, not two. The horizon bar and quiet mode go to whichever of W2 or TM1's F finishes first |
 | **Q5** | Keep the Hub replica in memory (ADR-H1) or allow an encrypted disk cache? | in memory; DPAPI-encrypted cache with erase propagation | **In memory for W1**, and measure `budget.return`. Amend ADR-H1 only if a real project misses 2 s |
+| **Q10** | The mono, and 02 D1's other picks (a light theme, a 7-day UI-defect clock, the thread as the signature) | **Berkeley Mono, a paid licence of about $100 one-time** (02:222); **Commit Mono, OFL and free** | Put both in `flag.compare` and choose by eye. **Berkeley** if the owner accepts the licence (02's pick; DESIGN-SYSTEM's taste-marker argument), **Commit Mono** otherwise. Yes to the other three. **Gates the W1 prototype** (D I5) |
+| **Q11** | **Order against OD-17**: team mode was to be built straight after the current wave (§5.7) | **A** TM1 first; **B** W1 beside TM1 on two added streams; **C** W1 before TM1 | **B.** OD-17's order holds, TM1's critical path is untouched, W1 demos in local mode within ~4-5 weeks, and TM1's streams A and C become W1's cloud path |
+| **Q13** | Four one-line `AGENTIC-UX.md` amendments | accept each, or not | **Accept all four.** (1) AX:245: plain group sizes for committed sets (Q1 A). (2) §10 anti-pattern 1: *"… a nameable transcript span, **or the Hub record and revision it shows**"*, since a person's issue has no span (P I7). (3) §5: three-line cards for agents that changed since you looked, one folded line for the steady (D C3). (4) anti-pattern 2: a projection that names its rule and source span is not an ETA (D M8) |
+| **Q14** | The sans face. Geist is now a generator default (D I6) | **Segoe UI Variable** (native, built fallback); **Atkinson Hyperlegible Next** (OFL, **UNVERIFIED** licence and weights); **Geist** | **Segoe UI Variable** on Windows, chosen by eye beside the other two in `flag.compare`; a macOS fallback is chosen with the macOS build. **Gates the W1 prototype** |
 
 ### 6.2 Decide later
 
@@ -1357,8 +1372,8 @@ Under option A, add about 8 weeks to every row. Under option C, W1 is ~4-5 weeks
 | **Q6** | The 27 skips (§1 tally): mobile (L-232), SLAs (L-141, 142), the CRM (L-131, 134-136), support connectors | **Keep them skipped.** Revisit mobile after W3, starting with answering Desk items from Teams |
 | **Q7** | Call Linear's *project* a **feature**, keeping *project* for the product (04 W1)? | **Yes.** Two meanings of one word in one rail confuses a first-time user permanently |
 | **Q8** | Should an "AU data only" project's branch names default to no title slug (04 W4)? | **Yes.** An erase cannot reach a branch name on a customer's remote |
-| **Q9** | Build the tracker, or sync with Azure Boards, GitHub Issues and Jira (03's open tension; 04 W5)? | **Both, in order:** build the first-class work layer, and sync out and import one way into `triage` in W5. Which trackers KPMG teams use is **UNVERIFIED** |
-| **Q10** | Accept 02 D1's four design recommendations: Berkeley Mono, a light theme now, a 7-day UI-defect clock, the thread as the signature? | **Yes to all four**; the light theme lands in W2 through the generator |
+| **Q9** | Build the tracker, or sync with Azure Boards, GitHub Issues and Jira (03's open tension; 04 W5)? | **Both, in order:** build the first-class work layer; in W5 sync **one way in**, into `triage` as *not tied · imported*, and **two way for comments only**. The other tracker never sets a state or `done`, so the plan of record does not split (P I3). Which trackers KPMG teams use is **UNVERIFIED** |
+| **Q12** | Cross-team planning: build W4's cross-team grant (a feature shared with a second team, initiatives across teams), or declare Phase W one-team? | **Build it in W4 (4 d).** In a KPMG engagement several teams work for one client, and that is the planning level people use most (P I4). Nested sub-teams, per-object sharing and sub-initiatives (L-4, 6, 86) stay skipped |
 
 ---
 
@@ -1380,6 +1395,22 @@ Under option A, add about 8 weeks to every row. Under option C, W1 is ~4-5 weeks
    Its section numbers are cited as read on 2026-09-25 and may move.
 7. **Visual acceptance is the owner's eyes** (`CLAUDE.md`). The ASCII in §2 and §4 is a layout
    sketch, not a design; nothing here has been drawn or run.
+8. **Added in revision 2.**
+   - **Local mode's inference.** W1's demo runs in local mode (OD-20), on the user's own Claude
+     Code login as today. OD-19 retires `/login` in sandboxes; that the org still permits a
+     personal login locally once the gateway exists is **UNVERIFIED**.
+   - **Linear's chords.** That Linear binds nothing on `Shift+R`, `Shift+O` and `Shift+A` comes from
+     01 §15.1's partial list; the table in §4.3 is re-checked when Linear's shortcut page loads.
+   - **Contrast.** `--run` against `--idle` at about 2.3:1 is computed from hex values (07 C4), not
+     measured in WebView2 with a colour-blindness simulator.
+   - **Faces.** Atkinson Hyperlegible Next's licence and weight range; how Segoe UI Variable looks at
+     11-13px against the mono.
+   - **The replica's 5 d** assumes `/v1/changes` filters per caller; not checked in hub-contract.
+   - **Every elapsed figure in §5.7**, and TM1's ≈95.5 d, as read in TM-05 revision 3 on this date.
+   - **"Most issues will serve no criterion"** (06) is a judgement, not a measurement; the thread
+     state makes the real share visible once teams use it.
+   - **The https link** opening the app when installed needs a registered URL handler on Windows;
+     not checked.
 
 ### 7.2 Sources
 
@@ -1393,6 +1424,14 @@ and D; `03-agent-work-landscape.md` headings and §12; `04-internal-fit.md` §1-
 §5-§10; `docs/DESIGN-SYSTEM.md` (rules only); `desktop/src/store/types.ts:173`; the Hub contract's
 id-prefix lines 105-112 in the `feat/hub` worktree.
 
+**Also read for revision 2, 2026-09-25:** `06-critique-product.md` and `07-critique-design.md` in
+full; `01` §15.1 (lines 841-864) and lines 82-169, 327-394 and 1060 for Linear's key letters;
+`02` lines 145-153, 222, 334-375 (D2 step sizes); `../2026-09-23-owner-decisions.md` OD-17 to
+OD-20 (lines 128-141); `../2026-09-24-team-collaboration/05-design.md` §12.0-§12.1 (lines
+1225-1280, TM1's streams and ≈95.5 d); `docs/AGENTIC-UX.md` lines 144-147; a count of *worktree*
+in `desktop/src` (864 occurrences) for the vocabulary choice. **No web page was read for revision
+2**, so it adds no URL; the matrix was recounted by a script run through `claudezsh`.
+
 ---
 
 ## 8. Response to critique (revision 2, 2026-09-25)
@@ -1400,10 +1439,83 @@ id-prefix lines 105-112 in the `feat/hub` worktree.
 Two adversarial reviews read revision 1: `06-critique-product.md` (**P**, 4 Critical, 10
 Important, 8 Minor) and `07-critique-design.md` (**D**, 5 Critical, 10 Important, 10 Minor).
 **Every Critical and Important finding is fixed in the body of this file**, at the section named
-below. None is rebutted outright; three are accepted with a narrower fix than the critic proposed,
-and the reason is given in the row. Minor findings are fixed where the fix is one line (§8.3).
+below. None is rebutted outright. Three are fixed differently from the critic's suggestion, with
+the evidence in §8.3. Every Minor finding is fixed too (§8.4).
 
 The two reviews agree on the direction (Hub issues on the thread; fact-driven states; the Desk
 absorbing Inbox) and both list what must survive (P "What holds up", D "What is genuinely
 better"). Nothing on either list was changed except where a Critical finding required it.
+
+### 8.1 Product critique (06)
+
+| # | Finding | Verdict | Fix, and where |
+|---|---|---|---|
+| **C1** | W1's demo needs five unbuilt phases and a live cloud | **Accepted** | W1 has a full *ready when* line (§5.1); its demo runs in **local mode** (OD-20); the cloud path is TM1's streams A (8.5 d) and C (14.5 d) plus the owner's environment; elapsed to the first demo is in §5.7 and 00 |
+| **C2** | TM1 omitted; order against OD-17 unstated; two Desk builds | **Accepted** | TM1 (≈95.5 d) is in every elapsed row (§5.7); the order is Q11 (A, B, C; recommend B, W1 beside TM1); one Desk frame in W1 row 16, which stream F extends (§5.5, §5.6) |
+| **C3** | Parity headline counts W5; ~28 rows only partial | **Accepted** | PARTIAL verdict (§1); recount 139 / 67 / 24 / 27; parity at each stop (115 complete at W3, 188 at W5). Four of the 28 are fixed by scheduling their missing part (L-8, 67, 83, 98), so 24 remain; L-231 is PARTIAL |
+| **C4** | "Done means proven" holds siblings hostage and has three bypasses | **Accepted, at the root** | §3.3 separates the issue's `done` (own work, own evidence at or after its land) from the criterion's `settled`; observed evidence needs no click; *self-attested* is marked; hand-set `done` needs a reason and shows *done, not proven*; sync cannot write it; `drifting` and `uncovered` restored; empty `serves` closes at `landed` with a team switch |
+| **I1** | W1 is "lovable" and "a demo" at once | **Accepted** | W1 renamed *the first slice a team can adopt*; comments, the editor and Linear and CSV import move in; *shipped* moves to W1b; what a Linear power user still misses is listed (§5.3) |
+| **I2** | Keys collide with Linear, twice on agent keys | **Accepted, and widened** | §4.3's policy: match on purpose, depart only for agents or cost. No agent key on a chord Linear uses; that also moves Start off `Shift+S`, which Linear uses for subscribe (01:381, :394), a collision 06 did not list. `M` is relations, `H` defers, `G I` is the Desk; W3 keys are sliced |
+| **I3** | Open ends in the thread; two-way sync cuts it | **Accepted** | Every issue has a thread state with a reason (§2.3 point 4); `T` attaches a criterion in triage; sync is one way in and two way for comments only (Q9, W5) |
+| **I4** | Custom states and cross-team planning marked matched but missing | **Accepted** | Custom states inside the human bands in W2 (§3.3); a cross-team grant in W4, 4 d (L-67, L-83), put to the owner as Q12 |
+| **I5** | 18 nouns; duplicate words | **Accepted** | Nine person-facing nouns, with a table of what stays internal (§4.1); *worktree* on screen, *lane* internal; feature and branch as one row; *Plan* and *Work* named apart; a five-minute noun check in C13 |
+| **I6** | "Prettier" has no slice | **Accepted** | 02 D2 steps 2, 3 and 7 and the drawn glyphs move into W1 before the prototype review (rows 8-10); Q10 restates the mono licence |
+| **I7** | AX anti-patterns 1 and 10 | **Accepted** | Q13 amendment 2 for anti-pattern 1; the sketches are redrawn to rule 3: owners named, files listed, no in-row counts (§2.1, §4.1, §4.4) |
+| **I8** | Editing someone else's in-flight issue | **Accepted** | New §3.7: an edit reaches the owner as an *inform*; a reassign is the owner's *decide*; a cross-owner relation is a proposal from the editor's own Orchestrator. §2.2 point 4 reworded |
+| **I9** | Replica 2.5 d vs 02's two weeks; Work surface 3 d | **Accepted** | Replica 5 d, with what memory removes and what it keeps (§5.3); Work surface 5 d, resized after the prototype review |
+| **I10** | `panacea://` links open nothing without the app | **Accepted** | https Hub links in W2 (1.5 d); L-98 scheduled, not claimed as built |
+
+### 8.2 Design critique (07)
+
+| # | Finding | Verdict | Fix, and where |
+|---|---|---|---|
+| **C1** | The Work surface is Linear's list in teal | **Accepted** | The Work lens groups **by criterion** by default, headers in words with their convergence word; state is a glyph column; *by state* is a saved view; C13 fails any work screen grouped by state by default (§4.1, §4.4) |
+| **C2** | Rows jump when agents change state | **Accepted** | `moves.hold`, departure ghosts, `· 1 moving` in the header, `N` applies held changes; in the W1 prototype (§4.1, §5.3 row 10) |
+| **C3** | The agent cell has no meaning line, a count, no single source | **Accepted** | One line: `who.label` then the lead agent's MEANING; one dot for one agent; others via `Space`. The Desk's RUNNING uses three-line cards for changed agents and a fold for the steady, as Q13 amendment 3 (§4.1, §4.2) |
+| **C4** | Under reduced motion running and idle differ by colour alone | **Accepted** | Running gets its own shape (a disc in a 1px open ring); a static 2px tick replaces the flash; reduced motion × deuteranopia joins `stress.sets` (§4.4) |
+| **C5** | W1's Desk hides failures | **Accepted** | FAILED and RUNNING are in W1's Desk frame (row 16); the demo ends on the Desk (§5.3) |
+| **I1** | Lit and selected look the same | **Accepted** | Lit brightens the gutter line and node, never rings a row; selection is ring plus check glyph (§4.1) |
+| **I2** | Teammates' agents on the Work surface | **Accepted** | A teammate's issue shows the person and what they touch, with no dot and no count; their fleet is in `peek.person` (§4.1) |
+| **I3** | Four holes in the key model | **Accepted** | Range select on `Shift+↓`/`↑`; `event.code` plus `shiftKey`; sequences in list focus only and a single-key off switch (WCAG 2.1.4); `A` is the assignee on issue rows; the letters are declared a deliberate match (§4.3) |
+| **I4** | Amber for urgent | **Accepted** | Priority is a notch in ink, urgent included; amber only when urgent work enters NEEDS YOU (§4.4 rule 2) |
+| **I5** | Placeholders on the most repeated things | **Accepted** | The prototype is gated on Q10 and Q14, about 12 drawn glyphs and bundled fonts; it grows to 3 d and is reviewed at 125% in two themes behind `flag.compare` (§5.3 rows 8-10) |
+| **I6** | Geist is now the generator's default | **Accepted** | Q14: Segoe UI Variable recommended, beside Atkinson Hyperlegible Next and Geist in `flag.compare` (§4.4) |
+| **I7** | The evidence is set smallest | **Accepted** | `--t-fact` at 12px; 11px for `kbd` only; `--ink-2` the floor for any fact (§4.4) |
+| **I8** | Windows contrast themes erase rings; one colour-only escalation | **Accepted** | A `forced-colors` layer; the escalated lease gets a shape; a Windows contrast theme in `stress.sets` (§4.4 rule 4) |
+| **I9** | No assistive-technology model | **Accepted** | `aria-hidden` heartbeat; one polite live region at digest rate; grid or listbox roles; the Undo window pauses on focus and stays reversible from history (§4.4 rule 5, §4.6) |
+| **I10** | Ticking seconds; a wrong density budget | **Accepted** | `live` / `quiet 2m` changing on the beat; budgets in CSS px at 125%; RUNNING folds steady agents (§4.1, §4.2) |
+
+### 8.3 Where the fix differs from the critic's suggestion
+
+1. **P C2 suggested building W1 *inside* TM1's streams B and F.** Revision 2 runs W1 *beside* them
+   as two added streams (Q11 B). Evidence: TM-05 §12.1 gives stream F 12 d and TM1's critical path
+   about 30 d (D1 → D2 → G). W1's desktop work is 33 d; folded into F it would make F about 45 d
+   and TM1's new critical path, delaying team mode against OD-17. Beside it, W1 shares F's Desk
+   frame and B's review without lengthening either.
+2. **P I10 said mark L-98 MATCH, and P I4 said mark L-8 PARTIAL, "until built".** In this matrix a
+   verdict describes the design and the slice column says when; nothing in §1 is built, so "until
+   built" would apply to all 257. Revision 2 schedules both missing parts (https links and custom
+   states, W2) and shows their state at each stop in the new per-stop table, where both count as
+   incomplete at W1. PARTIAL is kept for what no slice schedules.
+3. **P I1 sized the reshaped W1 at about +5.5 d.** Revision 2 adds 21 d, because it also takes in
+   06 I6, 06 I9 and 07 C2, C4, C5 and I5 to I9, each of which lands in W1's surfaces. The larger
+   number is the honest one; §5.1 itemises it.
+
+### 8.4 Minor findings
+
+| From | Fix, and where |
+|---|---|
+| P 1, D M8 | Q1 bans completion predictions only; a projection names its rule and span (§4.2, Q1, Q13 amendment 4) |
+| P 2 | 00 names the five parts of the line and lists every skip reason, L-195 and L-205 included |
+| P 3 | `dc-` is in §3.6's prefix check |
+| P 4 | W0 is stated as the one exception, sent to the `feat/hub` owner as a proposed edit (§5.2) |
+| P 5 | Undo on Start lasts until the first file write, stops the session and shows its cost (§4.6) |
+| P 6, P 7 | L-235 is a deliberate difference (PARTIAL); L-8's wording no longer reads as parity (§1) |
+| P 8 | The zero state says only what W1 can back; the horizon line joins it later (§4.2) |
+| D M1, M2, M3 | The sketch is W1's, with no cycles; a queue position names its cause; `⇄` folds once seen (§4.1) |
+| D M4 | `thread.lit` on hover **or focus** (§4.1) |
+| D M5, M6 | C13 holds in every theme, with `paper`'s own mark; grain measured and off in `-hc` (§4.4) |
+| D M7 | Work is the feature's home surface, not a seventh tab (§4.1) |
+| D M9, M10 | Over three changes in one group flash the header once; `N` applies every held change (§4.1, §4.3) |
+
 
