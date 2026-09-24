@@ -348,15 +348,16 @@ func TestResolveOrdersSectionsAndHeadsFollowUps(t *testing.T) {
 		return rvSet(r, a)
 	}
 	for _, tc := range []struct {
-		name    string
-		branch  Answer
-		heading string
-		origin  Origin
+		name            string
+		project, branch Answer
+		heading         string
+		origin          Origin
 	}{
-		{"the branch answers", rvPerson("f-0000000s", "Payments"), "Which team owns this branch", OriginOverride},
-		{"the branch skips", rvSkip("f-0000000s"), "Which team owns it", OriginProject},
+		{"the branch answers", rvPerson("f-0000000s", "Audit"), rvPerson("f-0000000s", "Payments"), "Which team owns this branch", OriginOverride},
+		{"the branch skips", rvPerson("f-0000000s", "Audit"), rvSkip("f-0000000s"), "Which team owns it", OriginProject},
+		{"the project skips", rvSkip("f-0000000s"), rvPerson("f-0000000s", "Payments"), "Which team owns this branch", OriginBranch},
 	} {
-		doc := mustResolve(t, withShared(rvProject(), rvPerson("f-0000000s", "Audit")), withShared(rvBranch(), tc.branch))
+		doc := mustResolve(t, withShared(rvProject(), tc.project), withShared(rvBranch(), tc.branch))
 		s, ok := rvSection(t, doc, "f-0000000s")
 		if !ok || s.Heading != tc.heading || s.Origin != tc.origin {
 			t.Errorf("%s: section %+v (found %v), want heading %q, origin %s", tc.name, s, ok, tc.heading, tc.origin)
