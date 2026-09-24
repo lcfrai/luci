@@ -46,8 +46,15 @@ type JSXOptions struct {
 // Name is the node's layer name in PascalCase (non-alphanumerics removed; a
 // leading digit prefixed "Screen"; "" becomes "Frame"). Two-space indent.
 // Rules: style keys camelCase (-webkit-x → WebkitX), values as strings;
-// text as a JSX string expression {"…"} whenever it holds { } < > or ", else
-// raw; "\n" as <br />; input value → defaultValue, checked → defaultChecked;
+// text split on "\n", the pieces joined by <br />; each piece raw, or, whenever
+// it holds any of { } < > " & or a backslash, as a JSX string expression
+// {<CanonicalJSON(piece)>} (task 08: encoding/json, SetEscapeHTML(false)), so a
+// quote is written \" and a backslash \\ and neither can end the string — never
+// "{\"" + piece + "\"}" by concatenation (review M16: text x"} {fetch(…)} {"
+// would become code in the Develop agent's source). & is in the set because JSX
+// decodes entities in raw text (&amp; would render as &); the backslash, though
+// literal in raw JSX text, is in it so one rule covers both escapes;
+// input value → defaultValue, checked → defaultChecked;
 // a → href="#"; hidden → hidden; img → <img src alt />; svg attributes renamed
 // to their React names (stroke-width → strokeWidth, fill-rule → fillRule,
 // clip-path → clipPath, stop-color → stopColor, text-anchor → textAnchor,
@@ -158,7 +165,7 @@ func DTCG(ts []doc.Token) ([]byte, error)
 |---|---|---|
 | `TestJSX_inline_golden` | task 08's card as `testdata/card.inline.jsx.golden`, byte for byte | nondeterministic key order |
 | `TestJSX_tailwind_golden` | the same as `card.tailwind.jsx.golden`: `className="h-fit w-[390px]"` on the artboard, `className="text-(--brand)"` on the text | the var() form written as `text-[var(--brand)]` |
-| `TestJSX_textEscapes` | text `a {b} <c>` renders as `{"a {b} <c>"}` | raw braces (a JSX syntax error) |
+| `TestJSX_textEscapes` | text `a {b} <c>` renders as `{"a {b} <c>"}`; text `x"} {fetch(1)} {"` renders as `{"x\"} {fetch(1)} {\""}`; text `a\"b` (a backslash then a quote) renders as `{"a\\\"b"}`; text `Tom &amp; Jerry` renders as `{"Tom &amp; Jerry"}`; text `plain` stays raw; and for each wrapped output, `json.Unmarshal` of the bytes between the outer `{` and `}` yields the source text back exactly | raw braces (a JSX syntax error); a quote or backslash not escaped (text becomes code, review M16); `&` left raw (the entity decoded) |
 | `TestJSX_input` | `value` → `defaultValue`, `checked` → `defaultChecked` | a controlled input with no handler (React warns) |
 | `TestJSX_svgAttrs` | `stroke-width="2"` → `strokeWidth="2"`; `viewBox` unchanged | kebab-case attributes (React warns, some drop) |
 | `TestJSX_componentName` | names `"settings page"`, `"2fa"`, `""` → `SettingsPage`, `Screen2fa`, `Frame` | an invalid identifier |

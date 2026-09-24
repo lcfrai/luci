@@ -187,7 +187,9 @@ var Properties = map[string]Rule{
 	"transform": RuleAny, "transform-origin": RuleAny, "rotate": RuleAny, "scale": RuleAny, "translate": RuleAny,
 	"clip-path": RuleAny, "object-fit": RuleKeyword, "object-position": RuleAny,
 	"list-style": RuleAny, "list-style-type": RuleKeyword, "list-style-position": RuleKeyword,
-	// typography
+	// typography. font-family names a family; it never loads one. The dialect has no
+	// @font-face and no font asset in v1, so a family renders only if bundled or a system
+	// font (plan seam S5-F.1, review M18). No property in this table loads a font file.
 	"color": RuleColor, "-webkit-text-fill-color": RuleColor, "font": RuleAny, "font-family": RuleAny, "font-size": RuleLength,
 	"font-weight": RuleAny, "font-style": RuleKeyword, "font-stretch": RuleAny, "font-variation-settings": RuleAny,
 	"font-feature-settings": RuleAny, "font-optical-sizing": RuleKeyword, "font-variant-numeric": RuleAny,
@@ -467,9 +469,18 @@ func CheckDeclaration(property, value string) (kept bool, drop *Drop)
 
 ## Steps
 
-1. Add `golang.org/x/net v0.26.0` to `canvas/go.mod`; run `go mod tidy` inside `canvas/` with
-   `GOFLAGS=-mod=mod GOPROXY=off` so it resolves from the module cache (G1). If it fails, stop and
-   report: the version pin is the plan's assumption.
+1. Add `golang.org/x/net v0.26.0` to `canvas/go.mod`. **First** copy x/net v0.26.0's two lines
+   verbatim from `control-plane/go.sum` (`:133-134`, the `h1:` line and the `/go.mod` line) into a
+   new `canvas/go.sum` (review M21): `go mod tidy` with `GOPROXY=off` still asks the checksum
+   database about a `go.sum` line it has to add, and that is a network call the cache cannot answer
+   (this device has `GOSUMDB=off`, verified 2026-09-24, so the failure shows only on a machine with
+   the default). Then run `go mod tidy` inside `canvas/` with `GOFLAGS=-mod=mod GOPROXY=off` so it
+   resolves from the module cache (G1). Never set `GOSUMDB=off`, `GONOSUMDB` or `GOINSECURE` to get
+   past it. Afterwards every line of `canvas/go.sum` must appear verbatim in `control-plane/go.sum`;
+   expected is exactly the two copied lines (x/net's own requirements are pruned: `control-plane`,
+   which also requires x/net v0.26.0, records no `x/crypto v0.24.0` line). If tidy fails, or adds a
+   line `control-plane/go.sum` does not hold, stop and report: the version pin is the plan's
+   assumption.
 2. Write the tests and fixtures. 3. Implement `css.go`, `allowlist.go`, `svg.go`, `parse.go`,
    `checker.go`, `gen.go`; run `go generate ./canvas/dialect`.
 4. Run the licence gate (task 04): `x/net` must pass. Acceptance; commit by pathspec.

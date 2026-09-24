@@ -1572,6 +1572,35 @@ it was not edited. The handoff (task 22) still fetches one blob per file, and du
 same digest twice. That is correct but wasteful, and it is out of this batch's scope. Deferred as
 a Minor.
 
+## Fix batch b10 (2026-09-24) — M7, M16, M18, M21
+
+Serialisation and dialect minors. Line numbers are the files' after this batch's commit; the
+review's own locations predate b01–b09 (M7's `task-08.md:137` is now `:160`, M21's
+`task-07.md:333-335` is now step 1 at `:472-483`).
+
+| Finding | The change | Where |
+|---|---|---|
+| M7 | The mutant now reads: the six-character JSON escape (a backslash, then `u003c`) in place of each literal `<` in the vectors' `html`. **Root cause of the mangling, found while fixing it:** this session's Edit tool decodes a written backslash-u escape into the character, so the first attempt at the fix wrote the same unreadable `<` in place of `<` again. The escape was written through a script that builds the backslash with `chr(92)`, and its bytes were checked (`grep -c u003c` = 1). Anyone editing that line later needs the same care. | `task-08.md:160` |
+| M16 | Text is split on `"\n"` (pieces joined by `<br />`); a piece holding any of `{ } < > " &` or a backslash is written as `{<CanonicalJSON(piece)>}`, task 08's encoder, so `"` becomes a backslash-quote and a backslash a double backslash; never built by concatenation. **One addition to the review's fix, on the facts:** `&` joins the set, because JSX decodes HTML entities in raw text, so `Tom &amp; Jerry` written raw would render `Tom & Jerry`. The test now covers the review's attack string, a backslash then a quote, the `&amp;` case, a raw piece, and a round trip (`json.Unmarshal` of each wrapped piece equals the source). | `task-09.md:49-57`; `:168` |
+| M18 | **Recorded as the named v2 seam S5-F.1**, not built: font assets would touch the asset media types (task 05), the dialect (07), the renderer (24), the export (08, 21) and `get_font_info` (13), which is beyond a Minor. v1 is honest about the limit rather than hiding it. `get_font_info` already reports such a family `source: "missing"`. The `code-to-design` guide now tells the agent to check each family, keep the repository's stack in the token, and say so in the `request_review` `note`. The seam names what v2 extends (`Asset.MediaType`'s enum, the `source` union, the frame CSP's `font-src blob:`, all verified present) and what it must not do (take `@font-face` or a font `url()` in a style or token). The review's Hub claim was checked: `font/woff2` is at `hub-contract.md:850` in the Hub worktree (the review's `:841` had drifted). | plan `:62`, `:530`; `task-07.md:190-192`; `task-24.md:120-123`; `task-17.md:82` |
+| M21 | Step 1 copies x/net v0.26.0's two lines verbatim from `control-plane/go.sum:133-134` into a new `canvas/go.sum` before `go mod tidy`. It forbids `GOSUMDB=off`, `GONOSUMDB` and `GOINSECURE` as a workaround, and it requires every line of `canvas/go.sum` to appear verbatim in `control-plane/go.sum`. It expects exactly the two lines: `control-plane`, which also requires x/net v0.26.0, records no `x/crypto v0.24.0` line though x/net's `go.mod` requires it, so the pruned graph reads no deeper `go.mod`. Verified on this device: `GOSUMDB=off` is already set, so the failure the review predicts would show only on a machine with the default. The module cache holds `x/net@v0.26.0` (`.mod`, `.zip`, `.ziphash`). G1 repeats the rule. Task 19's `go mod tidy` needs no change: its only new requirement is the canvas module through a local `replace`, which gets no `go.sum` line, and x/net's lines are already in `control-plane/go.sum`. | `task-07.md:472-483`; plan `:283-285` |
+
+**The two mutants expected to survive (named first, per rule 7), and the test text that now kills
+each.**
+
+1. A JSX writer that escapes only the quote (`strings.ReplaceAll(piece, "\"", "\\\"")` inside
+   `{"…"}`). It passes the review's attack string, so a test with only a quote would miss it. Text
+   ending in a backslash then a quote would then close the string. Killed by the `a\"b` clause, which
+   expects `{"a\\\"b"}` (`task-09.md:168`).
+2. A writer that wraps on `{ } < > "` only and leaves `&` raw. Every other clause passes. Killed by
+   the `Tom &amp; Jerry` clause (`task-09.md:168`).
+
+**Not done, and why.** Only the plan text changed. Nothing was built or run, so the two mutants
+above are specified, not executed. M21's "exactly two lines" is an expectation inferred from
+`control-plane/go.sum`; nobody ran `go mod tidy` for `canvas/`, which does not exist yet. Custom
+fonts stay a v2 seam (S5-F.1). Building them now needs an owner call only if a brand font is
+required for the v1 demo.
+
 ### Fix batch b09, round 2 (2026-09-24) — re-review `plan-rereview-b09-1.md`
 
 Commit `8107aac`, plus this section's own commit, which also states `DetachAll`'s lock boundary

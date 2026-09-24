@@ -157,7 +157,7 @@ digests match.
 
 | Test | Asserts | Kills the mutant |
 |---|---|---|
-| `TestReviewDigest_vectors` | both vectors, byte for byte and digest for digest | `SetEscapeHTML(true)` (`<` in place of `<`); a trailing newline |
+| `TestReviewDigest_vectors` | both vectors, byte for byte and digest for digest | `SetEscapeHTML(true)` (the six-character JSON escape `\u003c` (a backslash, then `u003c`) in place of each literal `<` in the vectors' `html`, which moves the digest); a trailing newline |
 | `TestReviewDigest_contentOnly` | a `set_props{locked:true}`, an undo-then-redo, and a comment each leave the digest unchanged; a colour change moves it | ids, revisions or authors in the envelope (would make every comment *"changed after approval"*) |
 | `TestReviewDigest_tokenValue` | changing `brand`'s value moves the digest though no node changed | tokens missing from the envelope |
 | `TestEnvelopeFieldOrder` | by reflection, every field of `ReviewEnvelope`, `ReviewArtboard` and `doc.Token` is in lexicographic JSON-name order, and none is a float | a field added out of order, silently changing canonical bytes |

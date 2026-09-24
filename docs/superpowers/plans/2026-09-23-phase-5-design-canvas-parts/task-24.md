@@ -117,6 +117,10 @@ export const MAX_EDGE = 4096;
 export function capture(view: ArtboardView, nodeId: string, scale: 1 | 2): Promise<Png>;
 
 // canvas/editor/src/renderer/fonts.ts
+// v1 fonts are the bundled families plus system fonts, nothing else: no @font-face, no font
+// asset. A family in neither is "missing", never reported available (plan seam S5-F.1, review
+// M18: v2 adds source "asset", loaded through FontFace from an asset's blob: URL, which the
+// frame CSP's font-src blob: already admits).
 export interface BundledFont { family: string; weights: number[]; styles: string[]; variable: boolean; axes: string[]; url: string }
 export function fontInfo(doc: Document, family: string, bundled: BundledFont[]): RenderResult["font"];
 ```

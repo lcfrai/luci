@@ -59,7 +59,7 @@ MCP"* (`OD-11`), built clean-room on permissive parts, that does four things end
 **Out of this plan** (named seams in §"Seams"): cross-person live co-editing (v2, Hub-hosted),
 components with slots, CSS Grid and `margin`, theme modes, MCP wiring for harnesses other than
 Claude Code, Figma via Figma's MCP, import from a running preview, SVG/PDF export, visual diff,
-pen tool, sketch boards.
+pen tool, sketch boards, custom (non-bundled) fonts (S5-F.1).
 
 ---
 
@@ -280,7 +280,9 @@ change.
   is `golang.org/x/net v0.26.0` (BSD-3-Clause, spec L1) — **that exact version**, because it is
   already in the control plane's module graph (`control-plane/go.mod:52`) and so in the local module
   cache: the corporate proxy breaks TLS to `proxy.golang.org` (`images/sandbox/Dockerfile:3-6`), so a
-  new download may fail. For the same reason the inline-CSS tokenizer is written in task 07 rather
+  new download may fail. Its two `go.sum` lines are copied from `control-plane/go.sum:133-134`
+  before `go mod tidy` runs, so no checksum-database lookup is needed either (task 07 step 1,
+  review M21). For the same reason the inline-CSS tokenizer is written in task 07 rather
   than taken from `tdewolff/parse` (spec L3). The control plane gains one requirement, the canvas
   module itself, through a `replace` (task 19, its first importer).
 - **G2.** `desktop/src/store/types.ts` does not change, byte for byte (phase 2 task 15's gate).
@@ -525,6 +527,7 @@ one `Hub` line, then 22's one `HandoffGit` line.
 | **S5-Q.1** | `request_review` makes a canvas review request | a later cockpit queue (`AGENTIC-UX.md` §4 rule 4) ranks it | count it outside the queue |
 | **S5-Hx.1** | `harness.Descriptor.SupportsMCPConfig` | v2: Codex, OpenCode and Gemini CLI, each through its own documented MCP configuration | wrap a CLI to inject MCP |
 | **S5-UI.1** | `GET /v1/events` topics | a later phase moves sessions onto the stream (UI contract §10.5) and retires the poller's session read | open a second stream per window |
+| **S5-F.1** | Fonts, v1: the two bundled families (OQ-P5-5) and system fonts only. The dialect has no `@font-face` and `Asset.MediaType` no font type (task 05), so a repository's brand font cannot reach the canvas; `get_font_info` reports such a family `source: "missing"` (tasks 13, 24) and the `code-to-design` guide tells the agent to say so (task 17). The pieces v2 extends: `Asset.MediaType`'s enum, `fontInfo`'s `source` union, and the renderer's `font-src blob: data:` (task 24), already in place (review M18) | v2: a `font/woff2` asset (the Hub's blob store already takes `font/woff2`, hub contract `:850` at `.claude/worktrees/hub`), a canvas-level font list the renderer loads through `FontFace` from the asset's `blob:` URL, `source: "asset"`, and the bundle's `tokens.css` gaining the `@font-face` rules | accept `@font-face` or a font `url()` inside a node's `style` or a token (a remote fetch, review I2); report a missing family as available |
 
 ---
 
