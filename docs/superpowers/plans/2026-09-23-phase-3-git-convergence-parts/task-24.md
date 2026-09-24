@@ -417,6 +417,13 @@ func (p *Lanes) Drop(ctx context.Context, laneID string) error
 
 var ErrLaneDropped = errors.New("lanegit: the lane is being removed")
 
+// Live answers, from the registry alone and without starting anything, whether a session's
+// sandbox is on the lane now (For's step 1, less the Backend.Get), and lastExit, the latest
+// UpdatedAt (session.go:77) among the lane's StatusExited records (kept, session.go:26-29).
+// Task 07's sweep and task 09's refresh use it to leave a quiet sessionless lane alone
+// (review r4-1 I-6).
+func (p *Lanes) Live(ctx context.Context, laneID string) (live bool, lastExit time.Time, err error)
+
 // ErrNoRunner: no live session is on the lane and this backend cannot start a runner-only
 // sandbox (katabe refuses Mounts, backend.go:129-131). Phase 8's machined is that half (P8-D7).
 var ErrNoRunner = errors.New("lanegit: no git runner can reach this lane")
@@ -583,6 +590,7 @@ runner):
 | `TestPoolStartsOneRunnerForASessionlessLane` | a fake `Backend`: two concurrent `For` on a lane with no session → one `Create`, with `Command "sleep"`, `Args ["infinity"]`, one mount of `lane.Path` at `/home/dev/work`, a 64-hex token; `Held.Has` true; after both releases and `Idle`, one `Destroy` and `Has` false; a lane `ByID` lacks → error, no `Create` | a pool that starts a sandbox per call, or never destroys it |
 | `TestPoolUsesTheLiveSession` | a registry `Session` on the lane with `SandboxID`, `Endpoint`, `AttachToken` → no `Create`; the runner's requests carry that token to that endpoint | a pool that ignores the running session |
 | `TestPoolDropDestroysAndRefuses` | a runner-only sandbox held by one caller: `Drop` blocks until that release, then one `Destroy` with no `Idle` wait and `Held.Has` false; a later `For` on the id → `ErrLaneDropped` and no `Create`; `Drop` on a lane with a live session → no `Destroy` of the session's sandbox | a `Drop` that waits for `Idle`, or a `For` that restarts a dropped lane |
+| `TestPoolLiveReadsOnlyTheRegistry` | a lane with one running and one exited session → `live` true; with only exited ones → `live` false and `lastExit` the later `UpdatedAt`; neither case calls `Backend.Create`, `Get` or `Dial` | a `Live` that starts a sandbox to answer |
 | `TestPoolDialSeam` | `Lanes{Dial: fake.Dial, Backend: lanegittest.Backend{}}` → `For` on a sessionless lane answers the Fake, and the Fake saw the pool's endpoint and token; `Dial` nil → the Runner is `NewRunner`'s | a `For` that builds `NewRunner` whatever `Dial` holds |
 | `TestWireMatchesTheGoldens` | the fixtures paragraph above | a field renamed on the host side only |
 
