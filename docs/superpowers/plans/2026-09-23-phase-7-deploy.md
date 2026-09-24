@@ -384,11 +384,14 @@ is read from `GET /api/v1/me`'s `approved` field (`handlers/me.go:48-59`), **nev
 403 sentence.
 
 **No Panacea sentence is ever parsed, with one exception.** `AccessHandler.Add` answers **500** for
-every `AddProjectAccess` error (`handlers/access.go:57`), including an empty grantee
-(`clients/keycloak.go:182`) and one that matches no Keycloak user (`:189`) — a typo, not an outage. `panacea.Client.Grant`
-alone reads that 500's body: one that begins `"failed to add access binding: "` and contains either
-source phrase becomes `KindRejected` with **our** sentence, *"No Panacea user matches that name or
-email."*; every other 500 stays `KindUnavailable` with no sentence. It fails safe: if Panacea
+every `AddProjectAccess` error (`handlers/access.go:57`), including a whitespace-only grantee
+(`clients/keycloak.go:182`; an empty one is a `400` first, `access.go:50-52`, and task 11 refuses
+whitespace before sending) and one that matches no Keycloak user (`:189`) — a typo, not an outage.
+`panacea.Client.Grant` alone reads that 500's body: when the text after
+`"failed to add access binding: "` **begins with** `no Keycloak user found for grantee ` or
+**equals** `a grantee (username or email) is required`, it becomes `KindRejected` with **our**
+sentence, *"No Panacea user matches that name or email."*; every other 500 stays `KindUnavailable`
+with no sentence — `:186`'s `resolve grantee …`, a Keycloak outage, included (re-review M-1). It fails safe: if Panacea
 rewords either phrase, the typo is shown as *Panacea unavailable*, never a wrong refusal and never
 Panacea's text. It is pinned by `TestGrantUnknownUserIsRejected`, which quotes both source lines
 (task 04; task 11 explains the route; review M8).

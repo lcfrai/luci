@@ -20,7 +20,7 @@ response carries it, no log line prints it, it never reaches the Hub or a sandbo
 - `control-plane/internal/httpx/problem.go` (modified) — the codes below
 - `control-plane/internal/httpx/origin.go` (modified) — `PUT` in `corsMethods`, `Idempotency-Key` in `corsHeaders`, and the comment above them (review C1; a declared amendment to phase 2 and Hub C3, below)
 - `control-plane/internal/httpx/origin_test.go` (modified) — the exact-value row updated; two new preflight rows
-- `control-plane/cmd/api/config.go`, `config_test.go`, `main.go` (modified) — three variables, the wiring
+- `control-plane/cmd/api/config.go`, `config_test.go`, `main.go`, `main_test.go` (modified) — three variables, the wiring
 - `control-plane/internal/statepath/atomic.go`, `atomic_test.go` (new, **only if ruling R2's lift has not landed**), and `control-plane/internal/registry/filestore.go` (modified to call it) — the origin file (`connection.json`) is the first phase 7 file written, so this task, not task 06, does the lift (review M10); see Steps
 
 #### Interfaces — complete
@@ -95,6 +95,10 @@ type Manager struct{ /* mu, cfg, status, current *Current */ }
 // New loads the stored origin (or the locked one) and builds the current Deployer. It makes
 // NO network call: startup never blocks on Panacea. Status starts as NotConnected or, when a
 // token is stored, as Connected-unchecked (CheckedAt zero) until Check runs.
+// It errors only on a Config it cannot use: StateDir "", Secrets or NewClient nil, or an origin
+// file that cannot be READ for a reason other than not existing (permission, ENOTDIR). A file
+// that reads but does not parse is absent, never an error. main.go treats the error as fatal at
+// startup (re-review M-3).
 func New(cfg Config) (*Manager, error)
 
 // PanaceaToken implements panacea.TokenSource. deploy.ErrNotConnected when none is stored.
@@ -177,7 +181,8 @@ DELETE /v1/deploy/connection
   204
 
 Every route above, and every other phase 7 route, when Deps.DeployConnection is nil:
-  409 deploy_not_connected      — "Connect to Panacea first." (the code's one status, problem.go below; review M9)
+  409 deploy_not_connected      — "Connect to Panacea first." (the code's one status, problem.go below; review M9).
+                                  Nil occurs only in tests: a connection.New error is fatal at startup (re-review M-3)
 ```
 
 `PUT` is `http.MaxBytesReader`-bounded by `httpx.DecodeJSON` (1 MiB) and decoded into a struct
@@ -357,7 +362,13 @@ goes red.
   rather than failing `api.New`, so phase 2's wiring tests are unchanged.
 - [ ] `config.go` and `main.go`: `connection.New` with `StateDir: statepath.Dir("deploy")` and `credstore.WinCred()` on Windows and
   `credstore.Memory()` elsewhere (Hub contract §9.1, `PANACEA_APP_CREDSTORE`); `go Check(ctx)`
-  after the listener is up.
+  after the listener is up. A `connection.New` error is **fatal at startup**: `serve`
+  (`cmd/api/main.go:66`) returns it before the listener opens, so `run` (`:47`) exits 1, the same
+  as a bad variable. `DeployConnection` is therefore nil only in tests, and *"Connect to Panacea
+  first."* never answers a user's attempt to connect. `New` fails only on a `Config` it cannot
+  use (its comment above); a malformed origin file is not an error (`TestOriginFileMalformedIsAbsent`). A test in
+  `main_test.go` gives `serve` a `Config` whose `StateDir` is a file and asserts the error, with
+  no listener opened (re-review M-3).
 - [ ] Run the control-plane suite; commit by pathspec.
 
 #### Acceptance

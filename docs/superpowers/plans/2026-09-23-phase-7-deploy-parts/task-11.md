@@ -97,15 +97,19 @@ DELETE {P}/url-prefix?branch=…
 **One Panacea answer needs a deliberate exception, and it lives in the connector.**
 `AccessHandler.Add` writes **500** for every `AddProjectAccess` error (`handlers/access.go:57`),
 including *"no Keycloak user found for grantee …"* (`clients/keycloak.go:189`) and *"a grantee
-(username or email) is required"* (`:182`) — a user's typo, not an outage. Task 02's rule hides every
+(username or email) is required"* (`:182`) — a user's typo, not an outage. (`:182` is reached only by
+a whitespace-only grantee: an empty one is Panacea's `400` first, `access.go:50-52`, and this route
+refuses whitespace before sending; re-review M-2.) Task 02's rule hides every
 5xx sentence. So `panacea.Client.Grant` (task 04), the only code that may know Panacea's wording,
-maps a 500 whose body begins `"failed to add access binding: "` and contains either phrase to
+maps a 500 whose text after `"failed to add access binding: "` **begins with** `no Keycloak user
+found for grantee ` or **equals** `a grantee (username or email) is required` to
 `KindRejected` with **our** sentence, *"No Panacea user matches that name or email."* — never the rest
 of the body. This is reading an error string, which the plan otherwise refuses; plan 7P-12 names it
 as the **single exception** to "no Panacea sentence is ever parsed" (review M8). It is kept because
 it fails safe: a reworded phrase falls back to `KindUnavailable`, never to a wrong refusal. It is
 confined to one connector method, pinned by a test that quotes both source lines, and any other 500
-stays `KindUnavailable`. This route then answers `422 deploy_rejected` through `writeDeployError` like any
+stays `KindUnavailable` — `:186`'s *"resolve grantee … user search returned 503 …"*, a Keycloak
+outage behind the same prefix, included (re-review M-1). This route then answers `422 deploy_rejected` through `writeDeployError` like any
 other refusal.
 
 **Never logged:** `password`, any `bypassTokens` value. The request struct's `Password` field has a
