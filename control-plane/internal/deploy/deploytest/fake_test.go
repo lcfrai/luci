@@ -3,6 +3,7 @@ package deploytest_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -185,7 +186,12 @@ func TestFakeCallsRecordArgumentsNeverThePassword(t *testing.T) {
 	f.SetScans(proj, "feat-x", "d-feat", deploy.ScanReport{DeploymentID: "d-feat"})
 	_, _ = f.Scans(ctx, proj, "feat-x", "d-feat")
 	_ = f.SameEnvironment("a", "b")
-	_, _ = f.SetPosture(ctx, proj, "feat/x", deploy.PostureChange{Mode: deploy.PosturePassword, Password: "hunter2-secret"})
+	res, err := f.SetPosture(ctx, proj, "feat/x", deploy.PostureChange{Mode: deploy.PosturePassword, Password: "hunter2-secret"})
+	// Unarmed, a change is enforced (SetPostureEnforced's default) and says so; the answer never
+	// echoes the password (review t01 I-2, mutant MB).
+	if err != nil || !res.Enforced || res.Message == "" || strings.Contains(fmt.Sprintf("%+v", res), "hunter2") {
+		t.Fatalf("SetPosture on an unarmed Fake = (%+v, %v), want Enforced with a message and no password", res, err)
+	}
 	_, _, _ = f.Latest(ctx, proj)
 	want := []string{
 		"Scans(engagement-portal,feat-x,d-feat)",
@@ -280,6 +286,11 @@ func TestFakeShipAdvanceCancel(t *testing.T) {
 	if rp, err := f.Run(ctx, proj, res.Run); err != nil || rp.Build != deploy.BuildRunning {
 		t.Fatalf("Run after Advance(running) = (%+v, %v)", rp, err)
 	}
+	// The row follows every state, not only a terminal one: the target's history shows a running
+	// build as running, and task 07's watcher reads it (review t01 I-2, mutant MA).
+	if d, _, _ := f.Latest(ctx, proj); d.Build != deploy.BuildRunning || d.BuildRaw != "running" || !d.CompletedAt.IsZero() {
+		t.Fatalf("Latest after Advance(running) = %+v, want the row running and not finished", d)
+	}
 	c.add(4*time.Minute + 12*time.Second)
 	f.Advance(proj, res.Run, deploy.BuildSucceeded)
 	d, _, _ = f.Latest(ctx, proj)
@@ -298,6 +309,16 @@ func TestFakeShipAdvanceCancel(t *testing.T) {
 	}
 	if rp, _ := f.Run(ctx, proj, second.Run); rp.Build != deploy.BuildFailed {
 		t.Errorf("a cancelled run reads %q, want failed (the target does not tell them apart)", rp.Build)
+	}
+	// A cancelled build finished: its row is failed, stamped by the clock, as the target records
+	// a cancelled run's duration.
+	if d, _, _ := f.Latest(ctx, proj); d.ID != second.Run || d.Build != deploy.BuildFailed ||
+		!d.CompletedAt.Equal(base.Add(4*time.Minute+12*time.Second)) {
+		t.Errorf("Latest after Cancel = %+v, want the cancelled row failed and completed now", d)
+	}
+	// Cancel of a run that is now failed is a finished run, not a second cancel (mutant ME).
+	if cr, err := f.Cancel(ctx, proj, second.Run); err != nil || cr.Outcome != deploy.AlreadyFinished {
+		t.Errorf("Cancel of a cancelled run = (%+v, %v), want AlreadyFinished", cr, err)
 	}
 	f.AddProject(deploy.Project{Ref: "other"})
 	if _, err := f.Run(ctx, "other", res.Run); deploy.KindOf(err) != deploy.KindNotFound {
@@ -327,21 +348,255 @@ func TestFakeTieGoesToTheLaterAdd(t *testing.T) {
 	}
 }
 
-// TestFakeReturnsCopies: a caller that edits what it read cannot change the Fake's state.
+// TestFakeReseedMovesTheRun: AddDeployment of an ID that exists replaces the row, and the run
+// follows the row, so Run and Latest never give two answers for one build, and Cancel decides
+// from the state the row shows (review t01 I-1). Tasks 07 and 10 move builds on by re-seeding.
+func TestFakeReseedMovesTheRun(t *testing.T) {
+	f := newShipFake(&testClock{t: base})
+	ctx := context.Background()
+	later := base.Add(time.Minute)
+	f.AddDeployment(proj, deploy.Deployment{ID: "d1", Environment: "feat-x", Build: deploy.BuildRunning,
+		BuildRaw: "running", CreatedAt: base})
+	f.AddDeployment(proj, deploy.Deployment{ID: "d1", Environment: "feat-x", Build: deploy.BuildFailed,
+		BuildRaw: "failed", FailedStep: "build", ErrorText: "exit status 1", CreatedAt: later})
+	rp, err := f.Run(ctx, proj, "d1")
+	if err != nil || rp.Run != "d1" || rp.Build != deploy.BuildFailed || rp.BuildRaw != "failed" ||
+		rp.FailedStep != "build" || rp.ErrorText != "exit status 1" || !rp.StartedAt.Equal(later) {
+		t.Fatalf("Run after re-seeding d1 as failed = (%+v, %v), want the re-seeded row's state", rp, err)
+	}
+	f.AddDeployment(proj, deploy.Deployment{ID: "d1", Environment: "feat-x", Build: deploy.BuildSucceeded,
+		BuildRaw: "succeeded", CreatedAt: later, CompletedAt: later.Add(time.Minute)})
+	if rp, _ := f.Run(ctx, proj, "d1"); rp.Build != deploy.BuildSucceeded || rp.FailedStep != "" || rp.ErrorText != "" {
+		t.Fatalf("Run after re-seeding d1 as succeeded = %+v, want succeeded with no failed step", rp)
+	}
+	if cr, err := f.Cancel(ctx, proj, "d1"); err != nil || cr.Outcome != deploy.AlreadyFinished {
+		t.Errorf("Cancel of a re-seeded succeeded run = (%+v, %v), want AlreadyFinished", cr, err)
+	}
+	if d, _, _ := f.Latest(ctx, proj); d.Build != deploy.BuildSucceeded || d.BuildRaw != "succeeded" {
+		t.Errorf("after Cancel the re-seeded succeeded row reads %+v, want it untouched", d)
+	}
+}
+
+// TestFakeShipNeverReplacesASeededDeployment: history seeded under a name the Fake's own runs use
+// ("run-1") is kept; the Ship takes the next free name, so it never overwrites a seeded row.
+func TestFakeShipNeverReplacesASeededDeployment(t *testing.T) {
+	f := newShipFake(&testClock{t: base})
+	ctx := context.Background()
+	f.AddDeployment(proj, deploy.Deployment{ID: "run-1", Environment: "feat-x", Build: deploy.BuildSucceeded,
+		BuildRaw: "succeeded", CreatedAt: base.Add(-time.Hour)})
+	res, err := f.Ship(ctx, proj, deploy.ShipRequest{Branch: "feat/x", Commit: commit})
+	if err != nil || res.Run == "" || res.Run == "run-1" {
+		t.Fatalf("Ship = (%+v, %v), want a run name no seeded row holds", res, err)
+	}
+	ds, _ := f.Deployments(ctx, proj)
+	if len(ds) != 2 || ds[0].ID != res.Run || ds[1].ID != "run-1" || ds[1].Build != deploy.BuildSucceeded {
+		t.Fatalf("Deployments after the Ship = %+v, want the Ship's row, then run-1 intact", ds)
+	}
+	if rp, _ := f.Run(ctx, proj, "run-1"); rp.Build != deploy.BuildSucceeded {
+		t.Errorf("the seeded run-1 reads %+v after a Ship, want succeeded", rp)
+	}
+}
+
+// TestFakeCancelOfAFinishedRunChangesNothing: succeeded, failed and historical are finished, so
+// Cancel answers AlreadyFinished and moves neither the run nor the row (review t01 I-2, ME).
+func TestFakeCancelOfAFinishedRunChangesNothing(t *testing.T) {
+	c := &testClock{t: base}
+	f := newShipFake(c)
+	ctx := context.Background()
+	done := base.Add(3 * time.Minute)
+	for i, b := range []deploy.BuildState{deploy.BuildSucceeded, deploy.BuildFailed, deploy.BuildHistorical} {
+		f.AddDeployment(proj, deploy.Deployment{ID: string(b), Environment: fmt.Sprintf("env-%d", i), Build: b,
+			BuildRaw: string(b), CreatedAt: base, CompletedAt: done})
+	}
+	c.add(time.Hour)
+	for _, b := range []deploy.BuildState{deploy.BuildSucceeded, deploy.BuildFailed, deploy.BuildHistorical} {
+		if cr, err := f.Cancel(ctx, proj, string(b)); err != nil || cr.Outcome != deploy.AlreadyFinished || cr.Message == "" {
+			t.Errorf("Cancel of a %s run = (%+v, %v), want AlreadyFinished with a sentence", b, cr, err)
+		}
+		if rp, _ := f.Run(ctx, proj, string(b)); rp.Build != b {
+			t.Errorf("Cancel moved the %s run to %q", b, rp.Build)
+		}
+	}
+	ds, _ := f.Deployments(ctx, proj)
+	for _, d := range ds {
+		if string(d.Build) != d.ID || !d.CompletedAt.Equal(done) {
+			t.Errorf("Cancel of a finished run changed its row: %+v", d)
+		}
+	}
+}
+
+// TestFakeAdvanceKeepsARecordedCompletedAt: succeeded and failed stamp a ZERO CompletedAt with the
+// clock; a recorded one is kept, and historical stamps nothing (review t01 I-2, mutant MG).
+func TestFakeAdvanceKeepsARecordedCompletedAt(t *testing.T) {
+	c := &testClock{t: base}
+	f := newShipFake(c)
+	ctx := context.Background()
+	done := base.Add(3 * time.Minute)
+	f.AddDeployment(proj, deploy.Deployment{ID: "d-done", Environment: "feat-a", Build: deploy.BuildSucceeded,
+		BuildRaw: "succeeded", CreatedAt: base, CompletedAt: done})
+	f.AddDeployment(proj, deploy.Deployment{ID: "d-hist", Environment: "feat-b", Build: deploy.BuildRunning,
+		BuildRaw: "running", CreatedAt: base})
+	c.add(time.Hour)
+	f.Advance(proj, "d-done", deploy.BuildSucceeded)
+	f.Advance(proj, "d-hist", deploy.BuildHistorical)
+	ds, _ := f.Deployments(ctx, proj)
+	for _, d := range ds {
+		switch {
+		case d.ID == "d-done" && !d.CompletedAt.Equal(done):
+			t.Errorf("Advance(succeeded) of a finished row moved CompletedAt from %v to %v", done, d.CompletedAt)
+		case d.ID == "d-hist" && (d.Build != deploy.BuildHistorical || !d.CompletedAt.IsZero()):
+			t.Errorf("Advance(historical) = %+v, want historical with no CompletedAt", d)
+		}
+	}
+}
+
+// TestFakeBeforeNextBindsArmsAtEntry: a call takes the FailNext arm made before it began. An arm
+// made inside its hook fails the next call to begin, and a same-method call the hook makes does
+// not take the outer call's arm (review t01 M-5; tasks 09 and 10 build on this hook).
+func TestFakeBeforeNextBindsArmsAtEntry(t *testing.T) {
+	f := newShipFake(&testClock{t: base})
+	ctx := context.Background()
+	req := deploy.ShipRequest{Branch: "feat/x", Commit: commit}
+	outer := &deploy.Error{Kind: deploy.KindConflict, Op: "ship", Status: 409}
+	later := &deploy.Error{Kind: deploy.KindUnavailable, Op: "ship", Status: 503}
+	var inner error = errors.New("the hook did not run")
+	f.FailNext("Ship", outer)
+	f.BeforeNext("Ship", func(hctx context.Context) {
+		_, inner = f.Ship(hctx, proj, req)
+		f.FailNext("Ship", later)
+	})
+	if _, err := f.Ship(ctx, proj, req); err != outer {
+		t.Fatalf("the outer Ship: err = %v, want the arm made before it began", err)
+	}
+	if inner != nil {
+		t.Errorf("the hook's own Ship: err = %v, want success: the outer call had taken its arm", inner)
+	}
+	if _, err := f.Ship(ctx, proj, req); err != later {
+		t.Errorf("the Ship after: err = %v, want the arm made inside the hook", err)
+	}
+}
+
+// TestFakeReturnsCopies: neither the seeding test, editing its own values after the seed, nor a
+// caller, editing what it read, can change the Fake's state (review t01 I-2, mutant MC).
 func TestFakeReturnsCopies(t *testing.T) {
 	f := newShipFake(&testClock{t: base})
 	ctx := context.Background()
 	zero, crit := 0, 2
+	gates := map[string]deploy.Gate{"iac": {Verdict: "failed", Criticals: &crit}}
+	prov := []deploy.Provisioning{{Component: "database", Status: "succeeded"}}
 	f.AddDeployment(proj, deploy.Deployment{ID: "d1", Environment: "feat-x", CreatedAt: base,
-		LiveReady: &zero, Gates: map[string]deploy.Gate{"iac": {Verdict: "failed", Criticals: &crit}}})
+		LiveReady: &zero, Gates: gates, Provisioning: prov})
+	unchanged := func(when string) {
+		t.Helper()
+		for _, read := range []string{"Deployments", "Latest"} {
+			var d deploy.Deployment
+			if read == "Deployments" {
+				ds, _ := f.Deployments(ctx, proj)
+				d = ds[0]
+			} else {
+				d, _, _ = f.Latest(ctx, proj)
+			}
+			if *d.LiveReady != 0 || *d.Gates["iac"].Criticals != 2 || len(d.Gates) != 1 || d.Provisioning[0].Status != "succeeded" {
+				t.Fatalf("%s: %s reads %+v, want LiveReady 0, iac criticals 2, one gate, database succeeded", when, read, d)
+			}
+		}
+	}
+	zero, crit = 7, 7
+	gates["sast"] = deploy.Gate{Verdict: "passed"}
+	prov[0].Status = "failed"
+	unchanged("after the seeding test changed its values")
 	ds, _ := f.Deployments(ctx, proj)
 	*ds[0].LiveReady = 9
 	*ds[0].Gates["iac"].Criticals = 9
 	ds[0].Gates["sast"] = deploy.Gate{Verdict: "passed"}
-	again, _ := f.Deployments(ctx, proj)
-	if *again[0].LiveReady != 0 || *again[0].Gates["iac"].Criticals != 2 || len(again[0].Gates) != 1 {
-		t.Fatalf("the Fake's state changed through a returned value: %+v", again[0])
+	ds[0].Provisioning[0].Status = "failed"
+	d, _, _ := f.Latest(ctx, proj)
+	*d.LiveReady = 9
+	*d.Gates["iac"].Criticals = 9
+	d.Provisioning[0].Status = "failed"
+	unchanged("after a caller changed what it read")
+}
+
+// TestFakeSeedersCopyInAndOut: every other seeder that takes a pointer, a map or a slice keeps
+// its own copy, in and out, so "deep-copied on the way in and the way out" holds for each one.
+func TestFakeSeedersCopyInAndOut(t *testing.T) {
+	f := newShipFake(&testClock{t: base})
+	ctx := context.Background()
+	two, yes, explicit := 2, true, true
+	envs := []deploy.Environment{{Name: "feat-x", Replicas: &deploy.Replicas{Ready: 1, Desired: 1}}}
+	counts := map[string]int{"critical": 1}
+	report := deploy.ScanReport{DeploymentID: "d1", DetailsRetained: &yes,
+		Scans: []deploy.Scan{{Name: "iac", Status: "FAIL", Counts: counts}}}
+	diag := deploy.Diagnosis{Health: "down", Findings: []deploy.Finding{{Problem: "crash", Evidence: []string{"OOMKilled"}}}}
+	stream := []deploy.StreamEvent{{Log: &deploy.LogLine{Step: "build", Line: "one"}},
+		{Readiness: &deploy.ReadinessTick{Measured: true, Ready: &two}}}
+	grants := []deploy.AccessGrant{{Grantee: "ada", Group: "ada", Role: deploy.RoleOwner, RoleRaw: "owner"}}
+	pods := []deploy.Pod{{Name: "app-1", Phase: "waiting"}}
+	events := []deploy.Event{{Type: "Warning", Reason: "BackOff"}}
+	f.SetEnvironments(proj, envs)
+	f.SetScans(proj, "feat-x", "d1", report)
+	f.SetDiagnosis(proj, "feat-x", diag)
+	f.SetStream(proj, deploy.StreamReadiness, "feat-x", stream)
+	f.SetAutoDeployState(proj, deploy.AutoDeploy{Branch: "feat/x", Explicit: &explicit})
+	f.SetAccess(proj, grants)
+	f.SetPods(proj, "feat-x", pods)
+	f.SetEvents(proj, "feat-x", events)
+	unchanged := func(when string) {
+		t.Helper()
+		if e, _ := f.Environments(ctx, proj); len(e) != 1 || e[0].Replicas.Ready != 1 {
+			t.Errorf("%s: Environments = %+v, want feat-x 1 ready", when, e)
+		}
+		if r, _ := f.Scans(ctx, proj, "feat-x", "d1"); len(r.Scans) != 1 || r.Scans[0].Status != "FAIL" ||
+			r.Scans[0].Counts["critical"] != 1 || len(r.Scans[0].Counts) != 1 || !*r.DetailsRetained {
+			t.Errorf("%s: Scans = %+v, want iac FAIL with 1 critical, details retained", when, r)
+		}
+		if dg, _ := f.Diagnosis(ctx, proj, "feat-x"); dg.Findings[0].Evidence[0] != "OOMKilled" {
+			t.Errorf("%s: Diagnosis = %+v, want the OOMKilled evidence", when, dg)
+		}
+		s, _ := f.Stream(ctx, proj, deploy.StreamReadiness, "feat-x")
+		ev1, _ := s.Next()
+		ev2, _ := s.Next()
+		if ev1.Log == nil || ev1.Log.Line != "one" || ev2.Readiness == nil || *ev2.Readiness.Ready != 2 {
+			t.Errorf("%s: the stream yields %+v then %+v, want line one then 2 ready", when, ev1, ev2)
+		}
+		if a, _ := f.AutoDeploy(ctx, proj, "feat/x"); a.Explicit == nil || !*a.Explicit {
+			t.Errorf("%s: AutoDeploy = %+v, want explicitly on", when, a)
+		}
+		if g, _ := f.Access(ctx, proj); len(g) != 1 || g[0].Role != deploy.RoleOwner {
+			t.Errorf("%s: Access = %+v, want ada as owner", when, g)
+		}
+		if p, _ := f.Pods(ctx, proj, "feat-x"); len(p) != 1 || p[0].Name != "app-1" {
+			t.Errorf("%s: Pods = %+v, want app-1", when, p)
+		}
+		if e, _ := f.Events(ctx, proj, "feat-x"); len(e) != 1 || e[0].Reason != "BackOff" {
+			t.Errorf("%s: Events = %+v, want BackOff", when, e)
+		}
 	}
+	envs[0].Replicas.Ready, counts["critical"], counts["high"], yes = 9, 9, 9, false
+	report.Scans[0].Status = "PASS"
+	diag.Findings[0].Evidence[0] = "changed"
+	stream[0].Log.Line, two, explicit = "changed", 9, false
+	grants[0].Role, pods[0].Name, events[0].Reason = deploy.RoleViewer, "changed", "changed"
+	unchanged("after the seeding test changed its values")
+	e, _ := f.Environments(ctx, proj)
+	e[0].Replicas.Ready = 9
+	r, _ := f.Scans(ctx, proj, "feat-x", "d1")
+	r.Scans[0].Status, r.Scans[0].Counts["critical"], *r.DetailsRetained = "PASS", 9, false
+	dg, _ := f.Diagnosis(ctx, proj, "feat-x")
+	dg.Findings[0].Evidence[0] = "changed"
+	s, _ := f.Stream(ctx, proj, deploy.StreamReadiness, "feat-x")
+	ev1, _ := s.Next()
+	ev2, _ := s.Next()
+	ev1.Log.Line, *ev2.Readiness.Ready = "changed", 9
+	a, _ := f.AutoDeploy(ctx, proj, "feat/x")
+	*a.Explicit = false
+	g, _ := f.Access(ctx, proj)
+	g[0].Role = deploy.RoleViewer
+	p, _ := f.Pods(ctx, proj, "feat-x")
+	p[0].Name = "changed"
+	ev, _ := f.Events(ctx, proj, "feat-x")
+	ev[0].Reason = "changed"
+	unchanged("after a caller changed what it read")
 }
 
 // TestFakeUnknownProjectIsNotFound: a project nothing seeded does not exist, so a deleted
@@ -423,7 +678,7 @@ func TestFakeGovernor(t *testing.T) {
 	bad := []deploy.PostureChange{
 		{Mode: "public"},
 		{Mode: deploy.PostureKPMGSSO, Password: "x"},
-		{Mode: deploy.PosturePassword}, // required for, and only sent with, password (t11:46)
+		{Mode: deploy.PosturePassword}, // required for, and only sent with, password (t11:47)
 		{Mode: deploy.PosturePassword, RotateBypassToken: true, Password: "x"},
 	}
 	for _, c := range bad {
@@ -483,6 +738,28 @@ func TestFakeStream(t *testing.T) {
 	}
 	if _, err := f.Stream(ctx, proj, deploy.StreamReadiness, "run-9"); deploy.KindOf(err) != deploy.KindNotFound {
 		t.Errorf("an unseeded stream kind: err = %v, want KindNotFound", err)
+	}
+	// Close ends a stream that still holds events (review t01 I-2, mutant MD).
+	open, _ := f.Stream(ctx, proj, deploy.StreamRunLogs, "run-9")
+	if ev, err := open.Next(); err != nil || ev.Log == nil {
+		t.Fatalf("the first Next = (%+v, %v), want the first line", ev, err)
+	}
+	_ = open.Close()
+	if ev, err := open.Next(); err != io.EOF {
+		t.Errorf("Next after Close = (%+v, %v), want io.EOF", ev, err)
+	}
+	// A Problem ends the stream: "the stream ends after it" (deploy.StreamEvent). Nothing seeded
+	// after one is yielded, as no target sends it (review t01 M-1).
+	f.SetStream(proj, deploy.StreamRunLogs, "run-8", []deploy.StreamEvent{
+		{Problem: "pipeline run not found: run-8"},
+		{Log: &deploy.LogLine{Step: "build", Line: "after the problem"}},
+	})
+	ended, _ := f.Stream(ctx, proj, deploy.StreamRunLogs, "run-8")
+	if ev, err := ended.Next(); err != nil || ev.Problem == "" {
+		t.Fatalf("the first Next = (%+v, %v), want the Problem", ev, err)
+	}
+	if ev, err := ended.Next(); err != io.EOF {
+		t.Errorf("Next after a Problem = (%+v, %v), want io.EOF", ev, err)
 	}
 	cctx, cancel := context.WithCancel(ctx)
 	s2, _ := f.Stream(cctx, proj, deploy.StreamRunLogs, "run-9")

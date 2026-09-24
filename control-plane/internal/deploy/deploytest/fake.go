@@ -130,8 +130,9 @@ func (f *Fake) lookup(method string, p deploy.ProjectRef) (*project, error) {
 	return nil, notFound(method, "project %q not found", p)
 }
 
-// enter records the call, runs an armed hook outside the lock, then answers an armed failure,
-// then a done context (as a transport would: KindUnavailable, Status 0, the ctx error as Cause).
+// enter records the call and takes its armed hook and failure in one step, runs the hook outside
+// the lock, then answers the failure, then a done context (as a transport would: KindUnavailable,
+// Status 0, the ctx error as Cause). See BeforeNext for why the failure is taken before the hook.
 func (f *Fake) enter(ctx context.Context, method string, args ...string) error {
 	f.mu.Lock()
 	f.calls = append(f.calls, method+"("+strings.Join(args, ",")+")")
@@ -313,18 +314,22 @@ func (f *Fake) SetBranchEnvironment(p deploy.ProjectRef, branch, env string) {
 }
 
 // AddDeployment seeds one deployment; newest-first order is kept by CreatedAt (a later add wins
-// a tie). An existing ID is replaced. The row's run is registered for Run, Advance and Cancel
-// unless a run of that name exists. Rows are stored verbatim: the Fake does not strip LiveReady
-// or Gates from a row that is not its environment's newest; the seeding test owns that.
+// a tie). The row's run is registered for Run, Advance and Cancel. An existing ID is replaced,
+// and its run follows the new row: the run's Build, BuildRaw, FailedStep, ErrorText and StartedAt
+// (the row's CreatedAt) are the row's, so Run and the row never give two answers for one build
+// and Cancel decides from the state the row shows (review t01 I-1). What a row does not carry
+// (CurrentStep, CompletedSteps, IgnoredFailures) is kept. Rows are stored verbatim: the Fake does
+// not strip LiveReady or Gates from a row that is not its environment's newest; the seeding test
+// owns that.
 func (f *Fake) AddDeployment(p deploy.ProjectRef, d deploy.Deployment) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	pr := f.seed(p)
 	pr.insert(cloneDeployment(d))
-	if _, ok := pr.runs[d.ID]; !ok {
-		pr.runs[d.ID] = deploy.RunProgress{Run: d.ID, Build: d.Build, BuildRaw: d.BuildRaw,
-			StartedAt: d.CreatedAt, FailedStep: d.FailedStep, ErrorText: d.ErrorText}
-	}
+	rp := pr.runs[d.ID]
+	rp.Run, rp.Build, rp.BuildRaw, rp.StartedAt = d.ID, d.Build, d.BuildRaw, d.CreatedAt
+	rp.FailedStep, rp.ErrorText = d.FailedStep, d.ErrorText
+	pr.runs[d.ID] = rp
 }
 
 // ClearDeployments makes p a project that has never been deployed: no deployments, no runs.
@@ -420,17 +425,19 @@ func (f *Fake) SetDiagnosis(p deploy.ProjectRef, env string, d deploy.Diagnosis)
 }
 
 // SetStream seeds the events one Stream(p, kind, id) yields, in order, before io.EOF. Every
-// Stream call of that key replays them. Unseeded, Stream is KindNotFound.
+// Stream call of that key replays them. Unseeded, Stream is KindNotFound. A Problem event ends
+// the stream (deploy.StreamEvent: "the stream ends after it"), so nothing seeded after one is
+// yielded, as no target sends it (review t01 M-1).
 func (f *Fake) SetStream(p deploy.ProjectRef, kind deploy.StreamKind, id string, events []deploy.StreamEvent) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.seed(p).streams[streamKey{kind, id}] = cloneSlice(events, cloneEvent)
 }
 
-// Advance moves a run to a new state; a terminal state also sets the Deployment's Build.
-// The Deployment's Build follows every state, not only a terminal one, as the target's history
-// shows a running build as running. succeeded and failed stamp CompletedAt with the clock when
-// it is zero (the target records a duration); historical does not. Advance of a run nothing
+// Advance moves a run, and its Deployment's Build, to a new state. The Deployment follows every
+// state, not only a terminal one, as the target's history shows a running build as running.
+// succeeded and failed stamp CompletedAt with the clock when it is zero (the target records a
+// duration), and keep one already recorded; historical stamps nothing. Advance of a run nothing
 // seeded or shipped panics: it is a test bug.
 func (f *Fake) Advance(p deploy.ProjectRef, run string, to deploy.BuildState) {
 	now := f.now()
@@ -479,9 +486,12 @@ func (f *Fake) FailNext(method string, err error) {
 
 // BeforeNext runs fn at the start of the next call of the named method, once, with that call's
 // context and WITHOUT the Fake's lock, so fn may call the Fake or the code under test (a second
-// Ship, a retry, a cancel). The call records itself first, then runs fn, then answers any
-// FailNext arm, then a done context, then does its work. Tasks 09 and 10 act "inside the Fake's
-// Ship hook" and "Rollback hook" through it.
+// Ship, a retry, a cancel). The call records itself and takes its hook and its FailNext arm
+// together, as it begins; then it runs fn, then answers that arm, then a done context, then does
+// its work. So the arm a call answers is one made BEFORE it began: an arm fn makes fails the next
+// call to begin, not this one, and a same-method call fn makes does not take this call's arm
+// (review t01 M-5). Tasks 09 and 10 act "inside the Fake's Ship hook" and "Rollback hook" through
+// it.
 func (f *Fake) BeforeNext(method string, fn func(ctx context.Context)) {
 	mustMethod("BeforeNext", method)
 	if fn == nil {
@@ -690,7 +700,8 @@ func (f *Fake) Stream(ctx context.Context, p deploy.ProjectRef, kind deploy.Stre
 // connector Panacea's prod == production).
 func (f *Fake) SameEnvironment(a, b string) bool { return a == b }
 
-// fakeStream yields its events in order, then io.EOF. A done context ends it with ctx.Err().
+// fakeStream yields its events in order, then io.EOF. A Problem is the last event it yields, and
+// Close ends it early. A done context ends it with ctx.Err().
 type fakeStream struct {
 	ctx    context.Context
 	mu     sync.Mutex
@@ -709,6 +720,9 @@ func (s *fakeStream) Next() (deploy.StreamEvent, error) {
 	}
 	ev := s.events[0]
 	s.events = s.events[1:]
+	if ev.Problem != "" {
+		s.events = nil // the stream ends after a Problem
+	}
 	return ev, nil
 }
 
@@ -723,8 +737,10 @@ func (s *fakeStream) Close() error {
 
 // Ship names the run "run-" + a counter and adds a BuildPending Deployment whose ID is the run,
 // in the environment SetBranchEnvironment seeded for the branch (unseeded: KindRejected, as
-// EnvironmentFor). It refuses what phase 7 never sends: an empty branch, or a commit that is
-// not 40 lowercase hex. It records no run label (Deployment.Branch ""): that is a target rule.
+// EnvironmentFor). The counter skips a name a seeded row already holds, so a Ship never
+// replaces seeded history, as a target never reuses a run name. It refuses what phase 7 never
+// sends: an empty branch, or a commit that is not 40 lowercase hex. It records no run label
+// (Deployment.Branch ""): that is a target rule.
 func (f *Fake) Ship(ctx context.Context, p deploy.ProjectRef, req deploy.ShipRequest) (deploy.ShipResult, error) {
 	if err := f.enter(ctx, "Ship", string(p), req.Branch, req.Commit); err != nil {
 		return deploy.ShipResult{}, err
@@ -746,13 +762,24 @@ func (f *Fake) Ship(ctx context.Context, p deploy.ProjectRef, req deploy.ShipReq
 	if err != nil {
 		return deploy.ShipResult{}, err
 	}
-	f.runSeq++
-	run := fmt.Sprintf("run-%d", f.runSeq)
+	run := f.nextRun(pr)
 	pr.insert(deploy.Deployment{ID: run, Environment: env, Commit: req.Commit,
 		Build: deploy.BuildPending, BuildRaw: string(deploy.BuildPending), CreatedAt: now})
 	pr.runs[run] = deploy.RunProgress{Run: run, Build: deploy.BuildPending,
 		BuildRaw: string(deploy.BuildPending), StartedAt: now}
 	return deploy.ShipResult{Run: run}, nil
+}
+
+// nextRun is "run-" + the next counter value that names no run of pr. Every row registers its
+// run (AddDeployment, Ship), so a name no run holds is a name no row holds. The caller holds f.mu.
+func (f *Fake) nextRun(pr *project) string {
+	for {
+		f.runSeq++
+		run := fmt.Sprintf("run-%d", f.runSeq)
+		if _, taken := pr.runs[run]; !taken {
+			return run
+		}
+	}
 }
 
 // Cancel of an unfinished run moves it, and its Deployment, to BuildFailed (the target does not

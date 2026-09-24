@@ -105,6 +105,11 @@ func TestErrorNeverRendersCause(t *testing.T) {
 	if got := deploy.ErrNotConnected.Error(); got != "deploy: connect: not_connected" {
 		t.Errorf("ErrNotConnected.Error() = %q", got)
 	}
+	// An error with no Op leaves the op segment out, never an empty "deploy: : …" (review t01
+	// I-2, mutant MF).
+	if got := (&deploy.Error{Kind: deploy.KindNotFound}).Error(); got != "deploy: not_found" {
+		t.Errorf("Error() with no op = %q, want %q", got, "deploy: not_found")
+	}
 }
 
 // TestKindOf: an error that is not a deploy *Error is the target being unreachable, never a

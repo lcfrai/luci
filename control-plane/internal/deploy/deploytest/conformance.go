@@ -176,7 +176,10 @@ func rowRollbackCreatesNoDeployment(t *testing.T, d deploy.Deployer, s Seeder) {
 	s.Deployment(confProject, seedRow("d1", "feat-x", confBase))
 	s.Deployment(confProject, seedRow("d2", "feat-x", confBase.Add(10*time.Minute)))
 	s.RollbackTarget(confProject, "d1", deploy.WarmthWarm)
-	before, _ := deployments(t, d)
+	// Both rows must read back first, or a Deployments that answers none passes: [] == [] after a
+	// Rollback answered from the RollbackTarget seed alone (review t01 M-2).
+	before, byID := deployments(t, d)
+	need(t, byID, "d1", "d2")
 	res, err := d.Rollback(context.Background(), confProject, "d1")
 	if err != nil {
 		t.Fatalf("Rollback(d1): %v", err)
