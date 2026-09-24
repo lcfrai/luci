@@ -52,8 +52,11 @@ export interface RemoteState {
   fetchedAt: string; fetchError: string; readError: string;
 }
 export type ForecastState = "clean" | "conflicts" | "nothing" | "unknown";
+/** converge.UndoneLand (task 08; re-review b06-1 issue 1b): an undone land a lane still carries. */
+export interface UndoneLand { sha: string; worktreeId: WorktreeId }
 export interface Forecast {
   state: ForecastState; after: WorktreeId[]; conflictsWith: WorktreeId[]; paths: string[]; why: string;
+  carriesUndone: UndoneLand[];
 }
 export interface QueueEntry { worktreeId: WorktreeId; forecast: Forecast; settles: string[] }
 export interface LaneSession { id: SessionId; title: string; harness: string; status: string }
@@ -74,6 +77,7 @@ export interface LandRequest {
 export interface LandResult {
   merge: string; before: string; branch: string; worktreeId: WorktreeId; briefKey: string;
   readyCleared: boolean; refreshed: WorktreeId[]; refreshErrors: Record<WorktreeId, string>;
+  broughtBack: UndoneLand[]; // task 09 step 7a (re-review b06-1 issue 1b)
 }
 /* task 09 — converge.BringInResult (review I5) */
 export interface BringInResult {
@@ -100,6 +104,12 @@ export interface RevertResult {
 }
 /* task 09 — the refresh route's body (review I4) */
 export interface RefreshResult { refreshed: WorktreeId[]; refreshErrors: Record<WorktreeId, string> }
+/* The server writes every list and map above as [] or {} when empty, never null (task 09;
+ * re-review b06-1 issue 3). The client does not trust that: refreshBranch, land, bringIn,
+ * undoLand and revertLand return their body through withEmpties(), which replaces a null or
+ * missing refreshed/broughtBack with [] and refreshErrors with {}; getConvergence does the same
+ * for each forecast's carriesUndone (queue rows and bringIn). One helper, pinned by
+ * client.phase3.test.ts. */
 
 /* task 11 — lanes.Removed, converge.RenameResult, DeleteResult, lanes.Rename */
 export interface Removed { worktreeId: WorktreeId; archivedAs: string }
@@ -288,6 +298,7 @@ export const selectHeadBriefKey = (branchId: BranchId | null) => (s: CockpitStat
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
+| `a null list or map in a git answer reads as empty` (re-review b06-1 issue 3) | the fake `fetch` answers `refreshBranch`, `land`, `undoLand` and `revertLand` with `"refreshed": null, "refreshErrors": null` (and `land` with `"broughtBack": null`), and `getConvergence` with a row whose `carriesUndone` is `null` → each resolves with `[]` and `{}`, and `result.refreshErrors["w-x"]` is `undefined`, not a throw | a ResolveDialog or toast that throws on Go's `null` for an empty map, so Start never enables |
 | `every phase 3 method sends the method, path and body its part names` | a fake `fetch` records each call; one row per method, e.g. `land` → `POST /v1/projects/p-1/branches/b-1/lands` with the `LandRequest` JSON, and `refreshBranch` → `POST /v1/projects/p-1/branches/b-1/refresh` with `{}` and `GIT_WRITE_TIMEOUT_MS` (review I4) | a route typo that only a live run finds |
 | `path segments are encoded` | a branch id with `/` and a path with `#` reach the URL encoded | a diff route reading the wrong path |
 | `remote and write calls use their longer timeouts` | a fake that never answers: `pushBranch` is not aborted at 10 s and is at 200 s; `bringIn` is not aborted at 10 s and is at 150 s (fake timers; re-review b05 issue 3) | a push aborted by the client mid-flight, or a bring-in reported failed while its clone refresh runs |
