@@ -110,7 +110,7 @@ undo, revert, the branch verbs, fetch, push) holds the project's one `gitx.Locks
 project ID (task 02, constructed once by task 04; review I7).
 
 **git is the truth for every git fact (brief A1).** Phase 3 persists no tip, dirty flag,
-ahead/behind or conflict. It persists four things git cannot hold: the lane index (which clone
+ahead/behind or conflict. It persists three things git cannot hold: the lane index (which clone
 belongs to which project and branch, and the queue order), the branch rename map (A8), the
 evidence records (3-D5), and nothing else. The merge link lives in git as a trailer (3-D6).
 
