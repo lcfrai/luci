@@ -126,7 +126,7 @@ owner's):
 |---|---|---|
 | — | `binding.state: "hub_off"` | *Discover keeps briefs in the Hub, which this machine is not connected to.* The variable name, `PANACEA_APP_HUB_URL`, in mono. Develop is unaffected |
 | — | `no_remote` | OQ-1's sentence and the one command, `git remote add origin <url>`, in mono |
-| — | `unbound` | *Share this project's brief with your team*: a team picker from `binding.teams` (members and above only) and **Share**, which calls `bind` |
+| — | `unbound` | *Share this project's brief with your team*: a team picker from `binding.teams` (members and above only) and **Share**, which calls `bind`. When `binding.matches` is not empty (review M8, a fork's clone), one line per match comes first: *Your `upstream` remote (`github.com/team/portal`) is already shared as* ***Engagement Portal****. Sharing creates a separate project for `origin`, `github.com/me/portal`.* Remote names and keys in mono. The choice is **Share** as its own project, or leaving it unshared; nothing binds to the matched project (OQ-12) |
 | — | a `signed_out` problem | *Sign in to see and edit this brief*, pointing at the rail footer's sign-in (the Hub's task C4 surface) |
 | 1 | bound, no brief anywhere | *No brief yet. Sessions here inherit nothing from Discover.* Start answering, or *Skip for now* (no revision is written) |
 | 2 | branch, no branch brief, project complete | what the branch inherits, and from which project revision (`inherited.key` in mono) |
@@ -163,6 +163,7 @@ op `propose_follow_up`; the server refuses a second (`already_asked`) and asks n
 | `the follow-up is asked once after three answers` | the third settled answer is followed by one `propose_follow_up`; the fourth and fifth are not | a model call per answer |
 | `model off carries on` | `assist: "model_off"` → the sentence names the variable; step 4 is still asked | a flow that stalls without a model |
 | `unbound offers Share with the caller's teams` | picker lists teams with role ≥ member; Share calls `bind(projectId, teamId)` | a viewer offered an action the Hub will refuse |
+| `a fork's upstream match is stated, not bound` (review M8) | `unbound` with one `matches` entry (`upstream`, `github.com/team/portal`, *Engagement Portal*) and `repoKeys[0]` `github.com/me/portal` → the match line names the remote, both keys and the project; **Share** still calls `bind(projectId, teamId)`; no control calls anything with `pj-2`; with `matches: []` the line is absent | a match rendered as the project this one is bound to, or a control that binds the fork to the team's project |
 | `hub_off leaves Develop alone` | the lens renders its sentence; no ApiError toast is pushed | Discover's absence reported as an error on every screen |
 | `stylesheet obeys the design system` | `discover.css`: no hex, no `-gradient(`, no `transition: all`, no `color: var(--ink-4)`, no `@keyframes` except the one flash | the phase 2 audit failing at merge |
 

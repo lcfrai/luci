@@ -67,7 +67,7 @@ type OpsResponse struct {
 { "baseRevision": 5, "op": { "kind": "edit", "key": "done", "text": "Upload works for PDF, XLSX and images\nA virus scan runs before any file is visible\nAn interrupted upload resumes\nTests pass" } }
 // 200
 { "view": { "scope": "branch", "projectId": "p-3f2a91c0", "branchId": "b-3f2a91c0-evidence-upload",
-            "binding": { "state": "bound", "hubProjectId": "pj-…", "hubProjectName": "Engagement Portal", "repoKeys": ["github.com/…"], "teams": [] },
+            "binding": { "state": "bound", "hubProjectId": "pj-…", "hubProjectName": "Engagement Portal", "repoKeys": ["github.com/…"], "teams": [], "matches": [] },
             "brief": { "id": "bf-…a2", "scope": "branch", "headRevision": 6, "headKey": "brief:bf-…a2@6", "status": "complete",
                        "latestCompleteRevision": 6, "latestCompleteKey": "brief:bf-…a2@6", "questions": [ … ], "answers": [ … ],
                        "inherits": { "key": "brief:bf-…b7@5", "digest": "sha256:…" }, "change": { "kind": "edit", "key": "done", "restores": 0 },

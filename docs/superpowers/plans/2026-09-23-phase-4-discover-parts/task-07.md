@@ -216,12 +216,16 @@ type Hub interface {
 
 // RepoKey is one remote of a local repository, in the Hub's form.
 type RepoKey struct {
-	Key  string // githost.Remote.RepoKey() (phase 3 task 13)
-	Host string // "github" | "azure-devops"
+	Key    string // githost.Remote.RepoKey() (phase 3 task 13)
+	Host   string // "github" | "azure-devops"
+	Remote string // the git remote's name: "origin", "upstream", …
 }
 
 // RepoIdentity lists a local repository's recognised remotes, origin first,
 // then the rest by name. Unrecognised hosts are left out, not errors.
+// The first entry is the repository's PRIMARY remote (review M8): the one
+// Binding binds by and the only one Bind registers. That is origin when
+// origin is recognised; otherwise the first recognised remote by name.
 // Task 14 wires it over phase 3's githost.ParseRemote and a read-only
 // `git remote` / `git remote get-url` through project.Runner.
 type RepoIdentity interface {
@@ -271,10 +275,22 @@ type BindingState string
 
 const (
 	BindingBound    BindingState = "bound"
-	BindingUnbound  BindingState = "unbound"   // it has remotes; no Hub project has any of them
+	BindingUnbound  BindingState = "unbound"   // it has remotes; no Hub project has its primary one (Matches may name projects that have another)
 	BindingNoRemote BindingState = "no_remote" // OQ-1
 	BindingHubOff   BindingState = "hub_off"
 )
+
+// RemoteMatch is a Hub project found through a remote that is NOT the
+// primary one: typically a fork's clone, whose origin is the person's fork
+// and whose upstream is the team's repository (review M8). It is shown as a
+// fact beside the choice to share, never bound to on its own, because
+// binding a fork to the team's project would put the fork's briefs there.
+type RemoteMatch struct {
+	Remote         string `json:"remote"`         // "upstream"
+	RepoKey        string `json:"repoKey"`
+	HubProjectID   string `json:"hubProjectId"`
+	HubProjectName string `json:"hubProjectName"`
+}
 
 type TeamChoice struct {
 	ID   string `json:"id"`
@@ -283,21 +299,28 @@ type TeamChoice struct {
 }
 
 type Binding struct {
-	State          BindingState `json:"state"`
-	HubProjectID   string       `json:"hubProjectId"`   // "" unless bound
-	HubProjectName string       `json:"hubProjectName"` // "" unless bound
-	RepoKeys       []string     `json:"repoKeys"`       // what was looked up, in order
-	Teams          []TeamChoice `json:"teams"`          // unbound only: where it could be created
+	State          BindingState  `json:"state"`
+	HubProjectID   string        `json:"hubProjectId"`   // "" unless bound
+	HubProjectName string        `json:"hubProjectName"` // "" unless bound
+	RepoKeys       []string      `json:"repoKeys"`       // what was looked up, in order; [0] is the primary remote's
+	Teams          []TeamChoice  `json:"teams"`          // unbound only: where it could be created
+	Matches        []RemoteMatch `json:"matches"`        // unbound only: projects found through a non-primary remote; [] otherwise
 }
 
-// Binding looks the project up by each repo key in order and returns the
-// first Hub project found. It is memoised in memory per local project for
-// 60 s, and forgotten on Bind.
+// Binding looks the project up by its PRIMARY remote's key (RepoKeys[0]) and
+// is bound only to the project that key names (review M8). When there is
+// none, it looks up each other remote's key in order and lists every hit in
+// Matches, state unbound: the person chooses (task 18), nothing binds on its
+// own. It is memoised in memory per local project for 60 s, and forgotten on
+// Bind.
 func (s *Service) Binding(ctx context.Context, projectID string) (Binding, error)
 
-// Bind creates the Hub project in teamID with every repo key as a remote,
-// named after the local project. repo_already_linked (a race with a
-// teammate) re-reads and returns that binding instead of failing.
+// Bind creates the Hub project in teamID with the PRIMARY remote's key as
+// its only remote, named after the local project (review M8: a fork's clone
+// must not claim the team's repository through its upstream remote).
+// repo_already_linked (a race with a teammate) re-reads and returns that
+// binding instead of failing. Joining a project that a non-primary remote
+// matched is not built (OQ-12).
 func (s *Service) Bind(ctx context.Context, projectID, teamID string) (Binding, error)
 
 // BranchRef is "refs/heads/" + the branch's name; "" for "".
@@ -494,7 +517,9 @@ project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins o
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestBindingFindsTheProjectByItsRepoKey` | a local project whose second remote is linked is `bound` to it | a lookup of origin only |
+| `TestBindingFindsTheProjectByItsPrimaryRemote` (review M8, replaces `…ByItsRepoKey`) | `origin` linked to `pj-1` → `bound` to `pj-1`, `Matches` `[]`; `origin` linked to `pj-1` and `upstream` to `pj-2` → still `pj-1`, with no Hub lookup of `upstream` | a lookup that stops at any remote, so the fork's upstream wins when it sorts first |
+| `TestAnotherRemotesProjectIsAChoiceNotABinding` (review M8) | the fork shape: `origin` = `github.com/me/portal` unlinked, `upstream` = `github.com/team/portal` linked to `pj-2` → `unbound`, `HubProjectID` `""`, `Matches == [{upstream, github.com/team/portal, pj-2, "Engagement Portal"}]`, `Teams` filled; a write (task 08) is `ErrNotBound` | the old rule, which bound a fork to the team's project and wrote the fork's briefs there |
+| `TestBindRegistersThePrimaryRemoteOnly` (review M8) | the fork shape with `upstream` unlinked → `CreateProject`'s `remotes` is exactly `[{github.com/me/portal, github}]`; a repository with no `origin` and two recognised remotes `a` and `b` → `[a's key]`, and `Binding` then reads `bound` | a Bind that claims the team's repository under the fork's new project, so the team's own later Share meets `repo_already_linked` |
 | `TestBindingWithNoRemoteSaysSo` | `no_remote`, no Hub call | a Hub project created for a repository nobody else can reach (OQ-1) |
 | `TestBindingOffWhenTheHubIsNotConfigured` | nil Hub → `hub_off`; `HeadRef` on `b-42` → a `none` Ref and a nil error (rule 6) | a nil dereference at the first lens open; a `HeadRef` error that task 12 would turn into a 503 on Develop's head reading for a Hub it was never given |
 | `TestBindRaceReturnsTheTeammatesProject` | fake answers `repo_already_linked`; `Bind` returns that project `bound` | a second project for one repository |

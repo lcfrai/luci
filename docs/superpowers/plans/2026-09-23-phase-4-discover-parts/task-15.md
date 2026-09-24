@@ -112,9 +112,11 @@ export interface Step {
   help: string; options: string[]; because: string; pending: string[];
 }
 export interface TeamChoice { id: string; name: string; role: string }
+/** A Hub project found through a non-primary remote (task 07, review M8): shown, never bound to. */
+export interface RemoteMatch { remote: string; repoKey: string; hubProjectId: string; hubProjectName: string }
 export interface Binding {
   state: BindingState; hubProjectId: string; hubProjectName: string;
-  repoKeys: string[]; teams: TeamChoice[];
+  repoKeys: string[]; teams: TeamChoice[]; matches: RemoteMatch[];
 }
 export interface BriefState {
   id: string; scope: Scope; headRevision: number; headKey: string; status: BriefStatus;
