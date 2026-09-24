@@ -1628,3 +1628,28 @@ read it at `ce05f03`. The cited lines are unchanged: `task-15.md:87-95` (`State`
 **Still unverified:** the pinned CLI was not run, and O6's baseline arm is what would test the
 docs' claim about 2.1.274. `gitx.Machine`, `gitx.Read`, `briefref.Criterion` and `evidence.State`
 are phase 3 plan text, not code. Phase 3's plan may still move after `a255408`.
+
+## Fix batch b09 (2026-09-24): M2, M9, M10, M13
+
+Commits `d4ba2d8` (M2, M13), `a3b2aea` (M9), `60ff0fe` (M10). `sessions.go` was re-read at
+`2d6d95b`, which is byte-identical to this branch's `HEAD`. In `handleSessionCreate`:
+`Worktrees.Path` `:363`, `ids.UUID()` `:411`, `harness.Build` `:414-426`,
+`sessionConversationStore` `:427-432` (its `MkdirAll` is `:80`), `ids.New("s")` `:439`,
+`sessionLocate` `:452`, `Store.Create` `:458`, `ContextRef: req.ContextRef` `:477`. In restart:
+`Worktrees.Path` `:972`, `ids.UUID()` `:1001`, the store `:1014`, `Backend.Destroy` `:1026`. The
+review's `:300`/`:339`/`:356`/`:363`/`:376` are the same steps at `3303fd6`. Hub contract §9.5 was
+re-read at hub `2f84662`; "none blocks the Develop lens" is `hub-contract.md:1407`.
+
+| Finding | What changed | Where |
+|---|---|---|
+| M2 | **Moved, not reworded, and not to the review's spot.** On create, `sessionLocate` and `Materialise` move up to just after `harness.Build`'s error check and before `sessionConversationStore`. So every refusal that only checks the request comes first and costs no Hub call, and a `Materialise` refusal touches no disk. The only thing minted before it is the in-memory conversation UUID, which is `Build`'s input. **Not straight after `Worktrees.Path`**, the review's first option: there, an unknown-harness 400 would come after a Hub read and a brief write. Restart keeps its placement (after the argv and `sessionEnv` rebuilds, before the destroy), and the sentence now says what runs before it there: the UUID and a `MkdirAll` on the directory the session's create made. It also names the one case left, a failure after a successful `Materialise`. New test `TestCreateValidatesBeforeMaterialising`. `TestCreateRefusalWritesNothing` also asserts no conversation-store directory. Both package comments restate the rule | `task-10.md:13-31` (the order), `:64-70` (interface comment), `:229-235` (handler bullet), `:288-289` (tests); `task-09.md:28-33` |
+| M9 | **Stated in the view.** Task 19's `Materialisations` says, under the target's path, that the exclude line stops git listing the file, text of the person's own in it included. For the root target it also gives the way back: delete the Panacea block, then `git add -f CLAUDE.md`. Once the file is tracked, the brief moves to `.claude/CLAUDE.md` (step 2) and the file is never written again. The sentence must be true only when a line applies, so the inspection gains `excluded`, taken from the target choice with no git call: task 09 `Inspection`, task 15 `WorktreeInspection` (in `desktop/src/api/discover.ts`, not the gated `store/types.ts`). **Not the second option** (target `.claude/CLAUDE.md` when the untracked file has text outside a block). The target would flip the first time a person writes around the block, against `TestPreservesUserTextAroundTheBlock`. It would also move the commonest case onto `.claude/CLAUDE.md`, whose read by the pinned CLI is still unverified (canary O2). New tests `TestInspectReportsTheExcludeLine` and *the exclude line is stated where the file is named*. P4-D restates it | `task-19.md:62-63`, `:85`, `:109`; `task-09.md:225-232`, `:289`; `task-15.md:179-180`; `plan.md:174` |
+| M10 | **Owner question OQ-11**, with the recommendation built: keep the refusal, because a signed-out control plane cannot know whether a brief exists and `4-D1` forbids starting silently without it. Put *Sign in* first. Task 20's `signed_out` row makes *Sign in* the first control and the default focus. It runs the rail footer's own C4 sign-in action, imported; if C4 exports none, it focuses the footer control and the commit names the gap. After sign-in, **Retry** re-sends, and nothing sends on its own. New test *signed out puts Sign in first*. *The override is not the default focus* now excludes `signed_out`. The seam for the other ruling needs a new stamp in provenance contract §2.4, because `none:declined` would record a choice nobody made | `plan.md:545` (OQ-11); `task-20.md:220`, `:237-238`; `task-09.md:120-122` |
+| M13 | **Steps 6 and 7 swap.** The exclude line is written first, before any write that lands a block. A failed exclude write is `write_failed`, and a `Git.ExcludePath` error is a plain error (500, step 2's Git rule). Either way the target is never opened, so no untracked, un-excluded `CLAUDE.md` holding the brief waits for an agent's `git add -A` (3-D6). A strip needs no line. A step 7 failure leaves the line in place, which is harmless ("if absent"). New test `TestExcludeFailureWritesNoBlock`: two rows, each with and without a hand-written file. S4-P3.5, P4-D and the task intro restate it | `task-09.md:133-147` (steps 6-8), `:10`, `:270`; `plan.md:472` (S4-P3.5), `:174` (P4-D) |
+
+**Owner questions raised:** OQ-11 (M10), recorded in plan §10 with the recommended option built.
+
+**Still unverified:** the plan's new text was not built or run. That the Hub's task C4 exports a
+sign-in action task 20 can import is not verified; C4 is Hub plan text. Git's behaviour behind
+M9's way back was not run in this session: `info/exclude` does not affect a tracked file, and
+`git add` refuses an excluded path without `-f`.
