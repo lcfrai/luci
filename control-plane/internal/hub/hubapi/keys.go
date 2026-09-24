@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Id prefixes the Hub mints (contract §3.1). Disjoint from the control plane's
@@ -149,16 +150,18 @@ const BranchRefMaxBytes = 255
 // need no git: at most 255 bytes; a non-empty name after "refs/heads/"; no "..",
 // no "@{", no "//"; no ASCII control character or DEL; none of space ~ ^ : ? * [ \;
 // not ending in "/" or "."; no component beginning with "." or ending in
-// ".lock". The dot rules and the component-wide ".lock" rule are git's too
-// (check-ref-format rules 1 and 7), and stricter than contract §3.3's list,
-// which names ".lock" only at the end of the whole ref; a ref they refuse
-// cannot exist in a repository anyway.
+// ".lock". Those are check-ref-format's rules 1 to 8 and 10; rule 9, a lone
+// "@", cannot follow "refs/heads/". One rule is the Hub's, not git's: the ref
+// is UTF-8. It sits in the canonical envelope, which is UTF-8 only (contract
+// §3.4 rule 2), and encoding/json rewrites a bad byte as U+FFFD, so a ref that
+// is not UTF-8 would be stored as a ref git does not have. Contract §3.3 lists
+// every one of these rules.
 func ValidBranchRef(ref string) bool {
 	if ref == "" {
 		return true
 	}
 	name, ok := strings.CutPrefix(ref, "refs/heads/")
-	if !ok || name == "" || len(ref) > BranchRefMaxBytes {
+	if !ok || name == "" || len(ref) > BranchRefMaxBytes || !utf8.ValidString(ref) {
 		return false
 	}
 	if strings.Contains(ref, "..") || strings.Contains(ref, "@{") || strings.Contains(ref, "//") {

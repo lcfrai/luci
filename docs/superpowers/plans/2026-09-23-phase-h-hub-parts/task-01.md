@@ -1,7 +1,8 @@
 ### Task 01: `ids.Wide`, and the `hubapi` grammar — codes, keys, digests, branch refs, repo keys
 
-**Lane A. Depends on: 44a (merged on `feat/hub`; `TestTheContractsRepoKeyRegexIsTheCodes` reads
-its amended §7.4). About 2 hours. Contract task H0.**
+**Lane A. Depends on: 44a by the plan's order; built before it (see *As built*), so this task wrote
+§7.4's A1 itself and `TestTheContractsRepoKeyRegexIsTheCodes` reads that. About 2 hours. Contract
+task H0.**
 
 > **As built (2026-09-24, commits `caf18ae`, `25c503b`).** Task 44a had **not** landed when this
 > task ran: §7.4 still held the old regexes. This task wrote A1 into §7.4 in place, marked
@@ -11,6 +12,12 @@ its amended §7.4). About 2 hours. Contract task H0.**
 > the part checked only the whole ref); the Azure DevOps segments exclude ASCII control characters
 > and DEL (RE2's `[^/]` matches `\n`, so `…/repo\n` was a second spelling); the boundary test is
 > task 09's, not 08's. Two tests were added after the mutation run (the predicted survivors).
+>
+> **Fix round 1 (2026-09-24, review `task-01-review.md`).** I1: a new test holds the 38 codes to
+> §4.2's table (spelling, order, Go name, status). m1: the prefix test compares (prefix, entity)
+> pairs, not a set. m2: `ValidBranchRef` refuses a ref that is not UTF-8, and the test covers
+> `\x1f`. m3: contract §3.3 now lists every rule the code enforces, in place, at the same line
+> count, so no later line citation moves. m4, m5: stale sentences and comment hygiene.
 
 Every later task names a Hub id, a key, a digest, a branch or a repository. This task is the one
 place each of those is parsed and formatted, so no handler, no store and no client ever writes a
@@ -52,8 +59,9 @@ func Wide(prefix string) string {
 // Both sides import it: the Hub server to write, and the control plane's
 // hubclient to read and to re-check digests. It imports the standard library and
 // internal/httpx only (plan correction A9); the boundary test (task 09,
-// control-plane/internal/hub/boundary_test.go) holds it to that. There is no TypeScript twin, and there must never be one: the desktop
-// never computes a digest (provenance contract P5).
+// control-plane/internal/hub/boundary_test.go) holds it to that. There is no
+// TypeScript twin, and there must never be one: the desktop never computes a
+// digest (provenance contract P5).
 package hubapi
 ```
 
@@ -139,6 +147,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Id prefixes the Hub mints (contract §3.1). Disjoint from the control plane's
@@ -281,16 +290,18 @@ const BranchRefMaxBytes = 255
 // need no git: at most 255 bytes; a non-empty name after "refs/heads/"; no "..",
 // no "@{", no "//"; no ASCII control character or DEL; none of space ~ ^ : ? * [ \;
 // not ending in "/" or "."; no component beginning with "." or ending in
-// ".lock". The dot rules and the component-wide ".lock" rule are git's too
-// (check-ref-format rules 1 and 7), and stricter than contract §3.3's list,
-// which names ".lock" only at the end of the whole ref; a ref they refuse
-// cannot exist in a repository anyway.
+// ".lock". Those are check-ref-format's rules 1 to 8 and 10; rule 9, a lone
+// "@", cannot follow "refs/heads/". One rule is the Hub's, not git's: the ref
+// is UTF-8. It sits in the canonical envelope, which is UTF-8 only (contract
+// §3.4 rule 2), and encoding/json rewrites a bad byte as U+FFFD, so a ref that
+// is not UTF-8 would be stored as a ref git does not have. Contract §3.3 lists
+// every one of these rules.
 func ValidBranchRef(ref string) bool {
 	if ref == "" {
 		return true
 	}
 	name, ok := strings.CutPrefix(ref, "refs/heads/")
-	if !ok || name == "" || len(ref) > BranchRefMaxBytes {
+	if !ok || name == "" || len(ref) > BranchRefMaxBytes || !utf8.ValidString(ref) {
 		return false
 	}
 	if strings.Contains(ref, "..") || strings.Contains(ref, "@{") || strings.Contains(ref, "//") {
@@ -377,13 +388,14 @@ func HostOfRepoKey(key string) (GitHost, bool) {
 | `TestParseKeyClassifies` | brief → `KeyBrief`; design → `KeyDesign`; `b-42` → `("", ErrInvalidKey)` | a classifier that defaults to brief |
 | `TestDigestWireForm` | `DigestOf([]byte("abc")).String()` = `sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad`; round-trips through `ParseDigest`; `MarshalText`/`UnmarshalText` via `encoding/json` give the string form; `SHA256:`, uppercase hex, 63 hex, a bare hex string → `ErrInvalidDigest` | a digest rendered as base64 or raw bytes in JSON; case-folding |
 | `TestParseDigestHexTakesTheBareForm` | 64 hex → the same digest as the prefixed form; the prefixed form → error | a blob route that accepts `sha256:` in its path |
-| `TestBranchRefRules` | valid: `""`, `refs/heads/main`, `refs/heads/feat/evidence-upload`, a 255-byte ref. Invalid: `main`, `refs/heads/`, `refs/tags/v1`, 256 bytes, `refs/heads/a..b`, `refs/heads/a@{b`, `refs/heads/a//b`, `refs/heads/a/`, `refs/heads/a.`, `refs/heads/a.lock`, `refs/heads/a.lock/b`, `refs/heads/.hidden`, `refs/heads/a/.b`, and one each with space, `~`, `^`, `:`, `?`, `*`, `[`, `\`, `\x01`, `\x7f` | a local `b-…` BranchID reaching the Hub; each rule's deletion; `.lock` checked only at the end of the whole ref |
+| `TestBranchRefRules` | valid: `""`, `refs/heads/main`, `refs/heads/feat/evidence-upload`, `refs/heads/café` (UTF-8), a 255-byte ref. Invalid: `main`, `refs/heads/`, `refs/tags/v1`, 256 bytes, `refs/heads/a..b`, `refs/heads/a@{b`, `refs/heads/a//b`, `refs/heads/a/`, `refs/heads/a.`, `refs/heads/a.lock`, `refs/heads/a.lock/b`, `refs/heads/.hidden`, `refs/heads/a/.b`, and one each with space, `~`, `^`, `:`, `?`, `*`, `[`, `\`, `\x01`, `\x1f`, `\x7f`; not UTF-8: `refs/heads/\xff`, `refs/heads/caf\xc3` *(the last four rows added in fix round 1, review m2)* | a local `b-…` BranchID reaching the Hub; each rule's deletion; `.lock` checked only at the end of the whole ref; the control bound as `< 0x1f`; a non-UTF-8 ref, which JSON would store as U+FFFD |
 | `TestRepoKeyTakesPhase3sForms` | `ValidRepoKey(github, "github.com/lcfrai/panaceaapp")`, `ValidRepoKey(azure-devops, "azure-devops/kpmgcomau/panacea app/panaceaapp")` true; `HostOfRepoKey` names each | **the contract's §7.4 regex** (correction A1), which refuses the second |
 | `TestRepoKeyRefusesTheOldAndTheNonCanonical` | `kpmgcomau.visualstudio.com/p/r` (the old form), `github.com/LCFRAI/x` (not lowercase), `azure-devops/a/b` (three segments), `github.com/a/b/c`, `azure-devops/a/b/c\n`, a tab and a DEL inside a segment, a non-UTF-8 byte, the wrong host for a valid key → false | a key folded to lowercase and stored under a second spelling; the Azure DevOps segment as bare `[^/]` |
-| `TestTheContractsRepoKeyRegexIsTheCodes` | reads `docs/superpowers/contracts/2026-09-23-hub-contract.md` (found by walking up from the test's directory to the repo root), extracts the two repo-key patterns from §7.4, and asserts they equal `githubKeyRe` and `adoKeyRe`'s sources. Task 44a wrote A1 into the contract **before** this task, so the test passes against the amended text and goes red if either side drifts (moved here from task 44, which now runs first) | the drift correction A1 had to fix once |
+| `TestTheContractsRepoKeyRegexIsTheCodes` | reads `docs/superpowers/contracts/2026-09-23-hub-contract.md` (found by walking up from the test's directory to the repo root), extracts the two repo-key patterns from §7.4, and asserts they equal `githubKeyRe` and `adoKeyRe`'s sources. Task 01 wrote A1 into §7.4 itself (commit `caf18ae`: 44a had not run), so the test passes against the amended text and goes red if either side drifts (moved here from task 44) | the drift correction A1 had to fix once |
 | `TestHubCodesNeverShadowAControlPlaneCode` | every `hubapi` code except the five shared ones and `project_not_found` differs from each of `httpx`'s sixteen constants (`problem.go:45-60`), listed in the test by name | a Hub code named `backend_unavailable`, which the desktop reads as Docker (`desktop/src/api/problems.ts:39`) |
 | `TestSessionAndCanvasIDsTakeTheContractsBounds` *(added after the mutation run)* | `ValidSessionID`: `s-3f2a91c0` and 4 letters + 32 hex true; 7 or 33 hex, 5 letters, uppercase, a trailing `"\n"` false. `ValidCanvasID`: `cv-abcd`, 4 letters + 32 hex true; one or five letters, 3 or 33 hex, uppercase, `"\n"` false. `designKeyRe` carries `canvasIDRe`'s pattern | either bound widened (predicted survivor P1: the part had no test for either function); the design key and the canvas id drifting apart |
-| `TestPrefixesAndReasonsAreTheContracts` *(added after the mutation run)* | the `Prefix*` constants, read from `keys.go`'s source, are contract §3.1's table (ten); the `Reason*` constants, read from `codes.go`, are §4.2's `reason` list in its order | a respelled prefix or reason (predicted survivor P2: nothing read them) |
+| `TestPrefixesAndReasonsAreTheContracts` *(added after the mutation run)* | each `Prefix*` constant, read from `keys.go`'s source, is the prefix contract §3.1's table gives its entity (ten; the test maps `PrefixTeam` to "team" and so on, *pairs since fix round 1, review m1*: a set once); the `Reason*` constants, read from `codes.go`, are §4.2's `reason` list in its order | a respelled prefix or reason (predicted survivor P2: nothing read them); `PrefixTeam = "iv"`, `PrefixInvite = "tm"`, which keeps the set |
+| `TestHubCodesAreContractSection42s` *(fix round 1, review I1)* | reads §4.2's table: the 33 string literals in `codes.go`, in declaration order, are its non-shared codes in table order; the five `httpx.*` selectors resolve (through the test's `httpx` list) to its **shared** rows in order; every constant is named `Code` + the code in camel case (`JSON` as the acronym); every constant's comment starts with its row's status, and any `details.x` it names is in its row's `details` | a respelled code (`revision_conflicts`); two codes' values swapped; two constants' **names** swapped, which keeps the order; a wrong status in a comment |
 
 #### Steps
 
@@ -398,8 +410,9 @@ func HostOfRepoKey(key string) (GitHost, bool) {
 
 ```bash
 go test ./control-plane/internal/ids/ ./control-plane/internal/hub/hubapi/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"
-# 23   (the 7 existing ids tests, ids_test.go:15-82, plus the 16 above: 2 in ids, 14 in hubapi.
-#       Was "20 ... plus the 13": the table had 14 rows once the contract test moved in from task 44)
+# 24   (the 7 existing ids tests, ids_test.go:15-82, plus the 17 above: 2 in ids, 15 in hubapi.
+#       Was "20 ... plus the 13": the table had 14 rows once the contract test moved in from task 44;
+#       23 until fix round 1 added TestHubCodesAreContractSection42s)
 go vet ./control-plane/internal/ids/ ./control-plane/internal/hub/hubapi/        # no output
 go list -deps ./control-plane/internal/hub/hubapi | grep panacea-app               # exactly two lines:
 #   github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx

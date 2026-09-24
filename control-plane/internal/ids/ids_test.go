@@ -102,8 +102,8 @@ func TestWideIsThePrefixAndSixteenLowercaseHex(t *testing.T) {
 
 // Wide ids are shared across every user of the Hub, so they are drawn from 64
 // bits of crypto/rand. 100,000 draws collide with probability about
-// 1e10/2/2^64, i.e. 3 in 10^10. A time- or counter-seeded generator collides
-// inside the first few calls on Windows, where the clock granularity is ~15 ms.
+// 1e10/2/2^64, i.e. 3 in 10^10. A time-seeded generator collides inside the
+// first few calls on Windows, where the clock granularity is ~15 ms.
 func TestWideDoesNotCollideOnFastSuccessiveCalls(t *testing.T) {
 	const draws = 100_000
 	seen := make(map[string]struct{}, draws)

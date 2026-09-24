@@ -633,7 +633,8 @@ func EnsureLists(v any)
 
 ```bash
 go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"
-# 37   (task 01's 14 hubapi tests, as built at 25c503b, + task 02's 16 + these 7; was "34 ... 11")
+# 38   (task 01's 15 hubapi tests, as built after its fix round 1, + task 02's 16 + these 7;
+#       was "37 ... 14" at 25c503b, and "34 ... 11" before that)
 go vet ./control-plane/internal/hub/hubapi/                                        # no output
 grep -n "omitempty" control-plane/internal/hub/hubapi/types.go | grep -v "Request\|Readyz\|branchRef,omitempty\|pipelineRun,omitempty\|deploymentId,omitempty"
 # no output: omitempty appears only on request types and Readyz.failing

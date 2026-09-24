@@ -222,6 +222,7 @@ func TestBranchRefRules(t *testing.T) {
 		"refs/heads/a.b",      // a dot inside a component
 		"refs/heads/lock",     // "lock" is fine; ".lock" at a component's end is not
 		"refs/heads/a.locked", // so is a component that only contains ".lock"
+		"refs/heads/café",     // non-ASCII is fine when it is UTF-8 (é is C3 A9)
 		ref255,
 	}
 	for _, r := range valid {
@@ -253,8 +254,14 @@ func TestBranchRefRules(t *testing.T) {
 		"refs/heads/a[b",
 		`refs/heads/a\b`,
 		"refs/heads/a\x01b",
+		"refs/heads/a\x1fb", // the last control character, so the bound is < 0x20
 		"refs/heads/a\x7fb",
 		"refs/heads/main\n",
+		// Not UTF-8. encoding/json rewrites each bad byte as U+FFFD, so the ref a
+		// JSON body carries and the one a query string carries would differ, and
+		// the canonical envelope (§3.4 rule 2) is UTF-8 only.
+		"refs/heads/\xff",
+		"refs/heads/caf\xc3", // a truncated two-byte sequence
 	}
 	for _, r := range invalid {
 		if ValidBranchRef(r) {
@@ -348,9 +355,6 @@ func repoRoot(t *testing.T) string {
 	}
 }
 
-// The contract's §7.4 and this package say the same thing about repository
-// keys, or a sibling phase builds against a regex the Hub does not run. That
-// drift is what correction A1 had to fix once.
 // contractSection returns one "### <number> " section of the Hub contract, up to
 // the next heading of the same level.
 func contractSection(t *testing.T, number string) string {
@@ -371,6 +375,9 @@ func contractSection(t *testing.T, number string) string {
 	return section
 }
 
+// The contract's §7.4 and this package say the same thing about repository
+// keys, or a sibling phase builds against a regex the Hub does not run. That
+// drift is what correction A1 had to fix once.
 func TestTheContractsRepoKeyRegexIsTheCodes(t *testing.T) {
 	section := contractSection(t, "7.4")
 	found := regexp.MustCompile("`(\\^[^`]*\\$)`").FindAllStringSubmatch(section, -1)
@@ -491,6 +498,135 @@ func TestHubCodesNeverShadowAControlPlaneCode(t *testing.T) {
 	}
 }
 
+// codeConstName is the Go name contract §4.2's code takes: "Code", then the
+// code in camel case, with JSON spelled as Go spells the acronym. So
+// revision_conflict is CodeRevisionConflict and invalid_json CodeInvalidJSON.
+func codeConstName(code string) string {
+	name := "Code"
+	for _, word := range strings.Split(code, "_") {
+		switch word {
+		case "":
+			name += "_" // no §4.2 code has one, so no constant name matches
+		case "json":
+			name += "JSON"
+		default:
+			name += strings.ToUpper(word[:1]) + word[1:]
+		}
+	}
+	return name
+}
+
+// The 38 codes are wire values. The Hub writes them, the relay passes a Hub
+// error to the desktop unchanged (§4.3), the desktop switches on them, and task
+// 38 copies the Hub's own into HubProblemCode. Sibling phases code against
+// §4.2's table, not against codes.go, so every constant is held to its row: its
+// spelling, its place in the table's order, its Go name, and the status (and any
+// details key) its comment gives. A respelled code, two codes' values swapped,
+// or two constants' names swapped each pass the test above and fail this one.
+func TestHubCodesAreContractSection42s(t *testing.T) {
+	type row struct {
+		code, status, details string
+		shared                bool
+	}
+	first := regexp.MustCompile("^ `([a-z_]+)`( \\*\\*shared\\*\\*)? $")
+	var table []row
+	for _, line := range strings.Split(contractSection(t, "4.2"), "\n") {
+		if !strings.HasPrefix(line, "| `") {
+			continue
+		}
+		cells := strings.Split(line, "|")
+		if len(cells) < 6 {
+			t.Fatalf("§4.2 row %q does not have the table's four cells", line)
+		}
+		m := first.FindStringSubmatch(cells[1])
+		if m == nil {
+			t.Fatalf("§4.2 row %q: its first cell is not a code", line)
+		}
+		table = append(table, row{code: m[1], status: strings.TrimSpace(cells[2]),
+			details: cells[4], shared: m[2] != ""})
+	}
+	var wantShared, wantOwn []string
+	rows := map[string]row{}
+	for _, r := range table {
+		rows[r.code] = r
+		if r.shared {
+			wantShared = append(wantShared, r.code)
+		} else {
+			wantOwn = append(wantOwn, r.code)
+		}
+	}
+	if len(wantShared) != 5 || len(wantOwn) != 33 {
+		t.Fatalf("§4.2 lists %d shared and %d own codes, want 5 and 33", len(wantShared), len(wantOwn))
+	}
+
+	f, err := parser.ParseFile(token.NewFileSet(), "codes.go", nil, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	detailsKey := regexp.MustCompile(`details\.([A-Za-z]+)`)
+	var gotShared, gotOwn []string
+	for _, decl := range f.Decls {
+		gd, ok := decl.(*ast.GenDecl)
+		if !ok || gd.Tok != token.CONST {
+			continue
+		}
+		for _, spec := range gd.Specs {
+			vs := spec.(*ast.ValueSpec)
+			for i, name := range vs.Names {
+				if !strings.HasPrefix(name.Name, "Code") {
+					continue
+				}
+				var value string
+				switch v := vs.Values[i].(type) {
+				case *ast.SelectorExpr: // resolved through httpx, so a respelling there shows
+					cp, ok := controlPlaneCodes[v.Sel.Name]
+					if !ok {
+						t.Errorf("%s = httpx.%s, which is not one of httpx's codes", name.Name, v.Sel.Name)
+						continue
+					}
+					value = cp
+					gotShared = append(gotShared, value)
+				case *ast.BasicLit:
+					if value, err = strconv.Unquote(v.Value); err != nil {
+						t.Fatalf("%s: %v", name.Name, err)
+					}
+					gotOwn = append(gotOwn, value)
+				default:
+					t.Errorf("%s is neither a string literal nor an httpx constant", name.Name)
+					continue
+				}
+				if want := codeConstName(value); name.Name != want {
+					t.Errorf("%s = %q, but §4.2's %q is named %s", name.Name, value, value, want)
+				}
+				r, inTable := rows[value]
+				if !inTable {
+					t.Errorf("%s = %q, which is no code in contract §4.2", name.Name, value)
+					continue
+				}
+				var comment string
+				if vs.Comment != nil {
+					comment = vs.Comment.Text()
+				}
+				if fields := strings.Fields(strings.ReplaceAll(comment, ",", " ")); len(fields) == 0 || fields[0] != r.status {
+					t.Errorf("%s's comment %q does not start with §4.2's status %s", name.Name, comment, r.status)
+				}
+				for _, k := range detailsKey.FindAllStringSubmatch(comment, -1) {
+					if !strings.Contains(r.details, "`"+k[1]+"`") {
+						t.Errorf("%s's comment names details.%s; §4.2's details for %s are %q", name.Name, k[1], value, strings.TrimSpace(r.details))
+					}
+				}
+			}
+		}
+	}
+	if strings.Join(gotOwn, " ") != strings.Join(wantOwn, " ") {
+		t.Errorf("codes.go's own codes, in declaration order:\n  %s\nwant §4.2's, in its table order:\n  %s",
+			strings.Join(gotOwn, " "), strings.Join(wantOwn, " "))
+	}
+	if strings.Join(gotShared, " ") != strings.Join(wantShared, " ") {
+		t.Errorf("codes.go's shared codes resolve to %q, want §4.2's shared rows %q", gotShared, wantShared)
+	}
+}
+
 // ── the rest of the grammar: session and canvas ids, prefixes, reasons ──────
 
 // ValidSessionID guards route 26's session link (contract §7.8) and
@@ -536,15 +672,17 @@ func TestSessionAndCanvasIDsTakeTheContractsBounds(t *testing.T) {
 	}
 }
 
-// constValues reads file's source and returns, in order, the string literal of
-// every constant whose name starts with namePrefix.
-func constValues(t *testing.T, file, namePrefix string) []string {
+type namedConst struct{ name, value string }
+
+// constValues reads file's source and returns, in order, the name and string
+// literal of every constant whose name starts with namePrefix.
+func constValues(t *testing.T, file, namePrefix string) []namedConst {
 	t.Helper()
 	f, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out []string
+	var out []namedConst
 	for _, decl := range f.Decls {
 		gd, ok := decl.(*ast.GenDecl)
 		if !ok || gd.Tok != token.CONST {
@@ -564,28 +702,73 @@ func constValues(t *testing.T, file, namePrefix string) []string {
 				if err != nil {
 					t.Fatalf("%s: %v", name.Name, err)
 				}
-				out = append(out, s)
+				out = append(out, namedConst{name.Name, s})
 			}
 		}
 	}
 	return out
 }
 
+// prefixEntity is the entity, in contract §3.1's words, each Prefix constant
+// mints. A new constant with no entry here fails: a new id prefix is a §3.1
+// row first.
+var prefixEntity = map[string]string{
+	"PrefixOrg":      "org",
+	"PrefixUser":     "user",
+	"PrefixTeam":     "team",
+	"PrefixInvite":   "invite",
+	"PrefixProject":  "project",
+	"PrefixBrief":    "brief",
+	"PrefixApproval": "design approval",
+	"PrefixLink":     "session → design link",
+	"PrefixRelease":  "release",
+	"PrefixEvidence": "evidence record",
+}
+
 // The id prefixes and the 401 reasons are wire values the contract names; a
 // respelled one mints ids the Hub's own CHECKs refuse, or a reason the desktop
 // cannot match. Both are read from the source, so an added constant is checked.
+// A prefix is held to its entity, not only to the set: PrefixTeam = "iv" and
+// PrefixInvite = "tm" keep the set and mint every team id as an invite's.
 func TestPrefixesAndReasonsAreTheContracts(t *testing.T) {
-	var table []string
+	prefixCell := regexp.MustCompile("^ `([a-z]+)-` $")
+	table := map[string]string{} // entity -> prefix
 	for _, line := range strings.Split(contractSection(t, "3.1"), "\n") {
-		if strings.HasPrefix(line, "| `") {
-			for _, m := range regexp.MustCompile("`([a-z]+)-`").FindAllStringSubmatch(line, -1) {
-				table = append(table, m[1])
+		if !strings.HasPrefix(line, "| `") {
+			continue
+		}
+		cells := strings.Split(line, "|") // | prefix | entity | | prefix | entity |
+		if len(cells) != 7 {
+			t.Fatalf("§3.1 row %q does not have the table's five cells", line)
+		}
+		for _, at := range []int{1, 4} {
+			m := prefixCell.FindStringSubmatch(cells[at])
+			if m == nil {
+				t.Fatalf("§3.1 row %q: cell %d is not a prefix", line, at)
 			}
+			table[strings.TrimSpace(cells[at+1])] = m[1]
 		}
 	}
 	prefixes := constValues(t, "keys.go", "Prefix")
-	if !sameSet(prefixes, table) || len(prefixes) != 10 {
-		t.Errorf("Prefix constants %q, want contract §3.1's ten %q", prefixes, table)
+	if len(prefixes) != 10 || len(table) != 10 {
+		t.Errorf("keys.go has %d Prefix constants and §3.1 %d entities, want ten of each", len(prefixes), len(table))
+	}
+	named := map[string]bool{}
+	for _, p := range prefixes {
+		entity, ok := prefixEntity[p.name]
+		if !ok {
+			t.Errorf("%s names no §3.1 entity in this test's prefixEntity", p.name)
+			continue
+		}
+		named[entity] = true
+		if want, ok := table[entity]; !ok || p.value != want {
+			t.Errorf("%s = %q, but §3.1 gives the %s the prefix %q", p.name, p.value, entity, want)
+		}
+	}
+	for entity, prefix := range table {
+		if !named[entity] {
+			t.Errorf("§3.1's %s (%s-) has no Prefix constant", entity, prefix)
+		}
 	}
 
 	var row string
@@ -602,26 +785,11 @@ func TestPrefixesAndReasonsAreTheContracts(t *testing.T) {
 	for _, m := range regexp.MustCompile("`([a-z_]+)`").FindAllStringSubmatch(list, -1) {
 		want = append(want, m[1])
 	}
-	if got := constValues(t, "codes.go", "Reason"); strings.Join(got, " ") != strings.Join(want, " ") {
+	var got []string
+	for _, r := range constValues(t, "codes.go", "Reason") {
+		got = append(got, r.value)
+	}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Errorf("Reason constants %q, want contract §4.2's %q in its order", got, want)
 	}
-}
-
-func sameSet(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	seen := map[string]int{}
-	for _, s := range a {
-		seen[s]++
-	}
-	for _, s := range b {
-		seen[s]--
-	}
-	for _, n := range seen {
-		if n != 0 {
-			return false
-		}
-	}
-	return true
 }

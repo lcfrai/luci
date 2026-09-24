@@ -29,6 +29,7 @@ that builds each:
 | Section | Change |
 |---|---|
 | §7.4 | A1: the two repo-key regexes and the lowercase rule; the `repo_already_linked` message sentence (task 17). **Already in place:** task 01 ran before this task and wrote A1 into §7.4 itself (commit `caf18ae`, marked `(Phase H plan, A1; task 01)`), with the Azure DevOps segments also excluding control characters. Do not rewrite it; list it in §16 and check it with `TestTheContractsRepoKeyRegexIsTheCodes` |
+| §3.3 | Task 01's branch-ref rules (review m3 of task 01): every rule `hubapi.ValidBranchRef` enforces, git's rules 1–8 and 10 plus the Hub's UTF-8 rule. **Already in place:** task 01's fix round 1 rewrote §3.3's rule sentence itself, at the same line count so no line citation moved, marked `(Phase H plan, task 01 fix 1)`. Do not rewrite it; list it in §16 as task 01's |
 | §12.1 | A2: Postgres-only compose; `devstack.sh`; why |
 | §9.4, §13 C3 | A3: the only routes without the key are `/v1/healthz` and `/api/v1/healthz`, mounted outside the guard. Review I3 replaces §9.4's attach exemption and its *"later work"* sentence: the attach WebSocket carries the key as its second subprotocol (`["panacea.v1", "panacea.key." + key]`), compared in constant time, and the control plane echoes only `panacea.v1` (task 37); *"calls it once at start"* gains *"and again for each attach handshake"* (task 38) |
 | §9.4 | A4: `Access-Control-Allow-Headers: Content-Type, Authorization`; the key check inside the origin guard |
@@ -176,7 +177,7 @@ grep -n "preferred_username" $A                                   # no hit reads
 grep -n "xms_edov" $A                                             # §5.3's row and §9 item 3
 git diff --stat <parent-of-44a> <44a-sha> -- $A                   # the two cells only: 2 insertions(+), 2 deletions(-)
 git log -1 --format=%H -- $C                                      # this task's commit (task 01 ran first and wrote A1 at caf18ae; this line once read "older than task 01's first commit")
-go test ./control-plane/internal/hub/hubapi/ -run TestTheContractsRepoKeyRegexIsTheCodes -count=1   # ok: the fold kept §7.4 equal to the code
+go test ./control-plane/internal/hub/hubapi/ -run 'TestTheContractsRepoKeyRegexIsTheCodes|TestHubCodesAreContractSection42s|TestPrefixesAndReasonsAreTheContracts' -count=1   # ok: the fold kept §7.4, §4.2's codes and §3.1's prefixes equal to the code
 grep -n "git show .*:docs/superpowers/contracts/2026-09-23-hub-contract.md" .superpowers/sdd/hub/progress.md   # the read path, with the sha
 ```
 

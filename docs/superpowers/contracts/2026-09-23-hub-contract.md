@@ -130,11 +130,11 @@ design key   ^design:([a-z]{2,4}-[0-9a-f]{4,32})@([1-9][0-9]{0,8})$   e.g. desig
 
 ### 3.3 Branches
 
-A branch is named by its full git ref, `refs/heads/<name>`, at most 255 bytes, validated by the
-rules of `git check-ref-format` that can be checked without git: no `..`, no ASCII control
-characters, no space, `~`, `^`, `:`, `?`, `*`, `[` or `\`, not ending in `/` or `.lock`, no `@{`.
-The empty string means *project-scoped*. Local `BranchID`s (`b-…`, path-hashed) never reach the
-Hub.
+A branch is named by its full git ref, `refs/heads/<name>`, at most 255 bytes, **UTF-8**, and valid
+by `git check-ref-format`'s rules 1–8 and 10: no `..`, `//` or `@{`; no ASCII control character,
+DEL, space, `~`, `^`, `:`, `?`, `*`, `[` or `\`; not ending in `/` or `.`; no component that starts
+with `.` or ends in `.lock`. UTF-8 is the Hub's rule, for §3.4 rule 2 (Phase H plan, task 01 fix 1).
+The empty string means *project-scoped*. Local `BranchID`s (`b-…`, path-hashed) never reach the Hub.
 
 ### 3.4 The canonical encoding and the digest
 
