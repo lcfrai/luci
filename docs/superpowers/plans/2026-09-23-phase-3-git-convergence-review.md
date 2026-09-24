@@ -673,6 +673,42 @@ checkout under `GIT_CONFIG_*` holding the clone's answer writes `x\ny\n`; under 
 answer it writes `x\r\ny\r\n`. **Unverified:** everything inside the sandbox image; the re-hash
 item above; the `--no-hardlinks` cost.
 
+### Fix batch b02, round 3 (2026-09-24): re-review b02-2's Critical X-1
+
+The re-review (`.superpowers/sdd/p3/plan-rereview-b02-2.md`) resolved I-1 and M-1 and raised one
+Critical, X-1: phase 2's `d7e2dea` mounts into the sandbox a host file named by config the agent
+controls, and round 2's invariant ("asked in the clone") holds only for a pinned git. Round 3 fixes
+X-1's lane half at the root: the resolvers' runner, not each resolver. Commits `c808f82`,
+`55da219`, `6cc9634`, `85ee942`. Line numbers are for the tree at `85ee942`.
+
+Facts re-checked on `feat/phase-2-cockpit` at `5fe62fb`: `main.go` builds `GitIdentity`,
+`GitLineEndings` and `GitGlobalFiles` on one `project.NewExecRunner()` (`gitRunner`, :123, :137,
+:162, :163); `sessionGitGlobalFile` mounts any absolute regular file, links resolved; create and
+restart write a resolver error with `a.internal` (500; sessions.go:832-841, :1502-1511);
+`sessionGitIdentity` swallows its error and runs after the other two (:847, :1517); phase 2's
+resolvers wrap with `%w` (`gitlineendings.go:48`, `:54`, `gitglobalfiles.go:60`). The desktop
+renders a `conflict` verbatim (`desktop/src/api/problems.ts:37-41`). The re-review's probe output
+(`scratchpad/p3/rr2-probe.out`) shows the unpinned redirect answering `true`/`crlf`/the secret's
+path, and the pinned call `false` and no `excludesFile`.
+
+| Re-review's fix | Where it is now |
+|---|---|
+| 1. The primary-worktree half goes to the phase-2 fix stream | Not phase 3's code. Recorded as plan Q14 (plan:454, with the recommended fix and the phase-3-side alternative, which cannot close a key written before H5's bind or a linked worktree); parts/task-05.md:171-176 and its "does not claim" (:345); this batch's report's owner question |
+| 2. In a lane clone the three resolvers run through `gitx` Exec with `Scope Clone` | parts/task-05.md:85-170. `laneResolverRunner` (a `project.Runner`): a `dir` under `Machine.CloneRoot()` runs as `gitx.Call{Class: Read, Scope: Clone}` through task 04's `gitExec`; anything else goes to phase 2's runner unchanged. `main.go` passes it to all three constructors (:136-143). Effects, each cited to §HGH: H5's pin ignores `commondir`; H3's allowlist refuses `core.excludesFile`, `core.attributesFile` and includes in the clone's own config; the refusal is 409 `clone_config_untrusted` with `details.key` on create and restart, not 500 |
+| (root cause, beyond the re-review) a relative answer joined to the worktree | parts/task-05.md, the "never reached through the worktree" bullet: a path under the worktree, as answered or with links resolved, is not mounted. An agent-planted link to a host file would otherwise pass a pinned resolver, since a relative `core.excludesFile` in the user's global file is joined to the worktree |
+| 3. A test: an agent-written `commondir` still sends `false`/`lf` and mounts nothing it names, red on the unpinned runner | parts/task-05.md:269 `TestLaneResolversIgnoreACommondirRedirect` (all three resolvers, production-shaped); :270 `TestLaneResolversRefuseAFileTheClonesConfigNames`; :271 `TestALaneSessionOnUntrustedCloneConfigIsAConflict`; :272 `TestSessionGitGlobalFileMountsNothingInsideTheWorktree`; :268 now runs `TestTheResolverReadsALaneCloneAsLF` on `resolverRunner`. Preflight :306-310, step 2 :311-314, acceptance :334 |
+| 4. Restate the invariant as "asked in the clone, by a pinned git" | plan:91-98; parts/task-03.md:300-304; parts/task-05.md:81-83. Also plan:236-239 (rule 9), :266-267 (the phase 2 surface table), :465-466 (file map), :595-598 (shared-file hazards); parts/task-02.md:11-14 and :401-402; parts/task-04.md:123-124 |
+
+**Deferred.** M-A (the stale `sessionEnv` and handler line numbers at task-01:66, task-03:293-298,
+task-05's code block and plan:256-258) is a Minor and overlaps I12; the re-review offers it to
+I12's batch, and this round, scoped to the Critical, leaves it there. This round cites phase 2 by
+function name plus a G1 grep where it added a citation.
+
+**Unverified.** Everything inside the sandbox image. Whether a link made inside a Docker Desktop
+bind mount on this Windows host is one the host's `os.Stat` follows. X-1's primary-worktree path,
+which the re-review read from the code and did not run. No test in this round has been run: they
+are plan text.
+
 ## Fix batch b03 (2026-09-24): I11 and I12
 
 Lane (a) setup: clone creation, and the fix's baseline. Runs after b02, because both edit task 03's
