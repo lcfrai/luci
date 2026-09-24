@@ -23,11 +23,11 @@ structural count over the 40 newest transcripts, 76,592 lines, Claude Code 2.1.2
 2.1.267 and 2.1.280, no text printed): every line carries `type`, but **only `user`,
 `assistant`, `system` and `attachment` lines carry `version`**. `user` and `assistant` lines
 carry `timestamp`, `uuid`, `sessionId` and `cwd` (the 2.1.267 pass; review I1 counted `version`
-only, so no other key's presence on the version-less types is claimed). 25,111 of those lines (about a third) carry no `version`, of eleven types:
-`last-prompt`, `mode`, `permission-mode`, `atis-latch`, `ai-title`, `queue-operation`,
-`file-history-snapshot`, `file-history-delta`, `cost-state`, `relocated`, `worktree-state`. The
-adapter reads only `user` and `assistant` lines (below). An `assistant` line's `message.content[]` holds
-`tool_use` items with `id`, `name`, `input`; `Edit`'s input has `file_path`, `old_string`,
+only, so no other key's presence on the version-less types is claimed). 25,111 of those lines
+(about a third) carry no `version`, of eleven types: `last-prompt`, `mode`, `permission-mode`,
+`atis-latch`, `ai-title`, `queue-operation`, `file-history-snapshot`, `file-history-delta`,
+`cost-state`, `relocated`, `worktree-state`. The adapter reads only `user` and `assistant` lines
+(below). An `assistant` line's `message.content[]` holds `tool_use` items with `id`, `name`, `input`; `Edit`'s input has `file_path`, `old_string`,
 `new_string`, `replace_all`, and `Write`'s has `file_path`, `content`; the following `user` line
 carries `toolUseResult` with `filePath` and `structuredPatch[]` of `{oldStart, oldLines, newStart,
 newLines, lines[]}` (each line prefixed ` `, `+` or `-`), and `sourceToolAssistantUUID`.
@@ -113,8 +113,8 @@ func (a *Adapter) Path(worktreeID, conversationID string) string
 //     paragraph above, and any new one) is skipped: not read, not a failure, still in the
 //     denominator; one that carries a `version` is checked against the pin and otherwise skipped.
 // So the pin is enforced on every line that names a version and required on the two types the
-// adapter reads; a transcript with no user or assistant line yields no calls and no error. It opens the file read-only, reads it whole, and closes it
-// before returning — on Windows an open handle would block Forget's delete (OD-10). Results
+// adapter reads; a transcript with no user or assistant line yields no calls and no error.
+// It opens the file read-only, reads it whole, and closes it before returning — on Windows an open handle would block Forget's delete (OD-10). Results
 // are cached by (path, size, mtime).
 func (a *Adapter) ToolCalls(ctx context.Context, worktreeID, conversationID string) ([]ToolCall, error)
 
@@ -211,8 +211,15 @@ file, read-only, through the OD-8 adapter. Writes nothing."*
 ```
 go test ./control-plane/internal/transcript/... ./control-plane/internal/changes/ ./control-plane/internal/api/ -race -count=1
   → PASS; TestCapturedFixtureParses SKIP with the OD-12 message (until captured)
-git grep -n "internal/proxy\|attach" -- control-plane/internal/transcript   → no output (no PTY path reaches the adapter)
+git grep -nwE "internal/proxy|attach" -- 'control-plane/internal/transcript/*.go'
+  → no output (no PTY path reaches the adapter)
 ```
+
+The grep matches whole words in Go source only. `-w` does not match the transcript's own
+`attachment` line type, and `*.go` leaves `testdata/` out, whose fixtures carry `attachment`
+lines by design (Step 1). What it guards is a reference to the PTY attach path
+(`control-plane/internal/api/attach.go`: `registerAttach`, `handleAttach`, `relayAttached`) or
+to the proxy.
 
 #### What this task does not claim
 

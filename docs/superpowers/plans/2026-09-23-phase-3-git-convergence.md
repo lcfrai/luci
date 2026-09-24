@@ -568,7 +568,8 @@ made structural). `routes_audit_test.go` gets one line per GET, appended.
   only `user`, `assistant`, `system` and `attachment` lines carry `version`, and about a third
   of all lines, of eleven other types, carry none, so task 17 pins on the lines that name a
   version and skips the rest. **Not verified on 2.1.274**, the version the image pins: task 17's
-  canary is what checks it, and it fails on any pin but 2.1.274 until that pin is captured. Also verified: the remote URL forms of this programme's own repositories
+  canary is what checks it, and it fails on any pin but 2.1.274 until that pin is captured.
+  Also verified: the remote URL forms of this programme's own repositories
   (`https://github.com/<owner>/<repo>`, `https://kpmgcomau.visualstudio.com/<project>/_git/<repo>`),
   and that no Hub contract exists yet.
 - **Verified in fix batch b02** (git 2.53.0.windows.2, 2026-09-24, host only, with a test system
