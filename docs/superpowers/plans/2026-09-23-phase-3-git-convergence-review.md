@@ -1218,3 +1218,26 @@ the new test has not been written or run, since this is a plan batch. The re-rev
 filters and textconv from the system or global config on host Scope Clone calls, still belongs to
 task-02 §HGH and is not changed here.
 
+## Fix batch b09 (2026-09-24): Minors 1, 3, 4, 5 and 17
+
+Text and count corrections in the plan, task 04 and task 05. Commits d28cf9e, b8ee35d, 3de9130,
+cb0789e and 81bcfe1. Line numbers are for the tree at 81bcfe1. "parts/" as above.
+
+| Finding | Where it is now |
+|---|---|
+| 1: an unknown field is not `invalid_json` | parts/task-04.md:202-203: two rows. `invalid_json` for a body that is not one JSON object or is over 1 MiB; `bad_request` for an unknown field or a field of the wrong type, citing `decodeCode`. Verified against `control-plane/internal/httpx/problem.go:165-173` (`unknownField` and `*json.UnmarshalTypeError` both answer `CodeBadRequest`) and `problem_test.go:203`, in this worktree. The row sat at :202, not :147: earlier batches moved it. A grep of plan and parts finds no other `invalid_json` or unknown-field claim (task-12.md:138 says only that DecodeJSON refuses unknown fields) |
+| 3: "four things", three listed | plan:113: "three things". The lanes store holds the rename map (parts/task-03.md:103, `Renames`), and the evidence store is task 15's; a grep of plan and parts for `persist` and `WriteAtomic` finds no fourth |
+| 4: "PASS, 8 tests" against seven `Dispatch*` rows | Already true when this batch began: b03 (4fc7b06, review I11) added `TestDispatchNamesAMissingHooksDir`, so parts/task-05.md:177-185 holds eight `TestDispatch*` rows, and no `func Test…Dispatch` exists in `control-plane/` today for `-run Dispatch` to catch as well. parts/task-05.md:221 now names what it counts ("the table's eight `TestDispatch*` rows"), so the next row added cannot leave it stale unseen |
+| 5: `pullrequests.go` and `transcript.go` missing from the handler list | plan:138-141: nine files, in the file map's order (plan:480-481). Both are "(new)" in their tasks' file lists: parts/task-14.md:18 and parts/task-17.md:40. A grep of parts for `control-plane/internal/api/*.go … (new)` finds no other handler file |
+| 17: Q5 names push only | plan:431 (Q5): the question lists the routes that reach the remote host (push, the pull-request POST), the destructive routes (DELETE worktree, DELETE branch, the branch rename, lands, bring-in, undo, revert) and the transcript span GET, all from the route table (plan:345-367). The recommendation says each acts on the user's own clones, branches, credential and transcripts. "Changes if overruled" moves from "before task 12" to "before task 09", the first task that adds one of these routes (lands). plan:311-312 (the loopback constraint) says Q5 lists them. parts/task-12.md:214-215 speaks of push only and stays: it describes task 12's own route |
+
+**Observed, not in this batch.** The source contradicts itself on Minor 1's point: the comment on
+`CodeInvalidJSON` at `control-plane/internal/httpx/problem.go:45` reads "400 not JSON, unknown
+field, or over 1 MiB", on both `feat/phase-3-git` and `feat/phase-2-cockpit`, while `decodeCode`
+answers `bad_request` for an unknown field. That stale comment is the likely source of the plan's
+error. It is code, and this is a plan batch, so it is left for the phase 2 stream or task 04's
+implementer to correct.
+
+**Verified:** every citation above, against the tree at 81bcfe1. **Not verified:** nothing was
+built or run. This is a plan batch.
+
