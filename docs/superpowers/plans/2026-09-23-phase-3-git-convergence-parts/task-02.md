@@ -9,14 +9,14 @@ uses, copying `ExecRunner`'s discipline and changing exactly those two things pe
 also declares the one seam phase 8 needs (brief A6) and the trailer writer every land uses.
 
 `project.ExecRunner` is **not** edited, and phase 2's `project.Runner` stays the read path for
-enumeration. Phase 2's three per-worktree resolvers keep taking a `project.Runner`, but in a lane
-clone that runner is task 05's `laneResolverRunner`, which runs each call through this task's
-`Exec` as `Scope: Clone` (plan re-review b02-2 X-1). After this task the product has two process launchers; the comment on
+enumeration. No host git call runs in a lane clone (ruling R4.2). Lane git runs in the sandbox
+through task 24's runner, and phase 2's resolvers read host-owned config only (R4.6, the phase-2
+stream's fix). After this task the product has two process launchers; the comment on
 `ExecRunner` that calls itself "the only place" is amended in one line to name this one too.
 
 **Files:**
 - `control-plane/internal/gitx/runner.go` — `Class`, `Call`, `Result`, `Runner`, `Exec` (new)
-- `control-plane/internal/gitx/harden.go` — `Scope`, `Hardening`, the §HGH prefix, the H3 config check, `UntrustedConfig` (new)
+- `control-plane/internal/gitx/harden.go` — `Scope`, `Hardening`, the §HGH prefix, the H3 config check, the lane-dir guard (`ErrLaneDir`), `UntrustedConfig` (new)
 - `control-plane/internal/gitx/error.go` — `*Error`, `Sentence`, `AsError` (new)
 - `control-plane/internal/gitx/version.go` — `CheckVersion` (new)
 - `control-plane/internal/gitx/machine.go` — `Machine`, `Local` (new)
@@ -82,16 +82,20 @@ type Call struct {
 	Scope Scope
 	// RemoteURL is the literal URL a Remote call talks to (§HGH H2). Required for Remote.
 	RemoteURL string
+	// NewLane is the path task 03's lanes.Create is cloning into. Exec admits Dir == NewLane
+	// only with Scope None, and only lanes.Create sets it (ruling R4.5); every other call
+	// leaves it "". It is the one exception to ErrLaneDir, and it holds for that clone only.
+	NewLane string
 }
 
-// Scope is whose repository Call.Dir is, which decides what §HGH H3 refuses.
+// Scope is whose repository Call.Dir is, which decides what §HGH H3 refuses. Every repository
+// a host call may run in is host-private (ruling R4.1); a lane clone is never one (R4.2).
 type Scope int
 
 const (
 	Unset   Scope = iota // the zero value: Exec refuses it with ErrCallShape and runs nothing
-	Clone                // a lane clone: closed allowlist
-	Project              // the user's repository: refusal list
-	None                 // `git version`, or a Dir under Hardening.OwnedRoot: no check
+	Project              // the user's repository, Class Read, Local or Remote: refusal list
+	None                 // `git version`, a Dir under OwnedRoot, or the clone lanes.Create is making (Call.NewLane): no check
 )
 
 // Hardening is what Exec adds to every call (§HGH). cmd/api builds it once at startup.
@@ -100,15 +104,17 @@ type Hardening struct {
 	OwnedRoot  string   // the only root a Scope None call may run under
 	Credential []string // "key=value", the machine's credential.*helper entries, system then global (H2)
 	Proxy      string   // the machine's proxy; "" means none (H2)
+	LaneRoot   string   // Machine.CloneRoot(): Exec refuses any call that runs in it (R4.2)
 }
 
 // MachineHardening creates the empty directory <root>/no-hooks, sets OwnedRoot to root, and reads
 // H2's helpers and proxy from `git config --system`, then `--global`, run with Dir root and Scope
-// None. Task 04 calls it once in main.go, with root statepath.Dir("git").
+// None. Task 04 calls it once in main.go, with root statepath.Dir("git"), then sets LaneRoot to
+// its Machine's CloneRoot(); MachineHardening leaves LaneRoot "".
 func MachineHardening(ctx context.Context, root string) (Hardening, error)
 
 // UntrustedConfig is a repository config key §HGH H3 refuses. It carries the key, never the value.
-// The API maps it to conflict + reason clone_config_untrusted (Clone) or project_config_untrusted.
+// The API maps it to conflict + reason project_config_untrusted.
 type UntrustedConfig struct {
 	Dir   string
 	Key   string
@@ -118,8 +124,18 @@ type UntrustedConfig struct {
 func (u *UntrustedConfig) Error() string
 
 // ErrCallShape is a Call Exec will not run: Args[0] starting with "-", Scope Unset, a Remote call
-// without RemoteURL, or a Scope None call outside OwnedRoot.
+// without RemoteURL, a Scope None call outside OwnedRoot whose Dir is not its NewLane, or a
+// NewLane set on a call that is not Scope None.
 var ErrCallShape = errors.New("gitx: call shape refused")
+
+// ErrLaneDir is a call Exec refuses before it starts (ruling R4.2): its Dir, a `-C`,
+// `--git-dir` or `--work-tree` argument, or a Call.Env GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR,
+// GIT_OBJECT_DIRECTORY or GIT_ALTERNATE_OBJECT_DIRECTORIES value lies under Hardening.LaneRoot.
+// Each path is cleaned (filepath.Clean, made absolute against Dir) before the prefix compare,
+// and the compare case-folds on Windows. The one exception is Dir == Call.NewLane on a Scope
+// None call. Exec checks it before ErrCallShape, so a lane path in a pinned Env key is
+// ErrLaneDir. Lane git runs in the sandbox, through task 24's runner, instead.
+var ErrLaneDir = errors.New("gitx: host git never runs in a lane")
 
 // Result is a call that exited 0 or with a code in OKExit.
 type Result struct {
@@ -200,18 +216,17 @@ func CheckVersion(ctx context.Context, r Runner) (string, error)
 package gitx
 
 // Machine is where git runs for one machine id (brief A6). Phase 3 has one, Local. Phase 8
-// adds a Kata machine behind the same four methods: a pod gets a clone, FetchURL names it,
-// and the control plane fetches from it — the same model phase 3 builds (survey §4.4).
+// adds a Kata machine behind the same three methods: phase 8's machine serves the runner
+// (P8-D7), and lane work crosses to the control plane as a bundle, which is data (ruling
+// R4.4), the same model phase 3 builds with task 24's runner.
 type Machine interface {
 	// ID is the machine id worktrees and sessions carry: api.LocalMachineID ("local") here.
 	ID() string
-	// Git runs git on this machine.
+	// Git runs git on this machine, in host-private repositories only (ruling R4.2).
 	Git() Runner
 	// CloneRoot is the absolute directory this machine's lane clones are created under.
+	// Task 04 copies it into Hardening.LaneRoot, so Git() refuses every call in it.
 	CloneRoot() string
-	// FetchURL is how the project repository names a clone on this machine as a fetch
-	// source. For Local it is the clone's absolute path, unchanged.
-	FetchURL(clonePath string) string
 }
 
 // Local is this machine.
@@ -220,10 +235,9 @@ type Local struct {
 	Root   string // absolute; cmd/api validates it (task 04)
 }
 
-func (l Local) ID() string                       { return "local" }
-func (l Local) Git() Runner                      { return l.Runner }
-func (l Local) CloneRoot() string                { return l.Root }
-func (l Local) FetchURL(clonePath string) string { return clonePath }
+func (l Local) ID() string        { return "local" }
+func (l Local) Git() Runner       { return l.Runner }
+func (l Local) CloneRoot() string { return l.Root }
 ```
 
 ```go
