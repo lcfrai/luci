@@ -2,6 +2,7 @@ package entra
 
 import (
 	"context"
+	"encoding/json"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -182,12 +183,25 @@ func TestAKeySetOutageIsNotARejection(t *testing.T) {
 		t.Fatal(err)
 	}
 	outage(vc, good(t, is, tidA, clk.Now()), "connection refused")
-	// A key set over 1 MiB is refused unread, even around a usable key.
-	pad := map[string]any{"kty": "oct", "kid": "pad", "k": strings.Repeat("A", 1<<20)}
-	is.fail(tidA, 0)
-	is.setKeys(tidA, rsaJWK(kid1, &testKey(t).PublicKey), pad)
-	clk.advance(24*time.Hour + time.Second)
-	outage(v, good(t, is, tidA, clk.Now()), "key set over 1 MiB")
+	// A body over 1 MiB is refused even when its JSON is whole inside the
+	// first MiB: a valid set, then a MiB of spaces. (A body cut off mid-JSON
+	// would fail as "not JSON" with or without the cap, and prove nothing.)
+	set, err := json.Marshal(map[string]any{"keys": []any{rsaJWK(kid1, &testKey(t).PublicKey)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	huge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(set)
+		_, _ = w.Write([]byte(strings.Repeat(" ", 1<<20)))
+	}))
+	defer huge.Close()
+	cfg.AuthorityHost, cfg.HTTPClient = huge.URL, huge.Client()
+	vb, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hugeClaims := edit(claimsFor(is, tidA, clk.Now()), map[string]any{"iss": huge.URL + "/" + tidA + "/v2.0"})
+	outage(vb, mint(t, testKey(t), hdr(kid1), hugeClaims), "key set over 1 MiB")
 	// A key-set server that never answers, behind a client with no timeout
 	// (httptest's has none): the validator's own cap ends the wait.
 	release := make(chan struct{})
