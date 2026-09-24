@@ -249,5 +249,42 @@ move (rule H1). Where a slice adds to a W1 file, the later task is listed in the
 | `server/erase.go` ⚑ | erase for issues, comments, requests and notes | modified | 14; 146 |
 | `server/janitor.go` ⚑ | cycle rollover and closure proposals (W2); recurring issues and reminders (W4); loop triggers (W5) | modified | 77; 121; 162 |
 | `work_e2e_integration_test.go` | W1's Hub end to end through `devissuer` | new | 17 |
+| `worksync/{engine,links,boards,github,jira}.go` | tracker sync, run by the Hub as an integration principal that can never write a fact state or `done` | new | 150-153 |
+| `server/work_hooks.go` | host webhooks for outside PRs and commits, both hosts (`OD-4`) | new | 154, 155 |
+| `server/work_forms.go`, `server/work_pages.go` | the Entra-protected intake form; the read-only issue page (W2's https link target) | new | 148; 80 |
+| `mailer/{mailer,graph,fake}.go` | the outbound mail seam (digest, requester updates) and inbound team addresses | new | 81; 149 |
+| `webhooks/{deliver,sign}.go` | HMAC webhooks built on the change feed, metadata only | new | 160 |
+| `control-plane/cmd/workmcp/` | the Work MCP server, read-only mode, behind Entra OAuth | new | 161 |
+
+### The control plane (loopback, per user) and the tools
+
+| Path | Responsibility | Status | Task |
+|---|---|---|---|
+| `control-plane/internal/api/work.go` (+ test) | the `/v1/hub/work/*` relay (contract §4.3, §9.3 pattern) | new | 16; 82, 100, 124, 167 |
+| `control-plane/internal/api/api.go` ⚑, `routes_audit_test.go` ⚑ | `Deps.Work`, `Deps.WorkStart`, `Deps.WorkImport`; registrations; catalog rows | modified | 16, 24, 25 |
+| `control-plane/cmd/api/{config,main}.go` ⚑ | wiring and `PANACEA_APP_WORK_*` variables | modified | 16, 24, 25 |
+| `control-plane/internal/workstart/{start,undo}.go`, `internal/api/workstart.go` | Start from an issue: bind, worktree, session, *Undo Start* until the first file write | new | 24 |
+| `control-plane/internal/workimport/{linear,csv,batch}.go`, `internal/api/workimport.go` | the Linear public-API pager and the CSV parser, both producing SW.6's batch | new | 25 |
+| `control-plane/cmd/panacea-release/`, `integrations/{azure-pipelines-task,github-action}/` | the release CLI and the two CI wrappers | new | 164 |
+| `sdk/{ts,go}/` | public-API clients generated from the contract | new | 158 |
+
+### Deltas on sibling code (rule H2; the owner phase's file wins)
+
+"Planned" means only the sibling **plan** names the file; the part cites the plan row and marks the
+path **UNVERIFIED until merge**, as Phase T does.
+
+| Sibling | Path it extends | State on 2026-09-25 | What this plan adds | Task |
+|---|---|---|---|---|
+| phase 4 | `control-plane/internal/provenance/{key,ref}.go` (P4 task 06; plan `:312-313`) | planned | the `issue:` case; `Ref.Kind` `"issue"` | 18 |
+| phase 4 | `control-plane/internal/contextwrite/materialise.go` (P4 task 09; `:319`), `internal/api/sessions.go` ⚑ (P4 task 10; `:346`) | planned; `sessions.go` built | the managed block's issue section; `Session.IssueRef` | 19 |
+| phase 4 | `desktop/src/provenance/{loader.ts,ContextChip.tsx}` (P4 tasks 16-17; `:330-332`) | planned | the loader's second key source; the issue chip | 19, 67 |
+| phase 3 | `images/sandbox/githooks/` (P3 task 05; plan `:145`), `control-plane/internal/gitx` (`:135`) | planned | the `Panacea-Issue` trailer | 21 |
+| phase 3 | `control-plane/internal/converge` (P3 tasks 07-09; `:137`) | planned | the lane index names its issue; land trailers per issue; the fact moves | 21, 22 |
+| phase 3 | `control-plane/internal/evidence` (P3 task 15; `:142`) | planned | the done evaluator; observed evidence; *self-attested* | 23; 104 |
+| phase 3 | the Merge lens (P3 tasks 19-20; paths **UNVERIFIED**) | planned | lane rows name their issue; proposed evidence and *Record* | 67; 104 |
+| phase 7 | the manifest (P7 task 19) and its drawer (P7 task 17; paths **UNVERIFIED**) | planned | issues from `Panacea-Issue` trailers; *shipped to* | 71; 131 |
+| phase 6 | the per-session gateway token (plan still being written) | planned | the token carries the issue id | 135 |
+| Phase T | Fleet's task record, events and verbs (ST.1, ST.2; plan `:195-243`) | planned | `task.issueId`, two event kinds, three verbs | 98, 101 |
+| Phase T | its Desk rows `desktop/src/components/desk/team*.tsx` (TM task 54) | planned | nothing: they plug into SW.17, task 62's frame | 62 |
 
 ---
