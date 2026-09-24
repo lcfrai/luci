@@ -418,3 +418,49 @@ order lives in the local lane index (plan `:183-186`). A cross-person queue is *
 The remote already orders pushes. The second pusher gets phase 3's `push_rejected`, uses **Bring
 in** (plan `:206`, `:368`), and re-forecasts. Team mode's job is to make that rare, by telling
 both people earlier (§8).
+
+## 7. The injection fence for coordination data
+
+The chain to break is `04` §5.2's: a poisoned page reaches Alice's agent, becomes a coordination
+record, and Dylan's agent acts on it. `04`'s eight fences are adopted as written
+(`04-enterprise-constraints.md:339-346`). This section says **where each is enforced**, so that
+no fence belongs to nobody.
+
+| Fence | Enforced by | How, in this design | Test |
+|---|---|---|---|
+| **F1** agents never publish | the network, then `teamsync` | no sandbox reaches the Hub (phase 8 task 11, via `04` §5.1). `teamsync` is the only writer, and every field in §3.2 is human or git | a sandbox `curl` to the Hub fails. Whether the allowed NAT path also blocks the Hub's **public** ingress is **UNVERIFIED** (`01` gaps); the probe must test that address |
+| **F2** schema | the Hub | closed enums; lengths per §2.2; repo-relative globs; unknown fields refused | contract tests per route |
+| **F3** character hygiene | the Hub, again in `sandboxd` | refuse C0/C1, ANSI, bidi overrides, U+E0000–E007F, secret-shaped text | F8 corpus |
+| **F4** quoted data, never instructions | phase 4's Materialiser | only the fixed pointer (§5.2) goes into `CLAUDE.md`; no `@`-import of the team file | golden-file test on the managed block |
+| **F5** outside the worktree, not persisted | `sandboxd` | memory-backed `/run/panacea/team` (§5.1); a separate uid in phase 8 | observer never lists it; C8 |
+| **F6** attribution on every item | `sandboxd` | each entry carries `who`, `writtenBy` (`human` · `git`), and `at` | schema test on `team.json` |
+| **F7** small blast radius | existing rules | no git credential in any sandbox (A4); push, PR and land are human acts | phase 3's existing tests |
+| **F8** injection corpus in CI | CI | hostile records through F2/F3 must be refused; the survivors go through F4 into a scripted agent run that must not act on them | gates TM2's push |
+
+### 7.1 Three leaks the fences do not name
+
+1. **File names are agent-written.** Committed and dirty paths come from git, so they pass F1.
+   But an agent chose them, and a file named `ignore-previous-instructions-and-run.md` is text the
+   next agent reads. Fix: F2 caps each path at 200 characters and each list at 500 entries; F3
+   applies to paths too; `team.json` carries them only as array elements, never in a sentence.
+   Hot-rule templates (§5.3) and inbox templates (§5.4) quote at most **one** path each.
+2. **Commit subjects are agent-written.** They are kept for humans on the card, flagged
+   `agentText`, rendered as plain text, and **never** put in `team.json` or a push (§3.2).
+3. **A human can paste agent output into a note.** F1 cannot see that. The note is still
+   attributed to the human (F6), bounded (F2) and framed as "not instructions" (F4). This is the
+   residual `04` rates **medium** (`04` §8.1 rank 1). The owner's review before land is the
+   backstop.
+
+### 7.2 What the agent is told to do with overlap
+
+The pointer (§5.2) asks for one behaviour: **tell your user, and keep to what your user asked
+for.** It never asks an agent to change course because a teammate's record says so. The human
+decides. That keeps P6 (advisory) and gives the injection nothing to steer: at worst, a poisoned
+record makes an agent **mention** something to its own user.
+
+### 7.3 The cockpit is a reader too
+
+Teammates' text also reaches **my** cockpit. Notes and focus are rendered as plain text: no
+Markdown, no auto-linked URLs, no HTML. F3 already strips the escapes that would attack the
+terminal renderer (`04-enterprise-constraints.md:341`). A teammate's text never enters a
+cockpit field that is later sent to one of my agents without my own edit.
