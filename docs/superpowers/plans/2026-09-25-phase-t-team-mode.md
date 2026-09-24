@@ -971,4 +971,60 @@ answers, notes and route raise. `desktop/src/api/team.ts`, `store/slices/teamSli
 Tests: the read model never includes a teammate's terminal, transcript or prompt; the client's
 types match the fixtures.
 
+**53 — The team strip and click-in.** `desktop/src/components/team/*`, as the approved prototype:
+one band at the top of a team project's view and nothing added to the rail (*"navigation only"*,
+`docs/AGENTIC-UX.md:144`); one row per person with a live agent, at most 5, then *"+N more"*; the
+assembled line (never a model summary); observed files with a 1px ring when someone else also holds
+the path; `●` working, `○` waiting, *"waiting on <name>"* only from `blocked --on human` or the
+hook's `Notification`, else `idle`; a change flashes and decays over about 600 ms, `transform` and
+`opacity` only. Click-in expands in place: tasks with their brief-section links (the provenance
+thread), agents as STATE / MEANING / NEXT cards, files and leases, and one action, *"Ask my
+Orchestrator about this"*, which opens **your own** panel with the subject attached. No control that
+steers a teammate's agent exists. Tests (Vitest + RTL): six people render five rows and *"+1
+more"*; no row has its own timer; the design-system audit test passes.
+
+**54 — Desk rows.** `desktop/src/components/desk/team*.tsx`: in the Desk's fixed sections, no new
+section: HORIZON (Fleet's forecasts, kept until `resolved` or `cleared`, never dropped on
+`accepted`), NEEDS YOU (a decide: question, up to 4 options with consequences, the Fleet-set
+deadline in `tabular-nums`, the safe default, answered in place without navigating), SINCE YOU LAST
+LOOKED (informs and each free-text `answer` your Orchestrator sent, batched, never a toast),
+DECIDED WITHOUT YOU (every conflict closed without you, with Undo where reversible). A teammate's
+agent never appears on your Desk by itself. Tests: answering a decide calls the answer route once;
+informs batch; no toast is created.
+
+**55 — The Orchestrator panel.** `desktop/src/components/orchestrator/*`: a conversation with **your**
+Orchestrator (you type a human message; its kept reply is shown verbatim as plain text); every
+free-text directive issued in a turn you started is shown inline as *"→ told <worker>: …"*; beside
+it, open threads as typed state (the other party, the subject, *"round 2 of 3"*, the deadline);
+opening a thread shows its messages with the author class on every line (*"Alice's Orchestrator
+(agent)"*). `text·A` is rendered as plain text: no markdown links, no HTML, no terminal rendering
+(§7.3). DIVE opens the Orchestrator's own terminal for its owner only. Opened from the project view
+or ⌘K. Tests: a message containing a markdown link renders as text; the author class is on every
+line; DIVE is absent for a non-owner.
+
+**56 — Route badge, Share line, spend line; the data class at creation.**
+`desktop/src/components/team/{RouteBadge,ShareLine,SpendLine}.tsx`: the badge in the project header
+(`Global`, `AU`, `AU · required` with no switch for an AU-only class); on a solo project *"Use AU
+for this project"*, on a team project *"Use AU for everyone on this project"*, a one-way ratchet the
+strip announces, lowered only by *compliance*; reuses phase 6's inference panel state (task 22). The
+Hub's Share popover (Hub task 42) gains one line: *"Team agents run in Panacea's cloud. Your
+teammates' agents will see your agents' tasks and files."* The data class is **chosen when the
+project is created** and can be changed later (OD-24), in the project-create flow. The spend line,
+in project settings, splits *workers* and *coordination* against the user's quota, in words and
+figures, never a bar. Tests: an AU-only project renders no switch; the ratchet button is absent once
+AU is set.
+
+**57 — TM1 proof.** `docs/verification/2026-09-25-phase-t-tm1-results.md`: two real people, one repo,
+the real environment, and §12.1's eight criteria, each with its evidence or its failure: (1) an
+overlapping plan raises tier P before either worker spawns; (2) `yield` or `sequence` settles it,
+one human gets an inform and the other a decide, and DECIDED WITHOUT YOU reaches both; (3) G9's
+live run gives zero free-text directives in Fleet-started turns and zero out-of-scope directives,
+and the PTY writer refuses every non-template byte; (4) the median thread resolves without a
+deadline escalation, with hop time; (5) usage rows attribute every token to person, project and
+counterpart, and overhead is measured; (6) an AU project never makes a Global call and a token
+copied off its pod is refused; (7) a killed Orchestrator pod loses no lease, thread or directive;
+(8) every directive is a `dv-…` record that answers *"who asked for this?"*. Plus the C6 rate and
+the gate before the first real teammate: Z5 passes, attach tests pass, audit streams to Sentinel.
+Holds the 3-day G9 contingency.
+
 ---
