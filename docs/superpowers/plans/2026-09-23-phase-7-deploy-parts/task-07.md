@@ -38,7 +38,8 @@ type Me interface {
 }
 
 type Bindings interface {
-	Resolve(ctx context.Context, projectID string) (binding.Binding, error)
+	// ResolveMany: one Panacea project list per cycle for every project due (task 06, review M16).
+	ResolveMany(ctx context.Context, projectIDs []string) (map[string]binding.Binding, error)
 	Cached(projectID string) (binding.Binding, bool)
 }
 
@@ -151,8 +152,12 @@ type Snapshot struct {
    `NotConnected` → poll nothing. `AwaitingApproval` or `TokenRejected` → poll nothing, and every
    fourth cycle (60 s) call `Connection.Check`, so the lens's *"this screen checks again on its
    own"* (prototype `phase-7-deploy.html:830-831`) is true without a desktop timer.
-1. **Binding.** `Bindings.Resolve` when the cached binding is not `Bound`, when step 2 marked the
-   project for re-resolve, or every fourth cycle; else `Cached`. Not bound → the snapshot carries
+1. **Binding.** A project is **due** when its cached binding is not `Bound`, when step 2 marked it
+   for re-resolve, or every fourth cycle; else it reads `Cached`. Once per cycle, after the
+   connection gate and before any project's step 2, the watcher calls
+   `Bindings.ResolveMany(ctx, <every due project>)` — **one** `Deployer.Projects` read however many
+   local projects there are (review M16) — and no call at all when none is due. A `KindUnavailable`
+   from it is the failure rule's; `KindUnauthorized` likewise. Not bound → the snapshot carries
    the binding and nothing else; stop. A `Binding.Panacea` different from the snapshot's resets its
    Panacea data before step 2 (review M13): one project's rows never appear under another's
    binding.
@@ -166,7 +171,7 @@ type Snapshot struct {
    `FetchedAt` unchanged — so the lens never shows it as current (task 08's `staleReason` carries
    the code `writeDeployError` gives the kind, t05:281-284: `deploy_not_found`, `deploy_forbidden`,
    `deploy_conflict` or `deploy_rejected`). The project is marked for
-   re-resolve and Nudged, so the next cycle (3 s later, not 15 s) runs step 1's `Resolve`, whatever
+   re-resolve and Nudged, so the next cycle (3 s later, not 15 s) re-resolves it in step 1's `ResolveMany`, whatever
    the every-fourth-cycle count says. Then: not `Bound` → step 1's rule, the snapshot carries the
    binding and nothing else, and the old project's data is **dropped**, not kept stale; `Bound` to a
    **different** Panacea project → step 1's reset (`Environments`, `BranchEnvs`, `BranchEnvErrs`,
@@ -320,6 +325,7 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 
 | Test | Assertion | Mutant it kills |
 |---|---|---|
+| `TestOneProjectsReadPerCycle` | three local projects, each bound to its own Panacea project, over the real `binding.Resolver` and the fake → the fake's `Calls()` hold one `Projects` in cycle 1, none in cycles 2 and 3, one in cycle 4 — never three (review M16) | calling `Resolve` per project, so N local projects make N `GET /api/v1/projects` per resolve |
 | `TestEnvironmentsBeforeLatest` | the fake's `Calls()` for one cycle start `Environments`, then any `EnvironmentFor`, then `Latest` | reading `Latest` first, so a deleted project reads as "never deployed" |
 | `TestWantedBranchResolvedOnce` | `WantBranch(p, "feat/x")` with the fake seeded `feat/x → feat-x` and a row `feat-x`: the next cycle calls `EnvironmentFor(p,feat/x)` once and `BranchEnvs["feat/x"] == "feat-x"`; cycles 2 and 3 make no such call, cycle 4 re-reads; a 17th wanted branch drops the least recently wanted | resolving by comparing `feat/x` with a row's `name`/`branch` (review C2), or one request per branch per cycle |
 | `TestRefusedBranchNotReaskedEveryCycle` | `WantBranch(p, "live-check/p7")` with the fake answering `EnvironmentFor` `KindNotFound` (*"Panacea could not read this branch name…"*): cycle 1 makes one such call, cycles 2 and 3 none, cycle 4 one; `BranchEnvErrs["live-check/p7"]` carries the error, `BranchEnvs` lacks the branch, and `Stale == false` with `Latest` still read; the fake then answers `live-check-p7` → it moves to `BranchEnvs` and out of `BranchEnvErrs` (b02 round 2, R2) | a refused branch re-asked every 15 s, or one bad name staling the whole project |
@@ -332,7 +338,7 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestHistoryIntervalForcesRead` | 61 s of fake time with no change → a second `Deployments` | history that never refreshes when only `LiveReady` moved |
 | `TestTrackedRunDrivesActiveCadence` | `Track(p, run)`; the project is polled every 3 s until the fake advances the run to succeeded, then every 15 s | a run that stays on 3 s forever, or never gets it |
 | `TestUnavailableEndsCycleForAll` | two bound projects; the first `Environments` fails `KindUnavailable` → the second project saw **no** call this cycle; both `Stale`, one cursor bump | a cycle that stalls for N × timeout in an outage |
-| `TestEnvironmentsRefusedReResolves` | two bound projects, one good cycle; then A's `Environments` fails `KindNotFound` → in that cycle B is still read, A makes no `Latest` call, A is `Stale` with `LastError.Kind == KindNotFound` and its old `Environments` kept, `FetchedAt` the good cycle's. The resolver's `Deployer` is the fake wrapped so that `Projects` then omits A's project (the Fake has `AddProject` and no removal, t01:567) → the next tick (3 s, not 15 s) calls `Resolve` for A, whose binding is `NoMatch`, and A's snapshot holds no `Environments`, `Latest` or `Deployments`. Repeated with `KindForbidden`, and with a second Panacea project that now matches A's repository → `Bound` to it, and A's snapshot holds none of the first project's rows (review M13) | a refusal read as Panacea down, ending every project's cycle; a deleted project drawn fresh (`Stale false`) or its rows kept after the binding moved; a re-resolve that waits for the every-fourth-cycle count |
+| `TestEnvironmentsRefusedReResolves` | two bound projects, one good cycle; then A's `Environments` fails `KindNotFound` → in that cycle B is still read, A makes no `Latest` call, A is `Stale` with `LastError.Kind == KindNotFound` and its old `Environments` kept, `FetchedAt` the good cycle's. The resolver's `Deployer` is the fake wrapped so that `Projects` then omits A's project (the Fake has `AddProject` and no removal, t01:567) → the next tick (3 s, not 15 s) re-resolves A through `ResolveMany`, and A's binding is `NoMatch`, and A's snapshot holds no `Environments`, `Latest` or `Deployments`. Repeated with `KindForbidden`, and with a second Panacea project that now matches A's repository → `Bound` to it, and A's snapshot holds none of the first project's rows (review M13) | a refusal read as Panacea down, ending every project's cycle; a deleted project drawn fresh (`Stale false`) or its rows kept after the binding moved; a re-resolve that waits for the every-fourth-cycle count |
 | `TestCycleDeadlineCutsAHungRead` | `CycleDeadline` 50 ms of real time (the one test off the fake clock); two bound projects; the watcher's Reader is the fake wrapped so that project A's `Environments` blocks until its `ctx` is done and then returns `KindUnavailable`, Status 0 (what `do` returns for a cancelled transport). One cycle returns within 1 s; B saw no call; both `Stale`, `LastError.Kind == KindUnavailable`; one cursor bump. Then `Track(B, run)`: the next cycle's first call is B's `Environments`, before A's (review M14) | a cycle with no deadline, so one hung read holds the loop for `do`'s three attempts (about 46 s); a deadline per read, not per cycle, so ten projects' hangs add up; a fixed project order that puts a tracked run behind a hanging project every cycle |
 | `TestUnauthorizedObserved` | `KindUnauthorized` → `Connection.Observe` called with it; the cycle ends | a lens that keeps drawing "connected" while every read 401s |
 | `TestStaleKeepsLastData` | a good cycle, then a failing one → `Environments` unchanged, `Stale == true`, `FetchedAt` is the good cycle's time | clearing the lens during a blip |

@@ -95,11 +95,19 @@ type Resolver struct{ /* cfg, mu, cache map[projectID]Binding, choices */ }
 
 func New(cfg Config) (*Resolver, error)
 
-// Resolve computes the binding. It calls Deployer.Projects at most once per call and caches the
-// result; the watcher (task 07) calls it once per cycle per local project and reads Cached in
-// between. A Panacea or Hub failure returns the LAST good binding with State Unavailable and the
+// Resolve computes one binding: ResolveMany(ctx, []string{projectID})[projectID], for a caller
+// acting on one project. Tasks 09, 11 and 12 read Cached.
+// A Panacea or Hub failure returns the LAST good binding with State Unavailable and the
 // error — never a silently unbound project.
 func (r *Resolver) Resolve(ctx context.Context, projectID string) (Binding, error)
+
+// ResolveMany computes the bindings of several local projects from ONE LocalProjects.Projects
+// read, ONE Deployer.Projects read and one HubProjects.ProjectForRepo per distinct RepoKey,
+// whatever len(projectIDs) is (review M16: N local projects were N GET /api/v1/projects every
+// 15 s). The watcher (task 07) calls it once per cycle with every project due and reads Cached in
+// between. Every id gets an entry. A Panacea failure gives every entry its LAST good binding with
+// State Unavailable, and the one error; a Hub failure follows step 3 per key.
+func (r *Resolver) ResolveMany(ctx context.Context, projectIDs []string) (map[string]Binding, error)
 
 // Cached is the last computed binding, or (Binding{}, false).
 func (r *Resolver) Cached(projectID string) (Binding, bool)
@@ -218,6 +226,7 @@ desktop's binding type does not change (review I6).
 | `TestNoMatchUnderARestrictedKey` | `deploytest.Fake` seeded with one project through `AddProject` (the shape task 03's `projects-scoped.json` records; the binding package never loads a Panacea wire body, so the OD-13 swap stays clean — re-review b06 M-3) and a second local repository whose origin is not that project's → `NoMatch` with the table's sentence exactly, which names the key (review I5) | a sentence that tells the holder of a one-project key that the project does not exist |
 | `TestPanaceaDownKeepsLastBinding` | `Bound`, then `Projects` fails `KindUnavailable` → returns the previous `Panacea` with `State Unavailable` | the lens flipping to "not bound" during a Panacea blip |
 | `TestHubDownKeepsPanaceaBinding` | the Hub fails, Panacea answers → `Bound`, `HubProjectID` kept from the last good read, `Message` says the Hub was unreachable. Two more cases: a binding whose last answer was `HubMiss "key_spelling"` keeps `"key_spelling"` through a Hub failure; a key whose **first** Hub read fails reads `HubMiss ""`, never `"not_linked"` (plan re-review b05 R-4) | Ship disabled by a Hub blip that the Ship path would detect anyway; a blip resetting `HubMiss`, so the Ship bar and the lens flip to *"not a shared project"* for one cycle; a first-read failure reported as *"not a shared project"* about a repository that may be one |
+| `TestResolveManyReadsProjectsOnce` | five local projects (four repositories, two sharing one), `deploytest.Fake` and the Hub fake behind call-counting spies → `ResolveMany` of all five: every id has an entry, `Deployer.Projects` was called **once**, `LocalProjects.Projects` once, `ProjectForRepo` four times (one per distinct key); each binding equals what `Resolve` gives that id alone. `Projects` failing `KindUnavailable` → five entries, each its last good binding with `State Unavailable`, and one error (review M16) | one `GET /api/v1/projects` per local project per cycle; a batch that drops an id, or answers one project with another's binding |
 | `TestUnreadableChoicesFile` | garbage in `bindings.json` → `New` succeeds, the file is renamed, one warning logged | a crash at start |
 | `TestHubBindsADOWithPhase3sKey` (the HA7-6 binding test) | local origin `https://dev.azure.com/kpmgcomau/Engagement%20Portal/_git/portal`, parsed by the **real** `githost`, gives `key := remote.RepoKey()`. `hubclient.NewFake()` is seeded through `CreateProject` with project `pj-ado` whose one remote is `{repoKey: key, host: "azure-devops"}`; the fake applies `hubapi.ValidRepoKey` there (Hub task 04 step 2). `CreateProject` must succeed — a refusal fails the test with *"HA7-6: phase 3's RepoKey <key> is not a form the Hub accepts"* — and `Resolve` then gives `HubProjectID "pj-ado"`, `HubMiss ""`. The seed is never a literal, so the test holds under either answer to HA7-6 and goes red only when phase 3's key and the Hub's rule disagree. Under the Hub's correction A1 and phase 3 task 13 as planned, it passes; HA7-6 closes when it passes against the built code (task 20) | the silent miss of review I6: an Azure DevOps repository that *is* a Hub project read as *"not a shared project in the Hub yet"*, with Ship off and no cause named; and a seed that restates one side's spelling, so the test agrees with that side instead of testing the agreement (plan re-review b05 R-1) |
 | `TestHubMissNotLinked` | a GitHub origin, the fake holding no project for it → `HubProjectID ""`, `HubMiss "not_linked"`; the same with no Hub configured → `HubMiss ""`. Directly, under the Hub's rule as of correction A1: `missCause("azure-devops/kpmgcomau/engagement portal/portal") == "not_linked"`; `missCause("kpmgcomau.visualstudio.com/engagement portal/portal") == "key_spelling"` (the contract's old form); `missCause("github.com/lcfrai/panaceaapp") == "not_linked"`; `missCause("github.com/dmackie1_kpmg/portal") == "key_spelling"` (a GitHub owner with `_`, outside the Hub's owner class; plan re-review b05 R-3). If the Hub ever changes A1, the two Azure DevOps literals flip, and nothing else in phase 7 does | a check that marks every miss `key_spelling`; a check keyed on the **host** ("Azure DevOps → key_spelling"); a pattern that checks Azure DevOps only (R-3's survivor, killed by the GitHub `_` case); and a stale copy of the contract's old §7.4 regex in place of `hubapi.HostOfRepoKey` (killed by the first two cases) |
