@@ -485,3 +485,52 @@ A thread cannot ping-pong forever, and no teammate can drain another's quota.
    Alice's side; she is deciding. Your mobile worker is unaffected until then."*
 5. Alice chooses to keep the old format. Her Orchestrator re-tasks her own worker. Dylan's handover
    shows the outcome. Nobody touched anybody else's agent, and the whole exchange is on the Hub.
+
+## 7. The injection fence between orchestrators
+
+### 7.1 The chain OD-16 adds
+
+`04` §5.2's chain ran from a poisoned page, through a coordination record, to a teammate's agent.
+Its first fence, F1, cut it by letting no agent publish. OD-16 deliberately lets orchestrators
+speak, so the chain is now longer and has one more hop: a poisoned page → Alice's worker → its
+`report` text → Alice's Orchestrator → a peer message → Dylan's Orchestrator → a directive → Dylan's
+worker → code under Dylan's session. The fences below cut it at four points. None closes it alone
+(`04` §5.2, citing https://code.claude.com/docs/en/security, read 2026-09-24).
+
+| # | Fence | Replaces | What it removes |
+|---|---|---|---|
+| **G1** | **Two classes of data.** Observed facts (files, commits, status, leases, conflicts, brief ids) are written only by Fleet, `sandboxd` and git. Everything an agent writes is `text·A`, with the author agent, its owner and the time | F1 | agents forging facts; undifferentiated authority (`04` F6) |
+| **G2** | **Typed, bounded messages**, schema-checked by Fleet: kinds and resolutions are enums, globs validated, lengths capped, unknown fields refused | F2 | long, instruction-shaped payloads |
+| **G3** | **Character hygiene** before anything is stored: C0/C1 controls, ANSI escapes, bidi overrides, the Unicode tag block U+E0000–U+E007F, and secret-shaped text are refused | F3 | hidden instructions; escape attacks on the cockpit's terminal renderer |
+| **G4** | **Quoted delivery.** Peer text reaches an agent only as `panacea` tool output, inside a fixed envelope that names its author as an agent. It never enters `CLAUDE.md`, and a nudge never carries it | F4, F5 | the instruction channel |
+| **G5** | **Fewest readers.** Peer free text reaches only orchestrators. A worker reads exactly two peer `text·A` fields, the task title and the why-line, 340 characters at most (§5.1) | new | most of the surface |
+| **G6** | **Capability-bounded orchestrators**: no writable tree, no git, no credential, egress to the model endpoint only, and verbs over their own owner's things only (§4.1) | new | a hijacked Orchestrator's reach |
+| **G7** | **The taint rule** (§7.2) | new | laundering peer text into a worker's orders |
+| **G8** | **The blast radius stays small**: no git credential in any sandbox; push and PR are human actions; the land is reviewed | F7 | a successful injection still cannot push |
+| **G9** | **Injection tests in CI**: `04` F8's corpus, plus a scripted two-Orchestrator run in which hostile peer messages must produce **zero** out-of-scope directives without a `decide` | F8 | regressions |
+
+### 7.2 The taint rule
+
+1. Fleet marks an Orchestrator session **tainted** the first time a `panacea inbox` or
+   `panacea lane` call returns peer content to it. The taint lasts for the rest of that session,
+   because the session's context keeps what it read.
+2. **A tainted Orchestrator may, without its human,** give its workers typed directives (`pause`,
+   `resume`, `narrow` to globs inside the task's scope, `wait-for` a lease, `rebase` onto upstream),
+   and free-text directives that stay inside the worker's current task scope and reason.
+3. **Anything wider becomes a `decide` escalation:** a new task, a wider scope, paths outside the
+   task, `build-on`, or abandoning the task. The escalation shows the human the exact peer text
+   that preceded it, with its author.
+4. Fleet enforces this on the `panacea` verbs, so it holds whatever the model was persuaded of.
+   Each message's `afterPeerInput` flag (§3.3) records it for audit.
+
+### 7.3 What no fence closes, and the cockpit as a reader
+
+**Persuasive, well-formed text still passes**, whether a teammate's words relayed by their
+Orchestrator or an agent's honest mistake. The control is the same as for a colleague's misleading
+chat message: the reading agent's owner reviews what their agent does before it lands. It belongs in
+the risk register as **medium**, not closed (`04` §5.3). The fence's effectiveness against a real
+attacker is **UNVERIFIED** until G9 runs.
+
+**The cockpit is a reader too.** It renders `text·A` as plain text: no markdown links, no HTML, and
+no terminal rendering. It always shows the author class next to the words (*"Alice's Orchestrator
+(agent)"* against *"Alice"*).
