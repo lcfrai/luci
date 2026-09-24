@@ -4,8 +4,11 @@
 shared by the registry and by phase 4's `contextwrite` — never a second copy that lacks the
 hard-won test (the `FILE_SHARE_DELETE` finding of phase 2 task 7). Under `OD-3` phase 4 has no
 revision store on disk, so its only caller is the `CLAUDE.md` write (task 09). **Phase 3's task 03
-step 1 does the same lift "if phase 4 has not done it first"** (phase 3 plan `:138`): whichever
-lands first does the move, and the other drops the move. Phase 3's move has no `Mode` and no
+step 1 does the same lift "if phase 4 has not done it first"** (phase 3 plan `:169`, its task 03
+`:529-534`, both at phase 3's `b8ee35d`; the plan line was `:138` when this part was written):
+whichever lands first does the move, and the other drops the move. **Phase 4 landed it first**
+(`be119f7`): phase 3's "one hit: phase 4 did it; use it" branch applies, and its callers pass a
+`Mode`, which its plan does not yet say. Phase 3's move has no `Mode` and no
 parameterised temp pattern, so this task still adds those if phase 3 lands first. Check before
 starting (step 1).
 
@@ -112,9 +115,9 @@ and changes neither file.
      control-plane/`. The registry writes its file from one place, the `writeAtomic` call at
      `filestore.go:401` at `3303fd6`, so after phase 3's lift it has one caller: either that call
      or the one-line wrapper it goes through. Phase 3's own callers are found by the same grep:
-     `lanes/store.go` (phase 3 `task-03.md:24`, `:104-106`) and, if its task 15 has landed,
-     `evidence.FileStore` (`task-15.md:76-77`). `Private` keeps each caller's behaviour byte for
-     byte.
+     `lanes/store.go` (phase 3 `task-03.md:24`, `:111` at phase 3's `b8ee35d`) and, if its task
+     15 has landed, `evidence.FileStore` (`task-15.md:78` at `b8ee35d`). `Private` keeps each
+     caller's behaviour byte for byte.
   4. Go to step 5, and on this path run `go test ./control-plane/... -race -count=1` there, not
      only `statepath` and `registry`: phase 3's callers live in other packages. The step 6 commit
      carries `atomic.go`, `atomic_test.go`, `filestore.go` **and every other file the sub-step 3
