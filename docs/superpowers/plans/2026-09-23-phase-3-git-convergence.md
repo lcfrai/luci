@@ -530,7 +530,9 @@ Lane (c) needs only 07 from lane (b) before 14 (review I7; re-review b04-1 issue
 waits on 07, lane (b)'s first task, and nothing else in lane (c) waits on lane (b). `briefref`, which task 11 imports,
 is task 03's; the one lock that tasks 09-12 all take is task 02's `gitx.Locks`, constructed once
 by task 04 in `GitDeps.Locks`. Each task tests its own side against that lock, so task 12 needs
-no `Lander` and no edge to task 09 exists or is needed.
+no `Lander` and no edge to task 09 exists or is needed. The one line that joins them,
+`Fetcher.AfterFetch = Lander.RefreshProject` (review I5), is task 14's. Task 14 already waits on
+both 10 and 13.
 
 **Shared-file hazards inside phase 3.** Task 04 adds exactly two lines to `api/api.go`
 (`Deps.Git *GitDeps` and `a.registerGit(guarded)`); after that, phase 3's dependencies live in
