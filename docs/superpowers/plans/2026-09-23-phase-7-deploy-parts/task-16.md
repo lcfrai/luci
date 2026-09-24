@@ -73,12 +73,14 @@ enforcement, so the button and the server cannot disagree about why.
 
 #### The Ship bar — what it says, and when Ship is off
 
-**The *will* line** (before the press, B3): *"Builds `<short commit>` from the remote · pins brief
-rev `<revision>`"* from `pinPreview` — or *"· pins no brief — none is bound to this branch"*, or
-*"· the Hub picks the brief at Ship"* when `pinPreview` is null — plus, on a collision, *"· replaces
-the release of `<other branch>`"* in `--need`. `pinPreview` is the Hub's rule (latest complete
-revision, ADR-H1 Q1) read ahead of time; the pin itself is still taken by the Hub at reserve, and
-the row shows what it actually took.
+**The *will* line** (before the press, B3): *"Builds `<short commit>` from the remote · should pin
+brief rev `<revision>` (the Hub pins it at Ship)"* from `pinPreview` — or *"· should pin no brief —
+none is bound to this branch"* (`no_brief`), or *"· should pin no brief — the brief has no complete
+revision yet"* (`no_complete_revision`), or *"· the Hub picks the brief at Ship"* when `pinPreview`
+is null — plus, on a collision, *"· replaces the release of `<other branch>`"* in `--need`.
+`pinPreview` is the Hub's rule (latest complete revision, ADR-H1 Q1) read ahead of time, and the
+words say so: *"should pin"*, never *"pins"* (review M20). The pin itself is taken by the Hub at
+reserve, and the row shows what it actually took.
 
 | Ship is disabled when | Its reason (the button's `title` and a line under the bar) |
 |---|---|
@@ -193,7 +195,7 @@ branch instead."*.
 | `retry reuses the key` | first send rejects `upstream_unavailable`; `retry()` → the second call has the same key | a retried Ship reserving a second release |
 | `upstream-down says what is known` | rejections, each `upstream_unavailable`, `details.upstream "panacea"`: Ship `{status:0, reserved:true}` → (a) no answer; Ship `{status:504, reserved:true}` → the same; Ship `{status:202, reserved:true}` → (a) accepted; Ship `{status:503, reserved:true}` → (a) *"… was not started."*; Rebuild `{status:0, reserved:true}` → Ship's (a) no answer; Rollback `{status:0, reserved:true}` → (b) no answer; Rollback `{status:200, reserved:true}` → (b) accepted; Rollback `{status:500, reserved:true}` → (b) error; Ship `{status:0}` and `{status:500}` with no `reserved` (step 4 failed before any reserve) → (c); Cancel `{status:0}` → (c′) no answer; Cancel `{status:500}` → (c′) error; the Hub's `{upstream:"hub"}` → (d). Each banner's text equals its sentence exactly | *"the release was not started"* shown for a Ship or Rebuild Panacea may have started after a timeout; Ship's words on a rollback; *"nothing was sent"* of a request Panacea answered with a 5xx (review M26, re-review I-2) |
 | `unmount cancels` | unmount while held → no call | a Ship fired from a lens the user has left |
-| `will line before the press` | idle bar with `pinPreview rev 6` shows *"pins brief rev 6"* | a consequence shown only after the act |
+| `will line before the press` | idle bar with `pinPreview rev 6` shows *"should pin brief rev 6 (the Hub pins it at Ship)"*, and the DOM lacks *"· pins brief"*; `{none, no_complete_revision}` → *"the brief has no complete revision yet"*, not *"none is bound"* (review M20) | a consequence shown only after the act; a preview drawn as the pin itself; two `none` reasons merged |
 | `disabled reasons` | one test per row of the disabled table, asserting the reason text and `disabled` | a live 403 discovered instead of designed (brief R7) |
 | `countdown on the one clock` | the reduced-motion countdown text changes on heartbeat ticks; `useHeldAct.ts` and `ShipBar.tsx` contain no `setInterval` | a display timer per act |
 | `rebuild offered on pruned` | a rollback rejected `deploy_conflict` → the banner has **Rebuild**; rejected `deploy_rejected` → it does not | offering Rebuild by parsing Panacea's sentence |

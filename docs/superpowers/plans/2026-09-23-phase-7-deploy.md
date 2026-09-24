@@ -554,7 +554,7 @@ New unless marked. `cp/` is `control-plane/`, `d/` is `desktop/src/`.
 | `cp/internal/statepath/atomic.go` *(only if ruling R2's lift has not landed)* | 05 | the atomic write the origin file (task 05) and the choice file (task 06) use |
 | `cp/internal/deploy/deploywatch/watcher.go`, `join.go` | 07 | `Watcher`, `Snapshot`, its cycle, the cursor; the deployment join |
 | `cp/internal/deploy/deploywatch/view.go` | 08 | `View` assembly: environments, releases, pins, collisions, serving-after-rollback |
-| `cp/internal/deploy/ship/ship.go`, `confirm.go` | 09 | `Orchestrator.Ship`, `Readiness`, `PinPreview`; the confirm retry loop |
+| `cp/internal/deploy/ship/ship.go`, `confirm.go`, `journal.go` | 09 | `Orchestrator.Ship`, `Readiness`, `PinPreview`; the confirm retry loop; the Ship journal and `Resume`, so a retry after a restart neither reserves nor builds twice (review M22) |
 | `cp/internal/deploy/ship/core.go`, `rerun.go` | 10 | `withReservation`, extracted from `ship.go`; `Rollback`, `Rebuild`, `Cancel` |
 | `cp/internal/deploy/sessions/sessions.go` | 19 | sessions in a shipped range, from `Panacea-Session` trailers |
 | `cp/internal/api/deploy_connection.go`, `deploy_errors.go` | 05 | `/v1/deploy/connection`; `writeDeployError`, the one error mapping |

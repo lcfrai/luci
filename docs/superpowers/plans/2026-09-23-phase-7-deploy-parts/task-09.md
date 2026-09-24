@@ -13,6 +13,7 @@ never chooses which revision is pinned; it sends the branch, and the Hub resolve
 **Files:**
 - `control-plane/internal/deploy/ship/ship.go` (new) — `BranchState`, `Branch`, `Releases`, `Config`, `Orchestrator`, `Request`, `Result`, `Ship`, `Readiness`, `PinPreview`
 - `control-plane/internal/deploy/ship/confirm.go` (new) — the confirm retry loop
+- `control-plane/internal/deploy/ship/journal.go`, `journal_test.go` (new) — the Ship journal and `Resume` (step 1, review M22)
 - `control-plane/internal/deploy/ship/ship_test.go`, `confirm_test.go`, `readiness_test.go` (new)
 - `control-plane/internal/api/deploy_acts.go` (new) — `POST /v1/projects/{projectId}/deploy/ship`, `GET …/deploy/ship-readiness`
 - `control-plane/internal/api/routes_audit_test.go` (modified) — the readiness route's `catalogReadOnlyRoutes` line
@@ -65,6 +66,13 @@ type Tracker interface {
 	WantBranch(projectID, branch string) // task 07: readiness asks for the branch's environment name
 }
 
+// Briefs is the one hubclient.Briefs method Readiness needs (Hub contract §9.2, :1295 at
+// 6b873d0: ForBranch(ctx, projectID, branchRef string) (hubapi.ForBranch, error)). The Hub
+// fake and hubclient's client both satisfy it.
+type Briefs interface {
+	ForBranch(ctx context.Context, projectID, branchRef string) (hubapi.ForBranch, error)
+}
+
 // EnvironmentNamer is the one Reader method Ship needs: Panacea's own environment name for the
 // branch being shipped (task 01). deploy.Reader satisfies it.
 type EnvironmentNamer interface {
@@ -82,13 +90,24 @@ type Config struct {
 	// Environments names the branch's environment at Ship time (step 4). There is no
 	// "environment unknown" mode: Panacea answers for any branch (review b02, C2).
 	Environments EnvironmentNamer
+	// Briefs is read by Readiness only, for PinPreview (review M20); Ship never calls it, because
+	// the Hub takes the pin at reserve. nil (no Hub configured) → PinPreview nil; New accepts it.
+	Briefs Briefs
+	// JournalDir holds the Ship journal (step 1, review M22): statepath.Dir("deploy")/ship-journal
+	// in main.go, t.TempDir() in tests. Required: New refuses "" and creates the directory.
+	JournalDir string
 	Now func() time.Time
 	Log *slog.Logger
 }
 
-type Orchestrator struct{ /* cfg; per-(project,branch) mutex; idempotency cache */ }
+type Orchestrator struct{ /* cfg; per-(project,branch) mutex; the Ship journal and its per-key mutex (step 1) */ }
 
 func New(cfg Config) (*Orchestrator, error)
+
+// Resume settles the journal a stopped process left behind (step 1): it restarts the confirm
+// loop of every "started" record and abandons every "shipping" one. main.go runs it once, in a
+// goroutine, after New. It returns when every record is settled or ctx ends.
+func (o *Orchestrator) Resume(ctx context.Context)
 
 type Request struct {
 	ProjectID      string // local "p-…"
@@ -117,7 +136,8 @@ func (p *Precondition) Error() string
 
 // Ship runs the sequence below. It returns *Precondition, *deploy.Error, a hubclient error, or
 // a Result. A repeat with the same IdempotencyKey within 15 minutes returns the first Result (or
-// the first error) without calling anything.
+// the first error) without calling anything, across a restart too: the record is the Ship
+// journal on disk (step 1, review M22).
 func (o *Orchestrator) Ship(ctx context.Context, req Request) (Result, error)
 
 // Readiness is steps 3 and 4 of the sequence — the SAME function Ship calls — plus a preview of
@@ -134,9 +154,15 @@ type Readiness struct {
 	// Snapshot.BranchEnvs (readiness calls Tracker.WantBranch and makes no Panacea call); ""
 	// until resolved. Not resolved is NOT a reason to refuse: Ship reads the name itself.
 	Environment string
-	// PinPreview reads the Hub's brief for the branch through hubclient.Briefs.ForBranch (Hub
-	// contract §9.2) and applies the Hub's rule — latest complete revision (ADR-H1 Q1). nil when
-	// the Hub or phase 4's brief is absent. It is a PREVIEW: the Hub takes the pin at reserve.
+	// PinPreview reads the Hub's brief for the branch through Config.Briefs.ForBranch(HubProjectID,
+	// Branch.Ref) and applies the Hub's reserve rule for a run with no briefId and no source (Hub
+	// contract §7.9, :1015 at 6b873d0): branchBrief, else projectBrief, else none/no_brief; that
+	// brief's head.latestCompleteRevision (:644), 0 or null → none/no_complete_revision; else
+	// pinned/ship_head. nil when Config.Briefs is nil, HubProjectID is "", or the read fails.
+	// It is a PREVIEW, and the wire and the lens call it one (review M20): the Hub takes the pin
+	// at reserve, and a revision completed between this read and the reserve changes it. The rule
+	// is a client copy of the Hub's, so TestPinPreviewMatchesTheHubsPin pins it to the Hub fake's
+	// own selection; if the fake's rule changes, that test goes red.
 	PinPreview *PinPreview
 }
 
@@ -161,9 +187,47 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
 
 #### The sequence — exactly
 
-1. **Idempotency.** A cached result for `IdempotencyKey` → return it. The cache is in memory,
-   15 minutes, keyed by `(IdempotencyKey, ProjectID)`. A desktop retry after a lost response
-   therefore never reserves twice.
+1. **Idempotency.** A result for `(IdempotencyKey, ProjectID)` → return it. The record is the
+   **Ship journal** below, on disk, not an in-memory cache (review M22), so a desktop retry after a
+   lost response never reserves twice, **and neither does a retry after the control plane
+   restarted**. `hubclient` mints its own `Idempotency-Key` per call (Hub contract §9.2, `:1345` at
+   6b873d0), so the Hub's 24-hour replay cannot guard a call made by a new process; the journal
+   guards it on our side.
+
+   **The Ship journal** (`ship/journal.go`). One file per attempt,
+   `<Config.JournalDir>/<hex sha256(ProjectID + "\x00" + IdempotencyKey)>.json`, written with
+   `statepath`'s `writeAtomic` (ruling R2) at each stage of `withReservation` (task 10), and
+   holding `requestHash`, a sha256 of the act's request as the desktop sent it (`Request` without
+   `IdempotencyKey`; task 10's requests likewise):
+   - `reserved` `{releaseId, expiresAt}` — written as soon as Reserve returns;
+   - `shipping` — written **before** `Actor.Ship` is called;
+   - `started` `{run}` — written when `Actor.Ship` returns a run;
+   - `done` `{result | error code, message, details}` — written after the confirm or the abandon.
+
+   A retry that finds a record: a different `requestHash` → `400 bad_request` *"This Idempotency-Key was used for another Ship."* (the Hub's
+   `idempotency_mismatch` rule, contract §1). Otherwise, by stage:
+   - `reserved`, `expiresAt` not passed → take step 2's lock, then continue at step 6 with that
+     release and the commit it reserved. No second Reserve.
+   - `reserved`, `expiresAt` passed → the Hub has expired it; the retry starts again at step 3.
+   - `shipping` → Panacea may have started the build, and nothing records its run, so it is
+     **never** called again: `Abandon` with step 6's no-answer sentence, and answer as step 6's no
+     answer (`503 upstream_unavailable`, `details.status` 0, `reserved: true`). No second build.
+   - `started` → continue at step 7 with that run. No second build.
+   - `done` → the stored answer, with no call.
+
+   **`Resume(ctx)`**, which `main.go` starts once, in the background, after `New`, settles what a
+   stopped process left behind: every `started` record restarts its confirm loop until
+   `expiresAt` (step 7), so a Hub blip at the moment the app quit no longer loses the pin of a
+   run this cockpit started; every `shipping` record is abandoned as above. A `reserved` record
+   is left for a retry until the Hub expires it. `Resume` and a retry settle a record through one
+   function under one per-key mutex, so a record is settled once. Records are deleted at `New`
+   once `expiresAt` + 5 min has passed (the Hub refuses a late confirm, contract §7.9) and, for
+   `done`, 15 min after they were written.
+
+   The one window left: a crash after the Hub stored the reservation and before `reserved` is
+   written. That reservation expires on its own at `expiresAt` (15 min, contract §7.9 `:1021`,
+   state `expired`), and the retry reserves again. Nothing is built for it, so no run is left
+   unpinned.
 2. **One Ship per branch at a time.** A per-`(ProjectID, BranchID)` mutex, `TryLock`; held →
    `409 conflict` *"A Ship of this branch is already in progress."*
 3. **Preconditions** (nothing has left the process):
@@ -261,7 +325,8 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    `confirm.go` keeps retrying **in the background**, with a context detached from the request,
    at 2 s, 5 s, 15 s, then every 30 s, until `release.expiresAt`; the route answers `202` with
    `confirmed: false`. `409 release_expired` or `release_state` stops the loop with an error log
-   (ADR-H1 risk R3).
+   (ADR-H1 risk R3). The loop's state is the journal's `started` record, so a restart resumes it
+   (`Resume`, step 1) instead of losing the pin.
 8. **Track** — `Tracker.Track(ProjectID, run)`, `Tracker.Nudge(ProjectID)`.
 
 #### Control-plane route — complete wire
@@ -273,7 +338,7 @@ POST /v1/projects/{projectId}/deploy/ship
             "designKey": "design:cv-7c01d2e3f4a5b6c7@11" | null, "noCache": true | null }
   202     { "release": ReleasePin, "run": "engagement-portal-build-x7k2p",
             "confirmed": true | false, "message": "" }
-  400 bad_request                 missing/invalid Idempotency-Key; unknown field; missing branchId
+  400 bad_request                 missing/invalid Idempotency-Key; the key reused for another Ship (step 1); unknown field; missing branchId
   404 project_not_found           unknown local project
   409 conflict                    a Ship of this branch is in progress
   409 deploy_precondition         details.reason ∈ not_bound | no_hub_project | branch_unreadable |
@@ -310,7 +375,12 @@ is retried with the same key.
 | `TestBudgetRefusalAbandonsWithSentence` | the fake's `Ship` answers `KindConflict`, `Status 402`, *"new deploys are paused: this project has reached its monthly hosting budget; …"* (task 04's `ship-402-budget.json`) → `Abandon` once, `reason "deploy_failed"`, exactly that message; no `Confirm`, no `Track`; the route answers `409 deploy_conflict` with the sentence, and `details.upstream` is absent | a 402 treated as an outage: `503 upstream_unavailable`, the lens switching acts off, and a reservation left to expire after 15 minutes (review I2) |
 | `TestTimeoutAbandonsAmbiguously` | Panacea times out → `Abandon` message is the ambiguous sentence; no confirm; the route answers `503 upstream_unavailable` with `details.status 0` and `details.reserved true`. A `KindUnavailable` `Status 503` from `Ship` → `details.status 503`, `details.reserved true`. `EnvironmentFor` timing out (step 4) → `details.status 0` and no `reserved` key | confirming a run the control plane never saw named; a 503 without `status` or `reserved`, which makes the desktop say *"the release was not started"* of a build Panacea may have started, or say a build may have started when nothing was sent (review M26) |
 | `TestAnswerClassPicksAbandon` | the fake's `Ship` answers `KindUnavailable` with `Status` `504` → the ambiguous sentence; `202` (task 04's run-less 202) → *"Panacea accepted the build but did not name its run. …"*; `500` → *"Panacea could not start the build."*. Each route answer carries that `details.status` and `details.reserved true` | a gateway's 504 told "could not start" of a build Panacea may be creating; a run-less 202 told "could not start" after Panacea said *"deployment started"* (re-review I-2, M-4) |
-| `TestOtherErrorAbandons` | the fake's `Ship` answers `KindUnavailable`, `Status 429` (and, as a second case, a plain `errors.New`) → `Abandon` once, `reason "deploy_failed"`, message *"Panacea could not start the build."*; no `Confirm`, no `Track`; the error is returned (plan re-review b05 R-2) | a step 6 with no catch-all, so a 429 or a proxy's 405 leaves the reservation to expire after 15 minutes with no reason — I2's second half by another status |
+| `TestJournalRetryAfterRestartReservesOnce` | a first `Orchestrator` reserves `rl-1` and stops (the `deploytest.Fake`'s `Ship` hook cancels before answering); a **new** `Orchestrator` on the same `JournalDir` — the in-memory state gone — gets `Ship` with the same key → the Hub fake saw **one** `Reserve`, and `Confirm(rl-1, {pipelineRun})` follows the second process's `Actor.Ship` (review M22) | an in-memory idempotency cache, which reserves twice after a restart |
+| `TestJournalWritesShippingBeforePanacea` | inside the `deploytest.Fake`'s `Ship` hook, the journal file for the key reads stage `shipping` with `rl-1`'s id | a `shipping` record written after the call, so a crash during it leaves `reserved` and the retry builds twice |
+| `TestJournalShippingNeverBuildsTwice` | a `shipping` record for `rl-1` → `Ship` with that key makes **zero** `Actor.Ship` calls, `Abandon(rl-1)` once with step 6's no-answer sentence, and the error carries `details.status 0`, `reserved: true`; `Resume` on such a record does the same | a retry that calls Panacea again after a crash mid-call — two builds of one press |
+| `TestJournalResumesConfirm` | a `started` record `{rl-1, run r1}`, the Hub fake refusing the first `Confirm` with 503 → `Resume` → `Confirm(rl-1, {pipelineRun:"r1"})` again after the 2 s back-off (fake clock), then the record is `done`; `Ship` with the key then answers the stored result with zero calls | a confirm loop that dies with the process, leaving a cockpit-started run unpinned |
+| `TestJournalMismatchAndPrune` | the same key with another `commit` → `400 bad_request`, zero calls; a record whose `expiresAt` + 5 min has passed, and a `done` one written 16 min ago, are gone after `New`; the same key under another `ProjectID` is another record | a key that replays another Ship's answer; a journal that grows for ever |
+| `TestOtherErrorAbandons` | the fake's `Ship` answers `KindUnavailable`, `Status 429`; as further cases `KindUnavailable`, `Status 302` (an edge's sign-in redirect, review M21) and a plain `errors.New` → `Abandon` once, `reason "deploy_failed"`, message *"Panacea could not start the build."*; no `Confirm`, no `Track`; the error is returned (plan re-review b05 R-2) | a step 6 with no catch-all, so a 429 or a proxy's 405 leaves the reservation to expire after 15 minutes with no reason — I2's second half by another status |
 | `TestADOKeySpellingNamesTheCause` | a binding `Bound` with `HubProjectID ""`, `HubMiss "key_spelling"`, `RepoKey "kpmgcomau.visualstudio.com/engagement portal/portal"` (a form the Hub refuses under its correction A1) → `GET …/ship-readiness` answers `ready: false`, `reason "no_hub_project"`, the key-spelling sentence with that `RepoKey`, and the sentence contains neither `Azure DevOps` nor `GitHub`; `POST …/ship` answers `409 deploy_precondition`, `details.reason "no_hub_project"`, `details.cause "key_spelling"`; neither the Hub nor Panacea called. `HubMiss "not_linked"` → the *"not a shared project"* sentence and no `cause`. `HubMiss ""` → the *"has not answered"* sentence and `details.cause "hub_unanswered"` (review I6; plan re-review b05 R-3, R-4) | a repository told it is *"not a shared project in the Hub yet"* when the real cause is the spelling split, so nobody knows to fix it; a readiness keyed on `HubMiss != "key_spelling"`, which says *"not a shared project"* about a key the Hub never answered for; a sentence that names Azure DevOps for a GitHub key |
 | `TestNeverPushedPrecondition` | `Upstream ""` → `409 deploy_precondition` `never_pushed`; neither Hub nor Panacea called | reserving a release for a commit Panacea cannot clone |
 | `TestUnpushedPrecondition` | `Ahead 2` → `unpushed`, `details.ahead "2"` | shipping the upstream while the user thinks they shipped their work |
@@ -331,18 +401,25 @@ is retried with the same key.
 | `TestReadinessIsShipsPreconditions` | for every row of the step-3 table, `Readiness(…).Reason` equals the `Precondition.Reason` a `Ship` of the same state returns | a second copy of the checks that drifts, so the button is on and the server refuses |
 | `TestReadinessReservesNothing` | a ready branch → `Ready true`; the Hub fake saw no `Reserve`, `deploytest.Fake.Calls()` is empty, no mutex is held | a readiness call that reserves, so every lens refresh leaves a release to expire |
 | `TestPinPreviewAppliesTheHubRule` | the fake brief has revisions 5 (complete) and 6 (incomplete) → `{pinned, ship_head, bf-…, 5}`; no complete revision → `{none, no_complete_revision}`; no brief → `{none, no_brief}`; Hub down → `PinPreview nil`, `Ready` unchanged | previewing the head instead of the latest complete revision (ADR-H1 Q1), or a Hub outage switching Ship off by itself |
+| `TestPinPreviewMatchesTheHubsPin` | on **one** Hub fake (`hubclient.NewFake()`), for each case — a branch brief with revisions 5 complete and 6 incomplete; a project brief only; both (the branch brief wins); a branch brief with no complete revision; no brief; the branch brief archived — call `Readiness` and then `Releases.Reserve({kind:"run", branchRef})` on the same fake: `PinPreview.Status` and `.Reason` equal the reserved release's `pin.status` and `pin.reason`, and `"brief:" + BriefID + "@" + Revision` equals its `pin.briefKey` (null ⇔ `BriefID ""`; the Release carries the key, not the id, Hub contract §7.9 `:983-986` at 6b873d0), in every case (review M20). `Config.Briefs` nil → `PinPreview nil` and `Ready` unchanged | a client copy of the Hub's pin rule that drifts from the Hub's: the project brief ignored, the branch brief not preferred, an archived brief previewed |
 | `TestReadinessRouteIsReadOnly` | `GET …/ship-readiness` is in `catalogReadOnlyRoutes`; the §10a audit passes | a readiness route registered outside the recorder |
 
 #### Steps
 
 - [ ] Tests first, over `deploytest.Fake`, `hubclient.NewFake()` with an injected clock, and a
   table `BranchState`.
-- [ ] `ship.go`, `confirm.go`, the route in `deploy_acts.go`; `writeDeployError` (task 05) for
+- [ ] `journal.go` first (the journal tests red, then green), then `ship.go` over it, `confirm.go`,
+  the route in `deploy_acts.go`; `writeDeployError` (task 05) for
   every error; `*Precondition` → `409 deploy_precondition` with `details.reason`.
 - [ ] `Readiness`: factor steps 3 and 4 into one unexported `check(ctx, projectID, branchID)`
   that `Ship` and `Readiness` both call — no second copy. The pin preview is one
-  `Briefs.ForBranch` call; its error is logged and yields `PinPreview nil`, never a failure. The
+  `Config.Briefs.ForBranch` call (review M20: `Config` names it; `main.go` passes the same
+  `hubclient` client it passes as `Releases`, or nil with no Hub configured); its error is logged
+  and yields `PinPreview nil`, never a failure. The
   `GET …/ship-readiness` route and its `catalogReadOnlyRoutes` line. Task 16's Ship bar reads it.
+- [ ] `main.go`: `JournalDir` = `filepath.Join(statepath.Dir("deploy"), "ship-journal")`
+  (`statepath.go:30`, which creates nothing, so `New` makes the directory, `0o700`), and `go
+  orchestrator.Resume(ctx)` once after `New` (review M22).
 - [ ] `main.go`: the `BranchState` adapter — `Deps.Projects.Branches` for the name, phase 3's
   `remote.ReadState` and `Convergence.Tip` for the rest. If phase 3 task 08 is not merged, this
   task is built and tested but **not merged** (plan §8, 7b).

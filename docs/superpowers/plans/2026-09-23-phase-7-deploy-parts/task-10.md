@@ -34,9 +34,12 @@ package ship
 // Every error it returns after the reserve succeeded is wrapped with ErrAfterReserve (task 09
 // step 6), for Rollback and Rebuild as for Ship, so each route passes {"reserved": true}
 // (re-review I-2). words picks step 6's abandon sentence by the error's class.
+// idempotencyKey names the act's Ship-journal record (task 09 step 1, review M22):
+// withReservation writes reserved, shipping, started and done there, so Rollback and Rebuild
+// survive a restart as Ship does. A rollback's "started" record has run "" and confirms {}.
 func (o *Orchestrator) withReservation(
 	ctx context.Context,
-	projectID, hubProjectID string,
+	projectID, hubProjectID, idempotencyKey string,
 	reserve hubapi.ReserveRequest,
 	act func(ctx context.Context) (run string, err error),
 	confirm func(run string) hubapi.ConfirmRequest,
@@ -192,6 +195,7 @@ Rebuild because the code is `deploy_conflict` on a rollback, and prints the sent
 | `TestCancelNoHubCall` | `Cancel` → the Hub fake saw no call | abandoning a confirmed release (the Hub allows abandon only from `reserved`) |
 | `TestCancelAlreadyFinished` | `AlreadyFinished` → `200 {outcome:"already_finished"}` | an error toast when Undo loses the race to the build's end |
 | `TestOneActPerEnvironment` | a rollback and a rebuild of one environment at once → one `409 conflict` | two releases racing one environment |
+| `TestRollbackIsJournalled` | a rollback whose `Actor.Rollback` answered and whose `Confirm` the Hub fake refuses with 503; a **new** `Orchestrator` on the same `JournalDir` → `Resume` sends `Confirm(rl-1, {})` (no `pipelineRun`), and a retry with the same key makes zero `Actor.Rollback` calls (task 09 step 1, review M22) | a rollback repeated after a restart, or its confirm lost with the process |
 | `TestShipStillPasses` | task 09's whole suite, unchanged, after the `withReservation` extraction | a refactor that changes Ship |
 
 #### Steps
