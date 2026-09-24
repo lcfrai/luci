@@ -1606,3 +1606,25 @@ plan as reviewed.
 
 **Still unverified:** the pinned CLI was not run. O2 and O6 are the owner's (`OD-12`). The docs page
 is what the vendor says today, not a test.
+
+## Fix batch b08, round 2 (2026-09-24): re-review b08-1's R-I1, R-I2, R-M1, R-M2, R-M3
+
+Commit `3838511`. Phase 3's plan was re-read at its worktree's `HEAD`, `a255408`. The re-review
+read it at `ce05f03`. The cited lines are unchanged: `task-15.md:87-95` (`State`), `:112`
+(`States`), `:49` (the repo rule), and `plan.md:382` (P4-4). The pin was re-read at
+`images/sandbox/Dockerfile:17` and `control-plane/internal/harness/harness.go:140`.
+
+| Finding | What changed | Where |
+|---|---|---|
+| R-I1 | **Took the reshape.** `Evaluate` is now `func(ctx, EvalQuery) ([]Verdict, error)`, the shape of phase 3's `States`: batch, `ctx`, error, `[]string` because. Every `EvalQuery` field is a function of the key, so `Resolve` and `HeadRef` ask the same question and cannot overwrite each other's states on the desktop. `Readings(ctx, …)` owns three of the four rules: one call per key; an error or a mismatched result shows `open`; becauses trimmed and joined with `"; "`. It also never evaluates a project key, because phase 3 evaluates only at a branch head. The adapter `cmd/api/evidence.go` owns key to subject: the one bound local project, phase 3's own repo rule, and the branch's head now. It is written by whichever of phase 4 task 14 and phase 3 task 15 lands second. Four new `Readings` tests, and two changed. The cross-phase ask is recorded in the ledger, because phase 3's plan is read-only here | `task-06.md:159-181` (types), `:232` (`Readings`), `:243-276` (the adapter and the ask), `:289-296` (tests), `:309`; `plan.md:471` (S4-P3.4), `:340` (file map); `task-14.md:16`, `:110-116`; `task-07.md:389`, `:400`, `:509-510`; `task-12.md:144` |
+| R-I2 | OQ-10, P4-D and the unverified list now state the pin, 2.1.274, and say the displacement arms only at v2.1.277 or later. The recommendation's effect at 2.1.274 is re-worded: an import there would *add* `AGENTS.md` to briefed sessions only. O6 gains a baseline arm (no brief, same clone and CLI), `/memory` checks, a throwaway first session, and the Bedrock/telemetry caveat below v2.1.281. Below v2.1.277 only the baseline arm runs, and the brief arm is recorded not applicable. **One departure from the re-review's fix:** below v2.1.277 the baseline arm still runs rather than the whole of O6 being marked not applicable, because it tests the premise the built recommendation rests on (that the pinned CLI reads no `AGENTS.md`). Task 23 adds a comment beside the pin, so a bump re-runs O2 and O6 | `plan.md:544` (OQ-10), `:174` (P4-D), `:559-565` (unverified); `task-23.md:13-22` (Dockerfile comment), `:130` (O6) |
+| R-M1 | OQ-10 is scoped to the root `CLAUDE.md` target. It says why the `.claude/CLAUDE.md` target changes nothing, and why `@AGENTS.md` is right only in the root file ("relative paths resolve relative to the file containing the import"). The queued batch also covers `.claude/AGENTS.md`. O6's repository has neither `CLAUDE.md` nor `.claude/AGENTS.md` | `plan.md:544`; `task-23.md:130` |
+| R-M2 | OQ-10's recommendation cell splits **Built, for the 2.1.274 pin** (no import, which is what tasks 05 and 09 build) from **Not built, queued for the pin bump** (the import). The OQ-10 batch is queued in the ledger, and the Dockerfile comment names it | `plan.md:544`; `progress.md` (b08 round 2 entry) |
+| R-M3 | Task 01's phase-3-first path no longer skips to step 5. It adds both new tests (red first), `Mode` and the parameterised temp pattern, and gives every caller `Private`. The registry has one caller, `filestore.go:401`. The file map and the task's intro say that only the names match | `task-01.md:8-10`, `:89-107`; `plan.md:330` |
+
+**Recorded, not fixed here:** phase 3's "change `registry`'s two call sites" (phase 3
+`task-03.md:416`). There is one, `filestore.go:401`. That text is phase 3's stream's to fix.
+
+**Still unverified:** the pinned CLI was not run, and O6's baseline arm is what would test the
+docs' claim about 2.1.274. `gitx.Machine`, `gitx.Read`, `briefref.Criterion` and `evidence.State`
+are phase 3 plan text, not code. Phase 3's plan may still move after `a255408`.
