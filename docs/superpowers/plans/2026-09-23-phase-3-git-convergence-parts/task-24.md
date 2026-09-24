@@ -330,6 +330,8 @@ two codes. `ErrBundleEmpty` is not an error to the user: task 09 reads it as not
 type Lanes struct {
 	Backend      backend.Backend
 	Sessions     registry.Store // List, registry.go:51
+	Store        lanes.Store    // task 03; For refuses a lane ByID does not answer, so the pool
+	                            // never mounts a path the lane index does not hold
 	Image        string         // cfg.SandboxImage, as api.Deps.Image
 	Resources    backend.Resources
 	ReadyTimeout time.Duration  // cfg.ReadyTimeout, for backend.WaitReady (dial.go:75)
@@ -344,10 +346,16 @@ var ErrNoRunner = errors.New("lanegit: no git runner can reach this lane")
 // For returns a Runner for lane and a release the caller must call exactly once.
 func (p *Lanes) For(ctx context.Context, lane lanes.Lane) (Runner, func(), error)
 
-// Holds reports whether id is a runner-only sandbox this pool holds. reaper.Config.Held is
-// this method, so the reaper's rule 4 does not destroy it as an orphan.
-func (p *Lanes) Holds(sandboxID string) bool
+// HeldSet is the ids of the runner-only sandboxes the pool holds, under a mutex. main.go makes
+// it before the reaper (main.go:87) and passes its Has as reaper.Config.Held, so rule 4 does not
+// destroy them as orphans. The pool adds an id before Backend.Create and drops it after Destroy.
+type HeldSet struct{ /* sync.Mutex; map[string]struct{} */ }
+
+func NewHeldSet() *HeldSet
+func (h *HeldSet) Has(sandboxID string) bool
 ```
+
+`Lanes` also carries `Held *HeldSet`.
 
 1. **A live session.** A registry `Session` whose `WorktreeID` (`session.go:48`) is `lane.ID`
    and whose `SandboxID`, `Endpoint` and `AttachToken` (`session.go:71-74`) are set, confirmed
@@ -369,8 +377,9 @@ func (p *Lanes) Holds(sandboxID string) bool
 4. **The reaper.** The reaper's rule 4 (`reaper.go:363-409`) destroys a managed sandbox with no
    session record once `createGrace` has passed. A runner-only sandbox has no record, so
    `reaper.Config` gains `Held func(sandboxID string) bool`, and rule 4 skips an id for which
-   it answers true. After a restart nothing holds the old ones, and rule 4 reaps them, which is
-   the crash path it already is.
+   it answers true; `reaperConfigFor` (`main.go:215`) takes it as a fifth argument, and a nil
+   `Held` holds nothing, so phase 2's reaper tests are unchanged. After a restart nothing holds
+   the old ones, and rule 4 reaps them, which is the crash path it already is.
 
 ```go
 // bundle.go — lane work in, product commits out. Both run host git in the PROJECT only, through
@@ -420,3 +429,38 @@ func SendBranch(ctx context.Context, git *gitx.Exec, projectPath string,
 `ErrBundleEmpty`, decided before `bundle create` for the runner's reason. Then `bundle create
 <file> <refs…> --not <kept…>` (Class `Read`: it writes only the file). A file past
 `MaxBundleBytes` is deleted and refused, because the runner's `fetch` would 413 it.
+
+**Reason codes.** The closed `details.reason` list in task 04's `gitdeps.go` (edit unit U5) gains
+`bundle_refused`: 409 `conflict`, `details.why` = `BundleRefused.Why`. A `*gitx.Error` from a
+project call stays `git_failed`, and a `RunnerError` is `git_failed` 500 as above.
+
+**Wiring (p2 files).** `api.GitDeps` gains a `// ── task 24 ──` block holding `LaneGit
+*lanegit.Lanes` (one block per task, `task-04.md:55`). In `cmd/api/main.go`:
+
+```go
+	// just above the reaper (main.go:87), which must know the pool's sandboxes from its first sweep
+	laneHeld := lanegit.NewHeldSet()
+	rp := reaper.New(reaperConfigFor(cfg, store, be, log, laneHeld.Has))
+
+	// ── phase 3 task 24 ── after task 04's block, before api.New (main.go:132)
+	// R4: lane git runs inside the sandbox. The pool finds the runner or starts one.
+	laneGit := &lanegit.Lanes{
+		Backend: be, Sessions: store, Store: laneStore, Held: laneHeld,
+		Image: cfg.SandboxImage, Resources: cfg.Resources(), ReadyTimeout: cfg.ReadyTimeout,
+		Idle: 60 * time.Second, Log: log,
+	}
+	defer laneGit.Close(context.Background()) // destroys every runner-only sandbox it holds
+	gitDeps.LaneGit = laneGit
+```
+
+`Close(ctx) error` joins to `pool.go`. The reaper line is the one edit outside the block, and it
+is one argument.
+
+**`lanegittest.Fake`** is a `Runner` for tests. It runs plain `os/exec` git with `-C <Dir>` in a
+test clone, the same argv as the runner's ops above. It never goes through `gitx.Exec`, so the
+spy below sees only production calls. `Fake.BundleOverride []byte`, when set, is what `Bundle`
+writes, so a test can hand `FetchLane` a truncated or hostile bundle.
+
+**Fixtures.** `lanegit`'s wire test reads `testdata/gitrunner` at `../../../testdata/gitrunner`,
+round-trips every fixture through its own types with `DisallowUnknownFields`, and compares
+`limits.json` with its four constants: rule 7 of the runner's tests, from the host side.
