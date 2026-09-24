@@ -41,6 +41,11 @@ type Config struct {
 	// which is the only value a real cluster ever uses; it is settable so a test
 	// can point the endpoint at an httptest server.
 	Port int
+	// Instance is this control plane's instance id (internal/instance), the
+	// same seam dockerbe has. Required. Create stamps it on every pod as
+	// backend.KubeLabelInstance, and List returns only the pods that carry
+	// it, so two control planes sharing a namespace cannot reap each other.
+	Instance string
 }
 
 // Backend implements backend.Backend over Kata pods.
@@ -48,6 +53,7 @@ type Backend struct {
 	mgr          *sandbox.Manager
 	readyTimeout time.Duration
 	port         int
+	instance     string
 }
 
 // New returns a Kata backend. A nil Manager is ErrUnavailable rather than a
@@ -57,7 +63,10 @@ func New(cfg Config) (*Backend, error) {
 	if cfg.Manager == nil {
 		return nil, fmt.Errorf("katabe: no sandbox manager: %w", backend.ErrUnavailable)
 	}
-	b := &Backend{mgr: cfg.Manager, readyTimeout: cfg.ReadyTimeout, port: cfg.Port}
+	if err := backend.ValidateInstance(cfg.Instance); err != nil {
+		return nil, fmt.Errorf("katabe: Config.Instance: %w", err)
+	}
+	b := &Backend{mgr: cfg.Manager, readyTimeout: cfg.ReadyTimeout, port: cfg.Port, instance: cfg.Instance}
 	if b.readyTimeout <= 0 {
 		b.readyTimeout = backend.ReadyTimeout
 	}
@@ -98,6 +107,7 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 		AttachToken: spec.AttachToken,
 		Env:         spec.Env,
 		SessionID:   spec.SessionID,
+		Instance:    b.instance,
 	}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return backend.Sandbox{}, fmt.Errorf("katabe: sandbox %q: %w", spec.ID, backend.ErrAlreadyExists)
@@ -162,7 +172,18 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 	return b.sandboxFromPod(pod), nil
 }
 
-// List returns every sandbox this backend's manager created.
+// List returns every sandbox THIS instance created: the manager lists every
+// sandbox pod in the namespace, and only the ones whose KubeLabelInstance is
+// this backend's own come back. It is dockerbe.List's rule, and for the same
+// reason — List is what the reaper destroys from.
+//
+// One difference, and it is recorded rather than built: dockerbe warns once
+// about a managed container with no instance label, and this does not, because
+// katabe has no logger and no such pod can exist. Kata has never been deployed
+// (it is dormant until Phase 8), so every Kata pod ever made carries the
+// label. A pod without one is skipped silently. The reaper would not destroy
+// it anyway: rule 4 matches backend.LabelManaged, which Kata pods do not carry
+// (contract §5.3).
 func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	pods, err := b.mgr.List(ctx)
 	if err != nil {
@@ -170,6 +191,9 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	}
 	out := make([]backend.Sandbox, 0, len(pods))
 	for i := range pods {
+		if pods[i].Labels[backend.KubeLabelInstance] != b.instance {
+			continue // another control plane's, or unlabelled
+		}
 		out = append(out, b.sandboxFromPod(&pods[i]))
 	}
 	return out, nil
@@ -191,6 +215,7 @@ func (b *Backend) sandboxFromPod(pod *corev1.Pod) backend.Sandbox {
 		Kind:      backend.KindKata,
 		Ref:       pod.Name,
 		Endpoint:  endpoint,
+		Instance:  pod.Labels[backend.KubeLabelInstance],
 		State:     podState(pod),
 		CreatedAt: pod.CreationTimestamp.Time,
 		Labels:    labels,

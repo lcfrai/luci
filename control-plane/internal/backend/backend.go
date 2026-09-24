@@ -65,16 +65,45 @@ const envReservedPrefix = "PANACEA_APP_"
 // use dots by convention; the Kata pod labels already in internal/sandbox use
 // slashes, because Kubernetes label keys do. Both are listed so neither backend
 // invents a third spelling.
+//
+// LabelInstance is ownership, and it is the label List and the reaper match on.
+// LabelManaged says "a Panacea control plane made this"; it cannot say WHICH
+// one, and two control planes on one Docker daemon — two users of one shared
+// host, or a developer's cockpit beside a test harness — used to read each
+// other's sandboxes as their own orphans and destroy them (reaper rule 4).
+// LabelInstance names the control plane: its value is the id minted once per
+// state directory (internal/instance), so a restart keeps ownership of what it
+// made and a second state directory owns nothing of the first's. A managed
+// sandbox without it predates per-instance ownership; nothing may destroy it,
+// because nothing can prove whose it is.
 const (
 	LabelManaged   = "panacea-app.managed"    // always "true"
+	LabelInstance  = "panacea-app.instance"   // the owning control plane's instance id
 	LabelSandboxID = "panacea-app.sandbox-id" // equals Spec.ID
 	LabelSessionID = "panacea-app.session-id" // equals registry.Session.ID
 	LabelCreatedAt = "panacea-app.created-at" // RFC3339, diagnostics only
 
+	KubeLabelInstance  = "panacea-app/instance"
 	KubeLabelSandboxID = "panacea-app/sandbox-id"
 	KubeLabelSessionID = "panacea-app/session-id"
 	KubeLabelComponent = "panacea-app/component" // always "sandbox"
 )
+
+// instancePattern is a Kubernetes label value (at most 63 characters,
+// alphanumeric at both ends) narrowed to lowercase, so the one id is a valid
+// value under both spellings of the label. A lowercase UUID matches it.
+var instancePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+
+// ValidateInstance rejects an instance id no backend can stamp. Empty is the
+// case that matters: a backend or a reaper with no instance id would own every
+// sandbox that also carries none — which is every sandbox made before this
+// label existed — so both refuse it rather than default it.
+func ValidateInstance(id string) error {
+	if !instancePattern.MatchString(id) {
+		return fmt.Errorf("instance id %q must match ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$: %w", id, ErrUnsupported)
+	}
+	return nil
+}
 
 // Kind names a backend implementation. It is persisted in the registry and
 // returned over the REST surface, so these strings are stable.
@@ -279,6 +308,14 @@ type Sandbox struct {
 	// this set is a security defect the reaper destroys; Endpoint is always empty
 	// when it is true, so nothing can attach to it in the meantime.
 	NonLoopback bool
+
+	// Instance is the owning control plane's instance id, read by each backend
+	// from its own spelling of the label (LabelInstance, KubeLabelInstance), so
+	// the reaper can check ownership without knowing which backend it sweeps.
+	// Empty means the sandbox carries no instance label. List returns only
+	// sandboxes whose Instance is the backend's own; Get reports whatever the
+	// sandbox carries.
+	Instance string
 
 	State     State
 	CreatedAt time.Time

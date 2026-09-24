@@ -16,6 +16,7 @@ import (
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/instance"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/statepath"
 )
@@ -107,6 +108,9 @@ type Config struct {
 	SandboxImage    string
 	StateDir        string // "" means the statepath ladder decides
 	SessionsPath    string // the registry document, derived from StateDir
+	// InstancePath is the file this state directory's instance id is kept in
+	// (internal/instance), derived from StateDir beside the registry.
+	InstancePath string
 	// ConversationsDir is the root every worktree's conversation store lives
 	// under, derived from StateDir beside the registry. Absolute always: it
 	// becomes a bind mount's host path.
@@ -278,9 +282,11 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	if cfg.StateDir != "" {
 		cfg.SessionsPath = filepath.Join(cfg.StateDir, "sessions", "sessions.json")
 		cfg.ConversationsDir = filepath.Join(cfg.StateDir, "conversations")
+		cfg.InstancePath = filepath.Join(cfg.StateDir, "instance", instance.FileName)
 	} else {
 		cfg.SessionsPath = registry.DefaultPath()
 		cfg.ConversationsDir = statepath.Dir("conversations")
+		cfg.InstancePath = filepath.Join(statepath.Dir("instance"), instance.FileName)
 	}
 	// The registry is happy with a relative path and a bind mount is not: a
 	// relative PANACEA_APP_STATE_DIR would otherwise fail every session create

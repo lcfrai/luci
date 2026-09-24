@@ -63,7 +63,8 @@ flags. None of those binaries exists on this machine, and
 | `control-plane/internal/api/sessions.go` | Session create / list / get / patch / delete / restart | 11 |
 | `control-plane/internal/api/attach.go` | The WebSocket upgrade, origin check, read limit, relay, last-output accounting | 12 |
 | `control-plane/internal/proxy/proxy.go` | **modified** — `RelayHooked` adds per-message byte counters; `Relay` keeps its signature | 12 |
-| `control-plane/internal/reaper/reaper.go` | The periodic sweep: orphans, disappeared sandboxes, idle derivation, idle TTL | 13 |
+| `control-plane/internal/reaper/reaper.go` | The periodic sweep: orphans, disappeared sandboxes, idle derivation, idle TTL. AMENDED by the reaper-scope fix (2026-09-24): destroys only this instance's sandboxes (§5.3) | 13 |
+| `control-plane/internal/instance/instance.go` | **added by the reaper-scope fix (2026-09-24)** — this state directory's instance id: minted once, persisted, read back (§2.7) | — |
 | `control-plane/cmd/api/config.go` | Every `PANACEA_APP_*` variable, parsed once, with defaults | 13 |
 | `control-plane/cmd/api/main.go` | **modified** — wiring, restart recovery, listener, graceful shutdown | 13 |
 
@@ -226,7 +227,33 @@ const (
 	KubeLabelSessionID = "panacea-app/session-id"
 	KubeLabelComponent = "panacea-app/component" // always "sandbox"
 )
+```
 
+AMENDED by the reaper-scope fix (2026-09-24, `task-25-26-reconcile.md` item 11): **ownership
+is per control plane, and it is a label.** `LabelManaged` says "a Panacea control plane made
+this"; it cannot say which one, so two control planes on one Docker daemon — two users of one
+shared host, or a cockpit beside a test harness — read each other's live sandboxes as orphans
+(§5.3 rule 4) and destroyed them at the first sweep. Two labels join the block above, one per
+spelling, and a validator:
+
+```go
+	LabelInstance     = "panacea-app.instance" // the owning control plane's instance id
+	KubeLabelInstance = "panacea-app/instance"
+
+// ValidateInstance rejects an id no backend can stamp: it must match
+// ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ (a Kubernetes label value, lowercase).
+// Empty is refused, not defaulted: an empty instance would own every sandbox
+// that also carries none, which is every sandbox made before the label.
+func ValidateInstance(id string) error // wraps ErrUnsupported
+```
+
+The id is **this state directory's**, minted once and persisted (§2.7 amendment,
+`internal/instance`). Every sandbox is stamped with it (§2.4, §2.6), `List` returns only
+sandboxes that carry this instance's id, and the reaper destroys only those (§5.3). A managed
+sandbox with **no** instance label predates this amendment; nothing can prove whose it is, so
+nothing destroys it automatically — it is logged once as foreign.
+
+```go
 // Kind names a backend implementation. It is persisted in the registry and
 // returned over the REST surface, so these strings are stable.
 type Kind string
@@ -320,6 +347,14 @@ type Sandbox struct {
 	CreatedAt time.Time
 	Labels    map[string]string
 }
+
+// AMENDED by the reaper-scope fix (2026-09-24): one more field. Each backend
+// reads it from its own spelling of the label, so the reaper checks ownership
+// without knowing which backend it sweeps. Empty means "no instance label".
+// (The code also carries NonLoopback bool, task 5's amendment to §2.4, which
+// this listing never showed; backend.go's Sandbox is the authority.)
+//
+//	Instance string // LabelInstance / KubeLabelInstance
 
 // Backend creates, finds, attaches to and destroys sandboxes.
 //
@@ -559,6 +594,12 @@ type Config struct {
 	// AllowNonLoopback exists so the refusal above is a decision someone has to
 	// make on purpose. Nothing in Phase 2 sets it.
 	AllowNonLoopback bool
+
+	// AMENDED by the reaper-scope fix (2026-09-24). Required: New refuses an
+	// invalid one with ErrUnsupported (backend.ValidateInstance) BEFORE it
+	// pings the daemon. Create stamps it as LabelInstance; List returns only
+	// containers that carry it.
+	Instance string
 }
 
 // Backend implements backend.Backend over Docker.
@@ -637,6 +678,7 @@ var attachPort = nat.Port("8080/tcp") // nat.Port is a string type; this literal
 ```go
 labels := map[string]string{
 	backend.LabelManaged:   "true",
+	backend.LabelInstance:  b.instance, // AMENDED by the reaper-scope fix (2026-09-24)
 	backend.LabelSandboxID: spec.ID,
 	backend.LabelSessionID: spec.SessionID,
 	backend.LabelCreatedAt: time.Now().UTC().Format(time.RFC3339),
@@ -679,6 +721,23 @@ Map each `container.Summary` to a `backend.Sandbox`:
 | `CreatedAt` | `time.Unix(s.Created, 0).UTC()` |
 | `Labels` | `s.Labels` |
 | `Endpoint` | see below |
+| `Instance` | `s.Labels[backend.LabelInstance]` — AMENDED by the reaper-scope fix (2026-09-24), see below |
+
+AMENDED by the reaper-scope fix (2026-09-24): **List returns this instance's containers and no
+others.** The daemon filter stays `LabelManaged=true`; the instance is matched in the loop, before
+the sandbox-id check, so that a legacy container is seen at all:
+
+- `LabelInstance == b.instance` → mapped as above.
+- `LabelInstance` is another id → skipped silently: another control plane owns it, and on a shared
+  host that is the normal case.
+- `LabelInstance` absent → skipped, and warned about **once per container ID** as a foreign sandbox
+  made before per-instance ownership, which nothing will destroy automatically. The warned-once set
+  is pruned each call to the containers still on the daemon.
+
+A daemon-side filter on the instance label was rejected: it would make a legacy container
+invisible, and nobody would ever be told it is there. `Get` is unchanged except that it reports
+`Instance` from the container's labels; `Get`, `Attach` and `Destroy` stay keyed by name, because
+their ids come from this control plane's own registry.
 
 **Reading a sandbox's published port — two paths, one rule.**
 
@@ -730,12 +789,14 @@ type Spec struct {
 	AttachToken string
 	Env         map[string]string
 	SessionID   string
+	Instance    string // AMENDED by the reaper-scope fix (2026-09-24), see below
 }
 
 // Get returns the pod for a sandbox id, or ErrNotFound.
 func (m *Manager) Get(ctx context.Context, id string) (*corev1.Pod, error)
 
-// List returns every pod this manager created in its namespace.
+// List returns every pod this manager created in its namespace — every
+// instance's; katabe.List narrows it to its own (§2.6).
 func (m *Manager) List(ctx context.Context) ([]corev1.Pod, error)
 
 // ErrNotFound is returned by Get when no pod carries the label.
@@ -746,6 +807,10 @@ var ErrNotFound = errors.New("sandbox: no pod for that id")
 `panacea-app/sandbox-id=<id>` and `panacea-app/component=sandbox` via
 `metav1.ListOptions{LabelSelector: …}`. `Get` returns `ErrNotFound` on an empty list
 and the first item otherwise.
+
+AMENDED by the reaper-scope fix (2026-09-24): `Spec` gains `Instance string`, stamped as the
+`panacea-app/instance` label (`backend.KubeLabelInstance`) and omitted when empty, like
+`SessionID`. The selectors are unchanged; `katabe.List` does the instance match (§2.6).
 
 The container's `Env` grows to the three `PANACEA_APP_*` variables plus `spec.Env`,
 and the pod gains the `panacea-app/session-id` label. Everything else — runtime class,
@@ -824,6 +889,16 @@ func (b *Backend) Kind() backend.Kind { return backend.KindKata }
 - `Destroy` calls `Manager.Delete` and swallows `k8s.io/apimachinery/pkg/api/errors.IsNotFound`.
 - Tests use `k8s.io/client-go/kubernetes/fake.NewSimpleClientset()`, exactly as
   `manager_test.go` already does. No cluster, no network.
+- AMENDED by the reaper-scope fix (2026-09-24): **the same ownership seam as dockerbe, built and
+  not merely recorded**, because the manager already selects by label. `Config` gains
+  `Instance string`, required (`New` refuses an invalid one with `ErrUnsupported`, after the
+  nil-`Manager` check). `Create` passes it as `sandbox.Spec.Instance`; `List` returns only pods
+  whose `panacea-app/instance` label is this instance's; `sandboxFromPod` sets
+  `Sandbox.Instance`. **Recorded, not built:** dockerbe warns once about an unlabelled managed
+  container and katabe does not — it has no logger, and no unlabelled Kata pod can exist, because
+  Kata has never been deployed. Separately, and older than this fix: Kata pods do not carry
+  `backend.LabelManaged`, so §5.3 rule 4 never reaps a Kata orphan. Phase 8 decides whether the
+  pod carries `LabelManaged` or rule 4 learns the Kube spelling.
 ### 2.7 `internal/statepath` — one answer to "where does state live"
 
 ```go
@@ -877,6 +952,32 @@ AMENDED by the resume fix (2026-09-23): a third kind, `conversations`, sits besi
 `cmd/api` derives it the way it derives the registry path —
 `$PANACEA_APP_STATE_DIR/conversations`, else `statepath.Dir("conversations")` — and
 makes it absolute, because it becomes a bind mount's host path.
+
+AMENDED by the reaper-scope fix (2026-09-24): a fourth kind, `instance`, holds one file,
+`instance-id` — this state directory's instance id (§2.2 amendment). `cmd/api` derives
+`Config.InstancePath` the same way: `$PANACEA_APP_STATE_DIR/instance/instance-id`, else
+`statepath.Dir("instance")/instance-id`. A new package owns it:
+
+```go
+// package instance
+const FileName = "instance-id"
+
+// Load returns this state directory's instance id, minting and persisting a
+// random lowercase UUID the first time. minted reports which happened.
+func Load(path string) (id string, minted bool, err error)
+```
+
+- **Random, not a hash of the path.** A path hash collides when two machines use the same default
+  path against one remote daemon, and changes when one directory is reached by another spelling
+  (an 8.3 short name, a symlink), which would disown a running fleet.
+- **Crash-safe and race-safe.** The id is written to a temporary file in the same directory,
+  synced, then hard-linked to `instance-id`, which fails rather than replaces: a crash leaves no
+  empty id file, and the loser of a race between two starts on one directory adopts the winner's id.
+- **A file that does not hold a valid id is an error, never replaced.** A new id would make every
+  sandbox the old one made foreign — never collected — and its sessions would read as gone while
+  their containers ran. An operator who means that deletes the file.
+- `serve` calls `Load` **first**, before `newBackend`, because both the backend and the reaper
+  need the id. It logs the one start that mints one, and the id on the "listening" line.
 
 ### 2.8 `internal/registry` — the session record and its store
 
@@ -1981,7 +2082,7 @@ visible in one file.
 | `PANACEA_APP_ALLOW_PUBLIC_BIND` | unset | Unset means the refusal above is enforced. Any value other than `1` or `true` is also treated as unset. |
 | `PANACEA_APP_BACKEND` | `docker` | `docker` or `kata`. An unrecognised value exits 2 naming both. `kata` is dormant (Phase 8); selecting it works but requires a kubeconfig. |
 | `PANACEA_APP_SANDBOX_IMAGE` | `panacea-app/sandbox:dev` | The image every sandbox runs. Unset uses the dev tag the Phase 1 runbook builds. |
-| `PANACEA_APP_STATE_DIR` | unset | Falls through `statepath.Dir`: `%LOCALAPPDATA%\PanaceaApp\state` on Windows, `$XDG_STATE_HOME/panacea-app`, then `~/.local/state/panacea-app`. AMENDED by the resume fix (2026-09-23): it also roots `conversations/`, every worktree's conversation store (§5.1 step 5). No new variable. |
+| `PANACEA_APP_STATE_DIR` | unset | Falls through `statepath.Dir`: `%LOCALAPPDATA%\PanaceaApp\state` on Windows, `$XDG_STATE_HOME/panacea-app`, then `~/.local/state/panacea-app`. AMENDED by the resume fix (2026-09-23): it also roots `conversations/`, every worktree's conversation store (§5.1 step 5). No new variable. AMENDED by the reaper-scope fix (2026-09-24): and `instance/instance-id`, this control plane's instance id (§2.7), so **two control planes on one Docker daemon need two state directories** — one directory is one owner. No new variable. |
 | `PANACEA_APP_PROJECTS_DIR` | unset | `GET /v1/projects` returns `[]`, and `worktree.Provider` is `worktree.Static{}`, so every session create fails 404 `worktree_not_found`. That is correct and visible: no projects directory means no worktrees to work in. |
 | `PANACEA_APP_ALLOWED_ORIGINS` | unset | Uses `httpx.DefaultOrigins()` (§2.12). When set it is a comma-separated list of **full origins** and **replaces** the defaults — it does not extend them, because an "extend" semantic makes it impossible to lock down. |
 | `PANACEA_APP_IDLE_AFTER` | `90s` | How long without relayed output before `running` becomes `idle`. A Go duration string. `0` disables idle derivation; status then goes straight from `running` to `exited`. |
@@ -2136,7 +2237,10 @@ Three causes, and no others:
 2. **Idle TTL** — the reaper, only when `PANACEA_APP_IDLE_TIMEOUT` > 0, which it is not
    by default.
 3. **Reap of an orphan** — a sandbox carrying `panacea-app.managed=true` whose
-   `panacea-app.sandbox-id` matches no registry record.
+   `panacea-app.sandbox-id` matches no registry record. AMENDED by the reaper-scope fix
+   (2026-09-24): **and whose `panacea-app.instance` is this control plane's.** Another
+   control plane's sandbox matches no record here either, by construction; that is not an
+   orphan. A managed sandbox with no instance label is never reaped by anyone (§5.3).
 
 **A dropped WebSocket destroys nothing.** `docs/FUNCTIONAL-SPEC.md` requires finished
 sessions stay listed and readable and that Resume restores context by running
@@ -2192,6 +2296,28 @@ One sweep, in order:
 7. Refresh `backendReady = true`.
 
 Every state change goes through `store.Update`, never `Get` then `Create`.
+
+AMENDED by the reaper-scope fix (2026-09-24, `task-25-26-reconcile.md` item 11). **Rule 4 destroyed
+other control planes' sandboxes.** Every control plane on a daemon sees every managed container,
+none of the others' are in its registry, and `Run` sweeps once at startup, before its ticker — so
+starting a second control plane destroyed the first's sandboxes older than the create grace, and
+`PANACEA_APP_REAP_INTERVAL=24h` protected nobody. The fix:
+
+- `Config` gains `Instance string` (alongside `CreateGrace`, which the listing above also predates).
+  `cmd/api` passes the id `instance.Load` returned — the same one the backend stamps (§2.7).
+- The two rules that destroy a sandbox no record asked them to — rule 4, and task 5's rule 1a
+  (destroy a `NonLoopback` sandbox) — act **only on a sandbox whose `Sandbox.Instance` equals
+  `Config.Instance`**. This holds whether or not the backend's `List` is scoped; both are (§2.4,
+  §2.6), and the reaper does not lean on it.
+- Everything else is **foreign** and spared. A sandbox with no instance label is logged once at warn
+  (it predates the label; nobody can prove whose it is; nothing will ever collect it). Another
+  instance's is logged once at debug (its own reaper looks after it). The logged-once set is pruned
+  each sweep to what is live.
+- **An empty `Config.Instance` owns nothing, not everything.** Read the other way, `"" == ""` would
+  hand this reaper every legacy sandbox on the daemon. `New` warns once; rules 2, 3, 5 and 6 still
+  run, since they act only on records this registry holds.
+
+Rules 2, 3, 5 and 6 are unchanged: they are keyed on this registry's own sandbox ids.
 
 ### 5.4 How `idle` is derived, without reading a byte
 
@@ -2254,6 +2380,15 @@ is pinned both by `TestRecoverKeepsEveryConversationID` and by a resume through 
 second API over the reopened registry file. AMENDED by the resume fix's round-1 fix round
 (2026-09-24): `earlierConversationIds` survives the same way, pinned by the same test and by
 `TestSessionsSurviveAReopen`.
+
+AMENDED by the reaper-scope fix (2026-09-24): `live` is this instance's sandboxes only (§2.4), and
+the instance id is this state directory's, so a restart on the same directory recovers exactly what
+it made. **One consequence, stated rather than glossed:** a session created by a build from before
+this fix has a container with no instance label. The first start of the new build does not list it,
+so step 4 marks the session `exited` with `"sandbox disappeared while the app was not running"`, and
+its container — foreign, so never reaped — keeps running until someone removes it by hand. Phase 2
+has not shipped, so the only such containers are development ones; the warning `List` writes names
+each one.
 
 ### 5.6 The complete status machine
 

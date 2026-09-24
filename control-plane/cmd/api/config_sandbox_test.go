@@ -201,7 +201,9 @@ func TestACABundlePathMustBeAnAbsoluteFile(t *testing.T) {
 // control plane: the default state directory, the default 127.0.0.1:8730
 // and the real Docker daemon, whose reaper sweeps at startup and destroys
 // every managed container it does not own. A mutation campaign did exactly
-// that. So the backend is kata with a kubeconfig set, which kubeClient
+// that. (Since the reaper-scope fix it destroys only orphans of the default
+// state directory's own instance — which is the real user's, so the hazard
+// is narrower, not gone.) So the backend is kata with a kubeconfig set, which kubeClient
 // refuses outright, even inside a cluster — serve() then fails in newBackend,
 // before the reaper, a registry or a listener exists — and the state
 // directory and address are this test's own. The check intact still exits 2;
@@ -223,7 +225,9 @@ func TestRunRefusesAMissingCABundleWithExitCode2(t *testing.T) {
 // outright even inside a cluster, so serve() fails in newBackend before the
 // reaper, a registry or a listener exists; and this test's own state
 // directory and port 0, so even a serve() that got further would touch
-// neither the default state directory nor 127.0.0.1:8730. Every key the test
+// neither the default state directory nor 127.0.0.1:8730. The one thing
+// serve() does write before newBackend is the instance id it mints, and it
+// writes it inside that state directory (instance/instance-id). Every key the test
 // sets wins, except the backend and kubeconfig, which a test may not change.
 func runHermetic(t *testing.T, vars map[string]string) map[string]string {
 	t.Helper()

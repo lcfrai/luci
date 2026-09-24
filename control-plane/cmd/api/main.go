@@ -32,6 +32,7 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend/dockerbe"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend/katabe"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/instance"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
@@ -64,7 +65,21 @@ func run(getenv func(string) string, errOut io.Writer) int {
 }
 
 func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
-	be, err := newBackend(cfg, log)
+	// The instance id comes first: the backend stamps it on every sandbox and
+	// lists only sandboxes that carry it, and the reaper destroys only those,
+	// so neither can be built without it. It is this state directory's, minted
+	// on the first start and read back on every one after — which is what lets
+	// a restart keep the sandboxes it made (internal/instance).
+	instanceID, minted, err := instance.Load(cfg.InstancePath)
+	if err != nil {
+		return fmt.Errorf("load this control plane's instance id: %w", err)
+	}
+	if minted {
+		log.Info("minted this state directory's instance id; every sandbox it creates is labelled with it, and only those are listed or reaped",
+			"instance", instanceID, "file", cfg.InstancePath)
+	}
+
+	be, err := newBackend(cfg, instanceID, log)
 	if err != nil {
 		return err
 	}
@@ -84,7 +99,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	// endpoint.
 	recoverSessions(ctx, store, be, log)
 
-	rp := reaper.New(reaperConfigFor(cfg, store, be, log))
+	rp := reaper.New(reaperConfigFor(cfg, instanceID, store, be, log))
 	// The reaper gets its own context rather than ctx, so that a SIGINT drains
 	// the HTTP server while the reaper is still sweeping a live backend; ctx is
 	// already cancelled by the time Shutdown is called, and a reaper on ctx
@@ -171,6 +186,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	log.Info("control plane listening",
 		"addr", ln.Addr().String(),
 		"backend", be.Kind(),
+		"instance", instanceID,
 		"sessions", cfg.SessionsPath,
 		"conversations", cfg.ConversationsDir,
 		"projects", cfg.ProjectsDir,
@@ -214,10 +230,16 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 // long a create may take. Passing cfg.ReadyTimeout here instead would compile,
 // run, and quietly shorten the window that stops a mid-create session being
 // marked exited.
-func reaperConfigFor(cfg Config, store registry.Store, be backend.Backend, log *slog.Logger) reaper.Config {
+//
+// Instance is the other decision. Without it the reaper owns nothing and
+// collects no orphan; with the wrong one it would own another control plane's
+// sandboxes. It is the same id newBackend stamps and lists by, passed to both
+// from the one Load in serve.
+func reaperConfigFor(cfg Config, instanceID string, store registry.Store, be backend.Backend, log *slog.Logger) reaper.Config {
 	return reaper.Config{
 		Store:       store,
 		Backend:     be,
+		Instance:    instanceID,
 		IdleAfter:   cfg.IdleAfter,
 		IdleTimeout: cfg.IdleTimeout,
 		Interval:    cfg.ReapInterval,
@@ -226,7 +248,7 @@ func reaperConfigFor(cfg Config, store registry.Store, be backend.Backend, log *
 	}
 }
 
-func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
+func newBackend(cfg Config, instanceID string, log *slog.Logger) (backend.Backend, error) {
 	switch cfg.Backend {
 	case string(backend.KindDocker):
 		// BindIP is deliberately not configurable: dockerbe defaults it to
@@ -236,6 +258,7 @@ func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
 			Host:         cfg.DockerHost,
 			ReadyTimeout: cfg.ReadyTimeout,
 			Log:          log,
+			Instance:     instanceID,
 		})
 	case string(backend.KindKata):
 		client, err := kubeClient(cfg.Kubeconfig)
@@ -245,6 +268,7 @@ func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
 		return katabe.New(katabe.Config{
 			Manager:      sandbox.NewManager(client, cfg.Namespace),
 			ReadyTimeout: cfg.ReadyTimeout,
+			Instance:     instanceID,
 		})
 	default:
 		// loadConfig already refused anything else; this arm exists so the

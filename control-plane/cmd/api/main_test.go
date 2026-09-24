@@ -369,7 +369,11 @@ func TestTheReaperIsWiredWithMoreGraceThanOneReadyTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadConfig: %v", err)
 	}
-	rc := reaperConfigFor(cfg, nil, nil, nil)
+	const id = "11111111-1111-4111-8111-111111111111"
+	rc := reaperConfigFor(cfg, id, nil, nil, nil)
+	if rc.Instance != id {
+		t.Errorf("reaper.Config.Instance = %q, want %q: without it the reaper owns nothing and collects no orphan", rc.Instance, id)
+	}
 	if rc.CreateGrace <= cfg.ReadyTimeout {
 		t.Errorf("CreateGrace = %v with a %v ready timeout; it must outlast ContainerCreate as well as the ready wait",
 			rc.CreateGrace, cfg.ReadyTimeout)
@@ -396,8 +400,8 @@ func TestTheReaperIsWiredWithMoreGraceThanOneReadyTimeout(t *testing.T) {
 // Hermetic like every run() test (runHermetic): with the loopback rule broken,
 // this would otherwise be a real control plane on every interface, on the
 // default state directory and the real Docker daemon, whose startup sweep
-// destroys every managed container it does not own. Port 0, so even that
-// control plane would not hold 8730.
+// destroys every orphan the default state directory's instance owns — the
+// real user's. Port 0, so even that control plane would not hold 8730.
 func TestRunRefusesANonLoopbackBindWithExitCode2(t *testing.T) {
 	t.Parallel()
 	var out bytes.Buffer

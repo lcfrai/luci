@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/coder/websocket"
@@ -79,6 +80,12 @@ type Config struct {
 	// place the condition surfaces during a sweep — the machine-readable one is
 	// backend.Sandbox.NonLoopback. Get and Attach still refuse loudly.
 	Log *slog.Logger
+
+	// Instance is this control plane's instance id (internal/instance).
+	// Required: New refuses an empty or malformed one. Create stamps it on
+	// every container as backend.LabelInstance, and List returns only the
+	// containers that carry it — see List for what happens to the rest.
+	Instance string
 }
 
 // Backend implements backend.Backend over Docker.
@@ -86,13 +93,26 @@ type Backend struct {
 	api          APIClient
 	bindIP       string
 	readyTimeout time.Duration
+	instance     string
 	log          *slog.Logger
+
+	// legacy is every container ID List has already warned about as a
+	// managed container with no instance label, so the warning is written once
+	// per container and not once per sweep.
+	legacyMu sync.Mutex
+	legacy   map[string]bool
 }
 
 // New returns a Docker backend, or fails with backend.ErrUnavailable and a
 // sentence the operator can act on. A Docker Desktop that is installed but not
 // running must fail here, not later with a nil dereference.
 func New(cfg Config) (*Backend, error) {
+	// First, before the daemon is asked anything: an empty instance would
+	// make this backend's List return every container that also carries no
+	// instance label, which is every sandbox made before the label existed.
+	if err := backend.ValidateInstance(cfg.Instance); err != nil {
+		return nil, fmt.Errorf("dockerbe: Config.Instance: %w", err)
+	}
 	bindIP := cfg.BindIP
 	if bindIP == "" {
 		bindIP = loopbackIPv4
@@ -133,7 +153,14 @@ func New(cfg Config) (*Backend, error) {
 		}
 		return nil, fmt.Errorf("dockerbe: no Docker daemon answered — start Docker Desktop, or set PANACEA_APP_DOCKER_HOST: %v: %w", err, backend.ErrUnavailable)
 	}
-	return &Backend{api: api, bindIP: bindIP, readyTimeout: readyTimeout, log: logger}, nil
+	return &Backend{
+		api:          api,
+		bindIP:       bindIP,
+		readyTimeout: readyTimeout,
+		instance:     cfg.Instance,
+		log:          logger,
+		legacy:       make(map[string]bool),
+	}, nil
 }
 
 func (b *Backend) Kind() backend.Kind { return backend.KindDocker }
@@ -177,7 +204,7 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 
 	cfg := &container.Config{
 		Image:        spec.Image,
-		Labels:       containerLabels(spec),
+		Labels:       containerLabels(spec, b.instance),
 		Env:          env,
 		ExposedPorts: nat.PortSet{attachPort: struct{}{}},
 		WorkingDir:   spec.WorkDir,
@@ -252,9 +279,10 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 // deliberately absent: a label is readable by anything that can reach the
 // Docker socket and is echoed into `docker inspect` output that ends up in bug
 // reports.
-func containerLabels(spec backend.Spec) map[string]string {
+func containerLabels(spec backend.Spec, instance string) map[string]string {
 	return map[string]string{
 		backend.LabelManaged:   "true",
+		backend.LabelInstance:  instance,
 		backend.LabelSandboxID: spec.ID,
 		backend.LabelSessionID: spec.SessionID,
 		backend.LabelCreatedAt: time.Now().UTC().Format(time.RFC3339),
@@ -347,6 +375,7 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 		Kind:      backend.KindDocker,
 		Ref:       resp.ID,
 		Endpoint:  endpoint,
+		Instance:  labels[backend.LabelInstance],
 		State:     stateFrom(status),
 		CreatedAt: parseCreated(resp.Created, labels),
 		Labels:    labels,
@@ -368,6 +397,23 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 // security signal is carried in its own field rather than encoded as a status
 // the container does not have. Get and Attach on the same id still refuse
 // loudly with ErrNonLoopbackPublish.
+//
+// OURS MEANS THIS INSTANCE'S. The daemon is asked for every managed container,
+// and only those whose backend.LabelInstance is this backend's own are
+// returned. Two kinds are left out, and neither reaches the reaper:
+//
+//   - Another instance's container: another control plane on this daemon owns
+//     it, and its own List and reaper look after it. Silent, because on a
+//     shared host this is the normal case.
+//   - A managed container with no instance label: made before per-instance
+//     ownership existed, so no control plane can prove it is its own, and
+//     nothing will ever destroy it automatically. Warned about once per
+//     container, because a person has to decide what to do with it.
+//
+// The instance is matched here rather than in the daemon's filter so that the
+// second kind is seen at all: a label filter on the instance would make a
+// legacy container invisible, and an invisible container is one nobody is
+// ever told about.
 func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	opts := container.ListOptions{
 		All:     true, // include exited containers; the reaper needs to see them
@@ -377,8 +423,17 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	if err != nil {
 		return nil, fmt.Errorf("dockerbe: list: %v: %w", err, backend.ErrUnavailable)
 	}
+	b.forgetLegacy(summaries)
 	out := make([]backend.Sandbox, 0, len(summaries))
 	for _, s := range summaries {
+		owner := s.Labels[backend.LabelInstance]
+		if owner == "" {
+			b.warnLegacy(s)
+			continue
+		}
+		if owner != b.instance {
+			continue // another control plane's
+		}
 		id := s.Labels[backend.LabelSandboxID]
 		if id == "" {
 			continue // managed-looking but not ours to manage
@@ -404,12 +459,48 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 			Ref:         s.ID,
 			Endpoint:    endpoint,
 			NonLoopback: nonLoopback,
+			Instance:    owner,
 			State:       stateFrom(s.State),
 			CreatedAt:   createdFromUnix(s.Created, s.Labels),
 			Labels:      s.Labels,
 		})
 	}
 	return out, nil
+}
+
+// warnLegacy writes List's one line about a managed container with no instance
+// label, the first time List sees that container.
+func (b *Backend) warnLegacy(s container.Summary) {
+	b.legacyMu.Lock()
+	seen := b.legacy[s.ID]
+	b.legacy[s.ID] = true
+	b.legacyMu.Unlock()
+	if seen {
+		return
+	}
+	b.log.Warn("a foreign sandbox is on this Docker daemon: it is managed but carries no "+backend.LabelInstance+
+		" label, so it was made before per-instance ownership and this control plane neither lists nor destroys it; remove it by hand once its owner is known",
+		"container", s.ID, "names", s.Names, "sandbox", s.Labels[backend.LabelSandboxID])
+}
+
+// forgetLegacy drops the warned-once mark of every container that is no longer
+// on the daemon, so the set is the size of what is there and not of everything
+// that ever was.
+func (b *Backend) forgetLegacy(summaries []container.Summary) {
+	b.legacyMu.Lock()
+	defer b.legacyMu.Unlock()
+	if len(b.legacy) == 0 {
+		return
+	}
+	present := make(map[string]bool, len(summaries))
+	for _, s := range summaries {
+		present[s.ID] = true
+	}
+	for id := range b.legacy {
+		if !present[id] {
+			delete(b.legacy, id)
+		}
+	}
 }
 
 func (b *Backend) Attach(ctx context.Context, id, token string) (*websocket.Conn, error) {

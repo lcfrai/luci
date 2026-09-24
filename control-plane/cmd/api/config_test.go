@@ -42,6 +42,7 @@ func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {
 		{"LogLevel", cfg.LogLevel, slog.LevelInfo},
 		{"SessionsPath", cfg.SessionsPath, filepath.Join(dir, "sessions", "sessions.json")},
 		{"ConversationsDir", cfg.ConversationsDir, filepath.Join(dir, "conversations")},
+		{"InstancePath", cfg.InstancePath, filepath.Join(dir, "instance", "instance-id")},
 	} {
 		if c.got != c.want {
 			t.Errorf("Config.%s = %v, want %v", c.name, c.got, c.want)
@@ -55,6 +56,31 @@ func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {
 	}
 	if cfg.AllowPublicBind || cfg.HarnessAllowUnverified {
 		t.Error("an unset boolean must be false")
+	}
+}
+
+// The instance id is ownership of what the registry beside it records, so the
+// two must sit in the same state directory on BOTH branches of the ladder: an
+// id resolved from one directory and a registry from another would give a
+// restart the right sessions and the wrong sandboxes. The empty environment
+// takes the statepath ladder; nothing here writes to either path.
+func TestTheInstanceIDLivesInTheSameStateDirectoryAsTheRegistry(t *testing.T) {
+	t.Parallel()
+	for name, m := range map[string]map[string]string{
+		"PANACEA_APP_STATE_DIR set": {"PANACEA_APP_STATE_DIR": t.TempDir()},
+		"the statepath ladder":      {},
+	} {
+		cfg, err := loadConfig(env(m))
+		if err != nil {
+			t.Fatalf("%s: loadConfig: %v", name, err)
+		}
+		if filepath.Base(cfg.InstancePath) != "instance-id" || filepath.Base(filepath.Dir(cfg.InstancePath)) != "instance" {
+			t.Errorf("%s: InstancePath = %q, want instance/instance-id, the same on both branches", name, cfg.InstancePath)
+		}
+		root := filepath.Dir(filepath.Dir(cfg.SessionsPath))
+		if got := filepath.Dir(filepath.Dir(cfg.InstancePath)); got != root {
+			t.Errorf("%s: InstancePath %q is under %q, want the registry's state directory %q", name, cfg.InstancePath, got, root)
+		}
 	}
 }
 

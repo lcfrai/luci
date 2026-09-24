@@ -152,6 +152,18 @@ type Config struct {
 	// backend.Create.
 	CreateGrace time.Duration
 
+	// Instance is this control plane's instance id (internal/instance), and
+	// the two rules that destroy a sandbox the registry did not ask them to —
+	// rule 1a and rule 4 — act only on a sandbox whose Instance equals it.
+	// Everything else on the daemon is foreign: another control plane's, or a
+	// legacy one from before the label, and either way not ours to judge.
+	//
+	// Empty means this reaper owns NOTHING, not everything. Read the other way,
+	// "" == "" would make every legacy sandbox on the daemon ours. cmd/api
+	// always sets it; a reaper without it still derives status and idleness,
+	// which touch only records this registry holds.
+	Instance string
+
 	Now func() time.Time
 	Log *slog.Logger
 }
@@ -165,12 +177,19 @@ type Reaper struct {
 	idleTimeout time.Duration
 	interval    time.Duration
 	createGrace time.Duration
+	instance    string
 	now         func() time.Time
 	log         *slog.Logger
 
 	mu       sync.RWMutex
 	ready    bool
 	reported bool
+
+	// foreign is every sandbox Ref already logged as not ours, so the line
+	// is written once per sandbox and not once per sweep. Only Sweep touches
+	// it, and Sweep is never run concurrently with itself (Run is one loop;
+	// tests call it serially), so it needs no lock.
+	foreign map[string]bool
 }
 
 func New(cfg Config) *Reaper {
@@ -181,8 +200,10 @@ func New(cfg Config) *Reaper {
 		idleTimeout: cfg.IdleTimeout,
 		interval:    cfg.Interval,
 		createGrace: cfg.CreateGrace,
+		instance:    cfg.Instance,
 		now:         cfg.Now,
 		log:         cfg.Log,
+		foreign:     make(map[string]bool),
 	}
 	if r.now == nil {
 		r.now = time.Now
@@ -203,7 +224,54 @@ func New(cfg Config) *Reaper {
 	if r.createGrace <= 0 {
 		r.createGrace = CreateGraceFor(backend.ReadyTimeout)
 	}
+	if r.instance == "" {
+		r.log.Warn("the reaper has no instance id, so it owns no sandbox: orphans and LAN-published sandboxes are left where they are")
+	}
 	return r
+}
+
+// owns reports whether rule 1a or rule 4 may destroy sb, and logs a sandbox it
+// may not, once. The comparison is against a non-empty instance only: an empty
+// one owns nothing (Config.Instance), and that is what stops "" == "" handing
+// this control plane every legacy sandbox on the daemon.
+func (r *Reaper) owns(sb backend.Sandbox) bool {
+	if r.instance != "" && sb.Instance == r.instance {
+		return true
+	}
+	if r.instance == "" || r.foreign[sb.Ref] {
+		return false // New has already said why; or this one is already logged
+	}
+	r.foreign[sb.Ref] = true
+	if sb.Instance == "" {
+		// Warn, because nothing will ever collect it: its owner is unknowable
+		// from here, so a person has to decide.
+		r.log.Warn("sparing a foreign sandbox: it carries no "+backend.LabelInstance+" label, so it predates per-instance ownership and no control plane can prove it is its own; it is never destroyed automatically",
+			"sandbox", sb.ID, "ref", sb.Ref)
+		return false
+	}
+	// Debug: on a shared daemon another control plane's sandboxes are the
+	// normal case, and its own reaper is what looks after them.
+	r.log.Debug("sparing a foreign sandbox: another control plane owns it",
+		"sandbox", sb.ID, "ref", sb.Ref, "owner", sb.Instance)
+	return false
+}
+
+// forgetForeign drops the logged-once mark of every foreign sandbox that is no
+// longer on the daemon, so the set stays the size of what is live rather than
+// growing with every sandbox another control plane ever made.
+func (r *Reaper) forgetForeign(live []backend.Sandbox) {
+	if len(r.foreign) == 0 {
+		return
+	}
+	present := make(map[string]bool, len(live))
+	for _, sb := range live {
+		present[sb.Ref] = true
+	}
+	for ref := range r.foreign {
+		if !present[ref] {
+			delete(r.foreign, ref)
+		}
+	}
 }
 
 // BackendReady is what task 10's GET /v1/healthz reports. It is the result of
@@ -291,14 +359,21 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 	// right invariant for a rule added later, and it costs a map.
 	gone := make(map[string]bool)
 	now := r.now()
+	r.forgetForeign(live)
 
 	// Rule 1a, task 5's amendment to contract §2.4: a sandbox reported with
 	// NonLoopback is published where the LAN can reach it. It is destroyed
 	// first, before any rule can decide it is merely running, and it is NOT
 	// given the create grace the other two destructive rules get — a sandbox on
 	// the LAN is a defect whether or not its session has finished starting.
+	//
+	// Ours only (Config.Instance). Another control plane's exposed sandbox is
+	// its reaper's to destroy, and a legacy one is nobody's we can name.
 	for _, sb := range live {
 		if !sb.NonLoopback {
+			continue
+		}
+		if !r.owns(sb) {
 			continue
 		}
 		sess, known := tracked[sb.ID]
@@ -382,6 +457,12 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		if sb.NonLoopback {
 			continue
 		}
+		// "Ours" means THIS control plane's, not merely a Panacea one's.
+		// LabelManaged alone made every other control plane's live sandboxes
+		// orphans here, because this registry has no record of them.
+		if !r.owns(sb) {
+			continue
+		}
 		id := sb.Labels[backend.LabelSandboxID]
 		if id != "" {
 			if _, known := tracked[id]; known {
@@ -403,7 +484,8 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		if id == "" {
 			// Ours and unmappable. Docker labels are immutable, so this cannot
 			// be a sandbox that lost its label; it is one created by a build
-			// that set LabelManaged and nothing else.
+			// that stamped this instance's id and no sandbox id — owns() above
+			// has already established the first.
 			why = "managed sandbox carries no " + backend.LabelSandboxID + " label"
 		}
 		gone[sb.ID] = r.destroyOrphan(ctx, sb, why)
