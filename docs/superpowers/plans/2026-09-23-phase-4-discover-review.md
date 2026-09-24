@@ -1582,3 +1582,27 @@ versus `Ctrl+Enter`. The question now covers the follow-up field too.
   re-mount's effect), not run. The `the host count survives a remount` test is what will prove it.
 - The fallback's placement below `NewSessionButton`, and whether `TopBar` has room for it, go to
   the batched visual pass (`OD-12`).
+
+## Fix batch b08 (2026-09-24): M1, M3, M4, M5, M12
+
+Commits `ba1e394` (M1, M3) and `9332f7f` (M5, M12). M4 needed no change. Every line was re-read at
+this branch's `HEAD` (phase 2 merged at `9c2c710`, via `f5443b3`), at the plan's base `3303fd6`,
+at `beb02c1`, and at phase 2's tip `2cce576`, which now contains `beb02c1`.
+
+| Finding | What changed | Where |
+|---|---|---|
+| M1, chmod | `filestore.go:485` → `:488` for the chmod. `:462` is kept and now says it is the `MkdirAll`. Both are the same in all four trees | `task-01.md:10-11` |
+| M1, listener | The review's `:166` is right only at `3303fd6`. The listener is `:169` at `9c2c710` (what this branch has) and `:240` at `2cce576`: `beb02c1` and later commits (`2b62003`, `02338c0`, `7e9ec23`) keep moving it. The row gives all three and names the call, `window.addEventListener("keydown", onKeyDown)`, to search for | `plan.md:461` |
+| M1, `project.go` | **Not applied: the review is wrong on the facts.** `func (s *Scanner) ProjectName` is at `:172` and `BranchName` at `:175` in all four trees. `:171` is a comment line. The plan's `:172`/`:175` stand | `plan.md:451`, unchanged |
+| M3 | The file map now says `statepath/atomic.go` + `atomic_test.go`, two new files in phase 2's package, with `statepath.go` unchanged. These are task 01's names, and also phase 3's (`phase-3 task-03.md:19`), so whichever phase lifts first leaves the file the other expects. The registry row says the test file is deleted | `plan.md:330-331` |
+| M4 | **Already fixed** by `fc44b31` (review I14, batch b06). S4-P3.4 gives `func(briefKey string, c discover.Criterion) (CriterionState, string)`, the same as `task-06.md:158`. Phase 3's plan does not name `provenance.Evaluate` anywhere (grep of its plan and parts), so it has no copy to drift | `plan.md:470`, unchanged |
+| M5 | C14 now lists six resolutions, adding `unavailable`. It says the Hub's own four (`hub-contract.md:822-827` at hub `2f84662`; the same at `feat/hub` `e77a7ee`) and the control plane's two, `none` and `unavailable`. It reconciles them with the desktop's states: provenance contract §4.1's six (`provenance-contract-draft.md:338-348`), plus `erased` as the seventh (`hub-contract.md:832`), plus `declined`, split out of `none`, which gives task 16's eight (`task-16.md:161-163`). Restatements checked: `plan.md:164`, `task-06.md:64-76`, `task-07.md:165` (the Hub's four), `task-15.md:91`, `task-17.md:21`, `task-22.md:50`. All agree, so none changed | `plan.md:37` |
+| M12 | P4-D cites *How Claude remembers your project*, `https://code.claude.com/docs/en/memory`. **Fetched and read this session** (the network worked): its table says project instructions live in "`./CLAUDE.md` or `./.claude/CLAUDE.md`". This is the docs for today's CLI, so the pinned version stays **unverified** and canary O2 stays. The unverified list says the same | `plan.md:174`, `:558-563` |
+| M12, new finding | The same page says that, from v2.1.277 and by default, a `CLAUDE.md` or `.claude/CLAUDE.md` in the working directory makes Claude read it *instead of* `AGENTS.md`. The Materialiser's file would therefore displace a repository's own agent instructions. Recorded, not designed, because it changes the golden render, `Merge`, `Strip` and `Inspect` (tasks 05 and 09). It is **OQ-10**, whose recommendation is an `@AGENTS.md` import (not yet built). Canary O6 was added, and the `O1–O5` restatements became `O1–O6` | `plan.md:543`; `task-23.md:121`, `:125`, `:128` |
+
+**Deferred:** OQ-10's design change to tasks 05 and 09 needs its own batch. It is not a Minor
+consistency fix. The review's own `O1–O5` (`:36`) is left as written, because it describes the
+plan as reviewed.
+
+**Still unverified:** the pinned CLI was not run. O2 and O6 are the owner's (`OD-12`). The docs page
+is what the vendor says today, not a test.
