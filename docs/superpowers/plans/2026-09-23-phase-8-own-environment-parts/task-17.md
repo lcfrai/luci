@@ -47,6 +47,8 @@ the edge's pods, on 8080), and it refuses every request that is not authenticate
 | `PANACEA_APP_BROKER_MACHINE_STORAGE_CLASS` | `panacea-machine-disk` | task 11 |
 | `PANACEA_APP_BROKER_MACHINE_AFFINITY` | `true` | `sandbox.Config.MachineAffinity` (task 15); `false` only with RWX storage |
 | `PANACEA_APP_BROKER_MACHINE_IDLE_SLEEP` | `30m` | a machine with no session pods for this long is put to sleep (task 19); `0` disables |
+| `PANACEA_APP_BROKER_LEASE_NAMESPACE` | — **required** unless `MACHINE_IDLE_SLEEP` is `0` | the namespace of the sleeper's `Lease` `broker-sleeper`: the broker's own, which task 29 sets from the downward API `metadata.namespace` (task 19, review m11) |
+| `PANACEA_APP_BROKER_POD_NAME` | — **required** unless `MACHINE_IDLE_SLEEP` is `0` | the Lease holder's identity, one per replica: the downward API `metadata.name` (task 29) |
 | `PANACEA_APP_BROKER_READY_TIMEOUT` | `120s` | a pod's time to answer `/healthz` (Kata cold start) |
 | `PANACEA_APP_BROKER_UNSCHEDULABLE_GRACE` | `5s` | how long a new session pod may stay `Unschedulable` with no preemption under way before the broker deletes it and answers `409 machine_full` (task 18, review I5); used only when `MACHINE_AFFINITY` is `true` (b05 re-review 3); must be below `READY_TIMEOUT` |
 | `PANACEA_APP_BROKER_SHUTDOWN_GRACE` | `20s` | drain time on SIGTERM |
@@ -164,7 +166,10 @@ refused — kills OD-8's pin defeated by a tag); `TestDefaultsAreTheDocumentedOn
 in the table — kills drift between this part and the code); `TestAPlaintextAuthorityIsRefusedOffLoopback`;
 `TestUnschedulableGraceMustBeBelowTheReadyTimeout` (`UNSCHEDULABLE_GRACE=120s` with the default
 `READY_TIMEOUT` exits 2 naming both — kills a full machine reported as `not_ready` after two
-minutes, review I5).
+minutes, review I5); `TestTheLeaseVariablesAreRequiredOnlyWhenTheSleeperRuns` (with the default
+`MACHINE_IDLE_SLEEP`, a missing `LEASE_NAMESPACE` or `POD_NAME` exits 2 naming it; with `0`, neither
+is asked for — kills a sleeper that starts with no Lease identity and so runs on both replicas,
+review m11).
 
 `server_test.go` (an `httptest.Server`, a fake clientset, an `entra.Validator` against a test JWKS
 server as in task 16):

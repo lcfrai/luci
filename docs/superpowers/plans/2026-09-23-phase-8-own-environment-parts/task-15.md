@@ -79,9 +79,11 @@ type VolumeMount struct {
 //	// fallback task 32 may select.
 //	MachineAffinity bool
 
-// MachineClaimName is the PersistentVolumeClaim holding machine id's disk.
-// Task 19 creates it; this task only references it.
-func MachineClaimName(machineID string) string { return "machine-" + machineID }
+// MachineClaimName is the PersistentVolumeClaim holding machine id's disk:
+// "machine-<owner[:8]>-<id>", the owner prefix task 14 gives sandbox names
+// (review m12). Task 19 creates it; this task only references it. owner comes
+// from OwnerLabelValue; it panics on "", as WithOwner does.
+func MachineClaimName(owner, machineID string) string
 
 // Labels this task adds to backend's set:
 //   backend.KubeLabelMachineID = "panacea-app/machine-id"  (session pods and, task 19, machine pods)
@@ -90,12 +92,17 @@ func MachineClaimName(machineID string) string { return "machine-" + machineID }
 #### The pod, when `Spec.Machine` is set
 
 - label `panacea-app/machine-id: <machine>`;
-- volume `machine`: `persistentVolumeClaim.claimName: MachineClaimName(machine)`;
+- volume `machine`: `persistentVolumeClaim.claimName: MachineClaimName(owner, machine)`, where
+  `owner` is the view's (`WithOwner`, task 14). An unscoped Manager given `Spec.Machine` refuses
+  the create with an error naming the missing owner: a machine volume exists only in an owner
+  view;
 - one `volumeMount` per `MachineMounts` entry: `name: machine`, `subPath`, `mountPath`,
   `readOnly`;
 - `containers[0].workingDir: Spec.WorkDir` when set;
 - when `Config.MachineAffinity`: `affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution`
-  = one term, `labelSelector` `{panacea-app/component: machine, panacea-app/machine-id: <machine>}`,
+  = one term, `labelSelector` `{panacea-app/component: machine, panacea-app/machine-id: <machine>,
+  panacea-app/owner: <owner>}` (the owner too, so two owners whose ids match never share a node,
+  review m12),
   `topologyKey: kubernetes.io/hostname`.
   The consequence (review I5): a machine is capped at what is free on its machine pod's node,
   about three default sessions on `Standard_D8s_v5` (P8-D6). Past that the session is
@@ -140,10 +147,10 @@ an empty directory).
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestMachineSpecMountsTheMachineClaim` | a volume `machine` with `claimName == "machine-m-0123abcd"` | the wrong claim — another machine's disk |
+| `TestMachineSpecMountsTheMachineClaim` | in an owner view, a volume `machine` with `claimName == "machine-" + owner[:8] + "-m-0123abcd"`; an unscoped Manager with `Spec.Machine` set refuses the create (review m12) | the wrong claim — another machine's disk, or another owner's disk with the same id |
 | `TestMachineMountsAreSubPaths` | each mount has `subPath == MachinePath`, `mountPath == ContainerPath`, `readOnly` carried | the whole disk mounted at `/home/dev/work` (every project visible to every session) |
 | `TestWorkDirBecomesTheWorkingDirectory` | `workingDir == "/home/dev/work"` | the agent starting in the image default (`/home/dev`) |
-| `TestSessionIsCoLocatedWithItsMachine` | `MachineAffinity: true` → one required term with the two-label selector and `kubernetes.io/hostname` | preferred (not required) affinity — a pod scheduled where the disk cannot attach, stuck in ContainerCreating |
+| `TestSessionIsCoLocatedWithItsMachine` | `MachineAffinity: true` → one required term with the three-label selector (component, machine id, owner) and `kubernetes.io/hostname` | preferred (not required) affinity — a pod scheduled where the disk cannot attach, stuck in ContainerCreating |
 | `TestNoAffinityForSharedStorage` | `MachineAffinity: false` → no affinity | the NFS fallback unable to spread sessions |
 | `TestNoMachineMeansNoMachineVolume` | `Machine: ""` → no `machine` volume, no affinity, no machine label | a local-style spec referencing a claim that does not exist |
 | `TestCredentialsStayOffTheDisk` | with machine mounts, `/home/dev` is still the `home` emptyDir and no mount targets `/home/dev/.claude` itself | `/login` credentials persisted beside transcripts |

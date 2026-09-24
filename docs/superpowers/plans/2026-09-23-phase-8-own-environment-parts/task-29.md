@@ -63,7 +63,10 @@ and nothing else; `priorityClassName: panacea-platform-critical`; `nodeSelector`
 restricted `securityContext` (non-root 65532, read-only root, drop ALL, `RuntimeDefault`);
 `automountServiceAccountToken: true` — **the broker is the one pod that needs its token** — on a
 service account `broker` with **no** workload-identity label (it touches no Azure API, task 10);
-liveness `/healthz`, readiness `/readyz`; `terminationGracePeriodSeconds: 30`.
+liveness `/healthz`, readiness `/readyz`; `terminationGracePeriodSeconds: 30`. Two variables come
+from the downward API, not from values: `PANACEA_APP_BROKER_LEASE_NAMESPACE` from
+`metadata.namespace` and `PANACEA_APP_BROKER_POD_NAME` from `metadata.name` (the sleeper's Lease,
+task 19, review m11).
 
 **`rbac.yaml`** — a `Role` in `panacea-sandboxes` (never a `ClusterRole`), bound to
 `panacea-broker/broker`:
@@ -78,6 +81,24 @@ liveness `/healthz`, readiness `/readyz`; `terminationGracePeriodSeconds: 30`.
 **Not granted, and tested as absent:** `pods/exec`, `pods/attach`, `pods/portforward` (P8-D7:
 nothing uses exec), anything on `nodes`, `namespaces`, `serviceaccounts`, `roles`, `rolebindings`,
 and `list`/`watch` on `secrets` (the broker reads a machine's token Secret by name only).
+
+**A second `Role`, `broker-lease`, in `panacea-broker`** (the broker's own namespace), bound to the
+same service account, for the sleeper's Lease (task 19, review m11):
+
+| API group | Resources | resourceNames | Verbs |
+|---|---|---|---|
+| `coordination.k8s.io` | `leases` | — | `create` |
+| `coordination.k8s.io` | `leases` | `broker-sleeper` | `get`, `update` |
+
+`create` cannot be narrowed by name (Kubernetes RBAC does not apply `resourceNames` to `create`),
+so it is its own rule; `get` and `update` reach only the one Lease. No `delete`, `list`, `watch` or
+`patch`. It sits in `panacea-broker`, not in the sandbox Role, because the Lease is the broker's
+coordination and not a sandbox object: the sandbox Role keeps its four rules exactly, and nothing
+the broker can write in `panacea-sandboxes` grows. It needs no new grant for the cluster
+identity: that identity is RBAC Admin in `panacea-broker` (task 30's `RBAC_ADMIN_NAMESPACES`),
+which covers `leases` and `roles` there, so the RBAC escalation check passes without `escalate`
+(training knowledge of the built-in role's data actions, **UNVERIFIED**; the broker release's
+install in task 31 §7a proves it), and `sandboxes-deployer.json` is unchanged.
 
 **`networkpolicy.yaml`** (in `panacea-broker`, on top of task 11's default-deny): ingress from the
 Traefik pods in `panacea-edge` on 8080 (the peer is namespace `panacea-edge` **and** Traefik's pod
@@ -249,6 +270,7 @@ with it.
 | Suite / test | Asserts | Mutant it kills |
 |---|---|---|
 | `broker / rbac is a namespaced Role` | kind `Role`, namespace `panacea-sandboxes`, the four rules exactly | a `ClusterRole` — the broker able to create pods in `kube-system` |
+| `broker / the lease role is narrow and in the broker's namespace` | `Role/broker-lease` in `panacea-broker`; exactly the two rules above (`create` alone; `get`, `update` on `resourceNames: [broker-sleeper]`); no `delete`, `list`, `watch`, `patch`; no rule on `leases` in the `panacea-sandboxes` Role; the Deployment sets `PANACEA_APP_BROKER_LEASE_NAMESPACE` and `_POD_NAME` from `fieldRef` `metadata.namespace` / `metadata.name` (review m11) | a `leases` grant on every name, or one in `panacea-sandboxes`; a sleeper with no Lease identity, which runs on both replicas |
 | `broker / no exec, no attach, no portforward` | no rule names `pods/exec`, `pods/attach`, `pods/portforward` | P8-D7 undone by a convenience grant |
 | `broker / secrets are get-by-name only` | the secrets rule has no `list` or `watch` | a broker that can enumerate every machine token |
 | `broker / images are digests` | `image: x:latest` → render fails (schema) | a mutable broker |

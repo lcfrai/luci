@@ -133,7 +133,12 @@ beside its machine pod → `Machine` present, and the machine **exists for this 
 malformed `ControlPlane` is `bad_request` naming the field, review I6) → `katabe.New(Config{Manager: base,
 Owner: owner, ReadyTimeout})` → `Create` under a context that `watchUnschedulable` (below) may
 cancel, **armed only when `Cfg.MachineAffinity` is true** → on failure, **delete the pod this
-request created** (below) → answer in the order below, mapping errors by `errors.Is` (never by
+request created** (below) → on success, **re-count** the owner's session pods by consistent read
+(no `resourceVersion`, never an informer cache; pods with a `deletionTimestamp` not counted): over
+`MAX_SANDBOXES_PER_USER` → delete this request's pod and answer 429 `quota_exceeded`. The count
+before the create is only the cheap early refusal: two replicas (task 29) can both pass it, and
+the re-count is what keeps the owner at or under the cap (both racers may roll back, which fails
+closed; task 19 applies the same rule to machines, review m11) → answer in the order below, mapping errors by `errors.Is` (never by
 string, as the control plane does).
 
 **A full machine is refused in seconds, and no failed create leaves a pod (review I5).** Task 15's
@@ -165,7 +170,9 @@ will ever use the pod.
   warm capacity while the pool is below `max_count`. So without the affinity the create keeps
   the `READY_TIMEOUT` path, which now deletes its pod, and `machine_full` is never answered.
 - **Then** the broker counts the machine's other session pods (labels `panacea-app/component:
-  sandbox`, `panacea-app/machine-id: <machine>`, not terminating, and not this request's own pod,
+  sandbox`, `panacea-app/machine-id: <machine>`, `panacea-app/owner: <owner>` — a machine id is
+  unique per owner only, since task 19's names carry the owner (review m12) — not terminating, and
+  not this request's own pod,
   which it excludes by name because the count runs **before** `deleteIfOurs`), then deletes, then
   answers `409 machine_full`
   with `details.sessionsPerMachine` = that count as a decimal string, and a message naming it.
@@ -250,10 +257,11 @@ var (
 func watchUnschedulable(ctx context.Context, pods corev1client.PodInterface, name string,
 	grace time.Duration, cancel context.CancelFunc) (stop func() (fired bool))
 
-// machineSessions counts the non-terminating session pods of machine
-// (component=sandbox, machine-id=machine) in the broker's namespace, except
-// the pod named except (this request's own: the count runs before its delete).
-func machineSessions(ctx context.Context, pods corev1client.PodInterface, machine, except string) (int, error)
+// machineSessions counts the non-terminating session pods of owner's machine
+// (component=sandbox, machine-id=machine, owner=owner) in the broker's
+// namespace, except the pod named except (this request's own: the count runs
+// before its delete).
+func machineSessions(ctx context.Context, pods corev1client.PodInterface, owner, machine, except string) (int, error)
 
 // deleteIfOurs deletes pod name only if its backend.EnvToken env value equals
 // token (constant-time), with a UID precondition. A missing pod or another
@@ -277,7 +285,8 @@ sandboxd stand-in (the pattern `katabe/kata_test.go`'s `runningSandbox` already 
 | `TestCreateRefusesAHostMountField` | a body with `"mounts": [...]` → 400 `invalid_json` (unknown field) | host paths smuggled through |
 | `TestCreateNeedsAnAwakeOwnedMachine` | checker says not found → 404 `machine_not_found`; asleep → 409 `machine_asleep`; no pod either way | a session pod that can never schedule (no machine pod to be near) |
 | `TestCreateEnforcesThePerUserCap` | owner at 8 pods → 429 `quota_exceeded`, `details.limit = "8"`; another owner at 0 → 201 | a cap counted across all owners |
-| `TestAFullMachineIs409MachineFullInSeconds` | affinity on; three running session pods of this owner on machine `m-1`, and beside them, none of which may count (b05 re-review 7): a session pod of this owner on `m-2`, another owner's session pod on its machine `m-3` (machine ids are namespace-unique, task 19, so that owner cannot hold an `m-1`), the `m-1` machine pod itself (component `machine`), and a terminating session pod on `m-1`; the reactor marks the new pod `PodScheduled=False/Unschedulable`, no nomination, never Running; grace 50 ms, `READY_TIMEOUT` 5 s → 409 `machine_full`, `details.sessionsPerMachine = "3"`, answered in under 1 s, and the new pod is gone; a `delete pods` reactor records the one delete of the new pod, whose `DeleteOptions.Preconditions.UID` equals that pod's UID (review I5; b05 re-review 1) | the two-minute hang and generic 503; a Pending pod left holding the owner's cap |
+| `TestTwoReplicasNeverTakeAnOwnerPastTheCap` | owner at 7 pods; two broker servers on **one** fake clientset each create a session, with a `PrependReactor` on pod `create` holding both at a barrier until both have made the early count → at most one 201, the other 429; afterwards the owner has at most 8 non-terminating session pods, and a rolled-back request's pod is deleted by UID (review m11) | a count-then-create cap, which two replicas overrun together |
+| `TestAFullMachineIs409MachineFullInSeconds` | affinity on; three running session pods of this owner on machine `m-1`, and beside them, none of which may count (b05 re-review 7): a session pod of this owner on `m-2`, another owner's session pod on its machine `m-3`, a third owner's session pod on **its own** `m-1` (machine ids are unique per owner only, since task 19's names carry the owner, review m12), the `m-1` machine pod itself (component `machine`), and a terminating session pod on `m-1`; the reactor marks the new pod `PodScheduled=False/Unschedulable`, no nomination, never Running; grace 50 ms, `READY_TIMEOUT` 5 s → 409 `machine_full`, `details.sessionsPerMachine = "3"`, answered in under 1 s, and the new pod is gone; a `delete pods` reactor records the one delete of the new pod, whose `DeleteOptions.Preconditions.UID` equals that pod's UID (review I5; b05 re-review 1) | the two-minute hang and generic 503; a Pending pod left holding the owner's cap |
 | `TestABriefUnschedulableIsNotFull` | the new pod is `Unschedulable` with no nomination for 20 ms (grace 200 ms), then Running → 201, the pod kept | a watcher that fires on the first `Unschedulable` event and ignores the grace, refusing a session whose room was freeing up (a terminating pod on the node) |
 | `TestPreemptionUnderWayIsNotFull` | the new pod is `Unschedulable` **with** `nominatedNodeName` set for 200 ms (grace 50 ms), then Running → 201 | a refusal every time a session preempts a balloon, which is the warm path task 12 builds |
 | `TestAReadyTimeoutDeletesThePod` | the pod stays Pending with no scheduling condition; `READY_TIMEOUT` 400 ms → 503 `backend_unavailable`, `details.reason = "not_ready"`, and the pod is gone | katabe's keep-the-pod rule carried into the broker, where the pod is an orphan counting against the cap |
@@ -330,8 +339,9 @@ the key).
   (delete by name) → `TestAnAdmissionRefusalNeverDeletesTheRunningSession`; arm
   `watchUnschedulable` whatever `Cfg.MachineAffinity` is →
   `TestWithoutAffinityUnschedulableWaitsForTheTimeout`; `machineSessions` without the
-  `machine-id` selector, without the `component: sandbox` selector (the machine pod counts), or
-  without the terminating filter, each → `TestAFullMachineIs409MachineFullInSeconds` (the count leaves `"3"`);
+  `machine-id` selector, without the `owner` selector (the third owner's `m-1` pod counts),
+  without the `component: sandbox` selector (the machine pod counts), or without the terminating
+  filter, each → `TestAFullMachineIs409MachineFullInSeconds` (the count leaves `"3"`);
   the default `MAX_CPU_MILLIS` back to `8000` → `TestCreateRefusesOversizedResources`; the size
   taken from `backend.DefaultResources` instead of `Cfg` → `TestZeroResourcesTakeTheBrokersDefault`.
   The two named as likeliest to survive, and closed: `deleteIfOurs` without the UID precondition

@@ -558,7 +558,7 @@ first.
 | 16 | `internal/entra`: Entra access-token validation (HA-1) | — | 2.5 |
 | 17 | `cmd/broker`: config, listener, authentication, health, problems | 16 | 2 |
 | 18 | Broker sandboxes: the `backend.Backend` surface over HTTP and the attach relay, owner-scoped; each sandbox labelled with its creator's install id (review I6) | 15, 17 | 3.5 |
-| 19 | Broker machines: disk + machine pod + token, ensure-default, wake, sleep, delete, the idle sleeper, the agent proxy | 18 | 3 |
+| 19 | Broker machines: disk + machine pod + token, ensure-default, wake, sleep, delete, the idle sleeper, the agent proxy; owner-prefixed names, a derived default id, re-counted caps and the sleeper's Lease, so two replicas never race (review m11, m12) | 18 | 4 |
 
 ### Group E — the machine agent
 
