@@ -756,7 +756,7 @@ The rail stays navigation only: project → branch → worktree → session, nam
 
 | Surface | Scope | What it holds | New? |
 |---|---|---|---|
-| **The Desk** | the account, above projects | issues only when they need you, in the Desk's existing sections (§4.2) | Desk designed, **not built** (§5.4) |
+| **The Desk** | the account, above projects | issues only when they need you, in the Desk's existing sections (§4.2) | Desk designed, **not built** (§5.6) |
 | **Work** (project surface) | one project | Triage, Backlog, the current cycle, the features board, initiatives, saved views, *My issues* | new |
 | **Work lens** | one feature (its branch) | its issues, **the brief's criteria with the issues that serve each**, who is on each issue now | new; `Lens` gains `"work"`, the seventh lens |
 | **Issue view** | one issue | head, revision history, `serves`, relations, comments, the live agent line, proposed evidence, *shipped to* | new |
