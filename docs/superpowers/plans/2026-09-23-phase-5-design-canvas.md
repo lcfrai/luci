@@ -523,6 +523,7 @@ phase 5 does until it is answered.
 | **OQ-P5-3** | Tool names that follow Paper's public verbs (`write_html`, `update_styles` …) — spec OQ-5 | **Yes for the verbs, no for the brand** (G6). A short legal confirmation is cheap; this is not legal advice | task 14's registry renames |
 | **OQ-P5-4** | Is v1 one human with many agents, and cross-person co-editing v2? — spec OQ-1 | **Yes.** The shared part of the thread (approvals, links, snapshots) is shared from v1 (`OD-3`) | v2 moves ahead of phases 6–8 |
 | **OQ-P5-5** | The canvas's bundled fonts are the design system's Geist Sans and Commit Mono, both **OFL-1.1** — a font licence outside `OD-11` rule 3's four | **Allowed as assets**: the rule governs code dependencies, and `DESIGN-SYSTEM.md` already chose these faces. The gate does not scan fonts | fonts become system-only on the canvas |
+| **OQ-P5-6** | Should the sandbox's `canvas-upload <file>` helper (task 16, review I12) also run **without a permission prompt**, as OQ-P5-1 lets the canvas tools? It is a shell command, so Claude Code asks before each run unless it is pre-allowed | **No, not in phase 5**: an agent places an image file rarely (a logo, a few icons), the prompt shows the person which file leaves the worktree for the canvas, and pre-allowing a shell command widens OQ-P5-1 from MCP tools to the shell. The seam is one entry beside `mcp__panacea-canvas` in task 19's `--allowedTools` value; its pattern syntax is unverified against Claude Code 2.1.274 | task 19 adds that entry and a test row pinning it; task 30 step 2 checks no prompt appears for it |
 
 Answered elsewhere, recorded so nobody asks again: spec OQ-2 (documents in the control plane in
 v1 — ADR-H1 Q7 agrees); OQ-3 (P5-B); OQ-4 (the relay, tasks 18–19); OQ-6 (P5-R); OQ-7 (P5-Q);
@@ -546,6 +547,10 @@ is not committed — phase 3's 3-D6); OQ-11 (Figma via its MCP is v2, behind own
   whether it and `--allowedTools` are variadic (they are emitted first for that reason, task 19),
   and that `mcp__panacea-canvas` allows every tool of the server. From knowledge of the CLI, not
   from `claude --help` 2.1.274 in `panacea-app/sandbox:dev`; task 19's first step checks all three.
+- **`canvas-upload` in the image** (task 16, review I12): nothing has run it yet. Task 16's test
+  runs it on the host's Node; only task 30 step 1 runs it under the image's Node 20. Whether that Node detects
+  ES-module syntax is unverified and made moot by CommonJS (the host's Node 24.15.0 does detect it,
+  probed 2026-09-24). An agent's run of it meets Claude Code's Bash permission prompt (OQ-P5-6).
 - **Claude Code's MCP client**: the protocol revision it asks for, whether it ever batches, how
   long it waits at start for a server that is not yet reachable (the listener holds connections
   until the channel opens, task 18), and how it recovers when a connection drops.

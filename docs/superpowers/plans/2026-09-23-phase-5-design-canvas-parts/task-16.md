@@ -189,5 +189,5 @@ Expected: `ok  	github.com/kpmg-au-emu/panacea-app/canvas/mcp`.
 - `canvas-upload` has run on the host's Node, not in the image: task 30 step 1 runs it inside a
   real sandbox. An agent runs it through Claude Code's own Bash tool, so the person sees Claude
   Code's usual permission prompt for it; `--allowedTools` pre-approves only `mcp__panacea-canvas`
-  (task 19). Pre-approving the helper too is a one-entry change there, not made: its pattern syntax
-  is unverified against Claude Code 2.1.274.
+  (task 19). Pre-approving the helper too is the owner's call (plan OQ-P5-6, recommended no) and a
+  one-entry change there, not made: its pattern syntax is unverified against Claude Code 2.1.274.

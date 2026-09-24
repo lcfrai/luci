@@ -1305,3 +1305,95 @@ Every hit was changed, or already agreed with this round. The gate's later calle
 
 Nothing was built. This round changes documents only.
 
+## Fix batch b06 (2026-09-24) — I11, I12
+
+Scope: MCP multi-writer and asset gaps. Commits `0f1607d` (both findings), `b77f439` (two test
+rows strengthened against the likeliest survivors), then this section's commit (OQ-P5-6 and this
+section). Paths are relative to `docs/superpowers/plans/`; `parts/` is
+`2026-09-23-phase-5-design-canvas-parts/`. Lines are as of this section's commit.
+
+### I11 — a token change is noticed to every holder of an artboard that uses it
+
+| Change | Where |
+|---|---|
+| The rule: a token change is an edit to every artboard that uses the token; the author and the token are named | `parts/task-12.md:15-20` (Why, rule 3) |
+| The mechanism: for a batch with `set_token` or `delete_token`, `Apply` records `tokenUses[revision]`, from `serialize.TokensUsed` over every artboard **before** `Commit` (a deleted token and an old value's references are seen) and **after** it (a new token is), intersected with `Change.Tokens`. Transitive through task 08's `TokensUsed`. A token batch touches no artboard, so it claims nothing and no claim refuses it. In memory, like the claims and marks | `parts/task-12.md:120-135`; the `apply.go` file entry `:28-30` |
+| `Notices` reaches a holder through `Change.Artboards` **or** the token record; one change is at most one notice | `parts/task-12.md:110-118` |
+| `Notice` gains `Tokens`; `Nodes` is `[]` for a change that reached only through tokens; a token `Text` example | `parts/task-12.md:104-107` |
+| `checkIfRevision` states why tokens need no precondition to stay non-silent | `parts/task-12.md:88-93` |
+| Tests: `TestNotices_tokenChange` (the review's scenario, plus an unchanged second token and a batch that both edits a node and sets a token) and `TestNotices_tokenTransitiveAndDelete` | `parts/task-12.md:210-211` |
+| Not claimed: last-writer-wins per token, never silent; the per-token `ifRevision` not built, and why | `parts/task-12.md:234-239` |
+| Task 12 now depends on 08 (`authority` imports `serialize`, which builds on 05 and 07 only) and is 3.5 h | `parts/task-12.md:3`; plan row `:427` |
+| Goal 3 states the token case | plan `:40-47` |
+| `set_tokens` takes no claim and no `ifRevision`, and produces the notices | `parts/task-17.md:48` |
+| The instructions (item 7) and `canvas-rules` teach token notices; `TestInstructions_pinned` requires `a token` | `parts/task-17.md:70`, `:79`, `:91` |
+| The hands-on session checks a shared-token notice between two agents | `parts/task-30.md:131-132` |
+
+**The optional per-token `ifRevision` is not built, and why.** It would add a revision to
+`doc.Token` (task 05) and a `tokens` field to `ConflictError` (`task-11.md:301-303`), to the MCP
+error map (`task-15.md:105`) and to the REST 409 (`task-20.md:192`), which is four more contracts,
+for a collision the notice already reports. The finding's failure is that S *never hears*; the
+notice closes that. A stale token overwrite stays last-writer-wins, like a node write without
+`ifRevision`. The seam is named in `parts/task-12.md:236-239`.
+
+### I12 — `canvas-upload`, a sandbox helper that sends an image file as the session
+
+| Change | Where |
+|---|---|
+| `images/sandbox/canvas-upload.cjs` → `/usr/local/bin/canvas-upload`: CommonJS, `node:http`, no `Origin`, no `MCP-Protocol-Version`; extension → media type; over 10 MiB, unknown type or unreadable → exit 2 with nothing sent; `structuredContent` on stdout, exit 0; a tool refusal or a transport failure → exit 1 | `parts/task-16.md:93-143` |
+| The Dockerfile's `COPY` and `chmod` lines (`images/sandbox/Dockerfile:21-22` read in this worktree, and `:10` is `FROM node:20-bookworm-slim`) | `parts/task-16.md:18-21`, `:104-109` |
+| The security corollary: every sandbox process can act on the canvas as its session, within its scope; the helper adds no power | `parts/task-16.md:145-148`; plan G4 `:274-279`; plan "How an agent reaches MCP" `:140-143` |
+| `upload_asset`'s schema description and behaviour row point to the helper | `parts/task-16.md:60`, `:83` |
+| Tests: `TestCanvasUpload_helper` runs an extensionless copy against the real tool over `httptest` (success, `invalid`, exit 2 with no request, not reachable), with a static pin against ES-module syntax; `TestImage_shipsCanvasUpload` pins the Dockerfile lines | `parts/task-16.md:168-169` |
+| Taught: the instructions (item 4) and `TestInstructions_pinned`; `canvas-rules` (usage and exit codes); `code-to-design`; the remote-image dropped reason | `parts/task-17.md:67`, `:79`, `:82`, `:91`; `parts/task-07.md:112` |
+| Proven in a real sandbox: task 30 step 1 runs it through `docker exec` and checks the author | `parts/task-30.md:57-60` |
+| Not claimed: host Node only in task 16; the Bash permission prompt | `parts/task-16.md:189-193`; plan's unverified list `:550-553` |
+| Task 16 is 3.5 h; file map entry for `images/sandbox/` | `parts/task-16.md:3`; plan rows `:431`, `:384-386` |
+| **OQ-P5-6** (new): pre-allow `canvas-upload` like the canvas tools? Recommended **no** in phase 5; the seam is one `--allowedTools` entry in task 19 | plan `:526` |
+
+**A fact the review's fix did not hold.** A helper written as an ES module and copied to an
+extensionless `canvas-upload` would still pass a host-side test: the host's Node 24.15.0 ran an
+extensionless file containing `import fs from "node:fs"` (probe in the stream scratchpad,
+2026-09-24). So the helper is CommonJS, the test runs an extensionless copy, and a static check
+refuses `import`/`export` lines.
+
+**The threat-model paragraph.** The review's *What is missing* asks for a paragraph naming three
+trust boundaries. This batch states only I12's corollary, in G4 and in the MCP-reach paragraph. The
+full paragraph is not I11 or I12's, and is left to the batch that owns it.
+
+### Hours and the critical path
+
+Total **85 h** (84 before b06; plan `:448`). Critical path **≈ 35.5 h** (34.5 before): task 12's
+0.5 h moves everything after it, and task 16 at 3.5 h now finishes at 20 h, past 15's 19.5 h, so
+the path runs 12 → 16 → 17 (plan `:450-455`). 20a now finishes at 21 h against 17's 22.5 h. 12's
+new dependency on 08 adds nothing: 08 finishes at 8.5 h and 11 at 13 h. All recomputed from the
+table by earliest finish.
+
+### Mutants named for the next implementer (the two most likely to survive)
+
+1. **Token uses read only after `Commit`.** A deleted token is unknown by then, and `TokensUsed`
+   skips unknown names, so the holder is never told of the delete. Killed by
+   `TestNotices_tokenTransitiveAndDelete`'s second half (`parts/task-12.md:211`).
+2. **`uses[A]` not intersected with `Change.Tokens`.** The notice lists every token the artboard
+   uses. It would survive the review's scenario, where *Settings* used only `brand`; the row now
+   gives *Settings* an unchanged `space-4` and requires `Tokens: [brand]` exactly
+   (`parts/task-12.md:210`).
+
+Also killed by the rows as written: two notices for one change (`:210`'s mixed batch); a size check
+after the request (`TestCanvasUpload_helper` counts requests); ES-module syntax (its static pin).
+
+**Restatement greps run** over the plan and every part, for:
+`upload_asset|base64|canvas-upload|Tokens and pages carry|tokens have no revision|touched an artboard
+the caller|what someone else changed|Write in small pieces|remote images are not loaded|Notice|
+notices|34\.5|84 hours|21\.5 h|20\.5 h|12 → 15 → 17|OQ-P5-5`. Every hit was changed, or already
+agreed. `task-23.md:71` types `notices` as `unknown[]`, so `Notice.Tokens` needs no desktop change.
+
+**Unverified:**
+- Whether the image's Node 20 detects module syntax. CommonJS makes it not matter.
+- That `node:http` sends no `Origin`. `TestCanvasUpload_helper`'s success case against the real
+  server, which answers an `Origin` with 403, is where it gets proven.
+- The `--allowedTools` pattern that would pre-allow a shell command (OQ-P5-6's seam).
+- The fixture repository in task 30 carrying a 300 KB PNG: task 30 names it; no fixture exists yet.
+
+Nothing was built. This batch changes documents only.
+
