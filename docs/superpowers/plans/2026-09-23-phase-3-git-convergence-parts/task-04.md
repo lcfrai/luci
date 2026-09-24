@@ -14,8 +14,15 @@ without that round, so they stopped nothing):
 `grep -c 'func sessionEnv(id GitIdentity, eol GitLineEndings' control-plane/internal/api/sessions.go`
 is 1 and `grep -c '{"core.eol", eol.EOL}' control-plane/internal/api/sessions.go` is 1 (task 05's
 Step 1 greps, the same two). If either is 0, stop and report. This task edits
-`handleSessionCreate` and `handleSessionRestart` (the mount guard below), which those rounds
-also changed, so it must start on them.
+`handleSessionCreate` (the default title below: `sessionLocate` moves above the title and
+returns the worktree's `Name`; there is no mount guard, R4.1; review r4-3 M-3), which those
+rounds also changed, so it must start on them. **Gate G5 too** (review r4-3 M-4): after this
+task the catalog lists lanes and `sessionLocate` finds them, so a lane is a session target, and
+phase 2's `gitIdentityResolver` would run `git var GIT_AUTHOR_IDENT` with `Dir` = the lane on
+create and restart (`control-plane/cmd/api/gitidentity.go:39-40`, still so in this worktree on
+2026-09-25). So G5 (plan "Gates") is in before this task starts, checked by the reading half
+of task 05's Step 1 G5 check (the test half, `TestSessionCreateRunsNoHostGitInTheLane`, is
+task 05's); if it is not, stop and report.
 
 **Files:**
 - `control-plane/internal/api/api.go` — `Deps.Git *GitDeps`; `a.registerGit(guarded)` (p2, two lines)
@@ -315,7 +322,8 @@ record in place (`Store.Update`) and never derives a title, so it needs no chang
 
 #### Steps
 
-- [ ] **Step 1: Preflight** — G1's two greps (the line-ending round's, above); `grep -c "a.registerGit" control-plane/internal/api/api.go` is 0.
+- [ ] **Step 1: Preflight** — G1's two greps (the line-ending round's, above); G5 by reading
+  the three resolvers in `control-plane/cmd/api/` (above); `grep -c "a.registerGit" control-plane/internal/api/api.go` is 0.
   G1's contract diff (review I12): `git diff 3303fd6 HEAD -- docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md`,
   and read every hunk in §3.1 and §3.2 before appending to them; name any in the task report.
 - [ ] **Step 2:** tests first. `worktrees_test.go` builds `New(Deps{…, Git: &GitDeps{…}})` with a
