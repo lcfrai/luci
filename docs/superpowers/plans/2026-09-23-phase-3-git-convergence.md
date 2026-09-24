@@ -31,7 +31,8 @@ into their product branch with provenance. Concretely, when this plan is done:
    the worktrees above it in the queue.
 4. A human lands worktrees into their branch one at a time, in the order they set, by plumbing with
    compare-and-swap. The merge commit carries the brief key the human saw as a trailer. A land can be
-   undone exactly until it is pushed or built upon, and by a revert commit after.
+   undone exactly until it is pushed, built upon or merged into another lane, and by a revert
+   commit after.
 5. The branch pushes from the control plane with the user's own credentials, and a PR opens on
    **Azure DevOps or GitHub** behind one host interface (OD-4). The sandbox never holds a git
    credential, and it cannot obtain one through the host's git either. Every host git call is
@@ -96,8 +97,8 @@ syncs, so a clone whose HEAD is on another branch or detached says so on its car
 **A land is plumbing with compare-and-swap (brief A5).** `merge-tree --write-tree`, then
 `commit-tree` with the merge link as trailers, then `update-ref <branch> <new> <old>`. No
 worktree and no index is touched, so the product branch must not be checked out anywhere, and a
-land refuses when it is. Every verb that moves a product branch or publishes one (land, undo,
-revert, the branch verbs, fetch, push) holds the project's one `gitx.Locks` lock, keyed by
+land refuses when it is. Every verb that moves a product branch or publishes one (land, bring-in,
+undo, revert, the branch verbs, fetch, push) holds the project's one `gitx.Locks` lock, keyed by
 project ID (task 02, constructed once by task 04; review I7).
 
 **git is the truth for every git fact (brief A1).** Phase 3 persists no tip, dirty flag,
@@ -179,9 +180,11 @@ Each is small, stated so a reviewer can overturn it, and none changes what the o
    refresh fetches from the project's literal path, taken from the lane index, and never from the
    clone's configured `origin`, which the agent can rewrite (review C3; task-02 §HGH H2). The same
    one fetch (task 09's `RefreshClones`) runs after a land, an undo, a revert, a bring-in and a
-   project fetch; from the lane syncer's sweep whenever `refs/heads/<branch>` differs from the tip
-   its clones were last sent, which covers the moves the cockpit did not make (a user's own
-   commit, a terminal `git pull`; task 07); and from the refresh route `ResolveDialog` calls
+   project fetch; from the lane syncer's sweep, for each clone whose `origin/<branch>` (as read
+   back after its last refresh) differs from `refs/heads/<branch>`, which covers the moves the
+   cockpit did not make (a user's own commit, a terminal `git pull`; task 07). The sweep
+   refreshes only those clones, never waits for a busy project's lock, and backs off a clone
+   whose refresh keeps failing (re-review b06-1 issues 2, 5, 6); and from the refresh route `ResolveDialog` calls
    before it starts a session (task 19). Without the last two, an agent told to resolve a
    conflict the land did not cause merges a stale ref and reports success over a conflict it never
    saw (review I4). It also copies the project's `<branch>@{upstream}` into the clone as
@@ -421,6 +424,7 @@ named task changes.
 | **Q8** | task-02 §HGH H1 clears a repository's own credential helper, so a cockpit fetch or push authenticates as the account the machine's helpers (system, then global) answer for that URL, not the one a repo-local `credential.<url>.helper` chooses. On this repository that is the global helper's account, not the repo-local `lcfrai/panaceaapp` one. Accept that? | **Yes.** A repository helper is a program the sandbox may have written, and the machine's config is the only config the agent cannot write. A user who wants the repo-local account moves that key to `--global`; it is URL-scoped, so it still applies to that repository alone | task 12 lets a push run the repository's own helper when no session has ever mounted that repository's `.git`, which needs a per-repository record of mounts |
 | **Q9** | OD-2 says a lane clone's objects are hard-linked. A hard link is one file with two names, so through the bind mount an agent can clear a pack's read-only attribute and rewrite the **project's** pack, which makes OD-2's "blast radius is its own clone" false (review I8; verified on git 2.53.0.windows.2: `clone --local` gives the pack, `.idx`, `.rev` and commit-graph a link count of 2). Copy the objects instead? | **Yes: `clone --no-hardlinks`, built** (task 03 step 4, one function `cloneArgv`). The cost is disk and clone time per lane. Task 01's Step 5 measures both on `~/Projects/Panacea`; **not measured yet**. Recommend keeping the copy unless that clone is too slow on the owner's laptop | task 03 goes back to `clone --local`, and **no check closes the hole**. The files an agent rewrites are the project's from the moment it writes them, so a check at land time leaves the user's repository exposed between lands; and `git fsck --connectivity-only` cannot see the damage at all (git-fsck(1), git 2.53: "Corruption in blob objects will not be detected at all"). The nearest mitigation is a full `git fsck` of the project before each land (task 09), which checks every object's hash and is slow on a large repository. This plan's "does not claim" then says plainly: the user's object files are writable from the sandbox, and no check before a land closes that (plan re-review b02 M-1) |
 | **Q10** | Review I5: a land takes lanes only and a clone sees only the project's heads, so a teammate's pushed commits reach the product branch only through a terminal `git merge` in a checkout of it, which switches landing off (A5, Q3), and a push is rejected until then. Should phase 3 give the lens a way in? | **Yes, built**: every clone refresh also copies `<branch>@{upstream}` to `refs/remotes/upstream/<branch>` (task 09 `RefreshClones`, wired after a fetch by task 14); task 08's `bringIn` row appears when `behind > 0` and the upstream is under `refs/remotes/`; task 09's `BringIn` fast-forwards when the branch is only behind, else lands a clean merge carrying a `Panacea-Bring-In` trailer (task 10's history kind `bring-in`), and refuses a conflict (A2), which resolves in a lane that merges `origin/<branch>`, then `upstream/<branch>` (task 19; re-review b05 issue 1). Task 20's `push_rejected` copy names that way | tasks 04, 08, 09, 10, 12, 14, 18, 19, 20 drop the row, `BringIn`, `upstream_moved`, the `bring-in` history kind and `AfterFetch`; the refresh copies `origin/<branch>` only; and task 20's copy says *"Merge them in a terminal checkout of evidence-upload, then switch that checkout away; the cockpit never force-pushes."* |
+| **Q11** | Re-review b06-1 issue 1b: an exact undo cannot see a lane that merges the land after it (a merge in progress, or a clone whose refresh failed still naming the land). When that lane lands, the undone work comes back. Refuse that land until the human acknowledges it, or let it land and say so? | **Let it land and say so, built.** Task 08's forecast row names each undone land the lane carries (`carriesUndone`, one reader, `CarriedUndone`), task 09's Land returns them as `broughtBack` (step 7a), and task 19's row and toast name them. Land stays enabled because the land that brings them back is itself exactly undoable, so nothing is lost and the user keeps one click to take it back | task 09's step 7a refuses with a new `carries_undone_land` (details: the shas and their lanes) unless `LandRequest` names the same set in a new `bringsBack` field; tasks 04 and 18 gain the code and the field; task 19's Land on such a row asks first, *"Landing upload-api also brings back upload-db's land, which you undid. Land anyway?"* |
 
 ## File map
 
