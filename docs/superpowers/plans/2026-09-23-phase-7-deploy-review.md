@@ -1756,3 +1756,62 @@ given a killing case on paper:
   stores both). The Hub's Go names are not written yet.
 - The live set is per process. Two control planes on one state directory would each hold their
   own; the control plane is single-instance on loopback, which this batch did not re-verify.
+
+## Fix batch b11 — M23 to M25, M27 to M29 (2026-09-24)
+
+The last Minors. Commits `fe7aa4e` (M25), `ed032df` (M27), `b47d782` (M24), `4f62a09` (M28),
+`f344135` (M29), and the commit that carries this section. The Hub contract was read at hub
+`6b873d0` (its last change), read-only. Line numbers are after this batch's edits.
+
+| Finding | Change (file:line) |
+|---|---|
+| **M23** Rebuild falls back to `source.Branch` | **Already closed**, verified, no edit. t10:136-144: the branch is the source's Hub release `branchRef` *"and only that"*; no Hub release, or none with a `branchRef`, is `409 deploy_precondition` `no_branch`; *"source.Branch is never used"*. t10:195 the route's reason set; t10:223 `TestRebuildRefusesLabelOnlyBranch` asserts no `Reserve` and no Panacea call. Closed by b02 round 2 (R8) and recorded by b03 (I4, this file's *Already done by b02*). plan:940 restates it |
+| **M25** Ship locks per branch, rollback and rebuild per environment | **One lock set** for all three acts. t09:275-291 step 2: keyed by `(ProjectID, environment)`, compared with `Environments.SameEnvironment` (so `prod` and `production` are one key), on the environment each act **reserves** (C2: Ship's step 4 `env`, Rebuild's `source.Environment`, Rollback's deployment `Environment`, a `reserved` retry's `reserve.environment`), taken after the preconditions and before the reserve, and released when the route answers (never held by the background confirm loop). Held → `409 conflict` with the **holder's** sentence, one per act. t09:76-84 `EnvironmentNamer` gains `SameEnvironment` (`deploy.Reader` already has it, t01:101). t09:107 the `Orchestrator`. t09:336-337 step 4 takes it. t09:243-245 the `reserved` retry. t09:226-229 the live-set answer uses the record's act's sentence. t09:404-406 the route's `409 conflict` row. t10:111-112, :145-146 where Rollback and Rebuild take it; t10:160-169 the shared-lock paragraph; t10:186 the route row. **The abandon sentence** (the review's second half) was already per act: `BuildWords` and `RollbackWords` (t10:66-85, plan re-review b10 M-4); t10:167-169 now says so. Tests: t09:462 `TestConcurrentShipSameBranch` names the sentence; t09:463 `TestShipLocksTheEnvironmentNotTheBranch`; t09:464 `TestLockReleasedWhenRouteAnswers`; t10:227 `TestOneActPerEnvironment` asserts the holder's sentence both ways; t10:228 `TestShipAndRollbackShareTheLock` (`prod` Ship against a `production` rollback); t09:442 and t10:231 carry the new sentences |
+| **M27** the stub makes every pin `resolving` for ever | t15:46-58 `PinRef` gains `not_wired`, the stub's only answer. t15:140 the row: *"pinned"* in the fixed width, and **one** note above the table, *"Brief revisions are not shown yet: this version of the cockpit cannot read briefs. The Hub has recorded each pin."* The pin cell is **ten** states: t15:25, :129-132 heading and count, :202 `pin: ten states`. t15:229-231 the step's stub; t15:247-249 the non-claim; t13:389-391 task 13's non-claim. Test t15:203 `the stub says not wired` |
+| **M24** B3 says every access write is held | plan:152 B3 and plan:435-440 7P-15 now say what task 18 does (t18:101-108, unchanged): only the four writes that take access away are held (posture → `none` or `password`, removing a person, lowering a role, releasing the address); posture → `kpmg-sso`, `panacea-sso` or `bypass-token`, deploy on push, adding a person, raising a role and claiming an address are sent at once. The review's count (*"`none`, `password`, revoke and address release"*) predates re-review I-1's held lowering, which t18:106 adds |
+| **M28** the swap is "one line in `main.go`" | plan:76-89 new table **The swap is not one line**, each piece and its fate at the lift: `connection.Config.NewClient` and `.Version` (t05:86-90, verified), `connection.Manager` (`Version`, `Whoami`, the `pnc_` row, `connection.json`, the `awaiting_approval` and `token_rejected` states; t05:12, :57, :111-121, verified), the four `/v1/deploy/connection` routes (t05:153-180, verified), `ConnectPanel` and its lens states (t14:21, :63-65, verified), `Account.Approved` (t01:140-142, verified), and the Hub's `panaceaProject`/`pipelineRun` names (Hub contract `:998-1008`, `:1040`, verified). plan:65 the layer table's Surface row; plan:141 the OD-13 row; plan:204-208 7P-1's swap bullet; plan:830 §10.2's S7-N1 row; t01:5-12 the domain's opening; t20:35 the SEAMS row |
+| **M29** the previous release skips rollbacks | **I3's rule, reused, not copied.** t08:274-282 rule 6 becomes the exported `CurrentAt(s, same, environment, before)`: the same two candidates, counting only events strictly before `before`; `Assemble` calls it with no cut-off. t19:108-136 From is the commit of `CurrentAt` at the row's go-live (`CompletedAt` when succeeded, else `CreatedAt`): a live build's `Commit`, or a rollback's **target's** `Commit`; `none` with no older row → `From ""`; anything else → the new route state `previous_unknown`, with no git read and never a widening. t19:9-11 the intro; t19:38-40 `Range.From`; t19:63 and :164 the state in Go and in `desktop/src/deploy/types.ts` (task 13's file, not `store/types.ts`, so UI contract §2 is untouched); t19:100-102 its sentence; t19:195 the drawer's line; t19:254-258 two non-claims. Tests: t08:351 `TestCurrentAtCutOff`; t19:214 `TestPreviousSkipsFailed` (the old test, minus its rollback); t19:215 `TestPreviousIsWhatServedAfterRollback` (the review's d1, d2, rollback, d3 → `From c1`); t19:216 `TestPreviousUsesGoLiveNotCreation`; t19:217 `TestPreviousUnknownNeverWidens` |
+
+### Deviations, declared
+
+- **M25, the lock's place.** The review says one per-environment lock. The environment is known
+  only after step 4's read, so Ship's lock moves from step 2's old place (before the
+  preconditions) to the end of step 4. Nothing before it changes state; two Ships of one branch
+  still refuse the second, because one branch names one environment. The comparison is the
+  target's `SameEnvironment`, not a canonical string, so no copy of Panacea's rule is made.
+- **M25, the sentences.** *"A Ship of this branch is already in progress."* and *"Something is
+  already changing this environment."* are replaced by three sentences that name the act holding
+  the lock, since one lock now serves three acts.
+- **M27, both options.** The review offers a *"not wired"* state or a note. The plan does both:
+  the state, so the cell is never `resolving`, and one note, so ten rows do not each explain it.
+- **M28, one row beyond the review.** The Hub's `panaceaProject` and `pipelineRun` fields are
+  part of the swap: a native deployer must answer the same names, or the Hub's rows migrate.
+- **M29, a new state.** Taking *"whatever was current"* exposes cases the old rule hid by skipping
+  to an older row: a rollback whose target is outside the snapshot, and an environment whose
+  older rows are all backfilled. Each now says the range cannot be drawn, rather than crediting
+  sessions to the wrong release.
+
+### Mutants
+
+No code changed, so no mutant was run. Each new test names the mutant it kills. The two I
+expected to survive the tests as first written, each now given a killing case on paper
+(t10:228's `Confirm`-hook case; t19:216's tie case):
+1. **The lock released when the act returns, before the first confirm.** Every lock test fires
+   its second act inside a Fake hook, that is, after the reserve and before Panacea answers, so a
+   lock released at the reserve is killed. None fires one between `Actor.Ship` returning and
+   step 7's first `Confirm`, so a lock released there passes every test, and a rollback could
+   reserve before the Ship's confirm lands.
+2. **`cut` from `CreatedAt` for a succeeded row whose `CompletedAt` equals a rollback's
+   `confirmedAt`.** `TestCurrentAtCutOff`'s 10:05 case checks the strict cut-off inside
+   `CurrentAt`, but no route test puts a rollback at exactly a row's `CompletedAt`.
+
+### Unverified
+
+- The Go names this batch introduces are plan text: `CurrentAt`, `CurrentView`, the lock set's
+  shape. Task 08 has no Go type named for the view's `current` object yet.
+- Whether a Hub `kind "run"` release can carry an empty `branchRef` (M23's second refusal case).
+  The contract's reserve example carries one; `TestRebuildRefusesLabelOnlyBranch` covers only
+  *no release*.
+- `plan-rereview-b10-2.md`'s open issues (I-A, the request context; m-A; m-B) belong to b10's
+  round 3 and are not addressed here. m-A bears on M25: Rollback and Rebuild take the lock after
+  their preconditions, as before.

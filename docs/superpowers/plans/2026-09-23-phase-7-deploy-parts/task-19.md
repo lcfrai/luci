@@ -97,7 +97,7 @@ never takes an optional lock, so it cannot race an agent's own git for `index.lo
 commit whose trailer carries two ids counts once for each. `MaxCommits + 1` rows read →
 `Truncated true`, and the extra row is dropped.
 
-**The three sentences** (the third is the route's, below):
+**The three sentences** (the first is the route's, from the rule below; the other two are `Read`'s):
 - `previous_unknown`: *"The cockpit cannot tell which release was serving before this one, so
   the range cannot be drawn."* — no git read, and **Look again** re-reads after the next poll.
 - `commit_not_local`: *"This clone does not have commit `<short>`. Fetch, then look again."*
@@ -213,7 +213,7 @@ release's range does not change after it ships.
 | `TestGitFailureIsAnError` | the script fails `git log` (exit 128) → `Read` returns an error; the route `500` | a broken read drawn as an empty, confident list |
 | `TestPreviousSkipsFailed` (route) | history: run d1 succeeded (c1, completed 09:04), run d2 failed (c2), run d3 succeeded (c3, completed 10:14) → the read for d3 has `From c1` | a range starting at a commit that never served |
 | `TestPreviousIsWhatServedAfterRollback` (route) | d1 (c1, completed 09:04), d2 (c2, completed 09:30), a rollback to d1 confirmed 10:05, d3 (c3, completed 10:14) → the read for d3 has `From c1`, not `c2`; the read for d2 has `From c1` (review M29) | *"the newest older succeeded run"*, which skips the rollback and leaves the c1..c2 sessions d3 re-shipped uncredited |
-| `TestPreviousUsesGoLiveNotCreation` (route) | d1 (c1, completed 09:04), d2 (c2, completed 09:30), d3 created 10:00, a rollback to d1 confirmed 10:05, d3 completed 10:14 → `From c1` (the rollback's target was serving when d3 went live) | cutting at `CreatedAt`, which takes d2 because the rollback came after d3 was created |
+| `TestPreviousUsesGoLiveNotCreation` (route) | d1 (c1, completed 09:04), d2 (c2, completed 09:30), d3 created 10:00, a rollback to d1 confirmed 10:05, d3 completed 10:14 → `From c1` (the rollback's target was serving when d3 went live); with the rollback confirmed at exactly 10:14 → `From c2` (rule 6 orders a tie after the build, so the rollback did not serve before d3) | cutting at `CreatedAt`, which takes d2 because the rollback came after d3 was created |
 | `TestPreviousUnknownNeverWidens` (route) | a rollback serving before d3 whose target `d0` is not in the snapshot → `state "previous_unknown"`, its sentence, `sessions []`, and the `gitxtest.Script` saw no call; the same for an environment whose older rows are all `historical` | a fallback to an older row or to the whole history, crediting sessions an earlier release shipped |
 | `TestPreviousIsSameEnvironment` (route) | an older run on another environment is ignored | two environments' histories spliced into one range |
 | `TestSessionsRouteIsReadOnly` | the route is in `catalogReadOnlyRoutes`; the §10a audit passes | a GET registered outside the recorder |
