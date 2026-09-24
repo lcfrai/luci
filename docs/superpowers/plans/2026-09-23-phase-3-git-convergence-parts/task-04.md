@@ -201,7 +201,12 @@ func (a *API) registerGit(mux *routes) {
 	envWorktreesDir = "PANACEA_APP_WORKTREES_DIR"
 // loadConfig refuses, each with its own sentence: a relative path; a path inside
 // PANACEA_APP_PROJECTS_DIR, or one containing it (compared cleaned and, on Windows,
-// case-insensitively) — the scanner would list every clone as a project; and a path that is
+// case-insensitively) — the scanner would list every clone as a project; a path inside, or
+// containing, statepath.Dir("git") (`statepath.go:30`; task 02's Hardening.OwnedRoot, below) or
+// statepath.Dir("lanes") (the lane index) — with OwnedRoot under LaneRoot, every Scope None call
+// would be ErrLaneDir and every bundle file would sit under CloneRoot, and a lane index under
+// LaneRoot would be agent-writable (review r4-2 M-6); so the default statepath.Dir("worktrees")
+// passes, and a PANACEA_APP_WORKTREES_DIR set to the state root is refused; and a path that is
 // an existing file. The two may sit on different volumes: task 03 copies objects on every
 // clone (`--no-hardlinks`, plan Q9), so no hard link needs one volume and nothing warns.
 ```
@@ -303,7 +308,7 @@ record in place (`Store.Update`) and never derives a title, so it needs no chang
 | `TestWorktreeCreateWithoutGitDepsIs500` | `Deps.Git == nil` → 500 `internal`, and the log line names phase 3 wiring | a nil-pointer panic |
 | `TestCatalogWorktreeJSONCarriesKind` | GET list over a fake enumerator returning each Kind → the three strings on the wire | the field dropped at the JSON boundary |
 | `TestRegisteredRoutesIncludeWorktreeCreate` | `RegisteredPatterns()` contains the POST, and the existing §10a audit still passes | a route registered on the raw mux |
-| `TestLoadConfigWorktreesDir` (cmd/api) | default is `statepath.Dir("worktrees")`; relative → error; inside projects dir → error naming both variables; containing it → error | clones scanned as projects |
+| `TestLoadConfigWorktreesDir` (cmd/api) | default is `statepath.Dir("worktrees")`; relative → error; inside projects dir → error naming both variables; containing it → error; with `PANACEA_APP_STATE_DIR` a `t.TempDir()`: the state root itself, `statepath.Dir("git")`, a path under it, and `statepath.Dir("lanes")` → each an error naming the variable; the default → no error (review r4-2 M-6) | clones scanned as projects; an `OwnedRoot` or lane index under the clone root |
 | `TestServeWiresGit` (cmd/api) | the Deps `serve` builds has a non-nil `Git` whose Creator's Machine root is `cfg.WorktreesDir`; a `Scope Project` call through `Git.Machine.Git()` with `Dir` under `cfg.WorktreesDir` returns `gitx.ErrLaneDir` and starts no git (R4.2: `LaneRoot` is `machine.CloneRoot()`); `Git.Locks` is non-nil; a cfg whose `WorktreesDir` is `""` → serve returns an error and starts nothing. Red first against main.go without the `LaneRoot` line | a production build with phase 3 unwired, or an Exec that runs host git in a lane |
 | `TestSessionCreateDefaultTitleUsesTheWorktreeName` (re-review b08-1 issue 2) | a fake enumerator lists `w-lane` with `Kind:"clone"`, `Name:"upload-api"`, and the fake Provider resolves it to `<tmp>/upload-api-3fa9c1`; a create with no title → `Claude Code · upload-api`; a create with `title:"mine"` → `mine`; a worktree the enumerator does not list → the path's base name. Red first: today's code answers `Claude Code · upload-api-3fa9c1` | a lane session titled with the creation nonce |
 | `TestGitIdentityUsesGitxParseIdent` (cmd/api) | the fix's `gitidentity_test.go` cases still pass after the swap | two parsers of one line drifting |
