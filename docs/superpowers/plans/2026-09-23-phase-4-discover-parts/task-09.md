@@ -7,7 +7,7 @@ key it wrote. It also answers the drift check (prototype state 11). **Kept from 
 plan's task 5** (`:2120-2474`): the package comment's ordering rule, absolute-path and
 existing-directory checks, `Merge` preserving user text, no temp file left behind. **Changed:** it
 is called by the session handlers, not by the desktop; it chooses its target (P4-D); it writes the
-exclude line (phase 3 ask P4-6); it strips when nothing is inherited; it uses
+exclude line (phase 3 ask P4-6), before the block and never after it (review M13); it strips when nothing is inherited; it uses
 `statepath.WriteAtomic` with `Shared` (task 01) instead of its own copy.
 
 **Depends on** tasks 01, 05, 07 and **10** (it imports `api` for the request, result and error
@@ -27,9 +27,11 @@ types; `api` imports nothing of it).
 //
 // THE ORDERING RULE: the file must be on disk before the harness process
 // starts. api.handleSessionCreate and handleSessionRestart call Materialise
-// before anything is recorded or created, and, on restart, before the old
-// sandbox's destroy (ruling R1; review C1). Called afterwards, the session
-// inherits nothing, silently, and the feature looks built.
+// after the request validates and before anything is recorded or created:
+// on create, before the conversation store's MkdirAll too; on restart,
+// before the old sandbox's destroy (ruling R1; review C1, M2). Called
+// afterwards, the session inherits nothing, silently, and the feature looks
+// built.
 //
 // THE COMMIT RULE: the managed block is never committed (phase 3's 3-D6). It
 // is written only to a file the repository does not track, and that file's
@@ -126,11 +128,20 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     still written and the key still returned, and Inspect lists that
 //     file in the worktree's Committed (review I3, re-review R-M1).
 //     claudemd.ErrUnterminatedBlock / ErrDuplicateBlock → block_broken.
-//  6. Write only if the bytes changed, with statepath.WriteAtomic(..., Shared).
-//     A file left holding only whitespace after a strip is removed.
-//     Any write error → write_failed.
-//  7. On the first write to a target, append "/CLAUDE.md" or
+//  6. The exclude line FIRST (review M13): before a write that lands a
+//     block in a target git manages, append "/CLAUDE.md" or
 //     "/.claude/CLAUDE.md" to the path Git.ExcludePath returns, if absent.
+//     A Git.ExcludePath error is a plain error (500, step 2's Git rule); a
+//     failed read or write of the exclude file → write_failed. Either way
+//     the target is not opened for writing, so no brief text lands in a
+//     file git would stage (3-D6: an agent's `git add -A` commits an
+//     untracked, un-excluded CLAUDE.md). A strip that lands no brief text
+//     needs no line. ErrNotARepo (step 2): no line, nothing to exclude from.
+//  7. Write only if the bytes changed, with statepath.WriteAtomic(..., Shared).
+//     A file left holding only whitespace after a strip is removed.
+//     Any write error → write_failed. A failure here leaves step 6's line
+//     in place: it names a file that is absent or holds no new brief text,
+//     and step 6 would add it again next start anyway ("if absent").
 //  8. Return the key written.
 // Calls for one worktree path are serialised; different worktrees run in
 // parallel.
@@ -247,6 +258,7 @@ worktrees; the real `git ls-files` wiring is tested over real git in task 14):
 | `TestTrackedClaudeMdFallsBackToTheAltFile` | `Tracked(CLAUDE.md)=true` → block in `.claude/CLAUDE.md`; `CLAUDE.md` untouched | a tracked file modified — an agent's `git add -A` commits the brief (3-D6) |
 | `TestBothTrackedIsRefused` | `*api.MaterialiseError{tracked_elsewhere}`; nothing written | a write into a tracked file as a last resort |
 | `TestExcludeLineIsAddedOnce` | after three materialises, `info/exclude` has exactly one `/CLAUDE.md` line and its earlier lines intact | an exclude that grows each start |
+| `TestExcludeFailureWritesNoBlock` (review M13) — table | something to inherit, `CLAUDE.md` untracked. Row 1: the fake `Git.ExcludePath` returns a path under a regular **file** (`<tmp>/f/exclude`, `f` a file: a write error on every OS) → `*api.MaterialiseError{write_failed}`. Row 2: `Git.ExcludePath` returns an error → a plain error, not a `*api.MaterialiseError`. In both rows, first with no `CLAUDE.md` and then with a hand-written one: afterwards the file is absent, or byte-identical with an unchanged mtime, and holds no begin marker | steps 6 and 7 back in the old order: the block lands, the exclude write fails, and an untracked, un-excluded `CLAUDE.md` holding the brief waits for an agent's `git add -A` (3-D6) |
 | `TestNothingToInheritStripsAnOldBlock` | an old block and nothing inheritable → block removed, result `""` | a chip saying *no brief* over a file that still holds one |
 | `TestAFileHoldingOnlyTheBlockIsRemovedOnStrip` | the file does not exist afterwards | an empty CLAUDE.md left in every worktree |
 | `TestWithoutBriefStripsAndDeclines` | both candidates untracked and each holding a block → both stripped; result `none:declined`; `Source` never called | the override blocked by the Hub being down, the very case it exists for |

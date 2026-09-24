@@ -11,10 +11,23 @@ key; the handlers stamp `ContextRef` from the return value and **never from the 
 phase 2 task 26 has merged** (brief R5), take the file as it stands on your base, and name the base
 commit in the commit message. Phase 2's resume fix (`--session-id`, `sessions.go:337` at
 `3303fd6`) is already in the file; phase 3 task 05 edits `sessionEnv`, not the step order. **The
-order within the handler is: materialise, then mint and record; on restart, materialise also comes
-before the old sandbox's destroy** — so a refusal leaves no record and no sandbox on create, leaves
-the running sandbox untouched on restart, and the stamped key and the minted conversation id both describe the process that
-actually starts (R1's seam note).
+order within the handler is: validate, then materialise, then prepare and record** (review M2).
+- **On create**, every refusal that only checks the request comes first and costs no Hub call:
+  the worktree, the harness, `sessionResolveResume` and `harness.Build`. `sessionLocate` and
+  `Materialise` come next, **before `sessionConversationStore`'s `MkdirAll`**, the session id and
+  token, the record and the sandbox. The one thing minted before `Materialise` is the conversation
+  UUID that `harness.Build` takes as input; it is in memory and is dropped on a refusal. So a
+  refusal on create leaves no record, no sandbox and nothing on disk.
+- **Not straight after `Worktrees.Path`**, review M2's first option: there, a request that the
+  harness check then refuses with 400 would already have asked the Hub and written the brief.
+- **On restart**, materialise comes after the argv rebuild and the `sessionEnv` rebuild, and
+  before the old sandbox's destroy, so a refusal leaves the running sandbox untouched. Here the
+  new conversation UUID and `sessionConversationStore`'s `MkdirAll` do run first. That directory
+  is the one the session's own create made, so the `MkdirAll` is a no-op in practice.
+- Either way, the stamped key and the minted conversation id both describe the process that
+  actually starts (R1's seam note). A failure *after* a successful `Materialise` (the
+  conversation store, `Store.Create`, `Backend.Create`) leaves the written block in place; it is
+  git-excluded, stamps nothing, and the next start rewrites it.
 
 **Files:**
 - `control-plane/internal/api/materialiser.go` — the interface and its types (new, in `api`)
@@ -49,10 +62,12 @@ package api
 // phase 4.
 //
 // THE ORDERING RULE: handleSessionCreate and handleSessionRestart call it
-// after the worktree resolves and before anything is recorded or created,
-// and, on restart, before the old sandbox's destroy (a refusal must leave
-// the running agent running). Called after the process starts, the session
-// inherits nothing, silently.
+// after the request validates (worktree, harness, argv) and before anything
+// is recorded or created. On create it also comes before the conversation
+// store's MkdirAll, so a refusal touches no disk; on restart it comes before
+// the old sandbox's destroy (a refusal must leave the running agent
+// running). Called after the process starts, the session inherits nothing,
+// silently.
 type Materialiser interface {
 	Materialise(ctx context.Context, req MaterialiseRequest) (MaterialiseResult, error)
 }
@@ -211,11 +226,13 @@ acceptance below therefore greps for the line and builds the binary.
 
 **The handler changes, in order:**
 
-- `handleSessionCreate`: after `sessionLocate` (`sessions.go:376` at `3303fd6`) and **before**
-  `Store.Create` (`:382`), call `Materialise` with the resolved path, `projectID`, `branchID` and
-  `req.WithoutBrief`. `*MaterialiseError` → 409 as above and return; any other error →
-  `a.internal`. On success, `ContextRef: result.ContextRef` replaces `ContextRef: req.ContextRef`
-  (`:401`).
+- `handleSessionCreate` (review M2): move the `sessionLocate` call (`sessions.go:452` at
+  `2d6d95b`) up to just after `harness.Build`'s error check (`:414-426`), and call `Materialise`
+  straight after it, **before** `sessionConversationStore` (`:427-432`) and so before
+  `ids.New("s")` (`:439`) and `Store.Create` (`:458`). Pass the resolved path, `projectID`,
+  `branchID` and `req.WithoutBrief`. `*MaterialiseError` → 409 as above and return; any other
+  error → `a.internal`. On success, `ContextRef: result.ContextRef` replaces
+  `ContextRef: req.ContextRef` (`:477`). Locate by symbol, not line, on your base.
 - `handleSessionCreate`, `sessionLocate`'s error (review I2; at `2d6d95b` the call is
   `sessions.go:452`): when it is `errProjectUnknown` and `req.WithoutBrief` is false, the handler
   answers through the same 409 writer with `&MaterialiseError{Reason: BriefReasonProjectUnknown,
@@ -268,7 +285,8 @@ call's position relative to the fake backend's `Create` **and `Destroy`** and th
 | `TestNewRefusesANilMaterialiser` | `api.New` errors naming `Materialiser` | a default no-op materialiser — silent non-inheritance |
 | `TestCreateMaterialisesBeforeRecordingOrCreating` | the call log reads `materialise, store.create, backend.create` | R1 violated: the brief written after the PTY exists |
 | `TestCreateStampsTheReturnedKeyNotTheRequested` | request `contextRef: "brief:bf-…@1"`, materialiser returns `@6` → the record and the response carry `@6` | P6: a client's guess recorded as inheritance |
-| `TestCreateRefusalWritesNothing` | `*MaterialiseError{hub_unavailable}` → 409 `brief_not_written`, `details.reason`, no store record, no backend call | an orphan record for a session that never started |
+| `TestCreateRefusalWritesNothing` | `*MaterialiseError{hub_unavailable}` → 409 `brief_not_written`, `details.reason`, no store record, no backend call, and (default harness, which has a conversation) no `<Deps.ConversationsDir>/<owner>/<worktree id>` directory on disk (review M2) | an orphan record for a session that never started; `Materialise` left below `sessionConversationStore`, so a refusal still touches the disk |
+| `TestCreateValidatesBeforeMaterialising` (review M2) | `harness: "nope"` → 400 `unknown_harness`, and the call log is empty: the materialiser fake was never called | `Materialise` moved up to straight after `Worktrees.Path`, so an invalid request asks the Hub and writes the brief before it is refused |
 | `TestCreateWithoutBriefPassesTheFlag` | `withoutBrief: true` reaches the fake; its `none:declined` is stamped | the override lost between the wire and the materialiser |
 | `TestCreateOtherMaterialiseErrorIs500` | a plain error → 500 `internal`, the message generic | a raw path leaking into the problem body |
 | `TestRestartRestamps` | a session at `@5`; materialiser returns `@6` on restart → the record is `@6` | the phase 2 behaviour of keeping `contextRef` across restart (contract §2.4) |
