@@ -1295,3 +1295,28 @@ Go 1.26.2 toolchain under `go 1.23`, 2026-09-24, in the stream's scratchpad: `b1
 **Verified:** every citation above, against the tree at a1573ce and by the probes named. **Not
 verified:** nothing was built. No plan test was written or run.
 
+### Fix batch b11, round 2 (2026-09-24): re-review b11-1's four issues and its nits
+
+Commits bbaa9f6, 884fa19, 5d10e04, 3c0056e and 2541d2a. Line numbers are for the tree at 2541d2a.
+New probes, in the stream's scratchpad: `b11r2-gg.out` (git grep `--and --not`, git 2.53) and
+`b11r2-fifo-run.out` (the Linux open, alpine:3.20 on Docker Desktop's kernel, x/sys v0.24.0).
+
+| Issue | Where it is now |
+|---|---|
+| 1 (Important): the widened grep cannot pass once G2 lands | parts/task-22.md:149 and :195. Both greps now drop G2's three lines **by their text**, with `--and --not -e "Phase 3 owns this file" --and --not -e "Phase 3: git, worktrees, coordination and convergence"`: the `seams.test.ts` header, and the `FilesLens.tsx` and `MergeLens.tsx` seam comments (`phase-2-parts/task-26.md:307`, `:637`, `:657`). I chose this over the review's two options. Excluding whole files would hide a promise tasks 19 or 21 might add in a lens file, and narrowing to promise wording is the approach that missed `sessionVerbs.ts` in the first place. Probe: a planted "arrives in Phase 3" in `MergeLens.tsx` still listed, and the header lines did not. The expected six are named by their text, with the line numbers on both trees (:150-158). An unexpected line means stop and report (:161-163). The reasons for the exclusions are at :165-174. Re-run on this tree and on feat/phase-2-cockpit, both before G2: ten lines each, the six plus task 06's four |
+| 2: `Truncated` had two causes, and `readError` was never shown | parts/task-16.md:123-129: `UntrackedCut` is a second bool beside `Truncated`, so both can be true and neither field carries two meanings. :199-201: a cap with no line break gives no hunk and `UntrackedCut`, never a 1 MiB partial line. Tests :267 and :269; JSON :228 (the example); does-not-claim :302-303. parts/task-18.md:173-177 mirrors the field. parts/task-21.md:81-94 gives one sentence per cap and renders a lane's own `readError` in that lane's place, apart from the `Unreadable` banner; `laneNotes` :46-50; tests :119-120 |
+| 3: plan:292-294 said go.mod never changes | plan:294-300: task 16's x/sys promotion is the one named exception. It stays at v0.24.0, and `go.sum` is unchanged (`control-plane/go.sum:145-146` already hold both hashes, checked). Any other `go.mod` or `go.sum` change stops the task. parts/task-16.md:18 cites it |
+| 4: a FIFO swapped in hangs the GET on a non-Windows host | parts/task-16.md:174-188: `openForRead`'s default is per OS. **Linux:** `O_PATH\|O_NOFOLLOW\|O_CLOEXEC`, then `Fstat` must say `S_IFREG`, then reopen `/proc/self/fd/<n>` and match dev and inode. This goes beyond the review's `O_NONBLOCK\|O_NOFOLLOW`: an O_PATH open touches no FIFO or device node, and the reopen is the same inode, so no swap can land between the check and the open. **Other non-Windows:** fail closed, because step 3's `/proc` readlink does not exist on macOS. Files :17. Tests :265-266. Probe, reproduced: `os.Open` on a FIFO blocked past 2 s; the O_PATH path refused the FIFO, a symlink and a char device at once, and read a regular file |
+| Nit: task-17:130-131 split a sentence | parts/task-17.md:124-133: the scoring sentence is whole again (:124-127), and the committer-date paragraph follows it (:129-133) |
+| Nit: `AppShell.test.tsx` line drift | parts/task-22.md:12 and :27 give `:119` here and `:127` on feat/phase-2-cockpit, found by `["Authority", /Phase 3/]`. plan:519-521: "+8 on feat/phase-2-cockpit, find by text" (checked with `git show`) |
+| Nit: the plan's map had `merge/*` as "19 20" | plan:508: 22 wires `MergeBanner.tsx`'s m-new |
+| Nit: `AppShell.test.tsx:112` had no owner | parts/task-19.md:24-29: task 19 owns the Merge click's two placeholder asserts (`:111-112` here, `:119-120` on feat/phase-2-cockpit). They become the title row's heading, plus `queryByText(/Arrives in phase/)` null. The preflight is at :274-275. Task 22 names it as task 19's (:27, :176-178). plan:519-520 |
+
+**Verified:** every citation above, against the tree at 2541d2a, by the two new probes, and by
+`git show feat/phase-2-cockpit:` for the phase 2 line numbers. **Not verified:**
+- No plan test was written or run.
+- G2 has not landed, so issue 1's G2 lines are taken from task 26's quoted file contents.
+- `TestOpenForReadRefusesAFIFOWithoutBlocking` cannot run on this Windows host. The container
+  probe stands in for it.
+- The `finalpath_other.go` fail-closed path was not built on any OS.
+
