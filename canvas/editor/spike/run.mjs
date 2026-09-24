@@ -35,6 +35,19 @@ const THROTTLE_SWITCHES = [
   "--disable-renderer-backgrounding",
 ];
 const log = (...a) => console.error("[spike]", ...a);
+// S11's extra hidden captures, each at 2x: [library, label, frame id, width, height, cap ms, debug log].
+// With the 30 s request cap and two 10 s decode probes, at most about 3.6 minutes hidden, below
+// the 5 minutes after which Chromium's intensive wake-up throttling applies (Chromium's documented
+// policy; not measured here).
+// mode "dataurl": domToCanvas then canvas.toDataURL (synchronous encode) instead of toBlob.
+const HIDDEN_RUNS = [
+  ["modern-screenshot", "fixture A 390x844 (debug log on)", "frameA", 390, 844, 30000, true, "blob"],
+  ["modern-screenshot", "fixture A 390x844, toDataURL", "frameA", 390, 844, 30000, false, "dataurl"],
+  ["modern-screenshot", "390x844 board, toDataURL", "frameT390", 390, 844, 30000, false, "dataurl"],
+  ["modern-screenshot", "1440x900 board, toDataURL", "frameT1440", 1440, 900, 30000, false, "dataurl"],
+  ["modern-screenshot", "1440x900 board", "frameT1440", 1440, 900, 30000, false, "blob"],
+  ["html-to-image", "fixture A 390x844", "frameA", 390, 844, 15000, false, "blob"],
+];
 
 if (!PKGS.every((p) => existsSync(join(DEPS, "node_modules", p, "package.json")))) {
   log(`installing ${PKGS.join(", ")} into ${DEPS}`);
@@ -97,6 +110,7 @@ async function commandLine(context) {
 
 // ---------------------------------------------------------------- the browser
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+let killOnWatchdog = () => {};
 async function openBrowser() {
   if (VIA_LAUNCH) {
     const launch = { channel: "msedge", headless: false, chromiumSandbox: true, ignoreDefaultArgs: THROTTLE_SWITCHES };
@@ -111,20 +125,29 @@ async function openBrowser() {
     "--no-default-browser-check", "--edge-skip-compat-layer-relaunch",
     "--disable-features=msForceBrowserSignIn", "about:blank"];
   const proc = spawn(EDGE, args, { stdio: "ignore" });
+  // The whole tree: after the browser process alone was killed, its renderers stayed up (seen here).
+  const killTree = () => {
+    try { execSync(`taskkill /PID ${proc.pid} /T /F`, { stdio: "ignore" }); } catch {}
+    try { proc.kill(); } catch {}
+  };
+  killOnWatchdog = killTree;
   const exited = new Promise((r) => proc.once("exit", r));
   let port = 0;
   for (let i = 0; i < 150 && !port; i++) {
     await sleepMs(100);
     const f = join(dir, "DevToolsActivePort");
-    if (existsSync(f)) port = Number(readFileSync(f, "utf8").split("\n")[0]) || 0;
+    // Edge may still hold the file open while writing it (EBUSY seen here): retry.
+    try { if (existsSync(f)) port = Number(readFileSync(f, "utf8").split("\n")[0]) || 0; } catch {}
   }
   const close = async () => {
-    proc.kill();
+    killTree();
     await Promise.race([exited, sleepMs(5000)]);
     try { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch {}
   };
   if (!port) { await close(); throw new Error("Edge wrote no DevToolsActivePort within 15 s"); }
-  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true });
+  let browser;
+  try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true }); }
+  catch (e) { await close(); throw e; }
   await sleepMs(500);
   log(`Edge pid ${proc.pid}, DevTools on 127.0.0.1:${port}, profile ${dir}`);
   return { context: browser.contexts()[0], launch: { spawned: EDGE, args, connectOverCDP: { noDefaults: true } },
@@ -192,11 +215,31 @@ async function run(port) {
     const armed = await page.evaluate(() => window.__armedP);
     const { bounds } = await cdp.send("Browser.getWindowBounds", { windowId });
     log(`S11 armed wait: ${JSON.stringify(armed)}; window ${bounds.windowState}`);
-    const answer = await page.evaluate(() => window.__renderRequest(160));
-    log(`S11 answer: ${JSON.stringify(answer)}`);
+    // Bounded on the runner's clock: a hidden page's own timers run late (measured), so no cap
+    // inside the page can be trusted to fire on time.
+    const answer = await Promise.race([page.evaluate(() => window.__renderRequest(160)), sleepMs(30000).then(() => null)]);
+    log(`S11 answer: ${answer ? JSON.stringify(answer) : "none within 30 s (runner clock)"}`);
+    const bounded = (fn, arg, ms) => Promise.race([page.evaluate(fn, arg), sleepMs(ms).then(() => null)]);
+    const partial = answer ? null : await bounded(() => window.__s11Partial && window.__s11Partial(), null, 5000);
+    const decodeProbes = [];
+    for (const kind of ["png", "svg"]) {
+      const r = await bounded((k) => window.__decodeProbe(k), kind, 10000)
+        || { ...(await bounded(() => window.__decodeState, null, 5000)), note: "no answer within 10 s (runner clock)" };
+      decodeProbes.push(r);
+      log(`S11 decode probe: ${JSON.stringify(r)}`);
+    }
+    const hiddenRuns = [];
+    for (const [library, artboard, id, w, h, capMs, debug, mode] of HIDDEN_RUNS) {
+      const t = Date.now();
+      const r = await Promise.race([page.evaluate((a) => window.__hiddenCapture(a), { library, id, w, h, debug, mode }),
+        sleepMs(capMs).then(() => null)]);
+      hiddenRuns.push({ library, artboard, scale: 2, capMs, runnerMs: Date.now() - t,
+        ...(r || { ms: null, error: `no answer within ${capMs} ms (runner clock)` }) });
+      log(`S11 hidden run: ${JSON.stringify(hiddenRuns[hiddenRuns.length - 1])}`);
+    }
     await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
-    await page.evaluate((r) => window.__finishS11(r),
-      { waitMs: armed.waitMs, hidden: armed.hidden, windowState: bounds.windowState, commandLine: cl.line });
+    await page.evaluate((r) => window.__finishS11(r), { waitMs: armed.waitMs, hidden: armed.hidden,
+      windowState: bounds.windowState, commandLine: cl.line, hiddenRuns, answered: !!answer, partial, decodeProbes });
     const result = await page.evaluate(() => window.__spike);
     result.extras.runner = { versions, port, font: FONT, commandLineRoute: cl.route, launch: edge.launch,
       modernScreenshotDebugLog: debugLines.slice(-40) };
@@ -238,7 +281,11 @@ function negativeProblems(r) {
   return out;
 }
 
-const watchdog = setTimeout(() => { log("runner timeout after 9 minutes"); process.exit(4); }, 9 * 60 * 1000);
+const watchdog = setTimeout(() => {
+  log("runner timeout after 9 minutes; killing the spawned Edge");
+  try { killOnWatchdog(); } catch {}
+  process.exit(4);
+}, 9 * 60 * 1000);
 let exitCode = 1;
 try {
   const port = await listen();

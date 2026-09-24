@@ -519,6 +519,10 @@ window.__renderRequest = async (w) => {
   if (NEG) await Promise.race([new Promise((r) => requestAnimationFrame(r)), sleep(2000)]); // waits a frame, never flushes
   else flushPatches(); // the responder's sync() before it measures (task 24)
   const width = px(n1.getBoundingClientRect().width);
+  // The layout half, readable by the runner even if the capture below never resolves.
+  window.__s11Partial = () => ({ visibilityState, rafFiredWithin2s: rafAt !== null && rafAt <= 2000, width, captured: false,
+    hiddenCaptureMs: null, rafAtMs: rafAt === null ? null : Math.round(rafAt), captureError: "capture did not answer the runner",
+    sinceRequestMs: Math.round(performance.now() - t0) });
   let captured = false, hiddenCaptureMs = null, captureError = "";
   const c0 = performance.now();
   try {
@@ -529,40 +533,64 @@ window.__renderRequest = async (w) => {
   const left = 2000 - (performance.now() - t0);
   if (left > 0 && rafAt === null) await sleep(left);
   const rafFiredWithin2s = rafAt !== null && rafAt <= 2000, totalMs = Math.round(performance.now() - t0);
-  // Extra facts for task 13's timeout, after the answer is fixed: every library on the real
-  // artboards at 2x, still hidden, each bounded at 30 s (task 13's provisional timeout).
-  const hiddenRuns = [];
-  const targets = [["fixture A 390x844", "frameA", 390, 844], ["390x844 board", "frameT390", 390, 844], ["1440x900 board", "frameT1440", 1440, 900]];
-  for (const [name, lib] of Object.entries(LIBS)) for (const [label, id, fw, fh] of targets) {
-    const fr = document.getElementById(id);
-    if (!fr || !lib.ready()) continue;
-    const h0 = performance.now();
-    let ms = null, err = "";
-    try {
-      await withTimeout(lib.blob(fr.contentDocument.documentElement, { w: fw, h: fh, scale: 2 }), 30000, name);
-      ms = Math.round(performance.now() - h0);
-    } catch (e) { err = String(e && e.message || e); }
-    hiddenRuns.push({ library: name, artboard: label, scale: 2, ms, error: err || undefined, visibility: document.visibilityState });
-  }
-  // One modern-screenshot capture with its own timing log on (the runner prints the console).
-  window.__s11Debug = true;
-  try { await withTimeout(modernScreenshot.domToBlob(docA.documentElement, { width: 390, height: 844, scale: 2, debug: true }), 30000, "debug"); } catch {}
-  window.__s11Debug = false;
   s11Answer = { visibilityState, rafFiredWithin2s, width, captured, hiddenCaptureMs,
     rafAtMs: rafAt === null ? null : Math.round(rafAt), captureError: captureError || undefined,
-    visibilityAtAnswer: document.visibilityState, totalMs, hiddenRuns };
+    visibilityAtAnswer: document.visibilityState, totalMs };
   return s11Answer;
+};
+// Extra facts for task 13's timeout, driven by the runner while still hidden. No cap in here: a
+// page timer is itself throttled in a hidden page (an in-page 30 s cap overran by minutes), so the
+// runner bounds each call on its own clock. The time measured here is performance.now(), real time.
+window.__hiddenCapture = async ({ library, id, w, h, debug, mode }) => {
+  const fr = document.getElementById(id);
+  if (!fr || !LIBS[library].ready()) return { ms: null, error: "frame or library missing" };
+  const node = fr.contentDocument.documentElement, h0 = performance.now();
+  if (mode === "dataurl") {
+    // domToCanvas, then a synchronous PNG encode: toBlob's asynchronous encode is what the
+    // library's own timing log shows stalling while hidden ("canvas to blob").
+    try {
+      const c = await modernScreenshot.domToCanvas(node, { width: w, height: h, scale: 2 });
+      const e0 = performance.now(), url = c.toDataURL("image/png");
+      return { ms: Math.round(performance.now() - h0), encodeMs: Math.round(performance.now() - e0),
+        pngChars: url.length, size: `${c.width}x${c.height}`, visibility: document.visibilityState };
+    } catch (e) { return { ms: null, error: String(e && e.message || e), visibility: document.visibilityState }; }
+  }
+  try {
+    await (debug ? modernScreenshot.domToBlob(node, { width: w, height: h, scale: 2, type: "image/png", debug: true })
+      : LIBS[library].blob(node, { w, h, scale: 2 }));
+    return { ms: Math.round(performance.now() - h0), visibility: document.visibilityState };
+  } catch (e) { return { ms: null, error: String(e && e.message || e), visibility: document.visibilityState }; }
+};
+// Does an <img> load and decode() resolve in this (hidden) page? Both libraries await decode()
+// before drawing. Progress is kept in __decodeState so the runner can read it after its cap.
+window.__decodeProbe = async (kind) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><foreignObject width="40" height="40">` +
+    `<div xmlns="http://www.w3.org/1999/xhtml" style="width:40px;height:40px;background:red"></div></foreignObject></svg>`;
+  const src = kind === "svg" ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg) : redPngUrl;
+  const st = (window.__decodeState = { kind, stage: "loading", loadMs: null, decodeMs: null, visibility: document.visibilityState });
+  const img = new Image(), t0 = performance.now();
+  st.loaded = await new Promise((r) => { img.onload = () => r(true); img.onerror = () => r(false); img.src = src; });
+  st.loadMs = Math.round(performance.now() - t0);
+  st.stage = "decoding";
+  const t1 = performance.now();
+  try { await img.decode(); st.decodeMs = Math.round(performance.now() - t1); st.stage = "decoded"; }
+  catch (e) { st.stage = "decode rejected: " + String(e && e.message || e); }
+  return st;
 };
 // The runner's half of S11 (armed wait, window state, command line), then the result object.
 window.__finishS11 = (runner) => {
-  const a = s11Answer || { visibilityState: "unknown", rafFiredWithin2s: false, width: null, captured: false, hiddenCaptureMs: null };
+  const a = s11Answer || runner.partial ||
+    { visibilityState: "unknown", rafFiredWithin2s: false, width: null, captured: false, hiddenCaptureMs: null };
   const minimised = runner.windowState === "minimized";
-  const ok = a.width !== null && Math.abs(a.width - 160) <= 0.5 && a.captured;
+  // "within 10 s" is judged on the measured time too: the in-page 10 s cap is a page timer, and a
+  // hidden page's timers run late, so a late resolve must not count as captured.
+  const ok = a.width !== null && Math.abs(a.width - 160) <= 0.5 && a.captured && a.hiddenCaptureMs <= 10000;
   record("S11", !minimised ? "partial" : ok ? "pass" : "fail",
     `window ${runner.windowState}; armed wait ${runner.hidden ? "saw hidden" : "timed out visible"} after ${runner.waitMs} ms; ` +
     `visibilityState "${a.visibilityState}", width ${a.width} (want 160), rAF probe ${a.rafFiredWithin2s ? "fired" : "did not fire"} within 2 s, ` +
     `${adopted} capture ${a.captured ? "resolved in " + a.hiddenCaptureMs + " ms" : "did not resolve within 10 s" + (a.captureError ? " (" + a.captureError + ")" : "")}`);
-  extras.s11 = { ...a, hidden: runner.hidden, windowState: runner.windowState };
+  extras.s11 = { ...a, hidden: runner.hidden, windowState: runner.windowState, answeredWithinRunnerCap30s: runner.answered,
+    hiddenRuns: runner.hiddenRuns || [], decodeProbes: runner.decodeProbes || [] };
   const order = (c) => Number(c.id.slice(1)) || 99;
   window.__spike = {
     userAgent: navigator.userAgent,
