@@ -165,6 +165,11 @@ export type ConflictReason =
 
 /** The reason of a phase 3 conflict, or undefined for anything else. */
 export function conflictReason(error: unknown): ConflictReason | undefined;
+
+/** A list-valued detail written by task 04's detailList (details.paths; review I2): JSON.parse
+ *  of the value, kept only when it is an array of strings. Absent or malformed → []. Never a
+ *  split on "\n", which breaks a path that holds a newline. */
+export function detailList(error: unknown, key: string): string[];
 ```
 
 ```ts
@@ -267,6 +272,7 @@ export const selectHeadBriefKey = (branchId: BranchId | null) => (s: CockpitStat
 | `path segments are encoded` | a branch id with `/` and a path with `#` reach the URL encoded | a diff route reading the wrong path |
 | `remote and write calls use their longer timeouts` | a fake that never answers: `pushBranch` is not aborted at 10 s and is at 200 s (fake timers) | a push aborted by the client mid-flight |
 | `git_failed and host_failed classify as server-said` | `classify(new ApiError("git_failed", …))` → `"server-said"` | a new ProblemKind by accident (R4 rules one for upstream-down only) |
+| `detailList parses the JSON array` (review I2) | `details.paths: '["a b\\nc.txt","docs/résumé.md"]'` → those two strings; `'not json'`, `'{"a":1}'` and absent → `[]` | a newline split that turns one path into two |
 | `conflictReason reads details.reason only` | an ApiError with `details.reason: "branch_moved"` → that; a message mentioning "branch_moved" with no detail → undefined | branching on a sentence |
 | `the slice is not persisted` | `partialize(state)` has no key from `ConvergenceSlice`; `PERSIST_VERSION` is still 1 | a git fact persisted (A1), or an unclaimed version bump (R3) |
 | `a failed reload keeps the last value` | ready then error → `{status:"error", last: <the ready value>}` | the queue blanking when the control plane blips |

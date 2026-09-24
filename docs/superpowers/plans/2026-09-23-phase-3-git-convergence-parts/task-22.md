@@ -43,7 +43,7 @@ export function inspectRemoval(projectId: ProjectId, worktreeId: WorktreeId): Pr
 export interface RemovalQuestion {
   worktreeId: WorktreeId;
   sessions: { id: SessionId; title: string }[]; // from details.sessions ("id\ttitle" lines)
-  paths: string[];                               // details.paths
+  paths: string[];                               // detailList(error, "paths") (task 18; review I2)
   commits: string[];                             // details.commits
   elsewhere: string[];                           // details.elsewhere ("ref\tsha" lines; review I6)
   unlisted: string;                              // details.unlisted, or "" (re-review b04-1 issue 2)

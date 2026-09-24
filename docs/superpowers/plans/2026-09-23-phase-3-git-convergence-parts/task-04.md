@@ -131,7 +131,7 @@ func gitConflict(w http.ResponseWriter, reason, msg string, details map[string]s
 // (httpx.WriteProblem), so a list cannot be a []string there, and a newline-joined value
 // cannot carry a path that holds a newline (task 07's TestPathsWithNewlinesAndSpaces). Every
 // details.paths goes through it: merge_conflict (tasks 09, 10) and confirm_required (task 11).
-// The desktop reads it with JSON.parse (task 22's detailList). The other list-valued details
+// The desktop reads it with JSON.parse (task 18's detailList in api/convergence.ts). The other list-valued details
 // keep their line formats: commits and elsewhere hold shas and ref names, and git refuses a
 // control character in a ref name (check-ref-format).
 func detailList(xs []string) string

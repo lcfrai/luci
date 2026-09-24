@@ -197,7 +197,8 @@ DELETE /v1/projects/{projectId}/worktrees/{worktreeId}[?confirm=<token>]
   200 { "worktreeId": "w-…", "archivedAs": "refs/panacea/archive/lanes/w-…/1790156728",
         "archivedElsewhere": "refs/panacea/archive/offbranch/w-…/1790156728" }
   409 conflict  reason live_sessions      details.sessions "s-1\tupload-api\ns-2\tShell · upload-api"
-  409 conflict  reason confirm_required   details.paths, details.commits, details.elsewhere (each newline-joined),
+  409 conflict  reason confirm_required   details.paths (a JSON array: task 04's detailList; review I2),
+                                          details.commits, details.elsewhere (each newline-joined),
                                           details.unlisted, details.unarchivable (git's sentence, or
                                           absent), details.confirm
   409 conflict  reason confirm_stale      the same details, freshly read (an archive that failed
