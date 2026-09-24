@@ -1488,3 +1488,24 @@ package ships a `.go` file, so only the existence check at `editor/go.mod` catch
 **Not done, and why.** M5 (`serve_other.go` missing from task 18's files) is not this batch's; when
 it is fixed, the plan's `sandboxd` line (`:397`) must name `serve_other.go` too. Nothing was built
 or run in the tree; the Go probes ran in the stream's scratch directory.
+
+## Fix batch b08 (2026-09-24) — M14, M20, M22
+
+Lens and end-to-end minors. Line numbers are the plan's and the parts' at `c520bd8`.
+
+| Finding | The change | Where |
+|---|---|---|
+| M22 | Owner item 3 now says **which** three sessions. A session's branch is its worktree's (`task-14.md:110`, `BranchID`) and git checks a branch out in one worktree only, so before phase 3 the three run **in one worktree** (the main checkout). Verified that the route allows it: `sessions_resume_test.go:97-98` creates two sessions from one body (one `worktreeId`), both `201`. Unverified: that the cockpit's UI offers a second session in an occupied worktree, so the item says to use the route if it does not. With phase 3 in the tree, three clones on the one branch, as the product runs; the report records which ran. The review's quote was re-checked at its source: the phase 3 plan `:23` at `feat/phase-3-git` `a99d20b`. Goal 3 and P5-L say the same in one sentence each. | `task-30.md:130-142`; plan `:48-51` (goal 3), `:235` (P5-L) |
+| M20 | P5-S: `request_review` shows in the lens only, **no toast** and **no count** (review's "toast off by default" built as no toast: a default-off setting with no way to turn it on is the same thing, and adding one is one call where the lens receives a request). Task 28 gains a *No counts, no notification stream* paragraph (tabs and section titles carry names only; `tabular-nums` now names revisions, times and the capture progress, not "counts") and scroll anchoring for the newest-first feed: at the top, rows arrive; scrolled away, inserted rows are compensated before paint, a text-only *Jump to newest* appears, appends batch at ~10 Hz, and the offset survives lens visits in a module-level map (task 27's slice is unchanged). Two tests pin both: `Activity.test.tsx › anchored`, `DesignLens.test.tsx › noCounts`. The quoted rules were checked: `AGENTIC-UX.md:52` (§3 step 2), `:71` (§4 rule 4), `:78` (§4 rule 11); `DESIGN-SYSTEM.md:65`. Phase 2's only anchoring code is the xterm pane's (`attachRegistry.test.ts:334`), which a DOM list cannot reuse. | plan `:242` (P5-S); `task-28.md:68-76`, `:109-118`, `:135-136` |
+| M14 | The dependency is added (the review's first option), with the second as the fallback: phase 4 plans both halves — task 16's `openPast(key)` sets `pastKey` and switches to Discover, task 19's `PastRevision` renders it read-only (`task-16.md:137`, `task-19.md:75` at `feat/phase-4-discover` `3bcc1b2`). *Open rev N* calls `openPast("brief:<id>@<N>")`; if task 19 is not in the tree when task 28 is built, the two buttons are not rendered and the report says so. A test pins the keys and that no client call is made. Restated in task 28's header, the task table, the sibling-plan rows and owner item 5. | `task-28.md:3`, `:30`, `:127`; plan `:217`, `:466`; `task-30.md:146-147` |
+
+**Mutants an implementer should expect to survive (named first, per rule 7).** (1) In
+`Activity.tsx`, compensating `scrollTop` one frame late (in a `requestAnimationFrame` after paint):
+jsdom does not paint, so `anchored` stays green while the real webview flickers; only the owner's
+eyes catch it (`OD-12`). (2) A count rendered as a word or inside an `aria-label` (*"three
+requests"*): `noCounts` matches digits in `textContent`, so it survives; the paragraph forbids it and
+the owner's visual pass is the check.
+
+**Not done, and why.** Nothing was built or run; this batch changes plan text only. The phase 3
+and phase 4 citations are at those branches' current heads (`a99d20b`, `3bcc1b2`), newer than the
+`6c6b20f` and `64664b7` the older sibling-plan rows name; those rows were not re-checked here.
