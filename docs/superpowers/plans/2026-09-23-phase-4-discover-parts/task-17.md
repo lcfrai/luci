@@ -35,7 +35,7 @@ held to, each with where it bites here:
 - `desktop/src/provenance/provenance.css` (`@import` of `tokens.css` as phase 2's CSS does)
 - `desktop/src/provenance/provenance.test.tsx`
 - `desktop/src/components/develop/SessionPaneHeader.tsx` — one element, `<SessionContextChip
-  sessionId={session.id} />`, after `.pane-sub` (modify, declared departure into task 20's file)
+  sessionId={session.id} />`, after `.pane-sub` (modify, declared departure into phase 2 task 20's file)
 - `desktop/src/styles/tokens.css`, `tokens.test.ts` — `--drift-tint` and `--chip-prov-w` (modify;
   `--drift-tint` is the same token phases 5 and 7 need — if one has landed it, reuse it)
 

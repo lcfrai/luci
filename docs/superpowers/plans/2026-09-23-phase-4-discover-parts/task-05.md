@@ -6,7 +6,8 @@ managed block an agent reads. **Kept from the 2026-09-18 plan's task 4** (`:1572
 deterministic render with no timestamp, `Merge` that keeps every byte outside the markers and fails
 closed on an unterminated block (`:2073-2101`). **Changed:** `Resolve` takes two *revisions*, not
 two mutable briefs, and refuses a project revision the branch did not pin (`4-D3`); skipped and
-drafted answers have rules; `claudemd` gains `Strip`, `Inspect` and `DiffLines`; the footer names
+drafted answers have rules; `claudemd` gains `Strip`, `Inspect`, `SameText` and `DiffLines`, all
+reading a CRLF file as well as an LF one (review M7); the footer names
 the inherited revision; and (review C2, plan §4 Security, S3) `Render` neutralises `<!--` in every
 interpolated string, while `Merge`, `Strip` and `Inspect` count markers, so a stray, early or
 second end marker is `ErrUnterminatedBlock` where the old `Merge` stopped at the first end.
@@ -16,6 +17,10 @@ second end marker is `ErrUnterminatedBlock` where the old `Merge` stopped at the
 - `control-plane/internal/claudemd/render.go` + `render_test.go` (new)
 - `control-plane/internal/claudemd/testdata/golden-branch.md`, `golden-project.md`,
   `golden-neutralised.md` (new)
+- `control-plane/internal/claudemd/testdata/.gitattributes` — one line, `* -text` (new). This
+  checkout has `core.autocrlf = true` and no `.gitattributes` (`survey-phase-2-substrate.md:69-70`),
+  so a fresh clone or worktree would check the golden files out with CRLF and fail every
+  byte-for-byte golden test against `Render`'s LF output (review M7, same root cause)
 
 **Interfaces — complete source:**
 
@@ -158,10 +163,20 @@ func Render(doc discover.Document) string
 // ahead of the begin, two ends) is ErrUnterminatedBlock. Both change
 // nothing: the guess would delete somebody's writing, or leave brief text
 // behind as if it were theirs.
+//
+// Line endings (review M7: Windows first, and an editor may re-save the file
+// with CRLF). Every newline this package looks for - after a marker, the one
+// Strip removes, the blank line Merge appends after - is matched as \r?\n.
+// Merge writes the block, and the blank line before an appended one, in the
+// file's own ending: CRLF when existing's first line ending is "\r\n", LF
+// otherwise (and for an empty file). So Merge then Strip is byte-exact for a
+// CRLF file too, and no merge leaves a file of mixed endings it did not
+// already have. A lone "\r" is not a line ending here.
 func Merge(existing, block string) (string, error)
 
-// Strip removes the managed block and the one newline after it. No marker of
-// either kind is not an error. The same failures, by the same count, as Merge.
+// Strip removes the managed block and the one line ending after it, "\n" or
+// "\r\n", so no "\r" is left behind. No marker of either kind is not an
+// error. The same failures, by the same count, as Merge.
 func Strip(existing string) (string, error)
 
 // Marker is what a begin marker names.
@@ -173,15 +188,23 @@ type Marker struct {
 // Block is the managed block found in a file.
 type Block struct {
 	Marker Marker
-	Text   string // from BeginPrefix through EndMarker and its newline, verbatim
+	Text   string // from BeginPrefix through EndMarker and its line ending, verbatim (a CRLF block keeps its "\r")
 }
 
 // Inspect finds the block. ok is false when there is no marker of either
 // kind; a stray or early end marker is ErrUnterminatedBlock, by the same
-// count as Merge, never an `edited` block. Its only use is
+// count as Merge, never an `edited` block. Markers match as in Merge, with
+// \r?\n (review M7). Its only use is
 // the drift check (contract §3.3 condition 3): NOTHING reads brief text back
 // out of a file as a source.
 func Inspect(existing string) (b Block, ok bool, err error)
+
+// SameText reports whether got and want are equal once every "\r\n" in each
+// is read as "\n". It is the drift check's only comparison of a found block
+// with a fresh render (task 09's current/edited split), so a block an editor
+// re-saved with CRLF is current, not edited over every line (review M7). Any
+// other byte difference, a lone "\r" included, is a difference.
+func SameText(got, want string) bool
 
 type DiffOp string
 
@@ -197,7 +220,9 @@ type DiffLine struct {
 }
 
 // DiffLines is a line diff (longest common subsequence) of want against got,
-// capped at 400 lines of output, for the "block edited by hand" view.
+// capped at 400 lines of output, for the "block edited by hand" view. Lines
+// are split on \r?\n and compared, and returned, without their ending, so a
+// CRLF block's diff shows only the lines whose text changed (review M7).
 func DiffLines(want, got string) []DiffLine
 ```
 
@@ -269,7 +294,8 @@ renders the same bytes on every branch and every teammate's machine.
 | `TestMergeAndStripFailClosed` | unterminated and duplicate blocks → their errors, input unchanged | the guess that deletes a person's writing |
 | `TestRenderNeutralisesCommentOpeners` | a Document whose answer text, criterion text, follow-up prompt and title (from a `BranchRef` of `refs/heads/<!--x` — `<` and `!` are legal in a git ref) each hold `<!-- panacea:discover:end -->` or `<!-- x -->` renders to a checked-in golden (`testdata/golden-neutralised.md`) in which each appears as `<!-\- …`; `strings.Count(block, "<!--") == 2`; `Inspect(Render(doc))` is ok with the doc's marker, and `Strip(Merge("", block))` is `""` | the escape dropped, or applied to answers but not to prompts or the title (review C2) |
 | `TestStrayEndMarkerIsBroken` | table, for each of `Merge`, `Strip` and `Inspect`: an end marker with no begin; an end before the begin; begin, end, then a second end (the forged-early-end shape: begin, forged end, brief tail, real end); a begin, a begin and one end → `ErrUnterminatedBlock` for the first three and `ErrDuplicateBlock` for the last; the input is unchanged; a file with no marker of either kind is still `ok == false` / unchanged with no error | a strip that removes up to the first end and leaves the brief's tail behind as "user text", a merge that re-appends that tail on every start, or an Inspect that reports it as `edited` for ever |
-| `TestStripRemovesTheBlockAndNothingElse` | Merge then Strip returns the original, byte for byte, for three shapes (empty file, text above, text above and below) | a strip that leaves a blank line or eats one |
+| `TestStripRemovesTheBlockAndNothingElse` | Merge then Strip returns the original, byte for byte, for three shapes (empty file, text above, text above and below). **CRLF rows (review M7):** the two non-empty shapes with `\r\n` endings: Merge's output has no `\n` that is not preceded by `\r`, and Strip returns the original byte for byte; and a file Merged with LF, then re-saved with every `\n` turned to `\r\n` (the editor case), Strips to the CRLF original with no `\r` left anywhere a line ending was removed | a strip that leaves a blank line or eats one; a marker matched on `\n` only, which leaves a `\r` behind or misses a CRLF end marker; a Merge that writes an LF block into a CRLF file |
+| `TestCRLFResaveIsNotAnEdit` (review M7) | `Render(doc)` with every `\n` turned to `\r\n`: `Inspect` is ok with the doc's marker, `SameText(b.Text, Render(doc))` is true, and `DiffLines(Render(doc), b.Text)` is all `same` with no `\r` in any `Text`; the same file with one line's text changed: `SameText` false and exactly one `removed` and one `added`; `SameText("a\rb\n", "ab\n")` is false | a drift check that compares raw bytes, so every CRLF re-save is `edited` over every line; a normaliser that strips every `\r`, not just the one before `\n` |
 | `TestInspectReadsTheMarker` | `brief=bf-…a2 rev=5` → `Marker{"bf-…a2", 5}`; `rev=05`, `rev=0`, a missing `rev` → `ErrBadMarker` | a lenient parser that accepts a marker no render produced |
 | `TestDiffLinesShowsAHandEdit` | changing one line of a rendered block gives exactly one `removed` and one `added` in place | a diff that reports the whole block changed |
 
@@ -284,7 +310,9 @@ renders the same bytes on every branch and every teammate's machine.
   sentence; add `Strip`, `Inspect`, `DiffLines`. The old `Merge` finds the first begin and the
   first end after it; replace that with the marker count above, shared by `Merge`, `Strip` and
   `Inspect` through one unexported `locate(existing) (begin, end int, err error)`, and run every
-  interpolated string through the `<!--` neutraliser (review C2).
+  interpolated string through the `<!--` neutraliser (review C2). `locate`'s `end` is past the
+  end marker's `\r?\n`; add `SameText`, and give `Merge` the file's line ending (review M7).
+  Write `testdata/.gitattributes` before the golden files are first committed.
 - [ ] **Step 4:** Run the acceptance commands; commit by pathspec.
 
 **Acceptance:**

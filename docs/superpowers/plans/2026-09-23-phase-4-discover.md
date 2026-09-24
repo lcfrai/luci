@@ -295,7 +295,7 @@ without a cycle. Phase 4 imports only the Hub's
 | `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes; the marker rule (`ErrReservedText`, S3) | 03 |
 | `discover/assist.go` + test | `ProposeFollowUp` over a `Completer`, degrading to nothing | 04 |
 | `discover/inherit.go` + test | `Resolve(project, branch *Revision) Document` — project → branch, with origins; `Title(branch *Revision)`, the block title's one rule | 05 |
-| `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`; the golden blocks; the `<!--` neutraliser and the marker count (S3) | 05 |
+| `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`, `SameText`, `DiffLines`; the golden blocks (`testdata/.gitattributes` `* -text` keeps them LF on checkout); the `<!--` neutraliser and the marker count (S3); CRLF files read as LF ones (review M7) | 05 |
 | `provenance/key.go` + test | the key grammar — the only parser (P5): `brief:`, `design:`, `none:` | 06 |
 | `provenance/ref.go` + test | `Ref`, `Build`, criterion digests, `Resolution`; `CriterionReading` and `Readings`, the moving criterion states kept out of the `Ref` (review I14) | 06 |
 | `discoverhub/binding.go` + test | local project → Hub project by repo key; local branch → `refs/heads/…` | 07 |
@@ -426,7 +426,7 @@ it. This table is the index.
 | `statepath.WriteAtomic` | task 01 | 09, registry |
 | `modelclient.Completer`, `Request`, `Response`, `Config` | task 02 | 04, 13, phase 6 |
 | `discover.Content` (the Hub `content` object, **version 1**), `Question`, `Answer`, `Author`, `Criterion`, `Step`, `Op`, `Apply` | task 03 | everything |
-| `discover.Document`, `Section`, `Origin`, `Resolve`; `claudemd.Render`/`Merge`/`Strip`/`Inspect`, the markers, the golden block | task 05 | 06, 09, 12 |
+| `discover.Document`, `Section`, `Origin`, `Resolve`; `claudemd.Render`/`Merge`/`Strip`/`Inspect`/`SameText`/`DiffLines`, the markers, the golden block | task 05 | 06, 09, 12 |
 | `provenance` key grammar, `Key`, `Parse`, `Ref`, `Resolution`, `Criterion`, `Build`, `CriterionReading`, `Readings` | task 06 | 07, 11, 12, phase 3 |
 | `discoverhub.Service`, `Binding`, `View`, `RepoIdentity` | tasks 07, 08 | 09, 11, 12, 13, phase 3 (`briefref`) |
 | `api.Materialiser`, `MaterialiseRequest`, `MaterialiseResult`, `*MaterialiseError`, `api.RouteMounter`; `brief_not_written` | task 10 | 09, 11, 14, 20 |
