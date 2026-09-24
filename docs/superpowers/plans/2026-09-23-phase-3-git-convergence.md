@@ -91,8 +91,9 @@ invariant: a lane's line endings are decided by task 03's own step-4 argv
 (`core.autocrlf=false`, `core.eol=lf`); the host never reads a lane to learn them (R4.2, R4.6),
 and never asks `Project.Path`**, whose system `autocrlf=true` would send `true`/`crlf`. Phase
 2's resolvers (`GitLineEndings`, `GitGlobalFiles`, `GitIdentity`) read only host-owned config
-under R4.6; that is the phase-2 stream's fix, which phase 3 relies on and does not make (plan
-re-review b02-2 X-1; the primary-worktree half is Q14). The local keys still govern a sandbox
+under R4.6; that is the phase-2 stream's fix (gate G5), which phase 3 relies on and does not
+make (plan re-review b02-2 X-1, Q14). Task 05 sends task 03's constants itself and asks no git
+for them. The local keys still govern a sandbox
 session started without that environment.
 
 **The control plane converges by fetching, never by sharing a filesystem.** A background lane
@@ -234,7 +235,7 @@ Each is small, stated so a reviewer can overturn it, and none changes what the o
    calls take their proxy, TLS and helpers from the machine's config, never the repository's. The
    sandbox's read-only `.git/config` bind is hygiene, and nothing is claimed from it. Phase 2's
    host-side resolvers read host-owned config only; the phase-2 stream makes that change (R4.6,
-   plan re-review b02-2 X-1, Q14).
+   gate G5, plan re-review b02-2 X-1, Q14).
 
 ## How this plan supersedes the sandbox git fix (`fix/sandbox-git-ca`)
 
@@ -261,10 +262,10 @@ The fix is **the base this plan builds on**. Re-read on 2026-09-24 (review I12) 
 
 | The fix does | Phase 3 does | Kept, changed or superseded |
 |---|---|---|
-| Mounts the worktree at `/home/dev/work`, the conversation store, and the CA bundle read-only; since phase 2's later rounds also a primary's linked-worktree metadata and the host's global excludes and attributes files, each read-only (`sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle string, git sessionGitFiles)` at `10fa5fd`) | Leaves all of those mounts as they are, except that a global excludes or attributes file whose path, as answered or with links resolved, lies under the worktree is not mounted, and in a lane clone the answer comes from a pinned git (task 05; plan re-review b02-2 X-1; the primary-worktree half is Q14). It adds one: when the worktree's `.git` is a directory (every lane clone; since ruling R4.1 no session mounts the project), `<path>/.git/config` is bound read-only on top, as hygiene that nothing relies on (task 05; task-02 §HGH H5; review C1). For a cockpit worktree the worktree mount's host path is the clone, whose `.git` is a directory, so no `.git` common-dir mount is ever added (brief 3-D1 option a is rejected) | **Kept, plus one read-only file.** The mount model the brief calls "linked-worktree mounts" is replaced by clones, not by more directory mounts |
-| `sessionEnv(id, eol, git, caBundle)` (as of `10fa5fd` on `feat/phase-2-cockpit`, re-read 2026-09-24, review I12): a `pairs` slice numbered into `GIT_CONFIG_KEY_n`/`VALUE_n` (`safe.directory=/home/dev/work`, `user.useConfigOnly=true`, `gc.worktreePruneExpire=never`, `gc.auto=0`, `core.autocrlf` and `core.eol` from `Deps.GitLineEndings` asked in the session's worktree path, `core.excludesFile` and `core.attributesFile`), `GIT_CONFIG_COUNT` their number (eight at `10fa5fd`; six at `57c3bf5`); `GIT_AUTHOR_*`/`GIT_COMMITTER_*` from the identity; `NODE_EXTRA_CA_CERTS` | Appends one pair, `core.hooksPath=/opt/panacea/githooks`, after the fix's own, which it never renumbers. Relies on the resolvers being asked in the clone, by a pinned git, for a lane session, and pins both (task 05's `laneResolverRunner`; plan re-review b02 I-1 and b02-2 X-1; "A clone shares no file" above). Adds `PANACEA_APP_SESSION_ID`, a reserved variable `EnvEntries` writes from `Spec.SessionID` (task 05) | **Extended.** `safe.directory` is still needed: a clone's bind mount has the same foreign owner |
+| Mounts the worktree at `/home/dev/work`, the conversation store, and the CA bundle read-only; since phase 2's later rounds also a primary's linked-worktree metadata and the host's global excludes and attributes files, each read-only (`sessionMounts(worktreePath, worktreeAdmin, conversationStore, caBundle string, git sessionGitFiles)` at `10fa5fd`) | Leaves all of those mounts as they are, except that a global excludes or attributes file whose path, as answered or with links resolved, lies under the worktree is not mounted, and the answer comes from host-owned config only (R4.6, gate G5; plan re-review b02-2 X-1, Q14). Every session runs in a lane, a primary's or linked worktree's backing lane made on first start, so no `worktreeAdmin` mount is ever passed (task 05, R4.1). It adds one: when the worktree's `.git` is a directory (every lane clone; since ruling R4.1 no session mounts the project), `<path>/.git/config` is bound read-only on top, as hygiene that nothing relies on (task 05; task-02 §HGH H5; review C1). For a cockpit worktree the worktree mount's host path is the clone, whose `.git` is a directory, so no `.git` common-dir mount is ever added (brief 3-D1 option a is rejected) | **Kept, plus one read-only file.** The mount model the brief calls "linked-worktree mounts" is replaced by clones, not by more directory mounts |
+| `sessionEnv(id, eol, git, caBundle)` (as of `10fa5fd` on `feat/phase-2-cockpit`, re-read 2026-09-24, review I12): a `pairs` slice numbered into `GIT_CONFIG_KEY_n`/`VALUE_n` (`safe.directory=/home/dev/work`, `user.useConfigOnly=true`, `gc.worktreePruneExpire=never`, `gc.auto=0`, `core.autocrlf` and `core.eol` from `Deps.GitLineEndings` asked in the session's worktree path, `core.excludesFile` and `core.attributesFile`), `GIT_CONFIG_COUNT` their number (eight at `10fa5fd`; six at `57c3bf5`); `GIT_AUTHOR_*`/`GIT_COMMITTER_*` from the identity; `NODE_EXTRA_CA_CERTS` | Appends one pair, `core.hooksPath=/opt/panacea/githooks`, after the fix's own, which it never renumbers. A lane session's `core.autocrlf`/`core.eol` are task 03's step-4 constants, sent by task 05 with no git asked (R4.2; `TestALaneSessionSendsTheClonesLineEndings`; plan re-review b02 I-1 and b02-2 X-1; "A clone shares no file" above). Adds `PANACEA_APP_SESSION_ID`, a reserved variable `EnvEntries` writes from `Spec.SessionID` (task 05) | **Extended.** `safe.directory` is still needed: a clone's bind mount has the same foreign owner |
 | `gitIdentityResolver` asks `git var GIT_AUTHOR_IDENT` in the worktree's host path | A clone does not inherit its source's `.git/config`, nor an `includeIf gitdir:` that matched the project's path. So clone creation asks `git var` **in the project repository** and writes the answer into the clone's local `user.name`/`user.email` (task 03). The fix's per-worktree resolution then gives the same answer in the clone that it gives in the project | **Kept, with one addition at clone time** |
-| `LinkedWorktreeNote` renders for every worktree with `isPrimary: false`, saying git "arrives in Phase 3" | The condition narrows to `kind === "linked"`: a worktree made with `git worktree add` outside the cockpit, where git is still unavailable. A clone is `kind: "clone"`, `isPrimary: false`, and renders no notice. The sentence is rewritten to name the fix the user can take, and stops promising a phase (task 06) | **Superseded** for clones; **kept and reworded** for linked worktrees |
+| `LinkedWorktreeNote` renders for every worktree with `isPrimary: false`, saying git "arrives in Phase 3" | Deleted. Under R4.1 no session runs in a linked worktree: task 05 runs it in the worktree's backing lane, where git works, so the notice would render for no kind. `kind` stays on the model (task 06) | **Retired**, with its sentence and tests |
 | Git over HTTPS "is phase 3's" (the fix's commit message) | Push and fetch run on the host, never in the sandbox; the sandbox holds no credential (A4). `NODE_EXTRA_CA_CERTS` does not affect git on the host, which uses whatever trust the host's git is already configured with (its `http.sslBackend` — not read for this plan) | **Answered**: nothing git-over-HTTPS happens in a sandbox |
 
 **Gate G1.** Task 04 and every later task assume the fix is in the branch phase 3 builds on.
@@ -388,6 +389,7 @@ part file; task 18 restates them as TypeScript.
 | **G2** | Phase 2 task 26 lands: `components/lens/FilesLens.tsx` and `MergeLens.tsx` exist and `AppShell.tsx` is closed (seam SX.1). **Verified absent on 2026-09-23**: `desktop/src/components/lens/` holds only `LensPlaceholder.tsx`, and `AppShell.tsx:44-58` still routes `files` and `merge` to `LensPlaceholder phase={3}` | tasks 19–21 | the desktop half waits. It never edits `AppShell.tsx`: that reopens the four-way collision `dependency-graph-and-order.md` §2.2 counts |
 | G3 (soft) | Phase 4's `provenance` slice zero: a `briefref.Resolver` implementation and `DefinitionOfDone` | the brief key on a land, evidence recording, the DoD above the queue | lands record no brief (`none`); evidence recording answers `brief_unresolvable`; the Merge lens renders the DoD slot's honest empty state |
 | G4 (soft) | The Hub's credential store (`credstore.Store`) | push and PR with a stored token | push uses the machine's git credential helper; PR creation uses the git-helper fallback (task 13) or says there is no credential |
+| **G5** | The phase-2 stream's R4.6 fix: phase 2's host-side resolvers (`GitIdentity`, `GitGlobalFiles`, `GitLineEndings`) read only `--global`/`--system` config, with a working directory outside any repository and never `-C <worktree>`. Named G5 because G3 is phase 4's | task 05, and everything that starts a session in a lane | stop and report: a lane session would run host git in a directory the sandbox writes (R4.2) |
 
 ### What phase 3 asks of the Hub (Phase H) — no Hub contract existed on 2026-09-23
 
@@ -449,7 +451,7 @@ named task changes.
 | **Q11** | Re-review b06-1 issue 1b: an exact undo cannot see a lane that merges the land after it (a merge in progress, or a clone whose refresh failed still naming the land). When that lane lands, the undone work comes back. Refuse that land until the human acknowledges it, or let it land and say so? | **Let it land and say so, built.** Task 08's forecast row names each undone land the lane carries (`carriesUndone`, one reader, `CarriedUndone`), task 09's Land returns them as `broughtBack` (step 7a), and task 19's row and toast name them. Land stays enabled because the land that brings them back is itself exactly undoable, so nothing is lost and the user keeps one click to take it back | task 09's step 7a refuses with a new `carries_undone_land` (details: the shas and their lanes) unless `LandRequest` names the same set in a new `bringsBack` field; tasks 04 and 18 gain the code and the field; task 19's Land on such a row asks first, *"Landing upload-api also brings back upload-db's land, which you undid. Land anyway?"* |
 | **Q12** | Re-review b07-1 issue 4: a revert of land B takes back B's code, but evidence recorded before the revert on a tree that held B (the branch head after a later land A, or a lane head after it merged the branch) judged B's code too. Should the revert reopen that evidence, or only evidence at B's own commits (`M^1..M`)? | **Reopen it, built** (task 15's rule (b), its own because sentence). It errs the safe way: a criterion reads open, the human records once more after the revert, and phase 7 never carries a false settled into a release. The cost is over-retirement: A's criteria recorded at `M_A` reopen too, and a revert weeks after the land reopens everything recorded since | task 15 drops rule (b) and its test, and its "does not claim" names the residual: a branch-head or merged-lane record that judged B's code stays settled after B is reverted |
 | **Q13** | Review Minor 15, re-review b08-1 issue 6: a lane clone writes `core.symlinks=false` (parts/task-03 "Blob bytes on disk"), so a repository's symlink is a small plain file holding its target's text, in the lane and in the sandbox. The index keeps mode `120000`, and `git add` never changes that type. So an agent that edits such a file as if it were the linked file (a symlinked `.eslintrc`, say) commits a `120000` entry whose target is the whole file's text, and a land carries that broken link into the product branch, where the user's checkout (`core.symlinks=true` on this machine) makes it a dangling link. Accept that? | **Accept, stated, not detected in phase 3.** The alternative, real links in a lane, lets a commit put a link to any host path into a directory the cockpit reads, and depends on how Docker Desktop shows a Windows link (unverified). The hazard needs an agent to rewrite a file it should treat as a link. Whether task 16's Merge lens shows a `120000` entry's change as a link change is unverified | task 08's forecast gains a row that names every `120000` entry a lane changes whose new target holds a newline or NUL, and task 09 refuses that land until the human acknowledges it |
-| **Q14** | Plan re-review b02-2 X-1, the primary-worktree half (cross-stream). Phase 2's `d7e2dea` asks `git config --get --type=path core.excludesFile` (and `core.attributesFile`) in the worktree through the unpinned `project.Runner`, and `sessionGitGlobalFile` mounts any absolute regular file the answer names into the sandbox. On a primary-worktree session the sandbox can write the project's `.git/config` (before task 05's H5 bind) or `.git/commondir` (after it), so an agent can name `~/.git-credentials`, `~/.ssh/id_*` or `~/.claude/.credentials.json` and read it at the next create or restart. Read from the code, not run end to end. Who fixes it, and how? | **The phase-2 fix stream, in phase 2's code, before phase 3 builds on it**: a mount source must never be chosen by config the sandbox can write (for example, ask only `--system` and `--global`, or pin the layout as task-02 §HGH H5 does). Phase 3 closes the lane half itself (task 05's `laneResolverRunner` and worktree check) and does not claim the primary worktree | phase 3 also routes project paths through `gitx.Exec` as `Scope: Project` with H5's pin. That closes `commondir` but not a `core.excludesFile` written into the project's `.git/config` before the bind, and a linked worktree is never pinned (H5) |
+| **Q14** | Plan re-review b02-2 X-1, the primary-worktree half (cross-stream). Phase 2's `d7e2dea` asks `git config --get --type=path core.excludesFile` (and `core.attributesFile`) in the worktree through the unpinned `project.Runner`, and `sessionGitGlobalFile` mounts any absolute regular file the answer names into the sandbox. On a primary-worktree session the sandbox can write the project's `.git/config` (before task 05's H5 bind) or `.git/commondir` (after it), so an agent can name `~/.git-credentials`, `~/.ssh/id_*` or `~/.claude/.credentials.json` and read it at the next create or restart. Read from the code, not run end to end. Who fixes it, and how? | **The phase-2 fix stream, in phase 2's code, before phase 3 builds on it**: a mount source must never be chosen by config the sandbox can write (for example, ask only `--system` and `--global`, or pin the layout as task-02 §HGH H5 does). Since R4.1 no sandbox mounts the project, and every session runs in a lane; the resolvers read host-owned config only (R4.6, gate G5), and task 05 keeps its worktree check on the mount source | phase 3 also routes project paths through `gitx.Exec` as `Scope: Project` with H5's pin. That closes `commondir` but not a `core.excludesFile` written into the project's `.git/config` before the bind, and a linked worktree is never pinned (H5) |
 
 ## File map
 
@@ -460,8 +462,7 @@ exact insertion.
 control-plane/
   cmd/api/config.go                 (p2) three PANACEA_APP_* rows                          04 07 12
   cmd/api/main.go                   (p2) wire lanes, syncer, fetch timer, deps;
-                                    phase 2's three resolvers on resolverRunner             04 05 07 12 13
-  cmd/api/gitresolvers.go           laneResolverRunner (re-review b02-2 X-1)                05
+                                    phase 2's resolvers unchanged (R4.6, gate G5)            04 07 12 13
   internal/gitx/                    runner.go error.go machine.go trailers.go harden.go (§HGH)
                                     locks.go (the one per-project lock, review I7)
                                     internal/spawnseam/seam.go (Exec's process seam, R4)
@@ -488,8 +489,8 @@ control-plane/
   internal/httpx/problem.go         (p2) CodeGitFailed, CodeHostFailed                        04
   internal/api/sessions.go          (p2, post-fix) the default title takes the worktree's
                                     catalog Name (re-review b08-1 issue 2)                   04
-                                    sessionEnv gains core.hooksPath;
-                                    sessionMounts binds .git/config read-only (§HGH H5)       05
+                                    sessionEnv gains core.hooksPath; every session in a
+                                    lane (R4.1); .git/config bind is hygiene (R4)            05
   internal/api/catalog.go           (p2) worktreeJSON.Kind                                   04
   internal/api/routes_audit_test.go (p2) one line per new GET                                08 10 11 15 16 17
   internal/api/{worktrees,convergence,lands,branches,remote,pullrequests,
@@ -504,7 +505,9 @@ docs/
   superpowers/contracts/2026-09-18-phase-2-ui-contract.md  (p2) §2 Worktree.kind; §4.2 codes  06 18
 desktop/src/
   store/types.ts                    (p2) Worktree.kind                                       06
-  components/develop/LinkedWorktreeNote.tsx (+test) (fix) narrowed, reworded, + shared-index  06
+  components/develop/LinkedWorktreeNote.tsx (+test) (fix) deleted (R4.1)                    06
+  components/develop/SharedIndexNote.tsx (+test)  the shared-index note (3-D2)              06
+  components/develop/EmptyDevelop.tsx  (p2) the linked note's mount deleted                  06
   api/client.ts                     (p2) append phase 3's functions and ProblemCodes          18
   api/convergence.ts                the phase 3 wire types                                    18
   store/slices/convergenceSlice.ts  unpersisted                                               18
@@ -548,8 +551,8 @@ under three.
 | 02 | `gitx`: the write runner, timeout classes, `*gitx.Error`, the `Machine` seam, trailers, `Locks`, a real-git test helper | 01 | 2 h |
 | 03 | `lanes`: the lane index, clone create, identity copy, the composite catalog; the `briefref` interfaces | 02 | 3 h |
 | 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1 | 2 h |
-| 05 | Git in the sandbox for clones: `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
-| 06 | The linked-worktree notice superseded: `kind` in `types.ts`, the notice narrowed, the shared-index note (3-D2) | 04, G1 | 2 h |
+| 05 | Git in the sandbox for clones: every session in a lane (R4.1), `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1, G5; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
+| 06 | The linked-worktree notice deleted (R4.1): `kind` in `types.ts`, the shared-index note (3-D2) | 04, 05, G1 | 2 h |
 | 07 | Lane sync and observed claims; the sweep's tip-change clone refresh (review I4) | 04 | 3.5 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 | 3 h |
 | 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4) | 08 | 4.5 h |
@@ -590,10 +593,9 @@ both 10 and 13.
 appends a **contiguous, commented block** (`// ── task NN ──`) to `GitDeps`, to `gitRoutes()`
 and to `serve`'s phase 3 wiring in `cmd/api/main.go`, never between another task's lines, so
 parallel lanes merge mechanically (`dependency-graph-and-order.md` §4.2's rule for `api.go`,
-made structural). `routes_audit_test.go` gets one line per GET, appended. The one exception is
-task 05's: it appends its `resolverRunner` block after task 04's, and changes the runner
-argument on phase 2's three resolver lines in `main.go` (re-review b02-2 X-1), which no other
-phase 3 task touches.
+made structural). `routes_audit_test.go` gets one line per GET, appended. There is no exception:
+task 05 no longer touches `main.go`, since phase 2's resolvers are the phase-2 stream's (R4.6,
+gate G5).
 
 ## What this plan does not claim
 

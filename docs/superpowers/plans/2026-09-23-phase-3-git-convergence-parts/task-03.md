@@ -300,8 +300,8 @@ git 2.53.0.windows.2, host only) ran the resolver's two calls (`config --get --t
 --default false core.autocrlf`, `config --get --default native core.eol`): `true`/`native` in
 the project (the resolver turns `native` into `crlf`), `false`/`lf` in a step-4 clone, and a
 checkout under the clone's answer as env writes `x\ny\n`. Task 05's
-`TestALaneSessionSendsTheClonesLineEndings` and `TestTheResolverReadsALaneCloneAsLF` pin the
-invariant, and task 01's `TestSandboxCloneHasWorkingGit` checks the bytes in the real sandbox.
+`TestALaneSessionSendsTheClonesLineEndings` (the constants, no git asked) and
+`TestSessionCreateRunsNoHostGitInTheLane` pin the invariant, and task 01's `TestSandboxCloneHasWorkingGit` checks the bytes in the real sandbox.
 The local keys still decide for a sandbox session started without that environment. Phase 2 and
 phase 3 differ on where the answer comes from, not on the mechanism: a primary checkout is the
 user's, so phase 2 reads its effective setting and sends it; a lane clone is ours to configure,

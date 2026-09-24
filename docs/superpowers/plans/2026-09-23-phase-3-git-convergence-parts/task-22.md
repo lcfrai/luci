@@ -157,8 +157,8 @@ quotes git's sentence. Buttons: **Remove** (danger) and **Keep it** (default foc
   - `TopBar.tsx:29`.
 
   Run at `c97de8c` and on feat/phase-2-cockpit (both before G2), it listed those six plus four in
-  `LinkedWorktreeNote.tsx` and `.test.tsx`, which task 06 rewrites (its test asserts no
-  `/Phase \d/`). If a `LinkedWorktreeNote` line still appears, task 06 is not merged. **Any other
+  `LinkedWorktreeNote.tsx` and `.test.tsx`, which task 06 deletes (R4.1). If a
+  `LinkedWorktreeNote` line still appears, task 06 is not merged. **Any other
   line: stop and report it.** It is a promise this task's table does not list, or an exclusion
   whose reason no longer holds. Do not reword it or widen an exclusion on the spot.
 

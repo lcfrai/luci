@@ -68,9 +68,9 @@ clone bind-mounted at `/home/dev/work` and the fix's environment as `sessionEnv`
 `gc.worktreePruneExpire=never`, `gc.auto=0`, `core.autocrlf=<A>`, `core.eol=<E>`,
 `core.excludesFile=/dev/null`, `core.attributesFile=/dev/null` (the fix's `sessionGitNoFile`,
 what a host whose git reads no global excludes or attributes file sends; `d7e2dea`), in that order,
-`GIT_CONFIG_COUNT` their number, and `GIT_AUTHOR_*`/`GIT_COMMITTER_*`. `<A>`/`<E>` are what the
-production resolver answers in that clone: `false`/`lf` for task 03's argv (task 05's
-`TestTheResolverReadsALaneCloneAsLF` pins it). The pairs are written out here, once, as a named
+`GIT_CONFIG_COUNT` their number, and `GIT_AUTHOR_*`/`GIT_COMMITTER_*`. `<A>`/`<E>` are task 03's
+step-4 constants, `false`/`lf`, which task 05 sends to every lane session without asking git
+(R4.2; its `TestALaneSessionSendsTheClonesLineEndings` pins it). The pairs are written out here, once, as a named
 list in the test file: this task precedes gate G1, and `gitx` cannot import `internal/api`'s
 unexported `sessionEnv`. Task 05's `TestSandboxLaneCloneChecksOutLF` repeats the line-ending
 check with the env read from `sessionEnv` itself, so a retyped list that drifts is caught there
