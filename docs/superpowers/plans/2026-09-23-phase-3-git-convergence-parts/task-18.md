@@ -58,9 +58,13 @@ export interface Forecast {
 export interface QueueEntry { worktreeId: WorktreeId; forecast: Forecast; settles: string[] }
 export interface LaneSession { id: SessionId; title: string; harness: string; status: string }
 export interface LaneView extends LaneObservation { ready: boolean; sessions: LaneSession[] }
+/** converge.BringIn (review I5): null unless remote.behind > 0. */
+export interface BringIn {
+  upstream: string; tip: string; behind: number; fastForward: boolean; forecast: Forecast;
+}
 export interface Convergence {
   projectId: ProjectId; branchId: BranchId; branch: string; tip: string; checkedOutAt: string;
-  remote: RemoteState; queue: QueueEntry[]; lanes: LaneView[]; readAt: string;
+  remote: RemoteState; bringIn: BringIn | null; queue: QueueEntry[]; lanes: LaneView[]; readAt: string;
 }
 
 /* task 09 — converge.LandResult */
@@ -70,6 +74,11 @@ export interface LandRequest {
 export interface LandResult {
   merge: string; before: string; branch: string; worktreeId: WorktreeId; briefKey: string;
   readyCleared: boolean; refreshed: WorktreeId[]; refreshErrors: Record<WorktreeId, string>;
+}
+/* task 09 — converge.BringInResult (review I5) */
+export interface BringInResult {
+  tip: string; before: string; mode: "fast-forward" | "merge";
+  refreshed: WorktreeId[]; refreshErrors: Record<WorktreeId, string>;
 }
 
 /* task 10 — converge.HistoryEntry, UndoResult, RevertResult */
@@ -155,7 +164,7 @@ export interface TranscriptSpan {
 /** details.reason on a phase 3 409 — task 04's closed list. The desktop switches on it and
  *  never on the message. */
 export type ConflictReason =
-  | "name_taken" | "git_too_old" | "branch_checked_out" | "branch_moved" | "merge_conflict"
+  | "name_taken" | "git_too_old" | "branch_checked_out" | "branch_moved" | "upstream_moved" | "merge_conflict"
   | "nothing_to_land" | "not_ready" | "brief_unresolvable" | "no_git_identity" | "undo_not_exact"
   | "live_sessions" | "confirm_required" | "confirm_stale" | "not_a_cockpit_worktree"
   | "branch_has_worktrees" | "branch_exists" | "no_remote" | "push_rejected" | "unknown_host"
@@ -191,6 +200,7 @@ export interface CockpitClient {
   getConvergence(projectId: ProjectId, branchId: BranchId, briefKey?: string): Promise<Convergence>;
   setQueue(projectId: ProjectId, branchId: BranchId, order: WorktreeId[]): Promise<WorktreeId[]>;
   land(projectId: ProjectId, branchId: BranchId, req: LandRequest): Promise<LandResult>;
+  bringIn(projectId: ProjectId, branchId: BranchId, expectedTip: string, expectedUpstream: string): Promise<BringInResult>;
   listLands(projectId: ProjectId, branchId: BranchId, limit?: number): Promise<HistoryEntry[]>;
   undoLand(projectId: ProjectId, branchId: BranchId, sha: string, expectedTip: string): Promise<UndoResult>;
   revertLand(projectId: ProjectId, branchId: BranchId, sha: string, expectedTip: string): Promise<RevertResult>;
