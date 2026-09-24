@@ -349,8 +349,11 @@ into, so the sandbox's git, which has none of that config, agrees with the host'
   <Name>-<Nonce>\` (`statepath.go:30-44`, the `worktrees` rung task 04 defaults to). On this
   machine that prefix is 77 characters up to the project id's folder, plus up to 48 for a
   40-character name and its nonce: at most 125 before the repository's own paths, well into
-  Windows' 260. Without `core.longpaths=true` Git for Windows fails the checkout with "Filename
-  too long" (task 04's `TestWorktreeCreateSurfacesGitsSentence` shows that sentence). Step 4
+  Windows' 260. Without `core.longpaths=true` Git for Windows fails the checkout. Probed on
+  2026-09-24 (`scratchpad/p3/b08/probe3.out`, hermetic): a 359-character path made `clone` exit
+  128 with "fatal: cannot create directory at '…': Filename too long" and "warning: Clone
+  succeeded, but checkout failed."; `--config core.longpaths=true` exited 0 with a clean
+  `status` (task 04's `TestWorktreeCreateSurfacesGitsSentence` shows that sentence). Step 4
   writes it, so the checkout and every later host call in the clone run with it; Linux git
   ignores the key. Task 01's Step 5 records the longest real path against 260.
 
