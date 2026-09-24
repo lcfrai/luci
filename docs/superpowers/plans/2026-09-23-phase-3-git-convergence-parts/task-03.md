@@ -165,8 +165,11 @@ type MountGuard interface {
 //     <CloneRoot>/<ProjectID>/<Name>-<c.Nonce()>; when anything exists at Path (os.Lstat), draw
 //     again, at most 4 draws, then ErrNameTaken. An existing directory is never removed or
 //     reused. A removed lane's directory is gone, so a draw can repeat its nonce only by
-//     chance: 1 in 16.7 million per draw, the same order as two paths sharing an 8-hex
-//     WorktreeID, which phase 2 already accepts (review Minor 7);
+//     chance: 1 in 16^6 (16,777,216) per draw of 6 hex. That is 256 times likelier than two
+//     paths sharing an 8-hex WorktreeID (1 in 16^8, 4,294,967,296). A repeat gives the new
+//     lane the removed lane's Path, so its ID too (Store.Add cannot see it: Remove dropped the
+//     old entry); that residual is accepted at those odds (review Minor 7; re-review b08-1
+//     issue 4);
 //  4. `clone --no-hardlinks --config core.autocrlf=false --config core.eol=lf
 //     --config core.checkStat=minimal --config core.trustctime=false
 //     --config core.longpaths=true --config core.symlinks=false
@@ -204,15 +207,18 @@ func (c *Creator) Create(ctx context.Context, req CreateRequest) (Lane, error)
 // NoFetchURL and NoPushURL are a lane clone's origin (step 4a, review Minor 14). Each is a path
 // that exists on neither machine and names who does the job, so the agent's `git pull` or
 // `git push` in the sandbox fails with a sentence that tells it why. Task 01's
-// TestSandboxCloneCannotFetch records that sentence verbatim for task 23's agent docs.
+// TestSandboxCloneCannotFetch records that sentence verbatim in task 01's results document.
+// No phase 3 task writes agent-facing docs; the record waits for the later task that does
+// (re-review b08-1 issue 5).
 const (
 	NoFetchURL = "/panacea-app/no-remote/the-cockpit-fetches-origin-and-upstream-for-this-worktree"
 	NoPushURL  = "/panacea-app/no-remote/the-cockpit-lands-this-worktree-and-pushes-the-branch"
 )
 
 // NoFilterEnv is step 4's Call.Env: GIT_CONFIG_COUNT=3 with filter.lfs.smudge="",
-// filter.lfs.process="" and filter.lfs.required=false, at command scope, so a system-wide
-// Git LFS (Git for Windows' installer can define filter.lfs.*) neither runs nor smudges
+// filter.lfs.process="" and filter.lfs.required=false, at command scope, so a machine's
+// Git LFS (Git for Windows' installer can define filter.lfs.* in the system config, and
+// `git lfs install` writes it to the global one; command scope beats both) neither runs nor smudges
 // during the checkout (review Minor 13). It is env, not `--config`, because a `filter.*`
 // key in the clone's local config is one task-02 §HGH H3's Clone allowlist refuses.
 var NoFilterEnv map[string]string
@@ -324,15 +330,24 @@ into, so the sandbox's git, which has none of that config, agrees with the host'
   on the host and in the sandbox, whose content is the link's target; the index keeps mode
   `120000`, `status` is clean on both sides, and an edit to the file commits a new target. A
   tool that follows the link in the lane reads that text, not the file it names. That is the
-  price, and it buys two things: the host never makes a link whose target a landed commit chose
-  (an agent's link to `C:\Users\…` would otherwise be a real link in a directory the cockpit
-  reads, task 16's Minor 9 class), and the answer no longer depends on whether a Windows link
-  shows as a link through Docker Desktop's bind mount (unverified, so not relied on).
-- **Git LFS.** Git for Windows' installer can define `filter.lfs.*` in the system config, and the
-  sandbox image installs `git`, not `git-lfs` (`images/sandbox/Dockerfile:12`). A host checkout
+  price, and it buys two things: the host's git never checks out a link into a **lane clone**
+  whose target a commit chose (an agent's link to `C:\Users\…` would otherwise be a real link in
+  a directory the cockpit reads, task 16's Minor 9 class), and the answer no longer depends on
+  whether a Windows link shows as a link through Docker Desktop's bind mount (unverified, so not
+  relied on). Both hold for lane clones only. The user's own checkout of the product branch
+  follows the user's `core.symlinks` (`true` on this machine), so a land that carries a link
+  becomes a real link there; and the agent can still make a link in the clone itself, through
+  the bind mount, without git (re-review b08-1 issue 6). The hazard the price carries: an agent
+  that edits such a file as the linked file (a symlinked `.eslintrc`) commits a `120000` entry
+  whose target is the whole file's text, and a land carries that broken link into the product
+  branch. Accepting it is the owner's call, plan **Q13**, built as recommended (accept, stated).
+- **Git LFS.** Git for Windows' installer can define `filter.lfs.*` in the system config, and
+  `git lfs install` writes it to the global one; the sandbox image installs `git`, not `git-lfs`
+  (`images/sandbox/Dockerfile:12`). A host checkout
   would then smudge LFS paths to their content while the sandbox's git, with no such filter,
   hashes that content against a pointer blob and lists every LFS path as modified: C2's shape.
-  This machine has neither: its system config defines no `filter.lfs.*` and `git lfs version`
+  This machine has neither: its system and global configs define no `filter.*` (the global
+  checked 2026-09-24, `scratchpad/p3/b08r2-global.out`, exit 1) and `git lfs version`
   answers "'lfs' is not a git command" (2026-09-24). Step 4's NoFilterEnv makes the answer the
   same everywhere: the checkout writes the pointer files, which are the blobs' bytes. Probed with
   a test system file holding an LFS-shaped `filter.lfs` whose smudge writes a marker
@@ -343,8 +358,9 @@ into, so the sandbox's git, which has none of that config, agrees with the host'
   agent cannot fetch the content: the sandbox has no credential (A4) and no `git-lfs`. Adding
   `git-lfs` to the image is not the fix: its smudge would reach for a server from the sandbox.
   An agent that writes real content to an LFS path commits it as a plain blob, since the sandbox
-  has no filter; the host's `status` of that path, which runs the system's clean filter where
-  one exists, then disagrees with the sandbox's (a residual, stated, not handled in phase 3).
+  has no filter; the host's `status` of that path, which runs a system or global clean filter
+  where one exists, then disagrees with the sandbox's (a residual, stated, not handled in phase
+  3; re-review b08-1 issue 7).
 - **Long paths.** A clone lives at `%LOCALAPPDATA%\PanaceaApp\state\worktrees\<ProjectID>\
   <Name>-<Nonce>\` (`statepath.go:30-44`, the `worktrees` rung task 04 defaults to). On this
   machine that prefix is 77 characters up to the project id's folder, plus up to 48 for a
@@ -480,7 +496,7 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestOpenFileStoreRefusesACorruptFile` | `{not json` → error containing the path | an empty index orphaning every clone |
 | `TestCreateClonesOnTheBranch` | clone's `rev-parse HEAD` equals the project's `refs/heads/feat` and `symbolic-ref HEAD` is `refs/heads/feat`; `Lane.ID == project.WorktreeID(Path)`; the lane is in the store | a clone on the default branch |
 | `TestCreateWritesLineEndingConfig` | production-shaped (`UseSystemConfig(WindowsInstallerSystem)`), project with LF blobs `a.txt` and `b.bat` and `.gitattributes` `*.bat eol=crlf`: the clone's `config --local` holds `core.autocrlf=false`, `core.eol=lf`, `core.checkStat=minimal` and `core.trustctime=false`; `a.txt`'s bytes on disk equal its blob (no `\r`); `b.bat`'s are CRLF; `status --porcelain` is empty. Red first against a `--local` argv without the four `--config` | a clone that checks out CRLF under the system `autocrlf` (review C2) |
-| `TestCreateWritesBlobBytes` (review Minors 13, 15) | production-shaped, the system file holding `core.symlinks=true` and an LFS-shaped `filter.lfs` (smudge = a marker script, `required=true`); project with a symlink entry `link` → `t.txt` (mode `120000`, via `update-index --cacheinfo`) and `a.bin` under `*.bin filter=lfs`: the clone's `config --local` holds `core.symlinks=false` and `core.longpaths=true`; `link` is a regular file by `os.Lstat` holding `t.txt`; `a.bin`'s bytes equal its blob; no marker exists; `status --porcelain` is empty. Red first twice: without `core.symlinks=false` (`link` is a symlink where the machine allows one, which this one does), and without NoFilterEnv (the marker exists) | a lane whose disk holds what the host's config made of the blobs, which the sandbox's git then sees as modified |
+| `TestCreateWritesBlobBytes` (review Minors 13, 15) | production-shaped, the system file holding `core.symlinks=true` and an LFS-shaped `filter.lfs` (smudge = a marker script, `clean = cat`, `required=true`, and no `process`: with `required=true` and no clean, the host `status` this test asserts dies with `fatal: a.bin: clean filter 'lfs' failed`, exit 128, and a fixture copied from real git-lfs, `process = git-lfs filter-process` with git-lfs absent, fails the same way; re-review b08-1 issue 1); project with a symlink entry `link` → `t.txt` (mode `120000`, via `update-index --cacheinfo`) and `a.bin` under `*.bin filter=lfs`: the clone's `config --local` holds `core.symlinks=false` and `core.longpaths=true`; `link` is a regular file by `os.Lstat` holding `t.txt`; `a.bin`'s bytes equal its blob; no marker exists; `status --porcelain` is empty. Red first twice: without `core.symlinks=false` (`link` is a symlink where the machine allows one, which this one does), and without NoFilterEnv (the marker exists) | a lane whose disk holds what the host's config made of the blobs, which the sandbox's git then sees as modified |
 | `TestCreateSetsASelfDescribingOrigin` (review Minor 14) | the clone's `config --get remote.origin.url` is NoFetchURL and `remote.origin.pushurl` is NoPushURL; `branch.<b>.remote` is `origin`; `git fetch` in the clone exits non-zero and its stderr contains NoFetchURL | an agent told about SSH to a host named `C` |
 | `TestCreateSharesNoObjectFileWithTheProject` | walk the clone's `.git/objects`; for every file, the same relative path in the project is absent or not `os.SameFile`. Red first against `--local` (task 01 pins that it shares them) | an agent rewriting the user's history through a hard-linked pack (review I8) |
 | `TestCreateCopiesTheProjectsIdentity` | project has local `user.name=Ada`; the clone's `git var GIT_AUTHOR_IDENT` starts `Ada <` | agents committing as the machine-wide identity in a repo that sets its own |
