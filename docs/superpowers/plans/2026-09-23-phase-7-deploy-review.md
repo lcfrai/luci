@@ -1191,3 +1191,95 @@ cases); a `json:"hubMiss"` tag (killed by the wire assertion in `TestHubKeyIsRep
   sibling's code exists or matches its text; an edge 429 or 405 on `POST …/deploy`; how a
   `DefaultCollection` remote maps.
 - Nothing was compiled or run. No real Panacea or Hub was called.
+
+---
+
+## Fix batch b06 — I1 and I5 (2026-09-24)
+
+Two Importants. Commits `f7a4a45` (I1) and `61bf3ca` (I5) on `feat/phase-7-deploy`, plus this
+section's commit. Every Panacea citation below was read at `b33d15acb` with `git show`, read-only;
+Panacea's HEAD is `f978765d1` and was not used.
+
+**How each grep was checked.** A script pulled every fenced `go` block out of the part into one
+file, with each line tagged by its part line, and the grep ran over that file. Each grep then ran
+over planted violation lines, to show it still catches what it guards. Task 07's grep reads the real
+desktop tree, so it ran over both this worktree and the main tree at `a92c3b0`.
+
+### I1 — each acceptance grep prints what it promises
+
+| Part | Was | Now | Run against the part's code |
+|---|---|---|---|
+| t01:639-647 | `-i`, 28 lines (the constants `"pending"`/`"succeeded"`, 25 Panacea-naming comments, `PosturePanaceaSSO`) | case-sensitive: `"/api/`, `"/projects`, `json:"`, `"(Succeeded\|Pending\|Failed\|Running\|Unknown)"`, `pnc_`, `/deploy/panacea"`. Expected: only `TestErrorNeverRendersCause`'s lines | the code prints nothing (exit 1). Five planted lines (a JSON tag, `== "Succeeded"`, a route constant, `"Bearer pnc_abc"`, a connector import) print one line each |
+| t03:71, :361-364 | `// mirrors`, which printed 0, claimed "at least 17" | a count pair: `^// [a-z][A-Za-z]*DTO mirrors ` against `^type [a-z][A-Za-z]*DTO(\[T any\])? struct`, **17 and 17**. `branchEnvDTO`'s comment (t03:71) now opens *"branchEnvDTO mirrors"*, the only DTO that did not | 17, then 17. The review's "16, not 17" was true before b02 added `branchEnvDTO` |
+| t04:209-214 | `Mode"\|ScanMode\|dastMode\|sastMode`, which printed the three `json:"accessMode"` lines | `-i` on the ten scan-mode spellings in `TriggerDeployOptions` (`models/models.go:2356-2372`). The `-i` is deliberate: `encoding/json` matches keys case-insensitively, so an untagged `DASTMode` field would still reach Panacea as `dastMode` | nothing. Planted `DASTMode string` and `` `json:"iacScanMode,omitempty"` `` print |
+| t05:327-333 | bare `pnc_`, which also printed the `TokenSource` comment (t02:25) and panaceatest's `"pnc_test"` (t03:288, a non-test file) | `"pnc_"\|pnc_[0-9a-fA-F]{8}`. Expected: exactly the prefix check in `deploy_connection.go`. The old text's *"the constant's comment"* named a constant no part defines | over the code of tasks 01–05, nothing. A planted `HasPrefix(token, "pnc_")` and a planted 32-hex key print. The refusal sentence *"starts with pnc_."* does not |
+| t07:257-262 | bare `setInterval`, 3 lines (`heartbeat.ts:29` is `ReturnType<typeof setInterval>`) and a claimed `poller.ts:84` | `setInterval(` and `grep -v '\.test\.'`. Each expected line is quoted, and its number is given as of `a92c3b0` | exactly `api/poller.ts:90` and `hooks/heartbeat.ts:34`, in both trees |
+
+Restatements fixed: `poller.ts:84` → `:90` at plan:81 and t07:6. Nothing else in the plan or the
+parts restated the "17", the `// mirrors` form, *"only the comment on shipRequestDTO"* or
+*"the constant's comment"*.
+
+**Mutants.** The two expected to survive, named before running, and then run:
+1. **t05: a key in upper-case hex.** It survived `[0-9a-f]{8}`. Panacea mints lower case
+   (`hex.EncodeToString`, `handlers/api_keys.go:360-368`), but a hand-edited value need not be, so
+   the class is now `[0-9a-fA-F]`. Re-run: the upper-case key prints, and the plan's own lines still
+   do not.
+2. **t04: a scan field under a name Panacea does not read** (`ScanModes map[string]string
+   json:"scanModes"`). **It survives, and that is acceptable:** `TriggerDeploy` decodes leniently
+   (t04:24), so the key is dropped and no scanner changes. It is recorded, not fixed.
+
+Also run: `"SUCCEEDED"` survives t01's grep. It is not a word Panacea writes (t03:225-239).
+
+### I5 — a key restricted to one project
+
+**The facts, re-read at `b33d15acb`:**
+- A restricted key's `/projects` holds its one project, applied before every other grant
+  (`clients/kubernetes.go:1237-1249`).
+- It is capped at Developer (`models/models.go:547-559`). `IsSuperAdmin`, `IsOwner` and `IsAdmin`
+  are false for every scoped key (`:218-221`, `:247-249`, `:261-263`).
+- `/me` says `role: "developer"` and `approved: true`, and its groups are the synthetic
+  `project-<p>` or `project-<p>-viewer` (`middleware/api_key.go:380-385`). **No body phase 7
+  reads says the key is scoped.**
+- Refusals: an owner route answers `403 {"error":"forbidden: this token's scope does not permit
+  owner access to this project"}`, as `text/plain` (`middleware/rbac.go:265-276`). A project outside
+  the scope answers *"this token is scoped to a different project"* (`:194-202`).
+- The portal's form: *Restrict to a project?*, which defaults to *No restriction — full access,
+  same as you*. Once a project is picked, the capability defaults to **Read only**
+  (`backstage/packages/app/src/plugins/AccountPage.tsx:1345-1355`, `:993-996`, `:1060`).
+
+| Review's fix | Change |
+|---|---|
+| A recorded scoped-key `/me` and `/projects` pair | t03:265 `me-scoped-deploy.json` and `projects-scoped.json`. t03:266 adds `error-scope-owner-403.txt`, the probe's real refusal. t03:331 adds `TestScopedKeyIsOneApprovedProject` |
+| The no-match sentence says "your key" | t06:154 now reads *"No Panacea project your key can see deploys this repository. A key restricted to one project sees only that project; otherwise, create one in the Panacea portal, then come back."* The code comment at t06:45 also changed. t06:218 adds `TestNoMatchUnderARestrictedKey` |
+| The owner-only sentence says "your role or your key" | t18:111 now reads *"Only a project owner can change this, with a key that is not restricted to one project. Panacea refuses it to developers and to every restricted key."* t18:160's test asserts the line exactly. t07:238 `TestOwnerProbe` covers the scope `403` |
+| The connect panel says which key to mint | t14:57: step 2 tells the user to leave *Restrict to a project?* on *No restriction*, in the portal's own words. A line under the steps says what a restricted key and a *Read only* key cannot do. The text is one constant, `KEY_ADVICE`, which is the seam. t14:84 adds `connect names the key` |
+| An owner question | plan:789 **Q-P7-7**: an unrestricted key or one restricted at *Deploy*. **Recommended and built: unrestricted.** The plan's list of what the owner provides (plan:792) says so. plan:324 (7P-9) states the restricted-key case |
+
+Also: t20:443 (LIVE-CHECK step 12) now connects once with a *Read only* restricted key, and checks
+the three sentences live (OD-12, batched).
+
+### Deviations from the review's "how to fix", declared
+
+- **"Your key or your role" became two explicit halves.** The owner-only line names both *"a
+  project owner"* and *"a key that is not restricted"*. The no-match line names *"your key"*, and
+  what a restricted key sees. Each is one sentence that is true in both cases, because the watcher
+  cannot tell the cases apart without matching Panacea's prose.
+- **Added beyond the review:** the scope-`403` body, the task 06 test, the task 07 case and the
+  LIVE-CHECK step. Without them, the new sentences would have no test and no live check.
+- **Not built, recorded as a possible refinement:** detecting a scoped key. Panacea's
+  account-surface routes refuse every scoped key with `403` through `DenyScopedToken`
+  (`middleware/scope_guard.go:19-40`; `authedUnscoped`, `routes.go:3234-3243`, for example
+  `GET /api/v1/me/hotbar` at `:3061`). A single probe could therefore say *"this key is restricted"*
+  exactly. It was not built, for two reasons. It adds a route dependency on an account route that
+  phase 7 has no other use for. And the answer to Q-P7-7 decides whether it is ever worth it.
+
+### Left open
+
+- **Q-P7-7** is the owner's.
+- **The prototype still has the old owner line** (`prototype/phase-7-deploy.html:887`) and the old
+  step 2 (`:813`). The prototype is the artifact the owner reviewed and was not edited. Task 14:57
+  and t18:111 now differ from it on purpose, and the plan text wins.
+- Unverified: the portal's rendered labels. Only the source was read, not a live portal. Whether a
+  restricted key's `username` in `/me` is its owner's is also unverified, because the recorded body
+  does not depend on it.
+- Nothing was compiled or run. No real Panacea or Hub was called.

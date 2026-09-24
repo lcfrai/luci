@@ -324,7 +324,7 @@ goes red.
 go test ./control-plane/... -race -count=1
 → ok, including internal/api's routes audit
 
-grep -rnE '"pnc_"|pnc_[0-9a-f]{8}' control-plane/internal --include=*.go | grep -v _test.go
+grep -rnE '"pnc_"|pnc_[0-9a-fA-F]{8}' control-plane/internal --include=*.go | grep -v _test.go
 → exactly one line: deploy_connection.go's prefix check, strings.HasPrefix(token, "pnc_")
   (review I1. The pattern guards two things: a real key — Panacea mints pnc_<32 hex>,
   handlers/api_keys.go:360-368 at b33d15acb — pasted into any non-test source, and a second
