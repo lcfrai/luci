@@ -426,5 +426,62 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 43 | the board, and drag that offers a fact instead of faking it | W1 | 0.375 (3 h) | 40 | — |
 | 44 | display options and the bulk bar, with *Start N worktrees* and `confirm.inplace` | W1 | 0.375 (3 h) | 40 | — |
 | 45 | Plan (`G P`): Triage, Backlog, criteria with their issues, *My issues* | W1 | 0.375 (3 h) | 42 | — |
+| 46 | the issue view, part 1: head fields and their pickers | W1 | 0.375 (3 h) | 37, 39 | — |
+| 47 | the issue view, part 2: revisions, restore, `serves` with `thread.node`, revision-pinned links | W1 | 0.375 (3 h) | 36, 46 | — |
+| 48 | the issue view, part 3: relations, the live agent line, *done, not proven* and its reason | W1 | 0.3 (2.5 h) | 46 | — |
+| 49 | the editor, part 1: one Markdown editor on `prosemirror-*` (MIT), author class kept | W1 | 0.375 (3 h) | 46 | — |
+| 50 | the editor, part 2: the slash menu and tables | W1 | 0.375 (3 h) | 49 | — |
+| 51 | comments: the thread, mentions, reactions, anchors, resolve | W1 | 0.375 (3 h) | 49 | — |
+| 52 | attachments by blob digest; subscribe and unsubscribe | W1 | 0.3 (2.5 h) | 51 | — |
+| 53 | keys, part 1: `keys.list`, `isCockpitChord` extended, `event.code` for agent keys, the dead Linear chords, the single-key switch | W1 | 0.375 (3 h) | 40 | — |
+| 54 | keys, part 2: `G`, `O` and `M` sequences, the generated `?` sheet, chords in menus, the safe triangle | W1 | 0.375 (3 h) | 53 | — |
+| 55 | the replica, part 1: in memory, full load, the cursor on `/v1/changes`; the no-persistence test | W1 | 0.375 (3 h) | 37 | SW.16 |
+| 56 | the replica, part 2: optimistic writes, rollback on refusal, `optimistic.undo`, `U` | W1 | 0.375 (3 h) | 55 | SW.16 |
+| 57 | the replica, part 3: only what the caller may read; resync on a gap; erase | W1 | 0.3 (2.5 h) | 55 | SW.16 |
+| 58 | the replica, part 4: `/` search and `O I` open by number | W1 | 0.3 (2.5 h) | 53, 55 | SW.16 |
+| 59 | the palette: every work verb with its chord, the four prefixes, opens beside the row | W1 | 0.3 (2.5 h) | 54, 58 | — |
+| 60 | peek on `Space`: `peek.span`, `peek.hunk`, `peek.person` | W1 | 0.375 (3 h) | 40, 55 | — |
+| 61 | Start on the desktop: `Shift+R`, the *Undo Start* chip, *Stop and discard*, the 10 s first sign | W1 | 0.375 (3 h) | 24, 56 | — |
+| 62 | **the Desk frame**: five fixed sections, never live while open, the row-kind registry | W1 | 0.375 (3 h) | 37 | SW.17 |
+| 63 | the Desk: issue rows in NEEDS YOU, aging, *blocking someone's agent* | W1 | 0.375 (3 h) | 55, 62 | — |
+| 64 | the Desk: FAILED with *Restart from checkpoint* and *Abandon*; LANDED; RUNNING's fold | W1 | 0.375 (3 h) | 62 | — |
+| 65 | the Desk: §3.7's informs and the reassign *decide*; answer in place; the zero state | W1 | 0.375 (3 h) | 63, 64 | — |
+| 66 | the accessibility floor: one live region, `aria-hidden` liveness, grid roles | W1 | 0.3 (2.5 h) | 41, 62 | — |
+| 67 | issue chips in Develop and Merge | W1 | 0.25 (2 h) | 48; P4-17, P3-19 | — |
+| 68 | create an issue from any list, a Desk row, a span or a hunk | W1 | 0.3 (2.5 h) | 46, 53 | — |
+| 69 | the import dialog; `first.landing`'s rehearsal as the real issue EP-1 | W1 | 0.3 (2.5 h) | 25, 42 | — |
+| 70 | **W1's local-mode demo**, end to end, and its results | W1 | 0.375 (3 h) | 01-69 | — |
+| 71 | shipped: issues in the release manifest; *shipped to production, 14:02* | W1b | 0.375 (3 h) | 22, 64; P7-17, P7-19 | — |
+
+### W2: planning
+
+| Id | Task | Slice | Focused days | dependsOn | Seams |
+|---|---|---|---|---|---|
+| 72 | `hubapi` and `hubclient.WorkPlan`: the W2 wire types and methods | W2 | 0.375 (3 h) | 70 | SW.18 |
+| 73 | the fake's W2 rules and conformance rows | W2 | 0.375 (3 h) | 72 | SW.18 |
+| 74 | the W2 migration, its guards and matrix rows | W2 | 0.375 (3 h) | 72 | — |
+| 75 | custom states inside the human bands | W2 | 0.3 (2.5 h) | 74 | — |
+| 76 | features `ft-`: lead, dates, status, branch reservation, *promote to feature* | W2 | 0.375 (3 h) | 74; P4-18 | — |
+| 77 | cycles `cy-`: cadence, the janitor's creation and rollover, scope log, iCal; closure proposals and archive | W2 | 0.375 (3 h) | 74 | — |
+| 78 | sub-issues and the parent rule; templates `tp-`; label groups and org labels | W2 | 0.375 (3 h) | 74 | — |
+| 79 | estimates, due dates, rank, move with redirect, the resolved-blocker rule | W2 | 0.3 (2.5 h) | 74 | — |
+| 80 | views `vw-`, drafts `df-`, https links and the read-only page, CSV export | W2 | 0.375 (3 h) | 74 | — |
+| 81 | the digest builder and the outbound mail seam | W2 | 0.3 (2.5 h) | 13, 74 | — |
+| 82 | `hubclient`'s W2 methods over HTTP, the relay rows, W2's Hub end to end | W2 | 0.375 (3 h) | 73, 75-81 | SW.18 |
+| 83 | desktop W2 wire types and replica kinds | W2 | 0.3 (2.5 h) | 55, 73 | — |
+| 84 | custom states in team settings and on the row | W2 | 0.25 (2 h) | 83 | — |
+| 85 | the features board and feature tabs; status beside the facts | W2 | 0.375 (3 h) | 83 | — |
+| 86 | *promote to feature* and the `B` key | W2 | 0.25 (2 h) | 85 | — |
+| 87 | cycles: convergence per criterion, the scope log, cadence settings, `Y` | W2 | 0.375 (3 h) | 83 | — |
+| 88 | sub-issues and *split into issues* | W2 | 0.3 (2.5 h) | 83 | — |
+| 89 | templates, estimates, due dates (`D`), manual order and move | W2 | 0.375 (3 h) | 83 | — |
+| 90 | label groups, `Group/Label` shorthand, org labels | W2 | 0.25 (2 h) | 83 | — |
+| 91 | views: the editor, save, favourites, set as default, ad hoc lists, search prefixes, a person's page | W2 | 0.375 (3 h) | 83 | — |
+| 92 | drafts, callouts and *copy as Markdown* with the Hub key | W2 | 0.3 (2.5 h) | 50, 83 | — |
+| 93 | https links and the prefill deep link | W2 | 0.25 (2 h) | 80, 83 | — |
+| 94 | the digest, defer with a reason (`H`), CSV export | W2 | 0.3 (2.5 h) | 65, 81 | — |
+| 95 | themes, part 1: `tokens.gen.ts` from three LCH seeds; `graphite` and `paper` generated (02 D2 step 5) | W2 | 0.375 (3 h) | 33 | SW.11 |
+| 96 | themes, part 2: the high-contrast pair; personal preferences | W2 | 0.3 (2.5 h) | 95 | — |
+| 97 | W2's proof and results | W2 | 0.3 (2.5 h) | 72-96 | — |
 
 ---
