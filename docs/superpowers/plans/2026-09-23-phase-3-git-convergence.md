@@ -509,6 +509,8 @@ desktop/src/
   store/slices/{prefs,ui}Slice.ts   (p2) rebindBranch — keys moved, no persist version        22
   components/palette/commands.ts    (p2) append                                               22
   components/topbar/TopBar.tsx      (p2) line 29's title loses "Phase 3"                      22
+  components/AppShell.test.tsx      (p2) line 119's Authority entry follows TopBar's title    22
+  components/develop/sessionVerbs.ts  (p2) :607-608, :624 point at Not ready (Minor 10)       22
   styles/tokens.css                 (p2) --diff-add, --diff-del (check first, rule 2)          21
 ```
 
@@ -545,12 +547,15 @@ under three.
 | 19 | Merge lens, part 1: the queue, forecasts, land, conflict resolution, banners | 18 | 3 h |
 | 20 | Merge lens, part 2: remote bar, push, PR, landed history with undo, evidence dialog | 19 | 3 h |
 | 21 | Files lens: changed paths, one path's hunks, back-links, the span drawer | 18 | 3 h |
-| 22 | Lifecycle verbs: new and remove worktree, branch create/rename/delete, palette; the three "arrives in Phase 3" promises retired | 04, 06, 11, 18 | 3 h |
+| 22 | Lifecycle verbs: new and remove worktree, branch create/rename/delete, palette; the four phase 2 promises of phase 3 retired (review Minor 10 found the fourth) | 04, 06, 11, 18, 19 | 3 h |
 | 23 | Proof: the end-to-end script on real git and Docker, the owner's batched checklist, the seams doc | all | 2 h |
 
 **Order.** 01 → 02 → 03 → 04 → then three lanes that can run in parallel worktrees:
 **(a)** 05 → 06; **(b)** 07 → 08 → 09 → 10, then 15 and 16 → 17; **(c)** 11 (after 08), 12 → 13,
-then 14 once 10 has landed (its PR description lists the lands). The desktop track 18 → (19 → 20) ∥ 21 ∥ 22 starts once G2 holds. Task 23 is last.
+then 14 once 10 has landed (its PR description lists the lands). The desktop track 18 → 21 ∥ (19 → (20 ∥ 22)) starts once G2 holds. Task 23 is last.
+Task 22 waits on 19 (review Minor 10): it wires 19's `MergeBanner.tsx`, and its `sessionVerbs.ts`
+copy names 19's Not ready button. This costs the desktop track nothing: 18 → 19 → 22 is as long
+as 18 → 19 → 20, three 3 h tasks each.
 Lane (c) needs only 07 and 08 from lane (b) before 14 (review I7; re-review b04-1 issue 4;
 review Minor 16): task 11 waits on 07, lane (b)'s first task, and on 08, whose `CheckedOutAt`
 its branch rename and delete refuse by, and nothing else in lane (c) waits on lane (b). This

@@ -1,14 +1,16 @@
-### Task 22: Lifecycle verbs in the cockpit — new and remove worktree, branch create, rename and delete, the palette, and three stale promises retired
+### Task 22: Lifecycle verbs in the cockpit — new and remove worktree, branch create, rename and delete, the palette, and four stale promises retired
 
-Tasks 04 and 11 built the routes; this task puts them where the user already looks. Three phase 2
+Tasks 04 and 11 built the routes; this task puts them where the user already looks. Four phase 2
 surfaces currently **promise phase 3** in their copy, and each promise is now either kept or
-removed:
+removed (the fourth, `sessionVerbs.ts`, found by review Minor 10: the old grep for
+`arrives in Phase 3` missed its wording):
 
 | Where (read 2026-09-23) | Says today | After this task |
 |---|---|---|
-| `components/develop/EmptyDevelop.tsx:100-101` | "Creating a worktree arrives in Phase 3. Until then, check out this branch in a worktree from the command line and it will appear in the rail." | a **New worktree on <branch>** button that creates a clone and selects it |
+| `components/develop/EmptyDevelop.tsx:100-101` | "Creating a worktree arrives in Phase 3. Until then, check out this branch in a worktree from the command line and it will appear in the rail." | a **New worktree on <branch>** button that creates a clone and selects it; the doc comment at `:72-73` ("creation is Phase 3, so it must say so in WORDS rather than offer a button that 404s") is rewritten to say the button calls task 04's route |
 | `components/menu/ContextMenu.tsx:102-106` | project "New branch", disabled: "Phase 2 has no create-branch endpoint (contract §10.3)…" | enabled; opens the new-branch form |
-| `components/topbar/TopBar.tsx:29` | Authority's title: "…It arrives in Phase 3." | "Authority needs the agent-runtime signal (docs/AGENTIC-UX.md §7). No phase owns it yet." — 3-D10: the number comes off until a phase owns it |
+| `components/topbar/TopBar.tsx:29` | Authority's title: "…It arrives in Phase 3." | "Authority needs the agent-runtime signal (docs/AGENTIC-UX.md §7). No phase owns it yet." — 3-D10: the number comes off until a phase owns it. `components/AppShell.test.tsx:119` asserts that title matches `/Phase 3/`, so its Authority entry becomes `/No phase owns it yet/` in the same commit (the Run locally entry keeps `/Phase 7/`) |
+| `components/develop/sessionVerbs.ts:607-608` (doc comment) and `:624` (`worktreeReadyItems`' disabled reason) (review Minor 10) | "Phase 2 has no un-mark to offer — the merge queue in Phase 3 owns that." and "Already marked ready. Phase 2 has no un-mark; the merge queue in Phase 3 owns that." | the reason: "Already marked ready. To take it out of the queue, use Not ready on its card in the Merge lens."; the comment: already-ready stays disabled rather than hidden, and un-marking is task 19's **Not ready** button, where the queue it leaves is in view. `sessionVerbs.test.ts:820`'s `toContain("Already marked ready")` still holds. The copy names task 19's button, so this task waits on 19 |
 
 **The one question in the product** is *Remove worktree…* (survey §6.2): it names the live
 sessions, the uncommitted paths and the unlanded commits the server reports, and on **Remove** it
@@ -20,7 +22,9 @@ other verb here is immediate, with a toast.
 - `desktop/src/components/menu/lifecycleItems.ts` + test — the worktree, branch and project items (new)
 - `desktop/src/components/menu/ContextMenu.tsx` — spread the items; the project "New branch" row replaced (p2)
 - `desktop/src/components/lifecycle/NewBranchForm.tsx`, `RenameBranchForm.tsx`, `RemoveWorktreeQuestion.tsx`, `DeleteBranchQuestion.tsx`, `lifecycle.css`, `actions.ts` (new)
-- `desktop/src/components/develop/EmptyDevelop.tsx` — the no-worktree branch (p2, one block)
+- `desktop/src/components/develop/EmptyDevelop.tsx` — the no-worktree branch and its doc comment's `:72-73` sentence (p2, two blocks)
+- `desktop/src/components/develop/sessionVerbs.ts` — `worktreeReadyItems`' doc comment `:607-608` and its disabled reason `:624` (p2; review Minor 10)
+- `desktop/src/components/AppShell.test.tsx` — line 119's Authority entry, `/Phase 3/` → `/No phase owns it yet/` (p2; the TopBar change breaks it otherwise)
 - `desktop/src/components/develop/SessionPane.tsx` — pass `onNewWorktree` to task 06's `SharedIndexNote` (p2, one prop)
 - `desktop/src/components/lens/merge/MergeBanner.tsx` — task 19's m-new "New worktree" wired (phase 3's file)
 - `desktop/src/components/palette/commands.ts` + test — phase 3's commands appended (p2, seam SX.6)
@@ -123,6 +127,7 @@ quotes git's sentence. Buttons: **Remove** (danger) and **Keep it** (default foc
 | `EmptyDevelop offers a new worktree instead of a promise` | a branch with no worktrees → no text matching `/Phase 3/`; a button that calls `createWorktree(projectId, branchId)` then selects the result | the stale promise surviving |
 | `New branch is enabled` | the project menu's `new-branch` item has `run` and no `disabledReason` | the phase 2 placeholder left in |
 | `TopBar's Authority title names no phase` | the title does not match `/Phase \d/` and still names AGENTIC-UX §7 | 3-D10 unapplied |
+| `an already-ready worktree points at Not ready` (review Minor 10) | `worktreeReadyItems` of a `ready: true` worktree → disabled, `disabledReason` names "Not ready" and "Merge lens" and does not match `/Phase \d/` | the phase 2 promise that "the merge queue in Phase 3 owns that" surviving phase 3 |
 | `Remove worktree is disabled for primary and linked` | kinds `primary`, `linked` → disabled with the git worktree remove reason | the cockpit deleting a user's checkout |
 | `the removal question names all four losses` | `inspectRemoval` answered `confirm_required` with sessions, paths, commits, elsewhere → four headed lists in the window; with `unarchivable` set, the fourth says those commits are lost and quotes it (review I6); with only `unlisted` set, the fourth heading is shown although `elsewhere` is empty, and quotes it (re-review b04-1 issue 2) | a question that hides what is lost |
 | `Remove kills the sessions first, then deletes with the token` | order of calls: `killSession(s-1)`, `killSession(s-2)`, `removeWorktree(p, w, confirm)` | a DELETE refused for live sessions, or sandboxes left running |
@@ -138,9 +143,18 @@ quotes git's sentence. Buttons: **Remove** (danger) and **Keep it** (default foc
 
 #### Steps
 
-- [ ] **Step 1: Preflight.** Tasks 04, 06, 11, 18 merged. `grep -n "arrives in Phase 3" -r desktop/src --include=*.tsx`
-  lists exactly `EmptyDevelop.tsx` and `TopBar.tsx` (and the fix's `LinkedWorktreeNote`, which task
-  06 already rewrote — if it still appears, task 06 is not merged; stop).
+- [ ] **Step 1: Preflight.** Tasks 04, 06, 11, 18, 19 merged (19: `MergeBanner.tsx`, which this
+  task wires, and the Not ready button the new sessionVerbs copy names). The retirement grep,
+  widened from `arrives in Phase 3` to `Phase 3` (review Minor 10):
+  `git grep -n "Phase 3" -- desktop/src ":!desktop/src/styles/tokens.css" ":!desktop/src/styles/designsystem.test.ts" ":!desktop/src/defects.test.tsx"`
+  lists exactly `AppShell.test.tsx` (the Authority entry), `EmptyDevelop.tsx` (`:73`, `:101`),
+  `sessionVerbs.ts` (`:608`, `:624`) and `TopBar.tsx:29`: run on this tree at `80e79a9`, it listed
+  those six lines plus four in `LinkedWorktreeNote.tsx` and `.test.tsx`, which task 06 rewrites (its
+  test asserts no `/Phase \d/`). If a `LinkedWorktreeNote` line still appears, task 06 is not
+  merged; stop. The three files left out say what a token or a defect anchor is for, and promise
+  nothing: `tokens.css:73-77` and `designsystem.test.ts:271` (`--need`/`--drift` reserved "so Phase
+  3 does not invent a second amber"), `defects.test.tsx:839-842` (why defects 7, 9 and 10 anchor
+  outside Merge). Case matters: task 06's new comment says "phase 3 has shipped the fix".
 - [ ] **Step 2:** tests; `actions.ts`, `lifecycleItems.ts`, the forms and the question; the edits
   to the phase 2 files, each confined to the block named above.
 - [ ] **Step 3:** run; commit by pathspec.
@@ -157,7 +171,7 @@ designed `:focus-visible` ring. Nothing animates except the popover's existing o
 ```
 cd desktop && npx vitest run   → PASS (phase 2's ContextMenu, commands and EmptyDevelop suites included)
 cd desktop && npx tsc --noEmit → no output
-git grep -n "arrives in Phase 3" -- desktop/src   → no output
+git grep -n "Phase 3" -- desktop/src ":!desktop/src/styles/tokens.css" ":!desktop/src/styles/designsystem.test.ts" ":!desktop/src/defects.test.tsx"   → no output
 ```
 
 #### What this task does not claim
