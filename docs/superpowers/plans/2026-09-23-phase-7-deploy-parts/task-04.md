@@ -143,7 +143,14 @@ asserts the captured log.
 #### Testdata added
 
 `ship-202.json`, `ship-500-timeout.json` (`{"error":"failed to start deployment: context deadline
-exceeded"}`, the shape of `projects.go:2991`), `cancel-cancelled.json`, `cancel-already.json`,
+exceeded"}`, the shape of `projects.go:2991`), `ship-402-budget.json` (status 402, `{"error":"new
+deploys are paused: this project has reached its monthly hosting budget; new deploys are paused.
+Raise it on the project Cost tab."}` — `projects.go:2856` joined to `budget_resolve.go:240`),
+`ship-402-risk.json` (status 402, the frame of `projects.go:2916-2918` — *"production deploy blocked
+by the project's risk assessment: <reason>. Resolve the failing risk requirements on the project
+Risk page, then re-deploy."* — with a stand-in reason; the real reason is the assessment's own text
+or the fallback built at `handlers/risk_capability_apply.go:536-539`, whose label was not read),
+`cancel-cancelled.json`, `cancel-already.json`,
 `rollback-warm.json`, `rollback-cold.json`, `rollback-409-pruned.json` (the sentence of
 `projects.go:1603-1604`), `rollback-400-noimage.json` (`:1575`), `rollback-404.json` (`:1570`),
 `autodeploy.json`, `autodeploy-409-noenv.json` (`:4133`), `posture.json`,
@@ -167,6 +174,7 @@ one legacy group binding with empty `grantee`), `urlprefix.json`, `urlprefix-409
 | `TestShipRefusesSymbolicCommit` | `Commit: "main"` → `KindRejected`, the server saw **zero** requests | shipping whatever the branch holds at clone time |
 | `TestShipOneAttemptOn503` | a 503 → `KindUnavailable`, exactly one request | a retried deploy |
 | `TestShip500IsUnavailableWithoutSentence` | `ship-500-timeout.json` → `KindUnavailable`, `Message == ""` | rendering Panacea's internal error text; the caller (task 09) writes its own sentence |
+| `TestShip402IsARefusalWithSentence` | `ship-402-budget.json` and `ship-402-risk.json` → each `KindConflict`, `Status == 402`, `Message` equal to the file's sentence, exactly one request | a paused budget or a risk block read as `KindUnavailable` with `Message ""`: the lens says Panacea is offline, and task 09's abandon branches never match, so the reservation lingers 15 minutes and the reason is lost (review I2) |
 | `TestRollbackCarriesWarmth` | warm → `WarmthWarm`, 0 s; cold → `WarmthCold`, the seconds | dropping the only hint of how long the flip takes |
 | `TestRollbackRefusalsVerbatim` | the 409, 400 and 404 bodies → `KindConflict`, `KindRejected`, `KindNotFound`, each `Message` equal to the file's sentence | a generic "rollback failed", which hides *"redeploy from source instead"* |
 | `TestPostureNotEnforced` | `posture-set-not-enforced.json` → `Enforced == false`, `Message` is the full sentence | reporting a saved-but-unapplied posture as done |

@@ -112,6 +112,7 @@ says**, takes `error`, falls back to `message`, trims to 500 bytes on a rune bou
 | 403 | `KindForbidden` | the sentence | 0 |
 | 404 | `KindNotFound` | the sentence | 0 |
 | 409 | `KindConflict` | the sentence | 0 |
+| 402 | `KindConflict` | the sentence — a refusal, never an outage: `POST …/deploy` answers 402 from its two gates, the budget (*"new deploys are paused: <reason>"*, `handlers/projects.go:2856`, reason built at `handlers/budget_resolve.go:229-245`) and the risk assessment (*"production deploy blocked by the project's risk assessment: …"*, `projects.go:2916-2918`); both sentences are written for people and carry no `err.Error()` (review I2, fix batch b05) | 0 |
 | 400, 413, 422 | `KindRejected` | the sentence | 0 |
 | 429 | `KindUnavailable` | `""` | `Retry-After` seconds |
 | 500–599 | `KindUnavailable` | **`""` — never the sentence**: Panacea appends `err.Error()` to them (e.g. `projects.go:1529`) | `Retry-After` on 503 |
@@ -128,6 +129,7 @@ says**, takes `error`, falls back to `message`, trims to 500 bytes on a rune bou
 | `TestTokenNeverInErrors` | a 401 whose body echoes the token back; the returned error's `Error()` and `Message` do not contain `pnc_test`, and the captured log does not either | echoing an upstream body that quotes the credential |
 | `TestNotConnectedShortCircuits` | `Tokens` returns `deploy.ErrNotConnected` → `do` returns it and the server saw **no** request | sending an unauthenticated request that Panacea would answer 401, turning "not connected" into "token rejected" |
 | `TestStatusTable` | one sub-test per row of the table, including `text/plain` bodies and an HTML 502 | mapping 401 to forbidden (the lens would say "ask for access" to someone whose token expired) |
+| `TestPaymentRequiredIsConflict` | a 402 `{"error":"new deploys are paused: team \"alpha\" has reached its monthly budget; …"}` → `KindConflict`, `Status == 402`, `Message` equal to the sentence | the "any other" row swallowing 402, so a paused budget reads as *Panacea is down* and task 09 never abandons the reservation (review I2) |
 | `TestFiveHundredSentenceNeverRendered` | a 500 `{"error":"failed to list deployments: dial tcp 10.0.3.7:6443"}` → `Message == ""`, and the log holds the sentence | leaking a cluster address into the UI |
 | `TestGetRetriedPostNot` | a server failing the first two attempts with 503: GET succeeds on the third; POST returns `KindUnavailable` after exactly **one** attempt | retrying a deploy |
 | `TestRedirectNotFollowed` | a 307 to `/oauth2/sign_in` → `Version` returns `ErrSignInRedirect`; the server saw one request | following the redirect and reading the sign-in HTML as a failed JSON decode |

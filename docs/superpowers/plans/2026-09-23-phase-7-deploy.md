@@ -345,7 +345,9 @@ body is `{"error":"<sentence>"}` — `writeError` → `models.APIResponse{Error}
 `text/plain`, so the decoder reads the body regardless of `Content-Type`). The mapping is task 02's
 table: transport failure, timeout, `5xx` and `429` → `503 upstream_unavailable`
 (`upstream = "panacea"`); `401` → `409 deploy_token_rejected`; `403` → `403 deploy_forbidden`; `404`
-→ `404 deploy_not_found`; `409` → `409 deploy_conflict`; `400`/`422` → `422 deploy_rejected`. The
+→ `404 deploy_not_found`; `409` → `409 deploy_conflict`; `402` → `409 deploy_conflict` too, with
+its sentence (the deploy route's budget and risk gates, `projects.go:2856`, `:2916-2918` — a
+refusal to abandon, not an outage; review I2); `400`/`422` → `422 deploy_rejected`. The
 `message` is Panacea's sentence, trimmed to 500 bytes; **a `5xx` sentence is never shown** (Panacea
 appends `err.Error()` to them, e.g. `projects.go:1529`), only logged. *"Waiting for team approval"*
 is read from `GET /api/v1/me`'s `approved` field (`handlers/me.go:48-59`), **never** by matching the

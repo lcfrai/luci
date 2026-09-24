@@ -210,6 +210,10 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
 6. **Deploy** — `Actor.Ship(ref, {Branch.Name, Commit, NoCache})`.
    - **Refused** (`KindForbidden`, `KindNotFound`, `KindConflict`, `KindRejected`, `KindUnauthorized`)
      → `Abandon(release, {reason:"deploy_failed", message: e.Message})`; return the Panacea error.
+     Panacea's **402** budget and risk refusals (`projects.go:2856`, `:2916-2918`) arrive here as
+     `KindConflict` with their sentence (task 02's table), so a paused budget abandons at once with
+     Panacea's reason and answers `409 deploy_conflict`, never `503 upstream_unavailable`
+     (review I2).
    - **5xx** (`KindUnavailable` with `Status >= 500`) → `Abandon(…, message: "Panacea could not
      start the build.")`; return the error.
    - **No answer** (`KindUnavailable`, `Status == 0` — timeout, reset) → `Abandon(…, message:
@@ -247,6 +251,7 @@ POST /v1/projects/{projectId}/deploy/ship
   409 deploy_not_connected · deploy_token_rejected
   403 deploy_forbidden · 404 deploy_not_found · 409 deploy_conflict · 422 deploy_rejected
                                   Panacea refused; the release was abandoned with its sentence
+                                  (deploy_conflict includes Panacea's 402 budget and risk refusals)
   503 upstream_unavailable        details.upstream "panacea" (abandoned) or "hub" (nothing happened)
   (any Hub 4xx, unchanged)        e.g. 422 design_not_approved, 401 signed_out
 ```
@@ -263,6 +268,7 @@ is retried with the same key.
 | `TestReserveCarriesBranchNotBrief` | the reserve request has `branchRef`, `commit`, `briefId: null` | the control plane choosing the brief — the Hub's job (§7.9) |
 | `TestConfirmWithRunName` | Panacea returns run `r1` → `Confirm(release, {pipelineRun:"r1"})`, once | a confirm that omits or mangles the run, so the view's rule 5 never matches |
 | `TestRefusalAbandonsWithSentence` | Panacea `409` *"…"* → `Abandon` with `reason "deploy_failed"` and exactly that message; the route answers `409 deploy_conflict` | a refused Ship leaving a reservation that expires silently |
+| `TestBudgetRefusalAbandonsWithSentence` | the fake's `Ship` answers `KindConflict`, `Status 402`, *"new deploys are paused: this project has reached its monthly hosting budget; …"* (task 04's `ship-402-budget.json`) → `Abandon` once, `reason "deploy_failed"`, exactly that message; no `Confirm`, no `Track`; the route answers `409 deploy_conflict` with the sentence, and `details.upstream` is absent | a 402 treated as an outage: `503 upstream_unavailable`, the lens switching acts off, and a reservation left to expire after 15 minutes (review I2) |
 | `TestTimeoutAbandonsAmbiguously` | Panacea times out → `Abandon` message is the ambiguous sentence; no confirm | confirming a run the control plane never saw named |
 | `TestNeverPushedPrecondition` | `Upstream ""` → `409 deploy_precondition` `never_pushed`; neither Hub nor Panacea called | reserving a release for a commit Panacea cannot clone |
 | `TestUnpushedPrecondition` | `Ahead 2` → `unpushed`, `details.ahead "2"` | shipping the upstream while the user thinks they shipped their work |

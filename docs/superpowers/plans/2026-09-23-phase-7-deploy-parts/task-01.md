@@ -484,7 +484,7 @@ const (
 	KindUnauthorized Kind = "unauthorized"  // the credential was rejected
 	KindForbidden    Kind = "forbidden"     // authenticated, not allowed
 	KindNotFound     Kind = "not_found"
-	KindConflict     Kind = "conflict"      // the target refused because of its current state
+	KindConflict     Kind = "conflict"      // the target refused because of its current state (Panacea: 409, and 402 from the deploy route's budget and risk gates)
 	KindRejected     Kind = "rejected"      // the target refused the request as malformed
 )
 
