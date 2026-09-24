@@ -241,7 +241,7 @@ func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
 			return nil, fmt.Errorf("kata backend: %w", err)
 		}
 		return katabe.New(katabe.Config{
-			Manager:      sandbox.NewManager(client, cfg.Namespace),
+			Manager:      sandbox.NewManager(client, sandbox.Config{Namespace: cfg.Namespace, RuntimeClass: cfg.RuntimeClass}),
 			ReadyTimeout: cfg.ReadyTimeout,
 		})
 	default:

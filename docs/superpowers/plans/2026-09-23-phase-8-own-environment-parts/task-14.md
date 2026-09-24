@@ -26,6 +26,8 @@ seam S8.2).
 - `control-plane/internal/backend/katabe/kata.go` — `Config.Owner`; header comment (modify)
 - `control-plane/internal/backend/katabe/kata_test.go` — one assertion changes, named below; one test added (modify)
 - `control-plane/cmd/api/config.go`, `config_test.go`, `main.go` — `PANACEA_APP_RUNTIME_CLASS` (modify)
+- `docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md` — §4 gains the
+  `PANACEA_APP_RUNTIME_CLASS` row, as `backendScoped`'s comment requires (added as built)
 
 #### Contract
 
@@ -151,11 +153,14 @@ the Pod (`controller: false`, `blockOwnerDeletion: false`).
   and the existing Secret is not touched. So only the request that created the Secret can go on
   to create the pod, and the token in the Secret names that request (task 18's `deleteIfOurs`
   relies on this, b09 re-review 2).
-- **A refused Pod create** (an `apierrors.APIStatus` reached by `errors.As`, other than
-  `IsTimeout` and `IsServerTimeout`: the API server answered, so the pod was not stored): the
-  Secret is deleted before the error returns.
-- **An ambiguous Pod create** (any other error: transport, the context ending, a timeout status;
-  the pod may have been stored): the Secret is **kept** and the error returned. The caller holds
+- **A refused Pod create** (an `apierrors.APIStatus` reached by `errors.As` whose code is 4xx,
+  other than `IsTimeout` and `IsServerTimeout`: the API server answered, so the pod was not
+  stored): the Secret is deleted before the error returns.
+- **An ambiguous Pod create** (any other error: transport, the context ending, a timeout status,
+  **any 5xx**; the pod may have been stored): the Secret is **kept** and the error returned.
+  *Amended by the implementation (b09-2 Minor 4): an etcd failure during the write answers 500 or
+  503 and may still have committed it, so "the API server answered" does not prove "not stored"
+  for a 5xx.* The caller holds
   the proof of which pod is its own, and `Delete` removes both. Deleting the Secret here would
   leave a stored pod with no identity to check, which the broker could then never roll back.
 - If the owner-reference update fails, the Pod is kept and the Secret is deleted by `Delete`,
@@ -181,7 +186,7 @@ New, in `hardening_test.go` (fake clientset, the package's existing `growthSpec(
 | `TestAttachTokenIsInASecretNotThePodSpec` | the token env entry has `Value == ""` and a `SecretKeyRef` to `sandbox-<id>-attach`/`token`; that Secret's `Data["token"]` is the token; **no** env `Value` anywhere in the pod equals the token | the token back in the spec |
 | `TestTheTokenSecretIsOwnedByItsPod` | the Secret's single owner reference is `Kind: Pod`, `Name: sandbox-<id>` | an orphan secret that outlives the sandbox |
 | `TestCreateDeletesTheSecretWhenThePodIsRefused` | a reactor fails pod creation with `apierrors.NewForbidden(…)` → error returned, no Secret left | a token left behind by every refused create |
-| `TestCreateKeepsTheSecretWhenThePodCreateIsAmbiguous` | a reactor fails pod creation with `context.DeadlineExceeded` → error returned, the Secret is still there with the token (b09 re-review 2) | the Secret deleted on every error, which leaves a stored pod with no identity for the broker's rollback |
+| `TestCreateKeepsTheSecretWhenThePodCreateIsAmbiguous` | a reactor fails pod creation with `context.DeadlineExceeded` (and, as built, a transport error, `Timeout` 504, `ServerTimeout`, `InternalError` 500, `ServiceUnavailable` 503) → error returned, the Secret is still there with the token (b09 re-review 2; b09-2 Minor 4) | the Secret deleted on every error, which leaves a stored pod with no identity for the broker's rollback |
 | `TestCreateLeavesAnExistingSecretAlone` | a Secret `AttachSecretName("", id)` holding `tok-A` exists; a create of `id` with `tok-B` → `apierrors.IsAlreadyExists(err)`, no pod created, and the Secret still holds `tok-A` | a create that overwrites or deletes another request's claim |
 | `TestPodNameIsWhatTheOwnerViewCreates` | `PodName("", "s-1")` is `sandbox-s-1`; `WithOwner(o).Create` of `s-1` makes a pod named `PodName(o, "s-1")` = `sandbox-<o[:8]>-s-1` and a Secret named `AttachSecretName(o, "s-1")` | a broker that names its rollback's pod differently from the pod it created, so the rollback is a no-op |
 | `TestDeleteRemovesPodAndSecretAndIsIdempotent` | after `Delete` both are gone; a second `Delete` returns nil | a leaked Secret, or a 500 on the reaper's second pass |
@@ -192,10 +197,21 @@ New, in `hardening_test.go` (fake clientset, the package's existing `growthSpec(
 | `TestOwnerLabelValueIsStableAndLabelSafe` | same inputs → same 32-hex value; different `oid` → different; matches `^[a-f0-9]{32}$` | a value that changes per call, or embeds the raw oid |
 | `TestSessionPodIsNotSafeToEvict` | the annotation is `"false"` | the autoscaler killing a running agent to save a node |
 | `TestPriorityClassOnlyWhenConfigured` | `Config{}` → empty; `Config{PriorityClass: "panacea-session"}` → set | a pod rejected on a cluster without the class |
+| `TestAFailedOwnerReferenceKeepsThePodAndDeleteRemovesBoth` *(added as built)* | a reactor fails the Secret `update` → `Create` returns an error **and** `PodName("", id)`; the pod exists; `Delete` then leaves no Secret | a rollback of a stored pod, or a Secret `Delete` forgets |
+| `TestDeleteKeepsTheSecretWhenThePodDeleteFails` *(added as built)* | a reactor fails the pod `delete` with 503 → `Delete` errors and the Secret is still there | a Secret deleted first, which leaves a live pod whose claim is gone |
+
+*As built, also:* `TestTheTokenSecretIsOwnedByItsPod` stamps a UID in a pod-create reactor and
+asserts the owner reference carries it (the fake assigns none; a real API server rejects an empty
+`uid`, b09-2 Minor 1), and `TestWithOwnerRefusesAnEmptyOwner` also refuses `O1`, `o 1` and
+`o1,panacea-app/component=sandbox`: `WithOwner` panics on anything outside `^[a-z0-9]{1,63}$`,
+because the owner is concatenated into a label selector.
 
 In `katabe/kata_test.go`, new: `TestAnOwnerScopedBackendCannotAttachToAnothersSandbox` — create
 through `New(Config{Owner: "o1"})`, then `Attach` and `Destroy` through `Owner: "o2"` →
-`ErrNotFound` and the pod still exists (kills a broker that scopes List but not Attach).
+`Attach` is `ErrNotFound`, and the pod and its Secret still exist (kills a broker that scopes List
+but not Attach). *As built: `Destroy` of an id this view cannot see is `nil`, not `ErrNotFound`,
+because `Destroy` is idempotent (`TestDestroyOfAnUnknownSandboxIsNil`); the test accepts either
+and asserts the pod survives.*
 
 In `cmd/api/config_test.go`, new: `TestRuntimeClassIsReadUnderKata`,
 `TestRuntimeClassUnderDockerIsAWarning` (the `backendScoped` rule: no variable silently ignored,
@@ -211,6 +227,12 @@ In `cmd/api/config_test.go`, new: `TestRuntimeClassIsReadUnderKata`,
    values pairwise; for the token entry it now compares the name and resolves the `SecretKeyRef`
    through the fake clientset to compare the value. The test's purpose — katabe and dockerbe give
    the agent the same environment — is unchanged: the process sees the same variable.
+4. *Found by the implementation, not named above:* `manager_growth_test.go:107-111`
+   (`TestCreateAppendsExtraEnvironmentSortedAndDropsReservedKeys`) proved the reserved key was
+   dropped by reading the token's `Value`; it now requires the token entry to be the
+   `secretKeyRef` with an empty value, and no entry to carry the caller's `stolen`.
+5. *Likewise:* `kata_test.go:337-339` (`TestCreateRendersKubernetesQuantitiesAndTheArgvContract`)
+   read the token's `Value`; it now resolves the entry through the fake clientset, as 3 does.
 
 Every `sandbox.NewManager(client, "ns")` call in tests becomes `NewManager(client,
 sandbox.Config{Namespace: "ns"})`.

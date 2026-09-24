@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/statepath"
 )
 
@@ -66,7 +68,19 @@ const (
 	// statepath.Dir reads this variable (contract §2.7) and this file reports
 	// it; a rename in either place must break the build, not the ladder.
 	envStateDir = statepath.EnvStateDir
+
+	// envRuntimeClass is every Kata pod's runtimeClassName (seam S8.4, P8-D15).
+	// Which name AKS installs is unverified, so it is configuration: a wrong
+	// guess is an environment change. Added by phase 8 task 14; contract §4
+	// carries the row.
+	envRuntimeClass = "PANACEA_APP_RUNTIME_CLASS" // kata only; default sandbox.DefaultRuntimeClass
 )
+
+// runtimeClassPattern is a DNS-1123 subdomain, the shape of a RuntimeClass
+// name; runtimeClassMaxLen is its length limit.
+var runtimeClassPattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
+
+const runtimeClassMaxLen = 253
 
 const (
 	defaultAddr         = "127.0.0.1:8730"
@@ -78,7 +92,7 @@ const (
 	minReapInterval     = 5 * time.Second
 )
 
-// backendScoped is contract §4's three backend-specific variables and the one
+// backendScoped is contract §4's four backend-specific variables and the one
 // backend each is read by.
 //
 // It is a table and one loop rather than three conditionals because of what
@@ -97,6 +111,7 @@ var backendScoped = []struct {
 	{envDockerHost, string(backend.KindDocker)},
 	{envKubeconfig, string(backend.KindKata)},
 	{envNamespace, string(backend.KindKata)},
+	{envRuntimeClass, string(backend.KindKata)},
 }
 
 // Config is the whole of this process's configuration, parsed once at startup.
@@ -122,6 +137,7 @@ type Config struct {
 	DockerHost       string
 	Kubeconfig       string // parsed so kubeClient can refuse it by name
 	Namespace        string
+	RuntimeClass     string // kata only; validated under kata, default sandbox.DefaultRuntimeClass
 	LogLevel         slog.Level
 
 	HarnessAllowUnverified bool
@@ -182,6 +198,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		DockerHost:   get(envDockerHost, ""),
 		Kubeconfig:   get(envKubeconfig, ""),
 		Namespace:    get(envNamespace, defaultNamespace),
+		RuntimeClass: get(envRuntimeClass, sandbox.DefaultRuntimeClass),
 		LogLevel:     slog.LevelInfo,
 	}
 	cfg.AllowPublicBind = parseFlag(raw(envAllowPublicBind))
@@ -198,6 +215,14 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	for _, v := range backendScoped {
 		if raw(v.name) != "" && cfg.Backend != v.appliesTo {
 			cfg.Warnings = append(cfg.Warnings, fmt.Sprintf("%s is set but only the %s backend reads it, and %s=%s is selected; it has no effect", v.name, v.appliesTo, envBackend, cfg.Backend))
+		}
+	}
+
+	// Checked only where it is used: under docker the value has no effect, and
+	// the warning above already says so.
+	if cfg.Backend == string(backend.KindKata) {
+		if rc := cfg.RuntimeClass; len(rc) > runtimeClassMaxLen || !runtimeClassPattern.MatchString(rc) {
+			return Config{}, fmt.Errorf("%s=%q is not a RuntimeClass name: it must be a DNS-1123 subdomain (lower-case letters, digits, '-' and '.', at most %d characters)", envRuntimeClass, rc, runtimeClassMaxLen)
 		}
 	}
 

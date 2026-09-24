@@ -84,7 +84,7 @@ func newFakeSandboxd(t *testing.T, token string) *fakeSandboxd {
 func newBackend(t *testing.T, client *fake.Clientset, port int, readyTimeout time.Duration) *katabe.Backend {
 	t.Helper()
 	b, err := katabe.New(katabe.Config{
-		Manager:      sandbox.NewManager(client, namespace),
+		Manager:      sandbox.NewManager(client, sandbox.Config{Namespace: namespace}),
 		ReadyTimeout: readyTimeout,
 		Port:         port,
 	})
@@ -180,7 +180,7 @@ func TestNewWithoutAManagerIsErrUnavailable(t *testing.T) {
 // returns ErrNotRunning almost immediately, and both assertions below fire.
 func TestNewDefaultsReadyTimeoutToTheBackendConstant(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	b, err := katabe.New(katabe.Config{Manager: sandbox.NewManager(client, namespace)})
+	b, err := katabe.New(katabe.Config{Manager: sandbox.NewManager(client, sandbox.Config{Namespace: namespace})})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -329,14 +329,37 @@ func TestCreateRendersKubernetesQuantitiesAndTheArgvContract(t *testing.T) {
 
 	env := map[string]string{}
 	for _, e := range c.Env {
-		env[e.Name] = e.Value
+		env[e.Name] = resolveEnv(t, client, e)
 	}
 	if got := env[backend.EnvArgsJSON]; got != `["--model","opus","plan the migration, then stop"]` {
 		t.Errorf("PANACEA_APP_ARGS_JSON = %q; Spec.ArgsJSON() did not reach the pod", got)
 	}
 	if env[backend.EnvToken] != spec.AttachToken {
-		t.Errorf("PANACEA_APP_ATTACH_TOKEN = %q, want the spec's token", env[backend.EnvToken])
+		t.Errorf("PANACEA_APP_ATTACH_TOKEN resolves to %q, want the spec's token", env[backend.EnvToken])
 	}
+}
+
+// resolveEnv is what the kubelet does before the runtime sees the spec: a
+// literal is itself, and a secretKeyRef (the attach token since phase 8 task
+// 14) is that Secret's key. It is what the agent's process sees.
+func resolveEnv(t *testing.T, client *fake.Clientset, e corev1.EnvVar) string {
+	t.Helper()
+	if e.ValueFrom == nil {
+		return e.Value
+	}
+	ref := e.ValueFrom.SecretKeyRef
+	if ref == nil || e.Value != "" {
+		t.Fatalf("env %s: valueFrom %+v with value %q; only a secretKeyRef and an empty value are expected", e.Name, e.ValueFrom, e.Value)
+	}
+	s, err := client.CoreV1().Secrets(namespace).Get(context.Background(), ref.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("env %s: secret %s: %v", e.Name, ref.Name, err)
+	}
+	v, ok := s.Data[ref.Key]
+	if !ok {
+		t.Fatalf("env %s: secret %s has no key %q", e.Name, ref.Name, ref.Key)
+	}
+	return string(v)
 }
 
 // The two backends must hand the agent identical environments, which is why
@@ -367,9 +390,16 @@ func TestThePodEnvironmentIsExactlySpecEnvEntries(t *testing.T) {
 	if len(got) != len(want) {
 		t.Fatalf("pod env has %d entries, want %d (%#v vs %#v): sandbox.containerEnv and backend.Spec.EnvEntries() disagree", len(got), len(want), got, want)
 	}
+	// The token entry is a secretKeyRef since phase 8 task 14, so it is compared
+	// by what it resolves to — what the agent's process sees — and every other
+	// entry must stay a literal.
 	for i := range want {
-		if got[i].Name != want[i].Name || got[i].Value != want[i].Value {
-			t.Fatalf("pod env[%d] = %s=%q, want %s=%q: sandbox.containerEnv has drifted from backend.Spec.EnvEntries(), so katabe and dockerbe no longer produce the same environment", i, got[i].Name, got[i].Value, want[i].Name, want[i].Value)
+		value := resolveEnv(t, client, got[i])
+		if got[i].Name != want[i].Name || value != want[i].Value {
+			t.Fatalf("pod env[%d] = %s=%q, want %s=%q: sandbox.containerEnv has drifted from backend.Spec.EnvEntries(), so katabe and dockerbe no longer produce the same environment", i, got[i].Name, value, want[i].Name, want[i].Value)
+		}
+		if (got[i].ValueFrom != nil) != (want[i].Name == backend.EnvToken) {
+			t.Errorf("pod env[%d] %s: valueFrom = %+v; only the attach token is a secret reference", i, got[i].Name, got[i].ValueFrom)
 		}
 	}
 }
@@ -391,7 +421,7 @@ func TestCreateTimesOutWithErrNotRunningAndLeavesThePod(t *testing.T) {
 
 func TestGetMapsEveryPodPhaseToOneState(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, namespace)
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: namespace})
 	if _, err := m.Create(context.Background(), sandbox.Spec{
 		ID: "s-state", Image: "x:y", Command: "claude", CPU: "500m", Memory: "1Gi",
 	}); err != nil {
@@ -491,7 +521,7 @@ func TestGetOnAnUnknownSandboxIsErrNotFound(t *testing.T) {
 
 func TestListReturnsEverySandboxAsABackendSandbox(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, namespace)
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: namespace})
 	for _, id := range []string{"s-one", "s-two"} {
 		if _, err := m.Create(context.Background(), sandbox.Spec{
 			ID: id, Image: "x:y", Command: "claude", CPU: "500m", Memory: "1Gi", SessionID: id,
@@ -563,7 +593,7 @@ func TestAttachWithTheWrongTokenIsErrUnauthorized(t *testing.T) {
 
 func TestAttachToAPodThatIsNotRunningIsErrNotRunning(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, namespace)
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: namespace})
 	if _, err := m.Create(context.Background(), sandbox.Spec{
 		ID: "s-pending", Image: "x:y", Command: "claude", CPU: "500m", Memory: "1Gi",
 	}); err != nil {
@@ -585,7 +615,7 @@ func TestAttachToAnUnknownSandboxIsErrNotFound(t *testing.T) {
 
 func TestDestroyDeletesThePod(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, namespace)
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: namespace})
 	if _, err := m.Create(context.Background(), sandbox.Spec{
 		ID: "s-doomed", Image: "x:y", Command: "claude", CPU: "500m", Memory: "1Gi",
 	}); err != nil {

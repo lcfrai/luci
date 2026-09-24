@@ -73,7 +73,8 @@ const (
 
 	KubeLabelSandboxID = "panacea-app/sandbox-id"
 	KubeLabelSessionID = "panacea-app/session-id"
-	KubeLabelComponent = "panacea-app/component" // always "sandbox"
+	KubeLabelComponent = "panacea-app/component" // "sandbox" (a session, this package), "machine" (task 19), "balloon" (task 12's chart)
+	KubeLabelOwner     = "panacea-app/owner"     // OwnerLabelValue(tid, oid); absent on the laptop
 )
 
 // Kind names a backend implementation. It is persisted in the registry and

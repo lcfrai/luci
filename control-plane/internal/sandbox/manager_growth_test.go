@@ -29,7 +29,7 @@ func growthSpec() sandbox.Spec {
 
 func createPod(t *testing.T, client *fake.Clientset, spec sandbox.Spec) *corev1.Pod {
 	t.Helper()
-	m := sandbox.NewManager(client, growthNamespace)
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: growthNamespace})
 	name, err := m.Create(context.Background(), spec)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -61,12 +61,20 @@ func TestCreateInjectsTheSandboxdContractEnvironment(t *testing.T) {
 	want := []corev1.EnvVar{
 		{Name: "PANACEA_APP_COMMAND", Value: "claude"},
 		{Name: "PANACEA_APP_ARGS_JSON", Value: `["--model","opus","plan the migration, then stop"]`},
-		{Name: "PANACEA_APP_ATTACH_TOKEN", Value: "tok-abcdefgh"},
 	}
 	for i, w := range want {
-		if env[i].Name != w.Name || env[i].Value != w.Value {
-			t.Errorf("env[%d] = %s=%q, want %s=%q", i, env[i].Name, env[i].Value, w.Name, w.Value)
+		if env[i].Name != w.Name || env[i].Value != w.Value || env[i].ValueFrom != nil {
+			t.Errorf("env[%d] = %s=%q (valueFrom %+v), want %s=%q", i, env[i].Name, env[i].Value, env[i].ValueFrom, w.Name, w.Value)
 		}
+	}
+	// Phase 8 task 14: the token is a reference to the sandbox's Secret, with
+	// an empty value, so nothing that can merely read the pod spec holds it.
+	tok := env[2]
+	if tok.Name != "PANACEA_APP_ATTACH_TOKEN" || tok.Value != "" || tok.ValueFrom == nil || tok.ValueFrom.SecretKeyRef == nil {
+		t.Fatalf("env[2] = %+v, want PANACEA_APP_ATTACH_TOKEN with an empty value and a secretKeyRef", tok)
+	}
+	if ref := tok.ValueFrom.SecretKeyRef; ref.Name != "sandbox-s-3f2a91c0-attach" || ref.Key != "token" {
+		t.Errorf("env[2] secretKeyRef = %s/%s, want sandbox-s-3f2a91c0-attach/token", ref.Name, ref.Key)
 	}
 }
 
@@ -104,9 +112,14 @@ func TestCreateAppendsExtraEnvironmentSortedAndDropsReservedKeys(t *testing.T) {
 	if env[3].Name != "ALPHA" || env[4].Name != "ZULU" {
 		t.Errorf("extra env is %s then %s, want ALPHA then ZULU: unsorted map iteration makes two identical Specs produce different pods", env[3].Name, env[4].Name)
 	}
+	// Since phase 8 task 14 the token entry is a secretKeyRef with an empty
+	// value; a caller-supplied reserved key would show up as a literal.
 	for _, e := range env {
-		if e.Name == "PANACEA_APP_ATTACH_TOKEN" && e.Value != "tok-abcdefgh" {
-			t.Fatalf("PANACEA_APP_ATTACH_TOKEN = %q: a caller-supplied reserved key replaced the sandbox secret", e.Value)
+		if e.Name == "PANACEA_APP_ATTACH_TOKEN" && (e.Value != "" || e.ValueFrom == nil || e.ValueFrom.SecretKeyRef == nil) {
+			t.Fatalf("PANACEA_APP_ATTACH_TOKEN = %q (valueFrom %+v): a caller-supplied reserved key replaced the sandbox secret", e.Value, e.ValueFrom)
+		}
+		if e.Value == "stolen" {
+			t.Fatalf("env %s carries the caller-supplied reserved value", e.Name)
 		}
 	}
 }
@@ -175,7 +188,7 @@ func TestCreateSetsRequestsEqualToLimitsAtTheGivenQuantities(t *testing.T) {
 
 func TestGetFindsThePodBySandboxID(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, growthNamespace)
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: growthNamespace})
 	if _, err := m.Create(context.Background(), growthSpec()); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -189,7 +202,7 @@ func TestGetFindsThePodBySandboxID(t *testing.T) {
 }
 
 func TestGetReturnsErrNotFoundForAnUnknownID(t *testing.T) {
-	m := sandbox.NewManager(fake.NewSimpleClientset(), growthNamespace)
+	m := sandbox.NewManager(fake.NewSimpleClientset(), sandbox.Config{Namespace: growthNamespace})
 	if _, err := m.Get(context.Background(), "never-created"); !errors.Is(err, sandbox.ErrNotFound) {
 		t.Fatalf("Get(unknown) = %v, want an error wrapping sandbox.ErrNotFound", err)
 	}
@@ -200,7 +213,7 @@ func TestGetReturnsErrNotFoundForAnUnknownID(t *testing.T) {
 // session, which the API layer would then happily attach the caller to.
 func TestGetOnAnEmptyIDIsErrNotFoundAndNotTheFirstPod(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, growthNamespace)
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: growthNamespace})
 	if _, err := m.Create(context.Background(), growthSpec()); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -211,7 +224,7 @@ func TestGetOnAnEmptyIDIsErrNotFoundAndNotTheFirstPod(t *testing.T) {
 
 func TestListReturnsEveryManagedPod(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, growthNamespace)
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: growthNamespace})
 	for _, id := range []string{"s-one", "s-two", "s-three"} {
 		spec := growthSpec()
 		spec.ID = id
@@ -240,7 +253,7 @@ func TestGetAndListIgnorePodsThisManagerDidNotCreate(t *testing.T) {
 			Labels:    map[string]string{"panacea-app/sandbox-id": "s-3f2a91c0"},
 		},
 	})
-	m := sandbox.NewManager(client, growthNamespace)
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: growthNamespace})
 	if _, err := m.Create(context.Background(), growthSpec()); err != nil {
 		t.Fatalf("Create: %v", err)
 	}

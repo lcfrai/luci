@@ -1,7 +1,13 @@
-// Package katabe runs sandboxes as Kata Containers pods on AKS. It is DORMANT:
-// docs/PROGRAM.md phase 8 is the first real Azure spend, and nothing in Phase 2
-// selects this backend by default. It compiles and is unit-tested now so that
-// turning it on in Phase 8 is a configuration change and not a rewrite.
+// Package katabe runs sandboxes as Kata Containers pods on AKS. On a laptop it
+// is DORMANT: nothing selects it by default, and PANACEA_APP_BACKEND=kata
+// refuses to run outside a cluster (cmd/api, seam S8.2).
+//
+// Phase 8 runs it INSIDE THE BROKER (task 18), not in the desktop's control
+// plane: the broker builds one Backend per request, scoped with Config.Owner to
+// the caller's sandbox.OwnerLabelValue, so one user can neither see nor reach
+// another's pods. The pods themselves are hardened by internal/sandbox (task
+// 14), and a sandbox's mounts arrive as machine mounts (task 15) rather than as
+// host paths, which is why Create still refuses Spec.Mounts here.
 package katabe
 
 import (
@@ -41,6 +47,10 @@ type Config struct {
 	// which is the only value a real cluster ever uses; it is settable so a test
 	// can point the endpoint at an httptest server.
 	Port int
+	// Owner, when set, scopes this backend to one owner: New wraps Manager in
+	// Manager.WithOwner(Owner). The broker builds one Backend per request with
+	// the caller's OwnerLabelValue. "" is the unscoped backend cmd/api builds.
+	Owner string
 }
 
 // Backend implements backend.Backend over Kata pods.
@@ -57,7 +67,11 @@ func New(cfg Config) (*Backend, error) {
 	if cfg.Manager == nil {
 		return nil, fmt.Errorf("katabe: no sandbox manager: %w", backend.ErrUnavailable)
 	}
-	b := &Backend{mgr: cfg.Manager, readyTimeout: cfg.ReadyTimeout, port: cfg.Port}
+	mgr := cfg.Manager
+	if cfg.Owner != "" {
+		mgr = mgr.WithOwner(cfg.Owner)
+	}
+	b := &Backend{mgr: mgr, readyTimeout: cfg.ReadyTimeout, port: cfg.Port}
 	if b.readyTimeout <= 0 {
 		b.readyTimeout = backend.ReadyTimeout
 	}
@@ -226,9 +240,11 @@ func podState(pod *corev1.Pod) backend.State {
 
 // Attach opens the sandbox's /attach WebSocket.
 //
-// The token is a parameter rather than something read back from the pod, so the
-// secret lives in exactly one durable place (the registry) and is not
-// recoverable by anything that can merely list pods.
+// The token is a parameter rather than something read back from the cluster.
+// In the cluster it lives in the sandbox's own Secret,
+// sandbox.AttachSecretName(owner, id), which the pod's PANACEA_APP_ATTACH_TOKEN
+// references by secretKeyRef (task 14): the pod spec carries no value, so the
+// token is not recoverable by anything that can merely get or list pods.
 func (b *Backend) Attach(ctx context.Context, id, token string) (*websocket.Conn, error) {
 	sb, err := b.Get(ctx, id)
 	if err != nil {
@@ -240,8 +256,10 @@ func (b *Backend) Attach(ctx context.Context, id, token string) (*websocket.Conn
 	return backend.Dial(ctx, sb.Endpoint, token)
 }
 
-// Destroy removes the pod. It is idempotent: the reaper and an explicit DELETE
-// race each other, and a second delete must not become a 500 in the cockpit.
+// Destroy removes the pod and its token Secret (Manager.Delete). It is
+// idempotent: the reaper and an explicit DELETE race each other, and a second
+// delete must not become a 500 in the cockpit. In an owner view another
+// owner's id is not found, so it is nil too, and that pod is left alone.
 func (b *Backend) Destroy(ctx context.Context, id string) error {
 	pod, err := b.mgr.Get(ctx, id)
 	if err != nil {

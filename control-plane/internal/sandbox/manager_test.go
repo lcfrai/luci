@@ -12,7 +12,7 @@ import (
 
 func TestCreateProducesAKataPodWithExplicitResources(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, "panacea-app")
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: "panacea-app"})
 
 	name, err := m.Create(context.Background(), sandbox.Spec{
 		ID:      "abc123",
@@ -30,8 +30,8 @@ func TestCreateProducesAKataPodWithExplicitResources(t *testing.T) {
 		t.Fatalf("Get: %v", err)
 	}
 
-	if pod.Spec.RuntimeClassName == nil || *pod.Spec.RuntimeClassName != "kata-mshv-vm-isolation" {
-		t.Errorf("RuntimeClassName = %v, want kata-mshv-vm-isolation", pod.Spec.RuntimeClassName)
+	if pod.Spec.RuntimeClassName == nil || *pod.Spec.RuntimeClassName != sandbox.DefaultRuntimeClass {
+		t.Errorf("RuntimeClassName = %v, want %s", pod.Spec.RuntimeClassName, sandbox.DefaultRuntimeClass)
 	}
 	if pod.Spec.HostNetwork {
 		t.Error("HostNetwork must be false: Kata does not support it")
@@ -58,7 +58,7 @@ func TestCreateProducesAKataPodWithExplicitResources(t *testing.T) {
 
 func TestDeleteRemovesThePod(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, "panacea-app")
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: "panacea-app"})
 
 	name, err := m.Create(context.Background(), sandbox.Spec{
 		ID: "gone", Image: "x:y", Command: "/bin/sh", CPU: "100m", Memory: "256Mi",
@@ -76,7 +76,7 @@ func TestDeleteRemovesThePod(t *testing.T) {
 
 func TestCreateMountsWritablePathsUnderReadOnlyRoot(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, "panacea-app")
+	m := sandbox.NewManager(client, sandbox.Config{Namespace: "panacea-app"})
 	name, err := m.Create(context.Background(), sandbox.Spec{
 		ID: "vols", Image: "x:y", Command: "/bin/bash", CPU: "500m", Memory: "1Gi",
 	})
