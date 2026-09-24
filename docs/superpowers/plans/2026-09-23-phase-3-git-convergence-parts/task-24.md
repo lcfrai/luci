@@ -122,3 +122,41 @@ type ErrorResponse struct {
 	GitSays string `json:"gitSays,omitempty"` // git_failed only; see Errors
 }
 ```
+
+**The ops.** `G` below is `git -C <GitWorktree> --literal-pathspecs`.
+
+1. **`status`** (task 07's observer). `G status --porcelain=v2 -z --untracked-files=all`, whose
+   stdout is `PorcelainV2Z` byte for byte; the runner does not parse it (task 07 does, on the
+   host, as untrusted input). Then **Head**, the same for `status` and `refs`:
+   `G symbolic-ref -q HEAD` (exit 0: `Ref` is its trimmed stdout; exit 1: detached, `Ref` ""),
+   then `G rev-parse --verify -q HEAD` (exit 0: `Sha`; exit 1: unborn, `Sha` ""). Any other exit
+   is `git_failed`.
+2. **`refs`** (task 07's lane head, task 11's Elsewhere). `G for-each-ref
+   --format=%(refname)%00%(objectname) <Names…>`, one ref per line, split at the NUL (a refname
+   holds no NUL and no newline: `check-ref-format` forbids control characters). When
+   `MergedInto` is set, also `G for-each-ref --format=%(refname) --no-merged=<MergedInto>
+   <Names…>`; a ref is `Merged` when the first listing has it and the second does not. Then Head.
+   An empty `Names` is 400: the runner never lists every ref by default.
+3. **`bundle`** (task 09's landing, through U2). Keep the `Basis` shas that
+   `G cat-file -e <sha>` finds; a sha the lane lacks is dropped, not an error, since
+   `--not` over a missing object fails the bundle. Then `G rev-list --count <Refs…> --not
+   <kept…>`; `0` is 409 `bundle_empty`, decided before `bundle create` so the answer never rests
+   on the wording of git's refusal. Then `G bundle create - <Refs…> --not <kept…>`. Its stdout
+   goes through a counting writer into a mode-0600 file in a fresh `os.MkdirTemp("/tmp",
+   "gitrunner-")` directory, outside the worktree; past `MaxBundleBytes` the runner kills git and
+   answers 413 `too_large`. Spooling first is what lets the cap be a status code rather than a
+   truncated 200. The file is then sent as `200`, `Content-Type: application/x-git-bundle`, with
+   its `Content-Length`, and the directory is removed whatever happens.
+4. **`fetch`** (task 09's refresh, R4.5: the host writes a bundle from the project and the runner
+   fetches it here). The body is a bundle, read through `http.MaxBytesReader(MaxBundleBytes)` into
+   a mode-0600 file in a fresh `os.MkdirTemp("/tmp", "gitrunner-")` directory. Headers: one
+   `X-Panacea-Refspec` per refspec, `[+]<src>:<dst>`, at least one; one `X-Panacea-Delete` per
+   ref to delete, any number. The runner runs `G bundle verify -q <file>`, then `G fetch
+   --no-auto-maintenance --no-tags --quiet <file> <refspecs…>`, then `G update-ref -d <ref>` for
+   each delete, removes the directory, and answers `FetchResponse` from
+   `G for-each-ref --format=%(refname)%00%(objectname) <each dst and delete…>`. A failed verify
+   is `git_failed` and nothing is fetched. The runner never writes `refs/heads/…`: product-branch
+   commits arrive as remote-tracking refs, and what the lane does with them is the agent's.
+5. **`diff`** (task 16). `G diff --no-color --no-ext-diff --no-textconv -U3 HEAD -- <Path>`; its
+   stdout is the body, `200`, `Content-Type: text/x-diff`. Past `MaxJSONBytes` it is 413
+   `too_large`. An unborn HEAD makes git fail, which is `git_failed`.
