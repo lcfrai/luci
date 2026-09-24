@@ -454,21 +454,34 @@ func TestAnInsecureAuthorityIsRefused(t *testing.T) {
 			t.Errorf("New(%q, insecure=%v): err = %v, want ok=%v", tc.authority, tc.insecure, err, tc.ok)
 		}
 	}
+	// The host is lower-cased: iss is compared byte for byte, and Entra
+	// writes it in lower case (review M1).
+	v, err := New(cfg("https://LOGIN.MicrosoftOnline.com/", false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.authority != "https://login.microsoftonline.com" {
+		t.Errorf("authority = %q, want the lower-case host", v.authority)
+	}
 }
 
 // Added by task 16's build: the part's table had no test for New's other
 // refusals, so a mutant deleting any of them survived.
 func TestAnUnusableConfigIsRefused(t *testing.T) {
 	is, clk := newIssuer(t), newClock()
+	// The query, bare "?" and fragment rows have no "/" before them: a path
+	// would be refused first, and their own checks never reached (review M1).
 	for name, change := range map[string]func(*Config){
 		"no authority":       func(c *Config) { c.AuthorityHost = "" },
 		"authority path":     func(c *Config) { c.AuthorityHost += "/common" },
-		"authority query":    func(c *Config) { c.AuthorityHost += "/?x=1" },
-		"authority fragment": func(c *Config) { c.AuthorityHost += "/#f" },
+		"authority query":    func(c *Config) { c.AuthorityHost += "?x=1" },
+		"authority bare ?":   func(c *Config) { c.AuthorityHost += "?" },
+		"authority fragment": func(c *Config) { c.AuthorityHost += "#f" },
 		"authority userinfo": func(c *Config) { c.AuthorityHost = strings.Replace(c.AuthorityHost, "//", "//u:p@", 1) },
 		"no tenants":         func(c *Config) { c.TenantIDs = nil },
 		"a domain for a tid": func(c *Config) { c.TenantIDs = []string{"contoso.onmicrosoft.com"} },
 		"an empty tid":       func(c *Config) { c.TenantIDs = []string{tidA, ""} },
+		"a non-hex tid":      func(c *Config) { c.TenantIDs = []string{tidA[:35] + "g"} },
 		"no audience":        func(c *Config) { c.Audience = "" },
 		"an api:// audience": func(c *Config) { c.Audience = "api://" + brokerAPI },
 		"no scope":           func(c *Config) { c.RequiredScope = "" },

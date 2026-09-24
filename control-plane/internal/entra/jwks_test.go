@@ -2,6 +2,7 @@ package entra
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"math/big"
 	"net/http"
@@ -153,15 +154,23 @@ func TestAKeySetOutageIsNotARejection(t *testing.T) {
 	// A set of no usable keys is no key set.
 	is.setKeys(tidB)
 	outage(v, good(t, is, tidB, clk.Now()), "empty key set")
-	// A stale set is not used past 24 h when the refresh fails.
+	// A stale set is not used past 24 h when the refresh fails, for as long
+	// as it fails: a failed refresh does not restart the 24 h (review I1b).
 	clk.advance(24*time.Hour + time.Second)
 	is.fail(tidA, 500)
 	outage(v, good(t, is, tidA, clk.Now()), "stale set, refresh failing")
+	outage(v, good(t, is, tidA, clk.Now()), "stale set, refresh still failing")
 	// An unknown kid whose refetch fails cannot be judged: an outage.
 	is.fail(tidA, 0)
 	mustValidate(t, v, good(t, is, tidA, clk.Now()))
 	is.fail(tidA, 500)
 	outage(v, mint(t, testKey(t), hdr("k-new"), claimsFor(is, tidA, clk.Now())), "miss, refetch failing")
+	// That failed refetch left the good set in place: a known kid still
+	// validates, from the cache, with no new fetch (review I1a). A garbage
+	// kid during a JWKS blip must not lock the whole tenant out.
+	before := is.fetches(tidA)
+	mustValidate(t, v, good(t, is, tidA, clk.Now()))
+	wantFetches(t, is, tidA, before, "a known kid after a failed refetch")
 	// The endpoint is not JSON, or not there at all.
 	notJSON := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("<html>sign in</html>"))
@@ -202,6 +211,30 @@ func TestAKeySetOutageIsNotARejection(t *testing.T) {
 	}
 	hugeClaims := edit(claimsFor(is, tidA, clk.Now()), map[string]any{"iss": huge.URL + "/" + tidA + "/v2.0"})
 	outage(vb, mint(t, testKey(t), hdr(kid1), hugeClaims), "key set over 1 MiB")
+	// The key set comes from the authority and nowhere else. A redirect, even
+	// to a server holding a usable set, is an outage, on the default client
+	// and on a caller's client alike; the caller's client is not changed
+	// (review M4).
+	is.fail(tidA, 0)
+	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, is.srv.URL+r.URL.Path, http.StatusFound)
+	}))
+	defer redirect.Close()
+	redirClaims := edit(claimsFor(is, tidA, clk.Now()), map[string]any{"iss": redirect.URL + "/" + tidA + "/v2.0"})
+	for _, tc := range []struct {
+		name   string
+		client *http.Client
+	}{{"the default client", nil}, {"a caller's client", redirect.Client()}} {
+		cfg.AuthorityHost, cfg.HTTPClient = redirect.URL, tc.client
+		vr, err := New(cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		outage(vr, mint(t, testKey(t), hdr(kid1), redirClaims), "a redirect, "+tc.name)
+	}
+	if redirect.Client().CheckRedirect != nil {
+		t.Error("New changed the caller's client")
+	}
 	// A key-set server that never answers, behind a client with no timeout
 	// (httptest's has none): the validator's own cap ends the wait.
 	release := make(chan struct{})
@@ -297,12 +330,58 @@ func TestOnlyRSASigningKeysOfAtLeast2048BitsAreUsed(t *testing.T) {
 	// An exponent over four bytes, which Int64 would truncate to 65537.
 	wide := rsaJWK("wide-e", pub)
 	wide["e"] = b64(new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(int64(pub.E))).Bytes())
-	is.setKeys(tidA, rsaJWK(kid1, pub), rsaJWK("small", &small.PublicKey), enc, ec, noUse, pss, rs, dup, wide)
+	// An exponent of 1, under which a "signature" is its own encoding.
+	unit := rsaJWK("e-1", pub)
+	unit["e"] = b64([]byte{1})
+	is.setKeys(tidA, rsaJWK(kid1, pub), rsaJWK("small", &small.PublicKey), enc, ec, noUse, pss, rs, dup, wide, unit)
 	v := newValidator(t, is, clk)
 	claims := claimsFor(is, tidA, clk.Now())
 	mustValidate(t, v, mint(t, testKey(t), hdr(kid1), claims))
 	mustValidate(t, v, mint(t, testKey(t), hdr("no-use"), claims))
 	mustValidate(t, v, mint(t, testKey(t), hdr("rs"), claims))
+	// Anyone can "sign" for the e = 1 key by writing out the PKCS #1 v1.5
+	// encoding. Go 1.23's VerifyPKCS1v15 checks no exponent and would accept
+	// it (review M2); the key must never reach the verifier.
+	forged := forgeForUnitExponent(t, pub.N, hdr("e-1"), claims)
+	// The forgery is real: it is what a genuine signature over the same
+	// input raises to, s^65537 mod n, so the check below tests the key
+	// filter and not a malformed token.
+	genuine := mint(t, testKey(t), hdr("e-1"), claims)
+	sig, err := base64.RawURLEncoding.DecodeString(genuine[strings.LastIndexByte(genuine, '.')+1:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	em := new(big.Int).Exp(new(big.Int).SetBytes(sig), big.NewInt(int64(pub.E)), pub.N)
+	if want := b64(em.FillBytes(make([]byte, len(sig)))); forged[strings.LastIndexByte(forged, '.')+1:] != want {
+		t.Fatal("forgeForUnitExponent does not build the PKCS #1 v1.5 encoding")
+	}
+	if _, err := v.Validate(bg, forged); err == nil {
+		t.Fatal("a token forged for an e = 1 key: accepted")
+	} else {
+		isOnly(t, err, ErrSignature)
+	}
+	// rsaKey refuses every key that some supported toolchain's crypto/rsa
+	// refuses or mis-handles, so what is trusted never depends on the Go
+	// version. Entra publishes e = 65537 ("AQAB").
+	n := b64(pub.N.Bytes())
+	for _, tc := range []struct {
+		name, n, e string
+		ok         bool
+	}{
+		{"e = 65537", n, "AQAB", true},
+		{"e = 3", n, b64([]byte{3}), true},
+		{"e = 2^31-1", n, b64([]byte{0x7f, 0xff, 0xff, 0xff}), true},
+		{"e = 0", n, b64([]byte{0}), false},
+		{"e = 1", n, b64([]byte{1}), false},
+		{"e = 2", n, b64([]byte{2}), false},
+		{"an even e", n, b64(big.NewInt(1 << 16).Bytes()), false},
+		{"e = 2^31+1", n, b64([]byte{0x80, 0, 0, 1}), false},
+		{"an even modulus", b64(new(big.Int).Add(pub.N, big.NewInt(1)).Bytes()), "AQAB", false},
+	} {
+		if _, ok := rsaKey(tc.n, tc.e); ok != tc.ok {
+			t.Errorf("rsaKey, %s: ok = %v, want %v", tc.name, ok, tc.ok)
+		}
+	}
 	for kid, key := range map[string]any{"small": small, "enc": nil, "ec": nil, "pss": nil, "wide-e": nil} {
 		signer := testKey(t)
 		if key != nil {
@@ -316,6 +395,6 @@ func TestOnlyRSASigningKeysOfAtLeast2048BitsAreUsed(t *testing.T) {
 	}
 	// A key set holding only unusable keys is no key set at all.
 	is.setKeys(tidB, rsaJWK("small", &small.PublicKey), enc)
-	_, err := v.Validate(bg, mint(t, small, hdr("small"), claimsFor(is, tidB, clk.Now())))
+	_, err = v.Validate(bg, mint(t, small, hdr("small"), claimsFor(is, tidB, clk.Now())))
 	isOnly(t, err, ErrKeySetUnavailable)
 }

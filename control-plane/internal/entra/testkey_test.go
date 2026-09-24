@@ -116,15 +116,17 @@ func (is *issuer) serve(w http.ResponseWriter, r *http.Request) {
 	if delay > 0 {
 		time.Sleep(delay)
 	}
-	if status != 0 {
-		w.WriteHeader(status)
-		return
-	}
 	if !known {
 		http.NotFound(w, r)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	// A failing status still carries the tenant's usable key set, so a test
+	// of it passes only if the status alone is refused. An empty body would
+	// fail as "not JSON" with or without the status check (review I2).
+	if status != 0 {
+		w.WriteHeader(status)
+	}
 	_ = json.NewEncoder(w).Encode(map[string]any{"keys": keys})
 }
 
@@ -150,6 +152,8 @@ func (is *issuer) setKeys(tid string, keys ...map[string]any) {
 	is.sets[tid] = keys
 }
 
+// fail makes tid's endpoint answer status, with its usable key set as the
+// body; 0 restores 200.
 func (is *issuer) fail(tid string, status int) {
 	is.mu.Lock()
 	defer is.mu.Unlock()
@@ -270,6 +274,29 @@ func mint(t testing.TB, key *rsa.PrivateKey, header, claims map[string]any) stri
 		t.Fatal(err)
 	}
 	return input + "." + b64(sig)
+}
+
+// sha256DigestInfo is the DER DigestInfo prefix PKCS #1 v1.5 puts before a
+// SHA-256 hash (RFC 8017 §9.2, note 1).
+var sha256DigestInfo = []byte{0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20}
+
+// forgeForUnitExponent "signs" header.payload for the RSA key (n, e = 1)
+// without any private key: with e = 1, s^e mod n is s, so the signature is
+// the encoding EM = 0x00 0x01 FF..FF 0x00 DigestInfo hash itself.
+func forgeForUnitExponent(t testing.TB, n *big.Int, header, claims map[string]any) string {
+	t.Helper()
+	input := seg(t, header) + "." + seg(t, claims)
+	sum := sha256.Sum256([]byte(input))
+	k := (n.BitLen() + 7) / 8
+	tLen := len(sha256DigestInfo) + len(sum)
+	em := make([]byte, k)
+	em[1] = 0x01
+	for i := 2; i < k-tLen-1; i++ {
+		em[i] = 0xff
+	}
+	copy(em[k-tLen:], sha256DigestInfo)
+	copy(em[k-len(sum):], sum[:])
+	return input + "." + b64(em)
 }
 
 // good is a valid token for tid at the clock's time.
