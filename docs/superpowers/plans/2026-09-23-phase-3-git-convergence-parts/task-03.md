@@ -413,7 +413,8 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 
 - [ ] **Step 1: R2's lift, if needed.** `grep -n "func WriteAtomic" control-plane/internal/statepath/*.go`.
   One hit: phase 4 did it; use it. None: move `writeAtomic` and `writeatomic_test.go` into
-  `statepath` as `WriteAtomic`, change `registry`'s two call sites, run
+  `statepath` as `WriteAtomic`, change `registry`'s one call site (`filestore.go:401`, in
+  `saveLocked`; the definition moves from `:460`) and the test file's five calls, run
   `go test ./control-plane/internal/registry/ ./control-plane/internal/statepath/ -count=1`, and
   commit that move **alone**, before anything else, so the lift is one reviewable commit.
 - [ ] **Step 2:** write the tests; `gitxtest.NewRepo` for the git ones.
