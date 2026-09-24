@@ -1041,3 +1041,42 @@ is empty and the exit is still 0: "no lane" is empty output, not an exit code.
 **Unverified.** Nothing was built or run as Go or TypeScript. The cost of `--contains` with many
 lanes was not measured. `TestHistoryMergedIntoLaneIsReadFresh` catches a stale answer, not a
 slow one.
+
+### Fix batch b06, round 2 (2026-09-24): the re-review's open issues
+
+The re-review (`.superpowers/sdd/p3/plan-rereview-b06-1.md`) found I3 and I4 mostly fixed, with
+three Important issues and three Minors. Round 2 fixes all six, and the two out-of-batch notes;
+none is deferred. Paths are under `docs/superpowers/plans/`.
+
+| Re-review issue | Change (file:line) |
+|---|---|
+| **1a (Important)** Undo read lane refs one sweep old, so a lane that merged the land since the last sweep read as clean | Undo runs `SyncLane` for every lane of the branch under the project lock before `for-each-ref --contains`, and fails closed with SyncLane's own code and a message naming the lane: parts/task-10.md:85-95; `TestUndoSyncsTheLanesFirst` (no sweep since B's merge → `merged_into_lane`; B's clone removed → the undo fails, nothing written): :186; the lock order names it: parts/task-02.md:249-251; "does not claim" states the fail-closed cost (an agent can block an exact undo by breaking its clone; the revert still works): parts/task-10.md:223-224; the desktop shows such a failure and still offers the revert: parts/task-20.md:107-110, test :141 |
+| **1b (Important, recommended)** an undo cannot see a merge committed after it, one in progress, or one a failed refresh leaves possible | adopted. One reader, `CarriedUndone` (`for-each-ref --merged <laneTip> --format=%(objectname) %(trailers:key=Panacea-Land,valueonly) refs/panacea/undone/`, own lane's lands dropped): parts/task-08.md:52-64; `Forecast.CarriesUndone`, always a list: :39-45; the walk fills it, and a read error makes the row unknown: :76-78; the cache key already covers it (only an undo adds an undone ref, and an undo moves the tip): :86-88; the bring-in forecast carries `[]`: :150-152; test `TestForecastNamesAnUndoneLandTheLaneCarries`: :268. Land step 7a returns `broughtBack`: parts/task-09.md:100-103, field :52-56, wire :205, test `TestLandNamesTheUndoneLandsItBringsBack`: :301. Desktop types: parts/task-18.md:55-59, :80; the row line `carriesUndoneLine` and the toast: parts/task-19.md:42-47, :111-113, :116-118, test :232. The residual in "does not claim": parts/task-10.md:218-222. Refusing such a land until acknowledged is recorded as plan Q11 (plan:427), with 7a as the seam |
+| **2 (Important)** one clone that always fails its refresh made every sweep re-fetch every clone of the branch under the project lock | the sweep asks for the stale lanes only, through `RefreshLanes`: parts/task-07.md:71-76 and parts/task-09.md:126-129, :151; a failure is recorded against its tip, retried on a tip move or a 1 → 2 → … 10 min backoff, and logged once per (lane, tip): parts/task-07.md:96-109, state :64-68; `TestSweepRetriesAFailedRefresh` rewritten to the backoff: :237; `TestSweepDoesNotHammerAFailingClone` (real git; a removed clone and a refused `core.fsmonitor`) sits in task 09, which has the real `Lander`: parts/task-09.md:317; the delay is stated: parts/task-07.md:274-276; decision 3: plan:183-187 |
+| **3 (Important)** the refresh route never said an empty answer is `[]`/`{}`, and ResolveDialog indexes into it | the rule for every land, bring-in, undo, revert and refresh answer: parts/task-09.md:57-62, step 14 :115-116, `RefreshClones` :148-149, wire :185-186, :205; `UndoResult`/`RevertResult` cite it: parts/task-10.md:72-73, raw-body test :194; the route test reads the raw body: parts/task-09.md:318; the client's one `withEmpties` helper and its test: parts/task-18.md:106-112, :301; the ResolveDialog fake answers the whole `RefreshResult`: parts/task-19.md:176-177, :242; task 23 steps 10 and 11 assert the raw `{}`, `[]` and `carriesUndone`: parts/task-23.md:57, :59 |
+| **4 (Minor)** two restatements still said "exact" without the merged lane | goal 4: plan:34-35; the push-failure copy now reads "The land stays, and so does its undo.": parts/task-20.md:80 |
+| **5 (Minor)** the away-and-back (ABA) case left `told` equal to the tip while the clone held another commit | `told` is what the clone reads back holding after its fetch (`rev-parse refs/remotes/origin/<branch>`, Scope Clone), not a tip read before it: parts/task-07.md:78-83 and parts/task-09.md:142-149; the project-side `tip` read round 1 added is gone, and both Hardened lines say one Scope Project read: parts/task-09.md:118-121, :273-275; test `TestRefreshRecordsWhatTheCloneReceived`: :316 |
+| **6 (Minor)** the one-interval lock wait added up across busy projects | `Locks.TryLock`, a select with a default case (a done ctx cannot do it: Go's select picks at random between a free lock and a done ctx): parts/task-02.md:261-265, test `TestLocksTryLockNeverWaits`: :386, acceptance 38 → 39: :585; the sweep's step c: parts/task-07.md:99-101; the Locks comment: parts/task-02.md:235-237; `TestSweepSkipsABusyProjectAndSyncsTheRest` holds two busy projects and asserts the sweep stays under one interval: parts/task-07.md:238 |
+| **Out of batch 1** task-02's one-scope list omitted BringIn | parts/task-02.md:232; plan:100 names bring-in too |
+| **Out of batch 2** plan:346 (now :349) says the fetch reaches the clones "through `AfterFetch`, task 14" | no change needed: `AfterFetch` is task 12's field (parts/task-09.md:154) and task 14 wires it (plan:546-547). The two statements agree |
+
+**Choices past the re-review, on the facts.**
+
+- **Undo fails closed on a sync error, with the error's own code.** No new `undoWhy` value, so
+  tasks 04 and 18's unions are unchanged. The copy is generic ("Undo did not run: <message>")
+  and the Go message names the lane, so the desktop does not parse git's words.
+- **1b announces, it does not refuse.** The land that brings an undone land back is itself
+  exactly undoable at that moment, so nothing is lost, and the Merge lens names the undone land
+  before the click. Refusing needs a new request field, a new code and a confirm; that is Q11's
+  fallback, and step 7a is where it goes.
+- **`TestSweepDoesNotHammerAFailingClone` lives in task 09, not task 07.** It needs the real
+  `Lander`, which task 07 predates. Task 07's own test pins the backoff with a recording
+  refresher, so task 07's count stays at 25.
+- **The trailer read is one call.** `%(trailers:key=Panacea-Land,valueonly)` in `for-each-ref`
+  was probed: `scratchpad/p3/b06r2-trailer-probe.sh` and `.out` (git 2.53.0.windows.2) print
+  `<M> w-a` for the lane that merged M, and nothing, exit 0, for the lane that did not.
+
+**Unverified.** Nothing was built or run as Go or TypeScript. The backoff constants (1 min to
+10 min) are a judgement, not a measurement. The cost of `--merged` over many undone refs was not
+measured; phase 3 never prunes them (task 10).
+
