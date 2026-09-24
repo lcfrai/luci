@@ -17,7 +17,7 @@ sandbox image's digest is also OD-8's adapter pin.
 
 | Image | Base | Contents | Runs as | Entrypoint |
 |---|---|---|---|---|
-| `panacea-app/sandbox` | `node:20-bookworm-slim` (unchanged, `Dockerfile:10`) | unchanged: sandboxd from vendor, git, ripgrep, Claude Code `2.1.274` | `dev` 1001 | `entrypoint.sh` |
+| `panacea-app/sandbox` | `node:20-bookworm-slim` (unchanged here, `Dockerfile:10`; Node 20 is past end of life, so task 27a moves it, by digest, before the first publish, review m15) | unchanged: sandboxd from vendor, git, ripgrep, Claude Code `2.1.274` | `dev` 1001 | `entrypoint.sh` |
 | `panacea-app/machine` | **`FROM` the sandbox image, by the digest this pipeline run just built** | + `/usr/local/bin/machined`; + git from `bookworm-backports` (below) | `dev` 1001 | `/usr/local/bin/machined` |
 | `panacea-app/broker` | `gcr.io/distroless/static-debian12:nonroot`, **by digest** | `/broker` | 65532 | `/broker` |
 | `panacea-app/hub` | the same distroless base, by digest | `/hub` (`control-plane/cmd/hub`, ADR-H1 §5.1, `67609ab` `:286`) | 65532 | `["/hub", "serve"]`; the chart's migrate Job runs `["/hub", "migrate"]` (ADR-H1 §5.6, `67609ab` `:500-501`) |
@@ -28,7 +28,8 @@ sandbox image's digest is also OD-8's adapter pin.
 so the machine image installs git from `bookworm-backports` (`USER root`, `apt-get install -t
 bookworm-backports git`, `USER dev`), and `images_test.sh` asserts the version rather than trusting
 this sentence. The **sandbox** image is left alone: an agent's git is the agent's, and phase 3 runs
-nothing of its own there.
+nothing of its own there. The backports line is tied to the base's Debian release, so task 27a,
+which moves the base, moves or drops it too.
 
 `images/build.sh` (contract):
 

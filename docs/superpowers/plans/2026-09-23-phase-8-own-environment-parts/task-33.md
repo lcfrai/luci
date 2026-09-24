@@ -24,6 +24,7 @@ Phase 2's task 26 learned that a seam written only in a plan is rediscovered by 
 | S8-P9.1 | CMK, etcd KMS, Defender, Sentinel, WAF absent by design | phase 9 adds each as a module variable | a default-false posture flag on a create-time field | anchor: `modules/aks` has no `key_management_service` |
 | S8-D.1 | a first machine provisions a disk on demand | a pool of pre-provisioned unclaimed disks, if P18's first-sign-in time asks for it | pre-create disks per user | — (a gap, not code) |
 | S8-C.1 | every stack is parameterised by environment, location, tenant and subscription | the customer-hosted tier runs the same stacks | hard-code our tenant, zone or registry | `guards.sh` G2 |
+| S8-I.1 | `ARG NODE_BASE` in `images/sandbox/Dockerfile`, by digest (task 27a) | move the base, in a task of its own, when its Node line enters maintenance; run the OD-8 canary; name both digests | move the base inside another change (its digest is the OD-8 adapter pin) | `images_test.sh`'s Node-line and digest rows |
 | S8-H.1 | `deploy/charts/hub` sets only the Hub contract's variables | the Hub phase reconciles when its config grows | set an undocumented variable | the hub chart's env test |
 
 If phase 2 task 26 has **not** landed (no `docs/SEAMS.md`), the rows go into

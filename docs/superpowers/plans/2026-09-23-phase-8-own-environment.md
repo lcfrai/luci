@@ -102,7 +102,7 @@ they never read a terminal stream.
 | **OD-6** | The desktop signs in with Entra auth-code + PKCE; the control plane calls servers **as the user**. So the broker authenticates the user's token and nothing is a shared service account | 09, 16, 17, 22 |
 | **OD-2** | A worktree is a local clone. On a cloud machine the project repo and its lane clones live **on one filesystem** — the machine's disk — so the phase 3 model (hard-linked clones, fetch back under `refs/panacea/lanes/…`) runs unchanged inside the machine | 15, 19, 20, 25 |
 | **OD-4** | ADO and GitHub both: sandbox egress and the machine agent's clone path must reach both hosts | 11, 21 |
-| **OD-8** | The transcript adapter is pinned to the CLI version in the sandbox image, so the **image digest is the adapter pin**: the `images` pipeline runs the adapter's canary against the image it is about to push | 27 |
+| **OD-8** | The transcript adapter is pinned to the CLI version in the sandbox image, so the **image digest is the adapter pin**: the `images` pipeline runs the adapter's canary against the image it is about to push. Moving the sandbox base moves the pin, so the move off end-of-life Node 20 is its own task (review m15) | 27, 27a |
 | **OD-10** | Forget deletes the transcript; removing a worktree deletes its store. On a cloud machine both are paths on the machine disk, deleted by the machine agent | 20 |
 | **OD-11 rule 3** | Dependencies are MIT, Apache-2.0, BSD or ISC, checked in CI. This plan applies the gate **repo-wide** to two kinds of dependency. (1) Every linked graph: Go modules, the desktop's production npm graph and Cargo, in task 28's `licences.yml`. (2) Every Helm chart dependency: `charts.yml` checks each `Chart.lock` entry against `licences/charts.yaml` (task 28 writes the check, task 13 the first entries). **Terraform providers are outside the gate.** They are MPL-2.0 tools: Terraform runs them as separate processes, they ship in nothing, and each stack's committed `.terraform.lock.hcl` pins them by hash. Task 28's allowlist says so by name | 28, 13 |
 | **OD-12** | Owner hands-on steps are batched at the end. Every owner-observed item in this phase stays **unverified** until then | 31, 32 |
@@ -470,7 +470,8 @@ control-plane/cmd/api/{config,main}.go         RUNTIME_CLASS (14); BROKER_URL, B
 control-plane/internal/gitx/remote.go          phase 3's Machine for a cloud machine (S3-P8.1)     25
 desktop/src/{store,api}/…, components/rail/{MachineChip,MachinesPopover}.tsx   cloud machines      26
 docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md §2   amended with types.ts            26
-images/{broker,hub,machine}/Dockerfile  images/build.sh  images/images_test.sh                    27
+images/{broker,hub,machine}/Dockerfile  images/build.sh  images/images_test.sh                    27 (+27a)
+images/sandbox/Dockerfile                      the base off Node 20, by digest (OD-8 pin moves)    27a
 azure-pipelines.yml                             the Go pipeline: PR trigger, path filter, govulncheck 28
 pipelines/templates/tools.yml  pipelines/scripts/{install-tool,lint,chart-licences}.sh            28 (+27, 30)
 pipelines/{desktop,licences,secrets,infra,charts}.yml  licences/  .gitleaks.toml                  28 (+10, 13)
@@ -505,6 +506,7 @@ missing stops and reports it.
 | `stacks/foundation/*` | 07 → 30 |
 | `deploy/charts/platform/*` | 11 → 12 |
 | `pipelines/templates/tools.yml`, `pipelines/scripts/lint.sh` | 28 → 27 → 30 |
+| `images/machine/Dockerfile`, `images/images_test.sh` | 27 → 27a (27a moves the git source with the base and adds four rows, review m15) |
 
 ---
 
@@ -574,6 +576,7 @@ implementer who has read this file and the part, and assume the part's tests are
 | # | Task | Depends on | Hours |
 |---|---|---|---|
 | 27 | `images/broker`, `images/machine`, and the `images` pipeline: digest, SBOM, scan, the OD-8 canary | 17, 20, 28 | 2.5 |
+| 27a | The sandbox base off end-of-life Node 20, by digest, before its first publish; it moves the OD-8 pin, so it has its own canary run and commit (review m15) | 27 | 1.5 |
 | 28 | Pipelines: tool templates, the Go pipeline, `desktop`, `licences` (OD-11, repo-wide), `secrets`, `infra`, `charts` | 01 | 3 |
 | 29 | `deploy/charts/broker` and `deploy/charts/hub` (HA-4, HA-5), with per-environment values | 11, 13, 19, 27 | 3 |
 | 30 | `infra-plan` and `deploy` pipelines, the estate guard, `modules/ci-pool` — written, not registered | 07, 28, 29 | 3 |
@@ -582,7 +585,7 @@ implementer who has read this file and the part, and assume the part's tests are
 
 | # | Task | Depends on | Hours to write |
 |---|---|---|---|
-| 31 | The first-apply runbook and the smoke scripts | 07–13, 29, 30 | 2 |
+| 31 | The first-apply runbook and the smoke scripts | 07–13, 27a, 29, 30 | 2 |
 | 32 | The Kata proving checklist: RuntimeClass, disk sharing, cold start, overhead, isolation | 31 | 2 |
 | 33 | Close the phase: the S8 seams, the compliance gap, the cost model, what stays unverified | all | 1.5 |
 
@@ -600,7 +603,7 @@ wave 1   01  14  16
 wave 2   02  03  04  09  11  15  17  28
 wave 3   05  06  12  13  18  20
 wave 4   07  19  22  27
-wave 5   08  23  29          21 (when phase 3 task 02 has landed)
+wave 5   08  23  27a  29     21 (when phase 3 task 02 has landed)
 wave 6   10  24  30
 wave 7   25 (when phase 3 tasks 02–04 and 11 have landed)  26
 wave 8   31                  (owner-gated, OD-12)
@@ -642,6 +645,7 @@ for the same code locations, each cited to `file:line` in its part.
 | **S8-P9.2** Defender for Containers cannot assess Kata pods | recorded as a compliance gap in `PROGRAM.md` (task 33), as its cross-cutting constraints ask | Phase 9's ISM evidence | Claim coverage from a subscription-level Defender plan |
 | **S8-H.1** The Hub's chart values | `deploy/charts/hub/values.yaml`, built against HA-4/HA-5 | The Hub phase, when its contract lands, reconciles the chart | Hard-code a Hub setting in the chart that is not in the Hub's config table |
 | **S8-C.1** Customer-hosted tier | every stack takes `environment`, `location`, tenant and subscription from variables; `identity` is separable | A later phase runs the same stacks in a customer's subscription and Entra tenant | Hard-code our tenant, zone or registry name in a module |
+| **S8-I.1** The sandbox image's base | `ARG NODE_BASE` in `images/sandbox/Dockerfile`, by digest (task 27a, review m15); the machine image is `FROM` the sandbox image | Every later phase: when the base's Node line enters maintenance, a task of its own moves it, runs the OD-8 canary and names the old and new digests | Move the base inside another change: its digest is OD-8's adapter pin |
 | **S8-P13.1** The Panacea lift (OD-13) | the `apps` pool and the `panacea-*` namespace convention | The lift phase lands Panacea's services beside the Hub | Pre-create namespaces or pools for it now |
 
 ---
