@@ -1533,3 +1533,75 @@ Survivors I expect a re-review to name: (1) `upstreamAnswer`'s "refused" class f
 says "nothing was changed" of a sign-in redirect, true only if no edge acts on a POST before
 redirecting; (2) the only-owner count, which skips legacy owner rows on the strength of the
 comment at `keycloak.go:166-170` rather than a test of Panacea's RBAC.
+
+## Fix batch b09 — M11 to M16 (2026-09-24)
+
+Minors in the binding (task 06) and the watcher (task 07), plus the plan's §10.1 row. Commits
+`e5327e4` (M14), `070a354` (M13), `b86dc24` (M11), `42b9298` (M12), `431b810` (M16), `75edd95`
+(M15), `c5e941a` (M11 follow-up), and this section's commit. The Hub contract was read at
+`6b873d0` in the hub worktree, read-only (the review's §9.3:1368-1376 is now `:1377-1385`; §8's
+release rows are `:1155-1159`; the list rule is §1 `:48-49`). The review's own anchors had moved:
+t06:86-89 is now t06:100-112, t06:95-99 is t06:117-121, plan:666 is plan:797. Line numbers below
+are after this batch's edits.
+
+| Finding | Change |
+|---|---|
+| **M11** a pin beyond the 200th release reads "no brief is recorded" | Both of the review's options. **t07:132-139** `Snapshot` gains `ReleasesMore` (the page's `next` was set), `ReleasesAt`, `PinsByRun`. **t07:224-244** step 6: a good read sets them; while `ReleasesMore`, each unmatched history row gets one `Releases(…, {PipelineRun: d.ID, State: "confirmed", Limit: 1})`, at most 20 per project per cycle, cached; `pipelineRun=` not `deploymentId=` because only the reserver's watcher writes the join; the reads run **last** in the cycle (after every project's steps 1-9), and a deadline cut there is no failure. **t07:246** the join also covers `PinsByRun`. **t08:108** `ReleaseRow.releaseLoaded`; **t08:195** rule 5 searches the page, then `PinsByRun`; **t08:205-213** rule 5b says when a null pin is "not loaded" (page truncated and not yet read; or no release read has succeeded yet, or `hub_key_spelling`) and when it is an answer. Tests **t07:351** `TestPinsBeyondThePage`, **t08:284** `TestPinNotLoadedIsNotAbsent`. Restated: **t13:135** the type, **t15:131** the pin cell *"pin not loaded"*, **t15:146-148** and **:201** the origin *"not loaded yet"*, **t16:159-163** and **:201** Rebuild disabled with its own sentence, **t17:145**, **:164**, **:232** the drawer |
+| **M12** `release.*` feed events do not reach `Watcher.Nudge` | **t07:88-96** `Watcher.HubEvents(events)`: a `release.*` event whose `projectId` is a bound project's `HubProjectID` marks its releases due and Nudges it; no request. **t07:216-218** step 6 reads releases on such an event. **t07:307-321** the wiring: phase 7 adds no second feed reader; `main.go` hands `HubEvents` to C2's poller, or this task adds an `OnEvents` listener field to it as a declared amendment (HA7-4's pattern), or, before C2, releases stay on the 60 s cadence. **t07:18-19** file list; **t07:360-363** the step that finds C2's poller. **plan:792** the Hub C2 row. Test **t07:352** `TestReleaseEventRefreshesReleases` |
+| **M13** `KindNotFound` / `KindForbidden` from `Environments` unspecified | **t07:166-182** step 2: any `Environments` kind but `KindUnavailable` and `KindUnauthorized` is about the binding: other projects are still read; this one goes `Stale` with Panacea's sentence, `FetchedAt` unchanged, is Nudged, and is re-resolved next cycle. Not bound → its data is dropped; bound elsewhere → reset. **t07:155-162** step 1: a changed `Binding.Panacea` resets the snapshot's Panacea and Hub data, so one project's rows never appear under another's binding. **t07:264-266** the failure rule says so. **t08:33-35** `staleReason` gains `deploy_not_found`, `deploy_forbidden`, `deploy_conflict`, `deploy_rejected` (t05:281-284's codes); **t15:152-158** the stale banner says *"Panacea refused to show this project"*, never *"has not answered"*. Tests **t07:345** `TestEnvironmentsRefusedReResolves`, **t15:212** `a refusal is not silence` |
+| **M14** one hung read blocks the loop about 46 s | **t07:62-65** `Config.CycleDeadline` (zero = 15 s); **t07:76** `Run` says each cycle runs under it. **t07:268-285** the per-cycle deadline: one `context.WithTimeout` over the whole cycle; expiry is the cycle's `KindUnavailable` (Status 0), so the failure rule applies unchanged; tracked-run projects first, the rest in rotation, so a cut cycle starves none. **plan:523** `PANACEA_APP_DEPLOY_CYCLE_DEADLINE`; **t07:365-366** `config.go`. Test **t07:346** `TestCycleDeadlineCutsAHungRead`. **t02:101** now cites the failure rule at t07:259-266 |
+| **M15** plan's by-name fallback does not exist | **Corrected the row, not built** (below). **plan:797**: phase 3 task 13 is a hard dependency; 7a builds 01-05 and waits. **t06:3-6** the part's header says the same |
+| **M16** one `Deployer.Projects` per local project per cycle | **t06:100-112** `Resolve` is `ResolveMany` of one id; `ResolveMany` makes one `LocalProjects` read, one `Deployer.Projects` read and one Hub lookup per distinct key for every id. **t07:40-44** the watcher's `Bindings` interface takes `ResolveMany`; **t07:155-160** step 1 calls it once per cycle for every due project, and not at all when none is due. Tests **t06:231** `TestResolveManyReadsProjectsOnce`, **t07:332** `TestOneProjectsReadPerCycle` |
+
+### Deviations, declared
+
+- **M11: both options, and one wider case.** The targeted read alone leaves rows blank while it
+  runs, and "pin not loaded" alone leaves old rows unread for good, so the plan does both. The
+  same inversion arises when the Hub has never answered for this binding (down or signed out at
+  the first read) and under `hub_key_spelling`. This is the same defect, not a tangent, so rule
+  5b covers those cases too.
+- **M12: a listener, not a second reader.** The review says "have the Hub change poller nudge
+  the watcher". The poller is C2's code, so the plan wires into it, as HA7-4 does for the cursor.
+  A second `/v1/changes` reader would double the feed load.
+- **M13: the rule is total.** The review names two kinds. The plan covers every kind except the
+  failure rule's two, so no `Environments` answer is left unspecified. The stale banner changes
+  with it, because *"has not answered"* is false for a refusal. The desktop type is already
+  `code: string` (t13:156), so no type changes.
+- **M14: 15 s, not 3 s.** A deadline at the active cadence would cut every normal `Deployments`
+  read: that read makes a dozen PipelineRun reads inside Panacea (`projects.go:1227-1253`). 15 s
+  is one per-attempt timeout, so a hang costs one attempt instead of three. The ordering rule
+  gives the tracked run the first share of the cycle.
+- **M15: the row is corrected, and no fallback is built.** Four reasons:
+  1. Part 06 imports `githost`, so there is no runtime state "without githost" in which a screen
+     could ask anything.
+  2. A by-name binding needs a key for the choice file and the Hub lookup. Without `githost`,
+     phase 7 would have to spell that key itself, and t06:133-136 forbids a fourth canonicaliser.
+  3. `Choose` takes only candidates on purpose (`TestChooseOutsideCandidates`). A name with no
+     repository match could point Ship at a project that builds another repository, which would
+     pin a brief to the wrong code. That breaks the provenance thread.
+  4. The one real "no match information" case, no `repoUrl` from Panacea, already offers every
+     project (`NoRepoInfo`).
+  Verified: no `control-plane/internal/githost` exists in this worktree or in the phase-3
+  worktree.
+
+### Mutants
+
+No code changed in this batch, so no mutant was run. Each new test names the mutant it kills.
+Survivors I expect a re-review to name:
+1. A slow Hub **page** read (step 6, once per project, inside the project's own steps) can still
+   use up `CycleDeadline`. The next project's Panacea read then fails on a finished context, and
+   the failure rule stales every project as if Panacea were down. Only the targeted reads moved
+   to the end of the cycle.
+2. A `nil` in `PinsByRun` is cached for the binding's lifetime. A release confirmed for an
+   off-page deployment after its targeted read would never be seen. The plan argues this cannot
+   happen, because a new deployment's release is always on the first page, but no test pins that
+   argument.
+
+### Unverified
+
+- The Go names `hubapi.Page.Next`, `ReleaseQuery.PipelineRun` and `.State`, and
+  `hubapi.Event.Kind` and `.ProjectID`. They are taken from the wire shape, and t07's "does NOT
+  claim" section says so.
+- C2's poller: its file, and whether it has a listener. No Hub code was read.
+- That the Hub fake honours `pipelineRun=` and pages at 200. `TestPinsBeyondThePage` stays red
+  until it does.
