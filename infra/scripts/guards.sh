@@ -7,6 +7,8 @@
 # Each check prints   guard G<n>: ok
 #                or   guard G<n>: FAIL <path>: <why>      (one line per offending path)
 # Last line:          guards: <k> of 10 passed            exit 0 iff k == 10
+# A failed read:      guards: inventory failed (find | sort exit <n>)       exit 2, no rule
+#                     guards: scanner failed (awk exit <n>)                  reported
 #
 # THESE GUARDS ARE HYGIENE, NOT A SECURITY BOUNDARY (review C3). They run from the branch
 # being built, so a pull request can edit or delete them. They catch mistakes in reviewed code.
@@ -17,6 +19,10 @@
 # fails too, and is reworded. Paths are searched under INFRA_ROOT only; .terraform/ (init
 # caches, git-ignored) is skipped. One find, one git and one awk pass feed every rule:
 # process start-up costs about 300 ms on the build laptop, so the rules share the reads.
+# Each read is captured whole and its exit status tested before any rule reports: a read
+# that failed must never be taken for "nothing found" (task 01 review I1, where an awk that
+# failed left seven rules printing ok). A failed find or awk exits 2; a failed git fails
+# G1 and G7, the two rules that need it.
 set -uo pipefail   # not -e: every guard runs and reports, whatever an earlier one found
 
 case "${BASH_SOURCE[0]}" in */*) HERE="${BASH_SOURCE[0]%/*}" ;; *) HERE=. ;; esac
@@ -27,28 +33,36 @@ STACKS="$BASE/terraform/stacks"
 ALLOWED="hashicorp/azurerm hashicorp/azuread azure/azapi"
 
 # --- inventory, once ---------------------------------------------------------------------------
-FILES=() TF=() TFJSON=() TFTEST=() TFALL=() STACK_NAMES=()
+# read_failed <what> <command> <status>: a read that feeds the rules failed; stop before any rule.
+read_failed() { echo "guards: $1 failed ($2 exit $3)"; exit 2; }
+# The pipeline's status under pipefail covers find and sort alike; find's own errors stay on
+# stderr, where the caller sees them.
+LIST="$(find "$BASE" -name .terraform -prune -o -type f -print | LC_ALL=C sort)" ||
+  read_failed inventory "find | sort" "$?"
+# *.tf.json and *.tfvars.json are not read by any rule: G1 refuses them (task 01 review M3).
+FILES=() TFTEST=() TFALL=() STACK_NAMES=()
 declare -A IS_STACK=()
 while IFS= read -r f; do
+  [ -n "$f" ] || continue
   FILES+=("$f")
   case "$f" in
-    *.tf)                        TF+=("$f");     TFALL+=("$f") ;;
-    *.tf.json)                   TFJSON+=("$f"); TFALL+=("$f") ;;
-    *.tftest.hcl)                TFTEST+=("$f"); TFALL+=("$f") ;;
-    *.tfvars|*.tfvars.json|*.hcl) TFALL+=("$f") ;;
+    *.tf)                         TFALL+=("$f") ;;
+    *.tftest.hcl)  TFTEST+=("$f"); TFALL+=("$f") ;;
+    *.tfvars|*.hcl)               TFALL+=("$f") ;;
   esac
   case "$f" in
     "$STACKS"/*/*) s="${f#"$STACKS"/}"; s="${s%%/*}"
                    if [ -z "${IS_STACK[$s]:-}" ]; then IS_STACK[$s]=1; STACK_NAMES+=("$s"); fi ;;
   esac
-done < <(find "$BASE" -name .terraform -prune -o -type f -print 2> /dev/null | LC_ALL=C sort)
+done <<< "$LIST"
 
 # Tracked paths, once. Not a git work tree -> G1 and G7 cannot be checked, and fail closed.
 declare -A TRACKED=()
 GIT_OK=1
+LIST="$(git -c core.quotepath=off ls-files -- "$BASE" 2> /dev/null)" || GIT_OK=0
 while IFS= read -r f; do
-  case "$f" in "#GIT_FAILED") GIT_OK=0 ;; ?*) TRACKED[$f]=1 ;; esac
-done < <(git -c core.quotepath=off ls-files -- "$BASE" 2> /dev/null || echo "#GIT_FAILED")
+  [ -n "$f" ] && TRACKED[$f]=1
+done <<< "$LIST"
 
 # --- reporting ---------------------------------------------------------------------------------
 PASSED=0 G="" BAD=0
@@ -137,27 +151,24 @@ BEGIN {
 }
 FNR == 1 {
   flush(); cur = FILENAME; base = cur; sub(/.*\//, "", base)
-  is_tf = (cur ~ /\.tf$/); is_json = (cur ~ /\.tf\.json$/); is_test = (cur ~ /\.tftest\.hcl$/)
-  is_vars = (cur ~ /\.tfvars$/); is_vjson = (cur ~ /\.tfvars\.json$/)
+  is_tf = (cur ~ /\.tf$/); is_test = (cur ~ /\.tftest\.hcl$/); is_vars = (cur ~ /\.tfvars$/)
   is_lock = (base == ".terraform.lock.hcl"); is_backend = (base == "backend.tf")
   in_vars = 0; guid_seen = 0; k8s_seen = 0; prov_seen = 0; split("", sec_seen)
 }
 { sub(/\r$/, "") }
 is_tf { buf = buf $0 "\n" }
 is_backend { l = $0; sub(/(#|\/\/).*/, "", l); gsub(/[ \t]/, "", l); body = body l }
-(is_vars || is_vjson) && !guid_seen && $0 ~ guid { guid_seen = 1; print "GUID\t" cur }
+is_vars && !guid_seen && $0 ~ guid { guid_seen = 1; print "GUID\t" cur }
 !k8s_seen {
   l = tolower($0)
   if (l ~ /(^|[^a-z0-9_])provider[ \t]+"(kubernetes|helm)"/ || l ~ /hashicorp\/(kubernetes|helm)([^a-z0-9_-]|$)/) {
     k8s_seen = 1; print "K8S\t" cur
   }
 }
-(is_tf || is_json) && !prov_seen && ($0 ~ /provisioner[ \t]+"(local|remote)-exec"/ || $0 ~ /"(local|remote)-exec"[ \t]*:/) {
-  prov_seen = 1; print "PROV\t" cur
-}
-is_tf || is_json {
+is_tf && !prov_seen && $0 ~ /provisioner[ \t]+"(local|remote)-exec"/ { prov_seen = 1; print "PROV\t" cur }
+is_tf {
   for (i = 1; i <= nsec; i++)
-    if (!(secret[i] in sec_seen) && ($0 ~ ("(^|[^A-Za-z0-9_])" secret[i] "[ \t]*=([^=]|$)") || $0 ~ ("\"" secret[i] "\"[ \t]*:"))) {
+    if (!(secret[i] in sec_seen) && $0 ~ ("(^|[^A-Za-z0-9_])" secret[i] "[ \t]*=([^=]|$)")) {
       sec_seen[secret[i]] = 1; print "SECRET\t" cur "\t" secret[i]
     }
 }
@@ -181,6 +192,10 @@ END { flush() }
 RP=() GUIDS=() K8S=() PROVS=() SECRETS=() LOCKED=() TFVKEYS=() TTKEYS=() TTONES=()
 declare -A MOCK=() BODY=()
 TAB=$'\t'
+LIST=""
+if [ "${#TFALL[@]}" -gt 0 ]; then
+  LIST="$(awk "$SCAN" "${TFALL[@]}")" || read_failed scanner awk "$?"
+fi
 while IFS= read -r l; do
   tag="${l%%"$TAB"*}" rest="${l#*"$TAB"}"
   case "$tag" in
@@ -190,17 +205,23 @@ while IFS= read -r l; do
     MOCK) MOCK[${rest%%"$TAB"*}]+=" ${rest#*"$TAB"} " ;;
     BODY) BODY[${rest%%"$TAB"*}]="${rest#*"$TAB"}" ;;
   esac
-done < <([ "${#TFALL[@]}" -eq 0 ] || awk "$SCAN" "${TFALL[@]}")
+done <<< "$LIST"
 
 # --- G1: no auto-loaded tfvars anywhere; no override file tracked by git ------------------------
 # terraform.tfvars and *.auto.tfvars are how a bare apply hit Panacea's production (survey §1.1).
 # An override file replaces the block it names, backend included; runbook §2 keeps one on disk,
 # untracked, for the single local-state bootstrap apply, so only a TRACKED one fails.
+# JSON configuration is refused outright: G3, G5, G9 and G10 read HCL only, so a *.tf.json
+# would slip past four rules (task 01 review M3). The two JSON override names are left to the
+# tracked check. Other JSON (task 30's infra/rbac/*.json) is not Terraform, and passes.
 begin 1
 for f in "${FILES[@]}"; do
   case "${f##*/}" in
     terraform.tfvars|terraform.tfvars.json|*.auto.tfvars|*.auto.tfvars.json)
       fail "$f" "auto-loaded by terraform; name it <env>.tfvars and pass -var-file" ;;
+    override.tf.json|*_override.tf.json) ;;
+    *.tf.json|*.tfvars.json)
+      fail "$f" "JSON configuration, which the other rules do not read; write it as HCL (.tf, .tfvars)" ;;
   esac
 done
 if [ "$GIT_OK" = 1 ]; then
@@ -245,7 +266,7 @@ done
 end
 
 # --- G4: no kubernetes or helm provider, as a block or a source (P8-D3) -------------------------
-# Every Terraform-language file: *.tf, *.tf.json, *.tfvars, *.hcl (tests and lock files too).
+# Every Terraform-language file: *.tf, *.tfvars, *.hcl (tests and lock files too).
 begin 4
 for f in "${K8S[@]}"; do fail "$f" "names the kubernetes or helm provider; charts deploy the cluster (P8-D3)"; done
 end

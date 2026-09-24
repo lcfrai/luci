@@ -59,15 +59,17 @@ Run `validate.sh` one directory at a time, in the background when a directory ha
 a pull request can edit or delete them. What stops a hostile pull request is outside the
 repository: the read-only plan identity and the branch control on the write connections
 (task 30). The rules read HCL text and are fail-closed: a comment that spells a forbidden
-attribute fails too, and is reworded.
+attribute fails too, and is reworded. The rules share one `find | sort` inventory and one `awk`
+scan; if either fails, `guards.sh` prints `guards: inventory failed (…)` or
+`guards: scanner failed (awk exit <n>)` and exits 2 before any rule reports.
 
 | Id | Rule |
 |---|---|
-| G1 | No `terraform.tfvars` or `*.auto.tfvars` (or their `.json` forms) anywhere, and no override file (`override.tf`, `override.tf.json`, `*_override.tf`, `*_override.tf.json`) tracked by git. Runbook §2's local-backend `backend_override.tf` stays on disk, untracked. |
+| G1 | No `terraform.tfvars` or `*.auto.tfvars` (or their `.json` forms) anywhere; no `*.tf.json` or `*.tfvars.json` configuration at all (the other rules read HCL only; the two JSON override names are left to the next clause); and no override file (`override.tf`, `override.tf.json`, `*_override.tf`, `*_override.tf.json`) tracked by git. Runbook §2's local-backend `backend_override.tf` stays on disk, untracked. Outside a git work tree G1 fails. Non-Terraform JSON, such as `infra/rbac/*.json`, passes. |
 | G2 | No `*.tfvars` contains a GUID: ids arrive as `TF_VAR_*` / `ARM_*`. |
-| G3 | Every `*.tftest.hcl` has a `mock_provider` for every provider its module or stack requires. |
+| G3 | Every `*.tftest.hcl` (in `tests/` or at the module or stack root) has a `mock_provider` for every provider its module or stack requires. |
 | G4 | No `provider "kubernetes"` or `provider "helm"`, and no `hashicorp/kubernetes` or `hashicorp/helm` source (P8-D3: charts deploy the cluster). |
-| G5 | Every `stacks/<x>/backend.tf` holds exactly `terraform { backend "azurerm" {} }`. |
+| G5 | Every `stacks/<x>/backend.tf` holds exactly `terraform { backend "azurerm" {} }`, and a stack with no `backend.tf` fails: `init -backend-config=<file>` without a backend block exits 0 and uses local state. |
 | G6 | No `provisioner "local-exec"` or `"remote-exec"`. |
 | G7 | Every stack has a `.terraform.lock.hcl` tracked by git. |
 | G8 | No `administrator_password`, `administrator_password_wo`, `client_secret` or `admin_password` attribute in any `.tf` (P8-D10, P8-D11). |
