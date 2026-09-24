@@ -204,7 +204,7 @@ ChainHash(vector 3's hash, bytes): bc7822374dfa797a915c66eb874ecdab5d763c77155b6
 |---|---|---|
 | `TestVector1` / `TestVector2` | the envelope's `Canonical()` equals the bytes above exactly (length and content) and `Digest()` equals the digest | any deviation from §3.4 — ordering, escaping, `-0`, spacing |
 | `TestVector3` / `TestVector4` | the audit envelopes' bytes and `ChainHash` values above, vector 4 chained on vector 3 | an envelope without `teamId` (A10); a hash over `canonical` alone, not `prev ‖ canonical` |
-| `TestKeysSortByUTF16CodeUnits` | `{"":1,"\U0001F600":2}` → the 😀 key first | a bytewise (UTF-8) sort, which puts U+E000 first |
+| `TestKeysSortByUTF16CodeUnits` | `{"<U+E000>":1,"\U0001F600":2}` (the first key is the one character U+E000, spelled out here because it is invisible) → the 😀 key first | a bytewise (UTF-8) sort, which puts U+E000 first |
 | `TestStringEscapesAreExactlyTheTable` | `"/"`, `"<>&"`, U+007F, U+2028, U+2029 come out raw; U+001F → `\u001f` (lowercase); `\b\t\n\f\r` short forms | `json.Marshal`'s HTML escaping; uppercase `\u001F` |
 | `TestNumbersIntegersOnly` | `1.0`, `1e3`, `-1.5e-2` → `ErrNotInteger`; `9007199254740992` and `-9007199254740992` → `ErrIntegerRange`; `9007199254740991` and `-9007199254740991` pass; `-0` → `0` | float formatting leaking into digests; the range bound off by one |
 | `TestDuplicateKeysAreSeen` | `{"a":1,"a":2}` at the root and nested three deep → `ErrDuplicateKey` | decoding through `map[string]any`, which keeps the last |
@@ -243,3 +243,36 @@ grep -n "json.Marshal" control-plane/internal/hub/hubapi/canonical.go   # at mos
 - That the contract's text carries the envelope's `teamId`: task 44a folds A10 in before task
   01 runs; this task does not edit the contract, and if 44a has not merged, the two disagree by
   design (A10) until it does.
+
+#### As built (task 02, commit af72f19)
+
+The contract above stands; every name in it is built as written. Three additions, each declared
+in `task-02-report.md`:
+
+- **D1 `FieldError`.** "details.field naming where it was found" needs the field in the error.
+  Every failure of `Canonical`, `ValidateContent`, the envelopes and the parsers is a
+  `*FieldError{Field, Err}`: `Err` is exactly one of the `Err*` values (so `errors.Is` works),
+  `Field` a path from the value's root (`answers[2].text`; `""` is the root). `ValidateContent`'s
+  fields are relative to the content (`status`); the Hub puts `revisions[<i>].content` in front.
+  The envelopes report content errors under `content` and `ErrEnvelopeTooLarge` at `content`.
+- **D2 `ErrBadEnvelope`.** The part names no error for a malformed envelope, and
+  `ParseBriefEnvelope` must refuse something. `BriefEnvelope.Canonical` checks `briefId` (bf-),
+  `revision ≥ 1`, `projectId` (pj-), the scope, and that `branchRef` is `""` exactly for a
+  project brief and a valid ref for a branch brief (`ValidBranchRef("")` is true, so the branch
+  case adds `!= ""`); it runs `ValidateContent` itself, so non-canonical content gives the same
+  bytes. `AuditEnvelope.Canonical` checks `orgId`, `seq ≥ 1`, `at` in `FormatTime`'s exact form,
+  the optional `u-`/`tm-`/`pj-` ids, the event kind's spelling, and that each data value is a
+  `string`, `bool`, `int` or `int64`; a nil `Data` is `{}`. Both parsers accept exactly what
+  `Canonical` writes: the members, `v` 1, the kind, and bytes that are already canonical
+  (`ParseX(b)` then `Canonical()` must give `b` back). `Content` from `ParseBriefEnvelope` is a
+  fresh copy, never a slice of the caller's buffer.
+- **D3 `ParseAuditEnvelope(canonical []byte) (AuditEnvelope, error)`.** Task 27's `hub verify`
+  checks that "`canonical` parses as a `hubapi.AuditEnvelope`"; no task wrote that reader. Data
+  integers come back as `int64`.
+
+Five tests beyond the table cover them: `TestFailuresNameTheirField`,
+`TestAStoredRevisionMustBeCanonical`, `TestEnvelopesRefuseMalformedFields`,
+`TestAuditDataTakesScalarsOnly`, `TestParseAuditEnvelopeRoundTrips`. None matches the acceptance
+`-run` pattern, so its count stays 16; the package holds 21 new top-level tests.
+
+The `AuditEnvelope` block above is not gofmt-clean as printed (its field comments are realigned).

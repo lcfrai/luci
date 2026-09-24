@@ -52,7 +52,7 @@ reading `orgs`, which `hub_app` sees empty before a `set_config`: review M10, A1
 1. `seq` is gapless from 1;
 2. `prev_hash` is the previous row's `hash` (32 zero bytes for `seq` 1);
 3. `hash = SHA-256(prev_hash ‖ canonical)`;
-4. `canonical` parses as a `hubapi.AuditEnvelope` whose `orgId`, `seq`, `at`, `event`, `teamId`,
+4. `canonical` parses as a `hubapi.AuditEnvelope` (`hubapi.ParseAuditEnvelope`, task 02 D3) whose `orgId`, `seq`, `at`, `event`, `teamId`,
    `projectId`, `subject` and `actorUserId` equal the row's columns (A10);
 5. `feed = store.InFeed(kind)` (A10);
 6. finally, `audit_heads` holds the last row's `seq` and `hash`.
