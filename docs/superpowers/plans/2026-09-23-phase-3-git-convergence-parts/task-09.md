@@ -49,7 +49,17 @@ type LandResult struct {
 	ReadyCleared  bool              `json:"readyCleared"`
 	Refreshed     []string          `json:"refreshed"`     // clones whose origin/<branch> now names Merge
 	RefreshErrors map[string]string `json:"refreshErrors"` // worktree id → git's sentence; non-fatal
+	// BroughtBack is step 7a's answer: each undone land (task 10) this land put back on the
+	// branch, because the lane had merged it (re-review b06-1 issue 1b). The desktop's toast
+	// names them, and this land's own undo is exact, so the user can take it straight back.
+	BroughtBack []UndoneLand `json:"broughtBack"`
 }
+// Every list and map in LandResult, BringInResult, UndoResult, RevertResult (task 10) and the
+// refresh route's answer is
+// written as [] or {} when empty, never null (re-review b06-1 issue 3): RefreshClones and
+// CarriedUndone make both with make(), before any fetch or parse, and each handler test reads
+// the raw body. Go's encoding/json writes a nil slice or map as null, and the desktop indexes
+// into refreshErrors.
 
 // Refusal is a land that did not happen and wrote nothing. Reason is one of gitdeps.go's
 // constants; Details goes to the problem body's details beside it.
@@ -87,6 +97,10 @@ type Lander struct {
 //     rev.Digest != BriefDigest → /digest_mismatch
 //  6. old = rev-parse refs/heads/<branch>; old != ExpectedTip     (branch_moved, details.tip = old)
 //  7. laneTip = rev-parse LaneRef; laneTip an ancestor of old     (nothing_to_land)
+//  7a. BroughtBack = CarriedUndone(ProjectPath, laneTip, id) (task 08) (git_failed). Not a
+//     refusal: the forecast row already named these lands, and the land that brings them back
+//     is itself exactly undoable. Refusing until acknowledged is the owner's to choose (re-review
+//     b06-1 issue 1b, Q-table); this step is the seam.
 //  8. Identity(ProjectPath)                                       (no_git_identity)
 //  9. MergeTreeArgs + old laneTip, OKExit 1 → ParseMergeTree     (merge_conflict, details.paths =
 //     detailList(conflicted); task 07, task 04; review I2 — never the newline form)
@@ -98,7 +112,8 @@ type Lander struct {
 // 12. update-ref -m "panacea: land <worktree id>" refs/heads/<branch> merge old
 //     — refused: re-read the tip; moved → branch_moved (details.tip, details.gitSays); else git_failed
 // 13. Flags.SetWorktreeReady(id, false); a failure is logged and ReadyCleared = false
-// 14. l.RefreshClones(ctx, ProjectPath, Branch) → Refreshed, RefreshErrors (below). Each
+// 14. l.RefreshClones(ctx, ProjectPath, Branch) → Refreshed, RefreshErrors (below; both made
+//     empty, never nil, re-review b06-1 issue 3). Each
 //     failure goes to RefreshErrors, never fails the land (plan decision 3)
 // Hardened per task-02 §HGH: steps 6-12 run with Scope Project (a refusal there is
 // project_config_untrusted, before any ref moves); step 14 is RefreshClones, whose two rev-parses
@@ -160,6 +175,8 @@ func (l *Lander) RefreshBranch(ctx context.Context, projectPath, projectID, bran
 ```
 request  {}   (no body is also accepted)
 200 { "refreshed": ["w-4a77b1c9"], "refreshErrors": { "w-5e6f7a8b": "fatal: …" } }
+200 { "refreshed": ["w-4a77b1c9", "w-5e6f7a8b"], "refreshErrors": {} }   (nothing failed: {}, never null)
+200 { "refreshed": [], "refreshErrors": {} }                            (a branch with no lanes)
 404 not_found for an unknown project or branch; 500 git_failed with gitSays when the project's
 own rev-parse fails. A clone's failure is a refreshErrors entry, never a failed request.
 ```
@@ -178,7 +195,7 @@ Writes those refs only."*
 // 201 Created
 { "merge": "d5f0a17…", "before": "a90d3f4c…", "branch": "evidence-upload", "worktreeId": "w-4a77b1c9",
   "briefKey": "brief:b-42@6", "readyCleared": true,
-  "refreshed": ["w-4a77b1c9", "w-5e6f7a8b"], "refreshErrors": {} }
+  "refreshed": ["w-4a77b1c9", "w-5e6f7a8b"], "refreshErrors": {}, "broughtBack": [] }
 ```
 
 | Refusal | Status, code | `details` |
@@ -273,6 +290,7 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestLandRefusesNotReady` | ready false → `not_ready` | landing work nobody marked ready (defect 9) |
 | `TestLandRefusesAnEmptyLane` | no commits → `nothing_to_land` | an empty merge commit |
 | `TestLandSyncsTheLaneFirst` | commit in the clone with no sweep since → the merge's second parent is that commit | landing a stale lane ref |
+| `TestLandNamesTheUndoneLandsItBringsBack` (re-review b06-1 issue 1b) | land A → M; B's clone merges M and commits; A's land undone exactly; land B → 201, `broughtBack == [{sha: M, worktreeId: A}]`, and B's merge has M as an ancestor; a land of a lane that never merged M → the raw body contains `"broughtBack":[]` and `"refreshErrors":{}` | a land that puts undone work back on the branch without saying so, or a `null` the desktop indexes into |
 | `TestLandWithoutAResolverRefusesAKey` | `Resolver == nil`, key set → `brief_unresolvable`/`no_resolver` | an unverified key in history (decision 4) |
 | `TestLandWithoutAKeyWritesNoBriefTrailer` | no key → `Panacea-Land` only | an empty `Panacea-Brief:` trailer |
 | `TestLandRefusesAMissingOrMismatchedRevision` | resolver `ok == false` → `/missing`; wrong digest → `/digest_mismatch` | recording a key that names different text |
@@ -287,7 +305,7 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestRefreshProjectTakesNoLock` | called while the test holds `Locks.Lock(ctx, p)` → returns (a deadlock fails the test's 5 s deadline) | AfterFetch deadlocking inside Fetch |
 | `TestSweepRefreshesClonesAfterADirectCommit` (review I4) | real git, a real `Syncer` with this `Lander` as `Refresher`: two lanes; a commit made with plain `git commit` in a checkout of the project's branch, as a user's terminal would; one `Run` sweep → both clones' `refs/remotes/origin/<b>` equal the new tip, and a second sweep runs no clone fetch (recording Runner) | a resolve prompt that merges an origin/<branch> the user's own commit has left behind |
 | `TestRefreshClonesRecordsWhatItSent` (review I4) | after a land, `Syncer`'s told for both lanes is the merge; with clone B's directory removed, B's told is unchanged and A's is the merge | a clone recorded fresh after its fetch failed, which the sweep then never retries |
-| `TestRefreshRouteRefreshesTheBranchsClones` (review I4) | a direct commit, then `POST …/refresh` → 200, `refreshed` names both lanes, both clones' `origin/<b>` equal the tip; with the test holding `Locks.Lock(ctx, p)` the request stays unanswered until release; an unknown branch → 404 | a ResolveDialog whose refresh skips the lock or lies about which clones it reached |
+| `TestRefreshRouteRefreshesTheBranchsClones` (review I4) | a direct commit, then `POST …/refresh` → 200, `refreshed` names both lanes, both clones' `origin/<b>` equal the tip, and the raw body contains `"refreshErrors":{}` (re-review b06-1 issue 3); a branch with no lanes → the raw body contains `"refreshed":[]` and `"refreshErrors":{}`; with the test holding `Locks.Lock(ctx, p)` the request stays unanswered until release; an unknown branch → 404 | a ResolveDialog whose refresh skips the lock or lies about which clones it reached |
 | `TestMainWiresTheSweepRefresh` (review I4; `cmd/api`) | step 3's wiring function, called as `main.go` calls it → `Syncer.Refresher` is the built `Lander` and `Syncer.Locks` is `GitDeps.Locks` | a sweep refresh that ships switched off because one assignment was left out |
 | `TestBringInFastForwardsWhenOnlyBehind` | branch 0 ahead, 2 behind → `Mode "fast-forward"`, tip == the upstream tip, no new commit object | a needless merge commit that makes the branch ahead of origin |
 | `TestBringInMergesWhenDiverged` | 1 ahead, 1 behind → `Mode "merge"`, parents `[old, upTip]`, no `Panacea-Land` trailer, `%(trailers)` reads `Panacea-Bring-In: <upTip>` (re-review b05 issue 5); undo of it → `undo_not_exact/not_a_land` | a bring-in undo treats as a land |
