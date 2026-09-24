@@ -107,6 +107,17 @@ not merely missed by a review.
 | `panacea-session` | 10000 | PreemptLowerPriority | session pods |
 | `panacea-balloon` | -10 | **Never** | warm-capacity balloons (task 12): evicted first, never evict anything |
 
+**The balloon's -10 is a floor, not a free choice (review m10).** The cluster autoscaler treats a
+pod whose priority is *below* `--expendable-pods-priority-cutoff` (default `-10`) as expendable: a
+Pending one triggers no scale-up, and a node holding only such pods counts as empty at scale-down
+(training knowledge of the cluster autoscaler, **UNVERIFIED** here). A preempted balloon must stay
+Pending *and* ask for a node, or the warm pool never refills (task 12), so the value must be
+`>= -10`. It sits exactly on the cutoff, so the ladder has no room below it: any "make balloons
+even lower" edit silently turns the warm pool off. AKS does not expose the cutoff in
+`auto_scaler_profile` (task 06), so the default is the one in force (training knowledge of the
+`azurerm` provider, **UNVERIFIED**). The proof on a real cluster is task 32's P06 (d): the balloon
+that run preempts must go Pending and bring the pool a new node.
+
 `quota.yaml` — `ResourceQuota/sandboxes` and `LimitRange/sandboxes` in `panacea-sandboxes` from
 `sandboxes.quota` and `sandboxes.limitRange`: one `type: Container` item with `max` (from
 `maxCpu`/`maxMemory`) **and** `default` and `defaultRequest` (both from `defaultCpu`/
@@ -169,6 +180,7 @@ explicit machine delete, task 19), `volumeBindingMode: WaitForFirstConsumer`,
 | `netpol_test` / `machines_accept_only_the_broker_on_8081` | the same for 8081 and `component: machine` | a machine agent reachable from a session pod |
 | `netpol_test` / `no_sandbox_to_sandbox_allow` | no policy in `panacea-sandboxes` has an egress `to` with a `podSelector` other than kube-dns | a convenience rule that lets sessions talk |
 | `priority_test` / `ladder_is_ordered` | balloon < session < machine < platform-critical; balloon `preemptionPolicy: Never`; none `globalDefault` | a balloon that preempts a session, or a global default that silently prioritises everything |
+| `priority_test` / `balloon_is_not_expendable` | `panacea-balloon`'s `value >= -10` (the autoscaler's default expendable cutoff), with that reason in the test's name and a comment (review m10) | `-11` (or `-100`, `-1000`), under which a preempted balloon never triggers scale-up and the warm pool silently stops refilling |
 | `storage_test` / `machine_disk_waits_for_its_pod` | `volumeBindingMode: WaitForFirstConsumer`, `provisioner: disk.csi.azure.com` | `Immediate`, which provisions the disk in a zone the pod may not schedule in |
 | `storage_test` / `nfs_only_when_enabled` | default values render no `panacea-machine-nfs`; `enabled: true` renders it | the fallback always present |
 | `values_test` / `empty_vnet_cidr_fails` | `network.vnetCidr: ""` → the render fails with the schema's message | a policy rendered with an empty `except` entry |
