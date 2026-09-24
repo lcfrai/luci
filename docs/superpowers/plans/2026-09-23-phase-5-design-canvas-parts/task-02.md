@@ -137,6 +137,14 @@ still prints `3`, and that line, run as written, exits 1 with `no Go files in â€
 2026-09-25 on go1.26.2). This one pins the three lines of the contract. `tr` strips the CR a
 Windows checkout (`core.autocrlf`) adds.
 
+```bash
+cat go.work canvas/go.mod | tr -d '\r' | grep -xc "go 1.23"
+```
+Expected: `2`. The repository stays on `go 1.23` (above). A newer local toolchain accepts a
+`go.work` raised to `go 1.24` and every command above still passes, while CI's `GoTool@0 '1.23'`
+would then need a newer toolchain than the one it pins (Go's toolchain rule since 1.21: download
+one, or fail with `GOTOOLCHAIN=local`; reasoned, not observed, as no go1.23 is installed here).
+
 ## Not claimed
 
 - The sandbox image is unaffected and is not rebuilt: it copies only `sandboxd/` and builds with
