@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# pipelines/scripts/chart-licences_test.sh — the eight cases of the Helm half of the OD-11
-# licence gate (task 28, review m6). Each case is a fixture tree under
+# pipelines/scripts/chart-licences_test.sh — the nine cases of the Helm half of the OD-11
+# licence gate (task 28, review m6: the part's eight, and a Chart.yaml with dependencies but no
+# Chart.lock, added by the implementer). Each case is a fixture tree under
 # testdata/chart-licences/<case>/ that chart-licences.sh is pointed at; charts.yml runs this
 # before the real check, so a weakened script fails here first.
 #
 #   bash pipelines/scripts/chart-licences_test.sh
 #
 # Output: one line per case, "ok   <case>" or "FAIL <case>: <why>", then
-#         chart-licences_test: <k> of 8 cases passed          exit 0 iff k == 8
+#         chart-licences_test: <k> of 9 cases passed          exit 0 iff k == 9
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,6 +25,7 @@ CASES=(
   "all_allowed|0|chart-licences: 3 chart dependencies, all recorded and allowed"
   "no_chart_lock|0|chart-licences: 0 chart dependencies"
   "stale_row|1|chart-licences: FAIL licences/charts.yaml: redis 20.1.0 (https://charts.example.invalid/bitnami): stale, matches no Chart.lock entry"
+  "chart_yaml_without_lock|1|chart-licences: FAIL deploy/charts/hub/Chart.yaml: declares dependencies but has no Chart.lock"
 )
 
 pass=0

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# check's last argument is a test eval'd later, so its $T and $exe are single-quoted on purpose.
+# shellcheck disable=SC2016,SC2034
 # pipelines/scripts/install-tool_test.sh — install-tool.sh's download-and-verify path, offline
 # (task 28). It sources install-tool.sh, replaces the pin table with rows that point at local
 # file:// fixtures built here, and allows the file protocol; nothing touches the network.
@@ -22,8 +24,10 @@ sum() { local o; o="$(sha256sum "$1")" && printf '%s' "${o%% *}"; }
 BIN_SHA="$(sum "$WORK/src/fixture-tool")"
 TGZ_SHA="$(sum "$WORK/src/fixture.tar.gz")"
 BAD_SHA="0000000000000000000000000000000000000000000000000000000000000000"
-URL_BIN="file://$WORK/src/fixture-tool"
-URL_TGZ="file://$WORK/src/fixture.tar.gz"
+# Git Bash's curl is a native Windows program: it needs C:/… in a file:// URL, not /tmp/….
+urlpath() { if command -v cygpath > /dev/null; then printf '/%s' "$(cygpath -m "$1")"; else printf '%s' "$1"; fi; }
+URL_BIN="file://$(urlpath "$WORK/src/fixture-tool")"
+URL_TGZ="file://$(urlpath "$WORK/src/fixture.tar.gz")"
 
 # run <pins> <tool> [<proto>]: install <tool> in a fresh shell that sourced the script, with <pins> as
 # the table (@PLAT@ becomes this platform) and curl --proto <proto> (default =file; "default"

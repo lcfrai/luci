@@ -10,3 +10,8 @@
 *.yaml        text eol=lf
 *.yml         text eol=lf
 *.tpl         text eol=lf
+# Task 28: the pipeline scripts' fixtures are compared byte for byte (.expect, .extends, .remove
+# and Chart.lock have no extension above), and the scanners' own config.
+pipelines/scripts/testdata/** text eol=lf
+Chart.lock    text eol=lf
+*.toml        text eol=lf

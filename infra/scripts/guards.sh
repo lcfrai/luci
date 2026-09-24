@@ -86,6 +86,7 @@ end()   { if [ "$BAD" = 0 ]; then echo "guard G$G: ok"; PASSED=$((PASSED + 1)); 
 # required_providers is read by a character scanner, not a line grep: fmt leaves a
 # one-argument block on one line, so `required_providers { x = { source = "…" } }` is as legal
 # as the spread-out form. No {n} intervals: mawk, Ubuntu's default awk, may lack them.
+# shellcheck disable=SC2016  # an awk program: every $ in it is awk's, not the shell's (task 28)
 SCAN='
 function strip(s,   out, i, n, c, q) {         # drop # // and /* */ comments outside strings
   n = length(s); out = ""; q = 0

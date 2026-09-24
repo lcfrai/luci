@@ -1,0 +1,7 @@
+apiVersion: v2
+name: hub
+version: 0.1.0
+dependencies:
+  - name: postgresql
+    repository: https://charts.example.invalid/bitnami
+    version: ">=16.0.0"
