@@ -17,6 +17,9 @@ pointers, and the client omits what it does not send.
 **Files:**
 - `control-plane/internal/hub/hubapi/types.go` + `types_test.go` (new)
 - `control-plane/internal/hub/hubapi/lists.go` + `lists_test.go` (new)
+- `control-plane/internal/hub/hubapi/required.go` (new; the carried C1 fix, tested in `types_test.go`)
+- `control-plane/internal/hub/hubapi/keys.go` + `keys_test.go` (modify: `Digest.IsZero`, and
+  `UnmarshalText`'s refusal type; *As built*, below)
 
 #### Contract — complete
 
@@ -605,7 +608,34 @@ package hubapi
 // the body says [] or {} and never null (contract §7.1). The Hub's JSON writer
 // calls it on every response; nothing else needs to remember the rule.
 // It uses reflection and does not descend into json.RawMessage.
+// A struct passed by value cannot be changed: EnsureLists panics for one,
+// naming the fix, rather than let its lists go out null (as built, D2).
 func EnsureLists(v any)
+```
+
+```go
+// control-plane/internal/hub/hubapi/required.go — the carried C1 fix (as built)
+package hubapi
+
+// ErrRequired is a required field that was absent or null; the Hub answers it
+// 400 bad_request with details.field, like every FieldError (contract §4.2).
+var ErrRequired = errors.New("hubapi: a required field is absent or null")
+
+// RequireDigests returns a *FieldError wrapping ErrRequired for the first zero
+// Digest in req (a request struct or a pointer to one), in field order, or nil.
+// Field is the JSON path: "criterionDigest", "snapshot.blobs[1]". Every value
+// Digest in a request type is required; a *Digest is optional and not descended.
+// The Hub's Decode calls it on every decoded body (task 14, carried).
+func RequireDigests(req any) error
+
+// control-plane/internal/hub/hubapi/keys.go — added and changed (as built)
+
+// IsZero reports Digest{}: what encoding/json leaves in an absent or null field.
+func (d Digest) IsZero() bool
+
+// UnmarshalText now refuses with a *json.UnmarshalTypeError (D1), the one error
+// encoding/json adds the field path to. ParseDigest keeps ErrInvalidDigest.
+func (d *Digest) UnmarshalText(b []byte) error
 ```
 
 #### Tests to write first
@@ -620,6 +650,13 @@ func EnsureLists(v any)
 | `TestReserveRequestOmitsWhatItDoesNotSend` | a rollback `ReserveRequest` marshals to exactly `{"kind","panaceaProject","environment","sourceDeploymentId"}` | a client that sends `"branchRef":null` on a rollback and gets 400 |
 | `TestTheSiblingAsksAreInTheTypes` | task 00's shapes: `BriefWithRevision{}` marshals `"latestComplete":null`; a run `ReserveRequest` with `Environment` nil marshals `"environment":null` and `Release{}` does too; `DeploymentJoinRequest{DeploymentID:"d"}` marshals without `environment`; `MaxRevisionBatch` = 64 and `MaxRevisionBatchBytes` = 4,194,304 | an S0 interface that differs from what phases 4 and 7 were told (HA4-3, HA4-4, HA7-1) |
 | `TestBlobContentTypesAreTheAllowlist` | the slice equals §7.6's ten strings, in order | a content type quietly added (T8: a blob served as something new) |
+| `TestEnsureListsRefusesAStructByValue` *(added, D2)* | `EnsureLists(Project{})` and `EnsureLists(Page[Team]{})` panic | a `server.WriteJSON(w, 200, project)` whose `remotes` goes out `null` with no sign |
+| `TestARequiredDigestAbsentOrNullIsNamed` *(added, carried C1)* | `Digest{}.IsZero()`, not `DigestOf(nil)` nor a digest with only its last byte set; for `reviewDigest`, `briefDigest`, `snapshot.manifest`, `snapshot` itself, `snapshot.blobs[i]` and `criterionDigest`, absent and `null`: `httpx.DecodeJSON` **accepts** the body, and `RequireDigests` returns `ErrRequired` at that path; a complete body → nil; every value `Digest` of every request type has a row (reflection) | an evidence record stored for good with a fabricated `sha256:000…0`; a new required digest with no check |
+| `TestAMalformedDigestIsBadRequestNamingItsField` *(added, D1)* | a malformed `criterionDigest`, `reviewDigest`, `briefDigest`, `snapshot.manifest`, `snapshot.blobs` element → `httpx.DecodeJSON` 400 **`bad_request`** whose message names the path; `json.Unmarshal`'s error is a `*json.UnmarshalTypeError` at `snapshot.manifest` | a well-formed body answered `invalid_json`, "Body could not be read as JSON." (it was, before D1) |
+
+`TestFieldNamesMatchTheContractExamples` also reads each object's example out of the contract text
+itself (§7.1, §7.7–§7.11, by its `// Label` comment line) and compares the key paths, so the typed
+example cannot drift from the contract unseen.
 
 #### Steps
 
@@ -633,17 +670,42 @@ func EnsureLists(v any)
 
 ```bash
 go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"
-# 38   (task 01's 15 hubapi tests, as built after its fix round 1, + task 02's 16 + these 7;
-#       was "37 ... 14" at 25c503b, and "34 ... 11" before that)
+# 48   (task 01's 15 hubapi tests + task 02's 22, both as built after their fix rounds,
+#       + this task's 11: the table's 8 and the 3 added rows. Was "38 = 15 + 16 + 7": task
+#       02's fix round 1 left it 22, and the table always had 8)
 go vet ./control-plane/internal/hub/hubapi/                                        # no output
-grep -n "omitempty" control-plane/internal/hub/hubapi/types.go | grep -v "Request\|Readyz\|branchRef,omitempty\|pipelineRun,omitempty\|deploymentId,omitempty"
+awk '/^type /{t=$2} /omitempty/{print t": "$0}' control-plane/internal/hub/hubapi/types.go | grep -v "^[A-Za-z]*Request: \|^Readyz: "
 # no output: omitempty appears only on request types and Readyz.failing
 ```
 
-A number other than 34 means a test was lost or duplicated.
+A number other than 48 means a test was lost or duplicated. The `awk` line replaces this part's
+first `grep`, which printed four `ReserveRequest` lines, `DeploymentJoinRequest.environment` and
+`Readyz.failing` (a field line does not hold its type's name), so it could never say "no output".
 
 #### What this task does not claim
 
 - That phase 4's `content`, phase 5's `reviewDigest` or phase 7's names are well-formed; the
   server tasks validate requests, not this one.
-- Any HTTP behaviour; these are shapes only.
+- Any HTTP behaviour; these are shapes only. The 400 for an absent digest is task 14's `Decode`
+  calling `RequireDigests` (carried there); this task proves only that `RequireDigests` names it.
+
+#### As built (2026-09-25, commit 3c19005)
+
+- **Carried C1** (task 01 review): resolved by `Digest.IsZero`, `ErrRequired` and
+  `RequireDigests`, above, and `TestARequiredDigestAbsentOrNullIsNamed`. `null` is the same hole
+  as absent (probe: `encoding/json` leaves a value `Digest` untouched for `null`, and a `[null]`
+  element is `Digest{}`). The call site is carried to task 14 (`Decode`, every body) and task 22
+  (a check-1 row); task 25's carried row stands.
+- **D1 — a malformed digest was `invalid_json`.** `Digest.UnmarshalText` returned
+  `ErrInvalidDigest`, and `encoding/json` passes a `TextUnmarshaler`'s error back bare, without the
+  field (go1.26 `decode.go:891`; only a `*UnmarshalTypeError` gets `addErrorContext`, `:255-268`).
+  `httpx.DecodeJSON` then answered 400 `invalid_json`, *"Body could not be read as JSON."*, for a
+  well-formed body, where §4.2 and §7.7 check 1 say `bad_request` with `field`, and task 22's
+  check 1 relies on *"the `hubapi.Digest` decoder"*. It now returns a `*json.UnmarshalTypeError`,
+  so the answer is `bad_request` and the message names the path (`snapshot.manifest`).
+  `TestDigestWireForm`'s JSON-path assertion (task 01) changed with it.
+- **D2 — `EnsureLists` panics for a struct by value**, which it cannot change; task 08's
+  `WriteJSON(w, status, v any)` would otherwise send `null` lists for any handler that passes a
+  value. It does not descend into map values, and leaves every byte slice (`json.RawMessage`) as is.
+- **D3 — the acceptance grep** could not print nothing (above); replaced by the `awk` line.
+- **D4 — the count** is 48, not 38 (above).
