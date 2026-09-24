@@ -73,7 +73,11 @@ script files (same content) are under `~/.claude/projects/C--Users-au-dev-dmacki
 - **Every agent: no Write or Edit over about 80 lines, first write early, no heredoc through
   claudezsh**, and read only your own `carried/task-<id>.md`.
 - **Before every push:** rescan all branches for secrets and blobs over 5 MB, then push with
-  explicit refspecs. Origin is the PRIVATE `github.com/lcfrai/panaceaapp`, and the PAT is read by a
+  explicit refspecs. **The scan must gate the push.** Run it in batches
+  (`git rev-list <branches> | xargs -n 150 git grep -I -l -E '<patterns>'`, where exit 123 means
+  clean): at about 900 commits, a single `git grep … $(git rev-list …)` fails with "Argument list
+  too long", and a chained push then runs unscanned. That happened on 2026-09-24; the batched
+  rescan afterwards found 0 hits in 927 commits. Origin is the PRIVATE `github.com/lcfrai/panaceaapp`, and the PAT is read by a
   repo-local helper from `~/.secrets/panaceaapp-github.pat`. Never print it.
 - The owner's decisions are OD-1 to OD-13 in `docs/superpowers/planning/2026-09-23-owner-decisions.md`.
   The IT request for Entra and the new environment is in `docs/superpowers/planning/2026-09-24-it-request-entra.md`.
