@@ -187,7 +187,8 @@ func (a *API) registerGit(mux *routes) {
   "projectId": "p-8c1d0e42",
   "branchId": "b-8c1d0e42-evidence-upload-1a2b3c4d",
   "name": "upload-api",
-  "path": "C:\\Users\\…\\PanaceaApp\\state\\worktrees\\p-8c1d0e42\\upload-api",
+  "path": "C:\\Users\\…\\PanaceaApp\\state\\worktrees\\p-8c1d0e42\\upload-api-3fa9c1",
+  // the directory is <name>-<6 hex nonce> (task 03 step 3, review Minor 7); "name" never has it
   "isPrimary": false,
   "kind": "clone",
   "sessionCount": 0,
