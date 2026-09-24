@@ -1192,3 +1192,32 @@ recommended and sits behind one `ARG`.
   outputs (task 07 step 3).
 - Whether Azure DNS accepts a `.invalid` zone. The guard makes the answer irrelevant.
 - Each chart's real licence (task 13 step 1 reads it).
+
+### Fix batch b08, round 2 (2026-09-24) — the re-review's issues 1-5
+
+Fixes `.superpowers/sdd/env/plan-rereview-b08-1.md` (local). Commits: `5f3b638` (issue 1),
+`8e8f5be` (issues 2 and 3), `598ac45` (issue 4), `078e50d` (issue 5), `222cbc0` (the four
+"seen, outside this batch" items). This section's commit is the sixth.
+
+| Issue | Fix | Where |
+|---|---|---|
+| 1 (Important) S50's pod needs `pods` in `panacea-sandboxes`, which the cluster identity is forbidden | **The re-review's recommended option; no grant added.** `50-kata.sh` asks `kubectl auth can-i create pods -n panacea-sandboxes` before creating anything. On `no`, the default run (the pipeline's stage 5) prints `NOT RUN` for S50.1 and S50.2 and does not fail. `run.sh <env> --require-kata`, which §8 passes, turns the same answer into `FAIL` and a non-zero exit, so the one run that must prove P8-D12 cannot skip it quietly. §8 is run by a cluster admin group member through `kubelogin`, never `--admin`, and records the `can-i` answer. S50.2 defines "answers" as any HTTP response (curl exit 0, no `-f`), because IMDS answers 400 without `Metadata: true`. Four new `smoke_test.sh` cases: IMDS answering 400, `NOT RUN` with exit 0, `FAIL` under `--require-kata`, and no pod created on `no`. The plan's cluster admin row, task 30's smoke stage and task 32 say the same | `parts/task-31.md:39`, `:61-80`, `:92`, `:107-113`; `task-30.md:323-326`; `task-32.md:6-9`; plan `:351` |
+| 2 (Minor) nothing re-runs the Helm licence gate when the gate changes | **The re-review's fix, all four parts.** `charts.yml`'s filter gains `pipelines/charts.yml`, `pipelines/scripts/chart-licences*.sh` and `pipelines/scripts/testdata/chart-licences/**`. It runs `chart-licences_test.sh` before the real check. The script takes `[<root>]`, defaulting to `git rev-parse --show-toplevel`, and reads nothing outside it. An eighth case fails a stale row (7 → 8 cases) | `parts/task-28.md:25-26`, `:61`, `:113-119`, `:129-132`, `:152-153`, `:165`; plan `:477-478` |
+| 3 (Minor) task 13's `Chart.yaml` comments restate the licence | Both comments are `# licence: licences/charts.yaml (task 13 step 1)` | `parts/task-13.md:55`, `:182` |
+| 4 (Minor) S8-I.1 fires about four weeks after 27a lands | The trigger is **at least six months before the Node line's end of life** in all three places. 27a step 1 records the maintenance date and the end-of-life date. 27a's case against Node 22 counts against the same trigger: its move would fall due by 2026-10-30 | plan `:655`; `parts/task-33.md:27`; `task-27a.md:12-21`, `:50-53`, `:80-82` |
+| 5 (Minor) the cache drop misses 24b's implicit wake | The drop lives in `machines.go`'s shared `wakeMachine(ctx, id)` and `ensureDefaultMachine(ctx)`, not the handlers. 24a's cache test also calls `wakeMachine` directly. 24b's wake-before-create calls `wakeMachine`, and its readiness poll asks the broker for the one machine, never the cached list. `TestCreateOnASleepingMachineWakesItFirst` asserts the next `GET /v1/machines` makes a fresh broker call | `parts/task-24a.md:49-56`, `:80`; `task-24b.md:15`, `:73-77`, `:131` |
+| Seen, outside the batch | Fixed, since each was one line: `licences.yml`'s filter gains `licences/**` and its own file; `infra.yml`'s gains `pipelines/**`, `azure-pipelines.yml` and `images/*.sh`; task 21's git note names trixie's git; the task table says six subnets in firewall mode | `parts/task-28.md:58`, `:60`; `task-21.md:304-305`; plan `:530` |
+
+**Restatements checked** by grep over the plan and the parts: `run.sh` (task 30 `:323` was the
+only other caller); `break-glass` (plan `:351`); "seven fixture"; "enters maintenance" (now only
+the date sentence in 27a and the "not at maintenance" notes); "wake call" and "list cache"; "five
+subnets". None is stale.
+
+**Owner questions:** none new. Granting the cluster identity `pods` in `panacea-sandboxes` was the
+re-review's alternative. It is not taken, because it would break task 30's `cluster-kinds` rule.
+Asking for it would be an owner question like Q4.
+
+**Still UNVERIFIED (new this round):**
+- That `kubectl auth can-i` answers through the AKS Azure RBAC webhook (§8 records it).
+- That IMDS answers 400 without the `Metadata` header.
+- Node 24's maintenance date of 2026-10-20 (27a step 1 reads it).
