@@ -5,9 +5,11 @@
 # guards.sh in, runs it with INFRA_ROOT pointed at the fixture, and asserts on the exit status
 # and the named line. Every case is a mutant guards.sh must kill (task 01's table).
 #
-#   bash infra/scripts/guards_test.sh
+#   bash infra/scripts/guards_test.sh                 all fourteen cases
+#   bash infra/scripts/guards_test.sh <case>…         just these (names as listed at the end)
 #
 # Last line:  guards_test: <n> cases, <p> passed        exit 0 iff p == n
+# A failed case prints its first failed assertion and guards.sh's output, indented.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -178,6 +180,7 @@ RC=""
 guards() {
   if [ ! -f "$GUARDS" ]; then
     RC="missing"
+    OUT=()
     : > "$T/out.txt"
     note "guards.sh does not exist at $GUARDS"
     return
@@ -185,30 +188,36 @@ guards() {
   cp "$GUARDS" "$T/infra/scripts/guards.sh"
   INFRA_ROOT="$T/infra" bash "$T/infra/scripts/guards.sh" > "$T/out.txt" 2>&1
   RC=$?
+  mapfile -t OUT < "$T/out.txt"
 }
 
 # note <why> — record the case's first failed assertion.
 note() { [ -n "$FAILED" ] || FAILED="$1"; }
 
+# The matchers use bash, not grep: a process costs about 300 ms on the build laptop.
+OUT=()
+has_exact()    { local l; for l in "${OUT[@]}"; do [ "$l" = "$1" ] && return 0; done; return 1; }
+has_contains() { local l; for l in "${OUT[@]}"; do case "$l" in *"$1"*) return 0 ;; esac; done; return 1; }
+
 expect_pass() {        # exit 0 and the full summary line
   [ "$RC" = "0" ] || note "expected exit 0, got $RC"
-  grep -qxF "guards: 10 of 10 passed" "$T/out.txt" || note "no 'guards: 10 of 10 passed' line"
+  has_exact "guards: 10 of 10 passed" || note "no 'guards: 10 of 10 passed' line"
 }
 expect_fail() {        # exit non-zero
   [ "$RC" != "0" ] && [ "$RC" != "missing" ] || note "expected a non-zero exit from guards.sh, got $RC"
 }
 expect_only() {        # expect_only <n>: guard G<n> is the one failing guard
   expect_fail
-  grep -qxF "guards: 9 of 10 passed" "$T/out.txt" || note "expected 'guards: 9 of 10 passed' (only G$1 failing)"
+  has_exact "guards: 9 of 10 passed" || note "expected 'guards: 9 of 10 passed' (only G$1 failing)"
 }
 expect_line() {        # expect_line <fixed string>: some output line contains it
-  grep -qF -- "$1" "$T/out.txt" || note "no line containing '$1'"
+  has_contains "$1" || note "no line containing '$1'"
 }
 expect_no_line() {     # expect_no_line <fixed string>
-  if grep -qF -- "$1" "$T/out.txt"; then note "unexpected line '$1…'"; fi
+  if has_contains "$1"; then note "unexpected line containing '$1'"; fi
 }
 expect_ok() {          # expect_ok <n>: the exact line "guard G<n>: ok"
-  grep -qxF "guard G$1: ok" "$T/out.txt" || note "expected 'guard G$1: ok'"
+  has_exact "guard G$1: ok" || note "expected 'guard G$1: ok'"
 }
 
 # case <name> — run the function case_<name> and tally it.
@@ -532,23 +541,30 @@ EOF
 
 # ---------------------------------------------------------------------------------------------
 
-for c in \
-  clean_tree_passes \
-  g1_terraform_tfvars_fails \
-  g1_tracked_override_fails \
-  g2_guid_in_tfvars_fails \
-  g3_test_without_azuread_mock_fails \
-  g4_helm_provider_fails \
-  g5_backend_with_body_fails \
-  g6_local_exec_fails \
-  g7_untracked_lock_fails \
-  g8_client_secret_fails \
-  g9_external_source_fails \
-  g9_lockfile_provider_fails \
-  g10_tftest_file_level_tfvars_key_fails \
+ALL=(
+  clean_tree_passes
+  g1_terraform_tfvars_fails
+  g1_tracked_override_fails
+  g2_guid_in_tfvars_fails
+  g3_test_without_azuread_mock_fails
+  g4_helm_provider_fails
+  g5_backend_with_body_fails
+  g6_local_exec_fails
+  g7_untracked_lock_fails
+  g8_client_secret_fails
+  g9_external_source_fails
+  g9_lockfile_provider_fails
+  g10_tftest_file_level_tfvars_key_fails
   g10_one_line_file_level_variables_fails
-do
-  case_run "$c"
+)
+[ "$#" -gt 0 ] && ALL=("$@")
+for c in "${ALL[@]}"; do
+  if declare -F "case_$c" > /dev/null; then
+    case_run "$c"
+  else
+    CASES=$((CASES + 1))
+    echo "FAIL $c: no such case"
+  fi
 done
 
 echo "guards_test: $CASES cases, $PASSED passed"
