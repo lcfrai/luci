@@ -82,7 +82,7 @@ export interface BringInResult {
 }
 
 /* task 10 — converge.HistoryEntry, UndoResult, RevertResult */
-export type HistoryKind = "land" | "revert" | "direct";
+export type HistoryKind = "land" | "revert" | "bring-in" | "direct"; // "bring-in": re-review b05 issue 5
 export type UndoState = "exact" | "revert" | "none";
 export interface HistoryEntry {
   sha: string; parents: string[]; authorName: string; at: string; subject: string; kind: HistoryKind;
@@ -186,7 +186,9 @@ export function detailList(error: unknown, key: string): string[];
 // "server-said" through classify's existing catch-all; no ProblemKind changes).
 // send(method, route, body?, timeoutMs?) — the fourth argument overrides DEFAULT_TIMEOUT_MS for
 // the calls that run git against a remote or clone a repository.
-export const GIT_WRITE_TIMEOUT_MS = 150_000;  // create worktree, land, undo, revert, branch writes, evidence
+export const GIT_WRITE_TIMEOUT_MS = 150_000;  // create worktree, land, bring-in, undo, revert, branch writes, evidence
+// bring-in is here (re-review b05 issue 3): after its merge it runs one fetch per clone
+// (RefreshClones), like a land, so the 10 s default could report a failure for one that happened.
 export const GIT_REMOTE_TIMEOUT_MS = 200_000; // fetch, push, PR — above the server's 3-minute gitx.Remote
 
 export interface CockpitClient {
@@ -280,7 +282,7 @@ export const selectHeadBriefKey = (branchId: BranchId | null) => (s: CockpitStat
 |---|---|---|
 | `every phase 3 method sends the method, path and body its part names` | a fake `fetch` records each call; one row per method, e.g. `land` → `POST /v1/projects/p-1/branches/b-1/lands` with the `LandRequest` JSON | a route typo that only a live run finds |
 | `path segments are encoded` | a branch id with `/` and a path with `#` reach the URL encoded | a diff route reading the wrong path |
-| `remote and write calls use their longer timeouts` | a fake that never answers: `pushBranch` is not aborted at 10 s and is at 200 s (fake timers) | a push aborted by the client mid-flight |
+| `remote and write calls use their longer timeouts` | a fake that never answers: `pushBranch` is not aborted at 10 s and is at 200 s; `bringIn` is not aborted at 10 s and is at 150 s (fake timers; re-review b05 issue 3) | a push aborted by the client mid-flight, or a bring-in reported failed while its clone refresh runs |
 | `git_failed and host_failed classify as server-said` | `classify(new ApiError("git_failed", …))` → `"server-said"` | a new ProblemKind by accident (R4 rules one for upstream-down only) |
 | `detailList parses the JSON array` (review I2) | `details.paths: '["a b\\nc.txt","docs/résumé.md"]'` → those two strings; `'not json'`, `'{"a":1}'` and absent → `[]` | a newline split that turns one path into two |
 | `conflictReason reads details.reason only` | an ApiError with `details.reason: "branch_moved"` → that; a message mentioning "branch_moved" with no detail → undefined | branching on a sentence |

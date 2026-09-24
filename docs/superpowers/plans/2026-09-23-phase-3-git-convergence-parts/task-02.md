@@ -263,6 +263,9 @@ const (
 	TrailerBrief       = "Panacea-Brief"        // the brief key the human saw, task 09
 	TrailerBriefDigest = "Panacea-Brief-Digest" // that revision's digest, task 09
 	TrailerReverts     = "Panacea-Reverts"      // the land a revert takes back, task 10
+	// TrailerBringIn marks task 09's merge-mode bring-in; its value is the upstream tip it
+	// merged, a 40-hex sha, so Message's charset always accepts it (a branch name may not).
+	TrailerBringIn = "Panacea-Bring-In"
 )
 
 // Trailer is one "Key: value" line.

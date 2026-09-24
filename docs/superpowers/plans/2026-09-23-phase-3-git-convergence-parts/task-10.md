@@ -26,8 +26,13 @@ type HistoryEntry struct {
 	At         string   `json:"at"` // author date, RFC 3339
 	Subject    string   `json:"subject"`
 	// Kind: "land" (two parents and a Panacea-Land trailer), "revert" (a Panacea-Reverts
-	// trailer), or "direct" — anything else, including a merge made in a terminal. The Merge
-	// lens says "committed on <branch> directly, not a land" for "direct".
+	// trailer), "bring-in" (two parents and a Panacea-Bring-In trailer, task 09's merge-mode
+	// BringIn; re-review b05 issue 5), or "direct" — anything else, including a merge made in a
+	// terminal. The Merge lens says "committed on <branch> directly, not a land" for "direct" and
+	// "the cockpit brought in the remote's commits" for "bring-in" (its Subject names the
+	// remote branch; the trailer holds the upstream tip, gitx.TrailerBringIn). A bring-in's Undo is
+	// "none": undo and revert key on Panacea-Land and refuse it as not_a_land. A fast-forward
+	// bring-in writes no commit, so its commits list as they were made (usually "direct").
 	Kind         string   `json:"kind"`
 	WorktreeID   string   `json:"worktreeId"`   // land: its Panacea-Land value
 	WorktreeName string   `json:"worktreeName"` // land: from the lane index while the lane exists, else ""
@@ -46,7 +51,7 @@ type HistoryEntry struct {
 }
 
 // History reads at most limit (1-200, default 50) first-parent entries of refs/heads/<branch>:
-//   log --first-parent -n <limit> --format=%H%x00%P%x00%an%x00%aI%x00%s%x00<Land>%x00<Brief>%x00<BriefDigest>%x00<Session>%x00<Reverts>%x1e
+//   log --first-parent -n <limit> --format=%H%x00%P%x00%an%x00%aI%x00%s%x00<Land>%x00<Brief>%x00<BriefDigest>%x00<Session>%x00<Reverts>%x00<BringIn>%x1e
 //   rev-list --first-parent refs/heads/<branch> ^<upstream>   (the unpushed set; skipped when never pushed)
 //   log --format=<Session>%x1e -n 20 <sha>^1..<sha>^2         (per land row)
 // all gitx.Read, cached by (tip, upstream tip, limit).
@@ -132,7 +137,7 @@ and rev-list, and the lane index for names. Writes nothing."*
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestHistoryClassifiesLandsDirectAndReverts` | a land, a direct commit, a terminal `git merge --no-ff`, and a revert → kinds land, direct, direct, revert | a terminal merge shown as a cockpit land |
+| `TestHistoryClassifiesLandsDirectAndReverts` | a land, a direct commit, a terminal `git merge --no-ff`, a revert, and a merge-mode bring-in → kinds land, direct, direct, revert, bring-in; the bring-in's `undo == "none"` | a terminal merge shown as a cockpit land, or the cockpit's own bring-in shown as committed outside it (re-review b05 issue 5) |
 | `TestHistoryReadsTheMergeLinkVerbatim` | `briefKey` equals the trailer byte for byte; a land with no brief → `""` | a key parsed or defaulted |
 | `TestHistoryLandSessionsComeFromTheLanesCommits` | lane commits with `s-1`, `s-2`, and one without → `["s-1","s-2"]` in log order, the bare one absent | reading the merge commit's own trailers |
 | `TestHistoryUndoIsExactOnlyAtTheUnpushedTip` | tip land unpushed → exact; after a later land → `revert`/`built_upon`; after a push to a bare remote → `revert`/`pushed` | offering an exact undo that rewrites pushed history |
