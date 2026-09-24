@@ -1269,3 +1269,40 @@ checked against it: `backend.go:76`, `common.css:119-123`, `tokens.css:173-174`,
 - That a fake clientset's `AlreadyExists` and reactor barrier model the API server's behaviour
   closely enough for the concurrency tests. The real race needs two replicas on a cluster.
 - The sleeper-versus-new-session window is narrowed, not closed (task 19 records it).
+
+## Fix batch b09, round 2 (2026-09-24) — re-review `plan-rereview-b09-1.md`, issues 1-7
+
+Commits: `7dca28e` (issue 1), `76e36a8` (2), `5a9fac3` (3, 4), `231c5f5` (5), `03eee12` (6),
+`ada238f` (7); this section's commit is the seventh. No task moves wave or changes size.
+
+| Issue | Fix | Where |
+|---|---|---|
+| 1 (Important) m18 not resolved: under reduced motion `.dot-live`'s halo **replaces** `.dot-ring`'s inset ring | **The re-review's option (a).** `common.css` joins task 26's Files (the one owner of `.dot-*`). Its reduced-motion block gains `.dot-ring.dot-live { box-shadow: inset 0 0 0 1.5px currentColor; }` (0,2,0, so the ring keeps its stroke and its 8px) and a `::before` centre point (3px, `currentColor`, no gradient, so `designsystem.test.ts`'s shadow audit `:431`/`:549` and no-gradient audit `:239`/`:555` pass; a `radial-gradient` would fail the second). Waking = ring with a centre point, sleeping = hollow ring: a shape difference. `.dot-live` itself is unchanged, so `StatusDot.test.tsx:88` and the looping stand-in check `:532` stay green. Clause (1) of the test now asserts the two new rules and goes red on today's CSS | `parts/task-26.md:24-26`, `:95-130`, `:162`, `:175`, `:193` |
+| 2 (Important) the session cap's rollback used a helper that cannot match in the cluster | **The re-review's fix, the Secret option.** Task 14 exports `sandbox.PodName(owner, id)`, `AttachSecretName` and `AttachSecretKey`, and the owner view creates with them (test `TestPodNameIsWhatTheOwnerViewCreates`). `deleteIfOurs(ctx, pods, secrets, owner, id, token)` reads the token from the Secret (`secrets get`, `task-29.md:77`), constant-time, then deletes the pod and the Secret by UID. **Found in the fix, and why the Secret proves identity:** task 14's Create deleted the Secret after *any* failed pod create, so after an ambiguous error (transport, context, timeout) a stored pod would have had no identity left to check. Now the Secret is the id's claim: a create whose Secret exists fails there with `AlreadyExists` and leaves it alone, a refused pod create (an `APIStatus`, not a timeout) deletes it, and an ambiguous one keeps it. Two task 14 tests pin that. **Also found:** with Secret-first ordering, a duplicate of a running id collides at the Secret, so the admission-refusal test now refuses at the `create secrets` step (admission answers before the name check) and builds the running session through the owner view. A pod stored after the rollback cannot start (missing Secret) and carries the control-plane label, so the laptop's reaper removes it (UNVERIFIED on a cluster). Three new mutants | `parts/task-14.md:95-106`, `:144-166`, `:183-186`; `task-18.md:136-138`, `:176-177`, `:189-222`, `:271-272`, `:285-292`, `:311-312`, `:316`, `:318-319`, `:362-367` |
+| 3 (Minor) ensure-default's `AlreadyExists` answered 200 without converging | **The re-review's fix.** `AlreadyExists` (owner and default annotation checked) ensures the Secret, pod and PDB whatever the derived state; a terminating claim → 503 `details.reason = "deleting"`, nothing created. Ensuring also wakes a sleeping default, and a terminating pod takes the wake's background re-create. Tests: `TestEnsureDefaultFinishesAHalfCreatedDefault` (sets `Phase: Pending` explicitly, since a fake leaves it empty and would derive `sleeping`), `TestEnsureDefaultOnATerminatingDefaultIs503` | `parts/task-19.md:83`, `:102-118`, `:203-204` |
+| 4 (Minor) the derived default id comes back after a delete | **Refuse, plus a note for the out-of-band case.** `DELETE` on the default → `409 machine_is_default` (new `brokerapi.CodeMachineIsDefault`, task 17), nothing deleted; a second machine deletes as before. Reason beyond the id: with no snapshots in v1 (S8-D6.1), that delete destroys the only copy of the work, and no cockpit surface offers it (task 26 has no delete). An operator delete or a `Lost` claim can still make the id recur, so P3A-2 tells phase 3 to hold `createdAt` in the lane index and drop entries when it changes. Test `TestTheDefaultMachineCannotBeDeleted` | `parts/task-19.md:88`, `:120-129`, `:205`, `:247`; `task-17.md:116`; `task-25.md:88`; `task-33.md:65`; plan `:293` |
+| 5 (Minor) P06 (d) can misdiagnose a missing scale-up | **The re-review's fix.** Preconditions recorded with each (d) run: no other node has balloon-sized room, the pool is below `max_count`. With both met and no `TriggeredScaleUp`, a `NotTriggerScaleUp` event on the balloon means the autoscaler considered it, so the cutoff is not the cause and the priority stays; only with neither event is the cutoff the likely cause (the autoscaler drops expendable pods silently: UNVERIFIED) | `parts/task-32.md:30`; `task-11.md:118-121` |
+| 6 (Minor) S8-D6.1's snapshot delete defeats its own motive | **The re-review's first option.** A missing claim's snapshots are deleted only when they age out at the retention; the Do-not column forbids deleting early because the claim is gone. Task 11 adds that a deleted machine's disk is kept for the same window, which the owner's b09 question now covers | plan `:656`; `parts/task-11.md:182-186` |
+| 7 (Minor) four wording fixes | Task 15: owners do share nodes; the owner term stops a session following another owner's same-id machine pod. Task 29: the escalation check most likely passes because Admin's data actions include `escalate` (UNVERIFIED either way; task 31 §7a checks the outcome). Review `:996` marked superseded by m12; the b09 section's restatement line says so. Task 26 cites `tokens.css:178-179` (0.01ms and one iteration) inside the block at `:174` | `parts/task-15.md:104-106`; `task-29.md:97-102`; review `:996`, `:1248-1250`; `parts/task-26.md:95-98` |
+
+**Restatements checked** by grep over the plan and the parts: `deleteIfOurs`, `attachSecretName`,
+`sandbox-<id>-attach`, "env value" (none left outside task 18's before-and-after text and task
+14's unscoped case); `"sandbox-"+id` (only as task 18's mutant); "wake it if it is sleeping"
+(only as the rule that never fired); `DELETE /v1/machines` (task 19's table only); P3A-2 (task 25,
+task 33, plan `:293`, all updated; `task-23.md:279` only points at it); `TriggeredScaleUp` (task 11
+and task 32 only); "never share a node" and "without `escalate`" (gone); snapshot deletion
+(plan `:656` only). Real-tree citations checked: `manager.go:69`, `:110`, `:205-209`;
+`kata.go:102-105`; `common.css:40`, `:53-57`, `:96`, `:108-123`; `tokens.css:174-179`;
+`designsystem.test.ts:239`, `:431`, `:532`, `:549`, `:555`; `StatusDot.test.tsx:82-88`;
+`sessions.go:689-696`.
+
+**Owner questions (new):** none. Issue 4's refusal is a v1 rule taken on the fail-safe side (no
+snapshots, the id recurs); "may a user reset their default machine?" becomes a question only if
+a reset feature is asked for.
+
+**Still UNVERIFIED (new this round):**
+- That `apierrors.APIStatus` minus the two timeout reasons is exactly "the pod was not stored";
+  that the API server can store a pod create after its client gave up (the late-stored case);
+  and that the laptop's reaper removes such a pod within one sweep.
+- That the autoscaler logs no event at all for a pod it treats as expendable (P06 (d)).
+- The look of the waking ring's centre point: the owner's (OD-12).
