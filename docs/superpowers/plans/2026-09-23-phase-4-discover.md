@@ -305,10 +305,10 @@ without a cycle. Phase 4 imports only the Hub's
 |---|---|---|
 | `modelclient/client.go` + test | one `POST /v1/messages`, no SDK; `Completer`, the seam phase 6 replaces | 02 |
 | `discover/content.go` + test | `Content`, `Question`, `Answer`, `Criterion`, `Author`, `BaseQuestions()`, `Step`, `Recompute` | 03 |
-| `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes; the marker rule (`ErrReservedText`, S3); the length caps (`ErrTooLong`, S4) | 03 |
+| `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes; the marker rule (`ErrReservedText`, S3); the length caps (`ErrTooLong`, S4); stored text holds only LF (rule 14, b10 re-review M-5) | 03 |
 | `discover/assist.go` + test | `ProposeFollowUp` over a `Completer`, degrading to nothing | 04 |
 | `discover/inherit.go` + test | `Resolve(project, branch *Revision) Document` — project → branch, with origins; `Title(branch *Revision)`, the block title's one rule | 05 |
-| `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`, `SameText`, `DiffLines`; the golden blocks (`testdata/.gitattributes` `* -text` keeps them LF on checkout); the `<!--` neutraliser and the marker count (S3); CRLF files read as LF ones (review M7) | 05 |
+| `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`, `SameText`, `DiffLines`; the golden blocks (`testdata/.gitattributes` `* -text` keeps them LF on checkout); the `<!--` neutraliser and the marker count (S3); CRLF files read as LF ones (review M7), a render that holds no `\r` (b10 re-review M-5), and a `Strip` that also removes the blank line an appended block brought (M-6) | 05 |
 | `provenance/key.go` + test | the key grammar — the only parser (P5): `brief:`, `design:`, `none:` | 06 |
 | `provenance/ref.go` + test | `Ref`, `Build`, criterion digests, `Resolution`; `CriterionReading` and `Readings`, the moving criterion states kept out of the `Ref` (review I14) | 06 |
 | `discoverhub/binding.go` + test | local project → Hub project by the primary remote's repo key, other remotes' hits as `Matches` (review M8); local branch → `refs/heads/…` | 07 |

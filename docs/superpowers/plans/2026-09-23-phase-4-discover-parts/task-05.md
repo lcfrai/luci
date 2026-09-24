@@ -152,10 +152,17 @@ const neutralised = `<!-\-`
 // `<!-\-` first. This is defence in depth behind task 03's rule 12
 // (ErrReservedText): a rendered block contains exactly two "<!--" sequences,
 // its own two markers, so no content can forge either one.
+// In the same pass, each "\r\n" and then each lone "\r" in those strings
+// becomes "\n" (b10 re-review M-5). Task 03 rule 14 stores only LF, but a
+// head the Hub stored unchecked may still hold "\r"; so Render's output holds
+// no "\r" at all, which is what makes Merge's CRLF conversion exact.
 func Render(doc discover.Document) string
 
 // Merge splices block into existing: appended after a blank line when there
 // is no block, replacing the one block when there is, every other byte kept.
+// Appending: an empty existing gets the block alone; one that ends in a line
+// ending gets one more line ending (the blank line), then the block; one that
+// does not gets two, then the block (b10 re-review M-6).
 // It first counts every BeginPrefix and every EndMarker in existing. The
 // only well-formed shapes are none of either, or exactly one begin followed
 // later by exactly one end. Two or more begins is ErrDuplicateBlock; any
@@ -169,14 +176,27 @@ func Render(doc discover.Document) string
 // Strip removes, the blank line Merge appends after - is matched as \r?\n.
 // Merge writes the block, and the blank line before an appended one, in the
 // file's own ending: CRLF when existing's first line ending is "\r\n", LF
-// otherwise (and for an empty file). So Merge then Strip is byte-exact for a
-// CRLF file too, and no merge leaves a file of mixed endings it did not
+// otherwise (and for an empty file). For CRLF, Merge first reads block's
+// "\r\n" as "\n", then writes every "\n" as "\r\n", so a block that already
+// holds CRLF never becomes "\r\r\n" (Render's output holds no "\r"; a caller
+// passing a CRLF block is still exact). So Merge then Strip is byte-exact for
+// a CRLF file too, and no merge leaves a file of mixed endings it did not
 // already have. A lone "\r" is not a line ending here.
 func Merge(existing, block string) (string, error)
 
 // Strip removes the managed block and the one line ending after it, "\n" or
-// "\r\n", so no "\r" is left behind. No marker of either kind is not an
-// error. The same failures, by the same count, as Merge.
+// "\r\n", so no "\r" is left behind. When the block is the last thing in the
+// file (nothing follows it but that line ending, if it has one), it also
+// removes the blank line
+// Merge put before an appended block: the one line ending ("\n" or "\r\n")
+// just before BeginPrefix, and only when that line ending is itself preceded
+// by another. So "A\n\n<block>\n" becomes "A\n", and "A\r\n\r\n<block>\r\n"
+// becomes "A\r\n" (b10 re-review M-6). When anything follows the block, it
+// sits between a person's paragraphs and nothing before it is removed:
+// "A\n\n<block>\nB\n" becomes "A\n\nB\n". A file that did not end in a line
+// ending before Merge gets one back, because Merge gave "A" and "A\n" the
+// same bytes. No marker of either kind is not an error. The same failures,
+// by the same count, as Merge.
 func Strip(existing string) (string, error)
 
 // Marker is what a begin marker names.
@@ -294,8 +314,9 @@ renders the same bytes on every branch and every teammate's machine.
 | `TestMergeAndStripFailClosed` | unterminated and duplicate blocks → their errors, input unchanged | the guess that deletes a person's writing |
 | `TestRenderNeutralisesCommentOpeners` | a Document whose answer text, criterion text, follow-up prompt and title (from a `BranchRef` of `refs/heads/<!--x` — `<` and `!` are legal in a git ref) each hold `<!-- panacea:discover:end -->` or `<!-- x -->` renders to a checked-in golden (`testdata/golden-neutralised.md`) in which each appears as `<!-\- …`; `strings.Count(block, "<!--") == 2`; `Inspect(Render(doc))` is ok with the doc's marker, and `Strip(Merge("", block))` is `""` | the escape dropped, or applied to answers but not to prompts or the title (review C2) |
 | `TestStrayEndMarkerIsBroken` | table, for each of `Merge`, `Strip` and `Inspect`: an end marker with no begin; an end before the begin; begin, end, then a second end (the forged-early-end shape: begin, forged end, brief tail, real end); a begin, a begin and one end → `ErrUnterminatedBlock` for the first three and `ErrDuplicateBlock` for the last; the input is unchanged; a file with no marker of either kind is still `ok == false` / unchanged with no error | a strip that removes up to the first end and leaves the brief's tail behind as "user text", a merge that re-appends that tail on every start, or an Inspect that reports it as `edited` for ever |
-| `TestStripRemovesTheBlockAndNothingElse` | Merge then Strip returns the original, byte for byte, for three shapes (empty file, text above, text above and below). **CRLF rows (review M7):** the two non-empty shapes with `\r\n` endings: Merge's output has no `\n` that is not preceded by `\r`, and Strip returns the original byte for byte; and a file Merged with LF, then re-saved with every `\n` turned to `\r\n` (the editor case), Strips to the CRLF original with no `\r` left anywhere a line ending was removed | a strip that leaves a blank line or eats one; a marker matched on `\n` only, which leaves a `\r` behind or misses a CRLF end marker; a Merge that writes an LF block into a CRLF file |
+| `TestStripRemovesTheBlockAndNothingElse` | Merge then Strip returns the original, byte for byte, for three shapes (`<block>` is Render's output, its trailing line ending included): an empty file; text above (`A\n`, where Merge gives `A\n\n<block>` and Strip removes the blank line with the block); text above and below (`A\n\n<old block>\nB\n`, where Merge replaces the block in place and Strip gives `A\n\nB\n`, removing nothing before a block that text follows). **Blank-line rows (b10 re-review M-6):** `A` with no final line ending Merges to `A\n\n<block>` and Strips to `A\n`; an appended block whose blank line the person deleted (`A\n<block>`) Strips to `A\n`, with no line of `A` eaten; a file that begins with the block (`<block>B\n`) Strips to `B\n`. **CRLF rows (review M7):** the two non-empty shapes with `\r\n` endings: Merge's output has no `\n` that is not preceded by `\r`, and Strip returns the original byte for byte; and a file Merged with LF, then re-saved with every `\n` turned to `\r\n` (the editor case), Strips to the CRLF original with no `\r` left anywhere a line ending was removed | a strip that leaves the appended block's blank line behind, or removes the blank line above a block that text follows (eating a person's paragraph break); a marker matched on `\n` only, which leaves a `\r` behind or misses a CRLF end marker; a Merge that writes an LF block into a CRLF file |
 | `TestCRLFResaveIsNotAnEdit` (review M7) | `Render(doc)` with every `\n` turned to `\r\n`: `Inspect` is ok with the doc's marker, `SameText(b.Text, Render(doc))` is true, and `DiffLines(Render(doc), b.Text)` is all `same` with no `\r` in any `Text`; the same file with one line's text changed: `SameText` false and exactly one `removed` and one `added`; `SameText("a\rb\n", "ab\n")` is false | a drift check that compares raw bytes, so every CRLF re-save is `edited` over every line; a normaliser that strips every `\r`, not just the one before `\n` |
+| `TestRenderWritesOnlyLF` (b10 re-review M-5) | a Document built straight from a head the Hub stored unchecked, whose answer text, criterion text and follow-up prompt hold `"x\r\ny\rz"`: `Render` holds no `"\r"`, and those lines read `x`, `y`, `z`; `Merge("A\r\n", block)` has every line ending `"\r\n"`, no `"\r\r\n"`, and `SameText` of its `Inspect` block with `Render(doc)` is true; `Merge("A\n", block)` holds no `"\r"`; and `Merge("A\r\n", block with CRLF)` equals `Merge("A\r\n", block)` | a Merge that converts with `strings.ReplaceAll(block, "\n", "\r\n")` over a block that already holds `"\r"`, giving `"\r\r\n"` and a block `edited` for ever; a Render that passes `"\r"` through into an LF file, leaving it with mixed endings |
 | `TestInspectReadsTheMarker` | `brief=bf-…a2 rev=5` → `Marker{"bf-…a2", 5}`; `rev=05`, `rev=0`, a missing `rev` → `ErrBadMarker` | a lenient parser that accepts a marker no render produced |
 | `TestDiffLinesShowsAHandEdit` | changing one line of a rendered block gives exactly one `removed` and one `added` in place | a diff that reports the whole block changed |
 

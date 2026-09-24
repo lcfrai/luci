@@ -282,7 +282,9 @@ var (
 )
 
 // The length caps (review M6), counted in Unicode code points
-// (utf8.RuneCountInString) after rule 1's trim: the unit JSON Schema's
+// (utf8.RuneCountInString) on the string as stored (rule 14's LF, then rule
+// 1's trim for an answer; prompts, help and options are not trimmed; rule
+// 13): the unit JSON Schema's
 // maxLength uses, so task 04's and task 13's schemas (200/120 and 400) sit
 // inside them and model text never meets the cap. They make the Hub's 64 KiB
 // envelope refusal (hub-contract.md:742) unreachable for ordinary text and
@@ -328,7 +330,7 @@ func Apply(c Content, op Op, env Env) (Content, error)
 
 **The rules `Apply` enforces** (each is a test below):
 
-1. `record` trims `Text`; empty is `ErrEmptyAnswer`. More than `MaxAnswerRunes` (4,000) code
+1. `record` trims `Text` (after rule 14's line endings); empty is `ErrEmptyAnswer`. More than `MaxAnswerRunes` (4,000) code
    points after the trim is `&TooLongError{Key, Limit: 4000}` (rule 13, review M6). An unknown key
    is `ErrUnknownKey`. It
    replaces an existing answer **in place** (same index) or appends; it never touches another
@@ -383,7 +385,19 @@ func Apply(c Content, op Op, env Env) (Content, error)
     server-composed from a base prompt (task 04) and is not checked. Rule 12 runs first, so a
     string that breaks both reports the marker. Task 11 maps it to 400 `bad_request` with
     `field: "text"`, `key` and `limit`. The model paths never meet it: their schemas cap at 200,
-    120 and 400 (tasks 04, 13), and a schema-invalid reply degrades there.
+    120 and 400 (tasks 04, 13), and a schema-invalid reply degrades there. What is counted is the
+    string as stored: an answer `Text` after rule 14 and then rule 1's trim; a prompt, `Help` or
+    option after rule 14 only, because nothing trims those (the base ones are constants, and a
+    follow-up's come from task 04's schema-checked reply).
+14. **Line endings (b10 re-review M-5).** Every string the op adds or changes (rule 12's set,
+    before rule 12 looks at it) is stored with each `"\r\n"`, then each lone `"\r"`, replaced by
+    `"\n"`. Stored brief text therefore holds only LF, whichever way it arrived: a Windows
+    textarea, the API, or a model draft. This runs first, before rule 1's trim and emptiness
+    check and before rules 12 and 13, so a `record` of `"a\r\nb"` over a stored `"a\nb"` is
+    `ErrNoChange`, and the cap counts `"\r\n"` as one code point. A string the op left as it was
+    is not rewritten (the same reason as rule 12: a head the Hub stored unchecked must stay
+    editable); task 05's `Render` normalises again at the file, so such a head still cannot put a
+    `"\r"` into a managed block.
 
 **Tests first** — `content_test.go` and `ops_test.go`, package `discover`:
 
@@ -414,6 +428,7 @@ func Apply(c Content, op Op, env Env) (Content, error)
 | `TestPromptsAreCappedAt300Characters` (review M6) | an `add_follow_up` whose `BranchPrompt`, `ProjectPrompt`, `Help` or one `Options` item is 301 code points is `*TooLongError{Key: <the new key>, Limit: 300}`; at 300 each succeeds; a 301-code-point `Because` succeeds (not checked) | a follow-up prompt the Hub envelope carries with no bound; a check of the prompt that skips the options |
 | `TestBaseQuestionsFitTheCaps` | every `BaseQuestions()` prompt, help and option is at most 300 code points, so the first op on a new brief never meets rule 13 on the server's own text | a reworded base question that refuses every new brief |
 | `TestUnchangedLongTextDoesNotBlockOtherOps` (review M6) | a `c` whose `purpose` answer already holds 5,000 code points (a head written straight to route 26): `skip` of `audience` succeeds; an `edit` of `purpose` to 4,500 code points is `*TooLongError{Key: "purpose"}`; to 4,000 succeeds; an answer holding both `panacea:discover:` and 4,001 code points is `*ReservedTextError` (rule 12 first) | the whole-result check again, now for length |
+| `TestStoredTextHasOnlyLF` (b10 re-review M-5) | table over `record`, `edit`, `draft` and `add_follow_up`: a text or prompt holding `"a\r\nb\rc\n"` is stored as `"a\nb\nc"` for an answer (rule 14, then the trim) and `"a\nb\nc\n"` for a prompt (no trim); a `done` answer's criteria hold no `"\r"`; a `record` of `"x\r\ny"` over a stored `"x\ny"` is `ErrNoChange`; 3,999 letters joined by one `"\r\n"` (4,001 code points as sent, 4,000 as stored) succeeds, so the cap counts after rule 14; a stored answer holding `"\r\n"` that the op leaves alone is returned unchanged | a normaliser that only handles `"\r\n"`, so a lone `"\r"` reaches the file; a normaliser run after the cap or the no-change check; one that rewrites strings the op did not touch |
 | `TestApplyDoesNotMutateItsInput` | the input's answers slice is unchanged after `Apply` | aliasing between the head the service cached and the content it writes |
 
 **Steps:**
@@ -430,7 +445,7 @@ func Apply(c Content, op Op, env Env) (Content, error)
 **Acceptance:**
 
 ```
-$ go test ./control-plane/internal/discover/... -race -count=1 -run 'Content|Step|Apply|Edit|Skip|Draft|Accept|Criterion|Restore|Reinherit|NoChange|FollowUp|Base|Decode|Marker|Reserved|Capped|LongText'
+$ go test ./control-plane/internal/discover/... -race -count=1 -run 'Content|Step|Apply|Edit|Skip|Draft|Accept|Criterion|Restore|Reinherit|NoChange|FollowUp|Base|Decode|Marker|Reserved|Capped|LongText|OnlyLF'
 ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/discover
 $ grep -n "omitempty" control-plane/internal/discover/content.go
 (no output — no field of Content may be omitted, or the canonical bytes change)
