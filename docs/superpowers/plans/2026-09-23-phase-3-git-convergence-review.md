@@ -970,3 +970,74 @@ fixes all of them; none is deferred. Paths are under `docs/superpowers/plans/`.
 **Unverified.** Nothing was built or run as Go or TypeScript. The two-merge prompt was not re-run
 against the re-reviewer's probe here; its second-lane case (`origin/main`, then `upstream/main`,
 exit 1 in the lane) is the re-review's own evidence (`rr-b05-bringin-probe.out`).
+
+## Fix batch b06 (2026-09-24): I3 and I4
+
+Undo, revert and clone freshness. Line numbers are for the tree at this batch's last commit.
+"parts/" means `2026-09-23-phase-3-git-convergence-parts/`.
+
+### I3: an exact undo is refused once another lane has merged the land
+
+Adopted as the review writes it, with one refinement: the land's **own** lane is exempt
+(parts/task-10.md:87-91). Its next land brings back only its own work, which is what landing it
+again means, and the forecast shows that work as its own. Refusing there would leave the user
+only a revert where the exact undo is honest. Every other lane that contains the land refuses.
+
+| Review's fix | Where it is now |
+|---|---|
+| `for-each-ref --contains <sha> --format=%(refname) refs/panacea/lanes/` before an exact undo | parts/task-10.md:81-91 (Undo: under the lock, after the tip check; project, Read; :86 records the probed empty-output answer) |
+| `undo_not_exact` with `why: merged_into_lane` and `details.worktrees` | parts/task-10.md:82-89 (lane ids, sorted, one per line: task-04's line format, since an id is a ref-name component); parts/task-04.md:109 (the reason list) |
+| offer the revert | parts/task-20.md:101-106 (the Revert button's title; a refused Undo reloads and opens the inline Revert line), :137 (its test); parts/task-19.md:83-88 and :226 (the landed toast's Undo, refused) |
+| History's `UndoWhy` gains the value | parts/task-10.md:47-55 (`HistoryEntry`), :64-69 (History runs the `for-each-ref` for the tip row on every call, outside its cache: a lane sync moves a lane ref without moving the tip); parts/task-18.md:90-91 (wire type); parts/task-20.md:37-39 (the row's line) |
+| `TestUndoRefusesALandALaneHasMerged` | parts/task-10.md:175; beside it `TestUndoExemptsTheLandsOwnLane` (:176) and `TestHistoryMergedIntoLaneIsReadFresh` (:177, kills a cached answer) |
+| task 23's steps 8-10 assert more than the tip | parts/task-23.md:55 (step 8: B's lane ref holds A's merge), :57 (step 10: B's lane ref unchanged, both clones refreshed, B clean with its commit), :58 (new step 10a: undo of A's land → `merged_into_lane`, nothing moved, History's row) |
+
+Restatements fixed: task 10's lead (parts/task-10.md:4-7), task 09's non-claim
+(parts/task-09.md:328-329), task 19's landing verbs (parts/task-19.md:83-88), the plan's task
+table (plan:520, now 2.5 h).
+
+### I4: the clones hear of every branch move, and ResolveDialog refreshes first
+
+Adopted in full. One fact in the review's "how to fix" is off: the syncer did **not** already read
+the branch tip each sweep. `SyncLane` reads the clone's `refs/heads/<branch>` and the project's
+lane ref, never the project's `refs/heads/<branch>`. So the sweep gains that one read per
+(project, branch), and a memory-only `told` map per clone to compare it with. `RefreshClones`
+stays the ONE origin refresh (b05): every new caller goes through it, under the project lock.
+
+| Review's fix | Where it is now |
+|---|---|
+| the sweep refreshes clones when the tip differs from what they were last told | parts/task-07.md:58-78 (`Locks`, `Refresher`, the `CloneRefresher` seam, `Told`), :86-100 (Run's steps a-c: one project `rev-parse`, compare, the lock bounded by one interval so a busy project never stalls the rest, retry of a failed clone), :261-264 (the one-interval lag it still has); parts/task-09.md:108-129 (`RefreshClones` reads the tip before its fetches and calls `Syncer.Told` per clone it reached; an older record costs one more refresh, never a missed one), :144-147 and :313 (main.go sets `Syncer.Refresher` and `Syncer.Locks`) |
+| it uses C3's literal-path fetch | unchanged: parts/task-09.md:121-122; the sweep calls `RefreshClones`, so no second fetch exists |
+| revert refreshes like land and undo | parts/task-10.md:103-109 (`RevertResult.Refreshed`, `RefreshErrors`), :118-124 (the step, Scope Clone); parts/task-18.md:97-100 (wire type); plan:345 (HTTP surface) |
+| `ResolveDialog` refreshes the one lane before the session | parts/task-09.md:151-169 (`RefreshBranch` and `POST …/branches/{branchId}/refresh`, under the lock), plan:342; parts/task-18.md:101-102, :212-213, :291 (client and its route test); parts/task-19.md:160-170 (Start and Open a shell here wait on it; a failed refresh shows git's sentence and Try again), :230-231 (tests) |
+| `TestSweepRefreshesClonesAfterADirectCommit` | parts/task-09.md:288, end to end with a real `Syncer` and `Lander`, since task 07 comes before the `Lander` exists. Task 07 pins the trigger with a recording refresher: parts/task-07.md:222-225. Also parts/task-09.md:289-291 (`Told` bookkeeping, the route, the wiring), parts/task-10.md:183 (`TestRevertRefreshesTheClones`), parts/task-23.md:63-64 (steps 15, 15a) and :66 (step 16a) |
+
+**Why the route refreshes the branch, not one lane.** It calls `RefreshClones`, which tells every
+clone of the branch. That costs one fetch per clone, as a land does, and keeps one refresh
+function. Its request names the branch, and ResolveDialog checks that `refreshed` names its lane.
+
+Restatements fixed: plan decision 3 (plan:176-187, "whenever the branch moves", every caller
+named), the diagram (plan:58), the task table and sizing (plan:504-506, :517, :519); task 02's
+`Locks` (parts/task-02.md:22-24, :230-237, and the lock order at :248-249: the sweep takes the
+project lock only after it has released every lane lock).
+
+**Declared, not changed.** The sweep keys on the branch tip only. A terminal `git fetch` in the
+project moves `<branch>@{upstream}` without moving the branch, so the clones' `upstream/<branch>`
+catches up at the next cockpit refresh. ResolveDialog's refresh is one of those, so no resolve
+prompt names a stale upstream (parts/task-09.md:332-335).
+
+**Observed, outside this batch.** parts/task-23.md:42 says the control is the test's last git call
+in the project, yet steps 15 and 16 run host git there (an `update-ref`, a checkout). Step 6's
+marker assertion still holds, because both come later. The sentence is broader than the run, and
+this batch leaves it as it is.
+
+**Probed** on git 2.53.0.windows.2 (`scratchpad/p3/b06-contains-probe.sh`, output in `.out`):
+land A as a `commit-tree` merge M; lane B merges M and commits; lane C sits on the base. Then
+`for-each-ref --contains M --format=%(refname) refs/panacea/lanes/` prints only
+`refs/panacea/lanes/w-b` and exits 0. The land's own lane, `w-a` (M's second parent), is not
+listed, so in the common case the exemption never has to act. With B's ref deleted, the output
+is empty and the exit is still 0: "no lane" is empty output, not an exit code.
+
+**Unverified.** Nothing was built or run as Go or TypeScript. The cost of `--contains` with many
+lanes was not measured. `TestHistoryMergedIntoLaneIsReadFresh` catches a stale answer, not a
+slow one.

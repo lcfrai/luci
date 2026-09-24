@@ -83,6 +83,7 @@ type UndoResult struct {
 // "merged_into_lane"; branch_moved when the tip is not expectedTip. merged_into_lane (review I3)
 // comes from, under the lock and after the tip check:
 //   for-each-ref --contains <sha> --format=%(refname) refs/panacea/lanes/   (project, Read)
+//   (no lane contains it → empty output and exit 0, not a non-zero exit: probed, review b06)
 // Any ref other than the land's own lane (refs/panacea/lanes/<Panacea-Land id>) refuses, with
 // details.worktrees = the lane ids, sorted, one per line (an id is a ref-name component, so git
 // refuses a newline in it; task-04's line format), and the desktop offers the revert. The land's
