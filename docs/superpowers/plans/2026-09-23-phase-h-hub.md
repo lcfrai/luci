@@ -429,7 +429,7 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 34 | `hubclient` methods, the digest re-check, conformance against the real Hub | C2 | 33, 20 (rows grow with 22–27), 11 (review M15) | 3 | ✓ |
 | 35 | `hublink`: local project → Hub project; the share routes | C2 | 32, 34; phase 3 task 13's `githost` (or its copy) | 3 | ✓ |
 | 36 | the change-feed poller, `/v1/hub/changes`, the cursor header | C2 | 26, 35 | 2 | |
-| 37 | the local caller key, control-plane side (A3, A4); the attach subprotocol (I3) | C3 | 32 | 3 | ✓ |
+| 37 | the local caller key, control-plane side (A3, A4); the attach subprotocol (I3); the key file's owner-only DACL on Windows (M9) | C3 | 32 | 3.5 | ✓ |
 | 38 | the local caller key, desktop side; the keyed async attach and its pending-read guards (I3, N1) | C3 | 37 | 3.5 | ✓ |
 | 39 | the credential routes: GitHub, Azure DevOps and Panacea tokens (A8, review I10) | C1 | 29, 37 | 2 | S7 |
 | 40 | the desktop's auth, share and feed client; `authSlice`; `hubFeed` | C4 | 36, 38, 39 | 3 | |
@@ -442,31 +442,32 @@ Totals: server 01–27 ≈ 80 h (73.5 before review I5's cross-org key tests add
 07, re-review b06 N1's replay that stores no brief text added 0.5 h each to tasks 14 and 19, and
 review M4's split of task 07, 4 h, into 07a and 07b, 6.5 h, and of task 16, 3 h, into 16a and
 16b, 5 h, added 4.5 h);
-client and desktop 28–42 ≈ 45 h (39.5 before review I3 and
+client and desktop 28–42 ≈ 45.5 h (39.5 before review I3 and
 re-review N1 added 1 h to task 37 and 1.5 h to task 38, review I2, I9 and I10 added 1 h to
-task 31 and 0.5 h to task 29, re-review b04 m4's remembered refusal added 0.5 h to task 31, and
-review M14's prototype added 1 h to task 41);
+task 31 and 0.5 h to task 29, re-review b04 m4's remembered refusal added 0.5 h to task 31,
+review M14's prototype added 1 h to task 41, and review M9's Windows DACL added 0.5 h to task 37);
 proof and documents (00, 43, 44a, 44b) 8 h (6 before review M4 put task 43 at 5 h, not 3);
-**≈ 133 engineer-hours**, 5 h over ADR-H1's 16 engineer-days (≈ 128 h). The ADR's day includes
+**≈ 133.5 engineer-hours**, 5.5 h over ADR-H1's 16 engineer-days (≈ 128 h). The ADR's day includes
 review and this table is implementation time only, so the plan now runs past the ADR's budget:
 review M4's re-sizing (+6.5 h) is what crossed it. Task 00's
 answers add rows to tasks 03–05, 07a, 07b, 14, 18, 19, 23, 24, 33, 34, 36 and 40 inside their existing
 hours; that is the plan's estimate, not a measurement. The minimum (S7 reached) is tasks 44a, 00,
-01–24 (07a, 07b, 16a and 16b included), 28–35, 37–39 ≈ 109 h (104.5 before review M4).
+01–24 (07a, 07b, 16a and 16b included), 28–35, 37–39 ≈ 109.5 h (104.5 before review M4, 109
+before review M9).
 
 **The critical path, not the average, sets the date (review M3).** Two engineers work it: one on
-the server lane, one on identity then the client lane. Halving 109 h to ≈ 55 h is wrong, because
+the server lane, one on identity then the client lane. Halving 109.5 h to ≈ 55 h is wrong, because
 lane A is one implementer in series. Its path to S7 is tasks 01–08 (07a and 07b included) and
 13–24 (16a and 16b included): **≈ 63.5 h**, summed from the table above, after task 44a's 1.5 h
 alone, so **≈ 65 h**. At the ADR's 8-hour day that is **a little over eight working days**, and
 more once review is counted, because this table is implementation time only. Lane A's one
 cross-lane wait costs it nothing: 13 needs 10 and 11 (lane B), which are done by ≈ 7 h on the
 clock, long before lane A reaches 13 at ≈ 27 h. The second engineer's share of the minimum is
-≈ 44 h (00, 09–12, 28–35, 37–39). It waits twice: 28 needs 06's `go.mod` (merged at ≈ 17.5 h on
+≈ 44.5 h (00, 09–12, 28–35, 37–39). It waits twice: 28 needs 06's `go.mod` (merged at ≈ 17.5 h on
 the clock, after ≈ 7 h idle), and 34 needs 20 (≈ 53 h). Even so, 34, 35 and 39 (8 h) finish by
 ≈ 61 h, before lane A's 24. The lanes, not the dependencies, make the path this long: 06, 07a and
 07b (9.5 h) need nothing from lane A, and moving them to the second engineer would give ≈ 55.5 h
-on lane A and ≈ 53.5 h of work on the other, about seven working days, with no idle wait for
+on lane A and ≈ 54 h of work on the other, about seven working days, with no idle wait for
 `go.mod`. That is a lane change for the orchestrator; this plan does not make it.
 All of these figures were summed by script from the table above.
 

@@ -1,7 +1,8 @@
 ### Task 37: the local caller key — control-plane side (corrections A3, A4; review C2, I3)
 
-**Lane C. Depends on: 32. About 3 hours (1 more than first planned: the attach subprotocol, I3,
-and the key in every API test file, C2). Contract task C3.**
+**Lane C. Depends on: 32. About 3.5 hours (1 more than first planned: the attach subprotocol, I3,
+and the key in every API test file, C2; and 0.5 for the Windows owner-only DACL, review M9).
+Contract task C3.**
 
 Once the Hub exists, a process that reaches `127.0.0.1:8730` can act on shared org data **as the
 signed-in user**, not only drive local sessions (ADR-H1 §5.4). Loopback bind, the Host guard and
@@ -29,6 +30,7 @@ preflight is still answered 204 before any key is asked for (`origin.go:231-237`
 
 **Files:**
 - `control-plane/internal/localkey/localkey.go` + `localkey_test.go` (new)
+- `control-plane/internal/localkey/private_windows.go` + `private_windows_test.go`, `private_other.go` — the owner-only DACL on Windows, the 0600/0700 path elsewhere (new; review M9). `golang.org/x/sys/windows` is already a direct requirement by then (task 28, `control-plane/go.mod`), so no `go.mod` change
 - `control-plane/internal/httpx/origin.go` + `origin_test.go` — `corsHeaders` (modify ⚑: one constant)
 - `control-plane/internal/api/api.go` — `Deps.LocalKey`; the zero-key refusal in `New`; the wrap (modify ⚑)
 - `control-plane/internal/api/attach.go` — `AcceptOptions.Subprotocols` echoes `panacea.v1` (modify ⚑, one field; review I3)
@@ -102,10 +104,30 @@ const (
 )
 
 // Mint makes a new key and writes it to path — creating the directory (0700)
-// and the file (0600; on Windows the file inherits the profile directory's ACL,
-// which admits only the user, SYSTEM and Administrators) — by writing a temp
-// file beside it and renaming it over any previous one. A new key every start:
-// nothing to rotate, nothing stale to trust.
+// and the file (0600) — by writing a temp file beside it and renaming it over
+// any previous one. A new key every start: nothing to rotate, nothing stale to
+// trust.
+//
+// On Windows the mode bits mean nothing, and an inherited ACL is only as private
+// as the directory it comes from: under PANACEA_APP_STATE_DIR=C:\somewhere it may
+// admit Users (review M9). So Windows never inherits. private_windows.go builds
+// one descriptor, SDDL "D:P(A;;FA;;;<the process user's SID>)" — a PROTECTED DACL
+// (no inherited entries) with one entry, full access for the user who runs the
+// control plane (windows.GetCurrentProcessToken().GetTokenUser()), and nothing for
+// SYSTEM, Administrators, Users or Everyone — by windows.SecurityDescriptorFromString:
+//   - the temp file is created by windows.CreateFile(…, CREATE_NEW, …) with a
+//     SecurityAttributes holding it, so the key is never readable under an
+//     inherited ACL, not even between create and a later SetNamedSecurityInfo;
+//   - the auth directory, when Mint creates it, by windows.CreateDirectory with
+//     the same; a directory that exists is left as it is (the file's own DACL
+//     decides who reads the key);
+//   - after the rename (a same-volume move keeps the file's own protected DACL),
+//     Mint reads the file's DACL back (windows.GetNamedSecurityInfo) and checks it
+//     with checkPrivate: present, protected, exactly one ACCESS_ALLOWED entry, for
+//     that SID. Anything else — a file system with no ACLs (FAT32, exFAT: a NULL
+//     DACL), or a share that rewrites them — is an error naming the path, and the
+//     process does not start (fail closed, not a readable key served).
+// private_other.go (//go:build !windows) holds the 0600/0700 path.
 func Mint(path string) (Key, error)
 
 // Middleware requires the key on EVERY request it sees; it has no exemption
@@ -208,7 +230,9 @@ The `client.ts:6-8` comment (*"no Authorization header … before Phase 8"*) is 
 Where each lives: `TestMint…`, `TestTheKey…`, `TestAZeroKeyMatchesNothing`, `TestNoCommandUsesForTest`
 (it walks `../..`, the whole `control-plane/` module), `TestAWrongKeyIs401`,
 `TestTheSubprotocolListIsReadAsTokens` and `TestTheSubprotocolKeyIsOnlyForUpgrades` in
-`internal/localkey/localkey_test.go`, against `Middleware` alone. `TestEveryGuardedRouteNeedsTheKey`,
+`internal/localkey/localkey_test.go`, against `Middleware` alone, except the two Windows tests
+(`TestTheKeyFileIsPrivateOnWindows`, `TestTheKeyACLCheckRefusesAnyOtherDACL`), which are in
+`internal/localkey/private_windows_test.go` under `//go:build windows`. `TestEveryGuardedRouteNeedsTheKey`,
 `TestHealthzNeedsNoKey`, `TestAttachNeedsTheKeyInItsSubprotocol`, `TestAPreflightNeedsNoKey` and
 `TestADisallowedOriginIsStillRefusedFirst` in `internal/api/localkey_test.go`, **package `api`**, so
 the attach test reuses `attachNewFixture` (`attach_test.go:230`). The other two are placed in the
@@ -219,6 +243,8 @@ table.
 | `TestMintWritesAFreshKey` | the file holds 43 base64url characters; a second `Mint` replaces it with a different key; no temp file is left beside it | a key reused across restarts |
 | `TestTheKeyPathFollowsStatepath` | with `PANACEA_APP_STATE_DIR=/tmp/s` → `/tmp/s/auth/local-key`; with only `LOCALAPPDATA=C:\Users\u\AppData\Local` → `C:\Users\u\AppData\Local\PanaceaApp\state\auth\local-key`; `PANACEA_APP_LOCAL_KEY_FILE` overrides both — the same examples task 38's Rust test pins | a control plane and a shell looking in two places |
 | `TestTheKeyFileIsPrivate` (non-Windows) | mode `0600`, directory `0700` | a key any local user can read |
+| `TestTheKeyFileIsPrivateOnWindows` (`private_windows_test.go`, `//go:build windows`; review M9) | a `t.TempDir()` given an **inheritable** entry for `Users` first (`SetNamedSecurityInfo`, SDDL `D:(A;OICI;FA;;;<user>)(A;OICI;GR;;;BU)`: the custom state directory the review names); `Mint(<dir>/auth/local-key)` → the file's DACL, read with `GetNamedSecurityInfo`, is protected and holds exactly one entry, full access for the process user; no entry for `BU`, `AU`, `WD` or any other SID; the `auth` directory Mint created, the same | a key file that inherits `Users: read` from a custom state directory; a DACL set without `P`, which re-inherits; a key written by `os.WriteFile`, then locked, readable in between |
+| `TestTheKeyACLCheckRefusesAnyOtherDACL` (`private_windows_test.go`; review M9) | `checkPrivate` over descriptors from `SecurityDescriptorFromString`: `D:P(A;;FA;;;<user>)` → nil; `D:(A;;FA;;;<user>)` (not protected), `D:P(A;;FA;;;<user>)(A;;GR;;;BU)`, `D:P(A;;FA;;;S-1-5-18)` (another SID), `D:P(D;;FA;;;<user>)` (a deny entry), and `D:NO_ACCESS_CONTROL` (a NULL DACL, the FAT case) → an error each | a check that passes a FAT volume, or any DACL with the user's entry somewhere in it |
 | `TestTheKeyNeverPrints` | `%v`, `%+v`, `%#v`, `slog` of a `Key` → `redacted`; no response body in any test below contains it | the key in a log |
 | `TestEveryGuardedRouteNeedsTheKey` | for **every** pattern in `API.RegisteredPatterns()`, attach included, with no exceptions, a request with ids filled in and no key → 401 `local_key_required`; with the key → not 401 **with code `local_key_required`** (a Hub route may still answer 401 `signed_out`, task-32.md:27, task-35.md:131; plain "not 401" would fail falsely on a signed-out fixture — re-review, outside b02) | a route added later that forgets the key (the §10a audit's own technique); an exemption list growing back |
 | `TestNewRefusesAZeroLocalKey` (`api_test.go`, through `catalogNewDeps`) | `d.LocalKey = localkey.Key{}` → `New` returns an error containing `Deps.LocalKey is zero` and a nil handler (C2) | a zero key treated as *no check*: fails open, every test still green |
@@ -264,6 +290,14 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8730/v1/healthz       
 #### What this task does not claim
 
 - Protection from another process **of the same OS user**: it can read the file (ADR-H1 R4).
+  Nor from an administrator, who can take ownership of any file; the DACL keeps out other
+  non-admin users only (review M9).
+- That `SECURITY_DESCRIPTOR.String()` renders the DACL as exactly the SDDL written above:
+  unverified until the Windows test runs; the tests compare parsed entries, not strings. The
+  x/sys names used (`SecurityDescriptorFromString`, `CreateFile`, `CreateDirectory`,
+  `GetNamedSecurityInfo`, `SetNamedSecurityInfo`, `GetAce`, `GetTokenUser`,
+  `PROTECTED_DACL_SECURITY_INFORMATION`) were checked in the module cache's x/sys v0.24.0, not in
+  the v0.32.0 the graph will hold after task 06.
 - That Docker Desktop lets a container reach the host's `127.0.0.1` at all (unverified, ADR-H1
   §5.4): the key makes the answer not matter.
 - That session ids need to be longer. With the key on attach (review I3), a 32-bit id is no longer
