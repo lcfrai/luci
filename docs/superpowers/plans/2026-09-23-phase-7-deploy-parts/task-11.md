@@ -63,11 +63,14 @@ GET {P}/access
 POST {P}/access
   request { "grantee": "a.person@kpmg.com.au", "role": "viewer" | "developer" | "owner" }
   201 the GET body, re-read after the write
-      A role change is this POST for a current member at the new role: Panacea's share is
-      single-role and drops the other role groups first (clients/keycloak.go:198-214), so it is
-      one request, never a Revoke then a Grant, which would leave the person with no access if
-      the Grant failed. The drop is best-effort (:207-210): the re-read shows what Panacea holds,
-      and a grantee still on two rows is drawn on both (task 18; review M30)
+      A role change is this POST for a current member at the new role. Panacea's share is
+      single-role and does the replace itself: it drops the grantee from the other role groups
+      (clients/keycloak.go:198-214), then adds the new one (:216-218). So a role change is one
+      request and Panacea's own replace, never a Revoke then a Grant. It is NOT safer than
+      that pair: an add that fails after the drop is a 500 (handlers/access.go:55-58) and
+      leaves the person with no role, and the drop is best-effort (:207-210). So the cockpit
+      re-reads access after any failed write, draws a grantee still on two rows on both, and
+      holds a change that lowers a role (task 18; review M30, re-review I-1)
   400 bad_request        grantee empty, or containing "," or whitespace (one person, never a list —
                          survey §4: Panacea's header parser splits on commas); role outside the three
   403 deploy_forbidden   non-owner (routes.go:1408)
@@ -119,7 +122,7 @@ redacting `String()`; the handler test captures the log and greps for the passwo
 | `TestMintedTokenOnceNotLogged` | the fake mints `bt_123` → it is in the 200 body, not in the captured log, and a second `GET` does not carry it | a token in a log or a cache |
 | `TestGranteeIsOnePerson` | `"a@x, b@y"` → 400 with *"One person at a time."* | a comma-joined list that Panacea would read as two groups (survey §4) |
 | `TestGrantRereads` | `POST` → the response is the fake's `Access` after the write | a UI that shows what it asked for instead of what Panacea holds |
-| `TestRoleChangeIsOneGrant` | a member at `viewer`, `POST {grantee, role:"owner"}` → the fake saw exactly one `Grant` and no `Revoke` | a role change as Revoke then Grant, which strands the person with no access when the Grant fails (review M30) |
+| `TestRoleChangeIsOneGrant` | a member at `viewer`, `POST {grantee, role:"owner"}` → the fake saw exactly one `Grant` and no `Revoke` | a role change as Revoke then Grant: two requests where Panacea's one replace does the job, and a second place to fail half-way (review M30, re-review I-1) |
 | `TestRevokeSendsGroup` | `DELETE ?group=project-engagement-portal-viewer` → the fake's `Revoke` got that group; `DELETE ?grantee=team-old` → 400 | revoking a legacy row by its grantee, a 200 that removes nothing (review M30) |
 | `TestNoUserFoundIs422` | the fake returns `KindRejected` *"No Panacea user matches that name or email."* → 422 with that sentence | a Keycloak typo shown as "Panacea is down" |
 | `TestOwnerRefusalRelayed` | the fake answers `KindForbidden` *"insufficient role"* → 403 `deploy_forbidden` with that sentence | the control plane inventing its own permission check |

@@ -118,6 +118,8 @@ type Governor interface {
 	Access(ctx context.Context, p ProjectRef) ([]AccessGrant, error)
 	// Grant is single-role on Panacea: a grant to someone who already holds another role REPLACES
 	// it (clients/keycloak.go:172-173, :198-214 at b02424691), so a role change is one Grant.
+	// The old role is dropped before the new one is added (:216-218): an error can mean the
+	// grantee now holds no role, so the caller re-reads (re-review I-1).
 	Grant(ctx context.Context, p ProjectRef, g GrantRequest) error
 	// Revoke takes an AccessGrant's Group, Panacea's own key for the row, never its Grantee: a
 	// person's row is removed from every role, a legacy binding's group is deleted

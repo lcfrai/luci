@@ -21,7 +21,7 @@ owner's, batched (OD-12); unverified until then.**
 - `desktop/src/deploy/AccessList.tsx` (new) — the members; grant and revoke
 - `desktop/src/deploy/useGovernance.ts` (new) — the three reads and six writes over `DeployApi`
 - `desktop/src/deploy/useHeldAct.ts` (new **only if task 16 has not landed it**) — task 16's contract, unchanged
-- `desktop/src/deploy/DeployLens.tsx` (modified, task 14's) — mounts `GovernancePanel` for the selected branch
+- `desktop/src/deploy/DeployLens.tsx` (modified, task 14's) — mounts `GovernancePanel` for the selected branch, with `self` from the connection's `account`
 - `desktop/src/deploy/deploy.css` (modified) — the panel
 - `*.test.tsx` / `useGovernance.test.ts` beside each
 
@@ -54,7 +54,10 @@ export interface Governance {
 }
 
 /** open false → no request at all. A branch change while open reads again for the new branch;
- *  an answer for the old branch that arrives late is dropped (compared by branch, not by time). */
+ *  an answer for the old branch that arrives late is dropped (compared by branch, not by time).
+ *  A grant or revoke that rejects, for any reason, re-reads access before the promise rejects:
+ *  Panacea drops the old role before it adds the new one, and a revoke stops at its first failed
+ *  group, so a failed write can leave a changed list (re-review I-1). */
 export function useGovernance(projectId: string, branch: string, open: boolean): Governance;
 ```
 
@@ -65,6 +68,7 @@ export function GovernancePanel(props: {
   env: EnvironmentView | null;          // the selected branch's environment, task 15's rule
   ownerControls: "yes" | "no" | "unknown";
   stale: boolean;
+  self: { username: string; email: string } | null; // task 13's ConnectionStatus.account
 }): JSX.Element;
 
 export function PostureControl(props: {
@@ -77,6 +81,7 @@ export function AccessList(props: {
   access: Loaded<AccessGrant[]>;
   ownerControls: "yes" | "no" | "unknown";
   stale: boolean;
+  self: { username: string; email: string } | null; // the connected identity, for "This is you"
   onGrant(grantee: string, role: Exclude<AccessRole, "unknown">): Promise<void>; // add, or change a role
   onRevoke(group: string): Promise<void>; // AccessGrant.group (review M30)
 }): JSX.Element;
@@ -98,8 +103,9 @@ Idempotency-Key — governance routes take none (task 11).
 | posture → `none` or `password` | **held**, consequence printed first | the two modes Panacea itself treats as relaxing sign-in (`ssoEnforcedForMode`, `handlers/access_mode.go:84-91`) — the same pair its SSO lock refuses (`project_security.go:726-736`) |
 | posture → `kpmg-sso`, `panacea-sso`, `bypass-token` | sent at once | each keeps the SSO gate (`access_mode.go:86`) |
 | revoke a member | **held** | it takes a person's access to every branch at once |
+| lower a role (`owner` → `developer`/`viewer`, `developer` → `viewer`, or any change from `unknown`) | **held**, consequence printed first | Panacea drops the old role at once (`keycloak.go:202-211`). An owner who loses `owner` can no longer reach the owner routes (`routes.go:1408-1409`), so the cockpit may not be able to undo it (re-review I-1) |
 | release the web address | **held** | once released, any branch in Panacea may claim it (`branch_url_prefix.go:22-24`) |
-| deploy on push, grant (a role change is one grant, review M30), claim an address | sent at once | each is undone by its own opposite, and none opens the app to anyone new |
+| deploy on push, add a person, raise a role, claim an address | sent at once | none takes access away when it succeeds, and the opposite of each stays in reach of the owner who pressed it (a raise's opposite is a held lowering). A raise that fails after Panacea's drop can leave no role; the re-read after the failure shows that |
 
 #### The four controls — what each says
 
@@ -141,12 +147,29 @@ mono (legacy bindings, plan §3.2 B1; `legacy` is `group != grantee`, task 04, r
 word, and `roleRaw` in mono when `role "unknown"`. A grantee on two rows is drawn on both, never
 merged, with *"Panacea lists `<grantee>` at more than one role."*
 **Add a person**: one name or email and a role, with the line *"Gives `<grantee>` `<role>` on the
-whole project."* before the press. **Change role** on a person's row: the role menu, with *"Changes
-`<grantee>` from `<old>` to `<new>` on the whole project."* before the press; it sends one `grant`
-at the new role, because Panacea's share replaces the old role (task 11), never a revoke then a
-grant (review M30). **Remove** is held: *"Removes `<grantee>` from the whole project, every branch,
-at every role."* — or, for a legacy row, *"Deletes the group binding `<group>`."* — and sends the
-row's `group`. A `422` shows *"No Panacea user matches that name or email."* (task 11).
+whole project. Panacea replaces any role they hold now."* before the press. A grantee that equals a
+person row's `grantee` (case-insensitive) is that row's **Change role**, under its rules below.
+**Change role** on a person's row: the role menu, with *"Changes `<grantee>` from `<old>` to `<new>`
+on the whole project."* before the press; it sends one `grant` at the new role, because Panacea's
+share does the replace (task 11), never a revoke then a grant (review M30). A raise is sent at once.
+A lowering is held, like **Remove** (re-review I-1). **Remove** is held: *"Removes `<grantee>` from
+the whole project, every branch, at every role."* — or, for a legacy row, *"Deletes the group
+binding `<group>`."* — and sends the row's `group`. A `422` shows *"No Panacea user matches that
+name or email."* (task 11).
+
+Two guards on a lowering or a **Remove**, both drawn before the press (re-review I-1):
+- **The only owner.** When the row is the one person row at `owner` (legacy rows do not count:
+  an attribute-only group grants nothing, `keycloak.go:166-170`), the control is disabled with
+  *"This is the project's only owner. Add another owner first: once `owner` is gone, only a Panacea
+  platform admin can give it back."*
+- **You.** When the row's `grantee` equals `self.username` or `self.email` (case-insensitive), the
+  consequence line adds *"This is you. Once it is sent, your key loses `<old>` on this project, and
+  another owner must give it back."* — for a Remove, *"… loses all access to this project …"*.
+  A miss (the list names you by an alias the account does not carry) drops only this line; the
+  hold and the only-owner guard still apply.
+
+After a failed grant or revoke, the list is the re-read (`useGovernance`), not the list from before
+the press, and the write's message is shown above it.
 
 **Web address** (owner routes, `routes.go:1313-1314`) — the current `env.host`, or *"No address
 yet — the branch has not been deployed."*; a field and **Claim**; the hint *"Lowercase letters,
@@ -174,7 +197,11 @@ verbatim. **Release** is held.
 | `unknown mode kept raw` | `modeKnown false, modeRaw "sso-v2"` → `sso-v2` in mono and the fallback sentence; no radio checked | an unknown mode drawn as `kpmg-sso` |
 | `a group binding is not a person` | a grant `{grantee:"team-old", group:"project-p-viewer", legacy:true}` → *"a group binding"* and `project-p-viewer`, and `team-old` is not drawn as a person | a group rendered as someone's name; a legacy test keyed on `grantee ""`, which Panacea never sends (review M30) |
 | `revoke is held` | **Remove** on a person's row → nothing sent for 4.9 s; after 5 s one `revoke` with that row's `group`. On the legacy row → one `revoke("project-p-viewer")`, never `revoke("team-old")` | an instant removal from every branch; a legacy row revoked by its grantee, a 200 that removes nothing (review M30) |
-| `role change is one grant` | a `viewer` row, **Change role** to `owner` → one `grant(grantee, "owner")` and no `revoke` | a revoke then a grant, which leaves the person with no access when the grant fails (review M30) |
+| `role change is one grant` | a `viewer` row, **Change role** to `owner` → one `grant(grantee, "owner")` at once and no `revoke` | a revoke then a grant: two requests where Panacea's one replace does the job (review M30) |
+| `lowering is held` | two `owner` rows; **Change role** on one to `viewer` → the consequence line before the press, nothing sent for 4.9 s, Undo → nothing ever sent; the same through **Add a person** with that row's grantee in upper case | an owner demoted at once by one misclick, with no way back from the cockpit (re-review I-1) |
+| `only owner refused` | one `owner` person row and one legacy `owner` row → **Change role** to `developer` and **Remove** disabled on the person row, each with the only-owner line | the project left with no owner that anyone but a platform admin can restore (re-review I-1) |
+| `you are warned` | `self {username:"dmackie1"}`, rows `DMackie1` and `b` at `owner` → lowering `DMackie1` shows *"This is you. …"*; lowering `b` does not | a self-demotion drawn like anyone else's (re-review I-1) |
+| `failed write re-reads` | the fake drops the row and then rejects `grant` with `KindUnavailable` → a second `access` read, the row is gone from the list, and the message is shown | a list that still draws the old role after Panacea removed it (re-review I-1) |
 | `no client-side prefix rule` | `GovernancePanel.tsx` contains no `RegExp` / `.test(` / `.match(` on the prefix; `UPPER` is sent and Panacea's 422 sentence shown | a second copy of `validateURLPrefix` that drifts from Panacea's |
 
 #### Steps
@@ -202,5 +229,10 @@ then.**
   (`access_mode.go:24`); an edge allowlist in front of Panacea, if one is deployed, was not checked
   (plan §12).
 - That `developer` role grants work as `editor` does — task 04 sends `editor` (plan §12).
+- That *"This is you"* finds every self row. Panacea lists a member by Keycloak username, else
+  email (`keycloak.go:523-528`); that `/me`'s `username` is the same Keycloak username is
+  unverified. A miss loses only the warning (re-review I-1).
+- That a demotion's 403 is immediate. Whether a `pnc_` key's role is resolved live on each request
+  is unverified; the hold and the guards assume it is.
 - That the owner line is right for a person whose ownership changed since the last cursor.
   `ownerControls` is the watcher's last answer; Panacea's refusal is the truth, and is shown.
