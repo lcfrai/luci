@@ -1241,3 +1241,30 @@ implementer to correct.
 **Verified:** every citation above, against the tree at 81bcfe1. **Not verified:** nothing was
 built or run. This is a plan batch.
 
+## Fix batch b10 (2026-09-24): Minors 6, 8, 12 and 16
+
+Task 11's branch verbs, and the flag on every host fetch. Commits 4a20f44, ebfcce2, 164dae3,
+dc8c0fd and 04d6a14. Line numbers are for the tree at 04d6a14. "parts/" as above. The review's
+task-11 line numbers (:74, :89-93, :105) had moved to :146, :164-168 and :180 before this batch.
+Every git behaviour below was probed on git 2.53.0.windows.2 on 2026-09-24, in a throwaway
+repository under the stream's scratchpad (`b10-probe.out`, `b10-probe2.out`), and task 01 pins
+each one (parts/task-01.md:58-61; its acceptance count, :119, moves from 22 to 26).
+
+| Finding | Where it is now |
+|---|---|
+| 6: `--branch` expands `@{-1}` | parts/task-11.md:147-160, a new `ValidBranchName`: `check-ref-format --branch <name>` must exit 0 **and** print exactly `<name>`. The review's `refs/heads/<name>` form is **wrong on the facts** on its own: it passes `-x` and `HEAD`, which `--branch` refuses, and it refuses `a..b` with exit 1 and nothing on stderr, so the plan's "git's sentence" would be empty. The equality closes the expansion and keeps both. CreateBranch uses it (:162); so does RenameBranch for the new name (:180), because `branch -m` expands `@{-N}` too (probed: `branch -m feature @{-1}` took the previous branch's name). PATCH gains `400 bad_request` (:242). Tests :283 and :287. Task 22's form copy: parts/task-22.md:100-101 |
+| 8: auto maintenance after a fetch | The flag on the two fetches the review names, with b01's, b05's and b06's arguments kept: parts/task-07.md:120 (reason :123-126, test :234) and parts/task-09.md:134 (reason :143-145, test :316). The same defect is in every host fetch into a repository a land writes, so the other two carry it too: parts/task-11.md:97-98 (removal archive, test :268) and parts/task-12.md:82-83 (the timer fetch, test :180). A grep of plan and parts for `fetch --` finds no fifth. Task 09's test sets no config, because the clone allowlist would refuse `maintenance.auto` (task-02 §HGH H3) and the default is already on |
+| 12: remove-section on an absent section | parts/task-11.md:202 and :206-213: OKExit 128 (pinned: "fatal: no such section"). Any other failure comes after the ref is deleted and archived, so the verb answers 200 and logs a warn line, as `git branch -D` does with a locked config (probed: it warns and exits 0). 128 for a config git cannot parse is stated as leaving the section, unlogged. Tests :292-293 |
+| 16: rename moves a checkout's HEAD | parts/task-11.md:180-189: RenameBranch refuses `branch_checked_out` by `CheckedOutAt(old)`, with the check-then-act window stated; PATCH row :243 (task-04.md:102 already listed rename); test :286. `CheckedOutAt` is task 08's (parts/task-08.md:91-94), which task 11 never waited on, although DeleteBranch already refused by it: task 11 now waits on 08 at plan:537, :552 and :554-557, and parts/task-11.md:299-304. Task 22's rename copy and test: parts/task-22.md:102-105, :133 |
+
+**Observed, not in this batch.**
+- parts/task-02.md:152-158 and :450-453 do not say what `Exec.Run` does when H3's own
+  `config --local --list` fails (probed: exit 128 on a config git cannot parse). H3 is a
+  security check, so it must fail closed; the text implies it but never states it. That is
+  task 02's, for b01's owner or its implementer.
+- Task 22's *Delete branch* form has no copy for `branch_checked_out`, which DeleteBranch has
+  always answered. Left for task 22's implementer; the rename copy above can serve.
+
+**Verified:** every citation above, against the tree at 04d6a14. **Not verified:** nothing was
+built. The probes ran real git; no plan code was written or run.
+
