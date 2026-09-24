@@ -118,9 +118,14 @@ belongs to which project and branch, and the queue order), the branch rename map
 evidence records (3-D5), and nothing else. The merge link lives in git as a trailer (3-D6).
 
 **Everything that runs git is keyed by machine (brief A6).** `gitx.Machine` has one
-implementation, `gitx.Local`. Phase 8 adds the Kata one: phase 8's `machined` serves task 24's
-runner in the machine pod (P8-D7) and the control plane fetches the runner's bundle, which is this
-same model behind the same interface.
+implementation, `gitx.Local`, and after R4 it runs **project** git only. Lane git goes through
+`lanegit.Runner` and `lanegit.Lanes` (task 24), not `gitx.Machine`. So phase 8's Kata half is a
+`Lanes.For` that answers a `Runner` pointed at `machined` in the machine pod; lane work still
+crosses as a bundle the host verifies (R4.4). What phase 8 must serve is S3-P8.1's contract. P8-D7
+as written (env worktree, `docs/superpowers/plans/2026-09-23-phase-8-own-environment.md:136`) says
+`machined` "reuses … phase 3's local git runner unchanged, on Linux paths, with phase 3's §HGH
+hardening", which after R4 describes nothing phase 3 builds (review r4-1 I-7; flagged to the
+orchestrator, see the Q table's Q18).
 
 **Packages.** Every git write lives outside `internal/project`, whose read-only whitelist test
 stays exactly as it is (task 26 seam S3.1).
@@ -174,7 +179,7 @@ Owner decisions are in `docs/superpowers/planning/2026-09-23-owner-decisions.md`
 | R2 | `writeAtomic` is lifted into `statepath`, not duplicated | task 03 step 1, if phase 4 has not done it first |
 | R3 | Phase 3 claims **no** persist version. Nothing it adds to the desktop is persisted | task 18 |
 | R6 | The desktop loads on the existing poll tick; no new `setInterval` | task 18 |
-| R4 | Host git never runs in a directory a sandbox can write; lane git runs in sandboxd; lane work crosses as a bundle | tasks 02, 03, 05, 07, 09, 10, 11, 12, 16, 24 |
+| R4 | Host git never runs in a directory a sandbox can write; lane git runs in sandboxd; lane work crosses as a bundle | tasks 02, 03, 05, 07, 09, 10, 11, 12, 16, 24; also carried in 01 (the bundle pin), 04 (`LaneRoot`, `bundle_refused`), 06, 08 (`LaneGit.For`), 14 (the `Lanes.Dial` seam), 18 and 23 (review r4-1 M-2) |
 
 ### Decisions this plan makes where nothing on file does
 
@@ -428,7 +433,7 @@ phase 3 adapts in one file.
 
 | Seam | Where | The later phase | Must not |
 |---|---|---|---|
-| **S3-P8.1** `gitx.Machine` | `internal/gitx/machine.go` | phase 8 adds a Kata machine: phase 8's `machined` serves task 24's runner in the machine pod (P8-D7), and lane work crosses to the control plane as a bundle (R4.4) | run git for a cloud machine through `gitx.Local` |
+| **S3-P8.1** the lane git runner contract | `testdata/gitrunner/*.json`; `control-plane/internal/lanegit` (`Runner`, `Lanes.For`) | phase 8's `machined` serves task 24's contract in the machine pod: the `/git/v1/` wire (bearer auth, the five ops, the error envelope, the four limits), with `testdata/gitrunner` as the goldens, which are **the only shared artifact** (`sandboxd/internal/gitrunner` is not importable from `control-plane`: Go's internal rule, and separate modules; `machined` vendors `sandboxd` or writes its own server against the goldens, phase 8's choice); lane work crosses as a bundle the host verifies (R4.4). The host's Kata half is a `Lanes.For` answering a `Runner` at `machined`. `gitx.Machine` stays project-only | run lane git on the host through `gitx.Machine` or §HGH, which R4.2 forbids and `ErrLaneDir` refuses; or take P8-D7's "phase 3's local git runner unchanged" at its word |
 | **S3-P8.2** `lanes.Store` location | `PANACEA_APP_WORKTREES_DIR` | phase 8 puts cloud clones on the pod's volume, behind S3-P8.1 | move local clones under the projects root (the scanner would list each one as a project) |
 | **S3-P7.1** Session trailers in a shipped range | `git log --format=%(trailers:key=Panacea-Session)` | phase 7's manifest lists the sessions that produced a release (`7-D3`) | infer a session from a commit's time |
 | **S3-P7.2** Merge-link trailers | `Panacea-Brief`/`Panacea-Brief-Digest` on first-parent merges | phase 7 shows "reviewed against rev N at land" | parse the key (P5) |
@@ -459,9 +464,11 @@ named task changes.
 | **Q12** | Re-review b07-1 issue 4: a revert of land B takes back B's code, but evidence recorded before the revert on a tree that held B (the branch head after a later land A, or a lane head after it merged the branch) judged B's code too. Should the revert reopen that evidence, or only evidence at B's own commits (`M^1..M`)? | **Reopen it, built** (task 15's rule (b), its own because sentence). It errs the safe way: a criterion reads open, the human records once more after the revert, and phase 7 never carries a false settled into a release. The cost is over-retirement: A's criteria recorded at `M_A` reopen too, and a revert weeks after the land reopens everything recorded since | task 15 drops rule (b) and its test, and its "does not claim" names the residual: a branch-head or merged-lane record that judged B's code stays settled after B is reverted |
 | **Q13** | Review Minor 15, re-review b08-1 issue 6: a lane clone writes `core.symlinks=false` (parts/task-03 "Blob bytes on disk"), so a repository's symlink is a small plain file holding its target's text, in the lane and in the sandbox. The index keeps mode `120000`, and `git add` never changes that type. So an agent that edits such a file as if it were the linked file (a symlinked `.eslintrc`, say) commits a `120000` entry whose target is the whole file's text, and a land carries that broken link into the product branch, where the user's checkout (`core.symlinks=true` on this machine) makes it a dangling link. Accept that? | **Accept, stated, not detected in phase 3.** The alternative, real links in a lane, lets a commit put a link to any host path into a directory the cockpit reads, and depends on how Docker Desktop shows a Windows link (unverified). The hazard needs an agent to rewrite a file it should treat as a link. Whether task 16's Merge lens shows a `120000` entry's change as a link change is unverified | task 08's forecast gains a row that names every `120000` entry a lane changes whose new target holds a newline or NUL, and task 09 refuses that land until the human acknowledges it |
 | **Q14** | **Now gate G5** (ruling R4.6). Kept for the record: plan re-review b02-2 X-1, the primary-worktree half (cross-stream). Phase 2's `d7e2dea` asks `git config --get --type=path core.excludesFile` (and `core.attributesFile`) in the worktree through the unpinned `project.Runner`, and `sessionGitGlobalFile` mounts any absolute regular file the answer names into the sandbox. On a primary-worktree session the sandbox can write the project's `.git/config` (before task 05's H5 bind) or `.git/commondir` (after it), so an agent can name `~/.git-credentials`, `~/.ssh/id_*` or `~/.claude/.credentials.json` and read it at the next create or restart. Read from the code, not run end to end. Who fixes it, and how? | **The phase-2 fix stream, in phase 2's code, before phase 3 builds on it**: a mount source must never be chosen by config the sandbox can write (for example, ask only `--system` and `--global`, or pin the layout as task-02 §HGH H5 does). Since R4.1 no sandbox mounts the project, and every session runs in a lane; the resolvers read host-owned config only (R4.6, gate G5), and task 05 keeps its worktree check on the mount source | phase 3 also routes project paths through `gitx.Exec` as `Scope: Project` with H5's pin. That closes `commondir` but not a `core.excludesFile` written into the project's `.git/config` before the bind, and a linked worktree is never pinned (H5) |
-| **Q15** | Ruling R4.3: lane git runs in the sandbox. A lane with no live session (the sweep's `SyncLane`, a removal's inspection, a refresh after a land) has no sandbox to run it in. Task 24's pool starts a runner-only sandbox with the lane mounted and keeps it `Idle` 60 s (`lanegit.Pool`), so the sweep's default 5 s interval (task 07) keeps it alive while a lane has work to read. Accept that? | **Yes, built** (task 24). It is the only place lane git may run under R4, and it holds no agent. Its cost (one idle container per sessionless lane in use) is **not measured**. Task 11's removal must have the pool drop that lane's sandbox before it deletes the directory | the sweep reads sessionless lanes less often (a longer interval for them), or skips them until a session starts, and their lane refs go stale until then |
+| **Q15** | Ruling R4.3: lane git runs in the sandbox. A lane with no live session (the sweep's `SyncLane`, a removal's inspection, a refresh after a land) has no sandbox to run it in. Task 24's pool starts a runner-only sandbox with the lane mounted and keeps it `Idle` 60 s (`lanegit.Lanes`). Read every 5 s by the sweep, that would hold one container per sessionless lane for as long as the control plane runs. How often does a sessionless lane get a sandbox? | **Only when something can have changed, or a verb needs it; built** (review r4-1 I-6). Only a sandbox writes the clone, so: the sweep skips a lane with no live session that it last read with no session live, after that lane's last session exited (task 07, `Lanes.Live`, `SyncState.QuietAt`), so a lane costs one runner-only start after its session ends, then none; a refresh after a land, undo, bring-in or fetch **defers** a sessionless lane instead of starting a sandbox under the project lock (task 09), and the sweep refreshes it within one Interval once a session is live on it again; the refresh route, which ResolveDialog calls before it starts a session, refreshes it at once (`ForceRefreshLanes`); a land or removal calls `SyncLane` directly and always reads the lane. Task 11's removal drops the lane's runner-only sandbox first (`Lanes.Drop`, review r4-1 I-4). Residuals: up to one Interval of stale `origin/<branch>` after a session starts on a deferred lane; a session that starts, commits, exits and is deleted inside one Interval is not seen until the next land or removal | the sweep reads sessionless lanes every 5 s, holding a container each (cost not measured); or never, until a session starts, so a land reads a lane ref the sweep left stale |
 | **Q16** | R4.6 says a sandbox's line endings are the host's *global* value, applied through `GIT_CONFIG_COUNT`. Review C2 says a lane is always LF (`core.autocrlf=false`, `core.eol=lf`), whatever the host installs, so both sides see the blobs' bytes. Which wins for a lane session? | **Task 03's constants, built** (task 05 `laneLineEndings`, no git asked). They are the values the clone was checked out with, so the sandbox's git and the working tree agree. On a stock Git for Windows host, host-owned config answers the system `core.autocrlf=true`, so a checkout the agent ran would write CRLF into a tree checked out LF (review C2; reasoned, not run) | task 05 asks phase 2's resolver (host-owned config only, gate G5) and sends that, and task 03's step 4 writes the same answer, so a Windows host's lanes check out CRLF |
 | **Q17** | Ruling R4.1 moves every session into a lane: a session started on the primary worktree or a linked worktree runs in that worktree's backing lane, made on first start, not in the user's checkout. The lane is made once, on the branch checked out then; a later `git checkout` there does not move it (task 05). The agent's edits reach the user's checkout only by a land. This is visible to the owner. Accept that? | **Yes, built** (task 05's backing lane; task 06 deletes the linked-worktree notice; task 22's rail). It is what makes the project's `.git` host-private | tasks 05, 06 and 22 go back to mounting the checkout, and ruling R4.1 fails for those sessions: the host then runs git in a directory a sandbox writes |
+| **Q18** | **For the orchestrator** (review r4-1 I-7). P8-D7, in the env stream's plan (`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment.md:136`), says `machined` "reuses … phase 3's local git runner unchanged, on Linux paths, with phase 3's §HGH hardening". After R4, `gitx.Exec` refuses lane directories, `Scope Clone` is gone, and `sandboxd/internal/gitrunner` is not importable from `control-plane/cmd/machined`. Does P8-D7 get amended to serve S3-P8.1's contract? | **Yes, recommended; phase 3 does not edit phase 8's file.** S3-P8.1 states what phase 8 must serve: the `/git/v1/` wire, `testdata/gitrunner` as the goldens (the only shared artifact), and bundle crossing | phase 8 builds its lane git against P8-D7 as written, and runs lane git on the host, which R4.2 forbids |
+| **Q19** | **For the orchestrator** (review r4-1 M-10). Q16's answer, task 03's constants, departs from R4.6's binding text ("the host's *global* value"). Is R4.6 amended to say a lane's line endings are task 03's constants? | **Yes, recommended.** A plan answer cannot override a binding ruling; until the orchestrator amends R4.6, Q16 is a recommendation awaiting that amendment, not a settled choice | Q16's alternative: phase 2's resolver's global value, and CRLF lanes on a stock Windows host |
 
 ## File map
 
@@ -517,6 +524,7 @@ sandboxd/
                                     RPC, R4.3)                                                24
   internal/server/server.go         (p2) Config.GitWorktree; the /git/v1/ route beside
                                     /attach, behind s.authorised                              24
+  internal/server/server_test.go    (p2) test 6's auth cases, appended                        24
   cmd/sandboxd/main.go              (p2) -git-worktree flag, default /home/dev/work;
                                     serve_posix.go, serve_other.go (p2) pass it through       24
 testdata/gitrunner/*.json           the wire golden fixtures both modules read               24
@@ -579,7 +587,7 @@ under three.
 | 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1 | 2 h |
 | 05 | Git in the sandbox for clones: every session in a lane (R4.1), `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1, G5; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
 | 06 | The linked-worktree notice deleted (R4.1): `kind` in `types.ts`, the shared-index note (3-D2) | 04, 05, G1 | 2 h |
-| 24 | sandboxd git runner: the /git/v1/ RPC on the attach token, status/refs/bundle/fetch/diff, bundle verify and limits, the host client and runner pool (R4) | 02, 04 | 3.5 h |
+| 24 | sandboxd git runner: the /git/v1/ RPC on the attach token, status/refs/bundle/fetch/diff, bundle verify and limits, the host client and runner pool with `Drop`, `Live` and the `Dial` test seam (R4; review r4-1) | 02, 04 | 4.5 h |
 | 07 | Lane sync and observed claims; the sweep's tip-change clone refresh (review I4) | 04, 24 | 3.5 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 (24 through 07) | 3 h |
 | 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4), a bundle into each lane's runner (R4.5) | 08, 24 | 4.5 h |
@@ -598,7 +606,8 @@ under three.
 | 22 | Lifecycle verbs: new and remove worktree, branch create/rename/delete, palette; the four phase 2 promises of phase 3 retired (review Minor 10 found the fourth) | 04, 06, 11, 18, 19 | 3 h |
 | 23 | Proof: the end-to-end script on real git and Docker, the owner's batched checklist, the seams doc | all | 2 h |
 
-**Total: 67 h** over 24 tasks (63.5 h before task 24's 3.5 h, ruling R4).
+**Total: 68 h** over 24 tasks (63.5 h before task 24's 4.5 h, ruling R4; review r4-1 added the
+pool's `Drop`, `Live` and `Dial` seam, 1 h).
 
 **Order.** 01 → 02 → 03 → 04 → then three lanes that can run in parallel worktrees:
 **(a)** 05 → 06; **(b)** 24 → 07 → 08 → 09 → 10, then 15 and 16 → 17 (24, the runner, is
@@ -628,9 +637,12 @@ made structural). `routes_audit_test.go` gets one line per GET, appended. Task 0
 touches `main.go`, since phase 2's resolvers are the phase-2 stream's (R4.6, gate G5). Task 24
 adds one `main.go` block after task 04's, before `api.New` (`main.go:132`), and one edit outside
 it: phase 2's reaper line (`main.go:87`) gains one argument, `laneHeld.Has`, from a `HeldSet`
-made on the line above (`task-24.md:438-458`). In `sandboxd`, which no other phase 3 task edits,
-task 24 adds one route, `s.mux.HandleFunc("/git/v1/", s.git)`, beside `/attach`
-(`sandboxd/internal/server/server.go:85`), and one flag beside `main.go:40-48`.
+made on the line above (`task-24.md:434-440`, `:532-546`). In `sandboxd`, which no other phase 3
+task edits, task 24 adds one route, `s.mux.HandleFunc("/git/v1/", s.git)`, beside `/attach`
+(`sandboxd/internal/server/server.go:85`), one flag beside `main.go:40-48`, and appends its auth
+cases to `sandboxd/internal/server/server_test.go` (p2). It also adds one case to task 04's
+`gitFailed` and one reason to its closed list, both in `api/gitdeps.go`, outside task 24's own
+block (review r4-1 M-7).
 
 ## What this plan does not claim
 
@@ -676,10 +688,14 @@ task 24 adds one route, `s.mux.HandleFunc("/git/v1/", s.git)`, beside `/attach`
 - **A runner's answer is the agent's claim, not a fact.** Task 24's `status`, `refs` and `diff`
   come from inside a sandbox the agent controls, so the host parses them as untrusted data under
   task 24's limits and derives no host state from them. Only a bundle the host has checked with
-  `git bundle verify` in the project moves a host ref (R4.4; `task-24.md:34`, `:547-548`).
+  `git bundle verify` in the project brings objects in (R4.4; `task-24.md:61-62`, `:652-658`).
+  The one other move of a lane ref is task 07's step 3b: back to a commit the project already
+  holds, an ancestor of a project basis sha, checked in the project (review r4-1 I-1).
 - **The Kata runner is phase 8's.** Phase 3 builds the Docker half of R4.3. On `katabe` a lane
   with no live session answers `ErrNoRunner`; phase 8's `machined` serves the runner in the
-  machine pod (P8-D7; `task-24.md:545-546`).
+  machine pod, against S3-P8.1's contract, not P8-D7 as written (Q18; `task-24.md:649-651`).
+- **A stopped agent's lane runs no hook or fsmonitor**, but lane-defined clean filters still
+  run on the runner's `status` in a runner-only sandbox (review r4-1 I-5; `task-24.md:659-661`).
 - **The read-only `.git/config` bind is claimed as nothing.** Task 05 keeps it as hygiene (R4).
   No host call depends on it, because the host never runs git in a lane (R4.2). Task 05's two
   Docker tests that touch it (`TestSandboxCloneConfigIsReadOnly`,
