@@ -113,7 +113,10 @@ surface — and therefore the only thing behind "only a human approves" (review 
 `delete_node`, `set_token`, `delete_token`, held as one `var humanOpKinds =
 map[doc.OpKind]bool{…}` in `ops.go`. Any other kind, before anything is applied, is `400
 bad_request` with `details.field: "ops[<i>].kind"` for the first offender, and the batch is not
-applied. Every other kind has a route of its own that does its own work first, which route 5 would
+applied. That includes a string no `OpKind` constant names: the handler reads each op's raw
+`kind` and checks it against `humanOpKinds` before `doc` decodes the op, so the answer never
+depends on what `doc` does with a name it does not know, which task 06 does not say (re-review
+RR-M12-1). Every other kind has a route of its own that does its own work first, which route 5 would
 skip: `add_asset` is route 11's, after the bytes are stored and hashed (M11), so on route 5 it would
 record an asset with no bytes; `review_mark` is route 23's, which takes the key from the branch's
 head brief (task 21), so on route 5 it would carry any key the caller wrote; `create_thread`,
@@ -177,10 +180,21 @@ data: {"topic":"canvas:cv-…@41","code":"canvas_not_found"}
   old stream, is `404 render_not_found`. A missing or malformed `renderer` is `400 bad_request`.
 - Topic grammar: `canvas:<canvasId>@<afterRevision>` or `renderer:<canvasId>:visible|hidden`.
 - The desktop **replaces** its stream when its topic set changes (a new request, then it closes the
-  old). One stream per window (P5-B). On reconnect it resends each canvas's last revision; the
-  authority replays or resets (task 11).
-- Closing the stream detaches its renderers (task 13). A renderer that takes **two** strikes is
-  detached and gets `gone` for its topic — a phantom renderer cannot starve agents. A strike is
+  old). One stream per window (P5-B), except for the overlap of a swap. On reconnect it resends
+  each canvas's last revision; the authority replays or resets (task 11).
+- **Swap order (re-review RR-M17-1).** Three orderings make "open new, then close old" safe, and
+  each is a rule:
+  1. The broker calls `AttachRenderer` for **every** renderer topic of a stream **before** it
+     writes and flushes the `200`. A `200` therefore means the new stream's renderers are live.
+  2. The desktop aborts the old stream only **after** the new one has answered `200` (task 27). If
+     the new request fails, the old stream is kept.
+  3. A stream's close is **one** `DetachAll` of every id it minted (task 13): all of its
+     registrations are removed before any of their outstanding requests fail, so a re-send made on
+     that failure lands on the new stream, never on a sibling registration of the dying one.
+  During the overlap, task 13's newest-of-equal-visibility rule sends every request to the new
+  stream's renderer.
+- Closing the stream detaches its renderers (task 13's `DetachAll`). A renderer that takes
+  **two** strikes is detached and gets `gone` for its topic — a phantom renderer cannot starve agents. A strike is
   task 13's (`AttachRenderer`): an agent request that times out while its renderer held no
   approval capture outstanding. An approval capture's own timeout, and an agent request that timed
   out queued behind one, are not strikes (re-review RR-I5-1).
@@ -205,6 +219,9 @@ func ParseTopic(s string) (Topic, error)
 type Source interface {
 	Subscribe(canvasID string, after int) (<-chan authority.Event, func(), error)
 	AttachRenderer(canvasID, rendererID string, visible bool) (<-chan authority.RenderRequest, func())
+	// DetachAll is a stream's close: one call with every renderer id the
+	// stream minted, never its detach funcs one by one (re-review RR-M17-1).
+	DetachAll(rendererIDs []string)
 }
 
 // Handler serves GET /v1/events.
@@ -314,12 +331,12 @@ The two `PANACEA_APP_CANVAS_*` variables, `newDesignAPI` and the `main.go` wirin
 | `TestRoutes_audit` (`routes_audit_test.go`) | routes 1, 3, 4, 10, 12, 18, 20 are in `catalogReadOnlyRoutes`; the audit passes | a GET added outside the audit |
 | `TestOps_authorIsHuman` | a body with `"author":{…}` is `400 bad_request` (unknown field); the applied change's author is `human` | an actor field in a request (plan rule 4) |
 | `TestOps_conflictAndRejected` | stale `ifRevision` → 409 `canvas_conflict` with `currentRevision`; a cycle → 422 `op_rejected` with `index` | errors flattened to 500 |
-| `TestOps_kindAllowlist` (review M12, a table of all sixteen `doc.OpKind` constants, `task-06.md:28-45`) | each of the six editor kinds is applied; each of the other ten (`add_asset`, `review_mark`, the three page kinds, `create_thread`, `add_message`, `set_thread_status`, `close_review` and `request_review`) → 400 `bad_request`, `details.field: "ops[<i>].kind"`, and the revision is unchanged — including a batch whose first op is allowed and second is not. The list is positive, so a kind `doc` gains later is refused until someone adds it | an `add_asset` for bytes never stored; a `review_mark` carrying any key; a new op kind reachable from route 5 by default |
+| `TestOps_kindAllowlist` (review M12, a table of all sixteen `doc.OpKind` constants, `task-06.md:28-45`) | each of the six editor kinds is applied; each of the other ten (`add_asset`, `review_mark`, the three page kinds, `create_thread`, `add_message`, `set_thread_status`, `close_review` and `request_review`) → 400 `bad_request`, `details.field: "ops[<i>].kind"`, and the revision is unchanged — including a batch whose first op is allowed and second is not. The list is positive, so a kind `doc` gains later is refused until someone adds it. **One row outside the sixteen** (re-review RR-M12-1): an op with `kind: "bogus_kind"` → the same `400 bad_request`, `details.field: "ops[0].kind"`, from route 5's own check (the handler checks the raw kind string against `humanOpKinds` before `doc` decodes the op), and the revision is unchanged | an `add_asset` for bytes never stored; a `review_mark` carrying any key; a new op kind reachable from route 5 by default; a denylist of the ten refused kinds, which passes every in-table row |
 | `TestAssets_postGet` | POST a PNG → asset + revision; GET returns the bytes with `nosniff`, `Content-Disposition: attachment; filename="<sha>"` and `Content-Security-Policy: sandbox; default-src 'none'` (an SVG asset too); a JPEG body labelled PNG → 415; 10 MiB + 1 → 413 | a mislabelled asset served to the renderer; an SVG that runs script on the control plane's origin (review M11) |
 | `TestAssets_shaMismatch` (review M11) | a PNG POSTed under the SHA-256 of other bytes → 400 `bad_request`, `details.field: "sha"`; the store holds no blob under either digest and the canvas revision is unchanged; then, with the other bytes already stored under their digest, the same mismatched POST → still 400 (the hash is checked before any "already stored" short cut); an uppercase or 63-hex `{sha}` → 400 | a mislabelled asset: bytes stored under a digest they do not hash to, then served as another image |
 | `TestRenderResults_bigBody` | a 20 MiB result is accepted (its own limit); 33 MiB → 413 | screenshots refused by the 1 MiB JSON cap |
 | `TestRenderResults_wrongWindow` | a result for another window's request → 404 `render_not_found`; no `?renderer=` → 400 | one window answering for another |
-| `TestEvents_replaceKeepsNewRenderer` (review M17) | stream A holds `renderer:cv-1:visible`; stream B opens with the same window and topic, then A closes; a render request sent after A's close reaches B, and a result posted with A's `renderer` id → 404 while B's → 204. The same stream holding `renderer:cv-1:visible` and `renderer:cv-1:hidden` registers two distinct ids | the stream swap detaching the renderer it just registered (the id was `<window>/<canvasId>`) |
+| `TestEvents_replaceKeepsNewRenderer` (review M17, re-review RR-M17-1) | stream A holds `renderer:cv-1:visible`; stream B opens with the same window and topic; a render request sent **between B's `200` and A's close** reaches B (B is attached by the time its `200` is read, and is the newest of equal visibility). The attach-before-`200` order is checked deterministically: the test's `Source`, a wrapper over the real `*authority.Service` that records its calls, holds B's `AttachRenderer` on a gate; B's response headers arriving while the gate is shut fail the test; after 200 ms with no headers the test opens the gate, and the headers then arrive; then A closes, a request sent after A's close reaches B, and a result posted with A's `renderer` id → 404 while B's → 204. The same stream holding `renderer:cv-1:visible` and `renderer:cv-1:hidden` registers two distinct ids, and its close is one `DetachAll` call listing both, in the wrapper's record | the stream swap detaching the renderer it just registered (the id was `<window>/<canvasId>`); a broker that flushes `200` before it attaches; a close that detaches one id at a time |
 | `TestEvents_sseFormat` | a subscriber sees `event: canvas`, `id:`, `data:` lines, flushed per event, and a ping within 15 s (injected ticker) | buffered events arriving in bursts |
 | `TestEvents_replayOnReconnect` | reconnect with `@41` after revisions 42–45 → four events | missed changes after a drop |
 | `TestEvents_topicLimit` | 17 topics → 400 | unbounded fan-out |

@@ -127,6 +127,19 @@ var (
 // (<window>/<es>/<canvasId>:<visible|hidden>), so no two live registrations
 // share an id and one stream's detach never removes another's (review M17).
 //
+// Two live registrations of one canvas and one visibility are legal: a topic
+// swap holds the old stream's and the new stream's for the overlap, and a
+// stream holds a visible and a hidden one while approving. Among attached
+// renderers of the preferred visibility, the MOST RECENTLY ATTACHED wins (an
+// attach sequence number, never slice or map order), so a request made during
+// the overlap goes to the new stream (re-review RR-M17-1).
+//
+// DetachAll(rendererIDs) is a stream's close: in ONE critical section it
+// removes every listed registration, and only then fails their outstanding
+// requests with ErrRendererDetached. So a re-send made on that failure can
+// never land on a sibling registration of the same dying stream. A detach
+// func is DetachAll of its own id.
+//
 // Strikes (task 20's phantom rule): the Service itself detaches a renderer,
 // closing its channel so task 20 sends `gone`, at its SECOND strike. A strike
 // is an AGENT request (Progress nil) that reaches its deadline unanswered AND
@@ -136,6 +149,10 @@ var (
 // agent request that waited behind an approval capture on the renderer's one
 // main thread is not one either. Answering any request resets the count to 0.
 func (s *Service) AttachRenderer(canvasID, rendererID string, visible bool) (requests <-chan RenderRequest, detach func())
+
+// DetachAll removes every listed registration, then fails their outstanding
+// requests (see AttachRenderer). Unknown ids are skipped.
+func (s *Service) DetachAll(rendererIDs []string)
 
 // Render sends a request to the preferred attached renderer and waits for
 // its result, the deadline, or ctx. No renderer is ErrNoRenderer, a timeout
@@ -177,8 +194,10 @@ type Selection struct {
 func (s *Service) SetSelection(ctx context.Context, canvasID string, c Caller, nodeIDs []string) (Selection, error)
 
 // GetSelection is get_selection. Empty when no editor has set one, or when
-// the lens that set it has detached (the selection is cleared on detach of
-// the visible renderer).
+// the lens that set it has closed: the selection is cleared when the canvas's
+// LAST visible renderer detaches, not on each visible detach, because a topic
+// swap detaches the old stream's visible renderer while the new stream's
+// keeps the lens open (re-review RR-M17-2).
 func (s *Service) GetSelection(canvasID string) Selection
 ```
 
@@ -188,6 +207,8 @@ func (s *Service) GetSelection(canvasID string) Selection
 |---|---|---|
 | `TestRender_noRenderer` | `Render` with none attached → `ErrNoRenderer` (and `errors.Is(…, ErrRendererUnavailable)`) at once, not after the timeout | an agent waiting 15 s to learn the desktop is closed |
 | `TestRender_prefersVisible` | with a hidden and a visible renderer attached, the request goes to the visible one | screenshots from a renderer without the lens's loaded fonts |
+| `TestRender_prefersNewestOfEqualVisibility` | two visible renderers attached, the earlier one first: the request goes to the later one; the later one detached, the next request goes to the earlier one. The same with two hidden and no visible. Each case runs twice, the later one's id sorting first and then last, so neither attach (slice) order nor either id order can pass both runs (re-review RR-M17-1) | a request made during a topic swap sent to the dying stream's renderer, then failed `ErrRendererDetached` |
+| `TestRender_detachAllBeforeFail` | stream A holds `visible` (a request outstanding) and `hidden`; stream B holds `hidden`, attached later. `DetachAll([A-visible, A-hidden])`: the caller that sees the outstanding request fail `ErrRendererDetached` re-sends at once, from inside its error path, and the re-send reaches B-hidden, never A-hidden (re-review RR-M17-1) | a close that detaches one id at a time, so the re-send lands on A's still-attached sibling and fails `ErrRendererDetached` a second time |
 | `TestRender_fallsBackToHidden` | with only the hidden one, it answers | layout tools dead while the lens is closed (P5-Q) |
 | `TestRender_timeout` (injected clock) | an unanswered request fails `ErrRenderTimeout` (and `ErrRendererUnavailable`) after 15 s; a late `CompleteRender` is `ErrNotFound` | a leaked waiter |
 | `TestRender_wrongRenderer` | renderer B completing A's request → `ErrNotFound` | one window answering for another |
@@ -199,7 +220,7 @@ func (s *Service) GetSelection(canvasID string) Selection
 | `TestRenderWithin_bounds` | a timeout of 0, a negative one, and `ApprovalRenderTimeout + 1ns` → an error, and no renderer saw a request | a caller holding a renderer indefinitely |
 | `TestRender_progressPassesThrough` | a request with `Progress{approval, 3, 12, "Billing"}` reaches the renderer channel unchanged; an agent's request (`Render`) carries `nil` | a toast with no count, or an agent request dressed as an approval |
 | `TestSelection_humanOnly` | a session caller → refused; a human sets `[a, b, missing]` → `[a, b]` | an agent writing the human's selection |
-| `TestSelection_clearedOnDetach` | detaching the visible renderer clears the selection | `get_selection` reporting a selection from a closed lens |
+| `TestSelection_clearedOnDetach` | two visible renderers attached and a selection set: detaching the older one keeps the selection; detaching the last one clears it; a hidden renderer still attached does not keep it (re-review RR-M17-2) | `get_selection` reporting a selection from a closed lens; a topic swap clearing the selection of a lens that never closed |
 
 ## Steps
 

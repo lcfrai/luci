@@ -91,6 +91,13 @@ export interface EventStream {
                                      // Safe because the server keys each renderer by stream instance
                                      // (task 20a, review M17): aborting the old stream detaches only
                                      // the old stream's renderer ids, never the new stream's.
+                                     // ORDER (task 20a, re-review RR-M17-1): the old stream is aborted
+                                     // only AFTER the new one has answered 200 (the server attaches
+                                     // before it flushes 200). If the new request fails, the old
+                                     // stream is kept and the swap retries on the reconnect back-off.
+                                     // A newer setTopics while a swap is pending aborts the PENDING
+                                     // request, never the live one. Render events from the old
+                                     // stream in the overlap are answered with the old stream's id.
   close(): void;
 }
 export function openEventStream(o: EventStreamOptions): EventStream;
@@ -170,7 +177,7 @@ export function selectHandoffWorktrees(s: CockpitState, branchId: string): Workt
 | `events.test.ts › parser` | chunks split mid-line, mid-`data:` and across two events decode to the right events; `: ping` is ignored | an SSE parser that assumes one event per chunk |
 | `events.test.ts › reconnect` (fake timers) | a drop reconnects after 0.5 s, then 1 s …; the second request's URL carries `@<last revision>` | reconnect replaying from zero, or never |
 | `events.test.ts › noInterval` | the module never calls `setInterval` (spy) | a second clock (G10) |
-| `events.test.ts › topicsReplace` | changing the topic set opens one new request and aborts the old | two streams per window |
+| `events.test.ts › topicsReplace` (re-review RR-M17-1) | changing the topic set opens one new request and aborts the old, and the abort comes only **after** the new request's `200` (an injected `fetch` whose response is held: no abort of the old signal until it resolves). The new request failing (a `503`, then a network error) → the old stream is never aborted and stays the live one. A second `setTopics` while the first swap is pending → the pending request is aborted, the live one is not | two streams per window; an abort before the new `200`, leaving a gap with no renderer (`ErrNoRenderer` for agents, `renderer_gone` for an approval) |
 | `events.test.ts › authHeader` | the first connect and every reconnect carry `Authorization: Bearer <localKey.get()>`; a 401 `local_key_required` → `refresh()` once and a reconnect with the new key; a second consecutive 401 → state `closed` and `onGone` with code `local_key_required`, no further request; and the sequence 401 → `refresh()` → 200, the connection dropped, 401 → `refresh()` → 200 again ends `open` with `refresh()` called twice (the allowance reset by the 200, re-review M-1) | a stream the local key refuses; a restart that leaves the window deaf, including the second restart in one window's life; an infinite retry |
 | `design.test.ts › localKeyRequired` | `createDesignClient` without `localKey` throws; with it, every method's request carries the header (one assertion per method, the same table as the row below) | a design client that silently calls keyless and gets 401 on every route (review C1) |
 | `design.test.ts` (one row per method) | method, path and body; an error body becomes `ApiError` with its code | a route typo found only in the lens |

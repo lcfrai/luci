@@ -323,7 +323,10 @@ type ApprovalState struct {
      detaches the renderer holding the request. So a request failing `ErrRendererDetached`
      (task 13) is re-sent **once**, with a fresh `ApprovalRenderTimeout`, to whichever renderer is
      preferred now: the same window's renderer on its new stream, or the hidden renderer the
-     desktop keeps for a canvas under approval (task 27's `approving`). Only a detach is
+     desktop keeps for a canvas under approval (task 27's `approving`). Task 13 makes that
+     choice safe: the newest renderer of the preferred visibility wins, and a stream's close
+     (`DetachAll`) removes all of its registrations before it fails any request, so the re-send
+     never lands on the dying stream's other renderer (re-review RR-M17-1). Only a detach is
      re-sent. A timeout or a `*RenderError` is the renderer's answer about that artboard, and
      re-sending it would double the wait for the same answer.
    - **Any other failure stops the loop**: `409 renderer_unavailable` with `details.artboardId`,
@@ -354,10 +357,12 @@ type ApprovalState struct {
    fresh reader. Identical files (a duplicated artboard's HTML, JSX and PNG) share one upload.
 7. `Approve` with `designKey`, `reviewDigest`, `briefKey`, `briefDigest`, `branchRef`
    (`Briefs.BranchRef`), `snapshot.manifest`, and as `snapshot.blobs` exactly the digests of
-   `snap.Blobs()`: each once, the manifest's among them. The Hub refuses a repeated digest there
-   with `400 bad_request` `field: snapshot.blobs` (contract §7.7 check 5, `hub-contract.md:886`;
-   Hub plan `task-22.md:30`), so sending one digest per file would fail every snapshot that holds
-   two identical files (review M10). **No approver
+   `snap.Blobs()`: each once, the manifest's among them. The contract requires the digests to be
+   distinct (§7.7 check 5, `hub-contract.md:886`), and the Hub plan refuses a repeated one with
+   `400 bad_request` `field: snapshot.blobs` (Hub plan `task-22.md:30`; the contract's check 5
+   names only `422 blob_missing`, a disagreement recorded for the Hub stream, re-review RR-M10-1),
+   so sending one digest per file would fail every snapshot that holds two identical files
+   (review M10). **No approver
    field exists** (contract §7.7); the Hub records the principal. Its 4xx pass through unchanged
    (`brief_incomplete`, `digest_mismatch`, `blob_missing`, `design_already_approved`); its 5xx and
    transport failures are `503 upstream_unavailable` `upstream: "hub"`.
@@ -389,12 +394,12 @@ loader; this cache does not poll it).
 | `TestApprove_snapshotBug` | the route with its `buildSnapshot` field (default `handoff.BuildSnapshot`) replaced by one returning an error wrapping `handoff.ErrUnsafePath`, then one wrapping `handoff.ErrTampered` → `500 internal` each time; the Hub fake received no `PutBlob` and no `Approve` | an immutable Hub approval that no handoff can use |
 | `TestMount_wrapsEveryRoute` (task 20a's test, extended) | the count of mounted design routes is now **23** (routes 21–23 added); each answers 401 `local_key_required` with no key | a new route mounted around the guard (re-review M-3) |
 | `TestApprove_happy` (Hub fake) | blobs uploaded before the approval; `ApprovalRequest` has the right keys and digests; the review request is closed; route 22 then says `approved` | an approval with no snapshot |
-| `TestApprove_duplicateFiles` (review M10; a Hub fake that applies contract §7.7 check 5 and answers a repeated digest `400` `field: snapshot.blobs`) | a document with an artboard and its unedited duplicate (byte-identical HTML, JSX, Tailwind JSX and, from the renderer fake, PNG): `Files` keeps all eight artboard paths; `PutBlob` is called once per distinct digest (never twice for one); `snapshot.blobs` has no repeat, includes `snapshot.manifest` and equals the set of every file's digest plus the manifest's; the approval succeeds | a legal snapshot refused by the Hub with `400` because two files share a digest; one upload per file for identical bytes |
+| `TestApprove_duplicateFiles` (review M10; a Hub fake that refuses a repeated digest the way the Hub plan does, `400` `field: snapshot.blobs` (`task-22.md:30`); contract §7.7 check 5 requires distinct digests but names no status for a repeat, re-review RR-M10-1) | a document with an artboard and its unedited duplicate (byte-identical HTML, JSX, Tailwind JSX and, from the renderer fake, PNG): `Files` keeps all eight artboard paths; `PutBlob` is called once per distinct digest (never twice for one); `snapshot.blobs` has no repeat, includes `snapshot.manifest` and equals the set of every file's digest plus the manifest's; the approval succeeds | a legal snapshot refused by the Hub with `400` because two files share a digest; one upload per file for identical bytes |
 | `TestSnapshotBlobs` | `Blobs()` on a snapshot with two files sharing a digest returns that digest once (the first by `Path`), the manifest once, sorted by digest; with no duplicates it is `len(Files)+1` long | a de-duplication that drops the manifest or keeps a repeat |
 | `TestApprove_notShared` | an unbound project → 409 `design_not_shared` and **no** Hub call | blobs uploaded for a project the Hub cannot hold |
 | `TestApprove_incompleteBrief` | head brief `open` → 409 `design_no_brief`, no upload | an approval against an unfinished brief (ADR Q1) |
 | `TestApprove_noRenderer` | no renderer → 409 `renderer_unavailable`, `details.cause: "no_renderer"` and its sentence, no upload | an approval whose PNGs are blank |
-| `TestApprove_rendererSwapMidApproval` (re-review RR-I5-1; a recording renderer fake, 12 artboards, a visible and a hidden renderer attached) | the visible renderer detaches while holding artboard 4 → artboard 4 is re-sent once, with a fresh `ApprovalRenderTimeout`, to the hidden renderer, which answers; artboards 5–12 go to the hidden one → 201, twelve PNGs; the same with the visible renderer re-attached under its own id (a stream replacement) instead of a hidden one → 201, artboard 4 captured by the re-attached renderer | a stream swap or a lens switch failing the spine's one action (re-review RR-I5-1) |
+| `TestApprove_rendererSwapMidApproval` (re-review RR-I5-1; a recording renderer fake, 12 artboards, a visible and a hidden renderer attached) | the visible renderer detaches while holding artboard 4 → artboard 4 is re-sent once, with a fresh `ApprovalRenderTimeout`, to the hidden renderer, which answers; artboards 5–12 go to the hidden one → 201, twelve PNGs; the same with the visible renderer re-attached under its own id (a stream replacement) instead of a hidden one → 201, artboard 4 captured by the re-attached renderer. **The overlap case** (re-review RR-M17-1), on the real `authority.Service` with `canvastest` renderers: stream A holds `…/es-A/cv-1:visible` (artboard 4 outstanding) and `…/es-A/cv-1:hidden`; stream B then attaches `…/es-B/cv-1:hidden` only; A closes with one `DetachAll` of both its ids → artboard 4 is re-sent once to B-hidden (never A-hidden), artboards 5–12 go to B-hidden → 201, twelve PNGs | a stream swap or a lens switch failing the spine's one action (re-review RR-I5-1); a re-send landing on the dying stream's hidden sibling, a second `ErrRendererDetached` read as `renderer_gone` (re-review RR-M17-1) |
 | `TestApprove_rendererGoneMidApproval` (re-review RR-I5-1) | the only renderer detaches holding artboard 4 of 12 → `409 renderer_unavailable`, `details.cause: "renderer_gone"`, index 4, the *"The canvas closed while …"* sentence; artboard 4 re-sent to a renderer that detaches again → the same; a `*RenderError` or a timeout on artboard 4 → exactly one request for artboard 4 (no re-send) and cause `render_error` / `timeout`; no `PutBlob`, no `Approve` in any row | an error blaming the renderer for a closed window; a re-send loop; a timeout re-sent, doubling the wait |
 | `TestApprove_unsafeDocument` (re-review RR-M5) | a store fixture replayed with a permissive `Checker` whose artboard uses a `font-family` token holding the review I2 script value → `422 design_unsafe` with `details.token: "brand"`; the same with a frame declaration `margin: 0` → `details.nodeId`; in both, no `PutBlob` and no Hub approval call, and the code is not `renderer_unavailable` | a dialect failure at export blamed on the renderer, or an unsafe bundle uploaded |
 | `TestApprove_tooManyFilesBeforeCapture` (re-review RR-I5-2) | a document whose `FileCount` is `MaxFiles` + 1 → `413 design_too_large`, and the renderer fake saw **no** request, no `PutBlob`; at exactly `MaxFiles` it proceeds to capture | a canvas over the cap captured artboard by artboard before it is refused |
