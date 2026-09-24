@@ -1119,69 +1119,114 @@ reviews it before any plan (`CLAUDE.md`); OD-1's waiver covered phases 3, 4, 5 a
 | Slice | The promise, in one line | Size | Depends on |
 |---|---|---|---|
 | **W0** now | Two one-line changes that are cheap today and rework later | < 0.5 d | nothing |
-| **W1** minimum lovable | *"I file it, my agent takes it, and it is done only when it is proven"* | ~27.5 d | Hub through task 43; phase 4 tasks 06, 09, 16-17; phase 3 tasks 05, 09; phase 7 task 19 |
-| **W2** planning | Cycles, features, sub-issues, comments, views: a team can plan in it | ~24.5 d | W1 |
-| **W3** agents on the work | Delegate, Orchestrator notes, proposed evidence, negotiation on issues | ~11.5 d | W1 and team mode's TM1 |
-| **W4** roadmap and release | Initiatives, timeline, updates, release notes by criterion, insights, AI assists | ~22.5 d | W2; phase 6's gateway for the AI rows; phase 7 |
-| **W5** intake and ecosystem | Requests, tracker sync and import, Teams, public API, MCP, Loops | ~30.5 d | W2 |
-| | **Total** | **~117 d** | |
+| **W1** first adoptable slice | *"I bring my backlog, my agent takes an issue, and it is done only when it is proven"*, in the new look | ~48.5 d | **Ready when** (P C1): Hub through task 43; phase 4 tasks 06, 09-10, 16-17; phase 3 tasks 05, 07-09; **local mode** (OD-20) for the demo. **In the cloud** it also needs phase 6 stream A and phase 8 stream C (TM1's streams A and C, 8.5 + 14.5 d) and the owner's environment. The user's own prerequisite: a brief with one complete revision (04:255); `first.landing` seeds one |
+| **W1b** shipped | *"shipped to production, 14:02"* on the issue | ~1 d | phase 7 task 19 |
+| **W2** planning | Cycles, features, sub-issues, views, custom states, https links, generated themes | ~20.5 d | W1 |
+| **W3** agents on the work | Delegate, Orchestrator notes, proposed evidence, negotiation on issues, §3.7 rule 3 | ~12.5 d | W1 and team mode's **TM1 (≈95.5 d, TM-05 §12.1)** |
+| **W4** roadmap and release | Initiatives, timeline, updates, notes by criterion, insights, AI assists, **cross-team** | ~26.5 d | W2; phase 6's gateway for the AI rows; phase 7 |
+| **W5** intake and ecosystem | Requests, tracker sync, Teams, public API, MCP, Loops | ~28.5 d | W2 |
+| | **Total** | **~138 d** | plus TM1, phase 6 and phase 8, which are not Phase W's |
 
-About **23 weeks for one implementer**; on three streams (Hub, pipeline phases, desktop) W1 is
-about **3 weeks elapsed**, with the desktop the long pole. The whole layer is the size of a large
-phase. That is the honest cost of the owner's "everything they are doing"; §6 Q2 offers smaller
-stopping points.
+**Why W1 grew from 27.5 to 48.5 days.** Revision 1's W1 was a demo (its own Q2 said so), and its
+sizes leaned low. Revision 2 moves in what a Linear team needs on day one and what the owner's
+"prettier" needs before the prototype review: comments and the editor (+4.5 d, from W2), Linear and
+CSV import (+1 d, from W5), the visible uplift and drawn glyphs (+6 d), a real prototype (+1.5 d),
+FAILED and RUNNING on the Desk and §3.7's informs (+1.5 d), the accessibility floor (+1.5 d),
+thread state, observed evidence and the key fixes (+1.5 d), and honest sizes for the Work surface
+(+2 d) and the replica (+2.5 d, §5.3). *Shipped* moves to W1b (−1 d) so W1 never waits on phase 7.
+That is +21 d. The other slices net to zero (W1b +1, W2 −4, W3 +1, W4 +4, W5 −2), so the total
+moves from ~117 to ~138. **None of it is measured.**
+
+The whole layer is the size of a large phase, and **TM1 is larger than all of W1 to W3**. §5.7
+gives the elapsed time to each stopping point, with TM1, phase 6 and phase 8 in it.
 
 ### 5.2 W0: now, inside the current wave (04 §7.1)
 
 1. Add `issue:` to phase 4 task 06's key parser (`provenance/key.go`, not yet built) and to the
    Hub's key grammar (hub-contract:114-128). One more case now; a change to a built parser later.
 2. Fix the stale example `criterionId: "done:2"` at hub-contract:1065 and :1079 to a `c-` id.
+
+These two are **the one exception** to §5.5's "new Hub tasks after task 43, not edits to tasks in
+flight" (P Minor 4). Both are harmless whatever the owner decides about Phase W: item 1 adds a
+grammar case nobody mints until W1, and item 2 fixes an example that is wrong today. They go to the
+`feat/hub` worktree's owner as a proposed edit, not a direct change, because that contract is
+under live edit.
 3. Optional, unblocked: 02 D2 step 1, the missing tokens (`--dur-flash`, `--dur-peek`,
    `--undo-window`, `--s-*`, `--row-h*`, `--t-*`, `--icon*`) in `tokens.css`, about 2 hours.
 
-### 5.3 W1: the minimum lovable slice, solo mode (~27.5 d)
+### 5.3 W1: the first slice a team can adopt, solo mode (~48.5 d)
 
-**The demo that makes it lovable.** Press `C`, type a title, pick the criterion it serves. Press
-`Shift+R`. Within 10 seconds a cloud agent is working on it and its line is live on the issue. It
-lands; the issue shows `landed`. You record one piece of evidence; the issue turns `done` by itself,
-because its criterion is settled. Deploy, and the issue says *shipped to production, 14:02*.
+**Revision 1 called W1 "minimum lovable" and, in Q2, "a demo". Both could not be true (P I1).**
+Revision 2 reshapes it into a slice a Linear team could move into: their own backlog, comments,
+Markdown and the new look, with Run on any row.
+
+**The demo, revision 2.** Import your Linear backlog (or a CSV); it lands in Triage as *not tied ·
+imported*. Press `T` on EP-142 and attach the criterion it serves, from a text-match suggestion.
+Press `Shift+R`. Within 10 seconds an agent is working on it (in **local mode**, OD-20, until TM1's
+streams A and C give W1 its cloud path) and its line is live on the row. Teammates comment. It
+lands; the row flashes `landed` in place and does not move. The platform watched the resume test
+pass at the landed commit, so EP-142 turns `done` by itself, with no click. **The last frame is
+the Desk** (D C5): *"Nothing needs you. EP-142 landed and proven at 14:02."* W1b adds the frame
+Linear cannot show: *"EP-142 shipped to production at 14:02."*
 
 | # | Work | Where | Size |
 |---|---|---|---|
 | 1 | Issue head and revision, `issue-revision` canonical kind, the `issue:` key in `/v1/refs`, `project.key` and numbers | Hub | 3.5 d |
-| 2 | Relations (`blocks`, `duplicates`, `relates`), team labels, `triage` and team policies | Hub | 1.5 d |
-| 3 | Events for every write, authorisation rows, issue erase, title search | Hub | 2.5 d |
-| 4 | `Session.IssueRef`, the Materialiser's second key, `provenance.Ref` kind `issue` | phase 4 | 2 d |
-| 5 | `Panacea-Issue` trailer, land trailers and the `landed` move, coverage data, the `done` rule | phase 3 | 2 d |
-| 6 | Issues in the release manifest; *shipped to* derived | phase 7 | 1 d |
-| 7 | Prototype of Work, the issue view and the Desk rows, for owner review | desktop | 1.5 d |
-| 8 | Work surface: Triage, list and board, grouping, display options, bulk bar | desktop | 3 d |
-| 9 | Issue view: head, revisions, `serves` with `thread.node`, relations, the live agent line | desktop | 2 d |
-| 10 | `keys.list` grammar, number-key triage, `peek.span`, the `?` sheet, palette commands | desktop | 2.5 d |
-| 11 | In-memory Hub replica for issues on `/v1/changes`, `optimistic.undo`, `confirm.inplace` | desktop | 2.5 d |
-| 12 | Issue chips in Develop and Merge; Start from an issue | desktop | 0.5 d |
-| 13 | **A minimal Desk** with NEEDS YOU and LANDED, issue rows, answer in place, zero state (§5.6) | desktop | 3 d |
-| | Hub 7.5 · phases 3, 4, 7: 5 · desktop 15 | | **~27.5 d** |
+| 2 | Relations, team labels, `triage` and team policies; **thread state** and its reason (§2.3 point 4) | Hub | 2 d |
+| 3 | Events for every write; authorisation rows, including *no sync writes `done`* and the reason on a hand-set `done`; issue erase; title search | Hub | 2.5 d |
+| 4 | Comments `ic-`: mentions, reactions, anchors, resolve; subscriptions (**from W2**) | Hub | 2 d |
+| 5 | Linear (public API) and CSV import into `triage` (**from W5**) | Hub | 1 d |
+| 6 | `Session.IssueRef`, the Materialiser's second key, `provenance.Ref` kind `issue` | phase 4 | 2 d |
+| 7 | `Panacea-Issue` trailer, land trailers and the `landed` move, coverage data; §3.3's rule: own evidence, **observed evidence from a watched test run**, *self-attested* marking | phase 3 | 2.5 d |
+| 8 | **The look first** (P I6): 02 D2 steps 2, 3 and 7, `chrome.dim` and one `ViewHeader`, `voice.split`, `stress.sets` with its new screens and `flag.compare` | desktop | 4 d |
+| 9 | **Drawn glyphs**, about 12, at 14 and 16px on both grounds; the icon family's licence check; fonts bundled as files once Q10 and Q14 are answered; grain measured | desktop | 2 d |
+| 10 | Prototype of the Work lens (by criterion, `moves.hold`, lit beside selected), Plan, the issue view and the Desk, for owner review at 125% in `graphite` and `paper`, behind `flag.compare` | desktop | 3 d |
+| 11 | Work lens and Plan: Triage, list by criterion, board, display options, bulk bar, `moves.hold`, departures. **Resized after row 10's review** | desktop | 5 d |
+| 12 | Issue view: head, revisions, `serves` with `thread.node`, relations, the live agent line; **the editor** (Markdown, slash menu, tables), comment UI, attachments (**from W2**) | desktop | 4.5 d |
+| 13 | `keys.list` grammar as revised (§4.3), number-key triage, `peek.span`, the `?` sheet, palette commands, the single-key switch | desktop | 3 d |
+| 14 | In-memory Hub replica on `/v1/changes` (below), `optimistic.undo`, `confirm.inplace` | desktop | 5 d |
+| 15 | Issue chips in Develop and Merge; Start from an issue, with the Undo chip | desktop | 0.5 d |
+| 16 | **The Desk frame**: NEEDS YOU, **FAILED** (*Restart from checkpoint*, *Abandon*), LANDED, **RUNNING** (§4.2's fold), §3.7's informs, answer in place, zero state | desktop | 4.5 d |
+| 17 | The accessibility floor: the `forced-colors` layer, one live region, grid roles, the Undo pause (§4.4 rules 4 and 5) | desktop | 1.5 d |
+| | Hub 11 · phases 3 and 4: 4.5 · desktop 33 | | **~48.5 d** |
 
-**Out of W1, on purpose:** comments, cycles, features, views (W2); anything that needs team mode
-or the `panacea` verb channel (W3); anything that needs the gateway (W4).
+**The replica, reconciled with 02 (P I9).** 02 D2 step 6 sizes `hub.replica` plus
+`sync.checkpoint` at about two weeks. Holding it in memory (ADR-H1) removes the encrypted disk
+store and the erase propagation to disk, which is most of that. It keeps the cursor on
+`/v1/changes`, ordering by the feed's sequence, rolling back an optimistic write the Hub refuses,
+and loading only what the caller may read. Revision 1's 2.5 d did not cover the last two; 5 d does,
+if `/v1/changes` already filters per caller (**UNVERIFIED** in hub-contract).
+
+**Elapsed.** Desktop is the long pole at 33 d, so it runs on **two** desktop streams (look,
+glyphs, prototype, Work lens; issue view, keys, replica, Desk, accessibility) beside the Hub and
+the phases: **about 4 to 5 weeks after Hub task 43**, to a local-mode demo (§5.7).
+
+**W1b, shipped (~1 d, phase 7 task 19):** issues in the release manifest from trailers; *shipped
+to production, 14:02* derived on the issue and on the Desk's LANDED row.
+
+**Out of W1, on purpose:** cycles, features, views, custom states and https links (W2); anything
+that needs team mode or the `panacea` verb channel (W3); anything that needs the gateway (W4, so
+W1's criterion suggestion is text match); tracker sync (W5). **Still missing for a Linear power
+user after W1**, and said so: cycles, sub-issues, estimates and saved views until W2; outside-PR
+linking until W5; an assistant in solo mode (Linear's `Ctrl+J`, L-155) only with team mode.
 
 ### 5.4 W2 to W5
 
-**W2, planning (~24.5 d).** A team can run its fortnight in it.
+**W2, planning (~20.5 d).** A team can run its fortnight in it. (Comments and the editor moved to
+W1 in revision 2.)
 
 | Work | Size |
 |---|---|
-| Comments `ic-`: mentions, reactions, anchors (text, criterion, span, hunk), resolve; subscriptions (Hub) | 2 d |
+| **Custom states** inside the human bands, before `started` and after `landed` (§3.3; P I4) (Hub 0.5, desktop 0.5) | 1 d |
+| **https Hub links** for every shared link: open the app when installed, a read-only Hub page when not; `panacea://` stays internal (P I10) (Hub 1, desktop 0.5) | 1.5 d |
 | Features `ft-`: branch reservation, *promote to feature*, the features board and tabs (Hub 1.5, desktop 2) | 3.5 d |
 | Cycles `cy-`: janitor rollover, cooldowns, iCal feed, the scope log, convergence per criterion (Hub 1.5, desktop 1.5) | 3 d |
 | Sub-issues, templates `tp-`, label groups, estimates, due dates, rank, move, drafts `df-` (Hub 2, desktop 1.5) | 3.5 d |
-| Views `vw-`: nested filters, `panacea://` links, ad hoc lists, favourites, set as default (Hub 1, desktop 2.5) | 3.5 d |
-| The editor (Markdown, slash menu, tables), comment UI, attachments | 2.5 d |
+| Views `vw-`: nested filters, links, ad hoc lists, favourites, set as default; *Current cycle, by state* as a saved view (Hub 1, desktop 2.5) | 3.5 d |
 | The digest (desktop and email); defer with a reason; CSV export | 1.5 d |
-| 02 D2 steps 2, 3 and 5: `chrome.dim` and one `ViewHeader`, `voice.split`, generated themes | 5 d |
+| 02 D2 step 5: `tokens.gen.ts`, `paper` and the high-contrast themes (steps 2 and 3 moved to W1) | 3 d |
 
-**W3, agents on the work (~11.5 d; ships with TM1).**
+**W3, agents on the work (~12.5 d; ships with TM1).**
 
 | Work | Size |
 |---|---|
@@ -1193,11 +1238,13 @@ or the `panacea` verb channel (W3); anything that needs the gateway (W4).
 | Guidance records, the org kill switch, our published agent rules | 1 d |
 | The read-only *ask* worker; named risk facts on lanes | 1 d |
 | The same verbs for solo mode through phase 3's runner (**UNVERIFIED** that it can host them, 04 §4.5) | 1.5 d |
+| §3.7 rule 3 (a cross-owner relation becomes a proposal from the editor's own Orchestrator) and rule 2's wind-down through the owner's Orchestrator | 1 d |
 
-**W4, roadmap, release and reporting (~22.5 d).**
+**W4, roadmap, release and reporting (~26.5 d).**
 
 | Work | Size |
 |---|---|
+| **Cross-team planning** (P I4): a feature shared with a second team through a project-scoped read-and-comment grant; initiatives that span teams (L-67, L-83). Nested sub-teams, per-object sharing and sub-initiatives stay skipped (Q12) (Hub 2.5, desktop 1.5) | 4 d |
 | Initiatives `in-`, updates `nt-` with health and a pinned brief, reminders (Hub 1.5, desktop 2) | 3.5 d |
 | Timeline: zoom, drag to reschedule, the cycle band, grouping, feature dependencies | 3 d |
 | Milestones `ml-` as named criterion subsets (Hub 0.5, desktop 1) | 1.5 d |
@@ -1207,12 +1254,12 @@ or the `panacea` verb channel (W3); anything that needs the gateway (W4).
 | Drafted updates and thread summaries as span-linked indexes; *propose issues per criterion*; *propose the next cycle* | 3 d |
 | "Since you last looked" names issues; recurring issues; triage rotation; the user-facing method page | 3 d |
 
-**W5, intake and the ecosystem (~30.5 d).**
+**W5, intake and the ecosystem (~28.5 d).**
 
 | Work | Size |
 |---|---|
 | Requests `rq-`: Entra web form, email per team, intake rules, updates to the requester | 5 d |
-| Tracker sync and import: Azure Boards, GitHub Issues and Jira one way into `triage` (4 d), then two way (3 d); Linear and CSV import (1 d) | 8 d |
+| Tracker sync and import: Azure Boards, GitHub Issues and Jira **one way in**, into `triage` as *not tied · imported* (4 d); then **two way for comments only** (2 d). Sync never writes a state, a fact or `done` (§3.3; P I3). Linear and CSV import moved to W1 | 6 d |
 | Outside PRs on both hosts: webhooks, magic words, linkbacks, branch-name start | 2.5 d |
 | A Teams app: intake, feature feeds, the Desk digest, ask **your own** Orchestrator | 3 d |
 | Public API: docs, generated TypeScript and Go clients, HMAC webhooks, app approvals, keys, rate limits | 3 d |
@@ -1241,38 +1288,53 @@ Hub tasks after task 43**, not edits to tasks in flight (04 §7).
 | | Tasks 07-08: a worktree made from an issue records it in the lane index | :116 | W1 |
 | | Task 09: land trailers per issue, the `landed` move, the `done` rule's evaluator | :32-35, :108, :135 | W1 |
 | | Task 19: lane rows name their issue. Tasks 15, 20: proposed evidence, *Record* as the person | :515-516; 3-D5, :414 | W1; W3 |
-| **Phase 7** | Task 19: the manifest lists issues from trailers. Task 17: the drawer shows them | plan :150, :606 | W1 |
+| **Phase 7** | Task 19: the manifest lists issues from trailers. Task 17: the drawer shows them | plan :150, :606 | W1b |
 | | Release notes by criterion; freeze per environment | — | W4 |
-| **Team mode (TM-05)** | `task.issueId`; two Orchestrator event kinds; three verbs; the strip line is the issue title; issue rows on the Desk; plan the Hub's new records together with W1's | TM-05 §3.3, §4.2, §5.2, §9.1, §9.3, §11.1 | W3 |
+| **Team mode (TM-05)** | `task.issueId`; two Orchestrator event kinds; three verbs; the strip line is the issue title; issue rows on the Desk; plan the Hub's new records together with W1's. **Stream F builds its Desk rows into W1 row 16's Desk frame**, not a second Desk (§5.6). If Q11 is B, W1's Hub rows review with stream B and its desktop rows run beside stream F | TM-05 §3.3, §4.2, §5.2, §9.1, §9.3, §11.1, §12.1 | W1, W3 |
 | **Phase 5** | An issue revision's `implements: [design:…]`; a design approval can close a design issue | 04 §7.7 | later (0.5 d) |
 | **Phase 6** | The per-session token carries the issue id: spend per issue and per loop | 04 §7.7 | W4 (0.5 d) |
 | **Phase 8** | A per-project environment spec with prep scripts (**UNVERIFIED** it is planned); the Hub's web forms behind the edge allowlist | — | W5 |
 | **Cockpit** | `Lens` gains `"work"` (`desktop/src/store/types.ts:173`); `isCockpitChord` extended for list keys; palette commands | `useKeyboardMap.ts`, `commands.ts` | W1 |
 | **Docs** | `FUNCTIONAL-SPEC.md` object model gains Feature and Issue; `PROGRAM.md` gains Phase W; `AGENTIC-UX.md:245` one-line amendment (if Q1 is A) | FUNCTIONAL-SPEC:5-16; PROGRAM:54-65 | W1 |
-| **02 (this folder)** | C8's replica "on disk" → in memory (§4.4), unless Q5 amends ADR-H1; `arrivals.hold` moves from `R` to `N` | 02 C7, C8 | W1 |
+| **02 (this folder)** | C8's replica "on disk" → in memory (§4.4), unless Q5 amends ADR-H1; `arrivals.hold` moves from `R` to `N`, and `N` applies every held change (D M10); `moves.hold` added beside it; the faces question reopened (Q14) | 02 C3, C7, C8 | W1 |
+| **`AGENTIC-UX.md`** | Q13's four one-line amendments, if the owner accepts them | AX:245, §10 item 1, §5 | W1 |
 
 ### 5.6 A gap this design found: the Desk has no plan
 
 `AGENTIC-UX.md` §5 makes the Desk the default landing surface, and TM-05's cockpit stream adds
 rows to it (TM-05 §9.3, §12). **No plan builds it**: a search of `docs/superpowers/plans` for it
 found nothing, and 04 found no `Desk` in `desktop/src`. W1 row 13 builds the minimum the work
-layer needs (NEEDS YOU and LANDED, answer in place, the zero state). The full Desk (all five
-sections, the horizon bar, quiet mode) needs its own slice, owned by whichever of Phase W or team
-mode goes first (Q4).
+layer needs. Revision 2 makes that minimum the **Desk frame** (W1 row 16: NEEDS YOU, FAILED,
+LANDED, RUNNING, answer in place, the zero state), so a failed worktree is never hidden behind a
+calm empty state (D C5). **There is one Desk build, not two** (P C2): TM1's stream F adds its rows
+into this frame. The horizon bar and quiet mode still need a slice; Q4 names the owner.
 
-### 5.7 Order, and where the owner can stop
+### 5.7 Order against OD-17, and the elapsed path to each stop (P C2)
 
-1. **Now:** W0, and W1's prototype (row 7), which needs no Hub code and goes to the owner first.
-2. **After Hub task 43:** W1's build on three streams (Hub; phases 3, 4, 7; desktop).
-3. **Then** W2; W3 lands with TM1; W4 once phase 6's gateway exists; W5's requests and sync can run
-   beside W4.
+OD-17 says team mode is built *"straight after the current wave, as the product's next phase"*.
+TM1 is ≈95.5 focused days on five streams, about 7 to 8 working weeks, behind a two-week TM1-α
+spike that is the first slice of its streams B, C and D1 (TM-05 §12.0-§12.1). W1 needs the same
+Hub and desktop people. Only the owner can reorder OD-17, so the order is **Q11**:
 
-| Stop after | Focused days | What the owner has |
+| Option | What happens | Cost |
 |---|---|---|
-| W1 | ~28 | the demo in §5.3: file, Start, land, prove, ship, for one person |
-| W2 + W3 | ~64 | a team plans and ships in it, and agents across owners negotiate on its issues. **Recommended first target** |
-| W1-W5 | ~117 | the matrix in §1, less its 27 skips |
-| W1 + W5's sync only | ~36 | keep Azure Boards or Jira as the plan and mirror into our issues. Cheaper, but the thread stops at the mirror |
+| **A. TM1 first, then Phase W** | OD-17 as written | the Linear-shaped work starts about 8 weeks later |
+| **B. W1 beside TM1** (recommended) | W1 runs as **two added streams** from TM1's start: its Hub rows review with stream B, its desktop rows sit beside stream F and share its Desk frame. Its demo runs in local mode; TM1's streams A and C then give it the cloud path. W2 overlaps TM1's tail; W3 follows TM1 | seven streams, not five. TM1's critical path (D1 → D2 → G, about 30 days) is untouched, but B and F gain a reviewer's load |
+| **C. W1 before TM1** | W1 first, TM1 after | delays team mode by about 5 weeks, against OD-17 |
+
+**Elapsed path to each stop, under option B** (focused days, then elapsed; none measured):
+
+| Stop after | Phase W days | Also needs, not Phase W | Elapsed, from TM1's start | What the owner has |
+|---|---|---|---|---|
+| **W1, local mode** | ~48.5 | Hub task 43; phases 3 and 4 at the named tasks; a finished brief | **~4-5 weeks** | a team's backlog, comments and the new look; Run on any row; *landed and proven* on the Desk |
+| **W1 in the cloud** | 0 more | phase 6 stream A (8.5 d), then phase 8 stream C (14.5 d), and **the owner's environment** (PROGRAM.md:64) | **~5-6 weeks** if the environment exists | the same, on managed ZDR sessions |
+| **W1b** | ~1 | phase 7 task 19 | when phase 7 lands | *shipped to production, 14:02* |
+| **W1-W3**, recommended first target | ~82.5 | **TM1 (≈95.5 d)** | **~10-12 weeks** | agents across owners negotiating on issues: the owner's "magic" |
+| **W1-W5**, "everything they are doing" | ~137.5 | TM1; phase 6 for W4's assists | **~15-18 weeks** | 188 of 257 complete (§1 tally), 22 more reached |
+| **W1 + W5's sync only** | ~55 | as W1 | ~5-6 weeks | the other tracker stays the plan; imports arrive *not tied*. Cheaper, but the thread stops at the mirror |
+
+Under option A, add about 8 weeks to every row. Under option C, W1 is ~4-5 weeks after Hub task
+43, and TM1 and the rows after it move out by the same.
 
 ---
 
