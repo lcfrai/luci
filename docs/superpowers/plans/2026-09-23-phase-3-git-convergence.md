@@ -378,7 +378,7 @@ phase 3 adapts in one file.
 |---|---|---|
 | **H-1** Credential store | `credstore.Store` — `Credential(ctx, credstore.Host) (credstore.Credential, error)`, `ErrNoCredential` (task 13) | OD-6: Windows Credential Manager, the user's own tokens, one store for ADO and GitHub. Phase 7's token joins it |
 | **H-2** Evidence store | `evidence.Store` — `Record`, `ByDigest`, `Shared()` (task 15) | OD-3: approvals-like judgements are shared from day one. Phase 3 ships a local file store with `Shared() == false`, and the UI says "recorded on this machine" until the Hub's arrives |
-| **H-3** A stable repository identity | `evidence.Record.Repo` is `githost.RepoKey` (`github.com/<owner>/<repo>` or `<org>.visualstudio.com/<project>/<repo>`), never the local `p-…` id, which is a hash of a path on one laptop (task 15) | the Hub keys shared records by repository, and two teammates' project ids never match |
+| **H-3** A stable repository identity | `evidence.Record.Repo` is `githost.RepoKey` (`"github.com/<owner>/<repo>"` or `"azure-devops/<org>/<project>/<repo>"`, lowercased, exactly as task 13's `Remote.RepoKey` defines it; `dev.azure.com/<org>` and `<org>.visualstudio.com` are one organisation and so one key), never the local `p-…` id, which is a hash of a path on one laptop (task 15) | the Hub keys shared records by repository, and two teammates' project ids never match |
 | **H-4** Who is recording | `evidence.Record.RecordedBy` is the git identity today; the Hub's signed-in principal replaces it | OD-6 |
 
 ### What phase 3 asks of phase 4 (Discover and `provenance`)

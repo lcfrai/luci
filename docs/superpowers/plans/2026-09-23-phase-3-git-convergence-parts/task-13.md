@@ -204,7 +204,7 @@ timer fetch of an HTTPS remote uses the stored token too (a private repository n
 | `TestGitHelperOnlyEverRunsFill` | Script runner: the argv is exactly `credential fill` | approving or rejecting the user's credentials |
 | `TestGitHelperSchemes` | GitHub → Bearer; ADO JWT-shaped → Bearer; ADO other → BasicPAT | an ADO PAT sent as a bearer token |
 | `TestParseRemoteTable` | every form in `ParseRemote`'s comment → the right fields; this programme's own two remotes exactly; `https://gitlab.com/a/b` and GHES → `ErrUnknownHost` | a remote misfiled as the other host |
-| `TestRepoKeyIsMachineIndependent` | the HTTPS and SSH URLs of one repo → one RepoKey; case differences → one | two teammates' records never meeting in the Hub |
+| `TestRepoKeyIsMachineIndependent` | the HTTPS and SSH URLs of one repo → one RepoKey; case differences → one; `https://dev.azure.com/o/p/_git/r`, `https://o.visualstudio.com/p/_git/r`, `https://o.visualstudio.com/DefaultCollection/p/_git/r` and both ADO SSH forms → exactly `azure-devops/o/p/r` | two teammates' records never meeting in the Hub; one ADO organisation keyed two ways (plan H-3) |
 | `TestGitAuthHeaderPerHost` | the three header forms byte for byte | a header the host rejects |
 | `TestPushEnvScopesTheHeaderToTheHost` | the key is `http.https://github.com/.extraHeader`, not `http.extraHeader` | a token sent to every host git talks to |
 | `TestPushWithAStoredTokenSendsTheHeader` | an `httptest` smart-HTTP server records `Authorization` and answers 401; push with `PushEnv` → the recorded header equals `GitAuthHeader`; the returned error contains no token | the header never reaching git |
