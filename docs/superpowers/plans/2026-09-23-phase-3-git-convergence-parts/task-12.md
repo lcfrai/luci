@@ -56,9 +56,10 @@ type Fetcher struct {
 	AuthFor  func(ctx context.Context, projectPath string) Auth
 	Interval time.Duration // PANACEA_APP_FETCH_INTERVAL; default 10m; 0 disables the timer; minimum 1m otherwise
 	// AfterFetch runs after a fetch succeeds, still inside its Locks.Lock (review I5). main.go
-	// sets it to task 09's Lander.RefreshProject, which copies each branch's
-	// <branch>@{upstream} into every clone as refs/remotes/upstream/<branch> — a func, because
-	// converge imports remote and remote cannot import converge. nil skips it. Its failures
+	// sets it to task 09's Lander.RefreshProject, which sends one bundle per branch into each
+	// lane's runner (task 09's RefreshClones, task 24), so no host git runs in a clone (R4.5)
+	// — a func, because converge imports remote and remote cannot import converge. nil skips
+	// it. Its failures
 	// are logged by it and never fail the fetch.
 	AfterFetch func(ctx context.Context, projectPath, projectID string)
 	Log        *slog.Logger
