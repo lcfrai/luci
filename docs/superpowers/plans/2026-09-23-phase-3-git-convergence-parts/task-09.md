@@ -101,7 +101,8 @@ type Lander struct {
 // 14. l.RefreshClones(ctx, ProjectPath, Branch) → Refreshed, RefreshErrors (below). Each
 //     failure goes to RefreshErrors, never fails the land (plan decision 3)
 // Hardened per task-02 §HGH: steps 6-12 run with Scope Project (a refusal there is
-// project_config_untrusted, before any ref moves), step 14 with Scope Clone, and no hook runs (H4).
+// project_config_untrusted, before any ref moves); step 14 is RefreshClones, whose one rev-parse
+// runs with Scope Project and whose per-clone fetches run with Scope Clone; no hook runs (H4).
 func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 
 // RefreshClones tells every clone of the branch what the project holds. It is the ONE origin
@@ -200,16 +201,21 @@ type BringInResult struct {
 //       update-ref -m "panacea: bring in <up>" refs/heads/<branch> upTip old
 //     else Mode "merge": Identity(ProjectPath) (no_git_identity);
 //       MergeTreeArgs + old upTip, OKExit 1 → ParseMergeTree (merge_conflict,
-//       details.paths = detailList — resolved in a lane that merges upstream/<branch>);
-//       msg = gitx.Message("Bring in origin/<branch>", "The commits origin/<branch> has and
-//             <branch> lacked, as of the last fetch.", no trailers);
+//       details.paths = detailList — resolved in a lane that merges origin/<branch>, then
+//       upstream/<branch>, so it holds both sides whatever its age; task 19's prompt);
+//       name = up without "refs/remotes/", e.g. "origin/evidence-upload" (never a literal origin);
+//       msg = gitx.Message("Bring in <name>", "The commits <name> has and <branch> lacked,
+//             as of the last fetch.", [Panacea-Bring-In: <name>]);
 //       merge = commit-tree <tree> -p old -p upTip -F -; update-ref … refs/heads/<branch> merge old
 //     A refused update-ref is Land's step 12: branch_moved, else git_failed.
 //  7. l.RefreshClones(ctx, ProjectPath, Branch)
 // A fast-forward is right here and wrong for a land (3-D4): no lane's work is recorded, and the
-// result is exactly origin/<branch>, neither ahead nor behind. No ready flag moves and no
-// Panacea-Land trailer is written, so undo and revert refuse it as not_a_land (task 10).
-// Hardened per task-02 §HGH: 1-6 Scope Project, 7 Scope Clone, no hook or merge driver runs.
+// result is exactly <name>, neither ahead nor behind. No ready flag moves and no
+// Panacea-Land trailer is written, so undo and revert refuse it as not_a_land (task 10). A merge
+// carries Panacea-Bring-In instead, so task 10's history files it as "bring-in", not "direct"
+// (re-review b05 issue 5): the cockpit made that commit, not someone outside it.
+// Hardened per task-02 §HGH: 1-6 Scope Project; 7 is RefreshClones, whose one rev-parse runs
+// with Scope Project and whose fetches run with Scope Clone; no hook or merge driver runs.
 func (l *Lander) BringIn(ctx context.Context, req BringInRequest) (BringInResult, error)
 ```
 
@@ -248,7 +254,7 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestRefreshWithoutAnUpstreamStillRefreshesOrigin` | no upstream configured → clone B's `origin/<b>` refreshed, no `upstream/<b>`, no RefreshError; then unset the upstream after one refresh → the next refresh deletes B's `upstream/<b>` | a fetch of a missing source ref (exit 128) failing every refresh of a never-pushed branch |
 | `TestRefreshProjectTakesNoLock` | called while the test holds `Locks.Lock(ctx, p)` → returns (a deadlock fails the test's 5 s deadline) | AfterFetch deadlocking inside Fetch |
 | `TestBringInFastForwardsWhenOnlyBehind` | branch 0 ahead, 2 behind → `Mode "fast-forward"`, tip == the upstream tip, no new commit object | a needless merge commit that makes the branch ahead of origin |
-| `TestBringInMergesWhenDiverged` | 1 ahead, 1 behind → `Mode "merge"`, parents `[old, upTip]`, no `Panacea-Land` trailer; undo of it → `undo_not_exact/not_a_land` | a bring-in undo treats as a land |
+| `TestBringInMergesWhenDiverged` | 1 ahead, 1 behind → `Mode "merge"`, parents `[old, upTip]`, no `Panacea-Land` trailer, `%(trailers)` reads `Panacea-Bring-In: origin/<b>` (re-review b05 issue 5); undo of it → `undo_not_exact/not_a_land` | a bring-in undo treats as a land |
 | `TestBringInConflictWritesNothing` | the teammate and the branch edit one line of `docs/résumé.md` → `merge_conflict`, `json.Unmarshal(details.paths) == ["docs/résumé.md"]`, tip unchanged, no ref moved | a conflicted product branch (A2) |
 | `TestBringInRefusesAMovedUpstream` | a fetch moves the upstream after the GET → `upstream_moved`, `details.upstream` the new sha, tip unchanged | bringing in commits the human never saw forecast |
 | `TestBringInRefusals` | table: checked out → `branch_checked_out`; no upstream → `no_remote`; upstream an ancestor → `nothing_to_land`; stale `expectedTip` → `branch_moved` | a refusal that surfaces as 500 |

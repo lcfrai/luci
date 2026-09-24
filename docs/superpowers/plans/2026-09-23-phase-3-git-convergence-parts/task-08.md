@@ -104,8 +104,11 @@ type Convergence struct {
 	Tip          string       `json:"tip"`          // refs/heads/<branch>; a land names it as expectedTip
 	CheckedOutAt string       `json:"checkedOutAt"` // "" or the checkout's path; landing is off when set
 	Remote       remote.State `json:"remote"`
-	// BringIn is the "Bring in origin/<branch>" row (review I5); nil (JSON null) unless
-	// Remote.Behind > 0. It stands above the queue and outside it.
+	// BringIn is the "Bring in <Remote.Upstream>" row (review I5); nil (JSON null) unless
+	// Remote.Behind > 0 AND `rev-parse --symbolic-full-name <branch>@{upstream}` (Scope Project)
+	// is under refs/remotes/ — the rule task 09's BringIn step 2 refuses by, so the row never
+	// offers a button the verb refuses (re-review b05 issue 6: a local upstream such as
+	// `git branch -u main` has Behind > 0 and no bring-in). It stands above the queue and outside it.
 	BringIn *BringIn     `json:"bringIn"`
 	Queue   []QueueEntry `json:"queue"` // ready lanes: stored order first, then unordered ready lanes by CreatedAt
 	Lanes   []LaneView   `json:"lanes"` // every cockpit worktree of the branch, CreatedAt order
@@ -121,7 +124,7 @@ type Convergence struct {
 // human's choice, and the next GET recomputes every row (the cache is keyed by the tip).
 // FastForward is Remote.Ahead == 0: the bring-in will move the tip to Tip, making no commit.
 type BringIn struct {
-	Upstream    string   `json:"upstream"` // Remote.Upstream, e.g. "origin/evidence-upload"
+	Upstream    string   `json:"upstream"` // Remote.Upstream, e.g. "origin/evidence-upload"; the row's label, never a literal "origin"
 	Tip         string   `json:"tip"`
 	Behind      int      `json:"behind"` // Remote.Behind, repeated so the row needs nothing else
 	FastForward bool     `json:"fastForward"`
@@ -227,6 +230,7 @@ changes."* The PUT is a write and needs no line.
 | `TestForecastSecondConflictsWithTheFirst` | a and b edit the same line → a clean, b conflicts, `Paths == [f]`, `ConflictsWith == [a]` | "conflicts" without the row that causes it |
 | `TestReadOffersABringInWhenBehind` (review I5) | a bare "remote", a teammate's push, the project fetched → `bringIn.upstream == "origin/<b>"`, `behind == 1`, `fastForward == true`, forecast `clean`; the queue's rows are unchanged by it; `behind == 0` → `bringIn == null` | a diverged branch the lens cannot fix |
 | `TestReadBringInConflictsWithTheBranch` | the branch and the teammate edit one line → `bringIn.forecast.state == "conflicts"`, `paths` that file, `conflictsWith == []`, `fastForward == false` | a bring-in button that promises a clean merge |
+| `TestReadOffersNoBringInForALocalUpstream` (re-review b05 issue 6) | `git branch -u main feature` in the project, `main` one commit ahead of `feature` → `remote.behind == 1` and `bringIn == null` | a row whose button task 09 refuses as `no_remote` every time |
 | `TestForecastBlamesTheRowAboveForANonASCIIPath` (review I2) | the same as above with `f` = `docs/résumé.md` → `Paths == ["docs/résumé.md"]` (raw UTF-8) and `ConflictsWith == [a]`, not `[]` | `merge-tree` without `-z`: the quoted path meets no `Changed`, and the lens blames the branch itself |
 | `TestForecastConflictWithTheBranchItself` | the branch and lane edit the same line → conflicts, `ConflictsWith == []` | blaming a row above for the branch's own change |
 | `TestForecastAConflictDoesNotAdvanceTheBase` | a conflicts, b depends only on the tip → b clean with `After == []` | rows below assuming a conflicting row landed |
