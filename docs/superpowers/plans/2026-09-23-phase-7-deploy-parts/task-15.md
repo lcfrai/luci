@@ -84,7 +84,7 @@ b02, C2). Five states, checked in this order:
   request that was never made.
 - `selected.error` set → *"Panacea did not name this branch's environment: `<error.message>`"* —
   Panacea's refusal, verbatim (task 03 rewrites the router's `404 page not found` on this route to
-  the `/` sentence). The watcher retries it every fourth cycle (task 07, `BranchEnvErrs`); the
+  the `/` sentence). The watcher retries it at the branch's recheck, once a minute (task 07, `BranchEnvErrs`); the
   cursor bump re-renders; no timer here (b02 round 2, R2).
 - `selected.target == null` → the card's empty state reads *"Asking Panacea which environment
   this branch deploys to."* (the watcher resolves it on its next cycle, and the cursor bump

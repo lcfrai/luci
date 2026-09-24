@@ -375,5 +375,5 @@ grep -cE '^type [a-z][A-Za-z]*DTO(\[T any\])? struct' control-plane/internal/dep
   `b02424691`, plan §2). Task
   20 fetches each route once with the owner's token (OD-12) and diffs the keys.
 - That `GET /api/v1/projects` returns `repoUrl` to a non-admin token (plan §12). If it does not,
-  task 06's fallback applies.
+  task 06's `NoRepoInfo` state applies (the user chooses from every project, t06:154; no by-name fallback, M15).
 - Acts. Task 04.

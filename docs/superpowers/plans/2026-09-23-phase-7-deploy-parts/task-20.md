@@ -142,7 +142,7 @@ func TestLiveWhoamiAndProjects(t *testing.T) {
 		}
 		// Plan §12: does GET /api/v1/projects return repoUrl to a non-admin token?
 		if p.RepoURL == "" {
-			t.Errorf("repoUrl is empty for %s: part 06's fallback (the user names the project) applies", ref)
+			t.Errorf("repoUrl is empty for %s: task 06's NoRepoInfo state applies (the user chooses from every project, t06:154)", ref)
 			return
 		}
 		// Task 06: Panacea normalises clone URLs; phase 3's parser must accept the result.

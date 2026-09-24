@@ -247,7 +247,7 @@ it after the act, not before.
 
 **7P-5 — Panacea is polled by the control plane, and the desktop learns of changes through a
 cursor header.** §2. The watcher's rates are configuration (`PANACEA_APP_DEPLOY_POLL_INTERVAL`,
-`…_ACTIVE_POLL_INTERVAL`). `GET …/deployments` is **not** polled each cycle: it is unpaginated and
+`…_ACTIVE_POLL_INTERVAL`). `GET …/deployments` is **not** read in each poll (task 07 *Terms*): it is unpaginated and
 runs three enrichment passes including *"a dozen PipelineRun reads"* (`projects.go:1227-1253`), so
 the watcher reads it only when `deploys/latest` or `environments` changed, and at most once a
 minute otherwise. *Cost if wrong:* rates are variables.
@@ -517,8 +517,8 @@ silently ignored (`config.go:69-70`).
 | `PANACEA_APP_PANACEA_URL` | *(none)* | Panacea's **origin**, e.g. `https://dev.panacea.kpmg`. A value with a path, a query or a non-`https` scheme exits at start (7P-11). Unset: the connect form asks | 05 |
 | `PANACEA_APP_PANACEA_CA_FILE` | *(none)* | a PEM bundle **added** to the system roots (7P-10). An unreadable file exits at start | 02, 05 |
 | `PANACEA_APP_PANACEA_TIMEOUT` | `15s` | per-attempt timeout on every Panacea call. `POST …/deploy` itself waits up to 15 s inside Panacea (`projects.go:2985`), so the default is not lower | 02 |
-| `PANACEA_APP_DEPLOY_POLL_INTERVAL` | `15s` | the watcher's cycle for every bound project | 07 |
-| `PANACEA_APP_DEPLOY_ACTIVE_POLL_INTERVAL` | `3s` | the cycle for a project with a run this user shipped that is not terminal | 07 |
+| `PANACEA_APP_DEPLOY_POLL_INTERVAL` | `15s` | how often each bound project is **polled** (task 07 *Terms*); its recheck (binding, `Connection.Check`, wanted branches) is 4 × this, measured in time | 07 |
+| `PANACEA_APP_DEPLOY_ACTIVE_POLL_INTERVAL` | `3s` | the watcher's tick (one **cycle**, task 07 *Terms*), and the poll interval for a project with a run this user shipped that is not terminal | 07 |
 | `PANACEA_APP_DEPLOY_HISTORY_INTERVAL` | `60s` | the most often `GET …/deployments` is read when nothing else changed (7P-5) | 07 |
 | `PANACEA_APP_DEPLOY_CYCLE_DEADLINE` | `30s` | one watcher cycle's budget — every project's reads together (review M14). Unset: `PANACEA_APP_PANACEA_TIMEOUT` + `PANACEA_APP_DEPLOY_POLL_INTERVAL`. A value below `PANACEA_APP_PANACEA_TIMEOUT` + `PANACEA_APP_DEPLOY_ACTIVE_POLL_INTERVAL` exits at start. A read begins only with one whole attempt left, so a read that fails is Panacea's failure; running out of budget is a **budget stop**, which stales nothing (plan re-review b09-1, I-1; task 07 "The cycle budget") | 07 |
 
@@ -871,7 +871,7 @@ recorded Panacea bodies.
   the spelling `access.go` produces (`middleware/rbac.go:219`).
 - **Whether `GET /api/v1/projects` returns `repoUrl` to a non-admin token.** The `List` handler
   (`projects.go:746-866`) was read for its envelope, not for per-field redaction. If it omits the
-  field, part 06's fallback applies (the user names the project once).
+  field, task 06's `NoRepoInfo` state applies: the user chooses once from every Panacea project the token can list (t06:154); there is no by-name fallback (M15).
 - **That no rollback row appears anywhere in Panacea.** Read from the handler, the client and every
   `Trigger` assignment (7P-4); not observed live.
 - **Rate limiting.** `panacea-api` applies `middleware.RateLimit` to one route only
