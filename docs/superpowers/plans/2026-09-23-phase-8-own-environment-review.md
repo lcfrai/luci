@@ -1084,3 +1084,37 @@ tests were written:
 - I7, found while writing: the `^GIT_` prefix mutant survives `TestGitRefusesGITDIRInEnv`, because H5 refuses `GIT_DIR` as well. It is checked against the allowlist rows that phase 3 does not refuse (`parts/task-21.md:204-208`).
 - I6: a missing label read as "ours", which the unlabelled row kills.
 - I6: a create without `O_EXCL`, which the 8-goroutine test kills, run with `-count=20`.
+
+## Fix batch b06, round 2 (2026-09-24) — the re-review's seven issues
+
+Re-review: `.superpowers/sdd/env/plan-rereview-b06-1.md` (local). Commits `ddbc29d` (issue 3),
+`ec2f5d2` (issues 2, 6), `8eb6a24` (issue 1), `b5ff08e` (issues 4, 5, 7), and this section's
+commit. Line numbers are at this section's commit. Phase 3 read at the sibling worktree's
+`e816a59`. No issue is deferred, and none needs an owner decision.
+
+| # | Issue | Change | Where |
+|---|---|---|---|
+| 1 | cloud sessions lack H5's read-only `.git/config`, so an agent can race H3 | Phase 3 builds that half of H5 only in its Docker `sessionMounts`. Task 20's `WorktreePath` now names `GitConfig`, read with `Lstat`: a regular file inside a `.git` directory. A `config` that is missing or a symlink is `409 git_config_not_a_file`, because a missing `subPath` is created as a directory and a symlinked one binds its target. Task 24 adds a third `MachineMount`, `{gitConfig → /home/dev/work/.git/config, ReadOnly: true}`, listed after the worktree mount. Task 21 item 1 restates both halves of H5. Stated as UNVERIFIED: that Kata enforces a read-only `subPath` file mount (task 33 carries it as a `NOT RUN` live check), and whether renaming `.git` gets around the bind. Stated as safe: `machined`'s own config writes replace the inode, so the running session sees stale config | `parts/task-20.md:59-72`, `:89`, `:111`; `parts/task-24.md:90-96`, `:108-111`, `:115-127`, `:169-170`, `:200-212`; `parts/task-21.md:112-121`; `parts/task-33.md:65`, `:78-80`; plan `:286`, `:558` |
+| 2 | "any other `clone` is `400`" refuses phase 3's lane create | There are now two `clone` shapes, one per scope. The `none` one is the add-project clone. The `project` one is phase 3's `cloneArgv` (phase-3 `task-03.md:157-160`, `:179-181`, `:286`), and it needs `Class: "local"`, an empty `Env`, and a source equal to `/machine/<Dir>`. Its options are a closed list: `--no-hardlinks`, `--origin origin`, `--branch`, and `--config` with the four Clone-allowlist keys only, because a clone's `--config` is in force during its own checkout, before H3 first reads the clone. Its destination must be two elements under `lanes/`, must not exist yet, and has symlinks resolved. Tests: `TestGitLaneCreateCloneIsAdmitted` (phase 3's exact argv) and `TestGitCloneOutsideItsTwoShapesIsRefused` (destinations in `projects/`, `/tmp/machined-git`, one element, `..`; `filter.x.smudge`; `--template`; `--separate-git-dir`). Seam S8-P3.3 pins `cloneArgv` | `parts/task-21.md:87`, `:140-161`, `:222-224`, `:251-252`; `parts/task-33.md:23`; plan `:550` |
+| 3 | the `Env` allowlist refuses phase 3's commit identity | The allowlist is now **derived** from phase 3's `Call.Env` call sites at `e816a59`: task 08's forecast, task 09's land and sync merges, task 10's revert, and task 12/13's `PushEnv`. Exec's own headless defaults stay inside `machined`. The six `GIT_AUTHOR_*`/`GIT_COMMITTER_*` keys are admitted, and any value is accepted except one containing a NUL or a newline. Tests: an admitted row in `TestGitEnvIsAnExplicitAllowlist` (the forecast's values) plus a newline refusal, and `TestGitCommitTreeTakesTheCallersIdentity` (a deterministic id). Task 33's new seam S8-P3.3 states that a new phase 3 `Env` key needs a task 21 row first | `parts/task-21.md:162-191`, `:238-239`; `parts/task-33.md:23` |
+| 4 | the mutant "install-id check on the local backend too" survives phase 2's test | Phase 2's test builds its reaper with `InstallID ""` (`reaper_test.go:428`, verified), so `"" == ""` spares nothing and that test stays green. The new `TestTheLocalSweepIgnoresTheInstallID` configures a broker, sets `InstallID`, and checks that an unlabelled Docker orphan is destroyed. Step 3a now names it as the kill | `parts/task-23.md:218-226`, `:241-245` |
+| 5 | a missing `install-id` beside a live registry is re-minted silently | The signature is now `InstallID(dir, mustExist)`, and `main` opens the registry first. With any cloud record present, a missing file is `ErrInstallIDLost`: it names the file and creates nothing. The message names both ways out, and states that the sandboxes left behind need task 18's owner-wide list plus `DELETE` (the seam behind the owner question above). Tests: `TestAMissingInstallIDBesideCloudSessionsIsAnError` and `TestALostInstallIDStopsTheStart`, plus two mutants | `parts/task-23.md:77-92`, `:151-154`, `:192`, `:231-232`, `:246-250` |
+| 6 | `Dir: ""` means two roots | The wire comment now says `""` maps to `<OwnedRoot>/clone` (`/tmp/machined-git/clone`) and never to `/machine`. It is admitted only with `Scope: "none"`. A subdirectory avoids depending on whether phase 3's "a `Dir` under `OwnedRoot`" (phase-3 `task-02.md:452`) admits the root itself, and it follows `GitHelper`'s `<OwnedRoot>/credential` (phase-3 `task-13.md:108`). Task 25's `Remote` sends `""` for `Scope None` only (`TestRemoteSendsAnEmptyDirOnlyForScopeNone`). `TestGitAddProjectCloneHasOneShape` asserts the cwd, and `TestGitScopeMustFollowDir` gains `Dir: ""` with `"project"` | `parts/task-21.md:31-35`, `:126-138`, `:215-216`, `:246`, `:250`; `parts/task-25.md:54-59`, `:98` |
+| 7 | the acceptance count is read through a pipe | `go test` output goes to a file and the exit code is echoed; the count is taken from the file afterwards. There are now 23 `TestGit` rows (verified with `grep -c`), not 20. Mutants (9)-(14) cover this round's changes | `parts/task-21.md:276-285`, `:294-296` |
+
+**Restatements checked:** `20 TestGit` appears nowhere else. "Two `MachineMounts`" survives only in
+`TestCloudCreateSendsMachineMountsNeverHostMounts`, now scoped to a worktree with no
+`gitConfig`. The plan's rows 21 and 24 and P3A-3 were updated. `InstallID`'s other citations
+(`task-18.md:58-59`, `task-22.md:86-87`) name the function without its arguments, so they still
+hold.
+
+**Likeliest survivors, named beforehand:**
+- Mutant (13) in task 21, an open `--config`. Only a clone-time filter row kills it, because H3
+  refuses the same key on the clone's next call.
+- The `mustExist` computed from `"local"` records only. Only the start test, which uses a real
+  `m-…` record, kills it.
+
+**Still UNVERIFIED (new this round):**
+- A Kata `subPath` file mount's read-only behaviour, and renaming `.git` around the bind.
+- containerd mounting a parent before a nested mount (task 24, step 3).
+- Kubernetes making a missing `subPath` into a directory (task 20).

@@ -64,7 +64,8 @@ type Worktrees struct {
 // /home/dev/work/.git/config (phase 3 §HGH H5, review I7). A .git directory
 // whose config is missing or is not a regular file is 409 conflict with
 // details.reason "git_config_not_a_file": a Kubernetes subPath that does not
-// exist is created as a directory, and one that is a symlink binds its target.
+// exist is created as a directory, and one that is a symlink binds its target
+// (Kubernetes' documented behaviour, UNVERIFIED here: nothing runs on a cluster).
 type WorktreePath struct {
 	MachinePath string `json:"machinePath"`
 	GitConfig   string `json:"gitConfig,omitempty"`
