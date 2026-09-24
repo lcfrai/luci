@@ -47,7 +47,7 @@ const (
 // never edited or deleted by phase 3 (retention is contract Q5).
 type Record struct {
 	ID              string    `json:"id"`              // "ev-" + 12 hex, minted by the store
-	Repo            string    `json:"repo"`            // githost.Remote.RepoKey(), else "local:<projectId>" (Hub ask H-3)
+	Repo            string    `json:"repo"`            // githost.Remote.RepoKey(), else "local:<projectId>" (Hub ask H-3); a local: repo always gets the FileStore, never a Shared() store
 	ProjectID       string    `json:"projectId"`       // this machine's id; lookups on this machine only
 	BriefKey        string    `json:"briefKey"`        // verbatim; never parsed (P5)
 	CriterionID     string    `json:"criterionId"`
@@ -133,6 +133,7 @@ type Evaluator struct {
 //   128 means the repository lacks the object, and the answer is "no".
 //   per digest: drop retired records, then keep reachable records not a proper ancestor of
 //   another kept record's commit; none kept and none retired → open, because [];
+//   A retired record carries one sentence: (a)'s when (a) holds for any pair, else (b)'s.
 //   none kept, some retired → open, because the retired records' sentences, deduplicated, (a)'s
 //   first; Evidence/RecordedAgainst/Commits naming the retired records; one verdict → that
 //   verdict; both verdicts → contested.
@@ -215,7 +216,7 @@ Writes nothing."*
 | `TestStatesUnknownCommitIsUnreachable` | a record whose commit the repository lacks → open, no error | a 500 for a teammate's unfetched commit |
 | `TestStatesARevertedLandUnsettles` (review I9) | real git: lane commit L1 records settled; land M (parents `[T, L1]`); a revert R of M built the way task 10 builds one (`commit-tree` of M^1's tree, one parent M, message from `gitx.Message` carrying `Panacea-Reverts: <M>`), so task 15 keeps its dependencies 07 and 09 and imports nothing from task 10; subject R → `open`, `because` exactly `["the land that carried this evidence was reverted"]`, `evidence` the L1 record; subject M (before R) → settled | a revert that keeps its land's commits as ancestors reading as done (contract §2.3, S3-P7.5) |
 | `TestStatesARevertRestoresTheOlderVerdict` | the lane cloned at T (the tip before M), so T is an ancestor of L1; contested recorded at T, settled at L1, M then R; subject R → `contested`, T's because | retiring after pruning, so the older record stays hidden behind a retired one |
-| `TestStatesARecordAtTheLandItselfIsRetired` | settled recorded at M, then R; subject R → open with the revert because | the range taken as `M^1..M^2`, missing a record made at the merge |
+| `TestStatesARecordAtTheLandItselfIsRetired` | settled recorded at M, then R; subject R → open, `because` exactly `["the land that carried this evidence was reverted"]` (M satisfies (b) too; (a) wins) | the range taken as `M^1..M^2`, missing a record made at the merge |
 | `TestStatesARevertOffTheFirstParentLineCounts` | lane B merges the branch after R (R on B's second-parent side); subject B's head → open | a first-parent walk leaving the Develop chip settled |
 | `TestStatesARevertOfAnotherLandRetiresNothing` | A lands first, then B; R reverts B only; settled at A's lane commit (not a descendant of `M_B`); subject R → settled | a revert unsettling every land on the branch |
 | `TestStatesARecordOnATreeThatHeldTheRevertedLandIsRetired` (re-review b07-1 issue 4) | land B, then land A; settled recorded at `M_A`; R reverts B; subject R → open, `because` exactly `["this evidence was recorded on a tree that held a land since reverted"]`; a second settled recorded at R's child → settled | a branch-head record that saw B's code reading settled after B is gone; a record made after the revert retired too |
@@ -247,7 +248,9 @@ go test ./control-plane/internal/evidence/ ./control-plane/internal/converge/ ./
 - **Evidence recording is live only when phase 4 provides a resolver** (gate G3). Until then the
   POST answers `brief_unresolvable`/`no_resolver`, correctly: there is no brief to judge against.
 - Local records are one machine's. The Hub's store (H-2) makes them shared; no migration of local
-  records is built (Q2).
+  records is built (Q2). A project with no recognised remote keys its records `local:<projectId>`
+  and keeps them on this machine even once the Hub's store exists (plan H-3): the key is a hash
+  of a path on one laptop and must never key a shared record.
 - Agent-proposed and test-linked evidence (3-D5 b and c) are later phases.
 - `recordedBy` is a git identity, which the user can set to anything; the Hub's signed-in
   principal replaces it (H-4).
@@ -257,7 +260,7 @@ go test ./control-plane/internal/evidence/ ./control-plane/internal/converge/ ./
   cheaper reading, retiring only `M^1..M`, would leave a branch-head record that judged B's code
   reading settled after B is gone, the false done I9 names, and phase 7 would carry it into a
   release. A human clears an over-retired criterion by recording again after the revert. Which
-  reading ships is an owner question (Q-table); rule (b) is one predicate, tested on its own.
+  reading ships is an owner question (plan Q12); rule (b) is one predicate, tested on its own.
 - **A forged `Panacea-Reverts` trailer that names a real land reopens that land's evidence**, as
   a real revert would. It can make criteria read open, never settled, and never an error.
 - **The cost is unmeasured.** The cache bounds repeat polls; the first walk after a tip moves is
