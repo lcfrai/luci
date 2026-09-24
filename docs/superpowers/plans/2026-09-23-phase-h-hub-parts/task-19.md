@@ -59,7 +59,7 @@ skips a revision whose content is null (task 34's `VerifyRevision`). A co-batche
 not erased replays whole. A row that is not found, or a stored form that does not decode, is 500 `internal`,
 never the stored bytes: revisions are never deleted, so that is corruption.
 
-Why rebuilt and not purged: `hub.erase_brief` then deletes no stored response (task 07). A purge
+Why rebuilt and not purged: `hub.erase_brief` then deletes no stored response (task 07b). A purge
 also deleted the replays of every text-free response that names the brief (approvals, evidence,
 reserves, abandons, co-batched briefs, the erase itself), and their retries became second writes
 or refusals of a success.

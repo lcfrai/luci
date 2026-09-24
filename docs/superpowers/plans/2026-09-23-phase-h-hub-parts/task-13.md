@@ -1,6 +1,6 @@
 ### Task 13: the Hub's auth pipeline — rate limits, token validation, org enrolment, principal resolution (correction A7)
 
-**Lane A. Depends on: 07, 08, 10. About 3 hours. Contract tasks H1/H2.**
+**Lane A. Depends on: 07b (`ensure_org`, `resolve_principal`), 08, 10. About 3 hours. Contract tasks H1/H2.**
 
 Contract §5.1 is the order every `/v1` request passes through. Steps 1–4 need no database and live
 in one middleware here; steps 5–6 (`resolve_principal`, then `set_config('hub.org_id', …)`) are

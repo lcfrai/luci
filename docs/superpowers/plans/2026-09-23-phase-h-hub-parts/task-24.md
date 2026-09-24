@@ -55,7 +55,7 @@ release row locked `FOR UPDATE` first:
 
 | Release's environment | Join names | Result |
 |---|---|---|
-| `null` | a value | `UPDATE releases SET environment` (task 07's guard allows exactly this, once, while `confirmed`); then the join |
+| `null` | a value | `UPDATE releases SET environment` (task 07b's guard allows exactly this, once, while `confirmed`); then the join |
 | `null` | none | the join; the environment stays `null` |
 | a value | the same value, or none | the join; no `UPDATE` |
 | a value | a **different** value | 409 `conflict`, `details.field=environment`, `details.environment` = the recorded one; **nothing joined** |

@@ -27,7 +27,7 @@ project answers 422 `repo_not_linked`, and phase 3 keeps its local file store fo
 
 `201 hubapi.EvidenceRecord` with `projectId` and `recordedBy` = the principal; `repo_key` stored
 **verbatim**, so a record survives the remote's later removal (§7.4). Append-only: no edit, no
-delete (the database's `forbid_change`, task 07). `Emit evidence.recorded
+delete (the database's `forbid_change`, task 07b). `Emit evidence.recorded
 {"briefKey","criterionId","verdict","commit"}` — never `because` (§8).
 
 **Route 42 — `GET /v1/evidence?repo=<repoKey>&digest=<d1>&digest=<d2>…`** — phase 3's `ByDigest`.

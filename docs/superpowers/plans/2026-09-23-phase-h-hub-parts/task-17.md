@@ -1,6 +1,6 @@
 ### Task 17: projects and their git remotes — routes 13–18 (correction A1)
 
-**Lane A. Depends on: 16. About 2.5 hours. Contract task H3.**
+**Lane A. Depends on: 16b. About 2.5 hours. Contract task H3.**
 
 A Hub project is keyed to its git remotes on **both** hosts (`OD-4`), because a local project id
 is a hash of a path on one laptop and two teammates' ids never match (ADR-H1 §1.5). The control
@@ -35,14 +35,14 @@ the Azure DevOps key form is phase 3's `azure-devops/<org>/<project>/<repo>`, va
 - **No project deletion** in v1 (provenance contract P13): `DELETE /v1/projects/{projectId}` is 405
   `method_not_allowed` (the chassis's rule, task 08).
 - **The same repository in two orgs** is two projects: the unique index is `(org_id, repo_key)`
-  (task 07). Each org is a separate Entra tenant.
+  (task 07a). Each org is a separate Entra tenant.
 
 ```go
 // control-plane/internal/hub/server/authz.go — filled in by this task.
 
 // ProjectRole returns the caller's role in the team that owns projectID; ok=false
 // when the caller cannot read it (not a member, another org, or no such project —
-// indistinguishable, all 404 project_not_found). With task 16's disableGoAuthz on
+// indistinguishable, all 404 project_not_found). With task 16b's disableGoAuthz on
 // it still reads the project row under row-level security (invisible: ok=false),
 // and answers admin for a visible one without the membership query (review I5).
 func ProjectRole(ctx context.Context, tx *Tx, projectID string) (role hubapi.Role, teamID string, ok bool, err error)

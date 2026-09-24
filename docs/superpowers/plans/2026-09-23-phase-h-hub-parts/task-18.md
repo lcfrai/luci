@@ -33,7 +33,7 @@ Revisions are task 19; this task is the heads and the reads phase 4's `API.resol
   ref it was written under.
 - **Archive after branch deletion** (provenance P13) touches no revision, and there is no
   un-archive in v1.
-- **Uniqueness** is the database's (`briefs_live_project`, `briefs_live_branch`, task 07): the
+- **Uniqueness** is the database's (`briefs_live_project`, `briefs_live_branch`, task 07a): the
   handler turns the unique violation into 409 `brief_exists`, reading the live brief's id in the
   same transaction for `details.briefId`.
 

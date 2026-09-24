@@ -1,6 +1,6 @@
 ### Task 08: `cmd/hub` — config, `serve`, `migrate`, `verify`; the server chassis; the database pool
 
-**Lane A. Depends on: 01, 06 (and 07 for `migrate.Embedded`). About 3 hours. Contract task H0.**
+**Lane A. Depends on: 01, 06 (and 07a for `migrate.Embedded`, merged with 07b: the two merge together). About 3 hours. Contract task H0.**
 
 The binary phase 8's chart runs (`["/hub", "serve"]`, `["/hub", "migrate"]`, phase 8 task 27 `:23`),
 with every variable of contract §12.2 read in **one** block, the health routes of §12.4, graceful

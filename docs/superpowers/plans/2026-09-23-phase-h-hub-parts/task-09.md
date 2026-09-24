@@ -1,6 +1,6 @@
 ### Task 09: the local stack — Postgres in Docker, the Hub and `devissuer` on the host (correction A2); the import boundary test
 
-**Lane B. Depends on: 07, 08 (lane A) and 12. About 2 hours. Contract task H0.**
+**Lane B. Depends on: 07b, 08 (lane A) and 12. About 2 hours. Contract task H0.**
 
 `PROGRAM.md`'s local-first rule: the whole stack runs on a laptop before any Azure spend. The
 contract's §12.1 put all four services in `compose.yaml`; correction **A2** explains why that fails

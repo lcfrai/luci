@@ -9,7 +9,7 @@ later integration test uses. It adds the module's one new direct requirement, `p
 v5.7.5** (see the global constraint on the `go` directive).
 
 The runner reads migrations from an `fs.FS` it is handed, rather than embedding them itself, so it
-can be built and tested **before** task 07 writes `0001_init.sql`: `//go:embed sql/*.sql` with no
+can be built and tested **before** task 07a writes `0001_init.sql`: `//go:embed sql/*.sql` with no
 matching file is a compile error.
 
 **Files:**
@@ -146,7 +146,7 @@ type DB struct {
 func New(t *testing.T) *DB
 
 // Migrated is New followed by migrate.Apply of the embedded migrations
-// (task 07's migrate.Embedded()), as hub_owner.
+// (task 07a's migrate.Embedded()), as hub_owner.
 func Migrated(t *testing.T) *DB
 
 // AppPool opens a pool as hub_app with search_path=hub, closed at cleanup.
@@ -156,8 +156,8 @@ func (d *DB) AppPool(t *testing.T) *pgxpool.Pool
 func (d *DB) OwnerConn(t *testing.T) *pgx.Conn
 ```
 
-`Migrated` references `migrate.Embedded()`, which task 07 creates. Until then `hubtest.go` has
-no `Migrated`; task 07 adds it in the same commit as `Embedded`.
+`Migrated` references `migrate.Embedded()`, which task 07a creates. Until then `hubtest.go` has
+no `Migrated`; task 07a adds it in the same commit as `Embedded`.
 
 #### Tests to write first
 
@@ -217,7 +217,7 @@ Integration tests (`migrate_integration_test.go`, `//go:build integration`), eac
 - [ ] **Step 5:** Commit by pathspec: the seven files, `control-plane/go.mod`, `control-plane/go.sum`
   and `go.work` (and `go.work.sum` if Step 1 changed it). Without `go.work`, every root `go` command
   fails on every other checkout and in CI, while this tree works (plan re-review b03 N2). Leave the container
-  for task 07, or remove it: `docker rm -f hub-pg-dev`.
+  for task 07a, or remove it: `docker rm -f hub-pg-dev`.
 
 #### Acceptance
 
@@ -237,6 +237,6 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
 
 - That `roles.sql` runs unchanged on Azure Postgres Flexible Server with Entra-only auth; phase 8
   task 29's principals template runs after it and owns that.
-- Any Hub table: task 07.
+- Any Hub table: task 07a; the guards and owner functions: task 07b.
 - That `go get` succeeds behind the corporate proxy on a machine without the module cached; the
   owner's laptop has it cached (read 2026-09-23).

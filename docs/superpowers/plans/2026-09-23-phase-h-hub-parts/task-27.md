@@ -31,7 +31,7 @@ because reading the audit **is audited**: after the page is read it appends `aud
 **Route 45 — `POST /v1/briefs/{briefId}/erase`**, body `hubapi.EraseRequest` (`reason` 1–500
 characters after trimming, else 400), org admin only (403 `required: org_admin`). The brief must be
 in the admin's org — found by id under row-level security alone, **with no team check** — else 404
-`brief_not_found`. In one transaction: `SELECT hub.erase_brief($1)` (task 07's `SECURITY DEFINER`
+`brief_not_found`. In one transaction: `SELECT hub.erase_brief($1)` (task 07b's `SECURITY DEFINER`
 function: content removed and `erased_at` set on every revision still holding content; the head
 archived if it was not; `erased_at` set on the head); `Emit brief.erased {"erasedRevisions",
 "reason"}` with the brief's `teamId` and `projectId`. `200 hubapi.EraseResponse` —

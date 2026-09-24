@@ -74,8 +74,8 @@ The project menu gains **Share with a team…** after *Reveal in Explorer*, call
 
 An invite sends nothing by email (contract §7.3): the linked view says **They'll join when they
 next sign in with their work account in this organisation.** under the form. The qualifier is
-not decoration: binding needs a member account or a verified email domain (A15, task 16), and a
-guest or an account with no email stays `pending` with no remedy in v1 (task 16's stated
+not decoration: binding needs a member account or a verified email domain (A15, task 16a), and a
+guest or an account with no email stays `pending` with no remedy in v1 (task 16a's stated
 limitation, plan re-review b05 m2). The wording is the owner's to accept (OD-12).
 
 #### Tests to write first — `SharePopover.test.tsx` (RTL, fake client, fake feed)

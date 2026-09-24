@@ -1,6 +1,6 @@
 ### Task 26: the change feed — route 43 (graft G3)
 
-**Lane A. Depends on: 16. About 2 hours. Contract task H7.**
+**Lane A. Depends on: 16b. About 2 hours. Contract task H7.**
 
 `OD-3`: a teammate who opens the project sees the same brief, the same approval, the same pin.
 The Hub pushes nothing in v1; the control plane polls **one ordered feed per user** every 5 s
@@ -37,7 +37,7 @@ log, filtered (G3): every write appended its events under the org's lock in comm
   (§8; task 27 writes that event).
 
 **Why reading `H` first is gapless.** An event row and its head advance commit in one transaction
-(task 14; the `audit_append` trigger, task 07). Under `READ COMMITTED`, any event with `seq ≤ H`
+(task 14; the `audit_append` trigger, task 07b). Under `READ COMMITTED`, any event with `seq ≤ H`
 that the head statement saw committed is visible to the next statement. A writer still in flight
 holds a `seq > H`, which the next poll collects.
 

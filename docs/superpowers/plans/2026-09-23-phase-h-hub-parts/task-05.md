@@ -53,7 +53,7 @@ type Env struct {
 type Group string
 
 const (
-	GroupTeams     Group = "teams"     // server tasks 15, 16
+	GroupTeams     Group = "teams"     // server tasks 15, 16a
 	GroupProjects  Group = "projects"  // 17
 	GroupBriefs    Group = "briefs"    // 18, 19
 	GroupRefs      Group = "refs"      // 20 (brief keys), 22 (design keys)

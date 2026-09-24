@@ -7,7 +7,7 @@ loopback-only OIDC issuer that serves the same things the control plane and the 
 — discovery, `/authorize`, `/token`, JWKS, and Entra-v2-shaped tokens — so every line of sign-in and
 validation code runs unchanged against it. Correction **A5** makes it a **package**
 (`internal/devissuer`) with a thin `main`, so tests in `entraauth` (task 30) and the Hub's matrix
-test (task 16) can run the real issuer in-process instead of a hand-written fake.
+test (task 16b) can run the real issuer in-process instead of a hand-written fake.
 
 This part: configuration, discovery, the key set, and minting. Task 12: `/authorize` and `/token`.
 
@@ -133,7 +133,7 @@ func New(o Options) (*Issuer, error)
 func (i *Issuer) Handler() http.Handler
 
 // MintAccessToken signs an Entra-v2-shaped access token without a browser —
-// for tests (task 16's matrix, task 34's conformance) and nothing else. It
+// for tests (task 16b's matrix, task 34's conformance) and nothing else. It
 // refuses a tid, oid, client or API not in the configuration.
 func (i *Issuer) MintAccessToken(tid, oid, clientID, apiClientID string, scopes []string) (string, error)
 

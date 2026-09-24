@@ -37,7 +37,7 @@ plans are edited, so each row quotes the ask's id, which does not.
 | **HA5-3** | the fake models §7.7's checks 1–6, §7.8, `digest_mismatch`, `quota_exceeded` | **confirmed**: task 05 rules 1–3 and the `designs` rows | 05 (no change) |
 | **HA5-4** | ADR-H1 R5's *"audited with its session context"* has no field to carry | **the Hub records what it can verify**: the principal and the time. No client-asserted `surface` field: the Hub cannot check it, and an audit row that records an unverifiable claim reads as evidence. Deleting the ADR's phrase is the owner's (an owner question); 44a states the contract's reading | 44a; owner |
 | **HA5-5** | v2: canvases in the Hub | **reserved**: seam S-CANVAS; nothing in v1 | — |
-| **HA7-1** | `environment` may be `null` at reserve, set by the deployment join | **built** — with two corrections to the review's shape, below | 03, 04, 05, 07, 23, 24, 34 |
+| **HA7-1** | `environment` may be `null` at reserve, set by the deployment join | **built** — with two corrections to the review's shape, below | 03, 04, 05, 07a, 07b, 23, 24, 34 |
 | **HA7-2** | §7.9's rollback confirm is `{}`; a rollback confirm naming its **source's** deployment is 409 | **built**: the fake and the Hub refuse a rollback confirm whose `deploymentId` equals its `sourceDeploymentId` with 409 `conflict`; 44a writes the sentence | 05, 24, 44a |
 | **HA7-3** | a shared deploy target on the project | **not in v1**, additive later; phase 7's local file stands. Recorded as seam S-DEPLOY-TARGET (reserved) | — |
 | **HA7-4** | one generic cursor mechanism: `CursorSource`, one `Panacea-<Name>-Cursor` header per source | **control plane: built as asked** (task 36). **Desktop: built with one declared difference** (task 40), as HA4-2's `Page` is. In place of `startPolling(…, onCursor?: (name, value) => void)`, called once per changed header, there is one `onHubHeaders(h)` hook. `h.cursors` is keyed by the **lowercased** name (`hub`, `deploy`, never `Deploy`), and each consumer compares its own entry with the last value it saw. `onCursor` is **not** built. Phase 7 adds no second hook to `poller.ts`: it passes its feed's `noteHeaders` through `App.tsx`'s one function and reads `h.cursors.deploy` | 36, 40 |
@@ -60,7 +60,7 @@ plan's facts:
 What is built instead:
 
 ```sql
--- task 07, releases: the column, and who may leave it null
+-- task 07a, releases: the column, and who may leave it null (task 07b guards it)
 environment  text  CHECK (environment ~ '^[a-z0-9-]{1,63}$'),        -- nullable (HA7-1)
 CHECK (environment IS NOT NULL OR (kind = 'run' AND source_deployment_id IS NULL)),
 ```
@@ -159,7 +159,7 @@ grep -n "LatestComplete" $P/task-03.md                                      # th
 grep -n "io.ReadSeeker" $P/task-04.md $P/task-34.md                         # PutBlob
 grep -n "func Relay" $P/task-33.md                                          # present
 grep -n "CursorSource" $P/task-36.md                                        # present
-grep -n "environment IS NOT NULL OR" $P/task-07.md                          # the HA7-1 check
+grep -n "environment IS NOT NULL OR" $P/task-07a.md                         # the HA7-1 check
 grep -rn "1–16" $P/ --exclude=task-00.md                                   # none left
 grep -n "SetEscapeHTML(false)" $P/task-08.md $P/task-33.md                  # the wire rule, both sides
 grep -rn "json.Compact" $P/ --exclude=task-00.md                            # task-34.md only, as the rejected alternative and its mutant

@@ -4,7 +4,7 @@
 
 The first routes behind the auth pipeline, and the membership that decides every later
 authorisation: **a project's access is exactly its team's membership** (contract §5.2). Invites
-are task 16; `/v1/me` answers `invitesBound: 0` until then.
+are task 16a; `/v1/me` answers `invitesBound: 0` until then.
 
 **Files:**
 - `control-plane/internal/hub/server/me.go`, `teams.go` + `teams_integration_test.go` (new)
@@ -92,5 +92,5 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
 
 #### What this task does not claim
 
-- Invites and their binding: task 16.
-- The full authorisation matrix: task 16 builds its harness and every later task adds rows.
+- Invites and their binding: task 16a.
+- The full authorisation matrix: task 16b builds its harness, with rows for routes 3–12, and every later task adds rows.

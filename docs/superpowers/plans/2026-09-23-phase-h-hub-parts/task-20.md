@@ -43,7 +43,7 @@ Hub-backed brief store against the local stack (with tasks 28 and 30–35 on the
   query** for all brief keys — `WHERE (brief_id, revision) IN (…)` joined to `briefs`, `projects`
   and the caller's `team_members` — never one per key.
 
-**The digest re-check on read.** The database CHECK (`brief_revisions_canonical_hashes`, task 07)
+**The digest re-check on read.** The database CHECK (`brief_revisions_canonical_hashes`, task 07a)
 makes a mismatch impossible **unless the owner role has dropped it**. The Hub re-checks anyway,
 because that is the tampering the check cannot see (contract T5), and a revision that no longer
 hashes to its key must never be rendered as if it did (provenance contract §6.2).
@@ -105,5 +105,5 @@ go test -tags integration ./control-plane/cmd/hub/ -run TestVerify -race -count=
 
 - Design keys: task 22.
 - The erasure route: task 27. This task tests the `erased` state through the database function
-  task 07 created, which is what the route will call.
+  task 07b created, which is what the route will call.
 - That the control plane caches results correctly: task 34 and phase 4's `provenanceSlice`.
