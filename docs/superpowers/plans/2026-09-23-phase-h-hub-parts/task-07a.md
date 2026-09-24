@@ -534,8 +534,8 @@ is the one named.
 #### Steps
 
 - [ ] **Step 1:** Re-read contract §10.1–§10.7. If it changed after this part was written, the
-  contract's words win except for the three named constraints above. A16 and A18 are already in
-  the contract (task 44a). A contract that still shows a single-column key, `orgs` without a
+  contract's words win except for the three named constraints above. A16, A18 and A19 (its
+  grants half: no `UPDATE` on `audit_heads`) are already in the contract (task 44a). A contract that still shows a single-column key, `orgs` without a
   policy, or `UPDATE (seq, hash)` on `audit_heads` for `hub_app` is stale, and this SQL wins.
 - [ ] **Step 2:** The tests first. Run them and see them fail, since no table exists. Then
   `0001_init.sql` exactly as above, `embed.go`, and `hubtest.Migrated`.

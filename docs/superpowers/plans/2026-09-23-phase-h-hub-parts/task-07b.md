@@ -152,8 +152,9 @@ CREATE TRIGGER releases_guard BEFORE UPDATE OR DELETE ON releases
 -- UPDATE. As the owner this function is not bound by row-level security, so it checks the
 -- org itself, FIRST, before it locks anything: without that check an org-A session could
 -- lock, and for a moment move, org B's head. WITH CHECK would still refuse the row, but only
--- after BEFORE triggers have run (from knowledge; TestAuditAppendChecksTheOrgFirst pins the
--- lock half).
+-- after BEFORE triggers have run (from knowledge). TestAuditAppendChecksTheOrgFirst pins the
+-- check: with B's head held by another session, the check returns 42501 at once, where a
+-- trigger without it blocks on that lock.
 CREATE FUNCTION audit_append() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
 DECLARE h hub.audit_heads%ROWTYPE;
@@ -262,7 +263,7 @@ GRANT EXECUTE ON FUNCTION ensure_org(uuid, text, text), resolve_principal(uuid, 
 
 ```
 
-**Four Postgres facts the tests pin rather than trust** (all from knowledge, unverified here):
+**Five Postgres facts the tests pin rather than trust** (all from knowledge, unverified here):
 - inside a `SECURITY DEFINER` function `current_user` is the owner, which is what lets
   `erase_brief` pass `guard_revision` (`TestOnlyEraseBriefCanEraseARevision`);
 - `SELECT … FOR UPDATE` needs `UPDATE` privilege on at least one column of the table, which is why
@@ -270,9 +271,16 @@ GRANT EXECUTE ON FUNCTION ensure_org(uuid, text, text), resolve_principal(uuid, 
 - a row lock taken inside a `SECURITY DEFINER` function belongs to the calling transaction and is
   held until it ends (the same test's second connection);
 - row-level security's `WITH CHECK` is enforced **after** `BEFORE` triggers fire, which is why
-  `audit_append` checks the org itself (`TestAuditAppendChecksTheOrgFirst`). If Postgres checks
-  first, that test's mutant survives and the check is only defence in depth. Record that in the
-  commit message.
+  `audit_append` checks the org itself (`TestAuditAppendChecksTheOrgFirst`). The mutant run tells
+  which order holds: `55P03` means the trigger ran first and reached the lock; a `42501` with the
+  row-level-security message means `WITH CHECK` ran first. The test goes red on both (it asserts
+  the message), but in the second case the check is only defence in depth. Record which one was
+  seen in the commit message;
+- `lock_timeout` bounds a row-lock wait inside a trigger, so the mutant fails `55P03` after 2 s
+  rather than hanging (the same test; give it a 10 s context deadline so a wrong fact fails
+  rather than stalls). An error inside a transaction block releases that transaction's locks at
+  once, not at `ROLLBACK` (re-review b07-1 N1), which is why the test holds the lock in a
+  **live** transaction on connection 2, not in connection 1's failed one.
 
 #### Tests to write first — `guards_integration_test.go` (`//go:build integration`)
 
@@ -297,8 +305,8 @@ tested by calling them directly. "Refused" means the statement returns a `*pgcon
 | `TestEnsureOrgIsIdempotent` | twice with two fresh ids → the first id both times; one `audit_heads` row | a second org row per restart |
 | `TestEraseBriefChecksTheOrg` | with `hub.org_id` = B, erasing A's brief → `P0002` (`no_data_found`), and A's revisions keep their content | the owner function bypassing RLS without its own check (T3's residual) |
 | `TestEraseBriefLeavesEveryStoredResponse` | org A, one project, briefs A1 and A2. Four `idempotency_keys` rows, each byte-copied before the call: r1 is route 26's stored form of a batch that wrote A1 **and** A2 together (every `content` null, as task 19 stores it); r2 is a stored route-30 `DesignApproval` body naming `brief:<A1>@1` (text-free); r3's `response` is `NULL` (in flight); r4 is **in org B**, and its response contains A1's id. `erase_brief(A1)` with `hub.org_id` = A → all four rows kept, byte for byte (review I6, re-review b06 N1) | a purge by the brief id, which deletes r1 and r2: A2's co-batched retry becomes 409 `brief_archived` and the approval's retry re-runs into 422 `key_unresolvable`; a purge by `path`, which deletes r1; a purge without `org_id = v_org`, which also deletes r4 |
-| `TestAuditAppendChecksTheOrgFirst` | orgs A and B. Connection 1, as `hub_app`: `BEGIN`, `hub.org_id` = A, `INSERT` an event with `org_id` = B, correctly chained on B's head → `42501`; the transaction is left open (aborted, not rolled back). Connection 2, as `hub_owner`: `SELECT 1 FROM hub.audit_heads WHERE org_id = B FOR UPDATE NOWAIT` → ok, and B's head is unchanged. Then connection 1 rolls back (review M11, A19) | an `audit_append` without its org check: it runs as the owner, bypasses row-level security, locks B's head before `WITH CHECK` refuses the row, and connection 2 gets `55P03` (`lock_not_available`) |
-| `TestTheHeadLockNeedsTheFunction` | as `hub_app` with `hub.org_id` = A: `SELECT seq, hash FROM hub.audit_heads WHERE org_id = A FOR UPDATE` → `42501` (no `UPDATE` privilege); `SELECT seq, hash FROM hub.lock_audit_head()` → A's head; then, on a second connection as the owner, the same row `FOR UPDATE NOWAIT` → `55P03` until the first commits. With `hub.org_id` unset, `lock_audit_head()` → `P0002` (review M11, A19) | a lock that no longer locks: `lock_audit_head` without `FOR UPDATE`, so two writers read one head and one gets `40001` from the trigger instead of waiting its turn |
+| `TestAuditAppendChecksTheOrgFirst` | orgs A and B; B's head read beforehand as the owner. Connection 2 goes **first**: as `hub_app`, `BEGIN`, `set_config('hub.org_id', B, true)`, `SELECT * FROM hub.lock_audit_head()`, and it holds that lock. Connection 1, as `hub_app`: `BEGIN`, `set_config('hub.org_id', A, true)`, `SET LOCAL lock_timeout = '2s'`, `INSERT` an event with `org_id` = B, correctly chained on B's head → `42501` **and** a message containing `not this session's`, returned at once. Both roll back; B's head is unchanged (review M11, A19; re-review b07-1 N1) | an `audit_append` without its org check: running as the owner, it bypasses row-level security, reaches `FOR UPDATE` on B's head, blocks behind connection 2, and returns `55P03` (`lock_not_available`) after the timeout. The message assertion matters: a `WITH CHECK` refusal is also `42501`, but its message is `new row violates row-level security policy`, so `Code` alone cannot tell the check from the policy |
+| `TestTheHeadLockNeedsTheFunction` | as `hub_app` with `hub.org_id` = A, three transactions on one connection. First, in its own `BEGIN … ROLLBACK`: `SELECT seq, hash FROM hub.audit_heads WHERE org_id = A FOR UPDATE` → `42501` (no `UPDATE` privilege). Then a fresh `BEGIN`: `SELECT seq, hash FROM hub.lock_audit_head()` → A's head; while that transaction is open, a second connection as the owner runs the same row `FOR UPDATE NOWAIT` → `55P03`; the first `COMMIT`s, and the second's `NOWAIT` → ok. Last, a fresh transaction with `hub.org_id` unset: `lock_audit_head()` → `P0002`. One transaction for all three would fail the second statement `25P02` (aborted), not return A's head (review M11, A19; re-review b07-1 m1) | a lock that no longer locks: `lock_audit_head` without `FOR UPDATE`, so two writers read one head and one gets `40001` from the trigger instead of waiting its turn |
 | `TestOrgIdsListsEveryOrgAndOnlyIds` | orgs A and B; as `hub_app` with `hub.org_id` unset: `SELECT id FROM hub.orgs` → zero rows; `SELECT * FROM hub.org_ids()` → exactly A's and B's ids, in id order, and the result has one column (review M10, A18) | an `org_ids` that returns `display_name` or `entra_tenant_id`; the janitor or `hub verify` reading `orgs` directly and walking no org at all |
 | `TestHubAppExecutesExactlyTheOwnerFunctions` | `information_schema.role_routine_grants` for `hub_app` in schema `hub` = `ensure_org`, `resolve_principal`, `erase_brief`, `lock_audit_head`, `org_ids`, and no other; `PUBLIC` holds `EXECUTE` on none of them | an owner function left executable by `PUBLIC` (Postgres's default on `CREATE FUNCTION`), or a sixth one nobody reviewed |
 
@@ -330,3 +338,8 @@ grep -cE "^LANGUAGE .*SECURITY DEFINER" control-plane/internal/hub/migrate/sql/0
 - Performance of the per-org audit lock under load (ADR-H1 R10): measured later, not here.
 - That `audit_append`'s org check fires for a correct Hub. Task 14's `Write` sets `hub.org_id`
   before any append. The check is there for a query path that does not.
+- That the owner or the administrator may append without `hub.org_id`. The check reads the
+  session's setting, not the role, so it binds every role: **every role, the owner included,
+  sets `hub.org_id` before it appends**, and an append without it is refused `42501`. No task
+  appends as the owner today (07a's seed appends as `hub_app` with `hub.org_id` set); a repair
+  script or a future seed must set it too (re-review b07-1 m7).

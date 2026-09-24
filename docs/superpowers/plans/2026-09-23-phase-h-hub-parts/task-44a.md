@@ -155,8 +155,12 @@ because this task wrote A1 first.
 
 ```bash
 C=docs/superpowers/contracts/2026-09-23-hub-contract.md
-grep -c "(Phase H plan, A" $C                                     # ≥ 10
+grep -c "(Phase H plan, A" $C                                     # ≥ 19 (A1–A19)
 grep -c "(Phase H plan, task 00" $C                               # ≥ 9
+grep -c "UPDATE (seq, hash)" $C                                   # 0: A19 removed §10.5's grant (was :2014)
+grep -c 'FROM hub.audit_heads WHERE org_id = \$org FOR UPDATE' $C # 0: A19 replaced §10.6's direct lock (was :2026)
+grep -n "hub.lock_audit_head()" $C                                # §10.4 and §10.6's lock line (A19)
+grep -n "hub.org_ids()" $C                                        # §10.4, §12.1 and §12.5 (A18)
 grep -n "^## 16" $C                                               # present
 grep -n "MaxRevisionBatch\|latestComplete\|CursorSource\|io.ReadSeeker" $C   # each present
 grep -n "no broker" docs/PROGRAM.md                               # the identity row

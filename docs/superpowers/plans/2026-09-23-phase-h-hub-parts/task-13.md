@@ -178,7 +178,7 @@ Integration (`orgs_integration_test.go`, `//go:build integration`):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestEnsureOrgsIsStableAcrossRestarts` | two tenants → two orgs; a second call → the same two ids; a renamed tenant → the new display name, the same id | a new org per restart, orphaning every project |
+| `TestEnsureOrgsIsStableAcrossRestarts` | two tenants → two orgs; a second call → the same two ids; a renamed tenant → the new display name, the same id. `EnsureOrgs` returns ids only, so the test reads `orgs.display_name` **as the administrator** (`hubtest.DB.AdminURL`), as task 27's `markerHits` does: on `hub_app`'s pool with no `set_config`, `orgs` shows zero rows (A18; re-review b07-1 m6) | a new org per restart, orphaning every project |
 | `TestResolvePrincipalRetriesACollision` | a users row pre-inserted with the id the first attempt will use (the id source injected) → the retry succeeds with the second id | a collision surfacing as a 500 |
 | `TestResolvePrincipalRefusesAnUnknownTenant` | → `ErrNotEnrolled` | a user created with a NULL org |
 

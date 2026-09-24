@@ -84,7 +84,10 @@ type JanitorConfig struct {
 // listed by SELECT * FROM hub.org_ids(), never by reading hub.orgs, which hub_app
 // sees empty before a set_config (review M10, A18, task 07a) —
 // set_config('hub.org_id', org, true) in its own transaction, so row-level
-// security binds the janitor too, and the org's audit head locked first:
+// security binds the janitor too, and the org's audit head locked first by
+// store.LockHead (task 14), which calls hub.lock_audit_head(); a direct
+// SELECT … FOR UPDATE on hub.audit_heads is refused 42501 for hub_app, which
+// holds no UPDATE on it (review M11, A19; re-review b07-1 m2):
 //   1. reserved releases with expires_at < now → state 'expired', expired_at = now;
 //      Emit release.expired {} with actor NULL;
 //   2. project_blobs older than Retention that neither design_approvals.manifest_digest
