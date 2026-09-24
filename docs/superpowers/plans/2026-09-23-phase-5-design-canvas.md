@@ -417,7 +417,7 @@ shebang stays LF under this machine's `core.autocrlf=true`) — task 16, re-revi
 |---|---|---|
 | `package.json`, `vite.config.ts`, `vitest.config.ts`, `tsconfig.json` | the `file:` dependency; `resolve.dedupe` for React; `server.fs.allow` for `../canvas/editor`; `paths` pinning one `@types/react` — **declared amendments** | 03 |
 | `src/api/design.ts`, `src/api/events.ts` (new) | the design client; the SSE reader | 27 |
-| `src/design/` (new) | `editorPackage.test.tsx`, the one-React test across the package boundary (03); `designTypes.ts`, `designSlice.ts`, `docstores.ts`, `transportAdapter.ts`, `selectors.ts` (27); `DesignLens.tsx`, `DesignTop.tsx`, `ApprovalBar.tsx`, `DesignSide.tsx`, `Presence.tsx`, `Activity.tsx`, `Comments.tsx`, `DesignRenderers.tsx`, `DesignContextChip.tsx`, `design.css` (28) | 03, 27, 28 |
+| `src/design/` (new) | `editorPackage.test.tsx`, the one-React test across the package boundary, and `editorPackage.config.test.ts`, the other three amendments through TypeScript's resolver, a Vite build and `isFileLoadingAllowed` (03); `designTypes.ts`, `designSlice.ts`, `docstores.ts`, `transportAdapter.ts`, `selectors.ts` (27); `DesignLens.tsx`, `DesignTop.tsx`, `ApprovalBar.tsx`, `DesignSide.tsx`, `Presence.tsx`, `Activity.tsx`, `Comments.tsx`, `DesignRenderers.tsx`, `DesignContextChip.tsx`, `design.css` (28) | 03, 27, 28 |
 | `src/store/store.ts`, `src/store/selectors.ts` | mount the slice (not persisted); one key-source selector (S4-P5.1) | 27 |
 | `src/components/AppShell.tsx` | the `design` arm renders `<DesignLens/>` in place of `LensPlaceholder` (`:36-43`); one `<DesignRenderers/>` beside `<Toasts/>` for the hidden renderers (P5-Q) | 28 |
 | `src/api/client.ts` | the `ProblemCode` union gains the design codes — **declared amendment** of UI contract §4.2 | 27 |
@@ -622,7 +622,12 @@ is not committed — phase 3's 3-D6); OQ-11 (Figma via its MCP is v2, behind own
   `REPORT cargo: not scanned` when it does not).
 - **npm and Vite on Windows**: that `file:../canvas/editor` produces a junction, that
   `resolve.dedupe` yields one React in both the build and vitest, and that `server.fs.allow` lets
-  `tauri dev` serve the package. Task 03's acceptance measures each.
+  `tauri dev` serve the package. Task 03's acceptance measures each. *Measured 2026-09-25 (task
+  03):* the junction, one React in vitest and in a Vite build, and Vite's dev server serving the
+  package's source; `tauri dev` itself is not started (task 30). Found on the way: in dev the
+  optimiser serves every bare `react` from one pre-bundle whatever `dedupe` says, so only the
+  build shows the Vite line; and `tsc` cannot see the `paths` block while both lockfiles pin one
+  `@types/react` version. `desktop/src/design/editorPackage.config.test.ts` pins both.
 - **Sibling plans are plan text.** Phase 4's `discoverhub`, `provenance`, `ContextChip`, loader,
   `openPast` and `PastRevision` (task 28's *Open rev N*, behind seam S5-P4.1, re-review RR-b08-4);
   phase 3's 3-D6 exclude rule, `gitx.Exec` (§HGH) and `lanes.Catalog` (task 22's `HandoffGit`
