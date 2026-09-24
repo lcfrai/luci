@@ -192,9 +192,10 @@ Each is small, stated so a reviewer can overturn it, and none changes what the o
 3. **Whenever the branch moves, the control plane refreshes `origin/<branch>` in every clone of
    that branch.** It writes only a remote-tracking ref, which the agent does not write. This is what
    makes 3-D3's opening prompt ("merge `origin/evidence-upload` into this branch") true. The
-   refresh fetches from the project's literal path, taken from the lane index, and never from the
-   clone's configured `origin`, which the agent can rewrite (review C3; task-02 §HGH H2). The same
-   one fetch (task 09's `RefreshClones`) runs after a land, an undo, a revert, a bring-in and a
+   refresh is a bundle: the host writes it in the project, and each lane's `sandboxd` runner
+   fetches it (R4.5; task 24). It never uses the clone's configured `origin`, which the agent can
+   rewrite (review C3), and no host git runs in the clone (R4.2). The same
+   one refresh (task 09's `RefreshClones`) runs after a land, an undo, a revert, a bring-in and a
    project fetch; from the lane syncer's sweep, for each clone whose `origin/<branch>` (as read
    back after its last refresh) differs from `refs/heads/<branch>`, which covers the moves the
    cockpit did not make (a user's own commit, a terminal `git pull`; task 07). The sweep
@@ -558,7 +559,7 @@ under three.
 | 06 | The linked-worktree notice deleted (R4.1): `kind` in `types.ts`, the shared-index note (3-D2) | 04, 05, G1 | 2 h |
 | 07 | Lane sync and observed claims; the sweep's tip-change clone refresh (review I4) | 04, 24 | 3.5 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 (24 through 07) | 3 h |
-| 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4) | 08 | 4.5 h |
+| 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4), a bundle into each lane's runner (R4.5) | 08, 24 | 4.5 h |
 | 10 | Landed history, exact undo (refused once another lane has merged the land, review I3), revert | 09 | 2.5 h |
 | 11 | Remove a worktree; create, rename and delete a branch | 07, 08 (`CheckedOutAt`) | 3 h |
 | 12 | Fetch (on demand and on a slow timer) and push, with the machine's credential helper | 02, 04 | 2 h |
