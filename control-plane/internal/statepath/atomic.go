@@ -97,7 +97,7 @@ func WriteAtomic(path string, data []byte, mode Mode) error {
 	const attempts = 5
 	var last error
 	for i := 0; i < attempts; i++ {
-		if last = os.Rename(tmpName, path); last == nil {
+		if last = rename(tmpName, path); last == nil {
 			syncDir(dir)
 			return nil
 		}
@@ -108,11 +108,20 @@ func WriteAtomic(path string, data []byte, mode Mode) error {
 		// two seconds. A transient holder still gets the same 20+40+60+80 ms
 		// window to let go.
 		if i < attempts-1 {
-			time.Sleep(time.Duration(20*(i+1)) * time.Millisecond)
+			sleep(time.Duration(20*(i+1)) * time.Millisecond)
 		}
 	}
 	return fmt.Errorf("statepath: replace %s: %w", path, last)
 }
+
+// rename and sleep are os.Rename and time.Sleep. They are variables only so a
+// test can hold the target for exactly N attempts and read the backoff, which a
+// real file handle and a real clock cannot do without a flake. Nothing outside
+// this package's tests assigns them.
+var (
+	rename = os.Rename
+	sleep  = time.Sleep
+)
 
 // tempPattern names the temp file after its target, so the debris a crash
 // leaves is recognisably that file's: sessions.json -> .sessions-*.json,

@@ -1,6 +1,7 @@
 package statepath
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -319,6 +320,126 @@ func TestTempNameFollowsTheTarget(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// errHeld stands in for the ERROR_ACCESS_DENIED a scanner holding the target
+// open makes MoveFileEx return.
+var errHeld = errors.New("held open by another process")
+
+// retryProbe replaces rename with one that fails the first `fails` calls with
+// errHeld and renames for real after that, and replaces sleep with a recorder,
+// so a test can hold the target for exactly N attempts and read the backoff
+// without waiting for it. tempPerms is the temp file's mode at each call: the
+// file must already carry its final permission when it is published.
+type retryProbe struct {
+	calls     int
+	slept     []time.Duration
+	tempPerms []os.FileMode
+}
+
+func stubRetry(t *testing.T, fails int) *retryProbe {
+	t.Helper()
+	p := &retryProbe{}
+	realRename, realSleep := rename, sleep
+	t.Cleanup(func() { rename, sleep = realRename, realSleep })
+	rename = func(oldpath, newpath string) error {
+		p.calls++
+		if info, err := os.Stat(oldpath); err == nil {
+			p.tempPerms = append(p.tempPerms, info.Mode().Perm())
+		}
+		if p.calls <= fails {
+			return errHeld
+		}
+		return realRename(oldpath, newpath)
+	}
+	sleep = func(d time.Duration) { p.slept = append(p.slept, d) }
+	return p
+}
+
+var backoff = []time.Duration{20 * time.Millisecond, 40 * time.Millisecond, 60 * time.Millisecond, 80 * time.Millisecond}
+
+func sameDurations(a, b []time.Duration) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestWriteAtomicRidesOutATransientHolder(t *testing.T) {
+	// The retry is the whole Windows fix: a holder that lets go inside the
+	// window must cost the caller nothing. Held for four attempts, the fifth
+	// and last one publishes.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "CLAUDE.md")
+	if err := os.WriteFile(path, []byte("old\n"), 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	p := stubRetry(t, 4)
+
+	if err := WriteAtomic(path, []byte("new\n"), Shared); err != nil {
+		t.Fatalf("WriteAtomic with a holder that lets go on the fifth attempt: %v", err)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if string(got) != "new\n" {
+		t.Fatalf("content = %q, want %q", got, "new\n")
+	}
+	if p.calls != 5 {
+		t.Fatalf("rename called %d times, want 5", p.calls)
+	}
+	if !sameDurations(p.slept, backoff) {
+		t.Fatalf("slept %v between attempts, want %v", p.slept, backoff)
+	}
+	if runtime.GOOS != "windows" {
+		for i, perm := range p.tempPerms {
+			if perm != Shared.FilePerm() {
+				t.Fatalf("attempt %d published a temp file of mode %v, want %v already set before the rename", i+1, perm, Shared.FilePerm())
+			}
+		}
+	}
+	if len(p.tempPerms) != p.calls {
+		t.Fatalf("the temp file was missing at %d of %d rename attempts", p.calls-len(p.tempPerms), p.calls)
+	}
+}
+
+func TestWriteAtomicGivesUpAfterFiveAttemptsWithoutAFinalSleep(t *testing.T) {
+	// Five attempts, four sleeps: nothing sleeps after the last attempt,
+	// because the registry saves under its write lock and that sleep would
+	// block Get and List on a save already doomed.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sessions.json")
+	p := stubRetry(t, 1<<30)
+
+	err := WriteAtomic(path, []byte("new\n"), Private)
+	if err == nil {
+		t.Fatal("WriteAtomic with a holder that never lets go returned nil, want an error")
+	}
+	if !errors.Is(err, errHeld) {
+		t.Fatalf("error = %v, want it to wrap the last rename error", err)
+	}
+	if want := "statepath: replace " + path; !strings.Contains(err.Error(), want) {
+		t.Fatalf("error = %v, want it to contain %q", err, want)
+	}
+	if p.calls != 5 {
+		t.Fatalf("rename called %d times, want 5", p.calls)
+	}
+	if !sameDurations(p.slept, backoff) {
+		t.Fatalf("slept %v, want %v and no sleep after the last attempt", p.slept, backoff)
+	}
+	if _, statErr := os.Stat(path); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("stat target after the failed write: %v, want it absent", statErr)
+	}
+	if n := countTempFiles(t, dir); n != 0 {
+		t.Fatalf("%d leftover temp files after a failed write, want 0", n)
 	}
 }
 
