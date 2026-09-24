@@ -255,7 +255,9 @@ func (r *Reaper) owns(ctx context.Context, sb backend.Sandbox, tracked map[strin
 	if sb.Instance == r.instance {
 		return true
 	}
-	if sb.Instance == "" && sb.ID != "" {
+	// tracked holds only non-empty sandbox ids (Sweep builds it that way), so a
+	// legacy sandbox with no sandbox-id label never matches here.
+	if sb.Instance == "" {
 		if _, ours := tracked[sb.ID]; ours {
 			return true
 		}

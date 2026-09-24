@@ -46,6 +46,10 @@ var beforeLink = func() {}
 // links (FAT/exFAT, some SMB shares) on one that has them.
 var link = os.Link
 
+// writeString is how createExclusive writes the id, a variable so a test can
+// make the write fail (a full disk, a dropped share) after the create.
+var writeString = (*os.File).WriteString
+
 // Load returns this state directory's instance id, minting and persisting one
 // if there is none yet. minted reports which happened, so the caller can log
 // the one start that created an identity.
@@ -125,7 +129,7 @@ func createExclusive(path, id string) error {
 	if err != nil {
 		return err
 	}
-	_, werr := f.WriteString(id + "\n")
+	_, werr := writeString(f, id+"\n")
 	serr := f.Sync()
 	cerr := f.Close()
 	if err := errors.Join(werr, serr, cerr); err != nil {

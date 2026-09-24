@@ -75,7 +75,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		return fmt.Errorf("load this control plane's instance id: %w", err)
 	}
 	if minted {
-		log.Info("minted this state directory's instance id; every sandbox it creates is labelled with it, and only those are listed or reaped",
+		log.Info("minted this state directory's instance id; every sandbox it creates is labelled with it, and the reaper acts only on those and on unlabelled ones from before the label that this registry holds",
 			"instance", instanceID, "file", cfg.InstancePath)
 	}
 

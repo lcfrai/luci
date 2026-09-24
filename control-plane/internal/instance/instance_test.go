@@ -182,3 +182,27 @@ func TestTheFallbackMintNeverReplacesAnExistingID(t *testing.T) {
 		t.Fatalf("Load = (%q, minted %v, %v), want the winner's %q adopted", got, minted, err, winner)
 	}
 }
+
+// A fallback write that fails after the exclusive create (a full disk, a
+// dropped share) removes the file it made. Left behind, the half-written id
+// would make every later start refuse the directory until someone deleted it
+// by hand; removed, the next start simply mints.
+func TestAFailedFallbackWriteLeavesNothingBehind(t *testing.T) {
+	path := filepath.Join(t.TempDir(), FileName)
+	link = func(string, string) error {
+		return &os.LinkError{Op: "link", Err: errors.New("the file system does not support hard links")}
+	}
+	writeString = func(*os.File, string) (int, error) { return 0, errors.New("no space left on device") }
+	t.Cleanup(func() { link, writeString = os.Link, (*os.File).WriteString })
+
+	if _, _, err := Load(path); err == nil {
+		t.Fatal("Load with a failing write = nil error, want the write's error")
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("after a failed write, %s: %v, want it gone so the next start can mint", path, err)
+	}
+	writeString = (*os.File).WriteString
+	if id, minted, err := Load(path); err != nil || !minted || backend.ValidateInstance(id) != nil {
+		t.Errorf("the next start = (%q, minted %v, %v), want a fresh mint", id, minted, err)
+	}
+}

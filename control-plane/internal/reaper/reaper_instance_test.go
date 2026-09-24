@@ -209,6 +209,31 @@ func TestALegacySandboxThisRegistryHoldsIsOurs(t *testing.T) {
 	}
 }
 
+// The registry's proof is for a sandbox with NO instance label. One that
+// carries another instance's label says another control plane made it, and
+// that wins over a matching id: the only way to get one is this state
+// directory's instance-id file being deleted (a deliberate new identity, after
+// which the old one's sandboxes are foreign, contract §2.7) or two random ids
+// colliding. dockerbe never returns such a sandbox; the reaper must not lean
+// on that, any more than it does for the rest of ownership.
+func TestATrackedIDUnderAnotherInstancesLabelIsNotOurs(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{ID: "s-x", SandboxID: "sb-x", Status: registry.StatusRunning})
+	theirs := ownedBy(theirInstance, "sb-x", backend.StateRunning)
+	theirs.Endpoint = ""
+	theirs.NonLoopback = true
+	be := &fakeBackend{sandboxes: []backend.Sandbox{theirs}}
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if be.wasDestroyed("sb-x") {
+		t.Error("destroyed a sandbox labelled as another control plane's because this registry holds its id; the label wins when there is one")
+	}
+}
+
 // The logged-once set follows the daemon: a foreign sandbox that has gone is
 // forgotten, so a long-lived control plane beside a busy one does not keep
 // every sandbox the other ever made. A real Ref is never reused, so the only
