@@ -708,8 +708,10 @@ as a cache. For a human-origin turn the child's stdout is kept **verbatim and bo
 turn's `text·A` reply; nothing in the runner or Fleet reads fields out of it (OD-8), so the part
 picks `--output-format text`. It sends `turn.end` and blocks again. The pod-kill test (on a fake
 broker and `memstore`) kills the pod between two turns, lets Fleet relaunch it, and checks that no
-lease, thread or pending directive is lost and that the next turn starts a new session. The exact
-flags are **UNVERIFIED** at the pinned CLI version; the OD-8 canary covers them.
+lease, thread or pending directive is lost and that the next turn starts a new session.
+`--session-id` and `--fork-session` are listed by `claude --help` 2.1.274 (`argv.go:91-97`); that
+they behave this way with `-p` at the image's pinned version is **UNVERIFIED**, and the OD-8 canary
+covers it.
 
 **28 — Protocol messages.** `cp/internal/fleet/protocol` and `verbs/{peer.go,inbox.go}`: `peer`
 kinds `ask`, `answer`, `inform`, `propose`, `accept`, `reject`, `counter`, `withdraw` with the typed
@@ -1129,9 +1131,10 @@ the gateway. Each item with what was and was not observed.
 - **KPMG InfoSec approval is no longer a gate.** Under OD-23 the mechanism ships with minimal
   defaults and no drafted policy; the design's Q12 and its TM1 gate are superseded. When an org
   policy is written, it enters through task 14's routes as a new version, with no code change.
-- The Linux managed-settings path, the `--session-id` / `--resume` flags, a `--setting-sources`
-  flag, whether a file-based managed hook prompts, and which `env` keys a managed file locks are
-  **UNVERIFIED** at the pinned CLI version; tasks 27 and 33 and the OD-8 canary settle them.
+- The Linux managed-settings path, `-p` with `--session-id` then `--resume` (the flags exist at
+  2.1.274, `control-plane/internal/harness/argv.go:91-97`), a `--setting-sources` flag, whether a
+  file-based managed hook prompts, and which `env` keys a managed file locks are **UNVERIFIED** at
+  the pinned CLI version; tasks 27 and 33 and the OD-8 canary settle them.
 - Pod-source token binding, guest-write visibility to `machined`, Orchestrator pod size, warm-pool
   launch time and the PTY round trip are **UNVERIFIED** until task 47's probes run.
 - Which Graph read KPMG's tenant permits for the leaver check (task 44), and the gateway's
