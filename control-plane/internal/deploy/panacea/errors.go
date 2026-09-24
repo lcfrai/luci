@@ -107,8 +107,9 @@ func parseRetryAfter(v string, now time.Time) time.Duration {
 	return 0
 }
 
-// pncToken matches anything shaped like a Panacea API key (middleware/api_key.go:19,
-// apiKeyPrefix "pnc_"), so a body quoting a truncated or other key is redacted too.
+// pncToken matches anything shaped like a Panacea API key (apiKeyPrefix, middleware/api_key.go:19),
+// so a body quoting a truncated or other key is redacted too. This comment names the prefix
+// without quoting it: task 05's key gate (task-05.md:380-381) must match only its own prefix check.
 var pncToken = regexp.MustCompile(`pnc_[A-Za-z0-9_\-]+`)
 
 // redact removes the caller's token, and anything shaped like a pnc_ key, from an error body
