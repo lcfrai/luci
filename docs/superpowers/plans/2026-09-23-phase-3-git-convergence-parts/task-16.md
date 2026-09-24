@@ -11,7 +11,7 @@ survey §8.3), or says why it cannot: uncommitted, or no session recorded. Task 
 
 **Depends on:** task 08 (observations reach the handler the same way) and task 24 (`lanegit.Lanes`,
 `Runner.Diff`, `DiffRequest`, `lanegittest.Fake`, and the spy harness `TestHostNeverRunsGitInALane`,
-whose `diff` row this task appends: `task-24.md:506-511`). No new module dependency, so neither
+whose `diff` row this task appends: task 24's `TestHostNeverRunsGitInALane`, under "The spy test"). No new module dependency, so neither
 `control-plane/go.mod` (bar the `x/sys` line below) nor `sandboxd/vendor/` changes.
 
 **Files:**
@@ -146,12 +146,12 @@ const MaxDiffLines = 2000
 // Diff reads one path for each worktree that touches it. Host git is gitx.Read with Scope
 // Project in the project (task-02 §HGH; blame and log run there too); the clone's uncommitted
 // hunk comes from task 24's runner.Diff{path} (the same --no-color --no-ext-diff --no-textconv
-// -U3 HEAD argv, run in the sandbox, with the path validated there: task-24.md:162-177). The
+// -U3 HEAD argv, run in the sandbox, with the path validated there: task 24, "The ops" item 5 and Validation's Path rule). The
 // host never runs git in the clone (R4.2):
 //   diff --no-color --no-ext-diff --no-textconv -U3 <base> <laneTip> -- <path>    (project)
 //   lg.For(ctx, lane) → Runner.Diff(DiffRequest{Path: path})                       (the sandbox)
 // The runner's bytes are capped as MaxDiffLines caps the project diff: its body is parsed and cut
-// at MaxDiffLines, setting Truncated; a 413 too_large past MaxJSONBytes (task-24.md:163, :185)
+// at MaxDiffLines, setting Truncated; a 413 too_large past MaxJSONBytes (task 24, "The ops" item 5 and `limits.go`)
 // is Truncated with no uncommitted hunk; any other RunnerError, or lanegit.ErrNoRunner, is that
 // lane's ReadError with the runner's sentence, and its committed hunks still show.
 // --no-textconv is on every diff and blame here (review Minor 9, the C1 class). Both run a
@@ -276,15 +276,15 @@ uncommitted diff through its sandbox's git runner (task 24), and files a worktre
 | `TestDiffBlamesTheMajorityCommit` | a hunk of 3 added lines, two from c2 and one from c1 → c2 | picking the first blamed line |
 | `TestDiffPureDeletion` | a hunk of only removals → the newest commit touching the file, the deletion reason | a blame of an empty range erroring |
 | `TestDiffUncommittedIsTierZero` | on `lanegittest.Fake` as the lane's runner behind `Lanes.For`, through task 24's seam (`Lanes{Dial: fakes.Dial, Backend: lanegittest.Backend{}}`; review r4-1 I-3): an edit in the clone → in `uncommitted`, `Tier 0`, `reason "uncommitted"`; the Fake saw one `Diff{path}`; the clone's index unchanged | an uncommitted hunk claiming a session |
-| `TestDiffRunsNoHostGitInTheLane` (R4.2) | `gitxtest.Spy` as `gitx.Exec`'s seam, the Fake as the runner; `Diff` of a path with a committed, an uncommitted and an untracked edit → all three hunk kinds returned, and no recorded exec has a `Dir`, a `-C`/`--git-dir`/`--work-tree` value, a `GIT_DIR`/`GIT_WORK_TREE`, or any other argv element under the clone root (task 24's rule, `task-24.md:506`). Red first against the pre-R4 host `diff … HEAD -- <path>` with the clone as `Dir` | a host `diff HEAD` in the clone, which reads the agent's `.git/config` |
-| (task 24) `TestRunnerRefusesAPathOutsideTheLane` | the path refusal (`../x`, `:(top)x`, …) is the runner's, before git runs (`task-24.md:476`); Diff sends only a `PathRow.Path` some lane changes | — |
+| `TestDiffRunsNoHostGitInTheLane` (R4.2) | `gitxtest.Spy` as `gitx.Exec`'s seam, the Fake as the runner; `Diff` of a path with a committed, an uncommitted and an untracked edit → all three hunk kinds returned, and no recorded exec has a `Dir`, a `-C`/`--git-dir`/`--work-tree` value, a `GIT_DIR`/`GIT_WORK_TREE`, or any other argv element under the clone root (task 24's rule, `TestHostNeverRunsGitInALane`, under "The spy test"). Red first against the pre-R4 host `diff … HEAD -- <path>` with the clone as `Dir` | a host `diff HEAD` in the clone, which reads the agent's `.git/config` |
+| (task 24) `TestRunnerRefusesAPathOutsideTheLane` | the path refusal (`../x`, `:(top)x`, …) is the runner's, before git runs (task 24, runner test 1); Diff sends only a `PathRow.Path` some lane changes | — |
 | `TestDiffUntrackedFile` | a new untracked file → one all-added hunk; a file with a NUL byte → `Binary` | untracked files missing from Files |
 | `TestDiffUntrackedRefusesALink` (review Minor 9) | `Diff` given a LaneObservation that names each path below as untracked (so git's own listing is not what refuses it); in the clone, `s.txt` a symlink to a file outside the clone, and `j/f.txt` under `j` a junction (`mklink /J`) to an outside folder → each `ReadError` names the path, no hunk, and no byte of either outside file is in the body; `t.txt` a regular file → read | an untracked file read by name, following a link the agent made |
 | `TestDiffUntrackedChecksTheOpenedFile` (review Minor 9) | through the seam `openForRead`: a hook that, after step 1's Lstat walk, renames `d` aside and makes `d` a junction to an outside folder holding `f.txt`, then opens → `ReadError`, no outside byte. Red first with step 3 removed and step 2 checked by `os.SameFile` instead (it passes on Windows: `b11-go.out`) | a check on the name the agent swaps between check and open |
 | `TestOpenForReadRefusesAFIFOWithoutBlocking` (re-review b11-1 issue 4; `//go:build linux`) | the default `openForRead`, not the seam, on a FIFO with no writer, a symlink and a regular file in `t.TempDir()`, each under a 2 s deadline → the FIFO and the link refused (not regular), the regular file read. Red first with the default set to `os.Open`: the FIFO call passes the deadline. **Skipped on this Windows host**; it runs in a Linux CI job or container, as `b11r2-fifo-run.out` did | an open that hangs the GET on a FIFO the agent swaps in |
 | `TestUntrackedFailsClosedElsewhere` (`//go:build !windows && !linux`) | `readUntracked` → the "not supported on this host" `ReadError`, no hunk | an unprobed open on an OS nobody tested |
 | `TestDiffUntrackedCapsTheRead` (review Minor 9) | a 3 MiB untracked text file, read through `openForRead` wrapped in a counting reader → at most `MaxUntrackedBytes+1` bytes read, `UntrackedCut` true and `Truncated` false, the last line whole; then a 3 MiB file with no line break → no hunk, `UntrackedCut` true | the whole file read, then cut; or a byte cap reported as the 2000-line cap |
-| `TestDiffRunsNoTextconv` (review Minor 9) | a test system file holding `diff.x.textconv=<marker script>`, the lane's `.gitattributes` holding `*.txt diff=x`, a committed and an uncommitted edit to `a.txt` → `Diff` returns both, blame included, and no marker exists. Red first without the flag on each of the two host calls (the project diff, blame). The uncommitted edit's diff runs in the sandbox, where the host's system file is not; the runner's argv carries the flag (`task-24.md:162`) | a host-defined textconv driver the agent's attributes name, run on the host |
+| `TestDiffRunsNoTextconv` (review Minor 9) | a test system file holding `diff.x.textconv=<marker script>`, the lane's `.gitattributes` holding `*.txt diff=x`, a committed and an uncommitted edit to `a.txt` → `Diff` returns both, blame included, and no marker exists. Red first without the flag on each of the two host calls (the project diff, blame). The uncommitted edit's diff runs in the sandbox, where the host's system file is not; the runner's argv carries the flag (task 24, "The ops" item 5) | a host-defined textconv driver the agent's attributes name, run on the host |
 | `TestDiffTruncates` | 3000 changed lines → 2000 and `Truncated`, `UntrackedCut` false | an unbounded response |
 | `TestDiffRefusesAPathNoWorktreeChanges` | `path=../../etc/hosts`, an absolute path, a backslash → 400; a real unchanged file → 400 with the "No worktree … changes that path" message | the route reading any file |
 | `TestChangesGETsAreReadOnly` | the §10a audit passes; `for-each-ref` of the project unchanged | a GET that writes |
@@ -318,7 +318,7 @@ go test ./control-plane/cmd/api/ -run TestHostNeverRunsGitInALane -race -count=1
   (task 24), so a **clean** filter the agent's `.gitattributes` names (review b08) runs under the
   sandbox's config, on the agent's side of the boundary; no host git hashes the clone's working
   tree (R4.2).
-- What the runner's `diff` says is the agent's claim (`task-24.md:547`): an uncommitted hunk is
+- What the runner's `diff` says is the agent's claim (task 24, "What this task does not claim": "That a runner's answer is true"): an uncommitted hunk is
   shown as the lane reports it, Tier 0, and never lands.
 - An untracked file past `MaxUntrackedBytes` shows its whole lines inside the first 1 MiB (none,
   when that 1 MiB holds no line break), marked `UntrackedCut`.

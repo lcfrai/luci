@@ -44,7 +44,7 @@ test's last git call in the project; from then on only the control plane runs gi
 (a) no git exec under the clone root. The binary keeps no gitx exec log (task-02 defines only
 `gitxtest.Spy`), so this half is the Go twin: task 24's `TestHostNeverRunsGitInALane`, the Spy
 over the `api.Deps` `serve` builds, with its create, sweep, observe, land, refresh, undo, remove and
-diff rows (`task-24.md:500-511`), green in Step 1's run. The results document cites that pass and does
+diff rows (task 24, "The spy test"), green in Step 1's run. The results document cites that pass and does
 not claim a trace of this binary. (b) `docker inspect --format '{{json .Mounts}}'` of every
 session container, the runner-only sandboxes included: no mount's `Source` equals or lies under
 `Project.Path` (both cleaned, compared with `filepath.Rel`, case-folded on Windows). Docker
