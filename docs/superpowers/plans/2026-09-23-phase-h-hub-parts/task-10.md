@@ -14,10 +14,12 @@ adopts the Hub contract's §6.3 interface **exactly** and adds five things (`JWK
 - **Phase 8 task 16 has landed** on `feat/hub`'s base (or in a branch the orchestrator merges
   first): do nothing but Step 1, and record "task 10: satisfied by phase 8 task 16 at `<sha>`" in
   the plan's progress notes.
-- **It has not:** implement phase 8 task 16's part **verbatim** — its files, its interface, its
-  check order, its 25 tests — in this lane. When phase 8's branch later carries the same files,
-  the orchestrator keeps one copy; the two are the same part, so the merge is a no-op or a
-  whitespace conflict.
+- **It has not:** implement phase 8 task 16's part **exactly** — its files, its interface, its
+  check order, its 25 tests — in this lane. The part gives signatures, not bodies (`feat/env` at
+  `aa12b01`), so when phase 8's branch later carries the same files, the two sets of bodies meet
+  at one path: an add/add conflict, not a no-op (review M5). **Phase 8 wins it:** the orchestrator
+  keeps phase 8's files whole and re-runs this plan's tests against them (plan, "Files that belong
+  to a sibling phase").
 
 **Files** (phase 8 task 16's list, unchanged):
 - `control-plane/internal/entra/{entra.go,jwks.go,verify.go,middleware.go}` (new)

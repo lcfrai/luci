@@ -201,18 +201,30 @@ here.
 | Control-plane `hub-link` and `hub/teams` routes | task 35's table | the share flow (Q8): without it no local project becomes a Hub project | 35, 42 |
 | `server.Patterns()` | `func (s *Server) Patterns() []string` | the matrix meta-test and the conformance harness read the real route table, never a list | 08, 16b, 34 |
 
-### Files that belong to a sibling phase — "whichever lands first"
+### Files that belong to a sibling phase — "whichever lands first", and the owner wins
 
 Three packages this plan needs are **owned by sibling plans** that may land before or after it.
 Each task that needs one runs a preflight: if the file exists, it is used as it is; if not, the task
-writes it **verbatim from the owning part**, so the later merge is a no-op or a whitespace conflict,
-never two designs.
+writes it from the owning part's contract, so the two copies share one design. **The later merge is
+not a no-op** (review M5). Each owning part fixes the declarations only: phase 8 task 16 and phase 3
+task 13 give `func` signatures with no bodies (checked on `feat/env` at `aa12b01` and
+`feat/phase-3-git` at `a99d20b`). Two implementers therefore write two bodies at one path, and the
+merge is an add/add conflict. **The owner phase wins every such conflict:** the orchestrator keeps
+the owner's file whole, drops this plan's copy, and re-runs this plan's tests against the owner's
+file. A test of ours that fails on the owner's file is a finding against our copy, not against
+theirs.
 
-| Package | Owner | This plan's task | The owning part |
-|---|---|---|---|
-| `control-plane/internal/entra` | phase 8 task 16 | 10 | sibling `feat/env`, `…/2026-09-23-phase-8-own-environment-parts/task-16.md` |
-| `control-plane/internal/credstore/credstore.go` | phase 3 task 13 | 29 | sibling `feat/phase-3-git`, `…/2026-09-23-phase-3-git-convergence-parts/task-13.md` |
-| `control-plane/internal/githost/remote.go` | phase 3 task 13 | 35 | the same part |
+| Package | Owner (wins a conflict) | This plan's task | The owning part | Where this plan's copy differs from the part |
+|---|---|---|---|---|
+| `control-plane/internal/entra` | phase 8 task 16 | 10 | sibling `feat/env`, `…/2026-09-23-phase-8-own-environment-parts/task-16.md` | the bodies only |
+| `control-plane/internal/credstore/credstore.go` | phase 3 task 13 | 29 | sibling `feat/phase-3-git`, `…/2026-09-23-phase-3-git-convergence-parts/task-13.md` | the bodies; phase 3's package comment is dropped (task 28's `secrets.go` holds the package's one); `Credential.Source`'s comment reads `"credential-manager" \| "entra" \| "git-credential-helper"` where phase 3's reads `"hub" \| "git-credential-helper"` (phase 3 `task-13.md:68`) |
+| `control-plane/internal/githost/remote.go` | phase 3 task 13 | 35 | the same part | the bodies only |
+
+**Sibling ask for phase 3** (review M5), one line: *adopt Hub contract §9.1's `Credential.Source`
+values — `"credential-manager" | "entra" | "git-credential-helper"`, not `"hub"` — in `credstore.go`'s
+comment at `task-13.md:68`, because the Hub server holds no git credential; this plan's stores
+report `credential-manager` (task 29) and `entra` (task 31).* Until phase 3 adopts it, its file still wins a conflict,
+and the only loss is a stale comment: `Source` is a plain `string`, so no code depends on the list.
 
 Two further facts, verified here, **close** items the contract and ADR left open:
 
@@ -294,11 +306,11 @@ parallel worktrees (see §"Order and parallel lanes").
 |---|---|---|---|
 | `control-plane/internal/credstore/{secrets,memory,chunk,targets}.go` | `Secrets`, the in-memory store, chunking, the target-name grammar | new | 28 |
 | `control-plane/internal/credstore/wincred_windows.go`, `wincred_other.go` | Windows Credential Manager over `advapi32.dll`; the non-Windows stub | new | 28 |
-| `control-plane/internal/credstore/credstore.go` ⚑ | **phase 3 task 13's file** (`Host`, `Credential`, `Store`, `None`, `Chain`); written here verbatim only if absent | new | 29 |
+| `control-plane/internal/credstore/credstore.go` ⚑ | **phase 3 task 13's file** (`Host`, `Credential`, `Store`, `None`, `Chain`); written here from its contract only if absent, and phase 3's wins the merge (review M5) | new | 29 |
 | `control-plane/internal/credstore/{tokens,local}.go` | `GitHubTokens`, `DevOpsTokens`, `PanaceaTokens`, `Inventory`; `Local` and `LocalDevOps` (phase 3's `Store` for GitHub, and for an Azure DevOps PAT, review I10) | new | 29 |
 | `control-plane/internal/credstore/credstoretest/credstoretest.go` | the behaviour suite every `Secrets` passes | new | 28 |
 | `azure-pipelines.yml` ⚑ | one step: `GOOS=windows go vet ./control-plane/...` | modified | 28 |
-| `control-plane/internal/githost/remote.go` ⚑ | **phase 3 task 13's file** (`Remote`, `ParseRemote`, `RepoKey`); written here verbatim only if absent | new | 35 |
+| `control-plane/internal/githost/remote.go` ⚑ | **phase 3 task 13's file** (`Remote`, `ParseRemote`, `RepoKey`); written here from its contract only if absent, and phase 3's wins the merge (review M5) | new | 35 |
 | `control-plane/internal/entraauth/{entraauth,oidc,pkce,listener,signin,idtoken}.go` | discovery, PKCE, the one-shot listener, the code exchange, A6's `id_token` checks | new | 30 |
 | `control-plane/internal/entraauth/{tokens,account,devops}.go` | `TokenSource`, refresh, rotation, sign-out, start-up, scope-aware refusals (A12), the lifetime-aware skew (A13); the Azure DevOps adapter | new | 31 |
 | `control-plane/internal/httpx/problem.go` ⚑ | four codes: `signed_out`, `hub_not_configured`, `local_key_required`, and `upstream_unavailable` if R4 has not landed | modified | 32 |
@@ -386,7 +398,7 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 07b | `sql/0001_init.sql`, part 2: the guards and the owner functions (`org_ids`, `lock_audit_head`, a `SECURITY DEFINER` `audit_append`: A18, A19), with a database test for each; merged with 07a | H0 | 07a | 3.5 | ✓ |
 | 08 | `cmd/hub`: config, `serve`, `migrate`, `verify` shell; the server chassis; the pool | H0 | 01, 06, 07b | 3 | ✓ |
 | 09 | the local stack: Postgres-only compose, `devstack.sh`, the README (A2); the import boundary test | H0 | 07b, 08, 12 | 2 | ✓ |
-| 10 | `internal/entra` — phase 8 task 16, verbatim, **only if it has not landed** | H1 | — | 3 (0 if landed) | ✓ |
+| 10 | `internal/entra` — phase 8 task 16's part, **only if it has not landed**; phase 8's wins the merge | H1 | — | 3 (0 if landed) | ✓ |
 | 11 | `devissuer`, part 1: the package, config, discovery, JWKS, token minting; `cmd/devissuer` | H1 | — | 2.5 | ✓ |
 | 12 | `devissuer`, part 2: `/authorize`, `/token` (code + PKCE S256, rotating refresh) | H1 | 11 | 3 | ✓ |
 | 13 | the Hub's auth pipeline: Origin, rate limits, validation, principal, org enrolment (A7) | H1/H2 | 07b, 08, 10 | 3 | ✓ |
@@ -599,7 +611,10 @@ from this plan (Q11 from a sibling ask, task 00; Q12 from review I12):
 
   The sibling line numbers in task 00 move as those plans are edited; the ask ids do not.
 - **Phase 8 task 16** (`internal/entra`) and **phase 3 task 13** (`credstore.go`) are plans, not
-  code. Tasks 10 and 29 write them from those parts verbatim only if they have not landed.
+  code. Tasks 10 and 29 write them from those parts only if they have not landed. The parts give
+  declarations, not bodies, so a copy meets the owner's file as an add/add conflict that the owner
+  wins (review M5). That our bodies and the owner's behave alike rests on the owner's tests alone,
+  which this plan re-runs after the merge.
 - **Docker Desktop's reachability** of a host service bound to `127.0.0.1` from a container was not
   tested; the local caller key (task 37) makes the answer not matter, as ADR-H1 §5.4 intends.
 - **Tauri 2 app-defined commands need no capability entry** (task 38): inferred from phase 2's

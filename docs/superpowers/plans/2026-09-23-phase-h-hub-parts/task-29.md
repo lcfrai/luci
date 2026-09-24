@@ -11,11 +11,18 @@ Entra sign-in, if Q5 is yes). Phase 7's `pnc_` token gets its own accessor, `Pan
 Task 39 is the write path for all three pasted tokens; nothing else writes them.
 
 **The package is shared with phase 3.** Phase 3 task 13 creates `credstore/credstore.go` (`Host`,
-`Credential`, `Store`, `None`, `Chain`). If it has landed, this task only adds its own files. If
-not, this task writes **phase 3's file verbatim** from the contract below — the same text phase 3's
-part holds — so whichever lands first, the other is a no-op merge. One comment differs, as contract
-§9.1 names: `Credential.Source` is `"credential-manager" | "entra" | "git-credential-helper"`, not
-`"hub"`, because the Hub server holds no git credential.
+`Credential`, `Store`, `None`, `Chain`). If it has landed, this task only adds its own files, and
+uses phase 3's file as it is. If not, this task writes **phase 3's declarations** from the contract
+below. **That copy is not verbatim, and the later merge is not a no-op** (review M5). It differs from
+phase 3's part three ways. Phase 3's package comment is dropped, because task 28's `secrets.go`
+holds the package's one. `Credential.Source`'s comment reads `"credential-manager" | "entra" |
+"git-credential-helper"`, as contract §9.1 names, where phase 3's reads `"hub" |
+"git-credential-helper"` (phase 3 `task-13.md:68`, `feat/phase-3-git` at `a99d20b`): the Hub server
+holds no git credential. And neither part holds the method bodies, so this task and phase 3 write
+two bodies at one path, an add/add conflict. **Phase 3 wins it:** the orchestrator keeps phase 3's
+file whole and re-runs this task's tests against it (plan, "Files that belong to a sibling phase").
+The plan sends phase 3 a one-line ask to adopt the `Source` values; until it does, a stale comment
+is the only loss, because `Source` is a plain `string`.
 
 **Files:**
 - `control-plane/internal/credstore/credstore.go` + `credstore_test.go` — **phase 3's**; only if absent (new)
@@ -23,7 +30,7 @@ part holds — so whichever lands first, the other is a no-op merge. One comment
 - `control-plane/internal/credstore/local.go` — `Local` and `LocalDevOps`, phase 3's `Store` for GitHub and for an Azure DevOps PAT (new)
 - `control-plane/internal/credstore/{tokens_test.go,local_test.go}` (new)
 
-#### Contract — phase 3's file, verbatim (phase 3 task 13 `:30-92`)
+#### Contract — phase 3's declarations (phase 3 task 13 `:30-92`), with the three differences above
 
 ```go
 // credstore.go — phase 3's file. Its package comment is dropped in favour of task 28's
@@ -94,8 +101,9 @@ type Chain []Store
 func (c Chain) Credential(ctx context.Context, h Host) (Credential, error)
 ```
 
-(The method bodies are phase 3's to write; this plan fixes their behaviour through phase 3's tests,
-listed below.)
+(The method bodies are phase 3's to write, and phase 3's part does not hold them either. If this task
+writes the file, it writes bodies of its own that pass phase 3's tests, listed below, and those
+bodies are replaced by phase 3's at the merge: an add/add conflict that phase 3 wins.)
 
 #### Contract — this task's files, complete
 
@@ -211,8 +219,9 @@ to the zero `Auth` and the machine's helper.
 
 #### Tests to write first
 
-If this task writes phase 3's file, it writes phase 3's four tests for it too, verbatim from phase 3
-task 13: `TestCredentialNeverPrintsItsToken`, `TestNoneHasNothing`,
+If this task writes phase 3's file, it writes phase 3's four tests for it too, from phase 3
+task 13's table (so `credstore_test.go` meets phase 3's as an add/add conflict too, and phase 3's
+wins): `TestCredentialNeverPrintsItsToken`, `TestNoneHasNothing`,
 `TestChainSkipsNoCredentialAndStopsOnFailure` (the fourth, `TestGitHelper…`, belongs to
 `githelper.go`, which stays phase 3's). Then, over `Memory()`:
 
@@ -243,8 +252,12 @@ task 13: `TestCredentialNeverPrintsItsToken`, `TestNoneHasNothing`,
 go test ./control-plane/internal/credstore/... -race -count=1 -v 2>&1 | grep -c "^--- PASS"
 # on Linux: 18 (task 28's 8 — TestMemoryConforms, six more, TestWinCredUnsupportedOffWindows — + these 10) when phase 3's file was already there; 21 when this task wrote it (+ its 3)
 go vet ./control-plane/internal/credstore/...                                                   # no output
-git grep -n "Source" -- control-plane/internal/credstore/credstore.go | grep -c '"hub"'          # 0
+git grep -n "Source" -- control-plane/internal/credstore/credstore.go | grep -c '"hub"'          # 0 when this task wrote the file
 ```
+
+When phase 3's file was already there, the last line may print 1: that is phase 3's comment, which
+this task does not edit (phase 3 wins the file, review M5). Record the count in the commit message,
+and, if it is 1, that the plan's sibling ask to phase 3 is still open.
 
 #### What this task does not claim
 

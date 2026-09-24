@@ -1,6 +1,6 @@
 ### Task 35: `hublink` — which Hub project a local project is; and the share routes (seam S-LINK)
 
-**Lane C. Depends on: 32, 34; phase 3 task 13's `githost` (or its verbatim copy, below). About 3 hours. Contract task C2.**
+**Lane C. Depends on: 32, 34; phase 3 task 13's `githost` (or its copy, below). About 3 hours. Contract task C2.**
 
 A local project's id is a hash of a path on one laptop (`control-plane/internal/project/project.go:29`),
 so no Hub record can name it. Every Hub-backed handler — phase 4's Discover, phase 5's Design,
@@ -13,9 +13,12 @@ already shared).
 
 **`githost` is phase 3's.** Phase 2's scanner reads no remotes. Phase 3 task 13 writes
 `control-plane/internal/githost/remote.go` (`Remote`, `ParseRemote`, `RepoKey`, `Host`). If it has
-not landed, this task writes it **verbatim from phase 3 task 13's contract** — the same
+not landed, this task writes it **from phase 3 task 13's contract** — the same
 "whichever lands first" rule as tasks 10 and 29 — together with phase 3's two tests for it
-(`TestParseRemoteTable`, `TestRepoKeyIsMachineIndependent`).
+(`TestParseRemoteTable`, `TestRepoKeyIsMachineIndependent`). The contract holds the declarations,
+not the bodies, so the later merge is an add/add conflict, not a no-op, and **phase 3 wins it**:
+the orchestrator keeps phase 3's file whole and re-runs this task's tests (plan, "Files that
+belong to a sibling phase"; review M5).
 
 **Files:**
 - `control-plane/internal/githost/remote.go` + `remote_test.go` — **phase 3's**; only if absent (new)
@@ -134,7 +137,7 @@ The four `GET`s go in `catalogReadOnlyRoutes`. A `Hub`-backed route with `Deps.H
 #### Steps
 
 - [ ] **Step 1: Preflight.** `ls control-plane/internal/githost/remote.go`. Absent → write phase 3
-  task 13's `remote.go` and its two tests verbatim (sibling `feat/phase-3-git`, read only). Record
+  task 13's `remote.go` and its two tests from its contract (sibling `feat/phase-3-git`, read only). Record
   which case applied.
 - [ ] **Step 2:** Tests; they fail. Then `hublink.go`, the routes, the wiring (`main.go`'s
   `Remotes` over `project.Scanner`'s paths and `project.NewExecRunner()`).
