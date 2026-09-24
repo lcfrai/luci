@@ -412,3 +412,76 @@ per worker per 3 minutes, because each delivered message is billed like a prompt
 
 Each Orchestrator then directs **its own** workers to match (`panacea worker direct`). Neither side
 can move the other side's worker. That is OD-16's *"no user steers another user's agent"*, enforced.
+
+### 6.3 Leases: soft claims with an expiry
+
+1. **At plan time,** creating a task takes an `intent` lease on its scope globs. Fleet checks it at
+   once against every live lease and every observed edit. An overlap raises a tier-P conflict
+   before any code is written. This is `02`'s idea #2, checked at plan time with both agents told.
+2. **On the first observed edit,** a worker gets a `hold` lease on that path, whether or not it
+   asked. A forgetful agent still produces a truthful lease, because the lease follows the file
+   watcher, not the agent's word (§3.3 rule 4).
+3. **Expiry:** 30 minutes, renewed while the holder works. A lease is released when its task ends,
+   its agent ends, or its owner leaves the team. A stale claim misleads every other agent
+   (`04` §5.3), so nothing outlives its holder.
+4. **Advisory, not blocking.** Fleet never refuses a write (P7). `panacea check` reports the
+   holder, and the worker's managed block says to report `blocked` and wait for its Orchestrator
+   rather than edit a file someone else holds. Phase 3's reviewed land is the backstop.
+5. **Right of way:** the earlier lease holds by default. The later side's Orchestrator is the one
+   that must propose. Every negotiation therefore starts from a known default, not a blank page.
+
+### 6.4 From conflict to thread
+
+Fleet's forecaster (§8) raises `cf-…` and opens a thread between the two orchestrators, with the
+typed conflict attached: tier, paths, line ranges, both tasks and both reasons. It queues an event
+for both. Each thread has **3 rounds per side** and a **15-minute deadline** (team policy may
+change both). When either runs out, both orchestrators must escalate `decide` to their own humans.
+Fleet attaches the thread's typed state to each escalation, so neither human depends on the other
+side's agent-written summary.
+
+### 6.5 Escalation: inform or decide, legislated in advance
+
+AGENTIC-UX asks for authority *"legislated in advance, not vetoed in real time"*
+(`docs/AGENTIC-UX.md:37-38`). Each user sets, per action class, what their Orchestrator may agree
+to without asking. These are the defaults:
+
+| Situation | Default | Why |
+|---|---|---|
+| a peer asks why my worker is doing something | answer; no escalation | the answer is the task card's reason |
+| yield globs my worker has **not** edited yet | act, then **inform** | nothing is lost |
+| yield globs my worker **has** edited | **decide** | work would be discarded |
+| `sequence`: my task waits for a peer's land | act and inform if the forecast wait is under 1 hour; otherwise **decide** | a long wait is a scheduling choice |
+| `build-on` a teammate's unlanded lane | **decide**, always | it runs their code in my sandbox (`04` §5.1) |
+| change my task's scope or reason, or abandon it | **decide** | it changes what I asked for |
+| rounds or deadline exhausted | **decide** | negotiation failed |
+| a free-text directive after reading peer text (§7.3) | **decide** | the injection fence |
+| a teammate's human note addressed to me | **inform** | a person spoke; I should hear it |
+
+**Inform** items join the RETURN handover under *"since you last looked"*, batched and never a toast
+(`docs/AGENTIC-UX.md:22-26`, `:52-53`). **Decide** items are WAITING items in ADJUDICATE, answerable
+in place, with up to 4 options, each with its consequence, and a deadline. If a decision is not made
+by its deadline, the **safe default** applies: the contested worker pauses, and nothing is deleted
+or reverted. Pausing costs time, never work.
+
+### 6.6 Budgets and loops
+
+Every message a peer sends is read on the receiver's subscription (P4). So Fleet enforces: at most
+20 messages an hour between any two orchestrators; the round cap in §6.4; delivery coalesced into
+60-second batches; and a thread closes as `escalated` after two rounds with no new typed content.
+A thread cannot ping-pong forever, and no teammate can drain another's quota.
+
+### 6.7 Worked example: *"I don't like what Alice's agent is doing"*
+
+1. Dylan sees on the team strip that Alice's worker is editing `auth/session.go`. The reason reads:
+   *brief §3.2, "Sessions survive restart"*. Dylan types to **his own** Orchestrator: *"Why is
+   Alice changing the session format? Mobile depends on it."*
+2. Dylan's Orchestrator opens a thread and sends `ask` to Alice's Orchestrator, quoting Dylan's
+   concern as its own text.
+3. Alice's Orchestrator answers from its task and reason. It cannot change the goal of Alice's task
+   (that is **decide**, §6.5), so it proposes `sequence`: Alice's worker lands a compatibility shim
+   first. Dylan's Orchestrator cannot judge a product trade-off either.
+4. Both escalate. Alice gets **decide**: *"Dylan objects: mobile depends on the session format.
+   Options: continue; keep the old format too (+1 task); pause."* Dylan gets **inform**: *"Asked
+   Alice's side; she is deciding. Your mobile worker is unaffected until then."*
+5. Alice chooses to keep the old format. Her Orchestrator re-tasks her own worker. Dylan's handover
+   shows the outcome. Nobody touched anybody else's agent, and the whole exchange is on the Hub.
