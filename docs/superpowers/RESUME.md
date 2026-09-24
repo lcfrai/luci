@@ -123,6 +123,12 @@ build stream with `args {"stream":"p3","cleared":["b02"]}`.
 - Owner decisions now run OD-1 to OD-20. OD-18: Azure. OD-19: org ZDR inference via a gateway
   (Global Anthropic by default, AU Bedrock on trigger). OD-20: local for now, cloud-first.
 
+**Added 08:30, 2026-09-25:**
+- **Phase 2 close-out**, run `wf_33aecd88-cd3` (the session's `workflows/scripts/phase2-closeout-wf_33aecd88-cd3.js`). It is sequential, so it resumes by prefix. It does the X-1 security fix, then rebuilds `:dev` and reconciles tasks 25 and 26, then task 26, then task 25's agent-provable steps (the owner checklist is batched), then the final whole-branch review. The phase 2 fix rounds (continuation 3) are COMPLETE: od10 and fork are approved.
+- **p3 R4 round 4**, run `wf_d53f7dc5-a3d` (the session's `workflows/scripts/p3-r4-round4-wf_d53f7dc5-a3d.js`). When its review passes, resume p3's build stream (run `wf_0feefc44-791`, `build-stream-current.js`) with args `{"stream":"p3","cleared":["b02"]}`.
+- Team-collab research: COMPLETE (`00-summary.md`). Linear parity-plus: COMPLETE (`00-summary.md`, `prototype/work-layer.html`).
+- Owner decisions now run OD-1 to OD-24. OD-21: LiteLLM. OD-22: read-only fetch. OD-23: a policy injection mechanism. OD-24: the data class is set at creation and drives inference and deploy scans.
+
 ## 4. After phase 2's fix rounds finish
 
 Still to do for phase 2:
