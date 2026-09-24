@@ -1657,3 +1657,57 @@ self-check:
   Info log line on each stop makes it visible (t07:484).
 - The re-review's own open items (C2's poller shape; the Go names; the `Deployments` read time)
   are unchanged by this batch.
+
+## Fix batch b10 — M17 to M22 (2026-09-24)
+
+Minors in the view (task 08) and Ship (task 09), and count fixes across tasks 12, 13 and 15.
+Commits `132b98d` (M18, M19), `6825181` (M17), `907796d` (M20, M21, M22), and the commit that
+carries this section. The Hub contract was read at `6b873d0` (its last change; the hub worktree is
+at `af72f19`), read-only. Panacea was read at `~/Projects/Panacea`, read-only. Line numbers are
+after this batch's edits.
+
+| Finding | Change |
+|---|---|
+| **M17** an unshared repository turns Ship off with no way forward | The fix is the Hub's own share, not a phase 7 form. **t14:66** the `no_hub_project` line gains **Share with a team…**, which calls the store's `openShare(projectId)` (Hub task 42's `SharePopover`, `task-42.md:43-46`, verified). That popover posts `POST /v1/projects/{projectId}/hub-link` (Hub task 35, seam S-LINK, verified), which calls `CreateProject` (contract `:705`, verified). Without task 42, no button is drawn and the sentence ends with a true line. **t09:238** the precondition sentence names the share. **t07:100-106** `HubEvents`: a `project.*` event (contract `:1145-1147`, verified) re-resolves `not_linked` bindings and the event's own project, so Ship turns on in about 8 s. **t06:59-62** the field comment. **plan:797** the §10.1 row. Tests **t14:88** `not shared names the way forward`, **t07:441** `TestProjectEventReResolvesUnshared` |
+| **M18** the rollback's environment join; pending rows forever | Part 1 was **already done**: rule 6's rollback candidate is joined *"by `same`"* (**t08:260-261**), and rule 1 gives Hub rows `environmentRow` through `SameEnvironment`. No change. Part 2: **t08:274-285** rule 7's age cap. A row is `pending` while `DeploymentsAt` is zero or no later than `confirmedAt + pendingGrace` (5 min, the skew allowance `pinSettle` uses, t07:277). After that it is the new kind **`not_found`**. The cap is measured against `DeploymentsAt`, never `now`, so a Panacea outage never calls a run gone. The row returns to `run` if a later read lists it (Panacea serves its live list when the durable read fails, `handlers/projects.go:1202-1207`, verified). **t08:85-92** the kind and `deploymentId`; **t08:101** `at`; **t13:111** the type; **t17:110**, **:115**, **:118** the heading, the **Not found** section, and Scans withheld. Tests **t08:344** `TestPendingRowAgesToNotFound`, **t17:245** `not found says so` |
+| **M19** counts disagree with the code | **Drill routes: seven** (five reads, two streams; t12:56-101): **t12:13**, **:15**, **:138**. **`classify` callers: four**, verified in `desktop/src` (`EmptyDevelop.tsx:58`, `SessionPane.tsx:49`, `sessionVerbs.ts:86`, `useCreateSession.ts:38`). t13:21 and :308 already said four; **t13:354** said three and is fixed. **Pin cell: nine states.** The review counted eight; b09's *"pin not loaded"* row makes nine. **t15:25**, **:126-129**, **:198**. **`promote`: the review is wrong on the facts.** Panacea does set it: the history backfill copies `promote` and `rollback` from audit labels onto reconstructed `historical` rows (`clients/deployment_backfill.go:54-60`, `:170-178`, written through the store at `:273`, verified). What was false was plan 7P-4's *"the only `Trigger` values set anywhere"*. **plan:224-230** now says a live path sets four and the backfill sets two more. **t08:103-107** the trigger field keeps `promote` and adds `rollback`; **t20:495-498** the ask's *"no caller sets `rollback`"* is corrected. Test **t08:345** `TestBackfilledRollbackTriggerIsARun` (no rule reads `trigger`) |
+| **M20** `ship.Config` lacks Briefs; `PinPreview` copies the Hub's rule | **t09:69-75** `Briefs` interface (`ForBranch`, contract `:1295`, verified); **t09:93-95** `Config.Briefs` (nil → `PinPreview nil`); **t09:157-166** `PinPreview` states the Hub's reserve rule (contract `:1015`, `:644`, verified) and that it is a preview; **t09:416-418** the step names `Config.Briefs` and its wiring. **t16:76-83** the Ship bar says *"should pin brief rev N (the Hub pins it at Ship)"*, never *"pins"*, and gives `no_complete_revision` its own words. Tests **t09:404** `TestPinPreviewMatchesTheHubsPin` (preview against the same Hub fake's `Reserve`, compared through `pin.briefKey`, because the Release carries the key, not the id: contract `:983-986`, verified), **t16:198** |
+| **M21** a 429 or 3xx `KindUnavailable` matches no abandon branch | **Already closed** by b05 round 2 (R-2): the *"Any other error"* branch (**t09:306-313**) abandons every error no named branch takes, `KindUnavailable` with `0 < Status < 500` included. **t09:383** `TestOtherErrorAbandons` gains a `Status 302` case, the review's 3xx |
+| **M22** a restart between reserve and retry reserves twice | **The review's first option is wrong on the facts, and its second only describes the defect.** A Hub key derived from the desktop's would replay the reservation, but the retry would still call Panacea again (a second build). And if the first process had already confirmed, the replay would leave the second build unpinned, with a `409 release_state`. The root cause is that the retry guard lives in memory. **t09:190-230** step 1 is now a **Ship journal** on disk: one file per `(ProjectID, IdempotencyKey)`, written with `writeAtomic` at `reserved`, `shipping` (before `Actor.Ship`), `started`, `done`. A retry continues from its stage and never reserves or builds twice. A `shipping` record abandons with step 6's no-answer sentence and never calls Panacea again. **t09:107-110** `Resume` restarts the confirm loop of every `started` record, which a restart used to lose (the same root cause, not a tangent). **t09:227-230** the one window left, and why it builds nothing. **t09:96-98** `Config.JournalDir`; **t09:16** files; **t09:328-329** step 7; **t09:420-422** `main.go` (`statepath.Dir("deploy")`, `statepath.go:30`, verified: it creates nothing). **t10:37-43** `withReservation` takes the key, so rollback and rebuild are journalled too. **plan:557** the file row. Tests **t09:378-382** (five), **t10:198** `TestRollbackIsJournalled` |
+
+### Deviations, declared
+
+- **M19, `promote`.** The review says Panacea sets no `promote` trigger. Its backfill does, so
+  the enum keeps it. The fix corrects the plan's claim, which was the false statement, and adds
+  `rollback`, which the same backfill writes.
+- **M18, a new kind.** *"Say not found"* needs something on the wire. A `pending` row with a flag
+  would call a row *pending* that is not. `desktop/src/deploy/types.ts` is task 13's new file,
+  not `store/types.ts`, so UI contract §2 is untouched.
+- **M22, the journal.** Covered above. It needs no Hub amendment. It also closes the confirm loop
+  lost on restart, which the review did not name.
+- **M17, the event re-resolve.** Without it, a Share would leave Ship off until the binding's
+  60 s recheck, while the line under Ship still says *"not a shared project"*.
+
+### Mutants
+
+No code changed in this batch, so no mutant was run. Each new test names the mutant it kills.
+The two I expect a re-review to find surviving:
+1. **Resume abandoning `reserved` records.** `TestJournalRetryAfterRestartReservesOnce` retries
+   without running `Resume` first, and no test runs `Resume` over a `reserved` record. So a
+   `Resume` that abandons such a record, and turns the retry's continue into a refusal, passes
+   every test.
+2. **The age cap's boundary.** `TestPendingRowAgesToNotFound` uses 10:04 and 10:06 around a
+   10:05 cap, so `>` and `>=` at exactly `confirmedAt + pendingGrace` both pass.
+
+### Unverified
+
+- The Hub's Go names: `hubapi.ForBranch`'s fields (`BranchBrief`, `ProjectBrief`, `Head`,
+  `LatestCompleteRevision`), taken from the wire (contract `:770-771`, `:644`), and whether the
+  Hub fake's `Reserve` applies `:1015` in full (archived briefs included).
+- Whether Hub task 35's `CreateProject` emits `project.remote_added` as well as
+  `project.created`. The re-resolve rule handles either.
+- Whether `openShare` can be detected as absent at run time or only at compile time. t14 renders
+  the button only where the store has it. If the store's type always has it, the fallback
+  sentence is dead code until task 42 lands.
+- `writeAtomic`'s durability (a rename; whether it fsyncs) bounds the journal's crash window.
+  It was not read.
