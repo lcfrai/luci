@@ -152,6 +152,13 @@ type Snapshot struct {
 	LastError     *deploy.Error                 // why Stale, for the lens's sentence; task 08 maps its Kind to staleReason.code
 	Version       uint64                        // increases when anything above except FetchedAt changes
 }
+
+// SettledBy reports whether d's release, if it has one, was final by at: d.CreatedAt + pinSettle
+// is before at (step 6, "Settled"; plan re-review b09-1, M-1). pinSettle is the longest
+// ExpiresAt − ReservedAt in s.Releases plus 5 min; 20 min when the page is empty. Step 6 asks it
+// with Now() before a targeted read; task 08 rule 5b asks it with ReleasesAt. One helper, so the
+// watcher and the view can never disagree on which rows a page answers for.
+func (s Snapshot) SettledBy(d deploy.Deployment, at time.Time) bool
 ```
 
 #### Terms: cycle, poll, recheck (plan re-review b09-1, M-4)
@@ -264,7 +271,7 @@ Three words, used only in these senses in this task and in every restatement of 
    none, in `PinsByRun[d.ID]`. `pipelineRun=` and not `deploymentId=`: the join is written only by
    the reserver's own watcher (step 7), so a release whose reserver never saw the deployment has no
    `deployments[]` entry, but always has its `pipelineRun` (confirm carries it).
-   **Settled** (plan re-review b09-1, M-1): `d.CreatedAt` is more than `pinSettle` before `Now()`,
+   **Settled** (plan re-review b09-1, M-1; `Snapshot.SettledBy(d, Now())`): `d.CreatedAt` is more than `pinSettle` before `Now()`,
    where `pinSettle` is the longest `expiresAt − reservedAt` in the current page — the Hub's
    `PANACEA_APP_HUB_RESERVATION_TTL`, 15 min by default (Hub contract §7.9 `:1021` at 6b873d0) —
    plus 5 minutes for clock skew between the Hub and Panacea. A release is reserved before its run
@@ -332,7 +339,8 @@ is **not** evidence about Panacea, and three rules keep the two apart:
    every due project not reached, stay due. A Hub read not begun leaves its project's releases due,
    its `PinsByRun` ids absent and `ReleasesState` unchanged. Step 9 still runs for every project
    polled to the end, so their data is published. The next cycle begins with what was stopped
-   (the order below).
+   (the order below). One log line at Info per stop — the phase, the projects not reached, the
+   budget left — so a budget set too small shows up in the log, never on the lens.
 
 **Order within a cycle.** The **Panacea phase** first: steps 0-1 once, then steps 2-5 and 8 for
 each due project — projects with a tracked run first, then the rest in rotation, beginning with
@@ -419,7 +427,8 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestStaleKeepsLastData` | a good cycle, then a failing one → `Environments` unchanged, `Stale == true`, `FetchedAt` is the good cycle's time | clearing the lens during a blip |
 | `TestJoinOnlyOwnConfirmedRuns` | releases: mine confirmed, mine reserved, a teammate's confirmed, mine rollback — only the first is joined, and only once across three cycles | joining a teammate's release, a reservation, or a rollback (7P-4: a rollback has no deployment of its own) |
 | `TestJoinWaitsForDeployment` | a confirmed release whose run has no deployment yet → no join; next cycle it appears → one join | joining by observation of a run name that does not yet exist |
-| `TestPinsBeyondThePage` | the Hub fake holds 201 confirmed run releases for one Panacea project; `Deployments` holds 25 rows, the oldest, `d-old`, being the pipelineRun of the oldest release (not in the first page of 200) and 24 others with no release → the page read gives `ReleasesMore == true`; cycle 1 makes exactly 20 `Releases` calls with `PipelineRun` set, newest rows first; cycle 2 makes the other 5, one of them `d-old`, and `PinsByRun["d-old"]` is that release, the rest `nil`; cycle 3 makes none. With 199 releases → `ReleasesMore == false` and no `PipelineRun` call ever (review M11) | a pin beyond the 200th release read as *"no brief is recorded"* (P9 inverted); a targeted read per row per cycle; a targeted read made when the page was complete |
+| `TestPinsBeyondThePage` | the Hub fake holds 201 confirmed run releases for one Panacea project, each with `expiresAt − reservedAt` 15 min; `Deployments` holds 25 rows, every one created more than 20 min before the fake clock's now (settled), the oldest, `d-old`, being the pipelineRun of the oldest release (not in the first page of 200) and 24 others with no release → the page read gives `ReleasesMore == true`; cycle 1 makes exactly 20 `Releases` calls with `PipelineRun` set, newest rows first; cycle 2 makes the other 5, one of them `d-old`, and `PinsByRun["d-old"]` is that release, the rest `nil`; cycle 3 makes none. With 199 releases → `ReleasesMore == false` and no `PipelineRun` call ever (review M11) | a pin beyond the 200th release read as *"no brief is recorded"* (P9 inverted); a targeted read per row per cycle; a targeted read made when the page was complete |
+| `TestLateConfirmedPinIsNotCachedAbsent` | the Hub fake holds 200 confirmed run releases plus `r-new`, `reserved` with a null `pipelineRun`, newest; `Deployments` holds `d-new`, created 1 min before the fake clock's now, whose Ship reserved `r-new` → `ReleasesMore == true`, and the cycle makes **no** targeted read for `d-new` (unsettled): `PinsByRun` has no `"d-new"`, so the view says *"pin not loaded"*. Then `r-new` is confirmed with `pipelineRun: d-new` and 200 more releases are reserved, pushing it off the page; at 21 min the cycle reads `PipelineRun: d-new` once and `PinsByRun["d-new"]` is `r-new`. A deployment created 21 min ago with no release gets one read and a cached `nil` (plan re-review b09-1, M-1) | a targeted read on a new deployment whose release is still `reserved`, caching `nil` for the binding's life, so a real pin reads *"no brief is recorded"* once 200 releases push it off the page |
 | `TestReleaseEventRefreshesReleases` | two bound projects with `HubProjectID` `pj-a` and `pj-b`, releases read at cycle 1; `HubEvents([{kind:"release.confirmed", projectId:"pj-a"}, {kind:"brief.revised", projectId:"pj-b"}, {kind:"release.abandoned", projectId:"pj-other"}])` at 5 s of fake time → the next tick (3 s later, not 15 s or 60 s) reads `Releases` for `pj-a` only; `HubEvents` itself made no call (the fake's `Calls()` unchanged until the tick) (review M12) | a teammate's rollback shown 60 s late; a `brief.*` event, or another project's, triggering release reads; a listener that reads the Hub on the poller's goroutine |
 | `TestHubDownKeepsReleases` | `hubclient` fake failing → `ReleasesState "unavailable"`, previous releases kept, Panacea data still fresh | the lens's pins vanishing when the Hub blips |
 | `TestOwnerProbe` | `AutoDeploy` → `KindForbidden` ⇒ `"no"`, including a `KindForbidden` whose `Message` is the scope sentence of task 03's `error-scope-owner-403.txt` — a real owner holding a restricted key (review I5); `KindConflict` ⇒ `"yes"`; success ⇒ `"yes"`; `KindUnavailable` ⇒ `"unknown"` | inferring owner from `/me` groups (7P-9) |
@@ -465,6 +474,13 @@ grep -rn 'setInterval(' desktop/src --include=*.ts --include=*.tsx | grep -v '\.
   and `Page.Next` (a `*string`, from §1's `"next": "<cursor>" | null`) and the compiler will say
   otherwise. Nor that the Hub fake honours `pipelineRun=` and pages at 200: `TestPinsBeyondThePage`
   is red until it does.
+- `hubapi.Release`'s `ReservedAt` and `ExpiresAt` Go names (the wire has `reservedAt` and
+  `expiresAt`, contract `:989`), which `pinSettle` reads. And whether `hubclient` has a request
+  timeout of its own: the watcher does not rely on one, because it applies `HubReadTimeout` itself
+  (plan re-review b09-1, I-1).
+- That 30 s is the right cycle budget. It is `ReadTimeout + Interval` so that a read has a 15 s
+  window to begin in; the first live run should log how often a budget stop happens. A stop
+  stales nothing, so the cost of a wrong value is latency, not a false outage.
 - That the watcher sees a rollback. Nothing in Panacea records one (plan 7P-4); task 08 reads the
   Hub's rollback releases for that.
 - Anything the desktop does with the cursor. Task 13.

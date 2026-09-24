@@ -28,11 +28,12 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "projectId": "p-8c1d0e42",
   "connection": ConnectionStatus,        // exactly GET /v1/deploy/connection's body (task 05)
   "binding": Binding,                    // exactly the binding PUT's body (task 06)
-  "fetchedAt": "2026-09-23T10:02:11.123Z" | null,   // the last cycle whose Panacea reads all succeeded
-  "stale": false,                        // true: the last cycle failed; everything below is fetchedAt old
+  "fetchedAt": "2026-09-23T10:02:11.123Z" | null,   // Snapshot.FetchedAt: the end of the last poll whose Panacea reads all succeeded
+  "stale": false,                        // Snapshot.Stale: true = everything below is fetchedAt old and not current — the last poll failed (task 07's failure rule) or Panacea refused Environments (step 2); a budget stop never sets it
   "staleReason": null | { "code": "upstream_unavailable" | "deploy_token_rejected" | "deploy_not_found" | "deploy_forbidden" | "deploy_conflict" | "deploy_rejected", "message": "…" },
-  // the last four: Panacea refused this project's Environments (task 07 step 2, review M13) — it
-  // answered, so the data is history, not a blip; the binding is being re-resolved
+  // rule 0: null exactly when stale is false; else the code and message writeDeployError would
+  // answer for Snapshot.LastError (t05:268-286). The last four: Panacea refused this project's
+  // Environments (task 07 step 2, review M13) — it answered, so the data is history, not a blip
   "ownerControls": "yes" | "no" | "unknown",
   "releasesState": "ok" | "no_hub" | "no_hub_project" | "hub_key_spelling" | "signed_out" | "unavailable",
   "selected": null | {                   // null when no ?branch= was sent (review b02, C2)
@@ -143,6 +144,15 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 
 #### Assembly rules (`view.go`) — each is a test below
 
+0. **Staleness** (plan re-review b09-1, M-5). `stale` and `fetchedAt` are the snapshot's `Stale`
+   and `FetchedAt`. `staleReason` is `null` exactly when `stale` is `false`; otherwise it is the
+   code and message `writeDeployError` would answer for `Snapshot.LastError` (t05:268-286) — one
+   table, so the lens's banner and an act's refusal never name the same failure two ways:
+   `KindUnavailable` → `upstream_unavailable` with its status-class sentence, `KindUnauthorized`
+   → `deploy_token_rejected`, and a refused `Environments` (task 07 step 2) → `deploy_not_found`,
+   `deploy_forbidden`, `deploy_conflict` or `deploy_rejected` with Panacea's sentence. A `Stale`
+   snapshot whose `LastError` is nil (not reachable by task 07; defensive) is `upstream_unavailable`
+   with the status-0 sentence, never `null`.
 1. **Environment join** is `deploy.Reader.SameEnvironment` — for Panacea (task 03), exact name plus
    Panacea's own `prod` ≡ `production` (`clients/kubernetes.go:4210-4217`). `deploywatch` never
    imports `deploy/panacea`, so the rule reaches the view as a parameter:
@@ -202,15 +212,36 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
    reached. This is how phase 7 sees Panacea's access route disagree with its deploy (task 03's
    `EnvironmentFor` row: `branchEnv` reads the production-branch label only), from facts after the
    deploy, with no copy of `ResolveProductionBranch`.
-5b. **A pin not loaded is not a pin absent** (review M11). A `run` row's `releaseLoaded` is `false`,
-   and `release` `null`, when rule 5 finds nothing **and** the snapshot cannot say none exists:
-   (a) `ReleasesAt` is zero and `ReleasesState` is `unavailable` or `signed_out` (no release read
-   has succeeded for this binding yet) or `hub_key_spelling` (a Hub project may hold the
-   repository under the other spelling, and none was read); or (b) `ReleasesMore` is true and
-   `PinsByRun` has no entry for the id. Otherwise `releaseLoaded` is `true` and a `null` `release`
-   is an answer, *"no brief is recorded"*: a `nil` `PinsByRun` entry, a complete page
-   (`ReleasesMore` false, `ReleasesAt` set), `no_hub` (nothing records briefs) or `no_hub_project`
-   (the Hub answered: no project). Every non-`run` row is `true`: its release is the row.
+5b. **A pin not loaded is not a pin absent** (review M11; plan re-review b09-1, M-2). When rule 5
+   finds nothing for a `run` row, its `release` is `null`, and `releaseLoaded` is `true` — the
+   `null` is an **answer**, *"no brief is recorded"* — **only** in these cases; every other
+   snapshot is *not loaded* (`releaseLoaded: false`):
+   (a) `ReleasesState` is `no_hub` (nothing records briefs) or `no_hub_project` (the Hub answered:
+   no project holds this repository);
+   (b) `PinsByRun` holds an entry for the id: a `nil` entry is the Hub's "none", read only once
+   the deployment was settled (task 07 step 6), so it is final;
+   (c) `ReleasesAt` is set, `ReleasesMore` is false (the page is complete), **and** that page
+   answers for this deployment: either the deployment was already settled when the page was read
+   (`d.CreatedAt + pinSettle` before `ReleasesAt`; `Snapshot.SettledBy(d, ReleasesAt)`, task 07
+   step 6's rule, the same helper), or the page was read after the `Deployments` list that holds
+   it (`ReleasesAt` after `DeploymentsAt`) and holds no `reserved` run release. An unsettled row
+   beside an open reservation is not loaded: that reservation's confirm may yet name it (a confirm
+   retried after a Hub blip, t09:259-263, or a teammate's Ship between Panacea's answer and their
+   confirm). A row newer than the last good page read — the Hub down since — is not loaded
+   either. Settled rows are never affected, so neither a Ship in flight nor a Hub blip flips the
+   history to *"pin not loaded"*.
+   The list is of answers, not of unknowns, so a state nobody listed is not loaded by default: a
+   zero `ReleasesState` (a snapshot whose step 6 has not run: the project's first poll failed, or a
+   budget stop came first), `signed_out`, `unavailable` before any good read, and
+   `hub_key_spelling` (a teammate's cockpit may hold this repository in a Hub project under a
+   spelling the Hub accepts, and none can be read from here) are all `false`. The view sends a
+   zero `ReleasesState` as `releasesState "unavailable"` — the Hub has not answered for this
+   binding yet, which is true before its first read too — so the wire keeps its six values.
+   Every non-`run` row is `true`: its release is the row.
+   **Why not loaded** is the view's `releasesState`, and the lens keys its sentence to it (task 17
+   drawer, task 16 Rebuild): `signed_out` → nothing is read until the user signs in;
+   `hub_key_spelling` → the pin can never load under this binding (task 09's HA7-6 sentence);
+   anything else → it is read in the background.
 6. **Current** is what the environment serves now (review I3). It is the later of two candidates:
    - **the live build**: the environment's deployment with `build "succeeded"` and a non-zero
      `CompletedAt` whose `CompletedAt` is latest. Ordered by completion, never by `CreatedAt`:
@@ -281,7 +312,8 @@ the watcher passes its `Reader.SameEnvironment`, not the stub.
 | `TestServingOnlyFromNewest` | the second-newest row's `LiveReady: &3` does not reach `serving`; the newest's nil → `measured:false` | painting yesterday's health on today |
 | `TestServingZeroIsDown` | newest `LiveReady: &0` → `{measured:true, ready:0}` while `build.state == "succeeded"` | a green tick over a dead site (survey §3.3) |
 | `TestReleaseByRunNameOnly` | a confirmed release whose `pipelineRun` is `"r1"`; deployments `"r1"` and `"r2"` on the same branch → only `r1` has the pin; `r2.release == null` | attaching a pin to the next deploy on the same branch — pinning by observation (P2) |
-| `TestPinNotLoadedIsNotAbsent` | `ReleasesMore: true`, `ReleasesAt` set, a page matching `r1` only, `PinsByRun {"r2": <release pinned to r2>, "r3": nil}`, and a fourth deployment `r4` with no entry → `r1` and `r2` carry their pins with `releaseLoaded true`; `r3` is `release null, releaseLoaded true`; `r4` is `release null, releaseLoaded false`. `ReleasesMore: false` → `r4` becomes `releaseLoaded true`. `ReleasesAt` zero with `ReleasesState "unavailable"`, `"signed_out"` or `"hub_key_spelling"` → every unmatched run row `false`; with `"no_hub"` or `"no_hub_project"` → `true` (review M11) | a deployment older than the 200th release, or a Hub that never answered, drawn as *"no brief is recorded"* — a real pin reading as absent, P9 inverted |
+| `TestPinNotLoadedIsNotAbsent` | `ReleasesMore: true`, `ReleasesAt` set, a page matching `r1` only, `PinsByRun {"r2": <release pinned to r2>, "r3": nil}`, and a fourth deployment `r4` with no entry → `r1` and `r2` carry their pins with `releaseLoaded true`; `r3` is `release null, releaseLoaded true`; `r4` is `release null, releaseLoaded false`. `ReleasesMore: false` → `r4` becomes `releaseLoaded true`. `ReleasesAt` zero with `ReleasesState "unavailable"`, `"signed_out"`, `"hub_key_spelling"` or `""` (step 6 never ran) → every unmatched run row `false`, and `""` goes on the wire as `releasesState "unavailable"`; with `"no_hub"` or `"no_hub_project"` → `true` (review M11). Rows `r1`-`r4` are created an hour before `ReleasesAt`; a fifth, `r5`, 2 min before it, with `ReleasesMore: false` and `DeploymentsAt` before `ReleasesAt`: the page holding a `reserved` run release → `r5` `false`; holding none → `true`; `ReleasesAt` before `DeploymentsAt` (the Hub down since) → `r5` `false` while `r4` stays `true` (plan re-review b09-1, M-2) | a deployment older than the 200th release, a Hub that never answered, a snapshot whose step 6 never ran, a row whose release is still `reserved`, or one newer than the last good page, drawn as *"no brief is recorded"* — a real pin reading as absent, P9 inverted; a list of unknown states that misses one |
+| `TestStaleReasonIsWriteDeployErrors` | `Stale: true` with `LastError` `{Kind: KindForbidden, Message: "m"}` → `staleReason {code: "deploy_forbidden", message: "m"}`; `KindUnavailable`, Status 0 → `upstream_unavailable` with the status-0 sentence; `KindUnauthorized` → `deploy_token_rejected`; `Stale: false` with a leftover `LastError` → `staleReason null`; `Stale: true` with `LastError` nil → `upstream_unavailable` (plan re-review b09-1, M-5) | a refusal drawn as *"Panacea has not answered"*; a second Kind → code table in the view that drifts from `writeDeployError`'s |
 | `TestReservedIsNotAPin` | a `reserved` (unconfirmed) release with `pipelineRun: null` → no deployment gets it | a reservation that never became a run claiming a deployment |
 | `TestRollbackIsCurrent` | `d1` succeeded (created 09:00, completed 09:04); `d2` succeeded (created 10:00, completed 10:03); a confirmed rollback to `d1` confirmed 10:05 → `current {source:"rollback", deploymentId:"d1", since:"…10:05…"}`; the `rollback` row has `isCurrent:true` and `d1`'s release pin; the `d1` and `d2` run rows have `isCurrent:false` | the lens saying `d2` is serving after the user rolled back |
 | `TestRollbackBeforeNewerDeploy` | the same rollback, then `d3` created 10:10 and completed 10:14, succeeded → `current {source:"deployment", deploymentId:"d3", since:"…10:14…"}`; only `d3`'s row is `isCurrent` | a rollback that sticks after a newer build went live |

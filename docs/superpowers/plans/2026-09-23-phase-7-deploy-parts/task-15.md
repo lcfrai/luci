@@ -128,7 +128,7 @@ falsy, so `name || …` or `if (name)` would drop the group.
 | `row.release` / `usePinRef` | Drawn |
 |---|---|
 | `release == null`, `releaseLoaded` | *"no brief is recorded for this release"*, quiet — **shown, never hidden** (P9) |
-| `release == null`, `!releaseLoaded` | *"pin not loaded"*, quiet, in the same fixed width as `resolving` — never *"no brief is recorded"*: the Hub has not been asked about this release yet (task 08 rule 5b, review M11) |
+| `release == null`, `!releaseLoaded` | *"pin not loaded"*, quiet, in the same fixed width as `resolving` — never *"no brief is recorded"*: the cockpit holds no answer from the Hub about this release — not read yet, not readable while signed out, or not readable under this binding's key; the drawer (task 17) names which (task 08 rule 5b, review M11; plan re-review b09-1, M-2) |
 | `pin.status "none"` | the same words, and a reason line: `no_brief` *"no brief was bound to this branch"*; `no_complete_revision` *"the brief had no complete revision yet"*; `source_unpinned` *"rolled back or rebuilt from a release with no brief"*; `source_unknown` *"rolled back or rebuilt from a release shipped outside any cockpit"* |
 | `resolving` | a fixed-width placeholder the width of *"rev 12 · brief now at rev 13"*; **the cell never changes width** when it resolves |
 | `resolved`, `revision == headRevision` | *"rev 6"* (current) |
