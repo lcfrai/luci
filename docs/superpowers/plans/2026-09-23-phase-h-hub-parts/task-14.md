@@ -1,6 +1,7 @@
 ### Task 14: the one transaction shape — principal, org, audit lock, idempotency, events (contract §10.6)
 
-**Lane A. Depends on: 02, 13. About 3 hours. Contract tasks H2/H7 (G3 and G5's Go half).**
+**Lane A. Depends on: 02, 13. About 3.5 hours (3, plus 0.5 for `WriteReplayable` and its test,
+re-review b06 N1). Contract tasks H2/H7 (G3 and G5's Go half).**
 
 Every `/v1` handler runs inside one of two helpers. `Read` is §5.1 steps 5–6 and the handler.
 `Write` is contract §10.6 exactly: resolve the principal, set the row-level-security key, **lock
@@ -83,7 +84,16 @@ type WriteResult struct {
 	Status int
 	Body   any    // JSON; nil for 204
 	Header http.Header // extra headers, e.g. none today
+	// Stored, when non-nil, is what StoreResponse keeps in place of Body. Only a route
+	// under WriteReplayable may set it: route 26 stores its reply with every content
+	// null, so no stored response holds brief text (A17, review I6, re-review b06 N1).
+	Stored any
 }
+
+// Rebuild turns a stored response back into the body a replay answers. It runs in
+// the replay's own transaction (principal resolved, hub.org_id set, audit head
+// locked), before the ROLLBACK, so it reads what the org holds now.
+type Rebuild func(tx *Tx, stored []byte) (any, error)
 
 // Write is contract §10.6:
 //   BEGIN
@@ -92,14 +102,16 @@ type WriteResult struct {
 //   store.LockHead(org)               -- SELECT … FROM hub.audit_heads … FOR UPDATE
 //   if POST and Idempotency-Key:      -- the key must match ^[A-Za-z0-9_-]{1,64}$, else 400 bad_request
 //       store.ClaimKey(…)             → seen with the same method, path and request hash:
-//                                        ROLLBACK and answer the stored status and body,
-//                                        with Idempotent-Replay: true
+//                                        the body is the stored bytes, or rebuild(tx, stored)
+//                                        under WriteReplayable; ROLLBACK and answer the stored
+//                                        status and that body, with Idempotent-Replay: true
 //                                     → seen with a different one: 422 idempotency_mismatch
 //   fn(tx)                            → *APIError: ROLLBACK, answer the problem
 //   store.Append(each pending event)
-//   store.StoreResponse(key, status, body)   (2xx only; a refusal is never stored. Route 26's
-//                                        body carries brief text; hub.erase_brief deletes every
-//                                        stored body naming the brief, A17, task 07)
+//   store.StoreResponse(key, status, Stored if set, else Body)   (2xx only; a refusal is
+//                                        never stored. A Stored under Write or WriteLimit, which
+//                                        take no rebuild, is ROLLBACK and 500 internal: its replay
+//                                        would answer the wrong body)
 //   COMMIT                            → failure: 500 internal (nothing was sent yet)
 //   write the response
 // The request body (≤ httpx.MaxBodyBytes) is read once, before BEGIN, into a
@@ -112,6 +124,14 @@ func (s *Server) Write(w http.ResponseWriter, r *http.Request, fn func(tx *Tx, b
 // HA4-3, task 00). A body over limit is 400 bad_request, field "body", the
 // sentence naming limit in bytes — refused before BEGIN, so nothing is locked.
 func (s *Server) WriteLimit(w http.ResponseWriter, r *http.Request, limit int64, fn func(tx *Tx, body []byte) (WriteResult, error))
+
+// WriteReplayable is WriteLimit for a route whose reply must not be stored whole.
+// fn's WriteResult.Stored is what is kept; a replay answers rebuild(tx, stored),
+// encoded as a first answer is (server.WriteJSON); a rebuild error is ROLLBACK and
+// 500 internal, never the stored bytes. Only route 26 uses it (task 19),
+// because its reply is the one that carries brief text (A17). WriteLimit is
+// WriteReplayable with a nil rebuild.
+func (s *Server) WriteReplayable(w http.ResponseWriter, r *http.Request, limit int64, rebuild Rebuild, fn func(tx *Tx, body []byte) (WriteResult, error))
 
 // Decode is httpx.DecodeJSON's rules over the buffered body: unknown fields are
 // 400 bad_request, malformed JSON 400 invalid_json.
@@ -170,7 +190,8 @@ type Claim struct {
 // no "in flight" state to wait on (the status 0 of contract §10.2 is never observed).
 func ClaimKey(ctx context.Context, tx pgx.Tx, orgID, userID, key, method, path string, requestSHA [32]byte) (Claim, error)
 
-// StoreResponse fills the claimed row's status and response.
+// StoreResponse fills the claimed row's status and response: WriteResult.Stored
+// when set, else Body. Route 26's is its reply with every content null (A17).
 func StoreResponse(ctx context.Context, tx pgx.Tx, userID, key string, status int, response []byte) error
 ```
 
@@ -196,6 +217,7 @@ enrolled and the test route of `export_test.go` extended to write):
 | `TestTwentyConcurrentWritersAreGapless` | 20 goroutines × 1 write each → `seq` 1…20 with no gap, and each row's `hash` = `ChainHash(previous row's hash, canonical)` | `bigserial` cursors that skip rows committing out of order (G3) |
 | `TestAFailedWriteLeavesNoEvent` | `fn` emits an event, then returns `Refuse(409,…)` → no row in `audit_events`, head unchanged, the 409 on the wire | an event for a change that never happened |
 | `TestAReplayAnswersTheStoredResponse` | a POST with `Idempotency-Key: k1` → 201; the same again → 201, the byte-identical body, `Idempotent-Replay: true`, and **one** event in total | a retry after a lost response double-writing (the reason §1 requires the key) |
+| `TestAStoredFormIsRebuiltOnReplay` | the test route under `WriteReplayable` answers `{"n":1,"secret":"S-7731"}` with `Stored` `{"n":1}`, and its rebuild adds `"secret"` back plus `current_setting('hub.org_id')` as `"org"`. k3 → 201, the full body; `idempotency_keys.response` = `{"n":1}`, no `S-7731` in it; k3 again → 201, `Idempotent-Replay: true`, `secret` back, `org` = the principal's org. The same route under `WriteLimit` (nil rebuild) → 500 `internal`, no row in `idempotency_keys`, no event. A rebuild that errors → 500 `internal`, not the stored bytes (A17, re-review b06 N1) | `Write` storing `Body` and ignoring `Stored`, which keeps route 26's text for 24 hours; a replay answering the stored form, which drops route 26's content; a rebuild run outside the transaction, which sees no org and answers every revision as missing |
 | `TestAReusedKeyWithAnotherBodyIs422` | same key, different body → 422 `idempotency_mismatch` | a replay of the wrong request's answer |
 | `TestKeysArePerUser` | the same key from two users → two independent writes | one user's key answering another user's request |
 | `TestARefusalIsNotStored` | key k2 → 409; the conflict is removed; k2 again → 201 | a transient refusal replayed for 24 hours |
@@ -214,7 +236,7 @@ enrolled and the test route of `export_test.go` extended to write):
 
 ```bash
 go test ./control-plane/internal/hub/server/ ./control-plane/internal/hub/store/ -race -count=1                         # ok
-go test -tags integration ./control-plane/internal/hub/server/ -run 'Org|Concurrent|Failed|Replay|Reused|PerUser|Refusal|BadKey|FirstRead|Unenrolled|BeforeCommit' -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 11
+go test -tags integration ./control-plane/internal/hub/server/ -run 'Org|Concurrent|Failed|Replay|Rebuilt|Reused|PerUser|Refusal|BadKey|FirstRead|Unenrolled|BeforeCommit' -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 12
 ```
 
 #### What this task does not claim

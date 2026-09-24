@@ -1,6 +1,7 @@
 ### Task 19: the batch revision write and the revision history — routes 25–26
 
-**Lane A. Depends on: 18. About 3 hours. Contract task H3.**
+**Lane A. Depends on: 18. About 3.5 hours (3, plus 0.5 for the stored form, `rebuildRevisions`
+and their test, re-review b06 N1). Contract task H3.**
 
 `POST /v1/projects/{projectId}/brief-revisions` is **the only write of brief text** (contract
 §7.5). One call carries 1–`hubapi.MaxRevisionBatch` (64) revisions (HA4-3, task 00), and the batch is **one transaction, all or nothing**,
@@ -42,7 +43,25 @@ other route keeps `httpx.MaxBodyBytes`), so the audit lock is already held:
    `latest_complete_revision = revision` **only if** `status = "complete"`, `updated_at = now`.
 7. `Emit` one `brief.revised {"key","revision","digest","status"}` per revision, **in request
    order**.
-8. Answer `201 hubapi.WriteRevisionsResponse`, the revisions **in request order**.
+8. Answer `201 hubapi.WriteRevisionsResponse`, the revisions **in request order**, each rendered
+   by task 18's `renderRevision` from the row step 6 inserted (content parsed out of its
+   canonical, never copied from the request). `WriteResult.Stored` is the same response with
+   every `content` set to `null`: **no stored response holds brief text** (A17, review I6,
+   re-review b06 N1).
+
+**The replay, `rebuildRevisions`.** Route 26 runs under task 14's `WriteReplayable` with this
+rebuild. It decodes the stored form, and for each item, in order, reads the `brief_revisions` row
+`(briefId, revision)` under row-level security (`store.RevisionAt`) and sets `content` and
+`erasedAt` from `renderRevision(row, the stored savedBy)`. Every other field is the stored one. So a replay before erasure is
+the first answer byte for byte. After erasure, an erased revision replays with `content: null` and
+its `erasedAt`, which is what `/v1/refs` answers for it. A co-batched brief that was not erased
+replays whole. A row that is not found, or a stored form that does not decode, is 500 `internal`,
+never the stored bytes: revisions are never deleted, so that is corruption.
+
+Why rebuilt and not purged: `hub.erase_brief` then deletes no stored response (task 07). A purge
+also deleted the replays of every text-free response that names the brief (approvals, evidence,
+reserves, abandons, co-batched briefs, the erase itself), and their retries became second writes
+or refusals of a success.
 
 Locking in `briefId` order is what makes two concurrent overlapping batches safe even without the
 org lock; with it, they are simply serialised, and the second sees the first's heads and conflicts.
@@ -74,6 +93,18 @@ func AdvanceHead(ctx context.Context, tx pgx.Tx, briefID string, revision int, c
 
 // Revisions is route 25's page.
 func Revisions(ctx context.Context, q pgx.Tx, briefID string, afterRevision, limit int) ([]RevisionRow, error)
+
+// RevisionAt is one row, for rebuildRevisions; found is false when no row is visible.
+func RevisionAt(ctx context.Context, q pgx.Tx, briefID string, revision int) (r RevisionRow, found bool, err error)
+```
+
+```go
+// control-plane/internal/hub/server/revisions.go
+// storedRevisions is step 8's WriteResult.Stored: resp with every Content null.
+func storedRevisions(resp hubapi.WriteRevisionsResponse) hubapi.WriteRevisionsResponse
+
+// rebuildRevisions is route 26's task-14 Rebuild (the replay, above).
+func rebuildRevisions(tx *Tx, stored []byte) (any, error)
 ```
 
 #### Tests to write first — `revisions_integration_test.go`
@@ -94,6 +125,7 @@ func Revisions(ctx context.Context, q pgx.Tx, briefID string, afterRevision, lim
 | `TestAWriteToAnArchivedBriefIs409` | → `brief_archived` | — |
 | `TestAnotherProjectsBriefIs404` | a batch naming a brief of another project → 404 `brief_not_found` and nothing written | a write that crosses projects |
 | `TestARetryWithTheSameKeyReplays` | the same `Idempotency-Key` and body → the same 201, one revision | a lost response turning into the caller's own `revision_conflict` (§7.5's last bullet) |
+| `TestTheStoredReplayHoldsNoContent` | one batch, key k, briefs b1 (content holding the marker `QVX-5183`) and b2 (holding `QVX-6294`) → 201, both contents raw; the `idempotency_keys` row (read as the administrator) holds both `briefId`s and neither marker; k again → 201, `Idempotent-Replay: true`, byte-identical to the first. Then `SELECT hub.erase_brief(b1)` as `hub_app` with `hub.org_id` set (route 45 is task 27's); k again → 201, `Idempotent-Replay: true`: item b1 has `content: null` and `erasedAt` set, key and digest unchanged; item b2 equals the first answer's b2; the body holds no `QVX-5183` | `StoreResponse` given the full reply (A17: 24 hours of text); a replay that answers the stored form, with both contents null; a rebuild that reads content from the stored bytes, not the row; a purge that turns b2's replay into 409 `brief_archived` (re-review b06 N1) |
 | `TestHistoryIsOldestFirstWithoutContent` | three revisions → `[1,2,3]`, no `content` key in any item; `after=1&limit=1` → `[2]` | a history that ships every revision's text |
 
 Matrix `rowsTask19`:
@@ -115,8 +147,8 @@ Matrix `rowsTask19`:
 
 ```bash
 go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
-  -run 'TestTheFirstRevision|TestAStaleBase|TestTwoConcurrent|TestABatchIs|TestTheConflictNamed|TestTheResponseIsIn|TestContentRules|TestLatestComplete|TestTheEnvelopeCarries|TestAWriteToAnArchived|TestAnotherProjects|TestARetryWith|TestHistoryIs|TestAuthorisationMatrix|TestEveryRoute' \
-  2>&1 | grep -c "^--- PASS"                                                                  # 15
+  -run 'TestTheFirstRevision|TestAStaleBase|TestTwoConcurrent|TestABatchIs|TestTheConflictNamed|TestTheResponseIsIn|TestContentRules|TestLatestComplete|TestTheEnvelopeCarries|TestAWriteToAnArchived|TestAnotherProjects|TestARetryWith|TestTheStoredReplay|TestHistoryIs|TestAuthorisationMatrix|TestEveryRoute' \
+  2>&1 | grep -c "^--- PASS"                                                                  # 16
 ```
 
 #### What this task does not claim
