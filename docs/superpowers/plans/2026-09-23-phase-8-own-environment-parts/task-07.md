@@ -435,7 +435,12 @@ simply never gets that far.
   (review C2: in either mode the CI agents reach the API from the environment's egress address; a
   private cluster ignores the list, task 06), and `depends_on` the
   firewall module in firewall mode (a UDR cluster that boots before its allow rules comes up
-  broken — Panacea's pentest #2, survey §1.3 `:99-100`).
+  broken — Panacea's pentest #2, survey §1.3 `:99-100`). In nat mode the wait is carried by the
+  subnet ids themselves: `module.network.subnet_ids` and `egress_subnet_ids` have an output-level
+  `depends_on` on the NAT, NAT-IP and NSG associations (task 03, review m8), because
+  `userAssignedNATGateway` needs each node subnet's NAT association at create time (from
+  training knowledge). So the AKS call carries no `depends_on = [module.network]`; step 3 proves
+  the ordering with `terraform graph`.
 - `edge.tf`: `azurerm_public_ip.edge` — `pip-edge-panacea-app-${env}`, Standard, Static, zones;
   `azurerm_dns_zone.this`; one `azurerm_dns_a_record` per `edge_hostnames` entry with
   **`target_resource_id = azurerm_public_ip.edge.id`** (an alias record: it follows the IP) and
@@ -612,7 +617,18 @@ run) move with the grants to task 30's `grant-pipeline-roles_test.sh`.
 - [ ] **Step 1:** `modules/egress-firewall`: variables, tests, resources, outputs — its nine runs pass.
 - [ ] **Step 2:** The stack's variables, the invariants and the test file; the invariant runs pass
   before any module is called (the preconditions need no module).
-- [ ] **Step 3:** Module calls, `edge.tf`, `grants.tf`, outputs; the remaining runs pass.
+- [ ] **Step 3:** Module calls, `edge.tf`, `grants.tf`, outputs; the remaining runs pass. Then
+  prove the NAT ordering (review m8), which no mocked test can see: after `validate.sh` has run
+  `init -backend=false` in the stack, run `terraform -chdir=infra/terraform/stacks/foundation
+  graph` with the ARM_* variables unset and `AZURE_CONFIG_DIR` an empty directory, as
+  validate.sh does. Save the DOT output to the task report. Check with a short script that
+  `module.aks`'s `azurerm_kubernetes_cluster` node reaches
+  `module.network.azurerm_subnet_nat_gateway_association.this` by some path. The graph is reduced,
+  so a direct edge need not exist. Mutant, on the `$TEMP` copy: delete the output's `depends_on`
+  in `modules/network/outputs.tf`; the path must disappear. This is a by-hand proof, not CI.
+  validate.sh's command list is fixed (task 01), and `terraform graph` is not on it. That
+  `graph` runs with no provider credentials, and that its reduced graph keeps paths through
+  module outputs, are both UNVERIFIED until this step runs.
 - [ ] **Step 4:** `dev.tfvars`, `prod.tfvars`; the lock file for both platforms; guards (G2 proves
   the tfvars hold no GUID); commit.
 
@@ -639,6 +655,9 @@ This stack's tests plan every module; allow several minutes and run it in the ba
 - That `1.33` is a supported AKS minor on the day of first apply; the runbook (task 31) checks
   `az aks get-versions` first.
 - That the DNS zone resolves: delegation from the parent is an owner input.
+- That AKS really rejects a create before the NAT association exists. Step 3's graph proves the
+  ordering is there; that it is needed is from training knowledge. The first foundation apply
+  (task 31) is the first real create.
 - That firewall mode is an exfiltration control. It limits where agents go; under Overlay SNAT it
   cannot tell a sandbox from a node, and allowlisted hosts accept uploads (review I10, Q1).
   Per-sandbox FQDN control needs Cilium FQDN policy on pod identity (Advanced Container

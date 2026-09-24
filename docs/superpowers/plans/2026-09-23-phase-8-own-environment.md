@@ -169,8 +169,9 @@ message over this plan's first piece.
 
 **Azure.** No task runs `terraform plan`, `apply`, `import`, `state`, `console` against a backend,
 `az`, `kubectl` or `helm install` against any cluster. The only Terraform commands are
-`terraform fmt`, `terraform init -backend=false -input=false` and `terraform validate`, run by
-`infra/scripts/validate.sh`. Tasks 30–32 describe Azure-touching steps as **runbooks** and scripts
+`terraform fmt`, `terraform init -backend=false -input=false`, `terraform validate` and
+`terraform test` against mock providers, run by `infra/scripts/validate.sh`, plus one by-hand
+`terraform graph` in task 07 (configuration only: no backend, no credentials; review m8). Tasks 30–32 describe Azure-touching steps as **runbooks** and scripts
 that are written, linted and **not run**. Provider downloads from `registry.terraform.io` work from
 the build laptop (`terraform init -backend=false` in a scratch directory, 2026-09-23); if the proxy
 ever breaks them, stop — do not hand-edit a lock file.

@@ -46,7 +46,8 @@ earlier stack never reads a later one.
 
 ```bash
 #!/usr/bin/env bash
-# infra/scripts/validate.sh — the ONLY Terraform commands this phase may run.
+# infra/scripts/validate.sh — the ONLY Terraform commands this phase may run (the one exception
+# is task 07's by-hand `terraform graph` of the foundation stack: config only, review m8).
 #
 #   infra/scripts/validate.sh                 every dir under modules/ and stacks/
 #   infra/scripts/validate.sh <dir> [<dir>…]  just these, relative to the repo root

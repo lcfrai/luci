@@ -102,6 +102,17 @@ output "subnet_ids" {
     },
     var.egress_mode == "firewall" ? { firewall = azurerm_subnet.firewall[0].id } : {}
   )
+  # Review m8: AKS with outbound_type = userAssignedNATGateway needs each node subnet's NAT
+  # association (and the gateway's public IP) at create time. The ids above come from
+  # azurerm_subnet, so without this a consumer could create the cluster in parallel with the
+  # associations. Empty for_each/count in firewall mode, where task 07's depends_on on the
+  # firewall module does the same job for the route tables. depends_on names whole resources
+  # (a local is not a valid depends_on reference), so the list is written out in both outputs.
+  depends_on = [
+    azurerm_subnet_nat_gateway_association.this,
+    azurerm_nat_gateway_public_ip_association.this,
+    azurerm_subnet_network_security_group_association.this,
+  ]
 }
 output "subnet_cidrs" {
   value = {
@@ -116,6 +127,11 @@ output "subnet_cidrs" {
 output "egress_subnet_ids" {
   description = "Every subnet that must reach the internet, and only those: system, apps, sandbox, agents. NAT-associated in nat mode; task 07 routes exactly these through the firewall in firewall mode. Never private_endpoints or firewall."
   value       = local.egress_subnets
+  depends_on = [ # review m8, as subnet_ids
+    azurerm_subnet_nat_gateway_association.this,
+    azurerm_nat_gateway_public_ip_association.this,
+    azurerm_subnet_network_security_group_association.this,
+  ]
 }
 output "nat_public_ip" {
   description = "The sandboxes', nodes' and CI agents' egress address in nat mode (null in firewall mode). Owner input: providers may need to allowlist it."
@@ -164,7 +180,9 @@ locals {
   task 30 is where it is used). `firewall` is `count = var.egress_mode == "firewall" ? 1 : 0` and
   is named exactly `AzureFirewallSubnet`.
 - Four `azurerm_network_security_group`s — `nodes-system`, `nodes-apps`, `nodes-sandbox`,
-  `private-endpoints` — each associated with its subnet. Rules added on top of Azure's defaults:
+  `private-endpoints` — each associated with its subnet by one
+  `azurerm_subnet_network_security_group_association.this` (`for_each`, keyed by subnet). Rules
+  added on top of Azure's defaults:
   - `nodes-sandbox`: **deny inbound from `Internet`**, priority 100. Nothing finer: under Overlay a
     pod's packets carry its overlay address, not its node's subnet address, so a subnet-based rule
     ("only the apps subnet may reach 8080") would match node traffic and miss pod traffic. Pod-level
@@ -173,7 +191,8 @@ locals {
     `for_each` so one rule per CIDR; no rule when the list is empty.
   - `private-endpoints`: allow TCP 443 and 5432 from the VNet, deny everything else inbound, 4000.
 - `azurerm_public_ip.nat` (Standard, static, `count` on nat mode), `azurerm_nat_gateway.this`
-  (`sku_name = "Standard"`, `idle_timeout_in_minutes`), its IP association, and one
+  (`sku_name = "Standard"`, `idle_timeout_in_minutes`), its IP association
+  (`azurerm_nat_gateway_public_ip_association.this`, same `count`), and one
   `azurerm_subnet_nat_gateway_association.this` per entry of `local.egress_subnets` (four: the
   three node subnets and `agents`; `for_each = var.egress_mode == "nat" ? local.egress_subnets : {}`,
   so each is addressed by its key and firewall mode has none). That a NAT gateway can
@@ -214,6 +233,14 @@ variables {
 | `no_ingress_cidrs_means_no_allow_rule` | `allowed_ingress_cidrs = []` → no 443 allow rule on `nodes-apps` | an allow-from-`*` fallback |
 | `four_privatelink_zones_all_linked_without_registration` | four zones with the names in `local.private_dns_zones`; four links, each `registration_enabled == false` | a missing Postgres zone (the Hub's database would not resolve) |
 | `agents_subnet_is_delegated_to_devops_pools` | `azurerm_subnet.agents.delegation[0].service_delegation[0].name == "Microsoft.DevOpsInfrastructure/pools"` | the delegation removed |
+
+**The outputs' `depends_on` (review m8) is not a `terraform test` assertion.** Under mocks a plan
+has no ordering to observe, so no run above can see it. Task 07 proves it on the foundation stack
+with `terraform graph`, where `module.aks` is a real consumer; a dropped `depends_on` shows there
+as a missing path. Output-level `depends_on` rather than `depends_on = [module.network]` on the
+AKS call: a module-level `depends_on` makes every data source inside `module.aks` wait for the
+whole network module, private DNS zones included, and defers those reads to apply (from training
+knowledge, UNVERIFIED). This way only the subnet ids carry the wait.
 
 #### Steps
 
