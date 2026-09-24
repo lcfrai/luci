@@ -133,6 +133,10 @@ async function checkS1S3S4() {
   fA = await mountFrame("frameA", FIX.A, { into: document.getElementById("viewport") });
   docA = fA.contentDocument;
   winA = fA.contentWindow;
+  // The iframe as built, for the runner to compare with the part's block (review M3).
+  const cspMeta = docA && docA.querySelector("meta[http-equiv=Content-Security-Policy]");
+  extras.frameAttrs = { sandbox: fA.getAttribute("sandbox"), tabindex: fA.getAttribute("tabindex"),
+    style: fA.getAttribute("style"), csp: cspMeta ? cspMeta.getAttribute("content") : null };
   const count = docA ? docA.body.childElementCount : null;
   record("S1", docA && count === FIX.A_CHILDREN ? "pass" : "fail",
     `contentDocument ${docA ? "non-null" : "null"}; body.childElementCount ${count}, fixture has ${FIX.A_CHILDREN}`);
@@ -608,14 +612,12 @@ window.__finishS11 = (runner) => {
   const j = window.__judgeS11(a);
   const ok = typeof a.width === "number" && Math.abs(a.width - 160) <= 0.5 && j.captured;
   record("S11", !minimised ? "partial" : ok ? "pass" : "fail",
-    `window ${runner.windowState}${runner.hiddenBy === "tab" ? " (hidden by a tab in front, not by minimising)" : ""}; ` +
-    `armed wait ${runner.hidden ? "saw hidden" : "timed out visible"} after ${runner.waitMs} ms; ` +
+    `window ${runner.windowState}; armed wait ${runner.hidden ? "saw hidden" : "timed out visible"} after ${runner.waitMs} ms; ` +
     `visibilityState "${a.visibilityState}", width ${a.width} (want 160), rAF probe ${a.rafFiredWithin2s ? "fired" : "did not fire"} within 2 s, ` +
     `${adopted} capture ` + (j.captured ? `resolved in ${a.hiddenCaptureMs} ms`
       : j.resolvedLate ? `resolved only after ${a.hiddenCaptureMs} ms, so not within 10 s`
       : "did not resolve within 10 s" + (a.captureError ? " (" + a.captureError + ")" : "")));
   extras.s11 = { ...a, captured: j.captured, resolvedLate: j.resolvedLate, hidden: runner.hidden, windowState: runner.windowState,
-    hiddenBy: runner.hiddenBy,
     answeredWithinRunnerCap30s: runner.answered, hiddenRuns: runner.hiddenRuns || [], decodeProbes: runner.decodeProbes || [] };
   const order = (c) => Number(c.id.slice(1)) || 99;
   window.__spike = {

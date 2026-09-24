@@ -4,7 +4,6 @@
 //   node run.mjs              positive run
 //   node run.mjs --negative   the four negative variants; asserts each one failed
 //   node run.mjs --via-launch the plan's chromium.launch route, kept to reproduce its S11 artefact
-//   node run.mjs --hide-by-tab  S11 hides the page behind a second tab, not by minimising (test aid)
 //   node run.mjs [--negative] --check <result.json>  re-judge a recorded run; no browser
 // Configuration: PANACEA_APP_SPIKE_DEPS (where the npm packages live; installed there if absent),
 // PANACEA_APP_SPIKE_FONT (a TrueType file served as the web font; default Consolas),
@@ -27,7 +26,6 @@ import { fileURLToPath } from "node:url";
 
 const NEG = process.argv.includes("--negative");
 const VIA_LAUNCH = process.argv.includes("--via-launch");
-const HIDE_BY_TAB = process.argv.includes("--hide-by-tab");
 // PANACEA_APP_SPIKE_QUICK=1 skips only S11's extra hidden facts (decode probes, extra captures),
 // for mutation runs; the eleven checks and the negative assertions are unchanged.
 const QUICK = process.env.PANACEA_APP_SPIKE_QUICK === "1";
@@ -311,19 +309,13 @@ async function run(port) {
     } catch (e) { log("native S8 control failed:", e.message.split("\n")[0]); }
 
     // S11: arm, minimise, await the armed promise, then (only then) send the request.
-    // --hide-by-tab (opt-in, a test aid; never the acceptance route): hide the page by bringing a
-    // second tab to the front instead. In fix round 1 a minimised Edge page stayed "visible" in 5 of
-    // 5 tries, which leaves the S11 negative not-applicable; a background tab is hidden the same way
-    // to the renderer (visibilityState, rAF), so the negative's layout half can still be exercised.
     const cdp = await context.newCDPSession(page);
     const { windowId } = await cdp.send("Browser.getWindowForTarget");
     await page.evaluate(() => { window.__armedP = window.__armHidden(); return true; });
-    let front = null;
-    if (HIDE_BY_TAB) { front = await context.newPage(); await front.bringToFront(); }
-    else await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
+    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
     const armed = await page.evaluate(() => window.__armedP);
     const { bounds } = await cdp.send("Browser.getWindowBounds", { windowId });
-    log(`S11 armed wait: ${JSON.stringify(armed)}; window ${bounds.windowState}; hidden by ${HIDE_BY_TAB ? "a tab in front" : "minimising"}`);
+    log(`S11 armed wait: ${JSON.stringify(armed)}; window ${bounds.windowState}`);
     // Bounded on the runner's clock: a hidden page's own timers run late (measured), so no cap
     // inside the page can be trusted to fire on time.
     const bounded = (fn, arg, ms) => Promise.race([page.evaluate(fn, arg), sleepMs(ms).then(() => null)]);
@@ -351,11 +343,9 @@ async function run(port) {
         ...(r || { ms: null, error: `no answer within ${capMs} ms (runner clock)` }) });
       log(`S11 hidden run: ${JSON.stringify(hiddenRuns[hiddenRuns.length - 1])}`);
     }
-    if (front) { await page.bringToFront(); await front.close().catch(() => {}); }
-    else await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
+    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
     await page.evaluate((r) => window.__finishS11(r), { waitMs: armed.waitMs, hidden: armed.hidden,
-      windowState: bounds.windowState, hiddenBy: HIDE_BY_TAB ? "tab" : "minimise", commandLine: cl.line, hiddenRuns,
-      answered: !!answer, partial, decodeProbes });
+      windowState: bounds.windowState, commandLine: cl.line, hiddenRuns, answered: !!answer, partial, decodeProbes });
     const result = await page.evaluate(() => window.__spike);
     result.extras.runner = { versions, port, font: FONT, commandLineRoute: cl.route, launch: edge.launch,
       judgeSelfTest, modernScreenshotDebugLog: debugLines.slice(-40) };
@@ -385,6 +375,12 @@ function problems(r) {
   const jt = r.extras && r.extras.runner && r.extras.runner.judgeSelfTest;
   if (!jt || !jt.ok) out.push(`S11 judge self-test ${jt ? "failed: " + JSON.stringify(jt.got) : "missing"}`);
   for (const id of ["S2a", "S2b", "S2c"]) if (!(r.extras && r.extras.legs && r.extras.legs[id])) out.push(`S2 leg ${id} missing`);
+  // The iframe under test is the part's block attribute for attribute (task-01.md:57-60; review M3).
+  const want = { sandbox: "allow-same-origin", tabindex: "-1", style: "pointer-events:none;border:0",
+    csp: "default-src 'none'; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'" };
+  const got = r.extras && r.extras.frameAttrs;
+  for (const k of Object.keys(want)) if (!got || got[k] !== want[k])
+    out.push(`frame A ${k} is ${got ? JSON.stringify(got[k]) : "not recorded"}, the part's is ${JSON.stringify(want[k])}`);
   return out;
 }
 // Positive run: S11's layout half is the page's own copy of task 24's rule (schedulePatch plus the
@@ -392,9 +388,8 @@ function problems(r) {
 // S11's outcome alone cannot pin it: the capture half can fail the check by itself.
 function positiveProblems(r) {
   const out = [];
-  const s = r.extras && r.extras.s11;
-  if (s && (s.windowState === "minimized" || s.hidden === true) && !(Math.abs(r.s11.width - 160) <= 0.5))
-    out.push(`S11 layout half: width ${r.s11.width} while ${s.hidden ? "hidden" : "minimised"}, want 160 (schedulePatch + pre-measure flush broken)`);
+  if (r.extras && r.extras.s11 && r.extras.s11.windowState === "minimized" && !(Math.abs(r.s11.width - 160) <= 0.5))
+    out.push(`S11 layout half: width ${r.s11.width} while minimised, want 160 (schedulePatch + pre-measure flush broken)`);
   return out;
 }
 // --negative: each variant must fail, and each leg must fail for its own reason.
