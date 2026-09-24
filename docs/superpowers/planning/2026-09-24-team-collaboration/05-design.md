@@ -793,3 +793,91 @@ never lag the laptop. Phase 8's image pipeline (task 27, with its OD-8 canary) g
 
 A proposed target is to reach the warm pool within 24 hours of a CLI release. How the job learns of
 a release, and whether the CI pool can reach the registry, are **UNVERIFIED**.
+
+## 11. What this re-scopes, plan by plan (OD-17)
+
+Every in-flight stream continues as a foundation (`owner-decisions.md:128`). The changes below are
+additions or re-aimings, and none throws away built work.
+
+### 11.1 The Hub (Phase H)
+
+| Change | Why | Size |
+|---|---|---|
+| **Unchanged:** teams, members, invites, projects, remotes, briefs, the change feed, share (tasks 15, 17, 18, 26, 35, 42) | they are C1 | 0 |
+| **Unchanged:** *"The Hub never sees a terminal byte"* (`ADR-H1:88`) and Design C's presence stays rejected (`ADR-H1:264-268`); presence lives in Fleet | P10; §3.2 | 0 |
+| **New records and routes:** `task`, agent start and end, lease state changes, `conflict`, `thread`, `message`, `escalation`, `note`, team policy, the daily usage roll-up (§3.3), each with its contract section, audit event and feed kind | the durable half of team mode | ~5 days |
+| **A second caller: Fleet.** Today the laptop's control plane is the only caller, always with the user's own token (`01` §4.3). Fleet calls as its workload identity, naming a `delegation`; the Hub records *actor = owner, via = Fleet* (§2.4) | OD-14 | ~2 days |
+| **Records carry `ag-…` ids, never a machine-local session id** (`hub-contract.md:941-942`); `session_link` stays for solo projects only | §3.3 rule 2 | ~0.5 day |
+| **The Z5 authorisation matrix gains the new rows**: nobody writes another person's task, lease, message or escalation, whatever their role (`04` §2.4) | §3.3 rule 5 | ~1 day |
+| **Audit leaves the building** before team mode reaches anyone but the owner: stream to Sentinel and anchor the chain head there (`04` §6, Design B's graft, `ADR-H1:163`) | a hash chain inside its own Postgres proves little | ~1 day |
+
+`ADR-H1:467-474`'s rule that no client persists Hub data holds. Fleet keeps Hub records in memory
+only and rebuilds from the Hub after a restart; its snapshot holds Fleet state (§3.2) and nothing
+else.
+
+### 11.2 Phase 8 (our environment)
+
+OD-18 keeps phase 8 on AKS with Kata, unchanged in shape (`owner-decisions.md:139`). Team mode adds:
+
+| Change | Plan anchor | Size |
+|---|---|---|
+| **A second broker caller.** OD-14 reverses owner-only broker visibility. Every object is still labelled with its owner (P8-D4); Fleet may act for an owner only under a live delegation, which the broker checks against the Hub (cached ≤ 60 s) and writes into its audit line | task 18; `phase-8-own-environment.md:133-134` | ~2 days |
+| **An `orchestrator` sandbox class**: read-only project view, no worktree, no git, egress to the gateway only | task 14; P8-D12 (`:141`) | ~1.5 days |
+| **Every sandbox reaches the gateway** through one explicit network-policy allow to its in-cluster service; P8-D12's VNet and pod-CIDR denials otherwise stand | task 11 | ~0.5 day |
+| **Charts for Fleet and the gateway**, beside the broker and Hub charts; the org's Anthropic and Bedrock credentials in Key Vault, reachable only by the gateway's identity | tasks 05, 10, 29 | ~3 days |
+| **A project disk per team project** for the lane mirror, owned by the project, not a user | task 15's machine volumes | ~1 day |
+| **The CLI bump job** (§10.4) | tasks 27, 27a | ~2 days |
+| **Retired:** the precondition that users' own subscriptions work from Azure egress IPs | `:330`; task 32 | −1 |
+| **Task 32 also measures** team launch latency from the warm pool (§10.2) | task 32 | ~0.5 day |
+
+**UNVERIFIED:** how the gateway, running on Azure, authenticates to Bedrock in `ap-southeast-2`
+without a long-lived AWS key. Federating the gateway's workload identity to an AWS IAM role is
+the likely route, and needs checking.
+
+### 11.3 Phase 3 (git, worktrees, convergence)
+
+Phase 3 is paused for ruling R4 and has no lanes code yet (`01` gaps). **Team mode needs phase 3
+finished as planned**, with four re-aimings. Plan rows are in
+`.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md:547-569`.
+
+| Change | Plan task | Size |
+|---|---|---|
+| **Unchanged foundations:** `gitx`, lanes, R4's `sandboxd` runner, one clone per worktree (OD-2), push with the machine's credential | 02–05, 12–13 | 0 |
+| **Observed claims (task 07) feed Fleet.** The same lane facts go to the owner's control plane for a solo project, and to Fleet's activity table (§3.3) for a team project | 07 | ~0.5 day |
+| **The forecast and queue become a library** that runs in the owner's control plane (solo) or in Fleet over the lane mirror (team, §8.3). The team land builds the integration head in the mirror, then hands it as a bundle to the lane owner's `machined`, which pushes with that owner's credential | 08, 09 | ~2 days |
+| **Leases return.** Phase 3 cut declared file claims (A9) *"to a later phase, if an agent channel exists"* (`scope-and-risk-phase-3-git-convergence.md:287`, via `01` §2.4). Team mode is that phase; leases live in Fleet (§6.3), not in phase 3 | none in phase 3 | 0 |
+| **The merge and files lenses name lane owners by Hub principal, not git author** (`04` §7.3, `:468`), and show teammates' lanes from the mirror | 16, 19, 21 | ~1.5 days |
+
+The per-user ref namespace, `refs/panacea/lanes/<owner-hash>/<wt-id>`, exists only in Fleet's
+mirror. A member's own project repository keeps phase 3's `refs/panacea/lanes/<wt-id>`, and nothing
+is pushed to the customer's remote under `refs/panacea/*` (§8.2).
+
+### 11.4 Fleet (new)
+
+`control-plane/cmd/fleetd`, one multi-tenant deployment per environment (§2.1). It is built from
+phase 2's packages, made multi-user:
+
+| Part | Built from | Size |
+|---|---|---|
+| sessions keyed by owner, over the broker | phase 2's `registry` (whose `Session` has no owner field today, `01` §2.2), `harness`, supervisor; phase 8's `remotebe` (task 22) | ~4 days |
+| the delegation client and Entra on-behalf-of (§2.4) | Hub task 30's `entraauth` | ~1.5 days |
+| task cards, leases, activity, presence | new | ~3 days |
+| the control stream to `sandboxd`, the `panacea` binary and its verbs (§5.2) | phase 5's stamped-channel pattern (`01` §2.4) | ~3 days |
+| the Orchestrator turn loop, TM1 headless (§4.2) | new | ~3 days |
+| protocol threads, the escalation policy, the taint rule (§6, §7.2) | new | ~3 days |
+| the forecaster, tiers P, H and M (§8.2) | phase 3's library (§11.3) | ~2 days |
+| gateway token minting per session (§2.5) | phase 6's gateway (§11.5) | ~1 day |
+
+### 11.5 Phases 4, 5, 6 and 7
+
+- **Phase 4 (Discover).** The Materialiser's managed block gains §5.3's fixed pointer paragraph for
+  team projects. Nothing from a teammate is ever rendered into it (`04` F4). About 0.5 day.
+- **Phase 5 (canvas).** Its artboard lease is the same shape as a path lease. In a team project the
+  canvas uses Fleet's lease table, so one table answers "who holds this". About 1 day, later.
+- **Phase 6** becomes **the inference gateway** (OD-19): deploy a LiteLLM-style gateway, the
+  per-session token API for Fleet, the route policy, metering, quotas, and the ZDR contracts on
+  both routes. It is a TM1 prerequisite. About 6 days, **UNVERIFIED** until a gateway is chosen
+  (§13, Q1).
+- **Phase 7 (Deploy).** A release in a team project lists, per lane landed into it, the person whose
+  agent made it and the task and brief section it served. That is the provenance thread, carried to
+  the release with its people. About 1 day.
