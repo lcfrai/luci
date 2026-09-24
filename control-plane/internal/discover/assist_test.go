@@ -282,6 +282,8 @@ func TestBecauseIsComposedByTheServer(t *testing.T) {
 	r = with(r, "question", "  Which clients call the published API today?\n")
 	r = with(r, "options", []any{"  Only our web app ", "The mobile app too"})
 	text := "Because of their constraints answer, I suggest:\n```json\n" + replyJSON(t, r) + "\n```\nBecause: trust me."
+	older := three(t)
+	older.Questions[2].BranchPrompt = "What must this branch keep working?" // an older wording, kept by its revision
 
 	for name, tc := range map[string]struct {
 		scope   Scope
@@ -290,6 +292,8 @@ func TestBecauseIsComposedByTheServer(t *testing.T) {
 	}{
 		"branch":  {ScopeBranch, three(t), "Suggested because of your answer to “What must this branch not break?”."},
 		"project": {ScopeProject, answered(t, projectEnv(), KeyPurpose, KeyAudience, KeyConstraints), "Suggested because of your answer to “What must this project never break?”."},
+		// The reason quotes the question as the person saw it, from the content.
+		"an older wording the content holds": {ScopeBranch, older, "Suggested because of your answer to “What must this branch keep working?”."},
 	} {
 		f := &fakeModel{reply: text}
 		q, out := ProposeFollowUp(context.Background(), f, tc.content, tc.scope, testHint)
@@ -324,17 +328,28 @@ func TestBecauseIsComposedByTheServer(t *testing.T) {
 func TestThePromptCarriesNoFileContents(t *testing.T) {
 	type side struct {
 		user, system string
-		allowed      []string // the person's answers and the Hint's names
+		allowed      []string // the person's answers, their questions' wording, and the Hint's names
 		forbidden    []string // everything else the content or its questions carry
 	}
 	capture := func(tag string) side {
 		env := branchEnv(nil)
 		c := NewContent()
 		var s side
-		for i := range c.Questions { // the server's help and options: sentinels, so a leak shows
-			c.Questions[i].Help = "HELP-" + tag + "-" + string(c.Questions[i].Key)
-			c.Questions[i].Options = []string{"OPTION-" + tag + "-" + string(c.Questions[i].Key)}
+		// The questions' wording, help and options are sentinels, so a leak
+		// shows. The wording is the content's (an older revision may hold
+		// another), and only the answered questions' wording may reach the
+		// model: purpose, audience and constraints (indexes 0-2).
+		for i := range c.Questions {
+			n := fmt.Sprint(i)
+			c.Questions[i].BranchPrompt = "PROMPT-" + tag + "-" + n + "?"
+			c.Questions[i].Help = "HELP-" + tag + "-" + n
+			c.Questions[i].Options = []string{"OPTION-" + tag + "-" + n}
 			s.forbidden = append(s.forbidden, c.Questions[i].Help, c.Questions[i].Options[0])
+			if i < 3 {
+				s.allowed = append(s.allowed, c.Questions[i].BranchPrompt)
+			} else {
+				s.forbidden = append(s.forbidden, c.Questions[i].BranchPrompt)
+			}
 		}
 		for _, k := range []Key{KeyPurpose, KeyAudience, KeyConstraints} {
 			text := "ANSWER-" + tag + "-" + string(k) + "\nits second line"
@@ -386,6 +401,13 @@ func TestThePromptCarriesNoFileContents(t *testing.T) {
 				t.Errorf("the request carries %q, which is not the person's answer or a name:\n%s", p, s.user)
 			}
 		}
+		// Nor is the key of a question with none of the person's words
+		// offered as a basedOn: a draft (done) or a skip (out_of_scope).
+		for _, k := range []Key{KeyDone, KeyOutOfScope} {
+			if strings.Contains(s.user, string(k)) {
+				t.Errorf("User offers the key %q:\n%s", k, s.user)
+			}
+		}
 	}
 	// With the allowed pieces cut out, both prompts are the same template: no
 	// other value from the content reaches the model.
@@ -404,8 +426,9 @@ func TestThePromptCarriesNoFileContents(t *testing.T) {
 	f := &fakeModel{reply: `{"ask":false,"question":"","help":"","options":[],"basedOn":"purpose"}`}
 	c := answered(t, projectEnv(), KeyPurpose, KeyAudience, KeyConstraints)
 	ProposeFollowUp(context.Background(), f, c, ScopeProject, Hint{ProjectName: "Engagement Portal"})
-	if !strings.Contains(f.last.User, "What is this project for?") || strings.Contains(f.last.User, "What is this branch for?") {
-		t.Errorf("project brief prompt:\n%s", f.last.User)
+	if !strings.Contains(f.last.User, "What is this project for?") || strings.Contains(f.last.User, "What is this branch for?") ||
+		strings.Contains(f.last.User, "Branch") {
+		t.Errorf("project brief prompt (the project's wording, and no branch):\n%s", f.last.User)
 	}
 }
 
@@ -439,9 +462,14 @@ func TestAModelThatSaysEnoughIsNothingToAsk(t *testing.T) {
 	}
 	// A decline is still held to the schema: one that breaks it is a
 	// failure, not a decline.
-	f := &fakeModel{reply: `{"ask":false}`}
-	q, out := ProposeFollowUp(context.Background(), f, three(t), ScopeBranch, testHint)
-	wantNone(t, "a decline missing the other fields", q, out, AssistFailed)
+	for name, reply := range map[string]string{
+		"a decline missing the other fields":      `{"ask":false}`,
+		"a decline naming a key outside the enum": `{"ask":false,"question":"","help":"","options":[],"basedOn":"rollout"}`,
+	} {
+		f := &fakeModel{reply: reply}
+		q, out := ProposeFollowUp(context.Background(), f, three(t), ScopeBranch, testHint)
+		wantNone(t, name, q, out, AssistFailed)
+	}
 }
 
 func TestAModelReplyHoldingTheReservedSequenceDegrades(t *testing.T) {
