@@ -140,3 +140,77 @@ in (W5); **Q10** → `OD-28`; **Q11** option B (`OD-25`); **Q12** cross-team in 
 four amendments (task 08); **Q14** Segoe UI Variable (`OD-28`).
 
 ---
+
+## Global constraints
+
+**Merging and sibling files**
+
+- **H1, the sync-merge rule for Hub deltas** (the rule team mode's Hub deltas follow; Phase T's
+  skeleton at `afc5b5d` does not yet spell it out, so its wording there is **UNVERIFIED**). The
+  Hub route table says *"Nothing else is routed"* (`hub-contract.md:609`), so the work layer arrives
+  as **new Hub tasks after Hub task 43, never edits to a Hub task in flight** (05 §5.5). Before a
+  WH task starts, the orchestrator **sync-merges** the current `feat/hub` into `feat/work-layer`;
+  the implementer never merges. A WH task is **additive only**: new files, a new `Work` interface
+  embedded in `hubclient.Hub` (`hub-contract.md:1329`), new rows appended to the route table and
+  the authorisation matrix, new wire types, and migrations taking the **next free number at sync
+  time** (renumbered on a clash; they are append-only and applied nowhere shared until merged).
+  On an add/add or edit conflict **the Hub plan's file wins whole**; this plan's change is re-applied
+  on top of it and its tests re-run against it, and a failure is a finding against our change.
+  The orchestrator merges finished WH tasks into `feat/hub` in task order.
+- **H2, deltas to phases 3 and 4** (tasks 18-19, 21-25). Each extends a file its owner phase
+  builds (`provenance/key.go`, `Session`, the Materialiser, the commit hook, land, the evaluator).
+  If the owner's file has not landed on the sync base, the task **waits** (its `dependsOn` names the
+  owner task); it never writes a second copy. The owner phase wins every conflict.
+- **W0's two Hub-contract edits go as a proposed edit** to the `feat/hub` owner, not a direct change
+  (05 §5.2), because that contract is under live edit. Task 01 writes the proposal.
+- **UI branches stay unmerged until the owner has looked** (`OD-1`, `OD-12`); visual acceptance is
+  the owner's eyes, never a screenshot or a self-report (`CLAUDE.md`).
+
+**Go**
+
+- Module path `github.com/kpmg-au-emu/panacea-app/control-plane`; the `go` directive stays
+  `go 1.23` in `go.work` and every `go.mod`. Check `git diff` on them before every commit.
+- **`go test ./...` is invalid at the workspace root.** Run
+  `go test ./control-plane/... -race -count=1`; the Hub's integration rows run with
+  `-tags integration` against `control-plane/cmd/hub/compose.yaml`.
+- The Hub's boundary test (`hub-contract.md:78-82`) holds: the control plane imports only
+  `hubapi` and `hubclient`, never `internal/hub/server` or `internal/hub/store`.
+- **Every Hub write appends one metadata-only event in the same transaction**
+  (`hub-contract.md:1131`); every new route gets its authorisation-matrix rows in the same task;
+  every new object's text gets the brief's erase (org admin only; keys, digests and revision
+  numbers kept, resolving `erased`).
+- New ids use `ids.Wide(prefix)` (`hub-contract.md:93-100`): `is-`, `ic-`, `ft-`, `ml-`, `cy-`,
+  `in-`, `rq-`, `lb-`, `tp-`, `vw-`, `lp-`, `df-` (05 §3.6; checked against the Hub's and TM-05's
+  prefixes). `nt-` is TM-05's and is reused for status updates.
+
+**Desktop**
+
+- Read `docs/DESIGN-SYSTEM.md`, `docs/AGENTIC-UX.md` and `prototype/work-layer.html` before any
+  UI task. No indigo or violet, no gradient hero, no blanket glass; elevation is a 1px ring plus
+  layered shadow; radius by element size; motion only on `transform`/`opacity`, never
+  `transition: all`; **one heartbeat** (`desktop/src/hooks/heartbeat.ts`), never a spinner per row;
+  live numbers `tabular-nums`.
+- **Faces** (`OD-28`): Commit Mono for every id, key, path, time, cost and duration, at `--t-fact`
+  12px (11px mono only for `kbd` hints); Segoe UI Variable for the sans. `--ink-3` (3.43:1,
+  `tokens.css:47`) never carries a fact. `--mono` must stay a real monospace for xterm.js
+  (`tokens.css:149-152`).
+- **Keys** (05 §4.3): single keys and `G`/`O`/`M` sequences fire only with focus in a list, by
+  extending `isCockpitChord` (`desktop/src/hooks/useKeyboardMap.ts`); agent keys test
+  `event.code` (`KeyR` with `shiftKey`), never `event.key`; Linear's `Shift+D`, `Shift+E`,
+  `Shift+P`, `Shift+M` and `Shift+S` do nothing; `OD-9`'s terminal toggle is respected.
+- **No completion prediction** (`OD-27`): every surface task's tests call `expectNoPrediction`
+  (task 20), which fails on a `%`, a `progressbar` role, an ETA or an "N of M" string.
+- The desktop persists **no Hub data**: no `localStorage`, IndexedDB or file write of any Hub
+  record; a test in task 55 greps for it.
+- Tests: `npm --prefix desktop test` (`vitest run`) and `npm --prefix desktop run typecheck`.
+
+**Everywhere**
+
+- Clean room (`OD-11`): no Linear source, CSS, icon, screenshot or copy is copied; Linear facts come
+  only from `01` and `02`. Every new dependency names its licence (MIT, Apache-2.0, BSD, ISC, OFL).
+- No secrets in source; configuration is `PANACEA_APP_*`; the control plane stays on loopback.
+- State what is unverified. Every size in this plan is an estimate; none is measured.
+- Every shell command goes through `~/.claude/tools/claudezsh/claudezsh` (device rule).
+- Commit messages end with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+
+---
