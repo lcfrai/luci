@@ -782,6 +782,15 @@ contradict phase 3's own review, and undo the Hub's A1.
 - **Of phase 3:** fix review I10 by quoting task 13's form in the H-3 row, as I10 says. It is the
   only change left, and it should see this ask before it edits the H-3 row.
 - **Of the Hub:** keep A1, and fold it into §7.4 in task 44a as planned.
+- **Of the Hub, second (plan re-review b05 round 2, N-1):** make the fake's `ProjectForRepo`
+  apply `ValidRepoKey` as route 13 does. The real `GET /v1/projects?repo=` answers a key refused
+  for both hosts with `400 field: repo` (Hub task 17, route 13, `task-17.md:23`), which
+  `hubclient` returns as a `*hubclient.Error`; the fake applies the rule only at `CreateProject`
+  (Hub task 04 step 2) and answers the same key with zero items. The fake is meant to carry every
+  observable §7 rule. Until it does, task 06 tests the 400 with a stub `HubProjects` that answers
+  as route 13 does, and treats that 400 as an answer (`HubMiss "key_spelling"`), not an outage.
+  Hub `task-00.md` absorbs HA7-1 to HA7-5 (`:40-44`) and has no HA7-6 row, so nothing routes
+  this ask to the Hub yet.
 
 **Phase 7 builds nothing that assumes either answer:**
 - the key sent is `RepoKey()` verbatim, chosen in one function, `hubKey` (task 06). Both answers
@@ -891,7 +900,11 @@ recorded Panacea bodies.
   (`handlers/posture_env_prodbranch_test.go`) but not here. Phase 7 shows the disagreement after a
   deploy (task 08, rule 5a) and does not correct it. How many live projects are annotation-only or
   mislabelled was not counted; `LIVE-CHECK.md` step 5a (task 20) compares the two answers for the live
-  project. The fix is Panacea's (Q-P7-6).
+  project. The fix is Panacea's (Q-P7-6). The environment card is the other surface (plan re-review
+  b02 round 2, I-1, carried to tasks 08, 13 and 15): after a Ship, it follows the environment that
+  Ship's run landed in (`selected.lastShip`), not the access route's answer. **Before a branch's
+  first Ship, the card can only repeat the access route's answer**, and says it is that route's
+  answer, not a promise of where the deploy lands.
 - **Whether `developer` is accepted as a role spelling on `POST …/access`** — task 04 sends `editor`,
   the spelling `access.go` produces (`middleware/rbac.go:219`).
 - **Whether `GET /api/v1/projects` returns `repoUrl` to a non-admin token.** The `List` handler
@@ -916,8 +929,8 @@ recorded Panacea bodies.
 ### Settled from source, no longer open
 
 - **`Deployment.branch` is a label value, never a git branch (review I4, settled 2026-09-24;
-  second writer added by re-review b03 round 1, I-1).** Panacea has **two** writers of the label,
-  and they disagree:
+  second writer added by re-review b03 round 1, I-1).** Panacea has **two** live writers of the
+  label, and they disagree (a third, in source, is judged dormant, below):
   - **The API** (Ship, Rebuild, a manual deploy) stamps `panacea.io/branch:
     sanitizeLabelValue(branch)` (`clients/pipeline.go:609`). That function turns `/` and `_` into
     `-`, drops every other character outside `[a-zA-Z0-9.-]`, cuts at 63, trims `-` and `.`, and
@@ -930,6 +943,18 @@ recorded Panacea bodies.
     carries `panacea.io/project` (`:1268`), so the deployments list shows it
     (`clients/kubernetes.go:5599`). Its environment is `branchEnvName`, which does turn `_` into
     `-` (`models/event.go:136-148`).
+  - **A third writer, found in source and judged dormant** (plan re-review b03 round 2, m-1). The
+    Tekton EventListener `panacea-event-listener` (`pipelines/triggers/event-listener.yaml:4`,
+    `:40-49`) sets `branch_name = body.ref.split('/')[2]`, and its template stamps
+    `panacea.io/branch: "$(tt.params.branch)"` and `panacea.io/project`
+    (`pipelines/triggers/github-push-trigger.yaml:71-73`). So `feat/x` would read `feat`, `feat_x`
+    keeps its `_`, and every branch but `main`, `staging` and `uat` lands in `dev`. It is applied
+    by `deploy/cloud-shell-deploy.sh:5584` and probed as the `tekton` component
+    (`services/panacea-api/clients/healthcheck.go:56`), and `webhook-receiver/models/event.go:177`
+    counts it among "both trigger paths". No external route to it was found in `deploy/`,
+    `charts/` or the webhook-receiver, so it is judged dormant. **Unverified live.** Nothing in
+    phase 7 changes for it: labels stay verbatim, and the banner's "labels, not branches" wording
+    covers it. If it is live, `withUnderscoreInBranch > 0` (task 20) has a second source.
 
   So one branch `feat_x` can appear in environment `feat-x` under two labels: `feat_x` (a push)
   and `feat-x` (a Ship). The deployments list reads the label back verbatim
@@ -978,7 +1003,8 @@ recorded Panacea bodies.
   (feat/phase-3-git at 6a71014); the Hub contract's §7.4 `POST /v1/projects` and H-3 rows, and the
   Hub plan's correction A1, task 01's *"repository keys"* block and task 04 step 2 (feat/hub at
   52f0773). The Hub fake applying `hubapi.ValidRepoKey` at `CreateProject` is read from Hub task 04
-  step 2's text. Not checked: whether either sibling's code exists or matches its text; and
+  step 2's text. The real route's `400 field: repo` for a refused key is read from Hub task 17,
+  route 13 (`task-17.md:23`; plan re-review b05 round 2, N-1). Not checked: whether either sibling's code exists or matches its text; and
   whether a `DefaultCollection` remote keeps the same project segment.
 
 
