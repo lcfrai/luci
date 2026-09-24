@@ -348,7 +348,7 @@ are hygiene, not a boundary.
 | **push** | AcrPush | the environment's registry | `images.yml` `push` (task 27) | pipeline permission `images` only; branch control as infra | anything but push images; get an image deployed (task 30 refuses digests from another branch or registry) |
 | **owner** (a human) | subscription owner, or User Access Administrator; the Entra rights for `stacks/identity` | the subscription; the tenant | task 31 §0–§2a, §4a (`grant-pipeline-roles.sh`), §6a (prod's database lock); `stacks/identity`, owner-run only (task 09) | — | — |
 | **Postgres admin** (a human, in `var.postgres_admin_group`) | the server's Entra administrator group | the Hub's server | the database bootstrap, task 31 §7, once per environment | — | — |
-| **cluster admin** (a human, in `var.cluster_admin_group_object_ids`) | cluster admin, through the AKS Entra integration | the cluster | break-glass only | — | — |
+| **cluster admin** (a human, in `var.cluster_admin_group_object_ids`) | cluster admin, through the AKS Entra integration | the cluster | break-glass; and the human smoke that creates a pod in `panacea-sandboxes` (task 31 §8's `run.sh --require-kata`, task 32's P02 and P08), which no pipeline identity may do | — | — |
 
 **What the split still leaves open (declared, not fixed):**
 1. **The infra identity can act as anything it deploys** (plan re-review I-2). Its role-assignment

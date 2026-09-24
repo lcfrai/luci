@@ -3,7 +3,10 @@
 **Owner-gated.** This task writes a checklist and the scripts that measure it. It runs them only
 when the environment exists, and the checks that need a person (a signed-in user, the KPMG network,
 the window) wait for the owner's batched hands-on session (OD-12). Until a row has a result, it is
-**UNVERIFIED**, and every report of phase 8 says so.
+**UNVERIFIED**, and every report of phase 8 says so. P02 (through S50.1) and P08 need `pods` in
+`panacea-sandboxes`, which no pipeline identity holds (task 30), so they run on task 31 §8's human
+path: a member of the cluster admin group through `kubelogin`, never `--admin` (plan re-review
+b08-1 issue 1).
 
 Survey §9 (`:582-584`) required it: "The AKS Pod Sandboxing facts — the RuntimeClass name (G-3),
 CSI volume support (G-5), per-pod Kata overhead and allocatable CPU (§6.1), feature-registration

@@ -36,7 +36,7 @@ else's zone.
 | 6a | **Prod database lock** (prod only) — after the first prod `data` apply, the **owner** creates a `CanNotDelete` lock on the Postgres server under their own credentials (`az lock create --lock-type CanNotDelete --resource <server id>`). It is not in Terraform: no pipeline identity holds `Microsoft.Authorization/locks/write` (Contributor excludes it, training knowledge, UNVERIFIED), and one that did could also delete the lock (plan re-review I-4). Check: `az lock list --resource <server id>` shows it. From then on a `data` plan that would replace or destroy the prod server fails at apply until the owner lifts the lock, which is the point | owner | step 6 (`data` applied) |
 | 7 | **Database bootstrap** — once per environment, **by a human** member of the Postgres admin group, with their own Entra token (`az account get-access-token --resource-type oss-rdbms`, from training knowledge, UNVERIFIED), from the pool's subnet or an allowlisted workstation, with `psql` and `python3` on its `PATH`. **Every file in this step runs as `psql -v ON_ERROR_STOP=1 --single-transaction -d <db> -f <file> > out.txt 2>&1; echo $? > rc.txt`, and the step reads `rc.txt`: anything but `0` stops the section** (plan re-review b03 I-1: without `ON_ERROR_STOP`, psql reports an error, runs the next statement and still exits 0; with it and `--single-transaction`, a failure rolls the whole file back. Exit code 3 for a script error is training knowledge, UNVERIFIED — record the real code from the first refusal). (a) In database `hub`, `SELECT count(*) FROM pg_roles WHERE rolname IN ('hub_owner','hub_app')`: **0** → run the Hub's `roles.sql` as above (one transaction, so a failed `GRANT CREATE` leaves 0 roles, never 2 without the grant); **2** → skip the `CREATE ROLE`s, but run `GRANT CREATE ON DATABASE hub TO hub_owner;` anyway, which is safe to repeat (plan re-review b03 M-4); **1** → stop and record it, a half-made bootstrap is repaired by hand, never by a re-run (review I9: the contract's `roles.sql` is a bare `CREATE ROLE` until ask HC-1 in task 33 is answered; once it is idempotent, this count becomes a check only). Then check `SELECT has_database_privilege('hub_owner','hub','CREATE')` returns `t`; `f` stops the section. (b) `SELECT * FROM pgaadauth_list_principals(false)` and record its real columns (task 29 names `rolname` and `objectid` from training knowledge). (c) Download the `stack-outputs` artefact of the §6 `deploy` run; `bash pipelines/scripts/render-sql.sh deploy/sql/hub-principals.sql.tpl <artefact>/workloads.json > hub-principals.sql` (task 29's mapping table reads the names **and** `hub_principal_id`/`hub_migrate_principal_id` by output name; a non-zero exit stops here), then run it as above. A re-run is safe; a role bound to another object id raises, and because both grants sit inside the checked block and the file is one transaction, nothing is granted and `rc.txt` is non-zero. Record `out.txt`. No pipeline identity is in that group (review I8), and `deploy` has no database stage | a human Postgres admin | step 6 (`workloads` outputs, the `stack-outputs` artefact) |
 | 7a | **Charts** — `deploy` with `deployCharts: true`, after step 7, so the Hub's first install finds its roles (review I9). If §7 was skipped, the `hub` release is the one that fails, last in stage 4, after the other four have installed: its `hub-migrate` hook cannot log in or cannot `SET ROLE hub_owner`, `--atomic` removes the release, and the stage prints the Job's log (task 30). Record that log's first line; with ask HC-2 (task 33) answered it names the missing bootstrap. Record whether the `broker` release's `Role` in `panacea-sandboxes` installs with `sandboxes-deployer.json`'s `escalate`/`bind` verbs, and the exact error if it fails (task 30, plan re-review I-1) | operator | image digests from a green `images` run on `main`/`dev` |
-| 8 | **Smoke** — `infra/smoke/run.sh dev` from the pool or an allowlisted workstation | operator | all above |
+| 8 | **Smoke** — `infra/smoke/run.sh dev --require-kata` from the pool or an allowlisted workstation, run by a member of the cluster admin group signed in through `kubelogin` with their own Entra account (never `--admin`): S50 needs `pods` create, get and delete and `pods/log` get in `panacea-sandboxes`, which no pipeline identity holds (the smoke contract below, plan re-review b08-1 issue 1). Record `kubectl auth can-i create pods -n panacea-sandboxes`'s answer. S50.1 and S50.2 must be `PASS` here; the pipeline's own smoke stage prints them `NOT RUN` | operator in the cluster admin group | all above |
 | 9 | **Record** — fill `docs/verification/phase-8-first-apply-results.md`; every row is `PASS`, `FAIL` with the output, or `NOT RUN` with a reason | operator | — |
 
 #### The smoke scripts (contract)
@@ -58,6 +58,27 @@ which task 13's `every_sandbox_container_is_sized` requires in this namespace). 
 the results with `kubectl logs`, so it needs `pods` create, get and delete and `pods/log` get in
 `panacea-sandboxes`, and no `exec`.
 
+**Who can run S50 (plan re-review b08-1 issue 1).** The pipeline's cluster identity cannot, and
+must not: in `panacea-sandboxes` it holds only `panacea-app-sandboxes-deployer`, which
+`cluster-kinds_test.sh` forbids ever to name `pods` (task 30), because `pods` create in the
+namespace that holds users' tokens can mount any of those Secrets. So S50 runs on the **human
+path** only: task 31 §8 (whose S50.1 result task 32's P02 reads), by a member of the cluster admin group
+(`var.cluster_admin_group_object_ids`) signed in through `kubelogin` with their own Entra account,
+never `--admin`. Before creating anything, `50-kata.sh` runs
+`kubectl auth can-i create pods -n panacea-sandboxes` (that `can-i` answers through the AKS Azure
+RBAC webhook is **training knowledge, UNVERIFIED**; §8 records its answer). On `no`:
+- by default (the pipeline's `deploy` stage 5, task 30), it prints
+  `smoke S50.1: NOT RUN (the cluster identity holds no pods in panacea-sandboxes, task 30)` and
+  the same line for S50.2, and those rows do not fail `run.sh`;
+- with `run.sh <env> --require-kata` (§8 passes it), the same answer prints
+  `smoke S50.1: FAIL (no pods create in panacea-sandboxes; run as a cluster admin group member)`
+  and the same for S50.2, and `run.sh` exits non-zero. So the one run that must prove P8-D12
+  cannot skip it quietly.
+
+No grant is added for the pipeline. Granting the cluster identity `pods` there would break task
+30's `cluster-kinds` rule and test, the `grant-pipeline-roles` test, and the reasoning behind
+them, and would be an owner question like Q4; this plan does not take it.
+
 | Id | Script | Check |
 |---|---|---|
 | S00.1 | `00-cluster.sh` | three node pools, each with its `panacea-app/role` label; the sandbox nodes carry the `panacea-app/sandbox=true:NoSchedule` taint |
@@ -68,7 +89,7 @@ the results with `kubectl logs`, so it needs `pods` create, get and delete and `
 | S30.1 | `30-broker.sh` | `/readyz` 200; `/v1/whoami` with no token → 401 with `WWW-Authenticate: Bearer`; with `Origin:` and no token → 403 `forbidden_origin` |
 | S40.1 | `40-hub.sh` | `/readyz` 200 (so Postgres, the schema version and the JWKS all answered, Hub contract §12.4) |
 | S50.1 | `50-kata.sh` | a pod with the RuntimeClass, the sandbox toleration and node selector runs `uname -r`; the value **differs** from the node's kernel (a microVM, not a container) |
-| S50.2 | `50-kata.sh` | from that pod in `panacea-sandboxes`, each probe `curl --max-time 3`: `http://169.254.169.254/metadata/instance` does not answer (`egress-internet`'s `except`); `https://kubernetes.default.svc` does not answer (no allow to the API server); `https://registry.npmjs.org` does (`allow-dns` plus `egress-internet`). This is P8-D12's smoke only. Task 32's P08 is the full probe set (another session's 8080, a machine's 8081, the VNet, the Azure wire server) |
+| S50.2 | `50-kata.sh` | from that pod in `panacea-sandboxes`, each probe `curl --max-time 3`, **without** `-f`. "Answers" means any HTTP response, whatever its status: curl exits 0. "Does not answer" means curl exits non-zero (a timeout or a refused connection). IMDS answers **400** to a request without the `Metadata: true` header (training knowledge, UNVERIFIED), so a probe that used `-f` or tested for 200 would read a reachable IMDS as blocked. `http://169.254.169.254/metadata/instance` does not answer (`egress-internet`'s `except`); `https://kubernetes.default.svc` does not answer (no allow to the API server); `https://registry.npmjs.org` does (`allow-dns` plus `egress-internet`). This is P8-D12's smoke only. Task 32's P08 is the full probe set (another session's 8080, a machine's 8081, the VNet, the Azure wire server) |
 
 **Authenticated end-to-end** (a real user's token through the broker, a session in a Kata pod) is
 **not** in the scripts: it needs a signed-in user, and it is the owner's batched hands-on item
@@ -83,8 +104,13 @@ passes on `kata-mshv-vm-isolation` when `kata-vm-isolation` was configured, or v
 `S50.1 fails when uname matches the node` (kills a runc pod counted as Kata), `S20.2 fails if port
 80 answers`, `S50 creates its pod in panacea-sandboxes with the sandbox labels and no owner label`
 (reads the manifest `run_cmd` was handed; kills a probe moved back to a namespace with no
-default-deny, review m9), `S50.2 fails naming IMDS when IMDS answers`, and one case per remaining
-check. `shellcheck` over `infra/smoke/*.sh` runs in task
+default-deny, review m9), `S50.2 fails naming IMDS when IMDS answers 400` (the canned curl exits 0
+with status 400; kills a probe using `curl -f` or testing for 200, which reads a reachable IMDS as
+blocked, plan re-review b08-1 issue 1), `S50 prints NOT RUN for S50.1 and S50.2 and run.sh exits 0
+when can-i answers no` (kills a pipeline smoke that 403s at pod create and fails every `deploy`),
+`S50 fails both rows and run.sh exits non-zero when can-i answers no under --require-kata` (kills a
+human-path run that skips P8-D12 quietly), `S50 creates no pod when can-i answers no` (reads the
+calls `run_cmd` recorded), and one case per remaining check. `shellcheck` over `infra/smoke/*.sh` runs in task
 28's `infra` pipeline.
 
 #### Steps

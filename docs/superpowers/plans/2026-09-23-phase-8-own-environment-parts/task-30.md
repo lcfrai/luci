@@ -320,7 +320,10 @@ an environment ticks `applyStacks` alone, and charts wait for the database boots
    step prints `kubectl logs job/hub-migrate -n panacea-hub --tail=50` before it exits (the Job
    survives the rollback, since its delete policy is `before-hook-creation`, task 29; that the
    cluster identity's namespace role may read pod logs is training knowledge, UNVERIFIED).
-5. **smoke** — `infra/smoke/run.sh <env>` (task 31), on the cluster connection.
+5. **smoke** — `infra/smoke/run.sh <env>` (task 31), on the cluster connection, **without**
+   `--require-kata`. The cluster identity holds no `pods` in `panacea-sandboxes` (the
+   `cluster-kinds` rule below), so S50.1 and S50.2 print `NOT RUN` here and do not fail the stage;
+   they run on task 31 §8's human path (plan re-review b08-1 issue 1).
 
 **No database stage** (review I8). The database bootstrap is `roles.sql` and the rendered
 `hub-principals.sql` (task 29), run once per environment. It is task 31 §7: a **human** member of
