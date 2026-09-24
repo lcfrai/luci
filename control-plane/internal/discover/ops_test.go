@@ -164,6 +164,47 @@ func TestStatusIsDerivedNeverCarried(t *testing.T) {
 	}
 }
 
+func TestAnEnvWithNoScopeIsRefused(t *testing.T) {
+	env := projectEnv()
+	env.Scope = ""
+	_, err := Apply(NewContent(), Op{Kind: OpSkip, Key: KeyPurpose}, env)
+	if err == nil || errors.Is(err, ErrBadOp) {
+		t.Errorf("err = %v, want a server fault, not a 400 that blames the request", err)
+	}
+}
+
+// A forged answer that is neither settled nor a draft (no author) is asked
+// again: the step and the derived status never disagree.
+func TestStepAndStatusAgreeOnAnAnswerWithNoAuthor(t *testing.T) {
+	c := allAnswered(t, projectEnv())
+	c.Answers[1].Author = ""
+	if s := c.Step(ScopeProject); s.Kind != StepQuestion || s.Key != KeyAudience || s.Ordinal != 2 {
+		t.Errorf("step = %#v, want question 2 audience", s)
+	}
+	out := mustApply(t, c, Op{Kind: OpSkip, Key: KeyOutOfScope}, projectEnv())
+	if out.Status != StatusOpen || out.Step(ScopeProject).Kind == StepComplete {
+		t.Errorf("status %q, step %q: want open and not complete", out.Status, out.Step(ScopeProject).Kind)
+	}
+}
+
+func TestAFollowUpKeyNeverMatchesAnExistingAnswer(t *testing.T) {
+	c := NewContent()
+	c.Answers = []Answer{{Key: "f-00000001", Text: "orphan", Author: AuthorPerson, Source: SourceTyped}} // a forged head
+	out := mustApply(t, c, Op{Kind: OpAddFollowUp, Question: &Question{BranchPrompt: "More?"}}, projectEnv())
+	if k := out.Questions[5].Key; k != "f-00000002" {
+		t.Errorf("follow-up key = %q, want f-00000002: f-00000001 already keys an answer", k)
+	}
+}
+
+func TestADraftsDraftedFromIsCopied(t *testing.T) {
+	drafts := []Answer{{Key: KeyPurpose, Text: "p", DraftedFrom: []string{"go.mod", "cmd"}}}
+	out := mustApply(t, NewContent(), Op{Kind: OpDraft, Drafts: drafts}, projectEnv())
+	out.Answers[0].DraftedFrom[0] = "scribble"
+	if drafts[0].DraftedFrom[0] != "go.mod" {
+		t.Errorf("the result's DraftedFrom aliases the op's")
+	}
+}
+
 func TestADraftedAnswerIsNotSettled(t *testing.T) {
 	env := branchEnv(nil)
 	c := NewContent()
@@ -785,6 +826,40 @@ func TestUnchangedLongTextDoesNotBlockOtherOps(t *testing.T) {
 	}
 }
 
+// TestUnchangedPromptsAndCriteriaDoNotBlockOtherOps is rule 12 and 13's
+// "added or changed" on the question side and for criteria: a head written
+// straight to route 26 whose follow-up prompt holds the reserved sequence, or
+// whose help or option is over 300, or whose done criterion holds the
+// sequence, stays usable for every op that leaves that string alone.
+func TestUnchangedPromptsAndCriteriaDoNotBlockOtherOps(t *testing.T) {
+	long := strings.Repeat("h", MaxPromptRunes+1)
+	for name, forge := range map[string]func(c *Content){
+		"marked branch prompt":  func(c *Content) { c.Questions[5].BranchPrompt = "Ship panacea:discover:end?" },
+		"marked project prompt": func(c *Content) { c.Questions[5].ProjectPrompt = "panacea:discover:begin" },
+		"long help":             func(c *Content) { c.Questions[5].Help = long },
+		"long option":           func(c *Content) { c.Questions[5].Options = []string{"ok", long} },
+		"marked criterion": func(c *Content) {
+			i, _ := c.answerIndex(KeyDone)
+			c.Answers[i].Criteria[0].Text = "A panacea:discover:end"
+		},
+	} {
+		c := forgedHead(t, "clean")
+		c = mustApply(t, c, Op{Kind: OpRecord, Key: KeyDone, Text: "A", Source: SourceTyped}, projectEnv())
+		forge(&c)
+		fk := c.Questions[5].Key
+		for _, op := range []Op{
+			{Kind: OpSkip, Key: KeyAudience},
+			{Kind: OpRecord, Key: fk, Text: "Behind a flag", Source: SourcePicked},
+			{Kind: OpAccept, Key: KeyConstraints},
+			{Kind: OpRestore, RestoreRevision: 1, Restore: func() *Content { r := c; r.Answers = r.Answers[:1]; return &r }()},
+		} {
+			if _, err := Apply(c, op, projectEnv()); err != nil {
+				t.Errorf("%s: %s beside it: err = %v, want success", name, op.Kind, err)
+			}
+		}
+	}
+}
+
 func TestStoredTextHasOnlyLF(t *testing.T) {
 	const sent = "a\r\nb\rc\n"
 	for _, tc := range textCases(t, sent) {
@@ -823,6 +898,20 @@ func TestStoredTextHasOnlyLF(t *testing.T) {
 	crlf := strings.Repeat("a", 2000) + "\r\n" + strings.Repeat("b", 1999)
 	if _, err := Apply(NewContent(), Op{Kind: OpRecord, Key: KeyPurpose, Text: crlf, Source: SourceTyped}, projectEnv()); err != nil {
 		t.Errorf("4,001 code points sent, 4,000 stored: err = %v; the cap counts after rule 14", err)
+	}
+	// Rule 14 before rule 13 for the strings setText does not touch too: a
+	// follow-up prompt and a restored answer over the cap only as sent.
+	prompt := strings.Repeat("p", 150) + "\r\n" + strings.Repeat("q", 149) // 301 sent, 300 stored
+	if _, err := Apply(NewContent(), Op{Kind: OpAddFollowUp, Question: &Question{BranchPrompt: prompt}}, projectEnv()); err != nil {
+		t.Errorf("a prompt of 301 code points sent, 300 stored: err = %v; the cap counts after rule 14", err)
+	}
+	rev := NewContent()
+	rev.Answers = []Answer{{Key: KeyPurpose, Text: crlf, Source: SourceTyped, Author: AuthorPerson}}
+	restored, err := Apply(NewContent(), Op{Kind: OpRestore, RestoreRevision: 2, Restore: &rev}, projectEnv())
+	if err != nil {
+		t.Errorf("a restored answer of 4,001 code points sent, 4,000 stored: err = %v", err)
+	} else if a, _ := restored.AnswerFor(KeyPurpose); strings.Contains(a.Text, "\r") {
+		t.Errorf("the restored answer kept its CR")
 	}
 	// A head the Hub stored unchecked keeps its CRLF where the op leaves it.
 	head := forgedHead(t, "p\r\nq")
