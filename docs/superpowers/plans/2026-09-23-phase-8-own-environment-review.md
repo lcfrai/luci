@@ -1152,3 +1152,43 @@ people who approve plans, which is an ADO project setting.
 - Nothing links the foundation's `allowed_ingress_cidrs` to the edge chart's
   `allowedSourceRanges`. Both are set from the owner's one Q3 answer, in two places. This is a
   drift risk recorded here and not fixed, because it is outside m5.
+
+## Fix batch b08 (2026-09-24) — m6, m8, m9, m15, m16, m17
+
+Minor findings on feasibility and scope. There is one commit per finding: `4ae9fa2` (m6),
+`4e25394` (m8), `21cf1bb` (m9), `5993628` (m15), `41bf966` (m16), `28bb6e3` (m17). The commit
+that adds this section is the seventh. The task list changes: task 24 becomes 24a and 24b, and
+27a is new. Letters were used so that no other task number moved.
+
+| Finding | Fix | Where |
+|---|---|---|
+| m6 the licence gate's claim is wider than its checks | **Both halves of the review's fix.** (1) Helm chart dependencies are now gated. Task 28 adds `licences/charts.yaml` (one row per `Chart.lock` entry: name, repository, version, SPDX licence, source) and `chart-licences.sh`, which runs first in `charts.yml`. It fails on an unrecorded entry, a version bump with no re-read licence, a licence outside `allow.yaml`, a denied name, a missing source, or a stale row. It has seven fixture cases, reads only the repository, and has `yq` pinned. Task 13 writes the first two rows from each chart's `LICENSE`, instead of recording licences in `Chart.yaml` comments. (2) The Terraform providers claim is narrowed, because gating them was wrong on the facts: they are MPL-2.0 tools, run by Terraform as separate processes, shipped in nothing, and hash-pinned by the committed `.terraform.lock.hcl` (guard G7). The OD-11 row and the allowlist's header now say so by name | plan `:107`, `:477`, `:497`; `parts/task-28.md:24-25`, `:37`, `:60`, `:68-73`, `:94-128`, `:145-146`, `:158`; `task-13.md:40`, `:364-371`; `task-27.md:114-115` |
+| m8 the AKS create can race the NAT association | **The review's first option**, done with an output-level `depends_on`. The network module's `subnet_ids` and `egress_subnet_ids` depend on the NAT subnet associations, the NAT gateway's public-IP association and the NSG associations. The resource list now names all three resource types. The review's second option, `depends_on = [module.network]` on the AKS call, was not taken. It would make every data source in `module.aks` wait for the whole network module, and defer those reads to apply (from training knowledge). A mocked `terraform test` cannot observe ordering, so task 07 step 3 proves it by hand: `terraform graph` of the foundation stack, a path check from the cluster to the association, and a mutant that deletes the `depends_on`. That is one new Terraform command, configuration-only. The plan's Azure paragraph and `validate.sh`'s header name it; the paragraph also now names `terraform test`, which it had left out | `parts/task-03.md:105-116`, `:130-134`, `:184-186`, `:195`, `:237-243`; `task-07.md:438-443`, `:625-636`, the new "does not claim" bullet; `task-01.md:49-50`; plan `:172-174` |
+| m9 S50.2 tests nothing of P8-D12 | **The review's first option.** `50-kata.sh` runs one pod, `smoke-kata-<random>`, in `panacea-sandboxes`, so task 11's `default-deny`, `allow-dns` and `egress-internet` select it as they select a session. It carries `panacea-app/component: sandbox` and no `panacea-app/owner`, so no owner view lists it. It uses the sandbox image by digest, whose `curl` does the probes (verified: `images/sandbox/Dockerfile:12`). It is restricted-compliant and sized, is read through `kubectl logs` with no `exec`, and an `EXIT` trap deletes it. S50.2 names what each probe proves and points at task 32's P08 for the full set. `smoke_test.sh` gains a manifest case and an IMDS case. The `panacea-smoke` namespace is gone | `parts/task-31.md:46-59`, `:71`, `:83-87` |
+| m15 the sandbox base is end-of-life Node 20 | **New task 27a**, after 27 and before 31's first publish (wave 5). It adds an `ARG NODE_BASE` seam, pinned by digest, and recommends `node:24-trixie-slim`. Step 1 verifies the Node and Debian dates and trixie's git version. The machine image's `bookworm-backports` git line moves with the base. There are four `images_test.sh` rows (7 → 11): the Node line, a digest on the base, one codename across both images, and an unchanged CLI pin. Then come the OD-8 canary, a local Docker session under the daemon lock, and a commit that names the old and new digests, because the digest is the adapter pin. New seam **S8-I.1**: each later base move is its own task | `parts/task-27a.md` (new, 75 lines); `task-27.md:20`, `:30-32`; `task-33.md:27`; plan `:105`, `:474-475`, `:511`, `:517-521`, `:585`, `:594`, `:612`, `:654` |
+| m16 `.invalid` may not fail at apply | **The review's fix.** The estate guard refuses `deploy` on both paths while a named stack's `<env>.tfvars`, or any `deploy/values/<env>/*.yaml`, holds a `.invalid` value (`\.invalid\b` after stripping `#` comments). It names the file and line. Plan mode does not check, so PR plans of the committed placeholders still run. There are five cases (estate-guard 17 → 22) and five mutants. Task 07's sentence no longer claims apply fails; it says the guard refuses | `parts/task-30.md:154-162`, `:382-386`, `:515-518`, `:528`; `task-07.md:540-546` |
+| m17 tasks 24 and 07 are underestimated | **The review's split.** `task-24a.md` covers list, ensure-default and wake (2 h, wave 6). `task-24b.md` covers catalog, create and cloudstore (3 h, wave 7), and 24b carries the old part's eleven create and catalog tests unchanged. Task 07 is sized at **5 h**. 25 and 26 depend on 24b and move to wave 8 beside 31, which shares no file with either, so there are still ten waves. **Found in the split:** the 5 s list cache would have shown a woken machine as `sleeping`. 24a's ensure-default and wake now drop the cache, and three new 24a tests pin ensure-default's outcomes, the wake route and the invalidation | `parts/task-24a.md` (was `task-24.md`), `task-24b.md` (new); plan `:463-468`, `:502-504`, `:507`, `:517-521`, `:533`, `:575-578`, `:613-615`, `:620`, `:633`, `:635`, `:638`; `task-15.md:13`, `:111`, `:183`; `task-20.md:35`, `:63`; `task-21.md:92`, `:118`; `task-22.md:41`, `:47`, `:112`; `task-23.md:13`, `:171`, `:268`; `task-25.md:12`, `:110`; `task-26.md:30`, `:86`, `:104`, `:138`, `:146`; `task-32.md:25`, `:33`; `task-33.md:18`, `:66`, `:79` |
+
+**Restatements checked** by grep over the plan, the parts directory, `docs/PROGRAM.md` and
+`docs/superpowers/planning/env/`. None remain of the following:
+- a bare "task 24" outside the notes on the split itself;
+- "Terraform providers and Helm chart dependencies";
+- `panacea-smoke`, except in the note at `task-31.md:50` that says why it went;
+- "fail at apply";
+- "17 of 17".
+
+`node:20-bookworm-slim` remains only where it describes today's file, and in phase 1's and
+phase 2's own plans, which are history.
+
+**Owner questions:** none. Every ruling in this batch is technical. m15's choice of base is
+recommended and sits behind one `ARG`.
+
+**Still UNVERIFIED (new this batch):**
+- Node 20's end of life, Node 24's Active LTS window, bookworm's move to Debian LTS, and trixie's
+  git 2.47 (task 27a step 1 checks all four). That Claude Code `2.1.274` runs on Node 24 (task 27a
+  step 5).
+- That AKS needs the NAT association at create time; that `terraform graph` runs with no provider
+  credentials after `init -backend=false`; and that its reduced graph keeps paths through module
+  outputs (task 07 step 3).
+- Whether Azure DNS accepts a `.invalid` zone. The guard makes the answer irrelevant.
+- Each chart's real licence (task 13 step 1 reads it).
