@@ -15,11 +15,13 @@ import (
 )
 
 func TestCompleteSendsTheRequiredHeadersAndBody(t *testing.T) {
-	var gotPath, gotKey, gotVersion string
+	var gotMethod, gotPath, gotContentType, gotKey, gotVersion string
 	var gotBody map[string]any
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
 		gotPath = r.URL.Path
+		gotContentType = r.Header.Get("content-type")
 		gotKey = r.Header.Get("x-api-key")
 		gotVersion = r.Header.Get("anthropic-version")
 		_ = json.NewDecoder(r.Body).Decode(&gotBody)
@@ -44,8 +46,14 @@ func TestCompleteSendsTheRequiredHeadersAndBody(t *testing.T) {
 		t.Fatalf("Complete: %v", err)
 	}
 
+	if gotMethod != http.MethodPost {
+		t.Errorf("method = %q, want POST", gotMethod)
+	}
 	if gotPath != "/v1/messages" {
 		t.Errorf("path = %q, want /v1/messages", gotPath)
+	}
+	if gotContentType != "application/json" {
+		t.Errorf("content-type = %q, want application/json", gotContentType)
 	}
 	if gotKey != "k-test" {
 		t.Errorf("x-api-key = %q, want k-test", gotKey)
@@ -81,8 +89,88 @@ func TestCompleteSendsTheRequiredHeadersAndBody(t *testing.T) {
 	if resp.Text != "hello" {
 		t.Errorf("Text = %q, want hello", resp.Text)
 	}
+	if resp.Model != "claude-opus-5" {
+		t.Errorf("Model = %q, want the model the reply names", resp.Model)
+	}
 	if resp.InputTokens != 11 || resp.OutputTokens != 3 {
 		t.Errorf("usage = %d/%d, want 11/3", resp.InputTokens, resp.OutputTokens)
+	}
+}
+
+// TestNewFillsTheDefaults: a Config with only a key and a base URL (with a
+// trailing slash) still posts to /v1/messages, names DefaultModel and asks
+// for the default 8192 tokens.
+func TestNewFillsTheDefaults(t *testing.T) {
+	var gotPath string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		_, _ = w.Write([]byte(`{"stop_reason":"end_turn","content":[{"type":"text","text":"ok"}]}`))
+	}))
+	defer srv.Close()
+
+	c, err := modelclient.New(modelclient.Config{BaseURL: srv.URL + "/", APIKey: "k"})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if _, err := c.Complete(context.Background(), modelclient.Request{User: "x"}); err != nil {
+		t.Fatalf("Complete: %v", err)
+	}
+	if gotPath != "/v1/messages" {
+		t.Errorf("path = %q, want /v1/messages (the trailing slash trimmed)", gotPath)
+	}
+	if gotBody["model"] != modelclient.DefaultModel {
+		t.Errorf("model = %#v, want DefaultModel %q", gotBody["model"], modelclient.DefaultModel)
+	}
+	if gotBody["max_tokens"] != float64(8192) {
+		t.Errorf("max_tokens = %#v, want 8192", gotBody["max_tokens"])
+	}
+	if _, present := gotBody["output_config"]; present {
+		t.Errorf("output_config = %#v, want absent with no effort and no schema", gotBody["output_config"])
+	}
+}
+
+// TestCompleteReportsNoTextBlock: a 200 whose content holds no text block (a
+// reply that spent its tokens thinking, or an empty one) is ErrNoText, never
+// a success with empty text.
+func TestCompleteReportsNoTextBlock(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"thinking only", `{"stop_reason":"max_tokens","content":[{"type":"thinking","thinking":"","signature":"sig"}]}`},
+		{"empty content", `{"stop_reason":"end_turn","content":[]}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			c, _ := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
+			resp, err := c.Complete(context.Background(), modelclient.Request{User: "x"})
+			if !errors.Is(err, modelclient.ErrNoText) {
+				t.Fatalf("err = %v (resp %+v), want ErrNoText", err, resp)
+			}
+		})
+	}
+}
+
+// TestCompleteBoundsTheReplyItReads: the reply is read through an 8 MiB
+// limit, so a runaway body is a decode error, not an unbounded allocation.
+func TestCompleteBoundsTheReplyItReads(t *testing.T) {
+	huge := strings.Repeat("a", 8<<20)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"stop_reason":"end_turn","content":[{"type":"text","text":"` + huge + `"}]}`))
+	}))
+	defer srv.Close()
+
+	c, _ := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
+	resp, err := c.Complete(context.Background(), modelclient.Request{User: "x"})
+	if err == nil {
+		t.Fatalf("a reply over 8 MiB was accepted (%d bytes of text)", len(resp.Text))
 	}
 }
 

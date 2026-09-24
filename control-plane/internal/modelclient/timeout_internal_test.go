@@ -25,3 +25,15 @@ func TestTheDefaultTimeoutIsBelowTheLongestDesktopBudget(t *testing.T) {
 		t.Errorf("http.Client.Timeout = %v, want DefaultTimeout %v", c.http.Timeout, DefaultTimeout)
 	}
 }
+
+// TestACallersTimeoutIsKept: DefaultTimeout fills a zero Timeout only; a
+// caller's own value reaches the http.Client unchanged.
+func TestACallersTimeoutIsKept(t *testing.T) {
+	c, err := New(Config{APIKey: "k", BaseURL: "http://x", Timeout: 5 * time.Second})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if c.http.Timeout != 5*time.Second {
+		t.Errorf("http.Client.Timeout = %v, want the caller's 5s", c.http.Timeout)
+	}
+}
