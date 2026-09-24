@@ -332,13 +332,37 @@ on the enforced ecosystems alone, so a missing tool is visible, never silent.
 
 1. Write the tests and fixtures (`testdata/licenses/*.txt` are the licences' canonical texts; the
    GPL, MPL and CC texts are fixtures, never code, and carry nothing copied from any canvas).
-2. Implement `spdx.go`, `classify.go`, `gate.go`, `sources.go`, `main.go` until green.
+2. Implement `spdx.go`, `classify.go`, `gate.go`, `sources.go`, `imports.go`, `imports.cjs`,
+   `main.go` until green; then `node --test tools/licencegate/imports.test.cjs` from the repository
+   root, with `desktop/node_modules` present (the junction in a worktree), until green.
 3. Run it on the real repository. For each `fail` on an **existing** dependency (the control
    plane's Kubernetes and Docker trees predate `OD-11`), read the licence file, and either add a
    reviewed exception or record the dependency in the report below as a real violation for the
-   orchestrator. Do not add an exception without reading the file.
+   orchestrator. Do not add an exception without reading the file. An exception cannot cover an
+   `MPL-2.0` crate (its `resolved` must be allowed, `TestEvaluate_exceptionMustResolveAllowed`), so
+   the Cargo `REPORT` lines are recorded, not excepted: they are the owner's (OQ-P5-2).
 4. Write `docs/superpowers/planning/phase-5/licence-gate-first-run.md`: the gate's output on the
-   repository at this commit, every exception added and why, and every real violation found.
+   repository at this commit, every exception added and why, every real violation found, and a
+   **Cargo** section with every `REPORT cargo` line. That section names, at minimum, the five
+   `MPL-2.0` crates this plan already knows of, each with its chain as the gate prints it — the
+   facts below were read on 2026-09-24 with `cargo metadata --offline --locked --format-version 1
+   --filter-platform x86_64-pc-windows-msvc` in `desktop/src-tauri` (263 packages) and each crate's
+   `license` in the registry's `Cargo.toml`; re-read them, and report any difference:
+
+   | Crate | `Cargo.lock` | Reached (normal edges) | Links into the binary? |
+   |---|---|---|---|
+   | `cssparser 0.36.0` | `:587` | `tauri 2.11.5 → tauri-utils 2.9.3 → dom_query 0.27.0` | a `lib`: *unverified* |
+   | `cssparser-macros 0.6.1` | `:600` | `… → dom_query 0.27.0 → cssparser 0.36.0` | a proc-macro: runs at compile time, does not link |
+   | `selectors 0.36.1` | `:2923` | `tauri → tauri-utils → dom_query 0.27.0` | a `lib` (with a build script): *unverified* |
+   | `dtoa-short 0.3.5` | `:850` | `… → dom_query → cssparser 0.36.0` | a `lib`: *unverified* |
+   | `option-ext 0.2.0` | `:2382` | `tauri 2.11.5 → dirs 6.0.0 → dirs-sys 0.5.0` | a `lib`: *unverified* |
+
+   The same read found 18 crates under `Unicode-3.0` alone (`icu_*`, `zerovec`, `yoke`, `tinystr`,
+   `litemap`, …), `unicode-ident 1.0.25` as `(MIT OR Apache-2.0) AND Unicode-3.0`, `foldhash 0.2.0`
+   and `zlib-rs 0.6.8` as `Zlib`, and `same-file 1.0.6` and `walkdir 2.5.0` as `Unlicense/MIT` (the
+   last two pass once `/` reads as OR). `Unicode-3.0` and `Zlib` are permissive but are not among
+   `OD-11`'s four families, so they report too. The review counted four `MPL-2.0` crates; the read
+   found a fifth, `cssparser-macros`.
 5. Edit `go.work` and `azure-pipelines.yml`; commit by pathspec.
 
 ## Acceptance
@@ -351,8 +375,10 @@ Expected: `ok  	github.com/kpmg-au-emu/panacea-app/tools/licencegate`.
 ```bash
 go run ./tools/licencegate -root . ; echo "exit $?"
 ```
-Expected: a table of every enforced dependency, then `exit 0` — or `exit 1` with each real
-violation named in the first-run report.
+Expected: a table of every enforced dependency, the `REPORT` lines (among them `REPORT cargo
+cssparser 0.36.0 MPL-2.0 — …` and the other crates of step 4's table, or one `REPORT cargo: not
+scanned: …` line), then `exit 0` — or `exit 1` with each real violation named in the first-run
+report. The Cargo lines never change the exit code while `CargoEnforced` is false.
 
 ```bash
 go run ./tools/licencegate -root ./tools/licencegate/testdata/repo-with-mpl ; echo "exit $?"
@@ -361,8 +387,17 @@ Expected: `FAIL npm mpl-fixture 1.0.0 MPL-2.0 — …` and `exit 1` — the spec
 
 ## Not claimed
 
-- **Cargo is not scanned.** The canvas adds no Rust crate. Tauri's own crate tree predates `OD-11`
-  and is outside this phase (plan open question OQ-P5-2 covers dev tooling; Cargo is named there too).
+- **Cargo is reported, not enforced** (review I10). The canvas adds no Rust crate, but the canvas
+  ships inside the Tauri binary, and that crate tree already holds five `MPL-2.0` crates and
+  permissive licences outside `OD-11`'s four families (step 4's table). Whether any of them may
+  ship is the owner's ruling, OQ-P5-2, which now states them; `CargoEnforced` is the one-line seam.
+  Which `lib` crates actually link into the release binary is *unverified*: the chain comes from
+  `cargo metadata`, which unifies features across build and normal use.
+- **Build plugins are not scanned.** A Vite plugin can inject runtime code into the bundle. By its
+  documented behaviour (not read in this tree), `@vitejs/plugin-react` injects `react/jsx-runtime`,
+  from `react`, a production dependency, and the refresh runtime in dev only. A plugin added later
+  that injects a package no shipped file imports and no production list names would pass
+  unenforced; the reviewer of that plugin's task owns it.
 - **Fonts are not scanned** (plan OQ-P5-5).
 - The classifier is a fingerprint match, not a legal reading. An exception is a person's review;
   this is not legal advice.
