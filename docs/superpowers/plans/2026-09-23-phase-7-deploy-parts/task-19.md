@@ -123,17 +123,52 @@ environment served just before this row went live** (review M29): task 08 rule 6
   then d3 (c3), c1 was serving before d3, so d3's range is c1..c3 and credits the sessions
   between c1 and c2 that d3 put back in front of people. The old rule, *"the newest older
   succeeded run"*, took c2 and left them uncredited.
-- `current.source "none"` and **no** row of this environment older than `cut` → `From ""` (the
-  first release here).
+- `current.source "none"` and **no row that could have served before `cut`** → `From ""` (no
+  earlier release is recorded here). A row that could have served is a row of this environment in
+  `snapshot.Deployments`, **other than this one**, that is `succeeded` with a `CompletedAt` before
+  `cut` or zero, or `historical`, or `unknown` (plan re-review b11-1, I-2). A `failed`, `running`
+  or `pending` row never served, so it never blocks `From ""`: d1 failed, then d2 succeeded,
+  gives d2 `From ""`, not *"cannot tell"*. The row's own `CreatedAt` is before its own `cut`,
+  which is why "other than this one" is part of the rule.
 - Any other case → `state "previous_unknown"`, and **no git read**: `current.source "none"`
-  while older rows exist (backfilled `historical` rows, never current by rule 6), a rollback
-  whose target is not in the snapshot (past the 200-row history, or pruned), or a From commit
-  that is not 40 hex (`deploy.ValidCommit`). Never a fallback to an older row or to the whole
-  history, which would credit this release with sessions an earlier one shipped.
+  while a row that could have served exists (backfilled `historical` rows, never current by rule
+  6), a rollback whose target is not in the snapshot (past the 200-row history, or pruned), or a
+  From commit that is not 40 hex (`deploy.ValidCommit`). Never a fallback to an older row or to
+  the whole history, which would credit this release with sessions an earlier one shipped.
+
+**The rollbacks before `cut` must be known** (plan re-review b11-1, I-1). `CurrentAt`'s rollback
+candidate comes from `Snapshot.Releases`, which is the Hub's first page only (task 07,
+`ReleasesMore`), and is empty or stale when the Hub has not been read. A missing rollback would
+make `CurrentAt` return the build before it and the route would answer `ok` with the M29 defect.
+So the route reads From, or answers `From ""`, **only** when one of these holds; otherwise it
+answers `previous_unknown` before any git read:
+- (a) `ReleasesState` is `no_hub` or `no_hub_project`. No cockpit rollback can exist, because
+  task 10 refuses a rollback without a Hub project (`no_hub_project`). A rollback made in
+  Panacea's portal is declared invisible (task 10, *What this task does NOT claim*; plan 7P-4).
+- (b) `ReleasesAt` is non-zero and not before `cut` (the Hub was read after this row went live,
+  so a rollback confirmed before `cut` is in that read; this compares the Hub's and Panacea's
+  instants with the local read time, the same comparison task 08 rule 5b (c) makes), **and**
+  the page covers `cut`:
+  - either the page is complete (`!ReleasesMore`);
+  - or the page's oldest release was reserved at least one reservation lifetime before the
+    `since` that `CurrentAt` found. The lifetime is that release's `expiresAt − reservedAt`
+    (Hub contract §7.9: `expiresAt = reservedAt + PANACEA_APP_HUB_RESERVATION_TTL`). The Hub
+    lists newest `reservedAt` first, so a release off the page was reserved no later than the
+    page's oldest. Its confirm came before its own `expiresAt`, so before that `since`, and it
+    loses to what `CurrentAt` found. A `current.source "none"` with `ReleasesMore` never meets
+    this, because there is no `since` to compare.
+  The review's version of this clause, "the page's oldest release is older than `cut`", is not
+  enough on its own. A rollback reserved just before the page's oldest can confirm up to one
+  lifetime later, which can still be before `cut` (Hub contract §7.9, and newest `reservedAt`
+  first at `GET /v1/projects/{projectId}/releases`).
+- `signed_out`, `hub_key_spelling`, `unavailable` with a `ReleasesAt` before `cut`, and a zero
+  `ReleasesState` all fail (b), so they answer `previous_unknown`. This matches rule 5b's list of
+  states that are not loaded.
 
 A failed build is never current, so it is never a From (its commit never served). A running
-row's range can change once, if a rollback lands before it goes live; after it goes live, its
-`cut` is fixed.
+row's range is **provisional**: `cut` is its `CreatedAt` until it goes live, and then becomes its
+`CompletedAt`, so a rollback that lands in between moves From. A range is fixed once the row is
+`succeeded` and a Hub read at or after its `cut` has been taken, which is condition (b).
 
 #### Control-plane route — complete wire
 
@@ -190,14 +225,21 @@ export function ReleaseSessions(props: { projectId: string; row: ReleaseRow }): 
 | `outside > 0` | a hollow dot and *"`N` commits carry no session record — made outside any session, or before sessions were recorded"* |
 | `sessions` empty and `outside == commits` | only the line above — never *"no sessions"* as if that were a finding |
 | `truncated` | *"Showing the newest 200 commits of the range."* |
-| `from == ""` | under the list: *"The first release on this environment: its whole history, to 200 commits."* |
+| `from == ""` | under the list: *"No earlier release is recorded on this environment: its whole history, to 200 commits."* (not *"the first release"*: Panacea may have pruned an older one, and the cockpit cannot tell) |
 | not `ok` | `message` verbatim, and **Look again** |
+| the row's `build` is not `succeeded` | above the list: *"Provisional: this build has not gone live, so the release before it may still change."* |
 | always | *"Commits between the release that was serving on this environment before it and `<short commit>`."* (review M29: a rollback's target counts) |
 
-The block reads once when the drawer opens on the row — never on the cursor, never on a timer: a
-release's range does not change after it ships.
+The block reads once when the drawer opens on the row, and once more when that row's `build`
+turns `succeeded` while the drawer is open. It never reads on the cursor or on a timer. A range
+is fixed only once the row has gone live **and** a Hub read at or after its go-live has been
+taken (condition (b) above). Until then the route answers either a provisional range (a running
+row) or `previous_unknown`, whose **Look again** re-reads (plan re-review b11-1, m-4).
 
 #### Tests to write first
+
+Every route test's snapshot has `ReleasesState "ok"`, a `ReleasesAt` after the latest `cut` it
+reads, and `ReleasesMore false`, unless its row says otherwise, so condition (b) holds by default.
 
 | Test | Assertion | Mutant it kills |
 |---|---|---|
@@ -215,9 +257,12 @@ release's range does not change after it ships.
 | `TestPreviousIsWhatServedAfterRollback` (route) | d1 (c1, completed 09:04), d2 (c2, completed 09:30), a rollback to d1 confirmed 10:05, d3 (c3, completed 10:14) → the read for d3 has `From c1`, not `c2`; the read for d2 has `From c1` (review M29) | *"the newest older succeeded run"*, which skips the rollback and leaves the c1..c2 sessions d3 re-shipped uncredited |
 | `TestPreviousUsesGoLiveNotCreation` (route) | d1 (c1, completed 09:04), d2 (c2, completed 09:30), d3 created 10:00, a rollback to d1 confirmed 10:05, d3 completed 10:14 → `From c1` (the rollback's target was serving when d3 went live); with the rollback confirmed at exactly 10:14 → `From c2` (rule 6 orders a tie after the build, so the rollback did not serve before d3) | cutting at `CreatedAt`, which takes d2 because the rollback came after d3 was created |
 | `TestPreviousUnknownNeverWidens` (route) | a rollback serving before d3 whose target `d0` is not in the snapshot → `state "previous_unknown"`, its sentence, `sessions []`, and the `gitxtest.Script` saw no call; the same for an environment whose older rows are all `historical` | a fallback to an older row or to the whole history, crediting sessions an earlier release shipped |
+| `TestPreviousUnknownWhenRollbacksUnread` (route) | the `TestPreviousIsWhatServedAfterRollback` history, read for d3 (cut 10:14), with the rollback **absent** from `Releases` and `ReleasesState "signed_out"` → `previous_unknown`, and the `gitxtest.Script` saw no call. The same for a zero `ReleasesState`, and for `"unavailable"` with `ReleasesAt` 10:00. With the rollback present, `ReleasesState "ok"`, `ReleasesAt` 10:20 and `ReleasesMore true`: the page's oldest release reserved 09:50 with `expiresAt` 10:05 → `From c1`; reserved 09:55 with `expiresAt` 10:10 → `previous_unknown` (plan re-review b11-1, I-1) | the route trusting an unread or partial `Releases`, which misses the rollback, takes d2 and answers `ok` with From c2 |
+| `TestNoHubNeedsNoReleases` (route) | d1 (c1), d2 (c2), d3 (c3) with `ReleasesState "no_hub"` and `ReleasesAt` zero → d3 `From c2`, one `git log` | a rule so strict that a project with no Hub never gets a range |
+| `TestFirstReleaseFromEmpty` (route) | one row d1 succeeded, `ReleasesState "ok"`, `ReleasesAt` after its completion → `From ""`; d1 failed (created 09:00), d2 succeeded (completed 09:20) → d2 `From ""`; d0 `historical`, then d1 succeeded → d1 `previous_unknown` (plan re-review b11-1, I-2) | the route's `From ""` branch replaced by `previous_unknown` whenever `current` is `none`, or the row counting itself, or a failed row blocking it |
 | `TestPreviousIsSameEnvironment` (route) | an older run on another environment is ignored | two environments' histories spliced into one range |
 | `TestSessionsRouteIsReadOnly` | the route is in `catalogReadOnlyRoutes`; the §10a audit passes | a GET registered outside the recorder |
-| `reads once` (desktop) | drawer open → one `api.sessions`; three cursor changes → still one | a git log per cursor tick |
+| `reads once` (desktop) | drawer open → one `api.sessions`; three cursor changes → still one. The same row re-rendered with `build "succeeded"` → exactly two reads, and a running row shows the *"Provisional: …"* line (m-4) | a git log per cursor tick, or a range read before go-live that is never read again |
 | `known session navigates` (desktop) | click → `selectBranch(p, b)` then `focusSession("s-4f1e")`; an unknown id is not a button | a link that lands on the wrong branch, or a dead click |
 
 #### Steps
