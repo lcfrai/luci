@@ -104,3 +104,156 @@ are live. **UNVERIFIED** marks every claim this file did not check against a sou
   prompt), and leaves `forceLoginMethod` unset. Put it to KPMG InfoSec with the gateway's audit
   export as the replacement trail. Keep `/status` as the check that the product file, and nothing
   else, is in force.
+
+## Important
+
+### I1. "Observed" activity is computed inside the agent's own process tree
+
+- **Claim:** activity is *"observed, never reported"*, and *"the `sandboxd` watcher runs outside
+  the agent's process tree"* (`05-design.md:244-246`). G1 lists `sandboxd` as a writer of facts
+  (`05-design.md:551`).
+- **Reality:** `sandboxd` is the agent's **parent**. The entrypoint `exec`s `sandboxd`, which
+  starts the harness in its PTY (`images/sandbox/entrypoint.sh:13-17`,
+  `sandboxd/cmd/sandboxd/main.go:39-69`). Both run as `dev`, uid 1001
+  (`images/sandbox/Dockerfile:19`, `:24`). A hijacked worker can stop the watcher, exhaust its
+  inotify watches, or write to the `panacea` socket directly. Dirty hunks need `git diff` in the
+  lane, and phase 3 has **dropped** the read-only `.git/config` bind, so *"the agent's `git
+  config` writes work"* (`.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md:447`).
+  A `core.fsmonitor` the agent sets would then run inside `sandboxd`, the process that stamps
+  facts.
+- **Also:** "files **read**" from inotify (`05-design.md:221`) is noise. One `rg` or `grep -r`
+  opens every file in the tree.
+- **Fix:** compute activity **outside the VM**. `machined` mounts the same disk, and it already
+  runs git under phase 3's §HGH hardening (P8-D7, `phase-8-own-environment.md:136`). A 5 to 10 s
+  hardened `status` / `diff --numstat` sweep there feeds Fleet, and it is also phase 3 task 07's
+  observed-claims path. Keep `sandboxd` for process facts only. Drop "files read" from TM1.
+
+### I2. Awareness still hangs on the model obeying one sentence, when the cloud permits a hook
+
+- **Claim:** workers run `panacea check <path>` before a first edit because the managed block tells
+  them to (`05-design.md:301-303`, `:394-395`). Hooks are rejected under P8 (`05-design.md:88`,
+  `:421`), citing the laptop policy.
+- **Reality:** `03` already says this kind of instruction is *"advisory: whether the model re-reads
+  on cue is behaviour, not a guarantee"* (`03-techniques.md:138`). Its C6 run was never done
+  (`03-techniques.md:613`). By C3, the laptop policy that strips hooks does not reach a
+  gateway-token sandbox. The product's own `managed-settings.json` governs there, and can define a
+  `PreToolUse` hook on `Edit|Write|MultiEdit`. That hook runs `panacea check`, returns directives
+  as context, and makes the hot path deterministic.
+- **Fix:** keep "no hook **dependency**". Add the hook as a cloud-only enhancer, behind the same
+  InfoSec approval as C3. The observed-edit `hold` lease stays the backstop
+  (`05-design.md:470-472`), once I1 makes it trustworthy. Add C6 to §14.2 as a measured rate:
+  of N first edits, how many were preceded by a check.
+
+### I3. No git credential exists for anything the cloud does while the human is away
+
+- **Claim:** Fleet keeps no user refresh token (`05-design.md:141-142`). Push is a human act with a
+  per-push token from the desktop; Azure DevOps uses on-behalf-of (`05-design.md:186-191`).
+- **Reality:** the design needs **fetch** with nobody present. The Orchestrator's view is at the
+  integration head *"refreshed by `machined`"* (`05-design.md:258`), a tainted Orchestrator may
+  order `rebase` onto upstream (`05-design.md:567`), and phase 3 fetches *"on a slow timer"*
+  (phase 3 plan task 12, `2026-09-23-phase-3-git-convergence.md:561`). Phase 3's credential is Git Credential Manager and Windows
+  Credential Manager on the owner's laptop
+  (`.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence-parts/task-12.md:7`,
+  `task-13.md:3`, `:32`). On-behalf-of needs a live user assertion, so it fails in exactly the
+  "away" case too.
+- **Fix:** an owner decision before TM1. Recommended: a **read-only**, project-scoped fetch
+  credential (a GitHub App installation token; an Azure DevOps read-only identity), with every
+  fetch audited to the project. **Write** (push, PR) stays the user's own token, handed over per
+  act. Add it to §13.1 as Q6.
+
+### I4. Fleet as a delegated Hub caller inverts three Hub invariants, and it is costed at 2 days
+
+- **Claim:** Fleet calls the Hub as its own workload identity, names a delegation, and the Hub
+  records *"actor = the owner, via = Fleet"* (`05-design.md:135-140`), at ~2 days
+  (`05-design.md:811`). The delegation client is built *"from Hub task 30's `entraauth`"*
+  (`05-design.md:865`).
+- **What it collides with in ADR-H1** (`.claude/worktrees/hub/docs/superpowers/adr/ADR-H1-hub-architecture.md`):
+  - `azp` must be in `PANACEA_APP_HUB_ALLOWED_CLIENTS`, *"the desktop's client id. A token some
+    other app obtained for our API is refused"* (`:370`).
+  - The principal is `(tid, oid)` from the token (`:372`), and *"no request body carries an actor"*
+    (`:434-435`). A delegation id **is** an actor carried in the request.
+  - Tenancy is Postgres RLS on `org_id` (G4, `:253`). Fleet is one multi-tenant caller, so the Hub
+    must set the org per request from the delegation, not from the token.
+  - Revocation *"within 60 seconds"* (`05-design.md:143-146`) needs Fleet to read **every org's**
+    change feed (G3, `:252`), which is a cross-tenant read the Hub has no role for.
+- **And in the Hub plan:** task 30's `entraauth` is the desktop's public-client PKCE flow
+  (`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:431`). On-behalf-of is
+  a confidential-client exchange, and nothing of it exists. `devissuer` does code + PKCE and
+  refresh only (`phase-h-hub.md:412`), so Hub task 43's offline proof cannot exercise Fleet.
+- **Fix:** write an ADR-H1 amendment, "delegated callers", before TM1. It covers the token shape
+  Fleet presents, the `azp` list, org selection under RLS, a per-org feed subscription for Fleet,
+  and `devissuer` gaining the jwt-bearer grant. Re-cost the row at about 4 to 5 days.
+
+### I5. The desktop has no transport to Fleet, and the "portal" still runs a local control plane
+
+- **Claim:** for a team project the cockpit *"talks to Fleet"* (`05-design.md:98`). Stream F is UI
+  only (`05-design.md:907`).
+- **Reality:** phase 8 says *"The desktop keeps talking to `127.0.0.1:8730` only"*, through
+  `remotebe` in the laptop's control plane (`phase-8-own-environment.md:81-83`). The user's tokens
+  live in that local Go process (HA-2, `:250`; `phase-h-hub.md:15`). So either the local control
+  plane proxies Fleet, or the renderer holds tokens, which breaks the Hub's custody. The design
+  picks neither. A team session's PTY then crosses desktop → local control plane → Fleet →
+  broker → `sandboxd`: three relays, none measured.
+- **Fix:** add a `fleetbe` backend in the local control plane, behind the unchanged
+  `backend.Backend` seam (S8.1, `phase-8-own-environment.md:657`), plus the team routes. Cost it at
+  about 3 to 4 days, and add it to stream D or F. Say plainly in §10.3 that the portal is the
+  cockpit plus a thin local control plane: no Docker, but one local Go process. Add PTY
+  round-trip latency to task 32.
+
+### I6. `waitingOn: human` has no lawful source
+
+- **Claim:** agent status includes `waiting`, with `waitingOn` `human`·`lease`·`peer`
+  (`05-design.md:220`). The strip shows *"waiting on Priya"* (`05-design.md:659`, `:670`).
+- **Reality:** phase 2 refuses to invent this state. BLOCKED-ON-YOU *"needs the agent-runtime
+  signal"* and *"must not be guessed from PTY bytes"*
+  (`control-plane/internal/registry/session.go:10-13`). A permission prompt or a question to the
+  user shows only in the PTY (OD-8 forbids reading it) or in the optional transcript adapter.
+- **Fix:** `lease` and `peer` are Fleet's own facts, so keep them. Make `human` come only from
+  `panacea report blocked --on human` (agent text, labelled so) or from the cloud-only
+  `Notification` hook of I2. When neither is present, show `idle`, as phase 2 does.
+
+### I7. Fleet is one in-memory process, and "agents pause" when it dies has no mechanism
+
+- **Claim:** Fleet is one multi-tenant deployment (`05-design.md:107-110`). Its state is *"in
+  memory with a snapshot for restart"* (`05-design.md:208-209`), and the live lease table is
+  authoritative there (`05-design.md:222`). *"If Fleet goes down, agents pause and no record is
+  lost"* (`05-design.md:117`).
+- **Reality:** nothing pauses a worker. It is an interactive CLI in its own pod, and it keeps
+  editing when Fleet is gone. Its `panacea` calls fail, and it falls back to a stale
+  `/panacea/team.json` (`05-design.md:398-400`). Every Fleet rollout, which will be weekly in
+  early build, drops every control stream, turn queue and lease at once, for every org. Phase 8
+  runs even the Hub as two stateless replicas (`phase-8-own-environment.md:264`).
+- **Fix:** keep leases, turn queues and thread state in Fleet's own Postgres schema, so a restart
+  or a second replica loses nothing. Split the PTY relay from the coordination core. Define
+  `panacea` behaviour while Fleet is unreachable: `check` answers *"team view unavailable since
+  <t>"*, and the worker's block says to report `blocked` and not to edit a path it holds no lease
+  on. Replace "agents pause" with what actually happens.
+
+### I8. The negotiation timings make the 15-minute deadline the normal way threads end
+
+- **Claim:** events coalesce for up to 60 s per turn (`05-design.md:271-272`). A thread has
+  3 rounds per side and a 15-minute deadline, and running out forces `decide` on **both** humans
+  (`05-design.md:486-488`).
+- **Arithmetic** (**UNVERIFIED**, turn length not measured): one hop is up to 60 s of coalescing
+  plus one headless turn. The turn resumes a growing context, then makes at least one
+  `panacea inbox` call and one `panacea peer` call, so assume 20 to 60 s. That is 80 to 120 s a
+  hop, and 3 rounds per side is 6 hops, or 8 to 12 minutes, before any `inbox`/`team` re-reads.
+  So a thread that uses its rounds lands on the deadline. Each one then puts a `decide` on two
+  Desks, the reverse of OD-15's "calm" (`owner-decisions.md:125`).
+- **Fix:** deliver thread events with no coalescing, keeping 60 s for everything else. Set the
+  default deadline to 30 minutes. Measure hop time in G9's scripted run, and add a TM1 done
+  criterion: the median thread resolves without a deadline escalation.
+
+### I9. A long-lived headless Orchestrator's context, and so its cost, grows without bound
+
+- **Claim:** one Orchestrator session per user per project, resumed turn after turn
+  (`05-design.md:276-278`). *"An idle Orchestrator costs nothing"* (`05-design.md:283`).
+- **Reality:** every `-p --resume` turn re-sends the whole conversation. After a few days of peer
+  threads, that is compaction territory, and each compaction is an agent-written summary of peer
+  text, which is exactly what G1 and G7 try to keep out of authority. When a turn arrives after
+  the prompt cache has expired, it pays full input price. The idle **pod** still holds a slot
+  (C2).
+- **Fix:** rotate Orchestrator sessions, one per day or per task. Seed each new session only from
+  Fleet's typed state (`panacea team`, open threads, the owner's policy), never from the old
+  transcript. Its taint then resets for free (`05-design.md:563-565`). Budget coordination spend
+  per turn, not only per hour (`05-design.md:319`).
