@@ -298,7 +298,10 @@ session's worktree path (`sessions.go:651` and `:1255`, through `sessionGitLineE
 `:250`), and the production resolver (`cmd/api/gitlineendings.go:36`) runs the host's
 `git config` there. For a lane that path is the clone, where the local keys answer `false` and
 `lf`, so the env says what the clone's config says. **The invariant is where the resolver is
-asked: the clone, never `Project.Path`**, whose system `autocrlf=true` would send `true`/`crlf`.
+asked, and by what: in the clone, by a pinned git, never in `Project.Path`**, whose system
+`autocrlf=true` would send `true`/`crlf`. Pinned means task 05's `laneResolverRunner` (`gitx.Exec`,
+`Scope: Clone`, task-02 §HGH H5's layout pin): phase 2's runner is unpinned, and an agent-written
+`.git/commondir` then chooses the config it reads (plan re-review b02-2 X-1).
 A probe (`scratchpad/p3/rr-b02-probe.out`) showed what that mutant does: with `GIT_CONFIG_*`
 holding `core.autocrlf=true` over a clone made by step 4's argv, `status --porcelain` stays empty
 and `git checkout -- a.txt` writes `x\r\ny\r\n`. A second probe (`scratchpad/p3/b02r2-probe.out`,
