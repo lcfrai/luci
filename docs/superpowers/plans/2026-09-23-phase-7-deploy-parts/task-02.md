@@ -98,7 +98,7 @@ func BuildHTTPClient(caFile string, timeout time.Duration) (*http.Client, error)
 //     waits on it yet (review M3; b07 round 2, M-3). A 503 that carries it waits
 //     max(the fixed delay, Retry-After) when Retry-After is at most 2 s; a longer one ends the
 //     retries at once and returns the KindUnavailable with RetryAfter set, so do never blocks
-//     the watcher's loop on it; the watcher's failure rule (t07:188-193) ends the cycle. A 429
+//     the watcher's loop on it; the watcher's failure rule (t07:255-262) ends the cycle. A 429
 //     is not retried at all; it returns with RetryAfter set. The watcher's next cycle then comes
 //     3 s or 15 s later whatever RetryAfter says, so a longer Retry-After is overridden by the
 //     cadence. That caller-side wait is its own open item, seam S7-R1 (plan §10.2), not t07's

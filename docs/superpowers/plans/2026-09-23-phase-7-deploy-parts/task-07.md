@@ -233,7 +233,11 @@ type Snapshot struct {
    none, in `PinsByRun[d.ID]`. `pipelineRun=` and not `deploymentId=`: the join is written only by
    the reserver's own watcher (step 7), so a release whose reserver never saw the deployment has no
    `deployments[]` entry, but always has its `pipelineRun` (confirm carries it). These reads run in every
-   cycle that still owes one, whether or not the page itself was re-read. A failure of this
+   cycle that still owes one, whether or not the page itself was re-read, and **last**: after
+   every project's steps 1-9, so a slow Hub never spends the Panacea reads' share of
+   `CycleDeadline`. One cut by the deadline is not a failure of any kind: its id stays absent and
+   the cycle simply ends. A project whose `PinsByRun` changed is compared (step 9) again after
+   them, so its `Version` and the cursor still move. A failure of this
    read leaves the id absent (retried next cycle) and does not change `ReleasesState`. 200 history
    rows cost at most 200 reads once, spread over ten cycles; a project with fewer than 200
    releases costs none. Until a row's read answers, task 08 says *"pin not loaded"*, never *"no
