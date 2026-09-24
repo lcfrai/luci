@@ -6,7 +6,8 @@
 //   node run.mjs --via-launch the plan's chromium.launch route, kept to reproduce its S11 artefact
 // Configuration: PANACEA_APP_SPIKE_DEPS (where the npm packages live; installed there if absent),
 // PANACEA_APP_SPIKE_FONT (a TrueType file served as the web font; default Consolas),
-// PANACEA_APP_SPIKE_EDGE (msedge.exe; default the machine-wide install).
+// PANACEA_APP_SPIKE_EDGE (msedge.exe; default the machine-wide install),
+// PANACEA_APP_SPIKE_QUICK=1 (skip S11's extra hidden facts; for mutation runs).
 //
 // Why Edge is spawned here and not by chromium.launch: Playwright sends
 // Emulation.setFocusEmulationEnabled {enabled: true} to every page it creates (playwright-core
@@ -24,6 +25,9 @@ import { fileURLToPath } from "node:url";
 
 const NEG = process.argv.includes("--negative");
 const VIA_LAUNCH = process.argv.includes("--via-launch");
+// PANACEA_APP_SPIKE_QUICK=1 skips only S11's extra hidden facts (decode probes, extra captures),
+// for mutation runs; the eleven checks and the negative assertions are unchanged.
+const QUICK = process.env.PANACEA_APP_SPIKE_QUICK === "1";
 const EDGE = process.env.PANACEA_APP_SPIKE_EDGE || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEPS = process.env.PANACEA_APP_SPIKE_DEPS || join(tmpdir(), "panacea-app-spike-01");
@@ -222,14 +226,14 @@ async function run(port) {
     const bounded = (fn, arg, ms) => Promise.race([page.evaluate(fn, arg), sleepMs(ms).then(() => null)]);
     const partial = answer ? null : await bounded(() => window.__s11Partial && window.__s11Partial(), null, 5000);
     const decodeProbes = [];
-    for (const kind of ["png", "svg"]) {
+    for (const kind of QUICK ? [] : ["png", "svg"]) {
       const r = await bounded((k) => window.__decodeProbe(k), kind, 10000)
         || { ...(await bounded(() => window.__decodeState, null, 5000)), note: "no answer within 10 s (runner clock)" };
       decodeProbes.push(r);
       log(`S11 decode probe: ${JSON.stringify(r)}`);
     }
     const hiddenRuns = [];
-    for (const [library, artboard, id, w, h, capMs, debug, mode] of HIDDEN_RUNS) {
+    for (const [library, artboard, id, w, h, capMs, debug, mode] of QUICK ? [] : HIDDEN_RUNS) {
       const t = Date.now();
       const r = await Promise.race([page.evaluate((a) => window.__hiddenCapture(a), { library, id, w, h, debug, mode }),
         sleepMs(capMs).then(() => null)]);
@@ -271,6 +275,8 @@ function negativeProblems(r) {
   if (outcome("S2") !== "fail") out.push("S2 did not fail without the sandbox");
   if (!L.S2b || !L.S2b.flags.some((f) => f !== "undefined")) out.push("S2b (no sandbox, no CSP) set no flag");
   if (!L.S2a || L.S2a.unchanged !== false) out.push("S2a (no sandbox, CSP) was not navigated by the meta refresh");
+  for (const id of ["S2a", "S2b"]) if (!L[id] || L[id].pass !== false) out.push(`S2 leg ${id} did not fail on its own`);
+  if (outcome("S5") !== "fail") out.push("S5 did not fail with the overlay mis-sized 1.25x");
   if (outcome("S6") !== "fail") out.push("S6 did not fail without the CSP");
   if (!L.S6 || !(L.S6.naturalWidth > 0)) out.push("S6 without the CSP: the https img did not load");
   if (!L.S6 || !(L.S6.net && L.S6.net.reached.length > 0)) out.push("S6 without the CSP: no request reached the network");

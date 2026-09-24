@@ -30,7 +30,7 @@
 // ---------------------------------------------------------------- setup
 const NEG = new URLSearchParams(location.search).has("negative");
 document.getElementById("mode").textContent = NEG
-  ? "Mode: --negative (no sandbox on S2, no CSP on S6, S4 node moved, S11 rAF-only)"
+  ? "Mode: --negative (no sandbox on S2, no CSP on S6, S4 node moved, S11 rAF-only, S5 overlay mis-sized)"
   : "Mode: positive";
 const CSP = `default-src 'none'; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'`;
 const checks = [];
@@ -157,6 +157,7 @@ async function checkS1S3S4() {
     `elementFromPoint(30, 30) is ${hitName} (want #n1) while the iframe's pointer-events is "${pe}"`);
 }
 // ---------------------------------------------------------------- S2: nothing inside runs
+const s2LegPass = (l) => l.probes.every(Boolean) && l.flags.every((x) => x === undefined) && l.unchanged;
 async function checkS2() {
   // S2a is the artboard as task 24 builds it (sandbox + CSP). S2b drops the CSP, so the
   // sandbox is measured on its own: is it a real line without the CSP behind it?
@@ -174,11 +175,14 @@ async function checkS2() {
     await sleep(1000);
     const flags = [1, 2, 3].map((i) => window["__ran" + i + v.sfx]);
     const unchanged = !!doc && f.contentDocument === doc && !!doc.getElementById("mark");
-    legs.push({ id: v.id, probes, flags, unchanged });
-    extras.legs[v.id] = { probes, flags: flags.map((x) => (x === undefined ? "undefined" : String(x))), unchanged };
+    const leg = { id: v.id, probes, flags, unchanged };
+    legs.push(leg);
+    // Each leg's verdict comes from the one rule the outcome uses, so --negative can assert every
+    // leg failed for itself (S2a, CSP only, fails only by the refresh: the unchanged clause).
+    extras.legs[v.id] = { probes, flags: flags.map((x) => (x === undefined ? "undefined" : String(x))), unchanged, pass: s2LegPass(leg) };
   }
   const allProbes = legs.every((l) => l.probes.every(Boolean));
-  const quiet = legs.every((l) => l.flags.every((x) => x === undefined) && l.unchanged);
+  const quiet = legs.every(s2LegPass);
   const ev = legs.map((l) => `${l.id}: probes ${l.probes.filter(Boolean).length}/4, flags ` +
     `[${l.flags.map((x) => (x === undefined ? "undefined" : x)).join(", ")}], document ${l.unchanged ? "unchanged" : "CHANGED"}`);
   record("S2", allProbes && quiet ? "pass" : "fail", (allProbes ? "" : "a probe is missing from the fixture; ") + ev.join("; ") + " after 1 s");
@@ -197,7 +201,8 @@ function checkS5() {
     position: "absolute", left: `${fr.left - vr.left + r.left}px`, top: `${fr.top - vr.top + r.top}px`,
     width: `${r.width}px`, height: "0px", margin: "0", padding: "0", border: "0", boxSizing: "content-box",
     resize: "none", overflow: "hidden", whiteSpace: "pre-wrap", overflowWrap: "break-word",
-    background: "transparent", fontFamily: cs.fontFamily, fontSize: cs.fontSize, fontWeight: cs.fontWeight,
+    // --negative mis-sizes the overlay (1.25x), so S5 must then disagree: the comparison can fail.
+    background: "transparent", fontFamily: cs.fontFamily, fontSize: NEG ? `${parseFloat(cs.fontSize) * 1.25}px` : cs.fontSize, fontWeight: cs.fontWeight,
     fontStyle: cs.fontStyle, lineHeight: cs.lineHeight, letterSpacing: cs.letterSpacing, wordSpacing: cs.wordSpacing,
   });
   ta.value = p.textContent;
