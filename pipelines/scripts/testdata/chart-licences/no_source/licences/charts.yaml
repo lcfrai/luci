@@ -1,0 +1,6 @@
+# Fixture licences/charts.yaml for case no_source.
+dependencies:
+  - name: postgresql
+    repository: https://charts.example.invalid/bitnami
+    version: "16.4.1"
+    licence: Apache-2.0

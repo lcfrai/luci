@@ -1,0 +1,9 @@
+# Fixture copy of the tools template: the one place install-tool.sh may be called.
+parameters:
+  - name: tools
+    type: object
+    default: []
+steps:
+  - ${{ each t in parameters.tools }}:
+    - script: bash pipelines/scripts/install-tool.sh ${{ t }}
+      displayName: install ${{ t }}

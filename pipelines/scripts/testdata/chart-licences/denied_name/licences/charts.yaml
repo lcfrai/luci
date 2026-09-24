@@ -1,0 +1,7 @@
+# Fixture licences/charts.yaml for case denied_name.
+dependencies:
+  - name: tldraw
+    repository: https://charts.example.invalid/tl
+    version: "1.0.0"
+    licence: MIT
+    source: https://example.invalid/tldraw/LICENSE

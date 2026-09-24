@@ -1,0 +1,9 @@
+# Case r1_none_not_manual: trigger: none in a file that is not one of the manual pipelines.
+trigger: none
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - script: bash pipelines/scripts/hello.sh

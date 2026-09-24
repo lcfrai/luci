@@ -1,0 +1,14 @@
+# Case r7_missing_script: a step calls a script a later task has not written (review m2).
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [infra/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [infra/**]
+steps:
+  - script: bash pipelines/scripts/hello.sh
+  - script: bash infra/scripts/role-allowlist.sh

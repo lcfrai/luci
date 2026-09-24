@@ -1,0 +1,2 @@
+1
+R6 pins-have-hashes: FAIL pipelines/lintme.yml: tool kubectl has no linux-amd64 pin

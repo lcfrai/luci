@@ -1,0 +1,18 @@
+# Case r4_literal_connection: a service connection named literally, tied to one estate.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: sc-panacea-dev
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: echo hi

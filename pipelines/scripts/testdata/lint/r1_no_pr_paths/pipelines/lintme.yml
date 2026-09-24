@@ -1,0 +1,13 @@
+# Case r1_no_pr_paths: pr: names branches but no paths, so every PR runs it.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    exclude: [docs/**]
+steps:
+  - script: bash pipelines/scripts/hello.sh

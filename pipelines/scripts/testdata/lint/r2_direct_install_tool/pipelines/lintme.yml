@@ -1,0 +1,14 @@
+# Case r2_direct_install_tool: install-tool.sh called straight from a pipeline, not through the
+# template, so the tools a job gets are no longer listed in one parameter a reviewer reads.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - script: bash pipelines/scripts/install-tool.sh yq

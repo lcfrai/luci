@@ -1,0 +1,10 @@
+# Fixture copy of licences/allow.yaml's shape.
+allowed:
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+denied_packages:
+  - tldraw
+  - "@tldraw/*"

@@ -1,0 +1,16 @@
+# Case r3_star_version: the root Go pipeline asks for any version.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [go.work]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [go.work]
+steps:
+  - task: GoTool@0
+    inputs:
+      version: '*'
+  - script: bash pipelines/scripts/hello.sh

@@ -1,0 +1,6 @@
+dependencies:
+- name: widget
+  repository: https://charts.example.invalid/widgets
+  version: v1.18.2
+digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+generated: "2026-09-25T00:00:00Z"

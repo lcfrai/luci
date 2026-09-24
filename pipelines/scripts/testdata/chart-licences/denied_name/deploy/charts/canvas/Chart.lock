@@ -1,0 +1,6 @@
+dependencies:
+- name: tldraw
+  repository: https://charts.example.invalid/tl
+  version: 1.0.0
+digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+generated: "2026-09-25T00:00:00Z"

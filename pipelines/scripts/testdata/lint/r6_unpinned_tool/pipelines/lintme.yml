@@ -1,0 +1,16 @@
+# Case r6_unpinned_tool: the template is asked for a tool install-tool.sh has no pin for.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [deploy/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [deploy/**]
+steps:
+  - template: templates/tools.yml
+    parameters:
+      tools: [yq, kubectl]
+  - script: bash pipelines/scripts/hello.sh

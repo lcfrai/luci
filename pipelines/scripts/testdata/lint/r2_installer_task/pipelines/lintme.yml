@@ -1,0 +1,15 @@
+# Case r2_installer_task: an ADO installer task, which fetches a tool no hash here pins.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - task: HelmInstaller@1
+    inputs:
+      helmVersionToInstall: 3.19.0

@@ -1,0 +1,23 @@
+# Case task30_ok: the shape task 30's infra-plan.yml must keep. Manual, so trigger: none is
+# allowed; its first step after the tools is the estate guard; it names only the PLAN connection.
+trigger: none
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [infra/**]
+pool:
+  name: $(PANACEA_APP_CI_POOL)
+steps:
+  - checkout: self
+  - template: templates/tools.yml
+    parameters:
+      tools: [yq]
+  - task: AzureCLI@2
+    displayName: estate guard
+    inputs:
+      azureSubscription: $(PANACEA_APP_DEV_PLAN_SERVICE_CONNECTION)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: bash pipelines/scripts/estate-guard.sh dev plan
+  - script: bash pipelines/scripts/hello.sh

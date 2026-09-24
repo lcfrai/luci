@@ -1,0 +1,16 @@
+# Case r2_curl: a tool fetched with curl, no checksum, no template.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - script: |
+      curl -sSLo /usr/local/bin/kubeconform.tgz https://example.invalid/kubeconform.tgz
+      tar -xzf /usr/local/bin/kubeconform.tgz
+    displayName: install kubeconform by hand

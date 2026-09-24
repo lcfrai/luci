@@ -1,0 +1,19 @@
+# Case r8_deploy_wrong_stage (extends task30_ok): the cluster stage names the INFRA connection.
+trigger: none
+pr: none
+stages:
+  - stage: guard
+    jobs:
+      - job: guard
+        steps:
+          - script: bash pipelines/scripts/estate-guard.sh dev deploy
+  - stage: cluster
+    jobs:
+      - job: helm
+        steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(PANACEA_APP_DEV_INFRA_SERVICE_CONNECTION)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: bash pipelines/scripts/hello.sh

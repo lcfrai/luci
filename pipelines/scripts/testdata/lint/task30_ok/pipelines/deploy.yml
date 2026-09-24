@@ -1,0 +1,50 @@
+# Case task30_ok: the shape task 30's deploy.yml must keep. PLAN in guard and in the job named
+# outputs, INFRA in apply, CLUSTER in cluster and smoke.
+trigger: none
+pr: none
+stages:
+  - stage: guard
+    jobs:
+      - job: guard
+        steps:
+          - script: bash pipelines/scripts/estate-guard.sh dev deploy
+            env:
+              CONNECTION: $(PANACEA_APP_DEV_PLAN_SERVICE_CONNECTION)
+  - stage: apply
+    jobs:
+      - job: apply
+        steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(PANACEA_APP_DEV_INFRA_SERVICE_CONNECTION)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: bash pipelines/scripts/hello.sh
+  - stage: cluster
+    jobs:
+      - job: outputs
+        steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(PANACEA_APP_DEV_PLAN_SERVICE_CONNECTION)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: bash pipelines/scripts/hello.sh
+      - job: helm
+        steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(PANACEA_APP_DEV_CLUSTER_SERVICE_CONNECTION)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: bash pipelines/scripts/hello.sh
+  - stage: smoke
+    jobs:
+      - job: smoke
+        steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(PANACEA_APP_DEV_CLUSTER_SERVICE_CONNECTION)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: bash pipelines/scripts/hello.sh

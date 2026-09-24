@@ -1,0 +1,15 @@
+# Case r3_latest: a hosted image by its moving label.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+pool:
+  vmImage: ubuntu-latest
+steps:
+  - script: bash pipelines/scripts/hello.sh

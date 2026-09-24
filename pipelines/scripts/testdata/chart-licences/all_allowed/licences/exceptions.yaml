@@ -1,0 +1,7 @@
+# Fixture: one approved exception, so the pass case proves exceptions are read.
+exceptions:
+  - name: widget
+    ecosystem: helm
+    licence: MPL-2.0
+    why: fixture only
+    approved: 0000000

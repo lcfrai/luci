@@ -1,0 +1,7 @@
+# Fixture licences/charts.yaml for case licence_not_allowed.
+dependencies:
+  - name: postgresql
+    repository: https://charts.example.invalid/bitnami
+    version: "16.4.1"
+    licence: GPL-3.0-only
+    source: https://example.invalid/postgresql/LICENSE

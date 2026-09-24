@@ -1,0 +1,27 @@
+# Fixture: a well-formed root pipeline. Its comments name ubuntu-latest, "*" and curl | bash on
+# purpose: lint strips comments before it looks, so none of these may fail a rule.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include:
+      - go.work
+      - control-plane/**
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [go.work, control-plane/**]
+
+pool:
+  vmImage: ubuntu-24.04
+
+steps:
+  - task: GoTool@0
+    inputs:
+      version: '1.23'
+  - template: pipelines/templates/tools.yml
+    parameters:
+      tools: [gitleaks]
+  - script: bash pipelines/scripts/hello.sh   # not latest, never | bash
+    displayName: Hello

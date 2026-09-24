@@ -1,0 +1,8 @@
+# Case r1_no_trigger: no trigger: block, so ADO would run it on every push to every branch.
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - script: bash pipelines/scripts/hello.sh

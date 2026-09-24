@@ -1,0 +1,19 @@
+# Case r5_guard_not_first (extends task30_ok): a step runs before the estate guard.
+trigger: none
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [infra/**]
+steps:
+  - checkout: self
+  - template: templates/tools.yml
+    parameters:
+      tools: [yq]
+  - script: bash pipelines/scripts/hello.sh
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: $(PANACEA_APP_DEV_PLAN_SERVICE_CONNECTION)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: bash pipelines/scripts/estate-guard.sh dev plan

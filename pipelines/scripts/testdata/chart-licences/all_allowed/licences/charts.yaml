@@ -1,0 +1,17 @@
+# Fixture licences/charts.yaml for case all_allowed.
+dependencies:
+  - name: postgresql
+    repository: https://charts.example.invalid/bitnami
+    version: "16.4.1"
+    licence: Apache-2.0
+    source: https://example.invalid/postgresql/LICENSE
+  - name: traefik
+    repository: https://charts.example.invalid/traefik
+    version: "37.1.2"
+    licence: MIT
+    source: https://example.invalid/traefik/LICENSE
+  - name: widget
+    repository: https://charts.example.invalid/widgets
+    version: "v1.18.2"
+    licence: MPL-2.0
+    source: https://example.invalid/widget/LICENSE

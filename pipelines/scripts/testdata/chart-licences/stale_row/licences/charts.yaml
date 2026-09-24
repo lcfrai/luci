@@ -1,0 +1,12 @@
+# Fixture licences/charts.yaml for case stale_row.
+dependencies:
+  - name: postgresql
+    repository: https://charts.example.invalid/bitnami
+    version: "16.4.1"
+    licence: Apache-2.0
+    source: https://example.invalid/postgresql/LICENSE
+  - name: redis
+    repository: https://charts.example.invalid/bitnami
+    version: "20.1.0"
+    licence: Apache-2.0
+    source: https://example.invalid/redis/LICENSE

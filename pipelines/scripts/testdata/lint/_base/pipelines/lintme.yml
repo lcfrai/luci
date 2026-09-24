@@ -1,0 +1,32 @@
+# Fixture: a well-formed pipeline under pipelines/.
+trigger:
+  branches:
+    include:
+      - main
+      - dev
+  paths:
+    include:
+      - desktop/**
+pr:
+  branches:
+    include:
+      - '*'
+  paths:
+    include:
+      - desktop/**
+
+jobs:
+  - job: one
+    pool:
+      vmImage: ubuntu-24.04
+    steps:
+      - template: templates/tools.yml
+        parameters:
+          tools:
+            - yq
+            - gitleaks
+      - script: |
+          bash pipelines/scripts/hello.sh
+          yq --version
+        displayName: Run
+      - bash: bash pipelines/scripts/hello.sh --twice

@@ -1,0 +1,19 @@
+# Case r8_connection_in_pr_file: a PR-built pipeline names a write connection. The value is a
+# variable, so R4 passes; R8 is what catches it.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: $(PANACEA_APP_DEV_INFRA_SERVICE_CONNECTION)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: bash pipelines/scripts/hello.sh
