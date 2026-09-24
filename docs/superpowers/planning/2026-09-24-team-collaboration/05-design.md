@@ -350,3 +350,65 @@ paragraph**, and nothing from any teammate is ever rendered into it (`04` F4):
 `sandboxd` also writes a snapshot, `/panacea/team.json`, to a read-only mount outside the worktree
 (`04` F5). The mount is memory-backed (`tmpfs`), so A11's no-Hub-data-on-disk rule still holds. It is the fallback if a `panacea` call fails, and a launch-time picture for harnesses
 that read files before they call tools.
+
+### 5.4 Push: a fixed nudge, then a pull
+
+Some news should interrupt: a conflict just opened on a file this worker is editing; a lease it
+asked for was granted; a directive from its own Orchestrator. For those, Fleet sends a **fixed
+template** through the delivery ladder in §4.3 (for example *"Team update for you. Run `panacea
+check`."*) and the facts arrive through the pull. This follows `03`'s strongest research result:
+telling an agent about a concurrent change that just landed recovered 82% of the runs parallel work
+had broken (`03` §5.2, arXiv 2609.25396, abstract only). A push never carries peer text, so the
+inbox socket's weaker trust rules never apply to a teammate's words. Fleet sends at most one nudge
+per worker per 3 minutes, because each delivered message is billed like a prompt (`03` §1.3).
+
+### 5.5 Channels considered and rejected
+
+| Channel | Why not |
+|---|---|
+| team data rendered into `CLAUDE.md`, or `@`-imported into it | `CLAUDE.md` is loaded as instructions (`04` F4). This overrides `03` channels 1–3, which proposed it (`04` §9.2) |
+| path-scoped rule files naming a teammate's work | the same instruction channel; one fixed pointer does the job |
+| a coordination MCP server | blocked by `allowedMcpServers: []` for KPMG accounts (`03` §1.4). Kept as an optional front for customers whose admin allowlists our binary; its tools would map one to one onto the `panacea` verbs |
+| hooks | stripped by `strictPluginOnlyCustomization` except from approved marketplaces (`03` §1.5) |
+| Claude Code agent teams, cross-session messaging | single-user by design; nothing native crosses users (`03` §1.7) |
+| A2A into the agent | the CLI does not speak it, and we may not wrap it. Later, possibly Fleet's outward interface (`03` §1.8) |
+| agents reading each other's transcripts | OD-8 forbids requiring it, and transcripts stay with their owner (`04` §2.3, §3.2) |
+| sandbox-to-sandbox calls | denied by P8-D12; Fleet is the only rendezvous (`04` §5.1) |
+
+## 6. The orchestrator-to-orchestrator protocol (OD-16)
+
+### 6.1 Shape
+
+- **Orchestrators never address each other's sandboxes.** They write typed messages into
+  **threads** held by Fleet and recorded in the Hub. Fleet routes, rate-limits and records.
+- **A thread has a subject** (a conflict, a lease, or a free question), its participants (only the
+  orchestrators of current project members), a round cap and a deadline.
+- **Fleet starts most threads itself,** when its forecaster raises a conflict (§8). An Orchestrator
+  may start one to ask a question, including on its human's behalf (§6.7).
+- **Only typed fields have effects**, and Fleet applies them deterministically. Free text informs a
+  decision and never executes.
+
+### 6.2 Message kinds
+
+| Kind | Typed fields | Text | Effect when resolved |
+|---|---|---|---|
+| `ask` | subject: task, lease, path or conflict | question ≤ 600 | none; expects an `answer` |
+| `answer` | in reply to | ≤ 600 | none |
+| `inform` | subject | ≤ 600 | none; no reply expected |
+| `propose` | a resolution (below), with its typed parameters | rationale ≤ 600 | none until accepted |
+| `accept` · `reject` | the proposal | optional reason ≤ 300 | `accept` by every party resolves the thread |
+| `counter` | a new resolution | rationale ≤ 600 | replaces the proposal; counts as a round |
+| `withdraw` | the sender's own proposal | none | none |
+
+**Resolutions**, the only things negotiation can decide:
+
+| Resolution | Typed parameters | What Fleet does on accept |
+|---|---|---|
+| `split` | globs for each side | re-issues each side's leases to its own globs |
+| `sequence` | who goes first | puts a land-order hint in phase 3's queue; the second side's lease becomes `intent` until the first lands |
+| `yield` | the globs the sender gives up | releases the sender's lease on them |
+| `build-on` | whose lane the other side builds on | brings that lane into the other side's worktree as a bundle (§8.2); **always a human decision** (§6.5) |
+| `proceed-both` | paths accepted as shared | marks the conflict `accepted`; the reviewed land resolves it |
+
+Each Orchestrator then directs **its own** workers to match (`panacea worker direct`). Neither side
+can move the other side's worker. That is OD-16's *"no user steers another user's agent"*, enforced.
