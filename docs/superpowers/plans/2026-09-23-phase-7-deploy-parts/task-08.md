@@ -82,12 +82,14 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
 
 // ReleaseRow — one row of history
 {
-  "kind": "run" | "rollback" | "pending" | "refused",
-  //   run      — a Panacea deployment (every row Panacea lists)
-  //   rollback — a confirmed Hub rollback release; Panacea records no row for it (7P-4)
-  //   pending  — a confirmed Hub run release whose deployment has not appeared yet
-  //   refused  — one of THIS user's releases abandoned in the last 24 h, with Panacea's sentence
-  "deploymentId": "engagement-portal-build-x7k2p" | null,   // null for rollback and refused
+  "kind": "run" | "rollback" | "pending" | "not_found" | "refused",
+  //   run       — a Panacea deployment (every row Panacea lists)
+  //   rollback  — a confirmed Hub rollback release; Panacea records no row for it (7P-4)
+  //   pending   — a confirmed Hub run release whose deployment has not appeared yet (rule 7)
+  //   not_found — the same, once a Deployments read made pendingGrace after its confirm still
+  //               lacks the run (rule 7's age cap, review M18)
+  //   refused   — one of THIS user's releases abandoned in the last 24 h, with Panacea's sentence
+  "deploymentId": "engagement-portal-build-x7k2p" | null,   // null for rollback and refused; pending and not_found: the release's pipelineRun
   "environment": "feat-evidence-upload" | null,     // the row's raw environment, verbatim ("prod" for a production deployment: environmentForBranch, clients/pipeline.go:2195-2207, called at :237)
   "environmentRow": "feat-evidence-upload" | null,  // the `name` of the environments[] row that `environment` joins by SameEnvironment ("production" for "prod"); null = the row sits under `unmatched`. The desktop looks environments up by THIS, never by `environment` (review I8)
   "branch": "feat-evidence-upload" | null,  // run rows: Panacea's run label, verbatim (a Ship's sanitizeLabelValue, pipeline.go:609, or a push's sanitizeLabel, trigger.go:1270; plan §12); Hub rows: the release's branchRef without refs/heads/
@@ -96,9 +98,13 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "build": "succeeded" | "failed" | "running" | "pending" | "historical" | "unknown" | null,
   "buildRaw": "Succeeded" | null,
   "failedStep": "" , "errorText": "",
-  "at": "…",                             // Deployment.createdAt; rollback: confirmedAt; pending/refused: reservedAt
+  "at": "…",                             // Deployment.createdAt; rollback: confirmedAt; pending/not_found/refused: reservedAt
   "deployedBy": "",                      // Panacea's; "" = not recorded
-  "trigger": "manual" | "git-push" | "redeploy" | "promote" | "prod-branch-change" | "",
+  "trigger": "manual" | "git-push" | "redeploy" | "prod-branch-change" | "promote" | "rollback" | "",
+  // Panacea's word verbatim (review M19). A live path sets only the first four (plan 7P-4);
+  // "promote" and "rollback" appear only on `reconstructed` rows, copied from an audit label by
+  // the history backfill (clients/deployment_backfill.go:54-60, :178). A "rollback" trigger is
+  // still kind "run": no rule reads `trigger`, and a backfilled row is never current (rule 6)
   "reconstructed": false,
   "gates": { "trivy": { "verdict": "failed", "criticals": 2, "highs": null, "findings": null } } | null,
   "provisioning": [ { "component": "database", "status": "failed", "detail": "…" } ],
@@ -265,6 +271,18 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
    it at reserve, R5).
 7. **Pending rows**: a confirmed run release of this Panacea project whose `pipelineRun` matches
    no deployment yet. Removed once the deployment appears (rule 5 then takes over).
+   **The age cap** (review M18): the row is `pending` only while `DeploymentsAt` (the last good
+   `Deployments` read) is zero or no later than the release's `confirmedAt + pendingGrace`. Once a
+   read later than that still lacks the run, the row is kind **`not_found`**: Panacea was asked
+   after the grace and does not list it. `pendingGrace` is **5 min**, the skew allowance of task
+   07's `pinSettle`. A Ship confirms only after Panacea's trigger answered with the run's name, so
+   the PipelineRun already exists and the next list holds it; the grace covers the Hub's clock
+   against ours and one slow read. The cap is measured against `DeploymentsAt`, **never `now`**, so
+   a Panacea outage leaves the row `pending`, and a stale snapshot never says a run is gone. A
+   `not_found` row stays in history with its pin (P9), and turns back into a `run` row if a later
+   read lists the run: Panacea serves its live list when its durable history read fails
+   (`handlers/projects.go:1202-1207`), so a pruned run can drop out of one read and return. A
+   `not_found` row is never current (rule 6) and offers no Roll back (task 16: `kind "run"` only).
 8. **Refused rows**: this user's `abandoned` releases with `abandonedAt` in the last 24 h.
    Teammates' refusals are theirs and are not shown.
 9. **`branchesSeen` / `collision`** count distinct non-empty `Deployment.branch` values among the
@@ -323,6 +341,8 @@ the watcher passes its `Reader.SameEnvironment`, not the stub.
 | `TestCurrentTieGoesToRollback` | `d2` `CompletedAt` 10:05:00 and a rollback to `d1` confirmed 10:05:00.000 → `source "rollback"`; `d2` `CompletedAt` 10:05:01 → `d2` | a tie broken by list order, so the answer flips between cycles |
 | `TestHistoricalOnlyIsNone` | the environment's only deployment is a backfilled `historical` row (zero `CompletedAt`) and no rollback → `current {source:"none", deploymentId:null, since:null}`, no row `isCurrent` | calling a reconstructed row live because it is the only one |
 | `TestPendingRowUntilDeploymentAppears` | a confirmed release for run `r9` with no deployment → a `pending` row; add `r9` → the pending row is gone and `r9` has the pin | a Ship that shows nothing for the ~seconds before Panacea lists the run |
+| `TestPendingRowAgesToNotFound` | a confirmed release for run `r9`, `confirmedAt` 10:00, no deployment `r9`: `DeploymentsAt` 10:04 → `pending`; 10:06 → `kind "not_found"`, `deploymentId "r9"`, the release pin kept, `isCurrent false`; `DeploymentsAt` zero, and `DeploymentsAt` 10:04 with `now` 12:00 (Panacea down since) → still `pending`; `r9` listed again at 10:07 → the `run` row with the pin, no `not_found` row (review M18) | a confirmed run whose deployment never appears read as *"pending"* for ever; an age measured against `now`, which calls a run gone while Panacea is down |
+| `TestBackfilledRollbackTriggerIsARun` | a `historical`, `reconstructed` deployment with `Trigger "rollback"` → `kind "run"`, `trigger "rollback"` verbatim, `isCurrent false`, `rollbackOf null` (review M19; `clients/deployment_backfill.go:58`) | a row classified by Panacea's `trigger`, which turns a reconstructed row into a rollback that serves |
 | `TestRefusedOnlyMineAndRecent` | my abandon 1 h ago → shown with its message; my abandon 25 h ago and a teammate's → absent | a teammate's failure appearing in my history |
 | `TestCollisionExactStrings` | two deployments in one environment (`feat-phase-7-deploy`: the 20-character cut leaves a trailing `-`, which `TrimRight` removes) whose `Deployment.branch` labels are `feat-phase-7-deploy-connector-a` and `feat-phase-7-deploy-connector-b` — the run labels Panacea writes for `feat/phase-7-deploy-connector-a`/`-b`, never the git names (b02 round 2, R7) → `collision: true`, both in `branchesSeen`; the same label twice → `false` | detecting collision by comparing sanitised names — a fourth copy of the rule |
 | `TestCollisionKeepsPushLabel` | two deployments in environment `feat-x`, labels `feat_x` (a push: the webhook's `sanitizeLabel` keeps `_`, `trigger.go:1270`) and `feat-x` (a Ship) → `collision: true`, `branchesSeen` holds both strings exactly, `_` intact (re-review b03, I-1) | a view that folds `_` into `-` before counting — a copy of `sanitizeLabelValue`, and one that hides which writer made each label |

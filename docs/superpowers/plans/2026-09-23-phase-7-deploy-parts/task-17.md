@@ -107,14 +107,15 @@ that drops the row closes the drawer; Escape and the ✕ close it. Opening anoth
 
 | Section | Shown when | Words |
 |---|---|---|
-| Heading | always | `row.version` or *"This release"*; *" · rollback"* when `kind "rollback"`; *" · refused"* when `kind "refused"` |
+| Heading | always | `row.version` or *"This release"*; *" · rollback"* when `kind "rollback"`; *" · refused"* when `kind "refused"`; *" · pending"* when `kind "pending"`; *" · not found in Panacea"* when `kind "not_found"` |
 | **Pin** (`PinManifest`) | always | the rules below — first, above everything else (provenance contract §4.5) |
 | **Design** | `release` non-null | `release.designKey` verbatim in mono — *"Approved design `<key>`, carried at Ship."* — or *"No approved design is linked to this release."* Never resolved or parsed here (P5) |
 | **Sessions** | `props.sessions` given | task 19's block, unchanged |
 | **Refusal** | `kind "refused"` | `refusal.message` verbatim, and *"Nothing was built. The reservation was abandoned with this sentence."* |
+| **Not found** | `kind "not_found"` | *"The Hub confirmed run `<deploymentId>` at `<release.confirmedAt>`, and Panacea's list does not hold it. It may have been deleted, or removed before Panacea recorded it."* No **Scans** or **Log** section, because Panacea lists no such run (task 08 rule 7, review M18) |
 | **Release** | always | the facts table below |
 | **Acts** | `props.acts` given | task 16's buttons, each with its sentence |
-| **Scans** | `deploymentId` non-null | `ScanList` |
+| **Scans** | `deploymentId` non-null, and `kind` is not `"not_found"` | `ScanList` |
 | **Why it is down** | the row **serves now** (below), and the row's environment is found | `DiagnosePanel` — open at once when `serving` is `{measured:true, ready:0}`, else behind **Show pods and events** |
 | **Log** | a run row with `deploymentId`, or a row that serves now | **Follow build log** → `LogPane` with `run-logs`, for a run row with `deploymentId`; for a row that serves now, with its environment found, also **Follow readiness** → `readiness` |
 
@@ -241,6 +242,7 @@ Panacea's diagnosis may consult its AI and then answers `source "rules+ai"`
 | `prod row keeps its drill-ins` | `row {environment:"prod", environmentRow:"production", isCurrent:true}`, `view.environments` holds `production` serving `{measured:true, ready:0}` → *Why it is down* is open and **Follow readiness** is offered for `production` | `e.name === row.environment`, which found no row for any production release (review I8) |
 | `rollback target keeps its drill-ins` | `view.environments` holds `feat-x` with `current {source:"rollback", deploymentId:"d1"}`, serving `{measured:true, ready:0}`; `d1`'s run row `{kind:"run", deploymentId:"d1", environmentRow:"feat-x", isCurrent:false}` → *Why it is down* is open, **Follow build log** and **Follow readiness** are offered; the rollback row `{kind:"rollback", deploymentId:null, environmentRow:"feat-x", isCurrent:true}` → *Why it is down* and **Follow readiness**, no **Follow build log**; an older succeeded run row `d0` of `feat-x` → neither (plan re-review b04-1, I-1) | gating on `isCurrent` alone, which leaves no row offering **Follow readiness** after a rollback |
 | `unmatched row has no drill-ins` | `environmentRow: null` → neither *Why it is down* nor **Follow readiness**, and the *"Panacea lists no environment named"* line; with `environment: ""` too → *"Panacea recorded no environment for this release."* and no *"named"* line (review M5) | a drawer that guesses a row by name |
+| `not found says so` | a row `{kind:"not_found", deploymentId:"r9", release:<pinned>}` → the heading ends *" · not found in Panacea"*, the **Not found** sentence holds `r9`, the pin block is drawn, and zero `api.scans` calls, no **Follow build log**; the same row as `kind "pending"` → *" · pending"* and no *"not found"* (review M18) | a run Panacea no longer lists drawn as pending for ever, or a scan read for a run that does not exist |
 | `diagnose only on press` | mount → `pods` and `events` once each, `diagnosis` zero; press **Diagnose** → one | an AI call on Panacea's side every time a drawer opens |
 | `one stream in the window` | open `run-logs r1`, then `readiness env-a` → the first handle's `onEnd("replaced")` once, its `AbortSignal` aborted, `currentDrillTarget()` is `env-a` | two live streams — a second clock (plan 7P-14) |
 | `onEnd exactly once` | `close()` twice, then an `end` frame → `onEnd` called once, with `"closed"` | a double "stream ended" line, or a leaked listener |

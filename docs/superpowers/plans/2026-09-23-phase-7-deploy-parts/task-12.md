@@ -10,9 +10,9 @@ because two live connections per visible environment would break the one-heartbe
 **Files:**
 - `control-plane/internal/deploy/panacea/stream.go` (new) — `Client.Stream`: parses Panacea's `data: <json>` frames into `deploy.StreamEvent`
 - `control-plane/internal/deploy/panacea/stream_test.go` (new)
-- `control-plane/internal/api/deploy_drill.go` (new) — six routes and the relay
+- `control-plane/internal/api/deploy_drill.go` (new) — seven routes (five reads, two streams) and the relay
 - `control-plane/internal/api/deploy_drill_test.go` (new)
-- `control-plane/internal/api/routes_audit_test.go` (modified) — six `GET` lines
+- `control-plane/internal/api/routes_audit_test.go` (modified) — seven `GET` lines
 - `control-plane/internal/api/api.go` (modified) — `a.registerDeployDrill(guarded)` in `New`; no new `Deps` field: the handlers read `Deps.DeployConnection` (task 05, whose `Current()` is the `deploy.Reader`, `Stream` included) and `Deps.DeployBinding` (task 06, for the Panacea project)
 
 #### Panacea's two stream formats — what the connector parses
@@ -135,7 +135,7 @@ both apply as for any `GET`.
 | `TestEnvAndRunValidated` | `/environments/..%2Fetc/pods` and `/runs/a%20b` → 400; the fake saw nothing | a path-traversal string forwarded to Panacea |
 | `TestDiagnosisSourceCarried` | `source: "rules+ai"` reaches the response | hiding that a model wrote the "likely cause" |
 
-`catalogReadOnlyRoutes` lines: the six `GET`s, each *"On-demand relay of one Panacea read through
+`catalogReadOnlyRoutes` lines: the seven `GET`s (t12:56-101), each *"On-demand relay of one Panacea read through
 the connector; writes nothing."* The two stream lines add: *"Holds one upstream connection, which a
 second stream replaces; still no write."*
 

@@ -492,8 +492,10 @@ brief. With the reference, it can match them exactly.
 
 **Today.** `RollbackDeployment` re-points the environment and returns the **source** deployment's
 id (`clients/kubernetes.go:5982`, `:6030`); no `panacea_deployments` row is written
-(`clients/deployment_store.go:195` is the only writer, and no caller sets `Trigger` to `rollback`,
-though `models/models.go:2378-2379` lists it as a value). So `deploys/latest` keeps reporting the
+(`clients/deployment_store.go:195` is the only writer, and no live path sets `Trigger` to
+`rollback`, though `models/models.go:2378-2379` lists it as a value; only the history backfill
+copies it, from an audit label onto a reconstructed `historical` row,
+`clients/deployment_backfill.go:58`, `:178`, written through the same store at `:273`). So `deploys/latest` keeps reporting the
 newer build after a rollback, and a rollback made in the portal is invisible to any client.
 
 **Ask.** On a successful rollback, write a deployment row with a new id, `trigger_kind

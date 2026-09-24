@@ -108,7 +108,7 @@ export interface ReleasePin {
 }
 
 export interface ReleaseRow {
-  kind: "run" | "rollback" | "pending" | "refused";
+  kind: "run" | "rollback" | "pending" | "not_found" | "refused";  // not_found: task 08 rule 7's age cap (review M18)
   deploymentId: string | null;
   environment: string | null;
   /** The name of the environments[] row the view joined this row to; null = unmatched. Look rows up by this (review I8). */
@@ -351,7 +351,7 @@ export const selectReleasePinKeys = (s: CockpitState): string[];
 |---|---|---|
 | `classify maps upstream_unavailable` | → `"upstream-down"`; `details.upstream: "hub"` → `upstreamName` *"the Hub"* | routing Panacea's outage through `backend-down`, which says "Docker" (brief §4.1) |
 | `upstreamAnswer reads the number` | `details.status` `0`, `502`, `504` → `"none"`; `202` → `"accepted"`; `500`, `503` → `"error"`; `429`, `405` → `"refused"`; `"0"`, absent → `null` | a truthiness test (`!details.status`) that reads an absent status as "no answer"; a string `"0"` accepted (review M26); a gateway's 504 read as "Panacea answered", or a 202 read as a refusal (re-review I-2, M-4) |
-| `tsc fails without a case` | a fixture call site with no `upstream-down` case fails `tsc --noEmit` (the existing `designsystem`/guard pattern, grep of the three callers) | a `default:` added to quiet the compiler |
+| `tsc fails without a case` | a fixture call site with no `upstream-down` case fails `tsc --noEmit` (the existing `designsystem`/guard pattern, grep of the four callers) | a `default:` added to quiet the compiler |
 | `cursor change loads once` | with branch `feat/x` selected, three `onDeployCursor` calls with new values while one load is in flight → one `view()` call, then one more after it settles, and both requests carry `?branch=feat%2Fx` (b02 round 2, R6) | a burst of fetches per tick, or a cursor path that drops the branch so the card vanishes on every tick |
 | `same cursor loads nothing` | the same value twice → zero `view()` calls | a fetch per tick in the steady state |
 | `view sends the branch verbatim` | `view("p-1", "feat/x")` requests `/v1/projects/p-1/deploy?branch=feat%2Fx`; `view("p-1", null)` sends no query | a desktop that sanitises the name itself, or drops it so `selected` is always null (review b02) |

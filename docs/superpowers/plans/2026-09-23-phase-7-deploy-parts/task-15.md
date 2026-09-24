@@ -22,7 +22,7 @@ caller), and elapsed time reads `useHeartbeat()` (`heartbeat.ts:64`), **never a 
 - `desktop/src/deploy/EnvironmentCard.tsx` (new) — the three facts for the selected branch's environment
 - `desktop/src/deploy/EnvironmentList.tsx` (new) — the project's other environments, one line each
 - `desktop/src/deploy/ReleaseTable.tsx` (new) — history, windowed
-- `desktop/src/deploy/PinCell.tsx` (new) — the seven provenance states
+- `desktop/src/deploy/PinCell.tsx` (new) — the pin table's nine states
 - `desktop/src/deploy/usePinRef.ts` (new) — the adapter over phase 4's cache
 - `desktop/src/deploy/Banners.tsx` (new) — stale, collision
 - `desktop/src/components/common/StatusDot.tsx`, `common.css` (modified) — the fact statuses below
@@ -123,7 +123,10 @@ falsy, so `name || …` or `if (name)` would drop the group.
 | CURRENT | `current.source == "rollback"` | — | a line under BUILD: *"Serving `<version>` since `<time>` — rolled back from this cockpit."* |
 | CURRENT | `current.source == "deployment"` and `current.deploymentId != build.deploymentId` | — | a line under BUILD: *"Serving `<version>` since `<time>` — the newest build has not replaced it."* (task 08 rule 6: a failed or running newest build is never current, review I3) |
 
-#### The pin cell — seven states, none merged (provenance contract §4.1; ADR-H1 Q2 adds `erased`)
+#### The pin cell — nine states, none merged (provenance contract §4.1; ADR-H1 Q2 adds `erased`; rule 5b adds *"pin not loaded"*)
+
+Nine rows below, one state each: the two `release == null` rows, `none`, `resolving`, the two
+`resolved` rows, `missing`, `erased`, `unavailable`.
 
 | `row.release` / `usePinRef` | Drawn |
 |---|---|
@@ -192,7 +195,7 @@ pinned-none release, and *"outside any cockpit"* for `release == null` with `rel
 | `failed newest names what serves` | `build {state:"failed", deploymentId:"d2"}`, `current {source:"deployment", deploymentId:"d1"}`, `d1`'s row `version "manual-4e7a91c0"` → BUILD says *"Failed at …"* and the line *"Serving `manual-4e7a91c0` since … — the newest build has not replaced it."*; `current.deploymentId == build.deploymentId` → no such line (review I3) | a card that shows only the failed build, leaving the user to guess what is live |
 | `not run is not pass` | `scans.state "not_run"` → the not-run sentence; the DOM lacks *"Pass"* | absence read as clean |
 | `version unknown` | `version: null` → *"version unknown"* | a blank cell |
-| `pin: seven states` | one test per row of the pin table | two provenance states merged |
+| `pin: nine states` | one test per row of the pin table (nine) | two provenance states merged |
 | `pin never from head` | a row pinned to rev 5 with the cache's head at 6 → *"rev 5 · brief now at rev 6"*, and nowhere *"rev 6"* alone | rendering a release from the head (P1) |
 | `resolving keeps width` | the cell's width style is identical in `resolving` and `resolved` | layout shift when the tick lands (AGENTIC-UX §10 rule 7) |
 | `key never parsed` | `usePinRef.ts` and `PinCell.tsx` contain no `split(`, `indexOf(`, `match(` or `RegExp` applied to a key (a source grep in the test) | P5 |

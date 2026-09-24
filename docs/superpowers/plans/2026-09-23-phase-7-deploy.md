@@ -222,9 +222,12 @@ flips the stable Service alias to the still-materialised immutable Deployment (f
 patches the image of the legacy `app` Deployment (fallback). Neither creates a PipelineRun, and
 the object it returns has `ID: deployID` — **the id of the deployment rolled back to**, not a new
 one (`:5982`, `:6030`). No handler writes a deployment row for a rollback: the only `Trigger`
-values set anywhere are `git-push`, `redeploy`, `prod-branch-change` and `manual`
+values a live path sets are `git-push`, `redeploy`, `prod-branch-change` and `manual`
 (`handlers/code_push.go:189`, `handlers/projects.go:1888`, `:2631`, `:2972`, `:3056`, `:3116`;
-`clients/deploy_poller.go:186`). So:
+`clients/deploy_poller.go:186`). The history backfill also writes `promote` and `rollback`, but
+only onto `historical` rows it rebuilds from minted releases, copying the nearest audit label
+(`clients/deployment_backfill.go:54-60`, `:170-178`; review M19). Those rows are reconstructed
+history, never a live rollback, and task 08 reads no meaning from `trigger`. So:
 
 - phase 7 reserves `{kind: "rollback", panaceaProject, environment, sourceDeploymentId}`;
 - confirms with **`{}`**. Sending Panacea's returned id would try to join the **source's** id,
