@@ -464,3 +464,68 @@ Teammates' text also reaches **my** cockpit. Notes and focus are rendered as pla
 Markdown, no auto-linked URLs, no HTML. F3 already strips the escapes that would attack the
 terminal renderer (`04-enterprise-constraints.md:341`). A teammate's text never enters a
 cockpit field that is later sent to one of my agents without my own edit.
+
+## 8. Conflict avoidance and prediction across machines
+
+Three layers, cheapest first. **Avoid** at launch, **predict** while work runs, and let phase 3's
+reviewed land **catch** the rest. None of them blocks anyone (P6).
+
+### 8.1 Predict: four tiers, split between the Hub and each control plane
+
+`03` §3's tiers are adopted (`03-techniques.md:396-401`). What changes is who computes each and
+from what:
+
+| Tier | Computed by | Input | Reaches |
+|---|---|---|---|
+| **P** same paths | the Hub, a set intersection per project on each `lane.head_moved` or presence change | committed paths (card) and dirty paths (presence) | board only: ambient, never NEEDS YOU |
+| **H** same hunks on the same base blob | the Hub, from metadata only | base blob id and `diff -U0` line ranges. Committed: host git in the project, after the bundle fetch. Dirty: a new `sandboxd` runner op (§10.3) | NEEDS YOU, `team.json`, inbox push |
+| **M** exact | **each control plane, for its own lanes only**, against fetched teammate lanes | `merge-tree --write-tree --name-only -z` in the project, phase 3's one parser (task 07) | NEEDS YOU, `team.json`, inbox push; posted to the Hub as a forecast |
+| **S** build and test | later; a warm Kata pod per pair | the M result | owner question Q4 |
+
+Rules that keep it quiet and cheap:
+
+- **Warn rarely.** ConE made 775 warnings over about 26,000 pull requests and was rated useful in
+  over 70% of cases (`03-techniques.md:411-416`, arXiv 2101.06542). Each project keeps a
+  **concurrently-edited files** list, seeded with lockfiles and generated paths, which the admin
+  can edit. P and H ignore those paths.
+- **Work follows activity.** A control plane recomputes M only when a feed event says a
+  teammate's lane moved, and only for its own lanes (`03-techniques.md:443-446`).
+- **Deduplicate.** A forecast is keyed by the unordered lane pair plus both basis shas. Both sides
+  may post the same M result; the Hub keeps one row.
+- **Uncommitted work never travels as objects.** It is covered by P and H from paths and line
+  ranges (`03-techniques.md:441`).
+
+### 8.2 Avoid: claims as soft leases, checked at launch
+
+A **claim** says *"my agent intends to change these paths"*. It is set by the **owner's action**
+(F1): the **Claim** control on my own card, or accepting the scope globs of the focus I typed.
+
+- **Checked at plan time.** Dana's **New agent** sheet queries the board for her typed scope.
+  If it overlaps a live claim, the sheet says *"Dylan's agent w-4f claimed `services/api/**`
+  14 min ago"* and offers **Start anyway** · **Narrow the scope** · **Ask Dylan**. That is `02`'s
+  second idea: overlap checked at plan time, with both sides told (`02` §"The 5 ideas").
+- **Never refused.** The Hub accepts an overlapping claim and returns the overlaps, and both
+  owners get a NEEDS YOU item. Hard admission serialised 96.7% of runs (P6). `04` §9.2 allows the
+  Hub to refuse; this design declines that option, and says so.
+- **Leases expire.** Default 2 h, renewed by `teamsync` while the agent runs. Withdrawn on
+  `session.ended`, on the owner's **Release**, and on `team.member_removed` (`04` §8.2 rank 6).
+
+### 8.3 Lane refs on the shared remote (TM3)
+
+Tier M and **Continue from** (§6.3) need teammates' commits in my project.
+
+1. **Push.** After phase 3 fetches a lane bundle into the project (R4 rule 4), `teamsync` pushes
+   it with **my** credential to `refs/panacea/lanes/<u-id>/<w-id>`, at most once a minute, with
+   `--force-with-lease` and only under my own `<u-id>`. `<u-id>` is the Hub's opaque user id.
+2. **Fetch.** Teammates' lanes are fetched into the project under a **separate** namespace,
+   `refs/panacea/team/<u-id>/<w-id>`, so phase 3's lane index never mistakes one for mine. They
+   enter a lane clone only as a host-written bundle, fetched by `sandboxd` (R4 rule 5).
+3. **Ownership** is shown by the Hub principal that published the card, never the git author
+   (`04` §7.3).
+4. **Forget and land clean up.** Landing or Forgetting a session deletes its remote lane ref
+   with my credential. Copies a teammate already fetched are pruned on their next fetch, and the
+   Forget confirmation says that it cannot recall them sooner.
+5. **Unknowns.** Whether both hosts accept `refs/panacea/*` pushes is **UNVERIFIED** (canary C5).
+   The fallback is branches under `panacea/lanes/<u-id>/…`, excluded from CI triggers. Whether
+   either host can protect a per-user prefix is **UNVERIFIED** (`04` §7.2). Pushing work in
+   progress to the customer's remote is owner question Q3.
