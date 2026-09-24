@@ -234,6 +234,10 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
      at 8292f3f26); whether an edge in front of it can is unverified.
    - An `Abandon` that fails is logged; the reservation then expires on its own (Hub contract
      §7.9, `expiresAt`).
+   - Every error this step returns reaches the route through `writeDeployError(…, err,
+     map[string]any{"reserved": true})` (task 05), so the problem says a release was reserved.
+     With `details.status` it lets the desktop tell *"not started"* (a status) from *"may have
+     started"* (status `0`), and both from step 4's *"nothing was sent"* (review M26).
 7. **Confirm** — `Releases.Confirm(release, {pipelineRun: run})`. `hubclient` retries a transport
    failure twice with the same `Idempotency-Key` (Hub contract §9.2). Still failing →
    `confirm.go` keeps retrying **in the background**, with a context detached from the request,
@@ -264,7 +268,11 @@ POST /v1/projects/{projectId}/deploy/ship
   403 deploy_forbidden · 404 deploy_not_found · 409 deploy_conflict · 422 deploy_rejected
                                   Panacea refused; the release was abandoned with its sentence
                                   (deploy_conflict includes Panacea's 402 budget and risk refusals)
-  503 upstream_unavailable        details.upstream "panacea" (abandoned) or "hub" (nothing happened)
+  503 upstream_unavailable        details.upstream "panacea", with details.status (a number; 0 = no HTTP
+                                  answer, so Panacea may have started the build) and, from step 6 only,
+                                  details.reserved true (a release was reserved, then abandoned; step 4's
+                                  EnvironmentFor failure carries no reserved: nothing was reserved or sent);
+                                  or "hub" (nothing happened) (review M26)
   (any Hub 4xx, unchanged)        e.g. 422 design_not_approved, 401 signed_out
 ```
 
@@ -281,7 +289,7 @@ is retried with the same key.
 | `TestConfirmWithRunName` | Panacea returns run `r1` → `Confirm(release, {pipelineRun:"r1"})`, once | a confirm that omits or mangles the run, so the view's rule 5 never matches |
 | `TestRefusalAbandonsWithSentence` | Panacea `409` *"…"* → `Abandon` with `reason "deploy_failed"` and exactly that message; the route answers `409 deploy_conflict` | a refused Ship leaving a reservation that expires silently |
 | `TestBudgetRefusalAbandonsWithSentence` | the fake's `Ship` answers `KindConflict`, `Status 402`, *"new deploys are paused: this project has reached its monthly hosting budget; …"* (task 04's `ship-402-budget.json`) → `Abandon` once, `reason "deploy_failed"`, exactly that message; no `Confirm`, no `Track`; the route answers `409 deploy_conflict` with the sentence, and `details.upstream` is absent | a 402 treated as an outage: `503 upstream_unavailable`, the lens switching acts off, and a reservation left to expire after 15 minutes (review I2) |
-| `TestTimeoutAbandonsAmbiguously` | Panacea times out → `Abandon` message is the ambiguous sentence; no confirm | confirming a run the control plane never saw named |
+| `TestTimeoutAbandonsAmbiguously` | Panacea times out → `Abandon` message is the ambiguous sentence; no confirm; the route answers `503 upstream_unavailable` with `details.status 0` and `details.reserved true`. A `KindUnavailable` `Status 503` from `Ship` → `details.status 503`, `details.reserved true`. `EnvironmentFor` timing out (step 4) → `details.status 0` and no `reserved` key | confirming a run the control plane never saw named; a 503 without `status` or `reserved`, which makes the desktop say *"the release was not started"* of a build Panacea may have started, or say a build may have started when nothing was sent (review M26) |
 | `TestOtherErrorAbandons` | the fake's `Ship` answers `KindUnavailable`, `Status 429` (and, as a second case, a plain `errors.New`) → `Abandon` once, `reason "deploy_failed"`, message *"Panacea could not start the build."*; no `Confirm`, no `Track`; the error is returned (plan re-review b05 R-2) | a step 6 with no catch-all, so a 429 or a proxy's 405 leaves the reservation to expire after 15 minutes with no reason — I2's second half by another status |
 | `TestADOKeySpellingNamesTheCause` | a binding `Bound` with `HubProjectID ""`, `HubMiss "key_spelling"`, `RepoKey "kpmgcomau.visualstudio.com/engagement portal/portal"` (a form the Hub refuses under its correction A1) → `GET …/ship-readiness` answers `ready: false`, `reason "no_hub_project"`, the key-spelling sentence with that `RepoKey`, and the sentence contains neither `Azure DevOps` nor `GitHub`; `POST …/ship` answers `409 deploy_precondition`, `details.reason "no_hub_project"`, `details.cause "key_spelling"`; neither the Hub nor Panacea called. `HubMiss "not_linked"` → the *"not a shared project"* sentence and no `cause`. `HubMiss ""` → the *"has not answered"* sentence and `details.cause "hub_unanswered"` (review I6; plan re-review b05 R-3, R-4) | a repository told it is *"not a shared project in the Hub yet"* when the real cause is the spelling split, so nobody knows to fix it; a readiness keyed on `HubMiss != "key_spelling"`, which says *"not a shared project"* about a key the Hub never answered for; a sentence that names Azure DevOps for a GitHub key |
 | `TestNeverPushedPrecondition` | `Upstream ""` → `409 deploy_precondition` `never_pushed`; neither Hub nor Panacea called | reserving a release for a commit Panacea cannot clone |

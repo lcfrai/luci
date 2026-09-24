@@ -287,6 +287,11 @@ export function classify(error: ApiError): ProblemKind {
 
 /** The name a sentence uses for details.upstream. Unknown → "a service the cockpit depends on". */
 export function upstreamName(error: ApiError): string; // "Panacea" | "the Hub" | "the design canvas" | …
+
+/** True only when details.status is the NUMBER 0: the upstream gave no HTTP answer (a timeout or
+ *  a reset), so the request may have landed and a sentence must not say "nothing was sent" (task
+ *  05; review M26). Absent, non-numeric or non-zero → false. */
+export function upstreamNoAnswer(error: ApiError): boolean;
 ```
 
 Each of the four call sites gains one `case "upstream-down":` with its own tail, e.g.
@@ -334,6 +339,7 @@ export const selectReleasePinKeys = (s: CockpitState): string[];
 | Test | Assertion | Mutant it kills |
 |---|---|---|
 | `classify maps upstream_unavailable` | → `"upstream-down"`; `details.upstream: "hub"` → `upstreamName` *"the Hub"* | routing Panacea's outage through `backend-down`, which says "Docker" (brief §4.1) |
+| `upstreamNoAnswer reads the number` | `details.status: 0` → true; `503`, `"0"`, absent → false | a truthiness test (`!details.status`) that reads an absent status as "no answer"; a string `"0"` accepted (review M26) |
 | `tsc fails without a case` | a fixture call site with no `upstream-down` case fails `tsc --noEmit` (the existing `designsystem`/guard pattern, grep of the three callers) | a `default:` added to quiet the compiler |
 | `cursor change loads once` | with branch `feat/x` selected, three `onDeployCursor` calls with new values while one load is in flight → one `view()` call, then one more after it settles, and both requests carry `?branch=feat%2Fx` (b02 round 2, R6) | a burst of fetches per tick, or a cursor path that drops the branch so the card vanishes on every tick |
 | `same cursor loads nothing` | the same value twice → zero `view()` calls | a fetch per tick in the steady state |
