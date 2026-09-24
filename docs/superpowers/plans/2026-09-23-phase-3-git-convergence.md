@@ -55,7 +55,7 @@ Three places hold git, and the control plane is the only process that runs git i
  │ refs/panacea/lanes/<w-id>      │ ◄──── lane sync: git fetch ───  │ refs/heads/evidence-upload│ ◄── agent's git,
  │ refs/panacea/archive/…         │       (control plane, host)     │ refs/remotes/origin/…     │     inside the sandbox,
  │ refs/panacea/undone/<sha>      │ ───── origin refresh ─────────► │ refs/remotes/upstream/<b> │     bind-mounted at
- │ refs/remotes/origin/*          │  after land/undo/bring-in/fetch │ .git is a DIRECTORY       │     /home/dev/work
+ │ refs/remotes/origin/*          │  whenever the branch moves (I4) │ .git is a DIRECTORY       │     /home/dev/work
  │                                │  (+ upstream/<b>, review I5)    └──────────────────────────┘
  └──────────────┬────────────────┘
                 │ fetch / push (control plane, host, the user's credentials)
@@ -173,13 +173,18 @@ Each is small, stated so a reviewer can overturn it, and none changes what the o
 2. **A land clears the landed worktree's `ready` flag.** Ready meant "this work is ready to land";
    once it has landed, new work in that worktree is marked ready again by a person (known defect
    9: nothing infers it).
-3. **After every land, the control plane refreshes `origin/<branch>` in every clone of that
-   branch.** It writes only a remote-tracking ref, which the agent does not write. This is what
+3. **Whenever the branch moves, the control plane refreshes `origin/<branch>` in every clone of
+   that branch.** It writes only a remote-tracking ref, which the agent does not write. This is what
    makes 3-D3's opening prompt ("merge `origin/evidence-upload` into this branch") true. The
    refresh fetches from the project's literal path, taken from the lane index, and never from the
    clone's configured `origin`, which the agent can rewrite (review C3; task-02 §HGH H2). The same
-   one fetch (task 09's `RefreshClones`, run after a land, an undo, a bring-in and a project
-   fetch) also copies the project's `<branch>@{upstream}` into the clone as
+   one fetch (task 09's `RefreshClones`) runs after a land, an undo, a revert, a bring-in and a
+   project fetch; from the lane syncer's sweep whenever `refs/heads/<branch>` differs from the tip
+   its clones were last sent, which covers the moves the cockpit did not make (a user's own
+   commit, a terminal `git pull`; task 07); and from the refresh route `ResolveDialog` calls
+   before it starts a session (task 19). Without the last two, an agent told to resolve a
+   conflict the land did not cause merges a stale ref and reports success over a conflict it never
+   saw (review I4). It also copies the project's `<branch>@{upstream}` into the clone as
    `refs/remotes/upstream/<branch>`, so a lane can see and merge a teammate's pushed commits,
    and task 09's **Bring in <upstream>** (e.g. `origin/<branch>`, offered only for an upstream
    under `refs/remotes/`) takes them into the product branch (review I5, Q10).
@@ -334,9 +339,10 @@ part file; task 18 restates them as TypeScript.
 | `PUT /v1/projects/{projectId}/branches/{branchId}/queue` | set the queue order | lane index | 08 |
 | `POST /v1/projects/{projectId}/branches/{branchId}/lands` | land one worktree | merge commit, `refs/heads/<branch>`, ready flag, clones' `origin/<branch>` and `upstream/<branch>` | 09 |
 | `POST /v1/projects/{projectId}/branches/{branchId}/bring-in` | bring in the branch's upstream (review I5) | a merge commit (trailer `Panacea-Bring-In`) or a fast-forward of `refs/heads/<branch>`, clones' `origin/` and `upstream/<branch>` | 09 |
+| `POST /v1/projects/{projectId}/branches/{branchId}/refresh` | tell the branch's clones what the project holds now; `ResolveDialog` calls it first (review I4) | clones' `origin/` and `upstream/<branch>` | 09 |
 | `GET /v1/projects/{projectId}/branches/{branchId}/lands` | landed history, first-parent, with undo state | — | 10 |
 | `POST /v1/projects/{projectId}/branches/{branchId}/lands/{sha}/undo` | exact undo | `refs/heads/<branch>`, `refs/panacea/undone/<sha>`, clones' `origin/` and `upstream/<branch>` | 10 |
-| `POST /v1/projects/{projectId}/branches/{branchId}/lands/{sha}/revert` | land a revert commit | revert commit, `refs/heads/<branch>` | 10 |
+| `POST /v1/projects/{projectId}/branches/{branchId}/lands/{sha}/revert` | land a revert commit | revert commit, `refs/heads/<branch>`, clones' `origin/` and `upstream/<branch>` (review I4) | 10 |
 | `POST /v1/projects/{projectId}/fetch` | fetch `origin` now | remote-tracking refs, `FETCH_HEAD`, clones' `origin/` and `upstream/<branch>` (through `AfterFetch`, task 14) | 12 |
 | `POST /v1/projects/{projectId}/branches/{branchId}/push` | push the branch, never forced | the remote; upstream config on first push | 12, 13 |
 | `POST /v1/projects/{projectId}/branches/{branchId}/pull-requests` | open (or find) a PR on the host | the host | 14 |
@@ -495,8 +501,9 @@ desktop/src/
 Local-only first: nothing before task 13 needs a credential, a network or the Hub. Tasks 01–17
 are the Go track; 18–22 the desktop track, which starts when G2 holds and task 18's types match
 the Go parts (it codes against the part files' shapes and fakes, not a running server). Each task
-is sized for one implementer in one to three hours, except task 09 at four since review I5 added
-`BringIn`. It splits cleanly at its `#### Bring in origin/<branch>` heading if one lane must stay
+is sized for one implementer in one to three hours, except task 07 at three and a half since
+review I4 added the sweep's tip-change refresh, and task 09 at four and a half since review I5
+added `BringIn` and review I4 the refresh route. Task 09 splits cleanly at its `#### Bring in origin/<branch>` heading if one lane must stay
 under three.
 
 | # | Task | Depends on | Est. |
@@ -507,10 +514,10 @@ under three.
 | 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1 | 2 h |
 | 05 | Git in the sandbox for clones: `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
 | 06 | The linked-worktree notice superseded: `kind` in `types.ts`, the notice narrowed, the shared-index note (3-D2) | 04, G1 | 2 h |
-| 07 | Lane sync and observed claims | 04 | 3 h |
+| 07 | Lane sync and observed claims; the sweep's tip-change clone refresh (review I4) | 04 | 3.5 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 | 3 h |
-| 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5) | 08 | 4 h |
-| 10 | Landed history, exact undo, revert | 09 | 2 h |
+| 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4) | 08 | 4.5 h |
+| 10 | Landed history, exact undo (refused once another lane has merged the land, review I3), revert | 09 | 2.5 h |
 | 11 | Remove a worktree; create, rename and delete a branch | 07 | 3 h |
 | 12 | Fetch (on demand and on a slow timer) and push, with the machine's credential helper | 02, 04 | 2 h |
 | 13 | The credential-store seam (H-1), the git-helper fallback, push with a stored token | 12 | 2 h |
