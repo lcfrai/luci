@@ -1,0 +1,12 @@
+# LF on every checkout for Terraform, HCL, scripts, YAML and templates (phase 8 task 01).
+# Windows git's core.autocrlf=true would otherwise write CRLF into the working tree, and a
+# CRLF shell script fails under bash (`$'\r': command not found`), on the laptop or wherever
+# the working tree is copied (an image build context, for one). The index is LF either way.
+*.tf          text eol=lf
+*.tfvars      text eol=lf
+*.hcl         text eol=lf
+*.tftest.hcl  text eol=lf
+*.sh          text eol=lf
+*.yaml        text eol=lf
+*.yml         text eol=lf
+*.tpl         text eol=lf
