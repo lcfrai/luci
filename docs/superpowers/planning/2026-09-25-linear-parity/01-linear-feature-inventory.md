@@ -1034,4 +1034,351 @@ counterpart in Linear's public material as read today.
   provenance thread is a natural candidate).
 - **Src:** https://linear.app/method, https://linear.app/method/introduction
 
+## 20. Addenda: teams, assignment, favourites, preferences
+
+### 20.1 Teams and sub-teams
+- **Team settings:** General (name, identifier used in issue IDs, timezone, estimates, email
+  intake, issue history), Workflows and automations, Cycles, Triage (with rotation), Templates
+  (issue, project, document), Labels, Recurring issues, Members, Slack notifications. PR
+  automations and templates can be copied between teams.
+- **Sub-teams** (Business; deeper nesting up to 5 levels on Enterprise): sub-team members must
+  be parent members; cycle schedule is enforced from the parent; statuses and estimates
+  optionally adopted; labels and templates usable from any level; parent views roll up
+  sub-team issues. Independent: timezone, recurring issues, git automations, Slack.
+- **Src:** https://linear.app/docs/teams, https://linear.app/docs/sub-teams
+
+### 20.2 Assignment and delegation
+- **One human assignee per issue**, always. `A` opens the assignee menu, **`I` assigns to me**,
+  bulk reassign with `X` and right-click, "Assign to…" in the command menu. **Delegate** to an
+  agent alongside the human (the agent "contributes on their behalf"); "No agent" removes it.
+  Personal automations: auto-assign issues I create; auto-assign when moved to Started; git
+  branch copy auto-assigns. Triage rules can assign and delegate.
+- **Src:** https://linear.app/docs/assigning-issues
+
+### 20.3 Cycle edits
+- Rename and describe a cycle; renumbering shifts later cycles. Upcoming cycles: start and end
+  editable; current: end only; past: frozen. Shortening creates a "Cycles paused" gap; cooldown
+  labels update to the real gap.
+- **Src:** https://linear.app/docs/update-cycles
+
+### 20.4 Favourites
+- Star issues, projects, views, documents, initiatives, cycles, labels, teams, customers,
+  dashboards, pull requests and releases into a personal sidebar section, with **folders** and
+  drag ordering. `O` then `F` opens; `Alt+F` toggles.
+- **Src:** https://linear.app/docs/favorites
+
+### 20.5 Account preferences and themes
+- Default home view (can be the Linear Agent chat); full names or usernames; first day of week;
+  emoticon conversion; Enter or `Cmd+Enter` to send; font size; pointer cursor; link underlines;
+  **light, dark, system, or custom themes** (a custom theme builder and a community gallery of
+  70+ themes at an external site); desktop: open links in app, badges, spell check.
+- **Good because:** personalisation is cheap and fun, and it is part of why people love the tool.
+- **Src:** https://linear.app/docs/account-preferences
+
+### 20.6 Project notifications
+- Bell icon on a project subscribes you to new issues in it, description comments and changes,
+  completions and cancellations, and new updates. Slack channel notifications per project let
+  channel members (including non-Linear users) see and act on activity.
+- **Src:** https://linear.app/docs/project-notifications
+
+---
+
+## 21. Master parity checklist (numbered)
+
+One line per feature, with the section that describes it. Numbering is stable: the synthesizer
+should cite these numbers (for example "L-162") when mapping PanaceaApp parity and "more".
+
+### A. Structure (§1, §16.5, §20.1)
+1. Workspaces; one person in several workspaces (§1)
+2. Teams as the primary unit, each with its own workflow, cycles and labels (§1)
+3. Team identifier in human-readable issue IDs, for example `ENG-123` (§20.1)
+4. Sub-teams with enforced and optional inheritance, up to 5 levels (§20.1)
+5. Private teams, invisible to non-members (§16.5)
+6. Private issue sharing with a non-member (§16.5)
+7. Copy team automations and templates to another team (§20.1)
+
+### B. Issues (§2, §20.2)
+8. Six fixed status categories with custom named statuses per team (§2.1)
+9. Default status for new issues (§2.1)
+10. Reserved Duplicate status (§2.1)
+11. Auto-close stale issues (§2.1)
+12. Auto-archive closed issues, projects and cycles (§2.1)
+13. Five-level priority, deliberately coarse (§2.2)
+14. Manual drag order shared by the whole workspace (§2.2)
+15. Urgent priority notifies the assignee (§2.2)
+16. Estimates: four scales, extended scale, explicit zero (§2.3)
+17. Workspace and team labels (§2.4)
+18. Mutually exclusive label groups (§2.4)
+19. `Group/Label` shorthand creates both (§2.4)
+20. Parent and sub-issues with property inheritance (§2.5)
+21. Parent and sub-issue auto-close automations (§2.5)
+22. Turn a comment or a checklist into sub-issues (§2.5)
+23. Convert a large issue into a project (§2.5)
+24. Relations: blocked by, blocking, related, duplicate (§2.6)
+25. Resolved blocker downgrades to Related automatically (§2.6)
+26. Issue templates, workspace and team scope (§2.7)
+27. Form templates with typed, required fields (§2.7)
+28. Default templates, different for members and non-members (§2.7)
+29. Create from anywhere: `C`, `Alt+C`, create-from-selection (§2.8)
+30. `linear.new` URL scheme with prefill parameters (§2.8)
+31. Email intake, per team and per template (§2.8)
+32. Recurring issues (§2.8)
+33. Drafts, local and persistent, kept six months (§2.8)
+34. Description auto-save and description history with restore (§2.9)
+35. Move issue between teams; old ID and URL redirect (§2.9)
+36. Undo (§2.9)
+37. Due dates with colour-coded urgency and due-soon alerts (§2.10)
+38. Exactly one human assignee; `I` assigns to me (§20.2)
+39. Agent delegate alongside the human assignee (§20.2, §13.1)
+40. Personal auto-assign automations (§20.2)
+41. Comment threads, resolve with the answering reply, reactions, custom emoji (§2.11)
+42. Inline comments on highlighted text (§2.11)
+43. AI summaries of resolved threads and long discussions (§2.11)
+44. Comment drafts persist (§2.11)
+45. Attachments by drag-drop, paperclip or shortcut (§2.11)
+
+### C. Triage (§3)
+46. Per-team Triage inbox, hidden from other views (§3.1)
+47. Number-key triage actions: accept, duplicate, decline, snooze (§3.1)
+48. Require priority before an issue leaves Triage (§3.1)
+49. Ordered triage rules (§3.2)
+50. Triage responsibility with rotation from PagerDuty, Opsgenie, Rootly, incident.io (§3.3)
+51. Triage Intelligence suggestions for team, project, assignee, labels (§3.4)
+52. "Why" reasoning on every suggestion (§3.4)
+53. Per-property Show, Hide or Auto-apply dial (§3.4)
+54. Duplicate and related-issue detection (§3.4, §13.6)
+55. Layered written AI guidance, most local wins (§3.4)
+56. Lightweight suggestions in the composer on all plans (§3.4)
+
+### D. Cycles (§4, §20.3)
+57. Automatic repeating cycles, 1 to 8 weeks (§4)
+58. Cooldown periods (§4)
+59. Up to 15 upcoming cycles (§4)
+60. Automatic rollover of unfinished work (§4)
+61. Auto-add started issues to the current cycle (§4)
+62. Capacity dial from recent velocity (§4)
+63. Cycle graph: scope, started, completed, target (§4)
+64. Cycle calendar feed (§4)
+65. Edit cycle names and dates; "cycles paused" gaps (§20.3)
+66. AI "plan the next cycle" from backlog themes (§13.5)
+
+### E. Projects (§5)
+67. Multi-team projects with one lead, members, fuzzy or exact dates (§5.1)
+68. Project tabs, including saved views as extra tabs (§5.1)
+69. Project overview: document-style description, resources, milestones (§5.2)
+70. Project statuses: five categories, custom names, set manually (§5.3)
+71. Project priority and project labels (§5.3)
+72. Milestones with progress, suggested milestone on new issues (§5.4)
+73. Project graph with predicted completion and optimistic and pessimistic bounds (§5.5)
+74. Project dependencies, violation colouring, drag-to-bump chains (§5.6)
+75. Project templates with milestones and issues (§5.7)
+76. Project updates with On track, At risk, Off track health (§5.8)
+77. Update reminders, follow-up nudges, "update missing" and grey stale health (§5.8)
+78. Agent-drafted updates from changes and Slack (§5.8)
+79. Automatic property-change digest inside updates (§5.8)
+80. Updates posted to Slack or Teams with synced comments (§5.8, §14.8)
+81. Project notifications by bell, and per-project Slack channels (§20.6)
+82. Agent drafts a whole project from workspace context (§13.7)
+
+### F. Initiatives and roadmap (§6)
+83. Initiatives: status, priority, owner or lead team, target, labels, resources (§6.1)
+84. Health roll-up of an initiative's projects (§6.1)
+85. Initiative graph (§6.1)
+86. Sub-initiatives up to 5 levels with roll-up (§6.2)
+87. Initiative updates (§6.1, §5.8)
+88. Team-led and private initiatives (§6.1)
+89. Timeline layout with day, week, month, quarter zoom (§6.3)
+90. Drag to reschedule projects and milestones on the timeline (§6.3)
+91. Team cycles overlaid on the timeline (§6.3)
+92. Group the timeline by initiative or other attributes (§6.3)
+
+### G. Views, filters, display, search (§7)
+93. Saved custom views of issues, projects or initiatives (§7.1)
+94. View scopes workspace, team, personal; view owner (§7.1)
+95. Save any filtered list as a view, `Alt+V` (§7.1)
+96. Subscribe to a view for added, completed, canceled events (§7.1)
+97. Post a view's changes to a Slack channel (§7.1)
+98. Filters encoded in the URL, so every screen is a link (§7.2)
+99. Advanced AND/OR nested filter groups (§7.2)
+100. AI natural-language filters (§7.2)
+101. List, board and timeline layouts (§7.3)
+102. Grouping and sub-grouping swim lanes; drag sets the property (§7.3)
+103. Ordering options including shared manual order (§7.3)
+104. Display-property toggles per row (§7.3)
+105. "Set as default" pushes display options to everyone (§7.3)
+106. Workspace search `/`, view search, jump to issue `O I` (§7.4)
+107. `@`-mentions in search become filters (§7.4)
+108. Peek preview on `Space` (§7.5)
+109. Favourites with folders (§20.4)
+110. Label views and user views (§7.6)
+111. Ad hoc issue lists by URL (§7.1)
+
+### H. Personal attention (§8)
+112. My Issues with a focus order (urgent, SLA, blockers, cycle) (§8.1)
+113. Keyboard-driven Inbox (§8.2)
+114. Priority inbox (§8.2, §13.7)
+115. Snooze and reminders with natural-language times (§8.2)
+116. Notification channels: desktop, mobile, Slack, email digest (§8.3)
+117. Automatic and manual subscriptions (§8.3)
+118. Pulse feed: For me, Popular, Recent, custom feeds (§8.4)
+119. Pulse daily or weekly digest, with audio playback (§8.4)
+
+### I. Documents and editor (§9)
+120. Documents attached to projects, initiatives, teams, issues, cycles (§9.1)
+121. Real-time multiplayer editing with cursors (§9.1)
+122. Document templates (§9.1)
+123. Version history with revert (§9.1)
+124. Per-passage authorship: human or agent loop (§9.1)
+125. Links to a specific heading (§9.1)
+126. Markdown shortcuts and slash menu (§9.2)
+127. Mermaid diagrams, tables, collapsible sections, callouts (§9.2, §13.7)
+128. Auto-embeds: YouTube, Loom, Descript, Figma (§9.2)
+129. Copy as Markdown "for AI tools" (§11.4)
+130. Agent writes and edits with changes highlighted, `Cmd/Ctrl+J` (§9.1)
+
+### J. Customers, Asks, SLAs (§10)
+131. Customer object with revenue, size, tier, status, owner (§10.1)
+132. Customer requests with source quote, linked to issues or projects (§10.1)
+133. Mark a request important (§10.1)
+134. Customer pages (§10.1)
+135. Prioritise by request count, tier and revenue (§10.1)
+136. Customer attribute sync with field mapping; merge; domain exclusions (§10.1)
+137. Asks from Slack with synced thread (§10.2)
+138. Asks by email, custom domain (§10.2)
+139. Asks web forms behind IdP sign-in (§10.2)
+140. Requester kept updated where they asked (§10.2)
+141. SLA rules with business days and custom work week (§10.3)
+142. SLA risk states, breach warnings, SLA analytics (§10.3)
+
+### K. Releases and analytics (§11)
+143. Release pipelines, continuous and scheduled (§11.1)
+144. Release stages that can be frozen (§11.1)
+145. Monorepo path filters by glob (§11.1)
+146. Issues attach to releases automatically from CI commit scans (§11.1)
+147. Release notes, agent-drafted, and a per-pipeline changelog (§11.1)
+148. Release events drive issue status and downstream tools (§11.1)
+149. `linear-release` CLI and GitHub Action (§11.1)
+150. Insights panel on any view: count, effort, cycle, lead, triage time, age (§11.2)
+151. Scatter with percentile markers; every point opens its issue (§11.2)
+152. Dashboards with charts, metric blocks, tables, layered filters (§11.3)
+153. CSV export of issues, views, projects, requests (§11.4)
+154. Warehouse and spreadsheet sync (Airbyte, Google Sheets) (§11.4)
+
+### L. Linear's own AI (§12)
+155. Linear Agent chat with full workspace context, `Cmd/Ctrl+J` (§12.1)
+156. `@Linear` in comments, documents, Slack and Teams (§12.1)
+157. Agent acts only within the invoking user's permissions (§12.1)
+158. Agent guidance, workspace and personal; admin kill switch (§12.1)
+159. Saved agent Skills, personal or team (§12.2)
+160. Loops: event- or schedule-triggered agent automations (§12.3)
+161. Loop permission list, run history, versions with restore, run now (§12.3)
+162. Code Intelligence: grounded codebase Q&A with links to evidence (§12.4)
+163. Coding sessions in a managed cloud sandbox, producing draft PRs (§12.5)
+164. Per-repo environments: runtimes, env vars, separated secrets, prep scripts (§12.5)
+165. Per-repo agent and model choice, including Claude models (§12.5)
+166. Verification artifacts (screenshots, recordings) and browser testing (§12.5, §13.7)
+167. Steer or follow up a running session; notify when input is needed (§12.5)
+168. Automatic first-pass bug fixing from Triage (§13.7)
+169. Shared AI credit pool with top-ups, expiry, auto-replenish (§12.5)
+170. Diffs: code review inside Linear, synced with GitHub, merge from Linear (§12.6)
+171. Structural syntax-aware diff and `.gitattributes` file categories (§12.6)
+172. Guided Reviews: AI sections a large PR, core first (§12.6)
+173. Agent-attributed review comments with name, avatar and model (§12.6)
+174. PR risk scoring from connected tools (§12.6)
+175. Open an issue in Claude Code, Cursor or a custom script (§12.6)
+176. Enforce signed commits for agent sessions (§12.6)
+177. `TEAM-NEW` in a PR body creates an AI-written issue (§14.1)
+178. Agent files issues from whole support conversations (§14.6, §14.7)
+
+### M. Agent platform (§13, §18.4)
+179. Agents as app users, not billable seats (§13.1)
+180. Admin installs an agent with per-team access (§13.1)
+181. Delegate versus assignee: the human keeps accountability (§13.1)
+182. Agent profile pages; filter and chart by Delegate (§13.1)
+183. Agent guidance with team override and history (§13.1)
+184. AgentSession with states derived from activity (§13.2)
+185. Activity grammar: thought, action, elicitation, response, error, prompt (§13.2)
+186. Ephemeral activities (§13.2)
+187. Agent plans (checklist) (§13.2)
+188. External URLs from a session (agent UI, PR) (§13.2)
+189. Signals: stop, auth, select (§13.2)
+190. Timing contract: 5 s webhook, 10 s first activity, 30 min idle (§13.2)
+191. Ready-made `promptContext` in the webhook (§13.2)
+192. Repository suggestions with confidence (§13.2)
+193. Agent-initiated sessions on an issue or comment (§13.2)
+194. Published Agent Interaction Guidelines (§18.4)
+195. Partner agent directory: Cursor, Codex, Devin, Factory and more (§13.3)
+196. Hosted MCP server, read-write and read-only, OAuth 2.1, Okta (§13.4)
+197. MCP connectors that extend the Linear Agent and Loops (§12.1, §12.3)
+
+### N. Integrations (§14)
+198. GitHub: branch name copy with auto-assign and auto-start (§14.1)
+199. GitHub: closing, non-closing and relation magic words (§14.1)
+200. GitHub: commit linking by webhook (§14.1)
+201. PR-stage automations (draft, open, review requested, ready, merged) with branch rules (§14.1)
+202. GitHub Issues one-way or two-way sync (§14.1)
+203. PR linkback comments and autolinks (§14.1)
+204. GitHub Enterprise Cloud and Server (§14.1)
+205. GitLab MR linking and automations, self-managed (§14.2)
+206. Slack: create from message, unfurls with actions, synced threads, channel feeds (§14.3)
+207. Microsoft Teams: agent, batch filing, project update feeds (§14.8)
+208. Figma: frame previews and an in-Figma plugin (§14.4)
+209. Sentry: create or link, resolve on complete, assignee sync (§14.5)
+210. Zendesk: sidebar app, reopen ticket on completion (§14.6)
+211. Intercom: sidebar, internal note on completion, requests (§14.7)
+212. Front: support intake and requests (§14.13, UNVERIFIED detail)
+213. Salesforce: cases to issues, real-time status sync, roles (§14.11)
+214. Gong: issues auto-filed from customer calls (§14.10)
+215. Jira coexistence sync (§14.9)
+216. Notion live embeds (§14.12)
+217. Zapier, Discord, Airbyte, Google Sheets, GUS (§14.13, UNVERIFIED detail)
+218. Incident tools for triage rotation (§3.3)
+219. Directory of 250+ integrations; third parties can submit (§14.13)
+220. Importers: Jira, GitHub, Asana, Shortcut, Linear-to-Linear, CLI (§14.14)
+
+### O. Keyboard, speed, apps (§15, §20.5)
+221. Contextual command menu `Cmd/Ctrl+K` that opens next to its trigger (§15.1)
+222. Command-menu prefixes to scope results (§15.1)
+223. Key grammar: property letters, `G` go, `O` open, `M` relate (§15.1)
+224. `?` shortcut sheet (§15.1)
+225. Multi-select and bottom bulk-action bar (§15.1)
+226. Menus display the shortcut for every action (§15.1)
+227. Safe-triangle submenus (§15.1)
+228. Local-first client database: no round trip per action (§15.2)
+229. Sync-action log with checkpoint delta sync (§15.2)
+230. Offline change queue that survives restart (§15.2)
+231. Desktop apps for macOS and Windows, with tabs and per-tab history (§15.3)
+232. Mobile apps: inbox, create, search, review, document editing (§15.3)
+233. Web app and PWA (§15.3)
+234. Light, dark, system and custom themes; community theme gallery (§20.5)
+235. Personal preferences: home view, font size, send key, auto-assign (§20.5)
+
+### P. Enterprise and admin (§16)
+236. Roles: owner, admin, team owner, member, guest (§16.1)
+237. SAML SSO with domain enforcement and JIT (§16.2)
+238. SCIM with role groups and IdP-group-to-team mapping (§16.3)
+239. Audit log, 90 days, API queries, SIEM streaming (§16.4)
+240. Data regions US or EU, full-stack replica per region (§16.6)
+241. SOC 2 Type II, GDPR, HIPAA with BAA (§16.6)
+242. IP restrictions (§16.7, §17)
+243. Domain claiming; block rogue workspaces on the domain (§16.2)
+244. Third-party app approvals (§16.7)
+245. Admin control of personal API keys; team-scoped keys (§18.1)
+246. AI feature toggles and Linear Agent kill switch (§12.1, §16.7)
+247. Uptime SLA, priority support, migration help (§17)
+
+### Q. API and platform (§18)
+248. Public GraphQL API, the same one Linear's apps use (§18.1)
+249. TypeScript SDK (§18.1)
+250. OAuth 2.0, actor-as-app authorisation, app manifests (§18.1)
+251. Webhooks with actor, previous values and HMAC signing (§18.2)
+252. Published rate and complexity limits with headers (§18.1)
+
+### R. Philosophy and cadence (§19)
+253. A published product method that justifies every default (§19)
+254. A weekly public changelog; "build in public" (§13.7, §19)
+
+**Count:** 254 features. Items with "UNVERIFIED detail" exist per Linear's doc tree but were
+not read in full.
+
 <!-- APPEND -->
