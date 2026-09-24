@@ -1080,3 +1080,67 @@ none is deferred. Paths are under `docs/superpowers/plans/`.
 10 min) are a judgement, not a measurement. The cost of `--merged` over many undone refs was not
 measured; phase 3 never prunes them (task 10).
 
+## Fix batch b07 (2026-09-24): I1, I9 and I10
+
+Three independent Importants, one part each. Line numbers are for the tree at this batch's last
+commit. "parts/" means `2026-09-23-phase-3-git-convergence-parts/`.
+
+### I1: the transcript adapter pins the lines that name a version and skips the rest
+
+Adopted, with one widening the batch brief asked for: the pin is checked on **every** line that
+carries a `version`, not only on `user` and `assistant` lines. A `system` or `attachment` line
+written by another CLI version is the same format move, and checking it costs nothing. `user` and
+`assistant` lines, the two the adapter reads, must carry one. The review's structural count was
+**not** re-run in this batch: the read-only count over `~/.claude/projects` was refused by the
+session's permission classifier, so the figures (76,592 lines, 25,111 version-less, eleven types)
+are the review's, cited as such.
+
+| Review's fix | Where it is now |
+|---|---|
+| correct the verified-shape paragraph | parts/task-17.md:20-33 (four versioned types, the eleven version-less ones by name; the other keys claimed only for `user` and `assistant`) |
+| check `version` only where it applies; skip other types without counting them as failures | parts/task-17.md:105-119 (`ToolCalls`: what fails, what is skipped, the denominator; a transcript with no user or assistant line yields no calls, no error) |
+| add the eleven version-less types to the synthetic fixture | parts/task-17.md:168 (`TestSyntheticFixtureParses`, renamed fixture `synthetic-shape.jsonl`), :200-204 (Step 3 and its README) |
+| name the captured fixture `captured-<PinnedVersion>.jsonl`; skip only under the 2.1.274 OD-12 waiver, fail on any other pin | parts/task-17.md:167 (`TestCapturedFixtureParses`, `od12CaptureWaiver`), :190-193 (Step 1: the pin moves, the waiver does not) |
+| `TestVersionlessLinesAreIgnored` (40% `file-history-snapshot` → tier 2 still links) | parts/task-17.md:169; beside it `TestAnAssistantLineWithoutAVersionFails` (:170) and `TestAVersionedOtherLineIsPinned` (:171), and `TestAnotherVersionDegrades` now names an `assistant` line |
+
+Restatements fixed: the plan's "verified while writing" note (plan:564-571), task 17's non-claim
+(parts/task-17.md:219-222), and task 23's owner capture step (parts/task-23.md:88-92, the file
+named for the pin).
+
+### I9: a record carried by a reverted land no longer decides
+
+Adopted, with two corrections to the review's remedy, both on the facts:
+
+- **The range is `M^1..M`, not `M^1..M^2`.** Task 10's revert takes back M's whole change
+  against M^1 (parts/task-10.md:124, `--merge-base=<sha> <tip> <sha>^1`), so M itself is
+  carried too. A record made at the merge (the Merge view at the branch head) would stay settled
+  under `^1..^2`. `TestStatesARecordAtTheLandItselfIsRetired` pins it.
+- **The walk is the whole ancestry, not first-parent.** A lane that merges `origin/<branch>`
+  after the revert (task 19's resolve prompt) carries the revert on its second-parent side, and a
+  first-parent walk would leave the Develop chip at that lane's head settled.
+  `TestStatesARevertOffTheFirstParentLineCounts` pins it. The cost: any ancestor's
+  `Panacea-Reverts` trailer counts, an agent's forged one included. A forgery can only make a
+  criterion read `open`, never `settled`, so it errs the safe way; the part says so.
+
+| Review's fix | Where it is now |
+|---|---|
+| the evaluator reads the `Panacea-Reverts` entries in the subject's ancestry | parts/task-15.md:109-110 (one `git log` with `gitx.TrailerFormat(gitx.TrailerReverts)`, run only when a record is reachable) |
+| a record in a reverted land's range, with the revert an ancestor of the subject, no longer decides | parts/task-15.md:111-115 (`retired(r)`), :116-122 (retire before pruning, so an older unreverted record decides again) |
+| state `open`, `because: ["the land that carried this evidence was reverted"]` | parts/task-15.md:118-119; the `Because` field's comment (:92) no longer says `[]` whenever open; the lead (:8-10) |
+| `TestStatesARevertedLandUnsettles` | parts/task-15.md:190 (the revert built by hand, so task 15 keeps its dependencies 07 and 09); beside it :191-194 (the older verdict restored, the record at M, the off-first-parent revert, another land's revert retiring nothing) |
+
+### I10: one repository key for Hub ask H-3
+
+Adopted as the review writes it. plan:381 quotes task 13's `Remote.RepoKey` form exactly
+(`"github.com/<owner>/<repo>"` or `"azure-devops/<org>/<project>/<repo>"`, lowercased) and says why:
+`dev.azure.com/<org>` and `<org>.visualstudio.com` are one organisation. So the plan's claim is
+tested, parts/task-13.md:207 (`TestRepoKeyIsMachineIndependent`) now pins that the
+`dev.azure.com`, `visualstudio.com`, `DefaultCollection` and both SSH forms of one repository give
+exactly `azure-devops/o/p/r`. No other restatement of the key exists in the plan or its parts
+(grep for `RepoKey`, `visualstudio`, `azure-devops/`); task 15's `Record.Repo` comment (:50)
+cites `RepoKey()` by name and needed no change.
+
+**Unverified.** Nothing was built or run as Go. The transcript figures are the review's, not
+re-counted here. The cost of the reverts walk (one `git log` plus two `merge-base` calls per
+retained record per revert) was not measured.
+
