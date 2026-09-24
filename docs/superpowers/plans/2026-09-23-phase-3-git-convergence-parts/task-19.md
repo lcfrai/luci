@@ -16,7 +16,7 @@ lines 573-611, states `m-now`, `m-conf`, `m-race`, `m-checked`, `m-gitfail`, `m-
 
 **Files:**
 - `desktop/src/components/lens/MergeLens.tsx` — task 26's stub, filled (the only lens file this task edits)
-- `desktop/src/components/lens/merge/QueueList.tsx`, `LaneCard.tsx`, `NotReadyList.tsx`, `MergeBanner.tsx`, `ResolveDialog.tsx`, `DoDSlot.tsx`, `FactShape.tsx` (new)
+- `desktop/src/components/lens/merge/QueueList.tsx`, `LaneCard.tsx`, `NotReadyList.tsx`, `MergeBanner.tsx`, `ResolveDialog.tsx`, `DoDSlot.tsx`, `FactShape.tsx`, `BringInRow.tsx` (review I5) (new)
 - `desktop/src/components/lens/merge/model.ts` — pure view-model functions (new)
 - `desktop/src/components/lens/merge/landing.ts` — `landOne`, `landAllInOrder` (new)
 - `desktop/src/components/lens/merge/merge.css` (new; first line `@import "../../../styles/tokens.css";`)
@@ -60,6 +60,19 @@ export function resolvePrompt(conv: Convergence, entry: QueueEntry): string;
 /** Whether landing is possible at all, and the one reason when not: checked out, control plane
  *  down, or a row whose forecast is not clean. */
 export function landBlock(conv: Convergence | undefined, entry: QueueEntry, controlPlaneDown: boolean): string | null;
+
+/** The bring-in row's sentence (review I5), or null when conv.bringIn is null:
+ *  "origin/evidence-upload has 2 commits evidence-upload lacks." then one of
+ *  "Bringing them in moves evidence-upload to origin's tip." (fastForward) |
+ *  "They merge clean." | "They conflict with evidence-upload in <paths>." | the forecast's why. */
+export function bringInLine(conv: Convergence): string | null;
+/** Why Bring in is disabled, or null: checked out, control plane down, or a forecast not clean. */
+export function bringInBlock(conv: Convergence | undefined, controlPlaneDown: boolean): string | null;
+/** The resolve prompt for a bring-in conflict, run in a lane the user picks:
+ *  "Merge upstream/<branch> into this branch and resolve the conflicts in <paths>.
+ *   upstream/<branch> is origin/<branch> as of the last fetch: commits someone else pushed.
+ *   Commit the merge when the conflicts are resolved." Landing that lane then brings them in. */
+export function bringInResolvePrompt(conv: Convergence): string;
 ```
 
 ```ts
@@ -80,6 +93,11 @@ export function landOne(conv: Convergence, worktreeId: string, briefKey: string,
  *  stopping at the first refusal. One toast at the end names what landed; Undo is offered only
  *  for the last land, the one an exact undo can reach. */
 export function landAllInOrder(conv: Convergence, briefKey: string, briefDigest: string, reload: () => void): Promise<LandOutcome>;
+
+/** api.bringIn with expectedTip = conv.tip and expectedUpstream = conv.bringIn.tip, then
+ *  reload(), then a toast "Brought origin/evidence-upload into evidence-upload." with no Undo:
+ *  task 10 refuses it as not_a_land. A refusal comes back as the stopped outcome, as a land's. */
+export function bringInOne(conv: Convergence, reload: () => void): Promise<BringInResult | LandOutcome["stopped"]>;
 ```
 
 ```tsx
@@ -91,7 +109,10 @@ export function QueueList(props: { conv: Convergence; down: boolean; onLand(id: 
 export function LaneCard(props: { conv: Convergence; entry: QueueEntry; position: number; lane: LaneView; down: boolean;
   onLand(): void; onNotReady(): void; onResolve(): void; onMove(delta: -1 | 1): void }): JSX.Element;
 export function NotReadyList(props: { conv: Convergence; down: boolean; onMarkReady(id: string): void }): JSX.Element;
-export function ResolveDialog(props: { conv: Convergence; entry: QueueEntry; onClose(): void }): JSX.Element;
+// review I5: the caller names the lane and the prompt — resolvePrompt(conv, entry) from a
+// LaneCard, bringInResolvePrompt(conv) and the picked lane from BringInRow.
+export function ResolveDialog(props: { conv: Convergence; worktreeId: string; prompt: string; onClose(): void }): JSX.Element;
+export function BringInRow(props: { conv: Convergence; down: boolean; onBringIn(): void; onResolve(worktreeId: string): void }): JSX.Element | null;
 export function FactShape(props: { kind: "ok" | "need" | "fail" | "none" | "drift"; label: string }): JSX.Element;
 ```
 
@@ -120,6 +141,14 @@ branch's defaults resolve to, and **Start session**, which calls `useCreateSessi
 harness has `supportsOpeningPrompt: false`, the dialog says so and offers **Open a shell here**
 instead (`{ harness: "shell" }`). This is the one dialog in the lens, and it is not a confirmation:
 it is where the prompt is written.
+
+**Bring in origin/<branch>** (review I5). When `conv.bringIn` is not null, `BringInRow` stands
+above the queue, outside its numbering, since it is not a worktree: `bringInLine`, and a
+**Bring in origin/<branch>** button that `bringInBlock` disables with its reason. It never offers
+force, and a bring-in is never part of Land all. A conflicting forecast shows *Resolve in a
+worktree…* in place of the button: a picker of `conv.lanes` (none → "Create a worktree on this
+branch first"), then `ResolveDialog` with `bringInResolvePrompt(conv)`. Landing that lane
+later carries the remote's commits, and the next GET drops the row (`behind` is 0 then).
 
 **Banners**, one at a time, in this precedence: control plane down (the last reading dimmed,
 landing off: "The control plane is not answering, so nothing below is current — it is the reading
@@ -153,6 +182,10 @@ hidden until task 22 provides it).
 | `a checked-out branch turns landing off with the path` | `checkedOutAt` set → the banner with the path; every Land disabled with its reason | a land that moves a checkout's branch |
 | `control plane down dims the last reading` | loader error `network_unavailable` with a last value → content has the stale class, Land/Mark ready disabled, banner time is the last `readAt` | a blank lens, or live-looking stale data |
 | `a conflict opens ResolveDialog and starts a session with the prompt` | edit the text, Start → `useCreateSession` called with the worktree and the edited prompt; no attach socket is written | writing into a running agent's PTY (3-D3) |
+| `the bring-in row appears only when behind` (review I5) | `bringIn: null` → no row; a clean `bringIn` with `behind: 2` → the sentence and an enabled button; `checkedOutAt` set → disabled with the checkout's reason | a diverged branch with no way in, or a button that lands into a checkout |
+| `Bring in sends both expected tips and offers no Undo` | click → `api.bringIn(p, b, conv.tip, conv.bringIn.tip)` once, then reload; the toast has no Undo action; `upstream_moved` → the banner, as `branch_moved`'s | a bring-in of commits nobody saw forecast |
+| `a bring-in conflict resolves in a picked lane` | conflicting `bringIn` → no button; pick lane `w-api` → `ResolveDialog` with `worktreeId "w-api"` and a prompt naming `upstream/<branch>` and the paths | a prompt naming `origin/<branch>`, which in a clone is the project's branch, not the remote |
+| `Land all never brings in` | a queue of two and a `bringIn` → `landAllInOrder` makes two `land` calls and no `bringIn` call | the remote's commits taken without the button |
 | `ResolveDialog offers a shell when the harness cannot take a prompt` | `supportsOpeningPrompt: false` → the sentence and Open a shell here → `{ harness: "shell" }` | a dead Start button |
 | `the shared-index warning names both sessions` | a lane with an agent and a shell session → "upload-api (agent) and a shell" + SHARED_INDEX_NOTE | the hazard invisible (3-D2) |
 | `uncommitted work is named on the row` | `uncommitted: [a.ts]` → the uncommitted line | "lands clean" hiding work that will not land |
