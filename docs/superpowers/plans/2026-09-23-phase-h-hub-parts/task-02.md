@@ -274,9 +274,20 @@ After the mutation run (commit 94d6625) every parser refusal names its field, so
 and `kind` checks are each held by a test and not only by the final canonical comparison; the
 audit data check walks keys in order, so of several bad values the first is named every time.
 
-Five tests beyond the table cover them: `TestFailuresNameTheirField`,
-`TestAStoredRevisionMustBeCanonical`, `TestEnvelopesRefuseMalformedFields`,
-`TestAuditDataTakesScalarsOnly`, `TestParseAuditEnvelopeRoundTrips`. None matches the acceptance
-`-run` pattern, so its count stays 16; the package holds 21 new top-level tests.
+After review fix round 1 (commits c4b51ee, e5b93bd) the event kind's spelling is **`audit_events.kind`'s
+CHECK in contract §10.2, verbatim**: `^[a-z]+(_[a-z]+)*\.[a-z]+(_[a-z]+)*$`. The first build's
+own pattern was looser (it took `a.b.c`, `team2.created`), so an envelope the INSERT refuses got
+bytes. Every kind §8 lists matches the CHECK. The same round pins, each with its own case, the
+object half of the content-depth rule, `hubTime`'s round trip (a one-digit hour and a comma
+before the fraction both pass `time.Parse`), and the parsers' own type and shape checks.
 
-The `AuditEnvelope` block above is not gofmt-clean as printed (its field comments are realigned).
+Six tests beyond the table cover them: `TestFailuresNameTheirField`,
+`TestAStoredRevisionMustBeCanonical`, `TestEnvelopesRefuseMalformedFields`,
+`TestAuditDataTakesScalarsOnly`, `TestParseAuditEnvelopeRoundTrips`, and
+`TestAuditEventKindIsTheContractsCheck`, which reads the CHECK and §8's kinds out of the contract.
+None matches the acceptance `-run` pattern, so its count stays 16; the package holds 22 new
+top-level tests.
+
+Two blocks above are not gofmt-clean as printed: the Content limits `const` block
+(`MaxContentDepth` and `MaxEnvelopeBytes` are realigned) and the `AuditEnvelope` block (its field
+comments are realigned). Names, types and values are as printed.
