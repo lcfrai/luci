@@ -1328,3 +1328,60 @@ same two.
 - **Q-P7-7** is still the owner's. The question now shows both costs.
 - Unverified: nothing was compiled; the greps ran over extracted plan code, not a built tree. The
   portal labels were read in source only. No real Panacea or Hub was called.
+
+---
+
+## Fix batch b07 — M1 to M6 (2026-09-24)
+
+Minors in the domain, transport and read parts. Commits `88f3971` (M1), `863160f` (M2, M3),
+`9060e27` (M4), `ac40a87` and `33022c7` (M5), `e04367a` (M6), `4732467` (named survivors), and
+this section's commit (the map, and 7P-8's wording that the group's name stays `""`). Panacea
+read at `b02424691` with `git show`, read-only. Line numbers are after this batch's edits. M1 to
+M3's text was salvaged from an earlier b07 attempt that the watchdog stopped before it committed;
+each salvaged line was re-checked against source before it was committed.
+
+| Finding | Change |
+|---|---|
+| **M1** posture words are Panacea's; "exactly as `canonicalAccessMode`" | t01:396-401: the five words are adopted on purpose as the product's vocabulary (the control plane's API and the desktop type use the same five, t11:46, t13:179, both re-read), the one declared exception to t01:8's rule. t01:526-531: `ParsePostureMode` is *close to*, not the same as, `canonicalAccessMode`, which maps an unknown mode to `none` when `ssoEnforced == "false"` (`handlers/access_mode.go:75-77`, re-read); harmless because the GET already canonicalises (`:162`). t01:655 cites the constants at :405-409 |
+| **M2** `BuildHTTPClient` must clone `DefaultTransport` | t02:76-86: `http.DefaultTransport.(*http.Transport).Clone()`, never `&http.Transport{}`; keeps `ProxyFromEnvironment`, `ForceAttemptHTTP2` and the idle and handshake timeouts; only `TLSClientConfig` is replaced; Go reads no Windows or PAC proxy. t02:153 `TestProxyFromEnvironmentHonoured` (a child process, because `ProxyFromEnvironment` reads the environment once; the recorder sees one `CONNECT panacea.invalid:443`), with t02:65 saying `Version` makes one attempt. t02:178 acceptance adds `Proxy`. t20:440 LIVE-CHECK step 1: a dial error where a browser reaches the address means set `HTTPS_PROXY` (t02:84-86) |
+| **M3** file list; `Retry-After` on GET retries | The file list already names `cmd/versioncheck/main.go` (t02:15, added by b01 in `f75efdb`). t02:95-103: a 503 with `Retry-After` of at most 2 s waits `max(fixed delay, Retry-After)`; a longer one, and every 429, returns at once with `RetryAfter` set, so `do` never sleeps inside the watcher's cycle (the failure rule, t07:188-193, ends the cycle). t02:48 `Client` takes its sleep as `c.sleep`. t02:150 `TestGetRetryHonoursRetryAfter`; t02:178 acceptance adds `RetryAfter` |
+| **M4** incoherent mutant; `b33d15acb` references | t03:341: the mutant is now *`Pending` read as terminal* (e.g. `BuildFailed`, the "not `True` is failure" reading of `derivePipelineStatus`, `clients/pipeline.go:2073-2084`, re-read), which stops `Track`'s 3 s cadence (t07:75-76) and lets `Advance` write a result (t01:562); the assertion adds "`Pending`'s state is non-terminal". t03:7 and t03:374 cite `406d0da95` (plan §2) and `b02424691`. Spot-checked unchanged at `b02424691`: `pipeline.go:2073-2084`, `handlers/security_status.go:192-201`, `:211-214` |
+| **M5** empty environment; `prod` label; test-data names | **Empty group**: t08:161-175 rule 1b joins a `""` deployment by its run label, byte-exact, to a row's `branch`, which is Panacea's own attribution (`clients/kubernetes.go:5396-5415`, looked up at `:5455`, the row's `branch` from `e.Branch`, `handlers/projects.go:2118`). Otherwise one `unmatched` group, `name ""`, titled *"no environment recorded"* by the desktop (t08:43, t15:101-105, t15:203). t08:51 names rule 1b as the one join on a row's `branch`. t03:249-252 and t03:342: `SameEnvironment` does not adopt `tenantNamespace`'s `""` → base (`kubernetes.go:4213`); `("", "production")` is false. t17:131-132 and t17:138-139 give the drawer the sentence *"Panacea recorded no environment for this release."*; t17:242 tests it. t08:261 `TestNoEnvironmentJoinsByLabel`. Plan 7P-8 (plan:288-298) says the same. **`prod` settled**: plan:281-286 and plan:909-918 (moved from §12's unverified list to *Settled from source*). The API writes `"prod"` (`pipeline.go:237`, `:608`), a push writes `"prod"` (`webhook-receiver/models/event.go:116-129`, `pipeline/trigger.go:760`, `:1271`), and the advisory run's `TargetEnv` label (`pipeline.go:842`) never reaches the list (`kubernetes.go:5633-5642`, `isAdvisoryRun` `:140-142`). t20:156-158 and t20:190-197: the live test logs each environment label and the `""` count; t20:442 step 3 copies it. **Names**: already correct since b02 (`feat-evidence-upload`, 20 characters, not cut; `sanitizeBranchEnv`, `projects.go:3814-3826`, re-read). Every other sanitised name in the plan was re-derived and matches (`feat-phase-7-deploy`, `feature-evidence-upl`, `lane-7-deploy-connec`, `feat-x`) |
+| **M6** `SetBranchAutoDeploy`'s response marked unverified | t04:132: verified, a `data` envelope with the GET's five keys, `enabled` a bool, the value just written (`projects.go:4192-4198`, `:4194`), the 409 at `:4178`. t04:50-52 `autoDeployDTO` names both handlers. t04:158-159 adds `autodeploy-set.json`; t04:183 `TestSetAutoDeployDecodesPut`. The step at t04:195-198 becomes a re-read. Added: t04:139 records `ClearBranchURLPrefix`'s body (`data {branch, routeReverted}` plus a `message`, `:4448-4451`), the other envelope that step asked for |
+
+Citation moves: t05:332 cites `Server.Token` at t03:295.
+
+### Deviations from the review's "how to fix", declared
+
+- **M5, "join it by branch".** Read as joining by the **run label**, never a git branch, so that
+  rule 1a stays true. The join copies Panacea's own index rather than deriving a label, so it is
+  not a fourth copy of Panacea's rules. The group keeps `name ""` on the wire and is titled by the
+  desktop. The alternative was a made-up name in the data, which could be mistaken for a real
+  environment.
+- **M5, `prod`.** The review cited `pipeline.go:196-206`, `:237`. At `b02424691` `:196-206` is
+  the VCS input check; `:237` and `:2195-2207` are the facts. This batch also traced the two
+  writers b02 left open (the push path and the advisory run's `TargetEnv`).
+- **M3.** The file-list half was already fixed, by b01. Only the `Retry-After` half needed work.
+- **M6, widened.** `ClearBranchURLPrefix`'s envelope, named in the same step, is recorded too.
+
+### Mutants
+
+These are plan edits, so no code exists to mutate. The two named survivors were checked against
+the new tests' rows, by design, and not run:
+
+1. A label join that case-folds (`strings.EqualFold`). None of `TestNoEnvironmentJoinsByLabel`'s
+   first rows told it apart. It now has a `Feat-Evidence-Upload` row that must stay unmatched,
+   because a Ship's label keeps capitals (`sanitizeLabelValue`, `pipeline.go:2351-2364`, re-read)
+   and Panacea's map lookup is exact.
+2. A hand-built transport that sets `Proxy` and `ForceAttemptHTTP2` but drops `DefaultTransport`'s
+   idle and handshake defaults. `TestProxyFromEnvironmentHonoured` now compares
+   `IdleConnTimeout`, `TLSHandshakeTimeout`, `MaxIdleConns` and `ExpectContinueTimeout` with
+   `http.DefaultTransport`'s.
+
+### Left open
+
+- Nothing is compiled or run, and no real Panacea was called. The proxy test's child-process shape
+  and the `CONNECT` count are from `net/http` knowledge, not a run.
+- Whether the owner's network needs `HTTPS_PROXY` for Panacea is unverified. LIVE-CHECK step 1
+  answers it.
+- No owner question.

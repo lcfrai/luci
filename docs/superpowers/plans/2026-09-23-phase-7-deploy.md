@@ -294,7 +294,8 @@ and task 20's live check records the real spelling. **A legacy run with no envir
 reads back as `""` (`kubernetes.go:5681`; every current writer sets one, task 12). It is joined the
 way Panacea's own environments list attributes it: by its run's branch label, exactly equal to a
 row's `branch` (`kubernetes.go:5396-5415`, looked up at `:5455`). One that matches no row goes to
-one group titled *"no environment recorded"*, never `""` (task 08 rule 1b, review M5). The join is done **once, in the control
+one group titled *"no environment recorded"* (its name stays `""` on the wire; the title is never
+blank; task 08 rule 1b, review M5). The join is done **once, in the control
 plane** (task 08): every `ReleaseRow` carries its matched row's name as `environmentRow`, and the
 desktop never joins again (review I8).
 
