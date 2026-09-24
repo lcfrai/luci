@@ -190,6 +190,13 @@ func parseKeySet(body []byte) (map[string]*rsa.PublicKey, error) {
 // rsaKey decodes a JWK's two unpadded base64url integers (RFC 7518 §6.3.1).
 // An exponent over four bytes is refused here: Int64 would silently truncate
 // it into some other, valid-looking exponent.
+//
+// So is every key that some supported toolchain's crypto/rsa refuses or
+// mis-handles, so that what is trusted never depends on the Go version: an
+// exponent under 3, even, or over 2^31-1, and an even modulus. Go 1.23 (the
+// module's go line and CI's pin) verifies PKCS #1 v1.5 without checking the
+// exponent, and with e = 1 a "signature" is its own encoding: anyone could
+// forge one. Entra publishes e = 65537.
 func rsaKey(n, e string) (*rsa.PublicKey, bool) {
 	nb, err := base64.RawURLEncoding.DecodeString(n)
 	if err != nil {
@@ -200,12 +207,14 @@ func rsaKey(n, e string) (*rsa.PublicKey, bool) {
 		return nil, false
 	}
 	mod := new(big.Int).SetBytes(nb)
-	if mod.BitLen() < minModulusBits {
+	if mod.BitLen() < minModulusBits || mod.Bit(0) == 0 {
 		return nil, false
 	}
-	// An unusable exponent (1, or over 2^31-1) is refused by rsa's own
-	// public-key check at verification, as ErrSignature.
-	return &rsa.PublicKey{N: mod, E: int(new(big.Int).SetBytes(eb).Int64())}, true
+	exp := new(big.Int).SetBytes(eb).Int64()
+	if exp < 3 || exp%2 == 0 || exp > 1<<31-1 {
+		return nil, false
+	}
+	return &rsa.PublicKey{N: mod, E: int(exp)}, true
 }
 
 // Ready fetches the key set of every enrolled tenant not yet fetched and

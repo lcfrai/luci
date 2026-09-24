@@ -48,13 +48,17 @@ var reasons = []struct {
 // §5.8, 67609ab :543-546: no token is forwarded to another service or into a
 // sandbox).
 //
-// No token: 401, "WWW-Authenticate: Bearer", details.reason "missing". A
-// rejection: 401, `Bearer error="invalid_token"` — `insufficient_scope` for
-// ErrScope (Hub contract §4.1) — with details.reason; ErrTenant is 403
-// tenant_not_enrolled with details.tenantId when the validator named a GUID
-// tenant. ErrKeySetUnavailable: 503 backend_unavailable. An error that is none
-// of these: 500 internal. Bodies are httpx problems and never hold the token
-// or the error chain.
+// No Bearer credential (no Authorization header, another scheme, or an empty
+// token): 401, a bare "WWW-Authenticate: Bearer" (no error code, RFC 6750
+// §3.1), details.reason "missing". A rejection: 401, `Bearer
+// error="invalid_token"` — `insufficient_scope` for ErrScope (Hub contract
+// §4.1) — with details.reason; ErrTenant is 403 tenant_not_enrolled with
+// details.tenantId when the validator named a GUID tenant (§4.2).
+// ErrKeySetUnavailable: 503 backend_unavailable. An error that is none of
+// these: 500 internal. Bodies are httpx problems with code
+// CodeUnauthenticated (401), tenant_not_enrolled (403),
+// httpx.CodeBackendUnavailable (503) or httpx.CodeInternal (500), and never
+// hold the token or the error chain.
 func Middleware(v Validator, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := bearerToken(r.Header)

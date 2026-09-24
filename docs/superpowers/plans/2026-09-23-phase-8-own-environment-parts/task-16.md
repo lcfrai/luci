@@ -79,7 +79,7 @@ func New(cfg Config) (*JWKSValidator, error) // errors on an unusable Config; fe
 
 // Every rejection wraps exactly one of these. The Hub maps each to details.reason.
 var (
-	ErrMalformed   = errors.New("entra: malformed token")      // "malformed"
+	ErrMalformed   = errors.New("entra: malformed token")       // "malformed"
 	ErrSignature   = errors.New("entra: bad signature")         // "signature"
 	ErrExpired     = errors.New("entra: token expired")         // "expired"
 	ErrNotYetValid = errors.New("entra: token not yet valid")   // "not_yet_valid"
@@ -113,6 +113,7 @@ func (c Claims) Key() string { return c.TenantID + "/" + c.ObjectID }
 // Ready fetches the key set of every enrolled tenant not yet fetched and
 // returns the first failure (wrapping ErrKeySetUnavailable). The broker's
 // /readyz calls it; the Hub's /readyz may (ADR-H1 §5.7, 67609ab :528-530).
+// Tenants are fetched concurrently; the first failure is in TenantIDs order.
 func (v *JWKSValidator) Ready(ctx context.Context) error
 
 // Middleware authenticates "Authorization: Bearer <token>", stores the Claims
@@ -120,16 +121,18 @@ func (v *JWKSValidator) Ready(ctx context.Context) error
 // request it hands on, so no handler can forward the user's token (ADR-H1
 // §5.8, 67609ab :543-546: no token is forwarded to another service or into a
 // sandbox).
-// A missing header: 401 with "WWW-Authenticate: Bearer" and details.reason
-// "missing". A rejection: 401 with "WWW-Authenticate: Bearer
-// error=\"invalid_token\"" (`insufficient_scope` for ErrScope, Hub contract
-// §4.1), except ErrTenant, which is 403 with details.tenantId when the
-// validator named a GUID tenant (§4.2). ErrKeySetUnavailable: 503
-// backend_unavailable. Any other error: 500 internal. Bodies are httpx
-// problems with code CodeUnauthenticated (401), "tenant_not_enrolled" (403),
-// httpx.CodeBackendUnavailable (503) or httpx.CodeInternal (500);
-// details.reason carries the Hub's reason string for a rejection.
-// [Amended by task 16's build, 2026-09-25: see "As built".]
+//
+// No Bearer credential (no Authorization header, another scheme, or an empty
+// token): 401, a bare "WWW-Authenticate: Bearer" (no error code, RFC 6750
+// §3.1), details.reason "missing". A rejection: 401, `Bearer
+// error="invalid_token"` — `insufficient_scope` for ErrScope (Hub contract
+// §4.1) — with details.reason; ErrTenant is 403 tenant_not_enrolled with
+// details.tenantId when the validator named a GUID tenant (§4.2).
+// ErrKeySetUnavailable: 503 backend_unavailable. An error that is none of
+// these: 500 internal. Bodies are httpx problems with code
+// CodeUnauthenticated (401), tenant_not_enrolled (403),
+// httpx.CodeBackendUnavailable (503) or httpx.CodeInternal (500), and never
+// hold the token or the error chain.
 func Middleware(v Validator, next http.Handler) http.Handler
 
 // ClaimsFrom returns the Claims Middleware stored.
@@ -222,7 +225,11 @@ unchanged. Departures, each declared in the task report:
    of them survived.
 2. **The middleware follows the Hub contract outside §6.3**: §4.1 (`insufficient_scope` for a
    missing scope, still 401) and §4.2 (`reason: missing` for no token; `tenantId` on the 403). The
-   Hub must answer the same, and these are its words.
+   Hub must answer the same, and these are its words. One exception: with no Bearer credential
+   the challenge is a bare `Bearer` (RFC 6750 §3.1), where §4.1 (`:223`) says every 401 carries
+   `error="invalid_token"`; the Hub must call `Middleware` or match that. The Middleware and
+   Ready docs in the block above are the source's, byte for byte (fix round 1; they had been
+   the same rules in different words).
 3. **Rules the part left open, taken on the safe side:**
    - `http` authority: a loopback **IP literal** only; `localhost` is refused (the key set is the
      trust anchor, and a name is one resolver away from elsewhere). The authority is
@@ -237,7 +244,18 @@ unchanged. Departures, each declared in the task report:
    - A JWKS key with `alg` present and not `RS256`, padded `n`/`e`, or an exponent over four bytes
      (which `big.Int.Int64` would truncate into a valid-looking one) is skipped; of two keys under
      one `kid`, the first wins. A set with no usable key, or a body over 1 MiB, is
-     `ErrKeySetUnavailable`, so `Ready` never says ready with nothing to verify with.
+     `ErrKeySetUnavailable`, so `Ready` never counts a tenant fetched without a usable key.
+     `Ready` means "fetched once" (ADR-H1 §5.7, `67609ab :528-530`): a set past 24 h whose
+     refresh fails still counts as fetched, although `Validate` refuses it. Whether `/readyz`
+     should go unready then (an Entra outage would take every broker pod out of rotation) is
+     task 17's readiness policy. *[Reworded in fix round 1: it said "never says ready with
+     nothing to verify with", which that state contradicts.]*
+   - *Fix round 1.* The key set comes only from the authority: `New` sets a no-redirect policy
+     on a **copy** of the client, the default one or the caller's (the caller's is not changed),
+     so a 3xx is a non-200 answer, `ErrKeySetUnavailable`. A JWKS key is also skipped when its
+     exponent is under 3, even or over 2^31-1, or its modulus is even: Go 1.23's
+     `VerifyPKCS1v15` checks no exponent (with `e = 1` a "signature" is its own encoding), so
+     without this rule what is trusted would depend on the toolchain.
    - A set older than 24 h is not used when its refresh fails (`ErrKeySetUnavailable`). A refetch an
      unknown `kid` caused that fails is `ErrKeySetUnavailable`, and still spends the 5-min budget.
      On a cold cache the fetch that fills it is the one lookup: no immediate second fetch.

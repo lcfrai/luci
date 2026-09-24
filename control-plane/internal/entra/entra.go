@@ -113,6 +113,9 @@ var _ Validator = (*JWKSValidator)(nil)
 // GUIDs in cfg are trimmed and lower-cased, because Entra writes tid, aud and
 // azp in lower case and a comparison against an upper-case configuration
 // would refuse every token.
+//
+// The HTTP client, the default or cfg.HTTPClient, is used through a copy that
+// follows no redirect.
 func New(cfg Config) (*JWKSValidator, error) {
 	authority, err := parseAuthority(cfg.AuthorityHost, cfg.AllowInsecureAuthority)
 	if err != nil {
@@ -167,12 +170,22 @@ func New(cfg Config) (*JWKSValidator, error) {
 	}
 	if v.client == nil {
 		v.client = &http.Client{Timeout: defaultTimeout}
+	} else {
+		c := *v.client // a copy: the caller's client is not changed
+		v.client = &c
 	}
+	// The key set is the trust anchor and comes from the authority alone,
+	// whoever built the client: a redirect is answered as the 3xx it is, a
+	// non-200 answer, so ErrKeySetUnavailable.
+	v.client.CheckRedirect = refuseRedirect
 	if v.now == nil {
 		v.now = time.Now
 	}
 	return v, nil
 }
+
+// refuseRedirect makes a client hand back a 3xx as it is, unfollowed.
+func refuseRedirect(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 
 // parseAuthority returns scheme://host for an https authority, or for an http
 // one when insecure is set and the host is a loopback IP literal. A name, even
