@@ -151,6 +151,15 @@ nothing to that path and must not add a public IP of its own.
 #     nothing, and an unset list is not an error under `set -u`; tf-stack.sh always names its
 #     stack, so the stack-bearing call is checked — plan re-review b03 M-1)
 #   - no infra/terraform/**/terraform.tfvars exists (guard G1, again, at the last moment)
+#   - deploy only, on both paths: no unedited placeholder. Neither a named stack's
+#     <environment>.tfvars nor any deploy/values/<environment>/*.yaml holds `.invalid` as a
+#     TLD (the regex \.invalid\b, matched after stripping each line's `#` comment). A match is
+#     a refusal naming file:line and the value (review m16). Task 07's placeholders
+#     (dns_zone_name, alert_emails) use the RFC 2606 TLD so they cannot reach someone else's
+#     domain. Whether Azure DNS would refuse such a zone at apply is UNVERIFIED either way,
+#     and if it accepted one, cert-manager would fail later and less clearly. So the refusal
+#     is the guard's, before any apply. Plan mode does not check: a PR plans the committed
+#     placeholders, and a plan creates nothing
 #   - every provider source is allowlisted (guard G9, again, at the last moment)
 #   - pipeline, deploy only: every consumed pipeline resource (the infra-plan run, the images run)
 #     has a source branch allowed for <environment> by the rule above. A run from
@@ -370,6 +379,11 @@ and `AGENT_ID`, so the runner's own environment cannot pick the path.
 | plan mode, dev, on `refs/pull/12/merge` | ok | PR validation of `infra-plan` that can never pass |
 | deploy on `refs/heads/dev` consuming an `infra-plan` run whose source branch is `refs/pull/12/merge` | refused, naming the resource and its branch | a PR author's plan artefact applied by the infra identity (review C3) |
 | a module requiring `hashicorp/external` | refused, naming guard G9 | a provider that runs a program at plan time |
+| `dev deploy foundation`, whose fixture `dev.tfvars` holds task 07's `dns_zone_name = "dev.panacea-app.invalid"` | refused, naming `dev.tfvars:<line>` and the value | an unedited placeholder reaching apply, where Azure DNS may accept the zone and cert-manager fails later (review m16) |
+| workstation, the same tfvars, `dev deploy foundation` (as `tf-stack.sh apply` calls it) | refused, the same sentence | a placeholder check on the pipeline path only, while a workstation `apply` goes through |
+| `dev plan foundation` on `refs/pull/12/merge`, the same tfvars | ok | a placeholder check in plan mode, which fails every PR on the committed placeholders |
+| `dev deploy` whose fixture `deploy/values/dev/edge.yaml` holds a host ending `.invalid` | refused, naming the file and line | a check that reads the tfvars and forgets the chart values |
+| `dev deploy foundation`, where `.invalid` appears only after a `#` in `dev.tfvars` | ok | a guard that refuses a commented example |
 | deploy on `refs/heads/dev` consuming an `images` run whose source branch is `refs/pull/12/merge` (the `infra-plan` run from `refs/heads/dev`) | refused, naming `images` and its branch | a guard that checks only the `infra-plan` alias, so a PR-built `image-digests` naming an older digest in the environment's own registry passes both the guard and `helm-values.sh`'s registry check (plan re-review M-1) |
 
 `tf-stack_test.sh` puts a stub `terraform` on `PATH` that records its arguments, and a stub
@@ -498,7 +512,10 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
   make `is_pipeline` test `TF_BUILD` alone → the `TF_BUILD`-unset consumed-resource case and
   tf-stack's `AGENT_ID` case (I-2); treat an empty branch on the pipeline path as a pass → the
   `SYSTEM_JOBID` case; make the tfvars rule `exit 1` on an empty stack list → the no-stack
-  workstation `ok` case (M-1).
+  workstation `ok` case (M-1). For review m16: delete the placeholder rule → the `.invalid`
+  deploy case; apply it on the pipeline path only → its workstation row; apply it in plan mode
+  too → the `refs/pull` plan row; scan tfvars but not `deploy/values/` → the values row; match
+  before stripping comments → the comment-only row.
 - [ ] **Step 3:** `infra/rbac/cluster-deployer.json`, `infra/rbac/sandboxes-deployer.json`,
   `infra/rbac/plan-reader.json`, `grant-pipeline-roles.sh` and its test, and
   `cluster-kinds_test.sh` (needs the charts of tasks 11–13, 26 and 29 to render).
@@ -508,7 +525,7 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
 
 ```bash
 bash infra/scripts/validate.sh infra/terraform/modules/ci-pool infra/terraform/stacks/foundation   # 2 ok
-bash pipelines/scripts/estate-guard_test.sh        # estate-guard_test: 17 of 17 passed
+bash pipelines/scripts/estate-guard_test.sh        # estate-guard_test: 22 of 22 passed
 bash pipelines/scripts/tf-stack_test.sh            # tf-stack_test: 9 of 9 passed
 bash infra/rbac/grant-pipeline-roles_test.sh       # grant-pipeline-roles_test: 6 of 6 passed
 bash pipelines/scripts/cluster-kinds_test.sh       # cluster-kinds: ok, the "can bind" line and the "sandboxes RBAC verbs" line

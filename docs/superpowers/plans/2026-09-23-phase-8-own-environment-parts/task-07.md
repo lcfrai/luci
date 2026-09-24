@@ -537,8 +537,13 @@ registry_public_network_access = true
 (pending the ISM figure), `registry_public_network_access = false`, and a real budget. It sets
 `egress_mode = "nat"` **with a comment that Q1 decides it**.
 
-The `.invalid` TLD (RFC 2606) makes an unedited placeholder fail at apply rather than succeed
-against someone else's domain.
+The `.invalid` TLD (RFC 2606) means an unedited placeholder can never succeed against someone
+else's domain. Whether Azure DNS **refuses** a `.invalid` zone at apply is UNVERIFIED either way
+(review m16). If it accepted one, the failure would come later and less clearly, when
+cert-manager cannot solve DNS-01. So the refusal does not rest on Azure: task 30's estate guard
+refuses `deploy` while any named stack's `<env>.tfvars`, or any `deploy/values/<env>/*.yaml`,
+holds a `.invalid` value, naming the file and line. `plan` still runs on the placeholders, so a PR
+plan of the committed tfvars works.
 
 #### Tests to write first
 
