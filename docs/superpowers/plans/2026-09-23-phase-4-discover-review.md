@@ -1696,3 +1696,39 @@ way-back sentence rendered whatever the state of `.claude/CLAUDE.md` is killed b
 after `tenant_not_enrolled` is inferred from `hub-contract.md:389`, `:409`. Whether the Hub accepts
 HA4-11 is unknown. That `RailFooter` still has a `.rail-footer` root when Hub task 41 lands is
 inferred: task 41 changes that file by two lines (hub `task-41.md:31`).
+
+## Fix batch b10 (2026-09-24): M6, M7, M8, M11
+
+Commits `28f0e5d` (M7, M11), `3bcc1b2` (M6), `d82bd36` (M8). Re-read in this session: hub
+`feat/hub` at `8b5c8ea`, where `hub-contract.md:40-41` is the 1 MiB body cap, `:157-163` the
+canonical string rules (non-ASCII as UTF-8, other controls as `\u00xx`), `:234` `invalid_json`,
+`:579` route 17 (role `A`), `:722-723` its body, `:742` the 64 KiB envelope, `:791-796` the batch
+body, `:1278-1282` `hubclient.Projects` (no remote method), and §5.2 (`:326-331`, `admin`). This
+worktree: `git config core.autocrlf` is `true`, there is no `.gitattributes`, and every commit in
+this batch printed "LF will be replaced by CRLF". `phase-2-parts/task-20.md:16` creates
+`SessionPaneHeader.tsx`. The review's `task-07.md:180-186`, `:255-258` had moved to `:298-321`.
+
+| Finding | What changed | Where |
+|---|---|---|
+| M6 | **Built, plus a bound the review did not ask for.** Task 03 rule 13: an answer the op added or changed is at most 4,000 code points and a prompt, help or option at most 300, after the trim, over the same strings as rule 12; `*TooLongError{Key, Limit}` → 400 `field: "text"` with `key` and `limit` (task 11), shown at the answer with the text kept (task 18). The model schemas (200/120, 400) sit inside the caps. **The caps alone do not bound the 64 KiB envelope:** they count code points, and six CJK answers plus the done criteria reach 84,000 canonical bytes. So task 08's `writeBatch` checks each item's canonical envelope (`*RevisionTooLargeError`, 400 at the op's key) and the body, measured with `json.Marshal`, against 1 MiB (`*FanoutTooLargeError` gains `Bytes`, `LimitBytes`; 409 `fanout_too_large`). **Deviation:** the review put the batch check in `fanOut`. It sits in `writeBatch`, the one place every batch passes, including step 9's, which `fanOut` does not build. Plan S4 states the three checks. HA4-3 also asks the Hub to export both caps. Also fixed: task 03's acceptance `-run` pattern did not match the marker tests, and now matches them and the new tests | `task-03.md:276-307` (error, caps, type), `:331-333` (rule 1), `:376-386` (rule 13), `:413-416` (tests), `:433` (`-run`); `task-08.md:83-120` (limits, both errors), `:142-154` (step 7), `:235-236` (tests), `:248-253` (step 2), "Does NOT claim"; `task-11.md:90`, `:94-95`; `task-18.md:139`, `:159`; `plan.md:271-282` (S4), `:304`, `:314`, `:529` (HA4-3) |
+| M7 | **Built as the review said, and a Merge rule added.** Every newline `claudemd` looks for is matched as `\r?\n`. `Strip` removes `\r\n` or `\n`, so no `\r` is left. `Merge` writes the block, and the blank line before it, in the file's own ending (CRLF when the first line ending is `\r\n`). Without that, Merge then Strip is not byte-exact for a CRLF file, and a merge would leave mixed endings. A new `SameText` (CRLF read as LF, nothing else) is the drift check's only comparison, so task 09's `current` holds for a CRLF re-save. `DiffLines` splits on `\r?\n`. `TestStripRemovesTheBlockAndNothingElse` gains CRLF rows. New `TestCRLFResaveIsNotAnEdit`; task 09's `TestInspectStates` gains a CRLF row. **Same root cause, declared:** `testdata/.gitattributes` `* -text`, because under `core.autocrlf = true` a fresh checkout would turn the golden files to CRLF and fail every byte-for-byte golden test | `task-05.md:9-10`, `:20-23` (files), `:167-180` (Merge, Strip), `:191` (`Block.Text`), `:194-207` (Inspect, `SameText`), `:222-226` (`DiffLines`), `:297-298` (tests), `:312-315` (step 3); `task-09.md:199`, `:201-208`, `:299`; `plan.md:307`, `:438` |
+| M8 | **Built, and the join option is an owner question.** Binding looks up the **primary** remote only (`origin`, or the first recognised remote by name when `origin` is not one) and binds only to the project that key names. `Bind` registers that key alone. A Hub project found through any other remote goes into `Binding.Matches` (state `unbound`) and is shown beside **Share** as a fact. Nothing binds to it. `RepoKey` gains `Remote`, and the TS mirror gains `matches`. `TestBindingFindsTheProjectByItsRepoKey` asserted the old rule, and is replaced. **OQ-12:** joining the team's project needs `origin` added through Hub route 17 (team admin, no `hubclient` method). P4-E rules out remembering the choice on the machine. The no-`origin` fallback is named there too | `task-07.md:218-228` (`RepoKey`, primary), `:274` (`unbound`), `:282-293` (`RemoteMatch`), `:301-324` (`Binding`, `Bind`), `:520-522` (tests); `task-14.md:64-66`; `task-15.md:115-119`; `task-11.md:70`; `task-18.md:129`, `:166`; `plan.md:175` (P4-E), `:310`, `:556` (OQ-12) |
+| M11 | "declared departure into phase 2 task 20's file". The other "task 20" references in the parts (`task-10.md:266`, `task-15.md:64`, `:237`) mean this plan's task 20 and are right | `task-17.md:38` |
+
+**Owner questions raised:** OQ-12 (M8), recorded in plan §10 with the recommended option built.
+
+**Mutants named as likeliest survivors, and the planned rows that kill them:** (1) a line-ending
+normaliser that strips every `\r` is killed by `SameText("a\rb\n", "ab\n") == false`
+(`TestCRLFResaveIsNotAnEdit`); (2) a cap counted in bytes is killed by the 4,000 `é` row
+(`TestAnswersAreCappedAt4000Characters`). A third: a `Binding` that still looks up `upstream`
+when `origin` is bound is killed by "no Hub lookup of `upstream`". This is plan text: none was run.
+
+**Related, not in batch:** task 06's `testdata/ref-golden.json` has the same `core.autocrlf`
+exposure if its test compares bytes. `task-06.md:304` does not say how it is compared, so this is
+recorded rather than changed.
+
+**Still unverified:** nothing was built or run. The claim that `json.Marshal` is never shorter
+than `hubapi.Canonical` for the same value comes from the two escaping rules, not a run.
+`hubclient`'s request encoder is Hub plan text. That task 13's validation rejects a draft over
+its 400-character schema (rather than passing it on) is inferred from "validate" at
+`task-13.md:121-122`.
