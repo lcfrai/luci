@@ -1433,3 +1433,75 @@ Design check only; there is no code to run.
   does not depend on it.
 - Whether task 12's log stream goes through `do` (S7-R1's reach) is unverified.
 - No owner question.
+
+## Fix batch b08 — M7 to M10, M26, M30 (2026-09-24)
+
+Minors in governance (tasks 04, 11, 18) and the connection wire (tasks 05, 16). Commits `0a397c3`
+(M7, M8), `10dd915` (M9, M10), `d45e606` (M26), `df8ab0e` (M30), `6428fb5` (named survivors), and
+this section's commit. Panacea read at `b02424691` with `git show`, read-only; the Hub contract at
+`a6ccd77`, read-only. Line numbers are after this batch's edits.
+
+| Finding | Change |
+|---|---|
+| **M7** not-enforced message embeds `reconcileErr` | Re-read: `project_security.go:818-821` sets `reconcileErr = err.Error()`, `:837-839` puts it inside `(…)`. t04:85-88 the DTO comment; t04:139 `SetPosture` carries Panacea's `message` only when `enforced` is true, and otherwise writes **our** sentence from the structured `enforced` and the mode and branch it sent; Panacea's sentence is logged at warn. t04:165-167 the fixture's branch is `feat/fix(ui)` and its stand-in error holds a `(`. t04:192 `TestPostureNotEnforced` asserts equality with our sentence, and that neither the address nor `retry` leaks. t01:442-444 `PostureResult.Message`; t11:118; t18:131-133; plan 7P-12 (plan:375-378) says a `200` sentence that embeds an `err.Error()` is not carried either |
+| **M8** the parsed 500 sentence | Plan 7P-12 (plan:382-390) gains *"No Panacea sentence is ever parsed, with one exception"*, naming `Grant`'s 500 read, why it is kept (it fails safe to `KindUnavailable`), and its pin. t11:101-105 names it as the single exception; t04:196 points there. Source re-read: `handlers/access.go:57`, `clients/keycloak.go:182`, `:189` |
+| **M9** one status per code | Nil `Deps.DeployConnection` → **409** `deploy_not_connected`, the code's declared status (t05:346, and the wire at t05:180-181). A locked origin against another → `ErrOriginLocked`, mapped by the `PUT` to **400** `bad_request` before `writeDeployError` (t05:108-110), listed in the wire with its sentence (t05:166-168). t05:304 `TestLockedOriginRefusesAnother` (the sentinel, nothing stored, no request, an equal origin accepted); t05:305 `TestNilConnectionIs409` |
+| **M10** origin row missing from Hub §9.1 | Took the review's second option. Hub contract `a6ccd77` §9.1 (`:1165-1175`) lists only the token row. The origin moves to `statepath.Dir("deploy")/connection.json` (t05:42-50, `Config.StateDir` t05:75-78, steps 4 and `Disconnect`, t05:348 wiring). t05:302 `TestOriginWrittenAfterToken` asserts one `Put`, to the token row. The origin file is the first phase 7 file written, so ruling R2's `writeAtomic` lift moves from task 06 to task 05: t05:24, t05:333-337, t06:20, t06:228-230, plan:541-543, plan:781. Plan 7P-13 (plan:393-396) names the file |
+| **M26** "not started" after a timeout | Panacea's `upstream_unavailable` carries `details.status`, a JSON number, `0` when there was no HTTP answer (t05:263-267, t05:277-282; plan 7P-12 plan:368-370). `writeDeployError` gains `extra` details, and Ship's step 6 passes `reserved: true` (t09:237-240; wire t09:271-275). The desktop picks one of four sentences from `reserved` and `upstreamNoAnswer` (t16:177), with *"may still have started the build"* for reserved + status 0. `upstreamNoAnswer` is t13:294-297. Tests: t05:313, t09:292, t13:345, t16:188 |
+| **M30** revoke by grantee; role change; legacy row | Re-read `clients/keycloak.go` at `b02424691`. `Revoke` takes the row's `group` everywhere: t01:122-125, t04:142, t11:77-82 (`DELETE ?group=`, 400 without it), t13:241, t18:51, t18:81, t18:147-149. A role change is **one** `Grant`: t01:119-121, t04:141, t11:66-70, t18:102, t18:144-147. Legacy rows: t01:462-475 (`Legacy`), t04:97-100, t04:140, t04:167-169 fixture, t11:56-61, t13:186-189, t18:139-142, plan B1 (plan:134). Tests: t04:198-199, t11:122-123, t18:175-177, t13:357 |
+
+### Deviations from the review's "how to fix", declared
+
+- **M7, "trim after the first `(`".** Refused. The branch comes before the `(` in Panacea's format
+  string, and git allows `(` in a branch name (`git check-ref-format --branch "feat/fix(ui)"`
+  exits 0, run here). A cut there also drops the sentence's fixed tail. Keying on `enforced` and
+  writing our own sentence parses nothing.
+- **M30, "a held Revoke followed by a Grant".** Wrong on the facts at `b02424691`.
+  `AddProjectAccess` is single-role: it removes the grantee from the project's other role groups
+  before adding the new one (`keycloak.go:172-173`, `:198-214`). So the old role is not left in
+  place. A Revoke then a Grant would leave the person with no access if the Grant failed. A role
+  change is one `Grant`. The drop is best-effort (`:207-210`), so the re-read is drawn as it is,
+  and a grantee on two rows is shown on both.
+- **M30, "a legacy row (empty `grantee`)".** The empty grantee is also wrong on the facts.
+  `ListProjectAccess` fills a legacy row's `grantee` from its `panacea-group` attribute, and it
+  skips a member-less group with no attribute (`keycloak.go:143-153`). Panacea's own test pins
+  `grantee "team-old"` (`clients/keycloak_access_test.go:349-351`). Only the model's comment
+  (`models/models.go:2011`) says `""`. The plan's B1 row and tasks 01, 04, 11, 13 and 18 said
+  `""`. They now mark a legacy row as `group != grantee`. A person's row has `group == grantee`
+  (`:156-159`), which also made t11's old example (a person with a group name) wrong.
+- **M26, widened.** Keying on `status` alone would tell a Ship that failed at step 4 (before any
+  reserve) that a build may have started. So step 6 also marks `reserved`. Any other act with
+  status `0` gets its own "cannot tell whether it acted" sentence.
+- **M10.** Took the review's second option instead of adding a Hub row, because the Hub contract
+  is the Hub stream's file and read-only here. The origin is also not a secret. And a
+  `PanaceaApp/panacea/current` row would share the `<api host>` namespace with a token row.
+
+### Mutants
+
+These are plan edits, so no code exists to mutate. The two named survivors were checked against
+the new tests' rows, by design, and not run. Each gained a row:
+
+1. The desktop's `revoke` keeping the old `?grantee=` parameter name with the group's value. Only
+   task 11's route would refuse it, and no desktop test saw the URL. t13:357 `revoke sends the
+   group`.
+2. `connection.New` failing startup, or deleting the token, on a torn `connection.json`.
+   t05:303 `TestOriginFileMalformedIsAbsent`.
+
+Checked, already killed by this batch's rows: `upstreamNoAnswer` written with `==` (the `"0"`
+case, t13:345); Ship marking `reserved` on step 4's failure (t09:292); `Legacy` computed as
+`Grantee == ""` (t04:198); the not-enforced cut at the first `(` (t04:192's equality).
+
+### Left open
+
+- Nothing compiled or run; no real Panacea called.
+- Observed, not a finding of this review: Panacea's own create timeout answers **500**
+  *"failed to start deployment: context deadline exceeded"* (`ship-500-timeout.json`). The
+  PipelineRun may still have been created, but t09 step 6 calls a 5xx *"could not start"*. The
+  desktop now says *"not started"* for it (M26 case b). Whether Kubernetes can create the run
+  after Panacea's 15 s context expires is unverified. The review should rule on it.
+- Observed: t18:102 justifies sending a grant at once with *"none opens the app to anyone new"*,
+  yet a grant does exactly that for its grantee. This is outside this batch's findings, so it is
+  left as found.
+- Whether dev Panacea (v1.163.0) behaves as `b02424691` does for the legacy row's `grantee` is
+  unverified. LIVE-CHECK does not exercise a legacy binding.
+- No owner question.
