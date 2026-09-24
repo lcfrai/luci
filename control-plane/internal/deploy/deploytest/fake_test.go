@@ -481,8 +481,8 @@ func TestFakeBeforeNextBindsArmsAtEntry(t *testing.T) {
 func TestFakeReturnsCopies(t *testing.T) {
 	f := newShipFake(&testClock{t: base})
 	ctx := context.Background()
-	zero, crit := 0, 2
-	gates := map[string]deploy.Gate{"iac": {Verdict: "failed", Criticals: &crit}}
+	zero, crit, highs, findings := 0, 2, 3, 5
+	gates := map[string]deploy.Gate{"iac": {Verdict: "failed", Criticals: &crit, Highs: &highs, Findings: &findings}}
 	prov := []deploy.Provisioning{{Component: "database", Status: "succeeded"}}
 	f.AddDeployment(proj, deploy.Deployment{ID: "d1", Environment: "feat-x", CreatedAt: base,
 		LiveReady: &zero, Gates: gates, Provisioning: prov})
@@ -496,23 +496,25 @@ func TestFakeReturnsCopies(t *testing.T) {
 			} else {
 				d, _, _ = f.Latest(ctx, proj)
 			}
-			if *d.LiveReady != 0 || *d.Gates["iac"].Criticals != 2 || len(d.Gates) != 1 || d.Provisioning[0].Status != "succeeded" {
-				t.Fatalf("%s: %s reads %+v, want LiveReady 0, iac criticals 2, one gate, database succeeded", when, read, d)
+			iac := d.Gates["iac"]
+			if *d.LiveReady != 0 || *iac.Criticals != 2 || *iac.Highs != 3 || *iac.Findings != 5 || len(d.Gates) != 1 ||
+				d.Provisioning[0].Status != "succeeded" {
+				t.Fatalf("%s: %s reads %+v, want LiveReady 0, iac 2/3/5, one gate, database succeeded", when, read, d)
 			}
 		}
 	}
-	zero, crit = 7, 7
+	zero, crit, highs, findings = 7, 7, 7, 7
 	gates["sast"] = deploy.Gate{Verdict: "passed"}
 	prov[0].Status = "failed"
 	unchanged("after the seeding test changed its values")
 	ds, _ := f.Deployments(ctx, proj)
 	*ds[0].LiveReady = 9
-	*ds[0].Gates["iac"].Criticals = 9
+	*ds[0].Gates["iac"].Criticals, *ds[0].Gates["iac"].Highs, *ds[0].Gates["iac"].Findings = 9, 9, 9
 	ds[0].Gates["sast"] = deploy.Gate{Verdict: "passed"}
 	ds[0].Provisioning[0].Status = "failed"
 	d, _, _ := f.Latest(ctx, proj)
 	*d.LiveReady = 9
-	*d.Gates["iac"].Criticals = 9
+	*d.Gates["iac"].Criticals, *d.Gates["iac"].Highs, *d.Gates["iac"].Findings = 9, 9, 9
 	d.Provisioning[0].Status = "failed"
 	unchanged("after a caller changed what it read")
 }
@@ -522,14 +524,16 @@ func TestFakeReturnsCopies(t *testing.T) {
 func TestFakeSeedersCopyInAndOut(t *testing.T) {
 	f := newShipFake(&testClock{t: base})
 	ctx := context.Background()
-	two, yes, explicit := 2, true, true
+	two, four, code, yes, explicit := 2, 4, 137, true, true
 	envs := []deploy.Environment{{Name: "feat-x", Replicas: &deploy.Replicas{Ready: 1, Desired: 1}}}
 	counts := map[string]int{"critical": 1}
 	report := deploy.ScanReport{DeploymentID: "d1", DetailsRetained: &yes,
-		Scans: []deploy.Scan{{Name: "iac", Status: "FAIL", Counts: counts}}}
+		Blocking:   []deploy.ScanNote{{Scan: "iac", Reason: "criticals"}},
+		Incomplete: []deploy.ScanNote{{Scan: "dast", Reason: "not run"}},
+		Scans:      []deploy.Scan{{Name: "iac", Status: "FAIL", Counts: counts}}}
 	diag := deploy.Diagnosis{Health: "down", Findings: []deploy.Finding{{Problem: "crash", Evidence: []string{"OOMKilled"}}}}
 	stream := []deploy.StreamEvent{{Log: &deploy.LogLine{Step: "build", Line: "one"}},
-		{Readiness: &deploy.ReadinessTick{Measured: true, Ready: &two}}}
+		{Readiness: &deploy.ReadinessTick{Measured: true, Ready: &two, Restarts: &four, ExitCode: &code}}}
 	grants := []deploy.AccessGrant{{Grantee: "ada", Group: "ada", Role: deploy.RoleOwner, RoleRaw: "owner"}}
 	pods := []deploy.Pod{{Name: "app-1", Phase: "waiting"}}
 	events := []deploy.Event{{Type: "Warning", Reason: "BackOff"}}
@@ -547,8 +551,9 @@ func TestFakeSeedersCopyInAndOut(t *testing.T) {
 			t.Errorf("%s: Environments = %+v, want feat-x 1 ready", when, e)
 		}
 		if r, _ := f.Scans(ctx, proj, "feat-x", "d1"); len(r.Scans) != 1 || r.Scans[0].Status != "FAIL" ||
-			r.Scans[0].Counts["critical"] != 1 || len(r.Scans[0].Counts) != 1 || !*r.DetailsRetained {
-			t.Errorf("%s: Scans = %+v, want iac FAIL with 1 critical, details retained", when, r)
+			r.Scans[0].Counts["critical"] != 1 || len(r.Scans[0].Counts) != 1 || !*r.DetailsRetained ||
+			r.Blocking[0].Reason != "criticals" || r.Incomplete[0].Reason != "not run" {
+			t.Errorf("%s: Scans = %+v, want iac FAIL with 1 critical, details retained, both notes", when, r)
 		}
 		if dg, _ := f.Diagnosis(ctx, proj, "feat-x"); dg.Findings[0].Evidence[0] != "OOMKilled" {
 			t.Errorf("%s: Diagnosis = %+v, want the OOMKilled evidence", when, dg)
@@ -556,8 +561,9 @@ func TestFakeSeedersCopyInAndOut(t *testing.T) {
 		s, _ := f.Stream(ctx, proj, deploy.StreamReadiness, "feat-x")
 		ev1, _ := s.Next()
 		ev2, _ := s.Next()
-		if ev1.Log == nil || ev1.Log.Line != "one" || ev2.Readiness == nil || *ev2.Readiness.Ready != 2 {
-			t.Errorf("%s: the stream yields %+v then %+v, want line one then 2 ready", when, ev1, ev2)
+		if ev1.Log == nil || ev1.Log.Line != "one" || ev2.Readiness == nil || *ev2.Readiness.Ready != 2 ||
+			*ev2.Readiness.Restarts != 4 || *ev2.Readiness.ExitCode != 137 {
+			t.Errorf("%s: the stream yields %+v then %+v, want line one then 2 ready, 4 restarts, exit 137", when, ev1, ev2)
 		}
 		if a, _ := f.AutoDeploy(ctx, proj, "feat/x"); a.Explicit == nil || !*a.Explicit {
 			t.Errorf("%s: AutoDeploy = %+v, want explicitly on", when, a)
@@ -573,21 +579,22 @@ func TestFakeSeedersCopyInAndOut(t *testing.T) {
 		}
 	}
 	envs[0].Replicas.Ready, counts["critical"], counts["high"], yes = 9, 9, 9, false
-	report.Scans[0].Status = "PASS"
+	report.Scans[0].Status, report.Blocking[0].Reason, report.Incomplete[0].Reason = "PASS", "changed", "changed"
 	diag.Findings[0].Evidence[0] = "changed"
-	stream[0].Log.Line, two, explicit = "changed", 9, false
+	stream[0].Log.Line, two, four, code, explicit = "changed", 9, 9, 9, false
 	grants[0].Role, pods[0].Name, events[0].Reason = deploy.RoleViewer, "changed", "changed"
 	unchanged("after the seeding test changed its values")
 	e, _ := f.Environments(ctx, proj)
 	e[0].Replicas.Ready = 9
 	r, _ := f.Scans(ctx, proj, "feat-x", "d1")
 	r.Scans[0].Status, r.Scans[0].Counts["critical"], *r.DetailsRetained = "PASS", 9, false
+	r.Blocking[0].Reason, r.Incomplete[0].Reason = "changed", "changed"
 	dg, _ := f.Diagnosis(ctx, proj, "feat-x")
 	dg.Findings[0].Evidence[0] = "changed"
 	s, _ := f.Stream(ctx, proj, deploy.StreamReadiness, "feat-x")
 	ev1, _ := s.Next()
 	ev2, _ := s.Next()
-	ev1.Log.Line, *ev2.Readiness.Ready = "changed", 9
+	ev1.Log.Line, *ev2.Readiness.Ready, *ev2.Readiness.Restarts, *ev2.Readiness.ExitCode = "changed", 9, 9, 9
 	a, _ := f.AutoDeploy(ctx, proj, "feat/x")
 	*a.Explicit = false
 	g, _ := f.Access(ctx, proj)
