@@ -92,8 +92,9 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
   **one** `useHeartbeat()` subscription in the chip (`hooks/heartbeat.ts:64`, seam SX.8), in
   `var(--numeric)` (tabular numerals, so the digits do not jitter). **No spinner** — the ring dot
   of `provisioning` is the one live signal, on the global clock.
-- **Reduced motion (review m18; `DESIGN-SYSTEM.md:90`).** `tokens.css` zeroes every
-  `animation-duration` under `prefers-reduced-motion: reduce` (`tokens.css:178`, inside the
+- **Reduced motion (review m18; `DESIGN-SYSTEM.md:90`).** `tokens.css` cuts every
+  `animation-duration` to `0.01ms` and every iteration count to 1 under
+  `prefers-reduced-motion: reduce` (`tokens.css:178-179`, inside the
   `@media` block that opens at `:174`), so the waking ring's breath stops. A waking
   (`provisioning`) and a sleeping machine are then both `dot-ring`, and would differ by colour
   alone.

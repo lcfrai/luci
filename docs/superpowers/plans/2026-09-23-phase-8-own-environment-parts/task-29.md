@@ -96,9 +96,11 @@ so it is its own rule; `get` and `update` reach only the one Lease. No `delete`,
 coordination and not a sandbox object: the sandbox Role keeps its four rules exactly, and nothing
 the broker can write in `panacea-sandboxes` grows. It needs no new grant for the cluster
 identity: that identity is RBAC Admin in `panacea-broker` (task 30's `RBAC_ADMIN_NAMESPACES`),
-which covers `leases` and `roles` there, so the RBAC escalation check passes without `escalate`
-(training knowledge of the built-in role's data actions, **UNVERIFIED**; the broker release's
-install in task 31 §7a proves it), and `sandboxes-deployer.json` is unchanged.
+and the RBAC escalation check most likely passes because Admin's data actions include
+`escalate` there: under the Azure RBAC webhook, the check sees webhook grants only through the
+`escalate` verb, so "Admin covers leases" alone would not pass it (b09 re-review 7; training
+knowledge of the built-in role's wildcard data actions, **UNVERIFIED** either way; the broker
+release's install in task 31 §7a proves the outcome), and `sandboxes-deployer.json` is unchanged.
 
 **`networkpolicy.yaml`** (in `panacea-broker`, on top of task 11's default-deny): ingress from the
 Traefik pods in `panacea-edge` on 8080 (the peer is namespace `panacea-edge` **and** Traefik's pod

@@ -101,8 +101,9 @@ func MachineClaimName(owner, machineID string) string
 - `containers[0].workingDir: Spec.WorkDir` when set;
 - when `Config.MachineAffinity`: `affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution`
   = one term, `labelSelector` `{panacea-app/component: machine, panacea-app/machine-id: <machine>,
-  panacea-app/owner: <owner>}` (the owner too, so two owners whose ids match never share a node,
-  review m12),
+  panacea-app/owner: <owner>}` (the owner too, so a session never follows another owner's
+  machine pod whose id happens to match, onto a node where its own machine's RWO disk is not
+  attached; owners do share nodes, task 18; review m12, b09 re-review 7),
   `topologyKey: kubernetes.io/hostname`.
   The consequence (review I5): a machine is capped at what is free on its machine pod's node,
   about three default sessions on `Standard_D8s_v5` (P8-D6). Past that the session is
