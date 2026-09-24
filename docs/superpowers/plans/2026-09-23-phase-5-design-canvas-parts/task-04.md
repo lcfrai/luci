@@ -37,6 +37,8 @@ by the export code, and passes `vitest`.
 
 - `tools/licencegate/go.mod` (new module, `go 1.23`, standard library only) and `go.work` (`use ./tools/licencegate`)
 - `tools/licencegate/main.go`, `gate.go`, `spdx.go`, `classify.go`, `sources.go`, `imports.go` (new)
+- `tools/licencegate/canon_windows.go` and `canon_other.go` (new): `canon`'s one platform line,
+  `syscall.GetLongPathName` on Windows, nothing elsewhere (re-review RR-M1)
 - `tools/licencegate/imports.cjs` and `imports.test.cjs` (new): the one Node helper, which asks the
   project's own `typescript` parser for each file's import specifiers (review I9, hole 1)
 - `tools/licencegate/exceptions.json` (new)
@@ -99,18 +101,28 @@ func Denied(eco Ecosystem, name string) bool
 //     and descended;
 //   - Cargo: its id is in "workspace_members". A path crate that is not a
 //     member is reported like any crate.
-// Paths are compared after canon: filepath.Abs, then filepath.EvalSymlinks,
-// which also expands an 8.3 short name (verified 2026-09-24, go1.26.2 on
-// Windows; how Go reports go list's Module.Dir under a short working
-// directory is unverified, and canon makes it not matter: C:/Users/AU-DEV~1/
-// AppData/Local/Temp became C:\Users\au-dev-dmackie1\AppData\Local\Temp; npm
-// prints "path" in the long form, re-review RR-M1), then, on Windows,
-// strings.EqualFold per element. "Inside -root" is filepath.Rel of the two
-// canon forms with no leading "..". A registry package named "desktop-notify",
+// Paths are compared after canon (re-review RR-M1: npm prints "path" in the
+// long form even under an 8.3 working directory, and -root may arrive short,
+// as in the program's own $TEMP mutation copies): filepath.Abs, then, on
+// Windows only (canon_windows.go), syscall.GetLongPathName, then
+// filepath.Clean. GetLongPathName expands short elements and keeps junctions
+// as they are; verified 2026-09-24 with go1.26.2 on Windows: C:\Users\AU-DEV~1\
+// AppData\Local\Temp became C:\Users\au-dev-dmackie1\AppData\Local\Temp, and
+// a path through a junction j kept "\j\". canon is never filepath.EvalSymlinks:
+// a worktree's desktop/node_modules is a junction into the main tree (the
+// program's rule 5), so resolving links would move every node's location
+// out of its project, and on the same probe EvalSymlinks of a path through
+// the junction returned an error, "The system cannot find the path
+// specified". On Windows, samePath and insideRoot compare with
+// strings.EqualFold (filepath.Rel already does, per element). "Inside -root"
+// is filepath.Rel of the two canon forms with no leading "..". How go list
+// prints Module.Dir under a short working directory is unverified; canon
+// makes it not matter. A registry package named "desktop-notify",
 // "@panacea-app/x" or "github.com/kpmg-au-emu/panacea-app/x" (a published copy
 // with Main false) is third party.
-// EvalSymlinks needs the path to exist, so canon of a missing path (a link
-// whose target is gone) is an error, and the run exits 2, never a skip.
+// GetLongPathName needs the path to exist, so canon of a missing path (a link
+// whose target is gone) is an error, and the run exits 2, never a skip. The
+// module stays standard-library only: syscall is the standard library.
 // Each source in sources.go applies its line of this rule through these:
 func canon(p string) (string, error)
 func samePath(a, b string) bool   // canon forms equal
@@ -381,7 +393,7 @@ enforced ecosystems alone, so a missing report is visible, never silent.
 | `TestShippedImports` (hole 1; table, injected `Runner` for `imports.cjs`) | `import type` skipped, `import { type A, b }` kept; `@s/n/sub` → `@s/n`, `n/sub` → `n`, `x?raw` → `x`; `./`, `node:`, `virtual:` skipped; `a.test.tsx`, `a.spec.ts` and `src/test/x.ts` not walked; `src/test/helper.ts` **is** walked when a shipped file imports it; `src/latest/x.ts` and `src/contest.tsx` **are** walked (a directory named exactly `test`, not a substring); a bare import in each of `a.mts`, `a.cts` and `a.cjs` is found (RR-M4); CSS `@import "pkg/a.css"` → `pkg`, and one inside `/* */` is not | a walk that trusts file names alone; a test helper that ships unscanned |
 | `imports.test.cjs` (`node --test`, real `typescript` from the project) | a fixture holding a comment `// import x from "c"`, JSX text `<p>Can't "d"</p>`, a regex `/"/g` and five real import forms yields exactly the five | a regex scanner substituted for the parser |
 | `TestNpmDeps_firstPartyIsStructural` (hole 2; RR-I9-1, RR-I9-2) | every fixture's `npm ls --long` JSON and `package-lock.json` is copied from a real npm run, and the test's comment names the npm version and the command, because a fixture composed from the rule's own words agrees with a wrong rule. Registry packages named `desktop-notify` and `@panacea-app/x` (`resolved: "https://registry…"`) are checked, and a `GPL-3.0` one fails; a link (lockfile `"link": true`) whose target is a scanned project's root is skipped and not descended; a link into `<root>/vendor/x`, not a scanned project, declaring `GPL-3.0`, fails "not a scanned project"; a link into `<root>-fork/x` declaring `UNLICENSED` fails (npm ls prints `resolved: "file:../../../<root>-fork/x"` for it, which joined to the node's `path` lands inside `-root`); a `file:vendor/g-1.0.0.tgz` tarball declaring `GPL-3.0`, no `link` in the lockfile, is checked and fails; a node with no lockfile entry is checked; the project root is skipped | first party matched by name or prefix; `insideRoot` as a string-prefix test; the link target joined to `path` (or to `filepath.Dir(path)`) from npm ls's `resolved`; any `file:` read as a link; "inside -root" read as "ours" |
-| `TestCanon` (RR-M1) | `samePath` of a path and its case-flipped form is true on Windows, false elsewhere; `insideRoot("<r>", "<r>-fork/x")` false; on Windows, when `os.TempDir()` holds a `~` (it does on the owner's machine: `C:\Users\AU-DEV~1\…`), `canon` of it has no `~` and `insideRoot(short, long form of a child)` is true; the case is skipped, and says so, where TEMP has no short element | a root given in 8.3 form putting every in-root link outside the root |
+| `TestCanon` (RR-M1) | `samePath` of a path and its case-flipped form is true on Windows, false elsewhere; `insideRoot("<r>", "<r>-fork/x")` false; on Windows, when `os.TempDir()` holds a `~` (it does on the owner's machine: `C:\Users\AU-DEV~1\…`), `canon` of it has no `~` and `insideRoot(short, long form of a child)` is true; the case is skipped, and says so, where TEMP has no short element; on Windows, a junction `j` made under `t.TempDir()` (`mklink /J`, skipped with a message if it cannot be made) → `canon` of `j/f` still ends `\j\f` | a root given in 8.3 form putting every in-root link outside the root; `canon` as `filepath.EvalSymlinks`, which moves a worktree's junctioned `node_modules` into the main tree |
 | `TestGoDeps_firstPartyIsStructural` (hole 2; RR-I9-2) | `Main: true` skipped; `github.com/kpmg-au-emu/panacea-app/x` with `Main: false` is checked; a directory `replace` into `<root>/third_party/gpl-lib` holding a `GPL-3.0` text is classified from `Replace.Dir` and fails, and one outside `-root` is classified too; `.Standard` skipped; a module under two packages is one `Dep` | first party matched by module path; a vendored fork inside the repository exempted as first party; first-party code failing its own gate |
 | `TestClassify_noLicenceFile` + `TestGoDeps_noLicenceFileFails` (hole 3) | an empty module dir → `("", "none", nil)`; that module's `Dep` fails with why "no licence file in …", exit 1, not 2 | a module with no licence passing, or aborting the run |
 | `TestNpmDeps_readsEachCopyAtItsPath` (hole 4) | `node_modules/x` 1.0.0 `MIT` and `node_modules/y/node_modules/x` 2.0.0 `GPL-3.0` are two `Dep`s, each `license` read from its own `path`; the nested one fails; a node printed twice at one path, once without children, keeps its children | a `node_modules/<name>` guess; one copy shadowing another |

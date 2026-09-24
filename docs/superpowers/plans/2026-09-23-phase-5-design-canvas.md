@@ -381,8 +381,8 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `src/components/AppShell.tsx` | the `design` arm renders `<DesignLens/>` in place of `LensPlaceholder` (`:36-43`); one `<DesignRenderers/>` beside `<Toasts/>` for the hidden renderers (P5-Q) | 28 |
 | `src/api/client.ts` | the `ProblemCode` union gains the design codes — **declared amendment** of UI contract §4.2 | 27 |
 
-**Repository**: `go.work` (task 02); `tools/licencegate/` (new module: `main.go`, `spdx.go`, `imports.go`, `imports.cjs`,
-`exceptions.json`, `testdata/`) and `azure-pipelines.yml` (tasks 02–04);
+**Repository**: `go.work` (task 02); `tools/licencegate/` (new module: `main.go`, `gate.go`, `spdx.go`, `classify.go`, `sources.go`,
+`imports.go`, `canon_windows.go`, `canon_other.go`, `imports.cjs`, `exceptions.json`, `testdata/`) and `azure-pipelines.yml` (tasks 02–04);
 `docs/superpowers/contracts/2026-09-23-phase-5-design-contract.md` (new, task 30: the wire contract
 gathered from the parts), and amendments to the phase 2 UI contract §10.5 and `PROGRAM.md` phase 5
 (task 30).
@@ -543,11 +543,13 @@ is not committed — phase 3's 3-D6); OQ-11 (Figma via its MCP is v2, behind own
   while a `file:` tarball's is relative to the project and carries no link marker, so the gate
   never reads it; the project's `package-lock.json` states each link as `"link": true` with
   `resolved` relative to the project (two fixtures); `go list -deps -json` under `go.work` marks
-  both workspace modules `"Main": true`; go1.26.2's `filepath.EvalSymlinks` expands an 8.3 short
-  name; `cargo metadata --offline --locked` runs in `desktop/src-tauri` from the local registry
+  both workspace modules `"Main": true`; on go1.26.2, `syscall.GetLongPathName` expands an 8.3
+  short name and keeps a junction in the path, where `filepath.EvalSymlinks` did not; `cargo metadata --offline --locked` runs in `desktop/src-tauri` from the local registry
   cache; `typescript` 6.0.3's parser returns exact import specifiers where a regex does not.
   Unverified: whether `npm ls` prints a deduplicated node's children (the gate unions by path
-  either way), and whether the CI agent has `cargo` and its `cargo fetch --locked` step gets
+  either way); how `npm ls` prints the nodes under a worktree's junctioned `node_modules` (the
+  gate takes links from the lockfile alone, so a node npm shows as a link and the lockfile does
+  not is checked, never exempted); and whether the CI agent has `cargo` and its `cargo fetch --locked` step gets
   through: `--offline` reads only the registry cache, which a fresh hosted agent does not have, so
   the cache, not `cargo` alone, decides whether CI's report runs (the gate prints
   `REPORT cargo: not scanned` when it does not).
