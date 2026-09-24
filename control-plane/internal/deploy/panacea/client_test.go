@@ -428,6 +428,55 @@ func TestGetRetriedOnReset(t *testing.T) {
 	}
 }
 
+// cutThen answers the first n requests 200 with a body cut short mid-stream (the connection is
+// aborted after 5 of 100 promised bytes), then 200 {"ok":true}.
+func cutThen(n int32) (http.HandlerFunc, *atomic.Int32) {
+	var calls atomic.Int32
+	return func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) <= n {
+			w.Header().Set("Content-Length", "100")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"ok"`))
+			w.(http.Flusher).Flush()
+			panic(http.ErrAbortHandler)
+		}
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}, &calls
+}
+
+func TestGetRetriedOnCutBody(t *testing.T) {
+	h, calls := cutThen(1)
+	hs := newHarness(t, h)
+	var out struct{ OK bool }
+	if err := hs.c.do(context.Background(), "environments", http.MethodGet, "/api/v1/projects", nil, &out); err != nil || !out.OK {
+		t.Fatalf("GET after a cut body: %v, %+v; want the retry to succeed", err, out)
+	}
+	if calls.Load() != 2 {
+		t.Errorf("GET after a cut body: %d attempts, want 2", calls.Load())
+	}
+	// A POST is never retried; its cut 200 is unavailable with Status 200: Panacea answered.
+	h, calls = cutThen(1)
+	hs = newHarness(t, h)
+	err := hs.c.do(context.Background(), "ship", http.MethodPost, "/api/v1/projects/p/deploy", map[string]string{}, &out)
+	if e := asDeployError(t, err); e.Kind != deploy.KindUnavailable || e.Status != 200 || calls.Load() != 1 {
+		t.Errorf("POST with a cut body: {%q %d} after %d attempts; want unavailable 200 after 1", e.Kind, e.Status, calls.Load())
+	}
+}
+
+func TestOutUntouchedWhenBodyDoesNotDecode(t *testing.T) {
+	hs := newHarness(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"name":"filled","count":"not a number"}`))
+	})
+	var out struct {
+		Name  string `json:"name"`
+		Count int    `json:"count"`
+	}
+	err := hs.c.do(context.Background(), "ship", http.MethodPost, "/api/v1/projects/p/deploy", nil, &out)
+	if deploy.KindOf(err) != deploy.KindUnavailable || out.Name != "" {
+		t.Errorf("a 200 that half-decodes: %v, out %+v; want unavailable and out untouched", err, out)
+	}
+}
+
 func TestTimeoutPerAttempt(t *testing.T) {
 	var calls atomic.Int32
 	slowFirst := func(w http.ResponseWriter, r *http.Request) {
@@ -545,6 +594,25 @@ func TestVersionDecodes(t *testing.T) {
 	// An address ParseOrigin refuses is refused before any request.
 	if _, err := Version(context.Background(), srv.Client(), srv.URL+"/api"); deploy.KindOf(err) != deploy.KindRejected || hits.Load() != 0 {
 		t.Errorf("origin with a path: %v after %d requests; want rejected before any", err, hits.Load())
+	}
+}
+
+func TestVersionSendsNoCookie(t *testing.T) {
+	var cookie atomic.Value
+	srv, _ := versionServer(t, func(w http.ResponseWriter, r *http.Request) {
+		cookie.Store(r.Header.Get("Cookie"))
+		_, _ = w.Write([]byte(`{"version":"v1.163.0"}`))
+	})
+	jar, _ := cookiejar.New(nil)
+	u, _ := url.Parse(srv.URL)
+	jar.SetCookies(u, []*http.Cookie{{Name: "_oauth2_proxy", Value: "sso-session"}})
+	hc := srv.Client()
+	hc.Jar = jar
+	if _, err := Version(context.Background(), hc, srv.URL); err != nil {
+		t.Fatal(err)
+	}
+	if got := cookie.Load(); got != "" {
+		t.Errorf("Version sent Cookie %q; an SSO cookie must never prove an address is the API", got)
 	}
 }
 
