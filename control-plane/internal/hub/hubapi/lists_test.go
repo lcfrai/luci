@@ -86,9 +86,12 @@ func TestEnsureListsWritesEmptyNotNull(t *testing.T) {
 	if rs[1].Deployments == nil {
 		t.Errorf("EnsureLists([]Release) left an element's deployments nil")
 	}
-	// Nothing to do is not an error.
+	// Nothing to do is not an error, and a nil slice or map passed by value, which
+	// cannot be replaced, is left alone rather than panicking (mutant S3).
 	EnsureLists(nil)
 	EnsureLists((*Project)(nil))
+	EnsureLists([]Release(nil))
+	EnsureLists(map[string]HeadInfo(nil))
 }
 
 // A struct passed by value cannot be changed, so its lists would go out null.

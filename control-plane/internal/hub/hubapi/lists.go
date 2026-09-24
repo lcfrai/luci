@@ -17,10 +17,7 @@ import "reflect"
 // with no sign. EnsureLists panics for one, naming the fix, rather than do
 // nothing (task 03).
 func EnsureLists(v any) {
-	if v == nil {
-		return
-	}
-	rv := reflect.ValueOf(v)
+	rv := reflect.ValueOf(v) // nil gives the zero Value, which fill leaves alone
 	if rv.Kind() == reflect.Struct {
 		panic("hubapi.EnsureLists: a " + rv.Type().String() + " passed by value cannot be changed; pass a pointer to it")
 	}

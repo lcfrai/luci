@@ -609,6 +609,21 @@ func TestARequiredDigestAbsentOrNullIsNamed(t *testing.T) {
 	if !errors.Is(RequireDigests(ev), ErrRequired) {
 		t.Errorf("RequireDigests(EvidenceRequest value) = %v, want ErrRequired", RequireDigests(ev))
 	}
+	// No body, and a field encoding/json never fills ("-"), are not refusals
+	// (mutants S2 and P24).
+	if err := RequireDigests(nil); err != nil {
+		t.Errorf("RequireDigests(nil) = %v, want nil", err)
+	}
+	if err := RequireDigests((*EvidenceRequest)(nil)); err != nil {
+		t.Errorf("RequireDigests((*EvidenceRequest)(nil)) = %v, want nil", err)
+	}
+	type skipped struct {
+		Internal Digest `json:"-"`
+		Sent     Digest `json:"sent"`
+	}
+	if err := RequireDigests(skipped{Sent: DigestOf(nil)}); err != nil {
+		t.Errorf("RequireDigests with a json:\"-\" digest = %v, want nil: the wire never carries it", err)
+	}
 	// Every required digest of every request type has a row above.
 	for _, v := range requestTypes {
 		var paths []string
