@@ -153,3 +153,158 @@ because another session asked"* (https://code.claude.com/docs/en/cross-session-m
 renderer, an excluded-file writer on the syncer timer, three canary tests), plus the board's tokens
 in every session (keep it under ~2 KB).
 
+### 1.3 Rank 2 — push through Claude Code's own inbox socket
+
+Claude Code ships **cross-session messaging**: each session binds an **inbox socket** (a Unix
+domain socket on Linux, a named pipe on Windows), and the docs name the use we want — *"when you
+want a script or hook to post into a session"* (https://code.claude.com/docs/en/cross-session-messaging,
+"The session's inbox socket"). Facts from that page:
+
+- On by default from v2.1.224 (Linux) and v2.1.234 (Windows); *"messaging is on with nothing to enable"*.
+- Delivery: *"The receiving Claude reads the message between tool calls during an active turn, so a
+  running tool is never interrupted. When the receiving session is idle, Claude Code starts a new
+  turn with the message."* **This is the only documented mid-turn push that needs no MCP and no hook.**
+- The path is exported to hooks and Bash commands as `CLAUDE_CODE_MESSAGING_SOCKET`, with a
+  per-session `CLAUDE_CODE_MESSAGING_TOKEN`. **Observed 2026-09-24** on this laptop (2.1.273, native
+  Windows): a Bash command sees `CLAUDE_CODE_MESSAGING_SOCKET=\\.\pipe\LOCAL\cc-msg-…` and a token.
+- Scope: *"A container has its own filesystem, so a session inside it and a session on the host
+  can't reach each other."* So the poster must run **inside the sandbox**. Cross-machine delivery
+  exists only between **one user's own** sessions, through Anthropic servers over Remote Control —
+  and `disableRemoteControl: true` here. **Nothing native crosses users.** The Hub has to.
+- Trust: an arriving message is marked as from another session; it *"can't approve anything"*,
+  commands in it *"arrive as plain text"*, and permission prompts still fire.
+- Inbound control: `crossSessionInbound` = `accept` · `hold` · `refuse`. With no value set, a session
+  that **bypasses** permission prompts *holds* messages from a sender that asserts no class — our
+  product offers `bypassPermissions` (`argv.go:19`). The docs' own fix for an unattended worker is to
+  launch it with `crossSessionInbound: "accept"` in `--settings`, which is K9 territory.
+- Cost: *"Once delivered, the message counts toward usage like a prompt you type."*
+
+**The design.** A small **relay** in the sandbox image, beside the existing PTY daemon, takes team
+events from the control plane over the sandbox transport it already has, and posts one plain-text
+message to the session's socket — only for events worth a turn: a **new forecast conflict against
+this lane** (§3), a teammate's **land that touches this lane's paths**, or a human's direct
+**ask-teammate**. Batch to at most one message per lane per few minutes.
+
+**What is not known, and must be canaried:**
+1. **How the relay finds the socket.** The env var reaches the CLI's *children*, and the relay is
+   not one. Sessions *"register … in files on disk"*, at a path the page does not give. Reading that
+   registry is reading harness internals, so it goes through the **OD-8 adapter** (pinned, canary,
+   degrade). **UNVERIFIED.**
+2. **The message line's schema.** The page documents only the auth line
+   (`{"type":"auth","token":"…"}`). **UNVERIFIED.**
+3. Whether a Kata sandbox's Claude runs as PID 1 (then only the token verifies an own-child
+   message) — **UNVERIFIED**; it should not be PID 1.
+
+**Quota.** Every push spends the **receiving user's** own subscription, triggered by a teammate.
+That is not pooling (K3 holds: each agent runs on its owner's account), but it must be the
+receiving user's choice: a per-user setting, *"Teammates' events may message my agents"*, default
+**on for conflicts only**.
+
+**Fit:** K1 holds (documented interface, CLI untouched); K2 holds if discovery goes through the
+adapter; K4 holds (in-sandbox). **Maturity:** GA feature, but posting from a non-child process is a
+use the docs describe only loosely. **Cost:** ~2 days for the relay, its batching, and a
+canary that posts and asserts delivery against the pinned CLI version. The natural home is
+`sandboxd`, which already launches the CLI as its child and serves `/attach`
+(`sandboxd/cmd/sandboxd/serve_posix.go:11-17`, `sandboxd/internal/server/server.go:85`).
+
+### 1.4 Rank 3 — a coordination MCP server
+
+MCP (spec revision **2026-07-28**, https://modelcontextprotocol.io/specification/latest) gives a
+server **tools** the model calls and **resources** it reads, over JSON-RPC. It is the natural shape
+for *"agents understand what each other are doing"*, because the agent **asks** when it needs to.
+
+**Where it runs — inside the sandbox, as a stdio server, holding no credential.** It forwards each
+call to the control plane over `sandboxd`'s transport; the control plane calls the Hub **as the
+user** (K6). The agent never holds a Hub token, the same rule phase 3 keeps for git (*"The sandbox
+never holds a git credential"*, phase 3 plan `:37-38`). A Hub-hosted Streamable-HTTP server would
+need a bearer token in the sandbox, and would widen K5's loopback exposure. Rejected.
+
+**The tool surface** (every answer computed from §2–§3 facts; nothing the agent says is trusted as
+fact about the repository):
+
+| Tool | Returns / does | Source of truth |
+|---|---|---|
+| `whoami` | user, session id, lane, branch, brief key | control plane |
+| `team_activity(project)` | the board of §1.2, fresh | Hub feed + lane observations |
+| `forecast(paths?)` | would my lane (or these paths) conflict with any teammate's lane? | `merge-tree` (§3) |
+| `claim_paths(globs, ttl, why)` | records a **declared** claim, advisory, expiring | Hub |
+| `post_note(text)` | a note on the project's coordination log, shown to humans and agents | Hub |
+| `ask_teammate(user or agent, text)` | a question to a **human's** cockpit; delivery to *their* agent only through §1.3 and only if *they* allow it | Hub, then relay |
+
+**Declared claims stay advisory.** The phase 3 survey is right that for a declared claim *"the
+agent can ignore it"*, and that enforcement means wrapping the CLI (`survey-phase-3-git-convergence.md:279-292`). A
+claim is **intent**, shown beside the observed facts; the board says when a lane has changed
+paths another agent claimed.
+
+**Policy today.** Blocked for KPMG accounts (§1.1): a user, project, plugin or `--mcp-config` server
+must match `allowedMcpServers`, which is `[]`. A stdio server is matched by its command
+(managed-mcp docs: entries match *"by URL, command, or name"*). So the unlock is **one allowlist
+entry naming our binary**, added by the customer's admin. That is an honest, reviewable ask.
+
+**Fit:** K1–K6 hold. MCP's own principle is that *"Hosts must obtain explicit user consent before
+invoking any tool"* — Claude Code's permission prompts do that; in `bypassPermissions` mode the
+user has chosen to waive them. **Maturity:** MCP GA; the server is ours to build. **Cost:** ~3 days
+(stdio server, six tools, control-plane routes, Hub claim/note tables, tests), plus the admin
+conversation per tenant.
+
+### 1.5 Rank 4 — hooks, only from an approved plugin
+
+Hooks are the strongest channel when allowed: `UserPromptSubmit`, `PreToolUse` and `PostToolUse`
+may return `hookSpecificOutput.additionalContext`, and a `PreToolUse` `deny` shows Claude the
+`permissionDecisionReason` (https://code.claude.com/docs/en/hooks, read 2026-09-24). A
+`PreToolUse` hook on `Edit|Write` could answer *"Dana's lane changed this file 4 minutes ago; see
+`.panacea/team.md`"* at the exact moment of collision. `SessionStart` output is also re-added after
+compaction (https://code.claude.com/docs/en/context-window).
+
+**Why it is rank 4.** `strictPluginOnlyCustomization` blocks settings-file hooks; plugin hooks
+(`hooks/hooks.json` in the plugin) still load, but `strictKnownMarketplaces` admits only four
+marketplaces, none ours (§1.1). So the path is a **Panacea plugin published into the customer's
+approved marketplace** — a procurement step, not an engineering one. Two more cautions:
+- A hook that **denies** an edit is enforcement by the back door. Keep hooks to adding context,
+  never `deny`; the product's rule is that claims are readings (task 07 `:11`).
+- The user's device notes record that settings hooks silently stopped firing here once the policy
+  arrived. A feature that assumes hooks fails silently, which is the failure the phase 4 plan warns
+  about for `CLAUDE.md` (`:42`). Hooks may only **add** to rank 1, never replace it.
+
+**Cost:** ~1 day for the plugin once rank 1's files exist (the hook reads the same excluded file;
+it needs no network, so K5 is untouched), plus marketplace approval time, which is **unknown**.
+
+### 1.6 Rank 5 — launch flags the control plane already controls
+
+`--append-system-prompt` (*"Append custom text to the end of the default system prompt"*),
+`--add-dir` and `--name` are launch flags (https://code.claude.com/docs/en/cli-reference, read
+2026-09-24). `--add-dir` can also load a directory's `CLAUDE.md` and `.claude/rules/` (memory docs,
+"additional directories"; the env switch that enables it was not checked — **UNVERIFIED**).
+Two uses: `--name <owner>/<focus>` makes each session's name meaningful in Claude Code's own
+`/list-agents`, and one appended sentence tells the agent that `.panacea/team.md` exists and what it
+is. Launch-time only, so it adds to rank 1. **Cost:** hours, inside `harness.Build`.
+
+### 1.7 What Claude Code already has natively, and why none of it crosses users
+
+| Feature | What it gives | Why it does not answer the ask |
+|---|---|---|
+| **Agent teams** (enabled by KPMG's env) | lead + teammates, a shared task list, per-agent mailboxes; *"Task claiming uses file locking"* | *"Teams and tasks are stored locally"* under `~/.claude/teams/` and `~/.claude/tasks/`; *"One team per session … You can't … share a team across sessions"*; *"Two teammates editing the same file leads to overwrites"* (https://code.claude.com/docs/en/agent-teams) |
+| **Cross-session messaging** | `ListAgents`/`SendMessage` between sessions | *"your other Claude Code sessions"* — one user; other machines only via Remote Control, disabled here (§1.3) |
+| **Channels** | an MCP server pushes events into a running session | research preview; plugin on an allowlist; `channelsEnabled: false` here (https://code.claude.com/docs/en/channels) |
+
+Two lessons worth taking. Agent teams' **task list with claim-by-lock and dependencies** is the
+right shape for declared claims (§1.4). And the mailbox is a JSON file per agent — writing into it
+from outside would be rewriting a harness's own records, which **OD-8 forbids**
+(owner decisions `:78-79`). Do not.
+
+### 1.8 A2A and where it fits
+
+A2A (spec **1.0.0**, https://a2a-protocol.org/latest/specification/, read 2026-09-24; the page says
+the project *"joins the Agentic AI Foundation"*) is agent-to-agent RPC: an **Agent Card** declaring
+*"identity, capabilities, skills, service endpoint, and authentication requirements"*, a **Task**
+lifecycle (`SUBMITTED` → `WORKING` → `INPUT_REQUIRED` / `COMPLETED` / `FAILED` / `REJECTED`),
+JSON-RPC, gRPC or HTTP+JSON bindings, streaming and webhook push, and agents that stay
+**opaque** — they *"collaborate … without needing to share their internal thoughts, plans, or tool
+implementations"*.
+
+**Fit.** Claude Code does not speak A2A, and we may not wrap it (K1). So A2A cannot be the channel
+*into* an agent. It can be the **Hub's outward face** later: a project's board as an Agent Card and
+a task feed, so a customer's other agent systems can read what our fleet is doing. Its opacity
+principle is the right one for us too: agents share **declared intent and observed facts**, never
+transcripts. **Cost now:** none; revisit when a customer asks for interop.
+
