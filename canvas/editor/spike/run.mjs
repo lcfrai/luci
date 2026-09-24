@@ -268,6 +268,15 @@ function problems(r) {
   if (!r.s11 || typeof r.s11.waitMs !== "number" || !r.s11.commandLine) out.push("s11 missing or incomplete");
   return out;
 }
+// Positive run: S11's layout half is the page's own copy of task 24's rule (schedulePatch plus the
+// pre-measure flush), deterministic whatever the capture does, so it is asserted, not just recorded.
+// S11's outcome alone cannot pin it: the capture half can fail the check by itself.
+function positiveProblems(r) {
+  const out = [];
+  if (r.extras.s11 && r.extras.s11.windowState === "minimized" && !(Math.abs(r.s11.width - 160) <= 0.5))
+    out.push(`S11 layout half: width ${r.s11.width} while minimised, want 160 (schedulePatch + pre-measure flush broken)`);
+  return out;
+}
 // --negative: each variant must fail, and each leg must fail for its own reason.
 function negativeProblems(r) {
   const out = [], outcome = (id) => r.checks.find((c) => c.id === id)?.outcome;
@@ -300,7 +309,7 @@ try {
   if (code !== 0) exitCode = code;
   else {
     process.stdout.write(JSON.stringify(result, null, 2) + "\n");
-    const bad = [...problems(result), ...(NEG ? negativeProblems(result) : [])];
+    const bad = [...problems(result), ...(NEG ? negativeProblems(result) : positiveProblems(result))];
     for (const c of result.checks) log(`${c.id} ${c.outcome}`);
     for (const b of bad) log("PROBLEM:", b);
     if (NEG && !bad.length) log("negatives: every variant failed as expected");
