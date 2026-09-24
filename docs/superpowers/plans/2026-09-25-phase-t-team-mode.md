@@ -181,6 +181,64 @@ and fails closed if the AU route is down.
 - Budgets are on by default, escalation floors only tighten, opening prompts are private, and a
   project has a data class from creation (OD-24).
 - State what is unverified. A task that cannot run on the real cluster says which acceptance step
-  is deferred to task 45 or 46, and why.
+  is deferred to task 33 (TM1-α), 57 (TM1) or 69 (TM2), and why.
+
+---
+
+## File map
+
+`cp/` is `control-plane/` (module `github.com/kpmg-au-emu/panacea-app/control-plane`); `sbx/` is
+`sandboxd/` (its own module, vendored). `go.work` joins the two, and **neither imports the other**
+(checked: no `panacea-app/sandboxd` import under `control-plane/`), so a shape both speak is written
+twice and pinned by one set of golden fixtures that both modules' tests read.
+
+### New on `feat/team-mode`
+
+| Path | Responsibility | Task |
+|---|---|---|
+| `cp/internal/teamtext/{text.go,hygiene.go,glob.go}` | Bounded text with its author class (`text·A`, `text·H`); G3 hygiene (C0/C1, ANSI, bidi, U+E0000–E007F, whitespace runs in names, secret-shaped text); repo-relative glob validation, the 200-character path cap and the 10% breadth check | 02 |
+| `cp/internal/fleet/model/*.go` | Fleet's domain: `Class`, `Agent`, `Lease`, `Event`, `Turn`, the per-class verb table | 09 |
+| `cp/internal/fleet/wire/control.go`, `sbx/internal/control/wire.go`, `testdata/panacea-control/v1/*.json` | The `panacea` control wire v1, one copy per module, one fixture set | 09 |
+| `cp/internal/fleet/store/{store.go,memstore.go,pgstore.go}`, `.../store/storetest/suite.go`, `.../store/migrations/0001_fleet.sql` | Fleet's Postgres schema and the `Store` both implementations pass | 10 |
+| `cp/internal/fleet/outbox/outbox.go` | The durable Hub outbox, idempotent delivery, the 10-minute negotiation pause | 11 |
+| `cp/internal/fleet/delegation/{client.go,feed.go,rebuild.go}` | Fleet as a delegated Hub caller; the per-org feed; revocation within 60 s; rebuild after restart | 11 |
+| `cp/cmd/fleetd/{main.go,config.go}`, `cp/internal/fleet/server/{server.go,authz.go}` | The chassis: `PANACEA_APP_FLEET_*`, Entra per request, role-to-verb, singleton loops | 12 |
+| `cp/internal/policy/{policy.go,merge.go,digest.go}`, `.../policy/defaults/{worker,orchestrator,mirror}.json` | **OD-23's mechanism**: layers, merge, invariants, digest; the minimal defaults | 13 |
+| `cp/internal/policy/store.go`, `cp/internal/fleet/server/policy.go` | Versioned, append-only policy per org and project; the admin routes; the audit event | 14 |
+| `sbx/internal/policycheck/policycheck.go` | `sandboxd` refuses to start the harness unless the mounted managed file matches its digest | 15 |
+| `sbx/internal/control/{server.go,socket.go,snapshot.go}` | `/control`, the in-pod Unix socket that stamps the calling session, the `team.json` tmpfs snapshot | 16 |
+| `sbx/internal/panaceacli/*.go` | Every `panacea` verb but `token`, over the socket; the unavailable answer | 18 |
+| `cp/internal/fleet/control/{streams.go,dispatch.go}` | One control stream per sandbox through the broker; verb dispatch by class and owner | 19 |
+| `cp/internal/fleet/sessions/{sessions.go,tokens.go}` | Launch keyed by owner over the broker; `ag-…` ids; gateway tokens with their tags | 20 |
+| `cp/internal/backend/fleetbe/fleetbe.go`, `cp/internal/api/teamlaunch.go` | The desktop's `fleetbe` behind `backend.Backend`; the team launch that creates the delegation | 21 |
+| `cp/internal/fleet/verbs/{team.go,check.go,files.go}` | Read verbs, filtered by class | 22 |
+| `cp/internal/fleet/verbs/{task.go,worker.go,report.go}` | Task, worker and report verbs | 23 |
+| `cp/internal/fleet/leases/{leases.go,rightofway.go}`, `cp/internal/fleet/verbs/lease.go` | The lease engine | 24, 35 |
+| `cp/internal/fleet/forecast/{tierp.go,tierh.go,tierm.go,coedit.go}` | The forecaster, tier by tier | 25, 36, 60 |
+| `cp/internal/fleet/turns/{queue.go,origin.go,template.go}` | The per-Orchestrator event queue, turn origin, the fixed turn template | 26 |
+| `sbx/cmd/panacea-orchestrator/main.go`, `sbx/internal/runner/{runner.go,rotate.go,dive.go}` | The Orchestrator runner | 27, 40 |
+| `cp/internal/fleet/protocol/{messages.go,inbox.go,ask.go,limits.go,resolve.go}`, `cp/internal/fleet/verbs/{peer.go,inbox.go}` | Threads, message kinds, the templated `ask`, limits, resolutions | 28, 29, 62 |
+| `cp/internal/fleet/escalate/{escalate.go,rules.go}`, `cp/internal/fleet/verbs/human.go` | Inform and decide, the §6.5 rows, Fleet-set defaults and deadlines | 30 |
+| `cp/internal/fleet/directive/{directive.go,taint.go}`, `cp/internal/fleet/verbs/direct.go` | Directives, the taint rule, piggyback delivery | 31 |
+| `deploy/charts/fleet/**` | Fleet's chart: two replicas, PDB, workload identity, NetworkPolicy | 32 |
+| `infra/smoke/team/*.sh`, `docs/verification/2026-09-25-phase-t-alpha-results.md` | TM1-α's scripted run on the real cluster, and its record | 33 |
+| `cp/internal/fleet/activity/{activity.go,presence.go}` | The 45-second activity table, presence, holds from observed edits | 35 |
+| `cp/internal/fleet/budget/{budget.go,counterpart.go}` | Turn budgets, human bypass, per-counterpart cap and digest, the spend split | 37 |
+| `cp/internal/fleet/ptywriter/ptywriter.go`, `cp/internal/fleet/delivery/ladder.go` | The template-only PTY writer and the delivery ladder | 38 |
+| `cp/internal/fleet/relay/{attach.go,revoke.go}` | Fleet's own attach handler and socket revocation | 39 |
+| `cp/internal/fleet/instructions/{orchestrator.md,worker-cloud.md}`, `cp/internal/fleet/eval/*`, `testdata/team-events/*.json` | The Orchestrator's instructions and the replay eval | 41 |
+| `cp/internal/fleet/g9/{corpus/*.txt,g9_test.go,run.go}` | G9's corpus and the scripted two-Orchestrator run | 42 |
+| `prototype/team-mode.html` | The owner-reviewed prototype of every team surface | 51 |
+| `cp/internal/api/team.go`, `desktop/src/api/team.ts`, `desktop/src/store/slices/teamSlice.ts`, `desktop/src/store/types.ts` | Team read models and actions on the local control plane; the desktop client | 52 |
+| `desktop/src/components/team/*` | The team strip and click-in | 53 |
+| `desktop/src/components/desk/team*.tsx` | The four Desk row kinds | 54 |
+| `desktop/src/components/orchestrator/*` | The Orchestrator panel | 55 |
+| `desktop/src/components/team/{RouteBadge,ShareLine,SpendLine}.tsx` | Route badge, Share line, spend split | 56 |
+| `docs/verification/2026-09-25-phase-t-tm1-results.md` | TM1's two-person proof | 57 |
+| `cp/internal/fleet/mirror/{client.go,result.go}`, `sbx/cmd/panacea-mirror/main.go` | The lane mirror's typed results and its in-pod runner | 59 |
+| `cp/internal/fleet/landq/landq.go` | The team land queue over the mirror | 61 |
+| `cp/internal/api/lanesmove.go` | "Move my lanes to the cloud" | 64 |
+| `desktop/src/components/team/QuotaAdmin.tsx` | Quotas admin view | 67 |
+| `docs/verification/2026-09-25-phase-t-tm2-results.md` | TM2's proof | 69 |
 
 ---
