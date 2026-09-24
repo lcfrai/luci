@@ -708,12 +708,21 @@ given remote, so `repo=` returns zero or one item.
   "remotes": [ { "repoKey": "github.com/lcfrai/panaceaapp", "host": "github" } ] }
 ```
 → `201 Project`. `name` 1–120 characters, unique per team. `remotes` may be empty. A `repoKey`
-already linked anywhere in the org is 409 `repo_already_linked`. `repoKey` must match
-`^github\.com/[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$` for `github`, or
-`^[a-z0-9-]{1,50}\.visualstudio\.com/[^/]{1,64}/[^/]{1,64}$` for `azure-devops` (Azure DevOps
-project names may contain spaces) — phase 3's two forms (`2026-09-23-phase-3-git-convergence.md:299`),
-canonicalised by phase 3's `githost` before sending; the Hub compares them byte for byte. Event
-`project.created`.
+already linked anywhere in the org is 409 `repo_already_linked`, whose `message` is exactly
+*"Another team already shares this repository. Ask someone in that team to invite you."* (the
+desktop renders it verbatim). `repoKey` must match
+`^github\.com/[a-z0-9-]{1,39}/[a-z0-9._-]{1,100}$` for `github`, or
+`^azure-devops/[a-z0-9-]{1,50}/[^/\x00-\x1f\x7f]{1,64}/[^/\x00-\x1f\x7f]{1,64}$` for
+`azure-devops` (Azure DevOps project and repository names may contain spaces, never a control
+character), **and** `repoKey == strings.ToLower(repoKey)` for both: the Hub refuses a
+non-canonical key (400 `bad_request`) rather than fold it, because two spellings of one
+repository would link it to two projects. These are phase 3's `githost.RepoKey()` forms,
+`github.com/<owner>/<repo>` and `azure-devops/<org>/<project>/<repo>`, lowercased (phase 3
+`task-13.md:140-143`; its review I10: `dev.azure.com/<org>` and `<org>.visualstudio.com` are one
+organisation, so the key names neither), canonicalised by phase 3 before sending; the Hub compares
+them byte for byte. The patterns are `hubapi`'s `githubKeyRe` and `adoKeyRe`, and
+`TestTheContractsRepoKeyRegexIsTheCodes` fails if this text and the code differ (Phase H plan, A1;
+task 01). Event `project.created`.
 
 **`GET /v1/projects/{projectId}`** → `200 Project`.
 
