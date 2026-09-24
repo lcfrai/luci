@@ -5,6 +5,10 @@ import react from "@vitejs/plugin-react";
 // strictPort for Tauri, and a test run must never fail because the dev server is up.
 export default defineConfig({
   plugins: [react()],
+  // Phase 5 task 03, declared amendment: @panacea-app/canvas-editor is linked from
+  // ../canvas/editor, which has its own node_modules. Without this its "react" is a second copy
+  // and its hooks throw "Invalid hook call" (src/design/editorPackage.test.tsx).
+  resolve: { dedupe: ["react", "react-dom"] },
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],

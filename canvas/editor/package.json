@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "main": "src/index.ts",
   "types": "src/index.ts",
-  "exports": { ".": "./src/index.ts", "./editor.css": "./src/editor.css" },
+  "exports": { ".": "./src/index.ts", "./editor.css": "./src/editor/editor.css" },
   "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
   "peerDependencies": { "react": "^19.1.0", "react-dom": "^19.1.0" },
   "dependencies": {},

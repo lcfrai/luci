@@ -7,6 +7,9 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react()],
+  // Phase 5 task 03: one React for the linked @panacea-app/canvas-editor (../canvas/editor has
+  // its own node_modules), as in vitest.config.ts.
+  resolve: { dedupe: ["react", "react-dom"] },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
@@ -28,5 +31,7 @@ export default defineConfig(() => ({
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
+    // 4. serve the linked canvas editor's source, which lives outside this root (task 03)
+    fs: { allow: [".", "../canvas/editor"] },
   },
 }));
