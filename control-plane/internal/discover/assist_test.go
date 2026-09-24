@@ -544,6 +544,9 @@ func TestTheSystemPromptLetsTheModelDeclineAndStatesTheLimits(t *testing.T) {
 		"under the question, at most 200 characters",
 		"up to 4 short answers", "each at most 120 characters",
 		"basedOn is the key of the one answer", "keys shown in brackets",
+		// A decline must still meet the schema (TestAModelThatSaysEnoughIsNothingToAsk),
+		// and a gateway that ignores output_config leaves only this to say so.
+		"When ask is false, send empty strings, an empty options list, and any listed key as basedOn.",
 	} {
 		if !strings.Contains(f.last.System, want) {
 			t.Errorf("System does not say %q:\n%s", want, f.last.System)
@@ -696,5 +699,29 @@ func TestTheFollowUpRunsUnderItsOwnBudget(t *testing.T) {
 	wantNone(t, "a spent budget", q, out, AssistFailed)
 	if f.calls != 0 {
 		t.Errorf("a spent budget: model calls = %d, want 0", f.calls)
+	}
+
+	// The brief's own reasons come before the budget, in the stated order:
+	// under a spent context each is still named, and none makes a call (fix
+	// round 1: the three-skips check after the spent-budget check survived).
+	skipAll := NewContent()
+	for _, k := range []Key{KeyPurpose, KeyAudience, KeyConstraints} {
+		skipAll = mustApply(t, skipAll, Op{Kind: OpSkip, Key: k}, branchEnv(nil))
+	}
+	for name, tc := range map[string]struct {
+		content Content
+		want    AssistOutcome
+	}{
+		"a follow-up already": {mustApply(t, three(t), Op{Kind: OpAddFollowUp,
+			Question: &Question{BranchPrompt: "Which clients call it?", Options: []string{}}}, branchEnv(nil)), AssistAlreadyAsked},
+		"two settled answers": {answered(t, branchEnv(nil), KeyPurpose, KeyAudience), AssistNotYet},
+		"three skips":         {skipAll, AssistNothingToAsk},
+	} {
+		f := &fakeModel{reply: valid}
+		q, out := ProposeFollowUp(done, f, tc.content, ScopeBranch, testHint)
+		wantNone(t, name+" under a spent budget", q, out, tc.want)
+		if f.calls != 0 {
+			t.Errorf("%s under a spent budget: model calls = %d, want 0", name, f.calls)
+		}
 	}
 }
