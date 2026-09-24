@@ -1505,3 +1505,31 @@ case, t13:345); Ship marking `reserved` on step 4's failure (t09:292); `Legacy` 
 - Whether dev Panacea (v1.163.0) behaves as `b02424691` does for the legacy row's `grantee` is
   unverified. LIVE-CHECK does not exercise a legacy binding.
 - No owner question.
+
+### Fix batch b08, round 2 — the re-review's open issues (2026-09-24)
+
+Fixes `.superpowers/sdd/p7/plan-rereview-b08-1.md`. Commits `2df4190`, `1e7190e`, `d97244d`
+and this section. Panacea read at `b02424691` with `git show`, read-only. Nothing compiled or run;
+no Panacea environment called. Paths are under `docs/superpowers/plans/`; `tNN` is
+`2026-09-23-phase-7-deploy-parts/task-NN.md`, `plan` is `2026-09-23-phase-7-deploy.md`.
+
+| Issue | Change (file:line) |
+|---|---|
+| I-1 a demotion sent at once; "never strands" false | Verified `keycloak.go:198-218` (drop, then add) and `access.go:55-58` (a failed add is a 500). **t18:106** a lowering is held, with its consequence first. **t18:108** the "sent at once" row now reads "add a person, raise a role": none takes access away when it succeeds, and a failed raise is re-read. **t18:149-171** Add at a current member is that row's Change role; the only-owner guard (disabled, with a sentence) and the "This is you" line from `self` (t18:71, :84, from task 13's `ConnectionStatus.account`). **t18:56-61** `useGovernance` re-reads access after any failed grant or revoke (a revoke also stops at its first failed group, `keycloak.go:253-256`). Tests at **t18:201-204**. Rewrites: **t11:66-73**, **t11:129**, **t01:119-122**, **t04:150**, **plan:134**. Unverified, stated at **t18:232-241**: that `/me`'s `username` is the Keycloak username the list shows (`keycloak.go:523-528`), and that a demotion's 403 is immediate for a `pnc_` key |
+| I-2 Rollback and Rebuild reserve too; a 5xx called "not reached" | **t09:30-33** declares `ship.ErrAfterReserve`; **t09:252-256** wraps every step-6 error with it (`%w: %w`, Go 1.23), and the route passes `reserved: true` only when `errors.Is`. **t10:31-67** `withReservation` carries the wrap and takes `AbandonWords`: `BuildWords` for Ship and Rebuild, `RollbackWords` for Rollback (**t10:96**, **:127**). **t05:269-279** the server sentence follows five classes of `Status`; **t05:292-297** names all three reserving routes. **t13:294-303** `upstreamAnswer` replaces `upstreamNoAnswer` with the same classes. **t16:177** the banner keys on `reserved`, then the act, then the class; a 5xx is never "nothing was sent". **plan:368-374** restates it. Tests: **t10:186** `TestRerunErrorsAreReserved` (beside t09's `TestTimeoutAbandonsAmbiguously`), **t09:312**, **t05:328**, **t13:351**, **t16:188**. A gateway's 502 or 504 is classed "no answer": a proxy that gave up on Panacea says nothing about whether Panacea acted — declared, root-cause option |
+| M-1 the pin's fixture was an outage | **t04:206** one fixture per real phrase (`:189`, `:182`), plus `:186` and `:177` outages asserted `KindUnavailable`. The matcher is anchored: the text after the prefix **begins with** the `:189` phrase or **equals** the `:182` one, never a contains. Restated at **plan:387-394**, **t11:98-112**, **t04:150** |
+| M-2 "empty grantee" | **plan:387-389**, **t11:100-102**: an empty grantee is a 400 first (`access.go:50-52`, verified); only a whitespace-only one reaches `:182`, and task 11 refuses it before sending |
+| M-3 nil answer tells a connect to connect | **t05:98-101** `New`'s error contract; **t05:365-371** a `New` error is fatal at startup (`serve`, `cmd/api/main.go:66`, returns it; `run`, `:47`, exits 1 — verified in this tree), with a `main_test.go` row; **t05:185** nil occurs only in tests; **t05:23** adds `main_test.go` |
+| M-4 built errors carry no status | **t01:518-522** Status is the status received, a 2xx for a built error. **t04:142** run-less 202 → `Status 202`; **t04:144** rollback id mismatch → `Status 200`; **t03:217** and **:344** empty `env` → `Status 200`. **t09:238-241** a run-less 202 abandons with its own sentence, not "could not start". Test **t04:198** |
+| M-5 `notEnforcedSentence` undeclared | **t04:97-104** declared, with the wire word and plain text and the exact example; **t04:148** points to it; **t04:174** the fixture's `accessMode`; **t04:202** asserts the example byte for byte |
+| Ruling, Ship 500 | **t09:224-231** keeps "could not start the build" for Panacea's own 500, cites `pipeline.go:687-690`, `:710-716` and `projects.go:2985-2991` (verified), and names the one remainder |
+| O-1 per-attempt timeout under Panacea's worst case | **Not fixed here.** Outside this batch, and Important for the main review: it changes t02's timeout, which other batches own. Handed back to the orchestrator |
+| O-2 `projectAccessGroups` prefix reaches `app-two` | Verified `keycloak.go:483-490`. A Panacea defect; recorded at **t18:235-239** and as an owner question. The cockpit cannot filter it: a person row's `group` is the person |
+
+The fixer's round-1 note on t18:102 is closed by I-1: the row no longer claims "none opens the app
+to anyone new".
+
+Survivors I expect a re-review to name: (1) `upstreamAnswer`'s "refused" class for a 3xx, which
+says "nothing was changed" of a sign-in redirect, true only if no edge acts on a POST before
+redirecting; (2) the only-owner count, which skips legacy owner rows on the strength of the
+comment at `keycloak.go:166-170` rather than a test of Panacea's RBAC.

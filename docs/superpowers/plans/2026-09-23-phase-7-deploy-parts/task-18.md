@@ -232,6 +232,11 @@ then.**
 - That *"This is you"* finds every self row. Panacea lists a member by Keycloak username, else
   email (`keycloak.go:523-528`); that `/me`'s `username` is the same Keycloak username is
   unverified. A miss loses only the warning (re-review I-1).
+- That "the whole project" is the whole reach. Panacea's `projectAccessGroups` matches the prefix
+  `project-<name>-` (`clients/keycloak.go:483-490`), so for a project `app` it also takes
+  `app-two`'s groups: `app`'s list, a grant's drop and a revoke reach `app-two` too. That is a
+  Panacea defect; the cockpit cannot see it, because a person row's `group` is the person, not
+  the Keycloak group (re-review b08 round 1, O-2; owner question).
 - That a demotion's 403 is immediate. Whether a `pnc_` key's role is resolved live on each request
   is unverified; the hold and the guards assume it is.
 - That the owner line is right for a person whose ownership changed since the last cursor.
