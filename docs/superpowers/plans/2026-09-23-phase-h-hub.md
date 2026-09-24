@@ -532,10 +532,13 @@ from this plan (Q11 from a sibling ask, task 00; Q12 from review I12):
   it both ways, since a same-org row must insert and a cross-org one must fail `23503`); and that
   `position(bytea IN bytea)` exists as task 27's `markerHits` uses it (its hit on
   `brief_revisions.canonical` before the erasure proves it runs).
-- **Physical erasure** (A17): `erase_brief`'s `UPDATE` leaves dead tuples, which hold
-  the text on disk until `VACUUM` reclaims them, and a backup taken **before** the erasure keeps it
-  for the backup's life. Both were true of `brief_revisions.canonical` before this plan; neither is
-  closed here. G6's promise is that no live row and no replay answer holds the text.
+- **Physical erasure** (A17, review M12): `erase_brief`'s `UPDATE` leaves dead tuples, which hold
+  the text on disk until `VACUUM` reclaims them; the text stays in the write-ahead log; and a backup
+  taken **before** the erasure keeps it for the backup's life. All three were true of
+  `brief_revisions.canonical` before this plan; none is closed here. G6's promise is that no live
+  row and no replay answer holds the text. **The real erasure horizon is the backup retention
+  phase 8 sets**: 7 days in dev, 35 in prod (phase 8 task 08 `:229-232`, on `feat/env`), so an
+  erasure is complete only after that window (task 27's "does not claim").
 - **Win32 facts from documentation recall:** `CRED_MAX_CREDENTIAL_BLOB_SIZE` = 2,560 bytes; the
   `CREDENTIALW` layout. Task 28's Windows-only test round-trips a 6,000-byte blob to prove the
   chunking, on the owner's laptop, since CI is Linux (`azure-pipelines.yml:6`).

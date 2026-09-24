@@ -115,4 +115,16 @@ go test -tags integration ./control-plane/internal/hub/... ./control-plane/cmd/h
 - Anchoring the chain head outside the database: later (ADR-H1 §5.9 item 4). Until then an owner
   who rewrites **every** row after a point, consistently, is caught only by comparing with a copy.
 - Erasure of anything but brief text: nothing else holds it in v1 (§7.12).
+- That erasure removes the text from **storage** (review M12). `erase_brief`'s `UPDATE … SET
+  canonical = NULL` writes new row versions; the old ones stay in the table's pages as dead tuples
+  until `VACUUM` reclaims them, the text stays in the write-ahead log, and every backup taken
+  before the erasure keeps it for that backup's whole life. What erasure promises is that no live
+  row and no replay answer holds the text (G6); `markerHits` checks live rows only. **The real
+  erasure horizon is the database's backup retention**, which phase 8 sets: 7 days in dev and 35
+  days in prod, with geo-redundant copies in prod (phase 8 task 08, `dev.tfvars`/`prod.tfvars`,
+  `:229-232` on `feat/env` at `30b2419`; its variable admits 7 to 35). Azure's point-in-time
+  restore keeps the log for the same window (from knowledge, unverified). So text erased today
+  can be restored for up to 35 days in prod, and an erasure request is complete only after that
+  window. Locally (`postgres:16-alpine`, task 09) there are no backups; the dead tuples and the
+  log remain until `VACUUM` and a checkpoint recycle them.
 - That the owner confirmed Q2's rule: the recommendation is built; the question stays open.
