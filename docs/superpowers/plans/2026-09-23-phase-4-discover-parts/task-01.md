@@ -8,8 +8,8 @@ step 1 does the same lift "if phase 4 has not done it first"** (phase 3 plan `:1
 lands first does it, the other drops its step. Check before starting (step 1).
 
 **One real change, not only a move.** The registry's version chmods the temp file `0o600` and
-creates directories `0o700` (`registry/filestore.go:462`, `:485`). That is right for the session
-registry and **wrong for `CLAUDE.md`**: the file is read by the agent inside the sandbox, through a
+creates directories `0o700` (`registry/filestore.go:462` for the `MkdirAll`, `:488` for the
+chmod). That is right for the session registry and **wrong for `CLAUDE.md`**: the file is read by the agent inside the sandbox, through a
 bind mount, as the container's user, which is not guaranteed to be the host user. So the lifted
 function takes a `Mode`. The registry passes `Private`, keeping its behaviour byte for byte.
 

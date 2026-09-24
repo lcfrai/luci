@@ -327,8 +327,8 @@ without a cycle. Phase 4 imports only the Hub's
 
 | Path | Change | Task |
 |---|---|---|
-| `control-plane/internal/statepath/statepath.go` (+ `writeatomic_test.go` moved in) | gains `WriteAtomic`, lifted from `registry/filestore.go:460` | 01 |
-| `control-plane/internal/registry/filestore.go`, `registry/writeatomic_test.go` | calls `statepath.WriteAtomic`; the test moves out | 01 |
+| `control-plane/internal/statepath/atomic.go` + `atomic_test.go` (two new files in phase 2's package; `statepath.go` is unchanged) | `WriteAtomic`, `Mode` and `syncDir`, lifted from `registry/filestore.go:460`; `atomic_test.go` takes the five tests of `registry/writeatomic_test.go` by `git mv`, plus two new ones. The same names as phase 3's task 03 (`task-03.md:19`), so whichever phase lifts first, the other finds the file it expects | 01 |
+| `control-plane/internal/registry/filestore.go`, `registry/writeatomic_test.go` | `writeAtomic` calls `statepath.WriteAtomic`; the test file moves out (deleted here) | 01 |
 | `control-plane/internal/api/api.go` | `Deps.Materialiser` (required), `Deps.Discover` (optional `RouteMounter`), one validation branch, one mount line | 10 |
 | `control-plane/internal/api/sessions.go` | create and restart call `Materialise` before `Store.Create` / the restart's `Backend.Destroy`; stamp `ContextRef`; ignore the request's `contextRef`; accept `withoutBrief` on both and pass it to `Materialise`; `sessionLocate` returns an error, and an enumeration failure is `409 brief_not_written` `project_unknown` unless `withoutBrief` (review I2) | 10 |
 | `control-plane/internal/api/materialiser.go` (new file in `api`) | the interface, request, result and `*MaterialiseError` | 10 |
@@ -458,7 +458,7 @@ encoding is the Hub's and carries its own `v` in the envelope (Hub contract §3.
 | `poller.ts` — "exactly one request per tick" (`:1-3`) | read | task 16's declared amendment |
 | `problems.ts` `ProblemKind` (three kinds, `:13`) | read | no new kind: Hub failures arrive as `upstream_unavailable`, which R4's owner adds as a kind; `brief_not_written` is `server-said` plus a code check at one call site |
 | `types.ts` `Session.contextRef` (`:162-163`) | read | unchanged (G2) |
-| `useKeyboardMap` — the one window listener (`hooks/useKeyboardMap.ts:61`) | read | Discover's keys are element-scoped (G9) |
+| `useKeyboardMap` — the one window listener, `window.addEventListener("keydown", onKeyDown)` (`hooks/useKeyboardMap.ts:166` at `3303fd6`; `:169` at `9c2c710`, the phase 2 commit this branch merged in `f5443b3`; `:240` at phase 2's tip `2cce576`, which still moves: find it by the call) | read | Discover's keys are element-scoped (G9) |
 
 ### 8.2 To phase 3 (plan read at `.claude/worktrees/phase-3`, commit `a9e4289`)
 
