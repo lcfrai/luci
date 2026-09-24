@@ -5,7 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -125,14 +128,28 @@ func TestValidateContentRules(t *testing.T) {
 			t.Errorf("ValidateContent(%s) = %v (field %q), want ErrContentStatus at status", in, err, fieldOf(err))
 		}
 	}
-	deep := func(n int) string { // n containers, the content object among them
+	// §7.5's depth rule, built once of arrays and once of objects: each branch
+	// of the check is held on its own (review task-02 I2: the object branch
+	// could be deleted with every test green).
+	deepArrays := func(n int) string { // n containers, the content object among them
 		return `{"status":"open","d":` + strings.Repeat("[", n-1) + strings.Repeat("]", n-1) + `}`
 	}
-	if _, _, err := ValidateContent(json.RawMessage(deep(17))); !errors.Is(err, ErrContentDepth) {
-		t.Errorf("depth 17 = %v, want ErrContentDepth", err)
+	deepObjects := func(n int) string { // n containers again, as {"a":{"a":…0…}}
+		return `{"status":"open","d":` + strings.Repeat(`{"a":`, n-1) + `0` + strings.Repeat("}", n-1) + `}`
 	}
-	if _, _, err := ValidateContent(json.RawMessage(deep(16))); err != nil {
-		t.Errorf("depth 16 = %v, want nil", err)
+	for _, c := range []struct{ name, in, field string }{
+		{"17 arrays", deepArrays(17), "d" + strings.Repeat("[0]", 15)},
+		{"17 objects", deepObjects(17), "d" + strings.Repeat(".a", 15)},
+	} {
+		_, _, err := ValidateContent(json.RawMessage(c.in))
+		if !errors.Is(err, ErrContentDepth) || fieldOf(err) != c.field {
+			t.Errorf("%s: ValidateContent = %v (field %q), want ErrContentDepth at %s", c.name, err, fieldOf(err), c.field)
+		}
+	}
+	for name, in := range map[string]string{"16 arrays": deepArrays(16), "16 objects": deepObjects(16)} {
+		if _, _, err := ValidateContent(json.RawMessage(in)); err != nil {
+			t.Errorf("%s: ValidateContent = %v, want nil", name, err)
+		}
 	}
 	// Returns the canonical bytes and the status; requires no other field
 	// and reads none (contract §7.5).
@@ -318,6 +335,12 @@ func TestAStoredRevisionMustBeCanonical(t *testing.T) {
 		{"content not an object", mutate(func(m map[string]any) { m["content"] = []any{} }), ErrContentNotObject, "content"},
 		{"not JSON", vector1Bytes[:100], ErrNotJSON, "content"}, // cut inside content's members
 		{"a repeated key", strings.Replace(vector1Bytes, `"v":1}`, `"v":1,"v":1}`, 1), ErrDuplicateKey, "v"},
+		// The parser's own type and shape checks name the field (review task-02
+		// M1): without them a project brief's non-string branchRef reads as ""
+		// and is refused only at the root, and a non-object root at "v".
+		{"a project brief's branchRef not a string", mutate(func(m map[string]any) { m["scope"], m["branchRef"] = "project", 5 }), ErrBadEnvelope, "branchRef"},
+		{"an array", `[]`, ErrBadEnvelope, ""},
+		{"a string", `"brief-revision"`, ErrBadEnvelope, ""},
 	}
 	for _, c := range cases {
 		got, err := ParseBriefEnvelope([]byte(c.in))
@@ -362,9 +385,25 @@ func TestEnvelopesRefuseMalformedFields(t *testing.T) {
 		{"at", func(a *AuditEnvelope) { a.At = "2026-09-23T04:02:11Z" }},
 		{"at", func(a *AuditEnvelope) { a.At = "2026-09-23T14:02:11.123+10:00" }},
 		{"at", func(a *AuditEnvelope) { a.At = "2026-02-30T04:02:11.123Z" }},
+		// time.Parse takes each of these three with FormatTime's layout; only
+		// the round trip refuses them (review task-02 I3). A one-digit hour is
+		// a byte short; a comma before the fraction and a signed year are
+		// FormatTime's length exactly.
+		{"at", func(a *AuditEnvelope) { a.At = "2026-09-23T4:02:11.123Z" }},
+		{"at", func(a *AuditEnvelope) { a.At = "2026-09-23T04:02:11,123Z" }},
+		{"at", func(a *AuditEnvelope) { a.At = "+026-09-23T04:02:11.123Z" }},
 		{"actorUserId", func(a *AuditEnvelope) { a.ActorUserID = "org-00000000000000d4" }},
 		{"event", func(a *AuditEnvelope) { a.Event = "" }},
 		{"event", func(a *AuditEnvelope) { a.Event = "Team.Created" }},
+		// audit_events.kind's CHECK (contract §10.2) refuses each of these, so
+		// the envelope gives no bytes either (review task-02 I1).
+		{"event", func(a *AuditEnvelope) { a.Event = "a.b.c" }},          // exactly one dot
+		{"event", func(a *AuditEnvelope) { a.Event = "team2.created" }},  // no digits
+		{"event", func(a *AuditEnvelope) { a.Event = "team_.created" }},  // "_" joins two words
+		{"event", func(a *AuditEnvelope) { a.Event = "brief.revised_" }}, // at either end of a word
+		{"event", func(a *AuditEnvelope) { a.Event = "_team.created" }},
+		{"event", func(a *AuditEnvelope) { a.Event = "team" }},
+		{"event", func(a *AuditEnvelope) { a.Event = "team.created\n" }}, // "$" is the end of the text
 		{"teamId", func(a *AuditEnvelope) { a.TeamID = "pj-00000000000000e5" }},
 		{"projectId", func(a *AuditEnvelope) { a.ProjectID = "tm-00000000000000e5" }},
 		{"data.x", func(a *AuditEnvelope) { a.Data = map[string]any{"x": 1.5} }},
@@ -451,10 +490,99 @@ func TestParseAuditEnvelopeRoundTrips(t *testing.T) {
 		"kind brief-revision": {strings.Replace(vector3Bytes, `audit-event`, `brief-revision`, 1), "kind"},
 		"an extra key":        {strings.Replace(vector3Bytes, `"v":1}`, `"v":1,"w":1}`, 1), "w"},
 		"v 2":                 {strings.Replace(vector3Bytes, `"v":1}`, `"v":2}`, 1), "v"},
+		// The parser's own type and shape checks name the field (review task-02
+		// M1): without them these optional strings read as "", which is valid,
+		// and the bytes are refused only at the root; a non-object root at "v".
+		"actorUserId not a string": {strings.Replace(vector3Bytes, `"actorUserId":"u-00000000000000d4"`, `"actorUserId":false`, 1), "actorUserId"},
+		"teamId not a string":      {strings.Replace(vector3Bytes, `"teamId":"tm-00000000000000e5"`, `"teamId":null`, 1), "teamId"},
+		"projectId not a string":   {strings.Replace(vector3Bytes, `"projectId":""`, `"projectId":0`, 1), "projectId"},
+		"subject not a string":     {strings.Replace(vector3Bytes, `"subject":"tm-00000000000000e5"`, `"subject":5`, 1), "subject"},
+		"an array":                 {`[]`, ""},
+		"a string":                 {`"audit-event"`, ""},
 	} {
 		got, err := ParseAuditEnvelope([]byte(c.in))
 		if !errors.Is(err, ErrBadEnvelope) || fieldOf(err) != c.field {
 			t.Errorf("%s: ParseAuditEnvelope = %#v, %v (field %q); want ErrBadEnvelope at %q", name, got, err, fieldOf(err), c.field)
 		}
 	}
+}
+
+// ── the event kind's one grammar (contract §10.2; review task-02 I1) ────────
+
+// An event kind has one grammar: audit_events.kind's CHECK in contract §10.2,
+// which task 07a's migration writes verbatim. eventKind is that pattern,
+// character for character, so an envelope the INSERT would refuse gets no
+// bytes (400 bad_request, not a CHECK violation inside the write's
+// transaction), and hub verify reads events by the same rule. Every kind §8
+// lists passes it.
+func TestAuditEventKindIsTheContractsCheck(t *testing.T) {
+	section := contractSection(t, "10.2")
+	start := strings.Index(section, "CREATE TABLE audit_events (")
+	if start < 0 {
+		t.Fatal("contract §10.2 has no audit_events table")
+	}
+	table := section[start:]
+	if end := strings.Index(table, "\n);"); end >= 0 {
+		table = table[:end]
+	}
+	// A Postgres string literal under standard_conforming_strings (the
+	// default): a backslash is itself, so the text between the quotes is the
+	// pattern.
+	check := regexp.MustCompile(`\n\s*kind\s+text\s+NOT NULL CHECK \(kind ~ '([^']+)'\)`).FindStringSubmatch(table)
+	if check == nil {
+		t.Fatal("contract §10.2's audit_events has no kind CHECK")
+	}
+	if eventKind.String() != check[1] {
+		t.Errorf("eventKind is %s; audit_events.kind's CHECK is %s", eventKind, check[1])
+	}
+
+	kinds := contractEventKinds(t)
+	if len(kinds) < 29 {
+		t.Fatalf("contract §8 lists %d kinds, want at least 29: %q", len(kinds), kinds)
+	}
+	for _, k := range kinds {
+		a := vector3
+		a.Event = k
+		if _, err := a.Canonical(); err != nil {
+			t.Errorf("§8's kind %q: Canonical = %v, want bytes", k, err)
+		}
+	}
+}
+
+// contractEventKinds reads every kind out of contract §8's table: the
+// backquoted names in each row's first cell ("`team.created` · `team.updated`").
+func contractEventKinds(t *testing.T) []string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), filepath.FromSlash(hubContract)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := strings.ReplaceAll(string(raw), "\r\n", "\n")
+	start := strings.Index(text, "\n## 8. Events\n")
+	if start < 0 {
+		t.Fatal("the contract has no §8")
+	}
+	chapter := text[start+1:]
+	if end := strings.Index(chapter, "\n## "); end >= 0 {
+		chapter = chapter[:end]
+	}
+	head := strings.Index(chapter, "\n| Kind |")
+	if head < 0 {
+		t.Fatal("contract §8 has no Kind table")
+	}
+	name := regexp.MustCompile("`([^`]+)`")
+	var kinds []string
+	for _, line := range strings.Split(chapter[head+1:], "\n") {
+		if !strings.HasPrefix(line, "|") {
+			break // the table ends at its first line that is not a row
+		}
+		cells := strings.Split(line, "|")
+		if len(cells) < 3 || strings.HasPrefix(cells[1], "---") || strings.TrimSpace(cells[1]) == "Kind" {
+			continue
+		}
+		for _, m := range name.FindAllStringSubmatch(cells[1], -1) {
+			kinds = append(kinds, m[1])
+		}
+	}
+	return kinds
 }

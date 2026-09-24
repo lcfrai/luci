@@ -275,8 +275,14 @@ type AuditEnvelope struct {
 	Data        map[string]any // string | int64 | bool values only (int is taken as int64)
 }
 
-// eventKind is §8's spelling of an event kind: "team.created", "brief.revised".
-var eventKind = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`)
+// eventKind is an event kind's one grammar: audit_events.kind's CHECK in
+// contract §10.2, verbatim: two names around one dot, each name lowercase
+// words joined by single "_" ("team.created", "release.deployment_joined").
+// The kinds §8 lists all match it. An envelope the INSERT would refuse gets no bytes here, so
+// the writer answers 400 bad_request rather than meeting a CHECK violation
+// inside its transaction. TestAuditEventKindIsTheContractsCheck holds the two
+// equal.
+var eventKind = regexp.MustCompile(`^[a-z]+(_[a-z]+)*\.[a-z]+(_[a-z]+)*$`)
 
 func (a AuditEnvelope) check() error {
 	switch {
