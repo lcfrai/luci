@@ -61,7 +61,8 @@ const (
 
 const (
 	ReadTimeout   = 10 * time.Second
-	LocalTimeout  = 2 * time.Minute
+	LocalTimeout  = 2 * time.Minute // also task 24's bundle create and bundle fetch in the project:
+	                                // equal to the runner's BundleTimeout (review r4-2 I-2)
 	RemoteTimeout = 3 * time.Minute
 )
 
