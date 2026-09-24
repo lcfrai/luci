@@ -40,9 +40,10 @@ MCP"* (`OD-11`), built clean-room on permissive parts, that does four things end
 3. **Many writers never silently collide.** Every write is attributed to a session the server
    knows (never one the agent names), claims the artboards it touches, and may carry an
    `ifRevision` precondition. Tokens are canvas-wide: a token write touches no artboard and carries
-   no precondition, so every session holding an artboard that uses the token (transitively,
-   `serialize.TokensUsed`) is told on its next call, with the token and the author, as it is told of
-   a human's edit inside its artboard (task 12, review I11). The op protocol is
+   no precondition, so every session holding an artboard that uses the token (transitively, however
+   deep, `serialize.TokensUsed`) is told on its next call, even after a quiet spell (until a restart), with the token and the
+   author, as it is told of a human's edit inside its artboard (task 12, review I11, re-review
+   RR-I11-1 and RR-I11-2). The op protocol is
    server-authoritative, per-property last-writer-wins, and is written so the **same Go package**
    hosts cross-person multiplayer in the Hub in v2.
 4. **The thread is kept.** A canvas is bound to its branch's brief; only a human approves, from our

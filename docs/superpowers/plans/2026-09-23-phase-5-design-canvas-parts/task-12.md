@@ -54,8 +54,10 @@ func (s *Service) StartWorking(ctx context.Context, canvasID string, c Caller, a
 // artboard of the canvas when artboardIDs is empty (finish_working).
 func (s *Service) FinishWorking(ctx context.Context, canvasID string, c Caller, artboardIDs []string) error
 
-// ReleaseSession drops every claim a session holds on every canvas. The relay
-// supervisor calls it when the session's channel closes for good (task 19).
+// ReleaseSession drops every claim a session holds on every canvas, and its
+// notice mark on each, then prunes each canvas's token-use record against the
+// marks left (re-review RR-I11-1). The relay supervisor calls it when the
+// session's channel closes for good (task 19).
 func (s *Service) ReleaseSession(sessionID string)
 
 // BreakClaim lets a HUMAN release another session's claim (REST only; spec
@@ -126,13 +128,20 @@ func (s *Service) Notices(canvasID string, c Caller) []Notice
 //   after Commit:  post[A] = the same over the committed document (a NEW
 //                  token, and a new value's references, are seen);
 //   uses[A] = (pre[A] ∪ post[A]) ∩ Change.Tokens, kept where non-empty.
-// TokensUsed is transitive (a token referenced by a token A uses counts, task
-// 08), so changing `brand` reaches an artboard that uses only `button:
-// var(--brand)`. A token batch touches no artboard, so it claims nothing and
+// TokensUsed is the transitive closure (every token reachable through token
+// values, however deep, a cycle terminating, task 08), so changing `blue-500`
+// reaches an artboard that uses only `button: var(--primary)` where `primary:
+// var(--blue-500)`. A token batch touches no artboard, so it claims nothing and
 // no claim refuses it: the notice is how holders learn of it. The cost is two
 // walks of every artboard, for token batches only. The record is in memory,
 // like the claims and marks it is read against (a restart loses all three
-// together); an entry at or below every present session's mark is pruned.
+// together). Pruning (re-review RR-I11-1): an entry is dropped only when it is
+// at or below EVERY mark the service holds for that canvas, present session
+// or not, checked when a mark advances and in ReleaseSession. Presence (10
+// minutes, below) never prunes: a holder that goes quiet for 11 minutes still
+// gets its notice on its next call, as it would for a node change, which the
+// log keeps. Marks are dropped only by ReleaseSession (below), so the record
+// is bounded by the token batches since the oldest live session's last call.
 ```
 
 ```go
@@ -208,7 +217,8 @@ func (s *Service) RevertSession(ctx context.Context, canvasID string, c Caller, 
 | `TestIfRevision_replaceCountsSubtree` | a replace whose old subtree has a node changed after `IfRevision` → conflict | replace escaping the precondition |
 | `TestNotices_advance` | two consecutive calls: the second has no repeat of the first's notices | notices repeating for ever |
 | `TestNotices_tokenChange` | S holds *Settings* (drawn with `var(--brand)` and `var(--space-4)`) and T holds *Billing* (`var(--brand)`); U holds *Profile*, which uses no token. T's `set_token` on `brand` → S's next `Notices` is one notice: `Author` T, `Tokens: [brand]` exactly (not `space-4`, which did not change), `Artboards: [Settings]`, `Nodes: []`, a `Text` naming `brand` and T's handle; U's is `[]`; T's is `[]` (its own change). Then one human batch that restyles node N in *Settings* **and** sets `brand` → S gets **one** notice, `Nodes: [N]`, `Tokens: [brand]` | a notice only for a change that touched the caller's artboard (review I11); a notice to every holder, whether its artboard uses the token or not; `Tokens` listing every token the artboard uses; two notices for one change |
-| `TestNotices_tokenTransitiveAndDelete` | *Settings* uses only `var(--button)`, and `button` is `var(--brand)`. The human sets `brand` → S is told, `Tokens: [brand]`. The human then deletes `button` → S is told, `Tokens: [button]` | uses read one level deep (`brand` missed); uses read only after the batch (the deleted `button` is unknown then, and missed) |
+| `TestNotices_tokenTransitiveAndDelete` | a three-level chain (re-review RR-I11-2): *Settings* uses only `var(--button)`, `button` is `var(--primary)`, and `primary` is `var(--brand)`. The human sets `brand` → S is told, `Tokens: [brand]`. The human then deletes `button` → S is told, `Tokens: [button]` | uses read one level deep, or one hop past the direct references (`brand`, three levels down, missed); uses read only after the batch (the deleted `button` is unknown then, and missed) |
+| `TestNotices_tokenUsesOutliveAbsence` (injected clock; re-review RR-I11-1) | S claims *Settings* (`var(--brand)`) and writes. At +60 s, while S still holds it, T sets `brand`. S then makes no call for 11 minutes, so it is neither holding nor present (`Presence`, below); T calls every minute, so T's mark passes the entry. S's next call → one notice, `Author` T, `Tokens: [brand]`. The in-package test then reads the record's length: 0 once S's mark has passed the entry, and, in a second run where S never calls again, 0 after `ReleaseSession(S)` and 1 before it | an entry pruned against present sessions only, or against the caller's mark alone (S's notice lost, where a node change would still reach it); an entry never pruned (the record grows for ever) |
 | `TestUndo_ownOnly` | human batch H1, agent batch A1, human batch H2: undo → H2; undo → H1; A1 intact | undo taking the agent's work |
 | `TestUndo_skipsChangedByOthers` | human sets colour; agent changes the same colour; human undo skips that node and says so | undo clobbering someone's later edit |
 | `TestUndo_redoCleared` | undo, then a new human batch; redo → nothing to redo | redo resurrecting a branch of history |
