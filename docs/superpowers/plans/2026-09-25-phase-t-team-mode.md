@@ -1083,4 +1083,58 @@ into the owner's cloud machine, where Fleet takes it over; nothing moves without
 (§10.1 item 4). Not costed in `05-design.md` §12; this plan places it in TM2 and says so. Tests: no
 lane moves without the call; a lane already on the machine is not duplicated.
 
+**65 — Phase 8 delta: the CLI bump job.** Extends phase 8's `pipelines/images.yml` (task 27, with
+task 27a's canary, **UNVERIFIED until merge**): a job that learns of a new Claude Code release
+(how is **UNVERIFIED**, §10.4), builds a new sandbox image by digest, runs four gates (the OD-8
+canary; the `panacea` channel tests, including that a worker still runs `panacea check` before an
+edit; G9's corpus, task 42; a gateway compatibility call through phase 6's gatekeeper), and
+promotes the digest to the warm pool. New launches and every Restart get it; a running session
+keeps its version and its card shows it. Proposed target: the warm pool within 24 hours of a
+release. Tests: a failing gate blocks promotion; the promoted reference is a digest, never a tag.
+
+**66 — Team and project quotas, server side.** Reads and writes the gateway's budgets (phase 6
+tasks 06 and 09, S6.2: person → LiteLLM user budget, project → team budget, team → keysmith at
+mint) from the Hub's team policy (task 43): an org admin sets a ceiling per person, a team admin
+sets project budgets inside it, both with non-zero defaults (OD-24, Q3). Fleet's spend split
+(task 37) is served per member and per counterpart. Tests: a project budget above the org ceiling
+is refused; an unset quota resolves to the non-zero default, never to unlimited.
+
+**67 — The quotas admin view.** `desktop/src/components/team/QuotaAdmin.tsx`, from the approved
+prototype's language: per-member and per-project budgets in words and `tabular-nums` figures, the
+split *workers* and *coordination*, coordination per counterpart (*"coordination with Alice: 41k
+tokens today"*); editable by a team admin within the org ceiling. No percentages, bars or
+projections (OD-27). Tests: a non-admin sees read-only values; no element renders a progress bar.
+
+**68 — Release attribution on a team project.** Extends the Hub's release records (Hub tasks 23–24,
+**UNVERIFIED until merge**): a release in a team project lists, per lane landed into it, the person
+whose agent made it, the `tk-…` task and the brief section it served, so the provenance thread
+reaches the release with its people (§11.5). Phase 7, which calls Panacea's API, reads it; phase 7
+has no plan on disk yet, so the part defines the Hub side only. Tests: a release with two lanes
+from two people lists both with their brief sections.
+
+**69 — TM2 proof.** `docs/verification/2026-09-25-phase-t-tm2-results.md`: the mirror pod's
+isolation (no egress, no credential beyond fetch, no sandbox mount); a tier-M forecast on a real
+pair; a team land through the mirror pushed with the owner's credential; a `build-on` decide
+listing an agent-config path; the bump job's dry run through its four gates; quotas enforced at
+the gateway. Each item with what was and was not observed.
+
 ---
+
+## What this plan does not claim
+
+- That anything is built. Every sibling path marked planned is **UNVERIFIED until merge**, and
+  task 33 may still re-plan TM1.
+- That the fences stop a determined attacker. Persuasive, well-formed text still passes (§7.3); G9
+  measures, it does not prove.
+- **KPMG InfoSec approval is no longer a gate.** Under OD-23 the mechanism ships with minimal
+  defaults and no drafted policy; the design's Q12 and its TM1 gate are superseded. When an org
+  policy is written, it enters through task 14's routes as a new version, with no code change.
+- The Linux managed-settings path, the `--session-id` / `--resume` flags, a `--setting-sources`
+  flag, whether a file-based managed hook prompts, and which `env` keys a managed file locks are
+  **UNVERIFIED** at the pinned CLI version; tasks 27 and 33 and the OD-8 canary settle them.
+- Pod-source token binding, guest-write visibility to `machined`, Orchestrator pod size, warm-pool
+  launch time and the PTY round trip are **UNVERIFIED** until task 47's probes run.
+- Which Graph read KPMG's tenant permits for the leaver check (task 44), and the gateway's
+  Bedrock federation (phase 6's), are **UNVERIFIED**.
+- TM3 (a live Orchestrator over the inbox socket, the watch view, tier S builds, an MCP front) and
+  phase 5's canvas lease are not in this plan.
