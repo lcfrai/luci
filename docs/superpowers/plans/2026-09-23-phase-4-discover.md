@@ -219,8 +219,11 @@ without a cycle. Phase 4 imports only the Hub's
 - **G9.** One window `keydown` listener (`useKeyboardMap`). Discover's `1`–`4`, `Enter` and `E`
   are element-scoped `onKeyDown` handlers on the question region, never a window listener. The
   region's handler returns first for a keydown from a form field (`input`, `textarea`, `select`,
-  `[contenteditable]`), so typing in the free-text field is text; the field's own `Enter` sends
-  and `Shift+Enter` is a new line (task 18, review I12).
+  `[contenteditable]`), so typing in any answer field (the base question's and the follow-up's)
+  is text; each field's own `Enter` sends a non-empty answer and `Shift+Enter` is a new line. The
+  region's `Enter` also returns on a focused button or link, whose native activation owns it.
+  Each new step focuses the question region, never a field, so `1`–`4` work without a Tab
+  (task 18, review I12, re-review b07-1 R-M3 to R-M5).
 - **G10.** Every UI task reads `docs/DESIGN-SYSTEM.md` first and holds its non-negotiables: no
   indigo or violet, no gradient anywhere (phase 2's audit greps for `-gradient(`), elevation is a
   1px ring plus a layered shadow, radius by element size (`--r-chip` 6, `--r-ctl` 8, `--r-card`

@@ -18,20 +18,52 @@ entrance animation; `QUESTION n OF 5` is the one denominator (G5), and a follow-
 *Saving* and disables it; the one heartbeat (`hooks/heartbeat.ts`) for any live dot; keyboard
 first: `1`–`4` pick, `Enter` sends, `E` edits the focused answer — **element-scoped handlers on
 the question region, never a window listener** (G9); `:focus-visible` rings designed, not default.
-**Typing is text** (review I12). The free-text field sits inside the question region, so its
-keydown events bubble to the region's `onKeyDown`. The region handler therefore returns first,
-doing nothing, when `event.target` is an `input`, a `textarea`, a `select` or inside
-`[contenteditable]`
-(`target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')`).
-Inside the field, `1`–`4` and `E` are characters. **The field's rule is the prototype's**
-(`prototype/phase-4-discover.html:689-693`, the specification this task follows; `:690` sends,
-`:691` returns for form fields): `Enter` sends the
-typed answer, `Shift+Enter` is a new line, handled by the field's own `onKeyDown`, which calls
-`preventDefault` on the sending `Enter` only. Nothing is sent while an IME composition is open
-(`event.nativeEvent.isComposing`), because that `Enter` confirms the composition. To pick an option
-again, the person tabs out of the field. The review offered `Ctrl+Enter` or a stated rule; this
-plan states the prototype's rule, because the owner reviewed the prototype and a chat-style field
-that ignores a plain `Enter` would surprise its users.
+**Typing is text** (review I12). The rules below hold for **every answer field in the question
+region**: the base question's free-text field (state 3, prototype `:482`) and the follow-up's
+answer field (state 5, prototype `:513`), which is this task's too (`:4`, row 5 below). Re-review
+b07-1 R-M3.
+- **The region's target check.** Each answer field sits inside the question region, so its
+  keydown events bubble to the region's `onKeyDown`. The region handler returns first, doing
+  nothing, when the target is a form field. `event.target` is an `EventTarget`, which has no
+  `closest`, so the check narrows first (re-review b07-1 N3):
+  `const t = event.target; if (t instanceof Element && t.closest('input, textarea, select,
+  [contenteditable]:not([contenteditable="false"])')) return;`
+  Inside a field, `1`–`4` and `E` are characters.
+- **Enter on a control is the control's** (re-review b07-1 R-M5). The options, the ↵ Save and
+  the per-answer *Edit* are buttons (prototype `:481`, `:482`, `:433`). `Enter` on a focused
+  button fires its native click **and** bubbles to the region. So the region's `Enter` also
+  returns when `event.defaultPrevented`, or when the target is inside `button, a[href],
+  [role="button"]`. Without this, one `Enter` could send two `record` ops (the second a
+  `revision_conflict`), or pick one option and send another. `1`–`4` and `E` are not affected: a
+  button does not act on them. What each button's activation does, so the one act is defined:
+  an option button sends its option at once, as the prototype's `onclick="P.answer(j)"` does
+  (`:481`); ↵ Save sends the typed answer (`:482`, `P.free()`); *Edit* opens that answer
+  (`:433`). The digits only select, and the region's `Enter` sends the selection.
+- **Where focus lands** (re-review b07-1 R-M4). When a new step renders (its key changes), focus
+  moves to the question region itself: `tabIndex={-1}`, labelled by the prompt through
+  `aria-labelledby`, so a screen reader reads the question. Focus never starts in a field,
+  because an auto-focused field would turn `1`–`4` into text and leave the keyboard-first flow
+  dead until a Tab. It moves only when focus is already inside the lens or on `document.body`,
+  so a re-read that brings a new step never pulls focus out of the rail or another surface. A
+  failed save (state 14) keeps the step, so focus stays in the field with the typed text.
+- **The field's rule is the prototype's** (`prototype/phase-4-discover.html:689-693`, the
+  specification this task follows; `:690` sends, `:691` returns for form fields). `Enter` sends
+  the typed answer. `Shift+Enter` is a new line. The field's own `onKeyDown` handles this and
+  calls `preventDefault` on every unshifted `Enter`. An empty or whitespace-only field sends
+  nothing on `Enter` and gains no new line (the prototype's `if(v)` at `:685`, with
+  `preventDefault` at `:690` either way; re-review b07-1 N4). Nothing is sent while an IME
+  composition is open (`event.nativeEvent.isComposing`), because that `Enter` confirms the
+  composition. To pick an option again, the person tabs out of the field.
+- **The follow-up field follows the same rule.** In the prototype a plain `Enter` there is a new
+  line: the rule at `:690` is bound to `id="free"`, and the follow-up `textarea` at `:513` has
+  no id. That is a gap in the prototype, not a second rule. Its ↵ Save is unwired and only
+  toasts (`:513`), and two fields that look alike (`div.ff`, a `textarea` and ↵) with different
+  `Enter` behaviour would surprise the person. The owner question on `Enter` versus `Ctrl+Enter`
+  covers both fields.
+
+The review offered `Ctrl+Enter` or a stated rule. This plan states the prototype's rule, because
+the owner reviewed the prototype and a chat-style field that ignores a plain `Enter` would surprise
+its users.
 **The owner's eyes are the only visual acceptance** (`OD-12`).
 
 **Files:**
@@ -117,8 +149,9 @@ op `propose_follow_up`; the server refuses a second (`already_asked`) and asks n
 | `AppShell routes discover to the lens` | `lens: "discover"` renders `DiscoverLens`, not `LensPlaceholder` | the placeholder surviving |
 | `the flow shows QUESTION n OF 5 and nothing else numeric` | step 2 → `QUESTION 2 OF 5`; no other `n of m` in the lens | a progress bar in words |
 | `a follow-up has no denominator` | a `follow_up` step shows no `OF` | G5 |
-| `1-4 pick and Enter sends, scoped to the region` | keydown `2` on the region selects option 2; `Enter` sends a `record` op with `source: "picked"`; the same keys dispatched on `window` do nothing | a second window listener (G9) |
-| `typing digits and E in the field is text` | `userEvent` (`@testing-library/user-event` 14.6.7, already in `desktop/package.json:28`) types `10 MB`, then `{Shift>}{Enter}{/Shift}`, then `Evidence` into the free-text field, whose events bubble to the region → the field's value is `10 MB\nEvidence`; no option is selected; the edit affordance does not open; no op is sent. Then `{Enter}` sends one `record` with `source: "typed"` and that text, trimmed. A keydown `Enter` with `isComposing: true` on the field sends nothing (review I12) | a region handler that does not check the target, so "10 MB" picks option 1 and "Evidence" opens the edit; a field with no new line, so a multi-line answer is sent at its first line |
+| `1-4 pick and Enter sends, scoped to the region` | after render, with no manual focus and no dispatch on an element: `document.activeElement` is the question region, not a field; `userEvent.keyboard("2")` selects option 2; `userEvent.keyboard("{Enter}")` sends one `record` op with `source: "picked"`. After that save the next step renders and focus is on its region again. The same keys dispatched on `window` do nothing (re-review b07-1 R-M4) | a second window listener (G9); a field auto-focused on render, so `1`–`4` are text until a Tab |
+| `Enter on a focused button acts once` | Tab to option 3's button, `userEvent.keyboard("{Enter}")` → exactly one `record` op, for option 3; Tab to ↵ Save with typed text, `{Enter}` → exactly one `record`; focus on an answer's *Edit*, `{Enter}` → the edit opens and no op is sent (re-review b07-1 R-M5) | a region `Enter` that also fires on a button, so one key sends two ops (the second a `revision_conflict`) or picks one option and sends another |
+| `typing digits and E in the field is text` | `userEvent` (`@testing-library/user-event` 14.6.7, already in `desktop/package.json:28`) types `10 MB`, then `{Shift>}{Enter}{/Shift}`, then `Evidence` into the free-text field, whose events bubble to the region → the field's value is `10 MB\nEvidence`; no option is selected; the edit affordance does not open; no op is sent. Then `{Enter}` sends one `record` with `source: "typed"` and that text, trimmed. A keydown `Enter` with `isComposing: true` on the field sends nothing. In an empty field, and in one holding only spaces, `{Enter}` sends nothing and the value gains no new line (re-review b07-1 N4). **The same rows run on the follow-up's answer field** (state 5): digits and `E` are text, `Shift+Enter` is a new line, `Enter` sends its answer once (review I12, re-review b07-1 R-M3) | a region handler that does not check the target, so "10 MB" picks option 1 and "Evidence" opens the edit; a field with no new line, so a multi-line answer is sent at its first line; the follow-up field left on a different rule; an empty answer sent |
 | `typing a free answer sends source typed` | `record` with the trimmed text | a typed answer labelled as picked |
 | `branch skip is "Keep the project answer"` | branch scope shows that label and sends `skip` | a project-scope label on a branch |
 | `a failed save keeps the typed text` | client rejects `network_unavailable` → text still in the field, *Not saved*, **Retry** re-sends the identical op | state 14's promise |
