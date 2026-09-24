@@ -24,7 +24,9 @@ stream's fix). After this task the product has two process launchers; the commen
 - `control-plane/internal/gitx/locks.go` — `Locks`, the one per-project lock that land, undo,
   revert, the branch verbs, fetch and push all take, and every clone refresh runs under (review
   I7, I4) (new)
-- `control-plane/internal/gitx/gitxtest/repo.go` — real-git fixtures and a scripted fake (new)
+- `control-plane/internal/gitx/internal/spawnseam/seam.go` — `Spawn`, `Set`: the process seam
+  only `gitx` and `gitxtest` can import (new)
+- `control-plane/internal/gitx/gitxtest/repo.go` — real-git fixtures, a scripted fake and `Spy` (new)
 - `control-plane/internal/gitx/*_test.go` — this task's tests (new)
 - `control-plane/internal/project/gitrunner.go` — one comment line (p2)
 
@@ -39,6 +41,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/gitx/internal/spawnseam"
 )
 
 // Class decides a call's timeout and whether it may take git's optional locks.
@@ -130,11 +134,14 @@ var ErrCallShape = errors.New("gitx: call shape refused")
 
 // ErrLaneDir is a call Exec refuses before it starts (ruling R4.2): its Dir, a `-C`,
 // `--git-dir` or `--work-tree` argument, or a Call.Env GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR,
-// GIT_OBJECT_DIRECTORY or GIT_ALTERNATE_OBJECT_DIRECTORIES value lies under Hardening.LaneRoot.
-// Each path is cleaned (filepath.Clean, made absolute against Dir) before the prefix compare,
-// and the compare case-folds on Windows. The one exception is Dir == Call.NewLane on a Scope
-// None call. Exec checks it before ErrCallShape, so a lane path in a pinned Env key is
-// ErrLaneDir. Lane git runs in the sandbox, through task 24's runner, instead.
+// GIT_OBJECT_DIRECTORY or GIT_ALTERNATE_OBJECT_DIRECTORIES value lies at or under
+// Hardening.LaneRoot (either flag spelling, `=` or next argument; each list entry of the
+// alternates value). Each path is made absolute against Dir and cleaned (filepath.Clean) before
+// a filepath.Rel compare, which case-folds on Windows. The one exception is Dir == Call.NewLane
+// on a Scope None call. Exec checks it before ErrCallShape, so a lane path in a pinned Env key
+// is ErrLaneDir. A positional argument (`fetch <path>`) is not parsed here; task 24's
+// TestHostNeverRunsGitInALane pins that no call site passes one. A LaneRoot of "" checks
+// nothing. Lane git runs in the sandbox, through task 24's runner, instead.
 var ErrLaneDir = errors.New("gitx: host git never runs in a lane")
 
 // Result is a call that exited 0 or with a code in OKExit.
@@ -160,6 +167,11 @@ type Exec struct {
 	Timeouts map[Class]time.Duration
 	// Hardening is §HGH's prefix. An Exec whose HooksDir is "" runs nothing (ErrCallShape).
 	Hardening Hardening
+	// spawn is the process seam: nil in production. When set, Run hands it the child's final
+	// argv, Dir and environment just before cmd.Start, for every process it starts (the H3
+	// config read included) and for none it refuses. Only gitxtest.Spy sets it, through
+	// internal/spawnseam, which no package outside gitx can import (Go's internal rule).
+	spawn func(spawnseam.Spawn)
 }
 
 var _ Runner = (*Exec)(nil)
@@ -167,8 +179,9 @@ var _ Runner = (*Exec)(nil)
 // NewExec checks that h.HooksDir is an existing, empty directory, then returns the Exec.
 func NewExec(h Hardening) (*Exec, error)
 
-// Run applies §HGH (the H1 and H2 prefix, then the H3 config check for c.Scope, which refuses
-// with *UntrustedConfig before git starts), then starts git headless — GIT_TERMINAL_PROMPT=0,
+// Run refuses a lane call with ErrLaneDir and a bad shape with ErrCallShape, then applies §HGH
+// (the H1 and H2 prefix, then the H3 config check for c.Scope, which refuses with
+// *UntrustedConfig before git starts), then starts git headless — GIT_TERMINAL_PROMPT=0,
 // GCM_INTERACTIVE=never, GIT_PAGER=cat, GIT_EDITOR=false (a call that wants an editor fails
 // rather than hangs), plus GIT_OPTIONAL_LOCKS=0 for Read only — captures stdout and stderr
 // separately, and returns an *Error for a start failure, a timeout, or an exit code outside
@@ -329,12 +342,13 @@ package gitxtest
 
 // Repo is a repository in t.TempDir() with an isolated config: GIT_CONFIG_NOSYSTEM=1,
 // GIT_CONFIG_GLOBAL pointing at an empty file, a fixed identity, init.defaultBranch=main.
-// NewRepo is a PROJECT, so its local config also holds keys real projects carry and the clone
-// allowlist refuses: branch.main.vscode-merge-base=origin/main, pull.rebase=true,
-// credential.useHttpPath=true (§HGH H3). Not core.longpaths: task 03 writes it into every clone,
-// so the allowlist admits it (review Minor 15). A project call site that runs with
-// Scope Clone therefore goes red in its own task's tests (b01 re-review R1). CloneOf's repo
-// holds only what git clone writes, since clone copies no local config from its source.
+// NewRepo is a PROJECT, so its local config also holds keys real projects carry:
+// branch.main.vscode-merge-base=origin/main, pull.rebase=true, credential.useHttpPath=true.
+// §HGH H3's Project refusal list admits them, so a project check tightened past that list goes
+// red in its own task's tests (b01 re-review R1). There is no Scope Clone to run them under
+// (ruling R4.2). CloneOf's repo holds only what git clone writes, since clone copies no local
+// config from its source; it stands in for a lane clone, which host git never runs in.
+// Runner()'s Hardening has LaneRoot "", so a test of ErrLaneDir sets LaneRoot itself.
 type Repo struct {
 	T   testing.TB
 	Dir string
@@ -369,6 +383,33 @@ type Script struct {
 
 func (s *Script) On(argv string, res gitx.Result, err error) *Script
 func (s *Script) Run(ctx context.Context, c gitx.Call) (gitx.Result, error) // unknown argv fails the test
+
+// Spawn is one process a real Exec started: Argv is cmd.Args (the git executable first, then
+// §HGH's prefix, then Call.Args), Dir is cmd.Dir, Env is cmd.Env as "KEY=value".
+type Spawn = spawnseam.Spawn
+
+// Spy installs a recorder on e's process seam and returns the slice it appends to, under a
+// mutex, one Spawn per process e starts; e still starts it. Read the slice after the calls
+// return. t.Cleanup removes the recorder. Env can hold a push token (task 13), so gitxtest
+// never logs a Spawn. Task 24's TestHostNeverRunsGitInALane is its first caller.
+func Spy(t testing.TB, e *gitx.Exec) *[]Spawn
+```
+
+```go
+// Package spawnseam is gitx.Exec's process seam. It is internal to gitx, so production code
+// outside gitx cannot reach it, and gitxtest can.
+package spawnseam
+
+// Spawn is a child's final argv, working directory and environment.
+type Spawn struct {
+	Argv []string
+	Dir  string
+	Env  []string
+}
+
+// Set is filled by package gitx's init: it installs f as e's spawn observer (nil removes it).
+// e is a *gitx.Exec; any other type panics.
+var Set func(e any, f func(Spawn))
 ```
 
 #### The tests to write first
@@ -395,7 +436,10 @@ child's environment without trusting the code under test.
 | `TestMessageRefusesANewlineInATrailer` | value `brief:b-1@2\nPanacea-Land: w-x` → `ErrBadMessage` | trailer injection through a key |
 | `TestMessageCopiesTheValueByteForByte` | `brief:b-42@6` appears verbatim once | normalising or parsing a key (P5) |
 | `TestMessageIsReadBackByGit` | real git: `git interpret-trailers --parse` on `Message(...)` prints exactly the trailers given | a missing blank line before the trailer block |
-| `TestLocalMachineFetchURLIsThePath` | `Local{Root: r}.FetchURL(p) == p`, `ID() == "local"` | a Local that rewrites paths |
+| `TestExecRefusesALaneDir` | R4.2, red first: `LaneRoot` = a `t.TempDir()` holding a `CloneOf` clone `L`; table, each on a `Scope Project` call: `Dir: L`; `Dir: L/sub`; `Dir` = `L` in other letter case (Windows only); `-C L`; `--git-dir=L/.git`; `--git-dir L/.git`; `--work-tree L`; `Env` `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY` = a path in `L`; `GIT_ALTERNATE_OBJECT_DIRECTORIES` = `x` + list separator + `L/.git/objects`; `Dir` = `L` spelled `<LaneRoot>/x/../<L's name>` → each `errors.Is(err, ErrLaneDir)`, and `Spy` recorded nothing, so not even H3's config read ran in `L` | a guard that compares uncleaned strings, reads only `Dir`, or checks after start |
+| `TestExecAdmitsNewLaneOnlyForScopeNone` | `Dir == NewLane == L`, `Scope None` → runs; the same with `Scope Project` → `ErrCallShape`; `NewLane: L`, `Dir: L2` (another clone) → `ErrLaneDir`; `NewLane` set on a `Scope Project` call in the project → `ErrCallShape` | a NewLane that opens every lane, or any scope |
+| `TestSpyRecordsWhatExecStarts` | a `Read` call with `Scope Project` → one or more Spawns, the last with `Dir` = the repo, `Argv` ending in `Call.Args`, `Env` holding `GIT_OPTIONAL_LOCKS=0`; a call refused by `ErrCallShape` → no Spawn; after cleanup, a call adds none | a spy fed from `Call` instead of `cmd`, or one left installed |
+| `TestLocalMachineIsLocal` | `Local{Root: r}.ID() == "local"`, `CloneRoot() == r` | a Local that rewrites paths |
 | `TestScriptFailsOnAnUnscriptedCall` | an unknown argv fails the calling test | a fake that silently succeeds |
 | `TestLocksSerialiseOneProject` | under `-race`: goroutine A holds `Lock(ctx, "p-1")`; B's `Lock(ctx, "p-1")` has not returned 50 ms later; A unlocks → B returns within 1 s; calling A's unlock twice does not release B's hold | a lock keyed per call, or an unlock that frees the next holder |
 | `TestLocksLetOtherProjectsRun` | A holds `"p-1"`; `Lock(ctx, "p-2")` returns at once | one global mutex that stalls every project behind a slow push |
@@ -412,8 +456,9 @@ child's environment without trusting the code under test.
 primary worktree. The agent can therefore write any key into either `config`, and any file into
 either `hooks/`. The control plane runs the **host's** git in both repositories: task 07's lane
 sync and observer, task 09's land and origin refresh, task 10's undo and revert, task 11's remove
-question, task 12's fetch and push, task 13's `credential fill`, and, in a lane clone, phase 2's
-three per-worktree resolvers (task 05's `laneResolverRunner`, re-review b02-2 X-1). Unhardened, each of those calls is code
+question, task 12's fetch and push, and task 13's `credential fill`. (Ruling R4 moves every one
+of these out of the lane: host git never runs in a lane clone, and phase 2's resolvers read
+host-owned config only, R4.6. No `laneResolverRunner` exists.) Unhardened, each of those calls is code
 execution on the Windows host, as the user, outside the microVM. Each is also a path to the
 user's token, which breaks A4.
 
@@ -459,9 +504,10 @@ This closes review C3, where the user's token reached whatever the agent wrote.
   `http.*` override can reach it, and fetch and push go by remote name (task 12). So H2 does not
   claim it. H3 refuses `remote.*.proxy`, `remote.*.proxyAuthMethod` and `remote.*.vcs` on every
   Project call, and the clone allowlist never admits them.
-- The origin refresh (task 09) and the lane sync (task 07) fetch between two local repositories.
-  They name the source by its literal path, taken from the lane index (the sync's `FetchURL(clone)`
-  is that path) and never read from `remote.origin.url` in the clone. A local path needs no
+- The origin refresh (task 09) fetches between two local repositories. It names the source by
+  its literal path, never read from `remote.origin.url` in a clone. The lane sync (task 07) never
+  names the clone at all: it fetches from a bundle file task 24's runner wrote into a host-owned
+  directory (ruling R4.4), so `Machine` has no `FetchURL`. A local path or a bundle file needs no
   credential, proxy or TLS.
 
 **H3. The config check: what the agent wrote is read before git acts on it.** A filter, diff or
