@@ -36,7 +36,7 @@ package lanes
 // RemovalState is what removing a lane would lose. The desktop shows all of it in one question.
 type RemovalState struct {
 	LiveSessions []string // "id\ttitle", registry sessions not exited
-	Uncommitted  []string // paths from the clone's status; empty when its directory is gone
+	Uncommitted  []string // paths from the clone's `status --porcelain=v2 -z` (task 07's parser); empty when its directory is gone
 	Unlanded     []string // short shas: LaneRef ^refs/heads/<branch>, at most 20, after a SyncLane
 	LaneTip      string
 	// Elsewhere is work in the clone the lane does not reach (review I6): "refs/heads/<name>\t<short
@@ -232,6 +232,7 @@ edited. Audit line for the GET renames: *"Reads the lane index. Writes nothing."
 |---|---|---|
 | `TestRemoveRefusesWhileASessionIsLive` | a running session on the worktree → `live_sessions`, directory intact, no destroy called on the backend | a fourth destroy site (contract §5.2) |
 | `TestRemoveAsksWhenWorkWouldBeLost` | uncommitted `a.txt` and one unlanded commit → `confirm_required` with both and a 16-hex `confirm` | discarding work silently |
+| `TestRemoveConfirmPathsAreAJSONArray` (handler; re-review b05 issue 8) | a clone with uncommitted `docs/résumé.md` and `a b.txt` → 409 `confirm_required`; `JSON.parse`-equivalent `json.Unmarshal(details["paths"])` gives exactly `["a b.txt", "docs/résumé.md"]` in status order, unquoted | a newline-joined `details.paths` in the removal handler, or a C-quoted `"docs/r\303\251sum\303\251.md"` |
 | `TestRemoveHonoursOnlyTheTokenShown` | token from state 1; then the agent commits; DELETE with the old token → `confirm_stale`, directory intact | a confirmation of a question the human never saw |
 | `TestRemoveArchivesUnlandedCommits` | after removal, `refs/panacea/archive/lanes/<id>/<t>` names the old lane tip and `cat-file -e` finds every unlanded commit | unlanded work lost to `gc` (A7, R11) |
 | `TestRemoveArchivesOtherClonesBranches` (review I6) | in the clone, `switch -c fix-x`, commit X, `switch <b>`; then `switch --detach`, commit Y. DELETE → `confirm_required` whose `details.elsewhere` names `refs/heads/fix-x` and `HEAD`; with that token → 200, `<archivedElsewhere>/heads/fix-x` names X and `<archivedElsewhere>/HEAD` names Y, `cat-file -e` finds both in the project, and the project's `for-each-ref refs/heads` is unchanged. Red first against `Inspect` without the listing: the first DELETE on a landed lane answers 200 and X is gone | work an agent committed on another branch deleted with its clone |
