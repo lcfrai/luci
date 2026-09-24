@@ -207,8 +207,8 @@ export function detailList(error: unknown, key: string): string[];
 // send(method, route, body?, timeoutMs?) — the fourth argument overrides DEFAULT_TIMEOUT_MS for
 // the calls that run git against a remote or clone a repository.
 export const GIT_WRITE_TIMEOUT_MS = 150_000;  // create worktree, land, bring-in, refresh, undo, revert, branch writes, evidence
-// bring-in is here (re-review b05 issue 3): after its merge it runs one fetch per clone
-// (RefreshClones), like a land, so the 10 s default could report a failure for one that happened.
+// bring-in is here (re-review b05 issue 3): after its merge it runs one bundle per lane through
+// its runner (RefreshClones, task 09; R4.5), like a land, so the 10 s default could report a failure for one that happened.
 export const GIT_REMOTE_TIMEOUT_MS = 200_000; // fetch, push, PR — above the server's 3-minute gitx.Remote
 
 export interface CockpitClient {
