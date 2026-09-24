@@ -157,7 +157,11 @@ library and this task adds no dependency.
 
 **Mark ready / Not ready** call phase 2's `api.setWorktreeReady` (seam S3.3) then `reload()`. A
 lane with no commits the branch lacks has **Mark ready** disabled with the reason "Nothing committed
-since its last land — commit first". Nothing infers readiness (known defect 9).
+since its last land — commit first". Nothing infers readiness (known defect 9). **Not ready**, on
+each queue card, is the cockpit's one un-mark: `api.setWorktreeReady(projectId, worktreeId,
+false)` then `reload()`, and the lane moves to `NotReadyList`. Phase 2's worktree menu keeps its
+already-ready row disabled and, after task 22, points here by name (review Minor 10), so this
+button's label stays **Not ready** and the lens's name stays **Merge**.
 
 **Conflict → Resolve.** A conflicting row shows *Start a session to resolve…*, which opens
 `ResolveDialog`: the prompt from `resolvePrompt`, in an editable text area, the harness the
@@ -249,6 +253,7 @@ hidden until task 22 provides it).
 | `the shared-index warning names both sessions` | a lane with an agent and a shell session → "upload-api (agent) and a shell" + SHARED_INDEX_NOTE | the hazard invisible (3-D2) |
 | `uncommitted work is named on the row` | `uncommitted: [a.ts]` → the uncommitted line | "lands clean" hiding work that will not land |
 | `a head off the branch is named on the row` (review I6) | `headElsewhere: "refs/heads/fix-x"` → the line names `fix-x` and the branch; a 40-hex value → "detached" and the short sha; `""` → no line | "nothing to land" while the agent commits elsewhere |
+| `Not ready un-marks the lane` (review Minor 10) | click Not ready on a queue card → `api.setWorktreeReady(p, w, false)` once, then `reload()`; after the reload the lane is in `NotReadyList`, not the queue; the button's accessible name is exactly "Not ready" | the un-mark that phase 2's menu copy (task 22) sends the user to missing or renamed |
 | `Mark ready is disabled for an empty lane, with its reason` | no commits → disabled, `title` is the reason | readiness offered for nothing |
 | `zero states` | no ready lanes → the m-empty text; no lanes → m-new's text | an empty white box |
 | `the lens adds no interval and no spinner` | no `setInterval`; no element with `role="progressbar"`; the landing-in-flight shape is `StatusDot status="running" live` | a spinner per row |
