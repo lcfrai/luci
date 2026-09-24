@@ -120,12 +120,16 @@ func (v *JWKSValidator) Ready(ctx context.Context) error
 // request it hands on, so no handler can forward the user's token (ADR-H1
 // §5.8, 67609ab :543-546: no token is forwarded to another service or into a
 // sandbox).
-// A missing header: 401 with "WWW-Authenticate: Bearer". A rejection: 401 with
-// "WWW-Authenticate: Bearer error=\"invalid_token\"", except ErrTenant, which
-// is 403. ErrKeySetUnavailable: 503 backend_unavailable. Bodies are httpx
-// problems with code CodeUnauthenticated (401), "tenant_not_enrolled" (403) or
-// httpx.CodeBackendUnavailable (503); details.reason carries the Hub's reason
-// string for a rejection.
+// A missing header: 401 with "WWW-Authenticate: Bearer" and details.reason
+// "missing". A rejection: 401 with "WWW-Authenticate: Bearer
+// error=\"invalid_token\"" (`insufficient_scope` for ErrScope, Hub contract
+// §4.1), except ErrTenant, which is 403 with details.tenantId when the
+// validator named a GUID tenant (§4.2). ErrKeySetUnavailable: 503
+// backend_unavailable. Any other error: 500 internal. Bodies are httpx
+// problems with code CodeUnauthenticated (401), "tenant_not_enrolled" (403),
+// httpx.CodeBackendUnavailable (503) or httpx.CodeInternal (500);
+// details.reason carries the Hub's reason string for a rejection.
+// [Amended by task 16's build, 2026-09-25: see "As built".]
 func Middleware(v Validator, next http.Handler) http.Handler
 
 // ClaimsFrom returns the Claims Middleware stored.
@@ -181,6 +185,8 @@ and mints tokens with any header and claims; the authority is that server on loo
 | `TestMiddlewareStripsTheAuthorizationHeader` | the handler sees no `Authorization` and a `ClaimsFrom` value | a handler that forwards the user's token into a pod |
 | `TestAnInsecureAuthorityIsRefused` | `http://` without the flag → error; `http://example.com` with it → error | a production validator on plaintext |
 | `TestReadyFetchesEveryTenant` | two tenants → two fetches; one failing → `ErrKeySetUnavailable` | a /readyz that says ready with no keys |
+| `TestAnUnusableConfigIsRefused` *(added by the build)* | no authority, a path, query, fragment or userinfo on it; no or non-GUID tenant; no or `api://` audience; no or two-word scope; no or non-GUID client; negative skew → error; upper-case GUIDs and a trailing slash normalised; New fetches nothing; the defaults (10 s client, wall clock) | any one of `New`'s refusals deleted |
+| `TestOnlyRSASigningKeysOfAtLeast2048BitsAreUsed` *(added by the build)* | 1024-bit, `use: enc`, `kty: EC`, `alg: PS256` keys → `ErrSignature`; `use` absent and `alg: RS256` accepted; a set of only unusable keys → `ErrKeySetUnavailable` | the key filter stated above, deleted |
 
 #### Steps
 
@@ -194,7 +200,7 @@ and mints tokens with any header and claims; the authority is that server on loo
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/entra/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 25
+go test ./control-plane/internal/entra/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 27 (was 25; see "As built")
 go test ./sandboxd/... ./control-plane/... -race -count=1                                 # ok
 git diff --stat control-plane/go.mod control-plane/go.sum                                 # empty
 ```
@@ -205,3 +211,34 @@ git diff --stat control-plane/go.mod control-plane/go.sum                       
   real-tenant acceptance test for that (Hub contract `:520-523`).
 - Group-overage handling: nothing here reads `groups` (ADR-H1 §6.6 rejects membership from group
   claims).
+
+#### As built (2026-09-25)
+
+Step 1 held: Hub contract §6.3 at `feat/hub` `6704930`, `:417-494`, is the interface above,
+unchanged. Departures, each declared in the task report:
+
+1. **27 tests, not 25.** The two rows marked *added by the build*: `New`'s refusals other than the
+   insecure authority, and the JWKS key filter, had no test in the table, so a mutant deleting any
+   of them survived.
+2. **The middleware follows the Hub contract outside §6.3**: §4.1 (`insufficient_scope` for a
+   missing scope, still 401) and §4.2 (`reason: missing` for no token; `tenantId` on the 403). The
+   Hub must answer the same, and these are its words.
+3. **Rules the part left open, taken on the safe side:**
+   - `http` authority: a loopback **IP literal** only; `localhost` is refused (the key set is the
+     trust anchor, and a name is one resolver away from elsewhere). The authority is
+     `scheme://host` only.
+   - Config GUIDs are trimmed and lower-cased. A token's `tid` must equal an enrolled one exactly,
+     and `oid` must be a lower-case GUID: Entra writes both lower-case, and a case-folded `oid`
+     would split one user into two `Key()`s.
+   - Shape (`ErrMalformed`): a token over 32 KiB, a byte outside unpadded base64url, a `crit`
+     header, a header or payload that is not a JSON object, a claim of the wrong JSON type (an
+     array `aud` included), `exp`/`nbf` outside 0…9999-12-31. At the time step, a missing `exp` or
+     `nbf` is `ErrMalformed`.
+   - A JWKS key with `alg` present and not `RS256` is skipped. A set with no usable key is
+     `ErrKeySetUnavailable`, so `Ready` never says ready with nothing to verify with.
+   - A set older than 24 h is not used when its refresh fails (`ErrKeySetUnavailable`). A refetch an
+     unknown `kid` caused that fails is `ErrKeySetUnavailable`, and still spends the 5-min budget.
+     On a cold cache the fetch that fills it is the one lookup: no immediate second fetch.
+   - The fetch runs detached from the caller's context, capped at 10 s, so a caller that gives up
+     does not fail the others waiting on it.
+   - Two `Authorization` headers are `ErrMalformed`; an error that is none of the eleven is 500.
