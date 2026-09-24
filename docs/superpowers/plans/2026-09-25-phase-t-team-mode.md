@@ -591,4 +591,67 @@ with `generatedAt`) to a read-only `tmpfs` mount outside the worktree whenever F
 When the stream is down every request is answered `unavailable` with `since`. Tests: a request with
 a forged session id in its body is re-stamped; the snapshot never contains a `text·A` field.
 
+**17 — Phase 8 delta: the broker's second caller and control relay.** Extends `cp/cmd/broker`
+(phase 8 tasks 17–19, **UNVERIFIED until merge**; the broker is unbuilt on 2026-09-25). OD-14
+reverses owner-only visibility: Fleet's workload identity may create, list, get, destroy and relay
+for an owner **only** under a live delegation, which the broker checks against the Hub (cached
+≤ 60 s) and writes into its audit line as `actor = owner, via = fleet, delegation = dl-…`. Every
+object keeps its owner label (P8-D4). A second relay kind, `control`, joins attach (phase 8 task
+18) and reaches `sandboxd`'s `/control` on 8080 (P8-D12's ingress rule, unchanged). The broker
+records each pod's source address at ready and exposes it to phase 6's keysmith for token binding
+(P6-D7). Tests: Fleet without a delegation is 403; a delegation for Alice cannot list Bob's pods; a
+revoked delegation fails within the cache window; the audit line names the delegation.
+
+**18 — The `panacea` verbs in the sandbox binary.** Extends phase 6's `sbx/cmd/panacea/main.go`
+(task 14, `token` only, **UNVERIFIED until merge**) with `sbx/internal/panaceacli`: `team`,
+`check <path>`, `files`, `show <path>`, `lease request|release <globs>`, `report
+done|blocked|assumed <text>` (with `blocked --on human`), `task …`, `worker spawn|stop`, `direct
+<ag-id> <kind> …`, `inbox`, `peer <kind> …`, `human inform|ask …`, `lane <ag-id>`, each a thin
+client over task 16's socket, printing the result JSON in the fixed quoted envelope (G4) and
+exiting non-zero with *"team view unavailable since <t>"* when Fleet is down. The binary is static
+(`CGO_ENABLED=0`, P8-D8) and vendored. The class's verb set is enforced by Fleet, not here; the CLI
+shows the verbs it was built with. Tests: every verb against a fake socket, from task 09's
+fixtures; exit codes; `token` behaviour unchanged.
+
+**19 — Fleet's control streams and verb dispatch.** `cp/internal/fleet/control`: Fleet opens one
+`control` relay per live sandbox through the broker (task 17), keeps it open with reconnect and
+backoff, and dispatches each stamped request to a handler registered per verb. `dispatch.go`
+checks, before any handler runs: the stamped session exists, its class may call this verb (task 09's
+table), and every object the args name belongs to the session's owner (§3.3 rule 1). Unknown verbs,
+unknown fields and oversized args are refused with ST.1's error codes. Tests: a worker calling
+`peer` is refused; Alice's Orchestrator calling `worker stop` on Bob's worker is refused; a dropped
+stream reconnects and the sandbox sees `unavailable` meanwhile.
+
+**20 — Fleet sessions over the broker.** `cp/internal/fleet/sessions`: `Launch(owner, project,
+class, harness, delegation)` creates the sandbox through the broker (the `remotebe` client shape,
+phase 8 task 22), mints an `ag-…` id, writes agent start (and later end) to the Hub through the
+outbox, and renders the class's policy file (task 13) into the spec (task 15). The Orchestrator
+is created on a `member`'s first team launch and is one per user per project; a `viewer` gets
+none. `tokens.go` mints the session's gateway key through phase 6's `gatewayclient` (P6 task 15,
+S6.3) with tags `tid`, `oid`, team, project, agent id, route and, for peer-triggered turns,
+counterpart, and a fresh key per Orchestrator turn; an AU project with the AU route down fails
+closed (P6-D5). Tests on a fake broker and fake keysmith: a second Orchestrator launch returns the
+first; a viewer's launch is 403; an AU project never mints on Global.
+
+**21 — `fleetbe` and the team launch on the local control plane.** `cp/internal/backend/fleetbe`
+implements phase 2's `backend.Backend` (S8.1, unchanged) over Fleet's REST and attach routes, with
+the user's Fleet token from the Hub's token custody (`entraauth` `TokenSource`, Hub task 31).
+`cp/internal/api/teamlaunch.go`: on a team project, a launch first calls the Hub **as the user** to
+create the delegation (task 06), then Fleet with it; the desktop renews delegations silently while
+signed in. A session still running locally on a team project is labelled *outside the team*: no
+leases, visible to others only once pushed (§2.3). Tests: create/list/destroy/attach through a fake
+Fleet; a launch with the Hub down fails with the Hub's code, not a Fleet one; the session JSON leaks
+no token (phase 2's `sessionJSON` rule).
+
+**22 — Read verbs.** `cp/internal/fleet/verbs/{team.go,check.go,files.go}`: `team` returns §5.1's
+table for every agent on the project, **filtered by the caller's class**: a worker gets owner,
+role, brief section id and title, status, observed files, leases and conflicts, and never a task
+title, why-line, commit subject or thread text; an Orchestrator also gets those, quoted and
+attributed. `check <path>` returns the path's holders, editors, open conflicts (the other side's
+owner, brief section and paths only, for a worker) and the caller's own pending directives first.
+`files`/`show` answer from the lane owner's `machined` over the broker (TM1) at the integration
+head, read-only. Every string passes task 02 before it leaves Fleet. Tests: a worker's `team`
+contains no `text·A` field, for every fixture; `check` on an unleased path returns empty, not an
+error; OD-24's private opening prompt never appears anywhere.
+
 ---
