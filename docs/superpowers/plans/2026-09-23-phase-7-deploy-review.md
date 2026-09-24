@@ -1212,7 +1212,7 @@ desktop tree, so it ran over both this worktree and the main tree at `a92c3b0`.
 | t01:639-647 | `-i`, 28 lines (the constants `"pending"`/`"succeeded"`, 25 Panacea-naming comments, `PosturePanaceaSSO`) | case-sensitive: `"/api/`, `"/projects`, `json:"`, `"(Succeeded\|Pending\|Failed\|Running\|Unknown)"`, `pnc_`, `/deploy/panacea"`. Expected: only `TestErrorNeverRendersCause`'s lines | the code prints nothing (exit 1). Five planted lines (a JSON tag, `== "Succeeded"`, a route constant, `"Bearer pnc_abc"`, a connector import) print one line each |
 | t03:71, :361-364 | `// mirrors`, which printed 0, claimed "at least 17" | a count pair: `^// [a-z][A-Za-z]*DTO mirrors ` against `^type [a-z][A-Za-z]*DTO(\[T any\])? struct`, **17 and 17**. `branchEnvDTO`'s comment (t03:71) now opens *"branchEnvDTO mirrors"*, the only DTO that did not | 17, then 17. The review's "16, not 17" was true before b02 added `branchEnvDTO` |
 | t04:209-214 | `Mode"\|ScanMode\|dastMode\|sastMode`, which printed the three `json:"accessMode"` lines | `-i` on the ten scan-mode spellings in `TriggerDeployOptions` (`models/models.go:2356-2372`). The `-i` is deliberate: `encoding/json` matches keys case-insensitively, so an untagged `DASTMode` field would still reach Panacea as `dastMode` | nothing. Planted `DASTMode string` and `` `json:"iacScanMode,omitempty"` `` print |
-| t05:327-333 | bare `pnc_`, which also printed the `TokenSource` comment (t02:25) and panaceatest's `"pnc_test"` (t03:288, a non-test file) | `"pnc_"\|pnc_[0-9a-fA-F]{8}`. Expected: exactly the prefix check in `deploy_connection.go`. The old text's *"the constant's comment"* named a constant no part defines | over the code of tasks 01–05, nothing. A planted `HasPrefix(token, "pnc_")` and a planted 32-hex key print. The refusal sentence *"starts with pnc_."* does not |
+| t05:327-333 | bare `pnc_`, which also printed the `TokenSource` comment (t02:25) and panaceatest's `"pnc_test"` (`Server.Token`, t03:290, a non-test file) | `"pnc_"\|pnc_[0-9a-fA-F]{8}` (round 2 widened each quote to ``["`]``, M-6 below). Expected: exactly the prefix check in `deploy_connection.go`. The old text's *"the constant's comment"* named a constant no part defines | over the code of tasks 01–05, nothing. A planted `HasPrefix(token, "pnc_")` and a planted 32-hex key print. The refusal sentence *"starts with pnc_."* does not |
 | t07:257-262 | bare `setInterval`, 3 lines (`heartbeat.ts:29` is `ReturnType<typeof setInterval>`) and a claimed `poller.ts:84` | `setInterval(` and `grep -v '\.test\.'`. Each expected line is quoted, and its number is given as of `a92c3b0` | exactly `api/poller.ts:90` and `hooks/heartbeat.ts:34`, in both trees |
 
 Restatements fixed: `poller.ts:84` → `:90` at plan:81 and t07:6. Nothing else in the plan or the
@@ -1253,7 +1253,7 @@ Also run: `"SUCCEEDED"` survives t01's grep. It is not a word Panacea writes (t0
 | The no-match sentence says "your key" | t06:154 now reads *"No Panacea project your key can see deploys this repository. A key restricted to one project sees only that project; otherwise, create one in the Panacea portal, then come back."* The code comment at t06:45 also changed. t06:218 adds `TestNoMatchUnderARestrictedKey` |
 | The owner-only sentence says "your role or your key" | t18:111 now reads *"Only a project owner can change this, with a key that is not restricted to one project. Panacea refuses it to developers and to every restricted key."* t18:160's test asserts the line exactly. t07:238 `TestOwnerProbe` covers the scope `403` |
 | The connect panel says which key to mint | t14:57: step 2 tells the user to leave *Restrict to a project?* on *No restriction*, in the portal's own words. A line under the steps says what a restricted key and a *Read only* key cannot do. The text is one constant, `KEY_ADVICE`, which is the seam. t14:84 adds `connect names the key` |
-| An owner question | plan:789 **Q-P7-7**: an unrestricted key or one restricted at *Deploy*. **Recommended and built: unrestricted.** The plan's list of what the owner provides (plan:792) says so. plan:324 (7P-9) states the restricted-key case |
+| An owner question | plan:789 **Q-P7-7**: an unrestricted key or one restricted at *Deploy*. **Recommended and built: unrestricted**, whose cost the question now states too: every right its holder has, platform admin included for an administrator, on every project (round 2, I-1 below). The plan's list of what the owner provides (plan:792) says so. plan:324 (7P-9) states the restricted-key case |
 
 Also: t20:443 (LIVE-CHECK step 12) now connects once with a *Read only* restricted key, and checks
 the three sentences live (OD-12, batched).
@@ -1283,3 +1283,48 @@ the three sentences live (OD-12, batched).
   restricted key's `username` in `/me` is its owner's is also unverified, because the recorded body
   does not depend on it.
 - Nothing was compiled or run. No real Panacea or Hub was called.
+
+## Fix batch b06, round 2 — the re-review's I-1 and M-1 to M-6 (2026-09-24)
+
+Input: `.superpowers/sdd/p7/plan-rereview-b06-1.md` (local, git-ignored). Panacea read at
+`b33d15acb` with `git show`, read-only. Line numbers below are after this round's edits; the round-1
+map above cites the lines as they stood at `e910fab` (its plan:789 and plan:792 are now plan:791
+and plan:793).
+
+| Finding | Change |
+|---|---|
+| **I-1** Q-P7-7 stated only the restricted key's costs | plan:791, the question column gains *"What the recommended key costs"*: an unrestricted key carries every right its holder has, on every project, platform admin included for an administrator (`IsSuperAdmin` reads the holder's own groups, `models/models.go:218-228`, re-read); phase 7 uses at most owner rights on the bound projects, and no route it calls needs admin. The per-project multi-key option is named as **not built** (the connection holds one key). The recommendation stands as built. review:1256 (the round-1 map's owner-question row) now states the cost too |
+| **M-1** step 12 said "reconnect with your first key" | t20:443: reconnect with an unrestricted key, minting a new one if the first was not kept (`AccountPage.tsx:1406-1407`, shown once; t05:285 `TestConnectionGETNeverHasToken`), and do it **before** step 13, because `PUT …/auto-deploy` is `authedProjectOwner` (`routes/routes.go:1309`, re-read) |
+| **M-2** "cannot Ship either" understated a *Read only* key | t14:57 `KEY_ADVICE`: *"… Restricted to Read only, it cannot Ship, roll back, rebuild, cancel or change who can open a branch."*, citing `routes/routes.go:1286`, `:1026`, `:1291`, `:1431` (each `authedProjectDeveloper`, re-read). t14:84's test asserts that phrase word for word. plan:326-328 (7P-9) and plan:791 (Q-P7-7) say the same |
+| **M-3** t06's test named a wire fixture | t06:218: `deploytest.Fake` seeded with one project through `AddProject` (t01:538), in the shape `projects-scoped.json` records; the binding package loads no Panacea body |
+| **M-4** 7P-6 quoted the old no-match sentence | plan:258-259 now quotes *"No Panacea project your key can see deploys this repository. …"* and points at t06:154 for the full sentence |
+| **M-5** stale `t03:288` | t05:332 and review:1215 now cite `Server.Token`, t03:290, by anchor and line |
+| **M-6** two greps blind to Go raw strings | t01:639 and t05:327 widen every quote class to ``["`]``; t01:645-647 and t05:334-336 say why. Planted and run below |
+
+### M-6, run
+
+Every fenced `go` block of tasks 01 to 05 was extracted (5, 2, 3, 1 and 5 blocks; scratchpad
+`p7/b06r2/`) and each widened grep run over it, exit status read from a file, never through a pipe.
+
+| Grep | Over the parts' own code | Planted survivors |
+|---|---|---|
+| t01:639, widened | t01's code: no output, rc=1 | `` `/api/v1/projects` ``, `` `/projects` ``, `` `Succeeded` `` and a raw-string import of `…/deploy/panacea` each print. The `"`-only form printed none of the four (rc=1) |
+| t05:327, widened | tasks 01–05: no output, rc=1 | ``strings.HasPrefix(token, `pnc_`)`` prints; the `"`-only form missed it. `"pnc_"` and a 32-hex key still print. The comment naming `pnc_`, the refusal sentence and `"pnc_test"` still do not |
+
+Named survivors before the run: (1) a raw-string `pnc_` check against t05's grep, (2) a raw-string
+route constant against t01's. Both are now caught. The re-review's own planted survivors are the
+same two.
+
+### Deviations, declared
+
+- **M-6 widened more than the review's example.** The example widened t01's two route quotes. This
+  round widens the status-word quotes and the import quote too, since a raw string is equally legal
+  there; each was planted and prints.
+- **M-2 fixed in all three places**, not only `KEY_ADVICE`, because 7P-9 and Q-P7-7 restated the
+  same understatement.
+
+### Left open
+
+- **Q-P7-7** is still the owner's. The question now shows both costs.
+- Unverified: nothing was compiled; the greps ran over extracted plan code, not a built tree. The
+  portal labels were read in source only. No real Panacea or Hub was called.
