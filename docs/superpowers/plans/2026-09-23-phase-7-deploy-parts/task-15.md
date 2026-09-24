@@ -149,7 +149,13 @@ which was true only while releases were per-laptop.
 
 - **Stale** (`view.stale`): *"Panacea has not answered since `<fetchedAt, absolute>`. Everything below
   is what it said then. Ship and rollback are off until it answers."* The whole lens body takes the
-  `dim` treatment (opacity only).
+  `dim` treatment (opacity only). When `reason.code` is `deploy_not_found`, `deploy_forbidden`,
+  `deploy_conflict` or `deploy_rejected`, Panacea **did** answer — it refused this project (task 07
+  step 2, review M13) — so the banner reads instead *"Panacea refused to show this project:
+  `<reason.message>` Everything below is what it said at `<fetchedAt, absolute>`. Ship and
+  rollback are off while the cockpit checks which Panacea project deploys this repository."*
+  `DeployView.staleReason.code` is already `string` (task 13), so no type changes. Test
+  `a refusal is not silence`.
 - **Collision** (`env.collision` on the selected row, i.e. `branchesSeen.length > 1`; review b02
   removed `env.branch !== branchName`, which fired for every `/` branch because `env.branch` is
   Panacea's label): *"Panacea recorded deployments to `<env>` under more than one branch label:
@@ -201,6 +207,7 @@ which was true only while releases were per-laptop.
 | `no selection, no card` | `selected: null` → `EnvironmentCard` renders nothing; the DOM lacks *"Asking Panacea"* and *"Not deployed yet"*; the list still renders (b02 round 2, R6) | a lens that says it is asking when it sent no branch |
 | `mismatch is drawn` | a row `{environmentRow:"production", environmentMismatch:{recorded:"develop", deployed:"prod"}}` → *"The release was recorded against `develop`, but Panacea deployed it to `prod`."*, under `production` (b02 round 2, R1) | a false provenance record shown as if it held |
 | `no environment recorded is titled` | `unmatched: [{name:""}, {name:"legacy"}]` → two groups, titled *"no environment recorded"* and `legacy`; no group has an empty title (review M5) | a blank group heading, or `""` dropped as falsy |
+| `a refusal is not silence` | `stale: true`, `staleReason {code:"deploy_forbidden", message:"You do not have access to this project."}` → *"Panacea refused to show this project: "* + the message verbatim, and the DOM lacks *"has not answered"*; the same with `deploy_not_found`; `upstream_unavailable` → the *"has not answered since"* sentence (review M13) | a deleted or revoked project drawn as a network blip that will pass |
 | `no branch comparisons` | a source grep of `desktop/src/deploy/*.tsx` (b02 round 2, R5, widened): no identifier `branchName` or `selectedBranch`; no `.branch` on either side of `===`, `!==`, `==` or `!=` (`/\.branch\s*[!=]==?/` and `/[!=]==?\s*[\w.?]*\.branch\b/`); no `.includes(`, `.startsWith(` or `.endsWith(` whose receiver or argument ends in `branch` or `branchesSeen` | a later edit re-introducing the name join, in either operand order |
 | `drift guard` | `designsystem.test.ts` allows `var(--drift)` in `common.css`'s `dot-tone-drift` and nowhere else | drift colour leaking to decoration |
 

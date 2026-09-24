@@ -30,7 +30,9 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "binding": Binding,                    // exactly the binding PUT's body (task 06)
   "fetchedAt": "2026-09-23T10:02:11.123Z" | null,   // the last cycle whose Panacea reads all succeeded
   "stale": false,                        // true: the last cycle failed; everything below is fetchedAt old
-  "staleReason": null | { "code": "upstream_unavailable" | "deploy_token_rejected", "message": "…" },
+  "staleReason": null | { "code": "upstream_unavailable" | "deploy_token_rejected" | "deploy_not_found" | "deploy_forbidden" | "deploy_conflict" | "deploy_rejected", "message": "…" },
+  // the last four: Panacea refused this project's Environments (task 07 step 2, review M13) — it
+  // answered, so the data is history, not a blip; the binding is being re-resolved
   "ownerControls": "yes" | "no" | "unknown",
   "releasesState": "ok" | "no_hub" | "no_hub_project" | "hub_key_spelling" | "signed_out" | "unavailable",
   "selected": null | {                   // null when no ?branch= was sent (review b02, C2)

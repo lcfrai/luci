@@ -133,10 +133,29 @@ type Snapshot struct {
    `NotConnected` → poll nothing. `AwaitingApproval` or `TokenRejected` → poll nothing, and every
    fourth cycle (60 s) call `Connection.Check`, so the lens's *"this screen checks again on its
    own"* (prototype `phase-7-deploy.html:830-831`) is true without a desktop timer.
-1. **Binding.** `Bindings.Resolve` when the cached binding is not `Bound`, or every fourth cycle;
-   else `Cached`. Not bound → the snapshot carries the binding and nothing else; stop.
+1. **Binding.** `Bindings.Resolve` when the cached binding is not `Bound`, when step 2 marked the
+   project for re-resolve, or every fourth cycle; else `Cached`. Not bound → the snapshot carries
+   the binding and nothing else; stop. A `Binding.Panacea` different from the snapshot's resets its
+   Panacea data before step 2 (review M13): one project's rows never appear under another's
+   binding.
 2. **`Environments`.** First, because a missing *project* surfaces here as its own error, which is
    what makes task 03's *"`Latest` 404 means never deployed"* safe.
+   **`Environments` refused** (review M13): `KindNotFound` (the project was deleted or renamed),
+   `KindForbidden` (this user's access, or the key's scope, was taken away), or any other kind but
+   the failure rule's two (`KindUnavailable`, `KindUnauthorized`), is about this binding, not about Panacea, so it is **not** a cycle failure: the other projects are
+   still read this cycle. This project's steps 3-8 are skipped. Its snapshot keeps its last
+   Panacea data only as history — `Stale: true`, `LastError` the refusal (Panacea's sentence),
+   `FetchedAt` unchanged — so the lens never shows it as current (task 08's `staleReason` carries
+   the code `writeDeployError` gives the kind, t05:281-284: `deploy_not_found`, `deploy_forbidden`,
+   `deploy_conflict` or `deploy_rejected`). The project is marked for
+   re-resolve and Nudged, so the next cycle (3 s later, not 15 s) runs step 1's `Resolve`, whatever
+   the every-fourth-cycle count says. Then: not `Bound` → step 1's rule, the snapshot carries the
+   binding and nothing else, and the old project's data is **dropped**, not kept stale; `Bound` to a
+   **different** Panacea project → step 1's reset (`Environments`, `BranchEnvs`, `BranchEnvErrs`,
+   `Latest`, `Deployments`, `Runs`, `Scans`, `Releases` emptied; `OwnerControls "unknown"` until the
+   probe re-runs); still `Bound` to the same one
+   (the list shows it, the read refuses) → it stays `Stale` with the refusal, re-resolved every
+   fourth cycle, and a later good `Environments` clears it.
    **Then `EnvironmentFor`** for each wanted branch (`WantBranch`) in neither `BranchEnvs` nor
    `BranchEnvErrs`, and for every wanted branch every fourth cycle — a changed production-branch
    label remaps `main` (`mapBranchToEnvWithProd`, `projects.go:3838-3849`). One request per new
@@ -195,7 +214,9 @@ type Snapshot struct {
 its last data with `Stale: true` and `LastError` set, and the cursor bumps once. `KindUnauthorized`
 is reported with `Connection.Observe` and likewise ends the cycle. A later good cycle clears both
 and calls `Observe(nil)`. An `EnvironmentFor` refusal of any other kind is not a cycle failure:
-it is recorded per branch (step 2) and the cycle goes on.
+it is recorded per branch (step 2) and the cycle goes on. Nor is an `Environments` refusal
+(`KindNotFound`, `KindForbidden`, or any kind but those two): it stales that one project, re-resolves its
+binding next cycle, and the cycle goes on (step 2, review M13).
 
 **The per-cycle deadline** (review M14). One goroutine means one hung read holds every project:
 `do` retries a GET twice after 250 ms and 1 s (t02:95), each attempt up to
@@ -254,6 +275,7 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestHistoryIntervalForcesRead` | 61 s of fake time with no change → a second `Deployments` | history that never refreshes when only `LiveReady` moved |
 | `TestTrackedRunDrivesActiveCadence` | `Track(p, run)`; the project is polled every 3 s until the fake advances the run to succeeded, then every 15 s | a run that stays on 3 s forever, or never gets it |
 | `TestUnavailableEndsCycleForAll` | two bound projects; the first `Environments` fails `KindUnavailable` → the second project saw **no** call this cycle; both `Stale`, one cursor bump | a cycle that stalls for N × timeout in an outage |
+| `TestEnvironmentsRefusedReResolves` | two bound projects, one good cycle; then A's `Environments` fails `KindNotFound` → in that cycle B is still read, A makes no `Latest` call, A is `Stale` with `LastError.Kind == KindNotFound` and its old `Environments` kept, `FetchedAt` the good cycle's. The resolver's `Deployer` is the fake wrapped so that `Projects` then omits A's project (the Fake has `AddProject` and no removal, t01:567) → the next tick (3 s, not 15 s) calls `Resolve` for A, whose binding is `NoMatch`, and A's snapshot holds no `Environments`, `Latest` or `Deployments`. Repeated with `KindForbidden`, and with a second Panacea project that now matches A's repository → `Bound` to it, and A's snapshot holds none of the first project's rows (review M13) | a refusal read as Panacea down, ending every project's cycle; a deleted project drawn fresh (`Stale false`) or its rows kept after the binding moved; a re-resolve that waits for the every-fourth-cycle count |
 | `TestCycleDeadlineCutsAHungRead` | `CycleDeadline` 50 ms of real time (the one test off the fake clock); two bound projects; the watcher's Reader is the fake wrapped so that project A's `Environments` blocks until its `ctx` is done and then returns `KindUnavailable`, Status 0 (what `do` returns for a cancelled transport). One cycle returns within 1 s; B saw no call; both `Stale`, `LastError.Kind == KindUnavailable`; one cursor bump. Then `Track(B, run)`: the next cycle's first call is B's `Environments`, before A's (review M14) | a cycle with no deadline, so one hung read holds the loop for `do`'s three attempts (about 46 s); a deadline per read, not per cycle, so ten projects' hangs add up; a fixed project order that puts a tracked run behind a hanging project every cycle |
 | `TestUnauthorizedObserved` | `KindUnauthorized` → `Connection.Observe` called with it; the cycle ends | a lens that keeps drawing "connected" while every read 401s |
 | `TestStaleKeepsLastData` | a good cycle, then a failing one → `Environments` unchanged, `Stale == true`, `FetchedAt` is the good cycle's time | clearing the lens during a blip |
