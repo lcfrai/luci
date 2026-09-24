@@ -51,13 +51,19 @@ func ParseIdent(line string) (id Ident, ok bool)
 // belongs to. git is the truth for every git fact; this index holds only what git cannot.
 package lanes
 
-// Lane is one cockpit worktree.
+// Lane is one cockpit worktree. Its ID is phase 2's rule, the hash of its Path, and its Path ends
+// in a creation nonce, so removing a lane and creating another with the same Name gives a new
+// directory and a new ID (review Minor 7). Without the nonce the new lane would inherit the old
+// one's id, and with it every record keyed on that id: the Panacea-Land trailers history names
+// (task 10's worktreeName), undo's SetWorktreeReady, registry's WorktreeFlags, the ref
+// refs/panacea/lanes/<id> and task 11's refs/panacea/archive/lanes/<id>/*. The ID stays WorktreeID(Path), not a hash of path plus a counter, so
+// every id in the product is still derived by the one rule phase 2 wrote.
 type Lane struct {
-	ID        string    `json:"id"`        // project.WorktreeID(Path): "w-" + 8 hex
+	ID        string    `json:"id"`        // project.WorktreeID(Path): "w-" + 8 hex; new per creation
 	ProjectID string    `json:"projectId"` // the project it was cloned from
 	Branch    string    `json:"branch"`    // the product branch's short ref name, e.g. "evidence-upload"
-	Name      string    `json:"name"`      // the clone directory's base name, unique per project
-	Path      string    `json:"path"`      // absolute: <CloneRoot>/<ProjectID>/<Name>
+	Name      string    `json:"name"`      // the worktree's name, unique per project among its lanes
+	Path      string    `json:"path"`      // absolute: <CloneRoot>/<ProjectID>/<Name>-<Nonce>
 	MachineID string    `json:"machineId"` // gitx.Machine.ID(); "local" in phase 3
 	CreatedAt time.Time `json:"createdAt"`
 }
@@ -134,6 +140,9 @@ type Creator struct {
 	Machine gitx.Machine
 	Store   Store
 	Now     func() time.Time // nil means time.Now
+	// Nonce gives step 3's directory suffix: nil means 6 lowercase hex from crypto/rand. Tests pin
+	// it to make a collision. It is never derived from the name, the time or a counter.
+	Nonce func() string
 	// Mounts holds sandboxes off the project's working tree while step 6 reads it (re-review
 	// b03 I-2). nil copies no hooks directory: fail closed.
 	Mounts MountGuard
@@ -152,8 +161,12 @@ type MountGuard interface {
 //  1. validate Name (ErrBadName); derive it when empty;
 //  2. `rev-parse --verify --quiet refs/heads/<Branch>^{commit}` in the project (Read) —
 //     ErrUnknownBranch, and nothing on disk;
-//  3. Path = <CloneRoot>/<ProjectID>/<Name>; ErrNameTaken when the index has the name OR
-//     anything exists at Path — an existing directory is never removed or reused;
+//  3. ErrNameTaken when the index has Name for this project. Path =
+//     <CloneRoot>/<ProjectID>/<Name>-<c.Nonce()>; when anything exists at Path (os.Lstat), draw
+//     again, at most 4 draws, then ErrNameTaken. An existing directory is never removed or
+//     reused. A removed lane's directory is gone, so a draw can repeat its nonce only by
+//     chance: 1 in 16.7 million per draw, the same order as two paths sharing an 8-hex
+//     WorktreeID, which phase 2 already accepts (review Minor 7);
 //  4. `clone --no-hardlinks --config core.autocrlf=false --config core.eol=lf
 //     --config core.checkStat=minimal --config core.trustctime=false
 //     --branch <Branch> --origin origin -- <Project.Path> <Path>` (Local). `--no-hardlinks`
@@ -298,8 +311,9 @@ type Source interface {
 }
 
 // Catalog is what the API serves as both api.Enumerator and worktree.Provider: the scanner's
-// primary and linked worktrees, then this project's lane clones, each with Kind "clone" and
-// BranchID = project.BranchID(projectID, lane.Branch).
+// primary and linked worktrees, then this project's lane clones, each with Kind "clone",
+// BranchID = project.BranchID(projectID, lane.Branch) and Name = lane.Name (never the
+// directory's base name, which carries the creation nonce).
 type Catalog struct {
 	Source Source
 	Store  Store
@@ -398,13 +412,14 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCreateCopiesNoHooksWhileTheProjectIsMounted` (re-review b03 I-2) | Mounts a fake that returns ran == false → the clone has `core.hooksPath` and no `.husky/_`, Create succeeds; Mounts nil → the same; a fake that returns true → the copy runs inside its fn (a flag set in fn is seen by the copy seam) | a copy out of a working tree a live agent can rewrite |
 | `TestCreateHooksPathPassesTheCloneCheck` | a created clone whose project had `core.hooksPath=.husky/_`: a `status` with `Scope: Clone` through `gitx.Machine` is not refused (task-02 §HGH H3) | a copy the clone's own allowlist then refuses, breaking every host call in the lane |
 | `TestCreateUnknownBranchTouchesNothing` | `Branch: "nope"` → ErrUnknownBranch, `<root>/<p>` has no entry | a half-made clone |
-| `TestCreateNeverReusesAnExistingDirectory` | a file at Path → ErrNameTaken and the file's bytes are unchanged | RemoveTree on a directory we did not make |
+| `TestCreateNeverReusesAnExistingDirectory` | Nonce pinned to `"aaaaaa"`: a file at `<root>/<p>/ui-aaaaaa` → ErrNameTaken after 4 draws and the file's bytes are unchanged; a Nonce that answers `"aaaaaa"` then `"bbbbbb"` → the lane is created at `ui-bbbbbb` | RemoveTree on a directory we did not make |
+| `TestCreateAgainAfterRemoveGivesANewID` (review Minor 7) | create `ui`, Store.Remove it and RemoveTree its Path, create `ui` again with the default Nonce → the same Name, a different Path and a different ID; `Lane.Name == "ui"` and `filepath.Base(Path)` matches `^ui-[0-9a-f]{6}$`. Red first against a Path of `<Name>` alone | a re-created lane inheriting the old lane's lands, ready flag and lane ref |
 | `TestCreateCleansUpAfterAFailedClone` | a Runner that fails the clone after creating Path → Path absent | leaving a broken clone for the catalog to list |
 | `TestCreateRefusesBadNames` | `""`→derived; `"../x"`, `"A"`, `"-x"`, 41 chars → ErrBadName | a name that escapes CloneRoot |
 | `TestCreateDerivesTheLowestFreeName` | branch `feat/upload`, lanes `upload-1` and `upload-3` exist → `upload-2` | a derived name colliding |
 | `TestRemoveTreeDeletesReadOnlyObjects` | a real clone → RemoveTree succeeds and the path is gone | `os.RemoveAll` failing on Windows' read-only packs |
 | `TestRemoveTreeRefusesOutsideRoot` | `RemoveTree(root, filepath.Dir(root))` → error, nothing deleted | a lane path that escaped the root deleting the user's disk |
-| `TestCatalogListsClonesAfterTheScannersWorktrees` | Source gives primary+linked; store has 2 lanes of p and 1 of q → p's list is primary, linked, then 2 clones with `Kind:"clone"`, `IsPrimary:false`, the right BranchID | clones missing from the rail |
+| `TestCatalogListsClonesAfterTheScannersWorktrees` | Source gives primary+linked; store has 2 lanes of p and 1 of q → p's list is primary, linked, then 2 clones with `Kind:"clone"`, `IsPrimary:false`, the right BranchID, and `Name` the lane's Name, not the nonce-suffixed directory name | clones missing from the rail |
 | `TestCatalogPathResolvesALaneFirst` | a lane id resolves to its path without calling Source.Path | a clone unreachable by session create |
 | `TestCatalogPathOfAVanishedClone` | lane dir deleted → `errors.Is(err, worktree.ErrNotADir)` | a mount of a missing directory |
 | `TestParseWorktreesSetsKind` (project_test.go) | first record `Kind:"primary"`, the rest `"linked"` | a linked worktree reported as primary |

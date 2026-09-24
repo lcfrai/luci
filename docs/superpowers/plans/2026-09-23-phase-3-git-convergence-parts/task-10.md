@@ -36,7 +36,10 @@ type HistoryEntry struct {
 	// bring-in writes no commit, so its commits list as they were made (usually "direct").
 	Kind         string   `json:"kind"`
 	WorktreeID   string   `json:"worktreeId"`   // land: its Panacea-Land value
-	WorktreeName string   `json:"worktreeName"` // land: from the lane index while the lane exists, else ""
+	// WorktreeName, for a land: store.ByID(WorktreeID).Name while that lane exists, else "".
+	// A lane id is new per creation (task 03's creation nonce, review Minor 7), so a lane
+	// re-created under the same name never takes an old lane's rows.
+	WorktreeName string `json:"worktreeName"`
 	BriefKey     string   `json:"briefKey"`     // land: Panacea-Brief, verbatim; "" renders `none`
 	BriefDigest  string   `json:"briefDigest"`
 	// Sessions: for a land, the Panacea-Session values on the lane's commits (parent 1..parent 2,
@@ -101,7 +104,8 @@ type UndoResult struct {
 // means, and the forecast shows that work as its own. Then, in order:
 //   update-ref refs/panacea/undone/<sha> <sha>                           (keeps it and its trailer resolvable)
 //   update-ref -m "panacea: undo land <id>" refs/heads/<branch> <sha>^1 <sha>   (compare-and-swap)
-//   SetWorktreeReady(<Panacea-Land id>, true) when that lane still exists  (exact means as before)
+//   SetWorktreeReady(<Panacea-Land id>, true) when that lane still exists  (exact means as before;
+//   store.ByID, so a lane re-created under the land's lane's name, a new id, stays unready)
 //   l.RefreshClones(ctx, projectPath, branch), as Land's step 14 (origin/<branch> and, since
 //   review I5, upstream/<branch>; task 09)
 // It holds Locks.Lock(ctx, projectID) for the whole verb, as Land does, so it serialises with
@@ -180,6 +184,7 @@ and rev-list, and the lane index for names. Writes nothing."*
 | `TestHistoryWorktreeNameAfterRemoval` | the lane removed from the index → `worktreeName ""`, `worktreeId` still set | a history row lost with its worktree |
 | `TestUndoMovesTheBranchBackExactly` | tip returns to the land's first parent; `refs/panacea/undone/<sha>` names the merge; the lane ref is untouched | an undo that loses the lane's commits |
 | `TestUndoRestoresReady` | ready false after the land → true after undo | a lane that silently drops out of the queue |
+| `TestHistoryAndUndoIgnoreARecreatedLane` (review Minor 7) | land lane `ui` (M); remove it with `Store.Remove` and `lanes.RemoveTree` (task 03; task 11's Remove may not exist yet); create a lane named `ui` again through task 03's Creator (a new id) → History's row for M has `worktreeName ""` and M's `worktreeId`; undo M → exact, `readyRestored:false`, and the new lane's ready flag is unchanged | a re-created lane named for, and marked ready by, the old lane's land |
 | `TestUndoRefusesAPushedLand` | pushed → `undo_not_exact`/`pushed`, nothing moved | a force-push by the back door (A3) |
 | `TestUndoRefusesANonTip` | a land under a later commit → `undo_not_exact`/`not_the_tip` | rewriting history below a newer commit |
 | `TestUndoRefusesALandALaneHasMerged` (review I3) | land A → M; lane B's clone runs `git merge origin/<branch>` (M) and a lane sync makes `refs/panacea/lanes/B` contain M; undo M → `undo_not_exact`/`merged_into_lane`, `details.worktrees == "B"`, the tip still M, no `refs/panacea/undone/<M>`; History's tip row → `undo:"revert"`, `undoWhy:"merged_into_lane"`; the revert of M then lands | an undo that only checks the tip, after which B's next land brings A's work back unannounced |
