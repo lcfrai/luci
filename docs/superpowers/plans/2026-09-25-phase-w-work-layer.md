@@ -287,4 +287,40 @@ path **UNVERIFIED until merge**, as Phase T does.
 | Phase T | Fleet's task record, events and verbs (ST.1, ST.2; plan `:195-243`) | planned | `task.issueId`, two event kinds, three verbs | 98, 101 |
 | Phase T | its Desk rows `desktop/src/components/desk/team*.tsx` (TM task 54) | planned | nothing: they plug into SW.17, task 62's frame | 62 |
 
+### The desktop: `desktop/`
+
+| Path | Responsibility | Status | Task |
+|---|---|---|---|
+| `src/test/expectNoPrediction.ts`, `src/test/workFixtures.ts` | the `OD-27` guard every surface test calls; issue, criterion and revision fixtures | new | 20 |
+| `src/styles/tokens.css` ⚑, `tokens.test.ts` ⚑, `designsystem.test.ts` ⚑ | 02 D2 step 1's tokens and `--t-fact`; the provisional `paper` block; generated themes later | modified | 26, 30, 34; 95, 96 |
+| `src/assets/fonts/CommitMono-*.woff2`, `src/assets/fonts/OFL-CommitMono.txt`, `src/styles/fonts.css` | Commit Mono as files with its licence; the sans stack on Segoe UI Variable | new | 27 |
+| `src/components/glyphs/{StateGlyph,AgentGlyph,MarkGlyph}.tsx`, `glyphs.css` | our drawn glyphs, SVG in `currentColor`, 14 and 16 px | new | 28, 29 |
+| `src/components/common/ViewHeader.tsx`, `src/styles/app.css` ⚑, `rail/rail.css` ⚑ | one header with the route badge; `chrome.dim` | new, modified | 31 |
+| `src/lib/flags.ts`, `src/components/devtools/{FlagCompare,StressSets}.tsx` | `flag.compare` and `stress.sets` in the dev toolbar | new | 32, 33 |
+| `src/styles/forced-colors.css`, `src/styles/grain.css` | the Windows contrast layer; grain, off in `-hc` | new | 34, 35 |
+| `src/components/thread/{ThreadNode,ThreadLine,ThreadTrace}.tsx`, `useThreadLit.ts` | the signature primitives | new | 36 |
+| `src/api/work.ts` (+ test), `src/api/client.ts` ⚑ | Work wire types and relay calls | new, modified | 37; 83, 125 |
+| `src/store/slices/workSlice.ts`, `src/store/types.ts` ⚑, `src/store/store.ts` ⚑ | the non-persisted Work view model; `Lens` gains `"work"` (`types.ts:173`) | new, modified | 37 |
+| `src/work/replica/{replica,ops,undo,visibility,search}.ts` | the in-memory Hub replica on `/v1/changes` | new | 55-58 |
+| `src/components/work/{WorkLens,CriterionGroup,IssueRow,AgentLine,HeldLine}.tsx`, `work.css` | the Work lens and its row | new | 40, 41 |
+| `src/components/work/{TriageView,BoardView,DisplayMenu,BulkBar,PlanSurface,Peek,StartChip,NewIssue,ImportDialog}.tsx` | Triage, board, display, bulk, Plan, peek, Start, create, import | new | 42-45, 60, 61, 68, 69 |
+| `src/components/issue/{IssueView,IssueHead,Revisions,Serves,Relations,IssueAgentLine,Comments,Attachments}.tsx` | the one issue view | new | 46-48, 51, 52 |
+| `src/components/editor/*`, `desktop/package.json` ⚑ | the one Markdown editor on `prosemirror-*` (MIT) | new, modified | 49, 50; 92 |
+| `src/hooks/useKeyboardMap.ts` ⚑, `src/work/keys/{keymap,sequences}.ts`, `src/components/work/ShortcutSheet.tsx` | `keys.list`: `isCockpitChord` extended, `G`/`O`/`M` sequences, the `?` sheet | modified, new | 53, 54 |
+| `src/components/palette/commands.ts` ⚑, `CommandPalette.tsx` ⚑ | work verbs with chords; prefixes; opens beside a row | modified | 59 |
+| `src/components/desk/{Desk,DeskSection,DeskZero,deskModel,deskRows}.tsx`, `desk.css` | **the one Desk frame** (§5.6); team mode's rows plug in | new | 62-65 |
+| `src/components/common/LiveRegion.tsx` | one polite live region per window | new | 66 |
+| `src/components/develop/SessionPaneHeader.tsx` ⚑, `src/components/AppShell.tsx` ⚑ | the issue chip; the Work, Plan and Desk mounts | modified | 67; 40, 45, 62 |
+| `src/components/{plan,roadmap,intake,admin}/*` | W2's features, cycles, views; W4's roadmap and insights; W5's intake and admin | new | 84-96; 126-141; 168-171 |
+
+### Proof and documents
+
+| Path | Responsibility | Status | Task |
+|---|---|---|---|
+| `docs/superpowers/planning/2026-09-25-linear-parity/w0-hub-contract-proposal.md` | W0's two Hub-contract edits as a proposal to the `feat/hub` owner | new | 01 |
+| `docs/PROGRAM.md` ⚑, `docs/FUNCTIONAL-SPEC.md` ⚑, `docs/AGENTIC-UX.md` ⚑, `…/2026-09-25-linear-parity/02-linear-design-language.md` ⚑ | Phase W's row; Feature and Issue in the object model; Q13's four amendments; 02's three corrections | modified | 01 |
+| `docs/verification/2026-09-25-phase-w-results.md` | per slice: what was run, what was observed, the parity rows it closes, what stays unverified | new | 70, 97, 113, 142, 172, 185 |
+| `docs/verification/2026-09-25-phase-w-prototype-review.md` | the owner's review of the in-app prototype, in the owner's words | new | 39 |
+| `docs/work/agent-rules.md`, `docs/work/method.md` | our published agent interaction rules; the user-facing method page | new | 109; 134 |
+
 ---
