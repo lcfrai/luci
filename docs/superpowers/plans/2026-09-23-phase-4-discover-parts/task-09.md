@@ -221,6 +221,13 @@ type Inspection struct {
 	ExpectedKey string              `json:"expectedKey"` // "" when nothing should be inherited
 	Diff        []claudemd.DiffLine `json:"diff"`        // StateEdited only; [] otherwise
 	Committed   []CommittedBlock    `json:"committed"`   // every tracked candidate holding a block or marker, FileName first; [] when none
+	// Excluded is the info/exclude line Materialise's step 6 adds before it
+	// writes a block to this target: "/CLAUDE.md" or "/.claude/CLAUDE.md";
+	// "" when git does not manage the directory (ErrNotARepo, step 2). It
+	// comes from the target choice alone, with no git call and no read of
+	// the exclude file. Task 19 says with it that git stops listing the file,
+	// text of the person's own in it included (review M9).
+	Excluded    string              `json:"excluded"`
 }
 // Committed holds at most one entry today: an Inspection is returned only
 // when one candidate is the untracked target, so at most the other is
@@ -277,6 +284,7 @@ worktrees; the real `git ls-files` wiring is tested over real git in task 14):
 | `TestConcurrentStartsOnOneWorktreeSerialise` | two goroutines, two keys: the file ends as one complete render of one of them and `Merge` never sees a half-written file | interleaved writes |
 | `TestInspectStates` — table | each of the seven states from a constructed file and expected key, with `Committed` `[]` (not `nil`: it marshals as `[]`); `edited` carries a diff with the changed line (a rename is not a changed line: `Source`'s document carries no name, so this package cannot be fed one; the rename end to end is task 07's `TestRenameDoesNotLookLikeAHandEdit`, review I5) | a drift check that only compares keys (brief §4.2 gap 3) |
 | `TestInspectListsCommittedBesideTheTargetsState` — table | a tracked `CLAUDE.md` holding a block, and the untracked target `.claude/CLAUDE.md` in turn `current`, `edited`, `broken` and `superseded`: `State` is the target's own each time (`edited` still carries its diff), and `Committed` is one entry, the tracked file's path and marker key. A tracked `CLAUDE.md` holding only a begin marker → its entry has `MarkerKey ""`. Both candidates tracked, each holding a block → `tracked_elsewhere`, as `TestBothTrackedIsRefused` (re-review R-M1) | a committed block hidden behind the target's `current`; a committed block hiding an `edited` target, so the next start silently overwrites a hand edit; a broken target reported only as committed, so the person removes the committed block and every start is still refused `block_broken` |
+| `TestInspectReportsTheExcludeLine` (review M9) — table | `CLAUDE.md` untracked → `Excluded: "/CLAUDE.md"`; `CLAUDE.md` tracked → `"/.claude/CLAUDE.md"`; the fake `Git` answering `ErrNotARepo` → `""`; in every row the fake `Git.ExcludePath` is never called | a view that says git stops listing a file in a directory git does not manage; an `Excluded` naming the other candidate |
 
 **Steps:**
 

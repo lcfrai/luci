@@ -176,6 +176,8 @@ export interface WorktreeInspection {
   worktreeId: WorktreeId; path: string; state: WorktreeBlockState;
   markerKey: string; expectedKey: string; diff: DiffLine[];
   committed: CommittedBlock[]; // beside the target's own state, never instead of it (re-review R-M1)
+  /** "/CLAUDE.md" | "/.claude/CLAUDE.md" | "": task 09's Excluded, the info/exclude line (review M9). */
+  excluded: string;
 }
 export interface Materialisations { expectedKey: string; worktrees: WorktreeInspection[] }
 
