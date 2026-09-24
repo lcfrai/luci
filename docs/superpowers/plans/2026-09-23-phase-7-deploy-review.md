@@ -984,7 +984,9 @@ I2 is wider than the review said.
 - **I6.** Hub contract §7.4 `:711-715` (hub worktree) gives the Azure DevOps pattern
   `^[a-z0-9-]{1,50}\.visualstudio\.com/…`, compared *"byte for byte"*. Phase 3 task-13 `:140-143`
   (phase-3 worktree) spells `azure-devops/<org>/<project>/<repo>`. Phase 3 also disagrees with
-  itself: its plan's H-3 row (`2026-09-23-phase-3-git-convergence.md:372`) gives the Hub's form.
+  itself: its plan's H-3 row gives the Hub's form (cited as `:372` in round 1; the row had moved
+  to `:378` by 918d356, so it is cited by anchor from round 2 on: the *"H-3"* row of
+  `2026-09-23-phase-3-git-convergence.md`, feat/phase-3-git at 6a71014).
   The review's t06:106 is now t06:106-128, and t09:174-183 is now t09:211-227.
 
 ### I2 — a 402 is a refusal with its sentence
@@ -1073,3 +1075,119 @@ by sharing the 5xx rule (killed by the `Message` equality in all three I2 tests)
 - M26 (the ambiguous sentence after a reserve) touches the same abandon branches. It is left to its
   own batch.
 - Nothing was compiled or run.
+
+## Fix batch b05, round 2 (plan re-review b05-1: R-1 to R-6)
+
+Date: 2026-09-24. Plan text only. The re-review (`.superpowers/sdd/p7/plan-rereview-b05-1.md`)
+found I2 resolved and I6's mechanism sound, but HA7-6 one-sided. Round 1's *"Left open"* above is
+superseded where this section says so.
+
+**New evidence, read only:** the Hub **plan** (feat/hub at 52f0773), not only its contract, already
+answers HA7-6. Its correction A1 replaces the contract's `.visualstudio.com` regex with phase 3 task
+13's `^azure-devops/[a-z0-9-]{1,50}/[^/]{1,64}/[^/]{1,64}$`, citing phase 3's review I10; its task 01
+publishes the rule as `hubapi.ValidRepoKey` and `HostOfRepoKey`; its task 04 step 2 has the fake
+apply it at `CreateProject` (400 `bad_request`); its task 44a folds A1 into §7.4 before any code;
+and it answered phase 4's HA4-6 *"= A1"*. This closes round 1's unverified *"whether the Hub fake
+enforces §7.4 at `CreateProject`"* (from plan text; no Hub code read).
+
+### R-1 — HA7-6 is a two-way decision, and the Hub's A1 already takes (b)
+
+| Change | Where |
+|---|---|
+| HA7-6 rewritten: phase 3 task 13, its H-3 row and review I10, the Hub contract's §7.4 and H-3 (*"`githost.RepoKey` verbatim"*), and the Hub plan's A1, each cited by anchor with its commit; answers (a) and (b), (b) a **replacement**, not a widening; **recommended (b)** with its trade-off against (a); asks to phase 3 (fix I10 in the H-3 row, before editing it) and to the Hub (keep A1, fold it in 44a); what phase 7 changes under (a): only the two Azure DevOps literals in `TestHubMissNotLinked`; status: no longer blocking on the plans, open until the binding test passes against built code | plan:679-733 |
+| §10.1 phase 3 task 13 row: *"must agree with"* the rule the Hub builds | plan:752 |
+| §10.1 Hub H0 row: `hubapi.HostOfRepoKey` (Hub task 01, S0) | plan:745 |
+| OD-4 row: phase 7 copies no key pattern; Azure DevOps Ship *"rests on"* HA7-6 | plan:122 |
+| `missCause` asks `hubapi.HostOfRepoKey`; no pattern is copied; `hubKey` is unchanged under either answer | t06:118-139 |
+| Binding test renamed `TestHubBindsADOWithPhase3sKey`: the seed is the real `githost`'s `RepoKey()`, never a literal; `CreateProject` must accept it and `Resolve` must bind | t06:221 |
+| Does-not-claim: the plans agree, built code is unverified; the rule is imported | t06:249-256 |
+| Task 20's HA7-6 row: the two asks, the renamed test, pass or red | t20:54 |
+
+### R-2 — step 6 has a catch-all
+
+| Change | Where |
+|---|---|
+| *Any other error* (task 02's 429 and *"any other"* rows, and a non-`*deploy.Error`) → `Abandon` with *"Panacea could not start the build."*; Panacea's API cannot answer 429 here (`routes.go:1286` is not under `middleware.Heavy`, `heavy.go:38`; Panacea at 8292f3f26), an edge 429 is unverified | t09:227-234 |
+| Test `TestOtherErrorAbandons` (a 429 and a plain error) | t09:285 |
+| The plan's Ship sequence says **any** Panacea failure abandons | plan:94-96 |
+
+### R-3 — no sentence names a host
+
+| Change | Where |
+|---|---|
+| Readiness `key_spelling` sentence: *"… the cockpit names it `<RepoKey>`, which is not a form the Hub accepts …"* | t09:170 |
+| Lens line for `hub_key_spelling`, host-neutral | t14:67 |
+| `missCause("github.com/dmackie1_kpmg/portal") == "key_spelling"` (GitHub `_` owner) | t06:222 |
+| `TestADOKeySpellingNamesTheCause`: the sentence contains neither `Azure DevOps` nor `GitHub` | t09:286 |
+
+### R-4 — three `HubMiss` states, three answers
+
+| Change | Where |
+|---|---|
+| `HubMiss` comment: the three values; a Hub error keeps the previous `HubMiss` | t06:58-69 |
+| Step 3: a Hub error keeps `HubProjectID` **and** `HubMiss`; a first-read failure stays `""` | t06:118-122 |
+| `TestHubDownKeepsPanaceaBinding`: `key_spelling` survives a Hub failure; a first-read failure reads `""` | t06:219 |
+| Readiness: `not_linked` row (was `!= "key_spelling"`); new `""` row, `details.cause "hub_unanswered"` | t09:169, t09:171, t09:108, t09:259-260 |
+| Task 07 step 6: `""` with a configured Hub → `ReleasesState "unavailable"` | t07:170-173 |
+| `TestReleasesStateNamesKeySpelling` gains the `""` case; `TestADOKeySpellingNamesTheCause` gains the `hub_unanswered` case | t07:225, t09:286 |
+
+### R-5 — `HubMiss` is off the wire, enforced
+
+| Change | Where |
+|---|---|
+| `HubMiss string \`json:"-"\`` | t06:68-69 |
+| The wire paragraph names the tag and the test | t06:202-203 |
+| `TestHubKeyIsRepoKeyVerbatim` asserts no `hubMiss` key (`strings.EqualFold`) in a marshalled `Binding` or the `PUT …/deploy/binding` 200 body | t06:223 |
+
+### R-6 — citations into live sibling trees
+
+| Change | Where |
+|---|---|
+| HA7-6 and §12 cite phase 3 and the Hub by anchor (*"H-3 row"*, *"`RepoKey` doc comment"*, *"correction A1"*) with the commit | plan:679-700, plan:895-903 |
+| Round 1's `:372` citation annotated with its drift and the anchor | review:987-989 |
+
+### Deviations from the re-review's "how to fix", declared
+
+- **R-1: recommended (b), not (a), and no longer blocking.** The re-review asked to keep a
+  recommendation *"if one is justified"*. The Hub's own plan has already adopted (b) (A1), phase 3's
+  review recommends it (I10), and phase 3's code as specified already spells it. (a) would change
+  the one component whose text is already right. HA7-6 stays open, but as an agreement to verify
+  against built code, not a blocker on OD-4.
+- **R-1: phase 7 changes almost nothing under (a), rather than "names what changes under (b)".**
+  The re-review's list for (b) (`missCause`'s pattern, the binding test's seed, t09:170, t14:67)
+  existed only because phase 7 copied one side's spelling. Importing `hubapi.HostOfRepoKey` and
+  seeding the test with `githost`'s own output removes the copies, so neither answer changes those
+  lines. Under (a), two literals in `TestHubMissNotLinked` flip, and the plan says so.
+- **R-1: the binding test is now red on disagreement.** Round 1 made it green either way and
+  logged the branch. With the plans agreeing, red is the true signal of an OD-4 break. It cannot
+  block phase 7's `go test` early, because phase 7 cannot compile against `hubclient` before Hub S0
+  (which contains tasks 01 and 04) lands.
+- **R-4: `HubMiss ""` maps to `ReleasesState "unavailable"`** in task 07, beyond the re-review's
+  readiness fix, so the lens and the Ship bar agree for a first-read failure too.
+
+### Mutants
+
+Plan text only; no phase 7 code exists, so none was run. The two named as most likely to survive
+once code exists:
+1. **`missCause` keyed on the host prefix** (`strings.HasPrefix(k, "azure-devops/")` → `key_spelling`).
+   It passes every readiness test, which build the `Binding` by hand. Killed by
+   `missCause("azure-devops/kpmgcomau/engagement portal/portal") == "not_linked"` and
+   `missCause("github.com/dmackie1_kpmg/portal") == "key_spelling"` (t06:222).
+2. **The catch-all abandoning with the error's own `Message`**, which is `""` for a 429 (task 02's
+   row). It still abandons, so an abandon-only assertion passes. Killed by the exact message in
+   `TestOtherErrorAbandons` (t09:285).
+
+Also named: a Hub error resetting `HubMiss` (killed by `TestHubDownKeepsPanaceaBinding`'s two new
+cases); a `json:"hubMiss"` tag (killed by the wire assertion in `TestHubKeyIsRepoKeyVerbatim`).
+
+### Left open
+
+- **HA7-6** stays open until `TestHubBindsADOWithPhase3sKey` passes against built code (task 20).
+  Phase 3's I10 fix and Hub task 44a are text changes in their own trees; phase 7 does not make them.
+- **Outside this batch:** the re-review's step-up finding (Panacea's F4 gate refuses any `pnc_`
+  caller on a mapped production action, `stepup.go:208-214`). It belongs to the `pnc_`
+  credential-handling lens, not to b05, and is recorded here so it is not lost.
+- Unverified: whether phase 3's `ParseRemote` accepts a GitHub owner with `_`; whether either
+  sibling's code exists or matches its text; an edge 429 or 405 on `POST …/deploy`; how a
+  `DefaultCollection` remote maps.
+- Nothing was compiled or run. No real Panacea or Hub was called.
