@@ -116,7 +116,9 @@ Pending *and* ask for a node, or the warm pool never refills (task 12), so the v
 even lower" edit silently turns the warm pool off. AKS does not expose the cutoff in
 `auto_scaler_profile` (task 06), so the default is the one in force (training knowledge of the
 `azurerm` provider, **UNVERIFIED**). The proof on a real cluster is task 32's P06 (d): the balloon
-that run preempts must go Pending and bring the pool a new node.
+that run preempts must go Pending and bring the pool a new node, read only when no other node has
+room for it and the pool is below `max_count`, and a missing scale-up is blamed on the cutoff only
+when the balloon has no `NotTriggerScaleUp` event either (b09 re-review 5).
 
 `quota.yaml` — `ResourceQuota/sandboxes` and `LimitRange/sandboxes` in `panacea-sandboxes` from
 `sandboxes.quota` and `sandboxes.limitRange`: one `type: Container` item with `max` (from
