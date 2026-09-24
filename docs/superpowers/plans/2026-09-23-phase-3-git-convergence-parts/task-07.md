@@ -6,7 +6,13 @@ each clone's `refs/heads/<branch>` into the project as `refs/panacea/lanes/<work
 `for-each-ref refs/heads` (`project.go:241`) never lists, so neither the rail nor a terminal's
 `git branch` sees lanes. It then builds the **observation** of one lane, the survey's "observed
 claim" (§3.5): the commits it has that its branch lacks, the paths those commits change since the
-merge base, and the paths changed and not committed, read from the clone without taking a lock.
+merge base, and the paths changed and not committed, read inside the sandbox by task 24's git
+runner without taking a lock. Host git runs only in the project (R4): the lane's tip crosses as a
+`git bundle`, and its status as `status --porcelain=v2 -z` bytes.
+
+**Depends on:** task 04 (`GitDeps`, `Locks`, `gitFailed`) and task 24 (`lanegit.Runner`,
+`Lanes.For`, `FetchLane`, `lanegittest.Fake`). No new module dependency: `sandboxd/vendor/` is
+untouched.
 
 Nothing here is enforced and nothing asks an agent anything (brief A9). These are readings.
 
@@ -40,18 +46,25 @@ type SyncState struct {
 	WorktreeID string
 	Tip        string    // the clone's refs/heads/<branch> at the last successful sync
 	SyncedAt   time.Time // zero until the first success
-	// Err is git's sentence for the last failure (the clone's directory is gone, the branch was
-	// deleted inside the clone), cleared by the next success.
+	// Err is git's or the runner's sentence for the last failure (the clone's directory is gone,
+	// the branch was deleted inside the clone, the runner did not answer), or bundle_refused with
+	// BundleRefused.Why (task 24), cleared by the next success.
 	Err   string
 	ErrAt time.Time
+	// Observed is the runner.Status the last SyncLane took (SyncLane step 1b), and ObservedAt
+	// when. Only a sandbox writes the clone, so for a lane with no live session the one taken
+	// after the lane's last sandbox stopped is current, and Observe reads it instead of a runner.
+	Observed   *lanegit.StatusResponse
+	ObservedAt time.Time
 }
 
 // Syncer keeps refs/panacea/lanes/* current. One goroutine sweeps; SyncLane may be called
 // concurrently by a handler and serialises per lane.
 type Syncer struct {
-	Machine  gitx.Machine
+	Machine  gitx.Machine   // project calls only, Scope Project
 	Lanes    lanes.Store
 	Projects ProjectPaths
+	LaneGit  *lanegit.Lanes // task 24's pool, GitDeps.LaneGit: every read of a lane goes through it
 	Interval time.Duration // PANACEA_APP_LANE_SYNC_INTERVAL; default 5s, minimum 1s
 	Log      *slog.Logger
 	Now      func() time.Time
@@ -77,7 +90,7 @@ type CloneRefresher interface {
 
 // Told records that worktreeID's clone now holds received as refs/remotes/origin/<branch>.
 // RefreshLanes calls it after each clone's fetch succeeds, with the sha it read back from the
-// clone (rev-parse refs/remotes/origin/<branch>, Scope Clone), not the tip it read before the
+// clone (the `refs` map task 24's runner `fetch` returns), not the tip it read before the
 // fetches. So told is what the clone has, even when the branch moves away and back between the
 // two reads (re-review b06-1 issue 5, the ABA case). Told also clears that lane's failure record.
 func (s *Syncer) Told(worktreeID, received string)
@@ -103,8 +116,8 @@ const (
 //     failedAt[id] = tip and retryAt[id] = now + backoff, where backoff starts at 1 min and
 //     doubles on each failure at the same tip, to at most 10 min; the error is logged once per
 //     (lane, tip), with the worktree id and git's sentence. A tip move makes the lane stale
-//     again at once. So a clone that always fails (its directory gone, or a config the
-//     allowlist refuses, which an agent can write on purpose) costs one fetch per tip move or
+//     again at once. So a clone that always fails (its directory gone, a runner that does not
+//     answer, or a bundle refused, which an agent can cause on purpose) costs one fetch per tip move or
 //     per backoff, never one per sweep, and never a fetch into the healthy clones beside it
 //     (re-review b06-1 issue 2).
 // This is what catches a branch the cockpit did not move: a user's commit or `git pull` in a
@@ -114,17 +127,25 @@ func (s *Syncer) Run(ctx context.Context)
 
 // SyncLane syncs one lane now, and is what a land (task 09) and a removal (task 11) call so
 // they act on the clone's latest committed work, not on the last sweep's. For each lane:
-//  1. `rev-parse --verify --quiet refs/heads/<branch>` in the CLONE (Read);
+//  1. `runner.Refs{names: [refs/heads/<branch>]}`, the runner from task 24's `Lanes.For`, which
+//     runs `for-each-ref` inside the sandbox; the answer is the agent's claim, used only to
+//     decide whether to fetch;
+//  1b. `runner.Status` on the same runner, kept as SyncState.Observed (a failure here is Err
+//     too, and leaves the last Observed in place);
 //  2. `rev-parse --verify --quiet refs/panacea/lanes/<id>` in the PROJECT (Read);
-//  3. when they differ, in the PROJECT (Local):
-//     fetch --no-auto-maintenance --no-tags --no-write-fetch-head --quiet <FetchURL(clone)> +refs/heads/<branch>:refs/panacea/lanes/<id>
+//  3. when they differ, `lanegit.FetchLane(refs: [refs/heads/<branch>], basis: [the lane ref's
+//     sha, the branch tip], refspec +refs/heads/<branch>:refs/panacea/lanes/<id>)`, which bundles
+//     in the sandbox and runs `bundle verify`, `bundle list-heads` and a fsck'd
+//     fetch --atomic --no-auto-maintenance --no-tags --no-write-fetch-head --quiet <bundle file>
+//     in the PROJECT (task 24). A `*BundleRefused` is `Err`, and the lane ref does not move.
 // The "+" follows a lane an agent rebased or amended. --no-write-fetch-head keeps FETCH_HEAD
 // meaning "the last fetch from origin", which task 08 reads as the fetch time.
 // --no-auto-maintenance (review Minor 8; git ≥ 2.29, under task-02's MinVersion): a plain fetch
 // starts `git maintenance run --auto --detach` in the project, the user's repository, and a
 // detached gc that holds packed-refs.lock fails a concurrent land's update-ref as git_failed.
 // The flag beats a repository-local maintenance.auto=true (task 01 pins both).
-// Hardened per task-02 §HGH: step 1 runs with Scope Clone, steps 2 and 3 with Scope Project.
+// Every host call runs in the project with Scope Project. The lane is read only through task
+// 24's runner (R4.2-4.4).
 func (s *Syncer) SyncLane(ctx context.Context, worktreeID string) (SyncState, error)
 
 // State is the last sync of one lane; ok is false before the first attempt.
@@ -177,16 +198,22 @@ type LaneObservation struct {
 const MaxCommits = 50
 
 // Observe reads one lane. It never returns an error: a failure is ReadError on the lane,
-// because one broken clone must not blank the whole queue. Every call is gitx.Read:
+// because one broken clone must not blank the whole queue. The three host calls are gitx.Read in
+// the PROJECT, Scope Project:
 //   log -n 51 --format=%H%x00%s%x00%an%x00%aI%x00<TrailerFormat(Session)>%x1e refs/heads/<b>..<LaneRef>
 //   merge-base refs/heads/<b> <LaneRef>
 //   diff --name-status -z --find-renames <base> <LaneRef>
-//   status --porcelain=v2 -z --untracked-files=all          (in the clone, Scope Clone: task-02 §HGH)
-//   symbolic-ref -q HEAD, OKExit 1                           (in the clone, Scope Clone; review I6)
-//     exit 0 and not refs/heads/<b> → HeadElsewhere = that ref;
-//     exit 1 (detached) → rev-parse --verify -q HEAD in the clone → HeadElsewhere = the sha
-// A §HGH refusal is the lane's ReadError, which names clone_config_untrusted and the key.
-func Observe(ctx context.Context, m gitx.Machine, projectPath, branch string, lane lanes.Lane, st SyncState, synced bool) LaneObservation
+// and the clone is read once, through task 24's runner (R4.3), never by host git:
+//   runner.Status → PorcelainV2Z goes to ParseStatus (untrusted input) as Uncommitted, and
+//     Head gives HeadElsewhere (review I6): Ref set and not refs/heads/<b> → that ref;
+//     Ref "" (detached) → Head.Sha.
+// r is the live session's runner from Lanes.For. For a lane with no live session the caller
+// passes r == nil and Observe uses st.Observed, the last observation the pool took after that
+// lane's last sandbox stopped (SyncLane step 1b), so a 2 s poll starts no sandbox. With no
+// st.Observed yet, Uncommitted is empty and ReadError says the lane has not been read.
+// ReadError is git's or the runner's sentence (a RunnerError's GitSays, or ErrNoRunner's), or
+// bundle_refused with BundleRefused.Why from st.Err.
+func Observe(ctx context.Context, m gitx.Machine, r lanegit.Runner, projectPath, branch string, lane lanes.Lane, st SyncState, synced bool) LaneObservation
 
 // MergeTreeArgs is the one argument list every merge-tree call in phase 3 starts with (review
 // I2): `merge-tree --write-tree --name-only -z`. Task 08 appends `<base> <laneTip>`, task 09
@@ -218,17 +245,23 @@ func ParseMergeTree(stdout []byte, exitCode int) (tree string, conflicted []stri
 ```
 
 `main.go` starts `go syncer.Run(ctx)` after the reaper and waits for it on shutdown the way it
-waits for `reaperDone`.
+waits for `reaperDone`. The syncer's `LaneGit` is task 24's `laneGit`, so it is built after task
+24's block.
 
 #### The tests to write first
 
-Real git through `gitxtest`: a project repo, `lanes.Creator` clones, commits made in the clone as
-an agent would make them. `Script` runners only where the claim is "this call is not made".
+Real git through `gitxtest` for the project, and `lanegittest.Fake` (task 24) as every lane's
+runner: a project repo, `lanes.Creator` clones, commits made in the clone as an agent would make
+them, the `Fake` reading that clone. `Script` runners only where the claim is "this call is not
+made". The two `…RunsNoHostGitInTheLane` rows use `gitxtest.Spy` (U3) on `gitx.Exec` and are
+task 07's rows (sweep and observe) of task 24's `TestHostNeverRunsGitInALane`.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestSyncCopiesTheCloneTip` | commit in the clone; `SyncLane` → the project's `refs/panacea/lanes/<id>` equals the clone's `refs/heads/<b>` | a lane that never reaches the project |
-| `TestSyncIsANoOpWhenNothingMoved` | the second `SyncLane` issues two `rev-parse`s and no `fetch` (Script runner) | a fetch on every sweep |
+| `TestSyncIsANoOpWhenNothingMoved` | the second `SyncLane` makes one runner `Refs` and `Status`, one project `rev-parse`, and no `Bundle` and no `fetch` (Script runner for the project, a counting `Fake`) | a fetch on every sweep |
+| `TestSyncRefusesABadBundle` | a commit in the clone; `Fake.BundleOverride` is a bundle holding one ref beyond `refs/heads/<b>` → `SyncLane`'s lane ref is unmoved (`for-each-ref` of the project byte-identical), `State.Err` names `bundle_refused`, and `<OwnedRoot>/bundles` is empty | a sync that fetches whatever the sandbox sends |
+| `TestSyncRunsNoHostGitInTheLane` | red first against step 1 as a host `rev-parse` in the clone: the spy records every process `gitx.Exec` starts through `SyncLane` and a sweep; none has a `Dir`, `-C`, `--git-dir`, `--work-tree` or `GIT_*` directory value, or any argv element, under `CloneRoot` | a sync that reads the lane's `.git` on the host |
 | `TestSyncFollowsARewrittenLane` | `commit --amend` in the clone → the lane ref follows (non-fast-forward) | a refspec without `+` |
 | `TestSyncNeverWritesFetchHead` | the project's `FETCH_HEAD` is absent after a sync | lane syncs posing as the last remote fetch |
 | `TestSyncStartsNoMaintenance` (review Minor 8) | red first: the project's `.git/config` holds `maintenance.auto=true`; a `SyncLane` that fetches, under `t.Setenv("GIT_TRACE", <file>)` (Exec starts from `os.Environ()`, task-02:69) → the trace file holds the `fetch` and no `run_command: git maintenance` line | a lane sync leaving a detached gc on `packed-refs.lock` that fails the next land |
@@ -241,7 +274,8 @@ an agent would make them. `Script` runners only where the claim is "this call is
 | `TestSweepDoesNotRefreshAnUnmovedTip` (review I4) | two more sweeps with the tip unchanged → no further `RefreshLanes` call, and one project `rev-parse` per sweep for the branch (Script runner) | a fetch into every clone every five seconds |
 | `TestSweepRetriesAFailedRefresh` (review I4; re-review b06-1 issue 2) | the refresher returns an error for lane B and calls `Told` for A only; a fake `Now` → sweeps before 1 min make no `RefreshLanes` call and no project git call but (a)'s `rev-parse` (Script runner), and log B's error no second time; the first sweep after 1 min calls `RefreshLanes(…, [B])`, B only; B fails again → the next retry waits 2 min; a tip move instead → the next sweep calls `RefreshLanes(…, [A, B])` at once; once B succeeds, no further call | a clone marked fresh after its fetch failed, or never retried |
 | `TestSweepSkipsABusyProjectAndSyncsTheRest` (review I4; re-review b06-1 issue 6) | the test holds projects P's and R's locks; lanes of P, R and Q → Q's lanes sync and Q refreshes within one sweep, P's and R's refreshes are skipped, and the sweep returns in under one interval (a sweep that waited on each busy lock would take two); both are refreshed the sweep after the locks are released | one long push stalling every lane on the machine, or K busy projects making a sweep K intervals long |
-| `TestObserveRunsNothingTheCloneNames` | task-02 §HGH end to end, red first against an unhardened `Exec`: clone config `core.fsmonitor=<marker script>` → `Observe` writes no marker; then `filter.x.clean=<marker script>` with `.gitattributes` `* filter=x` and a modified file → no marker, and `ReadError` names `clone_config_untrusted` and `filter.x.clean` | an observer built on an `Exec` without §HGH |
+| `TestObserveRunsNoHostGitInTheLane` | red first against a host `status` in the clone: the spy records every process `gitx.Exec` starts through `Observe`, with a live runner and with `r == nil`; none has a `Dir`, `-C`, `--git-dir`, `--work-tree` or `GIT_*` directory value, or any argv element, under `CloneRoot`; `Uncommitted` and `HeadElsewhere` still match the clone (a modified file, a `switch -c fix-x`) | an observer that runs host git in the clone |
+| `TestObservePollStartsNoSandbox` | a lane with no live session and an `Observed` from the last `SyncLane` → ten `Observe` calls with `r == nil` make no runner call and no `Backend.Create` (a counting `Fake` and a recording backend) | a 2 s poll that starts a runner-only sandbox per lane |
 | `TestObserveListsCommitsTheBranchLacks` | two lane commits, one carrying `Panacea-Session: s-1` → `Commits` newest first, `Sessions` `[s-1]` and `[]` | reading the branch's own commits as the lane's |
 | `TestObserveChangedIsSinceTheMergeBase` | the branch changes `a.txt` after the fork, the lane changes `b.txt` → `Changed` is `[b.txt]` only | `diff branch lane`, which reports the branch's work reversed |
 | `TestObserveCapsCommits` | 60 lane commits → 50 and `Truncated` | an unbounded payload on the poll |
@@ -267,7 +301,7 @@ an agent would make them. `Script` runners only where the claim is "this call is
 #### Acceptance
 
 ```
-go test ./control-plane/internal/converge/ -race -count=1   → PASS (25 tests)
+go test ./control-plane/internal/converge/ -race -count=1   → PASS (29 tests)
 go test ./control-plane/... -race -count=1                  → PASS
 ```
 
