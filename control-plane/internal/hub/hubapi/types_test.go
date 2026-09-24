@@ -658,10 +658,22 @@ func TestARequiredDigestAbsentOrNullIsNamed(t *testing.T) {
 		Blobs    []*Digest        `json:"blobs"`
 	}
 	full := DigestOf([]byte("abc"))
+	// A recursive type ends (fix round 1's predicted survivor PS-1), and a
+	// fixed-size array is walked like a slice (PS-2).
+	type node struct {
+		Next *node  `json:"next"`
+		D    Digest `json:"d"`
+	}
+	type pair struct {
+		Pair [2]SnapshotRequest `json:"pair"`
+	}
 	for _, r := range []struct {
 		req   any
 		field string
 	}{
+		{&node{D: full}, ""},
+		{&node{D: full, Next: &node{}}, "next.d"},
+		{&pair{Pair: [2]SnapshotRequest{{Manifest: full}, {}}}, "pair[1].manifest"},
 		{&optionalSnapshot{}, ""},
 		{&optionalSnapshot{Blobs: []*Digest{nil, {}}}, ""}, // a *Digest is optional, even zero
 		{&optionalSnapshot{Snapshot: &SnapshotRequest{Blobs: []Digest{full}}}, "snapshot.manifest"},
@@ -733,6 +745,27 @@ func TestRequireDigestsCostsNothingOnACleanBody(t *testing.T) {
 		if n := testing.AllocsPerRun(1, func() { err = RequireDigests(r.req) }); n > 0 || err != nil {
 			t.Errorf("RequireDigests(%s) = %v with %.0f allocations, want nil with none", r.name, err, n)
 		}
+	}
+	// And it never enters what cannot hold a Digest: a walk that visited every
+	// byte without allocating would still hold the lock for the whole content.
+	for typ, want := range map[reflect.Type]bool{
+		reflect.TypeFor[json.RawMessage](): false, reflect.TypeFor[RevisionWrite](): false,
+		reflect.TypeFor[WriteRevisionsRequest](): false, reflect.TypeFor[*Digest](): false,
+		reflect.TypeFor[[]*Digest](): false, reflect.TypeFor[CreateProjectRequest](): false,
+		reflect.TypeFor[Digest](): true, reflect.TypeFor[[]Digest](): true, reflect.TypeFor[*SnapshotRequest](): true,
+		reflect.TypeFor[ApprovalRequest](): true, reflect.TypeFor[EvidenceRequest](): true,
+	} {
+		if got := holdsDigest(typ); got != want {
+			t.Errorf("holdsDigest(%s) = %v, want %v", typ, got, want)
+		}
+	}
+	var entered []string
+	for _, f := range fieldsOf(reflect.TypeFor[ApprovalRequest]()) {
+		entered = append(entered, f.name)
+	}
+	if want := []string{"reviewDigest", "briefDigest", "snapshot"}; !slices.Equal(entered, want) || len(fieldsOf(reflect.TypeFor[RevisionWrite]())) != 0 {
+		t.Errorf("RequireDigests enters ApprovalRequest's %v and %d of RevisionWrite's fields, want %v and none",
+			entered, len(fieldsOf(reflect.TypeFor[RevisionWrite]())), want)
 	}
 }
 

@@ -38,7 +38,9 @@ Three rules hold throughout, and every task restates the one it touches:
 1. **The renderer never holds an Entra token.** The control plane runs the flow, holds the tokens and
    calls the Hub (ADR-H1 §5.2, §6.2, §6.5). The renderer holds only the local caller key (tasks 37–38).
 2. **No request body carries an actor.** Every Hub write records the principal of the token that made
-   it (ADR-H1 §5.3; contract §5.3).
+   it (ADR-H1 §5.3; per route, contract §7.7 *"There is no approver field"* and §7.10 *"`recordedBy`
+   is the principal"*. Contract §5.3 is the authorisation matrix and does not say it: task 03
+   review, note 1).
 3. **Nothing Hub-derived is persisted on the user's machine.** The control plane may cache immutable
    revisions in memory; neither it nor the renderer writes Hub data to disk (ADR-H1 §5.4, assertion
    A5 widened).

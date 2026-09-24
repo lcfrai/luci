@@ -272,6 +272,9 @@ func ParseDigestHex(s string) (Digest, error) { return ParseDigest("sha256:" + s
 
 func (d Digest) MarshalText() ([]byte, error) { return []byte(d.String()), nil }
 
+// Superseded by task 03 D1 (3c19005): UnmarshalText now refuses with a
+// *json.UnmarshalTypeError, the one error encoding/json adds the field path to;
+// ParseDigest keeps ErrInvalidDigest. keys.go, not this block, is the code.
 func (d *Digest) UnmarshalText(b []byte) error {
 	p, err := ParseDigest(string(b))
 	if err != nil {
@@ -386,7 +389,7 @@ func HostOfRepoKey(key string) (GitHost, bool) {
 | `TestBriefKeyRejectsEverythingOutsideTheGrammar` | `@0`, `@01`, `@1000000000`, `bf-` + 15 hex, uppercase hex, `brief:b-42@1`, a leading space, a trailing `"\n"`, `design:…` → `ErrInvalidKey` | revision 0 in a key; leading zeros (two spellings of one key); an unanchored match |
 | `TestDesignKeyGrammar` | `design:cv-7c01d2e3f4a5b6c7@11` round-trips; `cv-abc@1` (3 hex), 33 hex, `c-…` (one letter), `cvxyz-…` (five) → `ErrInvalidKey` | the canvas-id bounds widened or narrowed |
 | `TestParseKeyClassifies` | brief → `KeyBrief`; design → `KeyDesign`; `b-42` → `("", ErrInvalidKey)` | a classifier that defaults to brief |
-| `TestDigestWireForm` | `DigestOf([]byte("abc")).String()` = `sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad`; round-trips through `ParseDigest`; `MarshalText`/`UnmarshalText` via `encoding/json` give the string form; `SHA256:`, uppercase hex, 63 hex, a bare hex string → `ErrInvalidDigest` | a digest rendered as base64 or raw bytes in JSON; case-folding |
+| `TestDigestWireForm` | `DigestOf([]byte("abc")).String()` = `sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad`; round-trips through `ParseDigest`; `MarshalText`/`UnmarshalText` via `encoding/json` give the string form; `SHA256:`, uppercase hex, 63 hex, a bare hex string → `ErrInvalidDigest` *(through `ParseDigest`; through `encoding/json` a `*json.UnmarshalTypeError` since task 03 D1, 3c19005)* | a digest rendered as base64 or raw bytes in JSON; case-folding |
 | `TestParseDigestHexTakesTheBareForm` | 64 hex → the same digest as the prefixed form; the prefixed form → error | a blob route that accepts `sha256:` in its path |
 | `TestBranchRefRules` | valid: `""`, `refs/heads/main`, `refs/heads/feat/evidence-upload`, `refs/heads/café` (UTF-8), `refs/heads/a\uFFFDb` (U+FFFD is valid UTF-8), a 255-byte ref. Invalid: `main`, `refs/heads/`, `refs/tags/v1`, 256 bytes, `refs/heads/a..b`, `refs/heads/a@{b`, `refs/heads/a//b`, `refs/heads/a/`, `refs/heads/a.`, `refs/heads/a.lock`, `refs/heads/a.lock/b`, `refs/heads/.hidden`, `refs/heads/a/.b`, and one each with space, `~`, `^`, `:`, `?`, `*`, `[`, `\`, `\x01`, `\x1f`, `\x7f`; not UTF-8: `refs/heads/\xff`, `refs/heads/caf\xc3` *(`café`, `\uFFFD`, `\x1f` and the two non-UTF-8 rows added in fix round 1, review m2)* | a local `b-…` BranchID reaching the Hub; each rule's deletion; `.lock` checked only at the end of the whole ref; the control bound as `< 0x1f`; a non-UTF-8 ref, which JSON would store as U+FFFD; the UTF-8 check spelled as "contains U+FFFD" (fix round 1's predicted survivor S2) |
 | `TestRepoKeyTakesPhase3sForms` | `ValidRepoKey(github, "github.com/lcfrai/panaceaapp")`, `ValidRepoKey(azure-devops, "azure-devops/kpmgcomau/panacea app/panaceaapp")` true; `HostOfRepoKey` names each | **the contract's §7.4 regex** (correction A1), which refuses the second |
