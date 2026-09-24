@@ -81,8 +81,19 @@ func writeAtomic(path string, data []byte) error {
 | `TestSharedModeWritesAWorldReadableFile` (new; skipped on Windows, where POSIX bits are not honoured) | `Shared` publishes `0o644` and creates directories `0o755` | a lift that kept the hard-coded `0o600` — the defect this task exists for |
 | `TestTempNameFollowsTheTarget` (new) | while the rename is blocked (reuse the directory-target trick), the temp file matches `.CLAUDE-*.md` for `CLAUDE.md` and `.sessions-*.json` for `sessions.json` | a fixed `.sessions-*` pattern leaking into worktrees |
 
+Added when task 01 was built, to kill the survivors its mutation run found (all in
+`statepath/atomic_test.go` unless named):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestModePermissions` | `Private` is 0o600/0o700, `Shared` 0o644/0o755, and any other value fails closed to 0o600/0o700, on every OS | a swapped constant, which every POSIX-mode test above misses on Windows because it skips; an unknown mode treated as `Shared` |
+| `TestWriteAtomicRidesOutATransientHolder` | through an unexported `rename`/`sleep` seam: held four attempts, the fifth publishes; backoff 20/40/60/80 ms; on POSIX the temp already has the mode's permission at every rename | `attempts = 1`; a chmod moved onto the published file |
+| `TestWriteAtomicGivesUpAfterFiveAttemptsWithoutAFinalSleep` | five renames, four sleeps, the last error wrapped (`errors.Is`), `statepath: replace <path>`, no temp left | a sleep after the last attempt; `nil` on exhaustion |
+| `TestTheDocumentIsWrittenPrivate` (`registry/filemode_test.go`, new; skipped on Windows) | a save through `NewFileStore` publishes 0o600 in 0o700 directories | the registry passing `Shared`: once the moved tests left package `registry`, nothing pinned which mode the registry asks for |
+
 `registry`'s own suite (`filestore_test.go`, `filestore_contract_test.go`) must pass **unchanged**:
-it is the proof the registry's behaviour did not move.
+it is the proof the registry's behaviour did not move. The new `filemode_test.go` sits beside it
+and changes neither file.
 
 **Steps:**
 
@@ -100,9 +111,15 @@ it is the proof the registry's behaviour did not move.
   3. Give every caller `statepath.Private`. Find them with `grep -rn "statepath.WriteAtomic("
      control-plane/`. The registry writes its file from one place, the `writeAtomic` call at
      `filestore.go:401` at `3303fd6`, so after phase 3's lift it has one caller: either that call
-     or the one-line wrapper it goes through. `Private` keeps each caller's behaviour byte for byte.
-  4. Go to step 5. The step 6 commit carries `atomic.go`, `atomic_test.go` and `filestore.go`,
-     and no deletion.
+     or the one-line wrapper it goes through. Phase 3's own callers are found by the same grep:
+     `lanes/store.go` (phase 3 `task-03.md:24`, `:104-106`) and, if its task 15 has landed,
+     `evidence.FileStore` (`task-15.md:76-77`). `Private` keeps each caller's behaviour byte for
+     byte.
+  4. Go to step 5, and on this path run `go test ./control-plane/... -race -count=1` there, not
+     only `statepath` and `registry`: phase 3's callers live in other packages. The step 6 commit
+     carries `atomic.go`, `atomic_test.go`, `filestore.go` **and every other file the sub-step 3
+     grep found**, and no deletion. A commit that leaves one two-argument caller behind does not
+     compile (re-review b08-2 R2-M3).
   If the lift has landed **with** a mode, check that both new tests exist and pass, add whichever
   is missing, then go to step 5.
 - [ ] **Step 2: Move the tests.** `git mv control-plane/internal/registry/writeatomic_test.go
@@ -113,7 +130,9 @@ it is the proof the registry's behaviour did not move.
 - [ ] **Step 3: Write `atomic.go`** by moving the body of `registry.writeAtomic` and `syncDir`,
   parameterising the two permissions and the temp pattern. No other behavioural change.
 - [ ] **Step 4: Replace `registry.writeAtomic`'s body** with the one-line call above; delete
-  `syncDir` and any import the file no longer needs (`runtime`, `time` if unused).
+  `syncDir` and any import the file no longer needs. At `ad5a8f6` that is `runtime` and
+  `path/filepath`; `time` stays, because `quarantine` and `SavedAt` use it (fact checked when
+  task 01 was built).
 - [ ] **Step 5: Run** `go test ./control-plane/internal/statepath/... ./control-plane/internal/registry/... -race -count=1`
   and `go vet ./control-plane/...`.
 - [ ] **Step 6: Commit** `statepath/atomic.go`, `statepath/atomic_test.go`,
@@ -126,11 +145,16 @@ it is the proof the registry's behaviour did not move.
 $ go test ./control-plane/internal/statepath/... ./control-plane/internal/registry/... -race -count=1
 ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/statepath
 ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry
-$ grep -rn "os.Rename" control-plane/internal/registry/
-(no output — the registry no longer renames anything itself)
+$ grep -rn "os.Rename(tmpName\|os.CreateTemp\|func syncDir" control-plane/internal/registry/
+(no output — the registry no longer replaces its document itself)
 $ grep -c "func WriteAtomic" control-plane/internal/statepath/atomic.go
 1
 ```
+
+The acceptance used to be `grep -rn "os.Rename" control-plane/internal/registry/` with no output.
+That was wrong on the facts: `quarantine` (`filestore.go:173` at `ad5a8f6`) still renames an
+unreadable document aside with `os.Rename(s.path, aside)`, which is not an atomic replace and is
+not part of the lift, and two comments (`:46`, `:158`) name `os.Rename`.
 
 **Does NOT claim:** that the Windows reader test was run on Windows by this task (it runs where CI
 runs; phase 2 task 7 established its inversion); any change to the registry's on-disk format.

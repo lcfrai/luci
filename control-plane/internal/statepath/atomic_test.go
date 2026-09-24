@@ -225,13 +225,15 @@ func TestSharedModeWritesAWorldReadableFile(t *testing.T) {
 func TestModePermissions(t *testing.T) {
 	// The table the two modes promise, pinned where Windows runs it too: the
 	// permission tests above are skipped there, so without this a swapped
-	// constant would pass on the developer's machine.
+	// constant would pass on the developer's machine. A value that is neither
+	// mode fails closed, to Private's permissions.
 	cases := []struct {
 		mode      Mode
 		file, dir os.FileMode
 	}{
 		{Private, 0o600, 0o700},
 		{Shared, 0o644, 0o755},
+		{Mode(7), 0o600, 0o700},
 	}
 	for _, c := range cases {
 		if got := c.mode.FilePerm(); got != c.file {
