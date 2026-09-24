@@ -35,7 +35,7 @@ check one claim; §8 lists it with its date. Other Linear facts are cited from t
 4. **Mapping:** Linear team → Hub `team` (exists). Linear project → **feature** = branch + branch brief
    (exists) plus a thin planning record (new). Linear issue → **issue** (new). Linear sub-issue →
    issue with a parent (new) and, below it, team mode's agent **task** `tk-` (designed, 05 §3.3).
-   Cycle → **cycle** (new, per team). Initiative → **initiative** (new, per org or team).
+   Cycle → **cycle** (new, per team). Initiative → **initiative** (new, per team in v1).
 5. **An agent takes work through its owner, never directly.** An issue is assigned to a *person*;
    that person's Orchestrator plans tasks for it (OD-16). No one can hand an issue to someone
    else's agent. Solo mode skips the Orchestrator: *Start* opens a lane with the issue bound.
@@ -48,11 +48,13 @@ check one claim; §8 lists it with its date. Other Linear facts are cited from t
 8. **Plans that must change:** the Hub contract (most), phase 4 (session gets an issue ref, coverage
    view), phase 3 (trailer, lane ↔ issue, evidence proposals), phase 7 (issues in the manifest),
    team mode 05 (task gains `issueId`; the Desk absorbs Linear's inbox), phase 2 (a `work` lens).
-   Section 7 lists each change with the file and line.
+   Section 7 lists each change with the file and line. All are additive; two are worth doing in
+   the current wave because they are cheap now and a rework later (§7.1).
 
 **One conflict needs the owner.** Linear's cycle and project progress are percentages and graphs.
 `AGENTIC-UX.md` bans percent-complete, bars and "N of M" anywhere (`AGENTIC-UX.md:77`, `:237`).
-Section 6.3 recommends convergence instead, and asks one question.
+Section 6.3 recommends convergence plus plain group sizes. Section 8 lists it with four smaller
+questions. The whole layer is estimated at **~28 focused days** (§6.1), not measured.
 
 ## 1. What exists already
 
@@ -512,4 +514,130 @@ bar claims *"a denominator that does not exist"* (`:14`).
 | B | convergence only; no counts anywhere | purest; a cycle review becomes harder, because *"how much did we commit to"* has no number |
 | C | Linear's full set | breaks a binding rule for parity's sake; the first prototype's failure mode (`AGENTIC-UX.md:217-218`) |
 
-_(Sections 7–8 follow, written in parts.)_
+## 7. Which in-flight plans must change
+
+**None of it throws away built work, and none of it has to interrupt the current wave.** Every
+change below is additive. The Hub's route table says *"Nothing else is routed"*
+(`hub-contract.md:609`), so the work layer arrives as **new Hub tasks after task 43**, not edits to
+tasks in flight. Two changes are cheaper *now* than later, and are marked **now**.
+
+### 7.1 The Hub (Phase H)
+
+| Change | Anchor | When |
+|---|---|---|
+| Id prefixes `is-`, `ic-`, `ft-`, `cy-`, `in-`, `vw-`; check against 05's `ag-`, `tk-`, `ls-`, `cf-`, `th-`, `ms-`, `es-`, `nt-`, `dl-` | `hub-contract.md:103-112` | with the work layer |
+| The `issue:` key in the grammar the Hub mints and accepts; `/v1/refs` resolves it | `:114-128`; route 27, `:589` | **now**: phase 4's task 06 writes *"the only parser (P5): `brief:`, `design:`, `none:`"* (phase-4 plan `:312`); adding `issue:` before it is built is one more case, after it is a change to a built parser and its tests |
+| `issue-revision` as a canonical record kind, with golden vectors | `:199-205`; `hubapi/canonical_test.go` | with the work layer |
+| `project.key` and per-project issue numbers | `Project`, `:638-639`; §7.4 | with the work layer |
+| Routes for issues, comments, features, cycles, initiatives, views; `Hub` interface gains `Work` | `:561-607`; `:1329` | new tasks |
+| Authorisation rows: a member writes issues; only a person moves to `done` by hand; an agent writes only its own owner's comments (05 §3.3 rule 5) | `:335-359` | new tasks |
+| Events per write, metadata only; issue erase beside brief erase | §8, `:1131-1160`; `:1115-1127` | new tasks |
+| Fix the example `criterionId: "done:2"` to a `c-` id | `:1065`, `:1079` | **now**: a one-line doc fix |
+
+### 7.2 Phase 4 (Discover)
+
+| Change | Anchor | Task |
+|---|---|---|
+| `Session.IssueRef`, written only by the session handlers | plan rule 2, `:94-96` | 09, 10 |
+| The Materialiser renders from its keys, brief and issue; the issue block carries attribution (§4.4) | rule 3, `:97-102`; `contextwrite`, `:319` | 09; `claudemd` render, 05 |
+| The key grammar gains `issue:`; `provenance.Ref` gains `kind: "issue"` | `provenance/key.go`, `ref.go`, `:312-313` | 06 (**now**, §7.1) |
+| The loader gains one key source; an issue chip beside the brief chip on each pane | `:330`; `:332`, `:405` | 16, 17 |
+| *Promote to feature* drafts a branch brief from an issue as `model_drafted` | `4-D2`, `:143` | after 18 |
+| The definition of done shows coverage: issues per criterion; uncovered; drifting | `DefinitionOfDone`, `:55`, `:483` | 17, with phase 3's 20 |
+
+### 7.3 Phase 3 (git, worktrees, convergence)
+
+| Change | Anchor | Task |
+|---|---|---|
+| The hook stamps `Panacea-Issue` from the environment, like `Panacea-Session`; 3-D6's trailer list gains it | `:26-27`, `:138`, `:168` | 05 |
+| A land adds `Panacea-Issue` per issue in the range and writes each `landed` move | `:32-35`; `:108` | 09 |
+| A worktree created from an issue records it in the lane index | `:116` | 07, 08 |
+| The evidence dialog lists agent proposals; *Record* posts as the person | 3-D5, `:167`; `:414` | 15, 20 |
+| Lane rows in the Merge lens name their issue | `:515-516` | 19 |
+
+### 7.4 Phase 7 (Deploy)
+
+| Change | Anchor | Task |
+|---|---|---|
+| The manifest lists issues from `Panacea-Issue` trailers, as it lists sessions (`D3`) | phase-7 plan `:150` | 19 |
+| The release drawer shows them; an issue shows *shipped to* derived | `:606` | 17 |
+
+### 7.5 Team mode (05-design, not yet planned)
+
+| Change | Anchor |
+|---|---|
+| `task` gains `issueId`; its reason reads task → issue → criterion → brief | `05-design.md:218` |
+| The Orchestrator's event list gains *an issue delegated to you* and *a blocker you wait on landed* | `:269-271` |
+| Verbs `panacea issue show\|note` and `panacea evidence propose`; `panacea team` output gains each agent's issue | `:361-370` |
+| The team strip line is the issue title (`text·H`) where one exists | `:663-666` |
+| The Desk's rows gain *issues that need you* (§2.6), in its existing sections | `:691-704` |
+| The Hub's new-records row (~5 d) shares its event, matrix and erase work with §6.1 rows 2–4; plan them together | `:810` |
+| Phase 7's team row (*"the task and brief section it served"*) becomes *the issue and the criterion it served* | `:883-885` |
+
+### 7.6 The cockpit and the product documents
+
+| Change | Anchor |
+|---|---|
+| `Lens` gains `"work"`; the sub-rail gains a Work row; a project-level Work surface | `desktop/src/store/types.ts:171-173`; `FUNCTIONAL-SPEC.md:48-53` |
+| The object model gains **Feature** and **Issue** (user sees both words) | `FUNCTIONAL-SPEC.md:5-16` |
+| Palette commands for issues | `desktop/src/components/palette/commands.ts` |
+| If option A of §6.3: one line in the anti-patterns allowing plain group sizes of human-committed sets | `AGENTIC-UX.md:245` |
+| `PROGRAM.md` gains a lettered phase, **"Phase W — the work layer"**, lettered for the reason Phase H was (`owner-decisions.md:40-43`): no phase number moves | `PROGRAM.md:54-65` |
+
+### 7.7 Phases 5 and 6
+
+- **Phase 5:** an issue revision's `implements: [design:…]` (§5.5); a design approval can close a
+  design issue. About 0.5 day, later.
+- **Phase 6 (the gateway, OD-19):** the per-session token carries the issue id, so usage rolls up
+  per issue (§6.2). About 0.5 day, once the gateway is chosen.
+
+### 7.8 Order
+
+Phase W depends on the Hub through task 43 (C1), phase 4 through tasks 06, 09 and 16–17, and
+phase 3 through tasks 05 and 09. Its solo half (rows 1–7 and 9 of §6.1) can ship before team mode;
+its team half (row 8) ships with team mode's TM1 (05 §12). The two **now** items in §7.1 are worth
+doing in the current wave because they cost under an hour today and a rework later.
+
+## 8. Owner questions, and sources
+
+### 8.1 Questions, each with a recommendation
+
+| # | Question | Recommendation |
+|---|---|---|
+| W1 | Call Linear's *project* a **feature**, keeping *project* for the product? | **Yes.** Two meanings of one word in one rail is the kind of confusion a first-time user never recovers from (§2.1) |
+| W2 | Progress displays: A, B or C (§6.3)? | **A**: convergence plus plain group sizes; nothing that predicts |
+| W3 | May an issue's text enter the agent's managed block once its owner has started or delegated it (§4.4)? | **Yes, with the four guards in §4.4**, and only after F8's corpus covers issue text |
+| W4 | Should an `AU data only` project's branch names default to no title slug (§5.2)? | **Yes.** An erase cannot reach a branch name on a customer's remote |
+| W5 | Import or sync work from Azure DevOps Boards, GitHub Issues or Linear itself? | **Later, one way, into `triage`.** Not researched here: which trackers KPMG teams use is **UNVERIFIED**. OD-4's two hosts are the obvious first sources |
+
+### 8.2 Sources
+
+**Read in this repository, 2026-09-25** (line numbers are as read that day):
+
+- `docs/superpowers/planning/2026-09-23-owner-decisions.md` (OD-1 to OD-20)
+- `docs/PROGRAM.md` (phase table, `:50-65`); `docs/FUNCTIONAL-SPEC.md` (`:5-60`);
+  `docs/AGENTIC-UX.md` (headings and rules, `:14`, `:41`, `:71-77`, `:85-151`, `:213-253`)
+- `.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md` (§3, §5, §7, §8);
+  `.claude/worktrees/hub/docs/superpowers/adr/ADR-H1-hub-architecture.md` (`:398-411`, `:462-475`)
+- `.claude/worktrees/phase-4/docs/superpowers/plans/2026-09-23-phase-4-discover.md` (§1–2, decisions,
+  file map); `.claude/worktrees/phase-4/control-plane/internal/discover/content.go` (`:28-42`,
+  `:155-177`). No `provenance/` package exists in that worktree yet (`git ls-files`, 2026-09-25)
+- `.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md` (goal,
+  architecture, decisions, seams, file map)
+- `.claude/worktrees/phase-7/docs/superpowers/plans/2026-09-23-phase-7-deploy.md` (goal, decisions,
+  file map)
+- `docs/superpowers/planning/2026-09-24-team-collaboration/05-design.md` (§0, §1, §3, §4.1–4.2,
+  §5.2, §9.1–9.3, §11, §13); `04-enterprise-constraints.md` (F-controls table, `:340-346`)
+- `desktop/src/store/types.ts:165-173`; `desktop/src/store/store.ts` (persisted keys);
+  `desktop/src/components/` (directory listing); `prototype/*.html` (searched for tracker words)
+- `docs/superpowers/planning/2026-09-25-linear-parity/01-linear-feature-inventory.md` (sibling
+  research, for Linear's features; its own sources are listed there)
+
+**Public web, read 2026-09-25:**
+
+- https://linear.app/docs/github — Linear's pull-request status automation and its linking by
+  branch name and magic words (§2.4, §5.2, §6.2). Read through a fetch tool's summary, so the
+  quoted sentences are as that summary returned them.
+
+**Not opened:** any Plane source; any Linear asset, brand or code. No page was blocked in this
+run; no other page was attempted.
