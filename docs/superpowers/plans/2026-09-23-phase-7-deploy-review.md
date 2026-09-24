@@ -1711,3 +1711,48 @@ The two I expect a re-review to find surviving:
   sentence is dead code until task 42 lands.
 - `writeAtomic`'s durability (a rename; whether it fsyncs) bounds the journal's crash window.
   It was not read.
+
+### Fix batch b10, round 2 — the re-review's open issues (2026-09-24)
+
+Source: `.superpowers/sdd/p7/plan-rereview-b10-1.md` (two Important, five Minor). Line numbers are
+at the commit that carries this section. Hub contract re-read at hub `53583f2`: `:53`, `:268` and
+`:990` unchanged.
+
+| Issue | Change (file:line) |
+|---|---|
+| **I-1** a retry abandons a live Ship | t09:218-230, **the live set**: step 1 claims the key before it reads the record and holds it until `done` or the confirm loop ends; a live key answers `409 conflict` with the act's own lock sentence, or the live loop's `202 confirmed:false`, and is never settled. `Resume` claims the same way (t09:107-110, :250-258). t09:103 the `Orchestrator` holds the live set; t09:383 the route's `409 conflict` row. t10:41-47 `withReservation` holds it for Rollback and Rebuild. Tests: t09:419 `TestJournalLiveRetryConflicts`, t09:420 `TestJournalLiveConfirmLoopNotDoubled`, t10:218 `TestRollbackLiveRetryConflicts`. Plan:557 names it in the file map |
+| **I-2** the restart test contradicts the stage rules | t09:418 rewritten: the test reserves `rl-1` on the Hub fake and writes the `reserved` record through the journal's writer (the process stopped after the reserve, before `shipping`); a new `Orchestrator` with the binding **unresolved** runs `Resume` (record still `reserved`, zero `Abandon`), then `Ship` → one `Reserve`, one `Actor.Ship` from the record's fields, `Confirm(rl-1, {pipelineRun})`, record `done`. Kills M-3b |
+| **M-1** `confirmedAt` not on the wire | t08:137-138 `ReleasePin.confirmedAt` (Hub contract `:990`); t13:108 in `desktop/src/deploy/types.ts`, so UI contract §2 is untouched; t17:245 the test asserts the sentence draws `confirmedAt`, never the row's `at` |
+| **M-2** doc comment and mismatch code | t09:138-144 the comment settles by stage, names the four non-replay cases and the pre-reserve re-check, and says `New` is the only prune; t09:257-258 the same in step 1. t09:234-238: `400 bad_request` is this route's own code (the control plane has no `idempotency_mismatch`); the Hub's is `422` (`:53`, `:268`) |
+| **M-3a** age-cap boundary | t08:346 exactly 10:05:00.000 → `pending` |
+| **M-3b** `Resume` abandoning `reserved` | t09:418 (I-2's rewrite) |
+| **M-3c** rule 6's join by `same` | t08:338 second case: a rollback reserved `prod` makes the `production` row's `current {source:"rollback"}` |
+| **M-4** the record too thin to continue from | t09:207-215: `reserved` carries `reserve` and `act` (task 10's `ActSpec`); `started` carries `{run, answer}`. t09:242-246 a `shipping` abandon uses the `NoAnswer` words of `act.kind`. t10:31-62 `withReservation` takes an `ActSpec`, not closures; t10:113, :146 Rollback and Rebuild build one. Tests: t10:217 `TestRollbackShippingAbandonsWithRollbackWords`, t10:216 `TestRollbackIsJournalled` asserts the settled answer |
+| **M-5** the `openShare` seam | t14:35-39 `DeployLens` takes `onShare?`, the seam; t14:25-28 `AppShell` passes it once Hub task 42 has merged; t14:72 and :94 the row and the test use the prop (absence injected, no cast); plan:797 the §10 row names the seam and who wires it |
+
+#### Deviations, declared
+
+- **M-2.** The mismatch stays `400 bad_request` rather than becoming `422`: adding a code to the
+  control plane's set is a Go contract change for a case that is a client bug. The text no longer
+  calls it the Hub's rule.
+- **I-1, the live-key sentence.** A live retry answers with the act's own lock sentence, not a new
+  one, because to the user it is the same act still running.
+- **Durability.** `writeAtomic` does not fsync the directory (`registry/filestore.go:460-495`,
+  read now). t09:265-269 declares it: a process stop keeps every record; a power cut can lose the
+  newest stage. Not changed here, because it is the shared `writeAtomic` (ruling R2).
+
+#### Mutants
+
+No code changed, so no mutant was run. The two I expected to survive the round-2 tests, both now
+given a killing case on paper:
+1. **`Resume` ignoring the live set.** Nothing ran `Resume` while an act was live. Killed by
+   t09:419's `Resume`-from-the-hook case (zero `Abandon`).
+2. **A settled rollback that loses Panacea's answer.** `TestRollbackIsJournalled` checked the
+   confirm and the call count, not the answer. Killed by t10:216's `warmth` and `image` assertion.
+
+#### Unverified
+
+- Whether `hubapi.ReserveRequest` and `deploy.ProjectRef` marshal as JSON unchanged (the record
+  stores both). The Hub's Go names are not written yet.
+- The live set is per process. Two control planes on one state directory would each hold their
+  own; the control plane is single-instance on loopback, which this batch did not re-verify.

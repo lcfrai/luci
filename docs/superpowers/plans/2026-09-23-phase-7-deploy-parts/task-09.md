@@ -100,13 +100,14 @@ type Config struct {
 	Log *slog.Logger
 }
 
-type Orchestrator struct{ /* cfg; per-(project,branch) mutex; the Ship journal and its per-key mutex (step 1) */ }
+type Orchestrator struct{ /* cfg; per-(project,branch) mutex; the Ship journal and its live set of keys (step 1) */ }
 
 func New(cfg Config) (*Orchestrator, error)
 
 // Resume settles the journal a stopped process left behind (step 1): it restarts the confirm
-// loop of every "started" record and abandons every "shipping" one. main.go runs it once, in a
-// goroutine, after New. It returns when every record is settled or ctx ends.
+// loop of every "started" record and abandons every "shipping" one, each under the live-set claim,
+// and leaves every "reserved" one for a retry. It skips a key that is live. main.go runs it once,
+// in a goroutine, after New. It returns when every record is settled or ctx ends.
 func (o *Orchestrator) Resume(ctx context.Context)
 
 type Request struct {
@@ -260,6 +261,12 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    written. That reservation expires on its own at `expiresAt` (15 min, contract §7.9 `:1021`,
    state `expired`), and the retry reserves again. Nothing is built for it, so no run is left
    unpinned.
+
+   Durability, declared: `writeAtomic` syncs the temp file before the rename but does not sync
+   the directory after it (`registry/filestore.go:460-495`, read 2026-09-24). A process that stops
+   keeps every renamed record, which is the case the journal is for; a power cut can lose the
+   newest stage write. That is a property of the shared `writeAtomic` (ruling R2), not of this
+   journal, and is not changed here (plan re-review b10, *Unverified*).
 2. **One Ship per branch at a time.** A per-`(ProjectID, BranchID)` mutex, `TryLock`; held →
    `409 conflict` *"A Ship of this branch is already in progress."*
 3. **Preconditions** (nothing has left the process):
@@ -409,7 +416,7 @@ is retried with the same key.
 | `TestTimeoutAbandonsAmbiguously` | Panacea times out → `Abandon` message is the ambiguous sentence; no confirm; the route answers `503 upstream_unavailable` with `details.status 0` and `details.reserved true`. A `KindUnavailable` `Status 503` from `Ship` → `details.status 503`, `details.reserved true`. `EnvironmentFor` timing out (step 4) → `details.status 0` and no `reserved` key | confirming a run the control plane never saw named; a 503 without `status` or `reserved`, which makes the desktop say *"the release was not started"* of a build Panacea may have started, or say a build may have started when nothing was sent (review M26) |
 | `TestAnswerClassPicksAbandon` | the fake's `Ship` answers `KindUnavailable` with `Status` `504` → the ambiguous sentence; `202` (task 04's run-less 202) → *"Panacea accepted the build but did not name its run. …"*; `500` → *"Panacea could not start the build."*. Each route answer carries that `details.status` and `details.reserved true` | a gateway's 504 told "could not start" of a build Panacea may be creating; a run-less 202 told "could not start" after Panacea said *"deployment started"* (re-review I-2, M-4) |
 | `TestJournalRetryAfterRestartReservesOnce` | the process that stopped after the reserve and before `shipping`: the test reserves `rl-1` on the Hub fake for the request, then writes the `reserved` record for the key (with its `reserve` and `act`) through the journal's own writer, as that process would have left it. A **new** `Orchestrator` on the same `JournalDir`, whose binding source has **not** resolved the project yet, runs `Resume` → the record is still `reserved`, with zero `Abandon`. Then `Ship` with the same key → the Hub fake saw **one** `Reserve` in all, `deploytest.Fake` **one** `Actor.Ship` with the record's `ref`, branch, commit and `NoCache`, then `Confirm(rl-1, {pipelineRun})`, and the record is `done` (review M22; plan re-review b10 I-2, M-4) | an in-memory idempotency cache, which reserves twice after a restart; a `Resume` that abandons `reserved` records; a `reserved` continuation that reads the binding, which is not resolved yet after a restart |
-| `TestJournalLiveRetryConflicts` | inside the `deploytest.Fake`'s `Ship` hook (the first act is live, its record `shipping`), `Ship` again with the same key → `409 conflict` *"A Ship of this branch is already in progress."*, zero `Abandon`, and the hook's own call is the only `Actor.Ship`. The hook then answers run `r1` → the first act's `Confirm(rl-1, {pipelineRun:"r1"})` succeeds and its answer is `202 confirmed:true` (plan re-review b10 I-1) | a retry that settles a live act's record by stage: it abandons `rl-1` while Panacea is still creating the run, the first act's confirm gets `409 release_state`, and the cockpit's own build shows unpinned |
+| `TestJournalLiveRetryConflicts` | inside the `deploytest.Fake`'s `Ship` hook (the first act is live, its record `shipping`), `Ship` again with the same key → `409 conflict` *"A Ship of this branch is already in progress."*, zero `Abandon`, and the hook's own call is the only `Actor.Ship`; `Resume` run from inside the hook too → still zero `Abandon` (it skips a live key); the same key with another `commit` while live → `409 conflict`, not `400` (the live check comes first). The hook then answers run `r1` → the first act's `Confirm(rl-1, {pipelineRun:"r1"})` succeeds and its answer is `202 confirmed:true` (plan re-review b10 I-1) | a retry that settles a live act's record by stage: it abandons `rl-1` while Panacea is still creating the run, the first act's confirm gets `409 release_state`, and the cockpit's own build shows unpinned |
 | `TestJournalLiveConfirmLoopNotDoubled` | the Hub fake refuses the first `Confirm` with 503, so the act answers `202 confirmed:false` and its background loop runs; `Ship` again with the same key before the 2 s back-off → the same `202 confirmed:false` with `rl-1` and `r1`, and the Hub fake's `Confirm` count is unchanged; after the fake clock passes 2 s → exactly **one** more `Confirm` (plan re-review b10 I-1) | a retry that starts a second confirm loop for one release |
 | `TestJournalWritesShippingBeforePanacea` | inside the `deploytest.Fake`'s `Ship` hook, the journal file for the key reads stage `shipping` with `rl-1`'s id | a `shipping` record written after the call, so a crash during it leaves `reserved` and the retry builds twice |
 | `TestJournalShippingNeverBuildsTwice` | a `shipping` record for `rl-1` → `Ship` with that key makes **zero** `Actor.Ship` calls, `Abandon(rl-1)` once with step 6's no-answer sentence, and the error carries `details.status 0`, `reserved: true`; `Resume` on such a record does the same | a retry that calls Panacea again after a crash mid-call — two builds of one press |
