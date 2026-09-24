@@ -146,7 +146,12 @@ func (a *Authenticator) SignOut(ctx context.Context) error
 ```go
 // control-plane/internal/entraauth/account.go — start-up (contract §6.2).
 //
-// New reads EntraAccountTarget(tid, ClientID) for the configured authority's tenant.
+// New reads EntraAccountTarget(tid, ClientID) for the configured authority's tenant:
+// tid is the authority's one path segment, which task 32's config guarantees is a
+// lowercase tenant GUID (review M8), so New needs no network and no List. New
+// itself refuses a Config.Authority whose path is not one GUID (an error, not a
+// guess), so a caller that bypasses task 32's loader cannot look under a domain
+// or "organizations" and find nothing.
 // Parsing the record validates it BEFORE any target builder sees a stored value
 // (plan re-review b03 N1): refreshGen must pass credstore.ValidGeneration and
 // refreshChunks must be 1 to 16 (16 × MaxBlob = 40,960 bytes, far above the 6,000
@@ -219,6 +224,7 @@ injected clock.
 | `TestRotationIsWrittenBeforeTheTokenIsReturned` | a recording `Secrets`: in order, the new generation's chunks, then the account record naming that `refreshGen` and `refreshChunks`, then the old generation's deletes — all before `Token` returns; **no `Put` targets any chunk of the old generation** | a crash between return and write losing the only valid refresh token; the in-place overwrite (review I1); an old generation deleted before the record names the new one |
 | `TestAFailedRotationWriteKeepsTheOldToken` | signed in (the old token, generation A); `Config.HTTPClient`'s `RoundTripper` swaps the refresh grant's `refresh_token` for a **6,000-byte** value (3 chunks — devissuer issues 43-character tokens, task-12.md:71, too small to need a second chunk); a faulting `Secrets` fails the **second** chunk's `Put` of that write → `Token` errors; the record still names A; `GetChunked(A, n)` returns the old token **whole, byte for byte**; `List(EntraRefreshPrefix)` holds only A's chunks; a fresh `New` over the same store → `signed_in`. A second case fails the record's `Put` instead: the same assertions | a torn token (new chunk 0 + old chunk 1, review I1) that signs the user out at the next start; a fault injected only on the first `Put`, which never tests the tear. (Whether the old token still redeems is Entra's rule, not this test's: devissuer revokes on rotation, task-12.md:101) |
 | `TestStartUpSweepsUnnamedGenerations` | the store holds the record naming B, B's chunks, and a stray generation C (a rotation that died before its record `Put`) and A (one that died before its old-generation delete); `New` → `signed_in`, and `List(EntraRefreshPrefix)` is exactly B's chunks | leaked refresh tokens piling up in Credential Manager; a sweep that deletes the named generation |
+| `TestNewFindsTheRecordByTheAuthoritysTenant` (review M8) | a record stored under `EntraAccountTarget(t1, c)`: `New` with `Authority` `…/<t1>` → `signed_in`, and with `…/<T1 uppercased>` → `signed_in` (read lowercased); `…/organizations` and `…/kpmg.com.au` → an error from `New`, not `signed_out`; a recording `Secrets` sees that exact target as the first `Get`, and every `List` (the start-up sweep's) under `PanaceaApp/entra/<t1>/<c>/`, none wider | a restart that looks under the wrong tid and signs the user out for good; a lookup that reads every account on the machine |
 | `TestInvalidGrantSignsOut` | `devissuer.RevokeRefreshTokens(grace)`; `Token(HubScope)` with its cache expired → `ErrSignedOut`; `Status` `reauth_required`; the store is empty | a dead refresh token retried on every call |
 | `TestInteractionRequiredSignsOut` | `RequireInteraction(grace, true)`; `Token(HubScope)` → the same | a conditional-access sign-in frequency never surfaced to the user |
 | `TestASecondaryScopeRefusalKeepsTheSession` | signed in, the Hub token cached. `Config.HTTPClient`'s `RoundTripper` answers the **broker** scope's refresh grant itself, never forwarding it (so devissuer's refresh token is not spent), with Entra's body `{"error":"invalid_grant","suberror":"consent_required","error_codes":[65001]}` → `Token(brokerScope)` is `ErrScopeNeedsConsent`, `errors.As` a `*ScopeRefusal` whose `Scope` is the broker's; `Status` still `signed_in`; the store, compared entry by entry, **unchanged**; then, the Hub's cache expired, `Token(HubScope)` succeeds with a real redemption of the kept refresh token. Case 2: `{"error":"interaction_required","error_codes":[50076]}` → `ErrScopeRefused`, the same assertions. Case 3, devissuer's own body: `RequireInteraction(grace, true)` with the Hub token still cached → `Token(brokerScope)` is `ErrScopeRefused`, the store unchanged. Case 4: `{"error":"invalid_scope","error_codes":[70011]}` for the broker's grant → `ErrScopeNeedsConsent`, the same assertions (review I2) | the scope-blind rule, under which a conditional-access policy on Azure DevOps signs the user out of the Hub at every push; a refusal that drops every scope's cached token |
@@ -243,7 +249,7 @@ injected clock.
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/entraauth/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 39 (18 from task 30 + 21)
+go test ./control-plane/internal/entraauth/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 40 (18 from task 30 + 22; review M8 added one)
 go test ./control-plane/internal/entraauth/ -race -count=20 -run 'TestTenCallers|TestRedemptionsAreSerialised'   # ok — twenty runs, no flake
 ```
 

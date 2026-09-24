@@ -61,7 +61,7 @@ type Status struct {
 }
 
 type Config struct {
-	Authority    string // PANACEA_APP_ENTRA_AUTHORITY: https://login.microsoftonline.com/<tenant>, or devissuer's
+	Authority    string // PANACEA_APP_ENTRA_AUTHORITY: https://login.microsoftonline.com/<tenant GUID>, or devissuer's; never a domain or "organizations" (task 32 refuses them, review M8)
 	ClientID     string // PANACEA_APP_ENTRA_CLIENT_ID
 	HubScope     string // PANACEA_APP_HUB_SCOPE, e.g. "api://<hub-client-id>/Hub.Access"
 	RedirectHost string // "127.0.0.1" (default) or "localhost" (contract §6.1)

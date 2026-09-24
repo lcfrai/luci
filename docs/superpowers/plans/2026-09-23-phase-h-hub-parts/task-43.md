@@ -59,7 +59,7 @@ also pass in this run, with **all eight groups**.
 
 Nothing below can be run until KPMG IT has created the registrations of ADR-H1 §9 (items 1–6).
 Each item gets **expected**, **observed** and **verdict** columns in the record, left empty until
-the session. The configuration for it: the control plane with `PANACEA_APP_ENTRA_AUTHORITY=https://login.microsoftonline.com/<KPMG tenant>`,
+the session. The configuration for it: the control plane with `PANACEA_APP_ENTRA_AUTHORITY=https://login.microsoftonline.com/<KPMG tenant id, a GUID; not the domain, task 32>`,
 the desktop client id and the Hub scope; the Hub run **on the host** (so it uses the Windows
 certificate store, and the corporate proxy's CA, for `login.microsoftonline.com`) with
 `PANACEA_APP_HUB_ENV=local`, `PANACEA_APP_HUB_DEV_ISSUER=false`, the real tenant, audience and
