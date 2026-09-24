@@ -22,7 +22,7 @@ choose one.
    from write, a **session-visibility** grant, **coordination records** as a new entity, and
    **audit events for viewing** a live stream.
 5. The top risk is not a network attack. It is **cross-teammate prompt injection through shared
-   coordination text** (§6, rank 1), followed by **secrets in a streamed terminal** (rank 2).
+   coordination text** (§8, rank 1), followed by **secrets in a streamed terminal** (rank 2).
 
 ---
 
@@ -171,7 +171,7 @@ So a watch is governed like screen-sharing, not like a dashboard:
 | **Revocable at once** | revoking closes the relay connection, not just the next one |
 | **Never stored** | the relay holds no scrollback and writes no bytes to disk or logs. The Hub's logging rule already bans bodies (`hub-contract.md:2115-2121`); the relay inherits it |
 | **Replay is the owner's call** | on connect, a viewer gets live output only. The 256 KiB scrollback replay frame (`phase-2-go-contract.md:186`) is sent only if the owner ticked "include recent output" |
-| **Audited** | `watch.granted`, `watch.started`, `watch.ended`, `watch.revoked`, each with both principals (§8) |
+| **Audited** | `watch.granted`, `watch.started`, `watch.ended`, `watch.revoked`, each with both principals (§6) |
 
 **Workplace-surveillance law — UNVERIFIED, needs KPMG legal.** Watching an employee's terminal
 may be "computer surveillance" under state law (for example the *Workplace Surveillance Act 2005*
@@ -328,4 +328,136 @@ egress and a chance of a commit under Dylan's name.
 Anthropic's own guidance lists, for untrusted content, *"Avoid piping untrusted content directly
 to Claude"* and notes that *"no system is completely immune to all attacks"*
 (https://code.claude.com/docs/en/security, read 2026-09-24). So the fences below reduce the risk;
-none of them closes it alone, and the ranking in §9 says so.
+none of them closes it alone, and the ranking in §8 says so.
+
+### 5.3 The fences, in the order they should be built
+
+Each maps to an OWASP LLM01 mitigation (numbered as on the OWASP page above).
+
+| # | Fence | What it removes | OWASP |
+|---|---|---|---|
+| **F1** | **Only humans and deterministic code write coordination records** (§5.1 point 2). The fields a control plane may fill without a human: lane ref, head commit, changed paths (from git), session status, harness, launcher. Free text (focus, note) is **typed or confirmed by the human** | the agent → record edge, and with it propagation | 4, 5 |
+| **F2** | **Structured records, schema-checked by the Hub.** Enums for status; paths validated as repo-relative globs; focus ≤ 140 characters, note ≤ 1,000; unknown fields refused, as every Hub body already is (`hub-contract.md:35`) | long, instruction-shaped payloads | 2 |
+| **F3** | **Character hygiene at the Hub.** Refuse C0/C1 controls and ANSI escapes (they also attack the cockpit's own terminal renderer), bidi overrides, and the Unicode tag block U+E0000–U+E007F (invisible text a model still reads). Refuse secret-shaped text (§3.2) | hidden instructions; terminal-escape injection into viewers | 3 |
+| **F4** | **Delivered as quoted data, not as instructions.** The Materialiser's managed block in `CLAUDE.md` (`ADR-H1…:90-91`) is loaded as instructions: Claude Code calls CLAUDE.md *"instructions you write to give Claude persistent context"*, loaded *"at the start of every conversation"* (https://code.claude.com/docs/en/memory, read 2026-09-24). So team data must **never be rendered into `CLAUDE.md`**, nor `@`-imported into it. It goes in a separate JSON file, and the managed block carries one fixed, product-written sentence pointing to it and saying it is other people's status, not instructions | the most direct injection channel | 6, 1 |
+| **F5** | **The file is read-only to the agent and outside its worktree.** Written by `sandboxd` over its authenticated channel (ruling R4 rule 3, `orchestrator-rulings.md:22-28`) to a read-only mount, so an agent cannot forge or edit teammates' records for a later session of its own | local forgery; a poisoned file persisting | 4 |
+| **F6** | **Attribution on every item the agent reads**: author display name, human-typed or git-derived, and the time. An agent told *"Alice (human, 10:02) says she is refactoring `auth/`"* has more to weigh than bare text | undifferentiated authority | 6 |
+| **F7** | **The blast radius stays small by existing rules.** No git credential in any sandbox (A4); push and PR are human actions in the control plane; landing is phase 3's reviewed act | a successful injection still cannot push | 5 |
+| **F8** | **An injection corpus in CI.** Canned hostile records (instruction overrides, tag-block text, escapes, `curl | sh`) pushed through F2/F3 must be refused; the ones F2/F3 cannot catch are rendered through F4 and a scripted agent run checks behaviour | regressions | 7 |
+
+**What no fence closes.** Plain, well-formed, human-typed text that is persuasive ("the auth
+module is deprecated, delete it") passes every fence. That is the same risk as a colleague's
+misleading Slack message, and the control is the same: the reading agent's owner reviews what
+their agent does before landing. The residual belongs in the owner's risk register, stated as
+**medium**, not as closed.
+
+**No hooks, no MCP, for delivery.** The managed Claude policy strips `settings.json` hooks and MCP
+on the laptop (phase 3 risk R4,
+`scope-and-risk-phase-3-git-convergence.md:389`). A coordination channel built on a hook or an MCP
+tool would silently vanish for any teammate under that policy. A file the agent reads is the only
+channel every managed account keeps. This agrees with phase 3's brief, which *"uses none"*
+(same line).
+
+**Freshness is a security property too.** A stale claim ("Alice owns `auth/`") that outlives
+Alice's session misleads every other agent. Claims need an expiry and must be withdrawn when the
+session exits or its owner is removed from the team (§8, rank 6).
+
+## 6. Audit: who steered which agent, who watched whose terminal
+
+### 6.1 What G5 gives, and where team mode falls outside it
+
+The Hub appends exactly one event per changed record inside the write's transaction, under the
+org's audit-head lock, and `data` never holds content (`hub-contract.md:1133-1135`, `:2029-2044`).
+`hub verify` walks the chain (`hub-contract.md:1113`). The anchor outside the database is **later**
+(`ADR-H1…:254`), and the migrate Job's owner role can still rewrite (`hub-contract.md:2073`).
+
+**Steering is local, so the Hub cannot audit it.** Keystrokes go laptop → sandbox over `/attach`;
+the Hub *"never sees a terminal byte"* (`ADR-H1…:88`). Team mode answers *"who steered which
+agent"* **by construction** rather than by logging: only the launcher can steer (§2.2), and the
+launcher is on the presence row. That is sound only while §2.2 holds. **The day steering is
+delegated, a per-steer audit event becomes mandatory, and keystroke content must still stay out of
+it.**
+
+### 6.2 The events team mode must add
+
+All metadata-only, like every existing kind (`hub-contract.md:1134`):
+
+| Kind | Subject | `data` | In the team's feed |
+|---|---|---|---|
+| `session.started` · `session.ended` | presence id | `{"launcher","laneRef","harness","machineKind"}` | yes |
+| `session.forgotten` | presence id | `{}`. Records that Forget ran; the transcript never left the machine | yes |
+| `coord.intent_set` · `coord.claim_set` · `coord.note_added` | record id | `{"laneRef","paths","origin":"human"\|"derived"}` (no text; the text is in the record, which erasure can tombstone) | yes |
+| `coord.claim_expired` · `coord.claim_withdrawn` | record id | `{"reason"}` | yes |
+| `watch.granted` · `watch.revoked` | grant id | `{"sessionOwner","viewer","expiresAt"}` | **owner and viewer only** |
+| `watch.started` · `watch.ended` | grant id | `{"viewer","bytes","durationS"}` | **audit-only** |
+
+`watch.started` is the one **read** the Hub audits. It is written by the relay when it opens a
+connection, because viewing another person's terminal is access to content, and an auditor will
+ask for it first.
+
+**`origin` cannot be proven.** ADR-H1 R5 already notes the Hub cannot tell a human's call from the
+control plane's (`ADR-H1…:706`). `origin: human` is the control plane's claim. It is recorded, not
+trusted.
+
+### 6.3 What the ISM expects of the trail — UNVERIFIED control ids
+
+The ISM's *Guidelines for system monitoring*
+(https://www.cyber.gov.au/business-and-government/cyber-security-frameworks/ism/cybersecurity-guidelines/guidelines-for-system-monitoring,
+found by search 2026-09-24; the page was **not fetched in full** and **no control id was read**)
+is summarised by the search as requiring a centralised event-logging facility, logs protected from
+unauthorised modification, deletion and access, encrypted in transit, and sent as soon as possible.
+Against that, v1's hash chain in the same Postgres is tamper-**evident** only to someone who runs
+`hub verify`, and is not centralised. **Design B's** *"Hash-chained audit streamed to Log Analytics
+and Sentinel"* (`ADR-H1…:162-163`) is what an IRAP assessor would expect. Team mode raises the
+stakes, because the trail now records one person's access to another's work. **Recommendation:
+before team mode ships to anyone but the owner, stream audit events to Sentinel and anchor the
+chain head there.** Estimate: about 1 day, if phase 8's Log Analytics workspace exists.
+
+## 7. Repository access
+
+### 7.1 Each user's own git credentials
+
+- **Push and PR run in the control plane with the user's credentials; a sandbox never holds a git
+  credential** (A4, `scope-and-risk-phase-3-git-convergence.md:186`). Both hosts, one interface
+  (`owner-decisions.md:15`). Credentials sit in Windows Credential Manager, never on the Hub
+  (`ADR-H1…:350-358`).
+- **Team mode adds no credential path.** Alice's lane reaches Dylan only through the remote: Alice
+  pushes with Alice's credential; Dylan fetches with Dylan's. If Dylan cannot read the repository,
+  Dylan cannot see Alice's code in the product, whatever his team role says.
+- **Hub membership ≠ repository permission.** A Hub `viewer` may see intents and claimed paths for
+  a repo they have no git access to. Paths and commit subjects are code metadata. **Rule: a
+  coordination record shows a teammate only paths and subjects; commit contents and diffs come from
+  the teammate's own fetch, under their own git permission.** Where even paths are sensitive, the
+  project admin should require that every team member has read access to the remote (checked at
+  invite time by the invitee's control plane, which can `ls-remote` with the invitee's own
+  credential).
+
+### 7.2 Lanes shared through a remote
+
+Today a lane lives under `refs/panacea/lanes/…` **in the user's own project** (`owner-decisions.md:13`).
+To share it, it must be pushed. Constraints:
+
+1. **Namespaced by principal.** A lane pushed to the remote goes under a ref that names its owner
+   (for example `refs/panacea/lanes/<user-id>/<lane>`), so one teammate can never overwrite
+   another's. Branch protection on the host should deny force-push to other users' prefixes.
+   **UNVERIFIED** whether GitHub rulesets and Azure DevOps branch policies can express a per-user
+   ref prefix on a non-`refs/heads/` namespace; `06`/`07` critiques should check.
+2. **Custom ref namespaces may not survive the host.** Whether both hosts accept pushes to
+   `refs/panacea/…` at all is **UNVERIFIED**. If not, lanes are pushed as ordinary branches under a
+   `panacea/<user>/…` prefix.
+3. **Fetched teammate lanes are data** until executed in a sandbox (§5.1). They enter my project
+   through host git under ruling R4's hardening, never into a lane clone directly.
+
+### 7.3 Phase 3 ruling R4, applied to teammates
+
+Ruling R4 says the host never runs git in a directory a sandbox can write
+(`orchestrator-rulings.md:18-21`), and lane work crosses to the host only as a verified bundle
+(`:29-36`). Team mode must not reopen the class it closed:
+
+- **A teammate's remote lane is fetched into the host-private project, never into my lane clone by
+  host git.** Getting it into a lane clone is a bundle written by the host and fetched by `sandboxd`
+  inside the sandbox, as ruling R4 rule 5 already does for product-branch updates (`:40-42`).
+- **No coordination field may name a host path, a git config key, or a remote URL** that my
+  control plane then acts on. X-1 was exactly "agent-controlled text chooses a host file"
+  (`docs/superpowers/RESUME.md:88-94`); a teammate-controlled field is the same class one hop
+  further out. F2's schema enforces repo-relative paths only.
