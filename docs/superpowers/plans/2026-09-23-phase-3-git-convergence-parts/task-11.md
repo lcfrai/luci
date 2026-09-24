@@ -47,7 +47,7 @@ type RemovalState struct {
 	// None of it syncs, so without this the question omits it and RemoveTree deletes it.
 	Elsewhere []string
 	// Unlisted is the runner's sentence (a RunnerError's GitSays) when runner.Refs answered but the
-	// Elsewhere listing failed (a --no-merged walk that hits a missing object, git_timeout;
+	// Elsewhere listing failed (a --merged walk that hits a missing object, git_timeout;
 	// re-review b04-1 issue 2). Elsewhere is then empty but not known to be empty, so the archive
 	// takes every ref in Listed and NothingToLose is false.
 	Unlisted string
@@ -58,10 +58,10 @@ type RemovalState struct {
 	Listed []string
 	// ArchivedAt is the prefix Inspect's archive (below) fetched into, OffBranchPrefix(id, now), or
 	// "" when there was nothing to archive. With Unarchivable set, none of it was written
-	// (FetchLane's project fetch is --atomic, task 24).
+	// (ArchiveLane's project fetch is --atomic, task 24).
 	ArchivedAt string
 	// Unarchivable is the sentence when Inspect's archive of Elsewhere (or, with Unlisted set, of
-	// Listed) failed, from the runner's bundle or from task 24's FetchLane checks and fetch in the
+	// Listed) failed, from the runner's bundle or from task 24's ArchiveLane checks and fetch in the
 	// project: a clone with a broken or hostile ref.
 	// The archive is real, not a dry run, because a dry run skips the ref writes and so cannot see a
 	// ref-write failure: a D/F pair among the clone's own packed refs (the bundle carries both refs
@@ -110,8 +110,8 @@ package converge // not lanes: task 24's lanegit imports lanes, so lanes cannot 
 //   Elsewhere (review I6): runner.Refs{Names: [refs/heads/*], MergedInto: refs/heads/<b>}; each
 //     ref other than <b> with Merged false. Merged must be positive evidence: a ref naming a
 //     missing object is in neither --merged nor --no-merged (probed, git 2.53, both exit 0), so
-//     task 24's "listed, and absent from --no-merged" reads it as Merged and drops it; task 24
-//     should take Merged from --merged=<MergedInto> (recorded for task 24).
+//     task 24's refs op takes Merged from --merged=<MergedInto> only (task 24, the refs op and
+//     its runner test 9; review r4-2 I-3).
 //     Then the answer's Head: detached (Ref "") with a Sha is Elsewhere unless, in the PROJECT (Read, Scope Project), cat-file -e <sha>^{commit} finds it
 //     and merge-base --is-ancestor <sha> <LaneTip> exits 0 (OKExit 1); the runner's sha is data.
 //   A git_failed or git_timeout answer is followed by runner.Refs{Names: [refs/heads/*]} with
@@ -119,17 +119,18 @@ package converge // not lanes: task 24's lanegit imports lanes, so lanes cannot 
 //     names is Elsewhere; otherwise Unlisted is the first answer's GitSays and Listed that listing.
 // Then, when Elsewhere or Listed is non-empty, the archive, into the PROJECT, with prefix =
 // OffBranchPrefix(lane.ID, now.Unix()):
-//   lanegit.FetchLane(refs: the refnames of Elsewhere (or Listed) [+ HEAD when detached, which
-//                     is then among them], basis: none, refspecs: OffBranchRefspecs(st, prefix))
+//   lanegit.ArchiveLane(refs: the refnames of Elsewhere (or Listed) [+ HEAD when detached, which
+//                       is then among them], prefix, refspecs: OffBranchRefspecs(st, prefix))
 // on the same runner, into projectPath (the *gitx.Exec behind m, as task 07 passes it). The
 // runner bundles them and the host verifies and fetches the bundle file (task 24, R4.4); the
 // project fetch keeps --no-auto-maintenance for task 07's reason (no detached gc in the project;
 // review Minor 8). No Basis: an archive must carry every object. With Unreadable set nothing is
-// archived, since no runner can bundle. Task 24's FetchLane checks refs under refs/heads/ and
-// destinations under refs/panacea/lanes/; this call needs it to accept "HEAD" as a ref and
-// refs/panacea/archive/offbranch/ as a destination (recorded for task 24).
+// archived, since no runner can bundle. ArchiveLane, not FetchLane: FetchLane admits only
+// refs/heads/ refs and refs/panacea/lanes/ destinations, and ArchiveLane admits "HEAD" and
+// destinations under prefix+"/" only (task 24, "ArchiveLane, in order", TestArchiveRoundTrip;
+// review r4-2 C-1). Neither widens the other's namespace.
 // It sets ArchivedAt to prefix, and on failure Unarchivable to the sentence (a RunnerError's
-// GitSays, a *BundleRefused's Why, a *gitx.Error's). FetchLane's --atomic means a failed archive
+// GitSays, a *BundleRefused's Why, a *gitx.Error's). ArchiveLane's --atomic means a failed archive
 // writes no ref. Each attempt has its own <unix>; an earlier attempt's archive is kept, like
 // every archive ref (Q5), and a same-second retry force-updates the same refs.
 func Inspect(ctx context.Context, m gitx.Machine, lg *lanegit.Lanes,
@@ -155,7 +156,7 @@ type Removed struct {
 func OffBranchPrefix(worktreeID string, unix int64) string
 
 // OffBranchRefspecs maps st.Elsewhere (or, with st.Unlisted set, st.Listed) to fetch refspecs
-// under prefix, each named, never a wildcard, so each is "+<one of FetchLane's refs>:<dst>":
+// under prefix, each named, never a wildcard, so each is "+<one of ArchiveLane's refs>:<dst>":
 // "+refs/heads/<name>:<prefix>/heads/<name>" per branch, "+HEAD:<prefix>/HEAD" for a detached
 // HEAD. With st.Unreadable set it is nil: nothing is archived.
 func OffBranchRefspecs(st RemovalState, prefix string) []string
@@ -354,7 +355,7 @@ below means through the Fake.
 
 - [ ] **Step 1: Preflight.** Tasks 04, 07, 08 and 24 merged, so `briefref` (task 03), `gitx.Locks`
   (task 02), `GitDeps.Locks` (task 04), `converge.CheckedOutAt` (task 08, which DeleteBranch
-  and RenameBranch refuse by; review Minor 16), and `lanegit.Lanes`, `FetchLane`, `GitDeps.LaneGit`
+  and RenameBranch refuse by; review Minor 16), and `lanegit.Lanes`, `ArchiveLane`, `GitDeps.LaneGit`
   and `lanegittest.Fake` (task 24) exist; nothing here waits on task 09 (review I7).
   Task 01's `TestBehaviourRemoveAllOnAClone`, `TestBehaviourUpdateRefCreateOnlyRefusesAnExistingRef`,
   `TestBehaviourCheckRefFormatBranchExpandsShorthand`, `TestBehaviourRemoveSectionExitCodes` and
