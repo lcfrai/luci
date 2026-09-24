@@ -18,7 +18,7 @@ repeat it.
    replaces is checked by the compiler, not by a caller.
 3. **"No model" is a nil `Completer`.** `ConfigFromEnv` returning `ErrNoCredentials` or
    `ErrNoBaseURL` (amendment 4) is not an error at start-up: `cmd/api` (task 14) logs one line and passes a nil `Completer` to
-   `discover.ProposeFollowUp` and `repoanalysis.DraftBrief`, both of which treat nil as "no model"
+   `discover.ProposeFollowUp` and `repoanalysis.DraftAnswers` (task 13), both of which treat nil as "no model"
    and degrade. Nothing else in the process holds a key.
 4. **No default endpoint (review I13).** The old plan's `DefaultBaseURL = "https://api.anthropic.com"`
    (`:299-302`) and both fallbacks to it (`ConfigFromEnv`'s `getenv(..., DefaultBaseURL)` at `:331`
@@ -141,12 +141,27 @@ survivors (S1, S2) survived:
 | `TestConfigFromEnvReadsTheThreeVariables` | key, base URL (spaces and a trailing slash trimmed), `PANACEA_APP_MODEL_ID` and the `MaxTokens`/`Timeout` defaults; no model id gives `DefaultModel`; `DefaultTimeout` is 45 s | `PANACEA_APP_MODEL_ID` ignored; the trailing slash kept |
 | `TestNewFillsTheDefaults` | `New` with only a key and a base URL ending in `/` posts to `/v1/messages` with `DefaultModel`, `max_tokens` 8192 and no `output_config` | `New`'s defaults dropped |
 | `TestCompleteReportsNoTextBlock` | a thinking-only reply at `max_tokens`, and empty content, are `ErrNoText` | S1: a 200 with no text block read as a success with empty text |
-| `TestCompleteBoundsTheReplyItReads` | a reply over 8 MiB is an error | the read limit removed |
+| `TestCompleteBoundsTheReplyItReads` | a body of exactly 8 MiB is read whole; one byte more is an error (both sides of the bound, fix round 1) | the read limit removed; a shift typo (`8<<10`) or an off-by-one limit (R2) |
 | `TestACallersTimeoutIsKept` (internal) | a caller's `Timeout: 5s` reaches the `http.Client` | S2: `New` always using `DefaultTimeout` |
 
+**As built, fix round 1 (review `task-t02-review.md`):** after the reviewer's mutation run, where
+all six of its mutants (R1 to R6) survived:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestCompleteHonoursTheCallersContext` | against a handler that holds the call open, a 50 ms deadline is `context.DeadlineExceeded` and a cancel once the call is in flight is `context.Canceled`, each inside 10 s (the client's own ceiling is 45 s). Only this package can pin it: tasks 04 and 13 use a fake `Completer` | R1: `Complete` ignoring the caller's `ctx`, which amendment 5's ordering rests on (review I1) |
+| `TestCompleteReportsRefusal` (+ row) | a refusal that carries partial text is `ErrRefused`, with no `Text` | R3: the refusal checked only when there is no text (M2) |
+| `TestCompleteSendsJSONSchemaWhenSupplied` (+ effort) | `Effort: "low"` beside a schema reaches `output_config.effort` | R6: the effort dropped when a schema is sent (M6) |
+| `TestNewTrimsTheModelID` | `New` sends a padded model id trimmed, and a blank one as `DefaultModel` | `New` not trimming the model id (M5) |
+| `TestCompleteJoinsEveryTextBlock` | two text blocks, after a thinking block, give `"ab"` | R4: only the first text block kept |
+| `TestExtractJSON` (+ row) | `}{"a":{"b":1}}` gives the whole object | R5: the `depth > 0` guard removed (returns the inner `{"b":1}`) |
+| `TestCompleteCapsTheBodyItQuotesInAnError` | a 64 KiB error body is quoted to exactly its first 2 KiB, with its full length named | the whole body, up to 8 MiB, quoted into an error that lands in logs |
+| `TestTheQuotedBodyIsCutOnARuneBoundary` | the 2 KiB cut backs up to the start of a character it would split; the error is valid UTF-8 | a byte cut that leaves half a character in a log line |
+
 A blank key is "model off" (`ErrNoCredentials`), in `ConfigFromEnv` and in `New`, the same way a
-blank base URL is `ErrNoBaseURL`; the key and the model id are trimmed. This is a departure from
-"copied as written", declared in the task 02 report.
+blank base URL is `ErrNoBaseURL`; the key and the model id are trimmed, in both. This is a
+departure from "copied as written", declared in the task 02 report. So is the capped error
+body: the old plan quoted the whole body.
 
 **Steps:**
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/modelclient"
 )
@@ -451,6 +453,37 @@ func TestCompleteCapsTheBodyItQuotesInAnError(t *testing.T) {
 	}
 	if !strings.Contains(msg, "65536 bytes") {
 		t.Errorf("error does not name the body's full length, 65536 bytes (it is %d bytes long)", len(msg))
+	}
+}
+
+// TestTheQuotedBodyIsCutOnARuneBoundary: the 2 KiB cut never splits a
+// character. A brief's answers carry names with accents, and a byte cut
+// through "é" leaves half a character, invalid UTF-8, in the error and in
+// every log line that carries it. The cut backs up to the character's start.
+func TestTheQuotedBodyIsCutOnARuneBoundary(t *testing.T) {
+	const quoted = 2 << 10
+	// "é" is two bytes, at quoted-1 and quoted: a byte cut at quoted splits it.
+	body := strings.Repeat("a", quoted-1) + "é" + strings.Repeat("b", 100)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+
+	c, _ := modelclient.New(modelclient.Config{BaseURL: srv.URL, APIKey: "k"})
+	_, err := c.Complete(context.Background(), modelclient.Request{User: "x"})
+	if err == nil {
+		t.Fatal("expected an error for 502")
+	}
+	msg := err.Error()
+	if !utf8.ValidString(msg) {
+		t.Errorf("error is not valid UTF-8: the cut split a character (%q)", msg[len(msg)-60:])
+	}
+	if !strings.Contains(msg, strings.Repeat("a", quoted-1)+"... (") {
+		t.Errorf("error does not end its quote at the character before the split one")
+	}
+	if !strings.Contains(msg, fmt.Sprintf("(%d bytes, truncated)", len(body))) {
+		t.Errorf("error does not name the body's full length, %d bytes", len(body))
 	}
 }
 

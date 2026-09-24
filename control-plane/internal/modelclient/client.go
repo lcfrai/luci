@@ -31,6 +31,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // DefaultModel is the model every Discover call uses unless overridden. It is
@@ -291,14 +292,19 @@ func (c *Client) Complete(ctx context.Context, req Request) (Response, error) {
 // of the request, which carries a brief's answers.
 const maxErrorBody = 2 << 10
 
-// quoteBody is the trimmed body, cut to maxErrorBody bytes with its full
-// length named when it is longer.
+// quoteBody is the trimmed body, cut to at most maxErrorBody bytes with its
+// full length named when it is longer. The cut backs up to the start of the
+// character it lands in, so it never leaves half a character in a log line.
 func quoteBody(raw []byte) string {
 	body := strings.TrimSpace(string(raw))
 	if len(body) <= maxErrorBody {
 		return body
 	}
-	return fmt.Sprintf("%s... (%d bytes, truncated)", body[:maxErrorBody], len(body))
+	cut := maxErrorBody
+	for cut > 0 && !utf8.RuneStart(body[cut]) {
+		cut--
+	}
+	return fmt.Sprintf("%s... (%d bytes, truncated)", body[:cut], len(body))
 }
 
 // ExtractJSON returns the first balanced top-level JSON object in text.
