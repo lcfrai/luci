@@ -136,7 +136,8 @@ stays exactly as it is (task 26 seam S3.1).
 | `images/sandbox/githooks/` | the hook dispatcher that stamps `Panacea-Session` and chains to the repository's own hooks | 05 |
 
 The HTTP handlers for all of it live in new files in `internal/api` (`worktrees.go`,
-`convergence.go`, `lands.go`, `branches.go`, `remote.go`, `changes.go`, `evidence.go`), and every
+`convergence.go`, `lands.go`, `branches.go`, `remote.go`, `pullrequests.go`, `evidence.go`,
+`changes.go`, `transcript.go`), and every
 route registers through the recorder (`api.go`'s `routes`, seam SX.4).
 
 **The desktop** gains one unpersisted slice (`convergenceSlice`), loaded on the existing poll
