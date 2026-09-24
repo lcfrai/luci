@@ -160,3 +160,73 @@ type ErrorResponse struct {
 5. **`diff`** (task 16). `G diff --no-color --no-ext-diff --no-textconv -U3 HEAD -- <Path>`; its
    stdout is the body, `200`, `Content-Type: text/x-diff`. Past `MaxJSONBytes` it is 413
    `too_large`. An unborn HEAD makes git fail, which is `git_failed`.
+
+**Validation**, before the op lock and before any git call in the lane; each failure is 400 `bad_request`
+unless named otherwise.
+- **Refs.** Every refname the host sends (`Names`, `MergedInto`, `Refs`, both sides of a
+  refspec, each delete) begins `refs/` and passes `git check-ref-format <ref>`, run without `-C`
+  (it needs no repository).
+- **Destinations.** A refspec's `<dst>` and every delete sit under `refs/remotes/origin/` or
+  `refs/remotes/upstream/`. A refspec is `[+]<src>:<dst>` with exactly one `:`.
+- **Shas** match `^[0-9a-f]{40}$` or `^[0-9a-f]{64}$`.
+- **Path** (`diff`): 400 **`path_outside_lane`** when it is empty, is absolute, holds a `..`
+  segment, a `\` or a NUL, starts with `:`, or when `filepath.Clean(filepath.Join(GitWorktree,
+  p))` is not strictly under `GitWorktree + "/"`. `--literal-pathspecs` already turns off
+  pathspec magic; the `:` rule refuses it before git sees it.
+
+```go
+// limits.go — the contract's numbers. U2's host client declares the same four values. Both
+// modules' tests compare their constants with testdata/gitrunner/limits.json, because the host
+// cannot import this package: Go's internal rule forbids it from outside sandboxd/, and
+// control-plane/go.mod requires no sandboxd module.
+const (
+	MaxJSONBytes   = 8 << 20           // a JSON request, a JSON result, diff's bytes, git's stderr
+	MaxBundleBytes = 1 << 30           // a bundle, in (fetch) and out (bundle)
+	ReadTimeout    = 30 * time.Second  // status, refs, diff: the whole op
+	BundleTimeout  = 120 * time.Second // bundle, fetch: the whole op, body read included
+)
+```
+
+- **One op at a time per sandbox.** The runner holds a one-slot semaphore (a mutex whose wait
+  can end) for the whole op, taken after validation. A waiting op gives up with its own timeout.
+  It orders only the runner's calls, so its `fetch` and `update-ref` never interleave with its
+  reads; the agent's own git is not ordered by it, which is why the reads set
+  `GIT_OPTIONAL_LOCKS=0`.
+- **Timeouts.** One `context.WithTimeout` per op; `exec.CommandContext` kills git; the answer is
+  504 `git_timeout`.
+- **Size.** A JSON result is encoded to a buffer and git's stdout is read through the same cap;
+  past `MaxJSONBytes` either one is 413 `too_large`. So is a request body past its cap.
+
+**Errors.** A git exit the op does not expect is 422 `git_failed` with `gitSays`: the last stderr
+line that starts `fatal:`; else task 02's `Sentence` rule (the last `error:` or `remote:` line,
+else the last non-empty line, else `git exited <code>`, `task-02.md:178-181`); capped at 2048
+bytes on a UTF-8 boundary (`gitx.MaxSentence`, `task-02.md:163`). The rule is copied, not
+imported, for the same reason as the limits, and a golden fixture pins it for both modules.
+
+**Wiring (p2 files).** `server.Config` gains `GitWorktree string`. `New` mounts
+`s.mux.HandleFunc("/git/v1/", s.git)` beside `/attach` (`server.go:85`) only when `GitWorktree`
+is set, so phase 2's tests, which build `Config` without it, are unchanged:
+
+```go
+func (s *Server) git(w http.ResponseWriter, r *http.Request) {
+	if !s.authorised(r) {
+		slog.Warn("rejected unauthenticated git call", "remote", r.RemoteAddr)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	s.runner.ServeHTTP(w, r) // *gitrunner.Runner, built in New from cfg.GitWorktree
+}
+```
+
+`AllowUnauthenticated` opens `/git/v1/` exactly as it opens `/attach`: local development only.
+`main.go` adds `gitWorktree := flag.String("git-worktree", "/home/dev/work", "the lane clone the
+git runner serves")` beside the flags at `main.go:40-48` and passes `*gitWorktree` through
+`newServer` (`serve_posix.go:11`, and `serve_other.go:13`'s signature) into the `Config`.
+
+**Wire golden fixtures**, `testdata/gitrunner/` at the repo root: `limits.json`, and one file
+per shape (`status.response.json`, `refs.request.json`, `refs.response.json`,
+`bundle.request.json`, `fetch.response.json`, `diff.request.json`, `error.git_failed.json`,
+`error.path_outside_lane.json`). Each module's test decodes every fixture into its own type with
+`DisallowUnknownFields`, re-encodes it, and compares with the fixture's compacted bytes, so a
+field renamed on either side fails a test on that side. `sandboxd/internal/gitrunner` reads them
+at `../../../testdata/gitrunner`.
