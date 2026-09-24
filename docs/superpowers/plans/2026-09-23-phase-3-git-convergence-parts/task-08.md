@@ -10,7 +10,7 @@ never pushed, and when it was last fetched (obligation 6; phase 7's seam S3-P7.3
 
 **Files:**
 - `control-plane/internal/converge/forecast.go` — `Forecast`, `ForecastQueue`, the fixed-identity forecast commit, the cache (new)
-- `control-plane/internal/converge/convergence.go` — `Convergence`, `QueueEntry`, `LaneView`, `Read` (new)
+- `control-plane/internal/converge/convergence.go` — `Convergence`, `QueueEntry`, `LaneView`, `BringIn` (review I5), `Read` (new)
 - `control-plane/internal/converge/checkedout.go` — `CheckedOutAt` (new)
 - `control-plane/internal/remote/state.go` — `State`, `ReadState` (new)
 - tests for each (new)
@@ -104,9 +104,28 @@ type Convergence struct {
 	Tip          string       `json:"tip"`          // refs/heads/<branch>; a land names it as expectedTip
 	CheckedOutAt string       `json:"checkedOutAt"` // "" or the checkout's path; landing is off when set
 	Remote       remote.State `json:"remote"`
-	Queue        []QueueEntry `json:"queue"` // ready lanes: stored order first, then unordered ready lanes by CreatedAt
-	Lanes        []LaneView   `json:"lanes"` // every cockpit worktree of the branch, CreatedAt order
-	ReadAt       string       `json:"readAt"`
+	// BringIn is the "Bring in origin/<branch>" row (review I5); nil (JSON null) unless
+	// Remote.Behind > 0. It stands above the queue and outside it.
+	BringIn *BringIn     `json:"bringIn"`
+	Queue   []QueueEntry `json:"queue"` // ready lanes: stored order first, then unordered ready lanes by CreatedAt
+	Lanes   []LaneView   `json:"lanes"` // every cockpit worktree of the branch, CreatedAt order
+	ReadAt  string       `json:"readAt"`
+}
+
+// BringIn forecasts task 09's BringIn: the project's <branch>@{upstream} into the tip.
+// Tip is `rev-parse --verify -q <branch>@{upstream}` (Scope Project); a bring-in names it as
+// expectedUpstream. Forecast is one
+// ForecastQueue step with laneTip = Tip against the branch tip alone: "clean" | "conflicts"
+// (Paths; ConflictsWith always [], since it conflicts with the branch itself) | "unknown".
+// It is not chained into the queue, and the queue is not chained after it: landing it is the
+// human's choice, and the next GET recomputes every row (the cache is keyed by the tip).
+// FastForward is Remote.Ahead == 0: the bring-in will move the tip to Tip, making no commit.
+type BringIn struct {
+	Upstream    string   `json:"upstream"` // Remote.Upstream, e.g. "origin/evidence-upload"
+	Tip         string   `json:"tip"`
+	Behind      int      `json:"behind"` // Remote.Behind, repeated so the row needs nothing else
+	FastForward bool     `json:"fastForward"`
+	Forecast    Forecast `json:"forecast"`
 }
 
 // Inputs is what Read needs; the handler fills it.
@@ -173,6 +192,7 @@ PUT /v1/projects/{projectId}/branches/{branchId}/queue
   "tip": "a90d3f4c…", "checkedOutAt": "",
   "remote": { "remote": "origin", "upstream": "origin/evidence-upload", "ahead": 0, "behind": 0,
               "fetchedAt": "2026-09-23T05:36:00Z", "fetchError": "", "readError": "" },
+  "bringIn": null,
   "queue": [
     { "worktreeId": "w-ui", "forecast": { "state": "clean", "after": [], "conflictsWith": [], "paths": [], "why": "" },
       "settles": [] },
@@ -205,6 +225,8 @@ changes."* The PUT is a write and needs no line.
 |---|---|---|
 | `TestForecastTwoCleanLanesChain` | lanes a, b touch different files → both clean; b's `After == [a]` | forecasting every row against the bare tip |
 | `TestForecastSecondConflictsWithTheFirst` | a and b edit the same line → a clean, b conflicts, `Paths == [f]`, `ConflictsWith == [a]` | "conflicts" without the row that causes it |
+| `TestReadOffersABringInWhenBehind` (review I5) | a bare "remote", a teammate's push, the project fetched → `bringIn.upstream == "origin/<b>"`, `behind == 1`, `fastForward == true`, forecast `clean`; the queue's rows are unchanged by it; `behind == 0` → `bringIn == null` | a diverged branch the lens cannot fix |
+| `TestReadBringInConflictsWithTheBranch` | the branch and the teammate edit one line → `bringIn.forecast.state == "conflicts"`, `paths` that file, `conflictsWith == []`, `fastForward == false` | a bring-in button that promises a clean merge |
 | `TestForecastBlamesTheRowAboveForANonASCIIPath` (review I2) | the same as above with `f` = `docs/résumé.md` → `Paths == ["docs/résumé.md"]` (raw UTF-8) and `ConflictsWith == [a]`, not `[]` | `merge-tree` without `-z`: the quoted path meets no `Changed`, and the lens blames the branch itself |
 | `TestForecastConflictWithTheBranchItself` | the branch and lane edit the same line → conflicts, `ConflictsWith == []` | blaming a row above for the branch's own change |
 | `TestForecastAConflictDoesNotAdvanceTheBase` | a conflicts, b depends only on the tip → b clean with `After == []` | rows below assuming a conflicting row landed |
