@@ -569,3 +569,142 @@ messaging**. Per the teardown note, cube is one user's machine tree (cloud machi
 machine → repo → worktree → agent sessions), billed via Stripe. cube proves the single-user
 cockpit; it offers **no prior art for C1–C4**. The team layer is white space for us.
 
+---
+
+## Comparison table
+
+Legend: **Y** shipped and documented · **P** partial · **N** not found · **?** unverified.
+"Aware" means one agent can learn, unprompted by its human, what another agent is doing.
+
+| Product | C1 Share | C2 See (live, team-wide) | C3 Spawn own agents, own machine | C4 Aware — mechanism | Conflicts | Identity / billing | Top enterprise objection |
+|---|---|---|---|---|---|---|---|
+| Claude Code teams + messaging | N (one user) | P (lead's panel, own sessions) | Y (own sessions, any machine) | Y intra-user: task list with file-locked claims + mailbox | Advice only ("own different files") | Per user; teammates bill the lead | Experimental; single-user; state in dot-files |
+| Devin | Y org | Y "Session Subscribers" | P (cloud VM; Devin Local) | P coordinator → children; org knowledge/skills | Coordinator judgement | Seats + pooled ACUs; SSO | Loop in vendor cloud; pooled ACUs |
+| Cursor | Y team | P per-link, read-only | Y (IDE/web/Slack/Linear) | N (shared rules only) | Worktree/VM isolation + PR | $40/seat; API-priced agents | Vendor VMs; no live roster |
+| GitHub Copilot / Agent HQ | Y repo | Y via issues/PRs; mission control per user | Y (any assigner) | Y async: **Copilot Memory**, cited + validated | Human partitioning; 1 PR per task | Org Copilot plan; Actions minutes | GitHub-only; GitHub-hosted runners |
+| OpenAI Codex | Y workspace | ? | Y | P `AGENTS.md` only | Diff review | Workspace credits | Vendor cloud; no ADO |
+| Amp | Y workspace | Y threads shared by default; multiplayer | Y | Y pull: `find_thread` / `read_thread` over teammates' threads | None documented | **Owner pays** for all prompts | Multiplayer exposes secrets to all |
+| Factory | P | N | Y (BYOM free) | P org memory (claimed) | ? | Plan-based | No team visibility found |
+| Replit Agent 4 | Y project | Y shared Kanban + presence | P (Replit cloud only) | P board + merge | Agent auto-merge ("90%", unverified) | Seats; credits ? | Vendor cloud; auto-merge unreviewed |
+| Zed / Delta | Y thread invite | Y thread synced live | Y "work on your own machine" | ? (anchored deltas; cross-thread ?) | DeltaDB beside git | ? | Beta; second VCS |
+| Devin Desktop (Windsurf) | ? team Spaces | Y Kanban Command Center | Y local + cloud | Y Space context inheritance; ACP | ? | Devin plans | Product mid-merge |
+| Warp Oz | Y team | Y team roster, join-to-audit | Y multi-harness, self-host | Y? shared fleet memory | ? | Team-stored credentials | Credential pooling risk; blocked at KPMG |
+| Google Jules | N | N | Y | P repo memory (per user), critic | PR | Per Google account | No team model |
+| Linear coding sessions | Y workspace | Y status on the issue | P (Linear sandbox) | P the board | Human partitioning | Pooled workspace credits | SaaS only |
+| cube.computer | N | N | N | N | Worktree per agent | Stripe, per user | Single-user |
+
+**Reading the table.** Nobody ships all four capabilities for a *cross-user* team with
+*per-user* billing. The closest partial fits are:
+- Amp (C2 + C4 pull);
+- Warp Oz (C2 + C3 multi-harness);
+- GitHub (C4 durable memory);
+- Replit (C2 board).
+
+Every product that does C4 at all does it **asynchronously**: memory, threads, a board. None
+pushes "your colleague's agent just claimed this file" into a running agent. Claude Code
+does that, but for one user only.
+
+---
+
+## The 5 ideas most worth copying (ranked)
+
+**1. A team-wide live agent roster with a fixed, small state vocabulary.** (C2)
+- *From:* Linear's six AgentSession states ("pending, active, error, awaitingInput, complete,
+  stale"); Replit's shared Kanban; Warp's "sort by task originator"; Devin's "Session
+  Subscribers".
+- *For us:* one Hub row per agent: owner (human), machine, lane/branch, **focus** (task title +
+  declared paths), state, last heartbeat.
+- *Gate:* visible only to members with **read access on the git host** (Cursor's rule).
+- *Follow:* a teammate's agent can be followed, and joined **read-only by default**.
+- *Fit:* the "one global heartbeat clock" rule (`CLAUDE.md:46`) already fits a roster of many
+  rows.
+
+**2. Claims with leases on work and paths, checked at plan time.** (C4, push)
+- *From:* Claude Code's shared task list, where "Task claiming uses file locking" and dependencies
+  block claims; Jules's plan critic; Replit flagging file overlap.
+- *For us:* lift this from one user's `~/.claude/tasks/` into the Hub so it works **across
+  users**. An agent declares its scope when it starts. The Hub finds overlaps with live claims and
+  **tells both agents**, as plain-text messages that "can't approve anything" (Claude Code's
+  cross-session rule).
+- *Leases:* a lease lapses when heartbeats stop.
+- *Advisory, not blocking:* OD-2 clones keep every lane safe, and the claim only prevents
+  wasted work.
+
+**3. Teammates' work as a searchable agent tool.** (C4, pull)
+- *From:* Amp's `find_thread` (by "keyword, file path, repository, author, date, or task") and
+  `read_thread` (an extractor subagent).
+- *For us:* expose them through the Hub's MCP server to every harness, e.g. `find_work` and
+  `read_work(id, question)`.
+- *Source text:* structured summaries produced by OD-8's pinned transcript adapter, never PTY
+  bytes. Use the extractor so the caller's context is not flooded.
+- *Scope:* the same permissions as the roster.
+
+**4. Project memory that proves itself.** (C4, durable)
+- *From:* Copilot Memory, where facts are "stored with citations pointing to the code", checked
+  "against the current branch", created only by write-permission contributors, used only by
+  read-permission users, and deleted when unused for 28 days.
+- *Governance:* add Devin's suggestion queue and arXiv 2608.00122's "contributor approval" gate,
+  so an agent *proposes* a memory and a human accepts it.
+- *Provenance:* accepted memories become entries on the provenance thread, with the citation and
+  the approver.
+
+**5. The project brief as an inherited "space".** (C1 + C4)
+- *From:* Windsurf/Devin Desktop Spaces ("a new session in a Space … inherits everything the
+  Space already knows"); Cursor Team Rules "automatically applied to all members"; Linear's
+  "delegate, not the assignee".
+- *For us:* every agent spawned into a shared project, by any member, starts with:
+  - the Define brief;
+  - team rules;
+  - the live roster;
+  - the active claims;
+  - a pointer to (3) and (4).
+- *Ownership:* a named human always owns the agent's task. That is the product spine
+  (provenance) doing C4's job.
+
+## The 3 anti-patterns
+
+**1. Someone else pays for my prompt.**
+- *Seen in:* Amp bills "all agent and orb costs … to the thread owner" whoever types; Warp stores
+  Anthropic credentials "as Warp-managed secrets for managing team credentials"; Devin, Cursor
+  Enterprise and Linear pool workspace credit.
+- *Why not:* on Claude subscriptions this is the cross-user pooling we must never do, and it
+  destroys per-person attribution.
+- *Do instead:* to steer a teammate's agent, **fork into your own lane on your own
+  subscription**, or send its owner's agent a message it may decline.
+
+**2. Coordination by advice, collisions found at merge, then resolved silently.**
+- *Seen in:* GitHub ("Be thoughtful about partitioning work"); Claude Code ("Break the work so
+  each teammate owns a different set of files"); Replit's agent merge with "no manual conflict
+  resolution required".
+- *Why not:* advice does not scale past one person's head. Silent AI resolution of a conflict is
+  an unreviewed change, which regulated change control will reject.
+- *Do instead:* detect overlap at claim time (idea 2), and route every real conflict to a named
+  human in convergence (phase 3).
+
+**3. Sharing the live machine instead of the state.**
+- *Seen in:* Amp multiplayer, where "every workspace member can access the thread, its orb or
+  shared runner, secrets, files, and terminal"; link-based sharing ("Anyone with the link" in
+  Delta; unlisted URLs in Amp).
+- *Why not:* it breaks Kata's per-user blast radius and leaks secrets.
+- *Do instead:* share **state**: the roster, claims, summaries and memory. Terminal viewing stays
+  read-only, per member, audited, and never by link.
+
+---
+
+## Gaps and what is unverified
+
+- **Network-blocked, secondary sources only:** cube.computer (used its public GitHub changelog);
+  zed.dev/blog (302 to KPMG policy) and zed.dev/docs (403); warp.dev/blog and docs.warp.dev
+  (302 to KPMG policy); ampcode.com news pages (WebFetch "Header overflow"). docs.windsurf.com
+  timed out.
+- **Unclear:** whether Windsurf/Devin Desktop Spaces are shared across users; whether Codex cloud
+  environments are visible to all workspace members; Delta's merge semantics and pricing;
+  Replit's and Amp's per-user billing detail; Warp's credential model for Claude subscriptions.
+- **Absence of evidence:** where the table says "N" for agent awareness, that means *not found in
+  the docs loaded*, not proven absent.
+- **Vendor claims not tested:** Replit's "90%" auto-resolved conflicts; Jules's "9.5%" fewer
+  failures.
+- **Not covered:** Claude Code "agent view" and Remote Control pages (only referenced from the
+  messaging doc); Sourcegraph enterprise terms for Amp; Azure DevOps / Azure Boards agent
+  integrations (no vendor found shipping an ADO-native equivalent of Linear's delegate model).
+
