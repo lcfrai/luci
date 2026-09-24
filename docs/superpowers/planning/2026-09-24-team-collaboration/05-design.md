@@ -274,7 +274,7 @@ arrives only as the output of the `panacea inbox` call (§7.1).
 
 | Transport for a turn | How | Status |
 |---|---|---|
-| **TM1: a headless turn** | `claude -p --resume <session>` with the template as the prompt; one turn at a time per Orchestrator | a resumed `-p` session was observed re-reading `CLAUDE.md` from disk (`03-techniques.md:120-121`, Claude Code 2.1.273). Headless turns run on the org's API through the gateway, so `04` §10's consumer-terms question about headless use no longer arises (OD-19) |
+| **TM1: a headless turn** | `claude -p --resume <session>` with the template as the prompt; one turn at a time per Orchestrator | a resumed `-p` session was observed re-reading `CLAUDE.md` from disk (`03-techniques.md:120-121`, Claude Code 2.1.273). Headless turns run on the org's API through the gateway, so `04` §4's consumer-terms question about headless use no longer arises (OD-19) |
 | **TM2: a live session** | a long-lived session; Fleet posts the template through the inbox socket, which *"starts a new turn"* when idle (`03` §1.3) | canary C4 open (`03` §7) |
 
 **Fleet never parses the Orchestrator's output for meaning** (OD-8). Its effects are its `panacea`
@@ -636,3 +636,97 @@ to the customer's remote uses the lane owner's own credential (§2.5). Each memb
 repository then fetches the new integration head from the mirror. This is the owner's *"one
 document"*: one integration line that everyone's agents converge on, with every change attributed
 to the person whose agent made it.
+
+## 9. What humans see (C2, OD-15)
+
+OD-15 makes agent awareness the primary surface and human awareness a calm summary. The surfaces
+below follow `docs/AGENTIC-UX.md` and `docs/DESIGN-SYSTEM.md`, and add one element to the project
+view and nothing to the rail. The rail stays *"navigation only. No counts, no dot clusters"*
+(`docs/AGENTIC-UX.md:144`). A prototype comes first, and the owner reviews it before any plan
+(`CLAUDE.md`, working agreements). Nothing here is drawn yet.
+
+### 9.1 The team strip
+
+One band at the top of a team project's view. One row per person with a live agent on the project,
+at most 5 rows, then *"+3 more"*. Nothing else about teammates is on screen by default.
+
+```
+┌ ON THIS PROJECT · 3 ────────────────────────────────────────────────────────────────┐
+│ ● Alice   Sessions survive restart · 2 agents     auth/session.go  store/…  +3      │
+│ ● Dylan   Mobile sign-in · 1 agent                 mobile/auth/…                      │
+│ ○ Priya   Evidence export · waiting on Priya       export/pdf.go                     │
+└─────────────────────────────────────────────────────────────────────── ask mine ↗ ──┘
+```
+
+- **The line is assembled, not generated.** It is the brief section's title plus the task title
+  and an agent count. No model summarises anyone's transcript: *"An LLM summary as the primary
+  content stacks two error surfaces"* (`docs/AGENTIC-UX.md:163`). A `text·A` title is shown as
+  such on hover.
+- **Files are observed** (§3.3 activity): the three most recently edited paths, then a count.
+  A path that someone else also holds shows a 1px ring, never a colour flood.
+- **Status is one dot per row on the global heartbeat clock**, never a spinner per row
+  (`docs/DESIGN-SYSTEM.md:61-62`). `●` working, `○` waiting, and the waiting line names on whom.
+- **It shows change, not state.** A row flashes and decays over ~600 ms when its task, files or
+  status change (`docs/DESIGN-SYSTEM.md:63`), and is otherwise still. Counts use `tabular-nums`.
+- **Zero state:** *"Only you on this project."* The band collapses to that one line.
+
+### 9.2 Click in: a person, then an agent
+
+Clicking a row expands it in place (a shared-element transition, `docs/DESIGN-SYSTEM.md:70`):
+
+- **Their tasks,** each with its reason as a link to the brief section it serves. This is the
+  provenance thread, shown in the team view.
+- **Their agents,** each as the Desk's three-line card, *"STATE / MEANING / NEXT"*
+  (`docs/AGENTIC-UX.md:148`): status, the task, and what it is waiting on.
+- **Files and leases,** with any open conflict against one of your agents marked.
+- **One action: "Ask my Orchestrator about this."** It opens **your own** Orchestrator panel with
+  the task or path attached as the subject. There is no button that steers their agent, because
+  none may exist (OD-16, P3).
+
+It never shows their terminal, their transcript, their prompts or their Orchestrator's chat with
+them (`04` §2.3; OD-15).
+
+### 9.3 On the Desk: only what your Orchestrator raises
+
+The Desk stays account-level and keeps its fixed section order
+(`docs/AGENTIC-UX.md:87`, `:146`). Team mode adds rows to existing sections and no new section:
+
+| Where | What appears | Source |
+|---|---|---|
+| **HORIZON** | *"Alice's worker and yours converge on `auth/session.go`, ~20 min"* | tier P or H forecasts (§8.2), as the horizon bar's *"collisions between agents"* (`docs/AGENTIC-UX.md:149`) |
+| **NEEDS YOU** | a `decide` escalation: the question, up to 4 options with consequences, the deadline, and the safe default | §6.5; answered in place, never navigating (`docs/AGENTIC-UX.md:147`) |
+| **SINCE YOU LAST LOOKED** | `inform` items, batched: *"Yielded `store/cache.go` to Alice's side; nothing lost."* | §6.5; a digest, never a toast (`docs/AGENTIC-UX.md:171`) |
+| **DECIDED WITHOUT YOU** | what your Orchestrator agreed with a peer inside your legislated authority, with [Undo] where the resolution can be reversed | §6.5; the handover's *"because"* line is the thread's typed resolution |
+
+A teammate's agent never appears on your Desk by itself. It reaches you only through your
+Orchestrator, which is OD-16's *"they raise them to the users"* in product form.
+
+### 9.4 Your Orchestrator panel
+
+Opened from the project view or with ⌘K. It is a conversation with **your** Orchestrator: you type,
+it answers, and its prose is shown verbatim (§4.2). Beside it sits a list of its open threads with
+other orchestrators, as typed state only: the other party, the subject, *"round 2 of 3"*, and the
+deadline in `tabular-nums`. Opening a thread shows its messages with the author class on every
+line (*"Alice's Orchestrator (agent)"*), rendered as plain text (§7.3). **DIVE** opens the
+Orchestrator's own terminal, for its owner only (§4.2).
+
+### 9.5 Share, route and spend
+
+- **Share** is the Hub's planned popover (Hub plan task 42), with one line added: *"Team agents
+  run in Panacea's cloud. Your teammates' agents will see your agents' tasks and files."* The
+  consent is informed at the moment of sharing, not buried.
+- **The route badge** sits in the project header: `Global` or `AU`. A project classified
+  *AU data only* shows `AU · required` and has no switch. Otherwise the badge is the user's
+  trigger: *"Use AU for this project"*, or for one launch from the launch dialog (OD-19).
+- **Spend** is one line in the project's settings, split *workers* and *coordination*
+  (§4.4), against the user's quota. It is not on the Desk.
+
+### 9.6 The watch view: later, off by default, by consent
+
+A read-only view of a teammate's worker terminal is **not** in the default experience (OD-15) and
+not in TM1. If the owner wants it (§13, Q5), it follows `04` §3.1's rules unchanged: off by
+default; granted per session, per person, with an expiry; the owner sees who is watching; no
+replay of earlier output unless the owner opts in; nothing stored; every `watch.*` event audited.
+OD-14 moves one detail: Fleet already carries the PTY stream, so Fleet relays it read-only to the
+watcher's cockpit, drops input frames at the source, strips OSC 52, and the Hub still never sees a
+byte (P10).
