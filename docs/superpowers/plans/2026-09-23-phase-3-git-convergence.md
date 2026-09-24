@@ -493,7 +493,9 @@ desktop/src/
 Local-only first: nothing before task 13 needs a credential, a network or the Hub. Tasks 01–17
 are the Go track; 18–22 the desktop track, which starts when G2 holds and task 18's types match
 the Go parts (it codes against the part files' shapes and fakes, not a running server). Each task
-is sized for one implementer in one to three hours.
+is sized for one implementer in one to three hours, except task 09 at four since review I5 added
+`BringIn`. It splits cleanly at its `#### Bring in origin/<branch>` heading if one lane must stay
+under three.
 
 | # | Task | Depends on | Est. |
 |---|---|---|---|
@@ -505,7 +507,7 @@ is sized for one implementer in one to three hours.
 | 06 | The linked-worktree notice superseded: `kind` in `types.ts`, the notice narrowed, the shared-index note (3-D2) | 04, G1 | 2 h |
 | 07 | Lane sync and observed claims | 04 | 3 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 | 3 h |
-| 09 | Land, with the merge link and the clones' origin refresh | 08 | 3 h |
+| 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5) | 08 | 4 h |
 | 10 | Landed history, exact undo, revert | 09 | 2 h |
 | 11 | Remove a worktree; create, rename and delete a branch | 07 | 3 h |
 | 12 | Fetch (on demand and on a slow timer) and push, with the machine's credential helper | 02, 04 | 2 h |
