@@ -13,7 +13,7 @@ commit byte for byte and never parsed (contract P5). Without a resolver a land r
 (plan decision 4) and renders `none`.
 
 **Files:**
-- `control-plane/internal/converge/land.go` + `land_test.go` — `Land`, `LandRequest`, `LandResult`, refusals, `RefreshClones`, `RefreshProject` (new)
+- `control-plane/internal/converge/land.go` + `land_test.go` — `Land`, `LandRequest`, `LandResult`, refusals, `RefreshClones`, `RefreshProject`, `RefreshBranch` (review I4) (new)
 - `control-plane/internal/converge/bringin.go` + `bringin_test.go` — `BringIn` (review I5) (new)
 - `control-plane/internal/api/lands.go` + test — `POST …/lands` and `POST …/bring-in` (new)
 - `control-plane/internal/api/gitdeps.go`, `gitroutes.go` — `// ── task 09 ──` blocks
@@ -101,15 +101,18 @@ type Lander struct {
 // 14. l.RefreshClones(ctx, ProjectPath, Branch) → Refreshed, RefreshErrors (below). Each
 //     failure goes to RefreshErrors, never fails the land (plan decision 3)
 // Hardened per task-02 §HGH: steps 6-12 run with Scope Project (a refusal there is
-// project_config_untrusted, before any ref moves); step 14 is RefreshClones, whose one rev-parse
-// runs with Scope Project and whose per-clone fetches run with Scope Clone; no hook runs (H4).
+// project_config_untrusted, before any ref moves); step 14 is RefreshClones, whose two rev-parses
+// run with Scope Project and whose per-clone fetches run with Scope Clone; no hook runs (H4).
 func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 
 // RefreshClones tells every clone of the branch what the project holds. It is the ONE origin
-// refresh: Land's step 14, Undo (task 10), BringIn (below) and RefreshProject call it. The
-// caller holds Locks.Lock. First, once, in the project (Scope Project):
-//   up = rev-parse --verify -q --symbolic-full-name <branch>@{upstream}, OKExit 1
-//        (exit 1 or not under refs/remotes/ → up = "")
+// refresh: Land's step 14, Undo and Revert (task 10), BringIn (below), RefreshProject, the
+// refresh route (below) and the lane syncer's tip-change sweep (task 07, through
+// Syncer.Refresher; review I4) call it. The caller holds Locks.Lock. First, once, in the
+// project (Scope Project):
+//   up  = rev-parse --verify -q --symbolic-full-name <branch>@{upstream}, OKExit 1
+//         (exit 1 or not under refs/remotes/ → up = "")
+//   tip = rev-parse --verify -q refs/heads/<branch>                        (review I4)
 // Then, for every lane of the branch, in its clone (Scope Clone), one fetch:
 //   fetch --no-tags --quiet <ProjectPath> +refs/heads/<branch>:refs/remotes/origin/<branch>
 //         [+<up>:refs/remotes/upstream/<branch>   — only when up != ""]            (Local)
@@ -120,6 +123,9 @@ func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 // origin/* mirrors the project's refs/heads/*, so without it no lane can see, merge or
 // resolve against a teammate's pushed commits. It carries objects and a ref, no credential
 // and no URL (brief A4): the project's remote is never named to the clone.
+// After each clone's fetch succeeds, l.Syncer.Told(id, tip), so the next sweep knows this clone
+// has the branch at tip (task 07; review I4). tip is read before the fetches, so a branch that
+// moves meanwhile leaves told older than the clone and costs one more refresh, never a missed one.
 func (l *Lander) RefreshClones(ctx context.Context, projectPath, branch string) (refreshed []string, errs map[string]string)
 
 // RefreshProject runs RefreshClones for every branch that has a cockpit worktree in the
@@ -135,7 +141,32 @@ func (l *Lander) RefreshProject(ctx context.Context, projectPath, projectID stri
 	// ── task 09 ──
 	Lander   *converge.Lander
 	Resolver briefref.Resolver // nil until phase 4; Lander holds the same value
+	// and, where step 3 builds the Lander (review I4): Syncer.Refresher = Lander and
+	// Syncer.Locks = Locks, so task 07's sweep refreshes on a tip change. Leaving either unset
+	// is the silent-no-op failure this program keeps paying for; TestMainWiresTheSweepRefresh
+	// pins both.
 ```
+
+```go
+// RefreshBranch is the refresh route's verb (review I4): Locks.Lock(ctx, projectID), then
+// RefreshClones(ctx, projectPath, branch). ResolveDialog (task 19) calls it before it starts a
+// session, so the prompt's origin/<branch> and upstream/<branch> are the branch as it is now,
+// not as the last land or sweep left them. It writes only the clones' remote-tracking refs.
+func (l *Lander) RefreshBranch(ctx context.Context, projectPath, projectID, branch string) (refreshed []string, errs map[string]string, err error)
+```
+
+**Wire: `POST /v1/projects/{projectId}/branches/{branchId}/refresh`** (review I4)
+
+```
+request  {}   (no body is also accepted)
+200 { "refreshed": ["w-4a77b1c9"], "refreshErrors": { "w-5e6f7a8b": "fatal: …" } }
+404 not_found for an unknown project or branch; 500 git_failed with gitSays when the project's
+own rev-parse fails. A clone's failure is a refreshErrors entry, never a failed request.
+```
+
+Audit line: *"Tells each of this branch's worktrees what the project's branch and its upstream
+hold now, with git fetch from the project's path into each clone's origin/ and upstream/ refs.
+Writes those refs only."*
 
 **Wire: `POST /v1/projects/{projectId}/branches/{branchId}/lands`**
 
@@ -215,7 +246,7 @@ type BringInResult struct {
 // Panacea-Land trailer is written, so undo and revert refuse it as not_a_land (task 10). A merge
 // carries Panacea-Bring-In instead, so task 10's history files it as "bring-in", not "direct"
 // (re-review b05 issue 5): the cockpit made that commit, not someone outside it.
-// Hardened per task-02 §HGH: 1-6 Scope Project; 7 is RefreshClones, whose one rev-parse runs
+// Hardened per task-02 §HGH: 1-6 Scope Project; 7 is RefreshClones, whose two rev-parses run
 // with Scope Project and whose fetches run with Scope Clone; no hook or merge driver runs.
 func (l *Lander) BringIn(ctx context.Context, req BringInRequest) (BringInResult, error)
 ```
@@ -254,6 +285,10 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestRefreshGivesEveryCloneTheUpstream` (review I5) | a bare "remote", the project fetched after a teammate's push → after a land, clone B's `refs/remotes/upstream/<b>` equals the project's `refs/remotes/origin/<b>`, and `git merge upstream/<b>` in B exits 0; B's `config --get-regexp ^remote\.` is unchanged | a lane that cannot see a teammate's commits |
 | `TestRefreshWithoutAnUpstreamStillRefreshesOrigin` | no upstream configured → clone B's `origin/<b>` refreshed, no `upstream/<b>`, no RefreshError; then unset the upstream after one refresh → the next refresh deletes B's `upstream/<b>` | a fetch of a missing source ref (exit 128) failing every refresh of a never-pushed branch |
 | `TestRefreshProjectTakesNoLock` | called while the test holds `Locks.Lock(ctx, p)` → returns (a deadlock fails the test's 5 s deadline) | AfterFetch deadlocking inside Fetch |
+| `TestSweepRefreshesClonesAfterADirectCommit` (review I4) | real git, a real `Syncer` with this `Lander` as `Refresher`: two lanes; a commit made with plain `git commit` in a checkout of the project's branch, as a user's terminal would; one `Run` sweep → both clones' `refs/remotes/origin/<b>` equal the new tip, and a second sweep runs no clone fetch (recording Runner) | a resolve prompt that merges an origin/<branch> the user's own commit has left behind |
+| `TestRefreshClonesRecordsWhatItSent` (review I4) | after a land, `Syncer`'s told for both lanes is the merge; with clone B's directory removed, B's told is unchanged and A's is the merge | a clone recorded fresh after its fetch failed, which the sweep then never retries |
+| `TestRefreshRouteRefreshesTheBranchsClones` (review I4) | a direct commit, then `POST …/refresh` → 200, `refreshed` names both lanes, both clones' `origin/<b>` equal the tip; with the test holding `Locks.Lock(ctx, p)` the request stays unanswered until release; an unknown branch → 404 | a ResolveDialog whose refresh skips the lock or lies about which clones it reached |
+| `TestMainWiresTheSweepRefresh` (review I4; `cmd/api`) | step 3's wiring function, called as `main.go` calls it → `Syncer.Refresher` is the built `Lander` and `Syncer.Locks` is `GitDeps.Locks` | a sweep refresh that ships switched off because one assignment was left out |
 | `TestBringInFastForwardsWhenOnlyBehind` | branch 0 ahead, 2 behind → `Mode "fast-forward"`, tip == the upstream tip, no new commit object | a needless merge commit that makes the branch ahead of origin |
 | `TestBringInMergesWhenDiverged` | 1 ahead, 1 behind → `Mode "merge"`, parents `[old, upTip]`, no `Panacea-Land` trailer, `%(trailers)` reads `Panacea-Bring-In: <upTip>` (re-review b05 issue 5); undo of it → `undo_not_exact/not_a_land` | a bring-in undo treats as a land |
 | `TestBringInConflictWritesNothing` | the teammate and the branch edit one line of `docs/résumé.md` → `merge_conflict`, `json.Unmarshal(details.paths) == ["docs/résumé.md"]`, tip unchanged, no ref moved | a conflicted product branch (A2) |
@@ -271,10 +306,12 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 - [ ] **Step 1: Preflight.** Task 08 merged; `briefref` (task 03) and `gitx.Locks` (task 02) and
   `GitDeps.Locks` (task 04) exist. Task 01's `TestBehaviourUpdateRefCompareAndSwapRefuses`
   recorded the refusal's stderr; the race test asserts on the **re-read tip**, not on that text.
-- [ ] **Step 2:** the tests; `land.go`, then `bringin.go`; the two handlers, routes and deps block.
+- [ ] **Step 2:** the tests; `land.go`, then `bringin.go`; the three handlers (land, bring-in, and review I4's refresh), routes and deps block.
 - [ ] **Step 3:** wire `Lander` in `main.go` with `Locks: gitDeps.Locks`, `Identity` adapting
   `api.Deps.GitIdentity` (the fix's `func(ctx, path) (api.GitIdentity, error)`) to `gitx.Ident`,
-  and `Resolver: nil`.
+  and `Resolver: nil`; then `syncer.Refresher = lander` and `syncer.Locks = gitDeps.Locks`
+  (review I4). Put these assignments in one function `main.go` calls, so
+  `TestMainWiresTheSweepRefresh` calls the same code, not a copy of it.
 - [ ] **Step 4:** run and commit by pathspec.
 
 #### Acceptance
@@ -292,3 +329,7 @@ git log --first-parent -1 --format="%P%n%(trailers)" refs/heads/<b>   (manual, a
   (task 10).
 - The merge link is forgeable by anyone who can commit (survey §7.2); it is a record of what the
   cockpit did, not a signature.
+- The sweep refresh (task 07) keys on the branch tip only. A terminal `git fetch` in the project
+  moves `<branch>@{upstream}` without moving the branch, so the clones' `upstream/<branch>`
+  catches up at the next cockpit refresh: a land, an undo, a revert, a cockpit fetch, or the
+  refresh route `ResolveDialog` calls before a session. No resolve prompt names a stale upstream.
