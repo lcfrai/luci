@@ -116,7 +116,8 @@ func (r *Resolver) Choose(ctx context.Context, projectID string, p deploy.Projec
      be a fourth canonicaliser beside phase 3's `githost`, the Hub's and Panacea's). HA7-6 (plan §9)
      asks phase 3 and the Hub to agree one Azure DevOps spelling; if the answer is anything other
      than phase 3's `RepoKey()` changing, `hubKey` is the one-line swap.
-   - A miss sets `HubMiss`: `"key_spelling"` when `RepoKey` fails the Hub's published pattern for
+   - A miss sets `HubMiss` through one unexported function, `missCause(repoKey string) string`:
+     `"key_spelling"` when `RepoKey` fails the Hub's published pattern for
      its host — `^github\.com/[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$`, or
      `^[a-z0-9-]{1,50}\.visualstudio\.com/[^/]{1,64}/[^/]{1,64}$` for Azure DevOps (Hub contract
      §7.4 :711-715, which says the Hub compares keys *"byte for byte"*) — else `"not_linked"`. The
@@ -206,8 +207,8 @@ desktop's binding type does not change (review I6).
 | `TestHubDownKeepsPanaceaBinding` | the Hub fails, Panacea answers → `Bound`, `HubProjectID` kept from the last good read, `Message` says the Hub was unreachable | Ship disabled by a Hub blip that the Ship path would detect anyway |
 | `TestUnreadableChoicesFile` | garbage in `bindings.json` → `New` succeeds, the file is renamed, one warning logged | a crash at start |
 | `TestHubBindsADOWithTheHubsSpelling` (the HA7-6 binding test) | `hubclient.NewFake()` seeded through `CreateProject` with project `pj-ado` whose one remote is the Hub's §7.4 spelling, `{repoKey: "kpmgcomau.visualstudio.com/engagement portal/portal", host: "azure-devops"}`; local origin `https://dev.azure.com/kpmgcomau/Engagement%20Portal/_git/portal`, parsed by the **real** `githost`. The branch is fixed by phase 3's code, not chance, and the test logs which ran: when `RepoKey()` matches the Hub's Azure DevOps pattern → `HubProjectID "pj-ado"`, `HubMiss ""`; otherwise → `HubProjectID ""`, `HubMiss "key_spelling"`, and `CreateProject` with that `RepoKey()` is refused by the fake. **Never** `HubMiss "not_linked"` for this repository. Today (phase 3 task-13 `:140-143`) it takes the second branch; HA7-6 is closed when it takes the first (task 20) | the silent miss of review I6: an Azure DevOps repository that *is* a Hub project read as *"not a shared project in the Hub yet"*, with Ship off and no cause named |
-| `TestHubMissNotLinked` | a GitHub origin, the fake holding no project for it → `HubProjectID ""`, `HubMiss "not_linked"`; the same with no Hub configured → `HubMiss ""` | a pattern check that marks every miss `key_spelling`, or one that skips the lookup |
-| `TestHubKeyIsRepoKeyVerbatim` | a spy `HubProjects` wrapping the fake records the key `ProjectForRepo` received: exactly `remote.RepoKey()` for a GitHub and an Azure DevOps origin | phase 7 re-spelling keys itself — a fourth canonicaliser that would drift from phase 3's |
+| `TestHubMissNotLinked` | a GitHub origin, the fake holding no project for it → `HubProjectID ""`, `HubMiss "not_linked"`; the same with no Hub configured → `HubMiss ""`. Directly: `missCause("kpmgcomau.visualstudio.com/engagement portal/portal") == "not_linked"`, `missCause("azure-devops/kpmgcomau/engagement portal/portal") == "key_spelling"`, `missCause("github.com/lcfrai/panaceaapp") == "not_linked"` | a pattern check that marks every miss `key_spelling`; and a check keyed on the **host** ("Azure DevOps → key_spelling"), which passes every other test today and would blame the spelling for an unlinked repository once HA7-6 closes |
+| `TestHubKeyIsRepoKeyVerbatim` | a spy `HubProjects` wrapping the fake records the key `ProjectForRepo` received: exactly `remote.RepoKey()` for a GitHub and an Azure DevOps origin | phase 7 re-spelling keys itself — a fourth canonicaliser that would drift from phase 3's; and a lookup skipped when the key fails the pattern (the spy then sees no Azure DevOps call), which would never bind if the Hub widened §7.4 instead |
 
 #### Steps
 

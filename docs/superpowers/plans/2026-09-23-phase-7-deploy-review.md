@@ -967,3 +967,109 @@ recording the moved value, which would record the next move silently as a baseli
 two-successive-moves clause added to `readiness on the four edges`, t16:187).
 
 **Left open after round 2.** M29 (t19) stays in its own batch. Nothing was compiled or run.
+
+## Fix batch b05 — I2 and I6 (2026-09-24)
+
+Both findings were re-checked against their sources, read only, before any edit. Both hold, and
+I2 is wider than the review said.
+
+- **I2.** `TriggerDeploy` (`handlers/projects.go:2942`) has **two** 402 writers. The first is the
+  budget gate (`:2962` → `:2856`, *"new deploys are paused: "* + `budgetReason`,
+  `handlers/budget_resolve.go:229-245`). The second is the risk gate (`:2979` → `:2916-2918`,
+  *"production deploy blocked by the project's risk assessment: …"*). Both sentences are written for
+  people and carry no `err.Error()`. The only other 402 writers are `handlers/web_search.go:604` and
+  `:752`, on AI routes phase 7 never calls. `Rollback` runs neither gate (the only callers are
+  `:1674`, `:1778`, `:2962` for the budget and `:1681`, `:1784`, `:2979` for the risk gate). The
+  posture gate composed after the risk gate answers 403 (`project_security.go:155-157`).
+- **I6.** Hub contract §7.4 `:711-715` (hub worktree) gives the Azure DevOps pattern
+  `^[a-z0-9-]{1,50}\.visualstudio\.com/…`, compared *"byte for byte"*. Phase 3 task-13 `:140-143`
+  (phase-3 worktree) spells `azure-devops/<org>/<project>/<repo>`. Phase 3 also disagrees with
+  itself: its plan's H-3 row (`2026-09-23-phase-3-git-convergence.md:372`) gives the Hub's form.
+  The review's t06:106 is now t06:106-128, and t09:174-183 is now t09:211-227.
+
+### I2 — a 402 is a refusal with its sentence
+
+| Change | Where |
+|---|---|
+| Status-table row: 402 → `KindConflict`, `Message` = the sentence, with both gates cited | t02:115 |
+| Test `TestPaymentRequiredIsConflict` (`Kind`, `Status 402`, `Message`) | t02:132 |
+| `KindConflict`'s comment names 402 | t01:487 |
+| Testdata `ship-402-budget.json` (the `:2856` + `budget_resolve.go:240` sentence) and `ship-402-risk.json` (the `:2916-2918` frame, stand-in reason) | t04:146-153 |
+| Test `TestShip402IsARefusalWithSentence` (both files, one request each) | t04:177 |
+| Ship step 6 *Refused*: the 402s arrive as `KindConflict`, abandon at once with Panacea's reason, and answer `409 deploy_conflict` | t09:214-217 |
+| Route wire: `deploy_conflict` includes the 402s | t09:256 |
+| Test `TestBudgetRefusalAbandonsWithSentence` (`Abandon` once with the sentence; no `Confirm`/`Track`; `409 deploy_conflict`; no `details.upstream`) | t09:273 |
+| 7P-12 restates the row | plan:348-350 |
+| §12: the 402 writers, settled from source; not observed live | plan:860-867 |
+
+### I6 — HA7-6, and the cause is named until it is settled
+
+| Change | Where |
+|---|---|
+| The false *"unaffected"* paragraph is withdrawn and replaced by **HA7-6** (blocking, to phase 3 and the Hub): both spellings cited; recommended answer is that phase 3's `RepoKey()` spells Azure DevOps as its own H-3 row and the Hub do; the Hub widening §7.4 is rejected (two spellings of one repository break §7.4's one-project-per-remote rule); the *meanwhile* | plan:678-706 |
+| OD-4 row: nothing in phase 7 parses a host, the pattern only chooses a sentence, Azure DevOps Ship is blocked on HA7-6 | plan:121 |
+| §10.1 phase 3 task 13 row names HA7-6 | plan:725 |
+| §12: what HA7-6's evidence is (plan and contract text), and what was not checked | plan:868-873 |
+| `Binding.HubMiss` (`""` / `not_linked` / `key_spelling`) | t06:58-62 |
+| Step 3: `hubKey` sends `RepoKey()` verbatim (the swap point); `missCause` checks the Hub's published pattern, **after** a lookup that is always made | t06:114-128 |
+| `HubMiss` is not on the binding wire; the desktop learns it through `releasesState` and readiness | t06:190-193 |
+| **The binding test** `TestHubBindsADOWithTheHubsSpelling`: the Hub fake is seeded through `CreateProject` with the Hub's Azure DevOps spelling and uses the real `githost`; it binds, or it reads `key_spelling`, never `not_linked`; HA7-6 closes when it takes the bind branch | t06:209 |
+| `TestHubMissNotLinked` (including direct `missCause` cases) and `TestHubKeyIsRepoKeyVerbatim` | t06:210-211 |
+| Does-not-claim: Azure DevOps cannot Ship until HA7-6 is settled; the pattern is copied from contract text | t06:237-241 |
+| Readiness precondition: `no_hub_project` splits by `HubMiss`; `key_spelling` gets a sentence naming the cause and `details.cause "key_spelling"` | t09:169-170, t09:108, t09:250 |
+| Test `TestADOKeySpellingNamesTheCause` | t09:275 |
+| `ReleasesState "hub_key_spelling"`, so the lens line agrees with the Ship bar | t07:116, t07:170-171, t08:35, t13:156, t14:67, t16:87 |
+| Test `TestReleasesStateNamesKeySpelling` | t07:223 |
+| The Hub-asks table gains the HA7-6 row, with which branch the binding test took | t20:54 |
+
+### Deviations from the review's "how to fix", declared
+
+- **`KindConflict`, not a new `KindRefused`.** `KindConflict` already means *"the target refused
+  because of its current state"* (t01:487). A spent budget and a governed risk block are both
+  states of the project. It already maps to `409 deploy_conflict` with the sentence (t05), it is in
+  task 09's *Refused* list, and task 16 already renders a Ship `deploy_*` refusal verbatim as a
+  `refused` history row. A new Kind would need a new problem code and a new desktop `ProblemCode`
+  (task 13), with no behaviour different from this. `Status` stays 402, so a caller that later
+  needs to tell the two apart can.
+- **`ship-402-risk.json` was added beyond the review.** The risk gate is a second 402 writer on the
+  same route, and before this fix it failed the same way.
+- **The lens line was changed, beyond "readiness names the cause".** Without `hub_key_spelling`,
+  task 14 would say *"not a shared project in the Hub yet"* above a Ship bar that names the
+  spelling split. Two surfaces would disagree.
+- **Phase 7 does not re-spell keys to make Azure DevOps Ship work now.** That would be a
+  workaround in phase 7 for a defect in phase 3's task text, and a fourth canonicaliser that could
+  drift. The root cause belongs to phase 3 (or the Hub), so it goes to them as HA7-6. `hubKey` is
+  the one-line seam if they answer differently.
+- **The binding test is green before and after HA7-6.** A test that stayed red until another phase
+  acted would block every `go test` run in phase 7. Instead, phase 3's code fixes which branch the
+  test takes, the test never allows the silent `not_linked`, and task 20 records the branch.
+
+### Mutants
+
+This batch changes plan text only. No phase 7 code exists, so no mutant was run. The two named as
+most likely to survive once code exists:
+1. **402 folded into a generic "other 4xx → `KindRejected`" row.** It keeps the sentence, and task
+   09 still abandons (`KindRejected` is in the *Refused* list), so an abandon-only test passes. It
+   is killed by the `Kind` equality in `TestPaymentRequiredIsConflict` and
+   `TestShip402IsARefusalWithSentence`, and by the `409 deploy_conflict` in
+   `TestBudgetRefusalAbandonsWithSentence`.
+2. **`missCause` keyed on the host ("Azure DevOps → `key_spelling`") instead of the pattern.** Today
+   every Azure DevOps key fails the pattern, so it passes the binding test and task 09's test. It is
+   killed by the direct `missCause("kpmgcomau.visualstudio.com/…") == "not_linked"` case added to
+   `TestHubMissNotLinked`.
+
+Also named: a lookup skipped whenever the key fails the pattern (killed by
+`TestHubKeyIsRepoKeyVerbatim`: the spy sees no Azure DevOps call), and a 402 given `Message ""`
+by sharing the 5xx rule (killed by the `Message` equality in all three I2 tests).
+
+### Left open
+
+- **HA7-6 is open.** Until phase 3 or the Hub answers, Azure DevOps repositories cannot Ship from
+  the cockpit (OD-4 is partly unmet), and the cause is named. This is recorded as an owner-visible
+  blocker, not a decision for phase 7.
+- Not checked: whether phase 3's *code* (as opposed to its task text) already spells the Hub's
+  form; whether the Hub fake enforces §7.4 at `CreateProject`; how a `DefaultCollection` remote
+  maps. Neither 402 was observed live.
+- M26 (the ambiguous sentence after a reserve) touches the same abandon branches. It is left to its
+  own batch.
+- Nothing was compiled or run.
