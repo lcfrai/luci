@@ -631,7 +631,8 @@ raises only at H or M.
 ### 8.3 Landing across people
 
 Phase 3's land queue lives in one user's project repository today (`01` §2.3). For a team project,
-**the queue moves to Fleet and runs over the lane mirror**. It is one queue for every member's
+**the queue moves to Fleet and runs over the lane mirror**, from TM2 (§12.2); TM1 lands the phase 3
+way, each member in their own repository. It is one queue for every member's
 lanes, ordered by the `sequence` hints of §6.2. Each land is still its owner's reviewed act. The push
 to the customer's remote uses the lane owner's own credential (§2.5). Each member's project
 repository then fetches the new integration head from the mirror. This is the owner's *"one
