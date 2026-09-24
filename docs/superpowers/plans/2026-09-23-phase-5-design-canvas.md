@@ -480,6 +480,13 @@ earliest finish; 34.5 h before b06, whose 0.5 h on 12 moves everything after it 
 so it finishes at 21 h against 17's 22.5 h, re-review RR-I6-1; 20b waits for 17 because its `main.go` calls
 `mcp.Instructions` and `mcp.RegisterAll`, and for 19 because it calls `mcprelay.NewSupervisor`).
 
+**The rows are a known low estimate** (re-review b03-2 RR2-7). Work the fix rounds added but did not
+re-size: b03 round 2 on tasks 13, 21, 22 and 27, 1.5 to 2 h (review `:1011-1015`); b04 on tasks 01,
+07, 08, 09, 23 and 24, about 45 minutes (review `:1107-1108`); later rounds declared their hours
+unchanged. The round-2 re-review findings carried into the tasks (notably b03-2 RR2-1 and RR2-2 on
+tasks 13, 20, 21, 23 and 27) add more. All are unmeasured. Read 85 h and ≈ 35.5 h as floors
+until the orchestrator's sizing pass re-derives them.
+
 **Order, in waves** (a wave's tasks are independent of each other):
 
 1. **01, 02, 03, 18** — the spike, both scaffolds, the relay framing. 01 gates 24–26; if it fails
@@ -494,8 +501,9 @@ and 38 have landed in the tree (`control-plane/internal/localkey/` and `desktop/
 exist). There is no "code it without the key and add it later" path: `designapi.New` will not build
 without `KeyGuard` (plan rule 4, review C1). If C3 slips, Lane E waits; the other lanes do not.
 
-**Parallel lanes for worktree agents.** Lane A (Go core): 05–13. Lane B (MCP): 14–17, after 12 and
-13. Lane C (relay): 18–19. Lane D (editor): 23–26, after 01 and 03. Lane E (control-plane HTTP and
+**Parallel lanes for worktree agents.** Lane A (Go core): 05–13. Lane B (MCP): 14 in wave 3, then
+15–17 after 12 and 13 (14 gates 20a, so holding it for 12 and 13 would put 20a on the critical
+path; re-review b02-2 RR2-M4). Lane C (relay): 18–19. Lane D (editor): 23–26, after 01 and 03. Lane E (control-plane HTTP and
 provenance): 20a after Lane B's 14 and Lane C's 19, then 20b after Lane B's 17, then 21–22. The desktop lane (27–29)
 joins D and E; 27 and 29 need only 20a to compile, and 29's `routes.go` line waits for 22's merge
 (below). **Two lanes never edit one file at once**: the
