@@ -1,6 +1,20 @@
 # 03 — Work management plus agents: the landscape
 
-**Status:** research, in progress. Written 2026-09-25 for the Linear-parity workstream.
+**Status:** research, complete. Written 2026-09-25 for the Linear-parity workstream.
+
+**The answer in five lines**
+
+1. **Cross-owner Orchestrators negotiating is the one clean white space.** None of ten products
+   does it; every vendor tells humans to partition the work (§12.3).
+2. **Agents running inside the product is now table stakes.** Linear, GitHub and Atlassian all do
+   it. Ours is narrower: long-lived steerable sessions, and Azure Repos, which Linear and
+   Microsoft's own Boards integration both lack (§12.1).
+3. **The provenance thread is half-copied already.** Linear ships issue → PR → release; nobody has
+   brief → design → agent reason → release (§12.2).
+4. **ZDR inference is hygiene, not a moat.** Atlassian and Notion Enterprise already offer it
+   (§12.4).
+5. **Watch Linear.** It is the only one that owns both the plan and the execution, and it shipped
+   five agent products in six months (§1, §12.5).
 **Question:** how do Linear, GitHub, Atlassian, Asana, Notion, ClickUp, Shortcut, Plane and new
 entrants make agents first-class in work tracking, and what can none of them do that PanaceaApp can?
 
@@ -16,7 +30,7 @@ to the work-tracker vendors and adds what changed or was missed.
 **Clean room.** Linear, Atlassian, Asana, Notion, ClickUp, Shortcut and GitHub are proprietary:
 only public sites, docs, changelogs, blogs and API docs were read, and no asset, copy or code was
 taken. Plane is AGPL: only its public docs site was read, never its source. Every source URL is
-listed in §12 with the date read. "UNVERIFIED" marks any claim taken from a search-result summary
+listed in §14 with the date read. "UNVERIFIED" marks any claim taken from a search-result summary
 rather than a page actually fetched, or not confirmed at all.
 
 ---
@@ -386,3 +400,225 @@ worktrees" shape and is winding down, which suggests the shape alone is not a bu
 these has a team model, a cross-user channel, or an enterprise posture found in the pages read.
 
 ---
+
+## 11. The matrix
+
+Y = shipped and read in a primary source; P = partial; N = not found; ? = not established.
+
+| | Gets work | Progress shown | Human control | Agents coordinate | Code → release | Enterprise AI terms |
+|---|---|---|---|---|---|---|
+| **Linear** | delegate, @mention, chat, Loops | 6 session states, plan checklist, ephemeral line, diff on issue | delegate ≠ owner; team scoping; guidance | N (board only) | **Y** issue → PR → Releases → notes; GitHub only | P: SOC 2, ISO, EU/US; pooled credits; ZDR ? |
+| **GitHub** | assign, @copilot, panel, schedule | 4 states on issue and Projects | PR review; control plane per team/repo; audit | N (3 agents race) | **Y** native; GitHub only | P: Copilot plan; 59-min runner |
+| **Azure Boards + Copilot** | "Create a pull request with GitHub Copilot" | 3 states + card icon | **cannot cancel** a run | N ("doesn't handle dependencies") | P: GitHub repos only, **no Azure Repos** | P: via GitHub |
+| **Jira + Rovo** | assignee, @mention, transition, board column, automation | Agents section, board | only the assigner may talk to the agent; credits | P: workflow hand-off by status | P: Bitbucket, GitHub via Copilot | **Y**: provider ZDR, residency, Atlassian-hosted LLMs |
+| **Asana** | assign, @mention, rules; Dash | live indicator, action log | checkpoints, ask-why, inspectable memory | P: many on one initiative | N | P: no training; model choice; residency |
+| **Notion** | trigger, schedule; External Agents on a board | run log (UNVERIFIED) | per-agent permissions, kill switch (UNVERIFIED) | P: shared board | N (via Cursor, Claude, Codex) | Y Enterprise ZDR (UNVERIFIED) |
+| **ClickUp** | trigger; assignee (UNVERIFIED) | activity view | approval for critical decisions | N | P: Codegen PR (UNVERIFIED) | ? |
+| **Shortcut** | Story owner, @korey, MCP | workflow states, comments | "you stay in control" | P: Korey spec → Devin build | P: agent's PR | ? |
+| **Plane** | assignee, mention, schedule, event | ? | autonomy ladder, approval flows, audit | N | P: MCP incl. releases | **Y**: self-host, air-gap, any inference |
+| **Cline Kanban** | local board | board | local user | P: task dependencies auto-start | P | ? |
+| **PanaceaApp (designed)** | own Orchestrator plans and spawns workers | task card with reason link, files, leases | nobody steers another's agent; inform or decide | **Y by design**: typed negotiation, leases, forecast | brief → design → lane → release, one thread | org gateway, ZDR, AU path |
+
+The last row is **design, not product**: team mode is specified in
+`2026-09-24-team-collaboration/05-design.md` (TM1 about 53 focused days, §0 line 10), Kata runs
+are written but dormant until phase 8 (`docs/PROGRAM.md:67`), and the provenance thread is planned
+in the Hub and phase 4 (`docs/PROGRAM.md:19`, `:98`).
+
+---
+
+## 12. The white space: the four candidates, tested
+
+### 12.1 Agents actually running inside the product — **no longer white space**
+
+Linear runs Claude Code and Codex "in a managed development sandbox" since 11 Jun 2026 [L6];
+GitHub runs Copilot, Claude and Codex in Actions [G1], [G3]; Rovo Dev codes from a Jira work item
+[A4]. "The agent runs here" is now table stakes. What is still ours, and narrower:
+
+- **Long-lived, steerable sessions.** GitHub stops at **59 minutes** and one PR [G1]; an Azure
+  Boards run "can't cancel" [M1]. Our cockpit streams and steers an unmodified Claude Code session
+  for as long as the work takes. Copy time for Linear or GitHub: **months**. It is a product
+  choice, not a hard problem.
+- **Azure Repos.** Linear is GitHub-only [L5], [L6]; Microsoft's own Boards integration says
+  "Azure Repos … aren't supported" [M1]. OD-4 needs both. For KPMG this is a concrete, current gap.
+  Copy time: Microsoft could close it whenever it chooses; it has not in the year since the
+  preview (Sep 2025 [M3], search summary).
+- **Kata microVM per session** on Azure (OD-14, OD-18). Nobody publishes their sandbox isolation
+  model in the pages read (UNVERIFIED either way), so this is a trust claim, not a visible feature.
+
+### 12.2 One provenance thread from brief to release — **partly real**
+
+The **issue-to-release** half is shipped: Linear's Releases attach issues found by key in commit
+messages and write notes with its agent [L9]; GitHub has issue → PR → release natively; Jira has
+Confluence spec → work item → Bitbucket. What none has is the **front half and the "why"**: a brief
+section that a design frame cites, that each agent task carries as its **reason** (05-design §0
+item 3), and that the release carries back. Their link is a key in a commit message; ours is the
+same artefact. And none has a Design phase: no tracker here has a design canvas that agents edit
+(OD-11).
+
+**Copy risk: Linear, within about two to three quarters.** It already owns Docs, Projects, Code
+Intelligence, coding sessions and Releases [L4]-[L9]; rolling "project doc → issues → release"
+into one view is assembly, not invention. The Design phase is what they cannot copy quickly.
+
+### 12.3 Cross-owner Orchestrators negotiating — **the one clean differentiator**
+
+Not one of the ten products does it. The nearest things are all weaker:
+
+| Nearest thing | Why it is not this |
+|---|---|
+| GitHub: "all three" agents on one issue [G3] | a race for a human to judge, not a negotiation |
+| Jira: only the assigner may talk to the agent [A2] | control, which OD-16 also has, but no agent-to-agent channel |
+| Shortcut: Korey writes the Story, Devin builds it [H1] | a relay by role, one owner |
+| Cline Kanban: dependent tasks auto-start [E1] | one user, local, sequence only |
+| Devin coordinator (02 §2) | top-down, one user's tree |
+| Azure Boards: "doesn't handle dependencies" [M1] | explicitly absent |
+
+Every vendor's advice is the same: humans partition the work ("be thoughtful about partitioning
+work", 02 §4). OD-16's design (typed `ask`/`propose`/`accept`, leases, forecast conflicts,
+inform-or-decide escalation, 05-design §6) replaces human partitioning with agent negotiation.
+
+**Why it is hard to copy.** It needs three things at once: the platform must **observe** every
+agent's file activity live (trackers do not run the agents; third-party agents run in vendor
+clouds the tracker cannot see); a **per-user orchestrator** with a protocol; and an **injection
+fence**, because one user's agent text reaches another user's agent (05-design §7). **GitHub** is
+best placed (it runs every agent in Actions and owns the merge) at perhaps **6 to 12 months**;
+Linear next. It is a lead, not a moat. **Risk:** it is designed, not built, and not proven wanted;
+no one having shipped it may mean users do not ask for it.
+
+### 12.4 Managed zero-data-retention inference — **not a differentiator**
+
+Atlassian already says "the LLM providers we use do not retain your inputs and outputs", offers
+Atlassian-hosted LLMs and residency for Rovo [A7]. Notion Enterprise has provider ZDR [N7]
+(UNVERIFIED). Plane lets a customer put inference anywhere, including air-gapped [P3]. ZDR is
+**hygiene** for a regulated buyer. Two narrower points are ours: the **AU path selectable per
+project by data classification** (OD-19), and **per-user attributed usage** where Linear, Jira,
+Notion and Plane pool credits [L7], [A2], [N2], [P1]. Both are copyable in weeks by anyone with a
+gateway; they help win a KPMG review, they do not win a market.
+
+### 12.5 The verdict: the combination is the product
+
+| Candidate | Real differentiator? | Who could copy, how fast |
+|---|---|---|
+| Cross-owner orchestrators negotiating | **Yes, the only clean one** | GitHub 6-12 months; Linear after |
+| One thread brief → design → release | **Partly**: the front half and the "why" | Linear 2-3 quarters, minus the Design phase |
+| Agents running in the product | **No** as stated; **yes** for long-lived steerable sessions on Azure Repos | anyone, months; Microsoft on Azure Repos whenever it chooses |
+| Managed ZDR inference | **No**; hygiene | anyone with a gateway, weeks |
+
+The market splits in two. **Trackers** (Jira, Asana, Notion, ClickUp, Shortcut, Plane) own the
+plan and rent the execution from Copilot, Cursor, Devin or Claude. **Executors** (GitHub, Devin,
+Cursor) own the execution and start at the issue. **Linear is the only one crossing over**, and it
+is doing so fast: agent, code access, releases, coding sessions and loops in six months [L2].
+
+PanaceaApp's claim is that it owns **the whole line, for a team**: the brief, the design, the
+agents running for each person, the agents talking to each other across people, and the release,
+on one thread. No one else has more than two of those five. That combination is the "magic" in
+the owner's ask; each piece alone is copyable.
+
+**Watch Linear most closely.** It is the only competitor that already owns both plan and
+execution, and its six-month pace would reach the thread's back half next.
+
+---
+
+## 13. What to take, as ideas only (clean room: no copy, assets or code)
+
+Do now, cheap, because they close parity gaps a Linear user will notice:
+
+1. **Delegate is not owner** [L1]: a human stays accountable for every agent task. It already
+   matches OD-16.
+2. **Acknowledge within seconds, one live line** [L8]: Linear requires a `thought` within 10
+   seconds and replaces ephemeral lines, so an issue shows one current line, not a log. This fits
+   the design system's one-heartbeat rule.
+3. **Plan as a checklist with four step states** [L8], shown on the task card.
+4. **Ask-why and inspectable memory** [S3]: any human can ask an agent why, and see what it
+   remembers.
+5. **`actor_is_agent` on every audit row** [G4] and **Plane's autonomy ladder** (read, recommend,
+   draft, approval-gated, bounded) as the per-team policy vocabulary [P3].
+
+Later: Linear-style **Loops** (scheduled and event-triggered agent work) [L7]; an **agent icon on
+the board card** [M1]; Jira's **agent on a workflow transition or board column** [A2].
+
+**One tension to settle, not settled here.** 02-product-prior-art §13 advised integrating with
+Azure Boards and GitHub Issues "rather than building a tracker". The owner now asks for everything
+Linear does. Both can hold if PanaceaApp's own work view is first-class and it still syncs to
+Boards, Jira and GitHub Issues, because KPMG teams will not leave Azure Boards on day one.
+
+---
+
+## 14. Sources
+
+All read **2026-09-25**. "Fetched" = page opened and read. "Summary" = search-result summary only,
+so claims resting on it alone are UNVERIFIED. "Blocked" = the network refused it.
+
+**Linear**
+- [L1] https://linear.app/docs/agents-in-linear — fetched
+- [L2] https://linear.app/changelog — fetched (the 20 Aug 2026 entry's own page returned 404)
+- [L3] https://linear.app/developers/agents — fetched
+- [L4] https://linear.app/changelog/2026-03-24-introducing-linear-agent — fetched
+- [L5] https://linear.app/changelog/2026-05-14-code-intelligence — fetched
+- [L6] https://linear.app/docs/coding-sessions — fetched
+- [L7] https://linear.app/changelog/2026-07-20-introducing-loops — fetched
+- [L8] https://linear.app/developers/agent-interaction — fetched
+- [L9] https://linear.app/docs/releases — fetched; https://linear.app/changelog/2026-04-30-releases — summary
+- [L10] https://linear.app/security — fetched
+- [L11] https://linear.app/docs/ai-at-linear — fetched (says nothing on provider retention)
+
+**GitHub and Microsoft**
+- [G1] https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent — fetched
+- [G2] https://github.blog/changelog/2026-03-26-agent-activity-in-github-issues-and-projects/ — fetched
+- [G3] https://github.blog/changelog/2026-02-04-claude-and-codex-are-now-available-in-public-preview-on-github/ — summary
+- [G4] https://github.blog/changelog/2026-02-26-enterprise-ai-controls-agent-control-plane-now-generally-available/ — summary
+- [G5] https://github.blog/changelog/2026-04-07-dependabot-alerts-are-now-assignable-to-ai-agents-for-remediation/ — summary
+- [G6] https://github.blog/news-insights/company-news/welcome-home-agents/ — **blocked** ("Unable to verify if domain github.blog is safe to fetch")
+- [M1] https://learn.microsoft.com/en-us/azure/devops/boards/github/work-item-integration-github-copilot?view=azure-devops — fetched (page dated 17 Jun 2026, updated 23 Jul 2026)
+- [M2] https://learn.microsoft.com/en-us/azure/devops/release-notes/2026/sprint-269-update — summary
+- [M3] https://github.blog/changelog/2025-09-18-assign-azure-boards-work-items-to-copilot-coding-agent-in-public-preview/ — summary
+
+**Atlassian**
+- [A1] https://www.atlassian.com/blog/rovo/ai-agents-in-jira — fetched (posted 25 Feb 2026)
+- [A2] https://support.atlassian.com/jira-software-cloud/docs/collaborate-on-work-items-with-ai-agents/ — fetched
+- [A3] https://www.onpointserv.com/post/6-jira-updates-from-august-2026-that-actually-change-how-ai-fits-into-your-workflow — fetched (third party)
+- [A4] https://www.atlassian.com/blog/development/120-prs-two-weeks-rovo-dev-in-jira — summary
+- [A5] https://support.atlassian.com/rovo/docs/agents/ — fetched
+- [A6] https://www.atlassian.com/software/jira/ai — fetched
+- [A7] https://www.atlassian.com/trust/ai — fetched
+
+**Asana**
+- [S1] https://asana.com/product/ai/ai-teammates — fetched
+- [S2] https://siliconangle.com/2026/06/04/asana-launches-ai-powered-products-help-organizations-manage-human-agent-work/ — fetched (third party)
+- [S3] https://asana.com/inside-asana/ai-agents-built-for-teams-context-transparency — fetched
+
+**Notion** (every notion.com page **blocked**: 302 to the KPMG intranet)
+- [N1] https://www.notion.com/releases/2026-02-24 — summary
+- [N2] https://www.notion.com/help/custom-agents — blocked; summary
+- [N3] https://www.notion.com/releases/2026-07-31 — summary
+- [N4] https://www.notion.com/releases/2026-07-01 — blocked; summary, plus https://linkloot.io/blog/notion-36-external-agents-html-blocks (summary)
+- [N5] https://www.notion.com/releases/2026-09-15 — summary
+- [N6] https://www.therundown.ai/tools/notion-custom-agents — summary
+- [N7] https://www.notion.com/help/notion-ai-security-practices — summary
+- [N8] https://trust.notion.com/ — summary
+
+**ClickUp**
+- [C1] https://help.clickup.com/hc/en-us/articles/31010910371991-What-are-Super-Agents — fetched
+- [C2] https://news.designrush.com/clickup-moves-beyond-work-management-codegen-ai-agents — summary
+- [C3] https://help.clickup.com/hc/en-us/articles/33877442924183-Use-Codegen-AI-agents — summary
+- [C4] https://clickup.com/blog/clickup-codegen-acquisition/ — fetched
+
+**Shortcut**
+- [H1] https://www.shortcut.com/blog/shortcut-for-agents/ — fetched (posted 20 May 2025)
+- [H2] https://www.shortcut.com/release-notes/ — fetched
+- [H3] https://www.prnewswire.com/news-releases/shortcut-launches-shortcut-for-agents-to-bring-ai-teammates-directly-into-product-development-workflows-302446510.html — summary
+
+**Plane** (public site and blog only; source never opened)
+- [P1] https://plane.so/blog/agents-are-now-live-in-plane — fetched (dated 18 Sep 2026)
+- [P2] https://plane.so/ai — summary
+- [P3] https://plane.so/blog/how-enterprises-run-ai-agents-in-self-hosted-project-management — fetched
+
+**New entrants**
+- [E1] https://cline.bot/blog/announcing-kanban — fetched (26 Mar 2026)
+- [E2] https://vibekanban.com/ — fetched
+- [E3] https://nimbalyst.com/blog/best-agent-management-tools-2026/ — summary
+
+**Internal**
+- `docs/superpowers/planning/2026-09-23-owner-decisions.md:114-141` (OD-14 to OD-20)
+- `docs/superpowers/planning/2026-09-24-team-collaboration/02-product-prior-art.md` §2-§13
+- `docs/superpowers/planning/2026-09-24-team-collaboration/05-design.md` §0, §6
+- `docs/PROGRAM.md:19`, `:54-67`, `:98`
