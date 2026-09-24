@@ -153,7 +153,7 @@ export interface DeployView {
   stale: boolean;
   staleReason: { code: string; message: string } | null;
   ownerControls: "yes" | "no" | "unknown";
-  releasesState: "ok" | "no_hub" | "no_hub_project" | "signed_out" | "unavailable";
+  releasesState: "ok" | "no_hub" | "no_hub_project" | "hub_key_spelling" | "signed_out" | "unavailable";
   /** The selected branch's environment, joined by the control plane (task 08 rule 1a). null = no ?branch= sent. */
   selected: {
     branch: string;

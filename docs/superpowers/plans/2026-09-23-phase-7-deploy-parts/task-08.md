@@ -32,7 +32,7 @@ on every cursor change. Every field names the fact it stands on (`AGENTIC-UX.md`
   "stale": false,                        // true: the last cycle failed; everything below is fetchedAt old
   "staleReason": null | { "code": "upstream_unavailable" | "deploy_token_rejected", "message": "…" },
   "ownerControls": "yes" | "no" | "unknown",
-  "releasesState": "ok" | "no_hub" | "no_hub_project" | "signed_out" | "unavailable",
+  "releasesState": "ok" | "no_hub" | "no_hub_project" | "hub_key_spelling" | "signed_out" | "unavailable",
   "selected": null | {                   // null when no ?branch= was sent (review b02, C2)
     "branch": "feat/evidence-upload",    // ?branch=, echoed
     "target": "feat-evidence-upload" | null,      // Panacea's OWN environment name for the branch (Reader.EnvironmentFor); null = not resolved yet, or refused (see error)

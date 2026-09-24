@@ -64,6 +64,7 @@ OD-3 or this plan changed a fact** (marked †).
 | binding `ambiguous` · `no_repo_info` | `BindingPanel` with a radio list of `candidates` (display name, then `ref` in mono, then `repoUrl` in `--ink-3`) and one *Use this project* button | `binding.message` verbatim |
 | binding `bound` | task 15 | — |
 | `releasesState: "no_hub_project"` | a quiet line above task 15's content | *"This repository is not a shared project in the Hub yet, so releases show no brief and Ship is off."* |
+| `releasesState: "hub_key_spelling"` | the same line | *"The Hub cannot match this Azure DevOps repository yet — the cockpit and the Hub spell its name differently — so releases show no brief and Ship is off."* (HA7-6, review I6) |
 | `releasesState: "signed_out"` | the same line | *"Sign in to see which brief each release was shipped against."* — the rail footer (Hub C4) holds the control |
 
 **Token handling in the form.** `type="password"`, `autocomplete="off"`, `spellcheck={false}`; the

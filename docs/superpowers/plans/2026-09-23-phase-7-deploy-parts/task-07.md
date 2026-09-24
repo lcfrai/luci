@@ -113,7 +113,7 @@ type Snapshot struct {
 	Runs          map[string]deploy.RunProgress // tracked runs only
 	Scans         map[string]deploy.ScanReport  // by deployment id; newest deployment per environment only
 	Releases      []hubapi.Release              // newest reservedAt first, at most 200
-	ReleasesState string                        // "ok" | "no_hub" | "no_hub_project" | "signed_out" | "unavailable"
+	ReleasesState string                        // "ok" | "no_hub" | "no_hub_project" | "hub_key_spelling" | "signed_out" | "unavailable"
 	OwnerControls string                        // "yes" | "no" | "unknown" (7P-9)
 	FetchedAt     time.Time                     // the last cycle in which every Panacea read succeeded
 	Stale         bool                          // the last cycle's Panacea reads failed; data is FetchedAt old
@@ -167,7 +167,8 @@ type Snapshot struct {
    gets a 200 with `NOT_RUN` or empty rows).
 6. **Hub releases** — `Releases(HubProjectID, {PanaceaProject: <ref>, Limit: 200})` when the
    Deployments were re-read, a tracked run changed, or `HistoryInterval` passed.
-   `Binding.HubProjectID == ""` → `ReleasesState "no_hub_project"`; `entraauth.ErrSignedOut` →
+   `Binding.HubProjectID == ""` → `ReleasesState "no_hub_project"`, or `"hub_key_spelling"` when
+   `Binding.HubMiss == "key_spelling"` (task 06; HA7-6, review I6); `entraauth.ErrSignedOut` →
    `"signed_out"`; `hubclient.ErrUnavailable` → `"unavailable"`, **keeping the previous releases**.
 7. **The join** (`join.go`): for each release with `state == "confirmed"`, `kind == "run"`,
    `reservedBy.id == Me.id`, a `pipelineRun`, and no `deployments[]` entry — if a deployment with
@@ -219,6 +220,7 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestWantedBranchResolvedOnce` | `WantBranch(p, "feat/x")` with the fake seeded `feat/x → feat-x` and a row `feat-x`: the next cycle calls `EnvironmentFor(p,feat/x)` once and `BranchEnvs["feat/x"] == "feat-x"`; cycles 2 and 3 make no such call, cycle 4 re-reads; a 17th wanted branch drops the least recently wanted | resolving by comparing `feat/x` with a row's `name`/`branch` (review C2), or one request per branch per cycle |
 | `TestRefusedBranchNotReaskedEveryCycle` | `WantBranch(p, "live-check/p7")` with the fake answering `EnvironmentFor` `KindNotFound` (*"Panacea could not read this branch name…"*): cycle 1 makes one such call, cycles 2 and 3 none, cycle 4 one; `BranchEnvErrs["live-check/p7"]` carries the error, `BranchEnvs` lacks the branch, and `Stale == false` with `Latest` still read; the fake then answers `live-check-p7` → it moves to `BranchEnvs` and out of `BranchEnvErrs` (b02 round 2, R2) | a refused branch re-asked every 15 s, or one bad name staling the whole project |
 | `TestWatcherPassesSameEnvironment` | the watcher's Reader is the fake wrapped so that `SameEnvironment` records its arguments and answers `true`: `w.SameEnvironment("x", "y")` is `true` and the wrapper saw `("x", "y")` (the bare Fake would answer `false`) | a watcher that hands the view a rule of its own (b02 round 2, R4) |
+| `TestReleasesStateNamesKeySpelling` | a binding with `HubProjectID ""` and `HubMiss "key_spelling"` → `ReleasesState "hub_key_spelling"`; `HubMiss "not_linked"` → `"no_hub_project"`; neither calls `Releases` (review I6) | an Azure DevOps repository told it is *"not a shared project in the Hub yet"* above a Ship bar that names the real cause — two surfaces that disagree |
 | `TestDeploymentsNotEveryCycle` | three cycles with nothing changed → one `Deployments` call; `Latest.ID` changes → one more | reading the heavy list every 15 s |
 | `TestScansReadWithTheDeploymentsEnvironment` | a newest deployment `{ID: "d-feat", Environment: "feat-x"}`, with the fake seeded `SetScans(p, "feat-x", "d-feat", …)` → the fake's `Calls()` holds `Scans(engagement-portal,feat-x,d-feat)` and `Snapshot.Scans["d-feat"]` is that report (review C3) | passing `""` or the card's name, which on Panacea shows production's verdict as the branch release's |
 | `TestScansFailureIsNotStale` | a newest deployment `{ID:"d-feat", Environment:"feat-x"}` with **no** `SetScans` (the Fake answers `KindNotFound`) → `Snapshot.Scans` has no `"d-feat"`, `Stale` is `false`, `LastError` is `""`, and the same cycle still reads Hub releases; 61 s later → a second `Scans` call (re-review b03, M-2) | a scan read error that stales the whole project, or one cached as done so it is never retried |

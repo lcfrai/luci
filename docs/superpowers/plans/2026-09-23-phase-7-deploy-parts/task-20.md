@@ -51,6 +51,7 @@ with the real line when the task lands; a seam with no test is not done.
 | HA7-3 a shared deploy binding | nothing | <…> | the local choice file (task 06) |
 | HA7-4 a generic cursor mechanism | the desktop's cursor edge | <…> | the declared amendment (tasks 07, 13) |
 | HA7-5 a `kind` filter on releases | nothing | <…> | the watcher filters (task 07) |
+| HA7-6 one Azure DevOps repo-key spelling — **blocking**, to phase 3 and the Hub (review I6) | **Ship for every Azure DevOps repository** (OD-4): phase 3's `RepoKey()` spells `azure-devops/<org>/<project>/<repo>`, and the Hub holds only `<org>.visualstudio.com/<project>/<repo>` | <…> — and the branch `TestHubBindsADOWithTheHubsSpelling` (task 06) took when phase 7 landed: `bind` (closed) or `key_spelling` (open) | `hubKey` sends `RepoKey()` verbatim; `HubMiss "key_spelling"` names the cause in readiness, the Ship refusal (`details.cause`) and the lens line (tasks 06, 07, 09, 14) |
 ```
 
 #### `live_test.go` — the read-only half, complete

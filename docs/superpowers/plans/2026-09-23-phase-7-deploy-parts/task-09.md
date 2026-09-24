@@ -105,7 +105,7 @@ type Result struct {
 type Precondition struct {
 	Reason  string            // see the table below
 	Message string            // the sentence the lens shows
-	Details map[string]string // "ahead", "behind" when relevant
+	Details map[string]string // "ahead", "behind" when relevant; "cause" = "key_spelling" on no_hub_project (HA7-6)
 }
 
 func (p *Precondition) Error() string
@@ -166,7 +166,8 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
    | Check | `Precondition.Reason` | Message |
    |---|---|---|
    | binding not `Bound` | `not_bound` | the binding's own `Message` (task 06) |
-   | `HubProjectID == ""` | `no_hub_project` | *"This repository is not a shared project in the Hub yet, so the release could not be recorded. Ship stays off until it is."* |
+   | `HubProjectID == ""`, `HubMiss != "key_spelling"` | `no_hub_project` | *"This repository is not a shared project in the Hub yet, so the release could not be recorded. Ship stays off until it is."* |
+   | `HubProjectID == ""`, `HubMiss == "key_spelling"` (task 06; HA7-6) | `no_hub_project`, `details.cause "key_spelling"` | *"The Hub cannot match this Azure DevOps repository yet: the cockpit names it `<RepoKey>`, and the Hub accepts only names like `<org>.visualstudio.com/<project>/<repo>`. Ship stays off until the two agree."* — the cause, never *"not a shared project"* for a repository that may be one (review I6) |
    | `Branch.ReadError != ""` | `branch_unreadable` | phase 3's sentence |
    | `Upstream == ""` | `never_pushed` | *"This branch has never been pushed, so Panacea has nothing to build."* |
    | `Ahead > 0` | `unpushed` | *"N commits are not pushed, so they would not ship. Push first."* (`details.ahead`) |
@@ -245,7 +246,8 @@ POST /v1/projects/{projectId}/deploy/ship
   404 project_not_found           unknown local project
   409 conflict                    a Ship of this branch is in progress
   409 deploy_precondition         details.reason ∈ not_bound | no_hub_project | branch_unreadable |
-                                  never_pushed | unpushed | behind | stale_commit | bad_commit
+                                  never_pushed | unpushed | behind | stale_commit | bad_commit;
+                                  no_hub_project may carry details.cause "key_spelling" (HA7-6)
   409 deploy_environment_invalid  Panacea's name for the branch's environment breaks the Hub's §7.9 rule (step 4)
   409 deploy_environment_unreadable  Panacea did not name the branch's environment (EnvironmentFor 404/422; step 4); nothing reserved
   409 deploy_not_connected · deploy_token_rejected
@@ -270,6 +272,7 @@ is retried with the same key.
 | `TestRefusalAbandonsWithSentence` | Panacea `409` *"…"* → `Abandon` with `reason "deploy_failed"` and exactly that message; the route answers `409 deploy_conflict` | a refused Ship leaving a reservation that expires silently |
 | `TestBudgetRefusalAbandonsWithSentence` | the fake's `Ship` answers `KindConflict`, `Status 402`, *"new deploys are paused: this project has reached its monthly hosting budget; …"* (task 04's `ship-402-budget.json`) → `Abandon` once, `reason "deploy_failed"`, exactly that message; no `Confirm`, no `Track`; the route answers `409 deploy_conflict` with the sentence, and `details.upstream` is absent | a 402 treated as an outage: `503 upstream_unavailable`, the lens switching acts off, and a reservation left to expire after 15 minutes (review I2) |
 | `TestTimeoutAbandonsAmbiguously` | Panacea times out → `Abandon` message is the ambiguous sentence; no confirm | confirming a run the control plane never saw named |
+| `TestADOKeySpellingNamesTheCause` | a binding `Bound` with `HubProjectID ""`, `HubMiss "key_spelling"`, `RepoKey "azure-devops/kpmgcomau/engagement portal/portal"` → `GET …/ship-readiness` answers `ready: false`, `reason "no_hub_project"`, the key-spelling sentence with that `RepoKey`; `POST …/ship` answers `409 deploy_precondition`, `details.reason "no_hub_project"`, `details.cause "key_spelling"`; neither the Hub nor Panacea called. `HubMiss "not_linked"` → the *"not a shared project"* sentence and no `cause` (review I6) | every Azure DevOps repository told it is *"not a shared project in the Hub yet"* when the real cause is the spelling split, so nobody knows to fix it |
 | `TestNeverPushedPrecondition` | `Upstream ""` → `409 deploy_precondition` `never_pushed`; neither Hub nor Panacea called | reserving a release for a commit Panacea cannot clone |
 | `TestUnpushedPrecondition` | `Ahead 2` → `unpushed`, `details.ahead "2"` | shipping the upstream while the user thinks they shipped their work |
 | `TestStaleCommitPrecondition` | `Commit` ≠ `Tip` → `stale_commit` | shipping a commit other than the one the screen showed |

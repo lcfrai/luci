@@ -118,7 +118,7 @@ it was.
 |---|---|
 | **OD-1** | Built on the briefs' recommendations; UI branch stays unmerged until the owner has looked |
 | **OD-3** | Releases and their pins live in the **Hub**, not the state directory. This **answers brief decision `D1`** (per person vs per project) with its option *b* and **without** the Panacea metadata ask: a teammate's Ship reserved its pin in the same Hub my cockpit reads, so their release shows its brief on my screen |
-| **OD-4** | The binding (§3.3, 7P-6) matches a Panacea project's `repoUrl` against the local remote through phase 3's `githost.ParseRemote`, which recognises GitHub and Azure DevOps. Nothing in phase 7 names a host |
+| **OD-4** | The binding (§3.3, 7P-6) matches a Panacea project's `repoUrl` against the local remote through phase 3's `githost.ParseRemote`, which recognises GitHub and Azure DevOps. Nothing in phase 7 parses a host. The one place that names the two is task 06's copy of the Hub's published repoKey pattern (§7.4), which only chooses a sentence. **Azure DevOps Ship is blocked on HA7-6** (§9): phase 3's `RepoKey()` spells Azure DevOps differently from the Hub (review I6) |
 | **OD-6** | Identity is the Hub's. Phase 7 never runs a sign-in; it takes `hubclient.Releases` (which carries the Entra token) and `credstore.Secrets` (which holds the `pnc_` token) from the Hub's tasks C1/C2 |
 | **OD-12** | Every owner-observed step — the live Ship against dev Panacea, the lens's look — is batched to the end and stays **unverified** until then |
 | **OD-13** | Panacea is called as a client over its existing API; **no Panacea source is copied**; the deploy side is the `deploy.Deployer` interface so the lift is a swap (§2, S7-N1) |
@@ -675,11 +675,35 @@ returns runs and rollbacks together, newest `reservedAt` first, 200 at most; the
 the `upstream_unavailable` relay (§4.3); the credential-store row for the `pnc_` token (§9.1); the
 local caller key (§9.4); `release.*` events in the change feed (§8).
 
-**One difference noticed, not phase 7's to settle.** The Hub contract spells an Azure DevOps repo key
-`<org>.visualstudio.com/<project>/<repo>` (ADR-H1 §5.3, the `project remote` row), phase 3's
-`githost.RepoKey` spells it `azure-devops/<org>/<project>/<repo>` (phase 3 task-13 `:136-139`). Phase 7
-only ever compares keys it computed itself with `githost` on both sides, so it is unaffected; the
-Hub and phase 3 must agree before an ADO project is linked.
+**HA7-6 — one Azure DevOps repo-key spelling (BLOCKING OD-4's Azure DevOps Ship; to phase 3 and
+the Hub; review I6).** *This paragraph used to say phase 7 "only ever compares keys it computed
+itself with `githost` on both sides, so it is unaffected". That was false, and is withdrawn.* Task 06
+step 3 sends phase 3's `RepoKey()` to the Hub's `ProjectForRepo`. The two spellings:
+- **The Hub** stores and compares `<org>.visualstudio.com/<project>/<repo>`, *"byte for byte"*, and
+  refuses any other Azure DevOps form at `POST /v1/projects` (`^[a-z0-9-]{1,50}\.visualstudio\.com/[^/]{1,64}/[^/]{1,64}$`,
+  Hub contract §7.4 `:711-715`; H-3 `:2263`). It cites phase 3 for that form.
+- **Phase 3** disagrees with itself. Its plan's H-3 row gives the Hub's form
+  (`2026-09-23-phase-3-git-convergence.md:372`), but the code its task 13 specifies spells
+  `azure-devops/<org>/<project>/<repo>` (`RepoKey`, phase 3 task-13 `:140-143`).
+
+So, as specified today, no Hub project can ever hold an Azure DevOps key that phase 3 computes.
+Every Azure DevOps repository gets `HubProjectID ""`, and Ship is off (`no_hub_project`), which
+breaks OD-4. **Asked:** phase 3's task 13 makes `RepoKey()` spell Azure DevOps as its own H-3 row
+and the Hub already do, `<lower(org)>.visualstudio.com/<project>/<repo>`, for both the
+`dev.azure.com` and the `visualstudio.com` remote forms. That is the recommended answer: it changes
+one function to match two documents that already agree. The alternative is for the Hub to widen
+§7.4 to accept `azure-devops/…` as well. That would give the org two spellings of one repository
+and break §7.4's uniqueness, so it is not recommended. Phase 7 builds nothing that assumes either
+answer:
+- the key sent is `RepoKey()` verbatim, chosen in one function, `hubKey` (task 06);
+- a miss whose key fails the Hub's published pattern reads `HubMiss "key_spelling"`, so readiness,
+  the Ship refusal and the lens line all name the cause (tasks 06, 07, 09, 14);
+- `TestHubBindsADOWithTheHubsSpelling` (task 06) seeds the Hub fake with the Hub's spelling and
+  runs the real `githost`. **HA7-6 is closed when that test takes its bind branch.** Task 20 records
+  which branch ran.
+
+*Meanwhile:* GitHub repositories Ship. Azure DevOps repositories bind to Panacea and read their
+deployments, but cannot Ship from the cockpit.
 
 ---
 
@@ -698,7 +722,7 @@ Hub and phase 3 must agree before an ADO project is linked.
 | Phase 2 task 09; Hub C3 (task 37) | the preflight constants in `origin.go:168-172`, which both already write | 05 | **amended by phase 7:** `PUT` and `Idempotency-Key` are added. Whichever of task 05 and Hub task 37 lands second adds its entry to the list it finds and does not paste its own literal; task 05's membership rows go red if an entry is dropped (review C1) |
 | Phase 3 task 08 | `remote.State{Upstream, Ahead, Behind}`, `Convergence.Tip` | 09 | 7b does not merge |
 | Phase 3 task 12 | `POST …/push` | 16 (offered beside a disabled Ship) | Ship says *"push first"* without the button |
-| Phase 3 task 13 | `githost.ParseRemote`, `Remote.RepoKey()` | 06 | 7a's binding cannot match; the connect screen asks for the Panacea project by name instead (part 06) |
+| Phase 3 task 13 | `githost.ParseRemote`, `Remote.RepoKey()` | 06 | 7a's binding cannot match; the connect screen asks for the Panacea project by name instead (part 06). **Plus HA7-6 (§9, blocking):** `RepoKey()`'s Azure DevOps spelling must be the Hub's §7.4 form, or no Azure DevOps repository finds its Hub project and Ship stays off with the cause named (`HubMiss "key_spelling"`, part 06) |
 | Phase 3 task 05 | the `Panacea-Session` trailer on agent commits (3-D6, `S3-P7.1`) | 19 | the manifest says *"sessions are not recorded for commits made before phase 3"* |
 | Phase 4 | the key-source loader (R6) and the `Ref` cache it fills; Discover opening a past revision read-only (provenance contract §4.1) | 13, 15, 17 | the pin cell renders `resolving` for a key it cannot resolve — never a head — and part 15 states it |
 | Phase 5 | an approved `design:` key for the branch, to pass as `designKey` at reserve | 09 | Ship reserves with `designKey: null`; the Hub never infers one (§7.9) |
@@ -833,6 +857,20 @@ recorded Panacea bodies.
   (task 01) sends `env` whenever it is non-empty (task 03), the watcher passes the newest
   deployment's `Environment` (task 07), and the drill route requires `environment` (tasks 12, 13,
   17), as Panacea's portal does (`SecurityScanReview.tsx:437-440`). Not run live.
+- **Panacea's 402 on `POST …/deploy` is a refusal with a sentence (review I2, settled from source
+  2026-09-24).** `TriggerDeploy` (`handlers/projects.go:2942`) runs the budget gate (`:2962` →
+  `:2856`, *"new deploys are paused: "* + a reason from `handlers/budget_resolve.go:229-245`) and
+  the risk gate (`:2979` → `:2916-2918`). They are the only 402 writers on routes phase 7 calls. The
+  other two, `handlers/web_search.go:604` and `:752`, are AI routes. Task 02 maps 402 to
+  `KindConflict` with the sentence, so task 09 abandons the reservation with Panacea's reason. The
+  posture gate composed after the risk gate answers **403** (`project_security.go:155-157`), so it
+  is `KindForbidden`. Neither 402 was observed live.
+- **HA7-6 — the Azure DevOps repo-key split (review I6).** Read from plan and contract text, not
+  code: phase 3 task-13 `:140-143` and phase 3 plan `:372` (phase 3 worktree, read only), and Hub
+  contract §7.4 `:711-715`. Not checked: whether phase 3's code already differs from its task text;
+  whether the Hub fake enforces §7.4's pattern at `CreateProject` (the contract says the fake
+  implements *"every rule in §7 that a caller can observe"*, `:1343`); and whether a `DefaultCollection`
+  remote keeps the same project segment.
 
 
 

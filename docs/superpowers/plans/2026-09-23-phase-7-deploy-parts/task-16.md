@@ -84,7 +84,7 @@ the row shows what it actually took.
 |---|---|
 | `connection.state != "connected"` | *"Connect to Panacea first."* |
 | `view.stale` | *"Panacea is not answering."* |
-| `releasesState` `signed_out` / `no_hub_project` / `unavailable` | *"Sign in first."* / task 14's line / *"The Hub is not answering, so the release could not be recorded."* |
+| `releasesState` `signed_out` / `no_hub_project` or `hub_key_spelling` / `unavailable` | *"Sign in first."* / task 14's line for that state (each names its own cause; review I6) / *"The Hub is not answering, so the release could not be recorded."* |
 | a run for this branch is not terminal | *"A build of this branch is already running."* — and **Cancel run** is shown |
 | `readiness.ready == false` | `readiness.message` verbatim (*"2 commits are not pushed…"*, with a **Push** button beside it, calling phase 3's `pushBranch`, when `reason == "unpushed"`) |
 
