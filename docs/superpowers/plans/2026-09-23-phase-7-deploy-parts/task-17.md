@@ -115,8 +115,17 @@ that drops the row closes the drawer; Escape and the ✕ close it. Opening anoth
 | **Release** | always | the facts table below |
 | **Acts** | `props.acts` given | task 16's buttons, each with its sentence |
 | **Scans** | `deploymentId` non-null | `ScanList` |
-| **Why it is down** | `isCurrent`, and the row's environment is found | `DiagnosePanel` — open at once when `serving` is `{measured:true, ready:0}`, else behind **Show pods and events** |
-| **Log** | a run row with `deploymentId` | **Follow build log** → `LogPane` with `run-logs`; for `isCurrent` also **Follow readiness** → `readiness` |
+| **Why it is down** | the row **serves now** (below), and the row's environment is found | `DiagnosePanel` — open at once when `serving` is `{measured:true, ready:0}`, else behind **Show pods and events** |
+| **Log** | a run row with `deploymentId`, or a row that serves now | **Follow build log** → `LogPane` with `run-logs`, for a run row with `deploymentId`; for a row that serves now, with its environment found, also **Follow readiness** → `readiness` |
+
+**Serves now** is `row.isCurrent || (row.deploymentId != null && row.deploymentId ===
+env.current.deploymentId)`, with `env` the row's environment found as below — the same key the
+Roll back gate uses (task 16). After a rollback, task 08 rule 6 marks the `rollback` row
+`isCurrent` and leaves the target's run row unmarked, while `current.deploymentId` names that
+target. Gating on `isCurrent` alone left the target's run row with neither block and the rollback
+row (`deploymentId: null`) with no Log section, so no row offered **Follow readiness** at the
+moment the user most wants to watch the pods come back (plan re-review b04-1, I-1). Both rows now
+offer both.
 
 The row's environment is `view.environments.find(e => e.name === row.environmentRow)` — the row
 name the view already joined with `SameEnvironment` (task 08 rule 1), never `row.environment`
@@ -227,6 +236,7 @@ Panacea's diagnosis may consult its AI and then answers `source "rules+ai"`
 | `no environment, no scan read` | a row `{deploymentId:"d-old", environment:""}` and one with `environment:null` → zero `api.scans` calls; the text *"Panacea recorded no environment for this release, so its scans are not read."*; no **Try again**; the DOM lacks *"Pass"* and every status word (re-review b03, M-1) | `row.environment ?? ""` sent as-is, which draws production's verdict as a legacy release's own |
 | `off is not a pass` | a scan with `status "SKIPPED"`, `mode "off"` → the unmeasured dot and the footnote; the DOM lacks *"pass"* for it | absence read as clean |
 | `prod row keeps its drill-ins` | `row {environment:"prod", environmentRow:"production", isCurrent:true}`, `view.environments` holds `production` serving `{measured:true, ready:0}` → *Why it is down* is open and **Follow readiness** is offered for `production` | `e.name === row.environment`, which found no row for any production release (review I8) |
+| `rollback target keeps its drill-ins` | `view.environments` holds `feat-x` with `current {source:"rollback", deploymentId:"d1"}`, serving `{measured:true, ready:0}`; `d1`'s run row `{kind:"run", deploymentId:"d1", environmentRow:"feat-x", isCurrent:false}` → *Why it is down* is open, **Follow build log** and **Follow readiness** are offered; the rollback row `{kind:"rollback", deploymentId:null, environmentRow:"feat-x", isCurrent:true}` → *Why it is down* and **Follow readiness**, no **Follow build log**; an older succeeded run row `d0` of `feat-x` → neither (plan re-review b04-1, I-1) | gating on `isCurrent` alone, which leaves no row offering **Follow readiness** after a rollback |
 | `unmatched row has no drill-ins` | `environmentRow: null` → neither *Why it is down* nor **Follow readiness**, and the *"Panacea lists no environment named"* line | a drawer that guesses a row by name |
 | `diagnose only on press` | mount → `pods` and `events` once each, `diagnosis` zero; press **Diagnose** → one | an AI call on Panacea's side every time a drawer opens |
 | `one stream in the window` | open `run-logs r1`, then `readiness env-a` → the first handle's `onEnd("replaced")` once, its `AbortSignal` aborted, `currentDrillTarget()` is `env-a` | two live streams — a second clock (plan 7P-14) |
