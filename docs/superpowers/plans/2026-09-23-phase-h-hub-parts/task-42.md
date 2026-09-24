@@ -32,7 +32,7 @@ task's report is *unverified by the owner*. `OD-1`'s prototype waiver does not n
 **Files:**
 - `desktop/src/components/share/SharePopover.tsx` + `SharePopover.test.tsx` (new)
 - `desktop/src/components/share/share.css` (new)
-- `desktop/src/components/menu/ContextMenu.tsx` — one project item (modify ⚑: `projectItems`, `:98-110`)
+- `desktop/src/components/menu/ContextMenu.tsx` — one project item, shown only with a Hub (modify ⚑: `projectItems`, `:98-110`, and one `useCockpit` read beside the others at `:48-54`)
 - `desktop/src/store/slices/authSlice.ts` — `shareFor` (modify)
 - `desktop/src/components/AppShell.tsx` — mount the popover once (modify ⚑: one line)
 
@@ -60,7 +60,13 @@ export function SharePopover(props: {
 }): JSX.Element | null;
 ```
 
-The project menu gains **Share with a team…** after *Reveal in Explorer*, calling `openShare`.
+The project menu gains **Share with a team…** after *Reveal in Explorer*, calling `openShare`,
+**only when a Hub is configured**: `const hubConfigured = useCockpit((s) => s.auth?.hubConfigured
+=== true)`, read unconditionally with the other hooks, and the item appended only when it is
+true. With `PANACEA_APP_HUB_URL` unset (`hubConfigured: false`), or before the first status read
+(`auth` is `null`, task 40), the project menu is phase 2's three items exactly. Task 32 promises
+that without a Hub nothing changes for the user, and task 41's footer hides its sign-in on the same
+flag; an item whose every call answers 503 `hub_not_configured` would break both (review M6).
 
 **The states, and exactly what each shows:**
 
@@ -85,7 +91,8 @@ limitation, plan re-review b05 m2). The wording is the owner's to accept (OD-12)
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `the project menu opens it` | right-click a project → **Share with a team…** → the popover for that project | a surface nobody can reach |
+| `the project menu opens it` | `auth.hubConfigured: true`; right-click a project → **Share with a team…** → the popover for that project | a surface nobody can reach |
+| `the menu item is absent without a Hub` | `auth: null`, then `auth.hubConfigured: false` → right-click a project → the menu is exactly *New branch*, *Copy path*, *Reveal in Explorer*; no **Share with a team…** | an unconditional item, whose every call answers 503 `hub_not_configured` (review M6) |
 | `a first share creates a team named after the project` | `unlinked`, no teams → the field holds the project's name; **Share** → `createHubTeam("Engagement Portal")` then `shareProject(p, tm)`; the linked view follows | a share that needs a separate team-setup step first (the wedge: no wall of configuration) |
 | `sharing into an existing team` | two teams, one where the caller is a `viewer` → only the other is offered; choosing it → `shareProject(p, that team)` | a share into a team the caller cannot write to, answered 403 |
 | `linked shows the team and its people` | the team name, members with roles, pending invites | — |
@@ -116,7 +123,7 @@ limitation, plan re-review b05 m2). The wording is the owner's to accept (OD-12)
 #### Acceptance
 
 ```bash
-cd desktop && npx vitest run src/components/share/SharePopover.test.tsx 2>&1 | tail -2   # 11 passed
+cd desktop && npx vitest run src/components/share/SharePopover.test.tsx 2>&1 | tail -2   # 12 passed
 cd desktop && npm test 2>&1 | tail -3                                                     # all passed
 cd desktop && npm run typecheck                                                           # no output
 ```

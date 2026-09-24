@@ -342,7 +342,7 @@ parallel worktrees (see §"Order and parallel lanes").
 | `desktop/src/components/rail/{RailFooter,AccountControl}.tsx`, `rail.css` ⚑ | the sign-in surface | modified, new | 41 |
 | `desktop/src/components/share/{SharePopover.tsx,share.css}` | share a project with a team | new | 42 |
 | `prototype/phase-h-hub.html` | the static prototype of both surfaces, written before their code (owner question Q13, review M14) | new | 41 |
-| `desktop/src/components/menu/ContextMenu.tsx` ⚑, `desktop/src/components/AppShell.tsx` ⚑ | the *Share with a team…* item; the popover's one mount | modified | 42 |
+| `desktop/src/components/menu/ContextMenu.tsx` ⚑, `desktop/src/components/AppShell.tsx` ⚑ | the *Share with a team…* item, shown only when `auth.hubConfigured`; the popover's one mount | modified | 42 |
 
 ### Proof and documents
 
