@@ -436,8 +436,6 @@ child's environment without trusting the code under test.
 | `TestMessageRefusesANewlineInATrailer` | value `brief:b-1@2\nPanacea-Land: w-x` → `ErrBadMessage` | trailer injection through a key |
 | `TestMessageCopiesTheValueByteForByte` | `brief:b-42@6` appears verbatim once | normalising or parsing a key (P5) |
 | `TestMessageIsReadBackByGit` | real git: `git interpret-trailers --parse` on `Message(...)` prints exactly the trailers given | a missing blank line before the trailer block |
-| `TestExecRefusesALaneDir` | R4.2, red first: `LaneRoot` = a `t.TempDir()` holding a `CloneOf` clone `L`; table, each on a `Scope Project` call: `Dir: L`; `Dir: L/sub`; `Dir` = `L` in other letter case (Windows only); `-C L`; `--git-dir=L/.git`; `--git-dir L/.git`; `--work-tree L`; `Env` `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY` = a path in `L`; `GIT_ALTERNATE_OBJECT_DIRECTORIES` = `x` + list separator + `L/.git/objects`; `Dir` = `L` spelled `<LaneRoot>/x/../<L's name>` → each `errors.Is(err, ErrLaneDir)`, and `Spy` recorded nothing, so not even H3's config read ran in `L` | a guard that compares uncleaned strings, reads only `Dir`, or checks after start |
-| `TestExecAdmitsNewLaneOnlyForScopeNone` | `Dir == NewLane == L`, `Scope None` → runs; the same with `Scope Project` → `ErrCallShape`; `NewLane: L`, `Dir: L2` (another clone) → `ErrLaneDir`; `NewLane` set on a `Scope Project` call in the project → `ErrCallShape` | a NewLane that opens every lane, or any scope |
 | `TestSpyRecordsWhatExecStarts` | a `Read` call with `Scope Project` → one or more Spawns, the last with `Dir` = the repo, `Argv` ending in `Call.Args`, `Env` holding `GIT_OPTIONAL_LOCKS=0`; a call refused by `ErrCallShape` → no Spawn; after cleanup, a call adds none | a spy fed from `Call` instead of `cmd`, or one left installed |
 | `TestLocalMachineIsLocal` | `Local{Root: r}.ID() == "local"`, `CloneRoot() == r` | a Local that rewrites paths |
 | `TestScriptFailsOnAnUnscriptedCall` | an unknown argv fails the calling test | a fake that silently succeeds |
@@ -458,8 +456,8 @@ as defence against the user's own config and a machine's system config.
 
 **H1. The command-scope prefix.** `Exec.Run` puts these overrides in argv, between `git` and
 `Args`, on **every** call of every class. Command scope outranks repository config (task 01's
-`TestBehaviourLocalConfigHooksPathIgnoresEnvironment` proves the ordering), so no key the agent
-writes can undo them. They go in argv, never in `GIT_CONFIG_COUNT`, because `Call.Env` wins over
+`TestBehaviourLocalConfigHooksPathIgnoresEnvironment` proves the ordering), so no repository
+key can undo them. They go in argv, never in `GIT_CONFIG_COUNT`, because `Call.Env` wins over
 Exec's environment and task 13's `PushEnv` sets `GIT_CONFIG_COUNT` itself.
 
 | Override | What it neutralises |
@@ -470,7 +468,7 @@ Exec's environment and task 13's `PushEnv` sets `GIT_CONFIG_COUNT` itself.
 | `-c protocol.allow=never -c protocol.file.allow=always`, plus `-c protocol.https.allow=always` on a `Remote` call only | every transport the phase does not use, by default rather than by name: `ext::<command>`, `ssh`, `git://`, and a lazy fetch that a `Read` or `Local` call would make from a partial-clone promisor remote. A local path counts as `file` |
 | `-c core.askPass=` | a repository-named askpass program. An empty value falls through to `GIT_TERMINAL_PROMPT=0`, which fails |
 | `-c commit.gpgSign=false -c tag.gpgSign=false` | a repository `gpg.program` run by task 09's and task 10's `commit-tree` |
-| `-c submodule.recurse=false -c fetch.recurseSubmodules=false` | a host fetch that recurses into `.git/modules/*`, whose config the agent also writes |
+| `-c submodule.recurse=false -c fetch.recurseSubmodules=false` | a host fetch that recurses into `.git/modules/*`, whose config H3 does not read |
 | `-c credential.helper=`; then, on a `Remote` call or a `Scope None` call only, each `Hardening.Credential` entry as `-c <key>=<value>` (H2) | every helper a repository names, including URL-scoped `credential.<url>.helper`. The empty value clears the list read so far, and command scope is read last (checked on git 2.53.0.windows.2, 2026-09-24: a repository `credential.https://example.invalid.helper` answered without the reset and did not answer with it). A `Read` or `Local` call needs no credential, so no helper runs in it at all |
 | `--upload-pack=git-upload-pack` after `fetch` and `ls-remote`; `--receive-pack=git-receive-pack` after `push` | `remote.<name>.uploadpack` and `.receivepack`, which run as a local command when the remote is a path |
 | `--literal-pathspecs` (a top-level option, in the prefix beside the `-c` pairs) | a path the agent named being read as a glob: `diff -- 'app/[slug]/page.tsx'` also matches `app/s/page.tsx`, so task 16 would file another file's hunks, with their back-links, under this path (re-review b05 issue 9). Checked on git 2.53.0.windows.2, 2026-09-24 (`scratchpad/p3/b05r2-lit-probe.out`): without it that diff lists both files, with it one; `rev-parse` and `for-each-ref` are unaffected. No phase 3 call uses a glob or magic pathspec, so none needs it off |
@@ -505,7 +503,7 @@ This closes review C3, where the user's token reached whatever the agent wrote.
   the sandbox (R4.5). So `Machine` has no `FetchURL`. A local path or a bundle file needs no
   credential, proxy or TLS.
 
-**H3. The config check: what the agent wrote is read before git acts on it.** A filter, diff or
+**H3. The config check: the repository's config is read before git acts on it.** A filter, diff or
 merge driver cannot be neutralised by name, because `.gitattributes` chooses the name. So before
 every call, Exec runs `git config --local --no-includes --list -z` in `Call.Dir` with the H1
 prefix and H5's layout pin. Reading config runs nothing. A record is `key\nvalue\0`, or `key\0`
@@ -582,11 +580,11 @@ and an H1 mutant would survive.
 |---|---|---|
 | `TestHGHPrefixOnEveryClass` | helper process: for `Read`, `Local` and `Remote`, argv holds every H1 `-c` pair, between `git` and `Args[0]`; `protocol.https.allow=always` and the `Hardening.Credential` entries appear on `Remote` (and `Scope None`) only | a prefix added for one class only; https or a machine helper on a `Read` call |
 | `TestHGHPathspecsAreLiteral` (re-review b05 issue 9) | a repository with `app/[slug]/page.tsx` and `app/s/page.tsx`, both changed in one commit; `diff --name-only HEAD~1 HEAD -- app/[slug]/page.tsx` through Exec → exactly `app/[slug]/page.tsx` | `--literal-pathspecs` dropped from the prefix: a bracketed Next.js path read as a glob |
-| `TestHGHFsmonitorNeverRuns` | a clone whose `.git/config` sets `core.fsmonitor=<marker script>`; `status --porcelain` through Exec → no marker | `core.fsmonitor=false` dropped |
+| `TestHGHFsmonitorNeverRuns` | a project repository whose `.git/config` sets `core.fsmonitor=<marker script>`; `status --porcelain` through Exec with `Scope Project` → no marker | `core.fsmonitor=false` dropped |
 | `TestHGHReferenceTransactionHookNeverRuns` | `.git/hooks/reference-transaction` writes a marker; `update-ref` through Exec → no marker, and the ref moved | `core.hooksPath` pointed at the repository's own directory |
 | `TestHGHUploadPackIsNeverTheRepositorys` | `remote.origin.uploadpack=<marker script>` with origin a local path; `fetch origin` through Exec → no marker, and the fetch succeeded | the `--upload-pack` insertion dropped |
 | `TestHGHReceivePackIsNeverTheRepositorys` | the same with `remote.origin.receivepack` and `push` | `--receive-pack` missing |
-| `TestHGHFilterDriverIsRefused` | project config `filter.x.clean=<marker script>`, `.gitattributes` `* filter=x`, and a modified file; `status` with `Scope: Project` → `*UntrustedConfig{Key: "filter.x.clean"}` and no marker | the H3 check skipped for `Read` |
+| `TestHGHFilterDriverIsRefused` | project config `filter.x.clean=<marker script>`, `.gitattributes` `* filter=x`, and a modified file; `status` with `Scope: Project` → `*UntrustedConfig{Key: "filter.x.clean", Scope: Project}`, which the API maps to `project_config_untrusted`, and no marker | the H3 check skipped for `Read` |
 | `TestHGHProjectRefusalList` | table over `Class`: every "every call" key in H3's `Project` row (including `remote.origin.proxy`, `.proxyAuthMethod` and `.vcs`) → refused on `Read`, `Local` and `Remote`; `http.sslCAInfo`, `http.<url>.proxy` and `credential.trace` → refused on `Remote`, admitted on `Read` and `Local`; `core.autocrlf`, `lfs.url`, `remote.origin.url` → admitted everywhere | a `Project` scope that refuses the user's ordinary config, or admits a per-remote proxy |
 | `TestHGHProjectAdmitsRealConfig` | b01 re-review R1 and R2, red first against round 1's rule (`credential.*` refused on every Project call): a project holding this repository's shape (`credential.usehttppath=true`, `credential.https://github.com/lcfrai/panaceaapp.helper=<marker script>`) plus `branch.main.vscode-merge-base`, `remote.origin.gh-resolved`, `core.longpaths` and `pull.rebase` → a `Read`, a `Local` and a `Remote` call with `Scope Project` all pass H3, and the helper's marker never appears | a project call refused for ordinary config; a repo-local helper that runs |
 | `TestHGHConfigParseIsNULSafe` | `user.name` set to `"a\nfilter.x.clean=y"` → admitted, with no key `filter.x.clean` seen; a real `filter.x.clean` beside it → refused; a valueless `filter.x.required` (listed as `key\0`) under `Project` → refused, naming it | line-splitting the listing; a parser that drops a key with no value |
@@ -595,11 +593,13 @@ and an H1 mutant would survive.
 | `TestHGHRemoteOverridesBeatAURLScopedKey` | transport level, loopback only. `O` is a bare `httptest.NewTLSServer`, not `HTTPSRemote`, so no config trusts its certificate, and `U` is exactly its URL plus `/r.git`; `P` is a plain `httptest` listener that counts connections. A `Scope None` repository under `OwnedRoot` holds `remote.origin.url=U`, `http.<U>.sslVerify=false` and `http.<U>.proxy=<P's URL>`, keyed at exactly `U` (scheme, host, port and path). **Precondition**, raw git with no Exec: `config --get-urlmatch http.sslVerify U` → `false` and `http.proxy` → P, so the keys match. Then `ls-remote origin` through Exec with `RemoteURL: U` and `Hardening.Proxy: ""` → a certificate error, `P` saw no connection, and `O` served no request | the generic-only override (b01 re-review R4: a key keyed short of `U` never matched, and the old test could not fail) |
 | `TestHGHRepoCredentialHelperNeverRuns` | table: repo config `credential.helper=<script that writes its stdin to a marker>`, then the URL-scoped `credential.https://example.invalid.helper=<same>`; `credential fill` for `host=example.invalid` through Exec → no marker, and the machine helper from `Hardening.Credential` answered | the empty `credential.helper=` reset dropped, or a reset that clears only the generic key |
 | `TestHGHCallShape` | `Args[0] == "-c"` → `ErrCallShape`; `Scope` left `Unset` → `ErrCallShape`; `Scope: None` with a `Dir` outside `OwnedRoot` that is not its `NewLane` → `ErrCallShape`; `Call.Env` naming `GIT_DIR`, `GIT_COMMON_DIR` or `GIT_WORK_TREE` → `ErrCallShape`; `Exec{}` (no HooksDir) → `ErrCallShape`. Git never starts | a caller's own `-c` ahead of the prefix; an unmarked call that silently gets a rule (b01 re-review R1) |
-| `TestHGHCommondirCannotRedirect` | b01 re-review R5, red first without the pin: a clone whose `.git/commondir` names a copy of its `.git` whose `config` sets `user.name=EVIL` and `filter.x.clean=<marker script>`, with `.gitattributes` `* filter=x` → `rev-parse --git-common-dir` through Exec prints `<Dir>/.git`, `config user.name` prints the real name, H3 admits the call, and `status` leaves no marker | a layout pin dropped, or set before `Call.Env` |
-| `TestHGHUploadPackSourceRunsNothing` | a git-behaviour pin in task 01's style, not a mutant killer: a source repository whose config sets `uploadpack.packObjectsHook=<marker script>`, and whose `.git/hooks/` holds a marker script under every hook name; a local fetch from it through Exec → no marker | a git upgrade that honours the source's repository config |
+| `TestHGHCommondirCannotRedirect` | b01 re-review R5, red first without the pin: a project repository, on `Scope Project` calls, whose `.git/commondir` names a copy of its `.git` whose `config` sets `user.name=EVIL` and `filter.x.clean=<marker script>`, with `.gitattributes` `* filter=x` → `rev-parse --git-common-dir` through Exec prints `<Dir>/.git`, `config user.name` prints the real name, H3 admits the call, and `status` leaves no marker | a layout pin dropped, or set before `Call.Env` |
+| `TestExecRefusesALaneDir` | R4.2, red first against an `Exec` without the lane-dir guard: `LaneRoot` = a `t.TempDir()` holding a `CloneOf` clone `L`; table, each on a `Scope Project` call: `Dir: L`; `Dir: L/sub`; `Dir` = `L` in other letter case (Windows only); `-C L`; `--git-dir=L/.git`; `--git-dir L/.git`; `--work-tree L`; `Env` `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY` = a path in `L`; `GIT_ALTERNATE_OBJECT_DIRECTORIES` = `x` + list separator + `L/.git/objects`; `Dir` = `L` spelled `<LaneRoot>/x/../<L's name>` → each `errors.Is(err, ErrLaneDir)`, and the helper process records no start (`Spy` empty), so not even H3's config read ran in `L` | a guard that compares uncleaned strings, reads only `Dir`, or checks after start |
+| `TestExecAdmitsTheNewLaneOnly` | R4.5, red first against the same `Exec`: `Dir == NewLane == L` with `Scope None` → runs; `NewLane: L`, `Dir: L2` (another lane) → `ErrLaneDir`; `NewLane: L` with `Scope Project` and `Dir` the project → `ErrCallShape`; the same with `Dir: L` → `ErrLaneDir`, since the guard runs before the shape check | a NewLane that opens every lane, or any scope |
 
-Tasks 07, 09, 12 and 13 each add the end-to-end marker test for their own call site (the observer,
-the land and origin refresh, the push, and `GitHelper`), citing this section.
+Tasks 07, 09, 12 and 13 each add the end-to-end marker test for their own project call site (the
+lane sync's bundle fetch into the project, the land, the push, and `GitHelper`), citing this
+section. The observer and the origin refresh are lane git, so they run in the sandbox (task 24).
 
 #### Steps
 
@@ -607,8 +607,10 @@ the land and origin refresh, the push, and `GitHelper`), citing this section.
   it records merge-tree's exit code or output format differently from the table above, this
   task's `OKExit` guidance and task 08's parser follow the document.
 - [ ] **Step 2:** write the tests above, the helper process first.
-- [ ] **Step 2a:** write the 16 §HGH tests (the two clone-allowlist tests went with `Scope Clone`, R4.2). Run them against an `Exec` built without `harden.go`,
-  and record in the task report each marker that appeared and each call that ran: red first.
+- [ ] **Step 2a:** write the 18 §HGH tests (19 before R4: minus the two clone-allowlist tests and
+  the upload-pack source pin, plus the two lane-dir tests, R4.2). Run them against an `Exec` built
+  without `harden.go` and the lane-dir guard, and record in the task report each marker that
+  appeared and each call that ran: red first.
 - [ ] **Step 3:** implement `runner.go`, `error.go`, `version.go`, `machine.go`, `trailers.go`,
   `locks.go`, `harden.go`, `internal/spawnseam`, then `gitxtest`. The body of `Run` follows `gitrunner.go:46-78` line for line,
   except for the class switch, `OKExit`, and the §HGH prefix and check that run before `exec`.
@@ -616,8 +618,8 @@ the land and origin refresh, the push, and `GitHelper`), citing this section.
   `--upload-pack` insertion. Check `ErrLaneDir` on `Dir` only, or on an uncleaned path. Split the config listing on
   `\n` instead of `\0`. Drop a valueless record's key. Keep only the generic H2 override. Treat
   `Unset` as `Project`. Drop the layout pin. Apply the Project `Remote`-only refusals on every call.
-  Allow https on every class. Each must turn a named §HGH test red (`TestHGHUploadPackSourceRunsNothing`
-  is a git-behaviour pin and has no mutant).
+  Allow https on every class. Delete the lane-dir guard → `TestExecRefusesALaneDir` red. Each
+  must turn a named §HGH test red.
 - [ ] **Step 4:** amend `gitrunner.go:19-20`'s comment to "the launcher for phase 2's read-only
   enumeration; `internal/gitx` is the other one".
 - [ ] **Step 5:** run, then commit by pathspec.
@@ -625,7 +627,7 @@ the land and origin refresh, the push, and `GitHelper`), citing this section.
 #### Acceptance
 
 ```
-go test ./control-plane/internal/gitx/... -race -count=1        → PASS (39 new tests, 18 of them §HGH, plus task 01's)
+go test ./control-plane/internal/gitx/... -race -count=1        → PASS (40 new tests, 18 of them §HGH, plus task 01's)
 go test ./control-plane/internal/project/ -run TestEveryGitCommandIsReadOnly -count=1 → PASS, unchanged
 git diff --stat control-plane/go.mod go.work                     → empty
 ```
@@ -638,3 +640,10 @@ git diff --stat control-plane/go.mod go.work                     → empty
 - §HGH hardens `gitx.Exec` only. Phase 2's `project.ExecRunner`, and the scanner that runs git
   in the primary worktree's repository, are not covered here. Whether their read-only commands
   are exposed is phase 2's to check, and is not verified (plan Q-table row Q6).
+- §HGH hardens project and host-owned calls only. It claims nothing from task 05's read-only
+  `.git/config` bind (H5), because the host never reads a lane's config (R4.2).
+- `ErrLaneDir` reads `Dir`, the `-C`, `--git-dir` and `--work-tree` flags and five `Env` keys. It
+  does not parse a positional path (`fetch <path>`); task 24's `TestHostNeverRunsGitInALane` pins
+  that no call site passes a lane there.
+- Phase 2's host-side resolvers reading host-owned config only (R4.6) is the phase-2 stream's
+  change. This task does not make it or verify it.
