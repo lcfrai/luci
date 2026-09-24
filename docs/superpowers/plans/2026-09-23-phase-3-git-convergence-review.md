@@ -860,3 +860,73 @@ round: **dependsOn stays 11←07, 12←02,04, 15←07,09**, and no new edge is a
   still unproven. The interface now covers it either way.
 - The path-length and held-lock variants of issue 1. They are ref-write failures like D/F, so the
   real archive sees them, but no probe was run.
+
+## Fix batch b05 (2026-09-24): I2 and I5
+
+The forecast and land pipeline. Line numbers are for the tree at this batch's last commit.
+"parts/" means `2026-09-23-phase-3-git-convergence-parts/`.
+
+### I2: every merge-tree call is `-z`, parsed once, and `details.paths` is a JSON array
+
+Adopted as the review writes it, in its first form for the paths: one JSON-encoded array
+string. Phase 2's problem envelope keeps `details` a `map[string]string`
+(`httpx.WriteProblem`; `api/sessions.go:579`), so a `[]string` field would change a phase 2
+contract. **One parser, not four:** the review names four call sites. Each now calls
+`converge.MergeTreeArgs` and `converge.ParseMergeTree`, declared once in task 07's `parse.go`
+beside the other `-z` parsers.
+
+**Probed** on git 2.53.0.windows.2 (`scratchpad/p3/b05-mt-probe.sh`, output in `.out`). Without
+`-z` the conflicted path prints as `"docs/r\303\251sum\303\251.md"`. With `-z` the output is: a
+tree id, NUL, then each path raw and NUL-terminated, then an empty field, then the messages. A
+clean merge prints the tree id and one NUL and exits 0. The `--merge-base` form takes `-z` too.
+
+| Review's fix | Where it is now |
+|---|---|
+| Add `-z` to every `merge-tree` call | parts/task-08.md:48-49 (forecast), parts/task-09.md:91-92 (land step 9), parts/task-10.md:86-88 (revert), parts/task-16.md:63-66 (pairwise marks); parts/task-09.md:202-203 (the new bring-in, I5) |
+| Parse NUL-separated output | parts/task-07.md:16 (Files), :141-155 (`MergeTreeArgs`, `ParseMergeTree`: shape checks against the exit code, sorted, de-duplicated), :198-199 (two tests) |
+| Task 01 pins the `-z` form | parts/task-01.md:42-43 (clean and conflict pins over `docs/résumé.md` and `a b.txt`, both forms recorded verbatim), :47 (the revert pin runs task 10's argument list) |
+| `details.paths` as one JSON array | parts/task-04.md:104, :130-139 (`detailList`, and why), :278 (`TestDetailListRoundTripsAnyPath`); parts/task-11.md:200 (confirm_required); parts/task-18.md:178-181 (desktop `detailList`, never a `\n` split), :285 (its test); parts/task-22.md:46 |
+| Test with a conflicted `é`-named file | parts/task-07.md:198 (built with plumbing, because NTFS forbids `\n` in a name), parts/task-08.md:230 (the row above is blamed, not the branch), parts/task-09.md:234, parts/task-10.md:148, parts/task-16.md:188 |
+| (extension) diff and blame | parts/task-16.md:141-143: task 16's parsers take the path from the request and never read one back from a C-quoted `diff --git`, `---`/`+++` or porcelain `filename` line |
+
+Not changed, on purpose: `details.commits` and `details.elsewhere` keep their line formats (they
+hold shas and ref names, and `check-ref-format` refuses a control character). `details.sessions`
+holds user titles joined by `\t` and `\n`. Whether phase 2 lets a title hold a newline is
+**unverified**, and it is outside I2's scope, so it is deferred.
+
+### I5: every clone gets `upstream/<branch>`, and the lens can bring the remote's commits in
+
+The review's first option is adopted: the root cause, not the copy. It is recorded as **Q10**
+(plan:415), built on that recommendation. Overruling it gives the review's terminal-checkout
+copy. The origin refresh stays C3's literal-path fetch (b01), made **one** function,
+`Lander.RefreshClones`, which land, undo, bring-in and a project fetch all call.
+
+**Probed** on git 2.53.0.windows.2 (`scratchpad/p3/b05-up-probe.sh`, output in `.out`):
+- `rev-parse --verify -q --symbolic-full-name <b>@{upstream}` exits 1 silently when no upstream
+  is set, and prints `refs/remotes/origin/main` when one is.
+- The two-refspec fetch from the literal project path copies the project's origin ref to the
+  clone's `refs/remotes/upstream/main`, and writes no remote into the clone's config.
+- A fetch whose source ref is missing exits 128, so the upstream refspec is conditional.
+- `update-ref -d` of an absent ref exits 0.
+- `git merge upstream/main` in the clone exits 0.
+
+| Review's fix | Where it is now |
+|---|---|
+| The origin refresh also copies `refs/remotes/origin/<b>` as `refs/remotes/upstream/<b>` | parts/task-09.md:101 (step 14), :107-122 (`RefreshClones`: `<branch>@{upstream}` read once, the refspec added only when it exists, a stale copy deleted, no credential and no URL reach the clone, A4), :124-129 (`RefreshProject`, lock-free because `gitx.Locks` is not re-entrant), :247-249 (three tests); parts/task-10.md:70 (undo calls it); plan:179-184 (decision 3), :57-59 (diagram) |
+| (extension) a fetch refreshes the clones | parts/task-12.md:58-63 (`Fetcher.AfterFetch`, a func because `converge` imports `remote`), :177 (the lock is still held), :195; parts/task-14.md:20, :169: task 14, the first task after both 09 and 12, wires it, so plan:521-525 stays true and **no new edge** appears |
+| A "Bring in origin/<branch>" row when `behind > 0` | parts/task-08.md:107-129 (`Convergence.BringIn`, forecast against the tip alone, never chained into the queue), :195, :228-229; parts/task-18.md:61-67, :78-82, :203; parts/task-19.md:19, :64-75, :97-100, :112-115, :145-151, :185-188 (the row, no Undo, no force, never part of Land all, a conflict resolved in a picked lane) |
+| The same merge-tree, commit-tree and update-ref land, refused on conflict (A2) | parts/task-09.md:16-18 (Files), :164-218 (`BringIn`: compare-and-swap on both the tip and the upstream the human saw, fast-forward when only behind, merge-tree `-z` otherwise, no trailer, so undo refuses it as `not_a_land`), :250-254 (five tests); parts/task-04.md:101-117 (`upstream_moved`, and the routes each reason names); parts/task-18.md:167 |
+| Resolution in a lane through the refreshed ref | parts/task-19.md:71-75 (`bringInResolvePrompt` names `upstream/<branch>`, not `origin/<branch>`, which in a clone is the project's branch), :187 |
+| Correct the `push_rejected` sentence | parts/task-20.md:79-83 (it names fetch and bring-in, both of which exist), :28-29, :120 |
+
+Two choices past the review, on the facts:
+- **A bring-in fast-forwards when the branch is only behind.** A land never does (3-D4). A
+  bring-in records no lane's work, and a merge commit there would leave the branch ahead of
+  origin for no reason.
+- **`upstream_moved` is a new reason**, not an overload of `branch_moved`. The bring-in
+  compare-and-swaps two refs, and the banner must say which one moved.
+
+**Unverified / deferred.**
+- Task 23's end-to-end script does not exercise a bring-in yet. Deferred to the proof batch.
+- The I4 batch still owns refreshing a lane just before `ResolveDialog` starts. Until then, a
+  bring-in conflict resolves against the upstream as of the last land, undo, bring-in or fetch.
