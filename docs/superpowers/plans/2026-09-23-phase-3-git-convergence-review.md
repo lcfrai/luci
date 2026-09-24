@@ -1268,3 +1268,30 @@ each one (parts/task-01.md:58-61; its acceptance count, :119, moves from 22 to 2
 **Verified:** every citation above, against the tree at 04d6a14. **Not verified:** nothing was
 built. The probes ran real git; no plan code was written or run.
 
+## Fix batch b11 (2026-09-24): Minors 9, 10 and 11
+
+The files read model, the adapter's date, and the desktop retirement grep. Commits 3465b56,
+9b628d5, 2592a41 and a1573ce. Line numbers are for the tree at a1573ce; "parts/" as above. The
+review's task-16:130 had moved to :134 before this batch. Probes on git 2.53.0.windows.2 and the
+Go 1.26.2 toolchain under `go 1.23`, 2026-09-24, in the stream's scratchpad: `b11-probe.out`
+(textconv), `b11-go.out` (Lstat modes and the SameFile race), `b11-dates.out` (amend and rebase).
+
+| Finding | Where it is now |
+|---|---|
+| 9: the untracked read, and textconv | parts/task-16.md:159-184, `readUntracked` and `MaxUntrackedBytes = 1 MiB`: (1) `os.Lstat` of every component, by task 03's no-link rule (:165-168; a junction reports `ModeIrregular`, probed); (2) open through the seam `openForRead`; (3) the opened handle's final path must lie in the clone (:171-179); (4) `io.LimitReader` of the cap **before** the read (:180-181). The review's `os.Lstat` alone is **incomplete on the facts**: the clone is live-mounted, and on Windows `os.SameFile` loads an Lstat's file id lazily by path, so after a parent is swapped for a junction it compares the outside file with itself (probed: `SameFile` true, the outside bytes read). Step 3 checks what was opened. `--no-textconv` on both diffs and the blame (:137-147): both ran a marker textconv driver by default, and neither did with the flag. Files :17-18 (`golang.org/x/sys` goes direct, same v0.24.0, `GetFinalPathNameByHandle` checked in the module cache). Tests :243-246. Does not claim :274-280 |
+| 10: sessionVerbs.ts still promises phase 3 | Verified on this tree: `desktop/src/components/develop/sessionVerbs.ts:608` and `:624` (`:635`, `:651` in the main tree). parts/task-22.md:13 rewords both to name task 19's Not ready button; files :25-27; test :130. The retirement grep is widened to `Phase 3` in the preflight (:146-157) and acceptance (:174), with three files left out that promise nothing. On this tree it lists ten lines: six task 22 owns, four task 06 rewrites. It found a second defect: `AppShell.test.tsx:119` asserts TopBar's Authority title matches `/Phase 3/`, which task 22's own title change breaks, so task 22 now edits it (:12, :27). Task 22 waits on 19: plan:550, :555-558 (it already edited 19's `MergeBanner.tsx` with no edge). parts/task-19.md:160-164 names Not ready as the one un-mark; test :256. Map rows plan:512-513. "Three" became "four": parts/task-22.md:1, :3-6, plan:550 |
+| 11: tier 2 against the author date | parts/task-16.md:86-89: `CommitAt` is the committer date (`%cI`), read by :149's `log -1`; test :237. parts/task-17.md:124-130 (`Match` says so; probed: amend and rebase keep `%aI`, move `%cI`); test :184 (an Edit amended in links at tier 2) |
+
+**Observed, not in this batch.**
+- The system or global **clean** filter on the clone's `diff HEAD` and `status` is still open, as
+  b08 raised (parts/task-16.md:274-279 says so). It belongs to task-02 §HGH.
+- parts/task-03.md:254-256 relies on `os.SameFile` against a swap. That holds only because the
+  copy runs inside `WhileUnmounted`. The Windows lazy-id behaviour above would defeat it if a
+  writer were live.
+- `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md:1766` says "capacity arrives in
+  Phase 3". That is outside `desktop/src`, so the widened grep does not see it.
+- The orchestrator's `dependsOn` for task 22 must add 19.
+
+**Verified:** every citation above, against the tree at a1573ce and by the probes named. **Not
+verified:** nothing was built. No plan test was written or run.
+
