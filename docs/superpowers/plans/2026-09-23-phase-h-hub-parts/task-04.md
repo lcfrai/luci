@@ -22,7 +22,9 @@ works across both without `hubclient` importing `entraauth`.
 
 **Files:**
 - `control-plane/internal/hub/hubclient/hubclient.go` + `hubclient_test.go` (new)
-- `control-plane/internal/hub/hubclient/fake.go` — the `Fake` type, principals, clock, switches (new)
+- `control-plane/internal/hub/hubclient/client.go` — the `Client` stub and `New`, which task 33
+  replaces file for file (new; *As built*, D1)
+- `control-plane/internal/hub/hubclient/fake.go` — the `Fake` type, `NewFake`, principals, clock, switches (new)
 - `control-plane/internal/hub/hubclient/fake_projects.go` — teams, invites, projects (new)
 - `control-plane/internal/hub/hubclient/fake_briefs.go` — briefs, revisions, `Resolve` (brief keys) (new)
 - `control-plane/internal/hub/hubclient/fake_test.go` (new)
@@ -189,9 +191,12 @@ var (
 )
 ```
 
-(`Client` is declared in task 33's `client.go`; until task 33 lands, `hubclient.go` declares
-`type Client struct{}` with every `Hub` method returning `ErrNotConfigured`, so the package
-compiles and `New` exists for phases to wire. Task 33 replaces that stub file-for-file.)
+(`Client` is declared in task 33's `client.go`; until task 33 lands, **`client.go`** declares
+`type Client struct{}`, `New`, and every `Hub` method returning `ErrNotConfigured`, so the package
+compiles and `New` exists for phases to wire. Task 33 replaces that stub file-for-file. As built,
+`New` and the stub are in `client.go`, not `hubclient.go`, and `NewFake` is in `fake.go`: task 33
+(lane C) declares `New` in its own `client.go`, and `hubclient.go` is lane A's alone (plan, "the
+shared files"), so a stub in `hubclient.go` would have made task 33 edit it — *As built*, D1.)
 
 ```go
 // control-plane/internal/hub/hubclient/fake.go — the fake's exported surface, complete.
@@ -302,12 +307,12 @@ Every error is an `*Error` whose `Status` and `Problem.Error` are exactly the Hu
 - [ ] **Step 4:** `fake.go`, `fake_projects.go`, `fake_briefs.go`. Pass under `-race`. The
   `var _ Hub = (*Fake)(nil)` assertion needs part 2's methods: until task 05, `fake.go` gives each
   part-2 method a body returning `&Error{501, …"not_in_fake_yet"}`, which task 05 deletes.
-- [ ] **Step 5:** Commit by pathspec, the six files.
+- [ ] **Step 5:** Commit by pathspec, the seven files (`client.go` included, D1).
 
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/hub/hubclient/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 11
+go test ./control-plane/internal/hub/hubclient/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 16 (the table's 14 + D2's 2)
 go vet ./control-plane/internal/hub/hubclient/                                                 # no output
 go list -deps ./control-plane/internal/hub/hubclient | grep panacea-app
 #   …/internal/httpx   …/internal/hub/hubapi   …/internal/hub/hubclient   …/internal/ids   — and nothing else
@@ -319,3 +324,44 @@ go list -deps ./control-plane/internal/hub/hubclient | grep panacea-app
   conformance suite (task 05) is what makes the two agree, and only for what a caller observes.
 - Designs, releases, evidence and the feed: task 05.
 - Any HTTP behaviour: tasks 33 and 34.
+
+#### As built (2026-09-25, commit 142bc7b)
+
+- **D1 — the stub's file.** `Client`, `New` and the 38 `ErrNotConfigured` methods are in
+  `client.go`; `NewFake` is in `fake.go`. `hubclient.go` holds the interfaces, `Error`, `Code`, the
+  three sentinels and the two `var _ Hub` lines. Reason above the Steps; seven files, not six.
+- **D2 — the count** is 16, not 11: the table has 14 rows (the 11 predates HA4-2/3/4's three), and
+  two tests are added. `TestFakeCallsListsEveryCall` pins `Calls()` (order across views, refused and
+  switched calls included, a copy returned). `TestFakeIsSafeForConcurrentUse` pins "safe for
+  concurrent use" under `-race` (16 writers through two views).
+- **D3 — `EraseBrief` is held to §5.3's matrix.** A view whose `FakeUser` is not `OrgAdmin` gets 403
+  `forbidden`, `required: org_admin`; `reason` is 1–500 characters (400 `field: reason`); a brief
+  not in the org is 404 `brief_not_found`. It reaches every brief of the org, readable or not
+  (§5.2: erasure is the org admin's; reading content is not). Carried to task 05
+  (`carried/task-05.md` item 1): its `five_states` row needs an org-admin view.
+- **D4 — where the part is silent, the server tasks' text is followed**, so the conformance suite
+  can agree: a malformed id is the 404 of its kind (task 15); teams by `lower(name)`, members by
+  `lower(display_name)`, invites newest first (15, 16a); `SetMember` adds with `addedBy` the caller,
+  400 `field: role`, 404 `member_not_found` for no such user (15); invites 400 `field: email`
+  (3–254, one `@`, lowercased) or `field: role`, 409 `conflict` `field: email` for a member's email
+  (16a); `CreateProject` 403 `required: member` for a viewer, at most 20 distinct remotes, 409
+  `conflict` `field: name` case-insensitively per team (17); `ProjectForRepo` 400 `field: repo`
+  for a key of neither host (17); `AddRemote` 400 `field: host` or `field: repoKey` (17); a viewer
+  is 403 `required: member` on every brief write (§5.3, 18); route 26 in task 19's order (count and
+  distinct ids, then the role, then every content, then 404 for a brief not this project's, then
+  409 `brief_archived`, then `revision_conflict` in brief-id order, then the envelope's 64 KiB); a
+  content error's `field` is `revisions[i].content` plus the `hubapi.FieldError` path, as
+  `FieldError`'s doc says. Lists: `limit` 0 is 50, 1–200 taken, else 400 `field: limit`; the
+  `Revisions` cursor is the last revision in decimal (task 19: `after=1&limit=1` is `[2]`); the
+  `List` cursor is the last head's id; a cursor not given by that list is 400 `field: after`.
+- **D5 — three rulings on the facts.** `ForBranch` with `""` is 400 `field: branchRef` (route 21's
+  ref is required; a project brief alone is `List{Scope: "project"}`). `Rebind` checks
+  `brief_archived` before `brief_exists` (a write to an archived brief is always refused), and a
+  rebind to the brief's own ref is a no-op. `Resolve` takes any number of keys, 0 included
+  (`results: []`, `heads: {}`), as the interface says; the Hub's 1–100 is the client's to honour.
+- **D6 — the switches.** Both on: `ErrSignedOut` (no token, no request). A switched call is still
+  listed by `Calls()`. The part-2 placeholders are logged and switched like every call.
+- **D7 — no digest re-check on read.** Nothing but the fake writes its bytes, so none can drift;
+  the check would be code no test can reach.
+- **Red for `TestErrorCarriesTheProblemUnchanged`** is mutant N01, not the stub run: Step 2 writes
+  `Error` and `Code` before Step 3's tests, so the test passed against the stub fake.

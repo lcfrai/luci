@@ -423,8 +423,8 @@ func TestFakeBriefExistsAndArchiveFreesTheRef(t *testing.T) {
 
 	// Archive frees the ref; the archived brief is still readable, and refuses writes.
 	arch := must(grace.Archive(bg, b1.ID))(t)
-	if arch.ArchivedAt == nil || arch.ID != b1.ID {
-		t.Fatalf("Archive = %+v, want archivedAt set", arch)
+	if arch.ArchivedAt == nil || arch.ID != b1.ID || arch.UpdatedAt != *arch.ArchivedAt || arch.UpdatedAt <= b1.UpdatedAt {
+		t.Fatalf("Archive = %+v, want archivedAt set and updatedAt moved to it", arch)
 	}
 	b2 := branchBrief(t, ada, p.ID, feat)
 	if b2.ID == b1.ID {
@@ -443,8 +443,11 @@ func TestFakeBriefExistsAndArchiveFreesTheRef(t *testing.T) {
 	// Rebind moves the ref and no revision; the next revision carries the new ref.
 	r1 := write(t, ada, p.ID, b2.ID, 0, "open")
 	rb := must(ada.Rebind(bg, b2.ID, "refs/heads/renamed"))(t)
-	if rb.BranchRef != "refs/heads/renamed" || rb.HeadRevision != 1 {
-		t.Errorf("Rebind = %+v, want the new ref at head 1", rb)
+	if rb.BranchRef != "refs/heads/renamed" || rb.HeadRevision != 1 || rb.UpdatedAt <= r1.SavedAt {
+		t.Errorf("Rebind = %+v, want the new ref at head 1 and updatedAt moved", rb)
+	}
+	if same := must(ada.Rebind(bg, b2.ID, "refs/heads/renamed"))(t); same.UpdatedAt != rb.UpdatedAt || same.BranchRef != rb.BranchRef {
+		t.Errorf("a rebind to its own ref = %+v, want a no-op", same)
 	}
 	r2 := write(t, ada, p.ID, b2.ID, 1, "open")
 	if r1.BranchRef != feat || r2.BranchRef != "refs/heads/renamed" {
@@ -509,6 +512,10 @@ func TestFakeRevisionNumberingAndConflict(t *testing.T) {
 	h := headOf(t, ada, b.ID)
 	if h.HeadRevision != 3 || h.HeadKey == nil || *h.HeadKey != r3.Key || h.HeadStatus == nil || *h.HeadStatus != "open" {
 		t.Errorf("head = %+v, want revision 3", h)
+	}
+	// A write moves the head's updatedAt to the revision's savedAt (one transaction).
+	if h.UpdatedAt != r3.SavedAt || h.UpdatedAt <= b.UpdatedAt || h.CreatedAt != b.CreatedAt {
+		t.Errorf("head times = created %s updated %s; want created kept, updated = revision 3's savedAt %s", h.CreatedAt, h.UpdatedAt, r3.SavedAt)
 	}
 
 	// History: oldest first, gapless, paged by revision.
@@ -641,6 +648,14 @@ func TestFakeBatchHoldsSixtyFour(t *testing.T) {
 		if want := min(1, 64-i); h != want {
 			t.Fatalf("after the refused 65: brief %d is at %d, want %d", i, h, want)
 		}
+	}
+
+	// 65 heads: the default page is 50 (contract §1), and 200 holds them all.
+	if page := must(ada.List(bg, p.ID, hubapi.BriefQuery{}))(t); len(page.Items) != 50 || page.Next == nil || *page.Next != page.Items[49].ID {
+		t.Errorf("List at the default limit: %d items, next %v; want 50 and the 50th's id", len(page.Items), page.Next)
+	}
+	if page := must(ada.List(bg, p.ID, hubapi.BriefQuery{Page: hubapi.PageRequest{Limit: 200}}))(t); len(page.Items) != 65 || page.Next != nil {
+		t.Errorf("List at limit 200: %d items, next %v; want 65 and no next", len(page.Items), page.Next)
 	}
 }
 
