@@ -22,7 +22,9 @@ the reaper, restart). A worktree with a live session is refused (`live_sessions`
 kills them through the existing kill verb as part of the same question (task 22), then removes.
 
 **Files:**
-- `control-plane/internal/lanes/remove.go` + test — `RemovalState`, `Inspect`, `Remove` (new)
+- `control-plane/internal/lanes/remove.go` + test — `RemovalState`, `Remove`, `OffBranchPrefix`, `OffBranchRefspecs` (new)
+- `control-plane/internal/converge/inspect.go` + test — `Inspect`, through task 24's runner (new;
+  in `converge` because `lanegit` imports `lanes`)
 - `control-plane/internal/converge/branches.go` + test — `CreateBranch`, `RenameBranch`, `DeleteBranch` (new)
 - `control-plane/internal/api/worktrees.go` — DELETE (task 04's file)
 - `control-plane/internal/api/branches.go` + test — POST, PATCH, DELETE branches; GET renames (new)
@@ -36,7 +38,7 @@ package lanes
 // RemovalState is what removing a lane would lose. The desktop shows all of it in one question.
 type RemovalState struct {
 	LiveSessions []string // "id\ttitle", registry sessions not exited
-	Uncommitted  []string // paths from the clone's `status --porcelain=v2 -z` (task 07's parser); empty when its directory is gone
+	Uncommitted  []string // paths from runner.Status's PorcelainV2Z (task 24; task 07's parser); empty when its directory is gone
 	Unlanded     []string // short shas: LaneRef ^refs/heads/<branch>, at most 20, after a SyncLane
 	LaneTip      string
 	// Elsewhere is work in the clone the lane does not reach (review I6): "refs/heads/<name>\t<short
@@ -44,63 +46,99 @@ type RemovalState struct {
 	// contain, and "HEAD\t<short sha>" for a detached HEAD it does not contain; sorted, at most 20.
 	// None of it syncs, so without this the question omits it and RemoveTree deletes it.
 	Elsewhere []string
-	// Unlisted is git's sentence when the Elsewhere listing itself failed (a --no-merged walk that
-	// hits a missing object, a Read timeout; re-review b04-1 issue 2). Elsewhere is then empty but
-	// not known to be empty, so the archive takes the wildcard and NothingToLose is false.
+	// Unlisted is the runner's sentence (a RunnerError's GitSays) when runner.Refs answered but the
+	// Elsewhere listing failed (a --no-merged walk that hits a missing object, git_timeout;
+	// re-review b04-1 issue 2). Elsewhere is then empty but not known to be empty, so the archive
+	// takes every ref in Listed and NothingToLose is false.
 	Unlisted string
+	// Listed is set only with Unlisted: "refs/heads/<name>\t<sha>" for every ref a second
+	// runner.Refs{Names: [refs/heads/*]}, MergedInto "" (no walk), names, plus "HEAD\t<sha>" when
+	// detached; sorted. It is what the archive carries in place of Elsewhere. Not hashed: with
+	// Unlisted, set(Unlisted) is what the token binds, as the wildcard it replaces bound no sha.
+	Listed []string
 	// ArchivedAt is the prefix Inspect's archive (below) fetched into, OffBranchPrefix(id, now), or
-	// "" when there was nothing to archive. With Unarchivable set, some or none of it was written.
+	// "" when there was nothing to archive. With Unarchivable set, none of it was written
+	// (FetchLane's project fetch is --atomic, task 24).
 	ArchivedAt string
-	// Unarchivable is git's sentence when Inspect's archive of Elsewhere (or, with Unlisted or
-	// Refused set, of the clone's whole refs/heads/*) failed: a clone with a broken or hostile ref.
+	// Unarchivable is the sentence when Inspect's archive of Elsewhere (or, with Unlisted set, of
+	// Listed) failed, from the runner's bundle or from task 24's FetchLane checks and fetch in the
+	// project: a clone with a broken or hostile ref.
 	// The archive is real, not a dry run, because a dry run skips the ref writes and so cannot see a
-	// ref-write failure: a D/F pair among the clone's own packed refs, a path too long, a held lock
+	// ref-write failure: a D/F pair among the clone's own packed refs (the bundle carries both refs
+	// and the project's --atomic fetch cannot write both), a path too long, a held lock
 	// (re-review b04-1 issue 1, probed). It is in the question, and its presence is in the token, so
 	// the human confirms the loss knowingly, and a clone an agent broke stays removable.
 	// "" when the archive succeeded or had nothing to do.
 	Unarchivable string
-	// Refused is the key task-02 §HGH refused in the clone's config, so its status was never
-	// run (Scope Clone). It is "" when the status was read. A refused clone must stay removable,
-	// or an agent could make its own worktree permanent. So Refused is not an error:
-	// NothingToLose is false and the question says the uncommitted files could not be listed.
-	Refused string
-	// Confirm is hex(sha256(sorted LiveSessions ‖ "\n" ‖ sorted Uncommitted ‖ "\n" ‖ Refused ‖ "\n" ‖
-	// LaneTip ‖ "\n" ‖ sorted Elsewhere ‖ "\n" ‖ set(Unlisted) ‖ "\n" ‖ set(Unarchivable)))[:16],
+	// Unreadable is set when the runner cannot answer: LaneGit.For fails (ErrNoRunner on katabe,
+	// a runner-only sandbox that does not start), runner.Status fails, or runner.Refs gets no
+	// answer (a RunnerError with Status 0). A lane whose runner cannot answer stays removable, or
+	// an agent could make its own worktree permanent by breaking its runner. So Unreadable is not
+	// an error: NothingToLose is false and the question says the lane's files and branches could
+	// not be read.
+	Unreadable string // the runner's sentence when the lane's status or refs could not be read
+	// Confirm is hex(sha256(sorted LiveSessions ‖ "\n" ‖ sorted Uncommitted ‖ "\n" ‖ set(Unreadable) ‖
+	// "\n" ‖ LaneTip ‖ "\n" ‖ sorted Elsewhere ‖ "\n" ‖ set(Unlisted) ‖ "\n" ‖ set(Unarchivable)))[:16],
 	// where set(s) is "1" when s is non-empty and "" when not.
-	// A DELETE carrying it proves the human saw this exact state. Git's wording of a failure is
-	// shown, never hashed. The token must survive a retry, and nothing pins that wording across
-	// attempts: with --quiet the D/F failure names only the clone's path (probed, fix batch b04
-	// round 2), but without it each ref line names the attempt's <unix> prefix, and a timeout can
-	// name a duration. ArchivedAt, which holds that <unix>, is not hashed either. What is at risk
-	// is bound by Elsewhere's shas.
+	// A DELETE carrying it proves the human saw this exact state. Git's and the runner's wording of
+	// a failure is shown, never hashed. The token must survive a retry, and nothing pins that
+	// wording across attempts: the project fetch's source is now a bundle file whose name is random
+	// per call (task 24), each ref line names the attempt's <unix> prefix, and a timeout can name a
+	// duration. ArchivedAt, which holds that <unix>, is not hashed either. What is at risk is bound
+	// by Elsewhere's shas.
 	Confirm string
 }
 
 // NothingToLose is true when there are no uncommitted paths, no unlanded commits, nothing
-// Elsewhere, and Unlisted, Unarchivable and Refused are all "".
+// Elsewhere, and Unlisted, Unarchivable and Unreadable are all "".
 func (s RemovalState) NothingToLose() bool
+```
 
-// Inspect gathers RemovalState. It syncs the lane first so Unlanded is current, and it archives
-// what the lane does not reach before it answers, so the question reports what an archive did,
-// not what a probe predicted (re-review b04-1 issue 1). The clone's status runs with Scope Clone
-// (task-02 §HGH). When §HGH refuses the clone's config, it sets Refused, and Unlanded comes from
-// the project's existing lane ref, the last sweep's.
-// Elsewhere (review I6), in the clone with Scope Clone, all Read:
-//   for-each-ref --no-merged=refs/heads/<b> --format=%(refname)%00%(objectname) refs/heads/
-//   symbolic-ref -q HEAD (OKExit 1); when detached: rev-parse --verify -q HEAD, then
-//   merge-base --is-ancestor <sha> refs/heads/<b> (OKExit 1; 1 means Elsewhere)
-// Any of these failing sets Unlisted to git's sentence and leaves Elsewhere empty. When the clone
-// has no refs/heads/<b>, every refs/heads/* ref is Elsewhere. Then, when Elsewhere is non-empty
-// or Unlisted or Refused is set, the archive, in the PROJECT (Local, Scope Project; the clone is
-// only the upload-pack source, which task-02's TestHGHUploadPackSourceRunsNothing pins as
-// running nothing of the clone's), into prefix = OffBranchPrefix(lane.ID, now.Unix()):
-//   fetch --no-auto-maintenance --no-tags --no-write-fetch-head --quiet <FetchURL(clone)> <OffBranchRefspecs(st, prefix)>
-// (--no-auto-maintenance for task 07's reason: no detached gc in the project; review Minor 8.)
-// It sets ArchivedAt to prefix, and on failure Unarchivable to git's sentence. It only adds refs,
-// so what a failed fetch did write stays. Each attempt has its own <unix>; an earlier attempt's
-// archive is kept, like every archive ref (Q5), and a same-second retry force-updates the same refs.
-func Inspect(ctx context.Context, m gitx.Machine, sync func(ctx context.Context, id string) error,
-	projectPath string, lane Lane, live []string, now time.Time) (RemovalState, error)
+```go
+package converge // not lanes: task 24's lanegit imports lanes, so lanes cannot import lanegit
+
+// Inspect gathers lanes.RemovalState. It syncs the lane first so Unlanded is current, and it
+// archives what the lane does not reach before it answers, so the question reports what an
+// archive did, not what a probe predicted (re-review b04-1 issue 1). The host runs no git in the
+// clone (R4.2): every read of it is lg.For(ctx, lane)'s runner (task 24). Remove needs no live
+// session, so with none on the lane the pool starts a runner-only sandbox for this request.
+// When For fails, or any runner call gets no answer, Inspect sets Unreadable and asks the runner
+// nothing more, and Unlanded comes from the project's existing lane ref, the last sweep's. When
+// lane.Path is already gone, For is not called: there is no clone left to lose from.
+//   Uncommitted: runner.Status's PorcelainV2Z through task 07's parser. Any failure sets
+//     Unreadable; Refs is still asked when the runner answered (a git_failed status).
+//   Elsewhere (review I6): runner.Refs{Names: [refs/heads/*], MergedInto: refs/heads/<b>}; each
+//     ref other than <b> with Merged false. Merged must be positive evidence: a ref naming a
+//     missing object is in neither --merged nor --no-merged (probed, git 2.53, both exit 0), so
+//     task 24's "listed, and absent from --no-merged" reads it as Merged and drops it; task 24
+//     should take Merged from --merged=<MergedInto> (recorded for task 24).
+//     Then the answer's Head: detached (Ref "") with a Sha is Elsewhere unless, in the PROJECT (Read, Scope Project), cat-file -e <sha>^{commit} finds it
+//     and merge-base --is-ancestor <sha> <LaneTip> exits 0 (OKExit 1); the runner's sha is data.
+//   A git_failed or git_timeout answer is followed by runner.Refs{Names: [refs/heads/*]} with
+//     MergedInto "", which walks nothing. When that listing has no refs/heads/<b>, every ref it
+//     names is Elsewhere; otherwise Unlisted is the first answer's GitSays and Listed that listing.
+// Then, when Elsewhere or Listed is non-empty, the archive, into the PROJECT, with prefix =
+// OffBranchPrefix(lane.ID, now.Unix()):
+//   lanegit.FetchLane(refs: the refnames of Elsewhere (or Listed) [+ HEAD when detached, which
+//                     is then among them], basis: none, refspecs: OffBranchRefspecs(st, prefix))
+// on the same runner, into projectPath (the *gitx.Exec behind m, as task 07 passes it). The
+// runner bundles them and the host verifies and fetches the bundle file (task 24, R4.4); the
+// project fetch keeps --no-auto-maintenance for task 07's reason (no detached gc in the project;
+// review Minor 8). No Basis: an archive must carry every object. With Unreadable set nothing is
+// archived, since no runner can bundle. Task 24's FetchLane checks refs under refs/heads/ and
+// destinations under refs/panacea/lanes/; this call needs it to accept "HEAD" as a ref and
+// refs/panacea/archive/offbranch/ as a destination (recorded for task 24).
+// It sets ArchivedAt to prefix, and on failure Unarchivable to the sentence (a RunnerError's
+// GitSays, a *BundleRefused's Why, a *gitx.Error's). FetchLane's --atomic means a failed archive
+// writes no ref. Each attempt has its own <unix>; an earlier attempt's archive is kept, like
+// every archive ref (Q5), and a same-second retry force-updates the same refs.
+func Inspect(ctx context.Context, m gitx.Machine, lg *lanegit.Lanes,
+	sync func(ctx context.Context, id string) error,
+	projectPath string, lane lanes.Lane, live []string, now time.Time) (lanes.RemovalState, error)
+```
+
+```go
+package lanes
 
 // Removed is a removal that happened.
 type Removed struct {
@@ -116,10 +154,10 @@ type Removed struct {
 // suggested ".../lanes/<id>/<unix>/<name>" could never be written beside step 1's ref.
 func OffBranchPrefix(worktreeID string, unix int64) string
 
-// OffBranchRefspecs maps st.Elsewhere to fetch refspecs under prefix, each named, never a
-// wildcard: "+refs/heads/<name>:<prefix>/heads/<name>" per branch, "+HEAD:<prefix>/HEAD" for a
-// detached HEAD. With st.Refused or st.Unlisted set, it is the one wildcard
-// "+refs/heads/*:<prefix>/heads/*".
+// OffBranchRefspecs maps st.Elsewhere (or, with st.Unlisted set, st.Listed) to fetch refspecs
+// under prefix, each named, never a wildcard, so each is "+<one of FetchLane's refs>:<dst>":
+// "+refs/heads/<name>:<prefix>/heads/<name>" per branch, "+HEAD:<prefix>/HEAD" for a detached
+// HEAD. With st.Unreadable set it is nil: nothing is archived.
 func OffBranchRefspecs(st RemovalState, prefix string) []string
 
 // Remove, in this order, each step idempotent so a failed removal can simply be retried:
@@ -131,7 +169,11 @@ func OffBranchRefspecs(st RemovalState, prefix string) []string
 //  2. update-ref -d refs/panacea/lanes/<id> <LaneTip>                                    (project)
 //  3. RemoveTree(CloneRoot, lane.Path) — skipped when the directory is already gone
 //  4. Store.Remove(id)
-// Steps 1-2 run with Scope Project (task-02 §HGH). Step 3 runs no git in the clone. The handler
+// Steps 1-2 run with Scope Project (task-02 §HGH). Step 3 runs no git in the clone: RemoveTree is
+// a file operation, not git, so it needs no runner (R4.2). Inspect releases its runner before it
+// returns. The pool keeps an idle runner-only sandbox for Idle (60 s) with lane.Path still
+// mounted, so step 3 deletes under that mount unless task 24's pool can drop one lane's sandbox
+// first (recorded for task 24). The handler
 // passes Inspect and Remove one now, so step 1's <unix> and ArchivedAt's are the same.
 // The caller (the handler) then clears the ready flag, deletes the worktree's exited session
 // records from the registry, and deletes its conversation store (OD-10).
@@ -229,8 +271,8 @@ DELETE /v1/projects/{projectId}/worktrees/{worktreeId}[?confirm=<token>]
   409 conflict  reason live_sessions      details.sessions "s-1\tupload-api\ns-2\tShell · upload-api"
   409 conflict  reason confirm_required   details.paths (a JSON array: task 04's detailList; review I2),
                                           details.commits, details.elsewhere (each newline-joined),
-                                          details.unlisted, details.unarchivable (git's sentence, or
-                                          absent), details.confirm
+                                          details.unlisted, details.unarchivable, details.unreadable
+                                          (git's or the runner's sentence, or absent), details.confirm
   409 conflict  reason confirm_stale      the same details, freshly read (an archive that failed
                                           after the token was shown lands here, with unarchivable)
   409 conflict  reason not_a_cockpit_worktree   (kind primary or linked: "remove it with git worktree remove")
@@ -249,7 +291,8 @@ GET    /v1/projects/{projectId}/renames
 
 The handler for a DELETE with nothing to lose proceeds without a token; with something to lose it
 requires `confirm` to equal a freshly computed `RemovalState.Confirm`. It takes one `now` per
-request and passes it to both `Inspect` and `Remove`. Every DELETE runs `Inspect`, so a 409
+request and passes it to both `Inspect` and `Remove`, and passes `GitDeps.LaneGit` (task 24) as
+`Inspect`'s `lg`. Every DELETE runs `Inspect`, so a 409
 answer has already archived the clone's other branches. After `lanes.Remove`, in
 `worktrees.go`: `Flags.SetWorktreeReady(id, false)`; `Store.Delete` for every **exited** session
 record on the worktree (the registry's own purge; a live one cannot exist here); and
@@ -259,6 +302,10 @@ edited. Audit line for the GET renames: *"Reads the lane index. Writes nothing."
 
 #### The tests to write first
 
+The removal tests run with `lanegittest.Fake` (task 24) as the lane's runner behind `Lanes.For`:
+the Fake's own git in the clone is test-side, so task 02's `Spy` sees only production calls, and
+"in the clone" below means through the Fake.
+
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestRemoveRefusesWhileASessionIsLive` | a running session on the worktree → `live_sessions`, directory intact, no destroy called on the backend | a fourth destroy site (contract §5.2) |
@@ -267,11 +314,12 @@ edited. Audit line for the GET renames: *"Reads the lane index. Writes nothing."
 | `TestRemoveHonoursOnlyTheTokenShown` | token from state 1; then the agent commits; DELETE with the old token → `confirm_stale`, directory intact | a confirmation of a question the human never saw |
 | `TestRemoveArchiveStartsNoMaintenance` (review Minor 8) | red first: the project's `.git/config` holds `maintenance.auto=true`; a clone with `fix-x` at X, `Inspect` under `t.Setenv("GIT_TRACE", <file>)` → the trace file holds the archive `fetch` and no `run_command: git maintenance` line | a removal leaving a detached gc on the project's `packed-refs.lock` that fails the next land |
 | `TestRemoveArchivesUnlandedCommits` | after removal, `refs/panacea/archive/lanes/<id>/<t>` names the old lane tip and `cat-file -e` finds every unlanded commit | unlanded work lost to `gc` (A7, R11) |
-| `TestRemoveArchivesOtherClonesBranches` (review I6) | in the clone, `switch -c fix-x`, commit X, `switch <b>`; then `switch --detach`, commit Y. DELETE → `confirm_required` whose `details.elsewhere` names `refs/heads/fix-x` and `HEAD`; with that token → 200, `<archivedElsewhere>/heads/fix-x` names X and `<archivedElsewhere>/HEAD` names Y, `cat-file -e` finds both in the project, and the project's `for-each-ref refs/heads` is unchanged. Red first against `Inspect` without the listing: the first DELETE on a landed lane answers 200 and X is gone | work an agent committed on another branch deleted with its clone |
+| `TestRemoveArchivesOtherClonesBranches` (review I6; on `lanegittest.Fake`) | in the clone, `switch -c fix-x`, commit X, `switch <b>`; then `switch --detach`, commit Y. DELETE → `confirm_required` whose `details.elsewhere` names `refs/heads/fix-x` and `HEAD`; with that token → 200, `<archivedElsewhere>/heads/fix-x` names X and `<archivedElsewhere>/HEAD` names Y, `cat-file -e` finds both in the project, and the project's `for-each-ref refs/heads` is unchanged. Red first against `Inspect` without the listing: the first DELETE on a landed lane answers 200 and X is gone | work an agent committed on another branch deleted with its clone |
 | `TestRemoveIgnoresBranchesTheLaneContains` | a clone branch `old` whose tip `refs/heads/<b>` contains → not in `Elsewhere`; a clean, landed lane with it → 200 without `confirm` | a question about work that is not at risk |
-| `TestRemoveAnUnarchivableCloneIsAskedNotStuck` | two clones, red first: (a) the clone's `refs/heads/bad` is a loose ref file naming a missing object; (b) re-review b04-1 issue 1: the clone's `packed-refs` holds `refs/heads/d` and `refs/heads/d/e`, a D/F pair packed-refs does not refuse, which a `fetch --dry-run` passes and a real fetch fails. Each → `Unarchivable` holds git's sentence and `details.unarchivable` carries it; two DELETEs a second apart (injected `now`) answer the same `details.confirm`; the DELETE with that token → 200 and the clone is gone. Then a fresh lane with `fix-x`: token shown, then a fetch fault injected into `Inspect`'s archive alone (a Runner wrapper) → `confirm_stale` with `unarchivable` set; the directory, the lane ref and the index entry all intact | an agent making its own clone permanent; a dry-run probe that cannot see a ref-write failure; a token that hashes git's per-attempt wording; a failed archive followed by a delete |
-| `TestRemoveWithAnUnlistedCloneArchivesTheWildcard` (re-review b04-1 issue 2) | a clean, landed lane whose clone has `fix-x` at X; a Runner wrapper fails the clone's `for-each-ref` alone → `Unlisted` holds its sentence, `Elsewhere` is empty, `NothingToLose()` is false, and the DELETE → `confirm_required` with `details.unlisted`; with that token → 200 and `<archivedElsewhere>/heads/fix-x` names X. Red first against a `NothingToLose` that ignores `Unlisted`: the first DELETE answers 200 and X is gone | a failed listing read as nothing elsewhere |
-| `TestRemoveAHostileCloneStillWorks` | task-02 §HGH, red first: the clone's config holds `core.fsmonitor=<marker script>` and `filter.x.clean=<marker script>` → `Inspect` sets `Refused` to the key and writes no marker; `NothingToLose()` is false; the DELETE with that `confirm` removes the clone, after `Inspect`'s wildcard archive (review I6) wrote `<archivedElsewhere>/heads/<b>`, with still no marker | a hostile clone the cockpit can no longer remove |
+| `TestRemoveAnUnarchivableCloneIsAskedNotStuck` (on `lanegittest.Fake`) | two clones, red first: (a) the clone's `refs/heads/bad` is a loose ref file naming a missing object, which is not `Merged` and so is `Elsewhere`, and fails in the runner's bundle (`fatal: bad object refs/heads/bad`, probed on git 2.53) → `Unarchivable`; (b) re-review b04-1 issue 1: the clone's `packed-refs` holds `refs/heads/d` and `refs/heads/d/e`, a D/F pair packed-refs does not refuse, which a `fetch --dry-run` passes and a real fetch fails. Each → `Unarchivable` holds git's sentence and `details.unarchivable` carries it; two DELETEs a second apart (injected `now`) answer the same `details.confirm`; the DELETE with that token → 200 and the clone is gone. Then a fresh lane with `fix-x`: token shown, then a fetch fault injected into `Inspect`'s archive alone (a Runner wrapper) → `confirm_stale` with `unarchivable` set; the directory, the lane ref and the index entry all intact | an agent making its own clone permanent; a dry-run probe that cannot see a ref-write failure; a token that hashes git's per-attempt wording; a failed archive followed by a delete |
+| `TestRemoveWithAnUnlistedCloneArchivesEveryBranch` (re-review b04-1 issue 2) | a clean, landed lane whose clone has `fix-x` at X; a `lanegit.Runner` wrapper answers `git_failed` to `Refs` with `MergedInto` set, and passes the plain listing → `Unlisted` holds its sentence, `Listed` names `<b>` and `fix-x`, `Elsewhere` is empty, `NothingToLose()` is false, and the DELETE → `confirm_required` with `details.unlisted`; with that token → 200 and `<archivedElsewhere>/heads/fix-x` names X. Red first against a `NothingToLose` that ignores `Unlisted`: the first DELETE answers 200 and X is gone | a failed listing read as nothing elsewhere |
+| `TestRemoveALaneWhoseRunnerCannotAnswerStillWorks` | red first, two cases: `Lanes.For` answers `ErrNoRunner` (the katabe backend), and a runner whose `Status` gets no answer (a `RunnerError` with `Status` 0) → `Inspect` sets `Unreadable` to the runner's sentence, archives nothing, and answers no error; `NothingToLose()` is false; the DELETE → `confirm_required` with `details.unreadable`; with that `confirm` → 200, the clone, the lane ref and the index entry gone. Red first against a `NothingToLose` that ignores `Unreadable` (the first DELETE answers 200) and against an `Inspect` that returns For's error (a 500 forever) | a lane the cockpit can no longer remove because its runner is broken; a broken runner read as nothing to lose |
+| `TestRemoveRunsNoHostGitInTheLane` (R4.2) | task 02's `Spy` on the `*gitx.Exec`, over a lane with `fix-x`, a detached HEAD and one uncommitted file: `Inspect` then `Remove` → no recorded spawn has `lane.Path` (or anything under it) as its dir, `-C`, `--git-dir`, `--work-tree` or argv source (the Fake's own git is test-side and unrecorded, so a hostile clone config is task 24's sandbox-side concern, not asserted here); the archive still lands in the project. Red first against the pre-R4 `Inspect`, whose in-clone `for-each-ref` the spy records | host git reading an agent-written config in the clone |
 | `TestRemoveWithNothingToLoseNeedsNoToken` | clean, landed lane → 200 without `confirm` | a question with nothing in it |
 | `TestRemoveDeletesTheCloneTheLaneRefAndTheIndexEntry` | the directory, `refs/panacea/lanes/<id>` and the store entry are all gone | half a removal |
 | `TestRemoveIsRetryable` | `RemoveTree` fails once (a Runner/FS fake) → second DELETE completes | a lane stuck in the index with no directory |
@@ -296,13 +344,14 @@ edited. Audit line for the GET renames: *"Reads the lane index. Writes nothing."
 
 #### Steps
 
-- [ ] **Step 1: Preflight.** Tasks 04, 07 and 08 merged, so `briefref` (task 03), `gitx.Locks`
-  (task 02), `GitDeps.Locks` (task 04) and `converge.CheckedOutAt` (task 08, which DeleteBranch
-  and RenameBranch refuse by; review Minor 16) exist; nothing here waits on task 09 (review I7).
+- [ ] **Step 1: Preflight.** Tasks 04, 07, 08 and 24 merged, so `briefref` (task 03), `gitx.Locks`
+  (task 02), `GitDeps.Locks` (task 04), `converge.CheckedOutAt` (task 08, which DeleteBranch
+  and RenameBranch refuse by; review Minor 16), and `lanegit.Lanes`, `FetchLane`, `GitDeps.LaneGit`
+  and `lanegittest.Fake` (task 24) exist; nothing here waits on task 09 (review I7).
   Task 01's `TestBehaviourRemoveAllOnAClone`, `TestBehaviourUpdateRefCreateOnlyRefusesAnExistingRef`,
   `TestBehaviourCheckRefFormatBranchExpandsShorthand`, `TestBehaviourRemoveSectionExitCodes` and
   `TestBehaviourBranchRenameMovesACheckoutsHead` read.
-- [ ] **Step 2:** tests; `remove.go`, `branches.go`; handlers, routes, deps, audit line.
+- [ ] **Step 2:** tests; `remove.go`, `inspect.go`, `branches.go`; handlers, routes, deps, audit line.
 - [ ] **Step 3:** run and commit by pathspec.
 
 #### Acceptance
