@@ -149,7 +149,11 @@ clone root, so it runs as before. Its effects, each from §HGH and restated nowh
 - **A refusal fails the create or restart, as a conflict.** `handleSessionCreate` and
   `handleSessionRestart` check the resolver's error with `errors.As(err, &u)` for a
   `*gitx.UntrustedConfig` before `a.internal`, and write `gitConflict(w,
-  ReasonCloneConfigUntrusted, …, {"key": u.Key})` (task 04). Nothing is recorded and no sandbox starts.
+  ReasonCloneConfigUntrusted, msg, {"key": u.Key})` (task 04), where `msg` is *"This worktree's
+  git config holds <key>, which the cockpit never runs with. Remove it from <path>/.git/config,
+  or remove the worktree."* Phase 2's desktop renders a `conflict` verbatim: `classify` answers
+  `server-said` for every code but two (`desktop/src/api/problems.ts:37-41`, read 2026-09-24). The create records nothing and starts no sandbox; the
+  restart leaves the old sandbox alive, as phase 2's does for any resolver error.
   `sessionGitIdentity` logs and swallows its error as phase 2 wrote it, and it runs after the two
   resolvers that would already have refused.
 - **A mount source is never reached through the worktree.** A relative answer can still come from

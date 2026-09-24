@@ -9,7 +9,9 @@ uses, copying `ExecRunner`'s discipline and changing exactly those two things pe
 also declares the one seam phase 8 needs (brief A6) and the trailer writer every land uses.
 
 `project.ExecRunner` is **not** edited, and phase 2's `project.Runner` stays the read path for
-enumeration. After this task the product has two process launchers; the comment on
+enumeration. Phase 2's three per-worktree resolvers keep taking a `project.Runner`, but in a lane
+clone that runner is task 05's `laneResolverRunner`, which runs each call through this task's
+`Exec` as `Scope: Clone` (plan re-review b02-2 X-1). After this task the product has two process launchers; the comment on
 `ExecRunner` that calls itself "the only place" is amended in one line to name this one too.
 
 **Files:**
@@ -396,7 +398,8 @@ child's environment without trusting the code under test.
 primary worktree. The agent can therefore write any key into either `config`, and any file into
 either `hooks/`. The control plane runs the **host's** git in both repositories: task 07's lane
 sync and observer, task 09's land and origin refresh, task 10's undo and revert, task 11's remove
-question, task 12's fetch and push, and task 13's `credential fill`. Unhardened, each of those calls is code
+question, task 12's fetch and push, task 13's `credential fill`, and, in a lane clone, phase 2's
+three per-worktree resolvers (task 05's `laneResolverRunner`, re-review b02-2 X-1). Unhardened, each of those calls is code
 execution on the Windows host, as the user, outside the microVM. Each is also a path to the
 user's token, which breaks A4.
 
