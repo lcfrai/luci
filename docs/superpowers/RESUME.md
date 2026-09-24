@@ -129,6 +129,18 @@ build stream with `args {"stream":"p3","cleared":["b02"]}`.
 - Team-collab research: COMPLETE (`00-summary.md`). Linear parity-plus: COMPLETE (`00-summary.md`, `prototype/work-layer.html`).
 - Owner decisions now run OD-1 to OD-24. OD-21: LiteLLM. OD-22: read-only fetch. OD-23: a policy injection mechanism. OD-24: the data class is set at creation and drives inference and deploy scans.
 
+**Added 09:00, 2026-09-25: three new streams** (OD-21 to OD-28). The worktrees are
+`.claude/worktrees/{phase-6,team,work}`, on branches `feat/phase-6-gateway`, `feat/team-mode` and
+`feat/work-layer`.
+- **Plans:** `wave-c-plans`, run `wf_33255dc5-1ac`: skeleton, then parallel part writers, then an
+  adversarial review, for each stream. It has **parallel chains, so do not resume it by prefix**
+  after an interruption. Read its journal and write a continuation per stream.
+- **Build streams**, all on the session's `build-stream-wf_56772bc5-8a7.js` (copy:
+  `.superpowers/workflows/build-stream-current.js`). Their gates wait for the plan reviews:
+  - p6: run `wf_3628332d-1ab`, args `{"stream":"p6"}`;
+  - team: run `wf_e90a5a3f-ad5`, args `{"stream":"team"}`;
+  - work: run `wf_d0a82d09-d10`, args `{"stream":"work"}`.
+
 ## 4. After phase 2's fix rounds finish
 
 Still to do for phase 2:
