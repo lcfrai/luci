@@ -21,6 +21,12 @@ lines 573-611, states `m-now`, `m-conf`, `m-race`, `m-checked`, `m-gitfail`, `m-
 - `desktop/src/components/lens/merge/landing.ts` — `landOne`, `landAllInOrder` (new)
 - `desktop/src/components/lens/merge/merge.css` (new; first line `@import "../../../styles/tokens.css";`)
 - tests beside each (new)
+- `desktop/src/components/AppShell.test.tsx` — the Merge click's two placeholder asserts only (p2;
+  `:111-112` at `c97de8c`, `:119-120` on feat/phase-2-cockpit; find them by
+  `/Arrives in phase 3\./`). They read `LensPlaceholder`'s `<h2>merge</h2>` and "Arrives in phase
+  3.", which the filled lens no longer renders. They become: the title row's heading is present,
+  and `screen.queryByText(/Arrives in phase/)` is null. The Authority entry below them is task 22's
+  (re-review b11-1 nit)
 
 #### Interfaces — complete
 
@@ -265,7 +271,8 @@ fixtures from task 18's builders.
 #### Steps
 
 - [ ] **Step 1: Preflight.** G2: `grep -c "export function MergeLens" desktop/src/components/lens/MergeLens.tsx` is 1 and
-  `grep -c "MergeLens" desktop/src/components/AppShell.tsx` ≥ 1. Task 18 merged. `AppShell.tsx` is **not** opened.
+  `grep -c "MergeLens" desktop/src/components/AppShell.tsx` ≥ 1. Task 18 merged. `AppShell.tsx` is **not** opened;
+  `AppShell.test.tsx` is, for the two Merge placeholder asserts only (Files, above).
 - [ ] **Step 2:** `model.ts` tests and functions first; then the components with their tests.
 - [ ] **Step 3:** `merge.css` from tokens only; `FactShape`'s triangle is `clip-path`, not borders.
 - [ ] **Step 4:** run; commit by pathspec.

@@ -499,6 +499,7 @@ desktop/src/
   components/lens/MergeLens.tsx     (task 26's stub) filled                                   19 20
   components/lens/merge/*           LaneCard, QueueList, BringInRow, LandedList, RemoteBar,
                                     ResolveDialog, EvidenceDialog, merge.css                  19 20
+                                    (22 wires MergeBanner.tsx's m-new New worktree)           22
   components/lens/FilesLens.tsx     (task 26's stub) filled                                   21
   components/lens/files/*           PathList, PathDiff, SpanDrawer, files.css                 21
   components/menu/ContextMenu.tsx   (p2) spread phase 3's items; project "New branch" enabled 22
@@ -509,7 +510,9 @@ desktop/src/
   store/slices/{prefs,ui}Slice.ts   (p2) rebindBranch — keys moved, no persist version        22
   components/palette/commands.ts    (p2) append                                               22
   components/topbar/TopBar.tsx      (p2) line 29's title loses "Phase 3"                      22
-  components/AppShell.test.tsx      (p2) line 119's Authority entry follows TopBar's title    22
+  components/AppShell.test.tsx      (p2) :111-112 the Merge placeholder's asserts → the filled
+                                    lens (19); :119 the Authority entry follows TopBar (22)   19 22
+                                    (lines here; +8 on feat/phase-2-cockpit, find by text)
   components/develop/sessionVerbs.ts  (p2) :607-608, :624 point at Not ready (Minor 10)       22
   styles/tokens.css                 (p2) --diff-add, --diff-del (check first, rule 2)          21
 ```
