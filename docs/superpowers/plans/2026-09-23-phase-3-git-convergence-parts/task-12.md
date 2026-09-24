@@ -79,7 +79,9 @@ type FetchResult struct {
 // ErrNoRemote is a project with no origin.
 var ErrNoRemote = errors.New("remote: the project has no origin")
 
-// Fetch runs `fetch --prune origin` (gitx.Remote) in the project. It records the failure's
+// Fetch runs `fetch --no-auto-maintenance --prune origin` (gitx.Remote) in the project (the flag
+// for task 07's reason: no detached gc holding packed-refs.lock under a land; review Minor 8).
+// It records the failure's
 // sentence as the project's last error (ReadState's FetchError) and clears it on success.
 // Hardened per task-02 §HGH: Scope Project, and RemoteURL is `config --get remote.origin.url`,
 // read just before the call (H2). It holds Locks.Lock(ctx, p.ID) for the whole call.
@@ -175,6 +177,7 @@ Real git against a **bare repository on disk** as the remote, and, for the crede
 | `TestPushAndFetchRefuseARepoProxy` | review C3 and b01 re-review R3, red first. The remote `U` is a `gitxtest.HTTPSRemote`; `P` is a second listener that counts connections. Two project configs: (a) `http.<U's scheme://host:port>/.proxy=<P>`, keyed at `U`'s exact scheme, host and port; (b) `remote.origin.proxy=<P>`. **Precondition**, raw git with no Exec: for (a), `config --get-urlmatch http.proxy U` → P, so the key matches. Through Push and Fetch: (a) and (b) are each refused `project_config_untrusted`, naming `http.<…>.proxy` and `remote.origin.proxy`, and `P` saw no connection. With the H3 check mutated away, (a) still sends nothing to `P` (H2), and (b) reaches `P` (so H3 is the only layer for (b), as task-02 §HGH H2 states) | a generic-only H2 override; a Project list that admits a per-remote proxy |
 | `TestPushRunsNoPrePushHook` | task-02 §HGH H4: the project's `.git/hooks/pre-push` writes a marker → a push succeeds and no marker exists | a cockpit push that runs the repository's hooks |
 | `TestFetchRunsAfterFetchInsideTheLock` (review I5) | a stub `AfterFetch` records its arguments and, on a second goroutine, calls `Locks.Lock` for the same project with a 100 ms deadline → called once with the project's path and id after a successful fetch, and that `Lock` returned the deadline's error (the fetch still held the lock); a failed fetch → not called; `AfterFetch` nil → the fetch still succeeds | clones never told about a fetch, or a refresh racing a land |
+| `TestFetchStartsNoMaintenance` (review Minor 8) | red first: the project's `.git/config` holds `maintenance.auto=true` (the project refusal list admits it); `Fetch` under `t.Setenv("GIT_TRACE", <file>)` → the trace file holds the `fetch` and no `run_command: git maintenance` line | a timer fetch leaving a detached gc on the project's `packed-refs.lock` that fails the next land |
 | `TestFetchWritesFetchHeadAndPrunes` | a branch deleted on the remote disappears from `refs/remotes/origin/*`; `FetchedAt` is FETCH_HEAD's new mtime | stale remote branches forever |
 | `TestFetchRecordsAndClearsTheLastError` | a failing fetch → `LastError` is git's sentence; a later success → `""`; `ReadState` reports the same through `FetchError` | a stale "fetched 15:36" with no hint it is failing |
 | `TestFetchTimerOnlyTouchesListedProjects` | `Projects` returns one of two repos → only that one's FETCH_HEAD changes over two intervals (shortened) | fetching every repository under the root |
