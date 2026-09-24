@@ -97,14 +97,35 @@ type Lander struct {
 // 12. update-ref -m "panacea: land <worktree id>" refs/heads/<branch> merge old
 //     — refused: re-read the tip; moved → branch_moved (details.tip, details.gitSays); else git_failed
 // 13. Flags.SetWorktreeReady(id, false); a failure is logged and ReadyCleared = false
-// 14. for every lane of the branch: in its clone,
-//     fetch --no-tags --quiet <ProjectPath> +refs/heads/<branch>:refs/remotes/origin/<branch>  (Local)
-//     — <ProjectPath> is the literal path from the lane index, never the clone's configured
-//     origin (task-02 §HGH H2; review C3). Each failure goes to RefreshErrors, never fails the
-//     land (plan decision 3)
+// 14. l.RefreshClones(ctx, ProjectPath, Branch) → Refreshed, RefreshErrors (below). Each
+//     failure goes to RefreshErrors, never fails the land (plan decision 3)
 // Hardened per task-02 §HGH: steps 6-12 run with Scope Project (a refusal there is
 // project_config_untrusted, before any ref moves), step 14 with Scope Clone, and no hook runs (H4).
 func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
+
+// RefreshClones tells every clone of the branch what the project holds. It is the ONE origin
+// refresh: Land's step 14, Undo (task 10), BringIn (below) and RefreshProject call it. The
+// caller holds Locks.Lock. First, once, in the project (Scope Project):
+//   up = rev-parse --verify -q --symbolic-full-name <branch>@{upstream}, OKExit 1
+//        (exit 1 or not under refs/remotes/ → up = "")
+// Then, for every lane of the branch, in its clone (Scope Clone), one fetch:
+//   fetch --no-tags --quiet <ProjectPath> +refs/heads/<branch>:refs/remotes/origin/<branch>
+//         [+<up>:refs/remotes/upstream/<branch>   — only when up != ""]            (Local)
+//   and when up == "": update-ref -d refs/remotes/upstream/<branch> (a no-op when absent),
+//   so a clone never offers a remote branch the project no longer tracks.
+// <ProjectPath> is the literal path from the lane index, never the clone's configured origin
+// (task-02 §HGH H2; review C3). refs/remotes/upstream/<branch> is review I5: a clone's
+// origin/* mirrors the project's refs/heads/*, so without it no lane can see, merge or
+// resolve against a teammate's pushed commits. It carries objects and a ref, no credential
+// and no URL (brief A4): the project's remote is never named to the clone.
+func (l *Lander) RefreshClones(ctx context.Context, projectPath, branch string) (refreshed []string, errs map[string]string)
+
+// RefreshProject runs RefreshClones for every branch that has a cockpit worktree in the
+// project. Like RefreshClones it takes no lock: its one caller is task 12's Fetcher.AfterFetch,
+// which runs inside Fetch's Locks.Lock(ctx, projectID) (gitx.Locks is not re-entrant). So a
+// fetch that moves refs/remotes/origin/<branch> reaches every clone as upstream/<branch>
+// before any land can read it. Errors are logged per clone; it returns nothing.
+func (l *Lander) RefreshProject(ctx context.Context, projectPath, projectID string)
 ```
 
 ```go
