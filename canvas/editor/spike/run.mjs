@@ -172,22 +172,30 @@ async function replaceFirstTab(port) {
   const waiting = new Map();
   let id = 0;
   ws.onmessage = (m) => { const d = JSON.parse(m.data); if (waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id); } };
-  const send = (method, params = {}) => {
+  const send = (method, params = {}, sessionId = undefined, capMs = 10000) => {
     const n = ++id;
     const p = new Promise((r) => waiting.set(n, r));
-    ws.send(JSON.stringify({ id: n, method, params }));
-    return Promise.race([p, sleepMs(10000).then(() => ({ error: { message: `${method}: no answer in 10 s` } }))]);
+    ws.send(JSON.stringify({ id: n, method, params, ...(sessionId ? { sessionId } : {}) }));
+    return Promise.race([p, sleepMs(capMs).then(() => ({ error: { message: `${method}: no answer in ${capMs} ms` } }))]);
   };
   try {
     const t = await send("Target.getTargets");
     const first = t.result ? t.result.targetInfos.filter((x) => x.type === "page").map((x) => x.targetId) : [];
+    // Recorded per run: did the first tab answer a trivial evaluate within 2 s? (The hang is
+    // intermittent: a run without this pre-flight connected once in fix round 1.)
+    const answered = [];
+    for (const targetId of first) {
+      const a = await send("Target.attachToTarget", { targetId, flatten: true });
+      const e = a.result ? await send("Runtime.evaluate", { expression: "1", returnByValue: true }, a.result.sessionId, 2000) : a;
+      answered.push(!!e.result);
+    }
     const made = await send("Target.createTarget", { url: "about:blank" });
     const closed = [];
     for (const targetId of first) closed.push(!!((await send("Target.closeTarget", { targetId })).result || {}).success);
     await sleepMs(300);
     const after = await send("Target.getTargets");
     const pages = after.result ? after.result.targetInfos.filter((x) => x.type === "page").length : null;
-    return { firstTabs: first.length, closed, opened: !!made.result, pagesNow: pages };
+    return { firstTabs: first.length, answeredWithin2s: answered, closed, opened: !!made.result, pagesNow: pages };
   } finally { ws.close(); }
 }
 // Every msedge.exe whose command line names this run's profile. Children carry --user-data-dir too
@@ -321,8 +329,8 @@ async function run(port) {
     const bounded = (fn, arg, ms) => Promise.race([page.evaluate(fn, arg), sleepMs(ms).then(() => null)]);
     const request = page.evaluate(() => window.__renderRequest(160));
     // --negative: the rAF-only variant waits for a frame or for this release, 2 s later on the
-    // runner's clock, then measures. A page timer here ran late enough (review r1d) that the layout
-    // half was never measured at all; an evaluate is not throttled.
+    // runner's clock, then measures. It was a 2 s page timer, and in review run r1d the layout half
+    // was never measured; hidden page timers ran minutes late here. An evaluate is not a timer.
     if (NEG) { await sleepMs(2000); log(`S11 negative release: ${JSON.stringify(await bounded(() => window.__s11Release(), null, 5000))}`); }
     const answer = await Promise.race([request, sleepMs(30000).then(() => null)]);
     log(`S11 answer: ${answer ? JSON.stringify(answer) : "none within 30 s (runner clock)"}`);

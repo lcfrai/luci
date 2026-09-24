@@ -522,8 +522,8 @@ window.__armHidden = () => new Promise((resolve) => {
 });
 let s11Answer = null, releaseNeg = null;
 // --negative only: the runner releases the rAF-only wait 2 s after the request, on its own clock.
-// A page timer was the old bound, and in a hidden page it ran so late that the layout half went
-// unmeasured (review I1, run r1d); an evaluate from the runner is not throttled.
+// A page timer was the old bound; hidden page timers ran minutes late here, and in review run r1d
+// the layout half went unmeasured. An evaluate is a task the runner sends, not a timer.
 window.__s11Release = () => { const had = !!releaseNeg; if (releaseNeg) releaseNeg("runner"); return { released: had }; };
 // S11's capture half as the contract defines it (task-01.md:78): resolved a PNG within 10 s. The
 // page's own 10 s cap is a page timer and runs late while hidden, so the measured time decides.
