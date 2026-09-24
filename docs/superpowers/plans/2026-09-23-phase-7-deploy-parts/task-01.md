@@ -3,9 +3,13 @@
 **Half:** 7a. **Hours:** 2. **Depends on:** nothing.
 
 This is the seam `OD-13` asks for. Every later task holds a `deploy.Deployer` (or one of its four
-smaller interfaces) and never a Panacea type. When Panacea is lifted into this repo, a native
-implementation passes `deploytest.Conformance` and replaces `panacea.Client` in `main.go`
-(seam S7-N1). **Nothing in this package may name a Panacea route, envelope, JSON spelling or
+smaller interfaces) and never a Panacea type, except the connection surface that collects
+Panacea's credential: task 05's `connection.Manager` (whose `NewClient` takes a
+`panacea.TokenSource`, and whose `Version` is `panacea.Version`); task 14's `ConnectPanel`, which
+asks for a `pnc_` key, is Panacea-specific too. When Panacea is lifted into this repo, a native implementation passes `deploytest.Conformance`
+and replaces `panacea.Client` in `main.go` (seam S7-N1), and that surface changes with it (plan
+§2 *The swap is not one line*, review M28). `Account.Approved` below is Panacea's team-approval
+flag, kept in the domain for the lens's *awaiting approval* state; it is on the same list. **Nothing in this package may name a Panacea route, envelope, JSON spelling or
 status string.** A reviewer checks that with one grep (acceptance, below).
 
 **Files:**

@@ -62,15 +62,31 @@ H0/C1/C2; phase 3's `githost`; React 19 + TypeScript + zustand 5 + vitest, as ph
 | Domain | `control-plane/internal/deploy` | the `Deployer` interface, the domain types (`Environment`, `Deployment`, `RunProgress`, `ScanReport`, `AccessPosture` …), typed errors, and an in-memory `deploytest.Fake` with a conformance suite | **No.** Nothing in it names a Panacea route, envelope or field spelling |
 | Connector | `control-plane/internal/deploy/panacea` | `panacea.Client` implements `deploy.Deployer` over `panacea-api`: transport, auth, error mapping, DTOs, mapping to domain types | **Yes — the only package that does** |
 | Orchestration | `control-plane/internal/deploy/ship`, `…/deploywatch`, `…/binding` | Ship/rollback/rebuild sequencing against the Hub; the watcher that polls the `Deployer` and joins deployments to releases; the local-project → Panacea-project binding | No — they hold a `deploy.Deployer` |
-| Surface | `control-plane/internal/api/deploy*.go`; `desktop/src/deploy/…` | control-plane routes; the Deploy lens | No |
+| Surface | `control-plane/internal/api/deploy*.go`; `desktop/src/deploy/…` | control-plane routes; the Deploy lens | No, except the connection surface (`deploy/connection`, `deploy_connection.go`, `ConnectPanel`), which collects Panacea's credential: *The swap is not one line*, below (review M28) |
 
 **The swap (OD-13).** When Panacea is lifted into this repo, a second implementation of
 `deploy.Deployer` — native, in-process, or over the lifted service's internal API — replaces
-`panacea.Client` in `cmd/api/main.go`'s wiring. The domain types, the orchestration, the routes and
-the lens do not change. The conformance suite `deploy/deploytest.Conformance(t, h Harness)` (a
+`panacea.Client` in `cmd/api/main.go`'s wiring. The domain types, the orchestration, the Ship,
+view and governance routes and the Deploy lens's environment screens do not change. The
+conformance suite `deploy/deploytest.Conformance(t, h Harness)` (a
 `Harness` hands it a `Deployer` and a `Seeder`, task 01) is the
 proof: it runs today against the fake and against `panacea.Client` over a recorded `httptest`
 server, and it is what the native implementation must pass. §10.2 names this seam S7-N1.
+
+**The swap is not one line (review M28).** Everything that *connects* to Panacea sits above
+`Deployer`, and is Panacea-specific. The lift budgets for each:
+
+| Piece | Task | Why it is Panacea's | At the lift |
+|---|---|---|---|
+| `connection.Config.NewClient` and `.Version`, closures over `panacea.New` and `panacea.Version` in `main.go` | 05 | the wiring point: two closures, not one line | replaced by the native deployer's constructor |
+| `connection.Manager`: `Connect` proves an origin with `Version`, then a `pnc_` token with `Whoami`; stores the token at `PanaceaApp/panacea/<host>` and the origin in `connection.json`; its states `awaiting_approval` and `token_rejected` | 05 | Panacea's origin, its API-key kind and its account model | removed or reduced to "connected": the native deployer uses the Hub's Entra identity (7P-1, *The swap*) |
+| `GET`, `PUT`, `DELETE /v1/deploy/connection` and `POST /v1/deploy/connection/check`, with the `pnc_` prefix check in `deploy_connection.go` | 05 | routes for pasting a Panacea key | removed, with their `catalogReadOnlyRoutes` line and any problem code no other route answers |
+| `desktop/src/deploy/ConnectPanel.tsx`, and the lens's `not_connected`, `awaiting_approval` and `token_rejected` states | 14 | a Panacea address, a `pnc_` token, Panacea's team approval | removed, or one "not connected" state |
+| `deploy.Account.Approved` | 01 | Panacea's team-approval flag, in a domain type | kept and always true, or dropped from `Account` with its lens state |
+| The Hub's release records name `panaceaProject` and `pipelineRun` (Hub contract `:998-1008`, `:1040` at 6b873d0) | Hub | the shared ledger joins on Panacea's project and run names | the native deployer answers the same names, or the Hub migrates the rows; never both spellings at once |
+
+The conformance suite proves the `Deployer` behind these pieces, not the pieces. Each needs its
+own change and tests at the lift.
 
 **Data flow for a read.** The watcher polls the `Deployer` for every bound project on its own
 timer (default 15 s; 3 s while a run the user shipped is in flight). It holds the newest snapshot in
@@ -122,7 +138,7 @@ it was.
 | **OD-4** | The binding (§3.3, 7P-6) matches a Panacea project's `repoUrl` against the local remote through phase 3's `githost.ParseRemote`, which recognises GitHub and Azure DevOps. Nothing in phase 7 parses a host or copies a key pattern: task 06 asks the Hub's own `hubapi.HostOfRepoKey` whether a missed key is in a form the Hub accepts, and that only chooses a sentence. **Azure DevOps Ship rests on HA7-6** (§9): phase 3's `RepoKey()` and the Hub must spell Azure DevOps alike. The plans agree (the Hub's correction A1 takes phase 3's form); the Hub contract's §7.4 text and phase 3's H-3 row still show the old form (review I6, plan re-review b05 R-1) |
 | **OD-6** | Identity is the Hub's. Phase 7 never runs a sign-in; it takes `hubclient.Releases` (which carries the Entra token) and `credstore.Secrets` (which holds the `pnc_` token) from the Hub's tasks C1/C2 |
 | **OD-12** | Every owner-observed step — the live Ship against dev Panacea, the lens's look — is batched to the end and stays **unverified** until then |
-| **OD-13** | Panacea is called as a client over its existing API; **no Panacea source is copied**; the deploy side is the `deploy.Deployer` interface so the lift is a swap (§2, S7-N1) |
+| **OD-13** | Panacea is called as a client over its existing API; **no Panacea source is copied**; the deploy side is the `deploy.Deployer` interface so the lift is a swap of it, plus the connection surface §2 lists (§2, S7-N1; review M28) |
 
 ### 3.2 Brief, contract and ruling decisions adopted
 
@@ -185,9 +201,11 @@ pooled.
 - **Where it lives:** `credstore.Secrets` target `PanaceaApp/panacea/<api host>` — the row the Hub
   contract §9.1 already reserves for it. Written through a **write-only** control-plane route
   (task 05); no response ever carries it; it is never logged; it never enters a sandbox.
-- **The swap:** `deploy.Deployer` hides the credential kind entirely. The native deployer after the
-  lift authenticates with the Hub's Entra identity; the `pnc_` row is then deleted by a migration
-  step named in S7-N1 (§10.2).
+- **The swap:** `deploy.Deployer` hides the credential kind from the orchestration, the view and
+  the governance routes. The connection surface that collects it (`connection.Manager`, the
+  `/v1/deploy/connection` routes, `ConnectPanel`) does not, and is part of the lift (§2 *The swap
+  is not one line*, review M28). The native deployer after the lift authenticates with the Hub's
+  Entra identity; the `pnc_` row is then deleted by a migration step named in S7-N1 (§10.2).
 - **Cost if wrong:** if Panacea later accepts Entra bearer tokens for our audience, `panacea.Client`
   gains a second `Authorizer` and the connect screen loses its paste step. Nothing above the
   connector changes.
@@ -809,7 +827,7 @@ cause named.
 
 | Seam | Where | The later phase | Must not |
 |---|---|---|---|
-| **S7-N1** the native deployer | `deploy.Deployer`; `deploytest.Conformance` | the Panacea lift (`OD-13`): a native implementation passes the suite and replaces `panacea.Client` in `main.go`; the `PanaceaApp/panacea/<host>` credential row is deleted by that task | change a domain type to fit Panacea's wire shapes; add a Panacea-specific method to `Deployer` |
+| **S7-N1** the native deployer | `deploy.Deployer`; `deploytest.Conformance` | the Panacea lift (`OD-13`): a native implementation passes the suite and replaces `panacea.Client` in `main.go`; the connection surface above `Deployer` changes with it (§2 *The swap is not one line*: `connection.Manager`, `/v1/deploy/connection`, `ConnectPanel`, `Account.Approved`, the Hub's `panaceaProject`/`pipelineRun` names; review M28); the `PanaceaApp/panacea/<host>` credential row is deleted by that task | change a domain type to fit Panacea's wire shapes; add a Panacea-specific method to `Deployer` |
 | **S7-N2** the metadata mirror | `panacea.Client.Ship` sends no `metadata` today | if R7's ask is granted: the client adds `metadata: {"panacea.app/release": "<rl-…>"}` and the watcher may confirm a crashed reservation by the run's annotation (ADR-H1 R3) | pin by that annotation — it names a reservation, and the pin is still the Hub's |
 | **S7-N3** Panacea-side hash suffix | `D2` (c) | if Panacea appends a hash when truncating, the collision state in task 08 stops firing for long names that differ past the 20th character; a push-and-Ship label split of one branch (`feat_x` / `feat-x`, §12) and `/`-versus-`_` twins are untouched by a hash on truncation | re-implement `sanitizeBranchEnv` in phase 7 |
 | **S7-N4** a rollback as a Panacea row | "serving after rollback" in task 08's view (7P-4) | if ask 2 of `panacea-metadata-ask.md` is granted: a portal rollback shows as a `rollback` row; the Hub's rule stays for cockpit rollbacks | drop the Hub's confirmed-rollback reading before Panacea's rows are observed live |
