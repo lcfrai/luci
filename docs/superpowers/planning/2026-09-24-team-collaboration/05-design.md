@@ -273,14 +273,20 @@ This changes Hub rules that ADR-H1 states: the laptop's control plane is the onl
 (keyed by phase 3's `githost.RepoKey`) and `brief`
 (`.claude/worktrees/hub/docs/superpowers/adr/ADR-H1-hub-architecture.md:402-409`). A project's
 access is exactly its team's membership (`hub-contract.md:333`, via `04` §2.1). Team mode uses all
-of it as planned and adds **no new role**.
+of it as planned and adds **no new team role**. It does need a **role-to-verb table** (§3.4),
+because the Hub gives `viewer` read on *"everything under"* a project (`hub-contract.md:328`), and
+two **org-level** capabilities the Hub amendment adds: *compliance* (may lower a project's AU
+route) and *auditor* (may read escalations and directives across owners) (§11.1).
 
 ### 3.2 The placement rule
 
 **If losing it would lose a decision or an accountability fact, it is a Hub record. If it is a fact
 about now, it is Fleet state.** Hub records are revisioned, write one metadata-only audit event each
-(G3, `ADR-H1:252`) and reach clients through the existing change feed. Fleet state is in memory with
-a snapshot for restart. It is never audited row by row, and it is served by Fleet's own routes.
+(G3, `ADR-H1:252`) and reach clients through the existing change feed. Fleet state (leases, turn
+queues, open threads' working state, the Hub outbox) lives in **Fleet's own Postgres schema**, so a
+restart or a second replica loses nothing (§2.2). It is never audited row by row, and it is served
+by Fleet's own routes. Activity and presence are the only in-memory state; both are re-observed
+within one sweep after a restart.
 
 ### 3.3 What team mode adds
 
@@ -289,19 +295,22 @@ is bounded, hygiene-checked (§7.2) and carries its author class, so every reade
 
 | Record | Id | Lives in | Fields (all bounded) | Written by |
 |---|---|---|---|---|
-| **delegation** | `dl-…` | Hub | owner; project; class; allowed routes; `expiresAt`; `revokedAt` | the owner's token, at launch (§2.4) |
-| **task** | `tk-…` | Hub | owner; orchestrator `ag-…`; **title** ≤ 140 (`text·H` if the user typed it, else `text·A`); **reason**: `briefRef` (a brief section id, deterministic) plus a why-line ≤ 200 `text·A`; intended scope (≤ 20 repo-relative globs); state `planned`·`active`·`blocked`·`done`·`abandoned` | the owner's Orchestrator, through `panacea task` |
-| **agent** | `ag-…` | Fleet (status); Hub (start, end, role) | owner; role `orchestrator`·`worker`; parent orchestrator; harness id and pinned version; task `tk-…`; lane ref; status `starting`·`working`·`waiting`·`idle`·`ended`; `waitingOn` `human`·`lease`·`peer`; `exitClass` | Fleet, from `sandboxd` and the supervisor; extends phase 2's four statuses (`control-plane/internal/registry/session.go:14-31`) |
-| **activity** | on the agent | Fleet, ephemeral, 45 s TTL | files **read** and **edited** in the last 10 min (from `sandboxd`'s watcher on the worktree); dirty paths; dirty hunks (line ranges on a base blob); last commit sha and changed paths; `lastActiveAt` | `sandboxd`, observed. Nothing here is agent-written |
-| **lease** | `ls-…` | Fleet (live table, authoritative); Hub (each state change) | holder `ag-…`; globs (≤ 20); mode `intent`·`hold`; `expiresAt` (30 min, renewed while the holder works); state `requested`·`granted`·`contested`·`yielded`·`released`·`expired` | Fleet, on `panacea lease` calls and observed edits (§6.3) |
-| **conflict** | `cf-…` | Hub | agent pair; tier `P`·`H`·`M`·`S`; paths and line ranges; basis shas; state `raised`·`negotiating`·`resolved`·`escalated`·`cleared` | Fleet's forecaster only (§8) |
-| **thread** | `th-…` | Hub | participants (orchestrator ids); subject (conflict, lease or free); state `open`·`resolved`·`escalated`·`expired`; round count; deadline | Fleet, when a conflict opens or an Orchestrator starts one |
-| **message** | `ms-…` | Hub, append-only | thread; sender `ag-…` and its owner; **kind** (§6.2); typed fields per kind; text ≤ 600 `text·A`; `afterPeerInput` flag (§7.3) | an Orchestrator, through `panacea peer` |
-| **escalation** | `es-…` | Hub | owner (a human); from orchestrator; **kind `inform`·`decide`**; thread; question ≤ 300 `text·A`; up to 4 options, each with its consequence; default and deadline; answer `text·H`; `answeredAt` | the owner's Orchestrator; answered only by that human |
-| **note** | `nt-…` | Hub, immutable | author (from token); target project, task or person; text ≤ 1,000 `text·H` | any member, as themselves |
+| **delegation** | `dl-…` | Hub | owner; project; class; allowed routes; `expiresAt` (24 h); `revokedAt` | the owner's own Hub call, at launch (§2.4) |
+| **task** | `tk-…` | Hub | owner; orchestrator `ag-…`; **title** ≤ 140 (`text·H` if the user typed it, else `text·A`); **reason**: `briefRef` (a brief section id, deterministic) plus a why-line ≤ 200 `text·A`; intended scope (≤ 20 repo-relative globs, each matching ≤ 10% of tracked files, §6.3); state `planned`·`active`·`blocked`·`done`·`abandoned`. Title and why-line are served to **orchestrators only** (§5.1) | the owner's Orchestrator, through `panacea task` |
+| **agent** | `ag-…` | Fleet (status); Hub (start, end, role) | owner; role `orchestrator`·`worker`; parent orchestrator; harness id and pinned version; task `tk-…`; lane ref; status `starting`·`working`·`waiting`·`idle`·`ended`; `waitingOn` `lease`·`peer` (Fleet's own facts) or `human` (**only** from `panacea report blocked --on human`, labelled agent text, or the cloud hook's `Notification` event; otherwise `idle`, as phase 2 refuses to guess, `session.go:10-13`); `exitClass` | Fleet, from `sandboxd` and the supervisor; extends phase 2's four statuses (`control-plane/internal/registry/session.go:14-31`) |
+| **activity** | on the agent | Fleet, ephemeral, 45 s TTL | files **edited** in the last 10 min; dirty paths; dirty hunks (line ranges on a base blob); last commit sha and changed paths; `lastActiveAt`. **No "files read"**: one `rg` opens every file (`06` I1). Every path is hygiene-checked and capped at 200 characters before any agent or cockpit reads it | `machined`'s sweep, outside the VM (§3.3 rule 4); process liveness from `sandboxd`. Nothing here is agent-written |
+| **lease** | `ls-…` | Fleet (Postgres, authoritative); Hub (each state change) | holder `ag-…`; globs (≤ 20, breadth-capped); mode `intent`·`hold`·`bulk`; `expiresAt` (a hold lapses 30 min after the last edit **to that path**); state `requested`·`granted`·`contested`·`yielded`·`released`·`expired`·`admin-released` | Fleet, on `panacea lease` calls and observed edits (§6.3) |
+| **conflict** | `cf-…` | Hub | agent pair; tier `P`·`H`·`M`·`S`; paths and line ranges; basis shas; state `raised`·`negotiating`·`accepted`·`resolved`·`escalated`·`cleared`; the resolution kind that closed it | Fleet's forecaster only (§8) |
+| **thread** | `th-…` | Hub | participants (orchestrator ids); subject (conflict, lease or free); state `open`·`resolved`·`escalated`·`expired`; round count; deadline (Fleet-set, default 30 min) | Fleet, when a conflict opens or an Orchestrator starts one |
+| **message** | `ms-…` | Hub, append-only; tombstoned on erasure | thread; sender `ag-…` and its owner; **kind** (§6.2); typed fields per kind; text ≤ 600 `text·A` (free-text `answer` only under its owner's standing permission, §6.5) | an Orchestrator, through `panacea peer`; templated answers by Fleet |
+| **escalation** | `es-…` | Hub | owner (a human); from orchestrator, or from Fleet; **kind `inform`·`decide`**; thread; question ≤ 300 `text·A`; up to 4 options, each with its consequence; **default and deadline set by Fleet** (always the safe default; deadline ≥ 30 min); answer `text·H`; `answeredAt`. Readable by its owner and an org auditor only | the owner's Orchestrator, or Fleet (§6.5); answered only by that human |
+| **directive** | `dv-…` | Hub, append-only | from Orchestrator `ag-…`; to worker `ag-…`; typed kind (`pause`·`resume`·`narrow`·`wait-for`·`rebase`·`free`); text ≤ 600 `text·A` if `free`; delivery rung (§4.3); **turn origin** `human`·`fleet`; ids of the peer messages and cards the session read since its human last spoke; the `es-…` that approved it, if any. Readable by its owner and an org auditor only | Fleet, when an Orchestrator calls `panacea direct` (`04-enterprise-constraints.md:377-379`) |
+| **orchestrator turn** | `ot-…` | Hub, audit event only (metadata) | Orchestrator; origin `human`·`fleet`; event ids consumed; directives and messages issued; tokens used | Fleet, per turn |
+| **human message** | `hm-…` | Hub, append-only; tombstoned on erasure | owner; to own Orchestrator; text ≤ 2,000 `text·H`. Readable by its owner and an org auditor only | the owner, from the Orchestrator panel |
+| **note** | `nt-…` | Hub, immutable; **tombstoned on erasure**, keeping the audit event | author (from token); target project, task or person; text ≤ 1,000 `text·H`. Reaches an Orchestrator only through `panacea inbox`, quoted with its author's name; never a worker | any `member`, as themselves |
 | **presence** | per user | Fleet, ephemeral | online in the cockpit; project open | the user's cockpit |
-| **team policy** | on the project | Hub | data classification (`AU only` forces the AU route, §2.5); default route; quotas per member and per project; Orchestrator turn budget; escalation defaults (§6.5); message budgets (§6.6) | a team `admin` |
-| **usage** | per call | the gateway's own store; daily roll-ups to the Hub | tokens and cost by `tid`, `oid`, team, project, agent, route | the gateway, metered. No agent or client writes it |
+| **team policy** | on the project | Hub | data classification and route (§2.5: raised by any member, lowered only by *compliance*); **non-zero default** quotas per member and per project; Orchestrator turn budget; **escalation floors** (§6.5: an admin may only add asking); message budgets (§6.6) | a team `admin`, within those limits |
+| **usage** | per call | the gateway's own store, in Australia East; daily roll-ups to the Hub | tokens and cost by `tid`, `oid`, team, project, agent, route, and **counterpart** for peer-triggered turns | the gateway, metered. No agent or client writes it |
 
 Five rules apply to every row:
 
@@ -315,23 +324,61 @@ Five rules apply to every row:
    (`hub-contract.md:941-942`, via `01` §2.2). Records carry `ag-…` ids.
 3. **Nothing names a host path, config key or URL.** Paths are repo-relative globs that the Hub
    validates. This closes the X-1 class one hop out (`04` §8.2).
-4. **Activity is observed, never reported.** An agent cannot claim to be editing a file it is not
-   editing, and cannot hide one it is. The `sandboxd` watcher runs outside the agent's process tree
-   (**UNVERIFIED** that inotify inside a Kata guest sees every write through the sub-path mount).
-5. **Nobody writes another person's task, lease, message or escalation**, whatever their role.
+4. **Activity is observed, never reported, and observed from outside the VM.** `sandboxd` is the
+   agent's parent and runs as the same uid (`images/sandbox/entrypoint.sh:13-17`,
+   `images/sandbox/Dockerfile:19`, `:24`), so a hijacked worker could stop or feed any watcher
+   inside the guest (`06` I1). Instead `machined`, which mounts the same machine disk outside the
+   Kata VM, runs a hardened `git status --porcelain` / `git diff --numstat` sweep over each live
+   worktree every 5 to 10 s, under phase 3's §HGH git hardening (P8-D7,
+   `phase-8-own-environment.md:136`), with `core.fsmonitor` and every other config-driven command
+   forced off on the command line, since phase 3 lets the agent write `.git/config`
+   (`2026-09-23-phase-3-git-convergence.md:447`). The same sweep is phase 3 task 07's
+   observed-claims path. An agent cannot claim a file it is not editing, and cannot hide one it
+   has changed for longer than one sweep. `sandboxd` reports process facts only. **UNVERIFIED:**
+   that a write inside the Kata guest is visible to `machined` through the shared sub-path within
+   one sweep; phase 8 task 32 probes it.
+5. **Nobody writes another person's task, lease, message, directive or escalation**, whatever their
+   role.
+
+### 3.4 Who may do what: roles to verbs
+
+| Capability | `viewer` | `member` | `admin` | org *auditor* | org *compliance* |
+|---|---|---|---|---|---|
+| See the team strip and task cards (owner, brief section, status, observed files) | yes | yes | yes | yes | — |
+| Launch an Orchestrator or a worker; hold leases | **no** | own only | own only | no | no |
+| Read a thread's messages | no | **parties only** (through their Orchestrator) | parties only | yes | no |
+| Read escalations, directives, human messages | no | **own only** | own only | yes | no |
+| Write a note | no | yes | yes | no | no |
+| Set team policy | no | no | within floors: quotas, budgets, **more** asking | no | no |
+| Raise the route to AU / lower it | no / no | yes / no | yes / no | no | — / **yes**, audited |
+| Release a stale lease | no | no | yes, audited | no | no |
+
+Every row, and every new Fleet and Hub route, joins `04` Z5's role-matrix test.
 
 ## 4. The Orchestrator and its workers (OD-16)
 
 ### 4.1 What an Orchestrator is
 
-- **An unmodified Claude Code session** (or another supported harness), launched by Fleet in its own
-  Kata sandbox. Its inference goes through the gateway on its own session token, attributed to its
-  **owner** (§2.5). There is one per user per team project. It is created on the user's first team
-  launch, so a user never has to set one up.
-- **It does not write code.** Its sandbox class, `orchestrator`, mounts a **read-only** view of the
-  project at the integration head (refreshed by `machined`), has no worktree to write, holds no git
-  credential, and has egress only to the inference gateway (a proposed tightening of P8-D12 for
-  this class; §11.2).
+- **Unmodified Claude Code** (or another supported harness), run turn by turn by a product-owned
+  runner in its own Kata sandbox (§4.2). Its inference goes through the gateway on its own
+  short-lived token, attributed to its **owner** (§2.5). There is one per user per team project. It
+  is created on a `member`'s first team launch, so a user never has to set one up; a `viewer` gets
+  none (§3.4).
+- **It does not write code, and it has no disk.** Its sandbox class, `orchestrator`, mounts **no
+  machine disk** and so has **no pod affinity** to its owner's machine node: it does not take one
+  of the about three session slots a machine node has (P8-D6, `phase-8-own-environment.md:135`;
+  `06` C2). Its size is its own, not a worker's: proposed 250m CPU and 512 MiB, measured in phase 8
+  task 32. It sees the project only through `panacea` verbs (`panacea team`, `panacea files`,
+  `panacea show <path>` at the integration head), which Fleet answers from `machined` over the
+  broker in TM1 and from the lane mirror in TM2. It holds no git credential, and has egress only
+  to the gateway and to Fleet's control route (P8-D12 for this class; §11.2).
+- **It reads the project's `CLAUDE.md` as data, not as instructions.** A teammate can land a line
+  in `CLAUDE.md` (`07` I7), so the runner starts the Orchestrator with no project settings or
+  project memory (a `--setting-sources`-style flag, **UNVERIFIED** at the pinned CLI version; if it
+  does not exist, the runner's working directory is an empty folder, which has the same effect).
+  Its instructions come from the image's managed `claudeMd` key, which the docs say needs no
+  approval (https://code.claude.com/docs/en/server-managed-settings, read 2026-09-25), plus the
+  runner's `--append-system-prompt`.
 - **Everything it does goes through `panacea` verbs** (§5.2): create and update its owner's tasks,
   spawn, direct and stop its owner's workers, request and yield leases for them, talk to other
   orchestrators, and escalate to its human. Fleet enforces the verb set per sandbox class. The
@@ -342,23 +389,53 @@ Five rules apply to every row:
 
 Fleet keeps one event queue per Orchestrator. Events are: a message from its human; a peer message;
 a conflict opened against one of its workers; a worker that finished, blocked, or recorded an
-assumption; a lease contested or expiring; an escalation answered. Fleet coalesces events for up to
-60 seconds and delivers each batch as **one turn**. The turn's input is a fixed, product-written
-template (*"3 team events. Run `panacea inbox` to read them."*). It never carries peer text, which
-arrives only as the output of the `panacea inbox` call (§7.1).
+assumption; a lease contested or expiring; an escalation answered. **Thread events** (a peer
+message, a conflict opened) are delivered at once, with no coalescing, so negotiation is not
+paced by the batcher (`06` I8); everything else coalesces for up to 60 seconds. Each batch is
+**one turn**. The turn's input is a fixed, product-written template (*"3 team events. Run
+`panacea inbox` to read them."*). It never carries peer text, which arrives only as the output of
+the `panacea inbox` call (§7.1). Fleet records each turn's **origin**: `human` if the batch holds
+a message from the Orchestrator's own human, else `fleet` (§7.2).
+
+**The runner.** `sandboxd` starts exactly one PTY command for a pod's life and serves only
+`/attach` and `/healthz` (`sandboxd/cmd/sandboxd/main.go:39-69`,
+`sandboxd/internal/server/server.go:85-86`), and phase 8 bans `pods/exec` (P8-D7). So the
+`orchestrator` class's PTY command is a product-owned runner, **`panacea-orchestrator`**. It blocks
+on the control route (§5.2); per batch it runs
+`claude -p --resume <fixed session id> --output-format stream-json` as a **child**, with no
+`--fork-session`, waits for it to exit, reports the turn's end to Fleet, and blocks again. One turn
+at a time per Orchestrator. Phase 2's Resume deliberately forks (`control-plane/internal/harness/argv.go:91-100`);
+the runner must not reuse that path.
+
+**Where the conversation lives, and why losing it is harmless.** The runner keeps the session's
+transcript in the pod's `emptyDir` `~/.claude`. It needs no machine disk, because **the transcript
+is a cache, not state**: every commitment an Orchestrator makes is a typed Fleet or Hub record
+(tasks, leases, messages, directives, escalations). So:
+
+- **Rotation.** The runner starts a **new** session each day, and at each task boundary, seeded
+  only from Fleet's typed state: `panacea team`, its open threads, its human's policy and last
+  messages. Never from the old transcript. This bounds context, and so cost, which otherwise grows
+  with every resumed turn and invites compaction, an agent-written summary of peer text (`06` I9).
+  It also resets nothing unsafe, because taint is not per session (§7.2).
+- **Pod loss.** If the pod dies between turns, Fleet starts a new one, and the next turn is a
+  rotation. A TM1 test kills the pod between two turns and checks that no lease, thread or pending
+  directive is lost.
 
 | Transport for a turn | How | Status |
 |---|---|---|
-| **TM1: a headless turn** | `claude -p --resume <session>` with the template as the prompt; one turn at a time per Orchestrator | a resumed `-p` session was observed re-reading `CLAUDE.md` from disk (`03-techniques.md:120-121`, Claude Code 2.1.273). Headless turns run on the org's API through the gateway, so `04` §4's consumer-terms question about headless use no longer arises (OD-19) |
-| **TM2: a live session** | a long-lived session; Fleet posts the template through the inbox socket, which *"starts a new turn"* when idle (`03` §1.3) | canary C4 open (`03` §7) |
+| **TM1: a headless turn** | the runner's `claude -p --resume <id>` child, as above | a resumed `-p` session was observed re-reading `CLAUDE.md` from disk (`03-techniques.md:120-121`, Claude Code 2.1.273). Headless turns run on the org's API through the gateway, so `04` §4's consumer-terms question no longer arises (OD-19). The Orchestrator's allowed tools are `Bash(panacea *)` and `Read` only, set in its class's managed file, so a headless turn never meets a prompt (§2.5) |
+| **TM2: a live session** | a long-lived session; the runner posts the template through the inbox socket, which *"starts a new turn"* when idle (`03` §1.3) | canary C4 open (`03` §7) |
 
 **Fleet never parses the Orchestrator's output for meaning** (OD-8). Its effects are its `panacea`
-calls, which are typed. Its prose reply to its human is shown verbatim in the Orchestrator panel, the
-way a terminal is shown. An idle Orchestrator costs nothing, because no event means no turn.
+calls, which are typed. Its prose reply to its human is shown in the Orchestrator panel, the way a
+terminal is shown, **and kept**: the runner's `stream-json` result for a human-origin turn is
+stored with the turn's `ot-…` record as `text·A`, readable by its owner and an org auditor (§3.3).
+An idle Orchestrator spends no tokens; its small pod is the only idle cost.
 
-**DIVE into your own Orchestrator** (AGENTIC-UX's escape hatch, `docs/AGENTIC-UX.md:56`): in TM1,
-Fleet pauses the loop, opens `claude --resume` in a PTY for the owner only, and resumes the loop on
-exit. Events queue meanwhile and are shown as waiting.
+**DIVE into your own Orchestrator** (AGENTIC-UX's escape hatch, `docs/AGENTIC-UX.md:56`): the runner
+parks between turns; while parked, the owner may attach an interactive `claude --resume <same id>`
+through the runner, never a fork. Events queue meanwhile and are shown as waiting. The DIVE's
+start, end and the directives it issued are `ot-…` records with origin `human`.
 
 ### 4.3 Workers
 
@@ -371,29 +448,50 @@ before editing it, request a lease, and report to its own Orchestrator (`done`, 
 
 **How a directive reaches a running worker**, in order of preference:
 
-1. **Piggyback.** Every `panacea` call a worker makes returns its pending directives first. This is
-   deterministic and relies on nothing unverified. A worker's managed block tells it to run
-   `panacea check <path>` before it edits a file for the first time in a session, so the hot path
-   polls by itself.
+1. **Piggyback.** Every `panacea` call a worker makes returns its pending directives first, as
+   tool output, which is the **only** way directive text ever reaches a worker. In the cloud the
+   class's managed `PreToolUse` hook on `Edit|Write|MultiEdit` runs `panacea check <path>` before
+   every edit (§5.3), so the hot path polls deterministically; without the hook, the managed block
+   tells the worker to run it before a first edit, and TM1 measures how often it does.
 2. **Inbox socket**, when the worker is idle or between tool calls (`03` §1.3; canary C4). A new
    finding helps here: the `panacea` command runs as a **child** of the CLI's Bash tool, so it sees
    `CLAUDE_CODE_MESSAGING_SOCKET` and the session's token in its environment (`03` §1.3, observed
    on the laptop). Its first call can hand both to `sandboxd`, which would solve `03`'s discovery
    problem without reading harness internals. **UNVERIFIED:** whether the socket accepts a poster
    that is not the CLI's descendant.
-3. **Typed into the PTY** when the worker is idle, as its owner's own steering (phase 2 already
-   writes the user's keystrokes). Idle is derived from a byte count, never from content
-   (`control-plane/internal/registry/session.go:22-23`).
-4. **`pause`**: an interrupt keystroke, then a stop. This is always available.
+3. **A fixed nudge typed into the PTY** when the worker is idle. **Never the directive's text.**
+   The Claude Code prompt is a command line as well as a chat box: *"Run shell commands directly
+   … by prefixing your input with `!`"*, text typed while the agent works queues, and `Shift+Tab`
+   cycles permission modes (https://code.claude.com/docs/en/interactive-mode, read 2026-09-25, via
+   `07` C3). So Fleet's PTY writer may send only its own product-written templates, byte for byte:
+   *"[Panacea] Your Orchestrator sent you a directive. Run `panacea check`."* A unit test proves
+   the writer refuses any other byte sequence, including `!`, `/`, and `ESC [ Z`. Idle is derived
+   from a byte count, never from content (`control-plane/internal/registry/session.go:22-23`).
+4. **`pause`**: an interrupt keystroke, then a stop, sent by Fleet itself. This is always
+   available, and a human's own `pause` from the cockpit takes this path directly, without an
+   Orchestrator turn (§4.4).
+
+Every directive, on every rung, is a `dv-…` Hub record before it is delivered (§3.3).
 
 ### 4.4 Cost and accountability
 
 Every Orchestrator turn and every worker turn is metered at the gateway against its **owner's**
 quota, tagged with the team and project (P4, §2.5). Nobody's agent spends against a teammate's
-quota. Each Orchestrator also has a turn budget (default 30 turns an hour, set by its owner within
-the team policy), and when it is spent events queue and the owner is told. Every record an
-Orchestrator writes names its owner, so accountability for what an agent agreed to rests with the
-person whose agent agreed.
+quota. Each Orchestrator also has a turn budget (default 30 turns an hour, and a per-turn token
+cap, set by its owner within the team policy). Three rules stop a teammate spending it for them
+(`07` I3):
+
+1. **A human's own events skip the budget and the queue.** Their message starts the next turn at
+   once, and a human `pause` is executed by Fleet directly, not through a turn.
+2. **Peer-triggered cost is metered per counterpart and shown**: *"coordination with Alice: 41k
+   tokens today"*. Past a per-counterpart cap (default 10 turns an hour), Fleet folds that
+   counterpart's events into one digest turn every 15 minutes.
+3. **Quotas have non-zero defaults** per member and per project (§2.5).
+
+When the budget is spent, non-human events queue and the owner is told. Every record an
+Orchestrator writes names its owner, and every directive names its turn's origin (§3.3), so
+accountability for what an agent agreed to rests with the person whose agent agreed, and can be
+evidenced.
 
 **The coordination overhead is visible.** The cockpit shows each person's spend split into
 *workers* and *coordination* (Orchestrator turns plus nudges), so the owner can see what team mode
