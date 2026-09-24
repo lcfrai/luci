@@ -161,7 +161,7 @@ A=docs/superpowers/adr/ADR-H1-hub-architecture.md
 grep -c "amended by the Phase H plan, A15" $A                     # exactly 2
 grep -n "preferred_username" $A                                   # no hit reads as a binding rule
 grep -n "xms_edov" $A                                             # §5.3's row and §9 item 3
-git diff --stat <parent-of-44a> <44a-sha> -- $A                   # the two cells only: 2 lines changed
+git diff --stat <parent-of-44a> <44a-sha> -- $A                   # the two cells only: 2 insertions(+), 2 deletions(-)
 git log -1 --format=%H -- $C                                      # older than task 01's first commit
 grep -n "git show .*:docs/superpowers/contracts/2026-09-23-hub-contract.md" .superpowers/sdd/hub/progress.md   # the read path, with the sha
 ```

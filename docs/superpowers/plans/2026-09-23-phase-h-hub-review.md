@@ -763,3 +763,32 @@ Unverified: whether Chromium applies `form-action` to the redirect (task 12 step
 real look). Also that `acct` and `xms_edov` appear in a v2 access token with these JSON types (R-4
 is the first real look), and that phase 8's ingress appends exactly one entry. Nothing was compiled
 or run: this batch changes only documents, so there were no mutants to run.
+
+### Fix batch b05, round 2 — re-review N1–N3, m1–m4 (2026-09-24)
+
+Commit `c2631af` fixes the plan and parts; this section is its map. It answers
+`.superpowers/sdd/hub/plan-rereview-b05-1.md`. The claims A15 needs now reach both places that
+build the real registration, and ADR-H1 no longer outranks the rule I12 set.
+
+| Finding | What changed | Where |
+|---|---|---|
+| **N1** the phase-8 registration | A15 gains a **second sibling ask for phase 8**: task 09's Hub registration `optional_claims.access_token` gains `acct` and `xms_edov` beside `email` (`worktrees/env` `…/phase-8-own-environment-parts/task-09.md:44`, `:136-137`, checked), and `email_is_an_optional_claim_on_the_hub` (`:170`, checked) asserts all three. S-BIND names both asks. `bindingClaims`' comment says a deployed token carries the claims only once the registration configures them | plan.md:184, :472; task-13.md:46-56 |
+| **N1** IT's registration spec | Task 44a amends ADR-H1 §9 item 3 (`ADR-H1-hub-architecture.md:725`, checked) **in place**: *"Optional claims `email`, `acct` and `xms_edov` on the access token … (amended by the Phase H plan, A15)"*. ADR-H1 joins 44a's file list, its step 3's pathspec, the plan's file map and its decisions table. The acceptance greps for exactly two A15 markers and a two-line ADR diff | task-44a.md:8, :20, :95-119, :139, :160-164, :176-179; plan.md:82, :335 |
+| **N1** R-4 | Names who configures the two claims (IT from ADR-H1 §9 item 3, or phase 8's task 09) and, if either is absent, says to read the registration manifest's `optionalClaims.accessToken` first | task-43.md:71 |
+| **N1** owner list | New **Q12**, next to the `entra.Claims` ask: accept A15's two ADR-H1 cells. "Four more" becomes "Five more" | plan.md:493, :501 |
+| **N2** phase 8's chart | A14 gains a **sibling ask for phase 8**: `PANACEA_APP_HUB_TRUST_PROXY=true` (`task-29.md:134`, checked) becomes `PANACEA_APP_HUB_TRUSTED_HOPS=1`. **Beyond the review:** the same ask covers task 29's own test `hub / env is the contract's deployed column` (`:259`, checked), which asserts `TRUST_PROXY=true`. The review cited only `:134`, and fixing that line alone would turn phase 8's test red. S-HOPS says the value lands with the ask | plan.md:183, :473 |
+| **N3** ADR-H1 :406 | Task 44a also amends §5.3's invite row (`:406`, checked) in place: *"a matching `email` claim, and only when the token shows a member account (`acct` 0) or a verified email domain (`xms_edov` true); never `preferred_username`"*. The reason is written down: the contract defers to the ADR (`hub-contract.md:4-5`, checked), so a note beside the old cell would leave the old rule governing. **Why these two cells, when b02 m3 left §5.4 unedited:** §9 is the list IT builds from, and §5.3's row is an authorisation rule the precedence clause would restore. §5.4's departure has neither property. ADR-H1's decision (§10 Q4) does not move, and the owner rules on both cells as Q12 | task-44a.md:95-119; plan.md:82, :501 |
+| **m1** unobservable mutant | The refused-bearer case and the *"`bindingClaims` run before `Validate`"* mutant are dropped from `TestBindEmailNeedsAMemberOrAVerifiedEmail`, with the reason in the row. It keeps 7 cases (round 1's "8 cases" counted the dropped one). The test count is unchanged | task-13.md:173 |
+| **m2** no reachable remedy | Task 16 states the limitation. A caller who cannot bind has no in-product remedy in v1: no route lists an org's users, `GET /v1/me` returns the id only to the control plane, and `GET /v1/auth/status` carries no Hub user id (task 32, checked). So the fallback is out-of-band, and it needs an operator to read `users`. Task 42's copy becomes *"They'll join when they next sign in with their work account in this organisation."* The copy is the owner's (OD-12). Q12's second part asks whether this is acceptable for v1, and names the later in-product remedy | task-16.md:35-49; task-42.md:75-79; plan.md:501 |
+| **m3** `TrustedHops 2` | Case (4) uses the asymmetric chain `198.51.100.7, 203.0.113.9, 192.0.2.44, 10.0.0.1` → `192.0.2.44` (from the left it would be `203.0.113.9`). New case (4b) splits that chain as three entries then `10.0.0.1`: reading the last line alone falls back to the peer, and reading the first alone gives `203.0.113.9`. Two mutants join the kill column | task-13.md:170 |
+| **m4** task 12's count | Task 11 now says which package each test is in: nine in `internal/devissuer`, and `TestLoopbackOnlyBind` and `TestEnvLines` in `cmd/devissuer/main_test.go` (`main` holds `ADDR` and `env`, task-11.md:190-194). Task 12's count is **25** (9 + 16), not 27 | task-11.md:198-202; task-12.md:137 |
+| restatements | Grepped the plan and the parts. `plan.md:` line citations: only the one in task 44a, which now reads `:81`, the §5.4 row, still above the inserted row. Devissuer pass counts: task 11's 11 across both packages stands, and no other count cites task 12's 27. "Sibling ask in A15" became "the first sibling ask" in task 13's comment. No part restates the join copy. **Correction to round 1's map:** its "`entra.Claims` … has only `PreferredUsername`" was loose. `Email` is there too (`worktrees/env` phase-8 task-16.md:66-67), and neither `acct` nor `xms_edov` is | as listed |
+
+**Hours unchanged:** task 44a gains two cells of one more file, and task 16 gains a paragraph. That
+is my judgement, not measured.
+
+Unverified: that IT or phase 8 will configure the two claims. The asks and Q12 record them, but
+nothing here makes them happen, and R-4 is the first real look. Phase 8's plan was read at
+`worktrees/env` `b699ef9` on `feat/env`, and was not edited. Its asks go through task 00 and the
+orchestrator. Nothing was compiled or run: this batch changes only documents, so there were no
+mutants to run.
