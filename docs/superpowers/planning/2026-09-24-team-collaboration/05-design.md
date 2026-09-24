@@ -730,3 +730,66 @@ replay of earlier output unless the owner opts in; nothing stored; every `watch.
 OD-14 moves one detail: Fleet already carries the PTY stream, so Fleet relays it read-only to the
 watcher's cockpit, drops input frames at the source, strips OSC 52, and the Hub still never sees a
 byte (P10).
+
+## 10. Sharing a project, and a teammate's own agents (C1, C3)
+
+### 10.1 Share
+
+1. The owner opens **Share**, picks or creates a team, and invites teammates by email in the same
+   Entra tenant. This is the Hub's planned C1 path, unchanged: teams and members (Hub task 15),
+   projects and remotes (task 17), `hublink` and the share routes (task 35), the popover (task 42).
+2. The Hub records the project as owned by the team. Fleet sees that on the change feed (Hub task
+   26), creates the team project, its lane mirror (§8.2), and the owner's Orchestrator on first use.
+3. From then on, every new session on the project launches in Fleet. A session still running on
+   the laptop keeps working, labelled *outside the team* (§2.3).
+4. **Unpushed laptop lanes come along on request.** *"Move my 2 lanes to the cloud"* exports each
+   as a bundle (phase 3 ruling R4) into the owner's cloud machine, where Fleet takes them over.
+   Nothing moves without that click.
+
+### 10.2 A teammate spins up their own agents, from their own desktop
+
+Priya accepts the invite. Her machine runs only the cockpit.
+
+1. **She signs in as herself** with Entra PKCE (OD-6). The project appears in her rail.
+2. **Her cloud machine clones the repo with her git credential,** not the owner's (§2.5; `04`
+   §7.1). The git host's own permissions are the gate: team membership never grants repo access.
+   If she lacks it, the cockpit says so and stops: *"You're on the team, but not on the repository.
+   Ask its admin in Azure DevOps."*
+3. **She tells her own Orchestrator what she wants:** *"Add PDF export for evidence."* It runs
+   `panacea team`, creates her task with its brief section as the reason, takes `intent` leases on
+   its scope, and spawns a worker (§4).
+4. **The worker gets its own lane clone** on her machine disk (OD-2, P8-D6), a Kata sandbox from the
+   warm pool (phase 8 task 12), and a gateway token attributed to her (§2.5).
+5. **Within seconds, everyone's agents can read her task card** through `panacea team`, and her
+   row appears on every member's team strip (§9.1).
+
+A proposed target is under 10 seconds from her click to the worker's first output, from a warm
+pool. It is **UNVERIFIED** until phase 8 task 32 measures Kata cold start and warm-pool behaviour.
+
+### 10.3 Local mode, and why no user needs Docker
+
+The desktop is the portal (OD-20). **Team projects never run on a laptop.** Laptop Docker is kept
+for three cases only: a solo project run offline; developing Panacea App itself; and the time before
+phase 8's environment is first applied. A user who never does one of those never installs Docker.
+
+**Recommendation:** local mode should reach the model through the same gateway, with a
+user-scoped token the cockpit obtains after sign-in, so that no path in the product uses a
+personal subscription. Until the gateway exists, phase 2's `/login` stays as the developer
+fallback only (§13, Q2).
+
+### 10.4 The cloud tracks the latest Claude Code CLI (OD-20)
+
+About 90% of people should never need local mode (`owner-decisions.md:141`), so the cloud must
+never lag the laptop. Phase 8's image pipeline (task 27, with its OD-8 canary) gains a bump job:
+
+1. It watches for a new CLI release and builds a new sandbox image by digest.
+2. It runs four gates: the OD-8 canary; the `panacea` channel tests, including that an agent still
+   runs `panacea check` before an edit; G9's injection corpus (§7.1); and a gateway compatibility
+   call. The docs warn that *"a gateway that doesn't forward them breaks the corresponding
+   features, so the gateway product needs to be kept updated as Claude Code evolves"*
+   (https://code.claude.com/docs/en/llm-gateway, read 2026-09-25).
+3. It promotes the image to the warm pool. New launches, and every Restart, get it. A running
+   session keeps its version, and its card shows it.
+
+A proposed target is to reach the warm pool within 24 hours of a CLI release. How the job learns of
+a release, and whether the CI pool can reach the registry, are **UNVERIFIED**.
