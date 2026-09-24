@@ -4,7 +4,8 @@
 
 Every read the watcher and the drill-ins make, as `deploy.Identity` and `deploy.Reader` methods on
 `*panacea.Client`. Each DTO declares **only the fields phase 7 reads**, and names the Panacea line it
-mirrors, so a reviewer can re-check it against `b33d15acb` in one open. No Panacea source is copied
+mirrors, so a reviewer can re-check it against `406d0da95` (the plan's commit, plan §2; every
+cited line is unchanged at `b02424691`) in one open. No Panacea source is copied
 (`OD-13`); these are re-declarations of a wire format.
 
 **Files:**
@@ -333,7 +334,7 @@ A pair seeded in neither form is a test bug, answered `500` with
 | `TestLiveReadyPointer` | the newest row's `liveReadyReplicas: 0` → `*LiveReady == 0`; a row without the key → `nil` | `LiveReadyReplicas int` in the DTO |
 | `TestGatesAbsentIsNil` | a row without `scanStatus` → `Gates == nil` | `make(map…)` in the mapper |
 | `TestCompletedAtFromDuration` | `createdAt "2026-09-23T10:00:00Z"`, `duration "4m12s"` → `CompletedAt` 10:04:12Z; `duration "1h2m3s"` → 11:02:03Z; a row without `duration`, with `""`, or with `"soon"` → `CompletedAt.IsZero()`; a `historical` backfilled row → zero (review I3) | `CompletedAt = CreatedAt` when the duration is missing, which makes a running build read as live the moment it starts |
-| `TestStatusMappingTable` | every row of the status table, both DTOs | mapping `Pending` to `BuildPending`, which leaves the watcher's 3 s cadence on for the whole build |
+| `TestStatusMappingTable` | every row of the status table, both DTOs; and `Pending` maps to a state whose `Terminal()` is false | `Pending` read as terminal, e.g. mapped to `BuildFailed` (the "not `True` is failure" reading of `pipeline.go:2073-2084`, where `Pending` is a run whose condition is neither `True` nor `False`, so still running). Then `Track` stops driving the 3 s cadence while the build runs (t07:75-76) and `Advance` writes a result for a build that has none (t01:562). (Mapping `Pending` to `BuildPending` instead is caught by the row check only: both are non-terminal and keep the 3 s cadence, review M4) |
 | `TestSameEnvironment` | `("prod","production")`, `("production","prod")` → true; `("prod","prod-eu")`, `("feat-a","feat-b")` → false; the test's comment quotes `clients/kubernetes.go:4213` | a prefix match that joins `production` to `production-eu` |
 | `TestPathEscapesBranchAndEnv` | `Pods(p, "feat/x")` requests `/environments/feat%2Fx/pods` | an unescaped `/` routing to a different Panacea handler |
 | `TestEnvironmentForReadsPanaceasName` | the three `branch-access-*.json` bodies: `EnvironmentFor(p, "feat/x")` requests `GET /api/v1/projects/engagement-portal/branches/feat%2Fx/access` and returns `"feat-x"`; the 31-character branch returns `"lane-7-deploy-connec"`; `main` returns `"prod"`; a body with `"env": ""` → `KindUnavailable`; and **no** request to `/environments` is made | returning the branch unchanged, or a fourth `sanitizeBranchEnv` in the connector (review C2) |
@@ -366,7 +367,8 @@ grep -cE '^type [a-z][A-Za-z]*DTO(\[T any\])? struct' control-plane/internal/dep
 
 #### What this task does NOT claim
 
-- That the recorded bodies match live Panacea. They match Panacea's **source** at `b33d15acb`. Task
+- That the recorded bodies match live Panacea. They match Panacea's **source** at `406d0da95` (and
+  `b02424691`, plan §2). Task
   20 fetches each route once with the owner's token (OD-12) and diffs the keys.
 - That `GET /api/v1/projects` returns `repoUrl` to a non-admin token (plan §12). If it does not,
   task 06's fallback applies.
