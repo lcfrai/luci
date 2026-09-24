@@ -193,7 +193,8 @@ func Merge(existing, block string) (string, error)
 // by another. So "A\n\n<block>\n" becomes "A\n", and "A\r\n\r\n<block>\r\n"
 // becomes "A\r\n" (b10 re-review M-6). When anything follows the block, it
 // sits between a person's paragraphs and nothing before it is removed:
-// "A\n\n<block>\nB\n" becomes "A\n\nB\n". A file that did not end in a line
+// "A\n\n<block>\nB\n" becomes "A\n\nB\n" (here <block> ends at the end
+// marker; the "\n" after it is the one Strip removes). A file that did not end in a line
 // ending before Merge gets one back, because Merge gave "A" and "A\n" the
 // same bytes. No marker of either kind is not an error. The same failures,
 // by the same count, as Merge.
@@ -314,7 +315,7 @@ renders the same bytes on every branch and every teammate's machine.
 | `TestMergeAndStripFailClosed` | unterminated and duplicate blocks → their errors, input unchanged | the guess that deletes a person's writing |
 | `TestRenderNeutralisesCommentOpeners` | a Document whose answer text, criterion text, follow-up prompt and title (from a `BranchRef` of `refs/heads/<!--x` — `<` and `!` are legal in a git ref) each hold `<!-- panacea:discover:end -->` or `<!-- x -->` renders to a checked-in golden (`testdata/golden-neutralised.md`) in which each appears as `<!-\- …`; `strings.Count(block, "<!--") == 2`; `Inspect(Render(doc))` is ok with the doc's marker, and `Strip(Merge("", block))` is `""` | the escape dropped, or applied to answers but not to prompts or the title (review C2) |
 | `TestStrayEndMarkerIsBroken` | table, for each of `Merge`, `Strip` and `Inspect`: an end marker with no begin; an end before the begin; begin, end, then a second end (the forged-early-end shape: begin, forged end, brief tail, real end); a begin, a begin and one end → `ErrUnterminatedBlock` for the first three and `ErrDuplicateBlock` for the last; the input is unchanged; a file with no marker of either kind is still `ok == false` / unchanged with no error | a strip that removes up to the first end and leaves the brief's tail behind as "user text", a merge that re-appends that tail on every start, or an Inspect that reports it as `edited` for ever |
-| `TestStripRemovesTheBlockAndNothingElse` | Merge then Strip returns the original, byte for byte, for three shapes (`<block>` is Render's output, its trailing line ending included): an empty file; text above (`A\n`, where Merge gives `A\n\n<block>` and Strip removes the blank line with the block); text above and below (`A\n\n<old block>\nB\n`, where Merge replaces the block in place and Strip gives `A\n\nB\n`, removing nothing before a block that text follows). **Blank-line rows (b10 re-review M-6):** `A` with no final line ending Merges to `A\n\n<block>` and Strips to `A\n`; an appended block whose blank line the person deleted (`A\n<block>`) Strips to `A\n`, with no line of `A` eaten; a file that begins with the block (`<block>B\n`) Strips to `B\n`. **CRLF rows (review M7):** the two non-empty shapes with `\r\n` endings: Merge's output has no `\n` that is not preceded by `\r`, and Strip returns the original byte for byte; and a file Merged with LF, then re-saved with every `\n` turned to `\r\n` (the editor case), Strips to the CRLF original with no `\r` left anywhere a line ending was removed | a strip that leaves the appended block's blank line behind, or removes the blank line above a block that text follows (eating a person's paragraph break); a marker matched on `\n` only, which leaves a `\r` behind or misses a CRLF end marker; a Merge that writes an LF block into a CRLF file |
+| `TestStripRemovesTheBlockAndNothingElse` | Merge then Strip returns the original, byte for byte, for three shapes (`<block>` is Render's output, its trailing line ending included): an empty file; text above (`A\n`, where Merge gives `A\n\n<block>` and Strip removes the blank line with the block); text above and below (spelled in Go, as the test does: `"A\n\n" + old + "B\n"`, where `old` is an earlier render, its trailing line ending included; Merge gives `"A\n\n" + block + "B\n"`, and Strip gives `"A\n\nB\n"`, removing nothing before a block that text follows. b10 re-review R-I1: the row once read `A\n\n<old block>\nB\n`, which with `<block>` holding its line ending demands the Strip that eats the blank line above; a file with a real blank line between the block and B, `"A\n\n" + block + "\nB\n"`, Strips to `"A\n\n\nB\n"`). **Blank-line rows (b10 re-review M-6):** `A` with no final line ending Merges to `A\n\n<block>` and Strips to `A\n`; an appended block whose blank line the person deleted (`A\n<block>`) Strips to `A\n`, with no line of `A` eaten; a file that begins with the block (`<block>B\n`) Strips to `B\n`. **CRLF rows (review M7):** the two non-empty shapes with `\r\n` endings: Merge's output has no `\n` that is not preceded by `\r`, and Strip returns the original byte for byte; and a file Merged with LF, then re-saved with every `\n` turned to `\r\n` (the editor case), Strips to the CRLF original with no `\r` left anywhere a line ending was removed | a strip that leaves the appended block's blank line behind, or removes the blank line above a block that text follows (eating a person's paragraph break); a marker matched on `\n` only, which leaves a `\r` behind or misses a CRLF end marker; a Merge that writes an LF block into a CRLF file |
 | `TestCRLFResaveIsNotAnEdit` (review M7) | `Render(doc)` with every `\n` turned to `\r\n`: `Inspect` is ok with the doc's marker, `SameText(b.Text, Render(doc))` is true, and `DiffLines(Render(doc), b.Text)` is all `same` with no `\r` in any `Text`; the same file with one line's text changed: `SameText` false and exactly one `removed` and one `added`; `SameText("a\rb\n", "ab\n")` is false | a drift check that compares raw bytes, so every CRLF re-save is `edited` over every line; a normaliser that strips every `\r`, not just the one before `\n` |
 | `TestRenderWritesOnlyLF` (b10 re-review M-5) | a Document built straight from a head the Hub stored unchecked, whose answer text, criterion text and follow-up prompt hold `"x\r\ny\rz"`: `Render` holds no `"\r"`, and those lines read `x`, `y`, `z`; `Merge("A\r\n", block)` has every line ending `"\r\n"`, no `"\r\r\n"`, and `SameText` of its `Inspect` block with `Render(doc)` is true; `Merge("A\n", block)` holds no `"\r"`; and `Merge("A\r\n", block with CRLF)` equals `Merge("A\r\n", block)` | a Merge that converts with `strings.ReplaceAll(block, "\n", "\r\n")` over a block that already holds `"\r"`, giving `"\r\r\n"` and a block `edited` for ever; a Render that passes `"\r"` through into an LF file, leaving it with mixed endings |
 | `TestInspectReadsTheMarker` | `brief=bf-…a2 rev=5` → `Marker{"bf-…a2", 5}`; `rev=05`, `rev=0`, a missing `rev` → `ErrBadMarker` | a lenient parser that accepts a marker no render produced |
@@ -350,3 +351,45 @@ $ grep -c "<!--" control-plane/internal/claudemd/testdata/golden-neutralised.md
 
 **Does NOT claim:** that Claude Code reads this block (task 23's canary, and the owner's batched
 step); where the block is written (task 09).
+
+**As built** (task t05, commit `eb6075d` and after; report `.superpowers/sdd/p4/task-t05-report.md`).
+Where this differs from the text above, this wins:
+
+1. **The override note is one line.** `Section.Replaced` for the definition of done is the project's
+   criteria joined by `"; "` (the golden's `Tests pass; No change to the published API without a
+   version bump`, from two criteria typed on two lines); for every other key it is the project
+   answer's text. `Render` joins the note's lines with one space, dropping empty ones, so a
+   multi-line project answer cannot break the italic line (`TestOverrideNoteIsOneLine`).
+2. **Only a settled, non-skipped answer carries text.** The draft rule, generalised: a skip, a held
+   draft, or an answer with no text or no person or accepted author is no answer. So a branch
+   draft inherits the project's answer (`OriginProject`), and a project draft under a silent branch
+   is omitted. A `model_accepted` answer renders (`TestDraftedTextIsNeverRendered`).
+3. **Items come from the answer's `Criteria`**, ids kept, never re-split from the text; every other
+   section's `Items` is `[]`, and `Document.Sections` is `[]`, never null.
+4. **A malformed revision is a server fault.** `Resolve(nil, nil)`, a revision in the other scope's
+   place, a `BriefID` that is empty or holds a space, `<` or `>`, and a `Number` below 1 are the
+   unexported `errBadRevision` (a 500, like task 03's `errNoNewID`), checked before completeness
+   and the pin. So every block `Render(Resolve(…))` writes reads back through `Inspect`
+   (`TestResolveRefusesAMalformedRevision`). The id rule has two copies, `discover.markerSafe` and
+   `claudemd.markerID`, each pinned by its own row.
+5. **Every question skipped** still renders the key: the intro, then `No question in this brief has
+   an answer.`, then the footer (`TestAllSkippedRendersTheKeyAndNoSection`). The old plan's `No
+   brief has been recorded for this branch yet.` would be false for a complete brief; the wording is
+   the owner's to accept (OD-12).
+6. **Refusals change nothing, visibly.** `Merge` and `Strip` return `existing` unchanged beside the
+   error (not `""`, which a caller writing the result would turn into an empty file); `Inspect`
+   returns a zero `Block` on every error.
+7. **The begin marker's line is exactly** `BeginPrefix + " brief=" + id + " rev=" + n + " -->"`,
+   then `\r?\n`: `id` non-empty with no space, `<` or `>`; `n` matches `[1-9][0-9]*` and fits an
+   `int`. Anything else is `ErrBadMarker` (16 rows in `TestInspectReadsTheMarker`).
+8. **`DiffLines`** trims the common prefix and suffix, runs the LCS on the middle, bounded at 2^20
+   cells (past it: every render line removed, then every file line added, still a true diff), puts
+   the render's line (removed) before the file's (added) at a change, and is never nil. The 400-line
+   cap counts from the top.
+9. **A follow-up's heading** is its prompt for the holding revision's scope, trimmed, minus a final
+   `?`; the key itself when that leaves nothing.
+10. **Tests beyond the table:** `TestResolveOverrideCarriesTheReplacedText`,
+    `TestResolveOrdersSectionsAndHeadsFollowUps`, `TestResolveNamesTheKeyAndThePin`,
+    `TestResolveRefusesAMalformedRevision`, `TestAllSkippedRendersTheKeyAndNoSection`,
+    `TestOverrideNoteIsOneLine`, `TestDiffLinesIsCapped`. The Strip row's third shape is spelled in
+    Go (b10 re-review R-I1, above).
