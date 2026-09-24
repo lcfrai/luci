@@ -23,8 +23,7 @@ also changed, so it must start on them.
 - `control-plane/internal/api/gitroutes.go` — `gitRoutes()`, `registerGit` (new)
 - `control-plane/internal/api/worktrees.go` + `worktrees_test.go` — the create handler (new)
 - `control-plane/internal/api/catalog.go` — `worktreeJSON.Kind` (p2, one field, one assignment)
-- `control-plane/internal/api/mounts.go` + `mounts_test.go` — `MountGuard`, task 03's `lanes.MountGuard` (new; re-review b03 I-2)
-- `control-plane/internal/api/sessions.go` — the Store write that makes a session starting runs inside `MountGuard.Admit`, in create and in restart (p2, two call sites); the default title takes the worktree's catalog `Name`, not the directory's base name (p2, `sessionLocate`'s third result and the title block; re-review b08-1 issue 2)
+- `control-plane/internal/api/sessions.go` — the default title takes the worktree's catalog `Name`, not the directory's base name (p2, `sessionLocate`'s third result and the title block; re-review b08-1 issue 2)
 - `control-plane/internal/api/sessions_test.go` — `TestSessionCreateDefaultTitleUsesTheWorktreeName` (p2)
 - `control-plane/internal/httpx/problem.go` — `CodeGitFailed`, `CodeHostFailed` (p2, two constants)
 - `control-plane/cmd/api/config.go` — `PANACEA_APP_WORKTREES_DIR` (p2)
@@ -61,10 +60,6 @@ type GitDeps struct {
 	// VersionErr is gitx.CheckVersion's startup error, or nil. Non-nil makes every phase 3
 	// route that runs git answer 409 conflict, reason git_too_old, with its sentence.
 	VersionErr error
-	// Mounts is the one MountGuard. main.go gives the same value to Creator.Mounts; session
-	// create and restart admit through it. Deps.Git == nil admits without a lock: no lane can
-	// be created then, so there is no copy to order against.
-	Mounts *MountGuard
 	// Locks is the one gitx.Locks (task-02; review I7). Task 04 only constructs it; task 09's
 	// Lander (and task 10's Undo and Revert), task 11's branch verbs and task 12's Fetcher and
 	// Push take this value, never one of their own, so a push and a land on one project wait on
@@ -74,25 +69,11 @@ type GitDeps struct {
 ```
 
 ```go
-// mounts.go
-package api
+// gitdeps.go, continued.
 
-// MountGuard is task 03's lanes.MountGuard over the session registry (re-review b03 I-2).
-// Session create has no lock of its own to share (sessions.go at 8236ba1 serialises only
-// restarts, per id, in sessionIDSet), so this is that lock. One mutex orders two things:
-//   - Admit(dir, fn) runs fn, the Store write that makes a session on dir StatusStarting
-//     before its sandbox starts (create's Store.Create, restart's Store.Update; at 10fa5fd
-//     sessions.go:689 and :1316, each before its Backend.Create at :729 and :1340);
-//   - WhileUnmounted(ctx, dir, fn) lists the registry (Store.List) and runs fn only when no
-//     session whose Status is not registry.StatusExited resolves, through Worktrees.Path, to
-//     dir. A List or Path error is logged and counts as mounted: fail closed. err is fn's.
-// Paths compare after filepath.Clean, and case-folded on Windows. So a lane's hooks copy out
-// of a project's working tree and a sandbox mounting that tree never overlap.
-type MountGuard struct{ /* mu sync.Mutex; store registry.Store; paths worktree.Provider; log */ }
-
-func NewMountGuard(store registry.Store, paths worktree.Provider, log *slog.Logger) *MountGuard
-func (g *MountGuard) Admit(dir string, fn func() error) error // nil g runs fn unlocked
-func (g *MountGuard) WhileUnmounted(ctx context.Context, dir string, fn func() error) (bool, error)
+// There is no MountGuard (ruling R4.1). No sandbox mounts the project, so task 03's hooks copy
+// out of its working tree has nothing to wait for, and session create and restart have no
+// partner to admit against (re-review b03 I-2 is closed by R4.1, not by a lock).
 
 // The closed list of details.reason on a phase 3 409 conflict. The desktop switches on it;
 // it never reads the message to decide anything.
@@ -120,9 +101,9 @@ const (
 	ReasonNoCredential      = "no_credential"          // PR; details.host
 	ReasonNotPushed         = "not_pushed"             // PR: the branch has no upstream, or commits the remote lacks; details.why: never_pushed | ahead
 	ReasonTranscript        = "transcript_unreadable"  // transcript span; details.why is the adapter's Unreadable.Reason (task 17)
-	// task-02 §HGH H3: a *gitx.UntrustedConfig, on any phase 3 route that runs git, and on phase 2's
-	// session create and restart in a lane clone (task 05, re-review b02-2 X-1); details.key, never the value
-	ReasonCloneConfigUntrusted   = "clone_config_untrusted"   // a key outside the clone allowlist
+	ReasonBundleRefused     = "bundle_refused"         // task 24: a lane's bundle failed verify, list-heads or fsck
+	// task-02 §HGH H3: a *gitx.UntrustedConfig, on any phase 3 route that runs git in the
+	// project (R4.2: no host call runs in a lane); details.key, never the value
 	ReasonProjectConfigUntrusted = "project_config_untrusted" // a key on the project refusal list
 )
 
@@ -232,6 +213,13 @@ func (a *API) registerGit(mux *routes) {
 	if err != nil {
 		return fmt.Errorf("prepare host git hardening: %w", err)
 	}
+	// R4.2: Exec refuses every call in a lane. CloneRoot reads only Root, so the Runner is set
+	// once the Exec exists. A LaneRoot of "" checks nothing, so startup refuses it.
+	machine := gitx.Local{Root: cfg.WorktreesDir}
+	hardening.LaneRoot = machine.CloneRoot()
+	if hardening.LaneRoot == "" {
+		return errors.New("prepare host git hardening: no worktrees directory to guard")
+	}
 	gitExec, err := gitx.NewExec(hardening)
 	if err != nil {
 		return fmt.Errorf("prepare host git hardening: %w", err)
@@ -247,20 +235,16 @@ func (a *API) registerGit(mux *routes) {
 	if err := os.MkdirAll(cfg.WorktreesDir, 0o700); err != nil {
 		return fmt.Errorf("create the worktrees directory: %w", err)
 	}
-	machine := gitx.Local{Runner: gitExec, Root: cfg.WorktreesDir}
+	machine.Runner = gitExec
 	if cfg.ProjectsDir != "" {
 		catalog := &lanes.Catalog{Source: scanner, Store: laneStore}
 		enumerator, worktrees = catalog, catalog // both Deps.Projects and Deps.Worktrees
 	}
-	// The registry store and logger main.go already passes as Deps.Store and Deps.Log; the
-	// catalog above as the path resolver, so both sides resolve a worktree the same way.
-	mounts := api.NewMountGuard(store, worktrees, log)
 	gitDeps := &api.GitDeps{
 		Machine:    machine,
 		Lanes:      laneStore,
-		Creator:    &lanes.Creator{Machine: machine, Store: laneStore, Mounts: mounts},
+		Creator:    &lanes.Creator{Machine: machine, Store: laneStore},
 		VersionErr: gitVersionErr,
-		Mounts:     mounts,
 		Locks:      &gitx.Locks{}, // the only one; later blocks read gitDeps.Locks
 	}
 	// and in the startup log line: "git", gitVersion, "worktrees", cfg.WorktreesDir
@@ -319,11 +303,7 @@ record in place (`Store.Update`) and never derives a title, so it needs no chang
 | `TestCatalogWorktreeJSONCarriesKind` | GET list over a fake enumerator returning each Kind → the three strings on the wire | the field dropped at the JSON boundary |
 | `TestRegisteredRoutesIncludeWorktreeCreate` | `RegisteredPatterns()` contains the POST, and the existing §10a audit still passes | a route registered on the raw mux |
 | `TestLoadConfigWorktreesDir` (cmd/api) | default is `statepath.Dir("worktrees")`; relative → error; inside projects dir → error naming both variables; containing it → error | clones scanned as projects |
-| `TestServeWiresGit` (cmd/api) | the Deps `serve` builds has a non-nil `Git` whose Creator's Machine root is `cfg.WorktreesDir`, and whose `Creator.Mounts` is non-nil and the same pointer as `Git.Mounts`; `Git.Locks` is non-nil | a production build with phase 3 unwired, or two guards that order nothing |
-| `TestMountGuardRefusesALiveSession` (re-review b03 I-2) | a registry session on `w-1`, which the fake Provider resolves to `dir`: `StatusStarting` and running → `WhileUnmounted` returns false and fn never runs; `StatusExited` → true, fn ran; `dir` in other case on Windows → still false | a copy out of a tree a live sandbox can rewrite |
-| `TestMountGuardOrdersAdmitAfterTheCopy` | fn blocks on a channel; a concurrent `Admit(dir, …)` has not run its fn when the channel is released, and runs it after (an ordered event log, under `-race`) | two locks, or none, so a sandbox starts mid-copy |
-| `TestMountGuardFailsClosed` | `Store.List` errors, or `Path` errors for a live session → false, fn never runs, one log line | a registry glitch read as "nothing mounted" |
-| `TestSessionCreateAndRestartAdmitThroughTheGuard` | with a `WhileUnmounted` fn held open on the primary worktree's path, a session create and a restart on it do not reach `Backend.Create` until it is released; with `Deps.Git == nil`, create still works | a session start that bypasses the guard |
+| `TestServeWiresGit` (cmd/api) | the Deps `serve` builds has a non-nil `Git` whose Creator's Machine root is `cfg.WorktreesDir`; a `Scope Project` call through `Git.Machine.Git()` with `Dir` under `cfg.WorktreesDir` returns `gitx.ErrLaneDir` and starts no git (R4.2: `LaneRoot` is `machine.CloneRoot()`); `Git.Locks` is non-nil; a cfg whose `WorktreesDir` is `""` → serve returns an error and starts nothing. Red first against main.go without the `LaneRoot` line | a production build with phase 3 unwired, or an Exec that runs host git in a lane |
 | `TestSessionCreateDefaultTitleUsesTheWorktreeName` (re-review b08-1 issue 2) | a fake enumerator lists `w-lane` with `Kind:"clone"`, `Name:"upload-api"`, and the fake Provider resolves it to `<tmp>/upload-api-3fa9c1`; a create with no title → `Claude Code · upload-api`; a create with `title:"mine"` → `mine`; a worktree the enumerator does not list → the path's base name. Red first: today's code answers `Claude Code · upload-api-3fa9c1` | a lane session titled with the creation nonce |
 | `TestGitIdentityUsesGitxParseIdent` (cmd/api) | the fix's `gitidentity_test.go` cases still pass after the swap | two parsers of one line drifting |
 
@@ -335,10 +315,8 @@ record in place (`Store.Update`) and never derives a title, so it needs no chang
 - [ ] **Step 2:** tests first. `worktrees_test.go` builds `New(Deps{…, Git: &GitDeps{…}})` with a
   fake `lanes.Store` and a `Creator` over `gitxtest` repos for the one real-git case.
 - [ ] **Step 3:** `gitdeps.go`, `gitroutes.go`, `worktrees.go`, the two `api.go` lines, the
-  `catalog.go` field, the two codes; `mounts.go`, and the two `Admit` call sites in
-  `sessions.go` (re-locate them with `grep -n "a.deps.Store.Create\|StatusStarting"`, since the
-  line numbers above are `10fa5fd`'s); `sessionLocate`'s third result and the default title
-  (re-locate with `grep -n "filepath.Base(filepath.Clean(path))\|func (a \*API) sessionLocate"`).
+  `catalog.go` field, the two codes; in `sessions.go`, `sessionLocate`'s third result and the
+  default title (re-locate with `grep -n "filepath.Base(filepath.Clean(path))\|func (a \*API) sessionLocate"`).
   The existing title assertion in `TestCreateReturns201StartingWithALocationAndNoSecrets`
   ("Claude Code · evidence-upload"; `sessions_test.go:742` at `b4aa8ad`, :774 at `960457d`)
   stays green unchanged: its `sessionsLocator` lists `Name: "evidence-upload"` for the
