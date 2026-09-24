@@ -47,7 +47,7 @@ export interface DesignClient {
   closeReview(canvasId: string, reviewId: string): Promise<ReviewRequest>;                  // 16
   setSelection(canvasId: string, nodeIds: string[]): Promise<void>;                         // 17
   exportCode(canvasId: string, nodeId: string, format: "html" | "jsx-inline" | "jsx-tailwind"): Promise<string>; // 18
-  renderResult(requestId: string, r: RenderResult): Promise<void>;                          // 19
+  renderResult(requestId: string, renderer: string, r: RenderResult): Promise<void>;        // 19; renderer = the render event's, sent as ?renderer= (task 20a, review M17)
   approve(canvasId: string, revision: number): Promise<DesignApproval>;                     // 21; sent with timeoutMs: 0 (review I5: client.ts's 10 s DEFAULT_TIMEOUT_MS, client.ts:33, is shorter than one approval capture; the server bounds each artboard with ApprovalRenderTimeout and the toast shows progress)
   approvals(canvasId: string): Promise<ApprovalState>;                                      // 22
   reviewMark(canvasId: string): Promise<{ revision: number; briefKey: string }>;            // 23
@@ -81,12 +81,16 @@ export interface EventStreamOptions {
                              // connect that answers 200, so a window outlives any number of
                              // control-plane restarts (re-review M-1)
   onCanvas(e: CanvasEvent): void;
-  onRender(r: RenderRequest): void;
+  onRender(r: RenderRequest, renderer: string): void; // renderer: the event's "renderer" field,
+                             // <window>/<es>/<canvasId>:<visible|hidden> (task 20a, review M17)
   onGone(g: { topic: string; code: string }): void;
   onState(s: StreamState): void;
 }
 export interface EventStream {
-  setTopics(topics: string[]): void; // replaces the stream when the SET changes (open new, then abort old)
+  setTopics(topics: string[]): void; // replaces the stream when the SET changes (open new, then abort old).
+                                     // Safe because the server keys each renderer by stream instance
+                                     // (task 20a, review M17): aborting the old stream detaches only
+                                     // the old stream's renderer ids, never the new stream's.
   close(): void;
 }
 export function openEventStream(o: EventStreamOptions): EventStream;
@@ -136,8 +140,9 @@ export function acquireDocStore(canvasId: string, transport: CanvasTransport): P
 // desktop/src/design/transportAdapter.ts
 export function createCockpitTransport(client: DesignClient, stream: EventStream): CanvasTransport;
 // subscribe → adds "canvas:<id>@<after>" to the stream's topic set; a "gap" from the DocStore →
-// document() reload; onRenderRequest → adds "renderer:<id>:visible|hidden", runs the handler,
-// POSTs route 19; assetUrl → assetBytes → URL.createObjectURL, cached per ref, revoked on release.
+// document() reload; onRenderRequest → adds "renderer:<id>:visible|hidden"; a render event runs
+// the handler whose canvas and visibility its "renderer" id's suffix names (a stream can hold
+// both for one canvas while approving), then POSTs route 19 with that same renderer id; assetUrl → assetBytes → URL.createObjectURL, cached per ref, revoked on release.
 
 // desktop/src/design/selectors.ts
 export const selectDesignBriefKeys: KeySource;   // every loaded approval's briefKey and each ApprovalState's non-"" headBriefKey (S4-P5.1; re-review RR-b08-3)
@@ -174,7 +179,7 @@ export function selectHandoffWorktrees(s: CockpitState, branchId: string): Workt
 | `designSlice.test.ts › approvalProgress` | `designApprovalProgress({…, index: 3, total: 12, name: "Billing"})` sets it; the approve POST settling (success or `ApiError`) clears it; `approve` is called with `timeoutMs: 0` (an injected `fetch` sees no abort after 10 s, fake timers) | a 12-artboard approval aborted by the client's 10 s default, or a toast stuck on *"3 of 12"* (review I5) |
 | `designSlice.test.ts › startDevelop` | three calls in order; a failing third leaves `linked: false` and the retry path works | an unlinked session nobody can fix |
 | `transportAdapter.test.ts › gapReload` | a DocStore `gap` triggers exactly one `document()` | a canvas stuck behind after a drop |
-| `transportAdapter.test.ts › renderRoundTrip` | a render event runs the handler and POSTs its result to route 19 | render requests that time out server-side |
+| `transportAdapter.test.ts › renderRoundTrip` | a render event runs the handler and POSTs its result to route 19 with `?renderer=` equal to the event's `renderer`; with a visible and a hidden handler registered for one canvas, an event whose id ends `:hidden` runs only the hidden one (review M17) | render requests that time out server-side; a result sent under another stream's renderer id |
 | `selectors.test.ts` | `selectDesignBriefKeys` lists approved keys and every non-`""` `headBriefKey`, verbatim (re-review RR-b08-3); `selectHiddenRendererCanvases` includes a branch with a running claude-code session and excludes the lens's canvas; with `approving` set to the lens's own canvas it includes that canvas, and with `approving` null it drops it again | hidden renderers for every branch, or none; an approval whose only renderer closes with the lens (re-review RR-I5-1) |
 | `selectors.test.ts › selectHandoffWorktrees` (re-review RR-I1-5) | a branch with a primary, a linked and a clone worktree → `[clone, primary]`; a branch whose only worktree is linked → `[]`; before phase 3 (`handoffKind` on `isPrimary`), a non-primary worktree → excluded | a handoff offered into a linked worktree, answered 409 after the click |
 | `designSlice.test.ts › approving` | `designApprove(c, 5)` sets `approving: c` at once (inside the Undo window); `designCancelApproval` clears it; the approve POST settling, with success or an `ApiError`, clears it | a hidden renderer kept for ever, or one attached only after capture has started |

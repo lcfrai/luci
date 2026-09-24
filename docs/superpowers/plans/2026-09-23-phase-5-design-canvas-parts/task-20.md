@@ -97,15 +97,15 @@ surface — and therefore the only thing behind "only a human approves" (review 
 | 8 | POST | `/v1/design/canvases/{canvasId}/revert` | `{"sessionId":"s-…","sinceRevision":0}` | `200 authority.RevertResult` |
 | 9 | DELETE | `/v1/design/canvases/{canvasId}/claims/{artboardId}` | — | `204` |
 | 10 | GET | `/v1/design/canvases/{canvasId}/activity?after=&limit=` | — | `200 {"rows":[authority.ActivityRow]}` |
-| 11 | POST | `/v1/design/canvases/{canvasId}/assets/{sha}` | raw bytes; `Content-Type` one of the four image types; ≤ 10 MiB | `200 {"asset": doc.Asset, "revision": n}` — stored and `add_asset` applied as one human batch |
-| 12 | GET | `/v1/design/canvases/{canvasId}/assets/{sha}` | — | the bytes; `Content-Type` as stored; `Cache-Control: private, max-age=31536000, immutable` (content-addressed); `X-Content-Type-Options: nosniff` |
+| 11 | POST | `/v1/design/canvases/{canvasId}/assets/{sha}` | raw bytes; `Content-Type` one of the four image types; ≤ 10 MiB; `{sha}` is 64 lowercase hex, and the body's SHA-256 (hashed as it streams) **must equal it**, else `400 bad_request` with `details.field: "sha"` and nothing stored or applied (review M11) | `200 {"asset": doc.Asset, "revision": n}` — stored and `add_asset` applied as one human batch |
+| 12 | GET | `/v1/design/canvases/{canvasId}/assets/{sha}` | — | the bytes; `Content-Type` as stored; `Cache-Control: private, max-age=31536000, immutable` (content-addressed); `X-Content-Type-Options: nosniff`; `Content-Disposition: attachment; filename="<sha>"`; `Content-Security-Policy: sandbox; default-src 'none'` — the Hub's blob headers (Hub contract §7.6, `hub-contract.md:854-857`), because an `image/svg+xml` asset opened from the control plane's origin would otherwise run as a document there (review M11). `fetch()` ignores both, so the desktop's `assetBytes` → `blob:` path is unchanged |
 | 13 | POST | `/v1/design/canvases/{canvasId}/threads` | `{"nodeId":"n-…","text":"…"}` | `201 doc.Thread` |
 | 14 | POST | `/v1/design/canvases/{canvasId}/threads/{threadId}/messages` | `{"text":"…"}` | `201 doc.Message` |
 | 15 | POST | `/v1/design/canvases/{canvasId}/threads/{threadId}/status` | `{"status":"open"\|"resolved"}` | `200 doc.Thread` |
 | 16 | POST | `/v1/design/canvases/{canvasId}/reviews/{reviewId}/close` | `{}` | `200 doc.ReviewRequest` |
 | 17 | POST | `/v1/design/canvases/{canvasId}/selection` | `{"nodeIds":["n-…"]}` | `200 authority.Selection` |
 | 18 | GET | `/v1/design/canvases/{canvasId}/export?nodeId=&format=html\|jsx-inline\|jsx-tailwind&at=` | — | `200 {"format":"…","text":"…"}` (the code panel) |
-| 19 | POST | `/v1/design/render-results/{requestId}` | `authority.RenderResult`, ≤ 32 MiB (its own decoder, not `httpx.DecodeJSON`'s 1 MiB) | `204` |
+| 19 | POST | `/v1/design/render-results/{requestId}?renderer=<rendererId>` | `authority.RenderResult`, ≤ 32 MiB (its own decoder, not `httpx.DecodeJSON`'s 1 MiB); `renderer` is the `render` event's (review M17, below) | `204` |
 | 20 | GET | `/v1/events?window={id}&topic=…` | — | `200 text/event-stream` (below) |
 
 Every human route builds `authority.Caller{Author: {Kind: human, UserID: "local", Handle: <the
@@ -139,7 +139,7 @@ id: canvas:cv-7c01d2e3f4a5b6c7@42
 data: {"canvasId":"cv-…","kind":"change","revision":42,…}
 
 event: render                              one per authority.RenderRequest for a renderer topic
-data: {"id":"rq-…","canvasId":"cv-…","revision":42,"kind":"screenshot",…}
+data: {"id":"rq-…","canvasId":"cv-…","revision":42,"kind":"screenshot",…,"renderer":"wn-3f2a91c07b1e/es-…/cv-…:visible"}
 
 event: gone                                a topic that cannot be served; the stream stays open
 data: {"topic":"canvas:cv-…@41","code":"canvas_not_found"}
@@ -147,8 +147,20 @@ data: {"topic":"canvas:cv-…@41","code":"canvas_not_found"}
 : ping                                     every 15 s
 ```
 
-- `window` is `wn-` + 12 hex, minted by the desktop once per window; the renderer id is
-  `<window>/<canvasId>`. At most **16 topics** per stream; more is `400 bad_request`.
+- `window` is `wn-` + 12 hex, minted by the desktop once per window. At most **16 topics** per
+  stream; more is `400 bad_request`.
+- **Renderer ids are per stream instance (review M17).** The broker mints a stream id `es-` + 12
+  hex (`crypto/rand`) for every `GET /v1/events` it accepts, and the renderer id of each renderer
+  topic on that stream is `<window>/<es>/<canvasId>:<visible|hidden>`. It is never
+  `<window>/<canvasId>`: the desktop opens the replacement stream **before** it closes the old one,
+  so a per-window id would let the old stream's close detach the renderer the new stream had just
+  registered under the same id, and a window holding both `renderer:<id>:visible` and
+  `renderer:<id>:hidden` (task 27's `approving` case) would register one id twice. The close of a
+  stream detaches exactly the ids it minted. Every `render` event's `data` carries the id as a
+  top-level `"renderer"` field (the broker marshals ``struct{ authority.RenderRequest; Renderer
+  string `json:"renderer"` }``), and route 19 echoes it as `?renderer=`; the handler passes it to
+  `CompleteRender` (task 13), so a result from any other renderer, including the same window's
+  old stream, is `404 render_not_found`. A missing or malformed `renderer` is `400 bad_request`.
 - Topic grammar: `canvas:<canvasId>@<afterRevision>` or `renderer:<canvasId>:visible|hidden`.
 - The desktop **replaces** its stream when its topic set changes (a new request, then it closes the
   old). One stream per window (P5-B). On reconnect it resends each canvas's last revision; the
@@ -288,9 +300,11 @@ The two `PANACEA_APP_CANVAS_*` variables, `newDesignAPI` and the `main.go` wirin
 | `TestRoutes_audit` (`routes_audit_test.go`) | routes 1, 3, 4, 10, 12, 18, 20 are in `catalogReadOnlyRoutes`; the audit passes | a GET added outside the audit |
 | `TestOps_authorIsHuman` | a body with `"author":{…}` is `400 bad_request` (unknown field); the applied change's author is `human` | an actor field in a request (plan rule 4) |
 | `TestOps_conflictAndRejected` | stale `ifRevision` → 409 `canvas_conflict` with `currentRevision`; a cycle → 422 `op_rejected` with `index` | errors flattened to 500 |
-| `TestAssets_postGet` | POST a PNG → asset + revision; GET returns the bytes with `nosniff`; a JPEG body labelled PNG → 415; 10 MiB + 1 → 413 | a mislabelled asset served to the renderer |
+| `TestAssets_postGet` | POST a PNG → asset + revision; GET returns the bytes with `nosniff`, `Content-Disposition: attachment; filename="<sha>"` and `Content-Security-Policy: sandbox; default-src 'none'` (an SVG asset too); a JPEG body labelled PNG → 415; 10 MiB + 1 → 413 | a mislabelled asset served to the renderer; an SVG that runs script on the control plane's origin (review M11) |
+| `TestAssets_shaMismatch` (review M11) | a PNG POSTed under the SHA-256 of other bytes → 400 `bad_request`, `details.field: "sha"`; the store holds no blob under either digest and the canvas revision is unchanged; an uppercase or 63-hex `{sha}` → 400 | a mislabelled asset: bytes stored under a digest they do not hash to, then served as another image |
 | `TestRenderResults_bigBody` | a 20 MiB result is accepted (its own limit); 33 MiB → 413 | screenshots refused by the 1 MiB JSON cap |
-| `TestRenderResults_wrongWindow` | a result for another window's request → 404 `render_not_found` | one window answering for another |
+| `TestRenderResults_wrongWindow` | a result for another window's request → 404 `render_not_found`; no `?renderer=` → 400 | one window answering for another |
+| `TestEvents_replaceKeepsNewRenderer` (review M17) | stream A holds `renderer:cv-1:visible`; stream B opens with the same window and topic, then A closes; a render request sent after A's close reaches B, and a result posted with A's `renderer` id → 404 while B's → 204. The same stream holding `renderer:cv-1:visible` and `renderer:cv-1:hidden` registers two distinct ids | the stream swap detaching the renderer it just registered (the id was `<window>/<canvasId>`) |
 | `TestEvents_sseFormat` | a subscriber sees `event: canvas`, `id:`, `data:` lines, flushed per event, and a ping within 15 s (injected ticker) | buffered events arriving in bursts |
 | `TestEvents_replayOnReconnect` | reconnect with `@41` after revisions 42–45 → four events | missed changes after a drop |
 | `TestEvents_topicLimit` | 17 topics → 400 | unbounded fan-out |

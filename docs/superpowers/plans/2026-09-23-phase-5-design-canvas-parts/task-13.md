@@ -122,7 +122,10 @@ var (
 // AttachRenderer registers one renderer for one canvas. visible is true for
 // the lens's renderer, false for the hidden one; Render prefers visible. The
 // channel carries requests; detach removes the renderer and fails its
-// outstanding requests with ErrRendererDetached.
+// outstanding requests with ErrRendererDetached. rendererID is opaque here;
+// task 20a mints one per stream instance and topic
+// (<window>/<es>/<canvasId>:<visible|hidden>), so no two live registrations
+// share an id and one stream's detach never removes another's (review M17).
 //
 // Strikes (task 20's phantom rule): the Service itself detaches a renderer,
 // closing its channel so task 20 sends `gone`, at its SECOND strike. A strike
