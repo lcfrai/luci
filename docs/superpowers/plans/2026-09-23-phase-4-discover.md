@@ -317,7 +317,7 @@ without a cycle. Phase 4 imports only the Hub's
 | `discover/DiscoverLens.tsx`, `QuestionFlow.tsx`, `BriefPanel.tsx`, `BindingState.tsx`, `useBriefView.ts`, `discover.css` + tests | the lens: binding states, asking, the brief born, inheritance, follow-up, model off, unavailable | 18 |
 | `discover/BriefHistory.tsx`, `PastRevision.tsx`, `SessionsOnBrief.tsx`, `Materialisations.tsx`, `SectionChanges.tsx` + tests | moved on, project changed, undo, past revision read-only, missing, erased, hand-edited block | 19 |
 | `discover/StartWithoutBrief.tsx` + test | the `4-D1` refusal and override on all six ways a session starts: create (two call sites), restart (two), resume, fork (review I9) | 20 |
-| `discover/startAttempt.ts` + test | `routeBriefRefusal`, which every start path's `catch` calls first, and `replayStart`, which Retry and the override call (review I9) | 20 |
+| `discover/startAttempt.ts` + test | `routeBriefRefusal`, which every start path's `catch` calls first; `sendAttempt` and `replayStart`, which Retry and the override call (review I9); `anchorKey` and `useRefusalHost`, which put each refusal in exactly one mounted place (re-review b07-1 R-I1) | 20 |
 | `discover/ImportRepo.tsx` + test | drafted from the code: accept or change each answer | 21 |
 
 **Modified — phase 2 files, each a declared departure named in its task:**
@@ -342,7 +342,8 @@ without a cycle. Phase 4 imports only the Hub's
 | `desktop/src/App.tsx` | the poller's good-tick callback also runs the loader | 16 |
 | `desktop/src/components/develop/sessionVerbs.ts` | restart, resume and fork route `brief_not_written` to the refusal; `runImmediate` gains an optional `refusal` (review I9) | 20 |
 | `desktop/src/components/develop/EmptyDevelop.tsx` | `startSessionOnWorktree` routes `brief_not_written` to the refusal, rendered beside its two buttons (review I9) | 20 |
-| `desktop/src/components/develop/SessionPane.tsx` | the exit bar's `restartSession` routes `brief_not_written`; the pane renders the refusal for restart, resume and fork (review I9) | 20 |
+| `desktop/src/components/develop/SessionPane.tsx` | the exit bar's `restartSession` routes `brief_not_written`; the pane renders the refusal for restart, resume and fork, and says it is mounted through `useRefusalHost` (review I9, re-review b07-1 R-I1) | 20 |
+| `desktop/src/components/topbar/TopBar.tsx` | renders the `new-session` refusal, and any other refusal whose home (pane or empty state) is not mounted, naming what was refused (re-review b07-1 R-I1) | 20 |
 | `desktop/src/components/develop/SessionPaneHeader.tsx` | mounts `ContextChip` | 17 |
 | `desktop/src/components/AppShell.tsx` | the `discover` arm returns `<DiscoverLens />` | 18 |
 | `desktop/src/hooks/useCreateSession.ts` | routes `brief_not_written` to the refusal surface instead of a toast | 20 |
@@ -360,9 +361,10 @@ without a cycle. Phase 4 imports only the Hub's
 
 ## 6. Tasks — dependencies and order
 
-Each task is 1–3 hours for one implementer who has read this file and the task's part. Task 10
-is the exception, at 3.5 h, after review I1 and I2. It stays off the critical path only if it
-starts early: it has no dependencies, so it can start before Hub H0, while 09 waits for 07 (3 h
+Each task is 1–3 hours for one implementer who has read this file and the task's part. Two tasks
+are the exceptions. Task 20 is 4 h: review I9 and re-review b07-1 R-I1 grew it from two start
+paths to six, plus a fallback anchor. Task 10 is 3.5 h, after review I1 and I2. Task 10 stays off
+the critical path only if it starts early: it has no dependencies, so it can start before Hub H0, while 09 waits for 07 (3 h
 after H0).
 
 | # | Task | Depends on | Est. |
@@ -386,7 +388,7 @@ after H0).
 | 17 | Desktop: `ContextChip`, `DefinitionOfDone`, `ShippedManifest`; the chip on every pane header | 16 | 3 h |
 | 18 | Desktop: the Discover lens — binding, asking, the brief born, inheritance, follow-up, failures | 16, 17 | 3 h |
 | 19 | Desktop: moved on, project changed, undo, past revision, missing, erased, hand-edited | 18 | 3 h |
-| 20 | Desktop: `4-D1` on start and restart — retry and *Start without the brief* | 15, 16 | 2 h |
+| 20 | Desktop: `4-D1` on every session start (six paths) — retry, *Start without the brief*, and the refusal's always-mounted fallback | 15, 16 | 4 h |
 | 21 | Desktop: import a repository — drafted from the code | 13, 18 | 2 h |
 | 22 | Contract amendments (Go, UI, provenance) | 10, 12, 16 | 1.5 h |
 | 23 | End-to-end verification; the owner's batched steps written down | all | 2 h |

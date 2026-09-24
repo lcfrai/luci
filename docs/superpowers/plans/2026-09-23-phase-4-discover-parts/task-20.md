@@ -1,4 +1,4 @@
-### Task 20: Desktop — `4-D1` on session start and restart
+### Task 20: Desktop — `4-D1` on every session start (six paths)
 
 When `POST /v1/sessions` or `POST …/restart` answers `409 brief_not_written`, the session did not
 start (task 10 guarantees nothing was recorded). The person sees **why**, a **Retry**, and one
@@ -33,19 +33,24 @@ radius and motion as task 17. The owner's eyes are the visual acceptance (`OD-12
 
 **Files:**
 - `desktop/src/discover/StartWithoutBrief.tsx` + `StartWithoutBrief.test.tsx` (new)
-- `desktop/src/discover/startAttempt.ts` + `startAttempt.test.ts` (new) — `routeBriefRefusal`
-  and `replayStart`, the one place a refusal is recorded and the one place it is re-sent
+- `desktop/src/discover/startAttempt.ts` + `startAttempt.test.ts` (new) — `routeBriefRefusal`,
+  `sendAttempt` and `replayStart`, the one place a refusal is recorded and the one place it is
+  re-sent; `anchorKey` and `useRefusalHost`, which say where it renders
 - `desktop/src/hooks/useCreateSession.ts` — call site 1 (modify)
-- `desktop/src/components/develop/EmptyDevelop.tsx` — call site 2; mounts the refusal beside its
-  two buttons (modify)
+- `desktop/src/components/topbar/TopBar.tsx` — the `new-session` home and the fallback for every
+  other home that is not mounted (modify; re-review b07-1 R-I1)
+- `desktop/src/components/develop/EmptyDevelop.tsx` — call site 2; hosts `empty:<target.id>` and
+  mounts the refusal beside its two buttons (modify)
 - `desktop/src/components/develop/sessionVerbs.ts` — call sites 3, 5, 6; `runImmediate` gains the
   optional `refusal` (modify)
-- `desktop/src/components/develop/SessionPane.tsx` — call site 4; mounts the refusal for the
-  session-bound attempts (modify)
+- `desktop/src/components/develop/SessionPane.tsx` — call site 4; hosts `pane:<sessionId>` and
+  mounts the refusal for the session-bound attempts (modify)
 - `desktop/src/store/slices/discoverSlice.ts` — the pending refusal (modify, task 16's)
 - Tests, one per call site: `hooks/useCreateSession.test.ts` (new),
   `components/develop/EmptyDevelop.test.tsx` (new), `components/develop/sessionVerbs.test.ts`
-  and `components/develop/SessionPane.test.tsx` (both exist; modify)
+  and `components/develop/SessionPane.test.tsx` (both exist; modify). The fallback's test goes in
+  `components/AppShell.test.tsx` (exists; modify), because only the whole shell mounts the rail,
+  the lens and `TopBar` together.
 
 **Interfaces — complete source:**
 
@@ -82,6 +87,11 @@ export type PendingStart = StartAttempt & {
 // in DiscoverSlice:
   pendingStart: PendingStart | null;
   setPendingStart(p: PendingStart | null): void;
+  /** How many mounted homes hold each anchor key (see "Where the refusal renders"). Not
+   *  persisted: `partialize` is unchanged (plan §5), so a reload starts every count at zero. */
+  refusalHosts: Record<string, number>;
+  hostRefusal(key: string): void;    // +1
+  releaseRefusal(key: string): void; // -1; the key is deleted at zero
 ```
 
 ```ts
@@ -95,16 +105,26 @@ export function routeBriefRefusal(
   error: ApiError, attempt: StartAttempt, sentWithoutBrief: boolean,
 ): boolean;
 
+/** The one per-kind send. LOAD-BEARING SHAPE: a `switch (pending.kind)` with no `default:` and a
+ *  declared return type that excludes `undefined`, so a fifth kind fails to compile with TS2366.
+ *  (`replayStart` returns `Promise<void>`, where an unhandled arm would fall off the end
+ *  silently, so the switch lives here and not there. Probed with the desktop's TypeScript 6.0.3,
+ *  `--strict`: an unhandled fifth kind gives TS2366; all four handled compiles clean. Re-review
+ *  b07-1 R-M1.) `opts` is `withoutBrief ? { withoutBrief: true } : undefined`, so a retry of a
+ *  first refusal sends exactly the first request, with no `withoutBrief: false` key (R-M2):
+ *    create  → api.createSession(withoutBrief ? { ...request, withoutBrief: true } : request)
+ *    restart → api.restartSession(sessionId, opts)
+ *    resume  → api.resumeSession(source, harness, opts)
+ *    fork    → api.forkSession(source, targetWorktreeId, harness, opts)
+ *  `source` is `selectSession(sourceId)(useCockpit.getState())` (the selector is curried,
+ *  `selectors.ts:52-54`), read at the moment of the replay. When it is gone (purged), nothing is
+ *  sent and this returns `null`. */
+export function sendAttempt(pending: PendingStart, withoutBrief: boolean): Promise<Session | null>;
+
 /** Retry calls `replayStart(pending, pending.withoutBrief)`; the override calls
- *  `replayStart(pending, true)`. A `switch (pending.kind)` with no `default:`, so a fifth kind
- *  fails with TS2366:
- *    create  → api.createSession({ ...request, withoutBrief })
- *    restart → api.restartSession(sessionId, { withoutBrief })
- *    resume  → api.resumeSession(source, harness, { withoutBrief })
- *    fork    → api.forkSession(source, targetWorktreeId, harness, { withoutBrief })
- *  `source` is `selectSession(sourceId)` at the moment of the replay. When it is gone (purged),
- *  nothing is sent: the refusal clears and one toast says "The session this started from is no
- *  longer in the cockpit."
+ *  `replayStart(pending, true)`. It awaits `sendAttempt`. On `null` (the source is gone), the
+ *  refusal clears and one toast says "The session this started from is no longer in the
+ *  cockpit."
  *  On success it clears `pendingStart` and upserts the session. For every kind except restart it
  *  also selects the new session's worktree and focuses the session. A restart keeps its id, so
  *  focus is not moved. A second `brief_not_written` replaces the refusal through
@@ -112,15 +132,74 @@ export function routeBriefRefusal(
  *  `sentenceForReplay`: a `switch (classify(error))` with no `default:`. The prose is local
  *  because its tail names this act (`problems.ts:3-8`). */
 export function replayStart(pending: PendingStart, withoutBrief: boolean): Promise<void>;
+
+/** The anchor key of the attempt's home, or `null` when the home is `TopBar` itself (re-review
+ *  b07-1 R-I1). A `switch (attempt.kind)` with no `default:` and a `string | null` return, so
+ *  TS2366 applies:
+ *    create  → origin === "new-session" ? null : `empty:${worktreeId}`
+ *    restart → `pane:${sessionId}`
+ *    resume, fork → `pane:${sourceId}` */
+export function anchorKey(attempt: StartAttempt): string | null;
+
+/** Called by each home while it is mounted: `hostRefusal(key)` in a `useEffect`,
+ *  `releaseRefusal(key)` in its cleanup. `SessionPane` passes `pane:<sessionId>`;
+ *  `EmptyDevelop` passes `empty:<target.id>`. */
+export function useRefusalHost(key: string): void;
 ```
 
-**Where the refusal renders.** Each arm renders in exactly one place, anchored to the control that
-started it:
-- `create`, `origin: "new-session"`: where the new-session control renders.
+**Where the refusal renders.** At every moment each refusal renders in exactly one place: its
+**home** when the home is mounted, otherwise the **top-bar fallback** (re-review b07-1 R-I1). The
+homes, anchored to the control that started the session:
+- `create`, `origin: "new-session"`: in `TopBar`, directly below `NewSessionButton`
+  (`topbar/TopBar.tsx:41`). All the hook's callers share it, including the rail's `WorktreeRow`
+  and the `ContextMenu`, because none of them has a surface of its own that outlives the click.
+  `TopBar` is mounted in every lens and on every branch (`AppShell.tsx:92`), so this home is
+  always mounted and never falls back.
 - `create`, `origin: "empty-develop"`: in `EmptyDevelop`, beside its two buttons.
-- `restart`, `resume` and `fork`: in the `SessionPane` of `sessionId` or `sourceId`, above its
-  exit bar or header. The session menu closes before its verb runs (`act`, `sessionVerbs.ts:303-306`),
-  so the menu itself has nothing left to anchor to.
+- `restart`: in the `SessionPane` of `sessionId`. `resume` and `fork`: in the `SessionPane` of
+  `sourceId`. Above its exit bar or header. The session menu closes before its verb runs (`act`,
+  `sessionVerbs.ts:303-306`), so the menu itself has nothing left to anchor to.
+
+**Why a fallback: a home is often not mounted.** The session verbs are reachable where no pane
+exists. `Rail` and `ContextMenu` are mounted in every lens (`AppShell.tsx:89`, `:97`).
+`SessionRow` opens a `{kind: "session"}` menu (`rail/SessionRow.tsx:49`) for any expanded worktree
+on any branch (`rail/WorktreeRow.tsx:86-89`; expansion is independent of selection), and
+`ContextMenu` hands it `sessionVerbs` (`menu/ContextMenu.tsx:157`). But a pane is mounted only
+in the Develop lens (`AppShell.tsx:17-27`), only for the selected branch (`selectPaneSessionIds`,
+`store/selectors.ts:72-83`), and in Canvas only for pinned tiles (`CanvasLayout.tsx:394`). So a
+Restart, Resume or Fork from the Discover lens, from another branch, or on an unpinned Canvas
+session would otherwise be recorded and rendered nowhere: the silent path `4-D1` exists to
+prevent. `EmptyDevelop` has the same gap when the person changes lens or branch before the 409
+lands.
+
+**The fallback.** `TopBar` renders the refusal directly below `NewSessionButton`, with one line
+above the reason that names what was refused: *Restart of `<session name>`*, *Resume of `<session
+name>`*, *Fork of `<session name>` into `<worktree name>`*, or *New session in `<worktree name>`*.
+The names are read from the store at render time. Retry and the override behave exactly as at the
+home.
+
+Option (b) of R-I1 was considered and rejected: moving the lens, branch and focus to bring the
+pane on screen navigates the person away from where they acted. The AGENTIC-UX principle held
+above ("each decision is answerable in place, without navigating") rules that out.
+
+**How "mounted" is known: a host registry, not a copy of the layout rules.** Re-deriving
+mountedness from the lens, `selectPaneSessionIds`, the pin list and `DevelopLens`'s empty-state
+and Canvas-seeding rules (`DevelopLens.tsx:24-44`) would be a second copy of those rules, and a
+copy drifts. So each home says it is mounted:
+- `anchorKey(attempt)` gives the home's key:
+  - `create`, `origin: "new-session"` → `null` (always mounted);
+  - `create`, `origin: "empty-develop"` → `empty:<worktreeId>`;
+  - `restart` → `pane:<sessionId>`;
+  - `resume` and `fork` → `pane:<sourceId>`.
+- `useRefusalHost(key)` is called by `SessionPane` with `pane:<sessionId>`, and by `EmptyDevelop`
+  with `empty:<target.id>` (the worktree its two buttons pass to `startSessionOnWorktree`). In a
+  `useEffect`, it increments `refusalHosts[key]` and decrements it on cleanup. It is a count, not a
+  flag, so StrictMode's mount, cleanup and re-mount cannot leave a stale zero or a stale one. At
+  most one pane per session is mounted: Columns and Canvas are exclusive (`DevelopLens.tsx:40-44`),
+  and each lists a session once.
+- A home renders `pendingStart` when `anchorKey(pendingStart)` is its own key. `TopBar` renders it
+  when the key is `null` or `(refusalHosts[key] ?? 0) === 0`. The two conditions are disjoint, so
+  the refusal is never shown twice and never shown nowhere.
 
 ```ts
 // desktop/src/discover/StartWithoutBrief.tsx
@@ -153,7 +232,7 @@ strip too, so the person is told the real cause and the real repair.
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `a brief_not_written create does not toast` | the 409 sets `pendingStart`; `pushToast` is not called | 4-D1's refusal reduced to a sentence that fades |
-| `retry re-sends the identical request` | the second `createSession` body equals the first | a retry that drops the person's harness or prompt |
+| `retry re-sends the identical request` | the second `createSession` body equals the first, and neither has a `withoutBrief` key (re-review b07-1 R-M2); a retried `restartSession` gets `undefined` options | a retry that drops the person's harness or prompt; a retry that adds `withoutBrief: false` |
 | `start without the brief sends withoutBrief` | the body adds `withoutBrief: true` and nothing else changes | an override that also drops options |
 | `the override is not the default focus` | after render, `document.activeElement` is Retry | a going-on-without made the easy path |
 | `restart routes the same way` | a 409 from `restartSession` sets `kind: "restart"`; the override calls `restartSession(id, {withoutBrief: true})` | restart silently starting without the brief |
@@ -161,26 +240,32 @@ strip too, so the person is told the real cause and the real repair.
 | **Call site 2** (`EmptyDevelop.test.tsx`): `the empty state's start routes the refusal` | `startSessionOnWorktree` answered by the 409 → `pendingStart` is `{kind: "create", origin: "empty-develop", request}` with the body sent; no toast; the refusal renders in `EmptyDevelop` and not at the new-session control | the second `api.createSession` call site left on `sentenceForCreate` (review I9) |
 | **Call site 3** (`sessionVerbs.test.ts`): `the menu's restart rolls back and routes the refusal` | the Restart verb answered by the 409 → the optimistic `starting` is rolled back to the recorded session; `pendingStart` is `{kind: "restart", sessionId}`; `pushToast` is not called | `runImmediate`'s catch reporting before the refusal is seen |
 | **Call site 4** (`SessionPane.test.tsx`): `the exit bar's restart routes the refusal` | the exit bar's Restart answered by the 409 → `pendingStart` is `{kind: "restart", sessionId}`; `sentenceForRestart` does not toast; the refusal renders in that pane | the exit bar's own `restartSession` still toasting (review I9) |
-| **Call site 5** (`sessionVerbs.test.ts`): `resume routes the refusal and replays the verb` | Resume answered by the 409 → `pendingStart` is `{kind: "resume", sourceId, harness}`; Retry calls `resumeSession(source, harness, {withoutBrief: false})` and the override calls it with `{withoutBrief: true}`, `source` read from the store | resume refused with no way to re-send, because the desktop never held its request (review I9) |
-| **Call site 6** (`sessionVerbs.test.ts`): `fork routes the refusal and replays the verb` | Fork answered by the 409 → `pendingStart` is `{kind: "fork", sourceId, targetWorktreeId, harness}` with `worktreeId` equal to the target; Retry and the override call `forkSession(source, targetWorktreeId, harness, {withoutBrief})` | fork refused into a toast, or replayed into the source's worktree |
+| **Call site 5** (`sessionVerbs.test.ts`): `resume routes the refusal and replays the verb` | Resume answered by the 409 → `pendingStart` is `{kind: "resume", sourceId, harness}`; Retry calls `resumeSession(source, harness, undefined)` and the override calls it with `{withoutBrief: true}`, `source` read from the store | resume refused with no way to re-send, because the desktop never held its request (review I9) |
+| **Call site 6** (`sessionVerbs.test.ts`): `fork routes the refusal and replays the verb` | Fork answered by the 409 → `pendingStart` is `{kind: "fork", sourceId, targetWorktreeId, harness}` with `worktreeId` equal to the target; Retry calls `forkSession(source, targetWorktreeId, harness, undefined)` and the override calls it with `{withoutBrief: true}` | fork refused into a toast, or replayed into the source's worktree |
 | `a replay whose source is gone sends nothing` (`startAttempt.test.ts`) | a `resume` refusal whose `sourceId` was purged → Retry sends no request, clears `pendingStart` and toasts the one sentence | a replay that throws on `undefined`, or sends a body built from nothing |
 | `each reason shows its extra` — table | the six rows above, `block_broken` in both variants | one generic sentence for six different fixes |
 | `an unknown project offers the override` | a `project_unknown` 409 on a create and on a restart → the `project_unknown` sentence, **Retry** focused, **Start without the brief** present; the override re-sends with `withoutBrief: true` (review I2) | the new reason falling through to a toast or a generic sentence; the one recovery that works when the projects cannot be read left off |
 | `a refused override offers no second override` | a `block_broken` 409 answering a request that carried `withoutBrief: true` (create and restart) → `pendingStart.withoutBrief` is true; **Start without the brief** is absent; the sentence is the `withoutBrief: true` variant and does not contain "start without the brief"; Retry re-sends `withoutBrief: true` | a recovery offered that re-sends the request just refused (re-review I2) |
 | `other errors keep phase 2's behaviour` | a `backend_unavailable` still toasts through `sentenceFor` | a phase 2 regression |
+| `a rail restart refused while no pane is mounted still renders the refusal` (`AppShell.test.tsx`) — three rows: the Discover lens; the Develop lens with another branch selected; Canvas with the session unpinned | the full `AppShell` renders. The rail's `SessionRow` → right-click → Restart, answered by the 409. Then: exactly one refusal is in the document, inside `TopBar`, and its first line names the session (*Restart of `<name>`*); no `SessionPane` is mounted for it; `pushToast` is not called. Then the person selects that session's branch in Develop (Columns): the refusal is inside that session's pane, and `TopBar` holds none (re-review b07-1 R-I1) | a session-bound refusal recorded and rendered nowhere; a fallback that also renders while the home is mounted, so the refusal shows twice |
+| `the host count survives a remount` (`startAttempt.test.ts`) | `useRefusalHost("pane:s1")` mounted, unmounted and re-mounted under `StrictMode` → `refusalHosts["pane:s1"]` is 1; after the final unmount the key is absent | a flag that a StrictMode cleanup clears after the re-mount, sending the refusal to `TopBar` while its pane is on screen |
 
 **Steps:**
 
 - [ ] **Step 1:** Re-locate the six call sites of the table above by symbol, then run
   `grep -rn "api\.\(createSession\|restartSession\|resumeSession\|forkSession\)" desktop/src --include=*.ts --include=*.tsx`
-  and confirm that every hit outside `api/` and outside tests is one of the six. A seventh is a
-  finding: stop and record it in the task report before going on.
+  and confirm that every **code** hit outside `api/` and outside tests is one of the six. Comment
+  lines also match (at `974ed4d`: `EmptyDevelop.tsx:13`, `:24`, `sessionVerbs.ts:428`); they are
+  not call sites and do not count. A seventh code hit is a finding: stop and record it in the task
+  report before going on.
 - [ ] **Step 2:** Write the tests; confirm they fail.
 - [ ] **Step 3:** The slice additions, `startAttempt.ts`, the component. Then the six routing
   edits: each `catch` calls `routeBriefRefusal(error, attempt, false)` first and returns when it
   answers true. In `runImmediate`, the optional `refusal?: StartAttempt` is checked after
-  `rollback()` and before `report`. Mount `StartWithoutBrief` in the three places "Where the
-  refusal renders" names, each filtering `pendingStart` to its own arm.
+  `rollback()` and before `report`. Then the three components "Where the refusal renders" names:
+  `SessionPane` and `EmptyDevelop` call `useRefusalHost` and render `pendingStart` only when
+  `anchorKey(pendingStart)` is their own key; `TopBar` renders it when the key is `null` or no
+  home holds it.
 - [ ] **Step 4:** Run the acceptance commands; commit by pathspec. **Do not merge** (`OD-1`).
 
 **Acceptance:**
