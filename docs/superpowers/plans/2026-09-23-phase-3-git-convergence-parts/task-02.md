@@ -89,6 +89,9 @@ type Call struct {
 	// NewLane is the path task 03's lanes.Create is cloning into. Exec admits Dir == NewLane
 	// only with Scope None, and only lanes.Create sets it (ruling R4.5); every other call
 	// leaves it "". It is the one exception to ErrLaneDir, and it holds for that clone only.
+	// The `clone` itself is not marked: it is Scope Project with Dir the project and NewLane "",
+	// and its destination is a positional, which ErrLaneDir does not parse. Task 24's spy test
+	// names that one call as its second exception (review r4-1 I-2).
 	NewLane string
 }
 
@@ -216,9 +219,12 @@ func AsError(err error) (*Error, bool) {
 	return ge, ok
 }
 
-// MinVersion is the oldest host git phase 3 runs on: merge-tree --write-tree needs 2.38 and
-// merge-tree --merge-base (revert, task 10) needs 2.40.
-const MinVersion = "2.40.0"
+// MinVersion is the oldest host git phase 3 runs on: merge-tree --write-tree needs 2.38,
+// merge-tree --merge-base (revert, task 10) needs 2.40, and a fetch from a bundle file runs
+// fsck over its objects only from 2.48.0 (RelNotes/2.48.0.adoc: "git bundle --unbundle" and
+// "git clone" on a bundle "learned to trigger fsck"; read, not run). Task 24's FetchLane
+// relies on that fsck, so 2.48.0 is the floor (review r4-1 M-4).
+const MinVersion = "2.48.0"
 
 // CheckVersion runs `git version`, parses "git version 2.53.0.windows.2", and returns the
 // version string, or an error whose message is the sentence the user acts on.
@@ -432,7 +438,7 @@ child's environment without trusting the code under test.
 | `TestErrorNeverContainsEnv` | `Env{"X":"s3cr3t"}` on a failing call → `"s3cr3t"` in neither `Error()` nor `Sentence()` | formatting the call into the error |
 | `TestSentencePrefersTheLastFatalLine` | stderr `hint: a\nfatal: b\nhint: c` → `"fatal: b"` | showing git's hints as the cause |
 | `TestSentenceIsCappedOnARuneBoundary` | 3000 bytes of `é` → ≤ 2048 bytes, valid UTF-8 | a cap that cuts a rune |
-| `TestCheckVersion` | `git version 2.53.0.windows.2` → ok; `git version 2.37.1` → error containing `2.40` | a lexical compare (`"2.9" > "2.40"`) |
+| `TestCheckVersion` | `git version 2.53.0.windows.2` → ok; `git version 2.47.1` → error containing `2.48` | a lexical compare (`"2.9" > "2.40"`) |
 | `TestMessageRefusesANewlineInATrailer` | value `brief:b-1@2\nPanacea-Land: w-x` → `ErrBadMessage` | trailer injection through a key |
 | `TestMessageCopiesTheValueByteForByte` | `brief:b-42@6` appears verbatim once | normalising or parsing a key (P5) |
 | `TestMessageIsReadBackByGit` | real git: `git interpret-trailers --parse` on `Message(...)` prints exactly the trailers given | a missing blank line before the trailer block |
@@ -596,6 +602,7 @@ and an H1 mutant would survive.
 | `TestHGHCommondirCannotRedirect` | b01 re-review R5, red first without the pin: a project repository, on `Scope Project` calls, whose `.git/commondir` names a copy of its `.git` whose `config` sets `user.name=EVIL` and `filter.x.clean=<marker script>`, with `.gitattributes` `* filter=x` → `rev-parse --git-common-dir` through Exec prints `<Dir>/.git`, `config user.name` prints the real name, H3 admits the call, and `status` leaves no marker | a layout pin dropped, or set before `Call.Env` |
 | `TestExecRefusesALaneDir` | R4.2, red first against an `Exec` without the lane-dir guard: `LaneRoot` = a `t.TempDir()` holding a `CloneOf` clone `L`; table, each on a `Scope Project` call: `Dir: L`; `Dir: L/sub`; `Dir` = `L` in other letter case (Windows only); `-C L`; `--git-dir=L/.git`; `--git-dir L/.git`; `--work-tree L`; `Env` `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY` = a path in `L`; `GIT_ALTERNATE_OBJECT_DIRECTORIES` = `x` + list separator + `L/.git/objects`; `Dir` = `L` spelled `<LaneRoot>/x/../<L's name>` → each `errors.Is(err, ErrLaneDir)`, and the helper process records no start (`Spy` empty), so not even H3's config read ran in `L` | a guard that compares uncleaned strings, reads only `Dir`, or checks after start |
 | `TestExecAdmitsTheNewLaneOnly` | R4.5, red first against the same `Exec`: `Dir == NewLane == L` with `Scope None` → runs; `NewLane: L`, `Dir: L2` (another lane) → `ErrLaneDir`; `NewLane: L` with `Scope Project` and `Dir` the project → `ErrCallShape`; the same with `Dir: L` → `ErrLaneDir`, since the guard runs before the shape check | a NewLane that opens every lane, or any scope |
+| `TestExecRunsTheCreateCloneInTheProject` | task 03 step 4's call as written: `Args` `clone --no-hardlinks … -- <project> L`, `Dir` the project, `Scope Project`, `NewLane` "" → runs, and `L` is a clone; the same with `NewLane: L` → `ErrCallShape`. Task 24's `TestHostNeverRunsGitInALane` excepts exactly this call (review r4-1 I-2) | an Exec that parses the positional and refuses the one clone R4.5 allows |
 
 Tasks 07, 09, 12 and 13 each add the end-to-end marker test for their own project call site (the
 lane sync's bundle fetch into the project, the land, the push, and `GitHelper`), citing this
