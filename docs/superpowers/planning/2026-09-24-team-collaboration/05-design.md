@@ -205,3 +205,75 @@ Five rules apply to every row:
    editing, and cannot hide one it is. The `sandboxd` watcher runs outside the agent's process tree
    (**UNVERIFIED** that inotify inside a Kata guest sees every write through the sub-path mount).
 5. **Nobody writes another person's task, lease, message or escalation**, whatever their role.
+
+## 4. The Orchestrator and its workers (OD-16)
+
+### 4.1 What an Orchestrator is
+
+- **An unmodified Claude Code session** (or another supported harness), launched by Fleet in its own
+  Kata sandbox, on its **owner's** subscription. There is one per user per team project. It is
+  created on the user's first team launch, so a user never has to set one up.
+- **It does not write code.** Its sandbox class, `orchestrator`, mounts a **read-only** view of the
+  project at the integration head (refreshed by `machined`), has no worktree to write, holds no git
+  credential, and has egress only to the model endpoint (a proposed tightening of P8-D12 for this
+  class; §11.2).
+- **Everything it does goes through `panacea` verbs** (§5.2): create and update its owner's tasks,
+  spawn, direct and stop its owner's workers, request and yield leases for them, talk to other
+  orchestrators, and escalate to its human. Fleet enforces the verb set per sandbox class. The
+  managed instruction block tells the Orchestrator how to work, but **the fence is the sandbox and
+  the verb set, not the prompt.**
+
+### 4.2 How an Orchestrator runs: an event-driven turn loop
+
+Fleet keeps one event queue per Orchestrator. Events are: a message from its human; a peer message;
+a conflict opened against one of its workers; a worker that finished, blocked, or recorded an
+assumption; a lease contested or expiring; an escalation answered. Fleet coalesces events for up to
+60 seconds and delivers each batch as **one turn**. The turn's input is a fixed, product-written
+template (*"3 team events. Run `panacea inbox` to read them."*). It never carries peer text, which
+arrives only as the output of the `panacea inbox` call (§7.1).
+
+| Transport for a turn | How | Status |
+|---|---|---|
+| **TM1: a headless turn** | `claude -p --resume <session>` with the template as the prompt; one turn at a time per Orchestrator | a resumed `-p` session was observed re-reading `CLAUDE.md` from disk (`03-techniques.md:120-121`, Claude Code 2.1.273). Headless use on a user's own subscription: terms **UNVERIFIED** (`04` §10) |
+| **TM2: a live session** | a long-lived session; Fleet posts the template through the inbox socket, which *"starts a new turn"* when idle (`03` §1.3) | canary C4 open (`03` §7) |
+
+**Fleet never parses the Orchestrator's output for meaning** (OD-8). Its effects are its `panacea`
+calls, which are typed. Its prose reply to its human is shown verbatim in the Orchestrator panel, the
+way a terminal is shown. An idle Orchestrator costs nothing, because no event means no turn.
+
+**DIVE into your own Orchestrator** (AGENTIC-UX's escape hatch, `docs/AGENTIC-UX.md:56`): in TM1,
+Fleet pauses the loop, opens `claude --resume` in a PTY for the owner only, and resumes the loop on
+exit. Events queue meanwhile and are shown as waiting.
+
+### 4.3 Workers
+
+A **worker** is phase 2's session unchanged: an interactive harness in its own sandbox, on its own
+worktree clone and lane (OD-2), on its owner's subscription. Every worker has a parent Orchestrator.
+The user can still launch a worker straight from the cockpit, and it is attached to their
+Orchestrator. **A worker cannot talk across users.** Its verbs are: read the team view, check a path
+before editing it, request a lease, and report to its own Orchestrator (`done`, `blocked`, or an
+**assumption**, AGENTIC-UX's ASSUMED class, `docs/AGENTIC-UX.md:29`).
+
+**How a directive reaches a running worker**, in order of preference:
+
+1. **Piggyback.** Every `panacea` call a worker makes returns its pending directives first. This is
+   deterministic and relies on nothing unverified. A worker's managed block tells it to run
+   `panacea check <path>` before it edits a file for the first time in a session, so the hot path
+   polls by itself.
+2. **Inbox socket**, when the worker is idle or between tool calls (`03` §1.3; canary C4). A new
+   finding helps here: the `panacea` command runs as a **child** of the CLI's Bash tool, so it sees
+   `CLAUDE_CODE_MESSAGING_SOCKET` and the session's token in its environment (`03` §1.3, observed
+   on the laptop). Its first call can hand both to `sandboxd`, which would solve `03`'s discovery
+   problem without reading harness internals. **UNVERIFIED:** whether the socket accepts a poster
+   that is not the CLI's descendant.
+3. **Typed into the PTY** when the worker is idle, as its owner's own steering (phase 2 already
+   writes the user's keystrokes). Idle is derived from a byte count, never from content
+   (`control-plane/internal/registry/session.go:22-23`).
+4. **`pause`**: an interrupt keystroke, then a stop. This is always available.
+
+### 4.4 Cost and accountability
+
+Every Orchestrator turn and every worker turn spends its **owner's** subscription (P4). Each
+Orchestrator has a turn budget (default 30 turns an hour, set by its owner), and when it is spent
+events queue and the owner is told. Every record an Orchestrator writes names its owner, so
+accountability for what an agent agreed to rests with the person whose agent agreed.
