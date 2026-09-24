@@ -13,8 +13,9 @@ commit byte for byte and never parsed (contract P5). Without a resolver a land r
 (plan decision 4) and renders `none`.
 
 **Files:**
-- `control-plane/internal/converge/land.go` + `land_test.go` — `Land`, `LandRequest`, `LandResult`, refusals (new)
-- `control-plane/internal/api/lands.go` + test — `POST …/lands` (new)
+- `control-plane/internal/converge/land.go` + `land_test.go` — `Land`, `LandRequest`, `LandResult`, refusals, `RefreshClones`, `RefreshProject` (new)
+- `control-plane/internal/converge/bringin.go` + `bringin_test.go` — `BringIn` (review I5) (new)
+- `control-plane/internal/api/lands.go` + test — `POST …/lands` and `POST …/bring-in` (new)
 - `control-plane/internal/api/gitdeps.go`, `gitroutes.go` — `// ── task 09 ──` blocks
 - `control-plane/cmd/api/main.go` — wire `Lander`; task 04's `TestServeWiresGit`, in the test file task 04 put it in, gains one assertion (re-review b04-1 issue 3)
 
@@ -160,6 +161,63 @@ func (l *Lander) RefreshProject(ctx context.Context, projectPath, projectID stri
 previous response's `merge` as the next `expectedTip`, and stopping at the first refusal. There is
 no batch route: every land is its own compare-and-swap, which is what makes a partial run honest.
 
+#### Bring in origin/<branch> (review I5)
+
+A land takes lanes only, and a clone's objects stop at clone time, so without this verb a
+teammate's pushed commits reach the product branch only through a terminal `git merge` in a
+checkout of it, and that checkout switches landing off (A5, Q3). A push is then rejected
+forever. Task 08 shows the row when `remote.behind > 0`; the plan's Q10 records the choice.
+
+```go
+package converge
+
+// BringInRequest brings the project's remote-tracking branch into the product branch.
+type BringInRequest struct {
+	ProjectID        string
+	ProjectPath      string
+	Branch           string
+	ExpectedTip      string // Convergence.Tip the human saw; required
+	ExpectedUpstream string // Convergence.BringIn.Tip the human saw; required
+}
+
+// BringInResult is a bring-in that happened.
+type BringInResult struct {
+	Tip           string            `json:"tip"`    // the branch's new tip
+	Before        string            `json:"before"` // ExpectedTip
+	Mode          string            `json:"mode"`   // "fast-forward" | "merge"
+	Refreshed     []string          `json:"refreshed"`
+	RefreshErrors map[string]string `json:"refreshErrors"`
+}
+
+// BringIn, holding Locks.Lock(ctx, req.ProjectID) for the whole verb. Steps 1-5 write nothing.
+//  1. CheckedOutAt(branch) == ""                               (branch_checked_out, details.path)
+//  2. up = rev-parse --verify -q --symbolic-full-name <branch>@{upstream}, OKExit 1
+//     exit 1, or not under refs/remotes/                       (no_remote)
+//  3. old = rev-parse refs/heads/<branch>; old != ExpectedTip  (branch_moved, details.tip)
+//  4. upTip = rev-parse <up>; upTip != ExpectedUpstream        (upstream_moved, details.upstream)
+//  5. upTip an ancestor of old                                 (nothing_to_land)
+//  6. old an ancestor of upTip → Mode "fast-forward":
+//       update-ref -m "panacea: bring in <up>" refs/heads/<branch> upTip old
+//     else Mode "merge": Identity(ProjectPath) (no_git_identity);
+//       MergeTreeArgs + old upTip, OKExit 1 → ParseMergeTree (merge_conflict,
+//       details.paths = detailList — resolved in a lane that merges upstream/<branch>);
+//       msg = gitx.Message("Bring in origin/<branch>", "The commits origin/<branch> has and
+//             <branch> lacked, as of the last fetch.", no trailers);
+//       merge = commit-tree <tree> -p old -p upTip -F -; update-ref … refs/heads/<branch> merge old
+//     A refused update-ref is Land's step 12: branch_moved, else git_failed.
+//  7. l.RefreshClones(ctx, ProjectPath, Branch)
+// A fast-forward is right here and wrong for a land (3-D4): no lane's work is recorded, and the
+// result is exactly origin/<branch>, neither ahead nor behind. No ready flag moves and no
+// Panacea-Land trailer is written, so undo and revert refuse it as not_a_land (task 10).
+// Hardened per task-02 §HGH: 1-6 Scope Project, 7 Scope Clone, no hook or merge driver runs.
+func (l *Lander) BringIn(ctx context.Context, req BringInRequest) (BringInResult, error)
+```
+
+**Wire: `POST /v1/projects/{projectId}/branches/{branchId}/bring-in`** — request
+`{ "expectedTip": "a90d3f4c…", "expectedUpstream": "5c21e0b…" }`; `201` is `BringInResult`;
+400 `bad_request` for a missing field; every `*Refusal` is 409 with its reason;
+git failures are `git_failed`, as the land route.
+
 #### The tests to write first
 
 Real repositories: a project, two clones made by `lanes.Creator`, agent commits made in the clones,
@@ -186,6 +244,14 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestLandClearsReady` | after the land, the flag store holds `ready:false` for the worktree | a landed lane sitting in the queue (decision 2) |
 | `TestLandTellsEveryClone` | after landing clone A, clone B's `refs/remotes/origin/<b>` equals the merge | 3-D3's prompt naming a stale `origin/<b>` |
 | `TestLandRefreshFailureDoesNotFailTheLand` | clone B's directory removed → 201, `refreshErrors[B]` holds git's sentence | failing a land that happened |
+| `TestRefreshGivesEveryCloneTheUpstream` (review I5) | a bare "remote", the project fetched after a teammate's push → after a land, clone B's `refs/remotes/upstream/<b>` equals the project's `refs/remotes/origin/<b>`, and `git merge upstream/<b>` in B exits 0; B's `config --get-regexp ^remote\.` is unchanged | a lane that cannot see a teammate's commits |
+| `TestRefreshWithoutAnUpstreamStillRefreshesOrigin` | no upstream configured → clone B's `origin/<b>` refreshed, no `upstream/<b>`, no RefreshError; then unset the upstream after one refresh → the next refresh deletes B's `upstream/<b>` | a fetch of a missing source ref (exit 128) failing every refresh of a never-pushed branch |
+| `TestRefreshProjectTakesNoLock` | called while the test holds `Locks.Lock(ctx, p)` → returns (a deadlock fails the test's 5 s deadline) | AfterFetch deadlocking inside Fetch |
+| `TestBringInFastForwardsWhenOnlyBehind` | branch 0 ahead, 2 behind → `Mode "fast-forward"`, tip == the upstream tip, no new commit object | a needless merge commit that makes the branch ahead of origin |
+| `TestBringInMergesWhenDiverged` | 1 ahead, 1 behind → `Mode "merge"`, parents `[old, upTip]`, no `Panacea-Land` trailer; undo of it → `undo_not_exact/not_a_land` | a bring-in undo treats as a land |
+| `TestBringInConflictWritesNothing` | the teammate and the branch edit one line of `docs/résumé.md` → `merge_conflict`, `json.Unmarshal(details.paths) == ["docs/résumé.md"]`, tip unchanged, no ref moved | a conflicted product branch (A2) |
+| `TestBringInRefusesAMovedUpstream` | a fetch moves the upstream after the GET → `upstream_moved`, `details.upstream` the new sha, tip unchanged | bringing in commits the human never saw forecast |
+| `TestBringInRefusals` | table: checked out → `branch_checked_out`; no upstream → `no_remote`; upstream an ancestor → `nothing_to_land`; stale `expectedTip` → `branch_moved` | a refusal that surfaces as 500 |
 | `TestLandSerialisesPerBranch` | two concurrent lands of different lanes on one branch under `-race` → one succeeds, the other gets `branch_moved` or lands after it; never both on the same `old` | a double land on one tip |
 | `TestLandWaitsOnTheProjectLock` (review I7) | the test holds `Locks.Lock(ctx, p)`: a land on branch `a` and one on branch `b` of `p` have run no git call 50 ms later (a recording Runner); release → both land. Through the handler: holding `Deps.Git.Locks` for `p` keeps `POST …/lands` unanswered until release. A `nil` `Locks` → 500 `internal`, nothing run | a per-branch lock task 12's push does not share; a Lander given a lock of its own |
 | `TestServeWiresGit` (cmd/api; task 04's test, extended; re-review b04-1 issue 3) | red first against a `main.go` that gives the `Lander` `&gitx.Locks{}`: `Git.Lander.Locks` is the same pointer as `Git.Locks` | a Lander given a lock of its own, which every handler test (each builds its own Deps) would miss |
@@ -198,7 +264,7 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 - [ ] **Step 1: Preflight.** Task 08 merged; `briefref` (task 03) and `gitx.Locks` (task 02) and
   `GitDeps.Locks` (task 04) exist. Task 01's `TestBehaviourUpdateRefCompareAndSwapRefuses`
   recorded the refusal's stderr; the race test asserts on the **re-read tip**, not on that text.
-- [ ] **Step 2:** the tests; `land.go`; the handler, routes and deps block.
+- [ ] **Step 2:** the tests; `land.go`, then `bringin.go`; the two handlers, routes and deps block.
 - [ ] **Step 3:** wire `Lander` in `main.go` with `Locks: gitDeps.Locks`, `Identity` adapting
   `api.Deps.GitIdentity` (the fix's `func(ctx, path) (api.GitIdentity, error)`) to `gitx.Ident`,
   and `Resolver: nil`.
