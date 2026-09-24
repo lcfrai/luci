@@ -22,7 +22,7 @@ seam S8.2).
 - `control-plane/internal/sandbox/manager.go` — `Config`, `NewManager(client, Config)`, `WithOwner`, `OwnerLabelValue`, the pod and Secret (modify)
 - `control-plane/internal/sandbox/manager_test.go`, `manager_growth_test.go` — callers move to `Config`; two assertions change, named below (modify)
 - `control-plane/internal/sandbox/hardening_test.go` (new)
-- `control-plane/internal/backend/backend.go` — `KubeLabelOwner` (modify)
+- `control-plane/internal/backend/backend.go` — `KubeLabelOwner`; `KubeLabelComponent`'s comment (modify)
 - `control-plane/internal/backend/katabe/kata.go` — `Config.Owner`; header comment (modify)
 - `control-plane/internal/backend/katabe/kata_test.go` — one assertion changes, named below; one test added (modify)
 - `control-plane/cmd/api/config.go`, `config_test.go`, `main.go` — `PANACEA_APP_RUNTIME_CLASS` (modify)
@@ -32,7 +32,16 @@ seam S8.2).
 ```go
 // package backend (backend.go), beside KubeLabelComponent:
 const KubeLabelOwner = "panacea-app/owner" // OwnerLabelValue(tid, oid); absent on the laptop
+
+// and KubeLabelComponent's comment (backend.go:76), which says `// always "sandbox"`, becomes
+// (review m14):
+KubeLabelComponent = "panacea-app/component" // "sandbox" (a session, this package), "machine" (task 19), "balloon" (task 12's chart)
 ```
+
+The old comment goes stale in this phase: task 12's balloons and task 19's machine pods carry the
+same key in the same namespace, and task 11's and task 29's NetworkPolicies select on its value.
+Task 14 edits the line beside it, so it updates the comment; tasks 12 and 19 need not touch
+`backend.go` again.
 
 ```go
 package sandbox
@@ -196,7 +205,9 @@ sandbox.Config{Namespace: "ns"})`.
 - [ ] **Step 4:** Rewrite `katabe`'s package comment: it is no longer "a configuration change and
   not a rewrite" (`kata.go:1-4`); say that phase 8 runs it **inside the broker** (task 18) and that
   mounts arrive as machine mounts (task 15). Update `Attach`'s comment (`kata.go:229-231`) to name
-  the Secret as where the token now lives in the cluster.
+  the Secret as where the token now lives in the cluster. Replace `KubeLabelComponent`'s
+  `// always "sandbox"` (`backend.go:76`) with the three values in the contract above (review
+  m14); `grep -n 'always "sandbox"' control-plane/internal/backend/backend.go` prints nothing.
 - [ ] **Step 5:** `go vet`, the full test run, `git diff control-plane/go.mod` (no change), commit.
 
 #### Acceptance
