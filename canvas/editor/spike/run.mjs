@@ -4,6 +4,8 @@
 //   node run.mjs              positive run
 //   node run.mjs --negative   the four negative variants; asserts each one failed
 //   node run.mjs --via-launch the plan's chromium.launch route, kept to reproduce its S11 artefact
+//   node run.mjs --hide-by-tab  S11 hides the page behind a second tab, not by minimising (test aid)
+//   node run.mjs [--negative] --check <result.json>  re-judge a recorded run; no browser
 // Configuration: PANACEA_APP_SPIKE_DEPS (where the npm packages live; installed there if absent),
 // PANACEA_APP_SPIKE_FONT (a TrueType file served as the web font; default Consolas),
 // PANACEA_APP_SPIKE_EDGE (msedge.exe; default the machine-wide install),
@@ -25,6 +27,7 @@ import { fileURLToPath } from "node:url";
 
 const NEG = process.argv.includes("--negative");
 const VIA_LAUNCH = process.argv.includes("--via-launch");
+const HIDE_BY_TAB = process.argv.includes("--hide-by-tab");
 // PANACEA_APP_SPIKE_QUICK=1 skips only S11's extra hidden facts (decode probes, extra captures),
 // for mutation runs; the eleven checks and the negative assertions are unchanged.
 const QUICK = process.env.PANACEA_APP_SPIKE_QUICK === "1";
@@ -133,6 +136,95 @@ async function openBrowser() {
     const browser = await chromium.launch(launch);
     return { context: await browser.newContext(), launch, close: () => browser.close() };
   }
+  // A connect that hangs after "ws connected" was seen in 10 of 13 back-to-back starts (review M4;
+  // cause unverified). The hang is in the browser's answer, so the retry is a fresh Edge on a fresh
+  // profile, not a second connect to the same one.
+  for (let attempt = 1; ; attempt++) {
+    const edge = await spawnEdge();
+    let browser;
+    try {
+      if (!edge.port) throw new Error("Edge wrote no DevToolsActivePort within 15 s");
+      edge.firstTab = await replaceFirstTab(edge.port);
+      log(`first tab: ${JSON.stringify(edge.firstTab)}`);
+      browser = await chromium.connectOverCDP(`http://127.0.0.1:${edge.port}`, { noDefaults: true, timeout: 30000 });
+    } catch (e) {
+      log(`Edge start ${attempt} failed: ${String(e && e.message || e).split("\n")[0]}`);
+      await edge.close();
+      if (attempt >= 2) throw e;
+      continue;
+    }
+    await sleepMs(500);
+    log(`Edge pid ${edge.proc.pid}, DevTools on 127.0.0.1:${edge.port}, profile ${edge.dir}, start ${attempt}`);
+    return { context: browser.contexts()[0],
+      launch: { spawned: EDGE, args: edge.args, connectOverCDP: { noDefaults: true }, starts: attempt, firstTab: edge.firstTab },
+      close: async () => { await browser.close().catch(() => {}); await edge.close(); } };
+  }
+}
+// The connect hang's cause, measured in fix round 1 (scratchpad fix1/rprobe.mjs): the FIRST tab of a
+// fresh Edge answered no CDP command at all (Runtime.evaluate unanswered for 10 s and longer), while
+// a second tab opened next to it answered in about 110 ms. connectOverCDP initialises every page
+// before it resolves (its protocol log: Page.enable and the rest sent to the first tab, never
+// answered), so it hung after "ws connected". With --no-startup-window, Playwright's own choice for
+// launch() (coreBundle.js:43324), the first tab the runner opens is the one that hangs instead. So,
+// over raw CDP and before Playwright attaches: open a second tab, then close every tab that was there.
+async function replaceFirstTab(port) {
+  const v = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+  const ws = new WebSocket(v.webSocketDebuggerUrl);
+  await new Promise((ok, fail) => { ws.onopen = ok; ws.onerror = () => fail(new Error("raw CDP socket failed")); });
+  const waiting = new Map();
+  let id = 0;
+  ws.onmessage = (m) => { const d = JSON.parse(m.data); if (waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id); } };
+  const send = (method, params = {}) => {
+    const n = ++id;
+    const p = new Promise((r) => waiting.set(n, r));
+    ws.send(JSON.stringify({ id: n, method, params }));
+    return Promise.race([p, sleepMs(10000).then(() => ({ error: { message: `${method}: no answer in 10 s` } }))]);
+  };
+  try {
+    const t = await send("Target.getTargets");
+    const first = t.result ? t.result.targetInfos.filter((x) => x.type === "page").map((x) => x.targetId) : [];
+    const made = await send("Target.createTarget", { url: "about:blank" });
+    const closed = [];
+    for (const targetId of first) closed.push(!!((await send("Target.closeTarget", { targetId })).result || {}).success);
+    await sleepMs(300);
+    const after = await send("Target.getTargets");
+    const pages = after.result ? after.result.targetInfos.filter((x) => x.type === "page").length : null;
+    return { firstTabs: first.length, closed, opened: !!made.result, pagesNow: pages };
+  } finally { ws.close(); }
+}
+// Every msedge.exe whose command line names this run's profile. Children carry --user-data-dir too
+// (seen: gpu-process), and some outlive their browser process, which taskkill /T cannot reach
+// (review M4: parents already exited). The mkdtemp suffix makes the name unique to this run, so
+// neither the user's own Edge nor another run's is ever matched. null when the sweep itself failed.
+function profilePids(dir) {
+  const name = dir.split(/[\\/]/).pop();
+  const ps = `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | ` +
+    `Where-Object { ([string]$_.CommandLine).Contains('${name}') } | ForEach-Object { $_.ProcessId }`;
+  try {
+    const out = execSync(`powershell -NoProfile -NonInteractive -EncodedCommand ${Buffer.from(ps, "utf16le").toString("base64")}`,
+      { encoding: "utf8", timeout: 30000, stdio: ["ignore", "pipe", "ignore"] });
+    return out.split(/\s+/).filter(Boolean).map(Number).filter((n) => n > 0);
+  } catch (e) { log(`profile sweep failed: ${String(e && e.message || e).split("\n")[0]}`); return null; }
+}
+// Kill the spawned tree, then every process still on the profile, then remove the profile. Synchronous,
+// so the watchdog can call it just before it exits. Anything left behind is logged, never swallowed.
+function sweepProfile(proc, dir) {
+  try { execSync(`taskkill /PID ${proc.pid} /T /F`, { stdio: "ignore" }); } catch {}
+  try { proc.kill(); } catch {}
+  // Killed processes took many seconds to go on this fleet (fix round 1: still listed after three
+  // rounds, gone within a minute), so the sweep polls for up to about 30 s before it gives up.
+  let left = profilePids(dir);
+  if (left && left.length) log(`killing ${left.length} Edge process(es) still on ${dir}: ${left.join(" ")}`);
+  for (let i = 0; i < 15 && left && left.length; i++) {
+    for (const pid of left) { try { execSync(`taskkill /PID ${pid} /F`, { stdio: "ignore" }); } catch {} }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000); // 1 s, synchronously
+    left = profilePids(dir);
+  }
+  if (left && left.length) log(`Edge process(es) NOT gone from ${dir} after the sweep: ${left.join(" ")}`);
+  try { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); }
+  catch (e) { log(`profile NOT removed: ${dir}: ${String(e && e.message || e).split("\n")[0]}`); }
+}
+async function spawnEdge() {
   // Loopback-only DevTools port 0: Edge picks a free port and writes it to DevToolsActivePort.
   const dir = mkdtempSync(join(tmpdir(), "pa-p5-edge-"));
   // msForceBrowserSignIn: this fleet's policy opens edge://force-signin/ at startup and then
@@ -141,13 +233,8 @@ async function openBrowser() {
     "--no-default-browser-check", "--edge-skip-compat-layer-relaunch",
     "--disable-features=msForceBrowserSignIn", "about:blank"];
   const proc = spawn(EDGE, args, { stdio: "ignore" });
-  // The whole tree: after the browser process alone was killed, its renderers stayed up (seen here).
-  const killTree = () => {
-    try { execSync(`taskkill /PID ${proc.pid} /T /F`, { stdio: "ignore" }); } catch {}
-    try { proc.kill(); } catch {}
-  };
-  killOnWatchdog = killTree;
   const exited = new Promise((r) => proc.once("exit", r));
+  killOnWatchdog = () => sweepProfile(proc, dir);
   let port = 0;
   for (let i = 0; i < 150 && !port; i++) {
     await sleepMs(100);
@@ -156,18 +243,12 @@ async function openBrowser() {
     try { if (existsSync(f)) port = Number(readFileSync(f, "utf8").split("\n")[0]) || 0; } catch {}
   }
   const close = async () => {
-    killTree();
+    try { execSync(`taskkill /PID ${proc.pid} /T /F`, { stdio: "ignore" }); } catch {}
     await Promise.race([exited, sleepMs(5000)]);
-    try { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch {}
+    sweepProfile(proc, dir);
+    killOnWatchdog = () => {};
   };
-  if (!port) { await close(); throw new Error("Edge wrote no DevToolsActivePort within 15 s"); }
-  let browser;
-  try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true }); }
-  catch (e) { await close(); throw e; }
-  await sleepMs(500);
-  log(`Edge pid ${proc.pid}, DevTools on 127.0.0.1:${port}, profile ${dir}`);
-  return { context: browser.contexts()[0], launch: { spawned: EDGE, args, connectOverCDP: { noDefaults: true } },
-    close: async () => { await browser.close().catch(() => {}); await close(); } };
+  return { dir, args, proc, port, close };
 }
 
 // ---------------------------------------------------------------- the run
@@ -230,18 +311,29 @@ async function run(port) {
     } catch (e) { log("native S8 control failed:", e.message.split("\n")[0]); }
 
     // S11: arm, minimise, await the armed promise, then (only then) send the request.
+    // --hide-by-tab (opt-in, a test aid; never the acceptance route): hide the page by bringing a
+    // second tab to the front instead. In fix round 1 a minimised Edge page stayed "visible" in 5 of
+    // 5 tries, which leaves the S11 negative not-applicable; a background tab is hidden the same way
+    // to the renderer (visibilityState, rAF), so the negative's layout half can still be exercised.
     const cdp = await context.newCDPSession(page);
     const { windowId } = await cdp.send("Browser.getWindowForTarget");
     await page.evaluate(() => { window.__armedP = window.__armHidden(); return true; });
-    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
+    let front = null;
+    if (HIDE_BY_TAB) { front = await context.newPage(); await front.bringToFront(); }
+    else await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
     const armed = await page.evaluate(() => window.__armedP);
     const { bounds } = await cdp.send("Browser.getWindowBounds", { windowId });
-    log(`S11 armed wait: ${JSON.stringify(armed)}; window ${bounds.windowState}`);
+    log(`S11 armed wait: ${JSON.stringify(armed)}; window ${bounds.windowState}; hidden by ${HIDE_BY_TAB ? "a tab in front" : "minimising"}`);
     // Bounded on the runner's clock: a hidden page's own timers run late (measured), so no cap
     // inside the page can be trusted to fire on time.
-    const answer = await Promise.race([page.evaluate(() => window.__renderRequest(160)), sleepMs(30000).then(() => null)]);
-    log(`S11 answer: ${answer ? JSON.stringify(answer) : "none within 30 s (runner clock)"}`);
     const bounded = (fn, arg, ms) => Promise.race([page.evaluate(fn, arg), sleepMs(ms).then(() => null)]);
+    const request = page.evaluate(() => window.__renderRequest(160));
+    // --negative: the rAF-only variant waits for a frame or for this release, 2 s later on the
+    // runner's clock, then measures. A page timer here ran late enough (review r1d) that the layout
+    // half was never measured at all; an evaluate is not throttled.
+    if (NEG) { await sleepMs(2000); log(`S11 negative release: ${JSON.stringify(await bounded(() => window.__s11Release(), null, 5000))}`); }
+    const answer = await Promise.race([request, sleepMs(30000).then(() => null)]);
+    log(`S11 answer: ${answer ? JSON.stringify(answer) : "none within 30 s (runner clock)"}`);
     const partial = answer ? null : await bounded(() => window.__s11Partial && window.__s11Partial(), null, 5000);
     const decodeProbes = [];
     for (const kind of QUICK ? [] : ["png", "svg"]) {
@@ -259,9 +351,11 @@ async function run(port) {
         ...(r || { ms: null, error: `no answer within ${capMs} ms (runner clock)` }) });
       log(`S11 hidden run: ${JSON.stringify(hiddenRuns[hiddenRuns.length - 1])}`);
     }
-    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
+    if (front) { await page.bringToFront(); await front.close().catch(() => {}); }
+    else await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
     await page.evaluate((r) => window.__finishS11(r), { waitMs: armed.waitMs, hidden: armed.hidden,
-      windowState: bounds.windowState, commandLine: cl.line, hiddenRuns, answered: !!answer, partial, decodeProbes });
+      windowState: bounds.windowState, hiddenBy: HIDE_BY_TAB ? "tab" : "minimise", commandLine: cl.line, hiddenRuns,
+      answered: !!answer, partial, decodeProbes });
     const result = await page.evaluate(() => window.__spike);
     result.extras.runner = { versions, port, font: FONT, commandLineRoute: cl.route, launch: edge.launch,
       judgeSelfTest, modernScreenshotDebugLog: debugLines.slice(-40) };
@@ -298,8 +392,9 @@ function problems(r) {
 // S11's outcome alone cannot pin it: the capture half can fail the check by itself.
 function positiveProblems(r) {
   const out = [];
-  if (r.extras && r.extras.s11 && r.extras.s11.windowState === "minimized" && !(Math.abs(r.s11.width - 160) <= 0.5))
-    out.push(`S11 layout half: width ${r.s11.width} while minimised, want 160 (schedulePatch + pre-measure flush broken)`);
+  const s = r.extras && r.extras.s11;
+  if (s && (s.windowState === "minimized" || s.hidden === true) && !(Math.abs(r.s11.width - 160) <= 0.5))
+    out.push(`S11 layout half: width ${r.s11.width} while ${s.hidden ? "hidden" : "minimised"}, want 160 (schedulePatch + pre-measure flush broken)`);
   return out;
 }
 // --negative: each variant must fail, and each leg must fail for its own reason.

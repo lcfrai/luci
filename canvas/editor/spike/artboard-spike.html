@@ -73,7 +73,7 @@ function mountFrame(id, body, { w = 390, h = 844, sandbox = true, csp = true, he
   f.id = id;
   if (sandbox) f.setAttribute("sandbox", "allow-same-origin");
   f.setAttribute("tabindex", "-1");
-  f.setAttribute("style", "pointer-events:none;border:0;display:block");
+  f.setAttribute("style", "pointer-events:none;border:0");
   f.setAttribute("width", String(w));
   f.setAttribute("height", String(h));
   const loaded = new Promise((r) => f.addEventListener("load", () => r(f), { once: true }));
@@ -160,15 +160,18 @@ async function checkS1S3S4() {
 const s2LegPass = (l) => l.probes.every(Boolean) && l.flags.every((x) => x === undefined) && l.unchanged;
 async function checkS2() {
   // S2a is the artboard as task 24 builds it (sandbox + CSP). S2b drops the CSP, so the
-  // sandbox is measured on its own: is it a real line without the CSP behind it?
+  // sandbox is measured on its own: is it a real line without the CSP behind it? S2c also drops
+  // the refresh: its document cannot be navigated away, so under --negative only the flags can
+  // fail it (review I2: with the refresh in every leg, "unchanged" masked the flags clause).
   const legs = [];
-  for (const v of [{ id: "S2a", csp: true, sfx: "" }, { id: "S2b", csp: false, sfx: "_nocsp" }]) {
+  for (const v of [{ id: "S2a", csp: true, refresh: true, sfx: "" }, { id: "S2b", csp: false, refresh: true, sfx: "_nocsp" },
+    { id: "S2c", csp: false, refresh: false, sfx: "_norefresh" }]) {
     const f = await mountFrame("frame" + v.id, FIX.S2(v.sfx), {
-      w: 220, h: 120, sandbox: !NEG, csp: v.csp, head: FIX.S2_HEAD,
-      label: `${v.id}: ${NEG ? "no sandbox" : "sandbox"}, ${v.csp ? "CSP" : "no CSP"}`,
+      w: 220, h: 120, sandbox: !NEG, csp: v.csp, head: v.refresh ? FIX.S2_HEAD : "",
+      label: `${v.id}: ${NEG ? "no sandbox" : "sandbox"}, ${v.csp ? "CSP" : "no CSP"}${v.refresh ? "" : ", no refresh"}`,
     });
     const doc = f.contentDocument;
-    const sel = ["script", "img[onerror]", "a[href^='javascript:']", "meta[http-equiv=refresh]"];
+    const sel = ["script", "img[onerror]", "a[href^='javascript:']", ...(v.refresh ? ["meta[http-equiv=refresh]"] : [])];
     const probes = sel.map((s) => !!(doc && doc.querySelector(s)));
     const a = doc && doc.querySelector("a[href^='javascript:']");
     if (a) a.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
@@ -178,12 +181,13 @@ async function checkS2() {
     const leg = { id: v.id, probes, flags, unchanged };
     legs.push(leg);
     // Each leg's verdict comes from the one rule the outcome uses, so --negative can assert every
-    // leg failed for itself (S2a, CSP only, fails only by the refresh: the unchanged clause).
+    // leg failed for itself (S2a, CSP only, fails only by the refresh: the unchanged clause; S2c,
+    // no refresh, fails only by the flags clause).
     extras.legs[v.id] = { probes, flags: flags.map((x) => (x === undefined ? "undefined" : String(x))), unchanged, pass: s2LegPass(leg) };
   }
   const allProbes = legs.every((l) => l.probes.every(Boolean));
   const quiet = legs.every(s2LegPass);
-  const ev = legs.map((l) => `${l.id}: probes ${l.probes.filter(Boolean).length}/4, flags ` +
+  const ev = legs.map((l) => `${l.id}: probes ${l.probes.filter(Boolean).length}/${l.probes.length}, flags ` +
     `[${l.flags.map((x) => (x === undefined ? "undefined" : x)).join(", ")}], document ${l.unchanged ? "unchanged" : "CHANGED"}`);
   record("S2", allProbes && quiet ? "pass" : "fail", (allProbes ? "" : "a probe is missing from the fixture; ") + ev.join("; ") + " after 1 s");
 }
@@ -512,7 +516,17 @@ window.__armHidden = () => new Promise((resolve) => {
   document.addEventListener("visibilitychange", on);
   timer = setTimeout(() => { document.removeEventListener("visibilitychange", on); resolve({ hidden: false, waitMs: 5000 }); }, 5000);
 });
-let s11Answer = null;
+let s11Answer = null, releaseNeg = null;
+// --negative only: the runner releases the rAF-only wait 2 s after the request, on its own clock.
+// A page timer was the old bound, and in a hidden page it ran so late that the layout half went
+// unmeasured (review I1, run r1d); an evaluate from the runner is not throttled.
+window.__s11Release = () => { const had = !!releaseNeg; if (releaseNeg) releaseNeg("runner"); return { released: had }; };
+// S11's capture half as the contract defines it (task-01.md:78): resolved a PNG within 10 s. The
+// page's own 10 s cap is a page timer and runs late while hidden, so the measured time decides.
+window.__judgeS11 = (a) => {
+  const onTime = a.captured === true && typeof a.hiddenCaptureMs === "number" && a.hiddenCaptureMs <= 10000;
+  return { captured: onTime, resolvedLate: a.captured === true && !onTime };
+};
 // The spike's stand-in for task 13's render request: patch n1's width, measure, capture.
 window.__renderRequest = async (w) => {
   const t0 = performance.now();
@@ -521,13 +535,15 @@ window.__renderRequest = async (w) => {
   let rafAt = null;
   requestAnimationFrame(() => { rafAt = performance.now() - t0; });
   schedulePatch(() => { n1.style.width = `${w}px`; });
-  if (NEG) await Promise.race([new Promise((r) => requestAnimationFrame(r)), sleep(2000)]); // waits a frame, never flushes
+  let negWait = null;
+  if (NEG) negWait = await new Promise((r) => { releaseNeg = r; requestAnimationFrame(() => r("frame")); }); // never flushes
   else flushPatches(); // the responder's sync() before it measures (task 24)
+  releaseNeg = null;
   const width = px(n1.getBoundingClientRect().width);
   // The layout half, readable by the runner even if the capture below never resolves.
   window.__s11Partial = () => ({ visibilityState, rafFiredWithin2s: rafAt !== null && rafAt <= 2000, width, captured: false,
     hiddenCaptureMs: null, rafAtMs: rafAt === null ? null : Math.round(rafAt), captureError: "capture did not answer the runner",
-    sinceRequestMs: Math.round(performance.now() - t0) });
+    negWait: negWait || undefined, sinceRequestMs: Math.round(performance.now() - t0) });
   let captured = false, hiddenCaptureMs = null, captureError = "";
   const c0 = performance.now();
   try {
@@ -540,7 +556,7 @@ window.__renderRequest = async (w) => {
   const rafFiredWithin2s = rafAt !== null && rafAt <= 2000, totalMs = Math.round(performance.now() - t0);
   s11Answer = { visibilityState, rafFiredWithin2s, width, captured, hiddenCaptureMs,
     rafAtMs: rafAt === null ? null : Math.round(rafAt), captureError: captureError || undefined,
-    visibilityAtAnswer: document.visibilityState, totalMs };
+    negWait: negWait || undefined, visibilityAtAnswer: document.visibilityState, totalMs };
   return s11Answer;
 };
 // Extra facts for task 13's timeout, driven by the runner while still hidden. No cap in here: a
@@ -587,21 +603,26 @@ window.__finishS11 = (runner) => {
   const a = s11Answer || runner.partial ||
     { visibilityState: "unknown", rafFiredWithin2s: false, width: null, captured: false, hiddenCaptureMs: null };
   const minimised = runner.windowState === "minimized";
-  // "within 10 s" is judged on the measured time too: the in-page 10 s cap is a page timer, and a
-  // hidden page's timers run late, so a late resolve must not count as captured.
-  const ok = a.width !== null && Math.abs(a.width - 160) <= 0.5 && a.captured && a.hiddenCaptureMs <= 10000;
+  // "within 10 s" is judged on the measured time (__judgeS11), in the verdict and in the field
+  // alike: a late resolve is recorded as resolvedLate, never as captured (review M1).
+  const j = window.__judgeS11(a);
+  const ok = typeof a.width === "number" && Math.abs(a.width - 160) <= 0.5 && j.captured;
   record("S11", !minimised ? "partial" : ok ? "pass" : "fail",
-    `window ${runner.windowState}; armed wait ${runner.hidden ? "saw hidden" : "timed out visible"} after ${runner.waitMs} ms; ` +
+    `window ${runner.windowState}${runner.hiddenBy === "tab" ? " (hidden by a tab in front, not by minimising)" : ""}; ` +
+    `armed wait ${runner.hidden ? "saw hidden" : "timed out visible"} after ${runner.waitMs} ms; ` +
     `visibilityState "${a.visibilityState}", width ${a.width} (want 160), rAF probe ${a.rafFiredWithin2s ? "fired" : "did not fire"} within 2 s, ` +
-    `${adopted} capture ${a.captured ? "resolved in " + a.hiddenCaptureMs + " ms" : "did not resolve within 10 s" + (a.captureError ? " (" + a.captureError + ")" : "")}`);
-  extras.s11 = { ...a, hidden: runner.hidden, windowState: runner.windowState, answeredWithinRunnerCap30s: runner.answered,
-    hiddenRuns: runner.hiddenRuns || [], decodeProbes: runner.decodeProbes || [] };
+    `${adopted} capture ` + (j.captured ? `resolved in ${a.hiddenCaptureMs} ms`
+      : j.resolvedLate ? `resolved only after ${a.hiddenCaptureMs} ms, so not within 10 s`
+      : "did not resolve within 10 s" + (a.captureError ? " (" + a.captureError + ")" : "")));
+  extras.s11 = { ...a, captured: j.captured, resolvedLate: j.resolvedLate, hidden: runner.hidden, windowState: runner.windowState,
+    hiddenBy: runner.hiddenBy,
+    answeredWithinRunnerCap30s: runner.answered, hiddenRuns: runner.hiddenRuns || [], decodeProbes: runner.decodeProbes || [] };
   const order = (c) => Number(c.id.slice(1)) || 99;
   window.__spike = {
     userAgent: navigator.userAgent,
     checks: [...checks].sort((p, q) => order(p) - order(q)),
     captureMs,
-    s11: { visibilityState: a.visibilityState, rafFiredWithin2s: a.rafFiredWithin2s, width: a.width, captured: a.captured,
+    s11: { visibilityState: a.visibilityState, rafFiredWithin2s: a.rafFiredWithin2s, width: a.width, captured: j.captured,
       hiddenCaptureMs: a.hiddenCaptureMs, waitMs: runner.waitMs, commandLine: runner.commandLine },
     extras,
   };
