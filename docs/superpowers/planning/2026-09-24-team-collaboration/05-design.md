@@ -724,7 +724,7 @@ Orchestrator's own terminal, for its owner only (§4.2).
 ### 9.6 The watch view: later, off by default, by consent
 
 A read-only view of a teammate's worker terminal is **not** in the default experience (OD-15) and
-not in TM1. If the owner wants it (§13, Q5), it follows `04` §3.1's rules unchanged: off by
+not in TM1. If the owner wants it (§13, Q8), it follows `04` §3.1's rules unchanged: off by
 default; granted per session, per person, with an expiry; the owner sees who is watching; no
 replay of earlier output unless the owner opts in; nothing stored; every `watch.*` event audited.
 OD-14 moves one detail: Fleet already carries the PTY stream, so Fleet relays it read-only to the
@@ -775,7 +775,7 @@ phase 8's environment is first applied. A user who never does one of those never
 **Recommendation:** local mode should reach the model through the same gateway, with a
 user-scoped token the cockpit obtains after sign-in, so that no path in the product uses a
 personal subscription. Until the gateway exists, phase 2's `/login` stays as the developer
-fallback only (§13, Q2).
+fallback only (§13, Q6).
 
 ### 10.4 The cloud tracks the latest Claude Code CLI (OD-20)
 
@@ -881,3 +881,60 @@ phase 2's packages, made multi-user:
 - **Phase 7 (Deploy).** A release in a team project lists, per lane landed into it, the person whose
   agent made it and the task and brief section it served. That is the provenance thread, carried to
   the release with its people. About 1 day.
+
+## 12. Delivery: the minimum lovable slice first (OD-17)
+
+**TM0, the prerequisites, are the current wave, not new work:** the Hub through its task 43 (C1,
+share); phase 3 through tasks 09 and 12–14 (lanes, observed claims, forecast, land, push); phase 8
+through first apply and the Kata proving checklist (tasks 31–32); phase 4's Materialiser.
+
+### 12.1 TM1: two people, one repo, agents that know each other
+
+**The promise:** Dylan shares a project. Priya joins from her own desktop. Each tells their own
+Orchestrator what they want. Their agents see each other's tasks, reasons and files, an overlap is
+caught before any code is written, the two Orchestrators settle it or ask, and each human hears
+only from their own.
+
+| Stream | What | Focused days |
+|---|---|---|
+| A. Gateway (phase 6) | deploy; Global and AU routes; per-session tokens with tags; a per-user daily quota; an AU-only project fails closed if the AU route is down, never falling back to Global | 5 |
+| B. Hub | new records and routes; Fleet as a delegated caller; `ag-…` ids; Z5 rows; Sentinel anchoring (§11.1) | 9.5 |
+| C. Phase 8 | the second broker caller; the `orchestrator` class; the gateway allow; Fleet and gateway charts; launch latency in task 32 (§11.2) | 7.5 |
+| D. Fleet | sessions, delegation, cards, leases, activity, presence, the `panacea` channel, the headless turn loop, threads with `ask`·`answer`·`inform`·`propose`·`accept`·`reject` and the `yield` and `sequence` resolutions, escalation, the taint rule, tiers P and H, token minting (§11.4) | 19 |
+| E. Phase 3 and 4 | claims feed Fleet; the pointer paragraph | 1 |
+| F. Cockpit | the prototype first, owner-reviewed; then the team strip, click-in, the Desk rows, the Orchestrator panel, the Share line and the route badge (§9) | 7.5 |
+| G. Proof | G9's corpus and the scripted two-Orchestrator run; a two-person end-to-end run on the real environment | 4 |
+| | **Total** | **≈ 53.5** |
+
+With four streams in parallel (A and C, B, D, F and G), the critical path is D then G: about 23
+focused days, so roughly **5 working weeks**. That is an estimate, not a measurement; it assumes TM0
+has landed and G9 passes first time.
+
+**TM1 lands the phase 3 way.** Each member lands in their own project repository and pushes with
+their own credential; a teammate's work arrives through phase 3's remote reading. The shared lane
+mirror waits for TM2.
+
+**TM1 is done when**, on the real environment, with two real people:
+
+1. an overlapping plan raises a tier-P conflict **before** either worker is spawned;
+2. the Orchestrators settle it with `yield` or `sequence`, and one human gets an `inform`, the other
+   a `decide`, each on their own Desk only;
+3. G9's hostile peer messages produce **zero** out-of-scope directives without a `decide`;
+4. the gateway's usage rows attribute every token to the right person and project, and coordination
+   overhead is measured (§4.4);
+5. an AU-only project never makes a Global call.
+
+### 12.2 TM2: one document (≈ 14 focused days, about 3 weeks)
+
+The lane mirror and its project disk (3 days); tier M forecasts (1); the team land queue in Fleet
+(2); `counter`, `split` and `build-on` (1.5); the phase 3 lenses by principal (1.5); the CLI bump
+job (2, §10.4); team and project quotas with an admin view, and the spend split (2); phase 7's
+release attribution (1).
+
+### 12.3 TM3: later, each one opt-in
+
+- A live Orchestrator over the inbox socket, once canary C4 passes (§4.2).
+- The watch view, only if the owner says yes (§13, Q8).
+- Tier S speculative builds, on the requester's quota.
+- An MCP front for customers whose admin allowlists our binary (§5.5).
+- Citation-checked, expiring project memory on the provenance thread (`02`, idea 4).
