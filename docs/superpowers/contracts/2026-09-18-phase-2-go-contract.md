@@ -26,7 +26,7 @@ binary on this machine. Nothing here is recalled.
 | coder/websocket's origin check is host-only and permits a **missing** Origin | `coder/websocket@v1.8.12/accept.go` lines 206–234 |
 | Tauri webview origin string | tauri `dev` branch, `crates/tauri/src/manager/webview.rs` (`window_origin`) and `crates/tauri-utils/src/config.rs` (`use_https_scheme`, "Defaults to `false`") |
 | Claude Code flags | `claude --help` on this machine, version **2.1.267**; the sandbox image pins **2.1.274** |
-| `--session-id`, `--fork-session`, where transcripts live — AMENDED by the resume fix (2026-09-23) | `claude --help` and the CLI's behaviour **inside `panacea-app/sandbox:dev`, version 2.1.274**: transcript at `~/.claude/projects/-home-dev-work/<uuid>.jsonl`; `--session-id` of an existing conversation → `Session ID <id> is already in use`; `--resume A --session-id B` without `--fork-session` → refused; `--resume A --fork-session --session-id B` → B written with A's history; `--resume <missing>` → `No conversation found with session ID: <id>` |
+| `--session-id`, `--fork-session`, where transcripts live — AMENDED by the resume fix (2026-09-23), and by OD-10 (2026-09-24): a fork survives its source's deletion | `claude --help` and the CLI's behaviour **inside `panacea-app/sandbox:dev`, version 2.1.274**: transcript at `~/.claude/projects/-home-dev-work/<uuid>.jsonl`; `--session-id` of an existing conversation → `Session ID <id> is already in use`; `--resume A --session-id B` without `--fork-session` → refused; `--resume A --fork-session --session-id B` → B written with A's history; `--resume <missing>` → `No conversation found with session ID: <id>`. OD-10 (2026-09-24, `od10-forget-report.md` §3): B is a whole copy — 24 lines, every one naming B, none naming A — so after deleting A's file, `--resume B --fork-session --session-id C` still works and C holds A's turn and B's. The CLI also writes `-home-dev-work/memory/` (per project directory, not per session) and `~/.claude/telemetry/*.<session id>.*.json` (outside the store) |
 
 **Not verified, and marked as such throughout:** Codex, OpenCode and Gemini CLI
 flags. None of those binaries exists on this machine, and
@@ -1699,7 +1699,7 @@ from; nothing below needs guessing.
 | `PATCH` | `/v1/sessions/{id}` | 200 | Rename only |
 | `POST` | `/v1/sessions/{id}/restart` | 200 | Same config, clean context, same id |
 | `DELETE` | `/v1/sessions/{id}` | 200 | Kill: destroys the sandbox, keeps the record |
-| `DELETE` | `/v1/sessions/{id}?purge=true` | 204 | Kill and forget the record |
+| `DELETE` | `/v1/sessions/{id}?purge=true` | 204 | Kill, delete the session's transcripts, and forget the record — AMENDED by OD-10 (2026-09-24), §3.15 |
 | `GET` | `/v1/sessions/{id}/attach` | 101 | WebSocket upgrade |
 
 Route patterns use Go 1.22 `ServeMux` syntax (`"GET /v1/sessions/{id}"`), which the
@@ -2072,7 +2072,55 @@ Without `purge`: destroys the sandbox, sets `status` to `exited` and `exitReason
 `"killed"`, keeps the record. 200 with the session object. Idempotent: killing an
 already-exited session is 200, not an error.
 
-With `purge=true`: as above, then removes the record. 204, no body.
+With `purge=true`: as above, then deletes the session's transcripts (AMENDED by OD-10, 2026-09-24),
+then removes the record. 204, no body.
+
+AMENDED by OD-10 (2026-09-24), the owner's *"Forget deletes it"*. Before, the purge left every
+transcript the session wrote in its worktree's conversation store, named by nothing and kept
+forever. Now, between the kill and the record's removal, `sessionForgetTranscripts` deletes
+`<store>/-home-dev-work/<id>.jsonl` for **every conversation the record names as its own** —
+`conversationId` and each of `earlierConversationIds`, the ones its restarts left — **and nothing
+else**. It deletes by the ids the control plane minted (OD-8 allows that; it opens and rewrites
+nothing) and never lists the store, so no other session's file is reachable from it.
+
+- **A transcript that was never written is not an error**, and neither is a store that was never
+  made. Nothing is created to find that out.
+- **An id not spelled the one way `ids.UUID` mints is refused** (`harness.IsConversationID`), logged at
+  error with the session id, and the rest proceed. `Build` refuses such an id, so no CLI wrote a
+  transcript under it, and joining it onto the store would name another file: `../../x` climbs out,
+  and an uppercase copy of another id **is** that conversation's file on Windows. A worktree id that
+  cannot name a store (§5.1 step 5's segment rule) is refused and logged the same way. Both still
+  complete the purge: an id no mint produces names nothing of the session's, and refusing would leave
+  a record nobody could ever forget.
+- **The transcript directory must be a real directory.** It is inside the mount, so the agent can
+  replace it with a link, and deleting through a link deletes a host file at the agent's choosing.
+  A link there is a deletion failure.
+- **A deletion failure is reported by not forgetting.** The transcripts go **before** the record, so
+  a failure — the file will not go, the directory is a link, the look at it fails any way but
+  "absent" — answers 500 `internal` (the op and the path are in the log, `a.internal`) with the
+  record **kept**, exited, still naming the file. The cockpit's Forget rolls its row back, and asking
+  again deletes what is left: a missing file is success. The other order would answer 204 over a
+  transcript nothing names — the state OD-10 ends.
+- **A fork keeps its own file, and forgetting its source does not break it.** A resume's session has
+  its own `conversationId`, and `--resume A --fork-session --session-id B` writes B as **a whole
+  copy** of A's history, every line re-keyed to B, none naming A. Observed in
+  `panacea-app/sandbox:dev`, claude 2.1.274, on 2026-09-24: with A's file deleted, `--resume B
+  --fork-session --session-id C` still worked and C held A's turn and B's; `--resume A` answered `No
+  conversation found`. §3.9 resolves only the resumed record's own ids, so a forgotten source is never
+  asked for. Fork into another worktree (phase 2's client starts a fresh session there) has its own
+  id in its own store, and is untouched by construction.
+- **Not deleted, on purpose:** `-home-dev-work/memory/`, which the CLI writes per project directory —
+  the worktree's, shared by every session in it, not one session's. Files the CLI keeps outside
+  `~/.claude/projects` (its `telemetry/`, named by session id) were never in the store; they live in
+  the sandbox and go with it.
+
+**Removing a worktree deletes its store — and no product action removes a worktree in phase 2.**
+The catalog enumerates the worktrees git already has, and the only worktree verb is `PATCH
+/v1/projects/{projectId}/worktrees/{worktreeId}` (Mark ready). The seam is built and tested,
+unwired: `sessionForgetWorktreeStore(worktreeID)` removes `<ConversationsDir>/local/<worktree id>`
+whole, refuses an id that is not one segment (`..` would be the whole owner directory) before
+removing anything, and treats a store already gone as success. **Phase 3's worktree-removal verb
+calls it**, after killing every session in the worktree so no CLI is writing into the store.
 
 404 `session_not_found` for an unknown id in both cases.
 
@@ -2184,7 +2232,9 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    conversations with a transcript, else 409), then mint `conversationId := ids.UUID()`, pass
    both to `Build`, and create the worktree's conversation store on the host,
    `<ConversationsDir>/<owner>/<worktreeId>` with `<owner>` = `local` in Phase 2 — all
-   before step 4, so a failure costs nothing.
+   before step 4, so a failure costs nothing. (AMENDED by OD-10, 2026-09-24: what deletes
+   from the store is §3.15 — Forget, each session's own `<id>.jsonl`; worktree removal, the
+   whole store, a seam phase 3 wires.)
 3. Mint `sessionID := ids.New("s")` and `token := ids.Token()`.
 4. `store.Create(session)` with `Status: StatusStarting`. **The record exists before
    the sandbox does.** If step 5 fails the record is the only evidence of what
@@ -2282,7 +2332,9 @@ sessions stay listed and readable and that Resume restores context by running
 disconnect deletes the artifact the product is built around. (AMENDED by the resume fix (2026-09-23):
 the transcript `--resume` reads is in the worktree's conversation store, mounted at
 `~/.claude/projects`, so it survives even the three permitted destroys. Without that,
-Resume — which always runs in a NEW sandbox — found nothing.) The relay goroutine's
+Resume — which always runs in a NEW sandbox — found nothing.) (AMENDED by OD-10, 2026-09-24:
+it survives every destroy **except Forget's**. `?purge=true` deletes the session's own
+transcripts after the destroy, and removing a worktree deletes its whole store, §3.15.) The relay goroutine's
 `defer` decrements `attachCount` and flushes `lastOutputAt`; that is all it does.
 
 ### 5.3 The reaper

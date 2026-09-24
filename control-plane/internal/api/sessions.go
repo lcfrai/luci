@@ -124,6 +124,11 @@ func sessionTranscriptPath(store, conversation string) string {
 // a way this platform's filesystem cannot be made to.
 var sessionStat = os.Stat
 
+// sessionLstat is os.Lstat, a variable for the same reason: Forget's look at
+// the transcript directory can fail in ways other than "absent", and no
+// filesystem fails that way on demand on every platform.
+var sessionLstat = os.Lstat
+
 // sessionTranscriptState is the ONE look the control plane takes at a
 // harness's own files: does the transcript for this conversation exist. It
 // opens nothing and reads no byte of it, so it cannot come to depend on the
@@ -140,6 +145,100 @@ func sessionTranscriptState(store, conversation string) (written bool, err error
 		return false, err
 	}
 	return true, nil
+}
+
+// sessionForgetTranscripts is OD-10, "Forget deletes it": it deletes the
+// transcript of every conversation sess's record names as its own — its
+// current one and the ones its restarts left — and nothing else. OD-8 lets the
+// control plane delete a harness's own file by an id the control plane minted;
+// it opens and rewrites nothing, and it never lists the store, so no other
+// session's file can be reached from here. A transcript that was never written
+// is already forgotten, and so is a store that was never made: neither is an
+// error, and nothing is created to find that out.
+//
+// A fork does not depend on its source's file. `--resume A --fork-session
+// --session-id B` writes B as a whole copy of A's history re-keyed to B
+// (od10-forget-report.md §3), and a resume resolves only the resumed record's
+// own ids (sessionResumableConversation), so forgetting A leaves B resumable.
+//
+// Two refusals, both about an id joined onto a path:
+//
+//   - An id not spelled the one way ids.UUID mints is refused and logged at
+//     error, and the rest carry on. Build refuses such an id, so no CLI ever
+//     wrote a transcript under it; joined onto the store it names somewhere
+//     else — "../../x" climbs out, and an uppercase copy of another id is that
+//     other conversation's file on Windows. The same goes for a worktree id
+//     that cannot name a store: sessionConversationStore refuses it, so no
+//     store exists under it.
+//   - The directory the CLI keeps transcripts in is inside the mount, so the
+//     agent can replace it with a link. Deleting through a link deletes on the
+//     host at the agent's choosing, so anything there but a real directory
+//     fails the Forget.
+//
+// Any failure to delete comes back as the error, and the caller keeps the
+// record that names the file.
+func (a *API) sessionForgetTranscripts(sess registry.Session) error {
+	var ids []string
+	for _, id := range append([]string{sess.ConversationID}, sess.EarlierConversationIDs...) {
+		if id == "" {
+			continue
+		}
+		if !harness.IsConversationID(id) {
+			a.sessionLog().Error("forget: the record names a conversation id no mint produces; deleted nothing by it",
+				"sessionId", sess.ID, "conversationId", id)
+			continue
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	store, err := a.sessionConversationStorePath(sess.WorktreeID)
+	if err != nil {
+		a.sessionLog().Error("forget: the record's worktree id names no conversation store; deleted no transcript",
+			"sessionId", sess.ID, "err", err)
+		return nil
+	}
+
+	dir := filepath.Dir(sessionTranscriptPath(store, ids[0]))
+	info, err := sessionLstat(dir)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return nil
+	case err != nil:
+		return fmt.Errorf("look at the transcript directory %s: %w", dir, err)
+	case !info.IsDir():
+		return fmt.Errorf("the transcript directory %s is a %v, not a directory; deleted nothing through it", dir, info.Mode().Type())
+	}
+
+	var errs []error
+	for _, id := range ids {
+		if err := os.Remove(sessionTranscriptPath(store, id)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			errs = append(errs, fmt.Errorf("delete the transcript of conversation %s: %w", id, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// sessionForgetWorktreeStore is OD-10's other half: removing a worktree from
+// the product deletes that worktree's conversation store, every transcript in
+// it included. No product action removes a worktree in phase 2 — the catalog
+// enumerates the worktrees git already has, and the one worktree verb is PATCH
+// ready (catalog.go) — so nothing calls this yet. It is the seam phase 3's
+// worktree-removal verb calls, and that verb owes one thing first: every
+// session in the worktree killed, so no CLI is writing into the store it
+// removes. A store that does not exist is not an error. A worktree id that
+// cannot name one is refused before anything is removed: ".." would name the
+// whole owner directory.
+func (a *API) sessionForgetWorktreeStore(worktreeID string) error {
+	store, err := a.sessionConversationStorePath(worktreeID)
+	if err != nil {
+		return err
+	}
+	if err := os.RemoveAll(store); err != nil {
+		return fmt.Errorf("delete the conversation store of worktree %s: %w", worktreeID, err)
+	}
+	return nil
 }
 
 // sessionHasConversation is whether a session on this harness is given a
@@ -1573,6 +1672,18 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 
 	if !purge {
 		httpx.WriteJSON(w, http.StatusOK, toJSON(updated, sessionBasePath))
+		return
+	}
+
+	// OD-10, "Forget deletes it": the session's own transcripts go before its
+	// record does. That order is the reporting. A deletion that fails leaves
+	// the record — the one thing that names the file — so the 500 is true, the
+	// cockpit puts the row back, and asking again finds the file again. The
+	// other order would answer 204 over a transcript nothing names any more,
+	// kept forever: the state OD-10 exists to end. The sandbox is destroyed by
+	// now, so no CLI is writing the file this removes.
+	if err := a.sessionForgetTranscripts(updated); err != nil {
+		a.internal(w, r, "delete the session's transcript", err)
 		return
 	}
 
