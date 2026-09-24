@@ -32,9 +32,10 @@ UNVERIFIED here.
 1. **We build the work layer, not an integration.** An issue becomes a Hub object that points at
    the brief and the criteria it serves (04 §3). That pointer is what Linear cannot copy quickly:
    the work item is *on the provenance thread*, not beside it.
-2. **Parity, counted.** Of Linear's 257 features: **MATCH 128, EXCEED 70, SKIP 59** (§1). Every
-   SKIP has a reason. Most skips are support-desk and sales connectors (Zendesk, Gong, Salesforce),
-   predictive graphs that `AGENTIC-UX.md` bans, and mobile.
+2. **Parity, counted.** Of Linear's 257 features: **MATCH 155, EXCEED 75, SKIP 27** (§1). Every
+   SKIP has a reason. Eleven are support-desk, CRM and sales features; the rest are embeds and
+   long-tail connectors, grants Hub v1 lacks, predictions `AGENTIC-UX.md` bans, mobile and web
+   apps, and non-build items.
 3. **The magic is four things Linear does not have** (§2): agents that are real teammates on the
    issue (they take it through their owner, report in one live line, and *propose* evidence);
    Orchestrators that negotiate across owners and escalate to inform or to ask; **one thread** from
@@ -43,25 +44,30 @@ UNVERIFIED here.
 4. **Done means proven.** An issue closes when every criterion it serves is settled by recorded
    evidence at the landed commit, not when a PR merges. Linear moves an issue to Done on merge.
 5. **Object model** (§3): `issue is-` (mutable head, immutable digested revision), `feature ft-`
-   (Linear's "project"; our `project` is the product), `cycle cy-`, `initiative in-`, `view vw-`,
-   `comment ic-`, `request rq-`, plus team mode's `task tk-`. All live in the Hub. Live activity
-   stays Fleet state and is derived onto the issue, never stored on it.
-6. **One app, not two** (§4). Work is a seventh lens, not a separate product. The Desk absorbs
-   Linear's Inbox, My Issues and triage-for-me. The palette gains the key grammar. The thread is
+   (Linear's "project"; our `project` is the product), `cycle cy-`, `initiative in-`, `milestone
+   ml-`, `view vw-`, `comment ic-`, `request rq-`, `template tp-`, `label lb-`, `loop lp-`, plus
+   team mode's `task tk-`. All live in the Hub. Live activity stays Fleet state, derived onto the
+   issue, never stored on it.
+6. **One app, not two** (§4). Work is a seventh lens plus a project surface, not a separate
+   product; every other lens shows an issue chip. The Desk absorbs Linear's Inbox, My Issues and
+   triage-for-me. Lower-case keys edit the record; `Shift` hands work to your agents. The thread is
    the visual signature that says "this is not a Linear clone".
-7. **Fast is architecture.** A Hub replica in memory with checkpoint delta sync and optimistic
-   writes for reversible acts (02 C8). Irreversible acts (push, deploy) are never optimistic.
-8. **Minimum lovable slice W1** (§5): issues, triage, one board, the key grammar, Start-into-a-lane,
-   the trailer, and "done means proven". About **14 focused days**, not measured. The whole layer,
-   W1 to W5, is about **47 focused days**.
-9. **Two cheap changes now** (04 §7.1): add `issue:` to the phase 4 key parser and the Hub key
-   grammar; fix the stale `criterionId: "done:2"` example in the Hub contract.
-10. **Six owner questions** (§6). The biggest: progress displays (Linear shows percentages and
-    graphs; `AGENTIC-UX.md` bans them). Recommendation: convergence per criterion, plain counts,
-    no predictions.
+7. **Fast is architecture.** An in-memory Hub replica on the Hub's existing change feed, optimistic
+   writes with undo for reversible acts (02 C8), in-row confirmation for irreversible ones. This
+   corrects 02 C8, which put the replica on disk against ADR-H1 (§4.4, Q5).
+8. **Minimum lovable slice W1** (§5.3): file an issue, `Shift+S` starts a cloud agent on it, it
+   lands, a person records evidence, it turns `done` by itself, and the release shows it shipped.
+   About **28 focused days** (3 weeks elapsed on three streams). **W1-W3 is about 64 days; all of
+   W1-W5 about 117.** None is measured.
+9. **Changes now** (§5.2): add `issue:` to the phase 4 key parser and the Hub key grammar; fix the
+   stale `criterionId: "done:2"` example. **One gap found:** no plan builds the Desk (§5.6).
+10. **Ten owner questions** (§6), five before W1. The biggest: progress displays (Q1, recommend
+    convergence plus plain group sizes, nothing that predicts) and how far to build (Q2,
+    recommend W1-W3 first).
 
 **How to read this file.** §1 is the full parity matrix and is long; read its tally first. §2 is
-the "more". §3 to §5 are the design and the delivery. §6 is what the owner decides.
+the "more". §3 to §5 are the design and the delivery. §6 is what the owner decides; §7 is what is
+unverified.
 
 ---
 
@@ -1070,4 +1076,59 @@ mode goes first (Q4).
 | W1 + W5's sync only | ~36 | keep Azure Boards or Jira as the plan and mirror into our issues. Cheaper, but the thread stops at the mirror |
 
 ---
+
+## 6. Owner questions, each with a recommendation
+
+### 6.1 Decide before W1 starts
+
+| # | Question | Options | Recommendation |
+|---|---|---|---|
+| **Q1** | Progress displays. Linear shows percentages, burn-ups and predicted dates; `AGENTIC-UX.md` bans them (AX:237, :245) | **A** convergence per criterion plus plain group sizes for sets people committed to; **B** convergence only, no counts; **C** Linear's full set | **A.** A cycle is a human commitment, so its size is a number we can defend; anything that predicts stays banned. Needs one line added to AX:245 (04 §6.3) |
+| **Q2** | How far to build | stop after W1 (~28 d); W1-W3 (~64 d); everything (~117 d); W1 plus sync only (~36 d) (§5.7) | **W1-W3 as the first target**, then decide W4 and W5 on what the first teams use. W1 alone is a demo; W3 is where the cross-owner magic shows |
+| **Q3** | May an issue's text enter the agent's managed block once its owner started or delegated it? | yes with guards; no, agents read issues only as data | **Yes, with 04 §4.4's four guards**, and only after TM-05's injection corpus covers hostile issue text |
+| **Q4** | Who builds the Desk, which no plan owns (§5.6)? | Phase W builds a minimum in W1; a separate Desk slice first; team mode's cockpit stream | **Phase W's minimum in W1**, then a full Desk slice before TM1's cockpit stream needs it |
+| **Q5** | Keep the Hub replica in memory (ADR-H1) or allow an encrypted disk cache? | in memory; DPAPI-encrypted cache with erase propagation | **In memory for W1**, and measure `budget.return`. Amend ADR-H1 only if a real project misses 2 s |
+
+### 6.2 Decide later
+
+| # | Question | Recommendation |
+|---|---|---|
+| **Q6** | The 27 skips (§1 tally): mobile (L-232), SLAs (L-141, 142), the CRM (L-131, 134-136), support connectors | **Keep them skipped.** Revisit mobile after W3, starting with answering Desk items from Teams |
+| **Q7** | Call Linear's *project* a **feature**, keeping *project* for the product (04 W1)? | **Yes.** Two meanings of one word in one rail confuses a first-time user permanently |
+| **Q8** | Should an "AU data only" project's branch names default to no title slug (04 W4)? | **Yes.** An erase cannot reach a branch name on a customer's remote |
+| **Q9** | Build the tracker, or sync with Azure Boards, GitHub Issues and Jira (03's open tension; 04 W5)? | **Both, in order:** build the first-class work layer, and sync out and import one way into `triage` in W5. Which trackers KPMG teams use is **UNVERIFIED** |
+| **Q10** | Accept 02 D1's four design recommendations: Berkeley Mono, a light theme now, a 7-day UI-defect clock, the thread as the signature? | **Yes to all four**; the light theme lands in W2 through the generator |
+
+---
+
+## 7. What is unverified, and sources
+
+### 7.1 Unverified
+
+1. **Every size in §5.** Estimated from the plans' task sizes and 02 D2; none is measured.
+2. **Linear facts** carry 01's and 02's caveats: pages were read through a summarising fetch tool;
+   plan tiers conflict; the shortcut page returned 404; whether Linear has an acceptance-criteria
+   object, or a ZDR option on request, is unknown.
+3. **Our own plans:** that the Desk has no plan (searched `docs/superpowers/plans` on this branch
+   only); that phase 3's runner can host the `panacea` verbs in solo mode; that phase 8 plans
+   per-project prep scripts and fixes an AU hosting region; that phase 3 signs land commits and
+   supports GitHub Enterprise Server; that the Tauri app builds for macOS and Linux.
+4. **Performance:** 02's budgets with an in-memory replica, especially `budget.return` after a restart.
+5. **Browser testing** inside a Kata sandbox (L-166).
+6. **TM-05 was being revised while this was written** (its revision 3 began at commit `f032119`).
+   Its section numbers are cited as read on 2026-09-25 and may move.
+7. **Visual acceptance is the owner's eyes** (`CLAUDE.md`). The ASCII in §2 and §4 is a layout
+   sketch, not a design; nothing here has been drawn or run.
+
+### 7.2 Sources
+
+**No web page was read for this file.** Every Linear fact is cited from `01`-`04` in this folder,
+which list their URLs and read dates (all 2026-09-25). Plane's source was not opened.
+
+**Read in this repository, 2026-09-25:** `docs/superpowers/planning/2026-09-23-owner-decisions.md`
+(OD-1 to OD-20); `01-linear-feature-inventory.md` §21-§23; `02-linear-design-language.md` Part C
+and D; `03-agent-work-landscape.md` headings and §12; `04-internal-fit.md` §1-§8;
+`../2026-09-24-team-collaboration/05-design.md` §0, §6.2-§6.5, §9.1-§9.3; `docs/AGENTIC-UX.md`
+§5-§10; `docs/DESIGN-SYSTEM.md` (rules only); `desktop/src/store/types.ts:173`; the Hub contract's
+id-prefix lines 105-112 in the `feat/hub` worktree.
 
