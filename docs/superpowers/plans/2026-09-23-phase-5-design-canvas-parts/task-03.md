@@ -14,6 +14,9 @@ task wires the package so neither happens, and proves it with one test in each d
 
 - `canvas/editor/package.json`, `tsconfig.json`, `vitest.config.ts`, `src/index.ts`,
   `src/test/setup.ts`, `src/index.test.tsx` (all new)
+- Not `canvas/editor/go.mod`: task 02 owns it, the module boundary that keeps `./canvas/...` out
+  of this package's `node_modules` (review M6). Do not create, edit or delete it; if task 02 has
+  not merged, the directory simply lacks it until then.
 - `desktop/package.json` — one dependency. **Declared amendment.**
 - `desktop/vite.config.ts` — `resolve.dedupe`, `server.fs.allow`. **Declared amendment.**
 - `desktop/vitest.config.ts` — `resolve.dedupe`. **Declared amendment** (phase 4's change C12 is

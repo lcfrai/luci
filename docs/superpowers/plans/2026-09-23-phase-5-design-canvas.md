@@ -101,7 +101,8 @@ pen tool, sketch boards.
    and the artboard document's own CSP inside an iframe whose `sandbox` has no `allow-scripts`.
 3. **The canvas is its own package** (`OD-11` rule 4): a Go module `canvas/` (model, dialect,
    serialisers, authority, MCP server, handoff) and an npm package `canvas/editor` (renderer and
-   editor). Neither imports the cockpit. The control plane adapts the Go module to its HTTP surface
+   editor), which a `canvas/editor/go.mod` holding one `module` line keeps out of the Go module's package walk
+   (task 02, review M6). Neither imports the cockpit. The control plane adapts the Go module to its HTTP surface
    in `internal/designapi`; the desktop adapts the npm package to its API client in
    `desktop/src/design`. Both halves are testable alone: the Go module against a fake renderer and
    an in-memory store, the npm package against an in-memory transport.
@@ -199,12 +200,18 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 
 ### The sibling plans, as built against
 
+The phase 4 plan is `docs/superpowers/plans/2026-09-23-phase-4-discover.md` on `feat/phase-4-discover`,
+the phase 3 plan `docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md` on `feat/phase-3-git`.
+Both are still being revised, so each row cites the **id** and its section; the line numbers are
+where the id stood at the named commit, re-checked 2026-09-24 (review M9), and drift as those plans
+change.
+
 | Id | From | What phase 5 does with it |
 |---|---|---|
-| **P4-A**, **S4-P5.2** | phase 4 plan `:169`, `:411` | a session started from an approved design inherits the branch's latest complete brief like any other; phase 5 does **not** send `contextRef`, and records `session → design:` through the Hub's session links (task 22) |
-| **S4-P5.1** | phase 4 plan `:410` | one key-source selector for the canvas's approved brief key (task 27) |
-| **S4-P5.3** | phase 4 plan `:412` | `get_brief` resolves through `discoverhub.Service.HeadRef`; nothing is copied into the canvas (task 15) |
-| **3-D6**, **S3-P5.1** | phase 3 plan `:134`, `:330` | the handoff bundle is never committed; it is excluded through the clone's `.git/info/exclude` (task 22) |
+| **P4-A**, **S4-P5.2** | phase 4 plan §3.5 and §8.3, by id (`:171`, `:487` at `feat/phase-4-discover` `64664b7`) | a session started from an approved design inherits the branch's latest complete brief like any other; phase 5 does **not** send `contextRef`, and records `session → design:` through the Hub's session links (task 22) |
+| **S4-P5.1** | phase 4 plan §8.3, by id (`:486` at `64664b7`) | one key-source selector for the canvas's approved brief key (task 27) |
+| **S4-P5.3** | phase 4 plan §8.3, by id (`:488` at `64664b7`) | `get_brief` resolves through `discoverhub.Service.HeadRef`; nothing is copied into the canvas (task 15) |
+| **3-D6**, **S3-P5.1** | phase 3 plan "Decisions this plan makes where nothing on file does" and "Seams phase 3 leaves for later phases", by id (`:157`, `:407` at `feat/phase-3-git` `6c6b20f`) | the handoff bundle is never committed; it is excluded through the clone's `.git/info/exclude` (task 22) |
 
 ### Decisions this plan makes itself — recorded so a reviewer can overturn them
 
@@ -242,7 +249,10 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 - Go, from the repository root: `go test ./canvas/... ./control-plane/... ./sandboxd/... ./tools/... -race -count=1`,
   or one package path (`./tools/...` exists from task 04). `go test ./...` at the root is invalid (`go.work` lists modules, and the root
   is not one). `go vet` on the same three patterns must stay clean. Task 02 adds `./canvas` to
-  `go.work`; before task 02 lands the `./canvas/...` pattern does not exist.
+  `go.work`; before task 02 lands the `./canvas/...` pattern does not exist. The npm package
+  `canvas/editor` sits inside that module's directory, so task 02 also adds
+  `canvas/editor/go.mod`, a module boundary the pattern's walk stops at (Go 1.23 has no `ignore`
+  directive; review M6). Never `use` it in `go.work`, and never run `go work use -r .`.
 - `sandboxd` is **vendored** (`sandboxd/vendor/`). Phase 5 adds no `sandboxd` requirement: its relay
   uses `github.com/coder/websocket`, already required and vendored (`sandboxd/go.mod`).
 - The editor package: `cd canvas/editor && npx vitest run` and `npx tsc --noEmit`.
@@ -338,6 +348,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | Path | Holds | Task |
 |---|---|---|
 | `canvas/go.mod` | module, `go 1.23`; its one requirement (G1) is added by task 07, its first importer | 02, 07 |
+| `canvas/editor/go.mod` | a module boundary, not Go code: the `./canvas/...` walk stops at the npm package, which Go 1.23 has no `ignore` directive to exclude; not in `go.work` (review M6, `task-02.md`); pinned by `TestBoundary_editorModule` (05) | 02 |
 | `canvas/boundary_test.go`, `canvas/doc/` | the module boundary; `model.go` (Page, Node, Token, Asset, Thread, ReviewRequest, Author, Document, Doc), `ids.go`, `key.go` (design key), `order.go` (fractional index), `validate.go` | 05 |
 | `canvas/doc/` | `op.go`, `apply.go` (Apply, Prepare, Commit), `invert.go` | 06 |
 | `canvas/dialect/` | `parse.go`, `css.go` (our tokenizer), `allowlist.go`, `svg.go`, `report.go`, `checker.go`, `gen.go`, `allowlist.json` (generated) | 07 |
@@ -478,9 +489,10 @@ without `KeyGuard` (plan rule 4, review C1). If C3 slips, Lane E waits; the othe
 **Parallel lanes for worktree agents.** Lane A (Go core): 05–13. Lane B (MCP): 14–17, after 12 and
 13. Lane C (relay): 18–19. Lane D (editor): 23–26, after 01 and 03. Lane E (control-plane HTTP and
 provenance): 20a after Lane B's 14 and Lane C's 19, then 20b after Lane B's 17, then 21–22. The desktop lane (27–29)
-joins D and E; 27 and 29 need only 20a. **Two lanes never edit one file**: the
+joins D and E; 27 and 29 need only 20a to compile, and 29's `routes.go` line waits for 22's merge
+(below). **Two lanes never edit one file at once**: the
 only shared files are `control-plane/go.mod` (19 only), `internal/api/api.go` (19, then 20a),
-`internal/api/sessions.go` (19 only), `internal/httpx/problem.go` (20a only) and
+`internal/api/sessions.go` (19 only), `internal/httpx/problem.go` (20a only),
 `azure-pipelines.yml` (02, then 03, then 04, in that order), `go.work` (02's `./canvas`, then
 04's `./tools/licencegate`), `control-plane/internal/designapi/routes.go` (20a, then 21's three
 routes, then 22's three, then the desktop lane's 29, route 27, which lands after 22 although the

@@ -15,7 +15,8 @@ from its description, because the published package is CC0 and outside the gate 
 
 - `canvas/doc/model.go`, `ids.go`, `key.go`, `order.go`, `validate.go` (new)
 - `canvas/doc/model_test.go`, `ids_test.go`, `key_test.go`, `order_test.go` (new)
-- `canvas/boundary_test.go` (new) — the module boundary of task 02.
+- `canvas/boundary_test.go` (new) — the module boundary of task 02, and the `canvas/editor/go.mod`
+  boundary task 02 adds (review M6).
 
 ## Contracts
 
@@ -307,6 +308,7 @@ func (n Node) Validate() error
 | `TestDocument_sortedAndStable` | a `Doc` built in random insertion order marshals to identical bytes twice and to the same bytes as one built in sorted order | map iteration leaking into JSON |
 | `TestFromDocument_rejects` | a parent cycle, an artboard whose parent is a node, a child of a text node, a child of an `input`, depth 65, two siblings with one `Order` — each an error | a store that loads a corrupt canvas |
 | `TestBoundary` (`canvas/boundary_test.go`) | `go list -deps -f {{.ImportPath}} ./...` run in `canvas/` names no path under `…/panacea-app/control-plane` or `…/sandboxd` | the canvas importing the cockpit (`OD-11` rule 4) |
+| `TestBoundary_editorModule` (same file; review M6, `task-02.md` "Why a second `go.mod`") | `editor/go.mod` exists and its `module` line is `github.com/kpmg-au-emu/panacea-app/canvas/editor`; `go list -m -f {{.Path}}` run in `canvas/` names no module `…/canvas/editor` (the workspace does not `use` it) | the boundary file deleted, so the `./...` walk enters `editor/node_modules`; `go.work` gaining `./canvas/editor` |
 
 ## Steps
 

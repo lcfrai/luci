@@ -74,7 +74,7 @@ toolchain itself (none is installed here; the nested-module skip predates Go 1.2
 `go work use -r .`: it would add this boundary to the workspace.
 
 The alternative the review offered, moving the Go module to `canvas/core`, rewrites the canvas
-paths in 15 part files (87 mentions, counted 2026-09-24) and the plan's file map for the same effect; this file is one line and is pinned by task 05's
+paths in 15 part files (87 mentions, counted 2026-09-24) and the plan's file map for the same effect; this file is one `module` line and a comment, and is pinned by task 05's
 `TestBoundary` (the file exists and names that module).
 
 ```yaml
