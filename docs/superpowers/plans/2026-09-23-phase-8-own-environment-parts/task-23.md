@@ -74,7 +74,21 @@ func (s *Set) Known() []string
 // A file that exists but does not hold exactly one valid id is an error naming
 // the file, and it is never replaced: a new id would turn every running cloud
 // sandbox of this laptop into another control plane's (review I6).
-func InstallID(dir string) (string, error)
+// mustExist is true when the session registry already holds a record whose
+// MachineID is a cloud id (neither "" nor "local"). Then a missing file is
+// ErrInstallIDLost, naming the file, and nothing is created: the id lives in
+// a different directory from the registry, so deleting machines/ alone would
+// otherwise mint a new id, hide this laptop's own cloud sandboxes from its
+// filtered list, and let reaper rule 2 mark every one of them exited while its
+// pod runs on with no laptop to reap it (b06 re-review 5).
+func InstallID(dir string, mustExist bool) (string, error)
+
+// ErrInstallIDLost's message names the file and the two ways out: restore the
+// file from a backup, or end those cloud sessions (the cockpit cannot reach
+// them without the id) by removing their records, which knowingly leaves their
+// sandboxes running; ending those needs the owner-wide list plus DELETE that
+// task 18 records as a seam ("What this task does not claim"), not built here.
+var ErrInstallIDLost = errors.New("machines: the install id is missing but the session registry has cloud sessions")
 ```
 
 **Why an install id (review I6).** The broker scopes every route by **owner** (`tid/oid`,
@@ -134,8 +148,10 @@ beside whichever local backend is selected):
 | `PANACEA_APP_BROKER_URL` | `""` | the broker, `https://broker.<zone>`; empty = no cloud machines |
 | `PANACEA_APP_BROKER_SCOPE` | `""` | required when the URL is set: task 09's `broker_api_scope` |
 
-`main.go`: when the URL is set, `machines.InstallID(statepath.Dir("machines"))` first (an error
-exits 2 naming the file); `remotebe.NewClient` with that id as `ControlPlane` and the Hub's token
+`main.go`: when the URL is set, open the session registry first, then
+`machines.InstallID(statepath.Dir("machines"), mustExist)`, with `mustExist` true when any
+record's `MachineID` is neither `""` nor `"local"` (an error, `ErrInstallIDLost` included, exits 2
+naming the file); `remotebe.NewClient` with that id as `ControlPlane` and the Hub's token
 source adapted to `remotebe.TokenSource` if the Hub's C1 has landed, else `remotebe.SignedOut{}`;
 `machines.New(be, client)`; `Deps.Machines`; the reaper's `Machines` and `InstallID`;
 `recoverSessions` per machine with the same leave-it-alone rule.
@@ -173,6 +189,7 @@ task; task 24 changes `handleMachines`.
 | `TestInstallIDIsCreatedOnceAndKept` | two calls on one `t.TempDir()` → the same id, 32 lowercase hex; the file holds it; mode `0600` (asserted on non-Windows only) | an id minted per start, so every restart's reaper treats its own sessions as another's |
 | `TestTwoStartsRacingAgreeOnOneID` | 8 goroutines call `InstallID` on a fresh dir → one distinct id | a create without `O_EXCL`, where the last writer wins and the earlier start stamps a lost id |
 | `TestAMalformedInstallIDIsAnErrorAndIsKept` | the file holds `"x"`, then 32 hex plus a second line → an error naming the file each time, and the file's bytes unchanged | a silent regeneration that makes this laptop's running cloud sessions foreign |
+| `TestAMissingInstallIDBesideCloudSessionsIsAnError` | a fresh dir, `mustExist: true` → `ErrInstallIDLost` (`errors.Is`), its message names the file, and no file was created; the same dir with `mustExist: false` → a new id (the first-start case) | a deleted `machines/` re-minted silently, so this laptop's own cloud sessions turn foreign and are marked exited while their pods run on (b06 re-review 5) |
 
 `api` tests (existing harness, a fake cloud backend injected through a `machines.Set` built on a
 stand-in broker):
@@ -195,16 +212,24 @@ lists three sandboxes that no record names, one labelled with the reaper's `Inst
 another install id, one with no control-plane label. After a sweep, only the first was
 destroyed; `Destroy` was never called with the other two ids; each of the two was logged once
 across two sweeps. The fake ignores any filter, as a broker that dropped the query would. Kills:
-rule 4's label check dropped; a missing label read as "ours". The third mutant, the check
-applied to the local backend too, where Docker sandboxes carry no such label, is killed by
-phase 2's own `TestSweepDestroysOrphansAndOnlyOrphans` (`reaper_test.go:417`), which then goes
-red. All three sandboxes are older than rule 4's mid-create grace
+rule 4's label check dropped; a missing label read as "ours". All three sandboxes are older than rule 4's mid-create grace
 (`TestSweepSparesAnOrphanYoungEnoughToBeMidCreate`, `:455`), so the grace cannot be what spares
 them.)
+`TestTheLocalSweepIgnoresTheInstallID` (b06 re-review 4): a reaper with `Machines` holding a
+cloud client and `InstallID` set to 32 hex, and one unlabelled Docker orphan in the **local**
+list, older than the grace → that orphan is destroyed. Kills the mutant "the install-id check
+applied to the local backend too" in both of its forms. Phase 2's
+`TestSweepDestroysOrphansAndOnlyOrphans` (`reaper_test.go:417`) does not: it builds its reaper
+with `newReaper(t, store, be, 0, 0)` (`:428`), so `InstallID` is `""`, and the plain form of the
+check (`Labels[k] != installID` → skip) reads `"" == ""` for an unlabelled Docker sandbox and
+still destroys it. The real regression shows only with a broker configured: `InstallID` is set,
+and the local sweep would never reap a Docker orphan again.
 
 `cmd/api` config tests: `TestBrokerURLNeedsAScope`, `TestBrokerURLMustBeHTTPS`,
 `TestNoBrokerIsPhase2` (which also asserts that no `install-id` file was created), and
-`TestAMalformedInstallIDStopsTheStart` (exit 2 naming the file, review I6).
+`TestAMalformedInstallIDStopsTheStart` (exit 2 naming the file, review I6), and
+`TestALostInstallIDStopsTheStart` (a registry holding one `m-…` record, no `install-id` file →
+exit 2 naming the file, and still no file; b06 re-review 5).
 
 #### Steps
 
@@ -214,10 +239,15 @@ them.)
 - [ ] **Step 3:** The reaper; `main.go` wiring; config.
 - [ ] **Step 3a (review I6):** mutation check on a `$TEMP` copy, each verified applied and the
   named test red: drop rule 4's label check → `TestTheReaperNeverDestroysAnotherControlPlanesCloudSandbox`;
-  read a missing label as ours → the same test; apply the check to the local backend too →
-  `TestSweepDestroysOrphansAndOnlyOrphans`; `InstallID` without `O_EXCL` →
+  read a missing label as ours → the same test; apply the check to the local backend too, in
+  its plain form (`Labels[k] != installID` → skip) → `TestTheLocalSweepIgnoresTheInstallID`
+  (phase 2's `TestSweepDestroysOrphansAndOnlyOrphans` stays green on this mutant, because its
+  `InstallID` is `""`; b06 re-review 4); `InstallID` without `O_EXCL` →
   `TestTwoStartsRacingAgreeOnOneID`; regenerate a malformed file →
-  `TestAMalformedInstallIDIsAnErrorAndIsKept`. The two named beforehand as likeliest to
+  `TestAMalformedInstallIDIsAnErrorAndIsKept`; mint a new id when `mustExist` is true →
+  `TestAMissingInstallIDBesideCloudSessionsIsAnError` and `TestALostInstallIDStopsTheStart`;
+  compute `mustExist` from `"local"` records only (a cloud record not counted) →
+  `TestALostInstallIDStopsTheStart`. The two named beforehand as likeliest to
   survive: (a) a missing label read as ours, because a fake that lists only labelled sandboxes
   never exercises it, and the unlabelled row exists to kill it; (b) the racing create, because a
   sequential test passes without `O_EXCL`, and the 8-goroutine test exists for it. It can still

@@ -272,7 +272,17 @@ with a fake `git` first on `PATH` that writes a marker on any start. A marker sc
   (5) the wire `Scope` passed through unchecked → `TestGitScopeMustFollowDir`;
   (6) `"clone"` mapped to `gitx.Project` → `TestGitLaneFilterNeverRuns` (on its `reason`);
   (7) only `PANACEA_APP_MACHINED_TOKEN` unset → `TestGitNeverSeesTheMachinedToken`;
-  (8) the scrub moved into a helper that `main` does not call → `TestGitNeverSeesTheMachinedToken`.
+  (8) the scrub moved into a helper that `main` does not call → `TestGitNeverSeesTheMachinedToken`;
+  (9) the identity keys dropped from the allowlist → `TestGitEnvIsAnExplicitAllowlist` (its
+  admitted row) and `TestGitCommitTreeTakesTheCallersIdentity`;
+  (10) the identity keys admitted but not passed to git → `TestGitCommitTreeTakesTheCallersIdentity`;
+  (11) the clone rule keyed on `Args[0] == "clone"` alone (every clone but the add-project one
+  refused) → `TestGitLaneCreateCloneIsAdmitted`;
+  (12) the lane-create destination check dropped → `TestGitCloneOutsideItsTwoShapesIsRefused`,
+  on its `projects/b` and `/tmp/machined-git/x` rows;
+  (13) the lane-create option list opened to any `--config` → `TestGitCloneOutsideItsTwoShapesIsRefused`,
+  on its `filter.x.smudge` row;
+  (14) `Dir: ""` resolved to the machine root → `TestGitAddProjectCloneHasOneShape` (the cwd).
   The two named beforehand as likeliest to survive are (6), because `filter.*` is refused under
   both scopes, and (8), because a test of the helper alone passes. Each is killed only by the
   assertion named beside it: the `reason` string, and a start through `main`'s own function.
@@ -281,7 +291,9 @@ with a fake `git` first on `PATH` that writes a marker on any start. A marker sc
 #### Acceptance
 
 ```bash
-go test ./control-plane/cmd/machined/ -run '^TestGit' -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 20 (or SKIP lines without git)
+go test ./control-plane/cmd/machined/ -run '^TestGit' -race -count=1 -v > "$TMPDIR/t21.log" 2>&1; echo "exit=$?"   # exit=0; a build failure is non-zero, never a count of 0
+grep -c "^--- PASS" "$TMPDIR/t21.log"                                                          # 23 (the 23 TestGit rows above; or SKIP lines without git)
+grep -c "^--- SKIP" "$TMPDIR/t21.log"                                                          # 0 on a host with git
 go test ./sandboxd/... ./control-plane/... -race -count=1                                       # ok
 ```
 
