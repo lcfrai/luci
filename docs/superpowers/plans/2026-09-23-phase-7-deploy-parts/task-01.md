@@ -395,9 +395,9 @@ type AutoDeploy struct {
 
 // PostureMode is who may open a branch environment's URL. Exactly five values exist.
 // The five words are Panacea's accessMode words, adopted on purpose: they are the product's
-// vocabulary for access (the control plane's API and the desktop type use the same five, t11:46,
+// vocabulary for access (the control plane's API and the desktop type use the same five, t11:45,
 // t13:179), not a leak of the target's wire. They are the one exception to :8's rule, declared
-// here and at the acceptance grep's note (:655-657). A native target after the OD-13 lift uses
+// here and at the acceptance grep's note (:656-658). A native target after the OD-13 lift uses
 // the same words. (Plan review M1.)
 type PostureMode string
 
@@ -528,7 +528,8 @@ func ValidCommit(c string) bool
 // close to the target's canonicalAccessMode, not the same: Panacea maps an unknown mode to
 // "none" when ssoEnforced == "false" (access_mode.go:75-77). The domain has no ssoEnforced input
 // and never opens a branch on an unknown word. The difference is harmless, because Panacea's
-// GET already returns a canonical mode. It never maps anything to PosturePublic.
+// GET already returns a canonical mode. It never maps an unknown or empty word to
+// PosturePublic; only "none" does.
 func ParsePostureMode(s string) (PostureMode, bool)
 ```
 
@@ -654,7 +655,7 @@ grep -nE '["`]/api/|["`]/projects|json:"|["`](Succeeded|Pending|Failed|Running|U
   `/api/v1/projects`, `Succeeded` and a raw-string import each print, where the "-only form
   printed none of them — plan re-review b06 M-6, planted and run. The PostureMode values at :405-409 equal Panacea's
   accessMode words by design — the control plane's own API and the desktop type use the same five
-  (t11:46, t13:179) — and the grep does not name them.)
+  (t11:45, t13:179) — and the grep does not name them.)
 
 git diff --stat control-plane/go.mod
 → (empty)

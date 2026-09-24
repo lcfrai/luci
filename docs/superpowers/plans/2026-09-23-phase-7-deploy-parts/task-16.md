@@ -134,7 +134,7 @@ first ready convergence read after it is seen at the next move, not at once (doe
 
 | Button | Offered when | The sentence beside it, before the press |
 |---|---|---|
-| **Roll back to this** | the row is `kind "run"`, `build "succeeded"`, not `isCurrent`, not its environment's `current.deploymentId` (a rollback's target serves while its own run row is not current: task 08 rule 6, review I3), and its environment has no running build | *"Returns `<env>` to `<version>`. Keeps this release's brief pin — not the brief as it reads today. How fast it is, Panacea says only once it starts."* |
+| **Roll back to this** | the row is `kind "run"`, `build "succeeded"`, `environment !== ""` (b07 round 2, I-1), not `isCurrent`, not its environment's `current.deploymentId` (a rollback's target serves while its own run row is not current: task 08 rule 6, review I3), and its environment has no running build | *"Returns `<env>` to `<version>`. Keeps this release's brief pin — not the brief as it reads today. How fast it is, Panacea says only once it starts."* |
 | **Rebuild** | the row has a 40-hex `commit` and a Hub release (`release != null`) | *"Builds `<short commit>` again as a new release, with this release's brief pin."* |
 
 **Its environment** is the drawer's own lookup, `view.environments.find(e => e.name ===
@@ -144,6 +144,15 @@ that row's `build.state` is neither `running` nor `pending`. The check **fails c
 `environmentRow == null`, or no row found, **Roll back** is not offered — a lookup that finds nothing
 must never read as *"nothing is building"* (b02 round 2, R9).
 
+**`environment !== ""` is its own check, read before the lookup** (b07 round 2, I-1). Task 08
+rule 1b gives a legacy `""` deployment the `environmentRow` of the row whose `branch` equals its
+run label, for example `feat-x`, so the lookup above finds a row and passes. But Panacea's rollback
+passes the target's `Environment` verbatim (`handlers/projects.go:1612`) and `tenantNamespace`
+sends `""` to the base namespace (`clients/kubernetes.go:5887`, `:4213`): a feature image would
+land in production. Rule 1b is for display and attribution only, and this gate never reads
+`environmentRow` alone. The control plane refuses the same case with `409 deploy_precondition`
+`no_environment` (task 10), so a stale view cannot slip through either.
+
 **Rebuild** needs the branch from the Hub release's `branchRef` (task 10): a row with
 `release == null` came from outside any cockpit, and Panacea recorded only a run label for its
 branch (`clients/pipeline.go:609` for the API, `webhook-receiver/pipeline/trigger.go:1270` for a
@@ -151,8 +160,10 @@ push; plan §12). A Hub release without a `branchRef` gets the control plane's
 `409 no_branch`, shown verbatim (b02 round 2, R8).
 
 Disabled rows say why: *"A failed build has no image to roll back to."*, *"This is what `<env>` is
-serving."*, *"`<env>` has a build running. Roll back once it finishes."*, *"Panacea lists no
-environment named `<row.environment>`."*, *"Off while Panacea is not answering."*, *"This release
+serving."*, *"`<env>` has a build running. Roll back once it finishes."*, *"Panacea recorded no
+environment for this release, so a rollback would land in production."* (`row.environment` is
+`""`, matched or not; never an empty name, b07 round 2, M-1), *"Panacea lists no environment named
+`<row.environment>`."* (a non-empty `row.environment` with no row), *"Off while Panacea is not answering."*, *"This release
 did not record a full commit."*, *"Panacea recorded only a label for this release's branch. Ship the
 branch instead."*.
 
@@ -181,6 +192,7 @@ branch instead."*.
 | `rebuild offered on pruned` | a rollback rejected `deploy_conflict` → the banner has **Rebuild**; rejected `deploy_rejected` → it does not | offering Rebuild by parsing Panacea's sentence |
 | `rollback copy keeps the pin` | the rollback sentence names *"this release's brief pin"* | implying rollback re-reads today's brief (P1) |
 | `rollback off while production builds` | row `{kind:"run", build:"succeeded", isCurrent:false, environment:"prod", environmentRow:"production"}`, `view.environments` holds `production` with `build.state "running"` → **Roll back** disabled with *"`production` has a build running. Roll back once it finishes."*; the same row with `environmentRow: null` → not offered, with the *"Panacea lists no environment named `prod`."* line (b02 round 2, R9) | `e.name === row.environment`, which finds no row for `prod` and so offers Roll back while production is building |
+| `no rollback without a recorded environment` | row `{kind:"run", build:"succeeded", isCurrent:false, environment:"", environmentRow:"feat-x", branch:"feat-x"}`, `view.environments` holds `feat-x` with `build.state "succeeded"` and `current.deploymentId` another id → **Roll back** disabled with *"Panacea recorded no environment for this release, so a rollback would land in production."*; the same row with `environmentRow: null` → the same sentence, and no rendered text contains *"named ``"* (b07 round 2, I-1, M-1) | a gate that reads `environmentRow` only, which offers Roll back on a legacy `""` run and rolls a feature image into `tenant-<project>`, production (`handlers/projects.go:1612`, `clients/kubernetes.go:5887`, `:4213`) |
 | `roll back follows what is serving` | environment `production` with newest `d2` `build "failed"` and `current {source:"deployment", deploymentId:"d1"}`; rows `d1` (`succeeded`, `isCurrent:true`) and `d0` (`succeeded`) → **Roll back** is not offered on `d1` (*"This is what `production` is serving."*) and is offered on `d0`; with `current {source:"rollback", deploymentId:"d0"}` and the `rollback` row current → `d0`'s run row (`isCurrent:false`) says *"This is what `production` is serving."* and `d1` offers Roll back (review I3) | reading "current" as the newest row, so a failed build hides Roll back on the release that really serves, or a rollback's target offers a rollback to itself |
 | `rebuild needs a Hub release` | a 40-hex row with `release: null` → **Rebuild** disabled with *"Panacea recorded only a label for this release's branch. Ship the branch instead."*; with a release → offered (b02 round 2, R8) | offering a Rebuild the control plane can only refuse |
 | `cancel not held` | pressing Cancel run calls `cancel` at once | a 5 s delay on the one act that must be immediate |

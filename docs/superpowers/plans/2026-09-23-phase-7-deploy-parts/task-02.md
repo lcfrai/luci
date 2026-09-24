@@ -94,13 +94,15 @@ func BuildHTTPClient(caFile string, timeout time.Duration) (*http.Client, error)
 //     X-Request-Id: ids.UUID() (Panacea echoes it as X-Client-Request-Id, middleware/requestid.go:28-32).
 //   - GET only: a transport failure, 502, 503 or 504 is retried twice, after 250 ms and 1 s.
 //     POST, PUT and DELETE are NEVER retried: a retried deploy is a second deploy.
-//     Retry-After is honoured, never overridden (review M3): a 503 that carries it waits
+//     Retry-After is honoured inside do up to 2 s; a longer one is returned, and no caller
+//     waits on it yet (review M3; b07 round 2, M-3). A 503 that carries it waits
 //     max(the fixed delay, Retry-After) when Retry-After is at most 2 s; a longer one ends the
 //     retries at once and returns the KindUnavailable with RetryAfter set, so do never blocks
-//     the watcher's loop on it; the watcher's failure rule (t07:188-193) ends the cycle and the
-//     next cycle is the back-off. A 429 is not retried at all; it returns with RetryAfter set.
-//     No caller reads RetryAfter yet: the watcher's next cycle comes 3 s or 15 s later whatever
-//     it says (deferred to t07's per-cycle deadline, review M14).
+//     the watcher's loop on it; the watcher's failure rule (t07:188-193) ends the cycle. A 429
+//     is not retried at all; it returns with RetryAfter set. The watcher's next cycle then comes
+//     3 s or 15 s later whatever RetryAfter says, so a longer Retry-After is overridden by the
+//     cadence. That caller-side wait is its own open item, seam S7-R1 (plan §10.2), not t07's
+//     per-cycle deadline (M14, which bounds a cycle and does not back off).
 //   - A 2xx body is read up to 8 MiB into out (json.Unmarshal); an unreadable 2xx body is
 //     KindUnavailable with Op set, never a zero value handed back as success.
 //   - A non-2xx is readProblem + mapStatus. Its sentence reaches Error.Message by the table

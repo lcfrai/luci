@@ -57,6 +57,12 @@ type RollbackResult struct {
 // Rollback:
 //   preconditions: bound; HubProjectID != ""; the deployment is in the watcher's snapshot
 //     (else 404 deploy_not_found "That release is not in this project's history.");
+//     the deployment's Environment != "" (b07 round 2, I-1), else 409 deploy_precondition
+//     reason "no_environment": "Panacea recorded no environment for this release, so a
+//     rollback would land in production." — Panacea's Rollback passes Environment verbatim
+//     (handlers/projects.go:1612) and tenantNamespace sends "" to the base namespace
+//     (clients/kubernetes.go:5887, :4213). Checked BEFORE the reserve: nothing is reserved,
+//     Panacea is never called. Task 08 rule 1b's label join is display only and is not read;
 //   reserve {kind:"rollback", panaceaProject, environment: <that deployment's environment>,
 //            sourceDeploymentId: DeploymentID}  — the Hub copies the source's pin (R5);
 //   act: Actor.Rollback(ref, DeploymentID); a result whose SourceDeploymentID != DeploymentID
@@ -116,7 +122,9 @@ POST /v1/projects/{projectId}/deploy/deployments/{deploymentId}/rollback
   409 deploy_conflict             Panacea: "cannot roll back: image … no longer exists in the registry
                                   (it may have been pruned) — redeploy from source instead" (projects.go:1603-1604)
   422 deploy_rejected             Panacea: "deployment has no image tag — cannot rollback" (projects.go:1575)
-  409 conflict · deploy_precondition · deploy_not_connected · deploy_token_rejected
+  409 deploy_precondition         reason ∈ not_bound | no_hub_project | no_environment (the target's
+                                  Environment is "": Panacea would roll it into production, b07 round 2, I-1)
+  409 conflict · deploy_not_connected · deploy_token_rejected
   503 upstream_unavailable        panacea (abandoned) or hub (nothing happened)
 
 POST /v1/projects/{projectId}/deploy/deployments/{deploymentId}/rebuild
@@ -145,6 +153,7 @@ Rebuild because the code is `deploy_conflict` on a rollback, and prints the sent
 | `TestRollbackInheritsPin` | against `hubclient.NewFake()` with `d1` joined to a pinned release → the rollback release's pin is `pinned/inherited` with `d1`'s key | a rollback shown against today's brief head (P1) |
 | `TestRollbackUnknownSource` | `d9` has no Hub release → pin `none/source_unknown`; the rollback still happens | refusing a rollback because it has no brief |
 | `TestRollbackPrunedImageAbandons` | Panacea's 409 → `Abandon` with that sentence; route `409 deploy_conflict` | a reservation left dangling after a refusal |
+| `TestRollbackRefusesNoEnvironment` | target `d-old` with `Environment: ""`, `Branch: "feat-x"`, `build "succeeded"`, and a snapshot row `feat-x` (branch `feat-x`) that task 08 rule 1b joins it to → `409 deploy_precondition` `no_environment` with *"Panacea recorded no environment for this release, so a rollback would land in production."*; the Hub fake saw no `Reserve` and the Panacea fake saw no call (b07 round 2, I-1) | reading rule 1b's `environmentRow` (or the row's `branch`) as the rollback's environment, which Panacea sends to `tenant-<project>`, production (`handlers/projects.go:1612`, `clients/kubernetes.go:5887`, `:4213`) |
 | `TestRollbackIdMismatchAbandons` | the connector reports a different id → abandoned, `503` | confirming a rollback whose premise broke |
 | `TestRebuildUsesExactCommit` | source `Commit` 40 hex → Panacea body `{"branch":…, "commit":<that>}` | Panacea's `/redeploy` path, which builds the branch head |
 | `TestRebuildRefusesSymbolicCommit` | source `Commit: "main"` → `409 deploy_precondition` `no_exact_commit`; no reserve | rebuilding "whatever main is now" under an inherited pin |

@@ -295,7 +295,11 @@ reads back as `""` (`kubernetes.go:5681`; every current writer sets one, task 12
 way Panacea's own environments list attributes it: by its run's branch label, exactly equal to a
 row's `branch` (`kubernetes.go:5396-5415`, looked up at `:5455`). One that matches no row goes to
 one group titled *"no environment recorded"* (its name stays `""` on the wire; the title is never
-blank; task 08 rule 1b, review M5). The join is done **once, in the control
+blank; task 08 rule 1b, review M5). That label join is **for display and attribution only**: Panacea's
+rollback sends a `""` target to `tenant-<project>`, production (`handlers/projects.go:1612`,
+`kubernetes.go:5887`, `:4213`), so no act reads it, and Roll back is refused for a `""` release on
+both sides (task 16's gate, task 10's `409 deploy_precondition` `no_environment`; b07 round 2, I-1).
+The join is done **once, in the control
 plane** (task 08): every `ReleaseRow` carries its matched row's name as `environmentRow`, and the
 desktop never joins again (review I8).
 
@@ -784,6 +788,7 @@ cause named.
 | **S7-P1** the criterion evaluator | the manifest's criteria render `open` + *"no evidence recorded yet"* | phase 3's `evidence.Evaluator` at `Deployment.Commit` (`S3-P7.5`) | evaluate at the branch head (P12) |
 | **S7-P2** the merge link | task 17's `PinManifest` passes no `mergeRef` | whichever phase records a merge link in the Hub adds a field to the release or a route; `PinManifest` passes it | infer a merge from a commit being on `main` |
 | **S7-S1** sessions by trailer | task 19's `sessions.Reader.Read` | phase 3's hook stays the only writer of `Panacea-Session` (`S3-P7.1`) | infer a session from a commit's time |
+| **S7-R1** a caller that waits out a long `Retry-After` (b07 round 2, M-3) | task 02's `do` honours `Retry-After` only up to 2 s and returns a longer one on `Error.RetryAfter`; task 07's watcher does not read it, so its 3 s or 15 s cadence overrides it | open, not t07's per-cycle deadline (M14 bounds a cycle; it does not back off). Today's reach is low: at `b02424691` the `Retry-After` writers on phase-7 paths are the log streams (`handlers/logs_stream.go:100`, `logs_app_stream.go:115`, `"5"` on a 429); whether task 12's stream goes through `do` is unverified. The fix: the watcher's next cycle for that project waits `max(cadence, RetryAfter)` | block inside `do` on a long `Retry-After`; retry a POST, PUT or DELETE |
 
 Task 20's `SEAMS.md` restates these rows with the file, line and test that hold each one, as built.
 
@@ -914,7 +919,9 @@ recorded Panacea bodies.
   (`pipeline.go:842`) never reaches the deployments list (`clients/kubernetes.go:5633-5642`). A run
   with **no** label is legacy: it reads back `""` (`:5681`) and is joined by its branch label as
   Panacea's environments list does (`:5396-5415`, `:5455`), else shown under *"no environment
-  recorded"* (7P-8, task 08 rule 1b). Not run live: task 08 still surfaces any other spelling under
+  recorded"* (7P-8, task 08 rule 1b). That join is display only: a `""` release is never rolled
+  back, because Panacea's rollback would send it to production (`handlers/projects.go:1612`,
+  `clients/kubernetes.go:5887`, `:4213`; task 10, task 16; b07 round 2, I-1). Not run live: task 08 still surfaces any other spelling under
   `unmatched`, and task 20 records the live names.
 - **HA7-6 — the Azure DevOps repo-key split (review I6, plan re-review b05 R-1).** Read from plan,
   review and contract text, not code, and cited by anchor with the commit because both sibling
