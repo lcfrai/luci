@@ -62,8 +62,8 @@ export function resolvePrompt(conv: Convergence, entry: QueueEntry): string;
 export function landBlock(conv: Convergence | undefined, entry: QueueEntry, controlPlaneDown: boolean): string | null;
 
 /** The bring-in row's sentence (review I5), or null when conv.bringIn is null:
- *  "origin/evidence-upload has 2 commits evidence-upload lacks." then one of
- *  "Bringing them in moves evidence-upload to origin's tip." (fastForward) |
+ *  "<conv.bringIn.upstream> has 2 commits evidence-upload lacks.", e.g. "origin/evidence-upload
+ *  has…", then one of "Bringing them in moves evidence-upload to its tip." (fastForward) |
  *  "They merge clean." | "They conflict with evidence-upload in <paths>." | the forecast's why. */
 export function bringInLine(conv: Convergence): string | null;
 /** Why Bring in is disabled, or null: checked out, control plane down, or a forecast not clean. */
@@ -154,9 +154,11 @@ harness has `supportsOpeningPrompt: false`, the dialog says so and offers **Open
 instead (`{ harness: "shell" }`). This is the one dialog in the lens, and it is not a confirmation:
 it is where the prompt is written.
 
-**Bring in origin/<branch>** (review I5). When `conv.bringIn` is not null, `BringInRow` stands
+**Bring in <upstream>** (review I5). When `conv.bringIn` is not null, `BringInRow` stands
 above the queue, outside its numbering, since it is not a worktree: `bringInLine`, and a
-**Bring in origin/<branch>** button that `bringInBlock` disables with its reason. It never offers
+**Bring in <upstream>** button that `bringInBlock` disables with its reason. `<upstream>` is
+`conv.bringIn.upstream` (e.g. `origin/evidence-upload`, or `upstream/main` for a fork), never a
+literal "origin" (re-review b05 issue 6); the server sends no row for a local upstream. It never offers
 force, and a bring-in is never part of Land all. A conflicting forecast shows *Resolve in a
 worktree…* in place of the button: a picker whose first entry is **New worktree on this branch**
 (task 22's action, hidden until task 22 provides it: a fresh clone already holds the tip, and it
@@ -260,3 +262,10 @@ cd desktop && npx vitest run                                                    
 - The definition of done renders only its honest empty state until phase 4 (gate G3).
 - Nothing here pushes, opens a PR, shows history or records evidence (task 20).
 - The look, and whether the queue reads well with five lanes, is the owner's to judge.
+- A lane that resolved a bring-in conflict (it merged `upstream/<branch>`) lists the remote's
+  commits as its own until it lands: task 07's `Observe` measures `Commits` as
+  `refs/heads/<b>..<LaneRef>` and `Changed` from the merge-base, so the card shows the
+  teammate's commits (capped at 50, then `Truncated`, sessions `[]`) and their files. The
+  forecast and the land stay correct; after the land the rows are gone (re-review b05 issue 7).
+  Excluding `^refs/remotes/origin/<b>` from the log alone would leave `Changed` disagreeing with
+  `Commits`, so neither is done in phase 3.

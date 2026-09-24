@@ -91,7 +91,8 @@ own sign-in once H-1 exists. `unknown_host`: the server's message. `host_failed`
 words (`hostSays`) and the status.
 
 **History rows**: the sha in mono; *land <name>* / the subject with "— committed on <branch>
-directly, not a land" / *revert of <sha>*; `historyMeta`; the time in `tabular-nums`. The verb:
+directly, not a land" / *revert of <sha>* / the subject with "— the cockpit brought in the
+remote's commits" (`kind: "bring-in"`, task 10; re-review b05 issue 5); `historyMeta`; the time in `tabular-nums`. The verb:
 `undo: "exact"` → **Undo** (runs, reloads, toast "Undid the land of upload-ui." — no undo of the
 undo is offered, the lane simply re-enters the queue); `undo: "revert"` → **Revert…**, which
 expands an inline line in the row, *"Land a commit that takes back d5f0a17? [Revert] [Keep it]"*,
@@ -121,7 +122,7 @@ the report says so.
 | `Open PR asks for a push first` | `not_pushed` → the sentence and a Push button that calls `pushBranch` | a PR against the remote's stale commits |
 | `Open PR opens the browser once` | success → `openUrl(webUrl)` called once; `existing: true` → the "already open" toast | a PR link the user has to hunt for |
 | `no credential says where to sign in` | `no_credential` with `details.host` → the sentence naming the host | "Something went wrong" |
-| `history renders land, direct and revert` | three entries → three rows with the prototype's titles; the direct row's chip is `none` "no brief — not a land" | a terminal commit dressed as a land |
+| `history renders land, direct, revert and bring-in` | four entries → four rows with the prototype's titles; the direct row's chip is `none` "no brief — not a land"; the bring-in row reads "the cockpit brought in the remote's commits" and has no verb | a terminal commit dressed as a land, or the cockpit's bring-in dressed as a terminal commit |
 | `BriefKeyChip never parses` | a key `brief:b-42@6` renders the whole string in mono under `unavailable`; the component source contains no `split(`, `indexOf("@")` or a regex over the key | P5 |
 | `exact undo is offered only when exact` | `undo: "exact"` → Undo; `"revert"` → Revert…; `"none"` → nothing | offering an exact undo of pushed history |
 | `Undo undoes with the tip the human saw` | click → `undoLand(sha, expectedTip = conv.tip)` | undoing a land that is no longer the tip |

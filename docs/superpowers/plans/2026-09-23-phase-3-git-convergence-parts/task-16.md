@@ -140,7 +140,9 @@ const MaxDiffLines = 2000
 // "deletion: the newest commit that touched this file" (it cannot be blamed on the new side).
 // The path is always the argument (a PathRow.Path, raw -z bytes). The parsers never read a
 // path back from a `diff --git`, `---`/`+++` or porcelain `filename` line, because git C-quotes
-// those the way it quotes merge-tree without -z (review I2).
+// those the way it quotes merge-tree without -z (review I2). Every `-- <path>` above is matched
+// literally, never as a glob, by task-02 §HGH H1's --literal-pathspecs (re-review b05 issue 9);
+// test `TestDiffBracketedPathIsLiteral` below.
 func Diff(ctx context.Context, m gitx.Machine, projectPath, path string, obs []converge.LaneObservation, kinds func(sessionID string) (string, bool)) (PathDiff, error)
 ```
 
@@ -192,6 +194,7 @@ files a worktree changed. merge-tree writes only content-addressed objects reach
 | `TestReadCachesPairs` | the second Read with the same tips runs no merge-tree | pairwise merge-tree on every poll |
 | `TestDiffParsesHunks` | a real two-hunk diff → both hunks, starts, counts and lines exact | an off-by-one in `@@ -a,b +c,d @@` |
 | `TestDiffTier1NamesTheCommitAndSession` | a hunk from a commit carrying `Panacea-Session: s-1` → `Tier 1`, that commit, `["s-1"]`, kind `agent` from the fake registry | a back-link that lands on the top of a session (AGENTIC-UX:74) |
+| `TestDiffBracketedPathIsLiteral` (re-review b05 issue 9) | one lane edits `app/[slug]/page.tsx` and `app/s/page.tsx` in one commit, one line each → `Diff` of `app/[slug]/page.tsx` has exactly 1 hunk, with that file's line; a pure deletion in `app/[slug]/page.tsx` names only commits touching it | the pathspec read as a glob: 2 hunks, the second file's back-links filed under this path |
 | `TestDiffTier1WithoutATrailer` | a commit with no trailer → `Tier 1`, `sessions []`, `reason "no session recorded"` | inventing a session from time (survey §5.2, rejected) |
 | `TestDiffNamesAShellSession` | the trailer names a shell session → `sessionKinds` `shell` | a shell's commit implying an agent |
 | `TestDiffBlamesTheMajorityCommit` | a hunk of 3 added lines, two from c2 and one from c1 → c2 | picking the first blamed line |
@@ -221,3 +224,7 @@ go test ./control-plane/internal/changes/ ./control-plane/internal/api/ -race -c
 - A commit in a shared worktree names the session that ran `git commit`, which may not be the one
   whose lines they are (3-D2's note says so on the pane).
 - Diff is text only; no syntax highlighting, no word diff.
+- A lane that merged `upstream/<branch>` to resolve a bring-in conflict (task 19) carries the
+  remote's files in its `Changed` until it lands, so the Files lens can mark a path only a
+  teammate touched as "both edit this file" against another lane (re-review b05 issue 7). The
+  pairing is advisory; the forecast and the land are exact. After the land the pairing clears.

@@ -403,6 +403,7 @@ Exec's environment and task 13's `PushEnv` sets `GIT_CONFIG_COUNT` itself.
 | `-c submodule.recurse=false -c fetch.recurseSubmodules=false` | a host fetch that recurses into `.git/modules/*`, whose config the agent also writes |
 | `-c credential.helper=`; then, on a `Remote` call or a `Scope None` call only, each `Hardening.Credential` entry as `-c <key>=<value>` (H2) | every helper a repository names, including URL-scoped `credential.<url>.helper`. The empty value clears the list read so far, and command scope is read last (checked on git 2.53.0.windows.2, 2026-09-24: a repository `credential.https://example.invalid.helper` answered without the reset and did not answer with it). A `Read` or `Local` call needs no credential, so no helper runs in it at all |
 | `--upload-pack=git-upload-pack` after `fetch` and `ls-remote`; `--receive-pack=git-receive-pack` after `push` | `remote.<name>.uploadpack` and `.receivepack`, which run as a local command when the remote is a path |
+| `--literal-pathspecs` (a top-level option, in the prefix beside the `-c` pairs) | a path the agent named being read as a glob: `diff -- 'app/[slug]/page.tsx'` also matches `app/s/page.tsx`, so task 16 would file another file's hunks, with their back-links, under this path (re-review b05 issue 9). Checked on git 2.53.0.windows.2, 2026-09-24 (`scratchpad/p3/b05r2-lit-probe.out`): without it that diff lists both files, with it one; `rev-parse` and `for-each-ref` are unaffected. No phase 3 call uses a glob or magic pathspec, so none needs it off |
 
 `Args[0]` is always the subcommand, because `Call.Dir` carries the directory. Exec refuses a
 `Call` whose `Args[0]` starts with `-` (`ErrCallShape`), so the prefix stays Exec's alone and no
@@ -522,6 +523,7 @@ and an H1 mutant would survive.
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestHGHPrefixOnEveryClass` | helper process: for `Read`, `Local` and `Remote`, argv holds every H1 `-c` pair, between `git` and `Args[0]`; `protocol.https.allow=always` and the `Hardening.Credential` entries appear on `Remote` (and `Scope None`) only | a prefix added for one class only; https or a machine helper on a `Read` call |
+| `TestHGHPathspecsAreLiteral` (re-review b05 issue 9) | a repository with `app/[slug]/page.tsx` and `app/s/page.tsx`, both changed in one commit; `diff --name-only HEAD~1 HEAD -- app/[slug]/page.tsx` through Exec → exactly `app/[slug]/page.tsx` | `--literal-pathspecs` dropped from the prefix: a bracketed Next.js path read as a glob |
 | `TestHGHFsmonitorNeverRuns` | a clone whose `.git/config` sets `core.fsmonitor=<marker script>`; `status --porcelain` through Exec → no marker | `core.fsmonitor=false` dropped |
 | `TestHGHReferenceTransactionHookNeverRuns` | `.git/hooks/reference-transaction` writes a marker; `update-ref` through Exec → no marker, and the ref moved | `core.hooksPath` pointed at the repository's own directory |
 | `TestHGHUploadPackIsNeverTheRepositorys` | `remote.origin.uploadpack=<marker script>` with origin a local path; `fetch origin` through Exec → no marker, and the fetch succeeded | the `--upload-pack` insertion dropped |
