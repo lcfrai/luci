@@ -141,8 +141,9 @@ func Observe(ctx context.Context, m gitx.Machine, projectPath, branch string, la
 // MergeTreeArgs is the one argument list every merge-tree call in phase 3 starts with (review
 // I2): `merge-tree --write-tree --name-only -z`. Task 08 appends `<base> <laneTip>`, task 09
 // `<old> <laneTip>`, task 10 `--merge-base=<sha> <tip> <sha>^1`, task 16 `<laneA> <laneB>`.
-// Without -z, git C-quotes a path that holds a space, a quote, a control character or (under
-// the default core.quotePath=true) any non-ASCII byte, so "docs/résumé.md" arrives as
+// Without -z, git C-quotes a path that holds a `"`, a `\`, a control character (a newline, a
+// tab) or (under the default core.quotePath=true) any non-ASCII byte; a space alone is not
+// quoted (b05-mt-probe.out: `a b.txt` prints bare). So "docs/résumé.md" arrives as
 // "docs/r\303\251sum\303\251.md" and never meets the Changed paths the -z diff reads.
 var MergeTreeArgs = []string{"merge-tree", "--write-tree", "--name-only", "-z"}
 
@@ -195,7 +196,7 @@ an agent would make them. `Script` runners only where the claim is "this call is
 | `TestObserveNeverSyncedLane` | `synced == false` → `Synced:false`, empty `Tip`, no git call against `LaneRef` | a fatal "unknown revision" shown as an error |
 | `TestObserveReadErrorIsThisLanesOnly` | the clone directory is gone → `ReadError` is git's sentence, `Commits` empty | a panic or a whole-request 500 |
 | `TestPathsWithNewlinesAndSpaces` | a file named `a b\nc.txt` round-trips through all four parsers | a line-based parser |
-| `TestParseMergeTreeKeepsQuotedPathsRaw` (review I2) | real git: two branches edit `docs/résumé.md` and `a b\nc.txt` in conflict, the commits built with plumbing (`hash-object -w`, `mktree`, `commit-tree`) because NTFS forbids `\n` in a file name; `MergeTreeArgs` + both → exit 1, `ParseMergeTree` returns exactly those two paths, byte-equal to what the `-z` `diff --name-status` parser reads for the same commits; a clean pair → exit 0, a 40-hex tree, no paths | `merge-tree` without `-z`, or a parser that splits on `\n`: the path comes back as `"docs/r\303\251sum\303\251.md"` and meets no `Changed` |
+| `TestParseMergeTreeKeepsQuotedPathsRaw` (review I2) | real git: two branches edit `docs/résumé.md` and `a b\nc.txt` in conflict, the commits built with plumbing (`hash-object -w`, `mktree -z`, `commit-tree`) because NTFS forbids `\n` in a file name; `-z` because plain `mktree` reads newline-terminated entries and refuses this one (`fatal: input format error: c.txt`; `mktree -z` accepts it: git 2.53.0.windows.2, 2026-09-24, `scratchpad/p3/b05r2-mktree-probe.out`); `MergeTreeArgs` + both → exit 1, `ParseMergeTree` returns exactly those two paths, byte-equal to what the `-z` `diff --name-status` parser reads for the same commits; a clean pair → exit 0, a 40-hex tree, no paths | `merge-tree` without `-z`, or a parser that splits on `\n`: the path comes back as `"docs/r\303\251sum\303\251.md"` and meets no `Changed` |
 | `TestParseMergeTreeRefusesAMismatchedShape` | exit 1 with no path field, exit 0 with a path field, and a field 0 that is not 40 hex → each an error naming the exit code | a conflict read as clean when git's output changes |
 
 #### Steps
