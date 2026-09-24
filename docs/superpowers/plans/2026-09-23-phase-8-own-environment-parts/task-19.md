@@ -112,7 +112,9 @@ check made before a create:
 - **Caps are re-counted after the create.** `MAX_MACHINES_PER_USER`: after its PVC create
   succeeds, the request lists the owner's claims with a **consistent read** (no
   `resourceVersion`, never an informer cache) and counts those without a `deletionTimestamp`.
-  Over the cap → delete the claim it just created (and anything else it created) → 429
+  Over the cap → delete the claim it just created, with `DeleteOptions.Preconditions.UID` set to
+  that claim's UID so a rollback can never remove an existing disk (and anything else it
+  created) → 429
   `quota_exceeded`. Two racers for the last slot either both see the excess and both roll back,
   which fails closed and is retryable, or the later one sees the earlier and only it rolls back.
   Neither leaves the owner over the cap. The count before the create stays, as the cheap early
@@ -171,7 +173,7 @@ fails `restricted`); `TestMachinePDBProtectsTheMachineAndItsSessions` (selector 
 | `TestEnsureDefaultCreatesOnceAndReturns200After` | first call 201, second 200 with the same id; one PVC | two default machines after a retried sign-in |
 | `TestConcurrentEnsureDefaultMakesOne` | two broker servers on **one** fake clientset, one `POST /v1/machines/default` each for one owner, with a `PrependReactor` on PVC `create` that holds each create at a barrier until both requests reach it, so the interleaving is forced, not hoped for → exactly one 201, the other 200, every body the same id (`defaultMachineID(owner)`), one PVC, one Secret, one pod, one PDB (review m11) | a minted id with a list-then-create, where two sign-ins on two replicas make two default machines |
 | `TestDefaultMachineIDIsDerivedFromTheOwner` | the same owner → the same id on every call and replica; two owners → different ids; the form is `m-` + 8 hex | a random default id, which makes the race above possible again |
-| `TestConcurrentSecondMachinesNeverExceedTheCap` | owner at `MAX_MACHINES_PER_USER - 1`, one `POST /v1/machines` on each of two servers, held at the same PVC-create barrier after both have made the early count → at most one 201, the other 429; afterwards the owner's claims ≤ the cap and no Secret, pod or PDB is left without its claim | a count-then-create cap that two replicas overrun together |
+| `TestConcurrentSecondMachinesNeverExceedTheCap` | owner at `MAX_MACHINES_PER_USER - 1`, one `POST /v1/machines` on each of two servers, held at the same PVC-create barrier after both have made the early count → at most one 201, the other 429; afterwards the owner's claims ≤ the cap and no Secret, pod or PDB is left without its claim; a `delete persistentvolumeclaims` reactor sees each rollback carry `Preconditions.UID` equal to the claim that request created | a count-then-create cap that two replicas overrun together |
 | `TestMachineNamesCarryTheOwner` | every object is `machine-<owner[:8]>-<id>` (the Secret `…-token`); two owners given the same id both succeed; the PDB's selector holds both labels | `machine-<id>`, where the second owner's create fails with a conflict that proves the first exists (review m12) |
 | `TestAWakeOnATerminatingPodRecreatesIt` | a machine pod with a `deletionTimestamp` → wake answers 202; once the fake removes the old pod, a new one is created | a wake that treats the terminating pod's `AlreadyExists` as "done" and leaves the machine asleep |
 | `TestEnsureDefaultWakesASleepingDefault` | PVC with no pod → 200 and a machine pod created | a sleeping machine the user must wake by hand at sign-in |
@@ -215,6 +217,12 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
   pre-provisioned, unclaimed disks is a later refinement if task 32's first-sign-in timing asks
   for it.
 - That RWO disk sharing between the machine pod and its sessions works under Kata (P8-D6, task 32).
+- That a machine's disk is backed up. It is not (review m13, seam S8-D6.1): `DELETE
+  /v1/machines/{id}` is final, and a broker defect that deletes a claim loses its worktrees,
+  unpushed lane commits and conversations. `TestTheSleeperNeverDeletesADisk` and
+  `TestDeleteRefusesWhileSessionsRunAndOtherwiseDeletesTheDisk` are the only guards. The broker
+  deletes a claim in two places only: the explicit delete route, and the cap re-count's rollback
+  (above), which deletes only the claim the same request created, by `Preconditions.UID`.
 - That client-go's `LeaseLock` needs only `get`, `create` and `update` on `leases` (training
   knowledge, **UNVERIFIED**; task 29's Role grants exactly those, so a missing verb shows as a
   `forbidden` in the broker's log on the first install, and `TestOnlyTheLeaseHolderSleeps` cannot

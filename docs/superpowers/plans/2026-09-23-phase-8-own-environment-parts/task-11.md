@@ -163,10 +163,25 @@ inside a real Kata pod.
 
 `storageclasses.yaml` — `StorageClass/panacea-machine-disk`: `provisioner: disk.csi.azure.com`,
 `parameters.skuName`, `reclaimPolicy: Delete` (the broker deletes a machine's claim only on an
-explicit machine delete, task 19), `volumeBindingMode: WaitForFirstConsumer`,
+explicit machine delete, or to roll back a claim its own request created over the cap, task 19), `volumeBindingMode: WaitForFirstConsumer`,
 `allowVolumeExpansion: true`. And, when `storage.nfsFallback.enabled`,
 `StorageClass/panacea-machine-nfs` on `file.csi.azure.com` with `protocol: nfs`,
 `skuName: Premium_LRS`.
+
+**Machine disks are not backed up in v1, and nothing may say they are (review m13; seam
+S8-D6.1).** This chart renders no `VolumeSnapshotClass` and nothing schedules a snapshot. A
+machine's disk is the only copy of its worktrees, of every lane's unpushed commits and of its
+conversation store (OD-10's cloud store, task 20). On a cloud machine the lane fetch-back is
+local to that same disk (`task-21.md:7-8`), so nothing reaches the laptop or a git host until
+it is pushed (OD-4). The disk's own redundancy is the storage SKU's (zone-
+redundant if task 32's P14 finds `Premium_ZRS`). That covers a failed disk or zone. It does not
+cover a logical loss: an explicit machine delete, which `reclaimPolicy: Delete` makes final, or a
+broker defect that deletes a claim. Snapshots are **not** added here because they collide with an
+owner decision: OD-10 says Forget *deletes* a transcript, and a disk snapshot would keep a
+forgotten transcript for its whole retention. Whether to accept that window is the owner's call (the
+b09 owner question). The design the seam names is ready to build once the owner answers.
+Task 06's `snapshot_controller_enabled = true` stays on for that reason: it adds no object and
+needs no grant, and leaving it on means the seam lands with no cluster update.
 
 #### Tests to write first (helm-unittest suites in `tests/`)
 

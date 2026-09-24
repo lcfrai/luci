@@ -225,7 +225,10 @@ output "sandbox_pool" {
 - `key_vault_secrets_provider { secret_rotation_enabled = true }` (P8-D11).
 - `storage_profile { disk_driver_enabled = true, file_driver_enabled = true,
   blob_driver_enabled = false, snapshot_controller_enabled = true }` — Azure Disk for machines
-  (P8-D6), Azure Files kept on for P8-D6's NFS fallback.
+  (P8-D6), Azure Files kept on for P8-D6's NFS fallback. The snapshot controller is on, but
+  **no snapshot is taken in v1**: no `VolumeSnapshotClass` and no schedule exist (review m13).
+  Machine-disk snapshots wait on an owner decision against OD-10 (seam S8-D6.1, task 11). The
+  controller stays on so that the seam needs no cluster update.
 - **`run_command_enabled = false`** (a way around Entra RBAC), `azure_policy_enabled = false`
   (phase 9, S8-P9.1), `image_cleaner_enabled = false`.
 - `auto_scaler_profile { scale_down_unneeded = "10m", skip_nodes_with_local_storage = false }` —
