@@ -52,6 +52,7 @@ export interface RemovalQuestion {
   elsewhere: string[];                           // details.elsewhere ("ref\tsha" lines; review I6)
   unlisted: string;                              // details.unlisted, or "" (re-review b04-1 issue 2)
   unarchivable: string;                          // details.unarchivable, or ""
+  unreadable: string;                            // details.unreadable, or "" (task 11, R4: the runner could not answer)
   confirm: string;                               // details.confirm; "" when only sessions block it
 }
 /** Kill each session, then DELETE with the token; a confirm_stale re-asks with the fresh facts. */
@@ -118,7 +119,9 @@ are lost), the commits that never landed (these are kept under
 `details.unlisted` is present, that fourth heading says the agent's other branches **could not be
 listed**, that all of them were archived anyway, and quotes git's sentence. When
 `details.unarchivable` is present, it says those commits **cannot be kept and are lost**, and
-quotes git's sentence. Buttons: **Remove** (danger) and **Keep it** (default focus).
+quotes git's sentence. When `details.unreadable` is present, the files and other-branches
+headings say they **could not be read**, that nothing of them was archived, and quote the
+runner's sentence. Buttons: **Remove** (danger) and **Keep it** (default focus).
 
 #### The tests to write first
 
@@ -129,7 +132,7 @@ quotes git's sentence. Buttons: **Remove** (danger) and **Keep it** (default foc
 | `TopBar's Authority title names no phase` | the title does not match `/Phase \d/` and still names AGENTIC-UX §7 | 3-D10 unapplied |
 | `an already-ready worktree points at Not ready` (review Minor 10) | `worktreeReadyItems` of a `ready: true` worktree → disabled, `disabledReason` names "Not ready" and "Merge lens" and does not match `/Phase \d/` | the phase 2 promise that "the merge queue in Phase 3 owns that" surviving phase 3 |
 | `Remove worktree is disabled for primary and linked` | kinds `primary`, `linked` → disabled with the git worktree remove reason | the cockpit deleting a user's checkout |
-| `the removal question names all four losses` | `inspectRemoval` answered `confirm_required` with sessions, paths, commits, elsewhere → four headed lists in the window; with `unarchivable` set, the fourth says those commits are lost and quotes it (review I6); with only `unlisted` set, the fourth heading is shown although `elsewhere` is empty, and quotes it (re-review b04-1 issue 2) | a question that hides what is lost |
+| `the removal question names all four losses` | `inspectRemoval` answered `confirm_required` with sessions, paths, commits, elsewhere → four headed lists in the window; with `unarchivable` set, the fourth says those commits are lost and quotes it (review I6); with only `unlisted` set, the fourth heading is shown although `elsewhere` is empty, and quotes it (re-review b04-1 issue 2); with only `unreadable` set, the second and fourth headings say could not be read and quote it (task 11, R4) | a question that hides what is lost |
 | `Remove kills the sessions first, then deletes with the token` | order of calls: `killSession(s-1)`, `killSession(s-2)`, `removeWorktree(p, w, confirm)` | a DELETE refused for live sessions, or sandboxes left running |
 | `a stale confirmation re-asks` | `confirm_stale` → the window re-renders with the fresh facts; no second DELETE until Remove again | removing on facts the human did not see |
 | `Keep it is the default focus` | on open, `document.activeElement` is Keep it | Enter destroying work |

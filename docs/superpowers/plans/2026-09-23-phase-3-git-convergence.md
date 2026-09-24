@@ -473,7 +473,7 @@ control-plane/
                                     gitxtest/repo.go (+ Spy)  behaviour_test.go             01 02
   internal/lanes/                   store.go clone.go catalog.go remove.go                  03 04 11
   internal/converge/                sync.go observe.go parse.go forecast.go land.go
-                                    bringin.go history.go undo.go branches.go               07-11
+                                    bringin.go history.go undo.go branches.go inspect.go    07-11
   internal/remote/                  fetch.go push.go aheadbehind.go                          08 12 13
   internal/credstore/               credstore.go githelper.go chain.go                       13
   internal/githost/                 remote.go header.go                                      13
@@ -561,7 +561,7 @@ under three.
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 (24 through 07) | 3 h |
 | 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4), a bundle into each lane's runner (R4.5) | 08, 24 | 4.5 h |
 | 10 | Landed history, exact undo (refused once another lane has merged the land, review I3), revert | 09 | 2.5 h |
-| 11 | Remove a worktree; create, rename and delete a branch | 07, 08 (`CheckedOutAt`) | 3 h |
+| 11 | Remove a worktree; create, rename and delete a branch; removal reads the lane through the runner (R4.3) | 07, 08 (`CheckedOutAt`), 24 | 3 h |
 | 12 | Fetch (on demand and on a slow timer) and push, with the machine's credential helper | 02, 04 | 2 h |
 | 13 | The credential-store seam (H-1), the git-helper fallback, push with a stored token | 12 | 2 h |
 | 14 | `githost`: GitHub and Azure DevOps behind one interface; the PR route | 10, 13 | 3 h |
@@ -583,7 +583,8 @@ copy names 19's Not ready button. This costs the desktop track nothing: 18 → 1
 as 18 → 19 → 20, three 3 h tasks each.
 Lane (c) needs only 07 and 08 from lane (b) before 14 (review I7; re-review b04-1 issue 4;
 review Minor 16): task 11 waits on 07, lane (b)'s first task, and on 08, whose `CheckedOutAt`
-its branch rename and delete refuse by, and nothing else in lane (c) waits on lane (b). This
+its branch rename and delete refuse by, and nothing else in lane (c) waits on lane (b). Its
+edge to 24 (the runner its removal reads the lane through) adds nothing: 07 already waits on 24. This
 costs the schedule nothing: task 18 waits on 17, which follows 08 in lane (b). `briefref`, which task 11 imports,
 is task 03's; the one lock that tasks 09-12 all take is task 02's `gitx.Locks`, constructed once
 by task 04 in `GitDeps.Locks`. Each task tests its own side against that lock, so task 12 needs
