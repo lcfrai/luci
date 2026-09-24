@@ -39,6 +39,18 @@ const THROTTLE_SWITCHES = [
   "--disable-renderer-backgrounding",
 ];
 const log = (...a) => console.error("[spike]", ...a);
+// --check <result.json>: apply this runner's assertions to a recorded result, with no browser
+// (add --negative for a negative run's result). A recorded run can then be re-judged exactly.
+const CHECK_AT = process.argv.indexOf("--check");
+if (CHECK_AT >= 0) {
+  const file = process.argv[CHECK_AT + 1];
+  let r = null;
+  try { r = JSON.parse(readFileSync(file, "utf8")); } catch (e) { log(`--check: cannot read ${file}: ${e.message}`); process.exit(2); }
+  const bad = [...problems(r), ...(NEG ? negativeProblems(r) : positiveProblems(r))];
+  for (const b of bad) log("PROBLEM:", b);
+  log(`--check ${file} (${NEG ? "negative" : "positive"}): ${bad.length ? bad.length + " problem(s)" : "no problems"}`);
+  process.exit(bad.length ? 1 : 0);
+}
 // S11's extra hidden captures, each at 2x: [library, label, frame id, width, height, cap ms, debug log].
 // With the 30 s request cap and two 10 s decode probes, at most about 3.6 minutes hidden, below
 // the 5 minutes after which Chromium's intensive wake-up throttling applies (Chromium's documented
@@ -204,6 +216,12 @@ async function run(port) {
     await page.keyboard.press("k");
     await page.evaluate(() => window.__s10Finish && window.__s10Finish());
     await page.waitForFunction(() => window.__spikeReady === true, null, { timeout: 120000, polling: 250 });
+    // The page's S11 judge fed recorded answers: a resolve at 54,864 ms (review rev-pos: late, so
+    // not captured), one at 4,982 ms (pos2: on time), and a miss. Deterministic, unlike a live S11.
+    const judgeGot = await page.evaluate(() => [[true, 54864], [true, 4982], [false, null]].map(([captured, hiddenCaptureMs]) =>
+      (typeof window.__judgeS11 === "function" ? window.__judgeS11({ captured, hiddenCaptureMs }) : null)));
+    const judgeWant = [{ captured: false, resolvedLate: true }, { captured: true, resolvedLate: false }, { captured: false, resolvedLate: false }];
+    const judgeSelfTest = { ok: JSON.stringify(judgeGot) === JSON.stringify(judgeWant), got: judgeGot };
 
     // S8 control: the classifier applied to Edge's own rendering of the fidelity frame.
     try {
@@ -246,7 +264,7 @@ async function run(port) {
       windowState: bounds.windowState, commandLine: cl.line, hiddenRuns, answered: !!answer, partial, decodeProbes });
     const result = await page.evaluate(() => window.__spike);
     result.extras.runner = { versions, port, font: FONT, commandLineRoute: cl.route, launch: edge.launch,
-      modernScreenshotDebugLog: debugLines.slice(-40) };
+      judgeSelfTest, modernScreenshotDebugLog: debugLines.slice(-40) };
     return { code: 0, result };
   } finally { await edge.close(); }
 }
@@ -266,6 +284,13 @@ function problems(r) {
     if (!row || !Number.isFinite(row.medianMs) || !Number.isFinite(row.slowestMs)) out.push(`captureMs row ${library} ${artboard} ${scale}x missing`);
   }
   if (!r.s11 || typeof r.s11.waitMs !== "number" || !r.s11.commandLine) out.push("s11 missing or incomplete");
+  // The contract's s11.captured is "resolved a PNG within 10 s" (task-01.md:78); the page's own
+  // 10 s cap runs late while hidden, so a late resolve must not reach the field as true.
+  if (r.s11 && r.s11.captured === true && !(r.s11.hiddenCaptureMs <= 10000))
+    out.push(`s11.captured is true for a capture of ${r.s11.hiddenCaptureMs} ms (captured means within 10 s)`);
+  const jt = r.extras && r.extras.runner && r.extras.runner.judgeSelfTest;
+  if (!jt || !jt.ok) out.push(`S11 judge self-test ${jt ? "failed: " + JSON.stringify(jt.got) : "missing"}`);
+  for (const id of ["S2a", "S2b", "S2c"]) if (!(r.extras && r.extras.legs && r.extras.legs[id])) out.push(`S2 leg ${id} missing`);
   return out;
 }
 // Positive run: S11's layout half is the page's own copy of task 24's rule (schedulePatch plus the
@@ -273,26 +298,37 @@ function problems(r) {
 // S11's outcome alone cannot pin it: the capture half can fail the check by itself.
 function positiveProblems(r) {
   const out = [];
-  if (r.extras.s11 && r.extras.s11.windowState === "minimized" && !(Math.abs(r.s11.width - 160) <= 0.5))
+  if (r.extras && r.extras.s11 && r.extras.s11.windowState === "minimized" && !(Math.abs(r.s11.width - 160) <= 0.5))
     out.push(`S11 layout half: width ${r.s11.width} while minimised, want 160 (schedulePatch + pre-measure flush broken)`);
   return out;
 }
 // --negative: each variant must fail, and each leg must fail for its own reason.
 function negativeProblems(r) {
   const out = [], outcome = (id) => r.checks.find((c) => c.id === id)?.outcome;
-  const L = r.extras.legs;
+  const L = (r.extras && r.extras.legs) || {};
   if (outcome("S2") !== "fail") out.push("S2 did not fail without the sandbox");
   if (!L.S2b || !L.S2b.flags.some((f) => f !== "undefined")) out.push("S2b (no sandbox, no CSP) set no flag");
   if (!L.S2a || L.S2a.unchanged !== false) out.push("S2a (no sandbox, CSP) was not navigated by the meta refresh");
-  for (const id of ["S2a", "S2b"]) if (!L[id] || L[id].pass !== false) out.push(`S2 leg ${id} did not fail on its own`);
+  // S2a and S2b both carry the refresh, so each fails on "unchanged" whatever the flags say. S2c has
+  // no refresh: its document stays put, so only the "no flag was set" clause can fail it.
+  if (!L.S2c || L.S2c.unchanged !== true || !L.S2c.flags.some((f) => f !== "undefined"))
+    out.push("S2c (no sandbox, no CSP, no refresh) was changed or set no flag: it must fail on the flags alone");
+  for (const id of ["S2a", "S2b", "S2c"]) if (!L[id] || L[id].pass !== false) out.push(`S2 leg ${id} did not fail on its own`);
   if (outcome("S5") !== "fail") out.push("S5 did not fail with the overlay mis-sized 1.25x");
   if (outcome("S6") !== "fail") out.push("S6 did not fail without the CSP");
   if (!L.S6 || !(L.S6.naturalWidth > 0)) out.push("S6 without the CSP: the https img did not load");
   if (!L.S6 || !(L.S6.net && L.S6.net.reached.length > 0)) out.push("S6 without the CSP: no request reached the network");
   if (outcome("S4") !== "fail") out.push("S4 did not fail with the node moved to 200,200");
-  if (r.extras.s11 && r.extras.s11.hidden === false) {
+  if (r.extras && r.extras.s11 && r.extras.s11.hidden === false) {
     console.error("S11-negative: not-applicable (minimised page stayed visible for 5 s)");
-  } else if (outcome("S11") !== "fail") out.push("S11 did not fail with rAF-only scheduling while hidden");
+  } else {
+    if (outcome("S11") !== "fail") out.push("S11 did not fail with rAF-only scheduling while hidden");
+    // "Width not 160" (task-01.md:90): the capture half fails S11 by itself in most runs, so the
+    // outcome alone cannot show the rAF-only patch stranded. The layout half must fail on its own.
+    const w = r.s11 ? r.s11.width : undefined;
+    if (!(typeof w === "number" && Math.abs(w - 120) <= 0.5))
+      out.push(`S11 negative: width ${w} while hidden (want the unflushed 120: the layout half must fail on its own)`);
+  }
   return out;
 }
 
