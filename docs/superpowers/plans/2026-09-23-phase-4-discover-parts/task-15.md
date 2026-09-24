@@ -36,6 +36,7 @@ deleted all three.
 ```ts
   /* phase 4 (control plane) */
   | "brief_not_written" | "project_not_shared" | "fanout_too_large" | "branch_not_found"
+  | "project_name_taken"
   /* the Hub's task C1 and ruling R4 (control plane) */
   | "signed_out" | "hub_not_configured" | "upstream_unavailable"
   /* the Hub, relayed unchanged (Hub contract §4.2) */
@@ -117,6 +118,8 @@ export interface RemoteMatch { remote: string; repoKey: string; hubProjectId: st
 export interface Binding {
   state: BindingState; hubProjectId: string; hubProjectName: string;
   repoKeys: string[]; teams: TeamChoice[]; matches: RemoteMatch[];
+  /** unbound only: the name Share pre-fills (task 07 DefaultName, b10 re-review I-2); "" otherwise */
+  defaultName: string;
 }
 export interface BriefState {
   id: string; scope: Scope; headRevision: number; headKey: string; status: BriefStatus;
@@ -199,7 +202,8 @@ export interface Target { projectId: ProjectId; branchId?: BranchId }
 
 export interface DiscoverClient {
   binding(projectId: ProjectId): Promise<Binding>;
-  bind(projectId: ProjectId, teamId: string): Promise<Binding>;
+  /** name omitted or blank: the server's DefaultName (task 07; b10 re-review I-2). */
+  bind(projectId: ProjectId, teamId: string, name?: string): Promise<Binding>;
   view(target: Target): Promise<BriefView>;
   apply(target: Target, baseRevision: number, op: Op): Promise<OpsResponse>;
   history(briefId: string, after?: string): Promise<History>;
@@ -230,6 +234,7 @@ export const DISCOVER_ANALYSE_TIMEOUT_MS = 60_000;   // analyse()
 | `refs sends each key as its own parameter` | `?key=a&key=b`, URL-encoded; an empty key is sent as `key=` | a comma-joined list the server reads as one key |
 | `refs refuses more than 100 keys before sending` | `ApiError("bad_request")`, no fetch | a request the server will 400 |
 | `apply sends baseRevision and op only` | the body is exactly `{"baseRevision":5,"op":{…}}` | an extra field the server's strict decoder rejects |
+| `bind sends the name only when given` (b10 re-review I-2) | `bind(p, "tm-1")` POSTs exactly `{"teamId":"tm-1"}`; `bind(p, "tm-1", "Portal fork")` POSTs exactly `{"teamId":"tm-1","name":"Portal fork"}` | a name dropped, so the person's edit never reaches the Hub |
 | `a follow-up and an analyse wait longer than the default` | with fake timers and a `fetch` that never settles: `apply(…, {kind: "propose_follow_up"})` is still pending at 29 999 ms and rejects `ApiError("timeout")` at 30 000; `analyse` the same at 60 000; `apply(…, {kind: "record", …})` rejects at 10 000; the timeout message names the per-call value | a Discover client on the transport's 10 s default, which aborts a 20 s follow-up or a 35 s draft and makes Retry repeat the model call (review I4) |
 | `phase 2's calls keep the client-wide timeout` | `createClient({timeoutMs: 500})`'s `listMachines` rejects `timeout` at 500 ms, not 10 000 | a per-call override that leaks into every call |
 | `a client built with timeoutMs 0 never times out a Discover call` | a transport built with `{timeoutMs: 0}` and fake timers, with a `fetch` that never settles: `apply(…, {kind: "propose_follow_up"})` is still pending at 120 000 ms, and no timer is pending (`vi.getTimerCount()` is 0) | `call?.timeoutMs ?? timeoutMs` alone, which arms a 30 s timer on a client whose documented 0 means "disables" (`client.ts:127`) |

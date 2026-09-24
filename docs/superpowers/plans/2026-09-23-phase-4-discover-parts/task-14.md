@@ -61,9 +61,11 @@ type scannerLocator struct{ s *project.Scanner }
 
 // gitRepos implements discoverhub.RepoIdentity with two read-only commands
 // through project.Runner - `git remote` and `git remote get-url <name>` -
-// and githost.ParseRemote (phase 3 task 13). origin first, then by name;
-// each RepoKey carries its remote's name in Remote, and the first entry is
-// the primary remote Bind registers (task 07, review M8).
+// and githost.ParseRemote (phase 3 task 13). It returns the remotes in the
+// order `git remote` lists them and does not reorder them; each RepoKey
+// carries its remote's name in Remote. Choosing the primary remote is task
+// 07's orderRemotes alone (review M8, b10 re-review I-1), so no order here
+// can move it.
 type gitRepos struct{ git project.Runner }
 
 // gitQuestions implements contextwrite.Git with

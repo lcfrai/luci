@@ -21,7 +21,7 @@ materialise route is gone (C7); errors follow the Hub's relay rule.
 | Method | Path | Body | 200 | Errors |
 |---|---|---|---|---|
 | GET | `/v1/discover/projects/{projectId}/binding` | — | `Binding` | 404 `project_not_found` |
-| POST | `/v1/discover/projects/{projectId}/binding` | `{"teamId":"tm-…"}` | `Binding` | 409 `project_not_shared` (`details.state` = `no_remote`); relayed Hub codes |
+| POST | `/v1/discover/projects/{projectId}/binding` | `{"teamId":"tm-…","name":"…"}` (`name` optional: absent or blank is task 07's `DefaultName`) | `Binding` | 409 `project_not_shared` (`details.state` = `no_remote`); 409 `project_name_taken` (b10 re-review I-2); relayed Hub codes |
 | GET | `/v1/discover/projects/{projectId}/brief` | — | `View` (project scope) | 404 `project_not_found` |
 | GET | `/v1/discover/projects/{projectId}/branches/{branchId}/brief` | — | `View` (branch scope) | 404 `project_not_found`, `branch_not_found` |
 | POST | `/v1/discover/projects/{projectId}/brief/ops` | `OpsRequest` | `OpsResponse` | below |
@@ -39,6 +39,7 @@ package discoverapi
 
 type BindRequest struct {
 	TeamID string `json:"teamId"`
+	Name   string `json:"name,omitempty"` // "" → discoverhub.DefaultName (b10 re-review I-2); 1-120 characters after trimming otherwise, else 400 bad_request field "name"
 }
 
 // OpsRequest is one change at the head the person saw.
@@ -67,7 +68,7 @@ type OpsResponse struct {
 { "baseRevision": 5, "op": { "kind": "edit", "key": "done", "text": "Upload works for PDF, XLSX and images\nA virus scan runs before any file is visible\nAn interrupted upload resumes\nTests pass" } }
 // 200
 { "view": { "scope": "branch", "projectId": "p-3f2a91c0", "branchId": "b-3f2a91c0-evidence-upload",
-            "binding": { "state": "bound", "hubProjectId": "pj-…", "hubProjectName": "Engagement Portal", "repoKeys": ["github.com/…"], "teams": [], "matches": [] },
+            "binding": { "state": "bound", "hubProjectId": "pj-…", "hubProjectName": "Engagement Portal", "repoKeys": ["github.com/…"], "teams": [], "matches": [], "defaultName": "" },
             "brief": { "id": "bf-…a2", "scope": "branch", "headRevision": 6, "headKey": "brief:bf-…a2@6", "status": "complete",
                        "latestCompleteRevision": 6, "latestCompleteKey": "brief:bf-…a2@6", "questions": [ … ], "answers": [ … ],
                        "inherits": { "key": "brief:bf-…b7@5", "digest": "sha256:…" }, "change": { "kind": "edit", "key": "done", "restores": 0 },
@@ -88,6 +89,7 @@ type OpsResponse struct {
 | `discoverhub.ErrHubOff` on a write | 503 `hub_not_configured` (C1's code) | — |
 | `discoverhub.ErrNotBound`, `ErrNoRemote` on a write | 409 `project_not_shared` (**new**) | `state`: `unbound` · `no_remote` |
 | `*discoverhub.FanoutTooLargeError` | 409 `fanout_too_large` (**new**), with one message per cause (b10 re-review M-3), the numbers written with thousands separators: the count, "Nothing was saved. This change would update {needed} branch briefs, and the Hub takes {limit} in one save."; the body, "Nothing was saved. This change would send {bytes} bytes to the Hub, and it takes {limitBytes} in one save."; one branch, "Nothing was saved. The brief for branch {branchRef} is too large to carry this change ({bytes} bytes; the Hub takes {limitBytes}). Its answers must be shortened first." | `needed`, `limit`; `bytes`, `limitBytes` when a size is what failed (task 08, review M6); `branchRef` when one branch brief's own revision is what failed (b10 re-review M-2) |
+| `*discoverhub.NameTakenError` (task 07, b10 re-review I-2), checked before the Hub-relay row | 409 `project_name_taken` (**new**), message "This team already has a project called {name}. Choose another name." | `field: "name"`, `name` |
 | `discoverhub.ErrErasedRestore` | 409 `conflict` | `reason: "erased"` |
 | `discover.ErrEmptyAnswer`, `ErrUnknownKey`, `ErrNotAnswered`, `ErrNotDrafted`, `ErrNotFollowUp`, `ErrBadOp`, a disallowed `op.kind` | 400 `bad_request` | `field` |
 | `discover.ErrReservedText`, matched with `errors.Is`; the key from `errors.As(*discover.ReservedTextError)` (task 03 rule 12, plan §4 Security, S3) | 400 `bad_request`, message "Answers cannot contain the text panacea:discover:." | `field: "text"`, `key`: the question key |
@@ -137,10 +139,11 @@ the fallback HA4-10 declares: each Hub call runs in a goroutine and the route re
 `ctx.Done()`. Unverified until task 23 step 10 runs against the real `hubclient`.
 
 ```go
-// control-plane/internal/httpx/problem.go — three constants, beside CodeBriefNotWritten
+// control-plane/internal/httpx/problem.go — four constants, beside CodeBriefNotWritten
 	CodeProjectNotShared = "project_not_shared" // 409 the project has no Hub project (Discover)
 	CodeFanoutTooLarge   = "fanout_too_large"   // 409 a project edit one Hub batch cannot carry: too many branch briefs, too many bytes, or one branch brief too large
 	CodeBranchNotFound   = "branch_not_found"   // 404
+	CodeProjectNameTaken = "project_name_taken" // 409 Share under a name the team already holds (b10 re-review I-2)
 ```
 
 `signed_out`, `hub_not_configured` and `upstream_unavailable` are **not** added here: they belong
@@ -175,6 +178,7 @@ for that ask — never a variant spelling.
 | `TestRelayNeverLeaksATransportError` | `ErrUnavailable` wrapping a dial error to `127.0.0.1:8750` → the message is the generic sentence; the address is only in the log | a Hub address or path in the problem body |
 | `TestAHubThatNeverAnswersIs503BeforeTheDesktopGivesUp` | a fake Hub whose every call blocks until `ctx.Done()`, `Budgets{Default: 200ms, FollowUp: 300ms}`: GET brief, a `record` op and a `propose_follow_up` op each return 503 `upstream_unavailable`, `upstream: "hub"`, within 1 s | a route with no deadline, which a black-holed Hub turns into the desktop's `timeout` (review I4) |
 | `TestTheDefaultBudgetsAreBelowTheDesktopTimeouts` | `New(Config{})` fills `Budgets{8s, 28s, 55s}`, each below task 15's 10 s, 30 s and 60 s | a budget raised past the desktop's, which re-opens I4 |
+| `TestBindPassesTheName` (b10 re-review I-2) | `{"teamId":"tm-1"}` and `{"teamId":"tm-1","name":"  "}` → `Bind` called with `name == ""`; `"name":"Portal fork"` → `Bind` called with it; a 121-character name → 400 `bad_request`, `details.field: "name"`, no Hub call; `*NameTakenError` → 409 `project_name_taken` with `details.name` | a name dropped on the way, so every fork Shares under the directory name; a 120-character limit left to the Hub's 400, which names no field |
 | `TestUnknownFieldIsInvalidJSON` | an extra top-level field → 400 `invalid_json` (`httpx.DecodeJSON`) | a lenient decoder that accepts a typo'd `baseRevison` as 0 |
 | `TestAliasReachesDiscover` | `/api/v1/discover/…/brief` answers as `/v1/…` | a mount outside the guarded mux |
 

@@ -23,13 +23,14 @@ blocks task 08 (plan §6, §9). Phase 4 writes **nothing** under `control-plane/
   `task-04.md:82`), so the wrapper's `List` is expected to be needed only if H0 slips HA4-2's
   method while keeping its type.
 - `fakehub_test.go` is a thin phase-4-owned wrapper: a struct that embeds `hubclient.NewFake()`,
-  adds `List` over the revisions the test seeded, and adds the two hooks named in **Files** below
-  (`renameProject`, `failResolve`). It lives in `discoverhub`, not in the Hub's package.
+  adds `List` over the revisions the test seeded, and adds the three hooks named in **Files** below
+  (`renameProject`, `failResolve`, `failCreateProject`). It lives in `discoverhub`, not in the Hub's package.
 - When HA4-2 lands, the wrapper's `List` is deleted and the embedded fake's own `List` shows
-  through; `Hub` stays as it is, and so do the two hooks. That is a one-file change, and the
+  through; `Hub` stays as it is, and so do the three hooks. That is a one-file change, and the
   unchanged tests prove it.
 
-The orchestrator carries HA4-1..9 to the Hub planner (plan §9); this task does not wait on the
+The orchestrator carries HA4-1..12 to the Hub planner (plan §9; HA4-12, the per-team name rule's
+error code, is this task's: `NameTakenError` below); this task does not wait on the
 reply to start, but it cannot claim the real Hub until HA4-2 is in the Hub contract.
 
 **Files:**
@@ -38,8 +39,8 @@ reply to start, but it cannot claim the real Hub until HA4-2 is in the Hub contr
 - `control-plane/internal/discoverhub/read.go` + `read_test.go` (new)
 - `control-plane/internal/discoverhub/fixtures_test.go` — the fact sheet's world in the fake (new)
 - `control-plane/internal/discoverhub/fakehub_test.go` — `fakeHub{*hubclient.Fake}` plus `List`
-  over the seeded revisions, until HA4-2 lands, and two test hooks H0's fake does not plan
-  (`phase-h-hub-parts/task-04.md:188-226` lists its whole surface, and neither is in it) (new;
+  over the seeded revisions, until HA4-2 lands, and three test hooks H0's fake does not plan
+  (`phase-h-hub-parts/task-04.md:188-226` lists its whole surface, and none is in it) (new;
   phase 4's, not the Hub's):
   - `renameProject(id, name string)` — from then on the wrapper's `Project` and `ProjectForRepo`
     return the embedded fake's answer with `Name` replaced. It stands in for route 16,
@@ -48,6 +49,10 @@ reply to start, but it cannot claim the real Hub until HA4-2 is in the Hub contr
     counted from the hook) returns `err` without reaching the embedded fake; every other call
     passes through. It gives a chosen `*hubclient.Error` status and a failure on the second call
     only; `SetUnavailable` fails every call.
+  - `failCreateProject(err error)` (b10 re-review I-2) — the next `CreateProject` through the
+    wrapper returns `err` without reaching the embedded fake, once. It stands in for the Hub's
+    per-team name rule (`hub-contract.md:710`), which H0's fake is not known to enforce and whose
+    code the contract does not name (HA4-12).
 
 **Assumed `hubapi` shapes (Hub contract ask HA4-1).** The contract names these structs (§9.2) and
 fixes their JSON (§7.1, §7.5) but writes no Go. Phase 4 codes against this reading; a field-name
@@ -221,16 +226,25 @@ type RepoKey struct {
 	Remote string // the git remote's name: "origin", "upstream", …
 }
 
-// RepoIdentity lists a local repository's recognised remotes, origin first,
-// then the rest by name. Unrecognised hosts are left out, not errors.
-// The first entry is the repository's PRIMARY remote (review M8): the one
-// Binding binds by and the only one Bind registers. That is origin when
-// origin is recognised; otherwise the first recognised remote by name.
-// Task 14 wires it over phase 3's githost.ParseRemote and a read-only
-// `git remote` / `git remote get-url` through project.Runner.
+// RepoIdentity lists a local repository's recognised remotes, in no order
+// this package relies on (task 14 returns git's, which is alphabetical).
+// Unrecognised hosts are left out, not errors. Task 14 wires it over phase
+// 3's githost.ParseRemote and a read-only `git remote` /
+// `git remote get-url` through project.Runner.
 type RepoIdentity interface {
 	RepoKeys(ctx context.Context, projectPath string) ([]RepoKey, error)
 }
+
+// orderRemotes is the one place the PRIMARY remote is chosen (review M8;
+// b10 re-review I-1): the entry whose Remote is "origin" when there is one,
+// otherwise the first by Remote name; the rest follow by Remote name. The
+// primary is the one Binding binds by and the only one Bind registers. It
+// lives here, beside its only callers, and not in RepoIdentity, so no
+// implementation's order can move it: git lists "company" before "origin",
+// and a fork whose team remote sorts first would otherwise bind to the
+// team's project, the defect M8 exists to stop. Pure; it does not mutate
+// keys.
+func orderRemotes(keys []RepoKey) []RepoKey
 
 // Locator maps local ids to what this package needs. Task 14 adapts
 // *project.Scanner to it.
@@ -305,9 +319,11 @@ type Binding struct {
 	RepoKeys       []string      `json:"repoKeys"`       // what was looked up, in order; [0] is the primary remote's
 	Teams          []TeamChoice  `json:"teams"`          // unbound only: where it could be created
 	Matches        []RemoteMatch `json:"matches"`        // unbound only: projects found through a non-primary remote; [] otherwise
+	DefaultName    string        `json:"defaultName"`    // unbound only: DefaultName(local name, this binding), what Share pre-fills (b10 re-review I-2); "" otherwise
 }
 
-// Binding looks the project up by its PRIMARY remote's key (RepoKeys[0]) and
+// Binding orders RepoIdentity's answer with orderRemotes, then looks the
+// project up by its PRIMARY remote's key (RepoKeys[0]) and
 // is bound only to the project that key names (review M8). When there is
 // none, it looks up each other remote's key in order and lists every hit in
 // Matches, state unbound: the person chooses (task 18), nothing binds on its
@@ -316,12 +332,36 @@ type Binding struct {
 func (s *Service) Binding(ctx context.Context, projectID string) (Binding, error)
 
 // Bind creates the Hub project in teamID with the PRIMARY remote's key as
-// its only remote, named after the local project (review M8: a fork's clone
-// must not claim the team's repository through its upstream remote).
-// repo_already_linked (a race with a teammate) re-reads and returns that
-// binding instead of failing. Joining a project that a non-primary remote
-// matched is not built (OQ-12).
-func (s *Service) Bind(ctx context.Context, projectID, teamID string) (Binding, error)
+// its only remote (review M8: a fork's clone must not claim the team's
+// repository through its upstream remote), named name, or DefaultName when
+// name is "" (after trimming). repo_already_linked (a race with a teammate)
+// re-reads and returns that binding instead of failing. A Hub 409 that
+// refuses the name (b10 re-review I-2: `name` is "unique per team",
+// hub-contract.md:710) is *NameTakenError, nothing bound and the memo
+// unchanged, so the person can Share again under another name. Joining a
+// project that a non-primary remote matched is not built (OQ-12).
+func (s *Service) Bind(ctx context.Context, projectID, teamID, name string) (Binding, error)
+
+// DefaultName is the name Bind uses when the person gives none, and the one
+// task 18 pre-fills. The local project's name (project.Scanner's directory
+// name), unless the binding has Matches: then a fork's clone and the team's
+// clone share a directory name ("portal"), and the team's project, if a
+// teammate Shared it, holds that name already. So a binding with Matches
+// gets the local name, a space, and the primary key without its host in
+// parentheses: "portal (me/portal)". The whole is cut to the Hub's 120
+// characters (hub-contract.md:710) by shortening the local name, never the
+// key. It is a default, not a guarantee: two unrelated repositories named
+// "portal" can still meet in one team, which NameTakenError covers.
+func DefaultName(localName string, b Binding) string
+
+// NameTakenError is a Bind the Hub refused because teamID already holds a
+// project called Name. Matched by isNameTaken: a 409 whose details.field is
+// "name". The contract states the rule (hub-contract.md:710) but names no
+// code for it; team create's is 409 `conflict` with details.field "name"
+// (:672), so isNameTaken is the seam that ask HA4-12 fixes.
+type NameTakenError struct{ Name string }
+
+func (e *NameTakenError) Error() string
 
 // BranchRef is "refs/heads/" + the branch's name; "" for "".
 func (s *Service) BranchRef(branchID string) string
@@ -520,6 +560,9 @@ project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins o
 | `TestBindingFindsTheProjectByItsPrimaryRemote` (review M8, replaces `…ByItsRepoKey`) | `origin` linked to `pj-1` → `bound` to `pj-1`, `Matches` `[]`; `origin` linked to `pj-1` and `upstream` to `pj-2` → still `pj-1`, with no Hub lookup of `upstream` | a lookup that stops at any remote, so the fork's upstream wins when it sorts first |
 | `TestAnotherRemotesProjectIsAChoiceNotABinding` (review M8) | the fork shape: `origin` = `github.com/me/portal` unlinked, `upstream` = `github.com/team/portal` linked to `pj-2` → `unbound`, `HubProjectID` `""`, `Matches == [{upstream, github.com/team/portal, pj-2, "Engagement Portal"}]`, `Teams` filled; a write (task 08) is `ErrNotBound` | the old rule, which bound a fork to the team's project and wrote the fork's briefs there |
 | `TestBindRegistersThePrimaryRemoteOnly` (review M8) | the fork shape with `upstream` unlinked → `CreateProject`'s `remotes` is exactly `[{github.com/me/portal, github}]`; a repository with no `origin` and two recognised remotes `a` and `b` → `[a's key]`, and `Binding` then reads `bound` | a Bind that claims the team's repository under the fork's new project, so the team's own later Share meets `repo_already_linked` |
+| `TestThePrimaryRemoteIsOriginInAnyOrder` (b10 re-review I-1) | the fake `RepoIdentity` answers in git's alphabetical order, `company` (`github.com/team/portal`, linked to `pj-2`) then `origin` (`github.com/me/portal`, unlinked) → `Binding` is `unbound`, `RepoKeys[0]` is `github.com/me/portal`, `Matches` names `company` and `pj-2`; `Bind` registers `origin`'s key alone; the same with `azure`, `github` and `team` as the team remote's name; with no `origin`, `zeta` then `alpha` → `alpha` is primary; `orderRemotes` leaves its input slice as it was | a primary taken as `RepoKeys[0]` of whatever `RepoIdentity` returned, so a team remote that sorts before `origin` binds the fork to the team's project (M8 again); an order fixed only in task 14, which this package's fake cannot see |
+| `TestAForkSharesUnderItsOwnName` (b10 re-review I-2) | local project `portal`, the fork shape with `upstream` linked to `pj-2` (named `portal`, team `tm-1`): `DefaultName` and `Binding`'s `defaultName` are `portal (me/portal)`, and a bound binding's is `""`; `Bind(tm-1, "")` creates that name with `origin`'s key only and reads `bound`; `Bind(tm-1, "Portal fork")` uses `Portal fork`; with no Matches, `DefaultName` is `portal`; a 125-character local name gives a 120-character default ending in `(me/portal)` | a fork's Share that reuses the directory name and is refused in the very team that holds the upstream's project |
+| `TestANameTheTeamHoldsIsNameTaken` (b10 re-review I-2) | `failCreateProject` with a `*hubclient.Error` 409 `conflict` whose `details.field` is `name` → `*NameTakenError{Name: "portal (me/portal)"}`, `Binding` still `unbound` with the same `Matches`, no memo change; a later `Bind` with another name succeeds; a 409 `conflict` with no `field` is returned as it came, not as `NameTakenError` | a name refusal relayed as a generic `conflict` the desktop cannot place, or cached so the retry never reaches the Hub |
 | `TestBindingWithNoRemoteSaysSo` | `no_remote`, no Hub call | a Hub project created for a repository nobody else can reach (OQ-1) |
 | `TestBindingOffWhenTheHubIsNotConfigured` | nil Hub → `hub_off`; `HeadRef` on `b-42` → a `none` Ref and a nil error (rule 6) | a nil dereference at the first lens open; a `HeadRef` error that task 12 would turn into a 503 on Develop's head reading for a Hub it was never given |
 | `TestBindRaceReturnsTheTeammatesProject` | fake answers `repo_already_linked`; `Bind` returns that project `bound` | a second project for one repository |
