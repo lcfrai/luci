@@ -53,20 +53,33 @@ PUT {P}/posture?branch=…
   409 deploy_conflict    Panacea's SSO lock: "access mode cannot be relaxed: …" (project_security.go:733-735)
 
 GET {P}/access
-  200 { "grants": [ { "grantee": "a.person@kpmg.com.au", "group": "project-engagement-portal-editor",
-                      "role": "viewer" | "developer" | "owner" | "unknown", "roleRaw": "editor" } ] }
+  200 { "grants": [ { "grantee": "a.person@kpmg.com.au", "group": "a.person@kpmg.com.au", "legacy": false,
+                      "role": "viewer" | "developer" | "owner" | "unknown", "roleRaw": "editor" },
+                    { "grantee": "team-old", "group": "project-engagement-portal-viewer", "legacy": true,
+                      "role": "viewer", "roleRaw": "viewer" } ] }
+      a person's row: group == grantee (Panacea's key for it); a legacy binding: group is the
+      Keycloak group's name, grantee its panacea-group attribute (task 04; review M30)
 
 POST {P}/access
   request { "grantee": "a.person@kpmg.com.au", "role": "viewer" | "developer" | "owner" }
   201 the GET body, re-read after the write
+      A role change is this POST for a current member at the new role: Panacea's share is
+      single-role and drops the other role groups first (clients/keycloak.go:198-214), so it is
+      one request, never a Revoke then a Grant, which would leave the person with no access if
+      the Grant failed. The drop is best-effort (:207-210): the re-read shows what Panacea holds,
+      and a grantee still on two rows is drawn on both (task 18; review M30)
   400 bad_request        grantee empty, or containing "," or whitespace (one person, never a list —
                          survey §4: Panacea's header parser splits on commas); role outside the three
   403 deploy_forbidden   non-owner (routes.go:1408)
   422 deploy_rejected    "No Panacea user matches that name or email." — Panacea answers this case
                          with a 500 (handlers/access.go:57); see below
 
-DELETE {P}/access?grantee=a.person%40kpmg.com.au
+DELETE {P}/access?group=a.person%40kpmg.com.au
   200 the GET body, re-read
+  400 bad_request        "group" missing or empty
+      "group" is the row's group, never its grantee: a person's row is removed from every role,
+      a legacy row's group is deleted (keycloak.go:245-267). A legacy grantee would answer 200
+      and remove nothing (:268) (review M30)
 
 PUT {P}/url-prefix?branch=…
   request { "prefix": "uat-test" }
@@ -106,6 +119,8 @@ redacting `String()`; the handler test captures the log and greps for the passwo
 | `TestMintedTokenOnceNotLogged` | the fake mints `bt_123` → it is in the 200 body, not in the captured log, and a second `GET` does not carry it | a token in a log or a cache |
 | `TestGranteeIsOnePerson` | `"a@x, b@y"` → 400 with *"One person at a time."* | a comma-joined list that Panacea would read as two groups (survey §4) |
 | `TestGrantRereads` | `POST` → the response is the fake's `Access` after the write | a UI that shows what it asked for instead of what Panacea holds |
+| `TestRoleChangeIsOneGrant` | a member at `viewer`, `POST {grantee, role:"owner"}` → the fake saw exactly one `Grant` and no `Revoke` | a role change as Revoke then Grant, which strands the person with no access when the Grant fails (review M30) |
+| `TestRevokeSendsGroup` | `DELETE ?group=project-engagement-portal-viewer` → the fake's `Revoke` got that group; `DELETE ?grantee=team-old` → 400 | revoking a legacy row by its grantee, a 200 that removes nothing (review M30) |
 | `TestNoUserFoundIs422` | the fake returns `KindRejected` *"No Panacea user matches that name or email."* → 422 with that sentence | a Keycloak typo shown as "Panacea is down" |
 | `TestOwnerRefusalRelayed` | the fake answers `KindForbidden` *"insufficient role"* → 403 `deploy_forbidden` with that sentence | the control plane inventing its own permission check |
 | `TestNotBound` | an unbound project → 409 `deploy_not_bound` on all nine routes | a governance write to a guessed project name |
@@ -123,7 +138,7 @@ nothing locally."* — for `GET {P}/auto-deploy`, `GET {P}/posture`, `GET {P}/ac
 #### Acceptance
 
 ```
-go test ./control-plane/internal/api/ -race -count=1 -run 'Governance|Branch|Mode|Password|Enforced|Minted|Grantee|Grant|NoUser|Owner|NotBound'
+go test ./control-plane/internal/api/ -race -count=1 -run 'Governance|Branch|Mode|Password|Enforced|Minted|Grantee|Grant|Revoke|RoleChange|NoUser|Owner|NotBound'
 → ok
 ```
 

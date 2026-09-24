@@ -116,8 +116,13 @@ type Governor interface {
 	Posture(ctx context.Context, p ProjectRef, branch string) (Posture, error)
 	SetPosture(ctx context.Context, p ProjectRef, branch string, c PostureChange) (PostureResult, error)
 	Access(ctx context.Context, p ProjectRef) ([]AccessGrant, error)
+	// Grant is single-role on Panacea: a grant to someone who already holds another role REPLACES
+	// it (clients/keycloak.go:172-173, :198-214 at b02424691), so a role change is one Grant.
 	Grant(ctx context.Context, p ProjectRef, g GrantRequest) error
-	Revoke(ctx context.Context, p ProjectRef, grantee string) error
+	// Revoke takes an AccessGrant's Group, Panacea's own key for the row, never its Grantee: a
+	// person's row is removed from every role, a legacy binding's group is deleted
+	// (keycloak.go:245-268). A legacy row revoked by its Grantee is a silent 200 no-op (review M30).
+	Revoke(ctx context.Context, p ProjectRef, group string) error
 	SetURLPrefix(ctx context.Context, p ProjectRef, branch, prefix string) (URLPrefix, error)
 	ClearURLPrefix(ctx context.Context, p ProjectRef, branch string) error
 }
@@ -454,10 +459,17 @@ const (
 	RoleUnknown   AccessRole = "unknown"
 )
 
-// AccessGrant is one person's (or one legacy group's) role on the project.
+// AccessGrant is one person's (or one legacy group's) role on the project. From source at
+// b02424691 (ListProjectAccess, clients/keycloak.go:126-162): a person's row has Group ==
+// Grantee == the member's username, or email when it has none (:156-159, :523-528); a legacy
+// attribute-only binding has Group = the group's name and Grantee = its panacea-group attribute
+// (:143-153), never "" (a member-less group with no attribute is skipped). The model's comment
+// saying Grantee is "" for a legacy binding (models/models.go:2007-2012) is contradicted by the
+// code and by Panacea's own test (clients/keycloak_access_test.go:349-351). Review M30.
 type AccessGrant struct {
-	Grantee string // a username or email; "" for a legacy group binding
-	Group   string // the target's group name, shown only for a legacy binding
+	Grantee string // a person's username or email; a legacy binding's attribute value
+	Group   string // Panacea's key for the row; the one Revoke takes
+	Legacy  bool   // Group != Grantee: a group binding, not a person
 	Role    AccessRole
 	RoleRaw string
 }

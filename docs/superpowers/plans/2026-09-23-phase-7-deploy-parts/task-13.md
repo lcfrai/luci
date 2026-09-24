@@ -183,7 +183,10 @@ export interface Posture {
 }
 export interface PostureResult { posture: Posture; enforced: boolean; message: string; bypassTokens?: string[] }
 export type AccessRole = "viewer" | "developer" | "owner" | "unknown";
-export interface AccessGrant { grantee: string; group: string; role: AccessRole; roleRaw: string }
+/** group is Panacea's key for the row (== grantee for a person); legacy: a group binding, whose
+ *  grantee is its panacea-group attribute and whose group is the Keycloak group's name (task 04;
+ *  review M30). revoke takes group, never grantee. */
+export interface AccessGrant { grantee: string; group: string; legacy: boolean; role: AccessRole; roleRaw: string }
 export interface UrlPrefix { branch: string; prefix: string; host: string }
 
 export interface ScanReportView {
@@ -235,7 +238,7 @@ export interface DeployApi {
   setPosture(projectId: string, branch: string, change: { mode: PostureMode; password?: string; rotateBypassToken?: boolean }): Promise<PostureResult>;
   access(projectId: string): Promise<AccessGrant[]>;
   grant(projectId: string, grantee: string, role: Exclude<AccessRole, "unknown">): Promise<AccessGrant[]>;
-  revoke(projectId: string, grantee: string): Promise<AccessGrant[]>;
+  revoke(projectId: string, group: string): Promise<AccessGrant[]>; // DELETE …/access?group=<AccessGrant.group> (task 11; review M30)
   setUrlPrefix(projectId: string, branch: string, prefix: string): Promise<UrlPrefix>;
   clearUrlPrefix(projectId: string, branch: string): Promise<void>;
   /** The one streaming call. The caller aborts with `signal`; frames arrive already parsed. */

@@ -47,8 +47,8 @@ export interface Governance {
   refresh(): void;
   setAutoDeploy(enabled: boolean): Promise<void>;
   setPosture(change: { mode: PostureMode; password?: string; rotateBypassToken?: boolean }): Promise<PostureResult>;
-  grant(grantee: string, role: Exclude<AccessRole, "unknown">): Promise<void>;
-  revoke(grantee: string): Promise<void>;
+  grant(grantee: string, role: Exclude<AccessRole, "unknown">): Promise<void>; // also the role change
+  revoke(group: string): Promise<void>; // the row's AccessGrant.group, never its grantee (review M30)
   setUrlPrefix(prefix: string): Promise<UrlPrefix>;
   clearUrlPrefix(): Promise<void>;
 }
@@ -77,8 +77,8 @@ export function AccessList(props: {
   access: Loaded<AccessGrant[]>;
   ownerControls: "yes" | "no" | "unknown";
   stale: boolean;
-  onGrant(grantee: string, role: Exclude<AccessRole, "unknown">): Promise<void>;
-  onRevoke(grantee: string): Promise<void>;
+  onGrant(grantee: string, role: Exclude<AccessRole, "unknown">): Promise<void>; // add, or change a role
+  onRevoke(group: string): Promise<void>; // AccessGrant.group (review M30)
 }): JSX.Element;
 ```
 
@@ -99,7 +99,7 @@ Idempotency-Key — governance routes take none (task 11).
 | posture → `kpmg-sso`, `panacea-sso`, `bypass-token` | sent at once | each keeps the SSO gate (`access_mode.go:86`) |
 | revoke a member | **held** | it takes a person's access to every branch at once |
 | release the web address | **held** | once released, any branch in Panacea may claim it (`branch_url_prefix.go:22-24`) |
-| deploy on push, grant, claim an address | sent at once | each is undone by its own opposite, and none opens the app to anyone new |
+| deploy on push, grant (a role change is one grant, review M30), claim an address | sent at once | each is undone by its own opposite, and none opens the app to anyone new |
 
 #### The four controls — what each says
 
@@ -136,11 +136,17 @@ words from Panacea's own definitions (`handlers/access_mode.go:11-24`):
 
 **Project members** (`AccessList`; list is membership, changes are owner routes,
 `routes.go:1407-1409`) — *"For the whole project, every branch — Panacea has no per-branch access
-list."* One row per grant: `grantee`, or *"a group binding"* and `group` in mono when `grantee` is
-empty (legacy bindings, plan §3.2 B1); the role word, and `roleRaw` in mono when `role "unknown"`.
+list."* One row per grant: `grantee`, or, when `legacy` is true, *"a group binding"* and `group` in
+mono (legacy bindings, plan §3.2 B1; `legacy` is `group != grantee`, task 04, review M30); the role
+word, and `roleRaw` in mono when `role "unknown"`. A grantee on two rows is drawn on both, never
+merged, with *"Panacea lists `<grantee>` at more than one role."*
 **Add a person**: one name or email and a role, with the line *"Gives `<grantee>` `<role>` on the
-whole project."* before the press. **Remove** is held: *"Removes `<grantee>` from the whole project,
-every branch."* A `422` shows *"No Panacea user matches that name or email."* (task 11).
+whole project."* before the press. **Change role** on a person's row: the role menu, with *"Changes
+`<grantee>` from `<old>` to `<new>` on the whole project."* before the press; it sends one `grant`
+at the new role, because Panacea's share replaces the old role (task 11), never a revoke then a
+grant (review M30). **Remove** is held: *"Removes `<grantee>` from the whole project, every branch,
+at every role."* — or, for a legacy row, *"Deletes the group binding `<group>`."* — and sends the
+row's `group`. A `422` shows *"No Panacea user matches that name or email."* (task 11).
 
 **Web address** (owner routes, `routes.go:1313-1314`) — the current `env.host`, or *"No address
 yet — the branch has not been deployed."*; a field and **Claim**; the hint *"Lowercase letters,
@@ -166,8 +172,9 @@ verbatim. **Release** is held.
 | `token shown once` | a result with `bypassTokens ["t1"]` → `t1` visible; unmount and remount → absent; the slice never holds it | a secret kept in the store, or persisted |
 | `password never kept` | after `setPosture` resolves or rejects, the password field is empty and the fake's logged request is the only place the value appeared | a password left in React state or the store |
 | `unknown mode kept raw` | `modeKnown false, modeRaw "sso-v2"` → `sso-v2` in mono and the fallback sentence; no radio checked | an unknown mode drawn as `kpmg-sso` |
-| `a group binding is not a person` | a grant with `grantee ""` → *"a group binding"* and its group | an empty row, or a group rendered as someone's name |
-| `revoke is held` | **Remove** → nothing sent for 4.9 s; after 5 s one `revoke` with that grantee | an instant removal from every branch |
+| `a group binding is not a person` | a grant `{grantee:"team-old", group:"project-p-viewer", legacy:true}` → *"a group binding"* and `project-p-viewer`, and `team-old` is not drawn as a person | a group rendered as someone's name; a legacy test keyed on `grantee ""`, which Panacea never sends (review M30) |
+| `revoke is held` | **Remove** on a person's row → nothing sent for 4.9 s; after 5 s one `revoke` with that row's `group`. On the legacy row → one `revoke("project-p-viewer")`, never `revoke("team-old")` | an instant removal from every branch; a legacy row revoked by its grantee, a 200 that removes nothing (review M30) |
+| `role change is one grant` | a `viewer` row, **Change role** to `owner` → one `grant(grantee, "owner")` and no `revoke` | a revoke then a grant, which leaves the person with no access when the grant fails (review M30) |
 | `no client-side prefix rule` | `GovernancePanel.tsx` contains no `RegExp` / `.test(` / `.match(` on the prefix; `UPPER` is sent and Panacea's 422 sentence shown | a second copy of `validateURLPrefix` that drifts from Panacea's |
 
 #### Steps
