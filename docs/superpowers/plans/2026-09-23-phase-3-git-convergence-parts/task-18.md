@@ -239,7 +239,7 @@ export interface CockpitClient {
 ```
 
 ```ts
-// poller.ts — additive. The existing onGoodTick parameter (task 24's) is untouched.
+// poller.ts — additive. The existing onGoodTick parameter (phase 2 task 24's) is untouched.
 /** Subscribe to every good tick of the one poller. The returned function unsubscribes. A
  *  listener that throws is caught and ignored, so one lens cannot stop another's loads. */
 export function addGoodTickListener(fn: () => void): () => void;

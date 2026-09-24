@@ -11,7 +11,9 @@ answers with structured data. Lane work leaves the sandbox as a `git bundle`, wh
 (R4.4). Updates go the other way through the same runner: the host writes a bundle from the
 project and the runner fetches it inside the sandbox (R4.5, task 09's refresh). This half of the
 part is the sandbox side. The host side (the client, host-side `bundle verify` and the fetch into
-`refs/panacea/lanes/…`) is the second half, edit unit U2.
+`refs/panacea/lanes/…`) is the second half, edit unit U2. "The runner" in this part is always
+`sandboxd/internal/gitrunner`, never phase 2's `control-plane/internal/project/gitrunner.go`
+(the host's read-only launcher) or task 02's `gitx.Exec`.
 
 R4.3 names this as the seam phase 8's `machined` reuses (P8-D7: "the machine agent serves the
 catalog and the git runner inside the machine pod"). Phase 3 builds the Docker half. P8-D7 is
