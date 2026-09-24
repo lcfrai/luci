@@ -343,4 +343,66 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 32 | Phase 8 delta: Fleet's chart, the private gateway path, the Orchestrator's egress | TM1-α | 0.375 (3 h) | 12, P8-11, P8-29, P6-19 | P8-D12 |
 | 33 | TM1-α on the real cluster: the scripted conflict, pod kill, hook and policy checks; the replan gate | TM1-α | 0.375 (3 h) | 01–32 | — |
 
+**If task 33 fails, TM1 is re-planned before any task from 34 on starts** (`05-design.md` §12.0).
+
+### TM1: two people, one repo, agents that know each other
+
+| Id | Title | Slice | Focused days | dependsOn | Seams |
+|---|---|---|---|---|---|
+| 34 | Phase 3 delta: `machined`'s activity sweep | TM1 | 0.375 (3 h) | 17, P3-07, P8-20, P8-21 | ST.6 |
+| 35 | Activity and presence; holds from observed edits, bulk, per-path expiry, releases | TM1 | 0.375 (3 h) | 23, 34 | ST.6 |
+| 36 | Tier-H forecasts and co-edit down-weighting | TM1 | 0.25 (2 h) | 25, 35 | — |
+| 37 | Budgets: turn budget, human bypass, per-counterpart cap and digest, the spend split | TM1 | 0.375 (3 h) | 20, 26, P6-09 | S6.2 |
+| 38 | The template-only PTY writer and the delivery ladder | TM1 | 0.3 (2.5 h) | 19, 31 | — |
+| 39 | Fleet's own attach handler and socket revocation | TM1 | 0.375 (3 h) | 11, 12, 19 | — |
+| 40 | Runner rotation and DIVE | TM1 | 0.3 (2.5 h) | 27, 39 | ST.5 |
+| 41 | The Orchestrator's instructions and the replay eval | TM1 | 0.375 (3 h) | 13, 31 | ST.4 |
+| 42 | G9: the injection corpus and the scripted two-Orchestrator run | TM1 | 0.375 (3 h) | 31, 38, 41 | — |
+| 43 | Hub delta: role-to-verb, *auditor* and *compliance*, team policy, Z5 rows | TM1 | 0.375 (3 h) | 07, H16b | — |
+| 44 | Hub delta: leavers, member removal, delegation revocation end to end | TM1 | 0.3 (2.5 h) | 06, 11, 39 | ST.3 |
+| 45 | Hub delta: audit to Sentinel; the anchored chain head | TM1 | 0.3 (2.5 h) | H27 | — |
+| 46 | Hub delta: notes and erasure tombstones | TM1 | 0.25 (2 h) | 07, H27 | ST.2 |
+| 47 | Phase 8 delta: AU egress allowlist, the Australia East guard, task 32's five probes | TM1 | 0.375 (3 h) | 32, P8-32 | P8-D12 |
+| 48 | Phase 3 delta: the read-only per-project fetch credential (OD-22) | TM1 | 0.375 (3 h) | 17, P3-12, P3-13, P3-14 | — |
+| 49 | Phase 3 delta: the team land review: conflicts listed, a second approver for agent-config paths | TM1 | 0.375 (3 h) | 07, P3-09, P3-16, P3-19 | — |
+| 50 | Phase 4 delta: the fixed team pointer paragraph | TM1 | 0.125 (1 h) | P4 | — |
+| 51 | The prototype of every team surface, owner-reviewed | TM1 | 0.375 (3 h) | — | ST.8 |
+| 52 | Team read models and actions on the local control plane; the desktop client | TM1 | 0.375 (3 h) | 21, 43, 51 | ST.8 |
+| 53 | The team strip and click-in | TM1 | 0.375 (3 h) | 51 (approved), 52 | ST.8 |
+| 54 | Desk rows: HORIZON, NEEDS YOU, SINCE YOU LAST LOOKED, DECIDED WITHOUT YOU | TM1 | 0.375 (3 h) | 52, 53 | ST.8 |
+| 55 | The Orchestrator panel | TM1 | 0.375 (3 h) | 39, 40, 52 | ST.8 |
+| 56 | Route badge, Share line, spend line; the data class at creation | TM1 | 0.3 (2.5 h) | 43, 52, P6-22 | ST.8 |
+| 57 | TM1 proof: two people on the real environment, the eight criteria, the first-teammate gate | TM1 | 0.375 (3 h) | 33–56 | — |
+
+### TM2: one document
+
+| Id | Title | Slice | Focused days | dependsOn | Seams |
+|---|---|---|---|---|---|
+| 58 | Phase 8 delta: the lane mirror's per-project Kata pod | TM2 | 0.375 (3 h) | 15, 48 | P8-D12 |
+| 59 | Phase 3 delta: the forecast as a library; the mirror runner and its typed result | TM2 | 0.375 (3 h) | 58, P3-08 | ST.7 |
+| 60 | Tier-M forecasts; lane bundles into the mirror | TM2 | 0.3 (2.5 h) | 34, 36, 59 | ST.6, ST.7 |
+| 61 | The team land queue over the mirror | TM2 | 0.375 (3 h) | 49, 60 | ST.7 |
+| 62 | Resolutions `counter`, `split`, `build-on` | TM2 | 0.375 (3 h) | 29, 30, 60 | — |
+| 63 | Phase 3 delta: merge and files lenses by Hub principal; teammates' lanes from the mirror | TM2 | 0.375 (3 h) | 60, P3-16, P3-19, P3-21 | ST.8 |
+| 64 | "Move my lanes to the cloud" | TM2 | 0.3 (2.5 h) | 21, P3-24 | — |
+| 65 | Phase 8 delta: the CLI bump job and its four gates | TM2 | 0.375 (3 h) | 42, P8-27, P8-27a | — |
+| 66 | Team and project quotas and the spend split, server side | TM2 | 0.3 (2.5 h) | 37, 43, P6-06, P6-09 | S6.2 |
+| 67 | The quotas admin view | TM2 | 0.3 (2.5 h) | 56, 66 | ST.8 |
+| 68 | Release attribution on a team project (phase 7's thread) | TM2 | 0.25 (2 h) | 61, H23, H24 | — |
+| 69 | TM2 proof | TM2 | 0.3 (2.5 h) | 58–68 | — |
+
+**Totals:** TM1-α 33 tasks, 95 hours, about 12 focused days; TM1 24 tasks, 65.5 hours, about 8;
+TM2 12 tasks, 32.5 hours, about 4. These are this plan's own tasks only. They exclude the sibling plans' tasks they depend on and
+phase 6's gateway, and they are estimates, not measurements. The design's ≈ 95.5 and ≈ 16 focused
+days (`05-design.md` §12.1, §12.2) count those sibling streams too, so the two figures do not
+compare directly.
+
+**TM1-α waves** (a task starts when everything it depends on is merged, sibling tasks included):
+1 — 02, 13; 2 — 01, 09; 3 — 03, 10, 16; 4 — 04, 18; 5 — 05; 6 — 06; 7 — 07; 8 — 08; 9 — 11;
+10 — 12; 11 — 14, 15, 17, 32; 12 — 19; 13 — 20; 14 — 21, 22; 15 — 23; 16 — 24; 17 — 25; 18 — 26;
+19 — 27, 28; 20 — 29; 21 — 30; 22 — 31; 23 — 33. The Hub chain (01–08) is serial and gates
+task 11; Fleet tasks 22–31 test against task 08's fake and task 10's `memstore`, so they need no
+running Hub. Task 51 (the prototype) has no dependency and starts in wave 1, so the owner's review
+is not on the critical path. TM1 and TM2 waves follow the same rule from their dependsOn columns.
+
 ---
