@@ -69,7 +69,8 @@ type HistoryEntry struct {
 // "merged_into_lane" (review I3), by the same rule Undo refuses with.
 func History(ctx context.Context, m gitx.Machine, projectPath, branch string, store lanes.Store, limit int) ([]HistoryEntry, error)
 
-// UndoResult is an exact undo.
+// UndoResult is an exact undo. Its refreshed and refreshErrors, and RevertResult's, are [] and
+// {} when empty, never null (task 09's rule; re-review b06-1 issue 3).
 type UndoResult struct {
 	Tip           string            `json:"tip"`    // the land's first parent, now the tip
 	Undone        string            `json:"undone"` // kept at refs/panacea/undone/<sha>
@@ -190,7 +191,7 @@ and rev-list, and the lane index for names. Writes nothing."*
 | `TestRevertTakesBackTheLandsChange` | after landing A then B, revert A → the tree equals "B applied without A", one parent, `Panacea-Reverts: <A>` | a revert of the wrong side of the merge |
 | `TestRevertConflictWritesNothing` | a later commit edits A's lines, in a file named `docs/résumé.md` → `merge_conflict`, `json.Unmarshal(details.paths) == ["docs/résumé.md"]` (review I2), tip unchanged | a half-written revert; a revert's merge-tree without `-z` |
 | `TestRevertOfADirectCommitIsRefused` | → `undo_not_exact`/`not_a_land` | reverting arbitrary commits through the land route |
-| `TestRevertRefreshesTheClones` (review I4) | two live lanes; revert a land → each clone's `refs/remotes/origin/<branch>` equals `RevertResult.Revert`, and `Refreshed` names both lanes | a revert that leaves every clone's origin/<branch> at the reverted land, so a resolve prompt merges the land back in |
+| `TestRevertRefreshesTheClones` (review I4) | two live lanes; revert a land → each clone's `refs/remotes/origin/<branch>` equals `RevertResult.Revert`, and `Refreshed` names both lanes; through the handler, the raw 201 body holds `"refreshErrors":{}`, and an undo's raw 200 body the same (re-review b06-1 issue 3) | a revert that leaves every clone's origin/<branch> at the reverted land, so a resolve prompt merges the land back in |
 | `TestUndoAndLandSerialise` | undo and a land on the same branch concurrently under `-race` → one wins, the other is refused, the tip is one of the two outcomes | an undo that moves the tip under a land |
 | `TestUndoAndRevertWaitOnTheProjectLock` (review I7) | the test holds `Locks.Lock(ctx, p)` → an undo and a revert on `p` run no git call 50 ms later (a recording Runner); release → both proceed | an undo or revert that skips the one lock push and fetch take |
 | `TestHistoryGETIsReadOnly` | the §10a audit passes; `for-each-ref` before and after a GET is identical | a GET that writes |

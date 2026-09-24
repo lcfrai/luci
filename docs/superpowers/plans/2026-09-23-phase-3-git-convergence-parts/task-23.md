@@ -54,9 +54,9 @@ results document:
 | 7 | `POST …/lands` B | 409 `merge_conflict` with the path; the branch tip unchanged |
 | 8 | resolve in B: `git merge origin/evidence-upload`, fix, commit (`docker exec`) | the resolving commit carries B's session; after the next sweep, the project's `refs/panacea/lanes/<B>` contains A's merge (`merge-base --is-ancestor`) |
 | 9 | `POST …/lands` B | 201 |
-| 10 | `POST …/lands/{B's merge}/undo` | 200; tip back to A's merge; B ready again; `refs/panacea/undone/<sha>` exists; `refs/panacea/lanes/<B>` is unchanged by the undo; both clones' `origin/evidence-upload` == A's merge (`refreshed` names both); `GET …/convergence` has B `clean` with its resolving commit in `commits` |
+| 10 | `POST …/lands/{B's merge}/undo` | 200; tip back to A's merge; B ready again; `refs/panacea/undone/<sha>` exists; `refs/panacea/lanes/<B>` is unchanged by the undo; both clones' `origin/evidence-upload` == A's merge (`refreshed` names both, and the raw body holds `"refreshErrors":{}`, not `null`: re-review b06-1 issue 3); `GET …/convergence` has B `clean` with its resolving commit in `commits`, and every row's raw `carriesUndone` is `[]` (step 9's refresh sent B's merge to both clones, and neither merged it) |
 | 10a | `POST …/lands/{A's merge}/undo` with `expectedTip` = A's merge (review I3) | 409 `undo_not_exact`, `details.why "merged_into_lane"`, `details.worktrees` = B's id; the tip unchanged; no `refs/panacea/undone/<A's merge>`; `GET …/lands` gives A's row `undo:"revert"`, `undoWhy:"merged_into_lane"`. B merged A's land at step 8, so moving the branch back would not take it back |
-| 11 | land B again, then `POST …/push` | 200, `setUpstream:true`; the bare remote's branch equals the tip |
+| 11 | land B again, then `POST …/push` | the land's raw body holds `"broughtBack":[]` (B's lane does not contain the merge step 10 undid) and `"refreshErrors":{}`; the push 200, `setUpstream:true`; the bare remote's branch equals the tip |
 | 12 | `GET …/lands` | both lands `pushed:true`, `undo:"revert"`, `undoWhy:"pushed"` |
 | 13 | `POST …/lands/{B}/undo` | 409 `undo_not_exact`/`pushed` |
 | 14 | `GET …/changes`, `…/changes/diff?path=<p>` | the path; a committed hunk with `tier:1` naming A's session and `sessionKinds` `shell`; `reason` for tier 2 "transcript links exist for Claude Code only" |
