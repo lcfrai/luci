@@ -534,3 +534,57 @@ attacker is **UNVERIFIED** until G9 runs.
 **The cockpit is a reader too.** It renders `text·A` as plain text: no markdown links, no HTML, and
 no terminal rendering. It always shows the author class next to the words (*"Alice's Orchestrator
 (agent)"* against *"Alice"*).
+
+## 8. Conflict avoidance and prediction
+
+### 8.1 Avoid first, at plan time
+
+1. An Orchestrator's managed block tells it to read `panacea team` before it plans, and to plan
+   around live leases.
+2. Creating a task takes `intent` leases on its scope (§6.3). An overlap opens a thread **before a
+   worker is spawned**, which is the cheapest moment to split or sequence work.
+3. Workers run `panacea check` before their first edit to a file, so an overlap no plan foresaw
+   surfaces at the first keystroke, not at the land.
+
+### 8.2 Predict centrally: four tiers, one place
+
+`03` §3 set out four tiers, each needing more data than the last. OD-14 puts every lane in one
+environment, so all four run in Fleet:
+
+| Tier | Signal | Source in Fleet | When |
+|---|---|---|---|
+| **P** | same paths | observed edits and committed paths (§3.3 activity) | on every activity change; a set intersection |
+| **H** | overlapping hunks on the same base blob | `sandboxd` reports dirty and committed line ranges; no content | on every activity change |
+| **M** | exact `git merge-tree --write-tree` (`03` §3, https://git-scm.com/docs/git-merge-tree) | the **lane mirror** | on each commit, only for pairs that P or H flagged |
+| **S** | speculative build and test of the merge | a warm Kata pod | later (§12), and only on request |
+
+**The lane mirror.** After each commit, the lane owner's `machined` exports the lane since its merge
+base as a bundle (phase 3 ruling R4: lane work crosses as bundles, `01` §4.1). Fleet's git runner
+fetches it into one bare repo per team project, under `refs/panacea/lanes/<owner-hash>/<wt-id>`. The
+runner is phase 3's hardened runner (P8-D7), and no sandbox mounts the mirror. This changes three
+things against `03`:
+
+- **No unfinished lane has to be pushed to the customer's remote.** `03`'s option 1, and its
+  UNVERIFIED question of whether Azure DevOps and GitHub accept `refs/panacea/*` pushes (C5), is no
+  longer on the critical path.
+- **Our environment already holds the source** under OD-14, because the sandboxes and machine disks
+  are ours. The mirror adds no new class of custody, which is what `03` §3 option 2 feared. It does
+  add a retention duty: a member's lanes are deleted when they leave the project, and the mirror
+  goes when the project does.
+- **The work follows activity.** M runs only for pairs that P or H already flagged, so it does not
+  grow with the square of the team.
+
+**Noise.** Microsoft's ConE shows the discipline: warn rarely, and down-weight files that are often
+edited at the same time (`03` §3, Maddila et al., TOSEM 2022, https://arxiv.org/abs/2101.06542).
+Fleet keeps a per-project co-edit rate. A lockfile or generated file raises nothing at tier P; it
+raises only at H or M.
+
+### 8.3 Landing across people
+
+Phase 3's land queue lives in one user's project repository today (`01` §2.3). For a team project,
+**the queue moves to Fleet and runs over the lane mirror**. It is one queue for every member's
+lanes, ordered by the `sequence` hints of §6.2. Each land is still its owner's reviewed act. The push
+to the customer's remote uses the lane owner's own credential (§2.5). Each member's project
+repository then fetches the new integration head from the mirror. This is the owner's *"one
+document"*: one integration line that everyone's agents converge on, with every change attributed
+to the person whose agent made it.
