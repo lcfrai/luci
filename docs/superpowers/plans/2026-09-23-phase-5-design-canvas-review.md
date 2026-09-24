@@ -1169,3 +1169,77 @@ machine:
   `*.json`, `*.rs` or `*.toml` sets `additionalBrowserArgs` or a background switch. Not checked:
   the default arguments Tauri itself passes to WebView2.
 
+## Fix batch b05 (2026-09-24) — I9, I10
+
+Scope: the licence gate (task 04), P5-P and OQ-P5-2. Commits `db05359` (I9) and `1027adb` (I10),
+then this section with two added test rows. Line numbers are after this batch.
+
+### I9 — the gate decides first party by structure and enforces what shipped source reaches
+
+| Hole | Change | Where |
+|---|---|---|
+| 1. A bundled devDependency was only reported | "Ships" now means *reached from non-test source*: every package a non-test file under `desktop/src` or `canvas/editor/src` imports, with its production closure, whichever list declares it. `ShippedImports` walks to a fixed point through relative imports, so a test helper that shipped code imports is walked too. Specifiers come from the project's own `typescript` parser (`imports.cjs`) | `task-04.md:21-36` (the rule), `:39-41` (files), `:202-221` (`NpmDeps`), `:248-261` (`ShippedImports`), `:264-275` (`imports.cjs`), `:285-286` (what the run scans); tests `:319-321` |
+| 2. First party was matched by name; the deny list's matching was unstated | No name list. Go: `.Module.Main`, or a directory `replace` inside `-root`. npm: the root node, or a `file:` link whose target is inside `-root`. Cargo: `source: null` inside `-root`. One helper, `insideRoot`, uses `filepath.Rel`. `Denied` matches exactly: `tldraw`, the `@tldraw` scope, and `github.com/tldraw` or paths under it | `task-04.md:62-89`; tests `:318`, `:322-323` |
+| 3. A Go module with no licence file | `Classify` returns `("", "none", nil)`, and the dep fails with "no licence file in …", exit 1, not 2 | `task-04.md:180-184`, `:193-199` (`GoDeps`); test `:324` |
+| 4. `npm ls --json` carries no path | `npm ls --all --json --long`: nodes are keyed by `path`, each copy is read from its own `package.json`, and children are unioned per path | `task-04.md:202-221`; test `:325` |
+
+Restated in the plan: P5-P `:220`, the file list `:384`, task row `:404`, the total `:433`, OQ-P5-2 (a) `:506`, and the unverified list `:539-546`. That list named `go-licenses` and `license-checker` as tools task 04 "pins". Task 04 uses neither.
+
+**Where I departed from the review's fix, and why.** The review said to enforce *every dependency of
+`canvas/editor`*. That is wrong on one fact. `canvas/editor`'s dev list holds `vitest`
+(`task-03.md:52`), and `vitest` 5.0.1 takes `vite` as a peer
+(`desktop/node_modules/vitest/package.json:124`). The installed `vite` 8.3.0 depends on
+`lightningcss` (`vite/package.json:59`), which is `MPL-2.0` (`lightningcss/package.json:4`). All
+three were read in the main tree on 2026-09-24. So that rule fails the gate on day one, on a build
+tool that never ships. The root cause is the same in both projects: what ships is what shipped
+source reaches. So the import rule applies to `desktop` and `canvas/editor` alike. It catches the
+review's `html-to-image` case and passes `vitest`.
+
+**Why a parser, not a regular expression.** `desktop/src/components/develop/CanvasLayout.tsx:97` is
+a shipped file with a comment reading `from "this id is merely absent"`, which a `from "x"` pattern
+takes for an import. A probe with `typescript` 6.0.3 read two sources exactly: a fixture holding
+that comment, a JSX apostrophe and `/"/g`, and the real `CanvasLayout.tsx`.
+
+### I10 — the gate reports Cargo, and OQ-P5-2 states the crates
+
+| Change | Where |
+|---|---|
+| `CargoDeps`: `cargo metadata --offline --locked --format-version 1 --filter-platform x86_64-pc-windows-msvc`. It is report-only behind `CargoEnforced` (the OQ-P5-2 seam), reads Cargo's `/` as OR, and gives the chain through normal edges plus a proc-macro flag. A missing cargo prints `REPORT cargo: not scanned` and does not change the exit code | `task-04.md:94-101`, `:223-242`, `:288-291`, `:302-305`; tests `:326`, `:329` |
+| The first-run report lists every `REPORT cargo` line and, at minimum, the table of `MPL-2.0` crates. An exception cannot cover them (it must resolve to an allowed licence), so they are recorded, not excepted | `task-04.md:338-365` |
+| Acceptance expects the Cargo lines | `task-04.md:378-381` |
+| "Not claimed" now says Cargo is reported, not enforced, and states the facts | `task-04.md:390-395` |
+| OQ-P5-2 rewritten: the crates, what `MPL-2.0` obliges, the recommendation (report in phase 5) and the likely answer (allow `Zlib` and `Unicode-3.0`; waive the `MPL-2.0` crates by an owner-signed, version-pinned list) | plan `:506` |
+
+**A fifth `MPL-2.0` crate.** `cargo metadata` on 2026-09-24 (263 packages), with each licence read
+from the crate's own `Cargo.toml` in the local registry, found these:
+
+- `cssparser 0.36.0` (`:587`), `selectors 0.36.1` (`:2923`) and `dtoa-short 0.3.5` (`:850`), the
+  crates the review named, reached through `tauri 2.11.5 → tauri-utils 2.9.3 → dom_query 0.27.0`.
+- `option-ext 0.2.0` (`:2382`), reached through `tauri → dirs 6.0.0 → dirs-sys 0.5.0`.
+- **`cssparser-macros 0.6.1` (`Cargo.lock:600`)**, a proc-macro, which the review did not count.
+
+The same read found licences outside `OD-11`'s four families: 18 `Unicode-3.0` crates,
+`unicode-ident` under `(MIT OR Apache-2.0) AND Unicode-3.0`, and two `Zlib` crates. All of them are
+in OQ-P5-2 now.
+
+### Mutants named for the next implementer (the two most likely to survive)
+
+1. **`insideRoot` as `strings.HasPrefix`.** A `file:` link into `<root>-fork` would pass as first
+   party. The row at `task-04.md:322` now kills it.
+2. **Test-file exclusion by substring** (`strings.Contains(path, "test")`). `src/latest/` and
+   `contest.tsx` would go unscanned. The row at `task-04.md:320` now kills it.
+
+**Restatement greps run** over the plan and every part, for:
+`82.5|Cargo|crate|OQ-P5-2|dev dependenc|licence gate|licencegate|tldraw/|FirstParty|DeniedNames|npm ls`.
+Every hit was changed, or already agreed with this batch. `task-24.md:23-24` adds
+`modern-screenshot` without naming a list; the import rule enforces it either way.
+
+**Unverified:**
+- Whether `npm ls` prints a deduplicated node's children. The gate unions them by path either way.
+- Whether the CI agent has `cargo`. The gate says so in one line if it does not.
+- Which of the four `lib` `MPL-2.0` crates link into the release binary. `cargo metadata` unifies
+  features across build and normal use.
+- Plugin-react's injected imports. They come from its documentation, not from this tree.
+
+Nothing was built. This batch changes documents only.
+
