@@ -351,20 +351,28 @@ func repoRoot(t *testing.T) string {
 // The contract's §7.4 and this package say the same thing about repository
 // keys, or a sibling phase builds against a regex the Hub does not run. That
 // drift is what correction A1 had to fix once.
-func TestTheContractsRepoKeyRegexIsTheCodes(t *testing.T) {
+// contractSection returns one "### <number> " section of the Hub contract, up to
+// the next heading of the same level.
+func contractSection(t *testing.T, number string) string {
+	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(repoRoot(t), filepath.FromSlash(hubContract)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := strings.ReplaceAll(string(raw), "\r\n", "\n")
-	start := strings.Index(text, "\n### 7.4 ")
+	start := strings.Index(text, "\n### "+number+" ")
 	if start < 0 {
-		t.Fatal("the contract has no §7.4")
+		t.Fatalf("the contract has no §%s", number)
 	}
 	section := text[start+1:]
 	if end := strings.Index(section, "\n### "); end >= 0 {
 		section = section[:end]
 	}
+	return section
+}
+
+func TestTheContractsRepoKeyRegexIsTheCodes(t *testing.T) {
+	section := contractSection(t, "7.4")
 	found := regexp.MustCompile("`(\\^[^`]*\\$)`").FindAllStringSubmatch(section, -1)
 	byHost := map[GitHost][]string{}
 	for _, m := range found {
@@ -481,4 +489,139 @@ func TestHubCodesNeverShadowAControlPlaneCode(t *testing.T) {
 	if own[httpx.CodeProjectNotFound] != "CodeProjectNotFound" || CodeProjectNotFound != httpx.CodeProjectNotFound {
 		t.Errorf("project_not_found is not spelled as httpx spells it")
 	}
+}
+
+// ── the rest of the grammar: session and canvas ids, prefixes, reasons ──────
+
+// ValidSessionID guards route 26's session link (contract §7.8) and
+// ValidCanvasID the canvas half of a design key (§3.2). The canvas pattern is
+// also inside designKeyRe, so the two are held to one spelling.
+func TestSessionAndCanvasIDsTakeTheContractsBounds(t *testing.T) {
+	h := func(n int) string { return strings.Repeat("a", n) }
+	for id, want := range map[string]bool{
+		"s-3f2a91c0":    true, // the control plane's own ids.New("s")
+		"abcd-" + h(32): true,
+		"s-" + h(7):     false,
+		"s-" + h(33):    false,
+		"abcde-" + h(8): false,
+		"-" + h(8):      false,
+		"s-3F2A91C0":    false,
+		"S-3f2a91c0":    false,
+		"s-3f2a91c0\n":  false,
+		"x s-3f2a91c0":  false,
+		"":              false,
+	} {
+		if got := ValidSessionID(id); got != want {
+			t.Errorf("ValidSessionID(%q) = %v, want %v", id, got, want)
+		}
+	}
+	for id, want := range map[string]bool{
+		"cv-abcd":       true,
+		"cvxy-" + h(32): true,
+		"c-abcd":        false,
+		"cvxyz-abcd":    false,
+		"cv-abc":        false,
+		"cv-" + h(33):   false,
+		"cv-ABCD":       false,
+		"cv-abcd\n":     false,
+		"":              false,
+	} {
+		if got := ValidCanvasID(id); got != want {
+			t.Errorf("ValidCanvasID(%q) = %v, want %v", id, got, want)
+		}
+	}
+	inner := "(" + strings.TrimSuffix(strings.TrimPrefix(canvasIDRe.String(), "^"), "$") + ")"
+	if !strings.Contains(designKeyRe.String(), inner) {
+		t.Errorf("designKeyRe %s does not carry canvasIDRe's pattern %s", designKeyRe, inner)
+	}
+}
+
+// constValues reads file's source and returns, in order, the string literal of
+// every constant whose name starts with namePrefix.
+func constValues(t *testing.T, file, namePrefix string) []string {
+	t.Helper()
+	f, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, decl := range f.Decls {
+		gd, ok := decl.(*ast.GenDecl)
+		if !ok || gd.Tok != token.CONST {
+			continue
+		}
+		for _, spec := range gd.Specs {
+			vs := spec.(*ast.ValueSpec)
+			for i, name := range vs.Names {
+				if !strings.HasPrefix(name.Name, namePrefix) || i >= len(vs.Values) {
+					continue
+				}
+				lit, ok := vs.Values[i].(*ast.BasicLit)
+				if !ok {
+					t.Fatalf("%s is not a string literal", name.Name)
+				}
+				s, err := strconv.Unquote(lit.Value)
+				if err != nil {
+					t.Fatalf("%s: %v", name.Name, err)
+				}
+				out = append(out, s)
+			}
+		}
+	}
+	return out
+}
+
+// The id prefixes and the 401 reasons are wire values the contract names; a
+// respelled one mints ids the Hub's own CHECKs refuse, or a reason the desktop
+// cannot match. Both are read from the source, so an added constant is checked.
+func TestPrefixesAndReasonsAreTheContracts(t *testing.T) {
+	var table []string
+	for _, line := range strings.Split(contractSection(t, "3.1"), "\n") {
+		if strings.HasPrefix(line, "| `") {
+			for _, m := range regexp.MustCompile("`([a-z]+)-`").FindAllStringSubmatch(line, -1) {
+				table = append(table, m[1])
+			}
+		}
+	}
+	prefixes := constValues(t, "keys.go", "Prefix")
+	if !sameSet(prefixes, table) || len(prefixes) != 10 {
+		t.Errorf("Prefix constants %q, want contract §3.1's ten %q", prefixes, table)
+	}
+
+	var row string
+	for _, line := range strings.Split(contractSection(t, "4.2"), "\n") {
+		if strings.HasPrefix(line, "| `unauthenticated` ") {
+			row = line
+		}
+	}
+	_, list, ok := strings.Cut(row, "`reason`:")
+	if !ok {
+		t.Fatal("contract §4.2 has no unauthenticated row listing reasons")
+	}
+	var want []string
+	for _, m := range regexp.MustCompile("`([a-z_]+)`").FindAllStringSubmatch(list, -1) {
+		want = append(want, m[1])
+	}
+	if got := constValues(t, "codes.go", "Reason"); strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Errorf("Reason constants %q, want contract §4.2's %q in its order", got, want)
+	}
+}
+
+func sameSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	seen := map[string]int{}
+	for _, s := range a {
+		seen[s]++
+	}
+	for _, s := range b {
+		seen[s]--
+	}
+	for _, n := range seen {
+		if n != 0 {
+			return false
+		}
+	}
+	return true
 }
