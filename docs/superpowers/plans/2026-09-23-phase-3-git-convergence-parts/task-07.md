@@ -83,7 +83,8 @@ const (
 )
 
 // Run sweeps every lane each Interval until ctx is done. A sweep never overlaps another. After
-// it syncs the lanes, the sweep refreshes stale clones (review I4). For each (project, branch)
+// it syncs the lanes and has released every lane lock (task-02 Locks' lock order), the sweep
+// refreshes stale clones (review I4). For each (project, branch)
 // that has lanes:
 //  a. tip = rev-parse --verify --quiet refs/heads/<branch> in the PROJECT (Read, Scope Project);
 //     exit 1 (the branch is gone) → skip, since task 11's branch verbs handle that;

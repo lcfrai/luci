@@ -20,7 +20,8 @@ enumeration. After this task the product has two process launchers; the comment 
 - `control-plane/internal/gitx/machine.go` — `Machine`, `Local` (new)
 - `control-plane/internal/gitx/trailers.go` — trailer keys, `Message`, `TrailerFormat` (new)
 - `control-plane/internal/gitx/locks.go` — `Locks`, the one per-project lock that land, undo,
-  revert, the branch verbs, fetch and push all take (review I7) (new)
+  revert, the branch verbs, fetch and push all take, and every clone refresh runs under (review
+  I7, I4) (new)
 - `control-plane/internal/gitx/gitxtest/repo.go` — real-git fixtures and a scripted fake (new)
 - `control-plane/internal/gitx/*_test.go` — this task's tests (new)
 - `control-plane/internal/project/gitrunner.go` — one comment line (p2)
@@ -230,7 +231,9 @@ package gitx
 // moves a product branch, or reads one to publish it, holds its project's lock for the whole
 // verb: Land (task 09), Undo and Revert (task 10), CreateBranch, RenameBranch and DeleteBranch
 // (task 11), Fetch and Push (task 12, and task 13's push through it). A push that read a tip a
-// land was moving would publish whichever tip it happened to see.
+// land was moving would publish whichever tip it happened to see. The clone refresh's other
+// callers take it too (review I4): RefreshBranch, the refresh route (task 09), and the lane
+// syncer's tip-change sweep (task 07), which waits at most one sync interval for it.
 //
 // One per process. Task 04 constructs it in cmd/api and hands the same value to every user
 // through GitDeps.Locks, so no task builds its own. The key is the project ID, phase 2's
@@ -243,7 +246,8 @@ package gitx
 // refuses the double land, and the loser gets branch_moved (task 09).
 //
 // Lock order: a Locks lock is taken first. Syncer.SyncLane's per-lane lock (task 07) may be taken
-// inside it (Land's step 4); nothing takes a Locks lock while holding a lane lock.
+// inside it (Land's step 4); nothing takes a Locks lock while holding a lane lock. The sweep
+// (task 07) takes its Locks lock only after it has synced the lanes and released every lane lock.
 type Locks struct {
 	// unexported: mu sync.Mutex; m map[string]chan struct{} (capacity 1, one per project ID)
 }
