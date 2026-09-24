@@ -133,7 +133,7 @@ it was.
 | `D3` | same | **(b)**: phase 3 stamps `Panacea-Session` on every agent commit (phase 3 plan `:23`, `3-D6`, seam `S3-P7.1`); the manifest lists sessions from the trailers in the shipped range (task 19) |
 | `B1` | same §0.1 | two access controls, drawn as the API offers them — **corrected**: project access is now shared with a **person** (`grantee` username or email, `clients/keycloak.go:180-190`), not with a group; legacy group bindings still list, with `group` the Keycloak group's name and `grantee` its `panacea-group` attribute (`clients/keycloak.go:143-153`; the model's comment at `models/models.go:2011` says `""`, which the code never sends; review M30). A share is single-role, so a role change is one grant (`:198-214`), which drops the old role before it adds the new one, so the cockpit holds a lowering and guards the only owner (task 18, re-review I-1); a revoke takes the row's `group` (`:245-268`). The brief read an older API |
 | `B2` | same | Ship sends **no** scan-mode override; the lens shows each scan's `mode` |
-| `B3` | same | Ship, rollback, rebuild and access writes are **held for 5 s with Undo** before any request leaves the desktop (7P-15) |
+| `B3` | same | Ship, rollback and rebuild are **held for 5 s with Undo** before any request leaves the desktop (7P-15). Of the access writes, only the four that take access away are held: posture → `none` or `password`, removing a person, lowering a role, and releasing the web address. Posture → `kpmg-sso`, `panacea-sso` or `bypass-token` (each keeps the SSO gate), deploy on push, adding a person, raising a role and claiming an address are sent at once, because each one's opposite stays in reach of the owner who pressed it (task 18, *The hold*; review M24) |
 | `B4` | same | times are absolute (`Deployment.createdAt`, the Hub's `reservedAt`) |
 | Q1 | provenance contract §7.2; ADR-H1 Q1 | the Hub pins the **latest complete** revision at reserve; the manifest shows `headRevisionAtShip` when it differs |
 | Q2 | provenance contract §7.2 | releases shipped outside the cockpit read *"no brief is recorded for this release"*. With auto-deploy on, every push is such a release, and the auto-deploy control says so |
@@ -415,9 +415,11 @@ stream shape and the lift does not touch it. The desktop reads them with `fetch`
 because `EventSource` cannot send the Hub's local caller key header (Hub contract §9.4).
 
 **7P-15 — Undo is "not sent yet".** Panacea cannot un-start a pipeline or un-flip a Service, so
-the only honest undo for Ship, rollback, rebuild and access writes is to hold the request in the
-desktop for 5 s after the press, with the consequence printed beside the button **before** it is
-pressed (B3). Undo cancels before any request leaves. After 5 s the request is sent and the row
+the only honest undo for Ship, rollback, rebuild and the access writes that take access away
+(posture → `none` or `password`, removing a person, lowering a role, releasing the web address;
+task 18's table, review M24) is to hold the request in the desktop for 5 s after the press, with
+the consequence printed beside the button **before** it is pressed (B3). The other access writes
+are sent at once: none takes access away, and its opposite stays in the owner's reach. Undo cancels before any request leaves. After 5 s the request is sent and the row
 shows what happened. Cancel of a running pipeline is itself the undo of Ship after that point.
 
 ---
