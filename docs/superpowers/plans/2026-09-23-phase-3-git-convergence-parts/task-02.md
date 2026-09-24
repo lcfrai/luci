@@ -576,7 +576,7 @@ Checked on git 2.53.0.windows.2, 2026-09-24: in a plain `git init` repository, w
 `GIT_DIR` and `GIT_COMMON_DIR` to the repository's own `.git` restored the real file. So Exec pins
 the layout on every call whose `<Dir>/.git` is a directory: it sets `GIT_DIR=<Dir>/.git`,
 `GIT_COMMON_DIR=<Dir>/.git` and `GIT_WORK_TREE=<Dir>`, after `Call.Env`, and it refuses a
-`Call.Env` naming any of the three (`ErrCallShape`). A `Clone` call whose `.git` is not a directory
+`Call.Env` naming any of the three (`ErrCallShape`). A `Call.NewLane` call whose `.git` is not a directory
 is refused (`ErrCallShape`), because every clone task 03 makes has one. The pin is not set for
 `clone`, which creates a repository rather than running in one. H3's check runs under the same
 pin, so the check and the call read one file. A project whose `.git` is a file (a linked

@@ -421,7 +421,7 @@ phase 3 adapts in one file.
 
 | Seam | Where | The later phase | Must not |
 |---|---|---|---|
-| **S3-P8.1** `gitx.Machine` | `internal/gitx/machine.go` | phase 8 adds a Kata machine: a pod gets a clone, `FetchURL` names it, the control plane fetches from it | run git for a cloud machine through `gitx.Local` |
+| **S3-P8.1** `gitx.Machine` | `internal/gitx/machine.go` | phase 8 adds a Kata machine: a pod gets a clone, phase 8's machine serves task 24's git runner (P8-D7), and lane work crosses to the control plane as a bundle (R4.4) | run git for a cloud machine through `gitx.Local` |
 | **S3-P8.2** `lanes.Store` location | `PANACEA_APP_WORKTREES_DIR` | phase 8 puts cloud clones on the pod's volume, behind S3-P8.1 | move local clones under the projects root (the scanner would list each one as a project) |
 | **S3-P7.1** Session trailers in a shipped range | `git log --format=%(trailers:key=Panacea-Session)` | phase 7's manifest lists the sessions that produced a release (`7-D3`) | infer a session from a commit's time |
 | **S3-P7.2** Merge-link trailers | `Panacea-Brief`/`Panacea-Brief-Digest` on first-parent merges | phase 7 shows "reviewed against rev N at land" | parse the key (P5) |
@@ -466,7 +466,8 @@ control-plane/
   cmd/api/gitresolvers.go           laneResolverRunner (re-review b02-2 X-1)                05
   internal/gitx/                    runner.go error.go machine.go trailers.go harden.go (§HGH)
                                     locks.go (the one per-project lock, review I7)
-                                    gitxtest/repo.go  behaviour_test.go                     01 02
+                                    internal/spawnseam/seam.go (Exec's process seam, R4)
+                                    gitxtest/repo.go (+ Spy)  behaviour_test.go             01 02
   internal/lanes/                   store.go clone.go catalog.go remove.go                  03 04 11
   internal/converge/                sync.go observe.go parse.go forecast.go land.go
                                     bringin.go history.go undo.go branches.go               07-11
