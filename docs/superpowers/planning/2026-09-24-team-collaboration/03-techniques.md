@@ -308,3 +308,152 @@ a task feed, so a customer's other agent systems can read what our fleet is doin
 principle is the right one for us too: agents share **declared intent and observed facts**, never
 transcripts. **Cost now:** none; revisit when a customer asks for interop.
 
+---
+
+## 2. Intent and focus capture — what each agent is doing, without reading the PTY
+
+Four sources, ordered from *declared before work* to *observed during work*. Each row says what it
+yields for the board (§1.2) and for the forecast (§3).
+
+| # | Source | Yields | Latency | Needs OD-8 adapter? | Always available? |
+|---|---|---|---|---|---|
+| I1 | **Declared at launch**: the session's `title`, its `openingPrompt`, and its brief key | *what it was started to do* | 0 | no | yes |
+| I2 | **Git**: lane ref, commits, subjects, `Panacea-Session` trailer, changed paths | *what it has done*, per commit | lane-sync interval | no | yes |
+| I3 | **Working tree**: `status --porcelain=v2` of the clone, or a watcher in `sandboxd` | *what it is touching now*, uncommitted | seconds | no | yes |
+| I4 | **Transcript**: the agent's own todo list and the files its tool calls touched | *what it thinks it is doing next* | seconds | **yes** | no — must degrade |
+
+### I1 — declared focus
+
+The control plane already holds it: a session carries `title` and `openingPrompt`
+(`control-plane/internal/api/sessions.go:595,605,703-704`), passed to the CLI as one argv element
+(`control-plane/internal/harness/argv.go:23-29`). Phase 4 adds the **brief**: a session in a branch
+worktree inherits the branch's brief through `CLAUDE.md` (phase 4 plan `:5`), and a brief is
+*"project- or branch-scoped. A branch is named by its git ref"* in the Hub
+(`.claude/worktrees/hub/docs/superpowers/adr/ADR-H1-hub-architecture.md:409`). A land's merge commit
+carries the brief key as a trailer (phase 3 plan `:32-34`). So the Hub can show, per agent,
+**"started for brief `bf-…` §3, titled 'evidence upload'"** with no inference at all.
+
+**Privacy choice.** An opening prompt is the user's own words and may hold things they would not
+post to the team. Share the **title and brief key by default**; share the prompt only if the owner
+ticks *"show my prompt to the team"*. This is a product decision, not a technical one — **owner
+decision needed**.
+
+### I2 — git, the ground truth
+
+Phase 3 task 07 already computes per lane *"the commits it has that its branch lacks, the paths
+those commits change since the merge base, and the paths changed and not committed"*, and says
+*"Nothing here is enforced and nothing asks an agent anything … These are readings"*
+(`…/phase-3-git-convergence-parts/task-07.md:3-11`). Every agent commit carries
+`Panacea-Session: <id>` from a hook in the image (phase 3 plan `:26-27`), so a commit subject is
+**the agent's own one-line statement of what it did**, attributed mechanically. Commit subjects
+are the best cheap "focus" signal there is; the board shows the last one.
+
+**Across machines:** each control plane pushes a **summary** of its lanes to the Hub (lane id,
+branch ref, head sha, merge base, changed paths, last subject, session and brief ids) — not the
+objects. §3 covers when the objects themselves must travel.
+
+### I3 — the working tree, now
+
+Committed work lags. The agent is editing `routes.go` for ten minutes before it commits. Two ways:
+- **Poll `git status --porcelain=v2`** in the clone on the syncer's timer. Task 07 already does it,
+  read-only and *"without taking a lock"*. Cost: one `git status` per lane per tick; large repos
+  want `core.untrackedCache` (git-config docs; **UNVERIFIED** on the owner's repos).
+- **A file watcher in `sandboxd`** (inotify inside the Kata guest). Faster, but it is new code in the
+  sandbox, and whether guest writes on a host-shared mount raise host-side events is
+  **UNVERIFIED**; a watcher inside the guest avoids that question. Build only if polling proves
+  too slow.
+
+Both yield **paths, not meaning**, which is the point: they cannot be forged by what the agent
+prints (OD-8's reason 2, owner decisions `:65-69`).
+
+### I4 — the transcript, optional
+
+Claude Code's JSON-lines transcript records tool calls (paths an `Edit` touched) and the agent's
+own todo/task list — the single best *"what it will do next"* signal. OD-8 allows reading it
+through a pinned, canary-tested adapter whose consumers *"degrade to commit- and session-level
+facts"* (owner decisions `:73-79`); phase 3 already plans that adapter as task 17, pinned to one
+CLI version (phase 3 plan `:140,565,613`). **Extend that adapter; do not write a second one.**
+
+Share only **derived facts** — the current todo's title, the paths touched — never transcript
+text. The transcript holds the user's prompts, the code, and possibly secrets the agent read.
+The Hub stores the derived facts with the same retention and erasure as the rest (ADR-H1 G6).
+The board must look complete with I4 absent, because OD-8 says no feature may require it.
+
+---
+
+## 3. Conflict prediction across machines
+
+Phase 3 forecasts conflicts **inside one project repository**, where every lane already is
+(`refs/panacea/lanes/<worktree-id>`, plan `:28-31,103-110`). A teammate's lanes are on **another
+machine**. Four tiers, each needing more of the teammate's data than the last:
+
+| Tier | Signal | Data that must travel | Precision | Cost |
+|---|---|---|---|---|
+| **P** | same **paths** changed | path lists (I2, I3) | coarse; many false alarms | Hub-side set intersection; ~½ day |
+| **H** | overlapping **hunks** on the same base blob | + base blob id and line ranges from `diff -U0` headers | close to textual conflict | ~1 day |
+| **M** | exact **`merge-tree`** forecast | the commits themselves | **exact for committed work** (survey §3.5) | objects must move; 2–3 days |
+| **S** | **speculative build and test** of the merge | commits, plus a sandbox to build in | catches semantic conflicts | a warm Kata pod per check; later |
+
+### P and H — metadata only, computed by the Hub
+
+Each control plane already sends lane summaries (§2, I2). The Hub intersects changed-path sets
+across every lane of every member, per project, on each feed event, and writes a *forecast* event
+to the feed. Tier H adds each file's base blob id and changed line ranges — still **no code
+content**, so the Hub never holds customer source. Two lanes that changed the same lines of the
+same base blob will almost always conflict; two that changed different regions usually will not.
+
+**Noise control, from industry.** Microsoft's **ConE** warns on concurrent edits across pull
+requests using *"the Extent of Overlap between pull requests, and the identification of Rarely
+Concurrently Edited Files"*; over *"234 repositories inside Microsoft"* it made 775
+recommendations, *"rated as useful in over 70%"* of cases (Maddila et al., TOSEM 2022,
+https://arxiv.org/abs/2101.06542). Two lessons: **warn rarely** (775 warnings over 26,000 PRs), and
+weight a file by how seldom it is edited concurrently — a lockfile everyone touches is not news.
+
+### M — exact forecasts need the objects in one place
+
+`git merge-tree --write-tree` *"performs a merge without touching the index or working tree"*,
+exits 1 on conflicts, and with `--name-only -z` lists conflicted files machine-readably
+(https://git-scm.com/docs/git-merge-tree). Phase 3 already has the one `-z` parser for it
+(task 07 `:16`). The problem is only **where the teammate's commits are**. Three options:
+
+1. **Push lanes to the shared remote under a private namespace**, e.g.
+   `refs/panacea/lanes/<user-id>/<worktree-id>`, and each control plane fetches teammates' lanes
+   and runs `merge-tree` for **its own** lanes against them. The remote is already trusted with the
+   code and already enforces who may read it. Risks: whether **Azure DevOps and GitHub accept
+   pushes to a custom namespace** is **UNVERIFIED** — ADO is reported to reject `refs/pull/*`
+   (https://github.com/Lillevang/github_mirror/issues/3, read 2026-09-24), which says nothing
+   either way about `refs/panacea/*`. A 10-minute push test per host settles it. If refused, the
+   fallback `refs/heads/panacea/lanes/…` shows in branch lists and can trigger CI; exclude the
+   prefix in pipeline triggers.
+2. **The Hub relays `git bundle`s** of each lane since its merge base, as content-addressed blobs
+   (ADR-H1 G2 already plans `sha256` blobs, `:251`). Works whatever the host allows, but makes
+   the Hub a **custodian of customer source**, with residency, retention and erasure consequences
+   the ADR has not taken on. **Not recommended** unless option 1 fails on a host.
+3. **Wait for the branch to be pushed** (a PR). Honest, free, and too late for the ask.
+
+**Recommendation:** option 1, with tier P/H as the always-on layer and M computed where the lanes
+are reachable. Uncommitted work (I3) never travels as objects; P/H cover it from paths.
+
+**Who computes, and how often.** Pairwise forecasts are *O(lanes²)*. Each control plane computes
+only *its own* lanes against *changed* teammate lanes, triggered by a feed event, so the work
+follows activity, not team size. `merge-tree` inside GETs is already accepted in phase 3
+(plan `:214`).
+
+### S — semantic conflicts
+
+Textual forecasts miss the conflict that matters most: two changes that merge clean and break the
+build. **Crystal** *"speculatively merges local developers' repositories, builds, and tests the
+results"*; its study found conflicts *"are frequent, persistent, and appear not only as
+overlapping textual edits but also as subsequent build and test failures"* (Brun, Holmes, Ernst,
+Notkin, ESEC/FSE 2011, https://cs.uwaterloo.ca/~rtholmes/papers/fse_2011_brun.pdf). For us that
+is a warm-pool Kata pod running the project's own checks on a merge-tree result. **Later**: it
+spends compute per pair, and whose quota pays is a decision (**owner decision needed**).
+
+### Symbols
+
+A path is a blunt unit. Mapping hunks to their enclosing function or type turns *"both lanes
+changed `argv.go`"* into *"both lanes changed `Build`"*, which is what an agent can act on. A
+permissively licensed parser (tree-sitter is MIT, https://github.com/tree-sitter/tree-sitter,
+licence **UNVERIFIED** for each grammar) run by the control plane on its own lanes yields symbol
+names; only names travel. ~2–3 days for the first three languages. After P/H/M.
+
