@@ -217,7 +217,7 @@ Responses are capped at 64 MiB of stdout; a call that would exceed it fails `git
 `["clone", "--", <RemoteURL>, "/machine/projects/<name>"]`. `<name>` must match
 `^[a-z0-9][a-z0-9._-]{0,62}$`, and `projects/<name>` must not exist yet. The user's host token
 arrives in `Env`, host-scoped to `RemoteURL` (from phase 3's credential store, which the Hub's C1
-builds, ADR-H1 `:344-352`). H3 has nothing to read, because no repository exists yet. The next
+builds, ADR-H1 §5.2, `67609ab` `:344-352`). H3 has nothing to read, because no repository exists yet. The next
 call in the new repository is a `project`-scope call, and H3 checks it then. Any other
 `none`-scope call is `400`. The only other `clone` admitted is phase 3's lane create, a
 `project`-scope call (item 2). No clone-specific route exists; the cockpit surface

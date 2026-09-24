@@ -5,7 +5,7 @@ The laptop's control plane drives every sandbox through `backend.Backend`'s seve
 implementation, beside `dockerbe` and `katabe`, and the interface **does not change**. It calls the
 broker (tasks 18–19) as the signed-in user, with a token from the Hub's token source (HA-2 —
 ADR-H1 names it `entraauth.TokenSource.Token(ctx, scope)`, built in the Hub's client track C1,
-`:334-342`, `:564`). Each `remotebe.Backend` is bound to **one cloud machine**; task 23's
+§5.2 and §5.9, `67609ab` `:334-342`, `:564`). Each `remotebe.Backend` is bound to **one cloud machine**; task 23's
 `machines.Set` holds one per machine.
 
 Two things phase 2's code assumes that are false for a remote sandbox, and how this task handles
@@ -21,7 +21,7 @@ each without changing the seven methods:
 
 **Files:**
 - `control-plane/internal/backend/remotebe/{remote.go,errors.go,attach.go}` and `remote_test.go`, `attach_test.go` (new)
-- `control-plane/internal/backend/ready.go` — `ReadyWaiter`, `ErrQuotaExceeded`, `ErrMachineFull` and `MachineFullError` (new file, so `backend.go` — edited by tasks 14 and 15 and by phase 3 — is not touched again)
+- `control-plane/internal/backend/ready.go` — `ReadyWaiter`, `ErrQuotaExceeded`, `ErrMachineFull` and `MachineFullError` (new file, so `backend.go` — edited by tasks 14, 15 and 18 and by phase 3 — is not touched again)
 
 #### Contract (complete)
 

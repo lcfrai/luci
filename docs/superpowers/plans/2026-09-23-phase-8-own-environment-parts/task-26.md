@@ -148,7 +148,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 - [ ] **Step 2:** Amend UI contract §2 and `types.ts` together; the SX.2 gate passes.
 - [ ] **Step 3:** Tests; client, poller, store, selectors; chip; popover; CSS through tokens only.
 - [ ] **Step 4:** Update `client.ts:6-8`'s comment: the desktop hop's authentication is the Hub's
-  local caller key (ADR-H1 `:439-449`, its task C3); the user's Entra token never enters the
+  local caller key (ADR-H1 §5.4, `67609ab` `:439-449`, its task C3); the user's Entra token never enters the
   webview and travels control plane → broker only.
 - [ ] **Step 5:** `npm run typecheck`, `npm test`; commit. **Leave the branch unmerged for the
   owner's review** (OD-1: "UI branches stay unmerged until the owner has looked at them").
@@ -166,7 +166,7 @@ machine and on the local one; the popover with both; a sleeping machine woken by
 
 #### What this task does not claim
 
-- The sign-in button: the Hub's C4 (ADR-H1 `:567`).
+- The sign-in button: the Hub's C4 (ADR-H1 §5.9, `67609ab` `:567`).
 - Machine sizing, a second-machine form, or delete: FUNCTIONAL-SPEC asks for sizing "only … for a
   second machine, or after an OOM"; the broker supports a second machine (task 19) and the
   cockpit surface for it is later.

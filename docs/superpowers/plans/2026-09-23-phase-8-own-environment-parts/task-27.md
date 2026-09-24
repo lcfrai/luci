@@ -20,7 +20,7 @@ sandbox image's digest is also OD-8's adapter pin.
 | `panacea-app/sandbox` | `node:20-bookworm-slim` (unchanged, `Dockerfile:10`) | unchanged: sandboxd from vendor, git, ripgrep, Claude Code `2.1.274` | `dev` 1001 | `entrypoint.sh` |
 | `panacea-app/machine` | **`FROM` the sandbox image, by the digest this pipeline run just built** | + `/usr/local/bin/machined`; + git from `bookworm-backports` (below) | `dev` 1001 | `/usr/local/bin/machined` |
 | `panacea-app/broker` | `gcr.io/distroless/static-debian12:nonroot`, **by digest** | `/broker` | 65532 | `/broker` |
-| `panacea-app/hub` | the same distroless base, by digest | `/hub` (`control-plane/cmd/hub`, ADR-H1 `:286`) | 65532 | `["/hub", "serve"]`; the chart's migrate Job runs `["/hub", "migrate"]` (ADR-H1 `:500-501`) |
+| `panacea-app/hub` | the same distroless base, by digest | `/hub` (`control-plane/cmd/hub`, ADR-H1 §5.1, `67609ab` `:286`) | 65532 | `["/hub", "serve"]`; the chart's migrate Job runs `["/hub", "migrate"]` (ADR-H1 §5.6, `67609ab` `:500-501`) |
 
 **Why the machine image adds git.** Phase 3's `gitx.MinVersion` is `2.40.0` (`merge-tree
 --merge-base`, phase 3 task 02 `:128-130`), and `machined` runs `gitx.CheckVersion` at start

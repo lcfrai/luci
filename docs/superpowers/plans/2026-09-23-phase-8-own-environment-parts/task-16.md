@@ -3,7 +3,8 @@
 The broker must know **who** is calling before it creates a pod (P8-D4), and ADR-H1 made this
 package the Hub's validator too: the Hub is a second binary in the control-plane module and
 "`control-plane/cmd/broker` imports `control-plane/internal/entra` … HA-1 … is satisfied by
-construction: it is one package, not two to reconcile" (ADR-H1 `:206-229`).
+construction: it is one package, not two to reconcile" (ADR-H1 §4.1, `67609ab` `:206-229`; the
+plan's "How ADR-H1 is cited" pins every ADR line number to that commit).
 
 **The interface is the Hub contract's.** The Hub contract (sibling `feat/hub`,
 `docs/superpowers/contracts/2026-09-23-hub-contract.md` §6.3, `:417-494`) wrote down the interface
@@ -106,18 +107,19 @@ var _ Validator = (*JWKSValidator)(nil)
 var ErrKeySetUnavailable = errors.New("entra: key set unavailable")
 
 // Key is "tid/oid", the stable identity. Never sub (pairwise per app), never
-// preferred_username (mutable) — ADR-H1 :366.
+// preferred_username (mutable) — ADR-H1 §5.2 (67609ab :366).
 func (c Claims) Key() string { return c.TenantID + "/" + c.ObjectID }
 
 // Ready fetches the key set of every enrolled tenant not yet fetched and
 // returns the first failure (wrapping ErrKeySetUnavailable). The broker's
-// /readyz calls it; the Hub's /readyz may (ADR-H1 :528-530).
+// /readyz calls it; the Hub's /readyz may (ADR-H1 §5.7, 67609ab :528-530).
 func (v *JWKSValidator) Ready(ctx context.Context) error
 
 // Middleware authenticates "Authorization: Bearer <token>", stores the Claims
 // in the request context, and REMOVES the Authorization header from the
 // request it hands on, so no handler can forward the user's token (ADR-H1
-// :543-546: no token is forwarded to another service or into a sandbox).
+// §5.8, 67609ab :543-546: no token is forwarded to another service or into a
+// sandbox).
 // A missing header: 401 with "WWW-Authenticate: Bearer". A rejection: 401 with
 // "WWW-Authenticate: Bearer error=\"invalid_token\"", except ErrTenant, which
 // is 403. ErrKeySetUnavailable: 503 backend_unavailable. Bodies are httpx

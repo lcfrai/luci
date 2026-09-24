@@ -16,7 +16,8 @@ a frame: it copies them, as the control plane does (`internal/api/attach.go:212-
 - `control-plane/cmd/broker/sandboxes.go`, `attach.go`, `machinecheck.go`, `capacity.go` and their tests (new)
 - `control-plane/cmd/broker/server.go` — the five routes join the table (modify)
 - `control-plane/internal/backend/backend.go` — `KubeLabelControlPlane`, `Spec.ControlPlane` and
-  its `ValidateSpec` rule (modify; review I6)
+  its `ValidateSpec` rule (modify; review I6), and the `MaxMessageBytes` comment at `:29-37`, which
+  step 3 updates to name five sites (review m3)
 - `control-plane/internal/sandbox/manager.go` and `internal/backend/katabe/kata.go` — the label
   on the pod and its Secret, passed through from `Spec.ControlPlane` (modify; review I6)
 
@@ -308,7 +309,7 @@ the key).
 | `TestAttachWithoutTheTokenHeaderIs400` | before any upgrade | an upgrade the pod will refuse |
 | `TestAttachToAStoppedSandboxIs409BeforeUpgrade` | HTTP 409 `sandbox_not_running`, no 101 | a close code remotebe cannot map |
 | `TestARejectedTokenIs403AttachRejected` | the stand-in answers 401 → HTTP 403 `attach_rejected` | a 500 that looks like a broker bug |
-| `TestThePodNeverSeesTheEntraToken` | the stand-in records its request headers: `Authorization` is `Bearer <attach token>`, never the Entra token | the user's token forwarded into a sandbox (ADR-H1 `:545`) |
+| `TestThePodNeverSeesTheEntraToken` | the stand-in records its request headers: `Authorization` is `Bearer <attach token>`, never the Entra token | the user's token forwarded into a sandbox (ADR-H1 §5.8, `67609ab` `:545`) |
 | `TestKeepalivePingsTheCaller` | with a 50 ms test interval, the caller observes pings while idle | idle sockets cut by the edge |
 | `TestShutdownClosesRelaysWith1001` | cancelling the server context → the caller sees status 1001 | a silent drop remotebe cannot tell from a crash |
 

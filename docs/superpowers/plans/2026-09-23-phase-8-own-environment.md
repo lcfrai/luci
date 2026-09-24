@@ -229,10 +229,17 @@ spinner per row, `tabular-nums` on live numbers), and its visual acceptance is *
 
 **The Hub contract did not exist when this plan was written.** The asks below were written at
 21:40 against a 100-line ADR-H1 (§0–§1 only). By the time tasks 16–29 were written the ADR was
-complete and committed on `feat/hub` (`67609ab`, 653+ lines, read by absolute path) and answered
+complete and committed on `feat/hub` (`67609ab`, 769 lines, read by absolute path) and answered
 most of them — see "What ADR-H1 answered" under the table. The contract it builds
 (`docs/superpowers/contracts/2026-09-23-hub-contract.md`, "§12.3 answers HA-4 and HA-5 field by
-field", ADR-H1 `:536-538`) was **still absent** from the sibling tree. So every Hub-dependent task
+field", ADR-H1 §5.7, `67609ab` `:536-538`) was **still absent** from the sibling tree.
+
+**How ADR-H1 is cited.** `feat/hub` has kept moving since `67609ab`, so a bare line number drifts
+(on 2026-09-24 the branch head's ADR was 776 lines, with everything from §5.1 on six or seven lines
+lower than at `67609ab`). Every ADR-H1 line
+citation in this plan and its parts is therefore pinned: `67609ab :<line>` means line `<line>` of
+`git show 67609ab:docs/superpowers/adr/ADR-H1-hub-architecture.md`, and each carries its § number,
+which is what to follow on a later revision. So every Hub-dependent task
 is written against the ADR's answers, and tasks 09, 16, 22 and 29 re-check the contract **before**
 they start (each has that as step 1). Nothing here invents a Hub route.
 
@@ -250,19 +257,19 @@ they start (each has that as step 1). Nothing here invents a Hub route.
 
 | Ask | ADR-H1's answer | Where | Effect on this plan |
 |---|---|---|---|
-| HA-1 | **The Hub is a second binary in the control-plane module** (`control-plane/cmd/hub`), and it uses **this plan's `control-plane/internal/entra`** — "one package, not two to reconcile". Its validation rules are fixed: RS256 only with `kid`; JWKS cached 24 h, refetched on an unknown `kid` at most once per 5 min; `ver` 2.0; `iss` exact for the token's `tid`, which must be enrolled; `aud` = the API's client id; `scp` must contain the API's scope, app-only tokens refused; `azp` in an allowlist; 120 s skew; principal `(tid, oid)`, never `sub` or `preferred_username` | ADR `:206-238`, `:354-366` | Task 16 implements exactly that table, parameterised by audience, scope and allowed clients, so one package serves both servers |
-| HA-2 | `entraauth.TokenSource.Token(ctx, scope)` in the **control plane**, single-flight refresh 5 min before `exp`, one refresh token for every resource (Hub, broker, optionally ADO); built in the Hub's client track **C1** | ADR `:334-342`, `:564` | Task 22 consumes that interface; until C1 lands, its stub returns `ErrSignedOut` |
-| HA-3 | **Three registrations**, "as task 09 already guessed": desktop public client, Hub API (`Hub.Access`), broker API (`Sandboxes.Access`); details in the contract | ADR `:340-341`, `:666` | Task 09 stands; step 1 reconciles the details |
-| HA-4 | `hub serve` on `:8080`, `/healthz` (up) and `/readyz` (Postgres within 1 s, schema at the built version, JWKS fetched), stateless, **two replicas**, **20 s** graceful shutdown, config `PANACEA_APP_HUB_*` | ADR `:286-288`, `:528-538` | Task 29's chart defaults hold; task 27 builds `images/hub` from `control-plane/cmd/hub` |
-| HA-5 | **Postgres 16, no extensions**; migrations by **`hub migrate`** in a pre-upgrade Job under the **DDL identity**; `hub serve` never migrates and is not ready until the schema matches; DML identity `id-hub`, DDL identity `id-hub-migrate`; the database is reached with workload identity and an Entra token from a standard-library token exchange | ADR `:496-503`, `:532-535`, `:666` | Tasks 08, 10 and 29 stand as written |
-| HA-6 | **Only the control plane calls the Hub**; the Hub rejects any request carrying an `Origin` header; no CORS | ADR `:433-437`, `:546` | The edge sets no CORS headers (task 13 stands) |
-| HA-7 | Audit in Postgres (`audit_events`, hash-chained); blobs in a Postgres table behind a `blobstore` interface; **no storage account**; audit anchoring to Log Analytics is later | ADR `:504-510`, `:580-581` | No storage account; the DCR has no Hub stream yet |
+| HA-1 | **The Hub is a second binary in the control-plane module** (`control-plane/cmd/hub`), and it uses **this plan's `control-plane/internal/entra`** — "one package, not two to reconcile". Its validation rules are fixed: RS256 only with `kid`; JWKS cached 24 h, refetched on an unknown `kid` at most once per 5 min; `ver` 2.0; `iss` exact for the token's `tid`, which must be enrolled; `aud` = the API's client id; `scp` must contain the API's scope, app-only tokens refused; `azp` in an allowlist; 120 s skew; principal `(tid, oid)`, never `sub` or `preferred_username` | ADR §4.1, §5.2; `67609ab` `:206-238`, `:354-366` | Task 16 implements exactly that table, parameterised by audience, scope and allowed clients, so one package serves both servers |
+| HA-2 | `entraauth.TokenSource.Token(ctx, scope)` in the **control plane**, single-flight refresh 5 min before `exp`, one refresh token for every resource (Hub, broker, optionally ADO); built in the Hub's client track **C1** | ADR §5.2, §5.9 (C1); `67609ab` `:334-342`, `:564` | Task 22 consumes that interface; until C1 lands, its stub returns `ErrSignedOut` |
+| HA-3 | **Three registrations**, "as task 09 already guessed": desktop public client, Hub API (`Hub.Access`), broker API (`Sandboxes.Access`); details in the contract | ADR §5.2, §7.1 (row 8); `67609ab` `:340-341`, `:666` | Task 09 stands; step 1 reconciles the details |
+| HA-4 | `hub serve` on `:8080`, `/healthz` (up) and `/readyz` (Postgres within 1 s, schema at the built version, JWKS fetched), stateless, **two replicas**, **20 s** graceful shutdown, config `PANACEA_APP_HUB_*` | ADR §5.1, §5.7; `67609ab` `:286-288`, `:528-538` | Task 29's chart defaults hold; task 27 builds `images/hub` from `control-plane/cmd/hub` |
+| HA-5 | **Postgres 16, no extensions**; migrations by **`hub migrate`** in a pre-upgrade Job under the **DDL identity**; `hub serve` never migrates and is not ready until the schema matches; DML identity `id-hub`, DDL identity `id-hub-migrate`; the database is reached with workload identity and an Entra token from a standard-library token exchange | ADR §5.6, §5.7, §7.1 (row 8); `67609ab` `:496-503`, `:532-535`, `:666` | Tasks 08, 10 and 29 stand as written |
+| HA-6 | **Only the control plane calls the Hub**; the Hub rejects any request carrying an `Origin` header; no CORS | ADR §5.4, §5.8; `67609ab` `:433-437`, `:546` | The edge sets no CORS headers (task 13 stands) |
+| HA-7 | Audit in Postgres (`audit_events`, hash-chained); blobs in a Postgres table behind a `blobstore` interface; **no storage account**; audit anchoring to Log Analytics is later | ADR §5.6, §5.9; `67609ab` `:504-510`, `:580-581` | No storage account; the DCR has no Hub stream yet |
 
 **One ADR decision touches phase 8's broker:** audiences are separate and "none is ever forwarded
-to another service or into a sandbox" (ADR `:543-546`). The broker therefore strips the caller's
+to another service or into a sandbox" (ADR §5.8, `67609ab` `:543-546`). The broker therefore strips the caller's
 `Authorization` header before it dials a pod; a sandbox sees only its own attach token (task 18).
 **And one touches the control plane's hop:** the Hub's C3 adds a local caller key to every
-control-plane route except the WebSocket attach (ADR `:439-449`). Task 26 does not add it — C3
+control-plane route except the WebSocket attach (ADR §5.4, `67609ab` `:439-449`). Task 26 does not add it — C3
 does — but it must not break it.
 
 ### What the Hub contract then confirmed (sibling `feat/hub`, `2026-09-23-hub-contract.md`, read at 2,289 lines)
@@ -442,7 +449,7 @@ pipelines/scripts/lib/where.sh      is_pipeline: one pipeline-or-workstation rul
 deploy/values/{dev,prod}/*.yaml     per-environment values; ids injected by the pipeline           29
 control-plane/internal/sandbox/manager.go      config, hardening, token Secret, machine mounts; the control-plane label (18)   14, 15, 18
 control-plane/internal/sandbox/machine.go      a machine's disk, token, pod and PDB                19
-control-plane/internal/backend/backend.go      KubeLabelOwner; MachineMount, Spec.Machine; KubeLabelControlPlane, Spec.ControlPlane (18)   14, 15, 18
+control-plane/internal/backend/backend.go      KubeLabelOwner; MachineMount, Spec.Machine; KubeLabelControlPlane, Spec.ControlPlane, the MaxMessageBytes comment (18)   14, 15, 18
 control-plane/internal/backend/ready.go        ReadyWaiter, ErrQuotaExceeded, ErrMachineFull       22
 control-plane/internal/backend/katabe/kata.go  owner scope, WorkDir, machine mounts; ControlPlane passed through (18)   14, 15, 18
 control-plane/internal/backend/dockerbe/docker.go  refuses MachineMounts                           15
@@ -465,7 +472,7 @@ docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md §2   amended with 
 images/{broker,hub,machine}/Dockerfile  images/build.sh  images/images_test.sh                    27
 azure-pipelines.yml                             the Go pipeline: PR trigger, path filter, govulncheck 28
 pipelines/templates/tools.yml  pipelines/scripts/{install-tool,lint}.sh                           28 (+27, 30)
-pipelines/{desktop,licences,secrets,infra,charts}.yml  licences/  .gitleaks.toml                  28
+pipelines/{desktop,licences,secrets,infra,charts}.yml  licences/  .gitleaks.toml                  28 (+10, 13)
 pipelines/images.yml                                                                               27
 pipelines/{infra-plan,deploy}.yml  pipelines/scripts/{estate-guard,tf-stack,helm-values}.sh  written, NOT registered  30
 pipelines/scripts/cluster-kinds_test.sh  infra/rbac/{cluster,sandboxes}-deployer.json   the cluster identity's roles (C3/I8)  30
@@ -484,8 +491,9 @@ missing stops and reports it.
 | `go.work` | 13 only (`use ./deploy/tests/netpolcover`, a test-only module that ships in no image) |
 | `deploy/tests/netpolcover/*` | 13 → 29 (29 adds `broker` and `hub`, deletes the stand-in `testdata/backends.yaml`, and adds `session_size_is_one_value`; 13 also owns `every_sandbox_container_is_sized`, review I4) |
 | `pipelines/charts.yml` | 28 → 13 (13 adds the cross-chart `netpolcover` job) |
+| `pipelines/infra.yml` | 28 → 10 (10 adds the `role-allowlist.sh` step it writes the script for; review m2) |
 | `internal/sandbox/manager.go` | 14 → 15 → 18 (and phase 3's task 05, which lands first — task 14 step 0) |
-| `internal/backend/backend.go` | 14 → 15 → 18 (and phase 3's task 05) |
+| `internal/backend/backend.go` | 14 → 15 → 18 (18 adds `KubeLabelControlPlane` and `Spec.ControlPlane`, and updates the `MaxMessageBytes` comment at `:29-37` to name five sites; and phase 3's task 05) |
 | `internal/backend/katabe/kata.go` | 14 → 15 → 18 |
 | `internal/api/{sessions,attach,api}.go` | 23 → 24 |
 | `internal/httpx/problem.go` | 23 → 24 |
@@ -516,7 +524,7 @@ implementer who has read this file and the part, and assume the part's tests are
 | 07 | `stacks/foundation`: the composition, `modules/egress-firewall`, the DNS zone, the edge IP and its A records, role assignments, checks, `dev`/`prod` tfvars | 02–06 | 3 |
 | 08 | `modules/postgres` and `stacks/data`: Flexible Server for the Hub, Entra-only | 07 | 2 |
 | 09 | `stacks/identity`: the Entra registrations and groups (HA-3) | 01 | 2.5 |
-| 10 | `modules/workload-identity` and `stacks/workloads`: the pods' identities and their grants | 07, 08, 09 | 2 |
+| 10 | `modules/workload-identity` and `stacks/workloads`: the pods' identities and their grants; the `role-allowlist.sh` step in `pipelines/infra.yml` | 07, 08, 09, 28 | 2 |
 
 ### Group B — the cluster's own objects, as charts
 
@@ -578,17 +586,24 @@ implementer who has read this file and the part, and assume the part's tests are
 
 ### Order
 
-The graph allows eight waves. Tasks inside a wave share no file (see "Shared files" above).
+The graph allows ten waves. Tasks inside a wave share no file (see "Shared files" above), and no
+task sits in the same wave as, or an earlier wave than, a task it depends on (review m2: 28 was in
+wave 1 beside 01, which it depends on, and 32 and 33 were in wave 8 beside 31). Task 11's
+dependency on 06 is marked "names only" in the task list (a chart that renders against no cluster
+needs 06's names, such as the `kata-vm-isolation` RuntimeClass, not its code), so 11 may run
+before 06.
 
 ```
-wave 1   01  14  16  28
-wave 2   02  03  04  09  11  15  17
+wave 1   01  14  16
+wave 2   02  03  04  09  11  15  17  28
 wave 3   05  06  12  13  18  20
 wave 4   07  19  22  27
 wave 5   08  23  29          21 (when phase 3 task 02 has landed)
 wave 6   10  24  30
 wave 7   25 (when phase 3 tasks 02–04 and 11 have landed)  26
-wave 8   31  32  33          (31–32: owner-gated, OD-12)
+wave 8   31                  (owner-gated, OD-12)
+wave 9   32                  (owner-gated, OD-12; depends on 31)
+wave 10  33                  (depends on every task)
 ```
 
 **The critical path** is 14 → 15 → 18 → 19 and 16 → 17 → 18 → 22 → 23 → 24 → 26: the cloud machine

@@ -123,7 +123,8 @@ const (
 // the panic logged, never echoed), a request logger (method, route pattern,
 // status, duration, owner hash — never a header value), an Origin refusal (any
 // request carrying an Origin header gets 403 forbidden_origin: only the control
-// plane calls the broker, never a browser — the Hub's rule, ADR-H1 :436-437),
+// plane calls the broker, never a browser — the Hub's rule, ADR-H1 §5.4,
+// 67609ab :436-437),
 // then entra's Middleware for everything under /v1/.
 func newServer(cfg Config, v *entra.JWKSValidator, deps serverDeps) http.Handler
 

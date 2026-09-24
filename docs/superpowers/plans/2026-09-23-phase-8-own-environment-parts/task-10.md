@@ -38,6 +38,7 @@ identities" residual 1 lists them.
 - `infra/terraform/stacks/workloads/{dev,prod}.tfvars`, `.terraform.lock.hcl`, `tests/workloads.tftest.hcl` (new)
 - `infra/terraform/role-allowlist.txt` — one role name per line (new)
 - `infra/scripts/role-allowlist.sh` — fails if any `role_definition_name` under `infra/terraform` is not in the file (new)
+- `pipelines/infra.yml` — one step, `bash infra/scripts/role-allowlist.sh`, between task 28's `guards.sh` and `validate.sh` steps (modify; task 28 creates the file, so this task depends on 28)
 
 #### Contract — `modules/workload-identity`
 
@@ -242,7 +243,8 @@ And `bash infra/scripts/role-allowlist.sh` → `role-allowlist: 7 roles used, al
 - [ ] **Step 4:** `role-allowlist.txt` and its script; run it over the whole of `infra/terraform`
   (tasks 02–10) — it must list exactly the seven roles, or a task introduced a role nobody listed.
   A mutant that puts `AcrPush` or `Azure Kubernetes Service RBAC Admin` back into `grants.tf` must
-  turn it red (plan re-review I-2).
+  turn it red (plan re-review I-2). Add the script's step to `pipelines/infra.yml` and run
+  `bash pipelines/scripts/lint.sh` (task 28), which must still pass.
 - [ ] **Step 5:** guards, validate, commit.
 
 #### Acceptance
