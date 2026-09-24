@@ -109,3 +109,78 @@ disagree, the decision wins and the task that carries it says so.
 | **OD-13** | No Panacea source is copied; patterns only. | 11, 14 |
 
 ---
+
+## Global constraints
+
+Every task inherits these. A part that breaks one must say so and say why.
+
+**Where the code is built.** Phase T is written on `feat/team-mode`. Three of its groups extend code
+that lives, today, on a sibling branch that is not merged: the Hub (`feat/hub`, worktree
+`.claude/worktrees/hub`), phase 8 (`env`, worktree `.claude/worktrees/env`) and phase 3
+(`.claude/worktrees/phase-3`). **A delta task starts only after the sync-merge of its sibling
+branch into `feat/team-mode`**, and it names, in its part file, the exact sibling file it extends.
+Where that file does not exist yet on the sibling (for example phase 8's broker, `machined` and
+`remotebe`, tasks 17–22, unbuilt; phase 3's `gitx` and `lanes`, unbuilt), the part cites the
+sibling **plan** row and marks the path **UNVERIFIED until merge**. No delta task copies sibling
+code onto this branch ahead of the merge.
+
+**Records and state (`05-design.md` §3.2).**
+
+1. If losing it would lose a decision or an accountability fact, it is a **Hub** record:
+   revisioned, one metadata-only audit event each, on the change feed. If it is a fact about now,
+   it is **Fleet** state in Fleet's own Postgres schema. Activity and presence are the only
+   in-memory state.
+2. Fleet persists no Hub record (`ADR-H1:467-474`). Its schema holds leases, turn queues, open
+   thread working state, policy versions and the Hub outbox. After a restart it rebuilds the rest
+   from the Hub.
+3. The owner comes from the token or the delegation, **never from a request body**. Only an
+   owner's own agents write that owner's rows. Nobody writes another person's task, lease,
+   message, directive or escalation, whatever their role (§3.3 rule 5).
+4. Records carry `ag-…` ids. No machine-local session id, host path, config key or URL reaches
+   the Hub. Paths are repo-relative globs, validated server-side.
+5. Every free-text field is bounded (the limits in §3.3), hygiene-checked, and carries its author
+   class, `text·A` or `text·H`.
+
+**Trust.**
+
+6. **Agents see facts, not words.** Activity is observed by `machined` outside the VM. A worker
+   never receives a teammate's free text; an Orchestrator receives it only as quoted data.
+7. **Turn origin governs authority** (§7.2). In a Fleet-started turn an Orchestrator may only
+   pause, narrow or sequence its own workers; any other verb becomes a `decide`. The check is in
+   Fleet's verb handler, not in the prompt.
+8. **No git credential enters a sandbox.** Fetch uses the project's read-only credential (OD-22),
+   held by the broker. Push and PR use the lane owner's own token, per act, in memory only, and stay
+   human actions.
+9. **No org key enters a sandbox.** A sandbox holds only a one-hour, pod-bound gateway token,
+   fetched through `apiKeyHelper` (`panacea token`), never an environment variable.
+10. **Policy reaches Claude Code only through files it already reads** (OD-23, OD-8). The control
+    plane writes the managed-settings file before the harness starts; it never wraps, patches or
+    parses the CLI, and no component reads meaning from PTY bytes.
+11. Fleet is a network service: every WebSocket upgrade is authorised per request, per owner, and
+    every socket is revocable within 60 seconds (§7.4). Phase 2's loopback attach handler is not
+    reused for it.
+
+**Region and routing.** Fleet, its Postgres, the lane mirror, the gateway and its usage store, and
+every sandbox run in **Australia East** (§2.5 invariant). An AU project never makes a Global call,
+and fails closed if the AU route is down.
+
+**Engineering.**
+
+- Go 1.23 (the `go` directive does not move), `github.com/coder/websocket` for every socket, the
+  standard library `net/http` mux, `pgx/v5` for Fleet's Postgres (**UNVERIFIED** that the Hub
+  branch already pins it; if so, match its version).
+- Ids come from phase 2's `control-plane/internal/ids` (`crypto/rand`), with the prefixes in §3.3.
+- Every error body is phase 2's `httpx` problem shape. Every new route joins the Z5 role-matrix
+  test (§3.4) in the task that adds it.
+- Tests first. Each test names the mutant it kills. `go test ./...` and `go vet ./...` pass in
+  every module a task touches; the desktop's `npm run typecheck` and `npm test` pass for UI tasks.
+- UI tasks read `docs/DESIGN-SYSTEM.md` and `docs/AGENTIC-UX.md` first. One global heartbeat
+  clock; `tabular-nums`; no spinners per row; no percentages, bars, ETAs or "N of M" (OD-27);
+  ids, paths and times in Commit Mono (OD-28). **A prototype is owner-reviewed before its
+  implementation task starts** (`CLAUDE.md` working agreements).
+- Budgets are on by default, escalation floors only tighten, opening prompts are private, and a
+  project has a data class from creation (OD-24).
+- State what is unverified. A task that cannot run on the real cluster says which acceptance step
+  is deferred to task 45 or 46, and why.
+
+---
