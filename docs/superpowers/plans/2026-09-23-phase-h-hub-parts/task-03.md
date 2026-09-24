@@ -674,7 +674,7 @@ go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v 2>&1 | grep -c "^
 #       + this task's 11: the table's 8 and the 3 added rows. Was "38 = 15 + 16 + 7": task
 #       02's fix round 1 left it 22, and the table always had 8)
 go vet ./control-plane/internal/hub/hubapi/                                        # no output
-awk '/^type /{t=$2} /omitempty/{print t": "$0}' control-plane/internal/hub/hubapi/types.go | grep -v "^[A-Za-z]*Request: \|^Readyz: "
+awk '/^type /{t=$2} /,omitempty"/{print t": "$0}' control-plane/internal/hub/hubapi/types.go | grep -v "^[A-Za-z]*Request: \|^Readyz: "
 # no output: omitempty appears only on request types and Readyz.failing
 ```
 
@@ -689,7 +689,7 @@ first `grep`, which printed four `ReserveRequest` lines, `DeploymentJoinRequest.
 - Any HTTP behaviour; these are shapes only. The 400 for an absent digest is task 14's `Decode`
   calling `RequireDigests` (carried there); this task proves only that `RequireDigests` names it.
 
-#### As built (2026-09-25, commit 3c19005)
+#### As built (2026-09-25, commits 3c19005 and d8d5c88)
 
 - **Carried C1** (task 01 review): resolved by `Digest.IsZero`, `ErrRequired` and
   `RequireDigests`, above, and `TestARequiredDigestAbsentOrNullIsNamed`. `null` is the same hole
@@ -709,3 +709,11 @@ first `grep`, which printed four `ReserveRequest` lines, `DeploymentJoinRequest.
   value. It does not descend into map values, and leaves every byte slice (`json.RawMessage`) as is.
 - **D3 — the acceptance grep** could not print nothing (above); replaced by the `awk` line.
 - **D4 — the count** is 48, not 38 (above).
+- **Mutants** (3c19005): 31, 27 killed, every mutant this part's table names among them (tag
+  typos, `omitempty` on a response, `null` lists, `[32]byte` encoding, a smuggled actor or
+  approver, `branchRef` on a rollback, the four sibling asks, an added or reordered content type)
+  and two contract-text edits (a §7.1 key renamed, a §7.6 content type dropped). Survivors: S1
+  (`EnsureLists`' `v == nil` return, predicted, equivalent: removed in d8d5c88), S2
+  (`RequireDigests` without its `IsValid` guard, predicted), S3 (`fill` without `CanSet`) and P24
+  (`RequireDigests` without its `"-"` skip). d8d5c88 adds a test line for each; round 2 killed
+  S2, S3 and P24.
