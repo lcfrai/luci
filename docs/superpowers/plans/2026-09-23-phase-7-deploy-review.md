@@ -1815,3 +1815,59 @@ expected to survive the tests as first written, each now given a killing case on
 - `plan-rereview-b10-2.md`'s open issues (I-A, the request context; m-A; m-B) belong to b10's
   round 3 and are not addressed here. m-A bears on M25: Rollback and Rebuild take the lock after
   their preconditions, as before.
+
+## Fix batch b11, round 2 — the re-review's I-1, I-2 and m-1 to m-5 (2026-09-25)
+
+Input: `.superpowers/sdd/p7/plan-rereview-b11-1.md` (local). Commits `acc752e` (task 19),
+`c19b409` (tasks 10, 15, 20 and the plan), and the commit that carries this section. The Hub
+contract was read at `6b873d0`, read-only. Line numbers are after this round's edits.
+
+**The six findings.** M23, M24 and M25 were resolved in round 1 and the re-review confirms it;
+round 2 changes none of them except M23's test (m-5). M27 and M28 were resolved in the parts;
+round 2 closes their restatement (m-1), their mechanism (m-3) and their omission (m-2). M29
+gains the two guards the re-review asked for (I-1, I-2) and loses a false sentence (m-4).
+
+| Finding | Change (file:line) |
+|---|---|
+| **I-1** From ignores whether the Hub's rollbacks were read | t19:139-166 new rule **The rollbacks before `cut` must be known**: the route reads From, or answers `From ""`, only when (a) `ReleasesState` is `no_hub` or `no_hub_project` (t19:145-147), or (b) `ReleasesAt` is non-zero and not before `cut`, and the page is complete or reaches one reservation lifetime before the `since` that `CurrentAt` found (t19:148-163). Otherwise `previous_unknown`, before any git read. t19:164-166 names `signed_out`, `hub_key_spelling`, a stale `unavailable` and a zero `ReleasesState`, matching rule 5b (t08:241-247). t19:241-242 the route tests' default snapshot. Tests: t19:260 `TestPreviousUnknownWhenRollbacksUnread`, including the review's signed-out history and both sides of the lifetime bound; t19:261 `TestNoHubNeedsNoReleases` (`no_hub` and `no_hub_project`) |
+| **I-2** `From ""` turns a first release into "cannot tell" | t19:126-132: the split is now "no row **other than this one** that could have served before `cut`", meaning a `succeeded` row with `CompletedAt` before `cut` or zero, or a `historical` row, or an `unknown` row. `failed`, `running` and `pending` rows never block it. t19:133-137 the matching `previous_unknown` case. Test t19:262 `TestFirstReleaseFromEmpty`: one row gives `From ""`; d1 failed then d2 succeeded gives d2 `From ""`; an older `historical` or `unknown` row gives `previous_unknown` |
+| **m-1** plan:823 still says `resolving` | plan:824 the phase-4 fallback row: the pin cell renders `not_wired` (*"pinned"* and one note above the table), never a head and never `resolving` |
+| **m-2** the swap table omits Panacea's configuration | plan:86 new row: `PANACEA_APP_PANACEA_URL`, `_CA_FILE`, `_TIMEOUT` and their start-up checks (t05:305-309, `ParseOrigin` among them), `LockedOrigin` / `OriginLocked` (t05:65, :79-80), the 400 sentence that names the variable (t05:170-171), and the watcher's `ReadTimeout` feed (t07:62-65). Each citation was read. Restatements: plan:64 (the layer table's Orchestration row now names `ReadTimeout` as its one Panacea setting); plan:831 the S7-N1 row; t20:35 the SEAMS row |
+| **m-3** the one note has no way to be drawn | t15:60-72: `usePinRef.ts` also exports `pinRefsWired` (false in the stub) and `usePinRefsUnavailable()` (the cache's read failure, or `null`), so phase 4 is still touched in one file. t15:26 the file list; t15:153 `ReleaseTable` draws the note when `!pinRefsWired` and a row is pinned; t15:158 the `unavailable` banner's message comes from `usePinRefsUnavailable` (the gap the review found there too). t15:243-246 the step's stub. t15:265-267 non-claim: whether phase 4 holds one cache-level failure. Tests t15:216 (note once, none when wired, none with no pinned row) and t15:217 `one unavailable banner` |
+| **m-4** "a release's range does not change after it ships" | t19:168-171: a running row's range is **provisional** until it goes live, and is fixed only once the row is `succeeded` **and** a Hub read at or after its `cut` exists. t19:230 a *"Provisional: …"* line on a row whose `build` is not `succeeded`. t19:233-237: the block reads on open and once more when the row turns `succeeded`; `previous_unknown`'s **Look again** covers a late rollback. Test t19:265 `reads once` gains the second read and the provisional line |
+| **m-5** M23's empty-`branchRef` case is untested | t10:223 `TestRebuildRefusesLabelOnlyBranch` gains case (2), a Hub release with `branchRef ""` (Hub contract `:980` allows it; `:1016` has a rollback copy it). Case (2) kills a check of `rel == nil` alone. This settles round 1's Unverified item on the contract |
+
+### Deviations, declared
+
+- **I-1, the page-coverage clause.** The review wrote "the page's oldest release is older than
+  `cut`". The Hub lists newest `reservedAt` first (Hub contract `:1055`), and a release is
+  confirmed before its `expiresAt = reservedAt + PANACEA_APP_HUB_RESERVATION_TTL` (`:1021`,
+  `:1035`). So a rollback reserved just before the page's oldest release can confirm up to one
+  lifetime later, which can still be before `cut`. `CurrentAt` would then miss it. The clause is
+  therefore "the page's oldest release was reserved at least one lifetime (its own
+  `expiresAt − reservedAt`) before the `since` that `CurrentAt` found". A rollback off the page
+  was confirmed before that `since`, so it cannot change the answer. With `current "none"` and
+  `ReleasesMore` there is no `since`, and the route answers `previous_unknown`.
+- **I-2, the words for `From ""`.** The drawer said *"The first release on this environment"*.
+  Panacea may prune an older deployment, and the cockpit cannot tell. It now says *"No earlier
+  release is recorded on this environment"* (t19:228).
+- **m-4.** Both of the review's options are taken: one re-read when the row turns `succeeded`,
+  and a provisional label until then.
+
+### Named survivors (against the tests as now written)
+
+1. **Condition (b) written as `ReleasesAt > cut`** instead of "not before". No test puts
+   `ReleasesAt` exactly at `cut`. This is low stakes: the two instants come from different
+   clocks.
+2. **The desktop re-reading on any change of `build`**, not only on the change to `succeeded`.
+   `reads once` checks only running → succeeded. A running → failed change would make one
+   extra read that no test forbids.
+
+Not run: this is a plan batch and no code exists.
+
+### Unverified
+
+- Everything is plan text. No code was compiled, run or mutated.
+- Whether phase 4's cache holds one read failure for the whole cache (t15:265-267).
+- The comparison in (b) mixes the Hub's and Panacea's instants with the local read time, as
+  rule 5b (c) already does. Clock skew of a few seconds is not modelled.
