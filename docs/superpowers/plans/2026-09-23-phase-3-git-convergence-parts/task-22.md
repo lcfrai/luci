@@ -9,7 +9,7 @@ removed (the fourth, `sessionVerbs.ts`, found by review Minor 10: the old grep f
 |---|---|---|
 | `components/develop/EmptyDevelop.tsx:100-101` | "Creating a worktree arrives in Phase 3. Until then, check out this branch in a worktree from the command line and it will appear in the rail." | a **New worktree on <branch>** button that creates a clone and selects it; the doc comment at `:72-73` ("creation is Phase 3, so it must say so in WORDS rather than offer a button that 404s") is rewritten to say the button calls task 04's route |
 | `components/menu/ContextMenu.tsx:102-106` | project "New branch", disabled: "Phase 2 has no create-branch endpoint (contract §10.3)…" | enabled; opens the new-branch form |
-| `components/topbar/TopBar.tsx:29` | Authority's title: "…It arrives in Phase 3." | "Authority needs the agent-runtime signal (docs/AGENTIC-UX.md §7). No phase owns it yet." — 3-D10: the number comes off until a phase owns it. `components/AppShell.test.tsx:119` asserts that title matches `/Phase 3/`, so its Authority entry becomes `/No phase owns it yet/` in the same commit (the Run locally entry keeps `/Phase 7/`) |
+| `components/topbar/TopBar.tsx:29` | Authority's title: "…It arrives in Phase 3." | "Authority needs the agent-runtime signal (docs/AGENTIC-UX.md §7). No phase owns it yet." — 3-D10: the number comes off until a phase owns it. `components/AppShell.test.tsx:119` (`:127` on feat/phase-2-cockpit; find it by `["Authority", /Phase 3/]`) asserts that title matches `/Phase 3/`, so its Authority entry becomes `/No phase owns it yet/` in the same commit (the Run locally entry keeps `/Phase 7/`) |
 | `components/develop/sessionVerbs.ts:607-608` (doc comment) and `:624` (`worktreeReadyItems`' disabled reason) (review Minor 10) | "Phase 2 has no un-mark to offer — the merge queue in Phase 3 owns that." and "Already marked ready. Phase 2 has no un-mark; the merge queue in Phase 3 owns that." | the reason: "Already marked ready. To take it out of the queue, use Not ready on its card in the Merge lens."; the comment: already-ready stays disabled rather than hidden, and un-marking is task 19's **Not ready** button, where the queue it leaves is in view. `sessionVerbs.test.ts:820`'s `toContain("Already marked ready")` still holds. The copy names task 19's button, so this task waits on 19 |
 
 **The one question in the product** is *Remove worktree…* (survey §6.2): it names the live
@@ -24,7 +24,7 @@ other verb here is immediate, with a toast.
 - `desktop/src/components/lifecycle/NewBranchForm.tsx`, `RenameBranchForm.tsx`, `RemoveWorktreeQuestion.tsx`, `DeleteBranchQuestion.tsx`, `lifecycle.css`, `actions.ts` (new)
 - `desktop/src/components/develop/EmptyDevelop.tsx` — the no-worktree branch and its doc comment's `:72-73` sentence (p2, two blocks)
 - `desktop/src/components/develop/sessionVerbs.ts` — `worktreeReadyItems`' doc comment `:607-608` and its disabled reason `:624` (p2; review Minor 10)
-- `desktop/src/components/AppShell.test.tsx` — line 119's Authority entry, `/Phase 3/` → `/No phase owns it yet/` (p2; the TopBar change breaks it otherwise)
+- `desktop/src/components/AppShell.test.tsx` — the Authority entry (line 119 here, 127 on feat/phase-2-cockpit), `/Phase 3/` → `/No phase owns it yet/` (p2; the TopBar change breaks it otherwise). Its line 112, the Merge lens's `/Arrives in phase 3\./`, is task 19's, not this task's
 - `desktop/src/components/develop/SessionPane.tsx` — pass `onNewWorktree` to task 06's `SharedIndexNote` (p2, one prop)
 - `desktop/src/components/lens/merge/MergeBanner.tsx` — task 19's m-new "New worktree" wired (phase 3's file)
 - `desktop/src/components/palette/commands.ts` + test — phase 3's commands appended (p2, seam SX.6)
@@ -146,15 +146,36 @@ quotes git's sentence. Buttons: **Remove** (danger) and **Keep it** (default foc
 - [ ] **Step 1: Preflight.** Tasks 04, 06, 11, 18, 19 merged (19: `MergeBanner.tsx`, which this
   task wires, and the Not ready button the new sessionVerbs copy names). The retirement grep,
   widened from `arrives in Phase 3` to `Phase 3` (review Minor 10):
-  `git grep -n "Phase 3" -- desktop/src ":!desktop/src/styles/tokens.css" ":!desktop/src/styles/designsystem.test.ts" ":!desktop/src/defects.test.tsx"`
-  lists exactly `AppShell.test.tsx` (the Authority entry), `EmptyDevelop.tsx` (`:73`, `:101`),
-  `sessionVerbs.ts` (`:608`, `:624`) and `TopBar.tsx:29`: run on this tree at `80e79a9`, it listed
-  those six lines plus four in `LinkedWorktreeNote.tsx` and `.test.tsx`, which task 06 rewrites (its
-  test asserts no `/Phase \d/`). If a `LinkedWorktreeNote` line still appears, task 06 is not
-  merged; stop. The three files left out say what a token or a defect anchor is for, and promise
-  nothing: `tokens.css:73-77` and `designsystem.test.ts:271` (`--need`/`--drift` reserved "so Phase
-  3 does not invent a second amber"), `defects.test.tsx:839-842` (why defects 7, 9 and 10 anchor
-  outside Merge). Case matters: task 06's new comment says "phase 3 has shipped the fix".
+  `git grep -n -e "Phase 3" --and --not -e "Phase 3 owns this file" --and --not -e "Phase 3: git, worktrees, coordination and convergence" -- desktop/src ":!desktop/src/styles/tokens.css" ":!desktop/src/styles/designsystem.test.ts" ":!desktop/src/defects.test.tsx"`
+  On a tree where G2 holds and task 06 is merged, it lists exactly six lines. They are named by
+  their text, because line numbers drift between trees:
+  - `AppShell.test.tsx`'s Authority entry, `["Authority", /Phase 3/]` (`:119` at `c97de8c`, `:127`
+    on feat/phase-2-cockpit);
+  - `EmptyDevelop.tsx`'s "creation is Phase 3" and "Creating a worktree arrives in Phase 3";
+  - `sessionVerbs.ts`'s two "the merge queue in Phase 3 owns that" (`:608`/`:624` here, `:635`/`:651`
+    on feat/phase-2-cockpit);
+  - `TopBar.tsx:29`.
+
+  Run at `c97de8c` and on feat/phase-2-cockpit (both before G2), it listed those six plus four in
+  `LinkedWorktreeNote.tsx` and `.test.tsx`, which task 06 rewrites (its test asserts no
+  `/Phase \d/`). If a `LinkedWorktreeNote` line still appears, task 06 is not merged. **Any other
+  line: stop and report it.** It is a promise this task's table does not list, or an exclusion
+  whose reason no longer holds. Do not reword it or widen an exclusion on the spot.
+
+  What is left out names a phase or an owner, and promises nothing:
+  - three files, by path: `tokens.css:73-77` and `designsystem.test.ts:271` (`--need`/`--drift`
+    reserved "so Phase 3 does not invent a second amber"), and `defects.test.tsx:839-842` (why
+    defects 7, 9 and 10 anchor outside Merge);
+  - three G2 lines, by their text, not by file (re-review b11-1 issue 1). Phase 2 task 26 writes
+    `seams.test.ts`'s section header "Phase 3: git, worktrees, coordination and convergence"
+    (`phase-2-parts/task-26.md:307`), and the seam comment "Phase 3 owns this file" at the top of
+    `FilesLens.tsx` and `MergeLens.tsx` (`:637`, `:657`). The `--and --not` drops those lines only,
+    so a promise tasks 19 or 21 might add in a lens file still shows. Probed in `scratchpad/p3/b11r2-gg.out`,
+    git 2.53: a planted "arrives in Phase 3" in `MergeLens.tsx` listed, and the header lines did not.
+
+  Case matters: task 06's new comment says "phase 3 has shipped the fix". `AppShell.test.tsx:112`'s
+  lower-case `/Arrives in phase 3\./` reads the Merge lens placeholder. It is task 19's to change,
+  because task 19 fills that lens.
 - [ ] **Step 2:** tests; `actions.ts`, `lifecycleItems.ts`, the forms and the question; the edits
   to the phase 2 files, each confined to the block named above.
 - [ ] **Step 3:** run; commit by pathspec.
@@ -171,7 +192,7 @@ designed `:focus-visible` ring. Nothing animates except the popover's existing o
 ```
 cd desktop && npx vitest run   → PASS (phase 2's ContextMenu, commands and EmptyDevelop suites included)
 cd desktop && npx tsc --noEmit → no output
-git grep -n "Phase 3" -- desktop/src ":!desktop/src/styles/tokens.css" ":!desktop/src/styles/designsystem.test.ts" ":!desktop/src/defects.test.tsx"   → no output
+git grep -n -e "Phase 3" --and --not -e "Phase 3 owns this file" --and --not -e "Phase 3: git, worktrees, coordination and convergence" -- desktop/src ":!desktop/src/styles/tokens.css" ":!desktop/src/styles/designsystem.test.ts" ":!desktop/src/defects.test.tsx"   → no output
 ```
 
 #### What this task does not claim
