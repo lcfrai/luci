@@ -113,6 +113,7 @@ const (
 	CodeQuotaExceeded     = "quota_exceeded"      // 429 — the owner is at MAX_SANDBOXES / MAX_MACHINES
 	CodeMachineAsleep     = "machine_asleep"      // 409 — a session create on a sleeping machine; wake it first
 	CodeMachineBusy       = "machine_busy"        // 409 — sleep or delete while sessions run
+	CodeMachineIsDefault  = "machine_is_default"  // 409 — DELETE of the default machine, whose derived id would recur on an empty disk (task 19, b09 re-review 4)
 	CodeMachineFull       = "machine_full"        // 409 — the machine pod's node has no room for this session; details.sessionsPerMachine (task 18, review I5)
 	CodeAttachRejected    = "attach_rejected"     // 403 — sandboxd refused the attach token (backend.ErrUnauthorized)
 )

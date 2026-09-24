@@ -80,12 +80,12 @@ type CreateMachine struct {
 | Route | Success | Failures |
 |---|---|---|
 | `GET /v1/machines` | `200 MachineList`, this owner's | 503 |
-| `POST /v1/machines/default` | ensures the owner's default machine: **201** + `Machine` if it had to create it, **200** if it existed; a sleeping one is woken. Idempotent — a retried first sign-in never makes two, and neither do two sign-ins racing on two broker replicas: the id is derived (below), so the loser's create is `AlreadyExists` and answers 200 | 429 `quota_exceeded`, 503 |
+| `POST /v1/machines/default` | ensures the owner's default machine: **201** + `Machine` if it had to create the disk, **200** if the disk existed; either way its Secret, pod and PDB are then ensured, so a sleeping one is woken and a half-created one is finished (below). Idempotent — a retried first sign-in never makes two, and neither do two sign-ins racing on two broker replicas: the id is derived (below), so the loser's create is `AlreadyExists` and answers 200 | 429 `quota_exceeded`, 503 (`details.reason = "deleting"` while the default's disk is being deleted: retryable) |
 | `POST /v1/machines` | `201 Machine` (a second machine: FUNCTIONAL-SPEC's "sizing is only ever asked for a second machine") | 400, 429, 503 |
 | `GET /v1/machines/{id}` | `200 Machine` | 404 `machine_not_found` (also another owner's) |
 | `POST /v1/machines/{id}/wake` | `202 Machine` — returns at once with `provisioning`; the caller polls `GET` (implicit wake: "waking… 6s") | 404, 503 |
 | `POST /v1/machines/{id}/sleep` | `202 Machine` (`sleeping` once the pod is gone) | 404, **409 `machine_busy`** while session pods exist |
-| `DELETE /v1/machines/{id}` | `204` — pod, PDB, Secret and **the disk** | 404, 409 `machine_busy` |
+| `DELETE /v1/machines/{id}` | `204` — pod, PDB, Secret and **the disk**; a second machine only | 404, 409 `machine_busy`, **409 `machine_is_default`** for the default machine (b09 re-review 4, below) |
 | `GET\|POST\|DELETE /v1/machines/{id}/agent/{rest...}` | the machine agent's response, streamed | 404, **409 `machine_asleep`** (the proxy never wakes a machine — only `wake` does), 502 if the agent does not answer |
 
 The agent proxy forwards `/{rest...}` to `http://<machine pod IP>:8081/{rest...}` with
@@ -101,9 +101,32 @@ check made before a create:
 
 - **The default machine's id is derived:** `defaultMachineID(owner) = "m-" + the first 8 hex of
   sha256(owner + "/default")`. Ensure-default creates the PVC by that name and never lists first
-  to decide. `Created` → 201. `AlreadyExists` → read the PVC; if its `panacea-app/owner` label is
-  this owner's and it is annotated `panacea-app/default: "true"`, → 200 (and wake it if it is
-  sleeping). Anything else answers 503 and is logged, never shown.
+  to decide. `Created` → go on to the Secret, pod and PDB → 201. `AlreadyExists` → read the PVC
+  (a consistent read); if its `panacea-app/owner` label is not this owner's, or it is not
+  annotated `panacea-app/default: "true"`, answer 503 and log it, never show it.
+- **`AlreadyExists` converges; it does not trust the derived state (b09 re-review 3).** A claim
+  with a `deletionTimestamp` (the default mid-delete, by an operator: the route refuses it, below)
+  → 503 `backend_unavailable`, `details.reason = "deleting"`, retryable, and nothing is created.
+  Otherwise the request ensures the Secret, the pod and the PDB whatever `machineState` says
+  (each create already tolerates `AlreadyExists`, next bullet), then answers 200 with the state
+  derived afterwards. The reason: the claim uses `WaitForFirstConsumer` (task 11), so a claim
+  that never had a pod stays `Pending` and derives `provisioning`, not `sleeping`, and a
+  "wake it if it is sleeping" rule would never fire. That is the two-replica case itself: the
+  winner dies (a rolling update) between its PVC create and its pod create, and every later
+  ensure-default would answer 200 on a machine with no Secret, pod or PDB, `provisioning`
+  forever. Ensuring always also wakes a sleeping default, so no separate wake branch exists; the
+  pod create is the wake's own, so a terminating pod takes the wake's background re-create
+  (below).
+- **The default machine cannot be deleted through the broker (b09 re-review 4).** Its id is
+  derived, so a deleted default comes back at the next sign-in under the **same id**, on an empty
+  disk, and laptop state keyed by machine id (phase 3's lane index, `(machineId, projectId)`,
+  task 33 P3A-2; `selectedMachineId`, task 26) would treat the new disk as the old one. Before
+  the derivation a minted id never came back. And with no snapshots in v1 (seam S8-D6.1), such a
+  delete would destroy the only copy of the work. So `DELETE /v1/machines/{id}` on the claim
+  annotated `panacea-app/default: "true"` answers `409 machine_is_default` and deletes nothing.
+  A second machine, whose id is random, deletes as before. Nothing in the cockpit offers delete
+  (task 26), so no UI changes. Out of band (an operator deletes the claim, or it is `Lost`) the
+  id can still recur; task 33's P3A-2 row tells phase 3 to compare `createdAt` for that case.
 - **Every create is `AlreadyExists`-tolerant.** The PVC's winner goes on to create the Secret, the
   pod and the PDB, while a loser (or a wake on the other replica) may reach the same objects. An
   `AlreadyExists` on any of them means "done". The token is only ever read back from the Secret,
@@ -177,6 +200,9 @@ fails `restricted`); `TestMachinePDBProtectsTheMachineAndItsSessions` (selector 
 | `TestMachineNamesCarryTheOwner` | every object is `machine-<owner[:8]>-<id>` (the Secret `…-token`); two owners given the same id both succeed; the PDB's selector holds both labels | `machine-<id>`, where the second owner's create fails with a conflict that proves the first exists (review m12) |
 | `TestAWakeOnATerminatingPodRecreatesIt` | a machine pod with a `deletionTimestamp` → wake answers 202; once the fake removes the old pod, a new one is created | a wake that treats the terminating pod's `AlreadyExists` as "done" and leaves the machine asleep |
 | `TestEnsureDefaultWakesASleepingDefault` | PVC with no pod → 200 and a machine pod created | a sleeping machine the user must wake by hand at sign-in |
+| `TestEnsureDefaultFinishesAHalfCreatedDefault` | the default's PVC, labelled and annotated, with `Status.Phase: Pending` set explicitly (a fake clientset leaves the phase empty, which would derive `sleeping` and hide the bug), and **no** Secret, pod or PDB → 200, and afterwards all three exist (b09 re-review 3) | an `AlreadyExists` that answers from the derived state, so a replica that died between its PVC and pod creates leaves a machine `provisioning` forever |
+| `TestEnsureDefaultOnATerminatingDefaultIs503` | the default's PVC with a `deletionTimestamp` → 503 `backend_unavailable`, `details.reason = "deleting"`, and no Secret, pod or PDB created | a 200 on a disk mid-delete, and a pod created against a claim that is going away |
+| `TestTheDefaultMachineCannotBeDeleted` | `DELETE` on the default's id → 409 `machine_is_default` and its PVC, Secret, pod and PDB are intact; `DELETE` on a second machine of the same owner → 204 and its PVC is gone (b09 re-review 4) | a delete whose default comes back at the next sign-in under the same id on an empty disk |
 | `TestStateDerivation` | the five rows of the table, each from a constructed PVC/pod set | one state computed two ways |
 | `TestStoppedIsNeverEmitted` | no constructed input yields `stopped` | an undefined state shown in the rail |
 | `TestWakeReturns202Immediately` | the response arrives before the pod is Ready, state `provisioning` | a wake that blocks the cockpit for a cold start |
@@ -218,7 +244,7 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
   for it.
 - That RWO disk sharing between the machine pod and its sessions works under Kata (P8-D6, task 32).
 - That a machine's disk is backed up. It is not (review m13, seam S8-D6.1): `DELETE
-  /v1/machines/{id}` is final, and a broker defect that deletes a claim loses its worktrees,
+  /v1/machines/{id}` on a second machine is final (the default refuses it, b09 re-review 4), and a broker defect that deletes a claim loses its worktrees,
   unpushed lane commits and conversations. `TestTheSleeperNeverDeletesADisk` and
   `TestDeleteRefusesWhileSessionsRunAndOtherwiseDeletesTheDisk` are the only guards. The broker
   deletes a claim in two places only: the explicit delete route, and the cap re-count's rollback
