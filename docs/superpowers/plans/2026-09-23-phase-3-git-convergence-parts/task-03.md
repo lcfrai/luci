@@ -192,7 +192,10 @@ type Creator struct {
 // Scope Project. Steps 4a, 5 and 6's writes and CopyGeneratedHooks' `ls-files` run with Dir
 // Path, Scope None and `NewLane: Path` (task-02 §HGH): this is R4.5's creation window. Until
 // step 7's Store.Add no session can resolve the lane, so no sandbox has mounted Path. After
-// Create returns, the host never runs git in Path again (R4.2).
+// Create returns, the host never runs git in Path again (R4.2). Step 4's `clone` names Path
+// only as its positional destination and carries no NewLane (task 02's
+// TestExecRunsTheCreateCloneInTheProject); task 24's TestHostNeverRunsGitInALane excepts that
+// one call by name, as TestCreateIsTheOnlyHostGitInTheLane below does (review r4-1 I-2).
 func (c *Creator) Create(ctx context.Context, req CreateRequest) (Lane, error)
 
 // NoFetchURL and NoPushURL are a lane clone's origin (step 4a, review Minor 14). Each is a path
