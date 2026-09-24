@@ -1,6 +1,6 @@
 # Task 28 — The Design lens: its states, the approval bar, the side panel, presence, comments
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 21, 22, 26, 27 · **External:** phase 4 task 17 (`ContextChip`) · **Hours:** 3 · **UI:** yes — `docs/DESIGN-SYSTEM.md` read first (G12); **the owner's eyes are the only acceptance**, batched to the end (`OD-12`)
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 21, 22, 26, 27 · **External:** phase 4 task 17 (`ContextChip`); phase 4 tasks 16 (`openPast(key)`) and 19 (`PastRevision`, the read-only past revision) for *Open rev N* (review M14) · **Hours:** 3 · **UI:** yes — `docs/DESIGN-SYSTEM.md` read first (G12); **the owner's eyes are the only acceptance**, batched to the end (`OD-12`)
 
 ## Why
 
@@ -27,7 +27,7 @@ an embedded Northstar viewport; its states stand, and the viewport is now ours (
 | 1 | No canvas: *Create canvas* binds, writes the brief mirror, enables design sessions | **Same**, without the mirror line. The list reads: binds a canvas to `<branch>`; design sessions read the branch's brief through the canvas; lets you start design sessions | no mirror (spec §7.6) |
 | 2 | Drawing: *Start design session*, *Approve design rev N*; side panel: design sessions, brief in the canvas, approving records | **Same**, plus the editor (tasks 25–26). Side panel: **Design sessions** (presence rows), **Brief** (the chip and *"agents read it with get_brief; nothing is copied into the canvas"*), **Review requests** (agents' `request_review` notes), **Approving records** | the prototype's *"Needs you: approve its access to this canvas"* row (MCP OAuth, brief R7) **is deleted**: the relay channel is the credential |
 | 3 | Approved: the bar, the handoff bundle card, *A Develop session started here carries* | **Same**. The bundle card lists screens (HTML + PNG), JSX (inline and Tailwind), tokens (CSS + DTCG) and **the layer tree** (`tree.json`) | the prototype's *"Component tree: not produced"* is now produced (`PROGRAM.md` lists it for the bundle) |
-| 4 | Superseded: *Approved against brief rev 5 … moved to rev 6*, *Open rev 5*, *Open rev 6*, *Re-review against rev 6* | **Same**. *Re-review* is route 23 then an approval of the new revision | the mechanism is a `review_mark` op, not a mirror rewrite (brief D3) |
+| 4 | Superseded: *Approved against brief rev 5 … moved to rev 6*, *Open rev 5*, *Open rev 6*, *Re-review against rev 6* | **Same**. *Re-review* is route 23 then an approval of the new revision. *Open rev N* calls phase 4's `openPast("brief:<id>@<N>")` (its task 16), which switches to Discover's read-only `PastRevision` (its task 19; contract §4.1). If phase 4 task 19 is not in the tree when this task is built, the two buttons are **not rendered** (never a dead button), the sentence and *Re-review* stay, and the report records it (review M14) | the mechanism is a `review_mark` op, not a mirror rewrite (brief D3) |
 | 5 | Changed after approval: *… <frame> was edited by design-1* | **Same**, and the actor is **known**: `ApprovalState.changedBy` names every author since (task 21) | the prototype marked the actor unverified; the op log makes it a fact |
 | 6 | Canvas server not reachable | **Split in two.** The canvas lives in the control plane, so *control plane down* is the cockpit's own state (`control-plane-down`, `problems.ts`). **Hub unavailable or signed out** is new: the canvas keeps working; *Approve*, *Re-review* and *Start Develop from this design* are disabled with the sentence from the problem | the failure that matters moved from the canvas to the Hub |
 | 7 | The chip specimen | **Not a product state**: the six (seven with `erased`) chip states are phase 4's `ContextChip`, reused | — |
@@ -67,6 +67,13 @@ export function ApprovalBar(props: { canvasId: string }): JSX.Element | null;
 
 // desktop/src/design/Activity.tsx — the feed (route 10), newest first, virtualised past 50 rows;
 // each session's rows carry "Revert {handle}'s changes" (route 8) with the RevertResult message as a toast.
+// Scroll anchoring (review M20; DESIGN-SYSTEM "never scroll-jump when the user has scrolled up",
+// AGENTIC-UX §4 rule 11): at scrollTop 0 new rows appear at the top as they arrive; scrolled away
+// from the top, rows inserted above are compensated (scrollTop += their measured height, in the
+// same frame, before paint), so the row the user reads does not move, and one "Jump to newest"
+// control appears — text only, never a number (§4 rule 4). Appends batch at ~10Hz, like the log
+// panes. The scroll position is kept per canvas across lens visits in a module-level Map inside
+// Activity.tsx (not persisted; task 27's slice is unchanged).
 
 // desktop/src/design/Comments.tsx — threads (open / resolved), reply, resolve, and "Comment" on the
 // selected node (route 13). Pins on the canvas come from the editor's onOpenThread (task 25).
@@ -99,7 +106,16 @@ layers, Theme — task 26's `LeftPanel`), the viewport (flex 1, `var(--canvas)`,
 300px with four tabs — **Inspect** (`RightPanel`), **Review** (sessions, brief, review requests,
 records, bundle, carry card), **Comments**, **Code** (`CodePanel`). Elevation: panels sit on
 `var(--surface)` with `var(--e-card)` where they overlap the canvas; radius by size; `tabular-nums`
-on revisions, counts and times.
+on revisions, times and the capture progress (*"3 of 12"*).
+
+**No counts, no notification stream** (review M20; `AGENTIC-UX.md` §4 rule 4, *"fails if a count
+appears anywhere outside the queue"*, and §3 step 2, *"does not stream notifications"*). No tab,
+header, section title or row shows a number of review requests, comments, sessions or activity
+rows (the header names revisions, which are not counts): the **Review** and **Comments** tabs
+carry their names only, and the *Review requests* list
+is a list, never a total. A `request_review` shows **no toast** (P5-S); the only toasts
+are the ones a human's own action caused (approve, revert, paste). The requests, and any count
+of them, move to the ranked queue when it lands (S5-Q.1).
 
 ## Tests first
 
@@ -108,6 +124,7 @@ on revisions, counts and times.
 | `DesignLens.test.tsx › state1` | no canvas → the three-item list without a mirror line, and *Create canvas* calls route 2 | the withdrawn mirror promised in copy |
 | `DesignLens.test.tsx › state2` | a canvas with artboards and no approval → *Approve design rev N* primary; no access-approval row exists anywhere | the deleted R7 state resurrected |
 | `ApprovalBar.test.tsx` (one per state) | approved / superseded / changed each render their glyph **and** text; changed names every `changedBy` author | colour-only states; an actor fabricated |
+| `ApprovalBar.test.tsx › openPastRevision` (review M14) | superseded from rev 5 to rev 6 → *Open rev 5* calls `openPast` with `brief:<id>@5` and *Open rev 6* with `brief:<id>@6`; no client call is made | a dead button, or an old revision fetched instead of resolved by phase 4's loader |
 | `DesignLens.test.tsx › hubDown` | a 503 `upstream_unavailable` `upstream: hub` → canvas editable, three actions disabled with the sentence | the canvas locked because the Hub is down |
 | `DesignLens.test.tsx › notShared` | `design_not_shared` → phase 4's OQ-1 sentence | a raw code on screen |
 | `approve.test.tsx` (fake timers) | *Approve* shows a toast with Undo; Undo within 5 s sends nothing | a confirm dialog, or an approval that cannot be undone |
@@ -115,6 +132,8 @@ on revisions, counts and times.
 | `DesignLens.test.tsx › startDevelopWorktree` (re-review RR-I1-5) | an approved canvas on a branch with a linked and a clone worktree → `designStartDevelop` receives the clone's id; a branch whose only worktree is linked → the button is disabled with *"This branch has no cockpit worktree or main checkout to hand the design to"*, and no handoff POST is sent | a click answered by route 24's 409 `handoff_worktree_linked` |
 | `Presence.test.tsx` | rows use `beatDelayStyle`/`useHeartbeat`; no `setInterval`; *Release claim* calls route 9 | a per-row timer |
 | `Activity.test.tsx` | *Revert {handle}'s changes* calls route 8 with that session id | revert by the wrong author |
+| `Activity.test.tsx › anchored` (review M20) | scrolled 200px down, three rows arrive at the top → the row under the viewport's top edge keeps its on-screen offset (its `getBoundingClientRect().top` unchanged, row heights stubbed) and *Jump to newest* appears with no digit in its text; at `scrollTop` 0 the new rows show and no control appears; leaving the lens and coming back restores the offset | a feed that jumps under the reader, or a count on the jump control |
+| `DesignLens.test.tsx › noCounts` (review M20) | a canvas with 3 review requests, 4 open comment threads and 5 sessions → no toast is pushed when a `request_review` event arrives; the tab strip and every side-panel section title contain no digit (`textContent` matched against `/\d/`; the header is exempt, it names revisions); the requests render as 3 rows | a streamed notification, or a count outside the queue (`AGENTIC-UX.md` §3 step 2, §4 rule 4) |
 | `AppShell.test.tsx` (amended) | the design arm renders `DesignLens`; the phase 2 guard `grep -cE '^[[:space:]]+return <DevelopLens' …` is still `1` | the Develop arm disturbed |
 | `design.css` check | no hex colours, no `-gradient(`, no `transition: all`, no `backdrop-filter`; radii only `var(--r-*)` | DESIGN-SYSTEM regressions |
 
