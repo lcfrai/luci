@@ -17,6 +17,7 @@ re-implementing any of the host's review surface is out of scope (brief §3).
 - `control-plane/internal/githost/azuredevops.go` + test (new)
 - `control-plane/internal/api/pullrequests.go` + test — the route, the description builder (new)
 - `control-plane/internal/api/gitdeps.go`, `gitroutes.go` — `// ── task 14 ──`
+- `control-plane/cmd/api/main.go` — one `// ── task 14 ──` line, `gitDeps.Fetcher.AfterFetch = gitDeps.Lander.RefreshProject` (review I5). Task 14 is the first task after both 09 (`Lander`) and 12 (`Fetcher`), so no new edge is needed; task 04's `TestServeWiresGit` gains one assertion, that `AfterFetch` is non-nil
 
 #### Interfaces — complete
 
@@ -165,7 +166,7 @@ when `briefKey` is empty, and a land with no brief says "no brief was shown when
 
 #### Steps
 
-- [ ] **Step 1: Preflight.** Task 13 merged (`githost.Remote`, `credstore`).
+- [ ] **Step 1: Preflight.** Tasks 10 and 13 merged (`githost.Remote`, `credstore`; `Lander.RefreshProject` and `Fetcher.AfterFetch` for the one wiring line).
 - [ ] **Step 2:** tests; `githost.go`, `github.go`, `azuredevops.go`; the route.
 - [ ] **Step 3:** run; commit by pathspec.
 

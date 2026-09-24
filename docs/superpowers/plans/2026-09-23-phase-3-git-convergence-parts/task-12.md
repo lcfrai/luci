@@ -55,7 +55,13 @@ type Fetcher struct {
 	// AuthFor is task 13's hook; nil means the zero Auth for every project.
 	AuthFor  func(ctx context.Context, projectPath string) Auth
 	Interval time.Duration // PANACEA_APP_FETCH_INTERVAL; default 10m; 0 disables the timer; minimum 1m otherwise
-	Log      *slog.Logger
+	// AfterFetch runs after a fetch succeeds, still inside its Locks.Lock (review I5). main.go
+	// sets it to task 09's Lander.RefreshProject, which copies each branch's
+	// <branch>@{upstream} into every clone as refs/remotes/upstream/<branch> — a func, because
+	// converge imports remote and remote cannot import converge. nil skips it. Its failures
+	// are logged by it and never fail the fetch.
+	AfterFetch func(ctx context.Context, projectPath, projectID string)
+	Log        *slog.Logger
 	// unexported: last error per project path (no lock of its own: Locks is the lock)
 }
 
@@ -168,6 +174,7 @@ Real git against a **bare repository on disk** as the remote, and, for the crede
 | `TestPushNeverRunsARepoCredentialHelper` | task-02 §HGH H1/H2 and review C3, red first: the project's config names `credential.helper=<script writing its stdin to a marker>` beside a machine helper (`Hardening.Credential`) that answers; the remote is the 401 httptest URL → H3 admits `credential.helper` (it is inert, task-02 §HGH H3), the marker does not exist after the push, and the machine helper's username reached the server. Red first with H1's `credential.helper=` reset dropped: the marker appears | a push that lets a repository helper see the user's token |
 | `TestPushAndFetchRefuseARepoProxy` | review C3 and b01 re-review R3, red first. The remote `U` is a `gitxtest.HTTPSRemote`; `P` is a second listener that counts connections. Two project configs: (a) `http.<U's scheme://host:port>/.proxy=<P>`, keyed at `U`'s exact scheme, host and port; (b) `remote.origin.proxy=<P>`. **Precondition**, raw git with no Exec: for (a), `config --get-urlmatch http.proxy U` → P, so the key matches. Through Push and Fetch: (a) and (b) are each refused `project_config_untrusted`, naming `http.<…>.proxy` and `remote.origin.proxy`, and `P` saw no connection. With the H3 check mutated away, (a) still sends nothing to `P` (H2), and (b) reaches `P` (so H3 is the only layer for (b), as task-02 §HGH H2 states) | a generic-only H2 override; a Project list that admits a per-remote proxy |
 | `TestPushRunsNoPrePushHook` | task-02 §HGH H4: the project's `.git/hooks/pre-push` writes a marker → a push succeeds and no marker exists | a cockpit push that runs the repository's hooks |
+| `TestFetchRunsAfterFetchInsideTheLock` (review I5) | a stub `AfterFetch` records its arguments and, on a second goroutine, calls `Locks.Lock` for the same project with a 100 ms deadline → called once with the project's path and id after a successful fetch, and that `Lock` returned the deadline's error (the fetch still held the lock); a failed fetch → not called; `AfterFetch` nil → the fetch still succeeds | clones never told about a fetch, or a refresh racing a land |
 | `TestFetchWritesFetchHeadAndPrunes` | a branch deleted on the remote disappears from `refs/remotes/origin/*`; `FetchedAt` is FETCH_HEAD's new mtime | stale remote branches forever |
 | `TestFetchRecordsAndClearsTheLastError` | a failing fetch → `LastError` is git's sentence; a later success → `""`; `ReadState` reports the same through `FetchError` | a stale "fetched 15:36" with no hint it is failing |
 | `TestFetchTimerOnlyTouchesListedProjects` | `Projects` returns one of two repos → only that one's FETCH_HEAD changes over two intervals (shortened) | fetching every repository under the root |
@@ -184,7 +191,8 @@ Real git against a **bare repository on disk** as the remote, and, for the crede
   *inside* a sandbox (the design), which this task never attempts.
 - [ ] **Step 2:** tests; `fetch.go`, `push.go`; the `FetchError` fill in `ReadState`.
 - [ ] **Step 3:** handlers, routes, deps, config row, `main.go` start/stop (the Fetcher gets
-  `Locks: gitDeps.Locks`, and `Projects` maps each lane-bearing project to its `ProjectRef`); the Go contract's §4
+  `Locks: gitDeps.Locks`, and `Projects` maps each lane-bearing project to its `ProjectRef`;
+  `AfterFetch` stays nil here, and task 14 sets it, being the first task after both 09 and 12); the Go contract's §4
   table gains `PANACEA_APP_FETCH_INTERVAL` (default `10m`, `0` off, minimum `1m`).
 - [ ] **Step 4:** run; commit by pathspec.
 
