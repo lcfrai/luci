@@ -24,12 +24,13 @@ also changed, so it must start on them.
 - `control-plane/internal/api/worktrees.go` + `worktrees_test.go` — the create handler (new)
 - `control-plane/internal/api/catalog.go` — `worktreeJSON.Kind` (p2, one field, one assignment)
 - `control-plane/internal/api/mounts.go` + `mounts_test.go` — `MountGuard`, task 03's `lanes.MountGuard` (new; re-review b03 I-2)
-- `control-plane/internal/api/sessions.go` — the Store write that makes a session starting runs inside `MountGuard.Admit`, in create and in restart (p2, two call sites)
+- `control-plane/internal/api/sessions.go` — the Store write that makes a session starting runs inside `MountGuard.Admit`, in create and in restart (p2, two call sites); the default title takes the worktree's catalog `Name`, not the directory's base name (p2, `sessionLocate`'s third result and the title block; re-review b08-1 issue 2)
+- `control-plane/internal/api/sessions_test.go` — `TestSessionCreateDefaultTitleUsesTheWorktreeName` (p2)
 - `control-plane/internal/httpx/problem.go` — `CodeGitFailed`, `CodeHostFailed` (p2, two constants)
 - `control-plane/cmd/api/config.go` — `PANACEA_APP_WORKTREES_DIR` (p2)
 - `control-plane/cmd/api/main.go` — the phase 3 wiring block (p2)
 - `control-plane/cmd/api/gitidentity.go` — `parseGitIdent` replaced by `gitx.ParseIdent` (the fix's file)
-- `docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md` — §3.1 pointer row, §3.2 codes, §3.7 `kind`, §4 one row
+- `docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md` — §2.11 `Worktree.Name`'s comment, §3.1 pointer row, §3.2 codes, §3.7 `kind`, §4 one row
 
 #### Interfaces — complete
 
@@ -268,6 +269,40 @@ The handler resolves the project and branch through `a.deps.Projects` (now the c
 way `decoratedWorktrees` builds one (`sessionCount` 0, `ready` from the flag snapshot, which is
 false for a new id).
 
+*The default session title (re-review b08-1 issue 2).* Session create derives a missing title
+as `desc.Name + " · " + filepath.Base(filepath.Clean(path))` (`sessions.go:442-445` on
+`feat/phase-3-git` at `b4aa8ad`; `:824-827` on `feat/phase-2-cockpit` at `960457d`, where
+`sessionLocate` is called at :834 and defined at :926). A lane's directory is
+`<Name>-<Nonce>` (task 03 step 3), so that line titles a lane session
+`Claude Code · upload-api-3fa9c1`. The title is persisted (`registry/session.go:44`) and
+shown by `SessionRow.tsx` and `SessionPaneHeader.tsx`. The desktop sends no title and relies on
+the server (`desktop/src/api/client.ts:378`). The Go contract §3.9 already says the default is
+"harness name + " · " + worktree name" (`2026-09-18-phase-2-go-contract.md:1750`), and the UI
+contract says the same (`2026-09-18-phase-2-ui-contract.md:910`), so neither §3.9 nor
+`desktop/src/store/types.ts` changes. The code, not the contract, is what changes.
+`sessionLocate` already walks `Deps.Projects`, which is the catalog after this task, and finds the `project.Worktree`. It now
+returns that worktree's `Name` as well, and runs before the title is built:
+
+```go
+// sessions.go — sessionLocate returns the display name it already holds (task 03's Name).
+func (a *API) sessionLocate(ctx context.Context, worktreeID string) (projectID, branchID, name string)
+
+	projectID, branchID, wtName := a.sessionLocate(ctx, req.WorktreeID) // moved above the title
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		if wtName == "" { // not under an enumerated project: phase 2's answer, the only one left
+			wtName = filepath.Base(filepath.Clean(path))
+		}
+		title = desc.Name + " · " + wtName
+	}
+```
+
+For a primary or linked worktree, `Name` is the directory's base name, so their titles do not
+change. The fallback is reached only when enumeration fails (already a `Warn` line) or the
+worktree is under no enumerated project. The catalog lists every lane in the lane index, so a
+lane reaches the fallback only in the enumeration-failed case. Restart updates the existing
+record in place (`Store.Update`) and never derives a title, so it needs no change.
+
 #### The tests to write first
 
 | Test | Asserts | Mutant it kills |
@@ -287,6 +322,7 @@ false for a new id).
 | `TestMountGuardOrdersAdmitAfterTheCopy` | fn blocks on a channel; a concurrent `Admit(dir, …)` has not run its fn when the channel is released, and runs it after (an ordered event log, under `-race`) | two locks, or none, so a sandbox starts mid-copy |
 | `TestMountGuardFailsClosed` | `Store.List` errors, or `Path` errors for a live session → false, fn never runs, one log line | a registry glitch read as "nothing mounted" |
 | `TestSessionCreateAndRestartAdmitThroughTheGuard` | with a `WhileUnmounted` fn held open on the primary worktree's path, a session create and a restart on it do not reach `Backend.Create` until it is released; with `Deps.Git == nil`, create still works | a session start that bypasses the guard |
+| `TestSessionCreateDefaultTitleUsesTheWorktreeName` (re-review b08-1 issue 2) | a fake enumerator lists `w-lane` with `Kind:"clone"`, `Name:"upload-api"`, and the fake Provider resolves it to `<tmp>/upload-api-3fa9c1`; a create with no title → `Claude Code · upload-api`; a create with `title:"mine"` → `mine`; a worktree the enumerator does not list → the path's base name. Red first: today's code answers `Claude Code · upload-api-3fa9c1` | a lane session titled with the creation nonce |
 | `TestGitIdentityUsesGitxParseIdent` (cmd/api) | the fix's `gitidentity_test.go` cases still pass after the swap | two parsers of one line drifting |
 
 #### Steps
@@ -299,9 +335,17 @@ false for a new id).
 - [ ] **Step 3:** `gitdeps.go`, `gitroutes.go`, `worktrees.go`, the two `api.go` lines, the
   `catalog.go` field, the two codes; `mounts.go`, and the two `Admit` call sites in
   `sessions.go` (re-locate them with `grep -n "a.deps.Store.Create\|StatusStarting"`, since the
-  line numbers above are `10fa5fd`'s).
+  line numbers above are `10fa5fd`'s); `sessionLocate`'s third result and the default title
+  (re-locate with `grep -n "filepath.Base(filepath.Clean(path))\|func (a \*API) sessionLocate"`).
+  The existing title assertion in `TestCreateReturns201StartingWithALocationAndNoSecrets`
+  ("Claude Code · evidence-upload"; `sessions_test.go:742` at `b4aa8ad`, :774 at `960457d`)
+  stays green unchanged: its `sessionsLocator` lists `Name: "evidence-upload"` for the
+  directory `evidence-upload` (:558 and :579 at `b4aa8ad`, :588 and :609 at `960457d`). The
+  comment just above the assertion ("the worktree directory's base name") becomes "the
+  worktree's name".
 - [ ] **Step 4:** config and `main.go`; swap `parseGitIdent` for `gitx.ParseIdent` and delete it.
-- [ ] **Step 5:** amend the Go contract: §3.1 gains one row, *"Phase 3 routes: see
+- [ ] **Step 5:** amend the Go contract: §2.11's `Worktree.Name` comment (contract line 1351,
+  "base name of the worktree directory") takes task 03's wording, the display name; §3.1 gains one row, *"Phase 3 routes: see
   `plans/2026-09-23-phase-3-git-convergence.md`, The HTTP surface"*; §3.2 gains `git_failed` and
   `host_failed`; §3.7's worktree object gains `kind` with the three values and the sentence from
   `project.Worktree.Kind`'s comment; §4 gains `PANACEA_APP_WORKTREES_DIR`.
