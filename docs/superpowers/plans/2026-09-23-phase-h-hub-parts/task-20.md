@@ -48,11 +48,13 @@ makes a mismatch impossible **unless the owner role has dropped it**. The Hub re
 because that is the tampering the check cannot see (contract T5), and a revision that no longer
 hashes to its key must never be rendered as if it did (provenance contract §6.2).
 
-**`hub verify`'s `revisions` check.** For each org (reading `orgs`, then `set_config` per org), walk
+**`hub verify`'s `revisions` check.** For each org (listed by `SELECT * FROM hub.org_ids()`, then `set_config` per org), walk
 every non-erased revision: `SHA-256(canonical) = digest`; `hubapi.ParseBriefEnvelope(canonical)`
 succeeds and its `briefId`, `revision`, `projectId`, `scope`, `branchRef` equal the row's columns;
 its `content.status` equals the `status` column. The first fault prints `FAULT revisions: <key>:
-<what>` and exits 1.
+<what>` and exits 1. Not `SELECT id FROM hub.orgs`: `hub verify` runs on `hub_app`'s connection,
+where `orgs` is under row-level security (review M10, A18, task 07a) and shows no row before a
+`set_config`, so that query would walk no org and pass.
 
 #### Tests to write first
 
@@ -72,7 +74,7 @@ its `content.status` equals the `status` column. The first fault prints `FAULT r
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestVerifyPassesOnAHealthyDatabase` | `run(["verify"])` against a scratch database with revisions → exit 0, `ok revisions` | a verify that always fails |
+| `TestVerifyPassesOnAHealthyDatabase` | `run(["verify"])` against a scratch database with revisions in two orgs → exit 0, `ok revisions`; with one org's revision tampered instead → exit 1 whichever org it is (review M10) | a verify that always fails; a verify that lists orgs by `SELECT id FROM hub.orgs`, sees none, and passes |
 | `TestVerifyFailsOnATamperedRevision` | the tamper above → exit 1, `FAULT revisions: brief:<id>@<n>: digest mismatch` | the contract's H3 acceptance: *"a row whose canonical is altered by the owner role fails hub verify"* |
 | `TestVerifyFailsWhenTheEnvelopeDisagreesWithTheRow` | as the owner, change a revision's `branch_ref` column only (canonical untouched) → exit 1 | a column edited behind the digest's back |
 

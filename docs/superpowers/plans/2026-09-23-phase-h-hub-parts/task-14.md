@@ -99,7 +99,7 @@ type Rebuild func(tx *Tx, stored []byte) (any, error)
 //   BEGIN
 //   store.ResolvePrincipal            → ErrNotEnrolled: 403 tenant_not_enrolled
 //   set_config('hub.org_id', org, true)
-//   store.LockHead(org)               -- SELECT … FROM hub.audit_heads … FOR UPDATE
+//   store.LockHead(org)               -- SELECT seq, hash FROM hub.lock_audit_head() (A19)
 //   if POST and Idempotency-Key:      -- the key must match ^[A-Za-z0-9_-]{1,64}$, else 400 bad_request
 //       store.ClaimKey(…)             → seen with the same method, path and request hash:
 //                                        the body is the stored bytes, or rebuild(tx, stored)
@@ -149,6 +149,11 @@ type Head struct {
 }
 
 // LockHead is the org's write lock: the first statement after set_config in every write.
+// It runs SELECT seq, hash FROM hub.lock_audit_head(), the owner function that takes
+// the row lock on the session's org (task 07b; review M11, A19): hub_app has no UPDATE
+// on audit_heads, and SELECT … FOR UPDATE needs it. The function reads hub.org_id, so
+// orgID fills Head.OrgID and is not sent; the caller has already set_config'd it.
+// P0002 from the function (no head for the session's org) is a 500 `internal`, logged.
 func LockHead(ctx context.Context, tx pgx.Tx, orgID string) (*Head, error)
 
 type AuditRow struct {

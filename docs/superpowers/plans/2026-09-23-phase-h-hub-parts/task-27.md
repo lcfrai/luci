@@ -45,7 +45,9 @@ after erasure is still a replay, `201` with `Idempotent-Replay: true`, and the e
 it has `content: null`, as `/v1/refs` answers. Every other stored replay, co-batched briefs and
 this route's own included, survives the erasure (re-review b06 N1).
 
-**`hub verify`'s `audit` check.** For each org, walk `audit_events` by `seq`:
+**`hub verify`'s `audit` check.** For each org (listed by `SELECT * FROM hub.org_ids()`, not by
+reading `orgs`, which `hub_app` sees empty before a `set_config`: review M10, A18), walk
+`audit_events` by `seq`:
 
 1. `seq` is gapless from 1;
 2. `prev_hash` is the previous row's `hash` (32 zero bytes for `seq` 1);
@@ -78,7 +80,7 @@ prints `ok audit (<n> events in <m> orgs)`.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestVerifyPassesOnAHealthyChain` | two orgs, 30 events → exit 0, `ok audit` | — |
+| `TestVerifyPassesOnAHealthyChain` | two orgs, 30 events → exit 0, exactly `ok audit (30 events in 2 orgs)` | a walk that lists orgs by `SELECT id FROM hub.orgs` and passes on zero (review M10) |
 | `TestVerifyCatchesAnEditedEvent` | as the owner: drop `audit_events_hash_chains`, disable `audit_events_append_only`, alter one `canonical` → exit 1, rule 3 | the contract's H7 acceptance: *"fails after an owner-role edit of one audit row"* |
 | `TestVerifyCatchesAMovedTeam` | the same, but change only `team_id` → exit 1, rule 4 | correction A10: an event moved into another team's feed without breaking the hash |
 | `TestVerifyCatchesAFlippedFeedFlag` | flip `feed` on an `auth.forbidden` row → exit 1, rule 5 | an audit-only event leaked into the feed by editing one boolean |

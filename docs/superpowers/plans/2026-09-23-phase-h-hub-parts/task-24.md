@@ -81,6 +81,8 @@ type JanitorConfig struct {
 // connection and runs pg_try_advisory_lock(hashtext('panacea-app-hub-janitor'))
 // on it: a replica that does not get the lock does nothing this round, so two
 // replicas never double-sweep (contract §12.3). With the lock, for EACH org —
+// listed by SELECT * FROM hub.org_ids(), never by reading hub.orgs, which hub_app
+// sees empty before a set_config (review M10, A18, task 07a) —
 // set_config('hub.org_id', org, true) in its own transaction, so row-level
 // security binds the janitor too, and the org's audit head locked first:
 //   1. reserved releases with expires_at < now → state 'expired', expired_at = now;
@@ -136,7 +138,7 @@ type SweepReport struct {
 | `TestTheJanitorWaits24Hours` | clock + 23 h → nothing collected | an upload deleted before the approval that follows it |
 | `TestTheJanitorCleansIdempotencyKeys` | a key from 25 h ago is gone; one from 1 h ago stays | an unbounded table |
 | `TestOnlyOneReplicaSweeps` | two concurrent `Sweep`s → exactly one `Locked: true` | double expiry events from two pods |
-| `TestTheJanitorRespectsRowLevelSecurity` | two orgs; each org's sweep touches only its rows (asserted through the audit events' `org_id`) | a janitor that runs as the owner and crosses tenants |
+| `TestTheJanitorRespectsRowLevelSecurity` | two orgs, each with one overdue reservation; one `Sweep` → `Expired: 2`, and each org's sweep touches only its rows (asserted through the audit events' `org_id`) | a janitor that runs as the owner and crosses tenants; a janitor that lists orgs by `SELECT id FROM hub.orgs`, sees none under row-level security, and sweeps nothing (review M10) |
 
 Matrix `rowsTask24` (each cell reserves as its own column's user where it can, so the reserver
 rule is exercised):
