@@ -914,4 +914,61 @@ erasure gains tombstones for notes, messages and human messages, keeping each au
 an erased note returns a tombstone and its audit event remains; a worker's `team` never contains a
 note.
 
+**47 — Phase 8 delta: AU egress, the region guard, task 32's probes.** Phase 8's platform chart
+(task 11) gains, for sandboxes of an AU project, an egress allowlist of package registries and the
+git host only, since AU governs inference, not `curl` (§2.5). A guard in phase 8's `guards.sh`
+(task 01) fails any Terraform or chart that places Fleet, its Postgres, the lane mirror, the
+gateway or its usage store, or a sandbox pool outside Australia East. Phase 8 task 32's checklist
+(`infra/smoke/kata/*`, **UNVERIFIED until merge**) gains five probes, each a script tested on canned
+output: the Orchestrator pod's real size under TM1-α load; whether a guest write reaches
+`machined`'s sweep within one sweep; whether a pod's source address survives to the gateway, or
+mTLS is needed; team launch latency from the warm pool (target under 10 s); the PTY round trip
+through `fleetbe` (target 150 ms p95 from Australia). Tests: the guard rejects a fixture in
+`australiasoutheast`; each probe's parser on canned output.
+
+**48 — Phase 3 delta: the read-only per-project fetch credential (OD-22).** Extends phase 3's
+`cp/internal/githost` (tasks 13–14) with `FetchCredential(project) (Credential, error)`: a GitHub
+App installation token with `contents: read` on the one repository, or an Azure DevOps identity
+with read on the one repo (OD-4: both). It is held by the broker (task 17), stored in Key Vault
+readable by the broker's identity only (phase 8 tasks 05, 10), used only by `machined` runners
+(phase 3 task 12's slow-timer fetch, a typed `rebase`, the Orchestrator's view) and the lane mirror,
+and every fetch is audited to the project. **Push and PR keep the lane owner's own token, per act,
+in memory only** (phase 3 task 13). A member's own repository access is re-proven with her token
+at each sign-in; a failed re-check stops fetches into her clones (§10.2 item 2). Tests: a push with
+the fetch credential is refused before any network call; a failed re-proof stops the timer.
+
+**49 — Phase 3 delta: the team land review.** Extends phase 3's land (task 09) and the merge lens
+(task 19), **UNVERIFIED until merge**: on a team project, the land review lists every conflict the
+lane was party to, with its resolution (from the Hub's `cf-…` records), and a lane that changes an
+agent-config path (`CLAUDE.md`, `AGENTS.md`, `.claude/**`, `.mcp.json`, git-hook files,
+package-script entries) needs a **second member's approval** to land (§8.3, `07` I7). The approval
+is a Hub record by the approver as themselves. Tests: a lane touching `.claude/settings.json`
+cannot land on its owner's approval alone; a package.json change that alters only `dependencies`
+needs no second approver, one that alters `scripts` does.
+
+**50 — Phase 4 delta: the team pointer paragraph.** Extends `cp/internal/claudemd/render.go` on
+`feat/phase-4-discover` (built): for a team project, the managed block gains §5.3's one fixed
+paragraph, byte for byte, and **nothing from any teammate is ever rendered into it** (`04` F4).
+Solo projects are unchanged. Tests: the team render contains the paragraph once and is
+deterministic; a solo render is byte-identical to before.
+
+**51 — The prototype of every team surface.** `prototype/team-mode.html`, one self-contained file,
+after reading `docs/DESIGN-SYSTEM.md` and `docs/AGENTIC-UX.md`: the team strip (at most 5 rows,
+zero state *"Only you on this project."*), click-in, the four Desk row kinds, the Orchestrator
+panel with inline directives and thread list, the Share line, the route badge (`Global`, `AU`,
+`AU · required`) and the spend line. One heartbeat clock, no spinner per row, `tabular-nums`, Commit
+Mono for ids, paths and times, Segoe UI Variable for text (OD-28), no percentages, bars, ETAs or
+"N of M" (OD-27), author class beside every agent-written line. **The owner reviews it before tasks
+53–56 start**; visual acceptance is the owner's eyes (`CLAUDE.md`).
+
+**52 — Team read models on the local control plane; the desktop client.** `cp/internal/api/team.go`
+relays through `fleetbe` (task 21) and the Hub: the strip read model (per person: display name,
+assembled line = brief section title + task title + agent count, three latest observed paths and a
+count, one status per row), a person's detail, Desk items (escalations, informs, DECIDED WITHOUT
+YOU, HORIZON), the Orchestrator conversation (human messages out, kept turn replies in), escalation
+answers, notes and route raise. `desktop/src/api/team.ts`, `store/slices/teamSlice.ts` and
+`store/types.ts` mirror the JSON field for field (ST.8), with every `text·A` field typed as such.
+Tests: the read model never includes a teammate's terminal, transcript or prompt; the client's
+types match the fixtures.
+
 ---
