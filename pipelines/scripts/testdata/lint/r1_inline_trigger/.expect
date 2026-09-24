@@ -1,0 +1,2 @@
+1
+R1 triggers: FAIL pipelines/lintme.yml: trigger: has no paths.include

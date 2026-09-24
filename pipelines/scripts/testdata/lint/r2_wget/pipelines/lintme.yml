@@ -1,0 +1,13 @@
+# Case r2_wget: the other download command, no checksum, no template.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - script: wget -q -O /tmp/helm.tgz https://example.invalid/helm.tgz

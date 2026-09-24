@@ -1,0 +1,2 @@
+1
+R7 scripts-exist: FAIL pipelines/lintme.yml: pipelines/scripts/not-written-yet.sh does not exist

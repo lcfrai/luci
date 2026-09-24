@@ -1,0 +1,10 @@
+# Case r1_inline_trigger: the branch-list shorthand names branches and no paths, so every push
+# to main or dev runs it whatever it touched.
+trigger: [main, dev]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - script: bash pipelines/scripts/hello.sh

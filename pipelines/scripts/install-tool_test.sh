@@ -76,5 +76,14 @@ check short_sha_refused 1 "short-tool: the pin has no SHA-256" $? "$out" '[ ! -e
 out="$(run "proto-tool @PLAT@ 1.0.0 bin proto-tool $BIN_SHA $URL_BIN" proto-tool default)"
 check https_only 1 "download failed" $? "$out" '[ ! -e "$T/proto-tool$exe" ]'
 
+# ...and on every redirect: no offline test can serve one, so this reads the command setup_curl
+# builds (the mutant without --proto-redir survived every behaviour case above).
+out="$(bash -c 'source "$1" && setup_curl && printf "%s\n" "${CURL[@]}"' _ "$SCRIPT" 2>&1)"
+n=$((n + 1))
+case $'\n'"$out"$'\n' in
+  *$'\n'--proto-redir$'\n'=https$'\n'*) echo "ok   redirects_https_only"; pass=$((pass + 1)) ;;
+  *) echo "FAIL redirects_https_only: no --proto-redir =https in the download command"; printf '    %s\n' "$out" ;;
+esac
+
 echo "install-tool_test: $pass of $n cases passed"
 [ "$pass" -eq "$n" ]

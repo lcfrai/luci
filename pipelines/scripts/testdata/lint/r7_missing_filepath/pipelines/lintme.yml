@@ -1,0 +1,15 @@
+# Case r7_missing_filepath: a Bash@3 task whose filePath names a script that is not in the tree.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [infra/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [infra/**]
+steps:
+  - task: Bash@3
+    inputs:
+      filePath: pipelines/scripts/not-written-yet.sh

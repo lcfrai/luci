@@ -1,0 +1,16 @@
+# Case r8_unnamed_connection (extends task30_ok): a connection input whose variable is not a
+# PANACEA_APP_<ENV>_<KIND>_SERVICE_CONNECTION, so no rule knows which identity it is. R4 passes
+# (it is a variable); R8 is what refuses it.
+trigger: none
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [infra/**]
+steps:
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: $(SOME_CONNECTION)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: bash pipelines/scripts/estate-guard.sh dev plan
