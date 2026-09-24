@@ -36,8 +36,8 @@ repeat it.
 5. **The HTTP ceiling is below the longest desktop budget (analyse, 60 s) (review I4).** The old
    plan's `Timeout: 120 * time.Second` (`:335`, `:399-400`) becomes `DefaultTimeout = 45 * time.Second`.
    It is **not** below the 30 s follow-up budget or the 10 s default, and it does not need to be:
-   the per-call budgets keep each call under its own desktop timeout. Removing one of them would
-   not leave the ceiling to hold. It is a ceiling only; every caller also passes its own context: task 04's
+   the per-call budgets keep each call under its own desktop timeout. Without one of them, the
+   45 s ceiling would not keep that call inside its desktop timeout. It is a ceiling only; every caller also passes its own context: task 04's
    `FollowUpBudget` (20 s) and task 13's `DraftBudget` (35 s), each inside a route deadline
    (task 11's `Budgets`: 28 s and 55 s). The desktop waits 30 s for `apply` with
    `propose_follow_up` and 60 s for `analyse` (task 15), so a slow model reaches the desktop as the
@@ -47,6 +47,8 @@ repeat it.
 **Files:**
 - `control-plane/internal/modelclient/client.go` (new)
 - `control-plane/internal/modelclient/client_test.go` (new)
+- `control-plane/internal/modelclient/timeout_internal_test.go` (new; `package modelclient`, so
+  it can read the built `http.Client`'s `Timeout`; the test table below always named it)
 
 **Interfaces — complete source** (the old plan's declarations, restated so this part stands alone;
 the bodies are the old plan's):
@@ -114,28 +116,50 @@ var _ Completer = (*Client)(nil)
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestCompleteSendsTheRequiredHeadersAndBody` | path `/v1/messages`, `x-api-key`, `anthropic-version: 2023-06-01`, model and user turn in the body | a client that drops the version header |
+| `TestCompleteSendsTheRequiredHeadersAndBody` | `POST`, path `/v1/messages`, `content-type: application/json`, `x-api-key`, `anthropic-version: 2023-06-01`; model, the one user turn and the system text block in the body; `Response.Model` and usage read back | a client that drops the version header |
 | `TestCompleteSendsJSONSchemaWhenSupplied` | the schema reaches the body | a schema silently ignored |
-| `TestCompleteSurfacesHTTPErrors` | a 4xx/5xx is an error carrying the status | a client that returns empty text on 500 |
+| `TestCompleteSurfacesHTTPErrors` | a 401 row **and a 500 row**, each an error carrying the status and the body (the old plan's test had the 401 only, which cannot kill the mutant in the next column) | a client that returns empty text on 500 |
 | `TestCompleteReportsRefusal` | `stop_reason: refusal` is `ErrRefused` | a refusal read as an empty answer |
-| `TestNewRejectsAMissingKey` | `New(Config{})` is `ErrNoCredentials` | a client that sends no key |
-| `TestExtractJSON` | the object inside prose and fences is found | a greedy first-`{`-to-last-`}` extractor |
+| `TestNewRejectsAMissingKey` | `New(Config{BaseURL: "http://x"})` (the old row), `New(Config{})` and a blank key are each `ErrNoCredentials`: the key check runs first | a client that sends no key |
+| `TestExtractJSON` | the object inside prose and fences is found; **plus a "first of two objects" row** (`{"a":1} and then {"b":2}` gives `{"a":1}`): each of the old five rows holds one outermost brace pair, so the greedy mutant in the next column passed all five | a greedy first-`{`-to-last-`}` extractor |
 | `TestExtractJSONFailsWhenAbsent` | no object is `ErrNoJSON` | a nil-byte success |
 
-Add one:
+Add these:
 
-| `TestConfigFromEnvReadsOnlyPanaceaAppVariables` | with `ANTHROPIC_API_KEY` set and `PANACEA_APP_MODEL_API_KEY` unset, `ConfigFromEnv` is `ErrNoCredentials` | a fallback to a variable a developer's shell may hold for a different account (G4) |
-| `TestAKeyWithoutABaseURLIsModelOff` | with `PANACEA_APP_MODEL_API_KEY` set and `PANACEA_APP_MODEL_BASE_URL` unset, then set to `"  "`, `ConfigFromEnv` is `ErrNoBaseURL`; `New(Config{APIKey: "k"})` is `ErrNoBaseURL` | the old `getenv(..., "https://api.anthropic.com")` fallback, in either `ConfigFromEnv` or `New` (I13) |
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestConfigFromEnvReadsOnlyPanaceaAppVariables` | with `ANTHROPIC_API_KEY` (and `ANTHROPIC_AUTH_TOKEN`) set and `PANACEA_APP_MODEL_API_KEY` unset, then blank, `ConfigFromEnv` is `ErrNoCredentials` | a fallback to a variable a developer's shell may hold for a different account (G4) |
+| `TestAKeyWithoutABaseURLIsModelOff` | with `PANACEA_APP_MODEL_API_KEY` set, `ANTHROPIC_BASE_URL` set, and `PANACEA_APP_MODEL_BASE_URL` unset, then set to `"  "`, `ConfigFromEnv` is `ErrNoBaseURL`; `New(Config{APIKey: "k"})` and a blank `BaseURL` are `ErrNoBaseURL` | the old `getenv(..., "https://api.anthropic.com")` fallback, in either `ConfigFromEnv` or `New` (I13); a fallback to `ANTHROPIC_BASE_URL` |
 | `TestTheDefaultTimeoutIsBelowTheLongestDesktopBudget` | `DefaultTimeout < 60*time.Second`; `New(Config{APIKey: "k", BaseURL: "http://x"})` (no `Timeout`) builds an `http.Client` whose `Timeout` is `DefaultTimeout` (an internal `package modelclient` test file, `timeout_internal_test.go`, reads the unexported field, so no test waits 45 s) | a default left at the old 120 s, which outlasts task 15's 60 s `analyse` budget (I4) |
+
+**As built (task 02, commits d6867dc and 59879db):** the tests above, and five more. One pins the
+happy path. The other four were written after the mutation run at d6867dc, where both predicted
+survivors (S1, S2) survived:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestConfigFromEnvReadsTheThreeVariables` | key, base URL (spaces and a trailing slash trimmed), `PANACEA_APP_MODEL_ID` and the `MaxTokens`/`Timeout` defaults; no model id gives `DefaultModel`; `DefaultTimeout` is 45 s | `PANACEA_APP_MODEL_ID` ignored; the trailing slash kept |
+| `TestNewFillsTheDefaults` | `New` with only a key and a base URL ending in `/` posts to `/v1/messages` with `DefaultModel`, `max_tokens` 8192 and no `output_config` | `New`'s defaults dropped |
+| `TestCompleteReportsNoTextBlock` | a thinking-only reply at `max_tokens`, and empty content, are `ErrNoText` | S1: a 200 with no text block read as a success with empty text |
+| `TestCompleteBoundsTheReplyItReads` | a reply over 8 MiB is an error | the read limit removed |
+| `TestACallersTimeoutIsKept` (internal) | a caller's `Timeout: 5s` reaches the `http.Client` | S2: `New` always using `DefaultTimeout` |
+
+A blank key is "model off" (`ErrNoCredentials`), in `ConfigFromEnv` and in `New`, the same way a
+blank base URL is `ErrNoBaseURL`; the key and the model id are trimmed. This is a departure from
+"copied as written", declared in the task 02 report.
 
 **Steps:**
 
-- [ ] **Step 1:** Check `output_config` against the Messages API reference; record the result in
+- [x] **Step 1:** Check `output_config` against the Messages API reference; record the result in
   the commit message. If a field is not accepted, drop it and its test assertion.
-- [ ] **Step 2:** Write the tests; run `go test ./control-plane/internal/modelclient/...` — expect
+  *Result (d6867dc):* both accepted, per the bundled claude-api skill reference (cached
+  2026-06-24; no live docs fetched): `output_config.effort` is GA (low to max; default `high` on
+  `claude-opus-5`, `medium` on `claude-opus-5-5`), and `output_config.format {type: json_schema,
+  schema}` is the current field (top-level `output_format` is the deprecated one). Nothing dropped.
+- [x] **Step 2:** Write the tests; run `go test ./control-plane/internal/modelclient/...` — expect
   a compile failure.
-- [ ] **Step 3:** Copy the implementation with the five amendments.
-- [ ] **Step 4:** Run the acceptance commands; commit by pathspec.
+- [x] **Step 3:** Copy the implementation with the five amendments.
+- [x] **Step 4:** Run the acceptance commands; commit by pathspec.
 
 **Acceptance:**
 
