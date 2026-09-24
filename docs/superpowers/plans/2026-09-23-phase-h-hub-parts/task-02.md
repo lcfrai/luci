@@ -270,6 +270,10 @@ in `task-02-report.md`:
   checks that "`canonical` parses as a `hubapi.AuditEnvelope`"; no task wrote that reader. Data
   integers come back as `int64`.
 
+After the mutation run (commit 94d6625) every parser refusal names its field, so the members, `v`
+and `kind` checks are each held by a test and not only by the final canonical comparison; the
+audit data check walks keys in order, so of several bad values the first is named every time.
+
 Five tests beyond the table cover them: `TestFailuresNameTheirField`,
 `TestAStoredRevisionMustBeCanonical`, `TestEnvelopesRefuseMalformedFields`,
 `TestAuditDataTakesScalarsOnly`, `TestParseAuditEnvelopeRoundTrips`. None matches the acceptance
