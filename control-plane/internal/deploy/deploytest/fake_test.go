@@ -375,6 +375,31 @@ func TestFakeReseedMovesTheRun(t *testing.T) {
 	if d, _, _ := f.Latest(ctx, proj); d.Build != deploy.BuildSucceeded || d.BuildRaw != "succeeded" {
 		t.Errorf("after Cancel the re-seeded succeeded row reads %+v, want it untouched", d)
 	}
+	// A re-seed REPLACES the row: three seeds of d1 are one row in the history, not three, or a
+	// history reader counts one build three times (fix round 1, mutant P2).
+	if ds, _ := f.Deployments(ctx, proj); len(ds) != 1 || ds[0].ID != "d1" || ds[0].Build != deploy.BuildSucceeded {
+		t.Errorf("Deployments after three seeds of d1 = %+v, want the one succeeded row", ds)
+	}
+}
+
+// TestFakeClearDeploymentsForgetsTheRuns: a project cleared to "never deployed" has no runs
+// either, so Run and Cancel of a run it held are KindNotFound, never an answer about a build with
+// no row (the I-1 class: two answers for one run; fix round 1, mutant P1).
+func TestFakeClearDeploymentsForgetsTheRuns(t *testing.T) {
+	f := newShipFake(&testClock{t: base})
+	ctx := context.Background()
+	f.AddDeployment(proj, deploy.Deployment{ID: "d1", Environment: "feat-x", Build: deploy.BuildRunning,
+		BuildRaw: "running", CreatedAt: base})
+	f.ClearDeployments(proj)
+	if d, ok, err := f.Latest(ctx, proj); ok || err != nil {
+		t.Fatalf("Latest after ClearDeployments = (%+v, %v, %v), want never deployed", d, ok, err)
+	}
+	if rp, err := f.Run(ctx, proj, "d1"); deploy.KindOf(err) != deploy.KindNotFound {
+		t.Errorf("Run of a cleared run = (%+v, %v), want KindNotFound", rp, err)
+	}
+	if cr, err := f.Cancel(ctx, proj, "d1"); deploy.KindOf(err) != deploy.KindNotFound {
+		t.Errorf("Cancel of a cleared run = (%+v, %v), want KindNotFound", cr, err)
+	}
 }
 
 // TestFakeShipNeverReplacesASeededDeployment: history seeded under a name the Fake's own runs use
