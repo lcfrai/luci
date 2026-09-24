@@ -152,10 +152,10 @@ func catalogNewDeps(t *testing.T) (api.Deps, *registry.FileStore) {
 		// Required by New and unused by the catalog: nothing here starts a
 		// session.
 		ConversationsDir: filepath.Join(t.TempDir(), "conversations"),
-		GitLineEndings: func(context.Context, string) (api.GitLineEndings, error) {
+		GitLineEndings: func(context.Context) (api.GitLineEndings, error) {
 			return api.GitLineEndings{AutoCRLF: "false", EOL: "lf"}, nil
 		},
-		GitGlobalFiles: func(context.Context, string) (api.GitGlobalFiles, error) {
+		GitGlobalFiles: func(context.Context) (api.GitGlobalFiles, error) {
 			return api.GitGlobalFiles{}, nil
 		},
 	}, st

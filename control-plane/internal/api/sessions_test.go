@@ -574,16 +574,16 @@ func sessionsNewEnvOver(t *testing.T, dir string, st registry.Store, flags regis
 	return sessionsNewEnvOverWith(t, dir, st, flags, nil)
 }
 
-// sessionsLineEndings is a Deps.GitLineEndings that gives every worktree the
-// same answer.
-func sessionsLineEndings(eol GitLineEndings) func(context.Context, string) (GitLineEndings, error) {
-	return func(context.Context, string) (GitLineEndings, error) { return eol, nil }
+// sessionsLineEndings is a Deps.GitLineEndings that always gives the same
+// answer, as the host's own config does.
+func sessionsLineEndings(eol GitLineEndings) func(context.Context) (GitLineEndings, error) {
+	return func(context.Context) (GitLineEndings, error) { return eol, nil }
 }
 
-// sessionsGlobalFiles is a Deps.GitGlobalFiles that gives every worktree the
-// same answer. The zero answer is a host whose git reads no global file.
-func sessionsGlobalFiles(files GitGlobalFiles) func(context.Context, string) (GitGlobalFiles, error) {
-	return func(context.Context, string) (GitGlobalFiles, error) { return files, nil }
+// sessionsGlobalFiles is a Deps.GitGlobalFiles that always gives the same
+// answer. The zero answer is a host whose git reads no global file.
+func sessionsGlobalFiles(files GitGlobalFiles) func(context.Context) (GitGlobalFiles, error) {
+	return func(context.Context) (GitGlobalFiles, error) { return files, nil }
 }
 
 // sessionsNewEnvOverWith is sessionsNewEnvOver with a hook over the Deps before

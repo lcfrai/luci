@@ -130,12 +130,20 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		worktrees = scanner
 	}
 
+	// The host's own git config, and nothing a sandbox can write, answers the
+	// identity, line-ending and global-file questions: hostGit runs git in a
+	// directory made here, outside every repository (X-1).
+	host, removeHostDir, err := newHostGit()
+	if err != nil {
+		return err
+	}
+	defer removeHostDir()
+
 	// Asked once here as well as at every create, so the user without an
-	// identity hears it at startup, before any agent tries to commit. Asked
-	// outside any worktree, this is the machine-wide answer; a repository that
-	// sets its own identity is still asked at its own sessions' creates.
-	gitIdentity := gitIdentityResolver(cfg.GitName, cfg.GitEmail, gitRunner)
-	if _, err := gitIdentity(ctx, cfg.ProjectsDir); err != nil {
+	// identity hears it at startup, before any agent tries to commit. The
+	// answer is the same machine-wide one each time.
+	gitIdentity := gitIdentityResolver(cfg.GitName, cfg.GitEmail, host)
+	if _, err := gitIdentity(ctx); err != nil {
 		log.Warn("no git identity", "err", err)
 	}
 
@@ -159,8 +167,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		// Created per worktree, at the first session that needs it.
 		ConversationsDir: cfg.ConversationsDir,
 		GitIdentity:      gitIdentity,
-		GitLineEndings:   gitLineEndingsResolver(gitRunner),
-		GitGlobalFiles:   gitGlobalFilesResolver(gitRunner),
+		GitLineEndings:   gitLineEndingsResolver(host),
+		GitGlobalFiles:   gitGlobalFilesResolver(host),
 		CABundle:         cfg.CABundle,
 	})
 	if err != nil {

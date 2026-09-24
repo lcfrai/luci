@@ -130,22 +130,28 @@ type Deps struct {
 	// Task 13's wiring derives it from the state directory.
 	ConversationsDir string
 
-	// GitIdentity resolves who an agent's commits in one worktree are made as.
-	// Sessions call it at every create and restart, with the worktree's HOST
-	// path, and hand the answer to the sandbox as GIT_AUTHOR_* and
-	// GIT_COMMITTER_*. Users authenticate as themselves, so this is the person
-	// running the cockpit and never a shared or invented identity; cmd/api's
-	// resolver reads PANACEA_APP_GIT_NAME/EMAIL, else the host's own git.
+	// GitIdentity resolves who an agent's commits are made as. Sessions call it
+	// at every create and restart and hand the answer to the sandbox as
+	// GIT_AUTHOR_* and GIT_COMMITTER_*. Users authenticate as themselves, so
+	// this is the person running the cockpit and never a shared or invented
+	// identity; cmd/api's resolver reads PANACEA_APP_GIT_NAME/EMAIL, else the
+	// host's own git outside any repository.
+	//
+	// None of the three git resolvers is given a worktree (X-1, phase 3 ruling
+	// R4 rule 6). A worktree's .git/config is in its sandbox's mount and the
+	// agent writes it, so an answer read there is the agent's choice: its
+	// core.excludesFile named an SSH key, and the session mounted the key. The
+	// answers come from host-owned config only, the same for every session.
 	//
 	// Nil, or an error, means no identity: the session still starts, the error
 	// is logged as the sentence the user acts on, and the sandbox's git refuses
 	// to commit rather than guessing (see sessionEnv's user.useConfigOnly).
-	GitIdentity func(ctx context.Context, worktreePath string) (GitIdentity, error)
+	GitIdentity func(ctx context.Context) (GitIdentity, error)
 
-	// GitLineEndings resolves how the HOST's git normalises line endings in one
-	// worktree: its effective core.autocrlf, and the ending core.eol means
-	// there. Sessions call it at every create and restart, with the worktree's
-	// host path, and hand the answer to the sandbox as git configuration.
+	// GitLineEndings resolves how the HOST's git normalises line endings, from
+	// its own system and global config: core.autocrlf, and the ending core.eol
+	// means there. Sessions call it at every create and restart and hand the
+	// answer to the sandbox as git configuration.
 	//
 	// It is required, and an error fails the create or restart before anything
 	// is recorded or destroyed, because there is no safe guess. The host's
@@ -153,11 +159,13 @@ type Deps struct {
 	// Windows' installer sets core.autocrlf=true at system scope. A sandbox
 	// that guessed "false" there sees every CRLF file as modified, and one
 	// commit -a writes CRLF blobs for files the agent never touched.
-	GitLineEndings func(ctx context.Context, worktreePath string) (GitLineEndings, error)
+	GitLineEndings func(ctx context.Context) (GitLineEndings, error)
 
-	// GitGlobalFiles resolves the two files the HOST's git reads in one
-	// worktree beyond its config: the global excludes file and the global
-	// attributes file, as host paths (gitfix-rereview I-A). Sessions call it at
+	// GitGlobalFiles resolves the two files the HOST's git reads beyond its
+	// config, as its own system and global config name them: the global
+	// excludes file and the global attributes file, as host paths
+	// (gitfix-rereview I-A). Every one is mounted, so no worktree's config may
+	// name one (X-1). Sessions call it at
 	// every create and restart, and sessionEnv hands the sandbox's git the
 	// ones that exist, mounted read-only, and /dev/null for the rest.
 	//
@@ -168,7 +176,7 @@ type Deps struct {
 	// an agent's `git add -A` commits every file the host's git ignores there,
 	// .claude/settings.local.json among them, and that is a user's personal
 	// permission allow-list.
-	GitGlobalFiles func(ctx context.Context, worktreePath string) (GitGlobalFiles, error)
+	GitGlobalFiles func(ctx context.Context) (GitGlobalFiles, error)
 
 	// CABundle is the absolute host path of a PEM bundle every sandbox trusts in
 	// addition to its own roots, mounted read-only at sessionCABundlePath and
@@ -183,7 +191,7 @@ type GitIdentity struct {
 	Email string
 }
 
-// GitLineEndings is how the host's git converts line endings in one worktree,
+// GitLineEndings is how the host's own config says git converts line endings,
 // in the two words the sandbox's git needs to do the same.
 //
 //   - AutoCRLF is core.autocrlf as git itself reads it: "true", "false" or
@@ -197,7 +205,7 @@ type GitLineEndings struct {
 	EOL      string
 }
 
-// GitGlobalFiles is where the host's git looks, in one worktree, for the two
+// GitGlobalFiles is where the host's own config says git looks for the two
 // per-user files that change what a commit contains:
 //
 //   - Excludes is core.excludesFile, else git's own default,
