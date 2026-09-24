@@ -87,13 +87,17 @@ export type UndoState = "exact" | "revert" | "none";
 export interface HistoryEntry {
   sha: string; parents: string[]; authorName: string; at: string; subject: string; kind: HistoryKind;
   worktreeId: WorktreeId | ""; worktreeName: string; briefKey: string; briefDigest: string;
-  sessions: SessionId[]; reverts: string; pushed: boolean; undo: UndoState; undoWhy: "" | "pushed" | "built_upon";
+  sessions: SessionId[]; reverts: string; pushed: boolean; undo: UndoState;
+  undoWhy: "" | "pushed" | "built_upon" | "merged_into_lane"; // merged_into_lane: review I3
 }
 export interface UndoResult {
   tip: string; undone: string; readyRestored: boolean;
   refreshed: WorktreeId[]; refreshErrors: Record<WorktreeId, string>;
 }
-export interface RevertResult { revert: string; before: string; reverts: string }
+export interface RevertResult {
+  revert: string; before: string; reverts: string;
+  refreshed: WorktreeId[]; refreshErrors: Record<WorktreeId, string>; // review I4
+}
 
 /* task 11 — lanes.Removed, converge.RenameResult, DeleteResult, lanes.Rename */
 export interface Removed { worktreeId: WorktreeId; archivedAs: string }

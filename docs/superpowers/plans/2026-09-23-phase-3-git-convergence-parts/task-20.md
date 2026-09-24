@@ -97,7 +97,12 @@ remote's commits" (`kind: "bring-in"`, task 10; re-review b05 issue 5); `history
 undo is offered, the lane simply re-enters the queue); `undo: "revert"` → **Revert…**, which
 expands an inline line in the row, *"Land a commit that takes back d5f0a17? [Revert] [Keep it]"*,
 because a revert of pushed history has no exact undo; `undo: "none"` → no verb. An `undoWhy` of
-`pushed` or `built_upon` is the title text of the Revert button.
+`pushed`, `built_upon` or `merged_into_lane` is the title text of the Revert button; for
+`merged_into_lane` (review I3) it reads *"Another worktree has merged this land, so moving the
+branch back would not take it back. A revert does."* An Undo refused with
+`undo_not_exact`/`merged_into_lane` (the row was fetched before a lane merged it) reloads the
+history, names the worktrees from `details.worktrees` (one id per line) and opens the same inline
+Revert line.
 
 **Evidence.** `DoDSlot` (task 19) gains, once phase 4's `DefinitionOfDone` mounts there, a
 *Record evidence…* control per criterion (through phase 4's `onRecordEvidence` prop, ask P4-5; if
@@ -127,6 +132,7 @@ the report says so.
 | `exact undo is offered only when exact` | `undo: "exact"` → Undo; `"revert"` → Revert…; `"none"` → nothing | offering an exact undo of pushed history |
 | `Undo undoes with the tip the human saw` | click → `undoLand(sha, expectedTip = conv.tip)` | undoing a land that is no longer the tip |
 | `Revert asks inline, then reverts` | Revert… → the inline line; Keep it → no call; Revert → `revertLand(sha, conv.tip)` | an unasked history-changing commit |
+| `an undo a lane has merged turns into a revert` (review I3) | a row with `undoWhy: "merged_into_lane"` → Revert… whose title names the merge; an Undo rejected with `undo_not_exact`, `details.why "merged_into_lane"`, `details.worktrees "w-b"` → history reloads, the row names w-b's worktree and shows the inline Revert line, no second undo call | an Undo that fails silently, or retries, when another lane has merged the land |
 | `a reverted land says it cannot simply re-land` | a land followed by a revert naming it → the "reverted by …" sentence on the land's row | a user re-landing and seeing nothing happen |
 | `EvidenceDialog requires a because` | empty or whitespace → Record disabled; typed → enabled; 2001 chars → refused with the limit | a non-open state without its because (P12) |
 | `EvidenceDialog records at the chosen commit` | choose "in upload-ui" → `recordEvidence` with that lane's tip and the criterion's id and digest | evidence at a commit the human did not pick |
