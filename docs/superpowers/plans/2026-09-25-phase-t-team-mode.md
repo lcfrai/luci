@@ -277,3 +277,70 @@ merge**.
 | Phase 6 | `cp/internal/budget/*`, `cp/internal/usage/*` (tasks 06, 09), `desktop/src/components/inference/*` (task 22) | planned | per-counterpart tags; team quotas; the route badge reuses the panel's state | 37, 56, 66 |
 
 ---
+
+## Task list
+
+Each task's full text is in `2026-09-25-phase-t-team-mode-parts/task-NN.md`. A focused day is
+8 hours. **dependsOn** names this plan's tasks by number and sibling tasks by prefix: `H` the Hub
+plan (`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:401-446`), `P8-` phase
+8 (`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment.md:553-622`),
+`P3-` phase 3 (`.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md:591-614`),
+`P6-` phase 6 (`.claude/worktrees/phase-6/docs/superpowers/plans/2026-09-25-phase-6-gateway.md:159-182`,
+still being written), `P4` phase 4's merged Materialiser. A sibling task is a dependency only once its
+branch is sync-merged here.
+
+**Seams** this plan defines, so parallel writers agree without reading each other:
+
+| Seam | What is fixed | Defined in | Consumed by |
+|---|---|---|---|
+| **ST.1** | the `panacea` control wire v1: request, response and event JSON, verb names, the error envelope, the fixture set | 09 | 16, 18, 19, 22–31, 38 |
+| **ST.2** | the Hub's team records: ids, fields, bounds, routes, feed kinds, audit event names | 01, 03 | 04–08, 11, 43, 46 |
+| **ST.3** | delegation: the `X-Panacea-Delegation` header, the actor rule, the `ag-…` owner check | 01, 05 | 11, 17, 20, 21, 44 |
+| **ST.4** | the policy layers, `policy.Render`, the digest and `PANACEA_APP_POLICY_SHA256` | 13 | 14, 15, 41 |
+| **ST.5** | the turn: the fixed template, `turn.begin` / `turn.end` on the control stream, the session id rule | 26 | 27, 40 |
+| **ST.6** | the activity sample `machined` sends: paths, hunks, base blob, last commit, all capped | 34 | 35, 36, 60 |
+| **ST.7** | the mirror's typed result: tier, paths, line ranges, basis shas | 59 | 60, 61 |
+| **ST.8** | the team read model the cockpit renders, and its author-class labels | 52 | 53–56, 63, 67 |
+
+Sibling seams used: **S8.1** `backend.Backend` unchanged (phase 8); **S6.6** the managed-settings
+fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **P8-D12**.
+
+### TM1-α: the three untried parts, thin, on the real cluster
+
+| Id | Title | Slice | Focused days | dependsOn | Seams |
+|---|---|---|---|---|---|
+| 01 | ADR-H1 "delegated callers" amendment and the team-records contract | TM1-α | 0.375 (3 h) | Hub merge | ST.2, ST.3 |
+| 02 | `teamtext`: bounded text, author class, G3 hygiene, globs and breadth | TM1-α | 0.3 (2.5 h) | — | — |
+| 03 | Hub wire types for team records; id prefixes and codes | TM1-α | 0.3 (2.5 h) | 01, 02, H01–H03 | ST.2 |
+| 04 | Hub migration: team tables, RLS, append-only guards, tombstone columns | TM1-α | 0.375 (3 h) | 03, H06, H07a, H07b | ST.2 |
+| 05 | Hub delegated-caller authentication; `devissuer` client-credentials grant | TM1-α | 0.375 (3 h) | 04, H11–H13 | ST.3 |
+| 06 | Hub routes, part 1: delegations, tasks, agents, lease events, conflicts | TM1-α | 0.375 (3 h) | 05, H14, H17 | ST.2, ST.3 |
+| 07 | Hub routes, part 2: threads, messages, escalations, directives, turns, human messages | TM1-α | 0.375 (3 h) | 06 | ST.2 |
+| 08 | Hub feed kinds, Fleet's per-org subscription; `hubclient` team methods, fake, conformance | TM1-α | 0.375 (3 h) | 07, H26, H33, H34 | ST.2 |
+| 09 | Fleet model and the `panacea` control wire v1 | TM1-α | 0.3 (2.5 h) | 02 | ST.1 |
+| 10 | Fleet's Postgres schema and `Store` | TM1-α | 0.375 (3 h) | 09 | — |
+| 11 | Fleet as a delegated Hub caller: outbox, delegation client, feed, rebuild | TM1-α | 0.375 (3 h) | 08, 10 | ST.3 |
+| 12 | `cmd/fleetd`: config, Entra per request, role-to-verb, singleton loops | TM1-α | 0.375 (3 h) | 10, 11, P8-16 | — |
+| 13 | OD-23 mechanism, part 1: layers, merge, invariants, digest, minimal defaults | TM1-α | 0.375 (3 h) | — (P6-14's fragment once merged) | ST.4, S6.6 |
+| 14 | OD-23 mechanism, part 2: versioned store, admin routes, audit, version on agent start | TM1-α | 0.3 (2.5 h) | 06, 12, 13 | ST.4 |
+| 15 | Phase 8 delta: sandbox classes (task 14b), the policy mount, `sandboxd`'s digest check | TM1-α | 0.375 (3 h) | 13, P8-14, P8-15 | ST.4 |
+| 16 | Phase 8 delta: `sandboxd` `/control`, the in-pod socket, the `team.json` snapshot | TM1-α | 0.375 (3 h) | 09 | ST.1 |
+| 17 | Phase 8 delta: the broker's second caller, the control relay, pod source addresses | TM1-α | 0.375 (3 h) | 16, P8-17, P8-18 | ST.3, P8-D4 |
+| 18 | The `panacea` verbs in the sandbox binary | TM1-α | 0.3 (2.5 h) | 16, P6-14 | ST.1 |
+| 19 | Fleet's control streams and verb dispatch | TM1-α | 0.375 (3 h) | 12, 17 | ST.1 |
+| 20 | Fleet sessions over the broker; `ag-…` ids; gateway tokens with team tags | TM1-α | 0.375 (3 h) | 11, 14, 15, 19, P6-15, P8-22 | S6.3, S8.1 |
+| 21 | `fleetbe` and the team launch on the local control plane | TM1-α | 0.375 (3 h) | 06, 20 | S8.1, ST.3 |
+| 22 | Read verbs: `team`, `check`, `files`, `show`, filtered by class | TM1-α | 0.375 (3 h) | 19, 20 | ST.1 |
+| 23 | Lease engine: intent, right of way, breadth cap, request and release | TM1-α | 0.375 (3 h) | 10, 22 | ST.1 |
+| 24 | Task, worker and report verbs; intent leases at plan time | TM1-α | 0.3 (2.5 h) | 23 | ST.1 |
+| 25 | Tier-P forecaster; conflict to thread | TM1-α | 0.3 (2.5 h) | 07, 24 | — |
+| 26 | The turn queue, turn origin and the fixed template | TM1-α | 0.375 (3 h) | 10, 25 | ST.5 |
+| 27 | The `panacea-orchestrator` runner, and the pod-kill test | TM1-α | 0.375 (3 h) | 15, 16, 18, 26 | ST.5 |
+| 28 | Protocol messages: `peer`, `inbox`, the templated `ask`, limits | TM1-α | 0.375 (3 h) | 25, 26 | ST.1 |
+| 29 | Resolutions `yield`, `sequence`, `proceed-both`; DECIDED WITHOUT YOU | TM1-α | 0.3 (2.5 h) | 23, 28 | — |
+| 30 | Escalations: inform and decide, the §6.5 rows, Fleet-set default and deadline | TM1-α | 0.375 (3 h) | 28, 29 | — |
+| 31 | Directives and the taint rule; piggyback delivery | TM1-α | 0.375 (3 h) | 26, 30 | ST.1 |
+| 32 | Phase 8 delta: Fleet's chart, the private gateway path, the Orchestrator's egress | TM1-α | 0.375 (3 h) | 12, P8-11, P8-29, P6-19 | P8-D12 |
+| 33 | TM1-α on the real cluster: the scripted conflict, pod kill, hook and policy checks; the replan gate | TM1-α | 0.375 (3 h) | 01–32 | — |
+
+---
