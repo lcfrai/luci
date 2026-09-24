@@ -785,4 +785,65 @@ keeps project settings out (§4.1); the PTY round trip through `fleetbe`; a firs
 record states each observation, what was not observed, and the verdict. **If it fails, TM1 is
 re-planned before task 34 starts.** A screenshot is not evidence; the record says what ran.
 
+### TM1
+
+**34 — Phase 3 delta: `machined`'s activity sweep.** Phase 3 task 07's observed claims become a
+library (`cp/internal/converge/claims.go`, **UNVERIFIED until merge**; phase 3 has no `gitx` or
+`lanes` code yet) that `machined` (phase 8 tasks 20–21) runs **outside the agent's VM**, every 5 to
+10 s, over each live worktree: `git status --porcelain=v2 -z` and `git diff --numstat -z` plus
+dirty hunk ranges on the base blob and the last commit's sha and changed paths, under phase 3's
+§HGH hardening with `core.fsmonitor`, `core.hooksPath` and every other config-driven command forced
+off on the command line (phase 3 lets the agent write `.git/config`). Output is ST.6's sample,
+every path through task 02's hygiene and 200-character cap, sent to Fleet over the broker for a team
+project and to the owner's control plane for a solo one. No "files read" (§3.3 activity row).
+Tests: a repo whose `.git/config` sets `core.fsmonitor` to a script never runs it; a path with a
+bidi override is dropped and counted. Whether a guest write is visible within one sweep is
+**UNVERIFIED** (task 47 probes).
+
+**35 — Activity, presence and holds.** `cp/internal/fleet/activity`: the activity table, in memory
+with a 45-second TTL, fed by ST.6 samples; presence (cockpit online, project open) from the
+desktop. On the first observed edit to a path a worker gets a `hold` lease whether or not it asked;
+more than 25 files in one minute becomes one flagged `bulk` lease, reported to the owner's
+Orchestrator as an event; a hold lapses 30 minutes after the last edit **to that path**; every
+lease is released when its task or agent ends, its delegation lapses or its owner leaves; a team
+admin may release a stale lease, audited (§6.3). Rebuilt within one sweep after a restart. Tests:
+a formatter run over 40 files yields one bulk lease with no right of way; editing another path
+does not extend a hold.
+
+**36 — Tier-H forecasts and co-edit down-weighting.** `forecast/{tierh.go,coedit.go}`: overlapping
+dirty or committed line ranges on the **same base blob** raise tier `H`; in TM1 this mostly
+collapses to P, since bases diverge after any land (§8.2, `06` Minor 4), and the part says so. A
+per-project co-edit rate down-weights files often edited together: a lockfile or generated file
+raises nothing at tier P, only at H or M. HORIZON items (task 54) come from here and stay until the
+conflict is `resolved` or `cleared`. Tests: two hunks on different base blobs raise nothing at H;
+`package-lock.json` raises nothing at P.
+
+**37 — Budgets.** `cp/internal/fleet/budget`: each Orchestrator's turn budget (default 30 turns an
+hour) and per-turn token cap, set by its owner within team policy; **a human's own message skips
+the budget and the queue**, and a human `pause` is executed by Fleet directly, with no turn;
+peer-triggered cost is metered per counterpart from the gateway's usage (phase 6 task 09) using the
+counterpart tag task 20 sets; past 10 turns an hour from one counterpart, that counterpart's events
+fold into one digest turn every 15 minutes; when the budget is spent, non-human events queue and the
+owner is told. The spend split, *workers* against *coordination*, is served for task 56. Tests: a
+peer flood cannot delay a human message; the eleventh counterpart turn in an hour becomes a digest.
+
+**38 — The template-only PTY writer and the delivery ladder.** `cp/internal/fleet/ptywriter`: the
+**only** Fleet code that writes to a PTY. Its API takes a template id, not bytes, and it writes the
+product-written templates byte for byte (*"[Panacea] Your Orchestrator sent you a directive. Run
+`panacea check`."*, *"Team update for you. Run `panacea check`."*). A unit test proves it refuses
+every other byte sequence, including `!`, `/`, `ESC [ Z` and any control byte (`07` C3).
+`delivery/ladder.go`: rung 1 piggyback (task 31); rung 2, the inbox socket, only behind canary C4
+and off by default; rung 3 the nudge when the worker is idle, idle derived from a byte count, never
+content (`registry/session.go:22-23`); rung 4 `pause`, an interrupt then a stop. At most one nudge
+per worker per 3 minutes. Tests: the refusal table; a busy worker gets no nudge; two directives in
+one minute cause one nudge.
+
+**39 — Fleet's own attach handler and socket revocation.** `cp/internal/fleet/relay`: a new
+handler, **not** phase 2's `api/attach.go` (§7.4): every WebSocket upgrade validates the Entra token
+(task 12) and that its owner is the session's owner; knowing an `ag-…` id grants nothing; the PTY
+relay carries a session's terminal only to its owner. `revoke.go` closes a revoked owner's open
+sockets within 60 seconds of task 11's revocation. Every route, attach included, joins Z5 (§7.4
+item 5). Tests: Bob's valid token cannot attach to Alice's worker; a revocation closes the socket
+inside 60 s of fake time; an input frame from a non-owner is never forwarded.
+
 ---
