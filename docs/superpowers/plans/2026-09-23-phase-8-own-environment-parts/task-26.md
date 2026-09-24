@@ -21,6 +21,9 @@ right, and no screenshot is offered as evidence.
 - `desktop/src/store/store.ts` — `selectedMachineId` (persisted: version bump and migration, rule SX.3), `cloud`, `wakingSince` (modify)
 - `desktop/src/store/selectors.ts` — `selectCurrentMachine`, `selectCloudMachines` (modify)
 - `desktop/src/components/rail/MachineChip.tsx`, `MachinesPopover.tsx` (new), `rail.css` (modify)
+- `desktop/src/components/common/common.css` — the reduced-motion form of a live ring, and the
+  comment at `:108-118` that lists the static forms (modify; this file is the one owner of
+  `.dot-*`, `common.css:3-4`; b09 re-review 1)
 - tests beside each (new/modify), and `desktop/src/hooks/useCreateSession.test.ts` (new; the
   `machine_full` case, review I5; `useCreateSession.ts` itself does not change)
 
@@ -90,14 +93,41 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
   `var(--numeric)` (tabular numerals, so the digits do not jitter). **No spinner** — the ring dot
   of `provisioning` is the one live signal, on the global clock.
 - **Reduced motion (review m18; `DESIGN-SYSTEM.md:90`).** `tokens.css` zeroes every
-  `animation-duration` under `prefers-reduced-motion: reduce` (`tokens.css:173-174`), so the
-  waking ring's breath stops. A waking (`provisioning`) and a sleeping machine are then both
-  `dot-ring`, and would differ by colour alone. The waking dot is `live`, so `common.css`'s
-  reduced-motion block gives it the static outer halo it gives every live dot
-  (`common.css:119-123`); the sleeping dot is not `live` and has none. The counter is text on the
-  JS heartbeat (`heartbeat.ts:29-34`, a `setInterval`), which reduced motion does not stop, so
-  `waking… {n}s` keeps counting: it is information, not motion. `rail.css` gives
-  `.rail-waking` no `animation` and no `transition`.
+  `animation-duration` under `prefers-reduced-motion: reduce` (`tokens.css:178`, inside the
+  `@media` block that opens at `:174`), so the waking ring's breath stops. A waking
+  (`provisioning`) and a sleeping machine are then both `dot-ring`, and would differ by colour
+  alone.
+  - **Today's CSS does not separate them, and this task fixes that (b09 re-review 1).** `.dot-ring`
+    draws its ring as `box-shadow: inset 0 0 0 1.5px currentColor` (`common.css:53-57`). The
+    reduced-motion rule `.dot-live { box-shadow: 0 0 0 1.5px currentColor; }`
+    (`common.css:119-123`) has the same specificity and comes later, so it **replaces** the inset
+    ring rather than adding a halo to it. That halo was designed for discs (`:108-118`), and no
+    `live` dot was a ring before this task (only `running`, a disc, is `live` today:
+    `MachineChip.tsx:41`, `SessionRow.tsx:54`, `BranchRow.tsx:76`). A waking dot would be a hollow
+    ring stroked outside its box, a sleeping dot a hollow ring stroked inside it: the same shape.
+  - **The fix, in `common.css`'s reduced-motion block**, after the `.dot-live` rule:
+    `.dot-ring.dot-live { box-shadow: inset 0 0 0 1.5px currentColor; }` (specificity 0,2,0, so
+    the ring keeps its inset stroke and its 8px size) and
+    `.dot-ring.dot-live::before { content: ""; position: absolute; inset: 2.5px; border-radius:
+    50%; background: currentColor; }` (a 3px centre point, 1px inside the ring). Under reduced
+    motion a waking machine is a ring with a centre point, and a sleeping one is a hollow ring:
+    a shape difference, not a colour one. `.dot` is already `position: relative` (`:40`), and
+    `::after` stays the flash's (`:96`), so `::before` is free. Both declarations pass
+    `desktop/src/styles/designsystem.test.ts`'s audits as they stand: the shadow carries
+    `currentColor` (`:431`, test `:549`), and there is no gradient (`:239`, test `:555`); a
+    `radial-gradient` centre point would fail the second, which is why this is a pseudo-element.
+    The `.dot-live` rule stays as it is, so `StatusDot.test.tsx:88` (the disc halo, non-inset)
+    stays green, and `:532`'s looping-animation stand-in check still finds `.dot-live` in the
+    block. The comment at `:108-118` gains the fifth form: "ring with a centre point
+    (provisioning, while waking)".
+  - **The counter is a second, textual difference.** It is text on the JS heartbeat
+    (`heartbeat.ts:29-34`, a `setInterval`), which reduced motion does not stop, so
+    `waking… {n}s` keeps counting: it is information, not motion. A sleeping chip renders no
+    `span.rail-waking`. With the dot's `aria-label`/`title` carrying the state word, that also
+    covers WCAG 1.4.1 if the shape were ever lost. `rail.css` gives `.rail-waking` no `animation`
+    and no `transition`.
+  - The look of the centre point is the owner's to accept (OD-12); the test pins the rule, not
+    the rendering.
 - **The machines popover** (`MachinesPopover`, opened by the chip and by `⌘⇧M`): one row per
   machine — dot, name, state word, the badge rule — and the current row marked with the accent
   (interactive/current state only). Selecting a row calls `selectMachine`. A sleeping cloud machine
@@ -128,7 +158,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 | "Accent … only for interactive and current state" (`:38`) | the accent marks only the current row and focus rings; no accent on the cloud badge, the dot or the popover frame |
 | "Elevation is a 1px ring plus a layered drop shadow" / radius by size (`:27-29`) | the popover reuses `Popover` (`components/common/Popover.tsx`) and its existing elevation tokens; rows use the control radius (8) |
 | "Motion must explain causality … transform/opacity only; never `transition: all`" (`CLAUDE.md`; `:63`, `:90`) | the only motion is the state-change flash `StatusDot` already owns (600 ms, opacity) |
-| "`prefers-reduced-motion` variants on everything" (`:90`) | under reduced motion the waking ring keeps a static, non-colour difference from a sleeping one (`.dot-live`'s halo), the counter keeps counting, and `.rail-waking` has no motion of its own; test `MachineChip / waking respects prefers-reduced-motion` (review m18) |
+| "`prefers-reduced-motion` variants on everything" (`:90`) | under reduced motion the waking ring keeps a static, non-colour difference from a sleeping one (the `.dot-ring.dot-live` rules add a centre point and keep the inset ring; `.dot-live`'s halo alone would replace the ring, b09 re-review 1), a sleeping chip has no `waking…` text, the counter keeps counting, and `.rail-waking` has no motion of its own; test `MachineChip / waking respects prefers-reduced-motion` (review m18) |
 | "Hover never changes layout" (`:73`) | row hover changes background only |
 | "Every state designed: loading, empty, … offline, unauthorized, error" (`:90`) | signed-out, unavailable, provisioning, sleeping, error rows each have a test that renders them |
 
@@ -141,7 +171,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 | `MachineChip / sleeping renders a ring` | the dot has the ring shape class | a sleeping machine that looks running |
 | `MachineChip / waking counts on the heartbeat, in tabular numerals` | fake timers; `wakingSince` set; after two ticks the text is `waking… 2s` and the counter element carries the numeric token class | a `setInterval` of its own (a second clock) |
 | `MachineChip / no spinner while waking` | no element with `role="progressbar"` or a spinner class | a spinner per row |
-| `MachineChip / waking respects prefers-reduced-motion` | jsdom applies no media query, so this reads the CSS source (`?raw`), as `StatusDot.test.tsx:82-88` does: (1) the waking dot has `dot-ring` **and** `dot-live`; the sleeping dot has `dot-ring` and not `dot-live`; `common.css?raw`'s `@media (prefers-reduced-motion: reduce)` block still styles `.dot-live` with a non-inset `box-shadow`. (2) With `window.matchMedia` stubbed to match `(prefers-reduced-motion: reduce)` and fake timers, after two ticks the text is still `waking… 2s`. (3) No rule in `rail.css?raw` whose selector names `.rail-waking` declares `animation*` or `transition*` (review m18) | a waking dot that is not `live`, so under reduced motion it matches a sleeping one by colour alone; a counter that freezes under reduced motion (a `matchMedia` check that stops the count); a pulse on the counter |
+| `MachineChip / waking respects prefers-reduced-motion` | jsdom applies no media query, so this reads the CSS source (`?raw`), as `StatusDot.test.tsx:82-88` does: (1) the waking dot has `dot-ring` **and** `dot-live`; the sleeping dot has `dot-ring` and not `dot-live`; inside `common.css?raw`'s `@media (prefers-reduced-motion: reduce)` block (the regex `StatusDot.test.tsx:82-84` uses), a rule whose selector is exactly `.dot-ring.dot-live` declares a `box-shadow` that starts with `inset` (the ring survives), and a rule whose selector is exactly `.dot-ring.dot-live::before` declares `content` and `background: currentColor` (the centre point). This clause is red on today's `common.css` (b09 re-review 1: the old clause, "`.dot-live` has a non-inset `box-shadow`", passed on today's CSS and pinned the false premise). The sleeping chip renders no `span.rail-waking`; the waking chip renders one. (2) With `window.matchMedia` stubbed to match `(prefers-reduced-motion: reduce)` and fake timers, after two ticks the text is still `waking… 2s`. (3) No rule in `rail.css?raw` whose selector names `.rail-waking` declares `animation*` or `transition*` (review m18) | a waking dot that is not `live`, so under reduced motion it matches a sleeping one by colour alone; the `.dot-ring.dot-live` rules deleted, so `.dot-live`'s halo replaces the ring and waking and sleeping are the same hollow ring; the `::before` centre point dropped; a `waking…` text on a sleeping chip; a counter that freezes under reduced motion (a `matchMedia` check that stops the count); a pulse on the counter |
 | `MachinesPopover / lists every machine and marks the current one` | two rows; the current row has `aria-current="true"` | a popover that only ever shows the default |
 | `MachinesPopover / selecting a machine switches the rail` | click the cloud row → `selectedMachineId` set; the next poll calls `listProjects("m-…")` | the rail stuck on local projects |
 | `MachinesPopover / signed out shows the server's sentence verbatim` | `cloud.status: "signed_out"`, message `M` → the text `M` exactly, no cloud rows | a client-invented sign-in message |
@@ -158,6 +188,8 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
   landed (`GET /v1/machines` has `cloud`).
 - [ ] **Step 2:** Amend UI contract §2 and `types.ts` together; the SX.2 gate passes.
 - [ ] **Step 3:** Tests; client, poller, store, selectors; chip; popover; CSS through tokens only.
+  The reduced-motion clause (1) goes red first, then `common.css` gains the two
+  `.dot-ring.dot-live` rules and the fifth comment form (b09 re-review 1).
 - [ ] **Step 4:** Update `client.ts:6-8`'s comment: the desktop hop's authentication is the Hub's
   local caller key (ADR-H1 §5.4, `67609ab` `:439-449`, its task C3); the user's Entra token never enters the
   webview and travels control plane → broker only.
@@ -173,7 +205,8 @@ cd desktop && npm test                 # every suite passes, the 15 above among 
 
 **Owner's eyes, at the batched hands-on session (OD-12), not before:** the chip on a cloud
 machine and on the local one; the popover with both; a sleeping machine woken by typing, the
-"waking… Ns" line and its ring; the signed-out line. Until then each is **unverified**.
+"waking… Ns" line and its ring; the same with the OS's reduce-motion setting on (the ring with
+a centre point); the signed-out line. Until then each is **unverified**.
 
 #### What this task does not claim
 
