@@ -1653,3 +1653,46 @@ re-read at hub `2f84662`; "none blocks the Develop lens" is `hub-contract.md:140
 sign-in action task 20 can import is not verified; C4 is Hub plan text. Git's behaviour behind
 M9's way back was not run in this session: `info/exclude` does not affect a tracked file, and
 `git add` refuses an excluded path without `-f`.
+
+### Fix batch b09, round 2 (2026-09-24): the re-review's open issues
+
+Source: `.superpowers/sdd/p4/plan-rereview-b09-1.md` (I-1, I-2, M-1, M-2, M-3, two nits). Commits
+`ed2c259` (I-1), `554a6af` (I-2, M-1), `e7c9894` (M-2, M-3, nits). Re-read in this session: hub
+`feat/hub` at `748d064`, where `task-41.md:43` is `export function AccountControl` (its only
+export, `:43-47`), `:61` is C4's `tenant_not_enrolled` row with no button, `:64-65` is the inline
+sequence, and `hub-contract.md:389` and `:1407` are unchanged. Main tree `feat/phase-2-cockpit` at
+`0522783`: `sessions.go:699-702` (step 2b's comment), `:703`, `:708`, `:713` (the three calls),
+`:419` (`sessionWorktreeAdmin`'s `MkdirAll`), `:1363` and `:1373` (restart). This branch at
+`2d6d95b`: `harness/argv.go:47`, `:135-137`, `harness.go:156` (Claude Code's free-text model),
+`sessions.go:583` (resume's 404 `session_not_found`), `:744-745`, `api_test.go:154`,
+`desktop/src/components/rail/RailFooter.tsx:11`.
+
+| Finding | What changed | Where |
+|---|---|---|
+| I-1 | **Carried, as the re-review proposed.** `Inspection` gains `AltTracked`, step 2's kept `Git.Tracked` answer for `.claude/CLAUDE.md`, mirrored as `altTracked` in task 15. Task 19 shows the `git add -f CLAUDE.md` way back only when it is false. When it is true, the view says instead that committing this file would stop every session start in the worktree until one of the two leaves the index. New rows in `TestInspectReportsTheExcludeLine` (the both-candidates shape, and `Git.Tracked` once per candidate) and in *the exclude line is stated where the file is named*. P4-D restates it | `task-09.md:235-242`, `:299`; `task-15.md:181-182`; `task-19.md:64-65`, `:87`, `:111`; `plan.md:174` |
+| I-2 | **Option (b) built, and option (a) recorded as Hub ask HA4-11.** Task 20's *Sign in* moves focus to the rail footer's own **Sign in** (`RailFooter.tsx:11`'s `.rail-footer`, which C4's `AccountControl` renders) and sends nothing, through one module-local `goToSignIn()`. The test asserts the focus move, `signIn` not called, and no session request. The reason for (b): it is fully buildable in phase 4's own files, and it agrees with task 18:130, which already points at the footer. (a) needs the Hub to export `startSignIn` and to move the last `authorizeUrl` out of component state, or *Open the sign-in page again* would not know a sign-in started from the refusal. HA4-11 asks for both, and its answer changes only `goToSignIn`'s body. OQ-11 now says *Sign in* takes the person to the footer control | `task-20.md:220`, `:238`; `plan.md:505`, `:528` (HA4-11), `:546` (OQ-11) |
+| M-1 | Task 20 reads `store.auth` (Hub task 40) at render. For `reason: "tenant_not_enrolled"` it shows no *Sign in*, shows C4's sentence *Your organisation isn't set up for shared work yet.*, and focuses **Retry**. A sign-in already in progress (`signing_in`) also gets no *Sign in* and a focused **Retry**, because the footer then offers no *Sign in* to move to. Rows 2 and 3 are added to *signed out puts Sign in first*, and *the override is not the default focus* covers both. OQ-11 names the unenrolled case. It also names the owner's alternative, which is **not built**: treat the reason as "nothing to inherit". That needs the control plane to tell the reason apart, and whether `TokenSource` returns plain `ErrSignedOut` then is unverified. Task 09 step 4 notes it | `task-20.md:220`, `:237-238`; `plan.md:546`; `task-09.md:123-124` |
+| M-2 | `TestCreateValidatesBeforeMaterialising` becomes a table with one row per validation step, each with an empty call log. The steps: `harness.Lookup` (`unknown_harness`), `sessionResolveResume` (404 `session_not_found`), and `harness.Build` (400 `unsupported_option`). **Not the re-review's "an option `Build` refuses" on the default harness:** Claude Code takes a free-text model (`harness.go:156`), so its `Build` accepts any model. The row uses `harness: "shell"` with a model, which `validateModel` refuses (`argv.go:135-137`) | `task-10.md:303` |
+| M-3 | Task 10 names step 2b's three calls on its base among the failures after a successful `Materialise`, and tells the implementer to amend 2b's comment to *"…nothing behind but the brief block, which is git-excluded and stamps nothing"*. The restart sentence says `sessionWorktreeAdmin`'s idempotent `MkdirAll` runs before `Materialise` too. The handler bullet names 2b | `task-10.md:23-33`, `:34-43`, `:244-246` |
+| nit 1 | "the worktree's store, which any earlier create made" (per worktree, `sessions.go:69`, `:79`) | `task-10.md:25-27` |
+| nit 2 | `TestCreateRefusalWritesNothing` asserts `Deps.ConversationsDir` itself is absent (`api_test.go:154`), not an `<owner>` path `package api_test` cannot name | `task-10.md:302` |
+
+**Deferred, out of batch (the re-review's own "not counted" note):** re-adding the exclude line when
+the block is already current and the line was removed by hand. Step 6 runs only before a write that
+lands a block, and `Inspection.Excluded` is derived without reading the exclude file, so task 19
+would then say git does not list a file it does list. The reason for deferring: it changes step 6's
+trigger and `Inspect`'s no-read rule, which is beyond M9/M13's scope. It is recorded for a later
+batch ("ensure the line whenever the target holds or will hold a block").
+
+**Owner questions:** OQ-11 is updated, not new. It now states the built path (focus to the footer),
+the unenrolled case, and the unbuilt alternative for it.
+
+**Mutants the re-review named as likeliest survivors, now covered by planned tests:** (1)
+`Materialise` between `harness.Lookup` and `harness.Build` is killed by M-2's rows 2 and 3; (2) the
+way-back sentence rendered whatever the state of `.claude/CLAUDE.md` is killed by task 19's
+`altTracked: true` row. This is plan text: neither was run.
+
+**Still unverified:** nothing in the plan was built or run. `TokenSource` returning `ErrSignedOut`
+after `tenant_not_enrolled` is inferred from `hub-contract.md:389`, `:409`. Whether the Hub accepts
+HA4-11 is unknown. That `RailFooter` still has a `.rail-footer` root when Hub task 41 lands is
+inferred: task 41 changes that file by two lines (hub `task-41.md:31`).
