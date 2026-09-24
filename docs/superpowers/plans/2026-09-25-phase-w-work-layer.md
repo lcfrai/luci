@@ -109,3 +109,34 @@ team mode's stream B; the desktop streams sit beside its stream F and **share on
 | **W2-W5** | 72 onward | the slice before, per the table | `feat/work-layer` |
 
 ---
+
+## The decisions this plan rests on
+
+Owner decisions are in `docs/superpowers/planning/2026-09-23-owner-decisions.md`; the newer win.
+
+| Id | What it fixes for Phase W | Where it bites |
+|---|---|---|
+| `OD-25` | Built **alongside** team mode on its own streams; W1 demos in local mode first; team mode's critical path is untouched | the streams table; no task edits a Phase T task |
+| `OD-26` | **Everything, W1 to W5**: every MATCH, EXCEED and PARTIAL item of the 257 is built; the 27 SKIPs stand (Q6) | the coverage map; the SKIP list |
+| `OD-27` | **Proof per criterion and plain counts; no percentage, bar, ETA or "N of M"**; `AGENTIC-UX.md` gets Q13's four one-line amendments | rule 5; task 20's `expectNoPrediction`; task 08 writes the amendments |
+| `OD-28` | **Commit Mono** (OFL) for every id, path and time; **Segoe UI Variable** for the sans | tasks 27-28 (faces bundled as files, licences recorded) |
+| `OD-1` | The review gate is waived for phases 3, 4, 5 and 7 **only**; Phase W keeps it: the in-app prototype (task 38) is shown before the Work surfaces are sized, and `feat/work-layer` is not merged onward until the owner has looked. Q3, Q4, Q5, Q7, Q8, Q9, Q11 and Q12 take their recommended answers under it | tasks 38-39; merge policy |
+| `OD-3`, `OD-5` | Shared state lives in **the Hub**, our own server; issues are Hub records from day one | stream WH |
+| `OD-6` | The desktop signs in with Entra PKCE; every Hub write is as a person | authorisation rows, tasks 06-07 |
+| `OD-2`, `OD-4` | Worktrees are local clones; **Azure DevOps and GitHub both**, so outside-PR linking, webhooks and sync cover both hosts | tasks in W5 |
+| `OD-8` | Agent CLIs are never parsed; a harness transcript may be read only through a pinned adapter, and nothing here needs one | rule 6 |
+| `OD-11` | Clean room: no Linear source, CSS, icon or copy is copied; our glyphs are drawn; every dependency is MIT, Apache-2.0, BSD, ISC or OFL | tasks 28-29 licence checks |
+| `OD-13` | No Panacea source is copied; phase 7 stays behind its interface, so W1b and W4's release rows read the manifest through phase 7 | W1b, W4 |
+| `OD-14`-`OD-17` | Team mode: per-user Orchestrators are the only cross-user channel; **nobody steers another's agent** | rule 7; W3 |
+| `OD-19`, `OD-21` | Inference only through the LiteLLM gateway, Global or AU; W4's AI assists need phase 6 | W4 assists gate on phase 6 |
+| `OD-20` | Local mode stays; W1 runs there first | task 70's demo |
+| `OD-24` | A project's data classification is set at creation; AU-only projects route AU and branch names carry no title slug (Q8) | tasks 21, 24 |
+
+The design's own questions, as answered: **Q1** → `OD-27`; **Q2** → `OD-26`; **Q3** issue text
+enters the agent's context with guards (rule 6); **Q4** the Desk frame is in W1 (task 62);
+**Q5** the replica is in memory (tasks 55-58); **Q6** the skips stand; **Q7** Linear's project is
+our *feature*; **Q8** no title slug in AU-only branch names; **Q9** build our own, sync one way
+in (W5); **Q10** → `OD-28`; **Q11** option B (`OD-25`); **Q12** cross-team in W4; **Q13** the
+four amendments (task 08); **Q14** Segoe UI Variable (`OD-28`).
+
+---
