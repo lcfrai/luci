@@ -149,3 +149,59 @@ Read, not copied (OD-13). Line references verified 2026-09-25 in `~/Projects/Pan
 | `docs/verification/2026-09-25-phase-6-local-e2e.md` | The local end-to-end proof with unmodified Claude Code, by hand | new | 23 |
 | `infra/smoke/gateway/*.sh` | Cloud proving scripts, tested on canned output, **not run** | new | 24 |
 | `docs/PROGRAM.md` | Phase 6 rewritten; open risk 2 closed; the never-pool line amended | modified | 25 |
+
+## Task list
+
+Slices: **A** the contract (pure Go, no I/O) · **B** keysmith · **C** gatekeeper · **D** the sandbox side and launch · **E** local mode · **F** cloud hosting · **G** product surfaces · **H** proof and close. A focused day is 8 hours; every task is 1–3 hours. Seam and ask ids are defined in "Seams and asks" below.
+
+| Id | Title | Slice | Focused days | Depends on | Seams |
+|---|---|---|---|---|---|
+| 01 | Data class, route and the ratchet | A | 0.25 (2 h) | — | S6.1, S6.7, S6.8 |
+| 02 | Model catalogue and the generated LiteLLM config | A | 0.3 (2.5 h) | — | — |
+| 03 | Wire contracts, problem codes, `MessagesURL`, `HashToken` | A | 0.25 (2 h) | 01 | S6.3, S6.5 |
+| 04 | LiteLLM admin client on its own deadlines | B | 0.3 (2.5 h) | 03 | — |
+| 05 | Binding store: memory, Postgres, behaviour suite | B | 0.4 (3 h) | 03 | P8-4 |
+| 06 | Budgets: three dimensions, defaults on, the per-key slice | B | 0.25 (2 h) | 01, 03 | S6.2 |
+| 07 | keysmith core: mint, refresh, revoke | B | 0.4 (3 h) | 04, 05, 06 | — |
+| 08 | `cmd/keysmith`: API, caller authentication, config, fail-closed start | B | 0.4 (3 h) | 07 | S6.3, S6.5 |
+| 09 | Usage rollup and the team-budget reader | B | 0.25 (2 h) | 04, 06 | S6.2 |
+| 10 | gatekeeper authorisation | C | 0.3 (2.5 h) | 03, 05 | — |
+| 11 | gatekeeper proxy: allowlist, `model` rewrite, headers, streaming | C | 0.4 (3 h) | 02, 10 | S6.4 |
+| 12 | `cmd/gatekeeper`: wiring, `/v1/models`, `HEAD /api/hello`, body-free logs | C | 0.25 (2 h) | 11, 13 | — |
+| 13 | Project route source: Hub, file, cache, fail closed | C | 0.3 (2.5 h) | 01, 03 | S6.1 |
+| 14 | `panacea token` and the managed-settings fragment | D | 0.25 (2 h) | 03 | S6.6 |
+| 15 | `gatewayclient` and the local control plane's launch | D | 0.4 (3 h) | 08, 14 | S6.3 |
+| 16 | Fake Anthropic upstream | E | 0.25 (2 h) | — | — |
+| 17 | Local stack on Docker Desktop | E | 0.3 (2.5 h) | 02, 08, 12, 16 | — |
+| 18 | LiteLLM capability, ZDR and pitfall probe | E | 0.3 (2.5 h) | 17 | — |
+| 19 | Helm chart, NetworkPolicies, Key Vault CSI | F | 0.4 (3 h) | 02, 08, 12 | P8-1 to P8-5 |
+| 20 | Bedrock federation module (AWS), never applied | F | 0.3 (2.5 h) | 02 | P8-5 |
+| 21 | Control-plane inference API | G | 0.3 (2.5 h) | 01, 09, 13, 15 | S6.1, S6.2 |
+| 22 | Cockpit inference panel | G | 0.4 (3 h) | 21 | S6.8 |
+| 23 | Local end-to-end proof with unmodified Claude Code | H | 0.25 (2 h) | 15, 18, 22 | — |
+| 24 | Cloud proving scripts, written and not run | H | 0.3 (2.5 h) | 19, 20 | S6.4, P8-2 |
+| 25 | Close the phase: `PROGRAM.md`, seams, asks, what stays unverified | H | 0.2 (1.5 h) | all | all |
+
+**Total: 61 focused hours, about 7.6 focused days.** The critical path is 01 → 03 → 05 → 07 → 08 → 15 → 21 → 22 → 23 → 25 (24.5 h).
+
+**Waves for parallel execution** (a task starts when everything it depends on is merged):
+
+1. 01, 02, 16
+2. 03, 20
+3. 04, 05, 06, 13, 14
+4. 07, 09, 10
+5. 08, 11
+6. 12, 15, 19
+7. 17, 21
+8. 18, 22, 24
+9. 23
+10. 25
+
+**Shared names every part uses**, so parallel writers agree without reading each other:
+
+- Binaries: `keysmith` (listens `:4100`), `gatekeeper` (listens `:4000`), `fakeanthropic` (listens `:4900`, a second instance on `:4901` labelled `au` in local mode), `gatewaygen`, `panacea`.
+- LiteLLM listens on `:4001`, reached only as `http://litellm:4001` (compose) or `http://litellm.panacea-gateway.svc.cluster.local:4001` (cloud).
+- Model groups in LiteLLM are named `global/<public id>` and `au/<public id>`. A sandbox only ever names the public id.
+- The token directory in a sandbox is `/run/panacea/gateway/`, holding one file, `token`. The directory is mounted, never the file, so an atomic rename on the host is seen inside (a bind-mounted file keeps its old inode).
+- Postgres: database `gateway`; LiteLLM owns schema `public` of it (its own migrations), keysmith owns schema `keysmith`.
+- Environment variables: `PANACEA_APP_GATEWAY_` + `KEYSMITH_URL`, `BASE_URL`, `LITELLM_URL`, `MASTER_KEY_FILE`, `DATABASE_URL_FILE`, `ROUTE_SOURCE` (`hub` or `file:<path>`), `HUB_URL`, `CALLER_AUTH` (`kube` or `bearer-file:<path>`), `TOKEN_TTL` (default `1h`), `REFRESH_AT` (default `45m`), `MINT_TIMEOUT` (default `20s`), `BINDING_CACHE_TTL` (default `10s`), `ROUTE_CACHE_TTL` (default `30s`), `ROUTE_STALE_MAX` (default `10m`), `SESSION_CAP_USD` (default `25`), `DEFAULT_{USER,TEAM,PROJECT}_BUDGET_USD` (defaults `200`, `2000`, `1000` a month, **proposed**, owner question Q2).
