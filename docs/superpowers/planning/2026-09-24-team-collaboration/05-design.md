@@ -29,8 +29,10 @@ superseded wholesale. What survives from it and from `01`–`04` (the fences, th
 Hub's team model) is carried in here and marked. **Nothing here is built.** Repo claims are
 `path:line`. `01`–`04` are the research files in this folder, cited by section. Line numbers into the
 `hub`, `phase-3` and `env` worktrees may drift, because those trees are being edited live.
-**UNVERIFIED** marks every claim not checked against a source or a run. No web source was re-read
-for this file; external claims carry the read dates given in `02`–`04`.
+**UNVERIFIED** marks every claim not checked against a source or a run. Revision 3 re-read four
+web pages on 2026-09-25 (Claude Code's server-managed-settings, settings and settings-reference
+pages, and AWS's nested-virtualization notice), each cited where used; other external claims carry
+the read dates given in `02`–`04`, `06` and `07`.
 
 **The ask** (owner, verbatim): *"share a project with my team, and everyone can not only see the
 work I am doing on it, the agents I have running, and what their focus is, but spin up their own
@@ -259,7 +261,7 @@ This changes Hub rules that ADR-H1 states: the laptop's control plane is the onl
   and on-behalf-of fails in exactly that case. So each team project gets a **read-only,
   project-scoped fetch credential**: a GitHub App installation token with `contents: read`, or an
   Azure DevOps identity with read on the one repo, held by the broker and used only by `machined`
-  runners and the lane mirror, every fetch audited to the project (owner question Q6, §13.1).
+  runners and the lane mirror, every fetch audited to the project (owner question Q11, §13.1).
   **Write** (push, PR) uses the lane owner's own token, handed over by the desktop from Windows
   Credential Manager (OD-6) for each act and held in memory only. **Push and PR stay human
   actions** (`04` F7). An Orchestrator may propose one; its human decides.
@@ -458,7 +460,8 @@ before editing it, request a lease, and report to its own Orchestrator (`done`, 
    `CLAUDE_CODE_MESSAGING_SOCKET` and the session's token in its environment (`03` §1.3, observed
    on the laptop). Its first call can hand both to `sandboxd`, which would solve `03`'s discovery
    problem without reading harness internals. **UNVERIFIED:** whether the socket accepts a poster
-   that is not the CLI's descendant.
+   that is not the CLI's descendant. Like rung 3, it carries **only a fixed template**, never the
+   directive's text: a posted message arrives as a user turn, with the human's authority.
 3. **A fixed nudge typed into the PTY** when the worker is idle. **Never the directive's text.**
    The Claude Code prompt is a command line as well as a chat box: *"Run shell commands directly
    … by prefixing your input with `!`"*, text typed while the agent works queues, and `Shift+Tab`
@@ -1321,11 +1324,14 @@ admin view, and the spend split (2); phase 7's release attribution (1). **≈ 16
 
 | # | Question | Recommendation |
 |---|---|---|
-| **Q1** | Which gateway: LiteLLM, as the owner suggested, or Anthropic's own *"self-hosted gateway with SSO sign-in and OTLP telemetry"* (Claude apps gateway, https://code.claude.com/docs/en/llm-gateway, read 2026-09-25)? | **A one-day spike on each** against three tests: mint a tagged per-session token from an API; route to Bedrock Sydney; forward the latest CLI's headers. Pick LiteLLM unless the Anthropic gateway passes all three. Neither has been tested (**UNVERIFIED**) |
+| **Q0** | **Azure or AWS?** OD-18 made Azure the orchestrator's call on *"fastest for all of the other stuff"*; the owner's words relayed into this run lean to AWS (*"probably in AWS, as that would allow Bedrock for AU inferencing with ZDR"*). One of OD-18's reasons is out of date: AWS has offered nested virtualization on **virtual** C8i, M8i and R8i instances in all commercial regions since 2026-02-16, running *"KVM or Hyper-V"* (https://aws.amazon.com/about-aws/whats-new/2026/02/amazon-ec2-nested-virtualization-on-virtual/, read 2026-09-25), so Kata on EKS no longer needs metal (Kata itself not named there, **UNVERIFIED**) | **Stay on Azure for TM1**, and confirm it in one line. Kata on EKS is still self-managed, where AKS Pod Sandboxing is managed; phase 8 is written and part-built for AKS; Entra and Panacea are Azure. Bedrock in Sydney is reached from Azure through the gateway (OD-19), so AU inference does not need AWS hosting. §11.2 lists what is cloud-bound, so a later move is a known cost. **Needs:** the gateway's Azure-to-AWS identity federation (§14.1) |
+| **Q1** | Which gateway: LiteLLM, as the owner suggested, or Anthropic's own Claude apps gateway? | **A one-day spike on each** against four tests: mint a tagged, pod-bound per-session token from an API; route to Bedrock Sydney on `au.` models only; forward the latest CLI's headers; **deliver managed settings centrally**, which the Claude apps gateway does for gateway-signed-in clients (https://code.claude.com/docs/en/server-managed-settings, read 2026-09-25) and LiteLLM does not, so with LiteLLM the image's managed file is the only policy (§2.5). Pick LiteLLM unless the Anthropic gateway passes all four. Neither has been tested (**UNVERIFIED**) |
 | **Q2** | Must every team project choose a data classification when it is shared? | **Yes, one required click in Share:** *Global* or *AU data only*. The default stays Global (OD-19), but nobody reaches it by not choosing |
-| **Q3** | Who sets quotas? | **The org admin sets a ceiling per person; a team admin sets project budgets inside it.** Coordination counts against the member whose Orchestrator spent it (§4.4) |
-| **Q4** | Accept §6.5's defaults for what an Orchestrator may agree to without asking? | **Accept them as defaults.** Each user may tighten, never loosen, the two always-decide rows (`build-on` and post-peer-text directives) |
-| **Q5** | Are opening prompts shared with the team (`03` D1)? | **No.** Teammates and their agents see the task title and reason. A prompt may say things its author would not say to the team |
+| **Q3** | Who sets quotas? | **The org admin sets a ceiling per person; a team admin sets project budgets inside it; both ship non-zero defaults.** Coordination counts against the member whose Orchestrator spent it, shown per counterpart (§4.4) |
+| **Q4** | Accept §6.5's defaults for what an Orchestrator may agree to without asking? | **Accept them as defaults.** Each user may tighten any row; the always-decide rows (`build-on`, `proceed-both` on H or M, free text in a Fleet-started turn, deadline exhaustion) can never be loosened; a team admin may only add asking |
+| **Q5** | Are opening prompts shared with the team (`03` D1)? | **No.** Teammates' Orchestrators see the task title and reason; workers see only the brief section. A prompt may say things its author would not say to the team |
+| **Q11** | May the cloud **fetch** the customer's repo while nobody is signed in (`06` I3)? The Orchestrator's view, a `rebase` directive and phase 3's slow-timer fetch all need it | **Yes, read-only:** a project-scoped GitHub App installation token (`contents: read`) or an Azure DevOps read-only identity, held by the broker, every fetch audited; **write** stays each user's own token, per act (§2.5) |
+| **Q12** | Will you sponsor the product's own `managed-settings.json` to KPMG InfoSec? Cloud sessions do not receive KPMG's server-managed policy (§2.5), so this file, plus the gateway's audit export, is what governs them | **Yes, as a TM0 item**, with the diff against the tenant's live file attached. Without approval, TM1 runs on the owner and test identities only |
 
 ### 13.2 Decide later
 
@@ -1343,10 +1349,15 @@ admin view, and the spend split (2); phase 7's release attribution (1). **≈ 16
 
 | Claim | Test |
 |---|---|
-| KPMG's managed policy reaches a sandbox that signs in only with a gateway token (§2.5) | run `/status` in a gateway-token sandbox during OD-12's hands-on session |
-| the `panacea` command runs without a permission prompt inside the sandbox (§5.2) | the same session |
-| inotify in a Kata guest sees every write through the sub-path mount (§3.3 rule 4) | phase 8 task 32's checklist, one added row |
+| **Settled by the docs, not a test:** KPMG's server-managed policy does not reach a gateway-token sandbox (https://code.claude.com/docs/en/server-managed-settings, read 2026-09-25; §2.5) | `/status` in TM1-α checks that the product file, and nothing else, is in force |
+| the `panacea` command and the Orchestrator's headless turns run with no prompt under the product file (§5.2) | TM1-α |
+| a hook in a file-based managed settings file runs in an interactive worker without an approval dialog (§5.3) | TM1-α |
+| a `--setting-sources`-style flag exists at the pinned CLI version, or an empty working directory suffices (§4.1) | TM1-α |
+| a guest write reaches `machined`'s sweep within one sweep (§3.3 rule 4) | phase 8 task 32, one added row |
+| a pod's source address survives to the gateway, or mTLS is needed, for token binding (§2.5) | phase 8 task 32 |
 | the gateway can reach Bedrock Sydney from Azure without a long-lived AWS key (§11.2) | the Q1 spike |
+| Bedrock's `au.` profiles stay in Australia, and which model ids carry them (§2.5) | the Q1 spike, then the CI model-map test |
+| which Graph read KPMG's tenant permits for Fleet's daily account-state check (§2.4) | a one-hour check with the tenant's admin |
 | the ZDR terms on both routes cover what the product sends | read the org's contracts; not read here |
 
 ### 14.2 During TM1
@@ -1357,7 +1368,62 @@ admin view, and the spend split (2); phase 7's release attribution (1). **≈ 16
 | the inbox socket accepts a poster that is not the CLI's descendant (§4.3, `03` C4) | canary; TM1 does not depend on it |
 | coordination overhead stays under 10% of a member's spend (§4.4) | G9's scripted run |
 | a warm-pool team launch reaches first output in under 10 s (§10.2) | phase 8 task 32 |
-| an Entra on-behalf-of token works for Azure DevOps git over HTTPS (§2.5) | a one-hour check against the dev organisation |
+| one negotiation hop is 20 to 60 s, so the median thread closes inside 30 minutes (§6.4) | G9's scripted run |
+| C6: how often a worker checks before a first edit without the hook (§5.3) | measured as a rate in TM1 |
+| the PTY round trip through `fleetbe` stays under 150 ms p95 from Australia (§10.3) | phase 8 task 32 |
+| an Orchestrator pod is enough at 250m / 512 MiB (§4.1) | phase 8 task 32, under TM1-α's load |
 
 **Not claimed by this file:** that any of it is built (none is); that the fences stop a determined
 attacker (§7.3); and any figure from a vendor or paper beyond what `02` and `03` cite.
+
+## 15. Response to critique
+
+Revision 3 answers `06-critique-feasibility.md` (3 Critical, 11 Important, 8 Minor) and
+`07-critique-security.md` (4 Critical, 11 Important, 5 Minor). **Fixed** means fixed at its root
+cause in the section named; **rebutted** means the evidence is given here.
+
+### 15.1 Feasibility (`06`)
+
+| Finding | Verdict | Where, and how |
+|---|---|---|
+| **C1** the Orchestrator's turn loop has no process to run in | Fixed | §4.2: the `panacea-orchestrator` runner is the class's one PTY command and runs `claude -p --resume <fixed id>` as a child, never forking; the transcript is a cache in `emptyDir`, because every commitment is a typed record; daily rotation and a pod-kill test; DIVE attaches to the same id while parked; §11.2 task 14b; §11.4 ~3 days |
+| **C2** Orchestrators eat worker slots | Fixed | §4.1: no machine disk, no affinity, its own 250m / 512 MiB size, the project seen through `panacea files`/`show`; §11.2 task 14b; §14.2 measures the size |
+| **C3** the `panacea` channel has no designed policy | Fixed | §2.5: the docs settle it (a non-default `ANTHROPIC_BASE_URL` bypasses server-managed settings; `apiKeyHelper` keys trigger no fetch); the image ships per-class product managed files allowing `Bash(panacea *)`, pinning modes, leaving `forceLoginMethod` unset; InfoSec approval is TM0 and Q12; Q1 now weighs the Claude apps gateway's managed-settings delivery; §5.2 item 1 |
+| **I1** "observed" activity computed inside the agent's process tree | Fixed | §3.3 rule 4: `machined`'s hardened sweep outside the VM, `core.fsmonitor` forced off; `sandboxd` process facts only; "files read" dropped; §11.3 task 07 |
+| **I2** awareness hangs on one sentence | Fixed | §5.3: a cloud `PreToolUse` hook, `allowManagedHooksOnly`, as an enhancer behind the same approval; P8 restated; C6 measured as a rate (§14.2) |
+| **I3** no git credential while the human is away | Fixed | §2.5: a read-only project fetch credential held by the broker, write per act by the user; §10.2 re-proves the member's own access; Q11 |
+| **I4** Fleet as delegated caller inverts Hub invariants | Fixed | §2.4: delegation created by the user's own call, so no on-behalf-of; §11.1: the "delegated callers" amendment covers `azp`, actor, RLS org selection, a per-org feed and `devissuer`; re-costed ~4.5 days |
+| **I5** no desktop transport to Fleet | Fixed | §2.1, §10.3: `fleetbe` in the local control plane behind `backend.Backend`; the portal is the cockpit plus one thin Go process, no Docker; PTY round trip in task 32; §11.4, stream F |
+| **I6** `waitingOn: human` has no lawful source | Fixed | §3.3 agent row and §9.1: only `report blocked --on human` or the cloud hook's `Notification`, else `idle` |
+| **I7** Fleet is one in-memory process | Fixed | §2.2, §3.2: Postgres schema, two stateless replicas, core split from the PTY relay; "agents pause" replaced by defined unreachable behaviour (§5.2, §5.3) |
+| **I8** timings make the deadline the normal end | Fixed | §4.2 no coalescing of thread events; §6.4 30-minute Fleet-set deadline; hop time measured; TM1 done criterion 4 |
+| **I9** context grows without bound | Fixed | §4.2: daily and per-task rotation seeded only from typed state; per-turn token cap (§4.4) |
+| **I10** Azure is the orchestrator's call; a reason is dated | Fixed as a question | §13.1 Q0 with the corrected fact (AWS notice read 2026-09-25); Australia East invariant (§2.5); cloud-bound parts listed (§11.2) |
+| **I11** TM1's 5 weeks leaves out what fails first | Fixed | §12: TM0's real state; TM1-α spike first; TM1 re-costed at ≈ 95.5 days on five streams with G9 contingency; stream E placed |
+| Minors 1–8 | Fixed | 1: §5.2 item 1 (49 rules); 2: §5.2, §11.2 `/control`; 3: task 14b; 4: §8.2 tier H; 5: 24-hour delegations (§2.4); 6: P2 says "amended"; 7: `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` (§2.5); 8: superseded, no agent text is typed at all (§4.3) |
+
+### 15.2 Security (`07`)
+
+| Finding | Verdict | Where, and how |
+|---|---|---|
+| **C1** peer free text reaches code-writing workers | Fixed | §5.1: workers read no peer free text; title and why-line go to orchestrators only, never into `team.json`; the brief section title carries the reason; G5 |
+| **C2** the taint rule contradicts itself | Fixed | §7.2 is now the one rule, keyed on turn origin; every team Orchestrator tainted from its first turn; free text in a Fleet-started turn is a `decide` written by `panacea direct`; human-started turns show directives inline (§9.4); §0 line 7, §6.5 and Q4 say the same; G9 counts every free-text directive, pass mark zero |
+| **C3** a PTY directive is a command line | Fixed | §4.3 rung 3: fixed templates only, byte for byte, with a writer test refusing `!`, `/` and `ESC [ Z`; directive text only as tool output; G4 |
+| **C4** the steering that matters most is not recorded | Fixed | §3.3: `directive` (with turn origin and preceding peer ids), `orchestrator turn` and `human message` records; the Orchestrator's prose kept with its turn (§4.2); DIVE recorded; TM1 done criterion 8 |
+| **I1** negotiation can close a conflict silently | Fixed | §6.2, §9.3: Fleet writes DECIDED WITHOUT YOU and HORIZON for both humans; `proceed-both` on H or M is always a decide; verb-enforced rows (§6.5); `accepted` in the enum; the land review lists conflicts (§8.3) |
+| **I2** one member can squat the repo | Fixed | §6.3: 10% breadth cap; bulk edits become `bulk` leases without right of way; per-path hold expiry; earlier-and-narrower right of way; admin release, audited; the contested worker defined |
+| **I3** the reader pays; starving an Orchestrator | Fixed | §4.4: human events bypass the budget and queue; Fleet executes a human `pause` directly; per-counterpart metering, cap and digest; non-zero default quotas (§2.5) |
+| **I4** gateway tokens are portable bearer tokens | Fixed | §2.5: private path only; one-hour tokens via `apiKeyHelper`, not an inherited env var; bound to the pod's source address or client certificate (mechanism **UNVERIFIED**, task 32); fresh token per Orchestrator turn |
+| **I5** `ask` can extract a context window | Fixed | §6.2, §6.5: Fleet answers `ask` from card fields by template; free-text answers need standing permission and are shown to their owner; the residual is in the risk register (§7.3) |
+| **I6** AU is per launch, team text crosses launches | Fixed | §2.5: the route is project-wide on team projects, raised by anyone, lowered only by org *compliance*; AU egress allowlist; `au.` model-map CI test; Australia East invariant |
+| **I7** a teammate's lane can change agent behaviour | Fixed | §7.3: managed files lock hooks, permission rules and `apiKeyHelper`; orchestrators load no project settings (§4.1); agent-config paths need a second approver to land and are listed in `build-on` (§8.3, §6.5) |
+| **I8** roles: viewer reads too much and may launch; admin loosens | Fixed | §3.4 role-to-verb table; viewers launch nothing; escalations and directives owner- and auditor-only; admin floors only (§6.5); Fleet sets escalation default and deadline |
+| **I9** loopback trust must not be ported into Fleet | Fixed, one clause **rebutted** | §7.4: a new attach handler, per-upgrade owner check, read-only watch frames, socket revocation, Z5 rows. **Rebutted:** *"the cockpit holds the Fleet token on the Rust side … and the local control plane never proxies Fleet."* The Hub's locked custody puts the user's tokens in the local Go control plane, never the renderer (`phase-h-hub.md:15`, `:38-39`, and `:82`, citing ADR-H1 §5.2), and a compromised webview reaching that process with the local key is the Hub's accepted T7 (`hub-contract.md:2075`). A second custody in Rust would split one sign-in in two for no reduction in exposure, so `fleetbe` proxies Fleet, as `06` I5 proposes |
+| **I10** Fleet is a trusted deputy; P2 overclaims | Fixed | P2 restated; §2.4 item 5 names the deputy risk; the Hub checks each write's `ag-…` against the delegation owner; 24-hour delegations; daily account-state check; lapse pauses sessions and withdraws leases |
+| **I11** the lane mirror runs git over hostile objects | Fixed | §8.2: its own per-project Kata pod, no credential beyond read-only fetch, no other egress; `bundle verify`, `fsckObjects`; git pinned by digest; typed results only |
+| **M1–M5** | Fixed | M1: G1 and §3.3 hygiene and path caps; M2: notes reach orchestrators only via `inbox`, never workers (§3.3); M3: a durable Postgres outbox (§2.2); M4: the contested worker (§6.3 item 6); M5: tombstones on erasure (§3.3). "Also watch": moot, since `machined`'s sweep replaces the in-guest watcher, with its own visibility probe (§14.1) |
+
+**What neither critique changed:** the placement rule (§3.2); the typed protocol (§6.2); the taint
+rule enforced on verbs rather than prompts, now keyed on origin (§7.2); the `panacea` binary as the
+harness-neutral channel (§5.2); the lane mirror, so no WIP reaches the customer's remote (§8.2);
+no git credential in any sandbox (G8); and OD-14 to OD-20 as the frame.
