@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import ts from "typescript";
 import { build, isFileLoadingAllowed, resolveConfig, type Plugin } from "vite";
 
-// Task 03's three other declared amendments, each measured through the tool that reads it.
-// editorPackage.test.tsx covers vitest.config.ts's dedupe; `npx tsc --noEmit` cannot see the
-// paths block while both lockfiles pin the same @types/react (TypeScript merges packages with
-// one name@version), and vitest never reads vite.config.ts. So these ask each tool directly.
+// Task 03's declared amendments, each measured through the tool that reads it (phase 5 plan,
+// task-03.md "Tests first"). `npx tsc --noEmit` cannot see the paths block while both lockfiles
+// pin the same @types/react (TypeScript merges packages with one name@version); vitest never
+// reads vite.config.ts; editorPackage.test.tsx's probe imports react only. So these ask
+// TypeScript's resolver, a Vite build and Vite's file-serving check directly.
 
 const slash = (p: string) => p.replace(/\\/g, "/");
 // desktop/, from this file's own path. Not import.meta.url: under jsdom Vitest serves it as an
@@ -46,14 +47,17 @@ describe("canvas editor package: the desktop's config amendments", () => {
     }
   });
 
-  // vite.config.ts resolve.dedupe. In dev the optimiser serves every bare "react" from its one
-  // pre-bundle whatever this line says, so the build is where two Reacts would ship.
-  // The probe imports only "react", so a second module is placed INSIDE the package's directory
-  // (in memory, never on disk) importing react and react-dom as tasks 24-26's modules will; its
-  // bare imports resolve from canvas/editor, where the package's own copies sit.
-  it("one React in a production bundle that mounts the package", async () => {
+  // resolve.dedupe in vite.config.ts. In dev the optimiser serves every bare "react" from its one
+  // pre-bundle whatever this line says, so the build is where two Reacts would ship. The same
+  // build over vitest.config.ts runs Vite's resolver with vitest's resolve options, which
+  // editorPackage.test.tsx cannot fully reach: its probe imports react only, never react-dom.
+  // So a second module, held in memory, imports react and react-dom from INSIDE the package as
+  // tasks 24-26's modules will. Vite resolves a bare import from the importer's directory only
+  // when the importer's id, query stripped, is a file on disk (else from the root, where dedupe
+  // is moot; vite node.js, tryNodeResolve), so its id is the package's index.ts plus a query.
+  it.each(["vite.config.ts", "vitest.config.ts"])("one React in a bundle built with %s", async (file) => {
     const entryId = "\0p5-t03-entry";
-    const inPackage = `${desktopDir.replace(/\/desktop$/, "")}/canvas/editor/src/__p5_t03_mount__.js`;
+    const inPackage = `${desktopDir.replace(/\/desktop$/, "")}/canvas/editor/src/index.ts?p5-t03-mount`;
     const code: Record<string, string> = {
       [entryId]: [
         'import { createElement } from "react";',
@@ -66,7 +70,7 @@ describe("canvas editor package: the desktop's config amendments", () => {
       [inPackage]: [
         'import { createElement } from "react";',
         'import { createRoot } from "react-dom/client";',
-        'import { PackageProbe } from "./index.ts";',
+        'import { PackageProbe } from "./probe.tsx";',
         "export function mount(el) { createRoot(el).render(createElement(PackageProbe)); }",
       ].join("\n"),
     };
@@ -77,7 +81,7 @@ describe("canvas editor package: the desktop's config amendments", () => {
       load: (id) => code[id],
     };
     const out = await build({
-      configFile,
+      configFile: `${desktopDir}/${file}`,
       root: desktopDir,
       logLevel: "silent",
       plugins: [entry],
@@ -103,6 +107,11 @@ describe("canvas editor package: the desktop's config amendments", () => {
     expect(repo).not.toBe(root);
     expect(isFileLoadingAllowed(config, `${repo}/canvas/editor/src/index.ts`)).toBe(true);
     expect(isFileLoadingAllowed(config, `${repo}/canvas/editor/src/probe.tsx`)).toBe(true);
+    // The whole package directory, not only src/: a runtime dependency tasks 24-26 add lands in
+    // canvas/editor/node_modules (npm installs a linked package's dependencies in its own
+    // directory; unverified here, the package has none yet), and an asset it ships, such as a
+    // font file, is served from there rather than from the optimiser's pre-bundle.
+    expect(isFileLoadingAllowed(config, `${repo}/canvas/editor/node_modules/dep/font.woff2`)).toBe(true);
     expect(isFileLoadingAllowed(config, `${root}/src/main.tsx`)).toBe(true);
     expect(isFileLoadingAllowed(config, `${repo}/go.work`)).toBe(false);
     expect(isFileLoadingAllowed(config, `${repo}/canvas/doc/doc.go`)).toBe(false);

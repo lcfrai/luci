@@ -8,7 +8,9 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(() => ({
   plugins: [react()],
   // Phase 5 task 03: one React for the linked @panacea-app/canvas-editor (../canvas/editor has
-  // its own node_modules), as in vitest.config.ts.
+  // its own node_modules), as in vitest.config.ts. In dev the optimiser serves every bare
+  // "react" from one pre-bundle anyway; the build is where two copies would ship
+  // (src/design/editorPackage.config.test.ts).
   resolve: { dedupe: ["react", "react-dom"] },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
