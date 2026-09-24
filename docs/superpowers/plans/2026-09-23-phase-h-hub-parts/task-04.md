@@ -301,9 +301,12 @@ Every error is an `*Error` whose `Status` and `Problem.Error` are exactly the Hu
 #### Steps
 
 - [ ] **Step 1:** Re-read contract §5.3, §7.2–§7.5 and §9.2.
-- [ ] **Step 2:** `hubclient.go` with the interfaces, `Error`, the sentinels and the `Client`
-  stub; `go build ./control-plane/internal/hub/hubclient/` passes.
-- [ ] **Step 3:** The tests above; they fail.
+- [ ] **Step 2:** `hubclient.go` with the interfaces, `Error`, the sentinels; `client.go` with the
+  `Client` stub and `New` (D1). As built, the package cannot build yet: `var _ Hub = (*Fake)(nil)`
+  needs the `Fake`, so Step 3's first red is that compile failure (`undefined: Fake`).
+- [ ] **Step 3:** The tests above; they fail — first to compile, then, against a temporary stub
+  answering 501 for every part-1 method, on behaviour (15 of 16; `TestErrorCarriesTheProblemUnchanged`
+  passes because Step 2 wrote `Error` and `Code`, and its red is the mutant `Code` without `errors.As`).
 - [ ] **Step 4:** `fake.go`, `fake_projects.go`, `fake_briefs.go`. Pass under `-race`. The
   `var _ Hub = (*Fake)(nil)` assertion needs part 2's methods: until task 05, `fake.go` gives each
   part-2 method a body returning `&Error{501, …"not_in_fake_yet"}`, which task 05 deletes.
@@ -365,3 +368,10 @@ go list -deps ./control-plane/internal/hub/hubclient | grep panacea-app
   the check would be code no test can reach.
 - **Red for `TestErrorCarriesTheProblemUnchanged`** is mutant N01, not the stub run: Step 2 writes
   `Error` and `Code` before Step 3's tests, so the test passed against the stub fake.
+- **Mutants** (142bc7b, then d51fdae): every mutant this part's table names is KILLED, by the test
+  the table pairs it with (N01–N14; N04c, N11 and N13a in their compiling forms). The two named in
+  advance as likeliest to survive did: S1, a write that leaves the head's `updatedAt`; S2, a
+  default page of 200. d51fdae pins `updatedAt` on write, archive and rebind (a self-rebind is a
+  no-op) and the default page of 50 over 65 heads; round 2 killed S1, S2 and R01–R04. The 20
+  more on this task's own rules (X01–X23; X03, X13, X19 unused) are all KILLED, X08 and X23 in
+  their compiling forms. No live survivor; none equivalent.
