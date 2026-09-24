@@ -236,4 +236,153 @@ only, with no counts (`AGENTIC-UX.md:144`, `:245`). The union is persisted (`sto
 and an added member is backward compatible, so `PERSIST_VERSION` can stay `1`. **UNVERIFIED:**
 whether rehydration validates an unknown lens value, which matters only for a downgrade.
 
-_(Sections 3–8 follow, written in parts.)_
+## 3. Is an issue a brief, a criterion, or a new object?
+
+**Recommendation: a new object that points at the brief and at the criteria it serves.** Each of
+the other two readings breaks something already built or contracted.
+
+### 3.1 If an issue were a brief
+
+| What breaks | Where it is fixed today |
+|---|---|
+| One live branch brief per `(project, branchRef)`. A 200-item backlog would reserve 200 branches | `hub-contract.md:760-761` |
+| Every text change is an immutable, digested revision, and a project edit fans a new revision out to every inheriting branch brief. Reassigning or reprioritising would either churn revisions, and mark every running agent's context `superseded`, or need fields outside the digest that the brief does not have | `4-D3`, phase-4 plan `:144`; `P4-B`, `:172` |
+| A brief is `complete` only when all five questions are settled, and only a complete revision is inherited, pinned or approved. A two-line bug report is never complete, so an agent could never inherit it | `content.go:40-41`; `C9`, phase-4 plan `:32` |
+| Five questions for every bug report is *"a wall of configuration"* | `CLAUDE.md`, "Why this exists" |
+| Inheritance is two levels, project → branch. Sub-issues would need a third | phase-4 plan `:310` (`Resolve(project, branch)`) |
+
+### 3.2 If an issue were a criterion
+
+| What breaks | Where it is fixed today |
+|---|---|
+| A criterion's identity is its text: its id lives only while *"a line with exactly this Text survives"*, and evidence matches by the text's digest. Retitling an issue would orphan its evidence | `content.go:160-162`; phase-3 plan `:208-210` |
+| A criterion is a truth condition (*"a 40 MB PDF uploads"*), not work. Several issues serve one criterion; a refactor serves none | — |
+| Criteria live inside an immutable revision. Assignee and state cannot | `hub-contract.md:646-650` |
+| Adding an issue would mean writing a brief revision, with its fan-out | `4-D3` |
+
+### 3.3 The new object, and what it gains
+
+The issue carries **`serves: [{briefKey, criterionId}]`** in its immutable revision (§2.4). Both
+identifiers are already immutable, so the thread is kept by reference and no brief changes. It
+buys three things the other readings cannot:
+
+1. **Two rates of change stay apart.** The spec changes rarely and is pinned; tracking changes all
+   day and is not. An agent's context is invalidated only when either *text* changes.
+2. **Coverage.** The branch's definition of done lists, per criterion, the issues serving it and
+   the evidence settling it, as the convergence states `AGENTIC-UX.md:77` asks for: *settled*
+   (evidence at the head), *open* (served, not settled), *contested*, **uncovered** (no issue
+   serves it), and **drifting** (an issue serves a criterion whose text has changed since the issue
+   was written; detected by comparing the criterion's digest at the brief head with the one the
+   issue's revision resolved). An issue serving nothing is shown as *not tied to the spec*, which is
+   allowed (a refactor) but visible.
+3. **Both directions of planning.** *Plan from the brief:* the Orchestrator, or the model in solo
+   mode, proposes one issue per uncovered criterion, `source: orchestrator`, into `triage`, as
+   `text·A` that a person accepts (the `4-D2` rule, phase-4 plan `:143`, applied to issues).
+   *Promote to feature:* a backlog issue becomes a feature, and its text drafts the new branch
+   brief's answers as `model_drafted`, held until a person accepts them. The issue stays as the
+   feature's first issue, so nothing written is lost.
+
+Whether Linear itself has an acceptance-criteria or evidence object is **UNVERIFIED**. The sibling
+inventory lists none: a search of `01-linear-feature-inventory.md` for *criteri*, *acceptance* and
+*definition of done* found no hit on 2026-09-25. If that holds, coverage is the clearest place
+where this product does more than Linear, not just the same.
+
+## 4. How an agent session takes work from an issue, and writes back
+
+### 4.1 The rule: issues go to people, and people's agents take them
+
+An issue's `assignee` is always a **person**. *"Give it to the agents"* is the assignee's own act:
+**Start** (solo) or **Delegate to my Orchestrator** (team). Nobody can hand an issue to another
+person's agent, because *"no user steers another user's agent"* (OD-16, `owner-decisions.md:127`).
+Assigning EP-142 to Alice puts it on Alice's Desk; Alice's Orchestrator acts on it only if Alice
+delegates it or her standing policy says so (05 §6.5's legislated escalation defaults). This is the
+one place the product deliberately differs from Linear's *delegate an issue to an agent* (01 §12.5):
+there, the agent is the workspace's; here, every agent has an owner who answers for it.
+
+### 4.2 Solo: Start
+
+1. A person presses **Start** on EP-142 (issue view, palette, or dragging it to *started*).
+2. The control plane picks the branch: the feature's branch if the issue has a feature, else a new
+   `refs/heads/ep-142-<slug>` with a branch brief that inherits the project brief. An empty branch
+   brief is fine: a session inherits *"the branch brief's latest complete revision, else the
+   project brief's"* (`C9`, phase-4 plan `:32`).
+3. It creates a worktree (phase 3's clone, OD-2) and a session whose record gains
+   **`IssueRef = issue:is-…@r`**, the issue's head revision at that moment, beside phase 4's
+   `ContextRef` (`brief:bf-…@n`). Both are minted by the session handlers only (phase-4 plan `:95`).
+4. The Materialiser renders the managed block from **both keys**. Phase 4's rule *"the resolved
+   text an agent read is a pure function of one key"* (`:97-99`) becomes *"of its keys"*: still
+   immutable, still never read back from a file.
+5. The sandbox gets `PANACEA_ISSUE=EP-142` beside the session id, so phase 3's commit hook adds a
+   `Panacea-Issue:` trailer (§5.2).
+6. The issue moves to `started`, written as that person, with the lane as the cause.
+
+### 4.3 Team: Delegate, then the Orchestrator plans
+
+1. Dylan delegates EP-142. The Hub writes `issue.delegated`; Fleet adds it to Dylan's
+   Orchestrator's event queue, a new kind beside 05 §4.2's list.
+2. The Orchestrator runs `panacea issue show EP-142` (new verb). The text arrives as a tool result,
+   which the model reads as data (05 §5.2 point 5).
+3. It plans with `panacea task create --issue EP-142 …`. **The task gains `issueId`**; its
+   `briefRef` stays, so its reason reads task → issue → criterion → brief.
+4. `panacea worker spawn --task tk-…` starts a worker whose session carries the task's issue as its
+   `IssueRef`, rendered as in §4.2 step 4.
+5. The team strip's line for Dylan (05 §9.1) becomes **the issue's title**, which is usually
+   `text·H`, instead of the Orchestrator's task title, which is `text·A`. Calmer, and one fewer
+   agent-written string on a teammate's screen.
+
+### 4.4 Is issue text allowed in the managed block?
+
+05 and 04 rule that *"nothing from a teammate is ever rendered into"* the managed block
+(`05-design.md:875-876`; 04's F4). A brief, which teammates also write, is rendered, so F4's line
+is about *coordination* text, not the spec. An issue sits between. Recommendation, for review:
+
+- An issue **revision** is spec-class. It is rendered only after **its owner adopted it** (Start or
+  Delegate is that act), passes the Hub's F2/F3 schema and character hygiene
+  (`04-enterprise-constraints.md:340-341`), and is rendered with attribution: *"EP-142, written by
+  Alice (person) 10:02; started by you."* (F6.)
+- A `text·A` revision (an Orchestrator's proposal) is **never** rendered until a person accepts or
+  rewrites it, the `4-D2` rule.
+- **Comments are coordination-class and never rendered.** An agent reads them only through
+  `panacea issue show`, as data.
+- This needs F8's injection corpus to include hostile issue text before it ships
+  (`04-enterprise-constraints.md:346`).
+
+### 4.5 Progress, written back in three classes that never mix
+
+| Class | What | Who writes it | How | Stored |
+|---|---|---|---|---|
+| **Observed** | lanes bound to the issue; files read and edited; commits carrying its trailer; queue position; lands | `sandboxd`, phase 3's lane syncer, Fleet's activity table | derived; no agent call | Fleet state, live (05 §3.3 `activity`, 45 s TTL). A land also writes the `landed` state move to the Hub, as the lander |
+| **Agent text** | *"blocked on the upload size limit"*; an assumption; a hand-off note | the **owner's** agents on that issue, and in team mode **only the Orchestrator** | `panacea issue note <text>` (new verb) → an issue comment, `text·A`, ≤ 600, attributed, rate-limited per issue | Hub, append-only |
+| **Human judgement** | state to `done`; relations; cycle; evidence; accepting a proposal | a person | the cockpit | Hub |
+
+Three consequences:
+
+- **Workers do not post to issues.** They `panacea report done|blocked|assumed` to their own
+  Orchestrator (05 §5.2), which decides what reaches the issue. The issue hears one voice per owner,
+  not one per worker, which is what keeps it calm (OD-15).
+- **An agent cannot claim progress.** *Started*, *in review* and *landed* come from facts; agent
+  text is labelled as such wherever it is shown (05 P5, `05-design.md:84`).
+- **Solo mode has no `panacea` channel yet.** It is designed with Fleet (05 §5.2, §11.4). Until the
+  control plane serves the same verbs through phase 3's `sandboxd` runner, solo issues get observed
+  facts and human text only. **UNVERIFIED** that the local runner can host the verb set unchanged.
+
+### 4.6 Evidence: agents propose, people record
+
+Phase 3's `3-D5` fixes that *"evidence is recorded by a human, at a commit, with a required
+because"* (phase-3 plan `:167`), and the Hub's route records the caller as `recordedBy`
+(`hub-contract.md:1074`). That stays. What is added is a proposal step:
+
+1. An agent runs `panacea evidence propose --criterion c-… --commit <sha> --because "<text>"`.
+2. It becomes an issue comment of kind `evidence_proposal`, with typed fields (criterion id,
+   commit, `because` as `text·A`). It **does not count** towards *settled*.
+3. The Merge lens's definition of done shows it under its criterion, as *"proposed by Dylan's
+   agent"*, through phase 4's planned `onRecordEvidence?(criterionId)` hook (phase-4 plan `:483`;
+   phase-3 plan `:414`).
+4. A person presses **Record**, edits or keeps the `because`, and the control plane calls
+   `POST /v1/evidence` **as that person**. The comment is linked to the record it became.
+
+Linear's coding sessions attach *verification artifacts (screenshots, recordings)* (01 §12.5).
+The Hub already stores content-addressed blobs per project (`hub-contract.md:590-591`), so an
+evidence record could name blob digests (a test log, a screenshot). That is a later, additive field.
+
+_(Sections 5–8 follow, written in parts.)_
