@@ -105,8 +105,11 @@ async function openBrowser() {
   }
   // Loopback-only DevTools port 0: Edge picks a free port and writes it to DevToolsActivePort.
   const dir = mkdtempSync(join(tmpdir(), "pa-p5-edge-"));
+  // msForceBrowserSignIn: this fleet's policy opens edge://force-signin/ at startup and then
+  // replaces the first tab, which closes pages under Playwright; Playwright's launch disables it too.
   const args = ["--remote-debugging-port=0", `--user-data-dir=${dir}`, "--no-first-run",
-    "--no-default-browser-check", "--edge-skip-compat-layer-relaunch", "about:blank"];
+    "--no-default-browser-check", "--edge-skip-compat-layer-relaunch",
+    "--disable-features=msForceBrowserSignIn", "about:blank"];
   const proc = spawn(EDGE, args, { stdio: "ignore" });
   const exited = new Promise((r) => proc.once("exit", r));
   let port = 0;
@@ -141,21 +144,36 @@ async function run(port) {
     }
     log(`command line via ${cl.route}; none of the three background switches present`);
 
+    // Context-level binding, registered before the page exists: page.exposeFunction on a fresh
+    // about:blank tab of a CDP-attached Edge took 17 s here (scratchpad tabprobe), context 0.1 s.
+    // Playwright's "request" event also fires for a load the CSP blocks inside the renderer (it
+    // then fails with a CSP reason; measured), so "seen" alone cannot tell blocked from sent.
+    // "reached" is the route handler being called: the request left the renderer for the network.
+    const seen = [], reached = [], failures = [];
+    const onHost = (host) => (u) => { try { return new URL(u).hostname === host; } catch { return false; } };
+    context.on("request", (r) => seen.push(r.url()));
+    context.on("requestfailed", (r) => failures.push({ url: r.url(), failure: r.failure()?.errorText ?? "failed" }));
+    await context.exposeFunction("__netSeen", (host) => ({ seen: seen.filter(onHost(host)), reached: reached.filter(onHost(host)),
+      failures: failures.filter((f) => onHost(host)(f.url)) }));
     const page = await context.newPage();
-    const requests = [];
-    page.on("request", (r) => requests.push(r.url()));
-    page.on("console", (m) => { if (m.type() === "error") log("[page console]", m.text().slice(0, 300)); });
+    const debugLines = [];
+    page.on("console", (m) => {
+      if (m.type() === "error") log("[page console]", m.text().slice(0, 300));
+      else if (m.text().includes("modern-screenshot")) debugLines.push(`${m.type()}: ${m.text().slice(0, 200)}`);
+    });
     page.on("pageerror", (e) => log("[page error]", e.message.slice(0, 300)));
-    await page.route("https://example.invalid/**", (r) => r.fulfill({ status: 200, contentType: "image/png", body: PNG_1X1 }));
-    await page.exposeFunction("__netSeen", (host) =>
-      requests.filter((u) => { try { return new URL(u).hostname === host; } catch { return false; } }));
+    await page.route("https://example.invalid/**", (r) => {
+      reached.push(r.request().url());
+      return r.fulfill({ status: 200, contentType: "image/png", body: PNG_1X1 });
+    });
     await page.goto(`http://127.0.0.1:${port}/artboard-spike.html${NEG ? "?negative=1" : ""}`);
 
-    // S10: a real click on frame A's area (below its paragraph), then a key.
+    // S10: a real click on frame A's area (right of n1, above the paragraph: a point that is on
+    // screen once the frame's top is scrolled into view), then a key.
     await page.waitForFunction(() => window.__s10Armed === true || window.__spikeReady === true, null, { timeout: 240000, polling: 250 });
-    await page.locator("#viewport").scrollIntoViewIfNeeded();
+    await page.evaluate(() => document.getElementById("frameA").scrollIntoView({ block: "start" }));
     const box = await page.locator("#frameA").boundingBox();
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.75);
+    await page.mouse.click(box.x + 300, box.y + 50);
     await page.keyboard.press("k");
     await page.evaluate(() => window.__s10Finish && window.__s10Finish());
     await page.waitForFunction(() => window.__spikeReady === true, null, { timeout: 120000, polling: 250 });
@@ -180,7 +198,8 @@ async function run(port) {
     await page.evaluate((r) => window.__finishS11(r),
       { waitMs: armed.waitMs, hidden: armed.hidden, windowState: bounds.windowState, commandLine: cl.line });
     const result = await page.evaluate(() => window.__spike);
-    result.extras.runner = { versions, port, font: FONT, commandLineRoute: cl.route, launch: edge.launch };
+    result.extras.runner = { versions, port, font: FONT, commandLineRoute: cl.route, launch: edge.launch,
+      modernScreenshotDebugLog: debugLines.slice(-40) };
     return { code: 0, result };
   } finally { await edge.close(); }
 }
@@ -211,7 +230,7 @@ function negativeProblems(r) {
   if (!L.S2a || L.S2a.unchanged !== false) out.push("S2a (no sandbox, CSP) was not navigated by the meta refresh");
   if (outcome("S6") !== "fail") out.push("S6 did not fail without the CSP");
   if (!L.S6 || !(L.S6.naturalWidth > 0)) out.push("S6 without the CSP: the https img did not load");
-  if (!L.S6 || !(L.S6.requests && L.S6.requests.length > 0)) out.push("S6 without the CSP: Playwright saw no request");
+  if (!L.S6 || !(L.S6.net && L.S6.net.reached.length > 0)) out.push("S6 without the CSP: no request reached the network");
   if (outcome("S4") !== "fail") out.push("S4 did not fail with the node moved to 200,200");
   if (r.extras.s11 && r.extras.s11.hidden === false) {
     console.error("S11-negative: not-applicable (minimised page stayed visible for 5 s)");

@@ -83,16 +83,48 @@ function mountFrame(id, body, { w = 390, h = 844, sandbox = true, csp = true, he
 }
 // ---------------------------------------------------------------- fixtures (filled after the checks)
 // The expected values below are the tests; the fixture bodies are what they measure.
+const len = (v) => (typeof v === "number" ? `${v}px` : v);
+const abs = (l, t, w, h, more = "") => `position:absolute;left:${l}px;top:${t}px;width:${len(w)};height:${len(h)};${more}`;
 const FIX = {
-  A: "",            // S1 S3 S4 S5 S7 S10 S11: a flex row holding n1 (120x40 at 24,24) and a paragraph
-  A_CHILDREN: 2,    // S1: body.childElementCount the fixture must have
-  S2: (sfx) => "",  // S2: script, img onerror, javascript: link; flags suffixed per leg
-  S2_HEAD: "",      // S2: the meta refresh, in the head
-  S6: "",           // S6: an https img and an https background
-  S9: (url) => "",  // S9: one img whose src is the parent's blob: URL
-  FONT_HEAD: (fontUrl) => "",  // S8: the @font-face rule for SpikeFont from a blob: URL
-  S8: (imgUrl) => "",          // S8: font, gradient, shadow, blur, backdrop blur, radius-clipped image
-  BOARD: (cards, img1, img2) => "", // S8 time: an artboard of `cards` cards and two blob: images
+  // S1 S3 S4 S5 S7 S10 S11: a flex row holding n1 (120x40 at 24,24) and a paragraph.
+  // --negative moves n1 to 200,200 (S4's negative).
+  A: `<div id=row style="display:flex;padding:24px;gap:16px;align-items:flex-start">` +
+     `<div id=n1 style="${NEG ? "position:absolute;left:200px;top:200px;" : ""}display:flex;flex:none;width:120px;height:40px;` +
+     `align-items:center;justify-content:center;background:oklch(0.62 0.19 250);color:#fff;font:600 14px/20px Arial,sans-serif">Button</div></div>` +
+     `<p id=para style="position:absolute;left:24px;top:100px;width:230px;margin:0;font:16px/24px Arial,sans-serif;letter-spacing:0.2px">` +
+     `The quick brown fox jumps over the lazy dog while the artboard renders real layout that the parent reads back.</p>`,
+  A_CHILDREN: 2,
+  // S2: an inline script, an img onerror, a javascript: link; flags suffixed per leg.
+  S2: (sfx) => `<p id=mark>unchanged</p><script>parent.__ran1${sfx}=1<\/script>` +
+     `<img src=x onerror="parent.__ran2${sfx}=1"><a href="javascript:parent.__ran3${sfx}=1">js</a>`,
+  S2_HEAD: `<meta http-equiv=refresh content="0;url=about:blank">`,
+  // S6: an https img and an https background (the runner fulfils example.invalid with a real PNG).
+  S6: `<img id=ext src="https://example.invalid/x.png" width=10 height=10>` +
+     `<div id=bg style="width:20px;height:20px;background:url(https://example.invalid/bg.png)"></div>`,
+  S9: (url) => `<img id=blobimg src="${url}" width=60 height=60>`,
+  FONT_HEAD: (u) => (u ? `<style>@font-face{font-family:SpikeFont;src:url(${u}) format("truetype")}</style>` : ""),
+  // S8: one feature per region, at the coordinates classify() samples.
+  S8: (img) => `<div style="position:relative;width:480px;height:200px;background:#fff">` +
+     `<span id=ft style="${abs(10, 10, "auto", 40, "font:32px/40px SpikeFont,serif;color:#000;white-space:nowrap")}">iiiiiiiiii</span>` +
+     `<span id=ffb style="${abs(10, 150, "auto", 40, "font:32px/40px serif;visibility:hidden;white-space:nowrap")}">iiiiiiiiii</span>` +
+     `<div id=grad style="${abs(10, 60, 120, 30, "background:linear-gradient(to right,rgb(255,0,0),rgb(0,0,255))")}"></div>` +
+     `<div id=sh style="${abs(160, 60, 30, 30, "background:#fff;box-shadow:0 0 0 6px rgb(0,160,0)")}"></div>` +
+     `<div id=bl style="${abs(230, 60, 30, 30, "background:#000;filter:blur(2px)")}"></div>` +
+     `<div id=st style="${abs(300, 60, 64, 60)}">` +
+     Array.from({ length: 8 }, (_, i) => `<div style="${abs(8 * i, 0, 4, 60, "background:#000")}"></div>`).join("") + `</div>` +
+     `<div id=bd style="${abs(300, 60, 64, 60, "backdrop-filter:blur(8px)")}"></div>` +
+     `<div id=clip style="${abs(390, 60, 60, 60, "border-radius:30px;overflow:hidden")}">` +
+     `<img src="${img}" width=60 height=60 style="display:block"></div></div>`,
+  // S8 time: an artboard of `cards` cards, the web font and two blob: images.
+  BOARD: (cards, img1, img2) => `<div style="font-family:SpikeFont,serif;background:#fafaf8;min-height:100vh;padding:24px;box-sizing:border-box">` +
+     `<header style="display:flex;gap:16px;align-items:center;margin-bottom:16px"><h1 style="margin:0;font-size:28px">Spike board</h1>` +
+     `<span style="color:#666">${cards} cards</span></header>` +
+     `<div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:16px"><img src="${img1}" width=320 height=200 style="border-radius:12px">` +
+     `<img src="${img2}" width=320 height=200 style="border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.2)"></div>` +
+     `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">` +
+     Array.from({ length: cards }, (_, i) => `<div style="background:#fff;border-radius:8px;box-shadow:0 0 0 1px #e2e2de,0 2px 6px rgba(0,0,0,.06);padding:12px">` +
+       `<h3 style="margin:0 0 4px;font-size:15px">Card ${i + 1}</h3><p style="margin:0;font-size:12px;color:#555">Body text for card ${i + 1}, long enough to wrap.</p>` +
+       `<span style="font-size:11px;color:#2d6a4f">tag</span></div>`).join("") + `</div></div>`,
 };
 const S8_W = 480, S8_H = 200;
 // ---------------------------------------------------------------- S1 S3 S4: read, measure, hit-test
@@ -189,12 +221,16 @@ async function checkS6() {
   const bgImage = bg ? f.contentWindow.getComputedStyle(bg).backgroundImage : "";
   const probesOk = !!img && img.src.startsWith("https://example.invalid/") && bgImage.includes("https://example.invalid/");
   const nw = img ? img.naturalWidth : -1;
-  const seen = typeof window.__netSeen === "function" ? await window.__netSeen("example.invalid") : null;
-  extras.legs.S6 = { naturalWidth: nw, requests: seen };
-  const outcome = !probesOk ? "fail" : seen === null ? "partial" : nw === 0 && seen.length === 0 ? "pass" : "fail";
+  // net.seen: Playwright "request" events (these include loads the CSP blocked in the renderer);
+  // net.reached: requests that left the renderer for the network (the runner's route was called).
+  const net = typeof window.__netSeen === "function" ? await window.__netSeen("example.invalid") : null;
+  extras.legs.S6 = { naturalWidth: nw, net };
+  const outcome = !probesOk ? "fail" : net === null ? "partial" : nw === 0 && net.reached.length === 0 ? "pass" : "fail";
+  const fails = net ? [...new Set(net.failures.map((f) => f.failure))].join(", ") : "";
   record("S6", outcome, (probesOk ? "" : "a probe is missing from the fixture; ") +
-    `https img naturalWidth ${nw}; requests to example.invalid seen by Playwright: ` +
-    (seen === null ? "not observed (no runner)" : `${seen.length}${seen.length ? " (" + seen.join(", ") + ")" : ""}`));
+    `https img naturalWidth ${nw}; requests to example.invalid that reached the network: ` +
+    (net === null ? "not observed (no runner)" : `${net.reached.length}${net.reached.length ? " (" + net.reached.join(", ") + ")" : ""}` +
+      `; Playwright request events ${net.seen.length}${fails ? ", failed with " + fails : ""}`));
 }
 // ---------------------------------------------------------------- S7: parent listeners inside the document
 function checkS7() {
@@ -352,13 +388,13 @@ async function probeCaptureEgress() {
   if (!f6 || typeof window.__netSeen !== "function") { extras.captureEgress.note = "not observed (no runner or no S6 frame)"; return; }
   for (const [name, lib] of Object.entries(LIBS)) {
     if (!lib.ready()) continue;
-    const before = (await window.__netSeen("example.invalid")).length;
+    const before = (await window.__netSeen("example.invalid")).reached.length;
     let err = "";
     try { await withTimeout(lib.png(f6.contentDocument.documentElement, { w: 220, h: 120, scale: 1 }), 20000, name); }
     catch (e) { err = String(e && e.message || e); }
     await sleep(300);
-    const after = await window.__netSeen("example.invalid");
-    extras.captureEgress[name] = { newRequests: after.slice(before), error: err || undefined };
+    const after = (await window.__netSeen("example.invalid")).reached;
+    extras.captureEgress[name] = { reachedNetwork: after.slice(before), error: err || undefined };
   }
 }
 // Five captures per library x artboard x scale, each timed from the call to the Blob in hand.
@@ -407,10 +443,13 @@ async function timeCaptures() {
   }
 }
 // ---------------------------------------------------------------- S10: keys stay in the parent
-const keyLog = [];
+const keyLog = [], downLog = [];
+const elName = (el) => (el ? el.id || el.tagName.toLowerCase() : "null");
 document.addEventListener("keydown", (e) => {
-  const name = (el) => (el ? el.id || el.tagName.toLowerCase() : "null");
-  keyLog.push({ key: e.key, target: name(e.target), active: name(document.activeElement) });
+  keyLog.push({ key: e.key, target: elName(e.target), active: elName(document.activeElement) });
+}, true);
+document.addEventListener("pointerdown", (e) => {
+  downLog.push({ x: Math.round(e.clientX), y: Math.round(e.clientY), target: elName(e.target), trusted: e.isTrusted });
 }, true);
 function armS10() {
   return new Promise((resolve) => {
@@ -424,10 +463,13 @@ function checkS10() {
   const actName = act ? act.id || act.tagName.toLowerCase() : "null";
   const k = keyLog.find((x) => x.key === "k");
   const inner = docA ? docA.hasFocus() : null;
-  const ok = act === vp && !!k && k.target === "viewport" && inner === false;
+  const down = downLog.find((d) => d.trusted);
+  const ok = !!down && act === vp && !!k && k.target === "viewport" && inner === false;
   extras.keyLog = keyLog;
+  extras.downLog = downLog;
   record("S10", ok ? "pass" : "fail",
-    `after a real click on the iframe's area the parent's activeElement is ${actName} (want viewport); key "k" ` +
+    `${down ? `a trusted pointerdown at ${down.x},${down.y} hit the parent's ${down.target}` : "no trusted pointerdown reached the parent"}; ` +
+    `then the parent's activeElement is ${actName} (want viewport); key "k" ` +
     `${k ? "reached the parent's keydown with target " + k.target : "never reached the parent"}; contentDocument.hasFocus() ${inner}`);
 }
 // ---------------------------------------------------------------- S11: a render request while minimised
@@ -486,9 +528,29 @@ window.__renderRequest = async (w) => {
   } catch (e) { captureError = String(e && e.message || e); }
   const left = 2000 - (performance.now() - t0);
   if (left > 0 && rafAt === null) await sleep(left);
-  s11Answer = { visibilityState, rafFiredWithin2s: rafAt !== null && rafAt <= 2000, width, captured, hiddenCaptureMs,
+  const rafFiredWithin2s = rafAt !== null && rafAt <= 2000, totalMs = Math.round(performance.now() - t0);
+  // Extra facts for task 13's timeout, after the answer is fixed: every library on the real
+  // artboards at 2x, still hidden, each bounded at 30 s (task 13's provisional timeout).
+  const hiddenRuns = [];
+  const targets = [["fixture A 390x844", "frameA", 390, 844], ["390x844 board", "frameT390", 390, 844], ["1440x900 board", "frameT1440", 1440, 900]];
+  for (const [name, lib] of Object.entries(LIBS)) for (const [label, id, fw, fh] of targets) {
+    const fr = document.getElementById(id);
+    if (!fr || !lib.ready()) continue;
+    const h0 = performance.now();
+    let ms = null, err = "";
+    try {
+      await withTimeout(lib.blob(fr.contentDocument.documentElement, { w: fw, h: fh, scale: 2 }), 30000, name);
+      ms = Math.round(performance.now() - h0);
+    } catch (e) { err = String(e && e.message || e); }
+    hiddenRuns.push({ library: name, artboard: label, scale: 2, ms, error: err || undefined, visibility: document.visibilityState });
+  }
+  // One modern-screenshot capture with its own timing log on (the runner prints the console).
+  window.__s11Debug = true;
+  try { await withTimeout(modernScreenshot.domToBlob(docA.documentElement, { width: 390, height: 844, scale: 2, debug: true }), 30000, "debug"); } catch {}
+  window.__s11Debug = false;
+  s11Answer = { visibilityState, rafFiredWithin2s, width, captured, hiddenCaptureMs,
     rafAtMs: rafAt === null ? null : Math.round(rafAt), captureError: captureError || undefined,
-    visibilityAtAnswer: document.visibilityState, totalMs: Math.round(performance.now() - t0) };
+    visibilityAtAnswer: document.visibilityState, totalMs, hiddenRuns };
   return s11Answer;
 };
 // The runner's half of S11 (armed wait, window state, command line), then the result object.
