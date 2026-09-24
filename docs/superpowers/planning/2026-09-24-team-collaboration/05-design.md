@@ -82,7 +82,7 @@ persisted, and it is served by its own route.
 | **claim** (soft lease) | `cl-…` | durable | agent id; repo-relative globs (≤20); `expiresAt` (default 2 h, renewed while the agent runs); `origin` | the owner's control plane, on the owner's action |
 | **note** | `nt-…` | durable, immutable | author (from token); target: project, lane, or **person**; text ≤1,000; `kind` `note`·`ask` | any member, as themselves |
 | **forecast** | `fc-…` | durable | lane pair; tier `P`·`H`·`M`; paths plus line ranges; basis shas; `raised`·`cleared` | the Hub (P, H); the owner's control plane for its own lanes (M) |
-| **presence** | per user and machine | **ephemeral**, 45 s TTL | online; per agent: status, `lastActiveAt` (from `LastOutputAt`, a byte count, `session.go:22-23`), **dirty paths**, and later dirty hunks | the owner's control plane, `PUT` every ~15 s |
+| **presence** | per user and machine | **ephemeral**, 45 s TTL | online; per agent: status, `lastActiveAt` (from `LastOutputAt`, a byte count, `session.go:22-23`, `:99`), **dirty paths**, and later dirty hunks | the owner's control plane, `PUT` every ~15 s |
 | **watch grant** (`04` Z3) | `wg-…` | durable | session owner; viewer; `expiresAt` ≤ 4 h | the session's owner only. **TM4** |
 | **project team policy** | on the project | durable | allowed inference routes; required account class (commercial, or training off, attested); defaults for Q1 and Q2 | team `admin` |
 
@@ -354,3 +354,67 @@ Five rules bound it:
 edit, who else is working, on what, in which files, and where it overlaps. That is capability C4.
 It uses only files and a documented socket, so it works for a KPMG account today (P8). No agent
 writes to the Hub, so a poisoned page read by Alice's agent cannot reach Dylan's agent (P2).
+
+## 6. C3 — a teammate runs their own agents on the same project
+
+Dana is a `member` of Dylan's team. She works on her own laptop, or her own cloud machine. Nothing
+she runs touches Dylan's machine, account or credential.
+
+### 6.1 Join: from the invite to a local project
+
+1. **Accept.** Dana accepts the same-org email invite (Hub plan task 15, via `01` C1). The project
+   appears in her rail under the team, marked **"Not on this machine"**.
+2. **Check access with her own credential.** Her control plane runs `git ls-remote` against the
+   project remote with **Dana's** git token from her credential store (phase 3 task 13's H-1 seam,
+   `.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md:561`).
+   If it fails, the cockpit says so plainly: *"You are on the team, but your GitHub account cannot
+   read acme/portal. Ask a repository admin for access."* Hub membership never grants repository
+   access (`04` §7.1).
+3. **Clone.** *Get this project* clones the remote into her configured project root with her
+   credential. That is host git in a new, host-private project, which ruling R4 trusts (rule 1,
+   `orchestrator-rulings.md:14-17`). Phase 2's scanner lists it on its next pass
+   (`control-plane/internal/project/project.go:184`). `hublink` then links it **automatically**,
+   because its `RepoKey` matches the Hub project remote
+   (`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:563`, Q8).
+4. **Policy.** Before her first launch, her control plane checks the project team policy (§2.2):
+   the inference route, and an attestation that her Claude account is commercial or has training
+   off (`04` §8.2 rank 7). A failed check blocks launch on this project only, with the reason.
+
+**What is new here.** Steps 2 and 3 are in no plan today. The Hub plan's Q8 links a project that
+is **already** on the machine. Team mode adds one control-plane route, `POST
+/v1/hub/projects/{pj}/clone`, and one rail state. It belongs with Hub task 35 (§10.1).
+
+### 6.2 Launch: the same flow as a solo session
+
+Dana's **New agent** on the shared project is phase 2's create flow, unchanged in shape:
+
+| Step | Whose | Where it is planned |
+|---|---|---|
+| lane clone, created from **her** project on **her** host | Dana's | R4 rule 5, `orchestrator-rulings.md:37-42` |
+| sandbox: Docker locally, or a Kata pod on **her** cloud machine | Dana's | phase 8; broker reads filtered by owner `(tid, oid)` (P8-D4, via `01` §4) |
+| Claude sign-in: `/login` inside **her** sandbox, rotating across **her own** subscriptions only | Dana's | `owner-decisions.md:23` (OD-12); `CLAUDE.md` (never pool) |
+| brief: the **same Hub brief**, rendered by phase 4's Materialiser | shared record | OD-3; `ContextRef` on the card (`session.go:102-104`) |
+| agent card published with **her** Entra token | Dana's | §3.2 |
+
+So the provenance thread holds across people. Dylan's board shows Dana's agent working on the
+same brief section, and Dana's later land carries the same brief key into Deploy. The Hub has
+**no** route that starts a session for another principal, and it holds no Claude credential
+(`04` §8.1 rank 3).
+
+### 6.3 Building on a teammate's work: fork, never take over
+
+Dylan cannot hand Dana his running agent, and Dana cannot steer it (P4). What she can do is
+**Continue from Dylan's lane**. Her control plane fetches his pushed lane ref (§8.3) into her
+project and creates **her** lane from that commit, under **her** subscription. Her brief key is
+the same. His session is untouched. That is `02`'s fix for its first anti-pattern, *"someone
+else pays for my prompt"*: fork into your own lane on your own account (`02` §"The 3
+anti-patterns").
+
+### 6.4 Landing, across people
+
+Each person lands **their own** lanes through **their own** phase 3 queue, and pushes with their
+own credential (phase 3 tasks 09, 12 and 14, plan `:557-562`). The queue stays per machine: its
+order lives in the local lane index (plan `:183-186`). A cross-person queue is **not** proposed.
+The remote already orders pushes. The second pusher gets phase 3's `push_rejected`, uses **Bring
+in** (plan `:206`, `:368`), and re-forecasts. Team mode's job is to make that rare, by telling
+both people earlier (§8).
