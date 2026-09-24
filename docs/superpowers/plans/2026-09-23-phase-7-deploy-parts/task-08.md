@@ -251,6 +251,7 @@ the watcher passes its `Reader.SameEnvironment`, not the stub.
 | `TestRollbackBeforeNewerDeploy` | the same rollback, then `d3` created 10:10 and completed 10:14, succeeded → `current {source:"deployment", deploymentId:"d3", since:"…10:14…"}`; only `d3`'s row is `isCurrent` | a rollback that sticks after a newer build went live |
 | `TestFailedNewestIsNotCurrent` | `d1` succeeded (completed 09:04); `d2` created 10:00, `build "failed"`, `CompletedAt` 10:02 → `current {source:"deployment", deploymentId:"d1", since:"…09:04…"}`, `d1` `isCurrent:true`, `d2` `isCurrent:false`, `build.state "failed"`; the same with `d2` `running` (zero `CompletedAt`) → still `d1` (review I3) | the newest deployment read as current, which marks a failed build as serving and hides *Roll back* on the one that is |
 | `TestBuildLiveAfterRollbackIsCurrent` | `d1` succeeded (completed 09:04); `d2` created 10:00; a rollback to `d1` confirmed 10:05; `d2` succeeded with `CompletedAt` 10:08 → `current {source:"deployment", deploymentId:"d2", since:"…10:08…"}`; with `d2` still `running` at the same snapshot → `current` is the rollback (review I3) | ordering by `CreatedAt`, which says the rollback is serving after the Ship it undid went live on top of it |
+| `TestCurrentOrdersByCompletion` | `d1` created 10:00 and completed 10:20, `d2` created 10:05 and completed 10:10, both `succeeded`, no rollback, listed in Panacea's served order (`d2` first, newest by creation) → `current {source:"deployment", deploymentId:"d1", since:"…10:20…"}`, only `d1` `isCurrent` (plan re-review b04-1, I-2: Panacea's `cancel-superseded` fires only within one trigger path, `clients/pipeline.go:102-112` *"CROSS-PATH RESIDUAL"*, so a push run and a Ship can overlap on one environment and the one created first can finish last) | taking the first `succeeded` row in served order (newest by creation) and only then comparing its `CompletedAt` — which passes every other test here, because in them creation order and completion order agree |
 | `TestCurrentTieGoesToRollback` | `d2` `CompletedAt` 10:05:00 and a rollback to `d1` confirmed 10:05:00.000 → `source "rollback"`; `d2` `CompletedAt` 10:05:01 → `d2` | a tie broken by list order, so the answer flips between cycles |
 | `TestHistoricalOnlyIsNone` | the environment's only deployment is a backfilled `historical` row (zero `CompletedAt`) and no rollback → `current {source:"none", deploymentId:null, since:null}`, no row `isCurrent` | calling a reconstructed row live because it is the only one |
 | `TestPendingRowUntilDeploymentAppears` | a confirmed release for run `r9` with no deployment → a `pending` row; add `r9` → the pending row is gone and `r9` has the pin | a Ship that shows nothing for the ~seconds before Panacea lists the run |
@@ -301,5 +302,18 @@ go test ./control-plane/internal/deploy/deploywatch/ ./control-plane/internal/ap
   its pods serve. Whether any such task can fail the run is **unverified** (it turns on each
   task's `onError`). FACT 2 (`serving`) still shows the pods either way; Panacea records nothing
   closer to go-live on a deployment row.
+- That rule 6 orders a build and a rollback correctly when they land within clock skew of each
+  other (plan re-review b04-1, M-3). `CompletedAt` comes from the Kubernetes API server's clock
+  (`creationTimestamp` and `completionTime`); `confirmedAt` comes from the Hub's. The tie rule
+  covers only an exact tie. The skew is unmeasured. The rule compared `createdAt` with
+  `confirmedAt` across the same two clocks before b04, so this is not new.
+- That `CompletedAt` is exact for every row (plan re-review b04-1, M-4). `CreatedAt + duration` is
+  exact only when `CreatedAt` is the PipelineRun's creation time. Panacea's store keeps the
+  **earliest** non-zero `CreatedAt` when it merges observations (`clients/deployment_store.go:56`,
+  `:88`), and a backfilled row takes its `CreatedAt` from the release's `MintedAt`
+  (`clients/deployment_backfill.go:172`). A backfilled row later merged with a live observation
+  keeps `MintedAt`, while `duration` runs from `creationTimestamp`, so its `CompletedAt` is early
+  by the minting-to-creation gap. The size of that gap is unverified (likely seconds); it matters
+  only for a build and a rollback that land that close together.
 - Anything about how a pinned revision reads. The view carries `briefKey` and nothing of the brief;
   the text comes from phase 4's loader (R6) in the desktop.

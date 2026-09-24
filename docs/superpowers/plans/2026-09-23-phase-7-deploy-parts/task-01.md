@@ -198,7 +198,10 @@ type Deployment struct {
 	// CompletedAt is when the build finished: CreatedAt plus the target's recorded duration
 	// (Panacea: completionTime − creationTimestamp, rounded to a second, kubernetes.go:5683-5689).
 	// Zero = not finished, or the target recorded no duration (a running build; a reconstructed
-	// row). The view's "what is serving now" rule reads it (task 08 rule 6, review I3).
+	// row). The view's "what is serving now" rule reads it (task 08 rule 6, review I3). Exact only
+	// when CreatedAt is the run's creation; Panacea's store keeps the earliest CreatedAt, so a
+	// backfilled row (CreatedAt = the release's MintedAt) later merged with a live one reads early
+	// (task 08 does-not-claim, re-review b04-1 M-4).
 	CompletedAt time.Time
 	DeployedBy  string // "" = not recorded, never guessed
 	Trigger     string // the target's word ("manual", "git-push", …); "" = not recorded

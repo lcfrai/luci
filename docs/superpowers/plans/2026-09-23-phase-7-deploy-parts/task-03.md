@@ -92,7 +92,9 @@ type deploymentDTO struct {
 	// kept by the durable store, clients/deployment_store.go:83; absent on a backfilled row,
 	// clients/deployment_backfill.go:167-175). The mapper sets Deployment.CompletedAt =
 	// CreatedAt + time.ParseDuration(Duration); "" or an unparseable value → zero, never a guess
-	// (review I3).
+	// (review I3). Exact only when CreatedAt is the PipelineRun's creation: the store keeps the
+	// earliest CreatedAt (deployment_store.go:88), so a backfilled row (CreatedAt = MintedAt,
+	// deployment_backfill.go:172) merged with a live one reads early (task 08 does-not-claim).
 	Duration          string                 `json:"duration"`
 	Provisioning      []provisioningDTO      `json:"provisioning"`
 	RollbackWarmth    string                 `json:"rollbackWarmth"`
