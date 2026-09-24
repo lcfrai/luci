@@ -57,6 +57,10 @@ type Config struct {
 	Me         Me
 	// Interval, ActiveInterval, HistoryInterval: plan §6. Zero = 15s, 3s, 60s.
 	Interval, ActiveInterval, HistoryInterval time.Duration
+	// CycleDeadline bounds one whole cycle, every project's reads together (review M14). Zero =
+	// 15s: one per-attempt timeout (PANACEA_APP_PANACEA_TIMEOUT), so a hung GET costs one
+	// attempt, never do's three (t02:95, about 46 s).
+	CycleDeadline time.Duration
 	Now func() time.Time
 	Log *slog.Logger
 }
@@ -66,7 +70,8 @@ type Watcher struct{ /* unexported */ }
 func New(cfg Config) (*Watcher, error)
 
 // Run blocks until ctx is done. ONE goroutine, one time.Ticker at ActiveInterval; each project
-// is polled when it is due (Interval, or ActiveInterval while it has a tracked run).
+// is polled when it is due (Interval, or ActiveInterval while it has a tracked run). Each cycle
+// runs under context.WithTimeout(ctx, CycleDeadline) — see "The per-cycle deadline" below.
 func (w *Watcher) Run(ctx context.Context)
 
 // Snapshot is the newest reading for one local project; ok false before the first cycle.
@@ -192,6 +197,25 @@ is reported with `Connection.Observe` and likewise ends the cycle. A later good 
 and calls `Observe(nil)`. An `EnvironmentFor` refusal of any other kind is not a cycle failure:
 it is recorded per branch (step 2) and the cycle goes on.
 
+**The per-cycle deadline** (review M14). One goroutine means one hung read holds every project:
+`do` retries a GET twice after 250 ms and 1 s (t02:95), each attempt up to
+`PANACEA_APP_PANACEA_TIMEOUT` (15 s, plan §6), so one read could hold the loop for about 46 s.
+So each cycle — the connection gate, every project's steps 1-8, and the Hub reads — runs under
+**one** `context.WithTimeout(ctx, CycleDeadline)` (zero = 15 s), cancelled when the cycle returns.
+Its expiry cancels the read in flight; `do`'s sleep is ctx-aware (t02:48), so a pending retry
+returns at once. A Panacea read cut this way is the cycle's first `KindUnavailable` (a transport
+failure, Status 0): the failure rule above applies unchanged — the cycle ends for every project,
+each is `Stale` with that `LastError`, the cursor bumps once. A Hub read cut this way is
+`hubclient.ErrUnavailable`: step 6's rule, previous releases kept. The next tick starts a fresh
+cycle with a fresh deadline; `time.Ticker` drops the ticks missed meanwhile, so nothing queues.
+**Order within a cycle:** projects with a tracked run first, then the rest in rotation, starting
+after the last project the previous cycle reached — so a cycle cut short starves no project, and
+a hang in another project's reads never comes before a tracked run's. The 3 s active cadence
+holds while Panacea answers; while it hangs, every cycle ends within `CycleDeadline`, so the loop
+tries again no later than `CycleDeadline` + 3 s after the last try began, and the lens says stale, never a frozen
+*"running"*. What this does **not** do is back off on
+`Retry-After`: that is seam S7-R1 (t02:103-105).
+
 #### The cursor on `GET /v1/sessions` (HA7-4)
 
 If Hub task C2 has built the generic mechanism, this task adds one line in `main.go`:
@@ -230,6 +254,7 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestHistoryIntervalForcesRead` | 61 s of fake time with no change → a second `Deployments` | history that never refreshes when only `LiveReady` moved |
 | `TestTrackedRunDrivesActiveCadence` | `Track(p, run)`; the project is polled every 3 s until the fake advances the run to succeeded, then every 15 s | a run that stays on 3 s forever, or never gets it |
 | `TestUnavailableEndsCycleForAll` | two bound projects; the first `Environments` fails `KindUnavailable` → the second project saw **no** call this cycle; both `Stale`, one cursor bump | a cycle that stalls for N × timeout in an outage |
+| `TestCycleDeadlineCutsAHungRead` | `CycleDeadline` 50 ms of real time (the one test off the fake clock); two bound projects; the watcher's Reader is the fake wrapped so that project A's `Environments` blocks until its `ctx` is done and then returns `KindUnavailable`, Status 0 (what `do` returns for a cancelled transport). One cycle returns within 1 s; B saw no call; both `Stale`, `LastError.Kind == KindUnavailable`; one cursor bump. Then `Track(B, run)`: the next cycle's first call is B's `Environments`, before A's (review M14) | a cycle with no deadline, so one hung read holds the loop for `do`'s three attempts (about 46 s); a deadline per read, not per cycle, so ten projects' hangs add up; a fixed project order that puts a tracked run behind a hanging project every cycle |
 | `TestUnauthorizedObserved` | `KindUnauthorized` → `Connection.Observe` called with it; the cycle ends | a lens that keeps drawing "connected" while every read 401s |
 | `TestStaleKeepsLastData` | a good cycle, then a failing one → `Environments` unchanged, `Stale == true`, `FetchedAt` is the good cycle's time | clearing the lens during a blip |
 | `TestJoinOnlyOwnConfirmedRuns` | releases: mine confirmed, mine reserved, a teammate's confirmed, mine rollback — only the first is joined, and only once across three cycles | joining a teammate's release, a reservation, or a rollback (7P-4: a rollback has no deployment of its own) |
@@ -244,8 +269,8 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 - [ ] Check what Hub C2 has built (`grep -rn "CursorSource\|Panacea-Hub-Cursor"
   control-plane/internal`) and pick the branch of *"The cursor"* above.
 - [ ] Tests first; then `watcher.go`, `join.go`; then the cursor wiring.
-- [ ] `config.go`: the three intervals through `parseDuration` (`config.go:317`), each refusing a
-  value under 1 s. `main.go`: `go watcher.Run(ctx)` after `connection.Check`.
+- [ ] `config.go`: the three intervals and `PANACEA_APP_DEPLOY_CYCLE_DEADLINE` (plan §6) through
+  `parseDuration` (`config.go:317`), each refusing a value under 1 s. `main.go`: `go watcher.Run(ctx)` after `connection.Check`.
 - [ ] Run the control-plane suite; commit by pathspec.
 
 #### Acceptance

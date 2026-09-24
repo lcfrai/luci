@@ -520,6 +520,7 @@ silently ignored (`config.go:69-70`).
 | `PANACEA_APP_DEPLOY_POLL_INTERVAL` | `15s` | the watcher's cycle for every bound project | 07 |
 | `PANACEA_APP_DEPLOY_ACTIVE_POLL_INTERVAL` | `3s` | the cycle for a project with a run this user shipped that is not terminal | 07 |
 | `PANACEA_APP_DEPLOY_HISTORY_INTERVAL` | `60s` | the most often `GET …/deployments` is read when nothing else changed (7P-5) | 07 |
+| `PANACEA_APP_DEPLOY_CYCLE_DEADLINE` | `15s` | the most one watcher cycle — every project's reads together — may take; its expiry is the cycle's `KindUnavailable` (review M14). One per-attempt timeout, so a hung GET costs one attempt, not `do`'s three | 07 |
 
 ---
 
