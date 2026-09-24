@@ -1144,3 +1144,24 @@ cites `RepoKey()` by name and needed no change.
 re-counted here. The cost of the reverts walk (one `git log` plus two `merge-base` calls per
 retained record per revert) was not measured.
 
+### Fix batch b07, round 2 (2026-09-24): the re-review's open issues
+
+Source: `.superpowers/sdd/p3/plan-rereview-b07-1.md`. Commits 77d9412, 97f407f, b47e572.
+
+| Re-review issue | Change (file:line) |
+|---|---|
+| 1 (Important) task 17's acceptance grep matched the fixtures' `attachment` lines | parts/task-17.md:214-221: `git grep -nwE "internal/proxy\|attach" -- 'control-plane/internal/transcript/*.go'`, and a paragraph saying what it guards. The nit's run-on lines are rewrapped: task-17:26-30, :116-117, plan:572-573 |
+| 2 (Important) an agent-written `Panacea-Reverts` value became a git argument | parts/task-15.md:109-120 (the `reverts` step: `%H%x00…%x1e`, split on RS/NUL/US, each value not exactly `^[0-9a-f]{40}$` dropped before any git call; a pair counts only when M is a proper ancestor of R), :121-122 (exit 128 on `rev-list M^1..M` retires nothing), :132-133 (OKExit {1, 128}), :144-148 (the forgery sentence, now true), :223 `TestStatesAMalformedRevertsTrailerIsIgnored` |
+| 3 (Important) H-3 forbade the `local:` key task 15 uses | plan:381 names all three values, uses the method's real name `githost.Remote.RepoKey()`, and picks one rule: phase 3 never sends a `local:` record (it always gets the `FileStore`), the Hub's refusal a backstop only. parts/task-15.md:50 and :250-253 say the same |
+| 4 (Minor) a record on a tree that held the reverted land stayed settled | The safe-way option. parts/task-15.md:123-131 rule (b) with its own because; :136 (one sentence per record, (a)'s winning); :92; :219 (`…AtTheLandItself…`: (a) wins) and :222 (`TestStatesARecordOnATreeThatHeldTheRevertedLandIsRetired`); :257-263 (over-retirement declared); :221 (`…OfAnotherLand…` fixes the land order). The choice is the owner's: plan:428 **Q12**, built as recommended, rule (b) one predicate |
+| 5 (Minor) the reverts walk's cost was unbounded | parts/task-15.md:109 (`--fixed-strings --regexp-ignore-case --grep=` prefilter), :149-156 (exact caches keyed by commit ids, a 128 answer never cached, LRU 4,096), :224 `TestStatesCachesTheWalk`, :266-267 (the first walk after a tip moves is still unmeasured) |
+| 6 (Minor) nothing rendered an `open` state's `because` | plan:391 P4-4 asks `DefinitionOfDone` to show a non-empty `because` on `open`, naming both revert sentences |
+
+**Measured, 2026-09-24, git 2.53.0.windows.2, a scratch repository:** `merge-base --is-ancestor
+<sha> -h` exits 129; an unknown 40-hex sha exits 128; `rev-list <root>^1..<root>` exits 128;
+`%(trailers:key=Panacea-Reverts,valueonly)` returns a lowercase `panacea-reverts:` value; the
+`-F -i --grep` prefilter matches it (parts/task-15.md:268-271). Task 17's new grep, run over
+`control-plane/internal/api/*.go`, prints attach.go's `internal/proxy` import and its `attach`
+route lines, and `grep -wE attach` counts 0 on a `{"type":"attachment"}` line. **Unverified:** git 2.40's
+behaviour, and the cost of one full walk on a large repository.
+
