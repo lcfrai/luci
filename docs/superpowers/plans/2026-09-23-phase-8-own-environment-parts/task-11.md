@@ -180,8 +180,10 @@ redundant if task 32's P14 finds `Premium_ZRS`). That covers a failed disk or zo
 cover a logical loss: an explicit machine delete, which `reclaimPolicy: Delete` makes final, or a
 broker defect that deletes a claim. Snapshots are **not** added here because they collide with an
 owner decision: OD-10 says Forget *deletes* a transcript, and a disk snapshot would keep a
-forgotten transcript for its whole retention. Whether to accept that window is the owner's call (the
-b09 owner question). The design the seam names is ready to build once the owner answers.
+forgotten transcript for its whole retention, and a deleted machine's disk for the same window
+(a snapshot outlives its claim until it ages out: the seam's CronJob cannot tell an explicit
+delete from a claim lost to a defect, b09 re-review 6). Whether to accept that window is the
+owner's call (the b09 owner question). The design the seam names is ready to build once the owner answers.
 Task 06's `snapshot_controller_enabled = true` stays on for that reason: it adds no object and
 needs no grant, and leaving it on means the seam lands with no cluster update.
 
