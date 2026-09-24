@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -10,6 +12,8 @@ import (
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 // env returns a getenv that reads from m and nothing else. Every test here uses
@@ -441,5 +445,30 @@ func TestTheKataManagerGetsTheConfiguredRuntimeClass(t *testing.T) {
 	want := sandbox.Config{Namespace: "panacea-sessions", RuntimeClass: "rc-x"}
 	if got := managerConfigFor(cfg); got != want {
 		t.Fatalf("managerConfigFor = %+v, want %+v", got, want)
+	}
+}
+
+// The whole kata construction after kubeClient, driven with a fake clientset:
+// the pod it creates carries the configured runtime class and namespace (task
+// 14's residual mutant P1c: newBackend bypassing managerConfigFor).
+func TestTheKataBackendCreatesPodsWithTheConfiguredRuntimeClass(t *testing.T) {
+	t.Parallel()
+	client := fake.NewSimpleClientset()
+	be, err := kataBackend(client, Config{Namespace: "panacea-sessions", RuntimeClass: "rc-x", ReadyTimeout: 50 * time.Millisecond})
+	if err != nil {
+		t.Fatalf("kataBackend: %v", err)
+	}
+	_, err = be.Create(context.Background(), backend.Spec{
+		ID: "s-1", Image: "x:y", Command: "claude", AttachToken: "tok", Resources: backend.DefaultResources,
+	})
+	if !errors.Is(err, backend.ErrNotRunning) {
+		t.Fatalf("Create on a fake cluster = %v, want ErrNotRunning (the pod never schedules)", err)
+	}
+	pod, err := client.CoreV1().Pods("panacea-sessions").Get(context.Background(), sandbox.PodName("", "s-1"), metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("no pod in the configured namespace: %v", err)
+	}
+	if rc := pod.Spec.RuntimeClassName; rc == nil || *rc != "rc-x" {
+		t.Fatalf("runtimeClassName = %v, want rc-x: the configured class never reached the pod", rc)
 	}
 }

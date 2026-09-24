@@ -204,7 +204,12 @@ New, in `hardening_test.go` (fake clientset, the package's existing `growthSpec(
 asserts the owner reference carries it (the fake assigns none; a real API server rejects an empty
 `uid`, b09-2 Minor 1), and `TestWithOwnerRefusesAnEmptyOwner` also refuses `O1`, `o 1` and
 `o1,panacea-app/component=sandbox`: `WithOwner` panics on anything outside `^[a-z0-9]{1,63}$`,
-because the owner is concatenated into a label selector.
+because the owner is concatenated into a label selector. In `cmd/api`, `newBackend`'s kata arm
+after `kubeClient` became `kataBackend(client, cfg)` (using `managerConfigFor(cfg)`), so
+`TestTheKataManagerGetsTheConfiguredRuntimeClass` and
+`TestTheKataBackendCreatesPodsWithTheConfiguredRuntimeClass` (a fake clientset; the pod carries
+the configured class) cover the wiring no test reached: a dropped `RuntimeClass` survived every
+test until then (mutants P1, P1c).
 
 In `katabe/kata_test.go`, new: `TestAnOwnerScopedBackendCannotAttachToAnothersSandbox` — create
 through `New(Config{Owner: "o1"})`, then `Attach` and `Destroy` through `Owner: "o2"` →

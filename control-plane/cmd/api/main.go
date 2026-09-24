@@ -232,6 +232,20 @@ func managerConfigFor(cfg Config) sandbox.Config {
 	return sandbox.Config{Namespace: cfg.Namespace, RuntimeClass: cfg.RuntimeClass}
 }
 
+// kataBackend is newBackend's kata arm after the client exists, split out so a
+// test can drive it with a fake clientset: kubeClient needs a cluster, and
+// everything configured past it would otherwise be untested wiring.
+func kataBackend(client kubernetes.Interface, cfg Config) (backend.Backend, error) {
+	b, err := katabe.New(katabe.Config{
+		Manager:      sandbox.NewManager(client, managerConfigFor(cfg)),
+		ReadyTimeout: cfg.ReadyTimeout,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
 func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
 	switch cfg.Backend {
 	case string(backend.KindDocker):
@@ -248,10 +262,7 @@ func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
 		if err != nil {
 			return nil, fmt.Errorf("kata backend: %w", err)
 		}
-		return katabe.New(katabe.Config{
-			Manager:      sandbox.NewManager(client, managerConfigFor(cfg)),
-			ReadyTimeout: cfg.ReadyTimeout,
-		})
+		return kataBackend(client, cfg)
 	default:
 		// loadConfig already refused anything else; this arm exists so the
 		// switch is total, not because a user can reach it.
