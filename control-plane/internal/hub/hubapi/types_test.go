@@ -645,10 +645,11 @@ func TestARequiredDigestAbsentOrNullIsNamed(t *testing.T) {
 	}
 	type skipped struct {
 		Internal Digest `json:"-"`
+		internal Digest // unexported: encoding/json never fills it (fix round 1's F13)
 		Sent     Digest `json:"sent"`
 	}
-	if err := RequireDigests(skipped{Sent: DigestOf(nil)}); err != nil {
-		t.Errorf("RequireDigests with a json:\"-\" digest = %v, want nil: the wire never carries it", err)
+	if err := RequireDigests(&skipped{Sent: DigestOf(nil)}); err != nil {
+		t.Errorf("RequireDigests with a json:\"-\" and an unexported digest = %v, want nil: the wire never carries them", err)
 	}
 	// It reaches what encoding/json reaches, by the name encoding/json uses
 	// (review M5): a present optional object's digests are required, and an

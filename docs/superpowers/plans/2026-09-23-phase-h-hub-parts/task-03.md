@@ -626,6 +626,10 @@ var ErrRequired = errors.New("hubapi: a required field is absent or null")
 // Field is the JSON path: "criterionDigest", "snapshot.blobs[1]". Every value
 // Digest in a request type is required; a *Digest is optional and not descended.
 // The Hub's Decode calls it on every decoded body (task 14, carried).
+// Fix round 1 (c6ba99b): it reaches what encoding/json reaches, by its names (a
+// non-nil pointer to a struct is descended; an untagged embedded struct is
+// flattened), never enters a type that cannot hold a Digest, and builds the
+// path only on a refusal: a clean body costs no allocation (review I1, M5).
 func RequireDigests(req any) error
 
 // control-plane/internal/hub/hubapi/keys.go — added and changed (as built)
@@ -646,13 +650,16 @@ func (d *Digest) UnmarshalText(b []byte) error
 | `TestResponsesNeverOmitAField` | marshalling the zero value of every response type yields every key the contract lists, with `null` for pointers | an `omitempty` on a response field |
 | `TestEnsureListsWritesEmptyNotNull` | `EnsureLists(&Project{})` → `"remotes":[]`; `&Release{}` → `"deployments":[]`; `&Event{}` → `"data":{}`; `&Page[Team]{}` → `"items":[]`; a nested `Snapshot.Blobs` too; a `json.RawMessage` stays nil (→ `null`) | a list that renders `null` and crashes a TypeScript `.map` |
 | `TestDigestFieldsAreStrings` | `BriefRevision.Digest` marshals as `"sha256:…"`; a `*Digest` nil marshals as `null` | a `[32]byte` encoded as an array of numbers |
-| `TestRequestsRejectUnknownFields` | decoding `{"name":"x","actor":"u-…"}` into `CreateTeamRequest` with `httpx.DecodeJSON` → 400 `bad_request` | a body that smuggles an actor, approver or recorder (contract §5.3, "no request body carries an actor") |
+| `TestRequestsRejectUnknownFields` | decoding `{"name":"x","actor":"u-…"}` into `CreateTeamRequest` with `httpx.DecodeJSON` → 400 `bad_request` | a body that smuggles an actor, approver or recorder (plan global rule 2, ADR-H1 §5.3, "no request body carries an actor"; contract §7.7, §7.10) |
 | `TestReserveRequestOmitsWhatItDoesNotSend` | a rollback `ReserveRequest` marshals to exactly `{"kind","panaceaProject","environment","sourceDeploymentId"}` | a client that sends `"branchRef":null` on a rollback and gets 400 |
 | `TestTheSiblingAsksAreInTheTypes` | task 00's shapes: `BriefWithRevision{}` marshals `"latestComplete":null`; a run `ReserveRequest` with `Environment` nil marshals `"environment":null` and `Release{}` does too; `DeploymentJoinRequest{DeploymentID:"d"}` marshals without `environment`; `MaxRevisionBatch` = 64 and `MaxRevisionBatchBytes` = 4,194,304 | an S0 interface that differs from what phases 4 and 7 were told (HA4-3, HA4-4, HA7-1) |
 | `TestBlobContentTypesAreTheAllowlist` | the slice equals §7.6's ten strings, in order | a content type quietly added (T8: a blob served as something new) |
 | `TestEnsureListsRefusesAStructByValue` *(added, D2)* | `EnsureLists(Project{})` and `EnsureLists(Page[Team]{})` panic | a `server.WriteJSON(w, 200, project)` whose `remotes` goes out `null` with no sign |
 | `TestARequiredDigestAbsentOrNullIsNamed` *(added, carried C1)* | `Digest{}.IsZero()`, not `DigestOf(nil)` nor a digest with only its last byte set; for `reviewDigest`, `briefDigest`, `snapshot.manifest`, `snapshot` itself, `snapshot.blobs[i]` and `criterionDigest`, absent and `null`: `httpx.DecodeJSON` **accepts** the body, and `RequireDigests` returns `ErrRequired` at that path; a complete body → nil; every value `Digest` of every request type has a row (reflection) | an evidence record stored for good with a fabricated `sha256:000…0`; a new required digest with no check |
 | `TestAMalformedDigestIsBadRequestNamingItsField` *(added, D1)* | a malformed `criterionDigest`, `reviewDigest`, `briefDigest`, `snapshot.manifest`, `snapshot.blobs` element → `httpx.DecodeJSON` 400 **`bad_request`** whose message names the path; `json.Unmarshal`'s error is a `*json.UnmarshalTypeError` at `snapshot.manifest` | a well-formed body answered `invalid_json`, "Body could not be read as JSON." (it was, before D1) |
+
+| `TestRequireDigestsCostsNothingOnACleanBody` *(added, fix round 1, review I1)* | `testing.AllocsPerRun` of `RequireDigests` on a batch of 64 × 64 KiB revisions and on a 500-blob approval is 0, with nil; `holdsDigest` is false for `json.RawMessage`, `RevisionWrite`, `WriteRevisionsRequest`, `*Digest`, `[]*Digest`, and true for `Digest`, `[]Digest`, `*SnapshotRequest`, the approval and evidence bodies; `fieldsOf(ApprovalRequest)` is exactly `reviewDigest`, `briefDigest`, `snapshot` | a walk of every content byte (8,381,696 allocations, 1.75 s, under the org's write lock); a path built before it is needed |
+| `TestEveryBodyHasTheContractsKeys` *(added, fix round 1, review I2)* | every request type (a row required for each) and 14 response bodies (`Me`, the team list and detail, `ForBranch`, `BriefWithRevision`, the revision history, the batch response, `RefsResponse`, `Blob`, `DeploymentJoin`, `ChangesPage`, `EraseResponse`, `Healthz`, `Readyz`) have **exactly** the key paths the contract text shows for that body, read from its fenced or inline `{…}`; three keys the text gains only in task 44a are named `pendingAmendment`s and must still be absent from it | a tag typo (`resolutoin`, `hasMore`, `items`) or an added request field (`approver`, `recorder`, a client-chosen `revision`), each of which survived round 1's review |
 
 `TestFieldNamesMatchTheContractExamples` also reads each object's example out of the contract text
 itself (§7.1, §7.7–§7.11, by its `// Label` comment line) and compares the key paths, so the typed
@@ -670,15 +677,16 @@ example cannot drift from the contract unseen.
 
 ```bash
 go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"
-# 48   (task 01's 15 hubapi tests + task 02's 22, both as built after their fix rounds,
-#       + this task's 11: the table's 8 and the 3 added rows. Was "38 = 15 + 16 + 7": task
-#       02's fix round 1 left it 22, and the table always had 8)
+# 50   (task 01's 15 hubapi tests + task 02's 22, both as built after their fix rounds,
+#       + this task's 13: the table's 8, the 3 added rows, and fix round 1's 2. Was 48
+#       before fix round 1; was "38 = 15 + 16 + 7" before that: task 02's fix round 1
+#       left it 22, and the table always had 8)
 go vet ./control-plane/internal/hub/hubapi/                                        # no output
 awk '/^type /{t=$2} /,omitempty"/{print t": "$0}' control-plane/internal/hub/hubapi/types.go | grep -v "^[A-Za-z]*Request: \|^Readyz: "
 # no output: omitempty appears only on request types and Readyz.failing
 ```
 
-A number other than 48 means a test was lost or duplicated. The `awk` line replaces this part's
+A number other than 50 means a test was lost or duplicated. The `awk` line replaces this part's
 first `grep`, which printed four `ReserveRequest` lines, `DeploymentJoinRequest.environment` and
 `Readyz.failing` (a field line does not hold its type's name), so it could never say "no output".
 
@@ -717,3 +725,41 @@ first `grep`, which printed four `ReserveRequest` lines, `DeploymentJoinRequest.
   (`RequireDigests` without its `IsValid` guard, predicted), S3 (`fill` without `CanSet`) and P24
   (`RequireDigests` without its `"-"` skip). d8d5c88 adds a test line for each; round 2 killed
   S2, S3 and P24.
+
+#### As built — fix round 1 (2026-09-25, commits c6ba99b and 852f9c4; review task-03-review.md)
+
+- **I1 — `RequireDigests` walked every byte of every `content`**, building a path string per byte:
+  a 64 × 64 KiB batch cost 8,381,696 allocations and 1.75 s, under the org's write lock (route
+  26). It now never enters a type that cannot hold a value `Digest` (`holdsDigest`, cached per
+  type), reads struct fields from a cached list (`fieldsOf`: `reflect.Type.Field` allocates), and
+  builds the path only on the way back from a refusal. 0 allocations on that batch and on a
+  500-blob approval.
+- **I2 — every body is pinned to the contract text by equality**
+  (`TestEveryBodyHasTheContractsKeys`, above): the 19 request types and 14 response bodies, read
+  from the section's fenced or inline `{…}`. **Declared difference from the review's remedy:**
+  three keys task 00 added are not in the contract's bodies until task 44a writes them
+  (`DeploymentJoinRequest.environment`, HA7-1; `BriefWithRevision.latestComplete` and
+  `ForBranch.*.latestComplete`, HA4-4). They are `pendingAmendment`s that must still be absent
+  from the text: when 44a writes one in, the test tells it to delete the entry (carried to 44).
+- **M5 — `RequireDigests` uses `encoding/json`'s field rules**: a non-nil pointer to a struct is
+  descended; an untagged embedded struct, or pointer to one, is flattened; only `json:"-"` exactly
+  is skipped. Maps and interfaces are not walked (no request type has one; the coverage check flags
+  a map that could hold a digest). The one-element-two-paths half (a malformed element names its
+  array) is `encoding/json`'s, carried to task 14.
+- **M1** `IsZero` pinned byte by byte. **M2** carried to task 08 (`EncodeJSON` hands `EnsureLists`
+  a pointer). **M3** carried to task 19 (an absent `baseRevision` is 400). **M4** task-01.md
+  notes D1. The global-rule-2 citation is ADR-H1 §5.3 and contract §7.7/§7.10, not contract §5.3.
+- **The count** is 50 (above).
+- **Mutants** (a git-archive copy of c6ba99b plus the round's test file): 28 run, 25 killed.
+  - The review's 7 survivors are all killed: SV-A (`IsZero` reading 2 bytes), SV-B, M03, M08, M11,
+    M12, M15.
+  - The new code's 13 mutants (F01–F13) and 4 edits to the contract text (C01–C04, one of them
+    44a writing a pending key in) are killed except for three survivors:
+    - PS-1 (`holdsDigestIn` without its recursion guard) and PS-2 (no `reflect.Array`), both
+      predicted before the run. Rows for a self-referential type and a `[2]SnapshotRequest` kill
+      them (852f9c4).
+    - F13 (an unexported field walked). An unexported `Digest` row kills it.
+  - One equivalent mutant remains: F01, the entry `holdsDigest` check. `fieldsOf` already leaves
+    out every field that cannot hold a Digest, so the check only guards a root that is not a
+    struct, where it saves time and not allocations.
+  - Round 2 on the refreshed copy: PS-1, PS-2, F12 and F13 killed; F01 survives as stated.
