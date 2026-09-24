@@ -45,7 +45,7 @@ channel on the canvas (§9.1 item 9); export is the design-to-code path's last s
 | Tool | Behaviour | Result fields (beside `revision`, `notices`) |
 |---|---|---|
 | `get_tokens` | every token, by name | `tokens`, `css` (task 09's `tokens.CSS`, so the agent can paste it into code; its `dialect.ErrUnsafeToken`, reachable only through a document replayed from disk, answers `invalid` naming the token and returns no `css`, review I2) |
-| `set_tokens` | one batch: `set_token` × upsert, `delete_token` × delete. A value refused by `dialect.Checker.TokenValue` is **reported, not fatal**; all refused → `invalid` | `set`, `deleted`, `dropped` |
+| `set_tokens` | one batch: `set_token` × upsert, `delete_token` × delete. A value refused by `dialect.Checker.TokenValue` is **reported, not fatal**; all refused → `invalid`. No claim is taken or checked (a token batch touches no artboard) and no `ifRevision` is accepted (tokens carry no revision); instead every other session holding an artboard that uses a set or deleted token gets a notice naming the token and this session (task 12's token uses, review I11) | `set`, `deleted`, `dropped` |
 | `list_comment_threads` | default `open` | `threads`: `[{"id","nodeId","artboardId","status","messageCount","lastMessage": doc.Message}]` |
 | `get_comment_thread` | — | `thread` (`doc.Thread`) |
 | `reply_to_comment_thread` | `add_message`, authored by the session | `messageId` |
@@ -64,10 +64,10 @@ Work in this order:
 1. Orient: call get_canvas_info, then get_brief. The brief is what this branch is for. If it has no brief, say so when you request review.
 2. Before your first typographic styling, call get_font_info for each family you plan to use.
 3. Plan before drawing: unless the repository or the brief gives you a design system, decide a palette, type scale and spacing first, and create them with set_tokens. Use var(--token) in styles.
-4. Write in small pieces: each write_html call should add about one visual group. Prefer duplicate_nodes, update_styles and set_text over rewriting HTML.
+4. Write in small pieces: each write_html call should add about one visual group. Prefer duplicate_nodes, update_styles and set_text over rewriting HTML. To place an image file, run canvas-upload <path> in a shell and use the asset ref it prints; upload_asset is only for small bytes you write yourself.
 5. The dialect: inline styles only; layout is flex with padding and gap; position: absolute is the escape hatch. No margin, no grid, no tables, no classes, no scripts. Every write returns a dropped report — read it and correct yourself.
 6. Verify: call get_screenshot after meaningful changes. Read exact values with get_computed_styles and get_html, not from pixels.
-7. Other agents may be working on other artboards. Your first write to an artboard claims it; if a write fails with claimed, work elsewhere or ask the person. Read the notices on every result: they tell you what someone else changed in your artboards.
+7. Other agents may be working on other artboards. Your first write to an artboard claims it; if a write fails with claimed, work elsewhere or ask the person. Read the notices on every result: they tell you what someone else changed in your artboards, including a token your artboards use.
 8. When you finish an artboard, call finish_working. When the design is ready for a person to look at, call request_review with a short note. You cannot approve a design; only a person can.
 Never show layer ids to the person. The long form of these rules is get_guide("canvas-rules").`
 ```
@@ -76,10 +76,10 @@ Never show layer ids to the person. The long form of these rules is get_guide("c
 
 | Topic | Must contain (checked by `TestGuides_required`) |
 |---|---|
-| `canvas-rules` | the dialect table (allowed and refused, from task 07's `Reasons`, generated so they cannot drift); the call order above at length; claims, `ifRevision`, notices; the error codes and what to do about each; the limits (64 KiB per write, 10 MiB per asset, 4,096 px screenshot edge) |
+| `canvas-rules` | the dialect table (allowed and refused, from task 07's `Reasons`, generated so they cannot drift); the call order above at length; claims, `ifRevision`, notices, and that a token change is noticed to every holder of an artboard that uses it (review I11); images: `canvas-upload <path>` from a shell (exit 0 prints the `asset` whose `ref` goes in `<img src>` or `url()`; exit 2 a local refusal, nothing sent; exit 1 the canvas's refusal, on stderr), and `upload_asset` only for small bytes the agent writes itself (review I12); the error codes and what to do about each; the limits (64 KiB per write, 10 MiB per asset, 4,096 px screenshot edge) |
 | `design-quality` | contrast, type scale, spacing rhythm, alignment, artboard fit (`height: fit-content`), repetition through duplication, icons as SVG never emoji, and `docs/DESIGN-SYSTEM.md`'s tells to avoid (the indigo-violet gradient, the gradient hero with a three-card grid, one radius everywhere) — written as advice for **the user's** product, which may have its own system |
 | `design-to-code` | read with `at: "approved"`; `get_jsx` in the repository's style; `get_computed_styles` for exact values; `get_asset` for bytes; the handoff bundle's location `.panacea/design/<canvasId>@<rev>/` and its files (task 21) |
-| `code-to-design` | read the repository's CSS variables and create them with `set_tokens`; draw with the codebase's own spacing and type |
+| `code-to-design` | read the repository's CSS variables and create them with `set_tokens`; draw with the codebase's own spacing and type; put the repository's own images (its logo, its icons as files) on the canvas with `canvas-upload <path>`, never by writing their base64 (review I12) |
 | `figma-via-mcp` | *"v2: not supported yet"* and why (spec OQ-11: egress and the user's own Figma seat need the owner and security) — a guide that says so beats a tool that half-works |
 
 No guide names Paper or claims compatibility with it (plan G6).
@@ -88,7 +88,7 @@ No guide names Paper or claims compatibility with it (plan G6).
 
 | Test | Asserts | Kills the mutant |
 |---|---|---|
-| `TestInstructions_pinned` | `initialize`'s `instructions` equals `Instructions`; it contains `get_brief`, `claimed`, `finish_working`, `request_review`, `cannot approve` | the rules drifting out of the server |
+| `TestInstructions_pinned` | `initialize`'s `instructions` equals `Instructions`; it contains `get_brief`, `claimed`, `finish_working`, `request_review`, `cannot approve`, `canvas-upload`, `a token` | the rules drifting out of the server |
 | `TestInstructions_noBrand` | neither `Instructions` nor any guide contains `paper` (case-insensitive) | G6 broken |
 | `TestGuides_required` | each topic's must-contain list | a guide shipped empty |
 | `TestGuides_dialectGenerated` | `canvas-rules`'s refused-property list equals `dialect.Reasons`' keys | the guide teaching a rule the parser does not enforce |

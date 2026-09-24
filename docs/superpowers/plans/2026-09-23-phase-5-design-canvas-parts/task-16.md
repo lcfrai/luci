@@ -1,6 +1,6 @@
 # Task 16 — MCP write tools
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 07, 12, 14 · **Hours:** 3
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 07, 12, 14 · **Hours:** 3.5 (3, plus the sandbox's `canvas-upload` helper and its two tests, review I12)
 
 ## Why
 
@@ -15,6 +15,10 @@ silently.
 
 - `canvas/mcp/tools_write.go`, `place.go` (artboard placement, sibling order) — new
 - `canvas/mcp/tools_write_test.go` — new
+- `images/sandbox/canvas-upload.cjs` — new: the upload helper (below; review I12)
+- `images/sandbox/Dockerfile` — one `COPY` line, and `canvas-upload` added to the existing `chmod`
+  (`:21-22`). No other phase 5 task edits this file
+- `canvas/mcp/canvasupload_test.go` — new: runs the helper against the real tool
 
 ## Contracts
 
@@ -53,7 +57,7 @@ schema **only here**, for `styles`, and checks each value's type), `ARTBOARDS` =
                        "required": ["nodeIds", "targetParentId"] },
   "delete_nodes":    { "properties": { "nodeIds": {"type":"array","items": NODE,"minItems":1,"maxItems":100}, "ifRevision": IFREV, "shared": SHARED },
                        "required": ["nodeIds"] },
-  "upload_asset":    { "properties": { "data": {"type":"string","minLength":1,"maxLength":13981016,"description":"base64 of at most 10 MiB"},
+  "upload_asset":    { "properties": { "data": {"type":"string","minLength":1,"maxLength":13981016,"description":"base64 of at most 10 MiB. For a file on disk, run `canvas-upload <path>` in a shell instead: it sends the file as this call and prints the result"},
                                         "mediaType": {"type":"string","enum":["image/png","image/jpeg","image/webp","image/svg+xml"]} },
                        "required": ["data", "mediaType"] },
   "start_working":   { "properties": { "artboardIds": ARTBOARDS, "shared": SHARED }, "required": ["artboardIds"] },
@@ -76,7 +80,7 @@ schema **only here**, for `styles`, and checks each value's type), `ARTBOARDS` =
 | `duplicate_nodes` | `create_node` × each subtree with new ids (an svg copy's ids are re-prefixed to its new node id by `Checker.SVG` inside `Apply`, task 06, review I8), placed right after its source (or at the end of `targetParentId`); a duplicated artboard is offset +80 px on X | `copies`: `[{"sourceId","copyId","idMap":{old:new}}]` (Paper's descendant map, spec §3.2 row 25) | — |
 | `move_nodes` | `move` × n, in the given order, starting at `index` (default: last); ids preserved; a cycle → `invalid` (`cycle`) | `moved` | — |
 | `delete_nodes` | `delete_node` × n (a node inside another deleted node is skipped, not an error) | `deleted` | `destructiveHint` true |
-| `upload_asset` | store the bytes (`PutAsset`, magic-byte sniffed; SVG sanitised by task 07's `SanitiseSVG("", …)` first: an asset renders in its own image document, so its ids stay unprefixed), then `add_asset` | `asset` (`doc.Asset`) — its `ref` goes in `<img src>` or `url()` | — |
+| `upload_asset` | store the bytes (`PutAsset`, magic-byte sniffed; SVG sanitised by task 07's `SanitiseSVG("", …)` first: an asset renders in its own image document, so its ids stay unprefixed), then `add_asset`. Base64 in the arguments suits only small bytes the model writes itself (an SVG it drew); a file on disk goes through `canvas-upload` (below), which makes this same call | `asset` (`doc.Asset`) — its `ref` goes in `<img src>` or `url()` | — |
 | `start_working` | no batch: `authority.StartWorking` | `claims` | — |
 | `finish_working` | no batch: `authority.FinishWorking`; clears the working indicator | `released` (count) | — |
 | `request_review` | `request_review` op; **never approves** (plan rule 4, ADR-H1 R5) | `reviewId` | — |
@@ -85,6 +89,58 @@ Every batch is labelled with the tool name (the feed's row, `authority.ActivityR
 
 **Deliberately absent** (spec §8.4): approve, bind or re-bind a brief, delete a canvas, break
 another session's claim, list other projects' canvases, undo another author's work.
+
+### `canvas-upload`, the sandbox's upload helper (review I12)
+
+**Why.** `upload_asset` takes the bytes as base64 in the tool's arguments, so the model must write
+them as its own output. A 300 KB logo is about 400,000 characters, far past what a model emits in
+one call, so the *code-to-design* flow (put the repository's logo on the canvas) fails for all but
+tiny images. The spec's row for this tool records that the reference server reads local paths
+instead (`planning/phase-5/paper-design-cleanroom-spec.md:587`). The endpoint needs no model to write the bytes: `127.0.0.1:8731/mcp` is
+reachable by every process in the sandbox, is stateless (no `Mcp-Session-Id`, `task-14.md:139`),
+and takes the caller's identity from the channel, not the request (plan G4). So a shell command
+can make the same call as the session.
+
+**What.** `images/sandbox/canvas-upload.cjs`, installed as `/usr/local/bin/canvas-upload` by:
+
+```dockerfile
+COPY images/sandbox/canvas-upload.cjs /usr/local/bin/canvas-upload
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/canvas-upload
+```
+
+(the `COPY` after `:21`'s, and `:22`'s `chmod` gains the second path). The image runs Node 20
+(`FROM node:20-bookworm-slim`, `Dockerfile:10`), so the helper needs nothing installed. It is
+**CommonJS** (`.cjs`, `require`), with the shebang `#!/usr/bin/env node`: Node reads an extensionless
+file as CommonJS, so an ES-module helper would fail once copied to `canvas-upload`. It uses only
+`node:fs`, `node:path` and `node:http`. About 60 lines:
+
+`canvas-upload <file>`
+1. The URL is `PANACEA_APP_CANVAS_MCP_URL`, default `http://127.0.0.1:8731/mcp` (the default is the
+   only value a sandbox uses; the variable exists for the test).
+2. The media type comes from the extension: `.png` `image/png`, `.jpg` and `.jpeg` `image/jpeg`,
+   `.webp` `image/webp`, `.svg` `image/svg+xml`. Any other → stderr *"canvas-upload: .gif is not an
+   image type the canvas takes (png, jpeg, webp, svg)"*, exit 2. The server sniffs the bytes anyway
+   (`TestUploadAsset_sniff`), so a misnamed file is refused there.
+3. A missing argument, an unreadable file, or one over 10 MiB (10,485,760 bytes, the per-asset limit
+   `task-17.md:79` states) → one stderr line, exit 2, **no request sent**.
+4. One `POST` of `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"upload_asset",
+   "arguments":{"data":<base64>,"mediaType":<type>}}}` with `Content-Type: application/json` and
+   `Accept: application/json, text/event-stream`. **No `Origin` header** (`task-14.md:122` answers
+   one with 403) and no `MCP-Protocol-Version` (optional outside `initialize`, `:127`). That is why it
+   uses `node:http`, which sends only the headers it is given, not `fetch`. The body is at most
+   about 14 MB, under the server's 16 MiB cap (`:125`).
+5. `200` with `result.isError: false` → `result.structuredContent` as one JSON line on stdout
+   (`asset`, `revision`, `notices`), exit 0. The agent puts `asset.ref` in `<img src>` or `url()`.
+6. `result.isError: true` → the result's text content on stderr, exit 1. A JSON-RPC `error`, any
+   other status, or a refused connection → one stderr line, exit 1; a refused connection reads
+   *"canvas-upload: the design canvas is not reachable at <url>"*.
+
+It holds no token and names no session: the batch is the session's because the channel is.
+
+**What that means for security (plan G4).** Every process in a sandbox can act on the canvas as
+that sandbox's session, within that session's scope (its own project and branch, `task-11.md:218`,
+its claims, no approve tool). A build script or a prompt-injected dependency can do what the agent
+can do through MCP, and no more. The helper adds no power; it names one that already exists.
 
 ## Tests first
 
@@ -104,6 +160,8 @@ another session's claim, list other projects' canvases, undo another author's wo
 | `TestMove_cycle` | moving a frame into its own child → `invalid`, `cycle` | a corrupted tree |
 | `TestDelete_nested` | deleting a parent and its child together succeeds once | an error for a redundant id |
 | `TestUploadAsset_sniff` | PNG bytes declared `image/jpeg` → `invalid`; an SVG with `<script>` is stored sanitised | a mislabelled or scripted asset |
+| `TestCanvasUpload_helper` (`canvasupload_test.go`) | the real server with the write tools behind an `httptest` server (unstarted first, so its `127.0.0.1:<port>` goes into `allowedHosts`; each request's context gets `WithIdentity` of session S), then `node ../../images/sandbox/canvas-upload.cjs` with `PANACEA_APP_CANVAS_MCP_URL` pointed at it: a 300 KB PNG fixture → exit 0, stdout's `asset.ref` is in the document, its bytes equal the file's, the `add_asset` batch's author is S; the same PNG renamed `.jpg` → exit 1, stderr names `invalid`; a `.gif` and a file of 10 MiB + 1 byte → exit 2, and the server counted **no** request; nothing listening → exit 1, *"not reachable"*. No `node` on `PATH` fails the test, naming `Dockerfile:10`: it is never skipped | the review's I12 (no way to place a real image); a helper that sends `Origin` (403) or ES-module syntax; a size check after the upload |
+| `TestImage_shipsCanvasUpload` | `../../images/sandbox/Dockerfile` has the line `COPY images/sandbox/canvas-upload.cjs /usr/local/bin/canvas-upload`, and a `chmod +x` line naming `/usr/local/bin/canvas-upload` | a helper the guide teaches but the image lacks |
 | `TestRequestReview_neverApproves` | after `request_review`, the fake `Approvals` port has no call and the review is `open` | a tool path to approval |
 | `TestNoApproveTool` | `tools/list` has no tool whose name contains `approve`, `bind`, `delete_canvas` or `break` | a forbidden tool added later |
 
@@ -123,3 +181,8 @@ Expected: `ok  	github.com/kpmg-au-emu/panacea-app/canvas/mcp`.
 
 - No real agent has called these tools yet (task 19, then task 30).
 - The quality of what an agent draws is the guides' job (task 17), not these tools'.
+- `canvas-upload` has run on the host's Node, not in the image: task 30 step 1 runs it inside a
+  real sandbox. An agent runs it through Claude Code's own Bash tool, so the person sees Claude
+  Code's usual permission prompt for it; `--allowedTools` pre-approves only `mcp__panacea-canvas`
+  (task 19). Pre-approving the helper too is a one-entry change there, not made: its pattern syntax
+  is unverified against Claude Code 2.1.274.

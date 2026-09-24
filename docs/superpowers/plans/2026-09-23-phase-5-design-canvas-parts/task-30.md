@@ -54,7 +54,11 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
    `initialize`, `tools/list`, `create_artboard`, `write_html` (a settings card), `get_html`, and
    `finish_working`. Assert: 35 tools listed; the artboard exists in the control plane's
    `GET /v1/design/…/document`; its `editedBy.sessionId` is **that session's id**, though no request
-   named it. This is `e2e_test.go`, run with `go test -tags e2e ./control-plane/internal/designapi/...`.
+   named it. Then `docker exec <sandbox> canvas-upload <worktree>/logo.png`, with a 300 KB PNG
+   committed to the fixture repository (review I12): exit 0; the `asset.ref` it prints is in the
+   same document's assets; the `add_asset` batch's author is **that session**. This proves the
+   helper is in the image and executable, which task 16's host-side test cannot.
+   This is `e2e_test.go`, run with `go test -tags e2e ./control-plane/internal/designapi/...`.
    (`docker exec` drives the test; it does not wrap the CLI, which never runs a command here.)
 
    **Then the human-surface probe from inside the sandbox (review C1).** With `<port>` the control
@@ -124,7 +128,8 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
       agent orient (`get_canvas_info`, `get_brief`), write, screenshot, `finish_working`,
       `request_review` — **with no permission prompt per canvas call** (OQ-P5-1).
    3. Two agents on two artboards never collide; a third writing into a claimed artboard is told
-      `claimed` and works elsewhere.
+      `claimed` and works elsewhere. When one of the two changes a token both artboards use, the
+      other's next result carries a notice naming the token and the first agent (review I11).
    4. Hand-edit the agent's page (move, reorder, restyle, retype); undo your own edit and see the
       agent's work untouched; revert one agent's changes from the activity feed.
    5. Approve (see the Undo toast); edit after approval (*changed after approval* names you); edit

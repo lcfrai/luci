@@ -1,6 +1,6 @@
 # Task 12 — Authority II: claims, `ifRevision`, notices, per-author undo, revert by session
 
-**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 11 · **Hours:** 3
+**Plan:** `../2026-09-23-phase-5-design-canvas.md` · **Depends on:** 08, 11 · **Hours:** 3.5 (3, plus token-change notices through task 08's `serialize.TokensUsed`, review I11)
 
 ## Why
 
@@ -13,7 +13,11 @@ This is where we beat Paper (spec §6, *"Parallel agents are not addressed"*; §
    past it, the write fails `conflict` with the current revision and the nodes, instead of silently
    overwriting. Without it, per-property last-writer-wins stands (task 06).
 3. **Notices.** A human edit inside a session's claimed artboard succeeds, and the session is told on
-   its next call — every tool result carries `notices` (spec §7.4 rule 2).
+   its next call — every tool result carries `notices` (spec §7.4 rule 2). **A token change is an
+   edit to every artboard that uses the token**: tokens are canvas-wide and claim nothing, so when
+   anyone else sets or deletes a token, every session holding an artboard whose subtree uses it is
+   told, with the token and the author (review I11). Without this, T restyles S's claimed artboard
+   through `var(--brand)` and S never hears of it: a silent collision.
 4. **Per-author undo.** A human's undo undoes the human's own batches, never an agent's.
 5. **Revert by session.** *"Revert everything `hero-v2` did"*, as one batch, from the log
    (`AGENTIC-UX.md` §4 rule 6: reversible with a rewind, not a manual unpick).
@@ -21,7 +25,9 @@ This is where we beat Paper (spec §6, *"Parallel agents are not addressed"*; §
 ## Files
 
 - `canvas/authority/claims.go`, `precondition.go`, `notices.go`, `presence.go`, `undo.go`, `revert.go` (new)
-- `canvas/authority/apply.go` — the two hooks named in task 11
+- `canvas/authority/apply.go` — the two hooks named in task 11, plus the token-use capture around
+  `Commit` (below; review I11). `canvas/authority` now imports `canvas/serialize` (task 08), which
+  builds on tasks 05 and 07 only (`doc`, `dialect`) and never on `authority`, so no import cycle
 - tests beside each
 
 ## Contracts
@@ -82,7 +88,9 @@ G10.)
 // MODIFIES or DELETES (created nodes are exempt; a replace-mode write_html
 // deletes, so its old subtree counts) must have Revision ≤ r.IfRevision,
 // else *ConflictError{Current: head, Nodes: those that moved}, sorted.
-// Tokens and pages carry no revision and are not checked.
+// Tokens and pages carry no revision and are not checked. A token write is
+// last-writer-wins per token; what keeps it from being SILENT is the token
+// notice below (review I11), not a precondition.
 ```
 
 ```go
@@ -93,17 +101,38 @@ type Notice struct {
 	At        string     `json:"at"`
 	Author    doc.Author `json:"author"`
 	Label     string     `json:"label"`
-	Artboards []string   `json:"artboards"`
-	Nodes     []string   `json:"nodes"` // at most 20
-	Text      string     `json:"text"`  // e.g. "Dylan Mackie edited 3 layers in Settings (revision 41)"; a broken claim: "Dylan Mackie released your claim on Settings"
+	Artboards []string   `json:"artboards"` // the caller's held artboards this change reached, sorted
+	Nodes     []string   `json:"nodes"`     // at most 20; [] for a change that reached them only through tokens
+	Tokens    []string   `json:"tokens"`    // set or deleted tokens those artboards use, sorted; [] when none (review I11)
+	Text      string     `json:"text"`      // e.g. "Dylan Mackie edited 3 layers in Settings (revision 41)"; a broken claim: "Dylan Mackie released your claim on Settings"; a token: "design-2 changed the token brand, which Settings uses (revision 44)"
 }
 
 // Notices returns, for a SESSION caller, every change by someone else since
-// the caller's last call on this canvas that touched an artboard the caller
+// the caller's last call on this canvas that REACHED an artboard the caller
 // holds or held at that time, oldest first, at most 20 (then one summary
 // notice), and advances the caller's mark. A human caller gets [].
+// A change reaches artboard A when it touched A (Change.Artboards) or when it
+// set or deleted a token A uses (the token uses recorded for that revision,
+// below). One change is at most one notice, whichever way it reached.
 // Every MCP tool result carries this list (task 15, 16, 17).
 func (s *Service) Notices(canvasID string, c Caller) []Notice
+
+// tokenUses: for a batch whose ops include set_token or delete_token, Apply
+// records, under the canvas lock, which artboards use which of the batch's
+// tokens, as tokenUses[revision] = map[artboardID][]tokenName:
+//   before Commit: pre[A]  = names of serialize.TokensUsed(doc, A) for every artboard A
+//                  (the document is still the pre-batch state, so a DELETED
+//                  token and an old value's references are seen);
+//   after Commit:  post[A] = the same over the committed document (a NEW
+//                  token, and a new value's references, are seen);
+//   uses[A] = (pre[A] ∪ post[A]) ∩ Change.Tokens, kept where non-empty.
+// TokensUsed is transitive (a token referenced by a token A uses counts, task
+// 08), so changing `brand` reaches an artboard that uses only `button:
+// var(--brand)`. A token batch touches no artboard, so it claims nothing and
+// no claim refuses it: the notice is how holders learn of it. The cost is two
+// walks of every artboard, for token batches only. The record is in memory,
+// like the claims and marks it is read against (a restart loses all three
+// together); an entry at or below every present session's mark is pruned.
 ```
 
 ```go
@@ -178,6 +207,8 @@ func (s *Service) RevertSession(ctx context.Context, canvasID string, c Caller, 
 | `TestIfRevision_createdExempt` | inserting children under a parent changed after `IfRevision` succeeds | conflicts on pure inserts |
 | `TestIfRevision_replaceCountsSubtree` | a replace whose old subtree has a node changed after `IfRevision` → conflict | replace escaping the precondition |
 | `TestNotices_advance` | two consecutive calls: the second has no repeat of the first's notices | notices repeating for ever |
+| `TestNotices_tokenChange` | S holds *Settings* and T holds *Billing*, both drawn with `var(--brand)`; U holds *Profile*, which uses no token. T's `set_token` on `brand` → S's next `Notices` is one notice: `Author` T, `Tokens: [brand]`, `Artboards: [Settings]`, `Nodes: []`, a `Text` naming `brand` and T's handle; U's is `[]`; T's is `[]` (its own change) | a notice only for a change that touched the caller's artboard (review I11); a notice to every holder, whether its artboard uses the token or not |
+| `TestNotices_tokenTransitiveAndDelete` | *Settings* uses only `var(--button)`, and `button` is `var(--brand)`. The human sets `brand` → S is told, `Tokens: [brand]`. The human then deletes `button` → S is told, `Tokens: [button]` | uses read one level deep (`brand` missed); uses read only after the batch (the deleted `button` is unknown then, and missed) |
 | `TestUndo_ownOnly` | human batch H1, agent batch A1, human batch H2: undo → H2; undo → H1; A1 intact | undo taking the agent's work |
 | `TestUndo_skipsChangedByOthers` | human sets colour; agent changes the same colour; human undo skips that node and says so | undo clobbering someone's later edit |
 | `TestUndo_redoCleared` | undo, then a new human batch; redo → nothing to redo | redo resurrecting a branch of history |
@@ -200,4 +231,9 @@ Expected: `ok  	github.com/kpmg-au-emu/panacea-app/canvas/authority`.
 
 - Undo stacks do not survive a restart (stated in the contract). Revert by session does.
 - No shared vocabulary with phase 3's claims (plan P5-R).
-- Token edits carry no precondition: tokens have no revision.
+- Token edits carry no precondition: tokens have no revision, and a token write is last-writer-wins
+  per token. It is never silent: every session holding an artboard that uses the token is told
+  (review I11). A per-token `ifRevision` was the review's optional extra and is not built: it
+  would add a revision to `doc.Token` (task 05) and a `tokens` field to `ConflictError` (task 11),
+  the MCP error map (task 15) and the REST 409 (task 20) for a collision the notice already
+  reports. It is the seam if agents are seen overwriting each other's tokens.

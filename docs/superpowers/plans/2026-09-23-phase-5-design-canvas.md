@@ -38,9 +38,13 @@ MCP"* (`OD-11`), built clean-room on permissive parts, that does four things end
    in script-less, sandboxed iframes, live as agents write, and lets the human select, move,
    resize, restyle, retype, reorder and undo their own work without touching HTML.
 3. **Many writers never silently collide.** Every write is attributed to a session the server
-   knows (never one the agent names), claims an artboard, and may carry an `ifRevision`
-   precondition. The op protocol is server-authoritative, per-property last-writer-wins, and is
-   written so the **same Go package** hosts cross-person multiplayer in the Hub in v2.
+   knows (never one the agent names), claims the artboards it touches, and may carry an
+   `ifRevision` precondition. Tokens are canvas-wide: a token write touches no artboard and carries
+   no precondition, so every session holding an artboard that uses the token (transitively,
+   `serialize.TokensUsed`) is told on its next call, with the token and the author, as it is told of
+   a human's edit inside its artboard (task 12, review I11). The op protocol is
+   server-authoritative, per-property last-writer-wins, and is written so the **same Go package**
+   hosts cross-person multiplayer in the Hub in v2.
 4. **The thread is kept.** A canvas is bound to its branch's brief; only a human approves, from our
    chrome, over a SHA-256 digest; the approval writes `design:<canvasId>@<rev>` → `brief:<id>@<rev>`
    to the Hub with the snapshot captured there; and a handoff bundle (HTML, PNG, JSX, `tokens.css`,
@@ -133,7 +137,10 @@ sandbox and forwards each accepted TCP connection, as an opaque byte stream, ove
 the **control plane dials into** `sandboxd` (`/mcp-channel`, same bearer as `/attach`). The control
 plane serves `canvas/mcp` on the far end of the tunnel with the session id in the request context.
 Nothing in the sandbox reaches the host, no token is in the sandbox beyond the attach token it
-already holds, and the sandbox side never parses a byte. Claude Code is pointed at the listener by
+already holds, and the sandbox side never parses a byte. The listener answers any process in the
+sandbox, not only the harness, as the session (G4): the image's `canvas-upload <file>` helper uses
+that to send an image file as one `upload_asset` call, which a model could not write as base64
+(task 16, review I12). Claude Code is pointed at the listener by
 its documented `--mcp-config` flag, emitted by `harness.claudeArgv` beside the flags it already
 passes (`control-plane/internal/harness/argv.go:80-125`).
 
@@ -265,7 +272,11 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 - **G3.** `PERSIST_VERSION` stays `1`; `partialize` does not change. Phase 5 claims **no** persist
   version (ruling R3): the design slice is not persisted.
 - **G4.** The control plane listens on loopback only; `sandboxd`'s MCP listener binds
-  `127.0.0.1:8731` inside the sandbox and nothing else. Configuration comes from `PANACEA_APP_*`
+  `127.0.0.1:8731` inside the sandbox and nothing else. **Every process in a sandbox can act on
+  the canvas as that sandbox's session, within that session's scope** (its project and branch, its
+  claims, no approve tool): identity comes from the channel, and the listener takes no credential.
+  A build script or a prompt-injected dependency can do what the agent can do through MCP, and no
+  more. `canvas-upload` (task 16, review I12) relies on it and adds no power. Configuration comes from `PANACEA_APP_*`
   variables (task 20b lists every new one). No secret is in source. No subscription is pooled: the
   canvas never calls a model, and its agents are the user's own sessions (`CLAUDE.md`). **Every
   design route sits behind the local caller key** (Hub C3; rule 4): none is exempt, and no mode,
@@ -370,6 +381,10 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 **`sandboxd/`**: `internal/mcprelay/` (new: `frame.go`, `listener.go`, `channel.go`), `internal/server/server.go`
 (`/mcp-channel`), `cmd/sandboxd/main.go` (`-mcp-listen`) — task 18.
 
+**`images/sandbox/`**: `canvas-upload.cjs` (new, installed as `/usr/local/bin/canvas-upload`) and
+`Dockerfile` (one `COPY`; `canvas-upload` added to the `chmod`) — task 16, review I12. Its test is
+`canvas/mcp/canvasupload_test.go` (task 16).
+
 **Desktop** (`desktop/`):
 
 | Path | Change | Task |
@@ -409,11 +424,11 @@ tasks; each part says what it codes against until that task lands.
 | 09 | JSX (inline and Tailwind), `tree.json`, `tokens.css`, DTCG `tokens.json` | 08 | — | 3 |
 | 10 | The store: op log, snapshots, reconstruction at a revision, crash safety; `BoundAt` and the one-write `Reconcile` (S5-P3.2) | 06 | — | 3 |
 | 11 | Authority I: canvases by branch (following phase 3's renames and deletes, S5-P3.2), `Apply` with an author, subscriptions, the activity feed | 06, 10 | — | 4 |
-| 12 | Authority II: claims, `ifRevision`, notices, per-author undo and redo, revert by session | 11 | — | 3 |
+| 12 | Authority II: claims, `ifRevision`, notices (token changes included, review I11), per-author undo and redo, revert by session | 08, 11 | — | 3.5 |
 | 13 | The render bridge and the human's selection | 11 | — | 2 |
 | 14 | The MCP protocol layer; `ports.go`, the tool layer's port types (declarations only, re-review RR-I6-1) | 05 | — | 2.5 |
 | 15 | MCP read tools, `get_brief` and its port | 08, 09, 12, 13, 14 | phase 4 task 07 (coded against a port and a fake) | 3 |
-| 16 | MCP write tools | 07, 12, 14 | — | 3 |
+| 16 | MCP write tools; the sandbox's `canvas-upload` helper (review I12) | 07, 12, 14 | — | 3.5 |
 | 17 | MCP tokens, comments, export, guides, server instructions | 09, 15, 16 | — | 2.5 |
 | 18 | The relay framing in both modules; `sandboxd`'s listener and `/mcp-channel` | — | — | 3 |
 | 19 | The relay supervisor; `--mcp-config` and `--allowedTools`; session wiring | 14, 18 | — | 2.5 |
@@ -430,12 +445,13 @@ tasks; each part says what it codes against until that task lands.
 | 29 | Paste: HTML, SVG and images | 20a, 26 | — | 1.5 |
 | 30 | End to end, the phase 5 contract document, and the amendments | all | OD-12's hands-on session | 2 |
 
-**Total 84 hours**, the sum of the rows above (76 before b02; 80.5 before b03, whose I1 adds 1 h to task 22 and whose I5 adds 0.5 h each to tasks 01 and 21; re-review RR-M1; 82.5 before b05, whose I9 and I10 add 1.5 h to task 04, off the critical path) (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
+**Total 85 hours**, the sum of the rows above (76 before b02; 80.5 before b03, whose I1 adds 1 h to task 22 and whose I5 adds 0.5 h each to tasks 01 and 21; re-review RR-M1; 82.5 before b05, whose I9 and I10 add 1.5 h to task 04, off the critical path; 84 before b06, whose I11 adds 0.5 h to task 12 and whose I12 adds 0.5 h to task 16, both on it) (task 20's old 3 h is now 20a's 4 h and 20b's 1.5 h, review I6 and its
 sizing note; tasks 10, 11 and 20a gain 0.5 h each for seam S5-P3.2, review I7; task 11 a further
-0.5 h for the whole-project replay, re-review RR-I7-1 and RR-I7-2). Critical path (≈ 34.5 h by
-earliest finish; 33 h before b03 added 0.5 h to 21 and 1 h to 22, both on it; 01's 0.5 h is off it): 02 → 05 → 06 → 10 → 11 → 12 → 15 → 17 → 20b → 21 → 22 → 28 → 30
-(20a runs beside 15 and 16, off the path: it needs 14's `ports.go` and 19's `go.mod` lines, not 15 or 17,
-so it finishes at 20.5 h against 17's 21.5 h, re-review RR-I6-1; 20b waits for 17 because its `main.go` calls
+0.5 h for the whole-project replay, re-review RR-I7-1 and RR-I7-2). Critical path (≈ 35.5 h by
+earliest finish; 34.5 h before b06, whose 0.5 h on 12 moves everything after it and whose 0.5 h on 16 makes 16, not 15, the way into 17; 33 h before b03 added 0.5 h to 21 and 1 h to 22, both on it; 01's 0.5 h is off it): 02 → 05 → 06 → 10 → 11 → 12 → 16 → 17 → 20b → 21 → 22 → 28 → 30
+(15 finishes at 19.5 h against 16's 20 h, 0.5 h of slack; 12's new dependency on 08 adds none, as 08 finishes at 8.5 h and 11 at 13 h.
+20a runs beside 15 and 16, off the path: it needs 14's `ports.go` and 19's `go.mod` lines, not 15 or 17,
+so it finishes at 21 h against 17's 22.5 h, re-review RR-I6-1; 20b waits for 17 because its `main.go` calls
 `mcp.Instructions` and `mcp.RegisterAll`, and for 19 because it calls `mcprelay.NewSupervisor`).
 
 **Order, in waves** (a wave's tasks are independent of each other):
