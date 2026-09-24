@@ -173,6 +173,85 @@ func TestAnEnvWithNoScopeIsRefused(t *testing.T) {
 	}
 }
 
+// A nil NewID is the server's fault, not the person's (review M-2): every op
+// refuses it, one that mints nothing included, and the pure package never
+// falls back to a random generator of its own.
+func TestAnEnvWithNoNewIDIsAServerFault(t *testing.T) {
+	env := projectEnv()
+	env.NewID = nil
+	for name, op := range map[string]Op{
+		"skip, which mints nothing":   {Kind: OpSkip, Key: KeyPurpose},
+		"record of done, which mints": {Kind: OpRecord, Key: KeyDone, Text: "A", Source: SourceTyped},
+		"add_follow_up, which mints":  {Kind: OpAddFollowUp, Question: &Question{BranchPrompt: "More?"}},
+		"reinherit on a project":      {Kind: OpReinherit}, // the fault outranks the op's own ErrBadOp
+	} {
+		got, err := Apply(NewContent(), op, env)
+		if !errors.Is(err, errNoNewID) || errors.Is(err, ErrBadOp) {
+			t.Errorf("%s: err = %v, want errNoNewID (a 500), not a 400 that blames the request", name, err)
+		}
+		if !reflect.DeepEqual(got, Content{}) {
+			t.Errorf("%s: value beside the error = %#v, want the zero Content", name, got)
+		}
+	}
+}
+
+// A content with no questions is never complete (review I-1): it can only
+// come from a head or revision written straight to route 26, and a complete
+// one would become the latest complete revision every branch pins. Step
+// agrees with the status: nothing to ask, and not complete.
+func TestAContentWithNoQuestionsIsNeverComplete(t *testing.T) {
+	for name, tc := range map[string]struct {
+		c   Content
+		op  Op
+		env Env
+	}{
+		"restore of {v:1}":   {NewContent(), Op{Kind: OpRestore, RestoreRevision: 1, Restore: &Content{V: 1}}, projectEnv()},
+		"reinherit of {v:1}": {Content{V: 1}, Op{Kind: OpReinherit}, branchEnv(projRev2)},
+	} {
+		out := mustApply(t, tc.c, tc.op, tc.env)
+		if len(out.Questions) != 0 || out.Status != StatusOpen {
+			t.Errorf("%s: %d questions, status %q; want 0 and open", name, len(out.Questions), out.Status)
+		}
+		s := out.Step(ScopeBranch)
+		if s.Kind != StepReview || s.Pending == nil || len(s.Pending) != 0 || s.Options == nil || s.Key != "" {
+			t.Errorf("%s: step = %#v, want review with nothing pending: never complete while the status is open", name, s)
+		}
+	}
+}
+
+// On any error Apply returns the zero Content (as built, task 03), so a
+// caller that reads the value before the error has nothing half-applied to
+// write.
+func TestApplyReturnsTheZeroContentOnAnyError(t *testing.T) {
+	env := projectEnv()
+	full := allAnswered(t, env)
+	purpose, _ := full.AnswerFor(KeyPurpose)
+	noScope := projectEnv()
+	noScope.Scope = ""
+	for name, tc := range map[string]struct {
+		c    Content
+		op   Op
+		env  Env
+		want error // nil: an unexported server fault
+	}{
+		"bad op":                    {full, Op{Kind: OpRecord, Key: KeyPurpose, Text: "x"}, env, ErrBadOp},
+		"a draft that fails midway": {NewContent(), Op{Kind: OpDraft, Drafts: []Answer{{Key: KeyPurpose, Text: "p"}, {Key: "nope", Text: "x"}}}, env, ErrUnknownKey},
+		"reserved text":             {full, Op{Kind: OpEdit, Key: KeyPurpose, Text: "see panacea:discover: here"}, env, ErrReservedText},
+		"too long":                  {full, Op{Kind: OpEdit, Key: KeyPurpose, Text: strings.Repeat("a", MaxAnswerRunes+1)}, env, ErrTooLong},
+		"no change":                 {full, Op{Kind: OpRecord, Key: KeyPurpose, Text: purpose.Text, Source: purpose.Source}, env, ErrNoChange},
+		"no scope":                  {full, Op{Kind: OpSkip, Key: KeyPurpose}, noScope, nil},
+	} {
+		got, err := Apply(tc.c, tc.op, tc.env)
+		if err == nil || (tc.want != nil && !errors.Is(err, tc.want)) {
+			t.Errorf("%s: err = %v, want %v", name, err, tc.want)
+			continue
+		}
+		if !reflect.DeepEqual(got, Content{}) {
+			t.Errorf("%s: value beside the error = %#v, want the zero Content", name, got)
+		}
+	}
+}
+
 // A forged answer that is neither settled nor a draft (no author) is asked
 // again: the step and the derived status never disagree.
 func TestStepAndStatusAgreeOnAnAnswerWithNoAuthor(t *testing.T) {
@@ -328,6 +407,23 @@ func TestMintedIdsNeverCollide(t *testing.T) {
 	c = mustApply(t, c, Op{Kind: OpEdit, Key: KeyDone, Text: "A\nB"}, env)
 	if got := criteriaOf(t, c); !reflect.DeepEqual(got, []Criterion{{ID: "c-00000001", Text: "A"}, {ID: "c-0000000f", Text: "B"}}) {
 		t.Errorf("criteria = %#v, want the repeated id refused", got)
+	}
+	// A dropped criterion's id is never minted again either (R6): evidence
+	// recorded against "B" must not attach to "C".
+	d := mustApply(t, NewContent(), Op{Kind: OpRecord, Key: KeyDone, Text: "A\nB", Source: SourceTyped}, projectEnv())
+	if got := criteriaOf(t, d); !reflect.DeepEqual(got, []Criterion{{ID: "c-00000001", Text: "A"}, {ID: "c-00000002", Text: "B"}}) {
+		t.Fatalf("criteria = %#v", got)
+	}
+	dropped := projectEnv()
+	next := []string{"c-00000002", "c-00000009"}
+	dropped.NewID = func(prefix string) string {
+		id := next[0]
+		next = next[1:]
+		return id
+	}
+	d = mustApply(t, d, Op{Kind: OpEdit, Key: KeyDone, Text: "C"}, dropped)
+	if got := criteriaOf(t, d); !reflect.DeepEqual(got, []Criterion{{ID: "c-00000009", Text: "C"}}) {
+		t.Errorf("criteria = %#v, want c-00000009: c-00000002 was B's, which the edit dropped", got)
 	}
 	calls = 0
 	env.NewID = func(prefix string) string { return prefix + "-00000001" }

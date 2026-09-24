@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
-
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
 )
 
 type OpKind string
@@ -48,7 +46,7 @@ type Env struct {
 	// resolves against; nil for a project brief or when none is complete.
 	Inherits *Inherit
 	Now      time.Time
-	NewID    func(prefix string) string // ids.New in production; nil means ids.New
+	NewID    func(prefix string) string // ids.New in production; nil is a server fault
 }
 
 var (
@@ -77,6 +75,7 @@ var (
 var (
 	errBadScope  = errors.New("discover: env scope is neither project nor branch")
 	errNoFreshID = errors.New("discover: could not mint an unused id")
+	errNoNewID   = errors.New("discover: env has no NewID")
 )
 
 // mintAttempts bounds the retries when NewID returns an id already in use.
@@ -88,9 +87,9 @@ const mintAttempts = 8
 // 1's trim for an answer; prompts, help and options are not trimmed; rule
 // 13): the unit JSON Schema's maxLength uses, so task 04's and task 13's
 // schemas (200/120 and 400) sit inside them and model text never meets the
-// cap. They make the Hub's 64 KiB envelope refusal (hub-contract.md:742)
-// unreachable for ordinary text and give a person a refusal that names the
-// answer; task 08's size check is the bound itself (S4).
+// cap. They make the Hub's 64 KiB envelope refusal (hub-contract.md:751 at
+// hub 53583f2) unreachable for ordinary text and give a person a refusal
+// that names the answer; task 08's size check is the bound itself (S4).
 const (
 	MaxAnswerRunes = 4000
 	MaxPromptRunes = 300
@@ -140,7 +139,7 @@ func Apply(c Content, op Op, env Env) (Content, error) {
 		return Content{}, fmt.Errorf("%w: %q", errBadScope, env.Scope)
 	}
 	if env.NewID == nil {
-		env.NewID = ids.New
+		return Content{}, errNoNewID
 	}
 	orig := clone(c)
 	n := clone(c)
@@ -207,9 +206,9 @@ func applyOp(n *Content, op Op, env Env) (Change, error) {
 			return Change{}, fmt.Errorf("%w: a follow-up needs a prompt for a %s brief", ErrBadOp, env.Scope)
 		}
 		id, err := mint(env.NewID, "f", func(id string) bool {
-			_, q := n.questionIndex(Key(id))
-			_, a := n.answerIndex(Key(id))
-			return q || a
+			_, inQ := n.questionIndex(Key(id))
+			_, inA := n.answerIndex(Key(id))
+			return inQ || inA
 		})
 		if err != nil {
 			return Change{}, err

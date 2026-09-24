@@ -342,9 +342,11 @@ type Step struct {
 // Step returns the next thing to show. It walks the questions in order and
 // stops at the first whose answer is neither settled nor a pending draft; a
 // model_drafted answer does not stop the walk (it waits for review) and does
-// not count as settled. With no such question left it is StepReview while
-// drafts are pending, and StepComplete after - so StepComplete holds exactly
-// when the derived Status is complete.
+// not count as settled. With no such question left it is StepComplete when
+// the derived Status is complete, and StepReview otherwise: while drafts are
+// pending, and for a content with no questions (a head or a restored revision
+// written straight to route 26), which has nothing to ask and is never
+// complete. So StepComplete holds exactly when the derived Status is complete.
 func (c Content) Step(s Scope) Step {
 	pending := c.Pending()
 	base := 0
@@ -369,7 +371,7 @@ func (c Content) Step(s Scope) Step {
 		}
 		return step
 	}
-	if len(pending) > 0 {
+	if deriveStatus(&c) != StatusComplete {
 		return Step{Kind: StepReview, Options: []string{}, Pending: pending}
 	}
 	return Step{Kind: StepComplete, Options: []string{}, Pending: pending}
