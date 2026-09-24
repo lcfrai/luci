@@ -45,7 +45,7 @@ type Config struct {
 	UserAgent  string       // "PanaceaApp/<version>"
 }
 
-type Client struct{ /* cfg, http *http.Client, log */ }
+type Client struct{ /* cfg, http *http.Client, log, sleep func(ctx, time.Duration) error (ctx-aware; tests record it, review M3) */ }
 
 // New validates cfg and builds the client. Errors are sentences a person can act on.
 func New(cfg Config) (*Client, error)
@@ -62,6 +62,7 @@ func ParseOrigin(s string) (string, error)
 // "version" string. It exists before any Client does: the connect form proves an address is a
 // Panacea API with it before accepting it. A redirect is NOT followed and is reported as
 // ErrSignInRedirect — the api.dev host 307s to /oauth2/sign_in (orchestrator-rulings.md).
+// It makes one attempt and never retries: the connect form shows its answer at once.
 func Version(ctx context.Context, hc *http.Client, origin string) (string, error)
 
 // ErrSignInRedirect: the address answered with a redirect, which Panacea's API never does and
@@ -73,9 +74,16 @@ var ErrSignInRedirect = &deploy.Error{
 }
 
 // BuildHTTPClient is the one place TLS is configured:
+//   the transport is http.DefaultTransport.(*http.Transport).Clone(), never a fresh
+//   &http.Transport{} (whose Proxy is nil). The clone keeps Proxy: http.ProxyFromEnvironment
+//   (HTTPS_PROXY, NO_PROXY), ForceAttemptHTTP2 (which keeps HTTP/2 once TLSClientConfig is
+//   set), and the idle-connection and handshake timeouts. Only TLSClientConfig is replaced;
 //   RootCAs nil when caFile is "" (the platform verifier; on Windows, the Windows store);
 //   otherwise x509.SystemCertPool() plus caFile's certificates;
 //   MinVersion TLS 1.2; CheckRedirect returns http.ErrUseLastResponse (never follow).
+//   Go reads the proxy from the environment only, never the Windows system or PAC proxy.
+//   Whether the owner's network needs one for Panacea is unverified: LIVE-CHECK.md step 1
+//   answers it, and the fix is HTTPS_PROXY, not code (review M2).
 func BuildHTTPClient(caFile string, timeout time.Duration) (*http.Client, error)
 ```
 
@@ -86,6 +94,13 @@ func BuildHTTPClient(caFile string, timeout time.Duration) (*http.Client, error)
 //     X-Request-Id: ids.UUID() (Panacea echoes it as X-Client-Request-Id, middleware/requestid.go:28-32).
 //   - GET only: a transport failure, 502, 503 or 504 is retried twice, after 250 ms and 1 s.
 //     POST, PUT and DELETE are NEVER retried: a retried deploy is a second deploy.
+//     Retry-After is honoured, never overridden (review M3): a 503 that carries it waits
+//     max(the fixed delay, Retry-After) when Retry-After is at most 2 s; a longer one ends the
+//     retries at once and returns the KindUnavailable with RetryAfter set, so do never blocks
+//     the watcher's loop on it; the watcher's failure rule (t07:188-193) ends the cycle and the
+//     next cycle is the back-off. A 429 is not retried at all; it returns with RetryAfter set.
+//     No caller reads RetryAfter yet: the watcher's next cycle comes 3 s or 15 s later whatever
+//     it says (deferred to t07's per-cycle deadline, review M14).
 //   - A 2xx body is read up to 8 MiB into out (json.Unmarshal); an unreadable 2xx body is
 //     KindUnavailable with Op set, never a zero value handed back as success.
 //   - A non-2xx is readProblem + mapStatus. Its sentence reaches Error.Message by the table
@@ -132,8 +147,10 @@ says**, takes `error`, falls back to `message`, trims to 500 bytes on a rune bou
 | `TestPaymentRequiredIsConflict` | a 402 `{"error":"new deploys are paused: team \"alpha\" has reached its monthly budget; …"}` → `KindConflict`, `Status == 402`, `Message` equal to the sentence | the "any other" row swallowing 402, so a paused budget reads as *Panacea is down* and task 09 never abandons the reservation (review I2) |
 | `TestFiveHundredSentenceNeverRendered` | a 500 `{"error":"failed to list deployments: dial tcp 10.0.3.7:6443"}` → `Message == ""`, and the log holds the sentence | leaking a cluster address into the UI |
 | `TestGetRetriedPostNot` | a server failing the first two attempts with 503: GET succeeds on the third; POST returns `KindUnavailable` after exactly **one** attempt | retrying a deploy |
+| `TestGetRetryHonoursRetryAfter` | `do` takes its sleep through an unexported `c.sleep` the test records. A GET answered 503 `Retry-After: 1`, then 200 → one sleep of 1 s (not 250 ms). A GET answered 503 `Retry-After: 30` → one attempt, `KindUnavailable`, `RetryAfter == 30s`, no sleep. A GET answered 429 `Retry-After: 5` → one attempt, `RetryAfter == 5s` | a retry on the fixed 250 ms that ignores the server's `Retry-After`, or a `do` that sleeps 30 s inside the watcher's cycle (review M3) |
 | `TestRedirectNotFollowed` | a 307 to `/oauth2/sign_in` → `Version` returns `ErrSignInRedirect`; the server saw one request | following the redirect and reading the sign-in HTML as a failed JSON decode |
 | `TestCAFileAddsRoot` | `httptest.NewTLSServer`; its certificate written to a temp PEM; `BuildHTTPClient(pem, …)` reaches it; `BuildHTTPClient("", …)` fails with an `x509` unknown-authority error | a CA option that is read and never applied — phase 2's silent-override class |
+| `TestProxyFromEnvironmentHonoured` | the test re-runs its own binary (`os.Args[0] -test.run=TestHelperProxyChild`) with `HTTPS_PROXY=http://<an httptest recorder>` and `NO_PROXY=""` and `P7_PROXY_CHILD=1`, because `ProxyFromEnvironment` reads the environment once per process (`sync.Once` in `net/http`). The acceptance `-run` regex below matches the helper too; without `P7_PROXY_CHILD=1` it calls `t.Skip` at once. The child calls `Version` for `https://panacea.invalid` through `BuildHTTPClient("", 5s)`. `Version` does not retry, so the recorder sees exactly one request, `CONNECT panacea.invalid:443`, and answers 502; the child exits 0 on that proxy error and 1 on any other. In-process, the transport has `ForceAttemptHTTP2 == true` and `TLSClientConfig.MinVersion == tls.VersionTLS12` | a fresh `&http.Transport{}`: its nil `Proxy` dials `panacea.invalid` directly, the recorder sees nothing, and on a corporate network every call fails before it leaves the machine (review M2) |
 | `TestTimeoutPerAttempt` | a server that sleeps 200 ms, `Timeout: 50ms` → `KindUnavailable` in under 1 s total for a POST | a timeout on the whole retry loop instead of each attempt, or none |
 | `TestVersionDecodes` | `{"version":"v1.163.0"}` → `"v1.163.0"`; `{"version":""}` and `{}` → an error: *"That address answered, but not as the Panacea API."* | accepting any 200 JSON as a Panacea API |
 
@@ -158,7 +175,7 @@ says**, takes `error`, falls back to `message`, trims to 500 bytes on a rune bou
 #### Acceptance
 
 ```
-go test ./control-plane/internal/deploy/panacea/ -race -count=1 -run 'Origin|Bearer|Token|Status|Retried|Redirect|CAFile|Timeout|Version|NotConnected|FiveHundred'
+go test ./control-plane/internal/deploy/panacea/ -race -count=1 -run 'Origin|Bearer|Token|Status|Retried|RetryAfter|Redirect|CAFile|Proxy|Timeout|Version|NotConnected|FiveHundred'
 → ok
 
 go vet ./control-plane/internal/deploy/panacea/cmd/versioncheck
