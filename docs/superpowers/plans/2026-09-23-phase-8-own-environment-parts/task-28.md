@@ -21,6 +21,8 @@ listed in task 31's runbook.
 - `pipelines/{desktop,licences,secrets,infra,charts}.yml` (new)
 - `pipelines/scripts/lint.sh` — the rules every pipeline file must follow, as a script (new)
 - `licences/allow.yaml`, `licences/exceptions.yaml` — the OD-11 allowlist and the (empty) exception list (new)
+- `licences/charts.yaml` — one row per Helm chart dependency, starting empty; task 13 adds the first rows (new)
+- `pipelines/scripts/chart-licences.sh` — the Helm half of the OD-11 gate, with its cases (new)
 - `.gitleaks.toml` — the secret scanner's allowlist of known test fixtures (new)
 
 #### Contract — `pipelines/templates/tools.yml` parameters (complete)
@@ -34,7 +36,7 @@ parameters:
     type: object
     default: []        # any of: terraform, helm, helm-unittest, kubeconform, kubelogin,
                        # gitleaks, govulncheck, shellcheck, tflint, trivy, syft,
-                       # go-licenses, cargo-deny
+                       # go-licenses, cargo-deny, yq
 steps:
   - ${{ each t in parameters.tools }}:
     - script: bash pipelines/scripts/install-tool.sh ${{ t }}
@@ -55,7 +57,7 @@ runs locally, so CI and laptop cannot disagree.
 | `pipelines/licences.yml` | any `go.mod`/`go.sum`, `desktop/package*.json`, `desktop/src-tauri/Cargo.*` | `ubuntu-latest` | Go: `go-licenses report` for each module; npm: the **production** dependency graph's licences; Cargo: `cargo deny check licenses`; each compared with `licences/allow.yaml` | PR — **OD-11 rule 3, applied repo-wide** |
 | `pipelines/secrets.yml` | all | `ubuntu-latest` | `gitleaks` over the PR's commits (`--log-opts=<base>..HEAD`), and over full history on `main` | PR |
 | `pipelines/infra.yml` | `infra/**` | `ubuntu-latest` | `guards.sh`, then `validate.sh` **per directory as a job matrix** (both task 01's; task 10, which writes `role-allowlist.sh`, adds its step between the two in the same commit, so this task never calls a script that does not exist yet) (each `terraform test` takes minutes); `tflint` with the azurerm ruleset; `trivy config` (IaC misconfiguration) failing on HIGH; `shellcheck` over `infra/**/*.sh`, `images/*.sh`, `pipelines/scripts/*.sh` — **no Azure call, no credentials, safe on every PR** | PR |
-| `pipelines/charts.yml` | `deploy/**` | `ubuntu-latest` | per chart: `helm dependency build`, `helm lint`, `helm unittest`, `helm template … \| kubeconform -strict -summary`. Task 13 later adds one cross-chart job: Go 1.23 and `go test ./deploy/tests/netpolcover/... -count=1` (every workload in a default-denied namespace has an allow in each direction it needs, and every `pre-install` hook's allow exists before the hook runs; the test runs `helm dependency build` itself) | PR |
+| `pipelines/charts.yml` | `deploy/**`, `licences/**` | `ubuntu-latest` | first, once: **`bash pipelines/scripts/chart-licences.sh`** (every `deploy/charts/*/Chart.lock` dependency has a row in `licences/charts.yaml` whose licence is in `licences/allow.yaml`; review m6); then per chart: `helm dependency build`, `helm lint`, `helm unittest`, `helm template … \| kubeconform -strict -summary`. Task 13 later adds one cross-chart job: Go 1.23 and `go test ./deploy/tests/netpolcover/... -count=1` (every workload in a default-denied namespace has an allow in each direction it needs, and every `pre-install` hook's allow exists before the hook runs; the test runs `helm dependency build` itself) | PR |
 
 `images.yml` is task 27's; `infra-plan.yml` and `deploy.yml` are task 30's and are **not
 registered** until the environment exists.
@@ -64,8 +66,11 @@ registered** until the environment exists.
 
 ```yaml
 # OD-11 rule 3: dependencies are MIT, Apache-2.0, BSD or ISC only — applied to every linked
-# dependency graph in this repository (Go modules, the desktop's production npm graph, Cargo).
-# Tools that run in CI but are not shipped (terraform, helm, scanners) are not dependencies.
+# dependency graph in this repository (Go modules, the desktop's production npm graph, Cargo)
+# and to every Helm chart dependency (each Chart.lock entry, recorded in licences/charts.yaml).
+# Tools that run in CI or at apply but are not shipped (terraform, helm, scanners) are not
+# dependencies. Terraform providers are tools too: MPL-2.0, run by Terraform as separate
+# processes, shipped in nothing, pinned by hash in each stack's .terraform.lock.hcl.
 allowed:
   - MIT
   - Apache-2.0
@@ -86,6 +91,42 @@ locally **before** the gate is enforced and records every finding in the commit 
 production dependency outside the list becomes either a replacement task or an exception the
 owner approves. The gate is not loosened to make the first run pass.
 
+#### Contract — `licences/charts.yaml` and `chart-licences.sh` (the Helm half, review m6)
+
+A chart's `Chart.yaml` has no standard licence field, so the licence of each chart dependency is
+**recorded by a person** and the script makes that record mandatory and machine-checked. A new
+dependency, or a version bump, cannot merge without a row a reviewer sees in the diff.
+
+```yaml
+# licences/charts.yaml — one row per (name, repository, version) in any deploy/charts/*/Chart.lock.
+# licence is an SPDX id and must be in licences/allow.yaml (or named in exceptions.yaml).
+# source is where the licence was read: the chart's LICENSE file or its repository's licence.
+dependencies: []
+#  - name: traefik                      # example shape only; task 13 writes the real rows
+#    repository: https://traefik.github.io/charts
+#    version: "<the pinned version>"
+#    licence: <SPDX id read from source>
+#    source: <URL of the LICENSE file read>
+```
+
+`chart-licences.sh` parses every `deploy/charts/*/Chart.lock`'s `dependencies:` list (with
+`yq`, pinned in `install-tool.sh` like every tool) and fails, naming the chart and the entry, when:
+
+| Case (a fixture under `pipelines/scripts/testdata/chart-licences/`) | Expected |
+|---|---|
+| a `Chart.lock` entry with no row in `licences/charts.yaml` | fail, names the entry |
+| a row whose `version` differs from the lock's (a bump with no re-read licence) | fail |
+| a row whose `licence` is not in `allowed:` and not in `exceptions.yaml` | fail |
+| a row whose `name` is in `denied_packages:` | fail |
+| a row with no `source` | fail |
+| every entry recorded, every licence allowed | pass |
+| no `Chart.lock` in the tree (true until task 13) | pass, printing `0 chart dependencies` |
+
+Rows that match no `Chart.lock` entry are reported as stale and fail too, so the file cannot
+drift into a list of licences nobody uses. The check reads only the repository: **no network
+call**. It does not prove the recorded licence is right; that is the reviewer's read of the
+`source` URL, and is stated as such in the task report.
+
 #### Tests to write first — `pipelines/scripts/lint.sh` (runs in `infra.yml`, and locally)
 
 | Rule | Mutant it kills |
@@ -101,7 +142,8 @@ owner approves. The gate is not loosened to make the first run pass.
 
 #### Steps
 
-- [ ] **Step 1:** `lint.sh` and its cases; `install-tool.sh` with the pinned rows.
+- [ ] **Step 1:** `lint.sh` and its cases; `install-tool.sh` with the pinned rows;
+  `chart-licences.sh` and its seven fixture cases, each shown failing before the script exists.
 - [ ] **Step 2:** The template; the Go pipeline edit; the five new pipelines; `lint.sh` passes.
 - [ ] **Step 3:** Run the three licence reports and `gitleaks detect` locally; record the findings;
   write `.gitleaks.toml` for the test fixtures (the all-ones GUIDs, the fake tokens in tests) —
@@ -113,6 +155,7 @@ owner approves. The gate is not loosened to make the first run pass.
 ```bash
 bash pipelines/scripts/lint.sh                   # lint: 7 of 7 rules pass over 6 pipeline files (images.yml, task 27, comes after)
 bash pipelines/scripts/install-tool.sh gitleaks && gitleaks detect --no-banner   # no leaks found
+bash pipelines/scripts/chart-licences.sh         # 0 chart dependencies (task 13 adds the first)
 ```
 
 The pipelines themselves run only in ADO; **none has run**. Their first green PR run is task 31's

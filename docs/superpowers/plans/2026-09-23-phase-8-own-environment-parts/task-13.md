@@ -37,6 +37,7 @@ client IPs (`:131-132`). Both carry over, written from scratch.
 - `deploy/charts/edge/tests/*_test.yaml` (new)
 - `deploy/tests/netpolcover/{go.mod,go.sum,netpolcover_test.go,testdata/backends.yaml,testdata/unsized-kinds.yaml}` — the cross-chart NetworkPolicy coverage test (`unsized-kinds.yaml` is the negative fixture of `every_sandbox_container_is_sized`, b05 re-review 8, and stays when task 29 deletes `backends.yaml`), its own Go module (`go 1.23`; one dependency, `sigs.k8s.io/yaml`, already in the control plane's module graph) (new)
 - `go.work` — `use ./deploy/tests/netpolcover` (modify)
+- `licences/charts.yaml` — one row per `Chart.lock` entry, the OD-11 gate's Helm half (review m6) (modify, task 28)
 - `pipelines/charts.yml` — one job after the per-chart jobs: Go 1.23 (`GoTool@0`), `helm` at task 28's pin, `go test ./deploy/tests/netpolcover/... -count=1`. The test's `TestMain` runs `helm dependency build` for every chart it renders, so the job works on a fresh agent with no `charts/*.tgz` (review M1) (modify, task 28)
 
 #### Contract — `deploy/charts/cert-manager/Chart.yaml` (versions pinned exactly at implementation; no ranges)
@@ -360,10 +361,14 @@ ingress NetworkPolicy per backend, written from task 29's contract), and task 29
 
 #### Steps
 
-- [ ] **Step 1:** Choose the current Traefik chart (v3 line) and cert-manager chart releases; record
-  each version, its licence (MIT, Apache-2.0) and its source in each `Chart.yaml`'s comments;
+- [ ] **Step 1:** Choose the current Traefik chart (v3 line) and cert-manager chart releases;
   `helm dependency build` for both charts; commit both `Chart.lock`s (never the downloaded
-  `charts/*.tgz`, which `.gitignore` gains). Download the Gateway API standard CRDs of the version
+  `charts/*.tgz`, which `.gitignore` gains). Read each chart's licence from its `LICENSE` file
+  (expected MIT for Traefik and Apache-2.0 for cert-manager, UNVERIFIED until read) and add one
+  row per `Chart.lock` entry to task 28's `licences/charts.yaml`: name, repository, version,
+  SPDX licence, source URL. `bash pipelines/scripts/chart-licences.sh` must first fail naming
+  both entries, then pass with `2 chart dependencies` (review m6). Each `Chart.yaml` comment
+  points at that file rather than restating the licence. Download the Gateway API standard CRDs of the version
   the chosen Traefik release supports; vendor unmodified into `edge/crds/`.
 - [ ] **Step 2:** Values, schemas, suites for both charts; the suites fail.
 - [ ] **Step 3:** `deploy/tests/netpolcover` and its `testdata/`; add it to `go.work`; run it

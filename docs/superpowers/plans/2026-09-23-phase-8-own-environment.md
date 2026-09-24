@@ -104,7 +104,7 @@ they never read a terminal stream.
 | **OD-4** | ADO and GitHub both: sandbox egress and the machine agent's clone path must reach both hosts | 11, 21 |
 | **OD-8** | The transcript adapter is pinned to the CLI version in the sandbox image, so the **image digest is the adapter pin**: the `images` pipeline runs the adapter's canary against the image it is about to push | 27 |
 | **OD-10** | Forget deletes the transcript; removing a worktree deletes its store. On a cloud machine both are paths on the machine disk, deleted by the machine agent | 20 |
-| **OD-11 rule 3** | Dependencies are MIT, Apache-2.0, BSD or ISC, checked in CI. This plan applies the gate **repo-wide**, including Terraform providers and Helm chart dependencies (MPL-2.0 providers are tools, not linked code — see task 28's allowlist) | 28 |
+| **OD-11 rule 3** | Dependencies are MIT, Apache-2.0, BSD or ISC, checked in CI. This plan applies the gate **repo-wide** to two kinds of dependency. (1) Every linked graph: Go modules, the desktop's production npm graph and Cargo, in task 28's `licences.yml`. (2) Every Helm chart dependency: `charts.yml` checks each `Chart.lock` entry against `licences/charts.yaml` (task 28 writes the check, task 13 the first entries). **Terraform providers are outside the gate.** They are MPL-2.0 tools: Terraform runs them as separate processes, they ship in nothing, and each stack's committed `.terraform.lock.hcl` pins them by hash. Task 28's allowlist says so by name | 28, 13 |
 | **OD-12** | Owner hands-on steps are batched at the end. Every owner-observed item in this phase stays **unverified** until then | 31, 32 |
 | **OD-7** | `github.com/lcfrai/panaceaapp` is a backup remote, not a CI system | 28 |
 
@@ -471,7 +471,7 @@ desktop/src/{store,api}/…, components/rail/{MachineChip,MachinesPopover}.tsx  
 docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md §2   amended with types.ts            26
 images/{broker,hub,machine}/Dockerfile  images/build.sh  images/images_test.sh                    27
 azure-pipelines.yml                             the Go pipeline: PR trigger, path filter, govulncheck 28
-pipelines/templates/tools.yml  pipelines/scripts/{install-tool,lint}.sh                           28 (+27, 30)
+pipelines/templates/tools.yml  pipelines/scripts/{install-tool,lint,chart-licences}.sh            28 (+27, 30)
 pipelines/{desktop,licences,secrets,infra,charts}.yml  licences/  .gitleaks.toml                  28 (+10, 13)
 pipelines/images.yml                                                                               27
 pipelines/{infra-plan,deploy}.yml  pipelines/scripts/{estate-guard,tf-stack,helm-values}.sh  written, NOT registered  30
@@ -491,6 +491,7 @@ missing stops and reports it.
 | `go.work` | 13 only (`use ./deploy/tests/netpolcover`, a test-only module that ships in no image) |
 | `deploy/tests/netpolcover/*` | 13 → 29 (29 adds `broker` and `hub`, deletes the stand-in `testdata/backends.yaml`, and adds `session_size_is_one_value`; 13 also owns `every_sandbox_container_is_sized`, review I4) |
 | `pipelines/charts.yml` | 28 → 13 (13 adds the cross-chart `netpolcover` job) |
+| `licences/charts.yaml` | 28 → 13 (28 writes it empty with `chart-licences.sh`; 13 adds a row per `Chart.lock` entry, review m6) |
 | `pipelines/infra.yml` | 28 → 10 (10 adds the `role-allowlist.sh` step it writes the script for; review m2) |
 | `internal/sandbox/manager.go` | 14 → 15 → 18 (and phase 3's task 05, which lands first — task 14 step 0) |
 | `internal/backend/backend.go` | 14 → 15 → 18 (18 adds `KubeLabelControlPlane` and `Spec.ControlPlane`, and updates the `MaxMessageBytes` comment at `:29-37` to name five sites; and phase 3's task 05) |
