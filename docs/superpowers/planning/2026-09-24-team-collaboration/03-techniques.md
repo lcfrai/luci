@@ -457,3 +457,118 @@ permissively licensed parser (tree-sitter is MIT, https://github.com/tree-sitter
 licence **UNVERIFIED** for each grammar) run by the control plane on its own lanes yields symbol
 names; only names travel. ~2–3 days for the first three languages. After P/H/M.
 
+---
+
+## 4. Presence and the live view — what the humans see
+
+### 4.1 Durable facts vs. ephemeral presence: two channels, not one
+
+The Hub's change feed is an **append-only, hash-chained audit log**, and *"the feed is that log,
+filtered"* (ADR-H1 G3 and G5, `:252`, `:417`). That is right for briefs, approvals, claims, notes and
+forecasts. It is **wrong for presence**: "Dana's agent is active" every 15 seconds, per session, per
+member, would flood an audit chain with facts nobody needs to keep.
+
+So presence gets its own **ephemeral** channel, with the semantics of the **Yjs awareness
+protocol** and without Yjs itself: each state is *"an increasing clock attached to a schemaless JSON
+object"*, states are not persisted and have no CRDT history, and *"If a client doesn't receive
+updates from a remote peer for 30 seconds, it marks the remote client as offline"*
+(https://docs.yjs.dev/api/about-awareness). ADR-H1 already declined Yjs for the canvas
+(`:494-498`); presence needs only the semantics.
+
+**Shape.** Each control plane `PUT`s one presence record per signed-in user every ~15 s: sessions,
+their state, lane, focus (I1), last activity (I2/I3). The Hub holds records in memory with a
+~45 s TTL and serves `GET /v1/presence?project=…`, polled on the same 5 s tick as `/v1/changes`
+(ADR-H1 `:478-483`). When SSE arrives (v1.1, `:487-488`), presence rides the same stream as a
+separate event type. The cockpit renders presence on its **one global heartbeat clock** — never a
+spinner per row (`CLAUDE.md`, frontend rules).
+
+**Agent state without the PTY.** We cannot say "waiting for permission" without parsing the
+screen (K1). We can say, mechanically: process **alive or exited** (control plane), **last commit**
+(I2), **last file change** (I3), and, where the adapter reads, **last turn ended** (I4). *"Active
+40 s ago · last commit 'add upload route'"* is honest and enough.
+
+### 4.2 Change feeds: poll now, SSE next, WebSocket only for the terminal
+
+| Transport | Where | Status | Why |
+|---|---|---|---|
+| Poll `GET /v1/changes?after=` | Hub → control plane | **v1, specified** | *"correct under every failure without reconnect logic"* (ADR-H1 `:485-487`) |
+| SSE `GET /v1/changes/stream` | Hub → control plane | v1.1, additive | same events, `Last-Event-ID` as the cursor (`:487-488`) |
+| WebSocket | teammate's cockpit ↔ owner's sandbox, via relay | not planned | only the terminal view (§4.3) needs a bidirectional byte stream |
+
+A 5 s poll plus one desktop tick is fast enough for a board. A conflict forecast arriving 5 s late
+changes nothing.
+
+### 4.3 A relayed read-only terminal view — possible, and the most dangerous feature here
+
+`sandboxd` already fans one PTY out to many subscribers with a scrollback replay
+(`sandboxd/internal/hub/hub.go:145-151`), and writing is a separate call (`:179`). A read-only
+viewer is a subscriber that never writes. Across machines the bytes would flow: owner's sandbox →
+owner's control plane → **outbound** connection to a Hub relay → the teammate's cockpit.
+Showing bytes derives no meaning from them, so OD-8 is not engaged. The security cost is:
+
+1. **Disclosure.** A terminal shows everything the agent prints: code, `.env` contents, tokens,
+   customer data. Sharing it is sharing all of that. **Opt-in per session, by the owner**, a
+   visible *"watched by Dana"* marker, revocable at once. Default **off**.
+2. **The Hub becomes a carrier of source and secrets.** Relay only, never persist, never
+   scrollback on the server; end-to-end encryption between the two cockpits is worth pricing.
+3. **K5 must stay true.** The owner's control plane **dials out** to the relay; it never listens
+   beyond loopback.
+4. **Read-only is enforced at the source.** The owner's control plane drops every input frame from
+   a relayed viewer. A viewer UI that "hides the keyboard" is not a control.
+5. **The viewer's terminal is an attack surface.** An agent's output can carry escape sequences
+   (OSC 52 clipboard writes, OSC 8 links). The viewer's xterm.js must disable clipboard-write and
+   sanitise links. Specific xterm.js options: **UNVERIFIED**.
+6. **Every view is an audit event** — who watched whose session, from when to when.
+7. Throttle to ~10 Hz, per the design system's log-pane rule.
+
+**Recommendation:** the **board** (facts) is the default live view in v1. The terminal view is a
+later, opt-in *"invite to watch"*. It shows humans what an agent is doing; it tells **agents**
+nothing, so it does not serve capability (4) of the ask.
+
+---
+
+## 5. What the research says actually works
+
+### 5.1 Sources
+
+| Work | What it found | Source |
+|---|---|---|
+| **Xia, Wu, Park 2026 — "Passes Alone, Fails Together"** (STALE) | parallel agents' patches pass alone and fail combined; on constructed Django tasks *"interference occurred in 97% of runs"*, and *"A message describing the completed concurrent change recovered 82% of runs"*; on 417 mined real PR pairs only one of 834 runs interfered | https://arxiv.org/abs/2609.25396 (submitted 2026-09-21) |
+| **Xu, Subramanian, Karthik 2026** — AI agent PRs on GitHub | textual conflict rate *"41.7% vs. 19.8%"* for cross-agent vs. same-agent PR pairs | https://arxiv.org/abs/2607.04697 |
+| **Nikolaev 2026 — "Claim Plane"** | *"deterministic pre-write admission over versioned change intents"*: integration success 65.6% → 96.7%, but it *"serialized 96.7% of all executions"* and does *"not establish useful wall-clock parallel speedup"* | https://arxiv.org/abs/2608.00947 |
+| **Cemri et al., NeurIPS 2025 — MAST** | 14 failure modes in 3 groups, one of them **inter-agent misalignment**; fixes *"focused on context or communication protocols are often insufficient"* for it | https://arxiv.org/abs/2503.13657 |
+| **MetaGPT** (Hong et al.) | encodes SOPs into prompts; a *"shared message pool"* where agents *"publish their structured messages"* and subscribe by role; agents *"communicate through documents and diagrams (structured outputs) rather than dialogue"* | https://arxiv.org/abs/2308.00352, https://arxiv.org/html/2308.00352 |
+| **ChatDev** (Qian et al., ACL 2024) | role agents in a *"chat chain"* with *"communicative dehallucination"*, across design, coding and testing | https://arxiv.org/abs/2307.07924 |
+| **Cognition, 2025-06-12** | *"Share context, and share full agent traces"*; *"Actions carry implicit decisions, and conflicting decisions carry bad results"* | https://cognition.com/blog/dont-build-multi-agents |
+| **Anthropic, 2025-06-13** | *"most coding tasks involve fewer truly parallelizable tasks than research"*; vague tasks make agents *"duplicate work, leave gaps"*; multi-agent uses ~*"15× more tokens than chats"* | https://www.anthropic.com/engineering/multi-agent-research-system |
+| **Crystal** (Brun et al., FSE 2011) | speculative merge + build + test warns early; conflicts show up as build and test failures too | https://cs.uwaterloo.ca/~rtholmes/papers/fse_2011_brun.pdf |
+| **Palantír** (Sarma, van der Hoek, ICSE 2003) | workspace awareness: *"continuously informs developers of the changes that are made in parallel"*, deliberately breaking workspace isolation | https://ieeexplore.ieee.org/document/1201222/ (via search summary; paper not opened) |
+| **ConE** (Maddila et al., TOSEM 2022) | concurrent-edit warnings at Microsoft scale; >70% rated useful | https://arxiv.org/abs/2101.06542 |
+
+**Not found:** a primary source for "SWE-agent teams". SWE-agent is a single-agent system as far as
+this research went; the task's "agent collision" did not match a named paper. Both **UNVERIFIED**.
+
+### 5.2 Six lessons, and what each means for PanaceaApp
+
+1. **Clear, disjoint scopes before work starts beat coordination during it.** (Anthropic; Claude
+   Code's agent-teams guidance *"each teammate owns a different set of files"*.) → The brief (I1) and
+   a declared claim are shown **at launch**, and the cockpit warns when a new session's brief
+   overlaps a teammate's live one.
+2. **Structured shared artefacts beat agents chatting.** (MetaGPT's documents over dialogue; MAST's
+   warning that protocols alone do not fix misalignment; A2A's opacity.) → The board is a
+   **document built from facts**, not a chat room. `post_note` exists, but it is not the spine.
+3. **The single highest-value message is "a concurrent change that affects you just landed".**
+   (STALE: 82% recovery.) → Of every push in §1.3, build **"teammate landed changes to your paths"**
+   first.
+4. **Hard admission control buys reliability and costs the parallelism.** (Claim Plane.) → Keep
+   claims advisory. Serialisation already has one honest place: the human's land queue (phase 3,
+   plan `:32-35`).
+5. **Early, rare, precise warnings get used; noisy ones get ignored.** (Palantír, Crystal, ConE's
+   775 warnings over 26,000 PRs.) → Tier H before tier P reaches an agent; P alone goes to humans only.
+6. **Clean merges still break builds.** (Crystal; STALE.) → Tier S is where the remaining risk
+   lives; plan it, price it, do not claim it.
+
+Caution on 3: STALE's own real-PR sample showed interference in 1 of 834 runs, so the 97% is a
+constructed-task ceiling, not a field rate. The field rate for **our** users is unknown until we
+measure it.
+
