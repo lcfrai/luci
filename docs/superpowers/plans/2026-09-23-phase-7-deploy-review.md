@@ -1567,7 +1567,8 @@ are after this batch's edits.
   failure rule's two, so no `Environments` answer is left unspecified. The stale banner changes
   with it, because *"has not answered"* is false for a refusal. The desktop type is already
   `code: string` (t13:156), so no type changes.
-- **M14: 15 s, not 3 s.** A deadline at the active cadence would cut every normal `Deployments`
+- **M14: 15 s, not 3 s.** *(Superseded by round 2, I-1 below: the budget is now 30 s, and its
+  expiry is a budget stop, not a `KindUnavailable`.)* A deadline at the active cadence would cut every normal `Deployments`
   read: that read makes a dozen PipelineRun reads inside Panacea (`projects.go:1227-1253`). 15 s
   is one per-attempt timeout, so a hang costs one attempt instead of three. The ordering rule
   gives the tracked run the first share of the cycle.
@@ -1605,3 +1606,54 @@ Survivors I expect a re-review to name:
 - C2's poller: its file, and whether it has a listener. No Hub code was read.
 - That the Hub fake honours `pipelineRun=` and pages at 200. `TestPinsBeyondThePage` stays red
   until it does.
+
+### Fix batch b09, round 2 — the re-review's open issues (2026-09-24)
+
+Source: `.superpowers/sdd/p7/plan-rereview-b09-1.md` (I-1, M-1 to M-5). Commits `7c59ba6` (I-1,
+and M-1's step 6 text), `16a8968` (M-3, M-4), `a569f6a` (M-1 helper and test, M-2, M-5), and the
+commit that carries this section (I-1 phase alternation, this map). Line numbers are at that
+last commit.
+
+| Finding | Change |
+|---|---|
+| I-1 a cycle out of budget read as "Panacea is down" | **t07:317-366** "The cycle budget", three rules: (1) a Panacea read begins only with `ReadTimeout` left (t07:324), so a read that fails is Panacea's and the failure rule holds; (2) each Hub read under its own `HubReadTimeout`, so a dead Hub is still `"unavailable"`; (3) a **budget stop** (t07:335) stales nothing, polled projects keep fresh data, the stopped project keeps its snapshot whole, one Info log line. **t07:345-360** order: a Panacea phase, then a Hub phase (step 6's page reads moved there, t07:251-252 — the review's fix 4), then step 9; after a stop the phase that ran second goes first, so neither starves. **t07:62-70** `ReadTimeout`, `HubReadTimeout`, `CycleDeadline` zero = `ReadTimeout + Interval` (30 s), `New` refuses less than `ReadTimeout + ActiveInterval` (fix 3). **t07:305-315** failure rule ends the Panacea phase only, and never on a budget stop. Tests **t07:427** `TestCycleDeadlineCutsAHungRead` (now with `ReadTimeout` and the `New` refusal) and **t07:428** `TestBudgetStopIsNotAnOutage` (fix 5, plus a Hub-starvation case). Config **t07:448-454**; unverified **t07:484**. Restated: **plan:523** (fix 6), and the name "per-cycle deadline" at **t02:105**, **t20:44**, **plan:815** |
+| M-1 a cached `nil` re-creates the inversion | Took neither of the review's two options as written. Option 1 (older than the page's oldest `reservedAt`) can stay *"not loaded"* for good on a project that stops shipping; option 2 re-reads every `nil` on every event. Instead, **settled**: a targeted read waits until `d.CreatedAt` is `pinSettle` before now, `pinSettle` = the page's longest `expiresAt − reservedAt` (the Hub's reservation TTL, contract `:1021` at 6b873d0, verified) + 5 min skew. After that a confirm is refused (`:1038`, verified), so the `nil` is final. **t07:274-284** the rule; **t07:140-147** the comment corrected (the false justification removed); **t07:156-161** `Snapshot.SettledBy`, one helper for the watcher and the view. Test **t07:434** `TestLateConfirmedPinIsNotCachedAbsent` (the review's test); **t07:433** `TestPinsBeyondThePage` seeds settled rows |
+| M-2 rule 5b listed unknowns, and one sentence for three causes | **t08:215-244** rewritten as a list of answers: `no_hub`/`no_hub_project`; a `PinsByRun` entry; a complete page that answers for the row (settled when read, or read after the `Deployments` list with no open reservation). Everything else, including a zero `ReleasesState`, is not loaded; a zero state goes on the wire as `"unavailable"`, so the enum keeps six values and `types.ts` is untouched. Found in passing and closed in the same rule: a row whose release is still `reserved`, and a row newer than the last good page, were also drawn *"no brief is recorded"*. **Why not loaded** (t08:241-244) keys the sentence to `releasesState`: **t17:145** drawer (sign in; the HA7-6 key-spelling cause, no promise), **t16:161-166** Rebuild reason, **t15:131** pin cell. Tests **t08:315**, **t17:232**, **t16:204** |
+| M-3 a refusal for good re-resolved every 3 s | **t07:205-219** only a **new** refusal (not already in `LastError` for this binding) marks and Nudges; a repeated one waits for the recheck. **t07:313-315** failure rule restated. Test **t07:426** gains the 8-tick case, at most 2 `Projects` reads |
+| M-4 "cycle" meant two intervals; three by-name sentences | **t07:164-176** Terms: cycle = one 3 s tick, poll = a project's due read, recheck = `4 × Interval` measured in time. Every "every fourth cycle" in t07 is now "at its recheck (60 s)" (t07:183, :186, :214, :219, :225), steps 4-5 say "poll" (t07:221, :232, :239, :246); the HubEvents comment (t07:99). Tests restated in seconds with a tracked-run variant: **t07:413**, **t07:415**, **t07:416**. Restated: **plan:250**, **plan:520-521**, **t15:87**. The by-name fallback: **plan:874**, **t03:378**, **t20:145** now name task 06's `NoRepoInfo` (t06:154, verified) |
+| M-5 t08 had no rule for `staleReason` | **t08:147-155** rule 0: `staleReason` is `null` exactly when `stale` is false, else `writeDeployError`'s code and message for `LastError` (t05:268-286, verified). **t08:31-36** the `fetchedAt`/`stale` comments reworded; **t07:150-152** the `Snapshot` comments likewise. Test **t08:316** `TestStaleReasonIsWriteDeployErrors` |
+
+#### Deviations, declared
+
+- **I-1, the budget.** 30 s is `ReadTimeout + Interval`, not the review's example `ReadTimeout +
+  ActiveInterval` (18 s). At 18 s a read could begin only in the first 3 s of a cycle, so a normal
+  multi-project cycle would stop almost every time. 30 s gives a 15 s window to begin in. The
+  floor `New` enforces is the review's 18 s.
+- **I-1, the Hub phase runs after a Panacea failure.** The failure rule used to end the whole
+  cycle. Hub reads do not depend on Panacea's answer, and a Panacea outage should not freeze a
+  teammate's rollback on the lens, so only the Panacea phase ends.
+- **M-1**, as above: neither option as written, for the reasons in its row.
+
+#### Mutants
+
+No code changed, so no mutant was run. The two I expected to survive, named before the
+self-check:
+
+1. **The Hub phase starving behind a Panacea phase that finishes with less than `HubReadTimeout`
+   left.** Found real in the draft: its exception covered only a stop in the Panacea phase. Fixed
+   at t07:354-360 (the phase that ran second goes first after any stop), with a test case at
+   t07:428.
+2. **`SettledBy` trusting `Deployment.CreatedAt`.** Panacea keeps the earliest `CreatedAt` when it
+   merges a backfilled row (t01:209-210), so a live row merged with a backfill could read as
+   settled early and get a targeted read while its release is still `reserved`. Open: this needs
+   a live row and a backfill of the same run, which is unverified as reachable. If it is, key the
+   settle rule on the watcher's first sight of the deployment, not on `CreatedAt`.
+
+#### Unverified
+
+- `hubapi.Release`'s `ReservedAt`/`ExpiresAt` Go names, and whether `hubclient` has a timeout of
+  its own. The watcher applies `HubReadTimeout` itself, so it does not depend on one (t07:480-483).
+- That 30 s suits the owner's team. A stop stales nothing, so a wrong value costs latency; the
+  Info log line on each stop makes it visible (t07:484).
+- The re-review's own open items (C2's poller shape; the Go names; the `Deployments` read time)
+  are unchanged by this batch.
