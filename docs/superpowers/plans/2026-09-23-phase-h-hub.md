@@ -167,6 +167,12 @@ task 01 and before any lane branches — so no sibling builds against the text t
 wrong (review finding I11). The sibling phases' own asks of the Hub, and this plan's answer to
 each, are task 00's; 44a folds those in too.
 
+**Line numbers.** Every `hub-contract.md:<n>` in this plan and its parts is the contract at
+`97f74c7`. Task 01 ran before 44a and added nine lines to §7.4 at `caf18ae`, so a cited line past
+716 is now 9 further down the file: `:1172` is at 1181. Read the cited line with
+`git show 97f74c7:docs/superpowers/contracts/2026-09-23-hub-contract.md`, or add 9. Task 01's
+§3.3 rewrite (fix round 1) kept its line count and moved nothing.
+
 | # | Contract says | Why it fails | This plan builds | Task |
 |---|---|---|---|---|
 | **A1** | `repoKey` for Azure DevOps matches `^[a-z0-9-]{1,50}\.visualstudio\.com/[^/]{1,64}/[^/]{1,64}$` (§7.4) | phase 3's `githost.RepoKey()` returns `azure-devops/<org>/<project>/<repo>`, lowercased (phase 3 task 13 `:140-143` on `feat/phase-3-git`), and phase 3's own review ruled that form the right one because `dev.azure.com/<org>` and `<org>.visualstudio.com` are one organisation (phase 3 review I10, `:350-356`). The contract's regex would refuse every Azure DevOps key phase 3 sends | `github`: `^github\.com/[a-z0-9-]{1,39}/[a-z0-9._-]{1,100}$`; `azure-devops`: `^azure-devops/[a-z0-9-]{1,50}/[^/\x00-\x1f\x7f]{1,64}/[^/\x00-\x1f\x7f]{1,64}$` (task 01: RE2's bare `[^/]` matches a newline, so `…/repo\n` was a second spelling); **and** `repoKey == strings.ToLower(repoKey)` for both — the Hub refuses a non-canonical key rather than storing two spellings of one repository | 01, 17 |

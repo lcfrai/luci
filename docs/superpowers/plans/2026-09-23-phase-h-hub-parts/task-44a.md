@@ -26,6 +26,11 @@ build changes afterwards is task 44b's, last.
 can trace it; a new §16, *"Amendments from the Phase H plan"*, lists them in one table with the task
 that builds each:
 
+**The line numbers below are the contract at `97f74c7`.** Task 01 ran first and added nine lines
+to §7.4 at `caf18ae`, so every cited line past 716 is now 9 later in the file (`:1172-1173` is at
+1181-1182, `:2091` at 2100). Find each place by its quoted text, or add 9. Its §3.3 rewrite moved
+nothing.
+
 | Section | Change |
 |---|---|
 | §7.4 | A1: the two repo-key regexes and the lowercase rule; the `repo_already_linked` message sentence (task 17). **Already in place:** task 01 ran before this task and wrote A1 into §7.4 itself (commit `caf18ae`, marked `(Phase H plan, A1; task 01)`), with the Azure DevOps segments also excluding control characters. Do not rewrite it; list it in §16 and check it with `TestTheContractsRepoKeyRegexIsTheCodes` |
