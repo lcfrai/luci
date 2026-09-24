@@ -10,7 +10,6 @@ import (
 	"io"
 	"math/big"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -104,7 +103,7 @@ func (v *JWKSValidator) refresh(ctx context.Context, tid string) error {
 
 func (v *JWKSValidator) fetch(ctx context.Context, tid string, t *tenantKeys, c *fetchCall) {
 	// The client's own timeout is not trusted to exist on a caller's client.
-	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	ctx, cancel := context.WithTimeout(ctx, v.fetchTimeout)
 	defer cancel()
 	keys, err := v.download(ctx, tid)
 	v.mu.Lock()
@@ -188,13 +187,15 @@ func parseKeySet(body []byte) (map[string]*rsa.PublicKey, error) {
 	return keys, nil
 }
 
-// rsaKey decodes a JWK's two base64url integers.
+// rsaKey decodes a JWK's two unpadded base64url integers (RFC 7518 §6.3.1).
+// An exponent over four bytes is refused here: Int64 would silently truncate
+// it into some other, valid-looking exponent.
 func rsaKey(n, e string) (*rsa.PublicKey, bool) {
-	nb, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(n, "="))
+	nb, err := base64.RawURLEncoding.DecodeString(n)
 	if err != nil {
 		return nil, false
 	}
-	eb, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(e, "="))
+	eb, err := base64.RawURLEncoding.DecodeString(e)
 	if err != nil || len(eb) == 0 || len(eb) > 4 {
 		return nil, false
 	}

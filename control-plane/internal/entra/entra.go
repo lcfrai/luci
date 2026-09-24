@@ -97,6 +97,9 @@ type JWKSValidator struct {
 	skew      time.Duration
 	client    *http.Client
 	now       func() time.Time
+	// fetchTimeout caps one key-set fetch whatever client is configured: a
+	// caller's client may have no timeout, and the fetch outlives its caller.
+	fetchTimeout time.Duration
 
 	mu   sync.Mutex
 	sets map[string]*tenantKeys // one per enrolled tenant, made by New
@@ -116,13 +119,14 @@ func New(cfg Config) (*JWKSValidator, error) {
 		return nil, err
 	}
 	v := &JWKSValidator{
-		authority: authority,
-		enrolled:  map[string]bool{},
-		clients:   map[string]bool{},
-		skew:      cfg.ClockSkew,
-		client:    cfg.HTTPClient,
-		now:       cfg.Now,
-		sets:      map[string]*tenantKeys{},
+		authority:    authority,
+		enrolled:     map[string]bool{},
+		clients:      map[string]bool{},
+		skew:         cfg.ClockSkew,
+		client:       cfg.HTTPClient,
+		now:          cfg.Now,
+		fetchTimeout: defaultTimeout,
+		sets:         map[string]*tenantKeys{},
 	}
 	if len(cfg.TenantIDs) == 0 {
 		return nil, errors.New("entra: config: no TenantIDs")

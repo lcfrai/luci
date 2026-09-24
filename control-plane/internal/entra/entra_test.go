@@ -388,6 +388,9 @@ func TestErrorsNeverContainTheToken(t *testing.T) {
 		{"aud array", with(map[string]any{"aud": []string{brokerAPI}}), ErrMalformed},
 		{"exp a string", with(map[string]any{"exp": "tomorrow"}), ErrMalformed},
 		{"exp past year 9999", with(map[string]any{"exp": int64(1) << 60}), ErrMalformed},
+		{"exp before 1970", with(map[string]any{"exp": -1}), ErrMalformed},
+		// base64 skips CR and LF itself; the byte scan must not.
+		{"a newline inside a segment", valid[:20] + "\n" + valid[20:], ErrMalformed},
 		{"oversized", with(map[string]any{"name": strings.Repeat("a", 33<<10)}), ErrMalformed},
 		{"alg none", seg(t, map[string]any{"alg": "none", "kid": kid1}) + "." + seg(t, c) + "." + sig, ErrMalformed},
 		{"no kid", mint(t, k, map[string]any{"alg": "RS256"}, c), ErrMalformed},

@@ -2,8 +2,10 @@ package entra
 
 import (
 	"context"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -180,6 +182,41 @@ func TestAKeySetOutageIsNotARejection(t *testing.T) {
 		t.Fatal(err)
 	}
 	outage(vc, good(t, is, tidA, clk.Now()), "connection refused")
+	// A key set over 1 MiB is refused unread, even around a usable key.
+	pad := map[string]any{"kty": "oct", "kid": "pad", "k": strings.Repeat("A", 1<<20)}
+	is.fail(tidA, 0)
+	is.setKeys(tidA, rsaJWK(kid1, &testKey(t).PublicKey), pad)
+	clk.advance(24*time.Hour + time.Second)
+	outage(v, good(t, is, tidA, clk.Now()), "key set over 1 MiB")
+	// A key-set server that never answers, behind a client with no timeout
+	// (httptest's has none): the validator's own cap ends the wait.
+	release := make(chan struct{})
+	hung := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	defer hung.Close()
+	defer close(release) // runs first: the handler returns, then Close
+	cfg.AuthorityHost, cfg.HTTPClient = hung.URL, hung.Client()
+	vh, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vh.fetchTimeout = 200 * time.Millisecond
+	tok := good(t, is, tidA, clk.Now())
+	done := make(chan error, 1)
+	go func() {
+		_, err := vh.Validate(bg, tok)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		isOnly(t, err, ErrKeySetUnavailable)
+	case <-time.After(5 * time.Second):
+		t.Fatal("a key-set server that never answers hung Validate")
+	}
 }
 
 func TestReadyFetchesEveryTenant(t *testing.T) {
@@ -240,13 +277,19 @@ func TestOnlyRSASigningKeysOfAtLeast2048BitsAreUsed(t *testing.T) {
 	pss["alg"] = "PS256"
 	rs := rsaJWK("rs", pub)
 	rs["alg"] = "RS256"
-	is.setKeys(tidA, rsaJWK(kid1, pub), rsaJWK("small", &small.PublicKey), enc, ec, noUse, pss, rs)
+	// A duplicate kid: the first key published under it wins, so a later
+	// entry cannot shadow it.
+	dup := rsaJWK(kid1, &newKey(t, 2048).PublicKey)
+	// An exponent over four bytes, which Int64 would truncate to 65537.
+	wide := rsaJWK("wide-e", pub)
+	wide["e"] = b64(new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(int64(pub.E))).Bytes())
+	is.setKeys(tidA, rsaJWK(kid1, pub), rsaJWK("small", &small.PublicKey), enc, ec, noUse, pss, rs, dup, wide)
 	v := newValidator(t, is, clk)
 	claims := claimsFor(is, tidA, clk.Now())
 	mustValidate(t, v, mint(t, testKey(t), hdr(kid1), claims))
 	mustValidate(t, v, mint(t, testKey(t), hdr("no-use"), claims))
 	mustValidate(t, v, mint(t, testKey(t), hdr("rs"), claims))
-	for kid, key := range map[string]any{"small": small, "enc": nil, "ec": nil, "pss": nil} {
+	for kid, key := range map[string]any{"small": small, "enc": nil, "ec": nil, "pss": nil, "wide-e": nil} {
 		signer := testKey(t)
 		if key != nil {
 			signer = small
