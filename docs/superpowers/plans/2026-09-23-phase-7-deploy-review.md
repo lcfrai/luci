@@ -821,3 +821,93 @@ one branch."* — killed by t15:189.
 
 **Left open.** Whether the live dev estate runs the webhook-receiver for this project's pushes
 (the live check's `withUnderscoreInBranch` count answers it, t20:185-187).
+
+## Fix batch b04 — I3 and I7 (2026-09-24)
+
+I3 was re-checked against Panacea at `~/Projects/Panacea` (read only) before any edit, and holds.
+`createdAt` is the PipelineRun's creation timestamp (`clients/kubernetes.go:5680`, `:5754`).
+`duration` is `completionTime − creationTimestamp` rounded to a second, formatted by
+`time.Duration.String()`, and `""` while there is no `completionTime` (`:5683-5689`, `:5752`;
+`models/models.go:682`). The durable store keeps it (`clients/deployment_store.go:83`, `:134`). A
+backfilled row has neither a duration nor an outcome (`clients/deployment_backfill.go:167-175`,
+`Status "historical"`). I7 holds as written. Phase 3's desktop surface was read in the phase-3
+worktree's plan (read only): `RemoteState {upstream, ahead, behind}` and `Convergence.tip`
+(phase 3 t18:50-64), `pushBranch` (t18:198), `addGoodTickListener` (t18:208-213),
+`useConvergenceLoader` with `reload()` (t18:246-255) and `selectConvergence` (t18:259). That
+loader is mounted only by Merge and Files, so nothing refreshed convergence inside the Deploy lens.
+
+### I3 — current is the newest succeeded build by completion, or a later rollback
+
+| Change | Where |
+|---|---|
+| `Deployment.CompletedAt` (`CreatedAt` + the target's duration; zero = not finished or not recorded); `CreatedAt` says it is creation, not go-live | t01:197-202 |
+| Conformance row `CompletedAtSurvives` | t01:599 |
+| `deploymentDTO.Duration` with its source lines; the mapper rule (`""` or unparseable → zero, never a guess) | t03:89-96 |
+| `TestCompletedAtFromDuration` | t03:330 |
+| `current.since` is `completedAt` or `confirmedAt`; `isCurrent` marks exactly one row, never the run a rollback returned to | t08:76, t08:102 |
+| Rule 6 rewritten: `succeeded` + non-zero `CompletedAt`, latest by completion; failed/running/pending/historical/unknown never current; the later of build and rollback wins; a tie goes to the rollback; neither → `source "none"` | t08:180-200 |
+| Rule 10 lists `completedAt` | t08:223 |
+| `TestRollbackIsCurrent` and `TestRollbackBeforeNewerDeploy` corrected (the latter now asserts a build that **went live** after the rollback) | t08:250-251 |
+| New: `TestFailedNewestIsNotCurrent` (failed and running), `TestBuildLiveAfterRollbackIsCurrent` (Ship 10:00, rollback 10:05, live 10:08 → the build), `TestCurrentTieGoesToRollback`, `TestHistoricalOnlyIsNone` | t08:252-255 |
+| "Does NOT claim": completion can lag go-live (`clients/pipeline.go:1302-1306`, tasks *"beside/after the deploy"*), and a run failed by a post-rollout task is unverified | t08:296-303 |
+| Plan 7P-4 restated with completion and the succeeded-only rule | plan:232-238 |
+| t16:95 (now t16:123): **Roll back to this** also needs "not its environment's `current.deploymentId`", so a failed newest build no longer hides it on the release that serves, and a rollback's target is not offered a rollback to itself | t16:123 |
+| Test `roll back follows what is serving` | t16:170 |
+| Card line when the current deployment is not the newest build (added: rule 6 promises the card can say both) | t15:120 |
+| Test `failed newest names what serves` | t15:180 |
+
+### I7 — Ship readiness reloads when the branch's git facts move
+
+| Change | Where |
+|---|---|
+| Section *When readiness reloads — four edges, no timer*: edge 4 is the selected branch's convergence `tip` / `remote.upstream` / `remote.ahead` / `remote.behind` changing on the existing good tick (`addGoodTickListener`); Push resolving reloads readiness at once and calls the convergence loader's `reload()`; a rejected push reloads nothing; a tick with no move sends nothing | t16:91-114 |
+| `DeployLens` mounts phase 3's `useConvergenceLoader("merge")`, unchanged, so the value is fresh while the lens is open | t16:30 |
+| Files line and step name the four edges; the loader keeps the last `{tip, upstream, ahead, behind}` it saw per branch, in memory | t16:29, t16:180-185 |
+| Test `readiness on the four edges` (replaces *three edges*; ten same-value ticks → zero calls) | t16:173 |
+| Test `push, then Ship turns on with no reselect` | t16:174 |
+| Test `a push elsewhere turns Ship on on the next tick` (a terminal push) | t16:175 |
+| "Does NOT claim": the loader's cost in Deploy is unmeasured; edge 4 sees a terminal push on the next good tick | t16:205-210 |
+| Dependency on phase 3 task 18 declared | t16:3-5, plan:572 |
+| Task 13's "exactly three edges" is the view's; the readiness load's fourth edge is named there | t13:8-11 |
+
+### Deviations and additions, declared
+
+- **The rollback's target run row is never `isCurrent`.** The review did not say which row is
+  current after a rollback. The rollback row carries the flag. So t16 needs a second check,
+  `current.deploymentId`, or Roll back would offer a rollback to the release already serving.
+- **Ties go to the rollback.** Panacea rounds `duration` to a second, and the Hub confirms after
+  Panacea's flip. The review had no tie rule. Without one, the answer could flip between cycles
+  depending on list order.
+- **`historical` rows are never current.** They carry no duration and no outcome. An environment
+  with only backfilled rows reads `source "none"`, not a guess.
+- **Added beyond the review:** the t01/t03 plumbing (the view could not see `duration` before),
+  and the t15 card line, because the review's failure case — a failed newest build — otherwise
+  showed only the failure.
+- **I7 reuses phase 3's `useConvergenceLoader("merge")`** instead of adding a lighter `what` to
+  phase 3's contract. That keeps the change inside phase 7. Its per-tick cost in Deploy is
+  unmeasured (t16 does-not-claim). A lighter `what` would be a one-argument swap.
+
+### Mutants
+
+This batch changes plan text; no phase 7 code exists, so no mutant was run. Two named as most
+likely to survive once code exists:
+1. **Ordering the live candidate by `CreatedAt` while filtering on `succeeded`.** It passes every
+   test where creation and completion order agree. Only `TestBuildLiveAfterRollbackIsCurrent`
+   kills it (d2 created before the rollback, completed after).
+2. **A convergence edge that compares the whole `Load` object, or `readAt`.** It fires on every
+   tick and passes the Push test. It is killed by the ten-same-value-ticks clause of `readiness
+   on the four edges` and the `readAt`-only clause of `a push elsewhere…`.
+
+Also named: treating a zero `CompletedAt` as `CreatedAt` (killed by `TestCompletedAtFromDuration`
+and the running half of `TestFailedNewestIsNotCurrent`), and Roll back gated on `isCurrent` alone
+(killed by the rollback half of `roll back follows what is serving`).
+
+### Left open
+
+- Whether any Panacea task after the rollout can fail a run whose pods serve (t08 does-not-claim).
+- t17's **Follow readiness** is offered for an `isCurrent` run row. After a rollback, the current row
+  is the `rollback` row, so no run row offers it. This is out of scope for I3, deferred as a Minor:
+  task 17 can key it on `current.deploymentId` the way t16 now does.
+- M29 (t19's "previous release") names "the I3 rule". It can now cite t08 rule 6. Left to its own
+  batch.
+- Nothing was compiled or run. This is plan text.
