@@ -119,7 +119,9 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     and disk, and an expiry there would be misnamed as the Hub's.
 //     entraauth.ErrSignedOut, or a relayed 401 → signed_out (a brief may
 //     exist and cannot be read: 4-D1 refuses; the owner's OQ-11, plan §10,
-//     recommended option, with Sign in first in task 20; review M10);
+//     recommended option, with Sign in first in task 20; review M10;
+//     a tenant_not_enrolled sign-out lands here too, and task 20 then
+//     offers no Sign in, re-review b09 M-1);
 //     ErrHubOff, ErrNotBound, ErrNoRemote, or a Hub 404 → nothing to
 //     inherit. Any other error → a plain error.
 //  5. Nothing to inherit: strip every strippable candidate; return "".
