@@ -134,3 +134,123 @@ phase already delivers it. `TM` names team mode's own delivery (TM-05 §12).
 | 44 | Comment drafts persist | MATCH | Hub-held, as L-33 | W2 |
 | 45 | Attachments | MATCH | Needs a Hub blob route; **UNVERIFIED** whether the Hub contract has one (not checked for this file) | W2 |
 
+### C. Triage (L-46 to L-56)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 46 | Per-team Triage inbox | MATCH | `triage` state and a Triage view on the Work surface. Items that name a person also join that person's Desk (§4.2) | W1 |
+| 47 | Number-key triage actions | EXCEED | `1` accept, `2` duplicate, `3` decline, `4` snooze, list focus only; plus `S` **accept and Start**, which binds a lane at once | W1 |
+| 48 | Priority required to leave Triage | MATCH | Team policy, checked by the Hub on the state change | W1 |
+| 49 | Ordered triage rules | MATCH | Intake rules, first match wins, each with its author on the event | W5 |
+| 50 | Triage duty with rotation from incident tools | MATCH | A Hub-held rotation; syncing it from PagerDuty and the like is L-218 | W4 |
+| 51 | AI suggests team, project, assignee, labels | EXCEED | Suggestions also name **which brief criterion the issue serves** (`serves`), so triage attaches work to the thread. Made through the ZDR gateway (OD-19) | W4 |
+| 52 | "Why" on every suggestion | EXCEED | Each "why" links to the issues, spans or criteria it used (AX Principle 7: no element without a nameable span) | W4 |
+| 53 | Per-property Show, Hide, Auto-apply dial | EXCEED | The dial uses AX §7's named levels and shows its **calibration**: "you accepted 23 of 25 label suggestions unchanged" (AX anti-pattern 12) | W4 |
+| 54 | Duplicate and related detection | MATCH | Similarity search over issue revisions through the gateway | W4 |
+| 55 | Layered AI guidance, most local wins | MATCH | org → team → project guidance; at feature scope the brief itself is the guidance | W4 |
+| 56 | Light composer suggestions | MATCH | Label and duplicate hints while typing | W4 |
+
+### D. Cycles (L-57 to L-66)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 57 | Automatic repeating cycles | MATCH | `cy-` per team; the janitor creates them ahead (04 §2.5) | W2 |
+| 58 | Cooldown periods | MATCH | A gap between cycles in the cadence | W2 |
+| 59 | Up to 15 upcoming cycles | MATCH | The team sets how many ahead | W2 |
+| 60 | Automatic rollover | MATCH | Janitor, one event per issue, `actor: null` (04 §2.5) | W2 |
+| 61 | Started issues join the current cycle | MATCH | Part of the `started` fact move, written as the person who started it | W2 |
+| 62 | Capacity dial from velocity | SKIP | A capacity number is a prediction (AX anti-pattern 2). We show the last three cycles' closed counts as plain facts instead (Q1) | — |
+| 63 | Cycle graph: scope, started, done, target | EXCEED | Replaced by **convergence per criterion** (settled, open, contested) and a **scope log** ("3 added on day 4, by whom"). No target line (Q1) | W2 |
+| 64 | Cycle calendar feed | MATCH | An iCal feed per team | W2 |
+| 65 | Edit cycle names and dates; paused gaps | MATCH | Team admin edits; a pause is a cadence gap | W2 |
+| 66 | AI plans the next cycle | EXCEED | The user's Orchestrator **proposes** a cycle as one Desk item, grouped by the criteria it would settle; a person accepts it | W4 |
+
+### E. Projects, which we call features (L-67 to L-82)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 67 | Multi-team project, lead, members, dates | MATCH | `ft-` has a lead and a target date (04 §2.5). **Multi-team** needs a cross-team grant, so it comes with org-level initiatives | W2 / later |
+| 68 | Tabs, saved views as tabs | MATCH | Feature tabs: Brief, Issues, Criteria, Lanes, Release; any saved view pins as a tab | W2 |
+| 69 | Document-style overview | EXCEED | The overview **is the branch brief**: the same artefact Define wrote, Design cites and Deploy pins (04 §2.5) | W2 |
+| 70 | Project status set by hand | EXCEED | A person sets `planned`·`active`·`paused`·`done`·`cancelled`; the facts sit beside it (lanes live, landed, released where) so a stale status is visible | W2 |
+| 71 | Project priority and labels | MATCH | Same fields on `ft-` | W2 |
+| 72 | Milestones with progress | EXCEED | A milestone is a **named subset of the brief's criteria** with a date, reached when those criteria are settled at the branch head (04 §2.5). Convergence, not a bar | W4 |
+| 73 | Predicted completion with bounds | SKIP | Prediction is banned (AX anti-pattern 2; AX:237). Convergence per criterion replaces it (Q1) | — |
+| 74 | Project dependencies on the timeline | MATCH | `blocks` between features, drawn on the timeline; a violated order is signal-coloured | W4 |
+| 75 | Project templates | MATCH | A brief template plus a set of issue templates | W4 |
+| 76 | Updates with On track, At risk, Off track | EXCEED | `nt-` with `kind: update` (04 §2.5); each update **pins the brief revision** it reports against and links the facts it cites | W4 |
+| 77 | Update reminders, stale health | MATCH | "Update missing, 9 days" arrives in the lead's Desk digest | W4 |
+| 78 | Agent-drafted updates | EXCEED | The draft is the product-language handover (AX §6.3): every claim links to its span, and it stays `text·A` until a person edits and posts it | W4 |
+| 79 | Property-change digest in updates | MATCH | Built from the Hub change feed | W4 |
+| 80 | Updates to Slack or Teams | MATCH | Teams first (KPMG runs on Microsoft), Slack next | W5 |
+| 81 | Project notifications, per-project channel | MATCH | Desk subscriptions; a Teams channel per feature | W5 |
+| 82 | Agent drafts a whole project | EXCEED | This is **Define**: phase 4's Discover writes the brief, its five questions and its criteria; W4 adds "propose issues, one per open criterion" | exists / W4 |
+
+### F. Initiatives and roadmap (L-83 to L-92)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 83 | Initiatives with status, owner, target | MATCH | `in-` per team in v1 (04 §2.5) | W4 |
+| 84 | Health roll-up of its projects | MATCH | Lists each feature's latest health word and its date; no computed score | W4 |
+| 85 | Initiative graph | EXCEED | Replaced by convergence across its features' criteria plus the scope log, as L-63 (Q1) | W4 |
+| 86 | Sub-initiatives, 5 levels | SKIP | Needs cross-team grants (L-4's reason). Later, with org-level initiatives | — |
+| 87 | Initiative updates | MATCH | `nt-` update, as L-76 | W4 |
+| 88 | Team-led and private initiatives | MATCH | Per team by default, so team-private by construction | W4 |
+| 89 | Timeline with day to quarter zoom | MATCH | Timeline layout of features and milestones | W4 |
+| 90 | Drag to reschedule | MATCH | Drag writes the target date as the person dragging, with undo | W4 |
+| 91 | Cycles overlaid on the timeline | MATCH | Team cycles drawn as a band | W4 |
+| 92 | Group the timeline | MATCH | By initiative, lead or label | W4 |
+
+### G. Views, filters, display, search (L-93 to L-111)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 93 | Saved views of issues, features, initiatives | MATCH | `vw-`: a filter plus a layout (04 §2.2) | W2 |
+| 94 | View scopes and owner | MATCH | Shared views in the Hub; personal views are preferences on the desktop | W2 |
+| 95 | Save any filtered list | MATCH | "Save as view" in the palette and the list header | W2 |
+| 96 | Subscribe to a view | MATCH | Changes arrive in the Desk digest, never a stream (AX §6.8) | W2 |
+| 97 | View changes to a chat channel | MATCH | Teams first, Slack next | W5 |
+| 98 | Filters in the URL; every screen a link | EXCEED | Every screen is a `panacea://` link, and a link to an issue can name **its exact revision** (`issue:is-…@r`), so "what did they read?" has an answer | W1 |
+| 99 | Nested AND/OR filters | MATCH | Filter groups in the view editor | W2 |
+| 100 | Natural-language filters | MATCH | Parsed through the gateway and shown as editable filter chips before they apply | W4 |
+| 101 | List, board, timeline | MATCH | List and board in W1; timeline in W4 | W1 / W4 |
+| 102 | Group and sub-group; drag sets the property | EXCEED | As Linear, except that dragging into a **fact state** (`started`, `landed`) offers the fact ("Start a lane?") instead of faking it; a manual move shows both | W1 / W2 |
+| 103 | Ordering options, shared manual order | MATCH | Uses L-14's rank | W2 |
+| 104 | Per-row display toggles | MATCH | Display menu on every list | W1 |
+| 105 | "Set as default" for everyone | MATCH | A team admin action on a shared view | W2 |
+| 106 | Search `/`, view search, jump to issue | MATCH | `/` searches the in-memory Hub replica; `G I` then a number jumps (§4.3) | W1 |
+| 107 | `@`-mentions become filters | MATCH | `@person`, `#label`, `EP-` prefixes in search | W2 |
+| 108 | Peek on `Space` | EXCEED | 02's `peek.span`, `peek.hunk`, `peek.person`: peek shows the **evidence** behind a row, not only the record. `peek.person` never shows a teammate's transcript (OD-15) | W1 |
+| 109 | Favourites with folders | MATCH | Favourites in the rail, names only, no counts (AX:144) | W2 |
+| 110 | Label views and user views | EXCEED | A person's page shows their issues **and** a one-line summary of their agents' work (TM-05 §9.2), never a transcript | W2 / TM |
+| 111 | Ad hoc lists by URL | MATCH | `panacea://issues?ids=EP-1,EP-4` | W2 |
+
+### H. Personal attention (L-112 to L-119)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 112 | My Issues with a focus order | EXCEED | *My issues* is a view. The ranking that matters is **the Desk**, which puts your issues, your agents' asks and your Orchestrator's escalations in one aging queue (AX §5) | W1 |
+| 113 | Keyboard-driven Inbox | EXCEED | The Desk: answering never navigates; `j`/`k`, `a`, `d`, `Enter`; a reachable zero state (AX §5, anti-pattern 16) | W1 |
+| 114 | Priority inbox | EXCEED | Fixed sections (NEEDS YOU → DECIDED WITHOUT YOU → FAILED → LANDED → RUNNING), each row with its rank reason and the consequence of doing nothing (AX §5) | W1 |
+| 115 | Snooze and reminders | MATCH | Defer with a reason is a first-class verb, and deferred items age visibly (AX §7.4) | W2 |
+| 116 | Desktop, mobile, chat, email digest | MATCH | Desktop and email digest, then Teams; at most one digest per 15 minutes (AX anti-pattern 8). Mobile is L-232 | W2 / W5 |
+| 117 | Automatic and manual subscriptions | MATCH | Subscribed on create, assign, mention or comment; unsubscribe per issue | W2 |
+| 118 | Pulse feed | EXCEED | **"Since you last looked"**: a read cursor per person per scope, four delta classes, a product-language handover whose every claim links to its span (AX §6) | W4 |
+| 119 | Pulse digest, audio playback | MATCH | The same handover as a daily or weekly digest; audio later | W4 |
+
+### I. Documents and editor (L-120 to L-130)
+
+| L | Linear item (short) | Verdict | How, or why not | Slice |
+|---|---|---|---|---|
+| 120 | Documents on projects, teams, issues | EXCEED | For a product or a feature the document **is the brief**, on the thread. Free documents `dc-` for teams and initiatives come later | exists / later |
+| 121 | Real-time multiplayer editing | MATCH | Team mode's TM2, "one document" (TM-05 §12.2); the phase 5 canvas is multiplayer (OD-11) | TM |
+| 122 | Document templates | MATCH | Brief templates per team | W4 |
+| 123 | Version history with revert | EXCEED | Brief revisions are already immutable, digested and keyed (`brief:bf-…@n`); an agent's context names the revision it was given | exists |
+| 124 | Per-passage human or agent authorship | EXCEED | Every text field carries its author class, `text·H` or `text·A` (TM-05 §3.3), and agent text is fenced from other users' workers (TM-05 §7) | W1 |
+| 125 | Link to a heading | EXCEED | A brief section is a **provenance key** that design frames and agent tasks cite (the thread, §2.3) | exists |
+| 126 | Markdown shortcuts, slash menu | MATCH | One editor for issues, comments and briefs | W2 |
+| 127 | Mermaid, tables, collapsibles, callouts | MATCH | Tables and callouts in W2; Mermaid later | W2 / later |
+| 128 | Auto-embeds (video, Figma) | SKIP | Third-party embeds pull outside content into a regulated tool and defeat egress control. Links unfurl as text. **Our own canvas frames embed natively** (L-208) | — |
+| 129 | Copy as Markdown for AI tools | MATCH | Copy carries the issue's Hub key, so pasted text keeps its provenance | W2 |
+| 130 | Agent edits with changes highlighted | EXCEED | An agent's edit to a brief or issue is a **proposal** (`text·A`), shown as a diff, that a person accepts | W4 |
+
