@@ -111,6 +111,22 @@ build. The rules bind every phase 5 agent:
   sends `resume` like a Resume, into the other worktree, and gets Resume's argv; its sandbox is
   shown a staged, read-only copy of the source's transcript, and Forget deletes what carrying left.
 
+## Team mode — owner decisions of 2026-09-24 (evening), OD-14 to OD-17
+
+The owner's framing, verbatim: *"Aren't we managing all of the agents centrally, rather than them
+being on each machine? I am thinking like a Word Document on Sharepoint being edited by multiple
+people, where each agent can see other agents doing work, understand what the agent is currently
+working on and the task they have and the reason they are updating that document, they are able to
+communicate and understand each other. That is the beauty of us having it sit at this top level as
+a managed agent and as a managed solution."*
+
+| Id | Question | Answer | Consequence |
+|---|---|---|---|
+| **OD-14** | Where team agents run | **Centrally, in our environment** | The control plane for team projects runs server-side, as a managed service. Every team agent is a managed session in a cloud sandbox (Kata) that the platform sees and coordinates. The desktop is a client. Laptop Docker stays as a single-person offline and development mode. Reverses ADR-H1's "sessions, machines, worktrees and PTYs stay local" for team projects, and phase 8's owner-only broker visibility. |
+| **OD-15** | What teammates see | Owner: *"what is important is that the agents see what the other agents are doing. The user can see who else is working on the repo, and a general summary of what they are doing, files they are touching, but it needs to be in a simple and meaningful way to not clutter the dashboard. The main thing is that the agents know."* | **Agent awareness is the primary surface; human awareness is a calm summary.** Humans see who is working, a one-line summary of each person's work, and the files being touched, without clutter (AGENTIC-UX: change, not state). A teammate's terminal is not part of the default experience. |
+| **OD-16** | Who talks to whom, and who decides | Owner: *"the orchestrators need to be the communicators and work with each other to make sure things progress, and if there are conflicts, they raise them to the users … if an agent is doing something that conflicts with another agent, or something a user doesn't like, the user will message their Orchestrator, that orchestrator will work with the other user's orchestrator to understand why, and they will decide whether to raise that to the user informing them, or asking for a decision."* | **Each user has an Orchestrator agent that runs their sub-agents.** Orchestrators are the ONLY cross-user channel. They negotiate peer to peer through the platform, resolve what they can, and escalate the rest to their humans, either to **inform** or to **ask for a decision**. **No user steers another user's agent.** A user talks only to their own Orchestrator. Accountability and billing stay with each agent's owner, and no subscription is pooled. |
+| **OD-17** | When team mode is planned and built | **Design now, build next** | The research workflow produces the full design and plan now. It is built straight after the current wave, as the product's next phase. The Hub and phase 8 are re-scoped where they touch it. The in-flight streams continue as foundations. |
+
 ## Where the older documents now disagree, and what wins
 
 - `CLAUDE.md` → "Design canvas: adopt `Projects/Paperdesign`": **superseded by OD-11.**
