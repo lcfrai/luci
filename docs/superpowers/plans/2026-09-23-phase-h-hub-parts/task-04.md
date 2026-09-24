@@ -37,7 +37,7 @@ works across both without `hubclient` importing `entraauth`.
 // New returns the HTTP implementation (task 33), NewFake the in-memory one.
 //
 // Imports: hubapi, internal/httpx, internal/ids and the standard library only
-// (plan correction A9; the boundary test in task 08 holds it).
+// (plan correction A9; the boundary test in task 09 holds it).
 package hubclient
 
 import (
