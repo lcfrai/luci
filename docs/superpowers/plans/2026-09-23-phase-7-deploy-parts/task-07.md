@@ -15,7 +15,8 @@ Hub contract §9.3). The watcher is one more, and it is the only thing that poll
 - `control-plane/internal/api/api.go` (modified) — `Deps.CursorSources`, **only if Hub C2 has not added it** (HA7-4)
 - `control-plane/internal/api/sessions.go` (modified, same condition) — the header loop on `GET /v1/sessions`
 - `control-plane/internal/httpx/origin.go` (modified, same condition) — `Access-Control-Expose-Headers` only. The preflight's `corsMethods` and `corsHeaders` are task 05's change (review C1), and this task leaves them alone.
-- `control-plane/cmd/api/config.go`, `main.go` (modified) — three interval variables (plan §6); start `Run`
+- C2's change poller (modified, **only if it has no listener**) — the `OnEvents` field (review M12)
+- `control-plane/cmd/api/config.go`, `main.go` (modified) — three interval variables and the cycle deadline (plan §6); start `Run`; `watcher.HubEvents` on the change poller
 
 #### Interfaces — complete
 
@@ -82,6 +83,16 @@ func (w *Watcher) Snapshot(projectID string) (Snapshot, bool)
 // right after an act; neither makes a request itself.
 func (w *Watcher) Track(projectID string, run string)
 func (w *Watcher) Nudge(projectID string)
+
+// HubEvents is the watcher's side of the Hub change poller (Hub task C2; Hub contract §9.3,
+// :1377-1385 at 6b873d0: the control plane reads /v1/changes every PANACEA_APP_HUB_POLL_INTERVAL,
+// 5 s, while signed in). The poller hands it each page's events; it makes no request. Every event
+// whose kind starts "release." (§8, :1155-1159: reserved, confirmed, abandoned, expired,
+// deployment_joined) and whose projectId is a bound local project's Binding.HubProjectID marks
+// that project's releases due (step 6) and Nudges it — so a teammate's rollback is on the lens
+// within one poll plus one tick (about 8 s), not after HistoryInterval (60 s) (review M12). Other
+// kinds, and a projectId no local project is bound to, are ignored.
+func (w *Watcher) HubEvents(events []hubapi.Event)
 
 // WantBranch asks for a git branch's environment name to be resolved (Reader.EnvironmentFor)
 // and kept in Snapshot.BranchEnvs. Task 08's route calls it for the lens's selected branch; it
@@ -198,7 +209,8 @@ type Snapshot struct {
    — so live this path is taken only by a refusal, never by an unseeded or mangled `env` (that
    gets a 200 with `NOT_RUN` or empty rows).
 6. **Hub releases** — `Releases(HubProjectID, {PanaceaProject: <ref>, Limit: 200})` when the
-   Deployments were re-read, a tracked run changed, or `HistoryInterval` passed.
+   Deployments were re-read, a tracked run changed, a `release.*` event for this Hub project
+   arrived through `HubEvents` since the last read (review M12), or `HistoryInterval` passed.
    `Binding.HubProjectID == ""` → by `Binding.HubMiss` (task 06): `"not_linked"` →
    `ReleasesState "no_hub_project"`; `"key_spelling"` → `"hub_key_spelling"` (HA7-6, review I6);
    `""` → `"unavailable"`, because a configured Hub has not yet answered for this key (plan
@@ -283,6 +295,25 @@ type CursorSource interface {
 The header is set on `GET /v1/sessions` only, never computed there: `Cursor()` reads an atomic.
 `GET /v1/sessions` stays read-only (§10a) — reading a counter writes nothing.
 
+#### The Hub change poller feeds `HubEvents` (review M12)
+
+The Hub already tells the control plane when a release changes: C2's poller reads `/v1/changes`
+every 5 s, and the feed carries every `release.*` event (Hub contract §8, :1155-1159). Phase 7
+adds **no second feed reader** — a second `after=` cursor would double the Hub's load and could
+disagree with the first. The same three branches as the cursor above:
+
+- C2's poller already hands each page to listeners → `main.go` adds `watcher.HubEvents` to them,
+  one line.
+- C2's poller has no listener → this task adds one field to it, `OnEvents []func([]hubapi.Event)`,
+  called after each page is read and before the cursor advances, and says so in the commit as a
+  declared amendment to C2's code (as HA7-4's *meanwhile* does). A listener never blocks the
+  poller: `HubEvents` only marks and Nudges, under the watcher's mutex.
+- C2 has not landed → the watcher still refreshes releases on `HistoryInterval`, and this task
+  adds nothing to the Hub side; C2 wires `HubEvents` when it lands (plan §10.1, row Hub C2).
+
+`hubapi.Event`'s Go field names (`Kind`, `ProjectID`) are assumed from §8's wire (`kind`,
+`projectId`); the compiler will say otherwise.
+
 #### Tests to write first
 
 All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` driven by a test ticker.
@@ -308,6 +339,7 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestJoinOnlyOwnConfirmedRuns` | releases: mine confirmed, mine reserved, a teammate's confirmed, mine rollback — only the first is joined, and only once across three cycles | joining a teammate's release, a reservation, or a rollback (7P-4: a rollback has no deployment of its own) |
 | `TestJoinWaitsForDeployment` | a confirmed release whose run has no deployment yet → no join; next cycle it appears → one join | joining by observation of a run name that does not yet exist |
 | `TestPinsBeyondThePage` | the Hub fake holds 201 confirmed run releases for one Panacea project; `Deployments` holds 25 rows, the oldest, `d-old`, being the pipelineRun of the oldest release (not in the first page of 200) and 24 others with no release → the page read gives `ReleasesMore == true`; cycle 1 makes exactly 20 `Releases` calls with `PipelineRun` set, newest rows first; cycle 2 makes the other 5, one of them `d-old`, and `PinsByRun["d-old"]` is that release, the rest `nil`; cycle 3 makes none. With 199 releases → `ReleasesMore == false` and no `PipelineRun` call ever (review M11) | a pin beyond the 200th release read as *"no brief is recorded"* (P9 inverted); a targeted read per row per cycle; a targeted read made when the page was complete |
+| `TestReleaseEventRefreshesReleases` | two bound projects with `HubProjectID` `pj-a` and `pj-b`, releases read at cycle 1; `HubEvents([{kind:"release.confirmed", projectId:"pj-a"}, {kind:"brief.revised", projectId:"pj-b"}, {kind:"release.abandoned", projectId:"pj-other"}])` at 5 s of fake time → the next tick (3 s later, not 15 s or 60 s) reads `Releases` for `pj-a` only; `HubEvents` itself made no call (the fake's `Calls()` unchanged until the tick) (review M12) | a teammate's rollback shown 60 s late; a `brief.*` event, or another project's, triggering release reads; a listener that reads the Hub on the poller's goroutine |
 | `TestHubDownKeepsReleases` | `hubclient` fake failing → `ReleasesState "unavailable"`, previous releases kept, Panacea data still fresh | the lens's pins vanishing when the Hub blips |
 | `TestOwnerProbe` | `AutoDeploy` → `KindForbidden` ⇒ `"no"`, including a `KindForbidden` whose `Message` is the scope sentence of task 03's `error-scope-owner-403.txt` — a real owner holding a restricted key (review I5); `KindConflict` ⇒ `"yes"`; success ⇒ `"yes"`; `KindUnavailable` ⇒ `"unknown"` | inferring owner from `/me` groups (7P-9) |
 | `TestCursorMonotonic` | the cursor never decreases across 50 random fake cycles, and is unchanged across two identical ones | a cursor that resets when a project unbinds, making the desktop miss a change |
@@ -316,7 +348,9 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 #### Steps
 
 - [ ] Check what Hub C2 has built (`grep -rn "CursorSource\|Panacea-Hub-Cursor"
-  control-plane/internal`) and pick the branch of *"The cursor"* above.
+  control-plane/internal`) and pick the branch of *"The cursor"* above. Then find C2's change
+  poller (`grep -rn "Changes(ctx" control-plane/internal control-plane/cmd`) and pick the branch of
+  *"The Hub change poller feeds `HubEvents`"*.
 - [ ] Tests first; then `watcher.go`, `join.go`; then the cursor wiring.
 - [ ] `config.go`: the three intervals and `PANACEA_APP_DEPLOY_CYCLE_DEADLINE` (plan §6) through
   `parseDuration` (`config.go:317`), each refusing a value under 1 s. `main.go`: `go watcher.Run(ctx)` after `connection.Check`.

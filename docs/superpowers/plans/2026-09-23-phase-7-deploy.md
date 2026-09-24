@@ -789,7 +789,7 @@ cause named.
 | Phase 2 / R2 | the shared `writeAtomic` (ruling R2 lifts it into `statepath`) | 05, 06 | if phase 4 has not lifted it yet, task 05 does the lift, as R2 describes, **with its tests**, because its origin file is the first writer (review M10); task 06 uses it |
 | Hub H0 | `hubapi`, `hubclient.Releases`, `hubclient.Projects`, `NewFake()` (contract §9.2); `hubapi.HostOfRepoKey` (Hub task 01, correction A1, in S0) | 06–10 | nothing phase 7 can compile against; H0 is first in the Hub's order (ADR-H1 §5.9) |
 | Hub C1 | `credstore.Secrets` (§9.1) | 05 | part 05 declares `connection.Secrets` — `Get`, `Put`, `Delete`, the same signatures — which `credstore.Secrets` satisfies, and wires `credstore.Memory()` in tests |
-| Hub C2 | the relay and the cursor mechanism | 07, 13 | HA7-4's *meanwhile* |
+| Hub C2 | the relay and the cursor mechanism; the change poller, whose `release.*` events Nudge the watcher (`Watcher.HubEvents`, part 07, review M12) | 07, 13 | HA7-4's *meanwhile*; for the poller, part 07 adds a listener field to C2's poller as a declared amendment, or, if C2 has not landed, releases refresh on the 60 s history cadence until it does |
 | Hub C3 | the local caller key on every request | 14 | the lens works without it; the §6.6 exposure is C3's to close |
 | Phase 2 task 09; Hub C3 (task 37) | the preflight constants in `origin.go:168-172`, which both already write | 05 | **amended by phase 7:** `PUT` and `Idempotency-Key` are added. Whichever of task 05 and Hub task 37 lands second adds its entry to the list it finds and does not paste its own literal; task 05's membership rows go red if an entry is dropped (review C1) |
 | Phase 3 task 08 | `remote.State{Upstream, Ahead, Behind}`, `Convergence.Tip` | 09 | 7b does not merge |
