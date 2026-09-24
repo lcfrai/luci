@@ -84,6 +84,27 @@ script files (same content) are under `~/.claude/projects/C--Users-au-dev-dmacki
 - The phase 2 ledger is `.superpowers/sdd/2026-09-18-phase-2-backend-and-cockpit/progress.md`, over
   6,500 lines, so grep it. Its tail is the latest state.
 
+## 3b. Queued the moment phase 2's continuation 3 finishes (21:35, 2026-09-24): SECURITY
+
+**X-1 primary half, a Critical in merged phase 2 code** (found by phase 3's plan re-review b02-3;
+phase 3 ruling R4 rule 6). `sessionGitGlobalFile` (`control-plane/internal/api/sessions.go`, about
+479-505, commit `d7e2dea`) mounts, read-only into the sandbox, **any absolute regular host file**
+that `core.excludesFile` or `core.attributesFile` names. It reads those keys with host git **in the
+worktree**, whose `.git/config` the agent can write. So an agent sets
+`core.excludesFile=C:/Users/<u>/.ssh/id_rsa`, and the next create or restart mounts that file into
+the sandbox.
+- **The fix is the root cause:** the host-side resolvers (global files, line endings, identity)
+  read only host-owned config: `--global`/`--system`, run with a working directory outside any
+  repository, never `-C <worktree>`.
+- **Tests, red first:** a repo-local `core.excludesFile` pointing at a secret is NOT mounted; a
+  global one still is; a repo-local `core.autocrlf` does not change what the sandbox gets.
+- Amend the Go contract. Then run a review, then fix and re-review rounds.
+- Run it in the main tree, AFTER continuation 3, so it does not collide in `sessions.go`.
+
+**Phase 3** is paused for ruling R4 (`.claude/worktrees/phase-3/.superpowers/sdd/p3/orchestrator-rulings.md`),
+which workflow `wf_edf4498c-78e` (p3-ruling-r4) applies. When its re-review passes, resume p3's
+build stream with `args {"stream":"p3","cleared":["b02"]}`.
+
 ## 4. After phase 2's fix rounds finish
 
 Still to do for phase 2:
