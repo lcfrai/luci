@@ -79,3 +79,33 @@ plus phase 8's AKS, Helm and Terraform, and phase 6's LiteLLM gateway (OD-21).
 §15 critique map), `00-summary.md`, `docs/PROGRAM.md`, `docs/AGENTIC-UX.md`, `docs/DESIGN-SYSTEM.md`.
 
 ---
+
+## The decisions this plan rests on
+
+The owner decisions in `docs/superpowers/planning/2026-09-23-owner-decisions.md` win over the
+design, and the design wins over every older plan. Where the design and a later decision
+disagree, the decision wins and the task that carries it says so.
+
+| Id | What it fixes for this plan | Where it lands |
+|---|---|---|
+| **OD-14** | Team agents run centrally, as managed Kata sessions Fleet coordinates; the desktop is a client. Reverses ADR-H1's "sessions stay local" for team projects and phase 8's owner-only broker visibility. | 06, 11, 12, 13 |
+| **OD-15** | Agent awareness first; humans get a calm summary (who, one line, files). No teammate terminal by default. | 16, 17, 35, 36 |
+| **OD-16** | One Orchestrator per user is the only cross-user channel; it settles or escalates to **inform** or **decide**. No user steers another's agent. | 18, 19, 27–31 |
+| **OD-17** | Design now, build next; the Hub, phase 8 and phase 3 are re-scoped where team mode touches them. In-flight streams stay foundations. | every delta task |
+| **OD-18** | Azure. Phase 8 resumes unchanged in shape. | 11–15 |
+| **OD-19** | Inference through the org gateway, Global (Anthropic, default) or AU (Bedrock Sydney), a scoped per-session token per sandbox, never an org key, never a personal subscription. | 14, 15, 20 |
+| **OD-20** | The desktop is the portal; local mode stays; the cloud must track the latest Claude Code CLI. | 34, 44 |
+| **OD-21** | The gateway is **LiteLLM**. It resolves the design's Q1: this plan calls phase 6's virtual-key API and builds no gateway. | 20 |
+| **OD-22** | A **read-only, per-project fetch credential**, used only for fetches; every push uses a signed-in person's own credential. | 04, 15, 24 |
+| **OD-23** | **The mechanism, not the policy.** The control plane supplies Claude Code managed settings per org, and per project where needed, into every cloud sandbox at session start, versioned and audited. A minimal default ships; no InfoSec policy document is drafted. It **supersedes** the design's "product `managed-settings.json` submitted to KPMG InfoSec" (`05-design.md` §2.5, §11.2, Q12) as a TM1 gate. | 07, 08, 09, 13 |
+| **OD-24** | Budgets on by default; escalation defaults only tighten; opening prompts private; a data class **set at project creation**, updatable, driving AU vs Global and the deploy scan set. | 03, 20, 29, 31 |
+| **OD-25** | Phase W runs alongside; team mode's critical path is untouched by it. Nothing here waits on W. | — |
+| **OD-27** | Proof per criterion, no predictions: no percentages, progress bars, ETAs or "N of M" in any team surface. | 35–37 |
+| **OD-28** | Ids, paths and times in Commit Mono; sans Segoe UI Variable. | 35–37 |
+| **OD-2, OD-4** | One clone per worktree; Azure DevOps and GitHub both, so the fetch credential has two providers. | 04, 24 |
+| **OD-3, OD-6** | Durable team records live in the Hub; the desktop signs in with Entra PKCE. | 01–05, 34 |
+| **OD-8** | No component derives meaning from PTY bytes; agent CLIs are never modified, wrapped or parsed. The only PTY write Fleet makes is a fixed template (task 23). | 07, 18, 23 |
+| **OD-11** | Clean room: no canvas or Linear source is opened or copied. Phase 5's artboard lease is out of scope here. | — |
+| **OD-13** | No Panacea source is copied; patterns only. | 11, 14 |
+
+---
