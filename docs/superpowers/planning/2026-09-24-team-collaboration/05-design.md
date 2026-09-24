@@ -225,7 +225,8 @@ is bounded, hygiene-checked (§7.2) and carries its author class, so every reade
 | **escalation** | `es-…` | Hub | owner (a human); from orchestrator; **kind `inform`·`decide`**; thread; question ≤ 300 `text·A`; up to 4 options, each with its consequence; default and deadline; answer `text·H`; `answeredAt` | the owner's Orchestrator; answered only by that human |
 | **note** | `nt-…` | Hub, immutable | author (from token); target project, task or person; text ≤ 1,000 `text·H` | any member, as themselves |
 | **presence** | per user | Fleet, ephemeral | online in the cockpit; project open | the user's cockpit |
-| **team policy** | on the project | Hub | allowed inference routes; required account class (`04` §3.3); escalation defaults (§6.5); message budgets (§6.6) | a team `admin` |
+| **team policy** | on the project | Hub | data classification (`AU only` forces the AU route, §2.5); default route; quotas per member and per project; Orchestrator turn budget; escalation defaults (§6.5); message budgets (§6.6) | a team `admin` |
+| **usage** | per call | the gateway's own store; daily roll-ups to the Hub | tokens and cost by `tid`, `oid`, team, project, agent, route | the gateway, metered. No agent or client writes it |
 
 Five rules apply to every row:
 
@@ -249,12 +250,13 @@ Five rules apply to every row:
 ### 4.1 What an Orchestrator is
 
 - **An unmodified Claude Code session** (or another supported harness), launched by Fleet in its own
-  Kata sandbox, on its **owner's** subscription. There is one per user per team project. It is
-  created on the user's first team launch, so a user never has to set one up.
+  Kata sandbox. Its inference goes through the gateway on its own session token, attributed to its
+  **owner** (§2.5). There is one per user per team project. It is created on the user's first team
+  launch, so a user never has to set one up.
 - **It does not write code.** Its sandbox class, `orchestrator`, mounts a **read-only** view of the
   project at the integration head (refreshed by `machined`), has no worktree to write, holds no git
-  credential, and has egress only to the model endpoint (a proposed tightening of P8-D12 for this
-  class; §11.2).
+  credential, and has egress only to the inference gateway (a proposed tightening of P8-D12 for
+  this class; §11.2).
 - **Everything it does goes through `panacea` verbs** (§5.2): create and update its owner's tasks,
   spawn, direct and stop its owner's workers, request and yield leases for them, talk to other
   orchestrators, and escalate to its human. Fleet enforces the verb set per sandbox class. The
@@ -272,7 +274,7 @@ arrives only as the output of the `panacea inbox` call (§7.1).
 
 | Transport for a turn | How | Status |
 |---|---|---|
-| **TM1: a headless turn** | `claude -p --resume <session>` with the template as the prompt; one turn at a time per Orchestrator | a resumed `-p` session was observed re-reading `CLAUDE.md` from disk (`03-techniques.md:120-121`, Claude Code 2.1.273). Headless use on a user's own subscription: terms **UNVERIFIED** (`04` §10) |
+| **TM1: a headless turn** | `claude -p --resume <session>` with the template as the prompt; one turn at a time per Orchestrator | a resumed `-p` session was observed re-reading `CLAUDE.md` from disk (`03-techniques.md:120-121`, Claude Code 2.1.273). Headless turns run on the org's API through the gateway, so `04` §10's consumer-terms question about headless use no longer arises (OD-19) |
 | **TM2: a live session** | a long-lived session; Fleet posts the template through the inbox socket, which *"starts a new turn"* when idle (`03` §1.3) | canary C4 open (`03` §7) |
 
 **Fleet never parses the Orchestrator's output for meaning** (OD-8). Its effects are its `panacea`
@@ -286,7 +288,7 @@ exit. Events queue meanwhile and are shown as waiting.
 ### 4.3 Workers
 
 A **worker** is phase 2's session unchanged: an interactive harness in its own sandbox, on its own
-worktree clone and lane (OD-2), on its owner's subscription. Every worker has a parent Orchestrator.
+worktree clone and lane (OD-2), with its inference attributed to its owner. Every worker has a parent Orchestrator.
 The user can still launch a worker straight from the cockpit, and it is attached to their
 Orchestrator. **A worker cannot talk across users.** Its verbs are: read the team view, check a path
 before editing it, request a lease, and report to its own Orchestrator (`done`, `blocked`, or an
@@ -311,10 +313,17 @@ before editing it, request a lease, and report to its own Orchestrator (`done`, 
 
 ### 4.4 Cost and accountability
 
-Every Orchestrator turn and every worker turn spends its **owner's** subscription (P4). Each
-Orchestrator has a turn budget (default 30 turns an hour, set by its owner), and when it is spent
-events queue and the owner is told. Every record an Orchestrator writes names its owner, so
-accountability for what an agent agreed to rests with the person whose agent agreed.
+Every Orchestrator turn and every worker turn is metered at the gateway against its **owner's**
+quota, tagged with the team and project (P4, §2.5). Nobody's agent spends against a teammate's
+quota. Each Orchestrator also has a turn budget (default 30 turns an hour, set by its owner within
+the team policy), and when it is spent events queue and the owner is told. Every record an
+Orchestrator writes names its owner, so accountability for what an agent agreed to rests with the
+person whose agent agreed.
+
+**The coordination overhead is visible.** The cockpit shows each person's spend split into
+*workers* and *coordination* (Orchestrator turns plus nudges), so the owner can see what team mode
+costs. **UNVERIFIED:** the size of that overhead. G9's scripted two-Orchestrator run (§7.1) must
+measure it before TM1 ships; a target of under 10% of a member's spend is proposed.
 
 ## 5. C4: how every agent learns what the others are doing
 
@@ -398,7 +407,8 @@ check`."*) and the facts arrive through the pull. This follows `03`'s strongest 
 telling an agent about a concurrent change that just landed recovered 82% of the runs parallel work
 had broken (`03` §5.2, arXiv 2609.25396, abstract only). A push never carries peer text, so the
 inbox socket's weaker trust rules never apply to a teammate's words. Fleet sends at most one nudge
-per worker per 3 minutes, because each delivered message is billed like a prompt (`03` §1.3).
+per worker per 3 minutes, because each delivered message costs a turn against the worker's owner's
+quota (`03` §1.3).
 
 ### 5.5 Channels considered and rejected
 
@@ -503,7 +513,7 @@ or reverted. Pausing costs time, never work.
 
 ### 6.6 Budgets and loops
 
-Every message a peer sends is read on the receiver's subscription (P4). So Fleet enforces: at most
+Every message a peer sends is read against the receiver's quota (P4). So Fleet enforces: at most
 20 messages an hour between any two orchestrators; the round cap in §6.4; delivery coalesced into
 60-second batches; and a thread closes as `escalated` after two rounds with no new typed content.
 A thread cannot ping-pong forever, and no teammate can drain another's quota.
@@ -542,7 +552,7 @@ worker → code under Dylan's session. The fences below cut it at four points. N
 | **G3** | **Character hygiene** before anything is stored: C0/C1 controls, ANSI escapes, bidi overrides, the Unicode tag block U+E0000–U+E007F, and secret-shaped text are refused | F3 | hidden instructions; escape attacks on the cockpit's terminal renderer |
 | **G4** | **Quoted delivery.** Peer text reaches an agent only as `panacea` tool output, inside a fixed envelope that names its author as an agent. It never enters `CLAUDE.md`, and a nudge never carries it | F4, F5 | the instruction channel |
 | **G5** | **Fewest readers.** Peer free text reaches only orchestrators. A worker reads exactly two peer `text·A` fields, the task title and the why-line, 340 characters at most (§5.1) | new | most of the surface |
-| **G6** | **Capability-bounded orchestrators**: no writable tree, no git, no credential, egress to the model endpoint only, and verbs over their own owner's things only (§4.1) | new | a hijacked Orchestrator's reach |
+| **G6** | **Capability-bounded orchestrators**: no writable tree, no git, no credential but its session's gateway token, egress to the inference gateway only, and verbs over their own owner's things only (§4.1) | new | a hijacked Orchestrator's reach |
 | **G7** | **The taint rule** (§7.2) | new | laundering peer text into a worker's orders |
 | **G8** | **The blast radius stays small**: no git credential in any sandbox; push and PR are human actions; the land is reviewed | F7 | a successful injection still cannot push |
 | **G9** | **Injection tests in CI**: `04` F8's corpus, plus a scripted two-Orchestrator run in which hostile peer messages must produce **zero** out-of-scope directives without a `decide` | F8 | regressions |
