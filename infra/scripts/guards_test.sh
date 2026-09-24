@@ -624,10 +624,16 @@ EOF
 
 # A read that fails must not be taken for "nothing found" (review I1): with an awk that failed,
 # seven rules printed ok having checked nothing. The tree breaks G2, so a fail-open run shows.
-# stub <name> <status> — a command that prints to stderr only and exits <status>.
+# stub <name> <status> [<real>] — a command that exits <status>. Without <real> it prints to
+# stderr only; with <real> it first runs <real> with its arguments, so its output is complete
+# and only the status says it failed.
 stub() {
   mkdir -p "$STUB"
-  printf '#!/bin/sh\necho "%s: stub failure" >&2\nexit %s\n' "$1" "$2" > "$STUB/$1"
+  if [ -n "${3:-}" ]; then
+    printf '#!/bin/sh\n"%s" "$@"\nexit %s\n' "$3" "$2" > "$STUB/$1"
+  else
+    printf '#!/bin/sh\necho "%s: stub failure" >&2\nexit %s\n' "$1" "$2" > "$STUB/$1"
+  fi
   chmod +x "$STUB/$1"
 }
 # kills: awk's exit status unread (a scanner failure reported as ok); the inventory's unread
@@ -648,6 +654,17 @@ EOF
   stub find 1
   guards
   expect_scan_failed "guards: inventory failed (find | sort exit 1)"
+  rm -f "$STUB/find"
+  # Output that looks complete, with a status that says the read failed, is still a failure.
+  # kills: sort's status ignored (only find's read); awk's failure ignored whenever awk
+  # printed something (fix round 1's predicted survivors S1 and S2)
+  stub sort 1 "$(command -v sort)"
+  guards
+  expect_scan_failed "guards: inventory failed (find | sort exit 1)"
+  rm -f "$STUB/sort"
+  stub awk 2 "$(command -v awk)"
+  guards
+  expect_scan_failed "guards: scanner failed (awk exit 2)"
 }
 
 # ---------------------------------------------------------------------------------------------
