@@ -654,4 +654,73 @@ head, read-only. Every string passes task 02 before it leaves Fleet. Tests: a wo
 contains no `text·A` field, for every fixture; `check` on an unleased path returns empty, not an
 error; OD-24's private opening prompt never appears anywhere.
 
+**23 — Lease engine.** `cp/internal/fleet/leases` and `verbs/lease.go`: modes `intent`, `hold`,
+`bulk`; states of §3.3; `Request(holder, globs, mode)` validates every glob (task 02) and refuses a
+glob matching more than 10% of tracked files at the integration head (the tree list from `machined`,
+task 22's path) with `breadth_exceeded`; overlap with any live lease or observed edit is returned
+as a typed overlap for the forecaster (task 25). `rightofway.go`: the earlier **and narrower** lease
+holds; between an earlier broad and a later narrow lease, the narrower wins on the paths it names;
+`bulk` never has right of way; the *contested worker* is the one whose edit to the path is newer,
+else the one without right of way (§6.3 items 5–6). Every lease is released when its task or agent
+ends; each state change goes to the Hub (task 06) through the outbox. Advisory only: Fleet never
+refuses a write (P7). Tests: one per right-of-way rule, each with the mutant that flips it; `**`
+is refused; ending a task releases its leases.
+
+**24 — Task, worker and report verbs.** `verbs/{task.go,worker.go,report.go}`: `task create|update
+|abandon` for the caller's own owner only, with title (`text·H` if relayed from the owner's own
+message, else `text·A`), `briefRef` (a brief section id the Hub resolves) and why-line, and
+intended scope (≤ 20 globs); **creating a task takes `intent` leases on its scope at once**, so an
+overlap raises a conflict before any worker exists (§6.3 item 1, §8.1). `worker spawn` launches a
+worker under the caller's own owner and task through task 20; `worker stop` stops only the caller's
+own. `report done|blocked|assumed` records a worker's report as `text·A` for its own Orchestrator's
+queue (task 26); `blocked --on human` is the only source of `waitingOn: human` besides the hook's
+`Notification` (§3.3 agent row). Tests: an Orchestrator cannot create a task for another owner; a
+task whose scope overlaps a teammate's intent produces the overlap before `worker spawn` is called.
+
+**25 — Tier-P forecaster; conflict to thread.** `cp/internal/fleet/forecast/tierp.go`: a set
+intersection over intent globs, hold paths and (from task 35) observed edits and committed paths,
+per pair of agents with different owners. A new overlap raises `cf-…` (tier `P`, paths, basis
+shas, state `raised`) in the Hub and opens `th-…` between the two Orchestrators with the typed
+conflict attached (both tasks, both brief sections), and puts one thread event on each
+Orchestrator's queue **with no coalescing** (§4.2, §6.4). A pair already in an open thread raises
+no second conflict. Tests: two intents on `auth/**` and `auth/session.go` raise one conflict and
+one thread; same-owner overlap raises nothing; the thread event reaches both queues in one call.
+
+**26 — The turn queue, origin and template.** `cp/internal/fleet/turns`: one queue per
+Orchestrator in Fleet's Postgres; events of §4.2; thread events (peer message, conflict opened) are
+deliverable at once, every other kind coalesces for up to 60 s; one turn at a time per
+Orchestrator (task 10's `ClaimTurn`); a batch's **origin** is `human` if it holds a message from
+the Orchestrator's own human, else `fleet` (§7.2). The turn input is a fixed product template
+(*"3 team events. Run `panacea inbox` to read them."*) and never carries event text. `turn.begin`
+goes down the control stream (ST.5); `turn.end` comes back with the turn's token use; each turn
+writes an `ot-…` audit event (origin, event ids, issued ids, tokens). Tests: a peer event is not
+delayed by coalescing; a human message in a batch makes the origin `human`; the template contains
+no byte of any event.
+
+**27 — The `panacea-orchestrator` runner and the pod-kill test.** `sbx/cmd/panacea-orchestrator`
+and `sbx/internal/runner`: the orchestrator class's one PTY command. It blocks on `turn.begin`,
+then runs the harness as a **child**: the first turn `claude -p --session-id <fixed uuid> …`, every
+later turn `claude -p --resume <fixed uuid> …`, never `--fork-session` (phase 2's Resume forks at
+`cp/internal/harness/argv.go:91-100`; this path must not reuse it). The working directory is an
+empty folder so no project settings or `CLAUDE.md` load (a `--setting-sources`-style flag is
+**UNVERIFIED** at the pinned version; task 33 checks). The transcript lives in the pod's `emptyDir`
+as a cache. For a human-origin turn the child's stdout is kept **verbatim and bounded** as the
+turn's `text·A` reply; nothing in the runner or Fleet reads fields out of it (OD-8), so the part
+picks `--output-format text`. It sends `turn.end` and blocks again. The pod-kill test (on a fake
+broker and `memstore`) kills the pod between two turns, lets Fleet relaunch it, and checks that no
+lease, thread or pending directive is lost and that the next turn starts a new session. The exact
+flags are **UNVERIFIED** at the pinned CLI version; the OD-8 canary covers them.
+
+**28 — Protocol messages.** `cp/internal/fleet/protocol` and `verbs/{peer.go,inbox.go}`: `peer`
+kinds `ask`, `answer`, `inform`, `propose`, `accept`, `reject`, `counter`, `withdraw` with the typed
+fields and text limits of §6.2, schema-checked (G2) and cleaned (G3) before storage; `inbox`
+returns unread messages in a fixed envelope naming each author as an agent and its owner (G4).
+**Fleet answers every `ask` itself, at once, from typed card fields** (task, brief section, status,
+files, leases) as a template; a free-text `answer` is accepted only under the sender's human's
+standing permission and lands in that human's SINCE YOU LAST LOOKED. Limits: 3 rounds per side, a
+30-minute deadline (team policy may lengthen, never shorten), 20 messages an hour per pair, and a
+thread closes `escalated` after two rounds with no new typed content (§6.6). Tests: one per limit;
+an `ask` gets a Fleet answer with no Orchestrator turn; a free-text `answer` without permission is
+refused.
+
 ---
