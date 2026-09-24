@@ -303,7 +303,7 @@ without a cycle. Phase 4 imports only the Hub's
 
 | Path | Responsibility | Task |
 |---|---|---|
-| `modelclient/client.go` + test | one `POST /v1/messages`, no SDK; `Completer`, the seam phase 6 replaces | 02 |
+| `modelclient/client.go` + `client_test.go` + `timeout_internal_test.go` | one `POST /v1/messages`, no SDK, no default endpoint (`ErrNoBaseURL`); `Completer`, the seam phase 6 replaces | 02 |
 | `discover/content.go` + test | `Content`, `Question`, `Answer`, `Criterion`, `Author`, `BaseQuestions()`, `Step`, `Recompute` | 03 |
 | `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes; the marker rule (`ErrReservedText`, S3); the length caps (`ErrTooLong`, S4); stored text holds only LF (rule 14, b10 re-review M-5) | 03 |
 | `discover/assist.go` + test | `ProposeFollowUp` over a `Completer`, degrading to nothing | 04 |
