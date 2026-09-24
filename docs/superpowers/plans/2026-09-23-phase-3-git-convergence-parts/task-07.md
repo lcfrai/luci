@@ -11,7 +11,7 @@ merge base, and the paths changed and not committed, read from the clone without
 Nothing here is enforced and nothing asks an agent anything (brief A9). These are readings.
 
 **Files:**
-- `control-plane/internal/converge/sync.go` — `Syncer`, `SyncState`, `LaneRef` (new)
+- `control-plane/internal/converge/sync.go` — `Syncer`, `SyncState`, `LaneRef`, `CloneRefresher` (new)
 - `control-plane/internal/converge/observe.go` — `LaneObservation`, `Commit`, `PathChange`, `Observe` (new)
 - `control-plane/internal/converge/parse.go` — the `-z` parsers for `log`, `diff --name-status`, `status --porcelain=v2`, and `ParseMergeTree`, the one `merge-tree -z` parser tasks 08, 09, 10 and 16 call (review I2) (new)
 - `control-plane/internal/converge/*_test.go` (new)
@@ -55,15 +55,47 @@ type Syncer struct {
 	Interval time.Duration // PANACEA_APP_LANE_SYNC_INTERVAL; default 5s, minimum 1s
 	Log      *slog.Logger
 	Now      func() time.Time
-	// unexported: per-lane mutexes, the state map
+	// Locks and Refresher drive the sweep's tip-change refresh (review I4; Run, below). Locks is
+	// GitDeps.Locks, task 04's one value. Refresher is task 09's *Lander, set by task 09's
+	// gitdeps.go block once the Lander exists; until then (tasks 07 and 08) Run skips the
+	// refresh and logs that once at warn. The interface is here because task 09 comes later.
+	Locks     *gitx.Locks
+	Refresher CloneRefresher
+	// unexported: per-lane mutexes, the state map, and told: worktree id → the branch tip that
+	// clone was last sent (Told, below). told is memory only, so a restarted control plane
+	// refreshes every clone once, on its first sweep.
 }
+
+// CloneRefresher is task 09's Lander.RefreshClones. The caller holds Locks.Lock.
+type CloneRefresher interface {
+	RefreshClones(ctx context.Context, projectPath, branch string) (refreshed []string, errs map[string]string)
+}
+
+// Told records that worktreeID's clone was sent refs/heads/<branch> at tip. RefreshClones calls
+// it for each clone it refreshed, with the tip it read BEFORE its fetches: when the branch moves
+// in between, told is older than the clone, the next sweep refreshes once more, and a clone is
+// never recorded as fresher than it is.
+func (s *Syncer) Told(worktreeID, tip string)
 
 const (
 	DefaultSyncInterval = 5 * time.Second
 	MinSyncInterval     = 1 * time.Second
 )
 
-// Run sweeps every lane each Interval until ctx is done. A sweep never overlaps another.
+// Run sweeps every lane each Interval until ctx is done. A sweep never overlaps another. After
+// it syncs the lanes, the sweep refreshes stale clones (review I4). For each (project, branch)
+// that has lanes:
+//  a. tip = rev-parse --verify --quiet refs/heads/<branch> in the PROJECT (Read, Scope Project);
+//     exit 1 (the branch is gone) → skip, since task 11's branch verbs handle that;
+//  b. when every lane of the branch has told == tip, nothing more;
+//  c. else unlock, err := Locks.Lock(lctx, projectID), lctx = ctx bounded by one Interval: a land
+//     or a push holding the lock refreshes on its own or is retried next sweep, and one busy
+//     project never stalls the sweep for the others. Then Refresher.RefreshClones(ctx, path,
+//     branch), unlock(). Each error is logged with the worktree id and git's sentence; that
+//     clone's told stays as it was, so the next sweep retries it.
+// This is what catches a branch the cockpit did not move: a user's commit or `git pull` in a
+// terminal checkout, or a `git reset` or `commit --amend` there. Without it, a resolve prompt (task 19) tells an
+// agent to merge an origin/<branch> the branch has left behind.
 func (s *Syncer) Run(ctx context.Context)
 
 // SyncLane syncs one lane now, and is what a land (task 09) and a removal (task 11) call so
@@ -186,6 +218,10 @@ an agent would make them. `Script` runners only where the claim is "this call is
 | `TestSyncClearsTheErrorOnSuccess` | recreate the branch in the clone → next sweep clears `Err` | a stale error forever on screen |
 | `TestSyncLaneSerialisesPerLane` | two concurrent `SyncLane`s on one lane under `-race` → one fetch | two fetches racing on one ref lock |
 | `TestRunStopsWhenTheContextEnds` | cancel → `Run` returns within one interval | a goroutine that outlives shutdown |
+| `TestSweepAsksForARefreshWhenTheTipMoves` (review I4) | a recording `CloneRefresher` that calls `Told` for each lane; a commit on the project's `refs/heads/<b>` made with plain git, as a terminal would → the next sweep calls `RefreshClones(path, b)` once, holding `Locks` (the test's `Lock` on the project blocks until the sweep releases) | a sweep that never looks at the branch, so a user's own commit reaches no clone |
+| `TestSweepDoesNotRefreshAnUnmovedTip` (review I4) | two more sweeps with the tip unchanged → no further `RefreshClones` call, and one project `rev-parse` per sweep for the branch (Script runner) | a fetch into every clone every five seconds |
+| `TestSweepRetriesAFailedRefresh` (review I4) | the refresher returns an error for lane B and calls `Told` for A only → the next sweep calls it again; once B succeeds, no further call | a clone marked fresh after its fetch failed |
+| `TestSweepSkipsABusyProjectAndSyncsTheRest` (review I4) | the test holds project P's lock; lanes of P and of Q → Q's lanes sync and Q refreshes within one sweep, P's refresh is skipped, then made the sweep after the lock is released | one long push stalling every lane on the machine |
 | `TestObserveRunsNothingTheCloneNames` | task-02 §HGH end to end, red first against an unhardened `Exec`: clone config `core.fsmonitor=<marker script>` → `Observe` writes no marker; then `filter.x.clean=<marker script>` with `.gitattributes` `* filter=x` and a modified file → no marker, and `ReadError` names `clone_config_untrusted` and `filter.x.clean` | an observer built on an `Exec` without §HGH |
 | `TestObserveListsCommitsTheBranchLacks` | two lane commits, one carrying `Panacea-Session: s-1` → `Commits` newest first, `Sessions` `[s-1]` and `[]` | reading the branch's own commits as the lane's |
 | `TestObserveChangedIsSinceTheMergeBase` | the branch changes `a.txt` after the fork, the lane changes `b.txt` → `Changed` is `[b.txt]` only | `diff branch lane`, which reports the branch's work reversed |
@@ -212,7 +248,7 @@ an agent would make them. `Script` runners only where the claim is "this call is
 #### Acceptance
 
 ```
-go test ./control-plane/internal/converge/ -race -count=1   → PASS (18 tests)
+go test ./control-plane/internal/converge/ -race -count=1   → PASS (25 tests)
 go test ./control-plane/... -race -count=1                  → PASS
 ```
 
@@ -221,6 +257,10 @@ go test ./control-plane/... -race -count=1                  → PASS
 - No route serves an observation yet; task 08 does.
 - A lane's view is up to one sync interval old between sweeps; every write that depends on it
   (land, remove) calls `SyncLane` first.
+- A clone's `origin/<branch>` is likewise up to one interval behind a branch move the cockpit did
+  not make (review I4). The cockpit's own moves refresh at once (tasks 09, 10), and
+  `ResolveDialog` refreshes before it starts a session (task 19), so no resolve prompt names a
+  stale ref. Until task 09 sets `Refresher`, the sweep refreshes nothing.
 - Unreachable lane commits (a lane an agent rewrote) are left for `git gc` in the project
   repository. Task 15 pins the commits evidence names, and task 11 archives an unlanded lane
   before removing it; nothing else is kept.
