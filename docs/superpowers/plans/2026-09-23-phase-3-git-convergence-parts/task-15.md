@@ -5,8 +5,9 @@ states, never a branch id. Nothing on file said what evidence **is**; 3-D5 settl
 per criterion, at the commit in front of them, records a verdict and a required *because*.** A
 recorded human judgement is a fact — who, when, at which commit, why — where an LLM's verdict would
 be a claim (`AGENTIC-UX.md:202`). The evaluator is then mechanical (survey §8.4): the state of a
-criterion at commit C is decided by the evidence whose commit is C or an ancestor of C, the
-descendant superseding its ancestor, disagreement being `contested`, nothing being `open`. That
+criterion at commit C is decided by the evidence whose commit is C or an ancestor of C and was not
+carried by a land that a revert in C's ancestry took back (review I9), the descendant superseding
+its ancestor, disagreement being `contested`, nothing being `open`. That
 makes the three surfaces of contract §2.3 agree by construction — the Develop chip at a worktree
 head, the Merge view at the branch head, the Deploy manifest at `Deployment.Commit` — and it gives
 the Merge queue "landing settles criterion 3" from reachability alone.
@@ -88,7 +89,7 @@ type State struct {
 	CriterionID     string   `json:"criterionId"`
 	CriterionDigest string   `json:"criterionDigest"`
 	State           string   `json:"state"`           // "open" | "settled" | "contested"
-	Because         []string `json:"because"`         // the deciding records' becauses; [] only when open
+	Because         []string `json:"because"`         // the deciding records' becauses; open: [] with no evidence, or the one revert sentence (States)
 	Evidence        []string `json:"evidence"`        // their ids
 	RecordedAgainst []string `json:"recordedAgainst"` // their brief keys, verbatim, for the UI to resolve
 	Commits         []string `json:"commits"`         // their commits
@@ -105,10 +106,29 @@ type Evaluator struct {
 //   records = Store.ByDigest(repo, digests)
 //   reachable(r) = merge-base --is-ancestor r.Commit subject   (gitx.Read, OKExit 1; an object
 //                  the repository does not have — a teammate's unfetched commit — is not reachable)
-//   per digest: keep reachable records not a proper ancestor of another reachable record's commit;
-//   none → open; one verdict → that verdict; both verdicts → contested.
-// It never takes a branch id (contract §2.3). merge-base runs in the project with Scope Project
-// (task-02 §HGH).
+//   reverts = log --format=%H%x1f<gitx.TrailerFormat(gitx.TrailerReverts)> subject
+//             (every ancestor of subject, not first-parent only; lines with an empty value dropped)
+//   retired(r) = some M in reverts has: merge-base --is-ancestor r.Commit M (exit 0) and
+//                merge-base --is-ancestor r.Commit M^1 (exit 1) — r lies in M^1..M, the land task
+//                10's revert took back (its merge-tree uses --merge-base=M against M^1, so exactly
+//                M and the lane commits M brought in are undone); an M the repository lacks
+//                retires nothing (review I9)
+//   per digest: drop retired records, then keep reachable records not a proper ancestor of
+//   another kept record's commit; none kept and none retired → open, because [];
+//   none kept, some retired → open, because ["the land that carried this evidence was reverted"],
+//   Evidence/RecordedAgainst/Commits naming the retired records; one verdict → that verdict;
+//   both verdicts → contested.
+// Retiring before pruning is deliberate: an older record at a commit the revert did not take
+// back (an ancestor of M^1) decides again, because the revert restored the code it judged.
+// The reverts walk is the whole ancestry, not first-parent: a lane that merged origin/<branch>
+// after the revert (task 19's resolve prompt) carries the revert off its first-parent line, and a
+// first-parent walk would leave the Develop chip at that lane's head settled. Any ancestor's
+// Panacea-Reverts trailer counts, an agent's forged one included; the only effect of a forgery is
+// a criterion reading open, never settled, so this errs the safe way. Re-landing reverted work
+// takes new commits, and they need new evidence. The walk is one git log per States call, run
+// only when some record is reachable.
+// It never takes a branch id (contract §2.3). merge-base and log run in the project with Scope
+// Project (task-02 §HGH).
 func (e *Evaluator) States(ctx context.Context, repo, projectPath, subject string, criteria []briefref.Criterion) ([]State, error)
 
 // Settles returns the ids of criteria whose state is not settled at before and is settled at
@@ -167,6 +187,11 @@ Writes nothing."*
 | `TestStatesMatchOnTheDigestNotTheID` | a record for id `done:2` digest d; the criterion now `done:3` with digest d → settled, `recordedAgainst` the old key | evidence lost when a criterion is inserted above (R14) |
 | `TestStatesIgnoreAChangedCriterion` | same id, a different digest → open | evidence attaching to a rewritten sentence |
 | `TestStatesUnknownCommitIsUnreachable` | a record whose commit the repository lacks → open, no error | a 500 for a teammate's unfetched commit |
+| `TestStatesARevertedLandUnsettles` (review I9) | real git: lane commit L1 records settled; land M (parents `[T, L1]`); a revert R of M built the way task 10 builds one (`commit-tree` of M^1's tree, one parent M, message from `gitx.Message` carrying `Panacea-Reverts: <M>`), so task 15 keeps its dependencies 07 and 09 and imports nothing from task 10; subject R → `open`, `because` exactly `["the land that carried this evidence was reverted"]`, `evidence` the L1 record; subject M (before R) → settled | a revert that keeps its land's commits as ancestors reading as done (contract §2.3, S3-P7.5) |
+| `TestStatesARevertRestoresTheOlderVerdict` | the lane cloned at T (the tip before M), so T is an ancestor of L1; contested recorded at T, settled at L1, M then R; subject R → `contested`, T's because | retiring after pruning, so the older record stays hidden behind a retired one |
+| `TestStatesARecordAtTheLandItselfIsRetired` | settled recorded at M, then R; subject R → open with the revert because | the range taken as `M^1..M^2`, missing a record made at the merge |
+| `TestStatesARevertOffTheFirstParentLineCounts` | lane B merges the branch after R (R on B's second-parent side); subject B's head → open | a first-parent walk leaving the Develop chip settled |
+| `TestStatesARevertOfAnotherLandRetiresNothing` | lands A and B, R reverts B only; settled at A's lane commit; subject R → settled | a revert unsettling every land on the branch |
 | `TestSettlesOnlyNewlySettled` | a criterion settled before and after → not listed; open before, settled after → listed | "landing settles" claims for criteria already settled |
 | `TestPostPinsTheCommit` | after POST, `refs/panacea/evidence/<id>` names the commit; the commit survives `git gc --prune=now` after its lane is rewritten | evidence pointing at a collected object |
 | `TestPostRefusesACriterionTheBriefLacks` | a pair not in the resolver's revision → `no_such_criterion` | evidence about a sentence no brief contained |
