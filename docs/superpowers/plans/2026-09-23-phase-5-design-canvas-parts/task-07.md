@@ -471,10 +471,13 @@ func CheckDeclaration(property, value string) (kept bool, drop *Drop)
 
 1. Add `golang.org/x/net v0.26.0` to `canvas/go.mod`. **First** copy x/net v0.26.0's two lines
    verbatim from `control-plane/go.sum` (`:133-134`, the `h1:` line and the `/go.mod` line) into a
-   new `canvas/go.sum` (review M21): `go mod tidy` with `GOPROXY=off` still asks the checksum
-   database about a `go.sum` line it has to add, and that is a network call the cache cannot answer
-   (this device has `GOSUMDB=off`, verified 2026-09-24, so the failure shows only on a machine with
-   the default). Then run `go mod tidy` inside `canvas/` with `GOFLAGS=-mod=mod GOPROXY=off` so it
+   new `canvas/go.sum` (review M21): `go mod tidy` with `GOPROXY=off` may need the checksum
+   database for a `go.sum` line it has to add, when the module cache's sumdb lookup cache lacks
+   `x/net@v0.26.0`; copying the two lines removes that dependence. Verified 2026-09-24 on this
+   device (re-review RR-M21-1, scratch module, Go 1.26.2, `GOSUMDB=sum.golang.org GOPROXY=off`):
+   with the lines copied, tidy exits 0 and leaves `go.sum` as exactly those two lines; with no
+   `go.sum` it also exits 0, because `cache/download/sumdb/sum.golang.org/lookup/golang.org/x/net@v0.26.0`
+   is cached here. Not tested: a machine whose sumdb cache is empty. Then run `go mod tidy` inside `canvas/` with `GOFLAGS=-mod=mod GOPROXY=off` so it
    resolves from the module cache (G1). Never set `GOSUMDB=off`, `GONOSUMDB` or `GOINSECURE` to get
    past it. Afterwards every line of `canvas/go.sum` must appear verbatim in `control-plane/go.sum`;
    expected is exactly the two copied lines (x/net's own requirements are pruned: `control-plane`,

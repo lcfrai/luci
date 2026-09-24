@@ -1644,3 +1644,44 @@ outside b09.
 deadlocks if `DetachAll` fails the requests while holding the lock that `Render` takes. So the
 comment at `task-13.md:137-141` states the lock boundary too: remove in one critical section,
 release the lock, then fail the requests.
+
+### Fix batch b10, round 2 (2026-09-24) — re-review `plan-rereview-b10-1.md`
+
+Round 1's M7 and M18 were resolved and are untouched. Line numbers are the files' after this
+commit.
+
+| Issue | The change | Where |
+|---|---|---|
+| RR-M16-1 (Important) | `JSX` now states one rule for **every** string it writes, not only doc text. A JS string context (every inline style value) is always `CanonicalJSON(v)`, so the golden's `"390px"` is unchanged. A JSX context (a text piece, an attribute value, an SVG element's character data) is raw unless v holds a member of one shared set, `JSXTrigger`, and is then `{CanonicalJSON(v)}` as a child or `name={CanonicalJSON(v)}` as an attribute. The attributes are named: `alt`, `aria-label`, `placeholder`, `defaultValue`, `src`, `className` and every SVG attribute. An svg node's stored markup is decoded with `encoding/xml` before encoding, and each character-data run in `text`/`tspan`/`title`/`desc` is one child, never split on `<br />`. New test row `TestJSX_attrAndStyleEscapes` holds the three attack strings, the `"Geist Sans"` Tailwind case, an entity-shaped `alt`, a raw `alt`, and the decoded-vs-escaped SVG text, each round-tripped through `json.Unmarshal`. **Two additions to the re-review's fix, on the facts.** (1) The attribute set includes `&`, not just `" { }` and the backslash: TypeScript decodes `title="a &amp; b"` to `a & b`, so a raw `alt="Tom &amp; Jerry"` would render `Tom & Jerry`. (2) The set includes U+0000–U+001F, U+2028 and U+2029: TypeScript folds a raw CR in JSX text to a space (`a`CR`b` compiles to `"a b"`). The text pieces already split on `\n`, but a CR still got through. | `task-09.md:48-82`; `:195`; `:224-228` (Not claimed) |
+| RR-M16-2 (Minor) | `TestJSX_textEscapes` gains one clause per `JSXTrigger` member, each piece holding that member alone: `{ } < > " &`, the backslash (`a\b` → `{"a\\b"}`), CR and U+2028. Dropping any one member from the set now fails a clause. | `task-09.md:194` |
+| RR-M21-1 (Minor) | Step 1 no longer states the sumdb failure as fact. It now says tidy **may** need the checksum database when the sumdb lookup cache lacks `x/net@v0.26.0`, and that copying the two lines removes that dependence. It cites the re-review's experiment: rc=0 and exactly the two lines with the lines copied; also rc=0 with no `go.sum`, from the cached lookup. The untested case (an empty sumdb cache) is named. G1 (plan `:283-285`) already reads "no checksum-database lookup is needed", which agrees, so it is unchanged. **This supersedes round 1's M21 row and "Not done" paragraph above**, which say the failure "would show only on a machine with the default" and that nobody ran tidy. | `task-07.md:474-480` |
+
+**Evidence, run on this device during this fix:** a scratch script (`scratchpad/p5/rr10b/jsx.cjs`,
+not the worktree) put each case through TypeScript 6.0.3's `transpileModule` (`jsx: react`), from
+the main tree's `desktop/node_modules`, read-only. Results:
+
+- The naive sinks become code. `alt="x" onError={() => fetch(1)} y=""` compiles to an `onError`
+  prop. The naive style value compiles to `"a" + fetch('//evil.example') + "b"`. `<text>{fetch(1)}</text>`
+  compiles to a `fetch(1)` child. `className="[font-family:"Geist_Sans",sans-serif]"` gives
+  "Identifier expected".
+- Each wrapped form compiles clean to one string.
+- A raw `>` and a raw `}` in text are errors. A raw backslash is literal. A raw tab is kept.
+- `scratchpad/p5/rr10b/main.go` (Go, `SetEscapeHTML(false)`, trailing newline trimmed) printed
+  every expected encoding in the two test rows, and each round-tripped through `json.Unmarshal`.
+  U+2028 comes out as its six-character escape.
+
+**The two mutants expected to survive (named first, per rule 7), and the text that kills each.**
+
+1. A per-sink trigger set: attributes wrapped only when v holds `"`. That set passes the `alt`
+   attack and the Geist case, since both hold a quote. It is killed by the `alt` of
+   `Tom &amp; Jerry`, which expects `alt={"Tom &amp; Jerry"}` (`task-09.md:195`).
+2. SVG character data encoded from the stored markup's escaped bytes, not from the decoded text.
+   It passes `{fetch(1)}`, which holds no entity. It is killed by `<text>{"a & b"}</text>`, where
+   the mutant writes `{"a &amp; b"}` (`task-09.md:195`).
+
+**Not done, and why.** Only the plan text changed, and no `jsx.go` exists, so neither mutant was
+executed. Whether task 07 really keeps the style payload `a" + fetch('//evil.example') + "b` is
+reasoned from its tokenizer text (`task-07.md:134-139`: the payload's middle is one CSS string
+token), not run. The writer test does not depend on it: its doc is built through `Apply` with a
+permissive fake `Checker`, task 08's fixture route (`task-08.md:170`). A raw
+U+2028 in JSX text was not put through TypeScript.
