@@ -67,7 +67,7 @@ type Author struct {
 	Kind      AuthorKind `json:"kind"`
 	UserID    string     `json:"userId"`    // "local" in v1; the Hub principal's id in v2 (S5-H.1)
 	SessionID string     `json:"sessionId"` // "" for a human
-	Handle    string     `json:"handle"`    // the session's title, or the person's display name
+	Handle    string     `json:"handle"`    // the session's title (+ " · " + its id while another live session on the branch shares the title, task 19), or the person's display name
 }
 
 type Node struct {

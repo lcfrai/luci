@@ -95,9 +95,16 @@ type SupervisorConfig struct {
 // running or idle, whose harness is claude-code, and whose record has an
 // Endpoint and an AttachToken. Per channel it runs an http.Server on the
 // Tunnel whose handler stamps mcp.WithIdentity from the session record —
-// Author{Kind: session, UserID: "local", SessionID: s.ID, Handle: s.Title},
+// Author{Kind: session, UserID: "local", SessionID: s.ID, Handle: handleFor(s)},
 // ProjectID, BranchID — read from the registry on EVERY request, so a
-// rename is seen at once and an exited session is refused. A channel whose
+// rename is seen at once and an exited session is refused.
+// handleFor(s) is s.Title unless another running or idle session of the same
+// (ProjectID, BranchID) has the same Title; then it is s.Title + " · " + s.ID
+// (e.g. "Claude Code · PanaceaApp · s-4a77b1c9"). Sessions in one worktree
+// share phase 2's default title (sessions.go:560-563), and before phase 3
+// that is the only way agents share a canvas, so without this presence,
+// claims, notices and revert rows would name three agents alike
+// (re-review RR-b08-2). A rename to a distinct title drops the suffix at once. A channel whose
 // session has gone, exited or changed sandbox is closed; after its last
 // close, Release(sessionID) drops the session's claims. A failed dial is
 // retried on the next interval with backoff to 30 s, logged once per session.
@@ -130,6 +137,7 @@ func (s *Supervisor) Channels() []string       // session ids with a live channe
 | `TestSessions_createAndRestartCarryFlag` | `handleSessionCreate` and `handleSessionRestart` both store argv with the flags when `Deps.CanvasMCP`; neither when false | restart dropping the canvas (the restart path rebuilds argv, `sessions.go:921-936`) |
 | `TestSupervisor_oneChannelPerSession` | three running sessions against a fake sandboxd → three channels; an exited one → closed, `Release` called | a channel per poll (a leak) |
 | `TestSupervisor_identityPerRequest` | a request through the tunnel reaches the handler with the session's id, title, project and branch; after a rename, the next request carries the new title | identity cached at dial time (a stale handle in every row) |
+| `TestSupervisor_duplicateTitleHandles` (re-review RR-b08-2) | three running sessions on one `(project, branch)`, all titled `"Claude Code · PanaceaApp"` → the handler sees three distinct handles, each the title plus `" · "` plus its own session id; one titled `"design-2"` → that handle is exactly `"design-2"`; a same-titled session on another branch, or an exited one, adds no suffix. Per request, not per dial: one session titled `X` alone → plain `X`; a second titled `X` starts while the first's channel is open → the first's **next** request carries `X · <its id>`; the second exits → the first's next request is plain `X` again | three agents attributed to one name in presence, claims, notices and revert rows; a handle computed once at dial time |
 | `TestSupervisor_exitedRefused` | a session whose record turns `exited` mid-channel: the next request gets 503 before the handler | a dead session still drawing |
 | `TestSupervisor_sandboxChanged` | a restart changes `SandboxID` and `Endpoint`: the old channel closes, a new one opens | a channel into a destroyed sandbox |
 | `TestSupervisor_noShell` | a running shell session gets no channel | MCP served to a terminal |

@@ -1509,3 +1509,34 @@ the owner's visual pass is the check.
 **Not done, and why.** Nothing was built or run; this batch changes plan text only. The phase 3
 and phase 4 citations are at those branches' current heads (`a99d20b`, `3bcc1b2`), newer than the
 `6c6b20f` and `64664b7` the older sibling-plan rows name; those rows were not re-checked here.
+
+### Fix batch b08, round 2 (2026-09-24) — re-review `plan-rereview-b08-1.md`
+
+Line numbers are the plan's and the parts' after this round's two commits.
+
+| Finding | The change | Where |
+|---|---|---|
+| RR-b08-1 (I) | `anchored` asserts on `scrollTop`, which jsdom stores (`Element-impl.js:44`), not on `getBoundingClientRect()`, which jsdom zeroes (`:310-321`; both verified in `desktop/node_modules/jsdom`, and `desktop/vitest.config.ts:9` is `jsdom`). Scrolled to 200, three prepends → `200 + 3 × ACTIVITY_ROW_PX`. *No compensation at all* is named first in the mutant column. | `task-28.md:156` |
+| RR-b08-2 (I) | The canvas-side option was chosen, not "rename them first". Renaming fixes only the test; the product would still name three agents alike in the one state where agents share a canvas before phase 3. Task 19's relay stamps `handleFor(s)`: the title, plus `" · " + s.ID` while another running or idle session on the same `(project, branch)` shares the title, computed per request. A new test covers it, including a duplicate that appears after dial. Owner item 3 starts the three with no title and checks for distinct handles, then renames one (`PATCH /v1/sessions/{id}`, `sessions.go:417`, verified). P5-L and goal 3 state the limit and the choice. `task-05.md`'s `Handle` comment matches. Verified: `sessions.go:560-563` (the default title); `ids.go:20-26` (`s-` + 8 hex). | `task-19.md:98-107`, `:140`; `task-30.md:143-148`; plan `:52`, `:236`; `task-05.md:70` |
+| RR-b08-3 | The desktop never composes a brief key. Route 22's `ApprovalState` gains `headBriefKey`, which is `Briefs.Head(…).Key` verbatim, `""` when the head is unresolved. Approve step 3 already reads the same head. *Open rev 5* passes `latest.briefKey`; *Open rev 6* passes `headBriefKey`. The pre-approval chip reads it too (the chip's source was unstated before). With `""`, no chip renders: phase 4's *missing* means data loss (its `task-17.md:109` at `f772cf7`, verified). The test uses non-`brief:<id>@<N>` fixture keys and asserts identity. `selectDesignBriefKeys` feeds both keys to the loader. | `task-21.md:274-278`, `:389`; `task-27.md:143`, `:178`; `task-28.md:34`, `:100-104`, `:147`; plan `:216`, `:218` |
+| RR-b08-4 | New seam **S5-P4.1**: `desktop/src/design/pastRevision.ts`'s `pastRevisionAvailable`. Whichever of task 28 and phase 4 task 19 lands second sets it `true`. `ApprovalBar.test.tsx › supersededNoPast` pins the fallback both ways. The sibling-plan paragraph now names `openPast` and `PastRevision`. Owner item 5 accepts "absent" only while the flag is `false`, and then reports the seam open. | plan `:521` (seam row), `:612`, `:218`; `task-28.md:18-21`, `:34`, `:148`; `task-30.md:152-155` |
+| RR-b08-5 | The feed is task 26's fixed-row `virtualList` (`visibleRange`, now declared in task 26's contracts and exported from `src/index.ts`). Compensation is `k × ACTIVITY_ROW_PX` in a layout effect: arithmetic, because rows above a window are not mounted. Arrivals are called prepends. The visit state is `{anchorRowId, offset}`, restored by the anchor's index. The test adds two rows arriving while away and expects `(7 + 2) × 28 + 4`. | `task-28.md:72-88`, `:156`; `task-26.md:19`, `:30-32` |
+| RR-b08-6 | `noCounts` exempts only the chip and the *rev N* node (`data-revision`), not the header. The paragraph says nothing else in the header carries a digit. The review's observation on *"Capturing 3 of 12"* is folded in: it is named as the human's own action's progress, with a defensible denominator (§4 rule 10, `AGENTIC-UX.md:77`, verified). | `task-28.md:130-131`, `:134-137`, `:157` |
+
+**The two mutants expected to survive this round (named first, per rule 7), and the test text that now kills each.**
+
+1. `handleFor` computed once at dial time. The first test started all three sessions before
+   `Run`, so each dial already saw the others. Killed by the per-request clause in
+   `TestSupervisor_duplicateTitleHandles` (`task-19.md:140`): a duplicate that starts after
+   the dial, then exits.
+2. `data-revision` put on the whole header, which restores the wholesale exemption. Killed by
+   `noCounts` requiring exactly two such nodes, with the text of each pinned (`task-28.md:157`).
+
+Round 1's survivor (1), compensation one frame late, still stands: `scrollTop` is read after the
+batch flushes, so a `requestAnimationFrame` compensation can still pass under jsdom. The owner's
+eyes remain the check (`OD-12`). Round 1's survivor (2), a count as a word, also stands.
+
+**Not done, and why.** This round changes plan text only; nothing was built or run. Task 19's
+hours (plan `:457`) are unchanged: `handleFor` is one function and one test. Unverified: whether
+phase 4's provenance loader resolves a head key it did not itself produce. `selectDesignBriefKeys`
+hands it one, as it already does for approval keys (S4-P5.1).

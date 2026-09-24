@@ -140,6 +140,12 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
       the tree, run it **as the product runs it**: three cockpit clones on the one branch (`OD-2`;
       the phase 3 plan `:23` at `feat/phase-3-git` `a99d20b`: each clone is *"checked out on the
       product branch's own name"*), and record in the report which of the two was run.
+      **Their names** (re-review RR-b08-2): start the one-worktree three **without** a title, so
+      all three get phase 2's default *"Claude Code · <worktree>"* (`sessions.go:560-563`), and
+      check that presence, the `claimed` answer, the I11 notice and item 4's *Revert {handle}'s
+      changes* rows name three distinct handles (the title plus each session id, task 19's
+      `handleFor`). Then rename one to `design-2` (`PATCH /v1/sessions/{id}`, `sessions.go:417`)
+      and see its next write attributed to exactly `design-2`.
    4. Hand-edit the agent's page (move, reorder, restyle, retype); undo your own edit and see the
       agent's work untouched; revert one agent's changes from the activity feed.
    5. Approve (see the Undo toast); edit after approval (*changed after approval* names you); edit
