@@ -609,3 +609,74 @@ func TestDestroyOfAnUnknownSandboxIsNil(t *testing.T) {
 		t.Fatalf("Destroy(unknown) = %v, want nil: destroy is idempotent", err)
 	}
 }
+
+// The broker builds one Backend per request with the caller's owner (task 18).
+// A broker that scoped List but not Attach or Destroy would hand one user
+// another's running agent.
+func TestAnOwnerScopedBackendCannotAttachToAnothersSandbox(t *testing.T) {
+	spec := validSpec()
+	fs := newFakeSandboxd(t, spec.AttachToken)
+	client := fake.NewSimpleClientset()
+	scoped := func(owner string) *katabe.Backend {
+		b, err := katabe.New(katabe.Config{
+			Manager:      sandbox.NewManager(client, sandbox.Config{Namespace: namespace}),
+			ReadyTimeout: 10 * time.Second,
+			Port:         fs.port,
+			Owner:        owner,
+		})
+		if err != nil {
+			t.Fatalf("New(Owner: %s): %v", owner, err)
+		}
+		return b
+	}
+	name := sandbox.PodName("o1", spec.ID)
+	go func() {
+		for i := 0; i < 200; i++ {
+			if _, err := client.CoreV1().Pods(namespace).Get(context.Background(), name, metav1.GetOptions{}); err != nil {
+				time.Sleep(10 * time.Millisecond)
+				continue
+			}
+			setStatusAsync(client, name)
+			return
+		}
+	}()
+	if _, err := scoped("o1").Create(context.Background(), spec); err != nil {
+		t.Fatalf("o1 Create: %v", err)
+	}
+
+	o2 := scoped("o2")
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if _, err := o2.Attach(ctx, spec.ID, spec.AttachToken); !errors.Is(err, backend.ErrNotFound) {
+		t.Errorf("o2 Attach(o1's sandbox) = %v, want ErrNotFound", err)
+	}
+	if _, err := o2.Get(ctx, spec.ID); !errors.Is(err, backend.ErrNotFound) {
+		t.Errorf("o2 Get(o1's sandbox) = %v, want ErrNotFound", err)
+	}
+	// Destroy is idempotent (an unknown id is nil), so "not yours" is nil too;
+	// what matters is that o1's pod survives it.
+	if err := o2.Destroy(ctx, spec.ID); err != nil && !errors.Is(err, backend.ErrNotFound) {
+		t.Errorf("o2 Destroy(o1's sandbox) = %v, want nil or ErrNotFound", err)
+	}
+	if _, err := client.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{}); err != nil {
+		t.Fatalf("o1's pod is gone after o2's Destroy: %v", err)
+	}
+	if _, err := client.CoreV1().Secrets(namespace).Get(ctx, sandbox.AttachSecretName("o1", spec.ID), metav1.GetOptions{}); err != nil {
+		t.Fatalf("o1's token secret is gone after o2's Destroy: %v", err)
+	}
+	if _, err := scoped("o1").Get(ctx, spec.ID); err != nil {
+		t.Errorf("o1 Get(own sandbox) after o2's attempts: %v", err)
+	}
+}
+
+// setStatusAsync is setStatus for a goroutine: it cannot call t.Fatalf.
+func setStatusAsync(client *fake.Clientset, name string) {
+	pod, err := client.CoreV1().Pods(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+	pod.Status.Phase = corev1.PodRunning
+	pod.Status.PodIP = "127.0.0.1"
+	pod.Status.ContainerStatuses = []corev1.ContainerStatus{{Name: "sandbox", Ready: true}}
+	_, _ = client.CoreV1().Pods(namespace).UpdateStatus(context.Background(), pod, metav1.UpdateOptions{})
+}

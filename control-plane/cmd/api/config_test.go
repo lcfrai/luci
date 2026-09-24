@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox"
 )
 
 // env returns a getenv that reads from m and nothing else. Every test here uses
@@ -351,5 +352,75 @@ func TestInapplicableBackendVariablesWarnAndNameTheBackend(t *testing.T) {
 		if len(cfg.Warnings) != 0 {
 			t.Errorf("backend %q with nothing else set warned about %v", kind, cfg.Warnings)
 		}
+	}
+}
+
+// Seam S8.4 / P8-D15: which RuntimeClass AKS installs is unverified, so the
+// name is configuration and a wrong guess is an environment change.
+func TestRuntimeClassIsReadUnderKata(t *testing.T) {
+	t.Parallel()
+	cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_BACKEND": "kata"}))
+	if err != nil {
+		t.Fatalf("kata with no runtime class: %v", err)
+	}
+	if cfg.RuntimeClass != sandbox.DefaultRuntimeClass {
+		t.Errorf("RuntimeClass unset = %q, want %q", cfg.RuntimeClass, sandbox.DefaultRuntimeClass)
+	}
+	cfg, err = loadConfig(env(map[string]string{
+		"PANACEA_APP_BACKEND":       "kata",
+		"PANACEA_APP_RUNTIME_CLASS": "kata-mshv-vm-isolation",
+	}))
+	if err != nil {
+		t.Fatalf("kata with a runtime class: %v", err)
+	}
+	if cfg.RuntimeClass != "kata-mshv-vm-isolation" {
+		t.Errorf("RuntimeClass = %q, want kata-mshv-vm-isolation", cfg.RuntimeClass)
+	}
+	if len(cfg.Warnings) != 0 {
+		t.Errorf("an applicable PANACEA_APP_RUNTIME_CLASS warned: %v", cfg.Warnings)
+	}
+}
+
+// The backendScoped rule: no PANACEA_APP_* variable is silently ignored.
+func TestRuntimeClassUnderDockerIsAWarning(t *testing.T) {
+	t.Parallel()
+	cfg, err := loadConfig(env(map[string]string{
+		"PANACEA_APP_BACKEND":       "docker",
+		"PANACEA_APP_RUNTIME_CLASS": "kata-vm-isolation",
+	}))
+	if err != nil {
+		t.Fatalf("docker with a runtime class set: %v; an inapplicable variable is no reason to refuse to run", err)
+	}
+	var logs bytes.Buffer
+	logWarnings(slog.New(slog.NewTextHandler(&logs, nil)), cfg.Warnings)
+	if !strings.Contains(logs.String(), "PANACEA_APP_RUNTIME_CLASS") || !strings.Contains(logs.String(), "kata") {
+		t.Errorf("PANACEA_APP_RUNTIME_CLASS under docker must warn naming it and kata; the log was:\n%s", logs.String())
+	}
+	// Under docker the value is never used, so a malformed one warns too
+	// rather than stopping a laptop.
+	if _, err := loadConfig(env(map[string]string{"PANACEA_APP_RUNTIME_CLASS": "Not_A_Name"})); err != nil {
+		t.Errorf("docker with a malformed, unused runtime class exited: %v", err)
+	}
+}
+
+func TestRuntimeClassMustBeADNSSubdomain(t *testing.T) {
+	t.Parallel()
+	for _, ok := range []string{"kata-vm-isolation", "a", "kata.v2", "0kata9", strings.Repeat("a", 63) + "." + strings.Repeat("b", 189)} {
+		if _, err := loadConfig(env(map[string]string{"PANACEA_APP_BACKEND": "kata", "PANACEA_APP_RUNTIME_CLASS": ok})); err != nil {
+			t.Errorf("PANACEA_APP_RUNTIME_CLASS=%q refused: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"Kata", "kata_vm", "kata vm", "-kata", "kata-", "kata.", ".kata", "kata..v2", strings.Repeat("a", 254)} {
+		_, err := loadConfig(env(map[string]string{"PANACEA_APP_BACKEND": "kata", "PANACEA_APP_RUNTIME_CLASS": bad}))
+		if err == nil || !strings.Contains(err.Error(), "PANACEA_APP_RUNTIME_CLASS") {
+			t.Errorf("PANACEA_APP_RUNTIME_CLASS=%q: err = %v, want a refusal naming the variable", bad, err)
+		}
+	}
+	var out bytes.Buffer
+	if code := run(env(map[string]string{"PANACEA_APP_BACKEND": "kata", "PANACEA_APP_RUNTIME_CLASS": "Kata_VM"}), &out); code != 2 {
+		t.Errorf("run with a malformed runtime class = %d, want 2", code)
+	}
+	if !strings.Contains(out.String(), "PANACEA_APP_RUNTIME_CLASS") {
+		t.Errorf("the exit-2 message does not name the variable: %q", out.String())
 	}
 }
