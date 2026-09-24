@@ -204,15 +204,28 @@ head. The overlay is a scratch `doc.Doc` built from the head (`doc.FromDocument`
 published. For each of the session's batches, newest first, each inverse op is checked against the
 overlay; an op that passes is applied to the overlay at once (with an accept-all `Checker`, as task
 10's `Replay` does), so the next older batch is checked against the state the newer inverses left.
-The ops that passed, in that order, then go to task 11's `Apply` as one batch. So
+The ops that passed, in that order, then go to task 11's `applyLocked` as one batch, inside the
+same lock hold as the checks (the second rule below). So
 S setting a fill red (revision 5) and then blue (revision 6) reverts to the original: revision 6's
 inverse finds blue and restores red, and revision 5's inverse then finds red, not the head's blue,
 and restores the original. Checked against the head, the second inverse would be skipped and red
-would remain. Two rules keep the overlay honest:
+would remain. Three rules keep the overlay honest:
 
-- **A skip is sticky.** A `(node, property)` skipped for one batch stays skipped for every older
-  batch in the same revert. Otherwise someone else setting the value to red after revision 6 would
-  match revision 5's post-state and be overwritten.
+- **A skip is sticky, for every kind of inverse** (re-review RR-M13-1). A skipped inverse puts its
+  key in the revert's skip set, and every older batch's inverse with the same key is skipped too,
+  without being checked. The keys: `(node, property)` for a property; `(node, placement)` for a
+  move, where placement is the node's parent and index; and the node itself for a delete or a
+  re-create, which then also skips every older inverse naming that node. Otherwise someone else
+  setting the value to red after revision 6 would match revision 5's post-state and be
+  overwritten; and the same hole opens for moves: S moves `n1` into A (revision 5), then into B
+  (6), the human moves `n1` back into A, revision 6's inverse is skipped (`n1` is not in B), and
+  revision 5's would find `n1` where that batch put it and move it out, over the human's move.
+- **Check and apply are one lock hold** (re-review RR-M13-2). `RevertSession` takes the canvas's
+  lock, builds the overlay from the live document, reads the log, runs the checks, and commits the
+  passed ops through `applyLocked` — task 11's `Apply` minus its own locking (`Apply` is `lock;
+  applyLocked; unlock`) — before it releases the lock. No batch can land between a check and the
+  write it guards, so none is overwritten unchecked. `Undo` and `Redo` check "the current state
+  still equals what the batch left" the same way, under the same one hold.
 - **Authorship comes from the log, not the overlay.** "No one else has edited the node since"
   (the delete rule) reads `Changes`: some batch by another author after the reverted one lists the
   node in `Nodes`. The overlay's author stamps are the revert caller's, so they cannot answer it.
@@ -242,7 +255,8 @@ would remain. Two rules keep the overlay honest:
 | `TestUndo_redoCleared` | undo, then a new human batch; redo → nothing to redo | redo resurrecting a branch of history |
 | `TestRevert_session` | session S made 5 batches across 2 artboards; one node was later edited by the human; revert → one batch, 5 reverted, 1 skipped, S's other work gone | revert as five batches (five undo steps), or forced over the human's edit |
 | `TestRevert_progressive` (review M13) | node `n1`'s fill starts `#000000`; S sets it `#ff0000` (one batch), then `#0000ff` (another); revert → one batch, `Batches: 2`, `Skipped: []`, fill `#000000` | each inverse checked against the head: the older one skipped, `#ff0000` left |
-| `TestRevert_skipIsSticky` (review M13) | as above, then the human sets the fill `#ff0000`; revert → fill stays `#ff0000`, `Skipped: ["n1"]` | a skip forgotten for the older batch, whose post-state the human's value happens to match |
+| `TestRevert_skipIsSticky` (review M13; table) | **property:** as above, then the human sets the fill `#ff0000`; revert → fill stays `#ff0000`, `Skipped: ["n1"]`. **Move** (re-review RR-M13-1): `n1` starts in frame X; S moves it into A (one batch), then into B (another); the human moves it back into A **at the index S's first move gave it** (so the older batch's placement check alone would pass); revert → `n1` stays in A at that index, `Skipped: ["n1"]`. **Keys are separate:** S sets `n1`'s fill and width in one batch, then its fill again in another; the human sets the fill; revert → the fill stays the human's, the width is restored, `Skipped: ["n1"]` | a skip forgotten for the older batch, whose post-state the human's value, or the human's placement, happens to match; a sticky set keyed on properties only (the move row); a property skip keyed on the node alone, which leaves the width unreverted |
+| `TestRevert_checkAndApplyOneHold` (re-review RR-M13-2; in-package test hook `afterOverlay`, called after the checks and before the write) | `TestRevert_progressive`'s setup, then `ReleaseSession(S)` so session T is not refused by S's claim. The hook starts T's `Apply` setting `n1`'s fill `#00ff00` in a goroutine and waits 100 ms: that `Apply` has **not** returned. After `RevertSession` returns, T's batch lands at the revert's revision + 1 and the fill is `#00ff00`. The same hook on a human's `Undo` of its own fill batch → T's `Apply` blocked until `Undo` returns, then its batch lands next and the fill is `#00ff00`. A second hook, `beforeLock`, called at entry before the lock is taken, applies (synchronously) T's batch setting the fill `#00ff00`: the revert then skips `n1` and the fill stays `#00ff00` | a revert that checks under one lock hold and writes through the public `Apply` under another: the agent batch lands between, and the revert overwrites it unchecked; an overlay copied from the document before the lock was taken |
 | `TestRevert_humanOnly` | a session caller → error | an agent reverting another agent |
 
 ## Steps

@@ -221,6 +221,10 @@ type ApplyResult struct {
 //   3. doc.Prepare (refusal → *doc.OpError, unchanged);
 //   4. store.Append (failure → the error, memory unchanged);
 //   5. Pending.Commit, then publish one Event, then task 12's post-commit hooks.
+// Steps 1-5 are the unexported applyLocked(canvas, c, r), which requires the
+// lock held; Apply is lock, applyLocked, unlock. Task 12's Undo, Redo and
+// RevertSession call applyLocked inside their own hold, so their skip checks
+// and their write are one critical section (re-review RR-M13-2).
 func (s *Service) Apply(ctx context.Context, canvasID string, c Caller, r ApplyRequest) (ApplyResult, error)
 ```
 
@@ -262,9 +266,12 @@ type Event struct {
 
 // Subscribe streams events after revision `after`. If the store holds every
 // change since (at most 1,000 behind), they are replayed as change events;
-// otherwise the first event is a reset. The channel has a buffer of 256; a
-// subscriber that falls that far behind is closed, and reconnects with its
-// last revision. cancel is idempotent. Every slice in an Event is [] not null.
+// otherwise the first event is a reset. The channel's buffer is the replay's
+// length plus 256, and the replay is in it before Subscribe returns, so a
+// replay never blocks and never counts against the slow rule. A subscriber
+// with 256 undelivered live events beyond its replay is closed, and
+// reconnects with its last revision (re-review RR-M15-1). cancel is
+// idempotent. Every slice in an Event is [] not null.
 func (s *Service) Subscribe(canvasID string, after int) (events <-chan Event, cancel func(), err error)
 ```
 
@@ -272,20 +279,30 @@ func (s *Service) Subscribe(canvasID string, after int) (events <-chan Event, ca
 *as of its own revision*, exactly as the live event for that revision did, never the head's. Under
 the canvas's lock, so no live batch is missed or sent twice:
 
-1. `cs, _ := Store.Changes(canvasID, after, 1000)`; if `cs` does not start at `after+1` or does not
-   reach the head, send one reset instead.
+1. `after == head` → replay nothing: go to step 4 with an empty replay. `after > head` → one
+   reset. Otherwise `cs, _ := Store.Changes(canvasID, after, 1000)`; if `cs` does not start at
+   `after+1` or does not reach the head (more than 1,000 behind), send one reset instead
+   (re-review RR-M15-2).
 2. `d0, _ := Store.At(canvasID, after)`, then `d, _ := doc.FromDocument(d0)` (task 05).
 3. For each `c` in `cs`, in order: `store.Replay(d, c)` (task 10), then build the event from `d`
    with the one function the live path uses (`eventFor(d, c)`): `Nodes` = `d.Node(id)` for each id
    in `c.Nodes`, `Pages` = `d.Page(id)` for each id in `c.Pages` still present (the rest go to
    `DeletedPages`), and likewise tokens, assets, threads and reviews. `Author`, `At`, `Label` and
    `ContentChanged` come from `c`.
-4. Register the subscriber, then release the lock. `Claims` and `Presence` are not logged, so every
+4. `ch := make(chan Event, len(replay)+256)`, where `replay` is the slice steps 1–3 built (a
+   reset counts as one), and put every replayed event in it. It fits by construction, so no send
+   blocks under the lock and none trips the slow rule. Register the subscriber with `ch`, then
+   release the lock. The slow rule then applies from here on: a live send that finds `ch` full
+   closes the subscriber, which leaves 256 slots of headroom beyond the replay, the same as a
+   subscriber at the head (re-review RR-M15-1). `Claims` and `Presence` are not logged, so every
    replayed event carries the current set; a subscriber keeps the last set it received.
 
 One builder for live and replayed events means a replayed revision is byte-identical to the event a
-subscriber connected at the time received (`TestSubscribe_replay`). Cost: one `At` (at most 5,000
-changes from a snapshot, task 10) and up to 1,000 `Replay`s per reconnect that is behind.
+subscriber connected at the time received (`TestSubscribe_replay`). Cost, per reconnect that is
+behind: one `At` (at most 5,000 changes from a snapshot, task 10), up to 1,000 `Replay`s, and a
+buffer of up to 1,256 events held until the subscriber drains it. **Every writer on the canvas
+waits on its lock for the whole `At` and replay** (re-review RR-M15-2); the bound is the 5,000 +
+1,000 changes above. `TestSubscribe_farBehind` pins the delivery.
 
 ```go
 // canvas/authority/activity.go
@@ -339,9 +356,10 @@ type ClaimedError struct { // task 12
 | `TestApply_humanUnscoped` | a human caller applies to any canvas | the desktop locked out |
 | `TestApply_diskFailure` | a store whose `Append` fails: `Apply` returns the error; `Document()` and the revision are unchanged; no event is published | memory ahead of disk after a failed write |
 | `TestApply_orderUnderConcurrency` | 50 goroutines × 20 batches: revisions 1…1000 gapless; the store's log equals the event sequence | two batches committed under one revision |
-| `TestSubscribe_replay` | 40 batches, batch *k* setting node `n1`'s fill to a colour unique to *k*, batch 20 renaming page `p2` and batch 30 deleting it, while a subscriber from revision 0 records every live event. Subscribing at revision 10 yields 30 change events, revisions 11…40 in order, each equal as JSON to the live event of its revision (claims and presence aside, step 4): event 15's `n1` has colour 15, not 40, and event 20's `Pages` holds `p2` under its new name, though `p2` is gone at the head (review M15) | a subscriber missing changes between reconnects; a replay that sends the head's state for an old revision, or drops a page the head no longer has |
+| `TestSubscribe_replay` | 40 batches on a canvas with pages `p1` and `p2`, `n1` on `p1` (so batch 30's page delete leaves it, and batch 31 applies; re-review RR-M15-2), batch *k* setting node `n1`'s fill to a colour unique to *k*, batch 20 renaming page `p2` and batch 30 deleting it, while a subscriber from revision 0 records every live event. Subscribing at revision 10 yields 30 change events, revisions 11…40 in order, each equal as JSON to the live event of its revision (claims and presence aside, step 4): event 15's `n1` has colour 15, not 40, and event 20's `Pages` holds `p2` under its new name, though `p2` is gone at the head (review M15) | a subscriber missing changes between reconnects; a replay that sends the head's state for an old revision, or drops a page the head no longer has |
 | `TestSubscribe_reset` | subscribing at revision 0 of 1,500 yields one reset whose document equals the head | replaying 1,500 events on every reconnect |
-| `TestSubscribe_slowIsClosed` | a subscriber that reads nothing is closed after 256 undelivered events; others keep receiving | one stuck window stalling every writer |
+| `TestSubscribe_farBehind` (re-review RR-M15-1, RR-M15-2) | on a canvas at revision 1,300: subscribing at 1,000 (300 behind) and reading **nothing** while 10 more batches land, then draining → 310 change events, revisions 1,001…1,310 in order, on one connection, never closed; subscribing at 300 (1,000 behind) → 1,000 change events, then live ones; at 299 (1,001 behind) → one reset; at the head → no event until the next batch, whose event is a change, not a reset; at head + 1 → one reset. Each `Subscribe` returns within the test's 5 s deadline | a replay pushed into a 256-slot channel no one can read yet: a deadlock under the canvas lock, or a subscriber closed at event 257 that reconnects for ever; a reset sent to a subscriber that is already current |
+| `TestSubscribe_slowIsClosed` | a subscriber at the head that reads nothing is closed at the 257th live event (256 undelivered fill its buffer); a subscriber that took a 30-event replay and reads nothing is closed at the 287th event it is owed, not before; others keep receiving | one stuck window stalling every writer |
 | `TestEvent_stateNotOps` | a `set_props` event carries the node's full post-state (all styles), not the delta | the desktop needing op semantics (P5-V) |
 | `TestEvent_slicesNotNull` | a marshalled event has `[]` for every empty list | a desktop reader crashing on `null` |
 | `TestDocument_at` | `Document(At{Revision: 5})` equals the live capture at 5 | `at: approved` reading the head |

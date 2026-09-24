@@ -1721,3 +1721,42 @@ semantics are from knowledge of the revisions, not re-read (plan "did not verify
 unchanged: M19's two tools reuse `create_page`'s path and M13's overlay is how revert is built
 anyway, so the added rows fit inside tasks 12's and 16's estimates. That is an estimate, and it
 keeps the critical path at ≈ 35.5 h.
+
+## Fix batch b11, round 2 (2026-09-24) — re-review `plan-rereview-b11-1.md`
+
+Line numbers are the files' after this round's commit. Parts paths are relative to
+`2026-09-23-phase-5-design-canvas-parts/`.
+
+| Finding | The change | Where |
+|---|---|---|
+| RR-M15-1 (Important) | **Root cause:** the replay was pushed into a 256-slot channel no one could read until `Subscribe` returned. Neither reviewer option was taken as written: capping the replay at 256 would still leave a full buffer with no headroom for live events. Instead the channel is sized `len(replay)+256` and the replay goes in before the subscriber is registered, so it always fits: no send blocks under the lock, and none counts against the slow rule. The slow rule starts after the replay, with the same 256 slots of headroom a subscriber at the head gets. The "at most 1,000 behind" promise stands. `Subscribe`'s comment is amended. New `TestSubscribe_farBehind`: 300 behind, nothing read while 10 more land → 310 events on one connection, never closed; exactly 1,000 behind → 1,000 events; 1,001 → reset. `TestSubscribe_slowIsClosed` gains a 30-event-replay clause: the subscriber is closed at the 287th event it is owed, not before. | `task-11.md:267-275`; `:292-299`; `:361`, `:362` |
+| RR-M15-2 (Minor) | Step 1 now says `after == head` → no replay, no reset; `after > head` → reset. `TestSubscribe_replay` puts `n1` on `p1`, so the page delete at 30 leaves it. The stated cost now includes the 1,256-event buffer and that **every writer waits on the lock for the whole `At` plus replay**, bounded at 5,000 + 1,000 changes. `farBehind` covers both edge cases. | `task-11.md:282-285`; `:300-305`; `:359`; `:361` |
+| RR-M19-1 (Important) | `TestRenamePage` states both cases, each with its real code. A well-formed `pageId` that names no page → `not-found`, following the chain `task-06.md:169` → `:105` → `task-15.md:104`. No `pageId`, or one that fails `^pg-` → `invalid-arguments` with a `violations` entry (`task-15.md:112`). Nothing is written in either case. `TestDeletePage`'s last-page `invalid` is correct as it is (`task-06.md:170` names it explicitly). | `task-16.md:201` |
+| RR-M13-1 (Minor) | Every skip key is now sticky: `(node, property)`; `(node, placement)` for a move (parent and index); and the node itself for a delete or a re-create. `TestRevert_skipIsSticky` is now a table. **Move row:** the human moves `n1` back into A *at the index S's first move gave it*; any other index would pass the placement check anyway and kill nothing. **Keys-are-separate row:** a fill skip must not block the same batch's width inverse. The node key has no row of its own, on the facts: an older inverse on a node whose delete or re-create was skipped finds the node absent in the overlay, so the key is stated as a rule but no test can tell it apart. | `task-12.md:214-222`; `:258` |
+| RR-M13-2 (Minor) | Root-cause option: one lock hold. `Apply`'s steps 1–5 become the unexported `applyLocked`, and `Apply` is `lock; applyLocked; unlock`. `RevertSession`, `Undo` and `Redo` take the lock, build the overlay from the live document, check, and write through `applyLocked` before they release it. This beats `IfRevision` plus retry: that closes the gap for a revert but still lets a retry lose to a steady writer. New `TestRevert_checkAndApplyOneHold` uses in-package hooks: `afterOverlay` (T's concurrent `Apply` blocks until the revert returns, then lands next) and `beforeLock` (T's batch applied at entry is seen and skipped). | `task-11.md:224-227`; `task-12.md:207-208`, `:223-228`; `:259` |
+| RR-M23-1 (Minor) | Option 1: under `2025-03-26`, every element's shape is validated before any is handled. A bad element → `400 -32600` naming its index, nothing handled. This is declared as a deviation from JSON-RPC 2.0 §6, which answers a bad element in the array with `id: null`, and the plan's "did not verify" list names §6. The test wording now says "101 `tools/call` elements". A new clause (a valid `tools/call` then a `jsonrpc: "1.0"` element → 400, no call recorded) kills a handler that finds the bad element only after running the ones before it. | `task-14.md:128`; `:170`; plan `:595-597` |
+| RR-CITE-1 (Minor) | `task-20.md:124` now cites `task-16.md:98` (`request_review`'s row). `task-16.md:174` now cites `task-18.md:103-110`, re-read: the `Listener` comment through `HoldTimeout = 30 * time.Second`. | `task-20.md:124`; `task-16.md:174` |
+
+**Restatements checked.** Grepped the plan and every part for `256`, `behind`, `reconnect`,
+`slowIsClosed`, `Changes(canvasID, after`, and for citations into `task-11.md`, `task-12.md` and
+the plan. The only restatements of the replay facts are in `task-11.md`, and all of them are
+updated. `task-20.md:183-184` ("the authority replays or resets") still holds. The citations into
+the edited files (`task-11.md:105`, `:198-199` and `:218`; plan `:23x`) all sit above the inserted
+lines and still point where they did. No lines were inserted in `task-14.md` or `task-16.md`.
+
+**The two mutants expected to survive (named first, per rule 7), and the test text that kills
+each.**
+
+1. A slow rule counted by a separate undelivered counter that includes the replay. `farBehind`
+   passes if it reads fast enough. Killed by `slowIsClosed`'s 30-replay clause, which expects the
+   subscriber closed at the 287th event, not the 257th (`task-11.md:362`).
+2. A sticky set that keys properties only. The property row passes. Killed by the move row of
+   `TestRevert_skipIsSticky` (`task-12.md:258`).
+
+A third, the overlay copied from the document before the lock is taken, is killed by the
+`beforeLock` clause (`task-12.md:259`).
+
+**Not done, and why.** Only plan text changed: nothing was built, and no mutant was run. The
+JSON-RPC 2.0 §6 behaviour comes from knowledge (plan `:595-597`). The hours are unchanged, as an
+estimate: `applyLocked` is a split of code task 11 already writes, and the new rows sit inside
+tasks 11's, 12's and 14's test tables. The critical path stays at ≈ 35.5 h.

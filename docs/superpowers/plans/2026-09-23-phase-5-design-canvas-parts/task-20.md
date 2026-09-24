@@ -121,7 +121,7 @@ skip: `add_asset` is route 11's, after the bytes are stored and hashed (M11), so
 record an asset with no bytes; `review_mark` is route 23's, which takes the key from the branch's
 head brief (task 21), so on route 5 it would carry any key the caller wrote; `create_thread`,
 `add_message`, `set_thread_status` and `close_review` are routes 13–16's; `request_review` is an
-agent's MCP tool (`task-16.md:89`), never a human op. The page kinds (`create_page`, `update_page`,
+agent's MCP tool (`task-16.md:98`), never a human op. The page kinds (`create_page`, `update_page`,
 `delete_page`) have no human UI in this phase, so they are refused too; a later editor that needs
 one adds it to `humanOpKinds` and to this test in the same commit.
 

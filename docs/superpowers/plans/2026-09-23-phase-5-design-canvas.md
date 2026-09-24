@@ -592,7 +592,9 @@ is not committed — phase 3's 3-D6); OQ-11 (Figma via its MCP is v2, behind own
 - **The MCP specification details** used in task 14 (Streamable HTTP; `application/json` single
   responses; `GET` answered 405; no session id; JSON-RPC batches exist in 2025-03-26 only and are
   removed from 2025-06-18; a request without `MCP-Protocol-Version` is taken as 2025-03-26, review
-  M23) are from knowledge of revisions 2025-03-26, 2025-06-18 and 2025-11-25, not re-read tonight.
+  M23) are from knowledge of revisions 2025-03-26, 2025-06-18 and 2025-11-25, not re-read tonight;
+  so is JSON-RPC 2.0 §6's answer to a bad batch element (an error object with `id: null`), from
+  which task 14 deviates by refusing the whole batch before handling any (re-review RR-M23-1).
 - **The licence gate's inputs** (task 04 is its own program, not `go-licenses` or
   `license-checker`; P5-P). Verified 2026-09-24: `npm ls --all --json --long` on npm 11.12.1 carries
   `path` (in the long form, even when the working directory was reached by an 8.3 short name) and
