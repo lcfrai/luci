@@ -1,0 +1,12 @@
+# testdata/frames.golden — one frame per line: a hex encoding, a space, the Frame in Go syntax.
+# Both modules' TestGolden decode every line and re-encode it to the same hex.
+# The Go syntax is %+v with a printable-ASCII payload quoted, so a codec that
+# round-trips its own mistake (a byte order, a kind) still fails the text.
+0100000001 {Kind:1 Stream:1 Payload:[]}
+020000000168656c6c6f {Kind:2 Stream:1 Payload:"hello"}
+0300000001 {Kind:3 Stream:1 Payload:[]}
+04000000016964 {Kind:4 Stream:1 Payload:"id"}
+050000000100040000 {Kind:5 Stream:1 Payload:[0 4 0 0]}
+060000000001 {Kind:6 Stream:0 Payload:[1]}
+070000000001 {Kind:7 Stream:0 Payload:[1]}
+02010203056869 {Kind:2 Stream:16909061 Payload:"hi"}
