@@ -769,7 +769,7 @@ The Work surface, drawn to the design system's rules (plain group sizes follow Q
 │ STARTED 3                                                                                │
 │ ▷ EP-150  Chunked upload API                        Alice   ● 1 agent · Alice's   ┊c-91e2 │
 │   ⇄ sequenced after EP-142 · agreed 10:41 · you were informed                           │
-│ TODO 4                                                                        R to show │
+│ TODO 4                                                            2 new · N to show     │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -778,7 +778,8 @@ The Work surface, drawn to the design system's rules (plain group sizes follow Q
 - The agent line is Fleet state, on the one heartbeat (02 `fleet.beat`); a teammate's agents are
   labelled as theirs (02 `who.label`) and are never steerable from here (OD-16).
 - The `⇄` row is 02's `negotiation.row`: the outcome, with a link to the typed thread.
-- "R to show" is 02's `arrivals.hold`: new rows wait behind one line and never push the list.
+- "N to show" is 02's `arrivals.hold`: new rows wait behind one line and never push the list. 02
+  binds it to `R`, which 02 C9 also gives to *rewind*; this design moves arrivals to `N`.
 - The state glyphs (`◇` in review, `▷` started) are placeholders for our own drawn set (§4.4). Each
   is a distinct shape per state; none fills as work progresses (02 C13).
 
@@ -797,4 +798,67 @@ No new Desk section (TM-05 §9.3). Issue rows join the fixed ones (AX §5):
 Every row answers in place and never navigates (AX §5): accept, snooze with a reason, record
 proposed evidence, answer a question in one line. The zero state stays reachable: *"Nothing needs
 you. 7 agents on 4 issues. Next decision expected ~14:22."*
+
+### 4.3 The keyboard and command model
+
+We adopt Linear's **idea** of a grammar (letters open properties, `G` goes, `O` opens, menus teach
+the keys; 01 §15.1) and write our own letters. Linear's exact bindings are **UNVERIFIED** (02 D4:
+its shortcut page returned 404) and are not copied. Two rules come first:
+
+1. **Single keys and sequences fire only when focus is in a list** (02 C9 `keys.list`), never in a
+   terminal. This extends `isCockpitChord` in `desktop/src/hooks/useKeyboardMap.ts`. `Ctrl+K`
+   works everywhere, as built, with OD-9's toggle.
+2. **Lower case edits the record; `Shift` hands work to your agents.** A reader can tell from the
+   key alone whether an agent will run.
+
+| Key (list focus) | Meaning | Where |
+|---|---|---|
+| `J` `K`, `↑` `↓` · `Enter` · `Esc` | move · open or dive · back | every list |
+| `Space` tap / hold | peek: `peek.span`, `peek.hunk`, `peek.person` (02 C9) | every list |
+| `X`, `Shift+X` | select, select a range; the bulk bar appears | every list |
+| `/` · `?` · `U` · `N` | search · shortcut sheet · undo within `--undo-window` · show held arrivals | every list |
+| `A` · `D` · `R` | approve · defer with a reason · rewind an assumed decision | Desk items (AX §5; 02 C9) |
+| `M` | ask **my** Orchestrator about this row (TM-05 §9.2's one action) | every list |
+| `C` | new issue; on a Desk row or a span, the new issue links to it | every list |
+| `I` | assign to me | issues |
+| `S` `P` `L` `E` `Y` `F` `B` | pick state · priority · label · estimate · cycle · feature · relation | issues |
+| `1` `2` `3` `4` | accept · duplicate · decline · snooze | Triage view only |
+| `Shift+S` | **Start**: a lane and a managed session on this issue | issues |
+| `Shift+D` | **Delegate** to my Orchestrator (team projects) | issues |
+| `G` then `D` `W` `I` `T` `C` `P` `M` | go to Desk · Work · my issues · Triage · current cycle · projects · my Orchestrator | outside a terminal |
+| `O` then `I` `F` `P` | open an issue by number · a feature · a project | outside a terminal |
+
+**The palette** gains every verb above, each row showing its chord (DESIGN-SYSTEM: hotkey hints
+inline). Prefixes scope it: `#` issues, `@` people, `>` commands, `~` sessions. It opens beside
+the row it acts on when invoked from a row (L-221).
+
+### 4.4 The design-language uplift, applied to work
+
+02's Part C is adopted as written, with three work-specific rules and one correction:
+
+| From 02 | Applied to the work layer |
+|---|---|
+| C1 `theme.generate` | Four generated themes; the Work surface is tested in all four (C12 `stress.sets`) |
+| C2 `thread` | **The signature.** `thread.node` on every issue that serves a criterion; `thread.trace` grows from criterion to issue to lane on drill-in |
+| C3 `voice.split` | Issue titles and descriptions are sans; ids, keys, paths, costs and durations are mono |
+| C4 density | Issue rows at `--row-h` 32px; `compact` 28px; group headers carry plain sizes only (Q1) |
+| C5 `chrome.dim`, one `ViewHeader` | Work, the Work lens and the issue view use the one header, with the route badge `Global`/`AU` |
+| C6 icons | **Issue states get our own drawn glyphs**, one distinct shape per state, in ink; none fills with progress |
+| C7 motion | A state change flashes over `--dur-flash`; `arrivals.hold` for new issues; FLIP only on explicit re-sort |
+| C10 agent activity | The agent line on an issue is `row.three` compressed to one line; `who.label` on every agent string |
+| C11 first run | `first.landing`'s rehearsal task **is a real issue**, EP-1, started by the user's first `Shift+S` |
+| C13 not-a-clone test | Applies to every work screen; a filling status icon or an indigo accent fails the review |
+
+**Work-specific rules.**
+1. **Issue states and agent states never share colour.** Issue glyphs are neutral ink. Colour
+   appears on an issue only when it carries a status: `--need` when it needs you, `--fail` when a
+   bound lane failed (DESIGN-SYSTEM: colour is signal, and status carries a shape as well).
+2. **Priority is a shape, not a colour,** except urgent, which is `--need` only on the assignee's
+   own rows.
+3. **No count outside a group header or the Desk** (AX:245, as amended by Q1).
+
+**One correction to 02.** 02 C8 says *"Tauri stores [the replica] on disk"*. ADR-H1:467-474 says no
+client persists Hub data to disk, and 04 §2.2 holds to it. This design follows ADR-H1: the replica
+is **in memory**. Consequence: after the app restarts (not after sleep), the first paint needs a
+full load, so 02's `budget.return ≤ 2s` is **UNVERIFIED** for large projects. Q5 asks the owner.
 
