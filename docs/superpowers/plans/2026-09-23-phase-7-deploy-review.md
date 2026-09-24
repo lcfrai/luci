@@ -1385,3 +1385,51 @@ the new tests' rows, by design, and not run:
 - Whether the owner's network needs `HTTPS_PROXY` for Panacea is unverified. LIVE-CHECK step 1
   answers it.
 - No owner question.
+
+## Fix batch b07, round 2 — the re-review's I-1 and M-1 to M-5 (2026-09-24)
+
+Source: `.superpowers/sdd/p7/plan-rereview-b07-1.md`. Panacea read at `b02424691` with `git show`,
+read-only. Every Panacea line below was re-read today: `handlers/projects.go:1612` (Rollback passes
+`targetDeploy.Environment`), `clients/kubernetes.go:5887` (`nsName := tenantNamespace(projectName,
+targetEnv)`), `:4213` (`""` keeps the base namespace), `:5189-5201` (the production row's branch
+is the newest prod run's), `webhook-receiver/models/event.go:117-118` (`"preview"` for PR events),
+`handlers/logs_stream.go:100` and `logs_app_stream.go:115` (`Retry-After: 5` on a 429).
+
+| Finding | Change |
+|---|---|
+| **I-1** a joined `""` row un-gates Roll back into production | t08:172-181 rule 1b: display and attribution only, no act reads it; the Panacea path to production cited. t16:137 the gate adds `environment !== ""`; t16:147-154 why, read before the lookup. t16:195 test `no rollback without a recorded environment`. t10:60-66 precondition before the reserve: `409 deploy_precondition` `no_environment`. t10:125-126 the wire. t10:156 `TestRollbackRefusesNoEnvironment` (no `Reserve`, no Panacea call). Restatements: plan:298-301 (7P-8), plan:922-924 (settled facts) |
+| **M-1** t16's blank-name sentence | t16:163-166: a `""` row, matched or not, says *"Panacea recorded no environment for this release, so a rollback would land in production."*; the *"named `<row.environment>`"* line is for a non-empty name only. Pinned by t16:195 (*no text contains "named ``"*) |
+| **M-2** `ParsePostureMode` comment vs its test | t01:531-532: *"It never maps an unknown or empty word to PosturePublic; only "none" does."* |
+| **M-3** `Retry-After` "never overridden" | t02:97-105: honoured inside `do` up to 2 s; a longer one is returned and no caller waits on it yet; the cadence overrides it. The caller-side wait is its own open seam **S7-R1** (plan:791, t20:44), not M14 |
+| **M-4** label join of every deployment survives | t08:267 `TestNoEnvironmentJoinsByLabel` gains a `prod` deployment labelled `develop` (joins `production`, not row `develop`) and a `preview` deployment labelled `develop` (own `unmatched` group) |
+| **M-5** t11:46 → t11:45 | t01:398, t01:658. Line shifts from M-2 fixed too: t01:400 `(:656-658)`, t03:341 `t01:563` |
+
+### Deviations, declared
+
+- **The refusal code.** The review names "a 409 and a code". Task 10 already refuses a Rebuild with
+  `409 deploy_precondition` and a `reason` (`no_exact_commit`, `no_branch`), so the rollback uses
+  the same shape, reason `no_environment`, rather than a new top-level code.
+- **M-3's open item** is a seam row (§10.2, S7-R1, restated in task 20's `SEAMS.md`), not an owner
+  question: it is later work with a known fix, not a decision.
+- **M-4's killing rows.** The review's row (a `prod` deployment labelled `develop`) is used, framed
+  as an earlier production run of `develop`: Panacea's `production` row carries the newest prod
+  run's branch (`kubernetes.go:5189-5201`), so an older one's label can equal another row's branch.
+  A second row, `preview` labelled `develop`, kills the fallback variant (label join only when
+  `SameEnvironment` finds nothing), which the first row does not.
+
+### Named survivors (before the fix), and what now kills them
+
+1. A control-plane refusal placed after the reserve (reserve, refuse, abandon). Killed by
+   `TestRollbackRefusesNoEnvironment`'s *"the Hub fake saw no `Reserve`"*.
+2. A label join used as a fallback for a non-empty environment with no row. Killed by t08:267's
+   `preview` row.
+
+Design check only; there is no code to run.
+
+### Left open
+
+- Nothing compiled or run; no real Panacea called.
+- Whether a legacy `""` run with a live image exists on dev Panacea is unknown. I-1's severity
+  does not depend on it.
+- Whether task 12's log stream goes through `do` (S7-R1's reach) is unverified.
+- No owner question.
