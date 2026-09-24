@@ -167,17 +167,23 @@ func OffBranchRefspecs(st RemovalState, prefix string) []string
 //      Unarchivable inside the token the human confirmed, never a 500 here: a failure no probe
 //      can see cannot make the clone unremovable (re-review b04-1 issue 1).
 //  2. update-ref -d refs/panacea/lanes/<id> <LaneTip>                                    (project)
+//  2a. drop(ctx, lane.ID), task 24's Lanes.Drop (review r4-1 I-4): the pool destroys the lane's idle
+//      runner-only sandbox now, not after Idle, and refuses For for the id from here on, so no
+//      bind mount is live on lane.Path during step 3, and no sweep between steps 3 and 4 (the
+//      lane is still in Store) can start a sandbox on a deleted path. A Drop error stops the
+//      removal before step 3; a retry repeats 2a, which is idempotent.
 //  3. RemoveTree(CloneRoot, lane.Path) — skipped when the directory is already gone
 //  4. Store.Remove(id)
 // Steps 1-2 run with Scope Project (task-02 §HGH). Step 3 runs no git in the clone: RemoveTree is
 // a file operation, not git, so it needs no runner (R4.2). Inspect releases its runner before it
-// returns. The pool keeps an idle runner-only sandbox for Idle (60 s) with lane.Path still
-// mounted, so step 3 deletes under that mount unless task 24's pool can drop one lane's sandbox
-// first (recorded for task 24). The handler
+// returns, so 2a does not wait on this request's own hold. The handler
 // passes Inspect and Remove one now, so step 1's <unix> and ArchivedAt's are the same.
 // The caller (the handler) then clears the ready flag, deletes the worktree's exited session
 // records from the registry, and deletes its conversation store (OD-10).
-func Remove(ctx context.Context, m gitx.Machine, store Store, projectPath string, lane Lane, st RemovalState, now time.Time) (Removed, error)
+// drop is the handler's GitDeps.LaneGit.Drop, passed as a func because lanegit imports lanes
+// (Lanes.Store, For's lanes.Lane), so lanes cannot import lanegit.
+func Remove(ctx context.Context, m gitx.Machine, drop func(ctx context.Context, laneID string) error,
+	store Store, projectPath string, lane Lane, st RemovalState, now time.Time) (Removed, error)
 ```
 
 ```go
@@ -302,12 +308,14 @@ edited. Audit line for the GET renames: *"Reads the lane index. Writes nothing."
 
 #### The tests to write first
 
-The removal tests run with `lanegittest.Fake` (task 24) as the lane's runner behind `Lanes.For`:
-the Fake's own git in the clone is test-side, so task 02's `Spy` sees only production calls, and
-"in the clone" below means through the Fake.
+The removal tests run with `lanegittest.Fake` (task 24) as the lane's runner behind `Lanes.For`,
+through task 24's seam: `Lanes{Dial: fakes.Dial, Backend: lanegittest.Backend{}}`. The Fake's own
+git in the clone is test-side, so task 02's `Spy` sees only production calls, and "in the clone"
+below means through the Fake.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
+| `TestRemoveDropsTheLaneRunnerFirst` (review r4-1 I-4), red first | a sessionless lane whose Inspect started a runner-only sandbox (`lanegittest.Backend` records `Create` and `Destroy`, and the order of `Destroy` against `RemoveTree`); `Remove` → one `Destroy` of that sandbox before `RemoveTree`, with no `Idle` wait; a sweep's `SyncLane` on the id between steps 3 and 4 → `ErrLaneDropped` and no `Create`; `Destroy` failing → the directory intact and the lane still in `Store` | a removal that deletes the clone under a live bind mount, or lets a sweep re-create the path |
 | `TestRemoveRefusesWhileASessionIsLive` | a running session on the worktree → `live_sessions`, directory intact, no destroy called on the backend | a fourth destroy site (contract §5.2) |
 | `TestRemoveAsksWhenWorkWouldBeLost` | uncommitted `a.txt` and one unlanded commit → `confirm_required` with both and a 16-hex `confirm` | discarding work silently |
 | `TestRemoveConfirmPathsAreAJSONArray` (handler; re-review b05 issue 8) | a clone with uncommitted `docs/résumé.md` and `a b.txt` → 409 `confirm_required`; `JSON.parse`-equivalent `json.Unmarshal(details["paths"])` gives exactly `["a b.txt", "docs/résumé.md"]` in status order, unquoted | a newline-joined `details.paths` in the removal handler, or a C-quoted `"docs/r\303\251sum\303\251.md"` |

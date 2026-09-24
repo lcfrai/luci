@@ -163,7 +163,7 @@ func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 //   parents, and gets the no-basis bundle.
 // Lanes with no told at all share one SendBranch(refs, basis: []), the whole history. That is
 // the only no-basis bundle. A lane whose Fetch fails on a missing prerequisite (its clone lost
-// objects told says it has) is an errs entry, and its told is cleared, so the sweep's retry
+// objects told says it has) is an errs entry, and its told is cleared (Syncer.Forget), so the sweep's retry
 // sends it the no-basis bundle; it is never retried inside this call.
 // Then, for each lane asked for and not deferred, r, release = l.LaneGit.For(lane), and one
 // runner call (task 24), with its group's bundle:
