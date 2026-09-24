@@ -755,6 +755,22 @@ func TestNewValidatesConfig(t *testing.T) {
 	if c.log == nil || c.sleep == nil || c.cfg.UserAgent == "" {
 		t.Errorf("New left log %v, sleep nil %v, user agent %q", c.log, c.sleep == nil, c.cfg.UserAgent)
 	}
+	// New copies a given client (Config.HTTPClient's doc): the caller's own keeps its jar and its
+	// redirect policy, and New's copy carries neither.
+	jar, _ := cookiejar.New(nil)
+	callers := &http.Client{Jar: jar}
+	withClient, err := New(Config{Origin: "https://dev.panacea.kpmg", Tokens: tokens, HTTPClient: callers})
+	if err != nil {
+		t.Fatalf("New with a client: %v", err)
+	}
+	if callers.Jar != jar || callers.CheckRedirect != nil {
+		t.Errorf("New changed the caller's client (jar %v, CheckRedirect set %v); it must copy it",
+			callers.Jar, callers.CheckRedirect != nil)
+	}
+	if withClient.http == callers || withClient.http.Jar != nil || withClient.http.CheckRedirect == nil {
+		t.Errorf("New's client: the caller's pointer %v, jar %v, CheckRedirect set %v; want a copy, no jar, never-follow",
+			withClient.http == callers, withClient.http.Jar, withClient.http.CheckRedirect != nil)
+	}
 	refused := []struct {
 		name string
 		cfg  Config
