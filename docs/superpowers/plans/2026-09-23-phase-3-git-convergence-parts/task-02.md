@@ -451,16 +451,10 @@ child's environment without trusting the code under test.
 *Fix batch b01 (review C1, C3). This is the rule's only copy. Every other part cites
 `task-02 §HGH` at the call site it hardens and restates none of it.*
 
-**Why.** A lane clone's `.git` sits inside the sandbox's read-write worktree mount
-(`sessionMounts`, `api/sessions.go`). So does the project's `.git` whenever a session runs on the
-primary worktree. The agent can therefore write any key into either `config`, and any file into
-either `hooks/`. The control plane runs the **host's** git in both repositories: task 07's lane
-sync and observer, task 09's land and origin refresh, task 10's undo and revert, task 11's remove
-question, task 12's fetch and push, and task 13's `credential fill`. (Ruling R4 moves every one
-of these out of the lane: host git never runs in a lane clone, and phase 2's resolvers read
-host-owned config only, R4.6. No `laneResolverRunner` exists.) Unhardened, each of those calls is code
-execution on the Windows host, as the user, outside the microVM. Each is also a path to the
-user's token, which breaks A4.
+**Why.** No sandbox mounts the project (R4.1), so its `.git` is host-private and its config is
+the user's and the cockpit's. A lane clone is agent-writable, and host git never runs in one
+(R4.2; task 24 runs lane git in the sandbox). So §HGH hardens project calls only. H1 and H2 stay
+as defence against the user's own config and a machine's system config.
 
 **H1. The command-scope prefix.** `Exec.Run` puts these overrides in argv, between `git` and
 `Args`, on **every** call of every class. Command scope outranks repository config (task 01's
@@ -504,10 +498,11 @@ This closes review C3, where the user's token reached whatever the agent wrote.
   `http.*` override can reach it, and fetch and push go by remote name (task 12). So H2 does not
   claim it. H3 refuses `remote.*.proxy`, `remote.*.proxyAuthMethod` and `remote.*.vcs` on every
   Project call. No host call runs in a lane clone at all (R4.2).
-- The origin refresh (task 09) fetches between two local repositories. It names the source by
-  its literal path, never read from `remote.origin.url` in a clone. The lane sync (task 07) never
-  names the clone at all: it fetches from a bundle file task 24's runner wrote into a host-owned
-  directory (ruling R4.4), so `Machine` has no `FetchURL`. A local path or a bundle file needs no
+- The host names only the project, by its literal path, and remotes; a lane is reached only
+  through the runner (task 24). The lane sync (task 07) fetches, in the project, from a bundle
+  file the runner wrote into a host-owned directory (ruling R4.4). The origin refresh (task 09)
+  goes the other way: the host writes a bundle from the project, and the runner fetches it inside
+  the sandbox (R4.5). So `Machine` has no `FetchURL`. A local path or a bundle file needs no
   credential, proxy or TLS.
 
 **H3. The config check: what the agent wrote is read before git acts on it.** A filter, diff or
@@ -520,17 +515,17 @@ every key, valued or not. So a value holding a newline can neither forge a key n
 Section and key names compare lowercased.
 
 `Call.Scope` has no default (`Unset` is `ErrCallShape`). It follows `Dir`: a project path is
-`Project`, and a `Dir` under `Hardening.OwnedRoot` is `None`. A path under `Machine.CloneRoot()`
-has no scope: Exec refuses it with `ErrLaneDir` before any check (ruling R4.2), and its git runs
-in the sandbox through task 24's runner. `clone` itself runs with `Dir` set to the source project
-and `Scope Project`, so H3 checks the source under the Project rule. `lanes.Create`'s next calls
-in the new clone (task 03's steps 4a to 6) carry `Call.NewLane` and `Scope None`; after
-`Store.Add`, no host call runs there again (R4.5). Every call site names its scope in its own
-task. What the check refuses depends on `Call.Scope` and, for `Project`, on `Call.Class`:
+`Project`, and a `Dir` under `Hardening.OwnedRoot` is `None`. A `Dir` under `Hardening.LaneRoot`
+is `ErrLaneDir` (ruling R4.2), refused before any check, except task 03's `NewLane` calls with
+`Scope None` (its steps 4a to 6, in the clone `lanes.Create` is making; after `Store.Add`, no host
+call runs there again, R4.5). `clone` runs with `Dir` the project and `Scope Project`, so H3
+checks the source under the Project rule. Every other lane git call runs in the sandbox, through
+task 24's runner. Every call site names its scope in its own task. What the check refuses
+depends on `Call.Scope` and, for `Project`, on `Call.Class`:
 
 | `Call.Scope` | Rule | Refusal |
 |---|---|---|
-| `Project` (the user's own repository, so a closed list would refuse their real config) | **refusal list**, applied whether or not a primary-worktree session is live, because that state changes between two calls. **On every call** it refuses: `include.*` and `includeIf.*`; the execution-capable keys H1 cannot neutralise by name (`filter.*`, `diff.*.textconv`, `diff.*.command`, `diff.external`, `merge.*.driver`, `core.gitProxy`, `core.alternateRefsCommand`, `extensions.worktreeConfig`); the URL rewrites H2 cannot neutralise (`remote.*.pushurl`, `url.*.insteadOf`, `url.*.pushInsteadOf`); and the per-remote transport keys that beat H2 (`remote.*.proxy`, `remote.*.proxyAuthMethod`, `remote.*.vcs`). **On a `Remote` call only** it also refuses every `http.*` key (they shape that call's TLS, proxy and name resolution, for example `http.sslCAInfo` and `http.curloptResolve`, and H2 forces only two of them) and every `credential.*` key except four. The machine's helper runs in the project on a `Remote` call, and a helper reads its own settings from that repository's config: Git Credential Manager's `credential.trace` and `credential.traceSecrets` would write the token to a file the sandbox can read (from GCM's documentation; not exercised here). The four admitted keys are inert: `credential.helper` and `credential.<url>.helper` (H1's reset clears them) and `credential.useHttpPath` and `credential.<url>.useHttpPath` (they choose only whether the path is part of the query). On a `Read` or `Local` call, `http.*` and `credential.*` are inert, because no helper runs (H1) and https is not allowed (H1's protocol row), so they are admitted there. This repository's own `.git/config` (`credential.usehttppath` and a `credential.https://github.com/lcfrai/panaceaapp.helper`) passes every call. The cockpit's own project config writes are task 12's `branch.<b>.remote` and `.merge` (from `push --set-upstream`), task 11's `branch -m` (it moves `branch.<old>.*`) and task 11's `config --remove-section branch.<b>`. None is on the list, so no exception is needed. A user whose project config holds a refused key moves it to `--global`, and the refusal names the key | `*UntrustedConfig{Scope: Project}` → `conflict`, `reason: project_config_untrusted`, `details.key` |
+| `Project` (the user's own repository, so a closed list would refuse their real config) | **refusal list**. **On every call** it refuses: `include.*` and `includeIf.*`; the execution-capable keys H1 cannot neutralise by name (`filter.*`, `diff.*.textconv`, `diff.*.command`, `diff.external`, `merge.*.driver`, `core.gitProxy`, `core.alternateRefsCommand`, `extensions.worktreeConfig`); the URL rewrites H2 cannot neutralise (`remote.*.pushurl`, `url.*.insteadOf`, `url.*.pushInsteadOf`); and the per-remote transport keys that beat H2 (`remote.*.proxy`, `remote.*.proxyAuthMethod`, `remote.*.vcs`). **On a `Remote` call only** it also refuses every `http.*` key (they shape that call's TLS, proxy and name resolution, for example `http.sslCAInfo` and `http.curloptResolve`, and H2 forces only two of them) and every `credential.*` key except four. The machine's helper runs in the project on a `Remote` call, and a helper reads its own settings from that repository's config: Git Credential Manager's `credential.trace` and `credential.traceSecrets` would write the token to a file the sandbox can read (from GCM's documentation; not exercised here). The four admitted keys are inert: `credential.helper` and `credential.<url>.helper` (H1's reset clears them) and `credential.useHttpPath` and `credential.<url>.useHttpPath` (they choose only whether the path is part of the query). On a `Read` or `Local` call, `http.*` and `credential.*` are inert, because no helper runs (H1) and https is not allowed (H1's protocol row), so they are admitted there. This repository's own `.git/config` (`credential.usehttppath` and a `credential.https://github.com/lcfrai/panaceaapp.helper`) passes every call. The cockpit's own project config writes are task 12's `branch.<b>.remote` and `.merge` (from `push --set-upstream`), task 11's `branch -m` (it moves `branch.<old>.*`) and task 11's `config --remove-section branch.<b>`. None is on the list, so no exception is needed. A user whose project config holds a refused key moves it to `--global`, and the refusal names the key | `*UntrustedConfig{Scope: Project}` → `conflict`, `reason: project_config_untrusted`, `details.key` |
 | `None` | no check. Only for `git version`, for a `Dir` under `Hardening.OwnedRoot`, such as task 13's `GitHelper` repository, and for `Dir == Call.NewLane`, the clone `lanes.Create` is making, before any sandbox mounts it (R4.5). Exec refuses `None` with any other `Dir`. `CopyableHooksPath` (task 03) keeps the one rule the retired clone allowlist had: a relative `core.hooksPath` with no `..` segment | — |
 
 A refused call never starts. `UntrustedConfig` carries the key, never the value, since a value may
@@ -543,51 +538,36 @@ helper's account, not the one the repo-local `lcfrai/panaceaapp` helper selects.
 the repo-local choice moves that key to `--global`: it is URL-scoped, so it still applies to that
 repository alone. Plan Q-table row Q8 records this.
 
-*The source side of a local fetch or clone.* H3 checks `Call.Dir` only. A local fetch (task 07's
-lane sync, task 09's origin refresh) and task 03's `clone --no-hardlinks` also run `git-upload-pack` in
-the source repository, and H1's prefix does not reach that child. It runs nothing a repository
-can name: upload-pack runs no hooks, and its one command key, `uploadpack.packObjectsHook`, is
-honoured from protected configuration only (git-config's documentation). Checked on git
-2.53.0.windows.2, 2026-09-24: a source-local `uploadpack.packObjectsHook` marker script did not
-run on a local fetch, and neither did the same key passed with `-c` to the fetching git.
-`TestHGHUploadPackSourceRunsNothing` pins the first on this machine's git. A redirect
-in the source (H5) can change which objects are served, never what runs, and task 09's
-compare-and-swap still guards every ref the land moves.
+*The source side of a local fetch or clone.* H3 checks `Call.Dir` only. The only local sources
+are the project (task 03's clone, whose source is host-private, R4.1) and bundle files (task 24);
+a bundle fetch runs no upload-pack and no source config (R4.4).
 
 **H4. Control-plane writes run no repository hooks.** H1's `core.hooksPath` applies to the land
 path too: task 09's `update-ref` and `commit-tree`, task 10's undo and revert, and task 12's push.
-That includes the user's own husky `pre-push` on a cockpit push. The reason is that the project's
-`.git` can be written by the sandbox whenever a primary-worktree session exists, so its hooks are
-not the user's to vouch for at the moment the cockpit acts. A cockpit push is therefore not the
+That includes the user's own husky `pre-push` on a cockpit push. The reason is that the cockpit's
+plumbing writes run no hooks, so a land behaves the same on every machine. A cockpit push is therefore not the
 same as the user running `git push`: a check the user's `pre-push` enforces must run in CI.
 
-**H5. The checked config is the config git reads.** H3 reads the config a few milliseconds before
-the call. An agent that rewrites `.git/config` inside that window would defeat H3, though not H1
-or H2. So the sandbox cannot write that file at all. Whenever the worktree mount's host path holds
-a `.git` **directory** (every clone, and the project on a primary-worktree session), task 05's
-`sessionMounts` binds `<path>/.git/config` **read-only** over `/home/dev/work/.git/config`. The
-cost is that the agent's own `git config` writes in its checkout fail. Plan Q-table row Q7
-records that trade-off, and this option is built.
+**H5. The read-only config bind is hygiene, not a control (R4).** Task 05's `sessionMounts`
+still binds a lane clone's `<path>/.git/config` **read-only** over `/home/dev/work/.git/config`.
+§HGH claims nothing from it: the host never reads a lane's config (R4.2), so no host call depends
+on what that file holds. The cost is that the agent's own `git config` writes in its checkout
+fail. Plan Q-table row Q7 records that trade-off.
 
-*The layout pin.* The rest of `.git` stays writable, and git's discovery reads more of it than
+*The layout pin.* git's discovery reads more of `.git` than
 `config`. A `.git/commondir` file moves the common directory, and with it the `config` git reads.
 Checked on git 2.53.0.windows.2, 2026-09-24: in a plain `git init` repository, writing
 `../../evil` into `.git/commondir` made `git config user.name` read `evil/config`. Setting
 `GIT_DIR` and `GIT_COMMON_DIR` to the repository's own `.git` restored the real file. So Exec pins
-the layout on every call whose `<Dir>/.git` is a directory: it sets `GIT_DIR=<Dir>/.git`,
+the layout on every `Project` call whose `<Dir>/.git` is a directory: it sets `GIT_DIR=<Dir>/.git`,
 `GIT_COMMON_DIR=<Dir>/.git` and `GIT_WORK_TREE=<Dir>`, after `Call.Env`, and it refuses a
-`Call.Env` naming any of the three (`ErrCallShape`). A `Call.NewLane` call whose `.git` is not a directory
-is refused (`ErrCallShape`), because every clone task 03 makes has one. The pin is not set for
-`clone`, which creates a repository rather than running in one. H3's check runs under the same
-pin, so the check and the call read one file. A project whose `.git` is a file (a linked
-worktree) is not pinned: its git directory sits outside the worktree mount. That holds only if no
-session mounts the directory holding it, and that case is not verified.
+`Call.Env` naming any of the three (`ErrCallShape`; a lane path there is `ErrLaneDir` first). The
+pin is not set for `clone`, which creates a repository rather than running in one. H3's check
+runs under the same pin, so the check and the call read one file. A project whose `.git` is a
+file (a linked worktree) is not pinned.
 *Unverified:* whether any other `.git` file changes which config git reads. `commondir` is the one
 this review found, from git's documented repository layout. `TestHGHCommondirCannotRedirect`
 pins it, and nothing else is claimed.
-*Unverified:* that Docker Desktop on this Windows host honours a read-only file bind nested in a
-read-write directory bind, and that git's lockfile rename onto it fails. Task 05's
-`TestSandboxCloneConfigIsReadOnly` pins both inside the real sandbox.
 
 **The §HGH tests.** Each is written first and shown **red** against an `Exec` with no §HGH: the
 marker file appears, or the call runs. Markers are written by a script in `t.TempDir()`, and each
