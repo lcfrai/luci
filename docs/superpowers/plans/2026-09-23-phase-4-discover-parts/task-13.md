@@ -122,7 +122,11 @@ costs a model call and writes a revision.
 
 - [ ] **Step 1:** Port the old plan's scan tests and `Scan` (`:2504-2890`); write the new tests.
 - [ ] **Step 2:** `draft.go`: one `Complete` with a JSON schema of the five keys (strings, each at
-  most 400 characters); validate; build answers.
+  most 400 characters); validate; build answers. The 400 is checked in code after `ExtractJSON`
+  and stated in the system prompt, **never sent as `maxLength`**: structured outputs support no
+  `minLength`, `maxLength` or `maxItems`, and `modelclient` sends the schema raw (task 04's fix
+  round 1, review I1; `TestTheFollowUpSchemaSendsOnlyWhatStructuredOutputsSupport` is the pattern
+  to copy).
 - [ ] **Step 3:** `analyse.go`; add the route to `Mount`.
 - [ ] **Step 4:** Run the acceptance commands; commit by pathspec.
 
