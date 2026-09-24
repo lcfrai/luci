@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -214,9 +215,9 @@ func ParseBriefEnvelope(canonical []byte) (BriefEnvelope, error) {
 			return BriefEnvelope{}, bad(k)
 		}
 	}
-	if e.Revision = int(rev); int64(e.Revision) != rev {
-		return BriefEnvelope{}, bad("revision")
-	}
+	// On a 32-bit build int(rev) could truncate; the canonical comparison
+	// below then refuses the bytes, so no separate guard is needed.
+	e.Revision = int(rev)
 	e.Content = encode(m["content"]) // ValidateContent, inside Canonical, judges it
 	again, err := e.Canonical()
 	if err != nil {
@@ -294,8 +295,8 @@ func (a AuditEnvelope) check() error {
 	case a.ProjectID != "" && !ValidID(PrefixProject, a.ProjectID):
 		return bad("projectId")
 	}
-	for k, v := range a.Data {
-		switch v.(type) {
+	for _, k := range slices.Sorted(maps.Keys(a.Data)) { // sorted: the first bad key, every time
+		switch a.Data[k].(type) {
 		case string, bool, int, int64:
 		default:
 			return bad(join("data", k))
@@ -356,12 +357,7 @@ func ParseAuditEnvelope(canonical []byte) (AuditEnvelope, error) {
 	}
 	a.Data = make(map[string]any, len(data))
 	for _, mem := range data {
-		switch mem.val.(type) {
-		case string, bool, int64:
-			a.Data[mem.key] = mem.val
-		default:
-			return AuditEnvelope{}, bad(join("data", mem.key))
-		}
+		a.Data[mem.key] = mem.val // Canonical's check, below, refuses a non-scalar at data.<key>
 	}
 	again, err := a.Canonical()
 	if err != nil {

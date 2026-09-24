@@ -292,36 +292,37 @@ func TestAStoredRevisionMustBeCanonical(t *testing.T) {
 		return string(c)
 	}
 	cases := []struct {
-		name string
-		in   string
-		want error
+		name  string
+		in    string
+		want  error
+		field string // where: "" for bytes that parse but are not canonical
 	}{
-		{"keys out of order", strings.Replace(vector1Bytes, `"branchRef":"refs/heads/evidence-upload","briefId":"bf-00000000000000a1"`, `"briefId":"bf-00000000000000a1","branchRef":"refs/heads/evidence-upload"`, 1), ErrBadEnvelope},
-		{"whitespace", strings.Replace(vector1Bytes, `,"kind"`, `, "kind"`, 1), ErrBadEnvelope},
-		{"-0 in content", strings.Replace(vector1Bytes, `"status":"open"}`, `"status":"open","z":-0}`, 1), ErrBadEnvelope},
-		{"an escape where raw is canonical", strings.Replace(vector1Bytes, `brief-revision`, u(`brief~u002drevision`), 1), ErrBadEnvelope},
-		{"an extra key", mutate(func(m map[string]any) { m["extra"] = 1 }), ErrBadEnvelope},
-		{"no v", mutate(func(m map[string]any) { delete(m, "v") }), ErrBadEnvelope},
-		{"v 2", mutate(func(m map[string]any) { m["v"] = 2 }), ErrBadEnvelope},
-		{"another kind", mutate(func(m map[string]any) { m["kind"] = "audit-event" }), ErrBadEnvelope},
-		{"an audit event", vector3Bytes, ErrBadEnvelope},
-		{"revision 0", mutate(func(m map[string]any) { m["revision"] = 0 }), ErrBadEnvelope},
-		{"revision as a string", mutate(func(m map[string]any) { m["revision"] = "1" }), ErrBadEnvelope},
-		{"a project's id as the brief's", mutate(func(m map[string]any) { m["briefId"] = "pj-00000000000000a1" }), ErrBadEnvelope},
-		{"a brief's id as the project's", mutate(func(m map[string]any) { m["projectId"] = "bf-00000000000000b2" }), ErrBadEnvelope},
-		{"scope unknown", mutate(func(m map[string]any) { m["scope"] = "team" }), ErrBadEnvelope},
-		{"project scope with a ref", mutate(func(m map[string]any) { m["scope"] = "project" }), ErrBadEnvelope},
-		{"branch scope, no ref", mutate(func(m map[string]any) { m["branchRef"] = "" }), ErrBadEnvelope},
-		{"not a branch ref", mutate(func(m map[string]any) { m["branchRef"] = "refs/tags/v1" }), ErrBadEnvelope},
-		{"content status", mutate(func(m map[string]any) { m["content"] = map[string]any{"status": "done"} }), ErrContentStatus},
-		{"content not an object", mutate(func(m map[string]any) { m["content"] = []any{} }), ErrContentNotObject},
-		{"not JSON", vector1Bytes[:100], ErrNotJSON},
-		{"a repeated key", strings.Replace(vector1Bytes, `"v":1}`, `"v":1,"v":1}`, 1), ErrDuplicateKey},
+		{"keys out of order", strings.Replace(vector1Bytes, `"branchRef":"refs/heads/evidence-upload","briefId":"bf-00000000000000a1"`, `"briefId":"bf-00000000000000a1","branchRef":"refs/heads/evidence-upload"`, 1), ErrBadEnvelope, ""},
+		{"whitespace", strings.Replace(vector1Bytes, `,"kind"`, `, "kind"`, 1), ErrBadEnvelope, ""},
+		{"-0 in content", strings.Replace(vector1Bytes, `"status":"open"}`, `"status":"open","z":-0}`, 1), ErrBadEnvelope, ""},
+		{"an escape where raw is canonical", strings.Replace(vector1Bytes, `brief-revision`, u(`brief~u002drevision`), 1), ErrBadEnvelope, ""},
+		{"an extra key", mutate(func(m map[string]any) { m["extra"] = 1 }), ErrBadEnvelope, "extra"},
+		{"no v", mutate(func(m map[string]any) { delete(m, "v") }), ErrBadEnvelope, "v"},
+		{"v 2", mutate(func(m map[string]any) { m["v"] = 2 }), ErrBadEnvelope, "v"},
+		{"another kind", mutate(func(m map[string]any) { m["kind"] = "audit-event" }), ErrBadEnvelope, "kind"},
+		{"an audit event", vector3Bytes, ErrBadEnvelope, "actorUserId"},
+		{"revision 0", mutate(func(m map[string]any) { m["revision"] = 0 }), ErrBadEnvelope, "revision"},
+		{"revision as a string", mutate(func(m map[string]any) { m["revision"] = "1" }), ErrBadEnvelope, "revision"},
+		{"a project's id as the brief's", mutate(func(m map[string]any) { m["briefId"] = "pj-00000000000000a1" }), ErrBadEnvelope, "briefId"},
+		{"a brief's id as the project's", mutate(func(m map[string]any) { m["projectId"] = "bf-00000000000000b2" }), ErrBadEnvelope, "projectId"},
+		{"scope unknown", mutate(func(m map[string]any) { m["scope"] = "team" }), ErrBadEnvelope, "scope"},
+		{"project scope with a ref", mutate(func(m map[string]any) { m["scope"] = "project" }), ErrBadEnvelope, "branchRef"},
+		{"branch scope, no ref", mutate(func(m map[string]any) { m["branchRef"] = "" }), ErrBadEnvelope, "branchRef"},
+		{"not a branch ref", mutate(func(m map[string]any) { m["branchRef"] = "refs/tags/v1" }), ErrBadEnvelope, "branchRef"},
+		{"content status", mutate(func(m map[string]any) { m["content"] = map[string]any{"status": "done"} }), ErrContentStatus, "content.status"},
+		{"content not an object", mutate(func(m map[string]any) { m["content"] = []any{} }), ErrContentNotObject, "content"},
+		{"not JSON", vector1Bytes[:100], ErrNotJSON, "content"}, // cut inside content's members
+		{"a repeated key", strings.Replace(vector1Bytes, `"v":1}`, `"v":1,"v":1}`, 1), ErrDuplicateKey, "v"},
 	}
 	for _, c := range cases {
 		got, err := ParseBriefEnvelope([]byte(c.in))
-		if !errors.Is(err, c.want) {
-			t.Errorf("%s: ParseBriefEnvelope = %+v, %v; want %v", c.name, got, err, c.want)
+		if !errors.Is(err, c.want) || fieldOf(err) != c.field {
+			t.Errorf("%s: ParseBriefEnvelope = %+v, %v (field %q); want %v at %q", c.name, got, err, fieldOf(err), c.want, c.field)
 		}
 	}
 }
@@ -394,6 +395,15 @@ func TestAuditDataTakesScalarsOnly(t *testing.T) {
 			t.Errorf("%s: %v (field %q), want ErrBadEnvelope at data.x", name, err, fieldOf(err))
 		}
 	}
+	// Of several bad values, the first key in order is named, every time
+	// (a map's range order would name either, at random).
+	for i := 0; i < 20; i++ {
+		a := vector4
+		a.Data = map[string]any{"d": 1.5, "c": nil, "b": []any{}, "a2": "ok", "a": "ok"}
+		if _, err := a.Canonical(); fieldOf(err) != "data.b" {
+			t.Fatalf("several bad values: field %q, want data.b", fieldOf(err))
+		}
+	}
 	a := vector4
 	a.Data = map[string]any{"s": "<" + lsep, "i": 7, "n": int64(-MaxSafeInteger), "b": false}
 	got, err := a.Canonical()
@@ -429,19 +439,22 @@ func TestParseAuditEnvelopeRoundTrips(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(got.Data, want) {
 		t.Errorf("data round trip: %#v, %v", got.Data, err)
 	}
-	for name, in := range map[string]string{
-		"a brief revision":    vector1Bytes,
-		"keys out of order":   strings.Replace(vector3Bytes, `"actorUserId":"u-00000000000000d4","at":"2026-09-23T04:02:11.123Z"`, `"at":"2026-09-23T04:02:11.123Z","actorUserId":"u-00000000000000d4"`, 1),
-		"no teamId (pre-A10)": strings.Replace(vector3Bytes, `"teamId":"tm-00000000000000e5",`, ``, 1),
-		"nested data":         strings.Replace(vector3Bytes, `{"name":"Engagement Portal"}`, `{"name":{"x":1}}`, 1),
-		"null data":           strings.Replace(vector3Bytes, `{"name":"Engagement Portal"}`, `null`, 1),
-		"null in data":        strings.Replace(vector3Bytes, `"Engagement Portal"`, `null`, 1),
-		"seq 0":               strings.Replace(vector3Bytes, `"seq":1`, `"seq":0`, 1),
-		"kind brief-revision": strings.Replace(vector3Bytes, `audit-event`, `brief-revision`, 1),
-		"an extra key":        strings.Replace(vector3Bytes, `"v":1}`, `"v":1,"w":1}`, 1),
+	for name, c := range map[string]struct{ in, field string }{
+		"a brief revision":    {vector1Bytes, "branchRef"},
+		"keys out of order":   {strings.Replace(vector3Bytes, `"actorUserId":"u-00000000000000d4","at":"2026-09-23T04:02:11.123Z"`, `"at":"2026-09-23T04:02:11.123Z","actorUserId":"u-00000000000000d4"`, 1), ""},
+		"no teamId (pre-A10)": {strings.Replace(vector3Bytes, `"teamId":"tm-00000000000000e5",`, ``, 1), "teamId"},
+		"nested data":         {strings.Replace(vector3Bytes, `{"name":"Engagement Portal"}`, `{"name":{"x":1}}`, 1), "data.name"},
+		"null data":           {strings.Replace(vector3Bytes, `{"name":"Engagement Portal"}`, `null`, 1), "data"},
+		"null in data":        {strings.Replace(vector3Bytes, `"Engagement Portal"`, `null`, 1), "data.name"},
+		"seq 0":               {strings.Replace(vector3Bytes, `"seq":1`, `"seq":0`, 1), "seq"},
+		"seq as a string":     {strings.Replace(vector3Bytes, `"seq":1`, `"seq":"1"`, 1), "seq"},
+		"kind brief-revision": {strings.Replace(vector3Bytes, `audit-event`, `brief-revision`, 1), "kind"},
+		"an extra key":        {strings.Replace(vector3Bytes, `"v":1}`, `"v":1,"w":1}`, 1), "w"},
+		"v 2":                 {strings.Replace(vector3Bytes, `"v":1}`, `"v":2}`, 1), "v"},
 	} {
-		if got, err := ParseAuditEnvelope([]byte(in)); !errors.Is(err, ErrBadEnvelope) {
-			t.Errorf("%s: ParseAuditEnvelope = %#v, %v; want ErrBadEnvelope", name, got, err)
+		got, err := ParseAuditEnvelope([]byte(c.in))
+		if !errors.Is(err, ErrBadEnvelope) || fieldOf(err) != c.field {
+			t.Errorf("%s: ParseAuditEnvelope = %#v, %v (field %q); want ErrBadEnvelope at %q", name, got, err, fieldOf(err), c.field)
 		}
 	}
 }
