@@ -527,7 +527,7 @@ first.
 |---|---|---|---|
 | 01 | The `infra/terraform` layout, the conventions, `validate.sh` and `guards.sh`; the phase 1 root (which targets Panacea's cluster) is retired | — | 2 |
 | 02 | `stacks/bootstrap`: the state storage account, Entra-only, versioned; partial backend files | 01 | 1.5 |
-| 03 | `modules/network`: VNet, five subnets, NSGs, NAT gateway, the privatelink DNS zones | 01 | 2.5 |
+| 03 | `modules/network`: VNet, five subnets (six in firewall mode, which adds `AzureFirewallSubnet`), NSGs, NAT gateway, the privatelink DNS zones | 01 | 2.5 |
 | 04 | `modules/observability`: Log Analytics with a daily cap, the Container Insights DCR, action group, budget | 01 | 2 |
 | 05 | `modules/registry` and `modules/keyvault`: ACR Premium and Key Vault, private endpoints, no admin user, RBAC only | 01, 03 | 2 |
 | 06 | `modules/aks`: the cluster (Overlay + Cilium, Entra RBAC, local accounts off, WI) and three pools, the Kata pool among them | 01, 03 | 3 |

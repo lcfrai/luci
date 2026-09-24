@@ -301,7 +301,8 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
 
 - That phase 3's `gitx` behaves identically on the machine pod's Linux git and the laptop's
   Windows git (`MinVersion` 2.40 is checked by `gitx.CheckVersion` at `machined` start; the sandbox
-  image's Debian bookworm git version is **UNVERIFIED** against it — task 27 checks it at build).
+  image's Debian git version, trixie's after task 27a, is **UNVERIFIED** against it — task 27's
+  `git version ≥ 2.40.0` row checks it at build).
 - A clone surface in the cockpit.
 - That code the agent chose can never run in the machine pod. The claim is narrower: every path
   that phase 3's §HGH names, and every `Env` path, is closed and tested. A git feature that §HGH
