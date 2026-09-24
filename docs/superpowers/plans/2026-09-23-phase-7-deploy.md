@@ -286,7 +286,8 @@ security-advisory run's `TargetEnv` label (`pipeline.go:842`), never becomes a d
 §12 *Settled from source*). Other
 handlers also use `"prod"` (`canonicalStageEnv`, `projects.go:4124-4126`). Panacea's own `tenantNamespace`
 (`clients/kubernetes.go:4210-4217`) treats `prod` and `production` as **the same** environment
-(both map to `tenant-<project>`), so the view joins by exact name **plus that one equivalence**,
+(both map to `tenant-<project>`; so does `""`, which is not adopted, below), so the view joins by
+exact name **plus that one equivalence**,
 cited to that function and pinned by a test that quotes it. Any other deployment whose environment
 matches no row appears in its own group, titled with its raw name — never merged, never dropped —
 and task 20's live check records the real spelling. **A legacy run with no environment label**
