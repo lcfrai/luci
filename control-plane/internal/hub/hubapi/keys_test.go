@@ -223,6 +223,7 @@ func TestBranchRefRules(t *testing.T) {
 		"refs/heads/lock",     // "lock" is fine; ".lock" at a component's end is not
 		"refs/heads/a.locked", // so is a component that only contains ".lock"
 		"refs/heads/café",     // non-ASCII is fine when it is UTF-8 (é is C3 A9)
+		"refs/heads/a\uFFFDb", // so is U+FFFD itself: valid UTF-8, and JSON keeps it
 		ref255,
 	}
 	for _, r := range valid {
