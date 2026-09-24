@@ -271,6 +271,11 @@ type ApprovalState struct {
 	HeadRevision    int                    `json:"headRevision"`
 	HeadDigest      string                 `json:"headDigest"` // ReviewDigest(head, latest.briefKey); "" when none
 	BriefSuperseded bool                   `json:"briefSuperseded"`
+	// HeadBriefKey is Briefs.Head(projectId, branchId).Key verbatim, the key an approval now would
+	// pin (Approve step 3); "" when the head is not resolved. The desktop never composes a brief key
+	// (G9): the pre-approval chip and *Open rev N* for the new revision read this field, and
+	// *Open rev N* for the approved one reads latest.briefKey (re-review RR-b08-3).
+	HeadBriefKey    string                 `json:"headBriefKey"`
 	ChangedBy       []authority.ActivityRow `json:"changedBy"` // content rows after the approved revision: who changed what (prototype state 5)
 	History         []hubapi.DesignApproval `json:"history"`  // newest first, at most 20
 }
@@ -381,7 +386,7 @@ loader; this cache does not poll it).
 | `TestApprove_noMCPPath` | every route of `designapi` is on the guarded mux; no MCP tool name maps to route 21 (reflection over `mcp.RegisterAll`'s tools) | an agent reaching approval over MCP (ADR-H1 R5) |
 | `TestApprove_localKeyRequired` | through `Mount` with a real `localkey.Middleware` (task 20a's harness): route 21 with no `Authorization`, no `Origin` and `Host: 127.0.0.1:8730` → 401 `local_key_required`, and the Hub fake received **no** `PutBlob` and **no** `Approve`; a wrong key → the same; the right key → 201 | an agent approving its own design over REST from inside its sandbox (review C1, ADR-H1 R5) |
 | `TestApprovalState_changed` | approved at 5; a human colour edit at 6 → `changed`, `changedBy` names the human; a comment at 7 alone would not | *changed after approval* that fires on comments |
-| `TestApprovalState_superseded` | fake `Superseded: true` → `superseded` | a stale brief shown as current |
+| `TestApprovalState_superseded` | fake `Superseded: true` → `superseded`; `headBriefKey` equals the fake `Head`'s `Key` byte for byte, including a fixture key that does not follow `brief:<id>@<N>` (re-review RR-b08-3); a fake `Head` with state `unavailable` → `headBriefKey` `""` and the rest of the state still answered | a stale brief shown as current, or a head key the desktop has to compose |
 | `TestReReview` | route 23 on a canvas approved at 11 against `@5`, head brief `@6` → revision 12; approving 12 sends `briefKey @6` and a digest ≠ 11's | re-review impossible (the Hub allows one approval per design key) |
 | `TestNothingOnDisk` | after an approval, no file under the canvas store dir contains the approval id | ADR-H1 §5.4 broken |
 

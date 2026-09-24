@@ -16,6 +16,7 @@ text is edited in place.
   `RightPanel.tsx` (`LayoutPanel.tsx`, `FillPanel.tsx`, `BorderPanel.tsx`, `EffectsPanel.tsx`,
   `TypePanel.tsx`), `TokenPicker.tsx`, `ColorField.tsx`, `LengthField.tsx`, `CodePanel.tsx`,
   `TextEdit.tsx`, `panels.css`, `virtualList.ts` (new) + tests
+- `canvas/editor/src/index.ts` — adds the panel exports and `visibleRange` (task 28's feed uses it)
 - `canvas/editor/package.json` — `culori` (MIT, spec L11) for OKLCH, through the gate
 
 ## Contracts
@@ -26,6 +27,9 @@ export function RightPanel(props: { ctx: PanelContext }): JSX.Element;   // empt
 export function CodePanel(props: { ctx: PanelContext; format: "html" | "jsx-inline" | "jsx-tailwind"; onFormat: (f: "html" | "jsx-inline" | "jsx-tailwind") => void }): JSX.Element;
 // TextEdit is mounted by CanvasEditor on double-click of a text node (task 25's hit test):
 export function TextEdit(props: { view: ArtboardView; node: Node; viewport: Viewport; onCommit: (text: string) => void; onCancel: () => void }): JSX.Element;
+// virtualList.ts — fixed row height, overscan 8; pure arithmetic, no measurement. Exported from
+// src/index.ts because task 28's Activity feed is its second user (re-review RR-b08-5).
+export function visibleRange(p: { scrollTop: number; viewportPx: number; rowPx: number; count: number; overscan?: number }): { start: number; end: number; padTopPx: number; padBottomPx: number };
 ```
 
 ### Controls → properties (each change is one `submit` of `set_props` over the whole selection)

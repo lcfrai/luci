@@ -140,7 +140,7 @@ export function createCockpitTransport(client: DesignClient, stream: EventStream
 // POSTs route 19; assetUrl → assetBytes → URL.createObjectURL, cached per ref, revoked on release.
 
 // desktop/src/design/selectors.ts
-export const selectDesignBriefKeys: KeySource;   // every loaded approval's briefKey (S4-P5.1)
+export const selectDesignBriefKeys: KeySource;   // every loaded approval's briefKey and each ApprovalState's non-"" headBriefKey (S4-P5.1; re-review RR-b08-3)
 // selectHiddenRendererCanvases (P5-Q): the canvas ids of branches that have at least one
 // running or idle claude-code session (from the poller's sessions) and a loaded canvas —
 // excluding the canvas the Design lens is showing (it has a visible renderer) — plus
@@ -175,7 +175,7 @@ export function selectHandoffWorktrees(s: CockpitState, branchId: string): Workt
 | `designSlice.test.ts › startDevelop` | three calls in order; a failing third leaves `linked: false` and the retry path works | an unlinked session nobody can fix |
 | `transportAdapter.test.ts › gapReload` | a DocStore `gap` triggers exactly one `document()` | a canvas stuck behind after a drop |
 | `transportAdapter.test.ts › renderRoundTrip` | a render event runs the handler and POSTs its result to route 19 | render requests that time out server-side |
-| `selectors.test.ts` | `selectDesignBriefKeys` lists approved keys; `selectHiddenRendererCanvases` includes a branch with a running claude-code session and excludes the lens's canvas; with `approving` set to the lens's own canvas it includes that canvas, and with `approving` null it drops it again | hidden renderers for every branch, or none; an approval whose only renderer closes with the lens (re-review RR-I5-1) |
+| `selectors.test.ts` | `selectDesignBriefKeys` lists approved keys and every non-`""` `headBriefKey`, verbatim (re-review RR-b08-3); `selectHiddenRendererCanvases` includes a branch with a running claude-code session and excludes the lens's canvas; with `approving` set to the lens's own canvas it includes that canvas, and with `approving` null it drops it again | hidden renderers for every branch, or none; an approval whose only renderer closes with the lens (re-review RR-I5-1) |
 | `selectors.test.ts › selectHandoffWorktrees` (re-review RR-I1-5) | a branch with a primary, a linked and a clone worktree → `[clone, primary]`; a branch whose only worktree is linked → `[]`; before phase 3 (`handoffKind` on `isPrimary`), a non-primary worktree → excluded | a handoff offered into a linked worktree, answered 409 after the click |
 | `designSlice.test.ts › approving` | `designApprove(c, 5)` sets `approving: c` at once (inside the Undo window); `designCancelApproval` clears it; the approve POST settling, with success or an `ApiError`, clears it | a hidden renderer kept for ever, or one attached only after capture has started |
 

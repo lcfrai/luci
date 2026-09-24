@@ -144,7 +144,9 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
       agent's work untouched; revert one agent's changes from the activity feed.
    5. Approve (see the Undo toast); edit after approval (*changed after approval* names you); edit
       the brief in Discover (*superseded*; *Open rev N* opens that revision read-only in Discover,
-      or is absent if phase 4 task 19 is not in the tree, review M14); re-review and approve again. Then approve a canvas of
+      or is absent if phase 4 task 19 is not in the tree, review M14; absent is a pass only
+      while `pastRevisionAvailable` is `false`, and the report then names seam S5-P4.1 as open,
+      re-review RR-b08-4); re-review and approve again. Then approve a canvas of
       twelve artboards: the toast counts *"Capturing 3 of 12 · <name>"*, and the log's per-artboard
       capture times are noted beside S8's (task 01) — the WebView2 figure `ApprovalRenderTimeout`
       was set without (review I5). Edit one of its artboards, approve the new revision, and switch to the Develop lens at
