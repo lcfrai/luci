@@ -55,7 +55,7 @@ UNVERIFIED here.
 7. **Fast is architecture.** An in-memory Hub replica on the Hub's existing change feed, optimistic
    writes with undo for reversible acts (02 C8), in-row confirmation for irreversible ones. This
    corrects 02 C8, which put the replica on disk against ADR-H1 (§4.4, Q5).
-8. **Minimum lovable slice W1** (§5.3): file an issue, `Shift+S` starts a cloud agent on it, it
+8. **Minimum lovable slice W1** (§5.3): file an issue, `Shift+R` starts a cloud agent on it, it
    lands, a person records evidence, it turns `done` by itself, and the release shows it shipped.
    About **28 focused days** (3 weeks elapsed on three streams). **W1-W3 is about 64 days; all of
    W1-W5 about 117.** None is measured.
@@ -147,7 +147,7 @@ phase already delivers it. `TM` names team mode's own delivery (TM-05 §12).
 | L | Linear item (short) | Verdict | How, or why not | Slice |
 |---|---|---|---|---|
 | 46 | Per-team Triage inbox | MATCH | `triage` state and a Triage view on the Work surface. Items that name a person also join that person's Desk (§4.2) | W1 |
-| 47 | Number-key triage actions | EXCEED | `1` accept, `2` duplicate, `3` decline, `4` snooze, list focus only; plus `Shift+S` **accept and Start**, which binds a lane at once | W1 |
+| 47 | Number-key triage actions | EXCEED | `1` accept, `2` duplicate, `3` decline, `4` snooze, list focus only; plus `Shift+R` **accept and Start**, which binds a lane at once | W1 |
 | 48 | Priority required to leave Triage | MATCH | Team policy, checked by the Hub on the state change | W1 |
 | 49 | Ordered triage rules | MATCH | Intake rules, first match wins, each with its author on the event | W5 |
 | 50 | Triage duty with rotation from incident tools | PARTIAL | A Hub-held rotation; syncing it from PagerDuty and the like is L-218 | W4 |
@@ -386,7 +386,7 @@ We keep **intake** (requests from people outside the team) and skip the CRM.
 |---|---|---|---|---|
 | 221 | Contextual command menu `Ctrl+K` | MATCH | The palette is built (phase 2); W1 makes it open beside a row for that row's actions. Cockpit chords win over a focused terminal, with OD-9's toggle | exists / W1 |
 | 222 | Command-menu prefixes | MATCH | Prefixes scope to issues, people, sessions or commands (§4.3) | W1 |
-| 223 | Key grammar: property letters, `G`, `O`, `M` | EXCEED | The same grammar, live **only when focus is in a list**, never in a terminal (02; extends `isCockpitChord` in `useKeyboardMap.ts`); it also reaches agents: `Shift+S` Start, `Shift+D` Delegate (§4.3) | W1 |
+| 223 | Key grammar: property letters, `G`, `O`, `M` | EXCEED | The same grammar, live **only when focus is in a list**, never in a terminal (02; extends `isCockpitChord` in `useKeyboardMap.ts`); it also reaches agents: `Shift+R` Start, `Shift+O` Delegate (§4.3) | W1 |
 | 224 | `?` shortcut sheet | MATCH | Generated from the same key map, so it cannot drift | W1 |
 | 225 | Multi-select and bulk bar | EXCEED | Bulk acts include *Start 4 lanes* and *Delegate 4 to my Orchestrator*; irreversible bulk acts confirm in place (02 `confirm.inplace`) | W1 |
 | 226 | Menus show every shortcut | MATCH | Every menu item renders its chord from the key map | W1 |
@@ -503,11 +503,11 @@ subsection ends with why Linear cannot follow quickly, and what is still unprove
 
 An issue goes to a **person**. Giving it to agents is that person's own act (04 §4.1):
 
-- **Solo: Start.** One chord (`Shift+S`) on EP-142 picks the feature's branch or cuts `ep-142-<slug>`,
+- **Solo: Start.** One chord (`Shift+R`) on EP-142 picks the feature's branch or cuts `ep-142-<slug>`,
   creates a lane (a local clone, OD-2), and starts a managed cloud session whose record carries
   `IssueRef = issue:is-…@r` beside the brief's `ContextRef` (04 §4.2). The issue moves to
   `started`, written as that person, with the lane as the cause.
-- **Team: Delegate.** `Shift+D` sends EP-142 to **your own** Orchestrator. It reads the issue with
+- **Team: Delegate.** `Shift+O` sends EP-142 to **your own** Orchestrator. It reads the issue with
   `panacea issue show`, plans tasks with `--issue`, and spawns workers whose sessions carry the
   issue (04 §4.3). Nobody can delegate to someone else's agents (OD-16).
 
@@ -516,9 +516,10 @@ What the teammate then does, visibly, on the issue:
 ```
 EP-142  Uploads survive a dropped connection            Dylan · started 09:12
   serves  brief:bf-3a…@6 › done › c-91e2… "a 40 MB upload resumes after a drop"
-  ● 2 agents · Dylan's      writing resume handler · last output 3s ago
-    files  services/api/upload.go  store/chunks.go  +2
-  ▸ proposed evidence  c-91e2… at 7c1f0a2 · "resume test passes on a cut at 60%"  [Record]
+  ● dylan · agent 1   writing the resume handler in upload.go                      live
+    files  services/api/upload.go  store/chunks.go  store/chunks_test.go  api/routes.go
+  ▸ observed evidence  c-91e2… at 7c1f0a2 · resume test, exit 0, run by the platform 14:01
+  ▸ proposed evidence  c-40aa… at 7c1f0a2 · "reviewer sees the age column"        [Record]
   ◦ note (Dylan's agent)  assumed chunk size 8 MB; the brief does not say
 ```
 
@@ -558,9 +559,10 @@ people wrote, not through each other's free text.
 3. **They escalate by a policy each human set in advance**: *inform* (a line under "since you
    last looked") or *decide* (a Desk item with up to four options and a deadline, whose safe
    default pauses and deletes nothing) (TM-05 §6.5).
-4. **Issue relations feed the protocol.** `EP-150 blocks EP-142` across two owners becomes a
-   `sequence` proposal automatically; a `duplicates` link between two people's issues opens a
-   thread asking whose lane survives, which is always a *decide*.
+4. **Issue relations feed the protocol, through the editor's own Orchestrator** (§3.7 rule 3).
+   When Alice adds `EP-150 blocks EP-142` across two owners, **her** Orchestrator opens a `sequence`
+   proposal with Dylan's; the edit itself pauses nothing. A `duplicates` link between two people's
+   issues opens a thread asking whose lane survives, which is always a *decide*.
 5. **Both issues show the outcome**, as one negotiation row (02 C10 `negotiation.row`):
    *"Sequenced after EP-150 (Alice's). Agreed by both Orchestrators 10:41; Dylan informed."*
    The row links to the thread's typed state, never to the other side's transcript (OD-15).
@@ -791,7 +793,9 @@ managed block. An agent reads it only as data.
   so the desktop replica and every Orchestrator learn of changes through `/v1/changes`. Webhooks
   (L-251) are the same events, delivered out.
 - **Authorisation rows** (04 §7.1): a team member writes issues; only a person moves an issue to
-  `done` by hand; an agent writes only comments on its own owner's behalf, and in team mode only
+  `done` by hand, and on an issue that serves criteria that move needs a reason and is shown as
+  *done, not proven* (§3.3); no sync or integration token may write a fact state or `done`; an
+  agent writes only comments on its own owner's behalf, and in team mode only
   its Orchestrator does; `landed` and `started` moves are written as the person whose act caused
   them. Nothing writes as "the system" except janitor acts, whose events carry `actor: null` and
   name the policy's author.
@@ -802,7 +806,30 @@ managed block. An agent reads it only as data.
   `ln-`, `iv-`, `rl-`, `ev-` and the single-letter ones, hub-contract:105-112 in the `feat/hub`
   worktree) and TM-05's (`ag-`, `tk-`, `ls-`, `cf-`, `th-`, `ms-`, `es-`, `nt-`, `dl-`, per 04
   §7.1): the new `is-`, `ic-`, `ft-`, `ml-`, `cy-`, `in-`, `rq-`, `lb-`, `tp-`, `vw-`, `lp-`,
-  `df-` collide with none. Milestones take `ml-` because `ms-` is TM-05's.
+  `df-` and `dc-` (free documents, L-120, *later*) collide with none. Milestones take `ml-`
+  because `ms-` is TM-05's.
+
+### 3.7 When a person edits someone else's in-flight issue (P I8, OD-16)
+
+Any team member may write any issue (§3.6). When the issue has **another owner's agents on it**,
+three rules keep OD-16's "nobody steers another user's agent" true:
+
+1. **An edit reaches the owner, never the agents.** Alice edits the description or `serves` of
+   Dylan's EP-142. Dylan's agents keep the revision they were given (`@3`, §3.4). Dylan gets a Desk
+   *inform*: *"EP-142 changed since your agent read @3 (Alice, 11:02): serves c-40aa added."* with
+   one verb, *re-brief my agents at @4*. Nothing reaches the agents until Dylan presses it.
+2. **Reassigning an issue with agents on it asks the current owner first.** Alice's reassign
+   becomes a Desk *decide* for Dylan: *hand over the worktree to Alice* (it and its branch move to
+   her; his agents stop at their next checkpoint) or *keep working, decline*. The safe default
+   pauses nothing and moves nothing. Until he answers, EP-142 stays Dylan's and shows *reassign
+   requested by Alice*. In team mode his Orchestrator winds the agents down; in solo mode his
+   session gets a checkpoint and stops.
+3. **A cross-owner relation is a proposal from the editor's own Orchestrator.** Alice adding
+   *EP-150 blocks EP-142* does not pause Dylan's agents. It asks **Alice's** Orchestrator to open a
+   `sequence` proposal with Dylan's, which then negotiates under OD-16 (§2.2 point 4, now reworded).
+   In solo mode, with no Orchestrators, the relation is recorded and Dylan gets an *inform*.
+
+Rules 1 and 2 need only the Desk and land in W1; rule 3 needs Orchestrators and lands in W3.
 
 ---
 
@@ -810,43 +837,84 @@ managed block. An agent reads it only as data.
 
 ### 4.1 Where the work layer appears
 
-The rail stays navigation only: project → branch → worktree → session, names and no counts
-(AX:144). The work layer adds **one lens and one project surface**, and chips everywhere else.
+**The words a person sees (P I5).** Revision 1 put 18 nouns in front of a user. The screen now
+uses **nine**: *project, feature, brief, criterion, issue, worktree, agent, Orchestrator,
+evidence*, plus *cycle* and *initiative* once W2 and W4 bring them. The rest are internal:
+
+| Internal word (this file, the Hub, Fleet) | What the screen says |
+|---|---|
+| lane (phase 3's record; `refs/panacea/lanes`) | **worktree**, the word the built rail already uses |
+| task `tk-`, worker | nothing: *your agents*, each named by `who.label` (`dylan · agent 2`) |
+| session | nothing on the Work surfaces; *open session* is a link |
+| branch | never alone: **a feature and its branch are one row**, the branch in mono under the name |
+| sub-issue, milestone, request | shown only once a team creates one |
+
+C13's not-a-clone review gains one check: *a new user can say what each visible noun means after
+five minutes*.
+
+The rail stays navigation only: project → feature → worktree → session, names and no counts
+(AX:144). The work layer adds **one project surface, Plan, and one lens, Work**, and chips
+everywhere else. Two surfaces named *Work* in revision 1 are now two names.
 
 | Surface | Scope | What it holds | New? |
 |---|---|---|---|
 | **The Desk** | the account, above projects | issues only when they need you, in the Desk's existing sections (§4.2) | Desk designed, **not built** (§5.6) |
-| **Work** (project surface) | one project | Triage, Backlog, the current cycle, the features board, initiatives, saved views, *My issues* | new |
+| **Plan** (project surface, `G P`) | one project | Triage, Backlog, all criteria with their issues, the features board, cycles, initiatives, saved views, *My issues* | new |
 | **Work lens** | one feature (its branch) | its issues, **the brief's criteria with the issues that serve each**, who is on each issue now | new; `Lens` gains `"work"`, the seventh lens |
 | **Issue view** | one issue | head, revision history, `serves`, relations, comments, the live agent line, proposed evidence, *shipped to* | new |
 | **Discover, Design, Develop, Merge, Deploy** | a branch | an issue chip beside the brief chip on every artefact that carries one (§4.5) | chips new |
 | **Palette** `Ctrl+K` | everywhere | every work verb, with its chord shown (L-226) | built; gains commands |
 
-The Work surface, drawn to the design system's rules (plain group sizes follow Q1's option A):
+**The Work lens, revision 2: grouped by criterion (D C1).** Revision 1 drew Linear's default list
+(grouped by workflow state) in teal. The skeleton is now the thread, which Linear has no object
+to build. Drawn as W1 ships it: no cycles (W2), no negotiation (W3), plain group sizes (Q1 A).
 
 ```
-┌ EP · Evidence Portal ─ Work                        Global ▾   view: Current cycle ▾   ⌘K ┐
-│ CYCLE 14 · 22 Sep – 3 Oct                        scope log: +3 on day 4 (Priya, Dylan)   │
-├──────────────────────────────────────────────────────────────────────────────────────────┤
-│ IN REVIEW 2                                                                              │
-│ ◇ EP-142  Uploads survive a dropped connection      Dylan   ● 2 agents · last 3s  ┊c-91e2 │
-│ ◇ EP-139  Reviewer sees evidence age                Priya   queued 2nd            ┊c-40aa │
-│ STARTED 3                                                                                │
-│ ▷ EP-150  Chunked upload API                        Alice   ● 1 agent · Alice's   ┊c-91e2 │
-│   ⇄ sequenced after EP-142 · agreed 10:41 · you were informed                           │
-│ TODO 4                                                            2 new · N to show     │
-└──────────────────────────────────────────────────────────────────────────────────────────┘
+┌ EP · Resumable uploads  feat/resumable-uploads ─ Work           Global ▾  by criterion ▾ ⌘K ┐
+│ Uploads survive a dropped connection                            open · 3 issues · 1 moving │
+│ ┃ ◇ EP-142  Resume handler for cut uploads            Dylan                              │
+│ ┃   ● dylan · agent 1   writing the resume handler in upload.go                    live │
+│ ┃ ▷ EP-150  Chunked upload API                        Alice · touching upload/*.go      │
+│ ┃ ✓ EP-139  Retry budget per chunk                    Priya                        held │
+│ ┃   → done · own evidence at 7c1f0a2 (test run, exit 0) · 14:02                         │
+│ A reviewer sees how old each piece of evidence is               settled · 1 issue        │
+│ ┃ ✓ EP-131  Evidence age column                       Priya                              │
+│ Serves no criterion                                                         2 issues     │
+│   ○ EP-155  Bump the chunk-store client               Dylan   not tied · chore           │
+│   EP-128 left this view · cancelled                                        N applies     │
+└────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- `┊c-91e2` is a `thread.node` (02 C2): the criterion the issue serves, in mono. Hovering it lights
-  every issue, frame and lane on the same criterion (`thread.lit`).
-- The agent line is Fleet state, on the one heartbeat (02 `fleet.beat`); a teammate's agents are
-  labelled as theirs (02 `who.label`) and are never steerable from here (OD-16).
-- The `⇄` row is 02's `negotiation.row`: the outcome, with a link to the typed thread.
-- "N to show" is 02's `arrivals.hold`: new rows wait behind one line and never push the list. 02
-  binds it to `R`, which 02 C9 also gives to *rewind*; this design moves arrivals to `N`.
-- The state glyphs (`◇` in review, `▷` started) are placeholders for our own drawn set (§4.4). Each
-  is a distinct shape per state; none fills as work progresses (02 C13).
+- **The group header is the criterion, in words, in sans**, with its convergence word (§3.3). Its
+  issues hang from `thread.line` (┃) in the leading gutter. *Serves no criterion* is always the last
+  group, which is itself a fact worth seeing. The machine id `c-91e2` lives in peek, in mono.
+- **The workflow state is a glyph column inside the row**, not the grouping. *Current cycle, by
+  state* survives as a saved view (W2) for people who want Linear's shape; it is not the default,
+  and the prototype does not show it first. C13 gains a structural check (§4.4).
+- **One agent line per row, yours only (D C3, D I2).** Your issue carries one line: the lead
+  agent's MEANING in sans, prefixed by `who.label` in mono (`dylan · agent 1`), and one dot for that
+  agent alone, so the dot has one span. Other agents on the issue are one `Space` away, never
+  counted. **A teammate's issue carries no dot and no count**: the person, and one sans line of
+  what they touch (`Alice · touching upload/*.go`). Their fleet is in `peek.person`. The heartbeat
+  carries only what the reader can direct.
+- **Liveness text coarsens (D I10).** `live` under 10 s; then `quiet 2m`, `quiet 14m`, changing
+  only on the beat. The quiet rows are the news, so only they change.
+- **Rows never move under the reader (D C2).** Beside `arrivals.hold` (new rows wait behind one
+  line) sits **`moves.hold`**: a row whose group or state changes stays in place, takes its new
+  glyph, flashes over `--dur-flash` and shows one mono cause line (EP-139 above). It relocates only
+  on `N` (apply held changes), on leaving the view, or when focus is outside its group. A
+  **departure** leaves a one-line ghost until `N`. The group header shows what is held
+  (`· 1 moving`). More than three changes in one group at once flash the header once instead of
+  each row (D M9).
+- **Lit is not selected (D I1).** Hovering **or focusing** a criterion (`thread.lit`) brightens its
+  `thread.node` and `thread.line` in the gutter, across Work, Design and Develop; it never rings a
+  row. Selection keeps the ring and gains a leading check glyph, so it is a shape too. The prototype
+  shows three rows selected and a fourth lit, together.
+- **Negotiation (W3)** shows as a `⇄` line under the issue only until you have seen it (the read
+  cursor), then folds to a `⇄` glyph on the row (D M3). A queue position names its cause in mono
+  (`review · behind EP-142`), never a bare ordinal (D M2).
+- The glyphs above are placeholders until W1 row 9's drawn set (§4.4, §5.3). Each state is a
+  distinct shape; none fills as work progresses (02 C13).
 
 ### 4.2 The Desk absorbs Inbox, My Issues and triage-for-me
 
@@ -857,41 +925,85 @@ No new Desk section (TM-05 §9.3). Issue rows join the fixed ones (AX §5):
 | NEEDS YOU | assigned to you in `triage`; an urgent issue assigned to you; `in_review` where you are the reviewer; a comment naming you with a question; **your issue is blocking someone's agent** (with the cost of the wait); a `decide` escalation about an issue |
 | DECIDED WITHOUT YOU | an Orchestrator agreement within your policy that changed your issue (sequenced, split), with Undo |
 | FAILED | a lane bound to your issue failed; an intake rule could not route a request |
-| LANDED | your issue landed; a criterion it serves became settled; your issue **shipped** |
-| RUNNING | your agents on your issues, one line each |
+| LANDED | your issue landed; it turned `done`; a criterion it serves became settled; your issue **shipped** |
+| RUNNING | your agents on your issues: see the shape below |
+| (informs) | someone edited or asked to reassign your in-flight issue (§3.7); a criterion your issue serves drifted (§3.3) |
 
-Every row answers in place and never navigates (AX §5): accept, snooze with a reason, record
-proposed evidence, answer a question in one line. The zero state stays reachable: *"Nothing needs
-you. 7 agents on 4 issues. Next decision expected ~14:22."*
+**RUNNING's shape, revision 2 (D C3.3, D I10.2).** AX §5 says a card is *"three lines, always
+three"*; revision 1 said one line. Now: an agent that **changed since you last looked** (new
+state, a question, quiet over 10 minutes) gets AX's three-line card; the steady ones fold into
+one line that expands in place: *"23 steady, all live"*. The folded line's number is a group size
+under Q1 A. The Desk is never live while you are on it (AX §5's fixed order); it re-ranks on
+arrival. This changes a binding rule, so it is one of Q13's amendments.
+
+**Budgets are CSS px at 125% scaling** (D I10.2): a 1080p KPMG laptop at 125% is 864 px tall, at
+150% 720. Revision 1's "30 rows at 960px fits one screen" was wrong; the fold is what makes 30
+agents fit.
+
+Every row answers in place and never navigates (AX §5): accept, defer with a reason, record
+proposed evidence, answer a question in one line. The zero state stays reachable and says only
+what W1 can back: *"Nothing needs you. EP-142 landed and proven at 14:02. 3 agents live on 2
+issues."* The horizon line (*"Next decision expected ~14:22 · rule: migration gate"*) joins it
+when the horizon bar exists, and every projection names its rule and source span (D M8).
 
 ### 4.3 The keyboard and command model
 
-We adopt Linear's **idea** of a grammar (letters open properties, `G` goes, `O` opens, menus teach
-the keys; 01 §15.1) and write our own letters. Linear's exact bindings are **UNVERIFIED** (02 D4:
-its shortcut page returned 404) and are not copied. Two rules come first:
+**The policy, revision 2 (P I2, D I3).** Key letters are function, not expression, and muscle
+memory is what a migrating team brings. So **we match Linear's unshifted letters and its `G`, `O`
+and `M` sequences on purpose**, wherever 01 §15.1 records them, and **depart only where an agent or
+a cost is involved**. Revision 1 said Linear's letters were "not copied"; that was wrong in fact,
+and the table below now says which keys match. 01's list is partly **UNVERIFIED** (from a search
+summary; 02 D4 got a 404 on the shortcut page), so the table is checked against Linear's public
+shortcut page once it is reachable, before W1's plan.
+
+Four rules come first:
 
 1. **Single keys and sequences fire only when focus is in a list** (02 C9 `keys.list`), never in a
-   terminal. This extends `isCockpitChord` in `desktop/src/hooks/useKeyboardMap.ts`. `Ctrl+K`
-   works everywhere, as built, with OD-9's toggle.
-2. **Lower case edits the record; `Shift` hands work to your agents.** A reader can tell from the
-   key alone whether an agent will run.
+   terminal and never in a text field. This extends `isCockpitChord` in
+   `desktop/src/hooks/useKeyboardMap.ts`. `G`, `O` and `M` sequences obey the same rule (revision
+   1 let them fire "outside a terminal", which reached text fields). `Ctrl+K` works everywhere, as
+   built, with OD-9's toggle.
+2. **Lower case edits the record; `Shift` plus a letter hands work to your agents.** A reader can
+   tell from the key alone whether an agent will run. Range select moves to `Shift+↓`/`Shift+↑`
+   (the platform convention, and Linear's, 01 §15.1), so no `Shift`+letter is a record act.
+3. **No agent key sits on a chord Linear uses.** Linear binds `Shift+D` (due date), `Shift+E`,
+   `Shift+P`, `Shift+M` and `Shift+S` (subscribe, 01:381, :394). Here **those five chords do
+   nothing**, so a Linear user's muscle memory never starts an agent or a bill; the `?` sheet lists
+   our equivalent for each. Agent keys are `Shift+R` **Run** (was `Shift+S`), `Shift+O` delegate to
+   my **Orchestrator** (was `Shift+D`) and `Shift+A` **ask** my Orchestrator (was `M`), chords 01
+   records no Linear binding for (**UNVERIFIED** as a complete list).
+4. **Agent keys match the physical key, not the character.** The handler tests
+   `event.code === "KeyR" && event.shiftKey`, never `event.key === "R"`, so Caps Lock cannot turn a
+   record act into a run. **Settings → Keyboard → Single-key shortcuts** turns every single-key and
+   sequence binding off (WCAG 2.1.4, for speech-input users); the palette and chords remain.
+
+Key letters are sliced: `Shift+O` and `Shift+A` do nothing until W3 (no Orchestrator before it),
+and the property keys for W2's records (`Y` cycle, `B` feature, `D` due date) arrive with them.
 
 | Key (list focus) | Meaning | Where |
 |---|---|---|
 | `J` `K`, `↑` `↓` · `Enter` · `Esc` | move · open or dive · back | every list |
 | `Space` tap / hold | peek: `peek.span`, `peek.hunk`, `peek.person` (02 C9) | every list |
-| `X`, `Shift+X` | select, select a range; the bulk bar appears | every list |
-| `/` · `?` · `U` · `N` | search · shortcut sheet · undo within `--undo-window` · show held arrivals | every list |
-| `A` · `D` · `R` | approve · defer with a reason · rewind an assumed decision | Desk items (AX §5; 02 C9) |
-| `M` | ask **my** Orchestrator about this row (TM-05 §9.2's one action) | every list |
-| `C` | new issue; on a Desk row or a span, the new issue links to it | every list |
-| `I` | assign to me | issues |
-| `S` `P` `L` `E` `Y` `F` `B` | pick state · priority · label · estimate · cycle · feature · relation | issues |
-| `1` `2` `3` `4` | accept · duplicate · decline · snooze | Triage view only |
-| `Shift+S` | **Start**: a lane and a managed session on this issue | issues |
-| `Shift+D` | **Delegate** to my Orchestrator (team projects) | issues |
-| `G` then `D` `W` `I` `T` `C` `P` `M` | go to Desk · Work · my issues · Triage · current cycle · projects · my Orchestrator | outside a terminal |
-| `O` then `I` `F` `P` | open an issue by number · a feature · a project | outside a terminal |
+| `X`; `Shift+↓` `Shift+↑` | select; extend the selection. The bulk bar appears. **Matches** | every list |
+| `/` · `?` · `U` · `N` | search · shortcut sheet · undo · **apply held changes** (arrivals, moves and departures, §4.1) | every list |
+| `H` | defer with a reason (Linear's snooze key, **matches**) | every row |
+| `A` · `D` · `R` | approve · defer · rewind an assumed decision (AX §5, unchanged) | **decision** rows on the Desk only |
+| `C` | new issue; on a Desk row or a span, the new issue links to it. **Matches** | every list |
+| `A` · `I` | assignee picker · assign to me. **Match**; answers D I3.4 | issue rows |
+| `S` `P` `L` `E` · `F` | state · priority · label · estimate · filter. **Match** (Linear's `Shift+E` is unshifted here, rule 3) | issue rows |
+| `Y` `B` `D` | cycle · feature (a feature **is** a branch) · due date | issue rows, from W2 |
+| `T` | attach a criterion (thread state, §2.3 point 4) | issue rows; Triage |
+| `M` then `B` `X` `R` `D` | relation: blocked by · blocking · related · duplicate of. **Matches** | issue rows |
+| `1` `2` `3` `4` | accept · duplicate · decline · snooze. **Matches** | Triage view only |
+| `Shift+R` | **Start** (`R` for run): a lane and a managed session on this issue | issue rows |
+| `Shift+O` | delegate to my **Orchestrator** (team projects) | issue rows, from W3 |
+| `Shift+A` | **ask** my Orchestrator about this row (TM-05 §9.2's one action) | every row, from W3 |
+| `G` then `I` `M` `T` `V` `B` `W` `P` `O` | go to Desk (Linear's Inbox) · my issues · Triage · current cycle · backlog · Work · Plan · my Orchestrator. **`I` `M` `T` `V` `B` match** | list focus |
+| `O` then `I` `P` `C` `F` | open an issue by number · a project · a cycle · a favourite. **Match** | list focus |
+
+A decision row and an issue row differ in shape (the decision row carries its options line), so
+`A` and `D` mean one thing per row type: on a decision, AX §5's approve and defer; on an issue,
+Linear's assignee and due date. `H` defers on both.
 
 **The palette** gains every verb above, each row showing its chord (DESIGN-SYSTEM: hotkey hints
 inline). Prefixes scope it: `#` issues, `@` people, `>` commands, `~` sessions. It opens beside
@@ -899,28 +1011,48 @@ the row it acts on when invoked from a row (L-221).
 
 ### 4.4 The design-language uplift, applied to work
 
-02's Part C is adopted as written, with three work-specific rules and one correction:
+02's Part C is adopted, with the revision 2 changes the two critiques required, six work-specific
+rules and one correction. **Revision 2 moves the visible uplift into W1** (P I6): the owner judges
+the new look at the prototype review, not the old one.
 
 | From 02 | Applied to the work layer |
 |---|---|
 | C1 `theme.generate` | Four generated themes; the Work surface is tested in all four (C12 `stress.sets`) |
 | C2 `thread` | **The signature.** `thread.node` on every issue that serves a criterion; `thread.trace` grows from criterion to issue to lane on drill-in |
-| C3 `voice.split` | Issue titles and descriptions are sans; ids, keys, paths, costs and durations are mono |
+| C3 `voice.split` | Issue titles and descriptions are sans; ids, keys, paths, costs and durations are mono. **Facts at 12px** (a new `--t-fact`, the `--t-meta` size), never 11px: 11px mono is for `kbd` hints only. Any fact is `--ink-2` or stronger (7.63:1); `--ink-3` (3.43:1) never carries one (D I7) |
+| C3 faces | **Revision 2 (D I6):** Geist is now a generator default, so it is no longer the safe pick. `flag.compare` puts **Segoe UI Variable** (recommended: native on Windows, optically sized, nobody's default, already the built fallback) beside an OFL face with its own character (Atkinson Hyperlegible Next, **UNVERIFIED** licence and weights) and Geist; the owner's eyes choose (Q14). The mono is Q10 |
 | C4 density | Issue rows at `--row-h` 32px; `compact` 28px; group headers carry plain sizes only (Q1) |
 | C5 `chrome.dim`, one `ViewHeader` | Work, the Work lens and the issue view use the one header, with the route badge `Global`/`AU` |
-| C6 icons | **Issue states get our own drawn glyphs**, one distinct shape per state, in ink; none fills with progress |
-| C7 motion | A state change flashes over `--dur-flash`; `arrivals.hold` for new issues; FLIP only on explicit re-sort |
-| C10 agent activity | The agent line on an issue is `row.three` compressed to one line; `who.label` on every agent string |
-| C11 first run | `first.landing`'s rehearsal task **is a real issue**, EP-1, started by the user's first `Shift+S` |
-| C13 not-a-clone test | Applies to every work screen; a filling status icon or an indigo accent fails the review |
+| C6 icons | **Issue states get our own drawn glyphs**, one distinct shape per state, in ink; none fills with progress. Drawn **in W1, before the prototype** (§5.3 row 9): about 12, including *done, not proven*, the priority notch, the selection check and the needs-you mark |
+| C7 motion | A state change flashes over `--dur-flash`; `arrivals.hold` for new issues, **`moves.hold`** for changed ones (§4.1); FLIP only on explicit re-sort |
+| C7 reduced motion | **Revision 2 (D C4):** with the breath stopped, `--run` against `--idle` is about 2.3:1 (computed from the hex values, **UNVERIFIED** on a display), so running and idle differed by colour alone. **Running gets its own shape**, a disc inside a 1px open ring, so shape alone separates running, idle, exited and failed, as DESIGN-SYSTEM requires. The flash is replaced by a **static 2px leading tick** in `--ink` that stays until the row is seen (the read cursor, AX §6.1) |
+| C10 agent activity | One agent line per row: `who.label` in mono, then MEANING in sans (AX Principle 3), one dot for that one agent (§4.1). The Desk uses three-line cards for changed agents (§4.2) |
+| C11 first run | `first.landing`'s rehearsal task **is a real issue**, EP-1, started by the user's first `Shift+R` |
+| C12 `stress.sets` | Gains three screens (D C4, D I8): reduced motion × deuteranopia simulation; a **Windows contrast theme** (`forced-colors: active`); 125% and 150% scaling. Built in W1 (§5.3 row 8), with `flag.compare` |
+| C13 not-a-clone test | Applies to **every work screen, in every theme** (D M5: grain is dark-only, so `paper` carries its own fifth mark, the thread gutter at full strength). A filling status icon or an indigo accent fails the review. **Structural checks, new (D C1):** *a work screen whose default grouping is workflow state* fails; *a new user cannot name each visible noun after five minutes* fails (P I5) |
 
 **Work-specific rules.**
 1. **Issue states and agent states never share colour.** Issue glyphs are neutral ink. Colour
    appears on an issue only when it carries a status: `--need` when it needs you, `--fail` when a
    bound lane failed (DESIGN-SYSTEM: colour is signal, and status carries a shape as well).
-2. **Priority is a shape, not a colour,** except urgent, which is `--need` only on the assignee's
-   own rows.
-3. **No count outside a group header or the Desk** (AX:245, as amended by Q1).
+2. **Priority is a shape in ink, never a colour, urgent included** (D I4). `--need` keeps one
+   meaning, *an agent or a person is waiting on you*. Priority is drawn as a notch depth on the
+   state glyph's leading edge, not as signal bars, so a row carries one glyph, not two. An urgent
+   issue that really needs its assignee enters NEEDS YOU, and earns amber there.
+3. **No count outside a group header or the Desk** (AX:245, as amended by Q1). Rows name owners
+   and list files; they never print `2 agents` or `+2` (P I7, D C3).
+4. **Windows contrast themes (D I8).** A `@media (forced-colors: active)` layer turns every ring
+   (`--e-*` elevation, `thread.node`, `lease.ring`, the selected row) into an `outline` or `border`
+   in system colours (`CanvasText`, `Highlight`); glyphs are SVG in `currentColor`; grain is off. An
+   escalated lease gets the needs-you **shape** on its chip, not only amber. The built focus ring is
+   already an `outline` (tokens.css:187-191) and stays.
+5. **Assistive technology on a live fleet (D I9).** The heartbeat, dots and flashes are
+   `aria-hidden`. **One** polite live region per window carries a digest at AX §6.8's rate (at most
+   one per 15 minutes) plus direct answers to the user's own acts (*"EP-142 deferred. Undo, U"*).
+   Lists are ARIA grids or listboxes with `aria-rowcount`, since they virtualise over 50 rows; the
+   shortcut sheet says `Space` means peek.
+6. **Grain is measured, not assumed (D M6).** Scroll frame time with and without the fixed grain
+   overlay at 150% in WebView2, before W1's prototype review; grain is off in `-hc` themes.
 
 **One correction to 02.** 02 C8 says *"Tauri stores [the replica] on disk"*. ADR-H1:467-474 says no
 client persists Hub data to disk, and 04 §2.2 holds to it. This design follows ADR-H1: the replica
@@ -937,7 +1069,7 @@ that the others hand off to. An issue is one object that every lens shows at its
 |---|---|---|
 | **Discover** (Define) | each criterion lists the issues that serve it; an unserved criterion is marked | *Propose issues*: one draft issue per unserved criterion, `text·A` until a person accepts (W4) |
 | **Design** | a frame shows the issues whose revision `implements` it | a design approval can close a design issue (04 §7.7) |
-| **Develop** | each session pane's header shows its issue chip beside the brief chip | `Shift+S` from an issue lands here, the session already told |
+| **Develop** | each session pane's header shows its issue chip beside the brief chip | `Shift+R` from an issue lands here, the session already told |
 | **Merge** | each lane row names its issue; the definition of done shows proposed evidence under each criterion | *Record* writes the evidence as the person (04 §4.6) |
 | **Deploy** | the release manifest lists the issues shipped, from trailers | each issue gains *shipped to production, 14:02* |
 | **Work** (new) | the feature's issues against the brief's criteria: coverage, not a burn-down | the planning surface; everything else links here |
@@ -959,8 +1091,16 @@ that the others hand off to. An issue is one object that every lens shows at its
 | change state, priority, label, cycle, assignee; defer; mark seen | `optimistic.undo` | `budget.paint` ≤ 16 ms to the changed row |
 | open the palette; search | replica read | `budget.palette` ≤ 50 ms |
 | peek an issue, span or hunk | replica read, spans stream after | `budget.peek` ≤ 100 ms |
-| Start or Delegate | reversible until the session's first write | row resolves at once; `budget.ack` ≤ 10 s to the first span, else "no output yet · 10s" |
+| Start or Delegate | reversible until the session's first **file** write | row resolves at once with an **Undo chip**; `budget.ack` ≤ 10 s to the first span, else "no output yet · 10s" |
 | land, push, deploy, erase | `confirm.inplace`, never optimistic | the consequence line and a two-step confirm inside the row |
+
+**Undo, revision 2 (P Minor 5, D I3.2, D I9.3).** The `--undo-window` (6 s) **pauses while the row
+has focus or hover**. After it lapses, a reversible act stays reversible from the issue's revision
+history, so six seconds is the fast path, not the only one. For Start, the chip reads *Undo Start*
+until the session's first file write, even past six seconds; pressing it stops the session,
+removes the worktree and shows what it cost (the context read so far, at the provider's rate).
+After the first file write the chip becomes *Stop and discard*, a `confirm.inplace` act, because
+work would be lost.
 
 Each budget gets a Playwright timing test against the local app (the repo's recipe), recorded
 rather than asserted until the owner accepts the numbers (02 C8).
@@ -1002,7 +1142,7 @@ stopping points.
 ### 5.3 W1: the minimum lovable slice, solo mode (~27.5 d)
 
 **The demo that makes it lovable.** Press `C`, type a title, pick the criterion it serves. Press
-`Shift+S`. Within 10 seconds a cloud agent is working on it and its line is live on the issue. It
+`Shift+R`. Within 10 seconds a cloud agent is working on it and its line is live on the issue. It
 lands; the issue shows `landed`. You record one piece of evidence; the issue turns `done` by itself,
 because its criterion is settled. Deploy, and the issue says *shipped to production, 14:02*.
 
@@ -1046,7 +1186,7 @@ or the `panacea` verb channel (W3); anything that needs the gateway (W4).
 | Work | Size |
 |---|---|
 | Fleet: `panacea issue show`/`note`, `panacea evidence propose`, the `issue.delegated` event, `task.issueId` | 2 d |
-| `Shift+D` Delegate; Orchestrator notes on the issue, one voice per owner | 1.5 d |
+| `Shift+O` Delegate; Orchestrator notes on the issue, one voice per owner | 1.5 d |
 | Proposed evidence under each criterion in the Merge lens; *Record* as the person (phase 3) | 1 d |
 | `negotiation.row` on both issues; `blocks` across owners seeds a `sequence` proposal (Fleet 1, desktop 1) | 2 d |
 | Agent task-card pages, "whose agents" filters, `who.label`, `step.fold` on the issue | 1.5 d |
