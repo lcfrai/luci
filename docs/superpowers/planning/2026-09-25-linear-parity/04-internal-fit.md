@@ -16,8 +16,9 @@ agent awareness primary, human view a calm summary), OD-19 (org-level ZDR infere
 it is wrong regardless of how good it is in isolation.** `DESIGN-SYSTEM.md`'s non-negotiables.
 
 **Evidence rule.** Every claim about PanaceaApp below cites a file and, where it matters, a
-line or section. Anything not read is marked **UNVERIFIED**. No external web page was needed
-for this file; the sources list at the end says so.
+line or section. Anything not read is marked **UNVERIFIED**. One public Linear page was read, to
+check one claim; §8 lists it with its date. Other Linear facts are cited from the sibling inventory
+(`01-linear-feature-inventory.md`), which records its own sources.
 
 ## 0. The answers in eight lines
 
@@ -181,7 +182,9 @@ changes, so reprioritising all afternoon writes no revision and invalidates no a
 | `done` | a person; **or** automatically at landing when every criterion in `serves` is `settled` at that commit | finished by the product's own standard |
 | `cancelled`, `duplicate` | a person | closed without work |
 
-Fact-driven moves are Linear's Git automation (01 §2.1) done on our own ledger, and they differ in
+Fact-driven moves are Linear's pull-request automation done on our own ledger. Linear's GitHub
+page says: *"we will move linked issues to 'In Progress' when PRs are open and 'Done' when PRs
+merge"* (https://linear.app/docs/github, read 2026-09-25). Ours differ in
 one way that matters: **each is written as the human whose act caused it** (the lander, the person
 who started the lane), with the fact that caused it on the event. Nothing writes as *"the system"*
 except cycle rollover (§2.5), whose event has `actor: null`, which the feed already allows
@@ -385,4 +388,128 @@ Linear's coding sessions attach *verification artifacts (screenshots, recordings
 The Hub already stores content-addressed blobs per project (`hub-contract.md:590-591`), so an
 evidence record could name blob digests (a test log, a screenshot). That is a later, additive field.
 
-_(Sections 5–8 follow, written in parts.)_
+## 5. The provenance thread, extended to issues
+
+Today's thread (phase-4 plan `:54-58`; phase-3 plan `:26-35`; `hub-contract.md:957-986`):
+`brief:bf-…@n` → session `ContextRef` and its chip → definition of done above the merge queue →
+land commit trailer → evidence per criterion at a commit → release pin. With issues:
+
+```
+ Define            Design                 Develop                                   Deploy
+ brief:bf-…@n ◄─serves── issue:is-…@r ──► session IssueRef + ContextRef
+   criteria c-…         │  implements        │  commit trailers: Panacea-Session, Panacea-Issue
+                        └─► design:cv-…@k    ▼
+                                           land commit: brief trailer + Panacea-Issue per issue landed
+                                             │  evidence(briefKey, criterionId, commit)   (unchanged)
+                                             ▼
+                                           release: pin = brief (unchanged); manifest lists issues
+```
+
+### 5.1 The key
+
+`issue:(is-[0-9a-f]{16})@([1-9][0-9]{0,8})`, added to the key grammar the Hub mints and accepts
+(`hub-contract.md:114-128`), which phase 4's `provenance` package owns (P5). `/v1/refs` resolves it
+in the same batch as brief and design keys, so the cockpit's one loader (phase-4 plan `:330`)
+handles it with one more kind, and `provenance.Ref` gains `kind: "issue"`. An issue chip opens the
+issue **at that revision**, read-only, as a brief chip opens Discover at its revision (`:57-58`).
+
+**EP-142 is a display alias, never a key.** It depends on `project.key`, which an admin can change.
+Every stored or git-written reference uses the `is-` id.
+
+### 5.2 Commits, lands and the queue
+
+- The commit hook phase 3 ships adds `Panacea-Issue: issue:is-…@r` from the session's `IssueRef`,
+  beside `Panacea-Session` (phase-3 plan `:26-27`). A commit therefore says exactly which issue
+  text the session that wrote it was told. Linear links work by the issue id in a branch name or
+  a *magic word* in a PR or commit (https://linear.app/docs/github, read 2026-09-25); here the hook
+  writes the link, so neither a person nor an agent has to remember a word.
+- A land commit adds one `Panacea-Issue:` per distinct issue in the landed range, beside the brief
+  trailer the human saw (`:32-35`). The land writes each issue's `landed` move, as the lander.
+- **Trailers carry ids, never titles.** A title in git history is text an erase cannot reach
+  (`hub-contract.md:1115-1127`). The same applies to a branch name: *Start* offers
+  `ep-142-<slug>`, and the person may clear the slug. **Owner question:** should an `AU data only`
+  project (OD-19's classification) default to no slug?
+
+### 5.3 Evidence and coverage
+
+Evidence is unchanged: `(briefKey, criterionId, criterionDigest, commit, verdict, because)`
+(`hub-contract.md:1062-1083`). The issue link is **derived**: an issue serves a criterion (its
+revision says so), and evidence settles it at a commit that contains the issue's landed work
+(phase 3's evaluator over ancestry, phase-3 plan `:135`). Nothing is added to the H6 route.
+
+### 5.4 Releases
+
+The pin stays the brief (`hub-contract.md:983-986`). Issues are not pinned, because they do not
+need to be: the shipped range is immutable git, and phase 7 already lists **sessions** from the
+`Panacea-Session` trailers in that range (`D3`, phase-7 plan `:150`). It lists **issues** from the
+`Panacea-Issue` trailers by the same parse. *"Shipped to `production`"* on an issue is then derived
+from releases and ancestry, the evaluator phase 3 leaves for phase 7 (`S3-P7.5`, phase-3 plan
+`:428`). Release notes can be assembled from the shipped issues' titles, all `text·H` or labelled.
+
+### 5.5 Design, and erasure
+
+- An issue revision may name **`implements: [design:cv-…@k]`**. A session started from it
+  inherits that design ref through phase 5's session link (phase-4 plan `:500`, `S4-P5.2`).
+- Issue text is customer content, so **an issue needs the brief's erase**: org admin only; text
+  removed; key, digest and revision numbers kept, so every trailer and chip still resolves, as
+  *erased* (`hub-contract.md:1115-1127`). Comments are erased with their issue.
+
+## 6. What must be added
+
+Sizes are focused days for one implementer who knows the code, in the style of 05 §11. They are
+estimates from the plans' own task sizes, **not measured**.
+
+### 6.1 The build list
+
+| # | Addition | Where | Size |
+|---|---|---|---|
+| 1 | issue head and revision, `issue-revision` canonical kind, the `issue:` key, `/v1/refs` resolution, per-project numbers, `project.key` | Hub | ~3.5 d |
+| 2 | comments (`text·H`/`text·A`), `evidence_proposal` comments, relations, labels, parent | Hub | ~2 d |
+| 3 | feature `ft-`, cycle `cy-` with janitor rollover, initiative `in-`, `note.kind = update` | Hub | ~3.5 d |
+| 4 | events for every write, authorisation matrix rows, issue erase, title search | Hub | ~2.5 d |
+| 5 | `IssueRef` on the session, the Materialiser's second key, `provenance.Ref` kind `issue` | phase 4 | ~2 d |
+| 6 | `Panacea-Issue` trailer in the hook, land trailers and the `landed` move, evidence proposals in the DoD, coverage data | phase 3 | ~2.5 d |
+| 7 | issues in the release manifest, *shipped* derived | phase 7 | ~1 d |
+| 8 | `panacea issue show\|note`, `panacea evidence propose`, the `issue.delegated` event, `task.issueId` | Fleet (team mode) | ~2 d |
+| 9 | Work surface (project), Work lens (branch), issue view, Desk rows, palette commands | desktop | ~9 d |
+| | **Total** | | **~28 d** |
+
+The desktop row is the largest and the least certain: it is the part the owner judges by eye
+(`CLAUDE.md`, working agreements), and `02-linear-design-language.md` sets its visual bar.
+
+### 6.2 Where this does more than Linear, from the internal fit alone
+
+1. **Done means proven.** An issue reaches `done` by itself only when every criterion it serves is
+   settled by recorded evidence at the landed commit (§2.4, §4.6). Linear's default moves a linked
+   issue to Done when its PR merges (https://linear.app/docs/github, read 2026-09-25).
+2. **Coverage and drift.** Every criterion shows the issues serving it and the evidence settling it;
+   an uncovered criterion and a drifted issue are visible before anyone ships (§3.3).
+3. **An issue can prove it shipped.** The release manifest lists issues from immutable git
+   trailers under a brief pin the Hub took before the deploy existed (§5.4).
+4. **Every automatic move is a person's act.** Fact-driven states are written as the lander or the
+   starter, with the fact attached (§2.4). The audit chain names a person, never *"the system"*.
+5. **Agents across owners coordinate through the same issues people read.** `panacea team`
+   (05 §5.2) gains each agent's issue and the criterion it serves, which is the owner's *"the task
+   they have and the reason"* (`owner-decisions.md:116-121`) in human-typed words. A `blocks`
+   relation across owners becomes an Orchestrator event when the blocker lands. A conflict thread
+   (05 §6.4) cites both issues, so each Orchestrator can explain to its human *why* the other side
+   is there. No cross-owner steering is added: each Orchestrator still acts only for its own human.
+
+**Cost per issue** comes nearly free: the gateway attributes usage per session token (OD-19,
+05 §3.3 `usage`). Minting the token with the session's issue id gives *"what EP-142 cost"*. That
+is a small phase 6 addition, once the gateway is chosen (05 §13 Q1, **UNVERIFIED**).
+
+### 6.3 The one conflict: progress displays
+
+Linear shows cycle and project progress as percentages, graphs and completion predictions
+(01 §4, §5.5). `AGENTIC-UX.md` bans *"percent-complete, progress bar, ETA, or 'N of M met'
+anywhere in the product"* (`:237`) and *"any badge or count outside the queue"* (`:245`), because a
+bar claims *"a denominator that does not exist"* (`:14`).
+
+| Option | What the Work surface shows | Trade-off |
+|---|---|---|
+| **A (recommended)** | convergence per criterion (§3.3); issue lists grouped by state, with **plain group sizes** (*"Todo 4"*); no %, bar, burn-up, ETA or prediction | a cycle's issue set is a human commitment, so its size is a denominator the system *can* defend; everything that predicts stays banned. Needs a one-line amendment to `AGENTIC-UX.md:245` |
+| B | convergence only; no counts anywhere | purest; a cycle review becomes harder, because *"how much did we commit to"* has no number |
+| C | Linear's full set | breaks a binding rule for parity's sake; the first prototype's failure mode (`AGENTIC-UX.md:217-218`) |
+
+_(Sections 7–8 follow, written in parts.)_
