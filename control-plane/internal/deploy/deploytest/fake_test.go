@@ -305,6 +305,28 @@ func TestFakeShipAdvanceCancel(t *testing.T) {
 	}
 }
 
+// TestFakeTieGoesToTheLaterAdd: newest first is by CreatedAt, and at one instant the later add
+// is the newer. Two Ships on a frozen clock make the second one Latest, as a watcher expects.
+func TestFakeTieGoesToTheLaterAdd(t *testing.T) {
+	f := newShipFake(&testClock{t: base})
+	ctx := context.Background()
+	f.AddDeployment(proj, deploy.Deployment{ID: "d-a", Environment: "feat-x", CreatedAt: base})
+	f.AddDeployment(proj, deploy.Deployment{ID: "d-b", Environment: "feat-x", CreatedAt: base})
+	f.AddDeployment(proj, deploy.Deployment{ID: "d-old", Environment: "feat-x", CreatedAt: base.Add(-time.Hour)})
+	ds, _ := f.Deployments(ctx, proj)
+	var got []string
+	for _, d := range ds {
+		got = append(got, d.ID)
+	}
+	if want := []string{"d-b", "d-a", "d-old"}; !slices.Equal(got, want) {
+		t.Fatalf("Deployments order = %q, want %q", got, want)
+	}
+	res, _ := f.Ship(ctx, proj, deploy.ShipRequest{Branch: "feat/x", Commit: commit})
+	if d, _, _ := f.Latest(ctx, proj); d.ID != res.Run {
+		t.Fatalf("Latest after a Ship at the newest instant = %q, want %q", d.ID, res.Run)
+	}
+}
+
 // TestFakeReturnsCopies: a caller that edits what it read cannot change the Fake's state.
 func TestFakeReturnsCopies(t *testing.T) {
 	f := newShipFake(&testClock{t: base})
@@ -401,6 +423,7 @@ func TestFakeGovernor(t *testing.T) {
 	bad := []deploy.PostureChange{
 		{Mode: "public"},
 		{Mode: deploy.PostureKPMGSSO, Password: "x"},
+		{Mode: deploy.PosturePassword}, // required for, and only sent with, password (t11:46)
 		{Mode: deploy.PosturePassword, RotateBypassToken: true, Password: "x"},
 	}
 	for _, c := range bad {
