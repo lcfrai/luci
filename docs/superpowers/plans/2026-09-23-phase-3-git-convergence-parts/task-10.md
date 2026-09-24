@@ -91,7 +91,7 @@ type UndoResult struct {
 //   sweep old, and a lane whose agent merged origin/<branch> since the last sweep reads as not
 //   containing the land. The project lock is held; SyncLane's per-lane lock comes after it,
 //   which task-02's lock order allows. A SyncLane error ends the undo with that error's code
-//   (git_failed with gitSays, or clone_config_untrusted) before anything is written, as at
+//   (git_failed with gitSays, or bundle_refused with details.why) before anything is written, as at
 //   Land's step 4, with the message "worktree <name> could not be synced, so the cockpit cannot
 //   tell whether it has merged this land". Fail closed: an unsynced lane may hold the land. The
 //   revert stays offered, because a revert is right whatever a lane holds. Then:
@@ -110,7 +110,8 @@ type UndoResult struct {
 //   review I5, upstream/<branch>; task 09)
 // It holds Locks.Lock(ctx, projectID) for the whole verb, as Land does, so it serialises with
 // every land, fetch, push and branch verb on the project (task-02 Locks; review I7). Hardened per task-02 §HGH: the project calls use
-// Scope Project, the refresh uses Scope Clone, and no hook runs (H4).
+// Scope Project, the refresh is task 09's RefreshClones, a bundle through each lane's runner
+// (task 24), so no host git runs in a lane (R4.2), and no hook runs (H4).
 func (l *Lander) Undo(ctx context.Context, projectPath, projectID, branch, sha, expectedTip string) (UndoResult, error)
 
 // RevertResult is a revert commit that landed.
@@ -134,8 +135,8 @@ type RevertResult struct {
 //   branch, and an agent told to merge origin/<branch> must merge the branch as it now is
 // The reverted lane's ready flag is not touched. It holds Locks.Lock(ctx, projectID) for the
 // whole verb, as Undo does (review I7). Hardened per task-02 §HGH: the project calls use Scope
-// Project, the refresh uses Scope Clone, and no hook or merge driver the repository names runs
-// (H1, H3, H4).
+// Project, the refresh is task 09's RefreshClones, a bundle through each lane's runner (task 24),
+// and no hook or merge driver the repository names runs (H1, H3, H4).
 func (l *Lander) Revert(ctx context.Context, projectPath, projectID, branch, sha, expectedTip string) (RevertResult, error)
 ```
 
