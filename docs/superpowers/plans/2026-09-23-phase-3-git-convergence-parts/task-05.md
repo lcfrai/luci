@@ -218,7 +218,7 @@ package `main`, which this package cannot import.
 
 ```
 go test ./control-plane/... -race -count=1                                   → PASS
-go test ./control-plane/internal/api/ -tags docker -run Dispatch -count=1 -v → PASS, 8 tests; the cost numbers in the report
+go test ./control-plane/internal/api/ -tags docker -run Dispatch -count=1 -v → PASS, 8 tests (the table's eight `TestDispatch*` rows; a row added there changes this count); the cost numbers in the report
 go test ./control-plane/internal/api/ -tags docker -run TestSandboxCloneConfigIsReadOnly -count=1 -v → PASS (task-02 §HGH H5)
 go test ./control-plane/internal/api/ -tags docker -run TestSandboxCannotWriteHooksPath -count=1 -v → PASS (review I11)
 go test ./control-plane/internal/api/ -tags docker -run TestSandboxLaneCloneChecksOutLF -count=1 -v → PASS (plan re-review b02 I-1)
