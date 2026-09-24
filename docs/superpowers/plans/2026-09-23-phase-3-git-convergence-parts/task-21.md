@@ -20,7 +20,7 @@ the reason when it could not (`hunkHtml`, lines 638-646).
 
 ```ts
 // files/model.ts
-import type { BackLink, Changes, PathMark, PathRow } from "../../../api/convergence";
+import type { BackLink, Changes, LaneDiff, PathMark, PathRow } from "../../../api/convergence";
 
 /** Paths grouped by directory, directories sorted, paths sorted within each. */
 export function groupByDir(changes: Changes): { dir: string; rows: PathRow[] }[];
@@ -43,6 +43,11 @@ export function tier1Line(back: BackLink, sharedSessions: boolean): string;
  *  adapter's reason verbatim ("written by claude 2.1.300; the adapter reads 2.1.274"), or null
  *  for tier 0. */
 export function tier2Line(back: BackLink): string | null;
+
+/** A lane's notes, in order: its readError pair ("<name>'s change to this file is not shown."
+ *  then the server's sentence), "Binary file — no text diff.", then one sentence per cap set
+ *  (truncated, untrackedCut). Empty for a lane with none. See States below. */
+export function laneNotes(lane: LaneDiff): string[];
 ```
 
 ```tsx
@@ -72,8 +77,20 @@ and none has changed a file since."*; a branch with no cockpit worktrees: *"No w
 <branch> yet."*; no path open: *"Choose a path to see each worktree's change to it, and where each
 change was written."*; `f-gitfail`: per `Unreadable` entry, *"<name>'s changes are not shown — git
 could not read it. The other worktrees are current."* with git's sentence; the control plane down:
-the last reading dimmed, as Merge does. A binary change says *"Binary file — no text diff."*; a
-truncated one *"Showing the first 2000 changed lines."*
+the last reading dimmed, as Merge does. A binary change says *"Binary file — no text diff."*.
+Each cap has its own sentence, and a lane shows both when both flags are set (task 16, re-review
+b11-1 issue 2):
+- `truncated`: *"Showing the first 2000 changed lines."*
+- `untrackedCut` with lines: *"This file is not tracked and is over 1 MiB, so only its first
+  1 MiB is shown."*
+- `untrackedCut` with no lines: *"This file is not tracked and is over 1 MiB, with no line break in
+  its first 1 MiB, so none of it is shown."*
+
+A lane's own `readError` is shown in that lane's place in the diff, as *"<name>'s change to this
+file is not shown."* with the server's sentence verbatim as text beneath it: git's, or task 16's
+*"<path> is a link or not a regular file in this worktree; not read"*. This is apart from the
+path-list `Unreadable` banner above. The lane keeps its heading, so the user never sees an empty
+lane with no reason. The other lanes render as usual.
 
 Rows **never reflow** while the poll refreshes: a path keeps its row, and a path that stops
 changing leaves at the next load without animating out (`DESIGN-SYSTEM.md`: hover and refresh
@@ -99,6 +116,8 @@ CSS > WAAPI > JS library).
 | `the span drawer shows the call and the words before it, as text` | a span whose `before` contains `<img src=x onerror=…>` → rendered as literal text, no `img` element | transcript text injected as HTML |
 | `the drawer says why when unreadable` | `transcript_unreadable` → `details.why` in the drawer | a blank drawer |
 | `an unreadable worktree is withheld with git's sentence` | `unreadable: [scan-hook]` → the banner; its paths absent | one failure blanking the lens |
+| `a lane's readError is shown in its place` (re-review b11-1 issue 2) | a `PathDiff` of two lanes, one with `readError` "src/a.ts is a link or not a regular file in this worktree; not read" and no hunks → that lane's heading, "upload-api's change to this file is not shown." and the sentence verbatim; the other lane's hunks render | an empty lane with no reason, or a security refusal hidden |
+| `each cap says which it is` (re-review b11-1 issue 2) | `truncated` → the 2000-line sentence only; `untrackedCut` with lines → the 1 MiB sentence only; `untrackedCut` with none → the no-line-break sentence; both flags → both sentences | a byte cap reported as the 2000-line cap, or a blank lane for a one-line bundle |
 | `rows keep their order across a refresh` | two loads with the same paths in a different server order → the same DOM order | rows jumping under the pointer |
 | `over 50 paths virtualise` | 200 paths → fewer than 200 row elements mounted | a 2000-row list stalling the window |
 | `no interval, no spinner` | as task 19's | a second clock |
