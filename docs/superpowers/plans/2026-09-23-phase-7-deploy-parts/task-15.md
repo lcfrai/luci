@@ -23,7 +23,7 @@ caller), and elapsed time reads `useHeartbeat()` (`heartbeat.ts:64`), **never a 
 - `desktop/src/deploy/EnvironmentList.tsx` (new) — the project's other environments, one line each
 - `desktop/src/deploy/ReleaseTable.tsx` (new) — history, windowed
 - `desktop/src/deploy/PinCell.tsx` (new) — the pin table's ten states
-- `desktop/src/deploy/usePinRef.ts` (new) — the adapter over phase 4's cache
+- `desktop/src/deploy/usePinRef.ts` (new) — the adapter over phase 4's cache: `usePinRef`, `pinRefsWired`, `usePinRefsUnavailable`
 - `desktop/src/deploy/Banners.tsx` (new) — stale, collision
 - `desktop/src/components/common/StatusDot.tsx`, `common.css` (modified) — the fact statuses below
 - `desktop/src/styles/designsystem.test.ts` (modified) — the `--drift` guard, if phase 4 has not already amended it
@@ -56,7 +56,20 @@ export type PinRef =
  *  written when phase 4 has not merged answers "not_wired" for every key, never "resolving": a
  *  state that will never resolve must not look like a slow tick (review M27). */
 export function usePinRef(briefKey: string | null): PinRef | null; // null ⇔ briefKey null
+
+/** Whether phase 4's cache is in this build: false in the stub, true in the real file. ReleaseTable
+ *  reads it to draw the ONE not_wired note above the table; PinCell is per row and cannot draw
+ *  it, and usePinRef(null) returns null, so it cannot serve as a probe (plan re-review b11-1, m-3). */
+export const pinRefsWired: boolean;
+
+/** The cache's own read failure, or null. ReleaseTable draws the ONE `unavailable` banner from
+ *  it; a cell whose usePinRef is `unavailable` draws only "brief not read". The stub returns
+ *  null. Phase 4's loader reads on one tick for every key (R6), so a failure is the cache's, not
+ *  a key's; if phase 4 exposes it per key only, this file picks the newest message (m-3). */
+export function usePinRefsUnavailable(): string | null;
 ```
+
+Both live in `usePinRef.ts`, so phase 4 is still touched in one file.
 
 ```tsx
 // selected: view.selected, verbatim. selectedEnvironment: view.selected?.environment ?? null.
@@ -137,12 +150,12 @@ Ten rows below, one state each: the two `release == null` rows, `none`, `resolvi
 | `release == null`, `!releaseLoaded` | *"pin not loaded"*, quiet, in the same fixed width as `resolving` — never *"no brief is recorded"*: the cockpit holds no answer from the Hub about this release — not read yet, not readable while signed out, or not readable under this binding's key; the drawer (task 17) names which (task 08 rule 5b, review M11; plan re-review b09-1, M-2) |
 | `pin.status "none"` | the same words, and a reason line: `no_brief` *"no brief was bound to this branch"*; `no_complete_revision` *"the brief had no complete revision yet"*; `source_unpinned` *"rolled back or rebuilt from a release with no brief"*; `source_unknown` *"rolled back or rebuilt from a release shipped outside any cockpit"* |
 | `resolving` | a fixed-width placeholder the width of *"rev 12 · brief now at rev 13"*; **the cell never changes width** when it resolves |
-| `not_wired` (the stub; review M27) | *"pinned"*, quiet, in the same fixed width, with the title *"This version of the cockpit cannot read briefs yet."*; and **one** note above the table, drawn once however many rows are pinned: *"Brief revisions are not shown yet: this version of the cockpit cannot read briefs. The Hub has recorded each pin."* It never reads as `resolving` (a tick that will never land) and never draws a revision, which only phase 4's cache can supply (P1) |
+| `not_wired` (the stub; review M27) | *"pinned"*, quiet, in the same fixed width, with the title *"This version of the cockpit cannot read briefs yet."*; and **one** note above the table, drawn once however many rows are pinned, by `ReleaseTable` when `!pinRefsWired` and at least one row has `release.pin.status "pinned"`: *"Brief revisions are not shown yet: this version of the cockpit cannot read briefs. The Hub has recorded each pin."* It never reads as `resolving` (a tick that will never land) and never draws a revision, which only phase 4's cache can supply (P1) |
 | `resolved`, `revision == headRevision` | *"rev 6"* (current) |
 | `resolved`, `revision < headRevision` | `drift` half-disc + *"rev 5 · brief now at rev 6"* (superseded) |
 | `missing` | `fail` square + the key in mono + *"not found"* — *"data loss in our own store"* in its title |
 | `erased` | *"erased on 2 Nov 2026"* — its own words, not `missing` |
-| `unavailable` | `!` + *"brief not read"*, with one banner above the table carrying the message |
+| `unavailable` | `!` + *"brief not read"*, with one banner above the table carrying `usePinRefsUnavailable()`'s message, drawn by `ReleaseTable` |
 
 The table's footnote, **corrected for OD-3** (†): *"Releases shipped outside any cockpit —
 auto-deploy on push, or the Panacea portal — carry no brief: Panacea has nowhere to store one, and
@@ -200,7 +213,8 @@ pinned-none release, and *"outside any cockpit"* for `release == null` with `rel
 | `not run is not pass` | `scans.state "not_run"` → the not-run sentence; the DOM lacks *"Pass"* | absence read as clean |
 | `version unknown` | `version: null` → *"version unknown"* | a blank cell |
 | `pin: ten states` | one test per row of the pin table (ten) | two provenance states merged |
-| `the stub says not wired` | the stub `usePinRef` for any key → `{state:"not_wired"}`; three pinned rows → each cell *"pinned"*, the DOM holds the note *"Brief revisions are not shown yet"* exactly once and no `resolving` placeholder (review M27) | a stub answering `resolving`, so every pin looks like a slow tick for ever |
+| `the stub says not wired` | the stub `usePinRef` for any key → `{state:"not_wired"}`, and the stub's `pinRefsWired` is `false`; `ReleaseTable` with three pinned rows → each cell *"pinned"*, the DOM holds the note *"Brief revisions are not shown yet"* exactly once and no `resolving` placeholder; the same table with the module mocked to `pinRefsWired: true` → no note; no pinned row → no note (review M27; plan re-review b11-1, m-3) | a stub answering `resolving`, so every pin looks like a slow tick for ever; a note drawn per cell, or drawn with the real cache |
+| `one unavailable banner` | `usePinRefsUnavailable` mocked to *"The brief store did not answer."* and three cells `unavailable` → each cell *"brief not read"*, and that message exactly once above the table; mocked to `null` → no banner (m-3) | a banner per cell, or a banner with no source for its message |
 | `pin never from head` | a row pinned to rev 5 with the cache's head at 6 → *"rev 5 · brief now at rev 6"*, and nowhere *"rev 6"* alone | rendering a release from the head (P1) |
 | `resolving keeps width` | the cell's width style is identical in `resolving` and `resolved` | layout shift when the tick lands (AGENTIC-UX §10 rule 7) |
 | `key never parsed` | `usePinRef.ts` and `PinCell.tsx` contain no `split(`, `indexOf(`, `match(` or `RegExp` applied to a key (a source grep in the test) | P5 |
@@ -226,9 +240,10 @@ pinned-none release, and *"outside any cockpit"* for `release == null` with `rel
 - [ ] Check first: `grep -n "var(--drift)" desktop/src -r` — if phase 4 already amended the guard,
   reuse its rule; otherwise amend it here to *"references it only in `common.css` for
   `dot-tone-drift`"*.
-- [ ] Tests first; `StatusDot` amendment; `usePinRef` (over phase 4's selector, or a stub returning
-  `not_wired` for every key if phase 4 has not merged, review M27 — say which in the commit
-  message); the
+- [ ] Tests first; `StatusDot` amendment; `usePinRef.ts` (over phase 4's selector, or a stub
+  whose `usePinRef` returns `not_wired` for every key, whose `pinRefsWired` is `false` and whose
+  `usePinRefsUnavailable` returns `null`, if phase 4 has not merged; review M27 and plan
+  re-review b11-1 m-3 — say which in the commit message); the
   components; the banners.
 - [ ] `npx tsc --noEmit`, `npx vitest run`; commit by pathspec with *"Visual acceptance pending the
   owner (OD-12)."*
@@ -247,4 +262,7 @@ pin, a release with no brief — against the prototype. **Unverified until then.
 - That phase 4's cache exists. With the stub every pin reads `not_wired` (*"pinned"*, and the one
   note above the table) — honest, never a head, and never the `resolving` placeholder, which
   would look like a slow tick for ever (review M27).
+- That phase 4's cache exposes one read failure for the whole cache. `usePinRefsUnavailable`
+  assumes it can be derived there; if phase 4 holds failures per key only, `usePinRef.ts` picks the
+  newest message, and the banner names one cause of several (plan re-review b11-1, m-3).
 - Pixel fidelity to the prototype. The prototype is the owner's reference; the owner judges.
