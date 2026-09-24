@@ -3,8 +3,9 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Status:** plan, 2026-09-23. Written from `docs/superpowers/adr/ADR-H1-hub-architecture.md` and
-`docs/superpowers/contracts/2026-09-23-hub-contract.md` on branch `feat/hub`. Owner-reviewable under
-`OD-1`; adversarially reviewed before code. **Nothing in this plan was compiled or run.** Where it
+`docs/superpowers/contracts/2026-09-23-hub-contract.md` on branch `feat/hub`. Owner-reviewable;
+adversarially reviewed before code. `OD-1`'s prototype waiver names phases 3, 4, 5 and 7, not
+phase H, so the two UI surfaces get a prototype first (owner question Q13, review M14). **Nothing in this plan was compiled or run.** Where it
 cites a file, line, type or route of the built tree, the citation was opened on 2026-09-23 in this
 worktree; §"What this plan did not verify" lists the rest.
 
@@ -68,6 +69,7 @@ crate: sign-in opens the browser through `@tauri-apps/plugin-opener`, already a 
 
 | Id | Decision | Where it bites in this plan |
 |---|---|---|
+| `OD-1` | phases 3, 4, 5 and 7 build without the prototype gate; every plan is reviewed; UI branches stay unmerged until the owner has looked (`owner-decisions.md:12`) | the waiver does **not** name phase H, and tasks 41 and 42 had no prototype: task 41's Step 0 writes `prototype/phase-h-hub.html` first (owner question Q13, review M14). **`feat/hub` is not merged onward until the owner has looked** at both surfaces |
 | `OD-3` | briefs, approvals and the ledger are shared from day one | the Hub exists at all; tasks 13–27 |
 | `OD-4` | Azure DevOps **and** GitHub | `project_remotes.host` has both values (task 17); the credential store serves both (tasks 28, 29, 31, 39) |
 | `OD-5` | our own server side, in this monorepo | the Hub is `control-plane/cmd/hub`; the environment is phase 8's |
@@ -340,6 +342,7 @@ parallel worktrees (see §"Order and parallel lanes").
 | `desktop/src/store/slices/authSlice.ts`, `store/store.ts` ⚑, `store/types.ts` ⚑ | sign-in and share state, never persisted | new, modified | 40, 42 |
 | `desktop/src/components/rail/{RailFooter,AccountControl}.tsx`, `rail.css` ⚑ | the sign-in surface | modified, new | 41 |
 | `desktop/src/components/share/{SharePopover.tsx,share.css}` | share a project with a team | new | 42 |
+| `prototype/phase-h-hub.html` | the static prototype of both surfaces, written before their code (owner question Q13, review M14) | new | 41 |
 | `desktop/src/components/menu/ContextMenu.tsx` ⚑, `desktop/src/components/AppShell.tsx` ⚑ | the *Share with a team…* item; the popover's one mount | modified | 42 |
 
 ### Proof and documents
@@ -430,7 +433,7 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 38 | the local caller key, desktop side; the keyed async attach and its pending-read guards (I3, N1) | C3 | 37 | 3.5 | ✓ |
 | 39 | the credential routes: GitHub, Azure DevOps and Panacea tokens (A8, review I10) | C1 | 29, 37 | 2 | S7 |
 | 40 | the desktop's auth, share and feed client; `authSlice`; `hubFeed` | C4 | 36, 38, 39 | 3 | |
-| 41 | the sign-in surface in the rail footer — **UI** | C4 | 40 | 3 | |
+| 41 | the prototype of both surfaces first (Step 0, owner question Q13, review M14); the sign-in surface in the rail footer — **UI** | C4 | 40 | 4 | |
 | 42 | share a project with a team — **UI** | C4 | 40, 41 | 3 | |
 | 43 | end-to-end proof through `devissuer`; the real-tenant checklist; the results record | all | 01–42 | 5 (review M4) | |
 | 44b | last: what the build changed, folded into the contract; the seams handed over | — | 43 | 1 | |
@@ -439,11 +442,12 @@ Totals: server 01–27 ≈ 80 h (73.5 before review I5's cross-org key tests add
 07, re-review b06 N1's replay that stores no brief text added 0.5 h each to tasks 14 and 19, and
 review M4's split of task 07, 4 h, into 07a and 07b, 6.5 h, and of task 16, 3 h, into 16a and
 16b, 5 h, added 4.5 h);
-client and desktop 28–42 ≈ 44 h (39.5 before review I3 and
+client and desktop 28–42 ≈ 45 h (39.5 before review I3 and
 re-review N1 added 1 h to task 37 and 1.5 h to task 38, review I2, I9 and I10 added 1 h to
-task 31 and 0.5 h to task 29, and re-review b04 m4's remembered refusal added 0.5 h to task 31);
+task 31 and 0.5 h to task 29, re-review b04 m4's remembered refusal added 0.5 h to task 31, and
+review M14's prototype added 1 h to task 41);
 proof and documents (00, 43, 44a, 44b) 8 h (6 before review M4 put task 43 at 5 h, not 3);
-**≈ 132 engineer-hours**, 4 h over ADR-H1's 16 engineer-days (≈ 128 h). The ADR's day includes
+**≈ 133 engineer-hours**, 5 h over ADR-H1's 16 engineer-days (≈ 128 h). The ADR's day includes
 review and this table is implementation time only, so the plan now runs past the ADR's budget:
 review M4's re-sizing (+6.5 h) is what crossed it. Task 00's
 answers add rows to tasks 03–05, 07a, 07b, 14, 18, 19, 23, 24, 33, 34, 36 and 40 inside their existing
@@ -482,6 +486,13 @@ order below, and a lane that needs another lane's task waits for that merge.
 | **C — control plane** | `feat/hub-client` | 28 → 29 → 30 → 31 → 32 → 37 → 33 → 34 → 35 → 39 → 36 | 28 waits for 06 (go.mod); 30 for 12; 33 for 04; 34's rows for 20, 22, 24–27; 36 for 26 |
 | **D — desktop** | `feat/hub-desktop` | 38 → 40 → 41 → 42 | 38 for 37; 40 for 36 and 39 |
 | — | `feat/hub` | **44a first** (task 00 is read, not built); at the end 43 → 44b | 44a: nothing; 43: everything |
+
+**`feat/hub` is not merged onward until the owner has looked** (`OD-1`, review M14). Lane D merges
+into `feat/hub` like every lane, so `feat/hub` carries two UI surfaces. `OD-1` keeps a UI branch
+unmerged until the owner has looked at it, and phase H's surfaces also had no prototype (the waiver
+names phases 3, 4, 5 and 7 only). The owner's look at `prototype/phase-h-hub.html` (task 41, Step 0)
+and at tasks 41 and 42 is batched with the rest (`OD-12`), so no lane waits for it; only the merge
+of `feat/hub` onward does. Owner question Q13.
 
 **Why the lanes are cut this way — the shared files.** Five tasks edit the control plane's wiring
 (`internal/api/api.go`, `cmd/api/config.go`, `cmd/api/main.go`, `routes_audit_test.go`): 32, 35,
@@ -533,8 +544,9 @@ is approved against or pinned; **Q2** erasure keeps key, digest, author and time
 invite that binds at first sign-in; **Q5** Azure DevOps uses the same Entra sign-in (behind `PANACEA_APP_ENTRA_DEVOPS`, default
 `false` until IT consents; until then a PAT the user pastes per organisation serves Azure DevOps
 from the same store, review I10); **Q6** writes
-never queue while the Hub is down; **Q7** the Hub holds no canvas documents in v1. Five more come
-from this plan (Q11 from a sibling ask, task 00; Q12 from review I12):
+never queue while the Hub is down; **Q7** the Hub holds no canvas documents in v1. Six more come
+from this plan (Q11 from a sibling ask, task 00; Q12 from review I12; Q13 from review M14, which
+named it Q11 before that number was taken):
 
 | # | Question | Recommendation (what this plan builds) |
 |---|---|---|
@@ -543,6 +555,7 @@ from this plan (Q11 from a sibling ask, task 00; Q12 from review I12):
 | **Q10** | Who runs the Hub's database tests in CI? | **Phase 8's pipeline** adds a Postgres service job (S-CI). Until then they run on a developer laptop against task 09's stack, and every report says so |
 | **Q11** | ADR-H1 R5 says *"every approval is audited with its session context"* (phase 5's HA5-4). The Hub can verify only the principal and the time. Delete the phrase, or add a client-asserted `surface` field? | **Delete the phrase.** The Hub records the principal and the time, which it verifies; a client-asserted field would sit in an audit row reading as evidence it is not. The contract states that reading (task 44a); an optional field stays an additive change behind `ApprovalRequest` if the owner wants it |
 | **Q12** | Correction A15 (review I12) changes two cells of ADR-H1, whose text is the owner's: §5.3's invite row (`ADR-H1-hub-architecture.md:406`) binds by `bindEmail` — the `email` claim of a member (`acct` 0) or of a guest whose email domain is verified (`xms_edov` true) — never by `preferred_username`; and §9 item 3 (`:725`), IT's Hub API registration, configures the optional claims `email`, `acct` and `xms_edov`. Accept both? And second: a caller who cannot bind (a guest without `xms_edov`, an account with no `email`) has no in-product remedy in v1, because no route lists an org's users and no surface shows a user their Hub id. Is that acceptable for v1? | **Yes to both edits; task 44a makes them in place**, each marked *"(amended by the Phase H plan, A15)"*. They keep ADR-H1's decision (Q4: an email invite binds at first sign-in, no Graph) and change only which claim may bind. Unedited, IT builds the registration from §9 and no deployed invite binds, with no error; and the contract's precedence rule (`hub-contract.md:4-5`) makes `:406`'s `preferred_username` binding the governing text again. A members-only rule (refusing a verified guest) is one line in `bindingClaims`. **Yes to the limitation for v1's single tenant**, where it reaches only an unverified guest or an account with no mail attribute; the fallback is out-of-band (an operator reads the id from `users`), stated in task 16a. The in-product remedy — an admin-only view of org users, or `GET /v1/me` reporting an invite it could not bind — is later and additive |
+| **Q13** | `OD-1` waives prototype-before-plan for phases 3, 4, 5 and 7 only (`owner-decisions.md:12`). Phase H has two UI surfaces, the sign-in states in the rail footer (task 41) and the share popover (task 42), and no prototype of either. Do you want a prototype of them, and must `feat/hub` wait for your look before it merges onward? | **A static prototype first, and yes, `feat/hub` waits.** Task 41's Step 0 writes `prototype/phase-h-hub.html` (the four sign-in states, the no-Hub footer, the popover's states) before any component code, and the components follow it (+1 h on task 41). Your look at it and at the built surfaces is batched to the end (`OD-12`), so no lane waits; only `feat/hub`'s merge onward does, as `OD-1` keeps every UI branch. *No prototype* skips Step 0 and returns the hour. Seeing the prototype before any code would pause lane D at task 41 and delay task 43, which needs 01–42 |
 
 ---
 

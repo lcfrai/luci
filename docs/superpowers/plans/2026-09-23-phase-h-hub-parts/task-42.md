@@ -24,7 +24,10 @@ repository is already shared, and a one-step default — *a new team named after
   the project row, every control is reachable by Tab, focus rings are the designed ones.
 
 **Visual acceptance is the owner's eyes, batched to the end (`OD-12`)**; everything visual in this
-task's report is *unverified by the owner*.
+task's report is *unverified by the owner*. `OD-1`'s prototype waiver does not name phase H
+(`owner-decisions.md:12`), so this popover's look is drawn first, in task 41's Step 0 prototype
+(`prototype/phase-h-hub.html`, owner question Q13, review M14), and this task follows it.
+**`feat/hub` is not merged onward until the owner has looked** at both surfaces.
 
 **Files:**
 - `desktop/src/components/share/SharePopover.tsx` + `SharePopover.test.tsx` (new)
@@ -98,7 +101,8 @@ limitation, plan re-review b05 m2). The wording is the owner's to accept (OD-12)
 
 #### Steps
 
-- [ ] **Step 1:** Read `docs/DESIGN-SYSTEM.md`; `ContextMenu.tsx`, `common/Popover.tsx`,
+- [ ] **Step 1:** Read `docs/DESIGN-SYSTEM.md`; the popover states in `prototype/phase-h-hub.html`
+  (task 41, Step 0), if it was written; `ContextMenu.tsx`, `common/Popover.tsx`,
   `AppShell.tsx`; task 35's route table.
 - [ ] **Step 2:** Tests; they fail. Then the slice fields, the component, the CSS, the menu item,
   the mount.

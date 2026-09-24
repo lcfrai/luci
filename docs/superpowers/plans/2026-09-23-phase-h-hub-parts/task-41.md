@@ -1,6 +1,6 @@
 ### Task 41: the sign-in surface in the rail footer — UI
 
-**Lane D. Depends on: 40. About 3 hours. Contract task C4.**
+**Lane D. Depends on: 40. About 4 hours (3, plus 1 for the prototype, review M14). Contract task C4.**
 
 The person lives in the rail footer, where every prototype puts them (`prototype-fact-sheet.md:26`:
 *"The person — Dylan Mackie — rail footer"*). Four states from `GET /v1/auth/status` (contract
@@ -26,7 +26,18 @@ is exactly phase 2's: the product works on one laptop without anyone signing in.
 **Visual acceptance is the owner's eyes, batched to the end (`OD-12`).** This task's tests prove
 behaviour, not appearance; its report says *unverified by the owner* for everything visual.
 
+**A prototype comes first (owner question Q13, review M14).** `OD-1` waives prototype-before-plan
+for phases 3, 4, 5 and 7 only (`owner-decisions.md:12`), so phase H's two surfaces, this one and
+task 42's share popover, have no waiver and had no prototype. Step 0 writes one: a static,
+self-contained `prototype/phase-h-hub.html`, beside the phases' own prototypes, that shows this
+control's four states and the no-Hub footer, and task 42's popover in each state its tests name.
+It is committed alone, before any component code, and the components follow it. The owner's look
+at it is batched with the rest (`OD-12`), so lane D does not wait. **`feat/hub` is not merged
+onward until the owner has looked** (plan, "Order and parallel lanes"). If the owner answers Q13
+with *no prototype*, Step 0 is skipped and the hour is returned.
+
 **Files:**
+- `prototype/phase-h-hub.html` (new; Step 0)
 - `desktop/src/components/rail/AccountControl.tsx` + `AccountControl.test.tsx` (new)
 - `desktop/src/components/rail/RailFooter.tsx` — render `AccountControl` (modify ⚑: two lines)
 - `desktop/src/components/rail/rail.css` — the control's rules, appended (modify ⚑)
@@ -86,7 +97,14 @@ footer shows **Sign in** on the next status read.
 
 #### Steps
 
-- [ ] **Step 1:** Read `docs/DESIGN-SYSTEM.md` in full; `RailFooter.tsx`, `rail.css`,
+- [ ] **Step 0: the prototype.** Read `docs/DESIGN-SYSTEM.md` in full and one of the phases' own
+  prototypes (`prototype/phase-4-discover.html`) for the conventions. Write
+  `prototype/phase-h-hub.html`: this task's four states and the no-Hub footer, then task 42's
+  popover states, each labelled, with a plain state switcher and no other script. No network, no
+  font or script from outside the file. Commit it alone, by pathspec, marked *unverified by the
+  owner* (`OD-12`).
+- [ ] **Step 1:** Read `docs/DESIGN-SYSTEM.md` in full (if Step 0 was skipped), and Step 0's
+  prototype, which the component follows; `RailFooter.tsx`, `rail.css`,
   `common/StatusDot.tsx`, `common/Popover.tsx`, `hooks/useDismissable.ts`.
 - [ ] **Step 2:** Tests; they fail. Then the component, the two `RailFooter` lines, the CSS.
 - [ ] **Step 3:** `cd desktop && npm test && npm run typecheck`.
