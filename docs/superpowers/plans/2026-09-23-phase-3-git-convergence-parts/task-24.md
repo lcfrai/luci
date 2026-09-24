@@ -230,3 +230,38 @@ per shape (`status.response.json`, `refs.request.json`, `refs.response.json`,
 `DisallowUnknownFields`, re-encodes it, and compares with the fixture's compacted bytes, so a
 field renamed on either side fails a test on that side. `sandboxd/internal/gitrunner` reads them
 at `../../../testdata/gitrunner`.
+
+#### The tests to write first: the runner
+
+`gitrunner` carries `//go:build linux || darwin`, as `server.go:1` does, so its tests run where
+`sandboxd` runs: CI's `ubuntu-latest` job (`azure-pipelines.yml:6`, `:14`, `go test
+./sandboxd/... -race`). They use a real `git` on a `t.TempDir()` lane. The runner takes its temp
+root and limits from an unexported `newWithLimits`, which `New` calls with `/tmp` and the
+constants, and it records every argv and directory it executes, for the tests to assert on. Each
+test is red before its code exists.
+1. **A path outside the lane is refused before git runs.** `diff` with `""`, `/etc/passwd`,
+   `../x`, `a/../../x`, `a\b`, `:(top)x`, `a` NUL `b` and `.`: each is 400 `path_outside_lane`,
+   and the recorder holds no call.
+2. **The request never names a directory.** A body with `dir`, `cwd`, `gitDir` or `worktree` is
+   400 (unknown field). Across a run of all five ops, every recorded argv after `git` begins
+   `-C <GitWorktree> --literal-pathspecs`, except `check-ref-format`, which has no `-C` at all.
+3. **`fetch` refuses a bad bundle.** A truncated bundle and random bytes are each 422
+   `git_failed`; the lane's refs are byte-identical before and after, and the temp directory is
+   gone. A destination `refs/heads/main`, `refs/panacea/lanes/x` or `refs/remotes/origin` (no
+   trailing name) is 400 and fetches nothing.
+4. **A bundle round-trips, and "nothing new" says so.** `bundle` with a basis the lane has and
+   one it lacks answers a bundle that `git bundle verify` passes in a second repository holding
+   the basis. With the lane's tip as the basis, the answer is 409 `bundle_empty`.
+5. **The caps are status codes.** With `MaxBundleBytes` set to 1 KiB by `newWithLimits`,
+   `bundle` is 413 `too_large` and `fetch` of a 2 KiB body is 413; with `ReadTimeout` at 1 ms
+   and a second op holding the semaphore, the waiting op is 504 `git_timeout`.
+6. **Auth, in `server_test.go` (p2).** `/git/v1/status` without a bearer is 401 and the runner
+   is not reached; with the token it is 200. Without `GitWorktree` the route is 404.
+7. **The fixtures.** Every `testdata/gitrunner/*.json` round-trips through its type;
+   `limits.json` equals the four constants; `error.git_failed.json`'s `gitSays` is the last
+   `fatal:` line of a stderr that also holds `error:` lines, and a 3000-byte `fatal:` line is
+   cut to 2048 bytes on a rune boundary.
+
+The host half of this part follows as edit unit U2: the client, its reading of every answer as
+untrusted data under the same limits, host-side `bundle verify` in the project under §HGH, the
+fetch into `refs/panacea/lanes/…`, and this part's steps, acceptance and non-claims.
