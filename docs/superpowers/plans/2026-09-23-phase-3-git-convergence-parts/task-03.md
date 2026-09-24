@@ -143,18 +143,6 @@ type Creator struct {
 	// Nonce gives step 3's directory suffix: nil means 6 lowercase hex from crypto/rand. Tests pin
 	// it to make a collision. It is never derived from the name, the time or a counter.
 	Nonce func() string
-	// Mounts holds sandboxes off the project's working tree while step 6 reads it (re-review
-	// b03 I-2). nil copies no hooks directory: fail closed.
-	Mounts MountGuard
-}
-
-// MountGuard answers "can a sandbox write dir right now" and holds the answer. WhileUnmounted
-// runs fn only when no session that is live or starting has dir as its worktree path, and it
-// holds every new mount of dir off until fn returns; otherwise it returns false and runs
-// nothing. Task 04's api.MountGuard implements it under the lock that session create and
-// restart take before they start a sandbox.
-type MountGuard interface {
-	WhileUnmounted(ctx context.Context, dir string, fn func() error) (ran bool, err error)
 }
 
 // Create, in this order, and the order is the point:
@@ -179,29 +167,32 @@ type MountGuard interface {
 //     all six keys into the clone's local config before the checkout, so the checkout itself
 //     runs under them ("Line endings" and "Blob bytes on disk" below);
 //  4a. `config remote.origin.url <NoFetchURL>` and `config remote.origin.pushurl <NoPushURL>`
-//     in the clone (Local, Scope Clone): the clone's `origin` stops naming a Windows path,
-//     which the sandbox's Linux git would read as SSH to a host named `C` (review Minor 14).
-//     No host call reads either value (task-02 §HGH H2: the refresh and the lane sync name
-//     the project by its literal path from the lane index);
+//     in the clone (Local, Scope None, `NewLane: Path`): the clone's `origin` stops naming a
+//     Windows path, which the sandbox's Linux git would read as SSH to a host named `C`
+//     (review Minor 14). No host call reads either value (task-02 §HGH H2: the refresh and
+//     the lane sync name the project by its literal path from the lane index);
 //  5. `var GIT_AUTHOR_IDENT` in the PROJECT (Read); when ParseIdent accepts it,
-//     `config user.name` and `config user.email` in the clone (Local). No identity is not an
-//     error: the sandbox fix's resolver logs it at session create;
+//     `config user.name` and `config user.email` in the clone (Local, Scope None,
+//     `NewLane: Path`). No identity is not an error: the sandbox fix's resolver logs it at
+//     session create;
 //  6. `config --local --get core.hooksPath` in the PROJECT (Read; exit 1 means unset). When
 //     CopyableHooksPath accepts the value, `config core.hooksPath <value>` in the clone
-//     (Local), byte for byte. `git clone` copies neither `.git/config` nor `.git/hooks`, so
-//     without this a husky repository's lane runs none of its hooks (review I11). Nothing
+//     (Local, Scope None, `NewLane: Path`), byte for byte. `git clone` copies neither
+//     `.git/config` nor `.git/hooks`, so without this a husky repository's lane runs none of its hooks (review I11). Nothing
 //     under `.git/hooks` is ever copied: a host hook's `#!` line names a Windows path. A value
 //     CopyableHooksPath refuses is not copied and not an error. When the value was copied,
-//     CopyGeneratedHooks then copies the directory it names, if the project generated one,
-//     inside c.Mounts.WhileUnmounted(ctx, Project.Path, …). ran == false (a primary-worktree
-//     session is live or starting, or Mounts is nil) copies no files and is not an error: the
-//     setting stays, and task 05's dispatcher line names the missing folder;
+//     CopyGeneratedHooks then copies the directory it names, if the project generated one.
+//     No sandbox mounts the project (ruling R4.1), so the copy always runs; a directory its
+//     guards refuse copies no files and is not an error: the setting stays, and task 05's
+//     dispatcher line names the missing folder;
 //  7. Store.Add.
 // A failure in 4-7 removes Path with RemoveTree before returning, so a failed create leaves
 // no directory behind; a failure in 1-3 has touched nothing.
-// Scopes, per task-02 §HGH H3: steps 2, 4, 5's `var` and 6's `--get` run with Dir the project
-// and Scope Project (step 4's clone checks its source that way); steps 4a, 5 and 6's `config`
-// writes, and CopyGeneratedHooks' `ls-files`, run in the clone with Scope Clone.
+// Scopes, per task-02 §HGH H3: steps 2, 4, 5's `var` and 6's `--get` run in the project with
+// Scope Project. Steps 4a, 5 and 6's writes and CopyGeneratedHooks' `ls-files` run with Dir
+// Path, Scope None and `NewLane: Path` (task-02 §HGH): this is R4.5's creation window. Until
+// step 7's Store.Add no session can resolve the lane, so no sandbox has mounted Path. After
+// Create returns, the host never runs git in Path again (R4.2).
 func (c *Creator) Create(ctx context.Context, req CreateRequest) (Lane, error)
 
 // NoFetchURL and NoPushURL are a lane clone's origin (step 4a, review Minor 14). Each is a path
@@ -219,15 +210,14 @@ const (
 // filter.lfs.process="" and filter.lfs.required=false, at command scope, so a machine's
 // Git LFS (Git for Windows' installer can define filter.lfs.* in the system config, and
 // `git lfs install` writes it to the global one; command scope beats both) neither runs nor smudges
-// during the checkout (review Minor 13). It is env, not `--config`, because a `filter.*`
-// key in the clone's local config is one task-02 §HGH H3's Clone allowlist refuses.
+// during the checkout (review Minor 13). It is env, not `--config`, because env is command
+// scope for this call only, so no `filter.*` key lands in the config the sandbox's git reads.
 var NoFilterEnv map[string]string
 
 // CopyableHooksPath reports whether a project's local core.hooksPath is copied into a lane
 // clone: it is non-empty, relative (no leading `/` or `\`, no `X:` drive, no leading `~`),
-// has no `..` segment, and holds no `\`. The first three are task-02 §HGH H3's Clone rule
-// for the key, so a copied value never makes the clone's own config check refuse it; the
-// `\` refusal is because the sandbox's Linux git reads `\` as part of a file name, so a
+// has no `..` segment, and holds no `\`. The first three keep the value inside the lane's
+// working tree, where the sandbox's git resolves it; the `\` refusal is because the sandbox's Linux git reads `\` as part of a file name, so a
 // Windows-style value would name no directory there. Husky writes `.husky/_`.
 func CopyableHooksPath(v string) bool
 
@@ -235,7 +225,7 @@ func CopyableHooksPath(v string) bool
 // generated hooks directory there, and reports how many files it copied. Husky's `.husky/_` is
 // generated by the project's install step and ignored by git, so a clone never has it, and
 // the install step cannot make it inside a lane: its `git config core.hooksPath` write fails
-// against the read-only `.git/config` (task-02 §HGH H5), and husky 9 stops there (unverified:
+// against the read-only `.git/config` (task 05's hygiene bind), and husky 9 stops there (unverified:
 // husky's source was not read for this plan; task 05's Docker test settles what a lane needs,
 // not what husky does). Copying the setting without the directory runs nothing (review I11).
 // It copies only when every one of these holds, and otherwise copies nothing and returns 0:
@@ -254,10 +244,10 @@ func CopyableHooksPath(v string) bool
 // Each file is opened, then os.SameFile(its Lstat info, f.Stat()) must hold, and it is read
 // through io.LimitReader of the budget that remains, so neither a file swapped between check
 // and open nor one grown after the Lstat is read past the 1 MiB (review Minor 9). These guards
-// hold a static tree only; a live agent swapping a parent folder for a link between check and
-// read defeats any path check, which is why the caller runs this inside Mounts.WhileUnmounted
-// (re-review b03 I-2, the A4 class).
-// After the copy, `ls-files --others --exclude-standard -- <rel>` in the clone (Scope Clone)
+// hold a static tree only, and the project is one: no sandbox mounts it (ruling R4.1), so no
+// live agent can swap a parent folder for a link between check and read (re-review b03 I-2,
+// the A4 class).
+// After the copy, `ls-files --others --exclude-standard -- <rel>` (NewLane, before Store.Add)
 // must print nothing: the folder is ignored there. Otherwise RemoveTree takes the copy back and
 // it returns 0, so a user's uncommitted, unignored `.githooks/` never reaches an agent's
 // `git add -A` and a land (re-review b03 Minor 3).
@@ -281,11 +271,11 @@ repository, so a plain clone of an LF blob is CRLF on disk. The sandbox's Linux 
 setting, re-hashes every file (the stat data Windows wrote never matches through the bind mount),
 and sees the whole tree modified; an agent's `git add -A` then rewrites every text file to CRLF.
 Step 4's first four keys fix it at the root. `core.autocrlf=false` and `core.eol=lf` make the working
-tree hold the blobs' bytes, and the host's git reads them from the clone's local config.
+tree hold the blobs' bytes, and the sandbox's git reads them from the clone's local config.
 `core.checkStat=minimal` and `core.trustctime=false` stop the two systems' differing stat fields
-from forcing a full re-hash on every host `status` (task 07's poll). A repository whose
+from forcing a full re-hash on every `status` (task 07's poll). A repository whose
 `.gitattributes` asks for `eol=crlf` keeps CRLF for those paths, because attributes outrank
-`core.autocrlf`. All four keys are on task-02 §HGH H3's `Clone` allowlist.
+`core.autocrlf`. Step 4 writes all four before any sandbox mounts the clone (R4.5).
 
 *How the sandbox's git gets the same answer (plan re-review b02 I-1).* Phase 2's `5a4d0d8`
 (on `feat/phase-2-cockpit`, which merged `fix/sandbox-git-ca` at `f898f5e`) gives **every**
@@ -297,11 +287,12 @@ come from `Deps.GitLineEndings`, which `handleSessionCreate` and `handleSessionR
 session's worktree path (`sessions.go:651` and `:1255`, through `sessionGitLineEndings` at
 `:250`), and the production resolver (`cmd/api/gitlineendings.go:36`) runs the host's
 `git config` there. For a lane that path is the clone, where the local keys answer `false` and
-`lf`, so the env says what the clone's config says. **The invariant is where the resolver is
-asked, and by what: in the clone, by a pinned git, never in `Project.Path`**, whose system
-`autocrlf=true` would send `true`/`crlf`. Pinned means task 05's `laneResolverRunner` (`gitx.Exec`,
-`Scope: Clone`, task-02 §HGH H5's layout pin): phase 2's runner is unpinned, and an agent-written
-`.git/commondir` then chooses the config it reads (plan re-review b02-2 X-1).
+`lf`, so the env says what the clone's config says. **The invariant is where a lane's answer
+comes from: decided by task 03's own step-4 argv (`core.autocrlf=false`, `core.eol=lf`); the
+host never reads a lane to learn them (R4.2, R4.6), and never asks `Project.Path`**, whose
+system `autocrlf=true` would send `true`/`crlf`. Phase 2's resolver runs host git in the
+session's worktree path today; moving it to host-owned config is the phase-2 stream's fix
+(R4.6), which phase 3 relies on and does not make (plan re-review b02-2 X-1).
 A probe (`scratchpad/p3/rr-b02-probe.out`) showed what that mutant does: with `GIT_CONFIG_*`
 holding `core.autocrlf=true` over a clone made by step 4's argv, `status --porcelain` stays empty
 and `git checkout -- a.txt` writes `x\r\ny\r\n`. A second probe (`scratchpad/p3/b02r2-probe.out`,
@@ -314,7 +305,7 @@ invariant, and task 01's `TestSandboxCloneHasWorkingGit` checks the bytes in the
 The local keys still decide for a sandbox session started without that environment. Phase 2 and
 phase 3 differ on where the answer comes from, not on the mechanism: a primary checkout is the
 user's, so phase 2 reads its effective setting and sends it; a lane clone is ours to configure,
-so phase 3 writes `false`/`lf` into it, and the same resolver sends that.
+so phase 3 writes `false`/`lf` into it at step 4, and a lane session is sent that answer.
 Verified on git 2.53.0.windows.2 on 2026-09-24, with a test system file holding
 `core.autocrlf=true`: a plain `clone --local` checked `a.txt` out as `x\r\ny\r\n` and wrote no
 local `core.autocrlf`. Step 4's argv checked it out as `x\ny\n`, wrote all four keys locally,
@@ -373,8 +364,9 @@ into, so the sandbox's git, which has none of that config, agrees with the host'
   128 with "fatal: cannot create directory at '…': Filename too long" and "warning: Clone
   succeeded, but checkout failed."; `--config core.longpaths=true` exited 0 with a clean
   `status` (task 04's `TestWorktreeCreateSurfacesGitsSentence` shows that sentence). Step 4
-  writes it, so the checkout and every later host call in the clone run with it; Linux git
-  ignores the key. Task 01's Step 5 records the longest real path against 260.
+  writes it, so the checkout runs with it and the sandbox's git reads it; no later host call
+  runs in the clone (R4.2). Linux git ignores the key. Task 01's Step 5 records the longest
+  real path against 260.
 
 *The clone's origin (review Minor 14).* `git clone` sets `remote.origin.url` to `Project.Path`,
 a Windows path. Linux git reads `C:/…` as scp-style SSH to a host named `C`, so an agent's
@@ -509,11 +501,10 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCreateWithoutAnIdentityStillCreates` | no identity anywhere (isolated config, `user.useConfigOnly`) → lane created, clone config has no `user.name` | failing a create for a commit-time problem |
 | `TestCreateCopiesARelativeHooksPath` (review I11) | project local `core.hooksPath=.husky/_` and a `.git/hooks/pre-commit` file: the clone's `config --local --get core.hooksPath` prints `.husky/_`, and the clone's `.git/hooks` holds only what `git clone` put there (no `pre-commit`). Then a table of project values, each a fresh create: `/abs/hooks`, `C:/hooks`, `C:hooks`, `\hooks`, `~/hooks`, `../x`, `a/../../x`, `.githooks\x` → lane created, clone has no `core.hooksPath`; `.githooks` → copied. Red first against step 6 removed | a husky lane running none of the project's hooks; a host path or an escape copied into a clone |
 | `TestCopyableHooksPath` | the same table as a pure function, plus `""` → false | a predicate that disagrees with Create's copy |
-| `TestCreateCopiesAGeneratedHooksDir` (review I11) | Creator.Mounts a fake that runs fn (no session live; nil copies nothing); project local `core.hooksPath=.husky/_`, tracked `.husky/pre-commit`, and an ignored `.husky/_/` holding `.gitignore` (`*`), `h` and `pre-commit`: the clone's `.husky/_` holds the same three files byte-identical, `status --porcelain` in the clone prints nothing. Red first against CopyGeneratedHooks not called | a husky lane with the setting but no hooks, which runs nothing |
+| `TestCreateCopiesAGeneratedHooksDir` (review I11) | project local `core.hooksPath=.husky/_`, tracked `.husky/pre-commit`, and an ignored `.husky/_/` holding `.gitignore` (`*`), `h` and `pre-commit`: the clone's `.husky/_` holds the same three files byte-identical, `status --porcelain` in the clone prints nothing. Red first against CopyGeneratedHooks not called | a husky lane with the setting but no hooks, which runs nothing |
 | `TestCopyGeneratedHooksRefuses` | table, each → 0 files and nothing written: a tracked `.githooks/` (the clone's checked-out copy is byte-unchanged); a `.githooks/` tracked on the lane's `<Branch>` only and untracked in the project's checkout (the clone's copy is byte-unchanged); `rel` = `.git/hooks`, `.GIT/hooks` and `.git./hooks` (the clone's sample hooks are byte-unchanged); `.husky` a junction (Windows) or symlink to a temp directory; a symlink file inside `.husky/_`; a subdirectory inside it; 65 files; 1 MiB + 1 byte; an untracked `.githooks/` that no `.gitignore` covers (the clone has no `.githooks/` afterwards) | a copy that reads outside the project's tree, reads `.git`, overwrites a hook the lane's branch tracks, or leaves a folder the agent's `git add -A` commits |
 | `TestCopyGeneratedHooksChecksTheOpenedFile` | through the unexported package variable `openForCopy` (a test-only seam, default `os.Open`): an opener that returns a different file than the path's Lstat named → 0 files, error names the path; one that returns a file larger than its Lstat size → at most 1 MiB read in total, and the copy is refused | a swap between check and open, or an uncapped read of a file an agent wrote |
-| `TestCreateCopiesNoHooksWhileTheProjectIsMounted` (re-review b03 I-2) | Mounts a fake that returns ran == false → the clone has `core.hooksPath` and no `.husky/_`, Create succeeds; Mounts nil → the same; a fake that returns true → the copy runs inside its fn (a flag set in fn is seen by the copy seam) | a copy out of a working tree a live agent can rewrite |
-| `TestCreateHooksPathPassesTheCloneCheck` | a created clone whose project had `core.hooksPath=.husky/_`: a `status` with `Scope: Clone` through `gitx.Machine` is not refused (task-02 §HGH H3) | a copy the clone's own allowlist then refuses, breaking every host call in the lane |
+| `TestCreateIsTheOnlyHostGitInTheLane` (ruling R4.5) | a real `gitx.Exec` with `Hardening.LaneRoot` = CloneRoot, `gitxtest.Spy` on it, a Runner wrapper that records each Call's `Dir` and `NewLane` beside the Spy's length, and a Store whose Add records the Spy's length; project with an identity, `core.hooksPath=.husky/_` and an ignored `.husky/_/`. Every Spawn whose `Dir` is Path or whose argv names Path, except step 4's `clone` (`Dir` the project, Path its last argv element, the destination git creates), comes from a Call with `NewLane == Path` and precedes the Add mark; no Spawn after the mark names Path. Red first against step 4a moved after Store.Add | a host git call in the lane after it is resolvable, so after a sandbox can have mounted it |
 | `TestCreateUnknownBranchTouchesNothing` | `Branch: "nope"` → ErrUnknownBranch, `<root>/<p>` has no entry | a half-made clone |
 | `TestCreateNeverReusesAnExistingDirectory` | Nonce pinned to `"aaaaaa"`: a file at `<root>/<p>/ui-aaaaaa` → ErrNameTaken after 4 draws and the file's bytes are unchanged; a Nonce that answers `"aaaaaa"` then `"bbbbbb"` → the lane is created at `ui-bbbbbb` | RemoveTree on a directory we did not make |
 | `TestCreateAgainAfterRemoveGivesANewID` (review Minor 7) | create `ui`, Store.Remove it and RemoveTree its Path, create `ui` again with the default Nonce → the same Name, a different Path and a different ID; `Lane.Name == "ui"` and `filepath.Base(Path)` matches `^ui-[0-9a-f]{6}$`. Red first against a Path of `<Name>` alone | a re-created lane inheriting the old lane's lands, ready flag and lane ref |
@@ -568,12 +559,11 @@ go test ./control-plane/internal/registry/ ./control-plane/internal/statepath/ -
   nothing refreshes it later. Task 05's dispatcher prints its `panacea:` line only when the
   clone has a local `core.hooksPath` whose folder is missing: the project's `.husky/_` was
   deleted after install (`git clean -fdx`), CopyGeneratedHooks refused it (over 64 files, a
-  link, a subfolder, or a live primary-worktree session), or the agent deleted it inside the
+  link or a subfolder), or the agent deleted it inside the
   lane. Three cases are **silent**, and from inside the clone look exactly like a project with
   no hooks: a lane made **before** the project's install step ran (husky's install is what
   writes the local `core.hooksPath`, so step 6 has nothing to copy); a hooks path that is
   absolute; and hooks that live only in `.git/hooks`, or a `core.hooksPath` naming it
-  (pre-commit's shim names the host's Python). Re-creating the lane after the install, with no
-  primary-worktree session live, repairs a lane made before install, a deleted folder and a
-  live-session refusal. A folder refused for its shape, an absolute path and `.git/hooks` reach
+  (pre-commit's shim names the host's Python). Re-creating the lane after the install repairs a lane
+  made before install and a deleted folder. A folder refused for its shape, an absolute path and `.git/hooks` reach
   no lane however it is made (re-review b03 I-3).
