@@ -377,4 +377,54 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | **SW.21** | the Work wire, W5 (`WorkIntake`) | 143 | 144-171 |
 | **SW.22** | the outbound webhook payload: event metadata only, HMAC-SHA256 signature header | 160 | 156, 157, 161 |
 
+### W0 and W1: the first slice a team can adopt
+
+| Id | Task | Slice | Focused days | dependsOn | Seams |
+|---|---|---|---|---|---|
+| 01 | W0 and the documents: the Hub-contract proposal; PROGRAM, FUNCTIONAL-SPEC, AGENTIC-UX's four amendments, 02's corrections | W0 | 0.25 (2 h) | — | SW.0 |
+| 02 | `hubapi`: Work id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical kind and golden vectors | W1 | 0.3 (2.5 h) | 01; H01-H03 | SW.1 |
+| 03 | `hubapi`: the W1 wire types and request bodies | W1 | 0.375 (3 h) | 02 | SW.1 |
+| 04 | `hubclient.Work` and the fake, part 1: issues, revisions, numbers, the project key, states | W1 | 0.375 (3 h) | 03; H04-H05 | SW.2 |
+| 05 | the fake, part 2, and the Work conformance rows: relations, labels, policies, comments, subscriptions, imports, search, erase (**WS0**) | W1 | 0.375 (3 h) | 04 | SW.2 |
+| 06 | migration, part 1: the Work tables, row-level security and grants | W1 | 0.375 (3 h) | 03; H06-H07b | — |
+| 07 | migration, part 2: the guards, and the authorisation-matrix rows for every W1 Work route | W1 | 0.375 (3 h) | 06; H16b | SW.3 |
+| 08 | issue heads, numbers and `project.key`: routes and store, one event per write | W1 | 0.375 (3 h) | 07; H14, H17 | SW.1 |
+| 09 | issue revisions, `serves`, restore and attachments; `/v1/refs` resolves `issue:` | W1 | 0.375 (3 h) | 08; H19-H21 | SW.1 |
+| 10 | states, thread state and the done rule on the server | W1 | 0.375 (3 h) | 09; H25 | SW.4 |
+| 11 | relations, team labels, `triage` and team policies | W1 | 0.375 (3 h) | 08 | — |
+| 12 | comments `ic-`: mentions, reactions, anchors, resolve | W1 | 0.375 (3 h) | 08 | — |
+| 13 | subscriptions; the change feed's Work kinds, filtered per caller | W1 | 0.3 (2.5 h) | 11, 12; H26 | SW.5 |
+| 14 | erase for issues and comments; title search | W1 | 0.3 (2.5 h) | 12; H27 | — |
+| 15 | the import route: a normalised batch into `triage`, *not tied · imported* | W1 | 0.3 (2.5 h) | 11 | SW.6 |
+| 16 | `hubclient`'s Work methods over HTTP; the control plane's `/v1/hub/work/*` relay | W1 | 0.375 (3 h) | 05, 15; H33-H34 | SW.2 |
+| 17 | W1's Hub end to end through `devissuer` | W1 | 0.375 (3 h) | 10, 13, 14, 16; H43 | — |
+| 18 | phase 4 delta: `issue:` in `provenance/key.go`; `Ref.Kind` `"issue"` | W1 | 0.25 (2 h) | 02; P4-06 | SW.1 |
+| 19 | phase 4 delta: `Session.IssueRef`; the Materialiser's issue section; the loader's second key | W1 | 0.375 (3 h) | 05, 18; P4-09, P4-10, P4-16 | SW.7 |
+| 20 | desktop test kit: `expectNoPrediction` and the Work fixtures | W1 | 0.25 (2 h) | — | SW.8 |
+| 21 | phase 3 delta: the `Panacea-Issue` trailer; the lane index names its issue; AU-only branch names | W1 | 0.375 (3 h) | 19; P3-05, P3-07, P3-08 | SW.9 |
+| 22 | phase 3 delta: the `started`, `in_review` and `landed` fact moves, written as the person | W1 | 0.375 (3 h) | 05, 21; P3-09 | SW.4 |
+| 23 | phase 3 delta: the done evaluator; observed evidence at the landed commit; *self-attested* | W1 | 0.375 (3 h) | 22; P3-15 | SW.4 |
+| 24 | control plane: Start from an issue, *Undo Start*, the data-class route | W1 | 0.375 (3 h) | 16, 19, 21 | SW.10 |
+| 25 | control plane: the Linear public-API and CSV import adapters | W1 | 0.375 (3 h) | 15, 16 | SW.6 |
+| 26 | tokens: 02 D2 step 1, `--t-fact`, the provisional `paper` block | W1 | 0.25 (2 h) | — | SW.11 |
+| 27 | faces: Commit Mono bundled with its licence; Segoe UI Variable as the sans | W1 | 0.25 (2 h) | 26 | SW.11 |
+| 28 | drawn glyphs, part 1: the nine issue states, *done, not proven*, the priority notch | W1 | 0.375 (3 h) | 26 | SW.12 |
+| 29 | drawn glyphs, part 2: agent shapes, selection, needs-you, `thread.node`; the licence check | W1 | 0.375 (3 h) | 28 | SW.12 |
+| 30 | `voice.split` across Develop and the session pane (02 D2 step 3) | W1 | 0.3 (2.5 h) | 27 | — |
+| 31 | `chrome.dim` and one `ViewHeader` with the route badge (02 D2 step 2) | W1 | 0.375 (3 h) | 26 | SW.13 |
+| 32 | `flag.compare` in the dev toolbar: old and new look, the three sans candidates (02 D2 step 7) | W1 | 0.25 (2 h) | 27, 31 | — |
+| 33 | `stress.sets` with its three new screens | W1 | 0.375 (3 h) | 29, 32 | — |
+| 34 | the `forced-colors` layer; the reduced-motion running shape and static tick | W1 | 0.25 (2 h) | 29, 33 | — |
+| 35 | grain, measured at 150 % in WebView2 | W1 | 0.25 (2 h) | 31 | — |
+| 36 | the thread primitives: node, line, lit, trace | W1 | 0.375 (3 h) | 29, 30 | SW.14 |
+| 37 | desktop Work wire types, relay calls and `workSlice`; `Lens` gains `"work"` | W1 | 0.3 (2.5 h) | 05, 20 | SW.15 |
+| 38 | prototype, part 1: the Work lens and Plan in the app, behind `flag.compare`, on fixtures | W1 | 0.375 (3 h) | 32, 36, 37 | — |
+| 39 | prototype, part 2: the issue view and the Desk; **the owner's review**, recorded | W1 | 0.375 (3 h) | 38 | — |
+| 40 | the Work lens: the list grouped by criterion, one agent line, coarse liveness | W1 | 0.375 (3 h) | 39 | — |
+| 41 | `arrivals.hold`, `moves.hold` and departures; `N` applies | W1 | 0.375 (3 h) | 40 | — |
+| 42 | Triage: the view, number keys, `T` with a text-match criterion suggestion | W1 | 0.375 (3 h) | 40 | — |
+| 43 | the board, and drag that offers a fact instead of faking it | W1 | 0.375 (3 h) | 40 | — |
+| 44 | display options and the bulk bar, with *Start N worktrees* and `confirm.inplace` | W1 | 0.375 (3 h) | 40 | — |
+| 45 | Plan (`G P`): Triage, Backlog, criteria with their issues, *My issues* | W1 | 0.375 (3 h) | 42 | — |
+
 ---
