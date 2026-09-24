@@ -89,7 +89,7 @@ type State struct {
 	CriterionID     string   `json:"criterionId"`
 	CriterionDigest string   `json:"criterionDigest"`
 	State           string   `json:"state"`           // "open" | "settled" | "contested"
-	Because         []string `json:"because"`         // the deciding records' becauses; open: [] with no evidence, or the one revert sentence (States)
+	Because         []string `json:"because"`         // the deciding records' becauses; open: [] with no evidence, or one or both revert sentences (States)
 	Evidence        []string `json:"evidence"`        // their ids
 	RecordedAgainst []string `json:"recordedAgainst"` // their brief keys, verbatim, for the UI to resolve
 	Commits         []string `json:"commits"`         // their commits
@@ -106,27 +106,53 @@ type Evaluator struct {
 //   records = Store.ByDigest(repo, digests)
 //   reachable(r) = merge-base --is-ancestor r.Commit subject   (gitx.Read, OKExit 1; an object
 //                  the repository does not have — a teammate's unfetched commit — is not reachable)
-//   reverts = log --format=%H%x1f<gitx.TrailerFormat(gitx.TrailerReverts)> subject
-//             (every ancestor of subject, not first-parent only; lines with an empty value dropped)
-//   retired(r) = some M in reverts has: merge-base --is-ancestor r.Commit M (exit 0) and
-//                merge-base --is-ancestor r.Commit M^1 (exit 1) — r lies in M^1..M, the land task
-//                10's revert took back (its merge-tree uses --merge-base=M against M^1, so exactly
-//                M and the lane commits M brought in are undone); an M the repository lacks
-//                retires nothing (review I9)
+//   reverts = log --fixed-strings --regexp-ignore-case --grep=Panacea-Reverts:
+//                 --format=%H%x00<gitx.TrailerFormat(gitx.TrailerReverts)>%x1e subject
+//             every ancestor of subject, not first-parent only. --grep is a prefilter (a superset:
+//             %(trailers:key=) matches the key in any case); the trailer parse decides. Split
+//             records on gitx.RecordSep, fields on gitx.FieldSep, values on gitx.ValueSep, and trim
+//             surrounding whitespace. Each value that is not exactly ^[0-9a-f]{40}$ is dropped
+//             before any git call: empty, `-h`, `--octopus`, `HEAD`, `main~3`, a folded value that
+//             holds a newline (re-review b07-1 issue 2: the value is agent-writable, and Exec
+//             checks only Args[0] for a leading `-`, task-02:421-423). Each kept pair is (R, M): R
+//             the commit carrying the trailer, M its value. A pair counts only when M is a proper
+//             ancestor of R (merge-base --is-ancestor M R, exit 0, M != R): a revert takes back
+//             something before it.
+//   landed(M) = rev-list M^1..M, as a set. Exit 128 for a well-formed M (the repository lacks M,
+//               or M has no first parent) is the empty set: it retires nothing (review I9).
+//   retired(r) = some counted (R, M) has either
+//     (a) r.Commit in landed(M): r lies in M^1..M, the land task 10's revert took back (its
+//         merge-tree uses --merge-base=M against M^1, so exactly M and the lane commits M
+//         brought in are undone); because "the land that carried this evidence was reverted"; or
+//     (b) merge-base --is-ancestor M r.Commit (exit 0) and merge-base --is-ancestor R r.Commit
+//         (exit 1): r was recorded on a tree that held M's change, before R took it back (a
+//         branch head in the Merge view after a later land; a lane head after it merged the
+//         branch); because "this evidence was recorded on a tree that held a land since
+//         reverted" (re-review b07-1 issue 4: the safe-way option, over-retirement declared).
+//   Every merge-base above runs with OKExit {1, 128}; with every revision a validated 40-hex sha,
+//   128 means the repository lacks the object, and the answer is "no".
 //   per digest: drop retired records, then keep reachable records not a proper ancestor of
 //   another kept record's commit; none kept and none retired → open, because [];
-//   none kept, some retired → open, because ["the land that carried this evidence was reverted"],
-//   Evidence/RecordedAgainst/Commits naming the retired records; one verdict → that verdict;
-//   both verdicts → contested.
+//   none kept, some retired → open, because the retired records' sentences, deduplicated, (a)'s
+//   first; Evidence/RecordedAgainst/Commits naming the retired records; one verdict → that
+//   verdict; both verdicts → contested.
 // Retiring before pruning is deliberate: an older record at a commit the revert did not take
 // back (an ancestor of M^1) decides again, because the revert restored the code it judged.
 // The reverts walk is the whole ancestry, not first-parent: a lane that merged origin/<branch>
 // after the revert (task 19's resolve prompt) carries the revert off its first-parent line, and a
 // first-parent walk would leave the Develop chip at that lane's head settled. Any ancestor's
-// Panacea-Reverts trailer counts, an agent's forged one included; the only effect of a forgery is
-// a criterion reading open, never settled, so this errs the safe way. Re-landing reverted work
-// takes new commits, and they need new evidence. The walk is one git log per States call, run
-// only when some record is reachable.
+// Panacea-Reverts trailer counts, an agent's forged one included. A malformed value is dropped
+// before git sees it, so a forgery's only effect is a criterion reading open, never settled, and
+// never an error: this errs the safe way. A human clears it by recording again at a descendant
+// of the forged commit. Re-landing reverted work takes new commits, and they need new evidence.
+// Cost (re-review b07-1 issue 5): the walk and every answer above are cached per Evaluator, and
+// the cache is exact because a commit's ancestry never changes: the parsed reverts by
+// (projectPath, subject), landed(M) by (projectPath, M), each merge-base answer by
+// (projectPath, a, b). A subject that is not a 40-hex sha is not cached, and a 128 answer is
+// never cached (a fetch can bring the object). Each map is an LRU of 4,096 entries. So a
+// convergence poll at an unchanged tip and unchanged forecasts runs no git for Settles' two
+// States calls per queue row. A moved tip pays one full walk; an incremental walk from a cached
+// parent is not built. The walk runs only when some record is reachable.
 // It never takes a branch id (contract §2.3). merge-base and log run in the project with Scope
 // Project (task-02 §HGH).
 func (e *Evaluator) States(ctx context.Context, repo, projectPath, subject string, criteria []briefref.Criterion) ([]State, error)
@@ -191,7 +217,10 @@ Writes nothing."*
 | `TestStatesARevertRestoresTheOlderVerdict` | the lane cloned at T (the tip before M), so T is an ancestor of L1; contested recorded at T, settled at L1, M then R; subject R → `contested`, T's because | retiring after pruning, so the older record stays hidden behind a retired one |
 | `TestStatesARecordAtTheLandItselfIsRetired` | settled recorded at M, then R; subject R → open with the revert because | the range taken as `M^1..M^2`, missing a record made at the merge |
 | `TestStatesARevertOffTheFirstParentLineCounts` | lane B merges the branch after R (R on B's second-parent side); subject B's head → open | a first-parent walk leaving the Develop chip settled |
-| `TestStatesARevertOfAnotherLandRetiresNothing` | lands A and B, R reverts B only; settled at A's lane commit; subject R → settled | a revert unsettling every land on the branch |
+| `TestStatesARevertOfAnotherLandRetiresNothing` | A lands first, then B; R reverts B only; settled at A's lane commit (not a descendant of `M_B`); subject R → settled | a revert unsettling every land on the branch |
+| `TestStatesARecordOnATreeThatHeldTheRevertedLandIsRetired` (re-review b07-1 issue 4) | land B, then land A; settled recorded at `M_A`; R reverts B; subject R → open, `because` exactly `["this evidence was recorded on a tree that held a land since reverted"]`; a second settled recorded at R's child → settled | a branch-head record that saw B's code reading settled after B is gone; a record made after the revert retired too |
+| `TestStatesAMalformedRevertsTrailerIsIgnored` (re-review b07-1 issue 2) | lane commits carrying `Panacea-Reverts: -h`, `Panacea-Reverts: HEAD`, `panacea-reverts: --octopus`, and a 40-hex sha of a commit that is not an ancestor of the carrying commit; one settled record; land; subject the land → `settled`, `err == nil`; a recording `Machine` wrapping the real one saw no argv holding `-h`, `HEAD` or `--octopus` | a trailer an agent writes becoming a git option or a moving revision |
+| `TestStatesCachesTheWalk` (re-review b07-1 issue 5) | a counting `Machine`; States twice at the same 40-hex subject → the second call runs no git; States at a ref name → not cached | a full-ancestry log per queue row on every poll |
 | `TestSettlesOnlyNewlySettled` | a criterion settled before and after → not listed; open before, settled after → listed | "landing settles" claims for criteria already settled |
 | `TestPostPinsTheCommit` | after POST, `refs/panacea/evidence/<id>` names the commit; the commit survives `git gc --prune=now` after its lane is rewritten | evidence pointing at a collected object |
 | `TestPostRefusesACriterionTheBriefLacks` | a pair not in the resolver's revision → `no_such_criterion` | evidence about a sentence no brief contained |
@@ -222,3 +251,18 @@ go test ./control-plane/internal/evidence/ ./control-plane/internal/converge/ ./
 - Agent-proposed and test-linked evidence (3-D5 b and c) are later phases.
 - `recordedBy` is a git identity, which the user can set to anything; the Hub's signed-in
   principal replaces it (H-4).
+- **A revert over-retires on purpose** (re-review b07-1 issue 4). Rule (b) reopens every record
+  made on a tree that held the reverted land, before the revert, including records about other
+  lands' code: land B, then A, record at `M_A`, revert B, and A's criterion reads open. The
+  cheaper reading, retiring only `M^1..M`, would leave a branch-head record that judged B's code
+  reading settled after B is gone, the false done I9 names, and phase 7 would carry it into a
+  release. A human clears an over-retired criterion by recording again after the revert. Which
+  reading ships is an owner question (Q-table); rule (b) is one predicate, tested on its own.
+- **A forged `Panacea-Reverts` trailer that names a real land reopens that land's evidence**, as
+  a real revert would. It can make criteria read open, never settled, and never an error.
+- **The cost is unmeasured.** The cache bounds repeat polls; the first walk after a tip moves is
+  one `git log` over the whole ancestry, prefiltered by `--grep`.
+- **Verified on git 2.53.0.windows.2** (2026-09-24, a scratch repository): `merge-base
+  --is-ancestor <sha> -h` exits 129; an unknown 40-hex sha, and `rev-list <root>^1..<root>`, exit
+  128; `%(trailers:key=Panacea-Reverts,valueonly)` returns a lowercase `panacea-reverts:` line's
+  value; `--fixed-strings --regexp-ignore-case --grep=` matches it. Not verified on git 2.40.
