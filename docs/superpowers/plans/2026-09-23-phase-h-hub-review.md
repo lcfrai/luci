@@ -924,3 +924,36 @@ row-lock wait taken inside a trigger; and that a `WITH CHECK` refusal's message 
 violates row-level security policy`. 07b's mutant run settles all three, and the test's 10 s
 deadline turns a wrong second fact into a failure, not a stall. Nothing was compiled or run: this
 batch changes only documents.
+
+## Fix batch b08 — M1, M3, M5, M14 and M15 (2026-09-24)
+
+The plan's citations now point at lines that exist. The estimate states lane A's critical path.
+The sibling-file rule admits the add/add conflict and names its winner. Phase H's two surfaces get
+a prototype, and `feat/hub` waits for the owner. The task table declares every dependency the
+review found. Commits: `bc970dc` (M1), `482b464` (M3), `ac754a5` (M5), `1d91679` (M14), `a8741a8`
+(M15, and an M3 re-check), and the commit of this map, which also carries task 28's M5 line.
+Before that commit every citation below was re-read against the tree, and the M3 sums were re-added
+by hand from the task table: 63.5, 65, 44, 109 and 133 h all hold.
+
+| Finding | What changed | Where |
+|---|---|---|
+| **M1** | `httpx`'s standard-library rule is `problem.go:5`, its imports `:10-18`. The review said `:10-17`, but `:18` is the closing `)`. `backend_unavailable` is `problem.go:60`. The rail footer's error line is `desktop/src/components/rail/RailFooter.tsx:19-21`, the `<p>`: the file has 25 lines, and the old citation also left `rail/` out of the path. The boundary test is task 09's. All were checked against this worktree's tree | plan.md:150, :178; task-38.md:171; task-04.md:40 |
+| **M1**, beyond the review | Task 01's `TestHubCodesNeverShadowAControlPlaneCode` put `httpx`'s sixteen constants at `problem.go:99-116`, which is `DecodeJSON`'s comment. They are `:45-60`. A grep of the plan and every part for `problem.go:` and `RailFooter.tsx:` finds no other citation | task-01.md:367 |
+| **M3** | The paragraph now gives the critical path, not the average. Lane A's serial path to S7 (01–08 and 13–24, with 07a/07b and 16a/16b) is **63.5 h**, or **65 h** after 44a, so a little over eight working days at the ADR's 8-hour day. This is b07's figure, not the review's 57 h, which predates the splits. It also shows that lane A's one cross-lane wait (13 on 10 and 11, done by 7 h) costs nothing, and that the second engineer (44 h) waits twice, for 06's `go.mod` at 17.5 h and for 20 at 53 h, yet is still done by 61 h. Moving 06–07b would give 55.5 h. That is left to the orchestrator. Every figure was summed by a script from the table, and re-summed after M14 and M15 | plan.md:456-470 |
+| **M5** | **The review is right, and wider than it says.** Phase 8 task 16 (`feat/env` at `aa12b01`) and phase 3 task 13 (`feat/phase-3-git` at `a99d20b`) both give `func` signatures with no bodies. So all three copies (tasks 10, 29, 35) meet the owner's file as an add/add conflict, not only `credstore.go`. The section says so. Its table names the owner as the winner and lists where each copy differs. The orchestrator keeps the owner's file whole and re-runs our tests against it. For `credstore.go` there are three differences: the bodies, phase 3's package comment (dropped), and the `Source` comment (phase 3's `task-13.md:68` reads `"hub" \| "git-credential-helper"`) | plan.md:206-224 |
+| **M5** the ask | A one-line sibling ask to phase 3: adopt contract §9.1's `Source` values. Until phase 3 does, the only cost is a stale comment, because `Source` is a plain `string` | plan.md:225-229 |
+| **M5** restatements | Task 29 now says "declarations", not "verbatim", in its prose, contract heading, bodies note and tests note. **Beyond the review:** task 29's acceptance grep for `"hub"` was `# 0` unconditionally. That fails whenever phase 3's file landed first, which is the case the plan says to use as it is. It is now 0 only when task 29 wrote the file, and a 1 records the open ask. Task 10 and task 35 get the same conflict rule. The plan's file map, task 10's row and the unverified list stop saying "verbatim". A final grep of every part for `verbatim` and `no-op` found one more: task 28's `secrets.go` package comment said task 29 "writes it verbatim". It now says task 29 writes it and phase 3's file wins, on one line, so no earlier batch's `task-28.md` citation moves | task-29.md:13-24, :33, :104-106, :222-224, :255-260; task-10.md:17-22; task-35.md:3, :16-21, :140; task-28.md:40; plan.md:311, :315, :403, :629-632 |
+| **M14** | **The question is Q13, not the review's Q11.** Q11 already exists (ADR-H1 R5's "session context", plan.md:559). The recommendation built: task 41's new Step 0 writes a static `prototype/phase-h-hub.html` (the four sign-in states, the no-Hub footer, and the popover's states) before any component code, and both components follow it. That adds 1 h (task 41 is now 4 h). The owner's look is batched (`OD-12`), so no lane waits. **`feat/hub` is not merged onward until the owner has looked**, stated under the lane table and in the `OD-1` row. The status line no longer claims `OD-1` for phase H | plan.md:5-9, :72, :344, :435, :490-495, :549-551, :560; task-41.md:3, :29-40, :100-107; task-42.md:26-30, :104-105 |
+| **M14** totals | Client and desktop go to 45 h. The total goes to **133 h**, 5 h over the ADR. The minimum (109 h) and the critical path (65 h) do not change, because task 41 is in neither | plan.md:444-449 |
+| **M15** | Task 13 depends on 11. Task 30 depends on 04. Task 34 depends on 11. Task 31 lists 04, which it also gets through 30. Each was checked in its part: task-13's `TestADevissuerTokenPassesTheRealValidator` (`:175`), task-30's `hubclient.ErrSignedOut` (`:37`) and `hubclient.ErrUnavailable` (`:134`), task-34's `MintAccessToken` (`:65`, declared at task-11.md:138). The lane table's waits say the same | plan.md:406, :424, :425, :428, :484, :486; task-13.md:3; task-30.md:3; task-31.md:3; task-34.md:3 |
+| **M15** `Invalidator` | Task 04's `hubclient.go` now declares `Invalidator`. Task 31 no longer edits it: task 31 implements `Invalidate` and holds a compile-time `var _ hubclient.Invalidator` check. `entraauth` already imports `hubclient` (task 30). Task 33 cites the new owner. The file map drops task 31's `hubclient.go` row, and task 04's row names `ErrSignedOut` and `Invalidator`. The lanes paragraph says `hubclient.go` is lane A's alone | task-04.md:58-64; task-31.md:17-21, :203-206, :240; task-33.md:63; plan.md:269, :501-503 |
+
+Declared, not verified:
+- The M3 figures are plan estimates, summed from the table. They are not measurements.
+- The M5 claim that the sibling parts hold no bodies rests on a grep for `func … {` lines at the
+  two named commits. A sibling that later adds bodies to its part does not change the rule: the
+  owner still wins.
+- The prototype's look is the owner's to accept (`OD-12`), as is Q13 itself.
+
+The ask to phase 3 is written into the plan, but no one has sent it: the orchestrator relays it.
+Nothing was compiled or run. This batch changes only documents, so there were no mutants to run.

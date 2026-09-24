@@ -37,7 +37,7 @@ pooled; the Hub stores none, ADR-H1 §5.2).
 // (contract §9.1). Nothing in this package logs; no error carries a blob.
 //
 // Phase 3's credstore.go (Host, Credential, Store, None, Chain — phase 3 task 13)
-// lives in this same package; task 29 of the Hub plan writes it verbatim if absent.
+// lives in this same package; if absent, Hub task 29 writes it, and phase 3's file wins.
 package credstore
 
 import "errors"
