@@ -122,7 +122,12 @@ func (a *Adapter) ToolCalls(ctx context.Context, worktreeID, conversationID stri
 func (a *Adapter) Span(ctx context.Context, worktreeID, conversationID, toolUseID string) (Span, error)
 
 // Match picks the call that wrote a hunk's added lines: calls on the same path, at or before
-// commitAt, scored by how many of the hunk's normalised "+" lines appear in the call's Added;
+// commitAt, scored by how many of the hunk's normalised "+" lines appear in the call's Added.
+// commitAt is task 16's BackLink.CommitAt, the committer date (%cI), never the author date:
+// `commit --amend` and rebase keep the author date, so an edit made after it and then amended
+// in would be excluded, and tier 2 would decline (review Minor 11; probe
+// scratchpad/p3/b11-dates.out). A commit made in the sandbox is dated by the sandbox's clock,
+// as the transcript is.
 // the best score wins if it covers at least half the hunk's added lines (ties: the latest call).
 // ok false means none did — a shell command, a formatter, or a region edited again later.
 func Match(calls []ToolCall, path string, added []string, commitAt time.Time) (call ToolCall, ok bool)
@@ -176,6 +181,7 @@ file, read-only, through the OD-8 adapter. Writes nothing."*
 | `TestCallsOutsideTheWorktreeAreDropped` | `file_path: /home/dev/.claude/x` → not in the result | linking a hunk to a config write |
 | `TestMatchPicksTheCallThatWroteTheLines` | two Edits to one file; the hunk's lines are the second's → the second | the first edit to the file winning |
 | `TestMatchIgnoresCallsAfterTheCommit` | the only matching call is after `commitAt` → not ok | a later edit claiming an earlier commit |
+| `TestDiffLinksAnAmendedEdit` (review Minor 11) | a real clone: a commit stamped `s-1` with author and committer date T0; a transcript fixture whose only Edit writing the hunk's lines is at T1 > T0; the commit amended with those lines at committer date T2 > T1 → the hunk is `tier 2` with that Edit's `toolUseId` | matching against the author date, which the amend kept at T0 |
 | `TestMatchDeclinesAShellWrite` | the lines were written by a `Bash` tool_use running `sed` → not ok | a guess where there is no tool call (survey §8.3) |
 | `TestMatchNormalisesLineEndings` | CRLF in the transcript, LF in the diff → ok | Windows line endings breaking every match |
 | `TestTheAdapterNeverWrites` | after ToolCalls and Span, the file's bytes and mtime are unchanged; a source scan of the package finds no `os.Create`, `os.WriteFile`, or `OpenFile` with a write flag | OD-8's "rewriting its contents is not" allowed |

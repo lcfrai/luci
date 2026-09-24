@@ -83,7 +83,10 @@ type Line struct {
 type BackLink struct {
 	Tier     int      `json:"tier"`     // 0: none; 1: commit and session; 2: the tool call (task 17)
 	Commit   string   `json:"commit"`   // tier ≥ 1
-	CommitAt string   `json:"commitAt"` // the commit's author date, RFC 3339
+	// CommitAt is the commit's committer date (%cI), RFC 3339, not its author date: --amend and
+	// rebase keep the author date and move the committer date (probe scratchpad/p3/b11-dates.out),
+	// and task 17 matches tool calls at or before this instant (review Minor 11).
+	CommitAt string   `json:"commitAt"`
 	Sessions []string `json:"sessions"` // its Panacea-Session values; [] is "no session recorded"
 	// SessionKinds maps each session id to "agent" or "shell" from the registry, so the lens
 	// says "shell" rather than implying an agent (survey §5.3 item 4); absent when the registry
@@ -143,7 +146,7 @@ const MaxDiffLines = 2000
 // Tier 1 per committed hunk:
 //   blame --porcelain --no-textconv -L <newStart>,<newStart+newLines-1> <laneTip> -- <path>
 //   → the commit blamed for most "+" lines (ties: newest); its sessions from
-//     log -1 --format=<TrailerFormat(Session)> <commit>
+//     log -1 --format=%cI%x00<TrailerFormat(Session)> <commit>   (%cI is BackLink.CommitAt)
 // A pure-deletion hunk takes the newest commit in base..laneTip touching the path, Reason
 // "deletion: the newest commit that touched this file" (it cannot be blamed on the new side).
 // The path is always the argument (a PathRow.Path, raw -z bytes). The parsers never read a
@@ -231,12 +234,13 @@ files a worktree changed. merge-tree writes only content-addressed objects reach
 | `TestDiffTier1NamesTheCommitAndSession` | a hunk from a commit carrying `Panacea-Session: s-1` → `Tier 1`, that commit, `["s-1"]`, kind `agent` from the fake registry | a back-link that lands on the top of a session (AGENTIC-UX:74) |
 | `TestDiffBracketedPathIsLiteral` (re-review b05 issue 9) | one lane edits `app/[slug]/page.tsx` and `app/s/page.tsx` in one commit, one line each → `Diff` of `app/[slug]/page.tsx` has exactly 1 hunk, with that file's line; a pure deletion in `app/[slug]/page.tsx` names only commits touching it | the pathspec read as a glob: 2 hunks, the second file's back-links filed under this path |
 | `TestDiffTier1WithoutATrailer` | a commit with no trailer → `Tier 1`, `sessions []`, `reason "no session recorded"` | inventing a session from time (survey §5.2, rejected) |
+| `TestDiffCommitAtIsTheCommitterDate` (review Minor 11) | a commit made with `GIT_AUTHOR_DATE`=`GIT_COMMITTER_DATE`=T0, then `commit --amend` with `GIT_COMMITTER_DATE`=T1 → the hunk's `commitAt` is T1 | the author date, which amend and rebase keep |
 | `TestDiffNamesAShellSession` | the trailer names a shell session → `sessionKinds` `shell` | a shell's commit implying an agent |
 | `TestDiffBlamesTheMajorityCommit` | a hunk of 3 added lines, two from c2 and one from c1 → c2 | picking the first blamed line |
 | `TestDiffPureDeletion` | a hunk of only removals → the newest commit touching the file, the deletion reason | a blame of an empty range erroring |
 | `TestDiffUncommittedIsTierZero` | an edit in the clone → in `uncommitted`, `Tier 0`, `reason "uncommitted"`; the clone's index unchanged | an uncommitted hunk claiming a session |
 | `TestDiffUntrackedFile` | a new untracked file → one all-added hunk; a file with a NUL byte → `Binary` | untracked files missing from Files |
-| `TestDiffUntrackedRefusesALink` (review Minor 9) | in the clone, untracked `s.txt` a symlink to a file outside the clone, and `j/f.txt` under `j` a junction (`mklink /J`) to an outside folder → each `ReadError` names the path, no hunk, and no byte of either outside file is in the body; `t.txt` a regular file → read | an untracked file read by name, following a link the agent made |
+| `TestDiffUntrackedRefusesALink` (review Minor 9) | `Diff` given a LaneObservation that names each path below as untracked (so git's own listing is not what refuses it); in the clone, `s.txt` a symlink to a file outside the clone, and `j/f.txt` under `j` a junction (`mklink /J`) to an outside folder → each `ReadError` names the path, no hunk, and no byte of either outside file is in the body; `t.txt` a regular file → read | an untracked file read by name, following a link the agent made |
 | `TestDiffUntrackedChecksTheOpenedFile` (review Minor 9) | through the seam `openForRead`: a hook that, after step 1's Lstat walk, renames `d` aside and makes `d` a junction to an outside folder holding `f.txt`, then opens → `ReadError`, no outside byte. Red first with step 3 removed and step 2 checked by `os.SameFile` instead (it passes on Windows: `b11-go.out`) | a check on the name the agent swaps between check and open |
 | `TestDiffUntrackedCapsTheRead` (review Minor 9) | a 3 MiB untracked text file, read through `openForRead` wrapped in a counting reader → at most `MaxUntrackedBytes+1` bytes read, `Truncated`, the last line whole | the whole file read, then cut |
 | `TestDiffRunsNoTextconv` (review Minor 9) | a test system file holding `diff.x.textconv=<marker script>`, the lane's `.gitattributes` holding `*.txt diff=x`, a committed and an uncommitted edit to `a.txt` → `Diff` returns both, blame included, and no marker exists. Red first without the flag on each of the three calls | a host-defined textconv driver the agent's attributes name, run on the host |
