@@ -57,7 +57,9 @@ const (
 // Each returned answer has Author model_drafted, Source drafted, and
 // DraftedFrom = the Manifests and TopLevel names the prompt carried (the
 // prototype's "read from" list), at most 8. An answer the model left empty
-// is omitted, not sent as "". An answer whose text contains
+// is omitted, not sent as "", and so is a done answer whose
+// discover.SplitCriteria is empty (";"), which task 03's Apply refuses as
+// ErrEmptyAnswer for the whole op (task 03 as built). An answer whose text contains
 // discover.ReservedMarker ("panacea:discover:") is dropped, alone, so the
 // other drafts still land and Apply's marker rule never refuses model text
 // (plan §4 Security, S3; task 03 rule 12 stays the backstop). Nil model →
@@ -106,6 +108,7 @@ costs a model call and writes a revision.
 | `TestScanSkipsVendoredTrees` | `node_modules` and `target` contribute 0 files | a scan that walks a million files in `node_modules` |
 | `TestScanTruncates` | a tree of 20 001 files → `Truncated`, `FilesSeen == 20000` | an unbounded walk |
 | `TestDraftAnswersAreHeld` | every answer is `model_drafted` / `drafted` with a non-empty `DraftedFrom` | `4-D2` broken at the source |
+| `TestEmptyDraftsAreOmitted` (task 03 as built) | a reply whose `audience` is `"  "` and whose `done` is `" ; "` returns neither; the other three land, and `Apply` of the result is not `ErrEmptyAnswer` | one empty model answer turning the whole on-ramp into a 400 on text the person did not write |
 | `TestDraftPromptHasNoFileContents` | the captured prompt holds only `Findings.Summary()` | client source in a prompt |
 | `TestDraftWithNoModelIsModelOff` | `(nil, model_off)`, no call | a nil dereference |
 | `TestAnalyseWritesOneDraftRevision` | a bound project with no brief → one revision, `change.kind == "draft"`, status `open`, `step.kind == "review"` | a draft that completes the brief and is inherited unread |
