@@ -933,7 +933,7 @@ export function toCreateRequest(
 | `permissionMode` | `harness.permissionModes.length > 0` |
 | `openingPrompt` | `harness.supportsOpeningPrompt` and the trimmed value is non-empty |
 | `title` | only when the user typed one; otherwise omitted so the server derives `"<harness name> · <worktree name>"` |
-| `resume` | only for the Resume verb, and only when `harness.supportsResume` |
+| `resume` | only for the Resume verb, and only when `harness.supportsResume`. AMENDED by the fork-carries fix (2026-09-24): **and for the Fork verb**, under the same condition (§4.4). Both verbs build their request in `client.ts`, not through `toCreateRequest`, whose own callers never send one |
 | `contextRef` | only when the caller passes one (Phase 4) |
 
 ### 3.7 Selectors
@@ -1193,18 +1193,46 @@ Two shapes that catch people: `createSession` is **201, not 200**, and `purgeSes
 
 Resume and Fork are **not endpoints**. Per `contract-go.md` §3.14, resume is
 `createSession({ ..., resume })` — a new session continuing an old transcript — and fork is
-`createSession` against a different worktree. The client exposes them as named wrappers so the
+`createSession` against a different worktree (AMENDED by the fork-carries fix, 2026-09-24: with
+`resume` too, for a harness that can resume — below). The client exposes them as named wrappers so the
 UI reads correctly and the distinction stays visible:
 
 ```ts
 /** Resume: a NEW session that continues an old one's context (claude --resume). The old
  *  session keeps its record and its transcript. Only offered when harness.supportsResume. */
 resumeSession(source: Session, harness: Harness): Promise<Session>;
-/** Fork: the same configuration in a DIFFERENT worktree. Phase 2 cannot create a worktree
- *  (no endpoint — see §10.3), so Fork is offered only when the branch already has another
- *  worktree, and the menu names the target. */
+/** Fork: a NEW session in a DIFFERENT worktree, on the same configuration and — when
+ *  harness.supportsResume — branched from the source's conversation, as Resume is. A shell
+ *  forks its configuration alone. Phase 2 cannot create a worktree (no endpoint — see §10.3),
+ *  so Fork is offered only when the branch already has another worktree, and the menu names
+ *  the target. */
 forkSession(source: Session, targetWorktreeId: WorktreeId, harness: Harness): Promise<Session>;
 ```
+
+*(AMENDED by the fork-carries fix, 2026-09-24, `contract-go.md` §3.9; the Resume fix's concern 5.)*
+Fork used to be "the same configuration in a different worktree" and started a **fresh** session
+there: none of the conversation, against `docs/FUNCTIONAL-SPEC.md`'s "branch the session from this
+point into a new worktree". Now, for a harness with `supportsResume`, `forkSession` sends
+`resume: source.id` exactly as `resumeSession` does, with the target `worktreeId`, **no
+`openingPrompt`** (the conversation already holds it; sent again it would be asked twice) and no
+`title` (the server derives it, as before). The control plane starts the CLI on a fork of the
+source's conversation in the target worktree — Resume's argv, word for word. A **shell** fork is
+unchanged: no `resume`, and the opening prompt when `supportsOpeningPrompt`. Refusals are Resume's,
+from the same resolver and in the same words — a fork of a session nobody spoke in is 409
+`conflict`, "Nothing has been said in that session yet…" — and the verb reports them as it reports
+any `ApiError`. One is Fork's alone: 500 `internal` when the source's transcript cannot be carried
+across, with nothing created. **How the two verbs now differ in the product:**
+
+| | Resume | Fork into *worktree* |
+|---|---|---|
+| Worktree | the source's own | another on the same branch |
+| Conversation | forked from the source's, new id | forked from the source's, new id |
+| Files the agent sees | the source's worktree — **the same files** the source works in | the other worktree's files |
+| Source keeps running | yes — **two agents on one worktree's files** at once | yes — each in its own worktree |
+| Title | the source's | derived: `"<harness> · <target worktree>"` |
+
+`types.ts` is untouched: `resume` keeps its type, and only its meaning widens — "the cockpit session
+whose conversation this one forks", in its own worktree or another.
 
 *(Resume fix round 1, 2026-09-24, `contract-go.md` §3.9.)* A resume the CLI could not honour
 is refused by the control plane before any sandbox starts, and the refusal is a problem body

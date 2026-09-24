@@ -107,7 +107,9 @@ build. The rules bind every phase 5 agent:
   worktree-removal action (go-contract §3.15).
 - **The Resume fix's concern 5, "Fork does not carry the conversation"**, is a defect against the
   functional spec's "branch the session from this point". It is **fixed, not decided**, because the
-  CLI's `--fork-session` exists for exactly this.
+  CLI's `--fork-session` exists for exactly this. **Built 2026-09-24** (go-contract §3.9): a Fork
+  sends `resume` like a Resume, into the other worktree, and gets Resume's argv; its sandbox is
+  shown a staged, read-only copy of the source's transcript, and Forget deletes what carrying left.
 
 ## Where the older documents now disagree, and what wins
 

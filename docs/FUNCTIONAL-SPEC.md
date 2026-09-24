@@ -35,6 +35,8 @@ The change that matters: **a worktree holds many sessions.** Previously one agen
 ### Session lifecycle
 Every session carries a `⋯` menu: **Resume** (`claude --resume`, restores context), **Fork** (branch the session from this point into a new worktree), **Restart** (same config, clean context), **Rename**, **Duplicate**, **Kill**. Finished sessions stay listed and readable — the transcript is the artifact.
 
+Resume and Fork both start a **new** session on a fork of the source's conversation, under its own id, and neither stops the source. They differ in where: Resume stays in the source's worktree, so both agents work on the same files; Fork goes into another worktree on the branch, so the branch really branches. A shell has no conversation, so its Fork is the configuration alone. A session nobody has spoken in has nothing to carry, and both verbs say so instead of starting. *(Fork carries the conversation from 2026-09-24; before, it started a fresh session in the other worktree. Go contract §3.9, UI contract §4.4.)*
+
 ## Capacity
 
 Sessions spend the signed-in user's **own** subscriptions, rotating as each 5-hour or weekly window exhausts, with metered API as backstop. The footer of every session shows which account it is on. A dedicated Capacity view shows each account's utilisation, reset time, and which sessions are on it. Never pooled across users — that violates Anthropic's terms.
