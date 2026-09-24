@@ -232,16 +232,16 @@ spinner per row, `tabular-nums` on live numbers), and its visual acceptance is *
 complete and committed on `feat/hub` (`67609ab`, 769 lines, read by absolute path) and answered
 most of them — see "What ADR-H1 answered" under the table. The contract it builds
 (`docs/superpowers/contracts/2026-09-23-hub-contract.md`, "§12.3 answers HA-4 and HA-5 field by
-field", ADR-H1 §5.7, `67609ab` `:536-538`) was **still absent** from the sibling tree.
+field", ADR-H1 §5.7, `67609ab` `:536-538`) was **still absent** from the sibling tree. So every
+Hub-dependent task is written against the ADR's answers, and tasks 09, 16, 22 and 29 re-check the
+contract **before** they start (each has that as step 1). Nothing here invents a Hub route.
 
 **How ADR-H1 is cited.** `feat/hub` has kept moving since `67609ab`, so a bare line number drifts
 (on 2026-09-24 the branch head's ADR was 776 lines, with everything from §5.1 on six or seven lines
-lower than at `67609ab`). Every ADR-H1 line
-citation in this plan and its parts is therefore pinned: `67609ab :<line>` means line `<line>` of
+lower than at `67609ab`). Every ADR-H1 line citation in this plan and its parts is therefore
+pinned: `67609ab :<line>` means line `<line>` of
 `git show 67609ab:docs/superpowers/adr/ADR-H1-hub-architecture.md`, and each carries its § number,
-which is what to follow on a later revision. So every Hub-dependent task
-is written against the ADR's answers, and tasks 09, 16, 22 and 29 re-check the contract **before**
-they start (each has that as step 1). Nothing here invents a Hub route.
+which is what to follow on a later revision.
 
 | Ask | What phase 8 needs, exactly | Needed by | If the Hub contract does not provide it |
 |---|---|---|---|

@@ -1118,3 +1118,37 @@ hold.
 - A Kata `subPath` file mount's read-only behaviour, and renaming `.git` around the bind.
 - containerd mounting a parent before a nested mount (task 24, step 3).
 - Kubernetes making a missing `subPath` into a directory (task 20).
+
+## Fix batch b07 (2026-09-24) — m1, m2, m3, m4, m5, m7
+
+Minor findings on citations and internal consistency. Commits `6148680` (m1-m3), `d9cceb8`
+(m4, m5, m7), and the commit that adds this section. That commit also restores the sentence the
+m1 paragraph had split at plan `:235-237`. m6 is not in this batch.
+
+| Finding | Fix | Where |
+|---|---|---|
+| m1 ADR-H1 line citations drifted | Re-read `git show 67609ab:docs/superpowers/adr/ADR-H1-hub-architecture.md`. It is **769 lines**, not "653+"; the branch head is 776. Every citation the plan made was **correct at `67609ab`** (HA-4's `:286-288` is §5.1's "Where" bullet there, not a heading; the "none is ever forwarded" sentence is `:545`; the caller key is `:443-445`). The drift comes from reading them against the moving head, where everything from §5.1 on sits six or seven lines lower. So no number changed. A "How ADR-H1 is cited" paragraph pins every ADR line number to `67609ab`, and every citation gains its § number, which survives later revisions | plan `:232`, `:235`, `:239-244`, `:260-266`, `:269`, `:272`; `parts/task-16.md:6-7`, `:110`, `:115`, `:120-122`; `task-17.md:126-127`; `task-18.md:312`; `task-21.md:220`; `task-22.md:7-8`; `task-26.md:151`, `:169`; `task-27.md:23` |
+| m2 the wave table breaks its dependencies | 28 moves to wave 2, 32 to wave 9 and 33 to wave 10: ten waves. **28's call into `role-allowlist.sh`:** task 28's `infra.yml` now runs only task 01's `guards.sh` and `validate.sh`. Task 10, which writes the script, adds its step to `infra.yml` in the same commit, so task 10 now depends on 28 (wave 2 before wave 6). This is better than making 28 depend on 10, which would push 13, 27 and 30 back four waves. `lint.sh` gains a rule that every `bash <path>` a pipeline runs exists in the tree, which kills this class of defect. The whole graph was re-checked against the task list. The one remaining same-or-earlier-wave pair is 11 on 06, which the task list marks "names only", and the order paragraph now says so | plan `:475`, `:494`, `:527`, `:589-606`; `parts/task-10.md:41`, `:246-247`; `task-28.md:57`, `:99` |
+| m3 the shared-file table misses task 18's `backend.go` edit | The row already listed 18 (added by b06 for `Spec.ControlPlane`), but not the `MaxMessageBytes` comment at `:29-37`. The row, the file map and task 18's file list now name it. `task-22.md:24` said `backend.go` is "edited by tasks 14 and 15"; it now says 14, 15 and 18 | plan `:452`, `:496`; `parts/task-18.md:18-20`; `task-22.md:24` |
+| m4 P8-D6 says `managed-csi-premium` (LRS) | P8-D6 now names task 11's `panacea-machine-disk` on `Premium_ZRS`, the broker's default class (task 17's `PANACEA_APP_BROKER_MACHINE_STORAGE_CLASS`). It gives the reason, which is dev's three zones (`task-07.md:507`) and a sleeping disk re-attaching in any of them. It also names task 32's P14 as the unverified check, with `Premium_LRS` plus zone-pinned machines as the fallback. The NFS fallback's `Premium_LRS` (`task-11.md:158`) is Azure Files, a different product, and stays | plan `:135` |
+| m5 Q3 says one variable feeds two things | Kept separate, as the review recommends and task 07 already builds. Q3 now says edge users are `allowed_ingress_cidrs` (the `nodes-apps` NSG, tasks 03 and 07) plus the edge chart's `allowedSourceRanges` (Traefik's `loadBalancerSourceRanges` and NetworkPolicy, task 13). Admins are `api_authorized_ip_ranges`, with the environment's egress /32 added automatically. Task 07's variable description now points back to Q3 | plan `:307`; `parts/task-07.md:237` |
+| m7 P8-D11 "no long-lived secret anywhere" | Now "No usable long-lived secret". It names the keys still in state (the state account's access keys, the workspace's shared keys), and the tests that make them unusable: task 02 `state_account_has_no_shared_key`, task 04 `workspace_has_no_shared_key_auth`. It treats state **and task 30's binary `plan-<stack>` artefact** as sensitive, because a saved plan embeds the prior state | plan `:140` |
+
+**Restatements checked** by grep over the plan, the parts and `docs/PROGRAM.md`: none remain of
+`managed-csi-premium`, "long-lived secret anywhere", "eight waves", "653" or "one variable". A
+bare ADR `:<line>` citation remains only where the number points at another document, and those
+are out of m1's scope: `task-16.md:19` (the Hub contract) and `task-28.md:6-9`, `:31` (the
+survey).
+
+**Owner question raised (m7):** the `plan-<stack>` artefact is published by PR builds (task 30,
+`:203-204`). Anyone who can read a pipeline's artefacts can therefore read the prior state:
+resource ids, and keys that are disabled for use. The plan builds nothing new for this. The
+recommendation is for the owner to limit artefact read on the `infra-plan` pipeline to the
+people who approve plans, which is an ADO project setting.
+
+**Still UNVERIFIED (new this batch):**
+- That azurerm stores `primary_access_key` / `primary_shared_key` in state when shared-key access
+  is off, and that a saved plan embeds the prior state (both from training knowledge).
+- Nothing links the foundation's `allowed_ingress_cidrs` to the edge chart's
+  `allowedSourceRanges`. Both are set from the owner's one Q3 answer, in two places. This is a
+  drift risk recorded here and not fixed, because it is outside m5.
