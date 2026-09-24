@@ -81,14 +81,23 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
   module flag, never on every tick, never when signed out. That is "exists at first sign-in with
   no create form".
 - **The chip** (`MachineChip`): the current machine's name, its `StatusDot` (`live` when
-  `running`), and the `unsandboxed` badge exactly when `isolation !== "microvm"` (unchanged,
+  `running`, and while waking: the `provisioning` ring is the live signal below), and the `unsandboxed` badge exactly when `isolation !== "microvm"` (unchanged,
   `MachineChip.tsx:45-47`) — so a cloud machine carries no badge (S8.5) and the local one keeps it.
 - **Waking.** From a wake (explicit, or a session create on a sleeping machine — task 24b wakes it
   server-side, and the client records `wakingSince` when it sends that create) until the machine
-  reports `idle` or `running`, the chip shows `waking… {n}s`, `n` from **one**
-  `useHeartbeat()` subscription in the chip (`hooks/heartbeat.ts:64`, seam SX.8), in
+  reports `idle` or `running`, the chip shows `waking… {n}s` in a `span.rail-waking`, `n` from
+  **one** `useHeartbeat()` subscription in the chip (`hooks/heartbeat.ts:64`, seam SX.8), in
   `var(--numeric)` (tabular numerals, so the digits do not jitter). **No spinner** — the ring dot
   of `provisioning` is the one live signal, on the global clock.
+- **Reduced motion (review m18; `DESIGN-SYSTEM.md:90`).** `tokens.css` zeroes every
+  `animation-duration` under `prefers-reduced-motion: reduce` (`tokens.css:173-174`), so the
+  waking ring's breath stops. A waking (`provisioning`) and a sleeping machine are then both
+  `dot-ring`, and would differ by colour alone. The waking dot is `live`, so `common.css`'s
+  reduced-motion block gives it the static outer halo it gives every live dot
+  (`common.css:119-123`); the sleeping dot is not `live` and has none. The counter is text on the
+  JS heartbeat (`heartbeat.ts:29-34`, a `setInterval`), which reduced motion does not stop, so
+  `waking… {n}s` keeps counting: it is information, not motion. `rail.css` gives
+  `.rail-waking` no `animation` and no `transition`.
 - **The machines popover** (`MachinesPopover`, opened by the chip and by `⌘⇧M`): one row per
   machine — dot, name, state word, the badge rule — and the current row marked with the accent
   (interactive/current state only). Selecting a row calls `selectMachine`. A sleeping cloud machine
@@ -119,6 +128,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 | "Accent … only for interactive and current state" (`:38`) | the accent marks only the current row and focus rings; no accent on the cloud badge, the dot or the popover frame |
 | "Elevation is a 1px ring plus a layered drop shadow" / radius by size (`:27-29`) | the popover reuses `Popover` (`components/common/Popover.tsx`) and its existing elevation tokens; rows use the control radius (8) |
 | "Motion must explain causality … transform/opacity only; never `transition: all`" (`CLAUDE.md`; `:63`, `:90`) | the only motion is the state-change flash `StatusDot` already owns (600 ms, opacity) |
+| "`prefers-reduced-motion` variants on everything" (`:90`) | under reduced motion the waking ring keeps a static, non-colour difference from a sleeping one (`.dot-live`'s halo), the counter keeps counting, and `.rail-waking` has no motion of its own; test `MachineChip / waking respects prefers-reduced-motion` (review m18) |
 | "Hover never changes layout" (`:73`) | row hover changes background only |
 | "Every state designed: loading, empty, … offline, unauthorized, error" (`:90`) | signed-out, unavailable, provisioning, sleeping, error rows each have a test that renders them |
 
@@ -131,6 +141,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 | `MachineChip / sleeping renders a ring` | the dot has the ring shape class | a sleeping machine that looks running |
 | `MachineChip / waking counts on the heartbeat, in tabular numerals` | fake timers; `wakingSince` set; after two ticks the text is `waking… 2s` and the counter element carries the numeric token class | a `setInterval` of its own (a second clock) |
 | `MachineChip / no spinner while waking` | no element with `role="progressbar"` or a spinner class | a spinner per row |
+| `MachineChip / waking respects prefers-reduced-motion` | jsdom applies no media query, so this reads the CSS source (`?raw`), as `StatusDot.test.tsx:82-88` does: (1) the waking dot has `dot-ring` **and** `dot-live`; the sleeping dot has `dot-ring` and not `dot-live`; `common.css?raw`'s `@media (prefers-reduced-motion: reduce)` block still styles `.dot-live` with a non-inset `box-shadow`. (2) With `window.matchMedia` stubbed to match `(prefers-reduced-motion: reduce)` and fake timers, after two ticks the text is still `waking… 2s`. (3) No rule in `rail.css?raw` whose selector names `.rail-waking` declares `animation*` or `transition*` (review m18) | a waking dot that is not `live`, so under reduced motion it matches a sleeping one by colour alone; a counter that freezes under reduced motion (a `matchMedia` check that stops the count); a pulse on the counter |
 | `MachinesPopover / lists every machine and marks the current one` | two rows; the current row has `aria-current="true"` | a popover that only ever shows the default |
 | `MachinesPopover / selecting a machine switches the rail` | click the cloud row → `selectedMachineId` set; the next poll calls `listProjects("m-…")` | the rail stuck on local projects |
 | `MachinesPopover / signed out shows the server's sentence verbatim` | `cloud.status: "signed_out"`, message `M` → the text `M` exactly, no cloud rows | a client-invented sign-in message |
@@ -157,7 +168,7 @@ to the next integer, with a migration that **adds** `selectedMachineId: null` an
 
 ```bash
 cd desktop && npm run typecheck        # exit 0
-cd desktop && npm test                 # every suite passes, the 13 above among them
+cd desktop && npm test                 # every suite passes, the 15 above among them
 ```
 
 **Owner's eyes, at the batched hands-on session (OD-12), not before:** the chip on a cloud
