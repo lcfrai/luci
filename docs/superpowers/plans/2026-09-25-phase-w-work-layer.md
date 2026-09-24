@@ -324,3 +324,57 @@ path **UNVERIFIED until merge**, as Phase T does.
 | `docs/work/agent-rules.md`, `docs/work/method.md` | our published agent interaction rules; the user-facing method page | new | 109; 134 |
 
 ---
+
+## Task list
+
+Each task's full text is in `2026-09-25-phase-w-work-layer-parts/task-NN.md`, written from the
+scope paragraph below. A focused day is 8 hours, and **every task is sized at 1 to 3 hours**: the
+plan's estimate, not a measurement. The design's slice sizes (05 §5.1, about 138 focused days) are
+for one human implementer and are **not reconciled** with these; neither is measured.
+
+**dependsOn** names this plan's tasks by number and sibling tasks by prefix: `H` the Hub plan
+(`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:396-446`), `P3-` phase 3
+(`.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md:591-614`),
+`P4-` phase 4 (`.claude/worktrees/phase-4/docs/superpowers/plans/2026-09-23-phase-4-discover.md:394-406`),
+`P6-` phase 6 (its plan is still being written, so every `P6-` id is **UNVERIFIED**), `P7-` phase 7
+(`.claude/worktrees/phase-7/docs/superpowers/plans/2026-09-23-phase-7-deploy.md:645-647`) and `TM-`
+Phase T (`.claude/worktrees/team/docs/superpowers/plans/2026-09-25-phase-t-team-mode.md:281-406`).
+A sibling task is a dependency only once its branch is sync-merged here (rules H1, H2).
+
+**Start lines.**
+
+| Start line | After | Who can start | What they can do |
+|---|---|---|---|
+| **WS0, code against the Work fake** | 01-05 (about 13 h) | streams WP, WD1, WD2 | build every Work-backed handler and surface against `hubclient.Work` and `NewFake()`; SW.1 and SW.2 are frozen here, and a later change that is not an added method, field or route reopens task 05 and is announced |
+| **WS1, the real Hub** | 06-17 | task 70 | the local-mode demo against the local Hub stack through `devissuer` |
+| **W1 in the cloud** | 70, then phase 6 stream A and phase 8 stream C | the owner | the same demo on managed sessions; no Phase W task is needed for it |
+
+**Seams** this plan defines, so parallel writers agree without reading each other:
+
+| Seam | What is fixed | Defined in | Consumed by |
+|---|---|---|---|
+| **SW.0** | the W0 proposal: the `issue:` key case and the `c-` example | 01 | 02, 18 |
+| **SW.1** | the Work wire, W1: id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical form and golden vectors, every W1 type and request body | 02, 03 | 04-19, 24, 25, 37 |
+| **SW.2** | `hubclient.Work` (W1 methods), `NewFake()`'s Work rules, the relay paths `/v1/hub/work/*` | 04, 05, 16 | 19, 21-25, 37, 55, 98 |
+| **SW.3** | who may write what: the authorisation rows and the guards (fact states, `done`, the sync principal) | 07 | 10, 22, 23, 99, 150 |
+| **SW.4** | the state move: `StateMove{to, cause, reason}`, the done rule's inputs and its result words | 10 | 22, 23, 48, 63-65, 71 |
+| **SW.5** | the Work feed kinds and their metadata-only payloads | 13 | 55, 62, 98, 123, 160 |
+| **SW.6** | the import batch: one normalised item per external issue, idempotent by `(source, externalId)` | 15 | 25, 69, 150-153 |
+| **SW.7** | the managed block's issue section: what an agent is told, byte for byte | 19 | 24, 101 |
+| **SW.8** | `expectNoPrediction(container)` and the Work fixtures | 20 | every desktop task |
+| **SW.9** | the `Panacea-Issue: is-…` trailer grammar and its placement | 21 | 22, 71, 131, 154 |
+| **SW.10** | Start from an issue: the route, its result, *Undo Start* and *Stop and discard* | 24 | 61, 102, 163 |
+| **SW.11** | the tokens and faces: `--t-fact`, `--row-h*`, `--dur-flash`, `--undo-window`, `--mono`, `--sans` | 26, 27 | every UI task |
+| **SW.12** | `<StateGlyph state priority notProven/>`, `<AgentGlyph status/>`, `<MarkGlyph kind/>` | 28, 29 | every surface task |
+| **SW.13** | `<ViewHeader title route badge actions/>` | 31 | 38-48, 62, 85-91, 126-132 |
+| **SW.14** | `<ThreadNode/>`, `<ThreadLine/>`, `<ThreadTrace/>`, `useThreadLit(criterionId)` | 36 | 40, 47, 67, 85 |
+| **SW.15** | the desktop Work types and `workSlice` | 37 | 38-69, 83, 125 |
+| **SW.16** | the replica: `useWork(selector)`, `mutate(op) → {undo}`, `onRefused`, `search(q)` | 55-58 | 40-69, 83, 125 |
+| **SW.17** | the Desk frame's row-kind registry: `registerDeskRow(kind, section, render, rank)` | 62 | 63-65, 71, TM-54 |
+| **SW.18** | the Work wire, W2 (`WorkPlan`) | 72 | 73-96 |
+| **SW.19** | the W3 records: comment kinds `note`, `evidence_proposal`, `negotiation`; guidance; the kill switch | 99 | 100-112 |
+| **SW.20** | the Work wire, W4 (`WorkRoadmap`) | 114 | 115-141 |
+| **SW.21** | the Work wire, W5 (`WorkIntake`) | 143 | 144-171 |
+| **SW.22** | the outbound webhook payload: event metadata only, HMAC-SHA256 signature header | 160 | 156, 157, 161 |
+
+---
