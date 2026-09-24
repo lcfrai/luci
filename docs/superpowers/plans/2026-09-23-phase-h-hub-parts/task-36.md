@@ -126,7 +126,8 @@ holding the local key could not ask for. The desktop reads them from the session
 |---|---|---|
 | `TestTheFirstPollStartsAtLatest` | signed in with 5 events already in the fake → no event delivered; `Cursor()` = the head | a desktop that replays the org's history at every start |
 | `TestEventsAreDeliveredInOrderByPrefix` | three writes → a `brief.` subscriber gets the `brief.revised` events in seq order; a `release.` subscriber gets none | an invalidation missed, or sent to the wrong cache |
-| `TestMoreIsDrainedWithinATick` | 450 events, limit 200 → three pages in one tick; the eleventh page is left for the next tick | a backlog that takes minutes, or a tick that never ends |
+| `TestMoreIsDrainedWithinATick` | 450 events, limit 200 → three `Changes` calls (200, 200, 50) in **one** tick; all 450 delivered in seq order; `Cursor()` = the head after that tick | a backlog that takes minutes: `more` ignored, so one page a tick |
+| `TestAtMostTenPagesATick` | 2,200 events, limit 200 (eleven pages) → **ten** `Changes` calls in the first tick, 2,000 events delivered, `Cursor()` at event 2,000; the second tick makes the eleventh call and delivers the last 200 (plan review M2: one scenario per test) | a tick that never ends: the ten-page cap dropped, or counted per event rather than per page |
 | `TestSigningOutForgetsTheCursor` | signed in (cursor 5) → out → in as another user → a fresh `latest` | one user's cursor used for another's feed |
 | `TestAHubOutageKeepsTheCursor` | `SetUnavailable(true)` for two ticks, then false → events after the cursor arrive; none lost; one debug line, not two | events skipped across an outage |
 | `TestMeIsCalledOncePerSignIn` | two sign-ins → two `Me` calls; ticks in between → none | invites never bound when sign-in could not reach the Hub; `/v1/me` every 5 s |
