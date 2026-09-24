@@ -229,11 +229,12 @@ package gitx
 
 // Locks is the ONE lock scope for the project repository's branches (review I7). Every call that
 // moves a product branch, or reads one to publish it, holds its project's lock for the whole
-// verb: Land (task 09), Undo and Revert (task 10), CreateBranch, RenameBranch and DeleteBranch
-// (task 11), Fetch and Push (task 12, and task 13's push through it). A push that read a tip a
-// land was moving would publish whichever tip it happened to see. The clone refresh's other
-// callers take it too (review I4): RefreshBranch, the refresh route (task 09), and the lane
-// syncer's tip-change sweep (task 07), which waits at most one sync interval for it.
+// verb: Land and BringIn (task 09), Undo and Revert (task 10), CreateBranch, RenameBranch and
+// DeleteBranch (task 11), Fetch and Push (task 12, and task 13's push through it). A push that
+// read a tip a land was moving would publish whichever tip it happened to see. The clone
+// refresh's other callers take it too (review I4): RefreshBranch, the refresh route (task 09),
+// and the lane syncer's tip-change sweep (task 07), which never waits for it: it calls TryLock,
+// and a busy project is retried on the next sweep (re-review b06-1 issue 6).
 //
 // One per process. Task 04 constructs it in cmd/api and hands the same value to every user
 // through GitDeps.Locks, so no task builds its own. The key is the project ID, phase 2's
@@ -246,7 +247,8 @@ package gitx
 // refuses the double land, and the loser gets branch_moved (task 09).
 //
 // Lock order: a Locks lock is taken first. Syncer.SyncLane's per-lane lock (task 07) may be taken
-// inside it (Land's step 4); nothing takes a Locks lock while holding a lane lock. The sweep
+// inside it (Land's step 4, and Undo's sync of every lane of the branch, task 10); nothing takes
+// a Locks lock while holding a lane lock. The sweep
 // (task 07) takes its Locks lock only after it has synced the lanes and released every lane lock.
 type Locks struct {
 	// unexported: mu sync.Mutex; m map[string]chan struct{} (capacity 1, one per project ID)
@@ -255,6 +257,12 @@ type Locks struct {
 // Lock waits for projectID's lock, or for ctx. It returns ctx.Err() when ctx ends first, so a
 // request the human abandoned stops waiting. unlock is idempotent. The zero Locks is ready.
 func (l *Locks) Lock(ctx context.Context, projectID string) (unlock func(), err error)
+
+// TryLock takes projectID's lock only if it is free now, and never waits: ok is false when
+// another holder has it. It is a select with a default case, not Lock with a done ctx, because
+// Go's select picks at random between a free lock and a done ctx (re-review b06-1 issue 6).
+// The sweep (task 07) is its one caller. unlock is idempotent; it is nil when ok is false.
+func (l *Locks) TryLock(projectID string) (unlock func(), ok bool)
 ```
 
 ```go
@@ -375,6 +383,7 @@ child's environment without trusting the code under test.
 | `TestLocksSerialiseOneProject` | under `-race`: goroutine A holds `Lock(ctx, "p-1")`; B's `Lock(ctx, "p-1")` has not returned 50 ms later; A unlocks → B returns within 1 s; calling A's unlock twice does not release B's hold | a lock keyed per call, or an unlock that frees the next holder |
 | `TestLocksLetOtherProjectsRun` | A holds `"p-1"`; `Lock(ctx, "p-2")` returns at once | one global mutex that stalls every project behind a slow push |
 | `TestLocksLockHonoursTheContext` | A holds `"p-1"`; B's `Lock` with a context cancelled after 20 ms → `context.Canceled`, and A's later unlock leaves the lock free for C | a waiter that outlives its request, or a cancelled waiter that swallows the next release |
+| `TestLocksTryLockNeverWaits` (re-review b06-1 issue 6) | 1000 times: a free `"p-1"` → `TryLock` ok, then unlock; A holds `"p-1"` → `TryLock("p-1")` returns `ok == false` within 1 ms and `TryLock("p-2")` is ok; A unlocks → `TryLock("p-1")` ok | a TryLock built on Lock with a done ctx, which fails at random on a free lock |
 
 #### Host git hardening (HGH)
 
@@ -573,7 +582,7 @@ the land and origin refresh, the push, and `GitHelper`), citing this section.
 #### Acceptance
 
 ```
-go test ./control-plane/internal/gitx/... -race -count=1        → PASS (38 new tests, 18 of them §HGH, plus task 01's)
+go test ./control-plane/internal/gitx/... -race -count=1        → PASS (39 new tests, 18 of them §HGH, plus task 01's)
 go test ./control-plane/internal/project/ -run TestEveryGitCommandIsReadOnly -count=1 → PASS, unchanged
 git diff --stat control-plane/go.mod go.work                     → empty
 ```
