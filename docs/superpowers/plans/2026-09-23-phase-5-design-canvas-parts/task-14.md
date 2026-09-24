@@ -62,7 +62,7 @@ type Tool struct {
 	Description string          // one paragraph the model reads; says what the tool refuses
 	InputSchema json.RawMessage // a JSON Schema object (schema.go's subset), additionalProperties false
 	ReadOnly    bool            // annotations.readOnlyHint
-	Destructive bool            // annotations.destructiveHint (delete_nodes, replace-mode write_html)
+	Destructive bool            // annotations.destructiveHint (delete_nodes, delete_page, replace-mode write_html)
 	Handler     func(ctx context.Context, id Identity, args json.RawMessage) (Result, error)
 }
 
@@ -121,13 +121,13 @@ func IdentityFrom(ctx context.Context) (Identity, bool)
 | any method other than `POST` on `/mcp` | `405`, `Allow: POST`, no body (the server offers no GET stream, which the transport permits) |
 | an `Origin` header | `403`, no body — DNS-rebinding defence; a CLI client sends none |
 | a `Host` not in `allowedHosts` | `403` |
-| `Content-Type` not `application/json` | `415` |
+| `Content-Type` missing, or one `mime.ParseMediaType` returns an error for, or whose media type (which it lower-cases) is not `application/json`, or with a `charset` parameter other than `utf-8` (any case) | `415`. `application/json; charset=utf-8` is accepted: the comparison is of the parsed media type, never the raw header (review M8) |
 | body over 16 MiB | `413` |
 | no identity on the context | `500` and an error log: a wiring bug, never a client's |
 | `MCP-Protocol-Version` present and not supported (any method but `initialize`) | `400` with a JSON-RPC error `-32600` |
-| a JSON array (a batch) | `400`, JSON-RPC error `-32600` *"batch requests are not supported"* |
+| a JSON array (a batch) | Batches belong to revision `2025-03-26` only (review M23). The request's revision is its `MCP-Protocol-Version` header, or `2025-03-26` when the header is absent (the fallback `2025-06-18` prescribes). `2025-06-18` or later → `400`, `-32600` *"batch requests are not supported in protocol revision <v>"*. `2025-03-26` → each element is handled in order as if it came alone, by the rows below; the reply is `200` with an array of the answers to its requests, in element order, or `202` with no body if it held only notifications and responses. An empty array, one of more than 100 elements, or one holding `initialize` (which 2025-03-26 forbids in a batch) → `400`, `-32600`, nothing handled |
 | not JSON, or not a JSON-RPC 2.0 object | `400`, `-32700` or `-32600` |
-| a notification or a response (no `id`) | `202`, no body |
+| a notification (a `method` and no `id`) or a response (an `id` and a `result` or `error`, and no `method`) | `202`, no body |
 | `initialize` | `200` `{"protocolVersion": <the client's if supported, else SupportedVersions[0]>, "capabilities": {"tools": {"listChanged": false}}, "serverInfo": ServerInfo, "instructions": <text>}` |
 | `ping` | `200` `{}` |
 | `tools/list` | `200` `{"tools": [{"name","title","description","inputSchema","annotations": {"readOnlyHint","destructiveHint","openWorldHint": false}}]}` in registration order, no `nextCursor` |
@@ -166,8 +166,9 @@ code. **Never the arguments or the result** — they carry the user's design and
 | Test | Asserts | Kills the mutant |
 |---|---|---|
 | `TestInitialize_negotiates` | client `2025-06-18` → echoed; client `2024-11-05` → `2025-11-25`; `instructions` and `serverInfo.name` present | a server that always answers its own version |
-| `TestNotification_202` | `notifications/initialized` → 202, empty body | a 200 with a body a client rejects |
-| `TestBatch_refused` | `[{…},{…}]` → 400, `-32600` | a batch half-processed |
+| `TestNotification_202` | `notifications/initialized` → 202, empty body; a response `{"jsonrpc":"2.0","id":7,"result":{}}` → 202, empty body | a 200 with a body a client rejects; a response mistaken for a request because it has an `id` |
+| `TestBatch_byRevision` (review M23) | `[ping id 1, notifications/initialized, ping id 2]` with `MCP-Protocol-Version: 2025-06-18`, and again with `2025-11-25` → 400, `-32600`, naming the revision. The same with `2025-03-26`, and with no header → 200, an array of exactly two answers, ids 1 then 2. `[notifications/initialized]` with no header → 202, empty body. `[]`, 101 pings, and `[initialize]` with no header → 400, `-32600`. A batch `[tools/call, tools/call]` under `2025-03-26` refused by the 101 rule records no call on the fake tool | a batch refused under the one revision that has batches, or accepted under one that removed them; a batch half-processed; an unbounded batch |
+| `TestContentType_parsed` (review M8) | `application/json; charset=utf-8`, `Application/JSON` and `application/json;charset=UTF-8` → handled (200 for a `ping`); `text/plain`, `application/json; charset=latin1`, `application/jsonx`, `application/json; charset` and no header → 415. For `application/json; charset`, `ParseMediaType` returns the type `application/json` **and** `mime: invalid media parameter` (run on this device's Go, 2026-09-24), so the handler refuses on the error, not on the type; the `charset` value comes back unlowered (`UTF-8`), so it is compared with `strings.EqualFold` | a correct client refused by a raw string compare; a prefix match letting `application/jsonx` through; a handler that reads the type and ignores the error |
 | `TestOrigin_refused` | `Origin: http://evil.example` → 403 | the DNS-rebinding hole the transport's guidance names |
 | `TestHost_refused` | `Host: 10.0.0.5:8731` → 403 | a relay forwarding someone else's traffic |
 | `TestGet_405` | `GET /mcp` → 405 `Allow: POST` | a GET that hangs a client waiting for a stream |

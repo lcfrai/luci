@@ -4,7 +4,10 @@
 
 ## Why
 
-Thirteen tools that turn an agent's intent into op batches (spec §8.2). Each follows Paper's verb
+Fifteen tools that turn an agent's intent into op batches (spec §8.2; `rename_page` and
+`delete_page` are this plan's addition, review M19: the page kinds have no human UI in this phase,
+`task-20.md:124-126`, so without them a page an agent misnamed or made by mistake could be undone
+only by reverting the agent's whole session). Each follows Paper's verb
 where the verb is simply the obvious name (spec OQ-5, plan G6). Every one is **one batch**: one
 revision, one undo step, one feed row (P5-K). Every one claims the artboards it touches on first
 touch (task 12), accepts `ifRevision`, and returns the new revision, the ids it touched and the
@@ -36,6 +39,10 @@ schema **only here**, for `styles`, and checks each value's type), `ARTBOARDS` =
 ```jsonc
 {
   "create_page":     { "properties": { "name": {"type":"string","minLength":1,"maxLength":120} }, "required": ["name"] },
+  "rename_page":     { "properties": { "pageId": {"type":"string","pattern":"^pg-[0-9a-f]{12}$"}, "name": {"type":"string","minLength":1,"maxLength":120} },
+                       "required": ["pageId", "name"] },
+  "delete_page":     { "properties": { "pageId": {"type":"string","pattern":"^pg-[0-9a-f]{12}$"}, "ifRevision": IFREV, "shared": SHARED },
+                       "required": ["pageId"] },
   "create_artboard": { "properties": { "name": {"type":"string","maxLength":120}, "pageId": {"type":"string","pattern":"^pg-[0-9a-f]{12}$"},
                                         "width": {"type":"integer","minimum":1,"maximum":10000},
                                         "height": {"type":"integer","minimum":1,"maximum":20000,"description":"omit for fit-content"},
@@ -75,6 +82,8 @@ schema **only here**, for `styles`, and checks each value's type), `ARTBOARDS` =
 | Tool | Ops, as one batch | Result fields (beside `revision`, `notices`) | Annotations |
 |---|---|---|---|
 | `create_page` | `create_page` at the end | `pageId` | — |
+| `rename_page` | `update_page{Name}`; touches no artboard, so it claims none (review M19) | `pageId` | — |
+| `delete_page` | `delete_page` (task 06: its artboards and their subtrees go too). It touches, so it claims, every artboard on the page: one another session holds exclusively → `claimed`, nothing written. The last page → `invalid` (*"a canvas keeps at least one page"*, task 06). Undoable like any batch: its inverse re-creates the page and every artboard subtree (review M19) | `deleted` (the page's artboard ids) | `destructiveHint` true |
 | `create_artboard` | `create_node` artboard: `width` (default 1440) in px, `height` in px or `fit-content`, then `styles` merged; placed on `pageId` (default: the first page) at `X` = the right edge of the page's right-most artboard + 80, `Y` = that artboard's `Y` (or 0, 0). **Creates the canvas if the branch has none** (`Ensure`, P5-L). Claims the new artboard | `artboardId`, `x`, `y` | — |
 | `write_html` | `dialect.Parse` (task 07), then: `insert-children` → `create_node` × n under `targetId` at `index` (default: last); `replace` → `delete_node` target + create at its place (**an artboard target is refused**: *"use replace-children to rewrite an artboard's content"*); `replace-children` → delete every child + create | `created` (every new id, pre-order), `roots`, `dropped` (`dialect.Report`) | `destructiveHint` true (replace modes delete) |
 | `set_text` | `set_props{Text}` per item; a non-text node is `invalid` at its index | `updated` | — |
@@ -189,6 +198,8 @@ can do through MCP, and no more. The helper adds no power; it names one that alr
 | `TestDuplicate_idMap` | duplicating a 6-node card returns a map of all 6 ids | agents re-reading the tree after every copy |
 | `TestMove_cycle` | moving a frame into its own child → `invalid`, `cycle` | a corrupted tree |
 | `TestDelete_nested` | deleting a parent and its child together succeeds once | an error for a redundant id |
+| `TestRenamePage` (review M19) | `rename_page` → one batch, `get_canvas_info` lists the new name at the same order; a missing `pageId` → `invalid` | a page an agent cannot rename |
+| `TestDeletePage` (review M19) | a page with two artboards, one claimed exclusively by session T: S's `delete_page` → `claimed` naming T, nothing written; after T finishes → one batch, `deleted` lists both artboards, both are gone; the canvas's last page → `invalid` with task 06's sentence; `tools/list` marks it `destructiveHint` | a delete through another session's claim; a canvas left with no page; an unmarked destructive tool |
 | `TestUploadAsset_sniff` | PNG bytes declared `image/jpeg` → `invalid`; an SVG with `<script>` is stored sanitised | a mislabelled or scripted asset |
 | `TestCanvasUpload_helper` (`canvasupload_test.go`) | the real server with the write tools behind an `httptest` server (unstarted first, so its `127.0.0.1:<port>` goes into `allowedHosts`; each request's context gets `WithIdentity` of session S), then `node <tmp>/canvas-upload`, a copy of `../../images/sandbox/canvas-upload.cjs` with **no extension**, as the image installs it, with `PANACEA_APP_CANVAS_MCP_URL` pointed at it. First, statically, on the raw bytes of `../../images/sandbox/canvas-upload.cjs` read with `os.ReadFile` (never `bufio.Scanner`, which strips a trailing `\r`): the bytes contain no `\r` at all, the file begins with exactly `#!/usr/bin/env node\n`, and no line begins `import ` or `export ` (the host's Node would run either, the image's may not). Then: a 300 KB PNG fixture → exit 0, stdout's `asset.ref` is in the document, its bytes equal the file's, the `add_asset` batch's author is S; the same PNG renamed `.jpg` → exit 1, stderr is one line beginning `canvas-upload: invalid: `; and, against a stub handler (not the real server) that answers `200` with `result.isError: true`, `structuredContent.error.code` `conflict` and text `m`, stderr is exactly `canvas-upload: conflict: m` (kills a helper that prints a fixed code); a `.gif` and a file of 10 MiB + 1 byte → exit 2, and the server counted **no** request; nothing listening, and a listener that accepts and closes without answering (as `sandboxd`'s does with no channel), → exit 1, *"not reachable"* each. No `node` on `PATH` fails the test, naming `Dockerfile:10`: it is never skipped | the review's I12 (no way to place a real image); a helper that sends `Origin` (403) or ES-module syntax; a size check after the upload; a CRLF helper whose shebang fails only once installed (re-review RR-I12-1); a stderr line without the error code (RR-I12-2) |
 | `TestImage_shipsCanvasUpload` | `../../images/sandbox/Dockerfile` has the line `COPY images/sandbox/canvas-upload.cjs /usr/local/bin/canvas-upload`, and a `chmod +x` line naming `/usr/local/bin/canvas-upload`; `../../.gitattributes` has the line `images/sandbox/** text eol=lf` | a helper the guide teaches but the image lacks; the attribute dropped, which the raw-byte check alone would catch only on a Windows checkout (re-review RR-I12-1) |

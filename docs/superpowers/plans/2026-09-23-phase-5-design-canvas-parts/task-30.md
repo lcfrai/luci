@@ -23,7 +23,7 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
 
 1. **Routes 1–27** with request and response JSON (tasks 20a, 21, 22, 29) and the problem codes (task 20a).
 2. **The window stream** — format, topics, reconnect rule (task 20a).
-3. **The MCP server** — name, transport and wire table (task 14); all 35 tools with their input
+3. **The MCP server** — name, transport and wire table (task 14); all 37 tools with their input
    schemas and result fields (tasks 15–17); the error table (task 15); the instructions (task 17).
 4. **The relay** — framing, golden frames, listener address, channel path (task 18); the two CLI flags
    and their placement (task 19).
@@ -52,7 +52,7 @@ against, makes the amendments the parts declared, and lists the owner's hands-on
    before `/login`: the listener runs in `sandboxd`, not in the CLI). Then, as a test driver outside
    the CLI — `docker exec <sandbox> curl -s -X POST http://127.0.0.1:8731/mcp …` — send
    `initialize`, `tools/list`, `create_artboard`, `write_html` (a settings card), `get_html`, and
-   `finish_working`. Assert: 35 tools listed; the artboard exists in the control plane's
+   `finish_working`. Assert: 37 tools listed; the artboard exists in the control plane's
    `GET /v1/design/…/document`; its `editedBy.sessionId` is **that session's id**, though no request
    named it. Then `docker exec <sandbox> canvas-upload <worktree>/logo.png`, with a 300 KB PNG
    committed to the fixture repository (review I12): exit 0; the `asset.ref` it prints is in the

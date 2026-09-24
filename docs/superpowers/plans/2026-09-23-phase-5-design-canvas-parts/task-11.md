@@ -268,6 +268,25 @@ type Event struct {
 func (s *Service) Subscribe(canvasID string, after int) (events <-chan Event, cancel func(), err error)
 ```
 
+**How a replayed event gets its state (review M15).** A replayed change event carries the state
+*as of its own revision*, exactly as the live event for that revision did, never the head's. Under
+the canvas's lock, so no live batch is missed or sent twice:
+
+1. `cs, _ := Store.Changes(canvasID, after, 1000)`; if `cs` does not start at `after+1` or does not
+   reach the head, send one reset instead.
+2. `d0, _ := Store.At(canvasID, after)`, then `d, _ := doc.FromDocument(d0)` (task 05).
+3. For each `c` in `cs`, in order: `store.Replay(d, c)` (task 10), then build the event from `d`
+   with the one function the live path uses (`eventFor(d, c)`): `Nodes` = `d.Node(id)` for each id
+   in `c.Nodes`, `Pages` = `d.Page(id)` for each id in `c.Pages` still present (the rest go to
+   `DeletedPages`), and likewise tokens, assets, threads and reviews. `Author`, `At`, `Label` and
+   `ContentChanged` come from `c`.
+4. Register the subscriber, then release the lock. `Claims` and `Presence` are not logged, so every
+   replayed event carries the current set; a subscriber keeps the last set it received.
+
+One builder for live and replayed events means a replayed revision is byte-identical to the event a
+subscriber connected at the time received (`TestSubscribe_replay`). Cost: one `At` (at most 5,000
+changes from a snapshot, task 10) and up to 1,000 `Replay`s per reconnect that is behind.
+
 ```go
 // canvas/authority/activity.go
 
@@ -320,7 +339,7 @@ type ClaimedError struct { // task 12
 | `TestApply_humanUnscoped` | a human caller applies to any canvas | the desktop locked out |
 | `TestApply_diskFailure` | a store whose `Append` fails: `Apply` returns the error; `Document()` and the revision are unchanged; no event is published | memory ahead of disk after a failed write |
 | `TestApply_orderUnderConcurrency` | 50 goroutines × 20 batches: revisions 1…1000 gapless; the store's log equals the event sequence | two batches committed under one revision |
-| `TestSubscribe_replay` | subscribing at revision 10 of 40 yields 30 change events in order | a subscriber missing changes between reconnects |
+| `TestSubscribe_replay` | 40 batches, batch *k* setting node `n1`'s fill to a colour unique to *k*, batch 20 renaming page `p2` and batch 30 deleting it, while a subscriber from revision 0 records every live event. Subscribing at revision 10 yields 30 change events, revisions 11…40 in order, each equal as JSON to the live event of its revision (claims and presence aside, step 4): event 15's `n1` has colour 15, not 40, and event 20's `Pages` holds `p2` under its new name, though `p2` is gone at the head (review M15) | a subscriber missing changes between reconnects; a replay that sends the head's state for an old revision, or drops a page the head no longer has |
 | `TestSubscribe_reset` | subscribing at revision 0 of 1,500 yields one reset whose document equals the head | replaying 1,500 events on every reconnect |
 | `TestSubscribe_slowIsClosed` | a subscriber that reads nothing is closed after 256 undelivered events; others keep receiving | one stuck window stalling every writer |
 | `TestEvent_stateNotOps` | a `set_props` event carries the node's full post-state (all styles), not the delta | the desktop needing op semantics (P5-V) |

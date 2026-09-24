@@ -199,6 +199,24 @@ type RevertResult struct {
 func (s *Service) RevertSession(ctx context.Context, canvasID string, c Caller, sessionID string, since int) (RevertResult, error)
 ```
 
+**Where the skip rule is checked (review M13).** Against the **revert's own overlay**, never the
+head. The overlay is a scratch `doc.Doc` built from the head (`doc.FromDocument`, task 05), never
+published. For each of the session's batches, newest first, each inverse op is checked against the
+overlay; an op that passes is applied to the overlay at once (with an accept-all `Checker`, as task
+10's `Replay` does), so the next older batch is checked against the state the newer inverses left.
+The ops that passed, in that order, then go to task 11's `Apply` as one batch. So
+S setting a fill red (revision 5) and then blue (revision 6) reverts to the original: revision 6's
+inverse finds blue and restores red, and revision 5's inverse then finds red, not the head's blue,
+and restores the original. Checked against the head, the second inverse would be skipped and red
+would remain. Two rules keep the overlay honest:
+
+- **A skip is sticky.** A `(node, property)` skipped for one batch stays skipped for every older
+  batch in the same revert. Otherwise someone else setting the value to red after revision 6 would
+  match revision 5's post-state and be overwritten.
+- **Authorship comes from the log, not the overlay.** "No one else has edited the node since"
+  (the delete rule) reads `Changes`: some batch by another author after the reverted one lists the
+  node in `Nodes`. The overlay's author stamps are the revert caller's, so they cannot answer it.
+
 ## Tests first
 
 | Test | Asserts | Kills the mutant |
@@ -223,6 +241,8 @@ func (s *Service) RevertSession(ctx context.Context, canvasID string, c Caller, 
 | `TestUndo_skipsChangedByOthers` | human sets colour; agent changes the same colour; human undo skips that node and says so | undo clobbering someone's later edit |
 | `TestUndo_redoCleared` | undo, then a new human batch; redo → nothing to redo | redo resurrecting a branch of history |
 | `TestRevert_session` | session S made 5 batches across 2 artboards; one node was later edited by the human; revert → one batch, 5 reverted, 1 skipped, S's other work gone | revert as five batches (five undo steps), or forced over the human's edit |
+| `TestRevert_progressive` (review M13) | node `n1`'s fill starts `#000000`; S sets it `#ff0000` (one batch), then `#0000ff` (another); revert → one batch, `Batches: 2`, `Skipped: []`, fill `#000000` | each inverse checked against the head: the older one skipped, `#ff0000` left |
+| `TestRevert_skipIsSticky` (review M13) | as above, then the human sets the fill `#ff0000`; revert → fill stays `#ff0000`, `Skipped: ["n1"]` | a skip forgotten for the older batch, whose post-state the human's value happens to match |
 | `TestRevert_humanOnly` | a session caller → error | an agent reverting another agent |
 
 ## Steps

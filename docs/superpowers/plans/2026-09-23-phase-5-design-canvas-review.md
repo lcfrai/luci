@@ -1685,3 +1685,39 @@ reasoned from its tokenizer text (`task-07.md:134-139`: the payload's middle is 
 token), not run. The writer test does not depend on it: its doc is built through `Apply` with a
 permissive fake `Checker`, task 08's fixture route (`task-08.md:170`). A raw
 U+2028 in JSX text was not put through TypeScript.
+
+## Fix batch b11 (2026-09-24) — M15, M13, M19, M8, M23, M5
+
+Authority, MCP and relay minors. Line numbers are the files' after this batch's commit; the
+review's own locations predate b01–b10 (M15's `task-11.md:160-165` is now the `Subscribe` block at
+`:263-288`, M8's `task-14.md:117` is now `:124`, M23's `:121`/`:123` are now `:128`/`:130`).
+
+| Finding | The change | Where |
+|---|---|---|
+| M15 | `Subscribe`'s replay is specified: under the canvas lock, `Store.Changes(after, 1000)` (a gap or a short read → one reset), `Store.At(after)` → `doc.FromDocument`, then per change `store.Replay(d, c)` and the event built from `d` by the **one** builder the live path uses (`eventFor(d, c)`), so each replayed event carries its own revision's post-state; the subscriber is registered before the lock is released. Claims and presence are not logged, so replayed events carry the current set (stated). `TestSubscribe_replay` now asserts contents: 40 batches with a colour unique to each, a page renamed at 20 and deleted at 30; each replayed event equals, as JSON, the live event of its revision (event 15 has colour 15; event 20 still carries `p2`). | `task-11.md:271-288`; `:342` |
+| M13 | The skip rule is checked against the **revert's own overlay** (a scratch `doc.Doc` from the head, never published): each passing inverse is applied to it at once, so an older batch meets the state the newer inverses left; the passing ops go to `Apply` as one batch. **Two additions to the review's fix, on the facts.** (1) A skip is sticky per `(node, property)` for the rest of the revert: otherwise a human setting the value that an older batch set (red, after S's red→blue) matches that batch's post-state and is overwritten. (2) The delete rule's "no one else has edited it since" reads the log (`Changes`), because the overlay's author stamps are the revert caller's. The review's exact test is `TestRevert_progressive`; `TestRevert_skipIsSticky` covers (1). | `task-12.md:202-218`; `:244-245` |
+| M19 | Built, not deferred: `rename_page` (`update_page{Name}`, claims nothing) and `delete_page` (claims every artboard on the page, `claimed` if another session holds one, the last page `invalid` with task 06's sentence, `destructiveHint` true). The ops, their refusals and their inverses already exist (`task-06.md:29-31`, `:168-170`, `:194-195`). The reason to build: the page kinds have no human UI in this phase (`task-20.md:124-126`), so a mistaken page could otherwise be undone only by reverting the agent's whole session. Tools 13 → 15 in task 16; the total 35 → 37, counted (`grep -cE` over the schema blocks: 14 + 15 + 8), and every restatement updated. | `task-16.md:7-10`, `:42-45`, `:85-86`, `:201-202`; `task-14.md:65`; plan `:77`; `task-20b.md:15`, `:121-122`; `task-30.md:26`, `:55` |
+| M8 | `415` compares the media type `mime.ParseMediaType` returns, refuses on its error, and refuses a `charset` other than `utf-8` (`strings.EqualFold`). Run on this device's Go (2026-09-24): `application/json; charset` returns the type `application/json` **and** `mime: invalid media parameter`, so a handler that reads only the type would accept it; `application/json;charset=UTF-8` returns the charset unlowered; `application/jsonx` parses cleanly. New `TestContentType_parsed` pins all three. | `task-14.md:124`; `:171` |
+| M23 | Batches are handled by revision: the request's revision is its `MCP-Protocol-Version` header, else `2025-03-26` (2025-06-18's fallback). `≥ 2025-06-18` → `400 -32600` naming the revision; `2025-03-26` → each element handled in order, the answers returned as an array (or `202` if none), with an empty array, over 100 elements, or an `initialize` inside refused whole. The wording is fixed: a notification has a `method` and no `id`; a response has an `id` and `result` or `error`, and no `method`. `TestBatch_refused` became `TestBatch_byRevision`; `TestNotification_202` also sends a response with an `id`. The plan's "did not verify" list names the batch facts. | `task-14.md:128`, `:130`; `:169-170`; plan `:592-595` |
+| M5 | `serve_other.go` joins task 18's files and the plan's file map. The new fifth parameter is the `-mcp-listen` **string**, not a `*mcprelay.Listener`, and `serve_posix.go` opens the listener, so the Windows stub imports nothing new and opens no port it cannot serve. A new acceptance line runs `go build ./sandboxd/...` and `GOOS=linux go build ./sandboxd/...`, which fails if the signature changes in one file only. Baseline run on this worktree before the change (2026-09-24): both exit 0. | `task-18.md:28-30`, `:139-150`; `:203-207`; plan `:404-405` |
+
+**The two mutants expected to survive (named first, per rule 7), and the test text that kills
+each.**
+
+1. A `Content-Type` check that takes `ParseMediaType`'s type and ignores its error. Every accepted
+   case and most refused ones pass. Killed by the `application/json; charset` clause of
+   `TestContentType_parsed` (`task-14.md:171`).
+2. A revert that checks against the overlay but forgets a skip. `TestRevert_progressive` passes.
+   Killed by `TestRevert_skipIsSticky` (`task-12.md:245`).
+
+Others the new rows kill: a replay that builds from `Store.Load` (the head), which fails event 15's
+colour; a replay that drops a page the head no longer has, which fails event 20; a batch refused
+for every revision, which fails the no-header case; a `delete_page` that skips the claim check,
+which fails the T clause.
+
+**Not done, and why.** Only plan text changed; nothing was built. The two mutants above are
+specified, not run. The Go `mime` results and the two `sandboxd` builds were run; the MCP batch
+semantics are from knowledge of the revisions, not re-read (plan "did not verify"). Hours are
+unchanged: M19's two tools reuse `create_page`'s path and M13's overlay is how revert is built
+anyway, so the added rows fit inside tasks 12's and 16's estimates. That is an estimate, and it
+keeps the critical path at ≈ 35.5 h.

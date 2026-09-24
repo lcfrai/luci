@@ -12,7 +12,7 @@ calls code that 20a's dependencies do not provide (review I6):
 | Call | Made by task | Reached through |
 |---|---|---|
 | `mcp.NewServer(info, instructions, allowedHosts, log)` (`task-14.md:43`) | 14 | 17 (17 → 15 → 14) |
-| `mcp.RegisterAll(s, d)` (`task-15.md:93`), all 35 tools | 15, 16, 17 | 17 |
+| `mcp.RegisterAll(s, d)` (`task-15.md:93`), all 37 tools | 15, 16, 17 | 17 |
 | `mcp.Instructions` (`task-17.md:61`) | 17 | 17 |
 | `mcprelay.NewSupervisor(mcprelay.SupervisorConfig{…})` (`task-19.md:86-106`) | 19 | 19 |
 | `designapi.New`, `(*API).Approvals()`, `designapi.BriefsPort` | 20a | 20a |
@@ -118,5 +118,6 @@ Hub task C3 is a hard dependency, so there is no "before the key" answer to expe
 
 - The routes, the stream, the codes and the audit are task 20a's; approval, handoff and session
   links are tasks 21 and 22.
-- That the tool count is 35 is task 17's claim; this task only checks that `main.go` registers
+- That the tool count is 37 (14 read, 15 write, 8 more; review M19 added `rename_page` and
+  `delete_page`) is tasks 15–17's claim; this task only checks that `main.go` registers
   whatever `RegisterAll` registers.

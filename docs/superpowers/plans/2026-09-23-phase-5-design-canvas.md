@@ -74,7 +74,7 @@ pen tool, sketch boards, custom (non-bundled) fonts (S5-F.1).
       ▼                                                  │  tunnelled TCP streams, payload-blind framing
  sandboxd  127.0.0.1:8731 ──► mcprelay (mux) ═══════════╡
            :8080 /attach /healthz /mcp-channel           ▼
-                                                   canvas/mcp.Server (JSON-RPC, 35 tools) ── Caller{session} ─┐
+                                                   canvas/mcp.Server (JSON-RPC, 37 tools) ── Caller{session} ─┐
                                                                                                               │
  desktop (Tauri webview)                           canvas/authority.Service  ◄────────────────────────────────┤
  ───────────────────────                             one per process; canvases by (projectId, branchId)       │
@@ -401,7 +401,8 @@ change.
 | `internal/api/routes_audit_test.go` | the new GET routes in `catalogReadOnlyRoutes`; `TestPreflightAllowsEveryRegisteredMethod` (review I3) | 20a |
 
 **`sandboxd/`**: `internal/mcprelay/` (new: `frame.go`, `listener.go`, `channel.go`), `internal/server/server.go`
-(`/mcp-channel`), `cmd/sandboxd/main.go` and `cmd/sandboxd/serve_posix.go` (`-mcp-listen`) — task 18.
+(`/mcp-channel`), `cmd/sandboxd/main.go`, `cmd/sandboxd/serve_posix.go` (`-mcp-listen`) and
+`cmd/sandboxd/serve_other.go` (the Windows stub's matching signature, review M5) — task 18.
 
 **`images/sandbox/`**: `canvas-upload.cjs` (new, installed as `/usr/local/bin/canvas-upload`) and
 `Dockerfile` (one `COPY`; `canvas-upload` added to the `chmod`) — task 16, review I12. Its test is
@@ -589,8 +590,9 @@ is not committed — phase 3's 3-D6); OQ-11 (Figma via its MCP is v2, behind own
   long it waits at start for a server that is not yet reachable (the listener holds connections
   until the channel opens, task 18), and how it recovers when a connection drops.
 - **The MCP specification details** used in task 14 (Streamable HTTP; `application/json` single
-  responses; `GET` answered 405; no session id) are from knowledge of revisions 2025-03-26,
-  2025-06-18 and 2025-11-25, not re-read tonight.
+  responses; `GET` answered 405; no session id; JSON-RPC batches exist in 2025-03-26 only and are
+  removed from 2025-06-18; a request without `MCP-Protocol-Version` is taken as 2025-03-26, review
+  M23) are from knowledge of revisions 2025-03-26, 2025-06-18 and 2025-11-25, not re-read tonight.
 - **The licence gate's inputs** (task 04 is its own program, not `go-licenses` or
   `license-checker`; P5-P). Verified 2026-09-24: `npm ls --all --json --long` on npm 11.12.1 carries
   `path` (in the long form, even when the working directory was reached by an 8.3 short name) and

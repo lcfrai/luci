@@ -25,6 +25,9 @@ golden frames checked into both.
 - `sandboxd/internal/mcprelay/frame.go`, `listener.go`, `channel.go` + tests (new)
 - `sandboxd/internal/server/server.go` — `Config.MCP`, the `/mcp-channel` route
 - `sandboxd/cmd/sandboxd/main.go`, `serve_posix.go` — the `-mcp-listen` flag
+- `sandboxd/cmd/sandboxd/serve_other.go` — the Windows stub (`//go:build !linux && !darwin`,
+  `serve_other.go:1`) gains the same fifth parameter, or `go build ./sandboxd/...` fails on the
+  Windows machine this task's acceptance runs on (review M5)
 - `control-plane/internal/mcprelay/frame.go` + `frame_test.go` (new; the twin)
 - `control-plane/internal/mcprelay/testdata/frames.golden` and `sandboxd/internal/mcprelay/testdata/frames.golden` — identical files
 
@@ -133,7 +136,18 @@ func (l *Listener) Serve(ctx context.Context, conn *websocket.Conn) error
 ```go
 // sandboxd/cmd/sandboxd/main.go — one flag
 mcpListen := flag.String("mcp-listen", mcprelay.ListenAddr, `loopback address for the canvas MCP relay, or "off"`)
+srv, err := newServer(*command, argv, *token, *allowUnauthenticated, *mcpListen) // main.go:56 today has four
+
+// serve_posix.go: "off" → Config.MCP nil; else mcprelay.Listen(mcpListen), its error returned.
+func newServer(command string, argv []string, token string, allowUnauthenticated bool, mcpListen string) (http.Handler, error)
+
+// serve_other.go (review M5): a string, not a *mcprelay.Listener, so the stub imports nothing new
+// and still returns only its existing error.
+func newServer(string, []string, string, bool, string) (http.Handler, error)
 ```
+
+The listener is opened in `serve_posix.go`, not `main.go`, so the stub never opens a port it cannot
+serve.
 
 The image's entrypoint (`images/sandbox/entrypoint.sh`) is **unchanged**: the default is right, and
 `backend.EnvEntries`' fixed three variables (`backend.go:177-207`) stay three.
@@ -185,6 +199,12 @@ and `control-plane/internal/mcprelay`. (`sandboxd/internal/server` is `//go:buil
 cd sandboxd && GOFLAGS=-mod=vendor go build ./cmd/sandboxd && echo vendored-ok
 ```
 Expected: `vendored-ok` — the image's build (`Dockerfile:8`) still works.
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5 && go build ./sandboxd/... && GOOS=linux go build ./sandboxd/... && echo both-builds-ok
+```
+Expected: `both-builds-ok` — the first compiles `serve_other.go` (Windows), the second
+`serve_posix.go`, so a signature changed in one file only fails here (review M5).
 
 ## Not claimed
 
