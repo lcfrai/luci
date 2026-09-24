@@ -72,3 +72,43 @@ The governing constraint is unchanged: **agent CLIs are never parsed, wrapped, r
 | **P6-D8** | **Budgets: three dimensions, on by default.** Person → LiteLLM user budget. Project → LiteLLM team budget. Team → enforced by keysmith at mint from the usage rollup. Each key's `max_budget` = `min(remaining person, remaining project, remaining team, per-session cap)`. Defaults come from the Hub's team policy (ask H-2), with non-zero fallbacks in config | 05-design §2.5: *"an unset quota is the org pool by another name"* (`05-design.md:232-236`). LiteLLM has no third tier we can rely on without its enterprise features (**UNVERIFIED** per image, task 18 probes) |
 | **P6-D9** | **ZDR on our side too.** No LiteLLM logging callback is configured; prompt and response storage in spend logs is off; the gatekeeper and keysmith never log a request or response body; the path allowlist admits only `/v1/messages` and `/v1/messages/count_tokens` upstream, so no Files or Batches API call can store data | The upstreams' ZDR terms are the org's contracts, **UNVERIFIED** here (`05-design.md:204`); our own stores must not undo them |
 | **P6-D10** | **Everything in Australia East**: LiteLLM, its Postgres, keysmith, gatekeeper | `05-design.md:228-231`. Global calls leave Australia by definition, which is what Global means |
+
+### What Claude Code needs from a gateway, from its docs
+
+Read 2026-09-25 at https://code.claude.com/docs/en/llm-gateway-protocol unless marked. Task 11 turns each line into a test.
+
+| Fact from the docs | What this plan does |
+|---|---|
+| Anthropic format: `ANTHROPIC_BASE_URL`; endpoints `/v1/messages`, `/v1/messages/count_tokens` (optional); *"Inference requests post to `/v1/messages?beta=true`"*; *"Match on the path, not the full URL"* | The gatekeeper routes on `URL.Path` and passes the query through. `ANTHROPIC_BASE_URL` carries **no path** |
+| *"Forward `anthropic-version` and `anthropic-beta` unchanged … don't allowlist individual values, because the set changes with Claude Code releases"* | Forwarded verbatim. This is also what keeps the cloud current with the CLI (OD-20) |
+| The helper value is sent as `Authorization: Bearer …`, and *"When a helper value is the only credential, this header carries it too"* in `x-api-key` | The gatekeeper accepts either header; if both are present they must be equal, or `401` |
+| Streams must not be buffered; Claude Code *"aborts a stream that goes silent for 300 seconds by default"*, and SSE `ping`s are *"the only traffic during long thinking pauses"* | Flush every write; no response deadline; idle-read timeout above 300 s |
+| `GET /v1/models?limit=1000`, *"a timeout of 3 seconds by default, and any redirect is treated as failure"* | Served by the gatekeeper from the catalogue, locally, with no upstream call and no redirect |
+| A `HEAD /api/hello` connection-warming probe, which the gateway *"can reject without breaking anything"* | Answered `204` locally |
+| The fast-mode check and the WebFetch domain safety check call `api.anthropic.com` directly, not the base URL | Recorded for the AU egress allowlist (ask P8-3): they fail there, and that is accepted |
+| `apiKeyHelper`, `CLAUDE_CODE_API_KEY_HELPER_TTL_MS`, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`; a non-default base URL bypasses server-managed settings | Cited by `05-design.md:205-215`, `:237-250` (settings-reference and server-managed-settings, read 2026-09-25 there, **not re-read here**). Task 14 ships the fragment |
+| Bedrock format: `ANTHROPIC_BEDROCK_BASE_URL` with `CLAUDE_CODE_USE_BEDROCK=1`, endpoints `/model/{model}/invoke…`, with provider model ids | Not used (P6-D2). Seam S6.4 names it, with `CLAUDE_CODE_SKIP_BEDROCK_AUTH=1` (that variable's name is **training knowledge, UNVERIFIED**) |
+
+**Never set in a sandbox:** `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` (an environment variable is inherited by every test suite and `postinstall`, `05-design.md:207-208`), `CLAUDE_CODE_USE_BEDROCK`, any `AWS_*` credential, any LiteLLM key other than the session's own.
+
+### What Panacea's LiteLLM taught, and the rule each becomes
+
+Read, not copied (OD-13). Line references verified 2026-09-25 in `~/Projects/Panacea`.
+
+| Pitfall | Evidence | Rule here |
+|---|---|---|
+| **Base URL without the full path.** LiteLLM's Anthropic provider, in Panacea's build, posted to `api_base` verbatim, so a bare-host `api_base` answered `405` and every completion failed | Panacea's incident record of 2026-08-31 (owner memory, not in the repo tree, **UNVERIFIED** against source); Panacea pins LiteLLM `v1.63.11` (`kubernetes/helm-values/litellm-values.yaml:29-31`) | The generated config (task 02) **omits `api_base` on the Global route**. An override is accepted only if it ends in `/v1/messages`, and a test fails otherwise. Our own clients build URLs through one helper, `wire.MessagesURL` (task 03), never by concatenation |
+| **The master key silently absent.** `LITELLM_MASTER_KEY` comes from a `secretKeyRef` with `optional: true`, so a missing Secret yields an empty key and a pod that still reports ready | `deploy/portal/deploy-portal.yaml:779-784` | The master key is a **file** mounted from Key Vault (CSI) or the local `.env`. keysmith refuses to start without it (task 08). A chart test fails on any `optional: true` secret reference (task 19) |
+| **A slow mint drains someone else's deadline.** `/key/generate` ran inside a request's shared 15-second context, and the PipelineRun create after it failed with `context deadline exceeded` | `/key/generate` at `services/panacea-api/handlers/llm_env_keys.go:120`; the shared 15-second contexts at `handlers/projects.go:1891`, `:2622`; the chain between them from Panacea's incident record | Every LiteLLM admin call runs on **its own** deadline (task 04). Session start never waits on a mint: the mint runs beside sandbox start, and only `panacea token` waits for it (tasks 14, 15). A mint is idempotent on `key_alias`, so a retry after a timeout finds the first key instead of minting a second |
+
+## Global constraints
+
+1. **Modules and toolchain.** New Go code goes in the existing modules (`go.work:3-6`: `./control-plane`, `./sandboxd`). The `go 1.23` directive never moves. `sandboxd` vendors its dependencies (`sandboxd/vendor/`), so a new `sandboxd` import is vendored in the same commit. New `control-plane` dependencies are pinned in `require` lines; `pgx/v5` is the only one planned.
+2. **No secret in the repository, no usable long-lived secret in the cloud.** Keys arrive as files (Key Vault CSI, P8-D11) or a gitignored local `.env`. The one exception is phase 8's to settle: LiteLLM's Postgres login and the Bedrock credential (asks P8-4, P8-5).
+3. **Bodies are never logged.** No request or response body, and no header value except `anthropic-version`, reaches a log line, a metric label, or a problem body, in gatekeeper, keysmith or the generated LiteLLM config. A canary test (tasks 12, 18) proves it.
+4. **Every error body is phase 2's problem shape** (`control-plane/internal/httpx/problem.go:93`, `WriteProblem`) with the codes task 03 fixes. No handler writes its own error JSON.
+5. **Configuration** is `PANACEA_APP_GATEWAY_*`, parsed once per binary, with defaults, and a bad value fails start-up with the variable's name.
+6. **Fail closed** (P6-D5). No code path turns "unknown" into Global.
+7. **The CLI is untouched.** Claude Code runs unmodified; it is configured only through documented settings and environment variables (task 14). No wrapper, no patched binary, no PTY read.
+8. **UI** follows `docs/DESIGN-SYSTEM.md`: budgets are words and `tabular-nums` figures, never a progress bar; one accent, for interactive state only.
+9. **Clean room** (OD-11) does not bite here: nothing in this phase touches canvas or Linear material.
