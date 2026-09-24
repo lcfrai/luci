@@ -187,9 +187,9 @@ export type ConflictReason =
   | "nothing_to_land" | "not_ready" | "brief_unresolvable" | "no_git_identity" | "undo_not_exact"
   | "live_sessions" | "confirm_required" | "confirm_stale" | "not_a_cockpit_worktree"
   | "branch_has_worktrees" | "branch_exists" | "no_remote" | "push_rejected" | "unknown_host"
-  | "no_credential" | "not_pushed" | "transcript_unreadable"
+  | "no_credential" | "not_pushed" | "transcript_unreadable" | "bundle_refused"
   // task-02 §HGH H3: the message names details.key; the desktop shows it and offers no retry
-  | "clone_config_untrusted" | "project_config_untrusted";
+  | "project_config_untrusted";
 
 /** The reason of a phase 3 conflict, or undefined for anything else. */
 export function conflictReason(error: unknown): ConflictReason | undefined;

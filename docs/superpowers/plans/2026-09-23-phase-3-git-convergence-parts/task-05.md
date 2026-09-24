@@ -351,14 +351,13 @@ git ls-files --eol images/sandbox/githooks/dispatch                          →
   inside: the install step's `git config core.hooksPath` fails against the read-only
   `.git/config` (`TestSandboxCannotWriteHooksPath`). The dispatcher's `panacea:` line prints
   only when the clone has the setting but not its folder: the project's `.husky/_` was deleted
-  after install (`git clean -fdx`), CopyGeneratedHooks refused it (over 64 files, a link, a
-  subfolder, or a live primary-worktree session), or the agent deleted it in the lane. Three
+  after install (`git clean -fdx`), CopyGeneratedHooks refused it (over 64 files, a link or a
+  subfolder), or the agent deleted it in the lane. Three
   cases are **silent** and look like a repository with no hooks: a lane made before the
   project's install step ran (the install is what writes the local setting, so there was
   nothing to copy), an absolute hooks path, and hooks only in `.git/hooks` or a
   `core.hooksPath` naming it (the pre-commit framework's shim). Re-creating the lane after the
-  install, with no primary-worktree session live, repairs a lane made before install, a deleted
-  folder and a live-session refusal. A folder refused for its shape, an absolute path and
+  install repairs a lane made before install and a deleted folder. A folder refused for its shape, an absolute path and
   `.git/hooks` reach no lane however it is made (re-review b03 I-3). Whether a copied hook is executable through Docker Desktop's bind
   mount is `TestDispatchChainsToHusky`'s to show (NTFS has no execute bit; unverified).
 - Observation, not fixed here: `images/sandbox/entrypoint.sh` is **CRLF in this checkout**
