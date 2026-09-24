@@ -5,7 +5,7 @@
 with the read path each sibling uses from its own worktree (step 3).
 
 ADR-H1 §7.2 lists amendments *"each made by the phase that next edits the file"*; this phase is
-that phase for four documents. This plan made fifteen corrections to the Hub contract (A1–A15), several
+that phase for four documents, and it edits two cells of ADR-H1 itself (A15, owner question Q12). This plan made fifteen corrections to the Hub contract (A1–A15), several
 additions, and answered every sibling ask (task 00). They are folded in **now**, because every
 sibling reads the contract tonight — §7.4's repo-key regex (phase 4 HA4-6 and phase 7 already flag
 it), §12.1's four-service compose, §9.4's missing `Authorization` CORS header — and a phase that
@@ -17,6 +17,7 @@ build changes afterwards is task 44b's, last.
 - `docs/PROGRAM.md` (modify ⚑ — other phases edit it too; additions only)
 - `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` (modify: one note in §4.5; §4.4's `openAttach` row and §4.6's paragraph edited in place, re-review b02 m3)
 - `docs/superpowers/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` (modify: one amendments block at the top)
+- `docs/superpowers/adr/ADR-H1-hub-architecture.md` (modify: exactly two cells, both A15's — §5.3's invite row and §9 item 3; owner question Q12, plan re-review b05 N1 and N3)
 
 #### What changes, exactly
 
@@ -91,11 +92,31 @@ keyless open that task 38 replaces):
 These are edits in place, marked `(Phase H plan, task 38)`, not notes: §4.4 and §4.6 are the
 signatures a builder copies, and a note beside a wrong signature still gets the old one copied.
 
-**ADR-H1 is not edited** (re-review b02 m3). §5.4 still says *"every control-plane route except
-the WebSocket attach requires `Authorization: Bearer <key>`"* (`ADR-H1-hub-architecture.md:451`).
-The ADR's text is the owner's (as the HA5-4 row above says), so the plan does not rewrite it. The
-departure is recorded where a reader of the plan meets it: the plan's coverage row for ADR-H1
-§5.4 (plan.md:73), and the Hub contract §9.4 row (A3) in the table above.
+**ADR-H1 is edited in exactly two cells, both A15's; nothing else in it changes** (re-review b02
+m3; plan re-review b05 N1, N3). §5.4 still says *"every control-plane route except the WebSocket
+attach requires `Authorization: Bearer <key>`"* (`ADR-H1-hub-architecture.md:451`). The ADR's
+text is the owner's (as the HA5-4 row above says), so the plan does not rewrite it. That departure
+is recorded where a reader of the plan meets it: the plan's coverage row for ADR-H1 §5.4
+(plan.md:81), and the Hub contract §9.4 row (A3) in the table above.
+
+A15's two cells are different, and are edited in place, because a note beside them does not
+reach the reader who acts on them:
+
+- **§9 item 3** (`:725`) is the list IT builds the Hub API registration from (*"so the whole ask
+  goes to IT once"*, `:719`). *"Optional claim **`email`** on the access token"* becomes
+  *"Optional claims **`email`**, **`acct`** and **`xms_edov`** on the access token — invites
+  bind only a member (`acct` 0) or a verified email domain (`xms_edov` true) (amended by the
+  Phase H plan, A15)"*. Unedited, IT configures `email` alone, Entra emits neither other claim,
+  and no deployed invite binds, with no error.
+- **§5.3's invite row** (`:406`): *"a matching `preferred_username` or `email`"* becomes *"a
+  matching `email` claim, and only when the token shows a member account (`acct` 0) or a verified
+  email domain (`xms_edov` true); never `preferred_username` (amended by the Phase H plan, A15)"*.
+  The contract defers to the ADR where they disagree (`hub-contract.md:4-5`), so unedited, this
+  cell would make the fallback A15 removes the governing rule.
+
+Both keep ADR-H1's decision (§10 Q4: an email invite binds at first sign-in, with no Graph call);
+they change only which claim may bind. The owner accepts or rejects them as Q12; they are made now
+so that no one builds from the old text in the meantime.
 
 **Provenance contract draft.** One block at the top, *"Amended by Phase H (ADR-H1 §7.2)"*, listing:
 §2.1's store locations are now the Hub's; §1.4 and §4.1 gain the `erased` state; §6.4's *"head refs
@@ -115,7 +136,7 @@ because this task wrote A1 first.
 
 - [ ] **Step 1:** Re-read ADR-H1 §7.2, this plan's corrections table, and task 00.
 - [ ] **Step 2:** Make each change above.
-- [ ] **Step 3:** Commit by pathspec — the four documents — on `feat/hub`, before any lane
+- [ ] **Step 3:** Commit by pathspec — the four documents and ADR-H1 — on `feat/hub`, before any lane
   branches. Append a dated entry to `.superpowers/sdd/hub/progress.md` that records the commit's
   sha and these two read paths, and put the same three lines in the task report. The orchestrator
   sends the sibling phases exactly those lines. A sibling works in its own worktree on its own
@@ -136,6 +157,11 @@ grep -n "^## 16" $C                                               # present
 grep -n "MaxRevisionBatch\|latestComplete\|CursorSource\|io.ReadSeeker" $C   # each present
 grep -n "no broker" docs/PROGRAM.md                               # the identity row
 grep -n "Amended by Phase H" docs/superpowers/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md   # present
+A=docs/superpowers/adr/ADR-H1-hub-architecture.md
+grep -c "amended by the Phase H plan, A15" $A                     # exactly 2
+grep -n "preferred_username" $A                                   # no hit reads as a binding rule
+grep -n "xms_edov" $A                                             # §5.3's row and §9 item 3
+git diff --stat <parent-of-44a> <44a-sha> -- $A                   # the two cells only: 2 lines changed
 git log -1 --format=%H -- $C                                      # older than task 01's first commit
 grep -n "git show .*:docs/superpowers/contracts/2026-09-23-hub-contract.md" .superpowers/sdd/hub/progress.md   # the read path, with the sha
 ```
@@ -146,5 +172,7 @@ grep -n "git show .*:docs/superpowers/contracts/2026-09-23-hub-contract.md" .sup
   the `git show` read path (step 3); a phase plan
   written against the old §7.4 regex or the old §12.1 compose needs its own correction.
 - That the build matches this text: task 44b reconciles what the build changed.
-- Any change to the ADR's decision: ADR-H1 stands; only the contract's text moves. HA5-4's ADR
-  wording is an owner question.
+- Any change to the ADR's decision: ADR-H1 stands. Its text moves in two cells only, A15's, which
+  change which claim binds an invite and not the decision (§10 Q4); the owner accepts or rejects
+  them as Q12. HA5-4's ADR wording is an owner question.
+- That IT has configured `acct` and `xms_edov`: task 43's R-4 is the first real look.

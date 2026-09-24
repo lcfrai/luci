@@ -195,6 +195,12 @@ minimum `1m`), `PANACEA_APP_DEVISSUER_AUTO` (default `false`). `BaseURL` is `htt
 
 #### Tests to write first
 
+Eleven tests in two packages (plan re-review b05 m4). **Nine** live in
+`control-plane/internal/devissuer/`: every row below except the last two. **Two** —
+`TestLoopbackOnlyBind` (the `ADDR` refusal at start) and `TestEnvLines` (`devissuer env`) — test
+`main` and live in `control-plane/cmd/devissuer/main_test.go`. Task 12's count of its own package
+builds on the nine.
+
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestTheCommittedTenantLoads` | `LoadConfig("../../cmd/devissuer/dev-tenant.json")` succeeds; three tenants, one unenrolled; the Hub API exposes `Hub.Access` | a committed config that the stack cannot start with |

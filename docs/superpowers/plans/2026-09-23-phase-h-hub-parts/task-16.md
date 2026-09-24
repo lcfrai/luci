@@ -32,12 +32,21 @@ this token shows a member account (`acct == 0`) or a verified email domain owner
 (`xms_edov == true`); otherwise it is `""` and **nothing binds** — `invitesBound: 0`, the invites
 stay `pending`, and no event is written. It is never `preferred_username` (mutable, and not
 verified by the tenant for a B2B guest; Microsoft says not to authorise by it or by `email`), and
-never the `users` row's stored `email`, which stays display text (review I12). A member whose token
-has no `email` claim binds nothing; a team admin adds them by `PUT …/members/{userId}` after
-their first sign-in (task 15), as for any user; the caller becomes a member with the invite's role, **or
-keeps a higher role already held**. `/v1/me` runs under `Write` (task 14) so binding takes the org's
-audit lock; it sends no `Idempotency-Key` because it is a `GET`, and binding twice is impossible
-because a bound invite is no longer pending.
+never the `users` row's stored `email`, which stays display text (review I12). When a binding
+happens, the caller becomes a member with the invite's role, **or keeps a higher role already
+held**. `/v1/me` runs under `Write` (task 14) so binding takes the org's audit lock; it sends no
+`Idempotency-Key` because it is a `GET`, and binding twice is impossible because a bound invite
+is no longer pending.
+
+**A limitation, stated (plan re-review b05 m2).** A caller whose token cannot bind — a member
+with no `email` claim, or a B2B guest without `xms_edov: true` — has **no in-product remedy in
+v1**. Task 15's `PUT …/members/{userId}` needs their `u-…` id, and no v1 route lists an org's
+users, and no v1 surface shows a user their own id: `GET /v1/me` returns it only to the control
+plane that calls it, and `GET /v1/auth/status` carries no Hub user id (task 32). So the fallback is
+out-of-band and needs an operator: someone with access to the Hub's database reads the id from
+`users` and gives it to a team admin. Their invite stays `pending` with no reason shown to anyone. In v1's single KPMG
+tenant this reaches only an account with no mail attribute or an unverified guest. The in-product
+remedy is owner question Q12's second part; this task builds none.
 
 #### Contract — the matrix harness, complete
 

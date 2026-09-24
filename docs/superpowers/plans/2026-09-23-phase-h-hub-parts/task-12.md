@@ -134,7 +134,7 @@ URL, and an injected clock.
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/devissuer/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 27 (11 from task 11 + 16)
+go test ./control-plane/internal/devissuer/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 25 (task 11's 9 in this package + 16; its other 2 are in cmd/devissuer)
 go vet ./control-plane/internal/devissuer/                                                  # no output
 ```
 
