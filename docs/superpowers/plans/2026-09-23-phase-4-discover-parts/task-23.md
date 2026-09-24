@@ -118,10 +118,11 @@ unverified until the owner runs them:**
 | O3 | Edit the brief, then `--resume` the session (the cockpit's Resume) and ask again | whether a resumed conversation acts on the restamped file (brief R7) |
 | O4 | Look at every Discover state, the eight chip states on a real pane header, the refusal, the import | the visual acceptance: the owner's eyes, and nothing else |
 | O5 | Sign in as two teammates through `devissuer`; one edits, the other watches the chip go superseded within one feed poll | `OD-3`'s "a teammate sees the same brief" |
+| O6 | In a repository that has a tracked `AGENTS.md` holding a second codeword and no `CLAUDE.md`, repeat O1, then ask for that codeword | whether the materialised `CLAUDE.md` displaces the repository's `AGENTS.md` on the pinned CLI, as Claude Code's memory page says it does from v2.1.277 (P4-D, OQ-10) |
 
 **Acceptance:** `docs/verification/2026-09-23-phase-4-results.md` exists and holds, for every
 step: the command, its output (trimmed), and **pass**, **fail** or **not run** with the reason;
-the `CLAUDE.md` bytes from step 4; the CLI version from step 6; the O1–O5 table marked
+the `CLAUDE.md` bytes from step 4; the CLI version from step 6; the O1–O6 table marked
 **unverified — owner, OD-12**. A failure is written as a failure.
 
-**Does NOT claim:** anything in O1–O5.
+**Does NOT claim:** anything in O1–O6.
