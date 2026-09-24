@@ -102,6 +102,7 @@ const (
 	ReasonNotPushed         = "not_pushed"             // PR: the branch has no upstream, or commits the remote lacks; details.why: never_pushed | ahead
 	ReasonTranscript        = "transcript_unreadable"  // transcript span; details.why is the adapter's Unreadable.Reason (task 17)
 	ReasonBundleRefused     = "bundle_refused"         // task 24: a lane's bundle failed verify, list-heads or fsck
+	ReasonWorktreeDetached  = "worktree_detached"      // session create (task 05, R4.1): a primary or linked worktree with a detached HEAD has no branch for its backing lane; details.worktreeId
 	// task-02 §HGH H3: a *gitx.UntrustedConfig, on any phase 3 route that runs git in the
 	// project (R4.2: no host call runs in a lane); details.key, never the value
 	ReasonProjectConfigUntrusted = "project_config_untrusted" // a key on the project refusal list

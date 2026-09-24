@@ -25,12 +25,9 @@ own config carries the setting (review I11: a clone configured by hand proves no
 - `control-plane/internal/backend/backend.go` — `EnvSessionID`, written by `EnvEntries` (p2)
 - `control-plane/internal/backend/backend_test.go` — the order pin gains one entry (p2)
 - `control-plane/internal/sandbox/manager.go` — `containerEnv` writes the same variable (p2)
-- `control-plane/internal/api/sessions.go` — `sessionEnv` gains `core.hooksPath` (the fix's function); `sessionMounts` binds `.git/config` read-only (task-02 §HGH H5); create and restart write a resolver's `*gitx.UntrustedConfig` as `clone_config_untrusted`; `sessionGitGlobalFile` mounts nothing under the worktree (re-review b02-2 X-1)
+- `control-plane/internal/api/sessions.go` — `sessionEnv` gains `core.hooksPath` (the fix's function); create and restart run every session in a lane, a primary's or linked worktree's backing lane made on first start (R4.1), send `laneLineEndings` and ask no git for them, and pass no `worktreeAdmin` (p2); `sessionMounts` binds `.git/config` read-only (hygiene, R4); `sessionGitGlobalFile` mounts nothing under the worktree (re-review b02-2 X-1)
 - `control-plane/internal/api/sessions_sandboxenv_test.go` — the fix's test, extended (the fix's file)
-- `control-plane/cmd/api/gitresolvers.go` — `laneResolverRunner`, the pinned runner phase 2's three per-worktree resolvers use in a lane clone (new; re-review b02-2 X-1)
-- `control-plane/cmd/api/gitresolvers_test.go` — its two tests (new)
-- `control-plane/cmd/api/main.go` — the three resolvers take `resolverRunner` (p2)
-- `control-plane/cmd/api/gitlineendings_test.go` — the fix's resolver test, extended with a lane clone (the fix's file, from `5a4d0d8`)
+- `control-plane/cmd/api/lanegit_test.go` — `TestSessionCreateRunsNoHostGitInTheLane` (new; R4.2, R4.6)
 - `control-plane/internal/api/hooks_docker_test.go` — `//go:build docker`, the real thing (new)
 - `docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md` — §2 `EnvSessionID`; §5.1 environment
 
@@ -76,110 +73,60 @@ const sessionHooksPath = "/opt/panacea/githooks" // images/sandbox/Dockerfile in
 	}
 ```
 
-The fix's `core.autocrlf` and `core.eol` pairs are what a lane session's git reads for line
-endings, over the clone's local keys (task 03 "How the sandbox's git gets the same answer").
-Their values are right for a lane only because the handlers ask `Deps.GitLineEndings` in the
-session's worktree path, which for a lane is the clone, **by a pinned git** (next section). This
-task pins both halves. The handlers' only change is the error mapping below.
+A lane session's line endings are task 03's step-4 constants, `core.autocrlf=false` and
+`core.eol=lf`, the values `lanes.Creator` writes into every clone's local config. `sessions.go`
+holds them once, as `laneLineEndings = GitLineEndings{AutoCRLF: "false", EOL: "lf"}`, and create
+and restart pass it to `sessionEnv` as `eol`, so the fix's `core.autocrlf` and `core.eol` pairs
+send them through `GIT_CONFIG_KEY_n`/`VALUE_n`. **No git is asked**: the two handlers no longer
+call `sessionGitLineEndings` (R4.2). *Open for the orchestrator:* R4.6's text says the host's
+*global* value; this task sends task 03's constants, which are what the lane was checked out with.
 
-#### Phase 2's per-worktree resolvers run pinned in a lane clone (plan re-review b02-2 X-1)
+#### Phase 2's resolvers read host-owned config only (R4.6)
 
-**The hole.** `cmd/api/main.go` builds `Deps.GitIdentity`, `Deps.GitLineEndings` and
-`Deps.GitGlobalFiles` on one `project.NewExecRunner()` (`gitRunner`; find them at G1 with
-`grep -n 'gitRunner' control-plane/cmd/api/main.go`, lines 123, 137, 162 and 163 at
-`feat/phase-2-cockpit`'s `5fe62fb`, re-read 2026-09-24). They run `git config --get` and
-`git var GIT_AUTHOR_IDENT` in the worktree with every config scope counted, and **unpinned**:
-task-02 keeps `project.Runner` as phase 2 wrote it. In a lane clone the sandbox cannot write
-`.git/config` (task-02 §HGH H5's bind), but it can write `.git/commondir`, and an unpinned git then
-reads another `config` (task-02 §HGH H5, "The layout pin"). Probed on git 2.53.0.windows.2
-(`scratchpad/p3/rr2-probe.out`): with `.git/commondir` = `../evil` and `<clone>/evil/config`
-written, the unpinned calls in the clone answered `autocrlf=true`, `eol=crlf` and
-`excludesFile=<a host secret's path>`; pinned, `false` and no `excludesFile`. Phase 2's
-`sessionGitGlobalFile` mounts **any absolute regular file** the answer names, read-only, into the
-sandbox. So an unpinned resolver in a clone lets the agent read any host file the user can: a
-break of A4 and of the untrusted-sandbox rule. The line-ending half is correctness only (the agent
-sets its own sandbox env anyway); the global-files half is security.
+Phase 2's host-side resolvers (`Deps.GitIdentity`, `Deps.GitGlobalFiles`, and
+`Deps.GitLineEndings` wherever phase 2 still calls it) run `git config --global`/`--system` and
+`git var` with a working directory outside any repository, never `-C <worktree>` and never with
+the worktree as `dir`. That is the phase-2 stream's fix in its own files (`cmd/api/main.go` and
+the resolvers beside it), recorded as gate **G5** (plan "Gates"); phase 3 does not change them.
+With G5 in, no host git runs in a lane on create or restart
+(`TestSessionCreateRunsNoHostGitInTheLane`), so a lane's `.git/commondir` or `.git/config` has no
+host reader (re-review b02-2 X-1) and no resolver error maps to a lane conflict. Without it,
+task 05 stops at Step 1.
 
-**The fix.** The three resolvers stay phase 2's code. Their runner changes: task 05 hands them
-`laneResolverRunner`, which sends every call whose `dir` is under `Machine.CloneRoot()` through
-the hardened `gitx.Exec` as `Scope: Clone` (task-02 §HGH: H1's prefix, H3's closed allowlist and
-H5's layout pin, on every call). Any other `dir` goes to phase 2's `ExecRunner` unchanged: the
-primary-worktree half is phase 2's to close (below).
+#### Every session runs in a lane (R4.1)
 
-```go
-// cmd/api/gitresolvers.go (new). The project.Runner phase 2's three per-worktree resolvers
-// run on (plan re-review b02-2 X-1). A dir under cloneRoot is a lane clone the sandbox writes:
-// it runs as a task-02 §HGH Scope Clone call. Anything else runs on phase 2's runner as before.
-type laneResolverRunner struct {
-	git       gitx.Runner    // the hardened *gitx.Exec task 04 builds in main.go
-	cloneRoot string         // machine.CloneRoot()
-	other     project.Runner // phase 2's gitRunner, unchanged
-}
+Session create and restart on a worktree of kind `primary` or `linked` no longer mount its
+path. The session runs in that worktree's **backing lane**: on the first start, create calls
+`lanes.Creator.Create` with the worktree's project, its checked-out branch, and `Name` = the
+worktree's id (a valid lane name, so a restart and the next create find the lane again with
+`Store.ByProject`). A detached HEAD has no branch to clone: create answers 409
+`worktree_detached` (task 04's list gains it; details `worktreeId`) with *"This worktree has no
+branch checked out, so the cockpit cannot make its lane. Check out a branch in <path>, or start
+the session in a new worktree."*, records nothing and starts no sandbox. The registry keeps the
+rail's `WorktreeID`; only `path` changes. This is a p2 edit to create's and restart's path
+resolution, next to `sessionMounts(path, …)` (`feat/phase-2-cockpit` `ba65934`
+`sessions.go:865` and `:1520`, where `path` is `a.deps.Worktrees.Path` at `:754` and `:1450`;
+this worktree's older copy calls it at `:508` and `:1101`). Phase 2's `worktreeAdmin` mount
+(`ba65934` `sessions.go:313-314`) is then never passed: both calls give `""`, since no sandbox
+holds a primary whose linked worktrees need that metadata. A lane worktree (task 04's route)
+already runs in its own clone and is unchanged.
 
-func (r laneResolverRunner) Run(ctx context.Context, dir string, args ...string) ([]byte, error) {
-	if !underCloneRoot(r.cloneRoot, dir) {
-		return r.other.Run(ctx, dir, args...)
-	}
-	res, err := r.git.Run(ctx, gitx.Call{Dir: dir, Args: args, Class: gitx.Read, Scope: gitx.Clone})
-	if err != nil {
-		return nil, err // returned as is: phase 2's resolvers wrap with %w, so errors.As finds it
-	}
-	return res.Stdout, nil
-}
-
-// underCloneRoot: filepath.Rel(root, filepath.Clean(dir)) succeeds and is neither ".." nor
-// starts with ".."+separator. On Windows, Rel compares volume and elements case-insensitively
-// (sameWord, path/filepath/path_windows.go:116 in go1.26.2), so C:\Users\X and c:\users\x agree.
-func underCloneRoot(root, dir string) bool
-```
-
-`main.go` builds it once, as `resolverRunner := laneResolverRunner{git: gitExec, cloneRoot:
-machine.CloneRoot(), other: gitRunner}`, from task 04's `gitExec` and `machine` (task 04's
-`main.go` block). All three constructors take `resolverRunner` in place of `gitRunner`:
-`gitIdentityResolver(cfg.GitName, cfg.GitEmail, …)` and the two `Deps` fields. The identity
-constructor sits above `api.New` at phase 2's line 137; if task 04's block landed below it, move
-that line and its startup check under the block, unchanged. The scanner keeps `gitRunner`: it
-runs in project paths. The startup check (`gitIdentity(ctx, cfg.ProjectsDir)`) is not under the
-clone root, so it runs as before. Its effects, each from §HGH and restated nowhere else:
-- **The redirect reads nothing.** H5 pins `GIT_DIR`, `GIT_COMMON_DIR` and `GIT_WORK_TREE` to the
-  clone's own, so `.git/commondir` chooses no config.
-- **The clone's own config cannot name a file.** H3's clone allowlist does not list
-  `core.excludesFile`, `core.attributesFile`, `include.*` or `includeIf.*`, so a clone config that
-  holds one refuses the call. The answer then comes from the user's system and global files only.
-- **A refusal fails the create or restart, as a conflict.** `handleSessionCreate` and
-  `handleSessionRestart` check the resolver's error with `errors.As(err, &u)` for a
-  `*gitx.UntrustedConfig` before `a.internal`, and write `gitConflict(w,
-  ReasonCloneConfigUntrusted, msg, {"key": u.Key})` (task 04), where `msg` is *"This worktree's
-  git config holds <key>, which the cockpit never runs with. Remove it from <path>/.git/config,
-  or remove the worktree."* Phase 2's desktop renders a `conflict` verbatim: `classify` answers
-  `server-said` for every code but two (`desktop/src/api/problems.ts:37-41`, read 2026-09-24). The create records nothing and starts no sandbox; the
-  restart leaves the old sandbox alive, as phase 2's does for any resolver error.
-  `sessionGitIdentity` logs and swallows its error as phase 2 wrote it, and it runs after the two
-  resolvers that would already have refused.
-- **A mount source is never reached through the worktree.** A relative answer can still come from
-  the user's own global file, and phase 2's `gitGlobalFile` joins it to the worktree, where the
-  agent can plant a link to any host file that `sessionGitGlobalFile` then follows. So
-  `sessionGitGlobalFile` gains one check: a path that is under the session's worktree host path
-  (the same `filepath.Rel` test) **as answered, or with its links resolved**, is not mounted, and
-  the sandbox reads `sessionGitNoFile`, logged with the key. The first form catches the planted
-  link, whose target is outside; the second, a user's link that points into the worktree. A file
-  there is already in the sandbox at its own path, so nothing is lost. Not covered: a user's link
-  whose target passes through the worktree to a link beyond it. *Unverified:* whether a link made
-  inside a Docker Desktop bind mount on this Windows host is one the host's `os.Stat` follows; on
-  a Linux host it is.
-
-*The primary-worktree half stays open in phase 2 (re-review b02-2 X-1, fix 1).* On a
-primary-worktree session the resolvers run on `gitRunner`, unpinned. Before this task the
-project's `.git/config` is writable from the sandbox; after it (H5's bind) `.git/commondir` still
-is. Either way the agent can name a host file as `core.excludesFile`, and phase 2 mounts it. That
-is phase 2's code (`d7e2dea`), sent to the phase-2 fix stream; plan Q-table row Q14 records it.
-Phase 3 does not claim a primary-worktree session safe from it.
+**A mount source is never reached through the lane.** A relative answer can still come from
+the user's own global file, and phase 2's `gitGlobalFile` joins it to the worktree path, now
+the lane, where the agent can plant a link to any host file that `sessionGitGlobalFile` then
+follows. So `sessionGitGlobalFile` gains one check: a path that is under the session's worktree
+host path (a `filepath.Rel` test) **as answered, or with its links resolved**, is not mounted,
+and the sandbox reads `sessionGitNoFile`, logged with the key. The first form catches the planted
+link, whose target is outside; the second, a user's link that points into the worktree. A file
+there is already in the sandbox at its own path, so nothing is lost. Not covered: a user's link
+whose target passes through the worktree to a link beyond it. *Unverified:* whether a link made
+inside a Docker Desktop bind mount on this Windows host is one the host's `os.Stat` follows; on
+a Linux host it is.
 
 ```go
-// sessions.go — sessionMounts gains one entry (task-02 §HGH H5; review C1). When the worktree's
-// host path holds a .git DIRECTORY (every clone, and the project on a primary-worktree
-// session), its config is bound read-only over the worktree mount, so the config the control
-// plane checks is the config its git reads. A linked worktree's .git is a file: no entry.
+// sessions.go — sessionMounts gains one entry. Hygiene, not a control (R4): the host never
+// reads this file. When the worktree's host path holds a .git DIRECTORY (every lane clone),
+// its config is bound read-only over the worktree mount. A .git file: no entry.
 	if fi, err := os.Stat(filepath.Join(worktreePath, ".git")); err == nil && fi.IsDir() {
 		mounts = append(mounts, backend.Mount{
 			HostPath:      filepath.Join(worktreePath, ".git", "config"),
@@ -264,14 +211,12 @@ RUN sed -i 's/\r$//' /opt/panacea/githooks/dispatch \
 | `TestEnvEntriesIgnoresASessionIDInEnv` | `Env{"PANACEA_APP_SESSION_ID":"s-evil"}` with `SessionID:"s-1"` → exactly one entry, value `s-1` | a client-chosen session id |
 | `TestThePodEnvironmentIsExactlySpecEnvEntries` (kata, unchanged) | still passes after `containerEnv` gains the variable | Docker and Kata environments diverging |
 | `TestSessionEnvSetsHooksPath` (fix's file, extended) | with `n` the fix's pair count read before the change (8 at `feat/phase-2-cockpit`'s `10fa5fd`, re-read 2026-09-24, review I12): `GIT_CONFIG_COUNT=n+1`, `KEY_n=core.hooksPath`, `VALUE_n=/opt/panacea/githooks`; keys `0` to `n-1` byte-identical to the fix's, `core.autocrlf` and `core.eol` among them | dropping or renumbering one of the fix's settings while adding one |
-| `TestALaneSessionSendsTheClonesLineEndings` (fix's file, extended; plan re-review b02 I-1) | a project and a lane clone of it (task 04's route); a `Deps.GitLineEndings` double that answers by path: `{false, lf}` in the clone's `Path`, `{true, crlf}` in `Project.Path`, and fails the test for any other path. A session created on the lane, then restarted: the recorded `backend.Spec.Env` carries `core.autocrlf=false` and `core.eol=lf`, found by **key** among the `GIT_CONFIG_KEY_n`, on both. Red first: a mutant that asks the resolver in `Project.Path` sends `true`/`crlf` | the resolver asked anywhere but the clone, which brings C2's split back inside the sandbox |
-| `TestTheResolverReadsALaneCloneAsLF` (cmd/api, the fix's `gitlineendings_test.go`, extended) | production-shaped: a `gitxtest` project with `UseSystemConfig(WindowsInstallerSystem)`, cloned by task 03's `lanes.Creator`. The production runner reads the **process** environment, not `Repo.Env`, so the test also sets it the way the fix's `TestTheRealHostGitAnswersFromEveryScope` does (`t.Setenv` of `GIT_CONFIG_NOSYSTEM=""`, `GIT_CONFIG_SYSTEM` to a file holding `WindowsInstallerSystem`, `GIT_CONFIG_GLOBAL` to a temp file, `GIT_CONFIG_COUNT=""`). The production resolver, as `gitLineEndingsResolverWith(resolverRunner, "crlf")` with `resolverRunner` the `laneResolverRunner` `main.go` builds (Windows' native, fixed so the test means the same on any host), answers `{"false", "lf"}` in the clone, and `{"true", "crlf"}` in the project (the control: the system file is in force). Red first against a `cloneArgv` without the `--config` flags, which answers `{"true", "crlf"}` in the clone | the double above answering what the real resolver never would |
-| `TestLaneResolversIgnoreACommondirRedirect` (cmd/api, new `gitresolvers_test.go`; re-review b02-2 X-1) | production-shaped, with the process environment set as `TestTheResolverReadsALaneCloneAsLF` sets it: a `gitxtest` project cloned by `lanes.Creator` under a temp `CloneRoot`. The test then writes what the agent can: `<clone>/.git/commondir` = `../evil`, and `<clone>/evil`, a copy of the clone's `.git` whose `config` adds `core.autocrlf=true`, `core.eol=crlf`, `core.excludesFile` and `core.attributesFile` = `<temp>/hostsecret` (a file outside the clone) and `user.name=EVIL`. The three production constructors on `laneResolverRunner` (a real `gitx.Exec` from `MachineHardening`, and `project.NewExecRunner()` as `other`) answer, in the clone: `{"false", "lf"}`; global files naming neither `hostsecret`; an identity whose name is not `EVIL`. Control: the project path reaches `other` (a recording wrapper sees it) and `gitx.Exec` never. Red first on `project.NewExecRunner()` alone: `{"true", "crlf"}`, `Excludes == <temp>/hostsecret`, and `EVIL` | a resolver runner that is not pinned in a clone, which mounts any host file the agent names |
-| `TestLaneResolversRefuseAFileTheClonesConfigNames` (cmd/api, same file) | the clone's own `.git/config`, written by the test on the host (the sandbox cannot, H5), holds `core.excludesFile=<temp>/hostsecret`: `gitGlobalFilesResolver(resolverRunner)` returns an error in which `errors.As` finds `*gitx.UntrustedConfig{Key: "core.excludesfile", Scope: gitx.Clone}`, and no path. Red first on the unpinned runner, which answers `<temp>/hostsecret` | a `Scope` other than `Clone` for a lane, or an error wrapped without `%w` |
-| `TestALaneSessionOnUntrustedCloneConfigIsAConflict` (`sessions_sandboxenv_test.go`) | a `Deps.GitLineEndings` double returning `fmt.Errorf("read core.autocrlf: %w", &gitx.UntrustedConfig{Key: "core.excludesfile", Scope: gitx.Clone})`: create and restart each answer 409 with `details.reason` `clone_config_untrusted` and `details.key` `core.excludesfile`; no session is recorded by the create, and the fake backend sees no `Create`. Red first against phase 2's handlers, which answer 500 | a refusal reported as an internal error, or a sandbox started after one |
+| `TestALaneSessionSendsTheClonesLineEndings` (fix's file, extended; plan re-review b02 I-1; R4.2) | a lane (task 04's route) and a primary worktree of the same project; a `Deps.GitLineEndings` double that fails the test if called. A session created on each, then restarted: the recorded `backend.Spec.Env` carries `core.autocrlf=false` and `core.eol=lf`, found by **key** among the `GIT_CONFIG_KEY_n`, on all four, equal to `laneLineEndings` (task 03's step-4 constants). Red first against phase 2's handlers, which ask the resolver | a line-ending answer asked of git at all, or asked in `Project.Path`, whose system `autocrlf=true` sends `true`/`crlf` (C2's split back inside the sandbox) |
+| `TestSessionCreateRunsNoHostGitInTheLane` (cmd/api, new `lanegit_test.go`; R4.2, R4.6) | production-shaped: a `gitxtest` project cloned by task 03's `lanes.Creator` under a temp `CloneRoot`. Phase 2's production resolvers, built as `main.go` builds them but on a spy `project.Runner` that wraps `project.NewExecRunner()` and records each call's `dir` and argv, are asked with the lane's `Path` as the worktree path, as create and restart ask them. No recorded `dir` is the lane or under `CloneRoot`, and no argv holds `-C`, `--git-dir` or `--work-tree` naming one. Red first against phase 2's resolvers at `ba65934`, which run with `dir` = the lane path; green only with gate G5 in | host git run in a directory the sandbox writes (X-1, X-2) |
+| `TestPrimarySessionRunsInALane` (`sessions_sandboxenv_test.go`; R4.1) | a project whose primary worktree has `main` checked out, a real `lanes.Creator` under a temp `CloneRoot`, and the fake backend: create on the primary's `WorktreeID`, then restart. On both, the `/home/dev/work` mount's `HostPath` is under `CloneRoot`, and so is its `.git/config` entry; no mount's `HostPath` is `Project.Path`, its `.git`, or under either; no `worktreeAdmin` mount; the recorded session's `WorktreeID` is the primary's; the restart makes no second lane. With the primary's HEAD detached, create answers 409 `worktree_detached`, records nothing and the backend sees no `Create`. Red first against phase 2's `sessionMounts(path, …)` with `path` = `Project.Path` | a sandbox that mounts the project repository (X-2's rename reaches its `.git/config`) |
 | `TestSessionGitGlobalFileMountsNothingInsideTheWorktree` (`sessions_sandboxenv_test.go`) | a `Deps.GitGlobalFiles` double answers, in turn: `<worktree>/link`, a link to `<temp>/hostsecret` outside the worktree (the planted-link case; skipped, with the reason logged, where the host refuses `os.Symlink`); `<worktree>/plain`, a regular file; and `<temp>/outside`, a regular file (the control). The first two mount nothing at `sessionGitExcludesPath` and send `core.excludesFile=sessionGitNoFile`; the control mounts `<temp>/outside`. Red first on phase 2's `sessionGitGlobalFile`, which mounts `hostsecret` for the first | a mount source reached through a link the agent planted |
 | `TestSessionCreateAndRestartCarryTheSessionID` | the `backend.Spec` recorded by the fake backend has `SessionID` equal to the new session's id, on create **and** restart | a restart exporting the old sandbox's id |
-| `TestSessionMountsBindGitConfigReadOnly` | a worktree with a `.git` directory → the mounts end with `{<wt>/.git/config, /home/dev/work/.git/config, ReadOnly: true}`; a `.git` file (a linked worktree) → no such entry | the H5 mount dropped, or bound read-write |
+| `TestSessionMountsBindGitConfigReadOnly` (hygiene, R4) | a worktree with a `.git` directory → the mounts end with `{<wt>/.git/config, /home/dev/work/.git/config, ReadOnly: true}`; a `.git` file → no such entry | the hygiene mount dropped, or bound read-write |
 | `TestSandboxCloneConfigIsReadOnly` (docker) | task-02 §HGH H5, red first without the entry: in the real sandbox, `git config filter.x.clean y` in `/home/dev/work` exits non-zero, and the host's `.git/config` is byte-identical afterwards; `git commit` still succeeds. Then, with the session still live, the host runs `git branch -m` and `git config --remove-section branch.<b>` (task 11's writes, which replace the file by rename) through Exec: both succeed, and the test records whether `git config --list` in the sandbox then shows the new content or the old. A file bind pins an inode, so the old content is possible; the result goes in the task report and the plan's Q7, not asserted (b01 re-review Minor 1) | a nested read-only bind that Docker Desktop ignores (unverified until this runs) |
 | `TestSandboxLaneCloneChecksOutLF` (docker; plan re-review b02 I-1) | a `gitxtest` project of LF blobs under `WindowsInstallerSystem`, cloned by `lanes.Creator`, run with the environment below (read from `sessionEnv`, with the lane constant as `eol`): `git status --porcelain` prints nothing, and after `rm a.txt` and `git checkout -- a.txt` the host reads `a.txt` with no `\r`. Red first with `eol` set to `{true, crlf}`, the answer in `Project.Path`: `status` still empty, the checkout writes `\r\n` | the sandbox's git writing CRLF over a lane's LF blobs while every status check reads clean |
 | `TestDispatchStampsTheSession` (docker) | a commit in a clone mounted at `/home/dev/work` with the session environment carries `Panacea-Session: s-test1` exactly once (`git log -1 --format=%(trailers:key=Panacea-Session,valueonly)`) | the hook not installed, not executable, or CRLF |
@@ -288,10 +233,9 @@ The Docker tests build the image (`docker build -f images/sandbox/Dockerfile -t 
 create repositories on the host with `gitxtest`, clone them with `lanes.Creator`, and run
 `docker run --rm -v <clone>:/home/dev/work -e …` with **exactly** the environment
 `backend.Spec{…}.EnvEntries()` plus `sessionEnv(...)` produce, read from those functions rather
-than retyped. `sessionEnv`'s `eol` argument is `GitLineEndings{AutoCRLF: "false", EOL: "lf"}`:
-the answer `TestTheResolverReadsALaneCloneAsLF` pins the production resolver to give in a lane
-clone. It is written once, as a named constant in the test file, because the resolver lives in
-package `main`, which this package cannot import.
+than retyped. `sessionEnv`'s `eol` argument is `laneLineEndings`, the constant
+create and restart send (task 03's step-4 values); the Docker tests share its package, so they
+read it rather than retype it.
 
 #### Steps
 
@@ -303,18 +247,17 @@ package `main`, which this package cannot import.
   and read every hunk in §2 and §5.1 before editing them: the fix branch already edited §2.2
   (`5e32000`) and §2.6 and §5.1 (`2d6d95b`), and phase 2's later rounds add more there.
   Task 01's `TestSandboxGitHonoursEnvHooksPath` passed and recorded the image's git version.
-  X-1's preflight: `grep -c 'gitRunner' control-plane/cmd/api/main.go` is at least 4, and
-  `grep -c 'func (a \*API) sessionGitGlobalFile(' control-plane/internal/api/sessions.go` is 1. If
-  phase 2's fix stream has since changed how those resolvers run or mount (re-review b02-2 X-1,
-  fix 1), read its change and keep this task's two lane checks on top of it; stop and report only
-  if a resolver no longer takes a `project.Runner`.
-- [ ] **Step 2:** the Go tests; then `laneResolverRunner` and its `main.go` wiring, the create and
-  restart `clone_config_untrusted` mapping, and `sessionGitGlobalFile`'s worktree check (show
-  each of X-1's four tests red first, as its row says); then `EnvSessionID`, `EnvEntries`,
-  `containerEnv`, `sessionEnv`.
-  `TestALaneSessionSendsTheClonesLineEndings` and `TestTheResolverReadsALaneCloneAsLF` may pass
-  on arrival, since they pin the fix's behaviour: show each red against its named mutant on the
-  `$TEMP` copy, and record that in the report.
+  Gate G5 (R4.6): read the phase-2 stream's resolver change in `control-plane/cmd/api/` and
+  confirm each of the three resolvers runs with a `dir` outside any repository and no `-C`,
+  `--git-dir` or `--work-tree`; `TestSessionCreateRunsNoHostGitInTheLane`, written first, is the
+  check. If it is still red on phase 2's code, stop and report (plan "Gate G5").
+  `grep -c 'func (a \*API) sessionGitGlobalFile(' control-plane/internal/api/sessions.go` is 1.
+- [ ] **Step 2:** the Go tests; then create's and restart's lane path resolution (R4.1:
+  the backing lane, `worktree_detached`, no `worktreeAdmin`), `laneLineEndings` in place of
+  `sessionGitLineEndings`, and `sessionGitGlobalFile`'s worktree check (show
+  `TestPrimarySessionRunsInALane`, `TestALaneSessionSendsTheClonesLineEndings` and
+  `TestSessionGitGlobalFileMountsNothingInsideTheWorktree` red first, as their rows say); then
+  `EnvSessionID`, `EnvEntries`, `containerEnv`, `sessionEnv`.
 - [ ] **Step 3:** `dispatch`, `.gitattributes`, the Dockerfile block. Check the committed blob is
   LF: `git ls-files --eol images/sandbox/githooks/dispatch` shows `i/lf`.
 - [ ] **Step 4:** the Docker tests (PowerShell tool for `docker`).
@@ -330,8 +273,8 @@ go test ./control-plane/internal/api/ -tags docker -run Dispatch -count=1 -v →
 go test ./control-plane/internal/api/ -tags docker -run TestSandboxCloneConfigIsReadOnly -count=1 -v → PASS (task-02 §HGH H5)
 go test ./control-plane/internal/api/ -tags docker -run TestSandboxCannotWriteHooksPath -count=1 -v → PASS (review I11)
 go test ./control-plane/internal/api/ -tags docker -run TestSandboxLaneCloneChecksOutLF -count=1 -v → PASS (plan re-review b02 I-1)
-go test ./control-plane/cmd/api/ -run TestTheResolverReadsALaneCloneAsLF -count=1 -v              → PASS, not SKIP
-go test ./control-plane/cmd/api/ -run TestLaneResolvers -count=1 -v                               → PASS, 2 tests, not SKIP (re-review b02-2 X-1)
+go test ./control-plane/cmd/api/ -run TestSessionCreateRunsNoHostGitInTheLane -count=1 -v  → PASS, not SKIP (R4.2, R4.6; gate G5)
+go test ./control-plane/internal/api/ -run TestPrimarySessionRunsInALane -count=1 -v      → PASS (R4.1)
 git ls-files --eol images/sandbox/githooks/dispatch                          → i/lf  w/lf
 ```
 
@@ -342,8 +285,11 @@ git ls-files --eol images/sandbox/githooks/dispatch                          →
   and for commits made outside the cockpit, in the same words, because we cannot tell them apart.
 - A commit in a worktree shared by two sessions names the one that ran `git commit`, not whose
   lines are in it (survey §5.3 item 2; 3-D2's notice, task 06).
-- **A primary-worktree session's resolvers stay unpinned** (re-review b02-2 X-1; plan Q14). Only a
-  lane clone's run through `gitx`; the project's are phase 2's to close.
+- **Phase 2's resolvers reading host-owned config only is phase 2's fix** (R4.6, gate G5; plan
+  Q14). This task relies on it and changes none of phase 2's resolver files.
+- **A backing lane is made once**, on the branch the primary or linked worktree had checked out
+  at the first start. A later `git checkout` there does not move it; bringing commits in is
+  task 09's.
 - **Fresh-clone hooks (review I11).** `git clone` copies neither `.git/config` nor `.git/hooks`,
   so a lane runs the repository's hooks only through what task 03's Create put there: a
   relative local `core.hooksPath` (step 6) and, when the project had generated and ignored it,

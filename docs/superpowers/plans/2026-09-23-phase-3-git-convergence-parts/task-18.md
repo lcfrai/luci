@@ -188,6 +188,7 @@ export type ConflictReason =
   | "live_sessions" | "confirm_required" | "confirm_stale" | "not_a_cockpit_worktree"
   | "branch_has_worktrees" | "branch_exists" | "no_remote" | "push_rejected" | "unknown_host"
   | "no_credential" | "not_pushed" | "transcript_unreadable" | "bundle_refused"
+  | "worktree_detached" // session create on a detached primary or linked worktree (task 05, R4.1)
   // task-02 §HGH H3: the message names details.key; the desktop shows it and offers no retry
   | "project_config_untrusted";
 
