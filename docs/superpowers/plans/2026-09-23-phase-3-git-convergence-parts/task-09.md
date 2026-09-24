@@ -87,7 +87,8 @@ type Lander struct {
 //  6. old = rev-parse refs/heads/<branch>; old != ExpectedTip     (branch_moved, details.tip = old)
 //  7. laneTip = rev-parse LaneRef; laneTip an ancestor of old     (nothing_to_land)
 //  8. Identity(ProjectPath)                                       (no_git_identity)
-//  9. merge-tree --write-tree --name-only old laneTip, OKExit 1   (merge_conflict, details.paths)
+//  9. MergeTreeArgs + old laneTip, OKExit 1 → ParseMergeTree     (merge_conflict, details.paths =
+//     detailList(conflicted); task 07, task 04; review I2 — never the newline form)
 // 10. msg = gitx.Message("Land <name> into <branch>",
 //                        "From the cockpit worktree <name> (<worktree id>).",
 //                        [Panacea-Land: <id>] + [Panacea-Brief, Panacea-Brief-Digest] when a key)
@@ -151,6 +152,7 @@ a `Syncer` over them, a fake `WorktreeFlagStore`, and a fake `Resolver`.
 | `TestLandRefusesAStaleExpectedTip` | `ExpectedTip` ≠ tip → `branch_moved` with `details.tip`, nothing written (loose-object count unchanged) | landing against a view the human did not see |
 | `TestLandRefusesACheckedOutBranch` | the project's primary has the branch checked out → `branch_checked_out`, `details.path` is its path | moving a ref under a user's checkout |
 | `TestLandConflictWritesNothing` | both lanes edit a line; land the first, then the second → `merge_conflict`, `details.paths`, tip unchanged | a conflicted product branch (A2) |
+| `TestLandConflictNamesANonASCIIPath` (review I2) | the same with the file `docs/résumé.md` → `json.Unmarshal(details.paths)` is `["docs/résumé.md"]` (raw UTF-8, not `"docs/r\303\251sum\303\251.md"`) | `merge-tree` without `-z`, or a newline-joined detail |
 | `TestLandRefusesNotReady` | ready false → `not_ready` | landing work nobody marked ready (defect 9) |
 | `TestLandRefusesAnEmptyLane` | no commits → `nothing_to_land` | an empty merge commit |
 | `TestLandSyncsTheLaneFirst` | commit in the clone with no sweep since → the merge's second parent is that commit | landing a stale lane ref |
