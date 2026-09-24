@@ -862,3 +862,43 @@ client persists Hub data to disk, and 04 §2.2 holds to it. This design follows 
 is **in memory**. Consequence: after the app restarts (not after sleep), the first paint needs a
 full load, so 02's `budget.return ≤ 2s` is **UNVERIFIED** for large projects. Q5 asks the owner.
 
+### 4.5 How it fits Define, Design, Develop and Deploy
+
+The four phases are states of one project (`CLAUDE.md`), and `AGENTIC-UX.md` §9 item 12 forbids
+showing them as a pipeline. So the work layer is **not** a fifth phase and has no screen of its own
+that the others hand off to. An issue is one object that every lens shows at its own point:
+
+| Lens | What the issue looks like there | New behaviour |
+|---|---|---|
+| **Discover** (Define) | each criterion lists the issues that serve it; an unserved criterion is marked | *Propose issues*: one draft issue per unserved criterion, `text·A` until a person accepts (W4) |
+| **Design** | a frame shows the issues whose revision `implements` it | a design approval can close a design issue (04 §7.7) |
+| **Develop** | each session pane's header shows its issue chip beside the brief chip | `Shift+S` from an issue lands here, the session already told |
+| **Merge** | each lane row names its issue; the definition of done shows proposed evidence under each criterion | *Record* writes the evidence as the person (04 §4.6) |
+| **Deploy** | the release manifest lists the issues shipped, from trailers | each issue gains *shipped to production, 14:02* |
+| **Work** (new) | the feature's issues against the brief's criteria: coverage, not a burn-down | the planning surface; everything else links here |
+
+**Four rules that keep it one app.**
+1. **One issue view.** Every chip in every lens opens the same view, at the revision the chip names.
+2. **No second tree.** The rail does not gain issues, cycles or initiatives. They live on the Work
+   surface and in the palette.
+3. **Entry accepts any depth** (AX §9 item 7). *"Fix this"* is an issue with no brief work; *"an
+   idea"* starts in Discover; *"a ticket from Jira"* arrives as a request. None is forced through
+   another.
+4. **The thread is visible where work is.** Wherever an issue appears, its `thread.node` is there
+   and lights its criterion, frame, lane and release.
+
+### 4.6 Speed
+
+| Act | Class (02 C8) | Budget (proposed, unmeasured) |
+|---|---|---|
+| change state, priority, label, cycle, assignee; defer; mark seen | `optimistic.undo` | `budget.paint` ≤ 16 ms to the changed row |
+| open the palette; search | replica read | `budget.palette` ≤ 50 ms |
+| peek an issue, span or hunk | replica read, spans stream after | `budget.peek` ≤ 100 ms |
+| Start or Delegate | reversible until the session's first write | row resolves at once; `budget.ack` ≤ 10 s to the first span, else "no output yet · 10s" |
+| land, push, deploy, erase | `confirm.inplace`, never optimistic | the consequence line and a two-step confirm inside the row |
+
+Each budget gets a Playwright timing test against the local app (the repo's recipe), recorded
+rather than asserted until the owner accepts the numbers (02 C8).
+
+---
+
