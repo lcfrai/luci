@@ -859,3 +859,41 @@ Unverified: that Go's encoder writes the rebuilt `WriteRevisionsResponse` to the
 first answer, given the same values. It is deterministic for structs and `json.RawMessage`, from
 knowledge, and task 19's test checks it. Nothing was compiled or run: this batch changes only
 documents, so there were no mutants to run.
+
+## Fix batch b07 — M10, M11, M12 and M4 (2026-09-24)
+
+The schema is tighter. `orgs` now has row-level security. The audit head moves only inside a
+`SECURITY DEFINER` trigger, and `hub_app` can no longer `UPDATE` it. Erasure now names its real
+horizon, the backup retention. Tasks 07 and 16 are each split in two, and task 43 is 5 h. M10 and
+M11 were applied before the split, as ordered. Commits: `8a0f797` (M10, M11 in the schema),
+`43e7b30` (A18, A19 and their callers), `be8c31e` (M12), `daa6dbf` (07 → 07a/07b), `748d064`
+(16 → 16a/16b, and every part's citations), `04fba4c` (the task table and totals).
+
+| Finding | What changed | Where |
+|---|---|---|
+| **M10** the policy | `orgs` gets its own policy: `ALTER TABLE hub.orgs ENABLE ROW LEVEL SECURITY`, then `CREATE POLICY org_isolation ON hub.orgs TO hub_app USING (id = current_setting('hub.org_id', true))`. There is no `WITH CHECK`, because `hub_app` may only `SELECT` `orgs`. The owner functions run as the table's owner, so they are unaffected | task-07a.md:465-473 |
+| **M10**, beyond the review | **The review's "unaffected" is wrong on the facts for two callers.** The janitor (task 24) and `hub verify` (tasks 20, 27) list every org on `hub_app`'s connection before any `set_config`. Under the new policy they see no org: the janitor would sweep nothing, and `hub verify` would pass on an empty walk. The root fix is a new `SECURITY DEFINER` function, `hub.org_ids() RETURNS SETOF text`, which returns the ids only, never a name or a tenant id. All three callers now use it, and their tests fail on an empty walk: two orgs expire two reservations, a tampered revision in either org fails, and the audit line is exactly `ok audit (30 events in 2 orgs)` | task-07b.md:248-256; task-20.md:51-57, :77; task-24.md:84-85, :141; task-27.md:48-50, :83 |
+| **M10** tests | `TestRowLevelSecuritySeparatesOrgs` covers 20 tables, not 19: `orgs` shows only A's row. `TestAnUnsetOrgSees…` expects zero rows from `orgs` too. New `TestOrgIdsListsEveryOrgAndOnlyIds` | task-07a.md:528, :529; task-07b.md:302 |
+| **M11** the function | `audit_append` is `SECURITY DEFINER SET search_path = hub, pg_temp`. **One addition to the review's fix:** as the owner, the trigger bypasses row-level security. So it checks `NEW.org_id` against `hub.org_id` **first**, before it locks anything. Without that check, an org-A session could lock org B's head, and for a moment move it, before `WITH CHECK` refuses the row | task-07b.md:150-173 |
+| **M11**, beyond the review | **The review's "revoke the UPDATE" alone breaks contract §10.6.** `SELECT … FOR UPDATE` needs `UPDATE` privilege on at least one column (from knowledge), so no write could take the org's lock. The lock is now `hub.lock_audit_head()`: `SECURITY DEFINER`, with no parameter, locking the session's org only, and `P0002` when there is no head. Task 14's `LockHead` calls it. Tasks 19 and 24's other `FOR UPDATE`s (on `briefs` and `releases`) were checked: `hub_app` holds column `UPDATE` grants on both | task-07b.md:233-246; task-14.md:102, :151-157 |
+| **M11** grants and tests | `GRANT UPDATE (seq, hash) ON audit_heads` is gone, and `audit_heads` joins the "no UPDATE or DELETE" list. `TestHubAppGrantsAreExactlyTheList` now states that `audit_heads` is `SELECT` only. `TestHubAppCannotUpdateOrDeleteImmutableTables` adds `audit_heads`. Four new tests: `TestAuditAppendChecksTheOrgFirst` (a second connection's `NOWAIT` lock proves the check runs before the lock), `TestTheHeadLockNeedsTheFunction`, `TestOrgIdsListsEveryOrgAndOnlyIds`, and `TestHubAppExecutesExactlyTheOwnerFunctions` (`role_routine_grants` equals exactly the five functions, and none is granted to `PUBLIC`) | task-07a.md:494-498, :525, :532; task-07b.md:300-303 |
+| **M10, M11** contract | New corrections **A18** and **A19**. Task 44a folds them into §10.2, §10.3, §10.4, §10.5, §10.6, §10.7, §12.1 and §12.5. All nine contract lines cited were checked: `:1881`, `:1895`, `:1902-1905`, `:1925`, `:1997`, `:2014`, `:2026`, `:2123`, `:2223`. The count goes from "seventeen" to "nineteen", and the range from A1–A17 to A1–A19, in plan.md and task-44a.md | plan.md:161, :187, :188; task-44a.md:1, :8, :48, :49 |
+| **M12** | Task 27's "does not claim" gains storage. The `UPDATE` leaves dead tuples until `VACUUM`, the text stays in the write-ahead log, and every earlier backup keeps it. **The real erasure horizon is phase 8's backup retention:** 7 days in dev and 35 in prod, geo-redundant in prod. The source is phase 8 task 08 `:229-232` on `feat/env` at `30b2419`, read with `git show`; its variable admits 7–35, at `:76`. Locally there are no backups. The plan's physical-erasure note says the same | task-27.md:118-129; plan.md:542-548 |
+| **M4** task 07 | `git mv` renamed `task-07.md` to `task-07a.md`, and `task-07b.md` was cut from it by line range, with a checked script, so no SQL text changed in the move. **07a** (3 h) covers the tables, row-level security and the grants, with 10 tests (20 counting task 06's). **07b** (3.5 h) covers the guards and the five owner functions, with 18 tests (38 in all). Two things the split needs: 0001 stays one migration, so `Latest()` = 1, and task 06's runner refuses an edited applied migration (`ErrEdited`), so 07a must not migrate a persistent database, and **the orchestrator merges 07a and 07b together**. 07a's seed helper writes in the order the Hub writes, so 07b's guards accept its seed | task-07a.md:1-22, :503-519, :534-565; task-07b.md:1-45, :265-285, :305-332 |
+| **M4** task 16 | **16a** (2.5 h) covers invites and binding, with 9 tests. **16b** (2.5 h) covers the matrix harness and its rows for routes 3–12, with 3 tests. 16b also lists `authz.go`, which the unsplit task changed without listing | task-16a.md:1-12, :63-83; task-16b.md:1-17, :101-130 |
+| **M4** task 43 | About 5 hours, and the header says why | task-43.md:3-5 |
+| **M4** the task list | The table has four rows for the two splits. Dependencies: 08, 09 and 13 wait for 07b; 16b waits for 16a; 17 and 26 wait for 16b. Lane A's order lists all four. Sizing: "except six", naming 07b and 43. The totals were re-summed by script from the table: server 80 h, client 44 h, documents 8 h, **132 h**. That is 4 h over ADR-H1's ≈ 128 h, and the text says so. The S7 minimum is **109 h**, about seven working days for two engineers. There are 48 tasks, with 37 in the minimum (39 with 29 and 39) | plan.md:346-351, :385-386, :395-396, :423, :426-441, :455-456 |
+| **M4** citations | Every part that cited task 07 or task 16 now names the half that holds the fact: tasks 00, 05, 06, 08, 09, 11, 13, 15, 17, 18, 19, 20, 24, 25, 26, 27, 42 and 44a, and the plan's file map, correction rows and unverified list. A word-match grep over the plan and parts for a bare `07` or `16` finds only the sentences that describe the split | 748d064, 04fba4c |
+
+For batch M3, which is not this batch: lane A's serial path to S7 is now tasks 01–08 (with 07a and
+07b) and 13–24 (with 16a and 16b). Summed from the table by script, that is **63.5 h**, where the
+review's M3 had 57 h. M3's own fix should use the new figure.
+
+Unverified, all from knowledge:
+- that `SELECT … FOR UPDATE` needs `UPDATE` privilege;
+- that `WITH CHECK` runs after `BEFORE` triggers (if it runs before, `TestAuditAppendChecksTheOrgFirst`'s mutant survives, and 07b's commit records that);
+- that a row lock taken inside a `SECURITY DEFINER` function is held by the caller's transaction;
+- that Azure point-in-time restore keeps the log for the backup window.
+
+07b's tests pin the first three. The fourth stays open until phase 8. Nothing was compiled or run:
+this batch changes only documents, so there were no mutants to run.
