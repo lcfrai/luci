@@ -113,6 +113,15 @@ build stream with `args {"stream":"p3","cleared":["b02"]}`.
   a team sees each member's work, agents and focus, and spins up its own agents that know what
   every other agent is doing.
 - **p3-ruling-r4**, run `wf_edf4498c-78e`.
+- **Linear parity-plus research, design and prototype**, run `wf_a368c5a8-fc0` (the session's
+  `workflows/scripts/linear-parity-plus-wf_a368c5a8-fc0.js`). Its output is
+  `docs/superpowers/planning/2026-09-25-linear-parity/` (00-summary, 01-04 research, 05-design,
+  06-07 critiques) and `prototype/work-layer.html`. The owner's ask: "everything Linear does and
+  more … prettier, better", plus the agent and provenance edge.
+- The team-collab research resumed as task `whrp1f8cb` (same run `wf_939b83b5-17a`), with the
+  OD-14 to OD-20 DIRECTION in its design, critique and revise prompts.
+- Owner decisions now run OD-1 to OD-20. OD-18: Azure. OD-19: org ZDR inference via a gateway
+  (Global Anthropic by default, AU Bedrock on trigger). OD-20: local for now, cloud-first.
 
 ## 4. After phase 2's fix rounds finish
 
