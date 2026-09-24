@@ -212,7 +212,7 @@ git diff control-plane/go.mod | grep "^[-+]" | grep -v "^[-+][-+]"              
 
 #### What this task does not claim
 
-- Any authorisation by role or membership: tasks 15 and 16.
+- Any authorisation by role or membership: tasks 15, 16a and 16b.
 - That the limits are right for production traffic; they stop runaway loops (§11.3).
 - That per-replica limits add up: with two replicas the effective limit is up to double
   (contract §11.3, accepted).

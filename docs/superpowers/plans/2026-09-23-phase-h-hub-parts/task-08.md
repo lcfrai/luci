@@ -209,7 +209,7 @@ func (s *Server) BeginShutdown()
 // handle registers "METHOD /path" on the mux and records the path for the 405 rule.
 func (s *Server) handle(pattern string, h http.HandlerFunc)
 
-// Patterns lists every registered "METHOD /path", in registration order. Task 16's
+// Patterns lists every registered "METHOD /path", in registration order. Task 16b's
 // matrix meta-test and task 34's conformance harness read it, so neither keeps a
 // hand-maintained list of routes.
 func (s *Server) Patterns() []string

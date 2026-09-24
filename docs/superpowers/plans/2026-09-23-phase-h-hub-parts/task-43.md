@@ -1,6 +1,8 @@
 ### Task 43: the end-to-end proof — two teammates through `devissuer`; the real-tenant checklist; the results record
 
-**`feat/hub`, after every other task. Depends on: 01–42. About 3 hours. Contract tasks H1 (its manual step), all.**
+**`feat/hub`, after every other task. Depends on: 01–42. About 5 hours (3 before review M4: a 12-step end-to-end test, debugged
+across two control planes and a Hub, plus a re-run of every other task's acceptance block, does
+not fit 3). Contract tasks H1 (its manual step), all.**
 
 Every task so far proved its piece. This one proves **the thread**: two teammates, each with their
 own control plane and their own credential store, sign in through the real PKCE code, share one
