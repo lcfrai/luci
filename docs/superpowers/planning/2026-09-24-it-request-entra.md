@@ -53,6 +53,45 @@ Dylan
 
 ---
 
+## Part 2 — only when the new environment is provisioned (phase 8)
+
+Not needed yet. The Terraform is written, formatted and validated, and nothing is planned or
+applied until this exists. Source: `feat/env`,
+`docs/superpowers/planning/env/survey-own-environment.md` §7 and the phase 8 plan's P8-D decisions.
+
+**Before the first `terraform plan`:**
+1. **A dedicated Azure subscription**, its tenant id, and the region. Recommended: **Australia East**
+   (three availability zones).
+2. **vCPU quota** in that region for a nested-virtualisation Gen2 SKU (`Standard_D8s_v5`), which Kata
+   pod sandboxing needs, plus the system and apps pools.
+3. **A deploy identity** with role-assignment rights, scoped by an ABAC condition to a role allowlist
+   (the simpler alternative is Owner on the subscription). Four pipeline identities split by duty:
+   plan/read-only, infra, cluster, push. The owner grants each one's roles.
+4. **An Azure DevOps project** with a workload-identity-federation service connection to the
+   subscription, paid parallel jobs, and a VNet-injectable agent pool (Managed DevOps Pool), or the
+   right to create one.
+5. **A Terraform state location** (storage account with versioning, soft delete and Entra-only
+   access), or the right to create it.
+
+**Before the first apply:**
+1. **DNS**: a name, its delegation from the parent zone, and the certificate policy. Is a public
+   ACME CA allowed, or must certificates come from a KPMG CA?
+2. **Network posture**: internet-facing with a KPMG IP allowlist, or corporate-only through peering
+   or ExpressRoute? Plus a VNet address space that does not overlap the corporate network.
+3. **Data classification** (for example, PROTECTED or not). It decides sandbox egress: NAT with
+   network policy, or an FQDN-allowlist Azure Firewall at roughly A$1.5–2k a month more. It also
+   decides customer-managed keys and Defender.
+4. **A monthly budget**, with alert recipients.
+5. **Entra groups**: cluster admins (AKS Entra RBAC), and a Postgres admin group. The Hub's
+   database roles are created once by a human member of that group, never by a pipeline.
+
+**Before real users:**
+- Confirmation that sandboxes may reach Anthropic and the other model providers from Azure egress
+  IPs, using users' own subscriptions.
+- The Azure Policy assignments on the subscription, and exemptions if they block Kata SKUs, public
+  IPs or the chosen network plugin.
+- Who is on call, and the log-retention period ISM requires.
+
 ## Owner questions the Hub builds the recommended answer for (OD-1)
 
 These are **accepted by default**. Tell the orchestrator if you disagree.
