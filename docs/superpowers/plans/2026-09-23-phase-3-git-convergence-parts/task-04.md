@@ -188,7 +188,7 @@ func (a *API) registerGit(mux *routes) {
 | `name` fails `lanes.ErrBadName` | 400 `bad_request` | message is `ErrBadName`'s rule |
 | unknown project | 404 `project_not_found` | `projectId` |
 | name taken or directory exists | 409 `conflict` | `reason: name_taken` |
-| host git older than 2.40 | 409 `conflict` | `reason: git_too_old` |
+| host git older than 2.48 (task 02's `MinVersion`; review r4-1 M-4) | 409 `conflict` | `reason: git_too_old` |
 | the clone failed | 500 `git_failed` | `gitSays` |
 
 ```go
