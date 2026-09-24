@@ -11,8 +11,10 @@ never parses a pasted string into DOM (G7).
 
 ## Files
 
-- `control-plane/internal/designapi/paste.go` + test (new) — route 27
-- `canvas/editor/src/editor/paste.ts`, `copy.ts` + tests (new); `keys.ts` wires `Mod+c/v/x` (task 25's table)
+- `control-plane/internal/designapi/paste.go` + test (new) — route 27; `routes.go` gains route 27,
+  edited only after task 22's routes are merged (plan, "Two lanes never edit one file")
+- `canvas/editor/src/editor/paste.ts`, `copy.ts` + tests (new); `keys.ts` wires `Mod+c/v/x` (task 25's table),
+  after task 25's merge
 
 ## Contracts
 

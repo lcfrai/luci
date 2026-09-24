@@ -383,7 +383,7 @@ passes (`control-plane/internal/harness/argv.go:80-125`).
 | `internal/api/routes_audit_test.go` | the new GET routes in `catalogReadOnlyRoutes`; `TestPreflightAllowsEveryRegisteredMethod` (review I3) | 20a |
 
 **`sandboxd/`**: `internal/mcprelay/` (new: `frame.go`, `listener.go`, `channel.go`), `internal/server/server.go`
-(`/mcp-channel`), `cmd/sandboxd/main.go` (`-mcp-listen`) — task 18.
+(`/mcp-channel`), `cmd/sandboxd/main.go` and `cmd/sandboxd/serve_posix.go` (`-mcp-listen`) — task 18.
 
 **`images/sandbox/`**: `canvas-upload.cjs` (new, installed as `/usr/local/bin/canvas-upload`) and
 `Dockerfile` (one `COPY`; `canvas-upload` added to the `chmod`) — task 16, review I12. Its test is
@@ -398,12 +398,12 @@ shebang stays LF under this machine's `core.autocrlf=true`) — task 16, re-revi
 |---|---|---|
 | `package.json`, `vite.config.ts`, `vitest.config.ts`, `tsconfig.json` | the `file:` dependency; `resolve.dedupe` for React; `server.fs.allow` for `../canvas/editor`; `paths` pinning one `@types/react` — **declared amendments** | 03 |
 | `src/api/design.ts`, `src/api/events.ts` (new) | the design client; the SSE reader | 27 |
-| `src/design/` (new) | `designTypes.ts`, `designSlice.ts`, `transportAdapter.ts`, `DesignLens.tsx`, `ApprovalBar.tsx`, `DesignSide.tsx`, `Presence.tsx`, `Comments.tsx`, `design.css` | 27, 28 |
+| `src/design/` (new) | `editorPackage.test.tsx`, the one-React test across the package boundary (03); `designTypes.ts`, `designSlice.ts`, `docstores.ts`, `transportAdapter.ts`, `selectors.ts` (27); `DesignLens.tsx`, `DesignTop.tsx`, `ApprovalBar.tsx`, `DesignSide.tsx`, `Presence.tsx`, `Activity.tsx`, `Comments.tsx`, `DesignRenderers.tsx`, `DesignContextChip.tsx`, `design.css` (28) | 03, 27, 28 |
 | `src/store/store.ts`, `src/store/selectors.ts` | mount the slice (not persisted); one key-source selector (S4-P5.1) | 27 |
 | `src/components/AppShell.tsx` | the `design` arm renders `<DesignLens/>` in place of `LensPlaceholder` (`:36-43`); one `<DesignRenderers/>` beside `<Toasts/>` for the hidden renderers (P5-Q) | 28 |
 | `src/api/client.ts` | the `ProblemCode` union gains the design codes — **declared amendment** of UI contract §4.2 | 27 |
 
-**Repository**: `go.work` (task 02); `tools/licencegate/` (new module: `main.go`, `gate.go`, `spdx.go`, `classify.go`, `sources.go`,
+**Repository**: `go.work` (task 02's `./canvas`, then task 04's `./tools/licencegate`); `tools/licencegate/` (new module: `main.go`, `gate.go`, `spdx.go`, `classify.go`, `sources.go`,
 `imports.go`, `canon_windows.go`, `canon_other.go`, `imports.cjs`, `exceptions.json`, `testdata/`) and `azure-pipelines.yml` (tasks 02–04);
 `docs/superpowers/contracts/2026-09-23-phase-5-design-contract.md` (new, task 30: the wire contract
 gathered from the parts), and amendments to the phase 2 UI contract §10.5 and `PROGRAM.md` phase 5
@@ -421,7 +421,7 @@ tasks; each part says what it codes against until that task lands.
 | # | Task | Depends on | External | Hours |
 |---|---|---|---|---|
 | 01 | **Spike**: the script-less artboard iframe in WebView2 — measure, hit-test, text overlay, keys, PNG (fidelity and capture time per artboard, review I5), CSP, a render request while minimised (S11, review I4) | — | — | 2.5 |
-| 02 | The `canvas/` Go module, `go.work`, the control plane's `replace`, CI build/test/vet | — | — | 1 |
+| 02 | The `canvas/` Go module, `go.work`, CI build/test/vet (the control plane's `require` and `replace` are task 19's, G1) | — | — | 1 |
 | 03 | The `canvas/editor` npm package, the desktop's `file:` dependency and its three declared config amendments | — | — | 1.5 |
 | 04 | **The licence gate**: `tools/licencegate`, SPDX evaluation, deny list, exceptions, structural first party, the shipped-import scan, the Cargo report (review I9, I10), CI step | 02, 03 | — | 4 |
 | 05 | The document model, ids, the design key, fractional order | 02 | — | 2 |
@@ -481,8 +481,14 @@ provenance): 20a after Lane B's 14 and Lane C's 19, then 20b after Lane B's 17, 
 joins D and E; 27 and 29 need only 20a. **Two lanes never edit one file**: the
 only shared files are `control-plane/go.mod` (19 only), `internal/api/api.go` (19, then 20a),
 `internal/api/sessions.go` (19 only), `internal/httpx/problem.go` (20a only) and
-`azure-pipelines.yml` (02, then 03, then 04, in that order). Inside Lane E, `designapi/mount.go`
-is 20a's, then 21's, and `cmd/api/design.go` is 20b's, then 21's one `Hub` line.
+`azure-pipelines.yml` (02, then 03, then 04, in that order), `go.work` (02's `./canvas`, then
+04's `./tools/licencegate`), `control-plane/internal/designapi/routes.go` (20a, then 21's three
+routes, then 22's three, then the desktop lane's 29, route 27, which lands after 22 although the
+waves run 22 and 29 together) and `canvas/editor/src/editor/keys.ts` (Lane D's 25, then the
+desktop lane's 29, `Mod+c/v/x`). A later task does not start its edit of a shared file until the
+earlier task's commit is merged into the integration branch its worktree was cut from. Inside Lane E, `designapi/mount.go`
+is 20a's, then 21's `Hub`, then 22's `HandoffGit`, and `cmd/api/design.go` is 20b's, then 21's
+one `Hub` line, then 22's one `HandoffGit` line.
 
 ---
 
