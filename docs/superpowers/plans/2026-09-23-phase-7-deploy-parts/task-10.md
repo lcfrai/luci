@@ -31,13 +31,40 @@ package ship
 // withReservation is the one reserve → act → confirm-or-abandon sequence (task 09, steps 5-8).
 // act returns the run it started ("" for a rollback, which starts none) or a *deploy.Error.
 // confirm builds the ConfirmRequest from act's result: {pipelineRun} for a run, {} for a rollback.
+// Every error it returns after the reserve succeeded is wrapped with ErrAfterReserve (task 09
+// step 6), for Rollback and Rebuild as for Ship, so each route passes {"reserved": true}
+// (re-review I-2). words picks step 6's abandon sentence by the error's class.
 func (o *Orchestrator) withReservation(
 	ctx context.Context,
 	projectID, hubProjectID string,
 	reserve hubapi.ReserveRequest,
 	act func(ctx context.Context) (run string, err error),
 	confirm func(run string) hubapi.ConfirmRequest,
+	words AbandonWords,
 ) (hubapi.Release, string, bool, error)
+
+// AbandonWords are step 6's abandon messages, one per class of act error (task 05's classes).
+// A refusal (KindForbidden … KindUnauthorized) always abandons with e.Message, never these.
+type AbandonWords struct {
+	NoAnswer string // KindUnavailable, Status 0, 502 or 504
+	Accepted string // KindUnavailable, Status 2xx: an answer the connector could not use
+	Failed   string // every other error, the catch-all included
+}
+
+// BuildWords — Ship and Rebuild, word for word task 09 step 6's:
+//   NoAnswer "Panacea did not answer in time. It may still have started the build; if a run
+//            appears, it will show with no brief recorded."
+//   Accepted "Panacea accepted the build but did not name its run. If a run appears, it will
+//            show with no brief recorded."
+//   Failed   "Panacea could not start the build."
+// RollbackWords — Rollback:
+//   NoAnswer "Panacea did not answer in time. It may still have rolled back; look at the
+//            history before trying again."
+//   Accepted "Panacea answered for a different release, so this rollback was abandoned. Look
+//            at the history before trying again."   (task 04's id mismatch, a 2xx)
+//   Failed   "Panacea answered the rollback with an error. Look at the history before trying
+//            again."
+var BuildWords, RollbackWords AbandonWords
 
 type RollbackRequest struct {
 	ProjectID      string
@@ -66,7 +93,7 @@ type RollbackResult struct {
 //   reserve {kind:"rollback", panaceaProject, environment: <that deployment's environment>,
 //            sourceDeploymentId: DeploymentID}  — the Hub copies the source's pin (R5);
 //   act: Actor.Rollback(ref, DeploymentID); a result whose SourceDeploymentID != DeploymentID
-//     is treated as KindUnavailable (task 04) and abandoned;
+//     is treated as KindUnavailable (task 04, Status 200) and abandoned; words: RollbackWords;
 //   confirm: {} — NEVER a deploymentId (HA7-2);
 //   then Tracker.Nudge.
 func (o *Orchestrator) Rollback(ctx context.Context, req RollbackRequest) (RollbackResult, error)
@@ -97,7 +124,7 @@ type RebuildRequest struct {
 //   reserve {kind:"run", panaceaProject, environment: source.Environment, branchRef, commit:
 //            source.Commit, briefId: null, designKey: <the source release's designKey or null>,
 //            sourceDeploymentId: source.ID} — the Hub pins "inherited" (Hub contract §7.9);
-//   act: Actor.Ship(ref, {branch, source.Commit, NoCache});
+//   act: Actor.Ship(ref, {branch, source.Commit, NoCache}); words: BuildWords (a Rebuild is a Ship);
 //   confirm: {pipelineRun}; Tracker.Track + Nudge.
 func (o *Orchestrator) Rebuild(ctx context.Context, req RebuildRequest) (Result, error)
 
@@ -125,7 +152,8 @@ POST /v1/projects/{projectId}/deploy/deployments/{deploymentId}/rollback
   409 deploy_precondition         reason ∈ not_bound | no_hub_project | no_environment (the target's
                                   Environment is "": Panacea would roll it into production, b07 round 2, I-1)
   409 conflict · deploy_not_connected · deploy_token_rejected
-  503 upstream_unavailable        panacea (abandoned) or hub (nothing happened)
+  503 upstream_unavailable        panacea (abandoned: details.status, and details.reserved true, re-review I-2)
+                                  or hub (nothing happened)
 
 POST /v1/projects/{projectId}/deploy/deployments/{deploymentId}/rebuild
   header  Idempotency-Key (required)
@@ -154,7 +182,8 @@ Rebuild because the code is `deploy_conflict` on a rollback, and prints the sent
 | `TestRollbackUnknownSource` | `d9` has no Hub release → pin `none/source_unknown`; the rollback still happens | refusing a rollback because it has no brief |
 | `TestRollbackPrunedImageAbandons` | Panacea's 409 → `Abandon` with that sentence; route `409 deploy_conflict` | a reservation left dangling after a refusal |
 | `TestRollbackRefusesNoEnvironment` | target `d-old` with `Environment: ""`, `Branch: "feat-x"`, `build "succeeded"`, and a snapshot row `feat-x` (branch `feat-x`) that task 08 rule 1b joins it to → `409 deploy_precondition` `no_environment` with *"Panacea recorded no environment for this release, so a rollback would land in production."*; the Hub fake saw no `Reserve` and the Panacea fake saw no call (b07 round 2, I-1) | reading rule 1b's `environmentRow` (or the row's `branch`) as the rollback's environment, which Panacea sends to `tenant-<project>`, production (`handlers/projects.go:1612`, `clients/kubernetes.go:5887`, `:4213`) |
-| `TestRollbackIdMismatchAbandons` | the connector reports a different id → abandoned, `503` | confirming a rollback whose premise broke |
+| `TestRollbackIdMismatchAbandons` | the connector reports a different id (`KindUnavailable`, `Status 200`) → abandoned with `RollbackWords.Accepted`, `503` with `details.status 200` and `details.reserved true` | confirming a rollback whose premise broke; an id mismatch told *"did not answer in time"* (re-review M-4) |
+| `TestRerunErrorsAreReserved` | after the reserve, the Panacea fake answers `KindUnavailable` with `Status` `0`, then `503`: Rollback → `Abandon` with `RollbackWords.NoAnswer`, then `.Failed`; Rebuild → `BuildWords.NoAnswer`, then `.Failed`. Each route answer is `503 upstream_unavailable` with that `details.status` and `details.reserved true`; a Rollback refused by `no_environment` (before any reserve) carries no `reserved` key | a Rollback or Rebuild whose error after a reserve reads *"could not be reached, so nothing was sent"* while a Hub release was reserved and abandoned; Ship's build words on a rollback (re-review I-2) |
 | `TestRebuildUsesExactCommit` | source `Commit` 40 hex → Panacea body `{"branch":…, "commit":<that>}` | Panacea's `/redeploy` path, which builds the branch head |
 | `TestRebuildRefusesSymbolicCommit` | source `Commit: "main"` → `409 deploy_precondition` `no_exact_commit`; no reserve | rebuilding "whatever main is now" under an inherited pin |
 | `TestRebuildPrefersHubBranchRef` | source `Branch: "feat-x"`, its release `branchRef: "refs/heads/feat/x"` → Panacea gets `feat/x` | cloning a sanitised label that is not a branch (`Deployment.branch` is the run label, `pipeline.go:609`; settled in b02, deviation 3) |

@@ -261,10 +261,17 @@ status useless to the desktop, which switches on the **code** anyway (`problems.
 //
 //   deploy.KindNotConnected → 409 deploy_not_connected, "Connect to Panacea first."
 //   deploy.KindUnavailable  → 503 upstream_unavailable, details {"upstream":"panacea","status":e.Status}
-//                             (+ "retryAfter" when set). The sentence is "Panacea could not be reached,
-//                             so nothing was changed." when Status > 0, and "Panacea did not answer, so
-//                             the cockpit cannot tell whether it acted." when Status == 0: a timeout or
-//                             a reset, where the request may have landed (review M26)
+//                             (+ "retryAfter" when set). The sentence follows e.Status's class, the
+//                             same five task 13's upstreamAnswer names (review M26, re-review I-2, M-4):
+//                               0, 502, 504 (none)  "Panacea did not answer, so the cockpit cannot tell
+//                                                    whether it acted." — a timeout, a reset, or a
+//                                                    gateway that gave up: the request may have landed
+//                               200-299 (accepted)  "Panacea answered, but not in a form the cockpit
+//                                                    can use, so it cannot tell what Panacea did."
+//                               other 5xx (error)   "Panacea answered with an error. Look at the
+//                                                    history before trying again." — it received it
+//                               other (refused)     "Panacea, or a proxy in front of it, refused the
+//                                                    request before acting, so nothing was changed."
 //   deploy.KindUnauthorized → 409 deploy_token_rejected, e.Message
 //   deploy.KindForbidden    → 403 deploy_forbidden,      e.Message
 //   deploy.KindNotFound     → 404 deploy_not_found,      e.Message
@@ -277,8 +284,11 @@ status useless to the desktop, which switches on the **code** anyway (`problems.
 // Every deploy_* problem, and Panacea's upstream_unavailable, carries details
 // {"upstream":"panacea","status":<e.Status, a JSON number; 0 = no HTTP answer>} (review M26:
 // the desktop reads status 0 as "Panacea may have acted"). extra, when given, is merged into
-// details and never replaces "upstream" or "status": task 09's Ship passes {"reserved":true} for
-// an error after its step 5 reserved a release, so the desktop can tell "nothing was sent" apart.
+// details and never replaces "upstream" or "status": every route whose act reserved a release
+// first — task 09's Ship, task 10's Rollback and Rebuild — passes {"reserved":true} for an error
+// returned after the reserve (errors.Is(err, ship.ErrAfterReserve): task 09 declares it, task
+// 10's withReservation wraps with it), so the desktop can
+// tell "nothing was sent" apart (review M26, re-review I-2).
 func (a *API) writeDeployError(w http.ResponseWriter, r *http.Request, op string, err error, extra ...map[string]any)
 ```
 
@@ -310,7 +320,7 @@ The Hub rows compile only once Hub C2's `hubclient` exists; until then they are 
 | `TestConnectionGETNeverHasToken` | after `PUT` with `pnc_abcdef`, the `GET` body contains neither `pnc_` nor `abcdef` | an `Account`-style struct growing a token field |
 | `TestPutRejectsNonPncToken` | `"token": "eyJhbGciOi…"` → 400 with the sentence; nothing stored | storing a pasted JWT |
 | `TestWriteDeployErrorTable` | one sub-test per row of `writeDeployError` | a 401 on this surface for a Panacea token |
-| `TestUpstreamUnavailableCarriesStatus` | `KindUnavailable` with `Status 0` → 503, `details.status` the JSON number `0` (decoded as `float64`, not a string), the *"did not answer"* sentence; `Status 503` → `details.status 503`, the *"could not be reached"* sentence; `Status 0` with `extra {"reserved":true, "status":7}` → `details.reserved true` and `details.status` still `0` | an `upstream_unavailable` with no status, so the desktop tells a user a Ship that may have started *"was not started"*; `status` spelled as a string, which `=== 0` never matches (review M26) |
+| `TestUpstreamUnavailableCarriesStatus` | `KindUnavailable` with `Status 0` → 503, `details.status` the JSON number `0` (decoded as `float64`, not a string), the *"did not answer"* sentence; `Status 504` → the same sentence; `Status 202` → the *"not in a form the cockpit can use"* sentence; `Status 503` → `details.status 503`, the *"answered with an error"* sentence; `Status 429` → the *"refused the request before acting"* sentence; `Status 0` with `extra {"reserved":true, "status":7}` → `details.reserved true` and `details.status` still `0` | an `upstream_unavailable` with no status, so the desktop tells a user a Ship that may have started *"was not started"*; `status` spelled as a string, which `=== 0` never matches (review M26); a 5xx told *"nothing was changed"* although Panacea received it (re-review I-2) |
 | `TestConfigPanaceaURL` | `https://dev.panacea.kpmg/api` exits with the path sentence; `http://…` exits | the doubled `/api` (measured 404) |
 | `TestRoutesAudit` | the existing §10a audit passes with `GET /v1/deploy/connection` in `catalogReadOnlyRoutes` | — (the audit is phase 2's) |
 | `TestPreflightAllowsPut` (`origin_test.go`) | `OPTIONS` from `http://tauri.localhost` with `Access-Control-Request-Method: PUT` → 204, and `PUT` is one of the comma-separated entries of `Access-Control-Allow-Methods` | `corsMethods` unchanged: every phase 7 `PUT` is refused at the preflight |

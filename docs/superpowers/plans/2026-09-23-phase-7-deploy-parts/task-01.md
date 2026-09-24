@@ -515,7 +515,11 @@ type Error struct {
 	// Message is the deploy target's own sentence, safe to render verbatim, at most 500 bytes.
 	// It is "" for KindUnavailable: a 5xx sentence can carry internal detail and is only logged.
 	Message    string
-	Status     int           // the upstream HTTP status; 0 for a transport failure
+	// Status is the upstream HTTP status received: 0 for a transport failure, and, for an error
+	// the connector builds from an unusable 2xx answer (an empty run name on a 202, a rollback
+	// answering for another id, an empty env), that 2xx. Task 05 and task 13 read its class, so
+	// it is never left 0 once an answer arrived (re-review M-4).
+	Status     int
 	RetryAfter time.Duration // from a 429 or 503, else 0
 	Op         string        // "ship", "rollback", "environments", … for the log line
 	Cause      error         // logged, never rendered

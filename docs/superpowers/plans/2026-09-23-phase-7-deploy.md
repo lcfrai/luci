@@ -366,8 +366,12 @@ body is `{"error":"<sentence>"}` — `writeError` → `models.APIResponse{Error}
 `http.Error` with a JSON literal (`auth.go:250`, `rbac.go:398-400`; that last form arrives as
 `text/plain`, so the decoder reads the body regardless of `Content-Type`). The mapping is task 02's
 table: transport failure, timeout, `5xx` and `429` → `503 upstream_unavailable`
-(`upstream = "panacea"`, and `status`, the upstream HTTP status, `0` when there was no answer, so
-the desktop never says *"nothing was sent"* of a request that may have landed; review M26); `401` → `409 deploy_token_rejected`; `403` → `403 deploy_forbidden`; `404`
+(`upstream = "panacea"`, and `status`, the upstream HTTP status received: `0` when there was no
+answer, a 2xx when the connector could not use the answer. Its class — no answer (`0`, `502`,
+`504`), accepted, error (another 5xx: Panacea received it), refused — picks the sentence, so the
+desktop never says *"nothing was sent"* of a request that may have landed or that Panacea
+answered; every act that reserved a release first adds `reserved: true`; review M26, re-review
+I-2 and M-4); `401` → `409 deploy_token_rejected`; `403` → `403 deploy_forbidden`; `404`
 → `404 deploy_not_found`; `409` → `409 deploy_conflict`; `402` → `409 deploy_conflict` too, with
 its sentence (the deploy route's budget and risk gates, `projects.go:2856`, `:2916-2918` — a
 refusal to abandon, not an outage; review I2); `400`/`422` → `422 deploy_rejected`. The

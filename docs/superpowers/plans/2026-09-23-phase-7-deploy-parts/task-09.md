@@ -27,6 +27,11 @@ never chooses which revision is pinned; it sends the branch, and the Hub resolve
 // chooses a pinned revision.
 package ship
 
+// ErrAfterReserve marks every error returned after a release was reserved (step 6). The route
+// tests errors.Is(err, ErrAfterReserve) and only then passes {"reserved": true} to
+// writeDeployError (task 05; re-review I-2).
+var ErrAfterReserve = errors.New("a release was reserved, then abandoned")
+
 // Branch is phase 3's reading of one local branch against its remote (phase 3 task 08:
 // remote.State plus Convergence.Tip).
 type Branch struct {
@@ -216,14 +221,24 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
      `KindConflict` with their sentence (task 02's table), so a paused budget abandons at once with
      Panacea's reason and answers `409 deploy_conflict`, never `503 upstream_unavailable`
      (review I2).
-   - **5xx** (`KindUnavailable` with `Status >= 500`) → `Abandon(…, message: "Panacea could not
-     start the build.")`; return the error.
-   - **No answer** (`KindUnavailable`, `Status == 0` — timeout, reset) → `Abandon(…, message:
-     "Panacea did not answer in time. It may still have started the build; if a run appears, it
-     will show with no brief recorded.")`; return the error. This is the one ambiguous case:
-     `POST …/deploy` spends up to 15 s creating the PipelineRun (`projects.go:2985-2993`), and a
-     run created after our timeout would show unpinned — honestly, because confirming it by
-     branch and commit would be pinning by observation (P2).
+   - **5xx** (`KindUnavailable` with `Status >= 500`, except 502 and 504) → `Abandon(…, message:
+     "Panacea could not start the build.")`; return the error. This is true of Panacea's own 500:
+     every `TriggerPipelineRun` error before the create returns before anything exists, and the
+     create uses its own 15 s `context.Background()` (`pipeline.go:687-690`, `:710-716`), not the
+     handler's `createCtx` (`projects.go:2985-2991`), so a `createCtx` expiry creates nothing. The
+     one remainder: a create call that times out after the Kubernetes API server stored the run.
+     That run then shows unpinned through the watcher, the same honest fallback as no answer
+     (re-review b08 round 1, ruling).
+   - **No answer** (`KindUnavailable`, `Status` 0 — timeout, reset — or a gateway's 502 or 504) →
+     `Abandon(…, message: "Panacea did not answer in time. It may still have started the build; if
+     a run appears, it will show with no brief recorded.")`; return the error. This is the
+     ambiguous case: `POST …/deploy` spends up to 15 s creating the PipelineRun
+     (`projects.go:2985-2993`), and a run created after our timeout would show unpinned —
+     honestly, because confirming it by branch and commit would be pinning by observation (P2).
+   - **Accepted, no run** (`KindUnavailable` with a 2xx `Status`: task 04's `202` with an empty
+     `pipelineRun`) → `Abandon(…, message: "Panacea accepted the build but did not name its run. If
+     a run appears, it will show with no brief recorded.")`; return the error. Panacea said
+     *"deployment started"*, so "could not start" would be false (re-review M-4).
    - **Any other error** — every `*deploy.Error` the three branches above do not name (task 02's
      table gives `KindUnavailable` with `0 < Status < 500` for a 429 and for its *"any other"*
      row, such as a proxy's 405, 408 or 410), and any error that is not a `*deploy.Error` at all →
@@ -234,8 +249,11 @@ GET /v1/projects/{projectId}/deploy/ship-readiness?branchId=b-…
      at 8292f3f26); whether an edge in front of it can is unverified.
    - An `Abandon` that fails is logged; the reservation then expires on its own (Hub contract
      §7.9, `expiresAt`).
-   - Every error this step returns reaches the route through `writeDeployError(…, err,
-     map[string]any{"reserved": true})` (task 05), so the problem says a release was reserved.
+   - Every error this step returns is wrapped as `fmt.Errorf("%w: %w", ErrAfterReserve, err)`, so
+     `errors.As` still finds the `*deploy.Error`, and the route, seeing `errors.Is(err,
+     ErrAfterReserve)`, answers through `writeDeployError(…, err, map[string]any{"reserved":
+     true})` (task 05), so the problem says a release was reserved. Task 10's `withReservation`
+     carries this step, and the wrap, to Rollback and Rebuild (re-review I-2).
      With `details.status` it lets the desktop tell *"not started"* (a status) from *"may have
      started"* (status `0`), and both from step 4's *"nothing was sent"* (review M26).
 7. **Confirm** — `Releases.Confirm(release, {pipelineRun: run})`. `hubclient` retries a transport
@@ -268,8 +286,9 @@ POST /v1/projects/{projectId}/deploy/ship
   403 deploy_forbidden · 404 deploy_not_found · 409 deploy_conflict · 422 deploy_rejected
                                   Panacea refused; the release was abandoned with its sentence
                                   (deploy_conflict includes Panacea's 402 budget and risk refusals)
-  503 upstream_unavailable        details.upstream "panacea", with details.status (a number; 0 = no HTTP
-                                  answer, so Panacea may have started the build) and, from step 6 only,
+  503 upstream_unavailable        details.upstream "panacea", with details.status (a number; 0, 502 or 504 =
+                                  no answer, so Panacea may have started the build; a 2xx = Panacea
+                                  accepted it and named no run; task 13's upstreamAnswer) and, from step 6 only,
                                   details.reserved true (a release was reserved, then abandoned; step 4's
                                   EnvironmentFor failure carries no reserved: nothing was reserved or sent);
                                   or "hub" (nothing happened) (review M26)
@@ -290,6 +309,7 @@ is retried with the same key.
 | `TestRefusalAbandonsWithSentence` | Panacea `409` *"…"* → `Abandon` with `reason "deploy_failed"` and exactly that message; the route answers `409 deploy_conflict` | a refused Ship leaving a reservation that expires silently |
 | `TestBudgetRefusalAbandonsWithSentence` | the fake's `Ship` answers `KindConflict`, `Status 402`, *"new deploys are paused: this project has reached its monthly hosting budget; …"* (task 04's `ship-402-budget.json`) → `Abandon` once, `reason "deploy_failed"`, exactly that message; no `Confirm`, no `Track`; the route answers `409 deploy_conflict` with the sentence, and `details.upstream` is absent | a 402 treated as an outage: `503 upstream_unavailable`, the lens switching acts off, and a reservation left to expire after 15 minutes (review I2) |
 | `TestTimeoutAbandonsAmbiguously` | Panacea times out → `Abandon` message is the ambiguous sentence; no confirm; the route answers `503 upstream_unavailable` with `details.status 0` and `details.reserved true`. A `KindUnavailable` `Status 503` from `Ship` → `details.status 503`, `details.reserved true`. `EnvironmentFor` timing out (step 4) → `details.status 0` and no `reserved` key | confirming a run the control plane never saw named; a 503 without `status` or `reserved`, which makes the desktop say *"the release was not started"* of a build Panacea may have started, or say a build may have started when nothing was sent (review M26) |
+| `TestAnswerClassPicksAbandon` | the fake's `Ship` answers `KindUnavailable` with `Status` `504` → the ambiguous sentence; `202` (task 04's run-less 202) → *"Panacea accepted the build but did not name its run. …"*; `500` → *"Panacea could not start the build."*. Each route answer carries that `details.status` and `details.reserved true` | a gateway's 504 told "could not start" of a build Panacea may be creating; a run-less 202 told "could not start" after Panacea said *"deployment started"* (re-review I-2, M-4) |
 | `TestOtherErrorAbandons` | the fake's `Ship` answers `KindUnavailable`, `Status 429` (and, as a second case, a plain `errors.New`) → `Abandon` once, `reason "deploy_failed"`, message *"Panacea could not start the build."*; no `Confirm`, no `Track`; the error is returned (plan re-review b05 R-2) | a step 6 with no catch-all, so a 429 or a proxy's 405 leaves the reservation to expire after 15 minutes with no reason — I2's second half by another status |
 | `TestADOKeySpellingNamesTheCause` | a binding `Bound` with `HubProjectID ""`, `HubMiss "key_spelling"`, `RepoKey "kpmgcomau.visualstudio.com/engagement portal/portal"` (a form the Hub refuses under its correction A1) → `GET …/ship-readiness` answers `ready: false`, `reason "no_hub_project"`, the key-spelling sentence with that `RepoKey`, and the sentence contains neither `Azure DevOps` nor `GitHub`; `POST …/ship` answers `409 deploy_precondition`, `details.reason "no_hub_project"`, `details.cause "key_spelling"`; neither the Hub nor Panacea called. `HubMiss "not_linked"` → the *"not a shared project"* sentence and no `cause`. `HubMiss ""` → the *"has not answered"* sentence and `details.cause "hub_unanswered"` (review I6; plan re-review b05 R-3, R-4) | a repository told it is *"not a shared project in the Hub yet"* when the real cause is the spelling split, so nobody knows to fix it; a readiness keyed on `HubMiss != "key_spelling"`, which says *"not a shared project"* about a key the Hub never answered for; a sentence that names Azure DevOps for a GitHub key |
 | `TestNeverPushedPrecondition` | `Upstream ""` → `409 deploy_precondition` `never_pushed`; neither Hub nor Panacea called | reserving a release for a commit Panacea cannot clone |

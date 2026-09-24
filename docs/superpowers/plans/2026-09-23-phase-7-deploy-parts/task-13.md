@@ -291,10 +291,16 @@ export function classify(error: ApiError): ProblemKind {
 /** The name a sentence uses for details.upstream. Unknown → "a service the cockpit depends on". */
 export function upstreamName(error: ApiError): string; // "Panacea" | "the Hub" | "the design canvas" | …
 
-/** True only when details.status is the NUMBER 0: the upstream gave no HTTP answer (a timeout or
- *  a reset), so the request may have landed and a sentence must not say "nothing was sent" (task
- *  05; review M26). Absent, non-numeric or non-zero → false. */
-export function upstreamNoAnswer(error: ApiError): boolean;
+/** What details.status, a NUMBER, says about the upstream's answer (task 05 names the same five
+ *  classes server-side; review M26, re-review I-2 and M-4):
+ *   "none"     0, 502, 504 — no answer from the upstream itself (a timeout, a reset, or a gateway
+ *              that gave up on it): the request may have landed
+ *   "accepted" 200-299 — it answered success, and the connector could not use the answer
+ *   "error"    any other 500-599 — it, or its edge, answered with an error: it received the request
+ *   "refused"  any other number (a 3xx, a 429, a proxy's 405): refused before any handler acted
+ *   null       absent, or not a number ("0" included) — the Hub's outage carries no status */
+export type UpstreamAnswer = "none" | "accepted" | "error" | "refused";
+export function upstreamAnswer(error: ApiError): UpstreamAnswer | null;
 ```
 
 Each of the four call sites gains one `case "upstream-down":` with its own tail, e.g.
@@ -342,7 +348,7 @@ export const selectReleasePinKeys = (s: CockpitState): string[];
 | Test | Assertion | Mutant it kills |
 |---|---|---|
 | `classify maps upstream_unavailable` | → `"upstream-down"`; `details.upstream: "hub"` → `upstreamName` *"the Hub"* | routing Panacea's outage through `backend-down`, which says "Docker" (brief §4.1) |
-| `upstreamNoAnswer reads the number` | `details.status: 0` → true; `503`, `"0"`, absent → false | a truthiness test (`!details.status`) that reads an absent status as "no answer"; a string `"0"` accepted (review M26) |
+| `upstreamAnswer reads the number` | `details.status` `0`, `502`, `504` → `"none"`; `202` → `"accepted"`; `500`, `503` → `"error"`; `429`, `405` → `"refused"`; `"0"`, absent → `null` | a truthiness test (`!details.status`) that reads an absent status as "no answer"; a string `"0"` accepted (review M26); a gateway's 504 read as "Panacea answered", or a 202 read as a refusal (re-review I-2, M-4) |
 | `tsc fails without a case` | a fixture call site with no `upstream-down` case fails `tsc --noEmit` (the existing `designsystem`/guard pattern, grep of the three callers) | a `default:` added to quiet the compiler |
 | `cursor change loads once` | with branch `feat/x` selected, three `onDeployCursor` calls with new values while one load is in flight → one `view()` call, then one more after it settles, and both requests carry `?branch=feat%2Fx` (b02 round 2, R6) | a burst of fetches per tick, or a cursor path that drops the branch so the card vanishes on every tick |
 | `same cursor loads nothing` | the same value twice → zero `view()` calls | a fetch per tick in the steady state |
