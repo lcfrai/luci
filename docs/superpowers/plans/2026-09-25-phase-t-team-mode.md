@@ -406,3 +406,119 @@ running Hub. Task 51 (the prototype) has no dependency and starts in wave 1, so 
 is not on the critical path. TM1 and TM2 waves follow the same rule from their dependsOn columns.
 
 ---
+
+## Task scopes
+
+One paragraph each. A part writer works from its paragraph, this file's constraints, and the design
+sections it names; it does not need another part. `§` means `05-design.md`.
+
+### TM1-α
+
+**01 — ADR-H1 "delegated callers" amendment and the team-records contract.** Docs only, on the Hub
+branch after its sync-merge: a new ADR-H1 section and new contract sections, written **before any
+TM1 code** (§11.1 row 4, `06` I4). The amendment changes, each with the line it replaces: (a) `azp`
+(`ADR-H1:370`): Fleet's workload identity joins the allowed callers **only** on requests that name
+a delegation in `X-Panacea-Delegation: dl-…`; (b) actor (`:372`, `:434-435`): the actor is the
+delegation's owner, never a body field, recorded as `actor = owner, via = fleet, delegation = dl-…`,
+and the Hub refuses a write whose `ag-…` does not belong to that owner; (c) RLS (`:253`): the Hub
+sets `org_id` per request from the delegation's org; (d) the feed (`:252`): a per-org subscription
+for Fleet, team projects only; (e) `devissuer` gains a client-credentials grant. The contract gains
+§7.13 onward: every record of §3.3 that lives in the Hub (delegation, task, agent start/end, lease
+state change, conflict, thread, message, escalation, directive, orchestrator turn, human message,
+note, team policy, usage roll-up) with its route, fields, bounds, author class, audit event name
+and feed kind, plus §5.3 matrix rows. States the trusted-deputy risk (§2.4 item 5) in the ADR's
+risk list. Acceptance: every design field in §3.3 appears once; a grep for `actor` in a request body
+schema returns nothing. Does not claim the Hub accepts any of it; tasks 03–08 build it.
+
+**02 — `teamtext`.** `cp/internal/teamtext`, standard library only, used by the Hub deltas and
+Fleet alike. `type Author string` (`"agent"`, `"human"`); `type Text struct { Body string; Author
+Author; AuthorAgent string; Owner string; At time.Time }`; `func Bound(kind Kind, s string) error`
+with the limits of §3.3 as named constants (title 140, why-line 200, message 600, reason 300,
+question 300, directive 600, human message 2000, note 1000, brief title 120, path 200);
+`func Clean(s string) error` refusing C0/C1 controls, ANSI/CSI/OSC, bidi overrides and isolates,
+U+E0000–U+E007F, whitespace runs in names, and secret-shaped text (the patterns list is a fixed
+table in the part); `func ValidGlob(g string) error` (repo-relative, no `..`, no absolute, no
+backslash, ≤ 200 characters) and `func Breadth(globs []string, tracked []string) float64`. Tests
+first, one per rule, each naming its mutant (for example, dropping the tag-block range lets
+`U+E0041` through). Does not claim to catch persuasive text (§7.3).
+
+**03 — Hub wire types for team records.** `cp/internal/hub/hubapi/team.go` on the merged Hub
+branch, beside `types.go` (Hub task 03), with the complete Go struct and JSON tag for every record
+and request task 01 fixed; id prefixes `dl`, `tk`, `ag`, `ls`, `cf`, `th`, `ms`, `es`, `dv`, `ot`,
+`hm`, `nt` added to `keys.go`'s grammar through `ids.Wide`; enums (task state, lease mode and state,
+conflict tier and state, thread state, message kind, resolution kind, escalation kind, directive
+kind, turn origin, data class) as typed strings with `Valid()`; new problem codes in `codes.go`
+(`delegation_required`, `delegation_expired`, `agent_not_owner`, `text_refused`, `glob_refused`,
+`breadth_exceeded`). Every `text·A`/`text·H` field is a `teamtext.Text`. Golden JSON tests per
+type. Does not add routes.
+
+**04 — Hub migration for team records.** `cp/internal/hub/migrate/sql/00NN_team.sql`, numbered
+after the Hub's last migration at merge (Hub task 07a/07b is `0001_init.sql`, **UNVERIFIED until
+merge**). Tables for every Hub-owned record of §3.3, each with `org_id` under the Hub's RLS
+pattern, owner columns `(tid, oid)`, the author class on every text column, `CHECK` bounds that
+mirror task 02's constants, append-only guards (grants **and** triggers, as G4) on `message`,
+`directive` and `human_message`, `tombstoned_at` on note, message and human message (erasure keeps
+the audit event), and `ag_id` never a session id. Integration tests on Hub task 06's harness: a
+second org cannot read a row; an `UPDATE` on a message is refused; a 601-character message is
+refused by the database, not only by Go. Does not claim the Hub's erasure route covers these yet
+(task 46).
+
+**05 — Hub delegated-caller authentication.** Extends `cp/internal/hub/server/auth.go` (Hub task
+13, **UNVERIFIED until merge**): a request whose `azp` is Fleet's workload identity is refused
+unless it carries `X-Panacea-Delegation`; the delegation must exist, be unexpired and unrevoked,
+and list the route; the principal becomes the delegation's owner with `via` set; `org_id` for RLS
+comes from the delegation. The write transaction (Hub task 14) checks the body's `ag-…` against
+the owner's agents. `cp/internal/devissuer` gains a client-credentials grant so the Hub's offline
+proof (Hub task 43) can mint a Fleet token. Tests: a Fleet token with no header gets 401
+`delegation_required`; an expired delegation 401 `delegation_expired`; an `ag-…` of another owner
+403 `agent_not_owner`; a desktop token with the header is refused (the header is Fleet-only).
+Does not create delegations (task 06).
+
+**06 — Hub routes, part 1.** On the Hub's server and store (Hub task 14's write shape):
+`POST /v1/delegations` (the user's own call; body: project, class, routes; 24-hour expiry),
+`POST /v1/delegations/{id}/renew`, `DELETE /v1/delegations/{id}`; `POST /v1/projects/{p}/tasks`,
+`PATCH …/tasks/{tk}` (state, scope, reason; owner only); `POST …/agents` (start: role, parent,
+harness and pinned version, task, lane ref, policy version and digest) and `POST
+…/agents/{ag}/end` (exit class); `POST …/leases/{ls}/events` (state changes only; Fleet stays
+authoritative); `POST …/conflicts`, `PATCH …/conflicts/{cf}`. Solo projects keep `session_link`;
+a team record carrying a session id is refused. Each write is one metadata-only audit event and a
+feed row. Tests per route: owner, other member, viewer, Fleet with and without delegation. Does
+not add the Z5 matrix rows (task 43).
+
+**07 — Hub routes, part 2.** Threads (`POST`, `PATCH` state and round count), messages
+(append-only, kind and typed fields per §6.2, text ≤ 600), escalations (`POST` by Fleet under the
+Orchestrator owner's delegation, or by Fleet for itself; `POST …/escalations/{es}/answer` by that
+human only, `text·H`), directives (append-only, turn origin, preceding peer ids, approving
+`es-…`), orchestrator turns (an audit event only, metadata: origin, event ids, issued ids, tokens),
+human messages (append-only, owner writes, ≤ 2000). Read rules: escalations, directives and human
+messages are readable by their owner and an org *auditor* only; thread messages by parties only
+(§3.4). Tests: Bob cannot read Alice's escalation; a directive `PATCH` is refused; an escalation
+answered by someone else is 403. Does not implement notes (task 46).
+
+**08 — Hub feed kinds, Fleet's subscription, and `hubclient`.** Extends the change feed (Hub task
+26) with a feed kind per new record and `GET /v1/orgs/{org}/changes?kinds=…` for Fleet's workload
+identity, team projects only. Extends `cp/internal/hub/hubclient` (Hub tasks 04–05, built): a
+`Team` interface with one method per task 06–07 route, the fake's team half with every observable
+rule of those routes, and conformance rows that run against the fake and the real Hub. The fake is
+what Fleet's tests use. Tests: the conformance suite; a revoked delegation appears on the feed
+within one poll. Does not deliver anything from Fleet (task 11).
+
+**09 — Fleet model and the `panacea` control wire v1.** `cp/internal/fleet/model` (`Class`
+`orchestrator`·`worker`·`mirror`; `Agent`; `Lease`; `Event` with its kinds from §4.2; `Turn`;
+the per-class verb table of §5.2 as data), and the wire: one request envelope `{ "v": 1, "id",
+"verb", "args" }`, one response `{ "id", "ok", "result" | "error": { "code", "message", "since" } }`,
+and server-pushed `{ "event": "turn.begin" | "turn.end" | "nudge" | "stop" }`, in
+`cp/internal/fleet/wire/control.go` and `sbx/internal/control/wire.go`, both tested against the same
+`testdata/panacea-control/v1/*.json`. Every verb's `args` and `result` shape is written out,
+including `unavailable` with `since`. Tests: round-trip of every fixture in both modules; an unknown
+field is refused (G2). Does not carry transport.
+
+**10 — Fleet's Postgres schema and `Store`.** `cp/internal/fleet/store`: `Store` interface (agents
+and status, leases and lease paths, turn queue events, open-thread working state, the Hub outbox,
+policy versions, per-counterpart counters), `memstore`, `pgstore` over `pgx/v5` (version matched to
+the Hub's pin), and `storetest.Suite` both pass (phase 2's `registrytest` shape). Migration
+`0001_fleet.sql` in its own schema `fleet`, keyed by `org_id` and owner. No Hub record is stored
+except as an outbox payload. Tests: the suite; two concurrent `ClaimTurn` calls for one Orchestrator
+yield one winner (the two-replica property). Does not start a server.
+
+---
