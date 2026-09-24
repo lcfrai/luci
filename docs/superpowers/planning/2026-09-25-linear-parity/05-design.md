@@ -132,7 +132,7 @@ phase already delivers it. `TM` names team mode's own delivery (TM-05 §12).
 | 42 | Inline comments on highlighted text | EXCEED | A comment may anchor to issue text **or** to a brief section, a criterion, a transcript span or a diff hunk | W2 |
 | 43 | AI summaries of long threads | EXCEED | The summary is an **index of links** to the comments it condenses (AX §6.4), made through the ZDR gateway (OD-19) | W4 |
 | 44 | Comment drafts persist | MATCH | Hub-held, as L-33 | W2 |
-| 45 | Attachments | MATCH | Needs a Hub blob route; **UNVERIFIED** whether the Hub contract has one (not checked for this file) | W2 |
+| 45 | Attachments | MATCH | The Hub already stores content-addressed blobs per project (hub-contract:590-591, cited by 04 §4.6); an attachment names a blob digest | W2 |
 
 ### C. Triage (L-46 to L-56)
 
@@ -460,6 +460,163 @@ in plans already in flight; 13 arrive through other phases (team mode 3, phases 
 recommended answer to Q1 (progress displays). If the owner chooses Linear-style graphs instead,
 L-62 and L-73 become MATCH, L-63 and L-85 become MATCH, and `AGENTIC-UX.md` anti-pattern 2 is
 amended.
+
+---
+
+## 2. The "more": what makes it magic
+
+Linear's own trajectory (01 §13.7, 03 §1) shows it can copy features in weeks. So "more" here means
+four things that need **the platform underneath**, not a screen: managed sessions the platform
+observes, a server-side ledger that git trailers point into, and an inference path we own. Each
+subsection ends with why Linear cannot follow quickly, and what is still unproven.
+
+### 2.1 Agents that are real teammates on the issue
+
+An issue goes to a **person**. Giving it to agents is that person's own act (04 §4.1):
+
+- **Solo: Start.** One key (`S`) on EP-142 picks the feature's branch or cuts `ep-142-<slug>`,
+  creates a lane (a local clone, OD-2), and starts a managed cloud session whose record carries
+  `IssueRef = issue:is-…@r` beside the brief's `ContextRef` (04 §4.2). The issue moves to
+  `started`, written as that person, with the lane as the cause.
+- **Team: Delegate.** `D` sends EP-142 to **your own** Orchestrator. It reads the issue with
+  `panacea issue show`, plans tasks with `--issue`, and spawns workers whose sessions carry the
+  issue (04 §4.3). Nobody can delegate to someone else's agents (OD-16).
+
+What the teammate then does, visibly, on the issue:
+
+```
+EP-142  Uploads survive a dropped connection            Dylan · started 09:12
+  serves  brief:bf-3a…@6 › done › c-91e2… "a 40 MB upload resumes after a drop"
+  ● 2 agents · Dylan's      writing resume handler · last output 3s ago
+    files  services/api/upload.go  store/chunks.go  +2
+  ▸ proposed evidence  c-91e2… at 7c1f0a2 · "resume test passes on a cut at 60%"  [Record]
+  ◦ note (Dylan's agent)  assumed chunk size 8 MB; the brief does not say
+```
+
+1. **It acknowledges fast.** First visible activity within 10 seconds (`budget.ack`, 02 C8; the
+   rule Linear publishes, 01 L-190).
+2. **It reports in one live line**, on the one heartbeat clock (DESIGN-SYSTEM; 02 `row.three`).
+   The line is assembled from observed facts, never a model's summary of a transcript (TM-05 §9.1).
+3. **It cannot claim progress.** `started`, `in_review` and `landed` come from facts (a lane bound,
+   a lane queued, a trailer landed). Agent text is labelled `text·A` wherever it appears
+   (04 §4.5).
+4. **It proposes evidence; a person records it.** `panacea evidence propose` puts a typed proposal
+   under its criterion; **Record** writes it as the person (04 §4.6). The issue is `done` only when
+   every criterion it serves is settled at the landed commit.
+5. **One voice per owner.** Workers report to their Orchestrator; only the Orchestrator writes
+   notes on the issue (04 §4.5). Five workers do not produce five comment streams.
+
+**Why Linear cannot follow quickly.** Linear's delegate model matches ours in spirit (01 L-181),
+but its sessions end in a draft PR and "done on merge" (04 §2.4, linear.app/docs/github). To
+say "done means proven" it would need acceptance criteria as first-class objects and evidence
+recorded against them; 01 lists no acceptance-criteria object (**UNVERIFIED** that none exists).
+**Unproven:** that people will press Record rather than rubber-stamp it (AX §7's calibration
+record is the check).
+
+### 2.2 Orchestrators that negotiate across owners (OD-14 to OD-17)
+
+The work layer gives team mode a **shared language**: Orchestrators coordinate through issues
+people wrote, not through each other's free text.
+
+1. **Collisions are caught at plan time.** When Alice's Orchestrator plans EP-150 and Dylan's
+   has EP-142 in flight, each task takes an `intent` lease on its scope globs. Fleet checks the
+   overlap before any code is written (TM-05 §6.3) and opens a **conflict thread** between the
+   two Orchestrators, with both issues, both reasons and both criteria attached (TM-05 §6.4).
+2. **They negotiate with typed resolutions only**: `split`, `sequence`, `yield`, `build-on`,
+   `proceed-both` (TM-05 §6.2). Each then directs **its own** workers to match.
+3. **They escalate by a policy each human set in advance**: *inform* (a line under "since you
+   last looked") or *decide* (a Desk item with up to four options and a deadline, whose safe
+   default pauses and deletes nothing) (TM-05 §6.5).
+4. **Issue relations feed the protocol.** `EP-150 blocks EP-142` across two owners becomes a
+   `sequence` proposal automatically; a `duplicates` link between two people's issues opens a
+   thread asking whose lane survives, which is always a *decide*.
+5. **Both issues show the outcome**, as one negotiation row (02 C10 `negotiation.row`):
+   *"Sequenced after EP-150 (Alice's). Agreed by both Orchestrators 10:41; Dylan informed."*
+   The row links to the thread's typed state, never to the other side's transcript (OD-15).
+
+**Why Linear cannot follow quickly.** Every Linear session is one human, one agent, one issue
+(01 §23.1), and none of the ten products surveyed coordinates agents across owners (03 §12.3).
+Copying it needs
+live file observation of every agent, a per-user Orchestrator protocol and an injection fence
+between users (TM-05 §7). 03 puts GitHub as the best placed, at perhaps 6 to 12 months. **It is a
+lead, not a moat, and it is designed, not built or proven wanted.**
+
+### 2.3 One thread, from the brief to the release, and "done means proven"
+
+The work item sits **on** the provenance thread, not beside it (04 §5):
+
+```
+ Define                Design                Develop                                  Deploy
+ brief:bf-…@6 ◄─serves── issue:is-…@3 ──► session: IssueRef + ContextRef
+  └ criterion c-91e2…      │ implements      │ commits: Panacea-Session, Panacea-Issue
+                           └► design:cv-…@4  ▼
+                                           land: brief trailer + one Panacea-Issue per issue
+                                             │ evidence (brief, criterion, commit), by a person
+                                             ▼
+                                           release: pins the brief; manifest lists the issues
+```
+
+What a person can do with it that no tracker offers:
+
+1. **Ask "why does this code exist?"** From any hunk: its session, the issue revision that session
+   was told, the criterion that issue serves, and the brief section behind it. One click each way.
+2. **Ask "did it actually ship?"** An issue shows *"in release to production, 14:02, pinned
+   `brief:bf-…@6`"*, derived from trailers in the shipped range (04 §5.4), not from someone
+   moving a card.
+3. **Ask "is the brief covered?"** The Work lens lists each criterion with the issues that serve
+   it and its convergence: settled, open, contested. A criterion no issue serves is a visible gap.
+4. **Erase customer text without rewriting git.** Trailers carry ids, never titles (04 §5.2), and
+   an issue has the brief's erase (04 §5.5).
+
+**Why Linear cannot follow quickly.** Linear Releases links issues to a commit SHA by scanning
+for issue keys (01 L-146; 03 §12.2). Nobody has the front half: a brief section cited by a design
+frame, carried as each agent task's reason, and attached back to the release. 03 estimates Linear
+could assemble the back half in 2 to 3 quarters; the agent-edited design canvas (OD-11) is the
+part it cannot copy quickly. **Unproven:** the thread only helps if people write briefs; the
+low-ceremony entry (AX §9.7) must let a one-line fix skip Define without breaking the thread (an
+issue with no `serves` is allowed, and shown as such).
+
+### 2.4 Managed, zero-retention inference with an AU switch (OD-19)
+
+- **Every agent reaches the model through the org gateway**, on a short-lived token scoped to one
+  session and attributed to its user (OD-19; TM-05 §2.5). No consumer subscription, no `/login`.
+- **Two zero-retention paths**: Global (direct Anthropic API, the default) and AU (Bedrock in
+  Sydney). A project classified "AU data only" forces AU; otherwise a person can switch.
+- **The issue carries the bill.** With the issue id on the gateway token (04 §7.7), cost is known
+  per issue, per feature and per loop (L-255), at the provider's rate.
+- **Every AI feature in the matrix uses the same gateway**: triage suggestions, duplicate search,
+  drafted updates, release notes. No work-layer text goes to a third-party AI service.
+
+**Why this is not enough alone.** 03 §12.4 is blunt: zero retention is **hygiene**. Atlassian
+already states its providers retain nothing. What is ours is the combination: an AU path per
+project, attribution per user and per issue, and Linear's data regions being US or EU only with
+some metadata always in the US (01 §16.6; **UNVERIFIED** whether Linear offers a ZDR option on
+request). Both parts could be copied in weeks.
+
+### 2.5 The other benefits it mixes with
+
+The owner asked for these mixed in. Each already exists in design, and the work layer feeds it:
+
+| Benefit (source) | What the work layer adds to it |
+|---|---|
+| **The Desk**, a queue you empty (AX §5) | Issues that need you join its existing sections; it replaces Linear's Inbox, My Issues and triage-for-me in one place |
+| **The horizon bar**, the next 15 minutes (AX §5) | Collisions forecast between issues, not only between files: "EP-142 and EP-150 will meet in `upload.go` ~14:20" |
+| **Since you last looked** (AX §6) | The handover names issues: "EP-142 landed; EP-150 waits on your decision since 23:40" |
+| **A fleet on one heartbeat** (02 C10 `fleet.beat`) | Thirty agents across twelve issues on one clock; Linear shows one text timeline per issue (01 §23.7) |
+| **Azure DevOps and GitHub** (OD-4) | Issue links, trailers and sync on both; Linear's coding sessions need GitHub (01 §23.4) |
+| **Long-lived, steerable cloud sessions** (OD-20; 03 §12.1) | Take the keyboard at the exact point of difficulty; the issue records that a person stepped in |
+
+### 2.6 The honest scorecard
+
+| The "more" | Status | Lead over Linear (03's estimate) |
+|---|---|---|
+| Agents as teammates with evidence | designed; builds in W1 and W3 | months: needs criteria and evidence objects |
+| Cross-owner Orchestrators | designed (TM-05); TM1 not started | 6-12 months for GitHub; longer for Linear |
+| One thread, brief to release | back half planned (phases 3, 4, 7); front half needs phase 5 | 2-3 quarters for the back half |
+| ZDR with an AU switch | designed (phase 6 re-scope) | weeks |
+
+No rival has more than two of the five parts of the whole line: brief, design, per-person agents,
+cross-person negotiation, and release on one thread (03 §12.5). **The combination is the product.**
 
 ---
 
