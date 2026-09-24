@@ -99,7 +99,7 @@ limitation, plan re-review b05 m2). The wording is the owner's to accept (OD-12)
 | `an admin invites and revokes` | fill `vera@example.test`, role `viewer`, **Invite** → `inviteToTeam(tm, "vera@example.test", "viewer")`; the invite appears; **Revoke** → `revokeInvite` | — |
 | `a member cannot invite` | role `member` → no form, the sentence | a form that always answers 403 |
 | `no remote and signed out say why` | each → its sentence and no **Share** | a button that cannot succeed |
-| `shared elsewhere shows the Hub's sentence` | `shareProject` rejects 409 `repo_already_linked` → that message verbatim | a paraphrase |
+| `shared elsewhere shows the Hub's sentence` | `shareProject` rejects with `new ApiError("repo_already_linked", "<the sentence>", 409)` → that message verbatim. The code is a `HubProblemCode`, which task 38 adds and `ApiError.code` admits (review M7), so the fake compiles under `npm run typecheck` | a paraphrase |
 | `a feed event refreshes it` | while open, a `team.invite_bound` event → one more `hubTeam` read; the new member appears | a popover showing yesterday's team |
 | `escape closes and returns focus` | Escape → `closeShare`; focus on the project row | a keyboard user stranded |
 | `loading mirrors the final layout` | while `hubLink` is pending, `aria-busy="true"` and the skeleton's rows match the unlinked layout's count | a skeleton that shifts the layout when data arrives |

@@ -15,7 +15,7 @@ build changes afterwards is task 44b's, last.
 **Files:**
 - `docs/superpowers/contracts/2026-09-23-hub-contract.md` (modify)
 - `docs/PROGRAM.md` (modify ⚑ — other phases edit it too; additions only)
-- `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` (modify: one note in §4.5; §4.4's `openAttach` row and §4.6's paragraph edited in place, re-review b02 m3)
+- `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` (modify: one note in §4.5; §4.4's `openAttach` row and §4.6's paragraph edited in place, re-review b02 m3; §4.2's union block edited in place, review M7)
 - `docs/superpowers/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` (modify: one amendments block at the top)
 - `docs/superpowers/adr/ADR-H1-hub-architecture.md` (modify: exactly two cells, both A15's — §5.3's invite row and §9 item 3; owner question Q12, plan re-review b05 N1 and N3)
 
@@ -93,8 +93,13 @@ keyless open that task 38 replaces):
   subprotocol, never in `attachUrl`, and the control plane echoes only `panacea.v1`. Without a
   key source (phase 2's own tests) the protocols are `[]`. (Phase H plan, tasks 37–38.)"*
 
-These are edits in place, marked `(Phase H plan, task 38)`, not notes: §4.4 and §4.6 are the
-signatures a builder copies, and a note beside a wrong signature still gets the old one copied.
+**UI contract §4.2** (plan review M7; the union block at `2026-09-18-phase-2-ui-contract.md:1051-1080`):
+`ProblemCode` gains task 32's four codes, and its comment names them; `HubProblemCode` is added
+below it exactly as task 38 writes it; `Problem.error`, `ApiError.code` and the constructor's
+`code` become `ProblemCode | HubProblemCode`.
+
+These are edits in place, marked `(Phase H plan, task 38)`, not notes: §4.2, §4.4 and §4.6 are
+the signatures a builder copies, and a note beside a wrong signature still gets the old one copied.
 
 **ADR-H1 is edited in exactly two cells, both A15's; nothing else in it changes** (re-review b02
 m3; plan re-review b05 N1, N3). §5.4 still says *"every control-plane route except the WebSocket

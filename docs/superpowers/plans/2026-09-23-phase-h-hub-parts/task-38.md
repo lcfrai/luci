@@ -13,7 +13,9 @@ control plane compares the second entry and echoes only `panacea.v1`. The key is
 **Files:**
 - `desktop/src-tauri/src/lib.rs` — `local_key` command and its path ladder (modify ⚑)
 - `desktop/src/api/localKey.ts` + `localKey.test.ts` (new)
-- `desktop/src/api/client.ts` + `client.test.ts` — the header, the retry, the new codes, the comment at `:6-8` (modify ⚑)
+- `desktop/src/api/client.ts` + `client.test.ts` — the header, the retry, the new codes, `HubProblemCode` and the widened `ApiError.code` (review M7), the comments at `:6-8` and `:35-39` (modify ⚑)
+- `desktop/src/api/problems.ts` — the comment at `:24` only; `classify` unchanged (modify; review M7)
+- `desktop/src/defects.test.tsx` — the union-count test at `:1204-1213`, 18 → 22 (modify; review M7: the four new codes alone turn it red)
 - `desktop/src/api/index.ts` — construct `api` with the key source (modify)
 - `desktop/src/api/attachRegistry.ts` + `attachRegistry.test.ts` — `connect` (`:385`) awaits `openAttach`, and a pending key read counts as in flight at `connect`, `retryAttach` and `updateAttachSession` (modify ⚑; review I3, re-review N1)
 - The fake clients whose `openAttach` returns a socket synchronously, each changed only to return
@@ -85,7 +87,46 @@ openAttach(session: Session): Promise<WebSocket>;
 
 // ProblemCode gains the control plane's four new codes (Hub plan task 32) — added to the union,
 // nothing removed: "signed_out" | "hub_not_configured" | "local_key_required" | "upstream_unavailable"
+// Its comment (client.ts:35-39) becomes "The twenty codes the control plane emits — Go contract
+// §3.2's fifteen, Group C's ruling 7's non_loopback_publish, and Hub plan task 32's four — and
+// the two the client raises itself."
+
+/** The Hub's own codes (Hub contract §4.2, in its table order; hubapi/codes.go, task 01), which
+ *  the control plane relays unchanged (tasks 35, 36, 39). The five shared codes (invalid_json,
+ *  bad_request, forbidden_origin, conflict, internal) and project_not_found are spelled as the
+ *  control plane spells them, so they are ProblemCode's and are not repeated: the two unions are
+ *  disjoint. Plan review M7. */
+export type HubProblemCode =
+  | "unauthenticated" | "tenant_not_enrolled" | "forbidden" | "not_reserver"
+  | "team_not_found" | "brief_not_found" | "member_not_found" | "invite_not_found"
+  | "approval_not_found" | "release_not_found" | "blob_not_found" | "route_not_found"
+  | "method_not_allowed" | "revision_conflict" | "brief_exists" | "brief_archived"
+  | "design_already_approved" | "repo_already_linked" | "last_admin" | "release_state"
+  | "release_expired" | "quota_exceeded" | "blob_too_large" | "brief_incomplete"
+  | "key_unresolvable" | "digest_mismatch" | "blob_missing" | "design_not_approved"
+  | "repo_not_linked" | "idempotency_mismatch" | "rate_limited" | "unavailable";
+
+// Widened, nothing else about them changed: Problem.error (client.ts:51), ApiError.code (:59)
+// and the constructor's `code` (:64) become `ProblemCode | HubProblemCode`. toProblem's cast at
+// :199-206 casts to the same, so a relayed code is typed as what it is, not smuggled through
+// ProblemCode. A test (task 42's) that builds new ApiError("repo_already_linked", …) compiles.
 ```
+
+**Why a second union, not 32 more members of `ProblemCode` (plan review M7).** `ProblemCode`'s
+comment, and `defects.test.tsx:1204-1213`, define it as *the codes the control plane emits*. The
+Hub's codes are another process's, relayed. Keeping them apart keeps both lists checkable
+against one source each: `ProblemCode` against `httpx/problem.go`, `HubProblemCode` against
+`hubapi/codes.go`. **Three knock-on edits, all in files this task already modifies:**
+`attachRegistry.ts:614`'s `reasonForCode(code: ProblemCode, …)` takes `ApiError["code"]` (its
+switch already has a `default`, `:603-613`); that comment's *"Eight of the eighteen `ProblemCode`
+members … The other ten codes"* becomes *"Eight of the twenty-two `ProblemCode` members … The
+other fourteen, and every `HubProblemCode`"*; and `defects.test.tsx:1204-1213`'s *"declares
+eighteen error codes"* becomes *"declares twenty-two error codes: contract-go §3.2's fifteen,
+ruling 7's sixteenth, Hub plan task 32's four, and the client's two"*, with `toHaveLength(22)`
+and `new Set(codes).size` 22. **That last edit is needed by the four codes alone**, review or
+not: without it `npm test` goes red at the eighteen-count assertion. `problems.ts`'s comment at
+`:24` (*"`ProblemCode`, which has EIGHTEEN members"*) becomes *"`ApiError["code"]`, which has
+fifty-four members"*; `classify`'s code does not change.
 
 `send` (`client.ts:242-289`) changes in exactly three ways: every request carries
 `Authorization: Bearer <await localKey.get()>` when a source is set (so `headers` is always an
@@ -146,7 +187,7 @@ socket, a live attach to the PTY that nothing reads. The fix, complete:
 those guards is removed, which is exactly how this defect arose. The guards themselves are each
 killed by a named test below.
 
-`problems.ts`'s `classify` is **unchanged**: the new codes are `server-said`, rendered verbatim (four call sites switch on
+`problems.ts`'s `classify` is **unchanged** in code (only its `:24` comment moves, above): the new codes, and every `HubProblemCode`, are `server-said`, rendered verbatim (four call sites switch on
 `classify` — `EmptyDevelop.tsx:57`, `SessionPane.tsx:48`, `sessionVerbs.ts:85`,
 `useCreateSession.ts:38` — and none needs a new branch).
 
@@ -170,6 +211,8 @@ killed by a named test below.
 | `a session that exits while the key is read ends once` (`attachRegistry.test.ts`; re-review N1) | `openAttach` held pending; `updateAttachSession` with `status: "exited"` → no `ended` is published yet; resolve → the socket is closed at once, `ended` is published once, and `attached` never is | `updateAttachSession`'s guard testing `entry.ws` alone (`:212`): `ended` published while the handshake is pending, and the handshake publishing over it |
 | `the key is never in an error` | every `ApiError` above: `message` and `details` do not contain `k1` or `k2` | the key surfacing in the rail footer's error line (`desktop/src/components/rail/RailFooter.tsx:19-21`) |
 | `the key is not in the store` | after calls, `JSON.stringify(useCockpit.getState())` and `localStorage` contain neither key | a persisted key that outlives the process |
+| `a relayed Hub code arrives typed as the Hub's` (review M7) | a 409 `{"error":"repo_already_linked","message":"m","details":{"repoKey":"k"}}` → `ApiError` with `code` `repo_already_linked`, status 409, the details intact; a `const all: HubProblemCode[]` listing the 32, and `new ApiError("repo_already_linked", "m", 409)`, both compile under `npm run typecheck` | a relayed code flattened to `internal`; a union a caller cannot name (task 42's test fails typecheck) |
+| `the two unions are disjoint and complete` (`defects.test.tsx`, beside `:1204`; review M7) | the regex of `:1206` over `HubProblemCode` finds 32 names, no duplicate, none also in `ProblemCode`; and 22 in `ProblemCode` (the existing test, amended) | a Hub code shadowing a control-plane code (task 01's `TestHubCodesNeverShadowAControlPlaneCode`, the desktop's half); a code dropped from either list |
 
 Rust (`cargo test` in `desktop/src-tauri`): `key_path_follows_statepath` — the four ladder rungs
 and the override, with the example paths `C:\Users\u\AppData\Local\PanaceaApp\state\auth\local-key`
