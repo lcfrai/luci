@@ -268,9 +268,18 @@ without a cycle. Phase 4 imports only the Hub's
   `block_broken` sentence offers *Start without the brief* only when the refused start did not
   already carry it (task 20). Without this, one pasted block in an answer blocks every session
   start on the branch for every teammate, and the override cannot escape it.
-- **S4. Answer-length caps.** Reserved for review M6 (a cap per answer and per prompt, and the
-  fan-out batch checked against the Hub's body cap). That fix lands in its own batch; until then,
-  the Hub's own 64 KiB envelope limit (`hub-contract.md:742`) is the only bound.
+- **S4. Answer-length caps (review M6).** The Hub refuses a canonical envelope over 64 KiB
+  (`hub-contract.md:742`) and a body over 1 MiB (`hub-contract.md:40-41`) with a 400 that names
+  no answer; a project edit's fan-out batch of many full branch briefs can pass the 1 MiB until
+  HA4-3 raises this route's cap to 4 MiB. Three checks, all before any Hub write:
+  **(1)** each answer at most 4,000 code points and each question prompt, help and option at
+  most 300, over what the op added or changed (task 03 rule 13, `*TooLongError` → 400
+  `field: "text"` with `key` and `limit`; the model paths' schemas sit inside the caps);
+  **(2)** each revision's canonical envelope at most 64 KiB, the real bound, because code points
+  are not bytes (task 08, `*RevisionTooLargeError` → 400 `field: "text"` with the op's `key`);
+  **(3)** the batch body, measured with `json.Marshal`, at most 1 MiB (task 08,
+  `*FanoutTooLargeError` → 409 `fanout_too_large` with `bytes` and `limitBytes`). The desktop
+  shows (1) and (2) at the answer, the typed text kept (task 18).
 - **S5. Model egress (review I13).** Brief answers are client-confidential engagement text: client
   names, scope, constraints. The follow-up prompt carries the person's own answers (task 04), and
   the repository draft carries file names and counts, never contents (task 13). `G4` decides whose
@@ -292,7 +301,7 @@ without a cycle. Phase 4 imports only the Hub's
 |---|---|---|
 | `modelclient/client.go` + test | one `POST /v1/messages`, no SDK; `Completer`, the seam phase 6 replaces | 02 |
 | `discover/content.go` + test | `Content`, `Question`, `Answer`, `Criterion`, `Author`, `BaseQuestions()`, `Step`, `Recompute` | 03 |
-| `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes; the marker rule (`ErrReservedText`, S3) | 03 |
+| `discover/ops.go` + test | `Op` and `Apply`: record, edit, skip, accept, add/dismiss follow-up, restore, reinherit — the only way content changes; the marker rule (`ErrReservedText`, S3); the length caps (`ErrTooLong`, S4) | 03 |
 | `discover/assist.go` + test | `ProposeFollowUp` over a `Completer`, degrading to nothing | 04 |
 | `discover/inherit.go` + test | `Resolve(project, branch *Revision) Document` — project → branch, with origins; `Title(branch *Revision)`, the block title's one rule | 05 |
 | `claudemd/render.go` + test | `Render`, `Merge`, `Strip`, `Inspect`, `SameText`, `DiffLines`; the golden blocks (`testdata/.gitattributes` `* -text` keeps them LF on checkout); the `<!--` neutraliser and the marker count (S3); CRLF files read as LF ones (review M7) | 05 |
@@ -302,7 +311,7 @@ without a cycle. Phase 4 imports only the Hub's
 | `discoverhub/read.go` + test | `View`, `History`, `Resolve(keys)`, `HeadRef`, `Inheritable`; the in-memory revision cache | 07 |
 | `discoverhub/service.go` | `Config`, `Service`, the in-memory revision cache | 07 |
 | `discoverhub/fakehub_test.go` | phase 4's wrapper fake: `hubclient.NewFake()` embedded, plus `List` until HA4-2 lands (review I11) — in `discoverhub`, never in the Hub's package | 07 |
-| `discoverhub/write.go`, `digest.go`, `lifecycle.go` + tests | `Apply`: one domain op → one Hub batch, with the `4-D3` fan-out and its conflict retry; the local digest until HA4-9; `ArchiveHead`, `Rebind` | 08 |
+| `discoverhub/write.go`, `digest.go`, `lifecycle.go` + tests | `Apply`: one domain op → one Hub batch, with the `4-D3` fan-out and its conflict retry; the envelope and batch size checks (S4); the local digest until HA4-9; `ArchiveHead`, `Rebind` | 08 |
 | `contextwrite/materialise.go`, `inspect.go`, `git.go` + tests | the `api.Materialiser`: target choice, exclude line, write, strip; `Inspect` for drift; the two read-only git questions | 09 |
 | `discoverapi/api.go`, `briefs.go`, `provenance.go`, `analyse.go` + tests | the `/v1/discover` routes; the relay rule; `Mount` | 11, 12, 13 |
 | `repoanalysis/scan.go`, `draft.go` + test | the mechanical scan; the drafted answers | 13 |
@@ -517,7 +526,7 @@ is **unverified** here.
 |---|---|---|---|
 | **HA4-1** | Publish the `hubapi` Go structs. §9.2 lists their names and says the JSON tags follow §7; the fields are not written anywhere | the struct set in part 07, §"Assumed `hubapi` shapes", derived field-for-field from §7.1 and §7.5 | phase 4 codes against part 07's assumed shapes; a rename is a mechanical fix |
 | **HA4-2** | `hubclient.Briefs` has no list method, though route 19 exists | `List(ctx context.Context, projectID string, q hubapi.BriefQuery) (hubapi.Page[hubapi.BriefHead], error)` with `type BriefQuery struct { Scope string; BranchRef string; IncludeArchived bool; After string; Limit int }` | **tasks 07 and 08 are both blocked on it** for the real Hub (review I11): task 07's `Hub` interface needs `List`, and the `4-D3` fan-out cannot find the inheriting branch briefs without it. Until it lands, `List` is declared on phase 4's **own** `discoverhub.Hub` interface, and tests run through a phase-4-owned wrapper fake (`discoverhub/fakehub_test.go`) that embeds `hubclient.NewFake()` and adds `List`. Phase 4 writes nothing under `control-plane/internal/hub/` (§5, "Never touched") |
-| **HA4-3** | The revision batch holds 1–16 items (§7.5). A project with more than 15 live branch briefs, complete or open (review I8), cannot re-revision them all in one transaction, and `4-D3` needs one | raise the limit to **64** for `POST …/brief-revisions`, with that route's body cap at **4 MiB**, and export it as `hubapi.MaxRevisionBatch` | the control plane refuses such an edit with `409 fanout_too_large` and a sentence naming the count (task 08) |
+| **HA4-3** | The revision batch holds 1–16 items (§7.5). A project with more than 15 live branch briefs, complete or open (review I8), cannot re-revision them all in one transaction, and `4-D3` needs one | raise the limit to **64** for `POST …/brief-revisions`, with that route's body cap at **4 MiB**, and export it as `hubapi.MaxRevisionBatch`; export the envelope and body caps too, so task 08's `MaxEnvelopeBytes` and `MaxBatchBytes` stop being local copies (review M6) | the control plane refuses such an edit with `409 fanout_too_large` and a sentence naming the count, or the size when the body passes 1 MiB (task 08, S4) |
 | **HA4-4** | Materialise at session start needs the **latest complete** revision's content; `for-branch` returns only the head revision | add `"latestComplete": BriefRevision \| null` beside `"revision"` in each of `branchBrief` and `projectBrief` | one extra `/v1/refs` call per session start (task 07) |
 | **HA4-5** | The relay rule (§4.3) is "implemented once in `hubclient`", but no function maps an error to a response | `func Relay(err error) (status int, p httpx.Problem, ok bool)` in `hubclient`, `ok` false for a non-Hub error | `discoverapi.relay` implements §4.3's table locally, one function, marked for deletion when `Relay` lands (task 11) |
 | **HA4-6** | One Azure DevOps repo-key form (§8.2 above) | either the Hub accepts `azure-devops/<org>/<project>/<repo>` or phase 3 emits `<org>.visualstudio.com/<project>/<repo>` | Azure DevOps repositories show *"this repository cannot be shared yet"* |

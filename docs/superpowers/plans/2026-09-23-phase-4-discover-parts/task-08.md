@@ -80,14 +80,44 @@ var (
 	ErrDigestDisagreement = errors.New("discoverhub: the Hub's digest is not the one the branch revisions pinned")
 )
 
-// FanoutTooLargeError is a project edit that would need more branch
-// revisions than one Hub batch holds (HA4-3). Nothing is written.
+// The Hub's two size limits (review M6, plan §4 Security, S4). Local
+// constants until the Hub exports them (HA4-3):
+//   - MaxEnvelopeBytes: a revision's canonical §3.4 envelope
+//     (hub-contract.md:742);
+//   - MaxBatchBytes: a JSON request body (hub-contract.md:40-41,
+//     httpx.MaxBodyBytes). It becomes 4 MiB for this route if HA4-3 lands.
+const (
+	MaxEnvelopeBytes = 64 << 10
+	MaxBatchBytes    = 1 << 20
+)
+
+// FanoutTooLargeError is a project edit whose batch one Hub call cannot
+// carry: more branch revisions than the batch limit (HA4-3), or a request
+// body over MaxBatchBytes. Nothing is written.
 type FanoutTooLargeError struct {
-	Needed int // branch briefs that would need a new revision
-	Limit  int // the Hub's batch limit minus one
+	Needed     int // branch briefs that would need a new revision
+	Limit      int // the Hub's batch limit minus one
+	Bytes      int // the body's encoded size; 0 when the count is what failed
+	LimitBytes int // MaxBatchBytes; 0 when the count is what failed
 }
 
 func (e *FanoutTooLargeError) Error() string
+
+// RevisionTooLargeError is a revision whose canonical §3.4 envelope would be
+// over MaxEnvelopeBytes: the refusal the Hub would give as a 400 that names
+// no answer (review M6), given here first with the op's question key. Task
+// 03's caps make it unreachable for ordinary text; this check is the bound,
+// because the caps count code points, not bytes: 4,000 CJK code points are
+// 12,000 canonical bytes (Hub contract §3.4 writes non-ASCII as UTF-8), so
+// six answers plus the done answer's criteria (28,000 code points) reach
+// 84,000 bytes, past 65,536. Nothing is written.
+type RevisionTooLargeError struct {
+	Key   string // Request.Op.Key; "" for an op with none
+	Bytes int
+	Limit int // MaxEnvelopeBytes
+}
+
+func (e *RevisionTooLargeError) Error() string
 
 // Apply writes one change as one batch.
 //
@@ -109,7 +139,20 @@ func (e *FanoutTooLargeError) Error() string
 //     status; only Inherits moves, so the person's edit in progress now
 //     carries the new project revision. Their next op meets
 //     revision_conflict and re-reads, exactly as on a complete head.
-//  7. One writeBatch call. A revision_conflict naming THIS brief is
+//  7. One writeBatch call. Before its one WriteRevisions, writeBatch checks
+//     the sizes (review M6, S4): each item's canonical §3.4 envelope, built
+//     by digest.go's builder (the one the pin uses), over MaxEnvelopeBytes →
+//     *RevisionTooLargeError (Key = r.Op.Key for this brief's item, "" for a
+//     fan-out item); then the request body, measured as
+//     len(json.Marshal({"revisions": writes})), over MaxBatchBytes →
+//     *FanoutTooLargeError{Needed, Limit, Bytes, LimitBytes}. json.Marshal
+//     escapes <, > and & where the canonical form does not, so it is never
+//     shorter than the canonical bytes; whether hubclient's encoder can be
+//     longer is unverified (Hub plan text). A single item cannot pass 1 MiB:
+//     64 KiB canonical is at most 6x that in json.Marshal (a "<" is <).
+//     Steps 8 and 9 go through the same checks, and a failure there is
+//     logged like any other failure in those steps.
+//     A revision_conflict naming THIS brief is
 //     returned unchanged (the person re-reads). One naming a fan-out item
 //     re-reads heads and rebuilds the batch, at most 3 times, then returns
 //     the conflict.
@@ -189,6 +232,8 @@ func (s *Service) Rebind(ctx context.Context, projectID, oldBranchName, newBranc
 | `TestConflictOnThePersonsBriefIsReturned` | the fake reports this brief's head moved → `*hubclient.Error` 409 `revision_conflict`, nothing written | a silent merge the person never saw |
 | `TestConflictOnAFanOutItemIsRetried` | the fake moves `b-51` once during the first attempt → second attempt succeeds; `b-51`'s new revision is based on its new head | a project edit refused because a teammate touched another branch |
 | `TestFanOutTooLargeWritesNothing` | 16 live branch briefs (12 complete, 4 open) with the 16-item limit → `*FanoutTooLargeError{Needed: 16, Limit: 15}`, no write | a batch split into two transactions |
+| `TestAnOversizedBatchWritesNothing` (review M6) | 15 live branch briefs, each head's answers holding 40,000 `<` characters in all, written straight to the fake (heads the Hub stored unchecked; a `reinherit` leaves their strings as they are, so task 03's caps do not see them). Each item's canonical envelope stays under 64 KiB, because `<` is one canonical byte, but `json.Marshal` writes it as six (`<`), about 240,000 bytes per item. Edit project audience → `*FanoutTooLargeError` with `Bytes > MaxBatchBytes`, `LimitBytes == MaxBatchBytes`, `Needed == 15`, and no `WriteRevisions` call; the same project with 2 such branches (about 480,000 bytes) writes | a check of the item count only, so the Hub answers the whole batch `invalid_json` 400 (`hub-contract.md:234`) and the person reads a sentence about JSON; a size measured from the canonical bytes, which is shorter than the body sent |
+| `TestAnOversizedRevisionNamesTheAnswer` (review M6) | a `record` of `purpose` whose content, with the other answers already at the head, gives a canonical envelope of 64 KiB + 1 (CJK text, at most 4,000 code points per answer so task 03's cap passes, padded with ASCII to the exact size) → `*RevisionTooLargeError{Key: "purpose", Bytes: 65537, Limit: 65536}`, no write; at exactly 65,536 it writes | the Hub's own 400, which names no answer (`hub-contract.md:742`); an off-by-one at the limit |
 | `TestProposeFollowUpWithNoModelWritesNothing` | nil model → `Assist == model_off`, `Written == []` | a revision written for a follow-up that never came |
 | `TestRestoreWritesANewRevision` | restore rev 5 at head 6 → head 7 whose answers equal rev 5's and whose change is `restore` with `restores: 5` | an undo that deletes a revision (P3) |
 | `TestRestoreOfAnErasedRevisionIsRefused` | `ErrErasedRestore` | erased text brought back by undo |
@@ -202,7 +247,10 @@ func (s *Service) Rebind(ctx context.Context, projectID, oldBranchName, newBranc
   builder a pure function `fanOut(project Revision, heads []branchHead) ([]RevisionWrite, error)`
   tested on its own (it takes complete and open heads alike and drops archived ones), and one
   `writeBatch` that holds the only `WriteRevisions` call and is used by steps 7, 8 and 9 of
-  `Apply`.
+  `Apply`, and runs the two size checks before it (review M6). **Deviation from the review:** it
+  said `fanOut` should check the batch size. The check sits in `writeBatch` instead, because
+  `fanOut` does not build step 7's branch-scope batch or step 9's, and one check there bounds
+  every batch this package sends. `fanOut` stays pure.
 - [ ] **Step 3:** `lifecycle.go`.
 - [ ] **Step 4:** Run the acceptance commands; commit by pathspec.
 
@@ -217,7 +265,8 @@ $ grep -n "WriteRevisions(" control-plane/internal/discoverhub/*.go | grep -v _t
 
 **Does NOT claim:** behaviour under a real Hub's concurrency (the fake's promise, Hub §9.2, and
 H3's integration test); a batch over 16 items (HA4-3); that the post-commit checks close every
-interleaving of three or more concurrent writers. They close the two-writer race, and the
+interleaving of three or more concurrent writers; that `hubclient`'s request body is never longer
+than `json.Marshal`'s for the same batch (Hub plan text, not built). They close the two-writer race, and the
 `superseded` chip rule (task 16) keeps `current` true for whatever is left. That a Hub `List` or
 `Brief` read issued after a commit returns sees that commit (read-after-write) is the Hub
 contract's promise and is not verified here.

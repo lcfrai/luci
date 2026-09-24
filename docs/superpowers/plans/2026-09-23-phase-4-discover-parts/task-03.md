@@ -273,7 +273,38 @@ var (
 	// (plan §4 Security, S3). Apply returns it wrapped in *ReservedTextError,
 	// so errors.Is(err, ErrReservedText) holds and the key is recoverable.
 	ErrReservedText = errors.New("discover: text cannot contain the reserved sequence panacea:discover:")
+	// ErrTooLong: an answer text the op added or changed is over
+	// MaxAnswerRunes, or a prompt, help or option over MaxPromptRunes (rule
+	// 13, review M6, plan §4 Security, S4). Apply returns it wrapped in
+	// *TooLongError, so errors.Is(err, ErrTooLong) holds and the key is
+	// recoverable.
+	ErrTooLong = errors.New("discover: text is too long")
 )
+
+// The length caps (review M6), counted in Unicode code points
+// (utf8.RuneCountInString) after rule 1's trim: the unit JSON Schema's
+// maxLength uses, so task 04's and task 13's schemas (200/120 and 400) sit
+// inside them and model text never meets the cap. They make the Hub's 64 KiB
+// envelope refusal (hub-contract.md:742) unreachable for ordinary text and
+// give a person a refusal that names the answer; task 08's size check is the
+// bound itself (S4).
+const (
+	MaxAnswerRunes = 4000
+	MaxPromptRunes = 300
+)
+
+// TooLongError names the question whose text is over its cap, and the cap,
+// so the 400 can point at the answer to shorten (task 11 puts Key and Limit
+// in details; task 18 shows the message at that answer).
+type TooLongError struct {
+	Key   string
+	Limit int // MaxAnswerRunes or MaxPromptRunes
+}
+
+func (e *TooLongError) Error() string {
+	return ErrTooLong.Error() + " (question " + e.Key + ", at most " + strconv.Itoa(e.Limit) + " characters)"
+}
+func (e *TooLongError) Unwrap() error { return ErrTooLong }
 
 // ReservedTextError names the question whose prompt, answer or criterion
 // holds ReservedMarker, so the 400 can point at the answer to fix (task 11
@@ -297,7 +328,9 @@ func Apply(c Content, op Op, env Env) (Content, error)
 
 **The rules `Apply` enforces** (each is a test below):
 
-1. `record` trims `Text`; empty is `ErrEmptyAnswer`. An unknown key is `ErrUnknownKey`. It
+1. `record` trims `Text`; empty is `ErrEmptyAnswer`. More than `MaxAnswerRunes` (4,000) code
+   points after the trim is `&TooLongError{Key, Limit: 4000}` (rule 13, review M6). An unknown key
+   is `ErrUnknownKey`. It
    replaces an existing answer **in place** (same index) or appends; it never touches another
    answer (defect 7). Author becomes `person`.
 2. `edit` requires a settled, non-skipped answer (`ErrNotAnswered` otherwise), then behaves as
@@ -340,6 +373,17 @@ func Apply(c Content, op Op, env Env) (Content, error)
     task 13's on-ramp drops that one draft; this check is their backstop. Without it, one answer carrying a pasted
     `<!-- panacea:discover:begin … -->` makes every later `Merge` on that branch `block_broken`, for
     every teammate, and "Start without the brief" cannot escape it.
+13. **The length caps (review M6, plan §4 Security, S4).** Over the same strings as rule 12 (in
+    the result, added or changed by the op, so `draft`, `add_follow_up` and `restore` are
+    covered and a head the Hub stored unchecked stays editable): an answer `Text` over
+    `MaxAnswerRunes` (4,000), or a question's `ProjectPrompt`, `BranchPrompt`, `Help` or any
+    `Options` item over `MaxPromptRunes` (300), is `&TooLongError{Key: <the question key>,
+    Limit}`, and nothing is written. Criterion text needs no cap of its own: `SplitCriteria`
+    takes it from the `done` answer's text, which the answer cap already bounds. `Because` is
+    server-composed from a base prompt (task 04) and is not checked. Rule 12 runs first, so a
+    string that breaks both reports the marker. Task 11 maps it to 400 `bad_request` with
+    `field: "text"`, `key` and `limit`. The model paths never meet it: their schemas cap at 200,
+    120 and 400 (tasks 04, 13), and a schema-invalid reply degrades there.
 
 **Tests first** — `content_test.go` and `ops_test.go`, package `discover`:
 
@@ -366,6 +410,10 @@ func Apply(c Content, op Op, env Env) (Content, error)
 | `TestNoChangeIsReported` | re-recording identical text with the same source is `ErrNoChange` | a no-op that writes a revision — every click would mint a key |
 | `TestAnswerCannotContainAMarker` | table over `record`, `edit`, `add_follow_up` (prompt), `draft` (a drafted text) and `restore` (a content carrying one): each string holding `panacea:discover:` — a whole pasted `<!-- panacea:discover:begin brief=bf-1 rev=1 -->`, a bare `<!-- panacea:discover:end -->`, the sequence mid-sentence — is `errors.Is(err, ErrReservedText)`, `errors.As` gives a `*ReservedTextError` whose `Key` is the offending question's, and the input content is unchanged; `panacea:discover` without the colon and `Panacea:Discover:` are accepted | rule 12 dropped, checked on the op's text only (a model draft or a follow-up prompt forges the marker), matched on the whole marker instead of the reserved sequence, or a refusal that does not say which answer |
 | `TestUnchangedReservedTextDoesNotBlockOtherOps` | a `c` whose `purpose` answer already holds `panacea:discover:` (a head written straight to route 26): `skip` of `audience`, `accept` of a drafted answer and `dismiss_follow_up` all succeed; an `edit` of `purpose` that keeps the sequence is `*ReservedTextError{Key: "purpose"}`; an `edit` of `purpose` that removes it succeeds | the whole-result check, under which one forged head refuses every op on the brief and the person cannot tell which answer to fix (re-review M4) |
+| `TestAnswersAreCappedAt4000Characters` (review M6) | table over `record`, `edit`, `draft` and `restore`: a text of exactly 4,000 code points succeeds; 4,001 is `*TooLongError{Key, Limit: 4000}` and `errors.Is(err, ErrTooLong)`; 4,000 `é` (2 bytes each) succeeds, so the cap counts code points, not bytes; 4,000 letters plus surrounding spaces succeeds, so the trim runs first; a `done` answer of 4,001 is refused like any other | a cap in bytes, which refuses a short brief in any non-Latin script; a cap before the trim; a cap on `record` only, which `edit` or a restored head gets past |
+| `TestPromptsAreCappedAt300Characters` (review M6) | an `add_follow_up` whose `BranchPrompt`, `ProjectPrompt`, `Help` or one `Options` item is 301 code points is `*TooLongError{Key: <the new key>, Limit: 300}`; at 300 each succeeds; a 301-code-point `Because` succeeds (not checked) | a follow-up prompt the Hub envelope carries with no bound; a check of the prompt that skips the options |
+| `TestBaseQuestionsFitTheCaps` | every `BaseQuestions()` prompt, help and option is at most 300 code points, so the first op on a new brief never meets rule 13 on the server's own text | a reworded base question that refuses every new brief |
+| `TestUnchangedLongTextDoesNotBlockOtherOps` (review M6) | a `c` whose `purpose` answer already holds 5,000 code points (a head written straight to route 26): `skip` of `audience` succeeds; an `edit` of `purpose` to 4,500 code points is `*TooLongError{Key: "purpose"}`; to 4,000 succeeds; an answer holding both `panacea:discover:` and 4,001 code points is `*ReservedTextError` (rule 12 first) | the whole-result check again, now for length |
 | `TestApplyDoesNotMutateItsInput` | the input's answers slice is unchanged after `Apply` | aliasing between the head the service cached and the content it writes |
 
 **Steps:**
@@ -382,7 +430,7 @@ func Apply(c Content, op Op, env Env) (Content, error)
 **Acceptance:**
 
 ```
-$ go test ./control-plane/internal/discover/... -race -count=1 -run 'Content|Step|Apply|Edit|Skip|Draft|Accept|Criterion|Restore|Reinherit|NoChange|FollowUp|Base|Decode'
+$ go test ./control-plane/internal/discover/... -race -count=1 -run 'Content|Step|Apply|Edit|Skip|Draft|Accept|Criterion|Restore|Reinherit|NoChange|FollowUp|Base|Decode|Marker|Reserved|Capped|LongText'
 ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/discover
 $ grep -n "omitempty" control-plane/internal/discover/content.go
 (no output — no field of Content may be omitted, or the canonical bytes change)

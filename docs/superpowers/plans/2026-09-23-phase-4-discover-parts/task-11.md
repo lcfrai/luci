@@ -87,10 +87,12 @@ type OpsResponse struct {
 | `hubclient.ErrUnavailable` | 503 `upstream_unavailable` (R4's code) | `upstream: "hub"` |
 | `discoverhub.ErrHubOff` on a write | 503 `hub_not_configured` (C1's code) | — |
 | `discoverhub.ErrNotBound`, `ErrNoRemote` on a write | 409 `project_not_shared` (**new**) | `state`: `unbound` · `no_remote` |
-| `*discoverhub.FanoutTooLargeError` | 409 `fanout_too_large` (**new**) | `needed`, `limit` |
+| `*discoverhub.FanoutTooLargeError` | 409 `fanout_too_large` (**new**) | `needed`, `limit`; and `bytes`, `limitBytes` when the body size is what failed (task 08, review M6) |
 | `discoverhub.ErrErasedRestore` | 409 `conflict` | `reason: "erased"` |
 | `discover.ErrEmptyAnswer`, `ErrUnknownKey`, `ErrNotAnswered`, `ErrNotDrafted`, `ErrNotFollowUp`, `ErrBadOp`, a disallowed `op.kind` | 400 `bad_request` | `field` |
 | `discover.ErrReservedText`, matched with `errors.Is`; the key from `errors.As(*discover.ReservedTextError)` (task 03 rule 12, plan §4 Security, S3) | 400 `bad_request`, message "Answers cannot contain the text panacea:discover:." | `field: "text"`, `key`: the question key |
+| `discover.ErrTooLong`, matched with `errors.Is`; key and limit from `errors.As(*discover.TooLongError)` (task 03 rule 13, plan §4 Security, S4, review M6) | 400 `bad_request`, message "This answer is too long. Keep it to 4,000 characters." (`limit` 300: "This question is too long. Keep it to 300 characters.") | `field: "text"`, `key`, `limit` |
+| `*discoverhub.RevisionTooLargeError` (task 08, S4) | 400 `bad_request`, message "This brief is too long to share. Shorten an answer and try again." | `field: "text"`, `key`: the op's question key, `bytes`, `limit` |
 | `project.ErrUnknownProject` | 404 `project_not_found` | `projectId` |
 | a branch id not among the project's branches | 404 `branch_not_found` (**new**) | `branchId` |
 | the route's own deadline expired (`Budgets`, below) while a Hub call was in flight: the route's `ctx.Err() == context.DeadlineExceeded`, whatever error type the Hub call returned | 503 `upstream_unavailable` | `upstream: "hub"` |
