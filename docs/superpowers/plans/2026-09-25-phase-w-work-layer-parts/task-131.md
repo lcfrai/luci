@@ -460,8 +460,8 @@ type IssueResult struct {
 func (rd *Reader) ReadIssues(ctx context.Context, r Range) (IssueResult, error)
 ```
 
-`gitx.TrailerIssue` is task 21's name for SW.9's key (**UNVERIFIED**, task 21's part not read
-here). Step 1's parse is `filter.ParseFilter`, and step 2's test is `Filter.Touches`.
+`gitx.TrailerIssue` and `gitx.TrailerFormat` are task 21's names for SW.9's key
+(`task-21.md:56`, `:99`). Step 1's parse is `filter.ParseFilter`, and step 2's test is `Filter.Touches`.
 
 #### Control-plane routes — complete wire, on ⚑ `api/deploy_drill.go`
 
@@ -983,6 +983,6 @@ cd desktop && npx vitest run src/deploy/ReleaseNotes.test.tsx src/deploy/FreezeT
 3. **The scope's phase 7 line numbers are stale** by 7-8 lines (verified list at the top).
 4. **`IssueShipped.tsx`, `types.ts` and `ShipBar.tsx` are not in the scope's file list**, and
    `GET {P}/shipped` is not named by it; L-148's list needs all four.
-5. **No part for tasks 71, 21 or 92** on this tree: `ReleaseIssue`, `gitx.TrailerIssue` and
-   `copyMarkdown` are their scopes' names here.
+5. **No part for tasks 71 or 92** on this tree: `ReleaseIssue` and `copyMarkdown` are their
+   scopes' names here.
 
