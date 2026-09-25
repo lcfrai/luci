@@ -179,3 +179,100 @@ no key. `aria-label` contains the visible word, so the accessible name matches w
 `.vh-title` sets its own family although the body is already sans: `voice.split` (task 30) puts
 mono on machine surfaces, and a header inside one must not inherit it. The route chip's ring is
 `--line-strong` because at `--line` (7.5 % ink) a 16px-tall chip does not read as a chip.
+
+#### Interfaces — complete: `LensPlaceholder.tsx`, `shell.css`, `app.css`
+
+`LensPlaceholder.tsx`, whole file after the change (the section's label moves from
+`aria-labelledby` to `aria-label`, because `ViewHeader`'s props carry no id and SW.13 is not
+widened for one caller):
+
+```tsx
+// Contract §6.4-adjacent (§6.3's table): the honest empty state. What the lens will do, and
+// which phase brings it. §7.7: every state is designed. Task 31: the title is ViewHeader's.
+import type { JSX } from "react";
+import type { Lens } from "../../store/types";
+import { ViewHeader } from "../common/ViewHeader";
+import { LENSES } from "../subrail/SubRail";
+
+export function LensPlaceholder(props: {
+  lens: Lens;
+  phase: number;
+  what: string;
+}): JSX.Element {
+  const { lens, phase, what } = props;
+  const title = LENSES.find((entry) => entry.id === lens)?.label ?? lens;
+  return (
+    <section className="lens-placeholder" aria-label={title}>
+      {/* No lens knows its project's route before task 24, so the badge is hidden, not guessed. */}
+      <ViewHeader title={title} route={null} />
+      <div className="lens-placeholder-body">
+        <p>{what}</p>
+        <p>Arrives in phase {phase}.</p>
+      </div>
+    </section>
+  );
+}
+```
+
+`shell.css`: `.lens-placeholder` (`:34-43`) becomes the column that holds the header and a
+centred body, and `.lens-placeholder h2` (`:44-47`) is deleted:
+
+```css
+.lens-placeholder {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  block-size: 100%;
+}
+.lens-placeholder-body {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--s-2);
+  padding: var(--s-5);
+  color: var(--ink-2);
+  text-align: center;
+}
+```
+
+`app.css`, inserted after `code, kbd, pre, samp { … }` (`:39-44`):
+
+```css
+/* Task 31: no heading carries the browser's size or margin. The one view header sets its type
+ * from --t-head; a heading anywhere else inherits the text around it. No colour here. */
+:where(h1, h2, h3) {
+  margin: 0;
+  font: inherit;
+}
+```
+
+`:where()` keeps the reset at zero specificity, so `.vh-title` wins without a fight.
+
+#### Interfaces — complete: `chrome.dim` in `rail.css` and `subrail.css`
+
+The labels are already `--ink-2` (`rail.css:24`, `:76`; `subrail.css:45`) and the rail's chevron
+already `--ink-3` (`rail.css:44`). What changes: the current item, the sub-rail's back link,
+branch name and glyph, and the `+`. In `rail.css`:
+
+```css
+.rail-row {
+  position: relative; /* task 31: the tick's containing block. Added to the rule at :17-29. */
+}
+.rail-row[aria-selected="true"] {  /* replaces :33-37 */
+  color: var(--ink);
+}
+.rail-row[aria-selected="true"]::before {
+  content: "";
+  position: absolute;
+  inset-block: var(--s-1);
+  inset-inline-start: 0;
+  inline-size: 2px;
+  background: var(--accent);
+}
+.rail-add {  /* :138's --accent-hi becomes */
+  color: var(--ink-2);
+}
+.rail-add:hover,
+.rail-add:focus-visible {
+  color: var(--ink);
+}
+```
