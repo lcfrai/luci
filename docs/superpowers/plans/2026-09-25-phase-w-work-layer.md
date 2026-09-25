@@ -484,4 +484,59 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 96 | themes, part 2: the high-contrast pair; personal preferences | W2 | 0.3 (2.5 h) | 95 | — |
 | 97 | W2's proof and results | W2 | 0.3 (2.5 h) | 72-96 | — |
 
+### W3: agents on the work (ships with Phase T's TM1)
+
+| Id | Task | Slice | Focused days | dependsOn | Seams |
+|---|---|---|---|---|---|
+| 98 | Phase T delta: `task.issueId`; the `issue.delegated` and `blocker.landed` Orchestrator events | W3 | 0.375 (3 h) | 70; TM-03, TM-06, TM-10 | SW.5 |
+| 99 | the W3 Hub wire, fake and conformance: comment kinds, guidance records, the org kill switch | W3 | 0.375 (3 h) | 97, 98 | SW.19 |
+| 100 | the W3 migration, routes, matrix rows and HTTP methods | W3 | 0.375 (3 h) | 99; TM-05 | SW.19 |
+| 101 | the verbs: `panacea issue show`, `panacea issue note`, `panacea evidence propose`; `panacea team` names each agent's issue | W3 | 0.375 (3 h) | 100; TM-18, TM-19, TM-22 | SW.7 |
+| 102 | `Shift+O` delegate and `Shift+A` ask; the team strip's line is the issue title | W3 | 0.375 (3 h) | 101; TM-53, TM-55 | SW.10 |
+| 103 | Orchestrator notes on the issue, one voice per owner; agent comments name owner, agent, model, session; `@me:orchestrator` | W3 | 0.3 (2.5 h) | 100 | — |
+| 104 | proposed evidence under each criterion in the Merge lens; *Record* as the person | W3 | 0.375 (3 h) | 23, 100; P3-20 | — |
+| 105 | Fleet: §3.7 rules 2 and 3 through Orchestrators; cross-owner `blocks` seeds a `sequence` proposal | W3 | 0.375 (3 h) | 98; TM-29, TM-30 | — |
+| 106 | the negotiation row on both issues: a `⇄` line until seen, then a glyph | W3 | 0.3 (2.5 h) | 105 | — |
+| 107 | the agent's task-card page; *my agents* and *Alice's agents* filters; `who.label` | W3 | 0.375 (3 h) | 98; TM-52 | — |
+| 108 | `step.fold` on the issue; one ephemeral line; session, lane and preview links; the first-activity budget | W3 | 0.375 (3 h) | 107 | — |
+| 109 | guidance and the kill switch in settings; our published agent rules | W3 | 0.3 (2.5 h) | 100; TM-14 | — |
+| 110 | the read-only *ask* worker: answers that link files and lines | W3 | 0.375 (3 h) | 101; TM-21 | — |
+| 111 | named risk facts on lanes; the repository proposal; Orchestrator-filed issues into `triage` | W3 | 0.375 (3 h) | 100 | — |
+| 112 | the same verbs in solo mode through phase 3's runner (**UNVERIFIED** that it can host them) | W3 | 0.375 (3 h) | 101 | — |
+| 113 | W3's proof and results | W3 | 0.3 (2.5 h) | 98-112 | — |
+
+### W4: roadmap, release and reporting
+
+| Id | Task | Slice | Focused days | dependsOn | Seams |
+|---|---|---|---|---|---|
+| 114 | `hubapi` and `hubclient.WorkRoadmap`: the W4 wire types and methods | W4 | 0.375 (3 h) | 97 | SW.20 |
+| 115 | the fake's W4 rules and conformance rows | W4 | 0.375 (3 h) | 114 | SW.20 |
+| 116 | the W4 migration, its guards and matrix rows | W4 | 0.375 (3 h) | 114 | — |
+| 117 | cross-team planning: a feature shared with a second team; initiatives across teams | W4 | 0.375 (3 h) | 116 | — |
+| 118 | initiatives `in-`: owner, target, status, the health roll-up | W4 | 0.3 (2.5 h) | 116 | — |
+| 119 | status updates `nt-`: health word, the pinned brief revision, the facts they cite | W4 | 0.3 (2.5 h) | 118; TM-46 | — |
+| 120 | milestones `ml-` as criterion subsets; feature dependencies; feature and brief templates | W4 | 0.375 (3 h) | 116 | — |
+| 121 | the janitor, W4: recurring issues, update reminders, triage rotation | W4 | 0.3 (2.5 h) | 78, 116 | — |
+| 122 | insights queries: measured counts and durations, percentiles for the scatter | W4 | 0.375 (3 h) | 116 | — |
+| 123 | read cursors for Work objects: the input to *since you last looked* | W4 | 0.3 (2.5 h) | 116; TM-54 | SW.5 |
+| 124 | `hubclient`'s W4 methods over HTTP, the relay rows, W4's Hub end to end | W4 | 0.375 (3 h) | 115, 117-123 | SW.20 |
+| 125 | desktop W4 wire types and replica kinds | W4 | 0.25 (2 h) | 83, 115 | — |
+| 126 | cross-team sharing in the feature's header | W4 | 0.3 (2.5 h) | 125 | — |
+| 127 | initiatives and the update composer | W4 | 0.375 (3 h) | 125 | — |
+| 128 | the timeline, part 1: layout, day-to-quarter zoom, the cycle band, grouping | W4 | 0.375 (3 h) | 125 | — |
+| 129 | the timeline, part 2: drag to reschedule with Undo; dependencies, a violated order in signal | W4 | 0.375 (3 h) | 128 | — |
+| 130 | milestones: the criterion-subset picker and convergence | W4 | 0.25 (2 h) | 125 | — |
+| 131 | phase 7 delta: notes by criterion, freeze per environment, path filters, *shipped* on the issue | W4 | 0.375 (3 h) | 71 | SW.9 |
+| 132 | the insights panel and scatter; every point opens its issue | W4 | 0.375 (3 h) | 122, 125 | — |
+| 133 | *since you last looked* names issues: four delta classes, a handover that links every claim | W4 | 0.375 (3 h) | 123; TM-54 | — |
+| 134 | recurring issues, triage rotation, the method page | W4 | 0.3 (2.5 h) | 121 | — |
+| 135 | phase 6 delta: the session token carries the issue id; spend per issue and per loop | W4 | 0.25 (2 h) | 24; P6 (UNVERIFIED id) | — |
+| 136 | assists, part 1: triage suggestions with `serves` and a "why"; the calibrated dial | W4 | 0.375 (3 h) | 124; P6 gateway | — |
+| 137 | assists, part 2: duplicates, composer hints, guidance layers | W4 | 0.375 (3 h) | 136 | — |
+| 138 | assists, part 3: natural-language filters as editable chips | W4 | 0.3 (2.5 h) | 91, 136 | — |
+| 139 | drafts, part 1: drafted updates, thread summaries as link indexes, the property-change digest | W4 | 0.375 (3 h) | 127, 136 | — |
+| 140 | drafts, part 2: *propose issues per criterion*; *propose the next cycle* | W4 | 0.375 (3 h) | 87, 136 | — |
+| 141 | an agent's edit to an issue or brief is a proposal, shown as a diff | W4 | 0.3 (2.5 h) | 47, 136 | — |
+| 142 | W4's proof and results | W4 | 0.3 (2.5 h) | 114-141 | — |
+
 ---
