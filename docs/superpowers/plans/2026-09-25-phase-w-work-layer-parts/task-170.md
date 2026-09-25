@@ -67,7 +67,7 @@ new issue in the team's default state, linked, and the issue now lists *Requeste
 - `desktop/src/components/intake/IntakeRulesEditor.tsx` (+ `IntakeRulesEditor.test.tsx`) — ordered rules (new)
 - `desktop/src/components/intake/IntakeFormEditor.tsx` (+ `IntakeFormEditor.test.tsx`) — typed fields (new)
 - `desktop/src/components/intake/intake.css` — `.ik-*` (new)
-- `desktop/src/components/intake/registerIntakeDesk.ts` — the `request.unrouted` Desk row (new)
+- `desktop/src/components/intake/registerIntakeDesk.ts` and `UnroutedRow.tsx` — the `request.unrouted` Desk row (new)
 - `desktop/src/components/work/TriageView.tsx` ⚑ (task 42) — request rows beside issue rows (modified)
 - `desktop/src/components/issue/IssueView.tsx` ⚑ (task 46) — the *Requested by* line (modified)
 
@@ -312,3 +312,74 @@ export function registerIntakeDesk(): void {
 waiting 3h 12m*, and *Open* to the team's Triage), counted in `RequestRow.test.tsx`. The row's
 data is metadata only: `requesterName` and `reason` are task 144's event `data` fields
 (**UNVERIFIED**), never the quote.
+
+#### Tests to write first — `RequestPanel.test.tsx`
+
+```tsx
+// Fixtures: task 20's workFixtures (FIXED_NOW, tm-pay, pj-ep) plus one request built here.
+const quoteXss = `<img src=x onerror="window.__pwned=1"> **bold** 50% of uploads fail`;
+const rq = (over: Partial<Request> = {}): Request => ({
+  id: "rq-00000000000000a1", teamId: "tm-pay", projectId: "pj-ep",
+  requester: { kind: "person", userId: null, email: null, displayName: "Priya Nair" },
+  quote: { text: "Uploads keep failing on the train", author: "H" }, channel: "form", channelRef: "fm-1",
+  important: false, answers: [], state: "open", issueId: null, suggestedCriterion: null, ruleId: "ir-1",
+  createdAt: "2026-09-25T04:02:00Z", ...over });
+
+describe("RequestPanel", () => {
+  // Kills: HTML rendered from the quote (dangerouslySetInnerHTML or a Markdown renderer).
+  it("renders a quote holding markup as text", () => {
+    const { container } = render(<RequestPanel request={rq({ quote: { text: quoteXss, author: "H" } })} {...base} />);
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector("strong")).toBeNull();
+    expect(container.querySelector(".ik-quote")!.textContent).toBe(quoteXss);
+    expect((window as { __pwned?: number }).__pwned).toBeUndefined();
+  });
+
+  // Kills: two ops (issue, then link), and a half-done accept after a refusal.
+  it("accept sends one op with one Undo; a refused accept leaves neither issue nor link", async () => {
+    const { user, mutate, replica } = setupWork({ refuse: { "request.accept": "request_closed" } });
+    render(<RequestPanel request={rq()} {...base} />);
+    await user.click(screen.getByRole("button", { name: "Accept" }));
+    await user.type(screen.getByLabelText("Title"), "Resume uploads after a dropped connection{Enter}");
+    expect(mutate).toHaveBeenCalledTimes(1);
+    expect(mutate.mock.calls[0][0].kind).toBe("request.accept");
+    await waitFor(() => expect(screen.getByText("Someone else accepted this request")).toBeVisible());
+    expect(replica.issuesOfProject("pj-ep").some((h) => h.title.startsWith("Resume uploads"))).toBe(false);
+    expect(replica.intake().requests.get(rq().id)!.state).toBe("open");
+  });
+
+  // Kills: the quote copied into the new issue's description.
+  it("the accept body's description is empty until the person types", async () => {
+    const { user, mutate } = setupWork();
+    render(<RequestPanel request={rq()} {...base} />);
+    await user.click(screen.getByRole("button", { name: "Accept" }));
+    await user.type(screen.getByLabelText("Title"), "Resume uploads{Enter}");
+    const body = mutate.mock.calls[0][0].body as AcceptRequestBody;
+    expect(body.description).toEqual({ text: "", author: "H" });
+    expect(JSON.stringify(body)).not.toContain("failing on the train");
+  });
+
+  // Kills: important with no undo.
+  it("important toggles and U restores it", async () => {
+    const { user, undo, replica } = setupWork();
+    render(<RequestPanel request={rq()} {...base} />);
+    await user.click(screen.getByRole("button", { name: "Important" }));
+    expect(replica.intake().requests.get(rq().id)!.important).toBe(true);
+    await undo();
+    expect(replica.intake().requests.get(rq().id)!.important).toBe(false);
+  });
+
+  // Kills: a similarity percentage or score on the suggestion.
+  it("the suggestion shows matched words and no prediction", () => {
+    const { container } = render(<RequestPanel request={rq()} {...base}
+      criteria={[{ briefKey: "brief:bf-1@3", criterionId: "c2", text: "Uploads survive a dropped connection" }]} />);
+    expect(screen.getByText(/matches: uploads/)).toBeVisible();
+    expect(container.textContent).not.toMatch(/\d+\s?%|score|confidence/i);
+    expectNoPrediction(container);   // the quote's own "50%" would be exempt: data-verbatim
+  });
+});
+```
+
+`setupWork` is task 56's test harness (a fake `WorkClient`, the replica and `mutate`, `undo`,
+with `refuse` mapping an op kind to a Hub code); `base` holds `thread: []`, `projectId: "pj-ep"`,
+`criteria: []` and `onClose`. If task 56 names the harness otherwise, these tests follow it.
