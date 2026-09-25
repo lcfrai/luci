@@ -54,3 +54,77 @@ proposal to turn grain off at a device pixel ratio of 1.5 and above.
 - `desktop/src/components/devtools/screens/index.ts` ⚑ (task 33) — one import (modified)
 - `docs/verification/2026-09-25-phase-w-results.md` — the *Grain* section, filled by hand (new;
   the skeleton gives this task no results file)
+
+#### Interfaces — complete: `desktop/src/styles/grain.css`
+
+The rule's six declarations are `tokens.css:164-170`, byte for byte; only the file changes.
+
+```css
+/* desktop/src/styles/grain.css
+ *
+ * Grain (Phase W task 35; moved unchanged from tokens.css). 1.5–3% film grain over dark
+ * surfaces. It kills banding on the dark ramp and adds a made-object quality. Applied ONCE, on the
+ * app shell (AppShell.tsx), as a fixed pseudo-element — not per component, which would cost a
+ * compositor layer each. pointer-events:none so it never eats a click.
+ *
+ * Measured, not assumed (05 §4.4 work rule 6): GrainMeter scrolls a list with and without it at
+ * the laptop's own scaling, and the numbers go in docs/verification. Grain is one of dark's marks
+ * (05 §4.4 C13); paper carries the thread gutter instead. Off in three places below, and a fourth,
+ * forced colours, is task 34's one rule in forced-colors.css. */
+@import "./tokens.css";
+
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.022;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Off on a light ground (paper has its own mark), in any high-contrast theme (W2 names them
+ * *-hc), and when the dev flag turns it off for the meter's second pass. */
+:root[data-theme="paper"] .grain::after,
+:root[data-theme$="-hc"] .grain::after,
+:root[data-grain="off"] .grain::after {
+  display: none;
+}
+```
+
+**Why paper too.** 05 §4.4 C13 (D M5): *grain is dark-only, so `paper` carries its own fifth
+mark*. The scope named `-hc` and the flag; paper follows from the same sentence, and leaving grain
+on over a light ground would be the rule the design already withdrew.
+
+`app.css`, after task 27's `@import "./fonts.css";`:
+
+```css
+@import "./grain.css";
+```
+
+#### Interfaces — complete: the `flags.ts` and `FlagCompare.tsx` deltas
+
+```ts
+export type Grain = "on" | "off";
+
+export interface Flags {
+  // … task 32's three and task 33's two, unchanged
+  /** "off" writes data-grain="off"; grain.css hides the overlay. GrainMeter's second pass. */
+  grain: Grain;
+}
+
+// FLAG_DEFAULTS gains  grain: "on",
+// ATTRIBUTE gains      grain: "data-grain",
+```
+
+```tsx
+export const GRAINS: readonly FlagOption<Grain>[] = [
+  { value: "on", label: "On" },
+  { value: "off", label: "Off" },
+];
+
+// in FlagCompare, after the Theme group:
+      <Group flag="grain" legend="Grain" options={GRAINS} />
+```
+
+`Grain` joins the type import from `../../lib/flags` in `FlagCompare.tsx`.
