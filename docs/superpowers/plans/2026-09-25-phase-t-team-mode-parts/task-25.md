@@ -149,8 +149,8 @@ narrower glob's literal directory prefix (`auth/**` against `auth/session/*.go` 
 `approx: true`, so `panacea check` can say *"overlap on auth/session (by plan, not by file)"*.
 
 **`HasOpenConflictThread` is an adapter**, in `cmd/fleetd`, over task 28's durable
-`Store.OpenThreads(ctx, orchA)` (`task-28.md:366`): true when one of `orchA`'s open threads has a
-`Conflict` whose agent pair is `{a, b}`. It is declared here as one method so this package does not
+`Store.OpenThreads(ctx, orchA)` (`task-28.md:397`): true when one of `orchA`'s open threads has a
+`Conflict` (`task-28.md:380`, a `cf-…` id) whose `HubState` record's agent pair is `{a, b}`. It is declared here as one method so this package does not
 import `protocol` (task 28 imports nothing of `forecast`, and neither should need the other).
 
 **Basis shas, and a gap.** Route 57 takes `basis.a` and `basis.b` as 40 or 64 hex
@@ -166,7 +166,8 @@ within one; across replicas the pair check reads `HubState`, which a second repl
 about through the feed. A race can therefore raise **two** conflicts for one pair in the few
 seconds before the feed catches up. The durable guard is the thread: this part **asks task 28** to make
 `OpenForConflict` return the existing thread for an Orchestrator pair that already has an open
-conflict thread over the same agent pair (**UNVERIFIED** in `task-28.md`; listed in the return),
+conflict thread over the same agent pair. Task 28 does, and more broadly: one open thread per
+Orchestrator pair per subject, a second opener gets the existing id (`task-28.md:53-55`),
 and the second
 `Raise` finds the first thread through `HasOpenConflictThread` on its step (4) if it runs even
 slightly later. The residual (two conflicts, one thread) is harmless to the humans, who see one
