@@ -181,7 +181,9 @@ export interface ExternalLink {
   source: TrackerSource; externalId: string; issueId: string; url: string; lastSeenAt: string;
   upstream: UpstreamChange | null;   // the latest, from task 150's upstreamChangedAt
 }
-export interface SyncError { externalId: string; code: ProblemCode }
+/** code is a Hub code string (hub-contract §4 or task 143's), not the desktop's ProblemCode:
+ *  it names why one external item was refused, and it is never thrown. */
+export interface SyncError { externalId: string; code: string }
 /** One engine pass (task 150): counts are measured facts of that pass, not a total to reach. */
 export interface SyncRun {
   connectionId: string; at: string;

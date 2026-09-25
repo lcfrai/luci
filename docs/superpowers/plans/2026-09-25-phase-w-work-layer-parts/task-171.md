@@ -133,7 +133,7 @@ scope's *Jira Cloud* claim and nothing more.
 ```tsx
 // desktop/src/components/intake/SyncLog.tsx — task 171 (decision 4). A view, not a wire type.
 import type { JSX } from "react";
-import type { ExternalLink, ProblemCode, SyncRun, TrackerSource } from "../../api/work";
+import type { ExternalLink, SyncRun, TrackerSource } from "../../api/work";
 import { SOURCE_NAME } from "./trackerTarget";
 
 export type SyncResult = "imported" | "refused" | "upstream" | "run";
@@ -144,9 +144,10 @@ export interface SyncLogEntry {
   url: string | null;                  // the external item, https only
 }
 
-const REFUSAL: Partial<Record<ProblemCode, string>> = {
+/** Hub codes (hub-contract §4, `:232-250`, and task 143's appended ones); an unknown code shows as itself. */
+const REFUSAL: Readonly<Record<string, string>> = {
   principal_cannot_move_state: "not applied: sync never moves a state",
-  validation_failed: "not imported: the item failed a check",
+  bad_request: "not imported: the item failed a check",
   forbidden: "not applied: sync may not write this",
 };
 const trackerName = (s: TrackerSource) => (s === "azure_boards" ? "Azure Boards" : s === "github" ? "GitHub" : "Jira");
@@ -213,3 +214,72 @@ export function TrackerList(props: { teamId: string; canEdit: boolean; now(): nu
 `mode` is always `"in"` at connect: the switch is on the row, not in the form, so a new connection
 cannot start in `in_and_comments` (decision 3). The switch sends task 169's `tracker.mode` op with
 `prev`, one Undo.
+
+#### Tests to write first — `trackerTarget.test.ts` and `SyncLog.test.tsx`
+
+```ts
+describe("validateTarget", () => {
+  // Kills: the Hub's 422 as the only check.
+  it("refuses a Jira key with a space or lower case, naming the rule", () => {
+    expect(validateTarget({ source: "jira", site: "contoso.atlassian.net", projectKey: "ep 1" }))
+      .toEqual([{ field: "projectKey", rule: "2-10 capitals, digits or _, a capital first" }]);
+    expect(validateTarget({ source: "jira", site: "contoso.atlassian.net", projectKey: "PAY" })).toEqual([]);
+  });
+  it("refuses a GitHub owner with a double hyphen and a repository named ..", () => {
+    expect(validateTarget({ source: "github", owner: "kpmg--au", repository: ".." }).map((p) => p.field))
+      .toEqual(["owner", "repository"]);
+  });
+  it("refuses an area path outside its project", () => {
+    expect(validateTarget({ source: "azure_boards", organisation: "contoso", project: "Payments",
+      areaPath: "Mobile\\Uploads" }).map((p) => p.field)).toEqual(["areaPath"]);
+  });
+});
+
+describe("syncLogRows", () => {
+  const run: SyncRun = { connectionId: "tc-1", at: "2026-09-26T04:02:00Z", created: 14, existing: 3,
+    commentsIn: 0, commentsOut: 0, errors: [{ externalId: "PAY-377", code: "principal_cannot_move_state" }] };
+  // Kills: refusals hidden, so a person thinks it synced.
+  it("a refused external close shows its reason", () => {
+    const rows = syncLogRows([run], [], "jira");
+    expect(rows.find((r) => r.externalId === "PAY-377")!.words).toBe("not applied: sync never moves a state");
+  });
+  it("an upstream close reads as a fact about the tracker", () => {
+    const link: ExternalLink = { id: "xl-1", source: "jira", externalId: "PAY-377", issueId: "is-1",
+      url: "https://contoso.atlassian.net/browse/PAY-377", lastSeenAt: "2026-09-25T01:00:00Z",
+      upstream: { externalId: "PAY-377", field: "state", at: "2026-09-26T01:02:00Z" } };
+    expect(syncLogRows([], [link], "jira")[0]!.words).toBe("closed in Jira · not applied: sync never moves a state");
+  });
+  // Kills: an "updated" or "skipped" row the Hub never recorded.
+  it("draws only imported, refused, upstream and run rows", () => {
+    const kinds = new Set(syncLogRows([run], [], "jira").map((r) => r.result));
+    expect([...kinds].every((k) => ["imported", "refused", "upstream", "run"].includes(k))).toBe(true);
+  });
+});
+```
+
+#### Tests to write first — `TrackerConnect.test.tsx`, `TrackerList.test.tsx`
+
+1. **No credential field** — render `TrackerConnect`, choose each of the three sources in turn:
+   no `input[type=password]`, and no label, placeholder or name matching
+   `/token|pat|password|secret|api key/i`. **Kills** "a PAT input".
+2. **Refused before any call** — Jira with key `ep 1`, press *Connect*: the field shows the rule
+   and the fake client's `connectTracker` was called zero times. **Kills** "the Hub's 422 as the
+   only check".
+3. **Comments both ways is off, and asks** — a new connection's switch has `aria-checked="false"`;
+   clicking it shows the in-place consequence and sends nothing; *Turn on* sends one
+   `tracker.mode` with `mode: "in_and_comments"`, `prev: "in"`. **Kills** "on by default" and
+   "on without asking".
+4. **Arrivals, no progress** — during a first run the fake feed emits three
+   `external_link.created` events 1 s apart; after each, the log's first row is the newest, and
+   `expectNoPrediction(container)` passes, and no `progress`, `meter` or `role="progressbar"`
+   node exists. **Kills** "an import progress bar".
+5. **No spinner** — while the connection waits for consent, no element has `aria-busy="true"` or
+   a class matching `/spin/`; the row reads *waiting for consent*. **Kills** "a per-row spinner".
+6. **Disconnect keeps every link** — confirm *Disconnect*: one `disconnectTracker`, the row reads
+   *disconnected · links kept*, and the replica's `links` map has the same size as before; an
+   imported issue still renders *not tied · imported* (task 42's `threadWords`) with its external
+   link. **Kills** "links deleted".
+7. **Consent opens outside** — a `consentUrl` of `https://github.com/apps/x/installations/new`
+   calls the mocked `openUrl` once with it; a `consentUrl` of `http://…` or `javascript:…` calls
+   it zero times and shows *The tracker's consent link was not https; not opened*. **Kills** "a
+   tracker page in the webview" and "an unsafe link opened".
