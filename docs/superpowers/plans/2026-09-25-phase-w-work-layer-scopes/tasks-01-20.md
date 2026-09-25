@@ -116,4 +116,60 @@ phase 4's parser accepts it (task 18). Parity rows served: **L-3** (the alias; c
 the desktop rows), **L-34** (immutable, digested revisions; closed with 09 and 46), **L-124**
 (author class on every text; closed with 03, 12 and the issue view).
 
+**03 — `hubapi`: the W1 wire types and request bodies.** W1, stream WH, seam **SW.1** (second
+half; frozen at WS0 with task 05); depends on 02. One new file pair,
+`control-plane/internal/hub/hubapi/work.go` and `work_test.go`, following `types.go`'s idiom
+(camelCase JSON tags, `User` for every actor, RFC 3339 strings for times, `Page[T]` at
+`types.go:196-205` for lists) and reusing 02's `AuthoredText`, `Serve` and `IssueRevisionContent`.
+It declares, with complete Go in the part: the enums `IssueState` (`triage`, `backlog`, `todo`,
+`started`, `in_review`, `landed`, `done`, `cancelled`, `duplicate`; 05 §3.3 — **no `shipped`**,
+which is derived) with `FactStates` (`started`, `in_review`, `landed`, `done`, skeleton rule 2) and
+`InitialStates` (`triage`, `backlog`, `todo`); `Priority` (`none`, `urgent`, `high`, `medium`,
+`low`; L-13); `RelationKind` (`blocks`, `duplicates`, `relates`; L-24); `ThreadStateKind`
+(`on_thread`, `project_level`, `not_tied`) and `NotTiedReason` (`chore`, `spike`, `imported`,
+`support`; 05 §2.3 point 4); `IssueSource` (`person`, `orchestrator`, `intake`; 04 §2.4);
+`SubscriptionCause` (`create`, `assign`, `mention`, `comment`, `manual`; L-117). Records:
+`IssueHead{id, projectId, number, alias, state, stateReason, assignee *User, priority, labels
+[]string, relations []Relation, headRevision, threadState ThreadState, source, external
+*ExternalRef, createdAt, createdBy, updatedAt}` (`alias` is `DisplayAlias` at read time, never
+stored or accepted; W2's estimate, cycle, feature, parent, due date and rank are added to it
+additively by task 72); `IssueRevision{issueId, revision, key, digest, content, writtenAt,
+writtenBy, restoredFrom *int}`; `ThreadState{kind, reason}`; `Relation{kind, issueId}`;
+`ExternalRef{source, externalId, url}`; `Label{id lb-, teamId, name, color}` (a token name, never
+a hex); `TeamPolicy{teamId, defaultState, priorityToLeaveTriage bool, stopAtLandedWithoutServes
+bool, updatedAt, updatedBy}` (L-9, L-48, 05 §3.3's team switch); `Comment{id ic-, issueId,
+parentId *string, kind, body AuthoredText, anchor *CommentAnchor, mentions []string, reactions
+[]Reaction, resolvedAt *string, resolvedBy *User, createdAt, createdBy}` with W1's only `kind`
+`"comment"` (W3's `note`, `evidence_proposal`, `negotiation` are SW.19, task 99);
+`CommentAnchor{kind text|criterion|span|hunk, revision int, start, end int, criterionId, ref}`
+(`ref` a provenance key or span id; L-42); `Reaction{emoji, users []User}`;
+`Subscription{issueId, user, cause, subscribed bool}`; `ProjectKey{projectId, key, setAt, setBy}`.
+Request bodies: `CreateIssueRequest{title, description AuthoredText, serves, state, priority,
+assigneeId, labels, notTiedReason}`, `PatchIssueRequest` (pointer fields: `priority`,
+`assigneeId`, `labels`, `notTiedReason`; **no `state`**, which moves only through `StateMove`),
+`WriteIssueRevisionRequest{baseRevision, content}` (409 on a stale base, as briefs,
+hub-contract §7.5), `RestoreRevisionRequest{fromRevision}`, `StateMove{to, cause, reason}` (the
+shape only; task 10 owns its causes and the done rule, **SW.4**), `RelationRequest`,
+`CreateLabelRequest`, `PutTeamPolicyRequest`, `SetProjectKeyRequest{key}`,
+`CreateCommentRequest{body, parentId, anchor, mentions}`, `ReactRequest{emoji, on bool}`,
+`ResolveRequest{resolved bool}`, `SubscribeRequest{subscribed bool}`, `ImportBatch{source
+linear|csv, items []ImportItem}` with `ImportItem{externalId, url, title, description, priority,
+labels []string, createdAt}` and `ImportResult{created, existing []IssueRef}` (the shape only;
+task 15 owns idempotency by `(source, externalId)`, **SW.6**), and `IssueSearchQuery{projectId, q,
+limit}`. **Tests, each with its mutant**, in the four styles `types_test.go` already runs
+(`TestFieldNamesMatchTheContractExamples` :179, `TestResponsesNeverOmitAField` :257,
+`TestRequestsRejectUnknownFields` :390, the required-digest rows :574): a table of one JSON example
+per record, decoded strictly and re-encoded equal (kills a tag like `criterion_id` or `issueID`);
+`serves`, `labels`, `relations`, `mentions` and `reactions` encode as `[]` when empty (kills
+`omitempty` on a list the desktop indexes); every request type rejects an unknown field (kills a
+lenient decoder, and specifically a `"state":"done"` smuggled into `PatchIssueRequest`);
+`ValidInitialState` refuses every fact state (kills an issue created already `done`, which would
+skip the done rule); `IssueState` has no `shipped` member (kills 05 §3.3's derived fact stored as a
+state); `AuthoredText` refuses an author other than `H` or `A`; `ThreadState` with `not_tied`
+and no reason is invalid (kills 05 §2.3's "a silent open end"); a `:custom:` emoji is refused (kills
+custom emoji, which L-41 leaves *later*). It **does not claim** any route, store or authorisation
+(tasks 06-15), nor the W2-W5 types (72, 99, 114, 143). Parity rows served (each closed by the
+route task and its desktop surface): L-8, L-9, L-10, L-13, L-17, L-24, L-38, L-41, L-42, L-46,
+L-48, L-117, L-124, L-220.
+
 
