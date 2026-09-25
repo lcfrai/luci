@@ -65,3 +65,117 @@ under `forced-colors`, where Chromium drops every `box-shadow`.
 `AppShell.tsx` is untouched: it passes `lens`, `phase` and `what` to `LensPlaceholder` today
 (`:30-62`) and still does; the placeholder passes `route={null}`, because no lens knows its project's
 route before task 24.
+
+- `desktop/src/components/AppShell.test.tsx` ⚑ (`:119` asserts `getByRole("heading", { name:
+  "merge" })`) — the name becomes `"Merge"` (modified). The deleted `text-transform: capitalize`
+  (`shell.css:46`) was the only thing that made the lowercase id read as a title; the title now
+  comes from `SubRail.tsx:9-16`'s `LENSES` labels, the one place a lens is named.
+
+#### Interfaces — complete: `ViewHeader.tsx` (seam SW.13)
+
+```tsx
+// Seam SW.13 (task 31; 02 C5, 05 §4.4 C5 and §4.1). The one view header: title, scope chip,
+// route badge, controls on the right. No other file renders a view title; the designsystem
+// audit "has one view header" holds that by construction.
+import type { JSX, ReactNode } from "react";
+import "./viewheader.css";
+
+/** OD-19's two inference paths. At a call site `null` means *unknown*, never a default. */
+export type Route = "global" | "au";
+
+const ROUTE_LABEL: Readonly<Record<Route, string>> = { global: "Global", au: "AU" };
+
+const ROUTE_TITLE: Readonly<Record<Route, string>> = {
+  global: "Inference goes through the org gateway to the direct Anthropic API.",
+  au: "Inference goes through the org gateway to Amazon Bedrock in Sydney.",
+};
+
+export function ViewHeader(props: {
+  title: string;
+  route: Route | null;
+  badge?: ReactNode;
+  actions?: ReactNode;
+}): JSX.Element {
+  const { title, route, badge, actions } = props;
+  return (
+    <header className="vh">
+      <h1 className="vh-title">{title}</h1>
+      {badge === undefined ? null : <span className="vh-scope">{badge}</span>}
+      {route === null ? null : (
+        <span
+          className="vh-route"
+          data-route={route}
+          aria-label={`Inference route: ${ROUTE_LABEL[route]}`}
+          title={ROUTE_TITLE[route]}
+        >
+          {ROUTE_LABEL[route]}
+        </span>
+      )}
+      {actions === undefined ? null : <div className="vh-actions">{actions}</div>}
+    </header>
+  );
+}
+```
+
+`route` is required, not optional, so a caller that forgets it fails the typecheck instead of
+rendering a header with no badge that looks like a decision. The two badge words carry no colour
+of their own: the route is not a status, and `AU` in a status hue would read as a warning. The
+`title` text names the gateway because both paths go through it (`OD-19`); it names no model and
+no key. `aria-label` contains the visible word, so the accessible name matches what is seen.
+
+#### Interfaces — complete: `viewheader.css`
+
+```css
+@import "../../styles/tokens.css";
+
+/* The one view header (task 31, seam SW.13). Owns .vh-*. 02 C5: title, scope, route, controls. */
+.vh {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-block-size: var(--row-h);
+  padding: var(--s-2) var(--s-4);
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.vh-title {
+  min-inline-size: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--t-head);
+  font-weight: var(--t-head-weight);
+  line-height: var(--t-head-lh);
+  letter-spacing: var(--t-head-track);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vh-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-inline-size: 0;
+  color: var(--ink-2);
+  font-size: var(--t-ui);
+  line-height: var(--t-ui-lh);
+}
+.vh-route {
+  flex: none;
+  padding: 0 var(--s-1);
+  border-radius: var(--r-chip);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--t-fact);
+  line-height: var(--t-fact-lh);
+}
+.vh-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-inline-start: auto;
+}
+```
+
+`.vh-title` sets its own family although the body is already sans: `voice.split` (task 30) puts
+mono on machine surfaces, and a header inside one must not inherit it. The route chip's ring is
+`--line-strong` because at `--line` (7.5 % ink) a 16px-tall chip does not read as a chip.
