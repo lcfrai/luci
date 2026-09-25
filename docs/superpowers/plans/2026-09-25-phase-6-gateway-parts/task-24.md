@@ -129,6 +129,10 @@ expect "P02 fails when LiteLLM connects, whatever it answers" p02-sandbox-reache
 # Mutant: a refused connection (exit 7) with a timing read as reachable.
 d=$(p02_ok); can "$d" p02.logs 0 "gatekeeper 0 0.001204" "litellm 7 0.000000" "keysmith 7 0.000000" "postgres 28 0.000000"
 expect "P02 passes on refused connections" p02-sandbox-reaches-gatekeeper-only.sh "$d" 'gateway P02: PASS' 0 "${POD[@]}"
+# Mutant: reachability judged by curl's exit status, so Postgres answering an HTTP probe with an
+# empty reply (exit 52, after a completed TCP connect) reads as blocked.
+d=$(p02_ok); can "$d" p02.logs 0 "gatekeeper 0 0.001204" "litellm 28 0.000000" "keysmith 28 0.000000" "postgres 52 0.004100"
+expect "P02 fails when Postgres connects and answers nothing" p02-sandbox-reaches-gatekeeper-only.sh "$d" 'gateway P02: FAIL .*postgres' 1 "${POD[@]}"
 # Mutant: no pods create read as a pass; and GW_REQUIRE_ALL ignored.
 d=$(p02_ok); can "$d" p02.cani 1 "no"
 expect "P02 is NOT RUN without pods create" p02-sandbox-reaches-gatekeeper-only.sh "$d" 'gateway P02: NOT RUN' 0 "${POD[@]}"
@@ -141,6 +145,7 @@ ECHO=(GW_ECHO_IMAGE=registry.k8s.io/e2e-test-images/agnhost@sha256:1111)
 p03_ok() { local d; d=$(fresh)
   can "$d" p03.cani.sandboxes 0 "yes"
   can "$d" p03.cani.gateway 0 "yes"
+  can "$d" p03.cani.sbnetpol 0 "yes"
   can "$d" p03.apply 0 "pod/gwsmoke-p03-echo created" "service/gwsmoke-p03-echo created"
   can "$d" p03.run 0 "pod/gwsmoke-p03 condition met"
   can "$d" p03.logs 0 "podip=10.244.3.17" "seen=10.244.3.17:51234"
@@ -239,10 +244,430 @@ echo "gateway smoke tests: $failures failed"
 [ "$failures" -eq 0 ]
 ```
 
-That is thirty-five cases over six scripts: thirty-three verdicts and two leak checks. No case contacts a cluster, a cloud or a network: with `GW_CANNED` set, `run_cmd` never executes its command, and `expect` runs each script under `env -i`, so a variable from the author's own shell cannot make a case pass.
+That is thirty-six cases over six scripts: thirty-four verdicts and two leak checks. No case contacts a cluster, a cloud or a network: with `GW_CANNED` set, `run_cmd` never executes its command, and `expect` runs each script under `env -i`, so a variable from the author's own shell cannot make a case pass.
 
 - [ ] **Step 3: Run the tests to verify they fail**
 
 Run: `bash infra/smoke/gateway/gateway_smoke_test.sh`
 
-Expected: every case `FAIL` (the scripts do not exist, so each exits 127), and the last line `gateway smoke tests: 33 failed` (the two leak checks pass vacuously on a missing script, which step 7's mutant 4 closes).
+Expected: every case `FAIL` (the scripts do not exist, so each exits 127), and the last line `gateway smoke tests: 34 failed` (the two leak checks pass vacuously on a missing script, which step 7's mutant 4 closes).
+
+- [ ] **Step 4: Write `lib.sh`**
+
+Create `infra/smoke/gateway/lib.sh`:
+
+```bash
+#!/usr/bin/env bash
+# Shared by infra/smoke/gateway/p0*.sh. Phase 8's proving style (its task 31 contract), not its code.
+# Every cluster, cloud and network call goes through run_cmd, so gateway_smoke_test.sh can replace it.
+set -u
+
+GW_FAILED=0
+GW_TMP=$(mktemp -d "${TMPDIR:-/tmp}/gwsmoke.XXXXXX")
+GW_CLEANUP=()
+
+finish() {
+  local c
+  for c in "${GW_CLEANUP[@]+"${GW_CLEANUP[@]}"}"; do eval "$c" >/dev/null 2>&1 || true; done
+  rm -rf "$GW_TMP"
+}
+trap finish EXIT
+
+# run_cmd <key> <command...>. With GW_CANNED=<dir>: print <dir>/<key>.out, return <dir>/<key>.rc
+# (0 when absent), and run nothing.
+run_cmd() {
+  local key=$1; shift
+  if [ -n "${GW_CANNED:-}" ]; then
+    cat "$GW_CANNED/$key.out" 2>/dev/null
+    return "$(cat "$GW_CANNED/$key.rc" 2>/dev/null || echo 0)"
+  fi
+  "$@"
+}
+
+# verdict <id> PASS|FAIL|"NOT RUN" <what was seen...>. GW_REQUIRE_ALL=1 makes NOT RUN a FAIL.
+verdict() {
+  local id=$1 v=$2; shift 2
+  if [ "$v" = "NOT RUN" ] && [ "${GW_REQUIRE_ALL:-0}" = 1 ]; then v=FAIL; fi
+  printf 'gateway %s: %s %s\n' "$id" "$v" "$*"
+  if [ "$v" = FAIL ]; then GW_FAILED=1; fi
+  return 0
+}
+
+# need <id> VAR...: NOT RUN naming the first unset variable, and return 1.
+need() {
+  local id=$1 v; shift
+  for v in "$@"; do
+    if [ -z "${!v:-}" ]; then verdict "$id" "NOT RUN" "($v is not set)"; return 1; fi
+  done
+}
+
+# pinned <id> VAR: NOT RUN unless the image in VAR is pinned by digest.
+pinned() {
+  case "${!2}" in *@sha256:*) return 0 ;; esac
+  verdict "$1" "NOT RUN" "($2 must name an image by @sha256 digest)"; return 1
+}
+
+# can_i <id> <key> <verb> <resource> <namespace>: the human-path rule (phase 8 task 31).
+can_i() {
+  local ans
+  ans=$(run_cmd "$2" kubectl auth can-i "$3" "$4" -n "$5" 2>/dev/null)
+  [ "$ans" = yes ] && return 0
+  verdict "$1" "NOT RUN" "(no $4 $3 in $5: run as a member of the cluster admin group, never --admin)"; return 1
+}
+
+exit_status() { exit "$GW_FAILED"; }
+```
+
+Append to `infra/smoke/gateway/lib.sh` the three helpers that keep secrets out of arguments and the probe pod:
+
+```bash
+# pg_env <file>: export libpq's variables from the postgres URL on the file's first line. Prints
+# nothing. A percent-encoded password is NOT decoded; phase 8's URL format decides (ask P8-4).
+pg_env() {
+  local url re='^postgres(ql)?://([^:@/]+)(:([^@]*))?@([^:/?]+)(:([0-9]+))?/([^?]+)(\?(.*))?$'
+  url=$(head -n1 "$1" 2>/dev/null) || return 1
+  [[ $url =~ $re ]] || return 1
+  export PGUSER="${BASH_REMATCH[2]}" PGHOST="${BASH_REMATCH[5]}"
+  export PGPORT="${BASH_REMATCH[7]:-5432}" PGDATABASE="${BASH_REMATCH[8]}"
+  if [ -n "${BASH_REMATCH[4]}" ]; then export PGPASSWORD="${BASH_REMATCH[4]}"; fi
+  local q="${BASH_REMATCH[10]}" mode=require
+  case "$q" in *sslmode=*) mode="${q#*sslmode=}"; mode="${mode%%&*}" ;; esac
+  export PGSSLMODE="$mode"
+}
+
+# auth_header <file>: a 0600 header file holding the bearer from <file>, for curl -H @path.
+# printf is a builtin, so the key is never in any process's arguments.
+auth_header() {
+  local h="$GW_TMP/auth.h"
+  (umask 077; printf 'Authorization: Bearer %s\n' "$(head -n1 "$1")" >"$h")
+  echo "$h"
+}
+
+# probe_pod <name> <script>: a pod in panacea-sandboxes shaped as a session is, so phase 8's
+# policies select it as they select a session: the sandbox label, the Kata RuntimeClass, the
+# sandbox toleration and node selector, restricted, sized, no service-account token.
+probe_pod() {
+  local sel="${GW_SANDBOX_NODE_SELECTOR:-panacea-app/role=sandbox}"
+  cat <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: $1
+  namespace: panacea-sandboxes
+  labels: {panacea-app/component: sandbox, panacea-app/smoke: "true"}
+spec:
+  runtimeClassName: $GW_RUNTIME_CLASS
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  nodeSelector: {"${sel%%=*}": "${sel#*=}"}
+  tolerations: [{key: panacea-app/sandbox, operator: Equal, value: "true", effect: NoSchedule}]
+  securityContext: {runAsNonRoot: true, runAsUser: 1001, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - name: probe
+      image: $GW_SANDBOX_IMAGE
+      command: ["sh", "-c"]
+      args:
+        - |
+$(printf '%s\n' "$2" | sed 's/^/          /')
+      env: [{name: POD_IP, valueFrom: {fieldRef: {fieldPath: status.podIP}}}]
+      securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+      resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 250m, memory: 256Mi}}
+EOF
+}
+
+# run_probe <key> <name> <script>: apply, wait for Succeeded, print the logs; delete on EXIT.
+run_probe() {
+  local k=$1 name=$2
+  GW_CLEANUP+=("run_cmd $k.delete kubectl delete pod -n panacea-sandboxes $name --ignore-not-found --wait=false")
+  probe_pod "$name" "$3" >"$GW_TMP/$name.yaml"
+  run_cmd "$k.run" sh -c "kubectl apply -f '$GW_TMP/$name.yaml' >/dev/null && kubectl wait -n panacea-sandboxes \
+    --for=jsonpath='{.status.phase}'=Succeeded pod/$name --timeout=180s" >/dev/null || return 1
+  run_cmd "$k.logs" kubectl logs -n panacea-sandboxes "$name"
+}
+```
+
+- [ ] **Step 5: Write the six scripts**
+
+Each starts `#!/usr/bin/env bash`, sources `lib.sh` from its own directory (`. "$(dirname "$0")/lib.sh"`), and ends `exit_status`. Those three lines are omitted below.
+
+`infra/smoke/gateway/p01-no-public-route.sh`:
+
+```bash
+# P01: nothing public leads to the gateway (task 19: no HTTPRoute, no Ingress; P6-D1).
+need P01 GW_ZONE || exit_status
+if ! run_cmd p01.ns kubectl get namespace panacea-gateway -o name >/dev/null; then
+  verdict P01 FAIL "namespace panacea-gateway is absent or unreadable: nothing was checked"; exit_status
+fi
+problems=()
+routes=$(run_cmd p01.routes kubectl get httproute,ingress -n panacea-gateway -o name) \
+  || { verdict P01 FAIL "could not list routes in panacea-gateway: $routes"; exit_status; }
+[ -n "$routes" ] && problems+=("in namespace: $(echo $routes)")
+svcs=$(run_cmd p01.svctypes kubectl get svc -n panacea-gateway \
+  -o jsonpath='{range .items[*]}{.metadata.name}={.spec.type}{"\n"}{end}') \
+  || { verdict P01 FAIL "could not list services"; exit_status; }
+open=$(grep -Ev '=ClusterIP$' <<<"$svcs" | grep -v '^$')
+[ -n "$open" ] && problems+=("services: $(echo $open)")
+refs=$(run_cmd p01.backendrefs kubectl get httproute -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}:{range .spec.rules[*].backendRefs[*]}{.namespace},{end}{"\n"}{end}') \
+  || { verdict P01 FAIL "could not list routes cluster-wide"; exit_status; }
+into=$(grep -E ':(.*,)?panacea-gateway,' <<<"$refs" | cut -d: -f1)
+[ -n "$into" ] && problems+=("routes into the namespace: $(echo $into)")
+for name in gateway litellm; do
+  if run_cmd "p01.dns.$name" getent hosts "$name.$GW_ZONE" >/dev/null; then
+    problems+=("$name.$GW_ZONE resolves")
+  fi
+done
+if [ "${#problems[@]}" -eq 0 ]; then
+  verdict P01 PASS "no route, no public Service, no name; services seen: $(echo $svcs)"
+else
+  verdict P01 FAIL "${problems[*]}"
+fi
+```
+
+`infra/smoke/gateway/p02-sandbox-reaches-gatekeeper-only.sh`:
+
+```bash
+# P02: from a pod shaped as a session, the gatekeeper connects and nothing else in the gateway does.
+# "Connects" is TCP (curl's time_connect > 0), whatever the HTTP answer: phase 8's rule that a
+# status code must never be read as reachability (task 31, S50.2).
+need P02 GW_SANDBOX_IMAGE GW_RUNTIME_CLASS GW_DB_HOST || exit_status
+pinned P02 GW_SANDBOX_IMAGE || exit_status
+can_i P02 p02.cani create pods panacea-sandboxes || exit_status
+ns=panacea-gateway.svc.cluster.local
+script="for t in gatekeeper=http://gatekeeper.$ns:4000/healthz litellm=http://litellm.$ns:4001/ \
+keysmith=http://keysmith.$ns:4100/healthz postgres=http://$GW_DB_HOST:5432/; do
+  tc=\$(curl -s -o /dev/null --connect-timeout 3 -m 4 -w '%{time_connect}' \"\${t#*=}\"); rc=\$?
+  echo \"\${t%%=*} \$rc \$tc\"; done"
+out=$(run_probe p02 "gwsmoke-p02-$RANDOM" "$script") || { verdict P02 FAIL "probe pod did not complete"; exit_status; }
+connected() { awk -v n="$1" '$1==n && $3+0 > 0 {f=1} END {exit !f}' <<<"$out"; }
+problems=()
+connected gatekeeper || problems+=("gatekeeper:4000 did not connect")
+for t in litellm keysmith postgres; do connected "$t" && problems+=("$t connected"); done
+if [ "${#problems[@]}" -eq 0 ]; then verdict P02 PASS "$(echo $out)"; else verdict P02 FAIL "${problems[*]}; saw: $(echo $out)"; fi
+```
+
+`infra/smoke/gateway/p03-pod-source-address.sh` (decision (a)):
+
+```bash
+# P03: the source address a gateway pod sees is the sandbox pod's own (open risk 2; else seam S6.10).
+need P03 GW_SANDBOX_IMAGE GW_RUNTIME_CLASS GW_ECHO_IMAGE || exit_status
+pinned P03 GW_SANDBOX_IMAGE || exit_status
+pinned P03 GW_ECHO_IMAGE || exit_status
+can_i P03 p03.cani.sandboxes create pods panacea-sandboxes || exit_status
+can_i P03 p03.cani.gateway create networkpolicies panacea-gateway || exit_status
+can_i P03 p03.cani.sbnetpol create networkpolicies panacea-sandboxes || exit_status
+y="$GW_TMP/echo.yaml"
+cat >"$y" <<EOF
+apiVersion: v1
+kind: Pod
+metadata: {name: gwsmoke-p03-echo, namespace: panacea-gateway, labels: {panacea-app/smoke: "true", panacea-app/probe: p03-echo}}
+spec:
+  automountServiceAccountToken: false
+  securityContext: {runAsNonRoot: true, runAsUser: 1001, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - {name: echo, image: $GW_ECHO_IMAGE, args: [netexec, --http-port=8080],
+       securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}},
+       resources: {requests: {cpu: 50m, memory: 32Mi}, limits: {cpu: 100m, memory: 64Mi}}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: gwsmoke-p03-echo, namespace: panacea-gateway, labels: {panacea-app/smoke: "true"}}
+spec: {selector: {panacea-app/probe: p03-echo}, ports: [{port: 8080, targetPort: 8080}]}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: gwsmoke-p03-echo-in, namespace: panacea-gateway, labels: {panacea-app/smoke: "true"}}
+spec:
+  podSelector: {matchLabels: {panacea-app/probe: p03-echo}}
+  policyTypes: [Ingress]
+  ingress: [{from: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: panacea-sandboxes}},
+             podSelector: {matchLabels: {panacea-app/smoke: "true"}}}], ports: [{port: 8080}]}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: gwsmoke-p03-echo-out, namespace: panacea-sandboxes, labels: {panacea-app/smoke: "true"}}
+spec:
+  podSelector: {matchLabels: {panacea-app/smoke: "true"}}
+  policyTypes: [Egress]
+  egress: [{to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: panacea-gateway}},
+            podSelector: {matchLabels: {panacea-app/probe: p03-echo}}}], ports: [{port: 8080}]}]
+EOF
+GW_CLEANUP+=("run_cmd p03.delete kubectl delete -f '$y' --ignore-not-found --wait=false")
+run_cmd p03.apply sh -c "kubectl apply -f '$y' && kubectl wait -n panacea-gateway --for=condition=Ready \
+  pod/gwsmoke-p03-echo --timeout=120s" >/dev/null || { verdict P03 FAIL "echo did not become ready"; exit_status; }
+script='echo "podip=$POD_IP"; echo "seen=$(curl -s -m 5 http://gwsmoke-p03-echo.panacea-gateway.svc.cluster.local:8080/clientip)"'
+out=$(run_probe p03 "gwsmoke-p03-$RANDOM" "$script") || { verdict P03 FAIL "probe pod did not complete"; exit_status; }
+podip=$(sed -n 's/^podip=//p' <<<"$out"); seen=$(sed -n 's/^seen=//p' <<<"$out")
+ip=${seen%:*}; ip=${ip#[}; ip=${ip%]}
+if [ -z "$seen" ] || [ -z "$podip" ]; then
+  verdict P03 FAIL "no reply from the echo (raw '$seen', pod ip '$podip')"
+elif [ "$ip" = "$podip" ]; then
+  verdict P03 PASS "the echo saw $ip, the probe pod's own address (raw $seen)"
+else
+  verdict P03 FAIL "the echo saw $ip and the pod is $podip: the source is rewritten on this path, so pod binding needs seam S6.10 (mTLS)"
+fi
+```
+
+The two temporary policies select **only** pods labelled `panacea-app/smoke: "true"`, so no session gains a path for the seconds P03 runs, and both are deleted by the `EXIT` trap. The probe measures pod → ClusterIP Service → pod across the two namespaces, which is the gatekeeper's path; if phase 8 puts anything between them later (a mesh, an egress gateway), P03 must be re-run.
+
+`infra/smoke/gateway/p04-au-route-bedrock.sh` (decision (b)):
+
+```bash
+# P04: a real AU session's requests succeed through LiteLLM's Bedrock translation (P6-D3; else S6.4).
+# Reads the pod's launch environment and the gatekeeper's lines for the session; never the CLI (OD-8).
+need P04 GW_P04_SESSION GW_P04_POD || exit_status
+min=${GW_P04_MIN:-5}
+envs=$(run_cmd p04.env kubectl get pod -n panacea-sandboxes "$GW_P04_POD" \
+  -o jsonpath='{range .spec.containers[*].env[*]}{.name}={.value}{"\n"}{end}') \
+  || { verdict P04 FAIL "could not read pod $GW_P04_POD"; exit_status; }
+problems=()
+grep -qx 'CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1' <<<"$envs" \
+  || problems+=("CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1 is missing from the pod")
+for v in CLAUDE_CODE_USE_BEDROCK ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN; do
+  grep -q "^$v=" <<<"$envs" && problems+=("$v is set in the pod")
+done
+grep -q '^AWS_' <<<"$envs" && problems+=("an AWS_ variable is set in the pod")
+logs=$(run_cmd p04.logs kubectl logs -n panacea-gateway -l "${GW_GATEKEEPER_SELECTOR:-app.kubernetes.io/name=gatekeeper}" \
+  --since=6h --tail=-1 --prefix=false --max-log-requests=10) \
+  || { verdict P04 FAIL "could not read the gatekeeper's logs"; exit_status; }
+mine=$(grep -F "\"session\":\"$GW_P04_SESSION\"" <<<"$logs" | grep -F '"path":"/v1/messages"')
+n=$(grep -c . <<<"$mine")
+bad=$(grep -oE '"status":[0-9]+' <<<"$mine" | cut -d: -f2 | awk '$1 >= 400' | sort | uniq -c)
+global=$(grep -c '"route":"global"' <<<"$mine")
+[ "$n" -ge "$min" ] || problems+=("$n of at least $min /v1/messages requests logged for $GW_P04_SESSION")
+[ -n "$bad" ] && problems+=("statuses >= 400 (count status): $(echo $bad); a Bedrock rejection is seam S6.4")
+[ "$global" -eq 0 ] || problems+=("$global requests of this AU session left on route global")
+if [ "${#problems[@]}" -eq 0 ]; then
+  verdict P04 PASS "$n requests for $GW_P04_SESSION, all route=au, none >= 400"
+else
+  verdict P04 FAIL "${problems[*]}"
+fi
+```
+
+Only variable **names** from the pod reach the output. A status of 400 from Bedrock through LiteLLM is the specific failure P6-D3 predicts (a field an Amazon Bedrock upstream rejects); the operator then reads LiteLLM's own log for that request's error type, which this script does not print because it can quote the request.
+
+`infra/smoke/gateway/p05-zdr-config.sh`:
+
+```bash
+# P05: our stores and the AWS account keep no prompt (P6-D9).
+need P05 GW_CANARY GW_DATABASE_URL_FILE || exit_status
+pg_env "$GW_DATABASE_URL_FILE" || { verdict P05 "NOT RUN" "(GW_DATABASE_URL_FILE does not hold a postgres URL)"; exit_status; }
+problems=()
+cfg=$(run_cmd p05.config kubectl get configmap -n panacea-gateway "${GW_LITELLM_CONFIGMAP:-litellm-config}" \
+  -o jsonpath='{.data.config\.yaml}') || { verdict P05 FAIL "could not read the LiteLLM ConfigMap"; exit_status; }
+grep -Eq '^[[:space:]]*(success_|failure_|service_)?callbacks?[[:space:]]*:' <<<"$cfg" \
+  && problems+=("a callback key is configured")
+grep -Eq '^[[:space:]]*store_prompts_in_spend_logs:[[:space:]]*false' <<<"$cfg" \
+  || problems+=("store_prompts_in_spend_logs is not false")
+dump=$(run_cmd p05.dump pg_dump --data-only --no-owner) \
+  || { verdict P05 FAIL "pg_dump of $PGDATABASE on $PGHOST failed: $(head -c 200 <<<"$dump")"; exit_status; }
+lines=$(grep -c . <<<"$dump"); hits=$(grep -cF "$GW_CANARY" <<<"$dump")
+[ "$hits" -eq 0 ] || problems+=("the canary is in the database dump on $hits lines: a blocker for OD-19")
+for r in ap-southeast-2 ap-southeast-4; do
+  out=$(run_cmd "p05.bedrock.$r" aws bedrock get-model-invocation-logging-configuration --region "$r" --output json) \
+    || { problems+=("could not read Bedrock invocation logging in $r"); continue; }
+  grep -q '"loggingConfig"' <<<"$out" && problems+=("Bedrock model-invocation logging is configured in $r")
+done
+if [ "${#problems[@]}" -eq 0 ]; then
+  verdict P05 PASS "no callback; prompts not stored; canary absent from a $lines-line dump; invocation logging off in both regions"
+else
+  verdict P05 FAIL "${problems[*]}"
+fi
+```
+
+The canary is one the operator sent through a real session shortly before (task 23's step 9 is the local model). The ConfigMap is what the running pods mount; task 19's chart rolls the pods on a ConfigMap change (a checksum annotation), so the two agree unless a pod was not rolled, which P05 does not detect. `get-model-invocation-logging-configuration` and its `{}` reply when nothing is configured are **training knowledge, UNVERIFIED**; the script prints nothing from the reply, so a different shape shows as a PASS only if it lacks `loggingConfig`, which the operator confirms by hand once.
+
+`infra/smoke/gateway/p06-budgets-on.sh`:
+
+```bash
+# P06: budgets are on by default (OD-24, P6-D8). A new project's LiteLLM team and a new person's
+# LiteLLM user carry a positive max_budget, and keysmith sets no default to zero.
+need P06 GW_LITELLM_URL GW_MASTER_KEY_FILE GW_PROJECT GW_PERSON || exit_status
+[ -s "$GW_MASTER_KEY_FILE" ] || { verdict P06 "NOT RUN" "(GW_MASTER_KEY_FILE is empty or unreadable)"; exit_status; }
+h=$(auth_header "$GW_MASTER_KEY_FILE")
+budget_of() { grep -oE '"max_budget":[[:space:]]*(null|[0-9.eE+-]+)' <<<"$1" | head -n1 | sed 's/.*:[[:space:]]*//'; }
+positive() { awk -v b="$1" 'BEGIN { exit !(b != "null" && b + 0 > 0) }'; }
+problems=()
+team=$(run_cmd p06.team curl -s -m 10 -H @"$h" "$GW_LITELLM_URL/team/info?team_id=$GW_PROJECT") \
+  || problems+=("team/info did not answer")
+tb=$(budget_of "$team"); positive "$tb" || problems+=("team $GW_PROJECT max_budget is ${tb:-absent}")
+user=$(run_cmd p06.user curl -s -m 10 -H @"$h" "$GW_LITELLM_URL/user/info?user_id=$GW_PERSON") \
+  || problems+=("user/info did not answer")
+ub=$(budget_of "$user"); positive "$ub" || problems+=("user $GW_PERSON max_budget is ${ub:-absent}")
+envs=$(run_cmd p06.keysmith.env kubectl get deploy -n panacea-gateway keysmith \
+  -o jsonpath='{range .spec.template.spec.containers[*].env[*]}{.name}={.value}{"\n"}{end}')
+zero=$(grep -E '^PANACEA_APP_GATEWAY_(SESSION_CAP|DEFAULT_(USER|TEAM|PROJECT)_BUDGET)_USD=(0+(\.0*)?)?$' <<<"$envs" | cut -d= -f1)
+[ -z "$zero" ] || problems+=("keysmith sets $(echo $zero) to zero or empty")
+if [ "${#problems[@]}" -eq 0 ]; then
+  verdict P06 PASS "team $GW_PROJECT US\$$tb, user $GW_PERSON US\$$ub, keysmith defaults non-zero"
+else
+  verdict P06 FAIL "${problems[*]}"
+fi
+```
+
+`GW_PROJECT` and `GW_PERSON` must be a project created and a person signed in **after** the gateway was deployed, and each must have minted at least one key (task 07 calls `EnsureTeam` and `EnsureUser` at mint), or LiteLLM has no team or user to report. The `/team/info` and `/user/info` paths and the `max_budget` key are LiteLLM's documented admin API, **UNVERIFIED** against the pinned image until task 18's P03 and P04; `budget_of` takes the first `max_budget` wherever it is nested.
+
+`infra/smoke/gateway/run.sh`:
+
+```bash
+#!/usr/bin/env bash
+# Every gateway proving script in order. Exits non-zero if any printed FAIL. Runs nothing in CI.
+here=$(cd "$(dirname "$0")" && pwd)
+rc=0
+for s in "$here"/p0[1-6]-*.sh; do bash "$s" || rc=1; done
+exit "$rc"
+```
+
+- [ ] **Step 6: Run the tests to verify they pass**
+
+```bash
+bash infra/smoke/gateway/gateway_smoke_test.sh | tail -1        # expect: gateway smoke tests: 0 failed
+bash infra/smoke/gateway/gateway_smoke_test.sh | grep -c '^ok'  # expect 36
+command -v shellcheck >/dev/null && shellcheck -x infra/smoke/gateway/*.sh   # expect nothing, if installed
+```
+
+- [ ] **Step 7: Kill four mutants by hand**
+
+Each edit, made alone and reverted, must turn the named case red:
+
+1. In `p02`, `connected()` testing `$2 == 0` (curl's exit status) instead of `$3+0 > 0` → "P02 fails when Postgres connects and answers nothing". It is the only case that kills this mutant, which is why it exists.
+2. In `p03`, compare `"$seen" = "$podip"` (with the port) → "P03 passes when the echo sees the pod's own address".
+3. In `p04`, drop the `[ "$n" -ge "$min" ]` line → "P04 fails with too few requests".
+4. In `p06`, `verdict P06 PASS "… $(cat "$GW_MASTER_KEY_FILE")"` → "P06 prints no key".
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add infra/smoke/gateway/lib.sh infra/smoke/gateway/run.sh infra/smoke/gateway/p0*.sh infra/smoke/gateway/gateway_smoke_test.sh
+git commit -F <message file> -- infra/smoke/gateway
+```
+
+Message: `test(smoke): gateway proving scripts P01 to P06, tested on canned output, not run (phase 6 task 24)`, a body naming decisions (a) to (e), and the attribution line.
+
+**Acceptance:** step 6 prints `gateway smoke tests: 0 failed` and `36`; step 7's four edits each turn the named case red; `grep -rn 'kubectl exec\|--admin' infra/smoke/gateway/` prints nothing (no exec into a session, no admin credential).
+
+**When the environment exists** (not in this phase), the operator runs, from an allowlisted workstation signed in through `kubelogin` as a member of the cluster admin group:
+
+```bash
+GW_REQUIRE_ALL=1 GW_ZONE=<zone> GW_SANDBOX_IMAGE=<image@sha256:…> GW_RUNTIME_CLASS=<class> \
+  GW_DB_HOST=<fqdn> GW_ECHO_IMAGE=<agnhost@sha256:…> GW_P04_SESSION=<id> GW_P04_POD=<pod> \
+  GW_CANARY=<canary> GW_DATABASE_URL_FILE=<file> GW_LITELLM_URL=http://127.0.0.1:4001 \
+  GW_MASTER_KEY_FILE=<file> GW_PROJECT=<id> GW_PERSON=<tid:oid> bash infra/smoke/gateway/run.sh
+```
+
+and records each line in phase 8's first-apply results (`docs/verification/phase-8-first-apply-results.md`, phase 8 task 31 step 9) or a phase 6 cloud record beside it.
+
+**What this task does not claim:**
+
+- **That any script has run.** None has. Every verdict logic is tested on canned output only; every command, flag and reply shape it parses (`kubectl` jsonpath, `getent`, curl's `time_connect`, `agnhost netexec /clientip`, `aws bedrock get-model-invocation-logging-configuration`, LiteLLM's `/team/info` and `/user/info`) is **UNVERIFIED** against the real tools until the first run.
+- **P03's answer.** Whether AKS with phase 8's CNI preserves the pod's address on pod → Service → pod is exactly what the script measures; nothing here predicts it. A FAIL moves pod binding to seam S6.10.
+- **P04's answer.** Whether LiteLLM's Anthropic-to-Bedrock translation carries what Claude Code sends is open risk 1; a FAIL moves AU sessions to seam S6.4.
+- **The upstreams' retention.** P05 checks our config, our database and the AWS account's invocation logging. Anthropic's and AWS's ZDR terms are the org's contracts (owner question Q3).
+- **Budget enforcement.** P06 proves budgets are set, not that they bite; biting is task 18's P03 to P05 locally, and task 23's item 5.
+
+**Gaps against the skeleton, for the orchestrator:**
+
+1. **Phase 8's task 32 proving list should carry P02 and P03.** Both create pods in `panacea-sandboxes` on the human path, as its S50 does; running them in the same session costs one sign-in.
+2. **P03 needs a temporary egress policy in `panacea-sandboxes`** selecting only smoke-labelled pods. That is a write to phase 8's namespace policy set, however brief; phase 8 should say it accepts it, or supply its own probe path.
+3. **Task 19's chart must label the gatekeeper `app.kubernetes.io/name=gatekeeper`** (or P04's `GW_GATEKEEPER_SELECTOR` default changes), and name the LiteLLM ConfigMap `litellm-config` (or `GW_LITELLM_CONFIGMAP`'s default changes).
+4. **The skeleton lists `*_test.sh` per script.** This part uses one `gateway_smoke_test.sh` for all six, which matches the glob and phase 8's single `smoke_test.sh`; say if one file per script is wanted.
+5. **P06 needs a mint to have happened** for the fresh project and person (LiteLLM creates the team and user at mint, task 07), so "a new project gets non-zero budgets" is checked after its first session, not at creation. Checking at creation would need the Hub's H-2 policy read directly, which is phase H's.
