@@ -405,7 +405,8 @@ The two tokens are replaced by literal values in step 5 and committed; a build w
 still present fails at `FROM` or at `tdnf`, so an unpinned image cannot be built by accident.
 That Azure Linux 3.0 is the right base (phase 8's sandbox image base, **UNVERIFIED** here) and that
 `tdnf` accepts a `name-version` pin in this form are checked when step 5 runs. The binary is task
-59's, built with `CGO_ENABLED=0` from the `sandboxd` module.
+59's, built with `CGO_ENABLED=0` from the **`control-plane`** module (task 59 decision (a): it
+needs phase 3's `gitx` hardening and the forecast library, which `sandboxd` cannot import).
 
 - [ ] **Step 1: Write the failing tests**
 
