@@ -433,3 +433,47 @@ to a Hub code the fake answers 409 or 422 with. `base` holds `thread: []`, `proj
 4. Write both editors; tests 7-9 pass. Write `registerIntakeDesk.ts` and `UnroutedRow.tsx`, call it
    where task 62 registers its own kinds; tests 10-11 pass.
 5. `npm --prefix desktop run typecheck`; commit with `git commit -F <msgfile> -- <paths>`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- src/components/intake src/components/work/TriageView.test.tsx
+# expect: RequestPanel.test.tsx 5 passed; RequestRow.test.tsx, IntakeRulesEditor.test.tsx,
+#         IntakeFormEditor.test.tsx and TriageView.test.tsx together 11 more passed; no failed
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rn -E "dangerouslySetInnerHTML|innerHTML" desktop/src/components/intake
+# expect: no output, exit 1
+```
+
+Visual acceptance is the owner's eyes (CLAUDE.md working agreements): the row, the panel and the
+two editors are opened in the running app against the fixture team and compared with the Triage
+rows of `prototype/work-layer.html`. A screenshot is not evidence here.
+
+#### What this task does NOT claim
+
+- The Hub's public form page (task 148), mail intake (task 149) or Teams intake (task 157): this
+  task draws requests that arrived by them.
+- That a requester has been told *shipped*: that is task 149's mail and task 157's Teams reply.
+- That rule matching works: task 147's fake and conformance rows prove first match wins; this task
+  draws the order and writes it.
+- That the gateway criterion suggestion (tasks 136-137) is correct: it renders their line.
+
+#### Gaps found while writing this part
+
+1. **No issue picker in task 42.** The scope says *"task 42's issue picker"*; task 42's part has
+   `CriterionPicker` and uses task 46's `DuplicateOfPicker`, whose issue step is internal. This
+   part writes `LinkPicker` on task 46's `Picker`; if task 46 exports an issue picker, `LinkPicker`
+   becomes a one-line wrapper over it.
+2. **Task 144 copies the quote into the issue; task 170 does not.** Task 144's scope says the
+   accepted issue's revision 1 description is the quote (`tasks-141-160.md:206-208`). Task 170's
+   scope says never. This part follows 170 and task 169 G2 records it; task 144's rule and its
+   conformance row must change before task 168's end to end.
+3. **`AcceptRequestBody.serves`.** Accepting into an issue that serves a criterion in one op needs
+   `serves` on the accept body; task 143's `AcceptRequest` names no body. Task 169 adds it.
+4. **The Desk snapshot's read of signals.** `registerDeskSource`'s `select(snap)` is task 62's
+   scope; how a snapshot exposes a signal kind (`snap.signals(kind)` here) is not written anywhere.
+   Task 62's part fixes it; this file follows.
+5. **Replica reads named here and not in task 169**: `teamOfProject`, `openIssuesOfTeam` and
+   `openRequestsOfTeam` are thin selectors over task 55's and task 169's maps; task 55's part (not
+   on the tree) may already name the first two.
