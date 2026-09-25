@@ -422,8 +422,7 @@ CREATE TABLE IF NOT EXISTS fleet.held_actions (
   org_id        text        NOT NULL,
   escalation    text        NOT NULL,                 -- es-…
   orchestrator  text        NOT NULL,
-  owner_tid     text        NOT NULL,
-  owner_oid     text        NOT NULL,
+  owner         text        NOT NULL,                 -- model.Owner, one column (task-10.md:372-375)
   kind          text        NOT NULL,                 -- directive.ActKind
   verb          text        NOT NULL,
   args          jsonb       NOT NULL,                 -- validated; may hold a spawn prompt
