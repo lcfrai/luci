@@ -217,3 +217,106 @@ count to say what went; like `brief.erased` (hub-contract's §8 row), the event 
 `issue.revised` and `issue.state` carry task 09's and task 10's names as their scopes spell them;
 where those parts spell a field differently, the part that emits it wins and this file follows.
 
+#### `hubapi/workevents.go`, the registry (complete; the same file, continued)
+
+```go
+// Visibility is who may see an event of a kind in /v1/changes.
+type Visibility int
+
+const (
+	// VisibleToReaders is hub-contract §7.11's rule: readers of the event's
+	// project, or members of its team.
+	VisibleToReaders Visibility = iota
+	// SubjectOnly adds: and only the user the event is about (Subject).
+	SubjectOnly
+)
+
+// Scope is what an event of a kind is about, which fixes its non-null ids.
+type Scope int
+
+const (
+	ScopeProject Scope = iota // teamId and projectId both set
+	ScopeTeam                 // teamId set, projectId null (as the Hub's team.* kinds)
+)
+
+// WorkEventKind pairs a kind with its data type, scope and visibility.
+type WorkEventKind struct {
+	Kind       string
+	Data       any // a zero value of the kind's data struct
+	Scope      Scope
+	Visibility Visibility
+}
+
+// WorkEventKinds is SW.5, W1. W2-W5 append their kinds (tasks 72, 99, 114, 143).
+var WorkEventKinds = []WorkEventKind{
+	{EventIssueCreated, IssueCreatedData{}, ScopeProject, VisibleToReaders},
+	{EventIssueUpdated, IssueUpdatedData{}, ScopeProject, VisibleToReaders},
+	{EventIssueRevised, IssueRevisedData{}, ScopeProject, VisibleToReaders},
+	{EventIssueState, IssueStateData{}, ScopeProject, VisibleToReaders},
+	{EventIssueRelated, IssueRelationData{}, ScopeProject, VisibleToReaders},
+	{EventIssueUnrelated, IssueRelationData{}, ScopeProject, VisibleToReaders},
+	{EventIssueAttached, IssueAttachedData{}, ScopeProject, VisibleToReaders},
+	{EventIssueErased, IssueErasedData{}, ScopeProject, VisibleToReaders},
+	{EventProjectKeySet, ProjectKeySetData{}, ScopeProject, VisibleToReaders},
+	{EventLabelCreated, LabelData{}, ScopeTeam, VisibleToReaders},
+	{EventLabelArchived, LabelData{}, ScopeTeam, VisibleToReaders},
+	{EventTeamWorkPolicySet, TeamWorkPolicySetData{}, ScopeTeam, VisibleToReaders},
+	{EventCommentCreated, CommentCreatedData{}, ScopeProject, VisibleToReaders},
+	{EventCommentMentioned, CommentMentionedData{}, ScopeProject, VisibleToReaders},
+	{EventCommentReacted, CommentReactedData{}, ScopeProject, VisibleToReaders},
+	{EventCommentResolved, CommentResolvedData{}, ScopeProject, VisibleToReaders},
+	{EventCommentErased, CommentErasedData{}, ScopeProject, VisibleToReaders},
+	{EventSubscriptionSet, SubscriptionSetData{}, ScopeProject, SubjectOnly},
+}
+
+// LookupWorkEvent returns the registry entry for kind.
+func LookupWorkEvent(kind string) (WorkEventKind, bool) {
+	for _, k := range WorkEventKinds {
+		if k.Kind == kind {
+			return k, true
+		}
+	}
+	return WorkEventKind{}, false
+}
+
+// SubjectOnlyKinds is the list the feed query filters on (store/changes.go).
+func SubjectOnlyKinds() []string {
+	var out []string
+	for _, k := range WorkEventKinds {
+		if k.Visibility == SubjectOnly {
+			out = append(out, k.Kind)
+		}
+	}
+	return out
+}
+
+// EventData turns a data struct into Tx.Emit's map by its JSON tags, so the
+// stored keys are the struct's and nothing else. It panics on a field that is
+// not string, int64 or bool: TestEveryWorkDataFieldIsAScalar makes that
+// unreachable for the registry's types.
+func EventData(v any) map[string]any {
+	rv := reflect.ValueOf(v)
+	rt := rv.Type()
+	out := make(map[string]any, rt.NumField())
+	for i := 0; i < rt.NumField(); i++ {
+		f := rt.Field(i)
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		switch f.Type.Kind() {
+		case reflect.String:
+			out[name] = rv.Field(i).String()
+		case reflect.Int64:
+			out[name] = rv.Field(i).Int()
+		case reflect.Bool:
+			out[name] = rv.Field(i).Bool()
+		default:
+			panic("hubapi: event data field " + rt.Name() + "." + f.Name + " is not string, int64 or bool")
+		}
+	}
+	return out
+}
+```
+
+`workevents.go` imports `reflect` and `strings`. `hubapi` already uses `reflect` outside its
+tests (`lists.go` and `required.go` import it, verified at `9f2fa31`), so this adds no new kind of
+dependency to the wire package.
+
