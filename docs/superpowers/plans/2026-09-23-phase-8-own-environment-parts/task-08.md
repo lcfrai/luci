@@ -83,8 +83,8 @@ variable "server" {
 }
 variable "database_names" {
   type        = list(string)
-  description = "Databases to create. The Hub's is \"hub\" (HA-5 may add more)."
-  default     = ["hub"]
+  description = "Databases to create. The Hub's is \"hub\"; our Keycloak's is \"keycloak\" (OD-30, ruling §9). HA-5 may add more."
+  default     = ["hub", "keycloak"]
 }
 variable "extensions" {
   type        = list(string)
@@ -159,6 +159,15 @@ Postgres provider would need a network path and a token to the private server fr
 Task 29 writes the SQL. A **human** member of the admin group runs it once per environment, as
 task 31 §7. No pipeline identity is in the admin group (the plan's "Deploy identities" table,
 review I8).
+
+**Keycloak's database (OD-30, ruling §9, §12 U-9).** Our Keycloak keeps its realm and its persistent
+user sessions (the offline tokens that make launches silent) in the database `keycloak` on this
+server, beside `hub`. Its role is SQL like the Hub's (task 29, run by a human, task 31 §7), for
+Keycloak's own user-assigned identity. **The auth method is unsettled (U-9):** this server is
+Entra-only, and Keycloak has no native Entra auth to Postgres; the path is Azure's
+`azure-identity-extensions` JDBC plugin as a provider jar with workload identity, **UNVERIFIED**. If
+step 1 cannot confirm it, the implementer **stops and reports**: no password role is invented and
+`password_auth_enabled` stays `false` without the owner's decision.
 
 #### Contract — `stacks/data`
 
@@ -247,7 +256,7 @@ standby_zone = "2" }`. `prod.tfvars`: `GP_Standard_D2ds_v5`, retention 35,
 | `extensions_are_joined` | `["pgcrypto", "uuid-ossp"]` → value `pgcrypto,uuid-ossp` | one extension dropped |
 | `ha_block_only_when_asked` | `zone_redundant_ha = false` → zero `high_availability` blocks; `true` with a GP SKU → one, `ZoneRedundant` | HA billed in dev |
 | `burstable_ha_is_rejected` | `B_Standard_B2s` with `zone_redundant_ha = true` → `expect_failures` | a plan Azure rejects at apply |
-| `hub_database_exists_by_default` | one database named `hub` | the Hub starting against no database |
+| `hub_database_exists_by_default` | two databases, `hub` and `keycloak` (OD-30) | the Hub or our Keycloak starting against no database |
 
 `stacks/data/tests/data.tftest.hcl` (with `override_data` giving `data.terraform_remote_state.foundation`
 the outputs task 07 declares): `committed_tfvars_plan` for each tfvars file (no file-level or
@@ -259,7 +268,9 @@ run-level key that a tfvars sets, guard G10, review I1); and
 
 - [ ] **Step 1:** Re-read the Hub contract (`.claude/worktrees/hub/docs/superpowers/contracts/`).
   If HA-5 is answered, use its version, extensions and size; if it names a second database or a
-  schema split, add it to `database_names`. Record what you used in the commit message.
+  schema split, add it to `database_names`. Record what you used in the commit message. Then
+  settle U-9 (Keycloak's Entra auth to this server, above) from Microsoft's and Keycloak's current
+  documentation; if it does not hold, stop and report before step 2.
 - [ ] **Step 2:** The module: variables, tests, resources, outputs.
 - [ ] **Step 3:** The stack: variables, the remote-state data source, the module call, tfvars,
   lock file, tests.
