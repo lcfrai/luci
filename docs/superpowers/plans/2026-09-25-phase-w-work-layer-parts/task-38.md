@@ -395,8 +395,10 @@ export function WorkScreen(props: { onPlan?: () => void }): JSX.Element {
     setUnseen((u) => [...u, issueId]);
   };
   const apply = () => {                                           // the stand-in for N
-    const settled = (id: string) => (["landed", "done"].includes(heads[id].state) ? 1 : 0);
-    setGroups((gs) => gs.map((g) => ({ ...g, issueIds: [...g.issueIds].sort((a, b) => settled(a) - settled(b)) })));
+    // Each held row relocates to the end of its group. Where the product puts it is task 41's.
+    const held = new Set(Object.keys(moving));
+    setGroups((gs) => gs.map((g) => ({ ...g,
+      issueIds: [...g.issueIds.filter((id) => !held.has(id)), ...g.issueIds.filter((id) => held.has(id))] })));
     setMoving({});
     setUnseen([]);
     setGhost(null);
@@ -574,4 +576,79 @@ hex, no `rgba()`, no `transition: all`; the flash and the tick are task 34's, ke
 `--t-head`, `--t-body`, `--t-meta` and `--t-ui` are task 26's; `.pw-gt` uses `--t-head` because a
 criterion header is the list's heading. The selected ring is `inset`, so a selected row that is
 also focused shows both rings, the outer one the focus.
+
+#### Tests to write first — `desktop/src/prototype/work/prototype.test.tsx`
+
+```tsx
+// desktop/src/prototype/work/prototype.test.tsx — task 38. Each test names the mutant it kills.
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { resetFlags } from "../../lib/flags";
+import { resetCockpit } from "../../store/store";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { WORK_IDS } from "../../test/workFixtures";
+import { PlanPrototype } from "./PlanPrototype";
+import { WorkScreen } from "./WorkPrototype";
+
+beforeEach(() => { localStorage.clear(); resetCockpit(); resetFlags(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
+
+const groups = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>(".pw-grp")];
+const row = (c: HTMLElement, id: string) => c.querySelector<HTMLElement>(`[data-issue="${id}"]`)!;
+const agentGlyphs = (el: Element) => el.querySelectorAll('[data-glyph^="agent:"]');
+const ids = (g: HTMLElement) => [...g.querySelectorAll<HTMLElement>(".pw-row")].map((r) => r.dataset.issue);
+
+// Kills a %, a progress bar, an ETA or "1 of 3 proven" anywhere on either screen.
+it("makes no prediction on either screen", () => {
+  const work = render(<WorkScreen />);
+  expectNoPrediction(work.container);
+  work.unmount();
+  expectNoPrediction(render(<PlanPrototype />).container);
+});
+
+// Kills grouping by workflow state (Linear's default; 05 §4.4 C13's structural check).
+it("groups by criterion, not by state", () => {
+  const { container } = render(<WorkScreen />);
+  expect(groups(container).map((g) => g.dataset.criterion))
+    .toEqual([WORK_IDS.criterionResume, WORK_IDS.criterionUpload, "none"]);
+  const states = ids(groups(container)[0]).map((id) => row(container, id!).querySelector("[data-glyph]")!.getAttribute("data-glyph"));
+  expect(new Set(states).size).toBeGreaterThan(1);                 // one group, several states
+});
+
+// Kills sorting the groups by title ("Serves…" sorts before "Uploads…" and "upload…").
+it("puts Serves no criterion last", () => {
+  const { container } = render(<WorkScreen />);
+  const last = groups(container).at(-1)!;
+  expect(last.getAttribute("aria-label")).toBe("Serves no criterion");
+  expect(last.querySelector(".thr-node, .thr-line")).toBeNull();   // off the thread, so no node
+});
+
+// Kills a dot per agent, and an agent line on every row.
+it("gives the reader's issue one agent line and one glyph", () => {
+  const { container } = render(<WorkScreen />);
+  const mine = row(container, WORK_IDS.ep167);
+  expect(mine.querySelectorAll(".pw-agent")).toHaveLength(1);
+  expect(agentGlyphs(mine)).toHaveLength(1);
+  expect(agentGlyphs(container)).toHaveLength(1);                  // no other row has one
+  expect(mine.querySelector(".pw-agent-who")!.textContent).toBe("dylan · agent 1");
+});
+
+// Kills "+2", a dot and a count on someone else's issue (05 §4.4 rule 3).
+it("shows a teammate's issue with no dot and no count", () => {
+  const { container } = render(<WorkScreen />);
+  const theirs = row(container, WORK_IDS.ep163);
+  expect(agentGlyphs(theirs)).toHaveLength(0);
+  expect(theirs.querySelector(".pw-touch")!.textContent).toBe("Alice · touching restart_test.go");
+  expect(theirs.textContent).not.toMatch(/\+\d|\d+\s*agents?/);
+});
+
+// Kills "2 agents" (or any counted noun) printed on a row; sizes belong to group headers only.
+it("prints no count outside a group header", () => {
+  const { container } = render(<WorkScreen />);
+  for (const r of container.querySelectorAll(".pw-row")) {
+    expect(r.textContent).not.toMatch(/\b\d+\s+(agents?|issues?|files?|moving|changes?)\b|\+\d+/);
+  }
+  expect(groups(container)[0].querySelector(".pw-gs")!.textContent).toBe("5 issues · 1 moving");
+});
+```
 
