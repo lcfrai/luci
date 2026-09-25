@@ -1,21 +1,55 @@
-### Task 21: `machined` git — phase 3's runner, on the machine
+### Task 21: `machined` git — phase 3's lane runner and the project's git, on the machine
 
-Phase 3 keys every git call by machine (its brief A6): `gitx.Machine` has one implementation,
-`gitx.Local`, and "Phase 8 adds a Kata machine behind the same four methods: a pod gets a clone,
-FetchURL names it, and the control plane fetches from it" (phase 3 plan, sibling `phase-3`
-worktree, `2026-09-23-phase-3-git-convergence-parts/task-02.md:146-159`, seam S3-P8.1). On a
-cloud machine the project repository and its lane clones share one disk (OD-2, P8-D6), so the
-fetch-back is local **to the machine** — git just has to run there. This task gives `machined` one
-route that runs **phase 3's own `gitx.Exec`** on the disk; task 25 wraps it as the laptop's
-`gitx.Runner`.
+Phase 3's ruling R4 (sibling `phase-3` worktree, `.superpowers/sdd/p3/orchestrator-rulings.md`,
+R4 rules 1-6) splits git by the repository it runs in, and P8-D7 carries the split to a cloud
+machine, where the project repositories and their lane clones share one disk (OD-2, P8-D6):
+- **Project calls** have `projects/<name>` as their repository. No session mounts it (R4.1), so
+  §HGH hardens these calls, and only these (R4.2). `machined` serves them on `POST /v1/git`,
+  which runs **phase 3's own `gitx.Exec`** on the disk; task 25 wraps it as the laptop's
+  project-only `gitx.Machine`.
+- **Lane calls** have a lane clone as their repository, agent-writable from the moment a session
+  mounts it. No host git runs there (R4.2; phase 3's `gitx.Exec` refuses it, `ErrLaneDir`). They
+  run only through phase 3's sandboxd git runner, which `machined` serves in the machine pod
+  (R4.3): the `/git/v1/` RPC with the five ops `status`, `refs`, `bundle`, `fetch` and `diff`,
+  bearer auth, the error envelope, the four limits and the same result shapes, pinned by
+  `testdata/gitrunner/*.json` (phase-3 `2026-09-23-phase-3-git-convergence-parts/task-24.md:18-35`,
+  `:91`, `:937-939`, read at phase 3's `9935278`; seam S3-P8.1). Lane work reaches a project only
+  as a bundle, verified and fetched into `refs/panacea/lanes/…` in the project (R4.4); an update
+  into a lane is a bundle from the project that the runner fetches (R4.5).
 
-**Depends on phase 3 task 02, including its §HGH hardening** (`internal/gitx`: `Call` with
-`Scope` and `RemoteURL`, `Result`, `Runner`, `Exec`, `Hardening`, `MachineHardening`,
-`UntrustedConfig`, `ErrCallShape`, `Error`, `Class` — sibling `phase-3` worktree, task-02.md
-`#### Interfaces — complete`; H1–H5 and the `TestHGH…` tests under `#### Host git hardening
-(HGH)`, read at phase 3's `93c1fdf`; that file is still being edited, so sections are cited by
-heading, not line). If it has not landed, this task does not start: no local copy of
-`gitx` is written, and no second hardening is invented here.
+**Re-plan required before this task starts (review Q18).** The body below this block predates R4.
+Where it and this block disagree, this block holds. Retired, and not to be built: every
+`Scope: "clone"` path (the wire value, `clone_config_untrusted`, H3's Clone allowlist, credential
+`Env` "in a lane"); every `lanes/…` `Dir` on `POST /v1/git`, which is now `400`; the read-only
+`.git/config` bind as a defence (after R4 it is hygiene, phase 3 plan `:245`, `:712`); a session
+on the primary worktree writing `projects/<name>/.git` (R4.1 runs it in a backing lane); and the
+tests `TestGitLaneFilterNeverRuns`, `TestGitCredentialEnvIsRefusedInALane` and the lane rows of
+`TestGitRefusesGITDIRInEnv`, `TestGitHooksNeverRun` and `TestGitScopeMustFollowDir`, with mutants
+(4) and (6). Survives: `POST /v1/git` for `Scope` `project` and `none`, the `Env` allowlist, the
+add-project clone, the scrub and the output cap. Open, for the re-plan:
+1. **The lane runner route.** One `machined` serves every lane, where one `sandboxd` serves one,
+   so the lane must be named on the request (a path prefix or a header); and step 1 records
+   whether `machined` vendors `sandboxd` as a module or serves the ops itself against the goldens
+   (phase 3 leaves it to this phase, `task-24.md:29-32`).
+2. **What the runner's git reaches.** Phase 3's runner runs as the agent's uid with only its lane
+   mounted, so its checks protect nothing on the host (`task-24.md:51-60`). In the machine pod it
+   would run beside the whole disk and `PANACEA_APP_MACHINED_TOKEN`, so it must reach no more than
+   a session does: no write to `projects/`, no read of the token. How is **UNVERIFIED** (a
+   separate uid that owns only `lanes/`; or a runner-only pod per lane, as phase 3's pool step 2,
+   `task-24.md:678-684`, which would amend P8-D7).
+3. **Where a bundle file lives.** Phase 3's host half keeps it in `<Hardening.OwnedRoot>/bundles`
+   (`task-24.md:706`); here that is `machined`'s `/tmp/machined-git/bundles`, never the disk. How
+   a bundle the laptop received from the runner reaches it is task 25's, with this item.
+4. **Phase 3's lane create has moved** (seam S8-P3.3): six `--config` keys, `NoFilterEnv` in
+   `Call.Env`, and step 4a's two `config` calls in the new lane (phase-3 `task-03.md:161-173`),
+   so the lane-create shape in item 2 below is stale.
+
+**Depends on phase 3 task 02 with §HGH** (`internal/gitx`: `Call` with `Scope` and `RemoteURL`,
+`Result`, `Runner`, `Exec`, `Hardening`, `MachineHardening`, `UntrustedConfig`, `ErrCallShape`,
+`Error`, `Class` — task-02.md `#### Interfaces — complete` and `#### Host git hardening (HGH)`,
+read at `93c1fdf` and cited by heading, since that file is still being edited) **and on phase 3
+task 24** (the runner and its goldens). If either has not landed, this task does not start: no
+local copy of `gitx` or of the runner is written, and no second hardening is invented here.
 
 **Files:**
 - `control-plane/internal/machineapi/wire.go` — `GitCall`, `GitResult` (modify)
@@ -258,7 +292,7 @@ with a fake `git` first on `PATH` that writes a marker on any start. A marker sc
 
 #### Steps
 
-- [ ] **Step 1:** Confirm phase 3 task 02 has landed **with §HGH**: `git grep -n "type Runner interface\|func MachineHardening\|type UntrustedConfig" -- control-plane/internal/gitx/` returns three lines. If not, stop.
+- [ ] **Step 1:** Confirm the re-plan above (review Q18) has landed in this part; if this part still carries the "Re-plan required" block, stop. Confirm phase 3 task 02 has landed **with §HGH**: `git grep -n "type Runner interface\|func MachineHardening\|type UntrustedConfig" -- control-plane/internal/gitx/` returns three lines; and phase 3 task 24: `git ls-files testdata/gitrunner/` lists its goldens. If not, stop.
 - [ ] **Step 2:** Wire types; tests, each shown red first; the route over `gitx.NewExec(h)`; the scrub in `main.go`; all pass.
 - [ ] **Step 3: Mutation check** (rule 7), each on a `$TEMP` copy, each turning the named test red:
   (1) the `Env` allowlist replaced by `^GIT_[A-Z0-9_]+$` → `TestGitEnvIsAnExplicitAllowlist`,
