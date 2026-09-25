@@ -893,4 +893,67 @@ func (f *Fake) ResolveComment(_ context.Context, commentID string, req hubapi.Re
 	w.workEvent(me, fkEventCommentResolved, fc.teamID, fc.projectID, commentID, map[string]any{"resolved": req.Resolved})
 	return w.renderComment(fc), nil
 }
+
+// Subscribe is the person's own choice (cause manual), a viewer's too; an
+// unchanged choice is no event. No trigger ever changes this row again.
+func (f *Fake) Subscribe(_ context.Context, issueID string, req hubapi.SubscribeRequest) (hubapi.Subscription, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("Subscribe", issueID, req)
+	if err != nil {
+		return hubapi.Subscription{}, err
+	}
+	is, _, err := w.issueOf(issueID, me)
+	if err != nil {
+		return hubapi.Subscription{}, err
+	}
+	k := [2]string{issueID, me}
+	s := w.soc().subs[k]
+	if s != nil && s.subscribed == req.Subscribed {
+		return hubapi.Subscription{IssueID: issueID, User: *w.userRef(me), Cause: s.cause, Subscribed: s.subscribed}, nil
+	}
+	s = &fakeSub{cause: hubapi.SubscribeManual, subscribed: req.Subscribed, seq: w.next()}
+	w.soc().subs[k] = s
+	w.workEvent(me, fkEventSubscriptionSet, is.teamID, is.head.ProjectID, me,
+		map[string]any{"issueId": issueID, "subscribed": req.Subscribed, "cause": string(s.cause)})
+	return hubapi.Subscription{IssueID: issueID, User: *w.userRef(me), Cause: s.cause, Subscribed: s.subscribed}, nil
+}
+
+// Subscriptions is the caller's rows on issues they can read now, newest
+// first; a leaver's rows are kept and hidden (task 13). after is an issue id.
+func (f *Fake) Subscriptions(_ context.Context, page hubapi.PageRequest) (hubapi.Page[hubapi.Subscription], error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var zero hubapi.Page[hubapi.Subscription]
+	me, err := f.enter("Subscriptions", page)
+	if err != nil {
+		return zero, err
+	}
+	limit, err := pageLimit(page.Limit)
+	if err != nil {
+		return zero, err
+	}
+	type row struct {
+		issueID string
+		s       *fakeSub
+	}
+	var rows []row
+	var after int64 = 1 << 62
+	if s := w.soc().subs[[2]string{page.After, me}]; s != nil {
+		after = s.seq
+	}
+	for k, s := range w.soc().subs {
+		if is := w.wk().issues[k[0]]; k[1] == me && s.seq < after && is != nil && w.teams[is.teamID].members[me] != nil {
+			rows = append(rows, row{k[0], s})
+		}
+	}
+	slices.SortFunc(rows, func(a, b row) int { return int(b.s.seq - a.s.seq) })
+	return pageOf(rows, limit, func(r row) string { return r.issueID }, func(r row) hubapi.Subscription {
+		return hubapi.Subscription{IssueID: r.issueID, User: *w.userRef(me), Cause: r.s.cause, Subscribed: r.s.subscribed}
+	}), nil
+}
 ```
+
+That is the whole of `fake_work_social.go`.
