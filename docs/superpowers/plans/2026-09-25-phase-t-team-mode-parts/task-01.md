@@ -214,3 +214,210 @@ org as `hub.org_id`. Step 5 then resolves the **owner**, never Fleet."*
 | `PANACEA_APP_HUB_FLEET_CLIENT_ID` | `""` (Fleet disabled) | Fleet's workload-identity client id. Empty refuses every app-only token, as before this amendment |
 | `PANACEA_APP_HUB_DELEGATION_TTL` | `24h` | a delegation's life from creation or renewal; a Go duration, at most `24h` |
 ```
+
+- [ ] **Step 5: Contract §7.0 — rows 46 to 78, and the delegable route names**
+
+Add a second table to §7.0, directly under the first, headed **Team routes (Phase T)**; it has one
+more column than the first, so it is a table of its own, not appended rows. Its numbering
+continues from row 45. **Caller** `Fleet·O` is Fleet under an `orchestrator`-class delegation,
+`Fleet·W` under a `worker`-class one, `Fleet` under either; `desk` is the member's own desktop
+token. The **route name** is what a delegation lists; a route with no name cannot be delegated.
+
+```markdown
+| # | Method | Path | Caller and role | Route name | Task | Section |
+|---|---|---|---|---|---|---|
+| 46 | POST | `/v1/delegations` | desk, M of the body's project | — | T06 | §7.13 |
+| 47 | GET | `/v1/delegations/{delegationId}` | its owner (desk), or Fleet under it | `delegations.read` | T06 | §7.13 |
+| 48 | POST | `/v1/delegations/{delegationId}/renew` | its owner (desk) | — | T06 | §7.13 |
+| 49 | DELETE | `/v1/delegations/{delegationId}` | its owner, or A of its project (desk) | — | T06 | §7.13 |
+| 50 | POST | `/v1/projects/{projectId}/tasks` | Fleet·O | `tasks.create` | T06 | §7.14 |
+| 51 | PATCH | `/v1/projects/{projectId}/tasks/{taskId}` | Fleet·O, the task's owner | `tasks.update` | T06 | §7.14 |
+| 52 | GET | `/v1/projects/{projectId}/tasks` | V (desk), or Fleet | `tasks.read` | T06 | §7.14 |
+| 53 | POST | `/v1/projects/{projectId}/agents` | Fleet | `agents.start` | T06 | §7.15 |
+| 54 | POST | `/v1/projects/{projectId}/agents/{agentId}/end` | Fleet, the agent's owner | `agents.end` | T06 | §7.15 |
+| 55 | GET | `/v1/projects/{projectId}/agents` | V (desk), or Fleet | `agents.read` | T06 | §7.15 |
+| 56 | POST | `/v1/projects/{projectId}/leases/{leaseId}/events` | Fleet, the holder's owner | `leases.events` | T06 | §7.16 |
+| 57 | POST | `/v1/projects/{projectId}/conflicts` | Fleet, owner of `agentA` | `conflicts.create` | T06 | §7.17 |
+| 58 | PATCH | `/v1/projects/{projectId}/conflicts/{conflictId}` | Fleet, owner of either agent | `conflicts.update` | T06 | §7.17 |
+| 59 | GET | `/v1/projects/{projectId}/conflicts` | V (desk), or Fleet | `conflicts.read` | T06 | §7.17 |
+| 60 | POST | `/v1/projects/{projectId}/threads` | Fleet·O, owner of the opener | `threads.create` | T07 | §7.18 |
+| 61 | PATCH | `/v1/projects/{projectId}/threads/{threadId}` | Fleet·O, owner of a participant | `threads.update` | T07 | §7.18 |
+| 62 | POST | `/v1/projects/{projectId}/threads/{threadId}/messages` | Fleet·O, owner of the sender | `messages.append` | T07 | §7.18 |
+| 63 | GET | `/v1/projects/{projectId}/threads/{threadId}/messages` | Fleet·O for a participant's owner; org *auditor* (desk) | `messages.read` | T07 | §7.18 |
+| 64 | POST | `/v1/projects/{projectId}/escalations` | Fleet·O, the escalation's owner | `escalations.create` | T07 | §7.19 |
+| 65 | POST | `/v1/escalations/{escalationId}/answer` | its owner (desk) only | — | T07 | §7.19 |
+| 66 | GET | `/v1/projects/{projectId}/escalations` | own only (desk, or Fleet·O); org *auditor* | `escalations.read` | T07 | §7.19 |
+| 67 | POST | `/v1/projects/{projectId}/directives` | Fleet·O, owner of both ends | `directives.append` | T07 | §7.20 |
+| 68 | GET | `/v1/projects/{projectId}/directives` | own only (desk, or Fleet·O); org *auditor* | `directives.read` | T07 | §7.20 |
+| 69 | POST | `/v1/projects/{projectId}/turns` | Fleet·O, the Orchestrator's owner | `turns.record` | T07 | §7.21 |
+| 70 | POST | `/v1/projects/{projectId}/human-messages` | desk, M, to their own Orchestrator | — | T07 | §7.22 |
+| 71 | GET | `/v1/projects/{projectId}/human-messages` | own only (desk, or Fleet·O); org *auditor* | `human_messages.read` | T07 | §7.22 |
+| 72 | POST | `/v1/projects/{projectId}/notes` | desk, M, as themselves | — | T46 | §7.23 |
+| 73 | GET | `/v1/projects/{projectId}/notes` | V (desk), or Fleet·O | `notes.read` | T46 | §7.23 |
+| 74 | GET | `/v1/projects/{projectId}/team-policy` | V (desk), or Fleet | `policy.read` | T43 | §7.24 |
+| 75 | PUT | `/v1/projects/{projectId}/team-policy` | desk, A within floors; the route lowered only by org *compliance* | — | T43 | §7.24 |
+| 76 | POST | `/v1/orgs/{orgId}/usage-rollups` | the gateway's identity — **caller rule open**, see §7.25 | — | T66 | §7.25 |
+| 77 | GET | `/v1/projects/{projectId}/usage` | A (every member), M (own) | — | T66 | §7.25 |
+| 78 | GET | `/v1/orgs/{orgId}/changes?after=&kinds=` | Fleet, **no delegation** (§5.10 rule 7) | — | T08 | §7.26 |
+```
+
+`T06` means Phase T task 06. §7.0's closing sentence becomes *"Nothing else is routed than these two
+tables."*
+
+**The class route sets.** A delegation's `routes` must be a subset of its class's set, or the create
+is 422 `bad_request` with `details.route`:
+
+- `orchestrator`: every route name above.
+- `worker` (a worker the member launched with no Orchestrator): `delegations.read`,
+  `tasks.read`, `agents.start`, `agents.end`, `agents.read`, `leases.events`, `conflicts.create`,
+  `conflicts.update`, `conflicts.read`, `policy.read`.
+
+A worker-class delegation can therefore never carry a message, a directive or an escalation: those
+are the cross-user channel, and OD-16 gives it to the Orchestrator alone.
+
+- [ ] **Step 6: Contract §7.13 to §7.17 — delegation, task, agent, lease event, conflict**
+
+Conventions for every team section. **Requests** carry free text as plain strings; the Hub bounds
+and cleans them (task 02), stamps the author class from the route (a `Fleet` route writes `agent`,
+a `desk` route writes `human`) and returns them as a `Text` object:
+`{"body", "author": "agent"|"human", "authorAgentId" (agent text only), "ownerUserId", "at"}`.
+**Globs** are repo-relative, validated by `teamtext.ValidGlob`, ≤ 20 per set, each matching ≤ 10%
+of the project's tracked files when Fleet supplies the count (`teamtext.Breadth`; the Hub holds no
+file list, so it checks the count Fleet sends in `trackedFiles` and the glob grammar; Fleet checks
+the match). **No request body carries an owner, an actor, a `via`, a delegation or a session id**;
+strict decoding refuses them (§5.10 rule 4, `hub-contract.md:941-942`). Every write is one
+metadata-only audit event and one feed row, in the §10.6 transaction.
+
+**§7.13 Delegations.** `POST /v1/delegations`, body `{"projectId","class","routes"}`, 201:
+
+```json
+{ "id": "dl-3f2a91c07b1e4d2a", "projectId": "pj-…", "ownerUserId": "u-…",
+  "class": "orchestrator", "routes": ["tasks.create", "agents.start"],
+  "createdAt": "2026-09-25T01:00:00Z", "expiresAt": "2026-09-26T01:00:00Z",
+  "renewedAt": null, "revokedAt": null, "revokedReason": "" }
+```
+
+`class` is `orchestrator`·`worker`. `routes` is 1 to 25 distinct names from the class's set.
+`renew` sets `expiresAt = now + PANACEA_APP_HUB_DELEGATION_TTL` and `renewedAt = now`; a lapsed but
+unrevoked delegation may be renewed (the event carries `"lapsed": true`), a revoked one may not (409
+`conflict`). `DELETE` sets `revokedAt` and `revokedReason` = `owner` or `admin`; removing a member
+revokes theirs with `member_removed` (task 44), and a failed account check with `account_disabled`.
+
+**§7.14 Tasks.** `POST …/tasks`, body:
+
+```json
+{ "id": "tk-…", "orchestratorAgentId": "ag-…", "title": "Add the export route",
+  "titleSource": "hm-…", "reason": { "briefRef": "brief:bf-…@3#export", "why": "…" },
+  "scope": ["src/export/**"], "trackedFiles": 812, "state": "planned" }
+```
+
+`title` ≤ 140; `why` ≤ 200; `titleSource` optional: the owner's own `hm-…` whose trimmed body
+**equals** the title, which makes the title `human`, else it is `agent`. `briefRef` is a brief key
+(§3.2) plus `#` and a section id `^[a-z0-9][a-z0-9-]{0,63}$` (**UNVERIFIED** against phase 4's
+section ids until P4's merge). `state` is `planned`·`active`·`blocked`·`done`·`abandoned`, default
+`planned`; `done` and `abandoned` are terminal (409 `conflict`). `PATCH` body `{"revision", "state"?,
+"scope"?, "trackedFiles"?, "why"?}`, 409 `revision_conflict` on a stale revision. The record adds
+`projectId`, `ownerUserId`, `revision`, `createdAt`, `updatedAt`. **`title` and `reason.why` are
+returned only to Fleet·O**; every other reader gets the record without them (`05-design.md` §5.1).
+
+**§7.15 Agents.** `POST …/agents` (start), body:
+
+```json
+{ "id": "ag-…", "role": "worker", "parentAgentId": "ag-…", "taskId": "tk-…",
+  "harness": { "id": "claude-code", "version": "2.1.4" },
+  "laneRef": "refs/panacea/lanes/ag-…/main", "policy": { "version": 3, "digest": "sha256:…" } }
+```
+
+`role` is `orchestrator`·`worker`; an Orchestrator has no parent; a worker's parent, when given,
+is an Orchestrator of the **same owner**. `harness.id` `^[a-z][a-z0-9-]{0,31}$`, `version`
+`^[0-9A-Za-z.+-]{1,32}$`. `laneRef` starts `refs/panacea/lanes/` (OD-2) and passes
+`hubapi.ValidBranchRef`'s component rules. `policy` is the OD-23 version and digest the sandbox was
+started with (Phase T task 13). `POST …/agents/{agentId}/end`, body `{"exitClass"}`, one of
+`done`·`stopped`·`failed`·`access_removed`·`lapsed`; a second end is 409 `conflict`. Status
+(`working`, `waiting`, …) is Fleet state and never reaches the Hub. Solo projects keep §7.8's
+`session_link`; a team project's route 33 is 409 `conflict` with `details.use = "agents"`.
+
+**§7.16 Lease events.** `POST …/leases/{leaseId}/events`, body
+`{"seq", "holderAgentId", "mode", "globs", "trackedFiles", "state", "expiresAt", "at"}`. `mode`
+`intent`·`hold`·`bulk`; `state` `requested`·`granted`·`contested`·`yielded`·`released`·`expired`·
+`admin-released`. Fleet stays authoritative: the Hub checks shape, owner and that `seq` is the
+lease's last `seq` + 1 (409 `conflict` otherwise), and that nothing follows a terminal state
+(`yielded`, `released`, `expired`, `admin-released`). **One exception to "the holder's owner"**:
+an `admin-released` event is written under the delegation of an A of the project, and records it.
+
+**§7.17 Conflicts.** `POST …/conflicts`, body:
+
+```json
+{ "id": "cf-…", "agentA": "ag-…", "agentB": "ag-…", "tier": "H",
+  "paths": [ { "path": "src/export/route.ts", "lines": [[10, 24]] } ],
+  "basis": { "a": "<40 or 64 hex>", "b": "<40 or 64 hex>" } }
+```
+
+`tier` `P`·`H`·`M`·`S`; ≤ 50 paths, ≤ 20 line ranges each, `1 ≤ start ≤ end`; the two agents
+differ. The record adds `state` (`raised` at create; then `negotiating`·`accepted`·`resolved`·
+`escalated`·`cleared`), `resolution` (`split`·`sequence`·`yield`·`build-on`·`proceed-both`, or
+`""`), `threadId`, `revision`, `createdAt`, `updatedAt`. `PATCH` body `{"revision", "state",
+"resolution"?, "threadId"?}`; `resolution` is required with `resolved` and `accepted`.
+
+- [ ] **Step 7: Contract §7.18 to §7.22 — thread, message, escalation, directive, turn, human message**
+
+**§7.18 Threads and messages.** `POST …/threads`, body `{"id", "openerAgentId", "participants",
+"subject": {"kind": "conflict"|"lease"|"free", "id": "cf-…"|"ls-…"|""}, "deadline"}`:
+`participants` is exactly the 2 distinct Orchestrator `ag-…` of **different** owners, the opener
+among them; `deadline` is Fleet-set, 30 minutes to 24 hours after now. The record adds `state`
+(`open`, then `resolved`·`escalated`·`expired`), `rounds` (0), `revision`, `createdAt`. `PATCH`
+body `{"revision", "state"?, "rounds"?}`; `rounds` only grows. `POST …/threads/{threadId}/messages`
+is **append-only**, body `{"id", "senderAgentId", "kind", "fields", "text"?, "templated"}`:
+
+| `kind` | `fields` (typed) | `text` |
+|---|---|---|
+| `ask` | `{"subject": {"kind": "task"\|"lease"\|"path"\|"conflict", "ref"}}` | question ≤ 600, required |
+| `answer` | `{"inReplyTo": "ms-…"}` | ≤ 600; only with `"templated": false`, which Fleet sets only under the owner's standing permission (§6.5) |
+| `inform` | `{"subject": …}` as `ask` | ≤ 600, required |
+| `propose` · `counter` | `{"resolution": Resolution}` | rationale ≤ 600, optional |
+| `accept` · `reject` | `{"proposal": "ms-…"}` | reason ≤ 300, optional |
+| `withdraw` | `{"proposal": "ms-…"}`, the sender's own | none |
+
+`Resolution` is one of `{"kind": "split", "sides": {"<ag>": [globs], "<ag>": [globs]}}`,
+`{"kind": "sequence", "first": "ag-…"}`, `{"kind": "yield", "globs": [globs]}`,
+`{"kind": "build-on", "base": "ag-…"}`, `{"kind": "proceed-both", "paths": [globs]}`. A message
+whose `senderAgentId` is not a participant is 403 `forbidden`; not the owner's, 403
+`agent_not_owner`. `GET` returns messages to Fleet·O **for a participant's owner** and to an org
+*auditor*, to nobody else; text is always a `Text` with `author = "agent"`.
+
+**§7.19 Escalations.** `POST …/escalations`, body `{"id", "fromAgentId" ("" when Fleet raises it
+for itself), "kind": "inform"|"decide", "threadId"?, "question", "options", "default",
+"deadline"}`. `question` ≤ 300. `options`: 0 for `inform`, 2 to 4 for `decide`, each
+`{"label" ≤ 80, "consequence" ≤ 200}`. `default` is an option index, required for `decide`, and is
+**Fleet's** choice, always the safe one (§6.5); `deadline` ≥ 30 minutes after now. The owner is the
+delegation's owner; `fromAgentId`, when set, is the owner's Orchestrator. The record adds
+`ownerUserId`, `answer` (`null` or `{"choice", "text": Text·human, "answeredAt"}`), `createdAt`.
+`POST /v1/escalations/{escalationId}/answer`, body `{"choice", "text"?}`, `text` ≤ 300, **by the
+owner's own desktop token only**: anyone else, Fleet included, is 403 `forbidden`; a second answer
+is 409 `conflict`. Past its deadline with no answer, an escalation *reads* as defaulted; Fleet
+acts on the default and cites the `es-…` in the directive it issues. Readable by the owner and an
+org *auditor* only: another member's `GET` is filtered to their own, so a teammate's `es-…` never
+appears, and their `answer` on it is 403 `forbidden`.
+
+**§7.20 Directives.** `POST …/directives`, **append-only**, body `{"id", "fromAgentId",
+"toAgentId", "kind", "text"?, "rung", "origin", "read", "approvedBy"?}`. `kind` `pause`·`resume`·
+`narrow`·`wait-for`·`rebase`·`free`; `text` ≤ 600, required for `free` and refused otherwise;
+`rung` `piggyback`·`inbox-socket`·`pty-nudge`; `origin` `human`·`fleet`; `read` ≤ 100 ids
+(`ms-`, `tk-`, `nt-`, `es-`) the Orchestrator session read since its human last spoke;
+`approvedBy` an `es-…`. `from` is the owner's Orchestrator, `to` the owner's worker. **The Hub
+re-checks the taint rule** (`05-design.md` §7.2) as a second layer to Fleet's verb handler: when
+`origin` is `fleet` and `kind` is not `pause`, `narrow` or `wait-for`, `approvedBy` must name a
+`decide` escalation of the same owner **answered by that owner**, else 403 `forbidden` with
+`details.required = "decide"`. Readable by the owner and an org *auditor* only.
+
+**§7.21 Orchestrator turns.** `POST …/turns`, body `{"id", "orchestratorAgentId", "origin",
+"consumed" (≤ 200 event ids), "issued" (≤ 100 `dv-`/`ms-`/`es-` ids), "tokens": {"input",
+"output"}}`, 201 with `{"id"}`. It writes **one audit event and no table row**
+(`05-design.md` §3.3: "audit event only").
+
+**§7.22 Human messages.** `POST …/human-messages`, body `{"toAgentId", "text"}`, `text` ≤ 2,000,
+**append-only**, by the owner's desktop; `toAgentId` must be the owner's own Orchestrator (403
+`agent_not_owner` otherwise). The Hub mints `hm-…`; the record is `{"id", "projectId",
+"ownerUserId", "toAgentId", "text": Text·human, "createdAt", "tombstonedAt": null}`. Readable by the
+owner (desk, or Fleet·O under the owner's delegation) and an org *auditor* only. Erasure tombstones
+it (task 46): `text` becomes `null`, the audit event stays.
