@@ -154,7 +154,9 @@ func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 // under the Syncer's lock (Syncer and Lander share package converge). refs is
 // [refs/heads/<branch>] + [<up> when up != ""]. For each distinct told sha t:
 //   sent_t, done_t = lanegit.SendBranch(refs, basis: [t])
-//   — `bundle create` into <Hardening.OwnedRoot>/bundles, shared by every lane whose told is t.
+//   — `bundle create` into bundles = l.LaneGit.Bundles(ctx, lane) (task 24, seam S8-P3.4; locally
+//   <Hardening.OwnedRoot>/bundles), shared by every lane whose told is t and whose MachineID
+//   is the same: groups below are keyed by MachineID as well, so no bundle crosses machines.
 //   Only sent_t.Carried is in the bundle: a ref t reaches (<up> behind t, the normal state after
 //   a first push, or the tip after an undo) is in sent_t.Reached and goes to Fetch as a Set,
 //   since `bundle create` leaves such a ref out and a refspec for it exits 128 (task 24's split;
@@ -207,15 +209,15 @@ func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 // taken for its claim, when it has none told, is kept and reused), and one more runner call
 // (task 24), with its group's bundle. dst(refs/heads/<branch>) = refs/remotes/origin/<branch>
 // and dst(<up>) = refs/remotes/upstream/<branch>:
-//   r.Fetch(sent.Bundle, FetchRequest{
+//   rc = bundles.Open(ctx, sent.ID); r.Fetch(rc, FetchRequest{   (rc closed after; S8-P3.4)
 //     Refspecs: +<ref>:dst(<ref>) for each ref in sent.Carried,
 //     Sets:     "dst(<ref>) <sha>" for each ref → sha in sent.Reached,
 //     Deletes:  [refs/remotes/upstream/<branch>] — only when up == ""})
 //   Either ref can be a Set: <up> behind the told tip after a push, or refs/heads/<branch>
 //   after an undo that a teammate's new <up> accompanies. The delete (a no-op when absent)
-//   keeps a clone from offering a remote branch the project no longer tracks. The bundle file
-//   is rewound for each lane of its group.
-// done_t() deletes each bundle file after the last lane of its group reads it. When no asked
+//   keeps a clone from offering a remote branch the project no longer tracks. Each lane of the
+//   group Opens the bundle afresh (task 24's Bundles: each Open starts at the first byte).
+// done_t() removes each bundle after the last lane of its group reads it. When no asked
 // id is a lane of the branch, or every one is deferred, nothing is sent.
 // No host git runs in a lane, and the runner is told no path of the project's (R4.2):
 // sandboxd fetches from the bundle file it is streamed. refs/remotes/upstream/<branch> is

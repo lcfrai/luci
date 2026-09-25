@@ -128,7 +128,8 @@ package converge // not lanes: task 24's lanegit imports lanes, so lanes cannot 
 //     Validation goldens make a red host test) sets Unreadable, as no answer does: the lane is
 //     asked about, never removed as if clean.
 // Then, when Elsewhere or Listed is non-empty, the archive, into the PROJECT, with prefix =
-// OffBranchPrefix(lane.ID, now.Unix()):
+// OffBranchPrefix(lane.ID, now.Unix()), with bundles = LaneGit.Bundles(ctx, lane) (task 24,
+// seam S8-P3.4; locally LocalBundles):
 //   lanegit.ArchiveLane(refs: each refname of Elsewhere (or Listed) [+ HEAD when detached, which
 //                       is then among them] → the full sha runner.Refs (or Head) answered,
 //                       basis, prefix, refspecs: OffBranchRefspecs(st, prefix))
@@ -197,7 +198,9 @@ func OffBranchRefspecs(st RemovalState, prefix string) []string
 //      bind mount is live on lane.Path during step 3, and no sweep between steps 3 and 4 (the
 //      lane is still in Store) can start a sandbox on a deleted path. A Drop error stops the
 //      removal before step 3; a retry repeats 2a, which is idempotent.
-//  3. RemoveTree(CloneRoot, lane.Path) — skipped when the directory is already gone
+//  3. fs.RemoveTree(ctx, CloneRoot, lane.Path), fs = lanes.FSOf(machine) (task 03, seam
+//     S8-P3.6; locally LocalFS, task 03's RemoveTree) — skipped when fs.Exists says the
+//     directory is already gone; an FSOf error stops the removal before step 1
 //  4. Store.Remove(id)
 // Steps 1-2 run with Scope Project (task-02 §HGH). Step 3 runs no git in the clone: RemoveTree is
 // a file operation, not git, so it needs no runner (R4.2). Inspect releases its runner before it

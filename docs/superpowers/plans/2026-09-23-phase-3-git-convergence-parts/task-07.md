@@ -173,7 +173,8 @@ func (s *Syncer) Run(ctx context.Context)
 //     too, and leaves the last Observed in place);
 //  2. `rev-parse --verify --quiet refs/panacea/lanes/<id>` in the PROJECT (Read);
 //  3. when they differ, `lanegit.FetchLane(refs: [refs/heads/<branch>], basis: [the lane ref's
-//     sha, the branch tip], refspec +refs/heads/<branch>:refs/panacea/lanes/<id>)`, which bundles
+//     sha, the branch tip], refspec +refs/heads/<branch>:refs/panacea/lanes/<id>)`, with
+//     bundles = LaneGit.Bundles(ctx, lane) (task 24, seam S8-P3.4; locally LocalBundles), which bundles
 //     in the sandbox and runs `bundle verify`, `bundle list-heads` and a fsck'd
 //     fetch --atomic --no-auto-maintenance --no-tags --no-write-fetch-head --quiet <bundle file>
 //     in the PROJECT (task 24). A `*BundleRefused` is `Err`, and the lane ref does not move.
