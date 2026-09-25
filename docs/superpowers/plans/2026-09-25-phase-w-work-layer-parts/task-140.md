@@ -183,8 +183,8 @@ func (s *Service) ProposeIssues(ctx context.Context, projectID string, req Propo
 		}
 		done[it.Key] = true
 		out.Proposals = append(out.Proposals, ProposedIssue{Criterion: c,
-			Title:       hubapi.AuthoredText{Text: title, Author: "A"},
-			Description: hubapi.AuthoredText{Text: strings.TrimSpace(it.Description), Author: "A"},
+			Title:       hubapi.AuthoredText{Text: title, Author: hubapi.AuthorAgent}, // task-02.md:226-229
+			Description: hubapi.AuthoredText{Text: strings.TrimSpace(it.Description), Author: hubapi.AuthorAgent},
 			Serves:      []hubapi.Serve{{BriefKey: c.BriefKey, CriterionID: c.ID}}})
 	}
 	for i, c := range unc {
@@ -207,3 +207,92 @@ whose `CriterionID` equals its id **and** whose `BriefKey` names the same brief 
 (an issue serving `@5` still covers the criterion at `@6` when the id is unchanged; a drifted
 criterion is task 10's `drifting`, not *uncovered*). An erased brief revision (`Content` null) gives
 no criteria and no call.
+
+#### Interfaces — complete: `control-plane/internal/workassist/propose_cycle.go`
+
+```go
+package workassist
+
+import (
+	"context"
+	"encoding/json"
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// ProposeCycleRequest is POST /v1/work/assist/propose-cycle's body.
+type ProposeCycleRequest struct {
+	TeamID  string `json:"teamId"`
+	CycleID string `json:"cycleId"` // cy-…, the upcoming cycle the proposal is for
+}
+
+// CycleCandidate is one backlog issue as the prompt sees it (decision 5).
+// There is no estimate, capacity or history field, by design.
+type CycleCandidate struct {
+	Key       string         `json:"key"`   // i1…iN, local to one call
+	IssueID   string         `json:"-"`     // is-…, never sent
+	Alias     string         `json:"alias"` // EP-142
+	Title     string         `json:"title"`
+	Priority  string         `json:"priority"`
+	DueOn     *string        `json:"dueOn"`
+	BlockedBy []string       `json:"blockedBy"` // aliases of open blockers
+	Serves    []hubapi.Serve `json:"-"`         // grouping input, never sent
+	Criteria  []string       `json:"criteria"`  // "C3" labels, for the model to read
+}
+
+// ProposedCycleIssue is one kept pick, with the keys of its why.
+type ProposedCycleIssue struct {
+	IssueID string `json:"issueId"`
+	Alias   string `json:"alias"`
+	Why     []Why  `json:"why"` // task 136's Why {kind, key}; at least one, each resolvable
+}
+
+// CriterionGroup is a fact: these picks serve this criterion (decision 6).
+type CriterionGroup struct {
+	Criterion *hubapi.Serve        `json:"criterion"` // null: "Serves no criterion"
+	Label     string               `json:"label"`     // "C3", or ""
+	Issues    []ProposedCycleIssue `json:"issues"`
+}
+
+// CycleProposal is returned to the desktop, which holds it as one Desk item.
+type CycleProposal struct {
+	TeamID  string           `json:"teamId"`
+	CycleID string           `json:"cycleId"`
+	Groups  []CriterionGroup `json:"groups"` // criteria in brief order; the null group last
+	Dropped int              `json:"dropped"`
+	Route   string           `json:"route"`
+	MadeAt  string           `json:"madeAt"`
+}
+
+const maxCycleCandidates = 200
+
+const proposeCycleSystem = `You suggest which backlog items a team could take into its next cycle.
+Each item has a key like i1, a priority, an optional due date, blockers and the criteria it serves.
+Prefer urgent and high priority, near due dates, and items nothing blocks.
+For each pick, give the item keys and criterion labels that explain it.
+Do not estimate effort, capacity or completion. Answer with JSON only:
+{"issues":[{"key":"i3","why":["i3","C3"]}]}.`
+```
+
+`ProposeCycle(ctx, projectID string, req) (CycleProposal, error)` does four things in order:
+
+1. **Candidates.** Through the relay as the caller: the team's issues in `triage`, `backlog` or
+   `todo` whose cycle is null or a past cycle, sorted by priority (`urgent`, `high`, `medium`,
+   `low`, `none`) then `createdAt`, the first `maxCycleCandidates`. The Hub's RLS already hides
+   unreadable issues; the service also drops any issue whose project the caller cannot read (task
+   136's `readable`), so a relay change cannot leak one. Erased issues (`erasedAt` set) are dropped
+   before the prompt.
+2. **The call** through `s.Complete` with the candidates' public fields only (`json:"-"` keeps ids
+   and serves on the control plane).
+3. **Keep.** A pick whose `key` is not a candidate is dropped (counted); each `why` entry must be a
+   candidate key (mapped to `{kind: "issue", key: "issue:is-…"}`) or a criterion label present in
+   that candidate's `Criteria` (mapped to `{kind: "criterion", key: brief key + criterion id}`);
+   a pick left with no why is dropped (AX Principle 7, task 136's rule).
+4. **Group** kept picks by each one's own `Serves` (decision 6), in the brief's criterion order,
+   the no-criterion group last. `MadeAt` is the control plane's clock.
+
+The words *settle*, *fit*, *capacity*, *velocity*, *estimate*, *points* and a `%` never appear in
+`CycleProposal`: it has no free-text field, only aliases, keys and labels, which a reflection test
+over its JSON field names pins with the OD-27 list (`percent`, `progress`, `eta`, `forecast`,
+`remaining`, `capacity`, `velocity`).
